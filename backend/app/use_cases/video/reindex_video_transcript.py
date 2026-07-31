@@ -5,7 +5,11 @@ Can run asynchronously after the transcript update is committed.
 
 import logging
 
-from app.domain.video.gateways import VectorIndexingGateway, VectorStoreGateway, VideoTaskGateway
+from app.domain.video.gateways import (
+    VectorIndexingGateway,
+    VectorStoreGateway,
+    VideoTaskGateway,
+)
 from app.domain.video.repositories import VideoTranscriptionRepository
 
 logger = logging.getLogger(__name__)

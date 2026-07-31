@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable, Sequence
 from copy import deepcopy
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, cast
+from typing import Any, cast
 
 DEFAULT_LOCALE = "default"
 PROMPTS_ROOT_KEY = "rag"
@@ -16,7 +17,7 @@ class PromptConfigurationError(RuntimeError):
 
 
 @lru_cache(maxsize=1)
-def _load_prompt_config() -> Dict[str, Any]:
+def _load_prompt_config() -> dict[str, Any]:
     if not PROMPTS_PATH.exists():
         raise PromptConfigurationError(
             f"Prompt configuration file not found: {PROMPTS_PATH}"
@@ -26,7 +27,7 @@ def _load_prompt_config() -> Dict[str, Any]:
         return json.load(fp)
 
 
-def _iter_locale_candidates(locale: Optional[str]) -> Iterable[str]:
+def _iter_locale_candidates(locale: str | None) -> Iterable[str]:
     if locale:
         yield locale
         if "-" in locale:
@@ -34,7 +35,7 @@ def _iter_locale_candidates(locale: Optional[str]) -> Iterable[str]:
     yield DEFAULT_LOCALE
 
 
-def _deep_merge(base: Dict[str, Any], overrides: Dict[str, Any]) -> Dict[str, Any]:
+def _deep_merge(base: dict[str, Any], overrides: dict[str, Any]) -> dict[str, Any]:
     merged = deepcopy(base)
     for key, value in overrides.items():
         if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
@@ -44,11 +45,11 @@ def _deep_merge(base: Dict[str, Any], overrides: Dict[str, Any]) -> Dict[str, An
     return merged
 
 
-def _resolve_locale_config(locale: Optional[str]) -> Dict[str, Any]:
+def _resolve_locale_config(locale: str | None) -> dict[str, Any]:
     return resolve_locale_section(PROMPTS_ROOT_KEY, locale)
 
 
-def resolve_locale_section(root_key: str, locale: Optional[str] = None) -> Dict[str, Any]:
+def resolve_locale_section(root_key: str, locale: str | None = None) -> dict[str, Any]:
     """Merge default + locale overrides for any top-level prompts.json section."""
     config_root = _load_prompt_config().get(root_key, {})
     default_config = config_root.get(DEFAULT_LOCALE)
@@ -91,12 +92,12 @@ def detect_transcript_locale(text: str) -> str:
     return DEFAULT_LOCALE
 
 
-def get_plog_study_config(locale: Optional[str] = None) -> Dict[str, Any]:
+def get_plog_study_config(locale: str | None = None) -> dict[str, Any]:
     """Locale-aware PLOG study-mode strings (same pattern as RAG prompts)."""
     return resolve_locale_section("plog_study", locale)
 
 
-def build_fallback_learning_object(label: str, locale: Optional[str] = None, *, short: bool = False) -> dict:
+def build_fallback_learning_object(label: str, locale: str | None = None, *, short: bool = False) -> dict:
     """Build opening_question + hint_ladder for a concept when Stage2 omits them."""
     config = get_plog_study_config(locale)
     opening = str(config.get("opening_question") or "What do you already know about {label}?").format(
@@ -118,7 +119,7 @@ def _is_default_english_fallback_opening(label: str, opening: str) -> bool:
 
 
 def resolve_opening_question(
-    label: str, opening: Optional[str], locale: Optional[str] = None
+    label: str, opening: str | None, locale: str | None = None
 ) -> str:
     """Return opening text, replacing empty / known English fallback templates only."""
     preferred = build_fallback_learning_object(label, locale)["opening_question"]
@@ -133,7 +134,7 @@ def normalize_learning_object_for_locale(
     *,
     opening_question: str,
     hint_ladder: Sequence[str],
-    locale: Optional[str] = None,
+    locale: str | None = None,
 ) -> dict:
     """At build time: align LO strings to the lecture locale.
 
@@ -216,9 +217,9 @@ def _build_reference_lines(
 
 
 def build_system_prompt(
-    locale: Optional[str] = None,
-    references: Optional[Sequence[str]] = None,
-    group_context: Optional[str] = None,
+    locale: str | None = None,
+    references: Sequence[str] | None = None,
+    group_context: str | None = None,
 ) -> str:
     """Build system message based on detailed prompt template."""
     config = _resolve_locale_config(locale)
@@ -249,7 +250,7 @@ def build_system_prompt(
         reference_label=reference_label,
     )
 
-    lines: List[str] = [header.strip()]
+    lines: list[str] = [header.strip()]
 
     if group_context and group_context.strip():
         lines.extend(["", group_context_label, group_context.strip()])

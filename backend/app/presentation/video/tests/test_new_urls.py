@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from django.apps import apps
 from django.contrib.auth import get_user_model
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
@@ -36,7 +36,7 @@ class VideoUploadsUrlTests(APITestCase):
 
     def test_old_upload_request_url_no_longer_exists(self):
         """POST /api/videos/upload-request/ should return 404 (old URL removed)."""
-        with self.assertRaises(Exception):
+        with self.assertRaises(NoReverseMatch):
             reverse("video-upload-request")
 
 
@@ -69,7 +69,7 @@ class VideoConfirmUploadViaPatchTests(APITestCase):
 
     def test_old_upload_complete_url_no_longer_exists(self):
         """POST /api/videos/{pk}/upload-complete/ should no longer be registered."""
-        with self.assertRaises(Exception):
+        with self.assertRaises(NoReverseMatch):
             reverse("video-upload-complete", kwargs={"pk": self.video.id})
 
 
@@ -101,7 +101,7 @@ class GroupVideoDetailUrlNameTests(APITestCase):
 
     def test_old_add_video_to_group_url_name_no_longer_exists(self):
         """Old URL name 'add-video-to-group' must be removed."""
-        with self.assertRaises(Exception):
+        with self.assertRaises(NoReverseMatch):
             reverse(
                 "add-video-to-group",
                 kwargs={"group_id": self.group.id, "video_id": self.video.id},

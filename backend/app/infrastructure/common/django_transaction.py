@@ -1,7 +1,7 @@
 """Django-backed implementation of TransactionPort."""
 
+from collections.abc import Callable
 from contextlib import contextmanager
-from typing import Callable
 
 from django.db import transaction as django_transaction
 

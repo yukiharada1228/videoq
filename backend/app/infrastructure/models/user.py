@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
@@ -40,7 +42,7 @@ class User(AbstractUser):
     deactivated_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     class Meta:
-        indexes = [
+        indexes: ClassVar = [
             models.Index(fields=["email", "is_active"]),
             models.Index(fields=["date_joined", "-id"]),
         ]

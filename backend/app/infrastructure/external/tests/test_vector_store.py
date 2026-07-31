@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 from django.test import SimpleTestCase, override_settings
 
 from app.infrastructure.external.vector_store import (
-    PGVectorManager,
     _ALLOWED_TABLE_NAMES,
+    PGVectorManager,
     _get_safe_table_identifier,
     delete_all_vectors,
     delete_video_vectors,
@@ -251,9 +251,9 @@ class DeleteVideoVectorsTests(SimpleTestCase):
     @patch.object(PGVectorManager, "_get_management_store")
     @patch("app.infrastructure.external.vector_store.logger")
     def test_delete_video_vectors_logs_and_propagates_error(self, mock_logger, mock_get_store):
-        mock_get_store.side_effect = Exception("Database error")
+        mock_get_store.side_effect = RuntimeError("Database error")
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(RuntimeError):
             delete_video_vectors(123)
 
         mock_logger.warning.assert_called()
@@ -318,9 +318,9 @@ class DeleteAllVectorsTests(SimpleTestCase):
     @patch("django.db.connection")
     def test_delete_all_vectors_error(self, mock_connection):
         mock_connection.cursor.return_value.__enter__ = MagicMock(
-            side_effect=Exception("Database error")
+            side_effect=RuntimeError("Database error")
         )
         mock_connection.cursor.return_value.__exit__ = MagicMock(return_value=False)
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(RuntimeError):
             delete_all_vectors()

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
-from typing import Any, List, Optional, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any
 
 from django.db import IntegrityError, transaction
 
@@ -110,7 +111,7 @@ def _state_entity(s: LearnerConceptState) -> LearnerConceptStateEntity:
 
 
 class DjangoPlogRepository(PlogRepository):
-    def get_latest_build_job(self, video_id: int) -> Optional[PlogBuildJobEntity]:
+    def get_latest_build_job(self, video_id: int) -> PlogBuildJobEntity | None:
         job = (
             PlogBuildJob.objects.filter(video_id=video_id)
             .order_by("-created_at")
@@ -126,10 +127,10 @@ class DjangoPlogRepository(PlogRepository):
         self,
         job_id: int,
         *,
-        status: Optional[str] = None,
-        error_message: Optional[str] = None,
-        input_tokens: Optional[int] = None,
-        output_tokens: Optional[int] = None,
+        status: str | None = None,
+        error_message: str | None = None,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
         finished: bool = False,
     ) -> PlogBuildJobEntity:
         job = PlogBuildJob.objects.get(pk=job_id)
@@ -142,7 +143,7 @@ class DjangoPlogRepository(PlogRepository):
         if output_tokens is not None:
             job.output_tokens = output_tokens
         if finished:
-            job.finished_at = datetime.now(timezone.utc)
+            job.finished_at = datetime.now(UTC)
         job.save()
         return _job_entity(job)
 
@@ -156,7 +157,7 @@ class DjangoPlogRepository(PlogRepository):
     @transaction.atomic
     def save_summary_nodes(
         self, video_id: int, nodes: Sequence[dict]
-    ) -> List[PlogSummaryNodeEntity]:
+    ) -> list[PlogSummaryNodeEntity]:
         """Save nodes bottom-up. Each dict may include temp_id / parent_temp_id."""
         PlogSummaryNode.objects.filter(video_id=video_id).delete()
         created: dict[str, PlogSummaryNode] = {}
@@ -183,7 +184,7 @@ class DjangoPlogRepository(PlogRepository):
     @transaction.atomic
     def save_concepts(
         self, video_id: int, concepts: Sequence[dict]
-    ) -> List[PlogConceptEntity]:
+    ) -> list[PlogConceptEntity]:
         PlogConcept.objects.filter(video_id=video_id).delete()
         objs = [
             PlogConcept(
@@ -203,7 +204,7 @@ class DjangoPlogRepository(PlogRepository):
         ]
 
     @transaction.atomic
-    def save_edges(self, video_id: int, edges: Sequence[dict]) -> List[PlogEdgeEntity]:
+    def save_edges(self, video_id: int, edges: Sequence[dict]) -> list[PlogEdgeEntity]:
         PlogEdge.objects.filter(video_id=video_id).delete()
         objs = [
             PlogEdge(
@@ -224,7 +225,7 @@ class DjangoPlogRepository(PlogRepository):
     @transaction.atomic
     def save_learning_objects(
         self, objects: Sequence[dict]
-    ) -> List[PlogLearningObjectEntity]:
+    ) -> list[PlogLearningObjectEntity]:
         concept_ids = [int(o["concept_id"]) for o in objects]
         PlogLearningObject.objects.filter(concept_id__in=concept_ids).delete()
         objs = [
@@ -245,7 +246,7 @@ class DjangoPlogRepository(PlogRepository):
             for lo in PlogLearningObject.objects.filter(concept_id__in=concept_ids)
         ]
 
-    def get_graph(self, video_id: int) -> Optional[PlogGraphSnapshot]:
+    def get_graph(self, video_id: int) -> PlogGraphSnapshot | None:
         job = self.get_latest_build_job(video_id)
         if job is None:
             return None
@@ -273,7 +274,7 @@ class DjangoPlogRepository(PlogRepository):
             build_status=job.status,
         )
 
-    def list_ready_graphs(self, video_ids: Sequence[int]) -> List[PlogGraphSnapshot]:
+    def list_ready_graphs(self, video_ids: Sequence[int]) -> list[PlogGraphSnapshot]:
         ready = []
         for vid in video_ids:
             job = self.get_latest_build_job(vid)
@@ -286,7 +287,7 @@ class DjangoPlogRepository(PlogRepository):
 
     def update_edge_validation(
         self, edge_id: int, video_id: int, validation_status: str
-    ) -> Optional[PlogEdgeEntity]:
+    ) -> PlogEdgeEntity | None:
         return self.update_edge(
             edge_id, video_id, validation_status=validation_status
         )
@@ -320,12 +321,12 @@ class DjangoPlogRepository(PlogRepository):
         concept_id: int,
         video_id: int,
         *,
-        label: Optional[str] = None,
-        node_type: Optional[str] = None,
-        intro_sec: Optional[float] = None,
-        source_quote: Optional[str] = None,
-        embedding: Optional[Sequence[float]] = None,
-    ) -> Optional[PlogConceptEntity]:
+        label: str | None = None,
+        node_type: str | None = None,
+        intro_sec: float | None = None,
+        source_quote: str | None = None,
+        embedding: Sequence[float] | None = None,
+    ) -> PlogConceptEntity | None:
         try:
             obj = PlogConcept.objects.get(pk=concept_id, video_id=video_id)
         except PlogConcept.DoesNotExist:
@@ -353,7 +354,7 @@ class DjangoPlogRepository(PlogRepository):
     @transaction.atomic
     def merge_concepts(
         self, video_id: int, *, survivor_id: int, absorb_id: int
-    ) -> Optional[PlogConceptEntity]:
+    ) -> PlogConceptEntity | None:
         if survivor_id == absorb_id:
             return self.get_concept(survivor_id, video_id)
         try:
@@ -440,7 +441,7 @@ class DjangoPlogRepository(PlogRepository):
         absorb.delete()
         return _concept_entity(survivor)
 
-    def get_concept(self, concept_id: int, video_id: int) -> Optional[PlogConceptEntity]:
+    def get_concept(self, concept_id: int, video_id: int) -> PlogConceptEntity | None:
         try:
             return _concept_entity(PlogConcept.objects.get(pk=concept_id, video_id=video_id))
         except PlogConcept.DoesNotExist:
@@ -448,7 +449,7 @@ class DjangoPlogRepository(PlogRepository):
 
     def get_learning_object(
         self, concept_id: int
-    ) -> Optional[PlogLearningObjectEntity]:
+    ) -> PlogLearningObjectEntity | None:
         try:
             return _lo_entity(PlogLearningObject.objects.get(concept_id=concept_id))
         except PlogLearningObject.DoesNotExist:
@@ -463,13 +464,13 @@ class DjangoPlogRepository(PlogRepository):
         concept_id: int,
         video_id: int,
         *,
-        opening_question: Optional[str] = None,
-        hint_ladder: Optional[Sequence[str]] = None,
-        misconceptions: Optional[Sequence[str]] = None,
-        canonical_order: Optional[Sequence[str]] = None,
-        worked_examples: Optional[Sequence[str]] = None,
-        waypoints: Optional[Sequence[dict]] = None,
-    ) -> Optional[PlogLearningObjectEntity]:
+        opening_question: str | None = None,
+        hint_ladder: Sequence[str] | None = None,
+        misconceptions: Sequence[str] | None = None,
+        canonical_order: Sequence[str] | None = None,
+        worked_examples: Sequence[str] | None = None,
+        waypoints: Sequence[dict] | None = None,
+    ) -> PlogLearningObjectEntity | None:
         if not PlogConcept.objects.filter(pk=concept_id, video_id=video_id).exists():
             return None
         lo, _ = PlogLearningObject.objects.get_or_create(concept_id=concept_id)
@@ -516,12 +517,12 @@ class DjangoPlogRepository(PlogRepository):
         edge_id: int,
         video_id: int,
         *,
-        source_id: Optional[int] = None,
-        target_id: Optional[int] = None,
-        edge_type: Optional[str] = None,
-        quote: Optional[str] = None,
-        validation_status: Optional[str] = None,
-    ) -> Optional[PlogEdgeEntity]:
+        source_id: int | None = None,
+        target_id: int | None = None,
+        edge_type: str | None = None,
+        quote: str | None = None,
+        validation_status: str | None = None,
+    ) -> PlogEdgeEntity | None:
         try:
             edge = PlogEdge.objects.get(pk=edge_id, video_id=video_id)
         except PlogEdge.DoesNotExist:
@@ -546,7 +547,7 @@ class DjangoPlogRepository(PlogRepository):
         deleted, _ = PlogEdge.objects.filter(pk=edge_id, video_id=video_id).delete()
         return deleted > 0
 
-    def get_edge(self, edge_id: int, video_id: int) -> Optional[PlogEdgeEntity]:
+    def get_edge(self, edge_id: int, video_id: int) -> PlogEdgeEntity | None:
         try:
             return _edge_entity(PlogEdge.objects.get(pk=edge_id, video_id=video_id))
         except PlogEdge.DoesNotExist:
@@ -568,7 +569,7 @@ class DjangoPlogRepository(PlogRepository):
 
     def get_learner_state(
         self, user_id: int, concept_id: int
-    ) -> Optional[LearnerConceptStateEntity]:
+    ) -> LearnerConceptStateEntity | None:
         try:
             state = LearnerConceptState.objects.get(user_id=user_id, concept_id=concept_id)
         except LearnerConceptState.DoesNotExist:
@@ -577,7 +578,7 @@ class DjangoPlogRepository(PlogRepository):
 
     def list_learner_states_for_video(
         self, user_id: int, video_id: int
-    ) -> List[LearnerConceptStateEntity]:
+    ) -> list[LearnerConceptStateEntity]:
         qs = LearnerConceptState.objects.filter(
             user_id=user_id, concept__video_id=video_id
         ).select_related("concept")
@@ -588,10 +589,10 @@ class DjangoPlogRepository(PlogRepository):
         user_id: int,
         concept_id: int,
         *,
-        reached: Optional[bool] = None,
-        hint_index: Optional[int] = None,
-        last_grade: Optional[str] = None,
-        active: Optional[bool] = None,
+        reached: bool | None = None,
+        hint_index: int | None = None,
+        last_grade: str | None = None,
+        active: bool | None = None,
     ) -> LearnerConceptStateEntity:
         state, _ = LearnerConceptState.objects.get_or_create(
             user_id=user_id,

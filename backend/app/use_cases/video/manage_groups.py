@@ -2,25 +2,40 @@
 Use cases for managing video groups: membership, ordering, and share links.
 """
 
-from typing import List, Tuple
 
 from app.domain.video.exceptions import (
     GroupOrderMismatch as DomainGroupOrderMismatch,
+)
+from app.domain.video.exceptions import (
     GroupVideoOrderMismatch as DomainGroupVideoOrderMismatch,
+)
+from app.domain.video.exceptions import (
     InvalidShareSlug as DomainInvalidShareSlug,
+)
+from app.domain.video.exceptions import (
     ReservedShareSlug as DomainReservedShareSlug,
-    ShareSlugAlreadyExists as DomainShareSlugAlreadyExists,
+)
+from app.domain.video.exceptions import (
     ShareLinkNotActive as DomainShareLinkNotActive,
+)
+from app.domain.video.exceptions import (
+    ShareSlugAlreadyExists as DomainShareSlugAlreadyExists,
+)
+from app.domain.video.exceptions import (
     SomeVideosNotFound as DomainSomeVideosNotFound,
+)
+from app.domain.video.exceptions import (
     VideoAlreadyInGroup as DomainVideoAlreadyInGroup,
+)
+from app.domain.video.exceptions import (
     VideoNotInGroup as DomainVideoNotInGroup,
 )
 from app.domain.video.repositories import VideoGroupRepository, VideoRepository
 from app.domain.video.services import ShareSlugPolicy, VideoGroupMembershipService
 from app.use_cases.video.dto import VideoGroupMemberResponseDTO
 from app.use_cases.video.exceptions import (
-    GroupVideoOrderMismatch,
     GroupOrderMismatch,
+    GroupVideoOrderMismatch,
     InvalidShareSlugInput,
     ResourceNotFound,
     ShareSlugAlreadyExists,
@@ -85,8 +100,8 @@ class AddVideosToGroupUseCase:
         self.group_repo = group_repo
 
     def execute(
-        self, group_id: int, video_ids: List[int], user_id: int
-    ) -> Tuple[int, int]:
+        self, group_id: int, video_ids: list[int], user_id: int
+    ) -> tuple[int, int]:
         """
         Returns:
             (added_count, skipped_count)
@@ -153,7 +168,7 @@ class ReorderVideosInGroupUseCase:
     def __init__(self, group_repo: VideoGroupRepository):
         self.group_repo = group_repo
 
-    def execute(self, group_id: int, video_ids: List[int], user_id: int) -> None:
+    def execute(self, group_id: int, video_ids: list[int], user_id: int) -> None:
         """
         Raises:
             ResourceNotFound: If the group is not found.
@@ -180,7 +195,7 @@ class ReorderVideoGroupsUseCase:
     def __init__(self, group_repo: VideoGroupRepository):
         self.group_repo = group_repo
 
-    def execute(self, group_ids: List[int], user_id: int) -> None:
+    def execute(self, group_ids: list[int], user_id: int) -> None:
         """
         Raises:
             GroupOrderMismatch: If group_ids is empty, duplicated, or contains

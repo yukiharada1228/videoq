@@ -18,9 +18,9 @@ from app.composition_root.auth import (
     get_list_api_keys_use_case,
     get_login_use_case,
     get_refresh_token_use_case,
+    get_request_password_reset_use_case,
     get_resolve_api_key_use_case,
     get_resolve_share_token_use_case,
-    get_request_password_reset_use_case,
     get_revoke_api_key_use_case,
     get_searchapi_key_status_use_case,
     get_set_searchapi_key_use_case,
@@ -75,7 +75,7 @@ from app.composition_root.video import (
     get_video_group_use_case,
 )
 
-__all__ = [
+__all__ = [  # noqa: RUF022 - exports are grouped by domain
     # video
     "get_list_videos_use_case",
     "get_reindex_all_videos_use_case",

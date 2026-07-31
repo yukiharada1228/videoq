@@ -1,7 +1,7 @@
 """Tests for SubmitFeedbackUseCase."""
 
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
 from app.domain.chat.entities import ChatLogEntity
 from app.domain.chat.repositories import ChatRepository
@@ -55,7 +55,7 @@ class SubmitFeedbackUseCaseTests(unittest.TestCase):
             answer="a",
             is_shared_origin=False,
             feedback=None,
-            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
         )
 
     def test_execute_returns_feedback_result_dto(self):

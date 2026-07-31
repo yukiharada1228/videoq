@@ -2,15 +2,28 @@
 
 from unittest import TestCase
 
-from app.domain.video.entities import TagEntity, VideoEntity, VideoGroupEntity, VideoGroupMemberEntity
+from app.domain.video.entities import (
+    TagEntity,
+    VideoEntity,
+    VideoGroupEntity,
+    VideoGroupMemberEntity,
+)
 from app.domain.video.exceptions import (
     GroupOrderMismatch as DomainGroupOrderMismatch,
+)
+from app.domain.video.exceptions import (
     SomeTagsNotFound,
     TagNotAttachedToVideo,
+)
+from app.domain.video.exceptions import (
     VideoAlreadyInGroup as DomainVideoAlreadyInGroup,
+)
+from app.domain.video.exceptions import (
     VideoNotInGroup as DomainVideoNotInGroup,
 )
-from app.use_cases.video.create_group_with_detail import CreateVideoGroupWithDetailUseCase
+from app.use_cases.video.create_group_with_detail import (
+    CreateVideoGroupWithDetailUseCase,
+)
 from app.use_cases.video.create_tag import CreateTagUseCase
 from app.use_cases.video.dto import (
     CreateGroupInput,
@@ -20,22 +33,27 @@ from app.use_cases.video.dto import (
     VideoGroupMemberResponseDTO,
 )
 from app.use_cases.video.exceptions import (
-    GroupVideoOrderMismatch,
     GroupOrderMismatch,
+    GroupVideoOrderMismatch,
     InvalidTagInput,
     ResourceNotFound,
     VideoAlreadyInGroup,
     VideoNotInGroup,
 )
 from app.use_cases.video.manage_groups import (
-    AddVideoToGroupUseCase,
     AddVideosToGroupUseCase,
+    AddVideoToGroupUseCase,
     RemoveVideoFromGroupUseCase,
     ReorderVideoGroupsUseCase,
     ReorderVideosInGroupUseCase,
 )
-from app.use_cases.video.manage_tags import AddTagsToVideoUseCase, RemoveTagFromVideoUseCase
-from app.use_cases.video.update_group_with_detail import UpdateVideoGroupWithDetailUseCase
+from app.use_cases.video.manage_tags import (
+    AddTagsToVideoUseCase,
+    RemoveTagFromVideoUseCase,
+)
+from app.use_cases.video.update_group_with_detail import (
+    UpdateVideoGroupWithDetailUseCase,
+)
 from app.use_cases.video.update_tag_with_detail import UpdateTagWithDetailUseCase
 
 

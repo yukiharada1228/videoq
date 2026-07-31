@@ -1,8 +1,8 @@
 """Unit tests for CreateVideoUseCase using in-memory fakes only."""
 
+from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Callable
 from unittest import TestCase
 from unittest.mock import MagicMock
 

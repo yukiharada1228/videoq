@@ -18,9 +18,9 @@ from app.presentation.video.serializers import (
     TagUpdateSerializer,
     VideoCreateSerializer,
     VideoGroupDetailSerializer,
+    VideoSerializer,
     VideoUpdateSerializer,
     YoutubeVideoCreateSerializer,
-    VideoSerializer,
 )
 
 User = get_user_model()
@@ -376,7 +376,11 @@ class VideoGroupDetailSerializerTests(TestCase):
 
     def test_includes_videos_with_order(self):
         """Test that videos include order information"""
-        from app.domain.video.entities import VideoEntity, VideoGroupEntity, VideoGroupMemberEntity
+        from app.domain.video.entities import (
+            VideoEntity,
+            VideoGroupEntity,
+            VideoGroupMemberEntity,
+        )
 
         video1 = Video.objects.create(user=self.user, title="Video 1")
         video2 = Video.objects.create(user=self.user, title="Video 2")

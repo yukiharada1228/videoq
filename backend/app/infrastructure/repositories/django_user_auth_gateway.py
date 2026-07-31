@@ -2,7 +2,6 @@
 Infrastructure implementations of UserManagementGateway and EmailSenderGateway.
 """
 
-from typing import Optional
 
 from app.domain.auth.gateways import EmailSenderGateway, UserManagementGateway
 
@@ -34,7 +33,7 @@ class DjangoUserManagementGateway(UserManagementGateway):
         User = self._get_user_model()
         User.objects.filter(pk=user_id, is_active=False).update(is_active=True)
 
-    def get_user_id_by_uid_token(self, uidb64: str, token: str) -> Optional[int]:
+    def get_user_id_by_uid_token(self, uidb64: str, token: str) -> int | None:
         from django.contrib.auth.tokens import default_token_generator
         from django.utils.encoding import force_str
         from django.utils.http import urlsafe_base64_decode
@@ -49,7 +48,7 @@ class DjangoUserManagementGateway(UserManagementGateway):
             return None
         return user.id
 
-    def find_active_user_id_by_email(self, email: str) -> Optional[int]:
+    def find_active_user_id_by_email(self, email: str) -> int | None:
         User = self._get_user_model()
         user = (
             User.objects.filter(email__iexact=email, is_active=True)
@@ -108,6 +107,7 @@ class DjangoEmailSenderGateway(EmailSenderGateway):
 
     def send_verification(self, user_id: int) -> None:
         from django.contrib.auth import get_user_model
+
         from app.infrastructure.common.email import send_email_verification
         User = get_user_model()
         user = User.objects.get(pk=user_id)
@@ -115,6 +115,7 @@ class DjangoEmailSenderGateway(EmailSenderGateway):
 
     def send_password_reset(self, user_id: int) -> None:
         from django.contrib.auth import get_user_model
+
         from app.infrastructure.common.email import send_password_reset_email
         User = get_user_model()
         user = User.objects.get(pk=user_id)
@@ -122,6 +123,7 @@ class DjangoEmailSenderGateway(EmailSenderGateway):
 
     def send_email_change_confirmation(self, user_id: int) -> None:
         from django.contrib.auth import get_user_model
+
         from app.infrastructure.common.email import send_email_change_confirmation
         User = get_user_model()
         user = User.objects.get(pk=user_id)

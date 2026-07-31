@@ -1,7 +1,7 @@
 """Unit tests for RequestVideoUploadUseCase — per-user file size limit."""
 
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
-from typing import Callable, Generator
 from unittest import TestCase
 from unittest.mock import MagicMock
 

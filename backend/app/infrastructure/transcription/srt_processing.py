@@ -5,7 +5,9 @@ SRT subtitle processing utilities
 import logging
 
 from app.infrastructure.scene_otsu import SceneSplitter, SubtitleParser
-from app.infrastructure.transcription.audio_processing import process_audio_segments_parallel
+from app.infrastructure.transcription.audio_processing import (
+    process_audio_segments_parallel,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +76,7 @@ def apply_scene_splitting(srt_content, api_key, original_segment_count=None):
             f"Scene splitting completed. Original: {original_segment_count} segments, Scenes: {scene_count} scenes"
         )
         return scene_split_srt, scene_count
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - scene splitting degrades to the original SRT
         logger.warning(f"Scene splitting failed: {e}. Using original SRT content.")
         return srt_content, original_segment_count
 

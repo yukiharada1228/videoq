@@ -1,7 +1,7 @@
 """Tests for GetChatHistoryUseCase."""
 
-from datetime import datetime, timezone
 import unittest
+from datetime import UTC, datetime
 
 from app.domain.chat.dtos import CitationDTO
 from app.domain.chat.entities import ChatLogEntity, VideoGroupContextEntity
@@ -67,7 +67,7 @@ class GetChatHistoryUseCaseTests(unittest.TestCase):
                 ],
                 is_shared_origin=False,
                 feedback="good",
-                created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+                created_at=datetime(2026, 1, 1, tzinfo=UTC),
             )
         ]
         use_case = GetChatHistoryUseCase(

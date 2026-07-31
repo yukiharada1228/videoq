@@ -2,14 +2,13 @@
 Django ORM implementation of user domain repository interfaces.
 """
 
-from typing import Optional
 
 from django.contrib.auth import get_user_model
 from django.db.models import Count
 
-from app.infrastructure.common.cipher import FernetCipher
 from app.domain.user.entities import UserEntity
 from app.domain.user.repositories import UserRepository
+from app.infrastructure.common.cipher import FernetCipher
 
 User = get_user_model()
 
@@ -42,13 +41,13 @@ def _to_entity(user, video_count: int = 0) -> UserEntity:
 class DjangoUserRepository(UserRepository):
     """Django ORM implementation of UserRepository."""
 
-    def get_by_id(self, user_id: int) -> Optional[UserEntity]:
+    def get_by_id(self, user_id: int) -> UserEntity | None:
         user = User.objects.filter(pk=user_id).first()
         if user is None:
             return None
         return _to_entity(user)
 
-    def get_with_video_count(self, user_id: int) -> Optional[UserEntity]:
+    def get_with_video_count(self, user_id: int) -> UserEntity | None:
         user = User.objects.annotate(video_count=Count("videos")).filter(pk=user_id).first()
         if user is None:
             return None

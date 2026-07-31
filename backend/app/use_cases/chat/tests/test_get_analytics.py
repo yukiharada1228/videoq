@@ -1,8 +1,7 @@
 """Tests for GetChatAnalyticsUseCase — scene_distribution must not be present."""
 
 import unittest
-from datetime import datetime
-from typing import Optional
+from datetime import UTC, datetime
 
 from app.domain.chat.entities import ChatAnalyticsRaw, VideoGroupContextEntity
 from app.domain.chat.repositories import ChatRepository, VideoGroupQueryRepository
@@ -43,7 +42,7 @@ class _StubChatRepository(ChatRepository):
 
 
 class _StubGroupRepository(VideoGroupQueryRepository):
-    def __init__(self, group: Optional[VideoGroupContextEntity]):
+    def __init__(self, group: VideoGroupContextEntity | None):
         self._group = group
 
     def get_with_members(self, group_id, user_id=None, share_token=None):
@@ -81,8 +80,8 @@ class GetChatAnalyticsUseCaseTests(unittest.TestCase):
     def test_dto_contains_expected_fields(self):
         raw = ChatAnalyticsRaw(
             total=5,
-            first_date=datetime(2026, 1, 1),
-            last_date=datetime(2026, 1, 5),
+            first_date=datetime(2026, 1, 1, tzinfo=UTC),
+            last_date=datetime(2026, 1, 5, tzinfo=UTC),
             time_series=[TimeSeriesPoint(date="2026-01-01", count=3)],
             feedback=FeedbackSummary(good=2, bad=1, none=2),
         )

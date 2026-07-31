@@ -12,7 +12,10 @@ from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 from rest_framework.permissions import SAFE_METHODS
 from rest_framework.request import Request
 
-from app.dependencies.common import get_cookie_jwt_validator, get_resolve_api_key_use_case
+from app.dependencies.common import (
+    get_cookie_jwt_validator,
+    get_resolve_api_key_use_case,
+)
 
 
 @dataclass(frozen=True)

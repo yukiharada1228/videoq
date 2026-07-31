@@ -1,4 +1,5 @@
 """Video core use-case providers."""
+from app.composition_root import limits as _limits_cr
 from app.infrastructure.common.django_transaction import DjangoTransactionPort
 from app.use_cases.video.confirm_video_upload import ConfirmVideoUploadUseCase
 from app.use_cases.video.create_video import CreateVideoUseCase
@@ -14,7 +15,6 @@ from app.use_cases.video.run_transcription import RunTranscriptionUseCase
 from app.use_cases.video.update_video import UpdateVideoUseCase
 
 from . import _video_shared as shared
-from app.composition_root import limits as _limits_cr
 
 
 def get_list_videos_use_case() -> ListVideosUseCase:
@@ -30,6 +30,7 @@ def get_reindex_all_videos_use_case() -> ReindexAllVideosUseCase:
 
 def _make_duration_estimator():
     import math
+
     from app.infrastructure.common.task_helpers import TemporaryFileManager
     from app.infrastructure.transcription.audio_processing import _get_video_duration
 
@@ -41,7 +42,7 @@ def _make_duration_estimator():
                 path = video_file_accessor.get_local_path(video_id, temp_manager)
                 duration_seconds = _get_video_duration(path)
             return max(1, math.ceil(duration_seconds))
-        except Exception:
+        except Exception:  # noqa: BLE001 - duration estimation is best-effort
             return None
 
     return estimator

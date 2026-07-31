@@ -12,6 +12,11 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from app.presentation.common.decorators import authenticated_view_with_error_handling
+from app.presentation.common.mixins import (
+    AuthenticatedViewMixin,
+    DependencyResolverMixin,
+)
 from app.presentation.common.pagination import StandardLimitOffsetPagination
 from app.presentation.common.responses import create_error_response
 from app.presentation.common.throttles import ShareTokenIPThrottle
@@ -39,15 +44,13 @@ from app.use_cases.video.exceptions import (
     VideoAlreadyInGroup,
     VideoNotInGroup,
 )
-from app.presentation.common.mixins import AuthenticatedViewMixin, DependencyResolverMixin
-from app.presentation.common.decorators import authenticated_view_with_error_handling
 
 from .serializers import (
     AddTagsToVideoRequestSerializer,
     AddTagsToVideoResponseSerializer,
-    AddVideoToGroupResponseSerializer,
     AddVideosToGroupRequestSerializer,
     AddVideosToGroupResponseSerializer,
+    AddVideoToGroupResponseSerializer,
     ReorderGroupsRequestSerializer,
     ReorderVideosRequestSerializer,
     ShareLinkRequestSerializer,

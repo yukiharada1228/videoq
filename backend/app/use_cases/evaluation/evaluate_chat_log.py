@@ -1,8 +1,8 @@
 """Use case: evaluate a single ChatLog with RAGAS and persist the result."""
 
 import logging
-from datetime import datetime, timezone
-from typing import Optional, Protocol, runtime_checkable
+from datetime import UTC, datetime
+from typing import Protocol, runtime_checkable
 
 from app.domain.evaluation.entities import ChatLogEvaluationEntity
 from app.domain.evaluation.gateways import RagEvaluationGateway
@@ -20,7 +20,7 @@ class _ChatLogRecord(Protocol):
 
 
 class _ChatLogRepositoryProtocol(Protocol):
-    def get_by_id(self, chat_log_id: int) -> Optional[_ChatLogRecord]:
+    def get_by_id(self, chat_log_id: int) -> _ChatLogRecord | None:
         ...
 
 
@@ -52,7 +52,7 @@ class EvaluateChatLogUseCase:
             context_precision=None,
             error_message="",
             evaluated_at=None,
-            created_at=datetime.now(tz=timezone.utc),
+            created_at=datetime.now(tz=UTC),
         )
 
         chat_log = self.chat_log_repo.get_by_id(chat_log_id)
@@ -73,9 +73,9 @@ class EvaluateChatLogUseCase:
             pending.faithfulness = scores.faithfulness
             pending.answer_relevancy = scores.answer_relevancy
             pending.context_precision = scores.context_precision
-            pending.evaluated_at = datetime.now(tz=timezone.utc)
+            pending.evaluated_at = datetime.now(tz=UTC)
         except Exception as exc:
-            logger.exception("RAGAS evaluation failed for ChatLog %s: %s", chat_log_id, exc)
+            logger.exception("RAGAS evaluation failed for ChatLog %s", chat_log_id)
             pending.status = "failed"
             pending.error_message = str(exc)
 

@@ -4,7 +4,7 @@ No Django / ORM / external service dependencies.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Sequence  # noqa: F401 (Sequence used by submodule)
+from collections.abc import Sequence
 
 from app.domain.chat.dtos import CitationDTO
 from app.domain.chat.entities import (
@@ -20,7 +20,7 @@ class ChatRepository(ABC):
     @abstractmethod
     def get_logs_for_group(
         self, group_id: int, ascending: bool = True
-    ) -> List[ChatLogEntity]:
+    ) -> list[ChatLogEntity]:
         """Retrieve ordered chat logs for a group."""
         ...
 
@@ -31,15 +31,15 @@ class ChatRepository(ABC):
         group_id: int,
         question: str,
         answer: str,
-        citations: Optional[Sequence[CitationDTO]],
+        citations: Sequence[CitationDTO] | None,
         is_shared: bool,
-        retrieved_contexts: Optional[List[str]] = None,
+        retrieved_contexts: list[str] | None = None,
     ) -> ChatLogEntity:
         """Persist a new chat log entry."""
         ...
 
     @abstractmethod
-    def get_log_by_id(self, log_id: int) -> Optional[ChatLogEntity]:
+    def get_log_by_id(self, log_id: int) -> ChatLogEntity | None:
         """
         Retrieve a single chat log by its ID.
         Eagerly loads group.share_token and group.user_id for access control.
@@ -48,7 +48,7 @@ class ChatRepository(ABC):
 
     @abstractmethod
     def update_feedback(
-        self, log: ChatLogEntity, feedback: Optional[str]
+        self, log: ChatLogEntity, feedback: str | None
     ) -> ChatLogEntity:
         """Update the feedback field of a chat log."""
         ...
@@ -62,7 +62,7 @@ class ChatRepository(ABC):
         ...
 
     @abstractmethod
-    def get_questions_for_group(self, group_id: int) -> List[str]:
+    def get_questions_for_group(self, group_id: int) -> list[str]:
         """Return all question strings for a group (used for keyword extraction)."""
         ...
 
@@ -79,9 +79,9 @@ class VideoGroupQueryRepository(ABC):
     def get_with_members(
         self,
         group_id: int,
-        user_id: Optional[int] = None,
-        share_token: Optional[str] = None,
-    ) -> Optional[VideoGroupContextEntity]:
+        user_id: int | None = None,
+        share_token: str | None = None,
+    ) -> VideoGroupContextEntity | None:
         """
         Fetch a group with its members pre-loaded.
 

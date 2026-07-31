@@ -1,7 +1,6 @@
 """Django ORM implementation of UserLimitsRepository."""
 
-from datetime import timezone
-from typing import Optional
+from datetime import UTC
 
 from django.contrib.auth import get_user_model
 from django.db.models import F, Value
@@ -31,7 +30,7 @@ class DjangoUserLimitsRepository(UserLimitsRepository):
         obj = User.objects.get(pk=user_id)
         return self._to_entity(obj)
 
-    def get_by_user_id(self, user_id: int) -> Optional[UserLimitsEntity]:
+    def get_by_user_id(self, user_id: int) -> UserLimitsEntity | None:
         obj = User.objects.filter(pk=user_id).first()
         return self._to_entity(obj) if obj is not None else None
 
@@ -113,7 +112,7 @@ class DjangoUserLimitsRepository(UserLimitsRepository):
         from datetime import datetime
 
         entity = self.get_or_create(user_id)
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
 
         if entity.usage_period_start is None:
             # First usage — just set the start, don't reset anything
@@ -123,7 +122,7 @@ class DjangoUserLimitsRepository(UserLimitsRepository):
         # Make period_start timezone-aware for comparison
         period_start: datetime = entity.usage_period_start
         if period_start.tzinfo is None:
-            period_start = period_start.replace(tzinfo=timezone.utc)
+            period_start = period_start.replace(tzinfo=UTC)
 
         if now.year != period_start.year or now.month != period_start.month:
             self.reset_monthly_usage(user_id, now)

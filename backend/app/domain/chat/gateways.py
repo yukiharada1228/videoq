@@ -4,8 +4,8 @@ Abstract contracts for external services used by chat use cases.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
-from typing import Iterator, List, Optional, Sequence
 
 from app.domain.chat.dtos import ChatMessageDTO, CitationDTO
 
@@ -32,8 +32,8 @@ class RagResult:
 
     content: str
     query_text: str
-    citations: Optional[Sequence[CitationDTO]] = field(default=None)
-    retrieved_contexts: List[str] = field(default_factory=list)
+    citations: Sequence[CitationDTO] | None = field(default=None)
+    retrieved_contexts: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -44,10 +44,10 @@ class RagStreamChunk:
     The final chunk has ``is_final=True`` and carries ``citations`` / ``query_text``.
     """
 
-    text: Optional[str] = None
-    citations: Optional[Sequence[CitationDTO]] = field(default=None)
-    query_text: Optional[str] = None
-    retrieved_contexts: List[str] = field(default_factory=list)
+    text: str | None = None
+    citations: Sequence[CitationDTO] | None = field(default=None)
+    query_text: str | None = None
+    retrieved_contexts: list[str] = field(default_factory=list)
     is_final: bool = False
 
 
@@ -59,12 +59,12 @@ class RagGateway(ABC):
         self,
         messages: Sequence[ChatMessageDTO],
         user_id: int,
-        video_ids: Optional[Sequence[int]] = None,
-        locale: Optional[str] = None,
-        api_key: Optional[str] = None,
-        group_context: Optional[str] = None,
+        video_ids: Sequence[int] | None = None,
+        locale: str | None = None,
+        api_key: str | None = None,
+        group_context: str | None = None,
         persist_learner_state: bool = True,
-        learner_session_key: Optional[str] = None,
+        learner_session_key: str | None = None,
     ) -> RagResult:
         """
         Execute the RAG pipeline and return the assistant's reply.
@@ -91,12 +91,12 @@ class RagGateway(ABC):
         self,
         messages: Sequence[ChatMessageDTO],
         user_id: int,
-        video_ids: Optional[Sequence[int]] = None,
-        locale: Optional[str] = None,
-        api_key: Optional[str] = None,
-        group_context: Optional[str] = None,
+        video_ids: Sequence[int] | None = None,
+        locale: str | None = None,
+        api_key: str | None = None,
+        group_context: str | None = None,
         persist_learner_state: bool = True,
-        learner_session_key: Optional[str] = None,
+        learner_session_key: str | None = None,
     ) -> Iterator[RagStreamChunk]:
         """Stream the RAG reply token by token.
 

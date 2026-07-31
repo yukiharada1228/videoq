@@ -5,9 +5,14 @@ No in-place mutation of domain entities.
 
 from __future__ import annotations
 
-from typing import Iterable, List
+from collections.abc import Iterable
 
-from app.domain.video.entities import TagEntity, VideoEntity, VideoGroupEntity, VideoGroupMemberEntity
+from app.domain.video.entities import (
+    TagEntity,
+    VideoEntity,
+    VideoGroupEntity,
+    VideoGroupMemberEntity,
+)
 from app.use_cases.video.dto import (
     TagDetailResponseDTO,
     TagResponseDTO,
@@ -52,12 +57,12 @@ def to_video_response_dto(
 
 def to_video_response_dtos(
     videos: Iterable[VideoEntity],
-) -> List[VideoResponseDTO]:
+) -> list[VideoResponseDTO]:
     """Convert a sequence of VideoEntity to VideoResponseDTO list."""
     return [to_video_response_dto(v) for v in videos]
 
 
-def to_tag_response_dtos(tags: Iterable[TagEntity]) -> List[TagResponseDTO]:
+def to_tag_response_dtos(tags: Iterable[TagEntity]) -> list[TagResponseDTO]:
     """Convert a sequence of TagEntity to TagResponseDTO list."""
     return [_to_tag_response_dto(t) for t in tags]
 
@@ -99,7 +104,7 @@ def to_group_detail_response_dto(
     )
 
 
-def to_group_list_response_dtos(groups: Iterable[VideoGroupEntity]) -> List[VideoGroupListResponseDTO]:
+def to_group_list_response_dtos(groups: Iterable[VideoGroupEntity]) -> list[VideoGroupListResponseDTO]:
     """Convert a sequence of VideoGroupEntity to list-friendly DTOs."""
     return [
         VideoGroupListResponseDTO(

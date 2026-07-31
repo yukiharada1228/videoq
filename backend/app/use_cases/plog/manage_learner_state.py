@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List
 
 from app.domain.plog.repositories import PlogRepository
 from app.domain.video.repositories import VideoQueryRepository
@@ -25,7 +24,7 @@ class GetLearnerStateUseCase:
         self.plog_repo = plog_repo
         self.video_repo = video_repo
 
-    def execute(self, video_id: int, user_id: int) -> List[LearnerStateItemDTO]:
+    def execute(self, video_id: int, user_id: int) -> list[LearnerStateItemDTO]:
         video = self.video_repo.get_by_id(video_id, user_id)
         if video is None:
             raise ResourceNotFound("Video")

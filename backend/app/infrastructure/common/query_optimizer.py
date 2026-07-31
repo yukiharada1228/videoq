@@ -1,6 +1,6 @@
 """Database query optimization utilities."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from django.db.models import Count, Prefetch, QuerySet
 
@@ -11,12 +11,12 @@ class QueryOptimizer:
     """Database query optimization class."""
 
     @staticmethod
-    def _apply_select_related(queryset: QuerySet, fields: List[str]) -> QuerySet:
+    def _apply_select_related(queryset: QuerySet, fields: list[str]) -> QuerySet:
         """Apply select_related if fields are provided."""
         return queryset.select_related(*fields) if fields else queryset
 
     @staticmethod
-    def _apply_prefetch_related(queryset: QuerySet, prefetch_objects: List) -> QuerySet:
+    def _apply_prefetch_related(queryset: QuerySet, prefetch_objects: list) -> QuerySet:
         """Apply prefetch_related if objects are provided."""
         return queryset.prefetch_related(*prefetch_objects) if prefetch_objects else queryset
 
@@ -87,9 +87,9 @@ class QueryOptimizer:
 
     @staticmethod
     def get_videos_with_metadata(
-        user_id: Optional[int],
+        user_id: int | None,
         include_transcript: bool = False,
-        status_filter: Optional[str] = None,
+        status_filter: str | None = None,
         include_groups: bool = False,
         include_tags: bool = True,
     ) -> QuerySet:
@@ -133,7 +133,7 @@ class BatchProcessor:
     """Batch processing optimization class."""
 
     @staticmethod
-    def bulk_update_videos(videos: List[Video], fields: List[str]) -> int:
+    def bulk_update_videos(videos: list[Video], fields: list[str]) -> int:
         """Batch update videos."""
         if not videos:
             return 0
@@ -142,8 +142,8 @@ class BatchProcessor:
 
     @staticmethod
     def bulk_create_video_group_members(
-        group_id: int, video_ids: List[int], orders: Optional[List[int]] = None
-    ) -> List[VideoGroupMember]:
+        group_id: int, video_ids: list[int], orders: list[int] | None = None
+    ) -> list[VideoGroupMember]:
         """Batch create video group members."""
         if not video_ids:
             return []
@@ -159,7 +159,7 @@ class BatchProcessor:
         return VideoGroupMember.objects.bulk_create(members)
 
     @staticmethod
-    def bulk_delete_video_group_members(group_id: int, video_ids: List[int]) -> int:
+    def bulk_delete_video_group_members(group_id: int, video_ids: list[int]) -> int:
         """Batch delete video group members."""
         if not video_ids:
             return 0
@@ -174,7 +174,7 @@ class CacheOptimizer:
     """Utilities for optimized data retrieval."""
 
     @staticmethod
-    def get_video_data_by_ids(video_ids: List[int]) -> Dict[int, Dict[str, Any]]:
+    def get_video_data_by_ids(video_ids: list[int]) -> dict[int, dict[str, Any]]:
         """Get optimized video data by IDs."""
         if not video_ids:
             return {}
@@ -194,7 +194,7 @@ class CacheOptimizer:
         }
 
     @staticmethod
-    def get_group_data_by_ids(group_ids: List[int]) -> Dict[int, Dict[str, Any]]:
+    def get_group_data_by_ids(group_ids: list[int]) -> dict[int, dict[str, Any]]:
         """Get optimized video group data by IDs."""
         if not group_ids:
             return {}

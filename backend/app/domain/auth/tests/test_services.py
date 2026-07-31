@@ -6,8 +6,8 @@ from app.domain.auth.services import (
     InvalidCredentials,
     InvalidUidTokenLink,
     PasswordResetRequestPolicy,
-    SignupPolicy,
     SignupEmailAlreadyRegistered,
+    SignupPolicy,
     UidTokenLinkPolicy,
     require_authenticated_user_id,
 )

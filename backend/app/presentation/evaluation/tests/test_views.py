@@ -1,6 +1,6 @@
 """TDD tests for evaluation presentation views."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 from django.apps import apps
@@ -39,8 +39,8 @@ def _make_entity(chat_log_id: int) -> ChatLogEvaluationEntity:
         answer_relevancy=0.85,
         context_precision=0.7,
         error_message="",
-        evaluated_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
-        created_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        evaluated_at=datetime(2026, 4, 1, tzinfo=UTC),
+        created_at=datetime(2026, 4, 1, tzinfo=UTC),
     )
 
 
@@ -163,8 +163,8 @@ class EvaluationLogsPaginationTests(TestCase):
             answer_relevancy=0.85,
             context_precision=0.7,
             error_message="",
-            evaluated_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
-            created_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+            evaluated_at=datetime(2026, 4, 1, tzinfo=UTC),
+            created_at=datetime(2026, 4, 1, tzinfo=UTC),
         )
 
     @patch(_LIST_UC)

@@ -3,18 +3,18 @@ Port interfaces for auth token and credential operations.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, Protocol
+from typing import Protocol
 
 from app.domain.auth.dtos import ApiKeyAuthContextDTO, ShareAuthContextDTO, TokenPairDto
 
 
 class ShareTokenResolverPort(Protocol):
-    def resolve(self, token: str) -> Optional[ShareAuthContextDTO]:
+    def resolve(self, token: str) -> ShareAuthContextDTO | None:
         ...
 
 
 class ApiKeyResolverPort(Protocol):
-    def resolve(self, api_key: str) -> Optional[ApiKeyAuthContextDTO]:
+    def resolve(self, api_key: str) -> ApiKeyAuthContextDTO | None:
         ...
 
 
@@ -22,7 +22,7 @@ class UserAuthGateway(ABC):
     """Abstract interface for credential authentication."""
 
     @abstractmethod
-    def authenticate(self, username: str, password: str) -> Optional[int]:
+    def authenticate(self, username: str, password: str) -> int | None:
         """Return user_id if credentials are valid, None otherwise."""
         ...
 

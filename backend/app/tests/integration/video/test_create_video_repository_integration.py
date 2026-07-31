@@ -8,9 +8,11 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
 from app.infrastructure.common.django_transaction import DjangoTransactionPort
-from app.infrastructure.repositories.django_user_repository import DjangoUserRepository
-from app.infrastructure.repositories.django_video_repository import DjangoVideoRepository
 from app.infrastructure.models import Video
+from app.infrastructure.repositories.django_user_repository import DjangoUserRepository
+from app.infrastructure.repositories.django_video_repository import (
+    DjangoVideoRepository,
+)
 from app.use_cases.video.create_video import CreateVideoUseCase
 from app.use_cases.video.dto import CreateVideoInput
 

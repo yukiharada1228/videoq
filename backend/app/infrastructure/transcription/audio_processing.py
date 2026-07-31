@@ -10,6 +10,7 @@ import tempfile
 
 from django.conf import settings
 from openai import AsyncOpenAI
+
 from app.contracts.media_validation import (
     probe_media_file,
     run_media_command,
@@ -209,7 +210,7 @@ def extract_and_split_audio(input_path, max_size_mb=24, temp_manager=None):
         stderr = getattr(e, "stderr", None) or str(e)
         logger.error(f"Error running ffmpeg/ffprobe: {stderr}")
         return []
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - media libraries expose heterogeneous errors
         logger.error(f"Error extracting/splitting audio: {e}")
         return []
 
@@ -227,15 +228,18 @@ async def transcribe_audio_segment_async(
         model: Whisper model name (default: "whisper-1")
     """
     try:
-        with open(segment_info["path"], "rb") as audio_file:
+        audio_file = await asyncio.to_thread(open, segment_info["path"], "rb")
+        try:
             transcription = await client.audio.transcriptions.create(
                 model=model,
                 file=audio_file,
                 response_format="verbose_json",
                 timestamp_granularities=["segment"],
             )
+        finally:
+            await asyncio.to_thread(audio_file.close)
         return transcription, None, segment_index
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - return provider failures with segment context
         logger.error(f"Error transcribing segment {segment_index}: {e}")
         return None, e, segment_index
 

@@ -2,10 +2,11 @@
 Use case: Submit feedback for a chat log.
 """
 
-from typing import Optional
 
 from app.domain.chat.exceptions import (
     FeedbackAccessDenied as _DomainFeedbackAccessDenied,
+)
+from app.domain.chat.exceptions import (
     InvalidFeedbackValue as _DomainInvalidFeedbackValue,
 )
 from app.domain.chat.repositories import ChatRepository
@@ -27,9 +28,9 @@ class SubmitFeedbackUseCase:
     def execute(
         self,
         chat_log_id: int,
-        feedback: Optional[str],
-        user_id: Optional[int] = None,
-        share_token: Optional[str] = None,
+        feedback: str | None,
+        user_id: int | None = None,
+        share_token: str | None = None,
     ) -> ChatFeedbackResultDTO:
         """
         Args:

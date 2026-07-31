@@ -4,7 +4,6 @@ from urllib.parse import parse_qs, urlparse
 
 from app.use_cases.video.exceptions import InvalidYoutubeUrl
 
-
 _VALID_HOSTS = {
     "youtube.com",
     "www.youtube.com",

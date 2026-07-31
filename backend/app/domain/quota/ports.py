@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from app.domain.quota.entities import UserLimitsEntity
 
@@ -9,7 +8,7 @@ class UserLimitsRepository(ABC):
     def get_or_create(self, user_id: int) -> UserLimitsEntity: ...
 
     @abstractmethod
-    def get_by_user_id(self, user_id: int) -> Optional[UserLimitsEntity]: ...
+    def get_by_user_id(self, user_id: int) -> UserLimitsEntity | None: ...
 
     @abstractmethod
     def save(self, entity: UserLimitsEntity) -> UserLimitsEntity: ...

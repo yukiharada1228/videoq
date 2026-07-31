@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
 
 from app.domain.plog.gateways import PlogEmbeddingGateway
 from app.infrastructure.common.embeddings import get_embeddings
@@ -11,8 +11,8 @@ from app.infrastructure.common.embeddings import get_embeddings
 
 class LangchainPlogEmbeddingGateway(PlogEmbeddingGateway):
     def embed_texts(
-        self, texts: Sequence[str], api_key: Optional[str] = None
-    ) -> List[List[float]]:
+        self, texts: Sequence[str], api_key: str | None = None
+    ) -> list[list[float]]:
         del api_key  # embeddings resolve API key from settings / env
         if not texts:
             return []

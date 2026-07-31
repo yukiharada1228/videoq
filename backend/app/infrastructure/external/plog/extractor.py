@@ -6,7 +6,8 @@ import json
 import logging
 import math
 import re
-from typing import Any, List, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -73,7 +74,7 @@ def _estimate_tokens(text: str) -> int:
     return max(1, math.ceil(len(text) / 4))
 
 
-def _extract_json_array_after_key(text: str, key: str) -> Optional[list]:
+def _extract_json_array_after_key(text: str, key: str) -> list | None:
     """Best-effort recovery of a JSON array value when the full object is truncated."""
     marker = f'"{key}"'
     idx = text.find(marker)
@@ -165,7 +166,7 @@ def _usage_from_response(response: Any, prompt: str, content: str) -> TokenUsage
 
 class LlmPlogConceptExtractor(PlogConceptExtractor):
     def extract_inventory(
-        self, transcript_text: str, scenes: Sequence[dict], api_key: Optional[str] = None
+        self, transcript_text: str, scenes: Sequence[dict], api_key: str | None = None
     ) -> Stage1Result:
         llm = get_langchain_extraction_llm(api_key=api_key)
         scene_index = "\n".join(
@@ -186,7 +187,7 @@ class LlmPlogConceptExtractor(PlogConceptExtractor):
                 response.content if isinstance(response.content, str) else str(response.content)
             )
             data = _parse_json_content(content)
-            concepts: List[ExtractedConcept] = []
+            concepts: list[ExtractedConcept] = []
             seen = set()
             for raw in data.get("concepts") or []:
                 if not isinstance(raw, dict):
@@ -219,7 +220,7 @@ class LlmPlogConceptExtractor(PlogConceptExtractor):
         transcript_text: str,
         concepts: Sequence[ExtractedConcept],
         scenes: Sequence[dict],
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
     ) -> Stage2Result:
         if not concepts:
             return Stage2Result(edges=[], learning_objects=[], usage=TokenUsage())
@@ -241,7 +242,7 @@ class LlmPlogConceptExtractor(PlogConceptExtractor):
                 response.content if isinstance(response.content, str) else str(response.content)
             )
             data = _parse_json_content(content)
-            edges: List[ExtractedEdge] = []
+            edges: list[ExtractedEdge] = []
             for raw in data.get("edges") or []:
                 if not isinstance(raw, dict):
                     continue
@@ -268,7 +269,7 @@ class LlmPlogConceptExtractor(PlogConceptExtractor):
                     )
                 )
 
-            learning_objects: List[ExtractedLearningObject] = []
+            learning_objects: list[ExtractedLearningObject] = []
             for raw in data.get("learning_objects") or []:
                 if not isinstance(raw, dict):
                     continue

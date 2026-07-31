@@ -6,7 +6,10 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
-from app.use_cases.video.dto import VideoGroupListPageResponseDTO, VideoListPageResponseDTO
+from app.use_cases.video.dto import (
+    VideoGroupListPageResponseDTO,
+    VideoListPageResponseDTO,
+)
 
 User = get_user_model()
 Tag = apps.get_model("app", "Tag")

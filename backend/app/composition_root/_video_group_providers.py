@@ -1,19 +1,23 @@
 """Video group/share use-case providers."""
 
-from app.use_cases.video.create_group_with_detail import CreateVideoGroupWithDetailUseCase
+from app.use_cases.video.create_group_with_detail import (
+    CreateVideoGroupWithDetailUseCase,
+)
 from app.use_cases.video.delete_group import DeleteVideoGroupUseCase
 from app.use_cases.video.get_group import GetSharedGroupUseCase, GetVideoGroupUseCase
 from app.use_cases.video.list_groups import ListVideoGroupsUseCase
 from app.use_cases.video.manage_groups import (
-    AddVideoToGroupUseCase,
     AddVideosToGroupUseCase,
+    AddVideoToGroupUseCase,
     CreateShareLinkUseCase,
     DeleteShareLinkUseCase,
     RemoveVideoFromGroupUseCase,
     ReorderVideoGroupsUseCase,
     ReorderVideosInGroupUseCase,
 )
-from app.use_cases.video.update_group_with_detail import UpdateVideoGroupWithDetailUseCase
+from app.use_cases.video.update_group_with_detail import (
+    UpdateVideoGroupWithDetailUseCase,
+)
 
 from . import _video_shared as shared
 

@@ -168,7 +168,7 @@ class PlogMetricsTests(SimpleTestCase):
         self.assertAlmostEqual(concept_coverage(gold_c, ext_c), 2 / 3)
         gold_e = {("A", "B"), ("B", "C")}
         ext_e = {("A", "B"), ("A", "C")}
-        p, r, f1 = edge_prf(gold_e, ext_e)
+        p, r, _f1 = edge_prf(gold_e, ext_e)
         self.assertAlmostEqual(p, 0.5)
         self.assertAlmostEqual(r, 0.5)
 

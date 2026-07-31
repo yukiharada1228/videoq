@@ -14,5 +14,5 @@ class AppConfig(DjangoAppConfig):
     def ready(self):
         """Initialize Celery app when application is ready"""
         # Import Celery app (to avoid circular import)
-        import app.celery_config  # noqa
+        import app.celery_config
         import app.presentation.common.openapi  # noqa

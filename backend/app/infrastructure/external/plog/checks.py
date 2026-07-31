@@ -6,7 +6,7 @@ import logging
 import re
 import unicodedata
 from collections import defaultdict, deque
-from typing import Dict, Iterable, List, Sequence, Set, Tuple
+from collections.abc import Iterable, Sequence
 
 from app.domain.plog.gateways import ExtractedConcept, ExtractedEdge
 
@@ -51,13 +51,13 @@ def ground_edges(
     edges: Sequence[ExtractedEdge],
     transcript: str,
     scenes: Sequence[dict],
-) -> List[ExtractedEdge]:
+) -> list[ExtractedEdge]:
     """Paper §3.1(a): drop any edge whose quote does not occur in the transcript.
 
     No paraphrase recovery — unsupported citations are discarded.
     """
     del scenes  # reserved for intro inference elsewhere
-    grounded: List[ExtractedEdge] = []
+    grounded: list[ExtractedEdge] = []
     dropped = 0
     for e in edges:
         if quote_occurs_in_transcript(e.quote or "", transcript):
@@ -76,10 +76,10 @@ def ground_edges(
 def ensure_ordering_path(
     concepts: Sequence[ExtractedConcept],
     edges: Sequence[ExtractedEdge],
-    intro: Dict[str, float],
+    intro: dict[str, float],
     transcript: str,
     scenes: Sequence[dict],
-) -> List[ExtractedEdge]:
+) -> list[ExtractedEdge]:
     """Deprecated recovery helper — not part of paper §3.1 deterministic checks.
 
     Kept for tests/experiments. Production ``apply_deterministic_checks`` does not
@@ -92,9 +92,9 @@ def ensure_ordering_path(
 
 def infer_intro_seconds(
     concepts: Sequence[ExtractedConcept], scenes: Sequence[dict]
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """Prefer extractor timestamp; fall back to first sustained mention in scenes."""
-    intro: Dict[str, float] = {}
+    intro: dict[str, float] = {}
     for c in concepts:
         intro[c.label] = float(c.timestamp_sec or 0.0)
 
@@ -106,13 +106,13 @@ def infer_intro_seconds(
             if label_l and label_l in text:
                 sustained = float(sc.get("start_sec") or 0.0)
                 break
-        if sustained is not None:
-            # Prefer sustained mention if extractor timestamp is 0 or clearly early-announce
-            if intro[c.label] <= 0.0 or abs(intro[c.label] - sustained) > 120:
-                # Keep definitional cue if present and later than announce
-                if intro[c.label] > 0 and intro[c.label] < sustained:
-                    continue
-                intro[c.label] = sustained
+        if sustained is not None and (
+            intro[c.label] <= 0.0 or abs(intro[c.label] - sustained) > 120
+        ):
+            # Keep definitional cue if present and later than announce
+            if intro[c.label] > 0 and intro[c.label] < sustained:
+                continue
+            intro[c.label] = sustained
     return intro
 
 
@@ -121,8 +121,8 @@ def same_section(a_sec: float, b_sec: float, section_len: float = 300.0) -> bool
 
 
 def retype_ordering_edges(
-    edges: Sequence[ExtractedEdge], intro: Dict[str, float]
-) -> List[ExtractedEdge]:
+    edges: Sequence[ExtractedEdge], intro: dict[str, float]
+) -> list[ExtractedEdge]:
     """Derive ordering subtype from intro timeline (paper §3.1).
 
     - backfill (source introduced after target) → prerequisite_of
@@ -131,7 +131,7 @@ def retype_ordering_edges(
 
     Automatic checks retype; human adjudication may separately reorient edges.
     """
-    result: List[ExtractedEdge] = []
+    result: list[ExtractedEdge] = []
     for e in edges:
         if e.edge_type not in ORDERING:
             result.append(e)
@@ -157,7 +157,7 @@ def retype_ordering_edges(
 
 def drop_unsupported_quotes(
     edges: Sequence[ExtractedEdge], transcript: str
-) -> List[ExtractedEdge]:
+) -> list[ExtractedEdge]:
     return [e for e in edges if quote_occurs_in_transcript(e.quote, transcript)]
 
 
@@ -166,9 +166,9 @@ def ordering_forms_dag(edges: Sequence[ExtractedEdge]) -> bool:
     ordering = [e for e in edges if e.edge_type in ORDERING]
     if not ordering:
         return True
-    adj: Dict[str, Set[str]] = defaultdict(set)
-    indeg: Dict[str, int] = defaultdict(int)
-    nodes: Set[str] = set()
+    adj: dict[str, set[str]] = defaultdict(set)
+    indeg: dict[str, int] = defaultdict(int)
+    nodes: set[str] = set()
     for e in ordering:
         nodes.add(e.source_label)
         nodes.add(e.target_label)
@@ -190,7 +190,7 @@ def ordering_forms_dag(edges: Sequence[ExtractedEdge]) -> bool:
     return seen == len(nodes)
 
 
-def break_cycles(edges: Sequence[ExtractedEdge]) -> List[ExtractedEdge]:
+def break_cycles(edges: Sequence[ExtractedEdge]) -> list[ExtractedEdge]:
     """Legacy helper: greedily keep a DAG subset. Not used in production build.
 
     Paper §4: cycles are resolved in the human adjudication pass (reject /
@@ -201,7 +201,7 @@ def break_cycles(edges: Sequence[ExtractedEdge]) -> List[ExtractedEdge]:
     if not ordering:
         return list(edges)
 
-    kept: List[ExtractedEdge] = []
+    kept: list[ExtractedEdge] = []
     for e in ordering:
         trial = kept + [e]
         if ordering_forms_dag(trial):
@@ -214,7 +214,7 @@ def apply_deterministic_checks(
     edges: Sequence[ExtractedEdge],
     transcript: str,
     scenes: Sequence[dict],
-) -> Tuple[Dict[str, float], List[ExtractedEdge]]:
+) -> tuple[dict[str, float], list[ExtractedEdge]]:
     """Paper §3.1 automatic checks only: (a) quote drop, (b) intro retype.
 
     Cycle resolution and synonym merges are left to the human pass.
@@ -231,10 +231,10 @@ def apply_deterministic_checks(
     return intro, retyped
 
 
-def topological_order(labels: Iterable[str], edges: Sequence[ExtractedEdge]) -> List[str]:
+def topological_order(labels: Iterable[str], edges: Sequence[ExtractedEdge]) -> list[str]:
     nodes = list(dict.fromkeys(labels))
-    adj: Dict[str, Set[str]] = defaultdict(set)
-    indeg: Dict[str, int] = {n: 0 for n in nodes}
+    adj: dict[str, set[str]] = defaultdict(set)
+    indeg: dict[str, int] = {n: 0 for n in nodes}
     for e in edges:
         if e.edge_type not in ORDERING:
             continue
@@ -244,7 +244,7 @@ def topological_order(labels: Iterable[str], edges: Sequence[ExtractedEdge]) -> 
             adj[e.source_label].add(e.target_label)
             indeg[e.target_label] += 1
     q = deque(sorted([n for n in nodes if indeg[n] == 0]))
-    order: List[str] = []
+    order: list[str] = []
     while q:
         n = q.popleft()
         order.append(n)

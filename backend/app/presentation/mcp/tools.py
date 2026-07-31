@@ -6,8 +6,9 @@ registering it in ``MCPToolRegistry._register_all`` and injecting any
 required use case via the constructor.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 from app.presentation.chat.serializers import ChatLogSerializer
 from app.presentation.evaluation.serializers import (
@@ -24,14 +25,13 @@ from app.presentation.video.serializers import (
 from app.use_cases.shared.exceptions import ResourceNotFound
 from app.use_cases.video.dto import ListVideosInput
 
-
-JSON = Dict[str, Any]
+JSON = dict[str, Any]
 
 
 class McpToolError(Exception):
     """Tool-level error surfaced to MCP clients as ``isError: true``."""
 
-    def __init__(self, message: str, *, data: Optional[Any] = None) -> None:
+    def __init__(self, message: str, *, data: Any | None = None) -> None:
         super().__init__(message)
         self.data = data
 
@@ -69,7 +69,7 @@ def _normalize_pagination(arguments: JSON) -> tuple[int, int]:
     return limit, offset
 
 
-def _envelope(items: List[Any], *, count: int, items_key: str) -> JSON:
+def _envelope(items: list[Any], *, count: int, items_key: str) -> JSON:
     return {
         "count": count,
         "next": None,
@@ -78,7 +78,7 @@ def _envelope(items: List[Any], *, count: int, items_key: str) -> JSON:
     }
 
 
-def _slice(items: List[Any], limit: int, offset: int) -> List[Any]:
+def _slice(items: list[Any], limit: int, offset: int) -> list[Any]:
     return items[offset : offset + limit]
 
 
@@ -110,8 +110,8 @@ class MCPToolRegistry:
         self._evaluation_summary = evaluation_summary_use_case
         self._evaluation_logs = evaluation_logs_use_case
 
-        self._tools: Dict[str, Tool] = {}
-        self._handlers: Dict[str, Callable[[int, JSON], JSON]] = {}
+        self._tools: dict[str, Tool] = {}
+        self._handlers: dict[str, Callable[[int, JSON], JSON]] = {}
         self._register_all()
 
     # --- registration --------------------------------------------------
@@ -295,7 +295,7 @@ class MCPToolRegistry:
 
     # --- public API ----------------------------------------------------
 
-    def list_tools(self) -> List[Tool]:
+    def list_tools(self) -> list[Tool]:
         return list(self._tools.values())
 
     def call(self, name: str, user_id: int, arguments: JSON) -> JSON:

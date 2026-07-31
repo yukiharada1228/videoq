@@ -25,9 +25,11 @@ class DjangoVideoFileAccessor:
                 f"video_{video_id}_{os.path.basename(video.file.name)}",
             )
             logger.info("Downloading video from S3 to %s", temp_video_path)
-            with video.file.open("rb") as remote_file:
-                with open(temp_video_path, "wb") as local_file:
-                    local_file.write(remote_file.read())
+            with (
+                video.file.open("rb") as remote_file,
+                open(temp_video_path, "wb") as local_file,
+            ):
+                local_file.write(remote_file.read())
             temp_manager.temp_files.append(temp_video_path)
             logger.info("Video downloaded successfully to %s", temp_video_path)
             return temp_video_path

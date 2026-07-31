@@ -1,6 +1,8 @@
 """Usage-limit DI wiring."""
 
-from app.infrastructure.repositories.django_subscription_repository import DjangoUserLimitsRepository
+from app.infrastructure.repositories.django_subscription_repository import (
+    DjangoUserLimitsRepository,
+)
 from app.use_cases.quota.check_ai_answers_limit import CheckAiAnswersLimitUseCase
 from app.use_cases.quota.check_processing_limit import CheckProcessingLimitUseCase
 from app.use_cases.quota.check_storage_limit import CheckStorageLimitUseCase

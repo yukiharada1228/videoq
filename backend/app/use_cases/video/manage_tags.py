@@ -2,7 +2,6 @@
 Use cases for managing tags on videos.
 """
 
-from typing import List, Tuple
 
 from app.domain.video.exceptions import SomeTagsNotFound, TagNotAttachedToVideo
 from app.domain.video.repositories import TagRepository, VideoRepository
@@ -19,8 +18,8 @@ class AddTagsToVideoUseCase:
         self.tag_repo = tag_repo
 
     def execute(
-        self, video_id: int, tag_ids: List[int], user_id: int
-    ) -> Tuple[int, int]:
+        self, video_id: int, tag_ids: list[int], user_id: int
+    ) -> tuple[int, int]:
         """
         Returns:
             (added_count, skipped_count)

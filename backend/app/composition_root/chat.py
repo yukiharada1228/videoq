@@ -7,6 +7,7 @@ Lifecycle policy:
 
 from functools import lru_cache
 
+from app.composition_root import limits as _limits_cr
 from app.infrastructure.chat.keyword_extractor import JanomeNltkKeywordExtractor
 from app.infrastructure.external.rag_gateway import RagChatGateway
 from app.infrastructure.repositories.django_chat_repository import (
@@ -21,7 +22,6 @@ from app.use_cases.chat.get_keywords import GetChatKeywordsUseCase
 from app.use_cases.chat.reset_history import ResetChatHistoryUseCase
 from app.use_cases.chat.send_message import SendMessageUseCase
 from app.use_cases.chat.submit_feedback import SubmitFeedbackUseCase
-from app.composition_root import limits as _limits_cr
 
 
 def _new_chat_repository() -> DjangoChatRepository:

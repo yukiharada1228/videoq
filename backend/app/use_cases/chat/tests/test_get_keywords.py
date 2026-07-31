@@ -1,7 +1,6 @@
 """Tests for GetChatKeywordsUseCase."""
 
 import unittest
-from typing import List
 
 from app.domain.chat.entities import VideoGroupContextEntity
 from app.domain.chat.ports import KeywordExtractor
@@ -15,7 +14,7 @@ class _StubChatRepository(ChatRepository):
     def __init__(self, questions=None):
         self._questions = questions or []
 
-    def get_questions_for_group(self, group_id: int) -> List[str]:
+    def get_questions_for_group(self, group_id: int) -> list[str]:
         return self._questions
 
     def get_analytics_raw(self, group_id: int):
@@ -47,10 +46,10 @@ class _StubGroupRepository(VideoGroupQueryRepository):
 
 
 class _StubKeywordExtractor(KeywordExtractor):
-    def __init__(self, result: List[KeywordCount]):
+    def __init__(self, result: list[KeywordCount]):
         self._result = result
 
-    def extract(self, questions: List[str], limit: int = 30) -> List[KeywordCount]:
+    def extract(self, questions: list[str], limit: int = 30) -> list[KeywordCount]:
         return self._result
 
 

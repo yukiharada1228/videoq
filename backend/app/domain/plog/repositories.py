@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
 
 from app.domain.plog.entities import (
     LearnerConceptStateEntity,
@@ -18,7 +18,7 @@ from app.domain.plog.entities import (
 
 class PlogRepository(ABC):
     @abstractmethod
-    def get_latest_build_job(self, video_id: int) -> Optional[PlogBuildJobEntity]:
+    def get_latest_build_job(self, video_id: int) -> PlogBuildJobEntity | None:
         ...
 
     @abstractmethod
@@ -30,10 +30,10 @@ class PlogRepository(ABC):
         self,
         job_id: int,
         *,
-        status: Optional[str] = None,
-        error_message: Optional[str] = None,
-        input_tokens: Optional[int] = None,
-        output_tokens: Optional[int] = None,
+        status: str | None = None,
+        error_message: str | None = None,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
         finished: bool = False,
     ) -> PlogBuildJobEntity:
         ...
@@ -45,37 +45,37 @@ class PlogRepository(ABC):
     @abstractmethod
     def save_summary_nodes(
         self, video_id: int, nodes: Sequence[dict]
-    ) -> List[PlogSummaryNodeEntity]:
+    ) -> list[PlogSummaryNodeEntity]:
         ...
 
     @abstractmethod
     def save_concepts(
         self, video_id: int, concepts: Sequence[dict]
-    ) -> List[PlogConceptEntity]:
+    ) -> list[PlogConceptEntity]:
         ...
 
     @abstractmethod
-    def save_edges(self, video_id: int, edges: Sequence[dict]) -> List[PlogEdgeEntity]:
+    def save_edges(self, video_id: int, edges: Sequence[dict]) -> list[PlogEdgeEntity]:
         ...
 
     @abstractmethod
     def save_learning_objects(
         self, objects: Sequence[dict]
-    ) -> List[PlogLearningObjectEntity]:
+    ) -> list[PlogLearningObjectEntity]:
         ...
 
     @abstractmethod
-    def get_graph(self, video_id: int) -> Optional[PlogGraphSnapshot]:
+    def get_graph(self, video_id: int) -> PlogGraphSnapshot | None:
         ...
 
     @abstractmethod
-    def list_ready_graphs(self, video_ids: Sequence[int]) -> List[PlogGraphSnapshot]:
+    def list_ready_graphs(self, video_ids: Sequence[int]) -> list[PlogGraphSnapshot]:
         ...
 
     @abstractmethod
     def update_edge_validation(
         self, edge_id: int, video_id: int, validation_status: str
-    ) -> Optional[PlogEdgeEntity]:
+    ) -> PlogEdgeEntity | None:
         ...
 
     @abstractmethod
@@ -97,12 +97,12 @@ class PlogRepository(ABC):
         concept_id: int,
         video_id: int,
         *,
-        label: Optional[str] = None,
-        node_type: Optional[str] = None,
-        intro_sec: Optional[float] = None,
-        source_quote: Optional[str] = None,
-        embedding: Optional[Sequence[float]] = None,
-    ) -> Optional[PlogConceptEntity]:
+        label: str | None = None,
+        node_type: str | None = None,
+        intro_sec: float | None = None,
+        source_quote: str | None = None,
+        embedding: Sequence[float] | None = None,
+    ) -> PlogConceptEntity | None:
         ...
 
     @abstractmethod
@@ -112,18 +112,18 @@ class PlogRepository(ABC):
     @abstractmethod
     def merge_concepts(
         self, video_id: int, *, survivor_id: int, absorb_id: int
-    ) -> Optional[PlogConceptEntity]:
+    ) -> PlogConceptEntity | None:
         """Human adjudication: merge absorb into survivor (edges + LO), delete absorb."""
         ...
 
     @abstractmethod
-    def get_concept(self, concept_id: int, video_id: int) -> Optional[PlogConceptEntity]:
+    def get_concept(self, concept_id: int, video_id: int) -> PlogConceptEntity | None:
         ...
 
     @abstractmethod
     def get_learning_object(
         self, concept_id: int
-    ) -> Optional[PlogLearningObjectEntity]:
+    ) -> PlogLearningObjectEntity | None:
         ...
 
     @abstractmethod
@@ -136,13 +136,13 @@ class PlogRepository(ABC):
         concept_id: int,
         video_id: int,
         *,
-        opening_question: Optional[str] = None,
-        hint_ladder: Optional[Sequence[str]] = None,
-        misconceptions: Optional[Sequence[str]] = None,
-        canonical_order: Optional[Sequence[str]] = None,
-        worked_examples: Optional[Sequence[str]] = None,
-        waypoints: Optional[Sequence[dict]] = None,
-    ) -> Optional[PlogLearningObjectEntity]:
+        opening_question: str | None = None,
+        hint_ladder: Sequence[str] | None = None,
+        misconceptions: Sequence[str] | None = None,
+        canonical_order: Sequence[str] | None = None,
+        worked_examples: Sequence[str] | None = None,
+        waypoints: Sequence[dict] | None = None,
+    ) -> PlogLearningObjectEntity | None:
         ...
 
     @abstractmethod
@@ -164,12 +164,12 @@ class PlogRepository(ABC):
         edge_id: int,
         video_id: int,
         *,
-        source_id: Optional[int] = None,
-        target_id: Optional[int] = None,
-        edge_type: Optional[str] = None,
-        quote: Optional[str] = None,
-        validation_status: Optional[str] = None,
-    ) -> Optional[PlogEdgeEntity]:
+        source_id: int | None = None,
+        target_id: int | None = None,
+        edge_type: str | None = None,
+        quote: str | None = None,
+        validation_status: str | None = None,
+    ) -> PlogEdgeEntity | None:
         ...
 
     @abstractmethod
@@ -177,7 +177,7 @@ class PlogRepository(ABC):
         ...
 
     @abstractmethod
-    def get_edge(self, edge_id: int, video_id: int) -> Optional[PlogEdgeEntity]:
+    def get_edge(self, edge_id: int, video_id: int) -> PlogEdgeEntity | None:
         ...
 
     @abstractmethod
@@ -187,13 +187,13 @@ class PlogRepository(ABC):
     @abstractmethod
     def get_learner_state(
         self, user_id: int, concept_id: int
-    ) -> Optional[LearnerConceptStateEntity]:
+    ) -> LearnerConceptStateEntity | None:
         ...
 
     @abstractmethod
     def list_learner_states_for_video(
         self, user_id: int, video_id: int
-    ) -> List[LearnerConceptStateEntity]:
+    ) -> list[LearnerConceptStateEntity]:
         ...
 
     @abstractmethod
@@ -202,10 +202,10 @@ class PlogRepository(ABC):
         user_id: int,
         concept_id: int,
         *,
-        reached: Optional[bool] = None,
-        hint_index: Optional[int] = None,
-        last_grade: Optional[str] = None,
-        active: Optional[bool] = None,
+        reached: bool | None = None,
+        hint_index: int | None = None,
+        last_grade: str | None = None,
+        active: bool | None = None,
     ) -> LearnerConceptStateEntity:
         ...
 

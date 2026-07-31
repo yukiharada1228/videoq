@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional
 
 from app.domain.video.dto import UploadFileSource
 
@@ -47,9 +46,9 @@ class CreateYoutubeVideoInput:
 class UpdateVideoInput:
     """Input for UpdateVideoUseCase.execute() (None = field not provided / skip)."""
 
-    title: Optional[str] = None
-    description: Optional[str] = None
-    transcript: Optional[str] = None
+    title: str | None = None
+    description: str | None = None
+    transcript: str | None = None
 
 
 @dataclass(frozen=True)
@@ -64,8 +63,8 @@ class CreateGroupInput:
 class UpdateGroupInput:
     """Input for UpdateVideoGroupUseCase.execute() (None = field not provided / skip)."""
 
-    name: Optional[str] = None
-    description: Optional[str] = None
+    name: str | None = None
+    description: str | None = None
 
 
 @dataclass(frozen=True)
@@ -80,8 +79,8 @@ class CreateTagInput:
 class UpdateTagInput:
     """Input for UpdateTagUseCase.execute() (None = field not provided / skip)."""
 
-    name: Optional[str] = None
-    color: Optional[str] = None
+    name: str | None = None
+    color: str | None = None
 
 
 @dataclass(frozen=True)
@@ -91,7 +90,7 @@ class ListVideosInput:
     keyword: str = ""
     status_filter: str = ""
     sort_key: str = ""
-    tag_ids: Optional[List[int]] = None
+    tag_ids: list[int] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -108,7 +107,7 @@ class TagResponseDTO:
     name: str
     color: str
     video_count: int = 0
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
 
 @dataclass
@@ -124,13 +123,13 @@ class VideoResponseDTO:
     status: str
     description: str = ""
     source_type: str = "uploaded"
-    file_key: Optional[str] = None
-    source_url: Optional[str] = None
-    youtube_video_id: Optional[str] = None
-    error_message: Optional[str] = None
-    uploaded_at: Optional[datetime] = None
-    transcript: Optional[str] = None
-    tags: List[TagResponseDTO] = field(default_factory=list)
+    file_key: str | None = None
+    source_url: str | None = None
+    youtube_video_id: str | None = None
+    error_message: str | None = None
+    uploaded_at: datetime | None = None
+    transcript: str | None = None
+    tags: list[TagResponseDTO] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -138,7 +137,7 @@ class VideoListPageResponseDTO:
     """Use-case output DTO for a paginated video list."""
 
     count: int
-    results: List[VideoResponseDTO]
+    results: list[VideoResponseDTO]
 
 
 @dataclass(frozen=True)
@@ -157,8 +156,8 @@ class VideoGroupMemberResponseDTO:
     group_id: int
     video_id: int
     order: int
-    added_at: Optional[datetime] = None
-    video: Optional[VideoResponseDTO] = None
+    added_at: datetime | None = None
+    video: VideoResponseDTO | None = None
 
 
 @dataclass
@@ -174,10 +173,10 @@ class VideoGroupDetailResponseDTO:
     description: str
     video_count: int
     display_order: int = 0
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-    share_slug: Optional[str] = None
-    members: List[VideoGroupMemberResponseDTO] = field(default_factory=list)
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    share_slug: str | None = None
+    members: list[VideoGroupMemberResponseDTO] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -190,7 +189,7 @@ class VideoGroupListResponseDTO:
     description: str
     video_count: int
     display_order: int = 0
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -198,7 +197,7 @@ class VideoGroupListPageResponseDTO:
     """Use-case output DTO for a paginated video group list."""
 
     count: int
-    results: List[VideoGroupListResponseDTO]
+    results: list[VideoGroupListResponseDTO]
 
 
 @dataclass
@@ -213,5 +212,5 @@ class TagDetailResponseDTO:
     name: str
     color: str
     video_count: int
-    created_at: Optional[datetime] = None
-    videos: List[VideoResponseDTO] = field(default_factory=list)
+    created_at: datetime | None = None
+    videos: list[VideoResponseDTO] = field(default_factory=list)

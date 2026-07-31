@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections import defaultdict, deque
-from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from collections.abc import Iterable, Sequence
 
 from app.domain.plog.entities import (
     LearnerConceptStateEntity,
@@ -15,7 +15,10 @@ from app.domain.plog.entities import (
     PlogLearningObjectEntity,
 )
 from app.domain.plog.gateways import ExtractedConcept
-from app.infrastructure.external.plog.embeddings import best_match_index, cosine_similarity
+from app.infrastructure.external.plog.embeddings import (
+    best_match_index,
+    cosine_similarity,
+)
 
 ORDERING = frozenset({"prerequisite_of", "builds_on"})
 
@@ -39,8 +42,8 @@ def labels_near_duplicate(a: str, b: str) -> bool:
 
 def covered_concept_ids(
     reached: Iterable[int],
-    concepts_by_id: Dict[int, PlogConceptEntity],
-) -> Set[int]:
+    concepts_by_id: dict[int, PlogConceptEntity],
+) -> set[int]:
     """Reached IDs plus exact-normalized duplicate labels."""
     reached_set = {cid for cid in reached if cid in concepts_by_id}
     covered = set(reached_set)
@@ -57,16 +60,16 @@ _NODE_TYPE_RANK = {"object": 0, "limitation": 1, "property": 2}
 
 
 def merge_near_duplicate_concepts(
-    concepts: Sequence["ExtractedConcept"],
-) -> List["ExtractedConcept"]:
+    concepts: Sequence[ExtractedConcept],
+) -> list[ExtractedConcept]:
     """Collapse exact-normalized duplicate inventory labels only.
 
     Broader synonym / granularity merges are a human adjudication step (paper §3.1).
     """
     from app.domain.plog.gateways import ExtractedConcept
 
-    groups: Dict[str, List[tuple[int, ExtractedConcept]]] = defaultdict(list)
-    passthrough: List[ExtractedConcept] = []
+    groups: dict[str, list[tuple[int, ExtractedConcept]]] = defaultdict(list)
+    passthrough: list[ExtractedConcept] = []
     for index, concept in enumerate(concepts):
         key = canonical_concept_label(concept.label)
         if not key:
@@ -74,10 +77,10 @@ def merge_near_duplicate_concepts(
             continue
         groups[key].append((index, concept))
 
-    survivors: List[tuple[int, ExtractedConcept]] = [
+    survivors: list[tuple[int, ExtractedConcept]] = [
         (i, c) for i, c in enumerate(passthrough)
     ]
-    for _key, members in groups.items():
+    for members in groups.values():
         members.sort(
             key=lambda item: (
                 _NODE_TYPE_RANK.get((item[1].node_type or "object").lower(), 9),
@@ -104,10 +107,10 @@ def merge_near_duplicate_concepts(
 def next_uncovered_in_order(
     order: Sequence[int],
     reached: Iterable[int],
-    concepts_by_id: Dict[int, PlogConceptEntity],
+    concepts_by_id: dict[int, PlogConceptEntity],
     *,
-    after_id: Optional[int] = None,
-) -> Optional[int]:
+    after_id: int | None = None,
+) -> int | None:
     """Next concept on the topo path that is not covered by reached (+ synonyms)."""
     covered = covered_concept_ids(reached, concepts_by_id)
     start = 0
@@ -123,8 +126,8 @@ def next_uncovered_in_order(
 
 
 def near_duplicate_ids(
-    concept_id: int, concepts_by_id: Dict[int, PlogConceptEntity]
-) -> Set[int]:
+    concept_id: int, concepts_by_id: dict[int, PlogConceptEntity]
+) -> set[int]:
     """IDs of concepts that are the same teachable unit as ``concept_id`` (incl. self)."""
     concept = concepts_by_id.get(concept_id)
     if concept is None:
@@ -136,19 +139,19 @@ def near_duplicate_ids(
     }
 
 
-def ordering_edges(edges: List[PlogEdgeEntity]) -> List[PlogEdgeEntity]:
+def ordering_edges(edges: list[PlogEdgeEntity]) -> list[PlogEdgeEntity]:
     """Return ordering edges (existence = in graph; no accept/reject gate)."""
     return [e for e in edges if e.edge_type in ORDERING]
 
 
-def ancestors(concept_id: int, edges: List[PlogEdgeEntity]) -> Set[int]:
+def ancestors(concept_id: int, edges: list[PlogEdgeEntity]) -> set[int]:
     """Nodes that must come before concept_id (sources pointing toward it transitively)."""
     # Edge source -> target means source precedes target
-    parents: Dict[int, Set[int]] = defaultdict(set)
+    parents: dict[int, set[int]] = defaultdict(set)
     for e in edges:
         if e.edge_type in ORDERING:
             parents[e.target_id].add(e.source_id)
-    reached: Set[int] = set()
+    reached: set[int] = set()
     q = deque(parents.get(concept_id, ()))
     while q:
         n = q.popleft()
@@ -159,12 +162,12 @@ def ancestors(concept_id: int, edges: List[PlogEdgeEntity]) -> Set[int]:
     return reached
 
 
-def descendants(concept_id: int, edges: List[PlogEdgeEntity]) -> Set[int]:
-    children: Dict[int, Set[int]] = defaultdict(set)
+def descendants(concept_id: int, edges: list[PlogEdgeEntity]) -> set[int]:
+    children: dict[int, set[int]] = defaultdict(set)
     for e in edges:
         if e.edge_type in ORDERING:
             children[e.source_id].add(e.target_id)
-    reached: Set[int] = set()
+    reached: set[int] = set()
     q = deque(children.get(concept_id, ()))
     while q:
         n = q.popleft()
@@ -175,7 +178,7 @@ def descendants(concept_id: int, edges: List[PlogEdgeEntity]) -> Set[int]:
     return reached
 
 
-def prerequisites_of(concept_id: int, edges: List[PlogEdgeEntity]) -> Set[int]:
+def prerequisites_of(concept_id: int, edges: list[PlogEdgeEntity]) -> set[int]:
     return {
         e.source_id
         for e in edges
@@ -184,19 +187,19 @@ def prerequisites_of(concept_id: int, edges: List[PlogEdgeEntity]) -> Set[int]:
 
 
 def select_nearest_unmet(
-    unmet: Set[int], concepts_by_id: Dict[int, PlogConceptEntity]
-) -> Optional[int]:
+    unmet: set[int], concepts_by_id: dict[int, PlogConceptEntity]
+) -> int | None:
     if not unmet:
         return None
     return min(unmet, key=lambda cid: concepts_by_id[cid].intro_sec)
 
 
 def topological_concept_ids(
-    concepts: List[PlogConceptEntity], edges: List[PlogEdgeEntity]
-) -> List[int]:
+    concepts: list[PlogConceptEntity], edges: list[PlogEdgeEntity]
+) -> list[int]:
     ids = [c.id for c in concepts]
     indeg = {cid: 0 for cid in ids}
-    adj: Dict[int, Set[int]] = defaultdict(set)
+    adj: dict[int, set[int]] = defaultdict(set)
     id_set = set(ids)
     for e in edges:
         if e.edge_type not in ORDERING:
@@ -207,7 +210,7 @@ def topological_concept_ids(
             adj[e.source_id].add(e.target_id)
             indeg[e.target_id] += 1
     q = deque(sorted([i for i in ids if indeg[i] == 0], key=lambda i: next(c.intro_sec for c in concepts if c.id == i)))
-    order: List[int] = []
+    order: list[int] = []
     while q:
         n = q.popleft()
         order.append(n)
@@ -222,8 +225,8 @@ def topological_concept_ids(
 
 
 def study_path_concept_ids(
-    concepts: List[PlogConceptEntity], edges: List[PlogEdgeEntity]
-) -> List[int]:
+    concepts: list[PlogConceptEntity], edges: list[PlogEdgeEntity]
+) -> list[int]:
     """Canonical learning path = topo order over the ordering DAG (paper §3).
 
     Only nodes incident to ordering edges are on the forced path. If Stage 2
@@ -233,7 +236,7 @@ def study_path_concept_ids(
     ordering = [e for e in edges if e.edge_type in ORDERING]
     if not ordering:
         return []
-    incident: Set[int] = set()
+    incident: set[int] = set()
     for e in ordering:
         incident.add(e.source_id)
         incident.add(e.target_id)
@@ -246,11 +249,11 @@ def study_path_concept_ids(
 
 
 def route_to_concept(
-    query_embedding: List[float],
-    graphs: List[PlogGraphSnapshot],
+    query_embedding: list[float],
+    graphs: list[PlogGraphSnapshot],
     *,
     min_score: float = 0.25,
-) -> Optional[Tuple[PlogGraphSnapshot, PlogConceptEntity]]:
+) -> tuple[PlogGraphSnapshot, PlogConceptEntity] | None:
     scored = route_to_concept_scored(query_embedding, graphs, min_score=min_score)
     if scored is None:
         return None
@@ -259,13 +262,13 @@ def route_to_concept(
 
 
 def route_to_concept_scored(
-    query_embedding: List[float],
-    graphs: List[PlogGraphSnapshot],
+    query_embedding: list[float],
+    graphs: list[PlogGraphSnapshot],
     *,
     min_score: float = 0.25,
-) -> Optional[Tuple[float, PlogGraphSnapshot, PlogConceptEntity]]:
+) -> tuple[float, PlogGraphSnapshot, PlogConceptEntity] | None:
     """Retrieval-only RouteToConcept with cosine score (Algorithm 1 line 1)."""
-    best: Optional[Tuple[float, PlogGraphSnapshot, PlogConceptEntity]] = None
+    best: tuple[float, PlogGraphSnapshot, PlogConceptEntity] | None = None
     for g in graphs:
         if not g.concepts:
             continue
@@ -284,8 +287,8 @@ def route_to_concept_scored(
 
 
 def next_hint(
-    lo: Optional[PlogLearningObjectEntity], hint_index: int
-) -> Tuple[str, int]:
+    lo: PlogLearningObjectEntity | None, hint_index: int
+) -> tuple[str, int]:
     if lo is None:
         return "", 0
     ladder = lo.hint_ladder or []
@@ -297,7 +300,7 @@ def next_hint(
 
 def neighborhood_summaries(
     graph: PlogGraphSnapshot, concept: PlogConceptEntity, limit: int = 3
-) -> List[str]:
+) -> list[str]:
     """Pick L1 nodes whose time span covers the concept intro."""
     scored = []
     for n in graph.summary_nodes:
@@ -320,12 +323,12 @@ def neighborhood_l0_scenes(
     *,
     window_sec: float = 90.0,
     limit: int = 4,
-) -> List[str]:
+) -> list[str]:
     """Algorithm 1 Retrieve(L0, …): timestamped transcript segments near the concept."""
     if not scenes:
         return []
     intro = float(concept.intro_sec or 0.0)
-    scored: List[Tuple[float, str]] = []
+    scored: list[tuple[float, str]] = []
     for sc in scenes:
         text = str(sc.get("text") or "").strip()
         if not text:
@@ -342,7 +345,7 @@ def retrieve_context(
     graph: PlogGraphSnapshot,
     concept: PlogConceptEntity,
     scenes: Sequence[dict] | None = None,
-) -> List[str]:
+) -> list[str]:
     """Algorithm 1 line 11: Retrieve(L0, L1, t)."""
     l0 = neighborhood_l0_scenes(scenes or [], concept)
     l1 = neighborhood_summaries(graph, concept)
@@ -366,5 +369,5 @@ def ordering_path_ready(graph: PlogGraphSnapshot) -> bool:
 human_validated_ordering_ready = ordering_path_ready
 
 
-def reached_concept_ids(states: List[LearnerConceptStateEntity]) -> Set[int]:
+def reached_concept_ids(states: list[LearnerConceptStateEntity]) -> set[int]:
     return {s.concept_id for s in states if s.reached}

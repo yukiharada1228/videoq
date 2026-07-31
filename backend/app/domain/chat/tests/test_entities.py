@@ -1,6 +1,6 @@
 """Unit tests for chat domain entities."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest import TestCase
 
 from app.domain.chat.entities import ChatLogEntity
@@ -19,7 +19,7 @@ class ChatLogEntityTests(TestCase):
             answer="a",
             is_shared_origin=False,
             feedback=None,
-            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
         )
 
     def test_validate_feedback_value_raises_for_invalid_input(self):

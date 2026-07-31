@@ -3,12 +3,11 @@ Domain ports for the media domain.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 
 class ProtectedMediaRepository(ABC):
     @abstractmethod
-    def find_video_id_by_file_path(self, path: str) -> Optional[int]:
+    def find_video_id_by_file_path(self, path: str) -> int | None:
         """Return video_id if a video with file=path exists, else None."""
 
     @abstractmethod

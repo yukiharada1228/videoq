@@ -6,7 +6,7 @@ import logging
 
 from app.domain.shared.transaction import TransactionPort
 from app.domain.video.dto import UpdateVideoParams
-from app.domain.video.gateways import VideoTaskGateway, VectorStoreGateway
+from app.domain.video.gateways import VectorStoreGateway, VideoTaskGateway
 from app.domain.video.repositories import VideoRepository
 from app.use_cases.video.dto import UpdateVideoInput, VideoResponseDTO
 from app.use_cases.video.exceptions import ResourceNotFound

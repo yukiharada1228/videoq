@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from django.conf import settings
 from django.db import models
 
@@ -13,8 +15,8 @@ class AccountDeletionRequest(models.Model):
     requested_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
-        ordering = ["-requested_at"]
-        indexes = [
+        ordering: ClassVar = ["-requested_at"]
+        indexes: ClassVar = [
             models.Index(fields=["user", "-requested_at"]),
         ]
 

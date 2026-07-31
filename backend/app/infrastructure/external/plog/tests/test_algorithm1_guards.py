@@ -2,7 +2,11 @@
 
 from django.test import SimpleTestCase
 
-from app.domain.plog.entities import PlogConceptEntity, PlogEdgeEntity, PlogGraphSnapshot
+from app.domain.plog.entities import (
+    PlogConceptEntity,
+    PlogEdgeEntity,
+    PlogGraphSnapshot,
+)
 from app.infrastructure.external.plog.guided_gateway import (
     _graphs_have_ordering_path,
     _is_ask_for_answer,

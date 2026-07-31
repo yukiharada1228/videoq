@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional
 
 from app.domain.chat.dtos import CitationDTO
 from app.domain.chat.exceptions import FeedbackAccessDenied, InvalidFeedbackValue
@@ -35,11 +34,11 @@ class VideoGroupContextEntity:
     user_id: int
     name: str
     description: str = ""
-    share_token: Optional[str] = None
-    members: List[VideoGroupMemberRef] = field(default_factory=list)
+    share_token: str | None = None
+    members: list[VideoGroupMemberRef] = field(default_factory=list)
 
     @property
-    def member_video_ids(self) -> List[int]:
+    def member_video_ids(self) -> list[int]:
         return [m.video_id for m in self.members]
 
 @dataclass
@@ -50,25 +49,25 @@ class ChatLogEntity:
     user_id: int
     group_id: int
     group_user_id: int
-    group_share_token: Optional[str]
+    group_share_token: str | None
     question: str
     answer: str
-    citations: List[CitationDTO] = field(default_factory=list)
-    retrieved_contexts: List[str] = field(default_factory=list)
+    citations: list[CitationDTO] = field(default_factory=list)
+    retrieved_contexts: list[str] = field(default_factory=list)
     is_shared_origin: bool = False
-    feedback: Optional[str] = None
-    created_at: Optional[datetime] = None
+    feedback: str | None = None
+    created_at: datetime | None = None
 
     @staticmethod
-    def validate_feedback_value(feedback: Optional[str]) -> None:
+    def validate_feedback_value(feedback: str | None) -> None:
         if feedback not in {None, "good", "bad"}:
             raise InvalidFeedbackValue("feedback must be 'good', 'bad', or null (unspecified)")
 
     def assert_feedback_access(
         self,
         *,
-        user_id: Optional[int] = None,
-        share_token: Optional[str] = None,
+        user_id: int | None = None,
+        share_token: str | None = None,
     ) -> None:
         if share_token:
             if self.group_share_token != share_token:
@@ -84,7 +83,7 @@ class ChatAnalyticsRaw:
     """
 
     total: int
-    first_date: Optional[datetime]
-    last_date: Optional[datetime]
-    time_series: List[TimeSeriesPoint]
+    first_date: datetime | None
+    last_date: datetime | None
+    time_series: list[TimeSeriesPoint]
     feedback: FeedbackSummary

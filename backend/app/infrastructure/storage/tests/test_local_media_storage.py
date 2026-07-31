@@ -79,9 +79,8 @@ class LocalMediaStoragePathValidationTests(TestCase):
         link_path = os.path.join(base, "evil_link")
         os.symlink(sibling, link_path)
         try:
-            with override_settings(MEDIA_ROOT=base):
-                with self.assertRaises(ValueError):
-                    self.storage.exists("evil_link/secret.txt")
+            with override_settings(MEDIA_ROOT=base), self.assertRaises(ValueError):
+                self.storage.exists("evil_link/secret.txt")
         finally:
             os.unlink(link_path)
             os.remove(evil_file)
