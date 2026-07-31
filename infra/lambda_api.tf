@@ -1,28 +1,16 @@
-# ── ApiStack: API Lambda + API Gateway HTTP API ──────────────────────────────
+# ── API Lambda + API Gateway HTTP API ────────────────────────────────────────
 # Neon (external Postgres) + Cloudflare R2 (external storage) are reached over
 # the public internet via TLS, so no VPC is required.
 
 # ── IAM role ──────────────────────────────────────────────────────────────────
-data "aws_iam_policy_document" "api_assume_role" {
-  statement {
-    effect  = "Allow"
-    actions = ["sts:AssumeRole"]
-
-    principals {
-      type        = "Service"
-      identifiers = ["lambda.amazonaws.com"]
-    }
-  }
-}
-
 resource "aws_iam_role" "api" {
-  name               = "videoq-api-${var.env_name}"
-  assume_role_policy = data.aws_iam_policy_document.api_assume_role.json
+  name               = local.names.api
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
 }
 
 resource "aws_iam_role_policy_attachment" "api_basic_execution" {
   role       = aws_iam_role.api.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+  policy_arn = local.lambda_basic_execution_policy_arn
 }
 
 data "aws_iam_policy_document" "api_permissions" {
@@ -39,20 +27,20 @@ data "aws_iam_policy_document" "api_permissions" {
   statement {
     sid       = "SendSqsMessages"
     effect    = "Allow"
-    actions   = ["sqs:SendMessage"]
+    actions   = ["sqs:SendMessage", "sqs:GetQueueAttributes", "sqs:GetQueueUrl"]
     resources = [aws_sqs_queue.main.arn]
   }
 }
 
 resource "aws_iam_role_policy" "api" {
-  name   = "videoq-api-${var.env_name}"
+  name   = local.names.api
   role   = aws_iam_role.api.id
   policy = data.aws_iam_policy_document.api_permissions.json
 }
 
 # ── Lambda (API) ──────────────────────────────────────────────────────────────
 resource "aws_lambda_function" "api" {
-  function_name = "videoq-api-${var.env_name}"
+  function_name = local.names.api
   role          = aws_iam_role.api.arn
   package_type  = "Image"
   image_uri     = "${aws_ecr_repository.api.repository_url}:${var.image_tag}"
@@ -60,38 +48,16 @@ resource "aws_lambda_function" "api" {
   timeout       = var.api_lambda_timeout_seconds
 
   environment {
-    variables = {
-      # Django
-      DJANGO_ENV           = "production"
-      FRONTEND_URL         = local.frontend_url
-      ALLOWED_HOSTS        = ".execute-api.${var.aws_region}.amazonaws.com,localhost"
-      CORS_ALLOWED_ORIGINS = local.cors_origins
-      # OAuth 2.1 issuer for the Remote MCP endpoint.
-      OAUTH2_PROVIDER_ISSUER_URL = local.frontend_url
-      # Secrets Manager
-      DB_SECRET_ARN  = aws_secretsmanager_secret.db.arn
-      APP_SECRET_ARN = aws_secretsmanager_secret.app.arn
-      # Cloudflare R2
-      USE_S3_STORAGE = "true"
-      # Celery SQS broker
-      CELERY_BROKER_URL = "sqs://"
-      SQS_QUEUE_NAME    = aws_sqs_queue.main.name
-      SQS_QUEUE_URL     = aws_sqs_queue.main.id
-      # Lambda timeout tuning (840s = 14 min < Lambda limit 900s)
-      CELERY_TASK_TIME_LIMIT      = "840"
-      CELERY_TASK_SOFT_TIME_LIMIT = "780"
-      # Django DatabaseCache (no Redis required)
-      USE_DATABASE_CACHE = "true"
-      # Mailgun
-      USE_MAILGUN = "true"
-      # Lambda Web Adapter
+    variables = merge(local.common_lambda_environment, {
+      ALLOWED_HOSTS                          = ".execute-api.${var.aws_region}.amazonaws.com,localhost"
+      CORS_ALLOWED_ORIGINS                   = local.cors_origins
+      OAUTH2_PROVIDER_ISSUER_URL             = local.frontend_url
       PORT                                   = "8000"
       AWS_LWA_READINESS_CHECK_PATH           = "/api/health/"
       AWS_LWA_READINESS_CHECK_HEALTHY_STATUS = "100-499"
       AWS_LWA_INVOKE_MODE                    = "buffered"
-      # API Gateway proxy count (CloudFront + API Gateway = 2)
-      NUM_PROXIES = local.num_proxies
-    }
+      NUM_PROXIES                            = local.num_proxies
+    })
   }
 }
 
@@ -100,7 +66,7 @@ resource "aws_lambda_function" "api" {
 # (CORS spec). When pages_domain / custom_domain are unset, local dev origins
 # are used as defaults.
 resource "aws_apigatewayv2_api" "http" {
-  name          = "videoq-api-${var.env_name}"
+  name          = local.names.api
   protocol_type = "HTTP"
 
   cors_configuration {

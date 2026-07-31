@@ -36,57 +36,7 @@ CloudFront (CDN)
 
 - AWS CLI 設定済み (`aws configure`)
 - Docker Desktop 起動済み
-- Node.js 20+, Terraform 1.5+
-
----
-
-## 【一度だけ】CDK → Terraform 移行ランブック
-
-> 既存の **CDK スタックが稼働中**のアカウントで初めて Terraform へ切り替えるときだけ
-> 実施する。新規アカウントなら不要 (Step 1 以降へ)。方針は
-> **「CDK を destroy → Terraform で作り直し」**。ダウンタイムが発生する。
->
-> - **Secrets** は `RemovalPolicy.RETAIN` で destroy しても孤立して残るため、
->   destroy ワークフローで強制削除し、Terraform 作成後に値を再入力する
->   (`SECRET_KEY` が変わるので全セッション/トークンは失効する)。
-> - **ECR** は destroy でイメージごと消えるため、Lambda 作成前にイメージを push する
->   必要がある (ニワトリ卵問題)。下記は ECR を先に apply してから push する。
-
-移行は共有 state (S3) を汚さないよう、**ローカル (または移行ブランチ) から順に実行**し、
-最後に PR をマージして以降の自動 apply に引き継ぐ。
-
-```bash
-# 0. state バックエンドを作成 (Step 2 のブートストラップと同じ。まだなら実施)
-cd infra/bootstrap
-cp backend.hcl.example backend.hcl   # bucket 名 (アカウント ID) を記入
-terraform init -backend-config=backend.hcl && terraform apply && cd ..
-cp backend.hcl.example backend.hcl   # 本体側も同様
-terraform init -backend-config=backend.hcl   # S3 バックエンドを初期化 (state は空)
-
-# 1. 稼働中の CDK スタック + 孤立 Secrets を削除
-#    GitHub → Actions → "CDK Destroy (one-time migration)" を workflow_dispatch で実行し
-#    confirm 欄に destroy-prod を入力 (production 環境の承認が必要)。
-#    ※ ローカルで実施する場合は aws cloudformation delete-stack を
-#      Cdn → Api/Worker → Queue/Storage/Data の順に + secretsmanager delete-secret --force...
-
-# 2. ECR リポジトリだけ先に作成
-terraform apply -target=aws_ecr_repository.api -target=aws_ecr_repository.worker
-
-# 3. イメージをビルド & push (Step 6 と同じ。:latest が必須)
-#    → 下記 Step 6 のコマンドを実行
-
-# 4. 残りをすべて作成 (Secrets は空で作られる / Lambda / API GW / SQS / CloudFront)
-terraform apply
-
-# 5. Secrets に値を再入力 (Step 5) → 6. マイグレーション (Step 8)
-#    → 7. 新しい CloudFront ドメインへ DNS を貼り替え (Step 10)
-
-# 8. 移行完了後: .github/workflows/cdk-destroy.yml を削除し、PR をマージ。
-#    以降は infra/** の変更で terraform-apply workflow が自動 apply する。
-```
-
-> **注意:** state を先に埋めてからマージすること。空 state のまま `main` にマージすると
-> `terraform-apply` workflow が全リソースを作ろうとし、ECR が空の状態で Lambda 作成に失敗する。
+- Node.js 20+, Terraform 1.11+
 
 ---
 
@@ -173,14 +123,12 @@ cp backend.hcl.example backend.hcl   # bucket 名を記入
 terraform init -backend-config=backend.hcl
 ```
 
-> **State バックエンド:** `backend.tf` が S3 バックエンドを参照する
-> (`cdk bootstrap` の代替)。bucket 名はアカウント ID を含むため backend ブロックに
+> **State バックエンド:** `backend.tf` が S3 バックエンドを参照する。
+> bucket 名はアカウント ID を含むため backend ブロックに
 > 書かず、`backend.hcl` (gitignore 済み / CI では secret `TF_STATE_BUCKET`) で注入する。
 > バケットは `infra/bootstrap` を一度 `apply` して作成。bootstrap 自身の state も
 > そのバケットへ移す (自己参照) ため、public リポジトリに tfstate をコミットしない。
 > ロックは S3 ネイティブ (`use_lockfile`, Terraform 1.11+) を使うため DynamoDB は不要。
-> 別アカウントで使う場合は `backend.tf` と `bootstrap/main.tf` の bucket 名
-> (アカウント ID 部分) を書き換える。
 
 ---
 
@@ -226,18 +174,18 @@ CI ユーザー `videoq-github-actions-cd` に付与する IAM ポリシー (3 �
 デプロイ完了後、以下の Output をメモしておく (`terraform output` で再表示可能):
 
 ```
-api_ecr_url            = <account>.dkr.ecr.<region>.amazonaws.com/videoq-api-prod
-worker_ecr_url         = <account>.dkr.ecr.<region>.amazonaws.com/videoq-worker-prod
-db_secret_arn          = arn:aws:secretsmanager:...
-app_secret_arn         = arn:aws:secretsmanager:...
-api_endpoint           = https://xxxxxxxxxx.execute-api.<region>.amazonaws.com
+api_ecr_uri              = <account>.dkr.ecr.<region>.amazonaws.com/videoq-api-prod
+worker_ecr_uri           = <account>.dkr.ecr.<region>.amazonaws.com/videoq-worker-prod
+db_secret_arn            = arn:aws:secretsmanager:...
+app_secret_arn           = arn:aws:secretsmanager:...
+api_endpoint             = https://xxxxxxxxxx.execute-api.<region>.amazonaws.com
 distribution_domain_name = dxxxxxxxxx.cloudfront.net   # CloudFront 有効時のみ
-distribution_id        = EXXXXXXXXXXXXX                # CloudFront 有効時のみ
+distribution_id          = EXXXXXXXXXXXXX               # CloudFront 有効時のみ
 ```
 
 ---
 
-## Step 5: シークレットを登録
+## Step 4: シークレットを登録
 
 ### DB シークレット (Neon 接続文字列)
 
@@ -270,7 +218,7 @@ aws secretsmanager put-secret-value \
 
 ---
 
-## Step 6: コンテナイメージをビルド & プッシュ
+## Step 5: コンテナイメージをビルド & プッシュ
 
 ```bash
 # ECR URI を変数に設定 (Step 3 の Output から)
@@ -298,7 +246,7 @@ docker push $WORKER_ECR:latest
 
 ---
 
-## Step 7: Lambda イメージを更新
+## Step 6: Lambda イメージを更新
 
 ```bash
 aws lambda update-function-code \
@@ -320,7 +268,7 @@ aws lambda wait function-updated \
 
 ---
 
-## Step 8: Django マイグレーション (初回 & スキーマ変更時)
+## Step 7: Django マイグレーション (初回 & スキーマ変更時)
 
 Docker を使った方法:
 ```bash
@@ -335,7 +283,7 @@ docker run --rm \
 
 ---
 
-## Step 9: Cloudflare Pages セットアップ (初回のみ)
+## Step 8: Cloudflare Pages セットアップ (初回のみ)
 
 1. Cloudflare ダッシュボード → **Pages** → プロジェクト作成
 2. Git リポジトリを接続 (GitHub)
@@ -357,7 +305,7 @@ docker run --rm \
 
 ---
 
-## Step 10: DNS レコード設定
+## Step 9: DNS レコード設定
 
 Step 3 で出力された `distribution_domain_name` を DNS に登録する。
 
@@ -428,7 +376,7 @@ aws logs tail /aws/lambda/videoq-api-prod --follow --region $REGION
 ```
 
 よくある原因:
-- `DB_SECRET_ARN` / `APP_SECRET_ARN` の値が未設定 → Step 5 を再実行
+- `DB_SECRET_ARN` / `APP_SECRET_ARN` の値が未設定 → Step 4 を再実行
 - `SECRET_KEY` が未設定で production 起動に失敗 → App シークレットを確認
 
 ### DB 接続エラー
@@ -469,4 +417,4 @@ aws cloudfront create-invalidation \
 
 ### モバイルブラウザで 403 エラー (サードパーティ Cookie ブロック)
 
-CloudFront を使って同一ドメイン配信にすることで解消される。Step 9 を実施すること。
+CloudFront を使って同一ドメイン配信にすることで解消される。Step 8 を実施すること。

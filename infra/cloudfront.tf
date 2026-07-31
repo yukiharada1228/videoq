@@ -1,7 +1,4 @@
-# CloudFront distribution (CdnStack).
-#
-# CDK creates CdnStack only when custom_domain AND certificate_arn are set.
-# Every resource here is gated with count = local.enable_cdn ? 1 : 0.
+# CloudFront distribution.
 #
 # Serves the frontend (Cloudflare Pages) and the API (API Gateway) under a
 # single domain so cookies are first-party.
@@ -50,7 +47,7 @@ resource "aws_cloudfront_distribution" "this" {
   # API Gateway origin. Strip the "https://" scheme from the api_endpoint.
   origin {
     origin_id   = "api"
-    domain_name = replace(aws_apigatewayv2_api.http.api_endpoint, "https://", "")
+    domain_name = trimprefix(aws_apigatewayv2_api.http.api_endpoint, "https://")
 
     custom_origin_config {
       origin_protocol_policy = "https-only"
@@ -69,26 +66,18 @@ resource "aws_cloudfront_distribution" "this" {
     cache_policy_id        = data.aws_cloudfront_cache_policy.caching_optimized[0].id
   }
 
-  # /api/* → API Gateway.
-  ordered_cache_behavior {
-    path_pattern             = "/api/*"
-    target_origin_id         = "api"
-    viewer_protocol_policy   = "redirect-to-https"
-    allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
-    cached_methods           = ["GET", "HEAD"]
-    cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled[0].id
-    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host_header[0].id
-  }
+  dynamic "ordered_cache_behavior" {
+    for_each = local.api_path_patterns
 
-  # /.well-known/* → API Gateway (RFC 8414 / RFC 9728 OAuth metadata).
-  ordered_cache_behavior {
-    path_pattern             = "/.well-known/*"
-    target_origin_id         = "api"
-    viewer_protocol_policy   = "redirect-to-https"
-    allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
-    cached_methods           = ["GET", "HEAD"]
-    cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled[0].id
-    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host_header[0].id
+    content {
+      path_pattern             = ordered_cache_behavior.value
+      target_origin_id         = "api"
+      viewer_protocol_policy   = "redirect-to-https"
+      allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+      cached_methods           = ["GET", "HEAD"]
+      cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled[0].id
+      origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host_header[0].id
+    }
   }
 
   viewer_certificate {

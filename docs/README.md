@@ -67,4 +67,4 @@ VideoQの設計ドキュメントです。現行実装をベースに、要件�
 | キャッシュ/キュー | Redis (ローカル), Amazon SQS (本番) |
 | AI/ML | OpenAI API, Ollama, whisper.cpp, LangChain, Janome, NLTK |
 | 利用枠管理 | `User` の上限値・使用量を `quota` ドメインで検証（管理者がユーザー単位で設定） |
-| インフラ | **[ローカル]** Docker Compose, Caddy, Nginx <br> **[本番]** AWS CDK, AWS Lambda, API Gateway, CloudFront, Cloudflare Pages, Cloudflare R2 |
+| インフラ | **[ローカル]** Docker Compose, Caddy, Nginx <br> **[本番]** Terraform, AWS Lambda, API Gateway, CloudFront, Cloudflare Pages, Cloudflare R2 |
