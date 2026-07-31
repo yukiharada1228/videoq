@@ -46,7 +46,9 @@ class GetEmbeddingsTests(SimpleTestCase):
         EMBEDDING_MODEL="text-embedding-3-small",
         OPENAI_API_KEY="",
     )
+    @patch.dict("os.environ", {}, clear=True)
     def test_openai_embeddings_require_api_key(self):
+        # No key in settings and none in os.environ -> must raise.
         with self.assertRaises(ProviderConfigError) as context:
             get_embeddings()
 

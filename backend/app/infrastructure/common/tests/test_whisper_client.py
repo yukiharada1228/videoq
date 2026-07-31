@@ -69,6 +69,7 @@ class CreateWhisperClientTests(SimpleTestCase):
 
 
     @override_settings(WHISPER_BACKEND="openai", OPENAI_API_KEY="")
+    @patch.dict("os.environ", {"OPENAI_API_KEY": ""})
     def test_openai_client_requires_api_key(self):
         with self.assertRaises(ProviderConfigError) as context:
             create_whisper_client(api_key=None)

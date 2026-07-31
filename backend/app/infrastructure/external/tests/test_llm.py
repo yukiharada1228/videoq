@@ -41,12 +41,14 @@ class GetLangchainLLMTests(SimpleTestCase):
         )
 
     @override_settings(LLM_PROVIDER="openai", LLM_MODEL="gpt-4o-mini", OPENAI_API_KEY="")
+    @patch.dict("os.environ", {"OPENAI_API_KEY": ""})
     def test_get_langchain_llm_without_api_key(self):
         """Test get_langchain_llm raises ProviderConfigError when no key provided"""
         with self.assertRaises(ProviderConfigError):
             get_langchain_llm()
 
     @override_settings(LLM_PROVIDER="openai", LLM_MODEL="gpt-4o-mini", OPENAI_API_KEY="")
+    @patch.dict("os.environ", {"OPENAI_API_KEY": ""})
     def test_get_langchain_llm_with_none_api_key(self):
         """Test get_langchain_llm raises ProviderConfigError when API key is None"""
         with self.assertRaises(ProviderConfigError):

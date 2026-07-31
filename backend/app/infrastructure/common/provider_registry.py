@@ -1,5 +1,6 @@
 """Shared helpers for provider-backed infrastructure factories."""
 
+import os
 from collections.abc import Callable, Iterable, Mapping
 from typing import TypeVar
 
@@ -59,6 +60,14 @@ def resolve_openai_api_key(
     resolved_key = api_key
     if not resolved_key and allow_settings_fallback:
         resolved_key = getattr(settings, "OPENAI_API_KEY", None)
+        # Fall back to the process environment. On Lambda the app secret is
+        # expanded into os.environ early during settings import, while the
+        # settings.OPENAI_API_KEY attribute is assigned near the end of
+        # settings.py and can be missing if a cold-start init times out and
+        # leaves the settings module partially loaded (DB/R2 still work because
+        # those read the secret dict directly). os.environ is the reliable source.
+        if not resolved_key:
+            resolved_key = os.environ.get("OPENAI_API_KEY")
 
     if not resolved_key:
         raise ProviderConfigError(

@@ -139,6 +139,7 @@ class CreateEmbedderOpenAITests(SimpleTestCase):
             batch_size=16,
         )
 
+    @patch.dict("os.environ", {"OPENAI_API_KEY": ""})
     def test_raises_without_api_key(self):
         """Test that ProviderConfigError is raised without API key"""
         from app.infrastructure.scene_otsu.embedders import create_embedder

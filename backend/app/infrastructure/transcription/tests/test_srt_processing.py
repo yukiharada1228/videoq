@@ -234,6 +234,7 @@ class ApplySceneSplittingTests(SimpleTestCase):
         self.assertEqual(scene_count, 1)
 
     @override_settings(EMBEDDING_PROVIDER="openai")
+    @patch.dict("os.environ", {"OPENAI_API_KEY": ""})
     def test_requires_api_key_for_openai(self):
         """Test that missing API key for OpenAI falls back to original SRT"""
         srt_content = "1\n00:00:00,000 --> 00:00:05,000\nTest\n"
