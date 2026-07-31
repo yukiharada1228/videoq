@@ -7,5 +7,9 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    openai = {
+      source  = "openai/openai"
+      version = ">= 1.0.0"
+    }
   }
 }

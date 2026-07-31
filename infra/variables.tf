@@ -69,3 +69,27 @@ variable "image_tag" {
   type        = string
   default     = "latest"
 }
+
+variable "manage_openai_project" {
+  description = "OpenAI プロジェクトのガバナンスを Terraform で管理するか (true で有効化。要 OPENAI_ADMIN_KEY)"
+  type        = bool
+  default     = true
+}
+
+variable "openai_allowed_models" {
+  description = "OpenAI プロジェクトで許可するモデル ID の一覧 (videoq が実際に使うモデルのみ)"
+  type        = list(string)
+  default     = ["text-embedding-3-small", "gpt-4o-mini", "whisper-1"]
+}
+
+variable "openai_spend_alert_email" {
+  description = "月次スペンドアラートの通知先メールアドレス (空文字でアラート無効)"
+  type        = string
+  default     = ""
+}
+
+variable "openai_spend_threshold_usd" {
+  description = "月次スペンドアラートのしきい値 (USD)"
+  type        = number
+  default     = 50
+}
