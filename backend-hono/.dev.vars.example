@@ -1,0 +1,10 @@
+# backend-hono ローカル開発用の機密変数の雛形。
+# コピーして `.dev.vars` を作成（.gitignore 済み）。wrangler dev が自動で読み込む。
+# 非機密の変数（LEGACY_API_ORIGIN 等）は wrangler.jsonc の "vars" に置く。
+
+# SimpleJWT の署名鍵。**現行 Django の SECRET_KEY と一致させる**（HS256, PoC #03）。
+# これが一致していないと、Django 発行の access_token を Worker が検証できない。
+JWT_SECRET=""
+
+# Phase 2 以降で使用
+# OPENAI_API_KEY=""

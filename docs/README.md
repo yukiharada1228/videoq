@@ -57,6 +57,22 @@ VideoQの設計ドキュメントです。現行実装をベースに、要件�
 |:---|:---|
 | [PLOG](plog/README.md) | 前提関係グラフ・学習モード・構築パイプライン |
 
+### 6. Cloudflare 移行（Migration）
+
+Web バックエンドを Cloudflare Workers / Hono へ移行するための検討・要件です。
+
+| ドキュメント | 説明 |
+|:---|:---|
+| [Cloudflare 全面移行 技術実現可能性レポート](architecture/cloudflare-hono-migration-study.md) | 7ドメイン横断のフィジビリティ検証（データ層・重量計算・OAuth 等）と段階移行戦略 |
+| [Cloudflare Workers / Hono 移行 要件定義書](architecture/cloudflare-hono-migration-requirements.md) | 現行コードに整合した移行スコープ・機能/非機能要件・フェーズ・受け入れ基準 |
+| [codex 独立レビュー記録](architecture/cloudflare-hono-migration-requirements-review-codex.md) | 要件定義書を実コードで一次照合した第三者レビュー（file:line 引用付き, v1.2 是正の根拠） |
+| [PoC #01: pgvector クロスランタイム検索検証](architecture/poc-01-pgvector-cross-runtime-search.md) | データ層 PoC。直接 SQL 検索を psql→実 Workers→本番 Hyperdrive+Neon まで実測（全合格） |
+| [PoC #02: 非同期ジョブ投入（Worker→SQS→Lambda）](architecture/poc-02-sqs-dispatch.md) | Worker の最小 JSON を既存 Lambda が受理・ディスパッチ。ローカル＋実 AWS SQS で全経路実測（方式 B ゼロ改修） |
+| [PoC #03: 認証カットオーバー互換](architecture/poc-03-auth-cutover.md) | Worker(jose/WebCrypto)が Django 発行の JWT/API キーを同一検証。無停止カットオーバー可能を実測 |
+| [PoC #04: quota・アップロード競合](architecture/poc-04-quota-upload-race.md) | 原子的な条件付き UPDATE 予約を Worker 生 SQL で再現。20/30 並行でも超過予約ゼロを実測 |
+| [JR-2/JR-4 冪等性・失敗処理 設計書](architecture/jr2-idempotency-design.md) | 非同期ジョブの冪等性設計（fencing 付き claim 台帳＋副作用の原子性境界別対応）。[codex レビュー記録](architecture/jr2-idempotency-design-review-codex.md)で是正 |
+| （実装）[`backend-hono/`](../backend-hono/) | Phase 0 実装。Hono on Workers 基盤（ミドルウェア / health・ready / Hyperdrive・R2 / 既存 API プロキシ）。`npm create hono@latest` 生成 |
+
 ## 🏗️ 技術スタック
 
 | レイヤー | 技術 |

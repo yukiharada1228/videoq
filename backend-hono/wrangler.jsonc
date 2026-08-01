@@ -1,0 +1,45 @@
+/**
+ * VideoQ backend on Cloudflare Workers (Hono).
+ * ストラングラーフィグ移行の Phase 0/2/3 基盤:
+ *   - Hono ルーター + 共通ミドルウェア（requestId / logger / CORS / error handler）
+ *   - /health（liveness） /ready（DB 疎通）
+ *   - Hyperdrive 経由の Neon 接続（per-request Client, 要件 §11.4）
+ *   - R2 バインディング
+ *   - 未移行ルートを LEGACY_API_ORIGIN へプロキシ
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "backend-hono",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+
+  // 非機密の環境変数のみ。機密は `wrangler secret` / `.dev.vars`。
+  "vars": {
+    "ENVIRONMENT": "development",
+    // 未移行 API のプロキシ先（Phase 3）。本番は CloudFront/API Gateway の origin。
+    "LEGACY_API_ORIGIN": "http://localhost:8000",
+    // CORS 許可オリジン（Pages 本番ドメイン）。dev は Vite。
+    "CORS_ALLOW_ORIGIN": "http://localhost:5173"
+  },
+
+  // Neon への接続は Hyperdrive 経由。本番は `wrangler hyperdrive create` の id を設定。
+  // dev は localConnectionString（socat 経由のローカル Postgres 等）。id はダミーでよい。
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "REPLACE_WITH_HYPERDRIVE_ID",
+      "localConnectionString": "postgresql://postgres:postgres@localhost:55432/postgres"
+    }
+  ],
+
+  // 動画・字幕・サムネイルの R2
+  "r2_buckets": [
+    {
+      "binding": "VIDEO_BUCKET",
+      "bucket_name": "videoq-media",
+      "preview_bucket_name": "videoq-media-preview"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+	// PoC: 直接SQLによる pgvector 検索が、実 Workers ランタイム(workerd) +
+	// nodejs_compat + pg + Hyperdrive で動くかを wrangler dev で実測する。
+	"name": "poc-hyperdrive-pg",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-05-01",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			// local dev では id は無視され localConnectionString が使われる。
+			// 55432 は socat 経由で videoq-postgres:5432 に転送している。
+			// 本番実測(PoC #01d)で使った Hyperdrive 設定は検証後に削除済み。
+			// remote 実測を再現するときは `wrangler hyperdrive create` で作った id を入れる。
+			"id": "REPLACE_WITH_HYPERDRIVE_ID",
+			"localConnectionString": "postgresql://postgres:postgres@localhost:55432/postgres"
+		}
+	]
+}
