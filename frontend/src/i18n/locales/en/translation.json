@@ -568,9 +568,6 @@
         "answerRelevancy": "Answer relevancy",
         "contextPrecision": "Context precision"
       }
-    },
-    "keywords": {
-      "title": "Frequent Keywords"
     }
   },
   "docs": {

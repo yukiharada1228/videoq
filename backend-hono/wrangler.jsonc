@@ -5,7 +5,7 @@
  *   - /health（liveness） /ready（DB 疎通）
  *   - Hyperdrive 経由の Neon 接続（per-request Client, 要件 §11.4）
  *   - R2 バインディング
- *   - 未移行ルートを LEGACY_API_ORIGIN へプロキシ
+ *   - Django Web プロキシは廃止（未定義パスは 404）
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
@@ -18,11 +18,34 @@
   // 非機密の環境変数のみ。機密は `wrangler secret` / `.dev.vars`。
   "vars": {
     "ENVIRONMENT": "development",
-    // 未移行 API のプロキシ先（Phase 3）。本番は CloudFront/API Gateway の origin。
-    "LEGACY_API_ORIGIN": "http://localhost:8000",
+    // Django USE_S3_STORAGE 相当。ローカルは false（VIDEO_BUCKET + /api/media/ + multipart）。
+    // 本番デプロイ時は "true" にし R2 署名を使う。
+    "USE_S3_STORAGE": "false",
     // CORS 許可オリジン（Pages 本番ドメイン）。dev は Vite。
-    "CORS_ALLOW_ORIGIN": "http://localhost:5173"
+    "CORS_ALLOW_ORIGIN": "http://localhost:5173",
+    // 認証系メール（検証 / パスワード再設定 / メール変更）のリンクと送信元。
+    // Django FRONTEND_URL / DEFAULT_FROM_EMAIL / MAX_VIDEO_UPLOAD_SIZE_MB に対応。
+    "FRONTEND_URL": "http://localhost:3000",
+    "DEFAULT_FROM_EMAIL": "noreply@videoq.local",
+    "MAX_VIDEO_UPLOAD_SIZE_MB": "500",
+    // RAG チャット（Django EMBEDDING_MODEL / LLM_MODEL / PGVECTOR_COLLECTION_NAME と
+    // 同じ値にする。埋め込み次元はテーブル側の vector(N) に一致している必要がある）。
+    "EMBEDDING_MODEL": "text-embedding-3-small",
+    "LLM_MODEL": "gpt-4o-mini",
+    "PGVECTOR_COLLECTION_NAME": "videoq_scenes",
+    // OAuth 発行者（Django OAUTH2_PROVIDER_ISSUER_URL / OIDC_ISS_ENDPOINT）。
+    // MCP 401 の resource_metadata URL に使う。未設定時はリクエスト origin。
+    "OAUTH2_PROVIDER_ISSUER_URL": "http://localhost:8000",
+    // Django OAUTH2_PROVIDER.OIDC_ENABLED（既定 false → OIDC エンドポイント 404）。
+    // 有効化時は OIDC_RSA_PRIVATE_KEY（secret）と必要なら OIDC_RP_INITIATED_LOGOUT_ENABLED も設定。
+    "OIDC_ENABLED": "false",
+    "OIDC_RP_INITIATED_LOGOUT_ENABLED": "false"
   },
+
+  // Cloudflare Email Sending（認証系メール）。実配信には送信元ドメインの onboarding が必要:
+  //   npx wrangler email sending enable <onboarded-domain>
+  // その後 DEFAULT_FROM_EMAIL を onboarded ドメインのアドレスにする。
+  "send_email": [{ "name": "EMAIL" }],
 
   // Neon への接続は Hyperdrive 経由。本番は `wrangler hyperdrive create` の id を設定。
   // dev は localConnectionString（socat 経由のローカル Postgres 等）。id はダミーでよい。
@@ -41,5 +64,28 @@
       "bucket_name": "videoq-media",
       "preview_bucket_name": "videoq-media-preview"
     }
-  ]
+  ],
+
+  // Django SimpleRateThrottle 相当（login/signup/chat 等）。1 キー = 1 DO。
+  "durable_objects": {
+    "bindings": [{ "name": "RATE_LIMITER", "class_name": "RateLimiter" }]
+  },
+  "migrations": [
+    { "tag": "v1-rate-limiter", "new_classes": ["RateLimiter"] }
+  ],
+
+  // Study モードの学習者状態 H（Django cache `plog:study:ephemeral:` 相当, TTL 12h）。
+  // 本番は `wrangler kv namespace create STUDY_SESSION` の id を設定。
+  "kv_namespaces": [
+    {
+      "binding": "STUDY_SESSION",
+      "id": "REPLACE_WITH_STUDY_SESSION_KV_ID",
+      "preview_id": "REPLACE_WITH_STUDY_SESSION_KV_PREVIEW_ID"
+    }
+  ],
+
+  // FR-Q3: status=uploading のまま放置された予約ストレージを解放（毎時 UTC）
+  "triggers": {
+    "crons": ["0 * * * *"]
+  }
 }

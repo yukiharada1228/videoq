@@ -15,13 +15,15 @@ services:
     networks:
       - videoq-network
 
+  # Local full-stack still uses the archived Django tree.
+  # Production API: backend-hono (Workers). Production jobs: worker-python (SQS Lambda).
   backend:
-    build: ./backend
+    build: ./archive/django-backend
     container_name: videoq-backend
     env_file:
       - .env
     volumes:
-      - ./backend:/app
+      - ./archive/django-backend:/app
       - staticfiles:/app/staticfiles
     depends_on:
       - postgres
@@ -30,13 +32,13 @@ services:
       - videoq-network
 
   celery-worker:
-    build: ./backend
+    build: ./archive/django-backend
     container_name: videoq-celery-worker
     command: celery -A videoq worker --loglevel=info
     env_file:
       - .env
     volumes:
-      - ./backend:/app
+      - ./archive/django-backend:/app
     depends_on:
       - redis
       - postgres
@@ -73,7 +75,7 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf.template:ro
       - staticfiles:/static
-      - ./backend/media:/media
+      - ./archive/django-backend/media:/media
     depends_on:
       - backend
       - frontend

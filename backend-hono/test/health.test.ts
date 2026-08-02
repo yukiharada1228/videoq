@@ -25,4 +25,13 @@ describe("health", () => {
     expect(body.requestId).toMatch(/[0-9a-f-]{36}/);
     expect(res.headers.get("X-Request-Id")).toBe(body.requestId);
   });
+
+  it("GET /api/health/ は Django 互換エイリアス", async () => {
+    const app = createApp();
+    const res = await app.request("/api/health/", {}, ENV);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { ok: boolean; data: { status: string } };
+    expect(body.ok).toBe(true);
+    expect(body.data.status).toBe("ok");
+  });
 });

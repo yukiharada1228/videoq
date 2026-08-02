@@ -260,67 +260,50 @@ Secrets Manager の app シークレットへ保存する (Step 4)。
 
 ---
 
-## Step 5: コンテナイメージをビルド & プッシュ
+## Step 5: Worker コンテナイメージをビルド & プッシュ
+
+Web API は Cloudflare Workers（`backend-hono/`）でデプロイする。API Lambda / ECR は廃止。
 
 ```bash
 # ECR URI を変数に設定 (Step 3 の Output から)
-API_ECR=<account>.dkr.ecr.<region>.amazonaws.com/videoq-api-prod
 WORKER_ECR=<account>.dkr.ecr.<region>.amazonaws.com/videoq-worker-prod
 REGION=ap-northeast-1
 
 # ECR ログイン
 aws ecr get-login-password --region $REGION \
   | docker login --username AWS --password-stdin \
-    $(echo $API_ECR | cut -d/ -f1)
+    $(echo $WORKER_ECR | cut -d/ -f1)
 
-# API Lambda イメージ (Lambda Web Adapter)
+# Worker Lambda イメージ（Django 非依存）
 docker build --platform linux/amd64 --provenance=false \
-  -f backend/Dockerfile.lambda \
-  -t $API_ECR:latest ./backend
-docker push $API_ECR:latest
-
-# Worker Lambda イメージ
-docker build --platform linux/amd64 --provenance=false \
-  -f backend/Dockerfile.worker \
-  -t $WORKER_ECR:latest ./backend
+  -f worker-python/Dockerfile \
+  -t $WORKER_ECR:latest ./worker-python
 docker push $WORKER_ECR:latest
 ```
 
 ---
 
-## Step 6: Lambda イメージを更新
+## Step 6: Worker Lambda イメージを更新
 
 ```bash
-aws lambda update-function-code \
-  --function-name videoq-api-prod \
-  --image-uri $API_ECR:latest \
-  --region $REGION
-
 aws lambda update-function-code \
   --function-name videoq-worker-prod \
   --image-uri $WORKER_ECR:latest \
   --region $REGION
 
-# 更新完了を待機
-aws lambda wait function-updated \
-  --function-name videoq-api-prod --region $REGION
 aws lambda wait function-updated \
   --function-name videoq-worker-prod --region $REGION
 ```
 
 ---
 
-## Step 7: Django マイグレーション (初回 & スキーマ変更時)
+## Step 7: DB マイグレーション (初回 & スキーマ変更時)
 
-Docker を使った方法:
+スキーマ正本は Drizzle（`backend-hono`）。`manage.py migrate` は使わない。
+
 ```bash
-docker run --rm \
-  -e DATABASE_URL="<Neon pooler URL>" \
-  -e DJANGO_ENV=production \
-  -e SECRET_KEY=temporary-key-for-migrate \
-  --entrypoint python \
-  $API_ECR:latest \
-  manage.py migrate --settings=videoq.settings
+cd backend-hono
+DATABASE_URL="<Neon pooler URL>" npx drizzle-kit migrate
 ```
 
 ---
@@ -386,17 +369,18 @@ curl -I https://videoq.jp/api/health/
 ### 手動デプロイが必要な場合
 
 ```bash
-# backend
+# Worker（Django 非依存）
 # 1. イメージをリビルド & プッシュ
-docker build --platform linux/amd64 --provenance=false -f backend/Dockerfile.lambda -t $API_ECR:latest ./backend && docker push $API_ECR:latest
-docker build --platform linux/amd64 --provenance=false -f backend/Dockerfile.worker -t $WORKER_ECR:latest ./backend && docker push $WORKER_ECR:latest
+docker build --platform linux/amd64 --provenance=false \
+  -f worker-python/Dockerfile -t $WORKER_ECR:latest ./worker-python && docker push $WORKER_ECR:latest
 
-# 2. Lambda を更新
-aws lambda update-function-code --function-name videoq-api-prod --image-uri $API_ECR:latest --region $REGION
+# 2. Worker Lambda を更新
 aws lambda update-function-code --function-name videoq-worker-prod --image-uri $WORKER_ECR:latest --region $REGION
 
-# 3. マイグレーションがある場合
-DATABASE_URL="<Neon pooler URL>" python backend/manage.py migrate
+# 3. DB スキーマ変更がある場合（Hono / Drizzle 正本）
+cd backend-hono && DATABASE_URL="<Neon pooler URL>" npx drizzle-kit migrate
+
+# Web API は `wrangler deploy`（backend-hono）。Django API Lambda は廃止。
 
 # infra
 cd infra

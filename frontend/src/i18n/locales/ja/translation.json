@@ -568,9 +568,6 @@
         "answerRelevancy": "質問への関連度",
         "contextPrecision": "参照情報の的確さ"
       }
-    },
-    "keywords": {
-      "title": "頻出キーワード"
     }
   },
   "docs": {

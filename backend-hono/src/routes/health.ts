@@ -10,6 +10,9 @@ import type { AppEnv } from "../types/bindings";
 export const health = new Hono<AppEnv>();
 
 health.get("/health", (c) => ok(c, { status: "ok", env: c.env.ENVIRONMENT }));
+// Django `GET /api/health/` 互換エイリアス（プローブ切替前の穴埋め）
+health.get("/api/health", (c) => ok(c, { status: "ok", env: c.env.ENVIRONMENT }));
+health.get("/api/health/", (c) => ok(c, { status: "ok", env: c.env.ENVIRONMENT }));
 
 health.get("/ready", async (c) => {
   try {

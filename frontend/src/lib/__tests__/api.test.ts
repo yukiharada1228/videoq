@@ -556,7 +556,7 @@ describe('ApiClient', () => {
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/', expect.anything());
     });
 
-    it('uploadVideo should use FormData', async () => {
+    it('uploadVideo should use FormData when S3 is disabled', async () => {
       const mockVideo = { id: 1, title: 'Test Video' };
       fetchMock.mockResolvedValueOnce({
         ok: true,

@@ -1,4 +1,5 @@
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+// 本番(R2): 署名 URL 直 PUT。ローカル: multipart → Worker VIDEO_BUCKET（Django USE_S3_STORAGE 相当）。
 const USE_S3_STORAGE = import.meta.env.VITE_USE_S3_STORAGE === 'true';
 
 type RequestBody = BodyInit | object | null | undefined;
@@ -164,10 +165,6 @@ export interface ChatAnalytics {
   };
   time_series: { date: string; count: number }[];
   feedback: { good: number; bad: number; none: number };
-}
-
-export interface ChatAnalyticsKeywords {
-  keywords: { word: string; count: number }[];
 }
 
 export type EvaluationStatus = 'pending' | 'completed' | 'failed';
@@ -1081,7 +1078,12 @@ export class ApiClient {
       });
 
       // 2. Upload file directly to R2/S3
-      await this.uploadToPresignedUrl(upload_url, data.file, data.file.type || 'video/mp4', onProgress);
+      await this.uploadToPresignedUrl(
+        upload_url,
+        data.file,
+        data.file.type || 'video/mp4',
+        onProgress,
+      );
 
       // 3. Confirm upload
       return await this.confirmUpload(video.id);
@@ -1455,10 +1457,6 @@ export class ApiClient {
 
   async getChatAnalytics(groupId: number): Promise<ChatAnalytics> {
     return this.request<ChatAnalytics>(`/chat/groups/${groupId}/analytics/`);
-  }
-
-  async getChatKeywords(groupId: number): Promise<ChatAnalyticsKeywords> {
-    return this.request<ChatAnalyticsKeywords>(`/chat/groups/${groupId}/analytics/keywords/`);
   }
 
 }

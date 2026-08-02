@@ -1,0 +1,166 @@
+"""Shared SQL helpers for video rows."""
+
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass
+from typing import Any
+
+import psycopg
+
+from worker_python.video_status import VideoStatus
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class VideoRow:
+    id: int
+    user_id: int
+    title: str
+    transcript: str | None
+    status: str
+    source_type: str
+    file_key: str | None
+    youtube_video_id: str | None
+    error_message: str
+
+
+def _row_to_video(row: dict[str, Any]) -> VideoRow:
+    file_val = row.get("file")
+    return VideoRow(
+        id=int(row["id"]),
+        user_id=int(row["user_id"]),
+        title=row["title"],
+        transcript=row.get("transcript") or None,
+        status=row["status"],
+        source_type=row.get("source_type") or "uploaded",
+        file_key=file_val if file_val else None,
+        youtube_video_id=row.get("youtube_video_id") or None,
+        error_message=row.get("error_message") or "",
+    )
+
+
+def get_video_for_task(conn: psycopg.Connection[Any], video_id: int) -> VideoRow | None:
+    row = conn.execute(
+        """
+        SELECT id, user_id, title, transcript, status, source_type,
+               file, youtube_video_id, error_message
+          FROM app_video
+         WHERE id = %s
+        """,
+        (video_id,),
+    ).fetchone()
+    return _row_to_video(row) if row else None
+
+
+def transition_video_status(
+    conn: psycopg.Connection[Any],
+    video_id: int,
+    from_status: VideoStatus | str,
+    to_status: VideoStatus | str,
+    *,
+    error_message: str = "",
+) -> bool:
+    from_val = from_status.value if isinstance(from_status, VideoStatus) else from_status
+    to_val = to_status.value if isinstance(to_status, VideoStatus) else to_status
+    cur = conn.execute(
+        """
+        UPDATE app_video
+           SET status = %s,
+               error_message = %s
+         WHERE id = %s AND status = %s
+        """,
+        (to_val, error_message, video_id, from_val),
+    )
+    return cur.rowcount > 0
+
+
+def save_transcript(conn: psycopg.Connection[Any], video_id: int, transcript: str) -> None:
+    conn.execute(
+        "UPDATE app_video SET transcript = %s WHERE id = %s",
+        (transcript, video_id),
+    )
+
+
+def list_completed_videos_with_transcript(
+    conn: psycopg.Connection[Any],
+) -> list[VideoRow]:
+    rows = conn.execute(
+        """
+        SELECT id, user_id, title, transcript, status, source_type,
+               file, youtube_video_id, error_message
+          FROM app_video
+         WHERE status = %s
+           AND transcript IS NOT NULL
+           AND transcript <> ''
+         ORDER BY id
+        """,
+        (VideoStatus.COMPLETED.value,),
+    ).fetchall()
+    return [_row_to_video(r) for r in rows]
+
+
+def delete_video_cascade(
+    conn: psycopg.Connection[Any], video_id: int, user_id: int
+) -> None:
+    """
+    Hard-delete a video and related rows (mirrors Hono deleteVideoCascade).
+    FK cascades are emulated in SQL because Django does not rely on DB CASCADE.
+    """
+    conn.execute("SELECT 1 FROM app_video WHERE id = %s FOR UPDATE", (video_id,))
+
+    conn.execute(
+        """
+        DELETE FROM app_learnerconceptstate
+         WHERE concept_id IN (SELECT id FROM app_plogconcept WHERE video_id = %s)
+        """,
+        (video_id,),
+    )
+    conn.execute(
+        """
+        DELETE FROM app_ploglearningobject
+         WHERE concept_id IN (SELECT id FROM app_plogconcept WHERE video_id = %s)
+        """,
+        (video_id,),
+    )
+    conn.execute("DELETE FROM app_plogedge WHERE video_id = %s", (video_id,))
+    conn.execute("DELETE FROM app_plogconcept WHERE video_id = %s", (video_id,))
+    conn.execute("DELETE FROM app_plogsummarynode WHERE video_id = %s", (video_id,))
+    conn.execute("DELETE FROM app_plogbuildjob WHERE video_id = %s", (video_id,))
+    conn.execute("DELETE FROM app_videotag WHERE video_id = %s", (video_id,))
+    conn.execute("DELETE FROM app_videogroupmember WHERE video_id = %s", (video_id,))
+    conn.execute(
+        "DELETE FROM app_video WHERE id = %s AND user_id = %s",
+        (video_id, user_id),
+    )
+    logger.info("Deleted video %d (user %d) and related rows", video_id, user_id)
+
+
+def stub_vector_index(
+    video_id: int, user_id: int, title: str, transcript: str
+) -> None:
+    """Placeholder for langchain/PGVector indexing when heavy deps are unavailable."""
+    logger.info(
+        "Vector indexing stub for video %d (user=%d, title=%r, transcript_len=%d). "
+        "TODO: wire langchain PGVector when embedding deps are packaged.",
+        video_id,
+        user_id,
+        title,
+        len(transcript),
+    )
+
+
+def stub_delete_video_vectors(video_id: int) -> None:
+    logger.info(
+        "Vector delete stub for video %d. TODO: DELETE FROM langchain_pg_embedding WHERE cmetadata->>'video_id' = %s",
+        video_id,
+        video_id,
+    )
+
+
+def stub_delete_all_vectors() -> int:
+    logger.info(
+        "Vector delete-all stub. TODO: truncate or DELETE all embedding rows for tenant."
+    )
+    return 0

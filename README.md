@@ -21,7 +21,20 @@ VideoQ is an AI-powered video navigator that automatically transcribes videos an
 - **Share insights** - Create shareable video groups for team collaboration
 - **Multilingual UI** - Switch between Japanese and English interfaces
 
+## Architecture (production)
+
+| Role | Location |
+|---|---|
+| Web API | [`backend-hono/`](backend-hono/) — Cloudflare Workers + Hono + Drizzle |
+| Async jobs | [`worker-python/`](worker-python/) — SQS Lambda (**no Django / Celery**) |
+| Schema DDL | Drizzle migrations in `backend-hono/drizzle/` |
+| Historical Django | [`archive/django-backend/`](archive/django-backend/) (local Docker Compose only) |
+
+Cutover notes: [`docs/architecture/django-cutover.md`](docs/architecture/django-cutover.md).
+
 ## Quick Start (5 minutes)
+
+> Local `docker compose` still boots the **archived** Django API + Celery worker for a full stack on your machine. Production deploys Workers (`backend-hono`) and `worker-python`.
 
 ### Requirements
 
@@ -65,7 +78,7 @@ If you want to fetch subtitles from YouTube URLs, each user should configure the
 # Start all services. The first run may take a few minutes.
 docker compose up --build -d
 
-# Initial setup
+# Initial setup (archived Django local stack)
 docker compose exec backend python manage.py migrate
 docker compose exec backend python manage.py collectstatic --noinput
 docker compose exec backend python manage.py createsuperuser

@@ -29,3 +29,30 @@ export const err = (
     { ok: false, error: { code, message }, requestId: c.get("requestId") },
     status,
   );
+
+/**
+ * Django `create_error_response` 互換のエラー（{"error":{code,message}}）。
+ * 移行済みルートの手動エラー（400/403/404 等）で使う。
+ */
+export const apiError = (
+  c: Context<AppEnv>,
+  status: ContentfulStatusCode,
+  message: string,
+  code = "VALIDATION_ERROR",
+) => c.json({ error: { code, message } }, status);
+
+/**
+ * DRF serializer バリデーションエラー互換（custom_exception_handler 経由）。
+ * {"error":{code:"VALIDATION_ERROR", message:<最初のエラー>, fields:{field:[...]}}} を 400 で返す。
+ */
+export const drfValidationError = (
+  c: Context<AppEnv>,
+  fields: Record<string, string[]>,
+) => {
+  const firstField = Object.keys(fields)[0];
+  const message = fields[firstField]?.[0] ?? "Invalid input.";
+  return c.json(
+    { error: { code: "VALIDATION_ERROR", message, fields } },
+    400,
+  );
+};

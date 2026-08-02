@@ -7,15 +7,24 @@ import { onError } from "./middleware/error-handler";
 import { health } from "./routes/health";
 import { authRoutes } from "./routes/auth";
 import { groupRoutes } from "./routes/groups";
+import { tagRoutes } from "./routes/tags";
+import { membershipRoutes } from "./routes/membership";
 import { videoRoutes } from "./routes/videos";
 import { chatRoutes } from "./routes/chat";
-import { proxyToLegacy } from "./routes/proxy";
+import { evaluationRoutes } from "./routes/evaluation";
+import { plogRoutes } from "./routes/plog";
+import { oauthRoutes } from "./routes/oauth";
+import { oauthDotExtrasRoutes } from "./routes/oauth-dot-extras";
+import { oauthOidcRoutes } from "./routes/oauth-oidc";
+import { mcpRoutes } from "./routes/mcp";
+import { mediaRoutes } from "./routes/media";
+import { opsRoutes } from "./routes/ops";
+import { schemaRoutes } from "./routes/schema";
 
 /**
  * Hono アプリの組み立て。
- * ミドルウェア順: requestId → logger → CORS。
- * ルート: /health /ready（Worker 自前）→ それ以外は未移行として Django へプロキシ。
- * Phase 1 以降、移行済みルート（/api/auth など）をプロキシより前に登録していく。
+ * Django Web プロセスは不要（運用は /api/ops/、OpenAPI は /api/schema|docs|redoc）。
+ * 重量ジョブ consumer は AWS Lambda 側に残置。
  */
 export function createApp() {
   const app = new Hono<AppEnv>();
@@ -26,19 +35,27 @@ export function createApp() {
 
   app.onError(onError);
 
-  // --- Worker が自前で処理するルート ---
   app.route("/", health);
+  app.route("/api/auth", authRoutes);
+  app.route("/", groupRoutes);
+  app.route("/", tagRoutes);
+  app.route("/", membershipRoutes);
+  app.route("/", videoRoutes);
+  app.route("/", chatRoutes);
+  app.route("/", evaluationRoutes);
+  app.route("/", plogRoutes);
+  app.route("/", oauthRoutes);
+  app.route("/", oauthDotExtrasRoutes);
+  app.route("/", oauthOidcRoutes);
+  app.route("/", mcpRoutes);
+  app.route("/", mediaRoutes);
+  app.route("/", opsRoutes);
+  app.route("/", schemaRoutes);
 
-  // 移行済みルート（プロキシより前に登録）。フルパス定義で "/" にマウントする。
-  app.route("/api/auth", authRoutes); // /me は末尾スラッシュ両方を明示定義済み
-  app.route("/", groupRoutes); // GET /api/videos/groups(/)
-  app.route("/", videoRoutes); // GET /api/videos(/)（一覧/詳細, file=R2 presigned）
-  app.route("/", chatRoutes); // GET /api/chat/groups/:id/history(/)
-
-  // 未移行の /api/videos/<id>、POST 等は下のプロキシで Django に流れる。
-
-  // --- 未移行ルート: 既存バックエンドへプロキシ（ストラングラーフィグ）---
-  app.all("*", proxyToLegacy);
+  // Django プロキシは廃止。未定義パスは DRF 風 404。
+  app.notFound((c) =>
+    c.json({ detail: "Not found." }, 404),
+  );
 
   return app;
 }
