@@ -10,6 +10,9 @@ services:
     container_name: videoq-postgres
     env_file:
       - .env
+    ports:
+      # Host port for wrangler Hyperdrive localConnectionString (backend-hono)
+      - "55432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:

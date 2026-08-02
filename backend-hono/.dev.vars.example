@@ -9,6 +9,9 @@ JWT_SECRET=""
 # RAG チャット（埋め込み + 生成）のサーバー側キー。Django settings.OPENAI_API_KEY と同じもの。
 # 未設定だと /api/chat/messages は Django と同じ設定エラー（400 / SSE LLM_CONFIGURATION_ERROR）を返す。
 # OPENAI_API_KEY=""
+#
+# 埋め込みプロバイダは wrangler.jsonc の vars（EMBEDDING_PROVIDER / EMBEDDING_MODEL /
+# OLLAMA_BASE_URL）。ローカル DB が Ollama 1024 次元なら ollama のまま。
 
 # OAuth 発行者 URL（本番は公開 API オリジン）。wrangler.jsonc の vars でも可。
 # MCP の WWW-Authenticate resource_metadata に使う（Django OAUTH2_PROVIDER_ISSUER_URL）。

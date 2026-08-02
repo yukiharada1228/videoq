@@ -60,8 +60,14 @@ export type Bindings = {
   // Cloudflare Email Sending バインディング（send_email）。ドメイン onboarding が実配信の前提。
   EMAIL?: EmailSendBinding;
 
-  // RAG チャット（Django EMBEDDING_MODEL / LLM_MODEL と同じ既定値）。
+  // RAG チャット（Django EMBEDDING_* / LLM_MODEL と同じ既定値）。
+  /** `"openai"`（既定）または `"ollama"`。ローカル DB が Ollama 埋め込みなら ollama。 */
+  EMBEDDING_PROVIDER?: string;
   EMBEDDING_MODEL?: string; // 既定 text-embedding-3-small
+  /** OpenAI の dimensions 指定（任意）。未設定ならモデル既定次元。 */
+  EMBEDDING_VECTOR_SIZE?: string;
+  /** Ollama base URL（既定 http://127.0.0.1:11434）。 */
+  OLLAMA_BASE_URL?: string;
   LLM_MODEL?: string; // 既定 gpt-4o-mini
   OPENAI_BASE_URL?: string; // 既定 https://api.openai.com/v1（テスト・互換 API 用）
 

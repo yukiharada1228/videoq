@@ -22,15 +22,19 @@
     // 本番デプロイ時は "true" にし R2 署名を使う。
     "USE_S3_STORAGE": "false",
     // CORS 許可オリジン（Pages 本番ドメイン）。dev は Vite。
-    "CORS_ALLOW_ORIGIN": "http://localhost:5173",
+    // Vite は host=127.0.0.1。CSRF Origin チェックでも同じリストを信頼する。
+    "CORS_ALLOW_ORIGIN": "http://127.0.0.1:3000,http://localhost:3000",
     // 認証系メール（検証 / パスワード再設定 / メール変更）のリンクと送信元。
     // Django FRONTEND_URL / DEFAULT_FROM_EMAIL / MAX_VIDEO_UPLOAD_SIZE_MB に対応。
-    "FRONTEND_URL": "http://localhost:3000",
+    "FRONTEND_URL": "http://127.0.0.1:3000",
     "DEFAULT_FROM_EMAIL": "noreply@videoq.local",
     "MAX_VIDEO_UPLOAD_SIZE_MB": "500",
-    // RAG チャット（Django EMBEDDING_MODEL / LLM_MODEL / PGVECTOR_COLLECTION_NAME と
-    // 同じ値にする。埋め込み次元はテーブル側の vector(N) に一致している必要がある）。
-    "EMBEDDING_MODEL": "text-embedding-3-small",
+    // RAG チャット（ローカル .env は EMBEDDING_PROVIDER=ollama / qwen3-embedding:0.6b /
+    // vector(1024)。本番 OpenAI に戻すときは provider=openai + text-embedding-3-small）。
+    "EMBEDDING_PROVIDER": "ollama",
+    "EMBEDDING_MODEL": "qwen3-embedding:0.6b",
+    "EMBEDDING_VECTOR_SIZE": "1024",
+    "OLLAMA_BASE_URL": "http://127.0.0.1:11434",
     "LLM_MODEL": "gpt-4o-mini",
     "PGVECTOR_COLLECTION_NAME": "videoq_scenes",
     // OAuth 発行者（Django OAUTH2_PROVIDER_ISSUER_URL / OIDC_ISS_ENDPOINT）。

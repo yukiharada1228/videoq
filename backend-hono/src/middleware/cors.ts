@@ -7,8 +7,13 @@ import type { AppEnv } from "../types/bindings";
  * （要件 AU-12 / SEC-7）。env はミドルウェア実行時に参照するため関数で包む。
  */
 export const corsMiddleware = createMiddleware<AppEnv>(async (c, next) => {
+  const allowed = (c.env.CORS_ALLOW_ORIGIN ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   const handler = cors({
-    origin: c.env.CORS_ALLOW_ORIGIN,
+    // Comma-separated list in env (e.g. localhost + 127.0.0.1 for Vite).
+    origin: (origin) => (origin && allowed.includes(origin) ? origin : allowed[0] ?? ""),
     credentials: true,
     allowHeaders: ["Content-Type", "Authorization", "X-CSRFToken", "X-API-Key"],
     allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],

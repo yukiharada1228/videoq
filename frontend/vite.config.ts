@@ -14,8 +14,9 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 3000,
     proxy: {
+      // Local Hono (wrangler dev). Client should use VITE_API_URL=/api so cookies stay same-origin.
       '/api': {
-        target: process.env.VITE_API_URL || 'http://localhost:8000',
+        target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:8787',
         changeOrigin: true,
       },
     },
