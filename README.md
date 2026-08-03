@@ -132,16 +132,18 @@ Open [http://localhost](http://localhost) in your browser.
 2. Configure upload / storage / processing limits for users from Admin
 3. Upload a video, wait for transcription, and try chatting with it
 
-### Check first: user limit settings
+### Free tier on signup
 
-VideoQ manages per-user limits from the Admin UI (`/admin`).
+New accounts receive a monthly free tier automatically (override per user later in Admin):
 
-| Setting | Description |
+| Setting | Default |
 |----------|-------------|
-| Max video upload size (MB) | Maximum upload size per video. Default: 500 |
-| Storage limit (GB) | Storage limit in GB. Leave blank / 0 for unlimited |
-| Processing limit (minutes) | Monthly transcription processing limit. Leave blank / 0 for unlimited |
-| AI answers limit | Monthly AI answer limit. Leave blank / 0 for unlimited |
+| Max video upload size (MB) | 500 (`MAX_VIDEO_UPLOAD_SIZE_MB`) |
+| Storage limit (GB) | 10 (`DEFAULT_STORAGE_LIMIT_GB`) |
+| Processing limit (minutes / month) | 60 (`DEFAULT_PROCESSING_LIMIT_MINUTES`) |
+| AI answers limit (per month) | 100 (`DEFAULT_AI_ANSWERS_LIMIT`) |
+
+Use `null` or `unlimited` in those env vars for no cap. `0` is a hard zero quota. In Admin, leave a field blank to set unlimited (`null`). AI answers and processing usage reset each UTC month.
 
 <details>
 <summary><strong>Optional: object storage notes (MinIO / R2 / S3)</strong></summary>
