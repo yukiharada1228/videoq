@@ -12,6 +12,27 @@ VideoQ is an AI-powered video navigator that automatically transcribes videos an
 >
 > **Design documentation** - See [docs/](docs/README.md) for architecture diagrams, ER diagrams, sequence diagrams, and other technical details.
 
+## Architecture
+
+| Layer | Stack |
+|---|---|
+| Frontend | React 19, TypeScript, Vite → Cloudflare Pages |
+| Web API | Hono / OpenAPIHono, Drizzle ORM → Cloudflare Workers |
+| Async jobs | Python worker → Amazon SQS / AWS Lambda |
+| Database | Neon PostgreSQL + pgvector (local: Docker Postgres) |
+| Object storage | Cloudflare R2 (local: MinIO) |
+| Edge state | Durable Objects (rate limit), KV (study sessions) |
+
+Locally, `docker compose` runs Postgres, MinIO, ElasticMQ, the Hono API (`wrangler dev`), the Python worker, a static frontend build, and a Caddy gateway on port 80.
+
+```text
+Browser → Caddy → React (nginx) + Hono API
+                      ↓              ↓
+                 MinIO / Postgres ← Python worker ← ElasticMQ (SQS)
+```
+
+Package READMEs: [`apps/`](apps/README.md) · [`apps/api/`](apps/api/README.md) · [`apps/worker/`](apps/worker/README.md) · [`frontend/`](frontend/README.md)
+
 ## Features
 
 - **Upload supported video formats** - MP4, MOV, AVI, MKV, WebM, M4V, MPEG, 3GP, and more
@@ -20,16 +41,16 @@ VideoQ is an AI-powered video navigator that automatically transcribes videos an
 - **Organize with tags** - Manage videos with custom tags and colors
 - **Share insights** - Create shareable video groups for team collaboration
 - **Multilingual UI** - Switch between Japanese and English interfaces
+- **Developer integrations** - REST API, OpenAI-compatible chat, and analytics MCP tools
 
 ## Quick Start (5 minutes)
 
 ### Requirements
 
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) installed
-- An [OpenAI API key](https://platform.openai.com/api-keys) for the default configuration
-- A [SearchAPI API key](https://www.searchapi.io/) if you want to import YouTube videos
-
-This guide walks you through starting VideoQ locally and opening it in your browser.
+- An [OpenAI API key](https://platform.openai.com/api-keys) for the default AI configuration
+- A [SearchAPI API key](https://www.searchapi.io/) if you want to import YouTube videos (configured per user in Settings)
+- Node.js 22+ if you want to promote a superuser or run packages outside Docker
 
 ### Step 1: Get an OpenAI API key for the default setup
 
@@ -38,7 +59,7 @@ This guide walks you through starting VideoQ locally and opening it in your brow
 3. Click "Create new secret key"
 4. Copy the key, which starts with `sk-...`
 
-The default setup uses OpenAI for transcription, embeddings, and chat. If you want a fully local setup, switch to the local Whisper / Ollama configuration described below.
+The default setup uses OpenAI for transcription, embeddings, and chat. To run AI locally, see [Optional: reduce costs with local AI](#optional-reduce-costs-with-local-ai) below.
 
 ### Step 2: Set up VideoQ
 
@@ -51,63 +72,85 @@ cd videoq
 cp .env.example .env
 ```
 
-Open `.env` and set the OpenAI API key used by the default configuration.
+Open `.env` and set at least:
 
 ```bash
 OPENAI_API_KEY=sk-proj-...
+
+# Generate independent secrets (do not reuse across environments)
+# AUTH_JWT_SECRET: openssl rand -base64 48
+# USER_SECRET_ENCRYPTION_KEY: openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
+AUTH_JWT_SECRET=
+USER_SECRET_ENCRYPTION_KEY=
 ```
 
-If you want to fetch subtitles from YouTube URLs, each user should configure their own `SearchAPI` key from the VideoQ Settings screen.
+Docker Compose also supplies safe local defaults for those secrets if you leave them blank during development. Always set unique values before any shared or production deployment.
 
 ### Step 3: Start VideoQ
 
 ```bash
 # Start all services. The first run may take a few minutes.
+# Drizzle migrations run automatically via the `migrate` service.
 docker compose up --build -d
-
-# Initial setup
-docker compose exec backend python manage.py migrate
-docker compose exec backend python manage.py collectstatic --noinput
-docker compose exec backend python manage.py createsuperuser
 ```
 
-### Step 4: Start using VideoQ
+Optional Vite HMR for frontend work:
+
+```bash
+docker compose --profile dev up -d web-dev
+# → http://localhost:3000
+```
+
+### Step 4: Create an admin user
+
+1. Open [http://localhost/signup](http://localhost/signup) and create an account.
+2. Complete email verification if mail delivery is configured.
+   For a bare local stack without Mailgun / Email Sending, promote the account
+   (this also activates it):
+
+```bash
+cd apps/api
+npm ci
+npm run user:superuser -- your-username-or-email
+```
+
+3. Log in at [http://localhost/login](http://localhost/login).
+
+### Step 5: Start using VideoQ
 
 Open [http://localhost](http://localhost) in your browser.
 
 **Useful links:**
-- **Admin panel:** [http://localhost/api/admin](http://localhost/api/admin) for managing users and videos
-- **API docs:** [http://localhost/api/docs/](http://localhost/api/docs/) for developers
+- **Admin UI:** [http://localhost/admin](http://localhost/admin) for users, quotas, and reindex jobs
+- **Developer docs:** [http://localhost/docs](http://localhost/docs)
+- **OpenAPI (Scalar):** [http://localhost/api/docs](http://localhost/api/docs)
+- **ReDoc:** [http://localhost/api/redoc](http://localhost/api/redoc)
+- **MinIO console:** [http://localhost:9001](http://localhost:9001) (default `minioadmin` / `minioadmin`)
 
 **First steps:**
-1. Log in with the admin account you created
-2. Create regular users if needed
-3. Configure upload limits for regular users
-4. Upload a video, wait for transcription, and try chatting with it
+1. Log in with the account you promoted
+2. Configure upload / storage / processing limits for users from Admin
+3. Upload a video, wait for transcription, and try chatting with it
 
 ### Check first: user limit settings
 
-VideoQ manages per-user limits directly from the admin panel.
-
-**Where to configure them**
-1. Open the [admin panel](http://localhost/api/admin)
-2. Open `Users`
-3. Select the target user
-4. Configure the following values and save
+VideoQ manages per-user limits from the Admin UI (`/admin`).
 
 | Setting | Description |
 |----------|-------------|
-| `Max video upload size mb` | Maximum upload size per video in MB. Default: 500 |
-| `Storage limit gb` | Storage limit in GB. Default: 0, or leave blank for unlimited |
-| `Processing limit minutes` | Monthly transcription processing limit in minutes. Default: 0, or leave blank for unlimited |
-| `Ai answers limit` | Monthly AI answer limit. Default: 0, or leave blank for unlimited |
+| Max video upload size (MB) | Maximum upload size per video. Default: 500 |
+| Storage limit (GB) | Storage limit in GB. Leave blank / 0 for unlimited |
+| Processing limit (minutes) | Monthly transcription processing limit. Leave blank / 0 for unlimited |
+| AI answers limit | Monthly AI answer limit. Leave blank / 0 for unlimited |
 
 <details>
-<summary><strong>Optional: cloud storage setup (AWS S3 / Cloudflare R2)</strong></summary>
+<summary><strong>Optional: object storage notes (MinIO / R2 / S3)</strong></summary>
 
-**This step is optional.** VideoQ stores videos on the local filesystem by default, but you can also use object storage such as AWS S3 or Cloudflare R2.
+**Local default:** Docker Compose starts MinIO and configures the API + worker to use it. Browser uploads go to `http://127.0.0.1:9000`.
 
-Configure the following values in `.env`:
+**Production:** Use Cloudflare R2 (or another S3-compatible store). Set the API secrets / vars described in [`infra/DEPLOY.md`](infra/DEPLOY.md), including `R2_*` credentials and `USE_S3_STORAGE=true` for the worker / frontend as needed.
+
+Example production-oriented values in `.env` / Worker secrets:
 
 ```bash
 USE_S3_STORAGE=true
@@ -123,20 +166,22 @@ AWS_S3_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com
 AWS_S3_REGION_NAME=auto
 ```
 
-Restart the services:
+Restart the worker after changing storage credentials:
 
 ```bash
-docker compose restart backend celery-worker
+docker compose restart worker api
 ```
 
 </details>
+
+<a id="optional-reduce-costs-with-local-ai"></a>
 
 <details>
 <summary><strong>Optional: reduce costs with local AI</strong></summary>
 
 **This step is optional.** Skip it if the default OpenAI setup works for you.
 
-If you want to reduce costs or run fully offline for privacy reasons, you can switch to free local AI models with the following steps.
+If you want to reduce costs or run more of the stack offline, you can switch to local models.
 
 <details>
 <summary><strong>Local Whisper for free transcription</strong></summary>
@@ -170,10 +215,10 @@ WHISPER_BACKEND=whisper.cpp
 WHISPER_LOCAL_URL=http://host.docker.internal:8080
 ```
 
-Restart the services:
+Restart the worker:
 
 ```bash
-docker compose restart backend celery-worker
+docker compose restart worker
 ```
 
 </details>
@@ -201,10 +246,10 @@ LLM_MODEL=qwen3:0.6b
 OLLAMA_BASE_URL=http://host.docker.internal:11434
 ```
 
-Restart the services:
+Restart the API and worker:
 
 ```bash
-docker compose restart backend celery-worker
+docker compose restart api worker
 ```
 
 </details>
@@ -225,16 +270,17 @@ Edit `.env`:
 ```bash
 EMBEDDING_PROVIDER=ollama
 EMBEDDING_MODEL=qwen3-embedding:0.6b
+EMBEDDING_VECTOR_SIZE=1024
 OLLAMA_BASE_URL=http://host.docker.internal:11434
 ```
 
-Restart the services:
+Restart the API and worker:
 
 ```bash
-docker compose restart backend celery-worker
+docker compose restart api worker
 ```
 
-**Important:** If you switch from OpenAI embeddings to local embeddings, you must re-index existing videos from the admin panel.
+**Important:** If you switch embedding providers or dimensions, re-index existing videos from the Admin UI.
 
 </details>
 
@@ -242,7 +288,7 @@ docker compose restart backend celery-worker
 
 ## HTTPS Deployment with Docker Compose
 
-The default Docker Compose stack uses Caddy as its public gateway. Local development remains HTTP by default. Set a production DNS name to enable automatic Let's Encrypt certificate issuance, HTTP-to-HTTPS redirects, and certificate renewal; no Certbot container or renewal cron is required.
+The default Docker Compose stack uses Caddy as its public gateway. Local development remains HTTP by default. Set a production DNS name to enable automatic Let's Encrypt certificate issuance, HTTP-to-HTTPS redirects, and certificate renewal.
 
 1. Point the A/AAAA record for a stable domain (for example, `videoq.example.com`) to the server's public IP address.
 2. Allow inbound TCP ports 80 and 443. UDP 443 is optional and enables HTTP/3.
@@ -250,11 +296,12 @@ The default Docker Compose stack uses Caddy as its public gateway. Local develop
 
 ```dotenv
 SITE_ADDRESS=videoq.example.com
-DJANGO_ENV=production
-ALLOWED_HOSTS=videoq.example.com
-CORS_ALLOWED_ORIGINS=https://videoq.example.com
 FRONTEND_URL=https://videoq.example.com
-SECRET_KEY=<a-long-random-value>
+CORS_ALLOW_ORIGIN=https://videoq.example.com
+OAUTH_ISSUER_URL=https://videoq.example.com
+AUTH_JWT_SECRET=<openssl rand -base64 48>
+USER_SECRET_ENCRYPTION_KEY=<base64url 32-byte key>
+OPENAI_API_KEY=sk-...
 ```
 
 4. Start the stack:
@@ -265,7 +312,7 @@ docker compose up -d --build
 
 Once DNS is active and ports 80/443 are externally reachable, Caddy obtains and renews the certificate automatically. Open `https://videoq.example.com` to confirm that the application is available over HTTPS.
 
-Keeping the same DNS name means a later server or cloud migration only requires a DNS change. The public application URL can remain unchanged.
+For the Cloudflare + Neon + R2 + Lambda production topology, see [`infra/DEPLOY.md`](infra/DEPLOY.md).
 
 <a id="developer-api"></a>
 
@@ -273,15 +320,18 @@ Keeping the same DNS name means a later server or cloud migration only requires 
 
 VideoQ supports API key authentication for integrations, so you can use it from existing systems and batch jobs through server-to-server communication.
 
-Issue a `vq_...` integration key from "Integration API Keys" in the Settings screen. Use the `X-API-Key` header for the REST API and `Authorization: Bearer <vq_...>` for the OpenAI-compatible API. For integration steps, authentication details, and endpoint-specific sample code in cURL / JavaScript / TypeScript / Python / Go / Java / C# / PHP / Ruby, see the in-app developer docs.
+Issue a `vq_...` integration key from **Settings → Integration API Keys**. Use the `X-API-Key` header for the REST API and `Authorization: Bearer <vq_...>` for the OpenAI-compatible API. For integration steps, authentication details, and endpoint-specific sample code in cURL / JavaScript / TypeScript / Python / Go / Java / C# / PHP / Ruby, see the in-app developer docs.
 
 - **Developer docs:** [http://localhost/docs](http://localhost/docs)
-- **OpenAPI (Swagger UI):** [http://localhost/api/docs/](http://localhost/api/docs/)
-- **ReDoc:** [http://localhost/api/redoc/](http://localhost/api/redoc/)
+- **OpenAPI (Scalar UI):** [http://localhost/api/docs](http://localhost/api/docs)
+- **OpenAPI JSON:** [http://localhost/api/openapi.json](http://localhost/api/openapi.json)
+- **ReDoc:** [http://localhost/api/redoc](http://localhost/api/redoc)
+
+API paths do not use trailing slashes (for example `/api/videos`, not `/api/videos/`).
 
 ## MCP (Model Context Protocol) Integration
 
-VideoQ exposes a built-in **analytics-only** remote MCP server at `POST /api/mcp/`. Any MCP client that speaks Streamable HTTP — Claude Code, Cursor, and any client that can launch `mcp-remote` — can connect with just a URL and an API key. No local process to install.
+VideoQ exposes a built-in **analytics-only** remote MCP server at `POST /api/mcp`. Any MCP client that speaks Streamable HTTP — Claude Code, Cursor, and any client that can launch `mcp-remote` — can connect with just a URL and an API key. No local process to install.
 
 > 🛡️ **Design policy:** Sending RAG chat questions is intentionally excluded. MCP access is limited to **reading and analyzing existing data**.
 
@@ -308,37 +358,37 @@ Log in to VideoQ and issue a `vq_...` key from **Settings → Integration API Ke
 
 #### Step 2: Register the endpoint with your MCP client
 
-The endpoint URL is your VideoQ host followed by `/api/mcp/` — for example, `http://localhost/api/mcp/` for a local Docker setup or `https://your-domain.example.com/api/mcp/` in production. Authenticate with `Authorization: Bearer vq_...` (or the equivalent `X-API-Key` header).
+The endpoint URL is your VideoQ host followed by `/api/mcp` — for example, `http://localhost/api/mcp` for a local Docker setup or `https://your-domain.example.com/api/mcp` in production. Authenticate with `Authorization: Bearer vq_...` (or the equivalent `X-API-Key` header).
 
 For **Claude Code**:
 
 ```bash
-claude mcp add --transport http videoq https://your-domain.example.com/api/mcp/ \
+claude mcp add --transport http videoq https://your-domain.example.com/api/mcp \
   --header "Authorization: Bearer vq_xxxxxxxxxxxxxxxx"
 ```
 
 For **Claude Desktop / claude.ai (built-in connector, OAuth 2.1)**, paste just the MCP URL into **Settings → Connectors → Add custom connector** and approve the consent screen. No API key needed — VideoQ implements OAuth 2.1 + Dynamic Client Registration (RFC 7591) per the MCP Authorization spec.
 
 ```
-https://your-domain.example.com/api/mcp/
+https://your-domain.example.com/api/mcp
 ```
 
-Behind the scenes the client discovers the authorization server via `/.well-known/oauth-protected-resource/api/mcp` and `/.well-known/oauth-authorization-server`, registers itself dynamically at `/api/oauth/register/`, and runs the standard authorization-code flow with PKCE. You can revoke any granted token at any time from **Settings → Connected Apps**.
+Behind the scenes the client discovers the authorization server via `/.well-known/oauth-protected-resource/api/mcp` and `/.well-known/oauth-authorization-server`, registers itself dynamically at `/api/oauth/register`, and runs the standard authorization-code flow with PKCE. You can revoke any granted token at any time from **Settings → Connected Apps**.
 
-For a self-hosted production instance, first complete the [Docker Compose HTTPS deployment](#https-deployment-with-docker-compose). The OAuth issuer must match the public HTTPS origin, so set it in `.env` and apply the change to the backend:
+For a self-hosted production instance, first complete the [Docker Compose HTTPS deployment](#https-deployment-with-docker-compose). The OAuth issuer must match the public HTTPS origin:
 
 ```dotenv
-OAUTH2_PROVIDER_ISSUER_URL=https://videoq.example.com
+OAUTH_ISSUER_URL=https://videoq.example.com
 ```
 
 ```bash
-docker compose up -d backend
+docker compose up -d api gateway
 ```
 
 Then confirm that the MCP endpoint and OAuth metadata are publicly available before registering the connector:
 
 ```text
-https://videoq.example.com/api/mcp/
+https://videoq.example.com/api/mcp
 https://videoq.example.com/.well-known/oauth-authorization-server
 https://videoq.example.com/.well-known/oauth-protected-resource/api/mcp
 ```
@@ -352,7 +402,7 @@ If you need to fall back to the `mcp-remote` bridge for an older client, configu
       "command": "npx",
       "args": [
         "mcp-remote",
-        "https://your-domain.example.com/api/mcp/",
+        "https://your-domain.example.com/api/mcp",
         "--header",
         "Authorization: Bearer vq_xxxxxxxxxxxxxxxx"
       ]
@@ -374,8 +424,20 @@ Restart the client and confirm that the MCP server appears as `videoq`. Try prom
 ### Troubleshooting
 
 - **`401 Unauthorized`** → The API key (or OAuth token) is missing, malformed, or revoked. Reissue from Settings and update the header, or re-approve the OAuth connector.
-- **`404 Not Found`** → The URL is wrong. Confirm the host and the `/api/mcp/` path (trailing slash is optional).
-- **OAuth connector cannot discover the server** → Confirm that `https://<host>/.well-known/oauth-authorization-server` and `https://<host>/.well-known/oauth-protected-resource/api/mcp` return JSON. These paths must be served by the API host at the root (not under `/api/`), so nginx / reverse proxies must forward `/.well-known/oauth-*` to the backend.
+- **`404 Not Found`** → The URL is wrong. Confirm the host and the `/api/mcp` path.
+- **OAuth connector cannot discover the server** → Confirm that `https://<host>/.well-known/oauth-authorization-server` and `https://<host>/.well-known/oauth-protected-resource/api/mcp` return JSON. These paths must be served by the API host at the root (not under `/api/`), so reverse proxies must forward `/.well-known/oauth-*` to the Hono API.
+
+## Repository layout
+
+```text
+apps/api/        Hono OpenAPI on Cloudflare Workers
+apps/worker/     Python async pipeline (SQS / Lambda)
+frontend/        React SPA
+infra/           Terraform (SQS, Lambda, ECR, IAM) + deploy notes
+docs/            Architecture and design docs
+poc/             Spike / verification projects
+docker-compose.yml   Local full stack
+```
 
 ## Contributing
 
