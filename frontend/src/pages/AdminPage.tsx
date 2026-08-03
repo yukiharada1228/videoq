@@ -106,29 +106,24 @@ export default function AdminPage() {
     if (!isSuperuser) navigate('/');
   }, [authLoading, user, isSuperuser, navigate]);
 
-  useEffect(() => {
-    if (!selectedUser) return;
-    setMaxUploadMb(String(selectedUser.max_video_upload_size_mb));
-    setStorageLimitGb(
-      selectedUser.storage_limit_gb == null ? '' : String(selectedUser.storage_limit_gb),
-    );
+  const openEditUser = (row: AdminUser) => {
+    setSelectedUser(row);
+    setMaxUploadMb(String(row.max_video_upload_size_mb));
+    setStorageLimitGb(row.storage_limit_gb == null ? '' : String(row.storage_limit_gb));
     setProcessingLimitMinutes(
-      selectedUser.processing_limit_minutes == null
-        ? ''
-        : String(selectedUser.processing_limit_minutes),
+      row.processing_limit_minutes == null ? '' : String(row.processing_limit_minutes),
     );
-    setAiAnswersLimit(
-      selectedUser.ai_answers_limit == null ? '' : String(selectedUser.ai_answers_limit),
-    );
-    setUsedStorageBytes(String(selectedUser.used_storage_bytes));
-    setUsedProcessingSeconds(String(selectedUser.used_processing_seconds));
-    setUsedAiAnswers(String(selectedUser.used_ai_answers));
-    setIsOverQuota(selectedUser.is_over_quota);
-    setIsActive(selectedUser.is_active);
-    setIsStaff(selectedUser.is_staff);
-    setIsSuperuserFlag(selectedUser.is_superuser);
+    setAiAnswersLimit(row.ai_answers_limit == null ? '' : String(row.ai_answers_limit));
+    setUsedStorageBytes(String(row.used_storage_bytes));
+    setUsedProcessingSeconds(String(row.used_processing_seconds));
+    setUsedAiAnswers(String(row.used_ai_answers));
+    setIsOverQuota(row.is_over_quota);
+    setIsActive(row.is_active);
+    setIsStaff(row.is_staff);
+    setIsSuperuserFlag(row.is_superuser);
     setFormError(null);
-  }, [selectedUser]);
+    setIsEditOpen(true);
+  };
 
   const usersQuery = useQuery({
     queryKey: queryKeys.admin.users({ q: query, limit: PAGE_SIZE, offset }),
@@ -392,10 +387,7 @@ export default function AdminPage() {
                         <Button
                           type="button"
                           variant="text"
-                          onClick={() => {
-                            setSelectedUser(row);
-                            setIsEditOpen(true);
-                          }}
+                          onClick={() => openEditUser(row)}
                         >
                           {t('admin.users.edit')}
                         </Button>

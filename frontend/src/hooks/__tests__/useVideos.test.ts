@@ -9,6 +9,7 @@ vi.mock('@/lib/api', () => ({
     getVideos: vi.fn(),
     getVideo: vi.fn(),
     getMe: vi.fn(),
+    getMeOrNull: vi.fn(),
   },
 }))
 
@@ -391,7 +392,7 @@ describe('useVideo', () => {
   })
 
   it('should initialize with null video', () => {
-    ;(apiClient.getMe as any).mockReturnValue(new Promise(() => {}))
+    ;(apiClient.getMeOrNull as any).mockReturnValue(new Promise(() => {}))
     ;(apiClient.getVideo as any).mockReturnValue(new Promise(() => {}))
     const { result } = renderHook(() => useVideo(1))
 
@@ -420,7 +421,7 @@ describe('useVideo', () => {
       uploaded_at: '',
       status: 'completed' as const,
     }
-    ;(apiClient.getMe as any).mockResolvedValue(mockUser)
+    ;(apiClient.getMeOrNull as any).mockResolvedValue(mockUser)
     ;(apiClient.getVideo as any).mockResolvedValue(mockVideo)
 
     const { result } = renderHook(() => useVideo(1))
@@ -436,7 +437,7 @@ describe('useVideo', () => {
   })
 
   it('should redirect to login if not authenticated', async () => {
-    ;(apiClient.getMe as any).mockRejectedValue(new Error('Unauthorized'))
+    ;(apiClient.getMeOrNull as any).mockResolvedValue(null)
 
     const { result } = renderHook(() => useVideo(1))
 
@@ -444,7 +445,7 @@ describe('useVideo', () => {
       try {
         await result.current.loadVideo()
       } catch {
-        // Expected to throw
+        // Expected when auth is missing
       }
     })
 
@@ -465,20 +466,20 @@ describe('useVideo', () => {
       uploaded_at: '',
       status: 'completed' as const,
     }
-    ;(apiClient.getMe as any).mockResolvedValue(mockUser)
+    ;(apiClient.getMeOrNull as any).mockResolvedValue(mockUser)
     ;(apiClient.getVideo as any).mockResolvedValue(mockVideo)
 
     renderHook(() => useVideo(1))
 
     await waitFor(() => {
-      expect(apiClient.getMe).toHaveBeenCalled()
+      expect(apiClient.getMeOrNull).toHaveBeenCalled()
       expect(apiClient.getVideo).toHaveBeenCalledWith(1)
     })
     expect((apiClient as any).isAuthenticated).toBeUndefined()
   })
 
   it('should handle loading errors', async () => {
-    ;(apiClient.getMe as any).mockResolvedValue({ id: 1, username: 'testuser' })
+    ;(apiClient.getMeOrNull as any).mockResolvedValue({ id: 1, username: 'testuser' })
     ;(apiClient.getVideo as any).mockRejectedValue(new Error('Failed to load'))
 
     const { result } = renderHook(() => useVideo(1))
