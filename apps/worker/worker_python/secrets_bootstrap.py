@@ -1,8 +1,8 @@
-"""Load Secrets Manager payloads into process env for Lambda.
+"""Load SSM SecureString payloads into process env for Lambda.
 
 Lambda injects reserved AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY for the
 execution role. R2 credentials must therefore live under R2_* names in
-APP_SECRET_ARN and are loaded into R2_* process env vars.
+APP_PARAM_NAME and are loaded into R2_* process env vars.
 """
 
 from __future__ import annotations
@@ -39,9 +39,9 @@ def ensure_secrets_loaded() -> None:
         return
     _LOADED = True
 
-    db_arn = os.environ.get("DB_SECRET_ARN", "").strip()
-    app_arn = os.environ.get("APP_SECRET_ARN", "").strip()
-    if not db_arn and not app_arn:
+    db_param = _param_ref("DB_PARAM_NAME", "DB_SECRET_ARN")
+    app_param = _param_ref("APP_PARAM_NAME", "APP_SECRET_ARN")
+    if not db_param and not app_param:
         return
 
     try:
@@ -50,17 +50,17 @@ def ensure_secrets_loaded() -> None:
         logger.warning("boto3 unavailable; skipping secrets bootstrap")
         return
 
-    client = boto3.client("secretsmanager")
+    client = boto3.client("ssm")
 
-    if db_arn and not os.environ.get("DATABASE_URL"):
-        payload = _get_json_secret(client, db_arn)
+    if db_param and not os.environ.get("DATABASE_URL"):
+        payload = _get_json_parameter(client, db_param)
         url = (payload.get("DATABASE_URL") or "").strip()
         if url:
             os.environ["DATABASE_URL"] = url
-            logger.info("Loaded DATABASE_URL from DB_SECRET_ARN")
+            logger.info("Loaded DATABASE_URL from DB_PARAM_NAME")
 
-    if app_arn:
-        payload = _get_json_secret(client, app_arn)
+    if app_param:
+        payload = _get_json_parameter(client, app_param)
         # Prefer canonical R2_* secret keys over legacy AWS_* aliases when both exist.
         for src, dest in _APP_ENV_MAP.items():
             if os.environ.get(dest):
@@ -72,7 +72,15 @@ def ensure_secrets_loaded() -> None:
         _mirror_if_missing("R2_BUCKET_NAME", "AWS_STORAGE_BUCKET_NAME")
         _mirror_if_missing("R2_S3_ENDPOINT", "AWS_S3_ENDPOINT_URL")
         _mirror_if_missing("R2_S3_REGION", "AWS_S3_REGION_NAME")
-        logger.info("Loaded app secrets from APP_SECRET_ARN")
+        logger.info("Loaded app secrets from APP_PARAM_NAME")
+
+
+def _param_ref(*env_keys: str) -> str:
+    for key in env_keys:
+        value = os.environ.get(key, "").strip()
+        if value:
+            return value
+    return ""
 
 
 def _mirror_if_missing(src: str, dest: str) -> None:
@@ -83,9 +91,9 @@ def _mirror_if_missing(src: str, dest: str) -> None:
         os.environ[dest] = value
 
 
-def _get_json_secret(client: object, arn: str) -> dict:
-    response = client.get_secret_value(SecretId=arn)  # type: ignore[attr-defined]
-    raw = response.get("SecretString") or ""
+def _get_json_parameter(client: object, name: str) -> dict:
+    response = client.get_parameter(Name=name, WithDecryption=True)  # type: ignore[attr-defined]
+    raw = (response.get("Parameter") or {}).get("Value") or ""
     if not raw:
         return {}
     data = json.loads(raw)

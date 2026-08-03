@@ -3,8 +3,8 @@
 # transcription as infrastructure as code.
 #
 # Note: This provider cannot manage API keys. Continue issuing the runtime
-# OPENAI_API_KEY manually from the dashboard and saving it in the app secret
-# (secrets.tf).
+# OPENAI_API_KEY manually from the dashboard and saving it in the app SSM
+# SecureString (/videoq/<env>/app; see secrets.tf).
 #
 # While var.manage_openai_project is false (the default), every resource has
 # count=0, so plan/apply works without OPENAI_ADMIN_KEY. Set the variable to true

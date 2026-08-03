@@ -10,12 +10,29 @@ resource "aws_iam_role_policy_attachment" "worker_basic_execution" {
 
 data "aws_iam_policy_document" "worker_permissions" {
   statement {
-    effect  = "Allow"
-    actions = ["secretsmanager:GetSecretValue"]
-    resources = [
-      aws_secretsmanager_secret.db.arn,
-      aws_secretsmanager_secret.app.arn,
+    effect = "Allow"
+    actions = [
+      "ssm:GetParameter",
+      "ssm:GetParameters",
     ]
+    resources = [
+      aws_ssm_parameter.db.arn,
+      aws_ssm_parameter.app.arn,
+    ]
+  }
+
+  # Decrypt SecureString values encrypted with the default aws/ssm key.
+  statement {
+    effect = "Allow"
+    actions = [
+      "kms:Decrypt",
+    ]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["ssm.${var.aws_region}.amazonaws.com"]
+    }
   }
 
   statement {
@@ -43,6 +60,7 @@ resource "aws_lambda_function" "worker" {
   role          = aws_iam_role.worker.arn
   package_type  = "Image"
   image_uri     = "${aws_ecr_repository.worker.repository_url}:${var.image_tag}"
+  architectures = ["arm64"]
   memory_size   = var.worker_lambda_memory_mb
   timeout       = var.worker_lambda_timeout_seconds
 
