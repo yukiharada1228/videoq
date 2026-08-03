@@ -44,11 +44,13 @@ export function createApp() {
   app.route("/", oauthOidcWellKnownRoutes);
 
   app.route("/api/auth", authRoutes);
-  app.route("/api/videos", videoRoutes);
-  app.route("/api/videos", tagRoutes);
+  // Static segments (/groups, /tags, /{id}/plog, …) must be registered before
+  // videoRoutes' /{id}, or "groups" is coerced as a video id (NaN → 400).
   app.route("/api/videos", groupRoutes);
+  app.route("/api/videos", tagRoutes);
   app.route("/api/videos", membershipRoutes);
   app.route("/api/videos", plogRoutes);
+  app.route("/api/videos", videoRoutes);
   app.route("/api/chat", chatRoutes);
   app.route("/api/v1/chat", chatCompletionsRoutes);
   app.route("/api/evaluation", evaluationRoutes);
