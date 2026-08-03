@@ -37,8 +37,9 @@ export default function LoginPage() {
   const { formData, error, isLoading, handleChange, handleSubmit } = useAuthForm({
     onSubmit: async (data) => {
       await apiClient.login(data);
-      // AppNav/Home may already have cached auth.me=null (staleTime=60s).
-      // fetchQuery would reuse that and leave the UI logged-out until reload.
+      // Cancel in-flight getMeOrNull (may still resolve to null) and replace the
+      // stale auth.me=null cache so Home/Nav see the signed-in user immediately.
+      await queryClient.cancelQueries({ queryKey: queryKeys.auth.me });
       const user = await apiClient.getMe();
       queryClient.setQueryData(queryKeys.auth.me, user);
     },

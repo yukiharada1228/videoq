@@ -15,6 +15,7 @@ import {
   type QuotaPatch,
   type UsagePatch,
 } from "../../repositories/admin-repository";
+import { revokeAllOAuthTokensForUser } from "../../repositories/oauth-repository";
 import type { Bindings } from "../../types/bindings";
 
 export function isSuperuser(env: Bindings, userId: number) {
@@ -65,6 +66,10 @@ export async function patchFlags(
 
   const user = await patchAdminUserFlags(env, targetUserId, patch);
   if (!user) return { notFound: true as const };
+  // Sessions are deleted in the repository; drop OAuth/MCP tokens too.
+  if (patch.is_active === false) {
+    await revokeAllOAuthTokensForUser(env, targetUserId);
+  }
   return { user } as const;
 }
 
@@ -88,6 +93,7 @@ export async function deleteUser(
 
   const locked = await lockUserForHardDelete(env, targetUserId);
   if (!locked) return { notFound: true } as const;
+  await revokeAllOAuthTokensForUser(env, targetUserId);
 
   const jobId = await enqueueAccountDeletion(env, targetUserId);
   if (jobId) return { job_id: jobId } as const;

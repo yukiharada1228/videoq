@@ -4,6 +4,7 @@ import type { AppEnv } from "../types/bindings";
 import { toErrorBody } from "../shared/errors";
 import { sha256Hex } from "../shared/crypto";
 import { verifyAccessToken } from "../lib/jwt";
+import { isAuthSessionActive } from "../repositories/auth-repository";
 import { resolveActiveApiKey } from "../repositories/api-key-repository";
 import { resolveOAuthAccessToken } from "../repositories/oauth-repository";
 
@@ -80,7 +81,14 @@ export const jwtMethod: AuthMethod = async (c) => {
   const bearer = authz?.keyword === "Bearer" ? authz.value : undefined;
   if (!bearer || bearer.startsWith("vq_")) return { kind: "absent" };
   const verified = await verifyAccessToken(c.env, bearer);
-  return verified
+  if (!verified) return { kind: "invalid", message: "Invalid access token" };
+  // Refresh cookie 失効・パスワード変更後も access JWT を TTL 満了前に拒否する。
+  const active = await isAuthSessionActive(
+    c.env,
+    verified.sessionId,
+    verified.userId,
+  );
+  return active
     ? { kind: "ok", userId: verified.userId, via: "bearer" }
     : { kind: "invalid", message: "Invalid access token" };
 };

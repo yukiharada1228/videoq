@@ -184,23 +184,113 @@ export async function listAuthorizedTokens(
   });
 }
 
-/** 所有者のトークンを削除（`revoke_for_user`）。成功=true。 */
+/**
+ * Connected Apps 切断: 対象 access token と同じ application の
+ * access / refresh をまとめて削除する（refresh だけ残して再発行されるのを防ぐ）。
+ */
 export async function revokeAuthorizedToken(
   env: Bindings,
   userId: number,
   tokenId: number,
 ): Promise<boolean> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .delete(oauthAccessTokens)
-      .where(
-        and(
-          eq(oauthAccessTokens.id, tokenId),
-          eq(oauthAccessTokens.userId, userId),
-        ),
-      )
-      .returning({ id: oauthAccessTokens.id });
-    return rows.length > 0;
+  return withDb(env, async (db, client) => {
+    await client.query("BEGIN");
+    try {
+      const existing = await db
+        .select({
+          id: oauthAccessTokens.id,
+          applicationId: oauthAccessTokens.applicationId,
+        })
+        .from(oauthAccessTokens)
+        .where(
+          and(
+            eq(oauthAccessTokens.id, tokenId),
+            eq(oauthAccessTokens.userId, userId),
+          ),
+        )
+        .limit(1);
+      const row = existing[0];
+      if (!row) {
+        await client.query("ROLLBACK");
+        return false;
+      }
+
+      if (row.applicationId != null) {
+        await db
+          .delete(oauthRefreshTokens)
+          .where(
+            and(
+              eq(oauthRefreshTokens.userId, userId),
+              eq(oauthRefreshTokens.applicationId, row.applicationId),
+            ),
+          );
+        await db
+          .update(oauthAccessTokens)
+          .set({ idTokenId: null })
+          .where(
+            and(
+              eq(oauthAccessTokens.userId, userId),
+              eq(oauthAccessTokens.applicationId, row.applicationId),
+            ),
+          );
+        await db
+          .delete(oauthAccessTokens)
+          .where(
+            and(
+              eq(oauthAccessTokens.userId, userId),
+              eq(oauthAccessTokens.applicationId, row.applicationId),
+            ),
+          );
+      } else {
+        await db
+          .delete(oauthAccessTokens)
+          .where(
+            and(
+              eq(oauthAccessTokens.id, tokenId),
+              eq(oauthAccessTokens.userId, userId),
+            ),
+          );
+      }
+      await client.query("COMMIT");
+      return true;
+    } catch (e) {
+      await client.query("ROLLBACK");
+      throw e;
+    }
+  });
+}
+
+/**
+ * 資格情報変更・アカウント無効化時: ユーザーの OAuth 委譲をすべて消す。
+ * (access / refresh / id token / auth code / device grant)
+ */
+export async function revokeAllOAuthTokensForUser(
+  env: Bindings,
+  userId: number,
+): Promise<void> {
+  await withDb(env, async (db, client) => {
+    await client.query("BEGIN");
+    try {
+      await db
+        .delete(oauthRefreshTokens)
+        .where(eq(oauthRefreshTokens.userId, userId));
+      await db.delete(oauthGrants).where(eq(oauthGrants.userId, userId));
+      await db
+        .delete(oauthDeviceGrants)
+        .where(eq(oauthDeviceGrants.userId, userId));
+      await db
+        .update(oauthAccessTokens)
+        .set({ idTokenId: null })
+        .where(eq(oauthAccessTokens.userId, userId));
+      await db.delete(oauthIdTokens).where(eq(oauthIdTokens.userId, userId));
+      await db
+        .delete(oauthAccessTokens)
+        .where(eq(oauthAccessTokens.userId, userId));
+      await client.query("COMMIT");
+    } catch (e) {
+      await client.query("ROLLBACK");
+      throw e;
+    }
   });
 }
 
@@ -221,11 +311,13 @@ export async function resolveOAuthAccessToken(
         scope: oauthAccessTokens.scope,
       })
       .from(oauthAccessTokens)
+      .innerJoin(users, eq(users.id, oauthAccessTokens.userId))
       .where(
         and(
           eq(oauthAccessTokens.tokenChecksum, tokenChecksumHex),
           gt(oauthAccessTokens.expires, sql`now()`),
           isNotNull(oauthAccessTokens.userId),
+          eq(users.isActive, true),
         ),
       )
       .limit(1);
@@ -613,9 +705,11 @@ export async function findActiveRefreshToken(
              r.created, coalesce(a.scope, '') AS scope
         FROM oauth_refresh_tokens r
          LEFT JOIN oauth_access_tokens a ON a.id = r.access_token_id
+         JOIN users u ON u.id = r.user_id
        WHERE r.token = ${rawRefresh}
          AND r.revoked IS NULL
          AND r.application_id = ${applicationId}
+         AND u.is_active = true
        ORDER BY r.id DESC
        LIMIT 1
     `);
@@ -1182,11 +1276,12 @@ export async function findAccessTokenForUserinfo(
         email: users.email,
       })
       .from(oauthAccessTokens)
-      .leftJoin(users, eq(users.id, oauthAccessTokens.userId))
+      .innerJoin(users, eq(users.id, oauthAccessTokens.userId))
       .where(
         and(
           eq(oauthAccessTokens.tokenChecksum, checksum),
           gt(oauthAccessTokens.expires, sql`now()`),
+          eq(users.isActive, true),
         ),
       )
       .limit(1);

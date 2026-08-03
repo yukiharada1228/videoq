@@ -57,6 +57,8 @@ describe("POST /tokens refresh", () => {
     const j = await res.json();
     expect(j.error.code).toBe("AUTHENTICATION_FAILED");
     expect(j.error.message).toBe("Invalid refresh token");
+    const setCookie = res.headers.get("set-cookie") ?? "";
+    expect(setCookie.toLowerCase()).toMatch(/vq_refresh=.*max-age=0|vq_refresh=;/);
   });
 
   it("旧 refresh_token cookie は廃止", async () => {
@@ -131,5 +133,7 @@ describe("POST /tokens refresh", () => {
           call.sql.includes("family_id"),
       ),
     ).toBe(true);
+    const setCookie = res.headers.get("set-cookie") ?? "";
+    expect(setCookie.toLowerCase()).toContain("vq_refresh=");
   });
 });

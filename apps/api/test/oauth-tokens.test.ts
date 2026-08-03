@@ -96,11 +96,17 @@ describe("GET /api/oauth/tokens/", () => {
 });
 
 describe("DELETE /api/oauth/tokens/:id/", () => {
-  it("returns 204 when the owner revokes a token", async () => {
-    rowsFor = (sql) =>
-      sql.includes("oauth_access_tokens") && sql.includes("delete")
-        ? [{ id: 11 }]
-        : [];
+  it("returns 204 and revokes refresh tokens for the same app", async () => {
+    rowsFor = (sql) => {
+      if (
+        sql.includes("oauth_access_tokens") &&
+        sql.includes("select") &&
+        !sql.includes("delete")
+      ) {
+        return [{ id: 11, application_id: 3 }];
+      }
+      return [];
+    };
     const res = await oauthRoutes.request(
       "/api/oauth/tokens/11",
       {
@@ -110,10 +116,18 @@ describe("DELETE /api/oauth/tokens/:id/", () => {
       ENV,
     );
     expect(res.status).toBe(204);
-    const del = calls.find((c) =>
-      c.sql.includes("oauth_access_tokens") && c.sql.includes("delete"),
-    );
-    expect(del?.args).toEqual([11, 7]);
+    expect(
+      calls.some(
+        (c) =>
+          c.sql.includes("oauth_refresh_tokens") && c.sql.includes("delete"),
+      ),
+    ).toBe(true);
+    expect(
+      calls.some(
+        (c) =>
+          c.sql.includes("oauth_access_tokens") && c.sql.includes("delete"),
+      ),
+    ).toBe(true);
   });
 
   it("returns 404 when token is missing", async () => {

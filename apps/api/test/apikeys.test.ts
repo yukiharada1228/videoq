@@ -1,11 +1,28 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { authRoutes } from "../src/features/auth/routes";
 import { signAccessToken } from "./helpers/auth";
+import { executeFakePgQuery, type PgQueryInput } from "./helpers/pg-fake";
+
+vi.mock("pg", () => {
+  class FakeClient {
+    async connect() {}
+    async end() {}
+    async query(sqlOrConfig: unknown, args: unknown[] = []) {
+      return executeFakePgQuery({
+        sqlOrConfig: sqlOrConfig as PgQueryInput,
+        args,
+        rowsFor: () => [],
+      });
+    }
+  }
+  return { default: { Client: FakeClient } };
+});
 
 const SECRET = "test-jwt-secret-apikeys";
 const ENV = {
   ENVIRONMENT: "development",
   AUTH_JWT_SECRET: SECRET,
+  HYPERDRIVE: { connectionString: "postgres://fake/db" },
 } as unknown as Record<string, unknown>;
 
 async function accessToken(userId = 5) {

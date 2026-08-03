@@ -3,8 +3,10 @@ import { videoRoutes } from "../src/features/videos/routes";
 import { signAccessToken } from "./helpers/auth";
 
 import {
+  isAuthSessionActiveSql,
   matchableSql,
   normalizePgQuery,
+  TEST_AUTH_SESSION_ID,
   type MatchableSql,
   type PgQueryInput,
 } from "./helpers/pg-fake";
@@ -61,7 +63,10 @@ async function accessToken(userId = 5) {
 
 beforeEach(() => {
   putMock.mockReset().mockResolvedValue(undefined);
-  queryMock.mockReset().mockImplementation((sql: MatchableSql) => {
+  queryMock.mockReset().mockImplementation((sql: MatchableSql, args: unknown[] = []) => {
+    if (isAuthSessionActiveSql(sql) && args[0] === TEST_AUTH_SESSION_ID) {
+      return { rows: [{ ok: 1 }], rowCount: 1 };
+    }
     if (sql.includes("max_video_upload_size_mb")) {
       return { rows: [{ max_video_upload_size_mb: 500 }], rowCount: 1 };
     }

@@ -34,10 +34,21 @@ import {
   consumeActionToken,
   createActionToken,
   createAuthSession,
+  revokeAllUserSessions,
   revokeAuthSession,
   rotateAuthSession,
 } from "../../repositories/auth-repository";
+import { revokeAllOAuthTokensForUser } from "../../repositories/oauth-repository";
 import type { Bindings } from "../../types/bindings";
+
+/** App sessions + OAuth 委譲をまとめて無効化（資格情報 / identity 変更時）。 */
+async function revokeAllUserDelegations(
+  env: Bindings,
+  userId: number,
+): Promise<void> {
+  await revokeAllUserSessions(env, userId);
+  await revokeAllOAuthTokensForUser(env, userId);
+}
 
 export const SIGNUP_OK_MESSAGE =
   "Verification email sent. Please check your email.";
@@ -135,6 +146,8 @@ export async function confirmPasswordReset(
   const action = await consumeActionToken(env, token, "reset_password");
   if (!action) return { ok: false, message: INVALID };
   await setUserPassword(env, action.userId, newPassword);
+  // Invalidate app sessions and OAuth/MCP tokens after credential change.
+  await revokeAllUserDelegations(env, action.userId);
   return { ok: true };
 }
 
@@ -183,6 +196,8 @@ export async function confirmEmailChange(
   if (!(await confirmPendingEmail(env, action.userId, pendingEmail))) {
     return { ok: false, message: INVALID };
   }
+  // Identity change: force re-login and drop third-party delegations.
+  await revokeAllUserDelegations(env, action.userId);
   return { ok: true };
 }
 

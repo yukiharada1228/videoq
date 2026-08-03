@@ -2,13 +2,18 @@ import { describe, it, expect, vi } from "vitest";
 import { authRoutes } from "../src/features/auth/routes";
 import { buildPasswordResetLink, buildEmailChangeLink } from "../src/lib/auth-email";
 import { signAccessToken } from "./helpers/auth";
+import { executeFakePgQuery, type PgQueryInput } from "./helpers/pg-fake";
 
 vi.mock("pg", () => {
   class FakeClient {
     async connect() {}
     async end() {}
-    async query() {
-      return { rows: [], rowCount: 0 };
+    async query(sqlOrConfig: unknown, args: unknown[] = []) {
+      return executeFakePgQuery({
+        sqlOrConfig: sqlOrConfig as PgQueryInput,
+        args,
+        rowsFor: () => [],
+      });
     }
   }
   return { default: { Client: FakeClient } };

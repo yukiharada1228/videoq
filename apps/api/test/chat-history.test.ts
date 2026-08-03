@@ -185,13 +185,14 @@ describe("DELETE /api/chat/groups/:id/history/", () => {
     expect(res.status).toBe(204);
     expect(await res.text()).toBe("");
 
-    const sqls = calls.map((c) => c.sql.replace(/\s+/g, " ").trim());
+    const txnCalls = calls.filter((c) => !c.sql.includes("FROM auth_sessions"));
+    const sqls = txnCalls.map((c) => c.sql.replace(/\s+/g, " ").trim());
     expect(sqls[0]).toBe("begin");
     expect(sqls[1]).toContain("video_groups");
     expect(sqls[2]).toContain("chat_log_evaluations");
     expect(sqls[3]).toContain("chat_logs");
     expect(sqls[4]).toBe("commit");
-    expect(calls[1].args.slice(0, 2)).toEqual([3, 5]);
+    expect(txnCalls[1].args.slice(0, 2)).toEqual([3, 5]);
   });
 
   it("グループが無ければ ROLLBACK して 404", async () => {
