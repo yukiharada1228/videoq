@@ -194,6 +194,25 @@ describe("admin API", () => {
     );
   });
 
+  it("SQS 投入失敗時は同期 hard-delete にフォールバックする", async () => {
+    enqueueDelete.mockResolvedValueOnce(null);
+    const res = await req("/api/admin/users/9", {
+      method: "DELETE",
+      headers: { authorization: `Bearer ${await token(1)}` },
+    });
+    expect(res.status).toBe(202);
+    const body = (await res.json()) as { job_id: string };
+    expect(body.job_id.startsWith("sync-")).toBe(true);
+    expect(
+      calls.some(
+        (c) => c.sql.includes("DELETE") && c.sql.includes("scene_embeddings"),
+      ),
+    ).toBe(true);
+    expect(
+      calls.some((c) => c.sql.includes("DELETE") && c.sql.includes("users")),
+    ).toBe(true);
+  });
+
   it("自分自身は削除できない", async () => {
     rowsFor = (sql) => {
       if (sql.includes("SELECT is_superuser")) return [{ is_superuser: true }];

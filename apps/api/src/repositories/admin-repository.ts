@@ -237,6 +237,26 @@ export async function lockUserForHardDelete(
   });
 }
 
+/**
+ * Sync hard-delete for admin fallback when SQS enqueue fails.
+ * Cascades cover most owned rows; scene_embeddings has no FK so delete explicitly.
+ */
+export async function hardDeleteUser(
+  env: Bindings,
+  userId: number,
+): Promise<boolean> {
+  return withDb(env, async (db) => {
+    return db.transaction(async (tx) => {
+      await tx.execute(sql`DELETE FROM scene_embeddings WHERE user_id = ${userId}`);
+      const deleted = await tx
+        .delete(users)
+        .where(eq(users.id, userId))
+        .returning({ id: users.id });
+      return deleted.length > 0;
+    });
+  });
+}
+
 export async function patchAdminUserUsage(
   env: Bindings,
   userId: number,

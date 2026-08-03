@@ -31,15 +31,34 @@ export async function sendSqsMessage(
     MessageBody: messageBody,
   });
 
-  const res = await aws.fetch(env.SQS_QUEUE_URL, {
-    method: "POST",
-    body: form.toString(),
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-  });
+  try {
+    const res = await aws.fetch(env.SQS_QUEUE_URL, {
+      method: "POST",
+      body: form.toString(),
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+    });
 
-  const text = await res.text();
-  if (!res.ok) {
-    throw new Error(`SQS SendMessage failed: ${res.status} ${text}`);
+    const text = await res.text();
+    if (!res.ok) {
+      console.error(
+        JSON.stringify({
+          level: "error",
+          error: "SQS SendMessage failed",
+          status: res.status,
+          body: text.slice(0, 500),
+        }),
+      );
+      return null;
+    }
+    return (text.match(/<MessageId>([^<]+)<\/MessageId>/) || [])[1] ?? null;
+  } catch (e) {
+    console.error(
+      JSON.stringify({
+        level: "error",
+        error: "SQS SendMessage threw",
+        message: e instanceof Error ? e.message : String(e),
+      }),
+    );
+    return null;
   }
-  return (text.match(/<MessageId>([^<]+)<\/MessageId>/) || [])[1] ?? null;
 }
