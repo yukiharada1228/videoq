@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { SignJWT } from "jose";
-import { videoRoutes } from "../src/routes/videos";
+import { videoRoutes } from "../src/features/videos/routes";
+import { signAccessToken } from "./helpers/auth";
 
 import {
   matchableSql,
@@ -45,7 +45,7 @@ vi.mock("../src/lib/jobs", () => ({
 const SECRET = "test-jwt-secret-videos-multipart";
 const baseEnv = {
   ENVIRONMENT: "development",
-  JWT_SECRET: SECRET,
+  AUTH_JWT_SECRET: SECRET,
   HYPERDRIVE: { connectionString: "postgres://fake/db" },
   VIDEO_BUCKET: {
     put: (...a: unknown[]) => putMock(...a),
@@ -56,12 +56,7 @@ const baseEnv = {
 };
 
 async function accessToken(userId = 5) {
-  const now = Math.floor(Date.now() / 1000);
-  return new SignJWT({ token_type: "access", user_id: userId, jti: "j" })
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-    .setIssuedAt(now)
-    .setExpirationTime(now + 3600)
-    .sign(new TextEncoder().encode(SECRET));
+  return signAccessToken(SECRET, userId);
 }
 
 beforeEach(() => {
@@ -76,10 +71,10 @@ beforeEach(() => {
     if (sql.includes("used_storage_bytes")) {
       return { rows: [], rowCount: 1 };
     }
-    if (sql.includes("app_video") && sql.includes("returning")) {
+    if (sql.includes("videos") && sql.includes("returning")) {
       return { rows: [{ id: 42 }], rowCount: 1 };
     }
-    if (sql.includes("app_video") && sql.includes("select")) {
+    if (sql.includes("videos") && sql.includes("select")) {
       return {
         rows: [
           {
@@ -110,7 +105,7 @@ describe("POST /api/videos/ — USE_S3_STORAGE=true（廃線）", () => {
 
   it("認証済みでも 400 で署名 URL 経路を案内する", async () => {
     const res = await videoRoutes.request(
-      "/api/videos/",
+      "/api/videos",
       {
         method: "POST",
         headers: {
@@ -125,8 +120,8 @@ describe("POST /api/videos/ — USE_S3_STORAGE=true（廃線）", () => {
     expect(await res.json()).toEqual({
       error: {
         code: "VALIDATION_ERROR",
-        message:
-          "Direct multipart upload is no longer supported. Use POST /api/videos/uploads/ then PUT the file to upload_url and PATCH the video with status \"uploaded\".",
+        message: "No file was submitted.",
+        details: { file: ["No file was submitted."] },
       },
     });
   });
@@ -137,7 +132,7 @@ describe("POST /api/videos/ — USE_S3_STORAGE=false（multipart）", () => {
 
   it("未認証は 401", async () => {
     const res = await videoRoutes.request(
-      "/api/videos/",
+      "/api/videos",
       { method: "POST", headers: { "content-type": "application/json" }, body: "{}" },
       ENV,
     );
@@ -151,7 +146,7 @@ describe("POST /api/videos/ — USE_S3_STORAGE=false（multipart）", () => {
     form.append("description", "");
 
     const res = await videoRoutes.request(
-      "/api/videos/",
+      "/api/videos",
       {
         method: "POST",
         headers: { authorization: `Bearer ${await accessToken()}` },
@@ -173,7 +168,7 @@ describe("POST /api/videos/uploads/ — local では不可", () => {
   it("USE_S3_STORAGE=false は 400", async () => {
     const ENV = { ...baseEnv, USE_S3_STORAGE: "false" } as unknown as Record<string, unknown>;
     const res = await videoRoutes.request(
-      "/api/videos/uploads/",
+      "/api/videos/uploads",
       {
         method: "POST",
         headers: {

@@ -1,11 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildSystemPrompt } from "../src/lib/prompts";
 
-/**
- * 実 Django `build_system_prompt()` の出力を SHA-256 で固定したベクトル。
- * prompts.json は Django からコピーしているので、ハッシュが変わったら
- * 「両方を更新したか」を必ず確認すること。
- */
+/** System prompt output is pinned with SHA-256 vectors. */
 async function sha256(text: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -16,7 +12,7 @@ const REFS = [
   "[2] Video B 00:01:00 - 00:01:30\nsecond",
 ];
 
-describe("buildSystemPrompt（Django loader.py と byte 一致）", () => {
+describe("buildSystemPrompt", () => {
   it("default ロケール・参照なし", async () => {
     const p = buildSystemPrompt(null, undefined, null);
     expect(p.length).toBe(3726);

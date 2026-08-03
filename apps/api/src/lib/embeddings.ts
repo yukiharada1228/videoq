@@ -9,7 +9,7 @@ import {
 import type { Bindings } from "../types/bindings";
 
 /**
- * クエリ埋め込み（Django `get_embeddings()` 相当）。
+ * 検索クエリの埋め込みベクトルを生成する。
  * - openai: OpenAI Embeddings API（既定モデル次元）。`dimensions` 指定可。
  * - ollama: ローカル Ollama `/api/embeddings`（ローカル DB が 1024 次元のときなど）。
  */

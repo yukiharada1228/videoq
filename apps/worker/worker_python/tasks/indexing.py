@@ -1,13 +1,13 @@
-"""index_video_transcript — vector indexing without Django."""
+"""index_video_transcript — VideoQ vector indexing task."""
 
 from __future__ import annotations
 
 import logging
 
-from worker_python.contracts import BUILD_PLOG_TASK
+from worker_python.contracts import JOB_BUILD_PLOG
 from worker_python.db import db_connection
 from worker_python.pipeline import vector_index
-from worker_python.sqs_enqueue import enqueue_task
+from worker_python.sqs_enqueue import enqueue_job
 from worker_python.video_sql import get_video_for_task, transition_video_status
 from worker_python.video_status import plan_indexing_failure, plan_indexing_success
 
@@ -58,9 +58,9 @@ def index_video_transcript(video_id: int) -> None:
             from_status.value,
         )
 
-    # Best-effort PLOG rebuild enqueue (Django IndexVideoTranscriptUseCase).
+    # ベクトル更新後に PLOG rebuild を best-effort で投入する。
     try:
-        message_id = enqueue_task(BUILD_PLOG_TASK, [video_id])
+        message_id = enqueue_job(JOB_BUILD_PLOG, {"video_id": video_id})
         if not message_id:
             from worker_python.tasks.build_plog import build_plog_artifacts
 

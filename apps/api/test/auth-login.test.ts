@@ -1,28 +1,30 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { authRoutes } from "../src/routes/auth";
-import { resetMemoryRateLimits, THROTTLE_RATES } from "../src/lib/rate-limit";
+import { describe, it, expect } from "vitest";
+import { authRoutes } from "../src/features/auth/routes";
+import { THROTTLE_RATES } from "../src/lib/rate-limit";
 
 // login の早期リターン（DB 到達前）を検証。env は cookie 分岐用に最小限。
-const ENV = { ENVIRONMENT: "development" } as unknown as Record<string, unknown>;
-
-beforeEach(() => resetMemoryRateLimits());
+const ENV = {
+  ENVIRONMENT: "development",
+  CORS_ALLOW_ORIGIN: "http://localhost:3000",
+} as unknown as Record<string, unknown>;
 
 function post(body: string, contentType?: string) {
   const headers: Record<string, string> = {};
   if (contentType) headers["content-type"] = contentType;
   return authRoutes.request(
-    "/sessions",
+    "/api/auth/sessions",
     { method: "POST", headers, body },
     ENV,
   );
 }
 
 describe("POST /sessions login guards", () => {
-  it("text/plain → 415 Unsupported media type（login-CSRF 対策）", async () => {
+  it("text/plain → 415 Unsupported media type", async () => {
     const res = await post(JSON.stringify({ username: "a", password: "b" }), "text/plain");
     expect(res.status).toBe(415);
     const j = await res.json();
-    expect(j.detail).toContain("Unsupported media type");
+    expect(j.error.code).toBe("UNSUPPORTED_MEDIA_TYPE");
+    expect(j.error.message).toContain("Unsupported media type");
   });
 
   it("Content-Type 無し → 415", async () => {
@@ -45,15 +47,15 @@ describe("POST /sessions login guards", () => {
     expect(res.status).toBe(400);
     const j = await res.json();
     expect(j.error.code).toBe("VALIDATION_ERROR");
-    expect(j.error.fields.password).toEqual(["This field is required."]);
+    expect(j.error.details.password).toEqual(["Invalid input: expected string, received undefined"]);
   });
 
   it("application/json + 両方欠落 → 400（先頭は username）", async () => {
     const res = await post("{}", "application/json");
     expect(res.status).toBe(400);
     const j = await res.json();
-    expect(j.error.message).toBe("This field is required.");
-    expect(j.error.fields.username).toEqual(["This field is required."]);
+    expect(j.error.message).toBe("Invalid input: expected string, received undefined");
+    expect(j.error.details.username).toEqual(["Invalid input: expected string, received undefined"]);
   });
 
   it("application/json + 配列 body → 400（マッピングでない）", async () => {
@@ -63,13 +65,17 @@ describe("POST /sessions login guards", () => {
 });
 
 describe("DELETE /sessions logout", () => {
-  it("常に 204（cookie 削除のみ）", async () => {
-    const res = await authRoutes.request("/sessions", { method: "DELETE" }, ENV);
+  it("常に 204（refresh cookie のみ削除）", async () => {
+    const res = await authRoutes.request(
+      "/api/auth/sessions",
+      { method: "DELETE", headers: { Origin: "http://localhost:3000" } },
+      ENV,
+    );
     expect(res.status).toBe(204);
-    // access_token / refresh_token を Max-Age=0 で削除
     const setCookie = res.headers.get("set-cookie") ?? "";
-    expect(setCookie).toContain("access_token=");
-    expect(setCookie).toContain("refresh_token=");
+    expect(setCookie).toContain("vq_refresh=");
+    expect(setCookie).toContain("Max-Age=0");
+    expect(setCookie).not.toContain("access_token=");
   });
 });
 

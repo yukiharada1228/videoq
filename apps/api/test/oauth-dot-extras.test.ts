@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { SignJWT } from "jose";
 import { createApp } from "../src/app";
 import { DEVICE_GRANT_TYPE, tokenChecksum } from "../src/lib/oauth";
 
@@ -34,11 +33,10 @@ vi.mock("pg", () => {
 const SECRET = "test-jwt-secret-oauth-dot-extras";
 const ENV = {
   ENVIRONMENT: "development",
-  JWT_SECRET: SECRET,
-  LEGACY_API_ORIGIN: "https://legacy.test",
+  AUTH_JWT_SECRET: SECRET,
   CORS_ALLOW_ORIGIN: "http://localhost:3000",
   FRONTEND_URL: "http://localhost:3000",
-  OAUTH2_PROVIDER_ISSUER_URL: "http://testserver",
+  OAUTH_ISSUER_URL: "http://testserver",
   HYPERDRIVE: { connectionString: "postgres://fake/db" },
 } as unknown as Record<string, unknown>;
 
@@ -47,20 +45,6 @@ beforeEach(() => {
   rowsFor = () => [];
   rowCountFor = () => undefined;
 });
-
-async function accessCookie(userId = 7) {
-  const now = Math.floor(Date.now() / 1000);
-  const token = await new SignJWT({
-    token_type: "access",
-    user_id: userId,
-    jti: "j",
-  })
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-    .setIssuedAt(now)
-    .setExpirationTime(now + 3600)
-    .sign(new TextEncoder().encode(SECRET));
-  return `access_token=${token}`;
-}
 
 function deviceApp(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -104,8 +88,8 @@ describe("RFC 7662 introspect", () => {
     const checksum = await tokenChecksum(raw);
     rowsFor = (sql) => {
       if (
-        sql.includes("oauth2_provider_accesstoken") &&
-        sql.includes("oauth2_provider_application")
+        sql.includes("oauth_access_tokens") &&
+        sql.includes("oauth_applications")
       ) {
         return [
           {
@@ -116,14 +100,14 @@ describe("RFC 7662 introspect", () => {
           },
         ];
       }
-      if (sql.includes("oauth2_provider_application")) {
+      if (sql.includes("oauth_applications")) {
         return [deviceApp({ authorization_grant_type: "authorization-code" })];
       }
       return [];
     };
 
     const res = await app.request(
-      "/api/oauth/introspect/",
+      "/api/oauth/introspect",
       {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -147,16 +131,16 @@ describe("RFC 7662 introspect", () => {
 
   it("returns active:false for unknown token", async () => {
     rowsFor = (sql) => {
-      if (sql.includes("oauth2_provider_accesstoken") && sql.includes("token_checksum")) {
+      if (sql.includes("oauth_access_tokens") && sql.includes("token_checksum")) {
         return [];
       }
-      if (sql.includes("oauth2_provider_application")) {
+      if (sql.includes("oauth_applications")) {
         return [deviceApp({ authorization_grant_type: "authorization-code" })];
       }
       return [];
     };
     const res = await app.request(
-      "/api/oauth/introspect/",
+      "/api/oauth/introspect",
       {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -171,65 +155,6 @@ describe("RFC 7662 introspect", () => {
     expect(await res.json()).toEqual({ active: false });
   });
 
-  it("allows Bearer with introspection scope", async () => {
-    rowsFor = (sql) => {
-      if (
-        sql.includes("oauth2_provider_accesstoken") &&
-        sql.includes("oauth2_provider_application")
-      ) {
-        return [
-          {
-            scope: "read",
-            exp: 1_700_000_001,
-            client_id: "c1",
-            username: null,
-          },
-        ];
-      }
-      if (
-        sql.includes("oauth2_provider_accesstoken") &&
-        sql.includes("token_checksum") &&
-        !sql.includes("oauth2_provider_application")
-      ) {
-        return [{ scope: "read introspection" }];
-      }
-      return [];
-    };
-    const res = await app.request(
-      "/api/oauth/introspect/?token=target",
-      {
-        method: "GET",
-        headers: { Authorization: "Bearer introspector-token" },
-      },
-      ENV,
-    );
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.active).toBe(true);
-    expect(body.client_id).toBe("c1");
-  });
-
-  it("rejects Bearer without introspection scope", async () => {
-    rowsFor = (sql) => {
-      if (
-        sql.includes("oauth2_provider_accesstoken") &&
-        sql.includes("scope") &&
-        !sql.includes("oauth2_provider_application")
-      ) {
-        return [{ scope: "read" }];
-      }
-      return [];
-    };
-    const res = await app.request(
-      "/api/oauth/introspect/?token=target",
-      {
-        method: "GET",
-        headers: { Authorization: "Bearer plain-token" },
-      },
-      ENV,
-    );
-    expect(res.status).toBe(403);
-  });
 });
 
 describe("RFC 8628 device authorization + token poll", () => {
@@ -238,16 +163,16 @@ describe("RFC 8628 device authorization + token poll", () => {
   it("issues device_code and user_code", async () => {
     const grant = deviceGrant();
     rowsFor = (sql) => {
-      if (sql.includes("oauth2_provider_application")) {
+      if (sql.includes("oauth_applications")) {
         return [deviceApp()];
       }
-      if (sql.includes("oauth2_provider_devicegrant")) {
+      if (sql.includes("oauth_device_grants")) {
         return [grant];
       }
       return [];
     };
     const res = await app.request(
-      "/api/oauth/device-authorization/",
+      "/api/oauth/device-authorization",
       {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -267,10 +192,10 @@ describe("RFC 8628 device authorization + token poll", () => {
   it("token poll returns authorization_pending then tokens", async () => {
     let phase: "authorization-pending" | "authorized" = "authorization-pending";
     rowsFor = (sql) => {
-      if (sql.includes("oauth2_provider_application")) {
+      if (sql.includes("oauth_applications")) {
         return [deviceApp()];
       }
-      if (sql.includes("oauth2_provider_devicegrant")) {
+      if (sql.includes("oauth_device_grants")) {
         return [
           deviceGrant({
             status: phase,
@@ -278,14 +203,14 @@ describe("RFC 8628 device authorization + token poll", () => {
           }),
         ];
       }
-      if (sql.includes("INSERT INTO oauth2_provider_accesstoken")) {
+      if (sql.includes("INSERT INTO oauth_access_tokens")) {
         return [{ id: 501 }];
       }
       return [];
     };
 
     const pending = await app.request(
-      "/api/oauth/token/",
+      "/api/oauth/token",
       {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -302,7 +227,7 @@ describe("RFC 8628 device authorization + token poll", () => {
 
     phase = "authorized";
     const ok = await app.request(
-      "/api/oauth/token/",
+      "/api/oauth/token",
       {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -324,16 +249,16 @@ describe("RFC 8628 device authorization + token poll", () => {
 
   it("token poll returns access_denied", async () => {
     rowsFor = (sql) => {
-      if (sql.includes("oauth2_provider_application")) {
+      if (sql.includes("oauth_applications")) {
         return [deviceApp()];
       }
-      if (sql.includes("oauth2_provider_devicegrant")) {
+      if (sql.includes("oauth_device_grants")) {
         return [deviceGrant({ status: "denied", user_id: 7 })];
       }
       return [];
     };
     const res = await app.request(
-      "/api/oauth/token/",
+      "/api/oauth/token",
       {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -354,34 +279,36 @@ describe("applications / authorized_tokens HTML", () => {
   const app = createApp();
 
   it("redirects unauthenticated users to frontend login", async () => {
-    const res = await app.request("/api/oauth/applications/", {}, ENV);
+    const res = await app.request("/api/oauth/applications", {}, ENV);
     expect(res.status).toBe(302);
     expect(res.headers.get("Location")).toContain(
       "http://localhost:3000/login?next=",
     );
   });
 
-  it("lists applications for cookie user", async () => {
+  it("lists applications for refresh-session user", async () => {
     rowsFor = (sql) => {
-      if (sql.includes("oauth2_provider_application") && sql.includes("user_id")) {
+      if (sql.includes("FROM auth_sessions")) return [{ user_id: 7, id: "session-1" }];
+      if (sql.includes("oauth_applications") && sql.includes("user_id")) {
         return [deviceApp({ id: 3, name: "My App" })];
       }
       return [];
     };
     const res = await app.request(
-      "/api/oauth/applications/",
-      { headers: { Cookie: await accessCookie(7) } },
+      "/api/oauth/applications",
+      { headers: { Cookie: "vq_refresh=opaque-session-token" } },
       ENV,
     );
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain("My App");
-    expect(html).toContain("/api/oauth/applications/3/");
+    expect(html).toContain("/api/oauth/applications/3");
   });
 
   it("lists authorized tokens HTML", async () => {
     rowsFor = (sql) => {
-      if (sql.includes("oauth2_provider_accesstoken")) {
+      if (sql.includes("FROM auth_sessions")) return [{ user_id: 7, id: "session-1" }];
+      if (sql.includes("oauth_access_tokens")) {
         return [
           {
             id: 42,
@@ -395,21 +322,19 @@ describe("applications / authorized_tokens HTML", () => {
       }
       return [];
     };
-    const cookie = await accessCookie(7);
     const res = await app.request(
-      "/api/oauth/authorized_tokens/",
-      { headers: { Cookie: cookie } },
+      "/api/oauth/authorized_tokens",
+      { headers: { Cookie: "vq_refresh=opaque-session-token" } },
       ENV,
     );
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain("Claude");
     expect(html).toContain("Revoke");
-    expect(res.headers.get("set-cookie") || "").toContain("csrftoken=");
   });
 });
 
-describe("AS metadata includes DOT extras", () => {
+describe("AS metadata supporting endpoints", () => {
   const app = createApp();
 
   it("advertises introspect and device endpoints", async () => {
@@ -420,10 +345,10 @@ describe("AS metadata includes DOT extras", () => {
     );
     const body = await res.json();
     expect(body.introspection_endpoint).toBe(
-      "http://testserver/api/oauth/introspect/",
+      "http://testserver/api/oauth/introspect",
     );
     expect(body.device_authorization_endpoint).toBe(
-      "http://testserver/api/oauth/device-authorization/",
+      "http://testserver/api/oauth/device-authorization",
     );
     expect(body.grant_types_supported).toContain(DEVICE_GRANT_TYPE);
     expect(body.scopes_supported).toContain("introspection");

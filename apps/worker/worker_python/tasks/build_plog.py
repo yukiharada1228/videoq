@@ -1,4 +1,4 @@
-"""build_plog_artifacts — PLOG offline pipeline without Django."""
+"""build_plog_artifacts — VideoQ PLOG offline pipeline."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ def _get_latest_build_job(conn: Any, video_id: int) -> dict[str, Any] | None:
     return conn.execute(
         """
         SELECT id, status
-          FROM app_plogbuildjob
+          FROM plog_build_jobs
          WHERE video_id = %s
          ORDER BY id DESC
          LIMIT 1
@@ -28,7 +28,7 @@ def _get_latest_build_job(conn: Any, video_id: int) -> dict[str, Any] | None:
 def _create_build_job(conn: Any, video_id: int) -> int:
     row = conn.execute(
         """
-        INSERT INTO app_plogbuildjob
+        INSERT INTO plog_build_jobs
             (video_id, status, error_message, input_tokens, output_tokens,
              created_at, updated_at)
         VALUES (%s, 'pending', '', 0, 0, NOW(), NOW())
@@ -52,7 +52,7 @@ def _update_build_job(
     if finished:
         conn.execute(
             """
-            UPDATE app_plogbuildjob
+            UPDATE plog_build_jobs
                SET status = %s,
                    error_message = %s,
                    input_tokens = %s,
@@ -66,7 +66,7 @@ def _update_build_job(
     else:
         conn.execute(
             """
-            UPDATE app_plogbuildjob
+            UPDATE plog_build_jobs
                SET status = %s,
                    error_message = %s,
                    input_tokens = %s,

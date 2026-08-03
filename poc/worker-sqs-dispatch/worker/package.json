@@ -1,2 +1,0 @@
-{ "name": "poc-sqs-send", "private": true, "type": "module",
-  "dependencies": { "hono": "^4", "aws4fetch": "^1" } }

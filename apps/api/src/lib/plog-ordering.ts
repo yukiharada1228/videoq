@@ -1,5 +1,5 @@
 /**
- * PLOG ordering helpers（Django `use_cases/plog/ordering.py` 相当）。
+ * PLOG グラフの順序制約ヘルパー。
  */
 
 export const ORDERING = new Set(["prerequisite_of", "builds_on"]);

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { SignJWT } from "jose";
-import { opsRoutes } from "../src/routes/ops";
+import { opsRoutes } from "../src/features/ops/routes";
+import { signAccessToken } from "./helpers/auth";
 
 import {
   executeFakePgQuery,
@@ -36,17 +36,12 @@ vi.mock("../src/lib/jobs", () => ({
 const SECRET = "test-jwt-secret-ops";
 const ENV = {
   ENVIRONMENT: "development",
-  JWT_SECRET: SECRET,
+  AUTH_JWT_SECRET: SECRET,
   HYPERDRIVE: { connectionString: "postgres://fake/db" },
 } as unknown as Record<string, unknown>;
 
 async function token(userId = 1) {
-  const now = Math.floor(Date.now() / 1000);
-  return new SignJWT({ token_type: "access", user_id: userId, jti: "j" })
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-    .setIssuedAt(now)
-    .setExpirationTime(now + 3600)
-    .sign(new TextEncoder().encode(SECRET));
+  return signAccessToken(SECRET, userId);
 }
 
 beforeEach(() => {
@@ -55,7 +50,7 @@ beforeEach(() => {
   rowsFor = (sql) => {
     if (sql.includes("SELECT is_superuser")) return [{ is_superuser: true }];
     if (sql.includes("count(*)")) return [{ c: 1 }];
-    if (sql.includes("FROM app_user") || sql.includes("RETURNING id")) {
+    if (sql.includes("FROM users") || sql.includes("RETURNING id")) {
       return [
         {
           id: 9,
@@ -89,24 +84,24 @@ describe("ops API", () => {
       if (sql.includes("SELECT is_superuser")) return [{ is_superuser: false }];
       return [];
     };
-    const res = await req("/api/ops/users/", {
+    const res = await req("/api/ops/users", {
       headers: { authorization: `Bearer ${await token(2)}` },
     });
     expect(res.status).toBe(403);
   });
 
   it("一覧は 200", async () => {
-    const res = await req("/api/ops/users/?q=ali", {
+    const res = await req("/api/ops/users?q=ali", {
       headers: { authorization: `Bearer ${await token()}` },
     });
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { count: number; results: { id: number }[] };
-    expect(body.count).toBe(1);
-    expect(body.results[0].id).toBe(9);
+    const body = (await res.json()) as { meta: { total: number }; data: { id: number }[] };
+    expect(body.meta.total).toBe(1);
+    expect(body.data[0].id).toBe(9);
   });
 
   it("quota PATCH", async () => {
-    const res = await req("/api/ops/users/9/quota/", {
+    const res = await req("/api/ops/users/9/quota", {
       method: "PATCH",
       headers: {
         authorization: `Bearer ${await token()}`,
@@ -115,11 +110,11 @@ describe("ops API", () => {
       body: JSON.stringify({ storage_limit_gb: 50 }),
     });
     expect(res.status).toBe(200);
-    expect(calls.some((c) => c.sql.includes("UPDATE app_user"))).toBe(true);
+    expect(calls.some((c) => c.sql.includes("UPDATE users"))).toBe(true);
   });
 
   it("reindex-all は 202 + job_id", async () => {
-    const res = await req("/api/ops/embeddings/reindex-all/", {
+    const res = await req("/api/ops/embeddings/reindex-all", {
       method: "POST",
       headers: { authorization: `Bearer ${await token()}` },
     });

@@ -1,10 +1,8 @@
-// PoC #01 Step 4 — LangChain.js 標準 PGVector での再現（互換性検証, READ-ONLY）
+// modern scene_embeddings を LangChain.js 標準 PGVector で読む比較 PoC（READ-ONLY）
 //
-// 目的: 標準 PGVectorStore が現行スキーマ（user_id/video_id が独立列）で
-//       現行と同じフィルタ検索を再現できるか確認する。
-// 予測: 標準 buildFilterClauses() は langchain_metadata ->> 'user_id' に
-//       フィルタを掛けるため、独立列に値がある現行では 0 件 or 誤結果に
-//       なる可能性が高い（DR-4）。その事実を実測で確定するためのスクリプト。
+// 目的: 標準 PGVectorStore が user_id/video_id 独立列の認可 filter を
+//       直接 SQL と同じように再現できるか確認する。
+// wrapper が JSON metadata に filter を掛ける場合は 0 件または誤結果になる。
 //
 // 使い方:
 //   npm i pg @langchain/community @langchain/openai @langchain/core
@@ -43,9 +41,9 @@ const store = await PGVectorStore.initialize(
   {
     pool,
     schemaName: "public",
-    tableName: "videoq_scenes",
+    tableName: "scene_embeddings",
     columns: {
-      idColumnName: "langchain_id",
+      idColumnName: "id",
       contentColumnName: "content",
       vectorColumnName: "embedding",
       metadataColumnName: "langchain_metadata",
@@ -62,7 +60,7 @@ for (const { query, embedding } of embs) {
   let rows = [];
   let error = null;
   try {
-    // 標準フィルタ: JSON メタに掛かる（現行スキーマと非互換の可能性）
+    // 標準 filter が独立列ではなく JSON metadata に掛かるかを実測する。
     const docs = await store.similaritySearchVectorWithScore(embedding, k, {
       user_id: cfg.user_id,
       video_id: { in: cfg.video_ids },

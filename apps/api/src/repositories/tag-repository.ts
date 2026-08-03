@@ -1,8 +1,8 @@
 import { alias } from "drizzle-orm/pg-core";
 import { and, asc, count, eq, sql } from "drizzle-orm";
 import { withDb } from "../db/pool";
-import { appTag, appVideo, appVideotag } from "../db/schema";
-import { APP_TIMEZONE, normalizeDrfDatetime } from "../utils/datetime";
+import { tags, videos, videoTags } from "../db/schema";
+import { toUtcIso } from "../shared/datetime";
 import {
   TAGS_SUBQUERY,
   mapVideoListRow,
@@ -39,7 +39,7 @@ export function isValidTagColor(color: string): boolean {
   return (TAG_COLORS as readonly string[]).includes(color);
 }
 
-// TagListSerializer に一致する形。
+// Tag 一覧 API のレスポンス表現。
 export type TagListItem = {
   id: number;
   name: string;
@@ -48,38 +48,29 @@ export type TagListItem = {
   video_count: number;
 };
 
-// TagDetailSerializer に一致する形（TagList + ネスト videos）。
+// Tag 詳細 API のレスポンス表現（TagList + ネスト videos）。
 export type TagDetail = TagListItem & {
   videos: VideoListItem[];
 };
 
-const createdAtDrf = sql<string>`to_char(${appTag.createdAt}, 'YYYY-MM-DD"T"HH24:MI:SS.USOF')`.as(
-  "created_at",
-);
-
-const videoCountSubquery = sql<number>`(SELECT count(*) FROM app_videotag vt WHERE vt.tag_id = ${appTag.id})::int`.as(
+const videoCountSubquery = sql<number>`(SELECT count(*) FROM video_tags vt WHERE vt.tag_id = ${tags.id})::int`.as(
   "video_count",
 );
 
 const tagListSelect = {
-  id: appTag.id,
-  name: appTag.name,
-  color: appTag.color,
-  created_at: createdAtDrf,
+  id: tags.id,
+  name: tags.name,
+  color: tags.color,
+  created_at: tags.createdAt,
   video_count: videoCountSubquery,
 };
 
-const v = alias(appVideo, "v");
-
-const uploadedAtDrf = sql<string>`to_char(${v.uploadedAt}, 'YYYY-MM-DD"T"HH24:MI:SS.USOF')`.as(
-  "uploaded_at",
-);
+const v = alias(videos, "v");
 
 /**
  * タグ一覧（ページ）。Tag.Meta.ordering=["name"] に従い name ASC。
- * video_count = Count("video_tags")（= app_videotag の該当行数）。
- * Django は全件シリアライズ後に StandardLimitOffsetPagination で切るため、
- * count は総数・results はページ。SQL の count + LIMIT/OFFSET と等価。
+ * video_count = Count("video_tags")（= video_tags の該当行数）。
+ * count は総数、results は SQL の LIMIT/OFFSET で切ったページ。
  */
 export async function listTagsPage(
   env: Bindings,
@@ -88,18 +79,16 @@ export async function listTagsPage(
   offset: number,
 ): Promise<{ count: number; results: TagListItem[] }> {
   return withDb(env, async (db) => {
-    await db.execute(sql.raw(`SET timezone = '${APP_TIMEZONE}'`));
-
     const [countRow] = await db
       .select({ c: count() })
-      .from(appTag)
-      .where(eq(appTag.userId, userId));
+      .from(tags)
+      .where(eq(tags.userId, userId));
 
     const rows = await db
       .select(tagListSelect)
-      .from(appTag)
-      .where(eq(appTag.userId, userId))
-      .orderBy(asc(appTag.name))
+      .from(tags)
+      .where(eq(tags.userId, userId))
+      .orderBy(asc(tags.name))
       .limit(limit)
       .offset(offset);
 
@@ -107,7 +96,7 @@ export async function listTagsPage(
       id: Number(r.id),
       name: r.name,
       color: r.color,
-      created_at: normalizeDrfDatetime(r.created_at),
+      created_at: toUtcIso(r.created_at)!,
       video_count: r.video_count,
     }));
     return { count: Number(countRow.c), results };
@@ -115,10 +104,8 @@ export async function listTagsPage(
 }
 
 /**
- * タグ詳細（get_with_videos 相当）。未所有/不在は null。
- * videos は該当 VideoTag の動画を VideoListSerializer 相当で返す。
- * Django の video_tags 既定順は ["tag__name"]（この文脈では定数）のため、
- * 安定な挿入順として vt.id ASC を用いる。
+ * タグ詳細。未所有または不在は null。
+ * videos は該当 VideoTag の動画一覧表現を返し、安定した挿入順として vt.id ASC を用いる。
  */
 export async function getTagDetail(
   env: Bindings,
@@ -126,12 +113,10 @@ export async function getTagDetail(
   userId: number,
 ): Promise<TagDetail | null> {
   const data = await withDb(env, async (db) => {
-    await db.execute(sql.raw(`SET timezone = '${APP_TIMEZONE}'`));
-
     const tagRows = await db
       .select(tagListSelect)
-      .from(appTag)
-      .where(and(eq(appTag.id, tagId), eq(appTag.userId, userId)))
+      .from(tags)
+      .where(and(eq(tags.id, tagId), eq(tags.userId, userId)))
       .limit(1);
     if (tagRows.length === 0) return null;
 
@@ -141,17 +126,17 @@ export async function getTagDetail(
         file: v.file,
         title: v.title,
         description: v.description,
-        uploaded_at: uploadedAtDrf,
+        uploaded_at: v.uploadedAt,
         status: v.status,
         source_type: v.sourceType,
         source_url: v.sourceUrl,
         youtube_video_id: v.youtubeVideoId,
         tags: sql<string>`${sql.raw(TAGS_SUBQUERY)}`.as("tags"),
       })
-      .from(appVideotag)
-      .innerJoin(v, eq(appVideotag.videoId, v.id))
-      .where(eq(appVideotag.tagId, tagId))
-      .orderBy(asc(appVideotag.id));
+      .from(videoTags)
+      .innerJoin(v, eq(videoTags.videoId, v.id))
+      .where(eq(videoTags.tagId, tagId))
+      .orderBy(asc(videoTags.id));
 
     return { tag: tagRows[0], videoRows };
   });
@@ -167,7 +152,7 @@ export async function getTagDetail(
     id: Number(t.id),
     name: t.name,
     color: t.color,
-    created_at: normalizeDrfDatetime(t.created_at),
+    created_at: toUtcIso(t.created_at)!,
     video_count: t.video_count,
     videos,
   };
@@ -182,8 +167,8 @@ export async function tagExists(
   return withDb(env, async (db) => {
     const rows = await db
       .select({ x: sql<number>`1` })
-      .from(appTag)
-      .where(and(eq(appTag.id, tagId), eq(appTag.userId, userId)))
+      .from(tags)
+      .where(and(eq(tags.id, tagId), eq(tags.userId, userId)))
       .limit(1);
     return rows.length > 0;
   });
@@ -206,15 +191,15 @@ export async function updateTag(
     if (Object.keys(set).length === 0) return;
 
     await db
-      .update(appTag)
+      .update(tags)
       .set(set)
-      .where(and(eq(appTag.id, tagId), eq(appTag.userId, userId)));
+      .where(and(eq(tags.id, tagId), eq(tags.userId, userId)));
   });
 }
 
 /**
  * タグ作成。名前正規化・色検証は呼び出し側で済ませる。
- * user×name の一意違反は未処理（pg 23505 → 500, 現行 Django と同じ）。
+ * user×name の一意違反は未処理（PostgreSQL 23505 → 500）。
  */
 export async function createTag(
   env: Bindings,
@@ -223,9 +208,8 @@ export async function createTag(
   color: string,
 ): Promise<TagListItem> {
   return withDb(env, async (db) => {
-    await db.execute(sql.raw(`SET timezone = '${APP_TIMEZONE}'`));
     const rows = await db
-      .insert(appTag)
+      .insert(tags)
       .values({
         userId,
         name,
@@ -233,23 +217,23 @@ export async function createTag(
         createdAt: sql`CURRENT_TIMESTAMP`,
       })
       .returning({
-        id: appTag.id,
-        name: appTag.name,
-        color: appTag.color,
-        created_at: createdAtDrf,
+        id: tags.id,
+        name: tags.name,
+        color: tags.color,
+        created_at: tags.createdAt,
       });
     const r = rows[0];
     return {
       id: Number(r.id),
       name: r.name,
       color: r.color,
-      created_at: normalizeDrfDatetime(r.created_at),
+      created_at: toUtcIso(r.created_at)!,
       video_count: 0,
     };
   });
 }
 
-/** タグ削除（所有権を先に確認し、tx で app_videotag → app_tag を削除）。 */
+/** タグ削除（所有権を先に確認し、tx で video_tags → tags を削除）。 */
 export async function deleteTag(
   env: Bindings,
   tagId: number,
@@ -258,17 +242,17 @@ export async function deleteTag(
   return withDb(env, async (db) => {
     return db.transaction(async (tx) => {
       const owner = await tx
-        .select({ id: appTag.id })
-        .from(appTag)
-        .where(and(eq(appTag.id, tagId), eq(appTag.userId, userId)))
+        .select({ id: tags.id })
+        .from(tags)
+        .where(and(eq(tags.id, tagId), eq(tags.userId, userId)))
         .for("update")
         .limit(1);
       if (owner.length === 0) return { notFound: true } as const;
 
-      await tx.delete(appVideotag).where(eq(appVideotag.tagId, tagId));
+      await tx.delete(videoTags).where(eq(videoTags.tagId, tagId));
       await tx
-        .delete(appTag)
-        .where(and(eq(appTag.id, tagId), eq(appTag.userId, userId)));
+        .delete(tags)
+        .where(and(eq(tags.id, tagId), eq(tags.userId, userId)));
       return { ok: true } as const;
     });
   });

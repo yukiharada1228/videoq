@@ -13,7 +13,7 @@ vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
   return {
     ...actual,
-    useSearchParams: () => [new URLSearchParams('uid=test-uid&token=test-token')],
+    useSearchParams: () => [new URLSearchParams('token=test-token')],
   }
 })
 
@@ -63,7 +63,6 @@ describe('VerifyEmailPage', () => {
 
     await waitFor(() => {
       expect(apiClient.verifyEmail).toHaveBeenCalledWith({
-        uid: 'test-uid',
         token: 'test-token',
       })
     })
@@ -87,7 +86,6 @@ describe('VerifyEmailPage', () => {
     // Wait for the API call to complete
     await waitFor(() => {
       expect(apiClient.verifyEmail).toHaveBeenCalledWith({
-        uid: 'test-uid',
         token: 'test-token',
       })
     }, { timeout: 3000 })

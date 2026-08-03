@@ -54,17 +54,18 @@ export function useVideos(params?: UseVideosParams): UseVideosReturn {
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage.next) return undefined;
-      return allPages.reduce((sum, page) => sum + page.results.length, 0);
+      const loaded = allPages.reduce((sum, page) => sum + page.data.length, 0);
+      if (loaded >= lastPage.meta.total) return undefined;
+      return loaded;
     },
   });
 
   const videos = useMemo(
-    () => videosQuery.data?.pages.flatMap((page) => page.results) ?? [],
+    () => videosQuery.data?.pages.flatMap((page) => page.data) ?? [],
     [videosQuery.data],
   );
 
-  const totalCount = videosQuery.data?.pages[0]?.count ?? 0;
+  const totalCount = videosQuery.data?.pages[0]?.meta.total ?? 0;
 
   const handleRefetch = useCallback(async () => {
     const result = await videosQuery.refetch();

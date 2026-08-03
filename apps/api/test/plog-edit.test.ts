@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { SignJWT } from "jose";
-import { plogRoutes } from "../src/routes/plog";
+import { plogRoutes } from "../src/features/plog/routes";
+import { signAccessToken } from "./helpers/auth";
 
 /**
  * PLOG 編集ルートの結線テスト。pg をモックし、認可・DAG・マージ SQL 順を検証する。
@@ -34,7 +34,7 @@ vi.mock("pg", () => {
 const SECRET = "test-jwt-secret-plog-edit";
 const ENV = {
   ENVIRONMENT: "development",
-  JWT_SECRET: SECRET,
+  AUTH_JWT_SECRET: SECRET,
   HYPERDRIVE: { connectionString: "postgres://fake/db" },
   OPENAI_API_KEY: "sk-test",
   OPENAI_BASE_URL: "https://openai.test/v1",
@@ -57,15 +57,15 @@ const conceptNode = {
 beforeEach(() => {
   calls.length = 0;
   rowsFor = (sql) => {
-    if (sql.includes("app_video") && sql.includes("user_id")) return [{ id: 1 }];
-    if (sql.includes("app_plogbuildjob")) return [{ status: "ready" }];
-    if (sql.includes("app_plogconcept") && sql.includes("returning")) return [{ id: 10 }];
-    if (sql.includes("app_plogconcept") && sql.includes("app_ploglearningobject"))
+    if (sql.includes("videos") && sql.includes("user_id")) return [{ id: 1 }];
+    if (sql.includes("plog_build_jobs")) return [{ status: "ready" }];
+    if (sql.includes("plog_concepts") && sql.includes("returning")) return [{ id: 10 }];
+    if (sql.includes("plog_concepts") && sql.includes("plog_learning_objects"))
       return [conceptNode];
-    if (sql.includes("app_plogconcept") && sql.includes("node_type"))
+    if (sql.includes("plog_concepts") && sql.includes("node_type"))
       return [{ id: 10, label: "AND", node_type: "object", intro_sec: 1.5, source_quote: "" }];
-    if (sql.includes("app_plogedge") && sql.includes("returning")) return [{ id: 20 }];
-    if (sql.includes("app_plogedge") && sql.includes("source_label"))
+    if (sql.includes("plog_edges") && sql.includes("returning")) return [{ id: 20 }];
+    if (sql.includes("plog_edges") && sql.includes("source_label"))
       return [
         {
           id: 20,
@@ -77,13 +77,13 @@ beforeEach(() => {
           target_label: "OR",
         },
       ];
-    if (sql.includes("app_plogedge") && sql.includes("edge_type") && !sql.includes("source_label"))
+    if (sql.includes("plog_edges") && sql.includes("edge_type") && !sql.includes("source_label"))
       return [];
-    if (sql.includes("app_plogedge") && sql.includes("quote"))
+    if (sql.includes("plog_edges") && sql.includes("quote"))
       return [
         { id: 20, source_id: 10, target_id: 11, edge_type: "prerequisite_of", quote: "" },
       ];
-    if (sql.includes("app_plogconcept") && sql.includes("video_id")) return [{ id: 10 }];
+    if (sql.includes("plog_concepts") && sql.includes("video_id")) return [{ id: 10 }];
     return [];
   };
   vi.stubGlobal("fetch", async () =>
@@ -95,12 +95,7 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 async function token(userId = 5) {
-  const now = Math.floor(Date.now() / 1000);
-  return new SignJWT({ token_type: "access", user_id: userId, jti: "j" })
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-    .setIssuedAt(now)
-    .setExpirationTime(now + 3600)
-    .sign(new TextEncoder().encode(SECRET));
+  return signAccessToken(SECRET, userId);
 }
 
 const req = async (
@@ -125,7 +120,7 @@ const req = async (
 describe("POST /api/videos/:id/plog/concepts/", () => {
   it("label 必須・作成で 201", async () => {
     const empty = await req(
-      "/api/videos/1/plog/concepts/",
+      "/api/videos/1/plog/concepts",
       "POST",
       { label: "  " },
       await token(),
@@ -136,7 +131,7 @@ describe("POST /api/videos/:id/plog/concepts/", () => {
     });
 
     const res = await req(
-      "/api/videos/1/plog/concepts/",
+      "/api/videos/1/plog/concepts",
       "POST",
       { label: "AND", node_type: "object", intro_sec: 1.5 },
       await token(),
@@ -146,20 +141,20 @@ describe("POST /api/videos/:id/plog/concepts/", () => {
     expect(body.id).toBe(10);
     expect(body.label).toBe("AND");
     expect(body.hint_count).toBe(0);
-    expect(calls.some((c) => c.sql.includes("app_plogconcept") && c.sql.includes("returning"))).toBe(true);
-    expect(calls.some((c) => c.sql.includes("app_ploglearningobject"))).toBe(
+    expect(calls.some((c) => c.sql.includes("plog_concepts") && c.sql.includes("returning"))).toBe(true);
+    expect(calls.some((c) => c.sql.includes("plog_learning_objects"))).toBe(
       true,
     );
   });
 
   it("rebuild 中は 400", async () => {
     rowsFor = (sql) => {
-      if (sql.includes("app_video") && sql.includes("user_id")) return [{ id: 1 }];
-      if (sql.includes("app_plogbuildjob")) return [{ status: "running" }];
+      if (sql.includes("videos") && sql.includes("user_id")) return [{ id: 1 }];
+      if (sql.includes("plog_build_jobs")) return [{ status: "running" }];
       return [];
     };
     const res = await req(
-      "/api/videos/1/plog/concepts/",
+      "/api/videos/1/plog/concepts",
       "POST",
       { label: "X" },
       await token(),
@@ -176,7 +171,7 @@ describe("POST /api/videos/:id/plog/concepts/", () => {
   it("他人の動画は 404", async () => {
     rowsFor = () => [];
     const res = await req(
-      "/api/videos/1/plog/concepts/",
+      "/api/videos/1/plog/concepts",
       "POST",
       { label: "X" },
       await token(),
@@ -191,20 +186,20 @@ describe("POST /api/videos/:id/plog/concepts/", () => {
 describe("POST /api/videos/:id/plog/edges/", () => {
   it("サイクルになる ordering 辺は 400", async () => {
     rowsFor = (sql, args) => {
-      if (sql.includes("app_video") && sql.includes("user_id")) return [{ id: 1 }];
-      if (sql.includes("app_plogbuildjob")) return [{ status: "ready" }];
-      if (sql.includes("app_plogconcept") && sql.includes("node_type"))
+      if (sql.includes("videos") && sql.includes("user_id")) return [{ id: 1 }];
+      if (sql.includes("plog_build_jobs")) return [{ status: "ready" }];
+      if (sql.includes("plog_concepts") && sql.includes("node_type"))
         return [
           { id: Number(args[0]), label: "n", node_type: "object", intro_sec: 0, source_quote: "" },
         ];
-      if (sql.includes("app_plogedge") && sql.includes("edge_type") && !sql.includes("source_label"))
+      if (sql.includes("plog_edges") && sql.includes("edge_type") && !sql.includes("source_label"))
         return [
           { id: 1, source_id: 11, target_id: 10, edge_type: "prerequisite_of" },
         ];
       return [];
     };
     const res = await req(
-      "/api/videos/1/plog/edges/",
+      "/api/videos/1/plog/edges",
       "POST",
       { source_id: 10, target_id: 11, edge_type: "prerequisite_of" },
       await token(),
@@ -217,9 +212,9 @@ describe("POST /api/videos/:id/plog/edges/", () => {
 
   it("正常作成は 201", async () => {
     rowsFor = (sql, args) => {
-      if (sql.includes("app_video") && sql.includes("user_id")) return [{ id: 1 }];
-      if (sql.includes("app_plogbuildjob")) return [{ status: "ready" }];
-      if (sql.includes("app_plogconcept") && sql.includes("node_type"))
+      if (sql.includes("videos") && sql.includes("user_id")) return [{ id: 1 }];
+      if (sql.includes("plog_build_jobs")) return [{ status: "ready" }];
+      if (sql.includes("plog_concepts") && sql.includes("node_type"))
         return [
           {
             id: Number(args[0]),
@@ -229,10 +224,10 @@ describe("POST /api/videos/:id/plog/edges/", () => {
             source_quote: "",
           },
         ];
-      if (sql.includes("app_plogedge") && sql.includes("returning")) return [{ id: 20 }];
-      if (sql.includes("app_plogedge") && sql.includes("edge_type") && !sql.includes("source_label"))
+      if (sql.includes("plog_edges") && sql.includes("returning")) return [{ id: 20 }];
+      if (sql.includes("plog_edges") && sql.includes("edge_type") && !sql.includes("source_label"))
         return [];
-      if (sql.includes("app_plogedge") && sql.includes("source_label"))
+      if (sql.includes("plog_edges") && sql.includes("source_label"))
         return [
           {
             id: 20,
@@ -247,7 +242,7 @@ describe("POST /api/videos/:id/plog/edges/", () => {
       return [];
     };
     const res = await req(
-      "/api/videos/1/plog/edges/",
+      "/api/videos/1/plog/edges",
       "POST",
       { source_id: 10, target_id: 11, edge_type: "prerequisite_of" },
       await token(),
@@ -266,12 +261,12 @@ describe("POST /api/videos/:id/plog/edges/", () => {
 describe("DELETE concept / learner-state", () => {
   it("concept 削除は依存順に消して {deleted:true}", async () => {
     rowsFor = (sql) => {
-      if (sql.includes("app_video") && sql.includes("user_id")) return [{ id: 1 }];
-      if (sql.includes("app_plogconcept")) return [{ id: 10 }];
+      if (sql.includes("videos") && sql.includes("user_id")) return [{ id: 1 }];
+      if (sql.includes("plog_concepts")) return [{ id: 10 }];
       return [];
     };
     const res = await req(
-      "/api/videos/1/plog/concepts/10/",
+      "/api/videos/1/plog/concepts/10",
       "DELETE",
       undefined,
       await token(),
@@ -279,21 +274,21 @@ describe("DELETE concept / learner-state", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ deleted: true, id: 10 });
     const sqls = calls.map((c) => c.sql.replace(/\s+/g, " "));
-    expect(sqls.some((s) => s.includes("delete from app_learnerconceptstate"))).toBe(true);
-    expect(sqls.some((s) => s.includes("delete from app_ploglearningobject"))).toBe(true);
-    expect(sqls.some((s) => s.includes("delete from app_plogedge"))).toBe(true);
-    expect(sqls.some((s) => s.includes("delete from app_plogconcept"))).toBe(true);
+    expect(sqls.some((s) => s.includes("delete from learner_concept_states"))).toBe(true);
+    expect(sqls.some((s) => s.includes("delete from plog_learning_objects"))).toBe(true);
+    expect(sqls.some((s) => s.includes("delete from plog_edges"))).toBe(true);
+    expect(sqls.some((s) => s.includes("delete from plog_concepts"))).toBe(true);
   });
 
   it("learner-state リセットは {deleted:N}", async () => {
     rowsFor = (sql) => {
-      if (sql.includes("app_video") && sql.includes("user_id")) return [{ id: 1 }];
-      if (sql.includes("app_learnerconceptstate"))
+      if (sql.includes("videos") && sql.includes("user_id")) return [{ id: 1 }];
+      if (sql.includes("learner_concept_states"))
         return [{}, {}, {}];
       return [];
     };
     const res = await req(
-      "/api/videos/1/plog/learner-state/",
+      "/api/videos/1/plog/learner-state",
       "DELETE",
       undefined,
       await token(),
@@ -306,7 +301,7 @@ describe("DELETE concept / learner-state", () => {
 describe("POST merge", () => {
   it("同一 ID は 400、成功時は survivor を返す", async () => {
     const same = await req(
-      "/api/videos/1/plog/concepts/10/merge/",
+      "/api/videos/1/plog/concepts/10/merge",
       "POST",
       { absorb_id: 10 },
       await token(),
@@ -314,16 +309,16 @@ describe("POST merge", () => {
     expect(same.status).toBe(400);
 
     rowsFor = (sql) => {
-      if (sql.includes("app_video") && sql.includes("user_id")) return [{ id: 1 }];
-      if (sql.includes("app_plogconcept") && sql.includes("node_type"))
+      if (sql.includes("videos") && sql.includes("user_id")) return [{ id: 1 }];
+      if (sql.includes("plog_concepts") && sql.includes("node_type"))
         return [
           { id: 10, label: "AND", node_type: "object", intro_sec: 0, source_quote: "" },
         ];
-      if (sql.includes("app_plogconcept") && sql.includes(" in ("))
+      if (sql.includes("plog_concepts") && sql.includes(" in ("))
         return [{ id: 10 }, { id: 11 }];
-      if (sql.includes("app_plogconcept") && sql.includes("app_ploglearningobject"))
+      if (sql.includes("plog_concepts") && sql.includes("plog_learning_objects"))
         return [conceptNode];
-      if (sql.includes("app_ploglearningobject") && sql.includes("concept_id"))
+      if (sql.includes("plog_learning_objects") && sql.includes("concept_id"))
         return [
           {
             opening_question: "",
@@ -334,12 +329,12 @@ describe("POST merge", () => {
             waypoints: "[]",
           },
         ];
-      if (sql.includes("app_plogedge")) return [];
-      if (sql.includes("app_learnerconceptstate")) return [];
+      if (sql.includes("plog_edges")) return [];
+      if (sql.includes("learner_concept_states")) return [];
       return [];
     };
     const res = await req(
-      "/api/videos/1/plog/concepts/10/merge/",
+      "/api/videos/1/plog/concepts/10/merge",
       "POST",
       { absorb_id: 11 },
       await token(),

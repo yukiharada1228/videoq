@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { planAdditions } from "../src/utils/membership-plan";
+import { planAdditions } from "../src/shared/membership-plan";
 
-// Django plan_tag_attachment / plan_bulk_add と同じ挙動を固定。
+// タグ添付と一括追加の計画を固定。
 describe("planAdditions — dedupe + skip existing", () => {
   it("all new → nothing skipped", () => {
     expect(planAdditions([1, 2, 3], new Set())).toEqual({

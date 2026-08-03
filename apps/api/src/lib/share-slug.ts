@@ -1,5 +1,5 @@
 /**
- * Django ShareSlugPolicy.normalize と同一の共有スラッグ正規化・検証。
+ * VideoQ の共有スラッグを正規化・検証する。
  * strip + lower → 空/長さ(3-64)/`--`/パターン/予約語 を検査。
  */
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;

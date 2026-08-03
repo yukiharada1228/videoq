@@ -1,5 +1,4 @@
-# Modern local edge (Hono API + Vite). Used by default `docker compose up`.
-# Legacy Django stack uses ./Caddyfile (profile: legacy).
+# Local edge for the Hono API and React build. Used by default `docker compose up`.
 {
 	servers {
 		protocols h1 h2 h3

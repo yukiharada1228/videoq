@@ -1,7 +1,7 @@
 import { and, avg, count, desc, eq, sql } from "drizzle-orm";
 import { withDb } from "../db/pool";
-import { appChatlog, appChatlogevaluation, appVideogroup } from "../db/schema";
-import { APP_TIMEZONE, normalizeDrfDatetime } from "../utils/datetime";
+import { chatLogs, chatLogEvaluations, videoGroups } from "../db/schema";
+import { toUtcIso } from "../shared/datetime";
 import type { Bindings } from "../types/bindings";
 
 export type EvaluationSummary = {
@@ -24,12 +24,9 @@ export type EvaluationLog = {
 
 const numOrNull = (v: unknown): number | null => (v === null ? null : Number(v));
 
-const evaluatedAtDrf = sql<string | null>`to_char(${appChatlogevaluation.evaluatedAt}, 'YYYY-MM-DD"T"HH24:MI:SS.USOF')`.as(
-  "evaluated_at",
-);
 
 /**
- * RAGAS 集計。接続は withDb（Drizzle）。SQL は DRF 互換契約維持。
+ * RAGAS 集計。接続は withDb（Drizzle）を使い、API 契約に沿った結果を返す。
  */
 export async function getEvaluationSummary(
   env: Bindings,
@@ -39,21 +36,21 @@ export async function getEvaluationSummary(
   return withDb(env, async (db) => {
     const owner = await db
       .select({ x: sql<number>`1` })
-      .from(appVideogroup)
-      .where(and(eq(appVideogroup.id, groupId), eq(appVideogroup.userId, userId)))
+      .from(videoGroups)
+      .where(and(eq(videoGroups.id, groupId), eq(videoGroups.userId, userId)))
       .limit(1);
     if (owner.length === 0) return { notFound: true } as const;
 
     const [r] = await db
       .select({
         evaluated_count: sql<number>`count(*)::int`,
-        avg_faithfulness: avg(appChatlogevaluation.faithfulness),
-        avg_answer_relevancy: avg(appChatlogevaluation.answerRelevancy),
-        avg_context_precision: avg(appChatlogevaluation.contextPrecision),
+        avg_faithfulness: avg(chatLogEvaluations.faithfulness),
+        avg_answer_relevancy: avg(chatLogEvaluations.answerRelevancy),
+        avg_context_precision: avg(chatLogEvaluations.contextPrecision),
       })
-      .from(appChatlogevaluation)
-      .innerJoin(appChatlog, eq(appChatlogevaluation.chatLogId, appChatlog.id))
-      .where(and(eq(appChatlog.groupId, groupId), eq(appChatlogevaluation.status, "completed")));
+      .from(chatLogEvaluations)
+      .innerJoin(chatLogs, eq(chatLogEvaluations.chatLogId, chatLogs.id))
+      .where(and(eq(chatLogs.groupId, groupId), eq(chatLogEvaluations.status, "completed")));
 
     return {
       group_id: groupId,
@@ -75,33 +72,31 @@ export async function listEvaluationLogs(
   return withDb(env, async (db) => {
     const owner = await db
       .select({ x: sql<number>`1` })
-      .from(appVideogroup)
-      .where(and(eq(appVideogroup.id, groupId), eq(appVideogroup.userId, userId)))
+      .from(videoGroups)
+      .where(and(eq(videoGroups.id, groupId), eq(videoGroups.userId, userId)))
       .limit(1);
     if (owner.length === 0) return { notFound: true } as const;
 
-    await db.execute(sql.raw(`SET timezone = '${APP_TIMEZONE}'`));
-
     const [cnt] = await db
       .select({ c: count() })
-      .from(appChatlogevaluation)
-      .innerJoin(appChatlog, eq(appChatlogevaluation.chatLogId, appChatlog.id))
-      .where(eq(appChatlog.groupId, groupId));
+      .from(chatLogEvaluations)
+      .innerJoin(chatLogs, eq(chatLogEvaluations.chatLogId, chatLogs.id))
+      .where(eq(chatLogs.groupId, groupId));
 
     const rows = await db
       .select({
-        chat_log_id: appChatlogevaluation.chatLogId,
-        status: appChatlogevaluation.status,
-        faithfulness: appChatlogevaluation.faithfulness,
-        answer_relevancy: appChatlogevaluation.answerRelevancy,
-        context_precision: appChatlogevaluation.contextPrecision,
-        error_message: appChatlogevaluation.errorMessage,
-        evaluated_at: evaluatedAtDrf,
+        chat_log_id: chatLogEvaluations.chatLogId,
+        status: chatLogEvaluations.status,
+        faithfulness: chatLogEvaluations.faithfulness,
+        answer_relevancy: chatLogEvaluations.answerRelevancy,
+        context_precision: chatLogEvaluations.contextPrecision,
+        error_message: chatLogEvaluations.errorMessage,
+        evaluated_at: chatLogEvaluations.evaluatedAt,
       })
-      .from(appChatlogevaluation)
-      .innerJoin(appChatlog, eq(appChatlogevaluation.chatLogId, appChatlog.id))
-      .where(eq(appChatlog.groupId, groupId))
-      .orderBy(desc(appChatlog.createdAt))
+      .from(chatLogEvaluations)
+      .innerJoin(chatLogs, eq(chatLogEvaluations.chatLogId, chatLogs.id))
+      .where(eq(chatLogs.groupId, groupId))
+      .orderBy(desc(chatLogs.createdAt))
       .limit(limit)
       .offset(offset);
 
@@ -112,7 +107,7 @@ export async function listEvaluationLogs(
       answer_relevancy: numOrNull(r.answer_relevancy),
       context_precision: numOrNull(r.context_precision),
       error_message: r.error_message,
-      evaluated_at: r.evaluated_at ? normalizeDrfDatetime(r.evaluated_at) : null,
+      evaluated_at: r.evaluated_at ? toUtcIso(r.evaluated_at) : null,
     }));
     return { count: Number(cnt.c), results };
   });

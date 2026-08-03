@@ -13,14 +13,16 @@ vi.mock('@/lib/api', () => ({
 }))
 
 const mockPaginatedResponse = (
-  results: any[],
-  count = results.length,
-  next: string | null = null,
+  data: any[],
+  total?: number,
+  offset = 0,
 ) => ({
-  count,
-  next,
-  previous: null,
-  results,
+  data,
+  meta: {
+    total: total ?? data.length,
+    limit: 24,
+    offset,
+  },
 })
 
 describe('useVideos', () => {
@@ -62,7 +64,7 @@ describe('useVideos', () => {
       status: 'completed' as const,
     }))
     ;(apiClient.getVideos as any).mockResolvedValue(
-      mockPaginatedResponse(mockVideos, 25, '/api/videos/?limit=24&offset=24'),
+      mockPaginatedResponse(mockVideos, 25, 0),
     )
 
     const { result } = renderHook(() => useVideos())
@@ -76,7 +78,7 @@ describe('useVideos', () => {
     const mockVideos = [
       { id: 1, title: 'Video 1', user: 1, file: '', uploaded_at: '', status: 'completed' as const },
     ]
-    ;(apiClient.getVideos as any).mockResolvedValue(mockPaginatedResponse(mockVideos, 1, null))
+    ;(apiClient.getVideos as any).mockResolvedValue(mockPaginatedResponse(mockVideos, 1))
 
     const { result } = renderHook(() => useVideos())
 
@@ -173,9 +175,9 @@ describe('useVideos', () => {
 
     ;(apiClient.getVideos as any)
       .mockResolvedValueOnce(
-        mockPaginatedResponse(page1, 25, '/api/videos/?limit=24&offset=24'),
+        mockPaginatedResponse(page1, 25, 0),
       )
-      .mockResolvedValueOnce(mockPaginatedResponse(page2, 25, null))
+      .mockResolvedValueOnce(mockPaginatedResponse(page2, 25, 24))
 
     const { result } = renderHook(() => useVideos())
 
@@ -216,9 +218,9 @@ describe('useVideos', () => {
 
     ;(apiClient.getVideos as any)
       .mockResolvedValueOnce(
-        mockPaginatedResponse(page1, 29, '/api/videos/?limit=24&offset=24'),
+        mockPaginatedResponse(page1, 29, 0),
       )
-      .mockResolvedValueOnce(mockPaginatedResponse(page2, 29, null))
+      .mockResolvedValueOnce(mockPaginatedResponse(page2, 29, 24))
 
     const { result } = renderHook(() => useVideos())
 
@@ -299,8 +301,8 @@ describe('useVideos - sentinelRef', () => {
     const page2 = [{ id: 25, title: 'Video 25', user: 1, file: '', uploaded_at: '', status: 'completed' as const }]
 
     ;(apiClient.getVideos as any)
-      .mockResolvedValueOnce(mockPaginatedResponse(page1, 25, '/api/videos/?limit=24&offset=24'))
-      .mockResolvedValueOnce(mockPaginatedResponse(page2, 25, null))
+      .mockResolvedValueOnce(mockPaginatedResponse(page1, 25, 0))
+      .mockResolvedValueOnce(mockPaginatedResponse(page2, 25, 24))
 
     const { result } = renderHook(() => useVideos())
     await waitFor(() => expect(result.current.hasNextPage).toBe(true))
@@ -331,7 +333,7 @@ describe('useVideos - sentinelRef', () => {
     const page2Promise = new Promise<any>(resolve => { resolvePage2 = resolve })
 
     ;(apiClient.getVideos as any)
-      .mockResolvedValueOnce(mockPaginatedResponse(page1, 25, '/api/videos/?limit=24&offset=24'))
+      .mockResolvedValueOnce(mockPaginatedResponse(page1, 25, 0))
       .mockReturnValueOnce(page2Promise)
 
     const { result } = renderHook(() => useVideos())
@@ -358,7 +360,7 @@ describe('useVideos - sentinelRef', () => {
       resolvePage2(mockPaginatedResponse(
         [{ id: 25, title: 'Video 25', user: 1, file: '', uploaded_at: '', status: 'completed' as const }],
         25,
-        null,
+        24,
       ))
     })
 

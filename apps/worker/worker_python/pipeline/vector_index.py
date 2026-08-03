@@ -1,4 +1,4 @@
-"""PGVector indexing into videoq_scenes (no langchain runtime)."""
+"""PGVector indexing into scene_embeddings (no langchain runtime)."""
 
 from __future__ import annotations
 
@@ -16,11 +16,11 @@ from worker_python.video_sql import VideoRow
 
 logger = logging.getLogger(__name__)
 
-ALLOWED_TABLES = frozenset({"videoq_scenes"})
+ALLOWED_TABLES = frozenset({"scene_embeddings"})
 
 
 def _table_name() -> str:
-    name = env_str("PGVECTOR_COLLECTION_NAME", "videoq_scenes")
+    name = env_str("PGVECTOR_COLLECTION_NAME", "scene_embeddings")
     if name not in ALLOWED_TABLES:
         raise ValueError(f"vector table '{name}' is not in the allowed list")
     return name
@@ -46,7 +46,7 @@ def index_video_transcript(
     conn: psycopg.Connection[Any],
     video: VideoRow,
 ) -> int:
-    """Parse SRT scenes, embed, and insert into videoq_scenes. Returns inserted count."""
+    """Parse SRT scenes, embed, and insert into scene_embeddings. Returns inserted count."""
     if not video.transcript:
         raise ValueError(f"Video {video.id} has no transcript")
 

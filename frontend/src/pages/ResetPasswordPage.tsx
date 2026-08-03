@@ -16,7 +16,6 @@ import { UtilityLink } from '@/components/ui/utility-link';
 
 function ResetPasswordContent() {
   const [searchParams] = useSearchParams();
-  const uid = searchParams.get('uid') ?? '';
   const token = searchParams.get('token') ?? '';
   const { t } = useTranslation();
 
@@ -33,7 +32,7 @@ function ResetPasswordContent() {
     setClientError(null);
     setError(null);
 
-    if (!uid || !token) {
+    if (!token) {
       setClientError(t('auth.resetPassword.invalidLink'));
       return;
     }
@@ -44,7 +43,7 @@ function ResetPasswordContent() {
     }
 
     try {
-      await resetPasswordMutation.mutateAsync({ uid, token, newPassword: password });
+      await resetPasswordMutation.mutateAsync({ token, newPassword: password });
       setSuccess(true);
       setPassword('');
       setConfirmPassword('');

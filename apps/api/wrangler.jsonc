@@ -1,11 +1,11 @@
 /**
  * VideoQ backend on Cloudflare Workers (Hono).
- * ストラングラーフィグ移行の Phase 0/2/3 基盤:
+ * Native API runtime:
  *   - Hono ルーター + 共通ミドルウェア（requestId / logger / CORS / error handler）
  *   - /health（liveness） /ready（DB 疎通）
- *   - Hyperdrive 経由の Neon 接続（per-request Client, 要件 §11.4）
+ *   - Hyperdrive 経由の Neon 接続（per-request Client）
  *   - R2 バインディング
- *   - Django Web プロキシは廃止（未定義パスは 404）
+ *   - 未定義パスは統一された 404
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
@@ -19,7 +19,7 @@
   // 非機密の環境変数のみ。機密は `wrangler secret` / `.dev.vars`。
   "vars": {
     "ENVIRONMENT": "development",
-    // Django USE_S3_STORAGE 相当。ローカルは MinIO（.dev.vars の R2_*）。本番は R2。
+    // ローカルは MinIO（.dev.vars の R2_*）。本番は R2。
     "USE_S3_STORAGE": "true",
     // CORS 許可オリジン。compose は Caddy :80、直接 Vite は :3000。
     "CORS_ALLOW_ORIGIN": "http://localhost,http://127.0.0.1,http://127.0.0.1:3000,http://localhost:3000",
@@ -33,13 +33,13 @@
     "EMBEDDING_VECTOR_SIZE": "1024",
     "OLLAMA_BASE_URL": "http://127.0.0.1:11434",
     "LLM_MODEL": "gpt-4o-mini",
-    "PGVECTOR_COLLECTION_NAME": "videoq_scenes",
+    "PGVECTOR_COLLECTION_NAME": "scene_embeddings",
     // OAuth AS issuer（公開オリジン）。compose は Caddy :80。
-    "OAUTH2_PROVIDER_ISSUER_URL": "http://localhost",
-    // Django OAUTH2_PROVIDER.OIDC_ENABLED（既定 false → OIDC エンドポイント 404）。
-    // 有効化時は OIDC_RSA_PRIVATE_KEY（secret）と必要なら OIDC_RP_INITIATED_LOGOUT_ENABLED も設定。
+    "OAUTH_ISSUER_URL": "http://localhost",
+    // OIDC endpoint feature switch.
+    // 有効化時は OIDC_RSA_PRIVATE_KEY（secret）と必要なら OIDC_LOGOUT_ENABLED も設定。
     "OIDC_ENABLED": "false",
-    "OIDC_RP_INITIATED_LOGOUT_ENABLED": "false"
+    "OIDC_LOGOUT_ENABLED": "false"
   },
 
   // Cloudflare Email Sending（認証系メール）。実配信には送信元ドメインの onboarding が必要:
@@ -66,7 +66,7 @@
     }
   ],
 
-  // Django SimpleRateThrottle 相当（login/signup/chat 等）。1 キー = 1 DO。
+  // login/signup/chat 等の分散rate limiter。1キー = 1 DO。
   "durable_objects": {
     "bindings": [{ "name": "RATE_LIMITER", "class_name": "RateLimiter" }]
   },
@@ -74,7 +74,7 @@
     { "tag": "v1-rate-limiter", "new_classes": ["RateLimiter"] }
   ],
 
-  // Study モードの学習者状態 H（Django cache `plog:study:ephemeral:` 相当, TTL 12h）。
+  // Studyモードの一時学習者状態（TTL 12h）。
   // 本番は `wrangler kv namespace create STUDY_SESSION` の id を設定。
   "kv_namespaces": [
     {

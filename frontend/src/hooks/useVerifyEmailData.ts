@@ -2,18 +2,17 @@ import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 
 interface UseVerifyEmailQueryParams {
-  uid: string | null;
   token: string | null;
 }
 
-export function useVerifyEmailQuery({ uid, token }: UseVerifyEmailQueryParams) {
-  const isInvalidLink = !uid || !token;
+export function useVerifyEmailQuery({ token }: UseVerifyEmailQueryParams) {
+  const isInvalidLink = !token;
 
   const verifyQuery = useQuery<{ detail?: string }>({
-    queryKey: ['verifyEmail', uid ?? null, token ?? null],
+    queryKey: ['verifyEmail', token ?? null],
     enabled: !isInvalidLink,
     retry: false,
-    queryFn: async () => await apiClient.verifyEmail({ uid: uid!, token: token! }),
+    queryFn: async () => await apiClient.verifyEmail({ token: token! }),
   });
 
   return {

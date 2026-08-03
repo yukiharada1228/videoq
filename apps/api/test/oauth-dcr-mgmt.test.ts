@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { oauthRoutes } from "../src/routes/oauth";
+import { oauthRoutes } from "../src/features/oauth/routes";
 import { DCR_REGISTRATION_SCOPE } from "../src/lib/oauth";
 
 import { executeFakePgQuery, type MatchableSql, type PgQueryInput } from "./helpers/pg-fake";
@@ -23,8 +23,8 @@ vi.mock("pg", () => {
 
 const ENV = {
   ENVIRONMENT: "development",
-  JWT_SECRET: "s",
-  OAUTH2_PROVIDER_ISSUER_URL: "http://testserver",
+  AUTH_JWT_SECRET: "s",
+  OAUTH_ISSUER_URL: "http://testserver",
   HYPERDRIVE: { connectionString: "postgres://fake/db" },
 } as unknown as Record<string, unknown>;
 
@@ -61,7 +61,7 @@ describe("OAuth metadata prefix alias", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.issuer).toBe("http://testserver");
-    expect(body.token_endpoint).toBe("http://testserver/api/oauth/token/");
+    expect(body.token_endpoint).toBe("http://testserver/api/oauth/token");
   });
 });
 
@@ -77,7 +77,7 @@ describe("DCR management (RFC 7592)", () => {
   });
 
   it("DELETE 有効トークン → 204", async () => {
-    rowsFor = (sql) => (/JOIN oauth2_provider_application/.test(sql) ? [regRow] : []);
+    rowsFor = (sql) => (/JOIN oauth_applications/.test(sql) ? [regRow] : []);
     const res = await oauthRoutes.request(
       "/api/oauth/register/client-abc",
       { method: "DELETE", headers: { Authorization: "Bearer old-reg-token" } },
@@ -87,7 +87,7 @@ describe("DCR management (RFC 7592)", () => {
   });
 
   it("PUT 有効トークン + メタデータ → 200 + 新しい registration_access_token", async () => {
-    rowsFor = (sql) => (/JOIN oauth2_provider_application/.test(sql) ? [regRow] : []);
+    rowsFor = (sql) => (/JOIN oauth_applications/.test(sql) ? [regRow] : []);
     const res = await oauthRoutes.request(
       "/api/oauth/register/client-abc",
       {
@@ -107,7 +107,7 @@ describe("DCR management (RFC 7592)", () => {
   });
 
   it("PUT 不正メタデータ（redirect_uris 非配列）→ 400", async () => {
-    rowsFor = (sql) => (/JOIN oauth2_provider_application/.test(sql) ? [regRow] : []);
+    rowsFor = (sql) => (/JOIN oauth_applications/.test(sql) ? [regRow] : []);
     const res = await oauthRoutes.request(
       "/api/oauth/register/client-abc",
       {
@@ -118,6 +118,9 @@ describe("DCR management (RFC 7592)", () => {
       ENV,
     );
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("invalid_client_metadata");
+    expect((await res.json()).error).toMatchObject({
+      code: "VALIDATION_ERROR",
+      details: { redirect_uris: ["Invalid input: expected array, received string"] },
+    });
   });
 });

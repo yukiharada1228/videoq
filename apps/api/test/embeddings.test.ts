@@ -5,7 +5,7 @@ import type { Bindings } from "../src/types/bindings";
 const baseEnv = {
   ENVIRONMENT: "development",
   CORS_ALLOW_ORIGIN: "http://localhost:3000",
-  JWT_SECRET: "x",
+  AUTH_JWT_SECRET: "x",
 } as unknown as Bindings;
 
 afterEach(() => {

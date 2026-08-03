@@ -46,9 +46,7 @@ export default function LoginPage() {
     initialData: { username: '', password: '' },
     onSuccessRedirect: () => {
       if (nextPath) {
-        // Full-page navigation: `next` typically points at the Django
-        // OAuth authorize endpoint (/api/oauth/authorize/...) which the
-        // SPA router cannot serve.
+        // OAuth authorize pages are served by the API, outside the SPA router.
         window.location.href = nextPath;
         return;
       }

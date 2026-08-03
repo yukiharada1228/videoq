@@ -1,10 +1,8 @@
 import promptConfig from "./prompts.json";
 
 /**
- * Django `app/infrastructure/external/prompts/loader.py` の `build_system_prompt` 移植。
- * `prompts.json` は Django 側と**同一ファイルをコピー**して使う（差分は禁止・更新時は両方）。
- *
- * ロケール解決は Django と同じ「default をベースに locale を deep merge」。
+ * VideoQ の RAG / PLOG プロンプトを `prompts.json` から構築する。
+ * ロケール解決は default をベースに locale を deep merge する。
  * 候補は `locale` → `locale` のハイフン前 → default の順で、最初に見つかった 1 つだけを merge する。
  */
 const DEFAULT_LOCALE = "default";
@@ -47,7 +45,7 @@ function localeCandidates(locale: string | null | undefined): string[] {
   return out;
 }
 
-/** resolve_locale_section 相当。default に locale の上書きを 1 段だけ deep merge する。 */
+/** default に locale の上書きを 1 段だけ deep merge する。 */
 export function resolveLocaleSection(
   rootKey: string,
   locale?: string | null,
@@ -70,7 +68,7 @@ export function resolveLocaleSection(
   return resolved;
 }
 
-/** Python str.format の名前付きプレースホルダのみを置換する（RAG / plog_study で使う範囲）。 */
+/** RAG / plog_study の名前付きプレースホルダを置換する。 */
 export function formatTemplate(template: string, values: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (whole, key: string) =>
     key in values ? values[key]! : whole,
@@ -104,7 +102,7 @@ function referenceLines(
   return lines;
 }
 
-/** get_plog_study_config(locale) 相当。 */
+/** locale に対応する PLOG Study 設定を返す。 */
 export function getPlogStudyConfig(locale?: string | null): Record<string, unknown> {
   return resolveLocaleSection("plog_study", locale);
 }
@@ -119,7 +117,7 @@ export function buildFallbackOpening(label: string, locale?: string | null): str
 }
 
 /**
- * resolve_opening_question 相当。
+ * locale に対応する開始質問を解決する。
  * 空 / 既知の英語フォールバックテンプレだけ locale 向けに差し替える。
  */
 export function resolveOpeningQuestion(
@@ -135,7 +133,7 @@ export function resolveOpeningQuestion(
   return text;
 }
 
-/** build_system_prompt(locale, references, group_context) 相当。 */
+/** locale、参照情報、グループ文脈から system prompt を構築する。 */
 export function buildSystemPrompt(
   locale?: string | null,
   references?: readonly string[],

@@ -9,8 +9,6 @@ import {
 } from "../src/lib/upload";
 import { resolveStorageBytesForRelease } from "../src/lib/upload-reconcile";
 import { isS3Storage, resolveFileUrl } from "../src/integrations/media";
-import { integerField } from "../src/utils/drf-fields";
-
 // os.path.splitext(x)[1].lower() 相当（/tmp/drf_probe5.py で実 Python と一致確認）。
 describe("fileExtension — os.path.splitext parity", () => {
   const cases: [string, string][] = [
@@ -41,48 +39,10 @@ describe("upload allow-lists + message", () => {
     expect(isAllowedContentType("video/mp4")).toBe(true);
     expect(isAllowedContentType("application/pdf")).toBe(false);
   });
-  it("unsupported message uses sorted list (DRF byte-match)", () => {
+  it("unsupported message uses sorted list", () => {
     expect(unsupportedTypeMessage(".pdf")).toBe(
       "Unsupported file type: '.pdf'. Allowed types: .3gp, .avi, .m4v, .mkv, .mov, .mp4, .mpeg, .mpg, .webm",
     );
-  });
-});
-
-describe("integerField — DRF IntegerField(min_value)", () => {
-  const opts = { required: true, minValue: 1 };
-  it("missing → required", () => {
-    expect(integerField({}, "file_size", opts)).toEqual({
-      kind: "error",
-      message: "This field is required.",
-    });
-  });
-  it("zero → min_value message", () => {
-    expect(integerField({ file_size: 0 }, "file_size", opts)).toEqual({
-      kind: "error",
-      message: "Ensure this value is greater than or equal to 1.",
-    });
-  });
-  it("valid int → value", () => {
-    expect(integerField({ file_size: 1000 }, "file_size", opts)).toEqual({
-      kind: "value",
-      value: "1000",
-    });
-  });
-  it("numeric string → coerced", () => {
-    expect(integerField({ file_size: "42" }, "file_size", opts)).toEqual({
-      kind: "value",
-      value: "42",
-    });
-  });
-  it("non-integer / bool → invalid", () => {
-    expect(integerField({ file_size: 1.5 }, "file_size", opts)).toEqual({
-      kind: "error",
-      message: "A valid integer is required.",
-    });
-    expect(integerField({ file_size: true }, "file_size", opts)).toEqual({
-      kind: "error",
-      message: "A valid integer is required.",
-    });
   });
 });
 

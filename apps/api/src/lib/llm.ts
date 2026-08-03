@@ -8,12 +8,12 @@ import {
 import type { Bindings } from "../types/bindings";
 
 /**
- * QA RAG の LLM 呼び出し（Django `ChatOpenAI(model=LLM_MODEL, temperature=0.0)`,
- * `llm.max_tokens = 1024` 相当）。プロンプトは system + human の 2 通のみで、
+ * QA RAG の LLM 呼び出し。temperature=0.0、max_tokens=1024 を使う。
+ * プロンプトは system + human の 2 通のみで、
  * 会話履歴は渡さない（`ChatPromptTemplate.from_messages([system, human])`）。
  */
 const MAX_TOKENS = 1024;
-/** GradeReply 用（Django get_langchain_grading_llm の max_tokens=256）。 */
+/** GradeReply 用の max_tokens=256 設定。 */
 export const GRADING_MAX_TOKENS = 256;
 
 type ChatMessage = { role: "system" | "user"; content: string };
@@ -90,7 +90,7 @@ export async function generateGradingReply(
 
 /**
  * ストリーミング（`llm.stream`）。空でないテキスト差分のみを yield する
- * （Django も `if isinstance(content, str) and content` で空を捨てる）。
+ * 文字列以外と空文字は破棄する。
  *
  * `signal` にはクライアント接続の中断シグナルを渡す。切断後も OpenAI からの
  * 受信を続けるとサーバー側キーの課金だけが進むため、上流ごと止める。
@@ -130,7 +130,7 @@ export async function* streamReply(
           try {
             parsed = JSON.parse(payload);
           } catch {
-            continue; // 壊れたフレームは Django/LangChain 同様に無視
+            continue; // 壊れたストリームフレームは無視する。
           }
           const text = parsed.choices?.[0]?.delta?.content;
           if (typeof text === "string" && text) yield text;

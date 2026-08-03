@@ -11,9 +11,17 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "sh scripts/db-migrate.sh",
     "db:stamp": "node scripts/stamp-baseline.mjs",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:etl": "node --experimental-strip-types scripts/etl-copy-legacy.ts",
+    "db:etl:verify": "node --experimental-strip-types scripts/etl-copy-legacy.ts --verify",
+    "db:maintain": "sh scripts/maintain.sh",
+    "db:cutover": "sh scripts/maintain.sh cutover",
+    "db:legacy:rename": "sh scripts/maintain.sh rename",
+    "db:legacy:drop": "sh scripts/maintain.sh drop"
   },
   "dependencies": {
+    "@hono/zod-openapi": "^1.5.1",
+    "@scalar/hono-api-reference": "^0.9.48",
     "aws4fetch": "^1.0.20",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.33",
@@ -26,6 +34,7 @@
     "@types/pg": "^8.20.3",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
+    "tsx": "^4.21.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10",
     "wrangler": "^4.110.0"

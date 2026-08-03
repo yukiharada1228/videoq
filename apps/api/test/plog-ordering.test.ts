@@ -38,7 +38,7 @@ describe("isDag（ordering.py 相当）", () => {
 });
 
 describe("定数集合", () => {
-  it("Django ordering.py と同じメンバー", () => {
+  it("ordering members", () => {
     expect([...ORDERING].sort()).toEqual(["builds_on", "prerequisite_of"]);
     expect([...NODE_TYPES].sort()).toEqual(["limitation", "object", "property"]);
     expect([...EDGE_TYPES].sort()).toEqual([

@@ -1,6 +1,6 @@
 /**
  * Runtime graph helpers for prerequisite gating (Algorithm 1).
- * Django `app/infrastructure/external/plog/runtime.py` (+ embeddings/metrics の必要分) の移植。
+ * PLOG の実行時グラフ・埋め込み・メトリクス処理。
  */
 
 import { isDag, ORDERING } from "./plog-ordering";

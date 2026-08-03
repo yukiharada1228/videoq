@@ -10,18 +10,6 @@ variable "env_name" {
   default     = "prod"
 }
 
-variable "api_lambda_memory_mb" {
-  description = "API Lambda のメモリサイズ (MB)"
-  type        = number
-  default     = 1024
-}
-
-variable "api_lambda_timeout_seconds" {
-  description = "API Lambda のタイムアウト (秒)"
-  type        = number
-  default     = 30
-}
-
 variable "worker_lambda_memory_mb" {
   description = "Worker Lambda のメモリサイズ (MB) (ffmpeg + AI 推論でメモリを多く使う)"
   type        = number
@@ -44,24 +32,6 @@ variable "sqs_max_receive_count" {
   description = "SQS のメッセージ最大受信回数 (超過で DLQ へ送信)"
   type        = number
   default     = 3
-}
-
-variable "pages_domain" {
-  description = "Cloudflare Pages ドメイン (CORS 許可リストに追加、空文字で未設定)"
-  type        = string
-  default     = ""
-}
-
-variable "custom_domain" {
-  description = "CloudFront カスタムドメイン (例: videoq.jp、空文字で未設定)"
-  type        = string
-  default     = ""
-}
-
-variable "certificate_arn" {
-  description = "ACM 証明書 ARN (us-east-1 で作成必須、空文字で未設定)"
-  type        = string
-  default     = ""
 }
 
 variable "image_tag" {

@@ -1,12 +1,7 @@
-/**
- * Drizzle schema 正本（DB introspect 由来）。
- * 変更後: `npm run db:generate` → `npm run db:migrate`
- */
-export * from "./tables";
-export * from "./relations";
+/** Runtime Drizzle schema. */
+export * from "./modern";
 
-import * as tables from "./tables";
-import * as relations from "./relations";
+import * as modern from "./modern";
 
-/** drizzle(client, { schema }) 用。 */
-export const schema = { ...tables, ...relations };
+/** drizzle(client, { schema }) uses only application-owned tables. */
+export const schema = { ...modern };

@@ -1,6 +1,6 @@
 /**
- * OpenID Connect helpers（django-oauth-toolkit OIDC 互換）。
- * OIDC_ENABLED=false（Django 既定）のときはエンドポイントが 404。
+ * VideoQ OpenID Connect の署名・メタデータ・claims ヘルパー。
+ * OIDC_ENABLED=false のときはエンドポイントが 404。
  */
 import {
   calculateJwkThumbprint,
@@ -17,7 +17,7 @@ import { issuerFromEnv, OAUTH_SCOPES } from "./oauth";
 export const ID_TOKEN_EXPIRE_SECONDS = 36000;
 export const OIDC_JWKS_MAX_AGE_SECONDS = 3600;
 
-/** DOT oidc_claim_scope（VideoQ は additional claims 未拡張のため sub のみ実用）。 */
+/** UserInfo claim ごとに必要な OIDC scope。 */
 export const OIDC_CLAIM_SCOPE: Record<string, string> = {
   sub: "openid",
   preferred_username: "profile",
@@ -36,7 +36,7 @@ export function isOidcEnabled(env: Bindings): boolean {
 }
 
 export function isOidcRpLogoutEnabled(env: Bindings): boolean {
-  return isOidcEnabled(env) && isTruthyEnv(env.OIDC_RP_INITIATED_LOGOUT_ENABLED);
+  return isOidcEnabled(env) && isTruthyEnv(env.OIDC_LOGOUT_ENABLED);
 }
 
 /** PEM を正規化（`.dev.vars` の `\\n` も許可）。 */
@@ -75,9 +75,9 @@ export function buildOpenIdConfiguration(
   const signingAlgs = hasRsa ? ["RS256", "HS256"] : ["HS256"];
   const data: Record<string, unknown> = {
     issuer,
-    authorization_endpoint: `${issuer}/api/oauth/authorize/`,
-    token_endpoint: `${issuer}/api/oauth/token/`,
-    userinfo_endpoint: `${issuer}/api/oauth/userinfo/`,
+    authorization_endpoint: `${issuer}/api/oauth/authorize`,
+    token_endpoint: `${issuer}/api/oauth/token`,
+    userinfo_endpoint: `${issuer}/api/oauth/userinfo`,
     jwks_uri: `${issuer}/.well-known/jwks.json`,
     scopes_supported: Object.keys(OAUTH_SCOPES).sort(),
     // VideoQ AS は code のみ（OIDC 既定の複合 response_type は未実装）
@@ -94,7 +94,7 @@ export function buildOpenIdConfiguration(
     client_id_metadata_document_supported: false,
   };
   if (isOidcRpLogoutEnabled(env)) {
-    data.end_session_endpoint = `${issuer}/api/oauth/logout/`;
+    data.end_session_endpoint = `${issuer}/api/oauth/logout`;
   }
   return data;
 }
@@ -106,7 +106,7 @@ export type UserinfoSubject = {
   scope: string;
 };
 
-/** DOT get_oidc_claims 相当（scope でフィルタ）。 */
+/** UserInfo claims を許可済み scope でフィルタする。 */
 export function buildOidcClaims(subject: UserinfoSubject): Record<string, unknown> {
   const scopes = new Set(subject.scope.split(/\s+/).filter(Boolean));
   const raw: Record<string, unknown> = {
@@ -137,7 +137,7 @@ export async function signIdToken(params: {
   const payload: JWTPayload = {
     ...params.claims,
     iss: (
-      params.env.OAUTH2_PROVIDER_ISSUER_URL || "http://localhost"
+      params.env.OAUTH_ISSUER_URL || "http://localhost"
     ).replace(/\/$/, ""),
     aud: params.clientId,
     iat: now,

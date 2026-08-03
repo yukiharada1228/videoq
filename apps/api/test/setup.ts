@@ -1,7 +1,10 @@
 import { beforeEach } from "vitest";
-import { resetMemoryRateLimits } from "../src/lib/rate-limit";
+import {
+  createMemoryRateLimitBackend,
+  setRateLimitBackendForTests,
+} from "../src/lib/rate-limit";
 
 /** メモリ・レート制限カウンタをテスト間で隔離する。 */
 beforeEach(() => {
-  resetMemoryRateLimits();
+  setRateLimitBackendForTests(createMemoryRateLimitBackend());
 });

@@ -6,7 +6,7 @@ Usage (from apps/worker/):
   export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:55432/postgres
   export EMBEDDING_PROVIDER=ollama EMBEDDING_MODEL=qwen3-embedding:0.6b EMBEDDING_VECTOR_SIZE=1024
   # optional real transcription:
-  # export ENABLE_HEAVY_PIPELINE=1 OPENAI_API_KEY=... JWT_SECRET=...
+  # export ENABLE_HEAVY_PIPELINE=1 OPENAI_API_KEY=... USER_SECRET_ENCRYPTION_KEY=...
   python scripts/process_pending.py
   python scripts/process_pending.py --video-id 83
 """
@@ -33,14 +33,14 @@ def list_targets(video_id: int | None) -> list[tuple[int, str]]:
     with db_connection() as conn:
         if video_id is not None:
             row = conn.execute(
-                "SELECT id, status FROM app_video WHERE id = %s",
+                "SELECT id, status FROM videos WHERE id = %s",
                 (video_id,),
             ).fetchone()
             return [(int(row["id"]), row["status"])] if row else []
         rows = conn.execute(
             """
             SELECT id, status
-              FROM app_video
+              FROM videos
              WHERE status IN ('pending', 'error', 'indexing')
              ORDER BY id
             """

@@ -24,7 +24,7 @@ flowchart TD
     Response --> Display[Upload Success Display]
     Display --> Wait[User Waits]
     
-    Queue --> Worker[Celery Worker<br/>Receives Task]
+    Queue --> Worker[Python Worker<br/>Receives Task]
     Worker --> UpdateStatus[Update status: processing]
     UpdateStatus --> SaveDB2[(Database Update)]
     SaveDB2 --> CheckBackend{"WHISPER_BACKEND<br>Setting Check"}
@@ -45,7 +45,7 @@ flowchart TD
     SceneSplit --> SaveTranscript[(Database<br/>Save transcript)]
     SaveTranscript --> UpdateIndexing[Update status: indexing]
     UpdateIndexing --> QueueIndexing[Queue indexing task]
-    QueueIndexing --> IndexWorker[Celery Worker<br/>Indexing Task]
+    QueueIndexing --> IndexWorker[Python Worker<br/>Indexing Task]
     IndexWorker --> Vectorize[PGVector<br/>Vectorize and Save]
     Vectorize --> UpdateComplete[Update status: completed]
     UpdateComplete --> SaveDB3[(Database<br/>Final Update)]

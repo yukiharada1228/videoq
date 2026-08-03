@@ -1,13 +1,13 @@
 import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { type Db, withDb } from "../db/pool";
 import {
-  appLearnerconceptstate,
-  appPlogbuildjob,
-  appPlogconcept,
-  appPlogedge,
-  appPloglearningobject,
-  appPlogsummarynode,
-  appVideo,
+  learnerConceptStates,
+  plogBuildJobs,
+  plogConcepts,
+  plogEdges,
+  plogLearningObjects,
+  plogSummaryNodes,
+  videos,
 } from "../db/schema";
 import type {
   PlogConcept,
@@ -16,10 +16,10 @@ import type {
   PlogLearningObject,
   PlogSummaryNode,
 } from "../lib/plog-runtime";
-import { stableKey } from "../utils/py-json";
+import { stableKey } from "../shared/canonical-json";
 import type { Bindings } from "../types/bindings";
 
-// concept_dto_to_dict / edge_dto_to_dict に一致する形。
+// PLOG API が返す concept / edge の表現。
 export type PlogConceptNode = {
   id: number;
   label: string;
@@ -93,30 +93,30 @@ async function fetchConceptNode(
 ): Promise<PlogConceptNode | null> {
   const rows = await db
     .select({
-      id: appPlogconcept.id,
-      label: appPlogconcept.label,
-      node_type: appPlogconcept.nodeType,
-      intro_sec: appPlogconcept.introSec,
-      source_quote: appPlogconcept.sourceQuote,
-      opening_question: appPloglearningobject.openingQuestion,
-      hint_ladder: sql<string | null>`${appPloglearningobject.hintLadder}::text`.as("hint_ladder"),
-      misconceptions: sql<string | null>`${appPloglearningobject.misconceptions}::text`.as(
+      id: plogConcepts.id,
+      label: plogConcepts.label,
+      node_type: plogConcepts.nodeType,
+      intro_sec: plogConcepts.introSec,
+      source_quote: plogConcepts.sourceQuote,
+      opening_question: plogLearningObjects.openingQuestion,
+      hint_ladder: sql<string | null>`${plogLearningObjects.hintLadder}::text`.as("hint_ladder"),
+      misconceptions: sql<string | null>`${plogLearningObjects.misconceptions}::text`.as(
         "misconceptions",
       ),
-      canonical_order: sql<string | null>`${appPloglearningobject.canonicalOrder}::text`.as(
+      canonical_order: sql<string | null>`${plogLearningObjects.canonicalOrder}::text`.as(
         "canonical_order",
       ),
-      worked_examples: sql<string | null>`${appPloglearningobject.workedExamples}::text`.as(
+      worked_examples: sql<string | null>`${plogLearningObjects.workedExamples}::text`.as(
         "worked_examples",
       ),
-      waypoints: sql<string | null>`${appPloglearningobject.waypoints}::text`.as("waypoints"),
+      waypoints: sql<string | null>`${plogLearningObjects.waypoints}::text`.as("waypoints"),
     })
-    .from(appPlogconcept)
+    .from(plogConcepts)
     .leftJoin(
-      appPloglearningobject,
-      eq(appPloglearningobject.conceptId, appPlogconcept.id),
+      plogLearningObjects,
+      eq(plogLearningObjects.conceptId, plogConcepts.id),
     )
-    .where(and(eq(appPlogconcept.id, conceptId), eq(appPlogconcept.videoId, videoId)))
+    .where(and(eq(plogConcepts.id, conceptId), eq(plogConcepts.videoId, videoId)))
     .limit(1);
   return rows.length === 0 ? null : mapConcept(rows[0] as Record<string, unknown>);
 }
@@ -129,9 +129,9 @@ async function fetchEdgeItem(
   const result = await db.execute(sql`
     SELECT e.id, e.source_id, e.target_id, e.edge_type, e.quote,
            sc.label AS source_label, tc.label AS target_label
-      FROM app_plogedge e
-      JOIN app_plogconcept sc ON sc.id = e.source_id
-      JOIN app_plogconcept tc ON tc.id = e.target_id
+      FROM plog_edges e
+      JOIN plog_concepts sc ON sc.id = e.source_id
+      JOIN plog_concepts tc ON tc.id = e.target_id
      WHERE e.id = ${edgeId} AND e.video_id = ${videoId}
   `);
   const rows = result.rows as Array<Record<string, unknown>>;
@@ -150,9 +150,9 @@ async function fetchEdgeItem(
 
 async function videoOwnedBy(db: Db, videoId: number, userId: number): Promise<boolean> {
   const rows = await db
-    .select({ id: appVideo.id })
-    .from(appVideo)
-    .where(and(eq(appVideo.id, videoId), eq(appVideo.userId, userId)))
+    .select({ id: videos.id })
+    .from(videos)
+    .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
     .limit(1);
   return rows.length > 0;
 }
@@ -174,14 +174,14 @@ export async function getPlogGraph(
 
     const jobRows = await db
       .select({
-        status: appPlogbuildjob.status,
-        input_tokens: appPlogbuildjob.inputTokens,
-        output_tokens: appPlogbuildjob.outputTokens,
-        error_message: appPlogbuildjob.errorMessage,
+        status: plogBuildJobs.status,
+        input_tokens: plogBuildJobs.inputTokens,
+        output_tokens: plogBuildJobs.outputTokens,
+        error_message: plogBuildJobs.errorMessage,
       })
-      .from(appPlogbuildjob)
-      .where(eq(appPlogbuildjob.videoId, videoId))
-      .orderBy(desc(appPlogbuildjob.createdAt))
+      .from(plogBuildJobs)
+      .where(eq(plogBuildJobs.videoId, videoId))
+      .orderBy(desc(plogBuildJobs.createdAt))
       .limit(1);
 
     if (jobRows.length === 0) {
@@ -206,24 +206,24 @@ export async function getPlogGraph(
              lo.canonical_order::text AS canonical_order,
              lo.worked_examples::text AS worked_examples,
              lo.waypoints::text       AS waypoints
-        FROM app_plogconcept c
-        LEFT JOIN app_ploglearningobject lo ON lo.concept_id = c.id
+        FROM plog_concepts c
+        LEFT JOIN plog_learning_objects lo ON lo.concept_id = c.id
        WHERE c.video_id = ${videoId}
        ORDER BY c.intro_sec, c.id
     `);
     const edgesRes = await db.execute(sql`
       SELECT e.id, e.source_id, e.target_id, e.edge_type, e.quote,
              sc.label AS source_label, tc.label AS target_label
-        FROM app_plogedge e
-        JOIN app_plogconcept sc ON sc.id = e.source_id
-        JOIN app_plogconcept tc ON tc.id = e.target_id
+        FROM plog_edges e
+        JOIN plog_concepts sc ON sc.id = e.source_id
+        JOIN plog_concepts tc ON tc.id = e.target_id
        WHERE e.video_id = ${videoId}
        ORDER BY e.id
     `);
     const sumRes = await db
       .select({ c: sql<number>`count(*)::int` })
-      .from(appPlogsummarynode)
-      .where(eq(appPlogsummarynode.videoId, videoId));
+      .from(plogSummaryNodes)
+      .where(eq(plogSummaryNodes.videoId, videoId));
 
     const concepts: PlogConceptNode[] = (conceptsRes.rows as Array<Record<string, unknown>>).map(
       mapConcept,
@@ -267,19 +267,19 @@ export async function getPlogLearnerState(
 
     const rows = await db
       .select({
-        concept_id: appLearnerconceptstate.conceptId,
-        label: appPlogconcept.label,
-        reached: appLearnerconceptstate.reached,
-        hint_index: appLearnerconceptstate.hintIndex,
-        last_grade: appLearnerconceptstate.lastGrade,
-        active: appLearnerconceptstate.active,
+        concept_id: learnerConceptStates.conceptId,
+        label: plogConcepts.label,
+        reached: learnerConceptStates.reached,
+        hint_index: learnerConceptStates.hintIndex,
+        last_grade: learnerConceptStates.lastGrade,
+        active: learnerConceptStates.active,
       })
-      .from(appLearnerconceptstate)
-      .innerJoin(appPlogconcept, eq(appPlogconcept.id, appLearnerconceptstate.conceptId))
+      .from(learnerConceptStates)
+      .innerJoin(plogConcepts, eq(plogConcepts.id, learnerConceptStates.conceptId))
       .where(
-        and(eq(appLearnerconceptstate.userId, userId), eq(appPlogconcept.videoId, videoId)),
+        and(eq(learnerConceptStates.userId, userId), eq(plogConcepts.videoId, videoId)),
       )
-      .orderBy(asc(appLearnerconceptstate.id));
+      .orderBy(asc(learnerConceptStates.id));
 
     return {
       states: rows.map((r) => ({
@@ -294,7 +294,7 @@ export async function getPlogLearnerState(
   });
 }
 
-// PlogBuildJobEntity 相当（rebuild レスポンスで使う id/status）。
+// rebuild レスポンスで使う build job の id/status。
 export type PlogBuildJob = { id: number; status: string };
 
 /** 最新の build job（created_at DESC 先頭）。無ければ null。 */
@@ -304,10 +304,10 @@ export async function getLatestBuildJob(
 ): Promise<PlogBuildJob | null> {
   return withDb(env, async (db) => {
     const rows = await db
-      .select({ id: appPlogbuildjob.id, status: appPlogbuildjob.status })
-      .from(appPlogbuildjob)
-      .where(eq(appPlogbuildjob.videoId, videoId))
-      .orderBy(desc(appPlogbuildjob.createdAt))
+      .select({ id: plogBuildJobs.id, status: plogBuildJobs.status })
+      .from(plogBuildJobs)
+      .where(eq(plogBuildJobs.videoId, videoId))
+      .orderBy(desc(plogBuildJobs.createdAt))
       .limit(1);
     if (rows.length === 0) return null;
     return { id: Number(rows[0].id), status: rows[0].status };
@@ -321,7 +321,7 @@ export async function createBuildJob(
 ): Promise<PlogBuildJob> {
   return withDb(env, async (db) => {
     const rows = await db
-      .insert(appPlogbuildjob)
+      .insert(plogBuildJobs)
       .values({
         videoId,
         status: "pending",
@@ -332,7 +332,7 @@ export async function createBuildJob(
         updatedAt: sql`CURRENT_TIMESTAMP`,
         finishedAt: null,
       })
-      .returning({ id: appPlogbuildjob.id, status: appPlogbuildjob.status });
+      .returning({ id: plogBuildJobs.id, status: plogBuildJobs.status });
     return { id: Number(rows[0].id), status: rows[0].status };
   });
 }
@@ -363,7 +363,7 @@ export async function requireOwnedVideo(
 }
 
 /**
- * ensure_ready_build_job 相当。
+ * ready 状態の build job を確保する。
  * ready ならそのまま / pending|running なら編集不可 / それ以外は ready ジョブを作成。
  */
 export async function ensureReadyBuildJob(
@@ -372,10 +372,10 @@ export async function ensureReadyBuildJob(
 ): Promise<void> {
   return withDb(env, async (db) => {
     const rows = await db
-      .select({ status: appPlogbuildjob.status })
-      .from(appPlogbuildjob)
-      .where(eq(appPlogbuildjob.videoId, videoId))
-      .orderBy(desc(appPlogbuildjob.createdAt))
+      .select({ status: plogBuildJobs.status })
+      .from(plogBuildJobs)
+      .where(eq(plogBuildJobs.videoId, videoId))
+      .orderBy(desc(plogBuildJobs.createdAt))
       .limit(1);
     if (rows.length > 0) {
       const status = rows[0].status;
@@ -384,7 +384,7 @@ export async function ensureReadyBuildJob(
         throw new PlogEditError("Cannot edit graph while a rebuild is in progress.");
       }
     }
-    await db.insert(appPlogbuildjob).values({
+    await db.insert(plogBuildJobs).values({
       videoId,
       status: "ready",
       errorMessage: "",
@@ -421,14 +421,14 @@ export async function getConceptRow(
   return withDb(env, async (db) => {
     const rows = await db
       .select({
-        id: appPlogconcept.id,
-        label: appPlogconcept.label,
-        node_type: appPlogconcept.nodeType,
-        intro_sec: appPlogconcept.introSec,
-        source_quote: appPlogconcept.sourceQuote,
+        id: plogConcepts.id,
+        label: plogConcepts.label,
+        node_type: plogConcepts.nodeType,
+        intro_sec: plogConcepts.introSec,
+        source_quote: plogConcepts.sourceQuote,
       })
-      .from(appPlogconcept)
-      .where(and(eq(appPlogconcept.id, conceptId), eq(appPlogconcept.videoId, videoId)))
+      .from(plogConcepts)
+      .where(and(eq(plogConcepts.id, conceptId), eq(plogConcepts.videoId, videoId)))
       .limit(1);
     if (rows.length === 0) return null;
     const r = rows[0];
@@ -458,7 +458,7 @@ export async function createConcept(
       let conceptId: number;
       try {
         const rows = await tx
-          .insert(appPlogconcept)
+          .insert(plogConcepts)
           .values({
             videoId: params.videoId,
             label: params.label.slice(0, 255),
@@ -468,7 +468,7 @@ export async function createConcept(
             embedding: [...params.embedding],
             createdAt: sql`CURRENT_TIMESTAMP`,
           })
-          .returning({ id: appPlogconcept.id });
+          .returning({ id: plogConcepts.id });
         conceptId = Number(rows[0].id);
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : "";
@@ -479,7 +479,7 @@ export async function createConcept(
       }
 
       await tx.execute(sql`
-        INSERT INTO app_ploglearningobject
+        INSERT INTO plog_learning_objects
            (concept_id, opening_question, hint_ladder, misconceptions, canonical_order,
             worked_examples, waypoints, created_at)
          VALUES (${conceptId}, '', '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb,
@@ -519,12 +519,12 @@ export async function updateConcept(
 
     try {
       const rows = await db
-        .update(appPlogconcept)
+        .update(plogConcepts)
         .set(set)
         .where(
-          and(eq(appPlogconcept.id, params.conceptId), eq(appPlogconcept.videoId, params.videoId)),
+          and(eq(plogConcepts.id, params.conceptId), eq(plogConcepts.videoId, params.videoId)),
         )
-        .returning({ id: appPlogconcept.id });
+        .returning({ id: plogConcepts.id });
       if (rows.length === 0) return null;
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "";
@@ -539,7 +539,7 @@ export async function updateConcept(
 
 /**
  * concept 削除。DB に ON DELETE CASCADE が無いため依存を明示削除する
- * （Django ORM collector 相当: learner → LO → edges → concept）。
+ * learner → learning object → edge → concept の順に関連行を削除する。
  */
 export async function deleteConcept(
   env: Bindings,
@@ -549,30 +549,30 @@ export async function deleteConcept(
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
       const exists = await tx
-        .select({ id: appPlogconcept.id })
-        .from(appPlogconcept)
-        .where(and(eq(appPlogconcept.id, conceptId), eq(appPlogconcept.videoId, videoId)))
+        .select({ id: plogConcepts.id })
+        .from(plogConcepts)
+        .where(and(eq(plogConcepts.id, conceptId), eq(plogConcepts.videoId, videoId)))
         .limit(1);
       if (exists.length === 0) return false;
 
       await tx
-        .delete(appLearnerconceptstate)
-        .where(eq(appLearnerconceptstate.conceptId, conceptId));
+        .delete(learnerConceptStates)
+        .where(eq(learnerConceptStates.conceptId, conceptId));
       await tx
-        .delete(appPloglearningobject)
-        .where(eq(appPloglearningobject.conceptId, conceptId));
+        .delete(plogLearningObjects)
+        .where(eq(plogLearningObjects.conceptId, conceptId));
       await tx
-        .delete(appPlogedge)
+        .delete(plogEdges)
         .where(
           and(
-            eq(appPlogedge.videoId, videoId),
-            or(eq(appPlogedge.sourceId, conceptId), eq(appPlogedge.targetId, conceptId)),
+            eq(plogEdges.videoId, videoId),
+            or(eq(plogEdges.sourceId, conceptId), eq(plogEdges.targetId, conceptId)),
           ),
         );
       const deleted = await tx
-        .delete(appPlogconcept)
-        .where(and(eq(appPlogconcept.id, conceptId), eq(appPlogconcept.videoId, videoId)))
-        .returning({ id: appPlogconcept.id });
+        .delete(plogConcepts)
+        .where(and(eq(plogConcepts.id, conceptId), eq(plogConcepts.videoId, videoId)))
+        .returning({ id: plogConcepts.id });
       return deleted.length > 0;
     }),
   );
@@ -588,16 +588,16 @@ export async function listOrderingEdges(
   return withDb(env, async (db) => {
     const rows = await db
       .select({
-        id: appPlogedge.id,
-        source_id: appPlogedge.sourceId,
-        target_id: appPlogedge.targetId,
-        edge_type: appPlogedge.edgeType,
+        id: plogEdges.id,
+        source_id: plogEdges.sourceId,
+        target_id: plogEdges.targetId,
+        edge_type: plogEdges.edgeType,
       })
-      .from(appPlogedge)
+      .from(plogEdges)
       .where(
         and(
-          eq(appPlogedge.videoId, videoId),
-          inArray(appPlogedge.edgeType, ["prerequisite_of", "builds_on"]),
+          eq(plogEdges.videoId, videoId),
+          inArray(plogEdges.edgeType, ["prerequisite_of", "builds_on"]),
         ),
       );
     return rows.map((r) => ({
@@ -625,14 +625,14 @@ export async function getEdgeRow(
   return withDb(env, async (db) => {
     const rows = await db
       .select({
-        id: appPlogedge.id,
-        source_id: appPlogedge.sourceId,
-        target_id: appPlogedge.targetId,
-        edge_type: appPlogedge.edgeType,
-        quote: appPlogedge.quote,
+        id: plogEdges.id,
+        source_id: plogEdges.sourceId,
+        target_id: plogEdges.targetId,
+        edge_type: plogEdges.edgeType,
+        quote: plogEdges.quote,
       })
-      .from(appPlogedge)
-      .where(and(eq(appPlogedge.id, edgeId), eq(appPlogedge.videoId, videoId)))
+      .from(plogEdges)
+      .where(and(eq(plogEdges.id, edgeId), eq(plogEdges.videoId, videoId)))
       .limit(1);
     if (rows.length === 0) return null;
     const r = rows[0];
@@ -660,7 +660,7 @@ export async function createEdge(
     let edgeId: number;
     try {
       const rows = await db
-        .insert(appPlogedge)
+        .insert(plogEdges)
         .values({
           videoId: params.videoId,
           sourceId: params.sourceId,
@@ -670,7 +670,7 @@ export async function createEdge(
           validationStatus: "validated",
           createdAt: sql`CURRENT_TIMESTAMP`,
         })
-        .returning({ id: appPlogedge.id });
+        .returning({ id: plogEdges.id });
       edgeId = Number(rows[0].id);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "";
@@ -707,10 +707,10 @@ export async function updateEdge(
 
     try {
       const rows = await db
-        .update(appPlogedge)
+        .update(plogEdges)
         .set(set)
-        .where(and(eq(appPlogedge.id, params.edgeId), eq(appPlogedge.videoId, params.videoId)))
-        .returning({ id: appPlogedge.id });
+        .where(and(eq(plogEdges.id, params.edgeId), eq(plogEdges.videoId, params.videoId)))
+        .returning({ id: plogEdges.id });
       if (rows.length === 0) return null;
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "";
@@ -730,9 +730,9 @@ export async function deleteEdge(
 ): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db
-      .delete(appPlogedge)
-      .where(and(eq(appPlogedge.id, edgeId), eq(appPlogedge.videoId, videoId)))
-      .returning({ id: appPlogedge.id });
+      .delete(plogEdges)
+      .where(and(eq(plogEdges.id, edgeId), eq(plogEdges.videoId, videoId)))
+      .returning({ id: plogEdges.id });
     return rows.length > 0;
   });
 }
@@ -752,14 +752,14 @@ export async function updateLearningObject(
 ): Promise<PlogConceptNode | null> {
   return withDb(env, async (db) => {
     const exists = await db
-      .select({ id: appPlogconcept.id })
-      .from(appPlogconcept)
-      .where(and(eq(appPlogconcept.id, params.conceptId), eq(appPlogconcept.videoId, params.videoId)))
+      .select({ id: plogConcepts.id })
+      .from(plogConcepts)
+      .where(and(eq(plogConcepts.id, params.conceptId), eq(plogConcepts.videoId, params.videoId)))
       .limit(1);
     if (exists.length === 0) return null;
 
     await db.execute(sql`
-      INSERT INTO app_ploglearningobject
+      INSERT INTO plog_learning_objects
          (concept_id, opening_question, hint_ladder, misconceptions, canonical_order,
           worked_examples, waypoints, created_at)
        VALUES (${params.conceptId}, '', '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb,
@@ -777,9 +777,9 @@ export async function updateLearningObject(
 
     if (Object.keys(set).length > 0) {
       await db
-        .update(appPloglearningobject)
+        .update(plogLearningObjects)
         .set(set)
-        .where(eq(appPloglearningobject.conceptId, params.conceptId));
+        .where(eq(plogLearningObjects.conceptId, params.conceptId));
     }
     return fetchConceptNode(db, params.conceptId, params.videoId);
   });
@@ -797,90 +797,90 @@ export async function mergeConcepts(
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
       const concepts = await tx
-        .select({ id: appPlogconcept.id })
-        .from(appPlogconcept)
+        .select({ id: plogConcepts.id })
+        .from(plogConcepts)
         .where(
           and(
-            eq(appPlogconcept.videoId, videoId),
-            inArray(appPlogconcept.id, [survivorId, absorbId]),
+            eq(plogConcepts.videoId, videoId),
+            inArray(plogConcepts.id, [survivorId, absorbId]),
           ),
         );
       if (concepts.length !== 2) return null;
 
       const fromAbsorb = await tx
         .select({
-          id: appPlogedge.id,
-          target_id: appPlogedge.targetId,
-          edge_type: appPlogedge.edgeType,
+          id: plogEdges.id,
+          target_id: plogEdges.targetId,
+          edge_type: plogEdges.edgeType,
         })
-        .from(appPlogedge)
-        .where(and(eq(appPlogedge.videoId, videoId), eq(appPlogedge.sourceId, absorbId)));
+        .from(plogEdges)
+        .where(and(eq(plogEdges.videoId, videoId), eq(plogEdges.sourceId, absorbId)));
 
       for (const e of fromAbsorb) {
         if (Number(e.target_id) === survivorId) {
-          await tx.delete(appPlogedge).where(eq(appPlogedge.id, e.id));
+          await tx.delete(plogEdges).where(eq(plogEdges.id, e.id));
           continue;
         }
         const dup = await tx
-          .select({ id: appPlogedge.id })
-          .from(appPlogedge)
+          .select({ id: plogEdges.id })
+          .from(plogEdges)
           .where(
             and(
-              eq(appPlogedge.videoId, videoId),
-              eq(appPlogedge.sourceId, survivorId),
-              eq(appPlogedge.targetId, e.target_id),
-              eq(appPlogedge.edgeType, e.edge_type),
+              eq(plogEdges.videoId, videoId),
+              eq(plogEdges.sourceId, survivorId),
+              eq(plogEdges.targetId, e.target_id),
+              eq(plogEdges.edgeType, e.edge_type),
             ),
           )
           .limit(1);
         if (dup.length > 0) {
-          await tx.delete(appPlogedge).where(eq(appPlogedge.id, e.id));
+          await tx.delete(plogEdges).where(eq(plogEdges.id, e.id));
         } else {
           await tx
-            .update(appPlogedge)
+            .update(plogEdges)
             .set({ sourceId: survivorId })
-            .where(eq(appPlogedge.id, e.id));
+            .where(eq(plogEdges.id, e.id));
         }
       }
 
       const toAbsorb = await tx
         .select({
-          id: appPlogedge.id,
-          source_id: appPlogedge.sourceId,
-          edge_type: appPlogedge.edgeType,
+          id: plogEdges.id,
+          source_id: plogEdges.sourceId,
+          edge_type: plogEdges.edgeType,
         })
-        .from(appPlogedge)
-        .where(and(eq(appPlogedge.videoId, videoId), eq(appPlogedge.targetId, absorbId)));
+        .from(plogEdges)
+        .where(and(eq(plogEdges.videoId, videoId), eq(plogEdges.targetId, absorbId)));
 
       for (const e of toAbsorb) {
         if (Number(e.source_id) === survivorId) {
-          await tx.delete(appPlogedge).where(eq(appPlogedge.id, e.id));
+          await tx.delete(plogEdges).where(eq(plogEdges.id, e.id));
           continue;
         }
         const dup = await tx
-          .select({ id: appPlogedge.id })
-          .from(appPlogedge)
+          .select({ id: plogEdges.id })
+          .from(plogEdges)
           .where(
             and(
-              eq(appPlogedge.videoId, videoId),
-              eq(appPlogedge.sourceId, e.source_id),
-              eq(appPlogedge.targetId, survivorId),
-              eq(appPlogedge.edgeType, e.edge_type),
+              eq(plogEdges.videoId, videoId),
+              eq(plogEdges.sourceId, e.source_id),
+              eq(plogEdges.targetId, survivorId),
+              eq(plogEdges.edgeType, e.edge_type),
             ),
           )
           .limit(1);
         if (dup.length > 0) {
-          await tx.delete(appPlogedge).where(eq(appPlogedge.id, e.id));
+          await tx.delete(plogEdges).where(eq(plogEdges.id, e.id));
         } else {
           await tx
-            .update(appPlogedge)
+            .update(plogEdges)
             .set({ targetId: survivorId })
-            .where(eq(appPlogedge.id, e.id));
+            .where(eq(plogEdges.id, e.id));
         }
       }
 
       await tx.execute(sql`
-        INSERT INTO app_ploglearningobject
+        INSERT INTO plog_learning_objects
            (concept_id, opening_question, hint_ladder, misconceptions, canonical_order,
             worked_examples, waypoints, created_at)
          VALUES (${survivorId}, '', '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb,
@@ -891,12 +891,12 @@ export async function mergeConcepts(
       const survivorLoRes = await tx.execute(sql`
         SELECT opening_question, hint_ladder::text, misconceptions::text,
                canonical_order::text, worked_examples::text, waypoints::text
-          FROM app_ploglearningobject WHERE concept_id = ${survivorId}
+          FROM plog_learning_objects WHERE concept_id = ${survivorId}
       `);
       const absorbLoRes = await tx.execute(sql`
         SELECT opening_question, hint_ladder::text, misconceptions::text,
                canonical_order::text, worked_examples::text, waypoints::text
-          FROM app_ploglearningobject WHERE concept_id = ${absorbId}
+          FROM plog_learning_objects WHERE concept_id = ${absorbId}
       `);
 
       if (absorbLoRes.rows.length > 0) {
@@ -920,7 +920,7 @@ export async function mergeConcepts(
         };
 
         await tx.execute(sql`
-          UPDATE app_ploglearningobject SET
+          UPDATE plog_learning_objects SET
              opening_question = ${opening},
              hint_ladder = ${JSON.stringify(mergeList(s.hint_ladder, a.hint_ladder))}::jsonb,
              misconceptions = ${JSON.stringify(mergeList(s.misconceptions, a.misconceptions))}::jsonb,
@@ -933,71 +933,71 @@ export async function mergeConcepts(
 
       const absorbStates = await tx
         .select({
-          id: appLearnerconceptstate.id,
-          user_id: appLearnerconceptstate.userId,
-          reached: appLearnerconceptstate.reached,
-          hint_index: appLearnerconceptstate.hintIndex,
-          last_grade: appLearnerconceptstate.lastGrade,
-          active: appLearnerconceptstate.active,
+          id: learnerConceptStates.id,
+          user_id: learnerConceptStates.userId,
+          reached: learnerConceptStates.reached,
+          hint_index: learnerConceptStates.hintIndex,
+          last_grade: learnerConceptStates.lastGrade,
+          active: learnerConceptStates.active,
         })
-        .from(appLearnerconceptstate)
-        .where(eq(appLearnerconceptstate.conceptId, absorbId));
+        .from(learnerConceptStates)
+        .where(eq(learnerConceptStates.conceptId, absorbId));
 
       for (const state of absorbStates) {
         const existing = await tx
           .select({
-            id: appLearnerconceptstate.id,
-            reached: appLearnerconceptstate.reached,
-            hint_index: appLearnerconceptstate.hintIndex,
-            last_grade: appLearnerconceptstate.lastGrade,
-            active: appLearnerconceptstate.active,
+            id: learnerConceptStates.id,
+            reached: learnerConceptStates.reached,
+            hint_index: learnerConceptStates.hintIndex,
+            last_grade: learnerConceptStates.lastGrade,
+            active: learnerConceptStates.active,
           })
-          .from(appLearnerconceptstate)
+          .from(learnerConceptStates)
           .where(
             and(
-              eq(appLearnerconceptstate.userId, state.user_id),
-              eq(appLearnerconceptstate.conceptId, survivorId),
+              eq(learnerConceptStates.userId, state.user_id),
+              eq(learnerConceptStates.conceptId, survivorId),
             ),
           )
           .limit(1);
 
         if (existing.length === 0) {
           await tx
-            .update(appLearnerconceptstate)
+            .update(learnerConceptStates)
             .set({ conceptId: survivorId })
-            .where(eq(appLearnerconceptstate.id, state.id));
+            .where(eq(learnerConceptStates.id, state.id));
         } else {
           const ex = existing[0];
           await tx
-            .update(appLearnerconceptstate)
+            .update(learnerConceptStates)
             .set({
               reached: Boolean(ex.reached) || Boolean(state.reached),
               hintIndex: Math.max(Number(ex.hint_index), Number(state.hint_index)),
               active: Boolean(ex.active) || Boolean(state.active),
               lastGrade: ex.last_grade || state.last_grade || "",
             })
-            .where(eq(appLearnerconceptstate.id, ex.id));
-          await tx.delete(appLearnerconceptstate).where(eq(appLearnerconceptstate.id, state.id));
+            .where(eq(learnerConceptStates.id, ex.id));
+          await tx.delete(learnerConceptStates).where(eq(learnerConceptStates.id, state.id));
         }
       }
 
       await tx
-        .delete(appLearnerconceptstate)
-        .where(eq(appLearnerconceptstate.conceptId, absorbId));
+        .delete(learnerConceptStates)
+        .where(eq(learnerConceptStates.conceptId, absorbId));
       await tx
-        .delete(appPloglearningobject)
-        .where(eq(appPloglearningobject.conceptId, absorbId));
+        .delete(plogLearningObjects)
+        .where(eq(plogLearningObjects.conceptId, absorbId));
       await tx
-        .delete(appPlogedge)
+        .delete(plogEdges)
         .where(
           and(
-            eq(appPlogedge.videoId, videoId),
-            or(eq(appPlogedge.sourceId, absorbId), eq(appPlogedge.targetId, absorbId)),
+            eq(plogEdges.videoId, videoId),
+            or(eq(plogEdges.sourceId, absorbId), eq(plogEdges.targetId, absorbId)),
           ),
         );
       await tx
-        .delete(appPlogconcept)
-        .where(and(eq(appPlogconcept.id, absorbId), eq(appPlogconcept.videoId, videoId)));
+        .delete(plogConcepts)
+        .where(and(eq(plogConcepts.id, absorbId), eq(plogConcepts.videoId, videoId)));
 
       return fetchConceptNode(tx, survivorId, videoId);
     }),
@@ -1015,16 +1015,16 @@ export async function resetLearnerStates(
       return { notFound: true } as const;
     }
     const result = await db.execute(sql`
-      DELETE FROM app_learnerconceptstate
+      DELETE FROM learner_concept_states
        WHERE user_id = ${userId}
-         AND concept_id IN (SELECT id FROM app_plogconcept WHERE video_id = ${videoId})
+         AND concept_id IN (SELECT id FROM plog_concepts WHERE video_id = ${videoId})
     `);
     return { deleted: result.rowCount ?? 0 };
   });
 }
 
 /**
- * Study モード用グラフ読み込み（Django `list_ready_graphs`）。
+ * Study モード用の ready グラフを読み込む。
  * 最新 build job が `ready` の動画だけ、concepts(+embedding)/edges/LO/summary を返す。
  */
 export async function listReadyGraphs(
@@ -1037,10 +1037,10 @@ export async function listReadyGraphs(
     const ready: PlogGraphSnapshot[] = [];
     for (const videoId of videoIds) {
       const jobRows = await db
-        .select({ status: appPlogbuildjob.status })
-        .from(appPlogbuildjob)
-        .where(eq(appPlogbuildjob.videoId, videoId))
-        .orderBy(desc(appPlogbuildjob.createdAt))
+        .select({ status: plogBuildJobs.status })
+        .from(plogBuildJobs)
+        .where(eq(plogBuildJobs.videoId, videoId))
+        .orderBy(desc(plogBuildJobs.createdAt))
         .limit(1);
       if (jobRows.length === 0 || jobRows[0].status !== "ready") continue;
 
@@ -1053,36 +1053,36 @@ export async function listReadyGraphs(
                lo.canonical_order::text AS canonical_order,
                lo.worked_examples::text AS worked_examples,
                lo.waypoints::text AS waypoints
-          FROM app_plogconcept c
-          LEFT JOIN app_ploglearningobject lo ON lo.concept_id = c.id
+          FROM plog_concepts c
+          LEFT JOIN plog_learning_objects lo ON lo.concept_id = c.id
          WHERE c.video_id = ${videoId}
          ORDER BY c.intro_sec, c.id
       `);
       const edgesRes = await db
         .select({
-          id: appPlogedge.id,
-          video_id: appPlogedge.videoId,
-          source_id: appPlogedge.sourceId,
-          target_id: appPlogedge.targetId,
-          edge_type: appPlogedge.edgeType,
-          quote: appPlogedge.quote,
+          id: plogEdges.id,
+          video_id: plogEdges.videoId,
+          source_id: plogEdges.sourceId,
+          target_id: plogEdges.targetId,
+          edge_type: plogEdges.edgeType,
+          quote: plogEdges.quote,
         })
-        .from(appPlogedge)
-        .where(eq(appPlogedge.videoId, videoId))
-        .orderBy(asc(appPlogedge.id));
+        .from(plogEdges)
+        .where(eq(plogEdges.videoId, videoId))
+        .orderBy(asc(plogEdges.id));
       const sumRes = await db
         .select({
-          id: appPlogsummarynode.id,
-          video_id: appPlogsummarynode.videoId,
-          parent_id: appPlogsummarynode.parentId,
-          level: appPlogsummarynode.level,
-          text: appPlogsummarynode.text,
-          start_sec: appPlogsummarynode.startSec,
-          end_sec: appPlogsummarynode.endSec,
+          id: plogSummaryNodes.id,
+          video_id: plogSummaryNodes.videoId,
+          parent_id: plogSummaryNodes.parentId,
+          level: plogSummaryNodes.level,
+          text: plogSummaryNodes.text,
+          start_sec: plogSummaryNodes.startSec,
+          end_sec: plogSummaryNodes.endSec,
         })
-        .from(appPlogsummarynode)
-        .where(eq(appPlogsummarynode.videoId, videoId))
-        .orderBy(asc(appPlogsummarynode.level), asc(appPlogsummarynode.startSec));
+        .from(plogSummaryNodes)
+        .where(eq(plogSummaryNodes.videoId, videoId))
+        .orderBy(asc(plogSummaryNodes.level), asc(plogSummaryNodes.startSec));
 
       const concepts: PlogConcept[] = [];
       const learning_objects: Record<number, PlogLearningObject> = {};
@@ -1155,9 +1155,9 @@ export async function getVideoTitleAndTranscript(
 ): Promise<{ title: string; transcript: string } | null> {
   return withDb(env, async (db) => {
     const rows = await db
-      .select({ title: appVideo.title, transcript: appVideo.transcript })
-      .from(appVideo)
-      .where(eq(appVideo.id, videoId))
+      .select({ title: videos.title, transcript: videos.transcript })
+      .from(videos)
+      .where(eq(videos.id, videoId))
       .limit(1);
     if (rows.length === 0) return null;
     return {

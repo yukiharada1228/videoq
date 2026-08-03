@@ -2,14 +2,27 @@
 # Generate .dev.vars from compose env, then run wrangler on 0.0.0.0:8787.
 set -eu
 
-# Named volume for node_modules may be empty on first boot.
+# Named volume for node_modules may be empty or stale vs package-lock.json.
+needs_npm_ci=0
 if [ ! -x node_modules/.bin/wrangler ]; then
-  echo "Installing npm dependencies..."
+  needs_npm_ci=1
+elif [ ! -d node_modules/@hono/zod-openapi ] || [ ! -d node_modules/@scalar/hono-api-reference ]; then
+  needs_npm_ci=1
+elif [ -f package-lock.json ] && [ -f node_modules/.package-lock.json ]; then
+  # Reinstall when lockfile changed since last npm ci into this volume.
+  if ! cmp -s package-lock.json node_modules/.package-lock.json 2>/dev/null; then
+    needs_npm_ci=1
+  fi
+fi
+if [ "$needs_npm_ci" -eq 1 ]; then
+  echo "Installing npm dependencies (npm ci)..."
   npm ci
+  cp package-lock.json node_modules/.package-lock.json
 fi
 
 cat > /app/.dev.vars <<EOF
-JWT_SECRET=${JWT_SECRET:-${SECRET_KEY:-dev-insecure-jwt-secret}}
+AUTH_JWT_SECRET=${AUTH_JWT_SECRET:-dev-only-auth-jwt-secret-change-me}
+USER_SECRET_ENCRYPTION_KEY=${USER_SECRET_ENCRYPTION_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA}
 OPENAI_API_KEY=${OPENAI_API_KEY:-}
 R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID:-minioadmin}
 R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY:-minioadmin}

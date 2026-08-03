@@ -15,7 +15,7 @@ export const corsMiddleware = createMiddleware<AppEnv>(async (c, next) => {
     // Comma-separated list in env (e.g. localhost + 127.0.0.1 for Vite).
     origin: (origin) => (origin && allowed.includes(origin) ? origin : allowed[0] ?? ""),
     credentials: true,
-    allowHeaders: ["Content-Type", "Authorization", "X-CSRFToken", "X-API-Key"],
+    allowHeaders: ["Content-Type", "Authorization", "X-API-Key"],
     allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     exposeHeaders: ["X-Request-Id"],
   });

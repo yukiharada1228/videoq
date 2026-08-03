@@ -1,17 +1,20 @@
 # apps/
 
-Production application packages. There is no top-level `backend/` anymore.
+VideoQ の実行パッケージです。
 
-| Directory | Role | Runtime |
+| ディレクトリ | 役割 | ランタイム |
 |---|---|---|
-| [`api/`](api/) | Web API (Hono + Drizzle) | Cloudflare Workers |
-| [`worker/`](worker/) | Async jobs (transcription, indexing, PLOG, …) | Python / SQS Lambda |
+| [`api/`](api/) | OpenAPI Web API | Hono / Cloudflare Workers |
+| [`worker/`](worker/) | 文字起こし・索引・PLOG・評価などの非同期処理 | Python / SQS Lambda |
 
-Historical Django: [`archive/django-backend/`](../archive/django-backend/).
+ローカル全体起動:
 
 ```bash
-# One-shot local stack (Caddy → nginx 静的 FE + Hono + worker + infra)
 docker compose up --build -d
-# → http://localhost
-# FE HMR が必要なら: docker compose --profile dev up -d web-dev
+```
+
+フロントエンドの HMR が必要な場合:
+
+```bash
+docker compose --profile dev up -d web-dev
 ```

@@ -1,5 +1,5 @@
 /**
- * Django `EmailValidator` の移植（DRF EmailField が使う）。エラーは "Enter a valid email address."。
+ * VideoQ アカウント用のメールアドレス検証。エラーは "Enter a valid email address."。
  * user_regex / domain_regex / literal(IP) / domain_allowlist=["localhost"] を再現。
  * IDN(punycode) 変換は稀なため未対応（ASCII ドメインは一致）。
  */
@@ -29,7 +29,7 @@ function validateDomainPart(domain: string): boolean {
   return false;
 }
 
-/** Django EmailValidator 相当。妥当なら true。 */
+/** メールアドレスが妥当なら true。 */
 export function isValidEmail(value: string): boolean {
   if (!value || !value.includes("@")) return false;
   const at = value.lastIndexOf("@"); // rsplit("@", 1)

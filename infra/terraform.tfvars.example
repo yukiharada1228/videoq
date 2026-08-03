@@ -7,7 +7,7 @@
 # terraform.tfvars is excluded by .gitignore; only this example is committed.
 # Values can also be supplied through TF_VAR_<name> environment variables, as in CI.
 #
-# Note: Do not manage secrets such as the DB connection string, SECRET_KEY, or R2
+# Note: Do not manage secrets such as the DB connection string, encryption keys, or R2
 #       credentials with Terraform. After applying, register them in Secrets
 #       Manager with the AWS CLI (see Step 4 in DEPLOY.md).
 
@@ -23,26 +23,7 @@ env_name = "prod"
 # It normally remains "latest" after the image is pushed.
 image_tag = "latest"
 
-# --- Domain / CDN settings ---------------------------------------------------
-# CloudFront is enabled only when both custom_domain and certificate_arn are set.
-# Leaving them empty retains the localhost CORS settings used for local development.
-
-# Cloudflare Pages domain added to the CORS allowlist. Use "" when unused.
-pages_domain = "videoq.pages.dev"
-
-# CloudFront custom domain, for example videoq.jp. Use "" when unused.
-custom_domain = "videoq.jp"
-
-# ACM certificate ARN. It must be created in us-east-1 for CloudFront. Use "" when unused.
-certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/00000000-0000-0000-0000-000000000000"
-
 # --- Lambda tuning -----------------------------------------------------------
-
-# API Lambda memory size in MB.
-api_lambda_memory_mb = 1024
-
-# API Lambda timeout in seconds.
-api_lambda_timeout_seconds = 30
 
 # Worker Lambda memory size in MB; ffmpeg and AI inference are memory intensive.
 worker_lambda_memory_mb = 5120

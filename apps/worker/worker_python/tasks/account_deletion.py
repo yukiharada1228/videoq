@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def _delete_all_videos_for_user(conn, user_id: int) -> None:
     rows = conn.execute(
-        "SELECT id, file FROM app_video WHERE user_id = %s ORDER BY id",
+        "SELECT id, file FROM videos WHERE user_id = %s ORDER BY id",
         (user_id,),
     ).fetchall()
 
@@ -36,15 +36,15 @@ def _delete_all_videos_for_user(conn, user_id: int) -> None:
 
 
 def _delete_chat_history_for_user(conn, user_id: int) -> None:
-    conn.execute("DELETE FROM app_chatlog WHERE user_id = %s", (user_id,))
+    conn.execute("DELETE FROM chat_logs WHERE user_id = %s", (user_id,))
 
 
 def _delete_video_groups_for_user(conn, user_id: int) -> None:
-    conn.execute("DELETE FROM app_videogroup WHERE user_id = %s", (user_id,))
+    conn.execute("DELETE FROM video_groups WHERE user_id = %s", (user_id,))
 
 
 def _delete_tags_for_user(conn, user_id: int) -> None:
-    conn.execute("DELETE FROM app_tag WHERE user_id = %s", (user_id,))
+    conn.execute("DELETE FROM tags WHERE user_id = %s", (user_id,))
 
 
 def delete_account_data(user_id: int) -> None:

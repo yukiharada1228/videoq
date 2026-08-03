@@ -9,15 +9,16 @@ import {
 } from "drizzle-orm";
 import { withDb } from "../db/pool";
 import {
-  appUser,
-  oauth2ProviderAccesstoken,
-  oauth2ProviderApplication,
-  oauth2ProviderDevicegrant,
-  oauth2ProviderGrant,
-  oauth2ProviderIdtoken,
-  oauth2ProviderRefreshtoken,
+  users,
+  oauthAccessTokens,
+  oauthApplications,
+  oauthDeviceGrants,
+  oauthGrants,
+  oauthIdTokens,
+  oauthRefreshTokens,
 } from "../db/schema";
 import type { Bindings } from "../types/bindings";
+import { toUtcIso } from "../shared/datetime";
 import {
   ACCESS_TOKEN_EXPIRE_SECONDS,
   AUTHORIZATION_CODE_EXPIRE_SECONDS,
@@ -33,7 +34,7 @@ import {
   generateOpaqueToken,
   tokenChecksum,
 } from "../lib/oauth";
-import { hashDjangoPassword, verifyDjangoPassword } from "../lib/password";
+import { hashPassword, verifyPassword } from "../lib/password";
 
 /** Settings UI 用の認可済みトークン一覧 1 件。 */
 export type AuthorizedTokenItem = {
@@ -54,7 +55,7 @@ export type OAuthApplication = {
   name: string;
   redirect_uris: string;
   post_logout_redirect_uris: string;
-  /** "" | "RS256" | "HS256"（DOT Application.algorithm） */
+  /** OIDC ID token signing algorithm: "" | "RS256" | "HS256" */
   algorithm: string;
   skip_authorization: boolean;
   user_id: number | null;
@@ -76,39 +77,20 @@ export type OAuthGrant = {
   nonce: string;
 };
 
-const issuedAtSql = sql<string>`
-  CASE
-    WHEN to_char(${oauth2ProviderAccesstoken.created} AT TIME ZONE 'UTC', 'US') = '000000'
-    THEN to_char(${oauth2ProviderAccesstoken.created} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS') || '+00:00'
-    ELSE to_char(${oauth2ProviderAccesstoken.created} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US') || '+00:00'
-  END
-`.as("issued_at");
-
-const expiresAtSql = sql<string | null>`
-  CASE
-    WHEN ${oauth2ProviderAccesstoken.expires} IS NULL THEN NULL
-    WHEN to_char(${oauth2ProviderAccesstoken.expires} AT TIME ZONE 'UTC', 'US') = '000000'
-    THEN to_char(${oauth2ProviderAccesstoken.expires} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS') || '+00:00'
-    ELSE to_char(${oauth2ProviderAccesstoken.expires} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US') || '+00:00'
-  END
-`.as("expires_at");
 
 const applicationFields = {
-  id: oauth2ProviderApplication.id,
-  client_id: oauth2ProviderApplication.clientId,
-  client_secret: oauth2ProviderApplication.clientSecret,
-  client_type: oauth2ProviderApplication.clientType,
-  authorization_grant_type: oauth2ProviderApplication.authorizationGrantType,
-  name: oauth2ProviderApplication.name,
-  redirect_uris: oauth2ProviderApplication.redirectUris,
-  post_logout_redirect_uris: oauth2ProviderApplication.postLogoutRedirectUris,
-  algorithm: oauth2ProviderApplication.algorithm,
-  skip_authorization: oauth2ProviderApplication.skipAuthorization,
-  user_id: oauth2ProviderApplication.userId,
-  registration_source: sql<string>`coalesce(${oauth2ProviderApplication}.registration_source, 'manual')`.as(
-    "registration_source",
-  ),
-  hash_client_secret: oauth2ProviderApplication.hashClientSecret,
+  id: oauthApplications.id,
+  client_id: oauthApplications.clientId,
+  client_secret: oauthApplications.clientSecret,
+  client_type: oauthApplications.clientType,
+  authorization_grant_type: oauthApplications.authorizationGrantType,
+  name: oauthApplications.name,
+  redirect_uris: oauthApplications.redirectUris,
+  post_logout_redirect_uris: oauthApplications.postLogoutRedirectUris,
+  algorithm: oauthApplications.algorithm,
+  skip_authorization: oauthApplications.skipAuthorization,
+  user_id: oauthApplications.userId,
+  hash_client_secret: oauthApplications.hashClientSecret,
 };
 
 type ApplicationRow = {
@@ -140,7 +122,9 @@ function mapApplication(r: ApplicationRow | Record<string, unknown>): OAuthAppli
     algorithm: (r.algorithm as string) ?? "",
     skip_authorization: Boolean(r.skip_authorization),
     user_id: r.user_id == null ? null : Number(r.user_id),
-    registration_source: (r.registration_source as string) ?? "manual",
+    registration_source:
+      (r.registration_source as string | undefined) ??
+      (r.user_id == null ? "dcr" : "manual"),
     hash_client_secret: r.hash_client_secret !== false,
   };
 }
@@ -159,8 +143,8 @@ function parseResourceJson(value: unknown): string[] {
 }
 
 /**
- * ユーザーが認可した未期限切れ AccessToken（`list_for_user` 相当）。
- * created/expires は Python `datetime.isoformat()`（UTC）に合わせる。
+ * ユーザーが認可した未期限切れ AccessToken。
+ * created/expires は UTC ISO 8601 で返す。
  */
 export async function listAuthorizedTokens(
   env: Bindings,
@@ -169,33 +153,33 @@ export async function listAuthorizedTokens(
   return withDb(env, async (db) => {
     const rows = await db
       .select({
-        id: oauth2ProviderAccesstoken.id,
-        scope: oauth2ProviderAccesstoken.scope,
-        client_id: sql<string>`coalesce(${oauth2ProviderApplication.clientId}, '')`.as("client_id"),
-        client_name: sql<string>`coalesce(${oauth2ProviderApplication.name}, '')`.as("client_name"),
-        issued_at: issuedAtSql,
-        expires_at: expiresAtSql,
+        id: oauthAccessTokens.id,
+        scope: oauthAccessTokens.scope,
+        client_id: sql<string>`coalesce(${oauthApplications.clientId}, '')`.as("client_id"),
+        client_name: sql<string>`coalesce(${oauthApplications.name}, '')`.as("client_name"),
+        issued_at: oauthAccessTokens.created,
+        expires_at: oauthAccessTokens.expires,
       })
-      .from(oauth2ProviderAccesstoken)
+      .from(oauthAccessTokens)
       .leftJoin(
-        oauth2ProviderApplication,
-        eq(oauth2ProviderApplication.id, oauth2ProviderAccesstoken.applicationId),
+        oauthApplications,
+        eq(oauthApplications.id, oauthAccessTokens.applicationId),
       )
       .where(
         and(
-          eq(oauth2ProviderAccesstoken.userId, userId),
-          gt(oauth2ProviderAccesstoken.expires, sql`now()`),
+          eq(oauthAccessTokens.userId, userId),
+          gt(oauthAccessTokens.expires, sql`now()`),
         ),
       )
-      .orderBy(desc(oauth2ProviderAccesstoken.created));
+      .orderBy(desc(oauthAccessTokens.created));
 
     return rows.map((r) => ({
       id: Number(r.id),
       client_id: r.client_id,
       client_name: r.client_name,
       scope: r.scope ?? "",
-      issued_at: r.issued_at,
-      expires_at: r.expires_at ?? null,
+      issued_at: toUtcIso(r.issued_at)!,
+      expires_at: toUtcIso(r.expires_at),
     }));
   });
 }
@@ -208,14 +192,14 @@ export async function revokeAuthorizedToken(
 ): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db
-      .delete(oauth2ProviderAccesstoken)
+      .delete(oauthAccessTokens)
       .where(
         and(
-          eq(oauth2ProviderAccesstoken.id, tokenId),
-          eq(oauth2ProviderAccesstoken.userId, userId),
+          eq(oauthAccessTokens.id, tokenId),
+          eq(oauthAccessTokens.userId, userId),
         ),
       )
-      .returning({ id: oauth2ProviderAccesstoken.id });
+      .returning({ id: oauthAccessTokens.id });
     return rows.length > 0;
   });
 }
@@ -233,15 +217,15 @@ export async function resolveOAuthAccessToken(
   return withDb(env, async (db) => {
     const rows = await db
       .select({
-        userId: oauth2ProviderAccesstoken.userId,
-        scope: oauth2ProviderAccesstoken.scope,
+        userId: oauthAccessTokens.userId,
+        scope: oauthAccessTokens.scope,
       })
-      .from(oauth2ProviderAccesstoken)
+      .from(oauthAccessTokens)
       .where(
         and(
-          eq(oauth2ProviderAccesstoken.tokenChecksum, tokenChecksumHex),
-          gt(oauth2ProviderAccesstoken.expires, sql`now()`),
-          isNotNull(oauth2ProviderAccesstoken.userId),
+          eq(oauthAccessTokens.tokenChecksum, tokenChecksumHex),
+          gt(oauthAccessTokens.expires, sql`now()`),
+          isNotNull(oauthAccessTokens.userId),
         ),
       )
       .limit(1);
@@ -260,8 +244,8 @@ export async function findApplicationByClientId(
   return withDb(env, async (db) => {
     const rows = await db
       .select(applicationFields)
-      .from(oauth2ProviderApplication)
-      .where(eq(oauth2ProviderApplication.clientId, clientId))
+      .from(oauthApplications)
+      .where(eq(oauthApplications.clientId, clientId))
       .limit(1);
     if (rows.length === 0) return null;
     return mapApplication(rows[0]);
@@ -287,10 +271,8 @@ export async function verifyClientSecret(
 ): Promise<boolean> {
   if (!plaintext) return false;
   if (!app.client_secret) return false;
-  if (app.hash_client_secret || app.client_secret.startsWith("pbkdf2_")) {
-    return verifyDjangoPassword(plaintext, app.client_secret);
-  }
-  return plaintext === app.client_secret;
+  if (!app.hash_client_secret) return false;
+  return verifyPassword(plaintext, app.client_secret);
 }
 
 export type CreateDcrApplicationInput = {
@@ -313,25 +295,23 @@ export async function createDcrApplication(
 ): Promise<CreateDcrApplicationResult> {
   const clientId = generateClientId();
   const rawSecret = generateClientSecret();
-  const hashedSecret = await hashDjangoPassword(rawSecret);
+  const hashedSecret = await hashPassword(rawSecret);
   const redirectUris = input.redirectUris.join(" ");
 
   return withDb(env, async (db, client) => {
     await client.query("BEGIN");
     try {
       const appResult = await db.execute(sql`
-        INSERT INTO oauth2_provider_application
+        INSERT INTO oauth_applications
            (client_id, user_id, redirect_uris, post_logout_redirect_uris,
             client_type, authorization_grant_type, client_secret, hash_client_secret,
-            name, skip_authorization, created, updated, algorithm, allowed_origins,
-            registration_source, cimd_expires_at)
+            name, skip_authorization, created, updated, algorithm, allowed_origins)
          VALUES
            (${clientId}, NULL, ${redirectUris}, '', ${input.clientType}, ${input.authorizationGrantType},
-            ${hashedSecret}, TRUE, ${input.name}, FALSE, now(), now(), '', '',
-            'dcr', NULL)
+            ${hashedSecret}, TRUE, ${input.name}, FALSE, now(), now(), '', '')
          RETURNING id, client_id, client_secret, client_type, authorization_grant_type,
                    name, redirect_uris, post_logout_redirect_uris, algorithm,
-                   skip_authorization, user_id, registration_source, hash_client_secret
+                   skip_authorization, user_id, hash_client_secret
       `);
       const application = mapApplication(
         appResult.rows[0] as Record<string, unknown>,
@@ -340,13 +320,13 @@ export async function createDcrApplication(
       const regToken = generateClientSecret();
       const checksum = await tokenChecksum(regToken);
       await db.execute(sql`
-        INSERT INTO oauth2_provider_accesstoken
+        INSERT INTO oauth_access_tokens
            (user_id, source_refresh_token_id, token, token_checksum, id_token_id,
-            application_id, expires, scope, resource, created, updated)
+            application_id, expires, scope, created, updated)
          VALUES
            (NULL, NULL, ${regToken}, ${checksum}, NULL, ${application.id},
             ${DCR_REGISTRATION_TOKEN_EXPIRES.toISOString()}, ${DCR_REGISTRATION_SCOPE},
-            '[]'::jsonb, now(), now())
+            now(), now())
       `);
 
       await client.query("COMMIT");
@@ -365,7 +345,7 @@ export async function createDcrApplication(
 
 /**
  * DCR クライアントのメタデータ更新（RFC 7592 PUT）+ 登録トークン rotation。
- * DCR_ROTATE_REGISTRATION_TOKEN_ON_UPDATE=True 相当（新トークン発行→旧削除）。
+ * DCR 更新時に新しい registration token を発行し、旧トークンを削除する。
  * 返り値は新しい registration access token（平文）。
  */
 export async function updateDcrApplication(
@@ -388,7 +368,7 @@ export async function updateDcrApplication(
     await client.query("BEGIN");
     try {
       await db
-        .update(oauth2ProviderApplication)
+        .update(oauthApplications)
         .set({
           redirectUris,
           clientType: fields.clientType,
@@ -396,21 +376,21 @@ export async function updateDcrApplication(
           name: fields.name,
           updated: sql`now()`,
         })
-        .where(eq(oauth2ProviderApplication.id, appId));
+        .where(eq(oauthApplications.id, appId));
 
       await db.execute(sql`
-        INSERT INTO oauth2_provider_accesstoken
+        INSERT INTO oauth_access_tokens
            (user_id, source_refresh_token_id, token, token_checksum, id_token_id,
-            application_id, expires, scope, resource, created, updated)
+            application_id, expires, scope, created, updated)
          VALUES
            (NULL, NULL, ${newRegToken}, ${newChecksum}, NULL, ${appId},
             ${DCR_REGISTRATION_TOKEN_EXPIRES.toISOString()}, ${DCR_REGISTRATION_SCOPE},
-            '[]'::jsonb, now(), now())
+            now(), now())
       `);
 
       await db
-        .delete(oauth2ProviderAccesstoken)
-        .where(eq(oauth2ProviderAccesstoken.tokenChecksum, oldChecksum));
+        .delete(oauthAccessTokens)
+        .where(eq(oauthAccessTokens.tokenChecksum, oldChecksum));
 
       await client.query("COMMIT");
       return newRegToken;
@@ -422,8 +402,8 @@ export async function updateDcrApplication(
 }
 
 /**
- * DCR クライアント削除（RFC 7592 DELETE）。application.delete() 相当で子（token/grant/
- * idtoken/refreshtoken）を tx で先に削除（FK は deferrable なので順序は柔軟）。
+ * DCR クライアント削除（RFC 7592 DELETE）。子の token/grant/
+ * idtoken/refreshtoken を tx で先に削除する（FK は deferrable なので順序は柔軟）。
  */
 export async function deleteOAuthApplicationCascade(
   env: Bindings,
@@ -433,20 +413,20 @@ export async function deleteOAuthApplicationCascade(
     await client.query("BEGIN");
     try {
       await db
-        .delete(oauth2ProviderGrant)
-        .where(eq(oauth2ProviderGrant.applicationId, appId));
+        .delete(oauthGrants)
+        .where(eq(oauthGrants.applicationId, appId));
       await db
-        .delete(oauth2ProviderRefreshtoken)
-        .where(eq(oauth2ProviderRefreshtoken.applicationId, appId));
+        .delete(oauthRefreshTokens)
+        .where(eq(oauthRefreshTokens.applicationId, appId));
       await db
-        .delete(oauth2ProviderIdtoken)
-        .where(eq(oauth2ProviderIdtoken.applicationId, appId));
+        .delete(oauthIdTokens)
+        .where(eq(oauthIdTokens.applicationId, appId));
       await db
-        .delete(oauth2ProviderAccesstoken)
-        .where(eq(oauth2ProviderAccesstoken.applicationId, appId));
+        .delete(oauthAccessTokens)
+        .where(eq(oauthAccessTokens.applicationId, appId));
       await db
-        .delete(oauth2ProviderApplication)
-        .where(eq(oauth2ProviderApplication.id, appId));
+        .delete(oauthApplications)
+        .where(eq(oauthApplications.id, appId));
       await client.query("COMMIT");
     } catch (e) {
       await client.query("ROLLBACK");
@@ -466,9 +446,9 @@ export async function resolveRegistrationAccessToken(
       SELECT t.token, t.scope, t.expires, t.application_id,
              a.id, a.client_id, a.client_secret, a.client_type, a.authorization_grant_type,
              a.name, a.redirect_uris, a.post_logout_redirect_uris, a.algorithm,
-             a.skip_authorization, a.user_id, a.registration_source, a.hash_client_secret
-        FROM oauth2_provider_accesstoken t
-        JOIN oauth2_provider_application a ON a.id = t.application_id
+             a.skip_authorization, a.user_id, a.hash_client_secret
+        FROM oauth_access_tokens t
+        JOIN oauth_applications a ON a.id = t.application_id
        WHERE t.token_checksum = ${checksum}
          AND t.expires > now()
     `);
@@ -478,7 +458,7 @@ export async function resolveRegistrationAccessToken(
     const scope = new Set(String(r.scope ?? "").split(/\s+/).filter(Boolean));
     if (!scope.has(DCR_REGISTRATION_SCOPE)) return null;
     if (r.client_id !== clientId) return null;
-    if (r.registration_source !== "dcr") return null;
+    if (r.user_id != null) return null;
     return {
       application: mapApplication(r),
       token: r.token as string,
@@ -505,15 +485,15 @@ export async function createAuthorizationGrant(
 
   return withDb(env, async (db) => {
     await db.execute(sql`
-      INSERT INTO oauth2_provider_grant
+      INSERT INTO oauth_grants
          (user_id, code, application_id, expires, redirect_uri, scope,
-          created, updated, code_challenge, code_challenge_method, nonce, claims, resource)
+          created, updated, code_challenge, code_challenge_method, nonce, claims)
        VALUES
          (${params.userId}, ${code}, ${params.applicationId},
           now() + (${expireSeconds}::text || ' seconds')::interval,
           ${params.redirectUri}, ${params.scope}, now(), now(),
           ${params.codeChallenge}, ${params.codeChallengeMethod},
-          ${params.nonce ?? ""}, '{}', ${resourceJson}::jsonb)
+          ${params.nonce ?? ""}, ${resourceJson})
     `);
     return code;
   });
@@ -527,8 +507,8 @@ export async function findValidGrant(
   return withDb(env, async (db) => {
     const result = await db.execute(sql`
       SELECT id, user_id, code, application_id, expires, redirect_uri, scope,
-             code_challenge, code_challenge_method, resource, nonce
-        FROM oauth2_provider_grant
+             code_challenge, code_challenge_method, claims, nonce
+        FROM oauth_grants
        WHERE code = ${code} AND application_id = ${applicationId} AND expires > now()
     `);
     const rows = result.rows as Array<Record<string, unknown>>;
@@ -544,7 +524,7 @@ export async function findValidGrant(
       scope: (r.scope as string) ?? "",
       code_challenge: (r.code_challenge as string) ?? "",
       code_challenge_method: (r.code_challenge_method as string) ?? "",
-      resource: parseResourceJson(r.resource),
+      resource: parseResourceJson(r.claims),
       nonce: (r.nonce as string) ?? "",
     };
   });
@@ -566,38 +546,36 @@ export async function exchangeAuthorizationCode(
   const access = generateAccessTokenValue();
   const refresh = generateAccessTokenValue();
   const accessChecksum = await tokenChecksum(access);
-  const refreshChecksum = await tokenChecksum(refresh);
   const tokenFamily = crypto.randomUUID();
-  const resourceJson = JSON.stringify(grant.resource);
   const accessExpireSeconds = String(ACCESS_TOKEN_EXPIRE_SECONDS);
 
   return withDb(env, async (db, client) => {
     await client.query("BEGIN");
     try {
       const at = await db.execute(sql`
-        INSERT INTO oauth2_provider_accesstoken
+        INSERT INTO oauth_access_tokens
            (user_id, source_refresh_token_id, token, token_checksum, id_token_id,
-            application_id, expires, scope, resource, created, updated)
+            application_id, expires, scope, created, updated)
          VALUES
            (${grant.user_id}, NULL, ${access}, ${accessChecksum}, NULL, ${applicationId},
             now() + (${accessExpireSeconds}::text || ' seconds')::interval,
-            ${grant.scope}, ${resourceJson}::jsonb, now(), now())
+            ${grant.scope}, now(), now())
          RETURNING id
       `);
       const accessId = Number((at.rows[0] as { id: number }).id);
 
       await db.execute(sql`
-        INSERT INTO oauth2_provider_refreshtoken
-           (user_id, token, token_checksum, application_id, access_token_id,
-            token_family, resource, created, updated, revoked)
+        INSERT INTO oauth_refresh_tokens
+           (user_id, token, application_id, access_token_id,
+            token_family, created, updated, revoked)
          VALUES
-           (${grant.user_id}, ${refresh}, ${refreshChecksum}, ${applicationId}, ${accessId},
-            ${tokenFamily}::uuid, ${resourceJson}::jsonb, now(), now(), NULL)
+           (${grant.user_id}, ${refresh}, ${applicationId}, ${accessId},
+            ${tokenFamily}::uuid, now(), now(), NULL)
       `);
 
       await db
-        .delete(oauth2ProviderGrant)
-        .where(eq(oauth2ProviderGrant.id, grant.id));
+        .delete(oauthGrants)
+        .where(eq(oauthGrants.id, grant.id));
 
       await client.query("COMMIT");
       return {
@@ -629,14 +607,13 @@ export async function findActiveRefreshToken(
   rawRefresh: string,
   applicationId: number,
 ): Promise<RefreshRow | null> {
-  const checksum = await tokenChecksum(rawRefresh);
   return withDb(env, async (db) => {
     const result = await db.execute(sql`
       SELECT r.id, r.user_id, r.application_id, r.access_token_id, r.token_family,
-             r.resource, r.created, coalesce(a.scope, '') AS scope
-        FROM oauth2_provider_refreshtoken r
-         LEFT JOIN oauth2_provider_accesstoken a ON a.id = r.access_token_id
-       WHERE r.token_checksum = ${checksum}
+             r.created, coalesce(a.scope, '') AS scope
+        FROM oauth_refresh_tokens r
+         LEFT JOIN oauth_access_tokens a ON a.id = r.access_token_id
+       WHERE r.token = ${rawRefresh}
          AND r.revoked IS NULL
          AND r.application_id = ${applicationId}
        ORDER BY r.id DESC
@@ -652,13 +629,13 @@ export async function findActiveRefreshToken(
       access_token_id: r.access_token_id == null ? null : Number(r.access_token_id),
       token_family: (r.token_family as string | null) ?? null,
       scope: (r.scope as string) || "read",
-      resource: parseResourceJson(r.resource),
+      resource: [],
       created: new Date(r.created as string),
     };
   });
 }
 
-/** refresh_token grant（ROTATE_REFRESH_TOKEN=True 相当）。 */
+/** refresh_token grant。使用時に refresh token をローテーションする。 */
 export async function rotateRefreshToken(
   env: Bindings,
   old: RefreshRow,
@@ -666,9 +643,7 @@ export async function rotateRefreshToken(
   const access = generateAccessTokenValue();
   const refresh = generateAccessTokenValue();
   const accessChecksum = await tokenChecksum(access);
-  const refreshChecksum = await tokenChecksum(refresh);
   const tokenFamily = old.token_family ?? crypto.randomUUID();
-  const resourceJson = JSON.stringify(old.resource);
   const accessExpireSeconds = String(ACCESS_TOKEN_EXPIRE_SECONDS);
 
   return withDb(env, async (db, client) => {
@@ -676,11 +651,11 @@ export async function rotateRefreshToken(
     try {
       if (old.access_token_id != null) {
         await db
-          .delete(oauth2ProviderAccesstoken)
-          .where(eq(oauth2ProviderAccesstoken.id, old.access_token_id));
+          .delete(oauthAccessTokens)
+          .where(eq(oauthAccessTokens.id, old.access_token_id));
       }
       await db
-        .update(oauth2ProviderRefreshtoken)
+        .update(oauthRefreshTokens)
         .set({
           revoked: sql`now()`,
           accessTokenId: null,
@@ -688,30 +663,30 @@ export async function rotateRefreshToken(
         })
         .where(
           and(
-            eq(oauth2ProviderRefreshtoken.id, old.id),
-            isNull(oauth2ProviderRefreshtoken.revoked),
+            eq(oauthRefreshTokens.id, old.id),
+            isNull(oauthRefreshTokens.revoked),
           ),
         );
 
       const at = await db.execute(sql`
-        INSERT INTO oauth2_provider_accesstoken
+        INSERT INTO oauth_access_tokens
            (user_id, source_refresh_token_id, token, token_checksum, id_token_id,
-            application_id, expires, scope, resource, created, updated)
+            application_id, expires, scope, created, updated)
          VALUES
            (${old.user_id}, ${old.id}, ${access}, ${accessChecksum}, NULL, ${old.application_id},
             now() + (${accessExpireSeconds}::text || ' seconds')::interval,
-            ${old.scope}, ${resourceJson}::jsonb, now(), now())
+            ${old.scope}, now(), now())
          RETURNING id
       `);
       const accessId = Number((at.rows[0] as { id: number }).id);
 
       await db.execute(sql`
-        INSERT INTO oauth2_provider_refreshtoken
-           (user_id, token, token_checksum, application_id, access_token_id,
-            token_family, resource, created, updated, revoked)
+        INSERT INTO oauth_refresh_tokens
+           (user_id, token, application_id, access_token_id,
+            token_family, created, updated, revoked)
          VALUES
-           (${old.user_id}, ${refresh}, ${refreshChecksum}, ${old.application_id}, ${accessId},
-            ${tokenFamily}::uuid, ${resourceJson}::jsonb, now(), now(), NULL)
+           (${old.user_id}, ${refresh}, ${old.application_id}, ${accessId},
+            ${tokenFamily}::uuid, now(), now(), NULL)
       `);
 
       await client.query("COMMIT");
@@ -739,42 +714,42 @@ export async function revokeOAuthToken(
   await withDb(env, async (db) => {
     const tryAccess = async () => {
       await db
-        .delete(oauth2ProviderAccesstoken)
+        .delete(oauthAccessTokens)
         .where(
           and(
-            eq(oauth2ProviderAccesstoken.tokenChecksum, checksum),
-            eq(oauth2ProviderAccesstoken.applicationId, applicationId),
+            eq(oauthAccessTokens.tokenChecksum, checksum),
+            eq(oauthAccessTokens.applicationId, applicationId),
           ),
         );
     };
     const tryRefresh = async () => {
       const rows = await db
         .select({
-          id: oauth2ProviderRefreshtoken.id,
-          accessTokenId: oauth2ProviderRefreshtoken.accessTokenId,
+          id: oauthRefreshTokens.id,
+          accessTokenId: oauthRefreshTokens.accessTokenId,
         })
-        .from(oauth2ProviderRefreshtoken)
+        .from(oauthRefreshTokens)
         .where(
           and(
-            sql`${oauth2ProviderRefreshtoken}.token_checksum = ${checksum}`,
-            eq(oauth2ProviderRefreshtoken.applicationId, applicationId),
-            isNull(oauth2ProviderRefreshtoken.revoked),
+            eq(oauthRefreshTokens.token, rawToken),
+            eq(oauthRefreshTokens.applicationId, applicationId),
+            isNull(oauthRefreshTokens.revoked),
           ),
         );
       for (const r of rows) {
         if (r.accessTokenId != null) {
           await db
-            .delete(oauth2ProviderAccesstoken)
-            .where(eq(oauth2ProviderAccesstoken.id, r.accessTokenId));
+            .delete(oauthAccessTokens)
+            .where(eq(oauthAccessTokens.id, r.accessTokenId));
         }
         await db
-          .update(oauth2ProviderRefreshtoken)
+          .update(oauthRefreshTokens)
           .set({
             revoked: sql`now()`,
             accessTokenId: null,
             updated: sql`now()`,
           })
-          .where(eq(oauth2ProviderRefreshtoken.id, r.id));
+          .where(eq(oauthRefreshTokens.id, r.id));
       }
     };
 
@@ -807,21 +782,21 @@ export async function findTokenForIntrospection(
   return withDb(env, async (db) => {
     const rows = await db
       .select({
-        scope: oauth2ProviderAccesstoken.scope,
-        exp: sql<number>`extract(epoch from ${oauth2ProviderAccesstoken.expires})::bigint`.as("exp"),
-        client_id: sql<string>`coalesce(${oauth2ProviderApplication.clientId}, '')`.as("client_id"),
-        username: appUser.username,
+        scope: oauthAccessTokens.scope,
+        exp: sql<number>`extract(epoch from ${oauthAccessTokens.expires})::bigint`.as("exp"),
+        client_id: sql<string>`coalesce(${oauthApplications.clientId}, '')`.as("client_id"),
+        username: users.username,
       })
-      .from(oauth2ProviderAccesstoken)
+      .from(oauthAccessTokens)
       .leftJoin(
-        oauth2ProviderApplication,
-        eq(oauth2ProviderApplication.id, oauth2ProviderAccesstoken.applicationId),
+        oauthApplications,
+        eq(oauthApplications.id, oauthAccessTokens.applicationId),
       )
-      .leftJoin(appUser, eq(appUser.id, oauth2ProviderAccesstoken.userId))
+      .leftJoin(users, eq(users.id, oauthAccessTokens.userId))
       .where(
         and(
-          eq(oauth2ProviderAccesstoken.tokenChecksum, checksum),
-          gt(oauth2ProviderAccesstoken.expires, sql`now()`),
+          eq(oauthAccessTokens.tokenChecksum, checksum),
+          gt(oauthAccessTokens.expires, sql`now()`),
         ),
       )
       .limit(1);
@@ -845,12 +820,12 @@ export async function bearerHasIntrospectionScope(
   const checksum = await tokenChecksum(rawToken);
   return withDb(env, async (db) => {
     const rows = await db
-      .select({ scope: oauth2ProviderAccesstoken.scope })
-      .from(oauth2ProviderAccesstoken)
+      .select({ scope: oauthAccessTokens.scope })
+      .from(oauthAccessTokens)
       .where(
         and(
-          eq(oauth2ProviderAccesstoken.tokenChecksum, checksum),
-          gt(oauth2ProviderAccesstoken.expires, sql`now()`),
+          eq(oauthAccessTokens.tokenChecksum, checksum),
+          gt(oauthAccessTokens.expires, sql`now()`),
         ),
       )
       .limit(1);
@@ -909,7 +884,7 @@ export async function createDeviceGrant(
 
   return withDb(env, async (db) => {
     const rows = await db
-      .insert(oauth2ProviderDevicegrant)
+      .insert(oauthDeviceGrants)
       .values({
         userId: null,
         deviceCode,
@@ -922,15 +897,15 @@ export async function createDeviceGrant(
         lastChecked: sql`now()`,
       })
       .returning({
-        id: oauth2ProviderDevicegrant.id,
-        userId: oauth2ProviderDevicegrant.userId,
-        deviceCode: oauth2ProviderDevicegrant.deviceCode,
-        userCode: oauth2ProviderDevicegrant.userCode,
-        scope: oauth2ProviderDevicegrant.scope,
-        interval: oauth2ProviderDevicegrant.interval,
-        expires: oauth2ProviderDevicegrant.expires,
-        status: oauth2ProviderDevicegrant.status,
-        clientId: oauth2ProviderDevicegrant.clientId,
+        id: oauthDeviceGrants.id,
+        userId: oauthDeviceGrants.userId,
+        deviceCode: oauthDeviceGrants.deviceCode,
+        userCode: oauthDeviceGrants.userCode,
+        scope: oauthDeviceGrants.scope,
+        interval: oauthDeviceGrants.interval,
+        expires: oauthDeviceGrants.expires,
+        status: oauthDeviceGrants.status,
+        clientId: oauthDeviceGrants.clientId,
       });
     return mapDeviceGrant(rows[0]);
   });
@@ -943,25 +918,25 @@ export async function findDeviceGrantByUserCode(
 ): Promise<DeviceGrantRow | null> {
   return withDb(env, async (db) => {
     const conditions = [
-      sql`upper(${oauth2ProviderDevicegrant.userCode}) = upper(${userCode})`,
+      sql`upper(${oauthDeviceGrants.userCode}) = upper(${userCode})`,
     ];
     if (clientId != null) {
-      conditions.push(eq(oauth2ProviderDevicegrant.clientId, clientId));
+      conditions.push(eq(oauthDeviceGrants.clientId, clientId));
     }
 
     const rows = await db
       .select({
-        id: oauth2ProviderDevicegrant.id,
-        userId: oauth2ProviderDevicegrant.userId,
-        deviceCode: oauth2ProviderDevicegrant.deviceCode,
-        userCode: oauth2ProviderDevicegrant.userCode,
-        scope: oauth2ProviderDevicegrant.scope,
-        interval: oauth2ProviderDevicegrant.interval,
-        expires: oauth2ProviderDevicegrant.expires,
-        status: oauth2ProviderDevicegrant.status,
-        clientId: oauth2ProviderDevicegrant.clientId,
+        id: oauthDeviceGrants.id,
+        userId: oauthDeviceGrants.userId,
+        deviceCode: oauthDeviceGrants.deviceCode,
+        userCode: oauthDeviceGrants.userCode,
+        scope: oauthDeviceGrants.scope,
+        interval: oauthDeviceGrants.interval,
+        expires: oauthDeviceGrants.expires,
+        status: oauthDeviceGrants.status,
+        clientId: oauthDeviceGrants.clientId,
       })
-      .from(oauth2ProviderDevicegrant)
+      .from(oauthDeviceGrants)
       .where(and(...conditions))
       .limit(1);
 
@@ -969,12 +944,12 @@ export async function findDeviceGrantByUserCode(
     const g = mapDeviceGrant(rows[0]);
     if (g.status !== "expired" && g.expires.getTime() <= Date.now()) {
       await db
-        .update(oauth2ProviderDevicegrant)
+        .update(oauthDeviceGrants)
         .set({
           status: "expired",
           lastChecked: sql`now()`,
         })
-        .where(eq(oauth2ProviderDevicegrant.id, g.id));
+        .where(eq(oauthDeviceGrants.id, g.id));
       g.status = "expired";
     }
     return g;
@@ -989,21 +964,21 @@ export async function findDeviceGrantByDeviceCode(
   return withDb(env, async (db) => {
     const rows = await db
       .select({
-        id: oauth2ProviderDevicegrant.id,
-        userId: oauth2ProviderDevicegrant.userId,
-        deviceCode: oauth2ProviderDevicegrant.deviceCode,
-        userCode: oauth2ProviderDevicegrant.userCode,
-        scope: oauth2ProviderDevicegrant.scope,
-        interval: oauth2ProviderDevicegrant.interval,
-        expires: oauth2ProviderDevicegrant.expires,
-        status: oauth2ProviderDevicegrant.status,
-        clientId: oauth2ProviderDevicegrant.clientId,
+        id: oauthDeviceGrants.id,
+        userId: oauthDeviceGrants.userId,
+        deviceCode: oauthDeviceGrants.deviceCode,
+        userCode: oauthDeviceGrants.userCode,
+        scope: oauthDeviceGrants.scope,
+        interval: oauthDeviceGrants.interval,
+        expires: oauthDeviceGrants.expires,
+        status: oauthDeviceGrants.status,
+        clientId: oauthDeviceGrants.clientId,
       })
-      .from(oauth2ProviderDevicegrant)
+      .from(oauthDeviceGrants)
       .where(
         and(
-          eq(oauth2ProviderDevicegrant.deviceCode, deviceCode),
-          eq(oauth2ProviderDevicegrant.clientId, clientId),
+          eq(oauthDeviceGrants.deviceCode, deviceCode),
+          eq(oauthDeviceGrants.clientId, clientId),
         ),
       )
       .limit(1);
@@ -1020,13 +995,13 @@ export async function updateDeviceGrantStatus(
 ): Promise<void> {
   await withDb(env, async (db) => {
     await db
-      .update(oauth2ProviderDevicegrant)
+      .update(oauthDeviceGrants)
       .set({
         status,
-        userId: sql`COALESCE(${userId}, ${oauth2ProviderDevicegrant.userId})`,
+        userId: sql`COALESCE(${userId}, ${oauthDeviceGrants.userId})`,
         lastChecked: sql`now()`,
       })
-      .where(eq(oauth2ProviderDevicegrant.id, id));
+      .where(eq(oauthDeviceGrants.id, id));
   });
 }
 
@@ -1040,7 +1015,6 @@ export async function issueTokensForDeviceGrant(
   const access = generateAccessTokenValue();
   const refresh = generateAccessTokenValue();
   const accessChecksum = await tokenChecksum(access);
-  const refreshChecksum = await tokenChecksum(refresh);
   const tokenFamily = crypto.randomUUID();
   const accessExpireSeconds = String(ACCESS_TOKEN_EXPIRE_SECONDS);
 
@@ -1048,29 +1022,29 @@ export async function issueTokensForDeviceGrant(
     await client.query("BEGIN");
     try {
       const at = await db.execute(sql`
-        INSERT INTO oauth2_provider_accesstoken
+        INSERT INTO oauth_access_tokens
            (user_id, source_refresh_token_id, token, token_checksum, id_token_id,
-            application_id, expires, scope, resource, created, updated)
+            application_id, expires, scope, created, updated)
          VALUES
            (${grant.userId}, NULL, ${access}, ${accessChecksum}, NULL, ${applicationId},
             now() + (${accessExpireSeconds}::text || ' seconds')::interval,
-            ${grant.scope}, '[]'::jsonb, now(), now())
+            ${grant.scope}, now(), now())
          RETURNING id
       `);
       const accessId = Number((at.rows[0] as { id: number }).id);
 
       await db.execute(sql`
-        INSERT INTO oauth2_provider_refreshtoken
-           (user_id, token, token_checksum, application_id, access_token_id,
-            token_family, resource, created, updated, revoked)
+        INSERT INTO oauth_refresh_tokens
+           (user_id, token, application_id, access_token_id,
+            token_family, created, updated, revoked)
          VALUES
-           (${grant.userId}, ${refresh}, ${refreshChecksum}, ${applicationId}, ${accessId},
-            ${tokenFamily}::uuid, '[]'::jsonb, now(), now(), NULL)
+           (${grant.userId}, ${refresh}, ${applicationId}, ${accessId},
+            ${tokenFamily}::uuid, now(), now(), NULL)
       `);
 
       await db
-        .delete(oauth2ProviderDevicegrant)
-        .where(eq(oauth2ProviderDevicegrant.id, grant.id));
+        .delete(oauthDeviceGrants)
+        .where(eq(oauthDeviceGrants.id, grant.id));
 
       await client.query("COMMIT");
       return {
@@ -1093,9 +1067,9 @@ export async function listApplicationsForUser(
   return withDb(env, async (db) => {
     const rows = await db
       .select(applicationFields)
-      .from(oauth2ProviderApplication)
-      .where(eq(oauth2ProviderApplication.userId, userId))
-      .orderBy(desc(oauth2ProviderApplication.created));
+      .from(oauthApplications)
+      .where(eq(oauthApplications.userId, userId))
+      .orderBy(desc(oauthApplications.created));
     return rows.map(mapApplication);
   });
 }
@@ -1108,11 +1082,11 @@ export async function getApplicationForUser(
   return withDb(env, async (db) => {
     const rows = await db
       .select(applicationFields)
-      .from(oauth2ProviderApplication)
+      .from(oauthApplications)
       .where(
         and(
-          eq(oauth2ProviderApplication.id, appId),
-          eq(oauth2ProviderApplication.userId, userId),
+          eq(oauthApplications.id, appId),
+          eq(oauthApplications.userId, userId),
         ),
       )
       .limit(1);
@@ -1134,22 +1108,21 @@ export async function createManualApplication(
 ): Promise<{ application: OAuthApplication; clientSecretPlain: string | null }> {
   const clientId = generateClientId();
   const rawSecret = generateClientSecret();
-  const hashedSecret = await hashDjangoPassword(rawSecret);
+  const hashedSecret = await hashPassword(rawSecret);
 
   return withDb(env, async (db) => {
     const result = await db.execute(sql`
-      INSERT INTO oauth2_provider_application
+      INSERT INTO oauth_applications
          (client_id, user_id, redirect_uris, post_logout_redirect_uris,
           client_type, authorization_grant_type, client_secret, hash_client_secret,
-          name, skip_authorization, created, updated, algorithm, allowed_origins,
-          registration_source, cimd_expires_at)
+          name, skip_authorization, created, updated, algorithm, allowed_origins)
        VALUES
          (${clientId}, ${userId}, ${input.redirectUris}, '', ${input.clientType},
           ${input.authorizationGrantType}, ${hashedSecret}, TRUE, ${input.name}, FALSE,
-          now(), now(), '', '', 'manual', NULL)
+          now(), now(), '', '')
        RETURNING id, client_id, client_secret, client_type, authorization_grant_type,
                  name, redirect_uris, post_logout_redirect_uris, algorithm,
-                 skip_authorization, user_id, registration_source, hash_client_secret
+                 skip_authorization, user_id, hash_client_secret
     `);
     return {
       application: mapApplication(result.rows[0] as Record<string, unknown>),
@@ -1166,7 +1139,7 @@ export async function updateManualApplication(
 ): Promise<OAuthApplication | null> {
   return withDb(env, async (db) => {
     const rows = await db
-      .update(oauth2ProviderApplication)
+      .update(oauthApplications)
       .set({
         name: input.name,
         clientType: input.clientType,
@@ -1176,8 +1149,8 @@ export async function updateManualApplication(
       })
       .where(
         and(
-          eq(oauth2ProviderApplication.id, appId),
-          eq(oauth2ProviderApplication.userId, userId),
+          eq(oauthApplications.id, appId),
+          eq(oauthApplications.userId, userId),
         ),
       )
       .returning(applicationFields);
@@ -1203,17 +1176,17 @@ export async function findAccessTokenForUserinfo(
   return withDb(env, async (db) => {
     const rows = await db
       .select({
-        userId: oauth2ProviderAccesstoken.userId,
-        scope: oauth2ProviderAccesstoken.scope,
-        username: appUser.username,
-        email: appUser.email,
+        userId: oauthAccessTokens.userId,
+        scope: oauthAccessTokens.scope,
+        username: users.username,
+        email: users.email,
       })
-      .from(oauth2ProviderAccesstoken)
-      .leftJoin(appUser, eq(appUser.id, oauth2ProviderAccesstoken.userId))
+      .from(oauthAccessTokens)
+      .leftJoin(users, eq(users.id, oauthAccessTokens.userId))
       .where(
         and(
-          eq(oauth2ProviderAccesstoken.tokenChecksum, checksum),
-          gt(oauth2ProviderAccesstoken.expires, sql`now()`),
+          eq(oauthAccessTokens.tokenChecksum, checksum),
+          gt(oauthAccessTokens.expires, sql`now()`),
         ),
       )
       .limit(1);
@@ -1234,13 +1207,13 @@ export async function findIdTokenByJti(
   return withDb(env, async (db) => {
     const rows = await db
       .select({
-        id: oauth2ProviderIdtoken.id,
-        userId: oauth2ProviderIdtoken.userId,
-        applicationId: oauth2ProviderIdtoken.applicationId,
-        scope: oauth2ProviderIdtoken.scope,
+        id: oauthIdTokens.id,
+        userId: oauthIdTokens.userId,
+        applicationId: oauthIdTokens.applicationId,
+        scope: oauthIdTokens.scope,
       })
-      .from(oauth2ProviderIdtoken)
-      .where(eq(oauth2ProviderIdtoken.jti, jti))
+      .from(oauthIdTokens)
+      .where(eq(oauthIdTokens.jti, jti))
       .limit(1);
     if (rows.length === 0) return null;
     return {
@@ -1271,7 +1244,7 @@ export async function saveIdTokenForAccessToken(
     await client.query("BEGIN");
     try {
       const idTokenResult = await db
-        .insert(oauth2ProviderIdtoken)
+        .insert(oauthIdTokens)
         .values({
           userId: params.userId,
           jti: params.jti,
@@ -1281,16 +1254,16 @@ export async function saveIdTokenForAccessToken(
           created: sql`now()`,
           updated: sql`now()`,
         })
-        .returning({ id: oauth2ProviderIdtoken.id });
+        .returning({ id: oauthIdTokens.id });
       const idTokenId = Number(idTokenResult[0].id);
 
       await db
-        .update(oauth2ProviderAccesstoken)
+        .update(oauthAccessTokens)
         .set({
           idTokenId,
           updated: sql`now()`,
         })
-        .where(eq(oauth2ProviderAccesstoken.tokenChecksum, checksum));
+        .where(eq(oauthAccessTokens.tokenChecksum, checksum));
 
       await client.query("COMMIT");
     } catch (e) {
@@ -1301,7 +1274,7 @@ export async function saveIdTokenForAccessToken(
 }
 
 /**
- * RP-Initiated Logout: ユーザーの access/refresh/id token を削除（DOT do_logout 相当）。
+ * RP-Initiated Logout: ユーザーの access/refresh/id token を削除する。
  * grant_type は authorization-code / implicit / password / client-credentials / openid-hybrid。
  */
 export async function revokeTokensForOidcLogout(
@@ -1312,8 +1285,8 @@ export async function revokeTokensForOidcLogout(
     await client.query("BEGIN");
     try {
       await db.execute(sql`
-        DELETE FROM oauth2_provider_refreshtoken rt
-          USING oauth2_provider_accesstoken at, oauth2_provider_application a
+        DELETE FROM oauth_refresh_tokens rt
+          USING oauth_access_tokens at, oauth_applications a
           WHERE rt.access_token_id = at.id
             AND at.application_id = a.id
             AND at.user_id = ${userId}
@@ -1323,8 +1296,8 @@ export async function revokeTokensForOidcLogout(
             )
       `);
       await db.execute(sql`
-        DELETE FROM oauth2_provider_idtoken it
-          USING oauth2_provider_accesstoken at, oauth2_provider_application a
+        DELETE FROM oauth_id_tokens it
+          USING oauth_access_tokens at, oauth_applications a
           WHERE at.id_token_id = it.id
             AND at.application_id = a.id
             AND at.user_id = ${userId}
@@ -1334,16 +1307,16 @@ export async function revokeTokensForOidcLogout(
             )
       `);
       await db.execute(sql`
-        DELETE FROM oauth2_provider_idtoken
+        DELETE FROM oauth_id_tokens
           WHERE user_id = ${userId}
             AND id NOT IN (
-              SELECT id_token_id FROM oauth2_provider_accesstoken
+              SELECT id_token_id FROM oauth_access_tokens
                WHERE id_token_id IS NOT NULL
             )
       `);
       await db.execute(sql`
-        DELETE FROM oauth2_provider_accesstoken at
-          USING oauth2_provider_application a
+        DELETE FROM oauth_access_tokens at
+          USING oauth_applications a
           WHERE at.application_id = a.id
             AND at.user_id = ${userId}
             AND a.authorization_grant_type IN (

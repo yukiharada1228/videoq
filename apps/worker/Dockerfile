@@ -1,4 +1,4 @@
-# Django-free SQS worker Lambda (container image).
+# SQS worker Lambda container image.
 FROM public.ecr.aws/lambda/python:3.12
 
 # FFmpeg / ffprobe for uploaded-video transcription

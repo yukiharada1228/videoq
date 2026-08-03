@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
+  createMemoryRateLimitBackend,
   enforceThrottles,
-  resetMemoryRateLimits,
+  setRateLimitBackendForTests,
   THROTTLE_RATES,
   normalizeThrottleIdent,
 } from "../src/lib/rate-limit";
@@ -9,12 +10,13 @@ import type { Bindings } from "../src/types/bindings";
 
 const ENV = {
   ENVIRONMENT: "development",
-  JWT_SECRET: "x",
-  LEGACY_API_ORIGIN: "https://legacy.test",
+  AUTH_JWT_SECRET: "x",
   HYPERDRIVE: { connectionString: "postgres://fake/db" },
 } as unknown as Bindings;
 
-beforeEach(() => resetMemoryRateLimits());
+beforeEach(() => {
+  setRateLimitBackendForTests(createMemoryRateLimitBackend());
+});
 
 describe("normalizeThrottleIdent", () => {
   it("strips and lowercases when requested", () => {
@@ -38,6 +40,15 @@ describe("enforceThrottles (memory backend)", () => {
     expect(denied).not.toBeNull();
     expect(denied!.allowed).toBe(false);
     expect(denied!.retryAfterSec).toBeGreaterThanOrEqual(1);
+  });
+
+  it("fails closed when no backend is configured", async () => {
+    setRateLimitBackendForTests(undefined);
+    const denied = await enforceThrottles(
+      { ...ENV, RATE_LIMITER: undefined },
+      [{ scope: "login_ip", ident: "1.2.3.4" }],
+    );
+    expect(denied).toEqual({ allowed: false, retryAfterSec: 60 });
   });
 
   it("isolates counters by scope and ident", async () => {

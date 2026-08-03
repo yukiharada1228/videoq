@@ -85,8 +85,8 @@ app.post("/search-vec", async (c) => {
   }
 });
 
-// PoC #04: quota 予約（Django check_and_reserve_storage の単一・原子的な条件付き UPDATE を
-// 生 SQL で再現）。並行時に超過予約しないことを実測する。※書き込みのため read-only ガードは付けない。
+// PoC #04: 単一・原子的な条件付きUPDATEによるquota予約。
+// 並行時に超過予約しないことを実測する。
 app.post("/reserve", async (c) => {
   const user = Number(c.req.query("user") ?? 1);
   const size = Number(c.req.query("size") ?? 30);

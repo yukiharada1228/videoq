@@ -4,13 +4,13 @@ Prerequisite-aware Learning-Object Graph (PLOG) turns flat scene RAG into a guid
 
 ## Layers
 
-- **L0**: Existing timestamped scene segments (`Video.transcript` + `videoq_scenes`)
-- **L1**: RAPTOR-style hierarchical summaries (`PlogSummaryNode`)
-- **L2**: Typed concept graph + learning objects (`PlogConcept`, `PlogEdge`, `PlogLearningObject`)
+- **L0**: Timestamped scene segments (`videos.transcript` + `scene_embeddings`)
+- **L1**: Hierarchical summaries (`plog_summary_nodes`)
+- **L2**: Typed concept graph + learning objects (`plog_concepts`, `plog_edges`, `plog_learning_objects`)
 
 ## Offline build
 
-After indexing completes, Celery task `build_plog_artifacts` runs:
+After indexing completes, the native `build_plog` job runs:
 
 1. L1 hierarchy summarization
 2. Stage 1 concept inventory (no relations)
@@ -60,13 +60,6 @@ Per turn:
 Study progress (reached concepts, hint rung, active concept) is kept only for the
 browser study session (`study_session_id` → cache). It is not written to a durable
 learner DB — Algorithm 1 carries this via dialogue-session state `H`.
-
-## Metrics
-
-See `backend/app/infrastructure/external/plog/metrics.py`:
-
-- concept coverage, edge P/R/F1, direction agreement, inversion rate, DAG validity
-- PVR, reveal proxy, scaffold features, analytical turn cost
 
 ## UI
 

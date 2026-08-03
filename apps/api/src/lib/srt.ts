@@ -1,5 +1,5 @@
 /**
- * transcript の SRT 形式検証（VideoUpdateSerializer.validate_transcript と一致）。
+ * transcript の SRT 形式を検証する。
  * 空/空白のみは検証をスキップ。各ブロックは index 行(整数)/timestamp 行/本文 の 3 行以上。
  */
 const SRT_TIMESTAMP_RE =
@@ -25,7 +25,7 @@ export function validateTranscriptSrt(value: string): string | null {
   return null;
 }
 
-/** TimestampConverter.parse_timestamp 相当（HH:MM:SS,mmm / HH:MM:SS / ドット区切り）。 */
+/** HH:MM:SS,mmm / HH:MM:SS / ドット区切りの timestamp を秒へ変換する。 */
 export function parseSrtTimestamp(timestamp: string): number {
   const normalized = timestamp.replace(/\./g, ",");
   const parts = normalized.split(",");
@@ -55,7 +55,7 @@ export type SrtScene = {
   text: string;
 };
 
-/** SubtitleParser.parse_srt_scenes 相当（L0 Retrieve 用）。 */
+/** L0 Retrieve 用に SRT の scene 一覧を解析する。 */
 export function parseSrtScenes(srtString: string): SrtScene[] {
   const content = srtString.trim();
   if (!content) return [];

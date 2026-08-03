@@ -46,7 +46,7 @@ def get_video_for_task(conn: psycopg.Connection[Any], video_id: int) -> VideoRow
         """
         SELECT id, user_id, title, transcript, status, source_type,
                file, youtube_video_id, error_message
-          FROM app_video
+          FROM videos
          WHERE id = %s
         """,
         (video_id,),
@@ -66,7 +66,7 @@ def transition_video_status(
     to_val = to_status.value if isinstance(to_status, VideoStatus) else to_status
     cur = conn.execute(
         """
-        UPDATE app_video
+        UPDATE videos
            SET status = %s,
                error_message = %s
          WHERE id = %s AND status = %s
@@ -78,7 +78,7 @@ def transition_video_status(
 
 def save_transcript(conn: psycopg.Connection[Any], video_id: int, transcript: str) -> None:
     conn.execute(
-        "UPDATE app_video SET transcript = %s WHERE id = %s",
+        "UPDATE videos SET transcript = %s WHERE id = %s",
         (transcript, video_id),
     )
 
@@ -90,7 +90,7 @@ def list_completed_videos_with_transcript(
         """
         SELECT id, user_id, title, transcript, status, source_type,
                file, youtube_video_id, error_message
-          FROM app_video
+          FROM videos
          WHERE status = %s
            AND transcript IS NOT NULL
            AND transcript <> ''
@@ -105,33 +105,33 @@ def delete_video_cascade(
     conn: psycopg.Connection[Any], video_id: int, user_id: int
 ) -> None:
     """
-    Hard-delete a video and related rows (mirrors Hono deleteVideoCascade).
-    FK cascades are emulated in SQL because Django does not rely on DB CASCADE.
+    Hard-delete a video and related rows from the modern VideoQ schema.
+    The schema has no ON DELETE CASCADE, so dependencies are removed explicitly.
     """
-    conn.execute("SELECT 1 FROM app_video WHERE id = %s FOR UPDATE", (video_id,))
+    conn.execute("SELECT 1 FROM videos WHERE id = %s FOR UPDATE", (video_id,))
 
     conn.execute(
         """
-        DELETE FROM app_learnerconceptstate
-         WHERE concept_id IN (SELECT id FROM app_plogconcept WHERE video_id = %s)
+        DELETE FROM learner_concept_states
+         WHERE concept_id IN (SELECT id FROM plog_concepts WHERE video_id = %s)
         """,
         (video_id,),
     )
     conn.execute(
         """
-        DELETE FROM app_ploglearningobject
-         WHERE concept_id IN (SELECT id FROM app_plogconcept WHERE video_id = %s)
+        DELETE FROM plog_learning_objects
+         WHERE concept_id IN (SELECT id FROM plog_concepts WHERE video_id = %s)
         """,
         (video_id,),
     )
-    conn.execute("DELETE FROM app_plogedge WHERE video_id = %s", (video_id,))
-    conn.execute("DELETE FROM app_plogconcept WHERE video_id = %s", (video_id,))
-    conn.execute("DELETE FROM app_plogsummarynode WHERE video_id = %s", (video_id,))
-    conn.execute("DELETE FROM app_plogbuildjob WHERE video_id = %s", (video_id,))
-    conn.execute("DELETE FROM app_videotag WHERE video_id = %s", (video_id,))
-    conn.execute("DELETE FROM app_videogroupmember WHERE video_id = %s", (video_id,))
+    conn.execute("DELETE FROM plog_edges WHERE video_id = %s", (video_id,))
+    conn.execute("DELETE FROM plog_concepts WHERE video_id = %s", (video_id,))
+    conn.execute("DELETE FROM plog_summary_nodes WHERE video_id = %s", (video_id,))
+    conn.execute("DELETE FROM plog_build_jobs WHERE video_id = %s", (video_id,))
+    conn.execute("DELETE FROM video_tags WHERE video_id = %s", (video_id,))
+    conn.execute("DELETE FROM video_group_members WHERE video_id = %s", (video_id,))
     conn.execute(
-        "DELETE FROM app_video WHERE id = %s AND user_id = %s",
+        "DELETE FROM videos WHERE id = %s AND user_id = %s",
         (video_id, user_id),
     )
     logger.info("Deleted video %d (user %d) and related rows", video_id, user_id)

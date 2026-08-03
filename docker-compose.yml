@@ -3,7 +3,6 @@
 #   → http://localhost  (Caddy → nginx static + Hono)
 #
 # Frontend HMR (Vite): docker compose --profile dev up --build -d
-# Legacy Django:       docker compose --profile legacy up --build -d
 
 services:
   postgres:
@@ -100,8 +99,8 @@ services:
     env_file:
       - .env
     environment:
-      SECRET_KEY: ${SECRET_KEY:-dev-insecure-jwt-secret}
-      JWT_SECRET: ${SECRET_KEY:-dev-insecure-jwt-secret}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-dev-only-auth-jwt-secret-change-me}
+      USER_SECRET_ENCRYPTION_KEY: ${USER_SECRET_ENCRYPTION_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-postgres}
       R2_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
@@ -158,7 +157,7 @@ services:
       EMBEDDING_VECTOR_SIZE: ${EMBEDDING_VECTOR_SIZE:-1024}
       ENABLE_HEAVY_PIPELINE: ${ENABLE_HEAVY_PIPELINE:-1}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      JWT_SECRET: ${SECRET_KEY:-dev-insecure-jwt-secret}
+      USER_SECRET_ENCRYPTION_KEY: ${USER_SECRET_ENCRYPTION_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA}
       LOG_LEVEL: ${WORKER_LOG_LEVEL:-INFO}
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -237,110 +236,11 @@ services:
       - videoq-network
     restart: unless-stopped
 
-  # --- legacy Django stack (opt-in) -----------------------------------------
-
-  redis:
-    profiles: ["legacy"]
-    image: redis:alpine
-    container_name: videoq-redis
-    networks:
-      - videoq-network
-
-  backend:
-    profiles: ["legacy"]
-    build: ./archive/django-backend
-    container_name: videoq-backend
-    env_file:
-      - .env
-    volumes:
-      - ./archive/django-backend:/app
-      - staticfiles:/app/staticfiles
-    depends_on:
-      - postgres
-      - redis
-    networks:
-      - videoq-network
-
-  celery-worker:
-    profiles: ["legacy"]
-    build: ./archive/django-backend
-    container_name: videoq-celery-worker
-    command: celery -A videoq worker --loglevel=info
-    env_file:
-      - .env
-    volumes:
-      - ./archive/django-backend:/app
-    depends_on:
-      - redis
-      - postgres
-    networks:
-      - videoq-network
-
-  frontend:
-    profiles: ["legacy"]
-    build:
-      context: ./frontend
-      args:
-        - VITE_API_URL=${VITE_API_URL:-/api}
-        - VITE_USE_S3_STORAGE=${USE_S3_STORAGE:-false}
-        - VITE_MAX_VIDEO_UPLOAD_SIZE_MB=${MAX_VIDEO_UPLOAD_SIZE_MB:-500}
-        - VITE_OPERATOR_NAME=${VITE_OPERATOR_NAME:-}
-        - VITE_OPERATOR_REPRESENTATIVE=${VITE_OPERATOR_REPRESENTATIVE:-}
-        - VITE_OPERATOR_EMAIL=${VITE_OPERATOR_EMAIL:-}
-        - VITE_OPERATOR_ADDRESS=${VITE_OPERATOR_ADDRESS:-}
-        - VITE_OPERATOR_PHONE=${VITE_OPERATOR_PHONE:-}
-    container_name: videoq-frontend
-    env_file:
-      - .env
-    depends_on:
-      - backend
-    networks:
-      - videoq-network
-
-  nginx:
-    profiles: ["legacy"]
-    image: nginx:alpine
-    container_name: videoq-nginx
-    command: /bin/sh -c "envsubst '$$MAX_VIDEO_UPLOAD_SIZE_MB' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
-    environment:
-      - MAX_VIDEO_UPLOAD_SIZE_MB=${MAX_VIDEO_UPLOAD_SIZE_MB:-500}
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf.template:ro
-      - staticfiles:/static
-      - ./archive/django-backend/media:/media
-    depends_on:
-      - backend
-      - frontend
-    networks:
-      - videoq-network
-
-  gateway-legacy:
-    profiles: ["legacy"]
-    image: caddy:2-alpine
-    container_name: videoq-gateway-legacy
-    ports:
-      - "8080:80"
-      - "8443:443"
-      - "8443:443/udp"
-    environment:
-      - SITE_ADDRESS=${SITE_ADDRESS:-http://localhost:8080}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data_legacy:/data
-      - caddy_config_legacy:/config
-    depends_on:
-      - nginx
-    networks:
-      - videoq-network
-
 volumes:
-  staticfiles:
   postgres_data:
   minio_data:
   caddy_data:
   caddy_config:
-  caddy_data_legacy:
-  caddy_config_legacy:
   api_node_modules:
   web_node_modules:
 

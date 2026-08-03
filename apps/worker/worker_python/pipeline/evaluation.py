@@ -1,12 +1,12 @@
-"""Chat-log evaluation (RAGAS-compatible scores via OpenAI when available)."""
+"""RAGAS evaluation via vibrantlabsai/ragas."""
 
 from __future__ import annotations
 
-import json
+import asyncio
 import logging
 from typing import Any
 
-from worker_python.env import env_str, heavy_pipeline_enabled
+from worker_python.env import env_str
 
 logger = logging.getLogger(__name__)
 
@@ -15,66 +15,128 @@ def score_chat_log(
     question: str,
     answer: str,
     contexts: list[Any],
-) -> tuple[float, float, float]:
+) -> tuple[float | None, float | None, float | None]:
     """
     Return (faithfulness, answer_relevancy, context_precision).
 
-    Uses OpenAI JSON scoring when OPENAI_API_KEY is set (or heavy pipeline on);
-    otherwise returns deterministic stub scores matching the prior worker stub.
+    Reference-free metrics used by VideoQ:
+    - Faithfulness
+    - ResponseRelevancy (answer_relevancy)
+    - LLMContextPrecisionWithoutReference (context_precision; skipped if no contexts)
     """
-    if not env_str("OPENAI_API_KEY") and not heavy_pipeline_enabled():
-        return _stub_scores(question, answer, contexts)
-
     try:
-        return _openai_scores(question, answer, contexts)
-    except Exception:
-        logger.exception("OpenAI evaluation failed; falling back to stub scores")
-        return _stub_scores(question, answer, contexts)
+        _ensure_ragas_importable()
+        from ragas.dataset_schema import SingleTurnSample
+        from ragas.embeddings import LangchainEmbeddingsWrapper
+        from ragas.llms import LangchainLLMWrapper
+        from ragas.metrics import (
+            Faithfulness,
+            LLMContextPrecisionWithoutReference,
+            ResponseRelevancy,
+        )
+    except ImportError as exc:
+        raise RuntimeError(
+            "ragas is not installed. Add it to requirements.txt."
+        ) from exc
 
-
-def _stub_scores(
-    question: str, answer: str, contexts: list[Any]
-) -> tuple[float, float, float]:
-    logger.info(
-        "RAGAS stub evaluation (question_len=%d, answer_len=%d, contexts=%d)",
-        len(question or ""),
-        len(answer or ""),
-        len(contexts or []),
+    retrieved = [str(c) for c in (contexts or []) if c is not None]
+    sample = SingleTurnSample(
+        user_input=question,
+        response=answer,
+        retrieved_contexts=retrieved or [""],
     )
-    return 0.85, 0.80, 0.75
+
+    wrapped_llm = LangchainLLMWrapper(_langchain_llm())
+    wrapped_embeddings = LangchainEmbeddingsWrapper(_langchain_embeddings())
+
+    faithfulness = _run_metric(Faithfulness(llm=wrapped_llm), sample)
+    answer_relevancy = _run_metric(
+        ResponseRelevancy(llm=wrapped_llm, embeddings=wrapped_embeddings),
+        sample,
+    )
+    context_precision: float | None = None
+    if retrieved:
+        context_precision = _run_metric(
+            LLMContextPrecisionWithoutReference(llm=wrapped_llm),
+            sample,
+        )
+
+    return faithfulness, answer_relevancy, context_precision
 
 
-def _openai_scores(
-    question: str, answer: str, contexts: list[Any]
-) -> tuple[float, float, float]:
-    from openai import OpenAI
+def _ensure_ragas_importable() -> None:
+    """
+    ragas 0.4.3 unconditionally imports ChatVertexAI from a path removed in
+    langchain-community>=0.4.2. Stub the symbol when the real module is absent
+    so OpenAI/Ollama evaluation still works (we never use Vertex).
+    """
+    import sys
+    import types
 
-    client = OpenAI(api_key=env_str("OPENAI_API_KEY"))
+    name = "langchain_community.chat_models.vertexai"
+    if name in sys.modules:
+        return
+    try:
+        __import__(name)
+    except ImportError:
+        mod = types.ModuleType(name)
+
+        class ChatVertexAI:  # noqa: N801 - match upstream symbol name
+            pass
+
+        mod.ChatVertexAI = ChatVertexAI
+        sys.modules[name] = mod
+
+
+def _langchain_llm():
+    from langchain_openai import ChatOpenAI
+    from pydantic import SecretStr
+
+    api_key = env_str("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is required for RAGAS evaluation.")
     model = env_str("LLM_MODEL", "gpt-4o-mini")
-    ctx_text = "\n---\n".join(str(c) for c in (contexts or [])[:8])
-    prompt = (
-        "You are evaluating a RAG answer. Return ONLY JSON with keys "
-        "faithfulness, answer_relevancy, context_precision as floats in [0,1].\n\n"
-        f"Question:\n{question}\n\nAnswer:\n{answer}\n\nContexts:\n{ctx_text}\n"
-    )
-    resp = client.chat.completions.create(
-        model=model,
-        temperature=0,
-        messages=[{"role": "user", "content": prompt}],
-        response_format={"type": "json_object"},
-    )
-    content = resp.choices[0].message.content or "{}"
-    data = json.loads(content)
-    return (
-        _clamp01(data.get("faithfulness")),
-        _clamp01(data.get("answer_relevancy")),
-        _clamp01(data.get("context_precision")),
-    )
+    llm = ChatOpenAI(model=model, api_key=SecretStr(api_key), temperature=0.0)
+    llm.max_tokens = 1024
+    return llm
 
 
-def _clamp01(value: Any) -> float:
+def _langchain_embeddings():
+    provider = env_str("EMBEDDING_PROVIDER", "openai").lower()
+    if provider == "ollama":
+        from langchain_ollama import OllamaEmbeddings
+
+        model = env_str("EMBEDDING_MODEL")
+        if not model:
+            raise RuntimeError(
+                "EMBEDDING_MODEL is required when EMBEDDING_PROVIDER=ollama."
+            )
+        return OllamaEmbeddings(
+            model=model,
+            base_url=env_str("OLLAMA_BASE_URL", "http://127.0.0.1:11434"),
+        )
+    if provider == "openai":
+        from langchain_openai import OpenAIEmbeddings
+        from pydantic import SecretStr
+
+        api_key = env_str("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENAI_API_KEY is required for OpenAI embeddings.")
+        kwargs: dict[str, Any] = {
+            "model": env_str("EMBEDDING_MODEL", "text-embedding-3-small"),
+            "api_key": SecretStr(api_key),
+        }
+        dims = env_str("EMBEDDING_VECTOR_SIZE")
+        if dims.isdigit() and int(dims) > 0:
+            kwargs["dimensions"] = int(dims)
+        return OpenAIEmbeddings(**kwargs)
+    raise RuntimeError(f"Unsupported EMBEDDING_PROVIDER={provider!r}")
+
+
+def _run_metric(metric: Any, sample: Any) -> float | None:
     try:
-        x = float(value)
-    except (TypeError, ValueError):
-        x = 0.0
-    return max(0.0, min(1.0, x))
+        score = asyncio.run(metric.single_turn_ascore(sample))
+        return float(score) if score is not None else None
+    except Exception as exc:  # noqa: BLE001 - isolate third-party metric failures
+        logger.warning("Metric %s failed: %s", metric.__class__.__name__, exc)
+        return None

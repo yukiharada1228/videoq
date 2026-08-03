@@ -1,4 +1,4 @@
-"""Embedding providers (OpenAI / Ollama) aligned with apps/api and Django."""
+"""VideoQ embedding providers shared with the API (OpenAI / Ollama)."""
 
 from __future__ import annotations
 

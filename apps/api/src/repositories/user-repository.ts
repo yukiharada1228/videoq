@@ -1,15 +1,15 @@
 import { and, eq, ne, sql } from "drizzle-orm";
 import { withDb } from "../db/pool";
-import { appAccountdeletionrequest, appUser } from "../db/schema";
-import { verifyDjangoPassword, hashDjangoPassword } from "../lib/password";
+import { accountDeletionRequests, users } from "../db/schema";
+import { verifyPassword, hashPassword } from "../lib/password";
 import type { Bindings } from "../types/bindings";
 
-const lastLoginUtc = sql<string | null>`to_char(${appUser.lastLogin} AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')`.as(
+const lastLoginUtc = sql<string | null>`to_char(${users.lastLogin} AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')`.as(
   "last_login",
 );
 
 /**
- * アカウント削除の開始（AccountDeletionUseCase 相当）。tx で:
+ * アカウント削除をトランザクション内で開始する:
  *   1. AccountDeletionRequest を記録（reason）
  *   2. ユーザーを匿名化 + 非アクティブ化（is_active=false, deactivated_at, username/email を deleted__<hex>）
  * enqueue は呼び出し側で commit 後に実行する。
@@ -19,30 +19,30 @@ export async function requestAccountDeletion(
   userId: number,
   reason: string,
 ): Promise<void> {
-  const hex = crypto.randomUUID().replace(/-/g, ""); // uuid4().hex（username/email 共通）
+  const hex = crypto.randomUUID().replace(/-/g, ""); // username/email 共通の識別子
   return withDb(env, async (db) => {
     await db.transaction(async (tx) => {
-      await tx.insert(appAccountdeletionrequest).values({
+      await tx.insert(accountDeletionRequests).values({
         userId,
         reason,
         requestedAt: sql`CURRENT_TIMESTAMP`,
       });
       await tx
-        .update(appUser)
+        .update(users)
         .set({
           isActive: false,
           deactivatedAt: sql`now()`,
           username: `deleted__${hex}`,
           email: `deleted__${hex}@invalid.local`,
         })
-        .where(eq(appUser.id, userId));
+        .where(eq(users.id, userId));
     });
   });
 }
 
 /**
  * トークン検証用にユーザーを取得（check_token の hash_value に必要な項目）。
- * last_login は Django の str(replace(microsecond=0, tzinfo=None)) と一致する UTC 表記
+ * last_login は秒精度でタイムゾーン接尾辞を付けない UTC 表記
  * 'YYYY-MM-DD HH24:MI:SS'（None は null）。不在は null。
  */
 export async function getUserForToken(
@@ -52,13 +52,13 @@ export async function getUserForToken(
   return withDb(env, async (db) => {
     const rows = await db
       .select({
-        id: appUser.id,
-        password: appUser.password,
-        email: appUser.email,
+        id: users.id,
+        password: users.password,
+        email: users.email,
         last_login: lastLoginUtc,
       })
-      .from(appUser)
-      .where(eq(appUser.id, pk))
+      .from(users)
+      .where(eq(users.id, pk))
       .limit(1);
     if (rows.length === 0) return null;
     const r = rows[0];
@@ -72,7 +72,7 @@ export async function getUserForToken(
 }
 
 /**
- * find_active_user_id_by_email 相当（`email__iexact` + `is_active=True`, `order_by("id").first()`）。
+ * 大文字小文字を無視して最初の active user id を返す。
  * 再設定リンク生成に必要な項目まで一度に取る。last_login の形式は getUserForToken と同じ。
  */
 export async function findActiveUserByEmail(
@@ -82,19 +82,19 @@ export async function findActiveUserByEmail(
   return withDb(env, async (db) => {
     const rows = await db
       .select({
-        id: appUser.id,
-        password: appUser.password,
-        email: appUser.email,
+        id: users.id,
+        password: users.password,
+        email: users.email,
         last_login: lastLoginUtc,
       })
-      .from(appUser)
+      .from(users)
       .where(
         and(
-          sql`upper(${appUser.email}::text) = upper(${email})`,
-          eq(appUser.isActive, true),
+          sql`upper(${users.email}::text) = upper(${email})`,
+          eq(users.isActive, true),
         ),
       )
-      .orderBy(appUser.id)
+      .orderBy(users.id)
       .limit(1);
     if (rows.length === 0) return null;
     const r = rows[0];
@@ -113,9 +113,9 @@ export async function findActiveUserByEmail(
 export async function activateUser(env: Bindings, pk: number): Promise<void> {
   return withDb(env, async (db) => {
     await db
-      .update(appUser)
+      .update(users)
       .set({ isActive: true })
-      .where(and(eq(appUser.id, pk), eq(appUser.isActive, false)));
+      .where(and(eq(users.id, pk), eq(users.isActive, false)));
   });
 }
 
@@ -125,9 +125,12 @@ export async function setUserPassword(
   pk: number,
   newPassword: string,
 ): Promise<void> {
-  const hashed = await hashDjangoPassword(newPassword);
+  const hashed = await hashPassword(newPassword);
   return withDb(env, async (db) => {
-    await db.update(appUser).set({ password: hashed }).where(eq(appUser.id, pk));
+    await db
+      .update(users)
+      .set({ password: hashed, passwordResetRequired: false })
+      .where(eq(users.id, pk));
   });
 }
 
@@ -148,14 +151,14 @@ export async function getUserForEmailChange(
   return withDb(env, async (db) => {
     const rows = await db
       .select({
-        id: appUser.id,
-        password: appUser.password,
-        email: appUser.email,
-        pending_email: appUser.pendingEmail,
+        id: users.id,
+        password: users.password,
+        email: users.email,
+        pending_email: users.pendingEmail,
         last_login: lastLoginUtc,
       })
-      .from(appUser)
-      .where(eq(appUser.id, pk))
+      .from(users)
+      .where(eq(users.id, pk))
       .limit(1);
     if (rows.length === 0) return null;
     const r = rows[0];
@@ -176,14 +179,14 @@ export async function setPendingEmail(
   email: string,
 ): Promise<void> {
   return withDb(env, async (db) => {
-    await db.update(appUser).set({ pendingEmail: email }).where(eq(appUser.id, pk));
+    await db.update(users).set({ pendingEmail: email }).where(eq(users.id, pk));
   });
 }
 
 /**
  * pending_email を email へ確定（confirm_pending_email の後半）。
- * 他ユーザーが同じアドレスを使っていれば false。Django は exists() 後に save するが、
- * ここは 1 トランザクションに閉じ、競合した一意制約違反(23505)も false に倒す。
+ * 他ユーザーが同じアドレスを使っていれば false。
+ * 1 トランザクションに閉じ、競合した一意制約違反(23505)も false に倒す。
  */
 export async function confirmPendingEmail(
   env: Bindings,
@@ -195,19 +198,19 @@ export async function confirmPendingEmail(
       return await db.transaction(async (tx) => {
         const taken = await tx
           .select({ one: sql<number>`1` })
-          .from(appUser)
+          .from(users)
           .where(
             and(
-              sql`upper(${appUser.email}::text) = upper(${pendingEmail})`,
-              ne(appUser.id, pk),
+              sql`upper(${users.email}::text) = upper(${pendingEmail})`,
+              ne(users.id, pk),
             ),
           )
           .limit(1);
         if (taken.length > 0) return false;
         await tx
-          .update(appUser)
+          .update(users)
           .set({ email: pendingEmail, pendingEmail: null })
-          .where(eq(appUser.id, pk));
+          .where(eq(users.id, pk));
         return true;
       });
     } catch (e) {
@@ -217,7 +220,7 @@ export async function confirmPendingEmail(
   });
 }
 
-/** email__iexact 相当（大文字小文字無視）。normalized_email は既に lower 前提。 */
+/** normalized_email は lower 済みとして大文字小文字を無視して検索する。 */
 export async function emailExists(
   env: Bindings,
   email: string,
@@ -225,15 +228,15 @@ export async function emailExists(
   return withDb(env, async (db) => {
     const rows = await db
       .select({ one: sql<number>`1` })
-      .from(appUser)
-      .where(sql`lower(${appUser.email}) = lower(${email})`)
+      .from(users)
+      .where(sql`lower(${users.email}) = lower(${email})`)
       .limit(1);
     return rows.length > 0;
   });
 }
 
 /**
- * 非アクティブユーザー作成（create_user(is_active=False) 相当）。
+ * メール確認前の非アクティブユーザーを作成する。
  * password は make_password でハッシュ化、モデル既定値を明示 INSERT。作成 id を返す。
  * username/email の一意制約違反(23505)は現行同様 500（呼び出し側で握らない）。
  */
@@ -242,12 +245,12 @@ export async function createInactiveUser(
   username: string,
   normalizedEmail: string,
   password: string,
-): Promise<{ id: number; passwordHash: string }> {
-  const hashed = await hashDjangoPassword(password);
+): Promise<{ id: number }> {
+  const hashed = await hashPassword(password);
   const maxMb = Number(env.MAX_VIDEO_UPLOAD_SIZE_MB ?? 500) || 500;
   return withDb(env, async (db) => {
     const rows = await db
-      .insert(appUser)
+      .insert(users)
       .values({
         password: hashed,
         lastLogin: null,
@@ -271,9 +274,10 @@ export async function createInactiveUser(
         usedProcessingSeconds: 0,
         usedStorageBytes: 0,
         pendingEmail: null,
+        passwordResetRequired: false,
       })
-      .returning({ id: appUser.id });
-    return { id: Number(rows[0].id), passwordHash: hashed };
+      .returning({ id: users.id });
+    return { id: Number(rows[0].id) };
   });
 }
 
@@ -285,31 +289,29 @@ export async function getSearchApiKeyStatus(
   return withDb(env, async (db) => {
     const rows = await db
       .select({
-        has_api_key: sql<boolean>`${appUser.searchapiApiKeyEncrypted} IS NOT NULL`.as("has_api_key"),
+        has_api_key: sql<boolean>`${users.searchapiApiKeyEncrypted} IS NOT NULL`.as("has_api_key"),
       })
-      .from(appUser)
-      .where(eq(appUser.id, userId))
+      .from(users)
+      .where(eq(users.id, userId))
       .limit(1);
     return rows.length === 0 ? null : rows[0].has_api_key;
   });
 }
 
 /**
- * set_searchapi_api_key: Fernet token の ASCII バイト列を bytea へ保存する
- * （Django の `FernetCipher.encrypt()` は base64url 文字列を bytes で返す）。
- * 更新行が無い（= ユーザー不在）なら false。
+ * Store a versioned encrypted envelope. Updating a missing user returns false.
  */
 export async function setSearchApiKey(
   env: Bindings,
   userId: number,
-  fernetToken: string,
+  encryptedValue: string,
 ): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db
-      .update(appUser)
-      .set({ searchapiApiKeyEncrypted: sql`convert_to(${fernetToken}, 'UTF8')` })
-      .where(eq(appUser.id, userId))
-      .returning({ id: appUser.id });
+      .update(users)
+      .set({ searchapiApiKeyEncrypted: encryptedValue })
+      .where(eq(users.id, userId))
+      .returning({ id: users.id });
     return rows.length > 0;
   });
 }
@@ -321,17 +323,17 @@ export async function deleteSearchApiKey(
 ): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db
-      .update(appUser)
+      .update(users)
       .set({ searchapiApiKeyEncrypted: null })
-      .where(eq(appUser.id, userId))
-      .returning({ id: appUser.id });
+      .where(eq(users.id, userId))
+      .returning({ id: users.id });
     return rows.length > 0;
   });
 }
 
 /**
- * `/api/auth/me` の契約（Django UserSerializer / CurrentUserOutput）に一致する形。
- * 派生値の計算式は現行 domain（quota entities）と一致させる:
+ * `/api/auth/me` のレスポンスを組み立てる。
+ * 派生値は quota の現在値から計算する:
  *   storage_limit_bytes = storage_limit_gb === null ? null : trunc(gb * 1024^3)
  *   processing_limit_seconds = processing_limit_minutes === null ? null : minutes * 60
  */
@@ -359,23 +361,23 @@ export async function getCurrentUser(
   return withDb(env, async (db) => {
     const rows = await db
       .select({
-        id: appUser.id,
-        username: appUser.username,
-        email: appUser.email,
-        max_video_upload_size_mb: appUser.maxVideoUploadSizeMb,
-        used_storage_bytes: appUser.usedStorageBytes,
-        storage_limit_gb: appUser.storageLimitGb,
-        used_processing_seconds: appUser.usedProcessingSeconds,
-        processing_limit_minutes: appUser.processingLimitMinutes,
-        used_ai_answers: appUser.usedAiAnswers,
-        ai_answers_limit: appUser.aiAnswersLimit,
-        is_over_quota: appUser.isOverQuota,
-        video_count: sql<number>`(SELECT count(*)::int FROM app_video v WHERE v.user_id = ${appUser.id})`.as(
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        max_video_upload_size_mb: users.maxVideoUploadSizeMb,
+        used_storage_bytes: users.usedStorageBytes,
+        storage_limit_gb: users.storageLimitGb,
+        used_processing_seconds: users.usedProcessingSeconds,
+        processing_limit_minutes: users.processingLimitMinutes,
+        used_ai_answers: users.usedAiAnswers,
+        ai_answers_limit: users.aiAnswersLimit,
+        is_over_quota: users.isOverQuota,
+        video_count: sql<number>`(SELECT count(*)::int FROM videos v WHERE v.user_id = ${users.id})`.as(
           "video_count",
         ),
       })
-      .from(appUser)
-      .where(eq(appUser.id, userId))
+      .from(users)
+      .where(eq(users.id, userId))
       .limit(1);
     if (rows.length === 0) return null;
     const r = rows[0];
@@ -386,7 +388,7 @@ export async function getCurrentUser(
       r.processing_limit_minutes === null ? null : Number(r.processing_limit_minutes);
 
     return {
-      // pg は bigint を文字列で返すため Number 化（Django は int を返す）
+      // PostgreSQL ドライバは bigint を文字列で返すため Number 化する。
       id: Number(r.id),
       username: r.username,
       email: r.email,
@@ -406,8 +408,7 @@ export async function getCurrentUser(
 }
 
 /**
- * Django ModelBackend.authenticate 相当。username で厳密一致 → pbkdf2 検証 → is_active。
- * 成功時 user_id、失敗（不在/パスワード不一致/非アクティブ）は null。
+ * Authenticate an active user whose password has been migrated to the native format.
  */
 export async function authenticateUser(
   env: Bindings,
@@ -417,22 +418,25 @@ export async function authenticateUser(
   const row = await withDb(env, async (db) => {
     const rows = await db
       .select({
-        id: appUser.id,
-        password: appUser.password,
-        is_active: appUser.isActive,
+        id: users.id,
+        password: users.password,
+        is_active: users.isActive,
+        password_reset_required: users.passwordResetRequired,
       })
-      .from(appUser)
-      .where(eq(appUser.username, username))
+      .from(users)
+      .where(eq(users.username, username))
       .limit(1);
     return rows[0] ?? null;
   });
   if (!row) {
-    // Django #20760: 存在しないユーザーでも一度ハッシュ計算してタイミング差を縮める
-    await verifyDjangoPassword(password, DUMMY_PASSWORD_HASH);
+    await verifyPassword(password, DUMMY_PASSWORD_HASH);
     return null;
   }
-  // Django: user.check_password(password) and user_can_authenticate(user)
-  const ok = await verifyDjangoPassword(password, row.password);
+  if (row.password_reset_required) {
+    await verifyPassword(password, DUMMY_PASSWORD_HASH);
+    return null;
+  }
+  const ok = await verifyPassword(password, row.password);
   if (!ok) return null;
   if (!row.is_active) return null; // user_can_authenticate（is_active）
   // pg は bigint を文字列で返す。安全整数外なら JWT に別 user の id が入る事故を防ぐため fail-closed。
@@ -441,6 +445,5 @@ export async function authenticateUser(
   return id;
 }
 
-// タイミング均等化用のダミーハッシュ（実 pbkdf2_sha256・1.2M iters。照合は必ず失敗）。
 const DUMMY_PASSWORD_HASH =
-  "pbkdf2_sha256$1200000$qWZtltacjK73Spy2uxAFWu$ywnW8qlRCel1qrSubI570/ry17mjRjMVZoZIDcv2sis=";
+  "vqpw$1$600000$AQEBAQEBAQEBAQEBAQEBAQ$9HOK2mUkCczobmRKp8Y3rLltV4H_6yirxSgk-ChO8gQ";

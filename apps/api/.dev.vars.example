@@ -1,8 +1,10 @@
 # apps/api（Web API）ローカル開発用の機密変数の雛形。
 # コピーして `.dev.vars` を作成（.gitignore 済み）。wrangler dev が自動で読み込む。
 
-# SimpleJWT の署名鍵。**現行 Django の SECRET_KEY と一致させる**（HS256）。
-JWT_SECRET=""
+# Independent application secrets. Generate new values for every environment.
+AUTH_JWT_SECRET=""
+# Base64url-encoded 32-byte AES-GCM key.
+USER_SECRET_ENCRYPTION_KEY=""
 
 # RAG チャット用。未設定だと LLM 設定エラー。
 # OPENAI_API_KEY=""
@@ -26,5 +28,5 @@ AWS_ACCESS_KEY_ID="local"
 AWS_SECRET_ACCESS_KEY="local"
 
 # OAuth / OIDC（任意）
-# OAUTH2_PROVIDER_ISSUER_URL="http://localhost:8000"
+# OAUTH_ISSUER_URL="http://localhost:8787"
 # OIDC_RSA_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"

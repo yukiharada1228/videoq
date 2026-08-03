@@ -1,7 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 
 /**
- * 固定キー単位のスライディング・ウィンドウ・レート制限（DRF SimpleRateThrottle 相当）。
+ * 固定キー単位のスライディング・ウィンドウ・レート制限。
  * Worker 側は `idFromName(scope:ident)` で 1 キー = 1 DO にシャーディングする。
  */
 export class RateLimiter extends DurableObject {
@@ -16,7 +16,7 @@ export class RateLimiter extends DurableObject {
     const history = (await this.ctx.storage.get<number[]>("history")) ?? [];
     const cutoff = now - windowSec;
 
-    // DRF: newest-first。末尾（最古）がウィンドウ外なら pop。
+    // newest-first。末尾（最古）がウィンドウ外なら pop。
     while (history.length > 0 && history[history.length - 1]! <= cutoff) {
       history.pop();
     }

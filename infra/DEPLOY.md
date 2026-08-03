@@ -1,447 +1,171 @@
-# VideoQ デプロイ手順
+# VideoQ デプロイ
 
-## アーキテクチャ概要
+## 本番構成
 
-```
-ブラウザ
-  │ https://videoq.jp
-  ▼
-CloudFront (CDN)
-  ├── /api/*  ──→ API Gateway HTTP API
-  │                      │
-  │                      ▼
-  │              Lambda API (Django + Lambda Web Adapter)
-  │                      │                    │
-  │                      ▼                    ▼
-  │                Neon PostgreSQL      SQS キュー
-  │                (pgvector)                │
-  │                                          ▼
-  │                                  Lambda Worker (Celery タスク)
-  │                                          │
-  │                                          ▼
-  │                                  Cloudflare R2 (動画ストレージ)
-  │
-  └── /* (その他) ──→ Cloudflare Pages (フロントエンド)
-```
+- frontend: Cloudflare Pages
+- Web API: Cloudflare Workers（Hono）
+- DB: Neon PostgreSQL + Hyperdrive
+- object storage: Cloudflare R2
+- async queue: Amazon SQS
+- async compute: Python worker on AWS Lambda
 
-> **なぜ CloudFront？** フロントエンド (Cloudflare Pages) と API (API Gateway) を
-> 同一ドメインで配信することで、Cookie がファーストパーティになり、
-> モバイルブラウザのサードパーティ Cookie ブロックによる 403 エラーを解消する。
+## 1. DB と R2
 
-**月額コスト目安:** ~$0.85/月 (低トラフィック時は Lambda 無料枠内で $0.05 以下)
+1. Neon project と pooler connection を作成
+2. Cloudflare Hyperdrive を Neon に接続
+3. R2 bucket と S3 API token を作成
+4. `apps/api/wrangler.jsonc` の binding ID / bucket を本番値に設定
 
----
-
-## 前提条件
-
-- AWS CLI 設定済み (`aws configure`)
-- Docker Desktop 起動済み
-- Node.js 20+, Terraform 1.11+
-
----
-
-## Step 1: 外部サービスのセットアップ
-
-### 1-1. Neon (サーバーレス PostgreSQL)
-
-1. [neon.tech](https://neon.tech) でプロジェクト作成
-2. **Pooler 接続文字列**をコピー (通常の接続文字列ではなく Pooler を使うこと)
-
-   ```
-   # ダッシュボード → Connection Details → Pooler
-   postgresql://neondb_owner:****************dep-old-truth-a1co51ud-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
-   ```
-
-   > **なぜ Pooler？** Lambda はリクエストごとに新規 DB 接続を張るため、
-   > Pooler (PgBouncer) なしでは同時実行時に接続数上限に達する。
-
-### 1-2. Cloudflare R2 (オブジェクトストレージ)
-
-1. Cloudflare ダッシュボード → **R2** → バケット作成
-   - バケット名: `videoq-media-prod`
-
-2. **R2 API トークン**を発行
-   - R2 → 概要 → API トークンを管理 → トークン作成
-   - 権限: オブジェクトの読み取りと書き込み
-   - 以下をメモ:
-     - Access Key ID
-     - Secret Access Key
-     - アカウント ID (ダッシュボード URL の `/` 以降の32桁)
-
-3. エンドポイント URL を確認:
-   ```
-   https://<アカウントID>.r2.cloudflarestorage.com
-   ```
-
-### 1-3. ACM 証明書 (カスタムドメイン使用時)
-
-CloudFront でカスタムドメイン (例: `videoq.jp`) を使う場合、**us-east-1** リージョンに ACM 証明書が必要。
-
-1. AWS コンソール → **Certificate Manager** → リージョンを **us-east-1 (バージニア北部)** に切り替え
-2. 「証明書のリクエスト」 → パブリック証明書
-3. ドメイン名: `videoq.jp` (必要に応じて `*.videoq.jp` も追加)
-4. 検証方法: **DNS 検証** を選択
-5. 表示される CNAME レコードを DNS プロバイダに追加して検証完了を待つ
-6. 証明書 ARN をメモ:
-   ```
-   arn:aws:acm:us-east-1:<account>:certificate/<uuid>
-   ```
-
-> **注意:** CloudFront は us-east-1 の証明書のみ使用可能。他リージョンで作成した証明書は使えない。
-
-### 1-4. Cloudflare Pages (フロントエンド)
-
-初回は Step 8 で設定するため、ここでは不要。
-
----
-
-## Step 2: Terraform セットアップ
-
-```bash
-cd infra
-
-# AWS アカウント ID とリージョンを確認
-aws sts get-caller-identity
-aws configure get region
-
-# 変数ファイルを用意して環境に合わせて編集
-cp terraform.tfvars.example terraform.tfvars
-# custom_domain / certificate_arn / pages_domain / image_tag などを設定
-
-# ── State バックエンドを一度だけ用意する (S3) ──
-# backend.tf は S3 バックエンドを参照する。bucket 名 (アカウント ID を含む) は
-# repo に含めず backend.hcl (gitignore 済み) で注入する。バケットは bootstrap で作成:
-cd bootstrap
-cp backend.hcl.example backend.hcl   # bucket = videoq-terraform-state-<account> を記入
-# 【新規アカウント】バケットがまだ無いので main.tf の backend "s3" を一時コメントアウト後:
-terraform init && terraform apply    # ローカル state でバケット作成 → コメントを戻す
-terraform init -migrate-state -backend-config=backend.hcl   # state をバケットへ移動
-cd ..
-
-# 本体側もバックエンドを初期化 (bucket は backend.hcl / -backend-config で注入)
-cp backend.hcl.example backend.hcl   # bucket 名を記入
-terraform init -backend-config=backend.hcl
-```
-
-> **State バックエンド:** `backend.tf` が S3 バックエンドを参照する。
-> bucket 名はアカウント ID を含むため backend ブロックに
-> 書かず、`backend.hcl` (gitignore 済み / CI では secret `TF_STATE_BUCKET`) で注入する。
-> バケットは `infra/bootstrap` を一度 `apply` して作成。bootstrap 自身の state も
-> そのバケットへ移す (自己参照) ため、public リポジトリに tfstate をコミットしない。
-> ロックは S3 ネイティブ (`use_lockfile`, Terraform 1.11+) を使うため DynamoDB は不要。
-
----
-
-## Step 3: 初回 Terraform デプロイ
-
-```bash
-# 変更内容を確認 (terraform.tfvars の値が使われる)
-terraform plan
-
-# 適用
-terraform apply -auto-approve
-```
-
-変数は `terraform.tfvars` のほか、`TF_VAR_*` 環境変数でも指定できる (CI ではこちらを使用):
-
-```bash
-# CloudFront + カスタムドメインを有効化する場合 (Step 1-3 の証明書が必要)
-TF_VAR_pages_domain=videoq.pages.dev \
-TF_VAR_custom_domain=videoq.jp \
-TF_VAR_certificate_arn=arn:aws:acm:us-east-1:<account>:certificate/<uuid> \
-  terraform apply -auto-approve
-```
-
-> **CloudFront は条件付き:** `custom_domain` と `certificate_arn` の両方が設定されている場合のみ CloudFront ディストリビューションが作成される (`enable_cdn` ローカル値で制御)。
-
-### infra 変更時の継続デプロイ（GitHub Actions）
-
-初回セットアップ後は、`infra/**` を変更した PR をマージすることで自動的に `terraform apply` が実行される。
-
-| タイミング | 動作 |
-|---|---|
-| PR 作成・更新時 | `terraform plan` を実行し結果を PR にコメント (terraform-plan workflow) |
-| `main` マージ後 | GitHub Environment `production` の手動承認後に `terraform apply -auto-approve` を自動実行 (terraform-apply workflow) |
-
-GitHub Environment `production` に承認者を設定しておくこと（Settings → Environments → production → Required reviewers）。
-CI では `TF_VAR_pages_domain` / `TF_VAR_custom_domain` / `TF_VAR_certificate_arn` を GitHub Secrets から渡す。
-また `terraform init` の `-backend-config` 用に GitHub Secret **`TF_STATE_BUCKET`**
-(`videoq-terraform-state-<account>`) を登録しておくこと。
-
-CI ユーザー `videoq-github-actions-cd` に付与する IAM ポリシー (3 分割) は
-[`infra/iam/`](iam/README.md) を参照 (作成・アタッチ手順つき)。
-
-デプロイ完了後、以下の Output をメモしておく (`terraform output` で再表示可能):
-
-```
-api_ecr_uri              = <account>.dkr.ecr.<region>.amazonaws.com/videoq-api-prod
-worker_ecr_uri           = <account>.dkr.ecr.<region>.amazonaws.com/videoq-worker-prod
-db_secret_arn            = arn:aws:secretsmanager:...
-app_secret_arn           = arn:aws:secretsmanager:...
-api_endpoint             = https://xxxxxxxxxx.execute-api.<region>.amazonaws.com
-distribution_domain_name = dxxxxxxxxx.cloudfront.net   # CloudFront 有効時のみ
-distribution_id          = EXXXXXXXXXXXXX               # CloudFront 有効時のみ
-```
-
----
-
-## Step 4: シークレットを登録
-
-### DB シークレット (Neon 接続文字列)
-
-```bash
-aws secretsmanager put-secret-value \
-  --secret-id videoq/prod/db \
-  --secret-string '{
-    "DATABASE_URL": "postgresql://neondb_owner:****************dep-old-truth-a1co51ud-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
-  }'
-```
-
-### アプリシークレット + R2 認証情報
-
-```bash
-aws secretsmanager put-secret-value \
-  --secret-id videoq/prod/app \
-  --secret-string '{
-    "SECRET_KEY": "<50文字以上のランダム文字列>",
-    "AWS_ACCESS_KEY_ID": "<R2_ACCESS_KEY_ID>",
-    "AWS_SECRET_ACCESS_KEY": "<R2_SECRET_ACCESS_KEY>",
-    "AWS_S3_ENDPOINT_URL": "https://<CF_ACCOUNT_ID>.r2.cloudflarestorage.com",
-    "AWS_STORAGE_BUCKET_NAME": "videoq-media-prod",
-    "AWS_S3_REGION_NAME": "auto",
-    "MAILGUN_API_KEY": "<YOUR_MAILGUN_API_KEY>",
-    "MAILGUN_SENDER_DOMAIN": "<YOUR_MAILGUN_DOMAIN>"
-  }'
-```
-
-> `SECRET_KEY` の生成: `python -c "import secrets; print(secrets.token_urlsafe(50))"`
-
----
-
-## OpenAI プロジェクト管理
-
-埋め込み / LLM / 文字起こしに使う OpenAI 組織プロジェクトのガバナンス
-(許可モデルの制限・月次スペンドアラート) を Terraform で管理する
-(`infra/openai.tf`、`openai/openai` プロバイダ使用)。
-
-**デフォルトで有効** (`manage_openai_project = true`)。CI (terraform-plan /
-terraform-apply) から実行するため、プロバイダが Admin API へ認証できるよう
-GitHub Secrets の設定が必須。
-
-> **重要:** このプロバイダは **ランタイムの `OPENAI_API_KEY` を管理しない**。
-> アプリが実行時に使う API キーは従来どおりダッシュボードで手動発行し、
-> Secrets Manager の app シークレットへ手動保存する (Step 4 参照)。
-> Terraform が管理するのはプロジェクト設定 (許可モデル・スペンドアラート) のみ。
-
-### 前提: GitHub Secrets (未設定だと terraform-plan / apply が失敗する)
-
-1. OpenAI ダッシュボードで **Admin API キー** を発行する。
-2. リポジトリ (Environment `production`) に以下を登録する:
-
-   | Secret | 値 |
-   | --- | --- |
-   | `OPENAI_ADMIN_KEY` | `sk-admin-...` (Admin API キー) |
-   | `OPENAI_SPEND_ALERT_EMAIL` | スペンドアラートの通知先メール |
-
-   しきい値は `openai_spend_threshold_usd` (既定 50 USD/月)、許可モデルは
-   `openai_allowed_models` で videoq が使うモデルに既定済み。
-
-### apply 後
-
-作成された OpenAI プロジェクト ID は `terraform output openai_project_id`
-で確認できる。**そのプロジェクトでランタイム用 `OPENAI_API_KEY` を手動発行し**、
-Secrets Manager の app シークレットへ保存する (Step 4)。
-
-### ローカルで実行する場合
-
-`export OPENAI_ADMIN_KEY=sk-admin-...` してから
-`terraform.tfvars` に `openai_spend_alert_email` を記入して `terraform apply`。
-一時的に無効化したい場合のみ `manage_openai_project = false` を設定する。
-
----
-
-## Step 5: Worker コンテナイメージをビルド & プッシュ
-
-Web API は Cloudflare Workers（`apps/api/`）でデプロイする。API Lambda / ECR は廃止。
-
-```bash
-# ECR URI を変数に設定 (Step 3 の Output から)
-WORKER_ECR=<account>.dkr.ecr.<region>.amazonaws.com/videoq-worker-prod
-REGION=ap-northeast-1
-
-# ECR ログイン
-aws ecr get-login-password --region $REGION \
-  | docker login --username AWS --password-stdin \
-    $(echo $WORKER_ECR | cut -d/ -f1)
-
-# Worker Lambda イメージ（Django 非依存）
-docker build --platform linux/amd64 --provenance=false \
-  -f apps/worker/Dockerfile \
-  -t $WORKER_ECR:latest ./apps/worker
-docker push $WORKER_ECR:latest
-```
-
----
-
-## Step 6: Worker Lambda イメージを更新
-
-```bash
-aws lambda update-function-code \
-  --function-name videoq-worker-prod \
-  --image-uri $WORKER_ECR:latest \
-  --region $REGION
-
-aws lambda wait function-updated \
-  --function-name videoq-worker-prod --region $REGION
-```
-
----
-
-## Step 7: DB マイグレーション (初回 & スキーマ変更時)
-
-スキーマ正本は Drizzle（`apps/api`）。`manage.py migrate` は使わない。
+DB schema:
 
 ```bash
 cd apps/api
 DATABASE_URL="<Neon pooler URL>" npm run db:migrate
-# = stamp-baseline（既存スキーマなら 0000_init を適用済み扱い）+ drizzle-kit migrate
 ```
 
----
+## 2. API secrets
 
-## Step 8: Cloudflare Pages セットアップ (初回のみ)
-
-1. Cloudflare ダッシュボード → **Pages** → プロジェクト作成
-2. Git リポジトリを接続 (GitHub)
-3. ビルド設定:
-
-   | 項目 | 値 |
-   |---|---|
-   | フレームワーク | なし |
-   | ビルドコマンド | `npm run build` |
-   | ビルド出力ディレクトリ | `dist` |
-   | ルートディレクトリ | `frontend` |
-
-4. **環境変数**を設定:
-
-   | 変数名 | 値 (CloudFront あり) |
-   |---|---|
-   | `VITE_API_URL` | `/api` (相対パス) |
-   | `VITE_MAX_VIDEO_UPLOAD_SIZE_MB` | `500` |
-
----
-
-## Step 9: DNS レコード設定
-
-Step 3 で出力された `distribution_domain_name` を DNS に登録する。
-
-| タイプ | 名前 | 値 |
-|---|---|---|
-| CNAME (または ALIAS) | `videoq.jp` | `dxxxxxxxxx.cloudfront.net` (Step 3 の distribution_domain_name) |
-
-> **注意:** ルートドメイン (`videoq.jp`) の場合、CNAME は使えないため ALIAS レコード (Route 53) または CNAME フラットニング (Cloudflare DNS 等) が必要。
-
-### 動作確認
+機密値は `wrangler secret put` で設定します。
 
 ```bash
-# CloudFront 経由でフロントエンドが返ること
-curl -I https://videoq.jp/
-
-# CloudFront 経由で API が返ること
-curl -I https://videoq.jp/api/health/
+cd apps/api
+npx wrangler secret put AUTH_JWT_SECRET
+npx wrangler secret put USER_SECRET_ENCRYPTION_KEY
+npx wrangler secret put OPENAI_API_KEY
+npx wrangler secret put R2_ACCESS_KEY_ID
+npx wrangler secret put R2_SECRET_ACCESS_KEY
+npx wrangler secret put SQS_QUEUE_URL
+npx wrangler secret put AWS_ACCESS_KEY_ID
+npx wrangler secret put AWS_SECRET_ACCESS_KEY
 ```
 
----
+`AUTH_JWT_SECRET` と `USER_SECRET_ENCRYPTION_KEY` は別々に生成します。
+`USER_SECRET_ENCRYPTION_KEY` はbase64url encoded 32 bytesを使用し、APIとworkerに
+同じ値を設定してください。
+メール操作とOAuth HTML formのaction tokenはDBにSHA-256だけを保存するランダム値であり、
+追加の共有secretは不要です。
 
-## 以降のデプロイ (コード変更時)
+非機密設定:
 
-### backend / worker の変更
+- `ENVIRONMENT=production`
+- `FRONTEND_URL=https://<public-host>`
+- `CORS_ALLOW_ORIGIN=https://<public-host>`
+- `OAUTH_ISSUER_URL=https://<public-host>`
+- embedding / LLM model
+- Hyperdrive、R2、KV、Durable Object binding
 
-`apps/worker/**` の変更は `main` マージ後に GitHub Actions (CD workflow) が自動デプロイする。Web API は `apps/api` で `wrangler deploy`。
-
-### infra の変更
-
-`infra/**` の変更は GitHub Actions (Terraform workflow) が処理する。
-
-1. PR を作成すると `terraform plan` 結果が PR に自動コメントされる (terraform-plan)
-2. `main` マージ後、GitHub Environment `production` の承認者に通知が届く
-3. 承認すると `terraform apply -auto-approve` が自動実行される (terraform-apply)
-
-### 手動デプロイが必要な場合
+## 3. API deploy
 
 ```bash
-# Worker（Django 非依存）
-# 1. イメージをリビルド & プッシュ
-docker build --platform linux/amd64 --provenance=false \
-  -f apps/worker/Dockerfile -t $WORKER_ECR:latest ./apps/worker && docker push $WORKER_ECR:latest
+cd apps/api
+npm ci
+npm run typecheck
+npm test
+npm run deploy
+```
 
-# 2. Worker Lambda を更新
-aws lambda update-function-code --function-name videoq-worker-prod --image-uri $WORKER_ECR:latest --region $REGION
+確認:
 
-# 3. DB スキーマ変更がある場合（Hono / Drizzle 正本）
-cd apps/api && DATABASE_URL="<Neon pooler URL>" npm run db:migrate
+```bash
+curl https://<api-host>/health
+curl https://<api-host>/ready
+curl https://<api-host>/api/openapi.json
+```
 
-# Web API は `wrangler deploy`（apps/api）。Django API Lambda は廃止。
+## 4. Worker infrastructure
 
-# infra
+Terraform は SQS、worker Lambda、ECR、IAM など AWS 側の非同期基盤を管理します。
+
+```bash
 cd infra
-TF_VAR_pages_domain=videoq.pages.dev TF_VAR_custom_domain=videoq.jp TF_VAR_certificate_arn=... \
-  terraform apply -auto-approve
-
-# フロントエンドは Cloudflare Pages が Git push で自動デプロイ
+cp backend.hcl.example backend.hcl
+cp terraform.tfvars.example terraform.tfvars
+terraform init -backend-config=backend.hcl
+terraform plan
+terraform apply
 ```
 
----
-
-## トラブルシューティング
-
-### Lambda が起動しない
+worker image:
 
 ```bash
-# CloudWatch Logs を確認
-aws logs tail /aws/lambda/videoq-api-prod --follow --region $REGION
+REGION=ap-northeast-1
+WORKER_ECR=<account>.dkr.ecr.$REGION.amazonaws.com/videoq-worker-prod
+
+aws ecr get-login-password --region "$REGION" |
+  docker login --username AWS --password-stdin "${WORKER_ECR%%/*}"
+
+docker build --platform linux/amd64 --provenance=false \
+  -f apps/worker/Dockerfile -t "$WORKER_ECR:latest" ./apps/worker
+docker push "$WORKER_ECR:latest"
+
+aws lambda update-function-code \
+  --function-name videoq-worker-prod \
+  --image-uri "$WORKER_ECR:latest" \
+  --region "$REGION"
 ```
 
-よくある原因:
-- `DB_SECRET_ARN` / `APP_SECRET_ARN` の値が未設定 → Step 4 を再実行
-- `SECRET_KEY` が未設定で production 起動に失敗 → App シークレットを確認
+Lambda には少なくとも DB、SQS、R2、AI、`USER_SECRET_ENCRYPTION_KEY` を設定します。
 
-### DB 接続エラー
+## 5. Frontend
 
-- Pooler URL を使っているか確認 (`ep-xxx-pooler` の形式)
-- `?sslmode=require` がついているか確認
-- Neon ダッシュボードでプロジェクトがアクティブか確認
+Cloudflare Pages:
 
-### R2 アップロード失敗
+| 項目 | 値 |
+|---|---|
+| root directory | `frontend` |
+| build command | `npm run build` |
+| output | `dist` |
+| `VITE_API_URL` | 公開 API origin または `/api` |
+| `VITE_USE_S3_STORAGE` | `true` |
 
-- `AWS_S3_REGION_NAME=auto` になっているか確認 (AWS リージョン名を入れると失敗する)
-- R2 API トークンに書き込み権限があるか確認
+同一 host で配信する場合、`/api/*` と `/.well-known/*` を Worker route に割り当てます。
 
-### CORS エラー (フロントエンドからの API 呼び出し失敗)
+## 6. 既存環境の破壊的cutover
+
+この手順はdomain dataを新tableへコピーしますが、既存password、browser session、
+OAuth client/grant/token、配信済みメールリンク、保存済みSearchAPI keyを意図的に失効します。
+実行前にDB backupを取得し、利用者へpassword resetと資格情報の再登録が必要なことを告知してください。
 
 ```bash
-# カスタムドメインを CORS 許可リストに追加して再デプロイ
-TF_VAR_pages_domain=videoq.pages.dev \
-TF_VAR_custom_domain=videoq.jp \
-TF_VAR_certificate_arn=arn:aws:acm:us-east-1:<account>:certificate/<uuid> \
-  terraform apply -auto-approve
+cd apps/api
+export DATABASE_URL="<Neon direct connection URL>"
+
+# maintenance window前に件数だけ確認
+npm run db:maintain -- dry-run
+
+# API write停止、SQS drain、DB backup後に実行
+npm run db:maintain -- prepare
+npm run db:maintain -- cutover
+npm run db:maintain -- verify
 ```
 
-### CloudFront 403 エラー
+`cutover`はdomain tableをID維持で再コピーし、credential失効とorphan/count検証を同一処理で行います。
+成功後にAPI・frontend・workerを同時deployし、trafficを再開します。失敗時はwriteを再開せず、
+取得済みbackupから復元してください。旧tableは即時削除しません。
 
-- ACM 証明書が **us-east-1** で作成されているか確認
-- ACM 証明書のステータスが「発行済み」になっているか確認 (DNS 検証が完了していない可能性)
-- `CUSTOM_DOMAIN` の DNS レコードが CloudFront の `DistributionDomainName` を指しているか確認
-
-### CloudFront でキャッシュが効かない / 古いコンテンツが表示される
+7〜14日のsoak後:
 
 ```bash
-# CloudFront キャッシュを無効化
-aws cloudfront create-invalidation \
-  --distribution-id <DistributionId> \
-  --paths "/*"
+npm run db:maintain -- rename --dry-run
+npm run db:maintain -- rename --confirm
+
+# backup保持期間の終了後のみ
+npm run db:maintain -- drop --dry-run
+npm run db:maintain -- drop --confirm
 ```
 
-### モバイルブラウザで 403 エラー (サードパーティ Cookie ブロック)
+## 7. リリース確認
 
-CloudFront を使って同一ドメイン配信にすることで解消される。Step 8 を実施すること。
+- `/health` と `/ready`
+- signup / login / refresh / logout
+- password reset後に既存利用者がloginでき、旧passwordではloginできないこと
+- refresh token rotationと使用済みtoken再利用時のsession family失効
+- OAuth client再登録、SearchAPI key再入力
+- R2 署名 upload と動画確定
+- SQS enqueue と worker completion
+- chat / SSE
+- `/api/openapi.json`
+- OAuth discovery / DCR / PKCE
+- MCP initialize / tools list
+
+Cloudflare Workers logs と Lambda CloudWatch logs の両方を確認してください。

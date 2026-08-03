@@ -1,6 +1,6 @@
 import { and, asc, count, eq, ilike, or, sql } from "drizzle-orm";
 import { withDb } from "../db/pool";
-import { appUser } from "../db/schema";
+import { users } from "../db/schema";
 import type { Bindings } from "../types/bindings";
 
 export type OpsUser = {
@@ -21,26 +21,26 @@ export type OpsUser = {
   is_over_quota: boolean;
 };
 
-const usagePeriodStartText = sql<string | null>`${appUser.usagePeriodStart}::text`.as(
+const usagePeriodStartText = sql<string | null>`${users.usagePeriodStart}::text`.as(
   "usage_period_start",
 );
 
 const opsUserSelect = {
-  id: appUser.id,
-  username: appUser.username,
-  email: appUser.email,
-  is_active: appUser.isActive,
-  is_staff: appUser.isStaff,
-  is_superuser: appUser.isSuperuser,
-  max_video_upload_size_mb: appUser.maxVideoUploadSizeMb,
-  storage_limit_gb: appUser.storageLimitGb,
-  processing_limit_minutes: appUser.processingLimitMinutes,
-  ai_answers_limit: appUser.aiAnswersLimit,
-  used_storage_bytes: appUser.usedStorageBytes,
-  used_processing_seconds: appUser.usedProcessingSeconds,
-  used_ai_answers: appUser.usedAiAnswers,
+  id: users.id,
+  username: users.username,
+  email: users.email,
+  is_active: users.isActive,
+  is_staff: users.isStaff,
+  is_superuser: users.isSuperuser,
+  max_video_upload_size_mb: users.maxVideoUploadSizeMb,
+  storage_limit_gb: users.storageLimitGb,
+  processing_limit_minutes: users.processingLimitMinutes,
+  ai_answers_limit: users.aiAnswersLimit,
+  used_storage_bytes: users.usedStorageBytes,
+  used_processing_seconds: users.usedProcessingSeconds,
+  used_ai_answers: users.usedAiAnswers,
   usage_period_start: usagePeriodStartText,
-  is_over_quota: appUser.isOverQuota,
+  is_over_quota: users.isOverQuota,
 };
 
 function mapUser(r: {
@@ -83,9 +83,9 @@ function mapUser(r: {
 export async function isSuperuser(env: Bindings, userId: number): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db
-      .select({ isSuperuser: appUser.isSuperuser })
-      .from(appUser)
-      .where(eq(appUser.id, userId))
+      .select({ isSuperuser: users.isSuperuser })
+      .from(users)
+      .where(eq(users.id, userId))
       .limit(1);
     return rows.length > 0 && Boolean(rows[0].isSuperuser);
   });
@@ -99,19 +99,19 @@ export async function listOpsUsers(
 ): Promise<{ count: number; results: OpsUser[] }> {
   return withDb(env, async (db) => {
     const whereClause = q
-      ? or(ilike(appUser.username, `%${q}%`), ilike(appUser.email, `%${q}%`))
+      ? or(ilike(users.username, `%${q}%`), ilike(users.email, `%${q}%`))
       : undefined;
 
     const [countRow] = await db
       .select({ c: count() })
-      .from(appUser)
+      .from(users)
       .where(whereClause);
 
     const rows = await db
       .select(opsUserSelect)
-      .from(appUser)
+      .from(users)
       .where(whereClause)
-      .orderBy(asc(appUser.id))
+      .orderBy(asc(users.id))
       .limit(limit)
       .offset(offset);
 
@@ -129,8 +129,8 @@ export async function getOpsUser(
   return withDb(env, async (db) => {
     const rows = await db
       .select(opsUserSelect)
-      .from(appUser)
-      .where(eq(appUser.id, userId))
+      .from(users)
+      .where(eq(users.id, userId))
       .limit(1);
     return rows[0] ? mapUser(rows[0]) : null;
   });
@@ -174,9 +174,9 @@ export async function patchOpsUserQuota(
 
   return withDb(env, async (db) => {
     const rows = await db
-      .update(appUser)
+      .update(users)
       .set(set)
-      .where(eq(appUser.id, userId))
+      .where(eq(users.id, userId))
       .returning(opsUserSelect);
     return rows[0] ? mapUser(rows[0]) : null;
   });
@@ -205,9 +205,9 @@ export async function patchOpsUserUsage(
 
   return withDb(env, async (db) => {
     const rows = await db
-      .update(appUser)
+      .update(users)
       .set(set)
-      .where(eq(appUser.id, userId))
+      .where(eq(users.id, userId))
       .returning(opsUserSelect);
     return rows[0] ? mapUser(rows[0]) : null;
   });

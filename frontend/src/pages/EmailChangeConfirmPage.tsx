@@ -16,13 +16,12 @@ type EmailChangeState = 'loading' | 'success' | 'error';
 
 function EmailChangeConfirmContent() {
   const [searchParams] = useSearchParams();
-  const uid = searchParams.get('uid');
   const token = searchParams.get('token');
   const { t } = useTranslation();
-  const isInvalidLink = !uid || !token;
+  const isInvalidLink = !token;
 
   const confirmQuery = useQuery({
-    queryKey: ['emailChangeConfirm', uid ?? null, token ?? null],
+    queryKey: ['emailChangeConfirm', token ?? null],
     enabled: !isInvalidLink,
     retry: false,
     staleTime: Infinity,
@@ -30,7 +29,7 @@ function EmailChangeConfirmContent() {
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
     queryFn: async () => {
-      await apiClient.confirmEmailChange({ uid: uid!, token: token! });
+      await apiClient.confirmEmailChange({ token: token! });
       return {};
     },
   });

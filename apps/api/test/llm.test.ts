@@ -103,7 +103,7 @@ describe("LLM 呼び出し（ChatOpenAI 相当）", () => {
     await expect(generateReply(ENV, "S", "Q")).rejects.toThrow(LlmProviderError);
   });
 
-  it("API キー未設定は Django と同じ文言の設定エラー", async () => {
+  it("APIキー未設定は設定エラー", async () => {
     const noKey = {} as unknown as Bindings;
     await expect(generateReply(noKey, "S", "Q")).rejects.toThrow(
       "OpenAI API key is required when using OpenAI LLM. " +

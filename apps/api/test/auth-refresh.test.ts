@@ -1,30 +1,57 @@
-import { describe, it, expect } from "vitest";
-import { SignJWT } from "jose";
-import { authRoutes } from "../src/routes/auth";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { jwtVerify } from "jose";
+import { authRoutes } from "../src/features/auth/routes";
+import { matchableSql, normalizePgQuery, type MatchableSql, type QueryCall } from "./helpers/pg-fake";
 
 const SECRET = "test-jwt-secret-xyz";
 const ENV = {
   ENVIRONMENT: "development",
-  JWT_SECRET: SECRET,
+  AUTH_JWT_SECRET: SECRET,
+  CORS_ALLOW_ORIGIN: "http://localhost:3000",
+  HYPERDRIVE: { connectionString: "postgres://fake/db" },
 } as unknown as Record<string, unknown>;
 
-async function sign(tokenType: "access" | "refresh", userId: number, expDelta = 3600) {
-  const now = Math.floor(Date.now() / 1000);
-  return new SignJWT({ token_type: tokenType, user_id: userId, jti: "abc" })
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-    .setIssuedAt(now)
-    .setExpirationTime(now + expDelta)
-    .sign(new TextEncoder().encode(SECRET));
-}
+const calls: QueryCall[] = [];
+let rowsFor: (sql: MatchableSql) => Record<string, unknown>[];
+
+vi.mock("pg", () => {
+  class FakeClient {
+    async connect() {}
+    async end() {}
+    async query(sqlOrConfig: unknown, args: unknown[] = []) {
+      const query = normalizePgQuery(sqlOrConfig as never, args);
+      const sql = matchableSql(query.sql);
+      calls.push({ sql, args: query.args });
+      return { rows: rowsFor(sql), rowCount: rowsFor(sql).length };
+    }
+  }
+  return { default: { Client: FakeClient } };
+});
 
 function postTokens(cookie?: string) {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {
+    Origin: "http://localhost:3000",
+  };
   if (cookie) headers["cookie"] = cookie;
-  return authRoutes.request("/tokens", { method: "POST", headers }, ENV);
+  return authRoutes.request("/api/auth/tokens", { method: "POST", headers }, ENV);
 }
 
+beforeEach(() => {
+  calls.length = 0;
+  rowsFor = () => [];
+});
+
 describe("POST /tokens refresh", () => {
-  it("refresh_token cookie 欠落 → 401 AUTHENTICATION_FAILED", async () => {
+  it("Origin欠落は403", async () => {
+    const res = await authRoutes.request(
+      "/api/auth/tokens",
+      { method: "POST" },
+      ENV,
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it("vq_refresh cookie 欠落 → 401 AUTHENTICATION_FAILED", async () => {
     const res = await postTokens();
     expect(res.status).toBe(401);
     const j = await res.json();
@@ -32,31 +59,77 @@ describe("POST /tokens refresh", () => {
     expect(j.error.message).toBe("Invalid refresh token");
   });
 
-  it("access トークンを refresh_token に入れても 401（token_type 不一致）", async () => {
-    const access = await sign("access", 5);
-    const res = await postTokens(`refresh_token=${access}`);
+  it("旧 refresh_token cookie は廃止", async () => {
+    const res = await postTokens("refresh_token=legacy-token");
     expect(res.status).toBe(401);
   });
 
-  it("壊れたトークン → 401", async () => {
-    const res = await postTokens("refresh_token=not.a.jwt");
+  it("未知の opaque refresh token → 401", async () => {
+    const res = await postTokens("vq_refresh=unknown-opaque-token");
     expect(res.status).toBe(401);
+    expect(calls.some((call) => call.sql.includes("FROM auth_sessions"))).toBe(true);
   });
 
-  it("期限切れ refresh → 401", async () => {
-    const expired = await sign("refresh", 5, -10);
-    const res = await postTokens(`refresh_token=${expired}`);
-    expect(res.status).toBe(401);
-  });
-
-  it("有効な refresh → 200 {} + 新しい access/refresh cookie を設定", async () => {
-    const refresh = await sign("refresh", 5);
-    const res = await postTokens(`refresh_token=${refresh}`);
+  it("有効な opaque refresh → Bearer access token + refresh rotation", async () => {
+    rowsFor = (sql) =>
+      sql.includes("FROM auth_sessions")
+        ? [{
+            id: "old-session",
+            user_id: 5,
+            family_id: "family-1",
+            revoked_at: null,
+            expires_at: new Date(Date.now() + 60_000),
+            is_active: true,
+          }]
+        : [];
+    const res = await postTokens("vq_refresh=valid-opaque-token");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({});
+    const body = await res.json();
+    expect(body).toMatchObject({
+      token_type: "Bearer",
+      expires_in: 600,
+    });
+    expect(typeof body.access_token).toBe("string");
+    const { payload, protectedHeader } = await jwtVerify(
+      body.access_token,
+      new TextEncoder().encode(SECRET),
+      { algorithms: ["HS256"], issuer: "videoq", audience: "videoq-api" },
+    );
+    expect(protectedHeader.alg).toBe("HS256");
+    expect(payload.sub).toBe("5");
+    expect(payload.sid).toEqual(expect.any(String));
+    expect(payload.iat).toEqual(expect.any(Number));
+    expect(payload.exp).toBe(payload.iat! + 600);
     const setCookie = res.headers.get("set-cookie") ?? "";
-    expect(setCookie).toContain("access_token=");
-    expect(setCookie).toContain("refresh_token=");
+    expect(setCookie).toContain("vq_refresh=");
     expect(setCookie).toContain("HttpOnly");
+    expect(setCookie).not.toContain("access_token=");
+    expect(calls.some((call) => call.sql.includes("INSERT INTO auth_sessions"))).toBe(true);
+    expect(calls.some((call) => call.sql.includes("replaced_by"))).toBe(true);
+  });
+
+  it("使用済みrefresh tokenの再利用はsession family全体を失効する", async () => {
+    rowsFor = (sql) =>
+      sql.includes("FROM auth_sessions")
+        ? [
+            {
+              id: "used-session",
+              user_id: 5,
+              family_id: "family-1",
+              revoked_at: new Date(),
+              expires_at: new Date(Date.now() + 60_000),
+              is_active: true,
+            },
+          ]
+        : [];
+    const res = await postTokens("vq_refresh=reused-opaque-token");
+    expect(res.status).toBe(401);
+    expect(
+      calls.some(
+        (call) =>
+          call.sql.includes("UPDATE auth_sessions") &&
+          call.sql.includes("family_id"),
+      ),
+    ).toBe(true);
   });
 });

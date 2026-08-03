@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { withDb } from "../db/pool";
-import { appUser } from "../db/schema";
+import { users } from "../db/schema";
 import type { Bindings } from "../types/bindings";
 
 /**
@@ -10,7 +10,7 @@ import type { Bindings } from "../types/bindings";
  */
 
 /**
- * AI 回答の上限チェック（CheckAiAnswersLimitUseCase 相当）。LLM 呼び出し**前**に行う。
+ * AI 回答の上限チェック。LLM 呼び出し**前**に行う。
  *   - is_over_quota → overQuota（403 OVER_QUOTA）
  *   - ai_answers_limit が NULL → 無制限
  *   - used_ai_answers >= limit → exceeded（400 AI_ANSWERS_LIMIT_EXCEEDED）
@@ -22,12 +22,12 @@ export async function checkAiAnswersLimit(
   return withDb(env, async (db) => {
     const rows = await db
       .select({
-        isOverQuota: appUser.isOverQuota,
-        aiAnswersLimit: appUser.aiAnswersLimit,
-        usedAiAnswers: appUser.usedAiAnswers,
+        isOverQuota: users.isOverQuota,
+        aiAnswersLimit: users.aiAnswersLimit,
+        usedAiAnswers: users.usedAiAnswers,
       })
-      .from(appUser)
-      .where(eq(appUser.id, userId))
+      .from(users)
+      .where(eq(users.id, userId))
       .limit(1);
     const row = rows[0];
     if (row.isOverQuota) return { overQuota: true } as const;
@@ -40,7 +40,7 @@ export async function checkAiAnswersLimit(
 }
 
 /**
- * AI 回答の利用量記録（RecordAiAnswerUsageUseCase 相当）。回答**成功後**に行う best-effort。
+ * AI 回答の利用量を回答**成功後**に best-effort で記録する。
  * maybe_reset_monthly_usage → increment_ai_answers の順で、月替わり（UTC の年/月比較）なら
  * used_processing_seconds / used_ai_answers を 0 にして usage_period_start を now に更新する。
  * 初回（usage_period_start IS NULL）も同じくリセット扱い。
@@ -48,7 +48,7 @@ export async function checkAiAnswersLimit(
 export async function recordAiAnswerUsage(env: Bindings, userId: number): Promise<void> {
   return withDb(env, async (db) => {
     await db
-      .update(appUser)
+      .update(users)
       .set({
         usedProcessingSeconds: 0,
         usedAiAnswers: 0,
@@ -56,21 +56,21 @@ export async function recordAiAnswerUsage(env: Bindings, userId: number): Promis
       })
       .where(
         and(
-          eq(appUser.id, userId),
+          eq(users.id, userId),
           sql`(
-            ${appUser.usagePeriodStart} IS NULL
-            OR date_trunc('month', ${appUser.usagePeriodStart} AT TIME ZONE 'UTC')
+            ${users.usagePeriodStart} IS NULL
+            OR date_trunc('month', ${users.usagePeriodStart} AT TIME ZONE 'UTC')
                <> date_trunc('month', now() AT TIME ZONE 'UTC')
           )`,
         ),
       );
 
     await db
-      .update(appUser)
+      .update(users)
       .set({
-        usedAiAnswers: sql`${appUser.usedAiAnswers} + 1`,
+        usedAiAnswers: sql`${users.usedAiAnswers} + 1`,
       })
-      .where(eq(appUser.id, userId));
+      .where(eq(users.id, userId));
   });
 }
 
@@ -81,16 +81,16 @@ export async function getMaxUploadSizeMb(
 ): Promise<number> {
   return withDb(env, async (db) => {
     const rows = await db
-      .select({ maxVideoUploadSizeMb: appUser.maxVideoUploadSizeMb })
-      .from(appUser)
-      .where(eq(appUser.id, userId))
+      .select({ maxVideoUploadSizeMb: users.maxVideoUploadSizeMb })
+      .from(users)
+      .where(eq(users.id, userId))
       .limit(1);
     return Number(rows[0].maxVideoUploadSizeMb);
   });
 }
 
 /**
- * ストレージの確認＋予約（check_and_reserve_storage 相当）。
+ * ストレージ容量を確認して予約する。
  * over_quota → overQuota。無制限 → 無条件加算。制限あり → 条件付き原子 UPDATE
  * （used <= limit - additional なら加算）。加算不可なら exceeded(limit)。
  * limit = int(storage_limit_gb * 1024^3)。
@@ -103,11 +103,11 @@ export async function checkAndReserveStorage(
   return withDb(env, async (db) => {
     const rows = await db
       .select({
-        storageLimitGb: appUser.storageLimitGb,
-        isOverQuota: appUser.isOverQuota,
+        storageLimitGb: users.storageLimitGb,
+        isOverQuota: users.isOverQuota,
       })
-      .from(appUser)
-      .where(eq(appUser.id, userId))
+      .from(users)
+      .where(eq(users.id, userId))
       .limit(1);
     const row = rows[0];
     if (row.isOverQuota) return { overQuota: true } as const;
@@ -115,27 +115,27 @@ export async function checkAndReserveStorage(
     const gb = row.storageLimitGb;
     if (gb === null || gb === undefined) {
       await db
-        .update(appUser)
+        .update(users)
         .set({
-          usedStorageBytes: sql`${appUser.usedStorageBytes} + ${additionalBytes}`,
+          usedStorageBytes: sql`${users.usedStorageBytes} + ${additionalBytes}`,
         })
-        .where(eq(appUser.id, userId));
+        .where(eq(users.id, userId));
       return { ok: true } as const;
     }
 
     const limit = Math.floor(Number(gb) * 1073741824);
     const updated = await db
-      .update(appUser)
+      .update(users)
       .set({
-        usedStorageBytes: sql`${appUser.usedStorageBytes} + ${additionalBytes}`,
+        usedStorageBytes: sql`${users.usedStorageBytes} + ${additionalBytes}`,
       })
       .where(
         and(
-          eq(appUser.id, userId),
-          sql`${appUser.usedStorageBytes} <= ${limit - additionalBytes}`,
+          eq(users.id, userId),
+          sql`${users.usedStorageBytes} <= ${limit - additionalBytes}`,
         ),
       )
-      .returning({ id: appUser.id });
+      .returning({ id: users.id });
     if (updated.length === 0) return { exceeded: true, limit } as const;
     return { ok: true } as const;
   });
@@ -149,18 +149,18 @@ export async function incrementStorageBytes(
 ): Promise<void> {
   return withDb(env, async (db) => {
     await db
-      .update(appUser)
+      .update(users)
       .set({
-        usedStorageBytes: sql`GREATEST(0, ${appUser.usedStorageBytes} + ${bytesDelta})`,
+        usedStorageBytes: sql`GREATEST(0, ${users.usedStorageBytes} + ${bytesDelta})`,
       })
-      .where(eq(appUser.id, userId));
+      .where(eq(users.id, userId));
   });
 }
 
 /**
  * is_over_quota を条件付きで解除。
  * over_quota かつ（無制限 or used <= storage_limit_gb*1024^3）なら false にする。
- * get_storage_limit_bytes は int() 切り捨てのため floor で一致させる。
+ * ストレージ上限 byte は floor で整数へ切り捨てる。
  */
 export async function clearOverQuotaIfWithinLimit(
   env: Bindings,
@@ -168,15 +168,15 @@ export async function clearOverQuotaIfWithinLimit(
 ): Promise<void> {
   return withDb(env, async (db) => {
     await db
-      .update(appUser)
+      .update(users)
       .set({ isOverQuota: false })
       .where(
         and(
-          eq(appUser.id, userId),
-          eq(appUser.isOverQuota, true),
+          eq(users.id, userId),
+          eq(users.isOverQuota, true),
           sql`(
-            ${appUser.storageLimitGb} IS NULL
-            OR ${appUser.usedStorageBytes} <= floor(${appUser.storageLimitGb} * 1073741824)
+            ${users.storageLimitGb} IS NULL
+            OR ${users.usedStorageBytes} <= floor(${users.storageLimitGb} * 1073741824)
           )`,
         ),
       );

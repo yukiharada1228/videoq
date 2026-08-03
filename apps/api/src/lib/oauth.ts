@@ -1,13 +1,12 @@
 /**
- * OAuth 2.1 Authorization Server helpers（django-oauth-toolkit 互換）。
- * テーブル・トークン形式・メタデータは DOT / VideoQ settings.OAUTH2_PROVIDER に合わせる。
+ * VideoQ OAuth 2.1 Authorization Server の共通ヘルパー。
  */
-import { sha256Hex } from "../utils/crypto";
+import { sha256Hex } from "../shared/crypto";
 import type { Bindings } from "../types/bindings";
 
 export const OAUTH_SCOPES: Record<string, string> = {
   read: "Read-only access to VideoQ via the MCP endpoint",
-  // DOT IntrospectTokenView.required_scopes。発行は通常しないが Bearer 経路用に定義。
+  // Token Introspection の Bearer 認可に使う管理スコープ。
   introspection: "Introspect OAuth tokens",
   // OIDC（OIDC_ENABLED=true 時に authorize/token/userinfo で使用）
   openid: "OpenID Connect",
@@ -15,7 +14,7 @@ export const OAUTH_SCOPES: Record<string, string> = {
   email: "Email claims",
 };
 export const DEFAULT_SCOPES = ["read"] as const;
-export const DCR_REGISTRATION_SCOPE = "oauth2_provider:registration";
+export const DCR_REGISTRATION_SCOPE = "dcr:registration";
 
 export const ACCESS_TOKEN_EXPIRE_SECONDS = 60 * 60;
 export const REFRESH_TOKEN_EXPIRE_SECONDS = 60 * 60 * 24 * 30;
@@ -24,7 +23,7 @@ export const DEVICE_CODE_EXPIRE_SECONDS = 1800;
 export const DEVICE_FLOW_INTERVAL = 5;
 export const DEVICE_GRANT_TYPE =
   "urn:ietf:params:oauth:grant-type:device_code";
-/** DCR registration access token: DOT 既定は far-future（year 9999）。 */
+/** DCR registration access token の固定上限日時。 */
 export const DCR_REGISTRATION_TOKEN_EXPIRES = new Date("9999-12-31T23:59:59.000Z");
 
 export const ALLOWED_REDIRECT_SCHEMES = new Set(["https", "http"]);
@@ -37,7 +36,7 @@ export const SUPPORTED_TOKEN_AUTH_METHODS = [
 const TOKEN_CHARS =
   "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
-/** oauthlib.common.generate_token / ClientIdGenerator 相当（バイアス回避）。 */
+/** rejection sampling で偏りを避けた暗号学的ランダム文字列を生成する。 */
 export function generateOpaqueToken(length: number): string {
   const n = TOKEN_CHARS.length;
   const limit = Math.floor(256 / n) * n;
@@ -99,7 +98,7 @@ export async function verifyPkce(
 }
 
 export function issuerFromEnv(env: Bindings, reqUrl: string): string {
-  return (env.OAUTH2_PROVIDER_ISSUER_URL || new URL(reqUrl).origin).replace(
+  return (env.OAUTH_ISSUER_URL || new URL(reqUrl).origin).replace(
     /\/$/,
     "",
   );
@@ -109,7 +108,7 @@ export function protectedResourceIdentifier(issuer: string): string {
   return `${issuer}/api/mcp/`;
 }
 
-/** RFC 8628: Base32hex (0-9A-V) user_code。DOT 既定長 8。 */
+/** RFC 8628: Base32hex (0-9A-V) user_code。 */
 export function generateDeviceUserCode(length = 8): string {
   const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUV";
   const bytes = new Uint8Array(length);
@@ -122,14 +121,13 @@ export function generateDeviceUserCode(length = 8): string {
 export function buildAuthorizationServerMetadata(issuer: string): Record<string, unknown> {
   return {
     issuer,
-    authorization_endpoint: `${issuer}/api/oauth/authorize/`,
-    token_endpoint: `${issuer}/api/oauth/token/`,
-    registration_endpoint: `${issuer}/api/oauth/register/`,
-    revocation_endpoint: `${issuer}/api/oauth/revoke_token/`,
-    introspection_endpoint: `${issuer}/api/oauth/introspect/`,
-    device_authorization_endpoint: `${issuer}/api/oauth/device-authorization/`,
+    authorization_endpoint: `${issuer}/api/oauth/authorize`,
+    token_endpoint: `${issuer}/api/oauth/token`,
+    registration_endpoint: `${issuer}/api/oauth/register`,
+    revocation_endpoint: `${issuer}/api/oauth/revoke_token`,
+    introspection_endpoint: `${issuer}/api/oauth/introspect`,
+    device_authorization_endpoint: `${issuer}/api/oauth/device-authorization`,
     response_types_supported: ["code"],
-    // Django VideoQ settings は device を出さないが、移植後はエンドポイント公開に合わせて掲載。
     grant_types_supported: [
       "authorization_code",
       "refresh_token",
@@ -197,12 +195,12 @@ export type ConsentPageParams = {
   redirectUriHost: string | null;
   scopesDescriptions: string[];
   isDcrClient: boolean;
-  csrfToken: string;
+  actionToken: string;
   hidden: Record<string, string>;
   error?: { error: string; description: string };
 };
 
-/** Django `oauth2_provider/authorize.html` に近い同意画面 HTML。 */
+/** VideoQ の OAuth 同意画面 HTML。 */
 export function renderAuthorizeHtml(p: ConsentPageParams): string {
   const year = new Date().getUTCFullYear();
   const app = escapeHtml(p.applicationName);
@@ -289,7 +287,7 @@ export function renderAuthorizeHtml(p: ConsentPageParams): string {
         <ul class="scopes">${scopes}</ul>
         ${warning}
         <form id="authorizationForm" method="post">
-          <input type="hidden" name="csrfmiddlewaretoken" value="${escapeHtml(p.csrfToken)}" />
+          <input type="hidden" name="action_token" value="${escapeHtml(p.actionToken)}" />
           ${hidden}
           <div class="actions">
             <button class="cancel" type="submit" name="allow" value="">Cancel</button>

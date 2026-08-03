@@ -1,4 +1,4 @@
-"""Multi-dimensional Otsu scene splitter (ported from Django scene_otsu)."""
+"""VideoQ multi-dimensional Otsu scene splitter."""
 
 from __future__ import annotations
 

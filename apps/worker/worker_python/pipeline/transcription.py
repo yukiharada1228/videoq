@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 def run_transcription(video: VideoRow, *, searchapi_key: str | None = None) -> str:
     """
-    Produce SRT for a video, then apply Otsu scene splitting (Django parity).
+    Produce SRT for a video, then apply VideoQ's Otsu scene splitting.
 
     When ENABLE_HEAVY_PIPELINE is off, returns a placeholder SRT so status
     transitions can be tested without FFmpeg/Whisper (no Otsu).

@@ -58,10 +58,14 @@ function normalizePagination(arguments_: Json): { limit: number; offset: number 
 }
 
 function envelope(items: unknown[], count: number, itemsKey: string): Json {
-  return { count, next: null, previous: null, [itemsKey]: items };
+  return {
+    meta: { total: count, limit: items.length, offset: 0 },
+    [itemsKey]: items,
+    data: items,
+  };
 }
 
-/** Django MCPToolRegistry と同一のツール定義・ハンドラ。 */
+/** VideoQ MCP エンドポイントのツール定義とハンドラ。 */
 export const MCP_TOOLS: McpToolDef[] = [
   {
     name: "list_videos",

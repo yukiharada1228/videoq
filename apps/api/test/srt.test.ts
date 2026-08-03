@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { validateTranscriptSrt, INVALID_SRT_MESSAGE } from "../src/lib/srt";
 
-// 期待値は実 DRF validate_transcript と一致（/tmp/srt_probe.py 済）。
+// 字幕検証の公開契約を固定。
 const GOOD = "1\n00:00:01,000 --> 00:00:04,000\nHello world";
 const TWO = GOOD + "\n\n2\n00:00:05,000 --> 00:00:08,000\nSecond block";
 

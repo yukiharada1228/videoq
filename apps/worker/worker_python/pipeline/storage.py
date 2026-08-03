@@ -15,7 +15,7 @@ def _use_object_storage() -> bool:
 
 
 def object_storage_key(file_key: str) -> str:
-    """DB `file` 値 → S3 キー（django-storages location=\"media\" / Hono と同じ）。"""
+    """modern schema の `videos.file` 値を `media/` 配下の S3 キーへ変換する。"""
     normalized = file_key.replace("\\", "/").lstrip("/")
     if normalized.startswith("media/"):
         return normalized

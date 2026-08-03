@@ -1,1 +1,0 @@
-# Models tests package

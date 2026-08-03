@@ -6,10 +6,10 @@ import type { Bindings } from "../types/bindings";
  * - USE_S3_STORAGE=true: S3 互換（本番 R2 / ローカル MinIO）の presigned GET/PUT + Head/Delete
  * - USE_S3_STORAGE=false: VIDEO_BUCKET + `/api/media/`（multipart）
  *
- * オブジェクトキー = `media/<file_key>`（django-storages location="media" と一致）。
+ * オブジェクトキーは `media/<file_key>`。
  */
 
-/** Django `USE_S3_STORAGE` 相当（`"true"` のときのみ S3 署名）。 */
+/** `"true"` のときのみ S3 API で署名する。 */
 export function isS3Storage(env: Bindings): boolean {
   return (env.USE_S3_STORAGE ?? "").toLowerCase() === "true";
 }
@@ -94,7 +94,7 @@ async function presignR2Get(env: Bindings, fileKey: string): Promise<string> {
 }
 
 /**
- * Django `_resolve_file_url` と同じ分岐。
+ * 設定に応じて署名 URL または API 配信 URL を返す。
  * 空→null / http(s)→そのまま /
  * USE_S3 → S3 presigned / それ以外 → `/api/media/{key}`（相対。FE が絶対化）。
  */
@@ -112,7 +112,7 @@ export async function resolveFileUrl(
   return presignR2Get(env, fileKey);
 }
 
-/** R2 / MinIO のオブジェクトキー（django-storages location="media" と一致）。 */
+/** R2 / MinIO の `media/` 配下に置くオブジェクトキー。 */
 function r2ObjectKey(fileKey: string): string {
   const normalized = fileKey.replace(/\\/g, "/").replace(/^\/+/, "");
   return `media/${normalized}`;

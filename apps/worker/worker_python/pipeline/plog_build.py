@@ -32,27 +32,27 @@ def run_plog_pipeline(conn: psycopg.Connection[Any], video_id: int, transcript: 
     # Clear previous artifacts for this video (order matters for FKs).
     conn.execute(
         """
-        DELETE FROM app_learnerconceptstate
-         WHERE concept_id IN (SELECT id FROM app_plogconcept WHERE video_id = %s)
+        DELETE FROM learner_concept_states
+         WHERE concept_id IN (SELECT id FROM plog_concepts WHERE video_id = %s)
         """,
         (video_id,),
     )
     conn.execute(
         """
-        DELETE FROM app_ploglearningobject
-         WHERE concept_id IN (SELECT id FROM app_plogconcept WHERE video_id = %s)
+        DELETE FROM plog_learning_objects
+         WHERE concept_id IN (SELECT id FROM plog_concepts WHERE video_id = %s)
         """,
         (video_id,),
     )
-    conn.execute("DELETE FROM app_plogedge WHERE video_id = %s", (video_id,))
-    conn.execute("DELETE FROM app_plogconcept WHERE video_id = %s", (video_id,))
-    conn.execute("DELETE FROM app_plogsummarynode WHERE video_id = %s", (video_id,))
+    conn.execute("DELETE FROM plog_edges WHERE video_id = %s", (video_id,))
+    conn.execute("DELETE FROM plog_concepts WHERE video_id = %s", (video_id,))
+    conn.execute("DELETE FROM plog_summary_nodes WHERE video_id = %s", (video_id,))
 
     concept_ids: list[int] = []
     for concept, emb in zip(concepts, embeddings, strict=True):
         row = conn.execute(
             """
-            INSERT INTO app_plogconcept
+            INSERT INTO plog_concepts
                 (label, node_type, intro_sec, source_quote, embedding, created_at, video_id)
             VALUES (%s, %s, %s, %s, %s::jsonb, NOW(), %s)
             RETURNING id
@@ -73,7 +73,7 @@ def run_plog_pipeline(conn: psycopg.Connection[Any], video_id: int, transcript: 
         ]
         conn.execute(
             """
-            INSERT INTO app_ploglearningobject
+            INSERT INTO plog_learning_objects
                 (opening_question, hint_ladder, misconceptions, canonical_order,
                  worked_examples, waypoints, created_at, concept_id)
             VALUES (%s, %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, NOW(), %s)
@@ -93,7 +93,7 @@ def run_plog_pipeline(conn: psycopg.Connection[Any], video_id: int, transcript: 
     for src, tgt in zip(concept_ids, concept_ids[1:], strict=False):
         conn.execute(
             """
-            INSERT INTO app_plogedge
+            INSERT INTO plog_edges
                 (edge_type, quote, validation_status, created_at,
                  source_id, target_id, video_id)
             VALUES ('prerequisite_of', '', 'accepted', NOW(), %s, %s, %s)

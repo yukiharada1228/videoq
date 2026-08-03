@@ -5,8 +5,8 @@ import { searchScenes } from "../repositories/vector-repository";
 import type { Bindings } from "../types/bindings";
 
 /**
- * QA モードの RAG 本体（Django `RagChatService` + `RagChatGateway` 相当）。
- * 流れは Django と同じ: 最新 user 質問を抽出 → ベクトル検索 → system プロンプト生成 →
+ * QA モードの RAG 本体。
+ * 最新 user 質問を抽出 → ベクトル検索 → system プロンプト生成 →
  * LLM（system + human の 2 通のみ。会話履歴は渡さない）。
  */
 export type ChatMessageInput = { role: string; content: string };
@@ -26,7 +26,7 @@ export type RagContext = {
   retrievedContexts: string[];
 };
 
-/** _extract_latest_user_query 相当。 */
+/** 最新の user メッセージ本文を抽出する。 */
 export function extractLatestUserQuery(messages: readonly ChatMessageInput[]): string {
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i];
@@ -38,7 +38,7 @@ export function extractLatestUserQuery(messages: readonly ChatMessageInput[]): s
 
 /**
  * 検索とプロンプト生成まで（LLM 呼び出し前）。
- * group が無い / メンバー動画が無い場合、Django は retriever を作らず埋め込みも呼ばない。
+ * group が無い、またはメンバー動画が無い場合は検索も埋め込みも実行しない。
  */
 export async function prepareRagContext(
   env: Bindings,

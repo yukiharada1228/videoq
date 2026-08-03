@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mcpRoutes } from "../src/routes/mcp";
-import { sha256Hex } from "../src/utils/crypto";
+import { mcpRoutes } from "../src/features/mcp/routes";
+import { sha256Hex } from "../src/shared/crypto";
 
 import {
   executeFakePgQuery,
@@ -30,9 +30,8 @@ vi.mock("pg", () => {
 
 const ENV = {
   ENVIRONMENT: "development",
-  JWT_SECRET: "unused-for-mcp-api-key",
-  LEGACY_API_ORIGIN: "https://legacy.test",
-  OAUTH2_PROVIDER_ISSUER_URL: "https://api.example.com",
+  AUTH_JWT_SECRET: "unused-for-mcp-api-key",
+  OAUTH_ISSUER_URL: "https://api.example.com",
   HYPERDRIVE: { connectionString: "postgres://fake/db" },
 } as unknown as Record<string, unknown>;
 
@@ -45,7 +44,7 @@ const apiKeyRow = (accessLevel = "all") => [
 beforeEach(() => {
   calls.length = 0;
   rowsFor = (sql) => {
-    if (sql.includes("UPDATE app_userapikey")) return apiKeyRow();
+    if (sql.includes("UPDATE api_keys")) return apiKeyRow();
     return [];
   };
 });
@@ -114,7 +113,7 @@ describe("MCP auth", () => {
     const opaque = "oauth-access-token-value";
     const checksum = await sha256Hex(opaque);
     rowsFor = (sql, args) => {
-      if (sql.includes("FROM oauth2_provider_accesstoken")) {
+      if (sql.includes("FROM oauth_access_tokens")) {
         expect(args[0]).toBe(checksum);
         return [{ user_id: 9, scope: "mcp" }];
       }
@@ -138,7 +137,7 @@ describe("MCP auth", () => {
 
   it("rejects read_only API key (POST requires write)", async () => {
     rowsFor = (sql) =>
-      sql.includes("UPDATE app_userapikey") ? apiKeyRow("read_only") : [];
+      sql.includes("UPDATE api_keys") ? apiKeyRow("read_only") : [];
     const res = await post(jsonrpc("initialize"));
     expect(res.status).toBe(403);
   });
@@ -176,8 +175,8 @@ describe("MCP JSON-RPC", () => {
 
   it("tools/call list_videos returns empty envelope", async () => {
     rowsFor = (sql) => {
-      if (sql.includes("UPDATE app_userapikey")) return apiKeyRow();
-      if (sql.includes("count(*)") && sql.includes("app_video")) {
+      if (sql.includes("UPDATE api_keys")) return apiKeyRow();
+      if (sql.includes("count(*)") && sql.includes("videos")) {
         return [{ c: 0 }];
       }
       return [];
@@ -188,16 +187,15 @@ describe("MCP JSON-RPC", () => {
     const result = (await res.json()).result;
     expect(result.isError).toBe(false);
     expect(result.structuredContent).toEqual({
-      count: 0,
-      next: null,
-      previous: null,
+      meta: { total: 0, limit: 0, offset: 0 },
+      data: [],
       videos: [],
     });
   });
 
   it("tools/call get_video not found → isError", async () => {
     rowsFor = (sql) =>
-      sql.includes("UPDATE app_userapikey") ? apiKeyRow() : [];
+      sql.includes("UPDATE api_keys") ? apiKeyRow() : [];
     const res = await post(
       jsonrpc("tools/call", {
         name: "get_video",
@@ -212,7 +210,7 @@ describe("MCP JSON-RPC", () => {
 
   it("GET returns 405", async () => {
     const res = await mcpRoutes.request(
-      "/api/mcp/",
+      "/api/mcp",
       { method: "GET", headers: { authorization: `Bearer ${RAW_KEY}` } },
       ENV,
     );
@@ -221,7 +219,7 @@ describe("MCP JSON-RPC", () => {
 
   it("DELETE returns 204", async () => {
     const res = await mcpRoutes.request(
-      "/api/mcp/",
+      "/api/mcp",
       { method: "DELETE", headers: { authorization: `Bearer ${RAW_KEY}` } },
       ENV,
     );

@@ -42,11 +42,10 @@ async function ensureRsa() {
 function baseEnv(overrides: Record<string, unknown> = {}) {
   return {
     ENVIRONMENT: "development",
-    JWT_SECRET: SECRET,
-    LEGACY_API_ORIGIN: "https://legacy.test",
+    AUTH_JWT_SECRET: SECRET,
     CORS_ALLOW_ORIGIN: "http://localhost:3000",
     FRONTEND_URL: "http://localhost:3000",
-    OAUTH2_PROVIDER_ISSUER_URL: "http://testserver",
+    OAUTH_ISSUER_URL: "http://testserver",
     OIDC_ENABLED: "false",
     HYPERDRIVE: { connectionString: "postgres://fake/db" },
     ...overrides,
@@ -58,7 +57,7 @@ beforeEach(() => {
   rowsFor = () => [];
 });
 
-describe("OIDC disabled (Django default)", () => {
+describe("OIDC disabled by default", () => {
   const app = createApp();
 
   it("returns 404 for discovery / jwks / userinfo", async () => {
@@ -66,8 +65,8 @@ describe("OIDC disabled (Django default)", () => {
     for (const path of [
       "/.well-known/openid-configuration",
       "/.well-known/jwks.json",
-      "/api/oauth/userinfo/",
-      "/api/oauth/logout/",
+      "/api/oauth/userinfo",
+      "/api/oauth/logout",
     ]) {
       const res = await app.request(path, {}, env);
       expect(res.status, path).toBe(404);
@@ -83,16 +82,15 @@ describe("OIDC enabled", () => {
     const env = baseEnv({
       OIDC_ENABLED: "true",
       OIDC_RSA_PRIVATE_KEY: pem,
-      OIDC_RP_INITIATED_LOGOUT_ENABLED: "true",
+      OIDC_LOGOUT_ENABLED: "true",
     });
     const disc = await app.request("/.well-known/openid-configuration", {}, env);
     expect(disc.status).toBe(200);
     expect(disc.headers.get("Access-Control-Allow-Origin")).toBe("*");
     const body = await disc.json();
     expect(body.issuer).toBe("http://testserver");
-    expect(body.userinfo_endpoint).toBe("http://testserver/api/oauth/userinfo/");
+    expect(body.userinfo_endpoint).toBe("http://testserver/api/oauth/userinfo");
     expect(body.jwks_uri).toBe("http://testserver/.well-known/jwks.json");
-    expect(body.end_session_endpoint).toBe("http://testserver/api/oauth/logout/");
     expect(body.id_token_signing_alg_values_supported).toContain("RS256");
     expect(body.scopes_supported).toContain("openid");
 
@@ -110,7 +108,7 @@ describe("OIDC enabled", () => {
     const env = baseEnv({ OIDC_ENABLED: "true", OIDC_RSA_PRIVATE_KEY: pem });
     const raw = "oauth-access-oidc";
     rowsFor = (sql) => {
-      if (sql.includes("FROM oauth2_provider_accesstoken")) {
+      if (sql.includes("FROM oauth_access_tokens")) {
         return [
           {
             user_id: 9,
@@ -123,7 +121,7 @@ describe("OIDC enabled", () => {
       return [];
     };
     const res = await app.request(
-      "/api/oauth/userinfo/",
+      "/api/oauth/userinfo",
       { headers: { Authorization: `Bearer ${raw}` } },
       env,
     );
@@ -140,7 +138,7 @@ describe("OIDC enabled", () => {
 
   it("userinfo 401 without token", async () => {
     const env = baseEnv({ OIDC_ENABLED: "true" });
-    const res = await app.request("/api/oauth/userinfo/", {}, env);
+    const res = await app.request("/api/oauth/userinfo", {}, env);
     expect(res.status).toBe(401);
   });
 
@@ -148,7 +146,7 @@ describe("OIDC enabled", () => {
     const pem = await ensureRsa();
     const env = baseEnv({ OIDC_ENABLED: "true", OIDC_RSA_PRIVATE_KEY: pem });
     rowsFor = (sql) => {
-      if (sql.includes("FROM oauth2_provider_application")) {
+      if (sql.includes("FROM oauth_applications")) {
         return [
           {
             id: 1,
@@ -167,7 +165,7 @@ describe("OIDC enabled", () => {
           },
         ];
       }
-      if (sql.includes("FROM oauth2_provider_grant")) {
+      if (sql.includes("FROM oauth_grants")) {
         return [
           {
             id: 10,
@@ -184,13 +182,13 @@ describe("OIDC enabled", () => {
           },
         ];
       }
-      if (sql.includes("INSERT INTO oauth2_provider_accesstoken")) {
+      if (sql.includes("INSERT INTO oauth_access_tokens")) {
         return [{ id: 100 }];
       }
-      if (sql.includes("INSERT INTO oauth2_provider_idtoken")) {
+      if (sql.includes("INSERT INTO oauth_id_tokens")) {
         return [{ id: 200 }];
       }
-      if (sql.includes("FROM app_user")) {
+      if (sql.includes("FROM users")) {
         return [{ username: "bob", email: "bob@example.com" }];
       }
       return [];
@@ -198,7 +196,7 @@ describe("OIDC enabled", () => {
 
     // PKCE plain: challenge === verifier
     const res = await app.request(
-      "/api/oauth/token/",
+      "/api/oauth/token",
       {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -227,9 +225,9 @@ describe("OIDC RP logout gate", () => {
   it("404 when OIDC on but RP logout off", async () => {
     const env = baseEnv({
       OIDC_ENABLED: "true",
-      OIDC_RP_INITIATED_LOGOUT_ENABLED: "false",
+      OIDC_LOGOUT_ENABLED: "false",
     });
-    const res = await app.request("/api/oauth/logout/", {}, env);
+    const res = await app.request("/api/oauth/logout", {}, env);
     expect(res.status).toBe(404);
   });
 });

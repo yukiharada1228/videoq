@@ -1,20 +1,40 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { AppError } from "../utils/errors";
-import { err } from "../utils/responses";
+import { ApiError, toErrorBody } from "../shared/errors";
 import type { AppEnv } from "../types/bindings";
 
 /**
- * app.onError に渡す共通ハンドラ。AppError / HTTPException を統一封筒へ変換し、
- * 想定外例外は 500 + 汎用メッセージ（内部詳細は漏らさない, SEC-8）。詳細はログへ。
+ * app.onError に渡す共通ハンドラ。
+ * 契約: `{ error: { code, message, details? } }`（SEC-8: 内部詳細は漏らさない）。
  */
 export function onError(e: Error, c: Context<AppEnv>): Response {
-  if (e instanceof AppError) {
-    return err(c, e.status, e.code, e.expose ? e.message : "Request failed");
+  if (e instanceof ApiError) {
+    return c.json(
+      toErrorBody(
+        e.code,
+        e.expose ? e.message : "Request failed",
+        e.details,
+      ),
+      e.status,
+    );
   }
+
   if (e instanceof HTTPException) {
-    return err(c, e.status, "http_exception", e.message || "Request failed");
+    const status = e.status;
+    const code =
+      status === 404
+        ? "NOT_FOUND"
+        : status === 401
+          ? "UNAUTHORIZED"
+          : status === 403
+            ? "FORBIDDEN"
+            : "HTTP_EXCEPTION";
+    return c.json(
+      toErrorBody(code, e.message || "Request failed"),
+      status,
+    );
   }
+
   console.error(
     JSON.stringify({
       level: "error",
@@ -24,5 +44,6 @@ export function onError(e: Error, c: Context<AppEnv>): Response {
       stack: e?.stack,
     }),
   );
-  return err(c, 500, "internal_error", "Internal Server Error");
+
+  return c.json(toErrorBody("INTERNAL_ERROR", "Internal Server Error"), 500);
 }

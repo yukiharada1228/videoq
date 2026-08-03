@@ -1,513 +1,57 @@
 # コンポーネント図
 
-## 概要
-
-VideoQのフロントエンドとバックエンドの主要コンポーネントを、現行実装に沿って示す図です。
-
-## フロントエンドコンポーネント構成
+## 全体
 
 ```mermaid
-graph TB
-    subgraph Frontend["Frontend (Vite + React SPA)"]
-        subgraph Pages["Pages (React Router Routes)"]
-            Home[Home Page]
-            Login[Login Page]
-            Signup[Signup Page]
-            SignupCheckEmail[Signup Check Email Page]
-            ForgotPassword[Forgot Password Page]
-            ResetPassword[Reset Password Page]
-            VerifyEmail[Verify Email Page]
-            Videos[Video List Page]
-            VideoDetail[Video Detail Page]
-            Groups[Group List Page]
-            GroupDetail[Group Detail Page]
-            Share[Share Page]
-            Settings[Settings Page]
-            DevDocs[Developer Docs Page]
-            DevDocsSection[Developer Docs Section Page]
-        end
-        
-        subgraph Components["Components"]
-            subgraph Auth["Auth Components"]
-                AuthForm[AuthForm]
-                FormField[FormField]
-                AuthFormFooter[AuthFormFooter]
-                ErrorMessage[ErrorMessage]
-            end
-            
-            subgraph Video["Video Components"]
-                VideoList[VideoList]
-                VideoCard[VideoCard]
-                VideoUpload[VideoUpload]
-                VideoUploadButton[VideoUploadButton]
-                VideoUploadFormFields[VideoUploadFormFields]
-                VideoUploadModal[VideoUploadModal]
-                VideoNavBar[VideoNavBar]
-                AddToGroupModal[AddToGroupModal]
-            end
-
-            subgraph Tag["Tag Components"]
-                TagBadge[TagBadge]
-                TagSelector[TagSelector]
-                TagCreateDialog[TagCreateDialog]
-                TagFilterPanel[TagFilterPanel]
-                TagManagementModal[TagManagementModal]
-            end
-            
-            subgraph Chat["Chat Components"]
-                ChatPanel[ChatPanel]
-            end
-
-            subgraph Dashboard["Dashboard Components"]
-                AnalyticsDashboard[AnalyticsDashboard]
-                DashboardButton[DashboardButton]
-                DashboardEmptyState[DashboardEmptyState]
-                FeedbackDonutChart[FeedbackDonutChart]
-                KeywordCloudChart[KeywordCloudChart]
-                QuestionTimeSeriesChart[QuestionTimeSeriesChart]
-                SceneDistributionChart[SceneDistributionChart]
-            end
-            
-            subgraph Layout["Layout Components"]
-                PageLayout[PageLayout]
-                Header[Header]
-                Footer[Footer]
-            end
-            
-            subgraph Common["Common Components"]
-                LoadingState[LoadingState]
-                LoadingSpinner[LoadingSpinner]
-                InlineSpinner[InlineSpinner]
-                MessageAlert[MessageAlert]
-            end
-            
-            subgraph UI["UI Components (Radix UI + Tailwind CSS)"]
-                Button[Button]
-                Input[Input]
-                Card[Card]
-                Dialog[Dialog]
-                Form[Form]
-            end
-        end
-        
-        subgraph Hooks["Custom Hooks"]
-            useAuth[useAuth]
-            useVideos[useVideos]
-            useVideoUpload[useVideoUpload]
-            useTags[useTags]
-            useChatMessages[useChatMessages]
-            useChatHistory[useChatHistory]
-            useChatAnalytics[useChatAnalytics]
-            useVideoGroups[useVideoGroups]
-            useShareLink[useShareLink]
-            useVideoEditing[useVideoEditing]
-            useVideoPlayback[useVideoPlayback]
-            useVideoStats[useVideoStats]
-            QueryHooks[TanStack Query Hooks]
-        end
-        
-        subgraph FrontendModules["Frontend Internal Modules"]
-            apiClient[apiClient]
-            queryClient[queryClient]
-            i18nConfig[i18n config]
-            errorUtils[errorUtils]
-            formUtils[formUtils]
-        end
-
-        subgraph Lib["External Libraries"]
-            TanStackQuery[TanStack Query]
-            ReactI18next[react-i18next]
-        end
-        
-        subgraph Providers["Providers"]
-            I18nProvider[I18nProvider]
-            QueryProvider[QueryClientProvider]
-        end
-    end
-    
-    Pages --> Components
-    Components --> Hooks
-    Components --> FrontendModules
-    Components --> Providers
-    Hooks --> FrontendModules
-    Hooks --> Lib
-    Providers --> Lib
-    Pages --> ReactI18next
+flowchart LR
+    UI[React pages / components] --> Hooks[Hooks + TanStack Query]
+    Hooks --> Client[frontend API client]
+    Client --> Routes[OpenAPIHono routes]
+    Routes --> Services[Feature services]
+    Services --> Repositories[Repositories]
+    Repositories --> DB[(PostgreSQL)]
+    Services --> R2[(R2)]
+    Services --> SQS[SQS]
+    SQS --> Tasks[Python worker tasks]
+    Tasks --> Pipelines[Transcription / Vector / PLOG / Evaluation]
+    Pipelines --> DB
+    Pipelines --> R2
 ```
 
-## バックエンドコンポーネント構成（クリーンアーキテクチャ）
+## API feature
+
+各ドメインは同じ構造を使います。
 
 ```mermaid
-graph TB
-    subgraph Backend["Backend (Django ASGI - Clean Architecture)"]
-        subgraph PresentationLayer["presentation/ — Thin HTTP layer"]
-            subgraph AuthPres["auth/"]
-                AuthViews["Views - Login, Logout, Signup, VerifyEmail,
-                PasswordResetRequest, PasswordResetConfirm,
-                Me, DeleteAccount, ApiKeyListCreate,
-                ApiKeyDetail, Refresh"]
-                AuthSer[Serializers]
-            end
-            subgraph VideoPres["video/"]
-                VideoViews["Views - VideoList, VideoDetail,
-                VideoGroupList, VideoGroupDetail,
-                AddVideoToGroup, AddVideosToGroup,
-                ReorderVideosInGroup, ShareLink, SharedGroup,
-                TagList, TagDetail, AddTagsToVideo,
-                RemoveVideoFromGroup, RemoveTagFromVideo"]
-                VideoSer[Serializers]
-            end
-            subgraph ChatPres["chat/"]
-                ChatViews["Views - ChatView, StreamChatView,
-                ChatGroupHistoryView, ChatLogFeedbackView,
-                ChatGroupAnalyticsView, ChatGroupAnalyticsKeywordsView,
-                OpenAIChatCompletionsView"]
-                ChatSer[Serializers]
-            end
-            subgraph MediaPres["media/"]
-                MediaViews[ProtectedMediaView]
-            end
-            subgraph EvaluationPres["evaluation/"]
-                EvaluationViews["EvaluationSummaryView,
-                EvaluationLogsView"]
-            end
-            subgraph OAuthPres["oauth/"]
-                OAuthViews["Metadata, DynamicClientRegistration,
-                Authorized Token Management"]
-            end
-            subgraph MCPPres["mcp/"]
-                MCPViews["MCPEndpointView, MCPToolRegistry"]
-            end
-            CommonPres["common/ - auth (CookieJWTAuthentication,
-            ApiKeyAuthentication, ShareTokenAuthentication),
-            permissions, throttles"]
-            AdminPres[admin.py - operational privileged path]
-        end
-
-        subgraph UseCasesLayer["use_cases/ — Business logic"]
-            subgraph VideoUC["video/"]
-                CreateVideo[CreateVideoUseCase]
-                GetVideo[GetVideoDetailUseCase]
-                ListVideos[ListVideosUseCase]
-                UpdateVideo[UpdateVideoUseCase]
-                DeleteVideo[DeleteVideoUseCase]
-                FileUrl[GetVideoFileUrlUseCase]
-                RequestUpload[RequestVideoUploadUseCase]
-                ConfirmUpload[ConfirmVideoUploadUseCase]
-                IndexVideo[IndexVideoTranscriptUseCase]
-                CreateGroup[CreateVideoGroup / CreateVideoGroupWithDetail]
-                GetGroup[GetVideoGroupUseCase / GetSharedGroupUseCase]
-                ListGroups[ListVideoGroupsUseCase]
-                UpdateGroup[UpdateVideoGroup / UpdateVideoGroupWithDetail]
-                DeleteGroup[DeleteVideoGroupUseCase]
-                ManageGroups["AddVideoToGroup, AddVideosToGroup,
-                RemoveVideoFromGroup, ReorderVideosInGroup,
-                CreateShareLink, DeleteShareLink"]
-                CreateTag[CreateTagUseCase]
-                GetTag[GetTagDetailUseCase]
-                ListTags[ListTagsUseCase]
-                UpdateTag[UpdateTag / UpdateTagWithDetail]
-                DeleteTag[DeleteTagUseCase]
-                ManageTags[AddTagsToVideo / RemoveTagFromVideo]
-                RunTrans[RunTranscriptionUseCase]
-                ReindexAll[ReindexAllVideosUseCase]
-                ReindexVideo[ReindexVideoTranscriptUseCase]
-            end
-            subgraph ChatUC["chat/"]
-                SendMsg[SendMessageUseCase]
-                GetHistory[GetChatHistoryUseCase]
-                ExportHistory[ExportChatHistoryUseCase]
-                ResetHistory[ResetChatHistoryUseCase]
-                SubmitFeedback[SubmitFeedbackUseCase]
-                GetAnalytics[GetChatAnalyticsUseCase]
-                GetKeywords[GetChatKeywordsUseCase]
-            end
-            subgraph AuthUC["auth/"]
-                LoginUC[LoginUseCase]
-                SignupUC[SignupUserUseCase]
-                VerifyEmailUC[VerifyEmailUseCase]
-                RequestResetUC[RequestPasswordResetUseCase]
-                ResetPassUC[ConfirmPasswordResetUseCase]
-                GetUserUC[GetCurrentUserUseCase]
-                DeleteAccUC[AccountDeletionUseCase]
-                DeleteAccDataUC[DeleteAccountDataUseCase]
-                ApiKeysUC[ListApiKeys / CreateApiKey / RevokeApiKey]
-                AuthorizeApiKeyUC[AuthorizeApiKeyUseCase]
-                ResolveApiKeyUC[ResolveApiKeyUseCase]
-                ResolveShareUC[ResolveShareTokenUseCase]
-                RefreshTokenUC[RefreshTokenUseCase]
-            end
-            subgraph MediaUC["media/"]
-                ResolveMedia[ResolveProtectedMediaUseCase]
-            end
-            subgraph QuotaUC["quota/"]
-                CheckStorage[CheckStorageLimitUseCase]
-                CheckProcessing[CheckProcessingLimitUseCase]
-                CheckAiAnswers[CheckAiAnswersLimitUseCase]
-                RecordUsage["RecordStorageUsage / RecordProcessingUsage / RecordAiAnswerUsage"]
-                ClearOverQuota[ClearOverQuotaIfWithinLimitUseCase]
-            end
-            subgraph EvaluationUC["evaluation/"]
-                EvaluateChatLog[EvaluateChatLogUseCase]
-                EvaluationQueries["GetEvaluationSummaryUseCase /
-                ListChatLogEvaluationsUseCase"]
-            end
-            subgraph OAuthUC["oauth/"]
-                OAuthCommands["RegisterOAuthClientUseCase /
-                ListAuthorizedTokensUseCase / RevokeAuthorizedTokenUseCase"]
-            end
-            SharedExc["shared/exceptions - ResourceNotFound, PermissionDenied"]
-        end
-
-        subgraph DomainLayer["domain/ — Abstract interfaces & entities"]
-            subgraph VideoDomain["video/"]
-                VideoEntity[VideoEntity, VideoGroupEntity, TagEntity]
-                VideoRepo["VideoRepository ABC
-                (VideoQueryRepository,
-                VideoCommandRepository,
-                VideoTranscriptionRepository)"]
-                VideoGroupRepo[VideoGroupRepository ABC]
-                TagRepo[TagRepository ABC]
-                VideoGateways["VectorStoreGateway,
-                VideoTaskGateway,
-                VectorIndexingGateway,
-                TranscriptionGateway"]
-                VideoPorts[FileUrlResolver]
-            end
-            subgraph ChatDomain["chat/"]
-                ChatRepo[ChatRepository ABC]
-                ChatGroupRepo[VideoGroupQueryRepository ABC]
-                RagGateway[RagGateway ABC]
-                ChatPorts["KeywordExtractor,
-                SceneVideoInfoProvider"]
-                ChatServices["services - aggregate_scenes,
-                filter_group_scenes"]
-                ChatVOs["value_objects - ChatSceneLog, KeywordCount"]
-            end
-            subgraph AuthDomain["auth/"]
-                ApiKeyRepo[ApiKeyRepository ABC]
-                AuthGateways["AccountDeletionGateway,
-                UserManagementGateway,
-                UserDataDeletionGateway,
-                EmailSenderGateway,
-                AuthTaskGateway"]
-                AuthPorts["TokenGateway, UserAuthGateway,
-                ShareTokenResolverPort,
-                ApiKeyResolverPort"]
-            end
-            subgraph MediaDomain["media/"]
-                MediaRepo[ProtectedMediaRepository ABC]
-            end
-            subgraph QuotaDomain["quota/"]
-                QuotaEntities[UserLimitsEntity]
-                QuotaRepos["UserLimitsRepository ABC"]
-                QuotaExc["StorageLimitExceeded, ProcessingLimitExceeded,
-                AiAnswersLimitExceeded, OverQuotaError"]
-            end
-            subgraph EvaluationDomain["evaluation/"]
-                EvaluationEntity[ChatLogEvaluationEntity]
-                EvaluationPorts["EvaluationRepository ABC,
-                RagEvaluationGateway, EvaluationTaskGateway"]
-            end
-            subgraph OAuthDomain["oauth/"]
-                OAuthPorts["OAuthClientGateway,
-                OAuthAccessTokenGateway"]
-            end
-            UserEntity["user/ - UserEntity, UserRepository ABC"]
-            SharedDomain["shared/ - ResourceNotFound, PermissionDenied,
-            transaction.py (TransactionManager port)"]
-        end
-
-        subgraph InfraLayer["infrastructure/ — Implementations"]
-            subgraph Models["models/ — Django ORM"]
-                UserModel[User]
-                VideoModel[Video]
-                GroupModel[VideoGroup / VideoGroupMember]
-                ChatLogModel[ChatLog]
-                EvaluationModel[ChatLogEvaluation]
-                TagModel[Tag / VideoTag]
-                AccDeleteModel[AccountDeletionRequest]
-                ApiKeyModel[UserApiKey]
-                StorageModel["SafeFileSystemStorage /
-                SafeS3Boto3Storage"]
-            end
-            subgraph Repos["repositories/"]
-                DjangoVideoRepo[DjangoVideoRepository]
-                DjangoChatRepo[DjangoChatRepository]
-                DjangoUserRepo[DjangoUserRepository]
-                DjangoMediaRepo[DjangoMediaRepository]
-                DjangoAccDeleteRepo[DjangoAccountDeletionRepository]
-                DjangoApiKeyRepo[DjangoApiKeyRepository]
-                DjangoUserAuthGW[DjangoUserAuthGateway]
-                DjangoUserDataGW[DjangoUserDataDeletionGateway]
-                DjangoLimitsRepo[DjangoUserLimitsRepository]
-                DjangoEvaluationRepo[DjangoChatLogEvaluationRepository]
-            end
-            subgraph ExtGateways["external/"]
-                RagChatGW[RagChatGateway]
-                VectorGW[DjangoVectorIndexingGateway]
-                VectorStoreGW[DjangoVectorStoreGateway]
-                TransGW[WhisperTranscriptionGateway]
-                FileUrlResolver[DjangoFileUrlResolver]
-                FileUploadGW[FileUploadGateway]
-                SceneIdx[scene_indexer]
-                VectorStore[PGVector / vector_store]
-                RagSvc[rag_service / LangChain]
-                LlmModule[llm - LLM provider factory]
-                PromptsModule[prompts/ - RAG prompt templates]
-            end
-            subgraph TranscriptionInfra["transcription/"]
-                AudioProc[audio_processing - ffmpeg/Whisper]
-                SRTProc[srt_processing - SRT parsing]
-                VideoAccessor[DjangoVideoFileAccessor]
-            end
-            subgraph AuthInfra["auth/"]
-                SimpleJWT[SimpleJWTGateway]
-                DjangoAuthGW[DjangoAuthGateway]
-                CookieJWT[CookieJWTValidator]
-                ApiKeyResolver[ApiKeyResolver]
-                ShareTokenResolver[ShareTokenResolver]
-            end
-            subgraph TasksInfra["tasks/"]
-                CeleryVideoTaskGW[CeleryVideoTaskGateway]
-                CeleryAuthTaskGW[CeleryAuthTaskGateway]
-                CeleryEvaluationTaskGW[CeleryEvaluationTaskGateway]
-            end
-            subgraph EvaluationInfra["evaluation/"]
-                RagasGateway[RagasEvaluationGateway]
-            end
-            subgraph OAuthInfra["oauth/"]
-                DotClientGateway["DOTOAuthClientGateway /
-                DOTOAuthAccessTokenGateway"]
-            end
-            subgraph ChatInfra["chat/"]
-                KwExtractor[JanomeNltkKeywordExtractor]
-                SceneInfoProvider[DjangoSceneVideoInfoProvider]
-            end
-            subgraph CommonInfra["common/"]
-                EmailModule[email - SMTP sender]
-                EmbeddingsModule[embeddings - embedding factory]
-                WhisperClient[whisper_client]
-                QueryOptimizer[query_optimizer]
-                PerfUtils[performance_utils]
-                TaskHelpers[task_helpers]
-                Cipher[cipher - encryption utilities]
-                DjangoTransaction[django_transaction - TransactionManager impl]
-            end
-            subgraph SceneOtsu["scene_otsu/"]
-                Splitter[splitter - scene splitting]
-                Parsers[parsers - SRT/transcript parsing]
-                Embedders[embedders - embedding generation]
-            end
-            StorageInfra[storage/ - LocalMediaStorage]
-        end
-
-        subgraph Tasks["entrypoints/tasks/ (Celery entrypoints - thin triggers)"]
-            TranscribeTask[transcription.py]
-            DeleteAccTask[account_deletion.py]
-            ReindexTask[reindexing.py]
-            ReindexVideoTask[reindex_video_transcript.py]
-            IndexingTask[indexing.py]
-            EvaluationTask[evaluation.py]
-        end
-
-        subgraph Container["Dependency Providers / Composition Root"]
-            Dependencies[dependencies/*.py - provider functions]
-            CompRoot[composition_root/*.py - wiring and assembly]
-            VideoProviders[_video_*_providers.py]
-            Contracts["contracts/ - task name constants,
-            auth constants, media_validation"]
-        end
-    end
-
-    PresentationLayer --> Container
-    AdminPres --> Container
-    Container --> UseCasesLayer
-    Container --> InfraLayer
-    UseCasesLayer --> DomainLayer
-    InfraLayer --> DomainLayer
-    Tasks --> UseCasesLayer
-    Tasks --> Contracts
+flowchart TD
+    Request --> Middleware[auth / Origin check / rate limit]
+    Middleware --> Route[routes.ts<br/>createRoute + Zod]
+    Route --> Service[service.ts]
+    Service --> Repository[repository]
+    Repository --> Drizzle[Drizzle / SQL]
+    Route --> Response[OpenAPI response]
 ```
 
-## システム全体のコンポーネント構成
+主な feature:
+
+- auth
+- videos / groups / tags
+- chat / evaluation / plog
+- oauth / mcp
+- membership / ops / media
+- schema / health
+
+## Worker
 
 ```mermaid
-graph TB
-    subgraph Client["Client"]
-        Browser[Web Browser]
-    end
-    
-    subgraph Frontend["Frontend"]
-        FrontendSPA[Vite-built React SPA]
-        ReactComponents[React Components]
-    end
-    
-    subgraph Gateway["Gateway"]
-        Caddy[Caddy Public Gateway]
-        Nginx[Nginx Reverse Proxy]
-    end
-    
-    subgraph Backend["Backend"]
-        DjangoAPI[Django ASGI API]
-        CeleryWorker[Celery Worker]
-    end
-    
-    subgraph Data["Data Layer"]
-        PostgreSQL[(PostgreSQL + pgvector)]
-        Redis[(Redis)]
-        FileStorage[(File Storage / S3)]
-    end
-    
-    subgraph External["External Services"]
-        OpenAI[OpenAI API / Ollama / whisper.cpp]
-        EmailService[Email Service]
-    end
-    
-    Browser --> Caddy
-    Caddy --> Nginx
-    Nginx --> FrontendSPA
-    Nginx --> DjangoAPI
-    FrontendSPA --> DjangoAPI
-    DjangoAPI --> Redis
-    DjangoAPI --> FileStorage
-    CeleryWorker --> Redis
-    CeleryWorker --> PostgreSQL
-    CeleryWorker --> FileStorage
-    CeleryWorker --> OpenAI
-    DjangoAPI --> OpenAI
-    DjangoAPI --> EmailService
-    DjangoAPI --> PostgreSQL
+flowchart TD
+    Event[SQS event] --> Decode[Native job decode]
+    Decode --> Registry[Task registry]
+    Registry --> Transcription
+    Registry --> Indexing
+    Registry --> Plog
+    Registry --> Evaluation
+    Registry --> AccountDeletion
 ```
 
-## コンポーネント依存関係
-
-### フロントエンド
-- **Pages** → **Components**: ページがコンポーネントを使用
-- **Components** → **Hooks**: コンポーネントがカスタムフックを使用
-- **Hooks** → **Lib**: フックがライブラリを使用
-- **Components** → **UI Components**: 共通UIコンポーネントを使用
-
-### バックエンド
-- **Presentation (`presentation/*`, `admin.py`)** → **Dependencies (`dependencies/*.py`)**: フレームワークのエントリーポイントはdependencies経由でのみプロバイダーを解決
-- **Dependencies** → **Composition Root (`composition_root/*.py`)**: プロバイダー関数は配線関数や `_video_*_providers.py` に委譲
-- **Composition Root** → **Use Cases / Infrastructure**: 具体的なアダプターとユースケースインスタンスを組み立て
-- **Use Cases** → **Domain ports/entities**: ビジネスロジックはドメインの抽象のみに依存
-- **Infrastructure** → **Domain + ORM/External**: アダプター実装がドメインポートとDjango ORM/外部サービスを橋渡し
-- **Entrypoints (`entrypoints/tasks/`)** → **Use Cases**: Celeryタスクエントリーポイントがcomposition root経由でユースケースに委譲
-
-### システム全体
-- **Client** → **Gateway**: クライアントがゲートウェイ経由でアクセス
-- **Gateway** → **Frontend/Backend**: ゲートウェイがリクエストをルーティング
-- **Backend** → **Data**: バックエンドがデータ層を使用
-- **Backend** → **External**: バックエンドが外部サービスを使用
-
----
-
-## Related Documentation
-
-- [📖 ドキュメント一覧](../README.md)
-- [クラス図](class-diagram.md) — モデル・ユースケース・ビューの詳細
-- [システム構成図](../architecture/system-configuration-diagram.md) — 全体アーキテクチャ
-- [画面遷移図](../requirements/screen-transition-diagram.md) — フロントエンドの画面遷移
-- [デプロイメント図](deployment-diagram.md) — Docker Compose構成
+HTTP の責務は API、CPU・時間を要する処理は worker に分離します。

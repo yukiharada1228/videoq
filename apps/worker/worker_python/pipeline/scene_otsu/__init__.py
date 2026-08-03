@@ -1,4 +1,4 @@
-"""Otsu-based scene splitting (Django scene_otsu port)."""
+"""VideoQ Otsu-based scene splitting."""
 
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ def apply_scene_splitting(
 ) -> tuple[str, int | None]:
     """
     Apply Otsu scene splitting. On failure, return the original SRT
-    (Django parity: degrade gracefully).
+    Failures degrade gracefully and return the original SRT.
     """
     try:
         splitter = SceneSplitter()
@@ -56,6 +56,6 @@ def apply_scene_splitting(
             scene_count,
         )
         return scene_split_srt, scene_count
-    except Exception as exc:  # noqa: BLE001 — degrade like Django
+    except Exception as exc:  # noqa: BLE001 — best-effort scene splitting
         logger.warning("Scene splitting failed: %s. Using original SRT content.", exc)
         return srt_content, original_segment_count

@@ -8,6 +8,20 @@
       "when": 1754150400000,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1754208000000,
+      "tag": "0001_new_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785731220000,
+      "tag": "0002_native_auth",
+      "breakpoints": true
     }
   ]
 }

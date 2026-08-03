@@ -10,16 +10,17 @@ import {
   type SQL,
 } from "drizzle-orm";
 import { withDb } from "../db/pool";
+import { sqlNumberArray } from "../db/sql-array";
 import {
-  appPlogbuildjob,
-  appPlogconcept,
-  appPlogedge,
-  appPlogsummarynode,
-  appVideo,
-  appVideogroupmember,
-  appVideotag,
+  plogBuildJobs,
+  plogConcepts,
+  plogEdges,
+  plogSummaryNodes,
+  videos,
+  videoGroupMembers,
+  videoTags,
 } from "../db/schema";
-import { APP_TIMEZONE, normalizeDrfDatetime } from "../utils/datetime";
+import { toUtcIso } from "../shared/datetime";
 import { resolveFileUrl } from "../integrations/media";
 import type { Bindings } from "../types/bindings";
 
@@ -51,38 +52,36 @@ export type VideoListCriteria = {
   tagIds: number[] | null;
 };
 
-// Django ordering_map。マップ外（空含む）は Meta.ordering = -uploaded_at。
+// 許可済みの並び順。マップ外（空を含む）は -uploaded_at。
 const ORDER_MAP: Record<string, SQL> = {
-  uploaded_at_desc: desc(appVideo.uploadedAt),
-  uploaded_at_asc: asc(appVideo.uploadedAt),
-  title_asc: asc(appVideo.title),
-  title_desc: desc(appVideo.title),
+  uploaded_at_desc: desc(videos.uploadedAt),
+  uploaded_at_asc: asc(videos.uploadedAt),
+  title_asc: asc(videos.title),
+  title_desc: desc(videos.title),
 };
 
-// LIKE 特殊文字をエスケープ（Django icontains 相当。既定 ESCAPE '\'）。
+// 部分一致検索用に LIKE 特殊文字をエスケープする（ESCAPE '\'）。
 function escapeLike(value: string): string {
   return value.replace(/([\\%_])/g, "\\$1");
 }
 
-const uploadedAtDrf = sql<string>`to_char(${appVideo.uploadedAt}, 'YYYY-MM-DD"T"HH24:MI:SS.USOF')`.as(
-  "uploaded_at",
-);
-// Correlate with outer app_video explicitly — ${appVideo.id} emits bare "id"
-// which is ambiguous once the subquery joins app_tag (also has id).
+
+// Correlate with outer videos explicitly — ${videos.id} emits bare "id"
+// which is ambiguous once the subquery joins tags (also has id).
 const videoTagsJson = sql<string>`COALESCE((
   SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
-  FROM app_videotag vt JOIN app_tag t ON t.id = vt.tag_id
-  WHERE vt.video_id = "app_video"."id"
+  FROM video_tags vt JOIN tags t ON t.id = vt.tag_id
+  WHERE vt.video_id = "videos"."id"
 ), '[]'::json)::text`.as("tags");
 
 /** WHERE 条件を Drizzle 式で組み立てる。 */
 function buildFilterConditions(userId: number, c: VideoListCriteria): SQL {
-  const conditions: SQL[] = [eq(appVideo.userId, userId)];
+  const conditions: SQL[] = [eq(videos.userId, userId)];
 
   if (c.keyword) {
     const pattern = `%${escapeLike(c.keyword)}%`;
     conditions.push(
-      or(ilike(appVideo.title, pattern), ilike(appVideo.description, pattern))!,
+      or(ilike(videos.title, pattern), ilike(videos.description, pattern))!,
     );
   }
 
@@ -91,16 +90,16 @@ function buildFilterConditions(userId: number, c: VideoListCriteria): SQL {
     .map((s) => s.trim())
     .filter(Boolean);
   if (statuses.length === 1) {
-    conditions.push(eq(appVideo.status, statuses[0]));
+    conditions.push(eq(videos.status, statuses[0]));
   } else if (statuses.length > 1) {
-    conditions.push(inArray(appVideo.status, statuses));
+    conditions.push(inArray(videos.status, statuses));
   }
 
   if (c.tagIds && c.tagIds.length > 0) {
     conditions.push(
       inArray(
-        appVideo.id,
-        sql`(SELECT vt.video_id FROM app_videotag vt WHERE vt.tag_id = ANY(${c.tagIds}::int[]))`,
+        videos.id,
+        sql`(SELECT vt.video_id FROM video_tags vt WHERE vt.tag_id = ANY(${sqlNumberArray(c.tagIds)}))`,
       ),
     );
   }
@@ -110,11 +109,11 @@ function buildFilterConditions(userId: number, c: VideoListCriteria): SQL {
 
 export const TAGS_SUBQUERY = `COALESCE((
   SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
-  FROM app_videotag vt JOIN app_tag t ON t.id = vt.tag_id
+  FROM video_tags vt JOIN tags t ON t.id = vt.tag_id
   WHERE vt.video_id = v.id
 ), '[]'::json)::text`;
 
-// VideoListSerializer 相当の行→オブジェクト変換（一覧・詳細・グループ詳細で共有）。
+// 動画一覧の行→オブジェクト変換（一覧・詳細・グループ詳細で共有）。
 // 行は少なくとも id/file/title/description/uploaded_at(to_char済)/status/source_type/
 // source_url/youtube_video_id/tags(::text) を含むこと。
 export async function mapVideoListRow(
@@ -127,7 +126,7 @@ export async function mapVideoListRow(
     file: await resolveFileUrl(env, (r.file as string) || null),
     title: r.title as string,
     description: r.description as string,
-    uploaded_at: normalizeDrfDatetime(r.uploaded_at as string),
+    uploaded_at: toUtcIso(r.uploaded_at as string)!,
     status: r.status as string,
     source_type: r.source_type as string,
     source_url: (r.source_url as string) || null,
@@ -146,25 +145,24 @@ export async function getVideoDetail(
   userId: number,
 ): Promise<VideoDetail | null> {
   const row = await withDb(env, async (db) => {
-    await db.execute(sql.raw(`SET timezone = '${APP_TIMEZONE}'`));
     const rows = await db
       .select({
-        id: appVideo.id,
-        user_id: appVideo.userId,
-        file: appVideo.file,
-        title: appVideo.title,
-        description: appVideo.description,
-        uploaded_at: uploadedAtDrf,
-        transcript: appVideo.transcript,
-        status: appVideo.status,
-        source_type: appVideo.sourceType,
-        source_url: appVideo.sourceUrl,
-        youtube_video_id: appVideo.youtubeVideoId,
-        error_message: appVideo.errorMessage,
+        id: videos.id,
+        user_id: videos.userId,
+        file: videos.file,
+        title: videos.title,
+        description: videos.description,
+        uploaded_at: videos.uploadedAt,
+        transcript: videos.transcript,
+        status: videos.status,
+        source_type: videos.sourceType,
+        source_url: videos.sourceUrl,
+        youtube_video_id: videos.youtubeVideoId,
+        error_message: videos.errorMessage,
         tags: videoTagsJson,
       })
-      .from(appVideo)
-      .where(and(eq(appVideo.id, videoId), eq(appVideo.userId, userId)))
+      .from(videos)
+      .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
       .limit(1);
     return rows[0] ?? null;
   });
@@ -177,7 +175,7 @@ export async function getVideoDetail(
     file: await resolveFileUrl(env, row.file || null),
     title: row.title,
     description: row.description,
-    uploaded_at: normalizeDrfDatetime(row.uploaded_at),
+    uploaded_at: toUtcIso(row.uploaded_at)!,
     transcript: row.transcript || null,
     status: row.status,
     source_type: row.source_type,
@@ -192,7 +190,7 @@ export async function getVideoDetail(
 }
 
 /**
- * 動画メタ更新（title/description のみ）。UpdateVideoUseCase 相当。
+ * 動画メタデータを更新する（title/description のみ）。
  * 提供フィールドのみ動的 SET（Video に updated_at は無い）。title 変更の有無を返す
  * （呼び出し側で PGVector メタ同期を best-effort 実行する）。
  */
@@ -207,9 +205,9 @@ export async function updateVideo(
 > {
   return withDb(env, async (db) => {
     const cur = await db
-      .select({ title: appVideo.title, transcript: appVideo.transcript })
-      .from(appVideo)
-      .where(and(eq(appVideo.id, videoId), eq(appVideo.userId, userId)))
+      .select({ title: videos.title, transcript: videos.transcript })
+      .from(videos)
+      .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
       .limit(1);
     if (cur.length === 0) return { notFound: true } as const;
     const oldTitle = cur[0].title;
@@ -221,9 +219,9 @@ export async function updateVideo(
     if (fields.transcript !== undefined) patch.transcript = fields.transcript;
     if (Object.keys(patch).length > 0) {
       await db
-        .update(appVideo)
+        .update(videos)
         .set(patch)
-        .where(and(eq(appVideo.id, videoId), eq(appVideo.userId, userId)));
+        .where(and(eq(videos.id, videoId), eq(videos.userId, userId)));
     }
 
     return {
@@ -236,7 +234,7 @@ export async function updateVideo(
 }
 
 /**
- * YouTube 動画レコードを作成（create_youtube 相当）。
+ * YouTube 動画レコードを作成する。
  * source_type='youtube', status='pending', file=''。作成した id を返す。
  */
 export async function createYoutubeVideo(
@@ -246,7 +244,7 @@ export async function createYoutubeVideo(
 ): Promise<number> {
   return withDb(env, async (db) => {
     const rows = await db
-      .insert(appVideo)
+      .insert(videos)
       .values({
         userId,
         file: "",
@@ -260,7 +258,7 @@ export async function createYoutubeVideo(
         errorMessage: "",
         uploadedAt: sql`CURRENT_TIMESTAMP`,
       })
-      .returning({ id: appVideo.id });
+      .returning({ id: videos.id });
     return Number(rows[0].id);
   });
 }
@@ -273,9 +271,9 @@ export async function getVideoTranscriptState(
 ): Promise<{ found: false } | { found: true; hasTranscript: boolean }> {
   return withDb(env, async (db) => {
     const rows = await db
-      .select({ transcript: appVideo.transcript })
-      .from(appVideo)
-      .where(and(eq(appVideo.id, videoId), eq(appVideo.userId, userId)))
+      .select({ transcript: videos.transcript })
+      .from(videos)
+      .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
       .limit(1);
     if (rows.length === 0) return { found: false } as const;
     const t = rows[0].transcript;
@@ -291,9 +289,9 @@ export async function getVideoStatus(
 ): Promise<{ found: false } | { found: true; status: string }> {
   return withDb(env, async (db) => {
     const rows = await db
-      .select({ status: appVideo.status })
-      .from(appVideo)
-      .where(and(eq(appVideo.id, videoId), eq(appVideo.userId, userId)))
+      .select({ status: videos.status })
+      .from(videos)
+      .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
       .limit(1);
     if (rows.length === 0) return { found: false } as const;
     return { found: true, status: rows[0].status } as const;
@@ -301,7 +299,7 @@ export async function getVideoStatus(
 }
 
 /**
- * status を条件付き遷移（transition_status 相当）。from 状態のときのみ to へ。
+ * status を条件付き遷移する。from 状態のときのみ to へ進める。
  * error_message は "" にリセット。更新行があれば true。
  */
 export async function transitionVideoStatus(
@@ -312,10 +310,10 @@ export async function transitionVideoStatus(
 ): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db
-      .update(appVideo)
+      .update(videos)
       .set({ status: toStatus, errorMessage: "" })
-      .where(and(eq(appVideo.id, videoId), eq(appVideo.status, fromStatus)))
-      .returning({ id: appVideo.id });
+      .where(and(eq(videos.id, videoId), eq(videos.status, fromStatus)))
+      .returning({ id: videos.id });
     return rows.length > 0;
   });
 }
@@ -339,18 +337,18 @@ export async function listStaleUploadingVideos(
   return withDb(env, async (db) => {
     const rows = await db
       .select({
-        id: appVideo.id,
-        userId: appVideo.userId,
-        file: appVideo.file,
+        id: videos.id,
+        userId: videos.userId,
+        file: videos.file,
       })
-      .from(appVideo)
+      .from(videos)
       .where(
         and(
-          eq(appVideo.status, "uploading"),
-          sql`${appVideo.uploadedAt} < NOW() - (${olderThanHours}::double precision * INTERVAL '1 hour')`,
+          eq(videos.status, "uploading"),
+          sql`${videos.uploadedAt} < NOW() - (${olderThanHours}::double precision * INTERVAL '1 hour')`,
         ),
       )
-      .orderBy(asc(appVideo.uploadedAt))
+      .orderBy(asc(videos.uploadedAt))
       .limit(limit);
     return rows.map((r) => ({
       id: Number(r.id),
@@ -361,7 +359,7 @@ export async function listStaleUploadingVideos(
 }
 
 /**
- * アップロード保留の動画レコードを作成（create_pending 相当）。
+ * アップロード保留の動画レコードを作成する。
  * status='uploading'、source_type は既定 'uploaded'、uploaded_at=CURRENT_TIMESTAMP。
  * 作成した id を返す。
  */
@@ -374,7 +372,7 @@ export async function createPendingVideo(
 ): Promise<number> {
   return withDb(env, async (db) => {
     const rows = await db
-      .insert(appVideo)
+      .insert(videos)
       .values({
         userId,
         file: fileKey,
@@ -388,13 +386,13 @@ export async function createPendingVideo(
         errorMessage: "",
         uploadedAt: sql`CURRENT_TIMESTAMP`,
       })
-      .returning({ id: appVideo.id });
+      .returning({ id: videos.id });
     return Number(rows[0].id);
   });
 }
 
 /**
- * ローカル multipart アップロード完了後の動画作成（CreateVideoUseCase / repo.create 相当）。
+ * ローカル multipart アップロード完了後の動画を作成する。
  * ファイルは既に VIDEO_BUCKET にあり、status='pending' で transcription 待ち。
  */
 export async function createUploadedVideo(
@@ -406,7 +404,7 @@ export async function createUploadedVideo(
 ): Promise<number> {
   return withDb(env, async (db) => {
     const rows = await db
-      .insert(appVideo)
+      .insert(videos)
       .values({
         userId,
         file: fileKey,
@@ -420,7 +418,7 @@ export async function createUploadedVideo(
         errorMessage: "",
         uploadedAt: sql`CURRENT_TIMESTAMP`,
       })
-      .returning({ id: appVideo.id });
+      .returning({ id: videos.id });
     return Number(rows[0].id);
   });
 }
@@ -433,9 +431,9 @@ export async function getVideoFileKey(
 ): Promise<{ found: false } | { found: true; fileKey: string | null }> {
   return withDb(env, async (db) => {
     const rows = await db
-      .select({ file: appVideo.file })
-      .from(appVideo)
-      .where(and(eq(appVideo.id, videoId), eq(appVideo.userId, userId)))
+      .select({ file: videos.file })
+      .from(videos)
+      .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
       .limit(1);
     if (rows.length === 0) return { found: false } as const;
     return { found: true, fileKey: rows[0].file || null };
@@ -443,8 +441,8 @@ export async function getVideoFileKey(
 }
 
 /**
- * 動画のハード削除（Django ORM の cascade をトランザクションで再現）。
- * DB 側 FK は ON DELETE CASCADE を持たない（Django が Python 側でエミュレート）ため、
+ * 動画と関連行をトランザクション内でハード削除する。
+ * DB 側 FK は ON DELETE CASCADE を持たないため、
  * 子テーブルを依存順に明示削除する。存在確認は呼び出し側で済ませる前提。
  *
  * 依存グラフ: video → {videotag, videogroupmember, plogbuildjob, plogsummarynode(self),
@@ -458,27 +456,27 @@ export async function deleteVideoCascade(
 ): Promise<void> {
   return withDb(env, async (db) => {
     await db.transaction(async (tx) => {
-      await tx.execute(sql`SELECT 1 FROM app_video WHERE id = ${videoId} FOR UPDATE`);
+      await tx.execute(sql`SELECT 1 FROM videos WHERE id = ${videoId} FOR UPDATE`);
 
       await tx.execute(sql`
-        DELETE FROM app_learnerconceptstate
-         WHERE concept_id IN (SELECT id FROM app_plogconcept WHERE video_id = ${videoId})
+        DELETE FROM learner_concept_states
+         WHERE concept_id IN (SELECT id FROM plog_concepts WHERE video_id = ${videoId})
       `);
       await tx.execute(sql`
-        DELETE FROM app_ploglearningobject
-         WHERE concept_id IN (SELECT id FROM app_plogconcept WHERE video_id = ${videoId})
+        DELETE FROM plog_learning_objects
+         WHERE concept_id IN (SELECT id FROM plog_concepts WHERE video_id = ${videoId})
       `);
-      await tx.delete(appPlogedge).where(eq(appPlogedge.videoId, videoId));
-      await tx.delete(appPlogconcept).where(eq(appPlogconcept.videoId, videoId));
+      await tx.delete(plogEdges).where(eq(plogEdges.videoId, videoId));
+      await tx.delete(plogConcepts).where(eq(plogConcepts.videoId, videoId));
 
-      await tx.delete(appPlogsummarynode).where(eq(appPlogsummarynode.videoId, videoId));
-      await tx.delete(appPlogbuildjob).where(eq(appPlogbuildjob.videoId, videoId));
-      await tx.delete(appVideotag).where(eq(appVideotag.videoId, videoId));
-      await tx.delete(appVideogroupmember).where(eq(appVideogroupmember.videoId, videoId));
+      await tx.delete(plogSummaryNodes).where(eq(plogSummaryNodes.videoId, videoId));
+      await tx.delete(plogBuildJobs).where(eq(plogBuildJobs.videoId, videoId));
+      await tx.delete(videoTags).where(eq(videoTags.videoId, videoId));
+      await tx.delete(videoGroupMembers).where(eq(videoGroupMembers.videoId, videoId));
 
       await tx
-        .delete(appVideo)
-        .where(and(eq(appVideo.id, videoId), eq(appVideo.userId, userId)));
+        .delete(videos)
+        .where(and(eq(videos.id, videoId), eq(videos.userId, userId)));
     });
   });
 }
@@ -491,30 +489,28 @@ export async function listVideosPage(
   offset: number,
 ): Promise<{ count: number; results: VideoListItem[] }> {
   const where = buildFilterConditions(userId, criteria);
-  const orderBy = ORDER_MAP[criteria.sortKey] ?? desc(appVideo.uploadedAt);
+  const orderBy = ORDER_MAP[criteria.sortKey] ?? desc(videos.uploadedAt);
 
   const { rows, count } = await withDb(env, async (db) => {
-    await db.execute(sql.raw(`SET timezone = '${APP_TIMEZONE}'`));
-
     const countRows = await db
       .select({ c: sql<number>`count(*)::int` })
-      .from(appVideo)
+      .from(videos)
       .where(where);
 
     const listRows = await db
       .select({
-        id: appVideo.id,
-        file: appVideo.file,
-        title: appVideo.title,
-        description: appVideo.description,
-        uploaded_at: uploadedAtDrf,
-        status: appVideo.status,
-        source_type: appVideo.sourceType,
-        source_url: appVideo.sourceUrl,
-        youtube_video_id: appVideo.youtubeVideoId,
+        id: videos.id,
+        file: videos.file,
+        title: videos.title,
+        description: videos.description,
+        uploaded_at: videos.uploadedAt,
+        status: videos.status,
+        source_type: videos.sourceType,
+        source_url: videos.sourceUrl,
+        youtube_video_id: videos.youtubeVideoId,
         tags: videoTagsJson,
       })
-      .from(appVideo)
+      .from(videos)
       .where(where)
       .orderBy(orderBy)
       .limit(limit)

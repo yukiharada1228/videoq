@@ -1,6 +1,6 @@
 /**
  * PLOG-guided study-mode chat gateway (Algorithm 1).
- * Django `app/infrastructure/external/plog/guided_gateway.py` + `learner_state_store.py` の移植。
+ * PLOG Study モードのガイド生成と一時学習状態を扱う。
  */
 
 import { embedQuery } from "./embeddings";
@@ -69,7 +69,7 @@ type UpsertPatch = {
   active?: boolean;
 };
 
-/** Session-scoped progress in KV (no DB writes). Django EphemeralLearnerStateStore 相当。 */
+/** セッション単位の進捗を KV に保存する（DB 書き込みなし）。 */
 export class EphemeralLearnerStateStore {
   private readonly cacheKey: string;
   private readonly conceptVideoIds: Map<number, number>;
@@ -727,7 +727,7 @@ async function runTurn(
   };
 }
 
-/** PlogGuidedChatGateway.generate_reply 相当。 */
+/** PLOG Study の応答本文を生成する。 */
 export async function runStudy(
   env: Bindings,
   params: {
@@ -748,8 +748,7 @@ export async function runStudy(
 }
 
 /**
- * PlogGuidedChatGateway.stream_reply 相当。
- * Django 同様に generate してから全文 1 chunk + final を返す（トークンストリームではない）。
+ * 応答を生成してから全文 1 chunk + final を返す（トークンストリームではない）。
  */
 export async function* streamStudy(
   env: Bindings,

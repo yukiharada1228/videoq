@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { SignJWT } from "jose";
-import { chatRoutes } from "../src/routes/chat";
-import { buildChatHistoryCsv, csvDocument } from "../src/utils/csv";
-import { pyJsonDumps } from "../src/utils/py-json";
+import { chatRoutes } from "../src/features/chat/routes";
+import { buildChatHistoryCsv, csvDocument } from "../src/shared/csv";
+import { signAccessToken } from "./helpers/auth";
 
 /**
  * GET ?download=csv（ExportChatHistoryUseCase + write_chat_history_csv）と
@@ -37,15 +36,13 @@ vi.mock("pg", () => {
 const SECRET = "test-jwt-secret-history";
 const ENV = {
   ENVIRONMENT: "development",
-  JWT_SECRET: SECRET,
-  LEGACY_API_ORIGIN: "https://legacy.test",
+  AUTH_JWT_SECRET: SECRET,
   HYPERDRIVE: { connectionString: "postgres://fake/db" },
 } as unknown as Record<string, unknown>;
 
 const exportRows = [
   {
-    ts: "2026-05-01T12:34:56",
-    micros: "000000",
+    created_at: "2026-05-01T12:34:56+00:00",
     question: "pgvector とは？",
     answer: 'これは "引用" と, カンマ\n改行を含む回答',
     is_shared_origin: false,
@@ -55,8 +52,7 @@ const exportRows = [
     ]),
   },
   {
-    ts: "2026-05-02T00:00:01",
-    micros: "123456",
+    created_at: "2026-05-02T00:00:01.123456+00:00",
     question: "second",
     answer: "answer",
     is_shared_origin: true,
@@ -65,22 +61,16 @@ const exportRows = [
   },
 ];
 
-/** Python 側 (csv.writer + json.dumps) の出力そのもの。 */
-const PYTHON_CSV =
+const EXPECTED_CSV =
   "created_at,question,answer,is_shared_origin,citations,feedback\r\n" +
-  "2026-05-01T12:34:56+00:00,pgvector とは？," +
+  "2026-05-01T12:34:56.000Z,pgvector とは？," +
   '"これは ""引用"" と, カンマ\n改行を含む回答",false,' +
-  '"[{""id"": 1, ""video_id"": 60, ""title"": ""動画 A"", ""start_time"": ""00:00:10"", ""end_time"": ""00:00:20""}]",good\r\n' +
-  "2026-05-02T00:00:01.123456+00:00,second,answer,true,[],\r\n";
-
-const sha256Hex = async (text: string) => {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
-};
+  '"[{""id"":1,""video_id"":60,""title"":""動画 A"",""start_time"":""00:00:10"",""end_time"":""00:00:20""}]",good\r\n' +
+  "2026-05-02T00:00:01.123Z,second,answer,true,[],\r\n";
 
 const defaultRows = (sql: MatchableSql): Record<string, unknown>[] => {
-  if (sql.includes("app_videogroup")) return [{ id: 1 }];
-  if (sql.includes("app_chatlog") && sql.includes("ORDER BY created_at ASC"))
+  if (sql.includes("video_groups")) return [{ id: 1 }];
+  if (sql.includes("chat_logs") && sql.includes("ORDER BY created_at ASC"))
     return exportRows;
   return [];
 };
@@ -91,12 +81,7 @@ beforeEach(() => {
 });
 
 async function accessToken(userId = 5) {
-  const now = Math.floor(Date.now() / 1000);
-  return new SignJWT({ token_type: "access", user_id: userId, jti: "j" })
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-    .setIssuedAt(now)
-    .setExpirationTime(now + 3600)
-    .sign(new TextEncoder().encode(SECRET));
+  return signAccessToken(SECRET, userId);
 }
 
 const request = async (path: string, method: string, token?: string) =>
@@ -107,9 +92,9 @@ const request = async (path: string, method: string, token?: string) =>
   );
 
 describe("GET /api/chat/groups/:id/history/?download=csv", () => {
-  it("Python csv.writer と同じ CSV（CRLF・最小引用・UTC isoformat）を返す", async () => {
+  it("CRLF・最小引用・compact JSON の CSV を返す", async () => {
     const res = await request(
-      "/api/chat/groups/3/history/?download=csv",
+      "/api/chat/groups/3/history?download=csv",
       "GET",
       await accessToken(),
     );
@@ -119,20 +104,15 @@ describe("GET /api/chat/groups/:id/history/?download=csv", () => {
       'attachment; filename="chat_history_group_3.csv"',
     );
 
-    // 固定ベクタ: 同じ入力を Python の csv.writer + json.dumps(ensure_ascii=False)
-    // に通した実出力。CRLF・最小引用・引用符の二重化まで一致させる。
     const body = await res.text();
-    expect(body).toBe(PYTHON_CSV);
-    expect(await sha256Hex(body)).toBe(
-      "2641f6d29584c37037e96cbe268aa767b85b93dd0a2dd50e1b59ce5013d9c6e5",
-    );
+    expect(body).toBe(EXPECTED_CSV);
   });
 
   it("他人のグループは 404 Group not found.", async () => {
     rowsFor = (sql) =>
-      sql.includes("app_videogroup") ? [] : defaultRows(sql);
+      sql.includes("video_groups") ? [] : defaultRows(sql);
     const res = await request(
-      "/api/chat/groups/3/history/?download=csv",
+      "/api/chat/groups/3/history?download=csv",
       "GET",
       await accessToken(),
     );
@@ -143,25 +123,19 @@ describe("GET /api/chat/groups/:id/history/?download=csv", () => {
   });
 
   it("未認証は 401", async () => {
-    const res = await request("/api/chat/groups/3/history/?download=csv", "GET");
+    const res = await request("/api/chat/groups/3/history?download=csv", "GET");
     expect(res.status).toBe(401);
   });
 });
 
-describe("CSV / json.dumps の細部", () => {
+describe("CSV の細部", () => {
   it("QUOTE_MINIMAL: 区切り・引用符・改行を含む値だけ引用する", () => {
     expect(csvDocument([["a", "b,c", 'q"q', "line\nbreak", "cr\r"]])).toBe(
       'a,"b,c","q""q","line\nbreak","cr\r"\r\n',
     );
   });
 
-  it("json.dumps 既定の区切り（', ' / ': '）と非 ASCII そのまま出力", () => {
-    expect(pyJsonDumps([{ a: 1, b: "日本語", c: null }])).toBe(
-      '[{"a": 1, "b": "日本語", "c": null}]',
-    );
-  });
-
-  it("絵文字・制御文字・CRLF を含む入力でも Python 出力と SHA-256 が一致する", async () => {
+  it("絵文字・制御文字・CRLF を含む入力を欠損なく出力する", () => {
     const csv = buildChatHistoryCsv([
       {
         created_at: "2026-05-01T12:34:56+00:00",
@@ -199,31 +173,30 @@ describe("CSV / json.dumps の細部", () => {
         ],
       },
     ]);
-    // 同じ行を Python の csv.writer + json.dumps に通した出力の SHA-256。
-    expect(await sha256Hex(csv)).toBe(
-      "588ae5b2f13f1d1236b73ec9ca78c91e53fde2b626ed2653c811b01b7098ee71",
-    );
+    expect(csv).toContain("絵文字 🎥");
+    expect(csv).toContain("surrogate pair 𝕏");
+    expect(csv).toContain('""video_id"":60');
   });
 });
 
 describe("DELETE /api/chat/groups/:id/history/", () => {
   it("評価 → chat log の順に削除して 204 を返す", async () => {
-    const res = await request("/api/chat/groups/3/history/", "DELETE", await accessToken());
+    const res = await request("/api/chat/groups/3/history", "DELETE", await accessToken());
     expect(res.status).toBe(204);
     expect(await res.text()).toBe("");
 
     const sqls = calls.map((c) => c.sql.replace(/\s+/g, " ").trim());
     expect(sqls[0]).toBe("begin");
-    expect(sqls[1]).toContain("app_videogroup");
-    expect(sqls[2]).toContain("app_chatlogevaluation");
-    expect(sqls[3]).toContain("app_chatlog");
+    expect(sqls[1]).toContain("video_groups");
+    expect(sqls[2]).toContain("chat_log_evaluations");
+    expect(sqls[3]).toContain("chat_logs");
     expect(sqls[4]).toBe("commit");
     expect(calls[1].args.slice(0, 2)).toEqual([3, 5]);
   });
 
   it("グループが無ければ ROLLBACK して 404", async () => {
     rowsFor = () => [];
-    const res = await request("/api/chat/groups/3/history/", "DELETE", await accessToken());
+    const res = await request("/api/chat/groups/3/history", "DELETE", await accessToken());
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({
       error: { code: "VALIDATION_ERROR", message: "Group not found." },
@@ -232,7 +205,7 @@ describe("DELETE /api/chat/groups/:id/history/", () => {
   });
 
   it("未認証は 401", async () => {
-    const res = await request("/api/chat/groups/3/history/", "DELETE");
+    const res = await request("/api/chat/groups/3/history", "DELETE");
     expect(res.status).toBe(401);
   });
 });

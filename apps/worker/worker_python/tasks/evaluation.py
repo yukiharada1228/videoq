@@ -1,4 +1,4 @@
-"""evaluate_chat_log — RAGAS evaluation without Django."""
+"""evaluate_chat_log — VideoQ RAGAS evaluation task."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ def _fetch_chat_log(conn: Any, chat_log_id: int) -> dict[str, Any] | None:
     return conn.execute(
         """
         SELECT id, question, answer, retrieved_contexts
-          FROM app_chatlog
+          FROM chat_logs
          WHERE id = %s
         """,
         (chat_log_id,),
@@ -44,7 +44,7 @@ def _save_evaluation(
     )
     updated = conn.execute(
         """
-        UPDATE app_chatlogevaluation
+        UPDATE chat_log_evaluations
            SET status = %s,
                faithfulness = %s,
                answer_relevancy = %s,
@@ -58,7 +58,7 @@ def _save_evaluation(
     if updated.rowcount == 0:
         conn.execute(
             """
-            INSERT INTO app_chatlogevaluation
+            INSERT INTO chat_log_evaluations
                 (chat_log_id, status, faithfulness, answer_relevancy,
                  context_precision, error_message, evaluated_at, created_at)
             VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
@@ -78,9 +78,9 @@ def _save_evaluation(
 
 def evaluate_chat_log(chat_log_id: int) -> None:
     """
-    Run evaluation for a ChatLog and persist to app_chatlogevaluation.
+    Run evaluation for a ChatLog and persist to chat_log_evaluations.
 
-    Errors are recorded with status='failed' and not re-raised (matches Celery task).
+    Errors are recorded with status='failed' and not re-raised so the job is final.
     """
     logger.info("Evaluation task started for ChatLog %s", chat_log_id)
 

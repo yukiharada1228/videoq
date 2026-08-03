@@ -1,12 +1,9 @@
-// PoC #01 Step 5 — 比較・合否判定
-//
-// Python ゴールデンに対し、候補（直接 SQL / LangChain.js）の上位結果を比較し、
-// 手順書 §1 の合格基準を計算して PASS/FAIL を出す。
+// 直接 SQL の基準結果と候補の上位結果を比較し、PASS/FAIL を出す。
 //
 // 使い方:
 //   node 4_compare.mjs \
-//     --golden out/python_golden.json \
-//     --candidate out/direct_sql.json \
+//     --golden out/direct_sql.json \
+//     --candidate out/langchain_js.json \
 //     --config config.json \
 //     --label direct-sql
 
@@ -17,13 +14,14 @@ function arg(name, def) {
   return i >= 0 ? process.argv[i + 1] : def;
 }
 
-const golden = JSON.parse(readFileSync(arg("golden", "out/python_golden.json"), "utf-8"));
+const goldenRaw = JSON.parse(readFileSync(arg("golden", "out/direct_sql.json"), "utf-8"));
 const candRaw = JSON.parse(readFileSync(arg("candidate", "out/direct_sql.json"), "utf-8"));
 const cfg = JSON.parse(readFileSync(arg("config", "config.json"), "utf-8"));
 const label = arg("label", "candidate");
+const golden = Array.isArray(goldenRaw) ? goldenRaw : goldenRaw.results;
 const candidate = Array.isArray(candRaw) ? candRaw : candRaw.results;
 
-// 安定キー: id(langchain_id UUID) を最優先、無ければ content_sha256、最後に脆弱な代理。
+// 安定キー: scene_embeddings.id を最優先、無ければ content hash。
 const keyOf = (r) =>
   r.id != null
     ? `id:${r.id}`
@@ -93,6 +91,5 @@ console.log(`\n=== PoC #01 比較結果: golden vs ${label} ===`);
 console.table(perQuery);
 console.log(`\n総合判定: ${overallPass ? "PASS ✅" : "FAIL ❌"}`);
 console.log("合格基準: overlap(top10)>=0.9, spearman>=0.9, authViolations=0, error=none");
-console.log("※ score の意味が Python(langchain score) と直接SQL(cosine distance) で異なる場合があるため、");
-console.log("  maxScoreRelErr は参考値。一次判定は ID 集合一致率と順位相関・認可漏れで行う。");
+console.log("※ wrapper により score の意味が異なる場合があるため、maxScoreRelErr は参考値。");
 process.exit(overallPass ? 0 : 1);

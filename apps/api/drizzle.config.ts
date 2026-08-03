@@ -1,7 +1,7 @@
 import { defineConfig } from "drizzle-kit";
 
 /**
- * スキーマ正本（Django migrations から移管）。
+ * アプリケーションschemaの正本。
  * 既存 Neon には baseline 済み想定 — `drizzle-kit push` で破壊的変更しないこと。
  * 新規 DDL は `drizzle-kit generate` → migrate。
  */

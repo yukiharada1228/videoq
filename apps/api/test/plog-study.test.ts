@@ -50,8 +50,7 @@ function memoryKv(): KVNamespace {
 
 const ENV = {
   ENVIRONMENT: "development",
-  JWT_SECRET: "x",
-  LEGACY_API_ORIGIN: "https://legacy.test",
+  AUTH_JWT_SECRET: "x",
   HYPERDRIVE: { connectionString: "postgres://fake/db" },
   OPENAI_API_KEY: "sk-test",
   OPENAI_BASE_URL: "https://openai.test/v1",
@@ -60,8 +59,8 @@ const ENV = {
 
 function readyGraphRows(): void {
   rowsFor = (sql) => {
-    if (sql.includes("FROM app_plogbuildjob")) return [{ status: "ready" }];
-    if (sql.includes("FROM app_plogconcept")) {
+    if (sql.includes("FROM plog_build_jobs")) return [{ status: "ready" }];
+    if (sql.includes("FROM plog_concepts")) {
       return [
         {
           id: 1,
@@ -97,7 +96,7 @@ function readyGraphRows(): void {
         },
       ];
     }
-    if (sql.includes("FROM app_plogedge")) {
+    if (sql.includes("FROM plog_edges")) {
       return [
         {
           id: 1,
@@ -109,8 +108,8 @@ function readyGraphRows(): void {
         },
       ];
     }
-    if (sql.includes("FROM app_plogsummarynode")) return [];
-    if (sql.includes("FROM app_video")) {
+    if (sql.includes("FROM plog_summary_nodes")) return [];
+    if (sql.includes("FROM videos")) {
       return [{ title: "Logic Gates", transcript: "" }];
     }
     return [];
@@ -176,7 +175,7 @@ describe("runStudy smoke", () => {
 
   it("throws PlogNotReadyError when no ready graphs", async () => {
     rowsFor = (sql) => {
-      if (sql.includes("FROM app_plogbuildjob")) return [{ status: "pending" }];
+      if (sql.includes("FROM plog_build_jobs")) return [{ status: "pending" }];
       return [];
     };
     await expect(

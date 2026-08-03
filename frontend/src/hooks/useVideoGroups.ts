@@ -37,17 +37,18 @@ export function useVideoGroups(trigger: boolean = true): UseVideoGroupsReturn {
     ),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage.next) return undefined;
-      return allPages.reduce((sum, page) => sum + page.results.length, 0);
+      const loaded = allPages.reduce((sum, page) => sum + page.data.length, 0);
+      if (loaded >= lastPage.meta.total) return undefined;
+      return loaded;
     },
   });
 
   const groups = useMemo(
-    () => groupsQuery.data?.pages.flatMap((page) => page.results) ?? [],
+    () => groupsQuery.data?.pages.flatMap((page) => page.data) ?? [],
     [groupsQuery.data],
   );
 
-  const totalCount = groupsQuery.data?.pages[0]?.count ?? 0;
+  const totalCount = groupsQuery.data?.pages[0]?.meta.total ?? 0;
 
   useEffect(() => {
     if (groupsQuery.error) {

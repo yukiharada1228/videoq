@@ -1,2 +1,0 @@
-"""Video integration tests."""
-

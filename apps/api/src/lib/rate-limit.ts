@@ -2,8 +2,7 @@ import type { Context } from "hono";
 import type { AppEnv, Bindings } from "../types/bindings";
 
 /**
- * Django `DEFAULT_THROTTLE_RATES` と同一（settings.py）。
- * `chat_share_token_global` は settings にあるがコード未使用のため未移植。
+ * VideoQ API のスコープ別レート制限。
  */
 export const THROTTLE_RATES = {
   chat_share_token_ip: { limit: 100, windowSec: 3600 },
@@ -28,41 +27,54 @@ export type ThrottleCheck = {
 
 export type ConsumeResult = { allowed: boolean; retryAfterSec: number };
 
-type RateLimitBackend = {
+export type RateLimitBackend = {
   consume(key: string, limit: number, windowSec: number): Promise<ConsumeResult>;
 };
 
-/** テスト用メモリ実装（プロセス内。DO 未バインド時のフォールバックでもある）。 */
-const memoryStore = new Map<string, number[]>();
-
-export function resetMemoryRateLimits(): void {
-  memoryStore.clear();
+/** Unit tests must explicitly inject this isolated backend through Bindings. */
+export function createMemoryRateLimitBackend(): RateLimitBackend {
+  const store = new Map<string, number[]>();
+  return {
+    async consume(key, limit, windowSec) {
+      const now = Date.now() / 1000;
+      const history = store.get(key) ?? [];
+      const cutoff = now - windowSec;
+      while (history.length > 0 && history[history.length - 1]! <= cutoff) {
+        history.pop();
+      }
+      if (history.length >= limit) {
+        const oldest = history[history.length - 1]!;
+        return {
+          allowed: false,
+          retryAfterSec: Math.max(1, Math.ceil(windowSec - (now - oldest))),
+        };
+      }
+      history.unshift(now);
+      store.set(key, history);
+      return { allowed: true, retryAfterSec: 0 };
+    },
+  };
 }
 
-const memoryBackend: RateLimitBackend = {
-  async consume(key, limit, windowSec) {
-    const now = Date.now() / 1000;
-    const history = memoryStore.get(key) ?? [];
-    const cutoff = now - windowSec;
-    while (history.length > 0 && history[history.length - 1]! <= cutoff) {
-      history.pop();
-    }
-    if (history.length >= limit) {
-      const oldest = history[history.length - 1]!;
-      return {
-        allowed: false,
-        retryAfterSec: Math.max(1, Math.ceil(windowSec - (now - oldest))),
-      };
-    }
-    history.unshift(now);
-    memoryStore.set(key, history);
-    return { allowed: true, retryAfterSec: 0 };
+let injectedTestBackend: RateLimitBackend | undefined;
+
+/** Explicit process-local injection for unit tests. Never call from Worker code. */
+export function setRateLimitBackendForTests(
+  backend: RateLimitBackend | undefined,
+): void {
+  injectedTestBackend = backend;
+}
+
+const unavailableBackend: RateLimitBackend = {
+  async consume() {
+    // Missing rate limiting must never turn into unlimited access.
+    return { allowed: false, retryAfterSec: 60 };
   },
 };
 
 function getBackend(env: Bindings): RateLimitBackend {
   const ns = env.RATE_LIMITER;
-  if (!ns) return memoryBackend;
+  if (!ns) return injectedTestBackend ?? unavailableBackend;
   return {
     async consume(key, limit, windowSec) {
       const stub = ns.get(ns.idFromName(key));
@@ -71,7 +83,7 @@ function getBackend(env: Bindings): RateLimitBackend {
   };
 }
 
-/** CF / プロキシ越しのクライアント IP（Django `get_ident` 相当の簡易版）。 */
+/** Cloudflare / プロキシの転送ヘッダーからクライアント IP を解決する。 */
 export function clientIp(c: Context<AppEnv>): string {
   return (
     c.req.header("CF-Connecting-IP")?.trim() ||
@@ -87,8 +99,8 @@ export function normalizeThrottleIdent(value: string, lowercase: boolean): strin
 }
 
 /**
- * 複数スコープを順に消費。いずれか超過なら最初の超過結果を返す（DRF と同順）。
- * ident が null/空のチェックはスキップ（ShareTokenIPThrottle が share 無しで None を返すのと同じ）。
+ * 複数スコープを順に消費し、最初の超過結果を返す。
+ * ident が null または空のチェックはスキップする。
  */
 export async function enforceThrottles(
   env: Bindings,
@@ -107,7 +119,7 @@ export async function enforceThrottles(
   return null;
 }
 
-/** DRF Throttled → custom_exception_handler（LIMIT_EXCEEDED）。 */
+/** レート制限超過を共通エラー形式で返す。 */
 export function throttledResponse(
   c: Context<AppEnv>,
   result: ConsumeResult,

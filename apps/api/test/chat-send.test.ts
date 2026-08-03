@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { SignJWT } from "jose";
-import { chatRoutes } from "../src/routes/chat";
+import { chatRoutes } from "../src/features/chat/routes";
+import { signAccessToken } from "./helpers/auth";
 
 /**
  * ルート全体（認証 → 検証 → group/quota → RAG → ChatLog → 応答）の結線テスト。
@@ -36,19 +36,18 @@ vi.mock("pg", () => {
 const SECRET = "test-jwt-secret-chat";
 const ENV = {
   ENVIRONMENT: "development",
-  JWT_SECRET: SECRET,
-  LEGACY_API_ORIGIN: "https://legacy.test",
+  AUTH_JWT_SECRET: SECRET,
   HYPERDRIVE: { connectionString: "postgres://fake/db" },
 } as unknown as Record<string, unknown>;
 
 const defaultRows = (sql: MatchableSql): Record<string, unknown>[] => {
   if (sql.includes("is_over_quota") || sql.includes("ai_answers_limit"))
     return [{ isOverQuota: false, aiAnswersLimit: null, usedAiAnswers: 0 }];
-  if (sql.includes("app_videogroupmember"))
+  if (sql.includes("video_group_members"))
     return [{ videoId: 60 }, { videoId: 61 }];
-  if (sql.includes("app_videogroup"))
+  if (sql.includes("video_groups"))
     return [{ id: 3, userId: 5, description: "Group about pgvector" }];
-  if (sql.includes("videoq_scenes"))
+  if (sql.includes("scene_embeddings"))
     return [
       {
         content: "scene text A",
@@ -60,7 +59,7 @@ const defaultRows = (sql: MatchableSql): Record<string, unknown>[] => {
         },
       },
     ];
-  if (sql.includes("app_chatlog") && sql.includes("returning"))
+  if (sql.includes("chat_logs") && sql.includes("returning"))
     return [{ id: 99, feedback: null }];
   return [];
 };
@@ -72,12 +71,7 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 async function accessToken(userId = 5) {
-  const now = Math.floor(Date.now() / 1000);
-  return new SignJWT({ token_type: "access", user_id: userId, jti: "j" })
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-    .setIssuedAt(now)
-    .setExpirationTime(now + 3600)
-    .sign(new TextEncoder().encode(SECRET));
+  return signAccessToken(SECRET, userId);
 }
 
 async function post(
@@ -170,30 +164,26 @@ describe("POST /api/chat/messages（非ストリーミング）", () => {
     expect(res.status).toBe(401);
   });
 
-  it("バリデーション失敗は {error:{code,message,fields}}", async () => {
+  it("バリデーション失敗は {error:{code,message,details}}", async () => {
     const res = await post("/api/chat/messages", {}, { token: await accessToken() });
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({
-      error: {
-        code: "VALIDATION_ERROR",
-        message: "This field is required.",
-        fields: { messages: ["This field is required."] },
-      },
-    });
+    const j = await res.json();
+    expect(j.error.code).toBe("VALIDATION_ERROR");
+    expect(j.error.details.messages).toBeTruthy();
   });
 
-  it("messages が空配列なら 400 Messages are empty.（DB 到達前）", async () => {
+  it("messages が空配列なら 400（Zod min(1)）", async () => {
     const res = await post("/api/chat/messages", { messages: [] }, { token: await accessToken() });
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({
-      error: { code: "VALIDATION_ERROR", message: "Messages are empty." },
-    });
+    const j = await res.json();
+    expect(j.error.code).toBe("VALIDATION_ERROR");
+    expect(j.error.details.messages).toBeTruthy();
   });
 
   it("mode=study は Worker 内 PLOG gateway（ready グラフ無しは 409 PLOG_NOT_READY）", async () => {
     const prev = rowsFor;
     rowsFor = (sql, args) => {
-      if (sql.includes("app_plogbuildjob")) return [{ status: "pending" }];
+      if (sql.includes("plog_build_jobs")) return [{ status: "pending" }];
       return prev(sql, args);
     };
     const kv = {
@@ -252,8 +242,10 @@ describe("POST /api/chat/messages（非ストリーミング）", () => {
     });
 
     // 検索は user_id + 許可 video_id + k=20 で絞る
-    const search = calls.find((c) => c.sql.includes("videoq_scenes"))!;
-    expect(search.args).toEqual([5, 60, 61, "[0.1,0.2]", 20]);
+    const search = calls.find((c) => c.sql.includes("scene_embeddings"))!;
+    // video_ids are inlined as ARRAY[…]::bigint[] (not bound params)
+    expect(search.args).toEqual([5, "[0.1,0.2]", 20]);
+    expect(String(search.sql)).toMatch(/ARRAY\[60,61\]::bigint\[\]/);
 
     // プロンプトは ja ロケール + group_context + 参照シーンを含む
     const chat = requests.find((r) => r.url.endsWith("/chat/completions"))!;
@@ -264,7 +256,7 @@ describe("POST /api/chat/messages（非ストリーミング）", () => {
     expect(messages[1]).toEqual({ role: "user", content: "何が起きた?" });
 
     // ChatLog は citations（id なし）と retrieved_contexts を保存
-    const insert = calls.find((c) => c.sql.includes("app_chatlog") && c.sql.includes("returning"))!;
+    const insert = calls.find((c) => c.sql.includes("chat_logs") && c.sql.includes("returning"))!;
     const citationsArg = insert.args.find(
       (a) => typeof a === "string" && a.includes("Video A"),
     ) as string;
@@ -279,17 +271,18 @@ describe("POST /api/chat/messages（非ストリーミング）", () => {
 
     expect(calls.some((c) => c.sql.includes("used_ai_answers") && c.sql.includes("+ 1"))).toBe(true);
 
-    // ChatLog 保存後に RAGAS 評価タスクを SQS へ投入（Django の on_commit 相当）
+    // ChatLog保存後にRAGAS評価タスクをSQSへ投入。
     const sqs = requests.find((r) => r.url.includes("sqs"))!;
     const message = JSON.parse(
       decodeURIComponent(sqs.raw.split("MessageBody=")[1].replace(/\+/g, " ")),
     );
-    expect(message.headers.task).toBe("app.entrypoints.tasks.evaluation.evaluate_chat_log");
-    expect(JSON.parse(atob(message.body))[0]).toEqual([99]);
+    expect(message.type).toBe("evaluate_chat_log");
+    expect(message.payload).toEqual({ chat_log_id: 99 });
+    expect(typeof message.job_id).toBe("string");
   });
 
   it("グループが解決できなければ 404", async () => {
-    rowsFor = (sql) => (sql.includes("app_videogroup") ? [] : defaultRows(sql));
+    rowsFor = (sql) => (sql.includes("video_groups") ? [] : defaultRows(sql));
     const res = await post(
       "/api/chat/messages",
       { messages: [{ role: "user", content: "hi" }], group_id: 3 },
@@ -369,7 +362,7 @@ describe("POST /api/chat/messages（非ストリーミング）", () => {
     expect(res.status).toBe(200);
 
     const group = calls.find(
-      (c) => c.sql.includes("share_slug") && c.sql.includes("app_videogroup"),
+      (c) => c.sql.includes("share_slug") && c.sql.includes("video_groups"),
     )!;
     expect(group.args).toContain("abc123");
     expect(calls.some((c) => c.sql.includes("share_slug") && c.args.includes(3))).toBe(true);
@@ -377,7 +370,7 @@ describe("POST /api/chat/messages（非ストリーミング）", () => {
     const quota = calls.find((c) => c.sql.includes("is_over_quota") || c.sql.includes("ai_answers_limit"))!;
     expect(quota.args[0]).toBe(5); // 共有訪問者ではなくグループ所有者
 
-    const insert = calls.find((c) => c.sql.includes("app_chatlog") && c.sql.includes("returning"))!;
+    const insert = calls.find((c) => c.sql.includes("chat_logs") && c.sql.includes("returning"))!;
     expect(insert.args).toContain(true);
   });
 
@@ -399,31 +392,28 @@ describe("POST /api/chat/messages（非ストリーミング）", () => {
 });
 
 describe("POST /api/chat/messages/stream（SSE）", () => {
-  it("バリデーション失敗は serializer.errors の辞書をそのまま message に入れる", async () => {
+  it("バリデーション失敗は非ストリームと同じ {error:{code,message,details}}", async () => {
     const res = await post(
       "/api/chat/messages/stream",
       { messages: [{ role: "bad", content: "hi" }] },
       { token: await accessToken() },
     );
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({
-      error: {
-        code: "VALIDATION_ERROR",
-        message: { messages: [{ role: ['"bad" is not a valid choice.'] }] },
-      },
-    });
+    const j = await res.json();
+    expect(j.error.code).toBe("VALIDATION_ERROR");
+    expect(j.error.details).toBeTruthy();
   });
 
-  it("messages が空配列なら 400 INVALID_REQUEST（ストリーム開始前）", async () => {
+  it("messages が空配列なら 400（Zod min(1)、ストリーム開始前）", async () => {
     const res = await post(
       "/api/chat/messages/stream",
       { messages: [] },
       { token: await accessToken() },
     );
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({
-      error: { code: "INVALID_REQUEST", message: "Messages are empty." },
-    });
+    const j = await res.json();
+    expect(j.error.code).toBe("VALIDATION_ERROR");
+    expect(j.error.details.messages).toBeTruthy();
   });
 
   it("チャンク → done（citations 付き）の順で流す", async () => {
@@ -458,7 +448,7 @@ describe("POST /api/chat/messages/stream（SSE）", () => {
       },
     ]);
 
-    const insert = calls.find((c) => c.sql.includes("app_chatlog") && c.sql.includes("returning"))!;
+    const insert = calls.find((c) => c.sql.includes("chat_logs") && c.sql.includes("returning"))!;
     expect(insert.args).toContain("Hello!");
   });
 

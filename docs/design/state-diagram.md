@@ -10,7 +10,7 @@ VideoQシステムの主要オブジェクトの状態遷移を示す図です�
 stateDiagram-v2
     [*] --> Pending: Video Upload
     
-    Pending --> Processing: Celery Task Starts
+    Pending --> Processing: Worker Job Starts
     Processing --> Indexing: Transcription Success
     Indexing --> Completed: Vector Indexing Success
     Processing --> Error: Transcription Failure

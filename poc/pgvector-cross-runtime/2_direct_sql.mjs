@@ -1,7 +1,5 @@
-// PoC #01 Step 3 — 直接 SQL による再現（DR-4 第一候補, READ-ONLY）
-//
-// Python が出力した query_embeddings.json の「同一ベクトル」を使い、
-// node-postgres で cosine 距離検索を行う。EXPLAIN も採取する。
+// modern scene_embeddings に対する直接 SQL 検索（READ-ONLY）。
+// query_embeddings.json のベクトルを使い、cosine 距離と EXPLAIN を採取する。
 //
 // 使い方:
 //   npm i pg
@@ -32,14 +30,14 @@ const k = cfg.k ?? 20;
 const userId = cfg.user_id;
 const videoIds = cfg.video_ids;
 
-// public スキーマを明示（search_path 依存を避け、Python v2 と厳密に揃える）。
-// <=> は cosine distance（小さいほど近い）。ORDER BY 省略時方向 ASC が正しい。
+// public スキーマを明示して search_path 依存を避ける。
+// <=> は cosine distance（小さいほど近い）。
 const SQL = `
-  SELECT langchain_id, content, langchain_metadata, user_id, video_id,
+  SELECT id, content, langchain_metadata, user_id, video_id,
          embedding <=> $1::vector AS distance
-  FROM public.videoq_scenes
+  FROM public.scene_embeddings
   WHERE user_id = $2
-    AND video_id = ANY($3::int[])
+    AND video_id = ANY($3::bigint[])
   ORDER BY embedding <=> $1::vector
   LIMIT $4;
 `;
@@ -57,7 +55,7 @@ for (const { query, embedding } of embs) {
     query,
     k,
     results: rows.map((r) => ({
-      id: r.langchain_id,
+      id: r.id,
       content_sha256: sha256(r.content),
       score: Number(r.distance),
       user_id: r.user_id,

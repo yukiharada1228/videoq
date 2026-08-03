@@ -1,24 +1,25 @@
 import { eq, sql } from "drizzle-orm";
 import { withDb } from "../db/pool";
-import { videoqScenes } from "../db/schema";
+import { sqlNumberArray } from "../db/sql-array";
+import { sceneEmbeddings } from "../db/schema";
 import type { Bindings } from "../types/bindings";
 
 /**
  * PGVector（langchain）メタデータの同期。VideoQ は user_id/video_id を独立列に持つ
  * （metadata_columns=["user_id","video_id"]）ため、video_id 列で直接 SQL 操作する。
- * テーブル名は SQL インジェクション防止のため allowlist 照合（Django と同じ方針）。
+ * テーブル名は SQL インジェクション防止のため allowlist で照合する。
  */
-const ALLOWED_TABLES = new Set(["videoq_scenes"]);
+const ALLOWED_TABLES = new Set(["scene_embeddings"]);
 
 function resolveVectorTable(env: Bindings): string {
-  const name = env.PGVECTOR_COLLECTION_NAME || "videoq_scenes";
+  const name = env.PGVECTOR_COLLECTION_NAME || "scene_embeddings";
   if (!ALLOWED_TABLES.has(name)) {
     throw new Error(`vector table '${name}' is not in the allowed list`);
   }
   return name; // allowlist 済みなので式内展開は安全
 }
 
-/** 検索ヒット 1 件（langchain Document 相当）。 */
+/** ベクトル検索ヒット 1 件。 */
 export type SceneHit = {
   content: string;
   videoId: number;
@@ -27,7 +28,7 @@ export type SceneHit = {
   endTime: string;
 };
 
-/** Django `as_retriever(search_kwargs={"k": 20, ...})` の既定 k。 */
+/** ベクトル検索の既定取得件数。 */
 export const RETRIEVER_K = 20;
 
 /**
@@ -55,7 +56,7 @@ export async function searchScenes(
       SELECT content, video_id, langchain_metadata
         FROM ${sql.raw(table)}
        WHERE user_id = ${params.userId}
-         AND video_id = ANY(${[...params.videoIds]}::int[])
+         AND video_id = ANY(${sqlNumberArray(params.videoIds)})
        ORDER BY embedding <=> ${params.vectorLiteral}::vector
        LIMIT ${k}
     `);
@@ -81,7 +82,7 @@ export async function searchScenes(
   });
 }
 
-/** 動画に紐づくベクトルを削除（delete_video_vectors 相当）。best-effort で使う。 */
+/** 動画に紐づくベクトルを削除する。best-effort で使う。 */
 export async function deleteVideoVectors(
   env: Bindings,
   videoId: number,
@@ -89,15 +90,15 @@ export async function deleteVideoVectors(
   resolveVectorTable(env);
   return withDb(env, async (db) => {
     const deleted = await db
-      .delete(videoqScenes)
-      .where(eq(videoqScenes.videoId, videoId))
-      .returning({ langchainId: videoqScenes.langchainId });
+      .delete(sceneEmbeddings)
+      .where(eq(sceneEmbeddings.videoId, videoId))
+      .returning({ id: sceneEmbeddings.id });
     return deleted.length;
   });
 }
 
 /**
- * タイトル変更に伴う langchain_metadata.video_title の更新（update_video_title_in_vectors 相当）。
+ * タイトル変更に伴い langchain_metadata.video_title を更新する。
  * 更新件数を返す。呼び出し側は best-effort（失敗を握りつぶす）で使う。
  */
 export async function syncVectorTitle(
@@ -108,16 +109,16 @@ export async function syncVectorTitle(
   resolveVectorTable(env);
   return withDb(env, async (db) => {
     const updated = await db
-      .update(videoqScenes)
+      .update(sceneEmbeddings)
       .set({
         langchainMetadata: sql`jsonb_set(
-          COALESCE(${videoqScenes.langchainMetadata}::jsonb, '{}'::jsonb),
+          COALESCE(${sceneEmbeddings.langchainMetadata}::jsonb, '{}'::jsonb),
           '{video_title}',
           to_jsonb(${newTitle}::text)
         )`,
       })
-      .where(eq(videoqScenes.videoId, videoId))
-      .returning({ langchainId: videoqScenes.langchainId });
+      .where(eq(sceneEmbeddings.videoId, videoId))
+      .returning({ id: sceneEmbeddings.id });
     return updated.length;
   });
 }

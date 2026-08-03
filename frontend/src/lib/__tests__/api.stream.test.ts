@@ -32,12 +32,8 @@ async function collectStreamEvents(data: Parameters<typeof apiClient.chatStream>
 describe('apiClient.chatStream', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
-    // Provide a CSRF token via cookie so ensureCsrfToken resolves quickly
-    Object.defineProperty(document, 'cookie', {
-      writable: true,
-      value: 'csrftoken=test-csrf-token',
-    })
-    ;(apiClient as any).csrfToken = null
+    ;(apiClient as any).accessToken = 'stream-access-token'
+    ;(apiClient as any).refreshPromise = null
     ;(apiClient as any).baseUrl = 'http://localhost:8000/api'
   })
 
@@ -105,8 +101,12 @@ describe('apiClient.chatStream', () => {
     })
 
     const calledUrl = fetchSpy.mock.calls[0][0] as string
-    expect(calledUrl).toContain('/chat/messages/stream/')
+    expect(calledUrl).toContain('/chat/messages/stream')
     expect(calledUrl).toContain('share_slug=abc123')
+    expect(fetchSpy.mock.calls[0][1]).toEqual(expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: 'Bearer stream-access-token' }),
+    }))
+    expect(fetchSpy.mock.calls[0][1]).not.toHaveProperty('credentials')
   })
 
   it('throws ApiError on non-200 HTTP response', async () => {
@@ -131,7 +131,7 @@ describe('apiClient.chatStream', () => {
         }),
       )
       .mockResolvedValueOnce(
-        new Response('{}', {
+        new Response(JSON.stringify({ access_token: 'refreshed-stream-token' }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         }),
@@ -152,9 +152,13 @@ describe('apiClient.chatStream', () => {
       { type: 'done', chat_log_id: 7, feedback: null },
     ])
     expect(fetchSpy).toHaveBeenCalledTimes(3)
-    expect(fetchSpy.mock.calls[0][0]).toBe('http://localhost:8000/api/chat/messages/stream/')
-    expect(fetchSpy.mock.calls[1][0]).toBe('http://localhost:8000/api/auth/tokens/')
-    expect(fetchSpy.mock.calls[2][0]).toBe('http://localhost:8000/api/chat/messages/stream/')
+    expect(fetchSpy.mock.calls[0][0]).toBe('http://localhost:8000/api/chat/messages/stream')
+    expect(fetchSpy.mock.calls[1][0]).toBe('http://localhost:8000/api/auth/tokens')
+    expect(fetchSpy.mock.calls[2][0]).toBe('http://localhost:8000/api/chat/messages/stream')
+    expect(fetchSpy.mock.calls[1][1]).toEqual(expect.objectContaining({ credentials: 'include' }))
+    expect(fetchSpy.mock.calls[2][1]).toEqual(expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: 'Bearer refreshed-stream-token' }),
+    }))
   })
 
   it('handles chunked SSE delivery across multiple reads', async () => {

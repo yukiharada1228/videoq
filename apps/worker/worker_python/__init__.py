@@ -1,3 +1,3 @@
-"""Django-free VideoQ background task worker."""
+"""VideoQ background task worker."""
 
 __version__ = "0.1.0"

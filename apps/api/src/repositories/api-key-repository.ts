@@ -1,8 +1,8 @@
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { withDb } from "../db/pool";
-import { appUserapikey } from "../db/schema";
-import { APP_TIMEZONE, normalizeDrfDatetime } from "../utils/datetime";
-import { sha256Hex } from "../utils/crypto";
+import { apiKeys } from "../db/schema";
+import { toUtcIso } from "../shared/datetime";
+import { sha256Hex } from "../shared/crypto";
 import type { Bindings } from "../types/bindings";
 
 export type ApiKeyContext = {
@@ -29,12 +29,6 @@ function generateRawKey(): string {
   return `vq_${b64url}`;
 }
 
-const lastUsedAtDrf = sql<string | null>`to_char(${appUserapikey.lastUsedAt}, 'YYYY-MM-DD"T"HH24:MI:SS.USOF')`.as(
-  "last_used_at",
-);
-const createdAtDrf = sql<string>`to_char(${appUserapikey.createdAt}, 'YYYY-MM-DD"T"HH24:MI:SS.USOF')`.as(
-  "created_at",
-);
 
 /** 現在ユーザーのアクティブな API キー一覧（-created_at,-id 順）。 */
 export async function listApiKeys(
@@ -42,27 +36,26 @@ export async function listApiKeys(
   userId: number,
 ): Promise<ApiKeyItem[]> {
   return withDb(env, async (db) => {
-    await db.execute(sql.raw(`SET timezone = '${APP_TIMEZONE}'`));
     const rows = await db
       .select({
-        id: appUserapikey.id,
-        name: appUserapikey.name,
-        access_level: appUserapikey.accessLevel,
-        prefix: appUserapikey.prefix,
-        last_used_at: lastUsedAtDrf,
-        created_at: createdAtDrf,
+        id: apiKeys.id,
+        name: apiKeys.name,
+        access_level: apiKeys.accessLevel,
+        prefix: apiKeys.prefix,
+        last_used_at: apiKeys.lastUsedAt,
+        created_at: apiKeys.createdAt,
       })
-      .from(appUserapikey)
-      .where(and(eq(appUserapikey.userId, userId), isNull(appUserapikey.revokedAt)))
-      .orderBy(desc(appUserapikey.createdAt), desc(appUserapikey.id));
+      .from(apiKeys)
+      .where(and(eq(apiKeys.userId, userId), isNull(apiKeys.revokedAt)))
+      .orderBy(desc(apiKeys.createdAt), desc(apiKeys.id));
 
     return rows.map((r) => ({
       id: Number(r.id),
       name: r.name,
       access_level: r.access_level,
       prefix: r.prefix,
-      last_used_at: r.last_used_at ? normalizeDrfDatetime(r.last_used_at) : null,
-      created_at: normalizeDrfDatetime(r.created_at),
+      last_used_at: r.last_used_at ? toUtcIso(r.last_used_at) : null,
+      created_at: toUtcIso(r.created_at)!,
     }));
   });
 }
@@ -74,13 +67,13 @@ export async function existsActiveApiKeyName(
 ): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db
-      .select({ id: appUserapikey.id })
-      .from(appUserapikey)
+      .select({ id: apiKeys.id })
+      .from(apiKeys)
       .where(
         and(
-          eq(appUserapikey.userId, userId),
-          eq(appUserapikey.name, name),
-          isNull(appUserapikey.revokedAt),
+          eq(apiKeys.userId, userId),
+          eq(apiKeys.name, name),
+          isNull(apiKeys.revokedAt),
         ),
       )
       .limit(1);
@@ -99,9 +92,8 @@ export async function createApiKey(
   const hashedKey = await sha256Hex(rawKey);
 
   const apiKey = await withDb(env, async (db) => {
-    await db.execute(sql.raw(`SET timezone = '${APP_TIMEZONE}'`));
     const rows = await db
-      .insert(appUserapikey)
+      .insert(apiKeys)
       .values({
         userId,
         name,
@@ -113,8 +105,8 @@ export async function createApiKey(
         createdAt: sql`CURRENT_TIMESTAMP`,
       })
       .returning({
-        id: appUserapikey.id,
-        created_at: createdAtDrf,
+        id: apiKeys.id,
+        created_at: apiKeys.createdAt,
       });
     const r = rows[0];
     return {
@@ -123,7 +115,7 @@ export async function createApiKey(
       access_level: accessLevel,
       prefix,
       last_used_at: null,
-      created_at: normalizeDrfDatetime(r.created_at),
+      created_at: toUtcIso(r.created_at)!,
     } satisfies ApiKeyItem;
   });
 
@@ -137,16 +129,16 @@ export async function revokeApiKey(
 ): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db
-      .update(appUserapikey)
+      .update(apiKeys)
       .set({ revokedAt: sql`now()` })
       .where(
         and(
-          eq(appUserapikey.id, keyId),
-          eq(appUserapikey.userId, userId),
-          isNull(appUserapikey.revokedAt),
+          eq(apiKeys.id, keyId),
+          eq(apiKeys.userId, userId),
+          isNull(apiKeys.revokedAt),
         ),
       )
-      .returning({ id: appUserapikey.id });
+      .returning({ id: apiKeys.id });
     return rows.length > 0;
   });
 }
@@ -156,11 +148,11 @@ export async function resolveActiveApiKey(
   hashedKey: string,
 ): Promise<ApiKeyContext | null> {
   return withDb(env, async (db) => {
-    // Atomic mark-used + resolve (Django mark_used / PoC #04).
+    // API キーの使用日時更新と所有者解決をアトミックに行う。
     const result = await db.execute(sql`
-      UPDATE app_userapikey k
+      UPDATE api_keys k
          SET last_used_at = now()
-        FROM app_user u
+        FROM users u
        WHERE k.hashed_key = ${hashedKey}
          AND k.revoked_at IS NULL
          AND u.id = k.user_id

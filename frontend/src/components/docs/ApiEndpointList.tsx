@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { API_URL } from '@/lib/api';
+import { API_URL, apiClient } from '@/lib/api';
 import { ChipLabel } from '@/components/ui/chip-label';
 import { Disclosure, DisclosureSummary } from '@/components/ui/disclosure';
 import { Heading, HeadingTitle } from '@/components/ui/heading';
@@ -412,20 +412,7 @@ export function ApiEndpointList({ section }: ApiEndpointListProps) {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${API_URL}/schema/`, {
-          method: 'GET',
-          credentials: 'include',
-          signal: abortController.signal,
-          headers: {
-            Accept: 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to load schema (${response.status})`);
-        }
-
-        const data = (await response.json()) as OpenApiSchema;
+        const data = await apiClient.getSchema<OpenApiSchema>(abortController.signal);
         setSchema(data);
       } catch (caughtError) {
         if ((caughtError as Error).name === 'AbortError') return;

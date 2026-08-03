@@ -12,11 +12,13 @@ const mockGroups = [
 
 type MockGroup = (typeof mockGroups)[number]
 
-const mockPaginatedGroups = (results: MockGroup[] = mockGroups) => ({
-  count: results.length,
-  next: null,
-  previous: null,
-  results,
+const mockPaginatedGroups = (data: MockGroup[] = mockGroups) => ({
+  data,
+  meta: {
+    total: data.length,
+    limit: 24,
+    offset: 0,
+  },
 })
 
 vi.mock('@/lib/api', () => ({

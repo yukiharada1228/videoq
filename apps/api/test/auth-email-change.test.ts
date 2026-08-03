@@ -1,22 +1,29 @@
-import { describe, it, expect } from "vitest";
-import { SignJWT } from "jose";
-import { authRoutes } from "../src/routes/auth";
+import { describe, it, expect, vi } from "vitest";
+import { authRoutes } from "../src/features/auth/routes";
 import { buildPasswordResetLink, buildEmailChangeLink } from "../src/lib/auth-email";
+import { signAccessToken } from "./helpers/auth";
+
+vi.mock("pg", () => {
+  class FakeClient {
+    async connect() {}
+    async end() {}
+    async query() {
+      return { rows: [], rowCount: 0 };
+    }
+  }
+  return { default: { Client: FakeClient } };
+});
 
 const SECRET = "test-email-change-secret";
 const ENV = {
   ENVIRONMENT: "development",
-  JWT_SECRET: SECRET,
+  AUTH_JWT_SECRET: SECRET,
   FRONTEND_URL: "https://app.videoq.test",
+  HYPERDRIVE: { connectionString: "postgres://fake/db" },
 } as unknown as Record<string, unknown>;
 
 async function accessToken() {
-  const now = Math.floor(Date.now() / 1000);
-  return new SignJWT({ token_type: "access", user_id: 5, jti: "j" })
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-    .setIssuedAt(now)
-    .setExpirationTime(now + 3600)
-    .sign(new TextEncoder().encode(SECRET));
+  return signAccessToken(SECRET);
 }
 
 const jsonPatch = async (body: unknown) => ({
@@ -31,18 +38,18 @@ const jsonPatch = async (body: unknown) => ({
 describe("POST /password-resets（DB 到達前の分岐）", () => {
   it("email 欠落 → 400 required", async () => {
     const res = await authRoutes.request(
-      "/password-resets",
+      "/api/auth/password-resets",
       { method: "POST", headers: { "content-type": "application/json" }, body: "{}" },
       ENV,
     );
     expect(res.status).toBe(400);
     const j = await res.json();
-    expect(j.error.fields.email).toEqual(["This field is required."]);
+    expect(j.error.details.email).toEqual(["Invalid input: expected string, received undefined"]);
   });
 
   it("不正な email → 400 EmailField", async () => {
     const res = await authRoutes.request(
-      "/password-resets",
+      "/api/auth/password-resets",
       {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -52,12 +59,12 @@ describe("POST /password-resets（DB 到達前の分岐）", () => {
     );
     expect(res.status).toBe(400);
     const j = await res.json();
-    expect(j.error.fields.email).toEqual(["Enter a valid email address."]);
+    expect(j.error.details.email).toEqual(["Enter a valid email address."]);
   });
 
   it("null は blank ではなく null エラー", async () => {
     const res = await authRoutes.request(
-      "/password-resets",
+      "/api/auth/password-resets",
       {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -67,35 +74,35 @@ describe("POST /password-resets（DB 到達前の分岐）", () => {
     );
     expect(res.status).toBe(400);
     const j = await res.json();
-    expect(j.error.fields.email).toEqual(["This field may not be null."]);
+    expect(j.error.details.email).toEqual(["Invalid input: expected string, received null"]);
   });
 });
 
 describe("PATCH /me/email（DB 到達前の分岐）", () => {
   it("認証なし → 401", async () => {
-    const res = await authRoutes.request("/me/email", { method: "PATCH" }, ENV);
+    const res = await authRoutes.request("/api/auth/me/email", { method: "PATCH" }, ENV);
     expect(res.status).toBe(401);
   });
 
   it("認証あり + email 欠落 → 400 required", async () => {
-    const res = await authRoutes.request("/me/email", await jsonPatch({}), ENV);
+    const res = await authRoutes.request("/api/auth/me/email", await jsonPatch({}), ENV);
     expect(res.status).toBe(400);
     const j = await res.json();
-    expect(j.error.fields.email).toEqual(["This field is required."]);
+    expect(j.error.details.email).toEqual(["Invalid input: expected string, received undefined"]);
   });
 
   it("認証あり + 不正 email → 400 EmailField", async () => {
-    const res = await authRoutes.request("/me/email", await jsonPatch({ email: "nope" }), ENV);
+    const res = await authRoutes.request("/api/auth/me/email", await jsonPatch({ email: "nope" }), ENV);
     expect(res.status).toBe(400);
     const j = await res.json();
-    expect(j.error.fields.email).toEqual(["Enter a valid email address."]);
+    expect(j.error.details.email).toEqual(["Enter a valid email address."]);
   });
 });
 
-describe("PATCH /email-change/:uidb64/:token（DB 到達前の分岐）", () => {
-  it("不正 uid → 400 Invalid or expired email change link.", async () => {
+describe("PATCH /email-change/:token（DB 到達前の分岐）", () => {
+  it("不正 token → 400 Invalid or expired email change link.", async () => {
     const res = await authRoutes.request(
-      "/email-change/!!!/anytoken",
+      "/api/auth/email-change/invalid-token",
       { method: "PATCH" },
       ENV,
     );
@@ -106,32 +113,13 @@ describe("PATCH /email-change/:uidb64/:token（DB 到達前の分岐）", () => 
 });
 
 describe("メールリンクの組み立て", () => {
-  const user = {
-    pk: 42,
-    passwordHash: "pbkdf2_sha256$1200000$saltsaltsalt$hashhashhash",
-    email: "old@example.com",
-    lastLogin: "2026-08-01 15:30:45",
-  };
-
-  it("reset-password リンクは uid/token 付き", async () => {
-    const link = await buildPasswordResetLink(ENV as never, user);
-    expect(link).toMatch(
-      /^https:\/\/app\.videoq\.test\/reset-password\?uid=NDI&token=[0-9a-z]+-[0-9a-f]{32}$/,
-    );
+  it("reset-password リンクは opaque token 付き", () => {
+    const link = buildPasswordResetLink(ENV as never, "reset-token");
+    expect(link).toBe("https://app.videoq.test/reset-password?token=reset-token");
   });
 
-  it("change-email リンクは pending_email 込みのトークン", async () => {
-    const link = await buildEmailChangeLink(ENV as never, {
-      ...user,
-      pendingEmail: "new@example.com",
-    });
-    expect(link).toMatch(
-      /^https:\/\/app\.videoq\.test\/change-email\?uid=NDI&token=[0-9a-z]+-[0-9a-f]{32}$/,
-    );
-    const other = await buildEmailChangeLink(ENV as never, {
-      ...user,
-      pendingEmail: "another@example.com",
-    });
-    expect(link).not.toBe(other);
+  it("change-email リンクは opaque token 付き", () => {
+    const link = buildEmailChangeLink(ENV as never, "change-token");
+    expect(link).toBe("https://app.videoq.test/change-email?token=change-token");
   });
 });

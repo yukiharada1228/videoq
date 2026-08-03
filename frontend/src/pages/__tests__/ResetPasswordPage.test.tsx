@@ -13,7 +13,7 @@ vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
   return {
     ...actual,
-    useSearchParams: () => [new URLSearchParams('uid=test-uid&token=test-token')],
+    useSearchParams: () => [new URLSearchParams('token=test-token')],
   }
 })
 
@@ -78,7 +78,6 @@ describe('ResetPasswordPage', () => {
 
     await waitFor(() => {
       expect(apiClient.confirmPasswordReset).toHaveBeenCalledWith({
-        uid: 'test-uid',
         token: 'test-token',
         new_password: 'newpassword123',
       })

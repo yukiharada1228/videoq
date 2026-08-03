@@ -1,9 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { SignJWT } from "jose";
 import { createApp } from "../src/app";
 import { pkceS256Challenge, generateOpaqueToken } from "../src/lib/oauth";
-import { issueCsrfToken } from "../src/utils/csrf";
-import { sha256Hex } from "../src/utils/crypto";
+import { sha256Hex } from "../src/shared/crypto";
 
 import {
   executeFakePgQuery,
@@ -37,11 +35,10 @@ vi.mock("pg", () => {
 const SECRET = "test-jwt-secret-oauth-as";
 const ENV = {
   ENVIRONMENT: "development",
-  JWT_SECRET: SECRET,
-  LEGACY_API_ORIGIN: "https://legacy.test",
+  AUTH_JWT_SECRET: SECRET,
   CORS_ALLOW_ORIGIN: "http://localhost:3000",
   FRONTEND_URL: "http://localhost:3000",
-  OAUTH2_PROVIDER_ISSUER_URL: "http://testserver",
+  OAUTH_ISSUER_URL: "http://testserver",
   HYPERDRIVE: { connectionString: "postgres://fake/db" },
 } as unknown as Record<string, unknown>;
 
@@ -51,20 +48,6 @@ beforeEach(() => {
   rowsFor = () => [];
   rowCountFor = () => undefined;
 });
-
-async function accessCookie(userId = 7) {
-  const now = Math.floor(Date.now() / 1000);
-  const token = await new SignJWT({
-    token_type: "access",
-    user_id: userId,
-    jti: "j",
-  })
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-    .setIssuedAt(now)
-    .setExpirationTime(now + 3600)
-    .sign(new TextEncoder().encode(SECRET));
-  return `access_token=${token}`;
-}
 
 async function pkcePair() {
   const verifier = generateOpaqueToken(64);
@@ -105,11 +88,11 @@ describe("well-known metadata", () => {
     const body = await res.json();
     expect(body.issuer).toBe("http://testserver");
     expect(body.authorization_endpoint).toBe(
-      "http://testserver/api/oauth/authorize/",
+      "http://testserver/api/oauth/authorize",
     );
-    expect(body.token_endpoint).toBe("http://testserver/api/oauth/token/");
+    expect(body.token_endpoint).toBe("http://testserver/api/oauth/token");
     expect(body.registration_endpoint).toBe(
-      "http://testserver/api/oauth/register/",
+      "http://testserver/api/oauth/register",
     );
     expect(body.code_challenge_methods_supported).toContain("S256");
     expect(body.grant_types_supported).toContain("authorization_code");
@@ -135,13 +118,13 @@ describe("DCR POST /api/oauth/register/", () => {
 
   it("registers a public client with PKCE auth method none", async () => {
     rowsFor = (sql) => {
-      if (sql.includes("INSERT INTO oauth2_provider_application")) {
+      if (sql.includes("INSERT INTO oauth_applications")) {
         return [appRow({ client_id: "generated-id", client_type: "public" })];
       }
       return [];
     };
     const res = await app.request(
-      "/api/oauth/register/",
+      "/api/oauth/register",
       {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -163,28 +146,29 @@ describe("DCR POST /api/oauth/register/", () => {
       `http://testserver/api/oauth/register/${payload.client_id}/`,
     );
     expect(
-      calls.some((c) => c.sql.includes("INSERT INTO oauth2_provider_application")),
+      calls.some((c) => c.sql.includes("INSERT INTO oauth_applications")),
     ).toBe(true);
     expect(
-      calls.some((c) => c.sql.includes("INSERT INTO oauth2_provider_accesstoken")),
+      calls.some((c) => c.sql.includes("INSERT INTO oauth_access_tokens")),
     ).toBe(true);
   });
 
   it("returns plaintext client_secret for confidential clients", async () => {
     rowsFor = (sql) => {
-      if (sql.includes("INSERT INTO oauth2_provider_application")) {
+      if (sql.includes("INSERT INTO oauth_applications")) {
         return [
           appRow({
             client_id: "conf-id",
             client_type: "confidential",
-            client_secret: "pbkdf2_sha256$1200000$salt$hash",
+            client_secret:
+              "vqpw$1$600000$AQEBAQEBAQEBAQEBAQEBAQ$9HOK2mUkCczobmRKp8Y3rLltV4H_6yirxSgk-ChO8gQ",
           }),
         ];
       }
       return [];
     };
     const res = await app.request(
-      "/api/oauth/register/",
+      "/api/oauth/register",
       {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -204,7 +188,7 @@ describe("DCR POST /api/oauth/register/", () => {
 
   it("rejects unsupported redirect scheme", async () => {
     const res = await app.request(
-      "/api/oauth/register/",
+      "/api/oauth/register",
       {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -221,7 +205,7 @@ describe("DCR POST /api/oauth/register/", () => {
 
   it("rejects missing redirect_uris", async () => {
     const res = await app.request(
-      "/api/oauth/register/",
+      "/api/oauth/register",
       {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -234,7 +218,7 @@ describe("DCR POST /api/oauth/register/", () => {
 
   it("rejects unsupported grant type", async () => {
     const res = await app.request(
-      "/api/oauth/register/",
+      "/api/oauth/register",
       {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -254,10 +238,10 @@ describe("authorize + token PKCE flow", () => {
 
   it("redirects unauthenticated authorize to SPA login", async () => {
     rowsFor = (sql) =>
-      sql.includes("oauth2_provider_application") ? [appRow()] : [];
+      sql.includes("oauth_applications") ? [appRow()] : [];
     const { challenge } = await pkcePair();
     const url =
-      "/api/oauth/authorize/?response_type=code&client_id=client-abc" +
+      "/api/oauth/authorize?response_type=code&client_id=client-abc" +
       "&redirect_uri=" +
       encodeURIComponent("http://127.0.0.1:33418/callback") +
       "&code_challenge=" +
@@ -267,15 +251,18 @@ describe("authorize + token PKCE flow", () => {
     expect(res.status).toBe(302);
     const loc = res.headers.get("Location")!;
     expect(loc.startsWith("http://localhost:3000/login?next=")).toBe(true);
-    expect(loc).toContain(encodeURIComponent("/api/oauth/authorize/"));
+    // Trailing slash is stripped by app middleware before authorize sees the path.
+    expect(loc).toContain(encodeURIComponent("/api/oauth/authorize"));
   });
 
-  it("renders consent HTML for authenticated cookie JWT", async () => {
-    rowsFor = (sql) =>
-      sql.includes("oauth2_provider_application") ? [appRow()] : [];
+  it("renders consent HTML for authenticated refresh session", async () => {
+    rowsFor = (sql) => {
+      if (sql.includes("FROM auth_sessions")) return [{ user_id: 7, id: "session-1" }];
+      return sql.includes("oauth_applications") ? [appRow()] : [];
+    };
     const { challenge } = await pkcePair();
     const url =
-      "/api/oauth/authorize/?response_type=code&client_id=client-abc" +
+      "/api/oauth/authorize?response_type=code&client_id=client-abc" +
       "&redirect_uri=" +
       encodeURIComponent("http://127.0.0.1:33418/callback") +
       "&code_challenge=" +
@@ -283,30 +270,34 @@ describe("authorize + token PKCE flow", () => {
       "&code_challenge_method=S256&scope=read";
     const res = await app.request(
       url,
-      { headers: { Cookie: await accessCookie() } },
+      { headers: { Cookie: "vq_refresh=opaque-session-token" } },
       ENV,
     );
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain("Authorize Claude Desktop?");
     expect(html).toContain("127.0.0.1");
-    expect(html).toContain("csrfmiddlewaretoken");
     expect(html).toContain("Dynamic Client Registration");
   });
 
   it("issues code on consent POST and exchanges with PKCE", async () => {
     const { verifier, challenge } = await pkcePair();
-    const csrf = issueCsrfToken(undefined);
     let grantDeleted = false;
 
     rowsFor = (sql, args) => {
-      if (sql.includes("oauth2_provider_application")) {
+      if (sql.includes("FROM auth_sessions")) {
+        return [{ user_id: 7, id: "session-1" }];
+      }
+      if (sql.includes("UPDATE auth_action_tokens") && sql.includes("RETURNING")) {
+        return [{ user_id: 7, payload: {} }];
+      }
+      if (sql.includes("oauth_applications")) {
         return [appRow()];
       }
-      if (sql.includes("INSERT INTO oauth2_provider_grant")) {
+      if (sql.includes("INSERT INTO oauth_grants")) {
         return [];
       }
-      if (sql.includes("oauth2_provider_grant")) {
+      if (sql.includes("oauth_grants")) {
         if (grantDeleted) return [];
         return [
           {
@@ -323,11 +314,11 @@ describe("authorize + token PKCE flow", () => {
           },
         ];
       }
-      if (sql.includes("INSERT INTO oauth2_provider_accesstoken")) {
+      if (sql.includes("INSERT INTO oauth_access_tokens")) {
         returningId += 1;
         return [{ id: returningId }];
       }
-      if (sql.includes("DELETE oauth2_provider_grant")) {
+      if (sql.includes("DELETE oauth_grants")) {
         grantDeleted = true;
         return [];
       }
@@ -335,7 +326,7 @@ describe("authorize + token PKCE flow", () => {
     };
 
     const form = new URLSearchParams({
-      csrfmiddlewaretoken: csrf.token,
+      action_token: "oauth-form-token",
       allow: "True",
       client_id: "client-abc",
       redirect_uri: "http://127.0.0.1:33418/callback",
@@ -349,11 +340,12 @@ describe("authorize + token PKCE flow", () => {
     });
 
     const authRes = await app.request(
-      "/api/oauth/authorize/",
+      "/api/oauth/authorize",
       {
         method: "POST",
         headers: {
-          Cookie: `${await accessCookie()}; csrftoken=${csrf.secret}`,
+          Cookie: "vq_refresh=opaque-session-token",
+          Origin: "http://localhost:3000",
           "content-type": "application/x-www-form-urlencoded",
         },
         body: form.toString(),
@@ -369,7 +361,7 @@ describe("authorize + token PKCE flow", () => {
     expect(loc.searchParams.get("state")).toBe("xyz");
 
     const tokenRes = await app.request(
-      "/api/oauth/token/",
+      "/api/oauth/token",
       {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -396,8 +388,8 @@ describe("authorize + token PKCE flow", () => {
     const { challenge } = await pkcePair();
     const badVerifier = generateOpaqueToken(64);
     rowsFor = (sql) => {
-      if (sql.includes("oauth2_provider_application")) return [appRow()];
-      if (sql.includes("oauth2_provider_grant")) {
+      if (sql.includes("oauth_applications")) return [appRow()];
+      if (sql.includes("oauth_grants")) {
         return [
           {
             id: 9,
@@ -416,7 +408,7 @@ describe("authorize + token PKCE flow", () => {
       return [];
     };
     const res = await app.request(
-      "/api/oauth/token/",
+      "/api/oauth/token",
       {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -440,9 +432,9 @@ describe("refresh + revoke", () => {
 
   it("rotates refresh tokens", async () => {
     rowsFor = (sql) => {
-      if (sql.includes("oauth2_provider_application")) return [appRow()];
+      if (sql.includes("oauth_applications")) return [appRow()];
       if (
-        sql.includes("oauth2_provider_refreshtoken") &&
+        sql.includes("oauth_refresh_tokens") &&
         sql.includes("revoked IS NULL")
       ) {
         return [
@@ -458,13 +450,13 @@ describe("refresh + revoke", () => {
           },
         ];
       }
-      if (sql.includes("INSERT INTO oauth2_provider_accesstoken")) {
+      if (sql.includes("INSERT INTO oauth_access_tokens")) {
         return [{ id: 11 }];
       }
       return [];
     };
     const res = await app.request(
-      "/api/oauth/token/",
+      "/api/oauth/token",
       {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -490,10 +482,10 @@ describe("refresh + revoke", () => {
 
   it("revokes via revoke_token endpoint", async () => {
     rowsFor = (sql) =>
-      sql.includes("oauth2_provider_application") ? [appRow()] : [];
+      sql.includes("oauth_applications") ? [appRow()] : [];
     const opaque = "access-to-revoke";
     const res = await app.request(
-      "/api/oauth/revoke_token/",
+      "/api/oauth/revoke_token",
       {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -508,7 +500,7 @@ describe("refresh + revoke", () => {
     expect(res.status).toBe(200);
     const checksum = await sha256Hex(opaque);
     const del = calls.find((c) =>
-      c.sql.includes("DELETE FROM oauth2_provider_accesstoken"),
+      c.sql.includes("DELETE FROM oauth_access_tokens"),
     );
     expect(del?.args[0]).toBe(checksum);
   });

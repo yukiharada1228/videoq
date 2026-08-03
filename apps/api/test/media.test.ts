@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { SignJWT } from "jose";
-import { mediaRoutes } from "../src/routes/media";
+import { mediaRoutes } from "../src/features/media/routes";
 import { isSafeMediaPath } from "../src/repositories/media-repository";
+import { signAccessToken } from "./helpers/auth";
 
 import {
   executeFakePgQuery,
@@ -34,8 +34,7 @@ const bucketStore = new Map<string, Uint8Array>();
 
 const ENV = {
   ENVIRONMENT: "development",
-  JWT_SECRET: SECRET,
-  LEGACY_API_ORIGIN: "https://legacy.test",
+  AUTH_JWT_SECRET: SECRET,
   HYPERDRIVE: { connectionString: "postgres://fake/db" },
   VIDEO_BUCKET: {
     async get(key: string) {
@@ -60,12 +59,7 @@ beforeEach(() => {
 });
 
 async function accessToken(userId = 5) {
-  const now = Math.floor(Date.now() / 1000);
-  return new SignJWT({ token_type: "access", user_id: userId, jti: "j" })
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-    .setIssuedAt(now)
-    .setExpirationTime(now + 3600)
-    .sign(new TextEncoder().encode(SECRET));
+  return signAccessToken(SECRET, userId);
 }
 
 describe("isSafeMediaPath", () => {
@@ -95,8 +89,8 @@ describe("GET /api/media/*", () => {
   it("streams owned object from R2", async () => {
     bucketStore.set("media/videos/a.mp4", new TextEncoder().encode("mp4data"));
     rowsFor = (sql) => {
-      if (sql.includes("app_video") && sql.includes("file")) return [{ id: 9 }];
-      if (sql.includes("app_video") && sql.includes("user_id")) return [{ id: 9 }];
+      if (sql.includes("videos") && sql.includes("file")) return [{ id: 9 }];
+      if (sql.includes("videos") && sql.includes("user_id")) return [{ id: 9 }];
       return [];
     };
     const res = await mediaRoutes.request(
@@ -111,11 +105,11 @@ describe("GET /api/media/*", () => {
   it("allows share_slug when video is in the shared group", async () => {
     bucketStore.set("media/videos/a.mp4", new TextEncoder().encode("x"));
     rowsFor = (sql) => {
-      if (sql.includes("app_videogroup") && sql.includes("share_slug")) {
+      if (sql.includes("video_groups") && sql.includes("share_slug")) {
         return [{ id: 3 }];
       }
-      if (sql.includes("app_video") && sql.includes("file")) return [{ id: 9 }];
-      if (sql.includes("app_videogroupmember")) return [{ id: 1 }];
+      if (sql.includes("videos") && sql.includes("file")) return [{ id: 9 }];
+      if (sql.includes("video_group_members")) return [{ id: 1 }];
       return [];
     };
     const res = await mediaRoutes.request(

@@ -1,9 +1,8 @@
 /**
- * アップロード要求のドメイン定数・検証（VideoUploadRequestSerializer /
- * RequestVideoUploadUseCase と一致）。
+ * 動画アップロード要求の定数と入力検証。
  */
 
-// sorted() 済み（エラーメッセージの列挙順を Django と byte 一致させる）。
+// エラーメッセージの列挙順を固定するためソート済み。
 export const ALLOWED_VIDEO_EXTENSIONS = [
   ".3gp",
   ".avi",
@@ -55,12 +54,12 @@ export function parseReservedBytesFromFileKey(fileKey: string): number | null {
 }
 
 /**
- * os.path.splitext(filename)[1].lower() 相当。
+ * ファイル名の最終サフィックスを小文字で返す。
  * 先頭ドットのみ（隠しファイル）は拡張子扱いしない。パス区切りは basename に落とす。
  */
 export function fileExtension(filename: string): string {
   const base = filename.split(/[\\/]/).pop() ?? filename;
-  // 先頭の連続ドットを除いた位置以降で最後のドットを探す（os.path.splitext と同じ）
+  // 先頭の連続ドットを除いた位置以降で最後のドットを探す。
   let start = 0;
   while (start < base.length && base[start] === ".") start++;
   const dot = base.lastIndexOf(".");

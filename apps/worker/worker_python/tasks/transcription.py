@@ -1,14 +1,14 @@
-"""transcribe_video — transcription pipeline without Django."""
+"""transcribe_video — VideoQ transcription pipeline."""
 
 from __future__ import annotations
 
 import logging
 
-from worker_python.contracts import INDEX_VIDEO_TRANSCRIPT_TASK
+from worker_python.contracts import JOB_INDEX_VIDEO_TRANSCRIPT
 from worker_python.db import db_connection
-from worker_python.pipeline.fernet_cipher import try_decrypt
 from worker_python.pipeline.transcription import run_transcription
-from worker_python.sqs_enqueue import enqueue_task
+from worker_python.pipeline.user_secret_envelope import try_decrypt
+from worker_python.sqs_enqueue import enqueue_job
 from worker_python.tasks.indexing import index_video_transcript
 from worker_python.video_sql import get_video_for_task, save_transcript, transition_video_status
 from worker_python.video_status import (
@@ -44,16 +44,16 @@ def _load_searchapi_key(user_id: int) -> str | None:
         return override
     with db_connection() as conn:
         row = conn.execute(
-            "SELECT searchapi_api_key FROM app_user WHERE id = %s",
+            "SELECT searchapi_api_key_encrypted FROM users WHERE id = %s",
             (user_id,),
         ).fetchone()
     if not row:
         return None
-    return try_decrypt(row.get("searchapi_api_key"))
+    return try_decrypt(row.get("searchapi_api_key_encrypted"))
 
 
 def _enqueue_or_run_indexing(video_id: int) -> None:
-    message_id = enqueue_task(INDEX_VIDEO_TRANSCRIPT_TASK, [video_id])
+    message_id = enqueue_job(JOB_INDEX_VIDEO_TRANSCRIPT, {"video_id": video_id})
     if message_id:
         return
     logger.info("SQS unavailable; running indexing inline for video %d", video_id)

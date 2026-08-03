@@ -13,7 +13,7 @@ export function useHomePageData({ userId }: UseHomePageDataParams) {
         queryKey: queryKeys.videos.list(),
         enabled: !!userId,
         queryFn: async (): Promise<VideoList[]> =>
-          await apiClient.getVideos().then((r) => r.results).catch(() => []),
+          await apiClient.getVideos().then((r) => r.data).catch(() => []),
         initialData: [] as VideoList[],
       },
       {

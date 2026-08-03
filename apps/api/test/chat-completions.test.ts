@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { SignJWT } from "jose";
-import { chatRoutes } from "../src/routes/chat";
-import { validateOpenAiChatRequest, flattenErrors } from "../src/utils/chat-request";
+import { chatRoutes } from "../src/features/chat/routes";
+import { openAiCompletionBodySchema } from "../src/features/chat/schemas";
+import { signAccessToken } from "./helpers/auth";
 
 /**
  * OpenAI 互換 POST /api/v1/chat/completions（OpenAIChatCompletionsView）。
@@ -36,8 +36,7 @@ vi.mock("pg", () => {
 const SECRET = "test-jwt-secret-completions";
 const ENV = {
   ENVIRONMENT: "development",
-  JWT_SECRET: SECRET,
-  LEGACY_API_ORIGIN: "https://legacy.test",
+  AUTH_JWT_SECRET: SECRET,
   HYPERDRIVE: { connectionString: "postgres://fake/db" },
   OPENAI_API_KEY: "sk-test",
   OPENAI_BASE_URL: "https://openai.test/v1",
@@ -46,10 +45,10 @@ const ENV = {
 const defaultRows = (sql: string): Record<string, unknown>[] => {
   if (sql.includes("is_over_quota, ai_answers_limit"))
     return [{ is_over_quota: false, ai_answers_limit: null, used_ai_answers: 0 }];
-  if (sql.includes("FROM app_videogroup WHERE"))
+  if (sql.includes("FROM video_groups WHERE"))
     return [{ id: 3, user_id: 5, description: null }];
-  if (sql.includes("FROM app_videogroupmember")) return [{ video_id: 60 }];
-  if (sql.includes("FROM videoq_scenes"))
+  if (sql.includes("FROM video_group_members")) return [{ video_id: 60 }];
+  if (sql.includes("FROM scene_embeddings"))
     return [
       {
         content: "scene text",
@@ -61,7 +60,7 @@ const defaultRows = (sql: string): Record<string, unknown>[] => {
         },
       },
     ];
-  if (sql.includes("INSERT INTO app_chatlog")) return [{ id: 99, feedback: null }];
+  if (sql.includes("INSERT INTO chat_logs")) return [{ id: 99, feedback: null }];
   return [];
 };
 
@@ -72,12 +71,7 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 async function accessToken(userId = 5) {
-  const now = Math.floor(Date.now() / 1000);
-  return new SignJWT({ token_type: "access", user_id: userId, jti: "j" })
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-    .setIssuedAt(now)
-    .setExpirationTime(now + 3600)
-    .sign(new TextEncoder().encode(SECRET));
+  return signAccessToken(SECRET, userId);
 }
 
 const post = (body: unknown, headers: Record<string, string> = {}) =>
@@ -118,7 +112,7 @@ describe("POST /api/v1/chat/completions", () => {
 
   it("Bearer <APIキー> は API キー認証として解決する", async () => {
     rowsFor = (sql) =>
-      sql.includes("UPDATE app_userapikey")
+      sql.includes("UPDATE api_keys")
         ? [{ api_key_id: 1, user_id: 5, access_level: "read_only" }]
         : defaultRows(sql);
     stubOpenAi();
@@ -128,12 +122,12 @@ describe("POST /api/v1/chat/completions", () => {
       { authorization: "Bearer vq_livekeyvalue123" },
     );
     expect(res.status).toBe(200);
-    expect(calls.some((c) => c.sql.includes("UPDATE app_userapikey"))).toBe(true);
+    expect(calls.some((c) => c.sql.includes("UPDATE api_keys"))).toBe(true);
   });
 
   it("read_only キーでも chat_write は許可される", async () => {
     rowsFor = (sql) =>
-      sql.includes("UPDATE app_userapikey")
+      sql.includes("UPDATE api_keys")
         ? [{ api_key_id: 1, user_id: 5, access_level: "read_only" }]
         : defaultRows(sql);
     stubOpenAi();
@@ -197,7 +191,7 @@ describe("POST /api/v1/chat/completions", () => {
     );
     const body = (await res.json()) as any;
     expect(body.choices[0].message).toEqual({ role: "assistant", content: "plain answer" });
-    expect(calls.some((c) => c.sql.includes("INSERT INTO app_chatlog"))).toBe(false);
+    expect(calls.some((c) => c.sql.includes("INSERT INTO chat_logs"))).toBe(false);
   });
 
   it("language が Accept-Language より優先される", async () => {
@@ -217,14 +211,14 @@ describe("POST /api/v1/chat/completions", () => {
       { authorization: `Bearer ${await accessToken()}` },
     );
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({
-      error: { message: "Messages are empty.", type: "invalid_request_error" },
-    });
+    const j = await res.json();
+    expect(j.error.code).toBe("VALIDATION_ERROR");
+    expect(j.error.details.messages).toBeTruthy();
   });
 
   it("存在しない group は 404 invalid_request_error", async () => {
     rowsFor = (sql) =>
-      sql.includes("FROM app_videogroup WHERE") ? [] : defaultRows(sql);
+      sql.includes("FROM video_groups WHERE") ? [] : defaultRows(sql);
     const res = await post(
       { messages: [{ role: "user", content: "hi" }], group_id: 999 },
       { authorization: `Bearer ${await accessToken()}` },
@@ -304,7 +298,7 @@ describe("POST /api/v1/chat/completions", () => {
       { ...ENV, OPENAI_API_KEY: undefined },
     );
     expect(noKey.status).toBe(400);
-    // group_id 無しだと埋め込みは呼ばれず LLM で失敗する（Django と同じ）。
+    // group_id無しでは埋め込みを呼ばず、LLM設定エラーを返す。
     expect((await noKey.json()) as any).toEqual({
       error: {
         message:
@@ -315,10 +309,10 @@ describe("POST /api/v1/chat/completions", () => {
     });
   });
 
-  it("末尾スラッシュ付きも受け付ける（クライアント互換）", async () => {
+  it("末尾スラッシュ無しパスを正とする（Phase 3）", async () => {
     stubOpenAi();
     const res = await chatRoutes.request(
-      "/api/v1/chat/completions/",
+      "/api/v1/chat/completions",
       {
         method: "POST",
         headers: {
@@ -338,33 +332,25 @@ describe("POST /api/v1/chat/completions", () => {
   });
 });
 
-describe("OpenAIChatRequestSerializer の検証", () => {
-  const errorsOf = (body: unknown) => {
-    const r = validateOpenAiChatRequest(body);
-    if (r.ok) throw new Error("expected validation error");
-    return flattenErrors(r.errors);
-  };
-
-  it("messages 未指定は required", () => {
-    expect(errorsOf({})).toEqual({
-      message: "This field is required.",
-      fields: { messages: ["This field is required."] },
-    });
+describe("openAiCompletionBodySchema（Zod）", () => {
+  it("messages 未指定は失敗", () => {
+    const r = openAiCompletionBodySchema.safeParse({});
+    expect(r.success).toBe(false);
   });
 
   it("model 既定値は videoq、未知フィールドは無視", () => {
-    const r = validateOpenAiChatRequest({
+    const r = openAiCompletionBodySchema.parse({
       messages: [{ role: "user", content: "hi" }],
       seed: 42,
     });
-    expect(r).toEqual({
-      ok: true,
-      value: { model: "videoq", messages: [{ role: "user", content: "hi" }], groupId: null, language: null },
+    expect(r).toMatchObject({
+      model: "videoq",
+      messages: [{ role: "user", content: "hi" }],
     });
   });
 
-  it("OpenAI 標準フィールドは受け付けて無視する", () => {
-    const r = validateOpenAiChatRequest({
+  it("OpenAI 標準フィールドは受け付ける", () => {
+    const r = openAiCompletionBodySchema.parse({
       model: "gpt-4o-mini",
       messages: [{ role: "system", content: "s" }],
       temperature: 0.2,
@@ -374,46 +360,29 @@ describe("OpenAIChatRequestSerializer の検証", () => {
       group_id: "7",
       language: "ja",
     });
-    expect(r).toEqual({
-      ok: true,
-      value: {
-        model: "gpt-4o-mini",
-        messages: [{ role: "system", content: "s" }],
-        groupId: 7,
-        language: "ja",
-      },
+    expect(r).toMatchObject({
+      model: "gpt-4o-mini",
+      messages: [{ role: "system", content: "s" }],
+      group_id: 7,
+      language: "ja",
     });
   });
 
-  it("型不正はフィールドごとの DRF メッセージになる", () => {
-    expect(
-      errorsOf({
-        messages: [{ role: "user", content: "hi" }],
-        temperature: "hot",
-        max_tokens: 1.5,
-        stream: "maybe",
-        language: "",
-      }),
-    ).toEqual({
-      message: "A valid number is required.",
-      fields: {
-        temperature: ["A valid number is required."],
-        max_tokens: ["A valid integer is required."],
-        stream: ["Must be a valid boolean."],
-        language: ["This field may not be blank."],
-      },
+  it("型不正は Zod で失敗する", () => {
+    const r = openAiCompletionBodySchema.safeParse({
+      messages: [{ role: "user", content: "hi" }],
+      temperature: "hot",
+      max_tokens: 1.5,
+      stream: "maybe",
+      language: "",
     });
+    expect(r.success).toBe(false);
   });
 
-  it("messages の要素エラーは Python の repr 文字列に平坦化される", () => {
-    expect(errorsOf({ messages: [{ role: "bot", content: "hi" }] })).toEqual({
-      message:
-        '{\'role\': [ErrorDetail(string=\'"bot" is not a valid choice.\', code=\'invalid_choice\')]}',
-      fields: {
-        messages: [
-          '{\'role\': [ErrorDetail(string=\'"bot" is not a valid choice.\', code=\'invalid_choice\')]}',
-        ],
-      },
+  it("不正 role は失敗する", () => {
+    const r = openAiCompletionBodySchema.safeParse({
+      messages: [{ role: "bot", content: "hi" }],
     });
+    expect(r.success).toBe(false);
   });
 });

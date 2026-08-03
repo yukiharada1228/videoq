@@ -80,7 +80,7 @@ export function useAddableVideosQuery({
         tags: tagIds,
       });
       const currentVideoIdSet = createVideoIdSet(group.videos.map((v) => v.id));
-      return response.results.filter((v) => !currentVideoIdSet.has(v.id));
+      return response.data.filter((v) => !currentVideoIdSet.has(v.id));
     },
   });
 }
