@@ -30,11 +30,19 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 0
-      # workflow_run: omit base so paths-filter uses the GitHub API file list.
+      # workflow_run has no push before/after. Merge commits also have an empty
+      # `git log -n1 --name-status`, so the default "last commit" fallback
+      # always reports 0 files. Compare first-parent (previous main tip) → HEAD.
+      - name: Resolve paths-filter base
+        id: path_base
+        if: github.event_name != 'workflow_dispatch'
+        run: echo "sha=$(git rev-parse HEAD^1)" >> "$GITHUB_OUTPUT"
       - uses: dorny/paths-filter@v3
         id: filter
         if: github.event_name != 'workflow_dispatch'
         with:
+          base: ${{ steps.path_base.outputs.sha }}
+          ref: ${{ github.event.workflow_run.head_sha }}
           filters: |
             api:
               - 'apps/api/**'
