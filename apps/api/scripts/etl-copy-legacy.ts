@@ -172,6 +172,14 @@ function parseArgs(argv: string[]) {
 	};
 }
 
+async function tableExists(client: pg.Client, table: string): Promise<boolean> {
+	const { rows } = await client.query<{ exists: boolean }>(
+		`SELECT to_regclass($1) IS NOT NULL AS exists`,
+		[`public.${table}`],
+	);
+	return Boolean(rows[0]?.exists);
+}
+
 async function countTable(client: pg.Client, table: string): Promise<number> {
 	const { rows } = await client.query<{ count: string }>(
 		`SELECT COUNT(*)::text AS count FROM ${quoteIdent(table)}`,
@@ -208,6 +216,11 @@ async function main() {
 
 		if (!verifyOnly) {
 			for (const copy of COPIES) {
+				if (!(await tableExists(client, copy.oldTable))) {
+					const msg = `${copy.label}: skip (missing ${copy.oldTable})`;
+					console.log(dryRun ? `[dry-run] ${msg}` : msg);
+					continue;
+				}
 				const oldCount = await countTable(client, copy.oldTable);
 				if (dryRun) {
 					console.log(
@@ -251,8 +264,16 @@ async function main() {
 			console.log("\n--- Count comparison ---");
 			let mismatches = 0;
 			for (const copy of COPIES) {
+				if (!(await tableExists(client, copy.oldTable))) {
+					console.log(`SKIP ${copy.label.padEnd(28)} missing ${copy.oldTable}`);
+					continue;
+				}
 				const oldCount = await countTable(client, copy.oldTable);
-				const newCount = dryRun ? 0 : await countTable(client, copy.newTable);
+				const newCount = dryRun
+					? 0
+					: (await tableExists(client, copy.newTable))
+						? await countTable(client, copy.newTable)
+						: 0;
 				const ok = dryRun || oldCount === newCount;
 				const mark = ok ? "OK" : "MISMATCH";
 				console.log(`${mark}  ${copy.label.padEnd(28)} old=${oldCount} new=${newCount}`);

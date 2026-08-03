@@ -1,6 +1,8 @@
 const FORMAT = "vqpw";
 const VERSION = "1";
-const PBKDF2_ITERATIONS = 600_000;
+// Workers CPU budget: 600k PBKDF2-SHA256 exceeds free-plan limits and can 500.
+// 100k remains well above historical Django defaults while staying request-safe.
+const PBKDF2_ITERATIONS = 100_000;
 const SALT_BYTES = 16;
 
 function bytesToBase64Url(bytes: Uint8Array): string {

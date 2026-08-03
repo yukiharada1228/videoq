@@ -87,6 +87,10 @@ export type Bindings = {
   // RAG チャットの埋め込み / 生成に使うサーバー側キー。
   // ユーザー個別キーとは別に管理する。
   OPENAI_API_KEY?: string;
+
+  // Optional Mailgun fallback when Cloudflare Email Sending is not onboarded.
+  MAILGUN_API_KEY?: string;
+  MAILGUN_SENDER_DOMAIN?: string;
 };
 
 // ミドルウェアが c.set/c.get で受け渡す値

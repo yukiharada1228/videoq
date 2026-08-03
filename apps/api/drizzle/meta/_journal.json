@@ -29,6 +29,13 @@
       "when": 1785734700000,
       "tag": "0003_langchain_pgvector",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785738300000,
+      "tag": "0004_embedding_dims_1536",
+      "breakpoints": true
     }
   ]
 }

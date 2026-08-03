@@ -699,7 +699,7 @@ export const sceneEmbeddings = pgTable(
 	{
 		langchainId: uuid("langchain_id").primaryKey().notNull(),
 		content: text().notNull(),
-		embedding: vector({ dimensions: 1024 }).notNull(),
+		embedding: vector({ dimensions: 1536 }).notNull(),
 		userId: bigint("user_id", { mode: "number" }).notNull(),
 		videoId: bigint("video_id", { mode: "number" }).notNull(),
 		langchainMetadata: json("langchain_metadata"),
