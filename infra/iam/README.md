@@ -10,9 +10,9 @@ GitHub Actions が使う IAM ユーザー `videoq-github-actions-cd` に付与�
 | `videoq-backend-cd` | ECR へイメージ push + Lambda コード更新 | cd.yml |
 | `videoq-terraform-deploy` | インフラの CRUD (plan の refresh / apply) | terraform-plan / terraform-apply |
 
-スコープ方針: `iam`/`PassRole` は `videoq-*` ロール限定、Secrets は `videoq/prod/*`、
-SQS/Lambda/ECR は該当リソース限定。`cloudfront`/`apigateway` は resource-level 非対応
-のため広め。
+スコープ方針: `iam`/`PassRole` は `videoq-*` ロール限定、SSM は
+`parameter/videoq/prod/*`、SQS/Lambda/ECR は該当リソース限定。旧 Secrets Manager
+削除用の限定権限も `videoq-terraform-deploy` に含む。
 
 ## 適用手順
 

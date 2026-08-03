@@ -86,7 +86,52 @@ curl https://videoq.jp/api/openapi.json
 
 ## 4. Worker infrastructure
 
-Terraform は SQS、worker Lambda、ECR、IAM など AWS 側の非同期基盤を管理します。
+Terraform は SQS、worker Lambda（**arm64**）、ECR、IAM、SSM Parameter Store
+など AWS 側の非同期基盤を管理します。
+
+### Secrets Manager → SSM への移行（既存環境）
+
+worker 機密は **SSM SecureString**（`/videoq/<env>/db`, `/videoq/<env>/app`）に置きます。
+`terraform apply` で旧 Secrets Manager リソースが削除される前に、値をコピーしてください。
+
+```bash
+REGION=ap-northeast-1
+
+# 1) 現行 Secrets Manager から読む
+DB_JSON=$(aws secretsmanager get-secret-value \
+  --secret-id videoq/prod/db --region "$REGION" \
+  --query SecretString --output text)
+APP_JSON=$(aws secretsmanager get-secret-value \
+  --secret-id videoq/prod/app --region "$REGION" \
+  --query SecretString --output text)
+
+# 2) SSM へ書き込み（未作成なら作成、既存なら上書き）
+aws ssm put-parameter --region "$REGION" \
+  --name /videoq/prod/db --type SecureString \
+  --value "$DB_JSON" --overwrite
+aws ssm put-parameter --region "$REGION" \
+  --name /videoq/prod/app --type SecureString \
+  --value "$APP_JSON" --overwrite
+
+# 3) すでに手動作成済みなら Terraform state へ取り込む
+cd infra
+terraform import aws_ssm_parameter.db /videoq/prod/db
+terraform import aws_ssm_parameter.app /videoq/prod/app
+
+# 4) 旧 Secrets Manager は prevent_destroy のため、state から外して apply する
+terraform state rm aws_secretsmanager_secret.db
+terraform state rm aws_secretsmanager_secret.app
+
+# 5) 旧シークレットを手動削除（課金停止。必要なら recovery window 付きでも可）
+aws secretsmanager delete-secret --region "$REGION" \
+  --secret-id videoq/prod/db --force-delete-without-recovery
+aws secretsmanager delete-secret --region "$REGION" \
+  --secret-id videoq/prod/app --force-delete-without-recovery
+```
+
+新規環境では `terraform apply` がプレースホルダ値で SSM を作ります。直後に上記
+`put-parameter --overwrite` で実値を入れてください（`value` は Terraform が
+ignore するため apply で上書きされません）。
 
 ```bash
 cd infra
@@ -97,7 +142,14 @@ terraform plan
 terraform apply
 ```
 
-worker image:
+IAM ポリシー JSON を更新した場合は `infra/iam/README.md` の更新手順で
+`videoq-terraform-deploy` を差し替えてから apply してください。
+
+**arm64 cutover:** Lambda の `architectures = ["arm64"]` とイメージ arch は一致が必須です。
+`terraform apply` の前に、下の手順で **arm64 イメージを ECR に push** してください
+（amd64 のまま arch だけ変えると更新が失敗します）。
+
+worker image（**linux/arm64**）:
 
 ```bash
 REGION=ap-northeast-1
@@ -106,9 +158,8 @@ WORKER_ECR=<account>.dkr.ecr.$REGION.amazonaws.com/videoq-worker-prod
 aws ecr get-login-password --region "$REGION" |
   docker login --username AWS --password-stdin "${WORKER_ECR%%/*}"
 
-docker build --platform linux/amd64 --provenance=false \
+docker buildx build --platform linux/arm64 --provenance=false --push \
   -f apps/worker/Dockerfile -t "$WORKER_ECR:latest" ./apps/worker
-docker push "$WORKER_ECR:latest"
 
 aws lambda update-function-code \
   --function-name videoq-worker-prod \
@@ -116,9 +167,10 @@ aws lambda update-function-code \
   --region "$REGION"
 ```
 
-### App secret (`videoq/<env>/app`) JSON schema
+### App parameter (`/videoq/<env>/app`) JSON schema
 
-Secrets Manager の app secret は **R2 用キー名を `R2_*` にする**（Terraform は secret 器のみ管理）。
+SSM SecureString の app パラメータは **R2 用キー名を `R2_*` にする**
+（Terraform はパラメータ器のみ管理。値は CLI で設定）。
 
 ```json
 {

@@ -1,22 +1,26 @@
-# Secrets Manager
+# SSM Parameter Store (SecureString)
 #
 # External service credentials (Neon / Cloudflare R2) are set manually via CLI
-# after the initial apply. No secret versions are managed here.
+# after the initial apply. Terraform manages the parameter shells only;
+# `value` is ignored after create so apply never overwrites live secrets.
 
 # Neon PostgreSQL connection string.
 # Format: {"DATABASE_URL": "postgresql://...?sslmode=require"}
-resource "aws_secretsmanager_secret" "db" {
-  name        = "${local.name_prefix}/${var.env_name}/db"
+resource "aws_ssm_parameter" "db" {
+  name        = "/${local.name_prefix}/${var.env_name}/db"
   description = "Neon PostgreSQL DATABASE_URL (pooler endpoint)"
+  type        = "SecureString"
+  value       = jsonencode({ DATABASE_URL = "REPLACE_ME" })
 
   lifecycle {
+    ignore_changes  = [value]
     prevent_destroy = true
   }
 }
 
 # App secrets + R2 credentials for the SQS Lambda worker.
 #
-# Expected JSON keys (set via CLI / Console — not Terraform-managed versions):
+# Expected JSON keys (set via CLI / Console — not Terraform-managed values):
 #
 #   OPENAI_API_KEY
 #   USER_SECRET_ENCRYPTION_KEY
@@ -28,12 +32,23 @@ resource "aws_secretsmanager_secret" "db" {
 #
 # Do NOT store R2 credentials as AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY.
 # Lambda injects those names for the execution role; colliding names are skipped
-# or break AWS API calls (SQS / Secrets Manager).
-resource "aws_secretsmanager_secret" "app" {
-  name        = "${local.name_prefix}/${var.env_name}/app"
+# or break AWS API calls (SQS / SSM).
+resource "aws_ssm_parameter" "app" {
+  name        = "/${local.name_prefix}/${var.env_name}/app"
   description = "App secrets + R2 credentials (use R2_* key names, never AWS_ACCESS_KEY_ID)"
+  type        = "SecureString"
+  value = jsonencode({
+    OPENAI_API_KEY             = "REPLACE_ME"
+    USER_SECRET_ENCRYPTION_KEY = "REPLACE_ME"
+    R2_ACCESS_KEY_ID           = "REPLACE_ME"
+    R2_SECRET_ACCESS_KEY       = "REPLACE_ME"
+    R2_BUCKET_NAME             = "REPLACE_ME"
+    R2_S3_ENDPOINT             = "REPLACE_ME"
+    R2_S3_REGION               = "auto"
+  })
 
   lifecycle {
+    ignore_changes  = [value]
     prevent_destroy = true
   }
 }

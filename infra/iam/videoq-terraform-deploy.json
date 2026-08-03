@@ -21,17 +21,36 @@
       "Resource": "arn:aws:ecr:ap-northeast-1:<ACCOUNT_ID>:repository/videoq-worker-prod"
     },
     {
-      "Sid": "SecretsManagerManage",
+      "Sid": "SsmParameterManage",
       "Effect": "Allow",
       "Action": [
-        "secretsmanager:CreateSecret",
+        "ssm:AddTagsToResource",
+        "ssm:RemoveTagsFromResource",
+        "ssm:ListTagsForResource",
+        "ssm:PutParameter",
+        "ssm:GetParameter",
+        "ssm:GetParameters",
+        "ssm:DescribeParameters",
+        "ssm:DeleteParameter",
+        "ssm:GetParameterHistory"
+      ],
+      "Resource": "arn:aws:ssm:ap-northeast-1:<ACCOUNT_ID>:parameter/videoq/prod/*"
+    },
+    {
+      "Sid": "SsmDescribeParameters",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:DescribeParameters"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SecretsManagerCleanup",
+      "Effect": "Allow",
+      "Action": [
         "secretsmanager:DescribeSecret",
-        "secretsmanager:GetResourcePolicy",
-        "secretsmanager:PutResourcePolicy",
-        "secretsmanager:DeleteResourcePolicy",
-        "secretsmanager:TagResource",
-        "secretsmanager:UntagResource",
-        "secretsmanager:UpdateSecret"
+        "secretsmanager:DeleteSecret",
+        "secretsmanager:GetResourcePolicy"
       ],
       "Resource": "arn:aws:secretsmanager:ap-northeast-1:<ACCOUNT_ID>:secret:videoq/prod/*"
     },

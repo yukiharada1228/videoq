@@ -8,8 +8,8 @@ locals {
 
   lambda_basic_execution_policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
   common_lambda_environment = {
-    DB_SECRET_ARN         = aws_secretsmanager_secret.db.arn
-    APP_SECRET_ARN        = aws_secretsmanager_secret.app.arn
+    DB_PARAM_NAME         = aws_ssm_parameter.db.name
+    APP_PARAM_NAME        = aws_ssm_parameter.app.name
     USE_S3_STORAGE        = "true"
     SQS_QUEUE_NAME        = aws_sqs_queue.main.name
     SQS_QUEUE_URL         = aws_sqs_queue.main.id
@@ -24,11 +24,24 @@ locals {
     rules = [
       {
         rulePriority = 1
-        description  = "Keep only the last 5 images"
+        description  = "Expire untagged images after 1 day"
+        selection = {
+          tagStatus   = "untagged"
+          countType   = "sinceImagePushed"
+          countUnit   = "days"
+          countNumber = 1
+        }
+        action = {
+          type = "expire"
+        }
+      },
+      {
+        rulePriority = 2
+        description  = "Keep only the last 2 tagged images"
         selection = {
           tagStatus   = "any"
           countType   = "imageCountMoreThan"
-          countNumber = 5
+          countNumber = 2
         }
         action = {
           type = "expire"
