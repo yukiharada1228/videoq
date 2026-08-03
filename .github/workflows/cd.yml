@@ -116,6 +116,11 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: apps/api/package-lock.json
+      # wrangler-action needs local node_modules; without npm ci it falls back to
+      # installing wrangler@3.x which conflicts with @cloudflare/workers-types@5.
+      - name: Install API dependencies
+        working-directory: apps/api
+        run: npm ci
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@v3
         with:
