@@ -56,6 +56,19 @@ npx wrangler secret put AWS_SECRET_ACCESS_KEY
 
 ## 3. API deploy
 
+`main` への CI 成功後、CD が `apps/api` の変更を検知すると
+`wrangler deploy --minify --env production` を実行します
+（[`.github/workflows/cd.yml`](../.github/workflows/cd.yml)）。
+
+必要な GitHub Actions secrets:
+
+| Secret | 用途 |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | Workers デプロイ用 API トークン（Edit Cloudflare Workers 相当） |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID |
+
+手動デプロイ:
+
 ```bash
 cd apps/api
 npm ci
@@ -67,9 +80,9 @@ npm run deploy
 確認:
 
 ```bash
-curl https://<api-host>/health
-curl https://<api-host>/ready
-curl https://<api-host>/api/openapi.json
+curl https://videoq.jp/health
+curl https://videoq.jp/ready
+curl https://videoq.jp/api/openapi.json
 ```
 
 ## 4. Worker infrastructure
