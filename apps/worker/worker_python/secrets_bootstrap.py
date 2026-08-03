@@ -15,12 +15,16 @@ logger = logging.getLogger(__name__)
 
 _LOADED = False
 
-# app secret key → process env (skip if already set)
+# app secret key → process env (skip if already set).
+# R2 keys must NOT overwrite Lambda's reserved AWS_ACCESS_KEY_ID /
+# AWS_SECRET_ACCESS_KEY (execution-role creds). Map them to R2_* instead.
 _APP_ENV_MAP = {
     "OPENAI_API_KEY": "OPENAI_API_KEY",
     "USER_SECRET_ENCRYPTION_KEY": "USER_SECRET_ENCRYPTION_KEY",
-    "AWS_ACCESS_KEY_ID": "AWS_ACCESS_KEY_ID",
-    "AWS_SECRET_ACCESS_KEY": "AWS_SECRET_ACCESS_KEY",
+    "AWS_ACCESS_KEY_ID": "R2_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY": "R2_SECRET_ACCESS_KEY",
+    "R2_ACCESS_KEY_ID": "R2_ACCESS_KEY_ID",
+    "R2_SECRET_ACCESS_KEY": "R2_SECRET_ACCESS_KEY",
     "AWS_STORAGE_BUCKET_NAME": "AWS_STORAGE_BUCKET_NAME",
     "AWS_S3_ENDPOINT_URL": "AWS_S3_ENDPOINT_URL",
     "AWS_S3_REGION_NAME": "AWS_S3_REGION_NAME",

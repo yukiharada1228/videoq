@@ -24,12 +24,30 @@ def object_storage_key(file_key: str) -> str:
 
 def _s3_client():
     import boto3
+    from botocore.config import Config
 
     endpoint = env_str("AWS_S3_ENDPOINT_URL") or env_str("AWS_S3_ENDPOINT") or None
     region = env_str("AWS_S3_REGION_NAME") or env_str("AWS_REGION") or "auto"
-    kwargs: dict = {"region_name": region}
+    # Prefer R2_* so Lambda execution-role AWS_ACCESS_KEY_ID is not used against R2.
+    access_key = (
+        env_str("R2_ACCESS_KEY_ID")
+        or env_str("AWS_S3_ACCESS_KEY_ID")
+        or env_str("AWS_ACCESS_KEY_ID")
+    )
+    secret_key = (
+        env_str("R2_SECRET_ACCESS_KEY")
+        or env_str("AWS_S3_SECRET_ACCESS_KEY")
+        or env_str("AWS_SECRET_ACCESS_KEY")
+    )
+    kwargs: dict = {
+        "region_name": region,
+        "config": Config(signature_version="s3v4"),
+    }
     if endpoint:
         kwargs["endpoint_url"] = endpoint
+    if access_key and secret_key:
+        kwargs["aws_access_key_id"] = access_key
+        kwargs["aws_secret_access_key"] = secret_key
     return boto3.client("s3", **kwargs)
 
 

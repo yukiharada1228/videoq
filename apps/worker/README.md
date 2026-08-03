@@ -51,6 +51,7 @@ worker は modern schema と native job type のみを使用します。
 | `EMBEDDING_MODEL` / `EMBEDDING_VECTOR_SIZE` | `scene_embeddings` と一致するモデル・次元 |
 | `USE_S3_STORAGE` | S3 互換 object storage の利用 |
 | `AWS_STORAGE_BUCKET_NAME` / `AWS_S3_ENDPOINT_URL` | R2 / MinIO |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | R2 用クレデンシャル（Lambda では必須。実行ロールの `AWS_ACCESS_KEY_ID` を上書きしない） |
 | `USER_SECRET_ENCRYPTION_KEY` | AES-256-GCM のユーザー秘密復号鍵 |
 | `ENABLE_HEAVY_PIPELINE` | 文字起こし等の重量処理を有効化 |
 
