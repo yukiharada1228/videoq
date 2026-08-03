@@ -5,7 +5,7 @@ import { Link, useI18nNavigate } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
 import { useAuthForm } from '@/hooks/useAuthForm';
 import { apiClient } from '@/lib/api';
-import { authMeQueryOptions } from '@/lib/authQuery';
+import { queryKeys } from '@/lib/queryKeys';
 import { Eye, EyeOff } from 'lucide-react';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { AuthLayout } from '@/components/layout/AuthLayout';
@@ -37,7 +37,11 @@ export default function LoginPage() {
   const { formData, error, isLoading, handleChange, handleSubmit } = useAuthForm({
     onSubmit: async (data) => {
       await apiClient.login(data);
-      await queryClient.fetchQuery(authMeQueryOptions);
+      // Cancel in-flight getMeOrNull (may still resolve to null) and replace the
+      // stale auth.me=null cache so Home/Nav see the signed-in user immediately.
+      await queryClient.cancelQueries({ queryKey: queryKeys.auth.me });
+      const user = await apiClient.getMe();
+      queryClient.setQueryData(queryKeys.auth.me, user);
     },
     initialData: { username: '', password: '' },
     onSuccessRedirect: () => {

@@ -192,6 +192,30 @@ describe("admin API", () => {
     expect(calls.some((c) => c.sql.includes("DELETE") && c.sql.includes("auth_sessions"))).toBe(
       true,
     );
+    expect(
+      calls.some((c) => c.sql.includes("DELETE") && c.sql.includes("oauth_access_tokens")),
+    ).toBe(true);
+    expect(
+      calls.some((c) => c.sql.includes("DELETE") && c.sql.includes("oauth_refresh_tokens")),
+    ).toBe(true);
+  });
+
+  it("is_active=false で OAuth トークンも消す", async () => {
+    const res = await req("/api/admin/users/9/flags", {
+      method: "PATCH",
+      headers: {
+        authorization: `Bearer ${await token()}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ is_active: false }),
+    });
+    expect(res.status).toBe(200);
+    expect(calls.some((c) => c.sql.includes("DELETE") && c.sql.includes("auth_sessions"))).toBe(
+      true,
+    );
+    expect(
+      calls.some((c) => c.sql.includes("DELETE") && c.sql.includes("oauth_access_tokens")),
+    ).toBe(true);
   });
 
   it("SQS 投入失敗時は同期 hard-delete にフォールバックする", async () => {

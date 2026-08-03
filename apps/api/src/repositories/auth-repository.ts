@@ -126,6 +126,47 @@ export async function revokeAuthSession(
   });
 }
 
+/** Revoke every refresh session for a user (e.g. after password reset). */
+export async function revokeAllUserSessions(
+  env: Bindings,
+  userId: number,
+): Promise<void> {
+  await withClient(env, async (client) => {
+    await client.query(
+      `UPDATE auth_sessions
+          SET revoked_at = COALESCE(revoked_at, now())
+        WHERE user_id = $1
+          AND revoked_at IS NULL`,
+      [userId],
+    );
+  });
+}
+
+/**
+ * Access JWT `sid` がまだ有効なセッションか（ログアウト / パスワード変更後の即時無効化用）。
+ */
+export async function isAuthSessionActive(
+  env: Bindings,
+  sessionId: string,
+  userId: number,
+): Promise<boolean> {
+  return withClient(env, async (client) => {
+    const result = await client.query<{ ok: number }>(
+      `SELECT 1 AS ok
+         FROM auth_sessions s
+         JOIN users u ON u.id = s.user_id
+        WHERE s.id = $1
+          AND s.user_id = $2
+          AND s.revoked_at IS NULL
+          AND s.expires_at > now()
+          AND u.is_active = true
+        LIMIT 1`,
+      [sessionId, userId],
+    );
+    return result.rows.length > 0;
+  });
+}
+
 export async function resolveAuthSession(
   env: Bindings,
   refreshToken: string | undefined,

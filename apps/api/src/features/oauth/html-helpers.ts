@@ -1,17 +1,15 @@
 import type { Context } from "hono";
-import { getCookie } from "hono/cookie";
 import {
   consumeActionToken,
   createActionToken,
   resolveAuthSession,
 } from "../../repositories/auth-repository";
+import { refreshTokenFromCookie } from "../../lib/refresh-cookie";
 import { hasTrustedOrigin } from "../../shared/origin";
 import type { AppEnv } from "../../types/bindings";
 
 export async function cookieUserId(c: Context<AppEnv>): Promise<number | null> {
-  const cookieName =
-    c.env.ENVIRONMENT === "production" ? "__Host-vq_refresh" : "vq_refresh";
-  const session = await resolveAuthSession(c.env, getCookie(c, cookieName));
+  const session = await resolveAuthSession(c.env, refreshTokenFromCookie(c));
   return session?.userId ?? null;
 }
 

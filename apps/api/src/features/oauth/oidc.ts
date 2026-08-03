@@ -1,7 +1,11 @@
 import type { Context } from "hono";
-import { deleteCookie, getCookie, setCookie } from "hono/cookie";
+import { getCookie } from "hono/cookie";
 import { isOidcEnabled, isOidcRpLogoutEnabled } from "../../lib/oidc";
 import { escapeHtml, issuerFromEnv } from "../../lib/oauth";
+import {
+  clearRefreshCookie,
+  refreshCookieName,
+} from "../../lib/refresh-cookie";
 import { revokeAuthSession } from "../../repositories/auth-repository";
 import {
   createFeatureRouter,
@@ -134,19 +138,6 @@ oauthOidcRoutes.openapi(userinfoPostRoute, (c) =>
   userinfo(c, c.req.valid("form").access_token),
 );
 
-function clearSessionCookies(c: Context<AppEnv>) {
-  const secure = c.env.ENVIRONMENT === "production";
-  const name = secure ? "__Host-vq_refresh" : "vq_refresh";
-  deleteCookie(c, name, { path: "/" });
-  setCookie(c, name, "", {
-    path: "/",
-    httpOnly: true,
-    sameSite: "Lax",
-    secure,
-    maxAge: 0,
-  });
-}
-
 async function doLogout(
   c: Context<AppEnv>,
   opts: {
@@ -156,10 +147,8 @@ async function doLogout(
   },
 ): Promise<Response> {
   await oidcService.revokeTokensForOidcLogoutIfConfigured(c.env, opts.userId);
-  const cookieName =
-    c.env.ENVIRONMENT === "production" ? "__Host-vq_refresh" : "vq_refresh";
-  await revokeAuthSession(c.env, getCookie(c, cookieName));
-  clearSessionCookies(c);
+  await revokeAuthSession(c.env, getCookie(c, refreshCookieName(c)));
+  clearRefreshCookie(c);
 
   if (opts.postLogoutRedirectUri) {
     const u = new URL(opts.postLogoutRedirectUri);

@@ -13,7 +13,8 @@ export const corsMiddleware = createMiddleware<AppEnv>(async (c, next) => {
     .filter(Boolean);
   const handler = cors({
     // Comma-separated list in env (e.g. localhost + 127.0.0.1 for Vite).
-    origin: (origin) => (origin && allowed.includes(origin) ? origin : allowed[0] ?? ""),
+    // Return the request origin only when allowlisted; otherwise omit ACAO.
+    origin: (origin) => (origin && allowed.includes(origin) ? origin : null),
     credentials: true,
     allowHeaders: ["Content-Type", "Authorization", "X-API-Key"],
     allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],

@@ -7,7 +7,6 @@ import {
 } from "../../shared/openapi";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
-import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { requireAuth, apiKeyMethod, jwtMethod } from "../../middleware/auth";
 import { apiError, toErrorBody, validationError } from "../../shared/errors";
 import { hasTrustedOrigin } from "../../shared/origin";
@@ -18,6 +17,11 @@ import {
   throttledResponse,
   type ThrottleScope,
 } from "../../lib/rate-limit";
+import {
+  clearRefreshCookie,
+  refreshTokenFromCookie,
+  setRefreshCookie,
+} from "../../lib/refresh-cookie";
 import type { AppEnv } from "../../types/bindings";
 import {
   apiKeyCreateSchema,
@@ -40,7 +44,6 @@ import * as authService from "./service";
 export const authRoutes = createFeatureRouter();
 
 const jwtOnly = requireAuth(jwtMethod);
-const jwtWriteGuards = [requireAuth(jwtMethod)] as const;
 const meAuth = requireAuth(apiKeyMethod, jwtMethod);
 
 function isJsonRequest(c: Context<AppEnv>): boolean {
@@ -49,37 +52,6 @@ function isJsonRequest(c: Context<AppEnv>): boolean {
 }
 
 const ACCESS_TOKEN_TTL_SECONDS = 10 * 60;
-const REFRESH_TOKEN_TTL_SECONDS = 14 * 24 * 60 * 60;
-
-function refreshCookieName(c: Context<AppEnv>): string {
-  return c.env.ENVIRONMENT === "production" ? "__Host-vq_refresh" : "vq_refresh";
-}
-
-function setRefreshCookie(c: Context<AppEnv>, refresh: string): void {
-  const secure = c.env.ENVIRONMENT === "production";
-  // Same-origin SPA (/api on videoq.jp): Lax is correct. SameSite=None is for
-  // cross-site cookies and is stricter on mobile Safari / ITP.
-  setCookie(c, refreshCookieName(c), refresh, {
-    httpOnly: true,
-    secure,
-    sameSite: "Lax",
-    maxAge: REFRESH_TOKEN_TTL_SECONDS,
-    path: "/",
-  });
-}
-
-function clearRefreshCookie(c: Context<AppEnv>): void {
-  const secure = c.env.ENVIRONMENT === "production";
-  deleteCookie(c, refreshCookieName(c), {
-    path: "/",
-    sameSite: "Lax",
-    secure,
-  });
-}
-
-function refreshTokenFromCookie(c: Context<AppEnv>): string | undefined {
-  return getCookie(c, refreshCookieName(c));
-}
 
 const requireTrustedOrigin = createMiddleware<AppEnv>(async (c, next) => {
   if (!hasTrustedOrigin(c)) {
@@ -212,6 +184,8 @@ const refreshRoute = createRoute({
 authRoutes.openapi(refreshRoute, async (c) => {
   const res = await authService.refreshSession(c.env, refreshTokenFromCookie(c));
   if (!res.ok) {
+    // Drop a dead / reused cookie so the browser stops replaying it.
+    clearRefreshCookie(c);
     return apiError(c, 401, "Invalid refresh token", "AUTHENTICATION_FAILED");
   }
   setRefreshCookie(c, res.refreshToken);
@@ -453,7 +427,7 @@ const createApiKeyRoute = createRoute({
   path: "/api/auth/api-keys",
   tags: ["Auth"],
   summary: "Create API key",
-  middleware: [...jwtWriteGuards] as const,
+  middleware: [jwtOnly] as const,
   request: {
     body: {
       content: { "application/json": { schema: apiKeyCreateSchema } },
@@ -483,7 +457,7 @@ const revokeApiKeyRoute = createRoute({
   path: "/api/auth/api-keys/{id}",
   tags: ["Auth"],
   summary: "Revoke API key",
-  middleware: [...jwtWriteGuards] as const,
+  middleware: [jwtOnly] as const,
   request: { params: apiKeyIdParamSchema },
   responses: {
     204: { description: "No content" },
@@ -522,7 +496,7 @@ const saveSearchApiKeyRoute = createRoute({
   path: "/api/auth/searchapi-key",
   tags: ["Auth"],
   summary: "Save SearchAPI key",
-  middleware: [...jwtWriteGuards] as const,
+  middleware: [jwtOnly] as const,
   request: {
     body: {
       content: { "application/json": { schema: searchApiKeyBodySchema } },
@@ -556,7 +530,7 @@ const removeSearchApiKeyRoute = createRoute({
   path: "/api/auth/searchapi-key",
   tags: ["Auth"],
   summary: "Delete SearchAPI key",
-  middleware: [...jwtWriteGuards] as const,
+  middleware: [jwtOnly] as const,
   responses: {
     200: jsonResponse(messageResponseSchema),
     404: errorResponse("Not found"),
