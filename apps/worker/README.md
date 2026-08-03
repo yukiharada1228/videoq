@@ -50,7 +50,8 @@ worker は modern schema と native job type のみを使用します。
 | `EMBEDDING_PROVIDER` | `openai` または `ollama` |
 | `EMBEDDING_MODEL` / `EMBEDDING_VECTOR_SIZE` | `scene_embeddings` と一致するモデル・次元 |
 | `USE_S3_STORAGE` | S3 互換 object storage の利用 |
-| `AWS_STORAGE_BUCKET_NAME` / `AWS_S3_ENDPOINT_URL` | R2 / MinIO |
+| `R2_BUCKET_NAME` / `R2_S3_ENDPOINT` / `R2_S3_REGION` | R2 bucket / endpoint / region |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | R2 S3 API token（Lambda の `APP_SECRET_ARN` ではこの名前を使う。`AWS_ACCESS_KEY_ID` は実行ロール予約） |
 | `USER_SECRET_ENCRYPTION_KEY` | AES-256-GCM のユーザー秘密復号鍵 |
 | `ENABLE_HEAVY_PIPELINE` | 文字起こし等の重量処理を有効化 |
 
