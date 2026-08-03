@@ -90,7 +90,7 @@ describe('LoginPage', () => {
     fireEvent.click(submitButton)
 
     await waitFor(() => {
-      expect(apiClient.getMeOrNull).toHaveBeenCalled()
+      expect(apiClient.getMe).toHaveBeenCalled()
       expect(mockNavigate).toHaveBeenCalledWith('/')
     })
   })
