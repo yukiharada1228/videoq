@@ -109,7 +109,18 @@ export async function resolveFileUrl(
   if (!isS3Storage(env)) {
     return `/api/media/${fileKey.replace(/^\/+/, "")}`;
   }
-  return presignR2Get(env, fileKey);
+  try {
+    return await presignR2Get(env, fileKey);
+  } catch (e) {
+    console.error(
+      JSON.stringify({
+        level: "error",
+        error: "resolveFileUrl failed",
+        message: e instanceof Error ? e.message : String(e),
+      }),
+    );
+    return null;
+  }
 }
 
 /** R2 / MinIO の `media/` 配下に置くオブジェクトキー。 */

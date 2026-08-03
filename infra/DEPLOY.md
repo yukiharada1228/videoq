@@ -45,12 +45,11 @@ npx wrangler secret put AWS_SECRET_ACCESS_KEY
 メール操作とOAuth HTML formのaction tokenはDBにSHA-256だけを保存するランダム値であり、
 追加の共有secretは不要です。
 
-非機密設定:
+非機密設定（`wrangler.jsonc` `env.production.vars`）:
 
 - `ENVIRONMENT=production`
-- `FRONTEND_URL=https://<public-host>`
-- `CORS_ALLOW_ORIGIN=https://<public-host>`
-- `OAUTH_ISSUER_URL=https://<public-host>`
+- `FRONTEND_URL` / `CORS_ALLOW_ORIGIN` / `OAUTH_ISSUER_URL`
+- `R2_BUCKET_NAME` / `R2_S3_ENDPOINT` / `R2_S3_REGION`（`USE_S3_STORAGE=true` 時必須。未設定だと `/api/videos` が 500）
 - embedding / LLM model
 - Hyperdrive、R2、KV、Durable Object binding
 
