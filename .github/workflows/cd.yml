@@ -22,8 +22,9 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     outputs:
-      worker: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_run' || steps.filter.outputs.worker == 'true' }}
-      migrate: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_run' || steps.filter.outputs.migrate == 'true' }}
+      api: ${{ steps.resolve.outputs.api }}
+      worker: ${{ steps.resolve.outputs.worker }}
+      migrate: ${{ steps.resolve.outputs.migrate }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,10 +32,13 @@ jobs:
           fetch-depth: 2
       - uses: dorny/paths-filter@v3
         id: filter
-        if: github.event_name != 'workflow_dispatch' && github.event_name != 'workflow_run'
+        if: github.event_name != 'workflow_dispatch'
         with:
           base: HEAD~1
           filters: |
+            api:
+              - 'apps/api/**'
+              - '.github/workflows/cd.yml'
             worker:
               - 'apps/worker/**'
               - '.github/workflows/cd.yml'
@@ -45,10 +49,20 @@ jobs:
               - 'apps/api/scripts/db-migrate.sh'
               - 'apps/api/scripts/stamp-baseline.mjs'
               - '.github/workflows/cd.yml'
+      - name: Resolve deploy flags
+        id: resolve
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "api=true" >> "$GITHUB_OUTPUT"
+            echo "worker=true" >> "$GITHUB_OUTPUT"
+            echo "migrate=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "api=${{ steps.filter.outputs.api }}" >> "$GITHUB_OUTPUT"
+            echo "worker=${{ steps.filter.outputs.worker }}" >> "$GITHUB_OUTPUT"
+            echo "migrate=${{ steps.filter.outputs.migrate }}" >> "$GITHUB_OUTPUT"
+          fi
 
-  # Web API は Cloudflare Workers（apps/api）を別パイプラインでデプロイする。
   # DB スキーマは Drizzle（stamp + migrate）。manage.py migrate は廃止。
-
   db-migrate:
     name: Drizzle DB Migrate
     runs-on: ubuntu-latest
@@ -75,8 +89,36 @@ jobs:
           npm ci
           npm run db:migrate
 
+  api-deploy:
+    name: Deploy API (Cloudflare Workers)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [changes, db-migrate]
+    if: |
+      always() &&
+      needs.changes.result == 'success' &&
+      needs.changes.outputs.api == 'true' &&
+      (needs.db-migrate.result == 'success' || needs.db-migrate.result == 'skipped')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/api
+          packageManager: npm
+          command: deploy --minify --env production
+
   worker-deploy:
-    name: Deploy Worker (django-free)
+    name: Deploy Worker Lambda
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.worker == 'true'
