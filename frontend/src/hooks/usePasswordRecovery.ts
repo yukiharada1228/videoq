@@ -9,9 +9,8 @@ export function useRequestPasswordResetMutation() {
 
 export function useConfirmPasswordResetMutation() {
   return useMutation({
-    mutationFn: async (params: { uid: string; token: string; newPassword: string }) =>
+    mutationFn: async (params: { token: string; newPassword: string }) =>
       await apiClient.confirmPasswordReset({
-        uid: params.uid,
         token: params.token,
         new_password: params.newPassword,
       }),

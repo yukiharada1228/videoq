@@ -24,7 +24,6 @@ vi.mock('@/lib/api', () => {
       getIntegrationApiKeys: vi.fn(() => Promise.resolve([])),
       getSearchApiKeyStatus: vi.fn(() => Promise.resolve({ has_api_key: false })),
       requestEmailChange: vi.fn(() => Promise.resolve()),
-      deleteAccount: vi.fn(() => Promise.resolve()),
       createIntegrationApiKey: vi.fn(),
       revokeIntegrationApiKey: vi.fn(),
       saveSearchApiKey: vi.fn(),

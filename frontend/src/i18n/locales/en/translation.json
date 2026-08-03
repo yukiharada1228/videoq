@@ -74,7 +74,8 @@
     "settings": "Settings",
     "logout": "Log out",
     "menu": "All menus",
-    "closeMenu": "Close menu"
+    "closeMenu": "Close menu",
+    "admin": "Admin"
   },
   "layout": {
     "authBranding": {
@@ -439,20 +440,6 @@
       "errorEmpty": "Please enter a new email address",
       "errorSubmitting": "Failed to request email change"
     },
-    "accountDeletion": {
-      "title": "Delete account",
-      "description": "Deleting your account will permanently remove all videos and data.",
-      "reasonLabel": "Reason for leaving (optional)",
-      "confirmLabel": "Type {{keyword}} to confirm",
-      "confirmTitle": "Confirm account deletion",
-      "confirmDescription": "Deleting your account will permanently remove all videos and data.",
-      "confirmWarning": "This action is irreversible. Your data cannot be restored.",
-      "confirmCta": "Yes, delete my account",
-      "cancel": "Cancel",
-      "cta": "Delete my account",
-      "deleting": "Deleting...",
-      "error": "Failed to start deletion. Please try again."
-    },
     "integrationApiKeys": {
       "title": "Integration API Keys",
       "description": "Create and manage secret keys for server-to-server access from your existing systems.",
@@ -568,9 +555,6 @@
         "answerRelevancy": "Answer relevancy",
         "contextPrecision": "Context precision"
       }
-    },
-    "keywords": {
-      "title": "Frequent Keywords"
     }
   },
   "docs": {
@@ -616,7 +600,7 @@
       "checklistTitle": "Implementation checklist",
       "checklistDescription": "Validate these points before coding your integration.",
       "autoExampleTitle": "Auto-generated endpoint samples",
-      "autoExampleDescription": "These cURL examples are generated from /api/schema/.",
+      "autoExampleDescription": "These cURL examples are generated from /api/schema.",
       "autoLabel": "Auto-generated"
     },
     "sections": {
@@ -626,7 +610,7 @@
         "bullets": [
           "Create a key in Settings and store it securely",
           "Use X-API-Key header in server-to-server calls",
-          "Verify with GET /api/auth/me/ before full integration"
+          "Verify with GET /api/auth/me before full integration"
         ]
       },
       "videos": {
@@ -742,6 +726,82 @@
       "analogy_for": "analogy",
       "example_of": "example",
       "contrasts_with": "contrast"
+    }
+  },
+  "admin": {
+    "title": "Admin",
+    "description": "Superuser admin tools for user quotas and embedding maintenance.",
+    "users": {
+      "title": "Users",
+      "description": "Search users and adjust quota or usage counters.",
+      "searchLabel": "Search",
+      "searchPlaceholder": "Username or email",
+      "search": "Search",
+      "empty": "No users found",
+      "pageRange": "{{from}}–{{to}} of {{total}}",
+      "prev": "Previous",
+      "next": "Next",
+      "edit": "Edit",
+      "editTitle": "Edit {{username}}",
+      "delete": "Delete",
+      "deleteTitle": "Delete {{username}}?",
+      "deleteBody": "The account is deactivated immediately, then videos, groups, tags, chat history, and the user row are permanently deleted. This cannot be undone.",
+      "deleteConfirm": "Delete user",
+      "deleteSuccess": "Deletion started for {{username}} ({{jobId}}).",
+      "deleteError": "Failed to delete user.",
+      "save": "Save",
+      "cancel": "Cancel",
+      "saveSuccess": "User settings updated.",
+      "saveError": "Failed to update user.",
+      "loadError": "Failed to load users.",
+      "unlimited": "Unlimited",
+      "nullableHint": "Leave blank for unlimited.",
+      "selfFlagsHint": "You cannot change your own active or superuser flags.",
+      "quotaSummary": "Upload {{uploadMb}} MB · Storage {{storageGb}}",
+      "columns": {
+        "id": "ID",
+        "username": "Username",
+        "email": "Email",
+        "flags": "Flags",
+        "quota": "Quota",
+        "actions": "Actions"
+      },
+      "flags": {
+        "superuser": "Superuser",
+        "staff": "Staff",
+        "inactive": "Inactive",
+        "overQuota": "Over quota"
+      },
+      "fields": {
+        "isActive": "Active",
+        "isStaff": "Staff",
+        "isSuperuser": "Superuser",
+        "maxUploadMb": "Max upload size (MB)",
+        "storageLimitGb": "Storage limit (GB)",
+        "processingLimitMinutes": "Processing limit (minutes)",
+        "aiAnswersLimit": "AI answers limit",
+        "usedStorageBytes": "Used storage (bytes)",
+        "usedProcessingSeconds": "Used processing (seconds)",
+        "usedAiAnswers": "Used AI answers",
+        "isOverQuota": "Mark as over quota"
+      },
+      "errors": {
+        "invalidUploadMb": "Max upload size must be a positive integer.",
+        "invalidStorageGb": "Storage limit must be a number or blank.",
+        "invalidProcessingMinutes": "Processing limit must be a number or blank.",
+        "invalidAiLimit": "AI answers limit must be a number or blank.",
+        "invalidUsage": "Usage counters must be non-negative integers."
+      }
+    },
+    "reindex": {
+      "title": "Embeddings",
+      "description": "Enqueue a full reindex of scene embeddings for all videos.",
+      "button": "Reindex all embeddings",
+      "confirmTitle": "Reindex all embeddings?",
+      "confirmBody": "This enqueues a background job. Existing embeddings are rebuilt asynchronously.",
+      "confirm": "Enqueue reindex",
+      "success": "Reindex job queued ({{jobId}}).",
+      "error": "Failed to enqueue reindex job."
     }
   }
 }

@@ -1,4 +1,0 @@
-target-version = "py312"
-
-[lint]
-extend-per-file-ignores = { "app/migrations/*.py" = ["RUF012"] }

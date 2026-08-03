@@ -1,0 +1,30 @@
+# Local edge for the Hono API and React build. Used by default `docker compose up`.
+{
+	servers {
+		protocols h1 h2 h3
+	}
+}
+
+{$SITE_ADDRESS:http://localhost} {
+	encode zstd gzip
+
+	# Hono (Workers / wrangler)
+	handle /api* {
+		reverse_proxy api:8787
+	}
+	handle /.well-known/* {
+		reverse_proxy api:8787
+	}
+	handle /health {
+		reverse_proxy api:8787
+	}
+	handle /ready {
+		reverse_proxy api:8787
+	}
+
+	# 本番ビルドの静的フロント（nginx）
+	handle {
+		reverse_proxy web:80
+	}
+}
+

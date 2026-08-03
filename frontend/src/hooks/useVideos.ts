@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useEffect, useState, useRef } from 'react';
-import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient, type Video, type VideoList as VideoListType } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { queryKeys } from '@/lib/queryKeys';
@@ -54,17 +54,18 @@ export function useVideos(params?: UseVideosParams): UseVideosReturn {
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
-      if (!lastPage.next) return undefined;
-      return allPages.reduce((sum, page) => sum + page.results.length, 0);
+      const loaded = allPages.reduce((sum, page) => sum + page.data.length, 0);
+      if (loaded >= lastPage.meta.total) return undefined;
+      return loaded;
     },
   });
 
   const videos = useMemo(
-    () => videosQuery.data?.pages.flatMap((page) => page.results) ?? [],
+    () => videosQuery.data?.pages.flatMap((page) => page.data) ?? [],
     [videosQuery.data],
   );
 
-  const totalCount = videosQuery.data?.pages[0]?.count ?? 0;
+  const totalCount = videosQuery.data?.pages[0]?.meta.total ?? 0;
 
   const handleRefetch = useCallback(async () => {
     const result = await videosQuery.refetch();
@@ -128,6 +129,7 @@ interface UseVideoReturn {
 
 export function useVideo(videoId: number | null): UseVideoReturn {
   const { user, isLoading: authLoading, refetch: refetchAuth } = useAuth();
+  const queryClient = useQueryClient();
 
   const videoQuery = useQuery<Video>({
     queryKey: queryKeys.videos.detail(videoId),
@@ -143,9 +145,8 @@ export function useVideo(videoId: number | null): UseVideoReturn {
   const handleLoadVideo = useCallback(async () => {
     if (!videoId) return;
 
-    try {
-      await refetchAuth();
-    } catch {
+    await refetchAuth();
+    if (!queryClient.getQueryData(queryKeys.auth.me)) {
       throw new Error('Authentication required');
     }
 
@@ -154,7 +155,7 @@ export function useVideo(videoId: number | null): UseVideoReturn {
       console.error('Failed to load video:', result.error);
       throw result.error;
     }
-  }, [videoId, refetchAuth, videoQuery]);
+  }, [videoId, refetchAuth, queryClient, videoQuery]);
 
   return {
     video: videoQuery.data || null,

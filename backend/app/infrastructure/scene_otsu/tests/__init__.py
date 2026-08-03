@@ -1,1 +1,0 @@
-# Scene Otsu tests package

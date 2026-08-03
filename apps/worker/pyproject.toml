@@ -1,0 +1,38 @@
+[project]
+name = "videoq-worker"
+version = "0.2.0"
+description = "SQS task worker for VideoQ Lambda"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "psycopg[binary]>=3.2",
+    "openai>=1.40",
+    "boto3>=1.34",
+    "cryptography>=42.0",
+    "numpy>=1.26",
+    "tiktoken>=0.7",
+    # RAGAS evaluation pipeline.
+    # ragas 0.4.3 imports langchain_community.chat_models.vertexai at import time;
+    # that path was removed in langchain-community 0.4.2 — keep <0.4 until ragas patches.
+    "ragas>=0.4.3,<0.5",
+    "langchain-community>=0.3.27,<0.4",
+    "langchain-openai>=1.0.1",
+    "langchain-ollama>=1.0.1",
+    "langchain-postgres>=0.0.17",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["worker_python*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

@@ -1,372 +1,47 @@
 # デプロイメント図
 
-## 概要
-
-VideoQの現行 `docker-compose.yml` に基づくデフォルトデプロイを示す図です。
-
-## Docker Compose構成
+## ローカル Docker Compose
 
 ```mermaid
-graph TB
-    subgraph DockerHost["Docker Host"]
-        subgraph Network["videoq-network"]
-            subgraph GatewayContainer["gateway"]
-                Caddy[Caddy Public Gateway<br/>Ports: 80 / 443]
-            end
-            subgraph FrontendContainer["frontend (built SPA)"]
-                FrontendSPA[nginx serving React build<br/>Port: 80]
-            end
-            
-            subgraph BackendContainer["backend (Django)"]
-                Django[Django ASGI API<br/>Port: 8000]
-                Gunicorn[Gunicorn + UvicornWorker]
-            end
-            
-            subgraph CeleryContainer["celery-worker"]
-                CeleryWorker[Celery Worker]
-            end
-            
-            subgraph NginxContainer["nginx"]
-                Nginx[Nginx Reverse Proxy<br/>Port: 80]
-            end
-            
-            subgraph PostgresContainer["postgres"]
-                PostgreSQL[(PostgreSQL 17<br/>+ pgvector)]
-            end
-            
-            subgraph RedisContainer["redis"]
-                Redis[(Redis<br/>Alpine)]
-            end
-        end
-        
-        subgraph Volumes["Docker Volumes"]
-            PostgresData[postgres_data<br/>Persistence]
-            StaticFiles[staticfiles<br/>Static Files]
-            MediaFiles[./backend/media<br/>Media Files]
-        end
-    end
-    
-    subgraph External["External Network"]
-        User[User]
-        ApiClient[API Client<br/>X-API-Key Auth]
-        OpenAI[OpenAI API]
-        EmailService[Email Service]
-    end
-
-    subgraph LocalServices["Optional Local Services"]
-        WhisperLocal[whisper.cpp Server<br/>Local GPU-accelerated]
-        OllamaLocal[Ollama Server<br/>Local LLM & Embeddings]
-    end
-
-    User -->|HTTP/HTTPS| Caddy
-    Caddy -->|Reverse Proxy| Nginx
-    Nginx -->|Proxy| FrontendSPA
-    Nginx -->|Proxy| Django
-    Django --> PostgreSQL
-    Django --> Redis
-    Django --> MediaFiles
-    CeleryWorker --> Redis
-    CeleryWorker --> PostgreSQL
-    CeleryWorker --> MediaFiles
-    CeleryWorker -->|API Call| OpenAI
-    CeleryWorker -.->|Optional| WhisperLocal
-    CeleryWorker -.->|Optional| OllamaLocal
-    Django -->|API Call| OpenAI
-    Django -.->|Optional| OllamaLocal
-    Django -->|SMTP| EmailService
-    ApiClient -->|HTTP/HTTPS| Caddy
-    
-    PostgreSQL -.->|Persist| PostgresData
-    Django -.->|Static Files| StaticFiles
-    Django -.->|Media Files| MediaFiles
+flowchart TB
+    Browser --> Gateway[Caddy :80/:443]
+    Gateway --> Web[web<br/>nginx static SPA]
+    Gateway --> API[api<br/>wrangler dev :8787]
+    API --> DB[(postgres :5432)]
+    API --> Object[(minio :9000)]
+    API --> Queue[elasticmq :9324]
+    Queue --> Worker[worker<br/>SQS long poll]
+    Worker --> DB
+    Worker --> Object
+    Migrate[migrate<br/>Drizzle] --> DB
 ```
 
-## サービス詳細構成
+`migrate` が完了してから API と worker が起動します。`web-dev` profile は
+Vite HMR を追加しますが、API・DB・queue の構成は変わりません。
+
+## 本番
 
 ```mermaid
-graph LR
-    subgraph Services["Docker Compose Services"]
-        S1["redis
-        redis:alpine"]
-        S2["postgres
-        pgvector/pgvector:pg17"]
-        S3["backend
-        Django ASGI + Gunicorn"]
-        S4["celery-worker
-        Celery Worker"]
-        S5["frontend
-        nginx serving built SPA"]
-        S6["nginx
-        nginx:alpine"]
-        S7["gateway
-        caddy:2-alpine"]
-    end
-
-    subgraph Dependencies["Dependencies"]
-        S3 --> S2
-        S3 --> S1
-        S4 --> S1
-        S4 --> S2
-        S5 --> S3
-        S6 --> S3
-        S6 --> S5
-        S7 --> S6
-    end
-
-    subgraph Ports["Port Mapping"]
-        P1["80:80 / 443:443
-        gateway"]
-    end
-
-    S7 --> P1
+flowchart TB
+    Client --> Pages[Cloudflare Pages]
+    Client --> API[Cloudflare Worker]
+    API --> HD[Hyperdrive] --> Neon[(Neon)]
+    API --> R2[(R2)]
+    API --> SQS[SQS]
+    SQS --> Lambda[Python worker Lambda]
+    Lambda --> Neon
+    Lambda --> R2
 ```
 
-## ネットワーク構成
+## デプロイ単位
 
-```mermaid
-graph TB
-    subgraph Network["videoq-network (bridge)"]
-        N0[gateway]
-        N1[nginx]
-        N2[frontend]
-        N3[backend]
-        N4[celery-worker]
-        N5[postgres]
-        N6[redis]
-        M1[shared media/static assets]
-    end
-    
-    N0 -.->|HTTP| N1
-    N1 -.->|HTTP| N2
-    N1 -.->|HTTP| N3
-    N3 -.->|PostgreSQL| N5
-    N3 -.->|Redis| N6
-    N4 -.->|Redis| N6
-    N4 -.->|PostgreSQL| N5
-    N3 -.->|File Access| M1
-    N4 -.->|File Access| M1
-    
-    subgraph ExternalNetwork["External Network"]
-        Internet[Internet]
-    end
-    
-    Internet -->|Ports 80 / 443| N0
-```
+| 対象 | 方法 |
+|---|---|
+| frontend | Cloudflare Pages の Git 連携 |
+| API | `cd apps/api && npm run deploy` |
+| DB | `DATABASE_URL=... npm run db:migrate` |
+| worker | container image を ECR へ push し Lambda image を更新 |
+| Cloudflare binding | Wrangler / Cloudflare dashboard |
+| AWS worker infrastructure | Terraform |
 
-## ボリューム構成
-
-```mermaid
-graph TB
-    subgraph NamedVolumes["Named Volumes"]
-        V1[postgres_data]
-        V2[staticfiles]
-        V2b[caddy_data]
-        V2c[caddy_config]
-    end
-    
-    subgraph BindMounts["Bind Mounts"]
-        V3["./backend (Host)"]
-        V4["./backend/media (Host)"]
-        V5["./nginx.conf (Host)"]
-        V6["./Caddyfile (Host)"]
-    end
-    
-    subgraph Containers["Containers"]
-        C1[postgres]
-        C2[backend]
-        C3[celery-worker]
-        C4[nginx]
-        C5[gateway]
-    end
-    
-    C1 -->|/var/lib/postgresql/data| V1
-    C2 -->|/app/staticfiles| V2
-    C2 -->|/app| V3
-    C3 -->|/app| V3
-    C4 -->|/static| V2
-    C4 -->|/media| V4
-    C4 -->|/etc/nginx/nginx.conf.template| V5
-    C5 -->|/data| V2b
-    C5 -->|/config| V2c
-    C5 -->|/etc/caddy/Caddyfile| V6
-```
-
-## デプロイフロー
-
-```mermaid
-sequenceDiagram
-    participant Dev as Developer
-    participant Docker as Docker Compose
-    participant Containers as Container Group
-    participant Services as Services
-
-    Dev->>Docker: docker compose up -d
-    Docker->>Containers: Start Containers
-    
-    par Parallel Startup
-        Containers->>Services: Start postgres
-        Containers->>Services: Start redis
-    end
-    
-    Services->>Services: postgres Ready
-    Services->>Services: redis Ready
-    
-    par Dependent Services Startup
-        Containers->>Services: Start backend
-        Containers->>Services: Start celery-worker
-    end
-    
-    Services->>Services: backend Ready
-    Services->>Services: celery-worker Ready
-    
-    Containers->>Services: Start frontend
-    Services->>Services: frontend Ready
-    
-    Containers->>Services: Start nginx
-    Services->>Services: nginx Ready
-
-    Containers->>Services: Start gateway
-    Services->>Services: gateway Ready
-    
-    Services-->>Dev: All Services Started
-```
-
-## 環境変数構成
-
-```mermaid
-graph TB
-    subgraph EnvFile[".env File"]
-        E1[POSTGRES_DB]
-        E2[POSTGRES_USER]
-        E3[POSTGRES_PASSWORD]
-        E4["SECRET_KEY<br/>(required in production)"]
-        E5[DATABASE_URL]
-        E6[CELERY_BROKER_URL]
-        E6b[CELERY_RESULT_BACKEND]
-        E6c[CACHE_URL]
-        E7[ENABLE_SIGNUP]
-        E8[ALLOWED_HOSTS]
-        E9[CORS_ALLOWED_ORIGINS]
-        E10[DJANGO_ENV]
-        E11[FRONTEND_URL]
-        E12[USE_S3_STORAGE]
-        E13[AWS_*]
-        E15[VITE_API_URL]
-        E16["WHISPER_BACKEND<br/>(openai or whisper.cpp)"]
-        E17["WHISPER_LOCAL_URL<br/>(local whisper.cpp server URL)"]
-        E18["EMBEDDING_PROVIDER<br/>(openai or ollama)"]
-        E19["EMBEDDING_MODEL<br/>(embedding model for selected provider)"]
-        E20["LLM_PROVIDER<br/>(openai or ollama)"]
-        E21["LLM_MODEL<br/>(LLM model for selected provider)"]
-        E22["OLLAMA_BASE_URL<br/>(Ollama server URL)"]
-        E23["EMBEDDING_VECTOR_SIZE<br/>(must match EMBEDDING_MODEL)"]
-        E24["PGVECTOR_COLLECTION_NAME<br/>(vector storage table name)"]
-        E25["SITE_ADDRESS<br/>(Caddy public address)"]
-        E26["OAUTH2_PROVIDER_ISSUER_URL<br/>(public OAuth issuer)"]
-    end
-    
-    subgraph Containers["Containers"]
-        C1[postgres]
-        C2[backend]
-        C3[celery-worker]
-        C4[frontend]
-        C5[gateway]
-    end
-    
-    E1 --> C1
-    E2 --> C1
-    E3 --> C1
-    E4 --> C2
-    E5 --> C2
-    E6 --> C2
-    E6b --> C2
-    E6c --> C2
-    E6 --> C3
-    E6b --> C3
-    E7 --> C2
-    E8 --> C2
-    E9 --> C2
-    E10 --> C2
-    E11 --> C2
-    E12 --> C2
-    E13 --> C2
-    E15 --> C4
-    E16 --> C3
-    E17 --> C3
-    E18 --> C2
-    E18 --> C3
-    E19 --> C2
-    E19 --> C3
-    E20 --> C2
-    E21 --> C2
-    E22 --> C2
-    E22 --> C3
-    E23 --> C2
-    E23 --> C3
-    E24 --> C2
-    E24 --> C3
-    E25 --> C5
-    E26 --> C2
-```
-
-## 本番環境: サーバーレス構成 (AWS)
-
-現在、本番環境のデプロイメントは **Terraform** および **Cloudflare** を利用したサーバーレスアーキテクチャで行われます。
-詳細なプロビジョニング手順や構成については `infra/DEPLOY.md` を参照してください。
-
-```mermaid
-graph TB
-    subgraph AWSCloud["AWS Region (ap-northeast-1)"]
-        subgraph API_Layer["API Layer"]
-            APIGW[API Gateway HTTP API]
-            LambdaAPI["Lambda API (Django + LWA)"]
-        end
-        
-        subgraph Worker_Layer["Worker Layer"]
-            SQS[Amazon SQS Queue]
-            LambdaWorker["Lambda Worker (Celery)"]
-        end
-        
-        subgraph ECR["Container Registry"]
-            ECR_API[ECR: videoq-api-prod]
-            ECR_Worker[ECR: videoq-worker-prod]
-        end
-        
-        APIGW -->|Proxy| LambdaAPI
-        LambdaAPI -->|Publish Task| SQS
-        SQS -->|Trigger| LambdaWorker
-        
-        ECR_API -.->|Image| LambdaAPI
-        ECR_Worker -.->|Image| LambdaWorker
-    end
-
-    subgraph Cloudflare["Cloudflare Edge"]
-        R2[Cloudflare R2 Bucket<br>videoq-media-prod]
-        Pages[Cloudflare Pages<br>Frontend Application]
-    end
-
-    subgraph CDN["CDN"]
-        CF[CloudFront]
-    end
-
-    subgraph Neon["Neon.tech"]
-        NeonDB[(Neon Serverless<br>PostgreSQL)]
-    end
-    
-    CF -->|"/*"| Pages
-    CF -->|"/api/*"| APIGW
-    LambdaAPI -->|PostgreSQL connection| NeonDB
-    LambdaWorker -->|PostgreSQL connection| NeonDB
-    LambdaAPI -->|S3 API| R2
-    LambdaWorker -->|S3 API| R2
-```
-
----
-
-## Related Documentation
-
-- [📖 ドキュメント一覧](../README.md)
-- [システム構成図](../architecture/system-configuration-diagram.md) — 全体アーキテクチャ
-- [コンポーネント図](component-diagram.md) — フロントエンド・バックエンドのコンポーネント構成
-- [データフロー図](../database/data-flow-diagram.md) — データの流れ
-- [シーケンス図](sequence-diagram.md) — 処理シーケンスの詳細
+詳細は [`infra/DEPLOY.md`](../../infra/DEPLOY.md) を参照してください。

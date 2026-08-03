@@ -63,12 +63,12 @@ export default function DeveloperDocsPage() {
         </Heading>
         <ul className="space-y-3 border-t border-solid-gray-420 pt-4">
           <li>
-            <UtilityLink href="/api/docs/" target="_blank" rel="noreferrer">
+            <UtilityLink href="/api/docs" target="_blank" rel="noreferrer">
               OpenAPI (Swagger UI)
             </UtilityLink>
           </li>
           <li>
-            <UtilityLink href="/api/redoc/" target="_blank" rel="noreferrer">
+            <UtilityLink href="/api/redoc" target="_blank" rel="noreferrer">
               ReDoc
             </UtilityLink>
           </li>

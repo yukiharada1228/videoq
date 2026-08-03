@@ -14,6 +14,9 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
     css: true,
+    env: {
+      VITE_USE_S3_STORAGE: 'false',
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

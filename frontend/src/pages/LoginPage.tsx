@@ -5,7 +5,7 @@ import { Link, useI18nNavigate } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
 import { useAuthForm } from '@/hooks/useAuthForm';
 import { apiClient } from '@/lib/api';
-import { queryKeys } from '@/lib/queryKeys';
+import { authMeQueryOptions } from '@/lib/authQuery';
 import { Eye, EyeOff } from 'lucide-react';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { AuthLayout } from '@/components/layout/AuthLayout';
@@ -37,18 +37,12 @@ export default function LoginPage() {
   const { formData, error, isLoading, handleChange, handleSubmit } = useAuthForm({
     onSubmit: async (data) => {
       await apiClient.login(data);
-      await queryClient.fetchQuery({
-        queryKey: queryKeys.auth.me,
-        queryFn: async () => await apiClient.getMe(),
-        retry: false,
-      });
+      await queryClient.fetchQuery(authMeQueryOptions);
     },
     initialData: { username: '', password: '' },
     onSuccessRedirect: () => {
       if (nextPath) {
-        // Full-page navigation: `next` typically points at the Django
-        // OAuth authorize endpoint (/api/oauth/authorize/...) which the
-        // SPA router cannot serve.
+        // OAuth authorize pages are served by the API, outside the SPA router.
         window.location.href = nextPath;
         return;
       }

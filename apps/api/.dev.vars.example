@@ -1,0 +1,32 @@
+# apps/api（Web API）ローカル開発用の機密変数の雛形。
+# コピーして `.dev.vars` を作成（.gitignore 済み）。wrangler dev が自動で読み込む。
+
+# Independent application secrets. Generate new values for every environment.
+AUTH_JWT_SECRET=""
+# Base64url-encoded 32-byte AES-GCM key.
+USER_SECRET_ENCRYPTION_KEY=""
+
+# RAG チャット用。未設定だと LLM 設定エラー。
+# OPENAI_API_KEY=""
+
+# --- Local MinIO (docker compose up -d postgres minio minio-init) ---
+# Console: http://127.0.0.1:9001  API: http://127.0.0.1:9000
+R2_ACCESS_KEY_ID="minioadmin"
+R2_SECRET_ACCESS_KEY="minioadmin"
+R2_S3_ENDPOINT="http://127.0.0.1:9000"
+# compose 内 API のみ: Head/Delete 用（ブラウザ署名は上の公開 URL）
+# R2_S3_INTERNAL_ENDPOINT="http://minio:9000"
+R2_BUCKET_NAME="videoq-media"
+R2_S3_REGION="us-east-1"
+
+# --- Local ElasticMQ (docker compose up -d elasticmq) ---
+# Queue: http://127.0.0.1:9324/000000000000/videoq-jobs  Stats UI: :9325
+# Dummy keys（ElasticMQ は署名を緩く受理）。MinIO の R2_* とは別。
+SQS_QUEUE_URL="http://127.0.0.1:9324/000000000000/videoq-jobs"
+AWS_REGION="us-east-1"
+AWS_ACCESS_KEY_ID="local"
+AWS_SECRET_ACCESS_KEY="local"
+
+# OAuth / OIDC（任意）
+# OAUTH_ISSUER_URL="http://localhost:8787"
+# OIDC_RSA_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"

@@ -16,10 +16,9 @@ type VerificationState = 'loading' | 'success' | 'error';
 function VerifyEmailContent() {
   const navigate = useI18nNavigate();
   const [searchParams] = useSearchParams();
-  const uid = searchParams.get('uid');
   const token = searchParams.get('token');
   const { t } = useTranslation();
-  const { verifyQuery, isInvalidLink } = useVerifyEmailQuery({ uid, token });
+  const { verifyQuery, isInvalidLink } = useVerifyEmailQuery({ token });
 
   useEffect(() => {
     if (isInvalidLink || !verifyQuery.isSuccess) {

@@ -14,14 +14,16 @@ vi.mock('@/hooks/useAuth', () => ({
 }))
 
 const mockPaginatedResponse = (
-  results: any[],
-  count = results.length,
-  next: string | null = null,
+  data: any[],
+  total?: number,
+  offset = 0,
 ) => ({
-  count,
-  next,
-  previous: null,
-  results,
+  data,
+  meta: {
+    total: total ?? data.length,
+    limit: 24,
+    offset,
+  },
 })
 
 describe('useVideoGroups', () => {
@@ -67,7 +69,7 @@ describe('useVideoGroups', () => {
   it('exposes hasNextPage and totalCount from the paginated response', async () => {
     const mockGroups = Array.from({ length: 24 }, (_, i) => ({ id: i + 1, name: `g${i + 1}` }))
     ;(apiClient.getVideoGroupsPage as any).mockResolvedValue(
-      mockPaginatedResponse(mockGroups, 25, '/api/videos/groups/?limit=24&offset=24'),
+      mockPaginatedResponse(mockGroups, 25, 0),
     )
 
     const { result } = renderHook(() => useVideoGroups(true))
@@ -129,8 +131,8 @@ describe('useVideoGroups - sentinelRef', () => {
     const page2 = [{ id: 25, name: 'Group 25' }]
 
     ;(apiClient.getVideoGroupsPage as any)
-      .mockResolvedValueOnce(mockPaginatedResponse(page1, 25, '/api/videos/groups/?limit=24&offset=24'))
-      .mockResolvedValueOnce(mockPaginatedResponse(page2, 25, null))
+      .mockResolvedValueOnce(mockPaginatedResponse(page1, 25, 0))
+      .mockResolvedValueOnce(mockPaginatedResponse(page2, 25, 24))
 
     const { result } = renderHook(() => useVideoGroups(true))
     await waitFor(() => expect(result.current.hasNextPage).toBe(true))

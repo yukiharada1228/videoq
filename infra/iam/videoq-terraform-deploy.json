@@ -18,10 +18,7 @@
         "ecr:ListImages",
         "ecr:BatchDeleteImage"
       ],
-      "Resource": [
-        "arn:aws:ecr:ap-northeast-1:<ACCOUNT_ID>:repository/videoq-api-prod",
-        "arn:aws:ecr:ap-northeast-1:<ACCOUNT_ID>:repository/videoq-worker-prod"
-      ]
+      "Resource": "arn:aws:ecr:ap-northeast-1:<ACCOUNT_ID>:repository/videoq-worker-prod"
     },
     {
       "Sid": "SecretsManagerManage",
@@ -75,10 +72,7 @@
         "iam:DetachRolePolicy",
         "iam:PassRole"
       ],
-      "Resource": [
-        "arn:aws:iam::<ACCOUNT_ID>:role/videoq-api-prod",
-        "arn:aws:iam::<ACCOUNT_ID>:role/videoq-worker-prod"
-      ]
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/videoq-worker-prod"
     },
     {
       "Sid": "LambdaManage",
@@ -101,10 +95,7 @@
         "lambda:RemovePermission",
         "lambda:GetPolicy"
       ],
-      "Resource": [
-        "arn:aws:lambda:ap-northeast-1:<ACCOUNT_ID>:function:videoq-api-prod",
-        "arn:aws:lambda:ap-northeast-1:<ACCOUNT_ID>:function:videoq-worker-prod"
-      ]
+      "Resource": "arn:aws:lambda:ap-northeast-1:<ACCOUNT_ID>:function:videoq-worker-prod"
     },
     {
       "Sid": "LambdaEventSourceMappings",
@@ -119,24 +110,6 @@
         "lambda:TagResource",
         "lambda:UntagResource"
       ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "ApiGatewayV2Manage",
-      "Effect": "Allow",
-      "Action": [
-        "apigateway:GET",
-        "apigateway:POST",
-        "apigateway:PUT",
-        "apigateway:PATCH",
-        "apigateway:DELETE"
-      ],
-      "Resource": "arn:aws:apigateway:ap-northeast-1::/*"
-    },
-    {
-      "Sid": "CloudFrontManage",
-      "Effect": "Allow",
-      "Action": ["cloudfront:*"],
       "Resource": "*"
     }
   ]

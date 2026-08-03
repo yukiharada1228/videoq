@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useI18nNavigate } from '@/lib/i18n';
 import { useAuth } from '@/hooks/useAuth';
-import { apiClient, ApiError, type IntegrationApiKeyCreateResponse } from '@/lib/api';
+import { apiClient, type IntegrationApiKeyCreateResponse } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
@@ -11,7 +10,6 @@ import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { SupportText } from '@/components/ui/support-text';
 import { Link as DaLink } from '@/components/ui/link';
 import { ChipLabel } from '@/components/ui/chip-label';
@@ -34,7 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { ConnectedAppsSection } from '@/components/auth/ConnectedAppsSection';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { MessageAlert } from '@/components/common/MessageAlert';
@@ -49,12 +47,8 @@ type AccessLevel = 'all' | 'read_only';
 export default function SettingsPage() {
   const { user } = useAuth();
   const { t } = useTranslation();
-  const navigate = useI18nNavigate();
   const queryClient = useQueryClient();
 
-  const [reason, setReason] = useState('');
-  const [confirmText, setConfirmText] = useState('');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCreateApiKeyDialogOpen, setIsCreateApiKeyDialogOpen] = useState(false);
   const [apiKeyName, setApiKeyName] = useState('');
   const [apiKeyAccessLevel, setApiKeyAccessLevel] = useState<AccessLevel>('all');
@@ -72,7 +66,6 @@ export default function SettingsPage() {
     prefix: string;
   } | null>(null);
   const [isCopyAcknowledged, setIsCopyAcknowledged] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [searchApiKey, setSearchApiKey] = useState('');
   const [searchApiStatusMessage, setSearchApiStatusMessage] = useState<{
     tone: 'success' | 'error';
@@ -83,9 +76,6 @@ export default function SettingsPage() {
     tone: 'success' | 'error';
     text: string;
   } | null>(null);
-
-  const confirmationKeyword = useMemo(() => 'DELETE', []);
-  const canConfirm = confirmText.trim().toUpperCase() === confirmationKeyword;
 
   const accessLevelOptions: {
     value: AccessLevel;
@@ -171,21 +161,6 @@ export default function SettingsPage() {
           ? error.message
           : t('settings.integrationApiKeys.errorRevoking'),
       });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async () => apiClient.deleteAccount({ reason }),
-    onSuccess: async () => {
-      queryClient.clear();
-      navigate('/login');
-    },
-    onError: (error) => {
-      setDeleteError(
-        error instanceof ApiError || error instanceof Error
-          ? error.message
-          : t('settings.accountDeletion.error'),
-      );
     },
   });
 
@@ -279,17 +254,6 @@ export default function SettingsPage() {
     },
     onRequestClose: (event) => {
       if (revokeApiKeyMutation.isPending) event.preventDefault();
-    },
-  });
-
-  const deleteAccountDialog = useDialog({
-    open: isDialogOpen,
-    onOpenChange: (open) => {
-      setIsDialogOpen(open);
-      if (!open) setConfirmText('');
-    },
-    onRequestClose: (event) => {
-      if (deleteMutation.isPending) event.preventDefault();
     },
   });
 
@@ -597,48 +561,6 @@ export default function SettingsPage() {
 
           {/* ── Connected Apps (OAuth tokens) ────────────────────────── */}
           <ConnectedAppsSection />
-
-          {/* ── Danger Zone ─────────────────────────────────────────── */}
-          <section className={`${SETTINGS_SECTION_CLASS} border-l-4 border-error-1 pl-4`}>
-            <div className="mb-5">
-              <Heading size="18" hasChip className="mb-2 text-error-1">
-                <HeadingTitle level="h2">{t('settings.accountDeletion.title')}</HeadingTitle>
-              </Heading>
-              <p className="text-std-16N-170 text-solid-gray-600">
-                {t('settings.accountDeletion.description')}
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-2 mb-6">
-              <Label htmlFor="account-deletion-reason">
-                {t('settings.accountDeletion.reasonLabel')}
-              </Label>
-              <Textarea
-                id="account-deletion-reason"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                rows={4}
-                className="resize-none"
-              />
-            </div>
-
-            {deleteError && (
-              <div className="mb-5">
-                <ErrorMessage message={deleteError} />
-              </div>
-            )}
-
-            <div className="flex justify-end">
-              <Button
-                variant="solid"
-                className="bg-error-1 hover:bg-red-1000 active:bg-red-1200"
-                onClick={() => setIsDialogOpen(true)}
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                {t('settings.accountDeletion.cta')}
-              </Button>
-            </div>
-          </section>
       </div>
 
       {/* ── Create API Key Dialog ──────────────────────────────────────── */}
@@ -881,63 +803,6 @@ export default function SettingsPage() {
         </Dialog>
       )}
 
-      {/* ── Delete Account Dialog ──────────────────────────────────────── */}
-      {isDialogOpen && (
-        <Dialog {...deleteAccountDialog.dialogProps} width="min(32rem, 92vw)">
-          <DialogContent>
-            <DialogHeader>
-              <DialogHeading {...deleteAccountDialog.headingProps}>
-                {t('settings.accountDeletion.confirmTitle')}
-              </DialogHeading>
-            </DialogHeader>
-
-            <DialogBody>
-              <p className="mb-4 text-std-16N-170 text-solid-gray-700">
-                {t('settings.accountDeletion.confirmDescription')}
-              </p>
-
-              <div className="space-y-4">
-                <MessageAlert
-                  type="warning"
-                  message={t('settings.accountDeletion.confirmWarning')}
-                />
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="account-deletion-confirm">
-                    {t('settings.accountDeletion.confirmLabel', { keyword: confirmationKeyword })}
-                  </Label>
-                  <Input
-                    id="account-deletion-confirm"
-                    value={confirmText}
-                    onChange={(event) => setConfirmText(event.target.value)}
-                  />
-                </div>
-                {deleteError && <ErrorMessage message={deleteError} />}
-              </div>
-            </DialogBody>
-
-            <DialogActions>
-              <div className="flex justify-end gap-3">
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  {t('settings.accountDeletion.cancel')}
-                </Button>
-                <Button
-                  variant="solid"
-                  className="bg-error-1 hover:bg-red-1000 active:bg-red-1200"
-                  disabled={!canConfirm || deleteMutation.isPending}
-                  onClick={async () => { await deleteMutation.mutateAsync(); }}
-                >
-                  {deleteMutation.isPending ? (
-                    <span className="flex items-center gap-2">
-                      <InlineSpinner className="w-4 h-4" color="red" />
-                      {t('settings.accountDeletion.deleting')}
-                    </span>
-                  ) : t('settings.accountDeletion.confirmCta')}
-                </Button>
-              </div>
-            </DialogActions>
-          </DialogContent>
-        </Dialog>
-      )}
     </AppPageShell>
   );
 }

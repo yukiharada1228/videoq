@@ -16,10 +16,10 @@ flowchart TD
     CheckFileSize -->|OK| CheckStorage{"Storage quota<br>check (User limits)"}
     CheckStorage -->|Exceeded| ErrorStorage[Error: Storage Limit Exceeded]
     CheckStorage -->|OK| Save[Save to Database<br/>status: pending]
-    Save --> Queue[Add Celery Task to Queue]
+    Save --> Queue[Send Native Job to SQS]
     Queue --> Wait[User Waits]
     
-    Queue --> Worker[Celery Worker<br/>Receives Task]
+    Queue --> Worker[Python Worker<br/>Receives Task]
     Worker --> UpdateStatus1[Update status: processing]
     UpdateStatus1 --> CheckBackend{"WHISPER_BACKEND<br>Setting Check"}
     CheckBackend -->|whisper.cpp| Extract[Extract Audio with ffmpeg]
@@ -35,7 +35,7 @@ flowchart TD
     SceneSplit --> SaveTranscript[Save Transcription Result<br/>to Database]
     SaveTranscript --> UpdateIndexing[Update status: indexing]
     UpdateIndexing --> QueueIndexing[Enqueue Indexing Task]
-    QueueIndexing --> IndexWorker[Celery Worker<br/>Indexing Task]
+    QueueIndexing --> IndexWorker[Python Worker<br/>Indexing Task]
     IndexWorker --> Vectorize[Vectorize and Save<br/>to PGVector]
     Vectorize --> UpdateStatus2[Update status: completed]
     UpdateStatus2 --> Notify[Notify User of Completion]

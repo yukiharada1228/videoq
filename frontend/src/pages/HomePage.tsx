@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Link, useI18nNavigate, useLocale } from '@/lib/i18n';
-import { apiClient, type User } from '@/lib/api';
+import type { User } from '@/lib/api';
+import { authMeQueryOptions } from '@/lib/authQuery';
 import { useHomePageData } from '@/hooks/useHomePageData';
 import { useVideoStats } from '@/hooks/useVideoStats';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
-import { queryKeys } from '@/lib/queryKeys';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { Button } from '@/components/ui/button';
@@ -26,18 +26,11 @@ import { Upload } from 'lucide-react';
 
 export default function HomePage() {
   const navigate = useI18nNavigate();
-  const queryClient = useQueryClient();
   const { t } = useTranslation();
   const locale = useLocale();
 
-  const { data: user, isLoading } = useQuery<User | null>({
-    queryKey: queryKeys.auth.me,
-    queryFn: () => apiClient.getMeOrNull(),
-    retry: false,
-  });
-
-  const cachedUser = queryClient.getQueryData<User | null>(queryKeys.auth.me) ?? null;
-  const currentUser = user ?? cachedUser;
+  const { data: user, isLoading } = useQuery<User | null>(authMeQueryOptions);
+  const currentUser = user ?? null;
   const usageSource: Partial<User> = currentUser ?? {};
 
   const { videos, groups, isLoading: isLoadingData } = useHomePageData({ userId: currentUser?.id });

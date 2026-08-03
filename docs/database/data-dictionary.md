@@ -1,506 +1,68 @@
 # データ辞書
 
-## 概要
-
-VideoQシステムのデータベーステーブルとカラムの定義を、現行の Django モデル実装に合わせて整理したドキュメントです。
-
-**注記**
-- このプロジェクトは **PostgreSQL** と Django の `BigAutoField` をデフォルトで使用しているため、主キーは通常 `BIGINT` です。
-- Djangoの `DateTimeField` の値は、タイムゾーンが有効な場合、PostgreSQLでは `TIMESTAMPTZ`（タイムゾーン付きタイムスタンプ）として保存されます。
-- 最新のリファレンスはコード: `backend/app/infrastructure/models/` および `backend/app/migrations/` です。
-
-## Userテーブル
-
-### テーブル名
-`app_user` (custom user model, inherits from Django's `AbstractUser`)
-
-### 説明
-システムのユーザー情報を保存するテーブルです。
-アカウント無効化時は、`is_active=False` と `deactivated_at` 設定に加えて、`username` と `email` が一意な退会済みプレースホルダー値へ更新されます。
-
-### カラム定義
-
-| カラム名 | データ型 | 制約 | デフォルト値 | 説明 |
-|------------|-----------|-------------|---------------|-------------|
-| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | User ID |
-| username | VARCHAR(150) | UNIQUE, NOT NULL | - | Username |
-| email | VARCHAR(254) | UNIQUE, NOT NULL | - | Email address |
-| pending_email | VARCHAR(254) | NULL | NULL | 確認待ちの変更先メールアドレス |
-| password | VARCHAR(128) | NOT NULL | - | Hashed password |
-| date_joined | TIMESTAMPTZ | NOT NULL | now() | Registration date and time |
-| last_login | TIMESTAMPTZ | NULL | NULL | Last login date and time |
-| is_active | BOOLEAN | NOT NULL | True | Active status (the signup flow sets this to `False` until email verification) |
-| is_staff | BOOLEAN | NOT NULL | False | Staff permissions |
-| is_superuser | BOOLEAN | NOT NULL | False | Superuser permissions |
-| first_name | VARCHAR(150) | NOT NULL | '' | First name |
-| last_name | VARCHAR(150) | NOT NULL | '' | Last name |
-| max_video_upload_size_mb | INTEGER | NOT NULL, CHECK >= 0 | 500 | Maximum video file size per upload in MB for this user |
-| storage_limit_gb | DOUBLE PRECISION | NULL | 0 | ストレージ上限（GB）。`NULL` は無制限 |
-| processing_limit_minutes | INTEGER | NULL | 0 | 月間文字起こし時間の上限（分）。`NULL` は無制限 |
-| ai_answers_limit | INTEGER | NULL | 0 | 月間AI回答数の上限。`NULL` は無制限 |
-| used_storage_bytes | BIGINT | NOT NULL | 0 | 現在保存中の動画ファイル容量（バイト） |
-| used_processing_seconds | INTEGER | NOT NULL | 0 | 現在の集計月の文字起こし時間（秒） |
-| used_ai_answers | INTEGER | NOT NULL | 0 | 現在の集計月のAI回答数 |
-| usage_period_start | TIMESTAMPTZ | NULL | NULL | 月次使用量の集計期間開始日時 |
-| is_over_quota | BOOLEAN | NOT NULL | False | ストレージ超過中としてアップロードとAIチャットを停止するフラグ |
-| searchapi_api_key_encrypted | BYTEA | NULL | NULL | 暗号化されたユーザー個別のSearchAPIキー |
-| deactivated_at | TIMESTAMPTZ | NULL | NULL | Date and time when the account was deactivated (soft delete). `NULL` means the account is active. |
-
-### インデックス
-- PRIMARY KEY: `id`
-- UNIQUE: `username`
-- UNIQUE: `email`
-- INDEX: `pending_email` (for email change confirmation lookup)
-- INDEX: `(email, is_active)` (for login lookup)
-- INDEX: `(date_joined, -id)` (for user listing)
-- INDEX: `deactivated_at` (for deactivated account queries)
-
-### リレーション
-- `videos`: One-to-many relationship with Video table
-- `video_groups`: One-to-many relationship with VideoGroup table
-- `chat_logs`: One-to-many relationship with ChatLog table
-- `tags`: One-to-many relationship with Tag table
-- `account_deletion_requests`: One-to-many relationship with AccountDeletionRequest table
-- `api_keys`: One-to-many relationship with UserApiKey table
-
----
-
-## AccountDeletionRequestテーブル
-
-### テーブル名
-`app_accountdeletionrequest`
-
-### 説明
-アカウント削除リクエストと理由を保存するテーブルです。
-
-### カラム定義
-
-| カラム名 | データ型 | 制約 | デフォルト値 | 説明 |
-|------------|-----------|-------------|---------------|-------------|
-| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | Request ID |
-| user_id | BIGINT | FOREIGN KEY, NOT NULL | - | User ID |
-| reason | TEXT | NOT NULL | - | Reason for deletion (application layer may save an empty string) |
-| requested_at | TIMESTAMPTZ | NOT NULL | now() | Requested date and time |
-
-### インデックス
-- PRIMARY KEY: `id`
-- FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
-- INDEX: `(user_id, -requested_at)`（最新リクエスト監視用）
-
-### リレーション
-- `user`: Userテーブルとの多対1リレーション
-
----
-
-## Videoテーブル
-
-### テーブル名
-`app_video`
-
-### 説明
-アップロードされた動画の情報を保存するテーブルです。
-
-### カラム定義
-
-| カラム名 | データ型 | 制約 | デフォルト値 | 説明 |
-|------------|-----------|-------------|---------------|-------------|
-| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | Video ID |
-| user_id | BIGINT | FOREIGN KEY, NOT NULL | - | Owner's user ID |
-| file | VARCHAR(100) | NOT NULL | - | Video file path (Django `FileField`, default `max_length=100`) |
-| title | VARCHAR(255) | NOT NULL | - | Video title |
-| description | TEXT | NOT NULL | '' | Video description |
-| source_type | VARCHAR(20) | NOT NULL | 'uploaded' | 動画ソース（`uploaded` / `youtube`） |
-| source_url | VARCHAR(200) | NOT NULL | '' | 元動画のURL（YouTubeの場合） |
-| youtube_video_id | VARCHAR(32) | NOT NULL | '' | YouTube動画ID |
-| uploaded_at | TIMESTAMPTZ | NOT NULL | now() | Upload date and time |
-| transcript | TEXT | NOT NULL | '' | Transcription result (SRT format) |
-| status | VARCHAR(20) | NOT NULL | 'pending' | Processing status |
-| error_message | TEXT | NOT NULL | '' | Error message (when error occurs) |
-
-### statusの値
-- `uploading`: オブジェクトストレージへのアップロード中
-- `pending`: 処理待ち
-- `processing`: 処理中
-- `indexing`: 文字起こし保存済み; ベクトルインデックス作成中
-- `completed`: 完了
-- `error`: エラー
-
-### インデックス
-- PRIMARY KEY: `id`
-- FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
-- INDEX: `uploaded_at`（降順ソート用）
-- INDEX: `(user_id, status, -uploaded_at)`（フィルタ付き一覧用）
-- INDEX: `(user_id, title)`（ユーザー別タイトル検索用）
-- INDEX: `(user_id, source_type, -uploaded_at)`（動画ソース別一覧用）
-- INDEX: `source_type`, `youtube_video_id`（ソース検索用）
-
-### リレーション
-- `user`: Userテーブルとの多対1リレーション
-- `groups`: VideoGroupMemberテーブル経由の多対多リレーション
-- `video_tags`: VideoTagテーブルとの1対多リレーション
-- `tags`: VideoTagテーブル経由の多対多リレーション
-
----
-
-## VideoGroupテーブル
-
-### テーブル名
-`app_videogroup`
-
-### 説明
-動画をグループ化するためのテーブルです。
-
-### カラム定義
-
-| カラム名 | データ型 | 制約 | デフォルト値 | 説明 |
-|------------|-----------|-------------|---------------|-------------|
-| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | Group ID |
-| user_id | BIGINT | FOREIGN KEY, NOT NULL | - | Owner's user ID |
-| name | VARCHAR(255) | NOT NULL | - | Group name |
-| description | TEXT | NOT NULL | '' | Group description |
-| display_order | INTEGER | NOT NULL | 0 | ユーザーのグループ一覧における表示順 |
-| created_at | TIMESTAMPTZ | NOT NULL | now() | Creation date and time |
-| updated_at | TIMESTAMPTZ | NOT NULL | now() | Update date and time |
-| share_slug | VARCHAR(64) | NULL | NULL | 共有URLに使用するスラッグ |
-
-### インデックス
-- PRIMARY KEY: `id`
-- FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
-- UNIQUE（部分、大小文字非区別）: `LOWER(share_slug)` WHERE `share_slug IS NOT NULL`
-- INDEX: `(user_id, display_order, -created_at)`（オーナー一覧・表示順用）
-- INDEX（部分）: `share_slug` WHERE `share_slug IS NOT NULL`（共有スラッグ検索用）
-
-### リレーション
-- `user`: Userテーブルとの多対1リレーション
-- `videos`: VideoGroupMemberテーブル経由の多対多リレーション
-- `chat_logs`: ChatLogテーブルとの1対多リレーション
-
----
-
-## VideoGroupMemberテーブル
-
-### テーブル名
-`app_videogroupmember`
-
-### 説明
-動画とグループの関連を管理する中間テーブルです。
-
-### カラム定義
-
-| カラム名 | データ型 | 制約 | デフォルト値 | 説明 |
-|------------|-----------|-------------|---------------|-------------|
-| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | Member ID |
-| group_id | BIGINT | FOREIGN KEY, NOT NULL | - | Group ID |
-| video_id | BIGINT | FOREIGN KEY, NOT NULL | - | Video ID |
-| added_at | TIMESTAMPTZ | NOT NULL | now() | Addition date and time |
-| order | INTEGER | NOT NULL | 0 | Order within group |
-
-### インデックス
-- PRIMARY KEY: `id`
-- FOREIGN KEY: `group_id` → `app_videogroup.id` (CASCADE)
-- FOREIGN KEY: `video_id` → `app_video.id` (CASCADE)
-- UNIQUE: `(group_id, video_id)`（同じ動画を同じグループに複数回追加不可）
-- INDEX: `(group_id, order)`（グループ再生/順序取得用）
-- INDEX: `(video_id, group_id)`（メンバーシップ検索用）
-
-### リレーション
-- `group`: VideoGroupテーブルとの多対1リレーション
-- `video`: Videoテーブルとの多対1リレーション
-
----
-
-## Tagテーブル
-
-### テーブル名
-`app_tag`
-
-### 説明
-動画を整理するためのユーザー定義タグを保存するテーブルです。
-
-### カラム定義
-
-| カラム名 | データ型 | 制約 | デフォルト値 | 説明 |
-|------------|-----------|-------------|---------------|-------------|
-| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | Tag ID |
-| user_id | BIGINT | FOREIGN KEY, NOT NULL | - | オーナーのユーザーID |
-| name | VARCHAR(50) | NOT NULL | - | タグ名 |
-| color | VARCHAR(7) | NOT NULL | '#3B82F6' | タグの色（16進数形式 #RRGGBB） |
-| created_at | TIMESTAMPTZ | NOT NULL | now() | 作成日時 |
-
-### インデックス
-- PRIMARY KEY: `id`
-- FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
-- UNIQUE: `(user_id, name)`（ユーザーごとにユニークなタグ名）
-- INDEX: `(user_id, name)`（ユーザー別タグ一覧/ソート用）
-
-### リレーション
-- `user`: Userテーブルとの多対1リレーション
-- `video_tags`: VideoTagテーブルとの1対多リレーション
-- `videos_through`: VideoTagテーブル経由の多対多リレーション
-
----
-
-## VideoTagテーブル
-
-### テーブル名
-`app_videotag`
-
-### 説明
-VideoとTagの多対多リレーションの中間テーブルです。
-
-### カラム定義
-
-| カラム名 | データ型 | 制約 | デフォルト値 | 説明 |
-|------------|-----------|-------------|---------------|-------------|
-| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | VideoTag ID |
-| video_id | BIGINT | FOREIGN KEY, NOT NULL | - | 動画ID |
-| tag_id | BIGINT | FOREIGN KEY, NOT NULL | - | タグID |
-| added_at | TIMESTAMPTZ | NOT NULL | now() | タグ付与日時 |
-
-### インデックス
-- PRIMARY KEY: `id`
-- FOREIGN KEY: `video_id` → `app_video.id` (CASCADE)
-- FOREIGN KEY: `tag_id` → `app_tag.id` (CASCADE)
-- UNIQUE: `(video_id, tag_id)`（重複タグ付与防止）
-- INDEX: `(video_id, tag_id)`（動画からの結合/検索用）
-- INDEX: `(tag_id, -added_at)`（タグ別最新使用用）
-
-### リレーション
-- `video`: Videoテーブルとの多対1リレーション
-- `tag`: Tagテーブルとの多対1リレーション
-
----
-
-## ChatLogテーブル
-
-### テーブル名
-`app_chatlog`
-
-### 説明
-チャット履歴を保存するテーブルです。
-
-### カラム定義
-
-| カラム名 | データ型 | 制約 | デフォルト値 | 説明 |
-|------------|-----------|-------------|---------------|-------------|
-| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | チャットログID |
-| user_id | BIGINT | FOREIGN KEY, NOT NULL | - | ユーザーID |
-| group_id | BIGINT | FOREIGN KEY, NOT NULL | - | グループID |
-| question | TEXT | NOT NULL | - | 質問テキスト |
-| answer | TEXT | NOT NULL | - | 回答テキスト |
-| citations | JSONB | NOT NULL | [] | 回答に紐づく参照シーンのリスト |
-| retrieved_contexts | JSONB | NOT NULL | [] | RAG評価用に保存する検索コンテキスト |
-| is_shared_origin | BOOLEAN | NOT NULL | False | 共有リンク経由のチャットかどうか |
-| feedback | VARCHAR(4) | NULL | NULL | フィードバック ('good', 'bad', NULL) |
-| created_at | TIMESTAMPTZ | NOT NULL | now() | 作成日時 |
-
-### feedbackの値
-- `good`: 良い評価
-- `bad`: 悪い評価
-- `NULL`: フィードバックなし
-
-### インデックス
-- PRIMARY KEY: `id`
-- FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
-- FOREIGN KEY: `group_id` → `app_videogroup.id` (CASCADE)
-- INDEX: `created_at`（降順ソート用）
-- INDEX: `(user_id, -created_at)`（ユーザー履歴用）
-- INDEX: `(group_id, -created_at)`（グループ履歴用）
-- INDEX（部分）: `feedback` WHERE `feedback IS NOT NULL`（フィードバック分析用）
-
-### リレーション
-- `user`: Userテーブルとの多対1リレーション
-- `group`: VideoGroupテーブルとの多対1リレーション
-- `evaluation`: ChatLogEvaluationテーブルとの1対0..1リレーション
-
----
-
-## ChatLogEvaluationテーブル
-
-### テーブル名
-`app_chatlogevaluation`
-
-### 説明
-チャット回答に対するRAGAS評価の状態とスコアを保存します。1つのチャットログにつき最大1レコードです。
-
-### カラム定義
-
-| カラム名 | データ型 | 制約 | デフォルト値 | 説明 |
-|------------|-----------|-------------|---------------|-------------|
-| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | 評価ID |
-| chat_log_id | BIGINT | UNIQUE, FOREIGN KEY, NOT NULL | - | 評価対象のチャットログID |
-| status | VARCHAR(20) | NOT NULL | 'pending' | 評価状態（`pending` / `completed` / `failed`） |
-| faithfulness | DOUBLE PRECISION | NULL | NULL | 忠実性スコア |
-| answer_relevancy | DOUBLE PRECISION | NULL | NULL | 回答関連性スコア |
-| context_precision | DOUBLE PRECISION | NULL | NULL | コンテキスト適合率スコア |
-| error_message | TEXT | NOT NULL | '' | 評価失敗時のエラー内容 |
-| evaluated_at | TIMESTAMPTZ | NULL | NULL | 評価完了日時 |
-| created_at | TIMESTAMPTZ | NOT NULL | now() | 作成日時 |
-
-### インデックス
-- PRIMARY KEY: `id`
-- UNIQUE / FOREIGN KEY: `chat_log_id` → `app_chatlog.id` (CASCADE)
-- INDEX: `status`
-
----
-
-## UserApiKeyテーブル
-
-### テーブル名
-`app_userapikey`
-
-### 説明
-サーバー間連携用のAPIキーを保存するテーブルです。APIキーにより、JWTクッキーベースの認証なしでVideoQ APIへのプログラマティックアクセスが可能になります。
-
-### カラム定義
-
-| カラム名 | データ型 | 制約 | デフォルト値 | 説明 |
-|------------|-----------|-------------|---------------|-------------|
-| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | APIキーID |
-| user_id | BIGINT | FOREIGN KEY, NOT NULL | - | オーナーのユーザーID |
-| name | VARCHAR(100) | NOT NULL | - | APIキーの識別名 |
-| access_level | VARCHAR(20) | NOT NULL | 'all' | 権限レベル ('all' または 'read_only') |
-| prefix | VARCHAR(12) | NOT NULL | - | 生キーの先頭12文字（表示識別用） |
-| hashed_key | VARCHAR(64) | UNIQUE, NOT NULL | - | 生 APIキーのSHA-256ハッシュ |
-| last_used_at | TIMESTAMPTZ | NULL | NULL | キーの最終使用日時 |
-| revoked_at | TIMESTAMPTZ | NULL | NULL | キーの失効日時（`NULL` = アクティブ） |
-| created_at | TIMESTAMPTZ | NOT NULL | now() | 作成日時 |
-
-### access_levelの値
-- `all`: 全読み書きアクセス
-- `read_only`: readスコープ + `chat_write` スコープ（`POST /api/chat/` は許可、その他の書き込み操作はブロック）
-
-### インデックス
-- PRIMARY KEY: `id`
-- FOREIGN KEY: `user_id` → `app_user.id` (CASCADE)
-- UNIQUE: `hashed_key`
-- UNIQUE（部分）: `(user_id, name)` WHERE `revoked_at IS NULL`（アクティブなAPIキー名はユーザーごとにユニーク）
-- INDEX: `prefix`（APIキープレフィックス検索用）
-- INDEX: `revoked_at`（アクティブ/失効キークエリ用）
-- 注記: `Meta.ordering = ["-created_at", "-id"]` はソート順の定義であり、専用インデックスを意味しません
-
-### リレーション
-- `user`: Userテーブルとの多対1リレーション
-
----
-
-## PGVectorコレクション
-
-### コレクション名
-`videoq_scenes` 相当の pgvector コレクション（`PGVECTOR_COLLECTION_NAME` 環境変数で設定可能）
-
-### 説明
-`langchain-postgres` が管理するテーブル群に、ベクトル化された動画シーンを保存するコレクションです。
-
-### スキーマ
-
-| カラム名 | データ型 | 説明 |
-|------------|-----------|-------------|
-| id | UUID | ベクトルID |
-| embedding | vector(1536) | テキストエンベディングベクトル（次元数は `EMBEDDING_VECTOR_SIZE` 環境変数で設定可能; モデルは `EMBEDDING_MODEL` 環境変数で設定可能、デフォルト: text-embedding-3-small/1536） |
-| document | TEXT | シーンテキスト内容 |
-| metadata | JSONB | メタデータ |
-
-### metadata構成
-```json
-{
-  "video_id": 123,
-  "user_id": 456,
-  "video_title": "Sample Video",
-  "start_time": "00:01:23,456",
-  "end_time": "00:01:45,789",
-  "start_sec": 83.456,
-  "end_sec": 105.789,
-  "scene_index": 5
-}
-```
-
-### インデックス
-- PRIMARY KEY: `id`
-- INDEX: `embedding`（ベクトル検索用、HNSW または IVFFlat）
-
-### 目的
-- RAG（Retrieval-Augmented Generation）のための関連シーン検索
-- 類似検索によるコンテキスト構築
-
----
-
-## データ型詳細
-
-### 文字列型
-- `VARCHAR(n)`: 最大n文字の可変長文字列
-- `TEXT`: 無制限の文字列
-
-### 数値型
-- `INTEGER`: 32ビット整数
-- `BIGINT`: 64ビット整数
-- `BOOLEAN`: ブール値
-
-### 日時型
-- `TIMESTAMPTZ`: タイムゾーン付きタイムスタンプ（PostgreSQL）
-
-### JSON型
-- `JSON`: Django の `JSONField` が PostgreSQL 上で扱う JSON 系データ
-- `JSONB`: バイナリJSON（高速検索可能）
-
-### ベクトル型
-- `vector(n)`: n次元ベクトル（pgvector拡張）
-
----
-
-## Userの利用枠管理
-
-### テーブル名
-`app_user`
-
-### 説明
-ユーザーごとの上限値と利用量を `User` テーブル上で直接管理します。課金プランやサブスクリプションのモデルはありません。
-上限値はDjango Adminからユーザー単位で設定し、`NULL` は無制限、`0` は利用不可を表します。
-
-### カラム定義
-
-| カラム名 | データ型 | 制約 | デフォルト値 | 説明 |
-|------------|-----------|-------------|---------------|-------------|
-| storage_limit_gb | DOUBLE PRECISION | NULL | 0 | ストレージ上限（GB）。`NULL` は無制限 |
-| processing_limit_minutes | INTEGER | NULL | 0 | 月間文字起こし時間上限（分）。`NULL` は無制限 |
-| ai_answers_limit | INTEGER | NULL | 0 | 月間AI回答数上限。`NULL` は無制限 |
-| used_storage_bytes | BIGINT | NOT NULL | 0 | 現在保存中のストレージ使用量（バイト） |
-| used_processing_seconds | INTEGER | NOT NULL | 0 | 今期の文字起こし処理時間（秒） |
-| used_ai_answers | INTEGER | NOT NULL | 0 | 今期のAI回答数 |
-| usage_period_start | TIMESTAMPTZ | NULL | NULL | 現在の使用量カウント期間の開始日時 |
-| is_over_quota | BOOLEAN | NOT NULL | False | ストレージ超過中としてアップロードとAIチャットを停止するフラグ |
-
-`used_processing_seconds` と `used_ai_answers` は新しい暦月の最初の利用時にリセットされます。`used_storage_bytes` は現在保存中のファイル量なので月次リセットしません。
-
----
-
-## 制約詳細
-
-### 主キー制約
-全テーブルで `id` が主キーとして設定されています。
-
-### 外部キー制約
-全外部キーに `ON DELETE CASCADE` が設定されており、親レコード削除時に子レコードが自動的に削除されます。
-
-### ユニーク制約
-- `User.username`: ユーザー名はユニーク
-- `User.email`: メールアドレスはユニーク
-- `VideoGroup.share_slug`: 大文字小文字を区別せずユニーク（NULL許容）
-- `VideoGroupMember(group_id, video_id)`: 同じ動画を同じグループに複数回追加不可
-- `UserApiKey.hashed_key`: ハッシュ済みAPIキーはユニーク
-- `UserApiKey(user, name)` WHERE `revoked_at IS NULL`: アクティブなAPIキー名はユーザーごとにユニーク
-
-### チェック制約
-- `Video.status`: 指定された値のみ許可
-- `ChatLog.feedback`: 指定された値またはNULLのみ許可
-- `UserApiKey.access_level`: 'all' または 'read_only' のみ許可
-
----
-
-## Related Documentation
-
-- [📖 ドキュメント一覧](../README.md)
-- [ER図](er-diagram.md) — エンティティ関連図
-- [データフロー図](data-flow-diagram.md) — 機能ごとのデータの流れ
-- [クラス図](../design/class-diagram.md) — モデルクラスの詳細
-- [コンポーネント図](../design/component-diagram.md) — バックエンドコンポーネント構成
+完全な型、default、constraint、index は
+`apps/api/src/db/schema/modern.ts` を正本とします。
+
+## 認証
+
+| テーブル | 用途 |
+|---|---|
+| `users` | アカウント、password hash、quota、暗号化済み外部 key |
+| `auth_sessions` | opaque refresh session の hash、family、期限、revoke |
+| `auth_action_tokens` | メール確認・password reset・email change の一回限り token |
+| `api_keys` | integration key の hash、prefix、access level |
+| `account_deletion_requests` | アカウント削除依頼 |
+
+`auth_sessions.token_hash` と `auth_action_tokens.token_hash` は unique です。
+平文 refresh / action token は保存しません。
+
+## 動画・整理
+
+| テーブル | 用途 |
+|---|---|
+| `videos` | file、title、source、transcript、processing status |
+| `video_groups` | user の動画グループと share slug |
+| `video_group_members` | group と video の関連・表示順 |
+| `tags` | user 単位の tag |
+| `video_tags` | video と tag の関連 |
+
+## チャット・評価
+
+| テーブル | 用途 |
+|---|---|
+| `chat_logs` | question、answer、citation、feedback |
+| `chat_log_evaluations` | log 単位の評価 |
+| `group_evaluation_snapshots` | group 集計 snapshot |
+
+## Vector / PLOG
+
+| テーブル | 用途 |
+|---|---|
+| `scene_embeddings` | LangChain標準列、filter可能なuser / video metadata columns、JSON metadata |
+| `plog_build_jobs` | build status |
+| `plog_summary_nodes` | summary hierarchy |
+| `plog_concepts` | concept |
+| `plog_edges` | concept relation |
+| `plog_learning_objects` | concept の learning object |
+| `learner_concept_states` | user ごとの学習状態 |
+
+`scene_embeddings.embedding` の次元は設定した embedding model と一致させます。
+
+## OAuth / OIDC
+
+| テーブル | 用途 |
+|---|---|
+| `oauth_applications` | client metadata と credential |
+| `oauth_grants` | authorization code / grant |
+| `oauth_access_tokens` | opaque access token |
+| `oauth_refresh_tokens` | refresh token と rotation |
+| `oauth_id_tokens` | OIDC ID token |
+| `oauth_device_grants` | device authorization |
+
+## 共通規則
+
+- ID は bigint identity または UUID
+- 日時は `TIMESTAMPTZ`、API 出力は UTC ISO-8601
+- owner / parent relation は FK
+- 関連テーブルは複合 unique で重複を防止
+- secret は hash または AES-256-GCM envelope で保存

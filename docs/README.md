@@ -1,70 +1,55 @@
 # VideoQ Documentation
 
-## Overview
+現行 VideoQ の要件、Hono / Cloudflare Workers アーキテクチャ、modern schema、
+フロントエンド、非同期 worker を説明します。
 
-VideoQの設計ドキュメントです。現行実装をベースに、要件定義からアーキテクチャ設計、データベース設計、詳細設計までをまとめています。
+## ドキュメントマップ
 
-## 📖 ドキュメントマップ
+### 要件
 
-以下の順に読むと、全体像から詳細へとスムーズに理解できます。
+- [ユースケース図](requirements/use-case-diagram.md)
+- [アクティビティ図](requirements/activity-diagram.md)
+- [画面遷移図](requirements/screen-transition-diagram.md)
 
-### 1. 要件定義（Requirements）
+### アーキテクチャ
 
-プロダクトの機能要件とユーザー体験の定義です。
+- [システム構成図](architecture/system-configuration-diagram.md)
+- [Hono ネイティブ設計](architecture/hono-native-redesign.md)
+- [フローチャート](architecture/flowchart.md)
+- [BPMN](architecture/bpmn.md)
+- [プロンプトエンジニアリング](architecture/prompt-engineering.md)
 
-| ドキュメント | 説明 |
-|:---|:---|
-| [ユースケース図](requirements/use-case-diagram.md) | ユーザー・管理者・ゲスト・APIクライアントの操作一覧 |
-| [アクティビティ図](requirements/activity-diagram.md) | 主要な業務フローの流れ |
-| [画面遷移図](requirements/screen-transition-diagram.md) | フロントエンドの画面遷移とルーティング |
+### データベース
 
-### 2. アーキテクチャ設計（Architecture）
+- [ER 図](database/er-diagram.md)
+- [データ辞書](database/data-dictionary.md)
+- [データフロー図](database/data-flow-diagram.md)
 
-システム全体の構成と処理フローの設計です。
+### 詳細設計
 
-| ドキュメント | 説明 |
-|:---|:---|
-| [システム構成図](architecture/system-configuration-diagram.md) | 全体アーキテクチャ、レイヤー構成、セキュリティ |
-| [フローチャート](architecture/flowchart.md) | 主要処理フロー（アップロード、チャット、認証 等） |
-| [BPMN](architecture/bpmn.md) | ビジネスプロセスモデル（登録、文字起こし、共有 等） |
-| [プロンプトエンジニアリング](architecture/prompt-engineering.md) | RAGプロンプトの設計とカスタマイズ方法 |
+- [コンポーネント図](design/component-diagram.md)
+- [クラス図](design/class-diagram.md)
+- [シーケンス図](design/sequence-diagram.md)
+- [状態遷移図](design/state-diagram.md)
+- [デプロイメント図](design/deployment-diagram.md)
 
-### 3. データベース設計（Database）
+### PLOG / 検証
 
-データモデルとデータフローの定義です。
+- [PLOG](plog/README.md)
+- [pgvector 検索 PoC](architecture/poc-01-pgvector-cross-runtime-search.md)
+- [quota 原子予約 PoC](architecture/poc-04-quota-upload-race.md)
 
-| ドキュメント | 説明 |
-|:---|:---|
-| [ER図](database/er-diagram.md) | エンティティ関連図とリレーション詳細 |
-| [データ辞書](database/data-dictionary.md) | テーブル・カラム定義、制約、インデックス |
-| [データフロー図](database/data-flow-diagram.md) | 機能ごとのデータの流れ |
-
-### 4. 詳細設計（Design）
-
-コンポーネント構成とインタラクション設計です。
-
-| ドキュメント | 説明 |
-|:---|:---|
-| [コンポーネント図](design/component-diagram.md) | フロントエンド・バックエンドのコンポーネント構成 |
-| [クラス図](design/class-diagram.md) | モデル、ドメイン抽象、ユースケース、ビュー |
-| [シーケンス図](design/sequence-diagram.md) | 主要機能の処理シーケンス |
-| [状態遷移図](design/state-diagram.md) | 動画・ユーザー・共有・APIキー等の状態遷移 |
-| [デプロイメント図](design/deployment-diagram.md) | Docker Compose構成、ネットワーク、ボリューム |
-
-### 5. 学習モード（PLOG）
-
-| ドキュメント | 説明 |
-|:---|:---|
-| [PLOG](plog/README.md) | 前提関係グラフ・学習モード・構築パイプライン |
-
-## 🏗️ 技術スタック
+## 技術スタック
 
 | レイヤー | 技術 |
-|:---|:---|
-| フロントエンド | React 19, TypeScript 5, Vite 7, React Router 7, i18next, TanStack Query 5, Tailwind CSS 4, Radix UI |
-| バックエンド | Django 5.2, Django REST Framework, SimpleJWT, Celery, Gunicorn + UvicornWorker (ローカル), AWS Lambda Web Adapter (本番) |
-| データベース | PostgreSQL 17 + pgvector (本番は Neon Serverless PostgreSQL) |
-| キャッシュ/キュー | Redis (ローカル), Amazon SQS (本番) |
-| AI/ML | OpenAI API, Ollama, whisper.cpp, LangChain, Janome, NLTK |
-| 利用枠管理 | `User` の上限値・使用量を `quota` ドメインで検証（管理者がユーザー単位で設定） |
-| インフラ | **[ローカル]** Docker Compose, Caddy, Nginx <br> **[本番]** Terraform, AWS Lambda, API Gateway, CloudFront, Cloudflare Pages, Cloudflare R2 |
+|---|---|
+| フロントエンド | React 19, TypeScript, Vite, React Router, TanStack Query |
+| Web API | Hono, OpenAPIHono, Zod, Drizzle ORM, Cloudflare Workers |
+| 非同期処理 | Python, AWS Lambda, Amazon SQS |
+| データ | Neon PostgreSQL, pgvector, Hyperdrive |
+| ストレージ | Cloudflare R2（ローカル MinIO） |
+| Edge state | Durable Objects, KV |
+| AI | OpenAI, Ollama, whisper.cpp |
+
+API の実行仕様は [`apps/api/README.md`](../apps/api/README.md)、worker は
+[`apps/worker/README.md`](../apps/worker/README.md) を参照してください。

@@ -1,85 +1,221 @@
-services:
-  redis:
-    image: redis:alpine
-    container_name: videoq-redis
-    networks:
-      - videoq-network
+# Default: modern local stack (production-like frontend build).
+#   docker compose up --build -d
+#   → http://localhost  (Caddy → nginx static + Hono)
+#
+# Frontend HMR (Vite): docker compose --profile dev up --build -d
 
+services:
   postgres:
     image: pgvector/pgvector:pg17
     container_name: videoq-postgres
     env_file:
       - .env
+    ports:
+      - "55432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - videoq-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
-  backend:
-    build: ./backend
-    container_name: videoq-backend
-    env_file:
-      - .env
+  # Local S3-compatible storage (browser → 127.0.0.1:9000, containers → minio:9000).
+  minio:
+    image: minio/minio:latest
+    container_name: videoq-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_API_CORS_ALLOW_ORIGIN: ${MINIO_API_CORS_ALLOW_ORIGIN:-http://localhost,http://127.0.0.1,http://127.0.0.1:3000,http://localhost:3000}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
     volumes:
-      - ./backend:/app
-      - staticfiles:/app/staticfiles
-    depends_on:
-      - postgres
-      - redis
+      - minio_data:/data
     networks:
       - videoq-network
 
-  celery-worker:
-    build: ./backend
-    container_name: videoq-celery-worker
-    command: celery -A videoq worker --loglevel=info
-    env_file:
-      - .env
-    volumes:
-      - ./backend:/app
+  minio-init:
+    image: minio/mc:latest
+    container_name: videoq-minio-init
     depends_on:
-      - redis
-      - postgres
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 $${MINIO_ROOT_USER:-minioadmin} $${MINIO_ROOT_PASSWORD:-minioadmin}; do sleep 1; done;
+      mc mb --ignore-existing local/$${MINIO_BUCKET:-videoq-media};
+      mc anonymous set none local/$${MINIO_BUCKET:-videoq-media};
+      echo 'MinIO bucket ready:' $${MINIO_BUCKET:-videoq-media};
+      "
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-videoq-media}
+    networks:
+      - videoq-network
+    restart: "no"
+
+  # SQS-compatible queue. Host: 127.0.0.1:9324  Compose: elasticmq:9324
+  elasticmq:
+    image: softwaremill/elasticmq:latest
+    container_name: videoq-elasticmq
+    ports:
+      - "9324:9324"
+      - "9325:9325"
+    volumes:
+      - ./infra/elasticmq.conf:/opt/elasticmq.conf:ro
     networks:
       - videoq-network
 
-  frontend:
+  # Drizzle migrate (stamp existing schema, then apply pending).
+  migrate:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.local
+    container_name: videoq-migrate
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-postgres}
+    volumes:
+      - ./apps/api:/app
+      - api_node_modules:/app/node_modules
+    command: ["scripts/docker-migrate.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - videoq-network
+    restart: "no"
+
+  # Hono API (wrangler dev)
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.local
+    container_name: videoq-api
+    env_file:
+      - .env
+    environment:
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-dev-only-auth-jwt-secret-change-me}
+      USER_SECRET_ENCRYPTION_KEY: ${USER_SECRET_ENCRYPTION_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-postgres}
+      R2_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      R2_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      R2_S3_ENDPOINT: http://127.0.0.1:9000
+      R2_S3_INTERNAL_ENDPOINT: http://minio:9000
+      R2_BUCKET_NAME: ${MINIO_BUCKET:-videoq-media}
+      R2_S3_REGION: us-east-1
+      SQS_QUEUE_URL: http://elasticmq:9324/000000000000/videoq-jobs
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+    ports:
+      - "8787:8787"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./apps/api:/app
+      - api_node_modules:/app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+      elasticmq:
+        condition: service_started
+    networks:
+      - videoq-network
+    restart: unless-stopped
+
+  # Async job worker (SQS long-poll)
+  worker:
+    build:
+      context: ./apps/worker
+      dockerfile: Dockerfile.local
+    container_name: videoq-worker
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-postgres}
+      SQS_QUEUE_URL: http://elasticmq:9324/000000000000/videoq-jobs
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      USE_S3_STORAGE: "true"
+      AWS_STORAGE_BUCKET_NAME: ${MINIO_BUCKET:-videoq-media}
+      AWS_S3_ENDPOINT_URL: http://minio:9000
+      AWS_S3_REGION_NAME: us-east-1
+      OLLAMA_BASE_URL: ${WORKER_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-ollama}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-qwen3-embedding:0.6b}
+      EMBEDDING_VECTOR_SIZE: ${EMBEDDING_VECTOR_SIZE:-1024}
+      ENABLE_HEAVY_PIPELINE: ${ENABLE_HEAVY_PIPELINE:-1}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      USER_SECRET_ENCRYPTION_KEY: ${USER_SECRET_ENCRYPTION_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA}
+      LOG_LEVEL: ${WORKER_LOG_LEVEL:-INFO}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./apps/worker:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+      elasticmq:
+        condition: service_started
+    networks:
+      - videoq-network
+    restart: unless-stopped
+
+  # Production build of frontend (nginx static). Not Vite HMR.
+  web:
     build:
       context: ./frontend
+      dockerfile: Dockerfile
       args:
-        # Vite build-time API base URL (recommended: "/api" when using the included nginx reverse proxy)
-        - VITE_API_URL=${VITE_API_URL:-/api}
-        - VITE_USE_S3_STORAGE=${USE_S3_STORAGE:-false}
-        - VITE_MAX_VIDEO_UPLOAD_SIZE_MB=${MAX_VIDEO_UPLOAD_SIZE_MB:-500}
-        - VITE_OPERATOR_NAME=${VITE_OPERATOR_NAME:-}
-        - VITE_OPERATOR_REPRESENTATIVE=${VITE_OPERATOR_REPRESENTATIVE:-}
-        - VITE_OPERATOR_EMAIL=${VITE_OPERATOR_EMAIL:-}
-        - VITE_OPERATOR_ADDRESS=${VITE_OPERATOR_ADDRESS:-}
-        - VITE_OPERATOR_PHONE=${VITE_OPERATOR_PHONE:-}
-    container_name: videoq-frontend
-    env_file:
-      - .env
+        VITE_API_URL: /api
+        VITE_USE_S3_STORAGE: "true"
+        VITE_MAX_VIDEO_UPLOAD_SIZE_MB: ${MAX_VIDEO_UPLOAD_SIZE_MB:-500}
+    container_name: videoq-web
     depends_on:
-      - backend
+      - api
     networks:
       - videoq-network
+    restart: unless-stopped
 
-  nginx:
-    image: nginx:alpine
-    container_name: videoq-nginx
-    command: /bin/sh -c "envsubst '$$MAX_VIDEO_UPLOAD_SIZE_MB' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
+  # Optional Vite HMR for UI work (profile: dev). Prefer Caddy → web in default mode.
+  web-dev:
+    profiles: ["dev"]
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: videoq-web-dev
     environment:
-      - MAX_VIDEO_UPLOAD_SIZE_MB=${MAX_VIDEO_UPLOAD_SIZE_MB:-500}
+      VITE_API_URL: /api
+      VITE_USE_S3_STORAGE: "true"
+      VITE_API_PROXY_TARGET: http://api:8787
+      VITE_DEV_HOST: "0.0.0.0"
+    ports:
+      - "3000:3000"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf.template:ro
-      - staticfiles:/static
-      - ./backend/media:/media
+      - ./frontend:/app
+      - web_node_modules:/app/node_modules
     depends_on:
-      - backend
-      - frontend
+      - api
     networks:
       - videoq-network
+    restart: unless-stopped
 
+  # Edge: / → nginx static, /api → Hono
   gateway:
     image: caddy:2-alpine
     container_name: videoq-gateway
@@ -88,22 +224,25 @@ services:
       - "443:443"
       - "443:443/udp"
     environment:
-      - SITE_ADDRESS=${SITE_ADDRESS:-http://localhost}
+      SITE_ADDRESS: ${SITE_ADDRESS:-http://localhost}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./Caddyfile.dev:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      - nginx
+      - api
+      - web
     networks:
       - videoq-network
+    restart: unless-stopped
 
 volumes:
-  staticfiles:
   postgres_data:
+  minio_data:
   caddy_data:
   caddy_config:
-
+  api_node_modules:
+  web_node_modules:
 
 networks:
   videoq-network:

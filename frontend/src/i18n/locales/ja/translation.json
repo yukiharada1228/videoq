@@ -74,7 +74,8 @@
     "settings": "設定",
     "logout": "ログアウト",
     "menu": "すべてのメニュー",
-    "closeMenu": "メニューを閉じる"
+    "closeMenu": "メニューを閉じる",
+    "admin": "管理"
   },
   "layout": {
     "authBranding": {
@@ -439,20 +440,6 @@
       "errorEmpty": "新しいメールアドレスを入力してください",
       "errorSubmitting": "メールアドレス変更のリクエストに失敗しました"
     },
-    "accountDeletion": {
-      "title": "アカウント削除",
-      "description": "アカウントを削除すると、すべての動画・データが完全に削除されます。",
-      "reasonLabel": "退会理由（任意）",
-      "confirmLabel": "{{keyword}} と入力して確認",
-      "confirmTitle": "削除の最終確認",
-      "confirmDescription": "アカウントを削除すると、すべての動画・データが完全に削除されます。",
-      "confirmWarning": "この操作は取り消せません。データの復元はできません。",
-      "confirmCta": "はい、削除します",
-      "cancel": "キャンセル",
-      "cta": "アカウントを削除",
-      "deleting": "削除中...",
-      "error": "削除の開始に失敗しました。もう一度お試しください。"
-    },
     "integrationApiKeys": {
       "title": "連携用APIキー",
       "description": "既存システム向けのシークレットキーを発行・管理します。",
@@ -568,9 +555,6 @@
         "answerRelevancy": "質問への関連度",
         "contextPrecision": "参照情報の的確さ"
       }
-    },
-    "keywords": {
-      "title": "頻出キーワード"
     }
   },
   "docs": {
@@ -616,7 +600,7 @@
       "checklistTitle": "実装チェックリスト",
       "checklistDescription": "連携実装前に確認しておくべき項目です。",
       "autoExampleTitle": "自動生成エンドポイント例",
-      "autoExampleDescription": "以下の cURL は /api/schema/ から自動生成しています。",
+      "autoExampleDescription": "以下の cURL は /api/schema から自動生成しています。",
       "autoLabel": "自動生成"
     },
     "sections": {
@@ -626,7 +610,7 @@
         "bullets": [
           "設定画面でキーを作成し、安全に保管する",
           "サーバー間通信は X-API-Key ヘッダーを利用する",
-          "本実装前に GET /api/auth/me/ で認証確認する"
+          "本実装前に GET /api/auth/me で認証確認する"
         ]
       },
       "videos": {
@@ -742,6 +726,82 @@
       "analogy_for": "類推",
       "example_of": "例",
       "contrasts_with": "対比"
+    }
+  },
+  "admin": {
+    "title": "管理",
+    "description": "ユーザーのクォータ調整と埋め込み再索引のためのスーパーユーザー向け管理画面です。",
+    "users": {
+      "title": "ユーザー",
+      "description": "ユーザーを検索し、クォータや利用量を調整します。",
+      "searchLabel": "検索",
+      "searchPlaceholder": "ユーザー名またはメール",
+      "search": "検索",
+      "empty": "ユーザーが見つかりません",
+      "pageRange": "{{total}} 件中 {{from}}–{{to}}",
+      "prev": "前へ",
+      "next": "次へ",
+      "edit": "編集",
+      "editTitle": "{{username}} を編集",
+      "delete": "削除",
+      "deleteTitle": "{{username}} を削除しますか？",
+      "deleteBody": "アカウントを直ちに無効化し、動画・グループ・タグ・チャット履歴・ユーザー本体を完全に削除します。この操作は取り消せません。",
+      "deleteConfirm": "ユーザーを削除",
+      "deleteSuccess": "{{username}} の削除を開始しました（{{jobId}}）。",
+      "deleteError": "ユーザーの削除に失敗しました。",
+      "save": "保存",
+      "cancel": "キャンセル",
+      "saveSuccess": "ユーザー設定を更新しました。",
+      "saveError": "ユーザーの更新に失敗しました。",
+      "loadError": "ユーザー一覧の取得に失敗しました。",
+      "unlimited": "無制限",
+      "nullableHint": "空欄で無制限になります。",
+      "selfFlagsHint": "自分の有効状態とスーパーユーザー権限は変更できません。",
+      "quotaSummary": "アップロード {{uploadMb}} MB · ストレージ {{storageGb}}",
+      "columns": {
+        "id": "ID",
+        "username": "ユーザー名",
+        "email": "メール",
+        "flags": "フラグ",
+        "quota": "クォータ",
+        "actions": "操作"
+      },
+      "flags": {
+        "superuser": "スーパーユーザー",
+        "staff": "スタッフ",
+        "inactive": "無効",
+        "overQuota": "超過"
+      },
+      "fields": {
+        "isActive": "有効",
+        "isStaff": "スタッフ",
+        "isSuperuser": "スーパーユーザー",
+        "maxUploadMb": "最大アップロードサイズ (MB)",
+        "storageLimitGb": "ストレージ上限 (GB)",
+        "processingLimitMinutes": "処理上限 (分)",
+        "aiAnswersLimit": "AI回答上限",
+        "usedStorageBytes": "使用ストレージ (bytes)",
+        "usedProcessingSeconds": "使用処理時間 (秒)",
+        "usedAiAnswers": "使用AI回答数",
+        "isOverQuota": "クォータ超過として扱う"
+      },
+      "errors": {
+        "invalidUploadMb": "最大アップロードサイズは正の整数で指定してください。",
+        "invalidStorageGb": "ストレージ上限は数値または空欄にしてください。",
+        "invalidProcessingMinutes": "処理上限は数値または空欄にしてください。",
+        "invalidAiLimit": "AI回答上限は数値または空欄にしてください。",
+        "invalidUsage": "利用量は0以上の整数で指定してください。"
+      }
+    },
+    "reindex": {
+      "title": "埋め込み",
+      "description": "全動画のシーン埋め込みを再索引するジョブをキューへ投入します。",
+      "button": "全埋め込みを再索引",
+      "confirmTitle": "全埋め込みを再索引しますか？",
+      "confirmBody": "バックグラウンドジョブを投入します。既存埋め込みは非同期で再構築されます。",
+      "confirm": "再索引を投入",
+      "success": "再索引ジョブを投入しました（{{jobId}}）。",
+      "error": "再索引ジョブの投入に失敗しました。"
     }
   }
 }

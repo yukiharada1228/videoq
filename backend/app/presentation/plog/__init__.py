@@ -1,1 +1,0 @@
-"""PLOG presentation package."""

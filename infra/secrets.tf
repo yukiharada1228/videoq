@@ -15,7 +15,7 @@ resource "aws_secretsmanager_secret" "db" {
 }
 
 # App secrets + R2 credentials.
-# SECRET_KEY and R2 credentials (AWS_ACCESS_KEY_ID etc.) are stored together;
+# Worker runtime and R2 credentials are stored together;
 # every key is expanded into the environment by the app secret handler.
 resource "aws_secretsmanager_secret" "app" {
   name        = "${local.name_prefix}/${var.env_name}/app"

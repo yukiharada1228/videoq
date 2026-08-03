@@ -11,7 +11,15 @@ vi.stubGlobal('import.meta', {
 });
 
 // Import the apiClient singleton
-import { apiClient, createApiClient } from '../api';
+import { apiClient, apiPath, createApiClient } from '../api';
+
+describe('apiPath', () => {
+  it('strips trailing slashes while preserving query strings', () => {
+    expect(apiPath('/videos/1/')).toBe('/videos/1');
+    expect(apiPath('/chat/messages/?share_slug=abc')).toBe('/chat/messages?share_slug=abc');
+    expect(apiPath('/')).toBe('/');
+  });
+});
 
 describe('ApiClient', () => {
   // Mock fetch
@@ -23,11 +31,6 @@ describe('ApiClient', () => {
 
   beforeEach(() => {
     fetchMock.mockReset();
-    Object.defineProperty(document, 'cookie', {
-      writable: true,
-      value: 'csrftoken=test-csrf-token',
-    });
-
     // Reset window.location mock
     Object.defineProperty(window, 'location', {
       writable: true,
@@ -40,8 +43,9 @@ describe('ApiClient', () => {
 
     // Reset baseUrl to default incase it was changed
     (apiClient as any).baseUrl = 'http://localhost:8000/api';
-    // Reset cached CSRF token so each test starts fresh
-    (apiClient as any).csrfToken = null;
+    // Access tokens are memory-only, so reset singleton state between tests.
+    (apiClient as any).accessToken = null;
+    (apiClient as any).refreshPromise = null;
   });
 
   afterEach(() => {
@@ -52,12 +56,13 @@ describe('ApiClient', () => {
     it('isAuthenticated should return true when response is ok', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: () => Promise.resolve(JSON.stringify({ id: 1 })),
       });
       const result = await apiClient.isAuthenticated();
       expect(result).toBe(true);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/me/', expect.objectContaining({
-        method: 'GET',
-        credentials: 'include',
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/me', expect.objectContaining({
+        headers: expect.not.objectContaining({ Authorization: expect.anything() }),
       }));
     });
 
@@ -78,14 +83,14 @@ describe('ApiClient', () => {
     it('logout should call logout endpoint', async () => {
       fetchMock.mockResolvedValueOnce({ ok: true });
       await apiClient.logout();
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/sessions/', expect.objectContaining({
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/sessions', expect.objectContaining({
         method: 'DELETE',
+        credentials: 'include',
       }));
     });
 
     it('login should return response on success', async () => {
-      document.cookie = 'csrftoken=test-csrf-token';
-      const mockResponse = {};
+      const mockResponse = { access_token: 'login-access-token' };
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
@@ -94,42 +99,31 @@ describe('ApiClient', () => {
 
       const result = await apiClient.login({ username: 'user', password: 'pw' });
       expect(result).toEqual(mockResponse);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/sessions/', expect.objectContaining({
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/sessions', expect.objectContaining({
         method: 'POST',
-        headers: expect.objectContaining({
-          'X-CSRFToken': 'test-csrf-token',
-        }),
         body: JSON.stringify({ username: 'user', password: 'pw' }),
       }));
+      expect(fetchMock.mock.calls[0][1]).not.toHaveProperty('credentials');
     });
 
-    it('login should fetch csrf cookie before unsafe requests when missing', async () => {
-      document.cookie = '';
-      (apiClient as any).csrfToken = null;
-      fetchMock.mockImplementationOnce(async () => {
-        document.cookie = 'csrftoken=fetched-csrf-token';
-        return {
-          ok: true,
-          status: 204,
-          headers: new Headers(),
-          text: async () => Promise.resolve(''),
-        } as Response;
+    it('login should retain access token in memory for subsequent API requests', async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: () => Promise.resolve(JSON.stringify({ access_token: 'login-access-token' })),
       });
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({ id: 1 })),
       });
 
       await apiClient.login({ username: 'user', password: 'pw' });
+      await apiClient.getMe();
 
-      expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://localhost:8000/api/auth/csrf/', expect.objectContaining({
-        method: 'GET',
-        credentials: 'include',
-      }));
-      expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:8000/api/auth/sessions/', expect.objectContaining({
+      expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:8000/api/auth/me', expect.objectContaining({
         headers: expect.objectContaining({
-          'X-CSRFToken': 'fetched-csrf-token',
+          Authorization: 'Bearer login-access-token',
         }),
       }));
     });
@@ -137,7 +131,7 @@ describe('ApiClient', () => {
     it('signup should call signup endpoint', async () => {
       fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
       await apiClient.signup({ username: 'u', email: 'e@e.com', password: 'p' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/users/', expect.objectContaining({
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/users', expect.objectContaining({
         method: 'POST',
       }));
     });
@@ -148,8 +142,8 @@ describe('ApiClient', () => {
         headers: new Headers({ 'content-type': 'application/json' }),
         text: () => Promise.resolve(JSON.stringify({}))
       });
-      await apiClient.verifyEmail({ uid: 'uid', token: 'token' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/email-verifications/uid/token/', expect.objectContaining({
+      await apiClient.verifyEmail({ token: 'opaque/token' });
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/email-verifications/opaque%2Ftoken', expect.objectContaining({
         method: 'PATCH',
       }));
     });
@@ -157,15 +151,15 @@ describe('ApiClient', () => {
     it('requestPasswordReset should call password-reset endpoint', async () => {
       fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
       await apiClient.requestPasswordReset({ email: 'e@e.com' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/password-resets/', expect.objectContaining({
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/password-resets', expect.objectContaining({
         method: 'POST',
       }));
     });
 
     it('confirmPasswordReset should call password-resets/<token> endpoint', async () => {
       fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
-      await apiClient.confirmPasswordReset({ uid: 'uid', token: 'token', new_password: 'new' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/password-resets/uid/token/', expect.objectContaining({
+      await apiClient.confirmPasswordReset({ token: 'opaque-token', new_password: 'new' });
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/password-resets/opaque-token', expect.objectContaining({
         method: 'PATCH',
         body: JSON.stringify({ new_password: 'new' }),
       }));
@@ -176,7 +170,7 @@ describe('ApiClient', () => {
 
       await apiClient.requestEmailChange({ email: 'new@example.com' });
 
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/me/email/', expect.objectContaining({
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/me/email', expect.objectContaining({
         method: 'PATCH',
         body: JSON.stringify({ email: 'new@example.com' }),
       }));
@@ -185,16 +179,15 @@ describe('ApiClient', () => {
     it('confirmEmailChange should call email-change endpoint', async () => {
       fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
 
-      await apiClient.confirmEmailChange({ uid: 'uid', token: 'token' });
+      await apiClient.confirmEmailChange({ token: 'opaque-token' });
 
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/email-change/uid/token/', expect.objectContaining({
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/email-change/opaque-token', expect.objectContaining({
         method: 'PATCH',
       }));
     });
 
     it('refreshToken should call refresh endpoint', async () => {
-      document.cookie = 'csrftoken=test-csrf-token';
-      const mockResponse = {};
+      const mockResponse = { access_token: 'refreshed-access-token' };
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
@@ -202,17 +195,13 @@ describe('ApiClient', () => {
       });
       const result = await apiClient.refreshToken();
       expect(result).toEqual(mockResponse);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/tokens/', expect.objectContaining({
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/tokens', expect.objectContaining({
         method: 'POST',
         credentials: 'include',
-        headers: expect.objectContaining({
-          'X-CSRFToken': 'test-csrf-token',
-        }),
       }));
     });
 
     it('refreshToken should throw immediately when refresh endpoint returns 401 without retrying', async () => {
-      document.cookie = 'csrftoken=test-csrf-token';
       fetchMock.mockResolvedValueOnce({
         ok: false,
         status: 401,
@@ -247,13 +236,13 @@ describe('ApiClient', () => {
           ok: true,
           status: 200,
           headers: new Headers({ 'content-type': 'application/json' }),
-          text: () => Promise.resolve('{}'),
+          text: () => Promise.resolve(JSON.stringify({ access_token: 'refreshed-token' })),
         })
         .mockResolvedValueOnce({
           ok: true,
           status: 200,
           headers: new Headers({ 'content-type': 'application/json' }),
-          text: () => Promise.resolve(JSON.stringify(mockUser)),
+          text: () => Promise.resolve(JSON.stringify({ data: mockUser })),
         });
 
       const result = await apiClient.getMeOrNull();
@@ -262,17 +251,19 @@ describe('ApiClient', () => {
       expect(fetchMock).toHaveBeenNthCalledWith(
         1,
         'http://localhost:8000/api/auth/me',
-        expect.objectContaining({ credentials: 'include' }),
+        expect.objectContaining({ headers: expect.any(Object) }),
       );
       expect(fetchMock).toHaveBeenNthCalledWith(
         2,
-        'http://localhost:8000/api/auth/tokens/',
+        'http://localhost:8000/api/auth/tokens',
         expect.objectContaining({ method: 'POST', credentials: 'include' }),
       );
       expect(fetchMock).toHaveBeenNthCalledWith(
         3,
         'http://localhost:8000/api/auth/me',
-        expect.objectContaining({ credentials: 'include' }),
+        expect.objectContaining({
+          headers: expect.objectContaining({ Authorization: 'Bearer refreshed-token' }),
+        }),
       );
     });
 
@@ -308,9 +299,10 @@ describe('ApiClient', () => {
       const result = await apiClient.getIntegrationApiKeys();
 
       expect(result).toEqual(mockKeys);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/api-keys/', expect.objectContaining({
-        credentials: 'include',
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/api-keys', expect.objectContaining({
+        headers: expect.any(Object),
       }));
+      expect(fetchMock.mock.calls[0][1]).not.toHaveProperty('credentials');
     });
 
     it('createIntegrationApiKey should create an api key', async () => {
@@ -332,7 +324,7 @@ describe('ApiClient', () => {
       const result = await apiClient.createIntegrationApiKey({ name: 'integration', access_level: 'all' });
 
       expect(result).toEqual(mockResponse);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/api-keys/', expect.objectContaining({
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/api-keys', expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ name: 'integration', access_level: 'all' }),
       }));
@@ -343,7 +335,7 @@ describe('ApiClient', () => {
 
       await apiClient.revokeIntegrationApiKey(1);
 
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/api-keys/1/', expect.objectContaining({
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/api-keys/1', expect.objectContaining({
         method: 'DELETE',
       }));
     });
@@ -359,9 +351,10 @@ describe('ApiClient', () => {
       const result = await apiClient.getSearchApiKeyStatus();
 
       expect(result).toEqual(mockStatus);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/searchapi-key/', expect.objectContaining({
-        credentials: 'include',
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/searchapi-key', expect.objectContaining({
+        headers: expect.any(Object),
       }));
+      expect(fetchMock.mock.calls[0][1]).not.toHaveProperty('credentials');
     });
 
     it('saveSearchApiKey should save a key', async () => {
@@ -369,7 +362,7 @@ describe('ApiClient', () => {
 
       await apiClient.saveSearchApiKey('sa_test');
 
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/searchapi-key/', expect.objectContaining({
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/searchapi-key', expect.objectContaining({
         method: 'PUT',
         body: JSON.stringify({ api_key: 'sa_test' }),
       }));
@@ -380,7 +373,7 @@ describe('ApiClient', () => {
 
       await apiClient.deleteSearchApiKey();
 
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/searchapi-key/', expect.objectContaining({
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/searchapi-key', expect.objectContaining({
         method: 'DELETE',
       }));
     });
@@ -419,7 +412,7 @@ describe('ApiClient', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve('{}'),
+        text: () => Promise.resolve(JSON.stringify({ access_token: 'retry-token' })),
       });
 
       // Retry original call succeeds
@@ -433,6 +426,43 @@ describe('ApiClient', () => {
       const result = await apiClient.getMe();
       expect(result).toEqual(mockUser);
       expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(fetchMock.mock.calls[2][1]).toEqual(expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: 'Bearer retry-token' }),
+      }));
+    });
+
+    it('should single-flight concurrent refreshes after 401 responses', async () => {
+      let meCalls = 0;
+      let refreshCalls = 0;
+      const customFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith('/auth/tokens')) {
+          refreshCalls += 1;
+          return new Response(JSON.stringify({ access_token: 'shared-token' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        meCalls += 1;
+        if (meCalls <= 2) {
+          return new Response('{}', { status: 401, headers: { 'Content-Type': 'application/json' } });
+        }
+        expect(init?.headers).toEqual(expect.objectContaining({
+          Authorization: 'Bearer shared-token',
+        }));
+        return new Response(JSON.stringify({ id: meCalls }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      });
+      const client = createApiClient({
+        baseUrl: 'http://localhost:8000/api',
+        fetchFn: customFetch,
+      });
+
+      await Promise.all([client.getMe(), client.getMe()]);
+
+      expect(refreshCalls).toBe(1);
     });
 
     it('should handle 401 and call onUnauthorized if refresh fails', async () => {
@@ -507,8 +537,9 @@ describe('ApiClient', () => {
       expect(result).toEqual({ id: 1, username: 'custom' });
       expect(customFetch).toHaveBeenCalledWith(
         'https://api.example.test/v1/auth/me',
-        expect.objectContaining({ credentials: 'include' }),
+        expect.objectContaining({ headers: expect.any(Object) }),
       );
+      expect(customFetch.mock.calls[0][1]).not.toHaveProperty('credentials');
     });
 
     it('setUnauthorizedHandler should update the handler used by later auth failures', async () => {
@@ -538,11 +569,11 @@ describe('ApiClient', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify({ count: 0, next: null, previous: null, results: [] }))
+        text: () => Promise.resolve(JSON.stringify({ data: [], meta: { total: 0, limit: 24, offset: 0 } }))
       });
 
       await apiClient.getVideos({ q: 'search', status: 'pending', tags: [1, 2] });
-      const expectedUrl = 'http://localhost:8000/api/videos/?q=search&status=pending&tags=1%2C2';
+      const expectedUrl = 'http://localhost:8000/api/videos?q=search&status=pending&tags=1%2C2';
       expect(fetchMock).toHaveBeenCalledWith(expectedUrl, expect.anything());
     });
 
@@ -550,13 +581,13 @@ describe('ApiClient', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify({ count: 0, next: null, previous: null, results: [] }))
+        text: () => Promise.resolve(JSON.stringify({ data: [], meta: { total: 0, limit: 24, offset: 0 } }))
       });
       await apiClient.getVideos();
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/', expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos', expect.anything());
     });
 
-    it('uploadVideo should use FormData', async () => {
+    it('uploadVideo should use FormData when S3 is disabled', async () => {
       const mockVideo = { id: 1, title: 'Test Video' };
       fetchMock.mockResolvedValueOnce({
         ok: true,
@@ -570,7 +601,7 @@ describe('ApiClient', () => {
       const result = await apiClient.uploadVideo({ file, title: 'Test Video' });
 
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining('/videos/'),
+        expect.stringContaining('/videos'),
         expect.objectContaining({ method: 'POST', body: expect.any(FormData) }),
       );
       expect(result).toEqual(mockVideo);
@@ -609,7 +640,7 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({ id: 1 }))
       });
       await apiClient.getVideo(1);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/1/', expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/1', expect.anything());
     });
 
     it('updateVideo should call correct endpoint', async () => {
@@ -619,7 +650,7 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({ id: 1 }))
       });
       await apiClient.updateVideo(1, { title: 'Updated' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/1/', expect.objectContaining({ method: 'PATCH' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/1', expect.objectContaining({ method: 'PATCH' }));
     });
 
     it('deleteVideo should call correct endpoint', async () => {
@@ -629,7 +660,7 @@ describe('ApiClient', () => {
         text: () => Promise.resolve("")
       });
       await apiClient.deleteVideo(1);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/1/', expect.objectContaining({ method: 'DELETE' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/1', expect.objectContaining({ method: 'DELETE' }));
     });
   });
 
@@ -638,20 +669,20 @@ describe('ApiClient', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify({ count: 0, next: null, previous: null, results: [] }))
+        text: () => Promise.resolve(JSON.stringify({ data: [], meta: { total: 0, limit: 24, offset: 0 } }))
       });
       await apiClient.getVideoGroups();
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/', expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups', expect.anything());
     });
 
     it('getVideoGroupsPage calls correct endpoint with pagination params', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify({ count: 0, next: null, previous: null, results: [] }))
+        text: () => Promise.resolve(JSON.stringify({ data: [], meta: { total: 0, limit: 24, offset: 0 } }))
       });
       await apiClient.getVideoGroupsPage({ limit: 24, offset: 48 });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/?limit=24&offset=48', expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups?limit=24&offset=48', expect.anything());
     });
 
     it('getVideoGroup calls correct endpoint', async () => {
@@ -661,7 +692,7 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({ id: 1 }))
       });
       await apiClient.getVideoGroup(1);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/', expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1', expect.anything());
     });
 
     it('createVideoGroup calls correct endpoint', async () => {
@@ -671,7 +702,7 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({ id: 1 }))
       });
       await apiClient.createVideoGroup({ name: 'Group' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/', expect.objectContaining({ method: 'POST' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups', expect.objectContaining({ method: 'POST' }));
     });
 
     it('updateVideoGroup calls correct endpoint', async () => {
@@ -681,13 +712,13 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({ id: 1 }))
       });
       await apiClient.updateVideoGroup(1, { name: 'Updated' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/', expect.objectContaining({ method: 'PATCH' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1', expect.objectContaining({ method: 'PATCH' }));
     });
 
     it('deleteVideoGroup calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
       await apiClient.deleteVideoGroup(1);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/', expect.objectContaining({ method: 'DELETE' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1', expect.objectContaining({ method: 'DELETE' }));
     });
 
     it('reorderVideoGroups calls correct endpoint', async () => {
@@ -697,13 +728,13 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({ message: "OK" }))
       });
       await apiClient.reorderVideoGroups([2, 1]);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/order/', expect.objectContaining({ method: 'PATCH' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/order', expect.objectContaining({ method: 'PATCH' }));
     });
 
     it('addVideoToGroup calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
       await apiClient.addVideoToGroup(1, 100);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/videos/100/', expect.objectContaining({ method: 'POST' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/videos/100', expect.objectContaining({ method: 'POST' }));
     });
 
     it('addVideosToGroup calls correct endpoint', async () => {
@@ -713,13 +744,13 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({ message: "OK" }))
       });
       await apiClient.addVideosToGroup(1, [100, 101]);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/videos/', expect.objectContaining({ method: 'POST' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/videos', expect.objectContaining({ method: 'POST' }));
     });
 
     it('removeVideoFromGroup calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
       await apiClient.removeVideoFromGroup(1, 100);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/videos/100/', expect.objectContaining({ method: 'DELETE' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/videos/100', expect.objectContaining({ method: 'DELETE' }));
     });
 
     it('reorderVideosInGroup calls correct endpoint', async () => {
@@ -729,7 +760,7 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({ message: "OK" }))
       });
       await apiClient.reorderVideosInGroup(1, [101, 100]);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/videos/order/', expect.objectContaining({ method: 'PATCH' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/videos/order', expect.objectContaining({ method: 'PATCH' }));
     });
   });
 
@@ -738,10 +769,10 @@ describe('ApiClient', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify({ count: 0, next: null, previous: null, results: [] }))
+        text: () => Promise.resolve(JSON.stringify({ data: [], meta: { total: 0, limit: 24, offset: 0 } }))
       });
       await apiClient.getTags();
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/tags/', expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/tags', expect.anything());
     });
 
     it('getTag calls correct endpoint', async () => {
@@ -751,7 +782,7 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({ id: 1 }))
       });
       await apiClient.getTag(1);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/tags/1/', expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/tags/1', expect.anything());
     });
 
     it('createTag calls correct endpoint', async () => {
@@ -761,7 +792,7 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({ id: 1 }))
       });
       await apiClient.createTag({ name: 'Tag' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/tags/', expect.objectContaining({ method: 'POST' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/tags', expect.objectContaining({ method: 'POST' }));
     });
 
     it('updateTag calls correct endpoint', async () => {
@@ -771,13 +802,13 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({ id: 1 }))
       });
       await apiClient.updateTag(1, { name: 'New Tag' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/tags/1/', expect.objectContaining({ method: 'PATCH' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/tags/1', expect.objectContaining({ method: 'PATCH' }));
     });
 
     it('deleteTag calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
       await apiClient.deleteTag(1);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/tags/1/', expect.objectContaining({ method: 'DELETE' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/tags/1', expect.objectContaining({ method: 'DELETE' }));
     });
 
     it('addTagsToVideo calls correct endpoint', async () => {
@@ -787,13 +818,13 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({ message: "OK" }))
       });
       await apiClient.addTagsToVideo(1, [10, 11]);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/1/tags/', expect.objectContaining({ method: 'POST' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/1/tags', expect.objectContaining({ method: 'POST' }));
     });
 
     it('removeTagFromVideo calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
       await apiClient.removeTagFromVideo(1, 10);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/1/tags/10/', expect.objectContaining({ method: 'DELETE' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/1/tags/10', expect.objectContaining({ method: 'DELETE' }));
     });
   });
 
@@ -805,7 +836,7 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({ role: 'assistant', content: 'hello' }))
       });
       await apiClient.chat({ messages: [] });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/messages/', expect.objectContaining({ method: 'POST' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/messages', expect.objectContaining({ method: 'POST' }));
     });
 
     it('chat with share slug calls correct endpoint', async () => {
@@ -815,7 +846,7 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({ role: 'assistant', content: 'hello' }))
       });
       await apiClient.chat({ messages: [], share_slug: 'abc' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/messages/?share_slug=abc', expect.objectContaining({ method: 'POST' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/messages?share_slug=abc', expect.objectContaining({ method: 'POST' }));
     });
 
     it('setChatFeedback calls correct endpoint', async () => {
@@ -825,17 +856,17 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({}))
       });
       await apiClient.setChatFeedback(1, 'good');
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/logs/1/feedback/', expect.objectContaining({ method: 'PATCH' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/logs/1/feedback', expect.objectContaining({ method: 'PATCH' }));
     });
 
     it('getChatHistory calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify({ count: 0, next: null, previous: null, results: [] }))
+        text: () => Promise.resolve(JSON.stringify({ data: [], meta: { total: 0, limit: 24, offset: 0 } }))
       });
       await apiClient.getChatHistory(1);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/groups/1/history/', expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/groups/1/history', expect.anything());
     });
 
     it('getEvaluationSummary calls correct endpoint', async () => {
@@ -853,7 +884,7 @@ describe('ApiClient', () => {
 
       await apiClient.getEvaluationSummary(1);
 
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/evaluation/groups/1/summary/', expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/evaluation/groups/1/summary', expect.anything());
     });
 
     it('getChatEvaluations calls correct endpoint', async () => {
@@ -865,7 +896,7 @@ describe('ApiClient', () => {
 
       await apiClient.getChatEvaluations(1);
 
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/evaluation/groups/1/logs/?limit=200', expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/evaluation/groups/1/logs?limit=200', expect.anything());
     });
 
     it('exportChatHistoryCsv should download file', async () => {
@@ -889,7 +920,7 @@ describe('ApiClient', () => {
 
       await apiClient.exportChatHistoryCsv(1);
 
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/groups/1/history/?download=csv', expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/groups/1/history?download=csv', expect.anything());
       expect(createElementSpy).toHaveBeenCalledWith('a');
       expect(appendChildSpy).toHaveBeenCalledWith(mockLink);
       expect(mockLink.click).toHaveBeenCalled();
@@ -906,7 +937,7 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({ share_slug: 'abc' }))
       });
       await apiClient.createShareLink(1, 'my-group');
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/share/', expect.objectContaining({ method: 'POST', body: JSON.stringify({ share_slug: 'my-group' }) }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/share', expect.objectContaining({ method: 'POST', body: JSON.stringify({ share_slug: 'my-group' }) }));
     });
 
     it('deleteShareLink calls correct endpoint', async () => {
@@ -916,7 +947,7 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({}))
       });
       await apiClient.deleteShareLink(1);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/share/', expect.objectContaining({ method: 'DELETE' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/share', expect.objectContaining({ method: 'DELETE' }));
     });
 
     it('getSharedGroup calls correct endpoint', async () => {
@@ -927,7 +958,10 @@ describe('ApiClient', () => {
         json: () => Promise.resolve({ id: 1 })
       });
       await apiClient.getSharedGroup('token');
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/share/token/');
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://localhost:8000/api/videos/groups/share/token',
+        expect.objectContaining({ headers: expect.any(Object) }),
+      );
     });
 
     it('getSharedGroup should throw on error', async () => {

@@ -78,6 +78,21 @@ describe('AppNav - authenticated user (cache populated)', () => {
     expect(within(getPrimaryNav()).getByText('navigation.settings')).toBeInTheDocument()
   })
 
+  it('hides admin nav link for non-superusers', () => {
+    renderWithUser(<AppNav />)
+    expect(screen.queryByText('navigation.admin')).not.toBeInTheDocument()
+  })
+
+  it('shows admin nav link for superusers', () => {
+    render(
+      <>
+        <SeedUser user={{ id: 1, username: 'admin', is_superuser: true }} />
+        <AppNav />
+      </>,
+    )
+    expect(within(getPrimaryNav()).getByText('navigation.admin')).toBeInTheDocument()
+  })
+
   it('shows docs nav link', () => {
     renderWithUser(<AppNav />)
     expect(within(getPrimaryNav()).getByText('navigation.docs')).toBeInTheDocument()

@@ -1,0 +1,6 @@
+{
+  "name": "poc-hyperdrive-pg",
+  "private": true,
+  "type": "module",
+  "dependencies": { "hono": "^4", "pg": "^8" }
+}

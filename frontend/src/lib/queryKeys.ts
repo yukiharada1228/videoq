@@ -40,8 +40,12 @@ export const queryKeys = {
   chat: {
     history: (groupId: number | null, shareToken?: string) => ['chatHistory', groupId, shareToken ?? null] as const,
     analytics: (groupId: number) => ['chatAnalytics', groupId] as const,
-    keywords: (groupId: number) => ['chatAnalyticsKeywords', groupId] as const,
     evaluations: (groupId: number | null) => ['chatEvaluations', groupId] as const,
     evaluationSummary: (groupId: number | null) => ['evaluationSummary', groupId] as const,
+  },
+  admin: {
+    prefix: ['admin'] as const,
+    users: (params: { q: string; limit: number; offset: number }) =>
+      ['admin', 'users', params] as const,
   },
 } as const;

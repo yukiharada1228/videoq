@@ -6,7 +6,7 @@ resource "aws_sqs_queue" "dlq" {
   sqs_managed_sse_enabled   = true
 }
 
-# ── Main queue (Celery broker) ─────────────────────────────────────────
+# ── Main worker queue ───────────────────────────────────────────────────
 # Keep visibility_timeout greater than or equal to the Worker Lambda timeout so
 # messages do not become visible again while Lambda is processing them.
 # receive_wait_time=20s enables long polling to reduce empty polls.

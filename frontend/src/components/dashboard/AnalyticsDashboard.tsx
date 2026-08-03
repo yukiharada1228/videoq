@@ -1,11 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import type { ChatAnalytics, ChatAnalyticsKeywords, EvaluationSummary } from '@/lib/api';
+import type { ChatAnalytics, EvaluationSummary } from '@/lib/api';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { DashboardEmptyState } from './DashboardEmptyState';
 import { DashboardPanel } from './DashboardPanel';
 import { QuestionTimeSeriesChart } from './QuestionTimeSeriesChart';
 import { FeedbackDonutChart } from './FeedbackDonutChart';
-import { KeywordCloudChart } from './KeywordCloudChart';
 import { EvaluationSummaryCard } from './EvaluationSummaryCard';
 
 interface AnalyticsDashboardProps {
@@ -13,8 +12,6 @@ interface AnalyticsDashboardProps {
   evaluationSummary?: EvaluationSummary;
   isLoading: boolean;
   isEvaluationLoading?: boolean;
-  keywordsData?: ChatAnalyticsKeywords;
-  isKeywordsLoading?: boolean;
 }
 
 export function AnalyticsDashboard({
@@ -22,8 +19,6 @@ export function AnalyticsDashboard({
   evaluationSummary,
   isLoading,
   isEvaluationLoading = false,
-  keywordsData,
-  isKeywordsLoading = false,
 }: AnalyticsDashboardProps) {
   const { t } = useTranslation();
 
@@ -72,21 +67,6 @@ export function AnalyticsDashboard({
             isLoading={isEvaluationLoading}
           />
         </DashboardPanel>
-
-        {isKeywordsLoading && (
-          <DashboardPanel
-            className="flex items-center justify-center"
-            data-testid="keywords-loading"
-          >
-            <LoadingSpinner />
-          </DashboardPanel>
-        )}
-
-        {!isKeywordsLoading && keywordsData && keywordsData.keywords.length > 0 && (
-          <DashboardPanel>
-            <KeywordCloudChart data={keywordsData.keywords} />
-          </DashboardPanel>
-        )}
       </div>
     </div>
   );

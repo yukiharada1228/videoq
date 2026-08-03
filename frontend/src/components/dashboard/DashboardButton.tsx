@@ -13,7 +13,6 @@ import {
   useDialog,
 } from '@/components/ui/dialog';
 import { useChatAnalytics } from '@/hooks/useChatAnalytics';
-import { useChatKeywords } from '@/hooks/useChatKeywords';
 import { useEvaluationSummary } from '@/hooks/useEvaluationSummary';
 import { AnalyticsDashboard } from './AnalyticsDashboard';
 
@@ -30,10 +29,6 @@ export function DashboardButton({ groupId, size = 'md' }: DashboardButtonProps) 
     data: evaluationSummary,
     isLoading: isEvaluationLoading,
   } = useEvaluationSummary(groupId, isOpen);
-  const {
-    data: keywordsData,
-    isLoading: isKeywordsLoading,
-  } = useChatKeywords(groupId, isOpen);
 
   const dialog = useDialog({
     open: isOpen,
@@ -68,8 +63,6 @@ export function DashboardButton({ groupId, size = 'md' }: DashboardButtonProps) 
                   evaluationSummary={evaluationSummary}
                   isLoading={isLoading}
                   isEvaluationLoading={isEvaluationLoading}
-                  keywordsData={keywordsData}
-                  isKeywordsLoading={isKeywordsLoading}
                 />
               </DialogBody>
             </DialogScrollArea>

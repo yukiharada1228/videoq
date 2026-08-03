@@ -11,11 +11,13 @@ export default defineConfig({
     },
   },
   server: {
-    host: '127.0.0.1',
+    // CLI `--host 0.0.0.0` (compose) overrides; default stays loopback for host-only Vite.
+    host: process.env.VITE_DEV_HOST || '127.0.0.1',
     port: 3000,
     proxy: {
+      // Local Hono (wrangler). Client should use VITE_API_URL=/api so cookies stay same-origin.
       '/api': {
-        target: process.env.VITE_API_URL || 'http://localhost:8000',
+        target: process.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:8787',
         changeOrigin: true,
       },
     },

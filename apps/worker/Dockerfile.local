@@ -1,0 +1,17 @@
+# Local long-poll worker (ElasticMQ substitute for Lambda).
+FROM python:3.12-slim-bookworm
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ffmpeg ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY pyproject.toml README.md ./
+COPY worker_python ./worker_python
+COPY handler.py ./
+COPY scripts ./scripts
+
+RUN pip install --no-cache-dir .
+
+CMD ["python", "scripts/run_worker.py"]

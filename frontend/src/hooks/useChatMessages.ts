@@ -125,7 +125,9 @@ export function useChatMessages({ groupId, shareToken, mode = 'qa' }: UseChatMes
         ? tRef.current('chat.errorOverQuota')
         : event.code === 'PLOG_NOT_READY'
           ? tRef.current('chat.errorPlogNotReady')
-          : tRef.current('chat.error');
+          : import.meta.env.DEV && event.message?.trim()
+            ? `${tRef.current('chat.error')} (${event.code}: ${event.message})`
+            : tRef.current('chat.error');
     replaceLastAssistantMessage(errorMessage);
   }, [replaceLastAssistantMessage]);
 

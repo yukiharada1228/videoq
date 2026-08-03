@@ -1,4 +1,5 @@
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787/api';
+// VITE_USE_S3_STORAGE=true: 署名 URL 直 PUT（ローカル MinIO / 本番 R2）。false: multipart → VIDEO_BUCKET。
 const USE_S3_STORAGE = import.meta.env.VITE_USE_S3_STORAGE === 'true';
 
 type RequestBody = BodyInit | object | null | undefined;
@@ -14,10 +15,23 @@ export interface ApiClientOptions {
 }
 
 export interface PaginatedResponse<T> {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: T[];
+  data: T[];
+  meta: {
+    total: number;
+    limit: number;
+    offset: number;
+  };
+}
+
+/** Strip trailing slashes from API paths (except root). Preserves query strings. */
+export function apiPath(path: string): string {
+  if (!path || path === '/') return path;
+  const qIdx = path.indexOf('?');
+  if (qIdx === -1) {
+    return path.replace(/\/+$/, '') || '/';
+  }
+  const pathname = path.slice(0, qIdx).replace(/\/+$/, '') || '/';
+  return pathname + path.slice(qIdx);
 }
 
 /**
@@ -27,23 +41,30 @@ export interface PaginatedResponse<T> {
 export class ApiError extends Error {
   code: string;
   params?: Record<string, unknown>;
+  details?: unknown;
 
-  constructor(message: string, code: string, params?: Record<string, unknown>) {
+  constructor(message: string, code: string, params?: Record<string, unknown>, details?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.code = code;
     this.params = params;
+    this.details = details;
   }
 }
 
-export type LoginResponse = Record<string, never>;
+export interface LoginResponse {
+  access_token: string;
+}
 
-export type RefreshResponse = Record<string, never>;
+export interface RefreshResponse {
+  access_token: string;
+}
 
 export interface User {
   id: number;
   username: string;
   email: string;
+  is_superuser?: boolean;
   video_count: number;
   max_video_upload_size_mb: number;
   used_storage_bytes?: number;
@@ -53,6 +74,45 @@ export interface User {
   used_ai_answers?: number;
   ai_answers_limit?: number | null;
   is_over_quota?: boolean;
+}
+
+export interface AdminUser {
+  id: number;
+  username: string;
+  email: string;
+  is_active: boolean;
+  is_staff: boolean;
+  is_superuser: boolean;
+  max_video_upload_size_mb: number;
+  storage_limit_gb: number | null;
+  processing_limit_minutes: number | null;
+  ai_answers_limit: number | null;
+  used_storage_bytes: number;
+  used_processing_seconds: number;
+  used_ai_answers: number;
+  usage_period_start: string | null;
+  is_over_quota: boolean;
+}
+
+export interface AdminQuotaPatch {
+  max_video_upload_size_mb?: number;
+  storage_limit_gb?: number | null;
+  processing_limit_minutes?: number | null;
+  ai_answers_limit?: number | null;
+}
+
+export interface AdminUsagePatch {
+  used_storage_bytes?: number;
+  used_processing_seconds?: number;
+  used_ai_answers?: number;
+  usage_period_start?: string | null;
+  is_over_quota?: boolean;
+}
+
+export interface AdminFlagsPatch {
+  is_active?: boolean;
+  is_staff?: boolean;
+  is_superuser?: boolean;
 }
 
 export interface IntegrationApiKey {
@@ -93,7 +153,6 @@ export interface SignupRequest {
 }
 
 export interface VerifyEmailRequest {
-  uid: string;
   token: string;
 }
 
@@ -106,7 +165,6 @@ export interface PasswordResetRequest {
 }
 
 export interface PasswordResetConfirmRequest {
-  uid: string;
   token: string;
   new_password: string;
 }
@@ -116,12 +174,7 @@ export interface EmailChangeRequest {
 }
 
 export interface EmailChangeConfirmRequest {
-  uid: string;
   token: string;
-}
-
-export interface AccountDeleteRequest {
-  reason?: string;
 }
 
 export interface LoginRequest {
@@ -164,10 +217,6 @@ export interface ChatAnalytics {
   };
   time_series: { date: string; count: number }[];
   feedback: { good: number; bad: number; none: number };
-}
-
-export interface ChatAnalyticsKeywords {
-  keywords: { word: string; count: number }[];
 }
 
 export type EvaluationStatus = 'pending' | 'completed' | 'failed';
@@ -384,9 +433,11 @@ export class ApiClient {
   private baseUrl: string;
   private fetchFn: ApiFetch;
   private onUnauthorized?: () => void | Promise<void>;
+  private accessToken: string | null = null;
+  private refreshPromise: Promise<RefreshResponse> | null = null;
 
   constructor(options: ApiClientOptions = {}) {
-    this.baseUrl = options.baseUrl ?? API_URL;
+    this.baseUrl = (options.baseUrl ?? API_URL).replace(/\/+$/, '');
     this.fetchFn = options.fetchFn ?? defaultFetch;
     this.onUnauthorized = options.onUnauthorized;
   }
@@ -395,43 +446,38 @@ export class ApiClient {
     this.onUnauthorized = onUnauthorized;
   }
 
-  // HttpOnly Cookie-based authentication (security enhancement)
-  // Use HttpOnly Cookie instead of localStorage to prevent XSS attacks
-
   async isAuthenticated(): Promise<boolean> {
-    try {
-      const response = await this.fetchFn(`${this.baseUrl}/auth/me/`, {
-        method: 'GET',
-        credentials: 'include', // Send HttpOnly Cookie
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      return response.ok;
-    } catch {
-      return false;
-    }
+    return (await this.getMeOrNull()) !== null;
   }
 
   async logout(): Promise<void> {
     try {
-      const csrfToken = await this.ensureCsrfToken();
-      await this.fetchFn(`${this.baseUrl}/auth/sessions/`, {
+      await this.fetchFn(this.buildUrl('/auth/sessions'), {
         method: 'DELETE',
-        credentials: 'include', // Send HttpOnly Cookie
-        headers: {
-          'Content-Type': 'application/json',
-          ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {}),
-        },
+        credentials: 'include',
+        headers: this.buildHeaders(),
       });
     } catch {
       // Silently handle logout errors
+    } finally {
+      this.accessToken = null;
     }
   }
 
   // Common method to build URL
   private buildUrl(endpoint: string): string {
-    return `${this.baseUrl}${endpoint}`;
+    return `${this.baseUrl}${apiPath(endpoint)}`;
+  }
+
+  private unwrapEnvelope<T>(payload: unknown): T {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return payload as T;
+    }
+    const obj = payload as Record<string, unknown>;
+    if ('data' in obj && !('meta' in obj) && Object.keys(obj).length === 1) {
+      return obj.data as T;
+    }
+    return payload as T;
   }
 
   // Common method to automatically JSON.stringify body if it's an object
@@ -454,52 +500,6 @@ export class ApiClient {
     return { 'Content-Type': 'application/json' };
   }
 
-  private isSafeMethod(method?: string): boolean {
-    const normalizedMethod = (method ?? 'GET').toUpperCase();
-    return ['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(normalizedMethod);
-  }
-
-  private csrfToken: string | null = null;
-
-  private getCsrfTokenFromCookie(): string | null {
-    const match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
-    return match ? decodeURIComponent(match[1]) : null;
-  }
-
-  private async ensureCsrfToken(): Promise<string | null> {
-    // Try in-memory cache first, then cookie (same-origin only)
-    if (this.csrfToken) {
-      return this.csrfToken;
-    }
-    const cookieToken = this.getCsrfTokenFromCookie();
-    if (cookieToken) {
-      this.csrfToken = cookieToken;
-      return cookieToken;
-    }
-
-    // Fetch from server; cross-origin deployments return token in body
-    const response = await this.fetchFn(this.buildUrl('/auth/csrf/'), {
-      method: 'GET',
-      credentials: 'include',
-      headers: {},
-    });
-
-    if (response.ok) {
-      try {
-        const data = await response.json();
-        if (data.csrftoken) {
-          this.csrfToken = data.csrftoken;
-          return this.csrfToken;
-        }
-      } catch {
-        // 204 or non-JSON response; fall back to cookie
-      }
-    }
-
-    this.csrfToken = this.getCsrfTokenFromCookie();
-    return this.csrfToken;
-  }
-
   private buildHeaders(body?: RequestBody, additionalHeaders?: HeadersInit): Record<string, string> {
     const baseHeaders =
       body instanceof FormData ? {} : this.getJsonHeaders();
@@ -509,8 +509,9 @@ export class ApiClient {
       ...(additionalHeaders as Record<string, string>),
     };
 
-    // Authorization header not needed since we use HttpOnly Cookie
-    // Don't store tokens in JavaScript-accessible locations to prevent XSS attacks
+    if (this.accessToken) {
+      headers.Authorization = `Bearer ${this.accessToken}`;
+    }
 
     return headers;
   }
@@ -521,13 +522,14 @@ export class ApiClient {
     }))) as unknown;
 
     if (errorData && typeof errorData === 'object') {
-      // Handle unified error format: { error: { code, message, params?, fields? } }
+      // Unified error format: { error: { code, message, details?, params?, fields? } }
       const maybeError = (errorData as { error?: unknown }).error;
       if (maybeError && typeof maybeError === 'object') {
         const errorObj = maybeError as {
           code?: string;
           message?: string;
           params?: Record<string, unknown>;
+          details?: unknown;
           fields?: Record<string, string[]>;
         };
         if (typeof errorObj.message === 'string') {
@@ -535,6 +537,7 @@ export class ApiClient {
             errorObj.message,
             errorObj.code ?? 'UNKNOWN',
             errorObj.params,
+            errorObj.details ?? errorObj.fields,
           );
         }
       }
@@ -544,7 +547,6 @@ export class ApiClient {
   }
 
   private async handleAuthError(): Promise<void> {
-    // With HttpOnly Cookie-based authentication, delegate logout to backend
     await this.logout();
     await this.onUnauthorized?.();
     throw new Error("Authentication failed");
@@ -627,13 +629,6 @@ export class ApiClient {
     const url = this.buildUrl(endpoint);
     const headers = this.buildHeaders(options.body, options.headers);
 
-    if (!this.isSafeMethod(options.method)) {
-      const csrfToken = await this.ensureCsrfToken();
-      if (csrfToken) {
-        headers['X-CSRFToken'] = csrfToken;
-      }
-    }
-
     // Use common method to stringify body
     const body = this.stringifyBody(options.body);
 
@@ -641,7 +636,6 @@ export class ApiClient {
       ...options,
       body,
       headers,
-      credentials: 'include', // Send HttpOnly Cookie
     };
 
     try {
@@ -657,7 +651,7 @@ export class ApiClient {
       }
 
       // Use common method to get JSON from response
-      return await this.parseJsonResponse<T>(response);
+      return this.unwrapEnvelope<T>(await this.parseJsonResponse<unknown>(response));
     } catch (error) {
       // Use common method to output error logs
       this.logError('API request failed:', error);
@@ -666,7 +660,7 @@ export class ApiClient {
   }
 
   async signup(data: SignupRequest): Promise<void> {
-    await this.request('/auth/users/', {
+    await this.request('/auth/users', {
       method: 'POST',
       body: data,
     });
@@ -674,87 +668,88 @@ export class ApiClient {
 
   async verifyEmail(data: VerifyEmailRequest): Promise<VerifyEmailResponse> {
     return this.request<VerifyEmailResponse>(
-      `/auth/email-verifications/${data.uid}/${data.token}/`,
+      `/auth/email-verifications/${encodeURIComponent(data.token)}`,
       { method: 'PATCH' },
     );
   }
 
   async login(data: LoginRequest): Promise<LoginResponse> {
-    const response = await this.request<LoginResponse>('/auth/sessions/', {
+    const response = await this.request<LoginResponse>('/auth/sessions', {
       method: 'POST',
       body: data,
     });
-
-    // With HttpOnly Cookie-based authentication, backend sets Cookie
-    // No need to store tokens on frontend
-
+    this.accessToken = response.access_token;
     return response;
   }
 
   async requestPasswordReset(data: PasswordResetRequest): Promise<void> {
-    await this.request('/auth/password-resets/', {
+    await this.request('/auth/password-resets', {
       method: 'POST',
       body: data,
     });
   }
 
   async confirmPasswordReset(data: PasswordResetConfirmRequest): Promise<void> {
-    const { uid, token, new_password } = data;
-    await this.request(`/auth/password-resets/${uid}/${token}/`, {
+    const { token, new_password } = data;
+    await this.request(`/auth/password-resets/${encodeURIComponent(token)}`, {
       method: 'PATCH',
       body: { new_password },
     });
   }
 
   async requestEmailChange(data: EmailChangeRequest): Promise<void> {
-    await this.request('/auth/me/email/', {
+    await this.request('/auth/me/email', {
       method: 'PATCH',
       body: data,
     });
   }
 
   async confirmEmailChange(data: EmailChangeConfirmRequest): Promise<void> {
-    await this.request(`/auth/email-change/${data.uid}/${data.token}/`, {
+    await this.request(`/auth/email-change/${encodeURIComponent(data.token)}`, {
       method: 'PATCH',
     });
   }
 
   async refreshToken(): Promise<RefreshResponse> {
-    // With HttpOnly Cookie-based authentication, backend automatically updates Cookie
-    // No need to manage refresh tokens on frontend
-    // Call backend refresh endpoint as needed
-
-    // Use executeRequest() directly to bypass retry logic.
-    // If the refresh endpoint itself returns 401, throw immediately to prevent
-    // an infinite loop where handle401Error would call refreshToken() again.
-    const url = this.buildUrl('/auth/tokens/');
-    const headers = this.buildHeaders();
-    const csrfToken = await this.ensureCsrfToken();
-    if (csrfToken) {
-      headers['X-CSRFToken'] = csrfToken;
+    if (!this.refreshPromise) {
+      this.refreshPromise = this.performRefresh().finally(() => {
+        this.refreshPromise = null;
+      });
     }
+    return this.refreshPromise;
+  }
 
+  private async performRefresh(): Promise<RefreshResponse> {
+    // Refresh uses the HttpOnly refresh cookie and deliberately bypasses 401 retry.
+    const url = this.buildUrl('/auth/tokens');
     const response = await this.executeRequest(url, {
       method: 'POST',
-      headers,
+      headers: this.getJsonHeaders(),
       credentials: 'include',
     });
 
     if (response.status === 401) {
+      this.accessToken = null;
       throw new Error('Token refresh failed: unauthorized');
     }
 
-    return await this.parseJsonResponse<RefreshResponse>(response);
+    const result = await this.parseJsonResponse<RefreshResponse>(response);
+    this.accessToken = result.access_token;
+    return result;
   }
 
   async getMe(): Promise<User> {
     return this.request<User>('/auth/me');
   }
 
+  async getSchema<T>(signal?: AbortSignal): Promise<T> {
+    return this.request<T>('/schema', { signal });
+  }
+
   private fetchMe(): Promise<Response> {
     const url = this.buildUrl('/auth/me');
     const headers = this.buildHeaders();
-    return this.fetchFn(url, { credentials: 'include', headers });
+    return this.fetchFn(url, { headers });
   }
 
   async getMeOrNull(): Promise<User | null> {
@@ -769,71 +764,66 @@ export class ApiClient {
         response = await this.fetchMe();
       }
       if (!response.ok) return null;
-      return await this.parseJsonResponse<User>(response);
+      return this.unwrapEnvelope<User>(
+        await this.parseJsonResponse<unknown>(response),
+      );
     } catch {
       return null;
     }
   }
 
   async getIntegrationApiKeys(): Promise<IntegrationApiKey[]> {
-    return this.request<IntegrationApiKey[]>('/auth/api-keys/');
+    return this.request<IntegrationApiKey[]>('/auth/api-keys');
   }
 
   async createIntegrationApiKey(
     data: IntegrationApiKeyCreateRequest,
   ): Promise<IntegrationApiKeyCreateResponse> {
-    return this.request<IntegrationApiKeyCreateResponse>('/auth/api-keys/', {
+    return this.request<IntegrationApiKeyCreateResponse>('/auth/api-keys', {
       method: 'POST',
       body: data,
     });
   }
 
   async revokeIntegrationApiKey(id: number): Promise<void> {
-    await this.request(`/auth/api-keys/${id}/`, {
+    await this.request(`/auth/api-keys/${id}`, {
       method: 'DELETE',
     });
   }
 
   async getAuthorizedOAuthTokens(): Promise<AuthorizedOAuthToken[]> {
     const data = await this.request<{ tokens: AuthorizedOAuthToken[] }>(
-      '/oauth/tokens/',
+      '/oauth/tokens',
     );
     return data.tokens;
   }
 
   async revokeAuthorizedOAuthToken(id: number): Promise<void> {
-    await this.request(`/oauth/tokens/${id}/`, {
+    await this.request(`/oauth/tokens/${id}`, {
       method: 'DELETE',
     });
   }
 
   async getSearchApiKeyStatus(): Promise<SearchApiKeyStatus> {
-    return this.request<SearchApiKeyStatus>('/auth/searchapi-key/');
+    return this.request<SearchApiKeyStatus>('/auth/searchapi-key');
   }
 
   async saveSearchApiKey(apiKey: string): Promise<void> {
-    await this.request('/auth/searchapi-key/', {
+    await this.request('/auth/searchapi-key', {
       method: 'PUT',
       body: { api_key: apiKey },
     });
   }
 
   async deleteSearchApiKey(): Promise<void> {
-    await this.request('/auth/searchapi-key/', {
+    await this.request('/auth/searchapi-key', {
       method: 'DELETE',
-    });
-  }
-
-  async deleteAccount(data?: AccountDeleteRequest): Promise<void> {
-    await this.request('/auth/account/', {
-      method: 'DELETE',
-      body: data ?? {},
     });
   }
 
   async chat(data: ChatRequest): Promise<ChatMessage> {
     const { share_slug, ...bodyData } = data;
-    const endpoint = share_slug ? `/chat/messages/?share_slug=${share_slug}` : '/chat/messages/';
+    const endpoint = share_slug ? `/chat/messages?share_slug=${share_slug}` : '/chat/messages';
 
     return this.request<ChatMessage>(endpoint, {
       method: 'POST',
@@ -844,22 +834,14 @@ export class ApiClient {
   async *chatStream(data: ChatRequest): AsyncGenerator<ChatStreamEvent> {
     const { share_slug, ...bodyData } = data;
     const endpoint = share_slug
-      ? `/chat/messages/stream/?share_slug=${share_slug}`
-      : '/chat/messages/stream/';
+      ? `/chat/messages/stream?share_slug=${share_slug}`
+      : '/chat/messages/stream';
 
     const url = this.buildUrl(endpoint);
-    const headers = this.buildHeaders(bodyData);
-
-    const csrfToken = await this.ensureCsrfToken();
-    if (csrfToken) {
-      headers['X-CSRFToken'] = csrfToken;
-    }
-
     const fetchStream = () => this.fetchFn(url, {
       method: 'POST',
-      headers,
+      headers: this.buildHeaders(bodyData),
       body: JSON.stringify(bodyData),
-      credentials: 'include',
     });
 
     let response = await fetchStream();
@@ -921,8 +903,8 @@ export class ApiClient {
     shareSlug?: string,
   ): Promise<{ chat_log_id: number; feedback: 'good' | 'bad' | null }> {
     const endpoint = shareSlug
-      ? `/chat/logs/${chatLogId}/feedback/?share_slug=${shareSlug}`
-      : `/chat/logs/${chatLogId}/feedback/`;
+      ? `/chat/logs/${chatLogId}/feedback?share_slug=${shareSlug}`
+      : `/chat/logs/${chatLogId}/feedback`;
 
     return this.request(endpoint, {
       method: 'PATCH',
@@ -931,28 +913,27 @@ export class ApiClient {
   }
 
   async getChatHistory(groupId: number): Promise<ChatHistoryItem[]> {
-    const response = await this.request<PaginatedResponse<ChatHistoryItem>>(`/chat/groups/${groupId}/history/`);
-    return response.results;
+    const response = await this.request<PaginatedResponse<ChatHistoryItem>>(`/chat/groups/${groupId}/history`);
+    return response.data;
   }
 
   async getEvaluationSummary(groupId: number): Promise<EvaluationSummary> {
-    return this.request<EvaluationSummary>(`/evaluation/groups/${groupId}/summary/`);
+    return this.request<EvaluationSummary>(`/evaluation/groups/${groupId}/summary`);
   }
 
   async getChatEvaluations(groupId: number, limit = 200): Promise<ChatLogEvaluation[]> {
-    const response = await this.request<PaginatedResponse<ChatLogEvaluation>>(`/evaluation/groups/${groupId}/logs/?limit=${limit}`);
-    return response.results;
+    const response = await this.request<PaginatedResponse<ChatLogEvaluation>>(`/evaluation/groups/${groupId}/logs?limit=${limit}`);
+    return response.data;
   }
 
 
   async exportChatHistoryCsv(groupId: number): Promise<void> {
-    const url = this.buildUrl(`/chat/groups/${groupId}/history/?download=csv`);
+    const url = this.buildUrl(`/chat/groups/${groupId}/history?download=csv`);
 
     const doFetch = async (): Promise<Response> => {
       return this.fetchFn(url, {
         method: 'GET',
-        credentials: 'include',
-        headers: {},
+        headers: this.buildHeaders(),
       });
     };
 
@@ -1005,11 +986,11 @@ export class ApiClient {
       ? `?${new URLSearchParams(queryParams).toString()}`
       : '';
 
-    return this.request<PaginatedResponse<VideoList>>(`/videos/${query}`);
+    return this.request<PaginatedResponse<VideoList>>(`/videos${query}`);
   }
 
   async getVideo(id: number): Promise<Video> {
-    return this.request<Video>(`/videos/${id}/`);
+    return this.request<Video>(`/videos/${id}`);
   }
 
   async requestUploadUrl(data: {
@@ -1019,14 +1000,14 @@ export class ApiClient {
     title: string;
     description?: string;
   }): Promise<UploadRequestResponse> {
-    return this.request<UploadRequestResponse>('/videos/uploads/', {
+    return this.request<UploadRequestResponse>('/videos/uploads', {
       method: 'POST',
       body: data,
     });
   }
 
   async confirmUpload(videoId: number): Promise<Video> {
-    return this.request<Video>(`/videos/${videoId}/`, {
+    return this.request<Video>(`/videos/${videoId}`, {
       method: 'PATCH',
       body: { status: 'uploaded' },
     });
@@ -1081,7 +1062,12 @@ export class ApiClient {
       });
 
       // 2. Upload file directly to R2/S3
-      await this.uploadToPresignedUrl(upload_url, data.file, data.file.type || 'video/mp4', onProgress);
+      await this.uploadToPresignedUrl(
+        upload_url,
+        data.file,
+        data.file.type || 'video/mp4',
+        onProgress,
+      );
 
       // 3. Confirm upload
       return await this.confirmUpload(video.id);
@@ -1092,40 +1078,40 @@ export class ApiClient {
     formData.append('title', data.title);
     formData.append('description', data.description ?? '');
 
-    return this.request<Video>('/videos/', {
+    return this.request<Video>('/videos', {
       method: 'POST',
       body: formData,
     });
   }
 
   async createYoutubeVideo(data: YoutubeVideoCreateRequest): Promise<Video> {
-    return this.request<Video>('/videos/youtube/', {
+    return this.request<Video>('/videos/youtube', {
       method: 'POST',
       body: data,
     });
   }
 
   async updateVideo(id: number, data: VideoUpdateRequest): Promise<Video> {
-    return this.request<Video>(`/videos/${id}/`, {
+    return this.request<Video>(`/videos/${id}`, {
       method: 'PATCH',
       body: data,
     });
   }
 
   async deleteVideo(id: number): Promise<void> {
-    return this.request<void>(`/videos/${id}/`, {
+    return this.request<void>(`/videos/${id}`, {
       method: 'DELETE',
     });
   }
 
   async getPlogGraph(videoId: number): Promise<PlogGraph> {
-    return this.request<PlogGraph>(`/videos/${videoId}/plog/`);
+    return this.request<PlogGraph>(`/videos/${videoId}/plog`);
   }
 
   async rebuildPlog(
     videoId: number,
   ): Promise<{ video_id: number; status: string; job_id?: number }> {
-    return this.request(`/videos/${videoId}/plog/rebuild/`, {
+    return this.request(`/videos/${videoId}/plog/rebuild`, {
       method: 'POST',
       body: {},
     });
@@ -1140,7 +1126,7 @@ export class ApiClient {
       source_quote?: string;
     },
   ): Promise<PlogConcept> {
-    return this.request(`/videos/${videoId}/plog/concepts/`, {
+    return this.request(`/videos/${videoId}/plog/concepts`, {
       method: 'POST',
       body,
     });
@@ -1156,14 +1142,14 @@ export class ApiClient {
       source_quote: string;
     }>,
   ): Promise<PlogConcept> {
-    return this.request(`/videos/${videoId}/plog/concepts/${conceptId}/`, {
+    return this.request(`/videos/${videoId}/plog/concepts/${conceptId}`, {
       method: 'PATCH',
       body,
     });
   }
 
   async deletePlogConcept(videoId: number, conceptId: number): Promise<{ deleted: boolean; id: number }> {
-    return this.request(`/videos/${videoId}/plog/concepts/${conceptId}/`, {
+    return this.request(`/videos/${videoId}/plog/concepts/${conceptId}`, {
       method: 'DELETE',
     });
   }
@@ -1173,7 +1159,7 @@ export class ApiClient {
     survivorId: number,
     absorbId: number,
   ): Promise<PlogConcept> {
-    return this.request(`/videos/${videoId}/plog/concepts/${survivorId}/merge/`, {
+    return this.request(`/videos/${videoId}/plog/concepts/${survivorId}/merge`, {
       method: 'POST',
       body: { absorb_id: absorbId },
     });
@@ -1191,7 +1177,7 @@ export class ApiClient {
       waypoints: PlogWaypoint[];
     }>,
   ): Promise<PlogConcept> {
-    return this.request(`/videos/${videoId}/plog/concepts/${conceptId}/learning-object/`, {
+    return this.request(`/videos/${videoId}/plog/concepts/${conceptId}/learning-object`, {
       method: 'PATCH',
       body,
     });
@@ -1206,7 +1192,7 @@ export class ApiClient {
       quote?: string;
     },
   ): Promise<PlogEdge> {
-    return this.request(`/videos/${videoId}/plog/edges/`, {
+    return this.request(`/videos/${videoId}/plog/edges`, {
       method: 'POST',
       body,
     });
@@ -1222,24 +1208,24 @@ export class ApiClient {
       quote: string;
     }>,
   ): Promise<PlogEdge> {
-    return this.request(`/videos/${videoId}/plog/edges/${edgeId}/`, {
+    return this.request(`/videos/${videoId}/plog/edges/${edgeId}`, {
       method: 'PATCH',
       body,
     });
   }
 
   async deletePlogEdge(videoId: number, edgeId: number): Promise<{ deleted: boolean; id: number }> {
-    return this.request(`/videos/${videoId}/plog/edges/${edgeId}/`, {
+    return this.request(`/videos/${videoId}/plog/edges/${edgeId}`, {
       method: 'DELETE',
     });
   }
 
   async getPlogLearnerState(videoId: number): Promise<{ states: PlogLearnerState[] }> {
-    return this.request(`/videos/${videoId}/plog/learner-state/`);
+    return this.request(`/videos/${videoId}/plog/learner-state`);
   }
 
   async resetPlogLearnerState(videoId: number): Promise<{ deleted: number }> {
-    return this.request(`/videos/${videoId}/plog/learner-state/`, {
+    return this.request(`/videos/${videoId}/plog/learner-state`, {
       method: 'DELETE',
     });
   }
@@ -1253,40 +1239,40 @@ export class ApiClient {
       ? `?${new URLSearchParams(queryParams).toString()}`
       : '';
 
-    return this.request<PaginatedResponse<VideoGroupList>>(`/videos/groups/${query}`);
+    return this.request<PaginatedResponse<VideoGroupList>>(`/videos/groups${query}`);
   }
 
   async getVideoGroups(): Promise<VideoGroupList[]> {
     const response = await this.getVideoGroupsPage();
-    return response.results;
+    return response.data;
   }
 
   async getVideoGroup(id: number): Promise<VideoGroup> {
-    return this.request<VideoGroup>(`/videos/groups/${id}/`);
+    return this.request<VideoGroup>(`/videos/groups/${id}`);
   }
 
   async createVideoGroup(data: VideoGroupCreateRequest): Promise<VideoGroup> {
-    return this.request<VideoGroup>('/videos/groups/', {
+    return this.request<VideoGroup>('/videos/groups', {
       method: 'POST',
       body: data,
     });
   }
 
   async updateVideoGroup(id: number, data: VideoGroupUpdateRequest): Promise<VideoGroup> {
-    return this.request<VideoGroup>(`/videos/groups/${id}/`, {
+    return this.request<VideoGroup>(`/videos/groups/${id}`, {
       method: 'PATCH',
       body: data,
     });
   }
 
   async deleteVideoGroup(id: number): Promise<void> {
-    return this.request<void>(`/videos/groups/${id}/`, {
+    return this.request<void>(`/videos/groups/${id}`, {
       method: 'DELETE',
     });
   }
 
   async reorderVideoGroups(groupIds: number[]): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/videos/groups/order/', {
+    return this.request<{ message: string }>('/videos/groups/order', {
       method: 'PATCH',
       body: { group_ids: groupIds },
     });
@@ -1294,26 +1280,26 @@ export class ApiClient {
 
   // Add/remove videos to/from group
   async addVideoToGroup(groupId: number, videoId: number): Promise<void> {
-    return this.request<void>(`/videos/groups/${groupId}/videos/${videoId}/`, {
+    return this.request<void>(`/videos/groups/${groupId}/videos/${videoId}`, {
       method: 'POST',
     });
   }
 
   async addVideosToGroup(groupId: number, videoIds: number[]): Promise<{ message: string; added_count: number; skipped_count: number }> {
-    return this.request<{ message: string; added_count: number; skipped_count: number }>(`/videos/groups/${groupId}/videos/`, {
+    return this.request<{ message: string; added_count: number; skipped_count: number }>(`/videos/groups/${groupId}/videos`, {
       method: 'POST',
       body: { video_ids: videoIds },
     });
   }
 
   async removeVideoFromGroup(groupId: number, videoId: number): Promise<void> {
-    return this.request<void>(`/videos/groups/${groupId}/videos/${videoId}/`, {
+    return this.request<void>(`/videos/groups/${groupId}/videos/${videoId}`, {
       method: 'DELETE',
     });
   }
 
   async reorderVideosInGroup(groupId: number, videoIds: number[]): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/videos/groups/${groupId}/videos/order/`, {
+    return this.request<{ message: string }>(`/videos/groups/${groupId}/videos/order`, {
       method: 'PATCH',
       body: { video_ids: videoIds },
     });
@@ -1322,7 +1308,7 @@ export class ApiClient {
   // Share link related
   async createShareLink(groupId: number, shareSlug: string): Promise<{ message: string; share_slug: string }> {
     return this.request<{ message: string; share_slug: string }>(
-      `/videos/groups/${groupId}/share/`,
+      `/videos/groups/${groupId}/share`,
       {
         method: 'POST',
         body: { share_slug: shareSlug },
@@ -1331,15 +1317,14 @@ export class ApiClient {
   }
 
   async deleteShareLink(groupId: number): Promise<void> {
-    await this.request<void>(`/videos/groups/${groupId}/share/`, {
+    await this.request<void>(`/videos/groups/${groupId}/share`, {
       method: 'DELETE',
     });
   }
 
   async getSharedGroup(shareSlug: string): Promise<VideoGroup> {
-    // Shared groups don't require authentication, so don't include credentials
-    const url = this.buildUrl(`/videos/groups/share/${shareSlug}/`);
-    const response = await this.fetchFn(url);
+    const url = this.buildUrl(`/videos/groups/share/${shareSlug}`);
+    const response = await this.fetchFn(url, { headers: this.buildHeaders() });
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -1411,54 +1396,96 @@ export class ApiClient {
 
   // Tag management methods
   async getTags(): Promise<Tag[]> {
-    const response = await this.request<PaginatedResponse<Tag>>('/videos/tags/');
-    return response.results;
+    const response = await this.request<PaginatedResponse<Tag>>('/videos/tags');
+    return response.data;
   }
 
   async getTag(id: number): Promise<TagDetail> {
-    return this.request<TagDetail>(`/videos/tags/${id}/`);
+    return this.request<TagDetail>(`/videos/tags/${id}`);
   }
 
   async createTag(data: TagCreateRequest): Promise<Tag> {
-    return this.request<Tag>('/videos/tags/', {
+    return this.request<Tag>('/videos/tags', {
       method: 'POST',
       body: data,
     });
   }
 
   async updateTag(id: number, data: TagUpdateRequest): Promise<Tag> {
-    return this.request<Tag>(`/videos/tags/${id}/`, {
+    return this.request<Tag>(`/videos/tags/${id}`, {
       method: 'PATCH',
       body: data,
     });
   }
 
   async deleteTag(id: number): Promise<void> {
-    return this.request<void>(`/videos/tags/${id}/`, {
+    return this.request<void>(`/videos/tags/${id}`, {
       method: 'DELETE',
     });
   }
 
   // Video-Tag relationship methods
   async addTagsToVideo(videoId: number, tagIds: number[]): Promise<{ message: string; added_count: number; skipped_count: number }> {
-    return this.request<{ message: string; added_count: number; skipped_count: number }>(`/videos/${videoId}/tags/`, {
+    return this.request<{ message: string; added_count: number; skipped_count: number }>(`/videos/${videoId}/tags`, {
       method: 'POST',
       body: { tag_ids: tagIds },
     });
   }
 
   async removeTagFromVideo(videoId: number, tagId: number): Promise<void> {
-    return this.request<void>(`/videos/${videoId}/tags/${tagId}/`, {
+    return this.request<void>(`/videos/${videoId}/tags/${tagId}`, {
       method: 'DELETE',
     });
   }
 
   async getChatAnalytics(groupId: number): Promise<ChatAnalytics> {
-    return this.request<ChatAnalytics>(`/chat/groups/${groupId}/analytics/`);
+    return this.request<ChatAnalytics>(`/chat/groups/${groupId}/analytics`);
   }
 
-  async getChatKeywords(groupId: number): Promise<ChatAnalyticsKeywords> {
-    return this.request<ChatAnalyticsKeywords>(`/chat/groups/${groupId}/analytics/keywords/`);
+  async getAdminUsers(params?: {
+    q?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<PaginatedResponse<AdminUser>> {
+    const query = new URLSearchParams();
+    if (params?.q) query.set('q', params.q);
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    return this.request<PaginatedResponse<AdminUser>>(`/admin/users${qs ? `?${qs}` : ''}`);
+  }
+
+  async patchAdminUserQuota(id: number, data: AdminQuotaPatch): Promise<AdminUser> {
+    return this.request<AdminUser>(`/admin/users/${id}/quota`, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async patchAdminUserUsage(id: number, data: AdminUsagePatch): Promise<AdminUser> {
+    return this.request<AdminUser>(`/admin/users/${id}/usage`, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async patchAdminUserFlags(id: number, data: AdminFlagsPatch): Promise<AdminUser> {
+    return this.request<AdminUser>(`/admin/users/${id}/flags`, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async reindexAllEmbeddings(): Promise<{ job_id: string }> {
+    return this.request<{ job_id: string }>('/admin/embeddings/reindex-all', {
+      method: 'POST',
+    });
+  }
+
+  async deleteAdminUser(id: number): Promise<{ job_id: string }> {
+    return this.request<{ job_id: string }>(`/admin/users/${id}`, {
+      method: 'DELETE',
+    });
   }
 
 }

@@ -11,7 +11,7 @@ vi.mock('@/lib/api', () => ({
 describe('EmailChangeConfirmPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    globalThis.__setMockSearchParams('uid=test-uid&token=test-token')
+    globalThis.__setMockSearchParams('token=test-token')
   })
 
   afterEach(() => {
@@ -25,7 +25,6 @@ describe('EmailChangeConfirmPage', () => {
 
     await waitFor(() => {
       expect(apiClient.confirmEmailChange).toHaveBeenCalledWith({
-        uid: 'test-uid',
         token: 'test-token',
       })
     })
