@@ -1,7 +1,7 @@
 # pgvector 検索 PoC
 
-`scene_embeddings` に対する認可付き cosine 検索を、直接 SQL と
-LangChain.js で比較する read-only PoC です。
+metadata columnsを持つ`scene_embeddings`に対する認可付きcosine検索を、直接SQLと
+`@langchain/community` PGVectorStoreで比較するread-only PoCです。
 
 ## 入力
 
@@ -48,4 +48,4 @@ node 4_compare.mjs \
 - `user_id` / `video_id` の認可漏れ 0
 - query error なし
 
-API runtime は独立列へ確実に filter を適用できる直接 SQL を採用しています。
+API runtimeは独立した認可列へ直接SQLを適用します。LangChain.jsは比較対象のみです。

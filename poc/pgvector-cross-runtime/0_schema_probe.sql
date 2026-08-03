@@ -23,7 +23,7 @@ SELECT count(*) AS rows,
        count(DISTINCT video_id) AS videos
 FROM scene_embeddings;
 
-\echo '=== JSON メタに user_id/video_id が漏れていないか（DR-4 前提の確認）==='
+\echo '=== JSON metadataへの認可key重複状況 ==='
 -- 列型は JSON（JSONB ではない）ため、? 演算子を使うには jsonb へキャストする
 SELECT (langchain_metadata::jsonb ? 'user_id') AS meta_has_user,
        (langchain_metadata::jsonb ? 'video_id') AS meta_has_video,

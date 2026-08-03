@@ -613,7 +613,7 @@
       "checklistTitle": "実装チェックリスト",
       "checklistDescription": "連携実装前に確認しておくべき項目です。",
       "autoExampleTitle": "自動生成エンドポイント例",
-      "autoExampleDescription": "以下の cURL は /api/schema/ から自動生成しています。",
+      "autoExampleDescription": "以下の cURL は /api/schema から自動生成しています。",
       "autoLabel": "自動生成"
     },
     "sections": {

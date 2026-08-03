@@ -33,7 +33,7 @@ const videoIds = cfg.video_ids;
 // public スキーマを明示して search_path 依存を避ける。
 // <=> は cosine distance（小さいほど近い）。
 const SQL = `
-  SELECT id, content, langchain_metadata, user_id, video_id,
+  SELECT langchain_id, content, langchain_metadata, user_id, video_id,
          embedding <=> $1::vector AS distance
   FROM public.scene_embeddings
   WHERE user_id = $2
@@ -55,7 +55,7 @@ for (const { query, embedding } of embs) {
     query,
     k,
     results: rows.map((r) => ({
-      id: r.id,
+      id: r.langchain_id,
       content_sha256: sha256(r.content),
       score: Number(r.distance),
       user_id: r.user_id,

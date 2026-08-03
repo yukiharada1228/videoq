@@ -22,7 +22,7 @@ def _delete_all_videos_for_user(conn, user_id: int) -> None:
         video_id = int(row["id"])
         file_key = row.get("file") or None
         try:
-            vector_index.delete_video_vectors(conn, video_id)
+            vector_index.delete_video_vectors(video_id)
         except Exception:
             logger.exception("Vector delete failed for video %d", video_id)
         delete_video_cascade(conn, video_id, user_id)

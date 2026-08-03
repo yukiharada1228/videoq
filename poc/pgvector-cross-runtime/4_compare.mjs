@@ -21,7 +21,7 @@ const label = arg("label", "candidate");
 const golden = Array.isArray(goldenRaw) ? goldenRaw : goldenRaw.results;
 const candidate = Array.isArray(candRaw) ? candRaw : candRaw.results;
 
-// 安定キー: scene_embeddings.id を最優先、無ければ content hash。
+// 安定キー: scene_embeddings.langchain_idを最優先、無ければcontent hash。
 const keyOf = (r) =>
   r.id != null
     ? `id:${r.id}`

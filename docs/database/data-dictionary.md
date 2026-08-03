@@ -38,7 +38,7 @@
 
 | テーブル | 用途 |
 |---|---|
-| `scene_embeddings` | scene content、vector、user / video filter、metadata |
+| `scene_embeddings` | LangChain標準列、filter可能なuser / video metadata columns、JSON metadata |
 | `plog_build_jobs` | build status |
 | `plog_summary_nodes` | summary hierarchy |
 | `plog_concepts` | concept |

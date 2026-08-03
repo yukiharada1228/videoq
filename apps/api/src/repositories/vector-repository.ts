@@ -4,11 +4,6 @@ import { sqlNumberArray } from "../db/sql-array";
 import { sceneEmbeddings } from "../db/schema";
 import type { Bindings } from "../types/bindings";
 
-/**
- * PGVector（langchain）メタデータの同期。VideoQ は user_id/video_id を独立列に持つ
- * （metadata_columns=["user_id","video_id"]）ため、video_id 列で直接 SQL 操作する。
- * テーブル名は SQL インジェクション防止のため allowlist で照合する。
- */
 const ALLOWED_TABLES = new Set(["scene_embeddings"]);
 
 function resolveVectorTable(env: Bindings): string {
@@ -19,7 +14,6 @@ function resolveVectorTable(env: Bindings): string {
   return name; // allowlist 済みなので式内展開は安全
 }
 
-/** ベクトル検索ヒット 1 件。 */
 export type SceneHit = {
   content: string;
   videoId: number;
@@ -28,22 +22,14 @@ export type SceneHit = {
   endTime: string;
 };
 
-/** ベクトル検索の既定取得件数。 */
 export const RETRIEVER_K = 20;
 
-/**
- * シーンのベクトル検索（PoC #01 で確定した「直接 SQL 本線」）。
- * 標準 LangChain.js の PGVector メタデータフィルタは `langchain_metadata->>'user_id'` を
- * 見るため VideoQ では 0 件になる（PoC #01 §6.5-D）。user_id/video_id は独立列で絞る。
- *
- * cosine 距離 `<=>` の昇順・上位 k 件。認可は user_id 一致 + 許可 video_id のみ。
- */
 export async function searchScenes(
   env: Bindings,
   params: {
     userId: number;
     videoIds: readonly number[];
-    vectorLiteral: string;
+    embedding: readonly number[];
     k?: number;
   },
 ): Promise<SceneHit[]> {
@@ -51,13 +37,14 @@ export async function searchScenes(
   const k = params.k ?? RETRIEVER_K;
   if (params.videoIds.length === 0) return [];
 
+  const vectorLiteral = `[${params.embedding.join(",")}]`;
   return withDb(env, async (db) => {
     const result = await db.execute(sql`
       SELECT content, video_id, langchain_metadata
         FROM ${sql.raw(table)}
        WHERE user_id = ${params.userId}
          AND video_id = ANY(${sqlNumberArray(params.videoIds)})
-       ORDER BY embedding <=> ${params.vectorLiteral}::vector
+       ORDER BY embedding <=> ${vectorLiteral}::vector
        LIMIT ${k}
     `);
     const rows = result.rows as Array<{
@@ -65,15 +52,14 @@ export async function searchScenes(
       video_id: number;
       langchain_metadata: unknown;
     }>;
-    return rows.map((r) => {
-      // langchain_metadata は json 列（pg が object にパース）。文字列で返る実装にも備える。
-      const raw = r.langchain_metadata;
+    return rows.map((row) => {
+      const raw = row.langchain_metadata;
       const meta: Record<string, unknown> =
         typeof raw === "string" ? JSON.parse(raw) : (raw ?? {});
       const text = (v: unknown) => (typeof v === "string" ? v : v == null ? "" : String(v));
       return {
-        content: r.content ?? "",
-        videoId: Number(r.video_id),
+        content: row.content ?? "",
+        videoId: Number(row.video_id),
         videoTitle: text(meta.video_title),
         startTime: text(meta.start_time),
         endTime: text(meta.end_time),
@@ -82,7 +68,6 @@ export async function searchScenes(
   });
 }
 
-/** 動画に紐づくベクトルを削除する。best-effort で使う。 */
 export async function deleteVideoVectors(
   env: Bindings,
   videoId: number,
@@ -92,15 +77,11 @@ export async function deleteVideoVectors(
     const deleted = await db
       .delete(sceneEmbeddings)
       .where(eq(sceneEmbeddings.videoId, videoId))
-      .returning({ id: sceneEmbeddings.id });
+      .returning({ id: sceneEmbeddings.langchainId });
     return deleted.length;
   });
 }
 
-/**
- * タイトル変更に伴い langchain_metadata.video_title を更新する。
- * 更新件数を返す。呼び出し側は best-effort（失敗を握りつぶす）で使う。
- */
 export async function syncVectorTitle(
   env: Bindings,
   videoId: number,
@@ -118,7 +99,7 @@ export async function syncVectorTitle(
         )`,
       })
       .where(eq(sceneEmbeddings.videoId, videoId))
-      .returning({ id: sceneEmbeddings.id });
+      .returning({ id: sceneEmbeddings.langchainId });
     return updated.length;
   });
 }

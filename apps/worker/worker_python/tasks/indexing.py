@@ -38,9 +38,7 @@ def index_video_transcript(video_id: int) -> None:
         )
 
     try:
-        with db_connection() as conn:
-            vector_index.index_video_transcript(conn, video)
-            conn.commit()
+        vector_index.index_video_transcript(video)
     except Exception as exc:
         raise IndexingExecutionFailedError(
             f"Vector indexing failed for video {video_id}: {exc}"

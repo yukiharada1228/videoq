@@ -20,7 +20,7 @@ API は次の native JSON を SQS へ送信します。
 | type | 処理 |
 |---|---|
 | `transcribe_video` | FFmpeg / Whisper / YouTube 文字起こしとシーン分割 |
-| `index_video_transcript` | embedding 生成と `scene_embeddings` 更新 |
+| `index_video_transcript` | embedding生成と`langchain-postgres` PGVectorStore更新 |
 | `reindex_video_transcript` | 動画単位の再索引 |
 | `reindex_all_videos_embeddings` | 全動画の再索引 |
 | `build_plog` | PLOG 概念・辺・学習オブジェクト構築 |

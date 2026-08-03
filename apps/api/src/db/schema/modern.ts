@@ -697,16 +697,16 @@ export const learnerConceptStates = pgTable(
 export const sceneEmbeddings = pgTable(
 	"scene_embeddings",
 	{
-		id: uuid().primaryKey().notNull(),
+		langchainId: uuid("langchain_id").primaryKey().notNull(),
 		content: text().notNull(),
 		embedding: vector({ dimensions: 1024 }).notNull(),
-		userId: bigint("user_id", { mode: "number" }),
-		videoId: bigint("video_id", { mode: "number" }),
+		userId: bigint("user_id", { mode: "number" }).notNull(),
+		videoId: bigint("video_id", { mode: "number" }).notNull(),
 		langchainMetadata: json("langchain_metadata"),
 	},
 	(table) => [
-		index("scene_embeddings_user_id_idx").using("btree", table.userId.asc().nullsLast()),
-		index("scene_embeddings_video_id_idx").using("btree", table.videoId.asc().nullsLast()),
+		index("scene_embeddings_user_id_idx").on(table.userId),
+		index("scene_embeddings_video_id_idx").on(table.videoId),
 	],
 );
 

@@ -1,8 +1,5 @@
-// modern scene_embeddings を LangChain.js 標準 PGVector で読む比較 PoC（READ-ONLY）
-//
-// 目的: 標準 PGVectorStore が user_id/video_id 独立列の認可 filter を
-//       直接 SQL と同じように再現できるか確認する。
-// wrapper が JSON metadata に filter を掛ける場合は 0 件または誤結果になる。
+// metadata_columnsを持つscene_embeddingsをLangChain.js PGVectorStoreで読む比較PoC。
+// JS実装のfilterはJSON metadataへ適用され、独立したuser_id/video_id列は使われない。
 //
 // 使い方:
 //   npm i pg @langchain/community @langchain/openai @langchain/core
@@ -43,7 +40,7 @@ const store = await PGVectorStore.initialize(
     schemaName: "public",
     tableName: "scene_embeddings",
     columns: {
-      idColumnName: "id",
+      idColumnName: "langchain_id",
       contentColumnName: "content",
       vectorColumnName: "embedding",
       metadataColumnName: "langchain_metadata",
@@ -60,7 +57,6 @@ for (const { query, embedding } of embs) {
   let rows = [];
   let error = null;
   try {
-    // 標準 filter が独立列ではなく JSON metadata に掛かるかを実測する。
     const docs = await store.similaritySearchVectorWithScore(embedding, k, {
       user_id: cfg.user_id,
       video_id: { in: cfg.video_ids },
@@ -81,10 +77,8 @@ for (const { query, embedding } of embs) {
   console.log(`[langchain-js] '${query.slice(0, 24)}...' -> ${error ? "ERROR: " + error : rows.length + " hits"}`);
 }
 
-// initialize() が pool.connect() した client を保持するため、pool.end() ではなく
-// store.end() で client を release してから終了する（ハング/リーク回避）。
+// store.end()が保持clientのreleaseとpool終了を行う。
 await store.end();
-await pool.end();
 
 mkdirSync(dirname(outPath), { recursive: true });
 writeFileSync(outPath, JSON.stringify({ results }, null, 2), "utf-8");

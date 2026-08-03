@@ -1,4 +1,4 @@
-import { embedQuery, toVectorLiteral } from "./embeddings";
+import { embedQuery } from "./embeddings";
 import { generateReply, streamReply } from "./llm";
 import { buildSystemPrompt } from "./prompts";
 import { searchScenes } from "../repositories/vector-repository";
@@ -57,7 +57,7 @@ export async function prepareRagContext(
     ? await searchScenes(env, {
         userId: params.ownerUserId,
         videoIds: params.videoIds!,
-        vectorLiteral: toVectorLiteral(await embedQuery(env, queryText)),
+        embedding: await embedQuery(env, queryText),
       })
     : [];
 

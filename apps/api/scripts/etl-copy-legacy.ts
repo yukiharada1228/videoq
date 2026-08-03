@@ -125,8 +125,10 @@ const COPIES: TableCopy[] = [
 		label: "scene_embeddings",
 		oldTable: "videoq_scenes",
 		newTable: "scene_embeddings",
-		insertSql: `INSERT INTO scene_embeddings (id, content, embedding, user_id, video_id, langchain_metadata)
-SELECT langchain_id, content, embedding, user_id::bigint, video_id::bigint, langchain_metadata
+		insertSql: `INSERT INTO scene_embeddings
+  (langchain_id, content, embedding, user_id, video_id, langchain_metadata)
+SELECT langchain_id, content, embedding, user_id::bigint, video_id::bigint,
+       langchain_metadata
 FROM videoq_scenes`,
 	},
 ];
@@ -157,7 +159,7 @@ const ORPHAN_CHECKS: { label: string; sql: string; legacySql?: string }[] = [
 	},
 	{
 		label: "scene_embeddings.video_id → videos (non-null)",
-		sql: `SELECT COUNT(*) AS n FROM scene_embeddings s LEFT JOIN videos v ON s.video_id = v.id WHERE s.video_id IS NOT NULL AND v.id IS NULL`,
+		sql: `SELECT COUNT(*) AS n FROM scene_embeddings s LEFT JOIN videos v ON s.video_id = v.id WHERE v.id IS NULL`,
 		legacySql: `SELECT COUNT(*) AS n FROM videoq_scenes s LEFT JOIN app_video v ON s.video_id = v.id WHERE s.video_id IS NOT NULL AND v.id IS NULL`,
 	},
 ];

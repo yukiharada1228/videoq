@@ -22,6 +22,13 @@
       "when": 1785731220000,
       "tag": "0002_native_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785734700000,
+      "tag": "0003_langchain_pgvector",
+      "breakpoints": true
     }
   ]
 }

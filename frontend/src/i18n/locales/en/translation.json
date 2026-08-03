@@ -613,7 +613,7 @@
       "checklistTitle": "Implementation checklist",
       "checklistDescription": "Validate these points before coding your integration.",
       "autoExampleTitle": "Auto-generated endpoint samples",
-      "autoExampleDescription": "These cURL examples are generated from /api/schema/.",
+      "autoExampleDescription": "These cURL examples are generated from /api/schema.",
       "autoLabel": "Auto-generated"
     },
     "sections": {

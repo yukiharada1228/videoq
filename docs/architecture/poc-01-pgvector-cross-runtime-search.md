@@ -2,17 +2,18 @@
 
 ## 目的
 
-`scene_embeddings` の cosine 検索で、`user_id` と `video_id` の filter が
-結果へ確実に適用され、Node.js / Hyperdrive 経路で安定して実行できることを確認します。
+`langchain-postgres`の`scene_embeddings`で、`user_id`と`video_id`を
+filter可能な`metadata_columns`として使用し、Node.js / Hyperdrive経路でも
+同じ認可条件が安定して適用されることを確認します。
 
 ## 対象
 
 ```sql
-SELECT id, content, langchain_metadata, user_id, video_id,
+SELECT langchain_id, content, langchain_metadata,
        embedding <=> $1::vector AS distance
 FROM scene_embeddings
-WHERE user_id = $2
-  AND video_id = ANY($3::bigint[])
+WHERE (langchain_metadata->>'user_id')::bigint = $2
+  AND (langchain_metadata->>'video_id')::bigint = ANY($3::bigint[])
 ORDER BY embedding <=> $1::vector
 LIMIT $4;
 ```
@@ -27,8 +28,10 @@ LIMIT $4;
 
 ## 結論
 
-認可列が JSON metadata ではなく独立列であるため、runtime は parameterized
-direct SQL を使用します。標準 vector store wrapper は比較対象に留めます。
+Python workerは`langchain-postgres.PGVectorStore`のmetadata column filterを
+index/deleteに使用します。Hono APIは独立した認可列へparameterized SQLを適用します。
+LangChain.jsはJSON metadataしかfilterできず、同じ認可列を共有できないため、
+比較PoCに限定します。
 
 実行スクリプトは
 [`poc/pgvector-cross-runtime/`](../../poc/pgvector-cross-runtime/) にあります。

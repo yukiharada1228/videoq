@@ -32,9 +32,7 @@ def reindex_all_videos_embeddings() -> dict:
         logger.info("Re-indexing completed: %s", result["message"])
         return result
 
-    with db_connection() as conn:
-        deleted_count = vector_index.delete_all_vectors(conn)
-        conn.commit()
+    deleted_count = vector_index.delete_all_vectors()
     logger.info("Deleted %d vectors", deleted_count)
 
     successful_count = 0
@@ -44,9 +42,7 @@ def reindex_all_videos_embeddings() -> dict:
         try:
             if not video.transcript:
                 raise ValueError("Transcript is missing")
-            with db_connection() as conn:
-                vector_index.index_video_transcript(conn, video)
-                conn.commit()
+            vector_index.index_video_transcript(video)
             successful_count += 1
             logger.info(
                 "[%d/%d] Re-indexed video %d (%s)", index, total, video.id, video.title

@@ -80,7 +80,7 @@ Drizzle の modern schema を runtime の唯一のモデルとして使用しま
 - video: `videos`, `video_groups`, `video_group_members`, `tags`, `video_tags`
 - chat/evaluation: `chat_logs`, `chat_log_evaluations`, `group_evaluation_snapshots`
 - PLOG: `plog_*`, `learner_concept_states`
-- vector: `scene_embeddings`
+- vector: `scene_embeddings`（workerはPGVectorStore、Hono検索は認可列付き直接SQL）
 - OAuth/OIDC: `oauth_*`
 
 ```bash

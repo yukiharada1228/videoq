@@ -5,9 +5,9 @@ type Bindings = { HYPERDRIVE: { connectionString: string } };
 
 const app = new Hono<{ Bindings: Bindings }>();
 
-// 直接SQL版 pgvector 検索（要件定義書 DR-4 本線）。
+// Hyperdrive経由で標準PGVectorStore schemaを確認する直接SQL probe。
 // クエリベクトルは seed 動画の既存 embedding を CTE で流用（vector 型パラメータの
-// マーシャリングを避けるため）。認可フィルタ user_id / video_id は独立列で行う。
+// マーシャリングを避けるため）。認可filterはmetadata_columnsへ適用する。
 app.get("/search", async (c) => {
   const user = Number(c.req.query("user") ?? 5);
   const videos = (c.req.query("videos") ?? "60,61,62").split(",").map(Number);
@@ -21,14 +21,15 @@ app.get("/search", async (c) => {
   try {
     const sql = `
       WITH q AS (
-        SELECT embedding AS qvec FROM public.videoq_scenes
-        WHERE video_id = $1 ORDER BY langchain_id LIMIT 1
+        SELECT embedding AS qvec FROM public.scene_embeddings
+        WHERE video_id = $1
+        ORDER BY langchain_id LIMIT 1
       )
       SELECT s.langchain_id,
              s.video_id,
              round((s.embedding <=> q.qvec)::numeric, 5) AS dist
-      FROM public.videoq_scenes s, q
-      WHERE s.user_id = $2 AND s.video_id = ANY($3::int[])
+      FROM public.scene_embeddings s, q
+      WHERE s.user_id = $2 AND s.video_id = ANY($3::bigint[])
       ORDER BY s.embedding <=> q.qvec
       LIMIT $4;`;
     const values = [seed, user, videos, k];
@@ -69,10 +70,11 @@ app.post("/search-vec", async (c) => {
   await client.query("SET default_transaction_read_only = on");
   try {
     const sql = `
-      SELECT s.langchain_id, s.video_id,
+      SELECT s.langchain_id,
+             s.video_id,
              round((s.embedding <=> $1::vector)::numeric, 5) AS dist
-      FROM public.videoq_scenes s
-      WHERE s.user_id = $2 AND s.video_id = ANY($3::int[])
+      FROM public.scene_embeddings s
+      WHERE s.user_id = $2 AND s.video_id = ANY($3::bigint[])
       ORDER BY s.embedding <=> $1::vector
       LIMIT $4;`;
     const started = Date.now();
@@ -127,23 +129,23 @@ app.post("/release", async (c) => {
   }
 });
 
-// 本番データ探索（read-only）: 実在の user_id / video_id・ベクトル次元・件数を取得。
+// 本番データ探索（read-only）: metadataのuser/video・ベクトル次元・件数を取得。
 app.get("/probe", async (c) => {
   const client = new pg.Client({ connectionString: c.env.HYPERDRIVE.connectionString });
   await client.connect();
   await client.query("SET default_transaction_read_only = on");
   try {
     const counts = await client.query(
-      "SELECT count(*)::int AS rows, count(DISTINCT user_id)::int AS users, count(DISTINCT video_id)::int AS videos FROM public.videoq_scenes"
+      "SELECT count(*)::int AS rows, count(DISTINCT user_id)::int AS users, count(DISTINCT video_id)::int AS videos FROM public.scene_embeddings"
     );
     const dim = await client.query(
-      "SELECT format_type(a.atttypid, a.atttypmod) AS t FROM pg_attribute a JOIN pg_class c ON c.oid=a.attrelid WHERE c.relname='videoq_scenes' AND a.attname='embedding'"
+      "SELECT format_type(a.atttypid, a.atttypmod) AS t FROM pg_attribute a JOIN pg_class c ON c.oid=a.attrelid WHERE c.relname='scene_embeddings' AND a.attname='embedding'"
     );
     const sample = await client.query(
-      "SELECT user_id, video_id, count(*)::int AS scenes FROM public.videoq_scenes GROUP BY user_id, video_id ORDER BY scenes DESC LIMIT 8"
+      "SELECT user_id, video_id, count(*)::int AS scenes FROM public.scene_embeddings GROUP BY user_id, video_id ORDER BY scenes DESC LIMIT 8"
     );
     const idx = await client.query(
-      "SELECT indexname FROM pg_indexes WHERE tablename='videoq_scenes'"
+      "SELECT indexname FROM pg_indexes WHERE tablename='scene_embeddings'"
     );
     return c.json({
       ok: true,

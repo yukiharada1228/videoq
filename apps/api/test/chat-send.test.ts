@@ -241,9 +241,7 @@ describe("POST /api/chat/messages（非ストリーミング）", () => {
       feedback: null,
     });
 
-    // 検索は user_id + 許可 video_id + k=20 で絞る
-    const search = calls.find((c) => c.sql.includes("scene_embeddings"))!;
-    // video_ids are inlined as ARRAY[…]::bigint[] (not bound params)
+    const search = calls.find((call) => call.sql.includes("scene_embeddings"))!;
     expect(search.args).toEqual([5, "[0.1,0.2]", 20]);
     expect(String(search.sql)).toMatch(/ARRAY\[60,61\]::bigint\[\]/);
 

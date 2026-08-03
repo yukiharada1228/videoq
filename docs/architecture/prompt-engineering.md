@@ -6,7 +6,7 @@ Hono chat service は次の順で prompt を構築します。
 
 1. user / share の認可
 2. group に属する video ID の解決
-3. `scene_embeddings` を user ID / video ID で filter して検索
+3. `scene_embeddings`をuser ID / video ID metadata columnsでfilterして直接検索
 4. timestamp と引用可能な scene content を context 化
 5. system policy、locale、group context、検索 context を結合
 6. LLM を呼び、answer と citation を `chat_logs` に保存

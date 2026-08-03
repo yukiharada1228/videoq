@@ -234,7 +234,7 @@ describe('ApiClient', () => {
           ok: true,
           status: 200,
           headers: new Headers({ 'content-type': 'application/json' }),
-          text: () => Promise.resolve(JSON.stringify(mockUser)),
+          text: () => Promise.resolve(JSON.stringify({ data: mockUser })),
         });
 
       const result = await apiClient.getMeOrNull();

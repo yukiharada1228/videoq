@@ -728,7 +728,9 @@ export class ApiClient {
         response = await this.fetchMe();
       }
       if (!response.ok) return null;
-      return await this.parseJsonResponse<User>(response);
+      return this.unwrapEnvelope<User>(
+        await this.parseJsonResponse<unknown>(response),
+      );
     } catch {
       return null;
     }
