@@ -71,7 +71,7 @@ Web バックエンドを Cloudflare Workers / Hono へ移行するための検�
 | [PoC #03: 認証カットオーバー互換](architecture/poc-03-auth-cutover.md) | Worker(jose/WebCrypto)が Django 発行の JWT/API キーを同一検証。無停止カットオーバー可能を実測 |
 | [PoC #04: quota・アップロード競合](architecture/poc-04-quota-upload-race.md) | 原子的な条件付き UPDATE 予約を Worker 生 SQL で再現。20/30 並行でも超過予約ゼロを実測 |
 | [JR-2/JR-4 冪等性・失敗処理 設計書](architecture/jr2-idempotency-design.md) | 非同期ジョブの冪等性設計（fencing 付き claim 台帳＋副作用の原子性境界別対応）。[codex レビュー記録](architecture/jr2-idempotency-design-review-codex.md)で是正 |
-| （実装）[`backend-hono/`](../backend-hono/) | Phase 0 実装。Hono on Workers 基盤（ミドルウェア / health・ready / Hyperdrive・R2 / 既存 API プロキシ）。`npm create hono@latest` 生成 |
+| （実装）[`apps/api/`](../apps/api/) | Phase 0 実装。Hono on Workers 基盤（ミドルウェア / health・ready / Hyperdrive・R2 / 既存 API プロキシ）。`npm create hono@latest` 生成 |
 
 ## 🏗️ 技術スタック
 

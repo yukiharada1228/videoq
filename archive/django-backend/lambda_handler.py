@@ -1,8 +1,7 @@
 """
-Deprecated shim — deploy worker-python/handler.handler instead.
+Deprecated shim — deploy apps/worker with handler ``handler.handler``.
 
-Re-exports the Django-free worker handler from worker_python. The legacy
-backend/ tree is no longer required at runtime once worker-python is installed.
+Re-exports the Django-free worker handler from worker_python.
 """
 
 from worker_python.lambda_handler import _execute_task, handler

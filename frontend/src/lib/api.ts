@@ -1,5 +1,5 @@
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-// 本番(R2): 署名 URL 直 PUT。ローカル: multipart → Worker VIDEO_BUCKET（Django USE_S3_STORAGE 相当）。
+// VITE_USE_S3_STORAGE=true: 署名 URL 直 PUT（ローカル MinIO / 本番 R2）。false: multipart → VIDEO_BUCKET。
 const USE_S3_STORAGE = import.meta.env.VITE_USE_S3_STORAGE === 'true';
 
 type RequestBody = BodyInit | object | null | undefined;

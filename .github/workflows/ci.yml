@@ -29,17 +29,17 @@ jobs:
         with:
           filters: |
             hono:
-              - 'backend-hono/**'
+              - 'apps/api/**'
               - '.github/workflows/ci.yml'
             worker:
-              - 'worker-python/**'
+              - 'apps/worker/**'
               - '.github/workflows/ci.yml'
             frontend:
               - 'frontend/**'
               - '.github/workflows/ci.yml'
 
   hono-test:
-    name: Hono (backend-hono)
+    name: Hono (apps/api)
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.hono == 'true'
@@ -49,9 +49,9 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: backend-hono/package-lock.json
+          cache-dependency-path: apps/api/package-lock.json
       - name: Install / typecheck / test
-        working-directory: backend-hono
+        working-directory: apps/api
         run: |
           npm ci
           npm run typecheck
@@ -68,7 +68,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install and test
-        working-directory: worker-python
+        working-directory: apps/worker
         run: |
           pip install -e ".[dev]" 2>/dev/null || pip install -e . pytest
           pip install pytest

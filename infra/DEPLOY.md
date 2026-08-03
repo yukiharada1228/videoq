@@ -262,7 +262,7 @@ Secrets Manager の app シークレットへ保存する (Step 4)。
 
 ## Step 5: Worker コンテナイメージをビルド & プッシュ
 
-Web API は Cloudflare Workers（`backend-hono/`）でデプロイする。API Lambda / ECR は廃止。
+Web API は Cloudflare Workers（`apps/api/`）でデプロイする。API Lambda / ECR は廃止。
 
 ```bash
 # ECR URI を変数に設定 (Step 3 の Output から)
@@ -276,8 +276,8 @@ aws ecr get-login-password --region $REGION \
 
 # Worker Lambda イメージ（Django 非依存）
 docker build --platform linux/amd64 --provenance=false \
-  -f worker-python/Dockerfile \
-  -t $WORKER_ECR:latest ./worker-python
+  -f apps/worker/Dockerfile \
+  -t $WORKER_ECR:latest ./apps/worker
 docker push $WORKER_ECR:latest
 ```
 
@@ -299,11 +299,12 @@ aws lambda wait function-updated \
 
 ## Step 7: DB マイグレーション (初回 & スキーマ変更時)
 
-スキーマ正本は Drizzle（`backend-hono`）。`manage.py migrate` は使わない。
+スキーマ正本は Drizzle（`apps/api`）。`manage.py migrate` は使わない。
 
 ```bash
-cd backend-hono
-DATABASE_URL="<Neon pooler URL>" npx drizzle-kit migrate
+cd apps/api
+DATABASE_URL="<Neon pooler URL>" npm run db:migrate
+# = stamp-baseline（既存スキーマなら 0000_init を適用済み扱い）+ drizzle-kit migrate
 ```
 
 ---
@@ -356,7 +357,7 @@ curl -I https://videoq.jp/api/health/
 
 ### backend / worker の変更
 
-`backend/**` の変更は `main` マージ後に GitHub Actions (CD workflow) が自動デプロイする。
+`apps/worker/**` の変更は `main` マージ後に GitHub Actions (CD workflow) が自動デプロイする。Web API は `apps/api` で `wrangler deploy`。
 
 ### infra の変更
 
@@ -372,15 +373,15 @@ curl -I https://videoq.jp/api/health/
 # Worker（Django 非依存）
 # 1. イメージをリビルド & プッシュ
 docker build --platform linux/amd64 --provenance=false \
-  -f worker-python/Dockerfile -t $WORKER_ECR:latest ./worker-python && docker push $WORKER_ECR:latest
+  -f apps/worker/Dockerfile -t $WORKER_ECR:latest ./apps/worker && docker push $WORKER_ECR:latest
 
 # 2. Worker Lambda を更新
 aws lambda update-function-code --function-name videoq-worker-prod --image-uri $WORKER_ECR:latest --region $REGION
 
 # 3. DB スキーマ変更がある場合（Hono / Drizzle 正本）
-cd backend-hono && DATABASE_URL="<Neon pooler URL>" npx drizzle-kit migrate
+cd apps/api && DATABASE_URL="<Neon pooler URL>" npm run db:migrate
 
-# Web API は `wrangler deploy`（backend-hono）。Django API Lambda は廃止。
+# Web API は `wrangler deploy`（apps/api）。Django API Lambda は廃止。
 
 # infra
 cd infra

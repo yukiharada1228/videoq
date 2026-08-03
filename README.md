@@ -25,122 +25,74 @@ VideoQ is an AI-powered video navigator that automatically transcribes videos an
 
 | Role | Location |
 |---|---|
-| Web API | [`backend-hono/`](backend-hono/) — Cloudflare Workers + Hono + Drizzle |
-| Async jobs | [`worker-python/`](worker-python/) — SQS Lambda (**no Django / Celery**) |
-| Schema DDL | Drizzle migrations in `backend-hono/drizzle/` |
+| Web API | [`apps/api/`](apps/api/) — Cloudflare Workers + Hono + Drizzle |
+| Async jobs | [`apps/worker/`](apps/worker/) — SQS Lambda (**no Django / Celery**) |
+| Schema DDL | Drizzle migrations in `apps/api/drizzle/` |
 | Historical Django | [`archive/django-backend/`](archive/django-backend/) (local Docker Compose only) |
 
 Cutover notes: [`docs/architecture/django-cutover.md`](docs/architecture/django-cutover.md).
 
 ## Quick Start (5 minutes)
 
-> Local `docker compose` still boots the **archived** Django API + Celery worker for a full stack on your machine. Production deploys Workers (`backend-hono`) and `worker-python`.
+Default `docker compose up` starts the **modern** stack behind **Caddy**: Hono API (`apps/api`), Python worker (`apps/worker`), production frontend (nginx), Postgres, MinIO, ElasticMQ. The `migrate` service stamps/applies Drizzle before api/worker start.
 
 ### Requirements
 
-- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) installed
-- An [OpenAI API key](https://platform.openai.com/api-keys) for the default configuration
-- A [SearchAPI API key](https://www.searchapi.io/) if you want to import YouTube videos
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
+- An [OpenAI API key](https://platform.openai.com/api-keys) (Whisper / chat; embeddings can use local Ollama)
+- Optional: [Ollama](https://ollama.com/) on the host for local embeddings (`qwen3-embedding:0.6b`)
 
-This guide walks you through starting VideoQ locally and opening it in your browser.
-
-### Step 1: Get an OpenAI API key for the default setup
-
-1. Go to [OpenAI Platform](https://platform.openai.com/api-keys)
-2. Sign up or log in
-3. Click "Create new secret key"
-4. Copy the key, which starts with `sk-...`
-
-The default setup uses OpenAI for transcription, embeddings, and chat. If you want a fully local setup, switch to the local Whisper / Ollama configuration described below.
-
-### Step 2: Set up VideoQ
+### Setup
 
 ```bash
-# Clone the project and enter the directory
 git clone https://github.com/yukiharada1228/videoq.git
 cd videoq
-
-# Copy the environment file
 cp .env.example .env
 ```
 
-Open `.env` and set the OpenAI API key used by the default configuration.
+In `.env` set at least:
 
 ```bash
-OPENAI_API_KEY=sk-proj-...
+OPENAI_API_KEY=sk-...
+SECRET_KEY=any-long-random-string   # JWT signing (Hono JWT_SECRET)
 ```
 
-If you want to fetch subtitles from YouTube URLs, each user should configure their own `SearchAPI` key from the VideoQ Settings screen.
-
-### Step 3: Start VideoQ
+### Start (one command)
 
 ```bash
-# Start all services. The first run may take a few minutes.
 docker compose up --build -d
-
-# Initial setup (archived Django local stack)
-docker compose exec backend python manage.py migrate
-docker compose exec backend python manage.py collectstatic --noinput
-docker compose exec backend python manage.py createsuperuser
 ```
 
-### Step 4: Start using VideoQ
+Open **[http://localhost](http://localhost)** (Caddy :80 → nginx 静的 + `/api` → Hono).
 
-Open [http://localhost](http://localhost) in your browser.
+| Service | URL |
+|---------|-----|
+| App (Caddy → nginx 静的ビルド) | http://localhost |
+| API (wrangler local, 直接) | http://127.0.0.1:8787 |
+| API docs | http://localhost/api/docs/ |
+| MinIO console | http://127.0.0.1:9001 (`minioadmin` / `minioadmin`) |
+| ElasticMQ stats | http://127.0.0.1:9325 |
 
-**Useful links:**
-- **Admin panel:** [http://localhost/api/admin](http://localhost/api/admin) for managing users and videos
-- **API docs:** [http://localhost/api/docs/](http://localhost/api/docs/) for developers
+フロントは**本番ビルド**（Vite HMR なし）。UI のホットリロードが要るときだけ:
 
-**First steps:**
-1. Log in with the admin account you created
-2. Create regular users if needed
-3. Configure upload limits for regular users
-4. Upload a video, wait for transcription, and try chatting with it
+```bash
+docker compose --profile dev up -d web-dev   # http://127.0.0.1:3000
+```
 
-### Check first: user limit settings
+```bash
+docker compose logs -f gateway api worker web
+```
 
-VideoQ manages per-user limits directly from the admin panel.
+**First steps:** sign up from the UI → upload a video → wait for the worker (transcription + Otsu + index) → chat.
 
-**Where to configure them**
-1. Open the [admin panel](http://localhost/api/admin)
-2. Open `Users`
-3. Select the target user
-4. Configure the following values and save
+Embeddings default to host Ollama (`EMBEDDING_PROVIDER=ollama`). Pull the model once: `ollama pull qwen3-embedding:0.6b`.
 
-| Setting | Description |
-|----------|-------------|
-| `Max video upload size mb` | Maximum upload size per video in MB. Default: 500 |
-| `Storage limit gb` | Storage limit in GB. Default: 0, or leave blank for unlimited |
-| `Processing limit minutes` | Monthly transcription processing limit in minutes. Default: 0, or leave blank for unlimited |
-| `Ai answers limit` | Monthly AI answer limit. Default: 0, or leave blank for unlimited |
+Legacy Django: `docker compose --profile legacy up --build -d` → http://localhost:8080
 
 <details>
-<summary><strong>Optional: cloud storage setup (AWS S3 / Cloudflare R2)</strong></summary>
+<summary><strong>Optional: production object storage (Cloudflare R2 / AWS S3)</strong></summary>
 
-**This step is optional.** VideoQ stores videos on the local filesystem by default, but you can also use object storage such as AWS S3 or Cloudflare R2.
-
-Configure the following values in `.env`:
-
-```bash
-USE_S3_STORAGE=true
-AWS_ACCESS_KEY_ID=your-key
-AWS_SECRET_ACCESS_KEY=your-secret
-AWS_STORAGE_BUCKET_NAME=your-bucket
-
-# AWS S3
-AWS_S3_REGION_NAME=ap-northeast-1
-
-# Cloudflare R2
-AWS_S3_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com
-AWS_S3_REGION_NAME=auto
-```
-
-Restart the services:
-
-```bash
-docker compose restart backend celery-worker
-```
+Local compose already uses MinIO. For production R2/S3, set `apps/api` secrets (`R2_*`) and worker `AWS_*` as in [`infra/DEPLOY.md`](infra/DEPLOY.md).
 
 </details>
 

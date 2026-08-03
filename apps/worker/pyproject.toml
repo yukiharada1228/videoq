@@ -1,0 +1,27 @@
+[project]
+name = "videoq-worker"
+version = "0.2.0"
+description = "Django-free SQS task worker for VideoQ Lambda"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "psycopg[binary]>=3.2",
+    "openai>=1.40",
+    "boto3>=1.34",
+    "cryptography>=42.0",
+    "numpy>=1.26",
+    "tiktoken>=0.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["worker_python*"]
