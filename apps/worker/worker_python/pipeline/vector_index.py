@@ -89,6 +89,14 @@ def delete_video_vectors(video_id: int) -> int:
     return deleted
 
 
+def delete_user_vectors(user_id: int) -> int:
+    deleted = _count_vectors("user_id", user_id)
+    with _vector_store() as store:
+        store.delete(filter={"user_id": user_id})
+    logger.info("Deleted %d vector rows for user %d", deleted, user_id)
+    return deleted
+
+
 def delete_all_vectors() -> int:
     deleted = _count_vectors()
     with _vector_store() as store:

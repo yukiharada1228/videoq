@@ -17,7 +17,9 @@
     "db:maintain": "sh scripts/maintain.sh",
     "db:cutover": "sh scripts/maintain.sh cutover",
     "db:legacy:rename": "sh scripts/maintain.sh rename",
-    "db:legacy:drop": "sh scripts/maintain.sh drop"
+    "db:legacy:drop": "sh scripts/maintain.sh drop",
+    "user:superuser": "node scripts/create-superuser.mjs",
+    "rate-limit:reset": "sh scripts/reset-rate-limit.sh"
   },
   "dependencies": {
     "@hono/zod-openapi": "^1.5.1",

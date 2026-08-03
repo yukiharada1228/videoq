@@ -8,6 +8,7 @@ let mockNavigate: ReturnType<typeof vi.fn>
 vi.mock('@/lib/api', () => ({
   apiClient: {
     getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
+    getMeOrNull: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
     login: vi.fn(),
   },
 }))
@@ -89,7 +90,7 @@ describe('LoginPage', () => {
     fireEvent.click(submitButton)
 
     await waitFor(() => {
-      expect(apiClient.getMe).toHaveBeenCalled()
+      expect(apiClient.getMeOrNull).toHaveBeenCalled()
       expect(mockNavigate).toHaveBeenCalledWith('/')
     })
   })
@@ -144,12 +145,12 @@ describe('LoginPage', () => {
     }
 
     it('redirects to the safe next path via full navigation', async () => {
-      globalThis.__setMockSearchParams('?next=%2Fapi%2Foauth%2Fauthorize%2F%3Fclient_id%3Dabc')
+      globalThis.__setMockSearchParams('?next=%2Fapi%2Foauth%2Fauthorize%3Fclient_id%3Dabc')
 
       await submitLoginForm()
 
       await waitFor(() => {
-        expect(hrefSetter).toHaveBeenCalledWith('/api/oauth/authorize/?client_id=abc')
+        expect(hrefSetter).toHaveBeenCalledWith('/api/oauth/authorize?client_id=abc')
       })
       expect(mockNavigate).not.toHaveBeenCalled()
     })

@@ -218,7 +218,7 @@ export async function authorizeDevice(
   const scope = (scopes.length ? scopes : [...DEFAULT_SCOPES]).join(" ");
   const grant = await createDeviceGrant(env, auth.app.client_id, scope);
   const issuer = issuerFromEnv(env, requestUrl);
-  const verificationUri = `${issuer}/api/oauth/device/`;
+  const verificationUri = `${issuer}/api/oauth/device`;
   return {
     kind: "success",
     body: {

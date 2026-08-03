@@ -3,7 +3,6 @@ import {
   authenticateUser,
   emailExists,
   createInactiveUser,
-  requestAccountDeletion,
   findActiveUserByEmail,
   activateUser,
   setUserPassword,
@@ -13,7 +12,6 @@ import {
   setSearchApiKey,
   deleteSearchApiKey,
 } from "../../repositories/user-repository";
-import { enqueueAccountDeletion } from "../../lib/jobs";
 import { encryptUserSecret } from "../../lib/secret-encryption";
 import { validatePassword } from "../../lib/password-validators";
 import { isValidEmail, normalizeEmail } from "../../lib/email";
@@ -82,15 +80,6 @@ export async function logout(
   refreshToken: string | undefined,
 ): Promise<void> {
   await revokeAuthSession(env, refreshToken);
-}
-
-export async function deleteAccount(
-  env: Bindings,
-  userId: number,
-  reason: string,
-): Promise<void> {
-  await requestAccountDeletion(env, userId, reason);
-  await enqueueAccountDeletion(env, userId);
 }
 
 export async function verifyEmail(

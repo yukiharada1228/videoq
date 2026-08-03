@@ -68,7 +68,7 @@ export default function DeveloperDocsPage() {
             </UtilityLink>
           </li>
           <li>
-            <UtilityLink href="/api/redoc/" target="_blank" rel="noreferrer">
+            <UtilityLink href="/api/redoc" target="_blank" rel="noreferrer">
               ReDoc
             </UtilityLink>
           </li>

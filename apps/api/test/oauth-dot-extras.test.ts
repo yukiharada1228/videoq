@@ -184,7 +184,7 @@ describe("RFC 8628 device authorization + token poll", () => {
     const body = await res.json();
     expect(body.device_code).toBe("devcode123");
     expect(body.user_code).toBe("ABCD1234");
-    expect(body.verification_uri).toBe("http://testserver/api/oauth/device/");
+    expect(body.verification_uri).toBe("http://testserver/api/oauth/device");
     expect(body.interval).toBe(5);
     expect(body.expires_in).toBe(1800);
   });

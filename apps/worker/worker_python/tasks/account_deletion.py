@@ -1,4 +1,4 @@
-"""delete_account_data — bulk user data deletion via SQL + object storage."""
+"""delete_account_data — hard-delete user-owned data, then the user row."""
 
 from __future__ import annotations
 
@@ -47,11 +47,15 @@ def _delete_tags_for_user(conn, user_id: int) -> None:
     conn.execute("DELETE FROM tags WHERE user_id = %s", (user_id,))
 
 
+def _delete_remaining_vectors_for_user(_conn, user_id: int) -> None:
+    vector_index.delete_user_vectors(user_id)
+
+
+def _delete_user_row(conn, user_id: int) -> None:
+    conn.execute("DELETE FROM users WHERE id = %s", (user_id,))
+
+
 def delete_account_data(user_id: int) -> None:
-    """
-    Delete all user-owned data in the same order as DeleteAccountDataUseCase:
-    videos → chat history → video groups → tags.
-    """
     logger.info("Account deletion task started for user %s", user_id)
 
     steps = [
@@ -59,6 +63,8 @@ def delete_account_data(user_id: int) -> None:
         ("delete_chat_history_for_user", _delete_chat_history_for_user),
         ("delete_video_groups_for_user", _delete_video_groups_for_user),
         ("delete_tags_for_user", _delete_tags_for_user),
+        ("delete_remaining_vectors_for_user", _delete_remaining_vectors_for_user),
+        ("delete_user_row", _delete_user_row),
     ]
 
     with db_connection() as conn:
@@ -71,5 +77,6 @@ def delete_account_data(user_id: int) -> None:
                 logger.exception(
                     "Account deletion step %s failed for user %s", step_name, user_id
                 )
+                raise
 
-    logger.info("Account data deletion completed for user %s", user_id)
+    logger.info("Account hard-deletion completed for user %s", user_id)

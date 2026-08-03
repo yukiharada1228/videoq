@@ -20,11 +20,12 @@ import { oauthSupportRoutes } from "./features/oauth/support-routes";
 import { oauthOidcRoutes } from "./features/oauth/oidc";
 import { mcpRoutes } from "./features/mcp/routes";
 import { mediaRoutes } from "./features/media/routes";
-import { opsRoutes } from "./features/ops/routes";
+import { adminRoutes } from "./features/admin/routes";
 import { schemaRoutes } from "./features/schema/routes";
 
 /**
  * Hono アプリの組み立て。全ドメインは features/* にマウントする。
+ * URL 契約は trailing slash なし（クライアント・emit 側も同じ正本に揃える）。
  */
 export function createApp() {
   const app = new OpenAPIHono<AppEnv>();
@@ -49,7 +50,7 @@ export function createApp() {
   app.route("/", oauthOidcRoutes);
   app.route("/", mcpRoutes);
   app.route("/", mediaRoutes);
-  app.route("/", opsRoutes);
+  app.route("/", adminRoutes);
   app.route("/", schemaRoutes);
 
   registerOpenApiDoc(app);

@@ -11,7 +11,15 @@ vi.stubGlobal('import.meta', {
 });
 
 // Import the apiClient singleton
-import { apiClient, createApiClient } from '../api';
+import { apiClient, apiPath, createApiClient } from '../api';
+
+describe('apiPath', () => {
+  it('strips trailing slashes while preserving query strings', () => {
+    expect(apiPath('/videos/1/')).toBe('/videos/1');
+    expect(apiPath('/chat/messages/?share_slug=abc')).toBe('/chat/messages?share_slug=abc');
+    expect(apiPath('/')).toBe('/');
+  });
+});
 
 describe('ApiClient', () => {
   // Mock fetch

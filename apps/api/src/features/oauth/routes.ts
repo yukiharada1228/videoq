@@ -46,14 +46,14 @@ import * as authorizeService from "./authorize-service";
  *   GET /.well-known/oauth-protected-resource(+ /api/mcp)
  *
  * AS:
- *   GET/POST /api/oauth/authorize/
- *   POST     /api/oauth/token/
- *   POST     /api/oauth/register/
- *   GET      /api/oauth/register/:clientId/
- *   POST     /api/oauth/revoke_token/
+ *   GET/POST /api/oauth/authorize
+ *   POST     /api/oauth/token
+ *   POST     /api/oauth/register
+ *   GET      /api/oauth/register/:clientId
+ *   POST     /api/oauth/revoke_token
  *
  * Settings UI:
- *   GET/DELETE /api/oauth/tokens(/:id)/
+ *   GET/DELETE /api/oauth/tokens(/:id)
  */
 export const oauthRoutes = createFeatureRouter();
 

@@ -12,8 +12,8 @@ import {
 } from '@/lib/i18n';
 import { type Locale, locales } from '@/i18n/config';
 import { apiClient, type User } from '@/lib/api';
+import { authMeQueryOptions } from '@/lib/authQuery';
 import { APP_CONTAINER_CLASS } from '@/components/layout/layoutTokens';
-import { queryKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/digital-agency/cn';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,7 +30,7 @@ import {
   LanguageSelectorMenuItem,
 } from '@/components/ui/language-selector';
 
-export type ActivePage = 'home' | 'videos' | 'groups' | 'docs' | 'settings';
+export type ActivePage = 'home' | 'videos' | 'groups' | 'docs' | 'settings' | 'admin';
 
 interface AppNavProps {
   activePage?: ActivePage;
@@ -74,11 +74,7 @@ export function AppNav({ activePage }: AppNavProps) {
   const langRootRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
 
-  const authQuery = useQuery<User | null>({
-    queryKey: queryKeys.auth.me,
-    queryFn: async () => await apiClient.getMeOrNull(),
-    retry: false,
-  });
+  const authQuery = useQuery<User | null>(authMeQueryOptions);
   const isAuthenticated = !!authQuery.data;
 
   const logoutMutation = useMutation({
@@ -167,15 +163,33 @@ export function AppNav({ activePage }: AppNavProps) {
     };
   }, []);
 
-  const allNavLinks: { href: string; label: string; key: ActivePage; authRequired?: boolean }[] = [
+  const allNavLinks: {
+    href: string;
+    label: string;
+    key: ActivePage;
+    authRequired?: boolean;
+    superuserRequired?: boolean;
+  }[] = [
     { href: '/', label: t('navigation.home'), key: 'home' },
     { href: '/videos', label: t('navigation.videosNav'), key: 'videos', authRequired: true },
     { href: '/videos/groups', label: t('navigation.groupsNav'), key: 'groups', authRequired: true },
     { href: '/docs', label: t('navigation.docs'), key: 'docs' },
     { href: '/settings', label: t('navigation.settings'), key: 'settings', authRequired: true },
+    {
+      href: '/admin',
+      label: t('navigation.admin'),
+      key: 'admin',
+      authRequired: true,
+      superuserRequired: true,
+    },
   ];
 
-  const navLinks = isAuthenticated ? allNavLinks : allNavLinks.filter((l) => !l.authRequired);
+  const isSuperuser = !!authQuery.data?.is_superuser;
+  const navLinks = allNavLinks.filter((link) => {
+    if (link.authRequired && !isAuthenticated) return false;
+    if (link.superuserRequired && !isSuperuser) return false;
+    return true;
+  });
 
   return (
     <>

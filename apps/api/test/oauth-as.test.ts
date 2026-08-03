@@ -107,7 +107,7 @@ describe("well-known metadata", () => {
       const res = await app.request(path, {}, ENV);
       expect(res.status).toBe(200);
       const body = await res.json();
-      expect(body.resource).toBe("http://testserver/api/mcp/");
+      expect(body.resource).toBe("http://testserver/api/mcp");
       expect(body.authorization_servers).toContain("http://testserver");
     }
   });
@@ -143,7 +143,7 @@ describe("DCR POST /api/oauth/register/", () => {
     expect(payload.token_endpoint_auth_method).toBe("none");
     expect(payload.registration_access_token).toBeTruthy();
     expect(payload.registration_client_uri).toBe(
-      `http://testserver/api/oauth/register/${payload.client_id}/`,
+      `http://testserver/api/oauth/register/${payload.client_id}`,
     );
     expect(
       calls.some((c) => c.sql.includes("INSERT INTO oauth_applications")),
@@ -310,7 +310,7 @@ describe("authorize + token PKCE flow", () => {
             scope: "read",
             code_challenge: challenge,
             code_challenge_method: "S256",
-            resource: ["http://testserver/api/mcp/"],
+            resource: ["http://testserver/api/mcp"],
           },
         ];
       }
@@ -335,7 +335,7 @@ describe("authorize + token PKCE flow", () => {
       state: "xyz",
       code_challenge: challenge,
       code_challenge_method: "S256",
-      resource: "http://testserver/api/mcp/",
+      resource: "http://testserver/api/mcp",
       nonce: "",
     });
 

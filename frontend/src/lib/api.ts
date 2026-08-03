@@ -64,6 +64,7 @@ export interface User {
   id: number;
   username: string;
   email: string;
+  is_superuser?: boolean;
   video_count: number;
   max_video_upload_size_mb: number;
   used_storage_bytes?: number;
@@ -73,6 +74,45 @@ export interface User {
   used_ai_answers?: number;
   ai_answers_limit?: number | null;
   is_over_quota?: boolean;
+}
+
+export interface AdminUser {
+  id: number;
+  username: string;
+  email: string;
+  is_active: boolean;
+  is_staff: boolean;
+  is_superuser: boolean;
+  max_video_upload_size_mb: number;
+  storage_limit_gb: number | null;
+  processing_limit_minutes: number | null;
+  ai_answers_limit: number | null;
+  used_storage_bytes: number;
+  used_processing_seconds: number;
+  used_ai_answers: number;
+  usage_period_start: string | null;
+  is_over_quota: boolean;
+}
+
+export interface AdminQuotaPatch {
+  max_video_upload_size_mb?: number;
+  storage_limit_gb?: number | null;
+  processing_limit_minutes?: number | null;
+  ai_answers_limit?: number | null;
+}
+
+export interface AdminUsagePatch {
+  used_storage_bytes?: number;
+  used_processing_seconds?: number;
+  used_ai_answers?: number;
+  usage_period_start?: string | null;
+  is_over_quota?: boolean;
+}
+
+export interface AdminFlagsPatch {
+  is_active?: boolean;
+  is_staff?: boolean;
+  is_superuser?: boolean;
 }
 
 export interface IntegrationApiKey {
@@ -135,10 +175,6 @@ export interface EmailChangeRequest {
 
 export interface EmailChangeConfirmRequest {
   token: string;
-}
-
-export interface AccountDeleteRequest {
-  reason?: string;
 }
 
 export interface LoginRequest {
@@ -624,7 +660,7 @@ export class ApiClient {
   }
 
   async signup(data: SignupRequest): Promise<void> {
-    await this.request('/auth/users/', {
+    await this.request('/auth/users', {
       method: 'POST',
       body: data,
     });
@@ -647,7 +683,7 @@ export class ApiClient {
   }
 
   async requestPasswordReset(data: PasswordResetRequest): Promise<void> {
-    await this.request('/auth/password-resets/', {
+    await this.request('/auth/password-resets', {
       method: 'POST',
       body: data,
     });
@@ -662,7 +698,7 @@ export class ApiClient {
   }
 
   async requestEmailChange(data: EmailChangeRequest): Promise<void> {
-    await this.request('/auth/me/email/', {
+    await this.request('/auth/me/email', {
       method: 'PATCH',
       body: data,
     });
@@ -737,64 +773,57 @@ export class ApiClient {
   }
 
   async getIntegrationApiKeys(): Promise<IntegrationApiKey[]> {
-    return this.request<IntegrationApiKey[]>('/auth/api-keys/');
+    return this.request<IntegrationApiKey[]>('/auth/api-keys');
   }
 
   async createIntegrationApiKey(
     data: IntegrationApiKeyCreateRequest,
   ): Promise<IntegrationApiKeyCreateResponse> {
-    return this.request<IntegrationApiKeyCreateResponse>('/auth/api-keys/', {
+    return this.request<IntegrationApiKeyCreateResponse>('/auth/api-keys', {
       method: 'POST',
       body: data,
     });
   }
 
   async revokeIntegrationApiKey(id: number): Promise<void> {
-    await this.request(`/auth/api-keys/${id}/`, {
+    await this.request(`/auth/api-keys/${id}`, {
       method: 'DELETE',
     });
   }
 
   async getAuthorizedOAuthTokens(): Promise<AuthorizedOAuthToken[]> {
     const data = await this.request<{ tokens: AuthorizedOAuthToken[] }>(
-      '/oauth/tokens/',
+      '/oauth/tokens',
     );
     return data.tokens;
   }
 
   async revokeAuthorizedOAuthToken(id: number): Promise<void> {
-    await this.request(`/oauth/tokens/${id}/`, {
+    await this.request(`/oauth/tokens/${id}`, {
       method: 'DELETE',
     });
   }
 
   async getSearchApiKeyStatus(): Promise<SearchApiKeyStatus> {
-    return this.request<SearchApiKeyStatus>('/auth/searchapi-key/');
+    return this.request<SearchApiKeyStatus>('/auth/searchapi-key');
   }
 
   async saveSearchApiKey(apiKey: string): Promise<void> {
-    await this.request('/auth/searchapi-key/', {
+    await this.request('/auth/searchapi-key', {
       method: 'PUT',
       body: { api_key: apiKey },
     });
   }
 
   async deleteSearchApiKey(): Promise<void> {
-    await this.request('/auth/searchapi-key/', {
+    await this.request('/auth/searchapi-key', {
       method: 'DELETE',
-    });
-  }
-
-  async deleteAccount(data?: AccountDeleteRequest): Promise<void> {
-    await this.request('/auth/account/', {
-      method: 'DELETE',
-      body: data ?? {},
     });
   }
 
   async chat(data: ChatRequest): Promise<ChatMessage> {
     const { share_slug, ...bodyData } = data;
-    const endpoint = share_slug ? `/chat/messages/?share_slug=${share_slug}` : '/chat/messages/';
+    const endpoint = share_slug ? `/chat/messages?share_slug=${share_slug}` : '/chat/messages';
 
     return this.request<ChatMessage>(endpoint, {
       method: 'POST',
@@ -805,8 +834,8 @@ export class ApiClient {
   async *chatStream(data: ChatRequest): AsyncGenerator<ChatStreamEvent> {
     const { share_slug, ...bodyData } = data;
     const endpoint = share_slug
-      ? `/chat/messages/stream/?share_slug=${share_slug}`
-      : '/chat/messages/stream/';
+      ? `/chat/messages/stream?share_slug=${share_slug}`
+      : '/chat/messages/stream';
 
     const url = this.buildUrl(endpoint);
     const fetchStream = () => this.fetchFn(url, {
@@ -874,8 +903,8 @@ export class ApiClient {
     shareSlug?: string,
   ): Promise<{ chat_log_id: number; feedback: 'good' | 'bad' | null }> {
     const endpoint = shareSlug
-      ? `/chat/logs/${chatLogId}/feedback/?share_slug=${shareSlug}`
-      : `/chat/logs/${chatLogId}/feedback/`;
+      ? `/chat/logs/${chatLogId}/feedback?share_slug=${shareSlug}`
+      : `/chat/logs/${chatLogId}/feedback`;
 
     return this.request(endpoint, {
       method: 'PATCH',
@@ -884,22 +913,22 @@ export class ApiClient {
   }
 
   async getChatHistory(groupId: number): Promise<ChatHistoryItem[]> {
-    const response = await this.request<PaginatedResponse<ChatHistoryItem>>(`/chat/groups/${groupId}/history/`);
+    const response = await this.request<PaginatedResponse<ChatHistoryItem>>(`/chat/groups/${groupId}/history`);
     return response.data;
   }
 
   async getEvaluationSummary(groupId: number): Promise<EvaluationSummary> {
-    return this.request<EvaluationSummary>(`/evaluation/groups/${groupId}/summary/`);
+    return this.request<EvaluationSummary>(`/evaluation/groups/${groupId}/summary`);
   }
 
   async getChatEvaluations(groupId: number, limit = 200): Promise<ChatLogEvaluation[]> {
-    const response = await this.request<PaginatedResponse<ChatLogEvaluation>>(`/evaluation/groups/${groupId}/logs/?limit=${limit}`);
+    const response = await this.request<PaginatedResponse<ChatLogEvaluation>>(`/evaluation/groups/${groupId}/logs?limit=${limit}`);
     return response.data;
   }
 
 
   async exportChatHistoryCsv(groupId: number): Promise<void> {
-    const url = this.buildUrl(`/chat/groups/${groupId}/history/?download=csv`);
+    const url = this.buildUrl(`/chat/groups/${groupId}/history?download=csv`);
 
     const doFetch = async (): Promise<Response> => {
       return this.fetchFn(url, {
@@ -961,7 +990,7 @@ export class ApiClient {
   }
 
   async getVideo(id: number): Promise<Video> {
-    return this.request<Video>(`/videos/${id}/`);
+    return this.request<Video>(`/videos/${id}`);
   }
 
   async requestUploadUrl(data: {
@@ -971,14 +1000,14 @@ export class ApiClient {
     title: string;
     description?: string;
   }): Promise<UploadRequestResponse> {
-    return this.request<UploadRequestResponse>('/videos/uploads/', {
+    return this.request<UploadRequestResponse>('/videos/uploads', {
       method: 'POST',
       body: data,
     });
   }
 
   async confirmUpload(videoId: number): Promise<Video> {
-    return this.request<Video>(`/videos/${videoId}/`, {
+    return this.request<Video>(`/videos/${videoId}`, {
       method: 'PATCH',
       body: { status: 'uploaded' },
     });
@@ -1049,40 +1078,40 @@ export class ApiClient {
     formData.append('title', data.title);
     formData.append('description', data.description ?? '');
 
-    return this.request<Video>('/videos/', {
+    return this.request<Video>('/videos', {
       method: 'POST',
       body: formData,
     });
   }
 
   async createYoutubeVideo(data: YoutubeVideoCreateRequest): Promise<Video> {
-    return this.request<Video>('/videos/youtube/', {
+    return this.request<Video>('/videos/youtube', {
       method: 'POST',
       body: data,
     });
   }
 
   async updateVideo(id: number, data: VideoUpdateRequest): Promise<Video> {
-    return this.request<Video>(`/videos/${id}/`, {
+    return this.request<Video>(`/videos/${id}`, {
       method: 'PATCH',
       body: data,
     });
   }
 
   async deleteVideo(id: number): Promise<void> {
-    return this.request<void>(`/videos/${id}/`, {
+    return this.request<void>(`/videos/${id}`, {
       method: 'DELETE',
     });
   }
 
   async getPlogGraph(videoId: number): Promise<PlogGraph> {
-    return this.request<PlogGraph>(`/videos/${videoId}/plog/`);
+    return this.request<PlogGraph>(`/videos/${videoId}/plog`);
   }
 
   async rebuildPlog(
     videoId: number,
   ): Promise<{ video_id: number; status: string; job_id?: number }> {
-    return this.request(`/videos/${videoId}/plog/rebuild/`, {
+    return this.request(`/videos/${videoId}/plog/rebuild`, {
       method: 'POST',
       body: {},
     });
@@ -1097,7 +1126,7 @@ export class ApiClient {
       source_quote?: string;
     },
   ): Promise<PlogConcept> {
-    return this.request(`/videos/${videoId}/plog/concepts/`, {
+    return this.request(`/videos/${videoId}/plog/concepts`, {
       method: 'POST',
       body,
     });
@@ -1113,14 +1142,14 @@ export class ApiClient {
       source_quote: string;
     }>,
   ): Promise<PlogConcept> {
-    return this.request(`/videos/${videoId}/plog/concepts/${conceptId}/`, {
+    return this.request(`/videos/${videoId}/plog/concepts/${conceptId}`, {
       method: 'PATCH',
       body,
     });
   }
 
   async deletePlogConcept(videoId: number, conceptId: number): Promise<{ deleted: boolean; id: number }> {
-    return this.request(`/videos/${videoId}/plog/concepts/${conceptId}/`, {
+    return this.request(`/videos/${videoId}/plog/concepts/${conceptId}`, {
       method: 'DELETE',
     });
   }
@@ -1130,7 +1159,7 @@ export class ApiClient {
     survivorId: number,
     absorbId: number,
   ): Promise<PlogConcept> {
-    return this.request(`/videos/${videoId}/plog/concepts/${survivorId}/merge/`, {
+    return this.request(`/videos/${videoId}/plog/concepts/${survivorId}/merge`, {
       method: 'POST',
       body: { absorb_id: absorbId },
     });
@@ -1148,7 +1177,7 @@ export class ApiClient {
       waypoints: PlogWaypoint[];
     }>,
   ): Promise<PlogConcept> {
-    return this.request(`/videos/${videoId}/plog/concepts/${conceptId}/learning-object/`, {
+    return this.request(`/videos/${videoId}/plog/concepts/${conceptId}/learning-object`, {
       method: 'PATCH',
       body,
     });
@@ -1163,7 +1192,7 @@ export class ApiClient {
       quote?: string;
     },
   ): Promise<PlogEdge> {
-    return this.request(`/videos/${videoId}/plog/edges/`, {
+    return this.request(`/videos/${videoId}/plog/edges`, {
       method: 'POST',
       body,
     });
@@ -1179,24 +1208,24 @@ export class ApiClient {
       quote: string;
     }>,
   ): Promise<PlogEdge> {
-    return this.request(`/videos/${videoId}/plog/edges/${edgeId}/`, {
+    return this.request(`/videos/${videoId}/plog/edges/${edgeId}`, {
       method: 'PATCH',
       body,
     });
   }
 
   async deletePlogEdge(videoId: number, edgeId: number): Promise<{ deleted: boolean; id: number }> {
-    return this.request(`/videos/${videoId}/plog/edges/${edgeId}/`, {
+    return this.request(`/videos/${videoId}/plog/edges/${edgeId}`, {
       method: 'DELETE',
     });
   }
 
   async getPlogLearnerState(videoId: number): Promise<{ states: PlogLearnerState[] }> {
-    return this.request(`/videos/${videoId}/plog/learner-state/`);
+    return this.request(`/videos/${videoId}/plog/learner-state`);
   }
 
   async resetPlogLearnerState(videoId: number): Promise<{ deleted: number }> {
-    return this.request(`/videos/${videoId}/plog/learner-state/`, {
+    return this.request(`/videos/${videoId}/plog/learner-state`, {
       method: 'DELETE',
     });
   }
@@ -1219,31 +1248,31 @@ export class ApiClient {
   }
 
   async getVideoGroup(id: number): Promise<VideoGroup> {
-    return this.request<VideoGroup>(`/videos/groups/${id}/`);
+    return this.request<VideoGroup>(`/videos/groups/${id}`);
   }
 
   async createVideoGroup(data: VideoGroupCreateRequest): Promise<VideoGroup> {
-    return this.request<VideoGroup>('/videos/groups/', {
+    return this.request<VideoGroup>('/videos/groups', {
       method: 'POST',
       body: data,
     });
   }
 
   async updateVideoGroup(id: number, data: VideoGroupUpdateRequest): Promise<VideoGroup> {
-    return this.request<VideoGroup>(`/videos/groups/${id}/`, {
+    return this.request<VideoGroup>(`/videos/groups/${id}`, {
       method: 'PATCH',
       body: data,
     });
   }
 
   async deleteVideoGroup(id: number): Promise<void> {
-    return this.request<void>(`/videos/groups/${id}/`, {
+    return this.request<void>(`/videos/groups/${id}`, {
       method: 'DELETE',
     });
   }
 
   async reorderVideoGroups(groupIds: number[]): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/videos/groups/order/', {
+    return this.request<{ message: string }>('/videos/groups/order', {
       method: 'PATCH',
       body: { group_ids: groupIds },
     });
@@ -1251,26 +1280,26 @@ export class ApiClient {
 
   // Add/remove videos to/from group
   async addVideoToGroup(groupId: number, videoId: number): Promise<void> {
-    return this.request<void>(`/videos/groups/${groupId}/videos/${videoId}/`, {
+    return this.request<void>(`/videos/groups/${groupId}/videos/${videoId}`, {
       method: 'POST',
     });
   }
 
   async addVideosToGroup(groupId: number, videoIds: number[]): Promise<{ message: string; added_count: number; skipped_count: number }> {
-    return this.request<{ message: string; added_count: number; skipped_count: number }>(`/videos/groups/${groupId}/videos/`, {
+    return this.request<{ message: string; added_count: number; skipped_count: number }>(`/videos/groups/${groupId}/videos`, {
       method: 'POST',
       body: { video_ids: videoIds },
     });
   }
 
   async removeVideoFromGroup(groupId: number, videoId: number): Promise<void> {
-    return this.request<void>(`/videos/groups/${groupId}/videos/${videoId}/`, {
+    return this.request<void>(`/videos/groups/${groupId}/videos/${videoId}`, {
       method: 'DELETE',
     });
   }
 
   async reorderVideosInGroup(groupId: number, videoIds: number[]): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/videos/groups/${groupId}/videos/order/`, {
+    return this.request<{ message: string }>(`/videos/groups/${groupId}/videos/order`, {
       method: 'PATCH',
       body: { video_ids: videoIds },
     });
@@ -1279,7 +1308,7 @@ export class ApiClient {
   // Share link related
   async createShareLink(groupId: number, shareSlug: string): Promise<{ message: string; share_slug: string }> {
     return this.request<{ message: string; share_slug: string }>(
-      `/videos/groups/${groupId}/share/`,
+      `/videos/groups/${groupId}/share`,
       {
         method: 'POST',
         body: { share_slug: shareSlug },
@@ -1288,13 +1317,13 @@ export class ApiClient {
   }
 
   async deleteShareLink(groupId: number): Promise<void> {
-    await this.request<void>(`/videos/groups/${groupId}/share/`, {
+    await this.request<void>(`/videos/groups/${groupId}/share`, {
       method: 'DELETE',
     });
   }
 
   async getSharedGroup(shareSlug: string): Promise<VideoGroup> {
-    const url = this.buildUrl(`/videos/groups/share/${shareSlug}/`);
+    const url = this.buildUrl(`/videos/groups/share/${shareSlug}`);
     const response = await this.fetchFn(url, { headers: this.buildHeaders() });
 
     if (!response.ok) {
@@ -1367,50 +1396,96 @@ export class ApiClient {
 
   // Tag management methods
   async getTags(): Promise<Tag[]> {
-    const response = await this.request<PaginatedResponse<Tag>>('/videos/tags/');
+    const response = await this.request<PaginatedResponse<Tag>>('/videos/tags');
     return response.data;
   }
 
   async getTag(id: number): Promise<TagDetail> {
-    return this.request<TagDetail>(`/videos/tags/${id}/`);
+    return this.request<TagDetail>(`/videos/tags/${id}`);
   }
 
   async createTag(data: TagCreateRequest): Promise<Tag> {
-    return this.request<Tag>('/videos/tags/', {
+    return this.request<Tag>('/videos/tags', {
       method: 'POST',
       body: data,
     });
   }
 
   async updateTag(id: number, data: TagUpdateRequest): Promise<Tag> {
-    return this.request<Tag>(`/videos/tags/${id}/`, {
+    return this.request<Tag>(`/videos/tags/${id}`, {
       method: 'PATCH',
       body: data,
     });
   }
 
   async deleteTag(id: number): Promise<void> {
-    return this.request<void>(`/videos/tags/${id}/`, {
+    return this.request<void>(`/videos/tags/${id}`, {
       method: 'DELETE',
     });
   }
 
   // Video-Tag relationship methods
   async addTagsToVideo(videoId: number, tagIds: number[]): Promise<{ message: string; added_count: number; skipped_count: number }> {
-    return this.request<{ message: string; added_count: number; skipped_count: number }>(`/videos/${videoId}/tags/`, {
+    return this.request<{ message: string; added_count: number; skipped_count: number }>(`/videos/${videoId}/tags`, {
       method: 'POST',
       body: { tag_ids: tagIds },
     });
   }
 
   async removeTagFromVideo(videoId: number, tagId: number): Promise<void> {
-    return this.request<void>(`/videos/${videoId}/tags/${tagId}/`, {
+    return this.request<void>(`/videos/${videoId}/tags/${tagId}`, {
       method: 'DELETE',
     });
   }
 
   async getChatAnalytics(groupId: number): Promise<ChatAnalytics> {
-    return this.request<ChatAnalytics>(`/chat/groups/${groupId}/analytics/`);
+    return this.request<ChatAnalytics>(`/chat/groups/${groupId}/analytics`);
+  }
+
+  async getAdminUsers(params?: {
+    q?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<PaginatedResponse<AdminUser>> {
+    const query = new URLSearchParams();
+    if (params?.q) query.set('q', params.q);
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    return this.request<PaginatedResponse<AdminUser>>(`/admin/users${qs ? `?${qs}` : ''}`);
+  }
+
+  async patchAdminUserQuota(id: number, data: AdminQuotaPatch): Promise<AdminUser> {
+    return this.request<AdminUser>(`/admin/users/${id}/quota`, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async patchAdminUserUsage(id: number, data: AdminUsagePatch): Promise<AdminUser> {
+    return this.request<AdminUser>(`/admin/users/${id}/usage`, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async patchAdminUserFlags(id: number, data: AdminFlagsPatch): Promise<AdminUser> {
+    return this.request<AdminUser>(`/admin/users/${id}/flags`, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async reindexAllEmbeddings(): Promise<{ job_id: string }> {
+    return this.request<{ job_id: string }>('/admin/embeddings/reindex-all', {
+      method: 'POST',
+    });
+  }
+
+  async deleteAdminUser(id: number): Promise<{ job_id: string }> {
+    return this.request<{ job_id: string }>(`/admin/users/${id}`, {
+      method: 'DELETE',
+    });
   }
 
 }

@@ -20,7 +20,6 @@ import {
 } from "../../lib/rate-limit";
 import type { AppEnv } from "../../types/bindings";
 import {
-  accountDeleteBodySchema,
   apiKeyCreateSchema,
   apiKeyIdParamSchema,
   emailBodySchema,
@@ -36,7 +35,7 @@ import {
 import * as authService from "./service";
 
 /**
- * 認証・アカウント系。createRoute + service。trailing slash は strip ミドルウェアに委譲。
+ * 認証・アカウント系。createRoute + service。URL は trailing slash なし。
  */
 export const authRoutes = createFeatureRouter();
 
@@ -222,33 +221,6 @@ authRoutes.openapi(refreshRoute, async (c) => {
     },
     200,
   );
-});
-
-// --- Account ---
-const deleteAccountRoute = createRoute({
-  method: "delete",
-  path: "/api/auth/account",
-  tags: ["Auth"],
-  summary: "Delete account",
-  middleware: [jwtOnly] as const,
-  request: {
-    body: {
-      content: { "application/json": { schema: accountDeleteBodySchema } },
-      required: false,
-    },
-  },
-  responses: {
-    204: { description: "No content" },
-    400: errorResponse("Validation error"),
-    401: errorResponse("Unauthorized"),
-  },
-});
-authRoutes.openapi(deleteAccountRoute, async (c) => {
-  const body = c.req.valid("json");
-  await authService.deleteAccount(c.env, c.get("userId")!, body.reason ?? "");
-  await authService.logout(c.env, refreshTokenFromCookie(c));
-  clearRefreshCookie(c);
-  return c.body(null, 204);
 });
 
 // --- Email verification ---

@@ -13,12 +13,6 @@ export const loginBodySchema = z
   })
   .openapi("LoginBody");
 
-export const accountDeleteBodySchema = z
-  .object({
-    reason: z.string().trim().optional(),
-  })
-  .openapi("AccountDeleteBody");
-
 export const emailBodySchema = z
   .object({
     email: requiredString(),

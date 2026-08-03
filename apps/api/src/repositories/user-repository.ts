@@ -1,44 +1,12 @@
 import { and, eq, ne, sql } from "drizzle-orm";
 import { withDb } from "../db/pool";
-import { accountDeletionRequests, users } from "../db/schema";
+import { users } from "../db/schema";
 import { verifyPassword, hashPassword } from "../lib/password";
 import type { Bindings } from "../types/bindings";
 
 const lastLoginUtc = sql<string | null>`to_char(${users.lastLogin} AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')`.as(
   "last_login",
 );
-
-/**
- * アカウント削除をトランザクション内で開始する:
- *   1. AccountDeletionRequest を記録（reason）
- *   2. ユーザーを匿名化 + 非アクティブ化（is_active=false, deactivated_at, username/email を deleted__<hex>）
- * enqueue は呼び出し側で commit 後に実行する。
- */
-export async function requestAccountDeletion(
-  env: Bindings,
-  userId: number,
-  reason: string,
-): Promise<void> {
-  const hex = crypto.randomUUID().replace(/-/g, ""); // username/email 共通の識別子
-  return withDb(env, async (db) => {
-    await db.transaction(async (tx) => {
-      await tx.insert(accountDeletionRequests).values({
-        userId,
-        reason,
-        requestedAt: sql`CURRENT_TIMESTAMP`,
-      });
-      await tx
-        .update(users)
-        .set({
-          isActive: false,
-          deactivatedAt: sql`now()`,
-          username: `deleted__${hex}`,
-          email: `deleted__${hex}@invalid.local`,
-        })
-        .where(eq(users.id, userId));
-    });
-  });
-}
 
 /**
  * トークン検証用にユーザーを取得（check_token の hash_value に必要な項目）。
@@ -341,6 +309,7 @@ export type CurrentUser = {
   id: number;
   username: string;
   email: string;
+  is_superuser: boolean;
   video_count: number;
   max_video_upload_size_mb: number;
   used_storage_bytes: number;
@@ -364,6 +333,7 @@ export async function getCurrentUser(
         id: users.id,
         username: users.username,
         email: users.email,
+        is_superuser: users.isSuperuser,
         max_video_upload_size_mb: users.maxVideoUploadSizeMb,
         used_storage_bytes: users.usedStorageBytes,
         storage_limit_gb: users.storageLimitGb,
@@ -392,6 +362,7 @@ export async function getCurrentUser(
       id: Number(r.id),
       username: r.username,
       email: r.email,
+      is_superuser: Boolean(r.is_superuser),
       video_count: r.video_count,
       max_video_upload_size_mb: r.max_video_upload_size_mb,
       used_storage_bytes: Number(r.used_storage_bytes),

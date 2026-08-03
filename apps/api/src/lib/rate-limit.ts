@@ -5,16 +5,16 @@ import type { AppEnv, Bindings } from "../types/bindings";
  * VideoQ API のスコープ別レート制限。
  */
 export const THROTTLE_RATES = {
-  chat_share_token_ip: { limit: 100, windowSec: 3600 },
-  chat_authenticated: { limit: 300, windowSec: 3600 },
-  login_ip: { limit: 5, windowSec: 60 },
-  login_username: { limit: 5, windowSec: 60 },
-  signup_ip: { limit: 3, windowSec: 3600 },
-  signup_email: { limit: 3, windowSec: 3600 },
-  password_reset_ip: { limit: 3, windowSec: 3600 },
-  password_reset_email: { limit: 3, windowSec: 3600 },
-  email_change_user: { limit: 3, windowSec: 3600 },
-  email_change_email: { limit: 3, windowSec: 3600 },
+  chat_share_token_ip: { limit: 100, periodSec: 3600 },
+  chat_authenticated: { limit: 300, periodSec: 3600 },
+  login_ip: { limit: 5, periodSec: 60 },
+  login_username: { limit: 5, periodSec: 60 },
+  signup_ip: { limit: 3, periodSec: 3600 },
+  signup_email: { limit: 3, periodSec: 3600 },
+  password_reset_ip: { limit: 3, periodSec: 3600 },
+  password_reset_email: { limit: 3, periodSec: 3600 },
+  email_change_user: { limit: 3, periodSec: 3600 },
+  email_change_email: { limit: 3, periodSec: 3600 },
 } as const;
 
 export type ThrottleScope = keyof typeof THROTTLE_RATES;
@@ -113,7 +113,7 @@ export async function enforceThrottles(
     }
     const rate = THROTTLE_RATES[check.scope];
     const key = `throttle_${check.scope}_${check.ident}`;
-    const result = await backend.consume(key, rate.limit, rate.windowSec);
+    const result = await backend.consume(key, rate.limit, rate.periodSec);
     if (!result.allowed) return result;
   }
   return null;

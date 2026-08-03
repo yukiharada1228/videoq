@@ -201,7 +201,7 @@ export function buildDcrResponse(
     token_endpoint_auth_method:
       app.client_type === "public" ? "none" : "client_secret_basic",
     registration_access_token: registrationAccessToken,
-    registration_client_uri: `${issuer}/api/oauth/register/${app.client_id}/`,
+    registration_client_uri: `${issuer}/api/oauth/register/${app.client_id}`,
   };
   if (app.name) data.client_name = app.name;
   if (clientSecretPlain) data.client_secret = clientSecretPlain;

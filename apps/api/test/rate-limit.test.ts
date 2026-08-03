@@ -6,7 +6,7 @@ import {
   THROTTLE_RATES,
   normalizeThrottleIdent,
 } from "../src/lib/rate-limit";
-import type { Bindings } from "../src/types/bindings";
+import type { Bindings } from "../types/bindings";
 
 const ENV = {
   ENVIRONMENT: "development",

@@ -1,8 +1,8 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useI18nNavigate, useI18nLocation, removeLocalePrefix } from '@/lib/i18n';
-import { apiClient, type User } from '@/lib/api';
-import { queryKeys } from '@/lib/queryKeys';
+import type { User } from '@/lib/api';
+import { authMeQueryOptions } from '@/lib/authQuery';
 import { isPublicAuthPath } from '@/lib/authConfig';
 
 interface UseAuthReturn {
@@ -16,9 +16,6 @@ interface UseAuthOptions {
   onAuthError?: () => void;
 }
 
-/**
- * Custom hook to manage authentication state
- */
 export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
   const { redirectToLogin = true, onAuthError } = options;
   const navigate = useI18nNavigate();
@@ -26,7 +23,6 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
   const pathname = location.pathname;
   const queryClient = useQueryClient();
 
-  // Hold callback with useRef to prevent infinite loops
   const onAuthErrorRef = useRef(onAuthError);
   useEffect(() => {
     onAuthErrorRef.current = onAuthError;
@@ -35,45 +31,45 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
   const authRequired = !isPublicAuthPath(pathname);
 
   const authQuery = useQuery<User | null>({
-    queryKey: queryKeys.auth.me,
+    ...authMeQueryOptions,
     enabled: authRequired,
-    queryFn: async () => (await apiClient.getMe()) ?? null,
-    retry: false,
   });
 
   useEffect(() => {
-    if (!authRequired || !authQuery.error) {
-      return;
-    }
+    if (!authRequired || authQuery.isPending) return;
 
-    // apiClient retries token refresh, then reports auth failure without routing.
-    // Redirect decisions stay in this hook so API calls remain UI-agnostic.
-    console.error('Authentication check failed:', authQuery.error);
+    const unauthorized = authQuery.isError || authQuery.data === null;
+    if (!unauthorized) return;
+
+    if (authQuery.error) {
+      console.error('Authentication check failed:', authQuery.error);
+    }
     if (redirectToLogin) {
       const currentPath = removeLocalePrefix(window.location.pathname);
-      if (currentPath !== '/login') {
-        navigate('/login');
-      }
+      if (currentPath !== '/login') navigate('/login');
     }
-    if (onAuthErrorRef.current) {
-      onAuthErrorRef.current();
-    }
-  }, [authQuery.error, authRequired, redirectToLogin, navigate]);
+    onAuthErrorRef.current?.();
+  }, [
+    authQuery.data,
+    authQuery.error,
+    authQuery.isError,
+    authQuery.isPending,
+    authRequired,
+    redirectToLogin,
+    navigate,
+  ]);
 
   const checkAuth = useCallback(async () => {
-    if (!authRequired) {
-      return;
-    }
+    if (!authRequired) return;
     await queryClient.fetchQuery({
-      queryKey: queryKeys.auth.me,
-      queryFn: async () => (await apiClient.getMe()) ?? null,
-      retry: false,
+      ...authMeQueryOptions,
+      staleTime: 0,
     });
   }, [authRequired, queryClient]);
 
   return {
     user: authRequired ? authQuery.data ?? null : null,
-    isLoading: authRequired ? (authQuery.isLoading || authQuery.isFetching) : false,
+    isLoading: authRequired ? authQuery.isPending : false,
     refetch: checkAuth,
   };
 }

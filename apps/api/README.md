@@ -83,6 +83,21 @@ Drizzle の modern schema を runtime の唯一のモデルとして使用しま
 - vector: `scene_embeddings`（workerはPGVectorStore、Hono検索は認可列付き直接SQL）
 - OAuth/OIDC: `oauth_*`
 
+管理 API（superuser）: `GET/PATCH /api/admin/users*`, `POST /api/admin/embeddings/reindex-all`。  
+フロントの `/admin` 画面から利用します。
+
+最初のスーパーユーザーは既存アカウントを昇格させます（ユーザー名・メールどちらでも可）:
+
+```bash
+npm run user:superuser -- alice
+```
+
+ローカルでログイン／登録のレート制限に当たったときは、RateLimiter DO 状態を消して API を再起動します:
+
+```bash
+npm run rate-limit:reset
+```
+
 ```bash
 npm run db:generate
 npm run db:migrate

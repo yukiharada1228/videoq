@@ -1,15 +1,15 @@
 import { z } from "../../shared/openapi";
 import { paginationQuerySchema } from "../../shared/pagination";
 
-export const opsUserIdParamSchema = z.object({
+export const adminUserIdParamSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
 
-export const opsUserListQuerySchema = paginationQuerySchema.extend({
+export const adminUserListQuerySchema = paginationQuerySchema.extend({
   q: z.string().optional(),
 });
 
-export const opsUserSchema = z
+export const adminUserSchema = z
   .object({
     id: z.number().int(),
     username: z.string(),
@@ -27,18 +27,18 @@ export const opsUserSchema = z
     usage_period_start: z.string().nullable(),
     is_over_quota: z.boolean(),
   })
-  .openapi("OpsUser");
+  .openapi("AdminUser");
 
-export const opsQuotaPatchSchema = z
+export const adminQuotaPatchSchema = z
   .object({
     max_video_upload_size_mb: z.number().int().positive().optional(),
     storage_limit_gb: z.number().nullable().optional(),
     processing_limit_minutes: z.number().nullable().optional(),
     ai_answers_limit: z.number().nullable().optional(),
   })
-  .openapi("OpsQuotaPatch");
+  .openapi("AdminQuotaPatch");
 
-export const opsUsagePatchSchema = z
+export const adminUsagePatchSchema = z
   .object({
     used_storage_bytes: z.number().int().nonnegative().optional(),
     used_processing_seconds: z.number().int().nonnegative().optional(),
@@ -46,8 +46,16 @@ export const opsUsagePatchSchema = z
     usage_period_start: z.string().nullable().optional(),
     is_over_quota: z.boolean().optional(),
   })
-  .openapi("OpsUsagePatch");
+  .openapi("AdminUsagePatch");
 
-export const reindexResponseSchema = z
+export const adminFlagsPatchSchema = z
+  .object({
+    is_active: z.boolean().optional(),
+    is_staff: z.boolean().optional(),
+    is_superuser: z.boolean().optional(),
+  })
+  .openapi("AdminFlagsPatch");
+
+export const adminJobResponseSchema = z
   .object({ job_id: z.string() })
-  .openapi("OpsReindexResponse");
+  .openapi("AdminJobResponse");

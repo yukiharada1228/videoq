@@ -105,7 +105,7 @@ export function issuerFromEnv(env: Bindings, reqUrl: string): string {
 }
 
 export function protectedResourceIdentifier(issuer: string): string {
-  return `${issuer}/api/mcp/`;
+  return `${issuer}/api/mcp`;
 }
 
 /** RFC 8628: Base32hex (0-9A-V) user_code。 */

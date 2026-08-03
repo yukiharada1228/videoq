@@ -6,7 +6,7 @@ import { useI18nNavigate } from '@/lib/i18n'
 // Mock apiClient
 vi.mock('@/lib/api', () => ({
   apiClient: {
-    getMe: vi.fn(),
+    getMeOrNull: vi.fn(),
   },
 }))
 
@@ -26,7 +26,7 @@ describe('useAuth', () => {
 
   it('should load user data on mount for protected routes', async () => {
     const mockUser = { id: 1, username: 'testuser' }
-    ;(apiClient.getMe as any).mockResolvedValue(mockUser)
+    ;(apiClient.getMeOrNull as any).mockResolvedValue(mockUser)
 
     const { result } = renderHook(() => useAuth())
 
@@ -35,7 +35,7 @@ describe('useAuth', () => {
     })
 
     expect(result.current.user).toEqual(mockUser)
-    expect(apiClient.getMe).toHaveBeenCalled()
+    expect(apiClient.getMeOrNull).toHaveBeenCalled()
   })
 
   it('should not load user data for public routes', async () => {
@@ -48,7 +48,7 @@ describe('useAuth', () => {
       expect(result.current.isLoading).toBe(false)
     })
 
-    expect(apiClient.getMe).not.toHaveBeenCalled()
+    expect(apiClient.getMeOrNull).not.toHaveBeenCalled()
   })
 
   it('should not load user data for docs routes', async () => {
@@ -61,7 +61,7 @@ describe('useAuth', () => {
       expect(result.current.isLoading).toBe(false)
     })
 
-    expect(apiClient.getMe).not.toHaveBeenCalled()
+    expect(apiClient.getMeOrNull).not.toHaveBeenCalled()
   })
 
   it('should not load user data for share routes', async () => {
@@ -74,11 +74,11 @@ describe('useAuth', () => {
       expect(result.current.isLoading).toBe(false)
     })
 
-    expect(apiClient.getMe).not.toHaveBeenCalled()
+    expect(apiClient.getMeOrNull).not.toHaveBeenCalled()
   })
 
   it('should redirect to login on authentication error', async () => {
-    ;(apiClient.getMe as any).mockRejectedValue(new Error('Unauthorized'))
+    ;(apiClient.getMeOrNull as any).mockResolvedValue(null)
 
     const { result } = renderHook(() => useAuth({ redirectToLogin: true }))
 
@@ -91,7 +91,7 @@ describe('useAuth', () => {
   })
 
   it('should not redirect when redirectToLogin is false', async () => {
-    ;(apiClient.getMe as any).mockRejectedValue(new Error('Unauthorized'))
+    ;(apiClient.getMeOrNull as any).mockResolvedValue(null)
 
     const { result } = renderHook(() => useAuth({ redirectToLogin: false }))
 
@@ -104,7 +104,7 @@ describe('useAuth', () => {
   })
 
   it('should call onAuthError callback on error', async () => {
-    ;(apiClient.getMe as any).mockRejectedValue(new Error('Unauthorized'))
+    ;(apiClient.getMeOrNull as any).mockResolvedValue(null)
     const onAuthError = vi.fn()
 
     const { result } = renderHook(() => useAuth({ onAuthError }))
@@ -118,7 +118,7 @@ describe('useAuth', () => {
 
   it('should refetch user data', async () => {
     const mockUser = { id: 1, username: 'testuser' }
-    ;(apiClient.getMe as any).mockResolvedValue(mockUser)
+    ;(apiClient.getMeOrNull as any).mockResolvedValue(mockUser)
 
     const { result } = renderHook(() => useAuth())
 
@@ -126,7 +126,7 @@ describe('useAuth', () => {
       expect(result.current.isLoading).toBe(false)
     })
 
-    ;(apiClient.getMe as any).mockResolvedValue({ ...mockUser, username: 'updated' })
+    ;(apiClient.getMeOrNull as any).mockResolvedValue({ ...mockUser, username: 'updated' })
 
     await result.current.refetch()
 

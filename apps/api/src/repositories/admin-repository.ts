@@ -1,9 +1,9 @@
 import { and, asc, count, eq, ilike, or, sql } from "drizzle-orm";
 import { withDb } from "../db/pool";
-import { users } from "../db/schema";
+import { authSessions, users } from "../db/schema";
 import type { Bindings } from "../types/bindings";
 
-export type OpsUser = {
+export type AdminUser = {
   id: number;
   username: string;
   email: string;
@@ -25,7 +25,7 @@ const usagePeriodStartText = sql<string | null>`${users.usagePeriodStart}::text`
   "usage_period_start",
 );
 
-const opsUserSelect = {
+const adminUserSelect = {
   id: users.id,
   username: users.username,
   email: users.email,
@@ -59,7 +59,7 @@ function mapUser(r: {
   used_ai_answers: number;
   usage_period_start: string | null;
   is_over_quota: boolean;
-}): OpsUser {
+}): AdminUser {
   return {
     id: Number(r.id),
     username: r.username,
@@ -91,12 +91,12 @@ export async function isSuperuser(env: Bindings, userId: number): Promise<boolea
   });
 }
 
-export async function listOpsUsers(
+export async function listAdminUsers(
   env: Bindings,
   q: string,
   limit: number,
   offset: number,
-): Promise<{ count: number; results: OpsUser[] }> {
+): Promise<{ count: number; results: AdminUser[] }> {
   return withDb(env, async (db) => {
     const whereClause = q
       ? or(ilike(users.username, `%${q}%`), ilike(users.email, `%${q}%`))
@@ -108,7 +108,7 @@ export async function listOpsUsers(
       .where(whereClause);
 
     const rows = await db
-      .select(opsUserSelect)
+      .select(adminUserSelect)
       .from(users)
       .where(whereClause)
       .orderBy(asc(users.id))
@@ -122,13 +122,13 @@ export async function listOpsUsers(
   });
 }
 
-export async function getOpsUser(
+export async function getAdminUser(
   env: Bindings,
   userId: number,
-): Promise<OpsUser | null> {
+): Promise<AdminUser | null> {
   return withDb(env, async (db) => {
     const rows = await db
-      .select(opsUserSelect)
+      .select(adminUserSelect)
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
@@ -151,11 +151,17 @@ export type UsagePatch = {
   is_over_quota?: boolean;
 };
 
-export async function patchOpsUserQuota(
+export type FlagsPatch = {
+  is_active?: boolean;
+  is_staff?: boolean;
+  is_superuser?: boolean;
+};
+
+export async function patchAdminUserQuota(
   env: Bindings,
   userId: number,
   patch: QuotaPatch,
-): Promise<OpsUser | null> {
+): Promise<AdminUser | null> {
   const set: Partial<{
     maxVideoUploadSizeMb: number;
     storageLimitGb: number | null;
@@ -170,23 +176,72 @@ export async function patchOpsUserQuota(
     set.processingLimitMinutes = patch.processing_limit_minutes;
   }
   if (patch.ai_answers_limit !== undefined) set.aiAnswersLimit = patch.ai_answers_limit;
-  if (Object.keys(set).length === 0) return getOpsUser(env, userId);
+  if (Object.keys(set).length === 0) return getAdminUser(env, userId);
 
   return withDb(env, async (db) => {
     const rows = await db
       .update(users)
       .set(set)
       .where(eq(users.id, userId))
-      .returning(opsUserSelect);
+      .returning(adminUserSelect);
     return rows[0] ? mapUser(rows[0]) : null;
   });
 }
 
-export async function patchOpsUserUsage(
+export async function patchAdminUserFlags(
+  env: Bindings,
+  userId: number,
+  patch: FlagsPatch,
+): Promise<AdminUser | null> {
+  const set: Partial<{
+    isActive: boolean;
+    isStaff: boolean;
+    isSuperuser: boolean;
+  }> = {};
+  if (patch.is_active !== undefined) set.isActive = patch.is_active;
+  if (patch.is_staff !== undefined) set.isStaff = patch.is_staff;
+  if (patch.is_superuser !== undefined) set.isSuperuser = patch.is_superuser;
+  if (Object.keys(set).length === 0) return getAdminUser(env, userId);
+
+  return withDb(env, async (db) => {
+    return db.transaction(async (tx) => {
+      const rows = await tx
+        .update(users)
+        .set(set)
+        .where(eq(users.id, userId))
+        .returning(adminUserSelect);
+      const updated = rows[0] ? mapUser(rows[0]) : null;
+      if (updated && patch.is_active === false) {
+        await tx.delete(authSessions).where(eq(authSessions.userId, userId));
+      }
+      return updated;
+    });
+  });
+}
+
+export async function lockUserForHardDelete(
+  env: Bindings,
+  userId: number,
+): Promise<boolean> {
+  return withDb(env, async (db) => {
+    return db.transaction(async (tx) => {
+      const updated = await tx
+        .update(users)
+        .set({ isActive: false })
+        .where(eq(users.id, userId))
+        .returning({ id: users.id });
+      if (updated.length === 0) return false;
+      await tx.delete(authSessions).where(eq(authSessions.userId, userId));
+      return true;
+    });
+  });
+}
+
+export async function patchAdminUserUsage(
   env: Bindings,
   userId: number,
   patch: UsagePatch,
-): Promise<OpsUser | null> {
+): Promise<AdminUser | null> {
   const set: Partial<{
     usedStorageBytes: number;
     usedProcessingSeconds: number;
@@ -201,14 +256,14 @@ export async function patchOpsUserUsage(
   if (patch.used_ai_answers !== undefined) set.usedAiAnswers = patch.used_ai_answers;
   if (patch.usage_period_start !== undefined) set.usagePeriodStart = patch.usage_period_start;
   if (patch.is_over_quota !== undefined) set.isOverQuota = patch.is_over_quota;
-  if (Object.keys(set).length === 0) return getOpsUser(env, userId);
+  if (Object.keys(set).length === 0) return getAdminUser(env, userId);
 
   return withDb(env, async (db) => {
     const rows = await db
       .update(users)
       .set(set)
       .where(eq(users.id, userId))
-      .returning(opsUserSelect);
+      .returning(adminUserSelect);
     return rows[0] ? mapUser(rows[0]) : null;
   });
 }
