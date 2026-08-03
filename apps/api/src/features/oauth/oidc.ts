@@ -141,7 +141,7 @@ function clearSessionCookies(c: Context<AppEnv>) {
   setCookie(c, name, "", {
     path: "/",
     httpOnly: true,
-    sameSite: secure ? "None" : "Lax",
+    sameSite: "Lax",
     secure,
     maxAge: 0,
   });

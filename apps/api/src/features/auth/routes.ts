@@ -57,10 +57,12 @@ function refreshCookieName(c: Context<AppEnv>): string {
 
 function setRefreshCookie(c: Context<AppEnv>, refresh: string): void {
   const secure = c.env.ENVIRONMENT === "production";
+  // Same-origin SPA (/api on videoq.jp): Lax is correct. SameSite=None is for
+  // cross-site cookies and is stricter on mobile Safari / ITP.
   setCookie(c, refreshCookieName(c), refresh, {
     httpOnly: true,
     secure,
-    sameSite: secure ? "None" : "Lax",
+    sameSite: "Lax",
     maxAge: REFRESH_TOKEN_TTL_SECONDS,
     path: "/",
   });
@@ -70,7 +72,7 @@ function clearRefreshCookie(c: Context<AppEnv>): void {
   const secure = c.env.ENVIRONMENT === "production";
   deleteCookie(c, refreshCookieName(c), {
     path: "/",
-    sameSite: secure ? "None" : "Lax",
+    sameSite: "Lax",
     secure,
   });
 }
