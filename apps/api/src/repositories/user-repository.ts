@@ -2,6 +2,7 @@ import { and, eq, ne, sql } from "drizzle-orm";
 import { withDb } from "../db/pool";
 import { users } from "../db/schema";
 import { verifyPassword, hashPassword } from "../lib/password";
+import { resolveSignupQuotaDefaults } from "../shared/signup-quota";
 import type { Bindings } from "../types/bindings";
 
 const lastLoginUtc = sql<string | null>`to_char(${users.lastLogin} AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')`.as(
@@ -205,7 +206,7 @@ export async function emailExists(
 
 /**
  * メール確認前の非アクティブユーザーを作成する。
- * password は make_password でハッシュ化、モデル既定値を明示 INSERT。作成 id を返す。
+ * password はハッシュ化、無料枠デフォルト（env 上書き可）を明示 INSERT。作成 id を返す。
  * username/email の一意制約違反(23505)は現行同様 500（呼び出し側で握らない）。
  */
 export async function createInactiveUser(
@@ -215,7 +216,7 @@ export async function createInactiveUser(
   password: string,
 ): Promise<{ id: number }> {
   const hashed = await hashPassword(password);
-  const maxMb = Number(env.MAX_VIDEO_UPLOAD_SIZE_MB ?? 500) || 500;
+  const quota = resolveSignupQuotaDefaults(env);
   return withDb(env, async (db) => {
     const rows = await db
       .insert(users)
@@ -231,13 +232,13 @@ export async function createInactiveUser(
         dateJoined: sql`CURRENT_TIMESTAMP`,
         email: normalizedEmail,
         deactivatedAt: null,
-        maxVideoUploadSizeMb: maxMb,
+        maxVideoUploadSizeMb: quota.maxVideoUploadSizeMb,
         searchapiApiKeyEncrypted: null,
-        aiAnswersLimit: 0,
+        aiAnswersLimit: quota.aiAnswersLimit,
         isOverQuota: false,
-        processingLimitMinutes: 0,
-        storageLimitGb: 0,
-        usagePeriodStart: null,
+        processingLimitMinutes: quota.processingLimitMinutes,
+        storageLimitGb: quota.storageLimitGb,
+        usagePeriodStart: sql`CURRENT_TIMESTAMP`,
         usedAiAnswers: 0,
         usedProcessingSeconds: 0,
         usedStorageBytes: 0,
