@@ -102,8 +102,8 @@ describe('ApiClient', () => {
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/sessions', expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ username: 'user', password: 'pw' }),
+        credentials: 'include',
       }));
-      expect(fetchMock.mock.calls[0][1]).not.toHaveProperty('credentials');
     });
 
     it('login should retain access token in memory for subsequent API requests', async () => {
@@ -301,8 +301,8 @@ describe('ApiClient', () => {
       expect(result).toEqual(mockKeys);
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/api-keys', expect.objectContaining({
         headers: expect.any(Object),
+        credentials: 'include',
       }));
-      expect(fetchMock.mock.calls[0][1]).not.toHaveProperty('credentials');
     });
 
     it('createIntegrationApiKey should create an api key', async () => {
@@ -353,8 +353,8 @@ describe('ApiClient', () => {
       expect(result).toEqual(mockStatus);
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/searchapi-key', expect.objectContaining({
         headers: expect.any(Object),
+        credentials: 'include',
       }));
-      expect(fetchMock.mock.calls[0][1]).not.toHaveProperty('credentials');
     });
 
     it('saveSearchApiKey should save a key', async () => {
@@ -537,9 +537,11 @@ describe('ApiClient', () => {
       expect(result).toEqual({ id: 1, username: 'custom' });
       expect(customFetch).toHaveBeenCalledWith(
         'https://api.example.test/v1/auth/me',
-        expect.objectContaining({ headers: expect.any(Object) }),
+        expect.objectContaining({
+          headers: expect.any(Object),
+          credentials: 'include',
+        }),
       );
-      expect(customFetch.mock.calls[0][1]).not.toHaveProperty('credentials');
     });
 
     it('setUnauthorizedHandler should update the handler used by later auth failures', async () => {

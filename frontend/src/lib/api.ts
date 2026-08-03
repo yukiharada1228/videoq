@@ -633,6 +633,7 @@ export class ApiClient {
     const body = this.stringifyBody(options.body);
 
     const config: RequestInit = {
+      credentials: 'include',
       ...options,
       body,
       headers,
@@ -749,7 +750,7 @@ export class ApiClient {
   private fetchMe(): Promise<Response> {
     const url = this.buildUrl('/auth/me');
     const headers = this.buildHeaders();
-    return this.fetchFn(url, { headers });
+    return this.fetchFn(url, { headers, credentials: 'include' });
   }
 
   async getMeOrNull(): Promise<User | null> {

@@ -13,7 +13,7 @@ interface UseAuthFormReturn<T> {
   isLoading: boolean;
   setError: (error: string | null) => void;
   handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleSubmit: (e: React.FormEvent) => Promise<void>;
+  handleSubmit: (e: React.FormEvent<HTMLFormElement>) => Promise<void>;
 }
 
 export function useAuthForm<T extends Record<string, unknown>>({
@@ -45,10 +45,22 @@ export function useAuthForm<T extends Record<string, unknown>>({
     updateField(e.target.name as keyof T, e.target.value as T[keyof T]);
   }, [updateField]);
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
-    await submitMutation.mutateAsync(formData);
+    // Prefer DOM values so iOS/Android autofill (which may skip React onChange) still submits.
+    const data = { ...formData };
+    if (e.currentTarget instanceof HTMLFormElement) {
+      const fd = new FormData(e.currentTarget);
+      for (const key of Object.keys(formData) as Array<keyof T>) {
+        const value = fd.get(String(key));
+        if (typeof value === 'string') {
+          data[key] = value as T[keyof T];
+        }
+      }
+      setFormData(data);
+    }
+    await submitMutation.mutateAsync(data);
   }, [submitMutation, formData]);
 
   return {

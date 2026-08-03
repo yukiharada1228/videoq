@@ -44,6 +44,7 @@ describe("POST /api/auth/sessions response contract", () => {
     const cookie = res.headers.get("set-cookie") ?? "";
     expect(cookie).toContain("vq_refresh=opaque-refresh-token");
     expect(cookie).toContain("HttpOnly");
+    expect(cookie.toLowerCase()).toContain("samesite=lax");
     expect(cookie).not.toContain("access_token=");
   });
 });
