@@ -96,7 +96,7 @@ export async function enqueueAccountDeletion(
   userId: number,
 ): Promise<string | null> {
   const r = await enqueue(env, JOB_DELETE_ACCOUNT_DATA, { user_id: userId });
-  return r?.messageId ?? null;
+  return r?.jobId ?? null;
 }
 
 export async function enqueueEvaluateChatLog(

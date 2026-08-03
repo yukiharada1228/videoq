@@ -217,11 +217,6 @@ adminRoutes.openapi(deleteUserRoute, async (c) => {
   if ("forbiddenSuperuser" in res) {
     throw apiForbidden("Cannot delete another superuser.", "CANNOT_DELETE_SUPERUSER");
   }
-  if ("unavailable" in res) {
-    throw apiServiceUnavailable(
-      "Failed to enqueue user deletion job (SQS not configured).",
-    );
-  }
   return c.json({ job_id: res.job_id }, 202);
 });
 
