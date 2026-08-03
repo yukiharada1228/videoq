@@ -272,7 +272,8 @@ export async function deleteUserVideo(
   }
   const fileSize = resolveStorageBytesForRelease(info.fileKey, r2Size);
 
-  await deleteVideoCascade(env, videoId, userId);
+  const deleted = await deleteVideoCascade(env, videoId, userId);
+  if (!deleted) return { notFound: true } as const;
 
   await deleteVideoVectors(env, videoId).catch((error) => {
     reportBestEffortFailure("delete_video_vectors", error);
