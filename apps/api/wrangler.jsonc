@@ -93,7 +93,10 @@
         "PGVECTOR_COLLECTION_NAME": "scene_embeddings",
         "OAUTH_ISSUER_URL": "https://videoq.jp",
         "OIDC_ENABLED": "false",
-        "OIDC_LOGOUT_ENABLED": "false"
+        "OIDC_LOGOUT_ENABLED": "false",
+        "R2_BUCKET_NAME": "videoq-media-prod",
+        "R2_S3_ENDPOINT": "https://12daec56fdba43f677f2766ee26a5a39.r2.cloudflarestorage.com",
+        "R2_S3_REGION": "auto"
       },
       "routes": [
         { "pattern": "videoq.jp/api/*", "zone_name": "videoq.jp" },
