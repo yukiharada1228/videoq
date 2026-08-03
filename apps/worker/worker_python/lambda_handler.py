@@ -16,12 +16,14 @@ import base64
 import json
 import logging
 
+from worker_python.secrets_bootstrap import ensure_secrets_loaded
 from worker_python.tasks.registry import get_task
 
 logger = logging.getLogger(__name__)
 
 
 def handler(event: dict, context: object) -> dict:
+    ensure_secrets_loaded()
     batch_item_failures = []
 
     for record in event.get("Records", []):

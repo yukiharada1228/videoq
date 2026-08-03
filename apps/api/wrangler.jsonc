@@ -6,58 +6,46 @@
  *   - Hyperdrive 経由の Neon 接続（per-request Client）
  *   - R2 バインディング
  *   - 未定義パスは統一された 404
+ *
+ * Deploy production: `npm run deploy` → `--env production`
+ * Local: top-level vars + hyperdrive.localConnectionString / `.dev.vars`
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  // Cloudflare Worker 名（デプロイ ID）。ディレクトリは apps/api。
   "name": "backend-hono",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
 
-  // 非機密の環境変数のみ。機密は `wrangler secret` / `.dev.vars`。
   "vars": {
     "ENVIRONMENT": "development",
-    // ローカルは MinIO（.dev.vars の R2_*）。本番は R2。
     "USE_S3_STORAGE": "true",
-    // CORS 許可オリジン。compose は Caddy :80、直接 Vite は :3000。
     "CORS_ALLOW_ORIGIN": "http://localhost,http://127.0.0.1,http://127.0.0.1:3000,http://localhost:3000",
-    // 認証系メールリンク等。compose 既定は Caddy 経由の http://localhost。
     "FRONTEND_URL": "http://localhost",
     "DEFAULT_FROM_EMAIL": "noreply@videoq.local",
     "MAX_VIDEO_UPLOAD_SIZE_MB": "500",
-    // RAG（ローカル Ollama。compose の api コンテナは docker-dev.sh で host.docker.internal に上書き）。
     "EMBEDDING_PROVIDER": "ollama",
     "EMBEDDING_MODEL": "qwen3-embedding:0.6b",
     "EMBEDDING_VECTOR_SIZE": "1024",
     "OLLAMA_BASE_URL": "http://127.0.0.1:11434",
     "LLM_MODEL": "gpt-4o-mini",
     "PGVECTOR_COLLECTION_NAME": "scene_embeddings",
-    // OAuth AS issuer（公開オリジン）。compose は Caddy :80。
     "OAUTH_ISSUER_URL": "http://localhost",
-    // OIDC endpoint feature switch.
-    // 有効化時は OIDC_RSA_PRIVATE_KEY（secret）と必要なら OIDC_LOGOUT_ENABLED も設定。
     "OIDC_ENABLED": "false",
     "OIDC_LOGOUT_ENABLED": "false"
   },
 
-  // Cloudflare Email Sending（認証系メール）。実配信には送信元ドメインの onboarding が必要:
-  //   npx wrangler email sending enable <onboarded-domain>
-  // その後 DEFAULT_FROM_EMAIL を onboarded ドメインのアドレスにする。
   "send_email": [{ "name": "EMAIL" }],
 
-  // Neon への接続は Hyperdrive 経由。本番は `wrangler hyperdrive create` の id を設定。
-  // dev は localConnectionString（socat 経由のローカル Postgres 等）。id はダミーでよい。
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
-      "id": "REPLACE_WITH_HYPERDRIVE_ID",
+      "id": "d69ecb01a493415197e52552db2990f8",
       "localConnectionString": "postgresql://postgres:postgres@localhost:55432/postgres"
     }
   ],
 
-  // 動画・字幕・サムネイルの R2
   "r2_buckets": [
     {
       "binding": "VIDEO_BUCKET",
@@ -66,26 +54,78 @@
     }
   ],
 
-  // login/signup/chat 等の分散rate limiter。1キー = 1 DO。
   "durable_objects": {
     "bindings": [{ "name": "RATE_LIMITER", "class_name": "RateLimiter" }]
   },
   "migrations": [
-    { "tag": "v1-rate-limiter", "new_classes": ["RateLimiter"] }
+    { "tag": "v1-rate-limiter", "new_sqlite_classes": ["RateLimiter"] }
   ],
 
-  // Studyモードの一時学習者状態（TTL 12h）。
-  // 本番は `wrangler kv namespace create STUDY_SESSION` の id を設定。
   "kv_namespaces": [
     {
       "binding": "STUDY_SESSION",
-      "id": "REPLACE_WITH_STUDY_SESSION_KV_ID",
-      "preview_id": "REPLACE_WITH_STUDY_SESSION_KV_PREVIEW_ID"
+      "id": "5c1b0cca73a24323ac53bddb906396bb",
+      "preview_id": "90b8d2b7260249d1a54eb34d8fb64227"
     }
   ],
 
-  // FR-Q3: status=uploading のまま放置された予約ストレージを解放（毎時 UTC）
   "triggers": {
     "crons": ["0 * * * *"]
+  },
+
+  "env": {
+    "production": {
+      "name": "backend-hono",
+      "workers_dev": true,
+      "vars": {
+        "ENVIRONMENT": "production",
+        "USE_S3_STORAGE": "true",
+        "CORS_ALLOW_ORIGIN": "https://videoq.jp",
+        "FRONTEND_URL": "https://videoq.jp",
+        "DEFAULT_FROM_EMAIL": "noreply@mg.videoq.jp",
+        "MAILGUN_SENDER_DOMAIN": "mg.videoq.jp",
+        "MAX_VIDEO_UPLOAD_SIZE_MB": "500",
+        "EMBEDDING_PROVIDER": "openai",
+        "EMBEDDING_MODEL": "text-embedding-3-small",
+        "EMBEDDING_VECTOR_SIZE": "1536",
+        "OLLAMA_BASE_URL": "",
+        "LLM_MODEL": "gpt-4o-mini",
+        "PGVECTOR_COLLECTION_NAME": "scene_embeddings",
+        "OAUTH_ISSUER_URL": "https://videoq.jp",
+        "OIDC_ENABLED": "false",
+        "OIDC_LOGOUT_ENABLED": "false"
+      },
+      "routes": [
+        { "pattern": "videoq.jp/api/*", "zone_name": "videoq.jp" },
+        { "pattern": "videoq.jp/.well-known/*", "zone_name": "videoq.jp" },
+        { "pattern": "videoq.jp/health", "zone_name": "videoq.jp" },
+        { "pattern": "videoq.jp/ready", "zone_name": "videoq.jp" }
+      ],
+      "send_email": [{ "name": "EMAIL" }],
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": "d69ecb01a493415197e52552db2990f8"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "VIDEO_BUCKET",
+          "bucket_name": "videoq-media-prod"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [{ "name": "RATE_LIMITER", "class_name": "RateLimiter" }]
+      },
+      "kv_namespaces": [
+        {
+          "binding": "STUDY_SESSION",
+          "id": "5c1b0cca73a24323ac53bddb906396bb"
+        }
+      ],
+      "triggers": {
+        "crons": ["0 * * * *"]
+      }
+    }
   }
 }

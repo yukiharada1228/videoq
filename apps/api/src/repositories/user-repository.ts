@@ -417,4 +417,4 @@ export async function authenticateUser(
 }
 
 const DUMMY_PASSWORD_HASH =
-  "vqpw$1$600000$AQEBAQEBAQEBAQEBAQEBAQ$9HOK2mUkCczobmRKp8Y3rLltV4H_6yirxSgk-ChO8gQ";
+  "vqpw$1$100000$AQEBAQEBAQEBAQEBAQEBAQ$RIY27gMo_hsM9E0aOW8ni5W0AiM_fXS_WyAoZdGf8tw";

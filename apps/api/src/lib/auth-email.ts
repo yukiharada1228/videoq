@@ -27,18 +27,56 @@ export function buildEmailChangeLink(
   return `${frontend}/change-email?token=${encodeURIComponent(token)}`;
 }
 
+async function sendViaMailgun(
+  env: Bindings,
+  toEmail: string,
+  subject: string,
+  text: string,
+): Promise<boolean> {
+  const apiKey = env.MAILGUN_API_KEY?.trim();
+  const domain = (env.MAILGUN_SENDER_DOMAIN || "mg.videoq.jp").trim();
+  if (!apiKey) return false;
+
+  const from = env.DEFAULT_FROM_EMAIL ?? `noreply@${domain}`;
+  const body = new URLSearchParams({
+    from: `VideoQ <${from}>`,
+    to: toEmail,
+    subject,
+    text,
+  });
+  const auth = btoa(`api:${apiKey}`);
+  const res = await fetch(`https://api.mailgun.net/v3/${domain}/messages`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${auth}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body,
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Mailgun send failed (${res.status}): ${detail.slice(0, 200)}`);
+  }
+  return true;
+}
+
 async function sendMail(
   env: Bindings,
   toEmail: string,
   subject: string,
   lines: string[],
 ): Promise<void> {
+  const text = lines.join("\n");
+
+  // Prefer Mailgun in production cutover (domain already onboarded for Django).
+  if (await sendViaMailgun(env, toEmail, subject, text)) return;
+
   if (!env.EMAIL) throw new Error("EMAIL binding is not configured");
   await env.EMAIL.send({
     to: toEmail,
     from: { email: env.DEFAULT_FROM_EMAIL ?? FROM_FALLBACK, name: "VideoQ" },
     subject,
-    text: lines.join("\n"),
+    text,
   });
 }
 
@@ -77,10 +115,8 @@ export async function sendEmailChangeConfirmation(
 ): Promise<void> {
   await sendMail(env, pendingEmail, "[VideoQ] メールアドレス変更の確認", [
     "VideoQ のメールアドレス変更リクエストを受け付けました。",
-    "以下のURLをクリックして、新しいメールアドレスへの変更を完了してください。",
+    "以下のURLをクリックして、新しいメールアドレスへの変更を完了させてください。",
     "",
     confirmationLink,
-    "",
-    "もしこのリクエストに心当たりがない場合は、このメールを破棄してください。",
   ]);
 }
