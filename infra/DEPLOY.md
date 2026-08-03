@@ -12,7 +12,7 @@
 ## 1. DB と R2
 
 1. Neon project と pooler connection を作成
-2. Cloudflare Hyperdrive を Neon に接続
+2. Cloudflare Hyperdrive を Neon に接続（**query caching は無効**にする。有効だと DELETE 後も古い SELECT が返り、動画削除などが消えたように見えない）
 3. R2 bucket と S3 API token を作成
 4. `apps/api/wrangler.jsonc` の binding ID / bucket を本番値に設定
 

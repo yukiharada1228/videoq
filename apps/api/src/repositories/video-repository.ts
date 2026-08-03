@@ -453,9 +453,9 @@ export async function deleteVideoCascade(
   env: Bindings,
   videoId: number,
   userId: number,
-): Promise<void> {
+): Promise<boolean> {
   return withDb(env, async (db) => {
-    await db.transaction(async (tx) => {
+    return db.transaction(async (tx) => {
       await tx.execute(sql`SELECT 1 FROM videos WHERE id = ${videoId} FOR UPDATE`);
 
       await tx.execute(sql`
@@ -473,10 +473,14 @@ export async function deleteVideoCascade(
       await tx.delete(plogBuildJobs).where(eq(plogBuildJobs.videoId, videoId));
       await tx.delete(videoTags).where(eq(videoTags.videoId, videoId));
       await tx.delete(videoGroupMembers).where(eq(videoGroupMembers.videoId, videoId));
+      // No FK; remove vector rows so orphan embeddings do not linger.
+      await tx.execute(sql`DELETE FROM scene_embeddings WHERE video_id = ${videoId}`);
 
-      await tx
+      const deleted = await tx
         .delete(videos)
-        .where(and(eq(videos.id, videoId), eq(videos.userId, userId)));
+        .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
+        .returning({ id: videos.id });
+      return deleted.length > 0;
     });
   });
 }
