@@ -44,7 +44,7 @@ const videoWriteGuards = [
 
 const listVideosRoute = createRoute({
   method: "get",
-  path: "/api/videos",
+  path: "/",
   tags: ["Videos"],
   summary: "List videos",
   middleware: [videoAuth] as const,
@@ -56,7 +56,7 @@ const listVideosRoute = createRoute({
 });
 
 videoRoutes.openapi(listVideosRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const query = c.req.valid("query");
   const { limit, offset } = parseLimitOffset(c);
   const { count, results } = await videoService.listUserVideos(
@@ -71,7 +71,7 @@ videoRoutes.openapi(listVideosRoute, async (c) => {
 
 const getVideoRoute = createRoute({
   method: "get",
-  path: "/api/videos/{id}",
+  path: "/{id}",
   tags: ["Videos"],
   summary: "Get video detail",
   middleware: [videoAuth] as const,
@@ -84,7 +84,7 @@ const getVideoRoute = createRoute({
 });
 
 videoRoutes.openapi(getVideoRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { id } = c.req.valid("param");
   const video = await videoService.getUserVideo(c.env, id, userId);
   if (!video) throw apiNotFound("Video not found");
@@ -93,7 +93,7 @@ videoRoutes.openapi(getVideoRoute, async (c) => {
 
 const createVideoRoute = createRoute({
   method: "post",
-  path: "/api/videos",
+  path: "/",
   tags: ["Videos"],
   summary: "Upload a video",
   middleware: [...videoWriteGuards] as const,
@@ -114,7 +114,7 @@ const createVideoRoute = createRoute({
 videoRoutes.openapi(createVideoRoute, async (c) => {
   const res = await videoService.createVideoFromMultipart(
     c.env,
-    c.get("userId")!,
+    c.var.userId!,
     c.req.valid("form") as Record<string, string | File>,
   );
   if (!res.ok) {
@@ -125,7 +125,7 @@ videoRoutes.openapi(createVideoRoute, async (c) => {
 
 const requestUploadRoute = createRoute({
   method: "post",
-  path: "/api/videos/uploads",
+  path: "/uploads",
   tags: ["Videos"],
   summary: "Request presigned upload URL",
   middleware: [...videoWriteGuards] as const,
@@ -143,7 +143,7 @@ const requestUploadRoute = createRoute({
 });
 
 videoRoutes.openapi(requestUploadRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const body = c.req.valid("json");
   const res = await videoService.requestPresignedUpload(c.env, userId, body);
   if ("fieldError" in res && res.fieldError) {
@@ -172,7 +172,7 @@ videoRoutes.openapi(requestUploadRoute, async (c) => {
 
 const createYoutubeRoute = createRoute({
   method: "post",
-  path: "/api/videos/youtube",
+  path: "/youtube",
   tags: ["Videos"],
   summary: "Register a YouTube video",
   middleware: [...videoWriteGuards] as const,
@@ -190,7 +190,7 @@ const createYoutubeRoute = createRoute({
 });
 
 videoRoutes.openapi(createYoutubeRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const body = c.req.valid("json");
   const res = await videoService.createUserYoutubeVideo(c.env, userId, body);
   if ("fieldError" in res && res.fieldError) {
@@ -201,7 +201,7 @@ videoRoutes.openapi(createYoutubeRoute, async (c) => {
 
 const patchVideoRoute = createRoute({
   method: "patch",
-  path: "/api/videos/{id}",
+  path: "/{id}",
   tags: ["Videos"],
   summary: "Patch video (or confirm upload)",
   middleware: [...videoWriteGuards] as const,
@@ -220,7 +220,7 @@ const patchVideoRoute = createRoute({
 });
 
 videoRoutes.openapi(patchVideoRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { id } = c.req.valid("param");
   const body = c.req.valid("json");
 
@@ -246,7 +246,7 @@ videoRoutes.openapi(patchVideoRoute, async (c) => {
 
 const putVideoRoute = createRoute({
   method: "put",
-  path: "/api/videos/{id}",
+  path: "/{id}",
   tags: ["Videos"],
   summary: "Replace video metadata",
   middleware: [...videoWriteGuards] as const,
@@ -265,7 +265,7 @@ const putVideoRoute = createRoute({
 });
 
 videoRoutes.openapi(putVideoRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { id } = c.req.valid("param");
   const body = c.req.valid("json");
 
@@ -279,7 +279,7 @@ videoRoutes.openapi(putVideoRoute, async (c) => {
 
 const deleteVideoRoute = createRoute({
   method: "delete",
-  path: "/api/videos/{id}",
+  path: "/{id}",
   tags: ["Videos"],
   summary: "Delete video",
   middleware: [...videoWriteGuards] as const,
@@ -291,7 +291,7 @@ const deleteVideoRoute = createRoute({
 });
 
 videoRoutes.openapi(deleteVideoRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { id } = c.req.valid("param");
   const res = await videoService.deleteUserVideo(c.env, id, userId);
   if ("notFound" in res) throw apiNotFound("Video not found");

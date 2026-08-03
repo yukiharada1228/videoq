@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { oauthRoutes } from "../src/features/oauth/routes";
+import {
+  oauthRoutes,
+  oauthWellKnownRoutes,
+} from "../src/features/oauth/routes";
 import { DCR_REGISTRATION_SCOPE } from "../src/lib/oauth";
 
 import { executeFakePgQuery, type MatchableSql, type PgQueryInput } from "./helpers/pg-fake";
@@ -52,9 +55,9 @@ beforeEach(() => {
 });
 
 describe("OAuth metadata prefix alias", () => {
-  it("/api/oauth/.well-known/oauth-authorization-server も 200（root と同一内容）", async () => {
-    const res = await oauthRoutes.request(
-      "/api/oauth/.well-known/oauth-authorization-server",
+  it("/.well-known/oauth-authorization-server も 200（root と同一内容）", async () => {
+    const res = await oauthWellKnownRoutes.request(
+      "/.well-known/oauth-authorization-server",
       {},
       ENV,
     );
@@ -68,7 +71,7 @@ describe("OAuth metadata prefix alias", () => {
 describe("DCR management (RFC 7592)", () => {
   it("DELETE 認証なし → 401 invalid_token", async () => {
     const res = await oauthRoutes.request(
-      "/api/oauth/register/client-abc",
+      "/register/client-abc",
       { method: "DELETE" },
       ENV,
     );
@@ -79,7 +82,7 @@ describe("DCR management (RFC 7592)", () => {
   it("DELETE 有効トークン → 204", async () => {
     rowsFor = (sql) => (/JOIN oauth_applications/.test(sql) ? [regRow] : []);
     const res = await oauthRoutes.request(
-      "/api/oauth/register/client-abc",
+      "/register/client-abc",
       { method: "DELETE", headers: { Authorization: "Bearer old-reg-token" } },
       ENV,
     );
@@ -89,7 +92,7 @@ describe("DCR management (RFC 7592)", () => {
   it("PUT 有効トークン + メタデータ → 200 + 新しい registration_access_token", async () => {
     rowsFor = (sql) => (/JOIN oauth_applications/.test(sql) ? [regRow] : []);
     const res = await oauthRoutes.request(
-      "/api/oauth/register/client-abc",
+      "/register/client-abc",
       {
         method: "PUT",
         headers: { Authorization: "Bearer old-reg-token", "content-type": "application/json" },
@@ -109,7 +112,7 @@ describe("DCR management (RFC 7592)", () => {
   it("PUT 不正メタデータ（redirect_uris 非配列）→ 400", async () => {
     rowsFor = (sql) => (/JOIN oauth_applications/.test(sql) ? [regRow] : []);
     const res = await oauthRoutes.request(
-      "/api/oauth/register/client-abc",
+      "/register/client-abc",
       {
         method: "PUT",
         headers: { Authorization: "Bearer old-reg-token", "content-type": "application/json" },

@@ -43,7 +43,7 @@ beforeEach(() => {
 describe("JWT sid session binding", () => {
   it("失効済み sid の access JWT は 401", async () => {
     const token = await signAccessToken(SECRET, 5, "videoq", "revoked-session");
-    const res = await authRoutes.request("/api/auth/me", {
+    const res = await authRoutes.request("/me", {
       headers: { authorization: `Bearer ${token}` },
     }, ENV);
     expect(res.status).toBe(401);
@@ -70,7 +70,7 @@ describe("JWT sid session binding", () => {
     };
     const token = await signAccessToken(SECRET, 5, "videoq", "live-session");
     // 認証後のバリデーションまで到達すれば sid チェックは成功している。
-    const res = await authRoutes.request("/api/auth/me/email", {
+    const res = await authRoutes.request("/me/email", {
       method: "PATCH",
       headers: {
         authorization: `Bearer ${token}`,
@@ -93,7 +93,7 @@ describe("credential change revokes sessions and OAuth", () => {
       }
       return [];
     };
-    const res = await authRoutes.request("/api/auth/password-resets/opaque-token", {
+    const res = await authRoutes.request("/password-resets/opaque-token", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ new_password: "CorrectHorseBattery1!" }),
@@ -135,7 +135,7 @@ describe("credential change revokes sessions and OAuth", () => {
       }
       return [];
     };
-    const res = await authRoutes.request("/api/auth/email-change/opaque-token", {
+    const res = await authRoutes.request("/email-change/opaque-token", {
       method: "PATCH",
     }, ENV);
     expect(res.status).toBe(200);

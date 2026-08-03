@@ -29,7 +29,7 @@ const evalAuth = requireAuth(apiKeyMethod, jwtMethod);
 
 const summaryRoute = createRoute({
   method: "get",
-  path: "/api/evaluation/groups/{groupId}/summary",
+  path: "/groups/{groupId}/summary",
   tags: ["Evaluation"],
   summary: "Group evaluation summary",
   middleware: [evalAuth] as const,
@@ -46,7 +46,7 @@ evaluationRoutes.openapi(summaryRoute, async (c) => {
   const res = await evaluationService.summaryForGroup(
     c.env,
     groupId,
-    c.get("userId")!,
+    c.var.userId!,
   );
   if ("notFound" in res) throw apiNotFound("Group not found");
   return c.json(res, 200);
@@ -54,7 +54,7 @@ evaluationRoutes.openapi(summaryRoute, async (c) => {
 
 const logsRoute = createRoute({
   method: "get",
-  path: "/api/evaluation/groups/{groupId}/logs",
+  path: "/groups/{groupId}/logs",
   tags: ["Evaluation"],
   summary: "Group evaluation logs",
   middleware: [evalAuth] as const,
@@ -75,7 +75,7 @@ evaluationRoutes.openapi(logsRoute, async (c) => {
   const res = await evaluationService.logsForGroup(
     c.env,
     groupId,
-    c.get("userId")!,
+    c.var.userId!,
     limit,
     offset,
   );

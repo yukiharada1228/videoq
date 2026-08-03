@@ -98,7 +98,7 @@ const passwordResetThrottle = createMiddleware<AppEnv>(async (c, next) => {
 });
 
 const emailChangeThrottle = createMiddleware<AppEnv>(async (c, next) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const denied = await enforceThrottles(c.env, [
     { scope: "email_change_user", ident: String(userId) },
   ]);
@@ -120,7 +120,7 @@ async function enforceValidatedIdentity(
 // --- Sessions ---
 const loginRoute = createRoute({
   method: "post",
-  path: "/api/auth/sessions",
+  path: "/sessions",
   tags: ["Auth"],
   summary: "Login and create a rotating refresh session",
   middleware: [requireJson, loginThrottle] as const,
@@ -158,7 +158,7 @@ authRoutes.openapi(loginRoute, async (c) => {
 
 const logoutRoute = createRoute({
   method: "delete",
-  path: "/api/auth/sessions",
+  path: "/sessions",
   tags: ["Auth"],
   summary: "Revoke refresh session",
   middleware: [requireTrustedOrigin] as const,
@@ -172,7 +172,7 @@ authRoutes.openapi(logoutRoute, async (c) => {
 
 const refreshRoute = createRoute({
   method: "post",
-  path: "/api/auth/tokens",
+  path: "/tokens",
   tags: ["Auth"],
   summary: "Rotate tokens from refresh cookie",
   middleware: [requireTrustedOrigin] as const,
@@ -202,7 +202,7 @@ authRoutes.openapi(refreshRoute, async (c) => {
 // --- Email verification ---
 const verifyEmailRoute = createRoute({
   method: "patch",
-  path: "/api/auth/email-verifications/{token}",
+  path: "/email-verifications/{token}",
   tags: ["Auth"],
   summary: "Verify email",
   request: { params: actionTokenParamSchema },
@@ -224,7 +224,7 @@ authRoutes.openapi(verifyEmailRoute, async (c) => {
 // --- Password reset ---
 const requestPasswordResetRoute = createRoute({
   method: "post",
-  path: "/api/auth/password-resets",
+  path: "/password-resets",
   tags: ["Auth"],
   summary: "Request password reset email",
   middleware: [passwordResetThrottle] as const,
@@ -258,7 +258,7 @@ authRoutes.openapi(requestPasswordResetRoute, async (c) => {
 
 const confirmPasswordResetRoute = createRoute({
   method: "patch",
-  path: "/api/auth/password-resets/{token}",
+  path: "/password-resets/{token}",
   tags: ["Auth"],
   summary: "Confirm password reset",
   request: {
@@ -297,7 +297,7 @@ authRoutes.openapi(confirmPasswordResetRoute, async (c) => {
 // --- Email change ---
 const requestEmailChangeRoute = createRoute({
   method: "patch",
-  path: "/api/auth/me/email",
+  path: "/me/email",
   tags: ["Auth"],
   summary: "Request email change",
   middleware: [jwtOnly, emailChangeThrottle] as const,
@@ -320,7 +320,7 @@ authRoutes.openapi(requestEmailChangeRoute, async (c) => {
   if (throttled) return throttled;
   const res = await authService.requestEmailChange(
     c.env,
-    c.get("userId")!,
+    c.var.userId!,
     email,
   );
   if (!res.ok) {
@@ -348,7 +348,7 @@ authRoutes.openapi(requestEmailChangeRoute, async (c) => {
 
 const confirmEmailChangeRoute = createRoute({
   method: "patch",
-  path: "/api/auth/email-change/{token}",
+  path: "/email-change/{token}",
   tags: ["Auth"],
   summary: "Confirm email change",
   request: { params: actionTokenParamSchema },
@@ -367,7 +367,7 @@ authRoutes.openapi(confirmEmailChangeRoute, async (c) => {
 // --- Signup ---
 const signupRoute = createRoute({
   method: "post",
-  path: "/api/auth/users",
+  path: "/users",
   tags: ["Auth"],
   summary: "Sign up",
   middleware: [requireJson, signupThrottle] as const,
@@ -409,7 +409,7 @@ authRoutes.openapi(signupRoute, async (c) => {
 // --- API keys ---
 const listApiKeysRoute = createRoute({
   method: "get",
-  path: "/api/auth/api-keys",
+  path: "/api-keys",
   tags: ["Auth"],
   summary: "List API keys",
   middleware: [jwtOnly] as const,
@@ -419,12 +419,12 @@ const listApiKeysRoute = createRoute({
   },
 });
 authRoutes.openapi(listApiKeysRoute, async (c) => {
-  return c.json(await authService.listUserApiKeys(c.env, c.get("userId")!), 200);
+  return c.json(await authService.listUserApiKeys(c.env, c.var.userId!), 200);
 });
 
 const createApiKeyRoute = createRoute({
   method: "post",
-  path: "/api/auth/api-keys",
+  path: "/api-keys",
   tags: ["Auth"],
   summary: "Create API key",
   middleware: [jwtOnly] as const,
@@ -444,7 +444,7 @@ authRoutes.openapi(createApiKeyRoute, async (c) => {
   const { name, access_level } = c.req.valid("json");
   const res = await authService.createUserApiKey(
     c.env,
-    c.get("userId")!,
+    c.var.userId!,
     name,
     access_level,
   );
@@ -454,7 +454,7 @@ authRoutes.openapi(createApiKeyRoute, async (c) => {
 
 const revokeApiKeyRoute = createRoute({
   method: "delete",
-  path: "/api/auth/api-keys/{id}",
+  path: "/api-keys/{id}",
   tags: ["Auth"],
   summary: "Revoke API key",
   middleware: [jwtOnly] as const,
@@ -467,7 +467,7 @@ const revokeApiKeyRoute = createRoute({
 });
 authRoutes.openapi(revokeApiKeyRoute, async (c) => {
   const { id } = c.req.valid("param");
-  const ok = await authService.revokeUserApiKey(c.env, c.get("userId")!, id);
+  const ok = await authService.revokeUserApiKey(c.env, c.var.userId!, id);
   if (!ok) return apiError(c, 404, "API key not found");
   return c.body(null, 204);
 });
@@ -475,7 +475,7 @@ authRoutes.openapi(revokeApiKeyRoute, async (c) => {
 // --- SearchAPI key ---
 const searchApiKeyStatusRoute = createRoute({
   method: "get",
-  path: "/api/auth/searchapi-key",
+  path: "/searchapi-key",
   tags: ["Auth"],
   summary: "SearchAPI key status",
   middleware: [jwtOnly] as const,
@@ -486,14 +486,14 @@ const searchApiKeyStatusRoute = createRoute({
 });
 authRoutes.openapi(searchApiKeyStatusRoute, async (c) => {
   return c.json(
-    await authService.searchApiKeyStatus(c.env, c.get("userId")!),
+    await authService.searchApiKeyStatus(c.env, c.var.userId!),
     200,
   );
 });
 
 const saveSearchApiKeyRoute = createRoute({
   method: "put",
-  path: "/api/auth/searchapi-key",
+  path: "/searchapi-key",
   tags: ["Auth"],
   summary: "Save SearchAPI key",
   middleware: [jwtOnly] as const,
@@ -513,7 +513,7 @@ authRoutes.openapi(saveSearchApiKeyRoute, async (c) => {
   const { api_key } = c.req.valid("json");
   const res = await authService.saveUserSearchApiKey(
     c.env,
-    c.get("userId")!,
+    c.var.userId!,
     api_key,
   );
   if (!res.ok) {
@@ -527,7 +527,7 @@ authRoutes.openapi(saveSearchApiKeyRoute, async (c) => {
 
 const removeSearchApiKeyRoute = createRoute({
   method: "delete",
-  path: "/api/auth/searchapi-key",
+  path: "/searchapi-key",
   tags: ["Auth"],
   summary: "Delete SearchAPI key",
   middleware: [jwtOnly] as const,
@@ -537,7 +537,7 @@ const removeSearchApiKeyRoute = createRoute({
   },
 });
 authRoutes.openapi(removeSearchApiKeyRoute, async (c) => {
-  const ok = await authService.removeUserSearchApiKey(c.env, c.get("userId")!);
+  const ok = await authService.removeUserSearchApiKey(c.env, c.var.userId!);
   if (!ok) return apiError(c, 404, "User not found", "NOT_FOUND");
   return c.json({ message: "SearchAPI API key deleted." }, 200);
 });
@@ -545,7 +545,7 @@ authRoutes.openapi(removeSearchApiKeyRoute, async (c) => {
 // --- Me ---
 const meRoute = createRoute({
   method: "get",
-  path: "/api/auth/me",
+  path: "/me",
   tags: ["Auth"],
   summary: "Current user",
   middleware: [meAuth] as const,
@@ -556,7 +556,7 @@ const meRoute = createRoute({
   },
 });
 authRoutes.openapi(meRoute, async (c) => {
-  const user = await authService.getMe(c.env, c.get("userId")!);
+  const user = await authService.getMe(c.env, c.var.userId!);
   if (!user) return c.json(toErrorBody("NOT_FOUND", "Not found."), 404);
   return c.json({ data: user }, 200);
 });

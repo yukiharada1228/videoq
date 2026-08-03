@@ -10,7 +10,7 @@ const ENV = {
 
 function post(body: string, ct = "application/json") {
   return authRoutes.request(
-    "/api/auth/users",
+    "/users",
     { method: "POST", headers: ct ? { "content-type": ct } : {}, body },
     ENV,
   );

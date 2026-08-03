@@ -33,7 +33,7 @@ const writeGuards = [
 
 const addTagsRoute = createRoute({
   method: "post",
-  path: "/api/videos/{videoId}/tags",
+  path: "/{videoId}/tags",
   tags: ["Membership"],
   summary: "Attach tags to a video",
   middleware: [...writeGuards] as const,
@@ -52,7 +52,7 @@ const addTagsRoute = createRoute({
 });
 
 membershipRoutes.openapi(addTagsRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { videoId } = c.req.valid("param");
   const { tag_ids } = c.req.valid("json");
   const res = await membershipService.addTagsToVideo(
@@ -74,7 +74,7 @@ membershipRoutes.openapi(addTagsRoute, async (c) => {
 
 const removeTagRoute = createRoute({
   method: "delete",
-  path: "/api/videos/{videoId}/tags/{tagId}",
+  path: "/{videoId}/tags/{tagId}",
   tags: ["Membership"],
   summary: "Detach a tag from a video",
   middleware: [...writeGuards] as const,
@@ -86,7 +86,7 @@ const removeTagRoute = createRoute({
 });
 
 membershipRoutes.openapi(removeTagRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { videoId, tagId } = c.req.valid("param");
   const res = await membershipService.removeTagFromVideo(
     c.env,
@@ -100,7 +100,7 @@ membershipRoutes.openapi(removeTagRoute, async (c) => {
 
 const reorderVideosRoute = createRoute({
   method: "patch",
-  path: "/api/videos/groups/{groupId}/videos/order",
+  path: "/groups/{groupId}/videos/order",
   tags: ["Membership"],
   summary: "Reorder videos in a group",
   middleware: [...writeGuards] as const,
@@ -119,7 +119,7 @@ const reorderVideosRoute = createRoute({
 });
 
 membershipRoutes.openapi(reorderVideosRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { groupId } = c.req.valid("param");
   const { video_ids } = c.req.valid("json");
   const res = await membershipService.reorderGroupVideos(
@@ -135,7 +135,7 @@ membershipRoutes.openapi(reorderVideosRoute, async (c) => {
 
 const addVideosBulkRoute = createRoute({
   method: "post",
-  path: "/api/videos/groups/{groupId}/videos",
+  path: "/groups/{groupId}/videos",
   tags: ["Membership"],
   summary: "Add videos to a group (bulk)",
   middleware: [...writeGuards] as const,
@@ -154,7 +154,7 @@ const addVideosBulkRoute = createRoute({
 });
 
 membershipRoutes.openapi(addVideosBulkRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { groupId } = c.req.valid("param");
   const { video_ids } = c.req.valid("json");
   const res = await membershipService.addVideosToGroupBulk(
@@ -176,7 +176,7 @@ membershipRoutes.openapi(addVideosBulkRoute, async (c) => {
 
 const addVideoRoute = createRoute({
   method: "post",
-  path: "/api/videos/groups/{groupId}/videos/{videoId}",
+  path: "/groups/{groupId}/videos/{videoId}",
   tags: ["Membership"],
   summary: "Add a single video to a group",
   middleware: [...writeGuards] as const,
@@ -189,7 +189,7 @@ const addVideoRoute = createRoute({
 });
 
 membershipRoutes.openapi(addVideoRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { groupId, videoId } = c.req.valid("param");
   const res = await membershipService.addVideoToGroupOne(
     c.env,
@@ -204,7 +204,7 @@ membershipRoutes.openapi(addVideoRoute, async (c) => {
 
 const removeVideoRoute = createRoute({
   method: "delete",
-  path: "/api/videos/groups/{groupId}/videos/{videoId}",
+  path: "/groups/{groupId}/videos/{videoId}",
   tags: ["Membership"],
   summary: "Remove a video from a group",
   middleware: [...writeGuards] as const,
@@ -216,7 +216,7 @@ const removeVideoRoute = createRoute({
 });
 
 membershipRoutes.openapi(removeVideoRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { groupId, videoId } = c.req.valid("param");
   const res = await membershipService.removeVideoFromGroupOne(
     c.env,

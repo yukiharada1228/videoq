@@ -34,7 +34,7 @@ import type { AppEnv } from "../../types/bindings";
 export const adminRoutes = createFeatureRouter();
 
 const requireSuperuser = createMiddleware<AppEnv>(async (c, next) => {
-  const userId = c.get("userId");
+  const userId = c.var.userId;
   if (userId == null) {
     return c.json(
       toErrorBody("UNAUTHORIZED", "Authentication credentials were not provided."),
@@ -57,7 +57,7 @@ const adminGuards = [
 
 const listUsersRoute = createRoute({
   method: "get",
-  path: "/api/admin/users",
+  path: "/users",
   tags: ["Admin"],
   summary: "List users (superuser)",
   middleware: [...adminGuards] as const,
@@ -83,7 +83,7 @@ adminRoutes.openapi(listUsersRoute, async (c) => {
 
 const getUserRoute = createRoute({
   method: "get",
-  path: "/api/admin/users/{id}",
+  path: "/users/{id}",
   tags: ["Admin"],
   summary: "Get user (superuser)",
   middleware: [...adminGuards] as const,
@@ -103,7 +103,7 @@ adminRoutes.openapi(getUserRoute, async (c) => {
 
 const patchQuotaRoute = createRoute({
   method: "patch",
-  path: "/api/admin/users/{id}/quota",
+  path: "/users/{id}/quota",
   tags: ["Admin"],
   summary: "Patch user quota",
   middleware: [...adminGuards] as const,
@@ -130,7 +130,7 @@ adminRoutes.openapi(patchQuotaRoute, async (c) => {
 
 const patchUsageRoute = createRoute({
   method: "patch",
-  path: "/api/admin/users/{id}/usage",
+  path: "/users/{id}/usage",
   tags: ["Admin"],
   summary: "Patch user usage counters",
   middleware: [...adminGuards] as const,
@@ -157,7 +157,7 @@ adminRoutes.openapi(patchUsageRoute, async (c) => {
 
 const patchFlagsRoute = createRoute({
   method: "patch",
-  path: "/api/admin/users/{id}/flags",
+  path: "/users/{id}/flags",
   tags: ["Admin"],
   summary: "Patch user flags",
   middleware: [...adminGuards] as const,
@@ -178,7 +178,7 @@ const patchFlagsRoute = createRoute({
 adminRoutes.openapi(patchFlagsRoute, async (c) => {
   const { id } = c.req.valid("param");
   const body = c.req.valid("json");
-  const res = await adminService.patchFlags(c.env, c.get("userId")!, id, body);
+  const res = await adminService.patchFlags(c.env, c.var.userId!, id, body);
   if ("notFound" in res) throw apiNotFound("User not found");
   if ("selfLockout" in res) {
     throw apiBadRequest(
@@ -191,7 +191,7 @@ adminRoutes.openapi(patchFlagsRoute, async (c) => {
 
 const deleteUserRoute = createRoute({
   method: "delete",
-  path: "/api/admin/users/{id}",
+  path: "/users/{id}",
   tags: ["Admin"],
   summary: "Hard-delete user (superuser)",
   middleware: [...adminGuards] as const,
@@ -209,7 +209,7 @@ const deleteUserRoute = createRoute({
 
 adminRoutes.openapi(deleteUserRoute, async (c) => {
   const { id } = c.req.valid("param");
-  const res = await adminService.deleteUser(c.env, c.get("userId")!, id);
+  const res = await adminService.deleteUser(c.env, c.var.userId!, id);
   if ("self" in res) {
     throw apiBadRequest("Cannot delete your own account via Admin.", "CANNOT_DELETE_SELF");
   }
@@ -222,7 +222,7 @@ adminRoutes.openapi(deleteUserRoute, async (c) => {
 
 const reindexRoute = createRoute({
   method: "post",
-  path: "/api/admin/embeddings/reindex-all",
+  path: "/embeddings/reindex-all",
   tags: ["Admin"],
   summary: "Enqueue full embedding reindex",
   middleware: [...adminGuards] as const,

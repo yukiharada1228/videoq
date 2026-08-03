@@ -1,10 +1,10 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { chatRoutes } from "../src/features/chat/routes";
+import { chatCompletionsRoutes } from "../src/features/chat/routes";
 import { openAiCompletionBodySchema } from "../src/features/chat/schemas";
 import { signAccessToken } from "./helpers/auth";
 
 /**
- * OpenAI 互換 POST /api/v1/chat/completions（OpenAIChatCompletionsView）。
+ * OpenAI 互換 POST /completions（OpenAIChatCompletionsView）。
  * 認証は Bearer <API キー> / ApiKey / JWT の順、共有アクセスは無し。
  */
 import {
@@ -75,8 +75,8 @@ async function accessToken(userId = 5) {
 }
 
 const post = (body: unknown, headers: Record<string, string> = {}) =>
-  chatRoutes.request(
-    "/api/v1/chat/completions",
+  chatCompletionsRoutes.request(
+    "/completions",
     {
       method: "POST",
       headers: { "content-type": "application/json", ...headers },
@@ -104,7 +104,7 @@ function stubOpenAi(content = "Answer [1].") {
   return requests;
 }
 
-describe("POST /api/v1/chat/completions", () => {
+describe("POST /completions", () => {
   it("認証なしは 401", async () => {
     const res = await post({ messages: [{ role: "user", content: "hi" }] });
     expect(res.status).toBe(401);
@@ -267,8 +267,8 @@ describe("POST /api/v1/chat/completions", () => {
 
   it("LLM キー未設定は 400 invalid_request_error、プロバイダ障害は 500 api_error", async () => {
     vi.stubGlobal("fetch", async () => new Response("boom", { status: 500 }));
-    const res = await chatRoutes.request(
-      "/api/v1/chat/completions",
+    const res = await chatCompletionsRoutes.request(
+      "/completions",
       {
         method: "POST",
         headers: {
@@ -285,8 +285,8 @@ describe("POST /api/v1/chat/completions", () => {
     // 上流のレスポンス本文は伏せる（ChatView と同じ扱い）
     expect(body.error.message).toBe("An internal server error occurred.");
 
-    const noKey = await chatRoutes.request(
-      "/api/v1/chat/completions",
+    const noKey = await chatCompletionsRoutes.request(
+      "/completions",
       {
         method: "POST",
         headers: {
@@ -311,8 +311,8 @@ describe("POST /api/v1/chat/completions", () => {
 
   it("末尾スラッシュ無しパスを正とする（Phase 3）", async () => {
     stubOpenAi();
-    const res = await chatRoutes.request(
-      "/api/v1/chat/completions",
+    const res = await chatCompletionsRoutes.request(
+      "/completions",
       {
         method: "POST",
         headers: {

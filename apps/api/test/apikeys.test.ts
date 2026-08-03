@@ -32,12 +32,12 @@ async function accessToken(userId = 5) {
 async function postCreate(body: string, token?: string) {
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (token) headers["authorization"] = `Bearer ${token}`;
-  return authRoutes.request("/api/auth/api-keys", { method: "POST", headers, body }, ENV);
+  return authRoutes.request("/api-keys", { method: "POST", headers, body }, ENV);
 }
 
 describe("api-keys management", () => {
   it("GET /api-keys 認証なし → 401", async () => {
-    const res = await authRoutes.request("/api/auth/api-keys", { method: "GET" }, ENV);
+    const res = await authRoutes.request("/api-keys", { method: "GET" }, ENV);
     expect(res.status).toBe(401);
   });
 

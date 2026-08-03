@@ -1,12 +1,14 @@
-import { createApp } from "./app";
+import { createApp, type AppType } from "./app";
 import { reconcileAbandonedUploads } from "./lib/upload-reconcile";
 import type { Bindings } from "./types/bindings";
+
+export type { AppType };
 
 // Cloudflare Workers のエントリ（fetch + scheduled）。
 const app = createApp();
 
 export default {
-  fetch: app.fetch.bind(app),
+  fetch: app.fetch,
   async scheduled(
     _controller: ScheduledController,
     env: Bindings,

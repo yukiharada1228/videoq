@@ -156,16 +156,16 @@ const sseEvents = (text: string) =>
     .filter((f) => f.startsWith("data: "))
     .map((f) => JSON.parse(f.slice(6)));
 
-describe("POST /api/chat/messages（非ストリーミング）", () => {
+describe("POST /messages（非ストリーミング）", () => {
   it("認証なしは 401", async () => {
-    const res = await post("/api/chat/messages", {
+    const res = await post("/messages", {
       messages: [{ role: "user", content: "hi" }],
     });
     expect(res.status).toBe(401);
   });
 
   it("バリデーション失敗は {error:{code,message,details}}", async () => {
-    const res = await post("/api/chat/messages", {}, { token: await accessToken() });
+    const res = await post("/messages", {}, { token: await accessToken() });
     expect(res.status).toBe(400);
     const j = await res.json();
     expect(j.error.code).toBe("VALIDATION_ERROR");
@@ -173,7 +173,7 @@ describe("POST /api/chat/messages（非ストリーミング）", () => {
   });
 
   it("messages が空配列なら 400（Zod min(1)）", async () => {
-    const res = await post("/api/chat/messages", { messages: [] }, { token: await accessToken() });
+    const res = await post("/messages", { messages: [] }, { token: await accessToken() });
     expect(res.status).toBe(400);
     const j = await res.json();
     expect(j.error.code).toBe("VALIDATION_ERROR");
@@ -191,7 +191,7 @@ describe("POST /api/chat/messages（非ストリーミング）", () => {
       put: async () => {},
     };
     const res = await post(
-      "/api/chat/messages",
+      "/messages",
       {
         messages: [{ role: "user", content: "hi" }],
         group_id: 3,
@@ -215,7 +215,7 @@ describe("POST /api/chat/messages（非ストリーミング）", () => {
   it("group_id ありで RAG → citations / chat_log_id を返し、利用量を記録する", async () => {
     const requests = stubOpenAi({});
     const res = await post(
-      "/api/chat/messages",
+      "/messages",
       { messages: [{ role: "user", content: "何が起きた?" }], group_id: 3 },
       {
         token: await accessToken(),
@@ -282,7 +282,7 @@ describe("POST /api/chat/messages（非ストリーミング）", () => {
   it("グループが解決できなければ 404", async () => {
     rowsFor = (sql) => (sql.includes("video_groups") ? [] : defaultRows(sql));
     const res = await post(
-      "/api/chat/messages",
+      "/messages",
       { messages: [{ role: "user", content: "hi" }], group_id: 3 },
       { token: await accessToken(), env: OPENAI_ENV },
     );
@@ -298,7 +298,7 @@ describe("POST /api/chat/messages（非ストリーミング）", () => {
         ? [{ is_over_quota: false, ai_answers_limit: 100, used_ai_answers: 100 }]
         : defaultRows(sql);
     const res = await post(
-      "/api/chat/messages",
+      "/messages",
       { messages: [{ role: "user", content: "hi" }] },
       { token: await accessToken(), env: OPENAI_ENV },
     );
@@ -317,7 +317,7 @@ describe("POST /api/chat/messages（非ストリーミング）", () => {
         ? [{ isOverQuota: true, aiAnswersLimit: null, usedAiAnswers: 0 }]
         : defaultRows(sql);
     const res = await post(
-      "/api/chat/messages",
+      "/messages",
       { messages: [{ role: "user", content: "hi" }] },
       { token: await accessToken(), env: OPENAI_ENV },
     );
@@ -333,7 +333,7 @@ describe("POST /api/chat/messages（非ストリーミング）", () => {
   it("LLM プロバイダ障害は 500 でメッセージをマスクする", async () => {
     vi.stubGlobal("fetch", async () => new Response("upstream boom", { status: 503 }));
     const res = await post(
-      "/api/chat/messages",
+      "/messages",
       { messages: [{ role: "user", content: "hi" }] },
       { token: await accessToken(), env: OPENAI_ENV },
     );
@@ -346,7 +346,7 @@ describe("POST /api/chat/messages（非ストリーミング）", () => {
   it("共有アクセス（share_slug）は group 所有者で処理し is_shared_origin=true で保存", async () => {
     stubOpenAi({});
     const res = await chatRoutes.request(
-      "/api/chat/messages?share_slug=abc123",
+      "/messages?share_slug=abc123",
       {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -374,7 +374,7 @@ describe("POST /api/chat/messages（非ストリーミング）", () => {
 
   it("共有アクセスで group_id が無ければ 400", async () => {
     const res = await chatRoutes.request(
-      "/api/chat/messages?share_token=abc123",
+      "/messages?share_token=abc123",
       {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -389,10 +389,10 @@ describe("POST /api/chat/messages（非ストリーミング）", () => {
   });
 });
 
-describe("POST /api/chat/messages/stream（SSE）", () => {
+describe("POST /messages/stream（SSE）", () => {
   it("バリデーション失敗は非ストリームと同じ {error:{code,message,details}}", async () => {
     const res = await post(
-      "/api/chat/messages/stream",
+      "/messages/stream",
       { messages: [{ role: "bad", content: "hi" }] },
       { token: await accessToken() },
     );
@@ -404,7 +404,7 @@ describe("POST /api/chat/messages/stream（SSE）", () => {
 
   it("messages が空配列なら 400（Zod min(1)、ストリーム開始前）", async () => {
     const res = await post(
-      "/api/chat/messages/stream",
+      "/messages/stream",
       { messages: [] },
       { token: await accessToken() },
     );
@@ -417,7 +417,7 @@ describe("POST /api/chat/messages/stream（SSE）", () => {
   it("チャンク → done（citations 付き）の順で流す", async () => {
     stubOpenAi({ stream: true, content: "Hello!" });
     const res = await post(
-      "/api/chat/messages/stream",
+      "/messages/stream",
       { messages: [{ role: "user", content: "hi" }], group_id: 3 },
       { token: await accessToken(), env: OPENAI_ENV },
     );
@@ -456,7 +456,7 @@ describe("POST /api/chat/messages/stream（SSE）", () => {
         ? [{ isOverQuota: true, aiAnswersLimit: null, usedAiAnswers: 0 }]
         : defaultRows(sql);
     const res = await post(
-      "/api/chat/messages/stream",
+      "/messages/stream",
       { messages: [{ role: "user", content: "hi" }] },
       { token: await accessToken(), env: OPENAI_ENV },
     );
@@ -472,7 +472,7 @@ describe("POST /api/chat/messages/stream（SSE）", () => {
 
   it("OpenAI キー未設定は SSE の LLM_CONFIGURATION_ERROR", async () => {
     const res = await post(
-      "/api/chat/messages/stream",
+      "/messages/stream",
       { messages: [{ role: "user", content: "hi" }] },
       { token: await accessToken() },
     );
@@ -491,7 +491,7 @@ describe("POST /api/chat/messages/stream（SSE）", () => {
   it("生成中のプロバイダ障害は SSE の LLM_PROVIDER_ERROR（メッセージはマスク）", async () => {
     vi.stubGlobal("fetch", async () => new Response("boom", { status: 502 }));
     const res = await post(
-      "/api/chat/messages/stream",
+      "/messages/stream",
       { messages: [{ role: "user", content: "hi" }] },
       { token: await accessToken(), env: OPENAI_ENV },
     );

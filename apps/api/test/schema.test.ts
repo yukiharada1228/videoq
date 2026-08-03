@@ -14,6 +14,11 @@ describe("OpenAPI / docs", () => {
     const body = (await res.json()) as { openapi: string; paths: Record<string, unknown> };
     expect(body.openapi).toMatch(/^3\./);
     expect(Object.keys(body.paths).length).toBeGreaterThan(0);
+    // prefix マウント後も公開 path が合成されていること
+    expect(body.paths).toHaveProperty("/api/auth/sessions");
+    expect(body.paths).toHaveProperty("/api/videos");
+    expect(body.paths).toHaveProperty("/api/chat/messages");
+    expect(body.paths).toHaveProperty("/api/v1/chat/completions");
   });
 
   it("GET /api/docs は HTML（Scalar）", async () => {

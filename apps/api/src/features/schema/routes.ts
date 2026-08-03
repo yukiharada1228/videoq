@@ -20,4 +20,4 @@ const redocHtml = `<!DOCTYPE html>
 </body>
 </html>`;
 
-schemaRoutes.get("/api/redoc", (c) => c.html(redocHtml));
+schemaRoutes.get("/redoc", (c) => c.html(redocHtml));

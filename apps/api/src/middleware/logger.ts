@@ -12,7 +12,7 @@ export const accessLogger = createMiddleware<AppEnv>(async (c, next) => {
   console.log(
     JSON.stringify({
       level: "info",
-      requestId: c.get("requestId"),
+      requestId: c.var.requestId,
       method: c.req.method,
       path: new URL(c.req.url).pathname,
       status: c.res.status,

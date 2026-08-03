@@ -47,9 +47,9 @@ async function accessToken(userId = 7) {
   return signAccessToken(SECRET, userId);
 }
 
-describe("GET /api/oauth/tokens/", () => {
+describe("GET /tokens/", () => {
   it("rejects unauthenticated requests", async () => {
-    const res = await oauthRoutes.request("/api/oauth/tokens", { method: "GET" }, ENV);
+    const res = await oauthRoutes.request("/tokens", { method: "GET" }, ENV);
     expect(res.status).toBe(401);
   });
 
@@ -70,7 +70,7 @@ describe("GET /api/oauth/tokens/", () => {
       return [];
     };
     const res = await oauthRoutes.request(
-      "/api/oauth/tokens",
+      "/tokens",
       {
         method: "GET",
         headers: { Authorization: `Bearer ${await accessToken()}` },
@@ -95,7 +95,7 @@ describe("GET /api/oauth/tokens/", () => {
   });
 });
 
-describe("DELETE /api/oauth/tokens/:id/", () => {
+describe("DELETE /tokens/:id/", () => {
   it("returns 204 and revokes refresh tokens for the same app", async () => {
     rowsFor = (sql) => {
       if (
@@ -108,7 +108,7 @@ describe("DELETE /api/oauth/tokens/:id/", () => {
       return [];
     };
     const res = await oauthRoutes.request(
-      "/api/oauth/tokens/11",
+      "/tokens/11",
       {
         method: "DELETE",
         headers: { Authorization: `Bearer ${await accessToken()}` },
@@ -133,7 +133,7 @@ describe("DELETE /api/oauth/tokens/:id/", () => {
   it("returns 404 when token is missing", async () => {
     rowsFor = () => [];
     const res = await oauthRoutes.request(
-      "/api/oauth/tokens/999",
+      "/tokens/999",
       {
         method: "DELETE",
         headers: { Authorization: `Bearer ${await accessToken()}` },

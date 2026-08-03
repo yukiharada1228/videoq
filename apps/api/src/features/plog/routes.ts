@@ -76,7 +76,7 @@ const jsonBody = <S extends z.ZodType>(schema: S) => ({
 
 const learnerStateRoute = createRoute({
   method: "get",
-  path: "/api/videos/{videoId}/plog/learner-state",
+  path: "/{videoId}/plog/learner-state",
   tags: ["Plog"],
   summary: "Get learner state",
   middleware: [plogAuth] as const,
@@ -92,7 +92,7 @@ plogRoutes.openapi(learnerStateRoute, async (c) => {
   const res = await plogService.learnerStateForVideo(
     c.env,
     videoId,
-    c.get("userId")!,
+    c.var.userId!,
   );
   if ("notFound" in res) throw videoNotFoundError();
   return c.json(res, 200);
@@ -100,7 +100,7 @@ plogRoutes.openapi(learnerStateRoute, async (c) => {
 
 const resetLearnerRoute = createRoute({
   method: "delete",
-  path: "/api/videos/{videoId}/plog/learner-state",
+  path: "/{videoId}/plog/learner-state",
   tags: ["Plog"],
   summary: "Reset learner state",
   middleware: [...learnerResetGuards] as const,
@@ -116,7 +116,7 @@ plogRoutes.openapi(resetLearnerRoute, async (c) => {
   const res = await plogService.resetLearnerForVideo(
     c.env,
     videoId,
-    c.get("userId")!,
+    c.var.userId!,
   );
   if ("notFound" in res) throw videoNotFoundError();
   return c.json({ deleted: res.deleted }, 200);
@@ -124,7 +124,7 @@ plogRoutes.openapi(resetLearnerRoute, async (c) => {
 
 const graphRoute = createRoute({
   method: "get",
-  path: "/api/videos/{videoId}/plog",
+  path: "/{videoId}/plog",
   tags: ["Plog"],
   summary: "Get plog graph",
   middleware: [plogAuth] as const,
@@ -137,14 +137,14 @@ const graphRoute = createRoute({
 
 plogRoutes.openapi(graphRoute, async (c) => {
   const { videoId } = c.req.valid("param");
-  const res = await plogService.graphForVideo(c.env, videoId, c.get("userId")!);
+  const res = await plogService.graphForVideo(c.env, videoId, c.var.userId!);
   if ("notFound" in res) throw videoNotFoundError();
   return c.json(res, 200);
 });
 
 const rebuildRoute = createRoute({
   method: "post",
-  path: "/api/videos/{videoId}/plog/rebuild",
+  path: "/{videoId}/plog/rebuild",
   tags: ["Plog"],
   summary: "Enqueue plog rebuild",
   middleware: [...plogWriteGuards] as const,
@@ -157,7 +157,7 @@ const rebuildRoute = createRoute({
 
 plogRoutes.openapi(rebuildRoute, async (c) => {
   const { videoId } = c.req.valid("param");
-  const res = await plogService.rebuildPlog(c.env, videoId, c.get("userId")!);
+  const res = await plogService.rebuildPlog(c.env, videoId, c.var.userId!);
   if ("notFound" in res) {
     throw new ApiError(404, "VALIDATION_ERROR", res.notFound ?? "Not found");
   }
@@ -169,7 +169,7 @@ plogRoutes.openapi(rebuildRoute, async (c) => {
 
 const createConceptRoute = createRoute({
   method: "post",
-  path: "/api/videos/{videoId}/plog/concepts",
+  path: "/{videoId}/plog/concepts",
   tags: ["Plog"],
   summary: "Create plog concept",
   middleware: [...plogWriteGuards] as const,
@@ -186,7 +186,7 @@ const createConceptRoute = createRoute({
 
 plogRoutes.openapi(createConceptRoute, async (c) => {
   const { videoId } = c.req.valid("param");
-  await requireOwnedVideoId(c.env, videoId, c.get("userId")!);
+  await requireOwnedVideoId(c.env, videoId, c.var.userId!);
   const body = c.req.valid("json");
   const intro = plogService.parsePlogSeconds(body.intro_sec);
   if (typeof intro === "object") throw editBadRequest(intro.error);
@@ -203,7 +203,7 @@ plogRoutes.openapi(createConceptRoute, async (c) => {
 
 const updateConceptRoute = createRoute({
   method: "patch",
-  path: "/api/videos/{videoId}/plog/concepts/{conceptId}",
+  path: "/{videoId}/plog/concepts/{conceptId}",
   tags: ["Plog"],
   summary: "Update plog concept",
   middleware: [...plogWriteGuards] as const,
@@ -220,7 +220,7 @@ const updateConceptRoute = createRoute({
 
 plogRoutes.openapi(updateConceptRoute, async (c) => {
   const { videoId, conceptId } = c.req.valid("param");
-  await requireOwnedVideoId(c.env, videoId, c.get("userId")!);
+  await requireOwnedVideoId(c.env, videoId, c.var.userId!);
   const body = c.req.valid("json");
   const patch: {
     label?: string;
@@ -244,7 +244,7 @@ plogRoutes.openapi(updateConceptRoute, async (c) => {
 
 const deleteConceptRoute = createRoute({
   method: "delete",
-  path: "/api/videos/{videoId}/plog/concepts/{conceptId}",
+  path: "/{videoId}/plog/concepts/{conceptId}",
   tags: ["Plog"],
   summary: "Delete plog concept",
   middleware: [...plogWriteGuards] as const,
@@ -257,7 +257,7 @@ const deleteConceptRoute = createRoute({
 
 plogRoutes.openapi(deleteConceptRoute, async (c) => {
   const { videoId, conceptId } = c.req.valid("param");
-  await requireOwnedVideoId(c.env, videoId, c.get("userId")!);
+  await requireOwnedVideoId(c.env, videoId, c.var.userId!);
   return c.json(
     respondEdit(await plogService.editDeleteConcept(c.env, videoId, conceptId)),
     200,
@@ -266,7 +266,7 @@ plogRoutes.openapi(deleteConceptRoute, async (c) => {
 
 const mergeConceptRoute = createRoute({
   method: "post",
-  path: "/api/videos/{videoId}/plog/concepts/{conceptId}/merge",
+  path: "/{videoId}/plog/concepts/{conceptId}/merge",
   tags: ["Plog"],
   summary: "Merge plog concepts",
   middleware: [...plogWriteGuards] as const,
@@ -283,7 +283,7 @@ const mergeConceptRoute = createRoute({
 
 plogRoutes.openapi(mergeConceptRoute, async (c) => {
   const { videoId, conceptId } = c.req.valid("param");
-  await requireOwnedVideoId(c.env, videoId, c.get("userId")!);
+  await requireOwnedVideoId(c.env, videoId, c.var.userId!);
   const body = c.req.valid("json");
   const absorbId = plogService.parsePlogInteger(body.absorb_id);
   if (typeof absorbId === "object") throw editBadRequest(absorbId.error);
@@ -297,7 +297,7 @@ plogRoutes.openapi(mergeConceptRoute, async (c) => {
 
 const updateLearningObjectRoute = createRoute({
   method: "patch",
-  path: "/api/videos/{videoId}/plog/concepts/{conceptId}/learning-object",
+  path: "/{videoId}/plog/concepts/{conceptId}/learning-object",
   tags: ["Plog"],
   summary: "Update plog learning object",
   middleware: [...plogWriteGuards] as const,
@@ -313,7 +313,7 @@ const updateLearningObjectRoute = createRoute({
 
 plogRoutes.openapi(updateLearningObjectRoute, async (c) => {
   const { videoId, conceptId } = c.req.valid("param");
-  await requireOwnedVideoId(c.env, videoId, c.get("userId")!);
+  await requireOwnedVideoId(c.env, videoId, c.var.userId!);
   const body = c.req.valid("json");
   const patch: Parameters<typeof plogService.editUpdateLearningObject>[3] = {};
   if (body.opening_question !== undefined) patch.openingQuestion = body.opening_question;
@@ -332,7 +332,7 @@ plogRoutes.openapi(updateLearningObjectRoute, async (c) => {
 
 const createEdgeRoute = createRoute({
   method: "post",
-  path: "/api/videos/{videoId}/plog/edges",
+  path: "/{videoId}/plog/edges",
   tags: ["Plog"],
   summary: "Create plog edge",
   middleware: [...plogWriteGuards] as const,
@@ -349,7 +349,7 @@ const createEdgeRoute = createRoute({
 
 plogRoutes.openapi(createEdgeRoute, async (c) => {
   const { videoId } = c.req.valid("param");
-  await requireOwnedVideoId(c.env, videoId, c.get("userId")!);
+  await requireOwnedVideoId(c.env, videoId, c.var.userId!);
   const body = c.req.valid("json");
   const sourceId = plogService.parsePlogInteger(body.source_id);
   if (typeof sourceId === "object") throw editBadRequest(sourceId.error);
@@ -368,7 +368,7 @@ plogRoutes.openapi(createEdgeRoute, async (c) => {
 
 const updateEdgeRoute = createRoute({
   method: "patch",
-  path: "/api/videos/{videoId}/plog/edges/{edgeId}",
+  path: "/{videoId}/plog/edges/{edgeId}",
   tags: ["Plog"],
   summary: "Update plog edge",
   middleware: [...plogWriteGuards] as const,
@@ -385,7 +385,7 @@ const updateEdgeRoute = createRoute({
 
 plogRoutes.openapi(updateEdgeRoute, async (c) => {
   const { videoId, edgeId } = c.req.valid("param");
-  await requireOwnedVideoId(c.env, videoId, c.get("userId")!);
+  await requireOwnedVideoId(c.env, videoId, c.var.userId!);
   const data = c.req.valid("json");
   const patch: {
     sourceId?: number;
@@ -421,7 +421,7 @@ plogRoutes.openapi(updateEdgeRoute, async (c) => {
 
 const deleteEdgeRoute = createRoute({
   method: "delete",
-  path: "/api/videos/{videoId}/plog/edges/{edgeId}",
+  path: "/{videoId}/plog/edges/{edgeId}",
   tags: ["Plog"],
   summary: "Delete plog edge",
   middleware: [...plogWriteGuards] as const,
@@ -434,7 +434,7 @@ const deleteEdgeRoute = createRoute({
 
 plogRoutes.openapi(deleteEdgeRoute, async (c) => {
   const { videoId, edgeId } = c.req.valid("param");
-  await requireOwnedVideoId(c.env, videoId, c.get("userId")!);
+  await requireOwnedVideoId(c.env, videoId, c.var.userId!);
   return c.json(
     respondEdit(await plogService.editDeleteEdge(c.env, videoId, edgeId)),
     200,

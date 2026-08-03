@@ -17,10 +17,10 @@ vi.mock("../src/features/auth/service", () => ({
   }),
 }));
 
-describe("POST /api/auth/sessions response contract", () => {
+describe("POST /sessions response contract", () => {
   it("Bearer access token を body、opaque refresh を cookie で返す", async () => {
     const res = await authRoutes.request(
-      "/api/auth/sessions",
+      "/sessions",
       {
         method: "POST",
         headers: { "content-type": "application/json" },

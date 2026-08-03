@@ -37,7 +37,7 @@ const tagWriteGuards = [
 
 const listTagsRoute = createRoute({
   method: "get",
-  path: "/api/videos/tags",
+  path: "/tags",
   tags: ["Tags"],
   summary: "List tags",
   middleware: [tagAuth] as const,
@@ -49,7 +49,7 @@ const listTagsRoute = createRoute({
 });
 
 tagRoutes.openapi(listTagsRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { limit, offset } = parseLimitOffset(c);
   const { count, results } = await tagService.listTags(c.env, userId, limit, offset);
   return c.json(listResponse(results, { total: count, limit, offset }), 200);
@@ -57,7 +57,7 @@ tagRoutes.openapi(listTagsRoute, async (c) => {
 
 const getTagRoute = createRoute({
   method: "get",
-  path: "/api/videos/tags/{id}",
+  path: "/tags/{id}",
   tags: ["Tags"],
   summary: "Get tag detail",
   middleware: [tagAuth] as const,
@@ -70,7 +70,7 @@ const getTagRoute = createRoute({
 });
 
 tagRoutes.openapi(getTagRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { id } = c.req.valid("param");
   const tag = await tagService.getTag(c.env, id, userId);
   if (!tag) throw apiNotFound("Tag not found");
@@ -79,7 +79,7 @@ tagRoutes.openapi(getTagRoute, async (c) => {
 
 const createTagRoute = createRoute({
   method: "post",
-  path: "/api/videos/tags",
+  path: "/tags",
   tags: ["Tags"],
   summary: "Create tag",
   middleware: [...tagWriteGuards] as const,
@@ -94,7 +94,7 @@ const createTagRoute = createRoute({
 });
 
 tagRoutes.openapi(createTagRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const body = c.req.valid("json");
   const result = await tagService.createUserTag(c.env, userId, body.name, body.color);
   if ("error" in result) throw apiBadRequest(result.error ?? "Bad request");
@@ -103,7 +103,7 @@ tagRoutes.openapi(createTagRoute, async (c) => {
 
 const patchTagRoute = createRoute({
   method: "patch",
-  path: "/api/videos/tags/{id}",
+  path: "/tags/{id}",
   tags: ["Tags"],
   summary: "Partial update tag",
   middleware: [...tagWriteGuards] as const,
@@ -119,7 +119,7 @@ const patchTagRoute = createRoute({
 });
 
 tagRoutes.openapi(patchTagRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { id } = c.req.valid("param");
   const body = c.req.valid("json");
   const result = await tagService.updateUserTag(c.env, id, userId, body);
@@ -130,7 +130,7 @@ tagRoutes.openapi(patchTagRoute, async (c) => {
 
 const putTagRoute = createRoute({
   method: "put",
-  path: "/api/videos/tags/{id}",
+  path: "/tags/{id}",
   tags: ["Tags"],
   summary: "Replace tag",
   middleware: [...tagWriteGuards] as const,
@@ -146,7 +146,7 @@ const putTagRoute = createRoute({
 });
 
 tagRoutes.openapi(putTagRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { id } = c.req.valid("param");
   const body = c.req.valid("json");
   const result = await tagService.updateUserTag(c.env, id, userId, body);
@@ -157,7 +157,7 @@ tagRoutes.openapi(putTagRoute, async (c) => {
 
 const deleteTagRoute = createRoute({
   method: "delete",
-  path: "/api/videos/tags/{id}",
+  path: "/tags/{id}",
   tags: ["Tags"],
   summary: "Delete tag",
   middleware: [...tagWriteGuards] as const,
@@ -169,7 +169,7 @@ const deleteTagRoute = createRoute({
 });
 
 tagRoutes.openapi(deleteTagRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { id } = c.req.valid("param");
   const res = await tagService.removeTag(c.env, id, userId);
   if ("notFound" in res) throw apiNotFound("Tag not found");

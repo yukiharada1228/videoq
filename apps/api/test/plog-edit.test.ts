@@ -117,10 +117,10 @@ const req = async (
     ENV,
   );
 
-describe("POST /api/videos/:id/plog/concepts/", () => {
+describe("POST /:id/plog/concepts/", () => {
   it("label 必須・作成で 201", async () => {
     const empty = await req(
-      "/api/videos/1/plog/concepts",
+      "/1/plog/concepts",
       "POST",
       { label: "  " },
       await token(),
@@ -131,7 +131,7 @@ describe("POST /api/videos/:id/plog/concepts/", () => {
     });
 
     const res = await req(
-      "/api/videos/1/plog/concepts",
+      "/1/plog/concepts",
       "POST",
       { label: "AND", node_type: "object", intro_sec: 1.5 },
       await token(),
@@ -154,7 +154,7 @@ describe("POST /api/videos/:id/plog/concepts/", () => {
       return [];
     };
     const res = await req(
-      "/api/videos/1/plog/concepts",
+      "/1/plog/concepts",
       "POST",
       { label: "X" },
       await token(),
@@ -171,7 +171,7 @@ describe("POST /api/videos/:id/plog/concepts/", () => {
   it("他人の動画は 404", async () => {
     rowsFor = () => [];
     const res = await req(
-      "/api/videos/1/plog/concepts",
+      "/1/plog/concepts",
       "POST",
       { label: "X" },
       await token(),
@@ -183,7 +183,7 @@ describe("POST /api/videos/:id/plog/concepts/", () => {
   });
 });
 
-describe("POST /api/videos/:id/plog/edges/", () => {
+describe("POST /:id/plog/edges/", () => {
   it("サイクルになる ordering 辺は 400", async () => {
     rowsFor = (sql, args) => {
       if (sql.includes("videos") && sql.includes("user_id")) return [{ id: 1 }];
@@ -199,7 +199,7 @@ describe("POST /api/videos/:id/plog/edges/", () => {
       return [];
     };
     const res = await req(
-      "/api/videos/1/plog/edges",
+      "/1/plog/edges",
       "POST",
       { source_id: 10, target_id: 11, edge_type: "prerequisite_of" },
       await token(),
@@ -242,7 +242,7 @@ describe("POST /api/videos/:id/plog/edges/", () => {
       return [];
     };
     const res = await req(
-      "/api/videos/1/plog/edges",
+      "/1/plog/edges",
       "POST",
       { source_id: 10, target_id: 11, edge_type: "prerequisite_of" },
       await token(),
@@ -266,7 +266,7 @@ describe("DELETE concept / learner-state", () => {
       return [];
     };
     const res = await req(
-      "/api/videos/1/plog/concepts/10",
+      "/1/plog/concepts/10",
       "DELETE",
       undefined,
       await token(),
@@ -288,7 +288,7 @@ describe("DELETE concept / learner-state", () => {
       return [];
     };
     const res = await req(
-      "/api/videos/1/plog/learner-state",
+      "/1/plog/learner-state",
       "DELETE",
       undefined,
       await token(),
@@ -301,7 +301,7 @@ describe("DELETE concept / learner-state", () => {
 describe("POST merge", () => {
   it("同一 ID は 400、成功時は survivor を返す", async () => {
     const same = await req(
-      "/api/videos/1/plog/concepts/10/merge",
+      "/1/plog/concepts/10/merge",
       "POST",
       { absorb_id: 10 },
       await token(),
@@ -334,7 +334,7 @@ describe("POST merge", () => {
       return [];
     };
     const res = await req(
-      "/api/videos/1/plog/concepts/10/merge",
+      "/1/plog/concepts/10/merge",
       "POST",
       { absorb_id: 11 },
       await token(),

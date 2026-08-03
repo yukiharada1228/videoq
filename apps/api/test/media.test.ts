@@ -71,15 +71,15 @@ describe("isSafeMediaPath", () => {
   });
 });
 
-describe("GET /api/media/*", () => {
+describe("GET /*", () => {
   it("401 without credentials", async () => {
-    const res = await mediaRoutes.request("/api/media/videos/a.mp4", {}, ENV);
+    const res = await mediaRoutes.request("/videos/a.mp4", {}, ENV);
     expect(res.status).toBe(401);
   });
 
   it("404 on path traversal even when authenticated", async () => {
     const res = await mediaRoutes.request(
-      "/api/media/../secret",
+      "/../secret",
       { headers: { authorization: `Bearer ${await accessToken()}` } },
       ENV,
     );
@@ -94,7 +94,7 @@ describe("GET /api/media/*", () => {
       return [];
     };
     const res = await mediaRoutes.request(
-      "/api/media/videos/a.mp4",
+      "/videos/a.mp4",
       { headers: { authorization: `Bearer ${await accessToken()}` } },
       ENV,
     );
@@ -113,7 +113,7 @@ describe("GET /api/media/*", () => {
       return [];
     };
     const res = await mediaRoutes.request(
-      "/api/media/videos/a.mp4?share_slug=abc",
+      "/videos/a.mp4?share_slug=abc",
       {},
       ENV,
     );

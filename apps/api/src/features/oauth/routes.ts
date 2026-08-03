@@ -41,21 +41,24 @@ import * as authorizeService from "./authorize-service";
 /**
  * OAuth 2.1 Authorization Server + Settings UI トークン管理。
  *
- * Well-known:
+ * Well-known (`oauthWellKnownRoutes`, absolute paths):
  *   GET /.well-known/oauth-authorization-server(+ optional path)
  *   GET /.well-known/oauth-protected-resource(+ /api/mcp)
  *
- * AS:
- *   GET/POST /api/oauth/authorize
- *   POST     /api/oauth/token
- *   POST     /api/oauth/register
- *   GET      /api/oauth/register/:clientId
- *   POST     /api/oauth/revoke_token
+ * AS (`oauthRoutes`, `/api/oauth` プレフィックスはアプリ側でマウント):
+ *   GET/POST /authorize
+ *   POST     /token
+ *   POST     /register
+ *   GET      /register/:clientId
+ *   POST     /revoke_token
  *
  * Settings UI:
- *   GET/DELETE /api/oauth/tokens(/:id)
+ *   GET/DELETE /tokens(/:id)
  */
 export const oauthRoutes = createFeatureRouter();
+
+/** RFC 8414/9728 well-known metadata（absolute path のままルートに載せる）。 */
+export const oauthWellKnownRoutes = createFeatureRouter();
 
 const jwtOnly = requireAuth(jwtMethod);
 
@@ -75,7 +78,7 @@ function registerAuthorizationServerMetadataRoutes(basePath: string) {
       200: jsonResponse(oauthAuthorizationServerMetadataSchema),
     },
   });
-  oauthRoutes.openapi(bareRoute, (c) => {
+  oauthWellKnownRoutes.openapi(bareRoute, (c) => {
     corsStar(c);
     return c.json(
       oauthService.getAuthorizationServerMetadata(c.env, c.req.url),
@@ -92,7 +95,7 @@ function registerAuthorizationServerMetadataRoutes(basePath: string) {
       200: jsonResponse(oauthAuthorizationServerMetadataSchema),
     },
   });
-  oauthRoutes.openapi(suffixRoute, (c) => {
+  oauthWellKnownRoutes.openapi(suffixRoute, (c) => {
     corsStar(c);
     return c.json(
       oauthService.getAuthorizationServerMetadata(c.env, c.req.url),
@@ -111,7 +114,7 @@ function registerProtectedResourceMetadataRoutes(basePath: string) {
       200: jsonResponse(oauthProtectedResourceMetadataSchema),
     },
   });
-  oauthRoutes.openapi(bareRoute, (c) => {
+  oauthWellKnownRoutes.openapi(bareRoute, (c) => {
     corsStar(c);
     return c.json(
       oauthService.getProtectedResourceMetadata(c.env, c.req.url),
@@ -128,7 +131,7 @@ function registerProtectedResourceMetadataRoutes(basePath: string) {
       200: jsonResponse(oauthProtectedResourceMetadataSchema),
     },
   });
-  oauthRoutes.openapi(suffixRoute, (c) => {
+  oauthWellKnownRoutes.openapi(suffixRoute, (c) => {
     corsStar(c);
     return c.json(
       oauthService.getProtectedResourceMetadata(c.env, c.req.url),
@@ -154,7 +157,7 @@ registerProtectedResourceMetadataRoutes(
 
 const listTokensRoute = createRoute({
   method: "get",
-  path: "/api/oauth/tokens",
+  path: "/tokens",
   tags: ["OAuth"],
   summary: "List authorized OAuth tokens for the current user",
   middleware: [jwtOnly] as const,
@@ -165,13 +168,13 @@ const listTokensRoute = createRoute({
 });
 
 oauthRoutes.openapi(listTokensRoute, async (c) => {
-  const body = await oauthService.listTokens(c.env, c.get("userId")!);
+  const body = await oauthService.listTokens(c.env, c.var.userId!);
   return c.json(body, 200);
 });
 
 const revokeTokenRoute = createRoute({
   method: "delete",
-  path: "/api/oauth/tokens/{tokenId}",
+  path: "/tokens/{tokenId}",
   tags: ["OAuth"],
   summary: "Revoke an authorized OAuth token",
   middleware: [jwtOnly] as const,
@@ -188,7 +191,7 @@ oauthRoutes.openapi(revokeTokenRoute, async (c) => {
   const { tokenId } = c.req.valid("param");
   const ok = await oauthService.revokeAuthorizedTokenForUser(
     c.env,
-    c.get("userId")!,
+    c.var.userId!,
     tokenId,
   );
   if (!ok) return c.body(null, 404);
@@ -348,8 +351,8 @@ const authorizePost = async (c: Context<AppEnv>) => {
   return issueCodeAndRedirect(c, userId, prepared.app, prepared.params);
 };
 
-oauthRoutes.get("/api/oauth/authorize", authorizeGet);
-oauthRoutes.post("/api/oauth/authorize", authorizePost);
+oauthRoutes.get("/authorize", authorizeGet);
+oauthRoutes.post("/authorize", authorizePost);
 
 // ─── token ────────────────────────────────────────────────────
 
@@ -444,7 +447,7 @@ const tokenPost = async (
 
 const tokenRoute = createRoute({
   method: "post",
-  path: "/api/oauth/token",
+  path: "/token",
   tags: ["OAuth"],
   summary: "OAuth 2 token endpoint",
   request: {
@@ -551,7 +554,7 @@ const registerDelete = async (c: Context<AppEnv>) => {
 
 const registerPostRoute = createRoute({
   method: "post",
-  path: "/api/oauth/register",
+  path: "/register",
   tags: ["OAuth"],
   summary: "Dynamic client registration (RFC 7591)",
   request: {
@@ -568,7 +571,7 @@ const registerPostRoute = createRoute({
 
 const registerGetRoute = createRoute({
   method: "get",
-  path: "/api/oauth/register/{clientId}",
+  path: "/register/{clientId}",
   tags: ["OAuth"],
   summary: "Read dynamic client registration (RFC 7592)",
   request: { params: dcrClientIdParamSchema },
@@ -580,7 +583,7 @@ const registerGetRoute = createRoute({
 
 const registerPutRoute = createRoute({
   method: "put",
-  path: "/api/oauth/register/{clientId}",
+  path: "/register/{clientId}",
   tags: ["OAuth"],
   summary: "Update dynamic client registration (RFC 7592)",
   request: {
@@ -599,7 +602,7 @@ const registerPutRoute = createRoute({
 
 const registerDeleteRoute = createRoute({
   method: "delete",
-  path: "/api/oauth/register/{clientId}",
+  path: "/register/{clientId}",
   tags: ["OAuth"],
   summary: "Delete dynamic client registration (RFC 7592)",
   request: { params: dcrClientIdParamSchema },
@@ -639,7 +642,7 @@ const revokePost = async (
 
 const revokeRoute = createRoute({
   method: "post",
-  path: "/api/oauth/revoke_token",
+  path: "/revoke_token",
   tags: ["OAuth"],
   summary: "OAuth 2 token revocation (RFC 7009)",
   request: {

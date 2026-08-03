@@ -43,8 +43,8 @@ const mediaAuth = createMiddleware<AppEnv>(async (c, next) => {
 const serveMedia = async (c: Context<AppEnv>) => {
   const path = mediaService.mediaPathFromUrl(new URL(c.req.url).pathname);
   const authz = await mediaService.authorizeMediaPath(c.env, path, {
-    userId: c.get("userId"),
-    shareGroupId: c.get("shareGroupId"),
+    userId: c.var.userId,
+    shareGroupId: c.var.shareGroupId,
   });
   if ("notFound" in authz) return c.body(null, 404);
 
@@ -66,4 +66,4 @@ const serveMedia = async (c: Context<AppEnv>) => {
   return c.redirect(url, 302);
 };
 
-mediaRoutes.get("/api/media/*", mediaAuth, serveMedia);
+mediaRoutes.get("/*", mediaAuth, serveMedia);
