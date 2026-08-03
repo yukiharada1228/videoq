@@ -16,7 +16,7 @@ export type SignupQuotaDefaults = {
 };
 
 export const FREE_TIER_DEFAULTS = {
-  maxVideoUploadSizeMb: 500,
+  maxVideoUploadSizeMb: 1024,
   storageLimitGb: 10,
   processingLimitMinutes: 60,
   aiAnswersLimit: 100,

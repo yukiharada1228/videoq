@@ -29,7 +29,7 @@ export type Bindings = {
   USE_S3_STORAGE?: string;
   // PGVector コレクション=テーブル名。既定 "scene_embeddings"（allowlist 照合）。
   PGVECTOR_COLLECTION_NAME?: string;
-  // 新規ユーザーの既定アップロード上限 MB（既定 500）。
+  // 新規ユーザーの既定アップロード上限 MB（既定 1024 = 1GB）。
   MAX_VIDEO_UPLOAD_SIZE_MB?: string;
   /**
    * 新規サインアップ時の無料枠。未設定時は 10GB / 60分 / 100回。

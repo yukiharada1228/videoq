@@ -138,7 +138,7 @@ New accounts receive a monthly free tier automatically (override per user later 
 
 | Setting | Default |
 |----------|-------------|
-| Max video upload size (MB) | 500 (`MAX_VIDEO_UPLOAD_SIZE_MB`) |
+| Max video upload size (MB) | 1024 / 1GB (`MAX_VIDEO_UPLOAD_SIZE_MB`) |
 | Storage limit (GB) | 10 (`DEFAULT_STORAGE_LIMIT_GB`) |
 | Processing limit (minutes / month) | 60 (`DEFAULT_PROCESSING_LIMIT_MINUTES`) |
 | AI answers limit (per month) | 100 (`DEFAULT_AI_ANSWERS_LIMIT`) |
