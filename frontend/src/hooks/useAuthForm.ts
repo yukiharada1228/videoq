@@ -49,7 +49,7 @@ export function useAuthForm<T extends Record<string, unknown>>({
     e.preventDefault();
     setError(null);
     // Prefer DOM values so iOS/Android autofill (which may skip React onChange) still submits.
-    let data = { ...formData };
+    const data = { ...formData };
     if (e.currentTarget instanceof HTMLFormElement) {
       const fd = new FormData(e.currentTarget);
       for (const key of Object.keys(formData) as Array<keyof T>) {
