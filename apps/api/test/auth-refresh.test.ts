@@ -33,7 +33,7 @@ function postTokens(cookie?: string) {
     Origin: "http://localhost:3000",
   };
   if (cookie) headers["cookie"] = cookie;
-  return authRoutes.request("/api/auth/tokens", { method: "POST", headers }, ENV);
+  return authRoutes.request("/tokens", { method: "POST", headers }, ENV);
 }
 
 beforeEach(() => {
@@ -44,7 +44,7 @@ beforeEach(() => {
 describe("POST /tokens refresh", () => {
   it("Origin欠落は403", async () => {
     const res = await authRoutes.request(
-      "/api/auth/tokens",
+      "/tokens",
       { method: "POST" },
       ENV,
     );

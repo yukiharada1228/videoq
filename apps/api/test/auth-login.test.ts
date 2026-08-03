@@ -12,7 +12,7 @@ function post(body: string, contentType?: string) {
   const headers: Record<string, string> = {};
   if (contentType) headers["content-type"] = contentType;
   return authRoutes.request(
-    "/api/auth/sessions",
+    "/sessions",
     { method: "POST", headers, body },
     ENV,
   );
@@ -67,7 +67,7 @@ describe("POST /sessions login guards", () => {
 describe("DELETE /sessions logout", () => {
   it("常に 204（refresh cookie のみ削除）", async () => {
     const res = await authRoutes.request(
-      "/api/auth/sessions",
+      "/sessions",
       { method: "DELETE", headers: { Origin: "http://localhost:3000" } },
       ENV,
     );

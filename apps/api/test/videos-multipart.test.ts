@@ -105,12 +105,12 @@ beforeEach(() => {
   });
 });
 
-describe("POST /api/videos/ — USE_S3_STORAGE=true（廃線）", () => {
+describe("POST / — USE_S3_STORAGE=true（廃線）", () => {
   const ENV = { ...baseEnv, USE_S3_STORAGE: "true" } as unknown as Record<string, unknown>;
 
   it("認証済みでも 400 で署名 URL 経路を案内する", async () => {
     const res = await videoRoutes.request(
-      "/api/videos",
+      "/",
       {
         method: "POST",
         headers: {
@@ -132,12 +132,12 @@ describe("POST /api/videos/ — USE_S3_STORAGE=true（廃線）", () => {
   });
 });
 
-describe("POST /api/videos/ — USE_S3_STORAGE=false（multipart）", () => {
+describe("POST / — USE_S3_STORAGE=false（multipart）", () => {
   const ENV = { ...baseEnv, USE_S3_STORAGE: "false" } as unknown as Record<string, unknown>;
 
   it("未認証は 401", async () => {
     const res = await videoRoutes.request(
-      "/api/videos",
+      "/",
       { method: "POST", headers: { "content-type": "application/json" }, body: "{}" },
       ENV,
     );
@@ -151,7 +151,7 @@ describe("POST /api/videos/ — USE_S3_STORAGE=false（multipart）", () => {
     form.append("description", "");
 
     const res = await videoRoutes.request(
-      "/api/videos",
+      "/",
       {
         method: "POST",
         headers: { authorization: `Bearer ${await accessToken()}` },
@@ -169,11 +169,11 @@ describe("POST /api/videos/ — USE_S3_STORAGE=false（multipart）", () => {
   });
 });
 
-describe("POST /api/videos/uploads/ — local では不可", () => {
+describe("POST /uploads/ — local では不可", () => {
   it("USE_S3_STORAGE=false は 400", async () => {
     const ENV = { ...baseEnv, USE_S3_STORAGE: "false" } as unknown as Record<string, unknown>;
     const res = await videoRoutes.request(
-      "/api/videos/uploads",
+      "/uploads",
       {
         method: "POST",
         headers: {

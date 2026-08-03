@@ -87,14 +87,14 @@ describe("admin API", () => {
       if (sql.includes("SELECT is_superuser")) return [{ is_superuser: false }];
       return [];
     };
-    const res = await req("/api/admin/users", {
+    const res = await req("/users", {
       headers: { authorization: `Bearer ${await token(2)}` },
     });
     expect(res.status).toBe(403);
   });
 
   it("一覧は 200", async () => {
-    const res = await req("/api/admin/users?q=ali", {
+    const res = await req("/users?q=ali", {
       headers: { authorization: `Bearer ${await token()}` },
     });
     expect(res.status).toBe(200);
@@ -104,7 +104,7 @@ describe("admin API", () => {
   });
 
   it("quota PATCH", async () => {
-    const res = await req("/api/admin/users/9/quota", {
+    const res = await req("/users/9/quota", {
       method: "PATCH",
       headers: {
         authorization: `Bearer ${await token()}`,
@@ -117,7 +117,7 @@ describe("admin API", () => {
   });
 
   it("flags PATCH", async () => {
-    const res = await req("/api/admin/users/9/flags", {
+    const res = await req("/users/9/flags", {
       method: "PATCH",
       headers: {
         authorization: `Bearer ${await token()}`,
@@ -157,7 +157,7 @@ describe("admin API", () => {
       }
       return [];
     };
-    const res = await req("/api/admin/users/1/flags", {
+    const res = await req("/users/1/flags", {
       method: "PATCH",
       headers: {
         authorization: `Bearer ${await token(1)}`,
@@ -169,7 +169,7 @@ describe("admin API", () => {
   });
 
   it("reindex-all は 202 + job_id", async () => {
-    const res = await req("/api/admin/embeddings/reindex-all", {
+    const res = await req("/embeddings/reindex-all", {
       method: "POST",
       headers: { authorization: `Bearer ${await token()}` },
     });
@@ -179,7 +179,7 @@ describe("admin API", () => {
   });
 
   it("ユーザー削除は 202 でジョブを投入する", async () => {
-    const res = await req("/api/admin/users/9", {
+    const res = await req("/users/9", {
       method: "DELETE",
       headers: { authorization: `Bearer ${await token(1)}` },
     });
@@ -201,7 +201,7 @@ describe("admin API", () => {
   });
 
   it("is_active=false で OAuth トークンも消す", async () => {
-    const res = await req("/api/admin/users/9/flags", {
+    const res = await req("/users/9/flags", {
       method: "PATCH",
       headers: {
         authorization: `Bearer ${await token()}`,
@@ -220,7 +220,7 @@ describe("admin API", () => {
 
   it("SQS 投入失敗時は同期 hard-delete にフォールバックする", async () => {
     enqueueDelete.mockResolvedValueOnce(null);
-    const res = await req("/api/admin/users/9", {
+    const res = await req("/users/9", {
       method: "DELETE",
       headers: { authorization: `Bearer ${await token(1)}` },
     });
@@ -263,7 +263,7 @@ describe("admin API", () => {
       }
       return [];
     };
-    const res = await req("/api/admin/users/1", {
+    const res = await req("/users/1", {
       method: "DELETE",
       headers: { authorization: `Bearer ${await token(1)}` },
     });
@@ -297,7 +297,7 @@ describe("admin API", () => {
       }
       return [];
     };
-    const res = await req("/api/admin/users/9", {
+    const res = await req("/users/9", {
       method: "DELETE",
       headers: { authorization: `Bearer ${await token(1)}` },
     });

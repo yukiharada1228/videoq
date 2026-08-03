@@ -135,8 +135,8 @@ export function isScopeAllowed(accessLevel: string, requiredScope: string): bool
  */
 export const requireScope = (scope?: string) =>
   createMiddleware<AppEnv>(async (c, next) => {
-    const accessLevel = c.get("apiKeyAccessLevel");
-    if (c.get("authVia") === "apikey" && accessLevel) {
+    const accessLevel = c.var.apiKeyAccessLevel;
+    if (c.var.authVia === "apikey" && accessLevel) {
       const required =
         scope ??
         (["GET", "HEAD", "OPTIONS"].includes(c.req.method) ? "read" : "write");

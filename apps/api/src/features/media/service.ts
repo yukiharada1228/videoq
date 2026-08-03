@@ -117,7 +117,9 @@ export async function buildR2MediaResponse(
 
 export function mediaPathFromUrl(pathname: string): string {
   const prefix = "/api/media/";
-  return decodeURIComponent(
-    pathname.startsWith(prefix) ? pathname.slice(prefix.length) : "",
-  ).replace(/^\/+/, "");
+  // createApp 経由は `/api/media/...`、feature 単体テストはマウント後の相対 path。
+  const raw = pathname.startsWith(prefix)
+    ? pathname.slice(prefix.length)
+    : pathname.replace(/^\/+/, "");
+  return decodeURIComponent(raw).replace(/^\/+/, "");
 }

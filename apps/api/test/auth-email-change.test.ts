@@ -43,7 +43,7 @@ const jsonPatch = async (body: unknown) => ({
 describe("POST /password-resets（DB 到達前の分岐）", () => {
   it("email 欠落 → 400 required", async () => {
     const res = await authRoutes.request(
-      "/api/auth/password-resets",
+      "/password-resets",
       { method: "POST", headers: { "content-type": "application/json" }, body: "{}" },
       ENV,
     );
@@ -54,7 +54,7 @@ describe("POST /password-resets（DB 到達前の分岐）", () => {
 
   it("不正な email → 400 EmailField", async () => {
     const res = await authRoutes.request(
-      "/api/auth/password-resets",
+      "/password-resets",
       {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -69,7 +69,7 @@ describe("POST /password-resets（DB 到達前の分岐）", () => {
 
   it("null は blank ではなく null エラー", async () => {
     const res = await authRoutes.request(
-      "/api/auth/password-resets",
+      "/password-resets",
       {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -85,19 +85,19 @@ describe("POST /password-resets（DB 到達前の分岐）", () => {
 
 describe("PATCH /me/email（DB 到達前の分岐）", () => {
   it("認証なし → 401", async () => {
-    const res = await authRoutes.request("/api/auth/me/email", { method: "PATCH" }, ENV);
+    const res = await authRoutes.request("/me/email", { method: "PATCH" }, ENV);
     expect(res.status).toBe(401);
   });
 
   it("認証あり + email 欠落 → 400 required", async () => {
-    const res = await authRoutes.request("/api/auth/me/email", await jsonPatch({}), ENV);
+    const res = await authRoutes.request("/me/email", await jsonPatch({}), ENV);
     expect(res.status).toBe(400);
     const j = await res.json();
     expect(j.error.details.email).toEqual(["Invalid input: expected string, received undefined"]);
   });
 
   it("認証あり + 不正 email → 400 EmailField", async () => {
-    const res = await authRoutes.request("/api/auth/me/email", await jsonPatch({ email: "nope" }), ENV);
+    const res = await authRoutes.request("/me/email", await jsonPatch({ email: "nope" }), ENV);
     expect(res.status).toBe(400);
     const j = await res.json();
     expect(j.error.details.email).toEqual(["Enter a valid email address."]);
@@ -107,7 +107,7 @@ describe("PATCH /me/email（DB 到達前の分岐）", () => {
 describe("PATCH /email-change/:token（DB 到達前の分岐）", () => {
   it("不正 token → 400 Invalid or expired email change link.", async () => {
     const res = await authRoutes.request(
-      "/api/auth/email-change/invalid-token",
+      "/email-change/invalid-token",
       { method: "PATCH" },
       ENV,
     );

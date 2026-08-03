@@ -21,7 +21,7 @@ const ENV = {
 describe("PATCH email-verifications / password-resets（DB 到達前の分岐）", () => {
   it("不正 token の email 検証 → 400 Invalid or expired verification link.", async () => {
     const res = await authRoutes.request(
-      "/api/auth/email-verifications/invalid-token",
+      "/email-verifications/invalid-token",
       { method: "PATCH" },
       ENV,
     );
@@ -32,7 +32,7 @@ describe("PATCH email-verifications / password-resets（DB 到達前の分岐）
 
   it("password reset: new_password 欠落 → 400 required（uid/token 検証より前）", async () => {
     const res = await authRoutes.request(
-      "/api/auth/password-resets/sometoken",
+      "/password-resets/sometoken",
       { method: "PATCH", headers: { "content-type": "application/json" }, body: "{}" },
       ENV,
     );
@@ -43,7 +43,7 @@ describe("PATCH email-verifications / password-resets（DB 到達前の分岐）
 
   it("password reset: 12 文字未満 → 400 min_length（validate_password より前）", async () => {
     const res = await authRoutes.request(
-      "/api/auth/password-resets/sometoken",
+      "/password-resets/sometoken",
       {
         method: "PATCH",
         headers: { "content-type": "application/json" },
@@ -60,7 +60,7 @@ describe("PATCH email-verifications / password-resets（DB 到達前の分岐）
 
   it("password reset: 数字のみの 12+ password → validate_password が走る", async () => {
     const res = await authRoutes.request(
-      "/api/auth/password-resets/sometoken",
+      "/password-resets/sometoken",
       {
         method: "PATCH",
         headers: { "content-type": "application/json" },

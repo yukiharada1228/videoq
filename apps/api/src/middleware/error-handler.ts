@@ -38,7 +38,7 @@ export function onError(e: Error, c: Context<AppEnv>): Response {
   console.error(
     JSON.stringify({
       level: "error",
-      requestId: c.get("requestId"),
+      requestId: c.var.requestId,
       path: new URL(c.req.url).pathname,
       error: e?.message ?? String(e),
       stack: e?.stack,

@@ -32,8 +32,12 @@ import { logoutShell } from "./html-templates";
 /**
  * VideoQ の OpenID Connect エンドポイント。
  * OIDC_ENABLED が無効な場合は 404 を返す。
+ * API ルートの `/api/oauth` プレフィックスはアプリ側でマウントする。
  */
 export const oauthOidcRoutes = createFeatureRouter();
+
+/** Discovery / JWKS（absolute path のままルートに載せる）。 */
+export const oauthOidcWellKnownRoutes = createFeatureRouter();
 
 function oidcDisabled(c: Context<AppEnv>): Response {
   return c.body(null, 404);
@@ -54,7 +58,7 @@ function registerOidcDiscoveryRoutes(basePath: string) {
       404: { description: "OIDC disabled" },
     },
   });
-  oauthOidcRoutes.openapi(discoveryRoute, (c) => {
+  oauthOidcWellKnownRoutes.openapi(discoveryRoute, (c) => {
     if (!requireOidc(c)) return oidcDisabled(c);
     c.header("Access-Control-Allow-Origin", "*");
     return c.json(oauthService.getOpenIdConfiguration(c.env, c.req.url), 200);
@@ -70,7 +74,7 @@ function registerOidcDiscoveryRoutes(basePath: string) {
       404: { description: "OIDC disabled" },
     },
   });
-  oauthOidcRoutes.openapi(jwksRoute, async (c) => {
+  oauthOidcWellKnownRoutes.openapi(jwksRoute, async (c) => {
     if (!requireOidc(c)) return oidcDisabled(c);
     const { body, cacheControl } = await oauthService.getJwks(c.env);
     c.header("Access-Control-Allow-Origin", "*");
@@ -108,7 +112,7 @@ const userinfoResponses = {
 
 const userinfoGetRoute = createRoute({
   method: "get",
-  path: "/api/oauth/userinfo",
+  path: "/userinfo",
   tags: ["OIDC"],
   summary: "OpenID Connect UserInfo",
   responses: userinfoResponses,
@@ -119,7 +123,7 @@ oauthOidcRoutes.openapi(userinfoGetRoute, (c) =>
 
 const userinfoPostRoute = createRoute({
   method: "post",
-  path: "/api/oauth/userinfo",
+  path: "/userinfo",
   tags: ["OIDC"],
   summary: "OpenID Connect UserInfo",
   request: {
@@ -258,5 +262,5 @@ const logoutPost = async (c: Context<AppEnv>) => {
 registerOidcDiscoveryRoutes("");
 registerOidcDiscoveryRoutes("/api/oauth");
 
-oauthOidcRoutes.get("/api/oauth/logout", logoutGet);
-oauthOidcRoutes.post("/api/oauth/logout", logoutPost);
+oauthOidcRoutes.get("/logout", logoutGet);
+oauthOidcRoutes.post("/logout", logoutPost);

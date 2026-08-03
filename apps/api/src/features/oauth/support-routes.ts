@@ -71,7 +71,7 @@ function deviceConfirmPath(clientId: string, userCode: string): string {
 
 const introspectRoute = createRoute({
   method: "post",
-  path: "/api/oauth/introspect",
+  path: "/introspect",
   tags: ["OAuth"],
   summary: "Token introspection (RFC 7662)",
   request: {
@@ -120,7 +120,7 @@ oauthSupportRoutes.openapi(introspectRoute, (c) =>
 
 const deviceAuthorizationRoute = createRoute({
   method: "post",
-  path: "/api/oauth/device-authorization",
+  path: "/device-authorization",
   tags: ["OAuth"],
   summary: "Device authorization (RFC 8628)",
   request: {
@@ -198,8 +198,8 @@ const deviceUserCodePost = async (c: Context<AppEnv>) => {
   return c.redirect(deviceConfirmPath(flow.clientId, flow.userCode), 302);
 };
 
-oauthSupportRoutes.get("/api/oauth/device", deviceUserCodeGet);
-oauthSupportRoutes.post("/api/oauth/device", deviceUserCodePost);
+oauthSupportRoutes.get("/device", deviceUserCodeGet);
+oauthSupportRoutes.post("/device", deviceUserCodePost);
 
 const deviceConfirmGet = async (c: Context<AppEnv>) => {
   const userId = await cookieUserId(c);
@@ -258,11 +258,11 @@ const deviceConfirmPost = async (c: Context<AppEnv>) => {
 };
 
 oauthSupportRoutes.get(
-  "/api/oauth/device-confirm/:clientId/:userCode",
+  "/device-confirm/:clientId/:userCode",
   deviceConfirmGet,
 );
 oauthSupportRoutes.post(
-  "/api/oauth/device-confirm/:clientId/:userCode",
+  "/device-confirm/:clientId/:userCode",
   deviceConfirmPost,
 );
 
@@ -284,7 +284,7 @@ const deviceStatus = async (c: Context<AppEnv>) => {
 };
 
 oauthSupportRoutes.get(
-  "/api/oauth/device-grant-status/:clientId/:userCode",
+  "/device-grant-status/:clientId/:userCode",
   deviceStatus,
 );
 
@@ -447,14 +447,14 @@ const appsDeletePost = async (c: Context<AppEnv>) => {
   return c.redirect("/api/oauth/applications", 302);
 };
 
-oauthSupportRoutes.get("/api/oauth/applications", appsList);
-oauthSupportRoutes.get("/api/oauth/applications/register", appsRegisterGet);
-oauthSupportRoutes.post("/api/oauth/applications/register", appsRegisterPost);
-oauthSupportRoutes.get("/api/oauth/applications/:id{[0-9]+}", appsDetail);
-oauthSupportRoutes.get("/api/oauth/applications/:id{[0-9]+}/update", appsUpdateGet);
-oauthSupportRoutes.post("/api/oauth/applications/:id{[0-9]+}/update", appsUpdatePost);
-oauthSupportRoutes.get("/api/oauth/applications/:id{[0-9]+}/delete", appsDeleteGet);
-oauthSupportRoutes.post("/api/oauth/applications/:id{[0-9]+}/delete", appsDeletePost);
+oauthSupportRoutes.get("/applications", appsList);
+oauthSupportRoutes.get("/applications/register", appsRegisterGet);
+oauthSupportRoutes.post("/applications/register", appsRegisterPost);
+oauthSupportRoutes.get("/applications/:id{[0-9]+}", appsDetail);
+oauthSupportRoutes.get("/applications/:id{[0-9]+}/update", appsUpdateGet);
+oauthSupportRoutes.post("/applications/:id{[0-9]+}/update", appsUpdatePost);
+oauthSupportRoutes.get("/applications/:id{[0-9]+}/delete", appsDeleteGet);
+oauthSupportRoutes.post("/applications/:id{[0-9]+}/delete", appsDeletePost);
 
 // ─── authorized_tokens HTML ──────────────────────────────────
 
@@ -515,8 +515,8 @@ const tokensHtmlDelete = async (c: Context<AppEnv>) => {
   return c.redirect("/api/oauth/authorized_tokens", 302);
 };
 
-oauthSupportRoutes.get("/api/oauth/authorized_tokens", tokensHtmlList);
+oauthSupportRoutes.get("/authorized_tokens", tokensHtmlList);
 oauthSupportRoutes.post(
-  "/api/oauth/authorized_tokens/:id{[0-9]+}/delete",
+  "/authorized_tokens/:id{[0-9]+}/delete",
   tokensHtmlDelete,
 );

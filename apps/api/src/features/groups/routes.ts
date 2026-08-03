@@ -49,7 +49,7 @@ const groupWriteGuards = [
 
 const listGroupsRoute = createRoute({
   method: "get",
-  path: "/api/videos/groups",
+  path: "/groups",
   tags: ["Groups"],
   summary: "List groups",
   middleware: [groupAuth] as const,
@@ -61,7 +61,7 @@ const listGroupsRoute = createRoute({
 });
 
 groupRoutes.openapi(listGroupsRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { limit, offset } = parseLimitOffset(c);
   const { count, results } = await groupService.listGroups(
     c.env,
@@ -74,7 +74,7 @@ groupRoutes.openapi(listGroupsRoute, async (c) => {
 
 const sharedGroupRoute = createRoute({
   method: "get",
-  path: "/api/videos/groups/share/{slug}",
+  path: "/groups/share/{slug}",
   tags: ["Groups"],
   summary: "Get shared group by slug",
   request: {
@@ -99,7 +99,7 @@ groupRoutes.openapi(sharedGroupRoute, async (c) => {
 
 const getGroupRoute = createRoute({
   method: "get",
-  path: "/api/videos/groups/{id}",
+  path: "/groups/{id}",
   tags: ["Groups"],
   summary: "Get group detail",
   middleware: [groupAuth] as const,
@@ -111,7 +111,7 @@ const getGroupRoute = createRoute({
 });
 
 groupRoutes.openapi(getGroupRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { id } = c.req.valid("param");
   const group = await groupService.getGroup(c.env, id, userId);
   if (!group) throw apiNotFound("Group not found");
@@ -120,7 +120,7 @@ groupRoutes.openapi(getGroupRoute, async (c) => {
 
 const createGroupRoute = createRoute({
   method: "post",
-  path: "/api/videos/groups",
+  path: "/groups",
   tags: ["Groups"],
   summary: "Create group",
   middleware: [...groupWriteGuards] as const,
@@ -137,7 +137,7 @@ const createGroupRoute = createRoute({
 });
 
 groupRoutes.openapi(createGroupRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const body = c.req.valid("json");
   const group = await groupService.createUserGroup(
     c.env,
@@ -150,7 +150,7 @@ groupRoutes.openapi(createGroupRoute, async (c) => {
 
 const patchGroupRoute = createRoute({
   method: "patch",
-  path: "/api/videos/groups/{id}",
+  path: "/groups/{id}",
   tags: ["Groups"],
   summary: "Partial update group",
   middleware: [...groupWriteGuards] as const,
@@ -168,7 +168,7 @@ const patchGroupRoute = createRoute({
 });
 
 groupRoutes.openapi(patchGroupRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { id } = c.req.valid("param");
   const body = c.req.valid("json");
   const result = await groupService.updateUserGroup(c.env, id, userId, body);
@@ -178,7 +178,7 @@ groupRoutes.openapi(patchGroupRoute, async (c) => {
 
 const putGroupRoute = createRoute({
   method: "put",
-  path: "/api/videos/groups/{id}",
+  path: "/groups/{id}",
   tags: ["Groups"],
   summary: "Replace group",
   middleware: [...groupWriteGuards] as const,
@@ -196,7 +196,7 @@ const putGroupRoute = createRoute({
 });
 
 groupRoutes.openapi(putGroupRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { id } = c.req.valid("param");
   const body = c.req.valid("json");
   const result = await groupService.updateUserGroup(c.env, id, userId, {
@@ -209,7 +209,7 @@ groupRoutes.openapi(putGroupRoute, async (c) => {
 
 const deleteGroupRoute = createRoute({
   method: "delete",
-  path: "/api/videos/groups/{id}",
+  path: "/groups/{id}",
   tags: ["Groups"],
   summary: "Delete group",
   middleware: [...groupWriteGuards] as const,
@@ -221,7 +221,7 @@ const deleteGroupRoute = createRoute({
 });
 
 groupRoutes.openapi(deleteGroupRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { id } = c.req.valid("param");
   const res = await groupService.removeGroup(c.env, id, userId);
   if ("notFound" in res) throw apiNotFound("Group not found");
@@ -230,7 +230,7 @@ groupRoutes.openapi(deleteGroupRoute, async (c) => {
 
 const reorderRoute = createRoute({
   method: "patch",
-  path: "/api/videos/groups/order",
+  path: "/groups/order",
   tags: ["Groups"],
   summary: "Reorder groups",
   middleware: [...groupWriteGuards] as const,
@@ -247,7 +247,7 @@ const reorderRoute = createRoute({
 });
 
 groupRoutes.openapi(reorderRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { group_ids } = c.req.valid("json");
   const res = await groupService.reorderUserGroups(c.env, userId, group_ids);
   if ("mismatch" in res) {
@@ -258,7 +258,7 @@ groupRoutes.openapi(reorderRoute, async (c) => {
 
 const createShareRoute = createRoute({
   method: "post",
-  path: "/api/videos/groups/{id}/share",
+  path: "/groups/{id}/share",
   tags: ["Groups"],
   summary: "Create or update share link",
   middleware: [...groupWriteGuards] as const,
@@ -279,7 +279,7 @@ const createShareRoute = createRoute({
 });
 
 groupRoutes.openapi(createShareRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { id } = c.req.valid("param");
   const { share_slug } = c.req.valid("json");
   const result = await groupService.saveShareLink(c.env, id, userId, share_slug);
@@ -293,7 +293,7 @@ groupRoutes.openapi(createShareRoute, async (c) => {
 
 const deleteShareRoute = createRoute({
   method: "delete",
-  path: "/api/videos/groups/{id}/share",
+  path: "/groups/{id}/share",
   tags: ["Groups"],
   summary: "Remove share link",
   middleware: [...groupWriteGuards] as const,
@@ -305,7 +305,7 @@ const deleteShareRoute = createRoute({
 });
 
 groupRoutes.openapi(deleteShareRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { id } = c.req.valid("param");
   const result = await groupService.clearShareLink(c.env, id, userId);
   if ("notFound" in result) throw apiNotFound("Group not found");

@@ -59,7 +59,7 @@ const jsonrpc = (method: string, params?: unknown, id: number | null = 1) => {
 
 const post = (body: unknown, headers: Record<string, string> = {}) =>
   mcpRoutes.request(
-    "/api/mcp",
+    "/",
     {
       method: "POST",
       headers: {
@@ -75,7 +75,7 @@ const post = (body: unknown, headers: Record<string, string> = {}) =>
 describe("MCP auth", () => {
   it("rejects unauthenticated with WWW-Authenticate resource_metadata", async () => {
     const res = await mcpRoutes.request(
-      "/api/mcp",
+      "/",
       {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -93,7 +93,7 @@ describe("MCP auth", () => {
 
   it("accepts X-API-Key", async () => {
     const res = await mcpRoutes.request(
-      "/api/mcp",
+      "/",
       {
         method: "POST",
         headers: {
@@ -120,7 +120,7 @@ describe("MCP auth", () => {
       return [];
     };
     const res = await mcpRoutes.request(
-      "/api/mcp",
+      "/",
       {
         method: "POST",
         headers: {
@@ -144,7 +144,7 @@ describe("MCP auth", () => {
 });
 
 describe("MCP JSON-RPC", () => {
-  it("serves /api/mcp without trailing slash (no redirect)", async () => {
+  it("serves / without trailing slash (no redirect)", async () => {
     const res = await post(jsonrpc("initialize", { protocolVersion: "2025-03-26" }));
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -210,7 +210,7 @@ describe("MCP JSON-RPC", () => {
 
   it("GET returns 405", async () => {
     const res = await mcpRoutes.request(
-      "/api/mcp",
+      "/",
       { method: "GET", headers: { authorization: `Bearer ${RAW_KEY}` } },
       ENV,
     );
@@ -219,7 +219,7 @@ describe("MCP JSON-RPC", () => {
 
   it("DELETE returns 204", async () => {
     const res = await mcpRoutes.request(
-      "/api/mcp",
+      "/",
       { method: "DELETE", headers: { authorization: `Bearer ${RAW_KEY}` } },
       ENV,
     );

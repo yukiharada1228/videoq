@@ -60,7 +60,7 @@ const mcpGuards = [mcpAuth, requireScope("write")] as const;
 
 const postMcpRoute = createRoute({
   method: "post",
-  path: "/api/mcp",
+  path: "/",
   tags: ["MCP"],
   summary: "MCP JSON-RPC (Streamable HTTP)",
   description:
@@ -82,7 +82,7 @@ const postMcpRoute = createRoute({
 
 mcpRoutes.openapi(postMcpRoute, async (c) => {
   const result = await handleMcpHttpPayload(
-    { env: c.env, userId: c.get("userId")! },
+    { env: c.env, userId: c.var.userId! },
     c.req.valid("json"),
   );
   if (result.kind === "accepted") return c.body(null, 202);
@@ -92,7 +92,7 @@ mcpRoutes.openapi(postMcpRoute, async (c) => {
 
 const getMcpRoute = createRoute({
   method: "get",
-  path: "/api/mcp",
+  path: "/",
   tags: ["MCP"],
   summary: "MCP GET (SSE not implemented)",
   middleware: [...mcpGuards] as const,
@@ -107,7 +107,7 @@ mcpRoutes.openapi(getMcpRoute, (c) =>
 
 const deleteMcpRoute = createRoute({
   method: "delete",
-  path: "/api/mcp",
+  path: "/",
   tags: ["MCP"],
   summary: "MCP session end (stateless 204)",
   middleware: [...mcpGuards] as const,

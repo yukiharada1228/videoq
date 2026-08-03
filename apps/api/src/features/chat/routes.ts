@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { streamSSE } from "hono/streaming";
 import {
   requireAuth,
@@ -45,8 +46,12 @@ import * as messageService from "./message-service";
 /**
  * チャット系。全エンドポイント OpenAPI + Zod。
  * body 検証は createRoute（defaultHook）に一本化。
+ * `/api/chat` プレフィックスはアプリ側でマウントする。
  */
 export const chatRoutes = createFeatureRouter();
+
+/** OpenAI 互換 completions。`/api/v1/chat` プレフィックスはアプリ側でマウントする。 */
+export const chatCompletionsRoutes = createFeatureRouter();
 
 const chatAuth = requireAuth(apiKeyMethod, jwtMethod);
 const groupNotFound = () =>
@@ -54,7 +59,7 @@ const groupNotFound = () =>
 
 const historyRoute = createRoute({
   method: "get",
-  path: "/api/chat/groups/{groupId}/history",
+  path: "/groups/{groupId}/history",
   tags: ["Chat"],
   summary: "Chat history (or CSV download)",
   middleware: [chatAuth] as const,
@@ -77,7 +82,7 @@ const historyRoute = createRoute({
 });
 
 chatRoutes.openapi(historyRoute, async (c) => {
-  const userId = c.get("userId")!;
+  const userId = c.var.userId!;
   const { groupId } = c.req.valid("param");
   const query = c.req.valid("query");
 
@@ -109,7 +114,7 @@ const resetGuards = [chatAuth, requireScope()] as const;
 
 const resetHistoryRoute = createRoute({
   method: "delete",
-  path: "/api/chat/groups/{groupId}/history",
+  path: "/groups/{groupId}/history",
   tags: ["Chat"],
   summary: "Reset chat history",
   middleware: [...resetGuards] as const,
@@ -122,14 +127,14 @@ const resetHistoryRoute = createRoute({
 
 chatRoutes.openapi(resetHistoryRoute, async (c) => {
   const { groupId } = c.req.valid("param");
-  const res = await chatService.resetHistory(c.env, groupId, c.get("userId")!);
+  const res = await chatService.resetHistory(c.env, groupId, c.var.userId!);
   if ("notFound" in res) throw groupNotFound();
   return c.body(null, 204);
 });
 
 const analyticsRoute = createRoute({
   method: "get",
-  path: "/api/chat/groups/{groupId}/analytics",
+  path: "/groups/{groupId}/analytics",
   tags: ["Chat"],
   summary: "Chat analytics",
   middleware: [chatAuth] as const,
@@ -145,7 +150,7 @@ chatRoutes.openapi(analyticsRoute, async (c) => {
   const res = await chatService.analyticsForGroup(
     c.env,
     groupId,
-    c.get("userId")!,
+    c.var.userId!,
   );
   if ("notFound" in res) throw groupNotFound();
   return c.json(res, 200);
@@ -178,7 +183,7 @@ const feedbackGuards = [feedbackAuth, requireScope("chat_write")] as const;
 
 const feedbackRoute = createRoute({
   method: "patch",
-  path: "/api/chat/logs/{logId}/feedback",
+  path: "/logs/{logId}/feedback",
   tags: ["Chat"],
   summary: "Set chat log feedback",
   middleware: [...feedbackGuards] as const,
@@ -215,7 +220,7 @@ chatRoutes.openapi(feedbackRoute, async (c) => {
     logId,
     feedback as "good" | "bad" | null,
     {
-      userId: c.get("userId"),
+      userId: c.var.userId,
       shareSlug: c.req.query("share_slug") || c.req.query("share_token"),
     },
   );
@@ -244,7 +249,7 @@ const chatThrottle = createMiddleware<AppEnv>(async (c, next) => {
   const denied = await enforceThrottles(c.env, [
     {
       scope: "chat_authenticated",
-      ident: c.get("userId") != null ? String(c.get("userId")) : null,
+      ident: c.var.userId != null ? String(c.var.userId) : null,
     },
     {
       scope: "chat_share_token_ip",
@@ -266,7 +271,7 @@ const sendGuards = [
 
 const sendMessageRoute = createRoute({
   method: "post",
-  path: "/api/chat/messages",
+  path: "/messages",
   tags: ["Chat"],
   summary: "Send chat message (RAG / study)",
   middleware: [...sendGuards] as const,
@@ -283,17 +288,17 @@ const sendMessageRoute = createRoute({
 });
 chatRoutes.openapi(sendMessageRoute, async (c) => {
   const res = await messageService.sendChatMessage(c.env, {
-    userId: c.get("userId") ?? null,
+    userId: c.var.userId ?? null,
     body: c.req.valid("json"),
     shareSlug: shareSlugOf(c),
     locale: messageService.requestLocaleFromHeader(c.req.header("Accept-Language")),
   });
-  return c.json(res.body, res.status as Parameters<typeof c.json>[1]);
+  return c.json(res.body, res.status as ContentfulStatusCode);
 });
 
 const streamMessageRoute = createRoute({
   method: "post",
-  path: "/api/chat/messages/stream",
+  path: "/messages/stream",
   tags: ["Chat"],
   summary: "Stream chat message (SSE)",
   middleware: [...sendGuards] as const,
@@ -313,14 +318,14 @@ const streamMessageRoute = createRoute({
 });
 chatRoutes.openapi(streamMessageRoute, async (c) => {
   const res = await messageService.streamChatMessage(c.env, {
-    userId: c.get("userId") ?? null,
+    userId: c.var.userId ?? null,
     body: c.req.valid("json"),
     shareSlug: shareSlugOf(c),
     locale: messageService.requestLocaleFromHeader(c.req.header("Accept-Language")),
     clientSignal: c.req.raw.signal,
   });
   if (res.kind === "json") {
-    return c.json(res.body, res.status as Parameters<typeof c.json>[1]);
+    return c.json(res.body, res.status as ContentfulStatusCode);
   }
   c.header("Cache-Control", "no-cache");
   c.header("Content-Encoding", "Identity");
@@ -347,7 +352,7 @@ const completionsGuards = [
 
 const completionsRoute = createRoute({
   method: "post",
-  path: "/api/v1/chat/completions",
+  path: "/completions",
   tags: ["Chat"],
   summary: "OpenAI-compatible chat completions",
   middleware: [...completionsGuards] as const,
@@ -362,13 +367,13 @@ const completionsRoute = createRoute({
     400: errorResponse("Bad request"),
   },
 });
-chatRoutes.openapi(completionsRoute, async (c) => {
+chatCompletionsRoutes.openapi(completionsRoute, async (c) => {
   const res = await messageService.openAiChatCompletions(c.env, {
-    userId: c.get("userId") ?? null,
+    userId: c.var.userId ?? null,
     body: c.req.valid("json"),
     localeFallback: messageService.requestLocaleFromHeader(
       c.req.header("Accept-Language"),
     ),
   });
-  return c.json(res.body, res.status as Parameters<typeof c.json>[1]);
+  return c.json(res.body, res.status as ContentfulStatusCode);
 });

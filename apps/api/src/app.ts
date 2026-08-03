@@ -12,19 +12,22 @@ import { groupRoutes } from "./features/groups/routes";
 import { tagRoutes } from "./features/tags/routes";
 import { membershipRoutes } from "./features/membership/routes";
 import { videoRoutes } from "./features/videos/routes";
-import { chatRoutes } from "./features/chat/routes";
+import { chatCompletionsRoutes, chatRoutes } from "./features/chat/routes";
 import { evaluationRoutes } from "./features/evaluation/routes";
 import { plogRoutes } from "./features/plog/routes";
-import { oauthRoutes } from "./features/oauth/routes";
+import { oauthRoutes, oauthWellKnownRoutes } from "./features/oauth/routes";
 import { oauthSupportRoutes } from "./features/oauth/support-routes";
-import { oauthOidcRoutes } from "./features/oauth/oidc";
+import {
+  oauthOidcRoutes,
+  oauthOidcWellKnownRoutes,
+} from "./features/oauth/oidc";
 import { mcpRoutes } from "./features/mcp/routes";
 import { mediaRoutes } from "./features/media/routes";
 import { adminRoutes } from "./features/admin/routes";
 import { schemaRoutes } from "./features/schema/routes";
 
 /**
- * Hono アプリの組み立て。全ドメインは features/* にマウントする。
+ * Hono アプリの組み立て。全ドメインは features/* に prefix マウントする。
  * URL 契約は trailing slash なし（クライアント・emit 側も同じ正本に揃える）。
  */
 export function createApp() {
@@ -37,21 +40,25 @@ export function createApp() {
   app.onError(onError);
 
   app.route("/", healthRoutes);
-  app.route("/", authRoutes);
-  app.route("/", groupRoutes);
-  app.route("/", tagRoutes);
-  app.route("/", membershipRoutes);
-  app.route("/", videoRoutes);
-  app.route("/", chatRoutes);
-  app.route("/", evaluationRoutes);
-  app.route("/", plogRoutes);
-  app.route("/", oauthRoutes);
-  app.route("/", oauthSupportRoutes);
-  app.route("/", oauthOidcRoutes);
-  app.route("/", mcpRoutes);
-  app.route("/", mediaRoutes);
-  app.route("/", adminRoutes);
-  app.route("/", schemaRoutes);
+  app.route("/", oauthWellKnownRoutes);
+  app.route("/", oauthOidcWellKnownRoutes);
+
+  app.route("/api/auth", authRoutes);
+  app.route("/api/videos", videoRoutes);
+  app.route("/api/videos", tagRoutes);
+  app.route("/api/videos", groupRoutes);
+  app.route("/api/videos", membershipRoutes);
+  app.route("/api/videos", plogRoutes);
+  app.route("/api/chat", chatRoutes);
+  app.route("/api/v1/chat", chatCompletionsRoutes);
+  app.route("/api/evaluation", evaluationRoutes);
+  app.route("/api/oauth", oauthRoutes);
+  app.route("/api/oauth", oauthSupportRoutes);
+  app.route("/api/oauth", oauthOidcRoutes);
+  app.route("/api/mcp", mcpRoutes);
+  app.route("/api/media", mediaRoutes);
+  app.route("/api/admin", adminRoutes);
+  app.route("/api", schemaRoutes);
 
   registerOpenApiDoc(app);
 
@@ -59,3 +66,5 @@ export function createApp() {
 
   return app;
 }
+
+export type AppType = ReturnType<typeof createApp>;

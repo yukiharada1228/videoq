@@ -91,10 +91,10 @@ const request = async (path: string, method: string, token?: string) =>
     ENV,
   );
 
-describe("GET /api/chat/groups/:id/history/?download=csv", () => {
+describe("GET /groups/:id/history/?download=csv", () => {
   it("CRLF・最小引用・compact JSON の CSV を返す", async () => {
     const res = await request(
-      "/api/chat/groups/3/history?download=csv",
+      "/groups/3/history?download=csv",
       "GET",
       await accessToken(),
     );
@@ -112,7 +112,7 @@ describe("GET /api/chat/groups/:id/history/?download=csv", () => {
     rowsFor = (sql) =>
       sql.includes("video_groups") ? [] : defaultRows(sql);
     const res = await request(
-      "/api/chat/groups/3/history?download=csv",
+      "/groups/3/history?download=csv",
       "GET",
       await accessToken(),
     );
@@ -123,7 +123,7 @@ describe("GET /api/chat/groups/:id/history/?download=csv", () => {
   });
 
   it("未認証は 401", async () => {
-    const res = await request("/api/chat/groups/3/history?download=csv", "GET");
+    const res = await request("/groups/3/history?download=csv", "GET");
     expect(res.status).toBe(401);
   });
 });
@@ -179,9 +179,9 @@ describe("CSV の細部", () => {
   });
 });
 
-describe("DELETE /api/chat/groups/:id/history/", () => {
+describe("DELETE /groups/:id/history/", () => {
   it("評価 → chat log の順に削除して 204 を返す", async () => {
-    const res = await request("/api/chat/groups/3/history", "DELETE", await accessToken());
+    const res = await request("/groups/3/history", "DELETE", await accessToken());
     expect(res.status).toBe(204);
     expect(await res.text()).toBe("");
 
@@ -197,7 +197,7 @@ describe("DELETE /api/chat/groups/:id/history/", () => {
 
   it("グループが無ければ ROLLBACK して 404", async () => {
     rowsFor = () => [];
-    const res = await request("/api/chat/groups/3/history", "DELETE", await accessToken());
+    const res = await request("/groups/3/history", "DELETE", await accessToken());
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({
       error: { code: "VALIDATION_ERROR", message: "Group not found." },
@@ -206,7 +206,7 @@ describe("DELETE /api/chat/groups/:id/history/", () => {
   });
 
   it("未認証は 401", async () => {
-    const res = await request("/api/chat/groups/3/history", "DELETE");
+    const res = await request("/groups/3/history", "DELETE");
     expect(res.status).toBe(401);
   });
 });

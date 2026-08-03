@@ -38,37 +38,37 @@ const put = async (body: unknown) => ({
   body: JSON.stringify(body),
 });
 
-describe("/api/auth/searchapi-key のガードと serializer（DB 到達前）", () => {
+describe("/searchapi-key のガードと serializer（DB 到達前）", () => {
   it("認証なしは 401（GET/PUT/DELETE）", async () => {
     for (const method of ["GET", "PUT", "DELETE"]) {
-      const res = await authRoutes.request("/api/auth/searchapi-key", { method }, ENV);
+      const res = await authRoutes.request("/searchapi-key", { method }, ENV);
       expect(res.status, method).toBe(401);
     }
   });
 
   it("api_key 欠落 → 400 required", async () => {
-    const res = await authRoutes.request("/api/auth/searchapi-key", await put({}), ENV);
+    const res = await authRoutes.request("/searchapi-key", await put({}), ENV);
     expect(res.status).toBe(400);
     const j = await res.json();
     expect(j.error.details.api_key).toEqual(["Invalid input: expected string, received undefined"]);
   });
 
   it("空文字は CharField の blank エラー", async () => {
-    const res = await authRoutes.request("/api/auth/searchapi-key", await put({ api_key: "" }), ENV);
+    const res = await authRoutes.request("/searchapi-key", await put({ api_key: "" }), ENV);
     expect(res.status).toBe(400);
     const j = await res.json();
     expect(j.error.details.api_key).toEqual(["Too small: expected string to have >=1 characters"]);
   });
 
   it("空白のみは trim_whitespace 後に blank 扱い", async () => {
-    const res = await authRoutes.request("/api/auth/searchapi-key", await put({ api_key: "   " }), ENV);
+    const res = await authRoutes.request("/searchapi-key", await put({ api_key: "   " }), ENV);
     expect(res.status).toBe(400);
     const j = await res.json();
     expect(j.error.details.api_key).toEqual(["Too small: expected string to have >=1 characters"]);
   });
 
   it("null は null エラー", async () => {
-    const res = await authRoutes.request("/api/auth/searchapi-key", await put({ api_key: null }), ENV);
+    const res = await authRoutes.request("/searchapi-key", await put({ api_key: null }), ENV);
     expect(res.status).toBe(400);
     const j = await res.json();
     expect(j.error.details.api_key).toEqual(["Invalid input: expected string, received null"]);
