@@ -116,7 +116,28 @@ aws lambda update-function-code \
   --region "$REGION"
 ```
 
-Lambda には少なくとも DB、SQS、R2、AI、`USER_SECRET_ENCRYPTION_KEY` を設定します。
+### App secret (`videoq/<env>/app`) JSON schema
+
+Secrets Manager の app secret は **R2 用キー名を `R2_*` にする**（Terraform は secret 器のみ管理）。
+
+```json
+{
+  "OPENAI_API_KEY": "...",
+  "USER_SECRET_ENCRYPTION_KEY": "...",
+  "R2_ACCESS_KEY_ID": "...",
+  "R2_SECRET_ACCESS_KEY": "...",
+  "R2_BUCKET_NAME": "videoq-media-prod",
+  "R2_S3_ENDPOINT": "https://<accountid>.r2.cloudflarestorage.com",
+  "R2_S3_REGION": "auto"
+}
+```
+
+`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` をここに入れないこと。
+Lambda 実行ロールが同名を予約しており、R2 キーが無視されて文字起こしが 400 になります。
+
+API Worker（Cloudflare）の SQS 送信用クレデンシャルは別 IAM ユーザー
+（例: `videoq-workers-api`）を `wrangler secret` の `AWS_ACCESS_KEY_ID` /
+`AWS_SECRET_ACCESS_KEY` / `AWS_REGION` / `SQS_QUEUE_URL` に設定します。
 
 ## 5. Frontend
 

@@ -10,9 +10,10 @@ and deletes successful messages (failed ones become visible again / DLQ).
   export SQS_QUEUE_URL=http://127.0.0.1:9324/000000000000/videoq-jobs
   export AWS_REGION=us-east-1
   # ElasticMQ accepts any keys — reuse MinIO credentials for S3 + SQS locally.
-  export AWS_ACCESS_KEY_ID=minioadmin AWS_SECRET_ACCESS_KEY=minioadmin
-  export USE_S3_STORAGE=true AWS_STORAGE_BUCKET_NAME=videoq-media
-  export AWS_S3_ENDPOINT_URL=http://127.0.0.1:9000 AWS_S3_REGION_NAME=us-east-1
+  export USE_S3_STORAGE=true
+  export R2_ACCESS_KEY_ID=minioadmin R2_SECRET_ACCESS_KEY=minioadmin
+  export R2_BUCKET_NAME=videoq-media
+  export R2_S3_ENDPOINT=http://127.0.0.1:9000 R2_S3_REGION=us-east-1
   python scripts/run_worker.py
 """
 
