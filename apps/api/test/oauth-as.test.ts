@@ -85,6 +85,8 @@ describe("well-known metadata", () => {
     );
     expect(res.status).toBe(200);
     expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    // credentials:true と ACAO:* の併用はブラウザが拒否するため付けない。
+    expect(res.headers.get("Access-Control-Allow-Credentials")).toBeNull();
     const body = await res.json();
     expect(body.issuer).toBe("http://testserver");
     expect(body.authorization_endpoint).toBe(

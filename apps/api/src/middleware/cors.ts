@@ -2,11 +2,64 @@ import { cors } from "hono/cors";
 import { createMiddleware } from "hono/factory";
 import type { AppEnv } from "../types/bindings";
 
+/** MCP / OAuth クライアントが付けるプロトコル固有ヘッダ。 */
+const PROTOCOL_ALLOW_HEADERS = [
+  "Content-Type",
+  "Authorization",
+  "X-API-Key",
+  "Accept",
+  "Mcp-Session-Id",
+  "Mcp-Protocol-Version",
+  "Last-Event-ID",
+];
+
+const PROTOCOL_EXPOSE_HEADERS = [
+  "WWW-Authenticate",
+  "Mcp-Session-Id",
+  "X-Request-Id",
+];
+
+const PROTOCOL_ALLOW_METHODS = ["GET", "POST", "DELETE", "OPTIONS"];
+
 /**
- * CORS。許可オリジンは env（Pages 本番ドメイン）に限定し、credentials(Cookie) を許可
- * （要件 AU-12 / SEC-7）。env はミドルウェア実行時に参照するため関数で包む。
+ * MCP / OAuth の公開プロトコル経路か。
+ * これらは SPA Cookie ではなく外部 MCP クライアント向けなので、
+ * `Access-Control-Allow-Origin: *`（credentials なし）で応答する。
+ */
+export function isMcpProtocolPath(pathname: string): boolean {
+  return (
+    pathname === "/api/mcp" ||
+    pathname.startsWith("/api/mcp/") ||
+    pathname.startsWith("/.well-known/") ||
+    pathname.startsWith("/api/oauth/.well-known/") ||
+    pathname === "/api/oauth/register" ||
+    pathname.startsWith("/api/oauth/register/") ||
+    pathname === "/api/oauth/token" ||
+    pathname === "/api/oauth/revoke_token" ||
+    pathname === "/api/oauth/introspect" ||
+    pathname === "/api/oauth/device-authorization"
+  );
+}
+
+/**
+ * CORS。
+ * - MCP / OAuth プロトコル: `*` + credentials なし（Claude Code / claude.ai コネクタ向け）
+ * - それ以外: env の許可オリジンに限定し credentials(Cookie) を許可
  */
 export const corsMiddleware = createMiddleware<AppEnv>(async (c, next) => {
+  const pathname = new URL(c.req.url).pathname;
+
+  if (isMcpProtocolPath(pathname)) {
+    const handler = cors({
+      origin: "*",
+      allowHeaders: PROTOCOL_ALLOW_HEADERS,
+      allowMethods: PROTOCOL_ALLOW_METHODS,
+      exposeHeaders: PROTOCOL_EXPOSE_HEADERS,
+      maxAge: 86400,
+    });
+    return handler(c, next);
+  }
+
   const allowed = (c.env.CORS_ALLOW_ORIGIN ?? "")
     .split(",")
     .map((s) => s.trim())

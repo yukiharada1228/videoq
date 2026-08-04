@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { createApp } from "../src/app";
 import { mcpRoutes } from "../src/features/mcp/routes";
 import { sha256Hex } from "../src/shared/crypto";
 
@@ -237,7 +238,7 @@ describe("MCP JSON-RPC", () => {
     expect(result.content[0].text).toBe("Video not found");
   });
 
-  it("GET without text/event-stream Accept returns JSON-RPC 406", async () => {
+  it("GET with application/json-only Accept is normalized to open SSE", async () => {
     const res = await mcpRoutes.request(
       "/",
       {
@@ -249,17 +250,14 @@ describe("MCP JSON-RPC", () => {
       },
       ENV,
     );
-    expect(res.status).toBe(406);
-    const body = await res.json();
-    expect(body.jsonrpc).toBe("2.0");
-    expect(body.error).toEqual(
-      expect.objectContaining({
-        message: expect.stringContaining("text/event-stream"),
-      }),
-    );
+    // Accept 補完により 406 にせず SSE を開く（Claude Code / Cowork 互換）。
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type") ?? "").toContain("text/event-stream");
+    // ストリームを閉じる（テストがハングしないように）。
+    await res.body?.cancel();
   });
 
-  it("POST with unacceptable Accept returns JSON-RPC 406", async () => {
+  it("POST with non-MCP Accept is normalized and still serves JSON-RPC", async () => {
     const res = await mcpRoutes.request(
       "/",
       {
@@ -273,18 +271,9 @@ describe("MCP JSON-RPC", () => {
       },
       ENV,
     );
-    expect(res.status).toBe(406);
-    const body = await res.json();
-    expect(body).toEqual(
-      expect.objectContaining({
-        jsonrpc: "2.0",
-        error: expect.objectContaining({
-          message: expect.stringMatching(/application\/json|text\/event-stream/),
-        }),
-      }),
-    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ jsonrpc: "2.0", id: 1, result: {} });
   });
-
   it("DELETE ends the session with 200", async () => {
     const res = await mcpRoutes.request(
       "/",
@@ -303,5 +292,61 @@ describe("MCP JSON-RPC", () => {
   it("notification without id returns 202", async () => {
     const res = await post(jsonrpc("notifications/initialized", undefined, null));
     expect(res.status).toBe(202);
+  });
+});
+
+describe("MCP connector CORS", () => {
+  const app = createApp();
+
+  it("OPTIONS /api/mcp allows Claude.ai with wildcard origin and no credentials", async () => {
+    const res = await app.request(
+      "/api/mcp",
+      {
+        method: "OPTIONS",
+        headers: {
+          Origin: "https://claude.ai",
+          "Access-Control-Request-Method": "POST",
+          "Access-Control-Request-Headers":
+            "authorization,content-type,accept,mcp-protocol-version",
+        },
+      },
+      ENV,
+    );
+    expect(res.status).toBe(204);
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(res.headers.get("Access-Control-Allow-Credentials")).toBeNull();
+    const allowHeaders = (
+      res.headers.get("Access-Control-Allow-Headers") ?? ""
+    ).toLowerCase();
+    expect(allowHeaders).toContain("authorization");
+    expect(allowHeaders).toContain("mcp-protocol-version");
+    expect(allowHeaders).toContain("accept");
+    const expose = (
+      res.headers.get("Access-Control-Expose-Headers") ?? ""
+    ).toLowerCase();
+    expect(expose).toContain("www-authenticate");
+  });
+
+  it("401 exposes WWW-Authenticate for browser clients", async () => {
+    const res = await app.request(
+      "/api/mcp",
+      {
+        method: "POST",
+        headers: {
+          Origin: "https://claude.ai",
+          "content-type": "application/json",
+          accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify(jsonrpc("initialize", initializeParams)),
+      },
+      ENV,
+    );
+    expect(res.status).toBe(401);
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(res.headers.get("WWW-Authenticate")).toContain("resource_metadata=");
+    const expose = (
+      res.headers.get("Access-Control-Expose-Headers") ?? ""
+    ).toLowerCase();
+    expect(expose).toContain("www-authenticate");
   });
 });
