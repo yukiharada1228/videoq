@@ -1,28 +1,21 @@
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
+import { StreamableHTTPTransport } from "@hono/mcp";
 import {
   oauthBearerMethod,
   bearerApiKeyMethod,
   apiKeyMethod,
   requireScope,
 } from "../../middleware/auth";
-import {
-  createFeatureRouter,
-  createRoute,
-  errorResponse,
-  jsonResponse,
-  z,
-} from "../../shared/openapi";
+import { createFeatureRouter } from "../../shared/openapi";
 import { toErrorBody } from "../../shared/errors";
 import type { AppEnv } from "../../types/bindings";
-import { mcpErrorBodySchema, mcpJsonRpcSchema } from "./schemas";
-import {
-  handleMcpHttpPayload,
-} from "./service";
+import { createVideoqMcpServer } from "./server";
 
 /**
- * MCP Streamable HTTP（JSON-RPC 2.0）。
+ * MCP Streamable HTTP（@hono/mcp）。
  * 認証順: OAuth Bearer → Bearer API キー → X-API-Key/ApiKey。
+ * analytics-only のため API キースコープは read。
  */
 export const mcpRoutes = createFeatureRouter();
 
@@ -56,65 +49,17 @@ const mcpAuth = createMiddleware<AppEnv>(async (c, next) => {
   );
 });
 
-const mcpGuards = [mcpAuth, requireScope("write")] as const;
+mcpRoutes.use("*", mcpAuth, requireScope("read"));
 
-const postMcpRoute = createRoute({
-  method: "post",
-  path: "/",
-  tags: ["MCP"],
-  summary: "MCP JSON-RPC (Streamable HTTP)",
-  description:
-    "Body is a JSON-RPC 2.0 object or batch array.",
-  middleware: [...mcpGuards] as const,
-  request: {
-    body: {
-      content: { "application/json": { schema: mcpJsonRpcSchema } },
-      required: true,
-    },
-  },
-  responses: {
-    200: jsonResponse(z.unknown(), "JSON-RPC response"),
-    202: { description: "Notification accepted" },
-    400: jsonResponse(z.record(z.string(), z.unknown()), "Invalid JSON-RPC"),
-    401: errorResponse("Unauthorized"),
-  },
+mcpRoutes.all("/", async (c) => {
+  const transport = new StreamableHTTPTransport({
+    sessionIdGenerator: undefined,
+    enableJsonResponse: true,
+  });
+  const server = createVideoqMcpServer({
+    env: c.env,
+    userId: c.var.userId!,
+  });
+  await server.connect(transport);
+  return transport.handleRequest(c);
 });
-
-mcpRoutes.openapi(postMcpRoute, async (c) => {
-  const result = await handleMcpHttpPayload(
-    { env: c.env, userId: c.var.userId! },
-    c.req.valid("json"),
-  );
-  if (result.kind === "accepted") return c.body(null, 202);
-  if (result.kind === "error") return c.json(result.body, 400);
-  return c.json(result.body);
-});
-
-const getMcpRoute = createRoute({
-  method: "get",
-  path: "/",
-  tags: ["MCP"],
-  summary: "MCP GET (SSE not implemented)",
-  middleware: [...mcpGuards] as const,
-  responses: {
-    405: jsonResponse(mcpErrorBodySchema, "Method not allowed"),
-  },
-});
-
-mcpRoutes.openapi(getMcpRoute, (c) =>
-  c.json({ error: "GET is not supported on this endpoint" }, 405),
-);
-
-const deleteMcpRoute = createRoute({
-  method: "delete",
-  path: "/",
-  tags: ["MCP"],
-  summary: "MCP session end (stateless 204)",
-  middleware: [...mcpGuards] as const,
-  responses: {
-    204: { description: "No content" },
-    401: errorResponse("Unauthorized"),
-  },
-});
-
-mcpRoutes.openapi(deleteMcpRoute, (c) => c.body(null, 204));

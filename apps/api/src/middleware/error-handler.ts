@@ -20,6 +20,9 @@ export function onError(e: Error, c: Context<AppEnv>): Response {
   }
 
   if (e instanceof HTTPException) {
+    // MCP / OAuth 等、規格固有の Response を載せた HTTPException はそのまま返す。
+    if (e.res) return e.getResponse();
+
     const status = e.status;
     const code =
       status === 404

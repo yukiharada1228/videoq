@@ -50,6 +50,12 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+const initializeParams = {
+  protocolVersion: "2025-03-26",
+  capabilities: {},
+  clientInfo: { name: "videoq-mcp-test", version: "0.0.0" },
+};
+
 const jsonrpc = (method: string, params?: unknown, id: number | null = 1) => {
   const body: Record<string, unknown> = { jsonrpc: "2.0", method };
   if (id !== null) body.id = id;
@@ -64,6 +70,7 @@ const post = (body: unknown, headers: Record<string, string> = {}) =>
       method: "POST",
       headers: {
         "content-type": "application/json",
+        accept: "application/json, text/event-stream",
         authorization: `Bearer ${RAW_KEY}`,
         ...headers,
       },
@@ -78,8 +85,11 @@ describe("MCP auth", () => {
       "/",
       {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(jsonrpc("initialize")),
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify(jsonrpc("initialize", initializeParams)),
       },
       ENV,
     );
@@ -98,9 +108,10 @@ describe("MCP auth", () => {
         method: "POST",
         headers: {
           "content-type": "application/json",
+          accept: "application/json, text/event-stream",
           "x-api-key": RAW_KEY,
         },
-        body: JSON.stringify(jsonrpc("initialize")),
+        body: JSON.stringify(jsonrpc("initialize", initializeParams)),
       },
       ENV,
     );
@@ -125,6 +136,7 @@ describe("MCP auth", () => {
         method: "POST",
         headers: {
           "content-type": "application/json",
+          accept: "application/json, text/event-stream",
           authorization: `Bearer ${opaque}`,
         },
         body: JSON.stringify(jsonrpc("ping")),
@@ -135,17 +147,19 @@ describe("MCP auth", () => {
     expect(await res.json()).toEqual({ jsonrpc: "2.0", id: 1, result: {} });
   });
 
-  it("rejects read_only API key (POST requires write)", async () => {
+  it("accepts read_only API key (analytics-only read scope)", async () => {
     rowsFor = (sql) =>
       sql.includes("UPDATE api_keys") ? apiKeyRow("read_only") : [];
-    const res = await post(jsonrpc("initialize"));
-    expect(res.status).toBe(403);
+    const res = await post(jsonrpc("initialize", initializeParams));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.result.serverInfo.name).toBe("videoq-api");
   });
 });
 
 describe("MCP JSON-RPC", () => {
   it("serves / without trailing slash (no redirect)", async () => {
-    const res = await post(jsonrpc("initialize", { protocolVersion: "2025-03-26" }));
+    const res = await post(jsonrpc("initialize", initializeParams));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.result.protocolVersion).toBe("2025-03-26");
@@ -187,7 +201,7 @@ describe("MCP JSON-RPC", () => {
     const result = (await res.json()).result;
     expect(result.isError).toBe(false);
     expect(result.structuredContent).toEqual({
-      meta: { total: 0, limit: 0, offset: 0 },
+      meta: { total: 0, limit: 20, offset: 0 },
       data: [],
       videos: [],
     });
@@ -208,22 +222,82 @@ describe("MCP JSON-RPC", () => {
     expect(result.structuredContent).toEqual({ status: 404 });
   });
 
-  it("GET returns 405", async () => {
-    const res = await mcpRoutes.request(
-      "/",
-      { method: "GET", headers: { authorization: `Bearer ${RAW_KEY}` } },
-      ENV,
+  it("tools/call coerces string video_id", async () => {
+    rowsFor = (sql) =>
+      sql.includes("UPDATE api_keys") ? apiKeyRow() : [];
+    const res = await post(
+      jsonrpc("tools/call", {
+        name: "get_video",
+        arguments: { video_id: "404" },
+      }),
     );
-    expect(res.status).toBe(405);
+    expect(res.status).toBe(200);
+    const result = (await res.json()).result;
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toBe("Video not found");
   });
 
-  it("DELETE returns 204", async () => {
+  it("GET without text/event-stream Accept returns JSON-RPC 406", async () => {
     const res = await mcpRoutes.request(
       "/",
-      { method: "DELETE", headers: { authorization: `Bearer ${RAW_KEY}` } },
+      {
+        method: "GET",
+        headers: {
+          authorization: `Bearer ${RAW_KEY}`,
+          accept: "application/json",
+        },
+      },
       ENV,
     );
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(406);
+    const body = await res.json();
+    expect(body.jsonrpc).toBe("2.0");
+    expect(body.error).toEqual(
+      expect.objectContaining({
+        message: expect.stringContaining("text/event-stream"),
+      }),
+    );
+  });
+
+  it("POST with unacceptable Accept returns JSON-RPC 406", async () => {
+    const res = await mcpRoutes.request(
+      "/",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          accept: "text/html",
+          authorization: `Bearer ${RAW_KEY}`,
+        },
+        body: JSON.stringify(jsonrpc("ping")),
+      },
+      ENV,
+    );
+    expect(res.status).toBe(406);
+    const body = await res.json();
+    expect(body).toEqual(
+      expect.objectContaining({
+        jsonrpc: "2.0",
+        error: expect.objectContaining({
+          message: expect.stringMatching(/application\/json|text\/event-stream/),
+        }),
+      }),
+    );
+  });
+
+  it("DELETE ends the session with 200", async () => {
+    const res = await mcpRoutes.request(
+      "/",
+      {
+        method: "DELETE",
+        headers: {
+          authorization: `Bearer ${RAW_KEY}`,
+          accept: "application/json, text/event-stream",
+        },
+      },
+      ENV,
+    );
+    expect(res.status).toBe(200);
   });
 
   it("notification without id returns 202", async () => {
