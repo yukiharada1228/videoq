@@ -333,9 +333,9 @@ API paths do not use trailing slashes (for example `/api/videos`, not `/api/vide
 
 ## MCP (Model Context Protocol) Integration
 
-VideoQ exposes a built-in **analytics-only** remote MCP server at `POST /api/mcp`. Any MCP client that speaks Streamable HTTP — Claude Code, Cursor, and any client that can launch `mcp-remote` — can connect with just a URL and an API key. No local process to install.
+VideoQ exposes a built-in **analytics-only** remote MCP server at `/api/mcp` (Streamable HTTP via `@hono/mcp`). Any MCP client that speaks Streamable HTTP — Claude Code, Cursor, and any client that can launch `mcp-remote` — can connect with just a URL and an API key. No local process to install.
 
-> 🛡️ **Design policy:** Sending RAG chat questions is intentionally excluded. MCP access is limited to **reading and analyzing existing data**.
+> 🛡️ **Design policy:** Sending RAG chat questions is intentionally excluded. MCP access is limited to **reading and analyzing existing data**. API keys need the **read** scope (`read_only` keys are accepted).
 
 ### Available tools
 
@@ -346,7 +346,6 @@ VideoQ exposes a built-in **analytics-only** remote MCP server at `POST /api/mcp
 | `list_tags` | List tags |
 | `get_chat_history` | Chat history for a group (with feedback) |
 | `get_chat_analytics` | Question counts, period, daily time series, feedback aggregates |
-| `get_chat_analytics_keywords` | Keyword frequency in questions |
 | `get_evaluation_summary` | RAGAS average scores (faithfulness / answer_relevancy / context_precision) |
 | `list_evaluation_logs` | Per-log RAGAS scores |
 
@@ -356,7 +355,7 @@ List tools support `limit` / `offset` pagination (default 20, maximum 100).
 
 #### Step 1: Issue an integration API key
 
-Log in to VideoQ and issue a `vq_...` key from **Settings → Integration API Keys**, then copy it.
+Log in to VideoQ and issue a `vq_...` key from **Settings → Integration API Keys**, then copy it. A `read_only` key is enough for MCP.
 
 #### Step 2: Register the endpoint with your MCP client
 
@@ -421,7 +420,7 @@ Config file locations:
 
 #### Step 3: Verify
 
-Restart the client and confirm that the MCP server appears as `videoq`. Try prompts like "Show the RAGAS evaluation summary for group 1" or "What keywords have come up in recent questions?" to trigger the matching tools.
+Restart the client and confirm that the MCP server appears as `videoq`. Try prompts like "Show the RAGAS evaluation summary for group 1" or "List my recent videos" to trigger the matching tools.
 
 ### Troubleshooting
 

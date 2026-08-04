@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { Bindings } from "../types/bindings";
 import { listVideosPage, getVideoDetail } from "../repositories/video-repository";
 import { listGroupsPage, getGroupDetail } from "../repositories/group-repository";
@@ -21,29 +22,27 @@ export class McpToolError extends Error {
   }
 }
 
-export type McpToolDef = {
-  name: string;
-  description: string;
-  inputSchema: Record<string, unknown>;
-};
-
 type Json = Record<string, unknown>;
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 
-const PAGINATION_PROPS: Json = {
-  limit: {
-    type: "integer",
-    minimum: 1,
-    maximum: MAX_LIMIT,
-    description: `Max items to return (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT}).`,
-  },
-  offset: {
-    type: "integer",
-    minimum: 0,
-    description: "Number of items to skip.",
-  },
+const intId = z.coerce.number().int();
+
+const paginationShape = {
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_LIMIT)
+    .optional()
+    .describe(`Max items to return (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT}).`),
+  offset: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .describe("Number of items to skip."),
 };
 
 function normalizePagination(arguments_: Json): { limit: number; offset: number } {
@@ -57,139 +56,97 @@ function normalizePagination(arguments_: Json): { limit: number; offset: number 
   return { limit, offset };
 }
 
-function envelope(items: unknown[], count: number, itemsKey: string): Json {
+function envelope(
+  items: unknown[],
+  count: number,
+  itemsKey: string,
+  limit: number,
+  offset: number,
+): Json {
   return {
-    meta: { total: count, limit: items.length, offset: 0 },
+    meta: { total: count, limit, offset },
     [itemsKey]: items,
     data: items,
   };
 }
 
-/** VideoQ MCP エンドポイントのツール定義とハンドラ。 */
-export const MCP_TOOLS: McpToolDef[] = [
-  {
-    name: "list_videos",
-    description:
-      "List your videos. Supports keyword, status, ordering, tag filters, " +
-      "and limit/offset pagination. Returns count/next/previous/videos.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        q: { type: "string" },
-        status: {
-          type: "string",
-          enum: ["pending", "processing", "indexing", "completed", "error"],
-        },
-        ordering: {
-          type: "string",
-          enum: [
-            "uploaded_at_desc",
-            "uploaded_at_asc",
-            "title_asc",
-            "title_desc",
-          ],
-        },
-        tags: { type: "array", items: { type: "integer" } },
-        ...PAGINATION_PROPS,
-      },
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "get_video",
-    description: "Get a video's detail by ID, including transcript when available.",
-    inputSchema: {
-      type: "object",
-      properties: { video_id: { type: "integer" } },
-      required: ["video_id"],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "list_groups",
-    description: "List your video groups. Supports limit/offset pagination.",
-    inputSchema: {
-      type: "object",
-      properties: { ...PAGINATION_PROPS },
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "get_group",
-    description: "Get a video group's detail and its member videos.",
-    inputSchema: {
-      type: "object",
-      properties: { group_id: { type: "integer" } },
-      required: ["group_id"],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "list_tags",
-    description: "List your tags. Supports limit/offset pagination.",
-    inputSchema: {
-      type: "object",
-      properties: { ...PAGINATION_PROPS },
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "get_chat_history",
-    description:
-      "Get chat history for a group. Each entry includes role, content, " +
-      "feedback (good/bad/null), citations, and timestamps. " +
-      "Supports limit/offset pagination.",
-    inputSchema: {
-      type: "object",
-      properties: { group_id: { type: "integer" }, ...PAGINATION_PROPS },
-      required: ["group_id"],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "get_chat_analytics",
-    description:
-      "Get aggregated chat analytics for a group: total question count, " +
-      "date range, daily time series, and feedback breakdown (good/bad/none).",
-    inputSchema: {
-      type: "object",
-      properties: { group_id: { type: "integer" } },
-      required: ["group_id"],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "get_evaluation_summary",
-    description:
-      "Get averaged RAGAS evaluation scores for a group: evaluated_count, " +
-      "avg_faithfulness, avg_answer_relevancy, avg_context_precision.",
-    inputSchema: {
-      type: "object",
-      properties: { group_id: { type: "integer" } },
-      required: ["group_id"],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "list_evaluation_logs",
-    description:
-      "List per-ChatLog RAGAS evaluation results for a group. Each entry " +
-      "has chat_log_id, status, faithfulness, answer_relevancy, " +
-      "context_precision, error_message, evaluated_at. " +
-      "Supports limit/offset pagination.",
-    inputSchema: {
-      type: "object",
-      properties: { group_id: { type: "integer" }, ...PAGINATION_PROPS },
-      required: ["group_id"],
-      additionalProperties: false,
-    },
-  },
-];
-
 export type McpToolCallContext = {
   env: Bindings;
   userId: number;
 };
+
+/** Zod input shapes for `McpServer.registerTool`. */
+export const mcpToolSchemas = {
+  list_videos: {
+    q: z.string().optional(),
+    status: z
+      .enum(["pending", "processing", "indexing", "completed", "error"])
+      .optional(),
+    ordering: z
+      .enum([
+        "uploaded_at_desc",
+        "uploaded_at_asc",
+        "title_asc",
+        "title_desc",
+      ])
+      .optional(),
+    tags: z.array(intId).optional(),
+    ...paginationShape,
+  },
+  get_video: {
+    video_id: intId,
+  },
+  list_groups: {
+    ...paginationShape,
+  },
+  get_group: {
+    group_id: intId,
+  },
+  list_tags: {
+    ...paginationShape,
+  },
+  get_chat_history: {
+    group_id: intId,
+    ...paginationShape,
+  },
+  get_chat_analytics: {
+    group_id: intId,
+  },
+  get_evaluation_summary: {
+    group_id: intId,
+  },
+  list_evaluation_logs: {
+    group_id: intId,
+    ...paginationShape,
+  },
+} as const;
+
+export const MCP_TOOL_DESCRIPTIONS = {
+  list_videos:
+    "List your videos. Supports keyword, status, ordering, tag filters, " +
+    "and limit/offset pagination. Returns count/next/previous/videos.",
+  get_video: "Get a video's detail by ID, including transcript when available.",
+  list_groups: "List your video groups. Supports limit/offset pagination.",
+  get_group: "Get a video group's detail and its member videos.",
+  list_tags: "List your tags. Supports limit/offset pagination.",
+  get_chat_history:
+    "Get chat history for a group. Each entry includes role, content, " +
+    "feedback (good/bad/null), citations, and timestamps. " +
+    "Supports limit/offset pagination.",
+  get_chat_analytics:
+    "Get aggregated chat analytics for a group: total question count, " +
+    "date range, daily time series, and feedback breakdown (good/bad/none).",
+  get_evaluation_summary:
+    "Get averaged RAGAS evaluation scores for a group: evaluated_count, " +
+    "avg_faithfulness, avg_answer_relevancy, avg_context_precision.",
+  list_evaluation_logs:
+    "List per-ChatLog RAGAS evaluation results for a group. Each entry " +
+    "has chat_log_id, status, faithfulness, answer_relevancy, " +
+    "context_precision, error_message, evaluated_at. " +
+    "Supports limit/offset pagination.",
+} as const;
+
+export type McpToolName = keyof typeof mcpToolSchemas;
 
 /** ツール呼び出し（未知ツール / ドメインエラーは McpToolError）。 */
 export async function callMcpTool(
@@ -214,7 +171,7 @@ export async function callMcpTool(
         limit,
         offset,
       );
-      return envelope(page.results, page.count, "videos");
+      return envelope(page.results, page.count, "videos", limit, offset);
     }
     case "get_video": {
       const video = await getVideoDetail(
@@ -228,7 +185,7 @@ export async function callMcpTool(
     case "list_groups": {
       const { limit, offset } = normalizePagination(arguments_);
       const page = await listGroupsPage(ctx.env, ctx.userId, limit, offset);
-      return envelope(page.results, page.count, "groups");
+      return envelope(page.results, page.count, "groups", limit, offset);
     }
     case "get_group": {
       const group = await getGroupDetail(
@@ -242,7 +199,7 @@ export async function callMcpTool(
     case "list_tags": {
       const { limit, offset } = normalizePagination(arguments_);
       const page = await listTagsPage(ctx.env, ctx.userId, limit, offset);
-      return envelope(page.results, page.count, "tags");
+      return envelope(page.results, page.count, "tags", limit, offset);
     }
     case "get_chat_history": {
       const { limit, offset } = normalizePagination(arguments_);
@@ -256,7 +213,7 @@ export async function callMcpTool(
       if ("notFound" in res) {
         throw new McpToolError("Group not found", { status: 404 });
       }
-      return envelope(res.results, res.count, "history");
+      return envelope(res.results, res.count, "history", limit, offset);
     }
     case "get_chat_analytics": {
       const res = await getGroupChatAnalytics(
@@ -292,7 +249,7 @@ export async function callMcpTool(
       if ("notFound" in res) {
         throw new McpToolError("Group not found", { status: 404 });
       }
-      return envelope(res.results, res.count, "logs");
+      return envelope(res.results, res.count, "logs", limit, offset);
     }
     default:
       throw new McpToolError(`Unknown tool: ${name}`);
