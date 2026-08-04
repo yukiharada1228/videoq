@@ -49,7 +49,26 @@ const mcpAuth = createMiddleware<AppEnv>(async (c, next) => {
   );
 });
 
-mcpRoutes.use("*", mcpAuth, requireScope("read"));
+/**
+ * 一部クライアントは Accept に片方しか付けない。
+ * GET は text/event-stream（またはワイルドカード）が必要なので補完する。
+ */
+const normalizeMcpAccept = createMiddleware<AppEnv>(async (c, next) => {
+  const accept = c.req.header("Accept") ?? "";
+  const hasJson = accept.includes("application/json") || accept.includes("*/*");
+  const hasSse =
+    accept.includes("text/event-stream") || accept.includes("*/*");
+  if (!hasJson || !hasSse) {
+    try {
+      c.req.raw.headers.set("Accept", "application/json, text/event-stream");
+    } catch {
+      // Request headers が immutable な runtime ではそのまま進める。
+    }
+  }
+  return next();
+});
+
+mcpRoutes.use("*", normalizeMcpAccept, mcpAuth, requireScope("read"));
 
 mcpRoutes.all("/", async (c) => {
   const transport = new StreamableHTTPTransport({
