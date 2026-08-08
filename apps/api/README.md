@@ -58,6 +58,8 @@ Better Auth（`/api/auth/*`）が正本です。
 - ドメイン API は session / API key / OAuth Bearer を `middleware/auth.ts` で解決
 - SPA の「ログイン済み」判定は Better Auth `useSession`。プロフィールは `/api/account/me`
 - ユーザー ID は Better Auth 標準の text UUID（既存行も `0006_user_id_uuid` で UUID に付け替え。セッション / OAuth トークンは無効化）
+  - スキーマ差分は `drizzle-kit generate`（`meta/0005_snapshot.json` → `0006_snapshot.json`）
+  - データ remap は custom SQL（再生成: `npm run db:generate:user-id-uuid`）
 
 ## 秘密情報の暗号化
 

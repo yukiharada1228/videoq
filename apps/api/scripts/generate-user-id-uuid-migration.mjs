@@ -1,30 +1,39 @@
--- Generated via: drizzle-kit generate --name user_id_uuid
--- Snapshot (schema end-state): drizzle/meta/0006_snapshot.json
---
--- drizzle-kit DDL preview (replaced with UUID remap custom SQL below):
---   ALTER TABLE "account" ALTER COLUMN "user_id" SET DATA TYPE text;
---   ALTER TABLE "account_deletion_requests" ALTER COLUMN "user_id" SET DATA TYPE text;
---   ALTER TABLE "chat_logs" ALTER COLUMN "user_id" SET DATA TYPE text;
---   ALTER TABLE "device_code" ALTER COLUMN "user_id" SET DATA TYPE text;
---   ALTER TABLE "group_evaluation_snapshots" ALTER COLUMN "user_id" SET DATA TYPE text;
---   ALTER TABLE "learner_concept_states" ALTER COLUMN "user_id" SET DATA TYPE text;
---   ALTER TABLE "oauth_access_token" ALTER COLUMN "user_id" SET DATA TYPE text;
---   ALTER TABLE "oauth_client" ALTER COLUMN "user_id" SET DATA TYPE text;
---   ALTER TABLE "oauth_consent" ALTER COLUMN "user_id" SET DATA TYPE text;
---   ALTER TABLE "oauth_refresh_token" ALTER COLUMN "user_id" SET DATA TYPE text;
---   ALTER TABLE "scene_embeddings" ALTER COLUMN "user_id" SET DATA TYPE text;
---   ALTER TABLE "session" ALTER COLUMN "user_id" SET DATA TYPE text;
---   ALTER TABLE "tags" ALTER COLUMN "user_id" SET DATA TYPE text;
---   ALTER TABLE "users" ALTER COLUMN "id" SET DATA TYPE text;
---   ALTER TABLE "users" ALTER COLUMN "id" DROP IDENTITY;
---   ALTER TABLE "video_groups" ALTER COLUMN "user_id" SET DATA TYPE text;
---   ALTER TABLE "videos" ALTER COLUMN "user_id" SET DATA TYPE text;
---
--- Custom SQL: remap existing bigint ids to new UUIDs (not USING id::text),
--- and invalidate sessions / OAuth tokens whose JWT sub would keep old ids.
--- Regenerate with: npx tsx scripts/generate-user-id-uuid-migration.mjs
+/**
+ * Rebuild 0006_user_id_uuid using drizzle-kit:
+ * 1) Materialize 0005_snapshot.json from the pre-UUID schema (git)
+ * 2) Run `drizzle-kit generate --name user_id_uuid` against the current schema
+ * 3) Replace naive ALTER TYPE SQL with UUID remap custom SQL (same end-state)
+ *
+ *   npx tsx scripts/generate-user-id-uuid-migration.mjs
+ */
+import { randomUUID } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import {
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+  existsSync,
+  readdirSync,
+} from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { generateDrizzleJson } from "drizzle-kit/api";
 
-CREATE TABLE "_user_id_remap" (
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const root = join(__dirname, "..");
+const repoRoot = join(root, "../..");
+const drizzleDir = join(root, "drizzle");
+const metaDir = join(drizzleDir, "meta");
+const journalPath = join(metaDir, "_journal.json");
+
+const TAG = "0006_user_id_uuid";
+const PREV_TAG = "0005_better_auth";
+/** Last commit before UUID user-id cutover on this branch. */
+const BASE_COMMIT = "34e42cc";
+
+const REMAP_BODY = `CREATE TABLE "_user_id_remap" (
 	"old_id" bigint PRIMARY KEY,
 	"new_id" text NOT NULL UNIQUE
 );
@@ -171,3 +180,120 @@ ALTER TABLE "oauth_access_token" ADD CONSTRAINT "oauth_access_token_user_id_fkey
 ALTER TABLE "oauth_consent" ADD CONSTRAINT "oauth_consent_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE;
 --> statement-breakpoint
 DROP TABLE "_user_id_remap";
+`;
+
+function gitShow(commit, relPath) {
+  return execFileSync("git", ["show", `${commit}:${relPath}`], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+}
+
+function readJournal() {
+  return JSON.parse(readFileSync(journalPath, "utf8"));
+}
+
+function writeJournal(journal) {
+  writeFileSync(journalPath, JSON.stringify(journal, null, 2) + "\n");
+}
+
+// --- 1) Drop previous 0006 artifacts ---
+const journal = readJournal();
+journal.entries = journal.entries.filter((e) => e.tag !== TAG);
+writeJournal(journal);
+rmSync(join(drizzleDir, `${TAG}.sql`), { force: true });
+rmSync(join(metaDir, "0006_snapshot.json"), { force: true });
+
+if (!journal.entries.some((e) => e.tag === PREV_TAG)) {
+  throw new Error(`journal missing ${PREV_TAG}`);
+}
+
+// --- 2) Build 0005_snapshot.json from pre-UUID schema ---
+const tmp = join(root, ".tmp-prev-schema");
+rmSync(tmp, { recursive: true, force: true });
+mkdirSync(tmp, { recursive: true });
+try {
+  for (const file of ["index.ts", "modern.ts", "better-auth.ts"]) {
+    writeFileSync(
+      join(tmp, file),
+      gitShow(BASE_COMMIT, `apps/api/src/db/schema/${file}`),
+    );
+  }
+  const prevSchema = await import(pathToFileURL(join(tmp, "index.ts")).href);
+  const prevJson = await generateDrizzleJson(prevSchema);
+  const snap0000 = JSON.parse(
+    readFileSync(join(metaDir, "0000_snapshot.json"), "utf8"),
+  );
+  writeFileSync(
+    join(metaDir, "0005_snapshot.json"),
+    JSON.stringify(
+      { ...prevJson, id: prevJson.id || randomUUID(), prevId: snap0000.id },
+      null,
+      2,
+    ) + "\n",
+  );
+  console.log("wrote meta/0005_snapshot.json from", BASE_COMMIT);
+} finally {
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// --- 3) drizzle-kit generate (hide non-JSON meta/*.hash which breaks kit) ---
+const hashPath = join(metaDir, "0000_init.hash");
+const hashBak = join(metaDir, "0000_init.hash.bak");
+if (existsSync(hashPath)) renameSync(hashPath, hashBak);
+try {
+  execFileSync(
+    "npx",
+    ["drizzle-kit", "generate", "--name", "user_id_uuid"],
+    { cwd: root, stdio: "inherit" },
+  );
+} finally {
+  if (existsSync(hashBak)) renameSync(hashBak, hashPath);
+}
+
+const generatedSql = readdirSync(drizzleDir)
+  .filter((n) => n.includes("user_id_uuid") && n.endsWith(".sql"))
+  .sort()
+  .at(-1);
+if (!generatedSql) {
+  throw new Error("drizzle-kit generate did not create user_id_uuid.sql");
+}
+const generatedPath = join(drizzleDir, generatedSql);
+const generatedBody = readFileSync(generatedPath, "utf8");
+console.log(`drizzle-kit generated ${generatedSql}`);
+
+const targetSqlPath = join(drizzleDir, `${TAG}.sql`);
+if (generatedPath !== targetSqlPath) {
+  writeFileSync(targetSqlPath, generatedBody);
+  rmSync(generatedPath, { force: true });
+}
+
+if (!existsSync(join(metaDir, "0006_snapshot.json"))) {
+  throw new Error("missing meta/0006_snapshot.json after generate");
+}
+
+const preview = generatedBody
+  .split(/\s*--> statement-breakpoint\s*/g)
+  .map((s) => s.trim())
+  .filter(Boolean)
+  .map((s) => `--   ${s.replace(/\n/g, " ")}`)
+  .join("\n");
+
+writeFileSync(
+  targetSqlPath,
+  `-- Generated via: drizzle-kit generate --name user_id_uuid
+-- Snapshot (schema end-state): drizzle/meta/0006_snapshot.json
+--
+-- drizzle-kit DDL preview (replaced with UUID remap custom SQL below):
+${preview}
+--
+-- Custom SQL: remap existing bigint ids to new UUIDs (not USING id::text),
+-- and invalidate sessions / OAuth tokens whose JWT sub would keep old ids.
+-- Regenerate with: npx tsx scripts/generate-user-id-uuid-migration.mjs
+
+${REMAP_BODY}
+`,
+);
+
+console.log(`wrote ${targetSqlPath} with custom UUID remap SQL`);
+console.log("done");
