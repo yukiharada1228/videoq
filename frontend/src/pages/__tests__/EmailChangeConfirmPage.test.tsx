@@ -18,7 +18,7 @@ describe('EmailChangeConfirmPage', () => {
     globalThis.__setMockSearchParams('')
   })
 
-  it('confirms email change from uid and token query params', async () => {
+  it('confirms email change when token query is present', async () => {
     ;(apiClient.confirmEmailChange as ReturnType<typeof vi.fn>).mockResolvedValue({})
 
     render(<EmailChangeConfirmPage />)
@@ -31,12 +31,21 @@ describe('EmailChangeConfirmPage', () => {
     expect(await screen.findByText('auth.emailChange.success')).toBeInTheDocument()
   })
 
-  it('shows invalid link state without calling the API', async () => {
+  it('shows success for Better Auth callback without calling confirm', async () => {
     globalThis.__setMockSearchParams('')
 
     render(<EmailChangeConfirmPage />)
 
-    expect(screen.getByText('auth.emailChange.invalidLink')).toBeInTheDocument()
+    expect(await screen.findByText('auth.emailChange.success')).toBeInTheDocument()
+    expect(apiClient.confirmEmailChange).not.toHaveBeenCalled()
+  })
+
+  it('shows error when error query is present', async () => {
+    globalThis.__setMockSearchParams('error=access_denied')
+
+    render(<EmailChangeConfirmPage />)
+
+    expect(await screen.findByText('auth.emailChange.error')).toBeInTheDocument()
     expect(apiClient.confirmEmailChange).not.toHaveBeenCalled()
   })
 })

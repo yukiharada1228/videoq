@@ -138,7 +138,7 @@ export interface SearchApiKeyStatus {
 }
 
 export interface AuthorizedOAuthToken {
-  id: number;
+  id: string;
   client_id: string;
   client_name: string;
   scope: string;
@@ -663,13 +663,23 @@ export class ApiClient {
     const { authClient } = await import('@/lib/auth-client');
     const { error } = await authClient.changeEmail({
       newEmail: data.email,
+      callbackURL: `${window.location.origin}/change-email`,
     });
     if (error) throw new ApiError(error.message || 'Email change failed', error.code || 'EMAIL_CHANGE_FAILED');
   }
 
+  /**
+   * Completes email change when the verification link lands on the SPA with `?token=`.
+   * Prefer BA's `/api/auth/verify-email` link; this covers callback/token handoff cases.
+   */
   async confirmEmailChange(data: EmailChangeConfirmRequest): Promise<void> {
-    // Better Auth completes email change via the link hitting /api/auth/* directly.
-    void data;
+    const { authClient } = await import('@/lib/auth-client');
+    const { error } = await authClient.verifyEmail({
+      query: { token: data.token },
+    });
+    if (error) {
+      throw new ApiError(error.message || 'Email change failed', error.code || 'EMAIL_CHANGE_FAILED');
+    }
   }
 
   async getMe(): Promise<User> {
@@ -753,12 +763,52 @@ export class ApiClient {
   }
 
   async getAuthorizedOAuthTokens(): Promise<AuthorizedOAuthToken[]> {
-    return this.request<AuthorizedOAuthToken[]>('/account/connected-apps');
+    const { authClient } = await import('@/lib/auth-client');
+    const { data, error } = await authClient.oauth2.getConsents();
+    if (error) {
+      throw new ApiError(error.message || 'Failed to list connected apps', error.code || 'OAUTH');
+    }
+    const consents = (Array.isArray(data) ? data : []) as Array<Record<string, unknown>>;
+    return Promise.all(
+      consents.map(async (consent) => {
+        const clientId = String(consent.clientId ?? '');
+        let clientName = clientId;
+        if (clientId) {
+          try {
+            const pub = await authClient.oauth2.publicClient({
+              query: { client_id: clientId },
+            });
+            const name = (pub.data as { client_name?: string } | null)?.client_name;
+            if (name) clientName = name;
+          } catch {
+            /* keep clientId */
+          }
+        }
+        const scopes = Array.isArray(consent.scopes)
+          ? (consent.scopes as string[]).join(' ')
+          : String(consent.scopes ?? '');
+        const createdAt = consent.createdAt;
+        return {
+          id: String(consent.id ?? ''),
+          client_id: clientId,
+          client_name: clientName,
+          scope: scopes,
+          issued_at:
+            createdAt instanceof Date
+              ? createdAt.toISOString()
+              : String(createdAt ?? new Date().toISOString()),
+          expires_at: null,
+        };
+      }),
+    );
   }
 
   async revokeAuthorizedOAuthToken(id: number | string): Promise<void> {
-    // Connected-app revoke is handled via Better Auth oauth-provider client endpoints.
-    void id;
+    const { authClient } = await import('@/lib/auth-client');
+    const { error } = await authClient.oauth2.deleteConsent({ id: String(id) });
+    if (error) {
+      throw new ApiError(error.message || 'Failed to revoke connected app', error.code || 'OAUTH');
+    }
   }
 
   async getSearchApiKeyStatus(): Promise<SearchApiKeyStatus> {

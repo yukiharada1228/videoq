@@ -24,6 +24,20 @@ const { authClientMock } = vi.hoisted(() => {
     requestPasswordReset: vi.fn(() => ok()),
     resetPassword: vi.fn(() => ok()),
     changeEmail: vi.fn(() => ok()),
+    oauth2: {
+      getConsents: vi.fn(() =>
+        ok([
+          {
+            id: 'consent-1',
+            clientId: 'mcp-client',
+            scopes: ['openid', 'profile'],
+            createdAt: new Date('2026-03-02T00:00:00Z'),
+          },
+        ]),
+      ),
+      deleteConsent: vi.fn(() => ok()),
+      publicClient: vi.fn(() => ok({ client_name: 'MCP Client' })),
+    },
     apiKey: {
       list: vi.fn(() =>
         ok({
@@ -192,16 +206,39 @@ describe('ApiClient', () => {
       });
     });
 
-    it('requestEmailChange should call Better Auth changeEmail', async () => {
+    it('requestEmailChange should call Better Auth changeEmail with callback', async () => {
       await apiClient.requestEmailChange({ email: 'new@example.com' });
       expect(authClientMock.changeEmail).toHaveBeenCalledWith({
         newEmail: 'new@example.com',
+        callbackURL: 'http://frontend.example.com/change-email',
       });
     });
 
-    it('confirmEmailChange is a no-op (Better Auth link completes the change)', async () => {
-      await expect(apiClient.confirmEmailChange({ token: 'opaque-token' })).resolves.toBeUndefined();
-      expect(fetchMock).not.toHaveBeenCalled();
+    it('confirmEmailChange should verify via Better Auth', async () => {
+      await apiClient.confirmEmailChange({ token: 'opaque-token' });
+      expect(authClientMock.verifyEmail).toHaveBeenCalledWith({
+        query: { token: 'opaque-token' },
+      });
+    });
+
+    it('getAuthorizedOAuthTokens should map Better Auth consents', async () => {
+      const result = await apiClient.getAuthorizedOAuthTokens();
+      expect(result).toEqual([
+        {
+          id: 'consent-1',
+          client_id: 'mcp-client',
+          client_name: 'MCP Client',
+          scope: 'openid profile',
+          issued_at: '2026-03-02T00:00:00.000Z',
+          expires_at: null,
+        },
+      ]);
+      expect(authClientMock.oauth2.getConsents).toHaveBeenCalledTimes(1);
+    });
+
+    it('revokeAuthorizedOAuthToken should delete Better Auth consent', async () => {
+      await apiClient.revokeAuthorizedOAuthToken('consent-1');
+      expect(authClientMock.oauth2.deleteConsent).toHaveBeenCalledWith({ id: 'consent-1' });
     });
 
     it('getMe should return user info', async () => {
