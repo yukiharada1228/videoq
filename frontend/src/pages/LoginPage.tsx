@@ -13,8 +13,8 @@ import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { FormField } from '@/components/auth/FormField';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { AuthFormFooter } from '@/components/auth/AuthFormFooter';
-import { Button } from '@/components/ui/button';
-import { Divider } from '@/components/ui/divider';
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
+import { Button } from '@/components/ui/button';import { Divider } from '@/components/ui/divider';
 import { UtilityLink } from '@/components/ui/utility-link';
 
 // Only allow same-origin absolute paths to prevent open redirects to attacker
@@ -123,6 +123,8 @@ export default function LoginPage() {
           {t('auth.login.orDivider')}
         </span>
       </div>
+
+      <GoogleSignInButton callbackURL={nextPath || '/'} />
 
       <div className="mt-8 text-center">
         <AuthFormFooter

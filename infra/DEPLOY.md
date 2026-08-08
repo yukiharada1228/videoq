@@ -37,7 +37,15 @@ npx wrangler secret put R2_SECRET_ACCESS_KEY
 npx wrangler secret put SQS_QUEUE_URL
 npx wrangler secret put AWS_ACCESS_KEY_ID
 npx wrangler secret put AWS_SECRET_ACCESS_KEY
+# Google sign-in (optional; both required)
+npx wrangler secret put GOOGLE_CLIENT_ID
+npx wrangler secret put GOOGLE_CLIENT_SECRET
 ```
+
+Google Cloud Console の OAuth Web クライアントに Authorized redirect URI を登録:
+
+- 本番: `https://videoq.jp/api/auth/callback/google`
+- ローカル: `{BETTER_AUTH_URL}/api/auth/callback/google`（例: `http://localhost:8787/api/auth/callback/google`）
 
 `BETTER_AUTH_SECRET` と `USER_SECRET_ENCRYPTION_KEY` は別々に生成します
 （例: `openssl rand -base64 48`）。

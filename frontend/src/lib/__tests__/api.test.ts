@@ -16,6 +16,7 @@ const { authClientMock } = vi.hoisted(() => {
     signOut: vi.fn(() => ok()),
     signIn: {
       username: vi.fn(() => ok()),
+      social: vi.fn(() => ok()),
     },
     signUp: {
       email: vi.fn(() => ok()),
@@ -153,6 +154,14 @@ describe('ApiClient', () => {
       expect(authClientMock.signIn.username).toHaveBeenCalledWith({
         username: 'user',
         password: 'pw',
+      });
+    });
+
+    it('loginWithGoogle should call Better Auth social sign-in', async () => {
+      await apiClient.loginWithGoogle('/videos');
+      expect(authClientMock.signIn.social).toHaveBeenCalledWith({
+        provider: 'google',
+        callbackURL: '/videos',
       });
     });
 

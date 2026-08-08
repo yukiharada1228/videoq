@@ -641,6 +641,18 @@ export class ApiClient {
     return { access_token: '' };
   }
 
+  /** Redirects to Google OAuth via Better Auth (`signIn.social`). */
+  async loginWithGoogle(callbackURL = '/'): Promise<void> {
+    const { authClient } = await import('@/lib/auth-client');
+    const { error } = await authClient.signIn.social({
+      provider: 'google',
+      callbackURL,
+    });
+    if (error) {
+      throw new ApiError(error.message || 'Google sign-in failed', error.code || 'GOOGLE_SIGN_IN_FAILED');
+    }
+  }
+
   async requestPasswordReset(data: PasswordResetRequest): Promise<void> {
     const { authClient } = await import('@/lib/auth-client');
     const { error } = await authClient.requestPasswordReset({

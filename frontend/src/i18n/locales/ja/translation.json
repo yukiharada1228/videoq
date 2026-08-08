@@ -301,6 +301,9 @@
       "submit": "ログイン",
       "submitting": "ログイン中...",
       "orDivider": "または",
+      "continueWithGoogle": "Googleで続行",
+      "googleRedirecting": "Googleへ移動中...",
+      "googleFailed": "Googleログインに失敗しました",
       "footerQuestion": "アカウントをお持ちでない方は",
       "footerLink": "こちらから登録",
       "forgotPassword": "パスワードをお忘れですか？"
@@ -311,6 +314,7 @@
       "submit": "新規登録する",
       "submitting": "登録中...",
       "orDivider": "または",
+      "continueWithGoogle": "Googleで登録",
       "footerQuestion": "すでにアカウントをお持ちの方は",
       "footerLink": "こちらからログイン",
       "passwordMismatch": "パスワードが一致しません"

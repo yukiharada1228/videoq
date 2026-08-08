@@ -47,6 +47,8 @@ Better Auth（`/api/auth/*`）が正本です。
 - Cookie session（Better Auth）。SPA は `credentials: "include"` + `better-auth/react`
 - メール確認・パスワード再設定・メール変更は Better Auth verification フロー
 - 秘密鍵: `BETTER_AUTH_SECRET` / 公開 URL: `BETTER_AUTH_URL`
+- Google ログイン（任意）: `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`  
+  Redirect URI: `{BETTER_AUTH_URL}/api/auth/callback/google`
 
 ### API key / OAuth
 

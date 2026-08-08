@@ -10,6 +10,7 @@ vi.mock('@/lib/api', () => ({
     getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
     getMeOrNull: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
     login: vi.fn(),
+    loginWithGoogle: vi.fn(() => Promise.resolve()),
   },
 }))
 
@@ -54,6 +55,18 @@ describe('LoginPage', () => {
     render(<LoginPage />)
 
     expect(screen.getByText('auth.login.footerLink')).toBeInTheDocument()
+  })
+
+  it('should render Google sign-in and call loginWithGoogle', async () => {
+    render(<LoginPage />)
+
+    const googleButton = screen.getByText('auth.login.continueWithGoogle')
+    expect(googleButton).toBeInTheDocument()
+    fireEvent.click(googleButton)
+
+    await waitFor(() => {
+      expect(apiClient.loginWithGoogle).toHaveBeenCalledWith('/')
+    })
   })
 
   it('should call apiClient.login on submit', async () => {
