@@ -40,7 +40,7 @@ export type VideoListItem = {
 
 // VideoSerializer（詳細）: 一覧 + user / transcript / error_message
 export type VideoDetail = VideoListItem & {
-  user: number;
+  user: string;
   transcript: string | null;
   error_message: string | null;
 };
@@ -75,7 +75,7 @@ const videoTagsJson = sql<string>`COALESCE((
 ), '[]'::json)::text`.as("tags");
 
 /** WHERE 条件を Drizzle 式で組み立てる。 */
-function buildFilterConditions(userId: number, c: VideoListCriteria): SQL {
+function buildFilterConditions(userId: string, c: VideoListCriteria): SQL {
   const conditions: SQL[] = [eq(videos.userId, userId)];
 
   if (c.keyword) {
@@ -142,7 +142,7 @@ export async function mapVideoListRow(
 export async function getVideoDetail(
   env: Bindings,
   videoId: number,
-  userId: number,
+  userId: string,
 ): Promise<VideoDetail | null> {
   const row = await withDb(env, async (db) => {
     const rows = await db
@@ -171,7 +171,7 @@ export async function getVideoDetail(
   const youtubeId = row.youtube_video_id || null;
   return {
     id: Number(row.id),
-    user: Number(row.user_id),
+    user: String(row.user_id),
     file: await resolveFileUrl(env, row.file || null),
     title: row.title,
     description: row.description,
@@ -197,7 +197,7 @@ export async function getVideoDetail(
 export async function updateVideo(
   env: Bindings,
   videoId: number,
-  userId: number,
+  userId: string,
   fields: { title?: string; description?: string; transcript?: string },
 ): Promise<
   | { notFound: true }
@@ -239,7 +239,7 @@ export async function updateVideo(
  */
 export async function createYoutubeVideo(
   env: Bindings,
-  userId: number,
+  userId: string,
   params: { sourceUrl: string; youtubeVideoId: string; title: string; description: string },
 ): Promise<number> {
   return withDb(env, async (db) => {
@@ -267,7 +267,7 @@ export async function createYoutubeVideo(
 export async function getVideoTranscriptState(
   env: Bindings,
   videoId: number,
-  userId: number,
+  userId: string,
 ): Promise<{ found: false } | { found: true; hasTranscript: boolean }> {
   return withDb(env, async (db) => {
     const rows = await db
@@ -285,7 +285,7 @@ export async function getVideoTranscriptState(
 export async function getVideoStatus(
   env: Bindings,
   videoId: number,
-  userId: number,
+  userId: string,
 ): Promise<{ found: false } | { found: true; status: string }> {
   return withDb(env, async (db) => {
     const rows = await db
@@ -321,7 +321,7 @@ export async function transitionVideoStatus(
 /** status=uploading のまま放置された動画（FR-Q3 放棄解放用）。 */
 export type StaleUploadingVideo = {
   id: number;
-  userId: number;
+  userId: string;
   fileKey: string | null;
 };
 
@@ -352,7 +352,7 @@ export async function listStaleUploadingVideos(
       .limit(limit);
     return rows.map((r) => ({
       id: Number(r.id),
-      userId: Number(r.userId),
+      userId: String(r.userId),
       fileKey: r.file || null,
     }));
   });
@@ -365,7 +365,7 @@ export async function listStaleUploadingVideos(
  */
 export async function createPendingVideo(
   env: Bindings,
-  userId: number,
+  userId: string,
   fileKey: string,
   title: string,
   description: string,
@@ -397,7 +397,7 @@ export async function createPendingVideo(
  */
 export async function createUploadedVideo(
   env: Bindings,
-  userId: number,
+  userId: string,
   fileKey: string,
   title: string,
   description: string,
@@ -427,7 +427,7 @@ export async function createUploadedVideo(
 export async function getVideoFileKey(
   env: Bindings,
   videoId: number,
-  userId: number,
+  userId: string,
 ): Promise<{ found: false } | { found: true; fileKey: string | null }> {
   return withDb(env, async (db) => {
     const rows = await db
@@ -452,7 +452,7 @@ export async function getVideoFileKey(
 export async function deleteVideoCascade(
   env: Bindings,
   videoId: number,
-  userId: number,
+  userId: string,
 ): Promise<boolean> {
   return withDb(env, async (db) => {
     return db.transaction(async (tx) => {
@@ -487,7 +487,7 @@ export async function deleteVideoCascade(
 
 export async function listVideosPage(
   env: Bindings,
-  userId: number,
+  userId: string,
   criteria: VideoListCriteria,
   limit: number,
   offset: number,

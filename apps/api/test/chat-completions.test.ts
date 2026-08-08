@@ -46,7 +46,7 @@ const defaultRows = (sql: string): Record<string, unknown>[] => {
   if (sql.includes("is_over_quota, ai_answers_limit"))
     return [{ is_over_quota: false, ai_answers_limit: null, used_ai_answers: 0 }];
   if (sql.includes("FROM video_groups WHERE"))
-    return [{ id: 3, user_id: 5, description: null }];
+    return [{ id: 3, user_id: "00000000-0000-4000-8000-000000000005", description: null }];
   if (sql.includes("FROM video_group_members")) return [{ video_id: 60 }];
   if (sql.includes("FROM scene_embeddings"))
     return [
@@ -70,7 +70,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-async function accessToken(userId = 5) {
+async function accessToken(userId = "00000000-0000-4000-8000-000000000005") {
   return signAccessToken(SECRET, userId);
 }
 
@@ -117,7 +117,7 @@ describe("POST /completions", () => {
       { messages: [{ role: "user", content: "hi" }] },
       {
         authorization: "Bearer vq_livekeyvalue123",
-        "X-VideoQ-Test-User-Id": "5",
+        "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005",
         "X-VideoQ-Test-Access-Level": "read_only",
       },
     );
@@ -130,7 +130,7 @@ describe("POST /completions", () => {
       { messages: [{ role: "user", content: "hi" }] },
       {
         "x-api-key": "vq_livekeyvalue123",
-        "X-VideoQ-Test-User-Id": "5",
+        "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005",
         "X-VideoQ-Test-Access-Level": "read_only",
       },
     );
@@ -141,7 +141,7 @@ describe("POST /completions", () => {
     stubOpenAi();
     const res = await post(
       { model: "videoq-pro", messages: [{ role: "user", content: "何が起きた?" }], group_id: 3 },
-      { "X-VideoQ-Test-User-Id": "5" },
+      { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" },
     );
 
     expect(res.status).toBe(200);
@@ -186,7 +186,7 @@ describe("POST /completions", () => {
     stubOpenAi("plain answer");
     const res = await post(
       { messages: [{ role: "user", content: "hi" }] },
-      { "X-VideoQ-Test-User-Id": "5" },
+      { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" },
     );
     const body = (await res.json()) as any;
     expect(body.choices[0].message).toEqual({ role: "assistant", content: "plain answer" });
@@ -197,7 +197,7 @@ describe("POST /completions", () => {
     const requests = stubOpenAi();
     await post(
       { messages: [{ role: "user", content: "hi" }], language: "en" },
-      { "X-VideoQ-Test-User-Id": "5", "Accept-Language": "ja,en;q=0.8" },
+      { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005", "Accept-Language": "ja,en;q=0.8" },
     );
     const chat = requests.find((r) => r.url.endsWith("/chat/completions"))!;
     const system = (chat.body.messages as { role: string; content: string }[])[0].content;
@@ -207,7 +207,7 @@ describe("POST /completions", () => {
   it("messages が空なら OpenAI 形式の 400 invalid_request_error", async () => {
     const res = await post(
       { messages: [] },
-      { "X-VideoQ-Test-User-Id": "5" },
+      { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" },
     );
     expect(res.status).toBe(400);
     const j = await res.json();
@@ -220,7 +220,7 @@ describe("POST /completions", () => {
       sql.includes("FROM video_groups WHERE") ? [] : defaultRows(sql);
     const res = await post(
       { messages: [{ role: "user", content: "hi" }], group_id: 999 },
-      { "X-VideoQ-Test-User-Id": "5" },
+      { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" },
     );
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({
@@ -235,7 +235,7 @@ describe("POST /completions", () => {
         : defaultRows(sql);
     const res = await post(
       { messages: [{ role: "user", content: "hi" }] },
-      { "X-VideoQ-Test-User-Id": "5" },
+      { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" },
     );
     expect(res.status).toBe(403);
     expect((await res.json()) as any).toEqual({
@@ -253,7 +253,7 @@ describe("POST /completions", () => {
         : defaultRows(sql);
     const res = await post(
       { messages: [{ role: "user", content: "hi" }] },
-      { "X-VideoQ-Test-User-Id": "5" },
+      { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" },
     );
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({
@@ -272,7 +272,7 @@ describe("POST /completions", () => {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "X-VideoQ-Test-User-Id": "5",
+          "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005",
         },
         body: JSON.stringify({ messages: [{ role: "user", content: "hi" }] }),
       },
@@ -290,7 +290,7 @@ describe("POST /completions", () => {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "X-VideoQ-Test-User-Id": "5",
+          "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005",
         },
         body: JSON.stringify({ messages: [{ role: "user", content: "hi" }] }),
       },
@@ -316,7 +316,7 @@ describe("POST /completions", () => {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "X-VideoQ-Test-User-Id": "5",
+          "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005",
         },
         body: JSON.stringify({
           messages: [{ role: "user", content: "hi" }],

@@ -37,8 +37,9 @@ export default function LoginPage() {
   const { formData, error, isLoading, handleChange, handleSubmit } = useAuthForm({
     onSubmit: async (data) => {
       await apiClient.login(data);
-      // Cancel in-flight getMeOrNull (may still resolve to null) and replace the
-      // stale auth.me=null cache so Home/Nav see the signed-in user immediately.
+      // Refresh BA session atom, then load app profile into the shared cache.
+      const { authClient } = await import('@/lib/auth-client');
+      await authClient.getSession();
       await queryClient.cancelQueries({ queryKey: queryKeys.auth.me });
       const user = await apiClient.getMe();
       queryClient.setQueryData(queryKeys.auth.me, user);

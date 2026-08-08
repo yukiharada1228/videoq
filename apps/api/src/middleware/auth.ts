@@ -15,7 +15,7 @@ import { createAuth } from "../lib/auth";
 export type AuthVia = "apikey" | "bearer" | "oauth";
 
 export type AuthOutcome =
-  | { kind: "ok"; userId: number; via: AuthVia; accessLevel?: string }
+  | { kind: "ok"; userId: string; via: AuthVia; accessLevel?: string }
   | { kind: "absent" }
   | { kind: "invalid"; message: string };
 
@@ -31,9 +31,17 @@ function parseAuthHeader(
   return { keyword: header.slice(0, idx), value: header.slice(idx + 1).trim() };
 }
 
-function toUserId(raw: unknown): number | null {
-  const n = typeof raw === "number" ? raw : Number(raw);
-  return Number.isFinite(n) && n > 0 ? n : null;
+/** Better Auth user ids are string UUIDs (text PK). */
+function toUserId(raw: unknown): string | null {
+  if (typeof raw === "string") {
+    const id = raw.trim();
+    return id.length > 0 ? id : null;
+  }
+  if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) {
+    // Legacy numeric ids during transition / old tokens — reject after UUID cutover.
+    return null;
+  }
+  return null;
 }
 
 function accessLevelFromMetadata(metadata: unknown): string | undefined {
@@ -106,28 +114,19 @@ const apiKeyMethodWithKeyword = (keyword: string): AuthMethod => async (c) => {
         key?: { referenceId?: string | number; metadata?: unknown } | null;
       }>;
     };
-    const testFallback = (): AuthOutcome => ({
-      kind: "ok",
-      userId: 5,
-      via: "apikey",
-      accessLevel: c.req.header("X-VideoQ-Test-Access-Level") ?? "all",
-    });
     try {
       const result = await api.verifyApiKey({ body: { key: raw } });
       if (!result.valid || !result.key) {
-        if (c.env.ENVIRONMENT !== "production") return testFallback();
         return { kind: "invalid", message: "Invalid API key" };
       }
       const userId = toUserId(result.key.referenceId);
       if (!userId) {
-        if (c.env.ENVIRONMENT !== "production") return testFallback();
         return { kind: "invalid", message: "Invalid API key" };
       }
       const accessLevel =
         accessLevelFromMetadata(result.key.metadata) ?? "all";
       return { kind: "ok", userId, via: "apikey", accessLevel };
     } catch {
-      if (c.env.ENVIRONMENT !== "production") return testFallback();
       return { kind: "invalid", message: "Invalid API key" };
     }
   });

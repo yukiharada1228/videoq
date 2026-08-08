@@ -25,7 +25,7 @@ import {
 } from "../../db/schema";
 import type { Bindings } from "../../types/bindings";
 
-async function revokeAuthMaterialForUser(env: Bindings, userId: number) {
+async function revokeAuthMaterialForUser(env: Bindings, userId: string) {
   await withDb(env, async (db) => {
     await db.delete(session).where(eq(session.userId, userId));
     await db.delete(oauthAccessToken).where(eq(oauthAccessToken.userId, userId));
@@ -39,7 +39,7 @@ async function revokeAuthMaterialForUser(env: Bindings, userId: number) {
   });
 }
 
-export function isSuperuser(env: Bindings, userId: number) {
+export function isSuperuser(env: Bindings, userId: string) {
   return repositoryIsSuperuser(env, userId);
 }
 
@@ -52,13 +52,13 @@ export async function listUsers(
   return listAdminUsers(env, q, limit, offset);
 }
 
-export async function getUser(env: Bindings, id: number) {
+export async function getUser(env: Bindings, id: string) {
   return getAdminUser(env, id);
 }
 
 export async function patchQuota(
   env: Bindings,
-  id: number,
+  id: string,
   patch: QuotaPatch,
 ) {
   return patchAdminUserQuota(env, id, patch);
@@ -66,7 +66,7 @@ export async function patchQuota(
 
 export async function patchUsage(
   env: Bindings,
-  id: number,
+  id: string,
   patch: UsagePatch,
 ) {
   return patchAdminUserUsage(env, id, patch);
@@ -74,8 +74,8 @@ export async function patchUsage(
 
 export async function patchFlags(
   env: Bindings,
-  actorUserId: number,
-  targetUserId: number,
+  actorUserId: string,
+  targetUserId: string,
   patch: FlagsPatch,
 ) {
   if (
@@ -102,8 +102,8 @@ export async function enqueueReindexAll(env: Bindings) {
 
 export async function deleteUser(
   env: Bindings,
-  actorUserId: number,
-  targetUserId: number,
+  actorUserId: string,
+  targetUserId: string,
 ) {
   if (actorUserId === targetUserId) {
     return { self: true } as const;

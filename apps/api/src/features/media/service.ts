@@ -30,7 +30,7 @@ export function guessContentType(path: string): string {
 export async function authorizeMediaPath(
   env: Bindings,
   path: string,
-  opts: { userId?: number; shareGroupId?: number },
+  opts: { userId?: string; shareGroupId?: number },
 ): Promise<{ ok: true; objectKey: string } | { notFound: true }> {
   if (!isSafeMediaPath(path)) return { notFound: true };
   const videoId = await findVideoIdByFilePath(env, path);

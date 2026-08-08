@@ -80,14 +80,14 @@ beforeEach(() => {
   rowsFor = defaultRows;
 });
 
-async function accessToken(userId = 5) {
+async function accessToken(userId = "00000000-0000-4000-8000-000000000005") {
   return signAccessToken(SECRET, userId);
 }
 
 const request = async (path: string, method: string, token?: string) =>
   chatRoutes.request(
     path,
-    { method, headers: token ? { "X-VideoQ-Test-User-Id": "5" } : {} },
+    { method, headers: token ? { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" } : {} },
     ENV,
   );
 
@@ -192,7 +192,7 @@ describe("DELETE /groups/:id/history/", () => {
     expect(sqls[2]).toContain("chat_log_evaluations");
     expect(sqls[3]).toContain("chat_logs");
     expect(sqls[4]).toBe("commit");
-    expect(txnCalls[1].args.slice(0, 2)).toEqual([3, 5]);
+    expect(txnCalls[1].args.slice(0, 2)).toEqual([3, "00000000-0000-4000-8000-000000000005"]);
   });
 
   it("グループが無ければ ROLLBACK して 404", async () => {

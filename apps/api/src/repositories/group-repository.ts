@@ -128,7 +128,7 @@ async function fetchGroupDetail(
 export function getGroupDetail(
   env: Bindings,
   groupId: number,
-  userId: number,
+  userId: string,
 ): Promise<GroupDetail | null> {
   return fetchGroupDetail(
     env,
@@ -150,7 +150,7 @@ export function getGroupDetailByShareSlug(
 /** グループ作成（display_order = MAX+1 を単一 INSERT で原子採番）。作成した id を返す。 */
 export async function createGroup(
   env: Bindings,
-  userId: number,
+  userId: string,
   name: string,
   description: string,
 ): Promise<number> {
@@ -175,7 +175,7 @@ export async function createGroup(
 export async function updateGroup(
   env: Bindings,
   groupId: number,
-  userId: number,
+  userId: string,
   fields: { name?: string; description?: string },
 ): Promise<{ notFound: true } | { ok: true }> {
   return withDb(env, async (db) => {
@@ -203,7 +203,7 @@ export async function updateGroup(
 export async function deleteGroup(
   env: Bindings,
   groupId: number,
-  userId: number,
+  userId: string,
 ): Promise<{ notFound: true } | { ok: true }> {
   return withDb(env, async (db) => {
     return db.transaction(async (tx) => {
@@ -235,7 +235,7 @@ export async function deleteGroup(
  */
 export async function reorderGroups(
   env: Bindings,
-  userId: number,
+  userId: string,
   groupIds: number[],
 ): Promise<{ mismatch: true } | { ok: true }> {
   if (groupIds.length === 0) return { mismatch: true } as const;
@@ -289,7 +289,7 @@ export async function reorderVideos(
 export async function getGroupShareSlug(
   env: Bindings,
   groupId: number,
-  userId: number,
+  userId: string,
 ): Promise<{ found: false } | { found: true; slug: string | null }> {
   return withDb(env, async (db) => {
     const rows = await db
@@ -309,7 +309,7 @@ export async function getGroupShareSlug(
 export async function setShareSlug(
   env: Bindings,
   groupId: number,
-  userId: number,
+  userId: string,
   slug: string | null,
 ): Promise<{ conflict: true } | { ok: true }> {
   return withDb(env, async (db) => {
@@ -328,7 +328,7 @@ export async function setShareSlug(
 
 export async function listGroupsPage(
   env: Bindings,
-  userId: number,
+  userId: string,
   limit: number,
   offset: number,
 ): Promise<{ count: number; results: GroupListItem[] }> {

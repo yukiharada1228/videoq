@@ -17,7 +17,7 @@ import type { Bindings } from "../types/bindings";
  */
 export async function checkAiAnswersLimit(
   env: Bindings,
-  userId: number,
+  userId: string,
 ): Promise<{ ok: true } | { overQuota: true } | { exceeded: true; limit: number }> {
   return withDb(env, async (db) => {
     const rows = await db
@@ -45,7 +45,7 @@ export async function checkAiAnswersLimit(
  * used_processing_seconds / used_ai_answers を 0 にして usage_period_start を now に更新する。
  * 初回（usage_period_start IS NULL）も同じくリセット扱い。
  */
-export async function recordAiAnswerUsage(env: Bindings, userId: number): Promise<void> {
+export async function recordAiAnswerUsage(env: Bindings, userId: string): Promise<void> {
   return withDb(env, async (db) => {
     await db
       .update(users)
@@ -77,7 +77,7 @@ export async function recordAiAnswerUsage(env: Bindings, userId: number): Promis
 /** 1 ファイルあたりの最大アップロードサイズ MB（get_max_upload_size_bytes の元値）。 */
 export async function getMaxUploadSizeMb(
   env: Bindings,
-  userId: number,
+  userId: string,
 ): Promise<number> {
   return withDb(env, async (db) => {
     const rows = await db
@@ -97,7 +97,7 @@ export async function getMaxUploadSizeMb(
  */
 export async function checkAndReserveStorage(
   env: Bindings,
-  userId: number,
+  userId: string,
   additionalBytes: number,
 ): Promise<{ ok: true } | { overQuota: true } | { exceeded: true; limit: number }> {
   return withDb(env, async (db) => {
@@ -144,7 +144,7 @@ export async function checkAndReserveStorage(
 /** used_storage_bytes を delta 分だけ増減（GREATEST(0, ...) で下限 0）。 */
 export async function incrementStorageBytes(
   env: Bindings,
-  userId: number,
+  userId: string,
   bytesDelta: number,
 ): Promise<void> {
   return withDb(env, async (db) => {
@@ -164,7 +164,7 @@ export async function incrementStorageBytes(
  */
 export async function clearOverQuotaIfWithinLimit(
   env: Bindings,
-  userId: number,
+  userId: string,
 ): Promise<void> {
   return withDb(env, async (db) => {
     await db

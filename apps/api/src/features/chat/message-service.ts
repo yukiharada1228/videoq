@@ -86,7 +86,7 @@ export const failures = {
 };
 
 export type ChatSetup = {
-  ownerUserId: number;
+  ownerUserId: string;
   group: GroupChatContext | null;
   isShared: boolean;
   locale: string | null;
@@ -105,7 +105,7 @@ export function toChatRequestInput(body: ChatMessageBody): ChatRequestInput {
 export async function setupChat(
   env: Bindings,
   opts: {
-    userId: number | null;
+    userId: string | null;
     req: ChatRequestInput;
     shareSlug: string | null;
     locale: string | null;
@@ -196,7 +196,7 @@ export async function persistTurn(
   return { chatLogId: log.id, feedback: log.feedback };
 }
 
-export const recordUsage = (env: Bindings, userId: number) =>
+export const recordUsage = (env: Bindings, userId: string) =>
   recordAiAnswerUsage(env, userId);
 
 /** ドメイン例外 → OpenAI error.type。 */
@@ -226,7 +226,7 @@ export function requestLocaleFromHeader(
 export async function sendChatMessage(
   env: Bindings,
   opts: {
-    userId: number | null;
+    userId: string | null;
     body: ChatMessageBody;
     shareSlug: string | null;
     locale: string | null;
@@ -313,7 +313,7 @@ export type SseEventWriter = (data: unknown) => Promise<void>;
 export async function streamChatMessage(
   env: Bindings,
   opts: {
-    userId: number | null;
+    userId: string | null;
     body: ChatMessageBody;
     shareSlug: string | null;
     locale: string | null;
@@ -436,7 +436,7 @@ export async function streamChatMessage(
 export async function openAiChatCompletions(
   env: Bindings,
   opts: {
-    userId: number | null;
+    userId: string | null;
     body: OpenAiCompletionBody;
     localeFallback: string | null;
   },

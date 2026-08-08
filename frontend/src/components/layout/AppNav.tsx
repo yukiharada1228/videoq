@@ -13,6 +13,7 @@ import {
 import { type Locale, locales } from '@/i18n/config';
 import { apiClient, type User } from '@/lib/api';
 import { authMeQueryOptions } from '@/lib/authQuery';
+import { useAuthSession } from '@/lib/authSession';
 import { APP_CONTAINER_CLASS } from '@/components/layout/layoutTokens';
 import { cn } from '@/lib/digital-agency/cn';
 import { Button } from '@/components/ui/button';
@@ -74,8 +75,12 @@ export function AppNav({ activePage }: AppNavProps) {
   const langRootRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
 
-  const authQuery = useQuery<User | null>(authMeQueryOptions);
-  const isAuthenticated = !!authQuery.data;
+  const session = useAuthSession();
+  const isAuthenticated = Boolean(session.data?.user);
+  const authQuery = useQuery<User | null>({
+    ...authMeQueryOptions,
+    enabled: isAuthenticated && !session.isPending,
+  });
 
   const logoutMutation = useMutation({
     mutationFn: async () => await apiClient.logout(),

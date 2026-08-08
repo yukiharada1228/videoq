@@ -19,7 +19,7 @@ import type { Bindings } from "../../types/bindings";
 
 export async function addTagsToVideo(
   env: Bindings,
-  userId: number,
+  userId: string,
   videoId: number,
   tagIds: number[],
 ) {
@@ -57,7 +57,7 @@ export async function addTagsToVideo(
 
 export async function removeTagFromVideo(
   env: Bindings,
-  userId: number,
+  userId: string,
   videoId: number,
   tagId: number,
 ) {
@@ -76,7 +76,7 @@ export async function removeTagFromVideo(
 
 export async function reorderGroupVideos(
   env: Bindings,
-  userId: number,
+  userId: string,
   groupId: number,
   videoIds: number[],
 ) {
@@ -102,7 +102,7 @@ export async function reorderGroupVideos(
 
 export async function addVideosToGroupBulk(
   env: Bindings,
-  userId: number,
+  userId: string,
   groupId: number,
   videoIds: number[],
 ) {
@@ -130,7 +130,7 @@ export async function addVideosToGroupBulk(
 
 export async function addVideoToGroupOne(
   env: Bindings,
-  userId: number,
+  userId: string,
   groupId: number,
   videoId: number,
 ) {
@@ -154,7 +154,7 @@ export async function addVideoToGroupOne(
 
 export async function removeVideoFromGroupOne(
   env: Bindings,
-  userId: number,
+  userId: string,
   groupId: number,
   videoId: number,
 ) {

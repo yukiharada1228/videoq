@@ -31,7 +31,7 @@ const numOrNull = (v: unknown): number | null => (v === null ? null : Number(v))
 export async function getEvaluationSummary(
   env: Bindings,
   groupId: number,
-  userId: number,
+  userId: string,
 ): Promise<{ notFound: true } | EvaluationSummary> {
   return withDb(env, async (db) => {
     const owner = await db
@@ -65,7 +65,7 @@ export async function getEvaluationSummary(
 export async function listEvaluationLogs(
   env: Bindings,
   groupId: number,
-  userId: number,
+  userId: string,
   limit: number,
   offset: number,
 ): Promise<{ notFound: true } | { count: number; results: EvaluationLog[] }> {

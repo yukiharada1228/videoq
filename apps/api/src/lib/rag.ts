@@ -44,7 +44,7 @@ export async function prepareRagContext(
   env: Bindings,
   params: {
     messages: readonly ChatMessageInput[];
-    ownerUserId: number;
+    ownerUserId: string;
     videoIds: readonly number[] | null;
     locale: string | null;
     groupContext: string | null;

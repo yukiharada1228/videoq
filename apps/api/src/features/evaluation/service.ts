@@ -7,7 +7,7 @@ import type { Bindings } from "../../types/bindings";
 export async function summaryForGroup(
   env: Bindings,
   groupId: number,
-  userId: number,
+  userId: string,
 ) {
   return getEvaluationSummary(env, groupId, userId);
 }
@@ -15,7 +15,7 @@ export async function summaryForGroup(
 export async function logsForGroup(
   env: Bindings,
   groupId: number,
-  userId: number,
+  userId: string,
   limit: number,
   offset: number,
 ) {

@@ -76,7 +76,7 @@ export default function AdminPage() {
   const [offset, setOffset] = useState(0);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
-  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<number>>(() => new Set());
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(() => new Set());
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isReindexOpen, setIsReindexOpen] = useState(false);

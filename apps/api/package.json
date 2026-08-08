@@ -9,6 +9,7 @@
     "test:watch": "vitest",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "db:generate": "drizzle-kit generate",
+    "db:generate:user-id-uuid": "tsx scripts/generate-user-id-uuid-migration.mjs",
     "db:migrate": "sh scripts/db-migrate.sh",
     "db:stamp": "node scripts/stamp-baseline.mjs",
     "db:studio": "drizzle-kit studio",

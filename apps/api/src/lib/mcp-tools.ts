@@ -72,7 +72,7 @@ function envelope(
 
 export type McpToolCallContext = {
   env: Bindings;
-  userId: number;
+  userId: string;
 };
 
 /** Zod input shapes for `McpServer.registerTool`. */

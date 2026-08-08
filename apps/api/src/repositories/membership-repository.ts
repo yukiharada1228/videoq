@@ -19,7 +19,7 @@ import type { Bindings } from "../types/bindings";
 export async function videoOwnedBy(
   env: Bindings,
   videoId: number,
-  userId: number,
+  userId: string,
 ): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db
@@ -34,7 +34,7 @@ export async function videoOwnedBy(
 export async function groupOwnedBy(
   env: Bindings,
   groupId: number,
-  userId: number,
+  userId: string,
 ): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db
@@ -68,7 +68,7 @@ export async function getAttachedTagIds(
 export async function countOwnedTags(
   env: Bindings,
   tagIds: number[],
-  userId: number,
+  userId: string,
 ): Promise<number> {
   if (tagIds.length === 0) return 0;
   return withDb(env, async (db) => {
@@ -232,7 +232,7 @@ export async function getGroupMemberVideoIds(
 export async function getExistingVideoIdsForUser(
   env: Bindings,
   videoIds: number[],
-  userId: number,
+  userId: string,
 ): Promise<Set<number>> {
   if (videoIds.length === 0) return new Set();
   return withDb(env, async (db) => {

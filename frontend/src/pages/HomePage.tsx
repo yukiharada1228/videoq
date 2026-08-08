@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useI18nNavigate, useLocale } from '@/lib/i18n';
 import type { User } from '@/lib/api';
 import { authMeQueryOptions } from '@/lib/authQuery';
+import { useAuthSession } from '@/lib/authSession';
 import { useHomePageData } from '@/hooks/useHomePageData';
 import { useVideoStats } from '@/hooks/useVideoStats';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -29,8 +30,14 @@ export default function HomePage() {
   const { t } = useTranslation();
   const locale = useLocale();
 
-  const { data: user, isLoading } = useQuery<User | null>(authMeQueryOptions);
-  const currentUser = user ?? null;
+  const session = useAuthSession();
+  const hasSession = Boolean(session.data?.user);
+  const { data: user, isLoading: meLoading } = useQuery<User | null>({
+    ...authMeQueryOptions,
+    enabled: hasSession && !session.isPending,
+  });
+  const isLoading = session.isPending || (hasSession && meLoading);
+  const currentUser = hasSession ? user ?? null : null;
   const usageSource: Partial<User> = currentUser ?? {};
 
   const { videos, groups, isLoading: isLoadingData } = useHomePageData({ userId: currentUser?.id });

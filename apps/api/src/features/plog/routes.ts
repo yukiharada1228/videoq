@@ -58,7 +58,7 @@ const editBadRequest = (message: string) =>
 async function requireOwnedVideoId(
   env: AppEnv["Bindings"],
   videoId: number,
-  userId: number,
+  userId: string,
 ): Promise<void> {
   const owner = await plogService.requireOwnedVideo(env, videoId, userId);
   if ("notFound" in owner) throw videoNotFoundError();

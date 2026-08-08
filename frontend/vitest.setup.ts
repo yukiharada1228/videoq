@@ -1,4 +1,4 @@
-import { afterEach, vi } from 'vitest'
+import { afterEach, beforeEach, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import React from 'react'
@@ -7,6 +7,28 @@ import { createAppQueryClient } from './src/lib/queryClient'
 import { FeedbackProvider } from './src/components/common/FeedbackProvider'
 import enTranslation from './src/i18n/locales/en/translation.json'
 import jaTranslation from './src/i18n/locales/ja/translation.json'
+
+type MockAuthUser = { id: string; name?: string; email?: string };
+
+/** Mutable BA session for tests — gate auth UI without hitting /api/auth/get-session. */
+const authSessionState = vi.hoisted(() => ({
+  data: { user: { id: '1', name: 'testuser', email: 'test@example.com' } } as {
+    user: MockAuthUser;
+  } | null,
+  isPending: false,
+  refetch: vi.fn(async () => {}),
+}));
+
+vi.mock('@/lib/authSession', () => ({
+  useAuthSession: () => ({
+    data: authSessionState.data,
+    isPending: authSessionState.isPending,
+    isRefetching: false,
+    error: null,
+    refetch: authSessionState.refetch,
+  }),
+  fetchAuthSession: vi.fn(async () => ({ data: authSessionState.data, error: null })),
+}));
 
 vi.mock('@testing-library/react', async () => {
   const actual = await vi.importActual<typeof import('@testing-library/react')>('@testing-library/react')
@@ -47,12 +69,22 @@ vi.mock('@testing-library/react', async () => {
 
 declare global {
   interface GlobalThis {
+    __setMockAuthSession: (data: { user: MockAuthUser } | null) => void
     __setMockPathname: (pathname: string) => void
     __setMockSearchParams: (search: string) => void
     __getMockSetSearchParams: () => ReturnType<typeof vi.fn>
     __setMockLanguage: (language: 'en' | 'ja') => void
   }
 }
+
+globalThis.__setMockAuthSession = (data) => {
+  authSessionState.data = data
+}
+
+beforeEach(() => {
+  authSessionState.data = { user: { id: '1', name: 'testuser', email: 'test@example.com' } }
+  authSessionState.isPending = false
+})
 
 class MockIntersectionObserver implements IntersectionObserver {
   readonly root = null
@@ -258,7 +290,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
     confirmPasswordReset: vi.fn(() => Promise.resolve()),
     requestEmailChange: vi.fn(() => Promise.resolve()),
     confirmEmailChange: vi.fn(() => Promise.resolve()),
-    login: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
+    login: vi.fn(() => Promise.resolve()),
     getVideoGroups: vi.fn(() => Promise.resolve([])),
     getSharedVideoGroup: vi.fn(() => Promise.resolve(null)),
     createVideoGroup: vi.fn(() => Promise.resolve({ id: '1', name: 'New Group', description: 'Description', videos: [] })),

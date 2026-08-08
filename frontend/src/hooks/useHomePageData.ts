@@ -3,7 +3,7 @@ import { apiClient, type VideoGroupList, type VideoList } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 
 interface UseHomePageDataParams {
-  userId: number | null | undefined;
+  userId: string | null | undefined;
 }
 
 export function useHomePageData({ userId }: UseHomePageDataParams) {

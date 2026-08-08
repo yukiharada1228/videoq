@@ -114,7 +114,7 @@ export type Bindings = {
 // ミドルウェアが c.set/c.get で受け渡す値
 export type Variables = {
   requestId: string;
-  userId?: number;
+  userId?: string;
   // 認証経路。share = 共有スラッグ経由の匿名アクセス。
   authVia?: "apikey" | "bearer" | "share" | "oauth";
   // API キー認証時の access_level（"all" | "read_only"）。scope 判定に使う。

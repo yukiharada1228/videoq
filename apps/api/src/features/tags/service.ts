@@ -14,20 +14,20 @@ import type { Bindings } from "../../types/bindings";
 
 export async function listTags(
   env: Bindings,
-  userId: number,
+  userId: string,
   limit: number,
   offset: number,
 ) {
   return listTagsPage(env, userId, limit, offset);
 }
 
-export async function getTag(env: Bindings, tagId: number, userId: number) {
+export async function getTag(env: Bindings, tagId: number, userId: string) {
   return getTagDetail(env, tagId, userId);
 }
 
 export async function createUserTag(
   env: Bindings,
-  userId: number,
+  userId: string,
   rawName: string,
   color: string,
 ) {
@@ -41,7 +41,7 @@ export async function createUserTag(
 export async function updateUserTag(
   env: Bindings,
   tagId: number,
-  userId: number,
+  userId: string,
   fields: { name?: string; color?: string },
 ) {
   if (!(await tagExists(env, tagId, userId))) return { notFound: true } as const;
@@ -59,6 +59,6 @@ export async function updateUserTag(
   return { tag: await getTagDetail(env, tagId, userId) } as const;
 }
 
-export async function removeTag(env: Bindings, tagId: number, userId: number) {
+export async function removeTag(env: Bindings, tagId: number, userId: string) {
   return deleteTag(env, tagId, userId);
 }

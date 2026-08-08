@@ -27,7 +27,7 @@ export const RETRIEVER_K = 20;
 export async function searchScenes(
   env: Bindings,
   params: {
-    userId: number;
+    userId: string;
     videoIds: readonly number[];
     embedding: readonly number[];
     k?: number;

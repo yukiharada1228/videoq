@@ -3,7 +3,6 @@ import { useAuth } from '../useAuth'
 import { apiClient } from '@/lib/api'
 import { useI18nNavigate } from '@/lib/i18n'
 
-// Mock apiClient
 vi.mock('@/lib/api', () => ({
   apiClient: {
     getMeOrNull: vi.fn(),
@@ -14,12 +13,16 @@ describe('useAuth', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     ;(globalThis as any).__setMockPathname?.('/')
+    ;(globalThis as any).__setMockAuthSession?.({
+      user: { id: '1', name: 'testuser', email: 'test@example.com' },
+    })
     window.history.pushState({}, '', '/')
   })
 
   it('should initialize with loading state', () => {
+    ;(apiClient.getMeOrNull as any).mockReturnValue(new Promise(() => {}))
     const { result } = renderHook(() => useAuth())
-    
+
     expect(result.current.isLoading).toBe(true)
     expect(result.current.user).toBeNull()
   })
@@ -77,7 +80,21 @@ describe('useAuth', () => {
     expect(apiClient.getMeOrNull).not.toHaveBeenCalled()
   })
 
-  it('should redirect to login on authentication error', async () => {
+  it('should redirect to login when BA session is absent', async () => {
+    ;(globalThis as any).__setMockAuthSession?.(null)
+
+    const { result } = renderHook(() => useAuth({ redirectToLogin: true }))
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    const navigate = useI18nNavigate()
+    expect(navigate).toHaveBeenCalledWith('/login')
+    expect(apiClient.getMeOrNull).not.toHaveBeenCalled()
+  })
+
+  it('should redirect to login when session exists but profile is null', async () => {
     ;(apiClient.getMeOrNull as any).mockResolvedValue(null)
 
     const { result } = renderHook(() => useAuth({ redirectToLogin: true }))
@@ -91,7 +108,7 @@ describe('useAuth', () => {
   })
 
   it('should not redirect when redirectToLogin is false', async () => {
-    ;(apiClient.getMeOrNull as any).mockResolvedValue(null)
+    ;(globalThis as any).__setMockAuthSession?.(null)
 
     const { result } = renderHook(() => useAuth({ redirectToLogin: false }))
 
@@ -104,7 +121,7 @@ describe('useAuth', () => {
   })
 
   it('should call onAuthError callback on error', async () => {
-    ;(apiClient.getMeOrNull as any).mockResolvedValue(null)
+    ;(globalThis as any).__setMockAuthSession?.(null)
     const onAuthError = vi.fn()
 
     const { result } = renderHook(() => useAuth({ onAuthError }))

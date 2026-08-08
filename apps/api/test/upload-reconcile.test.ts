@@ -40,7 +40,7 @@ describe("reconcileAbandonedUploads", () => {
     listStale.mockResolvedValue([
       {
         id: 10,
-        userId: 5,
+        userId: "00000000-0000-4000-8000-000000000005",
         fileKey: "videos/5/video_1700000000000_4096.mp4",
       },
     ]);
@@ -57,16 +57,16 @@ describe("reconcileAbandonedUploads", () => {
       releasedBytes: 4096,
       errors: 0,
     });
-    expect(deleteCascade).toHaveBeenCalledWith(ENV, 10, 5);
-    expect(incr).toHaveBeenCalledWith(ENV, 5, -4096);
-    expect(clearOver).toHaveBeenCalledWith(ENV, 5);
+    expect(deleteCascade).toHaveBeenCalledWith(ENV, 10, "00000000-0000-4000-8000-000000000005");
+    expect(incr).toHaveBeenCalledWith(ENV, "00000000-0000-4000-8000-000000000005", -4096);
+    expect(clearOver).toHaveBeenCalledWith(ENV, "00000000-0000-4000-8000-000000000005");
   });
 
   it("R2 に実体があればそのサイズで解放する", async () => {
     listStale.mockResolvedValue([
       {
         id: 11,
-        userId: 5,
+        userId: "00000000-0000-4000-8000-000000000005",
         fileKey: "videos/5/video_1700000000000_4096.mp4",
       },
     ]);
@@ -78,7 +78,7 @@ describe("reconcileAbandonedUploads", () => {
 
     const r = await reconcileAbandonedUploads(ENV);
     expect(r.releasedBytes).toBe(4000);
-    expect(incr).toHaveBeenCalledWith(ENV, 5, -4000);
+    expect(incr).toHaveBeenCalledWith(ENV, "00000000-0000-4000-8000-000000000005", -4000);
   });
 
   it("対象なしは zero", async () => {

@@ -65,7 +65,7 @@ export function parseTagIds(tagsParam: string | undefined): number[] | null {
 
 export async function listUserVideos(
   env: Bindings,
-  userId: number,
+  userId: string,
   query: {
     q?: string;
     status?: string;
@@ -92,14 +92,14 @@ export async function listUserVideos(
 export async function getUserVideo(
   env: Bindings,
   videoId: number,
-  userId: number,
+  userId: string,
 ) {
   return getVideoDetail(env, videoId, userId);
 }
 
 export async function requestPresignedUpload(
   env: Bindings,
-  userId: number,
+  userId: string,
   body: UploadRequest,
 ) {
   if (!isS3Storage(env)) {
@@ -164,7 +164,7 @@ function isValidUrlFormat(value: string): boolean {
 
 export async function createUserYoutubeVideo(
   env: Bindings,
-  userId: number,
+  userId: string,
   body: YoutubeCreateRequest,
 ) {
   if (!isValidUrlFormat(body.youtube_url)) {
@@ -190,7 +190,7 @@ export async function createUserYoutubeVideo(
 export async function confirmVideoUpload(
   env: Bindings,
   videoId: number,
-  userId: number,
+  userId: string,
 ) {
   const cur = await getVideoStatus(env, videoId, userId);
   if (!cur.found) return { notFound: true } as const;
@@ -208,7 +208,7 @@ export async function confirmVideoUpload(
 export async function patchUserVideo(
   env: Bindings,
   videoId: number,
-  userId: number,
+  userId: string,
   fields: { title?: string; description?: string; transcript?: string },
 ) {
   if (!(await videoOwnedBy(env, videoId, userId))) {
@@ -238,7 +238,7 @@ export async function patchUserVideo(
 export async function putUserVideo(
   env: Bindings,
   videoId: number,
-  userId: number,
+  userId: string,
   fields: { title: string; description: string },
 ) {
   if (!(await videoOwnedBy(env, videoId, userId))) {
@@ -257,7 +257,7 @@ export async function putUserVideo(
 export async function deleteUserVideo(
   env: Bindings,
   videoId: number,
-  userId: number,
+  userId: string,
 ) {
   const info = await getVideoFileKey(env, videoId, userId);
   if (!info.found) return { notFound: true } as const;
@@ -298,7 +298,7 @@ export async function deleteUserVideo(
 /** ローカル VIDEO_BUCKET 向け multipart upload（USE_S3_STORAGE=false のみ）。 */
 export async function createVideoFromMultipart(
   env: Bindings,
-  userId: number,
+  userId: string,
   form: Record<string, string | File>,
 ): Promise<MultipartVideoResult> {
   if (isS3Storage(env)) {

@@ -10,10 +10,11 @@ vi.stubGlobal('import.meta', {
   },
 });
 
-const { authClientMock } = vi.hoisted(() => {
+const { authClientMock, fetchAuthSessionMock } = vi.hoisted(() => {
   const ok = <T,>(data: T = {} as T) => Promise.resolve({ data, error: null });
   const authClientMock = {
     signOut: vi.fn(() => ok()),
+    getSession: vi.fn(() => ok({ user: { id: '1', name: 'user' } })),
     signIn: {
       username: vi.fn(() => ok()),
       social: vi.fn(() => ok()),
@@ -66,12 +67,24 @@ const { authClientMock } = vi.hoisted(() => {
       delete: vi.fn(() => ok()),
     },
   };
-  return { authClientMock };
+  const fetchAuthSessionMock = vi.fn(() => ok({ user: { id: '1', name: 'user' } }));
+  return { authClientMock, fetchAuthSessionMock };
 });
 
 vi.mock('@/lib/auth-client', () => ({
   AUTH_BASE_URL: 'http://localhost:8000',
   authClient: authClientMock,
+}));
+
+vi.mock('@/lib/authSession', () => ({
+  useAuthSession: () => ({
+    data: { user: { id: '1', name: 'user' } },
+    isPending: false,
+    isRefetching: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+  fetchAuthSession: fetchAuthSessionMock,
 }));
 
 // Import the apiClient singleton
@@ -115,30 +128,19 @@ describe('ApiClient', () => {
   });
 
   describe('Auth Methods', () => {
-    it('isAuthenticated should return true when response is ok', async () => {
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify({ id: 1 })),
+    it('isAuthenticated should return true when BA session has a user', async () => {
+      fetchAuthSessionMock.mockResolvedValueOnce({
+        data: { user: { id: '1', name: 'user' } },
+        error: null,
       });
       const result = await apiClient.isAuthenticated();
       expect(result).toBe(true);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/account/me', expect.objectContaining({
-        credentials: 'include',
-        headers: expect.not.objectContaining({ Authorization: expect.anything() }),
-      }));
+      expect(fetchAuthSessionMock).toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it('isAuthenticated should return false when response is not ok', async () => {
-      fetchMock.mockResolvedValueOnce({
-        ok: false,
-      });
-      const result = await apiClient.isAuthenticated();
-      expect(result).toBe(false);
-    });
-
-    it('isAuthenticated should return false when fetch fails', async () => {
-      fetchMock.mockRejectedValueOnce(new Error('Network error'));
+    it('isAuthenticated should return false when BA session is absent', async () => {
+      fetchAuthSessionMock.mockResolvedValueOnce({ data: null, error: null });
       const result = await apiClient.isAuthenticated();
       expect(result).toBe(false);
     });
@@ -150,7 +152,7 @@ describe('ApiClient', () => {
 
     it('login should sign in via Better Auth username plugin', async () => {
       const result = await apiClient.login({ username: 'user', password: 'pw' });
-      expect(result).toEqual({ access_token: '' });
+      expect(result).toBeUndefined();
       expect(authClientMock.signIn.username).toHaveBeenCalledWith({
         username: 'user',
         password: 'pw',

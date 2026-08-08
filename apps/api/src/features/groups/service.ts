@@ -17,14 +17,14 @@ import type { Bindings } from "../../types/bindings";
 
 export async function listGroups(
   env: Bindings,
-  userId: number,
+  userId: string,
   limit: number,
   offset: number,
 ) {
   return listGroupsPage(env, userId, limit, offset);
 }
 
-export async function getGroup(env: Bindings, groupId: number, userId: number) {
+export async function getGroup(env: Bindings, groupId: number, userId: string) {
   return getGroupDetail(env, groupId, userId);
 }
 
@@ -34,7 +34,7 @@ export async function getSharedGroup(env: Bindings, slug: string) {
 
 export async function createUserGroup(
   env: Bindings,
-  userId: number,
+  userId: string,
   name: string,
   description: string,
 ) {
@@ -45,7 +45,7 @@ export async function createUserGroup(
 export async function updateUserGroup(
   env: Bindings,
   groupId: number,
-  userId: number,
+  userId: string,
   data: { name?: string; description?: string },
 ) {
   const res = await updateGroup(env, groupId, userId, data);
@@ -53,13 +53,13 @@ export async function updateUserGroup(
   return { group: await getGroupDetail(env, groupId, userId) } as const;
 }
 
-export async function removeGroup(env: Bindings, groupId: number, userId: number) {
+export async function removeGroup(env: Bindings, groupId: number, userId: string) {
   return deleteGroup(env, groupId, userId);
 }
 
 export async function reorderUserGroups(
   env: Bindings,
-  userId: number,
+  userId: string,
   groupIds: number[],
 ) {
   return reorderGroups(env, userId, groupIds);
@@ -68,7 +68,7 @@ export async function reorderUserGroups(
 export async function saveShareLink(
   env: Bindings,
   groupId: number,
-  userId: number,
+  userId: string,
   rawSlug: string,
 ) {
   const cur = await getGroupShareSlug(env, groupId, userId);
@@ -85,7 +85,7 @@ export async function saveShareLink(
 export async function clearShareLink(
   env: Bindings,
   groupId: number,
-  userId: number,
+  userId: string,
 ) {
   const cur = await getGroupShareSlug(env, groupId, userId);
   if (!cur.found) return { notFound: true as const };
