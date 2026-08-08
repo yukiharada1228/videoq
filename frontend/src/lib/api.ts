@@ -667,8 +667,9 @@ export class ApiClient {
     if (error) throw new ApiError(error.message || 'Email change failed', error.code || 'EMAIL_CHANGE_FAILED');
   }
 
-  async confirmEmailChange(_data: EmailChangeConfirmRequest): Promise<void> {
+  async confirmEmailChange(data: EmailChangeConfirmRequest): Promise<void> {
     // Better Auth completes email change via the link hitting /api/auth/* directly.
+    void data;
   }
 
   async getMe(): Promise<User> {
@@ -755,8 +756,9 @@ export class ApiClient {
     return this.request<AuthorizedOAuthToken[]>('/account/connected-apps');
   }
 
-  async revokeAuthorizedOAuthToken(_id: number | string): Promise<void> {
+  async revokeAuthorizedOAuthToken(id: number | string): Promise<void> {
     // Connected-app revoke is handled via Better Auth oauth-provider client endpoints.
+    void id;
   }
 
   async getSearchApiKeyStatus(): Promise<SearchApiKeyStatus> {
@@ -795,6 +797,7 @@ export class ApiClient {
     const url = this.buildUrl(endpoint);
     const fetchStream = () => this.fetchFn(url, {
       method: 'POST',
+      credentials: 'include',
       headers: this.buildHeaders(bodyData),
       body: JSON.stringify(bodyData),
     });

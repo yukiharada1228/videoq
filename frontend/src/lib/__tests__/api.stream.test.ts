@@ -2,6 +2,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.unmock('@/lib/api')
 
+const { authClientMock } = vi.hoisted(() => ({
+  authClientMock: {
+    signOut: vi.fn(() => Promise.resolve({ data: {}, error: null })),
+  },
+}))
+
+vi.mock('@/lib/auth-client', () => ({
+  AUTH_BASE_URL: 'http://localhost:8000',
+  authClient: authClientMock,
+}))
+
 import { apiClient } from '../api'
 
 // Helper: build a fake SSE ReadableStream from an array of SSE lines
@@ -32,8 +43,7 @@ async function collectStreamEvents(data: Parameters<typeof apiClient.chatStream>
 describe('apiClient.chatStream', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
-    ;(apiClient as any).accessToken = 'stream-access-token'
-    ;(apiClient as any).refreshPromise = null
+    vi.clearAllMocks()
     ;(apiClient as any).baseUrl = 'http://localhost:8000/api'
   })
 
@@ -104,9 +114,10 @@ describe('apiClient.chatStream', () => {
     expect(calledUrl).toContain('/chat/messages/stream')
     expect(calledUrl).toContain('share_slug=abc123')
     expect(fetchSpy.mock.calls[0][1]).toEqual(expect.objectContaining({
-      headers: expect.objectContaining({ Authorization: 'Bearer stream-access-token' }),
+      method: 'POST',
+      credentials: 'include',
+      headers: expect.not.objectContaining({ Authorization: expect.anything() }),
     }))
-    expect(fetchSpy.mock.calls[0][1]).not.toHaveProperty('credentials')
   })
 
   it('throws ApiError on non-200 HTTP response', async () => {
@@ -122,43 +133,21 @@ describe('apiClient.chatStream', () => {
     })).rejects.toThrow()
   })
 
-  it('refreshes once and retries the stream request when access token is expired', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ error: { code: 'AUTHENTICATION_FAILED', message: 'Expired' } }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ access_token: 'refreshed-stream-token' }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      )
-      .mockResolvedValueOnce(
-        makeSSEResponse([
-          'data: {"type":"content_chunk","text":"Recovered"}',
-          'data: {"type":"done","chat_log_id":7,"feedback":null}',
-        ]),
-      )
+  it('signs out and fails when the stream request returns 401', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { code: 'AUTHENTICATION_FAILED', message: 'Expired' } }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
 
-    const events = await collectStreamEvents({
+    await expect(collectStreamEvents({
       messages: [{ role: 'user', content: 'hi' }],
-    })
+    })).rejects.toThrow('Authentication failed')
 
-    expect(events).toEqual([
-      { type: 'content_chunk', text: 'Recovered' },
-      { type: 'done', chat_log_id: 7, feedback: null },
-    ])
-    expect(fetchSpy).toHaveBeenCalledTimes(3)
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
     expect(fetchSpy.mock.calls[0][0]).toBe('http://localhost:8000/api/chat/messages/stream')
-    expect(fetchSpy.mock.calls[1][0]).toBe('http://localhost:8000/api/auth/tokens')
-    expect(fetchSpy.mock.calls[2][0]).toBe('http://localhost:8000/api/chat/messages/stream')
-    expect(fetchSpy.mock.calls[1][1]).toEqual(expect.objectContaining({ credentials: 'include' }))
-    expect(fetchSpy.mock.calls[2][1]).toEqual(expect.objectContaining({
-      headers: expect.objectContaining({ Authorization: 'Bearer refreshed-stream-token' }),
-    }))
+    expect(authClientMock.signOut).toHaveBeenCalledTimes(1)
   })
 
   it('handles chunked SSE delivery across multiple reads', async () => {
