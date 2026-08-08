@@ -69,6 +69,10 @@ export type Bindings = {
   BETTER_AUTH_SECRET?: string;
   /** Public base URL for Better Auth (issuer). Falls back to OAUTH_ISSUER_URL / FRONTEND_URL. */
   BETTER_AUTH_URL?: string;
+  /** Google OAuth Web client ID (enables Google sign-in when set with secret). */
+  GOOGLE_CLIENT_ID?: string;
+  /** Google OAuth Web client secret. */
+  GOOGLE_CLIENT_SECRET?: string;
   /**
    * @deprecated Removed after Better Auth migration. Kept optional so old .dev.vars
    * still load; prefer BETTER_AUTH_SECRET.

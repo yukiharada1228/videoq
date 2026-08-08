@@ -10,6 +10,7 @@ import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { FormField } from '@/components/auth/FormField';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { AuthFormFooter } from '@/components/auth/AuthFormFooter';
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { Button } from '@/components/ui/button';
 import { Divider } from '@/components/ui/divider';
 
@@ -137,6 +138,11 @@ export default function SignupPage() {
           {t('auth.signup.orDivider')}
         </span>
       </div>
+
+      <GoogleSignInButton
+        callbackURL="/"
+        labelKey="auth.signup.continueWithGoogle"
+      />
 
       <div className="mt-8 text-center">
         <AuthFormFooter
