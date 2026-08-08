@@ -40,7 +40,8 @@ export type GroupDetail = {
   videos: (VideoListItem & { order: number })[];
 };
 
-const groupVideoCount = sql<number>`(SELECT count(DISTINCT m.video_id)::int FROM video_group_members m WHERE m.group_id = ${videoGroups.id})`.as(
+// Must be "video_groups"."id": ${videoGroups.id} becomes bare "id" → m.id.
+const groupVideoCount = sql<number>`(SELECT count(DISTINCT m.video_id)::int FROM video_group_members m WHERE m.group_id = "video_groups"."id")`.as(
   "video_count",
 );
 // Outer table must be qualified — ${videos.id} becomes bare "id" (ambiguous vs t.id).
