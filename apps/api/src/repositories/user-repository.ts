@@ -44,7 +44,8 @@ export async function getCurrentUser(
         used_ai_answers: users.usedAiAnswers,
         ai_answers_limit: users.aiAnswersLimit,
         is_over_quota: users.isOverQuota,
-        video_count: sql<number>`(SELECT count(*)::int FROM videos v WHERE v.user_id = ${users.id})`.as(
+        // Must be "users"."id": ${users.id} becomes bare "id" → videos.id in this subquery.
+        video_count: sql<number>`(SELECT count(*)::int FROM videos v WHERE v.user_id = "users"."id")`.as(
           "video_count",
         ),
       })

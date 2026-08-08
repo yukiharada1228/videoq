@@ -53,7 +53,8 @@ export type TagDetail = TagListItem & {
   videos: VideoListItem[];
 };
 
-const videoCountSubquery = sql<number>`(SELECT count(*) FROM video_tags vt WHERE vt.tag_id = ${tags.id})::int`.as(
+// Must be "tags"."id": ${tags.id} becomes bare "id" → vt.id.
+const videoCountSubquery = sql<number>`(SELECT count(*) FROM video_tags vt WHERE vt.tag_id = "tags"."id")::int`.as(
   "video_count",
 );
 
