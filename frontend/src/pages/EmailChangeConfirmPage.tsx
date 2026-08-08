@@ -7,7 +7,7 @@ import { Link } from '@/lib/i18n';
 import { apiClient } from '@/lib/api';
 import { AuthLayout } from '@/components/layout/AuthLayout';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
-import { InlineSpinner } from '@/components/common/inlineSpinner';
+import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { UtilityLink } from '@/components/ui/utility-link';
