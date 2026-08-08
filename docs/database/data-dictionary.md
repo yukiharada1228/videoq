@@ -8,12 +8,12 @@
 | テーブル | 用途 |
 |---|---|
 | `users` | アカウント、password hash、quota、暗号化済み外部 key |
-| `auth_sessions` | opaque refresh session の hash、family、期限、revoke |
-| `auth_action_tokens` | メール確認・password reset・email change の一回限り token |
+| `session (Better Auth)` | opaque refresh session の hash、family、期限、revoke |
+| `verification (Better Auth)` | メール確認・password reset・email change の一回限り token |
 | `api_keys` | integration key の hash、prefix、access level |
 | `account_deletion_requests` | アカウント削除依頼 |
 
-`auth_sessions.token_hash` と `auth_action_tokens.token_hash` は unique です。
+`session (Better Auth).token_hash` と `verification (Better Auth).token_hash` は unique です。
 平文 refresh / action token は保存しません。
 
 ## 動画・整理

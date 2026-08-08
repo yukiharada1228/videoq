@@ -36,6 +36,13 @@
       "when": 1785738300000,
       "tag": "0004_embedding_dims_1536",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786182000000,
+      "tag": "0005_better_auth",
+      "breakpoints": true
     }
   ]
 }

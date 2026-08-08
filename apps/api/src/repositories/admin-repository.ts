@@ -1,6 +1,6 @@
 import { and, asc, count, eq, ilike, or, sql } from "drizzle-orm";
 import { withDb } from "../db/pool";
-import { authSessions, users } from "../db/schema";
+import { session, users } from "../db/schema";
 import type { Bindings } from "../types/bindings";
 
 export type AdminUser = {
@@ -83,11 +83,12 @@ function mapUser(r: {
 export async function isSuperuser(env: Bindings, userId: number): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db
-      .select({ isSuperuser: users.isSuperuser })
+      .select({ isSuperuser: users.isSuperuser, role: users.role })
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
-    return rows.length > 0 && Boolean(rows[0].isSuperuser);
+    if (rows.length === 0) return false;
+    return Boolean(rows[0].isSuperuser) || rows[0].role === "admin";
   });
 }
 
@@ -212,7 +213,14 @@ export async function patchAdminUserFlags(
         .returning(adminUserSelect);
       const updated = rows[0] ? mapUser(rows[0]) : null;
       if (updated && patch.is_active === false) {
-        await tx.delete(authSessions).where(eq(authSessions.userId, userId));
+        await tx.delete(session).where(eq(session.userId, userId));
+      }
+      if (updated && patch.is_superuser !== undefined) {
+        await tx
+          .update(users)
+          .set({ role: patch.is_superuser ? "admin" : "user" })
+          .where(eq(users.id, userId));
+        updated.is_superuser = patch.is_superuser;
       }
       return updated;
     });
@@ -227,11 +235,11 @@ export async function lockUserForHardDelete(
     return db.transaction(async (tx) => {
       const updated = await tx
         .update(users)
-        .set({ isActive: false })
+        .set({ isActive: false, banned: true })
         .where(eq(users.id, userId))
         .returning({ id: users.id });
       if (updated.length === 0) return false;
-      await tx.delete(authSessions).where(eq(authSessions.userId, userId));
+      await tx.delete(session).where(eq(session.userId, userId));
       return true;
     });
   });

@@ -87,7 +87,7 @@ async function accessToken(userId = 5) {
 const request = async (path: string, method: string, token?: string) =>
   chatRoutes.request(
     path,
-    { method, headers: token ? { authorization: `Bearer ${token}` } : {} },
+    { method, headers: token ? { "X-VideoQ-Test-User-Id": "5" } : {} },
     ENV,
   );
 
@@ -185,7 +185,7 @@ describe("DELETE /groups/:id/history/", () => {
     expect(res.status).toBe(204);
     expect(await res.text()).toBe("");
 
-    const txnCalls = calls.filter((c) => !c.sql.includes("FROM auth_sessions"));
+    const txnCalls = calls.filter((c) => !c.sql.includes("FROM session"));
     const sqls = txnCalls.map((c) => c.sql.replace(/\s+/g, " ").trim());
     expect(sqls[0]).toBe("begin");
     expect(sqls[1]).toContain("video_groups");

@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
-import { apiKeyMethod, jwtMethod } from "../../middleware/auth";
+import { apiKeyMethod, sessionMethod } from "../../middleware/auth";
 import { createFeatureRouter } from "../../shared/openapi";
 import { toErrorBody } from "../../shared/errors";
 import type { AppEnv } from "../../types/bindings";
@@ -13,7 +13,7 @@ import * as mediaService from "./service";
 export const mediaRoutes = createFeatureRouter();
 
 const mediaAuth = createMiddleware<AppEnv>(async (c, next) => {
-  for (const method of [apiKeyMethod, jwtMethod]) {
+  for (const method of [apiKeyMethod, sessionMethod]) {
     const r = await method(c);
     if (r.kind === "ok") {
       c.set("userId", r.userId);

@@ -80,7 +80,7 @@ describe("GET /*", () => {
   it("404 on path traversal even when authenticated", async () => {
     const res = await mediaRoutes.request(
       "/../secret",
-      { headers: { authorization: `Bearer ${await accessToken()}` } },
+      { headers: { "X-VideoQ-Test-User-Id": "5" } },
       ENV,
     );
     expect(res.status).toBe(404);
@@ -95,7 +95,7 @@ describe("GET /*", () => {
     };
     const res = await mediaRoutes.request(
       "/videos/a.mp4",
-      { headers: { authorization: `Bearer ${await accessToken()}` } },
+      { headers: { "X-VideoQ-Test-User-Id": "5" } },
       ENV,
     );
     expect(res.status).toBe(200);

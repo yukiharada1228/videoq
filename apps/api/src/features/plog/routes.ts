@@ -2,7 +2,7 @@ import {
   requireAuth,
   requireScope,
   apiKeyMethod,
-  jwtMethod,
+  sessionMethod,
 } from "../../middleware/auth";
 import {
   createFeatureRouter,
@@ -39,13 +39,13 @@ import type { EditResult } from "./service";
  */
 export const plogRoutes = createFeatureRouter();
 
-const plogAuth = requireAuth(apiKeyMethod, jwtMethod);
+const plogAuth = requireAuth(apiKeyMethod, sessionMethod);
 const plogWriteGuards = [
-  requireAuth(apiKeyMethod, jwtMethod),
+  requireAuth(apiKeyMethod, sessionMethod),
   requireScope("write"),
 ] as const;
 const learnerResetGuards = [
-  requireAuth(apiKeyMethod, jwtMethod),
+  requireAuth(apiKeyMethod, sessionMethod),
   requireScope("read"),
 ] as const;
 

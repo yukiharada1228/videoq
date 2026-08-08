@@ -65,9 +65,16 @@ export type Bindings = {
   OPENAI_BASE_URL?: string; // 既定 https://api.openai.com/v1（テスト・互換エンドポイント用）
 
   // 機密（`wrangler secret` / `.dev.vars`）
-  /** Application access-token signing secret. Configure with `wrangler secret`. */
-  AUTH_JWT_SECRET: string;
-  /** Stable issuer embedded in application access tokens. */
+  /** Better Auth signing / encryption secret (min 32 chars). */
+  BETTER_AUTH_SECRET?: string;
+  /** Public base URL for Better Auth (issuer). Falls back to OAUTH_ISSUER_URL / FRONTEND_URL. */
+  BETTER_AUTH_URL?: string;
+  /**
+   * @deprecated Removed after Better Auth migration. Kept optional so old .dev.vars
+   * still load; prefer BETTER_AUTH_SECRET.
+   */
+  AUTH_JWT_SECRET?: string;
+  /** @deprecated Unused after Better Auth migration. */
   AUTH_ISSUER?: string;
   /** Base64url-encoded 32-byte AES-GCM key for encrypted user secrets. */
   USER_SECRET_ENCRYPTION_KEY: string;

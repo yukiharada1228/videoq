@@ -55,14 +55,9 @@ function toPgRows(
 /** JWT test helper (`helpers/auth.ts`) が埋め込む既定 sid。 */
 export const TEST_AUTH_SESSION_ID = "test-session";
 
-/** Access JWT の sid 有効性チェック SQL か。 */
-export function isAuthSessionActiveSql(sql: MatchableSql): boolean {
-  return (
-    sql.includes("FROM auth_sessions") &&
-    sql.includes("s.id = $1") &&
-    sql.includes("s.user_id = $2") &&
-    sql.includes("revoked_at IS NULL")
-  );
+/** @deprecated Legacy JWT session probe — always false after Better Auth migration. */
+export function isAuthSessionActiveSql(_sql: MatchableSql): boolean {
+  return false;
 }
 
 /**

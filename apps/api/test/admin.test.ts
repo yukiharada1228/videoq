@@ -39,6 +39,7 @@ const SECRET = "test-jwt-secret-admin";
 const ENV = {
   ENVIRONMENT: "development",
   AUTH_JWT_SECRET: SECRET,
+  BETTER_AUTH_SECRET: SECRET,
   HYPERDRIVE: { connectionString: "postgres://fake/db" },
 } as unknown as Record<string, unknown>;
 
@@ -88,14 +89,14 @@ describe("admin API", () => {
       return [];
     };
     const res = await req("/users", {
-      headers: { authorization: `Bearer ${await token(2)}` },
+      headers: { "X-VideoQ-Test-User-Id": "1" },
     });
     expect(res.status).toBe(403);
   });
 
   it("一覧は 200", async () => {
     const res = await req("/users?q=ali", {
-      headers: { authorization: `Bearer ${await token()}` },
+      headers: { "X-VideoQ-Test-User-Id": "1" },
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { meta: { total: number }; data: { id: number }[] };
@@ -107,7 +108,7 @@ describe("admin API", () => {
     const res = await req("/users/9/quota", {
       method: "PATCH",
       headers: {
-        authorization: `Bearer ${await token()}`,
+        "X-VideoQ-Test-User-Id": "1",
         "content-type": "application/json",
       },
       body: JSON.stringify({ storage_limit_gb: 50 }),
@@ -120,7 +121,7 @@ describe("admin API", () => {
     const res = await req("/users/9/flags", {
       method: "PATCH",
       headers: {
-        authorization: `Bearer ${await token()}`,
+        "X-VideoQ-Test-User-Id": "1",
         "content-type": "application/json",
       },
       body: JSON.stringify({ is_staff: true, is_superuser: true }),
@@ -160,7 +161,7 @@ describe("admin API", () => {
     const res = await req("/users/1/flags", {
       method: "PATCH",
       headers: {
-        authorization: `Bearer ${await token(1)}`,
+        "X-VideoQ-Test-User-Id": "1",
         "content-type": "application/json",
       },
       body: JSON.stringify({ is_superuser: false }),
@@ -171,7 +172,7 @@ describe("admin API", () => {
   it("reindex-all は 202 + job_id", async () => {
     const res = await req("/embeddings/reindex-all", {
       method: "POST",
-      headers: { authorization: `Bearer ${await token()}` },
+      headers: { "X-VideoQ-Test-User-Id": "1" },
     });
     expect(res.status).toBe(202);
     expect(await res.json()).toEqual({ job_id: "job-abc" });
@@ -181,7 +182,7 @@ describe("admin API", () => {
   it("ユーザー削除は 202 でジョブを投入する", async () => {
     const res = await req("/users/9", {
       method: "DELETE",
-      headers: { authorization: `Bearer ${await token(1)}` },
+      headers: { "X-VideoQ-Test-User-Id": "1" },
     });
     expect(res.status).toBe(202);
     expect(await res.json()).toEqual({ job_id: "job-del" });
@@ -189,14 +190,18 @@ describe("admin API", () => {
     expect(calls.some((c) => c.sql.includes("UPDATE") && c.sql.includes("users"))).toBe(
       true,
     );
-    expect(calls.some((c) => c.sql.includes("DELETE") && c.sql.includes("auth_sessions"))).toBe(
+    expect(calls.some((c) => c.sql.includes("DELETE") && c.sql.includes("session"))).toBe(
       true,
     );
     expect(
-      calls.some((c) => c.sql.includes("DELETE") && c.sql.includes("oauth_access_tokens")),
+      calls.some((c) => c.sql.includes("DELETE") && c.sql.includes("oauth_access_token")),
     ).toBe(true);
     expect(
-      calls.some((c) => c.sql.includes("DELETE") && c.sql.includes("oauth_refresh_tokens")),
+      calls.some(
+        (c) =>
+          (c.sql.includes("UPDATE") || c.sql.includes("DELETE")) &&
+          c.sql.includes("oauth_refresh_token"),
+      ),
     ).toBe(true);
   });
 
@@ -204,17 +209,17 @@ describe("admin API", () => {
     const res = await req("/users/9/flags", {
       method: "PATCH",
       headers: {
-        authorization: `Bearer ${await token()}`,
+        "X-VideoQ-Test-User-Id": "1",
         "content-type": "application/json",
       },
       body: JSON.stringify({ is_active: false }),
     });
     expect(res.status).toBe(200);
-    expect(calls.some((c) => c.sql.includes("DELETE") && c.sql.includes("auth_sessions"))).toBe(
+    expect(calls.some((c) => c.sql.includes("DELETE") && c.sql.includes("session"))).toBe(
       true,
     );
     expect(
-      calls.some((c) => c.sql.includes("DELETE") && c.sql.includes("oauth_access_tokens")),
+      calls.some((c) => c.sql.includes("DELETE") && c.sql.includes("oauth_access_token")),
     ).toBe(true);
   });
 
@@ -222,7 +227,7 @@ describe("admin API", () => {
     enqueueDelete.mockResolvedValueOnce(null);
     const res = await req("/users/9", {
       method: "DELETE",
-      headers: { authorization: `Bearer ${await token(1)}` },
+      headers: { "X-VideoQ-Test-User-Id": "1" },
     });
     expect(res.status).toBe(202);
     const body = (await res.json()) as { job_id: string };
@@ -265,7 +270,7 @@ describe("admin API", () => {
     };
     const res = await req("/users/1", {
       method: "DELETE",
-      headers: { authorization: `Bearer ${await token(1)}` },
+      headers: { "X-VideoQ-Test-User-Id": "1" },
     });
     expect(res.status).toBe(400);
     expect(enqueueDelete).not.toHaveBeenCalled();
@@ -299,7 +304,7 @@ describe("admin API", () => {
     };
     const res = await req("/users/9", {
       method: "DELETE",
-      headers: { authorization: `Bearer ${await token(1)}` },
+      headers: { "X-VideoQ-Test-User-Id": "1" },
     });
     expect(res.status).toBe(403);
     expect(enqueueDelete).not.toHaveBeenCalled();

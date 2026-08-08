@@ -1,4 +1,4 @@
-import { requireAuth, apiKeyMethod, jwtMethod } from "../../middleware/auth";
+import { requireAuth, apiKeyMethod, sessionMethod } from "../../middleware/auth";
 import {
   createFeatureRouter,
   createRoute,
@@ -25,7 +25,7 @@ import * as evaluationService from "./service";
  */
 export const evaluationRoutes = createFeatureRouter();
 
-const evalAuth = requireAuth(apiKeyMethod, jwtMethod);
+const evalAuth = requireAuth(apiKeyMethod, sessionMethod);
 
 const summaryRoute = createRoute({
   method: "get",

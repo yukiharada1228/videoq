@@ -2,7 +2,7 @@ import {
   requireAuth,
   requireScope,
   apiKeyMethod,
-  jwtMethod,
+  sessionMethod,
 } from "../../middleware/auth";
 import {
   createFeatureRouter,
@@ -27,7 +27,7 @@ import * as membershipService from "./service";
 export const membershipRoutes = createFeatureRouter();
 
 const writeGuards = [
-  requireAuth(apiKeyMethod, jwtMethod),
+  requireAuth(apiKeyMethod, sessionMethod),
   requireScope("write"),
 ] as const;
 

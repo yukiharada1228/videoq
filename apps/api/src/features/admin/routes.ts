@@ -1,5 +1,5 @@
 import { createMiddleware } from "hono/factory";
-import { requireAuth, jwtMethod, apiKeyMethod } from "../../middleware/auth";
+import { requireAuth, sessionMethod, apiKeyMethod } from "../../middleware/auth";
 import {
   createFeatureRouter,
   createRoute,
@@ -51,7 +51,7 @@ const requireSuperuser = createMiddleware<AppEnv>(async (c, next) => {
 });
 
 const adminGuards = [
-  requireAuth(apiKeyMethod, jwtMethod),
+  requireAuth(apiKeyMethod, sessionMethod),
   requireSuperuser,
 ] as const;
 

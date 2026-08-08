@@ -83,7 +83,7 @@ async function post(
     "content-type": "application/json",
     ...(opts.headers ?? {}),
   };
-  if (opts.token) headers["authorization"] = `Bearer ${opts.token}`;
+  if (opts.token) headers["X-VideoQ-Test-User-Id"] = String(opts.token).replace(/^test-user-/, "") || "5";
   return chatRoutes.request(
     path,
     { method: "POST", headers, body: JSON.stringify(body) },

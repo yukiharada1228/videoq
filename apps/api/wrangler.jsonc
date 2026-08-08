@@ -35,6 +35,7 @@
     "LLM_MODEL": "gpt-4o-mini",
     "PGVECTOR_COLLECTION_NAME": "scene_embeddings",
     "OAUTH_ISSUER_URL": "http://localhost",
+    "BETTER_AUTH_URL": "http://localhost",
     "OIDC_ENABLED": "false",
     "OIDC_LOGOUT_ENABLED": "false"
   },
@@ -98,6 +99,7 @@
         "LLM_MODEL": "gpt-4o-mini",
         "PGVECTOR_COLLECTION_NAME": "scene_embeddings",
         "OAUTH_ISSUER_URL": "https://videoq.jp",
+        "BETTER_AUTH_URL": "https://videoq.jp",
         "OIDC_ENABLED": "false",
         "OIDC_LOGOUT_ENABLED": "false",
         "R2_BUCKET_NAME": "videoq-media-prod",

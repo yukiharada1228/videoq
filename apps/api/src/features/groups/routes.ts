@@ -2,7 +2,7 @@ import {
   requireAuth,
   requireScope,
   apiKeyMethod,
-  jwtMethod,
+  sessionMethod,
 } from "../../middleware/auth";
 import {
   createFeatureRouter,
@@ -41,9 +41,9 @@ import * as groupService from "./service";
 
 export const groupRoutes = createFeatureRouter();
 
-const groupAuth = requireAuth(apiKeyMethod, jwtMethod);
+const groupAuth = requireAuth(apiKeyMethod, sessionMethod);
 const groupWriteGuards = [
-  requireAuth(apiKeyMethod, jwtMethod),
+  requireAuth(apiKeyMethod, sessionMethod),
   requireScope("write"),
 ] as const;
 

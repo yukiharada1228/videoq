@@ -2,7 +2,7 @@ import {
   requireAuth,
   requireScope,
   apiKeyMethod,
-  jwtMethod,
+  sessionMethod,
 } from "../../middleware/auth";
 import {
   createFeatureRouter,
@@ -36,9 +36,9 @@ import * as videoService from "./service";
 
 export const videoRoutes = createFeatureRouter();
 
-const videoAuth = requireAuth(apiKeyMethod, jwtMethod);
+const videoAuth = requireAuth(apiKeyMethod, sessionMethod);
 const videoWriteGuards = [
-  requireAuth(apiKeyMethod, jwtMethod),
+  requireAuth(apiKeyMethod, sessionMethod),
   requireScope("write"),
 ] as const;
 

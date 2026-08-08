@@ -61,6 +61,8 @@ export const PUBLIC_AUTH_PATHS = [
   '/reset-password',
   '/verify-email',
   '/change-email',
+  '/consent',
+  '/device',
   '/share',
   '/docs',
 ] as const;

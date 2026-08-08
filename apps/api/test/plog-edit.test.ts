@@ -110,7 +110,7 @@ const req = async (
       method,
       headers: {
         "content-type": "application/json",
-        ...(t ? { authorization: `Bearer ${t}` } : {}),
+        ...(t ? { "X-VideoQ-Test-User-Id": "5" } : {}),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     },

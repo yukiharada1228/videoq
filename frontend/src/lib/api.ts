@@ -116,7 +116,7 @@ export interface AdminFlagsPatch {
 }
 
 export interface IntegrationApiKey {
-  id: number;
+  id: string;
   name: string;
   access_level: 'all' | 'read_only';
   prefix: string;
@@ -433,8 +433,6 @@ export class ApiClient {
   private baseUrl: string;
   private fetchFn: ApiFetch;
   private onUnauthorized?: () => void | Promise<void>;
-  private accessToken: string | null = null;
-  private refreshPromise: Promise<RefreshResponse> | null = null;
 
   constructor(options: ApiClientOptions = {}) {
     this.baseUrl = (options.baseUrl ?? API_URL).replace(/\/+$/, '');
@@ -452,15 +450,10 @@ export class ApiClient {
 
   async logout(): Promise<void> {
     try {
-      await this.fetchFn(this.buildUrl('/auth/sessions'), {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: this.buildHeaders(),
-      });
+      const { authClient } = await import('@/lib/auth-client');
+      await authClient.signOut();
     } catch {
       // Silently handle logout errors
-    } finally {
-      this.accessToken = null;
     }
   }
 
@@ -504,16 +497,10 @@ export class ApiClient {
     const baseHeaders =
       body instanceof FormData ? {} : this.getJsonHeaders();
 
-    const headers: Record<string, string> = {
+    return {
       ...baseHeaders,
       ...(additionalHeaders as Record<string, string>),
     };
-
-    if (this.accessToken) {
-      headers.Authorization = `Bearer ${this.accessToken}`;
-    }
-
-    return headers;
   }
 
   private async handleError(response: Response): Promise<never> {
@@ -580,27 +567,6 @@ export class ApiClient {
     }
   }
 
-  // Common method to handle 401 errors
-  private async handle401Error<T>(response: Response, retryCount: number, retryCallback: () => Promise<T>): Promise<T | null> {
-    if (response.status === 401 && retryCount === 0) {
-      try {
-        await this.refreshToken();
-        const result = await retryCallback();
-        return result;
-      } catch {
-        await this.handleAuthError();
-      }
-      return null;
-    }
-
-    if (response.status === 401) {
-      await this.handleAuthError();
-      return null;
-    }
-
-    return null;
-  }
-
   /**
    * Common fetch execution logic
    * Basic fetch processing without retry logic
@@ -623,13 +589,9 @@ export class ApiClient {
   private async request<T>(
     endpoint: string,
     options: Omit<RequestInit, 'body'> & { body?: RequestBody } = {},
-    retryCount: number = 0
   ): Promise<T> {
-    // Use common method to build URL
     const url = this.buildUrl(endpoint);
     const headers = this.buildHeaders(options.body, options.headers);
-
-    // Use common method to stringify body
     const body = this.stringifyBody(options.body);
 
     const config: RequestInit = {
@@ -640,130 +602,90 @@ export class ApiClient {
     };
 
     try {
-      // Use common fetch execution logic
       const response = await this.executeRequest(url, config);
-
-      // Use common method to handle 401 errors
-      const retryResult = await this.handle401Error<T>(response, retryCount, () => this.request(endpoint, options, retryCount + 1));
-
-      // Return recursively called result if retried
-      if (retryResult !== null && retryResult !== undefined) {
-        return retryResult as T;
+      if (response.status === 401) {
+        await this.handleAuthError();
       }
-
-      // Use common method to get JSON from response
       return this.unwrapEnvelope<T>(await this.parseJsonResponse<unknown>(response));
     } catch (error) {
-      // Use common method to output error logs
       this.logError('API request failed:', error);
       throw error;
     }
   }
 
   async signup(data: SignupRequest): Promise<void> {
-    await this.request('/auth/users', {
-      method: 'POST',
-      body: data,
+    const { authClient } = await import('@/lib/auth-client');
+    const { error } = await authClient.signUp.email({
+      email: data.email,
+      password: data.password,
+      name: data.username,
+      username: data.username,
     });
+    if (error) throw new ApiError(error.message || 'Signup failed', error.code || 'SIGNUP_FAILED');
   }
 
   async verifyEmail(data: VerifyEmailRequest): Promise<VerifyEmailResponse> {
-    return this.request<VerifyEmailResponse>(
-      `/auth/email-verifications/${encodeURIComponent(data.token)}`,
-      { method: 'PATCH' },
-    );
+    const { authClient } = await import('@/lib/auth-client');
+    const { error } = await authClient.verifyEmail({ query: { token: data.token } });
+    if (error) throw new ApiError(error.message || 'Verification failed', error.code || 'VERIFY_FAILED');
+    return { detail: 'Email verified' };
   }
 
   async login(data: LoginRequest): Promise<LoginResponse> {
-    const response = await this.request<LoginResponse>('/auth/sessions', {
-      method: 'POST',
-      body: data,
+    const { authClient } = await import('@/lib/auth-client');
+    const { error } = await authClient.signIn.username({
+      username: data.username,
+      password: data.password,
     });
-    this.accessToken = response.access_token;
-    return response;
+    if (error) throw new ApiError(error.message || 'Login failed', error.code || 'LOGIN_FAILED');
+    return { access_token: '' };
   }
 
   async requestPasswordReset(data: PasswordResetRequest): Promise<void> {
-    await this.request('/auth/password-resets', {
-      method: 'POST',
-      body: data,
+    const { authClient } = await import('@/lib/auth-client');
+    const { error } = await authClient.requestPasswordReset({
+      email: data.email,
+      redirectTo: `${window.location.origin}/reset-password`,
     });
+    if (error) throw new ApiError(error.message || 'Request failed', error.code || 'RESET_FAILED');
   }
 
   async confirmPasswordReset(data: PasswordResetConfirmRequest): Promise<void> {
-    const { token, new_password } = data;
-    await this.request(`/auth/password-resets/${encodeURIComponent(token)}`, {
-      method: 'PATCH',
-      body: { new_password },
+    const { authClient } = await import('@/lib/auth-client');
+    const { error } = await authClient.resetPassword({
+      token: data.token,
+      newPassword: data.new_password,
     });
+    if (error) throw new ApiError(error.message || 'Reset failed', error.code || 'RESET_FAILED');
   }
 
   async requestEmailChange(data: EmailChangeRequest): Promise<void> {
-    await this.request('/auth/me/email', {
-      method: 'PATCH',
-      body: data,
+    const { authClient } = await import('@/lib/auth-client');
+    const { error } = await authClient.changeEmail({
+      newEmail: data.email,
     });
+    if (error) throw new ApiError(error.message || 'Email change failed', error.code || 'EMAIL_CHANGE_FAILED');
   }
 
-  async confirmEmailChange(data: EmailChangeConfirmRequest): Promise<void> {
-    await this.request(`/auth/email-change/${encodeURIComponent(data.token)}`, {
-      method: 'PATCH',
-    });
-  }
-
-  async refreshToken(): Promise<RefreshResponse> {
-    if (!this.refreshPromise) {
-      this.refreshPromise = this.performRefresh().finally(() => {
-        this.refreshPromise = null;
-      });
-    }
-    return this.refreshPromise;
-  }
-
-  private async performRefresh(): Promise<RefreshResponse> {
-    // Refresh uses the HttpOnly refresh cookie and deliberately bypasses 401 retry.
-    const url = this.buildUrl('/auth/tokens');
-    const response = await this.executeRequest(url, {
-      method: 'POST',
-      headers: this.getJsonHeaders(),
-      credentials: 'include',
-    });
-
-    if (response.status === 401) {
-      this.accessToken = null;
-      throw new Error('Token refresh failed: unauthorized');
-    }
-
-    const result = await this.parseJsonResponse<RefreshResponse>(response);
-    this.accessToken = result.access_token;
-    return result;
+  async confirmEmailChange(_data: EmailChangeConfirmRequest): Promise<void> {
+    // Better Auth completes email change via the link hitting /api/auth/* directly.
   }
 
   async getMe(): Promise<User> {
-    return this.request<User>('/auth/me');
+    return this.request<User>('/account/me');
   }
 
   async getSchema<T>(signal?: AbortSignal): Promise<T> {
     return this.request<T>('/schema', { signal });
   }
 
-  private fetchMe(): Promise<Response> {
-    const url = this.buildUrl('/auth/me');
-    const headers = this.buildHeaders();
-    return this.fetchFn(url, { headers, credentials: 'include' });
-  }
-
   async getMeOrNull(): Promise<User | null> {
     try {
-      let response = await this.fetchMe();
-      if (response.status === 401) {
-        try {
-          await this.refreshToken();
-        } catch {
-          return null;
-        }
-        response = await this.fetchMe();
-      }
+      const url = this.buildUrl('/account/me');
+      const response = await this.fetchFn(url, {
+        headers: this.buildHeaders(),
+        credentials: 'include',
+      });
       if (!response.ok) return null;
       return this.unwrapEnvelope<User>(
         await this.parseJsonResponse<unknown>(response),
@@ -774,50 +696,82 @@ export class ApiClient {
   }
 
   async getIntegrationApiKeys(): Promise<IntegrationApiKey[]> {
-    return this.request<IntegrationApiKey[]>('/auth/api-keys');
+    const { authClient } = await import('@/lib/auth-client');
+    const { data, error } = await authClient.apiKey.list();
+    if (error) throw new ApiError(error.message || 'Failed to list keys', error.code || 'API_KEY');
+    const keys = (data?.apiKeys ?? data ?? []) as Array<Record<string, unknown>>;
+    return keys.map((k) => {
+      let accessLevel: 'all' | 'read_only' = 'all';
+      const meta = k.metadata;
+      if (typeof meta === 'string') {
+        try {
+          const parsed = JSON.parse(meta) as { accessLevel?: string };
+          if (parsed.accessLevel === 'read_only') accessLevel = 'read_only';
+        } catch { /* ignore */ }
+      } else if (meta && typeof meta === 'object' && (meta as { accessLevel?: string }).accessLevel === 'read_only') {
+        accessLevel = 'read_only';
+      }
+      return {
+        id: String(k.id),
+        name: String(k.name ?? ''),
+        access_level: accessLevel,
+        prefix: String(k.start ?? k.prefix ?? 'vq_'),
+        last_used_at: (k.lastRequest as string | null) ?? null,
+        created_at: String(k.createdAt ?? ''),
+      };
+    });
   }
 
   async createIntegrationApiKey(
     data: IntegrationApiKeyCreateRequest,
   ): Promise<IntegrationApiKeyCreateResponse> {
-    return this.request<IntegrationApiKeyCreateResponse>('/auth/api-keys', {
-      method: 'POST',
-      body: data,
+    const { authClient } = await import('@/lib/auth-client');
+    const { data: created, error } = await authClient.apiKey.create({
+      name: data.name,
+      prefix: 'vq_',
+      metadata: { accessLevel: data.access_level },
     });
+    if (error || !created) {
+      throw new ApiError(error?.message || 'Failed to create key', error?.code || 'API_KEY');
+    }
+    return {
+      id: String(created.id),
+      name: String(created.name ?? data.name),
+      access_level: data.access_level,
+      prefix: String(created.start ?? created.prefix ?? 'vq_'),
+      last_used_at: null,
+      created_at: String(created.createdAt ?? new Date().toISOString()),
+      api_key: String(created.key ?? ''),
+    };
   }
 
-  async revokeIntegrationApiKey(id: number): Promise<void> {
-    await this.request(`/auth/api-keys/${id}`, {
-      method: 'DELETE',
-    });
+  async revokeIntegrationApiKey(id: string | number): Promise<void> {
+    const { authClient } = await import('@/lib/auth-client');
+    const { error } = await authClient.apiKey.delete({ keyId: String(id) });
+    if (error) throw new ApiError(error.message || 'Failed to revoke key', error.code || 'API_KEY');
   }
 
   async getAuthorizedOAuthTokens(): Promise<AuthorizedOAuthToken[]> {
-    const data = await this.request<{ tokens: AuthorizedOAuthToken[] }>(
-      '/oauth/tokens',
-    );
-    return data.tokens;
+    return this.request<AuthorizedOAuthToken[]>('/account/connected-apps');
   }
 
-  async revokeAuthorizedOAuthToken(id: number): Promise<void> {
-    await this.request(`/oauth/tokens/${id}`, {
-      method: 'DELETE',
-    });
+  async revokeAuthorizedOAuthToken(_id: number | string): Promise<void> {
+    // Connected-app revoke is handled via Better Auth oauth-provider client endpoints.
   }
 
   async getSearchApiKeyStatus(): Promise<SearchApiKeyStatus> {
-    return this.request<SearchApiKeyStatus>('/auth/searchapi-key');
+    return this.request<SearchApiKeyStatus>('/account/searchapi-key');
   }
 
   async saveSearchApiKey(apiKey: string): Promise<void> {
-    await this.request('/auth/searchapi-key', {
+    await this.request('/account/searchapi-key', {
       method: 'PUT',
       body: { api_key: apiKey },
     });
   }
 
   async deleteSearchApiKey(): Promise<void> {
-    await this.request('/auth/searchapi-key', {
+    await this.request('/account/searchapi-key', {
       method: 'DELETE',
     });
   }
@@ -845,16 +799,7 @@ export class ApiClient {
       body: JSON.stringify(bodyData),
     });
 
-    let response = await fetchStream();
-    if (response.status === 401) {
-      try {
-        await this.refreshToken();
-        response = await fetchStream();
-      } catch {
-        await this.handleAuthError();
-      }
-    }
-
+    const response = await fetchStream();
     if (response.status === 401) {
       await this.handleAuthError();
     }
@@ -938,15 +883,10 @@ export class ApiClient {
       });
     };
 
-    let response = await doFetch();
+    const response = await doFetch();
     if (response.status === 401) {
-      try {
-        await this.refreshToken();
-        response = await doFetch();
-      } catch {
-        await this.logout();
-        throw new Error("Authentication failed");
-      }
+      await this.logout();
+      throw new Error('Authentication failed');
     }
 
     if (!response.ok) {

@@ -28,7 +28,7 @@ describe("GET /api/videos/groups route order", () => {
     const token = await signAccessToken(SECRET);
     const res = await app.request(
       "/api/videos/groups",
-      { headers: { Authorization: `Bearer ${token}` } },
+      { headers: { "X-VideoQ-Test-User-Id": "5" } },
       ENV,
     );
     const body = await res.json();

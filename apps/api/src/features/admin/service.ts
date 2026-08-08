@@ -15,8 +15,29 @@ import {
   type QuotaPatch,
   type UsagePatch,
 } from "../../repositories/admin-repository";
-import { revokeAllOAuthTokensForUser } from "../../repositories/oauth-repository";
+import { and, eq, isNull } from "drizzle-orm";
+import { withDb } from "../../db/pool";
+import {
+  oauthAccessToken,
+  oauthConsent,
+  oauthRefreshToken,
+  session,
+} from "../../db/schema";
 import type { Bindings } from "../../types/bindings";
+
+async function revokeAuthMaterialForUser(env: Bindings, userId: number) {
+  await withDb(env, async (db) => {
+    await db.delete(session).where(eq(session.userId, userId));
+    await db.delete(oauthAccessToken).where(eq(oauthAccessToken.userId, userId));
+    await db
+      .update(oauthRefreshToken)
+      .set({ revoked: new Date().toISOString() })
+      .where(
+        and(eq(oauthRefreshToken.userId, userId), isNull(oauthRefreshToken.revoked)),
+      );
+    await db.delete(oauthConsent).where(eq(oauthConsent.userId, userId));
+  });
+}
 
 export function isSuperuser(env: Bindings, userId: number) {
   return repositoryIsSuperuser(env, userId);
@@ -68,7 +89,7 @@ export async function patchFlags(
   if (!user) return { notFound: true as const };
   // Sessions are deleted in the repository; drop OAuth/MCP tokens too.
   if (patch.is_active === false) {
-    await revokeAllOAuthTokensForUser(env, targetUserId);
+    await revokeAuthMaterialForUser(env, targetUserId);
   }
   return { user } as const;
 }
@@ -93,7 +114,7 @@ export async function deleteUser(
 
   const locked = await lockUserForHardDelete(env, targetUserId);
   if (!locked) return { notFound: true } as const;
-  await revokeAllOAuthTokensForUser(env, targetUserId);
+  await revokeAuthMaterialForUser(env, targetUserId);
 
   const jobId = await enqueueAccountDeletion(env, targetUserId);
   if (jobId) return { job_id: jobId } as const;
