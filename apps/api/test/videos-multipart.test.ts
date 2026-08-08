@@ -57,7 +57,7 @@ const baseEnv = {
   },
 };
 
-async function accessToken(userId = 5) {
+async function accessToken(userId = "00000000-0000-4000-8000-000000000005") {
   return signAccessToken(SECRET, userId);
 }
 
@@ -84,7 +84,7 @@ beforeEach(() => {
         rows: [
           {
             id: 42,
-            user_id: 5,
+            user_id: "00000000-0000-4000-8000-000000000005",
             file: "videos/5/video_1_4.mp4",
             title: "Clip",
             description: "",
@@ -115,7 +115,7 @@ describe("POST / — USE_S3_STORAGE=true（廃線）", () => {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "X-VideoQ-Test-User-Id": "5",
+          "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005",
         },
         body: JSON.stringify({ title: "x" }),
       },
@@ -154,7 +154,7 @@ describe("POST / — USE_S3_STORAGE=false（multipart）", () => {
       "/",
       {
         method: "POST",
-        headers: { "X-VideoQ-Test-User-Id": "5" },
+        headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" },
         body: form,
       },
       ENV,
@@ -162,7 +162,7 @@ describe("POST / — USE_S3_STORAGE=false（multipart）", () => {
     expect(res.status).toBe(201);
     expect(putMock).toHaveBeenCalled();
     const key = putMock.mock.calls[0][0] as string;
-    expect(key).toMatch(/^media\/videos\/5\/video_\d+_\d+\.mp4$/);
+    expect(key).toMatch(/^media\/videos\/00000000-0000-4000-8000-000000000005\/video_\d+_\d+\.mp4$/);
     const body = (await res.json()) as { id: number; status: string };
     expect(body.id).toBe(42);
     expect(body.status).toBe("pending");
@@ -178,7 +178,7 @@ describe("POST /uploads/ — local では不可", () => {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "X-VideoQ-Test-User-Id": "5",
+          "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005",
         },
         body: JSON.stringify({
           filename: "a.mp4",

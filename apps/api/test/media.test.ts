@@ -58,7 +58,7 @@ beforeEach(() => {
   rowsFor = () => [];
 });
 
-async function accessToken(userId = 5) {
+async function accessToken(userId = "00000000-0000-4000-8000-000000000005") {
   return signAccessToken(SECRET, userId);
 }
 
@@ -80,7 +80,7 @@ describe("GET /*", () => {
   it("404 on path traversal even when authenticated", async () => {
     const res = await mediaRoutes.request(
       "/../secret",
-      { headers: { "X-VideoQ-Test-User-Id": "5" } },
+      { headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" } },
       ENV,
     );
     expect(res.status).toBe(404);
@@ -95,7 +95,7 @@ describe("GET /*", () => {
     };
     const res = await mediaRoutes.request(
       "/videos/a.mp4",
-      { headers: { "X-VideoQ-Test-User-Id": "5" } },
+      { headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" } },
       ENV,
     );
     expect(res.status).toBe(200);

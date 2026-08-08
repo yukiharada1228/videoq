@@ -7,7 +7,7 @@ import type { Bindings } from "../types/bindings";
  * `/api/account/me` のレスポンスを組み立てる。
  */
 export type CurrentUser = {
-  id: number;
+  id: string;
   username: string;
   email: string;
   is_superuser: boolean;
@@ -26,7 +26,7 @@ const GIB = 1024 ** 3;
 
 export async function getCurrentUser(
   env: Bindings,
-  userId: number,
+  userId: string,
 ): Promise<CurrentUser | null> {
   return withDb(env, async (db) => {
     const rows = await db
@@ -60,7 +60,7 @@ export async function getCurrentUser(
       r.processing_limit_minutes === null ? null : Number(r.processing_limit_minutes);
 
     return {
-      id: Number(r.id),
+      id: String(r.id),
       username: r.username,
       email: r.email,
       is_superuser: Boolean(r.is_superuser) || r.role === "admin",
@@ -81,7 +81,7 @@ export async function getCurrentUser(
 
 export async function getSearchApiKeyStatus(
   env: Bindings,
-  userId: number,
+  userId: string,
 ): Promise<boolean | null> {
   return withDb(env, async (db) => {
     const rows = await db
@@ -96,7 +96,7 @@ export async function getSearchApiKeyStatus(
 
 export async function setSearchApiKey(
   env: Bindings,
-  userId: number,
+  userId: string,
   encryptedValue: string,
 ): Promise<boolean> {
   return withDb(env, async (db) => {
@@ -111,7 +111,7 @@ export async function setSearchApiKey(
 
 export async function deleteSearchApiKey(
   env: Bindings,
-  userId: number,
+  userId: string,
 ): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db

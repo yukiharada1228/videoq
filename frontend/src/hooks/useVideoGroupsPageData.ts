@@ -8,7 +8,7 @@ interface CreateVideoGroupPayload {
 }
 
 interface UseCreateVideoGroupMutationParams {
-  userId: number | null | undefined;
+  userId: string | null | undefined;
   onSuccess?: () => void | Promise<void>;
 }
 
@@ -32,7 +32,7 @@ export function useCreateVideoGroupMutation({
 }
 
 interface UseReorderVideoGroupsMutationParams {
-  userId: number | null | undefined;
+  userId: string | null | undefined;
   onSuccess?: () => void | Promise<void>;
 }
 

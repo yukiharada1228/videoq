@@ -125,8 +125,8 @@ export function createAuth(env: Bindings, db: Db) {
         ]);
       },
       onPasswordReset: async ({ user }) => {
-        const userId = Number(user.id);
-        if (!Number.isFinite(userId)) return;
+        const userId = typeof user.id === "string" ? user.id.trim() : "";
+        if (!userId) return;
         await db
           .update(schema.users)
           .set({
@@ -289,11 +289,9 @@ export function createAuth(env: Bindings, db: Db) {
       },
     },
     advanced: {
+      // Better Auth default: string UUIDs for all models including user.
       database: {
-        generateId: ({ model }) => {
-          if (model === "user") return false;
-          return crypto.randomUUID();
-        },
+        generateId: () => crypto.randomUUID(),
       },
       useSecureCookies: env.ENVIRONMENT === "production",
       defaultCookieAttributes: {
@@ -383,7 +381,16 @@ export function createAuth(env: Bindings, db: Db) {
       oauthProvider({
         loginPage: "/login",
         consentPage: "/consent",
+        // MCP clients (Claude etc.) need unauthenticated DCR for public clients.
+        allowDynamicClientRegistration: true,
         allowUnauthenticatedClientRegistration: true,
+        // Confidential clients from DCR get a bounded secret lifetime.
+        clientRegistrationClientSecretExpiration: "30d",
+        rateLimit: {
+          register: { window: 60, max: 5 },
+          token: { window: 60, max: 20 },
+          authorize: { window: 60, max: 30 },
+        },
       }),
     ],
   });

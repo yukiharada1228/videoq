@@ -93,7 +93,7 @@ export async function enqueueBuildPlog(
 
 export async function enqueueAccountDeletion(
   env: Bindings,
-  userId: number,
+  userId: string,
 ): Promise<string | null> {
   const r = await enqueue(env, JOB_DELETE_ACCOUNT_DATA, { user_id: userId });
   return r?.jobId ?? null;

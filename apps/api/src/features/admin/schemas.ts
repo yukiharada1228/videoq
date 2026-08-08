@@ -2,7 +2,7 @@ import { z } from "../../shared/openapi";
 import { paginationQuerySchema } from "../../shared/pagination";
 
 export const adminUserIdParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.string().min(1),
 });
 
 export const adminUserListQuerySchema = paginationQuerySchema.extend({
@@ -11,7 +11,7 @@ export const adminUserListQuerySchema = paginationQuerySchema.extend({
 
 export const adminUserSchema = z
   .object({
-    id: z.number().int(),
+    id: z.string(),
     username: z.string(),
     email: z.string(),
     is_active: z.boolean(),

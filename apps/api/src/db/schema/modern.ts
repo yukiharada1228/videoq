@@ -27,14 +27,8 @@ import { sql } from "drizzle-orm";
 export const users = pgTable(
 	"users",
 	{
-		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-			name: "users_id_seq",
-			startWith: 1,
-			increment: 1,
-			minValue: 1,
-			maxValue: 9223372036854775807,
-			cache: 1,
-		}),
+		/** Better Auth default: string UUID (text PK). */
+		id: text("id").primaryKey(),
 		/** Better Auth display name (required by BA). */
 		name: text("name").notNull().default(""),
 		email: varchar({ length: 254 }).notNull(),
@@ -103,7 +97,7 @@ export const accountDeletionRequests = pgTable(
 		}),
 		reason: text().notNull(),
 		requestedAt: timestamp("requested_at", { withTimezone: true, mode: "string" }).notNull(),
-		userId: bigint("user_id", { mode: "number" }).notNull(),
+		userId: text("user_id").notNull(),
 	},
 	(table) => [
 		index("account_deletion_requests_user_id_idx").using("btree", table.userId.asc().nullsLast()),
@@ -142,7 +136,7 @@ export const videos = pgTable(
 		transcript: text().notNull(),
 		status: varchar({ length: 20 }).notNull(),
 		errorMessage: text("error_message").notNull(),
-		userId: bigint("user_id", { mode: "number" }).notNull(),
+		userId: text("user_id").notNull(),
 		sourceType: varchar("source_type", { length: 20 }).notNull(),
 		sourceUrl: varchar("source_url", { length: 200 }).notNull(),
 		youtubeVideoId: varchar("youtube_video_id", { length: 32 }).notNull(),
@@ -180,7 +174,7 @@ export const videoGroups = pgTable(
 		description: text().notNull(),
 		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
 		updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
-		userId: bigint("user_id", { mode: "number" }).notNull(),
+		userId: text("user_id").notNull(),
 		shareSlug: varchar("share_slug", { length: 64 }),
 		displayOrder: integer("display_order").notNull(),
 	},
@@ -252,7 +246,7 @@ export const tags = pgTable(
 		name: varchar({ length: 50 }).notNull(),
 		color: varchar({ length: 20 }).notNull(),
 		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
-		userId: bigint("user_id", { mode: "number" }).notNull(),
+		userId: text("user_id").notNull(),
 	},
 	(table) => [
 		index("tags_user_id_idx").using("btree", table.userId.asc().nullsLast()),
@@ -318,7 +312,7 @@ export const chatLogs = pgTable(
 		isSharedOrigin: boolean("is_shared_origin").notNull(),
 		feedback: varchar({ length: 4 }),
 		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
-		userId: bigint("user_id", { mode: "number" }).notNull(),
+		userId: text("user_id").notNull(),
 		groupId: bigint("group_id", { mode: "number" }).notNull(),
 		retrievedContexts: jsonb("retrieved_contexts").notNull(),
 	},
@@ -392,7 +386,7 @@ export const groupEvaluationSnapshots = pgTable(
 		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
 		updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
 		groupId: bigint("group_id", { mode: "number" }).notNull(),
-		userId: bigint("user_id", { mode: "number" }).notNull(),
+		userId: text("user_id").notNull(),
 		contextPrecisionMean: doublePrecision("context_precision_mean"),
 	},
 	(table) => [
@@ -606,7 +600,7 @@ export const learnerConceptStates = pgTable(
 		updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
 		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
 		conceptId: bigint("concept_id", { mode: "number" }).notNull(),
-		userId: bigint("user_id", { mode: "number" }).notNull(),
+		userId: text("user_id").notNull(),
 	},
 	(table) => [
 		index("learner_concept_states_user_id_idx").using("btree", table.userId.asc().nullsLast()),
@@ -636,7 +630,7 @@ export const sceneEmbeddings = pgTable(
 		langchainId: uuid("langchain_id").primaryKey().notNull(),
 		content: text().notNull(),
 		embedding: vector({ dimensions: 1536 }).notNull(),
-		userId: bigint("user_id", { mode: "number" }).notNull(),
+		userId: text("user_id").notNull(),
 		videoId: bigint("video_id", { mode: "number" }).notNull(),
 		langchainMetadata: json("langchain_metadata"),
 	},

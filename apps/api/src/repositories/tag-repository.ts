@@ -74,7 +74,7 @@ const v = alias(videos, "v");
  */
 export async function listTagsPage(
   env: Bindings,
-  userId: number,
+  userId: string,
   limit: number,
   offset: number,
 ): Promise<{ count: number; results: TagListItem[] }> {
@@ -110,7 +110,7 @@ export async function listTagsPage(
 export async function getTagDetail(
   env: Bindings,
   tagId: number,
-  userId: number,
+  userId: string,
 ): Promise<TagDetail | null> {
   const data = await withDb(env, async (db) => {
     const tagRows = await db
@@ -162,7 +162,7 @@ export async function getTagDetail(
 export async function tagExists(
   env: Bindings,
   tagId: number,
-  userId: number,
+  userId: string,
 ): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db
@@ -181,7 +181,7 @@ export async function tagExists(
 export async function updateTag(
   env: Bindings,
   tagId: number,
-  userId: number,
+  userId: string,
   fields: { name?: string; color?: string },
 ): Promise<void> {
   return withDb(env, async (db) => {
@@ -203,7 +203,7 @@ export async function updateTag(
  */
 export async function createTag(
   env: Bindings,
-  userId: number,
+  userId: string,
   name: string,
   color: string,
 ): Promise<TagListItem> {
@@ -237,7 +237,7 @@ export async function createTag(
 export async function deleteTag(
   env: Bindings,
   tagId: number,
-  userId: number,
+  userId: string,
 ): Promise<{ notFound: true } | { ok: true }> {
   return withDb(env, async (db) => {
     return db.transaction(async (tx) => {

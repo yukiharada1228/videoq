@@ -30,6 +30,10 @@ function getPrimaryNav() {
 }
 
 describe('AppNav - no authenticated user (empty cache)', () => {
+  beforeEach(() => {
+    ;(globalThis as any).__setMockAuthSession?.(null)
+  })
+
   it('highlights home link when activePage="home"', () => {
     render(<AppNav activePage="home" />)
     const homeLink = within(getPrimaryNav()).getByText('navigation.home')
@@ -100,7 +104,7 @@ describe('AppNav - authenticated user (cache populated)', () => {
 })
 
 describe('AppNav - auth cache uninitialized (fetches from API)', () => {
-  it('uses getMeOrNull (no redirect side effects) instead of getMe', async () => {
+  it('loads app profile via getMeOrNull only when BA session exists', async () => {
     render(<AppNav />)
     await waitFor(() => {
       expect(within(getPrimaryNav()).getByText('navigation.videosNav')).toBeInTheDocument()
@@ -118,12 +122,14 @@ describe('AppNav - auth cache uninitialized (fetches from API)', () => {
     expect(screen.queryByText('auth.login.submit')).not.toBeInTheDocument()
   })
 
-  it('shows login button when API returns null and cache is empty', async () => {
-    ;(apiClient.getMeOrNull as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+  it('shows login button when BA session is absent', async () => {
+    vi.clearAllMocks()
+    ;(globalThis as any).__setMockAuthSession?.(null)
     render(<AppNav />)
     await waitFor(() => {
       expect(screen.getAllByText('auth.login.submit').length).toBeGreaterThan(0)
     })
     expect(screen.queryByText('navigation.videosNav')).not.toBeInTheDocument()
+    expect(apiClient.getMeOrNull).not.toHaveBeenCalled()
   })
 })

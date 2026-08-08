@@ -17,7 +17,7 @@ export function shareSlugExists(env: Bindings, shareSlug: string) {
 export async function historyForGroup(
   env: Bindings,
   groupId: number,
-  userId: number,
+  userId: string,
   limit: number,
   offset: number,
 ) {
@@ -27,7 +27,7 @@ export async function historyForGroup(
 export async function exportHistoryCsv(
   env: Bindings,
   groupId: number,
-  userId: number,
+  userId: string,
 ) {
   const res = await getGroupChatHistoryForExport(env, groupId, userId);
   if ("notFound" in res) return { notFound: true } as const;
@@ -40,7 +40,7 @@ export async function exportHistoryCsv(
 export async function resetHistory(
   env: Bindings,
   groupId: number,
-  userId: number,
+  userId: string,
 ) {
   return deleteGroupChatLogs(env, groupId, userId);
 }
@@ -48,7 +48,7 @@ export async function resetHistory(
 export async function analyticsForGroup(
   env: Bindings,
   groupId: number,
-  userId: number,
+  userId: string,
 ) {
   return getGroupChatAnalytics(env, groupId, userId);
 }
@@ -57,7 +57,7 @@ export async function submitFeedback(
   env: Bindings,
   logId: number,
   feedback: "good" | "bad" | null,
-  opts: { userId?: number; shareSlug?: string | null },
+  opts: { userId?: string; shareSlug?: string | null },
 ) {
   const log = await getFeedbackLog(env, logId);
   if (!log) return { notFound: "Specified chat history not found" } as const;

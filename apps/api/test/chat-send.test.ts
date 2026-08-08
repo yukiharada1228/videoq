@@ -46,7 +46,7 @@ const defaultRows = (sql: MatchableSql): Record<string, unknown>[] => {
   if (sql.includes("video_group_members"))
     return [{ videoId: 60 }, { videoId: 61 }];
   if (sql.includes("video_groups"))
-    return [{ id: 3, userId: 5, description: "Group about pgvector" }];
+    return [{ id: 3, userId: "00000000-0000-4000-8000-000000000005", description: "Group about pgvector" }];
   if (sql.includes("scene_embeddings"))
     return [
       {
@@ -70,7 +70,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-async function accessToken(userId = 5) {
+async function accessToken(userId = "00000000-0000-4000-8000-000000000005") {
   return signAccessToken(SECRET, userId);
 }
 
@@ -83,7 +83,7 @@ async function post(
     "content-type": "application/json",
     ...(opts.headers ?? {}),
   };
-  if (opts.token) headers["X-VideoQ-Test-User-Id"] = String(opts.token).replace(/^test-user-/, "") || "5";
+  if (opts.token) headers["X-VideoQ-Test-User-Id"] = String(opts.token).replace(/^test-user-/, "") || "00000000-0000-4000-8000-000000000005";
   return chatRoutes.request(
     path,
     { method: "POST", headers, body: JSON.stringify(body) },
@@ -242,7 +242,7 @@ describe("POST /messages（非ストリーミング）", () => {
     });
 
     const search = calls.find((call) => call.sql.includes("scene_embeddings"))!;
-    expect(search.args).toEqual([5, "[0.1,0.2]", 20]);
+    expect(search.args).toEqual(["00000000-0000-4000-8000-000000000005", "[0.1,0.2]", 20]);
     expect(String(search.sql)).toMatch(/ARRAY\[60,61\]::bigint\[\]/);
 
     // プロンプトは ja ロケール + group_context + 参照シーンを含む
@@ -366,7 +366,7 @@ describe("POST /messages（非ストリーミング）", () => {
     expect(calls.some((c) => c.sql.includes("share_slug") && c.args.includes(3))).toBe(true);
 
     const quota = calls.find((c) => c.sql.includes("is_over_quota") || c.sql.includes("ai_answers_limit"))!;
-    expect(quota.args[0]).toBe(5); // 共有訪問者ではなくグループ所有者
+    expect(quota.args[0]).toBe("00000000-0000-4000-8000-000000000005"); // 共有訪問者ではなくグループ所有者
 
     const insert = calls.find((c) => c.sql.includes("chat_logs") && c.sql.includes("returning"))!;
     expect(insert.args).toContain(true);

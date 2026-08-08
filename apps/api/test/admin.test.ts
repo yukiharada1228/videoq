@@ -43,7 +43,7 @@ const ENV = {
   HYPERDRIVE: { connectionString: "postgres://fake/db" },
 } as unknown as Record<string, unknown>;
 
-async function token(userId = 1) {
+async function token(userId = "00000000-0000-4000-8000-000000000001") {
   return signAccessToken(SECRET, userId);
 }
 
@@ -57,7 +57,7 @@ beforeEach(() => {
     if (sql.includes("FROM users") || sql.includes("RETURNING id")) {
       return [
         {
-          id: 9,
+          id: "00000000-0000-4000-8000-000000000009",
           username: "alice",
           email: "a@example.com",
           is_active: true,
@@ -89,26 +89,26 @@ describe("admin API", () => {
       return [];
     };
     const res = await req("/users", {
-      headers: { "X-VideoQ-Test-User-Id": "1" },
+      headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001" },
     });
     expect(res.status).toBe(403);
   });
 
   it("一覧は 200", async () => {
     const res = await req("/users?q=ali", {
-      headers: { "X-VideoQ-Test-User-Id": "1" },
+      headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001" },
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { meta: { total: number }; data: { id: number }[] };
     expect(body.meta.total).toBe(1);
-    expect(body.data[0].id).toBe(9);
+    expect(body.data[0].id).toBe("00000000-0000-4000-8000-000000000009");
   });
 
   it("quota PATCH", async () => {
-    const res = await req("/users/9/quota", {
+    const res = await req("/users/00000000-0000-4000-8000-000000000009/quota", {
       method: "PATCH",
       headers: {
-        "X-VideoQ-Test-User-Id": "1",
+        "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001",
         "content-type": "application/json",
       },
       body: JSON.stringify({ storage_limit_gb: 50 }),
@@ -118,10 +118,10 @@ describe("admin API", () => {
   });
 
   it("flags PATCH", async () => {
-    const res = await req("/users/9/flags", {
+    const res = await req("/users/00000000-0000-4000-8000-000000000009/flags", {
       method: "PATCH",
       headers: {
-        "X-VideoQ-Test-User-Id": "1",
+        "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001",
         "content-type": "application/json",
       },
       body: JSON.stringify({ is_staff: true, is_superuser: true }),
@@ -138,7 +138,7 @@ describe("admin API", () => {
       if (sql.includes("FROM users")) {
         return [
           {
-            id: 1,
+            id: "00000000-0000-4000-8000-000000000001",
             username: "admin",
             email: "admin@example.com",
             is_active: true,
@@ -158,10 +158,10 @@ describe("admin API", () => {
       }
       return [];
     };
-    const res = await req("/users/1/flags", {
+    const res = await req("/users/00000000-0000-4000-8000-000000000001/flags", {
       method: "PATCH",
       headers: {
-        "X-VideoQ-Test-User-Id": "1",
+        "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001",
         "content-type": "application/json",
       },
       body: JSON.stringify({ is_superuser: false }),
@@ -172,7 +172,7 @@ describe("admin API", () => {
   it("reindex-all は 202 + job_id", async () => {
     const res = await req("/embeddings/reindex-all", {
       method: "POST",
-      headers: { "X-VideoQ-Test-User-Id": "1" },
+      headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001" },
     });
     expect(res.status).toBe(202);
     expect(await res.json()).toEqual({ job_id: "job-abc" });
@@ -180,13 +180,13 @@ describe("admin API", () => {
   });
 
   it("ユーザー削除は 202 でジョブを投入する", async () => {
-    const res = await req("/users/9", {
+    const res = await req("/users/00000000-0000-4000-8000-000000000009", {
       method: "DELETE",
-      headers: { "X-VideoQ-Test-User-Id": "1" },
+      headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001" },
     });
     expect(res.status).toBe(202);
     expect(await res.json()).toEqual({ job_id: "job-del" });
-    expect(enqueueDelete).toHaveBeenCalledWith(ENV, 9);
+    expect(enqueueDelete).toHaveBeenCalledWith(ENV, "00000000-0000-4000-8000-000000000009");
     expect(calls.some((c) => c.sql.includes("UPDATE") && c.sql.includes("users"))).toBe(
       true,
     );
@@ -206,10 +206,10 @@ describe("admin API", () => {
   });
 
   it("is_active=false で OAuth トークンも消す", async () => {
-    const res = await req("/users/9/flags", {
+    const res = await req("/users/00000000-0000-4000-8000-000000000009/flags", {
       method: "PATCH",
       headers: {
-        "X-VideoQ-Test-User-Id": "1",
+        "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001",
         "content-type": "application/json",
       },
       body: JSON.stringify({ is_active: false }),
@@ -225,9 +225,9 @@ describe("admin API", () => {
 
   it("SQS 投入失敗時は同期 hard-delete にフォールバックする", async () => {
     enqueueDelete.mockResolvedValueOnce(null);
-    const res = await req("/users/9", {
+    const res = await req("/users/00000000-0000-4000-8000-000000000009", {
       method: "DELETE",
-      headers: { "X-VideoQ-Test-User-Id": "1" },
+      headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001" },
     });
     expect(res.status).toBe(202);
     const body = (await res.json()) as { job_id: string };
@@ -248,7 +248,7 @@ describe("admin API", () => {
       if (sql.includes("FROM users")) {
         return [
           {
-            id: 1,
+            id: "00000000-0000-4000-8000-000000000001",
             username: "admin",
             email: "admin@example.com",
             is_active: true,
@@ -268,9 +268,9 @@ describe("admin API", () => {
       }
       return [];
     };
-    const res = await req("/users/1", {
+    const res = await req("/users/00000000-0000-4000-8000-000000000001", {
       method: "DELETE",
-      headers: { "X-VideoQ-Test-User-Id": "1" },
+      headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001" },
     });
     expect(res.status).toBe(400);
     expect(enqueueDelete).not.toHaveBeenCalled();
@@ -282,7 +282,7 @@ describe("admin API", () => {
       if (sql.includes("FROM users")) {
         return [
           {
-            id: 9,
+            id: "00000000-0000-4000-8000-000000000009",
             username: "other-admin",
             email: "other@example.com",
             is_active: true,
@@ -302,9 +302,9 @@ describe("admin API", () => {
       }
       return [];
     };
-    const res = await req("/users/9", {
+    const res = await req("/users/00000000-0000-4000-8000-000000000009", {
       method: "DELETE",
-      headers: { "X-VideoQ-Test-User-Id": "1" },
+      headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001" },
     });
     expect(res.status).toBe(403);
     expect(enqueueDelete).not.toHaveBeenCalled();

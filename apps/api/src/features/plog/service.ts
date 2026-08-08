@@ -31,7 +31,7 @@ import type { Bindings } from "../../types/bindings";
 export function requireOwnedVideo(
   env: Bindings,
   videoId: number,
-  userId: number,
+  userId: string,
 ) {
   return repositoryRequireOwnedVideo(env, videoId, userId);
 }
@@ -105,7 +105,7 @@ function mapErr(e: unknown): EditResult<never> | null {
 export async function graphForVideo(
   env: Bindings,
   videoId: number,
-  userId: number,
+  userId: string,
 ) {
   return getPlogGraph(env, videoId, userId);
 }
@@ -113,7 +113,7 @@ export async function graphForVideo(
 export async function learnerStateForVideo(
   env: Bindings,
   videoId: number,
-  userId: number,
+  userId: string,
 ) {
   return getPlogLearnerState(env, videoId, userId);
 }
@@ -121,7 +121,7 @@ export async function learnerStateForVideo(
 export async function resetLearnerForVideo(
   env: Bindings,
   videoId: number,
-  userId: number,
+  userId: string,
 ) {
   return resetLearnerStates(env, userId, videoId);
 }
@@ -129,7 +129,7 @@ export async function resetLearnerForVideo(
 export async function rebuildPlog(
   env: Bindings,
   videoId: number,
-  userId: number,
+  userId: string,
 ) {
   const state = await getVideoTranscriptState(env, videoId, userId);
   if (!state.found) return { notFound: "Video not found." } as const;

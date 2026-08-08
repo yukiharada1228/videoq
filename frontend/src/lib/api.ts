@@ -52,16 +52,8 @@ export class ApiError extends Error {
   }
 }
 
-export interface LoginResponse {
-  access_token: string;
-}
-
-export interface RefreshResponse {
-  access_token: string;
-}
-
 export interface User {
-  id: number;
+  id: string;
   username: string;
   email: string;
   is_superuser?: boolean;
@@ -77,7 +69,7 @@ export interface User {
 }
 
 export interface AdminUser {
-  id: number;
+  id: string;
   username: string;
   email: string;
   is_active: boolean;
@@ -308,7 +300,7 @@ export type ChatStreamEvent =
 
 export interface Video {
   id: number;
-  user: number;
+  user: string;
   file: string | null;
   source_type: 'uploaded' | 'youtube';
   source_url?: string | null;
@@ -445,7 +437,9 @@ export class ApiClient {
   }
 
   async isAuthenticated(): Promise<boolean> {
-    return (await this.getMeOrNull()) !== null;
+    const { fetchAuthSession } = await import('@/lib/authSession');
+    const { data } = await fetchAuthSession();
+    return Boolean(data?.user);
   }
 
   async logout(): Promise<void> {
@@ -631,14 +625,13 @@ export class ApiClient {
     return { detail: 'Email verified' };
   }
 
-  async login(data: LoginRequest): Promise<LoginResponse> {
+  async login(data: LoginRequest): Promise<void> {
     const { authClient } = await import('@/lib/auth-client');
     const { error } = await authClient.signIn.username({
       username: data.username,
       password: data.password,
     });
     if (error) throw new ApiError(error.message || 'Login failed', error.code || 'LOGIN_FAILED');
-    return { access_token: '' };
   }
 
   /** Redirects to Google OAuth via Better Auth (`signIn.social`). */
@@ -1461,21 +1454,21 @@ export class ApiClient {
     return this.request<PaginatedResponse<AdminUser>>(`/admin/users${qs ? `?${qs}` : ''}`);
   }
 
-  async patchAdminUserQuota(id: number, data: AdminQuotaPatch): Promise<AdminUser> {
+  async patchAdminUserQuota(id: string, data: AdminQuotaPatch): Promise<AdminUser> {
     return this.request<AdminUser>(`/admin/users/${id}/quota`, {
       method: 'PATCH',
       body: data,
     });
   }
 
-  async patchAdminUserUsage(id: number, data: AdminUsagePatch): Promise<AdminUser> {
+  async patchAdminUserUsage(id: string, data: AdminUsagePatch): Promise<AdminUser> {
     return this.request<AdminUser>(`/admin/users/${id}/usage`, {
       method: 'PATCH',
       body: data,
     });
   }
 
-  async patchAdminUserFlags(id: number, data: AdminFlagsPatch): Promise<AdminUser> {
+  async patchAdminUserFlags(id: string, data: AdminFlagsPatch): Promise<AdminUser> {
     return this.request<AdminUser>(`/admin/users/${id}/flags`, {
       method: 'PATCH',
       body: data,
@@ -1488,7 +1481,7 @@ export class ApiClient {
     });
   }
 
-  async deleteAdminUser(id: number): Promise<{ job_id: string }> {
+  async deleteAdminUser(id: string): Promise<{ job_id: string }> {
     return this.request<{ job_id: string }>(`/admin/users/${id}`, {
       method: 'DELETE',
     });

@@ -4,7 +4,7 @@ import { session, users } from "../db/schema";
 import type { Bindings } from "../types/bindings";
 
 export type AdminUser = {
-  id: number;
+  id: string;
   username: string;
   email: string;
   is_active: boolean;
@@ -44,7 +44,7 @@ const adminUserSelect = {
 };
 
 function mapUser(r: {
-  id: number;
+  id: string;
   username: string;
   email: string;
   is_active: boolean;
@@ -61,7 +61,7 @@ function mapUser(r: {
   is_over_quota: boolean;
 }): AdminUser {
   return {
-    id: Number(r.id),
+    id: String(r.id),
     username: r.username,
     email: r.email,
     is_active: Boolean(r.is_active),
@@ -80,7 +80,7 @@ function mapUser(r: {
   };
 }
 
-export async function isSuperuser(env: Bindings, userId: number): Promise<boolean> {
+export async function isSuperuser(env: Bindings, userId: string): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db
       .select({ isSuperuser: users.isSuperuser, role: users.role })
@@ -125,7 +125,7 @@ export async function listAdminUsers(
 
 export async function getAdminUser(
   env: Bindings,
-  userId: number,
+  userId: string,
 ): Promise<AdminUser | null> {
   return withDb(env, async (db) => {
     const rows = await db
@@ -160,7 +160,7 @@ export type FlagsPatch = {
 
 export async function patchAdminUserQuota(
   env: Bindings,
-  userId: number,
+  userId: string,
   patch: QuotaPatch,
 ): Promise<AdminUser | null> {
   const set: Partial<{
@@ -191,7 +191,7 @@ export async function patchAdminUserQuota(
 
 export async function patchAdminUserFlags(
   env: Bindings,
-  userId: number,
+  userId: string,
   patch: FlagsPatch,
 ): Promise<AdminUser | null> {
   const set: Partial<{
@@ -229,7 +229,7 @@ export async function patchAdminUserFlags(
 
 export async function lockUserForHardDelete(
   env: Bindings,
-  userId: number,
+  userId: string,
 ): Promise<boolean> {
   return withDb(env, async (db) => {
     return db.transaction(async (tx) => {
@@ -251,7 +251,7 @@ export async function lockUserForHardDelete(
  */
 export async function hardDeleteUser(
   env: Bindings,
-  userId: number,
+  userId: string,
 ): Promise<boolean> {
   return withDb(env, async (db) => {
     return db.transaction(async (tx) => {
@@ -267,7 +267,7 @@ export async function hardDeleteUser(
 
 export async function patchAdminUserUsage(
   env: Bindings,
-  userId: number,
+  userId: string,
   patch: UsagePatch,
 ): Promise<AdminUser | null> {
   const set: Partial<{

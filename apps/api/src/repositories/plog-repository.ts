@@ -148,7 +148,7 @@ async function fetchEdgeItem(
   };
 }
 
-async function videoOwnedBy(db: Db, videoId: number, userId: number): Promise<boolean> {
+async function videoOwnedBy(db: Db, videoId: number, userId: string): Promise<boolean> {
   const rows = await db
     .select({ id: videos.id })
     .from(videos)
@@ -165,7 +165,7 @@ async function videoOwnedBy(db: Db, videoId: number, userId: number): Promise<bo
 export async function getPlogGraph(
   env: Bindings,
   videoId: number,
-  userId: number,
+  userId: string,
 ): Promise<{ notFound: true } | PlogGraph> {
   return withDb(env, async (db) => {
     if (!(await videoOwnedBy(db, videoId, userId))) {
@@ -258,7 +258,7 @@ export async function getPlogGraph(
 export async function getPlogLearnerState(
   env: Bindings,
   videoId: number,
-  userId: number,
+  userId: string,
 ): Promise<{ notFound: true } | { states: LearnerStateItem[] }> {
   return withDb(env, async (db) => {
     if (!(await videoOwnedBy(db, videoId, userId))) {
@@ -353,7 +353,7 @@ export class PlogEditError extends Error {
 export async function requireOwnedVideo(
   env: Bindings,
   videoId: number,
-  userId: number,
+  userId: string,
 ): Promise<{ notFound: true } | { ok: true }> {
   return withDb(env, async (db) =>
     (await videoOwnedBy(db, videoId, userId))
@@ -1007,7 +1007,7 @@ export async function mergeConcepts(
 /** ResetLearnerStateUseCase: 当該 user×video の learner state を全削除。件数を返す。 */
 export async function resetLearnerStates(
   env: Bindings,
-  userId: number,
+  userId: string,
   videoId: number,
 ): Promise<{ notFound: true } | { deleted: number }> {
   return withDb(env, async (db) => {

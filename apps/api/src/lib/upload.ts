@@ -32,7 +32,7 @@ export const ALLOWED_VIDEO_MIMETYPES = new Set([
  * アップロード放棄時（FR-Q3）に R2 未着でも解放できるようにする。
  */
 export function buildPendingUploadFileKey(
-  userId: number,
+  userId: string,
   reservedBytes: number,
   ext: string,
   nowMs: number = Date.now(),

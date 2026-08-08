@@ -28,7 +28,7 @@ export async function findVideoIdByFilePath(
 export async function isVideoOwnedByUser(
   env: Bindings,
   videoId: number,
-  userId: number,
+  userId: string,
 ): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db

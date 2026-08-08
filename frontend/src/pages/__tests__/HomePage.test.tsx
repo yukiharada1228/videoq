@@ -198,6 +198,7 @@ describe('HomePage - Data Loading', () => {
 describe('HomePage - unauthenticated', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    ;(globalThis as any).__setMockAuthSession?.(null)
     ;(apiClient.getMeOrNull as ReturnType<typeof vi.fn>).mockResolvedValue(null)
   })
 

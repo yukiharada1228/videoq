@@ -38,7 +38,7 @@ const ENV = {
 const RAW_KEY = "vq_mcp_test_key_value_xxxxxx";
 
 const apiKeyRow = (accessLevel = "all") => [
-  { api_key_id: 1, user_id: 5, access_level: accessLevel },
+  { api_key_id: 1, user_id: "00000000-0000-4000-8000-000000000005", access_level: accessLevel },
 ];
 
 beforeEach(() => {
@@ -72,7 +72,7 @@ const post = (body: unknown, headers: Record<string, string> = {}) =>
         "content-type": "application/json",
         accept: "application/json, text/event-stream",
         "x-api-key": RAW_KEY,
-        "X-VideoQ-Test-User-Id": "5",
+        "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005",
         ...headers,
       },
       body: JSON.stringify(body),
@@ -111,6 +111,8 @@ describe("MCP auth", () => {
           "content-type": "application/json",
           accept: "application/json, text/event-stream",
           "x-api-key": RAW_KEY,
+          "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005",
+          "X-VideoQ-Test-Access-Level": "all",
         },
         body: JSON.stringify(jsonrpc("initialize", initializeParams)),
       },
@@ -130,7 +132,7 @@ describe("MCP auth", () => {
           "content-type": "application/json",
           accept: "application/json, text/event-stream",
           authorization: "Bearer oauth-access-token-value",
-          "X-VideoQ-Test-OAuth-User-Id": "9",
+          "X-VideoQ-Test-OAuth-User-Id": "00000000-0000-4000-8000-000000000009",
         },
         body: JSON.stringify(jsonrpc("ping")),
       },
@@ -237,7 +239,7 @@ describe("MCP JSON-RPC", () => {
         method: "GET",
         headers: {
           "x-api-key": RAW_KEY,
-          "X-VideoQ-Test-User-Id": "5",
+          "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005",
           accept: "application/json",
         },
       },
@@ -259,7 +261,7 @@ describe("MCP JSON-RPC", () => {
           "content-type": "application/json",
           accept: "text/html",
           "x-api-key": RAW_KEY,
-          "X-VideoQ-Test-User-Id": "5",
+          "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005",
         },
         body: JSON.stringify(jsonrpc("ping")),
       },
@@ -275,7 +277,7 @@ describe("MCP JSON-RPC", () => {
         method: "DELETE",
         headers: {
           "x-api-key": RAW_KEY,
-          "X-VideoQ-Test-User-Id": "5",
+          "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005",
           accept: "application/json, text/event-stream",
         },
       },

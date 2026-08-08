@@ -94,7 +94,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-async function token(userId = 5) {
+async function token(userId = "00000000-0000-4000-8000-000000000005") {
   return signAccessToken(SECRET, userId);
 }
 
@@ -110,7 +110,7 @@ const req = async (
       method,
       headers: {
         "content-type": "application/json",
-        ...(t ? { "X-VideoQ-Test-User-Id": "5" } : {}),
+        ...(t ? { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" } : {}),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     },

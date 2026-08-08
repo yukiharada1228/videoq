@@ -5,6 +5,13 @@ import { useI18nNavigate } from '@/lib/i18n'
 
 let mockNavigate: ReturnType<typeof vi.fn>
 
+vi.mock('@/lib/auth-client', () => ({
+  AUTH_BASE_URL: 'http://localhost:8000',
+  authClient: {
+    getSession: vi.fn(() => Promise.resolve({ data: { user: { id: '1' } }, error: null })),
+  },
+}))
+
 vi.mock('@/lib/api', () => ({
   apiClient: {
     getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),

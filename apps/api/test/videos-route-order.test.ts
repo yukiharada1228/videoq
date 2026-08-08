@@ -28,7 +28,7 @@ describe("GET /api/videos/groups route order", () => {
     const token = await signAccessToken(SECRET);
     const res = await app.request(
       "/api/videos/groups",
-      { headers: { "X-VideoQ-Test-User-Id": "5" } },
+      { headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" } },
       ENV,
     );
     const body = await res.json();

@@ -53,8 +53,11 @@ Better Auth（`/api/auth/*`）が正本です。
 ### API key / OAuth
 
 - API key: `@better-auth/api-key`（prefix `vq_`、access level は metadata）
-- MCP / 第三者: `@better-auth/oauth-provider` + device authorization
+- MCP / 第三者: `@better-auth/oauth-provider` + device authorization  
+  （MCP 向けに unauthenticated DCR を許可。register は rate limit、confidential client の secret は 30 日で失効）
 - ドメイン API は session / API key / OAuth Bearer を `middleware/auth.ts` で解決
+- SPA の「ログイン済み」判定は Better Auth `useSession`。プロフィールは `/api/account/me`
+- ユーザー ID は Better Auth 標準の text UUID（既存行も `0006_user_id_uuid` で UUID に付け替え。セッション / OAuth トークンは無効化）
 
 ## 秘密情報の暗号化
 
@@ -73,7 +76,7 @@ Drizzle の modern schema を runtime の唯一のモデルとして使用しま
 
 主なテーブル群:
 
-- auth (Better Auth): `users`, `session`, `account`, `verification`, `apikey`, `jwks`, `device_code`, `oauth_*`
+- auth (Better Auth): `users` (text UUID PK), `session`, `account`, `verification`, `apikey`, `jwks`, `device_code`, `oauth_*`
 - video: `videos`, `video_groups`, `video_group_members`, `tags`, `video_tags`
 - chat/evaluation: `chat_logs`, `chat_log_evaluations`, `group_evaluation_snapshots`
 - PLOG: `plog_*`, `learner_concept_states`

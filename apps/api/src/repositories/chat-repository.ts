@@ -38,7 +38,7 @@ export type ChatLogItem = {
 /** チャット送信時のグループ文脈。 */
 export type GroupChatContext = {
   id: number;
-  userId: number;
+  userId: string;
   description: string | null;
   memberVideoIds: number[];
 };
@@ -62,7 +62,7 @@ function mapCitations(raw: unknown): ChatCitation[] {
 async function groupOwnedBy(
   db: Parameters<Parameters<typeof withDb>[1]>[0],
   groupId: number,
-  userId: number,
+  userId: string,
 ): Promise<boolean> {
   const rows = await db
     .select({ id: videoGroups.id })
@@ -78,7 +78,7 @@ async function groupOwnedBy(
  */
 export async function getGroupWithMembers(
   env: Bindings,
-  params: { groupId: number; userId?: number | null; shareToken?: string | null },
+  params: { groupId: number; userId?: string | null; shareToken?: string | null },
 ): Promise<GroupChatContext | null> {
   return withDb(env, async (db) => {
     const conditions = [eq(videoGroups.id, params.groupId)];
@@ -108,7 +108,7 @@ export async function getGroupWithMembers(
     const row = groups[0];
     return {
       id: Number(row.id),
-      userId: Number(row.userId),
+      userId: String(row.userId),
       description: row.description ?? null,
       memberVideoIds: members.map((m) => Number(m.videoId)),
     };
@@ -122,7 +122,7 @@ export async function getGroupWithMembers(
 export async function createChatLog(
   env: Bindings,
   params: {
-    userId: number;
+    userId: string;
     groupId: number;
     question: string;
     answer: string;
@@ -159,7 +159,7 @@ export async function createChatLog(
 export async function deleteGroupChatLogs(
   env: Bindings,
   groupId: number,
-  userId: number,
+  userId: string,
 ): Promise<{ notFound: true } | { ok: true }> {
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
@@ -198,7 +198,7 @@ export type ChatHistoryExportRow = {
 export async function getGroupChatHistoryForExport(
   env: Bindings,
   groupId: number,
-  userId: number,
+  userId: string,
 ): Promise<{ notFound: true } | { rows: ChatHistoryExportRow[] }> {
   return withDb(env, async (db) => {
     if (!(await groupOwnedBy(db, groupId, userId))) {
@@ -240,7 +240,7 @@ export async function getFeedbackLog(
   logId: number,
 ): Promise<
   | null
-  | { id: number; group_user_id: number; group_share_token: string | null }
+  | { id: number; group_user_id: string; group_share_token: string | null }
 > {
   return withDb(env, async (db) => {
     const rows = await db
@@ -257,7 +257,7 @@ export async function getFeedbackLog(
     const r = rows[0];
     return {
       id: Number(r.id),
-      group_user_id: Number(r.group_user_id),
+      group_user_id: String(r.group_user_id),
       group_share_token: r.group_share_token ?? null,
     };
   });
@@ -314,7 +314,7 @@ export type ChatAnalytics = {
 export async function getGroupChatAnalytics(
   env: Bindings,
   groupId: number,
-  userId: number,
+  userId: string,
 ): Promise<{ notFound: true } | ChatAnalytics> {
   return withDb(env, async (db) => {
     if (!(await groupOwnedBy(db, groupId, userId))) {
@@ -365,7 +365,7 @@ export async function getGroupChatAnalytics(
 export async function getGroupChatHistory(
   env: Bindings,
   groupId: number,
-  userId: number,
+  userId: string,
   limit: number,
   offset: number,
 ): Promise<{ notFound: true } | { count: number; results: ChatLogItem[] }> {
