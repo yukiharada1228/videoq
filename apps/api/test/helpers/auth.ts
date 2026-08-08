@@ -1,21 +1,27 @@
-import { SignJWT } from "jose";
-import { TEST_AUTH_SESSION_ID } from "./pg-fake";
+/**
+ * Test auth helpers for Better Auth migration.
+ * Route tests inject `X-VideoQ-Test-User-Id` (non-production only).
+ */
 
-export { TEST_AUTH_SESSION_ID };
+export const TEST_AUTH_SESSION_ID = "00000000-0000-4000-8000-000000000001";
 
+export function testAuthHeaders(userId = 5): Record<string, string> {
+  return { "X-VideoQ-Test-User-Id": String(userId) };
+}
+
+/** @deprecated Prefer testAuthHeaders — kept for call-site compatibility. */
 export async function signAccessToken(
-  secret: string,
+  _secret: string,
   userId = 5,
-  issuer = "videoq",
-  sessionId = TEST_AUTH_SESSION_ID,
+  _issuer?: string,
+  _sessionId?: string,
 ): Promise<string> {
-  const now = Math.floor(Date.now() / 1000);
-  return new SignJWT({ sid: sessionId })
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-    .setSubject(String(userId))
-    .setIssuer(issuer)
-    .setAudience("videoq-api")
-    .setIssuedAt(now)
-    .setExpirationTime(now + 600)
-    .sign(new TextEncoder().encode(secret));
+  return `test-user-${userId}`;
+}
+
+export function bearerForTestUser(userId = 5): Record<string, string> {
+  return {
+    ...testAuthHeaders(userId),
+    authorization: `Bearer test-user-${userId}`,
+  };
 }

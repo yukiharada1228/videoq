@@ -18,7 +18,7 @@ export function ConnectedAppsSection() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [statusMessage, setStatusMessage] = useState<StatusMessage>(null);
-  const [revokingId, setRevokingId] = useState<number | null>(null);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
 
   const tokensQuery = useQuery({
     queryKey: queryKeys.auth.oauthTokens,
@@ -26,7 +26,7 @@ export function ConnectedAppsSection() {
   });
 
   const revokeMutation = useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async (id: string) => {
       setRevokingId(id);
       try {
         await apiClient.revokeAuthorizedOAuthToken(id);

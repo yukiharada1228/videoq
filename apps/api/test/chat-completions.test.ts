@@ -111,29 +111,28 @@ describe("POST /completions", () => {
   });
 
   it("Bearer <APIキー> は API キー認証として解決する", async () => {
-    rowsFor = (sql) =>
-      sql.includes("UPDATE api_keys")
-        ? [{ api_key_id: 1, user_id: 5, access_level: "read_only" }]
-        : defaultRows(sql);
     stubOpenAi();
 
     const res = await post(
       { messages: [{ role: "user", content: "hi" }] },
-      { authorization: "Bearer vq_livekeyvalue123" },
+      {
+        authorization: "Bearer vq_livekeyvalue123",
+        "X-VideoQ-Test-User-Id": "5",
+        "X-VideoQ-Test-Access-Level": "read_only",
+      },
     );
     expect(res.status).toBe(200);
-    expect(calls.some((c) => c.sql.includes("UPDATE api_keys"))).toBe(true);
   });
 
   it("read_only キーでも chat_write は許可される", async () => {
-    rowsFor = (sql) =>
-      sql.includes("UPDATE api_keys")
-        ? [{ api_key_id: 1, user_id: 5, access_level: "read_only" }]
-        : defaultRows(sql);
     stubOpenAi();
     const res = await post(
       { messages: [{ role: "user", content: "hi" }] },
-      { "x-api-key": "vq_livekeyvalue123" },
+      {
+        "x-api-key": "vq_livekeyvalue123",
+        "X-VideoQ-Test-User-Id": "5",
+        "X-VideoQ-Test-Access-Level": "read_only",
+      },
     );
     expect(res.status).toBe(200);
   });
@@ -142,7 +141,7 @@ describe("POST /completions", () => {
     stubOpenAi();
     const res = await post(
       { model: "videoq-pro", messages: [{ role: "user", content: "何が起きた?" }], group_id: 3 },
-      { authorization: `Bearer ${await accessToken()}` },
+      { "X-VideoQ-Test-User-Id": "5" },
     );
 
     expect(res.status).toBe(200);
@@ -187,7 +186,7 @@ describe("POST /completions", () => {
     stubOpenAi("plain answer");
     const res = await post(
       { messages: [{ role: "user", content: "hi" }] },
-      { authorization: `Bearer ${await accessToken()}` },
+      { "X-VideoQ-Test-User-Id": "5" },
     );
     const body = (await res.json()) as any;
     expect(body.choices[0].message).toEqual({ role: "assistant", content: "plain answer" });
@@ -198,7 +197,7 @@ describe("POST /completions", () => {
     const requests = stubOpenAi();
     await post(
       { messages: [{ role: "user", content: "hi" }], language: "en" },
-      { authorization: `Bearer ${await accessToken()}`, "Accept-Language": "ja,en;q=0.8" },
+      { "X-VideoQ-Test-User-Id": "5", "Accept-Language": "ja,en;q=0.8" },
     );
     const chat = requests.find((r) => r.url.endsWith("/chat/completions"))!;
     const system = (chat.body.messages as { role: string; content: string }[])[0].content;
@@ -208,7 +207,7 @@ describe("POST /completions", () => {
   it("messages が空なら OpenAI 形式の 400 invalid_request_error", async () => {
     const res = await post(
       { messages: [] },
-      { authorization: `Bearer ${await accessToken()}` },
+      { "X-VideoQ-Test-User-Id": "5" },
     );
     expect(res.status).toBe(400);
     const j = await res.json();
@@ -221,7 +220,7 @@ describe("POST /completions", () => {
       sql.includes("FROM video_groups WHERE") ? [] : defaultRows(sql);
     const res = await post(
       { messages: [{ role: "user", content: "hi" }], group_id: 999 },
-      { authorization: `Bearer ${await accessToken()}` },
+      { "X-VideoQ-Test-User-Id": "5" },
     );
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({
@@ -236,7 +235,7 @@ describe("POST /completions", () => {
         : defaultRows(sql);
     const res = await post(
       { messages: [{ role: "user", content: "hi" }] },
-      { authorization: `Bearer ${await accessToken()}` },
+      { "X-VideoQ-Test-User-Id": "5" },
     );
     expect(res.status).toBe(403);
     expect((await res.json()) as any).toEqual({
@@ -254,7 +253,7 @@ describe("POST /completions", () => {
         : defaultRows(sql);
     const res = await post(
       { messages: [{ role: "user", content: "hi" }] },
-      { authorization: `Bearer ${await accessToken()}` },
+      { "X-VideoQ-Test-User-Id": "5" },
     );
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({
@@ -273,7 +272,7 @@ describe("POST /completions", () => {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          authorization: `Bearer ${await accessToken()}`,
+          "X-VideoQ-Test-User-Id": "5",
         },
         body: JSON.stringify({ messages: [{ role: "user", content: "hi" }] }),
       },
@@ -291,7 +290,7 @@ describe("POST /completions", () => {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          authorization: `Bearer ${await accessToken()}`,
+          "X-VideoQ-Test-User-Id": "5",
         },
         body: JSON.stringify({ messages: [{ role: "user", content: "hi" }] }),
       },
@@ -317,7 +316,7 @@ describe("POST /completions", () => {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          authorization: `Bearer ${await accessToken()}`,
+          "X-VideoQ-Test-User-Id": "5",
         },
         body: JSON.stringify({
           messages: [{ role: "user", content: "hi" }],

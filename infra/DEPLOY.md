@@ -29,7 +29,7 @@ DATABASE_URL="<Neon pooler URL>" npm run db:migrate
 
 ```bash
 cd apps/api
-npx wrangler secret put AUTH_JWT_SECRET
+npx wrangler secret put BETTER_AUTH_SECRET
 npx wrangler secret put USER_SECRET_ENCRYPTION_KEY
 npx wrangler secret put OPENAI_API_KEY
 npx wrangler secret put R2_ACCESS_KEY_ID
@@ -39,19 +39,21 @@ npx wrangler secret put AWS_ACCESS_KEY_ID
 npx wrangler secret put AWS_SECRET_ACCESS_KEY
 ```
 
-`AUTH_JWT_SECRET` と `USER_SECRET_ENCRYPTION_KEY` は別々に生成します。
-`USER_SECRET_ENCRYPTION_KEY` はbase64url encoded 32 bytesを使用し、APIとworkerに
+`BETTER_AUTH_SECRET` と `USER_SECRET_ENCRYPTION_KEY` は別々に生成します
+（例: `openssl rand -base64 48`）。
+`USER_SECRET_ENCRYPTION_KEY` は base64url encoded 32 bytes を使用し、API と worker に
 同じ値を設定してください。
-メール操作とOAuth HTML formのaction tokenはDBにSHA-256だけを保存するランダム値であり、
-追加の共有secretは不要です。
 
 非機密設定（`wrangler.jsonc` `env.production.vars`）:
 
 - `ENVIRONMENT=production`
-- `FRONTEND_URL` / `CORS_ALLOW_ORIGIN` / `OAUTH_ISSUER_URL`
+- `BETTER_AUTH_URL`（公開 API origin。例: `https://videoq.jp`。cookie / OAuth issuer の基準）
+- `FRONTEND_URL` / `CORS_ALLOW_ORIGIN`
 - `R2_BUCKET_NAME` / `R2_S3_ENDPOINT` / `R2_S3_REGION`（`USE_S3_STORAGE=true` 時必須。未設定だと `/api/videos` が 500）
 - embedding / LLM model
 - Hyperdrive、R2、KV、Durable Object binding
+
+Cookie session は `sameSite=lax` です。frontend と API を同一サイト（例: `videoq.jp` + `/api`）で配信してください。オリジン分離する場合は cookie 属性の見直しが必要です。
 
 ## 3. API deploy
 
@@ -239,16 +241,34 @@ npm run db:maintain -- drop --dry-run
 npm run db:maintain -- drop --confirm
 ```
 
-## 7. リリース確認
+## 7. Better Auth cutover（破壊的）
+
+`0005_better_auth` 適用後:
+
+- 旧 password / browser session / API key / OAuth client・token は無効
+- 既存ユーザーは **パスワード再設定必須**（credential `account` 行は空パスワードで作成される）
+- SearchAPI key はクリアされるので再入力が必要
+- MCP / 第三者 OAuth クライアントは再登録が必要
+
+運用手順:
+
+1. DB backup
+2. maintenance window（API write 停止）
+3. `DATABASE_URL=... npm run db:migrate`（`0005_better_auth` 含む）
+4. secrets / vars（`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`）を確認
+5. API と frontend を同時デプロイ
+6. 利用者へ password reset・API key / OAuth / SearchAPI 再発行を告知
+
+## 8. リリース確認
 
 - `/health` と `/ready`
-- signup / login / refresh / logout
-- password reset後に既存利用者がloginでき、旧passwordではloginできないこと
-- refresh token rotationと使用済みtoken再利用時のsession family失効
-- OAuth client再登録、SearchAPI key再入力
+- signup / login / logout（cookie session）
+- password reset 後に既存利用者が login でき、旧 password では login できないこと
+- API key 再発行と `x-api-key` での保護 API 呼び出し
+- OAuth client 再登録、consent / device、SearchAPI key 再入力
 - R2 署名 upload と動画確定
 - SQS enqueue と worker completion
-- chat / SSE
+- chat / SSE（`credentials: include`）
 - `/api/openapi.json`
 - OAuth discovery / DCR / PKCE
 - MCP initialize / tools list

@@ -31,13 +31,9 @@ export function isMcpProtocolPath(pathname: string): boolean {
     pathname === "/api/mcp" ||
     pathname.startsWith("/api/mcp/") ||
     pathname.startsWith("/.well-known/") ||
-    pathname.startsWith("/api/oauth/.well-known/") ||
-    pathname === "/api/oauth/register" ||
-    pathname.startsWith("/api/oauth/register/") ||
-    pathname === "/api/oauth/token" ||
-    pathname === "/api/oauth/revoke_token" ||
-    pathname === "/api/oauth/introspect" ||
-    pathname === "/api/oauth/device-authorization"
+    pathname.startsWith("/api/auth/oauth2/") ||
+    pathname === "/api/auth/oauth2/register" ||
+    pathname.startsWith("/api/auth/.well-known/")
   );
 }
 

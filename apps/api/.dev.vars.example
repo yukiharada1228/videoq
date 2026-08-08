@@ -2,7 +2,10 @@
 # コピーして `.dev.vars` を作成（.gitignore 済み）。wrangler dev が自動で読み込む。
 
 # Independent application secrets. Generate new values for every environment.
-AUTH_JWT_SECRET=""
+# Better Auth signing secret (preferred). AUTH_JWT_SECRET is a deprecated fallback only.
+BETTER_AUTH_SECRET=""
+# Public origin of this API (no trailing slash), e.g. http://localhost:8787
+BETTER_AUTH_URL="http://localhost:8787"
 # Base64url-encoded 32-byte AES-GCM key.
 USER_SECRET_ENCRYPTION_KEY=""
 

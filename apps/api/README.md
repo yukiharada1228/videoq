@@ -40,24 +40,19 @@ SSE、OAuth token response、OpenAI 互換 endpoint など、外部仕様で形�
 
 ## 認証
 
+Better Auth（`/api/auth/*`）が正本です。
+
 ### ブラウザセッション
 
-- access token: 短寿命 Bearer JWT。`auth_sessions.id` を session id として保持
-- refresh token: ランダムな opaque token。DB には SHA-256 hash のみ保存
-- refresh: token を一回ごとに rotation し、同じ family 内で置換関係を記録
-- logout: refresh session を revoke
-- refresh cookieを通常API認証には使用せず、Origin検証付きのrefresh/logoutに限定
-
-### Action token
-
-メール確認、パスワード再設定、メール変更はランダムな opaque token を使用します。
-`auth_action_tokens` には hash、purpose、期限、payload、消費日時を保存し、一度だけ消費できます。
+- Cookie session（Better Auth）。SPA は `credentials: "include"` + `better-auth/react`
+- メール確認・パスワード再設定・メール変更は Better Auth verification フロー
+- 秘密鍵: `BETTER_AUTH_SECRET` / 公開 URL: `BETTER_AUTH_URL`
 
 ### API key / OAuth
 
-- API key: `vq_...`。SHA-256 hash、prefix、access level を保存
-- OAuth access / refresh token: DB 管理の opaque token
-- Authorization Code + PKCE、DCR、Device Authorization、revoke、introspection、OIDC を提供
+- API key: `@better-auth/api-key`（prefix `vq_`、access level は metadata）
+- MCP / 第三者: `@better-auth/oauth-provider` + device authorization
+- ドメイン API は session / API key / OAuth Bearer を `middleware/auth.ts` で解決
 
 ## 秘密情報の暗号化
 
@@ -67,7 +62,7 @@ SSE、OAuth token response、OpenAI 互換 endpoint など、外部仕様で形�
 - envelope: `v1.<nonce>.<ciphertext+tag>`
 - nonce: 暗号化ごとに生成する 12 bytes
 
-鍵、JWT secret、OpenAI key、S3/SQS credential は `wrangler secret` または
+`BETTER_AUTH_SECRET`、OpenAI key、S3/SQS credential は `wrangler secret` または
 ローカルの `.dev.vars` で管理します。
 
 ## データベース
@@ -76,12 +71,11 @@ Drizzle の modern schema を runtime の唯一のモデルとして使用しま
 
 主なテーブル群:
 
-- auth: `users`, `auth_sessions`, `auth_action_tokens`, `api_keys`
+- auth (Better Auth): `users`, `session`, `account`, `verification`, `apikey`, `jwks`, `device_code`, `oauth_*`
 - video: `videos`, `video_groups`, `video_group_members`, `tags`, `video_tags`
 - chat/evaluation: `chat_logs`, `chat_log_evaluations`, `group_evaluation_snapshots`
 - PLOG: `plog_*`, `learner_concept_states`
 - vector: `scene_embeddings`（workerはPGVectorStore、Hono検索は認可列付き直接SQL）
-- OAuth/OIDC: `oauth_*`
 
 管理 API（superuser）: `GET/PATCH /api/admin/users*`, `POST /api/admin/embeddings/reindex-all`。  
 フロントの `/admin` 画面から利用します。

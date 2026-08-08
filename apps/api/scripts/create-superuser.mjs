@@ -54,10 +54,13 @@ try {
     `UPDATE users
         SET is_superuser = true,
             is_staff = true,
-            is_active = true
+            is_active = true,
+            role = 'admin',
+            banned = false,
+            email_verified = true
       WHERE lower(username) = lower($1)
          OR lower(email) = lower($1)
-      RETURNING id, username, email, is_superuser, is_staff, is_active`,
+      RETURNING id, username, email, is_superuser, is_staff, is_active, role`,
     [ident],
   );
 

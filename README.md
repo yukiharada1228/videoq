@@ -78,9 +78,10 @@ Open `.env` and set at least:
 OPENAI_API_KEY=sk-proj-...
 
 # Generate independent secrets (do not reuse across environments)
-# AUTH_JWT_SECRET: openssl rand -base64 48
+# BETTER_AUTH_SECRET: openssl rand -base64 48
 # USER_SECRET_ENCRYPTION_KEY: openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
-AUTH_JWT_SECRET=
+BETTER_AUTH_SECRET=
+BETTER_AUTH_URL=http://localhost
 USER_SECRET_ENCRYPTION_KEY=
 ```
 
@@ -300,8 +301,8 @@ The default Docker Compose stack uses Caddy as its public gateway. Local develop
 SITE_ADDRESS=videoq.example.com
 FRONTEND_URL=https://videoq.example.com
 CORS_ALLOW_ORIGIN=https://videoq.example.com
-OAUTH_ISSUER_URL=https://videoq.example.com
-AUTH_JWT_SECRET=<openssl rand -base64 48>
+BETTER_AUTH_URL=https://videoq.example.com
+BETTER_AUTH_SECRET=<openssl rand -base64 48>
 USER_SECRET_ENCRYPTION_KEY=<base64url 32-byte key>
 OPENAI_API_KEY=sk-...
 ```

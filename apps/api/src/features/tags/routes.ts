@@ -2,7 +2,7 @@ import {
   requireAuth,
   requireScope,
   apiKeyMethod,
-  jwtMethod,
+  sessionMethod,
 } from "../../middleware/auth";
 import {
   createFeatureRouter,
@@ -29,9 +29,9 @@ import * as tagService from "./service";
 
 export const tagRoutes = createFeatureRouter();
 
-const tagAuth = requireAuth(apiKeyMethod, jwtMethod);
+const tagAuth = requireAuth(apiKeyMethod, sessionMethod);
 const tagWriteGuards = [
-  requireAuth(apiKeyMethod, jwtMethod),
+  requireAuth(apiKeyMethod, sessionMethod),
   requireScope("write"),
 ] as const;
 

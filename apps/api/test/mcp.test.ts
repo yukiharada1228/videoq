@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createApp } from "../src/app";
 import { mcpRoutes } from "../src/features/mcp/routes";
-import { sha256Hex } from "../src/shared/crypto";
 
 import {
   executeFakePgQuery,
@@ -72,7 +71,8 @@ const post = (body: unknown, headers: Record<string, string> = {}) =>
       headers: {
         "content-type": "application/json",
         accept: "application/json, text/event-stream",
-        authorization: `Bearer ${RAW_KEY}`,
+        "x-api-key": RAW_KEY,
+        "X-VideoQ-Test-User-Id": "5",
         ...headers,
       },
       body: JSON.stringify(body),
@@ -121,16 +121,7 @@ describe("MCP auth", () => {
     expect(body.result.serverInfo.name).toBe("videoq-api");
   });
 
-  it("accepts OAuth bearer via token_checksum", async () => {
-    const opaque = "oauth-access-token-value";
-    const checksum = await sha256Hex(opaque);
-    rowsFor = (sql, args) => {
-      if (sql.includes("FROM oauth_access_tokens")) {
-        expect(args[0]).toBe(checksum);
-        return [{ user_id: 9, scope: "mcp" }];
-      }
-      return [];
-    };
+  it("accepts OAuth bearer via test oauth user header", async () => {
     const res = await mcpRoutes.request(
       "/",
       {
@@ -138,7 +129,8 @@ describe("MCP auth", () => {
         headers: {
           "content-type": "application/json",
           accept: "application/json, text/event-stream",
-          authorization: `Bearer ${opaque}`,
+          authorization: "Bearer oauth-access-token-value",
+          "X-VideoQ-Test-OAuth-User-Id": "9",
         },
         body: JSON.stringify(jsonrpc("ping")),
       },
@@ -149,9 +141,9 @@ describe("MCP auth", () => {
   });
 
   it("accepts read_only API key (analytics-only read scope)", async () => {
-    rowsFor = (sql) =>
-      sql.includes("UPDATE api_keys") ? apiKeyRow("read_only") : [];
-    const res = await post(jsonrpc("initialize", initializeParams));
+    const res = await post(jsonrpc("initialize", initializeParams), {
+      "X-VideoQ-Test-Access-Level": "read_only",
+    });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.result.serverInfo.name).toBe("videoq-api");
@@ -244,7 +236,8 @@ describe("MCP JSON-RPC", () => {
       {
         method: "GET",
         headers: {
-          authorization: `Bearer ${RAW_KEY}`,
+          "x-api-key": RAW_KEY,
+          "X-VideoQ-Test-User-Id": "5",
           accept: "application/json",
         },
       },
@@ -265,7 +258,8 @@ describe("MCP JSON-RPC", () => {
         headers: {
           "content-type": "application/json",
           accept: "text/html",
-          authorization: `Bearer ${RAW_KEY}`,
+          "x-api-key": RAW_KEY,
+          "X-VideoQ-Test-User-Id": "5",
         },
         body: JSON.stringify(jsonrpc("ping")),
       },
@@ -280,7 +274,8 @@ describe("MCP JSON-RPC", () => {
       {
         method: "DELETE",
         headers: {
-          authorization: `Bearer ${RAW_KEY}`,
+          "x-api-key": RAW_KEY,
+          "X-VideoQ-Test-User-Id": "5",
           accept: "application/json, text/event-stream",
         },
       },

@@ -249,7 +249,7 @@ async function main() {
 					   SET password = '!reset-required$' || gen_random_uuid()::text,
 					       password_reset_required = true,
 					       searchapi_api_key_encrypted = NULL;
-					TRUNCATE auth_sessions, auth_action_tokens,
+					TRUNCATE session, account, verification, apikey,
 					         oauth_device_grants, oauth_refresh_tokens,
 					         oauth_access_tokens, oauth_id_tokens,
 					         oauth_grants, oauth_applications
@@ -308,7 +308,7 @@ async function main() {
 					{
 						label: "browser sessions and action tokens are empty",
 						sql: `SELECT
-						        (SELECT COUNT(*) FROM auth_sessions) +
+						        (SELECT COUNT(*) FROM session) +
 						        (SELECT COUNT(*) FROM auth_action_tokens) AS n`,
 					},
 					{

@@ -35,16 +35,34 @@ export const users = pgTable(
 			maxValue: 9223372036854775807,
 			cache: 1,
 		}),
-		password: varchar({ length: 128 }).notNull(),
-		lastLogin: timestamp("last_login", { withTimezone: true, mode: "string" }),
-		isSuperuser: boolean("is_superuser").notNull(),
-		username: varchar({ length: 150 }).notNull(),
-		firstName: varchar("first_name", { length: 150 }).notNull(),
-		lastName: varchar("last_name", { length: 150 }).notNull(),
-		isStaff: boolean("is_staff").notNull(),
-		isActive: boolean("is_active").notNull(),
-		dateJoined: timestamp("date_joined", { withTimezone: true, mode: "string" }).notNull(),
+		/** Better Auth display name (required by BA). */
+		name: text("name").notNull().default(""),
 		email: varchar({ length: 254 }).notNull(),
+		emailVerified: boolean("email_verified").notNull().default(false),
+		image: text("image"),
+		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+			.notNull()
+			.defaultNow(),
+		updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+			.notNull()
+			.defaultNow(),
+		username: varchar({ length: 150 }).notNull(),
+		displayUsername: text("display_username"),
+		/** Better Auth admin plugin role (`admin` | `user`). */
+		role: text("role").notNull().default("user"),
+		banned: boolean("banned").default(false),
+		banReason: text("ban_reason"),
+		banExpires: timestamp("ban_expires", { withTimezone: true, mode: "string" }),
+		lastLogin: timestamp("last_login", { withTimezone: true, mode: "string" }),
+		firstName: varchar("first_name", { length: 150 }).notNull().default(""),
+		lastName: varchar("last_name", { length: 150 }).notNull().default(""),
+		/** Legacy flag kept for admin UI / quota tooling; prefer `role` + `banned`. */
+		isSuperuser: boolean("is_superuser").notNull().default(false),
+		isStaff: boolean("is_staff").notNull().default(false),
+		isActive: boolean("is_active").notNull().default(true),
+		dateJoined: timestamp("date_joined", { withTimezone: true, mode: "string" })
+			.notNull()
+			.defaultNow(),
 		deactivatedAt: timestamp("deactivated_at", { withTimezone: true, mode: "string" }),
 		maxVideoUploadSizeMb: integer("max_video_upload_size_mb").notNull(),
 		searchapiApiKeyEncrypted: text("searchapi_api_key_encrypted"),
@@ -57,7 +75,7 @@ export const users = pgTable(
 		usedProcessingSeconds: integer("used_processing_seconds").notNull(),
 		usedStorageBytes: bigint("used_storage_bytes", { mode: "number" }).notNull(),
 		pendingEmail: varchar("pending_email", { length: 254 }),
-		passwordResetRequired: boolean("password_reset_required").notNull().default(false),
+		passwordResetRequired: boolean("password_reset_required").notNull().default(true),
 	},
 	(table) => [
 		index("users_email_active_idx").using(
@@ -69,88 +87,6 @@ export const users = pgTable(
 		unique("users_username_key").on(table.username),
 		unique("users_email_key").on(table.email),
 		check("users_max_video_upload_size_mb_check", sql`max_video_upload_size_mb >= 0`),
-	],
-);
-
-export const authSessions = pgTable(
-	"auth_sessions",
-	{
-		id: uuid().primaryKey().defaultRandom(),
-		userId: bigint("user_id", { mode: "number" }).notNull(),
-		familyId: uuid("family_id").notNull(),
-		tokenHash: varchar("token_hash", { length: 64 }).notNull(),
-		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
-		expiresAt: timestamp("expires_at", { withTimezone: true, mode: "string" }).notNull(),
-		revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "string" }),
-		replacedBy: uuid("replaced_by"),
-	},
-	(table) => [
-		unique("auth_sessions_token_hash_key").on(table.tokenHash),
-		index("auth_sessions_user_id_idx").on(table.userId),
-		index("auth_sessions_family_id_idx").on(table.familyId),
-		foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "auth_sessions_user_id_fkey",
-		}).onDelete("cascade"),
-	],
-);
-
-export const authActionTokens = pgTable(
-	"auth_action_tokens",
-	{
-		id: uuid().primaryKey().defaultRandom(),
-		userId: bigint("user_id", { mode: "number" }).notNull(),
-		purpose: varchar({ length: 32 }).notNull(),
-		tokenHash: varchar("token_hash", { length: 64 }).notNull(),
-		payload: jsonb().$type<Record<string, unknown>>().notNull().default({}),
-		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
-		expiresAt: timestamp("expires_at", { withTimezone: true, mode: "string" }).notNull(),
-		consumedAt: timestamp("consumed_at", { withTimezone: true, mode: "string" }),
-	},
-	(table) => [
-		unique("auth_action_tokens_token_hash_key").on(table.tokenHash),
-		index("auth_action_tokens_user_purpose_idx").on(table.userId, table.purpose),
-		foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "auth_action_tokens_user_id_fkey",
-		}).onDelete("cascade"),
-	],
-);
-
-export const apiKeys = pgTable(
-	"api_keys",
-	{
-		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-			name: "api_keys_id_seq",
-			startWith: 1,
-			increment: 1,
-			minValue: 1,
-			maxValue: 9223372036854775807,
-			cache: 1,
-		}),
-		name: varchar({ length: 100 }).notNull(),
-		prefix: varchar({ length: 12 }).notNull(),
-		hashedKey: varchar("hashed_key", { length: 64 }).notNull(),
-		lastUsedAt: timestamp("last_used_at", { withTimezone: true, mode: "string" }),
-		revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "string" }),
-		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
-		userId: bigint("user_id", { mode: "number" }).notNull(),
-		accessLevel: varchar("access_level", { length: 20 }).notNull(),
-	},
-	(table) => [
-		index("api_keys_user_id_idx").using("btree", table.userId.asc().nullsLast()),
-		index("api_keys_prefix_idx").using("btree", table.prefix.asc().nullsLast()),
-		uniqueIndex("api_keys_active_name_per_user")
-			.using("btree", table.userId.asc().nullsLast(), table.name.asc().nullsLast())
-			.where(sql`(revoked_at IS NULL)`),
-		unique("api_keys_hashed_key_key").on(table.hashedKey),
-		foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "api_keys_user_id_fkey",
-		}).onDelete("cascade"),
 	],
 );
 
@@ -710,228 +646,3 @@ export const sceneEmbeddings = pgTable(
 	],
 );
 
-// ---------------------------------------------------------------------------
-// OAuth
-// ---------------------------------------------------------------------------
-
-export const oauthApplications = pgTable(
-	"oauth_applications",
-	{
-		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-			name: "oauth_applications_id_seq",
-			startWith: 1,
-			increment: 1,
-			minValue: 1,
-			maxValue: 9223372036854775807,
-			cache: 1,
-		}),
-		clientId: varchar("client_id", { length: 100 }).notNull(),
-		redirectUris: text("redirect_uris").notNull(),
-		clientType: varchar("client_type", { length: 32 }).notNull(),
-		authorizationGrantType: varchar("authorization_grant_type", { length: 44 }).notNull(),
-		clientSecret: varchar("client_secret", { length: 255 }).notNull(),
-		name: varchar({ length: 255 }).notNull(),
-		userId: bigint("user_id", { mode: "number" }),
-		skipAuthorization: boolean("skip_authorization").notNull(),
-		created: timestamp({ withTimezone: true, mode: "string" }).notNull(),
-		updated: timestamp({ withTimezone: true, mode: "string" }).notNull(),
-		algorithm: varchar({ length: 5 }).notNull(),
-		postLogoutRedirectUris: text("post_logout_redirect_uris").notNull(),
-		hashClientSecret: boolean("hash_client_secret").notNull(),
-		allowedOrigins: text("allowed_origins").notNull(),
-	},
-	(table) => [
-		index("oauth_applications_client_id_idx").using("btree", table.clientId.asc().nullsLast()),
-		index("oauth_applications_user_id_idx").using("btree", table.userId.asc().nullsLast()),
-		foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "oauth_applications_user_id_fkey",
-		}).onDelete("set null"),
-		unique("oauth_applications_client_id_key").on(table.clientId),
-	],
-);
-
-export const oauthGrants = pgTable(
-	"oauth_grants",
-	{
-		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-			name: "oauth_grants_id_seq",
-			startWith: 1,
-			increment: 1,
-			minValue: 1,
-			maxValue: 9223372036854775807,
-			cache: 1,
-		}),
-		code: varchar({ length: 255 }).notNull(),
-		expires: timestamp({ withTimezone: true, mode: "string" }).notNull(),
-		redirectUri: text("redirect_uri").notNull(),
-		scope: text().notNull(),
-		applicationId: bigint("application_id", { mode: "number" }).notNull(),
-		userId: bigint("user_id", { mode: "number" }).notNull(),
-		created: timestamp({ withTimezone: true, mode: "string" }).notNull(),
-		updated: timestamp({ withTimezone: true, mode: "string" }).notNull(),
-		codeChallenge: varchar("code_challenge", { length: 128 }).notNull(),
-		codeChallengeMethod: varchar("code_challenge_method", { length: 10 }).notNull(),
-		nonce: varchar({ length: 255 }).notNull(),
-		claims: text().notNull(),
-	},
-	(table) => [
-		index("oauth_grants_application_id_idx").using("btree", table.applicationId.asc().nullsLast()),
-		index("oauth_grants_user_id_idx").using("btree", table.userId.asc().nullsLast()),
-		foreignKey({
-			columns: [table.applicationId],
-			foreignColumns: [oauthApplications.id],
-			name: "oauth_grants_application_id_fkey",
-		}).onDelete("cascade"),
-		foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "oauth_grants_user_id_fkey",
-		}).onDelete("cascade"),
-		unique("oauth_grants_code_key").on(table.code),
-	],
-);
-
-export const oauthAccessTokens = pgTable(
-	"oauth_access_tokens",
-	{
-		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-			name: "oauth_access_tokens_id_seq",
-			startWith: 1,
-			increment: 1,
-			minValue: 1,
-			maxValue: 9223372036854775807,
-			cache: 1,
-		}),
-		token: text().notNull(),
-		expires: timestamp({ withTimezone: true, mode: "string" }).notNull(),
-		scope: text().notNull(),
-		applicationId: bigint("application_id", { mode: "number" }),
-		userId: bigint("user_id", { mode: "number" }),
-		created: timestamp({ withTimezone: true, mode: "string" }).notNull(),
-		updated: timestamp({ withTimezone: true, mode: "string" }).notNull(),
-		sourceRefreshTokenId: bigint("source_refresh_token_id", { mode: "number" }),
-		idTokenId: bigint("id_token_id", { mode: "number" }),
-		tokenChecksum: varchar("token_checksum", { length: 64 }).notNull(),
-	},
-	(table) => [
-		index("oauth_access_tokens_application_id_idx").using("btree", table.applicationId.asc().nullsLast()),
-		index("oauth_access_tokens_user_id_idx").using("btree", table.userId.asc().nullsLast()),
-		foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "oauth_access_tokens_user_id_fkey",
-		}).onDelete("cascade"),
-		unique("oauth_access_tokens_source_refresh_token_id_key").on(table.sourceRefreshTokenId),
-		unique("oauth_access_tokens_id_token_id_key").on(table.idTokenId),
-		unique("oauth_access_tokens_token_checksum_key").on(table.tokenChecksum),
-	],
-);
-
-export const oauthRefreshTokens = pgTable(
-	"oauth_refresh_tokens",
-	{
-		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-			name: "oauth_refresh_tokens_id_seq",
-			startWith: 1,
-			increment: 1,
-			minValue: 1,
-			maxValue: 9223372036854775807,
-			cache: 1,
-		}),
-		token: varchar({ length: 255 }).notNull(),
-		accessTokenId: bigint("access_token_id", { mode: "number" }),
-		applicationId: bigint("application_id", { mode: "number" }).notNull(),
-		userId: bigint("user_id", { mode: "number" }).notNull(),
-		created: timestamp({ withTimezone: true, mode: "string" }).notNull(),
-		updated: timestamp({ withTimezone: true, mode: "string" }).notNull(),
-		revoked: timestamp({ withTimezone: true, mode: "string" }),
-		tokenFamily: uuid("token_family"),
-	},
-	(table) => [
-		index("oauth_refresh_tokens_application_id_idx").using("btree", table.applicationId.asc().nullsLast()),
-		index("oauth_refresh_tokens_user_id_idx").using("btree", table.userId.asc().nullsLast()),
-		foreignKey({
-			columns: [table.applicationId],
-			foreignColumns: [oauthApplications.id],
-			name: "oauth_refresh_tokens_application_id_fkey",
-		}).onDelete("cascade"),
-		foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "oauth_refresh_tokens_user_id_fkey",
-		}).onDelete("cascade"),
-		unique("oauth_refresh_tokens_token_revoked_uniq").on(table.token, table.revoked),
-		unique("oauth_refresh_tokens_access_token_id_key").on(table.accessTokenId),
-	],
-);
-
-export const oauthIdTokens = pgTable(
-	"oauth_id_tokens",
-	{
-		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-			name: "oauth_id_tokens_id_seq",
-			startWith: 1,
-			increment: 1,
-			minValue: 1,
-			maxValue: 9223372036854775807,
-			cache: 1,
-		}),
-		jti: uuid().notNull(),
-		expires: timestamp({ withTimezone: true, mode: "string" }).notNull(),
-		scope: text().notNull(),
-		created: timestamp({ withTimezone: true, mode: "string" }).notNull(),
-		updated: timestamp({ withTimezone: true, mode: "string" }).notNull(),
-		applicationId: bigint("application_id", { mode: "number" }),
-		userId: bigint("user_id", { mode: "number" }),
-	},
-	(table) => [
-		index("oauth_id_tokens_application_id_idx").using("btree", table.applicationId.asc().nullsLast()),
-		index("oauth_id_tokens_user_id_idx").using("btree", table.userId.asc().nullsLast()),
-		foreignKey({
-			columns: [table.applicationId],
-			foreignColumns: [oauthApplications.id],
-			name: "oauth_id_tokens_application_id_fkey",
-		}).onDelete("cascade"),
-		foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "oauth_id_tokens_user_id_fkey",
-		}).onDelete("cascade"),
-		unique("oauth_id_tokens_jti_key").on(table.jti),
-	],
-);
-
-export const oauthDeviceGrants = pgTable(
-	"oauth_device_grants",
-	{
-		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-			name: "oauth_device_grants_id_seq",
-			startWith: 1,
-			increment: 1,
-			minValue: 1,
-			maxValue: 9223372036854775807,
-			cache: 1,
-		}),
-		deviceCode: varchar("device_code", { length: 100 }).notNull(),
-		userCode: varchar("user_code", { length: 100 }).notNull(),
-		scope: varchar({ length: 64 }),
-		interval: integer().notNull(),
-		expires: timestamp({ withTimezone: true, mode: "string" }).notNull(),
-		status: varchar({ length: 64 }).notNull(),
-		clientId: varchar("client_id", { length: 100 }).notNull(),
-		lastChecked: timestamp("last_checked", { withTimezone: true, mode: "string" }).notNull(),
-		userId: bigint("user_id", { mode: "number" }),
-	},
-	(table) => [
-		index("oauth_device_grants_client_id_idx").using("btree", table.clientId.asc().nullsLast()),
-		index("oauth_device_grants_user_id_idx").using("btree", table.userId.asc().nullsLast()),
-		foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "oauth_device_grants_user_id_fkey",
-		}).onDelete("set null"),
-		unique("oauth_device_grants_device_code_key").on(table.deviceCode),
-	],
-);

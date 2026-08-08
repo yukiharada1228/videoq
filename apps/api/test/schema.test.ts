@@ -15,7 +15,7 @@ describe("OpenAPI / docs", () => {
     expect(body.openapi).toMatch(/^3\./);
     expect(Object.keys(body.paths).length).toBeGreaterThan(0);
     // prefix マウント後も公開 path が合成されていること
-    expect(body.paths).toHaveProperty("/api/auth/sessions");
+    expect(body.paths).toHaveProperty("/api/account/me");
     expect(body.paths).toHaveProperty("/api/videos");
     expect(body.paths).toHaveProperty("/api/chat/messages");
     expect(body.paths).toHaveProperty("/api/v1/chat/completions");

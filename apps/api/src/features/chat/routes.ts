@@ -7,7 +7,7 @@ import {
   requireScope,
   apiKeyMethod,
   bearerApiKeyMethod,
-  jwtMethod,
+  sessionMethod,
 } from "../../middleware/auth";
 import { ApiError, toErrorBody } from "../../shared/errors";
 import {
@@ -53,7 +53,7 @@ export const chatRoutes = createFeatureRouter();
 /** OpenAI 互換 completions。`/api/v1/chat` プレフィックスはアプリ側でマウントする。 */
 export const chatCompletionsRoutes = createFeatureRouter();
 
-const chatAuth = requireAuth(apiKeyMethod, jwtMethod);
+const chatAuth = requireAuth(apiKeyMethod, sessionMethod);
 const groupNotFound = () =>
   new ApiError(404, "VALIDATION_ERROR", "Group not found.");
 
@@ -158,7 +158,7 @@ chatRoutes.openapi(analyticsRoute, async (c) => {
 
 // 認証済み、または share_slug が解決できたリクエストを許可する。
 const feedbackAuth = createMiddleware<AppEnv>(async (c, next) => {
-  for (const m of [apiKeyMethod, jwtMethod]) {
+  for (const m of [apiKeyMethod, sessionMethod]) {
     const r = await m(c);
     if (r.kind === "ok") {
       c.set("userId", r.userId);
@@ -345,7 +345,7 @@ chatRoutes.openapi(streamMessageRoute, async (c) => {
 });
 
 const completionsGuards = [
-  requireAuth(bearerApiKeyMethod, apiKeyMethod, jwtMethod),
+  requireAuth(bearerApiKeyMethod, apiKeyMethod, sessionMethod),
   chatThrottle,
   requireScope("chat_write"),
 ] as const;

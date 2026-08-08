@@ -12,6 +12,8 @@ const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('@/pages/ResetPasswordPage'));
 const VerifyEmailPage = lazy(() => import('@/pages/VerifyEmailPage'));
 const EmailChangeConfirmPage = lazy(() => import('@/pages/EmailChangeConfirmPage'));
+const ConsentPage = lazy(() => import('@/pages/ConsentPage'));
+const DevicePage = lazy(() => import('@/pages/DevicePage'));
 const VideosPage = lazy(() => import('@/pages/VideosPage'));
 const VideoDetailPage = lazy(() => import('@/pages/VideoDetailPage'));
 const VideoGroupsPage = lazy(() => import('@/pages/VideoGroupsPage'));
@@ -62,6 +64,8 @@ const routeChildren = (
     <Route path="reset-password" element={<ResetPasswordPage />} />
     <Route path="verify-email" element={<VerifyEmailPage />} />
     <Route path="change-email" element={<EmailChangeConfirmPage />} />
+    <Route path="consent" element={<ConsentPage />} />
+    <Route path="device" element={<DevicePage />} />
     <Route path="videos" element={<VideosPage />} />
     <Route path="videos/:id" element={<VideoDetailPage />} />
     <Route path="videos/groups" element={<VideoGroupsPage />} />

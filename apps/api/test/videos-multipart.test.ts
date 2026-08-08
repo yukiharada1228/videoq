@@ -115,7 +115,7 @@ describe("POST / — USE_S3_STORAGE=true（廃線）", () => {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          authorization: `Bearer ${await accessToken()}`,
+          "X-VideoQ-Test-User-Id": "5",
         },
         body: JSON.stringify({ title: "x" }),
       },
@@ -154,7 +154,7 @@ describe("POST / — USE_S3_STORAGE=false（multipart）", () => {
       "/",
       {
         method: "POST",
-        headers: { authorization: `Bearer ${await accessToken()}` },
+        headers: { "X-VideoQ-Test-User-Id": "5" },
         body: form,
       },
       ENV,
@@ -178,7 +178,7 @@ describe("POST /uploads/ — local では不可", () => {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          authorization: `Bearer ${await accessToken()}`,
+          "X-VideoQ-Test-User-Id": "5",
         },
         body: JSON.stringify({
           filename: "a.mp4",

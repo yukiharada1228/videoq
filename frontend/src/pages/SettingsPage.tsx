@@ -59,9 +59,9 @@ export default function SettingsPage() {
     tone: 'success' | 'error';
     text: string;
   } | null>(null);
-  const [revokingId, setRevokingId] = useState<number | null>(null);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
   const [pendingRevokeKey, setPendingRevokeKey] = useState<{
-    id: number;
+    id: string;
     name: string;
     prefix: string;
   } | null>(null);
@@ -146,7 +146,7 @@ export default function SettingsPage() {
   });
 
   const revokeApiKeyMutation = useMutation({
-    mutationFn: async (id: number) => apiClient.revokeIntegrationApiKey(id),
+    mutationFn: async (id: string) => apiClient.revokeIntegrationApiKey(id),
     onSuccess: async () => {
       setStatusMessage({
         tone: 'success',

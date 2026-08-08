@@ -17,19 +17,23 @@ type EmailChangeState = 'loading' | 'success' | 'error';
 function EmailChangeConfirmContent() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
+  const errorParam = searchParams.get('error');
   const { t } = useTranslation();
-  const isInvalidLink = !token;
 
+  // BA verify-email redirects here via callbackURL after success (no token).
+  // Token is only present if the SPA is used as a handoff target.
   const confirmQuery = useQuery({
-    queryKey: ['emailChangeConfirm', token ?? null],
-    enabled: !isInvalidLink,
+    queryKey: ['emailChangeConfirm', token ?? 'callback', errorParam ?? null],
+    enabled: !errorParam,
     retry: false,
     staleTime: Infinity,
     refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
     queryFn: async () => {
-      await apiClient.confirmEmailChange({ token: token! });
+      if (token) {
+        await apiClient.confirmEmailChange({ token });
+      }
       return {};
     },
   });
@@ -37,9 +41,9 @@ function EmailChangeConfirmContent() {
   let state: EmailChangeState;
   let message: string;
 
-  if (isInvalidLink) {
+  if (errorParam) {
     state = 'error';
-    message = t('auth.emailChange.invalidLink');
+    message = t('auth.emailChange.error');
   } else if (confirmQuery.isPending) {
     state = 'loading';
     message = t('auth.emailChange.loading');

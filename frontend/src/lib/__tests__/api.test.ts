@@ -10,6 +10,69 @@ vi.stubGlobal('import.meta', {
   },
 });
 
+const { authClientMock } = vi.hoisted(() => {
+  const ok = <T,>(data: T = {} as T) => Promise.resolve({ data, error: null });
+  const authClientMock = {
+    signOut: vi.fn(() => ok()),
+    signIn: {
+      username: vi.fn(() => ok()),
+    },
+    signUp: {
+      email: vi.fn(() => ok()),
+    },
+    verifyEmail: vi.fn(() => ok()),
+    requestPasswordReset: vi.fn(() => ok()),
+    resetPassword: vi.fn(() => ok()),
+    changeEmail: vi.fn(() => ok()),
+    oauth2: {
+      getConsents: vi.fn(() =>
+        ok([
+          {
+            id: 'consent-1',
+            clientId: 'mcp-client',
+            scopes: ['openid', 'profile'],
+            createdAt: new Date('2026-03-02T00:00:00Z'),
+          },
+        ]),
+      ),
+      deleteConsent: vi.fn(() => ok()),
+      publicClient: vi.fn(() => ok({ client_name: 'MCP Client' })),
+    },
+    apiKey: {
+      list: vi.fn(() =>
+        ok({
+          apiKeys: [
+            {
+              id: '1',
+              name: 'integration',
+              start: 'vq_123',
+              lastRequest: null,
+              createdAt: '2026-03-02T00:00:00Z',
+              metadata: { accessLevel: 'all' },
+            },
+          ],
+        }),
+      ),
+      create: vi.fn(() =>
+        ok({
+          id: '1',
+          name: 'integration',
+          start: 'vq_123',
+          createdAt: '2026-03-02T00:00:00Z',
+          key: 'vq_secret',
+        }),
+      ),
+      delete: vi.fn(() => ok()),
+    },
+  };
+  return { authClientMock };
+});
+
+vi.mock('@/lib/auth-client', () => ({
+  AUTH_BASE_URL: 'http://localhost:8000',
+  authClient: authClientMock,
+}));
+
 // Import the apiClient singleton
 import { apiClient, apiPath, createApiClient } from '../api';
 
@@ -31,6 +94,7 @@ describe('ApiClient', () => {
 
   beforeEach(() => {
     fetchMock.mockReset();
+    vi.clearAllMocks();
     // Reset window.location mock
     Object.defineProperty(window, 'location', {
       writable: true,
@@ -43,9 +107,6 @@ describe('ApiClient', () => {
 
     // Reset baseUrl to default incase it was changed
     (apiClient as any).baseUrl = 'http://localhost:8000/api';
-    // Access tokens are memory-only, so reset singleton state between tests.
-    (apiClient as any).accessToken = null;
-    (apiClient as any).refreshPromise = null;
   });
 
   afterEach(() => {
@@ -61,7 +122,8 @@ describe('ApiClient', () => {
       });
       const result = await apiClient.isAuthenticated();
       expect(result).toBe(true);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/me', expect.objectContaining({
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/account/me', expect.objectContaining({
+        credentials: 'include',
         headers: expect.not.objectContaining({ Authorization: expect.anything() }),
       }));
     });
@@ -80,38 +142,21 @@ describe('ApiClient', () => {
       expect(result).toBe(false);
     });
 
-    it('logout should call logout endpoint', async () => {
-      fetchMock.mockResolvedValueOnce({ ok: true });
+    it('logout should call Better Auth signOut', async () => {
       await apiClient.logout();
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/sessions', expect.objectContaining({
-        method: 'DELETE',
-        credentials: 'include',
-      }));
+      expect(authClientMock.signOut).toHaveBeenCalledTimes(1);
     });
 
-    it('login should return response on success', async () => {
-      const mockResponse = { access_token: 'login-access-token' };
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify(mockResponse)),
-      });
-
+    it('login should sign in via Better Auth username plugin', async () => {
       const result = await apiClient.login({ username: 'user', password: 'pw' });
-      expect(result).toEqual(mockResponse);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/sessions', expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ username: 'user', password: 'pw' }),
-        credentials: 'include',
-      }));
+      expect(result).toEqual({ access_token: '' });
+      expect(authClientMock.signIn.username).toHaveBeenCalledWith({
+        username: 'user',
+        password: 'pw',
+      });
     });
 
-    it('login should retain access token in memory for subsequent API requests', async () => {
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify({ access_token: 'login-access-token' })),
-      });
+    it('login should rely on cookie session for subsequent API requests', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
@@ -121,95 +166,79 @@ describe('ApiClient', () => {
       await apiClient.login({ username: 'user', password: 'pw' });
       await apiClient.getMe();
 
-      expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:8000/api/auth/me', expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: 'Bearer login-access-token',
-        }),
-      }));
-    });
-
-    it('signup should call signup endpoint', async () => {
-      fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
-      await apiClient.signup({ username: 'u', email: 'e@e.com', password: 'p' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/users', expect.objectContaining({
-        method: 'POST',
-      }));
-    });
-
-    it('verifyEmail should call verify-email endpoint', async () => {
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify({}))
-      });
-      await apiClient.verifyEmail({ token: 'opaque/token' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/email-verifications/opaque%2Ftoken', expect.objectContaining({
-        method: 'PATCH',
-      }));
-    });
-
-    it('requestPasswordReset should call password-reset endpoint', async () => {
-      fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
-      await apiClient.requestPasswordReset({ email: 'e@e.com' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/password-resets', expect.objectContaining({
-        method: 'POST',
-      }));
-    });
-
-    it('confirmPasswordReset should call password-resets/<token> endpoint', async () => {
-      fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
-      await apiClient.confirmPasswordReset({ token: 'opaque-token', new_password: 'new' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/password-resets/opaque-token', expect.objectContaining({
-        method: 'PATCH',
-        body: JSON.stringify({ new_password: 'new' }),
-      }));
-    });
-
-    it('requestEmailChange should call current-user email endpoint', async () => {
-      fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
-
-      await apiClient.requestEmailChange({ email: 'new@example.com' });
-
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/me/email', expect.objectContaining({
-        method: 'PATCH',
-        body: JSON.stringify({ email: 'new@example.com' }),
-      }));
-    });
-
-    it('confirmEmailChange should call email-change endpoint', async () => {
-      fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
-
-      await apiClient.confirmEmailChange({ token: 'opaque-token' });
-
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/email-change/opaque-token', expect.objectContaining({
-        method: 'PATCH',
-      }));
-    });
-
-    it('refreshToken should call refresh endpoint', async () => {
-      const mockResponse = { access_token: 'refreshed-access-token' };
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify(mockResponse))
-      });
-      const result = await apiClient.refreshToken();
-      expect(result).toEqual(mockResponse);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/tokens', expect.objectContaining({
-        method: 'POST',
-        credentials: 'include',
-      }));
-    });
-
-    it('refreshToken should throw immediately when refresh endpoint returns 401 without retrying', async () => {
-      fetchMock.mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-      });
-
-      await expect(apiClient.refreshToken()).rejects.toThrow();
-      // Must be called exactly once - no retry/recursion
       expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/account/me', expect.objectContaining({
+        credentials: 'include',
+        headers: expect.not.objectContaining({ Authorization: expect.anything() }),
+      }));
+    });
+
+    it('signup should call Better Auth signUp.email', async () => {
+      await apiClient.signup({ username: 'u', email: 'e@e.com', password: 'p' });
+      expect(authClientMock.signUp.email).toHaveBeenCalledWith({
+        email: 'e@e.com',
+        password: 'p',
+        name: 'u',
+        username: 'u',
+      });
+    });
+
+    it('verifyEmail should call Better Auth verifyEmail', async () => {
+      await apiClient.verifyEmail({ token: 'opaque/token' });
+      expect(authClientMock.verifyEmail).toHaveBeenCalledWith({
+        query: { token: 'opaque/token' },
+      });
+    });
+
+    it('requestPasswordReset should call Better Auth requestPasswordReset', async () => {
+      await apiClient.requestPasswordReset({ email: 'e@e.com' });
+      expect(authClientMock.requestPasswordReset).toHaveBeenCalledWith({
+        email: 'e@e.com',
+        redirectTo: 'http://frontend.example.com/reset-password',
+      });
+    });
+
+    it('confirmPasswordReset should call Better Auth resetPassword', async () => {
+      await apiClient.confirmPasswordReset({ token: 'opaque-token', new_password: 'new' });
+      expect(authClientMock.resetPassword).toHaveBeenCalledWith({
+        token: 'opaque-token',
+        newPassword: 'new',
+      });
+    });
+
+    it('requestEmailChange should call Better Auth changeEmail with callback', async () => {
+      await apiClient.requestEmailChange({ email: 'new@example.com' });
+      expect(authClientMock.changeEmail).toHaveBeenCalledWith({
+        newEmail: 'new@example.com',
+        callbackURL: 'http://frontend.example.com/change-email',
+      });
+    });
+
+    it('confirmEmailChange should verify via Better Auth', async () => {
+      await apiClient.confirmEmailChange({ token: 'opaque-token' });
+      expect(authClientMock.verifyEmail).toHaveBeenCalledWith({
+        query: { token: 'opaque-token' },
+      });
+    });
+
+    it('getAuthorizedOAuthTokens should map Better Auth consents', async () => {
+      const result = await apiClient.getAuthorizedOAuthTokens();
+      expect(result).toEqual([
+        {
+          id: 'consent-1',
+          client_id: 'mcp-client',
+          client_name: 'MCP Client',
+          scope: 'openid profile',
+          issued_at: '2026-03-02T00:00:00.000Z',
+          expires_at: null,
+        },
+      ]);
+      expect(authClientMock.oauth2.getConsents).toHaveBeenCalledTimes(1);
+    });
+
+    it('revokeAuthorizedOAuthToken should delete Better Auth consent', async () => {
+      await apiClient.revokeAuthorizedOAuthToken('consent-1');
+      expect(authClientMock.oauth2.deleteConsent).toHaveBeenCalledWith({ id: 'consent-1' });
     });
 
     it('getMe should return user info', async () => {
@@ -221,123 +250,65 @@ describe('ApiClient', () => {
       });
       const result = await apiClient.getMe();
       expect(result).toEqual(mockUser);
-    });
-
-    it('getMeOrNull should refresh once and retry when access token is expired', async () => {
-      const mockUser = { id: 1, username: 'test' };
-      fetchMock
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 401,
-          headers: new Headers({ 'content-type': 'application/json' }),
-          text: () => Promise.resolve('{}'),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          headers: new Headers({ 'content-type': 'application/json' }),
-          text: () => Promise.resolve(JSON.stringify({ access_token: 'refreshed-token' })),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          headers: new Headers({ 'content-type': 'application/json' }),
-          text: () => Promise.resolve(JSON.stringify({ data: mockUser })),
-        });
-
-      const result = await apiClient.getMeOrNull();
-
-      expect(result).toEqual(mockUser);
-      expect(fetchMock).toHaveBeenNthCalledWith(
-        1,
-        'http://localhost:8000/api/auth/me',
-        expect.objectContaining({ headers: expect.any(Object) }),
-      );
-      expect(fetchMock).toHaveBeenNthCalledWith(
-        2,
-        'http://localhost:8000/api/auth/tokens',
-        expect.objectContaining({ method: 'POST', credentials: 'include' }),
-      );
-      expect(fetchMock).toHaveBeenNthCalledWith(
-        3,
-        'http://localhost:8000/api/auth/me',
-        expect.objectContaining({
-          headers: expect.objectContaining({ Authorization: 'Bearer refreshed-token' }),
-        }),
-      );
-    });
-
-    it('getMeOrNull should return null when refresh also fails', async () => {
-      fetchMock
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 401,
-          headers: new Headers({ 'content-type': 'application/json' }),
-          text: () => Promise.resolve('{}'),
-        })
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 401,
-          headers: new Headers({ 'content-type': 'application/json' }),
-          text: () => Promise.resolve('{}'),
-        });
-
-      const result = await apiClient.getMeOrNull();
-
-      expect(result).toBeNull();
-      expect(fetchMock).toHaveBeenCalledTimes(2);
-    });
-
-    it('getIntegrationApiKeys should return api key summaries', async () => {
-      const mockKeys = [{ id: 1, name: 'integration', access_level: 'all', prefix: 'vq_123', last_used_at: null, created_at: '2026-03-02T00:00:00Z' }];
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify(mockKeys)),
-      });
-
-      const result = await apiClient.getIntegrationApiKeys();
-
-      expect(result).toEqual(mockKeys);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/api-keys', expect.objectContaining({
-        headers: expect.any(Object),
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/account/me', expect.objectContaining({
         credentials: 'include',
       }));
     });
 
-    it('createIntegrationApiKey should create an api key', async () => {
-      const mockResponse = {
-        id: 1,
+    it('getMeOrNull should return null on 401 without refresh retry', async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: () => Promise.resolve('{}'),
+      });
+
+      const result = await apiClient.getMeOrNull();
+
+      expect(result).toBeNull();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://localhost:8000/api/account/me',
+        expect.objectContaining({ credentials: 'include' }),
+      );
+    });
+
+    it('getIntegrationApiKeys should map Better Auth api keys', async () => {
+      const result = await apiClient.getIntegrationApiKeys();
+
+      expect(result).toEqual([{
+        id: '1',
+        name: 'integration',
+        access_level: 'all',
+        prefix: 'vq_123',
+        last_used_at: null,
+        created_at: '2026-03-02T00:00:00Z',
+      }]);
+      expect(authClientMock.apiKey.list).toHaveBeenCalledTimes(1);
+    });
+
+    it('createIntegrationApiKey should create via Better Auth apiKey plugin', async () => {
+      const result = await apiClient.createIntegrationApiKey({ name: 'integration', access_level: 'all' });
+
+      expect(result).toEqual({
+        id: '1',
         name: 'integration',
         access_level: 'all',
         prefix: 'vq_123',
         last_used_at: null,
         created_at: '2026-03-02T00:00:00Z',
         api_key: 'vq_secret',
-      };
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify(mockResponse)),
       });
-
-      const result = await apiClient.createIntegrationApiKey({ name: 'integration', access_level: 'all' });
-
-      expect(result).toEqual(mockResponse);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/api-keys', expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ name: 'integration', access_level: 'all' }),
-      }));
+      expect(authClientMock.apiKey.create).toHaveBeenCalledWith({
+        name: 'integration',
+        prefix: 'vq_',
+        metadata: { accessLevel: 'all' },
+      });
     });
 
-    it('revokeIntegrationApiKey should delete an api key', async () => {
-      fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
-
+    it('revokeIntegrationApiKey should delete via Better Auth apiKey plugin', async () => {
       await apiClient.revokeIntegrationApiKey(1);
-
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/api-keys/1', expect.objectContaining({
-        method: 'DELETE',
-      }));
+      expect(authClientMock.apiKey.delete).toHaveBeenCalledWith({ keyId: '1' });
     });
 
     it('getSearchApiKeyStatus should return status', async () => {
@@ -351,8 +322,7 @@ describe('ApiClient', () => {
       const result = await apiClient.getSearchApiKeyStatus();
 
       expect(result).toEqual(mockStatus);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/searchapi-key', expect.objectContaining({
-        headers: expect.any(Object),
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/account/searchapi-key', expect.objectContaining({
         credentials: 'include',
       }));
     });
@@ -362,7 +332,7 @@ describe('ApiClient', () => {
 
       await apiClient.saveSearchApiKey('sa_test');
 
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/searchapi-key', expect.objectContaining({
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/account/searchapi-key', expect.objectContaining({
         method: 'PUT',
         body: JSON.stringify({ api_key: 'sa_test' }),
       }));
@@ -373,7 +343,7 @@ describe('ApiClient', () => {
 
       await apiClient.deleteSearchApiKey();
 
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/auth/searchapi-key', expect.objectContaining({
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/account/searchapi-key', expect.objectContaining({
         method: 'DELETE',
       }));
     });
@@ -401,71 +371,7 @@ describe('ApiClient', () => {
       await expect(apiClient.getMe()).rejects.toThrow('Custom Error');
     });
 
-    it('should handle 401 and retry', async () => {
-      // First call fails with 401
-      fetchMock.mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-      });
-
-      // Refresh token call succeeds
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify({ access_token: 'retry-token' })),
-      });
-
-      // Retry original call succeeds
-      const mockUser = { id: 1 };
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => Promise.resolve(JSON.stringify(mockUser)),
-      });
-
-      const result = await apiClient.getMe();
-      expect(result).toEqual(mockUser);
-      expect(fetchMock).toHaveBeenCalledTimes(3);
-      expect(fetchMock.mock.calls[2][1]).toEqual(expect.objectContaining({
-        headers: expect.objectContaining({ Authorization: 'Bearer retry-token' }),
-      }));
-    });
-
-    it('should single-flight concurrent refreshes after 401 responses', async () => {
-      let meCalls = 0;
-      let refreshCalls = 0;
-      const customFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input);
-        if (url.endsWith('/auth/tokens')) {
-          refreshCalls += 1;
-          return new Response(JSON.stringify({ access_token: 'shared-token' }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        }
-        meCalls += 1;
-        if (meCalls <= 2) {
-          return new Response('{}', { status: 401, headers: { 'Content-Type': 'application/json' } });
-        }
-        expect(init?.headers).toEqual(expect.objectContaining({
-          Authorization: 'Bearer shared-token',
-        }));
-        return new Response(JSON.stringify({ id: meCalls }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      });
-      const client = createApiClient({
-        baseUrl: 'http://localhost:8000/api',
-        fetchFn: customFetch,
-      });
-
-      await Promise.all([client.getMe(), client.getMe()]);
-
-      expect(refreshCalls).toBe(1);
-    });
-
-    it('should handle 401 and call onUnauthorized if refresh fails', async () => {
+    it('should handle 401 by signing out and calling onUnauthorized', async () => {
       const onUnauthorized = vi.fn();
       const client = createApiClient({
         baseUrl: 'http://localhost:8000/api',
@@ -473,52 +379,15 @@ describe('ApiClient', () => {
         onUnauthorized,
       });
 
-      // First call fails with 401
       fetchMock.mockResolvedValueOnce({
         ok: false,
         status: 401,
       });
-
-      // Refresh token call fails
-      fetchMock.mockRejectedValueOnce(new Error('Refresh failed'));
-
-      // Mock logout (which is called on auth error)
-      fetchMock.mockResolvedValueOnce({ ok: true });
 
       await expect(client.getMe()).rejects.toThrow('Authentication failed');
+      expect(authClientMock.signOut).toHaveBeenCalledTimes(1);
       expect(onUnauthorized).toHaveBeenCalledTimes(1);
-      expect(window.location.href).toBe('http://frontend.example.com/');
-    });
-
-    it('should not cause infinite loop when refreshToken gets 401 (original request → refresh 401 → auth error)', async () => {
-      const onUnauthorized = vi.fn();
-      const client = createApiClient({
-        baseUrl: 'http://localhost:8000/api',
-        fetchFn: fetchMock,
-        onUnauthorized,
-      });
-
-      // Original API call returns 401
-      fetchMock.mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-      });
-
-      // Refresh token endpoint also returns 401 (expired/invalid session)
-      fetchMock.mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-      });
-
-      // Mock logout call
-      fetchMock.mockResolvedValueOnce({ ok: true });
-
-      await expect(client.getMe()).rejects.toThrow('Authentication failed');
-      // Should be called exactly 3 times: original request + refresh attempt + logout
-      // (NOT infinite calls)
-      expect(fetchMock).toHaveBeenCalledTimes(3);
-      expect(onUnauthorized).toHaveBeenCalledTimes(1);
-      expect(window.location.href).toBe('http://frontend.example.com/');
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
     it('createApiClient should inject baseUrl and fetch implementation', async () => {
@@ -536,9 +405,8 @@ describe('ApiClient', () => {
 
       expect(result).toEqual({ id: 1, username: 'custom' });
       expect(customFetch).toHaveBeenCalledWith(
-        'https://api.example.test/v1/auth/me',
+        'https://api.example.test/v1/account/me',
         expect.objectContaining({
-          headers: expect.any(Object),
           credentials: 'include',
         }),
       );
@@ -554,10 +422,7 @@ describe('ApiClient', () => {
       });
       client.setUnauthorizedHandler(secondHandler);
 
-      fetchMock
-        .mockResolvedValueOnce({ ok: false, status: 401 })
-        .mockRejectedValueOnce(new Error('Refresh failed'))
-        .mockResolvedValueOnce({ ok: true });
+      fetchMock.mockResolvedValueOnce({ ok: false, status: 401 });
 
       await expect(client.getMe()).rejects.toThrow('Authentication failed');
 
