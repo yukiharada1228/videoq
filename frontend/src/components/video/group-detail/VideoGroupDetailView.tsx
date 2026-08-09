@@ -833,7 +833,7 @@ function GroupMobileNav({
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 z-50 flex h-16 w-full items-center justify-around border-t border-solid-gray-420 bg-white px-4 lg:hidden">
+    <nav className="fixed bottom-0 left-0 z-50 flex min-h-16 w-full items-center justify-around border-t border-solid-gray-420 bg-white px-4 pb-[env(safe-area-inset-bottom)] lg:hidden">
       {(['videos', 'player'] as MobileTab[]).map((tab) => {
         const Icon = mobileTabIcon[tab];
         const isActive = mobileTab === tab;
@@ -954,7 +954,7 @@ export function VideoGroupDetailView({
             />
           )}
 
-          <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 overflow-y-auto px-6 py-4 pb-20 lg:h-[calc(100dvh-var(--app-header-offset,5rem))] lg:gap-5 lg:overflow-hidden lg:px-8 lg:pb-4">
+          <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 overflow-y-auto px-6 py-4 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:h-[calc(100dvh-var(--app-header-offset,5rem))] lg:gap-5 lg:overflow-hidden lg:px-8 lg:pb-4">
             <div className="shrink-0 space-y-4">
               <Breadcrumbs aria-label={t('common.actions.backToList')}>
                 <BreadcrumbsLabel className="sr-only">

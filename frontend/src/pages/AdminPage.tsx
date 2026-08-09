@@ -342,72 +342,74 @@ export default function AdminPage() {
         ) : (
           <>
             <div className="mb-3 text-std-16N-170 text-solid-gray-700">{pageLabel}</div>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('admin.users.columns.id')}</TableHead>
-                  <TableHead>{t('admin.users.columns.username')}</TableHead>
-                  <TableHead>{t('admin.users.columns.email')}</TableHead>
-                  <TableHead>{t('admin.users.columns.flags')}</TableHead>
-                  <TableHead>{t('admin.users.columns.quota')}</TableHead>
-                  <TableHead>{t('admin.users.columns.actions')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visibleUsers.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell>{row.id}</TableCell>
-                    <TableCell>{row.username}</TableCell>
-                    <TableCell>{row.email}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-2">
-                        {row.is_superuser && (
-                          <ChipLabel>{t('admin.users.flags.superuser')}</ChipLabel>
-                        )}
-                        {row.is_staff && <ChipLabel>{t('admin.users.flags.staff')}</ChipLabel>}
-                        {!row.is_active && (
-                          <ChipLabel color="red">{t('admin.users.flags.inactive')}</ChipLabel>
-                        )}
-                        {row.is_over_quota && (
-                          <ChipLabel color="orange">{t('admin.users.flags.overQuota')}</ChipLabel>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-std-14N-170 text-solid-gray-700">
-                      {t('admin.users.quotaSummary', {
-                        uploadMb: row.max_video_upload_size_mb,
-                        storageGb:
-                          row.storage_limit_gb == null
-                            ? t('admin.users.unlimited')
-                            : row.storage_limit_gb,
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          variant="text"
-                          onClick={() => openEditUser(row)}
-                        >
-                          {t('admin.users.edit')}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="text"
-                          disabled={row.is_superuser || row.id === user.id}
-                          onClick={() => {
-                            setUserToDelete(row);
-                            setIsDeleteOpen(true);
-                          }}
-                        >
-                          {t('admin.users.delete')}
-                        </Button>
-                      </div>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table className="min-w-[560px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t('admin.users.columns.id')}</TableHead>
+                    <TableHead>{t('admin.users.columns.username')}</TableHead>
+                    <TableHead>{t('admin.users.columns.email')}</TableHead>
+                    <TableHead>{t('admin.users.columns.flags')}</TableHead>
+                    <TableHead>{t('admin.users.columns.quota')}</TableHead>
+                    <TableHead>{t('admin.users.columns.actions')}</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {visibleUsers.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell>{row.id}</TableCell>
+                      <TableCell>{row.username}</TableCell>
+                      <TableCell>{row.email}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-2">
+                          {row.is_superuser && (
+                            <ChipLabel>{t('admin.users.flags.superuser')}</ChipLabel>
+                          )}
+                          {row.is_staff && <ChipLabel>{t('admin.users.flags.staff')}</ChipLabel>}
+                          {!row.is_active && (
+                            <ChipLabel color="red">{t('admin.users.flags.inactive')}</ChipLabel>
+                          )}
+                          {row.is_over_quota && (
+                            <ChipLabel color="orange">{t('admin.users.flags.overQuota')}</ChipLabel>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-std-14N-170 text-solid-gray-700">
+                        {t('admin.users.quotaSummary', {
+                          uploadMb: row.max_video_upload_size_mb,
+                          storageGb:
+                            row.storage_limit_gb == null
+                              ? t('admin.users.unlimited')
+                              : row.storage_limit_gb,
+                        })}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            variant="text"
+                            onClick={() => openEditUser(row)}
+                          >
+                            {t('admin.users.edit')}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="text"
+                            disabled={row.is_superuser || row.id === user.id}
+                            onClick={() => {
+                              setUserToDelete(row);
+                              setIsDeleteOpen(true);
+                            }}
+                          >
+                            {t('admin.users.delete')}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
 
             <div className="mt-4 flex gap-3">
               <Button

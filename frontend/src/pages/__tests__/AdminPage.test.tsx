@@ -86,6 +86,15 @@ describe('AdminPage', () => {
     expect(apiClient.getAdminUsers).toHaveBeenCalled()
   })
 
+  it('keeps the users table in a horizontal scroll container on narrow viewports', async () => {
+    const { container } = render(<AdminPage />)
+    expect(await screen.findByText('bob')).toBeInTheDocument()
+    const table = container.querySelector('table')
+    expect(table).not.toBeNull()
+    expect(table?.parentElement).toHaveClass('overflow-x-auto')
+    expect(table).toHaveClass('min-w-[560px]')
+  })
+
   it('redirects non-superusers home', async () => {
     ;(useAuth as ReturnType<typeof vi.fn>).mockReturnValue({
       user: {
