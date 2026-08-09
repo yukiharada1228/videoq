@@ -142,7 +142,7 @@ export default function SharePage() {
       </header>
 
       {/* ── Main ────────────────────────────────────────────────────────── */}
-      <main className="mt-16 flex flex-col px-6 pt-4 gap-4 max-w-[1600px] mx-auto w-full overflow-y-auto pb-20 lg:pb-4 lg:h-[calc(100dvh-4rem)] lg:overflow-hidden">
+      <main className="mt-16 flex flex-col px-6 pt-4 gap-4 max-w-[1600px] mx-auto w-full overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-4 lg:h-[calc(100dvh-4rem)] lg:overflow-hidden">
         {group.description && (
           <div className="shrink-0 rounded-8 border border-solid-gray-300 bg-white px-4 py-3 text-std-16N-170 text-solid-gray-700">
             {group.description}
@@ -246,7 +246,7 @@ export default function SharePage() {
       </main>
 
       {/* ── Mobile bottom nav ───────────────────────────────────────────── */}
-      <nav className="fixed bottom-0 left-0 z-50 flex h-16 w-full items-center justify-around border-t border-solid-gray-420 bg-white px-4 lg:hidden">
+      <nav className="fixed bottom-0 left-0 z-50 flex min-h-16 w-full items-center justify-around border-t border-solid-gray-420 bg-white px-4 pb-[env(safe-area-inset-bottom)] lg:hidden">
         {(['videos', 'player'] as MobileTab[]).map((tab) => {
           const Icon = mobileTabIcon[tab];
           const isActive = mobileTab === tab;

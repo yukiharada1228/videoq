@@ -317,81 +317,83 @@ export function AppNav({ activePage }: AppNavProps) {
         </div>
 
         {isMenuOpen ? (
-          <div className="absolute inset-x-0 top-full z-50">
-            <div
-              id={megaMenuId}
-              className="max-h-[calc(100dvh-var(--app-header-offset,5rem))] overflow-y-auto border-t border-solid-gray-300 bg-white/90 shadow-[0_0.25rem_0.25rem_0_#00000029] backdrop-blur-[0.5rem] [scrollbar-gutter:stable]"
-            >
-              <nav
-                className={`mx-auto w-full py-10 md:py-12 ${APP_CONTAINER_CLASS}`}
-                aria-label={t('navigation.menu')}
-              >
-                <ul className="grid grid-cols-1 gap-x-10 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {navLinks.map(({ href, label, key }) => (
-                    <li
-                      key={key}
-                      className="flex min-h-12 items-center pl-5"
-                    >
-                      <Link
-                        href={href}
-                        className={megaMenuLinkClassName}
-                        aria-current={activePage === key ? 'page' : undefined}
-                        onClick={closeMenu}
-                      >
-                        {label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="my-8 h-px bg-solid-gray-300" aria-hidden="true" />
-
-                <ul className="grid grid-cols-1 gap-x-10 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {locales.map((code) => (
-                    <li key={code} className="flex min-h-12 items-center pl-5">
-                      <button
-                        type="button"
-                        lang={code}
-                        className={cn(megaMenuLinkClassName, 'bg-transparent text-left')}
-                        aria-current={locale === code ? 'true' : undefined}
-                        onClick={() => {
-                          switchLocale(code);
-                          closeMenu();
-                        }}
-                      >
-                        {LOCALE_LABELS[code]}
-                      </button>
-                    </li>
-                  ))}
-                  <li className="flex min-h-12 items-center pl-5">
-                    {!isAuthenticated ? (
-                      <Link
-                        href="/login"
-                        className={megaMenuLinkClassName}
-                        onClick={closeMenu}
-                      >
-                        {t('auth.login.submit')}
-                      </Link>
-                    ) : (
-                      <button
-                        type="button"
-                        className={cn(megaMenuLinkClassName, 'bg-transparent text-left')}
-                        onClick={() => void handleLogout()}
-                      >
-                        {t('navigation.logout')}
-                      </button>
-                    )}
-                  </li>
-                </ul>
-              </nav>
-            </div>
+          <>
             <button
               type="button"
-              className="h-screen w-full cursor-default bg-black/20"
+              className="fixed top-[var(--app-header-offset,5rem)] inset-x-0 bottom-0 z-40 cursor-default bg-black/20"
               aria-label={t('navigation.closeMenu')}
               onClick={closeMenu}
             />
-          </div>
+            <div className="absolute inset-x-0 top-full z-50">
+              <div
+                id={megaMenuId}
+                className="max-h-[calc(100dvh-var(--app-header-offset,5rem))] overflow-y-auto border-t border-solid-gray-300 bg-white/90 shadow-[0_0.25rem_0.25rem_0_#00000029] backdrop-blur-[0.5rem] [scrollbar-gutter:stable]"
+              >
+                <nav
+                  className={`mx-auto w-full py-10 md:py-12 ${APP_CONTAINER_CLASS}`}
+                  aria-label={t('navigation.menu')}
+                >
+                  <ul className="grid grid-cols-1 gap-x-10 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {navLinks.map(({ href, label, key }) => (
+                      <li
+                        key={key}
+                        className="flex min-h-12 items-center pl-5"
+                      >
+                        <Link
+                          href={href}
+                          className={megaMenuLinkClassName}
+                          aria-current={activePage === key ? 'page' : undefined}
+                          onClick={closeMenu}
+                        >
+                          {label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="my-8 h-px bg-solid-gray-300" aria-hidden="true" />
+
+                  <ul className="grid grid-cols-1 gap-x-10 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {locales.map((code) => (
+                      <li key={code} className="flex min-h-12 items-center pl-5">
+                        <button
+                          type="button"
+                          lang={code}
+                          className={cn(megaMenuLinkClassName, 'bg-transparent text-left')}
+                          aria-current={locale === code ? 'true' : undefined}
+                          onClick={() => {
+                            switchLocale(code);
+                            closeMenu();
+                          }}
+                        >
+                          {LOCALE_LABELS[code]}
+                        </button>
+                      </li>
+                    ))}
+                    <li className="flex min-h-12 items-center pl-5">
+                      {!isAuthenticated ? (
+                        <Link
+                          href="/login"
+                          className={megaMenuLinkClassName}
+                          onClick={closeMenu}
+                        >
+                          {t('auth.login.submit')}
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          className={cn(megaMenuLinkClassName, 'bg-transparent text-left')}
+                          onClick={() => void handleLogout()}
+                        >
+                          {t('navigation.logout')}
+                        </button>
+                      )}
+                    </li>
+                  </ul>
+                </nav>
+              </div>
+            </div>
+          </>
         ) : null}
       </header>
 

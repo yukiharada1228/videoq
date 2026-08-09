@@ -182,7 +182,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
       )}
 
       {toasts.length > 0 && (
-        <div className="fixed bottom-4 right-4 z-50 flex w-[min(calc(100vw-2rem),24rem)] flex-col gap-2">
+        <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-50 flex w-[min(calc(100%-2rem),24rem)] flex-col gap-2 max-lg:bottom-[calc(5rem+env(safe-area-inset-bottom))]">
           {toasts.map((toastItem) => (
             <div
               key={toastItem.id}

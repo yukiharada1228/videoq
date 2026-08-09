@@ -725,7 +725,7 @@ export function VideoDetailView({
               />
             </div>
 
-            {video.status === 'completed' && (
+            {video.status === 'completed' && !(isMobile && mobileTab !== 'video') && (
               <PlogPanel videoId={video.id} />
             )}
           </main>
