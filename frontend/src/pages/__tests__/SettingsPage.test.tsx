@@ -45,6 +45,23 @@ describe('SettingsPage email change', () => {
     expect(screen.getByLabelText('settings.emailChange.newEmailLabel')).toBeInTheDocument()
   })
 
+  it('stacks the integration API keys header on narrow layouts', async () => {
+    render(<SettingsPage />)
+
+    const title = await screen.findByRole('heading', {
+      name: 'settings.integrationApiKeys.title',
+    })
+    const header = title.closest('.mb-5')
+    expect(header).toHaveClass('flex-col')
+    expect(header).toHaveClass('sm:flex-row')
+
+    const createButton = screen.getByRole('button', {
+      name: 'settings.integrationApiKeys.create',
+    })
+    expect(createButton).toHaveClass('w-full')
+    expect(createButton).toHaveClass('sm:w-auto')
+  })
+
   it('requests an email change from the settings form', async () => {
     render(<SettingsPage />)
 
