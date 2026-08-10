@@ -464,8 +464,8 @@ export default function SettingsPage() {
 
           {/* ── Integration API Keys ─────────────────────────────────── */}
           <section className={SETTINGS_SECTION_CLASS}>
-            <div className="mb-5 flex items-start justify-between gap-4">
-              <div>
+            <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
                 <Heading size="18" hasChip className="mb-2">
                   <HeadingTitle level="h2">{t('settings.integrationApiKeys.title')}</HeadingTitle>
                 </Heading>
@@ -477,7 +477,7 @@ export default function SettingsPage() {
                 type="button"
                 variant="solid"
                 size="sm"
-                className="shrink-0"
+                className="w-full shrink-0 sm:w-auto"
                 onClick={() => {
                   setStatusMessage(null);
                   setApiKeyDialogError(null);
