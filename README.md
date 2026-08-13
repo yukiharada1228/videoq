@@ -1,3 +1,5 @@
+
+
 # VideoQ
 
 **Jump instantly to the scenes you want by asking AI questions**
@@ -78,9 +80,9 @@ Open `.env` and set at least:
 OPENAI_API_KEY=sk-proj-...
 
 # Generate independent secrets (do not reuse across environments)
-# BETTER_AUTH_SECRET: openssl rand -base64 48
+# AUTH_JWT_SECRET: openssl rand -base64 48
 # USER_SECRET_ENCRYPTION_KEY: openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
-BETTER_AUTH_SECRET=
+AUTH_JWT_SECRET=
 BETTER_AUTH_URL=http://localhost
 USER_SECRET_ENCRYPTION_KEY=
 ```
