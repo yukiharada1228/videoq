@@ -68,7 +68,9 @@ def _dispatch(task_fn, job_type: str, body: dict) -> None:
         task_fn(int(body["chat_log_id"]))
         return
     if job_type == "delete_account_data":
-        task_fn(int(body["user_id"]))
+        # users.id is a UUID text PK (migration 0006). int() would fail and
+        # leave the admin-locked (is_active=false) row undeleted.
+        task_fn(str(body["user_id"]))
         return
     # video_id jobs
     task_fn(int(body["video_id"]))

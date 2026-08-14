@@ -102,7 +102,7 @@ def list_completed_videos_with_transcript(
 
 
 def delete_video_cascade(
-    conn: psycopg.Connection[Any], video_id: int, user_id: int
+    conn: psycopg.Connection[Any], video_id: int, user_id: str
 ) -> None:
     """
     Hard-delete a video and related rows from the modern VideoQ schema.
@@ -134,5 +134,5 @@ def delete_video_cascade(
         "DELETE FROM videos WHERE id = %s AND user_id = %s",
         (video_id, user_id),
     )
-    logger.info("Deleted video %d (user %d) and related rows", video_id, user_id)
+    logger.info("Deleted video %d (user %s) and related rows", video_id, user_id)
 
