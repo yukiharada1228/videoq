@@ -9,7 +9,7 @@ export type CheckboxSize = "sm" | "md" | "lg"
 // Outer hit area (matches upstream's wrapping <span>): sized size-6/8/11, with the
 // subtle gray hover backdrop. The visible box is the inner element at 75%.
 const checkboxVariants = cva(
-  "group/checkbox inline-flex shrink-0 items-center justify-center appearance-none rounded-[calc(1/8*100%)] bg-transparent outline-none hover:bg-solid-gray-420 focus-visible:bg-transparent aria-disabled:pointer-events-none aria-disabled:hover:bg-transparent data-[size=sm]:size-6 data-[size=md]:size-8 data-[size=lg]:size-11",
+  "group/checkbox inline-flex shrink-0 items-center justify-center appearance-none rounded-[calc(1/8*100%)] bg-transparent outline-none hover:bg-solid-gray-420 focus-visible:bg-transparent disabled:pointer-events-none disabled:hover:bg-transparent aria-disabled:pointer-events-none aria-disabled:hover:bg-transparent data-[size=sm]:size-6 data-[size=md]:size-8 data-[size=lg]:size-11",
   {
     variants: {
       size: {
@@ -47,7 +47,14 @@ const checkboxBoxClass = cn(
   "group-hover/checkbox:group-data-[state=checked]/checkbox:group-data-[error]/checkbox:bg-red-1000 group-hover/checkbox:group-data-[state=indeterminate]/checkbox:group-data-[error]/checkbox:bg-red-1000",
   "group-aria-disabled/checkbox:!border-solid-gray-300 group-aria-disabled/checkbox:!bg-solid-gray-50",
   "group-data-[state=checked]/checkbox:group-aria-disabled/checkbox:!bg-solid-gray-300 group-data-[state=indeterminate]/checkbox:group-aria-disabled/checkbox:!bg-solid-gray-300",
-  "forced-colors:!border-[ButtonText] group-data-[state=checked]/checkbox:forced-colors:!bg-[Highlight] group-data-[state=checked]/checkbox:forced-colors:!border-[Highlight] group-data-[state=indeterminate]/checkbox:forced-colors:!bg-[Highlight] group-data-[state=indeterminate]/checkbox:forced-colors:!border-[Highlight] group-aria-disabled/checkbox:forced-colors:!border-[GrayText] group-data-[state=checked]/checkbox:group-aria-disabled/checkbox:forced-colors:!bg-[GrayText]"
+  // native `disabled` gets the same treatment as `aria-disabled` (upstream 22cda0d)
+  "group-disabled/checkbox:!border-solid-gray-300 group-disabled/checkbox:!bg-solid-gray-50",
+  "group-data-[state=checked]/checkbox:group-disabled/checkbox:!bg-solid-gray-300 group-data-[state=indeterminate]/checkbox:group-disabled/checkbox:!bg-solid-gray-300",
+  "forced-colors:!border-[ButtonText] group-data-[state=checked]/checkbox:forced-colors:!bg-[Highlight] group-data-[state=checked]/checkbox:forced-colors:!border-[Highlight] group-data-[state=indeterminate]/checkbox:forced-colors:!bg-[Highlight] group-data-[state=indeterminate]/checkbox:forced-colors:!border-[Highlight] group-aria-disabled/checkbox:forced-colors:!border-[GrayText] group-data-[state=checked]/checkbox:group-aria-disabled/checkbox:forced-colors:!bg-[GrayText] group-disabled/checkbox:forced-colors:!border-[GrayText] group-data-[state=checked]/checkbox:group-disabled/checkbox:forced-colors:!bg-[GrayText]",
+  // Checked + disabled must use GrayText for the border too. Specificity matches
+  // the checked rule, so a combined selector is required or Highlight remains.
+  "group-data-[state=checked]/checkbox:group-disabled/checkbox:forced-colors:!border-[GrayText] group-data-[state=indeterminate]/checkbox:group-disabled/checkbox:forced-colors:!border-[GrayText]",
+  "group-data-[state=checked]/checkbox:group-aria-disabled/checkbox:forced-colors:!border-[GrayText] group-data-[state=indeterminate]/checkbox:group-aria-disabled/checkbox:forced-colors:!border-[GrayText]"
 )
 
 export type CheckboxProps = Omit<
