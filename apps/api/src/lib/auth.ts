@@ -88,6 +88,7 @@ export function createAuth(env: Bindings, db: Db) {
   return betterAuth({
     database: drizzleAdapter(db, {
       provider: "pg",
+      transaction: true,
       schema: {
         user: schema.users,
         session: schema.session,
@@ -106,6 +107,20 @@ export function createAuth(env: Bindings, db: Db) {
     baseURL,
     basePath: "/api/auth",
     trustedOrigins: trustedOrigins(env),
+    onAPIError: {
+      errorURL: `${(env.FRONTEND_URL ?? baseURL).replace(/\/+$/, "")}/login`,
+      onError: (error) => {
+        const err = error instanceof Error ? error : new Error(String(error));
+        console.error(
+          JSON.stringify({
+            level: "error",
+            event: "better_auth_api_error",
+            name: err.name,
+            message: err.message,
+          }),
+        );
+      },
+    },
     // OAuth provider owns /oauth2/token; disable BA's first-party /token alias.
     disabledPaths: ["/token"],
     emailAndPassword: {

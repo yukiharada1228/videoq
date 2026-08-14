@@ -304,6 +304,7 @@
       "continueWithGoogle": "Continue with Google",
       "googleRedirecting": "Redirecting to Google...",
       "googleFailed": "Google sign-in failed",
+      "oauthCallbackFailed": "Google sign-in failed. Please try again.",
       "footerQuestion": "Don't have an account?",
       "footerLink": "Register here",
       "forgotPassword": "Forgot your password?"
