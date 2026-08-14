@@ -44,6 +44,28 @@ const SETTINGS_CALLOUT_CLASS =
 
 type AccessLevel = 'all' | 'read_only';
 
+const USERNAME_CHANGE_ERROR_CODES: Record<string, string> = {
+  USERNAME_IS_ALREADY_TAKEN: 'settings.usernameChange.errorTaken',
+  USERNAME_TOO_SHORT: 'settings.usernameChange.errorTooShort',
+  USERNAME_TOO_LONG: 'settings.usernameChange.errorTooLong',
+  INVALID_USERNAME: 'settings.usernameChange.errorInvalid',
+};
+
+function errorCode(error: unknown): string {
+  if (typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string') {
+    return error.code;
+  }
+  return '';
+}
+
+function usernameChangeErrorMessage(error: unknown, t: (key: string) => string): string {
+  const key = USERNAME_CHANGE_ERROR_CODES[errorCode(error)];
+  if (key) return t(key);
+  return error instanceof Error && error.message
+    ? error.message
+    : t('settings.usernameChange.errorSubmitting');
+}
+
 export default function SettingsPage() {
   const { user } = useAuth();
   const { t } = useTranslation();
@@ -73,6 +95,11 @@ export default function SettingsPage() {
   } | null>(null);
   const [emailChangeEmail, setEmailChangeEmail] = useState('');
   const [emailChangeStatusMessage, setEmailChangeStatusMessage] = useState<{
+    tone: 'success' | 'error';
+    text: string;
+  } | null>(null);
+  const [usernameChangeUsername, setUsernameChangeUsername] = useState('');
+  const [usernameChangeStatusMessage, setUsernameChangeStatusMessage] = useState<{
     tone: 'success' | 'error';
     text: string;
   } | null>(null);
@@ -109,6 +136,10 @@ export default function SettingsPage() {
   useEffect(() => {
     setEmailChangeEmail(user?.email ?? '');
   }, [user?.email]);
+
+  useEffect(() => {
+    setUsernameChangeUsername(user?.username ?? '');
+  }, [user?.username]);
 
   const apiKeysQuery = useQuery({
     queryKey: queryKeys.auth.apiKeys,
@@ -178,6 +209,23 @@ export default function SettingsPage() {
         text: error instanceof Error
           ? error.message
           : t('settings.emailChange.errorSubmitting'),
+      });
+    },
+  });
+
+  const updateUsernameMutation = useMutation({
+    mutationFn: async (username: string) => apiClient.updateUsername({ username }),
+    onSuccess: async () => {
+      setUsernameChangeStatusMessage({
+        tone: 'success',
+        text: t('settings.usernameChange.success'),
+      });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.auth.me });
+    },
+    onError: (error) => {
+      setUsernameChangeStatusMessage({
+        tone: 'error',
+        text: usernameChangeErrorMessage(error, t),
       });
     },
   });
@@ -298,6 +346,86 @@ export default function SettingsPage() {
       />
 
       <div className="flex flex-col gap-12">
+          <section className={SETTINGS_SECTION_CLASS}>
+            <div className="mb-5">
+              <Heading size="18" hasChip className="mb-2">
+                <HeadingTitle level="h2">{t('settings.usernameChange.title')}</HeadingTitle>
+              </Heading>
+              <p className="text-std-16N-170 text-solid-gray-600">
+                {t('settings.usernameChange.description')}
+              </p>
+            </div>
+
+            {usernameChangeStatusMessage && (
+              <div className="mb-5">
+                <MessageAlert
+                  type={usernameChangeStatusMessage.tone}
+                  message={usernameChangeStatusMessage.text}
+                />
+              </div>
+            )}
+
+            <form
+              className="space-y-4"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                const trimmedUsername = usernameChangeUsername.trim();
+                if (!trimmedUsername) {
+                  setUsernameChangeStatusMessage({
+                    tone: 'error',
+                    text: t('settings.usernameChange.errorEmpty'),
+                  });
+                  return;
+                }
+                if (trimmedUsername.toLowerCase() === (user?.username ?? '').toLowerCase()) {
+                  setUsernameChangeStatusMessage({
+                    tone: 'error',
+                    text: t('settings.usernameChange.errorUnchanged'),
+                  });
+                  return;
+                }
+                setUsernameChangeStatusMessage(null);
+                try {
+                  await updateUsernameMutation.mutateAsync(trimmedUsername);
+                } catch {
+                  // onError renders the user-facing message.
+                }
+              }}
+            >
+              <div className={SETTINGS_CALLOUT_CLASS}>
+                <div className="font-bold text-solid-gray-800 mb-1">
+                  {t('settings.usernameChange.currentUsernameLabel')}
+                </div>
+                <p>{user?.username ?? t('common.notProvided')}</p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="username-change-username">
+                  {t('settings.usernameChange.newUsernameLabel')}
+                </Label>
+                <Input
+                  id="username-change-username"
+                  type="text"
+                  autoComplete="username"
+                  value={usernameChangeUsername}
+                  onChange={(event) => setUsernameChangeUsername(event.target.value)}
+                />
+                <SupportText>{t('settings.usernameChange.help')}</SupportText>
+              </div>
+
+              <div className="flex justify-end">
+                <Button type="submit" disabled={updateUsernameMutation.isPending}>
+                  {updateUsernameMutation.isPending ? (
+                    <span className="flex items-center gap-2">
+                      <InlineSpinner className="w-4 h-4" />
+                      {t('settings.usernameChange.submitting')}
+                    </span>
+                  ) : t('settings.usernameChange.submit')}
+                </Button>
+              </div>
+            </form>
+          </section>
+
           <section className={SETTINGS_SECTION_CLASS}>
             <div className="mb-5">
               <Heading size="18" hasChip className="mb-2">

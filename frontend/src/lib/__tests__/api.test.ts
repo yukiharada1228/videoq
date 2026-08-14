@@ -26,6 +26,7 @@ const { authClientMock, fetchAuthSessionMock } = vi.hoisted(() => {
     requestPasswordReset: vi.fn(() => ok()),
     resetPassword: vi.fn(() => ok()),
     changeEmail: vi.fn(() => ok()),
+    updateUser: vi.fn(() => ok()),
     oauth2: {
       getConsents: vi.fn(() =>
         ok([
@@ -222,6 +223,25 @@ describe('ApiClient', () => {
       expect(authClientMock.changeEmail).toHaveBeenCalledWith({
         newEmail: 'new@example.com',
         callbackURL: 'http://frontend.example.com/change-email',
+      });
+    });
+
+    it('updateUsername should call Better Auth updateUser with displayUsername', async () => {
+      await apiClient.updateUsername({ username: ' new_name ' });
+      expect(authClientMock.updateUser).toHaveBeenCalledWith({
+        username: 'new_name',
+        displayUsername: 'new_name',
+      });
+    });
+
+    it('updateUsername should throw ApiError when Better Auth fails', async () => {
+      authClientMock.updateUser.mockResolvedValueOnce({
+        data: null,
+        error: { message: 'Username is already taken', code: 'USERNAME_IS_ALREADY_TAKEN' },
+      });
+      await expect(apiClient.updateUsername({ username: 'taken' })).rejects.toMatchObject({
+        name: 'ApiError',
+        code: 'USERNAME_IS_ALREADY_TAKEN',
       });
     });
 

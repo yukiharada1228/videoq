@@ -169,6 +169,10 @@ export interface EmailChangeConfirmRequest {
   token: string;
 }
 
+export interface UsernameChangeRequest {
+  username: string;
+}
+
 export interface LoginRequest {
   username: string;
   password: string;
@@ -671,6 +675,22 @@ export class ApiClient {
       callbackURL: `${window.location.origin}/change-email`,
     });
     if (error) throw new ApiError(error.message || 'Email change failed', error.code || 'EMAIL_CHANGE_FAILED');
+  }
+
+  /**
+   * Updates username via Better Auth `/update-user`.
+   * Also sets `displayUsername` so Google-signup accounts stay in sync.
+   */
+  async updateUsername(data: UsernameChangeRequest): Promise<void> {
+    const { authClient } = await import('@/lib/auth-client');
+    const username = data.username.trim();
+    const { error } = await authClient.updateUser({
+      username,
+      displayUsername: username,
+    });
+    if (error) {
+      throw new ApiError(error.message || 'Username change failed', error.code || 'USERNAME_CHANGE_FAILED');
+    }
   }
 
   /**
