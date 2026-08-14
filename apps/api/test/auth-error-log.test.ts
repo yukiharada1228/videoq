@@ -31,4 +31,19 @@ describe("summarizeAuthApiError", () => {
       baCode: "unable_to_create_user",
     });
   });
+
+  it("reads Postgres SQLSTATE from Error.cause (DrizzleQueryError)", () => {
+    const cause = Object.assign(new Error("null value in column"), {
+      code: "23502",
+      constraint: "users_date_joined_not_null",
+    });
+    const err = Object.assign(new Error("Failed query: insert into \"users\""), {
+      cause,
+    });
+    expect(summarizeAuthApiError(err)).toEqual({
+      name: "Error",
+      pgCode: "23502",
+      constraint: "users_date_joined_not_null",
+    });
+  });
 });
