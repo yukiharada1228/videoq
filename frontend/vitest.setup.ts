@@ -290,6 +290,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
     confirmPasswordReset: vi.fn(() => Promise.resolve()),
     requestEmailChange: vi.fn(() => Promise.resolve()),
     confirmEmailChange: vi.fn(() => Promise.resolve()),
+    updateUsername: vi.fn(() => Promise.resolve()),
     login: vi.fn(() => Promise.resolve()),
     getVideoGroups: vi.fn(() => Promise.resolve([])),
     getSharedVideoGroup: vi.fn(() => Promise.resolve(null)),

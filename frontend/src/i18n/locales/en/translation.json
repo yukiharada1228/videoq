@@ -433,6 +433,23 @@
   "settings": {
     "title": "Settings",
     "subtitle": "Manage your account and integration settings",
+    "usernameChange": {
+      "title": "Username",
+      "description": "Google sign-in may set your username from your email address. You can change it to something you prefer.",
+      "currentUsernameLabel": "Current username",
+      "newUsernameLabel": "New username",
+      "help": "Use 3–150 characters: letters, numbers, underscores, and periods. Uppercase is stored as lowercase. Your username is also used to sign in.",
+      "submit": "Change username",
+      "submitting": "Saving...",
+      "success": "Username updated",
+      "errorEmpty": "Please enter a new username",
+      "errorUnchanged": "That is already your current username",
+      "errorTaken": "This username is already taken",
+      "errorTooShort": "Username is too short (minimum 3 characters)",
+      "errorTooLong": "Username is too long (maximum 150 characters)",
+      "errorInvalid": "Usernames can only include letters, numbers, underscores, and periods",
+      "errorSubmitting": "Failed to update username"
+    },
     "emailChange": {
       "title": "Email address",
       "description": "Change the email address associated with your account. The change is applied only after you confirm the new address.",

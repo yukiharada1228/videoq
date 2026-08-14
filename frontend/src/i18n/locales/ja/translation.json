@@ -433,6 +433,23 @@
   "settings": {
     "title": "設定",
     "subtitle": "アカウントと統合の設定を管理します",
+    "usernameChange": {
+      "title": "ユーザー名",
+      "description": "Googleログインではメールアドレスの一部がユーザー名になることがあります。あとから好きな名前に変更できます。",
+      "currentUsernameLabel": "現在のユーザー名",
+      "newUsernameLabel": "新しいユーザー名",
+      "help": "3〜150文字の英数字、アンダースコア、ピリオドが使えます。大文字は小文字として保存されます。ユーザー名はログインにも使われます。",
+      "submit": "ユーザー名を変更",
+      "submitting": "変更中...",
+      "success": "ユーザー名を変更しました",
+      "errorEmpty": "新しいユーザー名を入力してください",
+      "errorUnchanged": "現在と同じユーザー名です",
+      "errorTaken": "このユーザー名はすでに使われています",
+      "errorTooShort": "ユーザー名が短すぎます（3文字以上）",
+      "errorTooLong": "ユーザー名が長すぎます（150文字以内）",
+      "errorInvalid": "ユーザー名に使えるのは英数字、アンダースコア、ピリオドだけです",
+      "errorSubmitting": "ユーザー名の変更に失敗しました"
+    },
     "emailChange": {
       "title": "メールアドレス",
       "description": "アカウントに紐づくメールアドレスを変更します。新しいメールアドレスで確認が完了するまで、現在のメールアドレスが維持されます。",
