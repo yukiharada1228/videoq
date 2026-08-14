@@ -50,6 +50,13 @@
       "when": 1786211780341,
       "tag": "0006_user_id_uuid",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786684860000,
+      "tag": "0007_users_date_joined_default",
+      "breakpoints": true
     }
   ]
 }
