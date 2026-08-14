@@ -31,7 +31,7 @@ async function revokeAuthMaterialForUser(env: Bindings, userId: string) {
     await db.delete(oauthAccessToken).where(eq(oauthAccessToken.userId, userId));
     await db
       .update(oauthRefreshToken)
-      .set({ revoked: new Date().toISOString() })
+      .set({ revoked: new Date() })
       .where(
         and(eq(oauthRefreshToken.userId, userId), isNull(oauthRefreshToken.revoked)),
       );

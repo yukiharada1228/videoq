@@ -1,10 +1,7 @@
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import type { Bindings } from "../types/bindings";
-import { patchPgTimestampStringMode } from "./pg-timestamp-string";
 import { schema } from "./schema";
-
-patchPgTimestampStringMode();
 
 export type Db = NodePgDatabase<typeof schema>;
 

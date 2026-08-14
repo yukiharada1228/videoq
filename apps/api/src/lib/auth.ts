@@ -13,6 +13,7 @@ import type { Db } from "../db/pool";
 import * as schema from "../db/schema";
 import type { Bindings } from "../types/bindings";
 import { sendMail } from "./mail";
+import { summarizeAuthApiError } from "./auth-error-log";
 import { resolveSignupQuotaDefaults } from "../shared/signup-quota";
 
 function trustedOrigins(env: Bindings): string[] {
@@ -110,13 +111,11 @@ export function createAuth(env: Bindings, db: Db) {
     onAPIError: {
       errorURL: `${(env.FRONTEND_URL ?? baseURL).replace(/\/+$/, "")}/login`,
       onError: (error) => {
-        const err = error instanceof Error ? error : new Error(String(error));
         console.error(
           JSON.stringify({
             level: "error",
             event: "better_auth_api_error",
-            name: err.name,
-            message: err.message,
+            ...summarizeAuthApiError(error),
           }),
         );
       },
@@ -364,7 +363,6 @@ export function createAuth(env: Bindings, db: Db) {
                 lastName: "",
                 role: "user",
                 passwordResetRequired: false,
-                dateJoined: new Date().toISOString(),
               },
             };
           },
