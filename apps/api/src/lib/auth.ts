@@ -13,6 +13,7 @@ import type { Db } from "../db/pool";
 import * as schema from "../db/schema";
 import type { Bindings } from "../types/bindings";
 import { sendMail } from "./mail";
+import { summarizeAuthApiError } from "./auth-error-log";
 import { resolveSignupQuotaDefaults } from "../shared/signup-quota";
 
 function trustedOrigins(env: Bindings): string[] {
@@ -88,6 +89,7 @@ export function createAuth(env: Bindings, db: Db) {
   return betterAuth({
     database: drizzleAdapter(db, {
       provider: "pg",
+      transaction: true,
       schema: {
         user: schema.users,
         session: schema.session,
@@ -106,6 +108,18 @@ export function createAuth(env: Bindings, db: Db) {
     baseURL,
     basePath: "/api/auth",
     trustedOrigins: trustedOrigins(env),
+    onAPIError: {
+      errorURL: `${(env.FRONTEND_URL ?? baseURL).replace(/\/+$/, "")}/login`,
+      onError: (error) => {
+        console.error(
+          JSON.stringify({
+            level: "error",
+            event: "better_auth_api_error",
+            ...summarizeAuthApiError(error),
+          }),
+        );
+      },
+    },
     // OAuth provider owns /oauth2/token; disable BA's first-party /token alias.
     disabledPaths: ["/token"],
     emailAndPassword: {
@@ -349,7 +363,6 @@ export function createAuth(env: Bindings, db: Db) {
                 lastName: "",
                 role: "user",
                 passwordResetRequired: false,
-                dateJoined: new Date().toISOString(),
               },
             };
           },

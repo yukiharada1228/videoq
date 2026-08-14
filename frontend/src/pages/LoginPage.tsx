@@ -32,6 +32,7 @@ export default function LoginPage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const nextPath = getSafeNextPath(searchParams.get('next'));
+  const oauthError = searchParams.get('error');
   const [showPassword, setShowPassword] = useState(false);
 
   const { formData, error, isLoading, handleChange, handleSubmit } = useAuthForm({
@@ -59,7 +60,11 @@ export default function LoginPage() {
     <AuthLayout>
       <AuthPageIntro badge={t('auth.login.badge')} title={t('auth.login.title')} />
 
-      {error && <div className="mb-4"><ErrorMessage message={error} /></div>}
+      {(error || oauthError) && (
+        <div className="mb-4">
+          <ErrorMessage message={error || t('auth.login.oauthCallbackFailed')} />
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <FormField

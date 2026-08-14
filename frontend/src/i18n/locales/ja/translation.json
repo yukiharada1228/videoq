@@ -304,6 +304,7 @@
       "continueWithGoogle": "Googleで続行",
       "googleRedirecting": "Googleへ移動中...",
       "googleFailed": "Googleログインに失敗しました",
+      "oauthCallbackFailed": "Googleログインに失敗しました。もう一度お試しください。",
       "footerQuestion": "アカウントをお持ちでない方は",
       "footerLink": "こちらから登録",
       "forgotPassword": "パスワードをお忘れですか？"

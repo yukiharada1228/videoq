@@ -29,6 +29,7 @@ describe('LoginPage', () => {
 
   afterEach(() => {
     globalThis.__setMockLanguage('en')
+    globalThis.__setMockSearchParams('')
   })
 
   it('should render login form', () => {
@@ -74,6 +75,12 @@ describe('LoginPage', () => {
     await waitFor(() => {
       expect(apiClient.loginWithGoogle).toHaveBeenCalledWith('/')
     })
+  })
+
+  it('shows an OAuth callback error from the query string', () => {
+    globalThis.__setMockSearchParams('?error=unable_to_create_user')
+    render(<LoginPage />)
+    expect(screen.getByText('auth.login.oauthCallbackFailed')).toBeInTheDocument()
   })
 
   it('should call apiClient.login on submit', async () => {

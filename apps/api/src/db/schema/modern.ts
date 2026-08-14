@@ -34,10 +34,11 @@ export const users = pgTable(
 		email: varchar({ length: 254 }).notNull(),
 		emailVerified: boolean("email_verified").notNull().default(false),
 		image: text("image"),
-		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+		/** Better Auth writes JS Date (`type: "date"`). */
+		createdAt: timestamp("created_at", { withTimezone: true })
 			.notNull()
 			.defaultNow(),
-		updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+		updatedAt: timestamp("updated_at", { withTimezone: true })
 			.notNull()
 			.defaultNow(),
 		username: varchar({ length: 150 }).notNull(),
@@ -46,7 +47,8 @@ export const users = pgTable(
 		role: text("role").notNull().default("user"),
 		banned: boolean("banned").default(false),
 		banReason: text("ban_reason"),
-		banExpires: timestamp("ban_expires", { withTimezone: true, mode: "string" }),
+		banExpires: timestamp("ban_expires", { withTimezone: true }),
+		/** App-owned timestamps; written as ISO strings / SQL `now()`, not by Better Auth. */
 		lastLogin: timestamp("last_login", { withTimezone: true, mode: "string" }),
 		firstName: varchar("first_name", { length: 150 }).notNull().default(""),
 		lastName: varchar("last_name", { length: 150 }).notNull().default(""),
