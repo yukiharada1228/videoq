@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class VideoRow:
     id: int
-    user_id: int
+    user_id: str
     title: str
     transcript: str | None
     status: str
@@ -30,7 +30,8 @@ def _row_to_video(row: dict[str, Any]) -> VideoRow:
     file_val = row.get("file")
     return VideoRow(
         id=int(row["id"]),
-        user_id=int(row["user_id"]),
+        # users.id is a UUID text PK (migration 0006); int() would raise ValueError.
+        user_id=str(row["user_id"]),
         title=row["title"],
         transcript=row.get("transcript") or None,
         status=row["status"],
