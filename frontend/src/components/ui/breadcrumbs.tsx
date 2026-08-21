@@ -33,32 +33,34 @@ const BreadcrumbsLabel = React.forwardRef<
 })
 BreadcrumbsLabel.displayName = "BreadcrumbsLabel"
 
+// The trail is a <p> of <span>s, not ol/li: upstream 2166f11 dropped the list
+// semantics so screen readers announce the trail as running text.
 const BreadcrumbList = React.forwardRef<
-  HTMLOListElement,
-  React.ComponentPropsWithoutRef<"ol">
+  HTMLParagraphElement,
+  React.ComponentPropsWithoutRef<"p">
 >(({ className, children, ...props }, ref) => {
   return (
-    <ol
+    <p
       ref={ref}
       data-slot="breadcrumb-list"
       className={cn("inline", className)}
       {...props}
     >
       {children}
-    </ol>
+    </p>
   )
 })
 BreadcrumbList.displayName = "BreadcrumbList"
 
-export type BreadcrumbItemProps = React.ComponentPropsWithoutRef<"li"> & {
+export type BreadcrumbItemProps = React.ComponentPropsWithoutRef<"span"> & {
   isCurrent?: boolean
 }
 
-const BreadcrumbItem = React.forwardRef<HTMLLIElement, BreadcrumbItemProps>(
+const BreadcrumbItem = React.forwardRef<HTMLSpanElement, BreadcrumbItemProps>(
   ({ isCurrent = false, className, children, ...props }, ref) => {
     if (isCurrent) {
       return (
-        <li
+        <span
           ref={ref}
           data-slot="breadcrumb-item"
           aria-current="page"
@@ -66,12 +68,12 @@ const BreadcrumbItem = React.forwardRef<HTMLLIElement, BreadcrumbItemProps>(
           {...props}
         >
           {children}
-        </li>
+        </span>
       )
     }
 
     return (
-      <li
+      <span
         ref={ref}
         data-slot="breadcrumb-item"
         className={cn("inline break-words", className)}
@@ -91,7 +93,7 @@ const BreadcrumbItem = React.forwardRef<HTMLLIElement, BreadcrumbItemProps>(
             fill="currentColor"
           />
         </svg>
-      </li>
+      </span>
     )
   }
 )

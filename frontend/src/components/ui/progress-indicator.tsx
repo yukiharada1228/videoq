@@ -370,8 +370,8 @@ const format = (template: string, variables: Record<string, string | number>) =>
   )
 
 /**
- * Hook that manages announcement text for screen readers.
- * Render the returned value in a visually hidden element with `role="status"`.
+ * スクリーンリーダーへの通知テキストを管理する hook。
+ * 戻り値を `role="status"` のビジュアル上隠した要素に差し込んで使用する。
  */
 const useProgressIndicatorAnnouncer = (
   props: UseProgressIndicatorAnnouncerProps
