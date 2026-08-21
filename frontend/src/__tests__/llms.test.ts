@@ -3,6 +3,7 @@ import { readFileSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { describe, it, expect, beforeAll } from 'vitest'
+import { docsSectionIds } from '@/lib/docs/sections'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -75,12 +76,8 @@ describe('llms.txt', () => {
 
   // ── Documentation links ──────────────────────────────────────────────────────
 
-  const REQUIRED_DOC_LINKS = [
-    `${BASE}/docs/auth`,
-    `${BASE}/docs/videos`,
-    `${BASE}/docs/chat`,
-    `${BASE}/docs/openai`,
-  ]
+  // Every docs section the app renders must be discoverable from llms.txt.
+  const REQUIRED_DOC_LINKS = docsSectionIds.map((id) => `${BASE}/docs/${id}`)
 
   it.each(REQUIRED_DOC_LINKS)('contains link to %s', (url) => {
     expect(content).toContain(url)

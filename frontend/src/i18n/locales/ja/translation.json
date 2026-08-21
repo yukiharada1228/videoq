@@ -614,52 +614,117 @@
     "home": {
       "title": "VideoQ Developer Docs",
       "subtitle": "VideoQ API 連携と自動化のための開発者向けリファレンス。",
-      "quickLinksTitle": "クイックリンク",
-      "quickLinksDescription": "公式 API ドキュメントを確認したり、設定画面で連携用 API キーを発行したりできます。",
+      "quickLinksTitle": "API セクション",
+      "quickLinksDescription": "OpenAPI スキーマ（/api/schema）から連携用エンドポイントを機能ごとに分類しています。ヘルスチェックは「リファレンスとツール」から確認できます。",
+      "endpointCount_one": "{{count}} エンドポイント",
+      "endpointCount_other": "{{count}} エンドポイント",
+      "referencesTitle": "リファレンスとツール",
+      "referencesDescription": "スキーマ本体、MCP、稼働確認用エンドポイントへのリンクです。",
+      "references": {
+        "reference": "API リファレンス（Scalar）",
+        "openapi": "OpenAPI ドキュメント（JSON）",
+        "redoc": "API リファレンス（ReDoc）",
+        "health": "ヘルスチェック",
+        "mcp": "MCP エンドポイント（Streamable HTTP）"
+      },
       "createApiKey": "設定で API キーを発行"
     },
     "section": {
       "checklistTitle": "実装チェックリスト",
       "checklistDescription": "連携実装前に確認しておくべき項目です。",
-      "autoExampleTitle": "自動生成エンドポイント例",
-      "autoExampleDescription": "以下の cURL は /api/schema から自動生成しています。",
+      "autoExampleTitle": "エンドポイント一覧",
+      "autoExampleDescription": "以下のリクエスト例は /api/schema から自動生成しています。タブで言語を切り替えられます。",
       "autoLabel": "自動生成"
     },
     "sections": {
       "auth": {
-        "title": "認証",
-        "description": "連携用 API キーの発行と利用方法。",
+        "title": "認証とアカウント",
+        "description": "API キーの発行方法と、アカウント情報・外部サービスキーの管理。",
         "bullets": [
-          "設定画面でキーを作成し、安全に保管する",
-          "サーバー間通信は X-API-Key ヘッダーを利用する",
-          "本実装前に GET /api/auth/me で認証確認する"
+          "設定画面で API キー（vq_ で始まる文字列）を発行し、安全に保管する。キー管理 API は Better Auth が提供するため OpenAPI スキーマ対象外",
+          "連携用エンドポイントでは X-API-Key を使い、OpenAI 互換エンドポイントでは Authorization: Bearer vq_... を使う",
+          "API キーの疎通確認は GET /api/videos?limit=1 で行う",
+          "更新系（POST / PUT / PATCH / DELETE）には write スコープを持つキーが必要",
+          "/api/account/* はログイン中のブラウザセッションで認証し、セッション自体は Better Auth の /api/auth/* が発行する"
         ]
       },
       "videos": {
         "title": "Videos API",
-        "description": "動画アップロードとグループ管理の連携手順。",
+        "description": "動画のアップロードと YouTube 登録、処理状況の確認。",
         "bullets": [
-          "最初にグループを作成し group_id を保持する",
-          "対応 MIME type で動画をアップロードする",
-          "一覧/詳細 API で処理状態を監視する"
+          "大きいファイルは POST /api/videos/uploads で署名付き URL を取得し、アップロード後に PATCH /api/videos/{id} で確定する",
+          "小さいファイルは POST /api/videos に multipart/form-data で直接送れる",
+          "YouTube 動画は POST /api/videos/youtube に URL を渡して登録する",
+          "GET /api/videos/{id} の status（processing → indexing → completed）で文字起こしとインデックスの進捗を確認する",
+          "GET /api/videos は q / status / ordering / tags と limit / offset で絞り込める"
+        ]
+      },
+      "groups": {
+        "title": "Groups / Membership API",
+        "description": "動画グループの作成、所属動画の管理、共有リンクの発行。",
+        "bullets": [
+          "POST /api/videos/groups でグループを作成し、返却された id を Chat API の group_id に使う",
+          "POST /api/videos/groups/{groupId}/videos で動画をまとめて追加する",
+          "PATCH /api/videos/groups/{groupId}/videos/order で並び順を更新する",
+          "POST /api/videos/groups/{id}/share で共有リンクを発行すると、GET /api/videos/groups/share/{slug} が認証なしで参照できる"
+        ]
+      },
+      "tags": {
+        "title": "Tags API",
+        "description": "タグの作成と、動画へのタグ付け。",
+        "bullets": [
+          "POST /api/videos/tags でタグを作成する",
+          "POST /api/videos/{videoId}/tags で動画にタグを付け、DELETE /api/videos/{videoId}/tags/{tagId} で外す",
+          "作成したタグは GET /api/videos の tags パラメータで絞り込みに使える"
         ]
       },
       "chat": {
         "title": "Chat API",
-        "description": "RAG チャット実行と分析データ取得。",
+        "description": "RAG チャットの実行と、履歴・分析データの取得。",
         "bullets": [
-          "group_id を指定して対象動画群に質問する",
-          "回答言語を固定したい場合は Accept-Language を指定する",
-          "chat_log_id と分析結果を外部システムに保存する"
+          "POST /api/chat/messages に messages と group_id を渡して質問する（mode に study を指定すると学習モード）",
+          "逐次表示したい場合は POST /api/chat/messages/stream（SSE）を使う",
+          "回答言語は Accept-Language ヘッダーで切り替える",
+          "GET /api/chat/groups/{groupId}/history で履歴（?download=csv で CSV）、GET /api/chat/groups/{groupId}/analytics で件数と評価の集計を取得する",
+          "PATCH /api/chat/logs/{logId}/feedback に good / bad / null を送って評価を記録する"
         ]
       },
       "openai": {
         "title": "OpenAI 互換 API",
         "description": "OpenAI SDK をそのまま使って VideoQ の RAG チャットにアクセス。",
         "bullets": [
-          "Authorization: Bearer <vq_...> で認証する",
-          "language フィールドで応答言語を指定する（省略すると英語）",
+          "base_url に /api/v1、api_key に vq_... を設定する（Authorization: Bearer で送信される）",
+          "model は videoq、対象グループは group_id で指定する（Python SDK では extra_body）",
+          "language フィールドで応答言語を指定する（省略時は Accept-Language、それも無ければ英語）",
           "citations と chat_log_id は choices[0].message の拡張フィールドとして返される（Python SDK では msg.model_extra で取得）"
+        ]
+      },
+      "plog": {
+        "title": "Plog API",
+        "description": "動画から生成した概念グラフ（Plog）の取得と編集。",
+        "bullets": [
+          "GET /api/videos/{videoId}/plog で概念（concepts）と関連（edges）を取得する",
+          "POST /api/videos/{videoId}/plog/rebuild で再生成をキューに積む（処理は非同期）",
+          "概念と関連は作成・更新・削除でき、POST /api/videos/{videoId}/plog/concepts/{conceptId}/merge で統合できる",
+          "学習状態は GET / DELETE /api/videos/{videoId}/plog/learner-state で取得・リセットする"
+        ]
+      },
+      "evaluation": {
+        "title": "Evaluation API",
+        "description": "グループ単位の回答評価ログとサマリー。",
+        "bullets": [
+          "GET /api/evaluation/groups/{groupId}/summary で評価の集計を取得する",
+          "GET /api/evaluation/groups/{groupId}/logs で個別の評価ログを取得する"
+        ]
+      },
+      "admin": {
+        "title": "Admin API",
+        "description": "スーパーユーザー限定のユーザー管理と再インデックス。",
+        "bullets": [
+          "スーパーユーザーとして認証したセッションまたは API キーが必要",
+          "GET /api/admin/users で一覧し、PATCH /api/admin/users/{id}/flags・/quota・/usage で権限・上限・使用量を更新する",
+          "DELETE /api/admin/users/{id} は該当ユーザーを無効化し、関連データの削除をワーカーに委譲する",
+          "POST /api/admin/embeddings/reindex-all は全動画の埋め込み再生成をキューに積む"
         ]
       }
     }

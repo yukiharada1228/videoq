@@ -62,9 +62,20 @@ VideoQはMCPサーバーとして動作し、Claude DesktopなどのAIエージ�
 
 VideoQ acts as an MCP server, allowing AI agent clients such as Claude Desktop to access video content directly via the Model Context Protocol.
 
+- Endpoint: `POST /api/mcp` (Streamable HTTP)
+- Authentication: OAuth bearer token or API key
+
 ## Documentation
 
 - [Authentication API](https://videoq.jp/docs/auth)
 - [Video API](https://videoq.jp/docs/videos)
+- [Group and Membership API](https://videoq.jp/docs/groups)
+- [Tag API](https://videoq.jp/docs/tags)
 - [Chat API](https://videoq.jp/docs/chat)
 - [OpenAI-Compatible API](https://videoq.jp/docs/openai)
+- [Plog API](https://videoq.jp/docs/plog)
+- [Evaluation API](https://videoq.jp/docs/evaluation)
+- [Admin API](https://videoq.jp/docs/admin)
+- [Interactive API Reference](https://videoq.jp/api/docs)
+- [ReDoc API Reference](https://videoq.jp/api/redoc)
+- [OpenAPI Schema](https://videoq.jp/api/openapi.json)
