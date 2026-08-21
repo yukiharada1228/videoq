@@ -16,7 +16,7 @@ type ChipLabelColor =
   | "magenta"
   | "purple"
 
-// Define only color-specific styles; chipLabelVariants applies shared styles.
+// 色に関するスタイルのみ定義（共通スタイルは chipLabelVariants で適用）
 const colorClasses: Record<
   NonNullable<VariantProps<typeof chipLabelVariants>["variant"]>,
   Record<ChipLabelColor, string>
