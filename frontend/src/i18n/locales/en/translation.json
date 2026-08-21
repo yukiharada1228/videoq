@@ -614,52 +614,117 @@
     "home": {
       "title": "VideoQ Developer Docs",
       "subtitle": "Reference docs for integrating with VideoQ APIs and automations.",
-      "quickLinksTitle": "Quick links",
-      "quickLinksDescription": "Review the official API docs and issue an integration API key from Settings.",
+      "quickLinksTitle": "API sections",
+      "quickLinksDescription": "Integration endpoints from the live OpenAPI schema (/api/schema), grouped by feature. Health checks are listed under References and tools.",
+      "endpointCount_one": "{{count}} endpoint",
+      "endpointCount_other": "{{count}} endpoints",
+      "referencesTitle": "References and tools",
+      "referencesDescription": "Links to the schema itself, MCP, and the liveness endpoints.",
+      "references": {
+        "reference": "API reference (Scalar)",
+        "openapi": "OpenAPI document (JSON)",
+        "redoc": "API reference (ReDoc)",
+        "health": "Health checks",
+        "mcp": "MCP endpoint (Streamable HTTP)"
+      },
       "createApiKey": "Create API key in Settings"
     },
     "section": {
       "checklistTitle": "Implementation checklist",
       "checklistDescription": "Validate these points before coding your integration.",
-      "autoExampleTitle": "Auto-generated endpoint samples",
-      "autoExampleDescription": "These cURL examples are generated from /api/schema.",
+      "autoExampleTitle": "Endpoints",
+      "autoExampleDescription": "These request samples are generated from /api/schema. Switch languages with the tabs.",
       "autoLabel": "Auto-generated"
     },
     "sections": {
       "auth": {
-        "title": "Authentication",
-        "description": "How to issue and use integration API keys.",
+        "title": "Authentication and account",
+        "description": "How to issue API keys, and how to manage account and third-party keys.",
         "bullets": [
-          "Create a key in Settings and store it securely",
-          "Use X-API-Key header in server-to-server calls",
-          "Verify with GET /api/auth/me before full integration"
+          "Create an API key (it starts with vq_) in Settings and store it securely; key-management endpoints are provided by Better Auth and are not in the OpenAPI schema",
+          "For integration endpoints, send the key as X-API-Key; the OpenAI-compatible endpoint uses Authorization: Bearer vq_...",
+          "Verify API-key connectivity with GET /api/videos?limit=1",
+          "Writes (POST / PUT / PATCH / DELETE) need a key with the write scope",
+          "/api/account/* uses the signed-in browser session; Better Auth issues that session through /api/auth/*"
         ]
       },
       "videos": {
         "title": "Videos API",
-        "description": "Upload videos and manage video groups for retrieval.",
+        "description": "Upload videos, register YouTube URLs, and track processing status.",
         "bullets": [
-          "Create a group first and keep group_id for later calls",
-          "Upload videos with supported MIME types",
-          "Poll list/detail endpoints to track processing/indexing status"
+          "For large files, request a presigned URL with POST /api/videos/uploads and confirm with PATCH /api/videos/{id} after uploading",
+          "For small files, post multipart/form-data straight to POST /api/videos",
+          "Register YouTube videos by passing the URL to POST /api/videos/youtube",
+          "Track transcription and indexing through status on GET /api/videos/{id} (processing → indexing → completed)",
+          "GET /api/videos accepts q / status / ordering / tags plus limit / offset"
+        ]
+      },
+      "groups": {
+        "title": "Groups / Membership API",
+        "description": "Create video groups, manage their members, and issue share links.",
+        "bullets": [
+          "Create a group with POST /api/videos/groups and reuse the returned id as group_id in the Chat API",
+          "Add videos in bulk with POST /api/videos/groups/{groupId}/videos",
+          "Reorder them with PATCH /api/videos/groups/{groupId}/videos/order",
+          "POST /api/videos/groups/{id}/share issues a share link, after which GET /api/videos/groups/share/{slug} is readable without authentication"
+        ]
+      },
+      "tags": {
+        "title": "Tags API",
+        "description": "Create tags and attach them to videos.",
+        "bullets": [
+          "Create tags with POST /api/videos/tags",
+          "Attach with POST /api/videos/{videoId}/tags and detach with DELETE /api/videos/{videoId}/tags/{tagId}",
+          "Filter the video list with the tags parameter on GET /api/videos"
         ]
       },
       "chat": {
         "title": "Chat API",
-        "description": "Run RAG chat and collect analytics for each group.",
+        "description": "Run RAG chat and pull history and analytics.",
         "bullets": [
-          "Send messages with group_id to target indexed videos",
-          "Use Accept-Language when you need response language control",
-          "Store chat_log_id and analytics outputs for downstream systems"
+          "POST /api/chat/messages with messages and group_id (set mode to study for study mode)",
+          "Use POST /api/chat/messages/stream (SSE) when you want token-by-token output",
+          "Control the response language with the Accept-Language header",
+          "GET /api/chat/groups/{groupId}/history returns history (?download=csv for CSV) and GET /api/chat/groups/{groupId}/analytics returns volume and feedback totals",
+          "Record ratings by sending good / bad / null to PATCH /api/chat/logs/{logId}/feedback"
         ]
       },
       "openai": {
         "title": "OpenAI-Compatible API",
         "description": "Access VideoQ RAG chat using the OpenAI SDK with no code changes.",
         "bullets": [
-          "Authenticate with Authorization: Bearer <vq_...>",
-          "Pass language to control response language (defaults to English if omitted)",
+          "Set base_url to /api/v1 and api_key to vq_... (sent as Authorization: Bearer)",
+          "Use model videoq and select the target group with group_id (extra_body in the Python SDK)",
+          "Pass language to control the response language (falls back to Accept-Language, then English)",
           "citations and chat_log_id are returned as extension fields on choices[0].message (access via msg.model_extra in Python SDK)"
+        ]
+      },
+      "plog": {
+        "title": "Plog API",
+        "description": "Read and edit the concept graph (Plog) generated from a video.",
+        "bullets": [
+          "GET /api/videos/{videoId}/plog returns concepts and edges",
+          "POST /api/videos/{videoId}/plog/rebuild enqueues a rebuild (processed asynchronously)",
+          "Concepts and edges can be created, updated, and deleted, and merged with POST /api/videos/{videoId}/plog/concepts/{conceptId}/merge",
+          "Read or reset learner state with GET / DELETE /api/videos/{videoId}/plog/learner-state"
+        ]
+      },
+      "evaluation": {
+        "title": "Evaluation API",
+        "description": "Per-group answer evaluation logs and summaries.",
+        "bullets": [
+          "GET /api/evaluation/groups/{groupId}/summary returns aggregated evaluation results",
+          "GET /api/evaluation/groups/{groupId}/logs returns individual evaluation logs"
+        ]
+      },
+      "admin": {
+        "title": "Admin API",
+        "description": "Superuser-only user management and reindexing.",
+        "bullets": [
+          "Requires a session or API key authenticated as a superuser",
+          "List users with GET /api/admin/users, then update permissions, quota, and usage with PATCH /api/admin/users/{id}/flags, /quota, and /usage",
+          "DELETE /api/admin/users/{id} deactivates the user and hands the data deletion to the worker",
+          "POST /api/admin/embeddings/reindex-all enqueues an embedding rebuild for every video"
         ]
       }
     }

@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { getApiOrigin } from '@/lib/api';
 import { Disclosure, DisclosureSummary } from '@/components/ui/disclosure';
 import { Heading, HeadingTitle } from '@/components/ui/heading';
 import { Tab, TabItem, TabList, TabPanel, useTabAria } from '@/components/ui/tabs';
@@ -119,15 +119,9 @@ const tabLabels: Record<TabId, string> = {
 
 export function OpenAiSdkExampleList() {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<TabId>('python');
-  const tabAria = useTabAria({
-    defaultSelectedIndex: 0,
-    onTabChange: ({ selectedIndex }) => {
-      setActiveTab(tabs[selectedIndex] ?? 'python');
-    },
-  });
+  const tabAria = useTabAria({ defaultSelectedIndex: 0 });
 
-  const baseUrl = `${window.location.origin}/api/v1/`;
+  const baseUrl = `${getApiOrigin()}/api/v1/`;
 
   const codeStrings: CodeStrings = {
     ragComment: t('docs.openai.code.ragComment'),
@@ -165,7 +159,7 @@ export function OpenAiSdkExampleList() {
                   {t(example.descriptionKey)}
                 </p>
                 <pre className="overflow-x-auto border border-solid-gray-420 bg-solid-gray-800 p-4 text-dns-14N-130 text-white">
-                  <code>{example.snippets[activeTab]}</code>
+                  <code>{example.snippets[tab]}</code>
                 </pre>
               </div>
             </Disclosure>

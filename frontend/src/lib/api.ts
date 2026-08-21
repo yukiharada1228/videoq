@@ -23,6 +23,14 @@ export interface PaginatedResponse<T> {
   };
 }
 
+/**
+ * Origin the API is served from. `VITE_API_URL` is a same-origin path (`/api`)
+ * in Docker and production, but an absolute URL in local development.
+ */
+export function getApiOrigin(): string {
+  return new URL(API_URL, window.location.origin).origin;
+}
+
 /** Strip trailing slashes from API paths (except root). Preserves query strings. */
 export function apiPath(path: string): string {
   if (!path || path === '/') return path;

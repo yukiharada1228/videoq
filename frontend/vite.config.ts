@@ -2,6 +2,8 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import path from 'path'
 
+const apiProxyTarget = process.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:8787'
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
@@ -17,7 +19,16 @@ export default defineConfig({
     proxy: {
       // Local Hono (wrangler). Client should use VITE_API_URL=/api so cookies stay same-origin.
       '/api': {
-        target: process.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:8787',
+        target: apiProxyTarget,
+        changeOrigin: true,
+      },
+      // Health endpoints live at the API origin root rather than below /api.
+      '/health': {
+        target: apiProxyTarget,
+        changeOrigin: true,
+      },
+      '/ready': {
+        target: apiProxyTarget,
         changeOrigin: true,
       },
     },

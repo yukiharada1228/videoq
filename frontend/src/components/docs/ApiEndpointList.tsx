@@ -1,55 +1,23 @@
-import { useEffect, useMemo, useState } from 'react';
-import { API_URL, apiClient } from '@/lib/api';
+import { useMemo } from 'react';
+import { getApiOrigin } from '@/lib/api';
+import { useOpenApiSchema } from '@/hooks/useOpenApiSchema';
+import {
+  listOperations,
+  type HttpMethod,
+  type OpenApiOperation,
+  type OpenApiSchemaObject,
+} from '@/lib/docs/openapi';
+import {
+  getDocsAuthMode,
+  matchesDocsSection,
+  type DocsAuthMode,
+  type DocsSectionId,
+} from '@/lib/docs/sections';
 import { ChipLabel } from '@/components/ui/chip-label';
 import { Disclosure, DisclosureSummary } from '@/components/ui/disclosure';
 import { Heading, HeadingTitle } from '@/components/ui/heading';
 import { Tab, TabItem, TabList, TabPanel, useTabAria } from '@/components/ui/tabs';
 import { useTranslation } from 'react-i18next';
-
-type DocsSection = 'auth' | 'videos' | 'chat' | 'openai';
-type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
-
-type OpenApiSchema = {
-  paths?: Record<string, Record<string, OpenApiOperation>>;
-  components?: {
-    schemas?: Record<string, OpenApiSchemaObject>;
-  };
-};
-
-type OpenApiOperation = {
-  summary?: string;
-  description?: string;
-  tags?: string[];
-  parameters?: OpenApiParameter[];
-  requestBody?: {
-    content?: {
-      'application/json'?: {
-        schema?: OpenApiSchemaObject;
-      };
-    };
-  };
-};
-
-type OpenApiSchemaObject = {
-  type?: string;
-  format?: string;
-  enum?: string[];
-  properties?: Record<string, OpenApiSchemaObject>;
-  required?: string[];
-  items?: OpenApiSchemaObject;
-  oneOf?: OpenApiSchemaObject[];
-  anyOf?: OpenApiSchemaObject[];
-  allOf?: OpenApiSchemaObject[];
-  additionalProperties?: OpenApiSchemaObject | boolean;
-  $ref?: string;
-};
-
-type OpenApiParameter = {
-  in?: 'path' | 'query' | 'header' | 'cookie';
-  name?: string;
-  required?: boolean;
-  schema?: OpenApiSchemaObject;
-};
 
 type EndpointItem = {
   method: HttpMethod;
@@ -59,15 +27,20 @@ type EndpointItem = {
   snippets: Record<SnippetTab, string>;
 };
 
-const supportedMethods: HttpMethod[] = ['get', 'post', 'put', 'patch', 'delete'];
 const snippetTabs = ['curl', 'javascript', 'typescript', 'python', 'go', 'java', 'csharp', 'php', 'ruby'] as const;
 type SnippetTab = (typeof snippetTabs)[number];
 
-function sectionMatchesPath(path: string, section: DocsSection): boolean {
-  if (section === 'auth') return path.includes('/auth/');
-  if (section === 'videos') return path.includes('/videos/');
-  if (section === 'openai') return path.startsWith('/v1/');
-  return path.includes('/chat/');
+function authenticationHeader(authMode: DocsAuthMode): [string, string] | null {
+  if (authMode === 'session') {
+    return ['Cookie', '<session-cookie-name>=<session-cookie-value>'];
+  }
+  if (authMode === 'bearerApiKey') {
+    return ['Authorization', 'Bearer vq_your_key_here'];
+  }
+  if (authMode === 'apiKey') {
+    return ['X-API-Key', 'vq_your_key_here'];
+  }
+  return null;
 }
 
 function resolveSchemaRef(
@@ -133,13 +106,14 @@ function generateJsonExample(
 function buildCurlExample(
   method: HttpMethod,
   url: string,
-  includeApiKeyHeader: boolean,
+  authMode: DocsAuthMode,
   body: unknown | null,
 ): string {
   const lines: string[] = [`curl -X ${method.toUpperCase()} \\`, '  -H "Accept: application/json" \\'];
 
-  if (includeApiKeyHeader) {
-    lines.push('  -H "X-API-Key: vq_your_key_here" \\');
+  const authHeader = authenticationHeader(authMode);
+  if (authHeader) {
+    lines.push(`  -H "${authHeader[0]}: ${authHeader[1]}" \\`);
   }
 
   if (body !== null) {
@@ -154,11 +128,13 @@ function buildCurlExample(
 function buildJavaScriptExample(
   method: HttpMethod,
   url: string,
-  includeApiKeyHeader: boolean,
+  authMode: DocsAuthMode,
   body: unknown | null,
 ): string {
   const headers: Record<string, string> = { Accept: 'application/json' };
-  if (includeApiKeyHeader) headers['X-API-Key'] = 'vq_your_key_here';
+  const authHeader = authenticationHeader(authMode);
+  // Browsers attach the HttpOnly account-session cookie themselves.
+  if (authHeader && authMode !== 'session') headers[authHeader[0]] = authHeader[1];
   if (body !== null) headers['Content-Type'] = 'application/json';
 
   const lines: string[] = [
@@ -166,6 +142,7 @@ function buildJavaScriptExample(
     `  method: "${method.toUpperCase()}",`,
     `  headers: ${JSON.stringify(headers, null, 2).replace(/\n/g, '\n  ')},`,
   ];
+  if (authMode === 'session') lines.push('  credentials: "include",');
   if (body !== null) {
     lines.push(`  body: JSON.stringify(${JSON.stringify(body, null, 2).replace(/\n/g, '\n  ')}),`);
   }
@@ -179,13 +156,14 @@ function buildJavaScriptExample(
 function buildPythonExample(
   method: HttpMethod,
   url: string,
-  includeApiKeyHeader: boolean,
+  authMode: DocsAuthMode,
   body: unknown | null,
 ): string {
   const headers: Record<string, string> = {
     Accept: 'application/json',
   };
-  if (includeApiKeyHeader) headers['X-API-Key'] = 'vq_your_key_here';
+  const authHeader = authenticationHeader(authMode);
+  if (authHeader) headers[authHeader[0]] = authHeader[1];
   if (body !== null) headers['Content-Type'] = 'application/json';
 
   const lines: string[] = [
@@ -212,16 +190,16 @@ function buildPythonExample(
 function buildTypescriptExample(
   method: HttpMethod,
   url: string,
-  includeApiKeyHeader: boolean,
+  authMode: DocsAuthMode,
   body: unknown | null,
 ): string {
-  return buildJavaScriptExample(method, url, includeApiKeyHeader, body);
+  return buildJavaScriptExample(method, url, authMode, body);
 }
 
 function buildGoExample(
   method: HttpMethod,
   url: string,
-  includeApiKeyHeader: boolean,
+  authMode: DocsAuthMode,
   body: unknown | null,
 ): string {
   const bodyLiteral = body !== null ? JSON.stringify(body, null, 2).replace(/`/g, '\\`') : '';
@@ -238,7 +216,8 @@ function buildGoExample(
   lines.push('  log.Fatal(err)');
   lines.push('}');
   lines.push('req.Header.Set("Accept", "application/json")');
-  if (includeApiKeyHeader) lines.push('req.Header.Set("X-API-Key", "vq_your_key_here")');
+  const authHeader = authenticationHeader(authMode);
+  if (authHeader) lines.push(`req.Header.Set("${authHeader[0]}", "${authHeader[1]}")`);
   if (body !== null) lines.push('req.Header.Set("Content-Type", "application/json")');
   lines.push('resp, err := client.Do(req)');
   lines.push('if err != nil {');
@@ -253,7 +232,7 @@ function buildGoExample(
 function buildJavaExample(
   method: HttpMethod,
   url: string,
-  includeApiKeyHeader: boolean,
+  authMode: DocsAuthMode,
   body: unknown | null,
 ): string {
   const bodyLiteral = body !== null ? JSON.stringify(body, null, 2).replace(/"/g, '\\"') : '';
@@ -262,7 +241,8 @@ function buildJavaExample(
     `HttpRequest.Builder builder = HttpRequest.newBuilder().uri(URI.create("${url}"))`,
     '    .header("Accept", "application/json")',
   ];
-  if (includeApiKeyHeader) lines.push('    .header("X-API-Key", "vq_your_key_here")');
+  const authHeader = authenticationHeader(authMode);
+  if (authHeader) lines.push(`    .header("${authHeader[0]}", "${authHeader[1]}")`);
   if (body !== null) lines.push('    .header("Content-Type", "application/json")');
   if (body !== null) {
     lines.push(`    .method("${method.toUpperCase()}", HttpRequest.BodyPublishers.ofString("${bodyLiteral}"));`);
@@ -278,7 +258,7 @@ function buildJavaExample(
 function buildCSharpExample(
   method: HttpMethod,
   url: string,
-  includeApiKeyHeader: boolean,
+  authMode: DocsAuthMode,
   body: unknown | null,
 ): string {
   const bodyLiteral = body !== null ? JSON.stringify(body, null, 2).replace(/"/g, '\\"') : '';
@@ -287,7 +267,8 @@ function buildCSharpExample(
     'using var request = new HttpRequestMessage(new HttpMethod("' + method.toUpperCase() + '"), "' + url + '");',
     'request.Headers.Add("Accept", "application/json");',
   ];
-  if (includeApiKeyHeader) lines.push('request.Headers.Add("X-API-Key", "vq_your_key_here");');
+  const authHeader = authenticationHeader(authMode);
+  if (authHeader) lines.push(`request.Headers.Add("${authHeader[0]}", "${authHeader[1]}");`);
   if (body !== null) {
     lines.push('request.Content = new StringContent("' + bodyLiteral + '", Encoding.UTF8, "application/json");');
   }
@@ -301,11 +282,12 @@ function buildCSharpExample(
 function buildPhpExample(
   method: HttpMethod,
   url: string,
-  includeApiKeyHeader: boolean,
+  authMode: DocsAuthMode,
   body: unknown | null,
 ): string {
   const headerLines = ['"Accept: application/json"'];
-  if (includeApiKeyHeader) headerLines.push('"X-API-Key: vq_your_key_here"');
+  const authHeader = authenticationHeader(authMode);
+  if (authHeader) headerLines.push(`"${authHeader[0]}: ${authHeader[1]}"`);
   if (body !== null) headerLines.push('"Content-Type: application/json"');
   const bodyLiteral = body !== null ? JSON.stringify(body, null, 2).replace(/'/g, "\\'") : '';
   const lines: string[] = [
@@ -327,11 +309,12 @@ function buildPhpExample(
 function buildRubyExample(
   method: HttpMethod,
   url: string,
-  includeApiKeyHeader: boolean,
+  authMode: DocsAuthMode,
   body: unknown | null,
 ): string {
   const headers: Record<string, string> = { 'Accept' : 'application/json' };
-  if (includeApiKeyHeader) headers['X-API-Key'] = 'vq_your_key_here';
+  const authHeader = authenticationHeader(authMode);
+  if (authHeader) headers[authHeader[0]] = authHeader[1];
   if (body !== null) headers['Content-Type'] = 'application/json';
   const lines: string[] = [
     'uri = URI("' + url + '")',
@@ -369,94 +352,45 @@ function buildEndpointSnippets(
     .map((parameter) => `${parameter.name}=${encodeURIComponent(String(primitiveExample(parameter.schema)))}`);
 
   const queryString = queryPairs.length > 0 ? `?${queryPairs.join('&')}` : '';
-  const apiOrigin = new URL(API_URL, window.location.origin).origin;
-  const url = `${apiOrigin}${resolvedPath}${queryString}`;
-  const includeApiKeyHeader = !path.includes('/schema/');
+  const url = `${getApiOrigin()}${resolvedPath}${queryString}`;
+  const authMode = getDocsAuthMode(path);
   const bodySchema = operation.requestBody?.content?.['application/json']?.schema;
   const body = bodySchema ? generateJsonExample(bodySchema, components) : null;
 
   return {
-    curl: buildCurlExample(method, url, includeApiKeyHeader, body),
-    javascript: buildJavaScriptExample(method, url, includeApiKeyHeader, body),
-    typescript: buildTypescriptExample(method, url, includeApiKeyHeader, body),
-    python: buildPythonExample(method, url, includeApiKeyHeader, body),
-    go: buildGoExample(method, url, includeApiKeyHeader, body),
-    java: buildJavaExample(method, url, includeApiKeyHeader, body),
-    csharp: buildCSharpExample(method, url, includeApiKeyHeader, body),
-    php: buildPhpExample(method, url, includeApiKeyHeader, body),
-    ruby: buildRubyExample(method, url, includeApiKeyHeader, body),
+    curl: buildCurlExample(method, url, authMode, body),
+    javascript: buildJavaScriptExample(method, url, authMode, body),
+    typescript: buildTypescriptExample(method, url, authMode, body),
+    python: buildPythonExample(method, url, authMode, body),
+    go: buildGoExample(method, url, authMode, body),
+    java: buildJavaExample(method, url, authMode, body),
+    csharp: buildCSharpExample(method, url, authMode, body),
+    php: buildPhpExample(method, url, authMode, body),
+    ruby: buildRubyExample(method, url, authMode, body),
   };
 }
 
 interface ApiEndpointListProps {
-  section: DocsSection;
+  section: DocsSectionId;
 }
 
 export function ApiEndpointList({ section }: ApiEndpointListProps) {
   const { t } = useTranslation();
-  const [schema, setSchema] = useState<OpenApiSchema | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeSnippetTab, setActiveSnippetTab] = useState<SnippetTab>('curl');
-  const tabs = useTabAria({
-    defaultSelectedIndex: 0,
-    onTabChange: ({ selectedIndex }) => {
-      setActiveSnippetTab(snippetTabs[selectedIndex] ?? 'curl');
-    },
-  });
-
-  useEffect(() => {
-    const abortController = new AbortController();
-
-    const loadSchema = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await apiClient.getSchema<OpenApiSchema>(abortController.signal);
-        setSchema(data);
-      } catch (caughtError) {
-        if ((caughtError as Error).name === 'AbortError') return;
-        setError(caughtError instanceof Error ? caughtError.message : 'Failed to load schema');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadSchema();
-    return () => abortController.abort();
-  }, []);
+  const { schema, error, loading } = useOpenApiSchema();
+  const tabs = useTabAria({ defaultSelectedIndex: 0 });
 
   const endpoints = useMemo<EndpointItem[]>(() => {
-    if (!schema?.paths) return [];
+    const components = schema?.components?.schemas || {};
 
-    const components = schema.components?.schemas || {};
-    const items: EndpointItem[] = [];
-
-    Object.entries(schema.paths).forEach(([path, methods]) => {
-      if (!sectionMatchesPath(path, section)) return;
-
-      supportedMethods.forEach((method) => {
-        const operation = methods[method];
-        if (!operation) return;
-
-        const summary = operation.summary || `${method.toUpperCase()} ${path}`;
-        items.push({
-          method,
-          path,
-          summary,
-          description: operation.description,
-          snippets: buildEndpointSnippets(method, path, operation, components),
-        });
-      });
-    });
-
-    const sorted = items.sort((left, right) => {
-      const pathCompare = left.path.localeCompare(right.path);
-      if (pathCompare !== 0) return pathCompare;
-      return left.method.localeCompare(right.method);
-    });
-
-    return sorted;
+    return listOperations(schema)
+      .filter(({ path, operation }) => matchesDocsSection(section, path, operation))
+      .map(({ method, path, operation }) => ({
+        method,
+        path,
+        summary: operation.summary || `${method.toUpperCase()} ${path}`,
+        description: operation.description,
+        snippets: buildEndpointSnippets(method, path, operation, components),
+      }));
   }, [schema, section]);
 
   if (loading) {
@@ -511,7 +445,7 @@ export function ApiEndpointList({ section }: ApiEndpointListProps) {
                   <p className="text-std-16N-170 text-solid-gray-700">{endpoint.description}</p>
                 ) : null}
                 <pre className="overflow-x-auto border border-solid-gray-420 bg-solid-gray-800 p-4 text-dns-14N-130 text-white">
-                  <code>{endpoint.snippets[activeSnippetTab]}</code>
+                  <code>{endpoint.snippets[tab]}</code>
                 </pre>
               </div>
             </Disclosure>

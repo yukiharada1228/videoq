@@ -5,6 +5,7 @@ import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { ApiEndpointList } from '@/components/docs/ApiEndpointList';
 import { OpenAiSdkExampleList } from '@/components/docs/OpenAiSdkExampleList';
+import { isDocsSectionId } from '@/lib/docs/sections';
 import {
   BreadcrumbItem,
   BreadcrumbLink,
@@ -14,18 +15,11 @@ import {
 } from '@/components/ui/breadcrumbs';
 import { Heading, HeadingTitle } from '@/components/ui/heading';
 
-const sectionIds = ['auth', 'videos', 'chat', 'openai'] as const;
-type SectionId = (typeof sectionIds)[number];
-
-function isSectionId(value: string): value is SectionId {
-  return sectionIds.includes(value as SectionId);
-}
-
 export default function DeveloperDocsSectionPage() {
   const { t } = useTranslation();
   const { section } = useParams<{ section: string }>();
 
-  if (!section || !isSectionId(section)) {
+  if (!section || !isDocsSectionId(section)) {
     return <Navigate to="/docs" replace />;
   }
 
@@ -71,20 +65,26 @@ export default function DeveloperDocsSectionPage() {
         </ul>
       </section>
 
+      {isOpenAi && (
+        <section className="mb-12">
+          <Heading size="18" hasChip className="mb-4">
+            <HeadingTitle level="h2">{t('docs.openai.exampleTitle')}</HeadingTitle>
+          </Heading>
+          <p className="mb-6 text-std-16N-170 text-solid-gray-700">
+            {t('docs.openai.exampleDescription')}
+          </p>
+          <OpenAiSdkExampleList />
+        </section>
+      )}
+
       <section className="mb-8">
         <Heading size="18" hasChip className="mb-4">
-          <HeadingTitle level="h2">
-            {t(isOpenAi ? 'docs.openai.exampleTitle' : 'docs.section.autoExampleTitle')}
-          </HeadingTitle>
+          <HeadingTitle level="h2">{t('docs.section.autoExampleTitle')}</HeadingTitle>
         </Heading>
         <p className="mb-6 text-std-16N-170 text-solid-gray-700">
-          {t(
-            isOpenAi
-              ? 'docs.openai.exampleDescription'
-              : 'docs.section.autoExampleDescription',
-          )}
+          {t('docs.section.autoExampleDescription')}
         </p>
-        {isOpenAi ? <OpenAiSdkExampleList /> : <ApiEndpointList section={section} />}
+        <ApiEndpointList section={section} />
       </section>
     </AppPageShell>
   );
