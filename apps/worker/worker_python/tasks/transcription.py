@@ -36,7 +36,7 @@ class FileSizeExceededError(Exception):
     pass
 
 
-def _load_searchapi_key(user_id: int) -> str | None:
+def _load_searchapi_key(user_id: str) -> str | None:
     from worker_python.env import env_str
 
     override = env_str("SEARCHAPI_API_KEY")
