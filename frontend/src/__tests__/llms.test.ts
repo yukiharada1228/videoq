@@ -51,11 +51,11 @@ describe('llms.txt', () => {
     expect(section.toLowerCase()).toMatch(/educat/)
   })
 
-  it('Use Cases section mentions corporate training', () => {
+  it('Use Cases section mentions flipped and online classrooms', () => {
     const idx = content.indexOf('## Use Cases')
     const nextSection = content.indexOf('\n## ', idx + 1)
     const section = content.slice(idx, nextSection === -1 ? undefined : nextSection)
-    expect(section.toLowerCase()).toMatch(/corporate|training|企業/)
+    expect(section.toLowerCase()).toMatch(/flipped|online classroom|反転授業/)
   })
 
   // ── Integrations section ─────────────────────────────────────────────────────
