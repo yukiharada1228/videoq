@@ -203,6 +203,25 @@ export default function PricingPage() {
           );
         })}
       </div>
+
+      <p className="mt-10 max-w-3xl text-std-16N-170 text-solid-gray-600">
+        {t('pricing.legalNotice')}{' '}
+        <Link href="/terms" className="underline underline-offset-2">
+          {t('legal.terms.title')}
+        </Link>
+        {' · '}
+        <Link href="/privacy" className="underline underline-offset-2">
+          {t('legal.privacy.title')}
+        </Link>
+        {' · '}
+        <Link href="/refund" className="underline underline-offset-2">
+          {t('legal.refund.title')}
+        </Link>
+        {' · '}
+        <Link href="/legal" className="underline underline-offset-2">
+          {t('legal.scta.shortTitle')}
+        </Link>
+      </p>
     </AppPageShell>
   );
 }

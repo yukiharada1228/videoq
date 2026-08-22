@@ -54,6 +54,19 @@ describe('useAuth', () => {
     expect(apiClient.getMeOrNull).not.toHaveBeenCalled()
   })
 
+  it('should not load user data for legal routes', async () => {
+    ;(globalThis as any).__setMockPathname?.('/terms')
+    window.history.pushState({}, '', '/terms')
+
+    const { result } = renderHook(() => useAuth())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    expect(apiClient.getMeOrNull).not.toHaveBeenCalled()
+  })
+
   it('should not load user data for docs routes', async () => {
     ;(globalThis as any).__setMockPathname?.('/docs')
     window.history.pushState({}, '', '/docs')

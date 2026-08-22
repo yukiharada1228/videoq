@@ -541,6 +541,178 @@
         "name": "Pro",
         "blurb": "For heavier use. About ten hours of transcription per month."
       }
+    },
+    "legalNotice": "Please review the following before starting a paid plan."
+  },
+  "legal": {
+    "terms": {
+      "title": "Terms of Service",
+      "updated": "Last updated: 22 August 2026",
+      "sections": {
+        "scope": {
+          "title": "1. Scope",
+          "body": "These terms govern VideoQ (https://videoq.jp), an AI video learning service. Creating an account or using the service means you accept these terms."
+        },
+        "account": {
+          "title": "2. Accounts",
+          "body": "You must register with accurate information and keep your credentials secure. Accounts are not transferable. We may suspend an account for abuse or a breach of these terms."
+        },
+        "plans": {
+          "title": "3. Plans and quotas",
+          "body": "VideoQ offers Free, Basic, and Pro plans. Storage, transcription minutes, AI answers, and per-video upload limits on the pricing page are authoritative. Free is a trial allowance. After a downgrade we do not delete existing videos or chats, but new uploads, transcription, or AI answers are blocked if you are over the new limits."
+        },
+        "payment": {
+          "title": "4. Fees and payment",
+          "body": "Paid plan prices are shown in Japanese yen, tax included. Stripe processes payments. VideoQ does not store card numbers. Monthly plans renew every month and yearly plans every year on the saved payment method. Mid-cycle plan changes follow the Customer Portal proration setting (immediate invoice)."
+        },
+        "cancel": {
+          "title": "5. Cancellation",
+          "body": "You can cancel from Settings or the Stripe Customer Portal. Cancellation takes effect at the end of the current billing period. You keep paid-plan quotas until then. Unused time is not refunded except as described in the refund policy."
+        },
+        "acceptableUse": {
+          "title": "6. Acceptable use",
+          "body": "You may not break the law, infringe others’ rights, disrupt the service, attempt unauthorized access, send abusive automated traffic, or otherwise misuse the service. You must have the rights needed for the videos and questions you submit."
+        },
+        "data": {
+          "title": "7. Data",
+          "body": "How we handle videos, transcripts, and chat history is described in the Privacy Policy. Payment data is handled under Stripe’s privacy policy at https://stripe.com/privacy."
+        },
+        "liability": {
+          "title": "8. Liability",
+          "body": "The service is provided as is. We do not warrant that transcriptions or AI answers are accurate. Except for liability that cannot be excluded by law, our damages are limited to the fees you paid in the previous three months."
+        },
+        "changes": {
+          "title": "9. Changes",
+          "body": "We may update these terms. Material changes will be posted on the service or sent to your registered email. Continued use after a change means you accept it."
+        },
+        "contact": {
+          "title": "10. Contact",
+          "body": "Questions about these terms: support@videoq.jp. Seller details are listed on the Specified Commercial Transactions notice."
+        }
+      }
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "updated": "Last updated: 22 August 2026",
+      "sections": {
+        "controller": {
+          "title": "1. Controller",
+          "body": "VideoQ (https://videoq.jp) handles personal data collected through the service under this policy. Contact: support@videoq.jp."
+        },
+        "collect": {
+          "title": "2. Data we collect",
+          "body": "We collect account details (email, display name), authentication data, uploaded videos and metadata, transcripts, chat content, usage totals, technical data about your browser or device, and billing address information needed for payment. Card numbers are processed by Stripe and are not stored on VideoQ servers."
+        },
+        "stripe": {
+          "title": "3. Sharing with Stripe",
+          "body": "To charge paid plans, manage subscriptions, and prevent fraud, we share name, email, billing address, customer IDs, and plan information with Stripe. See https://stripe.com/privacy for how Stripe uses that data."
+        },
+        "purpose": {
+          "title": "4. Purpose",
+          "body": "We use this data to provide the service, run transcription and AI answers, bill you, prevent abuse, provide support, comply with law, and improve the product. We do not use it for unrelated purposes without consent."
+        },
+        "share": {
+          "title": "5. Sharing",
+          "body": "We do not sell personal data. We share it only when required by law or with processors needed to run the service (cloud, payments, email). Processors receive only what they need and must protect it."
+        },
+        "retention": {
+          "title": "6. Retention",
+          "body": "We keep data while your account is active and as needed to provide the service. After deletion we remove or anonymize it within a reasonable time, except where law requires retention. Payment records that remain at Stripe follow Stripe’s retention rules."
+        },
+        "rights": {
+          "title": "7. Your rights",
+          "body": "You may request access, correction, suspension, or deletion of your personal data by emailing support@videoq.jp. We will verify your identity and respond as required by law."
+        },
+        "cookies": {
+          "title": "8. Cookies",
+          "body": "We use cookies and similar technologies to keep you signed in, protect the service, and understand usage. You can block them in your browser, but some features may stop working."
+        },
+        "contact": {
+          "title": "9. Contact",
+          "body": "Privacy questions: support@videoq.jp."
+        }
+      }
+    },
+    "refund": {
+      "title": "Refund and Cancellation Policy",
+      "updated": "Last updated: 22 August 2026",
+      "sections": {
+        "summary": {
+          "title": "Overview",
+          "body": "Paid VideoQ plans are a digital SaaS. There are no physical returns. Cancellation and refunds work as follows."
+        },
+        "digital": {
+          "title": "Digital service",
+          "body": "After payment succeeds we immediately apply paid-plan quotas to your account. Service delivery starts when payment completes."
+        },
+        "cancel": {
+          "title": "Cancellation",
+          "body": "Cancel anytime from Settings or the Stripe Customer Portal. Cancellation takes effect at the end of the current billing period. You keep paid access until then, then return to Free. Unused time in the current period is not refunded by default."
+        },
+        "upgrade": {
+          "title": "Plan changes",
+          "body": "Switch Basic and Pro, or monthly and yearly, in the Customer Portal. Upgrade differences are prorated and invoiced immediately."
+        },
+        "howto": {
+          "title": "If you want a refund",
+          "body": "For duplicate charges, payment errors, or cases where the law requires a refund, email support@videoq.jp with the account and what happened. We will review it. For card chargebacks, contact us first."
+        },
+        "contact": {
+          "title": "Contact",
+          "body": "Refunds and cancellations: support@videoq.jp"
+        }
+      }
+    },
+    "scta": {
+      "title": "Notice under the Specified Commercial Transactions Act",
+      "shortTitle": "Legal notice (Japan)",
+      "updated": "Required disclosure for mail-order sales of this digital service.",
+      "fields": {
+        "seller": {
+          "label": "Seller",
+          "value": "VideoQ"
+        },
+        "operator": {
+          "label": "Person in charge",
+          "value": "Disclosed without delay upon request."
+        },
+        "address": {
+          "label": "Address",
+          "value": "Japan. Full address disclosed without delay upon request."
+        },
+        "phone": {
+          "label": "Phone",
+          "value": "Disclosed without delay upon request. Day-to-day contact is by email."
+        },
+        "email": {
+          "label": "Email",
+          "value": "support@videoq.jp"
+        },
+        "url": {
+          "label": "Website",
+          "value": "https://videoq.jp"
+        },
+        "price": {
+          "label": "Prices",
+          "value": "The amounts shown on https://videoq.jp/pricing, in JPY, tax included. Free ¥0; Basic ¥1,480/month or ¥14,800/year; Pro ¥3,980/month or ¥39,800/year."
+        },
+        "fees": {
+          "label": "Charges besides the listed price",
+          "value": "Internet access and similar costs are paid by the customer. Payment processing fees are included in the listed price."
+        },
+        "payment": {
+          "label": "Payment method and timing",
+          "value": "Cards and other methods Stripe shows at Checkout. The first charge is at signup; later charges follow the billing interval (monthly or yearly)."
+        },
+        "delivery": {
+          "label": "When the service is provided",
+          "value": "Paid-plan quotas are applied to the account immediately after payment. There is no physical shipment."
+        },
+        "cancel": {
+          "label": "Returns and cancellation",
+          "value": "There are no physical returns. Cancel from Settings or the Stripe Customer Portal; cancellation usually takes effect at period end. See the refund and cancellation policy."
+        }
+      }
     }
   },
   "settings": {

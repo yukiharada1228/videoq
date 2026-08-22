@@ -73,6 +73,11 @@ export const PUBLIC_AUTH_PATHS = [
   '/share',
   '/group-invitations',
   '/docs',
+  '/pricing',
+  '/terms',
+  '/privacy',
+  '/refund',
+  '/legal',
 ] as const;
 
 export function isPublicAuthPath(pathname: string): boolean {

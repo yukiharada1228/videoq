@@ -39,6 +39,21 @@ JPY はゼロ小数。`tax_behavior` は inclusive（内税）か、Tax settings
 - Proration: `always_invoice`（日割りを作って即時請求。`create_prorations` でも可）
 - 解約（期間末）
 
+## 3.1 Public details（必須）
+
+Checkout / Customer Portal に利用規約とプライバシーを出すには、[Public details](https://dashboard.stripe.com/acct_1Re0SMJ2c6Th1a6w/settings/public) に URL を入れる。
+
+| 項目 | URL |
+|---|---|
+| Terms of service | `https://videoq.jp/terms` |
+| Privacy policy | `https://videoq.jp/privacy` |
+| Support email | `support@videoq.jp` |
+| Support website | `https://videoq.jp` |
+
+[Checkout settings](https://dashboard.stripe.com/acct_1Re0SMJ2c6Th1a6w/settings/checkout) で Legal policies と Refund policy を有効にし、返金ポリシー全文は `https://videoq.jp/refund` を指す。日本の通信販売として [特商法表記](https://videoq.jp/legal) もサイトに置く。
+
+Customer Portal の privacy / terms URL も同じ値にする。
+
 ## 4. Webhook
 
 Endpoint: `https://videoq.jp/api/billing/webhook`

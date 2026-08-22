@@ -28,6 +28,18 @@ export function AppFooter() {
             <Link href="/pricing">{t('navigation.pricing')}</Link>
           </UtilityLink>
           <UtilityLink asChild>
+            <Link href="/terms">{t('legal.terms.title')}</Link>
+          </UtilityLink>
+          <UtilityLink asChild>
+            <Link href="/privacy">{t('legal.privacy.title')}</Link>
+          </UtilityLink>
+          <UtilityLink asChild>
+            <Link href="/refund">{t('legal.refund.title')}</Link>
+          </UtilityLink>
+          <UtilityLink asChild>
+            <Link href="/legal">{t('legal.scta.shortTitle')}</Link>
+          </UtilityLink>
+          <UtilityLink asChild>
             <Link href="/login">{t('auth.login.submit')}</Link>
           </UtilityLink>
           <UtilityLink asChild>
