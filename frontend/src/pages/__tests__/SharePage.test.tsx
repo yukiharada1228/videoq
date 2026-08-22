@@ -46,15 +46,7 @@ describe('SharePage', () => {
     render(<SharePage />)
 
     await waitFor(() => {
-      expect(screen.getByText('Shared Group')).toBeInTheDocument()
-    })
-  })
-
-  it('should render group description', async () => {
-    render(<SharePage />)
-
-    await waitFor(() => {
-      expect(screen.getByText('Shared Description')).toBeInTheDocument()
+      expect(screen.getAllByText('Shared Group').length).toBeGreaterThan(0)
     })
   })
 

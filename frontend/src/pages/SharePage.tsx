@@ -6,6 +6,13 @@ import { Link } from '@/lib/i18n';
 import { apiClient, type VideoInGroup } from '@/lib/api';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { StatusBadge } from '@/components/common/StatusBadge';
+import {
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  Breadcrumbs,
+  BreadcrumbsLabel,
+} from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { ChipLabel } from '@/components/ui/chip-label';
 import { ChatPanel } from '@/components/chat/ChatPanel';
@@ -122,16 +129,9 @@ export default function SharePage() {
       {/* ── Fixed Header ────────────────────────────────────────────────── */}
       <header className="fixed top-0 z-50 w-full border-b border-solid-gray-420 bg-white">
         <div className="mx-auto flex w-full max-w-screen-xl items-center justify-between gap-4 px-6 py-4 lg:px-8">
-          <div className="flex min-w-0 items-center gap-6">
-            <Link href="/" className="shrink-0 text-std-20B-150 text-solid-gray-800">
-              VideoQ
-            </Link>
-            <div className="hidden min-w-0 items-center gap-1 text-std-16N-170 font-medium text-solid-gray-600 lg:flex">
-              <span className="max-w-[200px] truncate font-bold text-key-900">
-                {group.name}
-              </span>
-            </div>
-          </div>
+          <Link href="/" className="shrink-0 text-std-20B-150 text-solid-gray-800">
+            VideoQ
+          </Link>
 
           <div className="flex shrink-0 items-center gap-2">
             <ChipLabel variant="filled-1" color="blue" className="min-h-0 text-oln-14N-100">
@@ -143,11 +143,23 @@ export default function SharePage() {
 
       {/* ── Main ────────────────────────────────────────────────────────── */}
       <main className="mt-16 flex flex-col px-6 pt-4 gap-4 max-w-[1600px] mx-auto w-full overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-4 lg:h-[calc(100dvh-4rem)] lg:overflow-hidden">
-        {group.description && (
-          <div className="shrink-0 rounded-8 border border-solid-gray-300 bg-white px-4 py-3 text-std-16N-170 text-solid-gray-700">
-            {group.description}
-          </div>
-        )}
+        {/* グループ名はバーではなくパンくずで示す（グループ詳細と同じ並び）。 */}
+        <Breadcrumbs aria-label={t('common.actions.backToHome')} className="shrink-0">
+          <BreadcrumbsLabel className="sr-only">
+            {t('common.actions.backToHome')}
+          </BreadcrumbsLabel>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/">{t('navigation.home')}</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbItem isCurrent>{group.name}</BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumbs>
+
+        {/* 見出しは非表示にしたが、ページの h1 として構造には残す。 */}
+        <h1 className="sr-only">{group.name}</h1>
 
         {/* 3-column grid */}
         <div className="flex flex-col lg:grid lg:grid-cols-4 gap-6 lg:flex-1 lg:min-h-0 lg:items-stretch">

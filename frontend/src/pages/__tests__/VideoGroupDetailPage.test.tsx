@@ -199,7 +199,7 @@ describe('VideoGroupDetailPage', () => {
 
     render(<VideoGroupDetailPage />)
 
-    expect(await screen.findByText('videos.groupDetail.memberBadge')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'videos.groupDetail.leave' })).toBeInTheDocument()
     expect(screen.queryByText('videos.groupDetail.shareOpen')).not.toBeInTheDocument()
     expect(screen.queryByTitle('videos.groupDetail.editTitle')).not.toBeInTheDocument()
     expect(screen.queryByTitle('videos.groupDetail.delete')).not.toBeInTheDocument()
@@ -326,7 +326,6 @@ describe('VideoGroupDetailPage - Share Link', () => {
     render(<VideoGroupDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('videos.groupDetail.sharingBadge')).toBeInTheDocument()
       expect(screen.getByText('videos.groupDetail.shareOpen')).toBeInTheDocument()
     })
     fireEvent.click(screen.getByText('videos.groupDetail.shareOpen'))

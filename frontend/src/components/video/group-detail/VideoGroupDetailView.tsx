@@ -60,7 +60,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SupportText } from '@/components/ui/support-text';
 import { ChipLabel } from '@/components/ui/chip-label';
-import { Heading, HeadingShoulder, HeadingTitle } from '@/components/ui/heading';
+import { Heading, HeadingTitle } from '@/components/ui/heading';
 import { UtilityLink } from '@/components/ui/utility-link';
 import { GroupParticipantsDialog } from './GroupParticipantsDialog';
 import {
@@ -998,30 +998,9 @@ export function VideoGroupDetailView({
                 </BreadcrumbList>
               </Breadcrumbs>
 
-              <header className="flex flex-col justify-between gap-3 lg:flex-row lg:items-end">
-                <div className="min-w-0 space-y-1">
-                  <Heading size="24" rule="4" hasChip={!!shareLink || !canManage}>
-                    {shareLink && canManage ? (
-                      <HeadingShoulder>
-                        <ChipLabel variant="filled-1" color="blue" className="min-h-0 text-oln-14N-100">
-                          {t('videos.groupDetail.sharingBadge')}
-                        </ChipLabel>
-                      </HeadingShoulder>
-                    ) : !canManage ? (
-                      <HeadingShoulder>
-                        <ChipLabel variant="filled-1" color="gray" className="min-h-0 text-oln-14N-100">
-                          {t('videos.groupDetail.memberBadge')}
-                        </ChipLabel>
-                      </HeadingShoulder>
-                    ) : null}
-                    <HeadingTitle level="h1">{group.name}</HeadingTitle>
-                  </Heading>
-                  {group.description ? (
-                    <p className="line-clamp-2 max-w-3xl text-std-16N-170 text-solid-gray-700">
-                      {group.description}
-                    </p>
-                  ) : null}
-                </div>
+              <header className="flex flex-wrap items-center justify-end gap-3">
+                {/* 見出しは非表示にしたが、ページの h1 として構造には残す。 */}
+                <h1 className="sr-only">{group.name}</h1>
                 {canManage ? <div className="flex shrink-0 flex-wrap items-center gap-3">
                   <Button
                     type="button"

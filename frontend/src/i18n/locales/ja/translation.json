@@ -239,7 +239,6 @@
         "disabled": "共有リンクを生成すると、ログインなしで閲覧できるようになります。"
       },
       "shareOpen": "共有",
-      "sharingBadge": "共有中",
       "generating": "生成中...",
       "copied": "コピー済み ✓",
       "disable": "無効化",
@@ -284,7 +283,6 @@
       "copyButton": "コピー",
       "removeFromGroup": "グループから削除",
       "deleteError": "チャットグループの削除に失敗しました",
-      "memberBadge": "参加メンバー",
       "leave": "グループから退出",
       "leaveError": "グループから退出できませんでした"
     },

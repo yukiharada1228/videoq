@@ -239,7 +239,6 @@
         "disabled": "Generate a share link to allow access without signing in."
       },
       "shareOpen": "Share",
-      "sharingBadge": "Sharing",
       "generating": "Generating...",
       "copied": "Copied ✓",
       "disable": "Disable",
@@ -284,7 +283,6 @@
       "copyButton": "Copy",
       "removeFromGroup": "Remove from group",
       "deleteError": "Failed to delete the chat group",
-      "memberBadge": "Member",
       "leave": "Leave group",
       "leaveError": "Failed to leave the group"
     },
