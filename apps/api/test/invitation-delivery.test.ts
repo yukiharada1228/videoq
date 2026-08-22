@@ -16,6 +16,10 @@ const NOW = new Date("2026-08-22T00:00:00.000Z");
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // mockRejectedValue は clearAllMocks では消えないため、実装ごと戻す。
+  mail.sendMail.mockReset();
+  mail.sendMail.mockResolvedValue(undefined);
+  repo.recordInvitationDeliveryOutcomes.mockReset();
   repo.recordInvitationDeliveryOutcomes.mockResolvedValue(undefined);
 });
 
@@ -40,9 +44,11 @@ describe("deliverInvitationEmail", () => {
     expect(token).toBeTruthy();
     expect(lines).not.toContain(storedHash);
 
-    expect(repo.recordInvitationDeliveryOutcomes).toHaveBeenCalledWith(ENV, [
-      { invitationId: 10, status: "sent", attemptedAt: NOW },
-    ]);
+    expect(repo.recordInvitationDeliveryOutcomes).toHaveBeenCalledWith(
+      ENV,
+      [{ invitationId: 10, status: "sent", attemptedAt: NOW }],
+      {},
+    );
   });
 
   it("送信失敗はfailedとして記録したうえで再スローする", async () => {
@@ -80,5 +86,39 @@ describe("deliverInvitationEmail", () => {
 
     expect(result).toEqual({ skipped: true, reason: "notFound" });
     expect(mail.sendMail).not.toHaveBeenCalled();
+  });
+});
+
+describe("配送タスクの完了", () => {
+  it("成功時は配信結果とタスク完了を同じ書き込みにまとめる", async () => {
+    repo.rotateInvitationTokenForDelivery.mockResolvedValue({
+      email: "a@example.com",
+      groupName: "Physics",
+      inviterName: "Teacher",
+    });
+
+    await deliverInvitationEmail(ENV, 10, NOW, { completeTaskId: 77 });
+
+    expect(repo.recordInvitationDeliveryOutcomes).toHaveBeenCalledWith(
+      ENV,
+      [{ invitationId: 10, status: "sent", attemptedAt: NOW }],
+      { completeTaskId: 77 },
+    );
+  });
+
+  it("送信失敗時はタスクを完了させない（再試行させる）", async () => {
+    repo.rotateInvitationTokenForDelivery.mockResolvedValue({
+      email: "a@example.com",
+      groupName: "Physics",
+      inviterName: "Teacher",
+    });
+    mail.sendMail.mockRejectedValue(new Error("provider unavailable"));
+
+    await expect(
+      deliverInvitationEmail(ENV, 10, NOW, { completeTaskId: 77 }),
+    ).rejects.toThrow("provider unavailable");
+
+    const call = repo.recordInvitationDeliveryOutcomes.mock.calls[0];
+    expect(call[2]).toBeUndefined();
   });
 });

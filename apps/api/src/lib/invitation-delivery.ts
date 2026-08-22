@@ -46,6 +46,7 @@ export async function deliverInvitationEmail(
   env: Bindings,
   invitationId: number,
   now = new Date(),
+  opts: { completeTaskId?: number } = {},
 ): Promise<InvitationDeliveryResult> {
   const token = createInvitationToken();
   const rotated = await rotateInvitationTokenForDelivery(
@@ -81,8 +82,11 @@ export async function deliverInvitationEmail(
     throw error;
   }
 
-  await recordInvitationDeliveryOutcomes(env, [
-    { invitationId, status: "sent", attemptedAt: now },
-  ]);
+  // 成功時は配信結果とタスク完了を1トランザクションにまとめる。
+  await recordInvitationDeliveryOutcomes(
+    env,
+    [{ invitationId, status: "sent", attemptedAt: now }],
+    opts,
+  );
   return { delivered: true };
 }

@@ -205,11 +205,17 @@ export type InvitationDeliveryOutcome = {
   error?: string;
 };
 
+/**
+ * 配信結果を記録する。`completeTaskId` を渡すと、配送タスクの完了も同じ
+ * transaction で行う（`withDb` は呼び出しごとに新しい接続を張るため、
+ * 記録と完了を分けると1通あたりの接続が1回増える）。
+ */
 export async function recordInvitationDeliveryOutcomes(
   env: Bindings,
   outcomes: readonly InvitationDeliveryOutcome[],
+  opts: { completeTaskId?: number } = {},
 ): Promise<void> {
-  if (outcomes.length === 0) return;
+  if (outcomes.length === 0 && opts.completeTaskId === undefined) return;
   await withDb(env, async (db) =>
     db.transaction(async (tx) => {
       for (const outcome of outcomes) {
@@ -224,6 +230,22 @@ export async function recordInvitationDeliveryOutcomes(
             updatedAt: outcome.attemptedAt.toISOString(),
           })
           .where(eq(videoGroupInvitations.id, outcome.invitationId));
+      }
+      if (opts.completeTaskId !== undefined) {
+        await tx
+          .update(externalTasks)
+          .set({
+            completedAt: sql`now()`,
+            lockedAt: null,
+            lastError: "",
+            updatedAt: sql`now()`,
+          })
+          .where(
+            and(
+              eq(externalTasks.id, opts.completeTaskId),
+              sql`${externalTasks.completedAt} IS NULL`,
+            ),
+          );
       }
     }),
   );

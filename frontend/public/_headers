@@ -1,13 +1,21 @@
 # Cloudflare Pages がすべてのレスポンスに付与するヘッダー。
 # `public/` は dist/ にそのままコピーされるので、ビルド成果物に含まれる。
 #
-# 注意: リソース系の CSP（script-src / connect-src / media-src / frame-src）は
-# ここでは指定していない。YouTube 埋め込み（www.youtube.com への iframe）と
-# 動画配信元の実測が必要で、誤ると本番の再生が止まるため。
-# frame-ancestors だけは自前リソースに影響しないので先に有効化する。
+# CSP の各 origin は実際の読み込み元を確認して決めている。増やすときは
+# 「どこで読み込んでいるか」を必ず確認すること。
+#   fonts.googleapis.com  : index.html の Google Fonts スタイルシート
+#   fonts.gstatic.com     : 上記が参照するフォント本体
+#   www.youtube.com       : YouTube 埋め込み iframe（API が embed URL を生成）
+#   img.youtube.com       : YouTube サムネイル（VideoCard）
+#   *.r2.cloudflarestorage.com : R2 バインディング失敗時に /api/media が
+#                                署名付き URL へ 302 する際の最終取得先
+# API は本番では同一オリジン（videoq.jp/api）なので connect-src は 'self'。
+#
+# style-src の 'unsafe-inline' は Radix / Tailwind が実行時に差し込む
+# インラインスタイルに必要。外すとダイアログとポップオーバーが壊れる。
 /*
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://img.youtube.com; media-src 'self' blob: https://*.r2.cloudflarestorage.com; frame-src https://www.youtube.com; connect-src 'self'
   X-Frame-Options: DENY
-  Content-Security-Policy: frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()

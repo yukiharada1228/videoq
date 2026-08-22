@@ -61,8 +61,11 @@ async function runTask(env: Bindings, task: ClaimedExternalTask): Promise<void> 
       throw new Error("Invitation email invitation_id is invalid.");
     }
     // 取り消し済み・承認済みの招待は送らずにタスクだけ閉じる。
-    await deliverInvitationEmail(env, invitationId);
-    await completeExternalTask(env, task.id);
+    const result = await deliverInvitationEmail(env, invitationId, new Date(), {
+      completeTaskId: task.id,
+    });
+    // 送信をスキップした場合は上の transaction が走らないので、ここで閉じる。
+    if (!("delivered" in result)) await completeExternalTask(env, task.id);
     return;
   }
 

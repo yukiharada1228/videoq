@@ -47,10 +47,13 @@
 
   "send_email": [{ "name": "EMAIL" }],
 
+  // `wrangler dev` は localConnectionString しか見ない。id に本番の Hyperdrive を
+  // 書くと、`--env production` を付け忘れた deploy が本番DBに繋がってしまうため、
+  // ここには存在しない id を置く。本番の id は env.production 側にだけ書く。
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
-      "id": "d69ecb01a493415197e52552db2990f8",
+      "id": "00000000000000000000000000000000",
       "localConnectionString": "postgresql://postgres:postgres@localhost:55432/postgres"
     }
   ],
