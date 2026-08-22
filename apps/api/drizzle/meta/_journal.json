@@ -99,6 +99,13 @@
       "when": 1787376217714,
       "tag": "0013_stripe_billing",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1787377800000,
+      "tag": "0014_apply_free_plan_quotas",
+      "breakpoints": true
     }
   ]
 }
