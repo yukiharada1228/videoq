@@ -65,6 +65,13 @@ VideoQ acts as an MCP server, allowing AI agent clients such as Claude Desktop t
 - Endpoint: `POST /api/mcp` (Streamable HTTP)
 - Authentication: OAuth bearer token or API key
 
+## Legal
+
+- [Terms of Service](https://videoq.jp/terms)
+- [Privacy Policy](https://videoq.jp/privacy)
+- [Refund and Cancellation Policy](https://videoq.jp/refund)
+- [Specified Commercial Transactions Act notice](https://videoq.jp/legal)
+
 ## Documentation
 
 - [Authentication API](https://videoq.jp/docs/auth)
