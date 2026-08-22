@@ -20,6 +20,9 @@ export type CurrentUser = {
   used_ai_answers: number;
   ai_answers_limit: number | null;
   is_over_quota: boolean;
+  plan_code: "free" | "basic" | "pro";
+  subscription_status: string | null;
+  quota_source: "plan" | "admin";
 };
 
 const GIB = 1024 ** 3;
@@ -44,6 +47,9 @@ export async function getCurrentUser(
         used_ai_answers: users.usedAiAnswers,
         ai_answers_limit: users.aiAnswersLimit,
         is_over_quota: users.isOverQuota,
+        plan_code: users.planCode,
+        subscription_status: users.subscriptionStatus,
+        quota_source: users.quotaSource,
         // Must be "users"."id": ${users.id} becomes bare "id" → videos.id in this subquery.
         video_count: sql<number>`(SELECT count(*)::int FROM videos v WHERE v.user_id = "users"."id")`.as(
           "video_count",
@@ -76,6 +82,10 @@ export async function getCurrentUser(
       used_ai_answers: r.used_ai_answers,
       ai_answers_limit: r.ai_answers_limit === null ? null : Number(r.ai_answers_limit),
       is_over_quota: r.is_over_quota,
+      plan_code:
+        r.plan_code === "basic" || r.plan_code === "pro" ? r.plan_code : "free",
+      subscription_status: r.subscription_status,
+      quota_source: r.quota_source === "admin" ? "admin" : "plan",
     };
   });
 }

@@ -15,6 +15,10 @@ USER_SECRET_ENCRYPTION_KEY=""
 # RAG チャット用。未設定だと LLM 設定エラー。
 # OPENAI_API_KEY=""
 
+# Stripe Billing（restricted key rk_ を推奨）。未設定なら /api/billing/plans はカタログ金額を返す。
+# STRIPE_SECRET_KEY=""
+# STRIPE_WEBHOOK_SECRET=""
+
 # --- Local MinIO (docker compose up -d postgres minio minio-init) ---
 # Console: http://127.0.0.1:9001  API: http://127.0.0.1:9000
 R2_ACCESS_KEY_ID="minioadmin"

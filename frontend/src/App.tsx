@@ -21,6 +21,7 @@ const VideoGroupDetailPage = lazy(() => import('@/pages/VideoGroupDetailPage'));
 const SharePage = lazy(() => import('@/pages/SharePage'));
 const GroupInvitationPage = lazy(() => import('@/pages/GroupInvitationPage'));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
+const PricingPage = lazy(() => import('@/pages/PricingPage'));
 const AdminPage = lazy(() => import('@/pages/AdminPage'));
 const DeveloperDocsPage = lazy(() => import('@/pages/DeveloperDocsPage'));
 const DeveloperDocsSectionPage = lazy(() => import('@/pages/DeveloperDocsSectionPage'));
@@ -74,6 +75,7 @@ const routeChildren = (
     <Route path="share/:token" element={<SharePage />} />
     <Route path="group-invitations/:token" element={<GroupInvitationPage />} />
     <Route path="settings" element={<SettingsPage />} />
+    <Route path="pricing" element={<PricingPage />} />
     <Route path="admin" element={<AdminPage />} />
     <Route path="docs" element={<DeveloperDocsPage />} />
     <Route path="docs/:section" element={<DeveloperDocsSectionPage />} />

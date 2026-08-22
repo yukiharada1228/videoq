@@ -19,6 +19,8 @@ describe("OpenAPI / docs", () => {
     expect(body.paths).toHaveProperty("/api/videos");
     expect(body.paths).toHaveProperty("/api/chat/messages");
     expect(body.paths).toHaveProperty("/api/v1/chat/completions");
+    expect(body.paths).toHaveProperty("/api/billing/plans");
+    expect(body.paths).toHaveProperty("/api/billing/checkout");
   });
 
   it("GET /api/docs は HTML（Scalar）", async () => {

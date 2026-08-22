@@ -20,6 +20,7 @@ import { plogRoutes } from "./features/plog/routes";
 import { mcpRoutes } from "./features/mcp/routes";
 import { mediaRoutes } from "./features/media/routes";
 import { adminRoutes } from "./features/admin/routes";
+import { billingRoutes } from "./features/billing/routes";
 import { schemaRoutes } from "./features/schema/routes";
 import { withDb } from "./db/pool";
 import { createAuth } from "./lib/auth";
@@ -86,6 +87,7 @@ export function createApp() {
   });
 
   app.route("/api/account", accountRoutes);
+  app.route("/api/billing", billingRoutes);
   app.route("/api/videos", groupRoutes);
   app.route("/api/videos", groupMembershipRoutes);
   app.route("/api/videos", tagRoutes);

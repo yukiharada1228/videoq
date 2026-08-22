@@ -72,6 +72,11 @@ export const users = pgTable(
 		usedStorageBytes: bigint("used_storage_bytes", { mode: "number" }).notNull(),
 		pendingEmail: varchar("pending_email", { length: 254 }),
 		passwordResetRequired: boolean("password_reset_required").notNull().default(true),
+		stripeCustomerId: text("stripe_customer_id"),
+		stripeSubscriptionId: text("stripe_subscription_id"),
+		planCode: text("plan_code").notNull().default("free"),
+		subscriptionStatus: text("subscription_status"),
+		quotaSource: text("quota_source").notNull().default("plan"),
 	},
 	(table) => [
 		index("users_email_active_idx").using(
@@ -80,9 +85,17 @@ export const users = pgTable(
 			table.isActive.asc().nullsLast(),
 		),
 		index("users_deactivated_at_idx").using("btree", table.deactivatedAt.asc().nullsLast()),
+		index("users_stripe_customer_id_idx").using(
+			"btree",
+			table.stripeCustomerId.asc().nullsLast(),
+		),
 		unique("users_username_key").on(table.username),
 		unique("users_email_key").on(table.email),
+		unique("users_stripe_customer_id_key").on(table.stripeCustomerId),
+		unique("users_stripe_subscription_id_key").on(table.stripeSubscriptionId),
 		check("users_max_video_upload_size_mb_check", sql`max_video_upload_size_mb >= 0`),
+		check("users_plan_code_check", sql`plan_code IN ('free', 'basic', 'pro')`),
+		check("users_quota_source_check", sql`quota_source IN ('plan', 'admin')`),
 	],
 );
 
@@ -836,3 +849,11 @@ export const sceneEmbeddings = pgTable(
 		index("scene_embeddings_video_id_idx").on(table.videoId),
 	],
 );
+
+export const stripeEvents = pgTable("stripe_events", {
+	id: text("id").primaryKey(),
+	type: text("type").notNull(),
+	processedAt: timestamp("processed_at", { withTimezone: true, mode: "string" })
+		.notNull()
+		.defaultNow(),
+});

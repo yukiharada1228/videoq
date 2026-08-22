@@ -26,6 +26,8 @@ export const adminUserSchema = z
     used_ai_answers: z.number().int(),
     usage_period_start: z.string().nullable(),
     is_over_quota: z.boolean(),
+    plan_code: z.string(),
+    quota_source: z.enum(["plan", "admin"]),
   })
   .openapi("AdminUser");
 
@@ -35,6 +37,7 @@ export const adminQuotaPatchSchema = z
     storage_limit_gb: z.number().nullable().optional(),
     processing_limit_minutes: z.number().nullable().optional(),
     ai_answers_limit: z.number().nullable().optional(),
+    quota_source: z.enum(["plan", "admin"]).optional(),
   })
   .openapi("AdminQuotaPatch");
 

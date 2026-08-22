@@ -25,6 +25,9 @@ export function AppFooter() {
             <Link href="/docs">{t('navigation.docs')}</Link>
           </UtilityLink>
           <UtilityLink asChild>
+            <Link href="/pricing">{t('navigation.pricing')}</Link>
+          </UtilityLink>
+          <UtilityLink asChild>
             <Link href="/login">{t('auth.login.submit')}</Link>
           </UtilityLink>
           <UtilityLink asChild>
