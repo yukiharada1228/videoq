@@ -45,6 +45,9 @@ export const queryKeys = {
     evaluations: (groupId: number | null) => ['chatEvaluations', groupId] as const,
     evaluationSummary: (groupId: number | null) => ['evaluationSummary', groupId] as const,
   },
+  billing: {
+    plans: ['billing', 'plans'] as const,
+  },
   admin: {
     prefix: ['admin'] as const,
     users: (params: { q: string; limit: number; offset: number }) =>

@@ -16,6 +16,8 @@ type SecretBindings = {
   R2_SECRET_ACCESS_KEY?: string;
   AWS_ACCESS_KEY_ID?: string;
   AWS_SECRET_ACCESS_KEY?: string;
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
 };
 
 export type Bindings = Omit<CloudflareBindings, keyof SecretBindings> &
@@ -31,6 +33,7 @@ export type Bindings = Omit<CloudflareBindings, keyof SecretBindings> &
     OIDC_LOGOUT_ALWAYS_PROMPT?: string;
     OIDC_LOGOUT_ACCEPT_EXPIRED_TOKENS?: string;
     OIDC_LOGOUT_DELETE_TOKENS?: string;
+    STRIPE_AUTOMATIC_TAX?: string;
   };
 
 // ミドルウェアが c.set/c.get で受け渡す値

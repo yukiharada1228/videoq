@@ -1,6 +1,7 @@
 /**
  * Free-tier quotas applied when a new account is created via signup.
  * Override with DEFAULT_* / MAX_VIDEO_UPLOAD_SIZE_MB env vars.
+ * Keep in sync with PLAN_CATALOG.free in features/billing/catalog.ts.
  *
  * Semantics for nullable limits:
  * - positive number → capped quota
@@ -16,10 +17,10 @@ export type SignupQuotaDefaults = {
 };
 
 export const FREE_TIER_DEFAULTS = {
-  maxVideoUploadSizeMb: 1024,
-  storageLimitGb: 10,
-  processingLimitMinutes: 60,
-  aiAnswersLimit: 100,
+  maxVideoUploadSizeMb: 200,
+  storageLimitGb: 1,
+  processingLimitMinutes: 10,
+  aiAnswersLimit: 15,
 } as const;
 
 /**

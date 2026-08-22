@@ -66,6 +66,9 @@ export const apiForbidden = (message = "Forbidden", code = "FORBIDDEN") =>
 export const apiNotFound = (message = "Not found", code = "NOT_FOUND") =>
   new ApiError(404, code, message);
 
+export const apiConflict = (message: string, code = "CONFLICT") =>
+  new ApiError(409, code, message);
+
 export const apiServiceUnavailable = (
   message: string,
   code = "SERVICE_UNAVAILABLE",

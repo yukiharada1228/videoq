@@ -60,7 +60,14 @@ export async function patchQuota(
   id: string,
   patch: QuotaPatch,
 ) {
-  return patchAdminUserQuota(env, id, patch);
+  const user = await patchAdminUserQuota(env, id, patch);
+  if (!user) return null;
+  if (patch.quota_source === "plan") {
+    const { reapplyPlanEntitlements } = await import("../billing/service");
+    await reapplyPlanEntitlements(env, id);
+    return getAdminUser(env, id);
+  }
+  return user;
 }
 
 export async function patchUsage(

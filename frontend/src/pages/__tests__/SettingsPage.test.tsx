@@ -29,6 +29,7 @@ vi.mock('@/lib/api', () => {
       revokeIntegrationApiKey: vi.fn(),
       saveSearchApiKey: vi.fn(),
       deleteSearchApiKey: vi.fn(),
+      createBillingPortal: vi.fn(),
     },
   }
 })

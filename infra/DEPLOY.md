@@ -43,6 +43,9 @@ npx wrangler secret put AWS_SECRET_ACCESS_KEY
 # Google sign-in (optional; both required)
 npx wrangler secret put GOOGLE_CLIENT_ID
 npx wrangler secret put GOOGLE_CLIENT_SECRET
+# Stripe Billing（restricted key rk_ を推奨。未設定なら Checkout / Portal / webhook は 503）
+npx wrangler secret put STRIPE_SECRET_KEY --env production
+npx wrangler secret put STRIPE_WEBHOOK_SECRET --env production
 ```
 
 Google Cloud Console の OAuth Web クライアントに Authorized redirect URI を登録:

@@ -234,6 +234,13 @@ export default function HomePage() {
             <MessageAlert type="error" message={t('quota.errors.overQuota')} />
           </div>
         )}
+        {(currentUser.plan_code ?? 'free') === 'free' && (
+          <div className="mt-4">
+            <Button asChild variant="outline">
+              <Link href="/pricing">{t('home.usage.upgrade')}</Link>
+            </Button>
+          </div>
+        )}
       </section>
 
       {recentVideos.length > 0 && (

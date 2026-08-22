@@ -33,6 +33,10 @@
 - [状態遷移図](design/state-diagram.md)
 - [デプロイメント図](design/deployment-diagram.md)
 
+### 課金
+
+- [Stripe Dashboard 設定](billing/stripe-dashboard.md)
+
 ### PLOG / 検証
 
 - [PLOG](plog/README.md)

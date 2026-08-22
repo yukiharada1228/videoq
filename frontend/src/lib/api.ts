@@ -74,6 +74,9 @@ export interface User {
   used_ai_answers?: number;
   ai_answers_limit?: number | null;
   is_over_quota?: boolean;
+  plan_code?: 'free' | 'basic' | 'pro';
+  subscription_status?: string | null;
+  quota_source?: 'plan' | 'admin';
 }
 
 export interface AdminUser {
@@ -92,6 +95,8 @@ export interface AdminUser {
   used_ai_answers: number;
   usage_period_start: string | null;
   is_over_quota: boolean;
+  plan_code?: string;
+  quota_source?: 'plan' | 'admin';
 }
 
 export interface AdminQuotaPatch {
@@ -99,6 +104,7 @@ export interface AdminQuotaPatch {
   storage_limit_gb?: number | null;
   processing_limit_minutes?: number | null;
   ai_answers_limit?: number | null;
+  quota_source?: 'plan' | 'admin';
 }
 
 export interface AdminUsagePatch {
@@ -107,6 +113,20 @@ export interface AdminUsagePatch {
   used_ai_answers?: number;
   usage_period_start?: string | null;
   is_over_quota?: boolean;
+}
+
+export interface BillingPlan {
+  code: 'free' | 'basic' | 'pro';
+  interval: 'month' | 'year' | null;
+  lookup_key: string | null;
+  amount_yen: number;
+  currency: 'jpy';
+  entitlements: {
+    max_video_upload_size_mb: number;
+    storage_limit_gb: number;
+    processing_limit_minutes: number;
+    ai_answers_limit: number;
+  };
 }
 
 export interface AdminFlagsPatch {
@@ -1621,6 +1641,27 @@ export class ApiClient {
   async deleteAdminUser(id: string): Promise<{ job_id: string }> {
     return this.request<{ job_id: string }>(`/admin/users/${id}`, {
       method: 'DELETE',
+    });
+  }
+
+  async getBillingPlans(): Promise<BillingPlan[]> {
+    return this.request<BillingPlan[]>('/billing/plans');
+  }
+
+  async createBillingCheckout(data: {
+    lookup_key: string;
+    locale?: 'en' | 'ja';
+  }): Promise<{ url: string }> {
+    return this.request<{ url: string }>('/billing/checkout', {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async createBillingPortal(data?: { locale?: 'en' | 'ja' }): Promise<{ url: string }> {
+    return this.request<{ url: string }>('/billing/portal', {
+      method: 'POST',
+      body: data ?? {},
     });
   }
 

@@ -184,7 +184,7 @@ services:
       args:
         VITE_API_URL: /api
         VITE_USE_S3_STORAGE: "true"
-        VITE_MAX_VIDEO_UPLOAD_SIZE_MB: ${MAX_VIDEO_UPLOAD_SIZE_MB:-1024}
+        VITE_MAX_VIDEO_UPLOAD_SIZE_MB: ${MAX_VIDEO_UPLOAD_SIZE_MB:-200}
     container_name: videoq-web
     depends_on:
       - api

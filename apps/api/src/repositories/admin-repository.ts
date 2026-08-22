@@ -30,6 +30,8 @@ export type AdminUser = {
   used_ai_answers: number;
   usage_period_start: string | null;
   is_over_quota: boolean;
+  plan_code: string;
+  quota_source: "plan" | "admin";
 };
 
 const usagePeriodStartText = sql<string | null>`${users.usagePeriodStart}::text`.as(
@@ -52,6 +54,8 @@ const adminUserSelect = {
   used_ai_answers: users.usedAiAnswers,
   usage_period_start: usagePeriodStartText,
   is_over_quota: users.isOverQuota,
+  plan_code: users.planCode,
+  quota_source: users.quotaSource,
 };
 
 function mapUser(r: {
@@ -70,6 +74,8 @@ function mapUser(r: {
   used_ai_answers: number;
   usage_period_start: string | null;
   is_over_quota: boolean;
+  plan_code: string;
+  quota_source: string;
 }): AdminUser {
   return {
     id: String(r.id),
@@ -88,6 +94,8 @@ function mapUser(r: {
     used_ai_answers: Number(r.used_ai_answers),
     usage_period_start: r.usage_period_start == null ? null : String(r.usage_period_start),
     is_over_quota: Boolean(r.is_over_quota),
+    plan_code: r.plan_code,
+    quota_source: r.quota_source === "admin" ? "admin" : "plan",
   };
 }
 
@@ -153,6 +161,7 @@ export type QuotaPatch = {
   storage_limit_gb?: number | null;
   processing_limit_minutes?: number | null;
   ai_answers_limit?: number | null;
+  quota_source?: "plan" | "admin";
 };
 
 export type UsagePatch = {
@@ -179,6 +188,7 @@ export async function patchAdminUserQuota(
     storageLimitGb: number | null;
     processingLimitMinutes: number | null;
     aiAnswersLimit: number | null;
+    quotaSource: "plan" | "admin";
   }> = {};
   if (patch.max_video_upload_size_mb !== undefined) {
     set.maxVideoUploadSizeMb = patch.max_video_upload_size_mb;
@@ -188,6 +198,8 @@ export async function patchAdminUserQuota(
     set.processingLimitMinutes = patch.processing_limit_minutes;
   }
   if (patch.ai_answers_limit !== undefined) set.aiAnswersLimit = patch.ai_answers_limit;
+  if (patch.quota_source !== undefined) set.quotaSource = patch.quota_source;
+  else if (Object.keys(set).length > 0) set.quotaSource = "admin";
   if (Object.keys(set).length === 0) return getAdminUser(env, userId);
 
   return withDb(env, async (db) => {

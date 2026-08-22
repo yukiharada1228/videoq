@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient, type IntegrationApiKeyCreateResponse } from '@/lib/api';
+import { Link, useLocale } from '@/lib/i18n';
 import { queryKeys } from '@/lib/queryKeys';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
@@ -69,7 +71,10 @@ function usernameChangeErrorMessage(error: unknown, t: (key: string) => string):
 export default function SettingsPage() {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const locale = useLocale();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
+  const billingNotice = searchParams.get('billing');
 
   const [isCreateApiKeyDialogOpen, setIsCreateApiKeyDialogOpen] = useState(false);
   const [apiKeyName, setApiKeyName] = useState('');
@@ -346,6 +351,41 @@ export default function SettingsPage() {
       />
 
       <div className="flex flex-col gap-12">
+          <section className={SETTINGS_SECTION_CLASS}>
+            <div className="mb-5">
+              <Heading size="18" hasChip className="mb-2">
+                <HeadingTitle level="h2">{t('settings.billing.title')}</HeadingTitle>
+              </Heading>
+              <p className="text-std-16N-170 text-solid-gray-600">
+                {t('settings.billing.description')}
+              </p>
+            </div>
+            {billingNotice === 'success' && (
+              <div className="mb-5">
+                <MessageAlert type="success" message={t('settings.billing.success')} />
+              </div>
+            )}
+            {user?.subscription_status === 'past_due' && (
+              <div className="mb-5">
+                <MessageAlert type="error" message={t('settings.billing.pastDue')} />
+              </div>
+            )}
+            <div className={SETTINGS_CALLOUT_CLASS}>
+              <div className="font-bold text-solid-gray-800 mb-1">
+                {t('settings.billing.currentPlan')}
+              </div>
+              <p>{t(`pricing.plans.${user?.plan_code ?? 'free'}.name`)}</p>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Button asChild variant="outline">
+                <Link href="/pricing">{t('settings.billing.viewPlans')}</Link>
+              </Button>
+              {user?.plan_code === 'basic' || user?.plan_code === 'pro' ? (
+                <ManageBillingButton locale={locale} />
+              ) : null}
+            </div>
+          </section>
+
           <section className={SETTINGS_SECTION_CLASS}>
             <div className="mb-5">
               <Heading size="18" hasChip className="mb-2">
@@ -932,5 +972,20 @@ export default function SettingsPage() {
       )}
 
     </AppPageShell>
+  );
+}
+
+function ManageBillingButton({ locale }: { locale: 'en' | 'ja' }) {
+  const { t } = useTranslation();
+  const portal = useMutation({
+    mutationFn: async () => {
+      const res = await apiClient.createBillingPortal({ locale });
+      window.location.assign(res.url);
+    },
+  });
+  return (
+    <Button type="button" disabled={portal.isPending} onClick={() => portal.mutate()}>
+      {t('settings.billing.manage')}
+    </Button>
   );
 }

@@ -72,6 +72,7 @@
     "groupsNav": "Groups",
     "docs": "Developer Docs",
     "settings": "Settings",
+    "pricing": "Pricing",
     "logout": "Log out",
     "menu": "All menus",
     "closeMenu": "Close menu",
@@ -117,7 +118,8 @@
     },
     "usage": {
       "title": "Usage",
-      "description": "Current usage and limits"
+      "description": "Current usage and limits",
+      "upgrade": "Upgrade your plan"
     }
   },
   "videos": {
@@ -504,9 +506,55 @@
     "leaveGroup": "Leave “{{name}}”?",
     "leaveGroupDescription": "You will no longer be able to view this group's videos or chat. You will need a new invitation to join again."
   },
+  "pricing": {
+    "title": "Pricing",
+    "subtitle": "Start with a small Free trial, then Basic for everyday use or Pro for heavier workloads. Annual billing saves two months.",
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "freePrice": "¥0",
+    "perMonth": "/mo",
+    "perYear": "/yr",
+    "currentPlan": "Current plan",
+    "startFree": "Start free",
+    "signUpToSubscribe": "Sign up to subscribe",
+    "subscribe": "Subscribe",
+    "manage": "Manage billing",
+    "changePlan": "Change plan",
+    "canceled": "Checkout was canceled.",
+    "checkoutError": "Could not start checkout.",
+    "limits": {
+      "storage": "{{gb}} GB storage",
+      "processing": "{{minutes}} transcription minutes / month",
+      "answers": "{{count}} AI answers / month",
+      "upload": "{{mb}} MB per video"
+    },
+    "plans": {
+      "free": {
+        "name": "Free",
+        "blurb": "Upload one short video and ask a few questions."
+      },
+      "basic": {
+        "name": "Basic",
+        "blurb": "Everyday personal use. About two hours of transcription per month."
+      },
+      "pro": {
+        "name": "Pro",
+        "blurb": "For heavier use. About ten hours of transcription per month."
+      }
+    }
+  },
   "settings": {
     "title": "Settings",
     "subtitle": "Manage your account and integration settings",
+    "billing": {
+      "title": "Plan and billing",
+      "description": "See your current plan and manage payment methods or cancellation.",
+      "currentPlan": "Current plan",
+      "viewPlans": "View plans",
+      "manage": "Open billing portal",
+      "success": "Payment completed. It may take a few seconds for the plan to appear.",
+      "pastDue": "A payment failed. Please update your payment method."
+    },
     "usernameChange": {
       "title": "Username",
       "description": "Google sign-in may set your username from your email address. You can change it to something you prefer.",

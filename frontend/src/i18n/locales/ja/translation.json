@@ -72,6 +72,7 @@
     "groupsNav": "グループ",
     "docs": "開発者Docs",
     "settings": "設定",
+    "pricing": "料金",
     "logout": "ログアウト",
     "menu": "すべてのメニュー",
     "closeMenu": "メニューを閉じる",
@@ -117,7 +118,8 @@
     },
     "usage": {
       "title": "利用状況",
-      "description": "現在の利用量と上限"
+      "description": "現在の利用量と上限",
+      "upgrade": "プランをアップグレード"
     }
   },
   "videos": {
@@ -504,9 +506,55 @@
     "leaveGroup": "「{{name}}」から退出しますか？",
     "leaveGroupDescription": "退出すると、このグループの動画とチャットを閲覧できなくなります。再び参加するには、新しい招待が必要です。"
   },
+  "pricing": {
+    "title": "料金プラン",
+    "subtitle": "お試しの Free から、個人向け Basic、ヘビー利用の Pro まで。年払いは 2 ヶ月分お得です。",
+    "monthly": "月額",
+    "yearly": "年額",
+    "freePrice": "¥0",
+    "perMonth": "/月",
+    "perYear": "/年",
+    "currentPlan": "現在のプラン",
+    "startFree": "無料で始める",
+    "signUpToSubscribe": "登録して申し込む",
+    "subscribe": "このプランに申し込む",
+    "manage": "支払いを管理",
+    "changePlan": "プランを変更",
+    "canceled": "チェックアウトをキャンセルしました。",
+    "checkoutError": "チェックアウトを開始できませんでした。",
+    "limits": {
+      "storage": "ストレージ {{gb}} GB",
+      "processing": "文字起こし {{minutes}} 分/月",
+      "answers": "AI回答 {{count}} 回/月",
+      "upload": "1本あたり {{mb}} MB"
+    },
+    "plans": {
+      "free": {
+        "name": "Free",
+        "blurb": "短い動画を1本上げて、数問聞いてみるお試し枠です。"
+      },
+      "basic": {
+        "name": "Basic",
+        "blurb": "個人の定常利用向け。月あたり約2時間の文字起こし。"
+      },
+      "pro": {
+        "name": "Pro",
+        "blurb": "ヘビー利用向け。月あたり約10時間の文字起こし。"
+      }
+    }
+  },
   "settings": {
     "title": "設定",
     "subtitle": "アカウントと統合の設定を管理します",
+    "billing": {
+      "title": "プランと支払い",
+      "description": "現在のプランの確認と、支払い方法・解約の管理ができます。",
+      "currentPlan": "現在のプラン",
+      "viewPlans": "料金プランを見る",
+      "manage": "支払いポータルを開く",
+      "success": "お支払いが完了しました。プランが反映されるまで数秒かかることがあります。",
+      "pastDue": "お支払いに失敗しています。支払い方法を更新してください。"
+    },
     "usernameChange": {
       "title": "ユーザー名",
       "description": "Googleログインではメールアドレスの一部がユーザー名になることがあります。あとから好きな名前に変更できます。",

@@ -305,5 +305,8 @@ vi.mock('@/lib/api', async (importOriginal) => {
     getSharedVideoUrl: vi.fn(mockGetSharedVideoUrl),
     logout: vi.fn(() => Promise.resolve()),
     setUnauthorizedHandler: vi.fn(),
+    getBillingPlans: vi.fn(() => Promise.resolve([])),
+    createBillingCheckout: vi.fn(),
+    createBillingPortal: vi.fn(),
   },
 }});
