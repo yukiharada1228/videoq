@@ -2,7 +2,7 @@ import { isS3Storage, resolveFileUrl } from "../../integrations/media";
 import {
   isSafeMediaPath,
   findVideoIdByFilePath,
-  isVideoOwnedByUser,
+  isVideoAccessibleToUser,
   isVideoInGroup,
   resolveShareSlugGroupId as repositoryResolveShareSlugGroupId,
 } from "../../repositories/media-repository";
@@ -41,7 +41,7 @@ export async function authorizeMediaPath(
       return { notFound: true };
     }
   } else if (opts.userId != null) {
-    if (!(await isVideoOwnedByUser(env, videoId, opts.userId))) {
+    if (!(await isVideoAccessibleToUser(env, videoId, opts.userId))) {
       return { notFound: true };
     }
   } else {

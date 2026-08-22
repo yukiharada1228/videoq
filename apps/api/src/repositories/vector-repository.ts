@@ -1,7 +1,6 @@
-import { eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { withDb } from "../db/pool";
 import { sqlNumberArray } from "../db/sql-array";
-import { sceneEmbeddings } from "../db/schema";
 import type { Bindings } from "../types/bindings";
 
 const ALLOWED_TABLES = new Set(["scene_embeddings"]);
@@ -65,41 +64,5 @@ export async function searchScenes(
         endTime: text(meta.end_time),
       };
     });
-  });
-}
-
-export async function deleteVideoVectors(
-  env: Bindings,
-  videoId: number,
-): Promise<number> {
-  resolveVectorTable(env);
-  return withDb(env, async (db) => {
-    const deleted = await db
-      .delete(sceneEmbeddings)
-      .where(eq(sceneEmbeddings.videoId, videoId))
-      .returning({ id: sceneEmbeddings.langchainId });
-    return deleted.length;
-  });
-}
-
-export async function syncVectorTitle(
-  env: Bindings,
-  videoId: number,
-  newTitle: string,
-): Promise<number> {
-  resolveVectorTable(env);
-  return withDb(env, async (db) => {
-    const updated = await db
-      .update(sceneEmbeddings)
-      .set({
-        langchainMetadata: sql`jsonb_set(
-          COALESCE(${sceneEmbeddings.langchainMetadata}::jsonb, '{}'::jsonb),
-          '{video_title}',
-          to_jsonb(${newTitle}::text)
-        )`,
-      })
-      .where(eq(sceneEmbeddings.videoId, videoId))
-      .returning({ id: sceneEmbeddings.langchainId });
-    return updated.length;
   });
 }

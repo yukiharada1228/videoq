@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { mediaRoutes } from "../src/features/media/routes";
 import { isSafeMediaPath } from "../src/repositories/media-repository";
 import { signAccessToken } from "./helpers/auth";
+import { THROTTLE_RATES } from "../src/lib/rate-limit";
 
 import {
   executeFakePgQuery,
@@ -102,6 +103,24 @@ describe("GET /*", () => {
     expect(await res.text()).toBe("mp4data");
   });
 
+  it("streams a group video for an accepted group member", async () => {
+    bucketStore.set("media/videos/member.mp4", new TextEncoder().encode("member-data"));
+    rowsFor = (sql) => {
+      if (sql.includes("videos") && sql.includes("file")) return [{ id: 12 }];
+      if (sql.includes("video_group_memberships")) return [{ id: 12 }];
+      return [];
+    };
+
+    const res = await mediaRoutes.request(
+      "/videos/member.mp4",
+      { headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000006" } },
+      ENV,
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("member-data");
+  });
+
   it("allows share_slug when video is in the shared group", async () => {
     bucketStore.set("media/videos/a.mp4", new TextEncoder().encode("x"));
     rowsFor = (sql) => {
@@ -118,5 +137,22 @@ describe("GET /*", () => {
       ENV,
     );
     expect(res.status).toBe(200);
+  });
+});
+
+describe("共有スラッグの総当り", () => {
+  it("解決に失敗した試行は IP 単位で絞る（正規の視聴は絞らない）", async () => {
+    const { limit } = THROTTLE_RATES.share_slug_probe_ip;
+    const probe = () =>
+      mediaRoutes.request(
+        "/nope/missing.mp4?share_slug=guess-me",
+        { headers: { "CF-Connecting-IP": "9.9.9.9" } },
+        ENV,
+      );
+
+    for (let i = 0; i < limit; i++) {
+      expect((await probe()).status).toBe(401);
+    }
+    expect((await probe()).status).toBe(429);
   });
 });

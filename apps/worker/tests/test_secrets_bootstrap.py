@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 
+import pytest
+
 import worker_python.secrets_bootstrap as bootstrap
 
 
@@ -126,3 +128,47 @@ def test_legacy_env_names_still_resolve_params(monkeypatch):
     bootstrap.ensure_secrets_loaded()
 
     assert os.environ["DATABASE_URL"] == "postgresql://example/db"
+
+
+def test_transient_ssm_failure_does_not_poison_the_container(monkeypatch):
+    """A failed bootstrap must be retried, not silently skipped forever."""
+    bootstrap._LOADED = False
+    monkeypatch.setenv("DB_PARAM_NAME", "/videoq/prod/db")
+    for key in ("DATABASE_URL", "APP_PARAM_NAME", "APP_SECRET_ARN", "DB_SECRET_ARN"):
+        monkeypatch.delenv(key, raising=False)
+
+    attempts = {"count": 0}
+
+    class FlakyClient:
+        def get_parameter(self, Name, WithDecryption):  # noqa: N803
+            attempts["count"] += 1
+            if attempts["count"] == 1:
+                raise RuntimeError("ssm unavailable")
+            return {"Parameter": {"Value": '{"DATABASE_URL":"postgresql://db/x"}'}}
+
+    class FakeBoto3:
+        def client(self, name):
+            return FlakyClient()
+
+    monkeypatch.setitem(__import__("sys").modules, "boto3", FakeBoto3())
+
+    with pytest.raises(RuntimeError):
+        bootstrap.ensure_secrets_loaded()
+    assert bootstrap._LOADED is False
+    assert "DATABASE_URL" not in os.environ
+
+    # 同じ warm container 上の次の呼び出しで再試行され、今度は成功する。
+    bootstrap.ensure_secrets_loaded()
+    assert attempts["count"] == 2
+    assert os.environ["DATABASE_URL"] == "postgresql://db/x"
+    assert bootstrap._LOADED is True
+
+
+def test_missing_param_refs_still_mark_loaded(monkeypatch):
+    bootstrap._LOADED = False
+    for key in ("DB_PARAM_NAME", "DB_SECRET_ARN", "APP_PARAM_NAME", "APP_SECRET_ARN"):
+        monkeypatch.delenv(key, raising=False)
+
+    bootstrap.ensure_secrets_loaded()
+
+    assert bootstrap._LOADED is True

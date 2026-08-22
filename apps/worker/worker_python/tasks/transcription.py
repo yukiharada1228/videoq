@@ -8,13 +8,19 @@ from worker_python.contracts import JOB_INDEX_VIDEO_TRANSCRIPT
 from worker_python.db import db_connection
 from worker_python.pipeline.transcription import run_transcription
 from worker_python.pipeline.user_secret_envelope import try_decrypt
-from worker_python.sqs_enqueue import enqueue_job
+from worker_python.sqs_enqueue import child_job_id, enqueue_job
 from worker_python.tasks.indexing import index_video_transcript
-from worker_python.video_sql import get_video_for_task, save_transcript, transition_video_status
+from worker_python.video_sql import (
+    get_video_for_task,
+    reserve_processing_seconds,
+    save_transcript,
+    transition_video_status,
+)
 from worker_python.video_status import (
     plan_transcription_failure,
     plan_transcription_start,
     plan_transcription_success,
+    VideoStatus,
 )
 
 logger = logging.getLogger(__name__)
@@ -36,6 +42,10 @@ class FileSizeExceededError(Exception):
     pass
 
 
+class ProcessingQuotaExceededError(Exception):
+    pass
+
+
 def _load_searchapi_key(user_id: str) -> str | None:
     from worker_python.env import env_str
 
@@ -52,15 +62,17 @@ def _load_searchapi_key(user_id: str) -> str | None:
     return try_decrypt(row.get("searchapi_api_key_encrypted"))
 
 
-def _enqueue_or_run_indexing(video_id: int) -> None:
-    message_id = enqueue_job(JOB_INDEX_VIDEO_TRANSCRIPT, {"video_id": video_id})
+def _enqueue_or_run_indexing(video_id: int, parent_job_id: str) -> None:
+    payload = {"video_id": video_id}
+    next_job_id = child_job_id(parent_job_id, JOB_INDEX_VIDEO_TRANSCRIPT, payload)
+    message_id = enqueue_job(JOB_INDEX_VIDEO_TRANSCRIPT, payload, job_id=next_job_id)
     if message_id:
         return
     logger.info("SQS unavailable; running indexing inline for video %d", video_id)
-    index_video_transcript(video_id)
+    index_video_transcript(video_id, job_id=next_job_id)
 
 
-def transcribe_video(video_id: int) -> None:
+def transcribe_video(video_id: int, *, job_id: str | None = None) -> None:
     """
     Transcribe a video and transition status to INDEXING on success,
     then enqueue (or inline-run) indexing.
@@ -74,21 +86,51 @@ def transcribe_video(video_id: int) -> None:
         logger.warning("Transcription target video not found: %d", video_id)
         raise TranscriptionTargetMissingError(f"Video {video_id} not found")
 
-    from_status, to_status = plan_transcription_start(video.status)
+    parent_job_id = job_id or f"transcribe-video:{video_id}"
+    if video.status == VideoStatus.INDEXING.value:
+        logger.info("Resuming indexing handoff for video %d", video_id)
+        _enqueue_or_run_indexing(video_id, parent_job_id)
+        return
+    if video.status == VideoStatus.COMPLETED.value:
+        logger.info("Skipping duplicate transcription for completed video %d", video_id)
+        return
+    already_processing = video.status == VideoStatus.PROCESSING.value
+    if already_processing:
+        logger.info("Resuming interrupted transcription for video %d", video_id)
+    else:
+        from_status, to_status = plan_transcription_start(video.status)
 
     try:
-        with db_connection() as conn:
-            if not transition_video_status(conn, video_id, from_status, to_status):
-                raise TranscriptionExecutionFailedError(
-                    f"Video {video_id} could not transition {from_status.value} → {to_status.value}"
-                )
-            conn.commit()
+        if not already_processing:
+            with db_connection() as conn:
+                if not transition_video_status(conn, video_id, from_status, to_status):
+                    raise TranscriptionExecutionFailedError(
+                        f"Video {video_id} could not transition "
+                        f"{from_status.value} → {to_status.value}"
+                    )
+                conn.commit()
 
         logger.info("Transcription started for video %d (%s)", video.id, video.title)
         searchapi_key = (
             _load_searchapi_key(video.user_id) if video.source_type == "youtube" else None
         )
-        transcript = run_transcription(video, searchapi_key=searchapi_key)
+
+        def reserve_processing(seconds: int) -> None:
+            with db_connection() as conn:
+                reservation = reserve_processing_seconds(conn, video_id, seconds)
+                if not reservation.allowed:
+                    limit = reservation.limit_seconds
+                    detail = "unlimited" if limit is None else f"{limit} seconds"
+                    raise ProcessingQuotaExceededError(
+                        f"Processing quota exceeded (limit: {detail})"
+                    )
+                conn.commit()
+
+        transcript = run_transcription(
+            video,
+            searchapi_key=searchapi_key,
+            reserve_processing=reserve_processing,
+        )
 
         success_from, success_to = plan_transcription_success()
         with db_connection() as conn:
@@ -98,6 +140,15 @@ def transcribe_video(video_id: int) -> None:
 
     except FileSizeExceededError:
         logger.warning("File size exceeded for video %d, no retry", video_id)
+        return
+    except ProcessingQuotaExceededError as exc:
+        logger.warning("Processing quota exceeded for video %d: %s", video_id, exc)
+        fail_from, fail_to = plan_transcription_failure()
+        with db_connection() as conn:
+            transition_video_status(
+                conn, video_id, fail_from, fail_to, error_message=str(exc)
+            )
+            conn.commit()
         return
     except TranscriptionRejectedError as exc:
         logger.warning("Transcription rejected for video %d, no retry: %s", video_id, exc)
@@ -124,7 +175,7 @@ def transcribe_video(video_id: int) -> None:
 
     logger.info("Transcription completed for video %d; enqueue indexing", video_id)
     try:
-        _enqueue_or_run_indexing(video_id)
+        _enqueue_or_run_indexing(video_id, parent_job_id)
     except Exception:
         logger.exception(
             "Indexing after transcription failed for video %d (status left INDEXING)",

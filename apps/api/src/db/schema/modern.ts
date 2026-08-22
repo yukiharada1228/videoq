@@ -117,6 +117,91 @@ export const accountDeletionRequests = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Durable delivery / cleanup outbox
+// ---------------------------------------------------------------------------
+
+export const externalTasks = pgTable(
+	"external_tasks",
+	{
+		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+			name: "external_tasks_id_seq",
+			startWith: 1,
+			increment: 1,
+			minValue: 1,
+			maxValue: 9223372036854775807,
+			cache: 1,
+		}),
+		kind: varchar({ length: 32 }).notNull(),
+		payload: jsonb().$type<Record<string, unknown>>().notNull(),
+		dedupeKey: varchar("dedupe_key", { length: 255 }).notNull(),
+		attempts: integer().notNull().default(0),
+		availableAt: timestamp("available_at", { withTimezone: true, mode: "string" })
+			.notNull()
+			.defaultNow(),
+		lockedAt: timestamp("locked_at", { withTimezone: true, mode: "string" }),
+		completedAt: timestamp("completed_at", { withTimezone: true, mode: "string" }),
+		deadAt: timestamp("dead_at", { withTimezone: true, mode: "string" }),
+		effectAppliedAt: timestamp("effect_applied_at", {
+			withTimezone: true,
+			mode: "string",
+		}),
+		lastError: text("last_error").notNull().default(""),
+		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+			.notNull()
+			.defaultNow(),
+		updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+			.notNull()
+			.defaultNow(),
+	},
+	(table) => [
+		unique("external_tasks_dedupe_key_key").on(table.dedupeKey),
+		index("external_tasks_ready_idx")
+			.on(table.availableAt, table.id)
+			.where(sql`completed_at IS NULL AND dead_at IS NULL`),
+		index("external_tasks_completed_idx")
+			.on(table.completedAt, table.id)
+			.where(sql`completed_at IS NOT NULL`),
+		check(
+			"external_tasks_kind_check",
+			sql`kind IN ('sqs_job', 'storage_cleanup', 'invitation_email')`,
+		),
+		check("external_tasks_attempts_check", sql`attempts >= 0`),
+	],
+);
+
+/** SQS/Lambda の at-least-once 配送を job_id 単位で一度だけclaimする台帳。 */
+export const jobExecutions = pgTable(
+	"job_executions",
+	{
+		jobId: varchar("job_id", { length: 128 }).primaryKey(),
+		jobType: varchar("job_type", { length: 64 }).notNull(),
+		payloadSha256: varchar("payload_sha256", { length: 64 }).notNull(),
+		status: varchar({ length: 16 }).notNull(),
+		attempts: integer().notNull().default(0),
+		leaseToken: varchar("lease_token", { length: 36 }),
+		leaseUntil: timestamp("lease_until", { withTimezone: true, mode: "string" }),
+		completedAt: timestamp("completed_at", { withTimezone: true, mode: "string" }),
+		lastError: text("last_error").notNull().default(""),
+		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+			.notNull()
+			.defaultNow(),
+		updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+			.notNull()
+			.defaultNow(),
+	},
+	(table) => [
+		index("job_executions_completed_idx")
+			.on(table.completedAt, table.jobId)
+			.where(sql`completed_at IS NOT NULL`),
+		check(
+			"job_executions_status_check",
+			sql`status IN ('running', 'failed', 'completed')`,
+		),
+		check("job_executions_attempts_check", sql`attempts >= 0`),
+	],
+);
+
+// ---------------------------------------------------------------------------
 // Videos, groups, tags
 // ---------------------------------------------------------------------------
 
@@ -138,6 +223,7 @@ export const videos = pgTable(
 		transcript: text().notNull(),
 		status: varchar({ length: 20 }).notNull(),
 		errorMessage: text("error_message").notNull(),
+		processingSeconds: integer("processing_seconds").notNull().default(0),
 		userId: text("user_id").notNull(),
 		sourceType: varchar("source_type", { length: 20 }).notNull(),
 		sourceUrl: varchar("source_url", { length: 200 }).notNull(),
@@ -158,6 +244,7 @@ export const videos = pgTable(
 			foreignColumns: [users.id],
 			name: "videos_user_id_fkey",
 		}).onDelete("cascade"),
+		check("videos_processing_seconds_check", sql`processing_seconds >= 0`),
 	],
 );
 
@@ -231,6 +318,111 @@ export const videoGroupMembers = pgTable(
 			name: "video_group_members_video_id_fkey",
 		}).onDelete("cascade"),
 		unique("video_group_members_group_video_uniq").on(table.groupId, table.videoId),
+	],
+);
+
+/** Email-bound invitations for user membership in a video group. */
+export const videoGroupInvitations = pgTable(
+	"video_group_invitations",
+	{
+		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+			name: "video_group_invitations_id_seq",
+			startWith: 1,
+			increment: 1,
+			minValue: 1,
+			maxValue: "9223372036854775807",
+			cache: 1,
+		}),
+		groupId: bigint("group_id", { mode: "number" }).notNull(),
+		email: varchar({ length: 254 }).notNull(),
+		invitedByUserId: text("invited_by_user_id").notNull(),
+		status: varchar({ length: 20 }).notNull().default("pending"),
+		deliveryStatus: varchar("delivery_status", { length: 20 }).notNull().default("queued"),
+		tokenHash: varchar("token_hash", { length: 64 }).notNull(),
+		expiresAt: timestamp("expires_at", { withTimezone: true, mode: "string" }).notNull(),
+		acceptedByUserId: text("accepted_by_user_id"),
+		acceptedAt: timestamp("accepted_at", { withTimezone: true, mode: "string" }),
+		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+		updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
+		lastSentAt: timestamp("last_sent_at", { withTimezone: true, mode: "string" }),
+		sendAttempts: integer("send_attempts").notNull().default(0),
+		lastError: text("last_error"),
+	},
+	(table) => [
+		index("video_group_invitations_group_status_idx").using(
+			"btree",
+			table.groupId.asc().nullsLast(),
+			table.status.asc().nullsLast(),
+		),
+		index("video_group_invitations_email_idx").using("btree", table.email.asc().nullsLast()),
+		unique("video_group_invitations_token_hash_key").on(table.tokenHash),
+		uniqueIndex("video_group_invitations_pending_email_uniq")
+			.on(table.groupId, table.email)
+			.where(sql`status = 'pending'`),
+		foreignKey({
+			columns: [table.groupId],
+			foreignColumns: [videoGroups.id],
+			name: "video_group_invitations_group_id_fkey",
+		}).onDelete("cascade"),
+		foreignKey({
+			columns: [table.invitedByUserId],
+			foreignColumns: [users.id],
+			name: "video_group_invitations_invited_by_user_id_fkey",
+		}).onDelete("cascade"),
+		foreignKey({
+			columns: [table.acceptedByUserId],
+			foreignColumns: [users.id],
+			name: "video_group_invitations_accepted_by_user_id_fkey",
+		}).onDelete("set null"),
+		check(
+			"video_group_invitations_status_check",
+			sql`status IN ('pending', 'accepted', 'declined', 'expired', 'revoked')`,
+		),
+		check(
+			"video_group_invitations_delivery_status_check",
+			sql`delivery_status IN ('queued', 'sent', 'failed')`,
+		),
+		check("video_group_invitations_send_attempts_check", sql`send_attempts >= 0`),
+	],
+);
+
+/** Accepted user memberships. Owners are represented by video_groups.user_id, not here. */
+export const videoGroupMemberships = pgTable(
+	"video_group_memberships",
+	{
+		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+			name: "video_group_memberships_id_seq",
+			startWith: 1,
+			increment: 1,
+			minValue: 1,
+			maxValue: "9223372036854775807",
+			cache: 1,
+		}),
+		groupId: bigint("group_id", { mode: "number" }).notNull(),
+		userId: text("user_id").notNull(),
+		invitationId: bigint("invitation_id", { mode: "number" }),
+		joinedAt: timestamp("joined_at", { withTimezone: true, mode: "string" }).notNull(),
+	},
+	(table) => [
+		index("video_group_memberships_group_id_idx").using("btree", table.groupId.asc().nullsLast()),
+		index("video_group_memberships_user_id_idx").using("btree", table.userId.asc().nullsLast()),
+		unique("video_group_memberships_group_user_uniq").on(table.groupId, table.userId),
+		unique("video_group_memberships_invitation_id_key").on(table.invitationId),
+		foreignKey({
+			columns: [table.groupId],
+			foreignColumns: [videoGroups.id],
+			name: "video_group_memberships_group_id_fkey",
+		}).onDelete("cascade"),
+		foreignKey({
+			columns: [table.userId],
+			foreignColumns: [users.id],
+			name: "video_group_memberships_user_id_fkey",
+		}).onDelete("cascade"),
+		foreignKey({
+			columns: [table.invitationId],
+			foreignColumns: [videoGroupInvitations.id],
+			name: "video_group_memberships_invitation_id_fkey",
+		}).onDelete("set null"),
 	],
 );
 
@@ -434,6 +626,9 @@ export const plogBuildJobs = pgTable(
 	(table) => [
 		index("plog_build_jobs_video_id_idx").using("btree", table.videoId.asc().nullsLast()),
 		index("plog_build_jobs_status_idx").using("btree", table.status.asc().nullsLast()),
+		uniqueIndex("plog_build_jobs_video_active_uniq")
+			.on(table.videoId)
+			.where(sql`status IN ('pending', 'running')`),
 		foreignKey({
 			columns: [table.videoId],
 			foreignColumns: [videos.id],
@@ -641,4 +836,3 @@ export const sceneEmbeddings = pgTable(
 		index("scene_embeddings_video_id_idx").on(table.videoId),
 	],
 );
-

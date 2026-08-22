@@ -1,14 +1,11 @@
-import { deleteR2Object, getR2ObjectSize } from "../integrations/media";
-import {
-  clearOverQuotaIfWithinLimit,
-  incrementStorageBytes,
-} from "../repositories/quota-repository";
+import { getR2ObjectSize } from "../integrations/media";
 import {
   deleteVideoCascade,
   listStaleUploadingVideos,
 } from "../repositories/video-repository";
 import type { Bindings } from "../types/bindings";
 import { parseReservedBytesFromFileKey } from "./upload";
+import { processExternalTaskById } from "./external-tasks";
 
 /** 署名 URL 有効期限(1h) + 余裕。これより古い uploading を放棄とみなす。 */
 export const DEFAULT_ABANDON_HOURS = 2;
@@ -42,38 +39,24 @@ export async function reconcileAbandonedUploads(
       let bytes: number | null = null;
       if (row.fileKey) {
         try {
-          bytes = await getR2ObjectSize(env, row.fileKey);
+          const actualBytes = await getR2ObjectSize(env, row.fileKey);
+          bytes = parseReservedBytesFromFileKey(row.fileKey) ?? actualBytes;
         } catch {
-          bytes = null;
-        }
-        if (bytes === null) {
           bytes = parseReservedBytesFromFileKey(row.fileKey);
         }
       }
 
-      await deleteVideoCascade(env, row.id, row.userId);
+      const deleted = await deleteVideoCascade(env, row.id, row.userId, {
+        expectedStatus: "uploading",
+        fallbackStorageBytes: bytes,
+      });
+      if (!deleted.deleted) continue;
 
-      if (row.fileKey) {
-        try {
-          await deleteR2Object(env, row.fileKey);
-        } catch {
-          /* best-effort */
-        }
-      }
-
-      if (bytes !== null && bytes > 0) {
-        try {
-          await incrementStorageBytes(env, row.userId, -bytes);
-          result.releasedBytes += bytes;
-        } catch {
-          /* best-effort */
-        }
-      }
-      try {
-        await clearOverQuotaIfWithinLimit(env, row.userId);
-      } catch {
-        /* best-effort */
-      }
+      const completed =
+        deleted.cleanupTaskId === null
+          ? true
+          : await processExternalTaskById(env, deleted.cleanupTaskId);
+      if (completed && bytes !== null && bytes > 0) result.releasedBytes += bytes;
 
       result.released += 1;
     } catch {
@@ -84,12 +67,14 @@ export async function reconcileAbandonedUploads(
   return result;
 }
 
-/** DELETE 時: R2 サイズが取れなければ file key の予約バイトを使う。 */
+/** DELETE 時: 予約バイトを優先し、旧形式 key のみ R2 実サイズを使う。 */
 export function resolveStorageBytesForRelease(
   fileKey: string | null,
   r2Size: number | null,
 ): number | null {
-  if (r2Size !== null && r2Size > 0) return r2Size;
-  if (!fileKey) return null;
-  return parseReservedBytesFromFileKey(fileKey);
+  if (fileKey) {
+    const reservedBytes = parseReservedBytesFromFileKey(fileKey);
+    if (reservedBytes !== null) return reservedBytes;
+  }
+  return r2Size !== null && r2Size > 0 ? r2Size : null;
 }

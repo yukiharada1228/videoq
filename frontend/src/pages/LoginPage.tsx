@@ -14,7 +14,8 @@ import { FormField } from '@/components/auth/FormField';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { AuthFormFooter } from '@/components/auth/AuthFormFooter';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
-import { Button } from '@/components/ui/button';import { Divider } from '@/components/ui/divider';
+import { Button } from '@/components/ui/button';
+import { Divider } from '@/components/ui/divider';
 import { UtilityLink } from '@/components/ui/utility-link';
 
 // Only allow same-origin absolute paths to prevent open redirects to attacker
@@ -136,7 +137,7 @@ export default function LoginPage() {
         <AuthFormFooter
           questionText={t('auth.login.footerQuestion')}
           linkText={t('auth.login.footerLink')}
-          href="/signup"
+          href={nextPath ? `/signup?next=${encodeURIComponent(nextPath)}` : '/signup'}
         />
       </div>
     </AuthLayout>

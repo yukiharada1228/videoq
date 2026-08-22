@@ -220,6 +220,8 @@
       "open": "Open {{name}}",
       "moveUp": "Move {{name}} up",
       "moveDown": "Move {{name}} down",
+      "joinedTitle": "Groups you've joined",
+      "memberBadge": "Member",
       "loadingMore": "Loading...",
       "videoCount_one": "{{count}} video",
       "videoCount_other": "{{count}} videos"
@@ -281,7 +283,49 @@
       "shareSlugHelp": "3-64 chars, lowercase letters, numbers, and hyphens only",
       "copyButton": "Copy",
       "removeFromGroup": "Remove from group",
-      "deleteError": "Failed to delete the chat group"
+      "deleteError": "Failed to delete the chat group",
+      "memberBadge": "Member",
+      "leave": "Leave group",
+      "leaveError": "Failed to leave the group"
+    },
+    "groupMembers": {
+      "title": "Manage members and invitations",
+      "open": "Manage members",
+      "emailLabel": "Email addresses to invite",
+      "emailPlaceholder": "student@example.com",
+      "emailHelp": "Enter multiple addresses separated by new lines, commas, or semicolons. Invitations expire after 7 days.",
+      "previewTitle": "Review before sending",
+      "previewSummary": "{{count}} of {{total}} recipients will receive an invitation.",
+      "preview": {
+        "ready": "Ready to send"
+      },
+      "invite": "Send invitation emails",
+      "membersTitle": "Members",
+      "invitationsTitle": "Invitation history",
+      "noMembers": "No members have joined yet.",
+      "noInvitations": "No invitations yet.",
+      "remove": "Remove member",
+      "resend": "Resend",
+      "revoke": "Revoke",
+      "result": {
+        "queued": "Queued",
+        "already_member": "Already a member",
+        "already_invited": "Already invited",
+        "invalid": "Invalid address",
+        "duplicate": "Duplicate"
+      },
+      "status": {
+        "pending": "Pending",
+        "accepted": "Accepted",
+        "declined": "Declined",
+        "expired": "Expired",
+        "revoked": "Revoked"
+      },
+      "delivery": {
+        "queued": "Queued",
+        "sent": "Email sent",
+        "failed": "Email delivery failed"
+      }
     },
     "shared": {
       "tabs": {
@@ -292,6 +336,34 @@
       "videoNoFile": "Video file is unavailable",
       "noVideos": "No videos yet",
       "publicBadge": "Public share link"
+    }
+  },
+  "groupInvitation": {
+    "badge": "Group invitation",
+    "title": "Review invitation",
+    "description": "Join using an account whose verified email matches the invitation.",
+    "inviter": "Invited by",
+    "recipient": "Invited email",
+    "notFound": "This invitation could not be found or is unavailable.",
+    "accept": "Accept and join",
+    "openGroup": "Open group",
+    "decline": "Decline",
+    "declined": "You declined this invitation.",
+    "authRequired": "Sign in with the invited email address to accept or decline.",
+    "login": "Sign in to continue",
+    "signup": "Create an account",
+    "status": {
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "expired": "Expired",
+      "revoked": "Revoked"
+    },
+    "terminal": {
+      "accepted": "This invitation has already been accepted.",
+      "declined": "This invitation has been declined.",
+      "expired": "This invitation has expired. Ask the inviter to send a new one.",
+      "revoked": "This invitation was revoked by the inviter."
     }
   },
   "auth": {
@@ -385,7 +457,8 @@
       "password": {
         "label": "Password",
         "show": "Show password",
-        "hide": "Hide password"
+        "hide": "Hide password",
+        "minLengthHint": "Use at least {{min}} characters."
       },
       "passwordConfirmation": {
         "label": "Confirm password"
@@ -398,6 +471,7 @@
     "newConsultation": "New chat",
     "history": "Conversation history",
     "historyEmpty": "No history available",
+    "sharedLinkUser": "Shared-link visitor",
     "exportCsvShort": "CSV",
     "feedbackGood": "Good",
     "feedbackBad": "Bad",
@@ -428,7 +502,9 @@
   "confirmations": {
     "deleteVideo": "Are you sure you want to delete this video?",
     "deleteGroup": "Are you sure you want to delete this chat group?",
-    "disableShareLink": "Disable the share link?"
+    "disableShareLink": "Disable the share link?",
+    "leaveGroup": "Leave “{{name}}”?",
+    "leaveGroupDescription": "You will no longer be able to view this group's videos or chat. You will need a new invitation to join again."
   },
   "settings": {
     "title": "Settings",

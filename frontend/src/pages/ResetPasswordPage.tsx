@@ -8,6 +8,7 @@ import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { useConfirmPasswordResetMutation } from '@/hooks/usePasswordRecovery';
+import { PASSWORD_MIN_LENGTH } from '@/lib/authConfig';
 import { FormField } from '@/components/auth/FormField';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { MessageAlert } from '@/components/common/MessageAlert';
@@ -84,7 +85,10 @@ function ResetPasswordContent() {
             label={t('auth.resetPassword.newPassword')}
             type="password"
             required
-            minLength={8}
+            minLength={PASSWORD_MIN_LENGTH}
+            supportText={t('auth.fields.password.minLengthHint', {
+              min: PASSWORD_MIN_LENGTH,
+            })}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="new-password"
@@ -96,7 +100,7 @@ function ResetPasswordContent() {
             label={t('auth.resetPassword.confirmPassword')}
             type="password"
             required
-            minLength={8}
+            minLength={PASSWORD_MIN_LENGTH}
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             autoComplete="new-password"

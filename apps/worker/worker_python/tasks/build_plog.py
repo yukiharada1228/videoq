@@ -11,32 +11,48 @@ from worker_python.video_sql import get_video_for_task
 
 logger = logging.getLogger(__name__)
 
-
-def _get_latest_build_job(conn: Any, video_id: int) -> dict[str, Any] | None:
-    return conn.execute(
-        """
-        SELECT id, status
-          FROM plog_build_jobs
-         WHERE video_id = %s
-         ORDER BY id DESC
-         LIMIT 1
-        """,
-        (video_id,),
-    ).fetchone()
+PLOG_BUILD_LEASE_SECONDS = 15 * 60
 
 
-def _create_build_job(conn: Any, video_id: int) -> int:
-    row = conn.execute(
+def _claim_build_job(conn: Any, video_id: int) -> int | None:
+    """Create-if-needed and atomically claim one pending job for this video."""
+    conn.execute("SELECT 1 FROM videos WHERE id = %s FOR UPDATE", (video_id,))
+    conn.execute(
         """
         INSERT INTO plog_build_jobs
             (video_id, status, error_message, input_tokens, output_tokens,
              created_at, updated_at)
         VALUES (%s, 'pending', '', 0, 0, NOW(), NOW())
+        ON CONFLICT (video_id) WHERE status IN ('pending', 'running')
+        DO NOTHING
         RETURNING id
         """,
         (video_id,),
     ).fetchone()
-    return int(row["id"])
+    row = conn.execute(
+        """
+        UPDATE plog_build_jobs
+           SET status = 'running', updated_at = NOW()
+         WHERE id = (
+               SELECT id
+                 FROM plog_build_jobs
+                WHERE video_id = %s
+                  AND (
+                    status = 'pending'
+                    OR (
+                      status = 'running'
+                      AND updated_at < NOW() - (%s * INTERVAL '1 second')
+                    )
+                  )
+                ORDER BY id DESC
+                FOR UPDATE SKIP LOCKED
+                LIMIT 1
+         )
+        RETURNING id
+        """,
+        (video_id, PLOG_BUILD_LEASE_SECONDS),
+    ).fetchone()
+    return int(row["id"]) if row else None
 
 
 def _update_build_job(
@@ -89,14 +105,11 @@ def build_plog_artifacts(video_id: int) -> None:
         raise ValueError(f"Video {video_id} missing or has no transcript")
 
     with db_connection() as conn:
-        latest = _get_latest_build_job(conn, video_id)
-        if latest and latest["status"] in {"pending", "running"}:
-            job_id = int(latest["id"])
-            _update_build_job(conn, job_id, status="running")
-        else:
-            job_id = _create_build_job(conn, video_id)
-            _update_build_job(conn, job_id, status="running")
+        job_id = _claim_build_job(conn, video_id)
         conn.commit()
+    if job_id is None:
+        logger.info("PLOG build already running for video %d; skipping duplicate", video_id)
+        return
 
     try:
         with db_connection() as conn:

@@ -12,7 +12,13 @@
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "backend-hono",
+  // 本番は `env.production` の `backend-hono`。名前を分けておかないと
+  // `--env production` を付け忘れた `wrangler deploy` が本番を上書きする。
+  "name": "backend-hono-dev",
+  // このトップレベル設定は `wrangler dev` 専用。`--env production` を付け忘れた
+  // deploy が公開URLを持たないよう workers.dev を閉じる。ENVIRONMENT が
+  // "development" のまま到達可能になると、テスト用認証ヘッダの経路が開く。
+  "workers_dev": false,
   "main": "src/index.ts",
   "compatibility_date": "2026-08-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -24,6 +30,7 @@
     "CORS_ALLOW_ORIGIN": "http://localhost,http://127.0.0.1,http://127.0.0.1:3000,http://localhost:3000",
     "FRONTEND_URL": "http://localhost",
     "DEFAULT_FROM_EMAIL": "noreply@videoq.local",
+    "GROUP_INVITATION_BATCH_LIMIT": "50",
     "MAX_VIDEO_UPLOAD_SIZE_MB": "1024",
     "DEFAULT_STORAGE_LIMIT_GB": "10",
     "DEFAULT_PROCESSING_LIMIT_MINUTES": "60",
@@ -35,17 +42,18 @@
     "LLM_MODEL": "gpt-4o-mini",
     "PGVECTOR_COLLECTION_NAME": "scene_embeddings",
     "OAUTH_ISSUER_URL": "http://localhost",
-    "BETTER_AUTH_URL": "http://localhost",
-    "OIDC_ENABLED": "false",
-    "OIDC_LOGOUT_ENABLED": "false"
+    "BETTER_AUTH_URL": "http://localhost"
   },
 
   "send_email": [{ "name": "EMAIL" }],
 
+  // `wrangler dev` は localConnectionString しか見ない。id に本番の Hyperdrive を
+  // 書くと、`--env production` を付け忘れた deploy が本番DBに繋がってしまうため、
+  // ここには存在しない id を置く。本番の id は env.production 側にだけ書く。
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
-      "id": "d69ecb01a493415197e52552db2990f8",
+      "id": "00000000000000000000000000000000",
       "localConnectionString": "postgresql://postgres:postgres@localhost:55432/postgres"
     }
   ],
@@ -59,28 +67,26 @@
   ],
 
   "durable_objects": {
-    "bindings": [{ "name": "RATE_LIMITER", "class_name": "RateLimiter" }]
+    "bindings": [
+      { "name": "RATE_LIMITER", "class_name": "RateLimiter" },
+      { "name": "STUDY_SESSION", "class_name": "StudySession" }
+    ]
   },
   "migrations": [
-    { "tag": "v1-rate-limiter", "new_sqlite_classes": ["RateLimiter"] }
-  ],
-
-  "kv_namespaces": [
-    {
-      "binding": "STUDY_SESSION",
-      "id": "5c1b0cca73a24323ac53bddb906396bb",
-      "preview_id": "90b8d2b7260249d1a54eb34d8fb64227"
-    }
+    { "tag": "v1-rate-limiter", "new_sqlite_classes": ["RateLimiter"] },
+    { "tag": "v2-study-session", "new_sqlite_classes": ["StudySession"] }
   ],
 
   "triggers": {
-    "crons": ["0 * * * *"]
+    "crons": ["*/5 * * * *", "17 3 * * *"]
   },
 
   "env": {
     "production": {
       "name": "backend-hono",
-      "workers_dev": true,
+      // 公開経路は下の routes だけ。workers.dev を開けると CORS も
+      // Cookie ドメインも効かない第二の入口ができてしまう。
+      "workers_dev": false,
       "vars": {
         "ENVIRONMENT": "production",
         "USE_S3_STORAGE": "true",
@@ -88,6 +94,7 @@
         "FRONTEND_URL": "https://videoq.jp",
         "DEFAULT_FROM_EMAIL": "noreply@mg.videoq.jp",
         "MAILGUN_SENDER_DOMAIN": "mg.videoq.jp",
+        "GROUP_INVITATION_BATCH_LIMIT": "50",
         "MAX_VIDEO_UPLOAD_SIZE_MB": "1024",
         "DEFAULT_STORAGE_LIMIT_GB": "10",
         "DEFAULT_PROCESSING_LIMIT_MINUTES": "60",
@@ -100,8 +107,6 @@
         "PGVECTOR_COLLECTION_NAME": "scene_embeddings",
         "OAUTH_ISSUER_URL": "https://videoq.jp",
         "BETTER_AUTH_URL": "https://videoq.jp",
-        "OIDC_ENABLED": "false",
-        "OIDC_LOGOUT_ENABLED": "false",
         "R2_BUCKET_NAME": "videoq-media-prod",
         "R2_S3_ENDPOINT": "https://12daec56fdba43f677f2766ee26a5a39.r2.cloudflarestorage.com",
         "R2_S3_REGION": "auto"
@@ -126,16 +131,13 @@
         }
       ],
       "durable_objects": {
-        "bindings": [{ "name": "RATE_LIMITER", "class_name": "RateLimiter" }]
+        "bindings": [
+          { "name": "RATE_LIMITER", "class_name": "RateLimiter" },
+          { "name": "STUDY_SESSION", "class_name": "StudySession" }
+        ]
       },
-      "kv_namespaces": [
-        {
-          "binding": "STUDY_SESSION",
-          "id": "5c1b0cca73a24323ac53bddb906396bb"
-        }
-      ],
       "triggers": {
-        "crons": ["0 * * * *"]
+        "crons": ["*/5 * * * *", "17 3 * * *"]
       }
     }
   }

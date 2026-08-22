@@ -1,10 +1,9 @@
 import {
-  enqueueAccountDeletion,
   enqueueReindexAllEmbeddings,
 } from "../../lib/jobs";
+import { processExternalTaskById } from "../../lib/external-tasks";
 import {
   getAdminUser,
-  hardDeleteUser,
   listAdminUsers,
   lockUserForHardDelete,
   patchAdminUserFlags,
@@ -96,7 +95,6 @@ export async function patchFlags(
 
 export async function enqueueReindexAll(env: Bindings) {
   const jobId = await enqueueReindexAllEmbeddings(env);
-  if (!jobId) return { unavailable: true } as const;
   return { job_id: jobId } as const;
 }
 
@@ -114,14 +112,6 @@ export async function deleteUser(
 
   const locked = await lockUserForHardDelete(env, targetUserId);
   if (!locked) return { notFound: true } as const;
-  await revokeAuthMaterialForUser(env, targetUserId);
-
-  const jobId = await enqueueAccountDeletion(env, targetUserId);
-  if (jobId) return { job_id: jobId } as const;
-
-  // SQS misconfig / SendMessage failure used to throw 500 after lock.
-  // Fall back to in-request hard-delete so Admin can still remove users.
-  const deleted = await hardDeleteUser(env, targetUserId);
-  if (!deleted) return { notFound: true } as const;
-  return { job_id: `sync-${crypto.randomUUID()}` } as const;
+  await processExternalTaskById(env, locked.taskId);
+  return { job_id: locked.jobId } as const;
 }

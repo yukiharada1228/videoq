@@ -9,14 +9,13 @@
     "lib": [
       "ESNext"
     ],
-    "types": [
-      "@cloudflare/workers-types"
-    ],
+    "types": [],
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx",
     "noEmit": true
   },
   "include": [
+    "worker-configuration.d.ts",
     "src/**/*.ts",
     "src/**/*.json"
   ]

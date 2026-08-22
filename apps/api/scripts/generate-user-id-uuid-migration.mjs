@@ -11,7 +11,6 @@ import { execFileSync } from "node:child_process";
 import {
   mkdirSync,
   readFileSync,
-  renameSync,
   rmSync,
   writeFileSync,
   existsSync,
@@ -237,19 +236,12 @@ try {
   rmSync(tmp, { recursive: true, force: true });
 }
 
-// --- 3) drizzle-kit generate (hide non-JSON meta/*.hash which breaks kit) ---
-const hashPath = join(metaDir, "0000_init.hash");
-const hashBak = join(metaDir, "0000_init.hash.bak");
-if (existsSync(hashPath)) renameSync(hashPath, hashBak);
-try {
-  execFileSync(
-    "npx",
-    ["drizzle-kit", "generate", "--name", "user_id_uuid"],
-    { cwd: root, stdio: "inherit" },
-  );
-} finally {
-  if (existsSync(hashBak)) renameSync(hashBak, hashPath);
-}
+// --- 3) drizzle-kit generate ---
+execFileSync(
+  "npx",
+  ["drizzle-kit", "generate", "--name", "user_id_uuid"],
+  { cwd: root, stdio: "inherit" },
+);
 
 const generatedSql = readdirSync(drizzleDir)
   .filter((n) => n.includes("user_id_uuid") && n.endsWith(".sql"))

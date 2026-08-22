@@ -43,6 +43,8 @@ const ENV = {
 } as unknown as Record<string, unknown>;
 
 const defaultRows = (sql: string): Record<string, unknown>[] => {
+  if (sql.includes("UPDATE users") && sql.includes("RETURNING usage_period_start"))
+    return [{ usage_period_start: "2026-08-01 00:00:00+00" }];
   if (sql.includes("is_over_quota, ai_answers_limit"))
     return [{ is_over_quota: false, ai_answers_limit: null, used_ai_answers: 0 }];
   if (sql.includes("FROM video_groups WHERE"))
@@ -61,6 +63,7 @@ const defaultRows = (sql: string): Record<string, unknown>[] => {
       },
     ];
   if (sql.includes("INSERT INTO chat_logs")) return [{ id: 99, feedback: null }];
+  if (sql.toLowerCase().includes("insert into") && sql.includes("external_tasks")) return [{ id: 199 }];
   return [];
 };
 
@@ -193,6 +196,25 @@ describe("POST /completions", () => {
     expect(calls.some((c) => c.sql.includes("INSERT INTO chat_logs"))).toBe(false);
   });
 
+  it("回答生成後の保存失敗では消費済みの利用枠を返却しない", async () => {
+    stubOpenAi("Generated answer");
+    const previousRowsFor = rowsFor;
+    rowsFor = (sql, args) => {
+      if (sql.includes("INSERT INTO chat_logs")) {
+        throw new Error("database unavailable");
+      }
+      return previousRowsFor(sql, args);
+    };
+
+    const res = await post(
+      { messages: [{ role: "user", content: "hi" }], group_id: 3 },
+      { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" },
+    );
+
+    expect(res.status).toBe(500);
+    expect(calls.some((call) => call.sql.includes("GREATEST"))).toBe(false);
+  });
+
   it("language が Accept-Language より優先される", async () => {
     const requests = stubOpenAi();
     await post(
@@ -229,10 +251,15 @@ describe("POST /completions", () => {
   });
 
   it("ストレージ超過は 403 insufficient_quota", async () => {
-    rowsFor = (sql) =>
-      sql.includes("is_over_quota, ai_answers_limit")
-        ? [{ is_over_quota: true, ai_answers_limit: null, used_ai_answers: 0 }]
-        : defaultRows(sql);
+    rowsFor = (sql) => {
+      if (sql.includes("UPDATE users") && sql.includes("RETURNING usage_period_start")) {
+        return [];
+      }
+      if (sql.includes("SELECT is_over_quota")) {
+        return [{ is_over_quota: true, ai_answers_limit: null, used_ai_answers: 0 }];
+      }
+      return defaultRows(sql);
+    };
     const res = await post(
       { messages: [{ role: "user", content: "hi" }] },
       { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" },
@@ -247,10 +274,15 @@ describe("POST /completions", () => {
   });
 
   it("AI 回答上限は 400 insufficient_quota", async () => {
-    rowsFor = (sql) =>
-      sql.includes("is_over_quota, ai_answers_limit")
-        ? [{ is_over_quota: false, ai_answers_limit: 100, used_ai_answers: 100 }]
-        : defaultRows(sql);
+    rowsFor = (sql) => {
+      if (sql.includes("UPDATE users") && sql.includes("RETURNING usage_period_start")) {
+        return [];
+      }
+      if (sql.includes("SELECT is_over_quota")) {
+        return [{ is_over_quota: false, ai_answers_limit: 100, used_ai_answers: 100 }];
+      }
+      return defaultRows(sql);
+    };
     const res = await post(
       { messages: [{ role: "user", content: "hi" }] },
       { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" },

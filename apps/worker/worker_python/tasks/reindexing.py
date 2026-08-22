@@ -4,19 +4,28 @@ from __future__ import annotations
 
 import logging
 
-from worker_python.db import db_connection
+from worker_python.advisory_locks import full_vector_write_lock
 from worker_python.pipeline import vector_index
-from worker_python.video_sql import list_completed_videos_with_transcript
+from worker_python.video_sql import VideoRow, list_completed_videos_with_transcript
 
 logger = logging.getLogger(__name__)
+
+
+class ReindexingIncompleteError(RuntimeError):
+    """At least one video failed; retry the SQS job instead of losing the failure."""
 
 
 def reindex_all_videos_embeddings() -> dict:
     """Regenerate embedding vectors for all completed videos."""
     logger.info("Re-indexing task started")
 
-    with db_connection() as conn:
-        videos = list_completed_videos_with_transcript(conn)
+    with full_vector_write_lock() as lock_conn:
+        videos = list_completed_videos_with_transcript(lock_conn)
+        return _run_reindex(videos)
+
+
+def _run_reindex(videos: list[VideoRow]) -> dict:
+    """Run while the caller holds the global PostgreSQL advisory lock."""
 
     total = len(videos)
     logger.info("Starting re-indexing: %d videos", total)
@@ -55,6 +64,11 @@ def reindex_all_videos_embeddings() -> dict:
 
     message = f"Re-indexed {successful_count}/{total} videos"
     logger.info("Re-indexing completed: %s", message)
+
+    if failed_videos:
+        raise ReindexingIncompleteError(
+            f"{message}; {len(failed_videos)} video(s) failed"
+        )
 
     return {
         "status": "completed",

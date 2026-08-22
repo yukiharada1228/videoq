@@ -1,6 +1,11 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 import { withDb } from "../db/pool";
-import { videos, videoGroups, videoGroupMembers } from "../db/schema";
+import {
+  videos,
+  videoGroups,
+  videoGroupMembers,
+  videoGroupMemberships,
+} from "../db/schema";
 import type { Bindings } from "../types/bindings";
 
 /** path traversal を拒否する。 */
@@ -25,7 +30,7 @@ export async function findVideoIdByFilePath(
   });
 }
 
-export async function isVideoOwnedByUser(
+export async function isVideoAccessibleToUser(
   env: Bindings,
   videoId: number,
   userId: string,
@@ -34,7 +39,22 @@ export async function isVideoOwnedByUser(
     const rows = await db
       .select({ id: videos.id })
       .from(videos)
-      .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
+      .where(
+        and(
+          eq(videos.id, videoId),
+          or(
+            eq(videos.userId, userId),
+            sql`EXISTS (
+              SELECT 1
+                FROM ${videoGroupMembers}
+                JOIN ${videoGroupMemberships}
+                  ON ${videoGroupMemberships.groupId} = ${videoGroupMembers.groupId}
+               WHERE ${videoGroupMembers.videoId} = ${videos.id}
+                 AND ${videoGroupMemberships.userId} = ${userId}
+            )`,
+          ),
+        ),
+      )
       .limit(1);
     return rows.length > 0;
   });

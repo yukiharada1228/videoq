@@ -6,25 +6,13 @@ import {
   deleteVideoCascade,
   getVideoStatus,
   transitionVideoStatus,
-  createUploadedVideo,
-  createPendingVideo,
+  reserveAndCreatePendingVideo,
   createYoutubeVideo,
 } from "../../repositories/video-repository";
 import { validateTranscriptSrt } from "../../lib/srt";
-import {
-  syncVectorTitle,
-  deleteVideoVectors,
-} from "../../repositories/vector-repository";
-import { enqueueReindexTranscript, enqueueTranscription } from "../../lib/jobs";
-import {
-  incrementStorageBytes,
-  clearOverQuotaIfWithinLimit,
-  getMaxUploadSizeMb,
-  checkAndReserveStorage,
-} from "../../repositories/quota-repository";
+import { getMaxUploadSizeMb } from "../../repositories/quota-repository";
 import {
   getR2ObjectSize,
-  deleteR2Object,
   isS3Storage,
   putMediaObject,
   presignR2Put,
@@ -36,6 +24,7 @@ import {
   fileExtension,
   isAllowedExtension,
   isAllowedContentType,
+  parseReservedBytesFromFileKey,
   unsupportedTypeMessage,
   invalidContentTypeMessage,
 } from "../../lib/upload";
@@ -45,10 +34,18 @@ import {
 } from "../../lib/youtube";
 import type { Bindings } from "../../types/bindings";
 import type { UploadRequest, YoutubeCreateRequest } from "./schemas";
+import { processExternalTaskById } from "../../lib/external-tasks";
 
 const reportBestEffortFailure = (operation: string, error: unknown) => {
   console.error({ event: "best_effort_failed", operation, error });
 };
+
+async function dispatchCleanupTask(
+  env: Bindings,
+  taskId: number | null,
+): Promise<void> {
+  if (taskId !== null) await processExternalTaskById(env, taskId);
+}
 
 export type MultipartVideoResult =
   | { ok: true; video: Awaited<ReturnType<typeof getVideoDetail>> }
@@ -124,33 +121,52 @@ export async function requestPresignedUpload(
     return { fileTooLarge: true, maxMb } as const;
   }
 
-  const reserve = await checkAndReserveStorage(env, userId, body.file_size);
-  if ("overQuota" in reserve) {
+  const fileKey = buildPendingUploadFileKey(userId, body.file_size, ext);
+  const pending = await reserveAndCreatePendingVideo(
+    env,
+    userId,
+    body.file_size,
+    fileKey,
+    body.title,
+    body.description,
+  );
+  if ("overQuota" in pending) {
     return {
       badRequest: "Storage limit exceeded: account is over quota.",
       code: "STORAGE_LIMIT_EXCEEDED",
     } as const;
   }
-  if ("exceeded" in reserve) {
+  if ("exceeded" in pending) {
     return {
-      badRequest: `Storage limit exceeded. Limit: ${reserve.limit} bytes.`,
+      badRequest: `Storage limit exceeded. Limit: ${pending.limit} bytes.`,
       code: "STORAGE_LIMIT_EXCEEDED",
     } as const;
   }
 
-  const fileKey = buildPendingUploadFileKey(userId, body.file_size, ext);
-  const videoId = await createPendingVideo(
-    env,
-    userId,
-    fileKey,
-    body.title,
-    body.description,
-  );
-  const uploadUrl = await presignR2Put(env, fileKey, body.content_type);
-  return {
-    video: await getVideoDetail(env, videoId, userId),
-    upload_url: uploadUrl,
-  } as const;
+  const videoId = pending.videoId;
+  try {
+    const uploadUrl = await presignR2Put(
+      env,
+      fileKey,
+      body.content_type,
+      body.file_size,
+    );
+    return {
+      video: await getVideoDetail(env, videoId, userId),
+      upload_url: uploadUrl,
+    } as const;
+  } catch (error) {
+    try {
+      const deleted = await deleteVideoCascade(env, videoId, userId, {
+        expectedStatus: "uploading",
+        fallbackStorageBytes: body.file_size,
+      });
+      await dispatchCleanupTask(env, deleted.cleanupTaskId);
+    } catch (cleanupError) {
+      reportBestEffortFailure("presigned_upload_cleanup", cleanupError);
+    }
+    throw error;
+  }
 }
 
 function isValidUrlFormat(value: string): boolean {
@@ -177,14 +193,14 @@ export async function createUserYoutubeVideo(
     } as const;
   }
 
-  const videoId = await createYoutubeVideo(env, userId, {
+  const created = await createYoutubeVideo(env, userId, {
     sourceUrl: body.youtube_url,
     youtubeVideoId,
     title: body.title,
     description: body.description,
   });
-  await enqueueTranscription(env, videoId);
-  return { video: await getVideoDetail(env, videoId, userId) } as const;
+  await processExternalTaskById(env, created.taskId);
+  return { video: await getVideoDetail(env, created.videoId, userId) } as const;
 }
 
 export async function confirmVideoUpload(
@@ -200,8 +216,41 @@ export async function confirmVideoUpload(
       message: `Video is in '${cur.status}' state, expected 'uploading'`,
     };
   }
-  await transitionVideoStatus(env, videoId, "uploading", "pending");
-  await enqueueTranscription(env, videoId);
+
+  const upload = await getVideoFileKey(env, videoId, userId);
+  if (!upload.found || !upload.fileKey) return { notFound: true } as const;
+  const reservedBytes = parseReservedBytesFromFileKey(upload.fileKey);
+  const actualBytes = await getR2ObjectSize(env, upload.fileKey);
+  if (actualBytes === null) {
+    return {
+      badState: true as const,
+      message: "Uploaded object was not found.",
+    };
+  }
+  if (reservedBytes !== null && actualBytes !== reservedBytes) {
+    const deleted = await deleteVideoCascade(env, videoId, userId, {
+      expectedStatus: "uploading",
+      fallbackStorageBytes: reservedBytes,
+    });
+    await dispatchCleanupTask(env, deleted.cleanupTaskId);
+    return {
+      badState: true as const,
+      message: "Uploaded object size does not match the reserved size.",
+    };
+  }
+  const transitioned = await transitionVideoStatus(
+    env,
+    videoId,
+    "uploading",
+    "pending",
+  );
+  if (!transitioned) {
+    return {
+      badState: true as const,
+      message: "Video upload was already confirmed.",
+    };
+  }
+  await processExternalTaskById(env, transitioned.taskId);
   return { video: await getVideoDetail(env, videoId, userId) } as const;
 }
 
@@ -222,15 +271,8 @@ export async function patchUserVideo(
   const res = await updateVideo(env, videoId, userId, fields);
   if ("notFound" in res) return { notFound: true } as const;
 
-  if (res.titleChanged && res.newTitle !== null) {
-    await syncVectorTitle(env, videoId, res.newTitle).catch((error) => {
-      reportBestEffortFailure("sync_vector_title", error);
-    });
-  }
-  if (res.transcriptChanged) {
-    await enqueueReindexTranscript(env, videoId).catch((error) => {
-      reportBestEffortFailure("enqueue_reindex_transcript", error);
-    });
+  if (res.reindexTaskId !== null) {
+    await processExternalTaskById(env, res.reindexTaskId);
   }
   return { video: await getVideoDetail(env, videoId, userId) } as const;
 }
@@ -246,11 +288,6 @@ export async function putUserVideo(
   }
   const res = await updateVideo(env, videoId, userId, fields);
   if ("notFound" in res) return { notFound: true } as const;
-  if (res.titleChanged && res.newTitle !== null) {
-    await syncVectorTitle(env, videoId, res.newTitle).catch((error) => {
-      reportBestEffortFailure("sync_vector_title", error);
-    });
-  }
   return { video: await getVideoDetail(env, videoId, userId) } as const;
 }
 
@@ -272,25 +309,12 @@ export async function deleteUserVideo(
   }
   const fileSize = resolveStorageBytesForRelease(info.fileKey, r2Size);
 
-  const deleted = await deleteVideoCascade(env, videoId, userId);
-  if (!deleted) return { notFound: true } as const;
+  const deleted = await deleteVideoCascade(env, videoId, userId, {
+    fallbackStorageBytes: fileSize,
+  });
+  if (!deleted.deleted) return { notFound: true } as const;
 
-  await deleteVideoVectors(env, videoId).catch((error) => {
-    reportBestEffortFailure("delete_video_vectors", error);
-  });
-  if (info.fileKey) {
-    await deleteR2Object(env, info.fileKey).catch((error) => {
-      reportBestEffortFailure("delete_video_object", error);
-    });
-  }
-  if (fileSize !== null) {
-    await incrementStorageBytes(env, userId, -fileSize).catch((error) => {
-      reportBestEffortFailure("release_storage_bytes", error);
-    });
-  }
-  await clearOverQuotaIfWithinLimit(env, userId).catch((error) => {
-    reportBestEffortFailure("clear_over_quota", error);
-  });
+  await dispatchCleanupTask(env, deleted.cleanupTaskId);
 
   return { ok: true } as const;
 }
@@ -415,8 +439,16 @@ export async function createVideoFromMultipart(
     };
   }
 
-  const reserve = await checkAndReserveStorage(env, userId, fileSize);
-  if ("overQuota" in reserve) {
+  const fileKey = buildPendingUploadFileKey(userId, fileSize, ext);
+  const pending = await reserveAndCreatePendingVideo(
+    env,
+    userId,
+    fileSize,
+    fileKey,
+    title,
+    description,
+  );
+  if ("overQuota" in pending) {
     return {
       ok: false,
       status: 400,
@@ -428,27 +460,30 @@ export async function createVideoFromMultipart(
       },
     };
   }
-  if ("exceeded" in reserve) {
+  if ("exceeded" in pending) {
     return {
       ok: false,
       status: 400,
       body: {
         error: {
           code: "STORAGE_LIMIT_EXCEEDED",
-          message: `Storage limit exceeded. Limit: ${reserve.limit} bytes.`,
+          message: `Storage limit exceeded. Limit: ${pending.limit} bytes.`,
         },
       },
     };
   }
 
-  const fileKey = buildPendingUploadFileKey(userId, fileSize, ext);
   try {
     await putMediaObject(env, fileKey, file.stream(), contentType);
   } catch {
     try {
-      await incrementStorageBytes(env, userId, -fileSize);
+      const deleted = await deleteVideoCascade(env, pending.videoId, userId, {
+        expectedStatus: "uploading",
+        fallbackStorageBytes: fileSize,
+      });
+      await dispatchCleanupTask(env, deleted.cleanupTaskId);
     } catch {
-      /* best-effort */
+      /* cleanup task is persisted atomically with the video deletion */
     }
     return {
       ok: false,
@@ -462,19 +497,28 @@ export async function createVideoFromMultipart(
     };
   }
 
-  const videoId = await createUploadedVideo(
-    env,
-    userId,
-    fileKey,
-    title,
-    description,
-  );
+  let transitioned: false | { taskId: number };
   try {
-    await enqueueTranscription(env, videoId);
+    transitioned = await transitionVideoStatus(
+      env,
+      pending.videoId,
+      "uploading",
+      "pending",
+    );
   } catch {
-    /* enqueue failure is non-fatal */
+    return {
+      ok: false,
+      status: 500,
+      body: {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Failed to finalize uploaded video.",
+        },
+      },
+    };
   }
+  if (transitioned) await processExternalTaskById(env, transitioned.taskId);
 
-  const video = await getVideoDetail(env, videoId, userId);
+  const video = await getVideoDetail(env, pending.videoId, userId);
   return { ok: true, video };
 }

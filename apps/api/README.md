@@ -119,6 +119,14 @@ SQS message は native JSON です。
 
 consumer は [`apps/worker/`](../worker/) です。ローカルでは ElasticMQ、本番では Amazon SQS を使います。
 
+ジョブ投入と業務データ更新は `external_tasks` outbox に同一transactionで保存し、通常はその場で
+SQSへ配送します。`*/5 * * * *` のcronは、DB commit直後のプロセス停止やSQS障害で残った行と
+放棄uploadを回収するための安全網です。通常配送の代わりではないため、削除すると障害時に
+永続的な取りこぼしが生じます。48回失敗した行は `dead_at` を設定して停止し、構造化ログで通知します。
+
+`17 3 * * *`（UTC）では、SQSの最大保持期間より長い30日を過ぎた完了済みoutbox／実行台帳を
+小分けで削除します。未完了outboxが参照中の実行台帳は削除しません。
+
 ## Cloudflare bindings
 
 | binding | 用途 |
@@ -126,7 +134,7 @@ consumer は [`apps/worker/`](../worker/) です。ローカルでは ElasticMQ�
 | `HYPERDRIVE` | Neon PostgreSQL |
 | `VIDEO_BUCKET` | 動画・字幕・サムネイル |
 | `RATE_LIMITER` | 分散 rate limit |
-| `STUDY_SESSION` | 学習モードの一時状態 |
+| `STUDY_SESSION` | 学習モードの一時状態（Durable Object） |
 | `EMAIL` | 認証メール |
 
 R2 の S3 互換 endpoint、SQS、LLM/embedding、OAuth issuer などは

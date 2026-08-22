@@ -14,12 +14,13 @@ interface ChatPanelProps {
   onVideoPlay?: (videoId: number, startTime: string) => void;
   shareToken?: string;
   className?: string;
+  showHistory?: boolean;
 }
 
 type PanelTab = 'chat' | 'history';
 type ChatMode = 'qa' | 'study';
 
-export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatPanelProps) {
+export function ChatPanel({ groupId, onVideoPlay, shareToken, className, showHistory = true }: ChatPanelProps) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<PanelTab>('chat');
   const [mode, setMode] = useState<ChatMode>('qa');
@@ -79,7 +80,7 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className }: ChatP
     ]);
   };
 
-  const showTabs = !!groupId && !shareToken;
+  const showTabs = !!groupId && !shareToken && showHistory;
 
   const containerClass = cn(
     'flex flex-col overflow-hidden border border-solid-gray-420 bg-white',

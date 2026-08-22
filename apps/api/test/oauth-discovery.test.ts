@@ -1,0 +1,51 @@
+import { describe, expect, it, vi } from "vitest";
+import { createApp } from "../src/app";
+
+vi.mock("pg", () => {
+  class FakeClient {
+    async connect() {}
+    async end() {}
+    async query() {
+      return { rows: [], rowCount: 0 };
+    }
+  }
+  return { default: { Client: FakeClient } };
+});
+
+const ENV = {
+  ENVIRONMENT: "test",
+  BETTER_AUTH_SECRET: "test-secret-at-least-32-characters-long",
+  BETTER_AUTH_URL: "https://api.example.com",
+  FRONTEND_URL: "https://app.example.com",
+  CORS_ALLOW_ORIGIN: "https://app.example.com",
+  HYPERDRIVE: { connectionString: "postgres://fake/db" },
+} as unknown as Parameters<ReturnType<typeof createApp>["request"]>[2];
+
+describe("OAuth discovery", () => {
+  it("serves RFC 8414 metadata at the issuer-path well-known URL", async () => {
+    const res = await createApp().request(
+      "/.well-known/oauth-authorization-server/api/auth",
+      {},
+      ENV,
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      issuer: "https://api.example.com/api/auth",
+      authorization_endpoint: "https://api.example.com/api/auth/oauth2/authorize",
+    });
+  });
+
+  it("serves OpenID metadata below the issuer path", async () => {
+    const res = await createApp().request(
+      "/api/auth/.well-known/openid-configuration",
+      {},
+      ENV,
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      issuer: "https://api.example.com/api/auth",
+    });
+  });
+});

@@ -1,5 +1,5 @@
 import { embedQuery } from "../../lib/embeddings";
-import { EDGE_TYPES, NODE_TYPES, ORDERING, isDag } from "../../lib/plog-ordering";
+import { EDGE_TYPES, NODE_TYPES } from "../../lib/plog-ordering";
 import {
   PlogConflictError,
   PlogEditError,
@@ -10,11 +10,9 @@ import {
   ensureReadyBuildJob,
   getConceptRow,
   getEdgeRow,
-  getLatestBuildJob,
+  getOrCreateActiveBuildJob,
   getPlogGraph,
   getPlogLearnerState,
-  createBuildJob,
-  listOrderingEdges,
   mergeConcepts,
   resetLearnerStates,
   requireOwnedVideo as repositoryRequireOwnedVideo,
@@ -25,7 +23,7 @@ import {
   type PlogEdgeItem,
 } from "../../repositories/plog-repository";
 import { getVideoTranscriptState } from "../../repositories/video-repository";
-import { enqueueBuildPlog } from "../../lib/jobs";
+import { processExternalTaskById } from "../../lib/external-tasks";
 import type { Bindings } from "../../types/bindings";
 
 export function requireOwnedVideo(
@@ -78,25 +76,6 @@ const bad = (message: string): EditResult<never> => ({
   message,
 });
 
-async function assertOrderingDag(
-  env: Bindings,
-  videoId: number,
-  proposed: { sourceId: number; targetId: number; edgeType: string },
-  excludeEdgeId?: number,
-): Promise<void> {
-  if (!ORDERING.has(proposed.edgeType)) return;
-  const edges = await listOrderingEdges(env, videoId);
-  const pairs: [string, string][] = [];
-  for (const e of edges) {
-    if (excludeEdgeId !== undefined && e.id === excludeEdgeId) continue;
-    pairs.push([String(e.source_id), String(e.target_id)]);
-  }
-  pairs.push([String(proposed.sourceId), String(proposed.targetId)]);
-  if (!isDag(pairs)) {
-    throw new PlogEditError("Ordering edges must form a DAG (cycle detected).");
-  }
-}
-
 function mapErr(e: unknown): EditResult<never> | null {
   if (e instanceof PlogConflictError || e instanceof PlogEditError) return bad(e.message);
   return null;
@@ -135,19 +114,8 @@ export async function rebuildPlog(
   if (!state.found) return { notFound: "Video not found." } as const;
   if (!state.hasTranscript) return { notFound: "Transcript not found." } as const;
 
-  const latest = await getLatestBuildJob(env, videoId);
-  if (latest && (latest.status === "pending" || latest.status === "running")) {
-    await enqueueBuildPlog(env, videoId);
-    return {
-      ok: true as const,
-      video_id: videoId,
-      status: latest.status,
-      job_id: latest.id,
-    };
-  }
-
-  const job = await createBuildJob(env, videoId);
-  await enqueueBuildPlog(env, videoId);
+  const job = await getOrCreateActiveBuildJob(env, videoId);
+  if (job.taskId !== null) await processExternalTaskById(env, job.taskId);
   return {
     ok: true as const,
     video_id: videoId,
@@ -299,7 +267,6 @@ export async function editCreateEdge(
     return bad("target_id does not exist for this video");
   try {
     await ensureReadyBuildJob(env, videoId);
-    await assertOrderingDag(env, videoId, input);
     return {
       ok: true,
       value: await createEdge(env, {
@@ -339,12 +306,6 @@ export async function editUpdateEdge(
   if ((await getConceptRow(env, nextTarget, videoId)) === null)
     return bad("target_id does not exist for this video");
   try {
-    await assertOrderingDag(
-      env,
-      videoId,
-      { sourceId: nextSource, targetId: nextTarget, edgeType: nextType },
-      edgeId,
-    );
     const updated = await updateEdge(env, {
       edgeId,
       videoId,

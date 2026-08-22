@@ -23,6 +23,9 @@ cd apps/api
 DATABASE_URL="<Neon pooler URL>" npm run db:migrate
 ```
 
+DBを参照するAPI／Lambdaの更新より先にmigrationを完了させます。CDも
+`db-migrate → API/worker deploy` の順序を強制し、`DATABASE_URL` 未設定時は停止します。
+
 ## 2. API secrets
 
 機密値は `wrangler secret put` で設定します。

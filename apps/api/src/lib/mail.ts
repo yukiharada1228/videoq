@@ -29,9 +29,12 @@ async function sendViaMailgun(
     body,
   });
   if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`Mailgun send failed (${res.status}): ${detail.slice(0, 200)}`);
+    // 本文は宛先や差出人を含みうるうえ、そのまま last_error として永続化される。
+    // 障害切り分けに要るのはステータスなので、本文は捨てる。
+    await res.body?.cancel();
+    throw new Error(`Mailgun send failed (${res.status})`);
   }
+  await res.body?.cancel();
   return true;
 }
 

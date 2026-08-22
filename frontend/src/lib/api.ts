@@ -150,6 +150,7 @@ export interface SignupRequest {
   username: string;
   email: string;
   password: string;
+  callbackURL?: string;
 }
 
 export interface VerifyEmailRequest {
@@ -197,6 +198,11 @@ export interface Citation {
 export interface ChatHistoryItem {
   id: number;
   group: number;
+  asked_by: {
+    user_id: string;
+    username: string;
+    email: string;
+  } | null;
   question: string;
   answer: string;
   citations?: Citation[];
@@ -369,6 +375,7 @@ export interface VideoGroup {
   video_count: number;
   videos?: VideoInGroup[];
   share_slug?: string | null;
+  access_role?: 'owner' | 'member' | 'public';
 }
 
 export interface VideoInGroup {
@@ -407,6 +414,50 @@ export interface VideoGroupList {
   display_order: number;
   created_at: string;
   video_count: number;
+  access_role?: 'owner' | 'member';
+}
+
+export type GroupInvitationStatus = 'pending' | 'accepted' | 'declined' | 'expired' | 'revoked';
+export type GroupInvitationDeliveryStatus = 'queued' | 'sent' | 'failed';
+
+export interface GroupInviteRecipientResult {
+  email: string;
+  // 送信はサーバー側のキューに載るため、レスポンス時点では配送結果は出ない。
+  // 実際の sent/failed は participants の delivery_status で確認する。
+  status: 'queued' | 'already_member' | 'already_invited' | 'invalid' | 'duplicate';
+  invitation_id?: number;
+}
+
+export interface GroupInvitationListItem {
+  id: number;
+  email: string;
+  status: GroupInvitationStatus;
+  delivery_status: GroupInvitationDeliveryStatus;
+  expires_at: string;
+  created_at: string;
+  last_sent_at: string | null;
+  send_attempts: number;
+}
+
+export interface GroupUserMember {
+  user_id: string;
+  username: string;
+  email: string;
+  joined_at: string;
+}
+
+export interface GroupParticipants {
+  invitations: GroupInvitationListItem[];
+  members: GroupUserMember[];
+}
+
+export interface GroupInvitationPreview {
+  group_id: number;
+  group_name: string;
+  inviter_name: string;
+  email_hint: string;
+  status: GroupInvitationStatus;
+  expires_at: string;
 }
 
 
@@ -626,6 +677,7 @@ export class ApiClient {
       password: data.password,
       name: data.username,
       username: data.username,
+      ...(data.callbackURL ? { callbackURL: data.callbackURL } : {}),
     });
     if (error) throw new ApiError(error.message || 'Signup failed', error.code || 'SIGNUP_FAILED');
   }
@@ -1330,6 +1382,63 @@ export class ApiClient {
       method: 'PATCH',
       body: { video_ids: videoIds },
     });
+  }
+
+  async inviteGroupMembers(
+    groupId: number,
+    emails: string[],
+  ): Promise<{ results: GroupInviteRecipientResult[] }> {
+    return this.request(`/videos/groups/${groupId}/invitations`, {
+      method: 'POST',
+      body: { emails },
+    });
+  }
+
+  async getGroupParticipants(groupId: number): Promise<GroupParticipants> {
+    return this.request(`/videos/groups/${groupId}/participants`);
+  }
+
+  async getGroupInvitation(token: string): Promise<GroupInvitationPreview> {
+    return this.request(`/videos/group-invitations/${encodeURIComponent(token)}`);
+  }
+
+  async acceptGroupInvitation(
+    token: string,
+  ): Promise<{ group_id: number; status: 'accepted' }> {
+    return this.request(`/videos/group-invitations/${encodeURIComponent(token)}/accept`, {
+      method: 'POST',
+    });
+  }
+
+  async declineGroupInvitation(token: string): Promise<{ status: 'declined' }> {
+    return this.request(`/videos/group-invitations/${encodeURIComponent(token)}/decline`, {
+      method: 'POST',
+    });
+  }
+
+  async resendGroupInvitation(
+    groupId: number,
+    invitationId: number,
+  ): Promise<{ delivery_status: GroupInvitationDeliveryStatus }> {
+    return this.request(`/videos/groups/${groupId}/invitations/${invitationId}/resend`, {
+      method: 'POST',
+    });
+  }
+
+  async revokeGroupInvitation(groupId: number, invitationId: number): Promise<void> {
+    await this.request(`/videos/groups/${groupId}/invitations/${invitationId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async removeGroupMember(groupId: number, userId: string): Promise<void> {
+    await this.request(`/videos/groups/${groupId}/members/${encodeURIComponent(userId)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async leaveVideoGroup(groupId: number): Promise<void> {
+    await this.request(`/videos/groups/${groupId}/membership`, { method: 'DELETE' });
   }
 
   // Share link related

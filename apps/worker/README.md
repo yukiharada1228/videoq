@@ -40,6 +40,11 @@ worker_python/
 
 worker は modern schema と native job type のみを使用します。
 
+SQSはat-least-once配送のため、workerは `job_executions.job_id` を15分リースでclaimします。
+完了済みの重複配送は処理せず、処理中に停止した配送はリース失効後に再開します。後続ジョブIDも
+親ジョブから決定的に生成するため、親の再試行で別の後続処理が増えることはありません。
+`0011_job_delivery_guards.sql` をworker更新より先に適用してください。
+
 ## 主な環境変数
 
 | 変数 | 用途 |

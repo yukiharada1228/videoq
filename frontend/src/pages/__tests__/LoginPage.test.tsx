@@ -77,6 +77,21 @@ describe('LoginPage', () => {
     })
   })
 
+  it('preserves an invitation return path for Google sign-in and the signup link', async () => {
+    globalThis.__setMockSearchParams('next=%2Fgroup-invitations%2Finvite-token')
+    render(<LoginPage />)
+
+    fireEvent.click(screen.getByText('auth.login.continueWithGoogle'))
+
+    await waitFor(() => {
+      expect(apiClient.loginWithGoogle).toHaveBeenCalledWith('/group-invitations/invite-token')
+    })
+    expect(screen.getByText('auth.login.footerLink').closest('a')).toHaveAttribute(
+      'href',
+      '/signup?next=%2Fgroup-invitations%2Finvite-token',
+    )
+  })
+
   it('shows an OAuth callback error from the query string', () => {
     globalThis.__setMockSearchParams('?error=unable_to_create_user')
     render(<LoginPage />)

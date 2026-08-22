@@ -13,6 +13,8 @@ export const queryKeys = {
     detail: (groupId: number | null) => ['videoGroup', groupId] as const,
     allShared: ['sharedVideoGroup'] as const,
     shared: (shareToken: string) => ['sharedVideoGroup', shareToken] as const,
+    invitation: (token: string) => ['groupInvitation', token] as const,
+    participants: (groupId: number | null) => ['groupParticipants', groupId] as const,
     addableVideos: (params: {
       groupId: number | null;
       q: string;

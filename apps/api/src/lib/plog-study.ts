@@ -39,13 +39,20 @@ import {
 } from "../repositories/plog-repository";
 import type { Bindings } from "../types/bindings";
 import type { ChatMessageInput, RagCitation } from "./rag";
+import type {
+  StudySessionSnapshot,
+  StudySessionStateRecord,
+} from "../durable-objects/study-session";
 
 export class PlogNotReadyError extends Error {
   readonly name = "PlogNotReadyError";
 }
 
-const EPHEMERAL_TTL_SEC = 12 * 60 * 60; // 12 hours
-const EPHEMERAL_KEY_PREFIX = "plog:study:ephemeral:";
+export class StudySessionConflictError extends Error {
+  readonly name = "StudySessionConflictError";
+}
+
+const STUDY_LOCK_POLL_MS = 250;
 
 export type StudyResult = {
   content: string;
@@ -54,13 +61,7 @@ export type StudyResult = {
   retrievedContexts: string[];
 };
 
-type StateRecord = {
-  concept_id: number;
-  reached: boolean;
-  hint_index: number;
-  last_grade: string;
-  active: boolean;
-};
+type StateRecord = StudySessionStateRecord;
 
 type UpsertPatch = {
   reached?: boolean;
@@ -69,64 +70,44 @@ type UpsertPatch = {
   active?: boolean;
 };
 
-/** セッション単位の進捗を KV に保存する（DB 書き込みなし）。 */
+/** 1ターン中の変更をメモリ上にまとめ、最後に1回だけコミットする。 */
 export class EphemeralLearnerStateStore {
-  private readonly cacheKey: string;
   private readonly conceptVideoIds: Map<number, number>;
   private states: Map<number, StateRecord>;
-  private loaded = false;
 
   constructor(
-    private readonly kv: KVNamespace,
-    sessionKey: string,
+    initialStates: Record<string, StateRecord>,
     conceptVideoIds: Map<number, number>,
   ) {
-    this.cacheKey = `${EPHEMERAL_KEY_PREFIX}${sessionKey}`;
     this.conceptVideoIds = conceptVideoIds;
-    this.states = new Map();
-  }
-
-  private async ensureLoaded(): Promise<void> {
-    if (this.loaded) return;
-    const raw = await this.kv.get(this.cacheKey, "json");
     const states = new Map<number, StateRecord>();
-    if (raw && typeof raw === "object") {
-      for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-        const conceptId = Number(key);
-        if (!Number.isFinite(conceptId) || typeof value !== "object" || value === null) {
-          continue;
-        }
-        const v = value as Record<string, unknown>;
-        states.set(conceptId, {
-          concept_id: conceptId,
-          reached: Boolean(v.reached ?? false),
-          hint_index: Number(v.hint_index || 0),
-          last_grade: String(v.last_grade || ""),
-          active: Boolean(v.active ?? false),
-        });
-      }
+    for (const [key, value] of Object.entries(initialStates)) {
+      const conceptId = Number(key);
+      if (!Number.isFinite(conceptId)) continue;
+      states.set(conceptId, {
+        concept_id: conceptId,
+        reached: Boolean(value.reached),
+        hint_index: Number(value.hint_index || 0),
+        last_grade: String(value.last_grade || ""),
+        active: Boolean(value.active),
+      });
     }
     this.states = states;
-    this.loaded = true;
   }
 
-  private async save(): Promise<void> {
+  snapshot(): Record<string, StateRecord> {
     const payload: Record<string, StateRecord> = {};
     for (const [conceptId, record] of this.states) {
-      payload[String(conceptId)] = record;
+      payload[String(conceptId)] = { ...record };
     }
-    await this.kv.put(this.cacheKey, JSON.stringify(payload), {
-      expirationTtl: EPHEMERAL_TTL_SEC,
-    });
+    return payload;
   }
 
   async get(conceptId: number): Promise<LearnerConceptState | null> {
-    await this.ensureLoaded();
     return this.states.get(conceptId) ?? null;
   }
 
   async listForVideo(videoId: number): Promise<LearnerConceptState[]> {
-    await this.ensureLoaded();
     const out: LearnerConceptState[] = [];
     for (const [conceptId, record] of this.states) {
       if (this.conceptVideoIds.get(conceptId) === videoId) out.push({ ...record });
@@ -135,7 +116,6 @@ export class EphemeralLearnerStateStore {
   }
 
   async upsert(conceptId: number, patch: UpsertPatch): Promise<LearnerConceptState> {
-    await this.ensureLoaded();
     const record = this.states.get(conceptId) ?? {
       concept_id: conceptId,
       reached: false,
@@ -148,24 +128,21 @@ export class EphemeralLearnerStateStore {
     if (patch.last_grade !== undefined) record.last_grade = patch.last_grade;
     if (patch.active !== undefined) record.active = patch.active;
     this.states.set(conceptId, record);
-    await this.save();
     return { ...record };
   }
 }
 
 function buildLearnerStateStore(
-  kv: KVNamespace,
-  sessionKey: string | null | undefined,
+  initialStates: Record<string, StateRecord>,
   graphs: readonly PlogGraphSnapshot[],
 ): EphemeralLearnerStateStore {
-  const key = sessionKey || `oneshot:${crypto.randomUUID()}`;
   const conceptVideoIds = new Map<number, number>();
   for (const graph of graphs) {
     for (const concept of graph.concepts) {
       conceptVideoIds.set(concept.id, graph.video_id);
     }
   }
-  return new EphemeralLearnerStateStore(kv, key, conceptVideoIds);
+  return new EphemeralLearnerStateStore(initialStates, conceptVideoIds);
 }
 
 function latestUserQuery(messages: readonly ChatMessageInput[]): string {
@@ -259,10 +236,12 @@ export function shouldStayOnActive(
   return !(score >= 0.55 && score >= activeScore + 0.12);
 }
 
-function requireStudyKv(env: Bindings): KVNamespace {
+function requireStudySessions(
+  env: Bindings,
+): NonNullable<Bindings["STUDY_SESSION"]> {
   if (!env.STUDY_SESSION) {
     throw new LlmConfigurationError(
-      "STUDY_SESSION KV binding is required for study mode.",
+      "STUDY_SESSION Durable Object binding is required for study mode.",
     );
   }
   return env.STUDY_SESSION;
@@ -520,9 +499,9 @@ async function runTurn(
     messages: readonly ChatMessageInput[];
     videoIds: readonly number[];
     locale: string | null;
-    learnerSessionKey: string | null;
+    initialStates: StudySessionSnapshot["states"];
   },
-): Promise<StudyResult> {
+): Promise<{ result: StudyResult; states: StudySessionSnapshot["states"] }> {
   if (!params.videoIds.length) {
     throw new PlogNotReadyError("Study mode requires a video group with members.");
   }
@@ -546,11 +525,8 @@ async function runTurn(
     );
   }
 
-  const store = buildLearnerStateStore(
-    requireStudyKv(env),
-    params.learnerSessionKey,
-    graphs,
-  );
+  const store = buildLearnerStateStore(params.initialStates, graphs);
+  const done = (result: StudyResult) => ({ result, states: store.snapshot() });
   const priorAssistant = previousAssistantContent(params.messages);
   const gradeOutcome = await maybeGradePrevious(
     env,
@@ -562,12 +538,12 @@ async function runTurn(
   );
 
   if (gradeOutcome === "path_complete") {
-    return {
+    return done({
       content: String(studyCfg.path_complete || ""),
       queryText: params.query,
       citations: null,
       retrievedContexts: [],
-    };
+    });
   }
 
   const resolved = await resolveTarget(
@@ -578,12 +554,12 @@ async function runTurn(
     gradeOutcome === "advanced",
   );
   if (!resolved) {
-    return {
+    return done({
       content: String(studyCfg.path_complete || ""),
       queryText: params.query,
       citations: null,
       retrievedContexts: [],
-    };
+    });
   }
   const { graph, concept: target, redirected } = resolved;
 
@@ -638,12 +614,12 @@ async function runTurn(
     if (citations.length) content = content.replace(/\s*$/, "") + " [1]";
     const scenes = await loadL0Scenes(env, graph.video_id);
     await activateConcept(store, target.id, states, 0);
-    return {
+    return done({
       content,
       queryText: params.query,
       citations: citations.length ? citations : null,
       retrievedContexts: retrieveContext(graph, target, scenes),
-    };
+    });
   }
 
   const scenes = await loadL0Scenes(env, graph.video_id);
@@ -660,12 +636,12 @@ async function runTurn(
       content = content.replace(/\s*$/, "") + " [1]";
     }
     await activateConcept(store, target.id, states, hintIndex);
-    return {
+    return done({
       content,
       queryText: params.query,
       citations: citations.length ? citations : null,
       retrievedContexts: ctx,
-    };
+    });
   }
 
   const policy = String(studyCfg.policy || "");
@@ -719,12 +695,12 @@ async function runTurn(
   }
 
   await activateConcept(store, target.id, states, hintIndex);
-  return {
+  return done({
     content,
     queryText: params.query,
     citations: citations.length ? citations : null,
     retrievedContexts: ctx,
-  };
+  });
 }
 
 /** PLOG Study の応答本文を生成する。 */
@@ -738,13 +714,38 @@ export async function runStudy(
   },
 ): Promise<StudyResult> {
   const query = latestUserQuery(params.messages);
-  return runTurn(env, {
-    query,
-    messages: params.messages,
-    videoIds: params.videoIds ?? [],
-    locale: params.locale,
-    learnerSessionKey: params.studySessionId,
-  });
+  const run = (initialStates: StudySessionSnapshot["states"]) =>
+    runTurn(env, {
+      query,
+      messages: params.messages,
+      videoIds: params.videoIds ?? [],
+      locale: params.locale,
+      initialStates,
+    });
+  if (!params.studySessionId) return (await run({})).result;
+
+  const stub = requireStudySessions(env).getByName(params.studySessionId);
+  const lockToken = crypto.randomUUID();
+  for (;;) {
+    const lock = await stub.tryAcquire(lockToken);
+    if (lock.acquired) break;
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.min(STUDY_LOCK_POLL_MS, lock.retryAfterMs)),
+    );
+  }
+
+  try {
+    const snapshot = await stub.getSnapshot();
+    const turn = await run(snapshot.states);
+    if (await stub.commit(snapshot.revision, turn.states, lockToken)) {
+      return turn.result;
+    }
+    throw new StudySessionConflictError(
+      "Study session lease expired before the turn could be committed.",
+    );
+  } finally {
+    await stub.release(lockToken);
+  }
 }
 
 /**

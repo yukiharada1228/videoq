@@ -16,10 +16,22 @@ import {
   plogConcepts,
   plogEdges,
   plogSummaryNodes,
+  sceneEmbeddings,
   videos,
   videoGroupMembers,
   videoTags,
 } from "../db/schema";
+import {
+  insertJobTask,
+  insertStorageCleanupTask,
+} from "./external-task-repository";
+import {
+  buildJobMessage,
+  JOB_REINDEX_VIDEO_TRANSCRIPT,
+  JOB_TRANSCRIBE_VIDEO,
+} from "../lib/job-message";
+import { parseReservedBytesFromFileKey } from "../lib/upload";
+import { reserveStorageInTransaction } from "./quota-repository";
 import { toUtcIso } from "../shared/datetime";
 import { resolveFileUrl } from "../integrations/media";
 import type { Bindings } from "../types/bindings";
@@ -44,6 +56,17 @@ export type VideoDetail = VideoListItem & {
   transcript: string | null;
   error_message: string | null;
 };
+
+export type OutboxedVideoJob = {
+  videoId: number;
+  taskId: number;
+  jobId: string;
+};
+
+export type PendingVideoReservation =
+  | { ok: true; videoId: number }
+  | { overQuota: true }
+  | { exceeded: true; limit: number };
 
 export type VideoListCriteria = {
   keyword: string; // q
@@ -190,9 +213,8 @@ export async function getVideoDetail(
 }
 
 /**
- * 動画メタデータを更新する（title/description のみ）。
- * 提供フィールドのみ動的 SET（Video に updated_at は無い）。title 変更の有無を返す
- * （呼び出し側で PGVector メタ同期を best-effort 実行する）。
+ * 動画メタデータを更新する。タイトルのベクトルメタデータ同期と、
+ * transcript再indexのoutbox作成も同じtransactionに含める。
  */
 export async function updateVideo(
   env: Bindings,
@@ -201,36 +223,63 @@ export async function updateVideo(
   fields: { title?: string; description?: string; transcript?: string },
 ): Promise<
   | { notFound: true }
-  | { ok: true; titleChanged: boolean; newTitle: string | null; transcriptChanged: boolean }
-> {
-  return withDb(env, async (db) => {
-    const cur = await db
-      .select({ title: videos.title, transcript: videos.transcript })
-      .from(videos)
-      .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
-      .limit(1);
-    if (cur.length === 0) return { notFound: true } as const;
-    const oldTitle = cur[0].title;
-    const oldTranscript = cur[0].transcript ?? "";
-
-    const patch: { title?: string; description?: string; transcript?: string } = {};
-    if (fields.title !== undefined) patch.title = fields.title;
-    if (fields.description !== undefined) patch.description = fields.description;
-    if (fields.transcript !== undefined) patch.transcript = fields.transcript;
-    if (Object.keys(patch).length > 0) {
-      await db
-        .update(videos)
-        .set(patch)
-        .where(and(eq(videos.id, videoId), eq(videos.userId, userId)));
+  | {
+      ok: true;
+      reindexTaskId: number | null;
     }
+> {
+  return withDb(env, async (db) =>
+    db.transaction(async (tx) => {
+      const cur = await tx
+        .select({ title: videos.title, transcript: videos.transcript })
+        .from(videos)
+        .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
+        .for("update")
+        .limit(1);
+      if (cur.length === 0) return { notFound: true } as const;
+      const oldTitle = cur[0].title;
+      const oldTranscript = cur[0].transcript ?? "";
 
-    return {
-      ok: true,
-      titleChanged: fields.title !== undefined && fields.title !== oldTitle,
-      newTitle: fields.title ?? null,
-      transcriptChanged: fields.transcript !== undefined && fields.transcript !== oldTranscript,
-    } as const;
-  });
+      const patch: { title?: string; description?: string; transcript?: string } = {};
+      if (fields.title !== undefined) patch.title = fields.title;
+      if (fields.description !== undefined) patch.description = fields.description;
+      if (fields.transcript !== undefined) patch.transcript = fields.transcript;
+      if (Object.keys(patch).length > 0) {
+        await tx
+          .update(videos)
+          .set(patch)
+          .where(and(eq(videos.id, videoId), eq(videos.userId, userId)));
+      }
+
+      const transcriptChanged =
+        fields.transcript !== undefined && fields.transcript !== oldTranscript;
+      const titleChanged = fields.title !== undefined && fields.title !== oldTitle;
+      if (titleChanged) {
+        await tx
+          .update(sceneEmbeddings)
+          .set({
+            langchainMetadata: sql`jsonb_set(
+              COALESCE(${sceneEmbeddings.langchainMetadata}::jsonb, '{}'::jsonb),
+              '{video_title}',
+              to_jsonb(${fields.title!}::text)
+            )`,
+          })
+          .where(eq(sceneEmbeddings.videoId, videoId));
+      }
+      let reindexTaskId: number | null = null;
+      if (transcriptChanged) {
+        const message = buildJobMessage(JOB_REINDEX_VIDEO_TRANSCRIPT, {
+          video_id: videoId,
+        });
+        const task = await insertJobTask(tx, { message });
+        reindexTaskId = task.id;
+      }
+      return {
+        ok: true,
+        reindexTaskId,
+      } as const;
+    }),
+  );
 }
 
 /**
@@ -241,26 +290,31 @@ export async function createYoutubeVideo(
   env: Bindings,
   userId: string,
   params: { sourceUrl: string; youtubeVideoId: string; title: string; description: string },
-): Promise<number> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .insert(videos)
-      .values({
-        userId,
-        file: "",
-        title: params.title,
-        description: params.description,
-        status: "pending",
-        sourceType: "youtube",
-        sourceUrl: params.sourceUrl,
-        youtubeVideoId: params.youtubeVideoId,
-        transcript: "",
-        errorMessage: "",
-        uploadedAt: sql`CURRENT_TIMESTAMP`,
-      })
-      .returning({ id: videos.id });
-    return Number(rows[0].id);
-  });
+): Promise<OutboxedVideoJob> {
+  return withDb(env, async (db) =>
+    db.transaction(async (tx) => {
+      const rows = await tx
+        .insert(videos)
+        .values({
+          userId,
+          file: "",
+          title: params.title,
+          description: params.description,
+          status: "pending",
+          sourceType: "youtube",
+          sourceUrl: params.sourceUrl,
+          youtubeVideoId: params.youtubeVideoId,
+          transcript: "",
+          errorMessage: "",
+          uploadedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .returning({ id: videos.id });
+      const videoId = Number(rows[0].id);
+      const message = buildJobMessage(JOB_TRANSCRIBE_VIDEO, { video_id: videoId });
+      const task = await insertJobTask(tx, { message });
+      return { videoId, taskId: task.id, jobId: message.job_id };
+    }),
+  );
 }
 
 /** 動画の存在 + transcript の有無（plog rebuild の 404 判定用）。 */
@@ -307,15 +361,20 @@ export async function transitionVideoStatus(
   videoId: number,
   fromStatus: string,
   toStatus: string,
-): Promise<boolean> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .update(videos)
-      .set({ status: toStatus, errorMessage: "" })
-      .where(and(eq(videos.id, videoId), eq(videos.status, fromStatus)))
-      .returning({ id: videos.id });
-    return rows.length > 0;
-  });
+): Promise<false | OutboxedVideoJob> {
+  return withDb(env, async (db) =>
+    db.transaction(async (tx) => {
+      const rows = await tx
+        .update(videos)
+        .set({ status: toStatus, errorMessage: "" })
+        .where(and(eq(videos.id, videoId), eq(videos.status, fromStatus)))
+        .returning({ id: videos.id });
+      if (rows.length === 0) return false;
+      const message = buildJobMessage(JOB_TRANSCRIBE_VIDEO, { video_id: videoId });
+      const task = await insertJobTask(tx, { message });
+      return { videoId, taskId: task.id, jobId: message.job_id };
+    }),
+  );
 }
 
 /** status=uploading のまま放置された動画（FR-Q3 放棄解放用）。 */
@@ -363,64 +422,41 @@ export async function listStaleUploadingVideos(
  * status='uploading'、source_type は既定 'uploaded'、uploaded_at=CURRENT_TIMESTAMP。
  * 作成した id を返す。
  */
-export async function createPendingVideo(
+export async function reserveAndCreatePendingVideo(
   env: Bindings,
   userId: string,
+  storageBytes: number,
   fileKey: string,
   title: string,
   description: string,
-): Promise<number> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .insert(videos)
-      .values({
+): Promise<PendingVideoReservation> {
+  return withDb(env, async (db) =>
+    db.transaction(async (tx) => {
+      const reservation = await reserveStorageInTransaction(
+        tx,
         userId,
-        file: fileKey,
-        title,
-        description,
-        status: "uploading",
-        sourceType: "uploaded",
-        sourceUrl: "",
-        youtubeVideoId: "",
-        transcript: "",
-        errorMessage: "",
-        uploadedAt: sql`CURRENT_TIMESTAMP`,
-      })
-      .returning({ id: videos.id });
-    return Number(rows[0].id);
-  });
-}
-
-/**
- * ローカル multipart アップロード完了後の動画を作成する。
- * ファイルは既に VIDEO_BUCKET にあり、status='pending' で transcription 待ち。
- */
-export async function createUploadedVideo(
-  env: Bindings,
-  userId: string,
-  fileKey: string,
-  title: string,
-  description: string,
-): Promise<number> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .insert(videos)
-      .values({
-        userId,
-        file: fileKey,
-        title,
-        description,
-        status: "pending",
-        sourceType: "uploaded",
-        sourceUrl: "",
-        youtubeVideoId: "",
-        transcript: "",
-        errorMessage: "",
-        uploadedAt: sql`CURRENT_TIMESTAMP`,
-      })
-      .returning({ id: videos.id });
-    return Number(rows[0].id);
-  });
+        storageBytes,
+      );
+      if (!("ok" in reservation)) return reservation;
+      const rows = await tx
+        .insert(videos)
+        .values({
+          userId,
+          file: fileKey,
+          title,
+          description,
+          status: "uploading",
+          sourceType: "uploaded",
+          sourceUrl: "",
+          youtubeVideoId: "",
+          transcript: "",
+          errorMessage: "",
+          uploadedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .returning({ id: videos.id });
+      return { ok: true as const, videoId: Number(rows[0].id) };
+    }),
+  );
 }
 
 /** 削除前に file_key と存在を取得（file 空文字/NULL は null）。 */
@@ -448,15 +484,50 @@ export async function getVideoFileKey(
  * 依存グラフ: video → {videotag, videogroupmember, plogbuildjob, plogsummarynode(self),
  *   plogconcept → {learnerconceptstate, ploglearningobject, plogedge}}
  *   （plogedge は video_id と concept(source/target) の双方を参照）。
+ * expectedStatus 指定時は、ロック取得時にもその状態である場合だけ削除する。
  */
 export async function deleteVideoCascade(
   env: Bindings,
   videoId: number,
   userId: string,
-): Promise<boolean> {
+  options: {
+    expectedStatus?: string;
+    fallbackStorageBytes?: number | null;
+  } = {},
+): Promise<
+  | { deleted: false; cleanupTaskId: null }
+  | { deleted: true; cleanupTaskId: number | null }
+> {
   return withDb(env, async (db) => {
     return db.transaction(async (tx) => {
-      await tx.execute(sql`SELECT 1 FROM videos WHERE id = ${videoId} FOR UPDATE`);
+      const locked = await tx
+        .select({ status: videos.status, file: videos.file })
+        .from(videos)
+        .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
+        .for("update")
+        .limit(1);
+      if (
+        locked.length === 0 ||
+        (options.expectedStatus !== undefined &&
+          locked[0].status !== options.expectedStatus)
+      ) {
+        return { deleted: false, cleanupTaskId: null } as const;
+      }
+
+      const fileKey = locked[0].file || null;
+      const cleanupBytes = fileKey
+        ? (parseReservedBytesFromFileKey(fileKey) ??
+          options.fallbackStorageBytes ??
+          null)
+        : null;
+      const cleanupTaskId = fileKey
+        ? await insertStorageCleanupTask(tx, {
+            dedupeKey: `storage:video:${videoId}`,
+            userId,
+            fileKey,
+            bytes: cleanupBytes,
+          })
+        : null;
 
       await tx.execute(sql`
         DELETE FROM learner_concept_states
@@ -476,11 +547,10 @@ export async function deleteVideoCascade(
       // No FK; remove vector rows so orphan embeddings do not linger.
       await tx.execute(sql`DELETE FROM scene_embeddings WHERE video_id = ${videoId}`);
 
-      const deleted = await tx
+      await tx
         .delete(videos)
-        .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
-        .returning({ id: videos.id });
-      return deleted.length > 0;
+        .where(and(eq(videos.id, videoId), eq(videos.userId, userId)));
+      return { deleted: true, cleanupTaskId } as const;
     });
   });
 }

@@ -306,10 +306,25 @@ describe('ChatPanel', () => {
       {
         id: 1,
         group: 1,
+        asked_by: {
+          user_id: 'student-user',
+          username: 'student',
+          email: 'student@example.com',
+        },
         question: 'Test question',
         answer: 'Test answer',
         is_shared_origin: false,
         created_at: '2024-01-15T10:00:00Z',
+        feedback: null,
+      },
+      {
+        id: 2,
+        group: 1,
+        asked_by: null,
+        question: 'Shared question',
+        answer: 'Shared answer',
+        is_shared_origin: true,
+        created_at: '2024-01-15T10:01:00Z',
         feedback: null,
       },
     ]
@@ -326,6 +341,9 @@ describe('ChatPanel', () => {
     await waitFor(() => {
       expect(screen.getByText('Test question')).toBeInTheDocument()
       expect(screen.getByText('Test answer')).toBeInTheDocument()
+      expect(screen.getByText('student')).toBeInTheDocument()
+      expect(screen.getByText('student@example.com')).toBeInTheDocument()
+      expect(screen.getByText('chat.sharedLinkUser')).toBeInTheDocument()
     })
   })
 

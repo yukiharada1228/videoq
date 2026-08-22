@@ -1,13 +1,20 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, or, sql } from "drizzle-orm";
 import { withDb } from "../db/pool";
 import {
   chatLogs,
   chatLogEvaluations,
+  users,
   videoGroups,
   videoGroupMembers,
+  videoGroupMemberships,
 } from "../db/schema";
 import { toUtcIso } from "../shared/datetime";
 import type { Bindings } from "../types/bindings";
+import { insertJobTask } from "./external-task-repository";
+import {
+  buildJobMessage,
+  JOB_EVALUATE_CHAT_LOG,
+} from "../lib/job-message";
 
 export type ChatCitation = {
   id: number;
@@ -17,10 +24,17 @@ export type ChatCitation = {
   end_time: string | null;
 };
 
+export type ChatQuestionAuthor = {
+  user_id: string;
+  username: string;
+  email: string;
+};
+
 // ChatLog API のレスポンス表現。
 export type ChatLogItem = {
   id: number;
   group: number;
+  asked_by: ChatQuestionAuthor | null;
   question: string;
   answer: string;
   citations: ChatCitation[];
@@ -59,6 +73,23 @@ function mapCitations(raw: unknown): ChatCitation[] {
   }));
 }
 
+function mapQuestionAuthor(
+  isSharedOrigin: boolean,
+  userId: unknown,
+  username: unknown,
+  email: unknown,
+): ChatQuestionAuthor | null {
+  if (
+    isSharedOrigin
+    || typeof userId !== "string"
+    || typeof username !== "string"
+    || typeof email !== "string"
+  ) {
+    return null;
+  }
+  return { user_id: userId, username, email };
+}
+
 async function groupOwnedBy(
   db: Parameters<Parameters<typeof withDb>[1]>[0],
   groupId: number,
@@ -85,7 +116,16 @@ export async function getGroupWithMembers(
     if (params.shareToken) {
       conditions.push(eq(videoGroups.shareSlug, params.shareToken));
     } else if (params.userId) {
-      conditions.push(eq(videoGroups.userId, params.userId));
+      conditions.push(
+        or(
+          eq(videoGroups.userId, params.userId),
+          sql`EXISTS (
+            SELECT 1 FROM ${videoGroupMemberships}
+             WHERE ${videoGroupMemberships.groupId} = ${videoGroups.id}
+               AND ${videoGroupMemberships.userId} = ${params.userId}
+          )`,
+        )!,
+      );
     }
 
     const groups = await db
@@ -130,25 +170,39 @@ export async function createChatLog(
     isShared: boolean;
     retrievedContexts: readonly string[];
   },
-): Promise<{ id: number; feedback: string | null }> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .insert(chatLogs)
-      .values({
-        userId: params.userId,
-        groupId: params.groupId,
-        question: params.question,
-        answer: params.answer,
-        citations: params.citations ?? [],
-        retrievedContexts: params.retrievedContexts ?? [],
-        isSharedOrigin: params.isShared,
-        feedback: null,
-        createdAt: sql`now()`,
-      })
-      .returning({ id: chatLogs.id, feedback: chatLogs.feedback });
-    const r = rows[0];
-    return { id: Number(r.id), feedback: r.feedback ?? null };
-  });
+): Promise<{ id: number; feedback: string | null; taskId: number }> {
+  return withDb(env, async (db) =>
+    db.transaction(async (tx) => {
+      const rows = await tx
+        .insert(chatLogs)
+        .values({
+          userId: params.userId,
+          groupId: params.groupId,
+          question: params.question,
+          answer: params.answer,
+          citations: params.citations ?? [],
+          retrievedContexts: params.retrievedContexts ?? [],
+          isSharedOrigin: params.isShared,
+          feedback: null,
+          createdAt: sql`now()`,
+        })
+        .returning({ id: chatLogs.id, feedback: chatLogs.feedback });
+      const r = rows[0];
+      const chatLogId = Number(r.id);
+      const message = buildJobMessage(JOB_EVALUATE_CHAT_LOG, {
+        chat_log_id: chatLogId,
+      });
+      const task = await insertJobTask(tx, {
+        message,
+        dedupeKey: `chat-evaluation:${chatLogId}`,
+      });
+      return {
+        id: chatLogId,
+        feedback: r.feedback ?? null,
+        taskId: task.id,
+      };
+    }),
+  );
 }
 
 /**
@@ -183,6 +237,7 @@ export async function deleteGroupChatLogs(
 /** CSV エクスポート 1 行分（created_at 昇順）。 */
 export type ChatHistoryExportRow = {
   created_at: string; // UTC ISO 8601
+  asked_by: ChatQuestionAuthor | null;
   question: string;
   answer: string;
   is_shared_origin: boolean;
@@ -206,11 +261,13 @@ export async function getGroupChatHistoryForExport(
     }
 
     const result = await db.execute(sql`
-      SELECT question, answer, citations::text AS citations, is_shared_origin, feedback,
-             created_at
-        FROM chat_logs
-       WHERE group_id = ${groupId}
-       ORDER BY created_at ASC
+      SELECT cl.user_id, u.username, u.email,
+             cl.question, cl.answer, cl.citations::text AS citations,
+             cl.is_shared_origin, cl.feedback, cl.created_at
+        FROM chat_logs cl
+        LEFT JOIN users u ON u.id = cl.user_id
+       WHERE cl.group_id = ${groupId}
+       ORDER BY cl.created_at ASC
     `);
     const rows = result.rows as Array<{
       question: string;
@@ -219,11 +276,20 @@ export async function getGroupChatHistoryForExport(
       is_shared_origin: boolean;
       feedback: string | null;
       created_at: string;
+      user_id: string;
+      username: string | null;
+      email: string | null;
     }>;
 
     return {
       rows: rows.map((r) => ({
         created_at: toUtcIso(r.created_at)!,
+        asked_by: mapQuestionAuthor(
+          r.is_shared_origin,
+          r.user_id,
+          r.username,
+          r.email,
+        ),
         question: r.question,
         answer: r.answer,
         is_shared_origin: r.is_shared_origin,
@@ -240,12 +306,18 @@ export async function getFeedbackLog(
   logId: number,
 ): Promise<
   | null
-  | { id: number; group_user_id: string; group_share_token: string | null }
+  | {
+      id: number;
+      log_user_id: string;
+      group_user_id: string;
+      group_share_token: string | null;
+    }
 > {
   return withDb(env, async (db) => {
     const rows = await db
       .select({
         id: chatLogs.id,
+        log_user_id: chatLogs.userId,
         group_user_id: videoGroups.userId,
         group_share_token: videoGroups.shareSlug,
       })
@@ -257,6 +329,7 @@ export async function getFeedbackLog(
     const r = rows[0];
     return {
       id: Number(r.id),
+      log_user_id: String(r.log_user_id),
       group_user_id: String(r.group_user_id),
       group_share_token: r.group_share_token ?? null,
     };
@@ -383,6 +456,9 @@ export async function getGroupChatHistory(
       .select({
         id: chatLogs.id,
         group_id: chatLogs.groupId,
+        user_id: chatLogs.userId,
+        username: users.username,
+        email: users.email,
         question: chatLogs.question,
         answer: chatLogs.answer,
         citations: sql<string>`${chatLogs.citations}::text`.as("citations"),
@@ -391,6 +467,7 @@ export async function getGroupChatHistory(
         created_at: chatLogs.createdAt,
       })
       .from(chatLogs)
+      .leftJoin(users, eq(users.id, chatLogs.userId))
       .where(eq(chatLogs.groupId, groupId))
       .orderBy(desc(chatLogs.createdAt))
       .limit(limit)
@@ -399,6 +476,12 @@ export async function getGroupChatHistory(
     const results: ChatLogItem[] = rows.map((r) => ({
       id: Number(r.id),
       group: Number(r.group_id),
+      asked_by: mapQuestionAuthor(
+        r.is_shared_origin,
+        r.user_id,
+        r.username,
+        r.email,
+      ),
       question: r.question,
       answer: r.answer,
       citations: mapCitations(r.citations),

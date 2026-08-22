@@ -66,7 +66,7 @@ export async function submitFeedback(
     if (log.group_share_token !== opts.shareSlug) {
       return { forbidden: "Share token mismatch" } as const;
     }
-  } else if (log.group_user_id !== opts.userId) {
+  } else if (log.group_user_id !== opts.userId && log.log_user_id !== opts.userId) {
     return { forbidden: "No permission to access this history" } as const;
   }
 
