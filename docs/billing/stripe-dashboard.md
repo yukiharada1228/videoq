@@ -47,7 +47,7 @@ Checkout / Customer Portal に利用規約とプライバシーを出すには�
 |---|---|
 | Terms of service | `https://videoq.jp/terms` |
 | Privacy policy | `https://videoq.jp/privacy` |
-| Support email | `support@videoq.jp` |
+| Support email | `yukiharada1228@gmail.com` |
 | Support website | `https://videoq.jp` |
 
 [Checkout settings](https://dashboard.stripe.com/acct_1Re0SMJ2c6Th1a6w/settings/checkout) で Legal policies と Refund policy を有効にし、返金ポリシー全文は `https://videoq.jp/refund` を指す。日本の通信販売として [特商法表記](https://videoq.jp/legal) もサイトに置く。
