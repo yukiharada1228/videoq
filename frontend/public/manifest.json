@@ -4,7 +4,7 @@
   "description": "AI動画学習プラットフォーム。動画をアップロードするだけでAIが自動文字起こし・即検索。",
   "start_url": "/",
   "display": "standalone",
-  "theme_color": "#00652c",
+  "theme_color": "#0017c1",
   "background_color": "#ffffff",
   "lang": "ja",
   "icons": [
