@@ -36,7 +36,7 @@ interface UseVideoUploadReturn {
   reset: () => void;
 }
 
-const DEFAULT_MAX_VIDEO_UPLOAD_SIZE_MB = Number(import.meta.env.VITE_MAX_VIDEO_UPLOAD_SIZE_MB || 1024);
+const DEFAULT_MAX_VIDEO_UPLOAD_SIZE_MB = Number(import.meta.env.VITE_MAX_VIDEO_UPLOAD_SIZE_MB || 200);
 
 interface RunUploadMutationVariables {
   command: UploadCommand;

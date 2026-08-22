@@ -76,3 +76,4 @@ Dashboard の dynamic payment methods を使う。コードに `payment_method_t
 3. Portal で年額または Pro に変更し、日割り請求を確認
 4. 解約後に Free 枠へ戻る
 5. Admin でクォータを手編集すると `quota_source=admin` になり、以降の webhook は枠を上書きしない。`quota_source=plan` に戻すとカタログを再適用する
+6. 既存 Free ユーザーの枠は `0014_apply_free_plan_quotas` でカタログ（1GB / 10分 / AI 15 / 200MB）に揃える。`used_*` は消さない
