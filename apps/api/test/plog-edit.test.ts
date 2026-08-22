@@ -255,6 +255,11 @@ describe("POST /:id/plog/edges/", () => {
       source_label: "AND",
       target_label: "OR",
     });
+    expect(
+      calls.some(
+        (call) => call.sql.includes("SELECT 1 FROM videos") && call.sql.includes("FOR UPDATE"),
+      ),
+    ).toBe(true);
   });
 });
 

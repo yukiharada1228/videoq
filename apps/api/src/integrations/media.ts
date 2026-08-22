@@ -131,18 +131,26 @@ function r2ObjectKey(fileKey: string): string {
 
 /**
  * アップロード用 presigned PUT URL。
- * ContentType を署名ヘッダに含める。クライアントは同じ Content-Type で PUT する。
+ * Content-Type と Content-Length を署名ヘッダに含める。
+ * クライアントは申告したファイルそのものを PUT しなければ署名検証に失敗する。
  */
 export async function presignR2Put(
   env: Bindings,
   fileKey: string,
   contentType: string,
+  contentLength: number,
 ): Promise<string> {
   const { aws, endpoint, bucket } = s3Client(env);
   const url = objectUrl(endpoint, bucket, fileKey);
   url.searchParams.set("X-Amz-Expires", "3600");
   const signed = await aws.sign(
-    new Request(url, { method: "PUT", headers: { "content-type": contentType } }),
+    new Request(url, {
+      method: "PUT",
+      headers: {
+        "content-length": String(contentLength),
+        "content-type": contentType,
+      },
+    }),
     { aws: { signQuery: true, allHeaders: true } },
   );
   return signed.url;

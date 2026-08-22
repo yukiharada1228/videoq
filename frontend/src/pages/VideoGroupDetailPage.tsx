@@ -16,6 +16,7 @@ import {
 } from '@/hooks/useVideoGroupDetailData';
 import { useConfirm } from '@/components/common/feedback';
 import { VideoGroupDetailView } from '@/components/video/group-detail/VideoGroupDetailView';
+import { apiClient } from '@/lib/api';
 
 export default function VideoGroupDetailPage() {
   const params = useParams<{ id: string }>();
@@ -31,6 +32,8 @@ export default function VideoGroupDetailPage() {
 
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
   const [selectedVideoId, setSelectedVideoId] = useState<number | null>(null);
   const [autoVideoId, setAutoVideoId] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -153,6 +156,28 @@ export default function VideoGroupDetailPage() {
   const isUpdating = updateGroupMutation.isPending;
   const updateError = updateGroupMutation.error instanceof Error ? updateGroupMutation.error.message : null;
 
+  const handleLeave = async () => {
+    if (!groupId || !group || isLeaving) return;
+    const confirmed = await requestConfirmation({
+      title: t('confirmations.leaveGroup', { name: group.name }),
+      description: t('confirmations.leaveGroupDescription'),
+      confirmLabel: t('videos.groupDetail.leave'),
+      cancelLabel: t('common.actions.cancel'),
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+    setIsLeaving(true);
+    setDeleteError(null);
+    try {
+      await apiClient.leaveVideoGroup(groupId);
+      navigate('/videos/groups');
+    } catch (err) {
+      handleAsyncError(err, t('videos.groupDetail.leaveError'), setDeleteError);
+    } finally {
+      setIsLeaving(false);
+    }
+  };
+
   return (
     <VideoGroupDetailView
       group={group}
@@ -168,6 +193,8 @@ export default function VideoGroupDetailPage() {
       updateError={updateError}
       isUpdating={isUpdating}
       isAddModalOpen={isAddModalOpen}
+      isMembersModalOpen={isMembersModalOpen}
+      isLeaving={isLeaving}
       mobileTab={mobileTab}
       isMobile={isMobile}
       videoRef={videoRef}
@@ -178,12 +205,14 @@ export default function VideoGroupDetailPage() {
       isCopied={isCopied}
       onMobileTabChange={setMobileTab}
       onOpenAddModalChange={setIsAddModalOpen}
+      onOpenMembersModalChange={setIsMembersModalOpen}
       onStartEditing={handleStartEdit}
       onCancelEdit={handleCancelEdit}
       onEditedNameChange={setEditedName}
       onEditedDescriptionChange={setEditedDescription}
       onUpdateGroup={() => updateGroupMutation.mutate({ name: editedName, description: editedDescription })}
       onDeleteGroup={handleDelete}
+      onLeaveGroup={handleLeave}
       onVideoSelect={handleVideoSelect}
       onRemoveVideo={handleRemoveVideo}
       onDragEnd={handleDragEnd}

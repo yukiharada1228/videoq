@@ -1,12 +1,14 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import VideoGroupDetailPage from '../VideoGroupDetailPage'
 import { apiClient } from '@/lib/api'
+import { useI18nNavigate } from '@/lib/i18n'
 
 const mockGroup = {
   id: 1,
   name: 'Test Group',
   description: 'Test Description',
   share_slug: null,
+  access_role: 'owner' as const,
   videos: [
     { id: 1, title: 'Video 1', description: 'Desc 1', status: 'completed', file: 'video1.mp4', source_type: 'uploaded', order: 0 },
     { id: 2, title: 'Video 2', description: 'Desc 2', status: 'processing', file: 'video2.mp4', source_type: 'uploaded', order: 1 },
@@ -24,6 +26,7 @@ vi.mock('react-router-dom', async () => {
 vi.mock('@/lib/api', () => ({
   apiClient: {
     getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
+    getMeOrNull: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
     getVideoGroup: vi.fn(),
     getVideos: vi.fn(),
     updateVideoGroup: vi.fn(),
@@ -34,6 +37,12 @@ vi.mock('@/lib/api', () => ({
     createShareLink: vi.fn(),
     deleteShareLink: vi.fn(),
     getVideoUrl: vi.fn((url) => url),
+    getGroupParticipants: vi.fn(),
+    inviteGroupMembers: vi.fn(),
+    resendGroupInvitation: vi.fn(),
+    revokeGroupInvitation: vi.fn(),
+    removeGroupMember: vi.fn(),
+    leaveVideoGroup: vi.fn(),
   },
 }))
 
@@ -63,7 +72,8 @@ describe('VideoGroupDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
       ; (apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroup)
-      ; (apiClient.getVideos as ReturnType<typeof vi.fn>).mockResolvedValue([])
+      ; (apiClient.getVideos as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], meta: { total: 0, limit: 24, offset: 0 } })
+      ; (apiClient.getGroupParticipants as ReturnType<typeof vi.fn>).mockResolvedValue({ invitations: [], members: [] })
   })
 
   afterEach(() => {
@@ -169,6 +179,65 @@ describe('VideoGroupDetailPage', () => {
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText('videos.groupDetail.shareLinkLabel')).toBeInTheDocument()
     expect(within(dialog).getByText('common.actions.save')).toBeInTheDocument()
+  })
+
+  it('opens member management for the owner', async () => {
+    render(<VideoGroupDetailPage />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'videos.groupMembers.open' }))
+
+    expect(await screen.findByText('videos.groupMembers.title')).toBeInTheDocument()
+    expect(apiClient.getGroupParticipants).toHaveBeenCalledWith(1)
+  })
+
+  it('shows read-only controls to a joined member and asks for confirmation before leaving', async () => {
+    ; (apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...mockGroup,
+      access_role: 'member',
+    })
+    ; (apiClient.leaveVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
+
+    render(<VideoGroupDetailPage />)
+
+    expect(await screen.findByText('videos.groupDetail.memberBadge')).toBeInTheDocument()
+    expect(screen.queryByText('videos.groupDetail.shareOpen')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('videos.groupDetail.editTitle')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('videos.groupDetail.delete')).not.toBeInTheDocument()
+    expect(screen.queryByText('videos.groupDetail.add')).not.toBeInTheDocument()
+    expect(screen.queryAllByRole('button', { name: 'videos.groupDetail.removeFromGroup' })).toHaveLength(0)
+
+    fireEvent.click(screen.getByRole('button', { name: 'videos.groupDetail.leave' }))
+
+    const dialog = await screen.findByRole('dialog', { name: /confirmations\.leaveGroup/ })
+    expect(within(dialog).getByText('confirmations.leaveGroupDescription')).toBeInTheDocument()
+    expect(apiClient.leaveVideoGroup).not.toHaveBeenCalled()
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'common.actions.cancel' }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /confirmations\.leaveGroup/ })).not.toBeInTheDocument()
+    })
+    expect(apiClient.leaveVideoGroup).not.toHaveBeenCalled()
+  })
+
+  it('leaves a joined group only after the member confirms', async () => {
+    ; (apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...mockGroup,
+      access_role: 'member',
+    })
+    ; (apiClient.leaveVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
+    const navigate = useI18nNavigate() as ReturnType<typeof vi.fn>
+
+    render(<VideoGroupDetailPage />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'videos.groupDetail.leave' }))
+    const dialog = await screen.findByRole('dialog', { name: /confirmations\.leaveGroup/ })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'videos.groupDetail.leave' }))
+
+    await waitFor(() => {
+      expect(apiClient.leaveVideoGroup).toHaveBeenCalledWith(1)
+      expect(navigate).toHaveBeenCalledWith('/videos/groups')
+    })
   })
 
   it('should not render a fixed sub-header below the nav', async () => {

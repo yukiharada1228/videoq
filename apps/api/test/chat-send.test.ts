@@ -39,14 +39,18 @@ const ENV = {
   AUTH_JWT_SECRET: SECRET,
   HYPERDRIVE: { connectionString: "postgres://fake/db" },
 } as unknown as Record<string, unknown>;
+const QUOTA_PERIOD_START = "2026-08-01 00:00:00+00";
+let lastExternalPayload: Record<string, unknown> | null = null;
 
-const defaultRows = (sql: MatchableSql): Record<string, unknown>[] => {
-  if (sql.includes("is_over_quota") || sql.includes("ai_answers_limit"))
-    return [{ isOverQuota: false, aiAnswersLimit: null, usedAiAnswers: 0 }];
-  if (sql.includes("video_group_members"))
-    return [{ videoId: 60 }, { videoId: 61 }];
+const defaultRows = (sql: MatchableSql, args: unknown[] = []): Record<string, unknown>[] => {
+  if (sql.includes("UPDATE users") && sql.includes("RETURNING usage_period_start"))
+    return [{ usage_period_start: QUOTA_PERIOD_START }];
+  if (sql.includes("SELECT is_over_quota"))
+    return [{ is_over_quota: false, ai_answers_limit: null, used_ai_answers: 0 }];
   if (sql.includes("video_groups"))
     return [{ id: 3, userId: "00000000-0000-4000-8000-000000000005", description: "Group about pgvector" }];
+  if (sql.includes("video_group_members"))
+    return [{ videoId: 60 }, { videoId: 61 }];
   if (sql.includes("scene_embeddings"))
     return [
       {
@@ -61,11 +65,29 @@ const defaultRows = (sql: MatchableSql): Record<string, unknown>[] => {
     ];
   if (sql.includes("chat_logs") && sql.includes("returning"))
     return [{ id: 99, feedback: null }];
+  if (sql.toLowerCase().includes("insert into") && sql.includes("external_tasks")) {
+    const payload = args.find(
+      (arg) =>
+        (typeof arg === "string" && arg.includes('"message"')) ||
+        (typeof arg === "object" && arg !== null && "message" in arg),
+    );
+    lastExternalPayload =
+      typeof payload === "string"
+        ? (JSON.parse(payload) as Record<string, unknown>)
+        : (payload as Record<string, unknown> | null);
+    return [{ id: 199 }];
+  }
+  if (sql.includes("WITH candidates") || sql.includes("with candidates")) {
+    return lastExternalPayload
+      ? [{ id: 199, kind: "sqs_job", payload: lastExternalPayload }]
+      : [];
+  }
   return [];
 };
 
 beforeEach(() => {
   calls.length = 0;
+  lastExternalPayload = null;
   rowsFor = defaultRows;
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -99,7 +121,11 @@ const SQS_ENV = {
 };
 
 /** 埋め込み → チャット生成の順で応答するスタブ。 */
-function stubOpenAi(opts: { stream?: boolean; content?: string }) {
+function stubOpenAi(opts: {
+  stream?: boolean;
+  content?: string;
+  failAfterFirstChunk?: boolean;
+}) {
   const requests: { url: string; body: Record<string, unknown>; raw: string }[] = [];
   vi.stubGlobal("fetch", async (input: string | Request, init?: RequestInit) => {
     // aws4fetch は Request オブジェクトで呼ぶため両形に対応する。
@@ -130,6 +156,25 @@ function stubOpenAi(opts: { stream?: boolean; content?: string }) {
       });
     }
     const enc = new TextEncoder();
+    if (opts.failAfterFirstChunk) {
+      let pullCount = 0;
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          pull(controller) {
+            if (pullCount++ === 0) {
+              controller.enqueue(
+                enc.encode(
+                  `data: ${JSON.stringify({ choices: [{ delta: { content: text.slice(0, 3) } }] })}\n\n`,
+                ),
+              );
+              return;
+            }
+            controller.error(new Error("stream interrupted"));
+          },
+        }),
+        { status: 200 },
+      );
+    }
     return new Response(
       new ReadableStream<Uint8Array>({
         start(controller) {
@@ -186,9 +231,13 @@ describe("POST /messages（非ストリーミング）", () => {
       if (sql.includes("plog_build_jobs")) return [{ status: "pending" }];
       return prev(sql, args);
     };
-    const kv = {
-      get: async () => null,
-      put: async () => {},
+    const studySessions = {
+      getByName: () => ({
+        tryAcquire: async () => ({ acquired: true, retryAfterMs: 0 }),
+        getSnapshot: async () => ({ revision: 0, states: {} }),
+        commit: async () => true,
+        release: async () => undefined,
+      }),
     };
     const res = await post(
       "/messages",
@@ -200,7 +249,7 @@ describe("POST /messages（非ストリーミング）", () => {
       },
       {
         token: await accessToken(),
-        env: { ...ENV, OPENAI_API_KEY: "sk-test", STUDY_SESSION: kv },
+        env: { ...ENV, OPENAI_API_KEY: "sk-test", STUDY_SESSION: studySessions },
       },
     );
     expect(res.status).toBe(409);
@@ -267,7 +316,9 @@ describe("POST /messages（非ストリーミング）", () => {
     expect(JSON.parse(contextsArg)).toEqual(["scene text A"]);
     expect(insert.args).toContain(false);
 
-    expect(calls.some((c) => c.sql.includes("used_ai_answers") && c.sql.includes("+ 1"))).toBe(true);
+    expect(calls.some(
+      (c) => c.sql.includes("RETURNING usage_period_start") && c.sql.includes("+ 1"),
+    )).toBe(true);
 
     // ChatLog保存後にRAGAS評価タスクをSQSへ投入。
     const sqs = requests.find((r) => r.url.includes("sqs"))!;
@@ -277,6 +328,37 @@ describe("POST /messages（非ストリーミング）", () => {
     expect(message.type).toBe("evaluate_chat_log");
     expect(message.payload).toEqual({ chat_log_id: 99 });
     expect(typeof message.job_id).toBe("string");
+  });
+
+  it("参加メンバーはグループ所有者の割当でチャットし、履歴は本人名義で保存する", async () => {
+    stubOpenAi({});
+    const memberUserId = "00000000-0000-4000-8000-000000000006";
+
+    const res = await post(
+      "/messages",
+      { messages: [{ role: "user", content: "member question" }], group_id: 3 },
+      { token: await accessToken(memberUserId), env: { ...OPENAI_ENV, ...SQS_ENV } },
+    );
+
+    expect(res.status).toBe(200);
+    const groupLookup = calls.find(
+      (call) => call.sql.includes("video_groups") && call.sql.includes("video_group_memberships"),
+    );
+    expect(groupLookup).toBeTruthy();
+
+    const search = calls.find((call) => call.sql.includes("scene_embeddings"))!;
+    expect(search.args[0]).toBe("00000000-0000-4000-8000-000000000005");
+
+    const reservation = calls.find(
+      (call) => call.sql.includes("UPDATE users") && call.sql.includes("RETURNING usage_period_start"),
+    )!;
+    expect(reservation.args[0]).toBe("00000000-0000-4000-8000-000000000005");
+    expect(reservation.args).not.toContain(memberUserId);
+
+    const insert = calls.find(
+      (call) => call.sql.includes("chat_logs") && call.sql.includes("returning"),
+    )!;
+    expect(insert.args).toContain(memberUserId);
   });
 
   it("グループが解決できなければ 404", async () => {
@@ -293,10 +375,15 @@ describe("POST /messages（非ストリーミング）", () => {
   });
 
   it("AI 回答上限に達していれば 400 AI_ANSWERS_LIMIT_EXCEEDED", async () => {
-    rowsFor = (sql) =>
-      sql.includes("is_over_quota") || sql.includes("ai_answers_limit")
-        ? [{ is_over_quota: false, ai_answers_limit: 100, used_ai_answers: 100 }]
-        : defaultRows(sql);
+    rowsFor = (sql) => {
+      if (sql.includes("UPDATE users") && sql.includes("RETURNING usage_period_start")) {
+        return [];
+      }
+      if (sql.includes("SELECT is_over_quota")) {
+        return [{ is_over_quota: false, ai_answers_limit: 100, used_ai_answers: 100 }];
+      }
+      return defaultRows(sql);
+    };
     const res = await post(
       "/messages",
       { messages: [{ role: "user", content: "hi" }] },
@@ -312,10 +399,15 @@ describe("POST /messages（非ストリーミング）", () => {
   });
 
   it("ストレージ超過なら 403 OVER_QUOTA", async () => {
-    rowsFor = (sql) =>
-      sql.includes("is_over_quota") || sql.includes("ai_answers_limit")
-        ? [{ isOverQuota: true, aiAnswersLimit: null, usedAiAnswers: 0 }]
-        : defaultRows(sql);
+    rowsFor = (sql) => {
+      if (sql.includes("UPDATE users") && sql.includes("RETURNING usage_period_start")) {
+        return [];
+      }
+      if (sql.includes("SELECT is_over_quota")) {
+        return [{ is_over_quota: true, ai_answers_limit: null, used_ai_answers: 0 }];
+      }
+      return defaultRows(sql);
+    };
     const res = await post(
       "/messages",
       { messages: [{ role: "user", content: "hi" }] },
@@ -341,6 +433,31 @@ describe("POST /messages（非ストリーミング）", () => {
     expect(await res.json()).toEqual({
       error: { code: "INTERNAL_ERROR", message: "An internal server error occurred." },
     });
+    const release = calls.find((call) => call.sql.includes("GREATEST"))!;
+    expect(release.args).toEqual([
+      "00000000-0000-4000-8000-000000000005",
+      QUOTA_PERIOD_START,
+    ]);
+  });
+
+  it("回答生成後の保存失敗では消費済みの利用枠を返却しない", async () => {
+    stubOpenAi({ content: "Generated answer" });
+    const previousRowsFor = rowsFor;
+    rowsFor = (sql, args) => {
+      if (sql.includes("chat_logs") && sql.includes("returning")) {
+        throw new Error("database unavailable");
+      }
+      return previousRowsFor(sql, args);
+    };
+
+    const res = await post(
+      "/messages",
+      { messages: [{ role: "user", content: "hi" }], group_id: 3 },
+      { token: await accessToken(), env: OPENAI_ENV },
+    );
+
+    expect(res.status).toBe(500);
+    expect(calls.some((call) => call.sql.includes("GREATEST"))).toBe(false);
   });
 
   it("共有アクセス（share_slug）は group 所有者で処理し is_shared_origin=true で保存", async () => {
@@ -365,7 +482,9 @@ describe("POST /messages（非ストリーミング）", () => {
     expect(group.args).toContain("abc123");
     expect(calls.some((c) => c.sql.includes("share_slug") && c.args.includes(3))).toBe(true);
 
-    const quota = calls.find((c) => c.sql.includes("is_over_quota") || c.sql.includes("ai_answers_limit"))!;
+    const quota = calls.find(
+      (c) => c.sql.includes("UPDATE users") && c.sql.includes("RETURNING usage_period_start"),
+    )!;
     expect(quota.args[0]).toBe("00000000-0000-4000-8000-000000000005"); // 共有訪問者ではなくグループ所有者
 
     const insert = calls.find((c) => c.sql.includes("chat_logs") && c.sql.includes("returning"))!;
@@ -451,10 +570,15 @@ describe("POST /messages/stream（SSE）", () => {
   });
 
   it("クォータ超過は 200 + SSE error イベント（HTTP は 4xx にしない）", async () => {
-    rowsFor = (sql) =>
-      sql.includes("is_over_quota") || sql.includes("ai_answers_limit")
-        ? [{ isOverQuota: true, aiAnswersLimit: null, usedAiAnswers: 0 }]
-        : defaultRows(sql);
+    rowsFor = (sql) => {
+      if (sql.includes("UPDATE users") && sql.includes("RETURNING usage_period_start")) {
+        return [];
+      }
+      if (sql.includes("SELECT is_over_quota")) {
+        return [{ is_over_quota: true, ai_answers_limit: null, used_ai_answers: 0 }];
+      }
+      return defaultRows(sql);
+    };
     const res = await post(
       "/messages/stream",
       { messages: [{ role: "user", content: "hi" }] },
@@ -502,5 +626,27 @@ describe("POST /messages/stream（SSE）", () => {
         message: "An internal server error occurred.",
       },
     ]);
+    const release = calls.find((call) => call.sql.includes("GREATEST"))!;
+    expect(release.args[0]).toBe("00000000-0000-4000-8000-000000000005");
+  });
+
+  it("回答を一部生成した後の中断では消費済みの利用枠を返却しない", async () => {
+    stubOpenAi({ stream: true, content: "Hello!", failAfterFirstChunk: true });
+
+    const res = await post(
+      "/messages/stream",
+      { messages: [{ role: "user", content: "hi" }] },
+      { token: await accessToken(), env: OPENAI_ENV },
+    );
+
+    expect(sseEvents(await res.text())).toEqual([
+      { type: "content_chunk", text: "Hel" },
+      {
+        type: "error",
+        code: "LLM_PROVIDER_ERROR",
+        message: "An internal server error occurred.",
+      },
+    ]);
+    expect(calls.some((call) => call.sql.includes("GREATEST"))).toBe(false);
   });
 });

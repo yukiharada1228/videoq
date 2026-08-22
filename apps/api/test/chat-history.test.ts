@@ -43,6 +43,9 @@ const ENV = {
 const exportRows = [
   {
     created_at: "2026-05-01T12:34:56+00:00",
+    user_id: "00000000-0000-4000-8000-000000000006",
+    username: "student",
+    email: "student@example.com",
     question: "pgvector とは？",
     answer: 'これは "引用" と, カンマ\n改行を含む回答',
     is_shared_origin: false,
@@ -53,6 +56,9 @@ const exportRows = [
   },
   {
     created_at: "2026-05-02T00:00:01.123456+00:00",
+    user_id: "00000000-0000-4000-8000-000000000005",
+    username: "owner",
+    email: "owner@example.com",
     question: "second",
     answer: "answer",
     is_shared_origin: true,
@@ -62,15 +68,15 @@ const exportRows = [
 ];
 
 const EXPECTED_CSV =
-  "created_at,question,answer,is_shared_origin,citations,feedback\r\n" +
-  "2026-05-01T12:34:56.000Z,pgvector とは？," +
+  "created_at,asked_by_user_id,asked_by_username,asked_by_email,question,answer,is_shared_origin,citations,feedback\r\n" +
+  "2026-05-01T12:34:56.000Z,00000000-0000-4000-8000-000000000006,student,student@example.com,pgvector とは？," +
   '"これは ""引用"" と, カンマ\n改行を含む回答",false,' +
   '"[{""id"":1,""video_id"":60,""title"":""動画 A"",""start_time"":""00:00:10"",""end_time"":""00:00:20""}]",good\r\n' +
-  "2026-05-02T00:00:01.123Z,second,answer,true,[],\r\n";
+  "2026-05-02T00:00:01.123Z,,,,second,answer,true,[],\r\n";
 
 const defaultRows = (sql: MatchableSql): Record<string, unknown>[] => {
   if (sql.includes("video_groups")) return [{ id: 1 }];
-  if (sql.includes("chat_logs") && sql.includes("ORDER BY created_at ASC"))
+  if (sql.includes("chat_logs") && sql.includes("ORDER BY cl.created_at ASC"))
     return exportRows;
   return [];
 };
@@ -128,6 +134,56 @@ describe("GET /groups/:id/history/?download=csv", () => {
   });
 });
 
+describe("GET /groups/:id/history", () => {
+  it("質問者を返し、共有リンク由来は匿名として返す", async () => {
+    rowsFor = (sql) => {
+      if (sql.includes("video_groups")) return [{ id: 3 }];
+      if (sql.includes("count(*)::int")) return [{ c: 2 }];
+      if (sql.includes("chat_logs") && sql.includes("order by")) {
+        return [
+          {
+            id: 10,
+            group_id: 3,
+            user_id: "00000000-0000-4000-8000-000000000006",
+            username: "student",
+            email: "student@example.com",
+            question: "authenticated question",
+            answer: "answer",
+            citations: "[]",
+            is_shared_origin: false,
+            feedback: null,
+            created_at: "2026-05-01T12:34:56+00:00",
+          },
+          {
+            id: 11,
+            group_id: 3,
+            user_id: "00000000-0000-4000-8000-000000000005",
+            username: "owner",
+            email: "owner@example.com",
+            question: "shared question",
+            answer: "answer",
+            citations: "[]",
+            is_shared_origin: true,
+            feedback: null,
+            created_at: "2026-05-01T12:35:56+00:00",
+          },
+        ];
+      }
+      return [];
+    };
+
+    const res = await request("/groups/3/history?limit=10", "GET", await accessToken());
+    expect(res.status).toBe(200);
+    const body = await res.json() as { data: Array<Record<string, unknown>> };
+    expect(body.data[0].asked_by).toEqual({
+      user_id: "00000000-0000-4000-8000-000000000006",
+      username: "student",
+      email: "student@example.com",
+    });
+    expect(body.data[1].asked_by).toBeNull();
+  });
+});
+
 describe("CSV の細部", () => {
   it("QUOTE_MINIMAL: 区切り・引用符・改行を含む値だけ引用する", () => {
     expect(csvDocument([["a", "b,c", 'q"q', "line\nbreak", "cr\r"]])).toBe(
@@ -139,6 +195,11 @@ describe("CSV の細部", () => {
     const csv = buildChatHistoryCsv([
       {
         created_at: "2026-05-01T12:34:56+00:00",
+        asked_by: {
+          user_id: "00000000-0000-4000-8000-000000000006",
+          username: "student",
+          email: "student@example.com",
+        },
         question: '改行\nと\r\nCRLF, カンマ "引用" を含む',
         answer: "絵文字 🎥 と タブ\t と バックスラッシュ \\ と 制御文字\u0001",
         is_shared_origin: false,
@@ -156,6 +217,7 @@ describe("CSV の細部", () => {
       },
       {
         created_at: "2026-05-02T00:00:01.123456+00:00",
+        asked_by: null,
         question: "",
         answer: "",
         is_shared_origin: true,
@@ -164,6 +226,11 @@ describe("CSV の細部", () => {
       },
       {
         created_at: "2026-12-31T23:59:59.000100+00:00",
+        asked_by: {
+          user_id: "00000000-0000-4000-8000-000000000007",
+          username: "learner",
+          email: "learner@example.com",
+        },
         question: "surrogate pair 𝕏 と 全角，句読点。",
         answer: "セミコロン; と パイプ| は引用されない",
         is_shared_origin: false,

@@ -27,6 +27,13 @@ export const chatLogItemSchema = z
   .object({
     id: z.number().int(),
     group: z.number().int(),
+    asked_by: z
+      .object({
+        user_id: z.string(),
+        username: z.string(),
+        email: z.string(),
+      })
+      .nullable(),
     question: z.string(),
     answer: z.string(),
     citations: z.array(chatCitationSchema),

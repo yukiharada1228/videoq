@@ -33,7 +33,10 @@ describe('HomePage - authenticated', () => {
       ai_answers_limit: 100,
       is_over_quota: false,
     })
-    ;(apiClient.getVideos as ReturnType<typeof vi.fn>).mockResolvedValue(mockVideos)
+    ;(apiClient.getVideos as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: mockVideos,
+      meta: { total: mockVideos.length, limit: 24, offset: 0 },
+    })
     ;(apiClient.getVideoGroups as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroups)
   })
 
@@ -178,7 +181,10 @@ describe('HomePage - Data Loading', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     ;(apiClient.getMeOrNull as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 1, username: 'testuser' })
-    ;(apiClient.getVideos as ReturnType<typeof vi.fn>).mockResolvedValue(mockVideos)
+    ;(apiClient.getVideos as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: mockVideos,
+      meta: { total: mockVideos.length, limit: 24, offset: 0 },
+    })
     ;(apiClient.getVideoGroups as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroups)
   })
 

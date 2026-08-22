@@ -34,20 +34,28 @@ _APP_ENV_MAP = {
 
 
 def ensure_secrets_loaded() -> None:
+    """Load secrets once per warm container.
+
+    ``_LOADED`` is only set after the load succeeds. Setting it up front would
+    make a single transient SSM failure poison the container for its whole
+    lifetime: every later invocation would skip the bootstrap and run without
+    DATABASE_URL, so SQS would keep redelivering onto the same broken container.
+    """
     global _LOADED
     if _LOADED:
         return
-    _LOADED = True
 
     db_param = _param_ref("DB_PARAM_NAME", "DB_SECRET_ARN")
     app_param = _param_ref("APP_PARAM_NAME", "APP_SECRET_ARN")
     if not db_param and not app_param:
+        _LOADED = True
         return
 
     try:
         import boto3
     except ImportError:
         logger.warning("boto3 unavailable; skipping secrets bootstrap")
+        _LOADED = True
         return
 
     client = boto3.client("ssm")
@@ -73,6 +81,8 @@ def ensure_secrets_loaded() -> None:
         _mirror_if_missing("R2_S3_ENDPOINT", "AWS_S3_ENDPOINT_URL")
         _mirror_if_missing("R2_S3_REGION", "AWS_S3_REGION_NAME")
         logger.info("Loaded app secrets from APP_PARAM_NAME")
+
+    _LOADED = True
 
 
 def _param_ref(*env_keys: str) -> str:

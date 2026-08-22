@@ -8,11 +8,14 @@ export const groupListItemSchema = z
     display_order: z.number().int(),
     created_at: z.string(),
     video_count: z.number().int(),
+    access_role: z.enum(["owner", "member"]),
   })
   .openapi("GroupListItem");
 
 export const groupDetailSchema = groupListItemSchema
+  .omit({ access_role: true })
   .extend({
+    access_role: z.enum(["owner", "member", "public"]),
     updated_at: z.string(),
     share_slug: z.string().nullable(),
     videos: z.array(z.record(z.string(), z.unknown())),

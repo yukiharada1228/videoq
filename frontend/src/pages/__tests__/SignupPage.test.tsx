@@ -15,6 +15,7 @@ vi.mock('@/lib/api', () => ({
 describe('SignupPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    globalThis.__setMockSearchParams('')
     mockNavigate = useI18nNavigate() as ReturnType<typeof vi.fn>
   })
 
@@ -64,6 +65,28 @@ describe('SignupPage', () => {
         email: 'test@example.com',
         username: 'testuser',
         password: 'test1234',
+      })
+    })
+  })
+
+  it('preserves a safe invitation return path through email verification', async () => {
+    globalThis.__setMockSearchParams('next=%2Fgroup-invitations%2Finvite-token')
+    ; (apiClient.signup as ReturnType<typeof vi.fn>).mockResolvedValue({})
+
+    render(<SignupPage />)
+
+    fireEvent.change(screen.getByLabelText(/auth\.fields\.email\.label/), { target: { value: 'student@example.com' } })
+    fireEvent.change(screen.getByLabelText(/auth\.fields\.username\.label/), { target: { value: 'student' } })
+    fireEvent.change(screen.getByLabelText(/auth\.fields\.password\.label/), { target: { value: 'test12345678' } })
+    fireEvent.change(screen.getByLabelText(/auth\.fields\.passwordConfirmation\.label/), { target: { value: 'test12345678' } })
+    fireEvent.click(screen.getByText('auth.signup.submit'))
+
+    await waitFor(() => {
+      expect(apiClient.signup).toHaveBeenCalledWith({
+        email: 'student@example.com',
+        username: 'student',
+        password: 'test12345678',
+        callbackURL: '/group-invitations/invite-token',
       })
     })
   })

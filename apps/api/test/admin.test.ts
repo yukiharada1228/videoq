@@ -29,10 +29,12 @@ vi.mock("pg", () => {
 });
 
 const enqueueAll = vi.fn();
-const enqueueDelete = vi.fn();
 vi.mock("../src/lib/jobs", () => ({
   enqueueReindexAllEmbeddings: (...a: unknown[]) => enqueueAll(...a),
-  enqueueAccountDeletion: (...a: unknown[]) => enqueueDelete(...a),
+}));
+const processExternalTask = vi.fn();
+vi.mock("../src/lib/external-tasks", () => ({
+  processExternalTaskById: (...a: unknown[]) => processExternalTask(...a),
 }));
 
 const SECRET = "test-jwt-secret-admin";
@@ -50,10 +52,13 @@ async function token(userId = "00000000-0000-4000-8000-000000000001") {
 beforeEach(() => {
   calls.length = 0;
   enqueueAll.mockReset().mockResolvedValue("job-abc");
-  enqueueDelete.mockReset().mockResolvedValue("job-del");
+  processExternalTask.mockReset().mockResolvedValue(true);
   rowsFor = (sql) => {
     if (sql.includes("SELECT is_superuser")) return [{ is_superuser: true }];
     if (sql.includes("count(*)")) return [{ c: 1 }];
+    if (sql.includes("external_tasks") && sql.includes("RETURNING")) {
+      return [{ id: 73 }];
+    }
     if (sql.includes("FROM users") || sql.includes("RETURNING id")) {
       return [
         {
@@ -185,8 +190,9 @@ describe("admin API", () => {
       headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001" },
     });
     expect(res.status).toBe(202);
-    expect(await res.json()).toEqual({ job_id: "job-del" });
-    expect(enqueueDelete).toHaveBeenCalledWith(ENV, "00000000-0000-4000-8000-000000000009");
+    const body = (await res.json()) as { job_id: string };
+    expect(body.job_id).toMatch(/[0-9a-f-]{36}/);
+    expect(processExternalTask).toHaveBeenCalledWith(ENV, 73);
     expect(calls.some((c) => c.sql.includes("UPDATE") && c.sql.includes("users"))).toBe(
       true,
     );
@@ -223,23 +229,22 @@ describe("admin API", () => {
     ).toBe(true);
   });
 
-  it("SQS 投入失敗時は同期 hard-delete にフォールバックする", async () => {
-    enqueueDelete.mockResolvedValueOnce(null);
+  it("永続化済みの削除ジョブを返し、リクエスト内では削除しない", async () => {
     const res = await req("/users/00000000-0000-4000-8000-000000000009", {
       method: "DELETE",
       headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001" },
     });
     expect(res.status).toBe(202);
     const body = (await res.json()) as { job_id: string };
-    expect(body.job_id.startsWith("sync-")).toBe(true);
+    expect(body.job_id).toMatch(/[0-9a-f-]{36}/);
     expect(
       calls.some(
         (c) => c.sql.includes("DELETE") && c.sql.includes("scene_embeddings"),
       ),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       calls.some((c) => c.sql.includes("DELETE") && c.sql.includes("users")),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("自分自身は削除できない", async () => {
@@ -273,7 +278,7 @@ describe("admin API", () => {
       headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001" },
     });
     expect(res.status).toBe(400);
-    expect(enqueueDelete).not.toHaveBeenCalled();
+    expect(processExternalTask).not.toHaveBeenCalled();
   });
 
   it("他 superuser は削除できない", async () => {
@@ -307,6 +312,6 @@ describe("admin API", () => {
       headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001" },
     });
     expect(res.status).toBe(403);
-    expect(enqueueDelete).not.toHaveBeenCalled();
+    expect(processExternalTask).not.toHaveBeenCalled();
   });
 });

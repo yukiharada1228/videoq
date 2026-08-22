@@ -57,6 +57,41 @@
       "when": 1786684860000,
       "tag": "0007_users_date_joined_default",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787331603104,
+      "tag": "0008_group_invitations",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1787339104722,
+      "tag": "0009_concurrency_guards",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787341266738,
+      "tag": "0010_external_tasks",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1787352583244,
+      "tag": "0011_job_delivery_guards",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1787359773525,
+      "tag": "0012_invitation_email_task",
+      "breakpoints": true
     }
   ]
 }

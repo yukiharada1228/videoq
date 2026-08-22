@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, or, type SQL, sql } from "drizzle-orm";
 import { withDb } from "../db/pool";
 import { sqlNumberArray } from "../db/sql-array";
 import {
@@ -7,6 +7,7 @@ import {
   videos,
   videoGroups,
   videoGroupMembers,
+  videoGroupMemberships,
 } from "../db/schema";
 import { toUtcIso } from "../shared/datetime";
 import { mapVideoListRow, type VideoListItem } from "./video-repository";
@@ -20,6 +21,7 @@ export type GroupListItem = {
   display_order: number;
   created_at: string;
   video_count: number;
+  access_role: "owner" | "member";
 };
 
 /**
@@ -38,6 +40,7 @@ export type GroupDetail = {
   video_count: number;
   share_slug: string | null;
   videos: (VideoListItem & { order: number })[];
+  access_role: "owner" | "member" | "public";
 };
 
 // Must be "video_groups"."id": ${videoGroups.id} becomes bare "id" → m.id.
@@ -58,6 +61,7 @@ const videoTagsJson = sql<string>`COALESCE((
 async function fetchGroupDetail(
   env: Bindings,
   where: SQL,
+  accessRole: "public" | { viewerUserId: string },
 ): Promise<GroupDetail | null> {
   const data = await withDb(env, async (db) => {
     const groupRows = await db
@@ -70,6 +74,7 @@ async function fetchGroupDetail(
         updated_at: videoGroups.updatedAt,
         share_slug: videoGroups.shareSlug,
         video_count: groupVideoCount,
+        owner_user_id: videoGroups.userId,
       })
       .from(videoGroups)
       .where(where)
@@ -119,6 +124,12 @@ async function fetchGroupDetail(
     video_count: g.video_count,
     share_slug: g.share_slug ?? null,
     videos: nestedVideos,
+    access_role:
+      accessRole === "public"
+        ? "public"
+        : g.owner_user_id === accessRole.viewerUserId
+          ? "owner"
+          : "member",
   };
 }
 
@@ -133,7 +144,18 @@ export function getGroupDetail(
 ): Promise<GroupDetail | null> {
   return fetchGroupDetail(
     env,
-    and(eq(videoGroups.id, groupId), eq(videoGroups.userId, userId))!,
+    and(
+      eq(videoGroups.id, groupId),
+      or(
+        eq(videoGroups.userId, userId),
+        sql`EXISTS (
+          SELECT 1 FROM ${videoGroupMemberships}
+           WHERE ${videoGroupMemberships.groupId} = ${videoGroups.id}
+             AND ${videoGroupMemberships.userId} = ${userId}
+        )`,
+      ),
+    )!,
+    { viewerUserId: userId },
   );
 }
 
@@ -145,7 +167,7 @@ export function getGroupDetailByShareSlug(
   env: Bindings,
   shareSlug: string,
 ): Promise<GroupDetail | null> {
-  return fetchGroupDetail(env, eq(videoGroups.shareSlug, shareSlug));
+  return fetchGroupDetail(env, eq(videoGroups.shareSlug, shareSlug), "public");
 }
 
 /** グループ作成（display_order = MAX+1 を単一 INSERT で原子採番）。作成した id を返す。 */
@@ -155,21 +177,24 @@ export async function createGroup(
   name: string,
   description: string,
 ): Promise<number> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .insert(videoGroups)
-      .values({
-        userId,
-        name,
-        description,
-        displayOrder: sql`(SELECT COALESCE(MAX(display_order), -1) + 1 FROM video_groups WHERE user_id = ${userId})`,
-        createdAt: sql`CURRENT_TIMESTAMP`,
-        updatedAt: sql`CURRENT_TIMESTAMP`,
-        shareSlug: null,
-      })
-      .returning({ id: videoGroups.id });
-    return Number(rows[0].id);
-  });
+  return withDb(env, async (db) =>
+    db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT 1 FROM users WHERE id = ${userId} FOR UPDATE`);
+      const rows = await tx
+        .insert(videoGroups)
+        .values({
+          userId,
+          name,
+          description,
+          displayOrder: sql`(SELECT COALESCE(MAX(display_order), -1) + 1 FROM video_groups WHERE user_id = ${userId})`,
+          createdAt: sql`CURRENT_TIMESTAMP`,
+          updatedAt: sql`CURRENT_TIMESTAMP`,
+          shareSlug: null,
+        })
+        .returning({ id: videoGroups.id });
+      return Number(rows[0].id);
+    }),
+  );
 }
 
 /** グループ更新（提供フィールドのみ動的 SET。updated_at は更新しない）。 */
@@ -337,7 +362,16 @@ export async function listGroupsPage(
     const countRows = await db
       .select({ c: sql<number>`count(*)::int` })
       .from(videoGroups)
-      .where(eq(videoGroups.userId, userId));
+      .where(
+        or(
+          eq(videoGroups.userId, userId),
+          sql`EXISTS (
+            SELECT 1 FROM ${videoGroupMemberships}
+             WHERE ${videoGroupMemberships.groupId} = ${videoGroups.id}
+               AND ${videoGroupMemberships.userId} = ${userId}
+          )`,
+        ),
+      );
 
     const rows = await db
       .select({
@@ -347,10 +381,24 @@ export async function listGroupsPage(
         display_order: videoGroups.displayOrder,
         created_at: videoGroups.createdAt,
         video_count: groupVideoCount,
+        access_role: sql<"owner" | "member">`CASE
+          WHEN ${videoGroups.userId} = ${userId} THEN 'owner'
+          ELSE 'member'
+        END`,
       })
       .from(videoGroups)
-      .where(eq(videoGroups.userId, userId))
+      .where(
+        or(
+          eq(videoGroups.userId, userId),
+          sql`EXISTS (
+            SELECT 1 FROM ${videoGroupMemberships}
+             WHERE ${videoGroupMemberships.groupId} = ${videoGroups.id}
+               AND ${videoGroupMemberships.userId} = ${userId}
+          )`,
+        ),
+      )
       .orderBy(
+        sql`CASE WHEN ${videoGroups.userId} = ${userId} THEN 0 ELSE 1 END`,
         asc(videoGroups.displayOrder),
         desc(videoGroups.createdAt),
         asc(videoGroups.id),
@@ -365,6 +413,7 @@ export async function listGroupsPage(
       display_order: r.display_order,
       created_at: toUtcIso(r.created_at)!,
       video_count: r.video_count,
+      access_role: r.access_role,
     }));
     return { count: countRows[0].c, results };
   });

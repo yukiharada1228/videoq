@@ -115,6 +115,13 @@ npm ci
 npm run user:superuser -- your-username-or-email
 ```
 
+If a migrated local account reports `Password not found`, restore a local-only
+temporary password (the command prints it once):
+
+```bash
+npm run user:password:local -- your-username-or-email
+```
+
 3. Log in at [http://localhost/login](http://localhost/login).
 
 ### Step 5: Start using VideoQ

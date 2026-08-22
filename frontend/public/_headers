@@ -1,0 +1,14 @@
+# Cloudflare Pages がすべてのレスポンスに付与するヘッダー。
+# `public/` は dist/ にそのままコピーされるので、ビルド成果物に含まれる。
+#
+# 注意: リソース系の CSP（script-src / connect-src / media-src / frame-src）は
+# ここでは指定していない。YouTube 埋め込み（www.youtube.com への iframe）と
+# 動画配信元の実測が必要で、誤ると本番の再生が止まるため。
+# frame-ancestors だけは自前リソースに影響しないので先に有効化する。
+/*
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Cross-Origin-Opener-Policy: same-origin

@@ -33,7 +33,7 @@ def test_vector_store_uses_standard_schema_and_closes_engine(monkeypatch) -> Non
     captured: dict = {"closed": 0}
 
     class FakeEngine:
-        def close(self) -> None:
+        async def close(self) -> None:
             captured["closed"] += 1
 
     engine = FakeEngine()

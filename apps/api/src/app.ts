@@ -3,12 +3,14 @@ import type { AppEnv } from "./types/bindings";
 import { requestId } from "./middleware/request-id";
 import { accessLogger } from "./middleware/logger";
 import { corsMiddleware } from "./middleware/cors";
+import { securityHeaders } from "./middleware/security-headers";
 import { onError } from "./middleware/error-handler";
 import { toErrorBody } from "./shared/errors";
 import { registerOpenApiDoc } from "./shared/openapi";
 import { healthRoutes } from "./features/health/routes";
 import { accountRoutes } from "./features/account/routes";
 import { groupRoutes } from "./features/groups/routes";
+import { groupMembershipRoutes } from "./features/group-memberships/routes";
 import { tagRoutes } from "./features/tags/routes";
 import { membershipRoutes } from "./features/membership/routes";
 import { videoRoutes } from "./features/videos/routes";
@@ -34,6 +36,7 @@ export function createApp() {
 
   app.use("*", requestId);
   app.use("*", accessLogger);
+  app.use("*", securityHeaders);
   app.use("*", corsMiddleware);
 
   app.onError(onError);
@@ -53,6 +56,13 @@ export function createApp() {
     return withDb(c.env, async (db) => {
       const auth = createAuth(c.env, db);
       // Plugin typing does not always surface oauth metadata helpers on Auth.
+      return oauthProviderAuthServerMetadata(auth as never)(c.req.raw);
+    });
+  });
+  // RFC 8414 alternate form for issuers with a path (`/api/auth`).
+  app.get("/.well-known/oauth-authorization-server/api/auth", async (c) => {
+    return withDb(c.env, async (db) => {
+      const auth = createAuth(c.env, db);
       return oauthProviderAuthServerMetadata(auth as never)(c.req.raw);
     });
   });
@@ -77,6 +87,7 @@ export function createApp() {
 
   app.route("/api/account", accountRoutes);
   app.route("/api/videos", groupRoutes);
+  app.route("/api/videos", groupMembershipRoutes);
   app.route("/api/videos", tagRoutes);
   app.route("/api/videos", membershipRoutes);
   app.route("/api/videos", plogRoutes);

@@ -24,6 +24,14 @@ class VideoRow:
     file_key: str | None
     youtube_video_id: str | None
     error_message: str
+    processing_seconds: int = 0
+
+
+@dataclass(frozen=True)
+class ProcessingReservationResult:
+    allowed: bool
+    already_reserved: bool = False
+    limit_seconds: int | None = None
 
 
 def _row_to_video(row: dict[str, Any]) -> VideoRow:
@@ -39,6 +47,7 @@ def _row_to_video(row: dict[str, Any]) -> VideoRow:
         file_key=file_val if file_val else None,
         youtube_video_id=row.get("youtube_video_id") or None,
         error_message=row.get("error_message") or "",
+        processing_seconds=int(row.get("processing_seconds") or 0),
     )
 
 
@@ -46,13 +55,97 @@ def get_video_for_task(conn: psycopg.Connection[Any], video_id: int) -> VideoRow
     row = conn.execute(
         """
         SELECT id, user_id, title, transcript, status, source_type,
-               file, youtube_video_id, error_message
+               file, youtube_video_id, error_message, processing_seconds
           FROM videos
          WHERE id = %s
         """,
         (video_id,),
     ).fetchone()
     return _row_to_video(row) if row else None
+
+
+def reserve_processing_seconds(
+    conn: psycopg.Connection[Any], video_id: int, seconds: int
+) -> ProcessingReservationResult:
+    """Reserve monthly processing usage once per video under one row lock."""
+    if seconds <= 0:
+        raise ValueError("processing seconds must be positive")
+
+    video = conn.execute(
+        """
+        SELECT user_id, processing_seconds
+          FROM videos
+         WHERE id = %s
+         FOR UPDATE
+        """,
+        (video_id,),
+    ).fetchone()
+    if video is None:
+        raise ValueError(f"Video {video_id} not found")
+    if int(video.get("processing_seconds") or 0) > 0:
+        return ProcessingReservationResult(allowed=True, already_reserved=True)
+
+    user_id = str(video["user_id"])
+    reserved = conn.execute(
+        """
+        UPDATE users
+           SET used_processing_seconds = CASE
+                 WHEN usage_period_start IS NULL
+                   OR date_trunc('month', usage_period_start, 'UTC')
+                      <> date_trunc('month', now(), 'UTC')
+                 THEN %s
+                 ELSE used_processing_seconds + %s
+               END,
+               used_ai_answers = CASE
+                 WHEN usage_period_start IS NULL
+                   OR date_trunc('month', usage_period_start, 'UTC')
+                      <> date_trunc('month', now(), 'UTC')
+                 THEN 0
+                 ELSE used_ai_answers
+               END,
+               usage_period_start = CASE
+                 WHEN usage_period_start IS NULL
+                   OR date_trunc('month', usage_period_start, 'UTC')
+                      <> date_trunc('month', now(), 'UTC')
+                 THEN now()
+                 ELSE usage_period_start
+               END
+         WHERE id = %s
+           AND is_over_quota IS NOT TRUE
+           AND (
+             processing_limit_minutes IS NULL
+             OR CASE
+                  WHEN usage_period_start IS NULL
+                    OR date_trunc('month', usage_period_start, 'UTC')
+                       <> date_trunc('month', now(), 'UTC')
+                  THEN 0
+                  ELSE used_processing_seconds
+                END + %s <= processing_limit_minutes * 60
+           )
+        RETURNING used_processing_seconds
+        """,
+        (seconds, seconds, user_id, seconds),
+    ).fetchone()
+    if reserved is None:
+        state = conn.execute(
+            """
+            SELECT processing_limit_minutes, is_over_quota
+              FROM users
+             WHERE id = %s
+            """,
+            (user_id,),
+        ).fetchone()
+        limit = None if state is None else state.get("processing_limit_minutes")
+        return ProcessingReservationResult(
+            allowed=False,
+            limit_seconds=None if limit is None else int(limit) * 60,
+        )
+
+    conn.execute(
+        "UPDATE videos SET processing_seconds = %s WHERE id = %s",
+        (seconds, video_id),
+    )
+    return ProcessingReservationResult(allowed=True)
 
 
 def transition_video_status(
@@ -136,4 +229,3 @@ def delete_video_cascade(
         (video_id, user_id),
     )
     logger.info("Deleted video %d (user %s) and related rows", video_id, user_id)
-

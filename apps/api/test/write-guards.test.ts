@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { isScopeAllowed } from "../src/middleware/auth";
-import { buildJobMessage, payloadSha256 } from "../src/lib/jobs";
+import { buildJobMessage } from "../src/lib/jobs";
 
 describe("API キースコープ（ApiKeyScopePermission 相当）", () => {
   it("all は全許可、read_only は {read, chat_write} のみ", () => {
@@ -26,11 +26,5 @@ describe("ジョブ投入（native JSON）", () => {
       job_id: "fixed-job-id",
       payload: { video_id: 123 },
     });
-  });
-  it("payloadSha256 は同一入力で安定", async () => {
-    const a = await payloadSha256("t", { k: 2 });
-    const b = await payloadSha256("t", { k: 2 });
-    expect(a).toBe(b);
-    expect(a).toHaveLength(64);
   });
 });

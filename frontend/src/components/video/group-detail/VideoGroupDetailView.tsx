@@ -27,6 +27,8 @@ import {
   Save,
   Share2,
   Trash2,
+  Users,
+  LogOut,
   X,
 } from 'lucide-react';
 import { apiClient, type VideoGroup, type VideoInGroup } from '@/lib/api';
@@ -60,6 +62,7 @@ import { SupportText } from '@/components/ui/support-text';
 import { ChipLabel } from '@/components/ui/chip-label';
 import { Heading, HeadingShoulder, HeadingTitle } from '@/components/ui/heading';
 import { UtilityLink } from '@/components/ui/utility-link';
+import { GroupParticipantsDialog } from './GroupParticipantsDialog';
 import {
   Select,
   SelectContent,
@@ -109,6 +112,8 @@ interface VideoGroupDetailViewProps {
   updateError: string | null;
   isUpdating: boolean;
   isAddModalOpen: boolean;
+  isMembersModalOpen: boolean;
+  isLeaving: boolean;
   mobileTab: MobileTab;
   isMobile: boolean;
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -119,12 +124,14 @@ interface VideoGroupDetailViewProps {
   isCopied: boolean;
   onMobileTabChange: (tab: MobileTab) => void;
   onOpenAddModalChange: (open: boolean) => void;
+  onOpenMembersModalChange: (open: boolean) => void;
   onStartEditing: () => void;
   onCancelEdit: () => void;
   onEditedNameChange: (name: string) => void;
   onEditedDescriptionChange: (description: string) => void;
   onUpdateGroup: () => void;
   onDeleteGroup: () => void;
+  onLeaveGroup: () => void;
   onVideoSelect: (videoId: number) => void;
   onRemoveVideo: (videoId: number) => Promise<void> | void;
   onDragEnd: (event: DragEndEvent) => Promise<void> | void;
@@ -145,6 +152,7 @@ interface SortableVideoItemProps {
   onSelect: (videoId: number) => void;
   onRemove: (videoId: number) => void;
   isMobile?: boolean;
+  canManage: boolean;
 }
 
 function SortableVideoItem({
@@ -153,11 +161,12 @@ function SortableVideoItem({
   onSelect,
   onRemove,
   isMobile = false,
+  canManage,
 }: SortableVideoItemProps) {
   const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: video.id,
-    disabled: isMobile,
+    disabled: isMobile || !canManage,
   });
 
   const style = {
@@ -177,7 +186,7 @@ function SortableVideoItem({
           : 'hover:bg-solid-gray-50'
       } ${isDragging ? 'z-50 border border-solid-gray-420 bg-white' : ''}`}
     >
-      {!isMobile && (
+      {!isMobile && canManage && (
         <span
           {...attributes}
           {...listeners}
@@ -193,7 +202,7 @@ function SortableVideoItem({
         </p>
         <VideoStatusBadge status={video.status} />
       </div>
-      <Button
+      {canManage ? <Button
         type="button"
         variant="text"
         size="xs"
@@ -207,7 +216,7 @@ function SortableVideoItem({
         className="min-w-0 shrink-0 p-1.5 text-error-1 hover:bg-red-50"
       >
         <Trash2 className="w-3.5 h-3.5" />
-      </Button>
+      </Button> : null}
     </div>
   );
 }
@@ -674,6 +683,7 @@ function GroupVideoList({
   onMobileTabChange,
   onRemoveVideo,
   onDragEnd,
+  canManage,
 }: {
   group: VideoGroup;
   selectedVideo: SelectedVideo | null;
@@ -686,6 +696,7 @@ function GroupVideoList({
   onMobileTabChange: (tab: MobileTab) => void;
   onRemoveVideo: (videoId: number) => Promise<void> | void;
   onDragEnd: (event: DragEndEvent) => Promise<void> | void;
+  canManage: boolean;
 }) {
   const { t } = useTranslation();
 
@@ -705,10 +716,10 @@ function GroupVideoList({
             <ChipLabel variant="filled-1" color="gray" className="min-h-0 text-oln-14N-100">
               {t('videos.groupDetail.videoCount', { count: group.videos?.length ?? 0 })}
             </ChipLabel>
-            <Button type="button" variant="outline" size="sm" onClick={onOpenAdd}>
+            {canManage ? <Button type="button" variant="outline" size="sm" onClick={onOpenAdd}>
               <Plus className="h-3.5 w-3.5" />
               <span className="ml-1.5 hidden sm:inline">{t('videos.groupDetail.add')}</span>
-            </Button>
+            </Button> : null}
           </div>
         </div>
         <div className="flex-1 space-y-2 overflow-y-auto p-3">
@@ -725,6 +736,7 @@ function GroupVideoList({
                     video={video}
                     isSelected={selectedVideo?.id === video.id}
                     isMobile={isMobile}
+                    canManage={canManage}
                     onSelect={(videoId) => {
                       onVideoSelect(videoId);
                       if (isMobile) onMobileTabChange('player');
@@ -753,6 +765,7 @@ function GroupPlayerPanel({
   youtubeStartSeconds,
   onVideoCanPlay,
   onVideoPlayFromTime,
+  canManage,
 }: {
   groupId: number | null;
   selectedVideo: SelectedVideo | null;
@@ -761,6 +774,7 @@ function GroupPlayerPanel({
   youtubeStartSeconds: number | null;
   onVideoCanPlay: () => void;
   onVideoPlayFromTime: (videoId: number, startTime: string) => void;
+  canManage: boolean;
 }) {
   const { t } = useTranslation();
 
@@ -774,7 +788,7 @@ function GroupPlayerPanel({
             </HeadingTitle>
           </Heading>
           <div className="flex shrink-0 items-center gap-3">
-            {groupId ? <DashboardButton groupId={groupId} size="sm" /> : null}
+            {groupId && canManage ? <DashboardButton groupId={groupId} size="sm" /> : null}
           </div>
         </div>
         <div className="aspect-video lg:aspect-auto lg:flex-1 bg-solid-gray-800 flex items-center justify-center lg:min-h-0">
@@ -810,6 +824,7 @@ function GroupPlayerPanel({
       <div className="lg:hidden">
         <ChatPanel
           groupId={groupId ?? undefined}
+          showHistory={canManage}
           onVideoPlay={onVideoPlayFromTime}
           className="h-[480px]"
         />
@@ -871,6 +886,8 @@ export function VideoGroupDetailView({
   updateError,
   isUpdating,
   isAddModalOpen,
+  isMembersModalOpen,
+  isLeaving,
   mobileTab,
   isMobile,
   videoRef,
@@ -881,12 +898,14 @@ export function VideoGroupDetailView({
   isCopied,
   onMobileTabChange,
   onOpenAddModalChange,
+  onOpenMembersModalChange,
   onStartEditing,
   onCancelEdit,
   onEditedNameChange,
   onEditedDescriptionChange,
   onUpdateGroup,
   onDeleteGroup,
+  onLeaveGroup,
   onVideoSelect,
   onRemoveVideo,
   onDragEnd,
@@ -898,6 +917,7 @@ export function VideoGroupDetailView({
 }: VideoGroupDetailViewProps) {
   const { t } = useTranslation();
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const canManage = group?.access_role !== 'member';
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -927,7 +947,7 @@ export function VideoGroupDetailView({
         </div>
       ) : (
         <>
-          <GroupEditDialog
+          {canManage ? <GroupEditDialog
             isOpen={isEditing}
             editedName={editedName}
             editedDescription={editedDescription}
@@ -937,9 +957,17 @@ export function VideoGroupDetailView({
             onNameChange={onEditedNameChange}
             onDescriptionChange={onEditedDescriptionChange}
             onSave={onUpdateGroup}
-          />
+          /> : null}
 
-          {isShareDialogOpen && (
+          {canManage && isMembersModalOpen && groupId ? (
+            <GroupParticipantsDialog
+              groupId={groupId}
+              isOpen={isMembersModalOpen}
+              onOpenChange={onOpenMembersModalChange}
+            />
+          ) : null}
+
+          {canManage && isShareDialogOpen && (
             <ShareLinkDialog
               key={shareSlug}
               isOpen={isShareDialogOpen}
@@ -972,11 +1000,17 @@ export function VideoGroupDetailView({
 
               <header className="flex flex-col justify-between gap-3 lg:flex-row lg:items-end">
                 <div className="min-w-0 space-y-1">
-                  <Heading size="24" rule="4" hasChip={!!shareLink}>
-                    {shareLink ? (
+                  <Heading size="24" rule="4" hasChip={!!shareLink || !canManage}>
+                    {shareLink && canManage ? (
                       <HeadingShoulder>
                         <ChipLabel variant="filled-1" color="blue" className="min-h-0 text-oln-14N-100">
                           {t('videos.groupDetail.sharingBadge')}
+                        </ChipLabel>
+                      </HeadingShoulder>
+                    ) : !canManage ? (
+                      <HeadingShoulder>
+                        <ChipLabel variant="filled-1" color="gray" className="min-h-0 text-oln-14N-100">
+                          {t('videos.groupDetail.memberBadge')}
                         </ChipLabel>
                       </HeadingShoulder>
                     ) : null}
@@ -988,7 +1022,16 @@ export function VideoGroupDetailView({
                     </p>
                   ) : null}
                 </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-3">
+                {canManage ? <div className="flex shrink-0 flex-wrap items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onOpenMembersModalChange(true)}
+                  >
+                    <Users className="mr-1.5 h-3.5 w-3.5" />
+                    {t('videos.groupMembers.open')}
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"
@@ -1024,7 +1067,18 @@ export function VideoGroupDetailView({
                     )}
                     {t('videos.groupDetail.delete')}
                   </Button>
-                </div>
+                </div> : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={onLeaveGroup}
+                    disabled={isLeaving}
+                  >
+                    {isLeaving ? <InlineSpinner className="mr-1.5 h-3.5 w-3.5" /> : <LogOut className="mr-1.5 h-3.5 w-3.5" />}
+                    {t('videos.groupDetail.leave')}
+                  </Button>
+                )}
               </header>
             </div>
 
@@ -1041,6 +1095,7 @@ export function VideoGroupDetailView({
                 onMobileTabChange={onMobileTabChange}
                 onRemoveVideo={onRemoveVideo}
                 onDragEnd={onDragEnd}
+                canManage={canManage}
               />
 
               <GroupPlayerPanel
@@ -1051,11 +1106,13 @@ export function VideoGroupDetailView({
                 youtubeStartSeconds={youtubeStartSeconds}
                 onVideoCanPlay={onVideoCanPlay}
                 onVideoPlayFromTime={onVideoPlayFromTime}
+                canManage={canManage}
               />
 
               <aside className="hidden min-h-0 flex-col lg:col-span-1 lg:flex">
                 <ChatPanel
                   groupId={groupId ?? undefined}
+                  showHistory={canManage}
                   onVideoPlay={onVideoPlayFromTime}
                   className="h-full min-h-0 flex-1"
                 />
@@ -1065,12 +1122,12 @@ export function VideoGroupDetailView({
 
           <GroupMobileNav mobileTab={mobileTab} onChange={onMobileTabChange} />
 
-          <AddVideosDialog
+          {canManage ? <AddVideosDialog
             isOpen={isAddModalOpen}
             onOpenChange={onOpenAddModalChange}
             groupId={groupId}
             group={group}
-          />
+          /> : null}
         </>
       )}
     </div>

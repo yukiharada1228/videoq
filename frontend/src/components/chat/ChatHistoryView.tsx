@@ -1,4 +1,4 @@
-import { BookOpen, Download, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { BookOpen, Download, ThumbsDown, ThumbsUp, UserRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { ChatHistoryItem, ChatLogEvaluation } from '@/lib/api';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
@@ -99,7 +99,14 @@ function HistoryItem({
 
       <div className="flex flex-col items-end">
         <div className="max-w-[90%] border border-solid-gray-420 bg-solid-gray-50 px-4 py-3 text-std-16N-170 text-solid-gray-800">
-          {item.question}
+          <div className="mb-1.5 flex flex-wrap items-center justify-end gap-x-2 text-dns-14N-130 text-solid-gray-600">
+            <UserRound className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="font-bold text-solid-gray-800">
+              {item.asked_by?.username ?? t('chat.sharedLinkUser')}
+            </span>
+            {item.asked_by ? <span className="break-all">{item.asked_by.email}</span> : null}
+          </div>
+          <div>{item.question}</div>
         </div>
       </div>
 

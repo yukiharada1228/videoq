@@ -16,7 +16,10 @@ import type {
   PlogLearningObject,
   PlogSummaryNode,
 } from "../lib/plog-runtime";
+import { ORDERING, isDag } from "../lib/plog-ordering";
 import { stableKey } from "../shared/canonical-json";
+import { insertJobTask } from "./external-task-repository";
+import { buildJobMessage, JOB_BUILD_PLOG } from "../lib/job-message";
 import type { Bindings } from "../types/bindings";
 
 // PLOG API が返す concept / edge の表現。
@@ -296,45 +299,73 @@ export async function getPlogLearnerState(
 
 // rebuild レスポンスで使う build job の id/status。
 export type PlogBuildJob = { id: number; status: string };
+export type ActivePlogBuildJob = PlogBuildJob & {
+  created: boolean;
+  taskId: number | null;
+};
 
-/** 最新の build job（created_at DESC 先頭）。無ければ null。 */
-export async function getLatestBuildJob(
+/**
+ * 動画ごとの active build job を1件だけ確保する。
+ * partial unique index が並行 INSERT を直列化し、作成者だけが enqueue 権を得る。
+ */
+export async function getOrCreateActiveBuildJob(
   env: Bindings,
   videoId: number,
-): Promise<PlogBuildJob | null> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .select({ id: plogBuildJobs.id, status: plogBuildJobs.status })
-      .from(plogBuildJobs)
-      .where(eq(plogBuildJobs.videoId, videoId))
-      .orderBy(desc(plogBuildJobs.createdAt))
-      .limit(1);
-    if (rows.length === 0) return null;
-    return { id: Number(rows[0].id), status: rows[0].status };
-  });
-}
+): Promise<ActivePlogBuildJob> {
+  return withDb(env, async (db) =>
+    db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT 1 FROM videos WHERE id = ${videoId} FOR UPDATE`);
+      const inserted = await tx
+        .insert(plogBuildJobs)
+        .values({
+          videoId,
+          status: "pending",
+          errorMessage: "",
+          inputTokens: 0,
+          outputTokens: 0,
+          createdAt: sql`CURRENT_TIMESTAMP`,
+          updatedAt: sql`CURRENT_TIMESTAMP`,
+          finishedAt: null,
+        })
+        .onConflictDoNothing()
+        .returning({ id: plogBuildJobs.id, status: plogBuildJobs.status });
+      if (inserted.length > 0) {
+        const buildJobId = Number(inserted[0].id);
+        const message = buildJobMessage(JOB_BUILD_PLOG, { video_id: videoId });
+        const task = await insertJobTask(tx, {
+          message,
+          dedupeKey: `plog-build:${buildJobId}`,
+        });
+        return {
+          id: buildJobId,
+          status: inserted[0].status,
+          created: true,
+          taskId: task.id,
+        };
+      }
 
-/** build job を新規作成（status='pending'）。作成した {id, status} を返す。 */
-export async function createBuildJob(
-  env: Bindings,
-  videoId: number,
-): Promise<PlogBuildJob> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .insert(plogBuildJobs)
-      .values({
-        videoId,
-        status: "pending",
-        errorMessage: "",
-        inputTokens: 0,
-        outputTokens: 0,
-        createdAt: sql`CURRENT_TIMESTAMP`,
-        updatedAt: sql`CURRENT_TIMESTAMP`,
-        finishedAt: null,
-      })
-      .returning({ id: plogBuildJobs.id, status: plogBuildJobs.status });
-    return { id: Number(rows[0].id), status: rows[0].status };
-  });
+      const active = await tx
+        .select({ id: plogBuildJobs.id, status: plogBuildJobs.status })
+        .from(plogBuildJobs)
+        .where(
+          and(
+            eq(plogBuildJobs.videoId, videoId),
+            inArray(plogBuildJobs.status, ["pending", "running"]),
+          ),
+        )
+        .orderBy(desc(plogBuildJobs.id))
+        .limit(1);
+      if (active.length === 0) {
+        throw new Error("Active PLOG build job disappeared during creation.");
+      }
+      return {
+        id: Number(active[0].id),
+        status: active[0].status,
+        created: false,
+        taskId: null,
+      };
+    }),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -347,6 +378,52 @@ export class PlogConflictError extends Error {
 
 export class PlogEditError extends Error {
   readonly name = "PlogEditError";
+}
+
+async function lockEditableGraph(db: Db, videoId: number): Promise<void> {
+  await db.execute(sql`SELECT 1 FROM videos WHERE id = ${videoId} FOR UPDATE`);
+  const active = await db
+    .select({ status: plogBuildJobs.status })
+    .from(plogBuildJobs)
+    .where(
+      and(
+        eq(plogBuildJobs.videoId, videoId),
+        inArray(plogBuildJobs.status, ["pending", "running"]),
+      ),
+    )
+    .limit(1);
+  if (active.some((row) => row.status === "pending" || row.status === "running")) {
+    throw new PlogEditError("Cannot edit graph while a rebuild is in progress.");
+  }
+}
+
+async function assertOrderingDagInTransaction(
+  db: Db,
+  videoId: number,
+  proposed: { sourceId: number; targetId: number; edgeType: string },
+  excludeEdgeId?: number,
+): Promise<void> {
+  if (!ORDERING.has(proposed.edgeType)) return;
+  const rows = await db
+    .select({
+      id: plogEdges.id,
+      sourceId: plogEdges.sourceId,
+      targetId: plogEdges.targetId,
+    })
+    .from(plogEdges)
+    .where(
+      and(
+        eq(plogEdges.videoId, videoId),
+        inArray(plogEdges.edgeType, [...ORDERING]),
+      ),
+    );
+  const pairs: [string, string][] = rows
+    .filter((row) => excludeEdgeId === undefined || Number(row.id) !== excludeEdgeId)
+    .map((row) => [String(row.sourceId), String(row.targetId)]);
+  pairs.push([String(proposed.sourceId), String(proposed.targetId)]);
+  if (!isDag(pairs)) {
+    throw new PlogEditError("Ordering edges must form a DAG (cycle detected).");
+  }
 }
 
 /** 所有者確認。無ければ notFound。 */
@@ -370,31 +447,34 @@ export async function ensureReadyBuildJob(
   env: Bindings,
   videoId: number,
 ): Promise<void> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .select({ status: plogBuildJobs.status })
-      .from(plogBuildJobs)
-      .where(eq(plogBuildJobs.videoId, videoId))
-      .orderBy(desc(plogBuildJobs.createdAt))
-      .limit(1);
-    if (rows.length > 0) {
-      const status = rows[0].status;
-      if (status === "ready") return;
-      if (status === "pending" || status === "running") {
-        throw new PlogEditError("Cannot edit graph while a rebuild is in progress.");
+  return withDb(env, async (db) =>
+    db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT 1 FROM videos WHERE id = ${videoId} FOR UPDATE`);
+      const rows = await tx
+        .select({ status: plogBuildJobs.status })
+        .from(plogBuildJobs)
+        .where(eq(plogBuildJobs.videoId, videoId))
+        .orderBy(desc(plogBuildJobs.createdAt))
+        .limit(1);
+      if (rows.length > 0) {
+        const status = rows[0].status;
+        if (status === "ready") return;
+        if (status === "pending" || status === "running") {
+          throw new PlogEditError("Cannot edit graph while a rebuild is in progress.");
+        }
       }
-    }
-    await db.insert(plogBuildJobs).values({
-      videoId,
-      status: "ready",
-      errorMessage: "",
-      inputTokens: 0,
-      outputTokens: 0,
-      createdAt: sql`CURRENT_TIMESTAMP`,
-      updatedAt: sql`CURRENT_TIMESTAMP`,
-      finishedAt: null,
-    });
-  });
+      await tx.insert(plogBuildJobs).values({
+        videoId,
+        status: "ready",
+        errorMessage: "",
+        inputTokens: 0,
+        outputTokens: 0,
+        createdAt: sql`CURRENT_TIMESTAMP`,
+        updatedAt: sql`CURRENT_TIMESTAMP`,
+        finishedAt: null,
+      });
+    }),
+  );
 }
 
 export async function getConceptNode(
@@ -455,6 +535,7 @@ export async function createConcept(
 ): Promise<PlogConceptNode> {
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
+      await lockEditableGraph(tx, params.videoId);
       let conceptId: number;
       try {
         const rows = await tx
@@ -505,7 +586,9 @@ export async function updateConcept(
     embedding?: readonly number[];
   },
 ): Promise<PlogConceptNode | null> {
-  return withDb(env, async (db) => {
+  return withDb(env, async (db) =>
+    db.transaction(async (tx) => {
+    await lockEditableGraph(tx, params.videoId);
     const set: Record<string, unknown> = {};
     if (params.label !== undefined) set.label = params.label.slice(0, 255);
     if (params.nodeType !== undefined) set.nodeType = params.nodeType;
@@ -514,11 +597,11 @@ export async function updateConcept(
     if (params.embedding !== undefined) set.embedding = [...params.embedding];
 
     if (Object.keys(set).length === 0) {
-      return fetchConceptNode(db, params.conceptId, params.videoId);
+      return fetchConceptNode(tx, params.conceptId, params.videoId);
     }
 
     try {
-      const rows = await db
+      const rows = await tx
         .update(plogConcepts)
         .set(set)
         .where(
@@ -533,8 +616,9 @@ export async function updateConcept(
       }
       throw e;
     }
-    return fetchConceptNode(db, params.conceptId, params.videoId);
-  });
+    return fetchConceptNode(tx, params.conceptId, params.videoId);
+    }),
+  );
 }
 
 /**
@@ -548,6 +632,7 @@ export async function deleteConcept(
 ): Promise<boolean> {
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
+      await lockEditableGraph(tx, videoId);
       const exists = await tx
         .select({ id: plogConcepts.id })
         .from(plogConcepts)
@@ -656,32 +741,36 @@ export async function createEdge(
     quote: string;
   },
 ): Promise<PlogEdgeItem> {
-  return withDb(env, async (db) => {
-    let edgeId: number;
-    try {
-      const rows = await db
-        .insert(plogEdges)
-        .values({
-          videoId: params.videoId,
-          sourceId: params.sourceId,
-          targetId: params.targetId,
-          edgeType: params.edgeType,
-          quote: params.quote,
-          validationStatus: "validated",
-          createdAt: sql`CURRENT_TIMESTAMP`,
-        })
-        .returning({ id: plogEdges.id });
-      edgeId = Number(rows[0].id);
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "";
-      if (msg.includes("plog_edge_unique_typed_pair") || msg.includes("unique")) {
-        throw new PlogConflictError("This edge already exists.");
+  return withDb(env, async (db) =>
+    db.transaction(async (tx) => {
+      await lockEditableGraph(tx, params.videoId);
+      await assertOrderingDagInTransaction(tx, params.videoId, params);
+      let edgeId: number;
+      try {
+        const rows = await tx
+          .insert(plogEdges)
+          .values({
+            videoId: params.videoId,
+            sourceId: params.sourceId,
+            targetId: params.targetId,
+            edgeType: params.edgeType,
+            quote: params.quote,
+            validationStatus: "validated",
+            createdAt: sql`CURRENT_TIMESTAMP`,
+          })
+          .returning({ id: plogEdges.id });
+        edgeId = Number(rows[0].id);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "";
+        if (msg.includes("plog_edge_unique_typed_pair") || msg.includes("unique")) {
+          throw new PlogConflictError("This edge already exists.");
+        }
+        throw e;
       }
-      throw e;
-    }
-    const item = await fetchEdgeItem(db, edgeId, params.videoId);
-    return item!;
-  });
+      const item = await fetchEdgeItem(tx, edgeId, params.videoId);
+      return item!;
+    }),
+  );
 }
 
 export async function updateEdge(
@@ -695,32 +784,57 @@ export async function updateEdge(
     quote?: string;
   },
 ): Promise<PlogEdgeItem | null> {
-  return withDb(env, async (db) => {
-    const set: Record<string, unknown> = {};
-    if (params.sourceId !== undefined) set.sourceId = params.sourceId;
-    if (params.targetId !== undefined) set.targetId = params.targetId;
-    if (params.edgeType !== undefined) set.edgeType = params.edgeType;
-    if (params.quote !== undefined) set.quote = params.quote;
-    if (Object.keys(set).length === 0) {
-      return fetchEdgeItem(db, params.edgeId, params.videoId);
-    }
-
-    try {
-      const rows = await db
-        .update(plogEdges)
-        .set(set)
+  return withDb(env, async (db) =>
+    db.transaction(async (tx) => {
+      await lockEditableGraph(tx, params.videoId);
+      const current = await tx
+        .select({
+          sourceId: plogEdges.sourceId,
+          targetId: plogEdges.targetId,
+          edgeType: plogEdges.edgeType,
+        })
+        .from(plogEdges)
         .where(and(eq(plogEdges.id, params.edgeId), eq(plogEdges.videoId, params.videoId)))
-        .returning({ id: plogEdges.id });
-      if (rows.length === 0) return null;
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "";
-      if (msg.includes("plog_edge_unique_typed_pair") || msg.includes("unique")) {
-        throw new PlogConflictError("This edge already exists.");
+        .limit(1);
+      if (current.length === 0) return null;
+
+      await assertOrderingDagInTransaction(
+        tx,
+        params.videoId,
+        {
+          sourceId: params.sourceId ?? Number(current[0].sourceId),
+          targetId: params.targetId ?? Number(current[0].targetId),
+          edgeType: params.edgeType ?? current[0].edgeType,
+        },
+        params.edgeId,
+      );
+
+      const set: Record<string, unknown> = {};
+      if (params.sourceId !== undefined) set.sourceId = params.sourceId;
+      if (params.targetId !== undefined) set.targetId = params.targetId;
+      if (params.edgeType !== undefined) set.edgeType = params.edgeType;
+      if (params.quote !== undefined) set.quote = params.quote;
+      if (Object.keys(set).length === 0) {
+        return fetchEdgeItem(tx, params.edgeId, params.videoId);
       }
-      throw e;
-    }
-    return fetchEdgeItem(db, params.edgeId, params.videoId);
-  });
+
+      try {
+        const rows = await tx
+          .update(plogEdges)
+          .set(set)
+          .where(and(eq(plogEdges.id, params.edgeId), eq(plogEdges.videoId, params.videoId)))
+          .returning({ id: plogEdges.id });
+        if (rows.length === 0) return null;
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "";
+        if (msg.includes("plog_edge_unique_typed_pair") || msg.includes("unique")) {
+          throw new PlogConflictError("This edge already exists.");
+        }
+        throw e;
+      }
+      return fetchEdgeItem(tx, params.edgeId, params.videoId);
+    }),
+  );
 }
 
 export async function deleteEdge(
@@ -728,13 +842,16 @@ export async function deleteEdge(
   edgeId: number,
   videoId: number,
 ): Promise<boolean> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .delete(plogEdges)
-      .where(and(eq(plogEdges.id, edgeId), eq(plogEdges.videoId, videoId)))
-      .returning({ id: plogEdges.id });
-    return rows.length > 0;
-  });
+  return withDb(env, async (db) =>
+    db.transaction(async (tx) => {
+      await lockEditableGraph(tx, videoId);
+      const rows = await tx
+        .delete(plogEdges)
+        .where(and(eq(plogEdges.id, edgeId), eq(plogEdges.videoId, videoId)))
+        .returning({ id: plogEdges.id });
+      return rows.length > 0;
+    }),
+  );
 }
 
 export async function updateLearningObject(
@@ -750,15 +867,17 @@ export async function updateLearningObject(
     waypoints?: unknown[];
   },
 ): Promise<PlogConceptNode | null> {
-  return withDb(env, async (db) => {
-    const exists = await db
+  return withDb(env, async (db) =>
+    db.transaction(async (tx) => {
+    await lockEditableGraph(tx, params.videoId);
+    const exists = await tx
       .select({ id: plogConcepts.id })
       .from(plogConcepts)
       .where(and(eq(plogConcepts.id, params.conceptId), eq(plogConcepts.videoId, params.videoId)))
       .limit(1);
     if (exists.length === 0) return null;
 
-    await db.execute(sql`
+    await tx.execute(sql`
       INSERT INTO plog_learning_objects
          (concept_id, opening_question, hint_ladder, misconceptions, canonical_order,
           worked_examples, waypoints, created_at)
@@ -776,13 +895,14 @@ export async function updateLearningObject(
     if (params.waypoints !== undefined) set.waypoints = params.waypoints;
 
     if (Object.keys(set).length > 0) {
-      await db
+      await tx
         .update(plogLearningObjects)
         .set(set)
         .where(eq(plogLearningObjects.conceptId, params.conceptId));
     }
-    return fetchConceptNode(db, params.conceptId, params.videoId);
-  });
+    return fetchConceptNode(tx, params.conceptId, params.videoId);
+    }),
+  );
 }
 
 /**
@@ -796,6 +916,7 @@ export async function mergeConcepts(
 ): Promise<PlogConceptNode | null> {
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
+      await lockEditableGraph(tx, videoId);
       const concepts = await tx
         .select({ id: plogConcepts.id })
         .from(plogConcepts)

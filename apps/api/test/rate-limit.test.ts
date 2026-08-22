@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   createMemoryRateLimitBackend,
   enforceThrottles,
+  pruneExpiredHistory,
   setRateLimitBackendForTests,
   THROTTLE_RATES,
   normalizeThrottleIdent,
@@ -22,6 +23,15 @@ describe("normalizeThrottleIdent", () => {
   it("strips and lowercases when requested", () => {
     expect(normalizeThrottleIdent("  Foo@Bar.COM ", true)).toBe("foo@bar.com");
     expect(normalizeThrottleIdent("  Foo ", false)).toBe("Foo");
+  });
+});
+
+describe("pruneExpiredHistory", () => {
+  it("期限切れだけを末尾から除去する", () => {
+    expect(pruneExpiredHistory([100, 90, 80, 70], 101, 20)).toEqual([
+      100,
+      90,
+    ]);
   });
 });
 
@@ -64,6 +74,41 @@ describe("enforceThrottles (memory backend)", () => {
     expect(
       await enforceThrottles(ENV, [{ scope: "signup_ip", ident: "a" }]),
     ).toBeNull();
+  });
+
+  it("cost 分をまとめて消費し、枠に収まらなければ 1 件も記録しない", async () => {
+    const { limit } = THROTTLE_RATES.group_invitation_user;
+    const invite = (cost: number) =>
+      enforceThrottles(ENV, [
+        { scope: "group_invitation_user", ident: "owner", cost },
+      ]);
+
+    expect(await invite(limit - 1)).toBeNull();
+    // 残り 1 枠しかないので 50 宛先の一括招待は通らない。
+    const denied = await invite(50);
+    expect(denied).not.toBeNull();
+    expect(denied!.allowed).toBe(false);
+    // 拒否されたリクエストは枠を消費していないので、1 宛先はまだ通る。
+    expect(await invite(1)).toBeNull();
+    expect(await invite(1)).not.toBeNull();
+  });
+
+  it("宛先数ではなくリクエスト数で数えない", async () => {
+    const { limit } = THROTTLE_RATES.group_invitation_group;
+    // 50 宛先 × N 回で limit を超えた時点で止まる（リクエスト数は少なくても）。
+    const batches = Math.floor(limit / 50);
+    for (let i = 0; i < batches; i++) {
+      expect(
+        await enforceThrottles(ENV, [
+          { scope: "group_invitation_group", ident: "7", cost: 50 },
+        ]),
+      ).toBeNull();
+    }
+    expect(
+      await enforceThrottles(ENV, [
+        { scope: "group_invitation_group", ident: "7", cost: 50 },
+      ]),
+    ).not.toBeNull();
   });
 
   it("skips checks with empty ident", async () => {

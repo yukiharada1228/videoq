@@ -1,10 +1,16 @@
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import { verifyAccessToken } from "better-auth/oauth2";
+import { eq } from "drizzle-orm";
 import type { AppEnv } from "../types/bindings";
 import { toErrorBody } from "../shared/errors";
-import { withDb } from "../db/pool";
-import { createAuth } from "../lib/auth";
+import { type Db, withDb } from "../db/pool";
+import * as schema from "../db/schema";
+import {
+  authBaseURL,
+  createAuth,
+  oauthResourceAudience,
+} from "../lib/auth";
 
 /**
  * Bearer/API key/OAuth の各認証方式は共通の 3 値を返す:
@@ -29,6 +35,35 @@ function parseAuthHeader(
   const idx = header.indexOf(" ");
   if (idx < 0) return null;
   return { keyword: header.slice(0, idx), value: header.slice(idx + 1).trim() };
+}
+
+const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+
+/**
+ * テスト用の認証ヘッダ（`X-VideoQ-Test-*`）を受け付けてよいか。
+ *
+ * `ENVIRONMENT` だけを条件にすると、`--env production` を付け忘れて deploy した
+ * Worker が「誰にでもなりすませる公開エンドポイント」になる。実際に本番の
+ * Hyperdrive を共有しているので、ホスト名がローカルであることも必須にする。
+ */
+function allowsTestAuthHeaders(c: Context<AppEnv>): boolean {
+  if (c.env.ENVIRONMENT === "production") return false;
+  return LOCAL_HOSTNAMES.has(new URL(c.req.url).hostname);
+}
+
+/**
+ * 停止・無効化されたアカウントを、セッション以外の資格情報からも締め出す。
+ * API key と OAuth access token は資格情報自体の検証しかしないため、
+ * ここを通さないと ban してもキーが生き続ける。
+ */
+async function isUserDisabled(db: Db, userId: string): Promise<boolean> {
+  const rows = await db
+    .select({ banned: schema.users.banned, isActive: schema.users.isActive })
+    .from(schema.users)
+    .where(eq(schema.users.id, userId))
+    .limit(1);
+  if (rows.length === 0) return true;
+  return Boolean(rows[0].banned) || !rows[0].isActive;
 }
 
 /** Better Auth user ids are string UUIDs (text PK). */
@@ -63,7 +98,7 @@ function accessLevelFromMetadata(metadata: unknown): string | undefined {
 /** Better Auth cookie session. */
 export const sessionMethod: AuthMethod = async (c) => {
   // Vitest / local route tests: inject user id without minting a real BA session.
-  if (c.env.ENVIRONMENT !== "production") {
+  if (allowsTestAuthHeaders(c)) {
     const testUser = c.req.header("X-VideoQ-Test-User-Id");
     if (testUser) {
       const userId = toUserId(testUser);
@@ -94,7 +129,7 @@ const apiKeyMethodWithKeyword = (keyword: string): AuthMethod => async (c) => {
   if (!raw.startsWith("vq_") || raw.length < 12) return { kind: "absent" };
 
   // Vitest fakes do not run Better Auth's apikey verifier; allow explicit test injection.
-  if (c.env.ENVIRONMENT !== "production") {
+  if (allowsTestAuthHeaders(c)) {
     const testUser = c.req.header("X-VideoQ-Test-User-Id");
     if (testUser) {
       const userId = toUserId(testUser);
@@ -123,6 +158,9 @@ const apiKeyMethodWithKeyword = (keyword: string): AuthMethod => async (c) => {
       if (!userId) {
         return { kind: "invalid", message: "Invalid API key" };
       }
+      if (await isUserDisabled(db, userId)) {
+        return { kind: "invalid", message: "User is banned" };
+      }
       const accessLevel =
         accessLevelFromMetadata(result.key.metadata) ?? "all";
       return { kind: "ok", userId, via: "apikey", accessLevel };
@@ -146,7 +184,7 @@ export const oauthBearerMethod: AuthMethod = async (c) => {
   }
   if (authz.value.startsWith("vq_")) return { kind: "absent" };
 
-  if (c.env.ENVIRONMENT !== "production") {
+  if (allowsTestAuthHeaders(c)) {
     const testOauth = c.req.header("X-VideoQ-Test-OAuth-User-Id");
     if (testOauth) {
       const userId = toUserId(testOauth);
@@ -158,22 +196,20 @@ export const oauthBearerMethod: AuthMethod = async (c) => {
     // Keep auth constructed so JWKS material is available in-process for jwt plugin.
     createAuth(c.env, db);
     try {
-      const baseURL = (
-        c.env.BETTER_AUTH_URL?.trim() ||
-        c.env.OAUTH_ISSUER_URL?.trim() ||
-        c.env.FRONTEND_URL?.trim() ||
-        new URL(c.req.url).origin
-      ).replace(/\/+$/, "");
+      const baseURL = authBaseURL(c.env);
       const issuer = `${baseURL}/api/auth`;
       const verified = await verifyAccessToken(authz.value, {
         jwksUrl: `${issuer}/jwks`,
         verifyOptions: {
           issuer,
-          audience: `${baseURL}/api/mcp`,
+          audience: oauthResourceAudience(c.env),
         },
       });
       const userId = toUserId(verified.sub);
       if (!userId) return { kind: "absent" };
+      if (await isUserDisabled(db, userId)) {
+        return { kind: "invalid", message: "User is banned" };
+      }
       return { kind: "ok", userId, via: "oauth" };
     } catch {
       return { kind: "absent" };

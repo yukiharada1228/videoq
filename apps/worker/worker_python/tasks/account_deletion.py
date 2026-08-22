@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 
+from worker_python.advisory_locks import video_vector_write_lock
 from worker_python.db import db_connection
 from worker_python.pipeline import vector_index
 from worker_python.pipeline.storage import delete_object
@@ -21,18 +22,16 @@ def _delete_all_videos_for_user(conn, user_id: str) -> None:
     for row in rows:
         video_id = int(row["id"])
         file_key = row.get("file") or None
-        try:
-            vector_index.delete_video_vectors(video_id)
-        except Exception:
-            logger.exception("Vector delete failed for video %d", video_id)
-        delete_video_cascade(conn, video_id, user_id)
-        if file_key:
+        with video_vector_write_lock(video_id):
             try:
-                delete_object(str(file_key))
+                vector_index.delete_video_vectors(video_id)
             except Exception:
-                logger.exception(
-                    "Storage delete failed for video %d file=%r", video_id, file_key
-                )
+                logger.exception("Vector delete failed for video %d", video_id)
+            delete_video_cascade(conn, video_id, user_id)
+            if file_key:
+                # DB削除はこのstepのcommit前。R2削除に失敗したらtransactionをrollbackし、
+                # SQSの再試行で同じ動画を安全にやり直す。
+                delete_object(str(file_key))
 
 
 def _delete_chat_history_for_user(conn, user_id: str) -> None:

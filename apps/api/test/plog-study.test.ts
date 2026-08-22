@@ -28,25 +28,77 @@ vi.mock("pg", () => {
   return { default: { Client: FakeClient } };
 });
 
-function memoryKv(): KVNamespace {
-  const store = new Map<string, string>();
+type SessionState = {
+  revision: number;
+  states: Record<string, {
+    concept_id: number;
+    reached: boolean;
+    hint_index: number;
+    last_grade: string;
+    active: boolean;
+  }>;
+};
+
+function memoryStudySessions() {
+  const sessions = new Map<string, SessionState>();
+  const locks = new Map<string, string>();
+  const commits = vi.fn();
+  const lockAttempts = vi.fn();
+  const releases = vi.fn();
+  let forcedContentions = 0;
   return {
-    get: async (key: string, type?: string) => {
-      const v = store.get(key);
-      if (v === undefined) return null;
-      if (type === "json") return JSON.parse(v);
-      return v;
+    namespace: {
+      getByName(key: string) {
+        return {
+          async tryAcquire(token: string) {
+            lockAttempts(key, token);
+            if (forcedContentions > 0) {
+              forcedContentions -= 1;
+              return { acquired: false, retryAfterMs: 1 };
+            }
+            const current = locks.get(key);
+            if (current && current !== token) {
+              return { acquired: false, retryAfterMs: 1 };
+            }
+            locks.set(key, token);
+            return { acquired: true, retryAfterMs: 0 };
+          },
+          async getSnapshot() {
+            return structuredClone(sessions.get(key) ?? { revision: 0, states: {} });
+          },
+          async commit(
+            expectedRevision: number,
+            states: SessionState["states"],
+            token: string,
+          ) {
+            commits(key, expectedRevision, states);
+            if (locks.get(key) !== token) return false;
+            const current = sessions.get(key) ?? { revision: 0, states: {} };
+            if (current.revision !== expectedRevision) return false;
+            sessions.set(key, { revision: expectedRevision + 1, states: structuredClone(states) });
+            locks.delete(key);
+            return true;
+          },
+          async release(token: string) {
+            releases(key, token);
+            if (locks.get(key) === token) locks.delete(key);
+          },
+        };
+      },
+    } as unknown as NonNullable<Bindings["STUDY_SESSION"]>,
+    commits,
+    lockAttempts,
+    releases,
+    contendOnce() {
+      forcedContentions += 1;
     },
-    put: async (key: string, value: string) => {
-      store.set(key, value);
+    seed(key: string, states: SessionState["states"]) {
+      sessions.set(key, { revision: 1, states: structuredClone(states) });
     },
-    delete: async (key: string) => {
-      store.delete(key);
-    },
-    list: async () => ({ keys: [], list_complete: true, cursor: "" }),
-    getWithMetadata: async () => ({ value: null, metadata: null }),
-  } as unknown as KVNamespace;
+  };
 }
+
+let studySessions = memoryStudySessions();
 
 const ENV = {
   ENVIRONMENT: "development",
@@ -54,7 +106,7 @@ const ENV = {
   HYPERDRIVE: { connectionString: "postgres://fake/db" },
   OPENAI_API_KEY: "sk-test",
   OPENAI_BASE_URL: "https://openai.test/v1",
-  STUDY_SESSION: memoryKv(),
+  STUDY_SESSION: studySessions.namespace,
 } as unknown as Bindings;
 
 function readyGraphRows(): void {
@@ -118,29 +170,29 @@ function readyGraphRows(): void {
 
 beforeEach(() => {
   calls.length = 0;
-  ENV.STUDY_SESSION = memoryKv();
+  studySessions = memoryStudySessions();
+  ENV.STUDY_SESSION = studySessions.namespace;
   readyGraphRows();
 });
 afterEach(() => vi.unstubAllGlobals());
 
 describe("EphemeralLearnerStateStore", () => {
-  it("persists under plog:study:ephemeral: with 12h TTL key pattern", async () => {
-    const put = vi.fn(async () => {});
-    const kv = {
-      get: async () => null,
-      put,
-    } as unknown as KVNamespace;
+  it("複数の変更を外部I/Oなしで1つのsnapshotにまとめる", async () => {
     const store = new EphemeralLearnerStateStore(
-      kv,
-      "sess-abc",
+      {},
       new Map([[1, 10]]),
     );
     await store.upsert(1, { active: true, hint_index: 0 });
-    expect(put).toHaveBeenCalledWith(
-      "plog:study:ephemeral:sess-abc",
-      expect.any(String),
-      { expirationTtl: 12 * 60 * 60 },
-    );
+    await store.upsert(1, { reached: true });
+    expect(store.snapshot()).toEqual({
+      "1": {
+        concept_id: 1,
+        reached: true,
+        hint_index: 0,
+        last_grade: "",
+        active: true,
+      },
+    });
   });
 });
 
@@ -171,6 +223,32 @@ describe("runStudy smoke", () => {
     expect(fetchMock.mock.calls.every((c) => String(c[0]).endsWith("/embeddings"))).toBe(
       true,
     );
+    expect(studySessions.commits).toHaveBeenCalledTimes(1);
+  });
+
+  it("競合中はLLM実行前に待ち、ターンを一度だけ計算する", async () => {
+    studySessions.contendOnce();
+    const fetchMock = vi.fn(async (input: RequestInfo) => {
+      if (String(input).endsWith("/embeddings")) {
+        return new Response(JSON.stringify({ data: [{ embedding: [1, 0] }] }), {
+          headers: { "content-type": "application/json" },
+        });
+      }
+      throw new Error(`unexpected fetch: ${String(input)}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      runStudy(ENV, {
+        messages: [{ role: "user", content: "始めます" }],
+        videoIds: [10],
+        locale: "ja",
+        studySessionId: "conflict",
+      }),
+    ).resolves.toMatchObject({ queryText: "始めます" });
+    expect(studySessions.lockAttempts).toHaveBeenCalledTimes(2);
+    expect(studySessions.commits).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("throws PlogNotReadyError when no ready graphs", async () => {
@@ -204,15 +282,15 @@ describe("runStudy smoke", () => {
 
   it("generative turn calls study LLM with mocked reply", async () => {
     // Pre-seed active state so opening is skipped and grading+generate run.
-    const store = new EphemeralLearnerStateStore(
-      ENV.STUDY_SESSION!,
-      "s-gen",
-      new Map([
-        [1, 10],
-        [2, 10],
-      ]),
-    );
-    await store.upsert(1, { active: true, hint_index: 0, last_grade: "partial" });
+    studySessions.seed("s-gen", {
+      "1": {
+        concept_id: 1,
+        reached: false,
+        hint_index: 0,
+        last_grade: "partial",
+        active: true,
+      },
+    });
 
     const fetchMock = vi.fn(async (input: RequestInfo, init?: RequestInit) => {
       const url = String(input);

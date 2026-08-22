@@ -3,6 +3,11 @@ import { createMiddleware } from "hono/factory";
 import { apiKeyMethod, sessionMethod } from "../../middleware/auth";
 import { createFeatureRouter } from "../../shared/openapi";
 import { toErrorBody } from "../../shared/errors";
+import {
+  clientIp,
+  enforceThrottles,
+  throttledResponse,
+} from "../../lib/rate-limit";
 import type { AppEnv } from "../../types/bindings";
 import * as mediaService from "./service";
 
@@ -33,6 +38,13 @@ const mediaAuth = createMiddleware<AppEnv>(async (c, next) => {
       c.set("shareGroupId", groupId);
       return next();
     }
+    // 存在するスラッグは 404、存在しないスラッグは 401 になるため、この経路は
+    // 未認証で叩ける「スラッグ存在判定オラクル」になる。失敗した試行だけを
+    // 絞ることで、正規の視聴者を巻き込まずに総当りのコストを上げる。
+    const denied = await enforceThrottles(c.env, [
+      { scope: "share_slug_probe_ip", ident: clientIp(c) },
+    ]);
+    if (denied) return throttledResponse(c, denied);
   }
   return c.json(
     toErrorBody("UNAUTHORIZED", "Authentication credentials were not provided."),

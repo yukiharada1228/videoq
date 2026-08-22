@@ -870,6 +870,53 @@ describe('ApiClient', () => {
       });
       await expect(apiClient.getSharedGroup('token')).rejects.toThrow('Group not found');
     });
+
+    it('supports the complete group invitation lifecycle endpoints', async () => {
+      const jsonResponse = (body: unknown = {}) => ({
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: () => Promise.resolve(JSON.stringify(body)),
+      });
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ results: [] }))
+        .mockResolvedValueOnce(jsonResponse({ invitations: [], members: [] }))
+        .mockResolvedValueOnce(jsonResponse({ group_id: 1, status: 'pending' }))
+        .mockResolvedValueOnce(jsonResponse({ group_id: 1, status: 'accepted' }))
+        .mockResolvedValueOnce(jsonResponse({ status: 'declined' }));
+
+      await apiClient.inviteGroupMembers(1, ['student@example.com']);
+      await apiClient.getGroupParticipants(1);
+      await apiClient.getGroupInvitation('invite-token');
+      await apiClient.acceptGroupInvitation('invite-token');
+      await apiClient.declineGroupInvitation('invite-token');
+
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        1,
+        'http://localhost:8000/api/videos/groups/1/invitations',
+        expect.objectContaining({ method: 'POST', body: JSON.stringify({ emails: ['student@example.com'] }) }),
+      );
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        2,
+        'http://localhost:8000/api/videos/groups/1/participants',
+        expect.anything(),
+      );
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        3,
+        'http://localhost:8000/api/videos/group-invitations/invite-token',
+        expect.anything(),
+      );
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        4,
+        'http://localhost:8000/api/videos/group-invitations/invite-token/accept',
+        expect.objectContaining({ method: 'POST' }),
+      );
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        5,
+        'http://localhost:8000/api/videos/group-invitations/invite-token/decline',
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
   });
 
   describe('getVideoUrl', () => {

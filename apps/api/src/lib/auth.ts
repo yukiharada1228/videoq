@@ -14,6 +14,7 @@ import * as schema from "../db/schema";
 import type { Bindings } from "../types/bindings";
 import { sendMail } from "./mail";
 import { summarizeAuthApiError } from "./auth-error-log";
+import { rateLimitBackend } from "./rate-limit";
 import { resolveSignupQuotaDefaults } from "../shared/signup-quota";
 
 function trustedOrigins(env: Bindings): string[] {
@@ -29,14 +30,18 @@ function authSecret(env: Bindings): string {
   return secret;
 }
 
-function authBaseURL(env: Bindings): string {
+export function authBaseURL(env: Bindings): string {
   return (
     env.BETTER_AUTH_URL?.trim() ||
     env.OAUTH_ISSUER_URL?.trim() ||
     env.FRONTEND_URL?.trim() ||
     "http://localhost"
-  );
+  ).replace(/\/+$/, "");
 }
+
+/** OAuth access tokenの発行・検証で共有する唯一のresource audience。 */
+export const oauthResourceAudience = (env: Bindings): string =>
+  `${authBaseURL(env)}/api/mcp`;
 
 /** Normalize an email local-part (or name) into a BA username candidate. */
 export function usernameFromEmail(email: string): string {
@@ -73,6 +78,49 @@ async function allocateUniqueUsername(db: Db, preferred: string): Promise<string
     if (rows.length === 0) return candidate;
   }
   return `user_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+}
+
+type AuthRateLimitStorage = NonNullable<
+  NonNullable<Parameters<typeof betterAuth>[0]["rateLimit"]>["customStorage"]
+>;
+
+/** Better Auth 側のレート制限窓。DO に載るのでこの値が全 isolate 共通になる。 */
+const AUTH_RATE_LIMIT_WINDOW_SEC = 60;
+
+/** パスワード再設定トークンの有効期限。案内メールの文面と必ず一致させる。 */
+export const PASSWORD_RESET_TOKEN_TTL_SEC = 60 * 60;
+
+/**
+ * Better Auth のレート制限を RateLimiter Durable Object に載せる。
+ *
+ * 既定の `memory` ストレージは isolate ごとに独立するため、Workers では
+ * ログイン・登録・パスワード再設定・OAuth の制限を、別 isolate に当たるだけで
+ * 迂回できてしまう。DO なら 1 キー = 1 インスタンスで直列化される。
+ */
+export function durableRateLimitStorage(env: Bindings): AuthRateLimitStorage {
+  const backend = rateLimitBackend(env);
+  // アプリ側スコープ（`throttle_*`）とキー空間を分ける。
+  const scoped = (key: string) => `better_auth_${key}`;
+  return {
+    async consume(key, rule) {
+      const { allowed, retryAfterSec } = await backend.consume(
+        scoped(key),
+        rule.max,
+        rule.window,
+      );
+      return { allowed, retryAfter: allowed ? null : retryAfterSec };
+    },
+    // Better Auth は `consume` を持つストレージでは以下を呼ばない。将来
+    // 非原子的な経路に戻ったときに無制限化しないよう、同じ DO を読み書きする。
+    async get(key) {
+      const snapshot = await backend.snapshot(scoped(key));
+      if (!snapshot) return null;
+      return { key, count: snapshot.count, lastRequest: snapshot.lastRequestMs };
+    },
+    async set(key) {
+      await backend.record(scoped(key), AUTH_RATE_LIMIT_WINDOW_SEC);
+    },
+  };
 }
 
 /**
@@ -128,10 +176,12 @@ export function createAuth(env: Bindings, db: Db) {
       minPasswordLength: 12,
       maxPasswordLength: 128,
       revokeSessionsOnPasswordReset: true,
+      // 案内メールの文面と同じ値を明示しておき、既定値の変更で乖離させない。
+      resetPasswordTokenExpiresIn: PASSWORD_RESET_TOKEN_TTL_SEC,
       sendResetPassword: async ({ user, url }) => {
         await sendMail(env, user.email, "[VideoQ] パスワード再設定のご案内", [
           "VideoQ のパスワード再設定リクエストを受け付けました。",
-          "24時間以内に、以下のURLから新しいパスワードを設定してください。",
+          `${PASSWORD_RESET_TOKEN_TTL_SEC / 3600}時間以内に、以下のURLから新しいパスワードを設定してください。`,
           "",
           url,
           "",
@@ -307,6 +357,12 @@ export function createAuth(env: Bindings, db: Db) {
       database: {
         generateId: () => crypto.randomUUID(),
       },
+      // Cloudflare Workers uses a single, edge-controlled client IP header.
+      // X-Forwarded-For keeps the local Caddy reverse proxy usable; Better Auth
+      // rejects multi-hop values unless trusted proxies are configured.
+      ipAddress: {
+        ipAddressHeaders: ["cf-connecting-ip", "x-forwarded-for"],
+      },
       useSecureCookies: env.ENVIRONMENT === "production",
       defaultCookieAttributes: {
         sameSite: "lax",
@@ -316,8 +372,10 @@ export function createAuth(env: Bindings, db: Db) {
     },
     rateLimit: {
       enabled: true,
-      window: 60,
+      window: AUTH_RATE_LIMIT_WINDOW_SEC,
       max: 100,
+      // serverless では memory ストレージが isolate 間で共有されない。
+      customStorage: durableRateLimitStorage(env),
     },
     databaseHooks: {
       user: {
@@ -394,6 +452,11 @@ export function createAuth(env: Bindings, db: Db) {
       oauthProvider({
         loginPage: "/login",
         consentPage: "/consent",
+        // Resource Indicatorを認可境界として広げない。検証側も同じ値を使う。
+        // GHSA-p2fr-6hmx-4528（audience 経由の権限昇格）は、この配列が
+        // 1 件のうちは実質的に成立しない。増やす場合と 1.7 系へ上げる場合は
+        // アドバイザリの対応内容を先に確認すること。
+        validAudiences: [oauthResourceAudience(env)],
         // MCP clients (Claude etc.) need unauthenticated DCR for public clients.
         allowDynamicClientRegistration: true,
         allowUnauthenticatedClientRegistration: true,
@@ -404,6 +467,8 @@ export function createAuth(env: Bindings, db: Db) {
           token: { window: 60, max: 20 },
           authorize: { window: 60, max: 30 },
         },
+        // The Hono app explicitly exposes the RFC 8414 issuer-path route.
+        silenceWarnings: { oauthAuthServerConfig: true },
       }),
     ],
   });

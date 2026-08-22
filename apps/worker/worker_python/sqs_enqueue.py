@@ -26,9 +26,29 @@ def build_job_message(
     }
 
 
+def child_job_id(
+    parent_job_id: str,
+    job_type: str,
+    payload: dict[str, Any] | None = None,
+) -> str:
+    """Derive a stable UUID so a retried parent cannot create a new child job."""
+    canonical = json.dumps(
+        {
+            "parent_job_id": parent_job_id,
+            "type": job_type,
+            "payload": payload or {},
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, f"videoq:{canonical}"))
+
+
 def enqueue_job(
     job_type: str,
     payload: dict[str, Any] | None = None,
+    *,
+    job_id: str | None = None,
 ) -> str | None:
     """
     Send a native job message to SQS when configured.
@@ -41,7 +61,7 @@ def enqueue_job(
         return None
 
     client = create_sqs_client()
-    body = json.dumps(build_job_message(job_type, payload))
+    body = json.dumps(build_job_message(job_type, payload, job_id=job_id))
     resp = client.send_message(QueueUrl=queue_url, MessageBody=body)
     message_id = resp.get("MessageId")
     logger.info("Enqueued %s payload=%s messageId=%s", job_type, payload, message_id)

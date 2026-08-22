@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   DndContext,
   KeyboardSensor,
@@ -108,6 +108,11 @@ function SortableGroupRow({
         <ChipLabel variant="filled-1" color="blue" className="min-h-0 shrink-0 text-oln-14N-100">
           {t('videos.groups.videoCount', { count: group.video_count })}
         </ChipLabel>
+        {group.access_role === 'member' ? (
+          <ChipLabel variant="filled-1" color="gray" className="min-h-0 shrink-0 text-oln-14N-100">
+            {t('videos.groups.memberBadge')}
+          </ChipLabel>
+        ) : null}
 
         <div className="flex shrink-0 items-center gap-1">
           {canReorder && (
@@ -169,7 +174,7 @@ export default function VideoGroupsPage() {
     sentinelRef,
   } = useVideoGroups(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [orderedGroups, setOrderedGroups] = useState<VideoGroupList[] | null>(null);
+  const [orderedGroupIds, setOrderedGroupIds] = useState<number[] | null>(null);
   const { t } = useTranslation();
 
   const createGroupMutation = useCreateVideoGroupMutation({ userId: user?.id });
@@ -182,15 +187,21 @@ export default function VideoGroupsPage() {
     }),
   );
 
-  useEffect(() => {
-    setOrderedGroups(groups);
-  }, [groups]);
-
   const handleCreate = async (name: string, description: string) => {
     await createGroupMutation.mutateAsync({ name, description });
   };
 
-  const visibleGroups = orderedGroups ?? groups;
+  const ownedGroups = groups.filter((group) => group.access_role !== 'member');
+  const joinedGroups = groups.filter((group) => group.access_role === 'member');
+  const visibleGroups = useMemo(() => {
+    if (!orderedGroupIds) return ownedGroups;
+    const groupsById = new Map(ownedGroups.map((group) => [group.id, group]));
+    const ordered = orderedGroupIds
+      .map((id) => groupsById.get(id))
+      .filter((group): group is VideoGroupList => Boolean(group));
+    const included = new Set(ordered.map((group) => group.id));
+    return [...ordered, ...ownedGroups.filter((group) => !included.has(group.id))];
+  }, [orderedGroupIds, ownedGroups]);
   const reorderError = reorderGroupsMutation.error instanceof Error
     ? reorderGroupsMutation.error.message
     : null;
@@ -198,12 +209,12 @@ export default function VideoGroupsPage() {
   const isSortingDisabled = !canReorder || reorderGroupsMutation.isPending;
 
   const applyGroupOrder = (nextGroups: VideoGroupList[]) => {
-    const previousGroups = visibleGroups;
-    setOrderedGroups(nextGroups);
+    const previousIds = orderedGroupIds;
+    setOrderedGroupIds(nextGroups.map((group) => group.id));
     reorderGroupsMutation.mutate(
       nextGroups.map((group) => group.id),
       {
-        onError: () => setOrderedGroups(previousGroups),
+        onError: () => setOrderedGroupIds(previousIds),
       },
     );
   };
@@ -278,25 +289,54 @@ export default function VideoGroupsPage() {
         ) : (
           <>
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext
-                items={visibleGroups.map((group) => group.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <MenuList className="border-t border-solid-gray-420">
-                  {visibleGroups.map((group, index) => (
-                    <SortableGroupRow
-                      key={group.id}
-                      group={group}
-                      isFirst={index === 0}
-                      isLast={index === visibleGroups.length - 1}
-                      canReorder={canReorder}
-                      isSortingDisabled={isSortingDisabled}
-                      onOpen={(groupId) => navigate(`/videos/groups/${groupId}`)}
-                      onMove={handleMoveGroup}
-                    />
-                  ))}
-                </MenuList>
-              </SortableContext>
+              {visibleGroups.length > 0 ? (
+                <SortableContext
+                  items={visibleGroups.map((group) => group.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <MenuList className="border-t border-solid-gray-420">
+                    {visibleGroups.map((group, index) => (
+                      <SortableGroupRow
+                        key={group.id}
+                        group={group}
+                        isFirst={index === 0}
+                        isLast={index === visibleGroups.length - 1}
+                        canReorder={canReorder}
+                        isSortingDisabled={isSortingDisabled}
+                        onOpen={(groupId) => navigate(`/videos/groups/${groupId}`)}
+                        onMove={handleMoveGroup}
+                      />
+                    ))}
+                  </MenuList>
+                </SortableContext>
+              ) : null}
+
+              {joinedGroups.length > 0 ? (
+                <section className={visibleGroups.length > 0 ? 'mt-10' : ''}>
+                  <Heading size="20" className="mb-3">
+                    <HeadingTitle level="h2">{t('videos.groups.joinedTitle')}</HeadingTitle>
+                  </Heading>
+                  <SortableContext
+                    items={joinedGroups.map((group) => group.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <MenuList className="border-t border-solid-gray-420">
+                      {joinedGroups.map((group, index) => (
+                        <SortableGroupRow
+                          key={group.id}
+                          group={group}
+                          isFirst={index === 0}
+                          isLast={index === joinedGroups.length - 1}
+                          canReorder={false}
+                          isSortingDisabled
+                          onOpen={(groupId) => navigate(`/videos/groups/${groupId}`)}
+                          onMove={handleMoveGroup}
+                        />
+                      ))}
+                    </MenuList>
+                  </SortableContext>
+                </section>
+              ) : null}
             </DndContext>
 
             <div ref={sentinelRef} data-testid="groups-infinite-scroll-sentinel" />

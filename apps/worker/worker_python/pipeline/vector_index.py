@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
 from collections.abc import Iterator
@@ -63,7 +64,7 @@ def _vector_store() -> Iterator[PGVectorStore]:
             metadata_columns=["user_id", "video_id"],
         )
     finally:
-        engine.close()
+        asyncio.run(engine.close())
 
 
 def _count_vectors(metadata_key: str | None = None, value: int | str | None = None) -> int:

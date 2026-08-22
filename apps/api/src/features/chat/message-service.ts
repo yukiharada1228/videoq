@@ -3,10 +3,19 @@ import {
   createChatLog,
   type GroupChatContext,
 } from "../../repositories/chat-repository";
-import { checkAiAnswersLimit, recordAiAnswerUsage } from "../../repositories/quota-repository";
-import { enqueueEvaluateChatLog } from "../../lib/jobs";
+import {
+  releaseAiAnswerReservation,
+  reserveAiAnswerUsage,
+  type AiAnswerReservation,
+} from "../../repositories/quota-repository";
+import { processExternalTaskById } from "../../lib/external-tasks";
 import { LlmConfigurationError } from "../../lib/openai";
-import { PlogNotReadyError, runStudy, streamStudy } from "../../lib/plog-study";
+import {
+  PlogNotReadyError,
+  StudySessionConflictError,
+  runStudy,
+  streamStudy,
+} from "../../lib/plog-study";
 import { runRag, streamRag, type RagCitation } from "../../lib/rag";
 import type { Bindings } from "../../types/bindings";
 import type { ChatMessageBody, OpenAiCompletionBody } from "./schemas";
@@ -83,10 +92,18 @@ export const failures = {
     code: "PLOG_NOT_READY",
     message,
   }),
+  studySessionConflict: (message: string): ChatFailure => ({
+    streamCode: "STUDY_SESSION_CONFLICT",
+    status: 409,
+    code: "STUDY_SESSION_CONFLICT",
+    message,
+  }),
 };
 
 export type ChatSetup = {
   ownerUserId: string;
+  actorUserId: string;
+  quotaReservation: AiAnswerReservation;
   group: GroupChatContext | null;
   isShared: boolean;
   locale: string | null;
@@ -134,7 +151,7 @@ export async function setupChat(
     if (!group) return { ok: false, failure: failures.notFound("Group") };
   }
 
-  const ownerUserId = isShared && group ? group.userId : userId;
+  const ownerUserId = group?.userId ?? userId;
   if (ownerUserId === null) {
     return {
       ok: false,
@@ -144,7 +161,7 @@ export async function setupChat(
     };
   }
 
-  const quota = await checkAiAnswersLimit(env, ownerUserId);
+  const quota = await reserveAiAnswerUsage(env, ownerUserId);
   if ("overQuota" in quota) return { ok: false, failure: failures.overQuota() };
   if ("exceeded" in quota) {
     return { ok: false, failure: failures.answersLimit(quota.limit) };
@@ -154,6 +171,8 @@ export async function setupChat(
     ok: true,
     setup: {
       ownerUserId,
+      actorUserId: isShared ? ownerUserId : (userId ?? ownerUserId),
+      quotaReservation: quota.reservation,
       group,
       isShared,
       locale: opts.locale,
@@ -163,6 +182,9 @@ export async function setupChat(
 
 export const toFailure = (e: unknown): ChatFailure => {
   if (e instanceof PlogNotReadyError) return failures.plogNotReady(e.message);
+  if (e instanceof StudySessionConflictError) {
+    return failures.studySessionConflict(e.message);
+  }
   if (e instanceof LlmConfigurationError) {
     return failures.llmConfiguration(e.message);
   }
@@ -171,6 +193,15 @@ export const toFailure = (e: unknown): ChatFailure => {
 
 export const withCitationIds = (citations: readonly RagCitation[]) =>
   citations.map((v, i) => ({ id: i + 1, ...v }));
+
+function scopedStudySessionId(
+  setup: ChatSetup,
+  clientSessionId: string | null,
+): string | null {
+  if (!clientSessionId) return null;
+  const group = setup.group?.id ?? "direct";
+  return `${setup.actorUserId}:${group}:${clientSessionId}`;
+}
 
 export async function persistTurn(
   env: Bindings,
@@ -184,7 +215,7 @@ export async function persistTurn(
 ): Promise<{ chatLogId: number | null; feedback: string | null }> {
   if (!setup.group) return { chatLogId: null, feedback: null };
   const log = await createChatLog(env, {
-    userId: setup.ownerUserId,
+    userId: setup.actorUserId,
     groupId: setup.group.id,
     question: turn.question,
     answer: turn.answer,
@@ -192,12 +223,21 @@ export async function persistTurn(
     isShared: setup.isShared,
     retrievedContexts: turn.retrievedContexts,
   });
-  await enqueueEvaluateChatLog(env, log.id);
+  await processExternalTaskById(env, log.taskId);
   return { chatLogId: log.id, feedback: log.feedback };
 }
 
-export const recordUsage = (env: Bindings, userId: string) =>
-  recordAiAnswerUsage(env, userId);
+async function releaseReservedUsage(env: Bindings, setup: ChatSetup): Promise<void> {
+  try {
+    await releaseAiAnswerReservation(env, setup.quotaReservation);
+  } catch (error) {
+    console.error({
+      event: "ai_answer_quota_release_failed",
+      ownerUserId: setup.ownerUserId,
+      error,
+    });
+  }
+}
 
 /** ドメイン例外 → OpenAI error.type。 */
 export const openAiErrorType = (f: ChatFailure): string => {
@@ -264,7 +304,7 @@ export async function sendChatMessage(
         messages: req.messages,
         videoIds,
         locale: setup.locale,
-        studySessionId: req.studySessionId,
+        studySessionId: scopedStudySessionId(setup, req.studySessionId),
       });
     } else {
       result = await runRag(env, {
@@ -276,6 +316,7 @@ export async function sendChatMessage(
       });
     }
   } catch (e) {
+    await releaseReservedUsage(env, setup);
     const f = toFailure(e);
     return {
       kind: "json",
@@ -284,27 +325,35 @@ export async function sendChatMessage(
     };
   }
 
-  const { chatLogId, feedback } = await persistTurn(env, setup, {
-    question: result.queryText,
-    answer: result.content,
-    citations: result.citations,
-    retrievedContexts: result.retrievedContexts,
-  });
+  try {
+    const { chatLogId, feedback } = await persistTurn(env, setup, {
+      question: result.queryText,
+      answer: result.content,
+      citations: result.citations,
+      retrievedContexts: result.retrievedContexts,
+    });
 
-  const body: Record<string, unknown> = {
-    role: "assistant",
-    content: result.content,
-  };
-  if (req.groupId !== null && result.citations?.length) {
-    body.citations = withCitationIds(result.citations);
-  }
-  if (chatLogId !== null) {
-    body.chat_log_id = chatLogId;
-    body.feedback = feedback;
-  }
+    const body: Record<string, unknown> = {
+      role: "assistant",
+      content: result.content,
+    };
+    if (req.groupId !== null && result.citations?.length) {
+      body.citations = withCitationIds(result.citations);
+    }
+    if (chatLogId !== null) {
+      body.chat_log_id = chatLogId;
+      body.feedback = feedback;
+    }
 
-  await recordUsage(env, setup.ownerUserId);
-  return { kind: "json", status: 200, body };
+    return { kind: "json", status: 200, body };
+  } catch (e) {
+    const f = toFailure(e);
+    return {
+      kind: "json",
+      status: f.status,
+      body: { error: { code: f.code, message: f.message } },
+    };
+  }
 }
 
 export type SseEventWriter = (data: unknown) => Promise<void>;
@@ -368,7 +417,7 @@ export async function streamChatMessage(
             messages,
             videoIds,
             locale: setup.locale,
-            studySessionId,
+            studySessionId: scopedStudySessionId(setup, studySessionId),
           })) {
             if ("text" in chunk) {
               content += chunk.text;
@@ -402,6 +451,8 @@ export async function streamChatMessage(
           }
         }
       } catch (error) {
+        // 一部でも回答を生成済みなら、上流LLMの実コストも消費済みなので返却しない。
+        if (content.length === 0) await releaseReservedUsage(env, setup);
         const failure = toFailure(error);
         await send({
           type: "error",
@@ -411,12 +462,24 @@ export async function streamChatMessage(
         return;
       }
 
-      const { chatLogId, feedback } = await persistTurn(env, setup, {
-        question: final.queryText,
-        answer: content,
-        citations: final.citations,
-        retrievedContexts: final.retrievedContexts,
-      });
+      let chatLogId: number | null;
+      let feedback: string | null;
+      try {
+        ({ chatLogId, feedback } = await persistTurn(env, setup, {
+          question: final.queryText,
+          answer: content,
+          citations: final.citations,
+          retrievedContexts: final.retrievedContexts,
+        }));
+      } catch (error) {
+        const failure = toFailure(error);
+        await send({
+          type: "error",
+          code: failure.streamCode,
+          message: failure.message,
+        });
+        return;
+      }
 
       const done: Record<string, unknown> = {
         type: "done",
@@ -427,7 +490,6 @@ export async function streamChatMessage(
         done.citations = withCitationIds(final.citations);
       }
       await send(done);
-      await recordUsage(env, setup.ownerUserId);
     },
   };
 }
@@ -474,6 +536,7 @@ export async function openAiChatCompletions(
       groupContext: setup.group?.description ?? null,
     });
   } catch (e) {
+    await releaseReservedUsage(env, setup);
     const f = toFailure(e);
     return {
       kind: "json",
@@ -482,32 +545,39 @@ export async function openAiChatCompletions(
     };
   }
 
-  const { chatLogId } = await persistTurn(env, setup, {
-    question: result.queryText,
-    answer: result.content,
-    citations: result.citations,
-    retrievedContexts: result.retrievedContexts,
-  });
+  try {
+    const { chatLogId } = await persistTurn(env, setup, {
+      question: result.queryText,
+      answer: result.content,
+      citations: result.citations,
+      retrievedContexts: result.retrievedContexts,
+    });
 
-  const message: Record<string, unknown> = {
-    role: "assistant",
-    content: result.content,
-  };
-  if (result.citations?.length) message.citations = withCitationIds(result.citations);
-  if (chatLogId !== null) message.chat_log_id = chatLogId;
+    const message: Record<string, unknown> = {
+      role: "assistant",
+      content: result.content,
+    };
+    if (result.citations?.length) message.citations = withCitationIds(result.citations);
+    if (chatLogId !== null) message.chat_log_id = chatLogId;
 
-  await recordUsage(env, setup.ownerUserId);
-
-  return {
-    kind: "json",
-    status: 200,
-    body: {
-      id: `chatcmpl-${crypto.randomUUID().replaceAll("-", "")}`,
-      object: "chat.completion",
-      created: Math.floor(Date.now() / 1000),
-      model,
-      choices: [{ index: 0, message, finish_reason: "stop" }],
-      usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
-    },
-  };
+    return {
+      kind: "json",
+      status: 200,
+      body: {
+        id: `chatcmpl-${crypto.randomUUID().replaceAll("-", "")}`,
+        object: "chat.completion",
+        created: Math.floor(Date.now() / 1000),
+        model,
+        choices: [{ index: 0, message, finish_reason: "stop" }],
+        usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+      },
+    };
+  } catch (e) {
+    const f = toFailure(e);
+    return {
+      kind: "json",
+      status: f.status,
+      body: { error: { message: f.message, type: openAiErrorType(f) } },
+    };
+  }
 }

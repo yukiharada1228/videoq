@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import subprocess
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -21,7 +23,12 @@ from worker_python.video_sql import VideoRow
 logger = logging.getLogger(__name__)
 
 
-def run_transcription(video: VideoRow, *, searchapi_key: str | None = None) -> str:
+def run_transcription(
+    video: VideoRow,
+    *,
+    searchapi_key: str | None = None,
+    reserve_processing: Callable[[int], None] | None = None,
+) -> str:
     """
     Produce SRT for a video, then apply VideoQ's Otsu scene splitting.
 
@@ -32,6 +39,8 @@ def run_transcription(video: VideoRow, *, searchapi_key: str | None = None) -> s
         logger.info(
             "ENABLE_HEAVY_PIPELINE off; placeholder transcript for video %d", video.id
         )
+        if reserve_processing:
+            reserve_processing(1)
         return (
             "1\n"
             "00:00:00,000 --> 00:00:01,000\n"
@@ -41,11 +50,13 @@ def run_transcription(video: VideoRow, *, searchapi_key: str | None = None) -> s
     if video.source_type == "youtube":
         if not video.youtube_video_id:
             raise RuntimeError("youtube_video_id is required for YouTube transcription.")
-        raw_srt = _transcribe_youtube(video.youtube_video_id, searchapi_key)
+        raw_srt, duration = _transcribe_youtube(video.youtube_video_id, searchapi_key)
+        if reserve_processing:
+            reserve_processing(max(1, math.ceil(duration)))
     elif not video.file_key:
         raise RuntimeError(f"Video {video.id} has no file key for uploaded transcription.")
     else:
-        raw_srt = _transcribe_uploaded(video.file_key)
+        raw_srt = _transcribe_uploaded(video.file_key, reserve_processing)
 
     original_count = sum(
         1 for line in raw_srt.split("\n") if line.strip().isdigit()
@@ -57,11 +68,16 @@ def run_transcription(video: VideoRow, *, searchapi_key: str | None = None) -> s
     return scene_srt
 
 
-def _transcribe_uploaded(file_key: str) -> str:
+def _transcribe_uploaded(
+    file_key: str,
+    reserve_processing: Callable[[int], None] | None = None,
+) -> str:
     with tempfile.TemporaryDirectory(prefix="videoq-tx-") as tmp:
         tmp_dir = Path(tmp)
         video_path = tmp_dir / Path(file_key).name
         download_to_path(file_key, video_path)
+        if reserve_processing:
+            reserve_processing(max(1, math.ceil(_ffprobe_duration(video_path))))
         audio_path = tmp_dir / "audio.mp3"
         _ffmpeg_extract_mp3(video_path, audio_path)
         segments = _whisper_transcribe(audio_path)
@@ -201,7 +217,9 @@ def _ffprobe_duration(path: Path) -> float:
     return float(proc.stdout.strip())
 
 
-def _transcribe_youtube(youtube_video_id: str, api_key: str | None) -> str:
+def _transcribe_youtube(
+    youtube_video_id: str, api_key: str | None
+) -> tuple[str, float]:
     key = (api_key or "").strip()
     if not key:
         raise RuntimeError(
@@ -210,6 +228,7 @@ def _transcribe_youtube(youtube_video_id: str, api_key: str | None) -> str:
         )
     transcript = _fetch_youtube_transcript(youtube_video_id, key)
     blocks: list[str] = []
+    max_end = 0.0
     for index, item in enumerate(transcript, start=1):
         start = float(item.get("start", 0))
         duration = float(item.get("duration", 0))
@@ -218,6 +237,7 @@ def _transcribe_youtube(youtube_video_id: str, api_key: str | None) -> str:
             continue
         start_ms = int(start * 1000)
         end_ms = int((start + duration) * 1000)
+        max_end = max(max_end, start + duration)
         blocks.append(
             f"{index}\n"
             f"{format_srt_time(start_ms / 1000)} --> {format_srt_time(end_ms / 1000)}\n"
@@ -225,7 +245,7 @@ def _transcribe_youtube(youtube_video_id: str, api_key: str | None) -> str:
         )
     if not blocks:
         raise RuntimeError("No transcript available for this YouTube video.")
-    return "\n\n".join(blocks) + "\n"
+    return "\n\n".join(blocks) + "\n", max_end
 
 
 def _fetch_youtube_transcript(youtube_video_id: str, api_key: str) -> list[dict]:
@@ -234,8 +254,16 @@ def _fetch_youtube_transcript(youtube_video_id: str, api_key: str) -> list[dict]
     )
     timeout = int(env_str("SEARCHAPI_TIMEOUT_SECONDS", "60") or "60")
     attempts = [
-        {"video_id": youtube_video_id, "transcript_type": "manual", "only_available": "true"},
-        {"video_id": youtube_video_id, "transcript_type": "auto", "only_available": "true"},
+        {
+            "video_id": youtube_video_id,
+            "transcript_type": "manual",
+            "only_available": "true",
+        },
+        {
+            "video_id": youtube_video_id,
+            "transcript_type": "auto",
+            "only_available": "true",
+        },
     ]
     last_error: RuntimeError | None = None
     for params in attempts:
@@ -270,4 +298,3 @@ def _fetch_youtube_transcript(youtube_video_id: str, api_key: str) -> list[dict]
     if last_error:
         raise last_error
     raise RuntimeError("No transcript available for this YouTube video.")
-

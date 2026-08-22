@@ -1,4 +1,5 @@
 import { createMiddleware } from "hono/factory";
+import { loggablePath } from "../shared/log-path";
 import type { AppEnv } from "../types/bindings";
 
 /**
@@ -14,7 +15,7 @@ export const accessLogger = createMiddleware<AppEnv>(async (c, next) => {
       level: "info",
       requestId: c.var.requestId,
       method: c.req.method,
-      path: new URL(c.req.url).pathname,
+      path: loggablePath(c.req.url),
       status: c.res.status,
       durationMs,
       env: c.env.ENVIRONMENT,

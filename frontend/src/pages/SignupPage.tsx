@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useI18nNavigate } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
 import { useAuthForm } from '@/hooks/useAuthForm';
 import { apiClient } from '@/lib/api';
+import { PASSWORD_MIN_LENGTH } from '@/lib/authConfig';
 import { Eye, EyeOff } from 'lucide-react';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { AuthLayout } from '@/components/layout/AuthLayout';
@@ -17,6 +19,11 @@ import { Divider } from '@/components/ui/divider';
 export default function SignupPage() {
   const navigate = useI18nNavigate();
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
+  const rawNextPath = searchParams.get('next');
+  const nextPath = rawNextPath?.startsWith('/') && !rawNextPath.startsWith('//') && !rawNextPath.startsWith('/\\')
+    ? rawNextPath
+    : null;
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -29,10 +36,13 @@ export default function SignupPage() {
         username: data.username,
         email: data.email,
         password: data.password,
+        ...(nextPath ? { callbackURL: nextPath } : {}),
       });
     },
     initialData: { username: '', email: '', password: '', confirmPassword: '' },
-    onSuccessRedirect: () => navigate('/signup/check-email'),
+    onSuccessRedirect: () => navigate(
+      nextPath ? `/signup/check-email?next=${encodeURIComponent(nextPath)}` : '/signup/check-email',
+    ),
   });
 
   return (
@@ -73,7 +83,10 @@ export default function SignupPage() {
             value={formData.password || ''}
             onChange={handleChange}
             required
-            minLength={8}
+            minLength={PASSWORD_MIN_LENGTH}
+            supportText={t('auth.fields.password.minLengthHint', {
+              min: PASSWORD_MIN_LENGTH,
+            })}
             autoComplete="new-password"
           />
           <Button
@@ -100,7 +113,7 @@ export default function SignupPage() {
             value={formData.confirmPassword || ''}
             onChange={handleChange}
             required
-            minLength={8}
+            minLength={PASSWORD_MIN_LENGTH}
             autoComplete="new-password"
           />
           <Button
@@ -140,7 +153,7 @@ export default function SignupPage() {
       </div>
 
       <GoogleSignInButton
-        callbackURL="/"
+        callbackURL={nextPath || '/'}
         labelKey="auth.signup.continueWithGoogle"
       />
 
@@ -148,7 +161,7 @@ export default function SignupPage() {
         <AuthFormFooter
           questionText={t('auth.signup.footerQuestion')}
           linkText={t('auth.signup.footerLink')}
-          href="/login"
+          href={nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : '/login'}
         />
       </div>
     </AuthLayout>

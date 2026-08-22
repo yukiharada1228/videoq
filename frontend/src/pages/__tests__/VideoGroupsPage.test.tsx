@@ -189,6 +189,36 @@ describe('VideoGroupsPage', () => {
     expect(mockNavigate).not.toHaveBeenCalled()
   })
 
+  it('separates joined groups and never includes them in owner reordering', async () => {
+    ; (apiClient.getVideoGroupsPage as ReturnType<typeof vi.fn>).mockResolvedValue(
+      mockPaginatedGroups([
+        { ...mockGroups[0], access_role: 'owner' },
+        { ...mockGroups[1], access_role: 'owner' },
+        {
+          id: 3,
+          name: 'Teacher Group',
+          description: 'Joined class',
+          display_order: 0,
+          created_at: '2024-01-03',
+          video_count: 2,
+          access_role: 'member',
+        },
+      ] as never),
+    )
+
+    render(<VideoGroupsPage />)
+
+    expect(await screen.findByText('Teacher Group')).toBeInTheDocument()
+    expect(screen.getByText('videos.groups.joinedTitle')).toBeInTheDocument()
+    expect(screen.getByText('videos.groups.memberBadge')).toBeInTheDocument()
+    expect(screen.getAllByLabelText('videos.groups.dragHandle')).toHaveLength(2)
+
+    fireEvent.click(screen.getByLabelText('videos.groups.moveDown {"name":"Group 1"}'))
+    await waitFor(() => {
+      expect(apiClient.reorderVideoGroups).toHaveBeenCalledWith([2, 1])
+    })
+  })
+
 
 })
 

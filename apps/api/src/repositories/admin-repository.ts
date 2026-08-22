@@ -1,6 +1,17 @@
-import { and, asc, count, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, count, eq, ilike, isNull, or, sql } from "drizzle-orm";
 import { withDb } from "../db/pool";
-import { session, users } from "../db/schema";
+import {
+  oauthAccessToken,
+  oauthConsent,
+  oauthRefreshToken,
+  session,
+  users,
+} from "../db/schema";
+import { insertJobTask } from "./external-task-repository";
+import {
+  buildJobMessage,
+  JOB_DELETE_ACCOUNT_DATA,
+} from "../lib/job-message";
 import type { Bindings } from "../types/bindings";
 
 export type AdminUser = {
@@ -230,7 +241,7 @@ export async function patchAdminUserFlags(
 export async function lockUserForHardDelete(
   env: Bindings,
   userId: string,
-): Promise<boolean> {
+): Promise<false | { taskId: number; jobId: string }> {
   return withDb(env, async (db) => {
     return db.transaction(async (tx) => {
       const updated = await tx
@@ -240,27 +251,21 @@ export async function lockUserForHardDelete(
         .returning({ id: users.id });
       if (updated.length === 0) return false;
       await tx.delete(session).where(eq(session.userId, userId));
-      return true;
-    });
-  });
-}
+      await tx.delete(oauthAccessToken).where(eq(oauthAccessToken.userId, userId));
+      await tx
+        .update(oauthRefreshToken)
+        .set({ revoked: new Date() })
+        .where(
+          and(eq(oauthRefreshToken.userId, userId), isNull(oauthRefreshToken.revoked)),
+        );
+      await tx.delete(oauthConsent).where(eq(oauthConsent.userId, userId));
 
-/**
- * Sync hard-delete for admin fallback when SQS enqueue fails.
- * Cascades cover most owned rows; scene_embeddings has no FK so delete explicitly.
- */
-export async function hardDeleteUser(
-  env: Bindings,
-  userId: string,
-): Promise<boolean> {
-  return withDb(env, async (db) => {
-    return db.transaction(async (tx) => {
-      await tx.execute(sql`DELETE FROM scene_embeddings WHERE user_id = ${userId}`);
-      const deleted = await tx
-        .delete(users)
-        .where(eq(users.id, userId))
-        .returning({ id: users.id });
-      return deleted.length > 0;
+      const message = buildJobMessage(JOB_DELETE_ACCOUNT_DATA, { user_id: userId });
+      const task = await insertJobTask(tx, {
+        message,
+        dedupeKey: `account-delete:${userId}`,
+      });
+      return { taskId: task.id, jobId: message.job_id };
     });
   });
 }

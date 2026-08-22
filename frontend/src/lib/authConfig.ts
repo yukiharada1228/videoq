@@ -3,6 +3,13 @@
  * Centralized management of duplicate field definitions
  */
 
+/**
+ * Must stay in sync with the backend rule
+ * (`emailAndPassword.minPasswordLength` in apps/api/src/lib/auth.ts).
+ * A lower value here only produces a server-side rejection after submit.
+ */
+export const PASSWORD_MIN_LENGTH = 12;
+
 export interface FormFieldConfig {
   id: string;
   name: string;
@@ -41,7 +48,7 @@ export const AUTH_FIELDS = {
     name: 'password',
     type: 'password',
     labelKey: 'auth.fields.password.label',
-    minLength: 8,
+    minLength: PASSWORD_MIN_LENGTH,
   } as FormFieldConfig,
 
   CONFIRM_PASSWORD: {
@@ -49,7 +56,7 @@ export const AUTH_FIELDS = {
     name: 'confirmPassword',
     type: 'password',
     labelKey: 'auth.fields.passwordConfirmation.label',
-    minLength: 8,
+    minLength: PASSWORD_MIN_LENGTH,
   } as FormFieldConfig,
 } as const;
 
@@ -64,6 +71,7 @@ export const PUBLIC_AUTH_PATHS = [
   '/consent',
   '/device',
   '/share',
+  '/group-invitations',
   '/docs',
 ] as const;
 

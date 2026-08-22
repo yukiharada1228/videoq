@@ -220,6 +220,8 @@
       "open": "{{name}}を開く",
       "moveUp": "{{name}}を上へ移動",
       "moveDown": "{{name}}を下へ移動",
+      "joinedTitle": "参加中のグループ",
+      "memberBadge": "参加メンバー",
       "loadingMore": "読み込み中...",
       "videoCount_one": "{{count}}個の動画",
       "videoCount_other": "{{count}}個の動画"
@@ -281,7 +283,49 @@
       "shareSlugHelp": "3〜64文字。英小文字、数字、ハイフンのみ使えます",
       "copyButton": "コピー",
       "removeFromGroup": "グループから削除",
-      "deleteError": "チャットグループの削除に失敗しました"
+      "deleteError": "チャットグループの削除に失敗しました",
+      "memberBadge": "参加メンバー",
+      "leave": "グループから退出",
+      "leaveError": "グループから退出できませんでした"
+    },
+    "groupMembers": {
+      "title": "メンバーと招待を管理",
+      "open": "メンバー管理",
+      "emailLabel": "招待するメールアドレス",
+      "emailPlaceholder": "student@example.com",
+      "emailHelp": "複数のメールアドレスは改行、カンマ、またはセミコロンで区切って入力できます。招待の有効期限は7日間です。",
+      "previewTitle": "送信前の確認",
+      "previewSummary": "全{{total}}件のうち、{{count}}件に招待を送信します。",
+      "preview": {
+        "ready": "送信対象"
+      },
+      "invite": "招待メールを送信",
+      "membersTitle": "参加メンバー",
+      "invitationsTitle": "招待履歴",
+      "noMembers": "参加メンバーはいません。",
+      "noInvitations": "招待履歴はありません。",
+      "remove": "メンバーから削除",
+      "resend": "再送",
+      "revoke": "取り消す",
+      "result": {
+        "queued": "送信待ち",
+        "already_member": "参加済み",
+        "already_invited": "招待済み",
+        "invalid": "無効なアドレス",
+        "duplicate": "重複"
+      },
+      "status": {
+        "pending": "承認待ち",
+        "accepted": "承認済み",
+        "declined": "辞退済み",
+        "expired": "期限切れ",
+        "revoked": "取り消し済み"
+      },
+      "delivery": {
+        "queued": "送信待ち",
+        "sent": "メール送信済み",
+        "failed": "メール送信失敗"
+      }
     },
     "shared": {
       "tabs": {
@@ -292,6 +336,34 @@
       "videoNoFile": "動画ファイルがありません",
       "noVideos": "動画がありません",
       "publicBadge": "公開共有リンク"
+    }
+  },
+  "groupInvitation": {
+    "badge": "グループへの招待",
+    "title": "招待内容を確認",
+    "description": "招待先の確認済みメールアドレスと一致するアカウントで参加できます。",
+    "inviter": "招待者",
+    "recipient": "招待先メールアドレス",
+    "notFound": "この招待は見つからないか、利用できません。",
+    "accept": "招待を承認して参加",
+    "openGroup": "グループを開く",
+    "decline": "辞退する",
+    "declined": "招待を辞退しました。",
+    "authRequired": "承認または辞退するには、招待されたメールアドレスのアカウントでログインしてください。",
+    "login": "ログインして続ける",
+    "signup": "アカウントを作成",
+    "status": {
+      "pending": "承認待ち",
+      "accepted": "承認済み",
+      "declined": "辞退済み",
+      "expired": "期限切れ",
+      "revoked": "取り消し済み"
+    },
+    "terminal": {
+      "accepted": "この招待はすでに承認されています。",
+      "declined": "この招待は辞退されています。",
+      "expired": "この招待は期限切れです。招待者に再招待を依頼してください。",
+      "revoked": "この招待は招待者によって取り消されました。"
     }
   },
   "auth": {
@@ -385,7 +457,8 @@
       "password": {
         "label": "パスワード",
         "show": "パスワードを表示",
-        "hide": "パスワードを隠す"
+        "hide": "パスワードを隠す",
+        "minLengthHint": "{{min}}文字以上で入力してください。"
       },
       "passwordConfirmation": {
         "label": "パスワード（確認）"
@@ -398,6 +471,7 @@
     "newConsultation": "新規相談",
     "history": "会話履歴",
     "historyEmpty": "履歴はありません",
+    "sharedLinkUser": "共有リンク利用者",
     "exportCsvShort": "CSV",
     "feedbackGood": "Good",
     "feedbackBad": "Bad",
@@ -428,7 +502,9 @@
   "confirmations": {
     "deleteVideo": "この動画を削除しますか？",
     "deleteGroup": "このチャットグループを削除しますか？",
-    "disableShareLink": "共有リンクを無効化しますか？"
+    "disableShareLink": "共有リンクを無効化しますか？",
+    "leaveGroup": "「{{name}}」から退出しますか？",
+    "leaveGroupDescription": "退出すると、このグループの動画とチャットを閲覧できなくなります。再び参加するには、新しい招待が必要です。"
   },
   "settings": {
     "title": "設定",

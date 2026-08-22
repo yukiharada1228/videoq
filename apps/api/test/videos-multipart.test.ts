@@ -39,9 +39,8 @@ vi.mock("pg", () => {
   return { default: { Client: FakeClient } };
 });
 
-vi.mock("../src/lib/jobs", () => ({
-  enqueueTranscription: vi.fn().mockResolvedValue(undefined),
-  enqueueReindexTranscript: vi.fn().mockResolvedValue(undefined),
+vi.mock("../src/lib/external-tasks", () => ({
+  processExternalTaskById: vi.fn().mockResolvedValue(true),
 }));
 
 const SECRET = "test-jwt-secret-videos-multipart";
@@ -75,6 +74,9 @@ beforeEach(() => {
     }
     if (sql.includes("used_storage_bytes")) {
       return { rows: [], rowCount: 1 };
+    }
+    if (sql.includes("external_tasks") && sql.includes("returning")) {
+      return { rows: [{ id: 9 }], rowCount: 1 };
     }
     if (sql.includes("videos") && sql.includes("returning")) {
       return { rows: [{ id: 42 }], rowCount: 1 };
@@ -162,7 +164,9 @@ describe("POST / — USE_S3_STORAGE=false（multipart）", () => {
     expect(res.status).toBe(201);
     expect(putMock).toHaveBeenCalled();
     const key = putMock.mock.calls[0][0] as string;
-    expect(key).toMatch(/^media\/videos\/00000000-0000-4000-8000-000000000005\/video_\d+_\d+\.mp4$/);
+    expect(key).toMatch(
+      /^media\/videos\/00000000-0000-4000-8000-000000000005\/video_\d+_[0-9a-f]{12}_\d+\.mp4$/,
+    );
     const body = (await res.json()) as { id: number; status: string };
     expect(body.id).toBe(42);
     expect(body.status).toBe("pending");

@@ -1,6 +1,7 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { ApiError, toErrorBody } from "../shared/errors";
+import { loggablePath } from "../shared/log-path";
 import type { AppEnv } from "../types/bindings";
 
 /**
@@ -42,7 +43,7 @@ export function onError(e: Error, c: Context<AppEnv>): Response {
     JSON.stringify({
       level: "error",
       requestId: c.var.requestId,
-      path: new URL(c.req.url).pathname,
+      path: loggablePath(c.req.url),
       error: e?.message ?? String(e),
       stack: e?.stack,
     }),

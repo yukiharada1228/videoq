@@ -10,7 +10,6 @@ import {
   apiBadRequest,
   apiForbidden,
   apiNotFound,
-  apiServiceUnavailable,
   toErrorBody,
 } from "../../shared/errors";
 import {
@@ -203,7 +202,6 @@ const deleteUserRoute = createRoute({
     400: errorResponse("Bad request"),
     403: errorResponse("Forbidden"),
     404: errorResponse("Not found"),
-    503: errorResponse("Unavailable"),
   },
 });
 
@@ -228,16 +226,10 @@ const reindexRoute = createRoute({
   middleware: [...adminGuards] as const,
   responses: {
     202: jsonResponse(adminJobResponseSchema, "Accepted"),
-    503: errorResponse("Unavailable"),
   },
 });
 
 adminRoutes.openapi(reindexRoute, async (c) => {
   const res = await adminService.enqueueReindexAll(c.env);
-  if ("unavailable" in res) {
-    throw apiServiceUnavailable(
-      "Failed to enqueue reindex job (SQS not configured).",
-    );
-  }
   return c.json({ job_id: res.job_id }, 202);
 });
