@@ -7,14 +7,16 @@
 #   fonts.gstatic.com     : 上記が参照するフォント本体
 #   www.youtube.com       : YouTube 埋め込み iframe（API が embed URL を生成）
 #   img.youtube.com       : YouTube サムネイル（VideoCard）
-#   *.r2.cloudflarestorage.com : R2 バインディング失敗時に /api/media が
-#                                署名付き URL へ 302 する際の最終取得先
-# API は本番では同一オリジン（videoq.jp/api）なので connect-src は 'self'。
+#   *.r2.cloudflarestorage.com : 署名付き URL の相手先。動画アップロードの
+#                                PUT（connect-src）と、/api/media が署名付き
+#                                URL へ 302 したあとの再生取得（media-src）。
+# API は本番では同一オリジン（videoq.jp/api）なので connect-src は 'self' と
+# 上記 R2 のみ。
 #
 # style-src の 'unsafe-inline' は Radix / Tailwind が実行時に差し込む
 # インラインスタイルに必要。外すとダイアログとポップオーバーが壊れる。
 /*
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://img.youtube.com; media-src 'self' blob: https://*.r2.cloudflarestorage.com; frame-src https://www.youtube.com; connect-src 'self'
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://img.youtube.com; media-src 'self' blob: https://*.r2.cloudflarestorage.com; frame-src https://www.youtube.com; connect-src 'self' https://*.r2.cloudflarestorage.com
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
