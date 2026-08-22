@@ -90,4 +90,28 @@ describe('GroupInvitationPage', () => {
     );
     expect(screen.queryByRole('button', { name: 'groupInvitation.accept' })).not.toBeInTheDocument();
   });
+
+  it.each(['accepted', 'declined', 'expired', 'revoked'] as const)(
+    'resolves the status chip and terminal message for %s',
+    async (status) => {
+      (apiClient.getGroupInvitation as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ...preview,
+        status,
+      });
+
+      render(<GroupInvitationPage />);
+
+      // `.undefined` に落ちていないこと（i18n キーが具体値で解決されること）。
+      expect(await screen.findByText(`groupInvitation.status.${status}`)).toBeInTheDocument();
+      expect(screen.getByText(`groupInvitation.terminal.${status}`)).toBeInTheDocument();
+      expect(screen.queryByText(/groupInvitation\.(status|terminal)\.undefined/)).toBeNull();
+    },
+  );
+
+  it('shows the pending status chip while the invitation is open', async () => {
+    render(<GroupInvitationPage />);
+
+    expect(await screen.findByText('groupInvitation.status.pending')).toBeInTheDocument();
+    expect(screen.queryByText(/groupInvitation\.status\.undefined/)).toBeNull();
+  });
 });
