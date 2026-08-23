@@ -12,6 +12,21 @@ describe("billing catalog", () => {
     expect(FREE_TIER_DEFAULTS).toEqual(PLAN_CATALOG.free.entitlements);
   });
 
+  it("keeps the raised transcription and answer quotas", () => {
+    expect(PLAN_CATALOG.free.entitlements).toMatchObject({
+      processingLimitMinutes: 45,
+      aiAnswersLimit: 30,
+    });
+    expect(PLAN_CATALOG.basic.entitlements).toMatchObject({
+      processingLimitMinutes: 300,
+      aiAnswersLimit: 500,
+    });
+    expect(PLAN_CATALOG.pro.entitlements).toMatchObject({
+      processingLimitMinutes: 1500,
+      aiAnswersLimit: 2500,
+    });
+  });
+
   it("maps lookup keys to paid plans", () => {
     expect(isPaidLookupKey("basic_monthly")).toBe(true);
     expect(planCodeFromLookupKey("basic_yearly")).toBe("basic");

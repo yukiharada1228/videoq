@@ -633,15 +633,15 @@
     "plans": {
       "free": {
         "name": "Free",
-        "blurb": "Upload one short video and ask a few questions."
+        "blurb": "Upload one lecture and try search and questions."
       },
       "basic": {
         "name": "Basic",
-        "blurb": "Everyday personal use. About two hours of transcription per month."
+        "blurb": "For weekly lectures you can search and ask about later."
       },
       "pro": {
         "name": "Pro",
-        "blurb": "For heavier use. About ten hours of transcription per month."
+        "blurb": "For heavier use across lectures and training videos."
       }
     },
     "legalNotice": "Please review the following before starting a paid plan."
