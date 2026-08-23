@@ -1,7 +1,8 @@
 import { lazy, Suspense } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom';
-import { addLocalePrefix, getPreferredLocale, useLocaleSync } from '@/lib/i18n';
+import { addLocalePrefix, getSavedLocale, useLocaleSync } from '@/lib/i18n';
 import { defaultLocale, locales, type Locale } from '@/i18n/config';
+import { withQueryAndHash } from '@/lib/seo';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 
 const HomePage = lazy(() => import('@/pages/HomePage'));
@@ -39,17 +40,22 @@ function LocaleGate() {
     return <Navigate to="/" replace />;
   }
 
-  // Strip redundant default-locale prefix (/en/foo → /foo).
+  // Strip redundant default-locale prefix (/ja/foo → /foo).
   if (locale === defaultLocale) {
     const withoutLocale = location.pathname.replace(/^\/[^/]+(\/|$)/, '$1') || '/';
-    return <Navigate to={withoutLocale + location.search} replace />;
+    return <Navigate to={withQueryAndHash(withoutLocale, location.search, location.hash)} replace />;
   }
 
-  // If user prefers non-default locale, redirect to /:locale/... automatically.
+  // Returning visitors who explicitly chose English. Never use Accept-Language
+  // here — Googlebot would be sent to /en/ and index English as the homepage.
   if (!locale) {
-    const preferred = getPreferredLocale();
-    if (preferred !== defaultLocale) {
-      const nextPath = addLocalePrefix(location.pathname, preferred) + location.search;
+    const saved = getSavedLocale();
+    if (saved && saved !== defaultLocale) {
+      const nextPath = withQueryAndHash(
+        addLocalePrefix(location.pathname, saved),
+        location.search,
+        location.hash,
+      );
       return <Navigate to={nextPath} replace />;
     }
   }

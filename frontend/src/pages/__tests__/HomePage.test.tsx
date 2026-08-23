@@ -212,11 +212,11 @@ describe('HomePage - unauthenticated', () => {
     globalThis.__setMockLanguage('en')
   })
 
-  it('should render login page when user is not authenticated', async () => {
+  it('should render the product landing page when user is not authenticated', async () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getByText('auth.login.title')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { level: 1, name: 'landing.title' })).toBeInTheDocument()
     })
   })
 
@@ -228,11 +228,12 @@ describe('HomePage - unauthenticated', () => {
     })
   })
 
-  it('should render login submit when user is not authenticated', async () => {
+  it('should render signup and login actions when user is not authenticated', async () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getByText('auth.login.submit')).toBeInTheDocument()
+      expect(screen.getAllByText('landing.start').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('landing.login').length).toBeGreaterThan(0)
     })
   })
 })

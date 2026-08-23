@@ -1,7 +1,7 @@
 {
   "site": {
-    "title": "VideoQ | Ask AI, Jump to Any Scene",
-    "description": "Ask AI, jump to the scene instantly. Upload your video and AI auto-transcribes it for instant natural language search."
+    "title": "Search and transcribe lecture videos | VideoQ",
+    "description": "Search and transcribe lecture videos and class recordings. YouTube lectures work too. Ask the video a question and play from the moment you need. For flipped classroom and on-demand review."
   },
   "common": {
     "notProvided": "Not provided",
@@ -80,7 +80,7 @@
   },
   "layout": {
     "authBranding": {
-      "tagline": "AI video learning for education and training"
+      "tagline": "Search and transcribe lecture videos"
     },
     "authFooter": "© {{year}} VideoQ"
   },
@@ -120,6 +120,107 @@
       "title": "Usage",
       "description": "Current usage and limits",
       "upgrade": "Upgrade your plan"
+    }
+  },
+  "landing": {
+    "badge": "Transcribe and search class recordings",
+    "title": "Search lecture videos. Play from the part you need.",
+    "lead": "Ask a lecture video or class recording a question, then play from the part you need. YouTube lecture URLs work the same way.",
+    "start": "Start free",
+    "tryOwn": "Try it with your lecture",
+    "login": "Log in",
+    "startNote": "Free to start. No credit card required.",
+    "shareMeta": {
+      "linearAlgebra": "A public VideoQ sample. Ask this linear algebra lecture a question and play from the part you need. No account required.",
+      "deepLearning": "A public VideoQ sample. Ask this deep learning lecture a question and play from the part you need. No account required."
+    },
+    "publicSamples": {
+      "title": "Public sample lectures",
+      "linearAlgebra": {
+        "title": "【ヨビノリ】線形代数",
+        "body": "An introductory linear algebra lecture. Ask things like “What is linear algebra?”",
+        "questions": {
+          "0": "What is linear algebra?",
+          "1": "What is linear independence?",
+          "2": "How do you find eigenvalues?"
+        }
+      },
+      "deepLearning": {
+        "title": "Deep Learning の世界",
+        "body": "A deep learning lecture. Ask things like “What is a CNN?”",
+        "questions": {
+          "0": "What is a CNN?",
+          "1": "What is a convolution layer?",
+          "2": "What is an RNN?"
+        }
+      }
+    },
+    "demo": {
+      "title": "Ask a question, then play from that scene",
+      "intro": "Ask a public lecture without creating an account. Press a timestamp in the answer to play from that scene.",
+      "videosLabel": "Lectures in this group",
+      "openFull": "Open this lecture on its own page",
+      "loadError": "The public sample could not be loaded. Open it on its own page to try it."
+    },
+    "features": {
+      "title": "Search lecture videos and ask questions",
+      "intro": "VideoQ is a learning tool for searching lecture videos and class recordings after class. It is not a meeting transcript tool. Ask the video a question and replay from the matching moment.",
+      "ask": {
+        "title": "Ask the video and go to the part you need",
+        "body": "Ask things like “What is linear algebra?” or “How do you find eigenvalues?” Instead of hunting on the timeline, you move from the question to the playback position."
+      },
+      "transcribe": {
+        "title": "Automatic transcription of class recordings",
+        "body": "Register a lecture or training video and it is transcribed automatically. That transcript powers search and questions. Your own class recordings work, and so do lecture videos on YouTube."
+      },
+      "share": {
+        "title": "Share lecture videos with a class",
+        "body": "Group class recordings and share them with a course or training team. Learners can ask questions against the same lecture video, and instructors keep assigned material in one place."
+      },
+      "analytics": {
+        "title": "See unclear parts from student questions",
+        "body": "Review what students asked about a lecture video. Use that record to decide what to cover next time, and which explanations did not land."
+      }
+    },
+    "steps": {
+      "title": "Start with a class recording transcript",
+      "intro": "After you create an account, lecture video transcription takes three steps. No credit card is required.",
+      "upload": {
+        "title": "Add a lecture video",
+        "body": "Upload a class recording, or paste a YouTube lecture URL. Putting it in a group makes it easier to share with a class later."
+      },
+      "index": {
+        "title": "Wait for transcription",
+        "body": "When processing finishes, you can search the lecture video and ask it questions. Watch progress in the library."
+      },
+      "ask": {
+        "title": "Ask the video and play",
+        "body": "Ask for the moment you want in your own words. The answer includes a jump to the matching scene, so you can review only that part of a long class recording."
+      }
+    },
+    "uses": {
+      "title": "Lecture review and flipped classroom",
+      "intro": "VideoQ fits schools and training teams who want class recordings to become searchable teaching material. It is not aimed at personal note-taking.",
+      "lectures": {
+        "title": "Search lecture recordings to review",
+        "body": "When a university or vocational course uploads class recordings, students can search the lecture video and ask “What is linear algebra?” Review starts from the unclear part, not from the beginning."
+      },
+      "flipped": {
+        "title": "Flipped classroom and on-demand review",
+        "body": "Share prep videos first, then see which questions students asked before the next in-person session. For on-demand lessons too, you can tell which explanations did not land before class starts."
+      }
+    },
+    "next": {
+      "title": "Pricing and developer docs",
+      "intro": "Try lecture video transcription and search for free. See the developer docs if you need system integration.",
+      "pricing": {
+        "title": "Pricing",
+        "body": "Check the free allowance and paid plans for regular or heavier use."
+      },
+      "docs": {
+        "title": "Developer docs",
+        "body": "Reference for searching and asking lecture videos from an API or an existing system."
+      }
     }
   },
   "videos": {
@@ -476,6 +577,7 @@
     "feedbackGood": "Good",
     "feedbackBad": "Bad",
     "placeholder": "Type a message...",
+    "suggestedQuestions": "Suggested questions",
     "assistantGreeting": "Hello! Ask me anything about your videos.",
     "studyGreeting": "Study mode: I will guide you with questions instead of revealing answers, following lecture prerequisites.",
     "modeQa": "Q&A",

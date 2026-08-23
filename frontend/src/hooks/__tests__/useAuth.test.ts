@@ -12,11 +12,11 @@ vi.mock('@/lib/api', () => ({
 describe('useAuth', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(globalThis as any).__setMockPathname?.('/')
+    ;(globalThis as any).__setMockPathname?.('/videos')
     ;(globalThis as any).__setMockAuthSession?.({
       user: { id: '1', name: 'testuser', email: 'test@example.com' },
     })
-    window.history.pushState({}, '', '/')
+    window.history.pushState({}, '', '/videos')
   })
 
   it('should initialize with loading state', () => {
@@ -39,6 +39,21 @@ describe('useAuth', () => {
 
     expect(result.current.user).toEqual(mockUser)
     expect(apiClient.getMeOrNull).toHaveBeenCalled()
+  })
+
+  it('should not redirect from the marketing homepage when logged out', async () => {
+    ;(globalThis as any).__setMockPathname?.('/')
+    ;(globalThis as any).__setMockAuthSession?.(null)
+    window.history.pushState({}, '', '/')
+
+    const { result } = renderHook(() => useAuth({ redirectToLogin: true }))
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    expect(useI18nNavigate()).not.toHaveBeenCalled()
+    expect(apiClient.getMeOrNull).not.toHaveBeenCalled()
   })
 
   it('should not load user data for public routes', async () => {

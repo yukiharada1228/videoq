@@ -387,8 +387,8 @@ describe('useVideos - sentinelRef', () => {
 describe('useVideo', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(globalThis as any).__setMockPathname?.('/')
-    window.history.pushState({}, '', '/')
+    ;(globalThis as any).__setMockPathname?.('/videos/1')
+    window.history.pushState({}, '', '/videos/1')
   })
 
   it('should initialize with null video', () => {

@@ -1,18 +1,24 @@
 <!doctype html>
-<html lang="en">
+<html lang="ja">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VideoQ | 教育向け AI 動画学習サービス</title>
-    <meta name="description" content="教育向けの AI 動画学習サービス。動画をアップロードして自動文字起こしし、内容を自然言語で検索・質問できます。" />
+    <title>講義動画の検索・文字起こし | VideoQ</title>
+    <meta name="description" content="講義動画・授業録画を文字起こしして検索。YouTubeの講義も登録できます。動画に質問すると、見たいところから再生。反転授業・オンデマンド授業の復習に。" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://videoq.jp/" />
+    <link rel="alternate" hreflang="ja" href="https://videoq.jp/" />
+    <link rel="alternate" hreflang="en" href="https://videoq.jp/en/" />
+    <link rel="alternate" hreflang="x-default" href="https://videoq.jp/" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="VideoQ | 教育向け AI 動画学習サービス" />
-    <meta property="og:description" content="教育向けの AI 動画学習サービス。動画をアップロードして自動文字起こしし、内容を自然言語で検索・質問できます。" />
-    <meta property="og:locale" content="en_US" />
-    <meta property="og:locale:alternate" content="ja_JP" />
+    <meta property="og:title" content="講義動画の検索・文字起こし | VideoQ" />
+    <meta property="og:description" content="講義動画・授業録画を文字起こしして検索。YouTubeの講義も登録できます。動画に質問すると、見たいところから再生。反転授業・オンデマンド授業の復習に。" />
+    <meta property="og:url" content="https://videoq.jp/" />
+    <meta property="og:locale" content="ja_JP" />
+    <meta property="og:locale:alternate" content="en_US" />
     <meta property="og:site_name" content="VideoQ" />
     <meta property="og:image" content="https://videoq.jp/og-image.png" />
     <meta property="og:image:width" content="1200" />
@@ -28,7 +34,7 @@
           "@id": "https://videoq.jp/#website",
           "url": "https://videoq.jp/",
           "name": "VideoQ",
-          "description": "AI動画ナビゲーター。動画をアップロードしてWhisperで自動文字起こし、RAGチャットで動画の内容に自然言語で質問できます。",
+          "description": "講義動画・授業録画を文字起こしして検索。動画に質問すると、見たいところから再生できます。",
           "inLanguage": ["ja", "en"],
           "publisher": { "@id": "https://videoq.jp/#organization" }
         },
@@ -42,24 +48,23 @@
             "url": "https://videoq.jp/logo.png",
             "width": 512,
             "height": 512
-          },
-          "sameAs": [
-            "https://github.com/yukiharada1228/videoq"
-          ]
+          }
         },
         {
           "@type": "SoftwareApplication",
           "@id": "https://videoq.jp/#app",
           "name": "VideoQ",
           "url": "https://videoq.jp/",
-          "applicationCategory": "MultimediaApplication",
-          "operatingSystem": "Web, Docker",
-          "description": "動画をアップロードしてOpenAI Whisperで自動文字起こし。PGVector RAGで動画の内容にチャットで質問できます。OpenAI互換APIエンドポイント対応。教育者向け動画学習プラットフォーム。",
+          "applicationCategory": "EducationalApplication",
+          "operatingSystem": "Web",
+          "description": "講義動画・授業録画を文字起こしして検索する学習サービス。YouTubeの講義も登録できます。動画に質問すると、見たいところから再生できます。",
           "inLanguage": ["ja", "en"],
           "offers": {
-            "@type": "Offer",
-            "price": "0",
-            "priceCurrency": "JPY"
+            "@type": "AggregateOffer",
+            "lowPrice": "0",
+            "priceCurrency": "JPY",
+            "offerCount": 3,
+            "url": "https://videoq.jp/pricing"
           },
           "publisher": { "@id": "https://videoq.jp/#organization" }
         }
@@ -77,36 +82,19 @@
     <div id="root"></div>
     <noscript>
       <div lang="ja">
-        <h1>VideoQ — AI動画ナビゲーター</h1>
-        <p>VideoQは、教育者・学習者向けのAI動画学習プラットフォームです。動画をアップロードするとOpenAI Whisperによる高精度な自動文字起こしが行われ、文字起こしテキストを基にしたRAGチャットで動画の内容に自然言語で質問できます。</p>
-        <p>OpenAI互換APIエンドポイント（/api/v1/chat/completions）を提供しており、既存のOpenAIクライアントやSDKからそのまま利用できます。Claude DesktopなどのMCPクライアントとの統合にも対応しています。</p>
-        <h2>主な機能</h2>
+        <h1>講義動画を検索して、見たいところから再生</h1>
+        <p>VideoQは、講義動画・授業録画を文字起こしして検索する学習サービスです。会議の文字起こしではなく、授業を見返すためのツールです。YouTubeの講義も登録できます。動画に質問すると、見たいところから再生できます。</p>
+        <h2>公開サンプル</h2>
         <ul>
-          <li>動画の自動文字起こし（OpenAI Whisper）</li>
-          <li>RAGチャット：動画の内容に自然言語で質問</li>
-          <li>OpenAI互換APIエンドポイント（/api/v1/chat/completions）</li>
-          <li>MCPサーバー統合（Claude Desktop など）</li>
-          <li>動画グループとパブリック共有リンク</li>
-          <li>教育分析ダッシュボード（キーワードクラウド、質問トレンド）</li>
-          <li>日本語・英語のマルチロケール対応</li>
+          <li><a href="https://videoq.jp/share/yobinori-linearalgebra">【ヨビノリ】線形代数</a></li>
+          <li><a href="https://videoq.jp/share/aicia-deeplearning">Deep Learning の世界</a></li>
         </ul>
-        <p><a href="https://videoq.jp/signup">無料で始める</a> | <a href="https://videoq.jp/docs">開発者ドキュメント</a></p>
+        <p><a href="https://videoq.jp/signup">無料で始める</a> | <a href="https://videoq.jp/pricing">料金</a> | <a href="https://videoq.jp/docs">開発者ドキュメント</a></p>
       </div>
       <div lang="en">
-        <h2>VideoQ — AI Video Navigator</h2>
-        <p>VideoQ is an AI-powered video learning platform for educators and learners. Upload your video files to get automatic, high-accuracy transcriptions powered by OpenAI Whisper. Once transcribed, you can ask questions about the video content in natural language through a RAG (Retrieval-Augmented Generation) chat interface grounded in the transcript text.</p>
-        <p>VideoQ provides an OpenAI-compatible API endpoint (/api/v1/chat/completions) so you can use any existing OpenAI client or SDK to interact with your video library. It also supports MCP (Model Context Protocol) server integration for use with Claude Desktop and other MCP clients.</p>
-        <h2>Key Features</h2>
-        <ul>
-          <li>Automatic video transcription via OpenAI Whisper</li>
-          <li>RAG chat: ask questions about video content in natural language</li>
-          <li>OpenAI-compatible API endpoint (/api/v1/chat/completions)</li>
-          <li>MCP server integration (Claude Desktop and more)</li>
-          <li>Video groups and public share links</li>
-          <li>Educational analytics dashboard (keyword cloud, question trends)</li>
-          <li>Multi-locale support (Japanese and English)</li>
-        </ul>
-        <p><a href="https://videoq.jp/signup">Get Started for Free</a> | <a href="https://videoq.jp/docs">Developer Docs</a></p>
+        <h2>Search lecture videos. Play from the part you need.</h2>
+        <p>VideoQ transcribes and searches lecture videos and class recordings. It is not a meeting transcript tool. YouTube lecture URLs work too. Ask the video a question and play from the moment you need.</p>
+        <p><a href="https://videoq.jp/en/signup">Start free</a> | <a href="https://videoq.jp/en/pricing">Pricing</a> | <a href="https://videoq.jp/en/docs">Developer docs</a></p>
       </div>
     </noscript>
     <script type="module" src="/src/main.tsx"></script>

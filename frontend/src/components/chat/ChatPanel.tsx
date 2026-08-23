@@ -7,6 +7,7 @@ import { useChatHistory } from '@/hooks/useChatHistory';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { ChatHistoryView } from '@/components/chat/ChatHistoryView';
 import { ChatMessagesView } from '@/components/chat/ChatMessagesView';
+import { Button } from '@/components/ui/button';
 import { Heading, HeadingTitle } from '@/components/ui/heading';
 
 interface ChatPanelProps {
@@ -15,12 +16,20 @@ interface ChatPanelProps {
   shareToken?: string;
   className?: string;
   showHistory?: boolean;
+  suggestedQuestions?: string[];
 }
 
 type PanelTab = 'chat' | 'history';
 type ChatMode = 'qa' | 'study';
 
-export function ChatPanel({ groupId, onVideoPlay, shareToken, className, showHistory = true }: ChatPanelProps) {
+export function ChatPanel({
+  groupId,
+  onVideoPlay,
+  shareToken,
+  className,
+  showHistory = true,
+  suggestedQuestions,
+}: ChatPanelProps) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<PanelTab>('chat');
   const [mode, setMode] = useState<ChatMode>('qa');
@@ -91,7 +100,7 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className, showHis
     <div className={containerClass}>
       <div className="px-4 py-3 border-b border-solid-gray-200 shrink-0 flex items-center justify-between gap-4">
         <Heading size="18" className="shrink-0">
-          <HeadingTitle level="h2">{t('chat.title')}</HeadingTitle>
+          <HeadingTitle level={shareToken ? 'h3' : 'h2'}>{t('chat.title')}</HeadingTitle>
         </Heading>
         {showTabs && (
           <div className="flex gap-4">
@@ -166,6 +175,26 @@ export function ChatPanel({ groupId, onVideoPlay, shareToken, className, showHis
             onVideoNavigate={navigateToVideo}
             onFeedback={handleFeedbackWithSync}
           />
+          {suggestedQuestions && suggestedQuestions.length > 0 ? (
+            <div
+              className="flex flex-wrap gap-2 px-4 pb-3"
+              role="group"
+              aria-label={t('chat.suggestedQuestions')}
+            >
+              {suggestedQuestions.map((question) => (
+                <Button
+                  key={question}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isLoading}
+                  onClick={() => setInput(question)}
+                >
+                  {question}
+                </Button>
+              ))}
+            </div>
+          ) : null}
           <ChatComposer
             input={input}
             isLoading={isLoading}
