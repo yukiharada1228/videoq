@@ -1,4 +1,4 @@
-import { type SiteLocale } from './seo';
+import { normalizePathname, type SiteLocale } from './seo';
 
 export const DEFAULT_COPY: Record<SiteLocale, { title: string; description: string }> = {
   ja: {
@@ -155,10 +155,11 @@ export function resolveFirstByteCopy(
   locale: SiteLocale,
   path: string,
 ): { title: string; description: string } {
+  path = normalizePathname(path);
   const exact = PAGE_COPY[locale][path];
   if (exact) return exact;
 
-  const docsMatch = path.match(/^\/docs\/([^/]+)\/?$/);
+  const docsMatch = path.match(/^\/docs\/([^/]+)$/);
   if (docsMatch) {
     return DOCS_SECTION_COPY[locale][docsMatch[1]] ?? PAGE_COPY[locale]['/docs'];
   }

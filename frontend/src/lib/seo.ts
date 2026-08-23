@@ -37,17 +37,24 @@ const NOINDEX_PREFIXES = [
 
 export type SiteLocale = 'en' | 'ja';
 
+export function normalizePathname(pathname: string): string {
+  const withSlash = pathname.startsWith('/') ? pathname : `/${pathname}`;
+  if (withSlash === '/') return '/';
+  return withSlash.replace(/\/+$/, '');
+}
+
 export function sharePathSlug(pathname: string): string | null {
-  const match = pathname.match(/^\/share\/([^/]+)\/?$/);
+  const match = normalizePathname(pathname).match(/^\/share\/([^/]+)$/);
   return match?.[1] ?? null;
 }
 
 export function isNoindexPath(pathname: string): boolean {
-  return NOINDEX_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  const normalized = normalizePathname(pathname);
+  return NOINDEX_PREFIXES.some((prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`));
 }
 
 export function localizedPath(pathname: string, locale: SiteLocale): string {
-  const normalized = pathname.startsWith('/') ? pathname : `/${pathname}`;
+  const normalized = normalizePathname(pathname);
   if (locale === 'ja') return normalized;
   return normalized === '/' ? '/en/' : `/en${normalized}`;
 }
@@ -71,6 +78,7 @@ export function hreflangEntries(pathname: string): { lang: string; href: string 
 }
 
 export function pageMetaKey(pathname: string): string {
+  pathname = normalizePathname(pathname);
   if (pathname === '/') return 'site';
   if (pathname === '/pricing') return 'pricing';
   if (pathname === '/docs') return 'docs';

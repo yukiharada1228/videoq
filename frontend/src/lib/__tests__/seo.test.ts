@@ -64,6 +64,12 @@ describe('pageMetaKey', () => {
     expect(pageMetaKey('/legal')).toBe('legal.scta')
     expect(pageMetaKey('/share/yobinori-linearalgebra')).toBe('share:yobinori-linearalgebra')
   })
+
+  it('treats a trailing slash as the same page', () => {
+    expect(pageMetaKey('/docs/')).toBe('docs')
+    expect(pageMetaKey('/docs/openai/')).toBe('docs:openai')
+    expect(pageMetaKey('/pricing/')).toBe('pricing')
+  })
 })
 
 describe('PUBLIC_INDEX_PATHS', () => {
@@ -86,6 +92,15 @@ describe('resolveFirstByteCopy', () => {
     expect(resolveFirstByteCopy('ja', '/docs/openai').title).toBe('OpenAI 互換 API | VideoQ')
     expect(resolveFirstByteCopy('en', '/docs/auth').title).toBe('Authentication and account | VideoQ')
     expect(resolveFirstByteCopy('ja', '/docs/openai').title).not.toBe(DEFAULT_COPY.ja.title)
+  })
+
+  it('keeps the same copy when the path has a trailing slash', () => {
+    expect(resolveFirstByteCopy('ja', '/docs/')).toEqual(resolveFirstByteCopy('ja', '/docs'))
+    expect(resolveFirstByteCopy('ja', '/pricing/')).toEqual(resolveFirstByteCopy('ja', '/pricing'))
+    expect(resolveFirstByteCopy('en', '/docs/openai/').title).toBe(
+      resolveFirstByteCopy('en', '/docs/openai').title,
+    )
+    expect(resolveFirstByteCopy('ja', '/docs/').title).not.toBe(DEFAULT_COPY.ja.title)
   })
 
   it('does not reuse the homepage title for other public index paths', () => {
