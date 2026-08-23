@@ -31,8 +31,8 @@ export const PLAN_CATALOG: Record<PlanCode, PlanDefinition> = {
     entitlements: {
       maxVideoUploadSizeMb: 200,
       storageLimitGb: 1,
-      processingLimitMinutes: 10,
-      aiAnswersLimit: 15,
+      processingLimitMinutes: 45,
+      aiAnswersLimit: 30,
     },
   },
   basic: {
@@ -42,8 +42,8 @@ export const PLAN_CATALOG: Record<PlanCode, PlanDefinition> = {
     entitlements: {
       maxVideoUploadSizeMb: 1024,
       storageLimitGb: 20,
-      processingLimitMinutes: 120,
-      aiAnswersLimit: 300,
+      processingLimitMinutes: 300,
+      aiAnswersLimit: 500,
     },
   },
   pro: {
@@ -53,8 +53,8 @@ export const PLAN_CATALOG: Record<PlanCode, PlanDefinition> = {
     entitlements: {
       maxVideoUploadSizeMb: 2048,
       storageLimitGb: 100,
-      processingLimitMinutes: 600,
-      aiAnswersLimit: 1500,
+      processingLimitMinutes: 1500,
+      aiAnswersLimit: 2500,
     },
   },
 };

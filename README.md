@@ -148,8 +148,8 @@ New accounts receive a monthly free tier automatically (override per user later 
 |----------|-------------|
 | Max video upload size (MB) | 200 (`MAX_VIDEO_UPLOAD_SIZE_MB`) |
 | Storage limit (GB) | 1 (`DEFAULT_STORAGE_LIMIT_GB`) |
-| Processing limit (minutes / month) | 10 (`DEFAULT_PROCESSING_LIMIT_MINUTES`) |
-| AI answers limit (per month) | 15 (`DEFAULT_AI_ANSWERS_LIMIT`) |
+| Processing limit (minutes / month) | 45 (`DEFAULT_PROCESSING_LIMIT_MINUTES`) |
+| AI answers limit (per month) | 30 (`DEFAULT_AI_ANSWERS_LIMIT`) |
 
 Use `null` or `unlimited` in those env vars for no cap. `0` is a hard zero quota. In Admin, leave a field blank to set unlimited (`null`). AI answers and processing usage reset each UTC month.
 
