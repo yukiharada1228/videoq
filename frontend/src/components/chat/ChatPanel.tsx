@@ -92,7 +92,7 @@ export function ChatPanel({
   const showTabs = !!groupId && !shareToken && showHistory;
 
   const containerClass = cn(
-    'flex flex-col overflow-hidden border border-solid-gray-420 bg-white',
+    'flex min-h-0 flex-col overflow-hidden border border-solid-gray-420 bg-white',
     className ?? 'h-[500px] lg:h-[600px]',
   );
 
@@ -177,7 +177,7 @@ export function ChatPanel({
           />
           {suggestedQuestions && suggestedQuestions.length > 0 ? (
             <div
-              className="flex flex-wrap gap-2 px-4 pb-3"
+              className="flex shrink-0 flex-wrap gap-2 px-4 pb-3"
               role="group"
               aria-label={t('chat.suggestedQuestions')}
             >
