@@ -162,7 +162,7 @@ export function LandingTryDemo() {
               </div>
             </div>
 
-            <div className="lg:col-span-5">
+            <div className="relative min-h-[32rem] lg:col-span-5">
               <ChatPanel
                 key={sample.slug}
                 groupId={group.id}
@@ -170,7 +170,7 @@ export function LandingTryDemo() {
                 showHistory={false}
                 suggestedQuestions={suggestedQuestions}
                 onVideoPlay={handleVideoPlayFromTime}
-                className="h-[32rem] border-0 lg:h-full lg:min-h-[32rem]"
+                className="h-[32rem] border-0 lg:absolute lg:inset-0 lg:h-full"
               />
             </div>
           </div>
