@@ -58,6 +58,10 @@ export function absoluteUrl(pathname: string, locale: SiteLocale): string {
   return `${SITE_ORIGIN}${path}`;
 }
 
+export function withQueryAndHash(pathname: string, search = '', hash = ''): string {
+  return `${pathname}${search}${hash}`;
+}
+
 export function hreflangEntries(pathname: string): { lang: string; href: string }[] {
   return [
     { lang: 'ja', href: absoluteUrl(pathname, 'ja') },

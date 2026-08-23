@@ -1,3 +1,4 @@
+import { DEFAULT_COPY, resolveFirstByteCopy } from '../pageCopy'
 import {
   PUBLIC_INDEX_PATHS,
   absoluteUrl,
@@ -5,6 +6,7 @@ import {
   isNoindexPath,
   localizedPath,
   pageMetaKey,
+  withQueryAndHash,
 } from '../seo'
 
 describe('isNoindexPath', () => {
@@ -72,5 +74,31 @@ describe('PUBLIC_INDEX_PATHS', () => {
     expect(PUBLIC_INDEX_PATHS).not.toContain('/share/aicia-deeplearning')
     expect(PUBLIC_INDEX_PATHS).toContain('/')
     expect(PUBLIC_INDEX_PATHS).toContain('/pricing')
+  })
+})
+
+describe('resolveFirstByteCopy', () => {
+  it('keeps the homepage copy on /', () => {
+    expect(resolveFirstByteCopy('ja', '/')).toEqual(DEFAULT_COPY.ja)
+  })
+
+  it('uses section copy for indexable docs pages', () => {
+    expect(resolveFirstByteCopy('ja', '/docs/openai').title).toBe('OpenAI 互換 API | VideoQ')
+    expect(resolveFirstByteCopy('en', '/docs/auth').title).toBe('Authentication and account | VideoQ')
+    expect(resolveFirstByteCopy('ja', '/docs/openai').title).not.toBe(DEFAULT_COPY.ja.title)
+  })
+
+  it('does not reuse the homepage title for other public index paths', () => {
+    for (const path of PUBLIC_INDEX_PATHS) {
+      if (path === '/') continue
+      expect(resolveFirstByteCopy('ja', path).title).not.toBe(DEFAULT_COPY.ja.title)
+      expect(resolveFirstByteCopy('en', path).title).not.toBe(DEFAULT_COPY.en.title)
+    }
+  })
+})
+
+describe('withQueryAndHash', () => {
+  it('keeps search and hash when stripping a locale prefix', () => {
+    expect(withQueryAndHash('/pricing', '?plan=pro', '#plans')).toBe('/pricing?plan=pro#plans')
   })
 })
