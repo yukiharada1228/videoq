@@ -1,3 +1,4 @@
+import type { Context } from "hono";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { AppEnv } from "./types/bindings";
 import { requestId } from "./middleware/request-id";
@@ -73,18 +74,22 @@ export function createApp() {
       return oauthProviderOpenIdConfigMetadata(auth as never)(c.req.raw);
     });
   });
-  app.get("/.well-known/oauth-protected-resource", (c) => {
+  const protectedResourceMetadata = (c: Context<AppEnv>) => {
     const origin = new URL(c.req.url).origin;
+    const issuer = (
+      c.env.BETTER_AUTH_URL?.trim() ||
+      c.env.OAUTH_ISSUER_URL?.trim() ||
+      c.env.FRONTEND_URL?.trim() ||
+      origin
+    ).replace(/\/+$/, "");
     return c.json({
-      resource: `${origin}/api/mcp`,
-      authorization_servers: [
-        c.env.BETTER_AUTH_URL?.trim() ||
-          c.env.OAUTH_ISSUER_URL?.trim() ||
-          c.env.FRONTEND_URL?.trim() ||
-          origin,
-      ],
+      resource: `${issuer}/api/mcp`,
+      authorization_servers: [issuer],
     });
-  });
+  };
+  app.get("/.well-known/oauth-protected-resource", protectedResourceMetadata);
+  // RFC 9728 path form. MCP 401 の resource_metadata が指す先。
+  app.get("/.well-known/oauth-protected-resource/api/mcp", protectedResourceMetadata);
 
   app.route("/api/account", accountRoutes);
   app.route("/api/billing", billingRoutes);
