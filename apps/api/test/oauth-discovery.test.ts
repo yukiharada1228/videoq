@@ -36,6 +36,21 @@ describe("OAuth discovery", () => {
     });
   });
 
+  it("serves RFC 9728 metadata at both resource well-known URLs", async () => {
+    const expected = {
+      resource: "https://api.example.com/api/mcp",
+      authorization_servers: ["https://api.example.com"],
+    };
+    for (const path of [
+      "/.well-known/oauth-protected-resource",
+      "/.well-known/oauth-protected-resource/api/mcp",
+    ]) {
+      const res = await createApp().request(path, {}, ENV);
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual(expected);
+    }
+  });
+
   it("serves OpenID metadata below the issuer path", async () => {
     const res = await createApp().request(
       "/api/auth/.well-known/openid-configuration",
