@@ -96,7 +96,7 @@ export const onRequest: PagesFunction = async (context) => {
   if (pathname === '/ja' || pathname === '/ja/' || pathname.startsWith('/ja/')) {
     const rest = pathname === '/ja' || pathname === '/ja/' ? '/' : pathname.slice(3);
     const dest = rest.startsWith('/') ? rest : `/${rest}`;
-    return Response.redirect(new URL(dest + search, url.origin), 301);
+    return Response.redirect(new URL(dest + search, url.origin).href, 301);
   }
 
   const response = await context.next();
