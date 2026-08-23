@@ -60,6 +60,11 @@ describe('AppNav - no authenticated user (empty cache)', () => {
     expect(within(getPrimaryNav()).getByText('navigation.docs')).toBeInTheDocument()
   })
 
+  it('shows pricing nav link', () => {
+    render(<AppNav />)
+    expect(within(getPrimaryNav()).getByText('navigation.pricing')).toBeInTheDocument()
+  })
+
   it('shows login button', () => {
     render(<AppNav />)
     expect(screen.getAllByText('auth.login.submit').length).toBeGreaterThan(0)

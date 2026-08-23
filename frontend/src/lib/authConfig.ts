@@ -81,5 +81,6 @@ export const PUBLIC_AUTH_PATHS = [
 ] as const;
 
 export function isPublicAuthPath(pathname: string): boolean {
-  return PUBLIC_AUTH_PATHS.some((path) => pathname.startsWith(path));
+  if (pathname === '/') return true;
+  return PUBLIC_AUTH_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }

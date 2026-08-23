@@ -3,8 +3,8 @@ import { initReactI18next } from 'react-i18next';
 import enTranslation from './locales/en/translation.json';
 import jaTranslation from './locales/ja/translation.json';
 
-export const defaultLocale = 'en';
-export const locales = ['en', 'ja'] as const;
+export const defaultLocale = 'ja';
+export const locales = ['ja', 'en'] as const;
 export type Locale = typeof locales[number];
 
 i18n.use(initReactI18next).init({

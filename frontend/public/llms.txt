@@ -1,50 +1,63 @@
 # VideoQ
 
-> VideoQはAI動画ナビゲーターです。教育者・学習者向けの動画学習プラットフォームで、動画をアップロードするとOpenAI Whisperで高精度な自動文字起こしが行われ、PGVectorを使ったRAGチャットで動画の内容に自然言語で質問できます。OpenAI互換APIエンドポイントとMCPサーバー統合も提供します。
+> VideoQは、講義動画・授業録画を文字起こしして検索する学習サービスです。動画に質問すると、見たいところから再生できます。YouTubeの講義URLでも使えます。会議の文字起こしではなく、授業を見返すためのツールです。
 
-VideoQ is an AI-powered video learning platform designed for educators and learners. Upload video files to receive automatic, high-accuracy transcriptions via OpenAI Whisper. Once transcribed, query the video content through a RAG (Retrieval-Augmented Generation) chat interface backed by PGVector semantic search. VideoQ exposes an OpenAI-compatible API endpoint (/api/v1/chat/completions), enabling any existing OpenAI client or SDK to interact with your video library without code changes. It also supports MCP (Model Context Protocol) server integration for use with Claude Desktop and other AI agent clients. A built-in educational analytics dashboard provides keyword cloud visualizations and question trend analysis to help instructors understand how learners engage with video content. Both Japanese and English interfaces are fully supported.
+VideoQ transcribes and searches lecture videos and class recordings. Ask the video a question and play from the moment you need. YouTube lecture URLs work too. It is a learning tool for reviewing class, not a meeting transcript product.
 
 ## Key Features
 
-- 動画の自動文字起こし（OpenAI Whisper）
-- Automatic video transcription via OpenAI Whisper
-- RAGチャット：動画の内容に自然言語で質問
-- RAG chat: ask questions about video content in natural language
-- OpenAI互換APIエンドポイント（/api/v1/chat/completions）
-- OpenAI-compatible API endpoint (/api/v1/chat/completions)
-- MCPサーバー統合対応（Claude Desktop など）
-- MCP server integration (Claude Desktop and more)
-- 動画グループとパブリック共有リンク
-- Video groups and public share links
-- 教育分析ダッシュボード（キーワードクラウド、質問トレンド）
-- Educational analytics dashboard (keyword cloud, question trends)
-- マルチロケール対応（日本語・英語）
-- Multi-locale support (Japanese and English)
+- 講義動画・授業録画の自動文字起こし
+- Automatic transcription of lecture videos and class recordings
+- 動画に質問して、見たいところから再生
+- Ask a lecture a question and play from that scene
+- YouTubeの講義URLの登録
+- Register YouTube lecture URLs
+- クラスや研修チームへの講義共有
+- Share lecture groups with a class or training team
+- 学生の質問傾向の確認
+- Review what students asked about a lecture
+- 日本語・英語のインターフェース
+- Japanese and English interfaces
 
 ## Pricing
 
-VideoQは無料で始められます。アカウント登録後すぐに動画のアップロードと文字起こしが利用可能です。クレジットカード不要。
+VideoQは無料で始められます。クレジットカードは不要です。Free / Basic / Pro のプランがあります。
 
-VideoQ is free to start. After signing up, you can immediately upload videos and use AI transcription with no credit card required.
+VideoQ is free to start. No credit card is required. Plans are Free, Basic, and Pro.
 
-- [Sign up for free (EN)](https://videoq.jp/signup)
-- [Sign up for free (JA)](https://videoq.jp/ja/signup)
+- [無料で始める](https://videoq.jp/signup)
+- [Start free](https://videoq.jp/en/signup)
+- [料金](https://videoq.jp/pricing)
+- [Pricing](https://videoq.jp/en/pricing)
 
 ## Use Cases
 
 ### 教育機関 / Education
 
-大学・専門学校の講義録画をVideoQにアップロードすることで、学生は授業の内容を自然言語で検索・質問できます。
+大学や専門学校の授業録画を登録すると、学生は講義動画を検索して「線形代数とは？」と聞けます。通し視聴ではなく、分からない点からの復習が中心になります。
 
-Universities and vocational schools can upload lecture recordings to VideoQ, enabling students to search and ask questions about course content in natural language.
+When a university or vocational course registers class recordings, students can search the lecture video and ask what they did not understand. Review starts from that part, not from the beginning.
 
 ### 反転授業・オンライン授業 / Flipped and Online Classrooms
 
-予習用の動画教材を配信し、学生がつまずいた箇所を質問した記録を教員が分析できます。どの説明が伝わっていないかを、次の授業までに把握できます。
+予習用の講義動画を配布し、学生がつまずいた箇所を質問した記録を教員が確認できます。
 
-Distribute pre-class video materials and let instructors analyse what students actually asked about. Teachers can see which explanations did not land before the next session.
+Distribute lecture videos before class and review what students asked. Teachers can see which explanations did not land before the next session.
+
+## Public samples
+
+登録なしで、公開中の講義に質問できます。
+
+Ask a public lecture without creating an account.
+
+- [【ヨビノリ】線形代数](https://videoq.jp/share/yobinori-linearalgebra)
+- [Deep Learning の世界](https://videoq.jp/share/aicia-deeplearning)
 
 ## Integrations
+
+開発者向けに、OpenAI互換APIとMCPも提供しています。
+
+VideoQ also exposes developer integrations.
 
 ### OpenAI-Compatible API
 

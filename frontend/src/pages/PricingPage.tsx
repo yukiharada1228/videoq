@@ -77,7 +77,7 @@ export default function PricingPage() {
   }
 
   return (
-    <AppPageShell>
+    <AppPageShell activePage="pricing">
       <AppPageHeader
         title={t('pricing.title')}
         description={t('pricing.subtitle')}

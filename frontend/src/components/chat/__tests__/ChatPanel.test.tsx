@@ -108,6 +108,14 @@ describe('ChatPanel', () => {
     expect(screen.queryByText(/chat.history/)).not.toBeInTheDocument()
   })
 
+  it('fills the composer when a suggested question is clicked', () => {
+    render(<ChatPanel groupId={1} shareToken="token123" suggestedQuestions={['CNNとは？']} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'CNNとは？' }))
+
+    expect(screen.getByLabelText(/chat.placeholder/)).toHaveValue('CNNとは？')
+  })
+
   it('should handle video navigation', async () => {
     const onVideoPlay = vi.fn()
     ;(apiClient.chatStream as any).mockImplementation(makeStreamMock({

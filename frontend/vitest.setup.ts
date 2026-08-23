@@ -252,8 +252,8 @@ vi.mock('@/lib/i18n', () => ({
   Link: ({ children, to, href, ...props }: { children?: React.ReactNode; to?: unknown; href?: string } & Record<string, unknown>) =>
     React.createElement('a', { href: href || (typeof to === 'string' ? to : ''), ...props }, children),
   i18nConfig: {
-    locales: ['en', 'ja'],
-    defaultLocale: 'en',
+    locales: ['ja', 'en'],
+    defaultLocale: 'ja',
   },
 }))
 
@@ -303,6 +303,38 @@ vi.mock('@/lib/api', async (importOriginal) => {
     chat: vi.fn(() => Promise.resolve({ response: 'Mock chat response' })),
     getVideoUrl: vi.fn(mockGetVideoUrl),
     getSharedVideoUrl: vi.fn(mockGetSharedVideoUrl),
+    getSharedGroup: vi.fn((slug: string) => Promise.resolve({
+      id: slug === 'aicia-deeplearning' ? 2 : 1,
+      name: slug === 'aicia-deeplearning' ? 'Deep Learning の世界' : '【ヨビノリ】線形代数',
+      description: '',
+      display_order: 0,
+      created_at: '2024-01-01T00:00:00Z',
+      video_count: 1,
+      videos: [
+        {
+          id: 1,
+          title: 'Sample lecture 1',
+          description: '',
+          file: null,
+          source_type: 'youtube',
+          youtube_embed_url: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+          uploaded_at: '2024-01-01T00:00:00Z',
+          status: 'completed',
+          order: 0,
+        },
+        {
+          id: 2,
+          title: 'Sample lecture 2',
+          description: '',
+          file: null,
+          source_type: 'youtube',
+          youtube_embed_url: 'https://www.youtube.com/embed/oHg5SJYRHA0',
+          uploaded_at: '2024-01-02T00:00:00Z',
+          status: 'completed',
+          order: 1,
+        },
+      ],
+    })),
     logout: vi.fn(() => Promise.resolve()),
     setUnauthorizedHandler: vi.fn(),
     getBillingPlans: vi.fn(() => Promise.resolve([])),

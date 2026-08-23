@@ -21,7 +21,7 @@ import {
 import { UtilityLink } from '@/components/ui/utility-link';
 import { formatDate, getStatusLabel } from '@/lib/utils/video';
 import { useTranslation } from 'react-i18next';
-import LoginPage from '@/pages/LoginPage';
+import LandingPage from '@/pages/LandingPage';
 import { cn } from '@/lib/digital-agency/cn';
 import { Upload } from 'lucide-react';
 
@@ -108,7 +108,7 @@ export default function HomePage() {
   }
 
   if (!currentUser) {
-    return <LoginPage />;
+    return <LandingPage />;
   }
 
   if (isLoadingData) {

@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom';
-import { addLocalePrefix, getPreferredLocale, useLocaleSync } from '@/lib/i18n';
+import { addLocalePrefix, getSavedLocale, useLocaleSync } from '@/lib/i18n';
 import { defaultLocale, locales, type Locale } from '@/i18n/config';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 
@@ -45,11 +45,12 @@ function LocaleGate() {
     return <Navigate to={withoutLocale + location.search} replace />;
   }
 
-  // If user prefers non-default locale, redirect to /:locale/... automatically.
+  // Returning visitors who explicitly chose English. Never use Accept-Language
+  // here — Googlebot would be sent to /en/ and index English as the homepage.
   if (!locale) {
-    const preferred = getPreferredLocale();
-    if (preferred !== defaultLocale) {
-      const nextPath = addLocalePrefix(location.pathname, preferred) + location.search;
+    const saved = getSavedLocale();
+    if (saved && saved !== defaultLocale) {
+      const nextPath = addLocalePrefix(location.pathname, saved) + location.search;
       return <Navigate to={nextPath} replace />;
     }
   }
