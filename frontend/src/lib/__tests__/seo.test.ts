@@ -22,8 +22,6 @@ describe('isNoindexPath', () => {
     expect(isNoindexPath('/login')).toBe(true)
     expect(isNoindexPath('/signup/check-email')).toBe(true)
     expect(isNoindexPath('/share/token')).toBe(true)
-    expect(isNoindexPath('/share/yobinori-linearalgebra')).toBe(true)
-    expect(isNoindexPath('/share/aicia-deeplearning')).toBe(true)
   })
 
   it('keeps public marketing and legal pages indexable', () => {
@@ -62,7 +60,7 @@ describe('pageMetaKey', () => {
     expect(pageMetaKey('/pricing')).toBe('pricing')
     expect(pageMetaKey('/docs/chat')).toBe('docs:chat')
     expect(pageMetaKey('/legal')).toBe('legal.scta')
-    expect(pageMetaKey('/share/yobinori-linearalgebra')).toBe('share:yobinori-linearalgebra')
+    expect(pageMetaKey('/share/token')).toBe('share:token')
   })
 
   it('treats a trailing slash as the same page', () => {
@@ -76,8 +74,7 @@ describe('PUBLIC_INDEX_PATHS', () => {
   it('does not include app, auth, or share routes', () => {
     expect(PUBLIC_INDEX_PATHS).not.toContain('/videos')
     expect(PUBLIC_INDEX_PATHS).not.toContain('/login')
-    expect(PUBLIC_INDEX_PATHS).not.toContain('/share/yobinori-linearalgebra')
-    expect(PUBLIC_INDEX_PATHS).not.toContain('/share/aicia-deeplearning')
+    expect(PUBLIC_INDEX_PATHS).not.toContain('/share/token')
     expect(PUBLIC_INDEX_PATHS).toContain('/')
     expect(PUBLIC_INDEX_PATHS).toContain('/pricing')
   })

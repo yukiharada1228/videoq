@@ -24,16 +24,14 @@ describe('LandingPage', () => {
     )
   })
 
-  it('lets visitors use the public sample lectures in the demo', async () => {
-    render(<LandingPage />)
+  it('lets visitors try an owned demo lecture', () => {
+    const { container } = render(<LandingPage />)
 
     expect(screen.getByRole('heading', { level: 2, name: 'landing.demo.title' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'landing.publicSamples.linearAlgebra.title' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'landing.publicSamples.deepLearning.title' })).toBeInTheDocument()
-    expect(await screen.findByRole('link', { name: 'landing.demo.openFull' })).toHaveAttribute(
-      'href',
-      '/share/yobinori-linearalgebra',
-    )
+    expect(screen.getByRole('button', { name: 'landing.demo.questions.jump' })).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: 'landing.tryOwn' })[0]).toHaveAttribute('href', '/signup')
+    expect(container.innerHTML).not.toContain('/share/')
+    expect(container.textContent).not.toMatch(/yobinori|aicia|ヨビノリ/i)
   })
 
   it('does not mention a public repository or society journal', () => {
