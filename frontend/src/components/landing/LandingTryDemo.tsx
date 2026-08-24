@@ -96,23 +96,15 @@ export function LandingTryDemo() {
 
   const suggestedQuestions = LANDING_DEMO_QUESTION_KEYS.map((key) => questionLabels[key]);
   const lectureTitle = t('landing.demo.lectureTitle');
+  const isPlaying = playing && currentTime < LANDING_DEMO_DURATION_SECONDS;
 
   useEffect(() => {
-    if (!playing) return undefined;
+    if (!isPlaying) return undefined;
     const id = window.setInterval(() => {
-      setCurrentTime((prev) => {
-        if (prev >= LANDING_DEMO_DURATION_SECONDS) return prev;
-        return Math.min(prev + 0.25, LANDING_DEMO_DURATION_SECONDS);
-      });
+      setCurrentTime((prev) => Math.min(prev + 0.25, LANDING_DEMO_DURATION_SECONDS));
     }, 250);
     return () => window.clearInterval(id);
-  }, [playing]);
-
-  useEffect(() => {
-    if (playing && currentTime >= LANDING_DEMO_DURATION_SECONDS) {
-      setPlaying(false);
-    }
-  }, [playing, currentTime]);
+  }, [isPlaying]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView?.({ block: 'nearest' });
@@ -123,6 +115,17 @@ export function LandingTryDemo() {
     setCurrentTime(next);
     if (options?.play) setPlaying(true);
   }, []);
+
+  const togglePlay = useCallback(() => {
+    if (isPlaying) {
+      setPlaying(false);
+      return;
+    }
+    if (currentTime >= LANDING_DEMO_DURATION_SECONDS) {
+      setCurrentTime(0);
+    }
+    setPlaying(true);
+  }, [currentTime, isPlaying]);
 
   const handleVideoNavigate = useCallback((videoId: number, startTime: string) => {
     if (videoId !== LANDING_DEMO_VIDEO_ID) return;
@@ -187,8 +190,8 @@ export function LandingTryDemo() {
             </div>
             <LandingDemoPlayer
               currentTime={currentTime}
-              playing={playing}
-              onTogglePlay={() => setPlaying((prev) => !prev)}
+              playing={isPlaying}
+              onTogglePlay={togglePlay}
               onSeek={seekTo}
             />
           </div>
