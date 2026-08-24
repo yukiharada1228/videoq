@@ -61,16 +61,16 @@
     <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/docs/videos" />
   </url>
   <url>
-    <loc>https://videoq.jp/docs/groups</loc>
-    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/docs/groups" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/en/docs/groups" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/docs/groups" />
+    <loc>https://videoq.jp/docs/courses</loc>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/docs/courses" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/en/docs/courses" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/docs/courses" />
   </url>
   <url>
-    <loc>https://videoq.jp/en/docs/groups</loc>
-    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/docs/groups" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/en/docs/groups" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/docs/groups" />
+    <loc>https://videoq.jp/en/docs/courses</loc>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/docs/courses" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/en/docs/courses" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/docs/courses" />
   </url>
   <url>
     <loc>https://videoq.jp/docs/tags</loc>

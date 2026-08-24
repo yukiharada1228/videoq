@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest'
 import {
-  convertVideoInGroupToSelectedVideo,
+  convertVideoInCourseToSelectedVideo,
   convertVideoListToSelectedVideo,
   createVideoIdSet,
   extractVideoIds,
 } from '../videoConversion'
-import type { VideoInGroup, VideoList } from '@/lib/api'
+import type { VideoInCourse, VideoList } from '@/lib/api'
 
-describe('convertVideoInGroupToSelectedVideo', () => {
-  it('should convert VideoInGroup to SelectedVideo', () => {
-    const videoInGroup: VideoInGroup = {
+describe('convertVideoInCourseToSelectedVideo', () => {
+  it('should convert VideoInCourse to SelectedVideo', () => {
+    const videoInCourse: VideoInCourse = {
       id: 1,
       title: 'Test Video',
       description: 'Test Description',
@@ -19,7 +19,7 @@ describe('convertVideoInGroupToSelectedVideo', () => {
       uploaded_at: '2024-01-01T00:00:00Z',
     }
 
-    const result = convertVideoInGroupToSelectedVideo(videoInGroup)
+    const result = convertVideoInCourseToSelectedVideo(videoInCourse)
 
     expect(result).toEqual({
       id: 1,
@@ -31,7 +31,7 @@ describe('convertVideoInGroupToSelectedVideo', () => {
   })
 
   it('should handle null file', () => {
-    const videoInGroup: VideoInGroup = {
+    const videoInCourse: VideoInCourse = {
       id: 2,
       title: 'No File Video',
       description: '',
@@ -41,13 +41,13 @@ describe('convertVideoInGroupToSelectedVideo', () => {
       uploaded_at: '2024-01-01T00:00:00Z',
     }
 
-    const result = convertVideoInGroupToSelectedVideo(videoInGroup)
+    const result = convertVideoInCourseToSelectedVideo(videoInCourse)
 
     expect(result.file).toBeNull()
   })
 
   it('should handle empty description', () => {
-    const videoInGroup: VideoInGroup = {
+    const videoInCourse: VideoInCourse = {
       id: 3,
       title: 'Video',
       description: '',
@@ -57,7 +57,7 @@ describe('convertVideoInGroupToSelectedVideo', () => {
       uploaded_at: '2024-01-01T00:00:00Z',
     }
 
-    const result = convertVideoInGroupToSelectedVideo(videoInGroup)
+    const result = convertVideoInCourseToSelectedVideo(videoInCourse)
 
     expect(result.description).toBe('')
   })
@@ -141,8 +141,8 @@ describe('createVideoIdSet', () => {
 })
 
 describe('extractVideoIds', () => {
-  it('should extract IDs from VideoInGroup array', () => {
-    const videos: VideoInGroup[] = [
+  it('should extract IDs from VideoInCourse array', () => {
+    const videos: VideoInCourse[] = [
       { id: 1, title: 'V1', description: '', file: null, status: 'completed', order: 0, uploaded_at: '2024-01-01T00:00:00Z' },
       { id: 2, title: 'V2', description: '', file: null, status: 'completed', order: 1, uploaded_at: '2024-01-01T00:00:00Z' },
       { id: 3, title: 'V3', description: '', file: null, status: 'completed', order: 2, uploaded_at: '2024-01-01T00:00:00Z' },
@@ -165,7 +165,7 @@ describe('extractVideoIds', () => {
   })
 
   it('should return empty array for empty input', () => {
-    const videos: VideoInGroup[] = []
+    const videos: VideoInCourse[] = []
 
     const result = extractVideoIds(videos)
 
@@ -173,7 +173,7 @@ describe('extractVideoIds', () => {
   })
 
   it('should preserve order of IDs', () => {
-    const videos: VideoInGroup[] = [
+    const videos: VideoInCourse[] = [
       { id: 5, title: 'V5', description: '', file: null, status: 'completed', order: 0, uploaded_at: '2024-01-01T00:00:00Z' },
       { id: 1, title: 'V1', description: '', file: null, status: 'completed', order: 1, uploaded_at: '2024-01-01T00:00:00Z' },
       { id: 3, title: 'V3', description: '', file: null, status: 'completed', order: 2, uploaded_at: '2024-01-01T00:00:00Z' },

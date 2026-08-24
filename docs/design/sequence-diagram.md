@@ -52,7 +52,7 @@ sequenceDiagram
     participant LLM
     participant SQS
 
-    User->>API: messages + group_id
+    User->>API: messages + course_id
     API->>API: auth / rate limit / validation
     API->>DB: resolve owned videos
     API->>DB: vector search with user/video filters

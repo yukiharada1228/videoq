@@ -1,8 +1,8 @@
 import {
-  getGroupChatHistory,
-  getGroupChatHistoryForExport,
-  deleteGroupChatLogs,
-  getGroupChatAnalytics,
+  getCourseChatHistory,
+  getCourseChatHistoryForExport,
+  deleteCourseChatLogs,
+  getCourseChatAnalytics,
   getFeedbackLog,
   updateChatLogFeedback,
   shareSlugExists as repositoryShareSlugExists,
@@ -14,43 +14,43 @@ export function shareSlugExists(env: Bindings, shareSlug: string) {
   return repositoryShareSlugExists(env, shareSlug);
 }
 
-export async function historyForGroup(
+export async function historyForCourse(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   userId: string,
   limit: number,
   offset: number,
 ) {
-  return getGroupChatHistory(env, groupId, userId, limit, offset);
+  return getCourseChatHistory(env, courseId, userId, limit, offset);
 }
 
 export async function exportHistoryCsv(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   userId: string,
 ) {
-  const res = await getGroupChatHistoryForExport(env, groupId, userId);
+  const res = await getCourseChatHistoryForExport(env, courseId, userId);
   if ("notFound" in res) return { notFound: true } as const;
   return {
     csv: buildChatHistoryCsv(res.rows),
-    filename: `chat_history_group_${groupId}.csv`,
+    filename: `chat_history_course_${courseId}.csv`,
   } as const;
 }
 
 export async function resetHistory(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   userId: string,
 ) {
-  return deleteGroupChatLogs(env, groupId, userId);
+  return deleteCourseChatLogs(env, courseId, userId);
 }
 
-export async function analyticsForGroup(
+export async function analyticsForCourse(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   userId: string,
 ) {
-  return getGroupChatAnalytics(env, groupId, userId);
+  return getCourseChatAnalytics(env, courseId, userId);
 }
 
 export async function submitFeedback(
@@ -63,10 +63,10 @@ export async function submitFeedback(
   if (!log) return { notFound: "Specified chat history not found" } as const;
 
   if (opts.shareSlug) {
-    if (log.group_share_token !== opts.shareSlug) {
+    if (log.course_share_slug !== opts.shareSlug) {
       return { forbidden: "Share token mismatch" } as const;
     }
-  } else if (log.group_user_id !== opts.userId && log.log_user_id !== opts.userId) {
+  } else if (log.course_user_id !== opts.userId && log.log_user_id !== opts.userId) {
     return { forbidden: "No permission to access this history" } as const;
   }
 

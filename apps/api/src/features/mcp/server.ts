@@ -80,21 +80,21 @@ export function createVideoqMcpServer(ctx: McpToolCallContext): McpServer {
   );
 
   server.registerTool(
-    "list_groups",
+    "list_courses",
     {
-      description: MCP_TOOL_DESCRIPTIONS.list_groups,
-      inputSchema: mcpToolSchemas.list_groups,
+      description: MCP_TOOL_DESCRIPTIONS.list_courses,
+      inputSchema: mcpToolSchemas.list_courses,
     },
-    async (args) => runTool("list_groups", args, ctx),
+    async (args) => runTool("list_courses", args, ctx),
   );
 
   server.registerTool(
-    "get_group",
+    "get_course",
     {
-      description: MCP_TOOL_DESCRIPTIONS.get_group,
-      inputSchema: mcpToolSchemas.get_group,
+      description: MCP_TOOL_DESCRIPTIONS.get_course,
+      inputSchema: mcpToolSchemas.get_course,
     },
-    async (args) => runTool("get_group", args, ctx),
+    async (args) => runTool("get_course", args, ctx),
   );
 
   server.registerTool(

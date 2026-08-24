@@ -223,7 +223,7 @@ def delete_video_cascade(
     conn.execute("DELETE FROM plog_summary_nodes WHERE video_id = %s", (video_id,))
     conn.execute("DELETE FROM plog_build_jobs WHERE video_id = %s", (video_id,))
     conn.execute("DELETE FROM video_tags WHERE video_id = %s", (video_id,))
-    conn.execute("DELETE FROM video_group_members WHERE video_id = %s", (video_id,))
+    conn.execute("DELETE FROM video_course_members WHERE video_id = %s", (video_id,))
     conn.execute(
         "DELETE FROM videos WHERE id = %s AND user_id = %s",
         (video_id, user_id),

@@ -28,42 +28,42 @@ import {
   throttledResponse,
 } from "../../lib/rate-limit";
 import {
-  groupCreateSchema,
-  groupDetailSchema,
-  groupIdParamSchema,
-  groupListItemSchema,
-  groupPatchSchema,
-  groupPutSchema,
-  reorderGroupsSchema,
+  courseCreateSchema,
+  courseDetailSchema,
+  courseIdParamSchema,
+  courseListItemSchema,
+  coursePatchSchema,
+  coursePutSchema,
+  reorderCoursesSchema,
   shareLinkSchema,
 } from "./schemas";
-import * as groupService from "./service";
+import * as courseService from "./service";
 
-export const groupRoutes = createFeatureRouter();
+export const courseRoutes = createFeatureRouter();
 
-const groupAuth = requireAuth(apiKeyMethod, sessionMethod);
-const groupWriteGuards = [
+const courseAuth = requireAuth(apiKeyMethod, sessionMethod);
+const courseWriteGuards = [
   requireAuth(apiKeyMethod, sessionMethod),
   requireScope("write"),
 ] as const;
 
-const listGroupsRoute = createRoute({
+const listCoursesRoute = createRoute({
   method: "get",
-  path: "/groups",
-  tags: ["Groups"],
-  summary: "List groups",
-  middleware: [groupAuth] as const,
+  path: "/courses",
+  tags: ["Courses"],
+  summary: "List courses",
+  middleware: [courseAuth] as const,
   request: { query: paginationQuerySchema },
   responses: {
-    200: jsonResponse(createListResponseSchema(groupListItemSchema)),
+    200: jsonResponse(createListResponseSchema(courseListItemSchema)),
     401: errorResponse("Unauthorized"),
   },
 });
 
-groupRoutes.openapi(listGroupsRoute, async (c) => {
+courseRoutes.openapi(listCoursesRoute, async (c) => {
   const userId = c.var.userId!;
   const { limit, offset } = parseLimitOffset(c);
-  const { count, results } = await groupService.listGroups(
+  const { count, results } = await courseService.listCourses(
     c.env,
     userId,
     limit,
@@ -72,171 +72,171 @@ groupRoutes.openapi(listGroupsRoute, async (c) => {
   return c.json(listResponse(results, { total: count, limit, offset }), 200);
 });
 
-const sharedGroupRoute = createRoute({
+const sharedCourseRoute = createRoute({
   method: "get",
-  path: "/groups/share/{slug}",
-  tags: ["Groups"],
-  summary: "Get shared group by slug",
+  path: "/courses/share/{slug}",
+  tags: ["Courses"],
+  summary: "Get shared course by slug",
   request: {
     params: z.object({ slug: z.string().min(1) }),
   },
   responses: {
-    200: jsonResponse(groupDetailSchema),
+    200: jsonResponse(courseDetailSchema),
     404: errorResponse("Not found"),
   },
 });
 
-groupRoutes.openapi(sharedGroupRoute, async (c) => {
+courseRoutes.openapi(sharedCourseRoute, async (c) => {
   const { slug } = c.req.valid("param");
   const denied = await enforceThrottles(c.env, [
     { scope: "chat_share_token_ip", ident: slug ? clientIp(c) : null },
   ]);
   if (denied) return throttledResponse(c, denied);
-  const group = await groupService.getSharedGroup(c.env, slug);
-  if (!group) throw apiNotFound("Share link not found");
-  return c.json(group, 200);
+  const course = await courseService.getSharedCourse(c.env, slug);
+  if (!course) throw apiNotFound("Share link not found");
+  return c.json(course, 200);
 });
 
-const getGroupRoute = createRoute({
+const getCourseRoute = createRoute({
   method: "get",
-  path: "/groups/{id}",
-  tags: ["Groups"],
-  summary: "Get group detail",
-  middleware: [groupAuth] as const,
-  request: { params: groupIdParamSchema },
+  path: "/courses/{id}",
+  tags: ["Courses"],
+  summary: "Get course detail",
+  middleware: [courseAuth] as const,
+  request: { params: courseIdParamSchema },
   responses: {
-    200: jsonResponse(groupDetailSchema),
+    200: jsonResponse(courseDetailSchema),
     404: errorResponse("Not found"),
   },
 });
 
-groupRoutes.openapi(getGroupRoute, async (c) => {
+courseRoutes.openapi(getCourseRoute, async (c) => {
   const userId = c.var.userId!;
   const { id } = c.req.valid("param");
-  const group = await groupService.getGroup(c.env, id, userId);
-  if (!group) throw apiNotFound("Group not found");
-  return c.json(group, 200);
+  const course = await courseService.getCourse(c.env, id, userId);
+  if (!course) throw apiNotFound("Course not found");
+  return c.json(course, 200);
 });
 
-const createGroupRoute = createRoute({
+const createCourseRoute = createRoute({
   method: "post",
-  path: "/groups",
-  tags: ["Groups"],
-  summary: "Create group",
-  middleware: [...groupWriteGuards] as const,
+  path: "/courses",
+  tags: ["Courses"],
+  summary: "Create course",
+  middleware: [...courseWriteGuards] as const,
   request: {
     body: {
-      content: { "application/json": { schema: groupCreateSchema } },
+      content: { "application/json": { schema: courseCreateSchema } },
       required: true,
     },
   },
   responses: {
-    201: jsonResponse(groupDetailSchema),
+    201: jsonResponse(courseDetailSchema),
     400: errorResponse("Validation error"),
   },
 });
 
-groupRoutes.openapi(createGroupRoute, async (c) => {
+courseRoutes.openapi(createCourseRoute, async (c) => {
   const userId = c.var.userId!;
   const body = c.req.valid("json");
-  const group = await groupService.createUserGroup(
+  const course = await courseService.createUserCourse(
     c.env,
     userId,
     body.name,
     body.description ?? "",
   );
-  return c.json(group, 201);
+  return c.json(course, 201);
 });
 
-const patchGroupRoute = createRoute({
+const patchCourseRoute = createRoute({
   method: "patch",
-  path: "/groups/{id}",
-  tags: ["Groups"],
-  summary: "Partial update group",
-  middleware: [...groupWriteGuards] as const,
+  path: "/courses/{id}",
+  tags: ["Courses"],
+  summary: "Partial update course",
+  middleware: [...courseWriteGuards] as const,
   request: {
-    params: groupIdParamSchema,
+    params: courseIdParamSchema,
     body: {
-      content: { "application/json": { schema: groupPatchSchema } },
+      content: { "application/json": { schema: coursePatchSchema } },
       required: true,
     },
   },
   responses: {
-    200: jsonResponse(groupDetailSchema),
+    200: jsonResponse(courseDetailSchema),
     404: errorResponse("Not found"),
   },
 });
 
-groupRoutes.openapi(patchGroupRoute, async (c) => {
+courseRoutes.openapi(patchCourseRoute, async (c) => {
   const userId = c.var.userId!;
   const { id } = c.req.valid("param");
   const body = c.req.valid("json");
-  const result = await groupService.updateUserGroup(c.env, id, userId, body);
-  if ("notFound" in result) throw apiNotFound("Group not found");
-  return c.json(result.group, 200);
+  const result = await courseService.updateUserCourse(c.env, id, userId, body);
+  if ("notFound" in result) throw apiNotFound("Course not found");
+  return c.json(result.course, 200);
 });
 
-const putGroupRoute = createRoute({
+const putCourseRoute = createRoute({
   method: "put",
-  path: "/groups/{id}",
-  tags: ["Groups"],
-  summary: "Replace group",
-  middleware: [...groupWriteGuards] as const,
+  path: "/courses/{id}",
+  tags: ["Courses"],
+  summary: "Replace course",
+  middleware: [...courseWriteGuards] as const,
   request: {
-    params: groupIdParamSchema,
+    params: courseIdParamSchema,
     body: {
-      content: { "application/json": { schema: groupPutSchema } },
+      content: { "application/json": { schema: coursePutSchema } },
       required: true,
     },
   },
   responses: {
-    200: jsonResponse(groupDetailSchema),
+    200: jsonResponse(courseDetailSchema),
     404: errorResponse("Not found"),
   },
 });
 
-groupRoutes.openapi(putGroupRoute, async (c) => {
+courseRoutes.openapi(putCourseRoute, async (c) => {
   const userId = c.var.userId!;
   const { id } = c.req.valid("param");
   const body = c.req.valid("json");
-  const result = await groupService.updateUserGroup(c.env, id, userId, {
+  const result = await courseService.updateUserCourse(c.env, id, userId, {
     name: body.name,
     description: body.description ?? "",
   });
-  if ("notFound" in result) throw apiNotFound("Group not found");
-  return c.json(result.group, 200);
+  if ("notFound" in result) throw apiNotFound("Course not found");
+  return c.json(result.course, 200);
 });
 
-const deleteGroupRoute = createRoute({
+const deleteCourseRoute = createRoute({
   method: "delete",
-  path: "/groups/{id}",
-  tags: ["Groups"],
-  summary: "Delete group",
-  middleware: [...groupWriteGuards] as const,
-  request: { params: groupIdParamSchema },
+  path: "/courses/{id}",
+  tags: ["Courses"],
+  summary: "Delete course",
+  middleware: [...courseWriteGuards] as const,
+  request: { params: courseIdParamSchema },
   responses: {
     204: { description: "Deleted" },
     404: errorResponse("Not found"),
   },
 });
 
-groupRoutes.openapi(deleteGroupRoute, async (c) => {
+courseRoutes.openapi(deleteCourseRoute, async (c) => {
   const userId = c.var.userId!;
   const { id } = c.req.valid("param");
-  const res = await groupService.removeGroup(c.env, id, userId);
-  if ("notFound" in res) throw apiNotFound("Group not found");
+  const res = await courseService.removeCourse(c.env, id, userId);
+  if ("notFound" in res) throw apiNotFound("Course not found");
   return c.body(null, 204);
 });
 
 const reorderRoute = createRoute({
   method: "patch",
-  path: "/groups/order",
-  tags: ["Groups"],
-  summary: "Reorder groups",
-  middleware: [...groupWriteGuards] as const,
+  path: "/courses/order",
+  tags: ["Courses"],
+  summary: "Reorder courses",
+  middleware: [...courseWriteGuards] as const,
   request: {
     body: {
-      content: { "application/json": { schema: reorderGroupsSchema } },
+      content: { "application/json": { schema: reorderCoursesSchema } },
       required: true,
     },
   },
@@ -246,24 +246,24 @@ const reorderRoute = createRoute({
   },
 });
 
-groupRoutes.openapi(reorderRoute, async (c) => {
+courseRoutes.openapi(reorderRoute, async (c) => {
   const userId = c.var.userId!;
-  const { group_ids } = c.req.valid("json");
-  const res = await groupService.reorderUserGroups(c.env, userId, group_ids);
+  const { course_ids } = c.req.valid("json");
+  const res = await courseService.reorderUserCourses(c.env, userId, course_ids);
   if ("mismatch" in res) {
-    throw apiBadRequest("Specified group IDs do not match user groups");
+    throw apiBadRequest("Specified course IDs do not match user courses");
   }
-  return c.json({ message: "Group order updated" }, 200);
+  return c.json({ message: "Course order updated" }, 200);
 });
 
 const createShareRoute = createRoute({
   method: "post",
-  path: "/groups/{id}/share",
-  tags: ["Groups"],
+  path: "/courses/{id}/share",
+  tags: ["Courses"],
   summary: "Create or update share link",
-  middleware: [...groupWriteGuards] as const,
+  middleware: [...courseWriteGuards] as const,
   request: {
-    params: groupIdParamSchema,
+    params: courseIdParamSchema,
     body: {
       content: { "application/json": { schema: shareLinkSchema } },
       required: true,
@@ -278,12 +278,12 @@ const createShareRoute = createRoute({
   },
 });
 
-groupRoutes.openapi(createShareRoute, async (c) => {
+courseRoutes.openapi(createShareRoute, async (c) => {
   const userId = c.var.userId!;
   const { id } = c.req.valid("param");
   const { share_slug } = c.req.valid("json");
-  const result = await groupService.saveShareLink(c.env, id, userId, share_slug);
-  if ("notFound" in result) throw apiNotFound("Group not found");
+  const result = await courseService.saveShareLink(c.env, id, userId, share_slug);
+  if ("notFound" in result) throw apiNotFound("Course not found");
   if ("error" in result) throw apiBadRequest(result.error ?? "Bad request");
   if ("conflict" in result) {
     throw new ApiError(409, "CONFLICT", result.conflict ?? "Conflict");
@@ -293,22 +293,22 @@ groupRoutes.openapi(createShareRoute, async (c) => {
 
 const deleteShareRoute = createRoute({
   method: "delete",
-  path: "/groups/{id}/share",
-  tags: ["Groups"],
+  path: "/courses/{id}/share",
+  tags: ["Courses"],
   summary: "Remove share link",
-  middleware: [...groupWriteGuards] as const,
-  request: { params: groupIdParamSchema },
+  middleware: [...courseWriteGuards] as const,
+  request: { params: courseIdParamSchema },
   responses: {
     204: { description: "Deleted" },
     404: errorResponse("Not found"),
   },
 });
 
-groupRoutes.openapi(deleteShareRoute, async (c) => {
+courseRoutes.openapi(deleteShareRoute, async (c) => {
   const userId = c.var.userId!;
   const { id } = c.req.valid("param");
-  const result = await groupService.clearShareLink(c.env, id, userId);
-  if ("notFound" in result) throw apiNotFound("Group not found");
+  const result = await courseService.clearShareLink(c.env, id, userId);
+  if ("notFound" in result) throw apiNotFound("Course not found");
   if ("notConfigured" in result) throw apiNotFound("Share link is not configured");
   return c.body(null, 204);
 });

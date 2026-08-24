@@ -3,9 +3,9 @@ import { type Db, withDb } from "../db/pool";
 import {
   externalTasks,
   users,
-  videoGroupInvitations,
-  videoGroupMemberships,
-  videoGroups,
+  videoCourseInvitations,
+  videoCourseMemberships,
+  videoCourses,
 } from "../db/schema";
 import {
   effectiveInvitationStatus,
@@ -13,7 +13,7 @@ import {
   normalizeInvitationEmail,
   type InvitationDeliveryStatus,
   type InvitationStatus,
-} from "../lib/group-invitations";
+} from "../lib/course-invitations";
 import { toUtcIso } from "../shared/datetime";
 import type { Bindings } from "../types/bindings";
 
@@ -27,7 +27,7 @@ export type PendingInvitationInput = {
 export type CreatedInvitation = {
   id: number;
   email: string;
-  groupName: string;
+  courseName: string;
   inviterName: string;
 };
 
@@ -61,9 +61,9 @@ async function insertInvitationEmailTasks(
     .onConflictDoNothing();
 }
 
-export async function createPendingGroupInvitations(
+export async function createPendingCourseInvitations(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   ownerUserId: string,
   inputs: readonly PendingInvitationInput[],
 ): Promise<
@@ -78,27 +78,27 @@ export async function createPendingGroupInvitations(
     db.transaction(async (tx) => {
       const ownerRows = await tx
         .select({
-          groupName: videoGroups.name,
+          courseName: videoCourses.name,
           ownerEmail: users.email,
           inviterName: users.name,
           inviterUsername: users.username,
         })
-        .from(videoGroups)
-        .innerJoin(users, eq(users.id, videoGroups.userId))
-        .where(and(eq(videoGroups.id, groupId), eq(videoGroups.userId, ownerUserId)))
+        .from(videoCourses)
+        .innerJoin(users, eq(users.id, videoCourses.userId))
+        .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, ownerUserId)))
         .limit(1)
         .for("update");
       if (ownerRows.length === 0) return { notFound: true } as const;
 
       const issuedAt = inputs[0]?.createdAt ?? new Date();
       await tx
-        .update(videoGroupInvitations)
+        .update(videoCourseInvitations)
         .set({ status: "expired", updatedAt: issuedAt.toISOString() })
         .where(
           and(
-            eq(videoGroupInvitations.groupId, groupId),
-            eq(videoGroupInvitations.status, "pending"),
-            lte(videoGroupInvitations.expiresAt, issuedAt.toISOString()),
+            eq(videoCourseInvitations.courseId, courseId),
+            eq(videoCourseInvitations.status, "pending"),
+            lte(videoCourseInvitations.expiresAt, issuedAt.toISOString()),
           ),
         );
 
@@ -110,11 +110,11 @@ export async function createPendingGroupInvitations(
       if (emails.length > 0) {
         const memberRows = await tx
           .select({ email: users.email })
-          .from(videoGroupMemberships)
-          .innerJoin(users, eq(users.id, videoGroupMemberships.userId))
+          .from(videoCourseMemberships)
+          .innerJoin(users, eq(users.id, videoCourseMemberships.userId))
           .where(
             and(
-              eq(videoGroupMemberships.groupId, groupId),
+              eq(videoCourseMemberships.courseId, courseId),
               inArray(sql<string>`lower(${users.email})`, emails),
             ),
           );
@@ -130,14 +130,14 @@ export async function createPendingGroupInvitations(
       const alreadyPendingEmails = new Set<string>();
       if (candidateInputs.length > 0) {
         const pendingRows = await tx
-          .select({ email: videoGroupInvitations.email })
-          .from(videoGroupInvitations)
+          .select({ email: videoCourseInvitations.email })
+          .from(videoCourseInvitations)
           .where(
             and(
-              eq(videoGroupInvitations.groupId, groupId),
-              eq(videoGroupInvitations.status, "pending"),
+              eq(videoCourseInvitations.courseId, courseId),
+              eq(videoCourseInvitations.status, "pending"),
               inArray(
-                videoGroupInvitations.email,
+                videoCourseInvitations.email,
                 candidateInputs.map((input) => input.email),
               ),
             ),
@@ -150,10 +150,10 @@ export async function createPendingGroupInvitations(
       );
       const inserted = insertInputs.length
         ? await tx
-            .insert(videoGroupInvitations)
+            .insert(videoCourseInvitations)
             .values(
               insertInputs.map((input) => ({
-                groupId,
+                courseId,
                 email: input.email,
                 invitedByUserId: ownerUserId,
                 status: "pending",
@@ -166,7 +166,7 @@ export async function createPendingGroupInvitations(
               })),
             )
             .onConflictDoNothing()
-            .returning({ id: videoGroupInvitations.id, email: videoGroupInvitations.email })
+            .returning({ id: videoCourseInvitations.id, email: videoCourseInvitations.email })
         : [];
 
       const insertedEmails = new Set(inserted.map((row) => row.email));
@@ -188,7 +188,7 @@ export async function createPendingGroupInvitations(
         created: inserted.map((row) => ({
           id: Number(row.id),
           email: row.email,
-          groupName: ownerRows[0].groupName,
+          courseName: ownerRows[0].courseName,
           inviterName,
         })),
         alreadyMemberEmails: [...alreadyMemberEmails],
@@ -220,16 +220,16 @@ export async function recordInvitationDeliveryOutcomes(
     db.transaction(async (tx) => {
       for (const outcome of outcomes) {
         await tx
-          .update(videoGroupInvitations)
+          .update(videoCourseInvitations)
           .set({
             deliveryStatus: outcome.status,
             lastSentAt:
               outcome.status === "sent" ? outcome.attemptedAt.toISOString() : undefined,
             lastError: outcome.error?.slice(0, 1000) ?? null,
-            sendAttempts: sql`${videoGroupInvitations.sendAttempts} + 1`,
+            sendAttempts: sql`${videoCourseInvitations.sendAttempts} + 1`,
             updatedAt: outcome.attemptedAt.toISOString(),
           })
-          .where(eq(videoGroupInvitations.id, outcome.invitationId));
+          .where(eq(videoCourseInvitations.id, outcome.invitationId));
       }
       if (opts.completeTaskId !== undefined) {
         await tx
@@ -266,7 +266,7 @@ export async function failInvitationsWithoutLiveDelivery(
   const cutoff = new Date(now.getTime() - graceMs).toISOString();
   return withDb(env, async (db) => {
     const rows = await db
-      .update(videoGroupInvitations)
+      .update(videoCourseInvitations)
       .set({
         deliveryStatus: "failed",
         lastError: "Delivery task is no longer retrying.",
@@ -274,25 +274,25 @@ export async function failInvitationsWithoutLiveDelivery(
       })
       .where(
         and(
-          eq(videoGroupInvitations.status, "pending"),
-          eq(videoGroupInvitations.deliveryStatus, "queued"),
-          lt(videoGroupInvitations.updatedAt, cutoff),
+          eq(videoCourseInvitations.status, "pending"),
+          eq(videoCourseInvitations.deliveryStatus, "queued"),
+          lt(videoCourseInvitations.updatedAt, cutoff),
           sql`NOT EXISTS (
             SELECT 1
               FROM external_tasks t
              WHERE t.kind = 'invitation_email'
                AND t.completed_at IS NULL
                AND t.dead_at IS NULL
-               AND (t.payload->>'invitation_id')::bigint = ${videoGroupInvitations.id}
+               AND (t.payload->>'invitation_id')::bigint = ${videoCourseInvitations.id}
           )`,
         ),
       )
-      .returning({ id: videoGroupInvitations.id });
+      .returning({ id: videoCourseInvitations.id });
     return { failed: rows.length };
   });
 }
 
-export type GroupInvitationListItem = {
+export type CourseInvitationListItem = {
   id: number;
   email: string;
   status: InvitationStatus;
@@ -303,67 +303,67 @@ export type GroupInvitationListItem = {
   send_attempts: number;
 };
 
-export type GroupUserMemberListItem = {
+export type CourseUserMemberListItem = {
   user_id: string;
   username: string;
   email: string;
   joined_at: string;
 };
 
-export async function listGroupParticipants(
+export async function listCourseParticipants(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   ownerUserId: string,
 ): Promise<
   | { notFound: true }
-  | { invitations: GroupInvitationListItem[]; members: GroupUserMemberListItem[] }
+  | { invitations: CourseInvitationListItem[]; members: CourseUserMemberListItem[] }
 > {
   return withDb(env, async (db) => {
     const owner = await db
-      .select({ id: videoGroups.id })
-      .from(videoGroups)
-      .where(and(eq(videoGroups.id, groupId), eq(videoGroups.userId, ownerUserId)))
+      .select({ id: videoCourses.id })
+      .from(videoCourses)
+      .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, ownerUserId)))
       .limit(1);
     if (owner.length === 0) return { notFound: true } as const;
 
     const now = new Date().toISOString();
     await db
-      .update(videoGroupInvitations)
+      .update(videoCourseInvitations)
       .set({ status: "expired", updatedAt: now })
       .where(
         and(
-          eq(videoGroupInvitations.groupId, groupId),
-          eq(videoGroupInvitations.status, "pending"),
-          lte(videoGroupInvitations.expiresAt, now),
+          eq(videoCourseInvitations.courseId, courseId),
+          eq(videoCourseInvitations.status, "pending"),
+          lte(videoCourseInvitations.expiresAt, now),
         ),
       );
 
     const [invitationRows, memberRows] = await Promise.all([
       db
         .select({
-          id: videoGroupInvitations.id,
-          email: videoGroupInvitations.email,
-          status: videoGroupInvitations.status,
-          deliveryStatus: videoGroupInvitations.deliveryStatus,
-          expiresAt: videoGroupInvitations.expiresAt,
-          createdAt: videoGroupInvitations.createdAt,
-          lastSentAt: videoGroupInvitations.lastSentAt,
-          sendAttempts: videoGroupInvitations.sendAttempts,
+          id: videoCourseInvitations.id,
+          email: videoCourseInvitations.email,
+          status: videoCourseInvitations.status,
+          deliveryStatus: videoCourseInvitations.deliveryStatus,
+          expiresAt: videoCourseInvitations.expiresAt,
+          createdAt: videoCourseInvitations.createdAt,
+          lastSentAt: videoCourseInvitations.lastSentAt,
+          sendAttempts: videoCourseInvitations.sendAttempts,
         })
-        .from(videoGroupInvitations)
-        .where(eq(videoGroupInvitations.groupId, groupId))
-        .orderBy(desc(videoGroupInvitations.createdAt)),
+        .from(videoCourseInvitations)
+        .where(eq(videoCourseInvitations.courseId, courseId))
+        .orderBy(desc(videoCourseInvitations.createdAt)),
       db
         .select({
           userId: users.id,
           username: users.username,
           email: users.email,
-          joinedAt: videoGroupMemberships.joinedAt,
+          joinedAt: videoCourseMemberships.joinedAt,
         })
-        .from(videoGroupMemberships)
-        .innerJoin(users, eq(users.id, videoGroupMemberships.userId))
-        .where(eq(videoGroupMemberships.groupId, groupId))
-        .orderBy(desc(videoGroupMemberships.joinedAt)),
+        .from(videoCourseMemberships)
+        .innerJoin(users, eq(users.id, videoCourseMemberships.userId))
+        .where(eq(videoCourseMemberships.courseId, courseId))
+        .orderBy(desc(videoCourseMemberships.joinedAt)),
     ]);
 
     return {
@@ -389,41 +389,41 @@ export async function listGroupParticipants(
 
 export type InvitationPreviewRecord = {
   id: number;
-  group_id: number;
-  group_name: string;
+  course_id: number;
+  course_name: string;
   inviter_name: string;
   email: string;
   status: InvitationStatus;
   expires_at: string;
 };
 
-export async function getGroupInvitationByTokenHash(
+export async function getCourseInvitationByTokenHash(
   env: Bindings,
   tokenHash: string,
 ): Promise<InvitationPreviewRecord | null> {
   return withDb(env, async (db) => {
     const rows = await db
       .select({
-        id: videoGroupInvitations.id,
-        groupId: videoGroups.id,
-        groupName: videoGroups.name,
+        id: videoCourseInvitations.id,
+        courseId: videoCourses.id,
+        courseName: videoCourses.name,
         inviterName: users.name,
         inviterUsername: users.username,
-        email: videoGroupInvitations.email,
-        status: videoGroupInvitations.status,
-        expiresAt: videoGroupInvitations.expiresAt,
+        email: videoCourseInvitations.email,
+        status: videoCourseInvitations.status,
+        expiresAt: videoCourseInvitations.expiresAt,
       })
-      .from(videoGroupInvitations)
-      .innerJoin(videoGroups, eq(videoGroups.id, videoGroupInvitations.groupId))
-      .innerJoin(users, eq(users.id, videoGroupInvitations.invitedByUserId))
-      .where(eq(videoGroupInvitations.tokenHash, tokenHash))
+      .from(videoCourseInvitations)
+      .innerJoin(videoCourses, eq(videoCourses.id, videoCourseInvitations.courseId))
+      .innerJoin(users, eq(users.id, videoCourseInvitations.invitedByUserId))
+      .where(eq(videoCourseInvitations.tokenHash, tokenHash))
       .limit(1);
     if (rows.length === 0) return null;
     const row = rows[0];
     return {
       id: Number(row.id),
-      group_id: Number(row.groupId),
-      group_name: row.groupName,
+      course_id: Number(row.courseId),
+      course_name: row.courseName,
       inviter_name: row.inviterName.trim() || row.inviterUsername,
       email: row.email,
       status: row.status as InvitationStatus,
@@ -432,19 +432,19 @@ export async function getGroupInvitationByTokenHash(
   });
 }
 
-export async function markGroupInvitationExpired(
+export async function markCourseInvitationExpired(
   env: Bindings,
   invitationId: number,
   now: Date,
 ): Promise<void> {
   await withDb(env, async (db) => {
     await db
-      .update(videoGroupInvitations)
+      .update(videoCourseInvitations)
       .set({ status: "expired", updatedAt: now.toISOString() })
       .where(
         and(
-          eq(videoGroupInvitations.id, invitationId),
-          eq(videoGroupInvitations.status, "pending"),
+          eq(videoCourseInvitations.id, invitationId),
+          eq(videoCourseInvitations.status, "pending"),
         ),
       );
   });
@@ -456,9 +456,9 @@ type InvitationDecisionResult =
   | { emailMismatch: true }
   | { invalidState: InvitationStatus }
   | { expired: true }
-  | { ok: true; groupId: number };
+  | { ok: true; courseId: number };
 
-export async function acceptGroupInvitation(
+export async function acceptCourseInvitation(
   env: Bindings,
   tokenHash: string,
   userId: string,
@@ -468,15 +468,15 @@ export async function acceptGroupInvitation(
     db.transaction(async (tx) => {
       const invitationRows = await tx
         .select({
-          id: videoGroupInvitations.id,
-          groupId: videoGroupInvitations.groupId,
-          email: videoGroupInvitations.email,
-          status: videoGroupInvitations.status,
-          expiresAt: videoGroupInvitations.expiresAt,
-          acceptedByUserId: videoGroupInvitations.acceptedByUserId,
+          id: videoCourseInvitations.id,
+          courseId: videoCourseInvitations.courseId,
+          email: videoCourseInvitations.email,
+          status: videoCourseInvitations.status,
+          expiresAt: videoCourseInvitations.expiresAt,
+          acceptedByUserId: videoCourseInvitations.acceptedByUserId,
         })
-        .from(videoGroupInvitations)
-        .where(eq(videoGroupInvitations.tokenHash, tokenHash))
+        .from(videoCourseInvitations)
+        .where(eq(videoCourseInvitations.tokenHash, tokenHash))
         .limit(1)
         .for("update");
       if (invitationRows.length === 0) return { notFound: true } as const;
@@ -486,16 +486,16 @@ export async function acceptGroupInvitation(
         invitation.status === "accepted" &&
         invitation.acceptedByUserId === userId
       ) {
-        return { ok: true, groupId: Number(invitation.groupId) } as const;
+        return { ok: true, courseId: Number(invitation.courseId) } as const;
       }
       if (invitation.status !== "pending") {
         return { invalidState: invitation.status as InvitationStatus } as const;
       }
       if (isInvitationExpired(new Date(invitation.expiresAt), now)) {
         await tx
-          .update(videoGroupInvitations)
+          .update(videoCourseInvitations)
           .set({ status: "expired", updatedAt: now.toISOString() })
-          .where(eq(videoGroupInvitations.id, invitation.id));
+          .where(eq(videoCourseInvitations.id, invitation.id));
         return { expired: true } as const;
       }
 
@@ -512,29 +512,29 @@ export async function acceptGroupInvitation(
       }
 
       await tx
-        .insert(videoGroupMemberships)
+        .insert(videoCourseMemberships)
         .values({
-          groupId: Number(invitation.groupId),
+          courseId: Number(invitation.courseId),
           userId,
           invitationId: Number(invitation.id),
           joinedAt: now.toISOString(),
         })
         .onConflictDoNothing();
       await tx
-        .update(videoGroupInvitations)
+        .update(videoCourseInvitations)
         .set({
           status: "accepted",
           acceptedByUserId: userId,
           acceptedAt: now.toISOString(),
           updatedAt: now.toISOString(),
         })
-        .where(eq(videoGroupInvitations.id, invitation.id));
-      return { ok: true, groupId: Number(invitation.groupId) } as const;
+        .where(eq(videoCourseInvitations.id, invitation.id));
+      return { ok: true, courseId: Number(invitation.courseId) } as const;
     }),
   );
 }
 
-export async function declineGroupInvitation(
+export async function declineCourseInvitation(
   env: Bindings,
   tokenHash: string,
   userId: string,
@@ -544,14 +544,14 @@ export async function declineGroupInvitation(
     db.transaction(async (tx) => {
       const invitationRows = await tx
         .select({
-          id: videoGroupInvitations.id,
-          groupId: videoGroupInvitations.groupId,
-          email: videoGroupInvitations.email,
-          status: videoGroupInvitations.status,
-          expiresAt: videoGroupInvitations.expiresAt,
+          id: videoCourseInvitations.id,
+          courseId: videoCourseInvitations.courseId,
+          email: videoCourseInvitations.email,
+          status: videoCourseInvitations.status,
+          expiresAt: videoCourseInvitations.expiresAt,
         })
-        .from(videoGroupInvitations)
-        .where(eq(videoGroupInvitations.tokenHash, tokenHash))
+        .from(videoCourseInvitations)
+        .where(eq(videoCourseInvitations.tokenHash, tokenHash))
         .limit(1)
         .for("update");
       if (invitationRows.length === 0) return { notFound: true } as const;
@@ -561,9 +561,9 @@ export async function declineGroupInvitation(
       }
       if (isInvitationExpired(new Date(invitation.expiresAt), now)) {
         await tx
-          .update(videoGroupInvitations)
+          .update(videoCourseInvitations)
           .set({ status: "expired", updatedAt: now.toISOString() })
-          .where(eq(videoGroupInvitations.id, invitation.id));
+          .where(eq(videoCourseInvitations.id, invitation.id));
         return { expired: true } as const;
       }
       const userRows = await tx
@@ -578,10 +578,10 @@ export async function declineGroupInvitation(
         return { emailMismatch: true } as const;
       }
       await tx
-        .update(videoGroupInvitations)
+        .update(videoCourseInvitations)
         .set({ status: "declined", updatedAt: now.toISOString() })
-        .where(eq(videoGroupInvitations.id, invitation.id));
-      return { ok: true, groupId: Number(invitation.groupId) } as const;
+        .where(eq(videoCourseInvitations.id, invitation.id));
+      return { ok: true, courseId: Number(invitation.courseId) } as const;
     }),
   );
 }
@@ -599,24 +599,24 @@ export async function rotateInvitationTokenForDelivery(
 ): Promise<
   | { notFound: true }
   | { invalidState: InvitationStatus }
-  | { email: string; groupName: string; inviterName: string }
+  | { email: string; courseName: string; inviterName: string }
 > {
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
       const rows = await tx
         .select({
-          id: videoGroupInvitations.id,
-          email: videoGroupInvitations.email,
-          status: videoGroupInvitations.status,
-          expiresAt: videoGroupInvitations.expiresAt,
-          groupName: videoGroups.name,
+          id: videoCourseInvitations.id,
+          email: videoCourseInvitations.email,
+          status: videoCourseInvitations.status,
+          expiresAt: videoCourseInvitations.expiresAt,
+          courseName: videoCourses.name,
           inviterName: users.name,
           inviterUsername: users.username,
         })
-        .from(videoGroupInvitations)
-        .innerJoin(videoGroups, eq(videoGroups.id, videoGroupInvitations.groupId))
-        .innerJoin(users, eq(users.id, videoGroupInvitations.invitedByUserId))
-        .where(eq(videoGroupInvitations.id, invitationId))
+        .from(videoCourseInvitations)
+        .innerJoin(videoCourses, eq(videoCourses.id, videoCourseInvitations.courseId))
+        .innerJoin(users, eq(users.id, videoCourseInvitations.invitedByUserId))
+        .where(eq(videoCourseInvitations.id, invitationId))
         .limit(1)
         .for("update");
       if (rows.length === 0) return { notFound: true } as const;
@@ -629,29 +629,29 @@ export async function rotateInvitationTokenForDelivery(
       if (status !== "pending") {
         if (status === "expired" && rows[0].status === "pending") {
           await tx
-            .update(videoGroupInvitations)
+            .update(videoCourseInvitations)
             .set({ status: "expired", updatedAt: now.toISOString() })
-            .where(eq(videoGroupInvitations.id, invitationId));
+            .where(eq(videoCourseInvitations.id, invitationId));
         }
         return { invalidState: status } as const;
       }
 
       await tx
-        .update(videoGroupInvitations)
+        .update(videoCourseInvitations)
         .set({ tokenHash, updatedAt: now.toISOString() })
-        .where(eq(videoGroupInvitations.id, invitationId));
+        .where(eq(videoCourseInvitations.id, invitationId));
       return {
         email: rows[0].email,
-        groupName: rows[0].groupName,
+        courseName: rows[0].courseName,
         inviterName: rows[0].inviterName.trim() || rows[0].inviterUsername,
       };
     }),
   );
 }
 
-export async function rotatePendingGroupInvitation(
+export async function rotatePendingCourseInvitation(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   invitationId: number,
   ownerUserId: string,
   tokenHash: string,
@@ -666,22 +666,22 @@ export async function rotatePendingGroupInvitation(
     db.transaction(async (tx) => {
       const rows = await tx
         .select({
-          id: videoGroupInvitations.id,
-          email: videoGroupInvitations.email,
-          status: videoGroupInvitations.status,
-          expiresAt: videoGroupInvitations.expiresAt,
-          groupName: videoGroups.name,
+          id: videoCourseInvitations.id,
+          email: videoCourseInvitations.email,
+          status: videoCourseInvitations.status,
+          expiresAt: videoCourseInvitations.expiresAt,
+          courseName: videoCourses.name,
           inviterName: users.name,
           inviterUsername: users.username,
         })
-        .from(videoGroupInvitations)
-        .innerJoin(videoGroups, eq(videoGroups.id, videoGroupInvitations.groupId))
-        .innerJoin(users, eq(users.id, videoGroups.userId))
+        .from(videoCourseInvitations)
+        .innerJoin(videoCourses, eq(videoCourses.id, videoCourseInvitations.courseId))
+        .innerJoin(users, eq(users.id, videoCourses.userId))
         .where(
           and(
-            eq(videoGroupInvitations.id, invitationId),
-            eq(videoGroupInvitations.groupId, groupId),
-            eq(videoGroups.userId, ownerUserId),
+            eq(videoCourseInvitations.id, invitationId),
+            eq(videoCourseInvitations.courseId, courseId),
+            eq(videoCourses.userId, ownerUserId),
           ),
         )
         .limit(1)
@@ -695,16 +695,16 @@ export async function rotatePendingGroupInvitation(
       if (status !== "pending") {
         if (status === "expired" && rows[0].status === "pending") {
           await tx
-            .update(videoGroupInvitations)
+            .update(videoCourseInvitations)
             .set({ status: "expired", updatedAt: now.toISOString() })
-            .where(eq(videoGroupInvitations.id, invitationId));
+            .where(eq(videoCourseInvitations.id, invitationId));
         }
         return { invalidState: status } as const;
       }
       // tokenHash は「誰も持っていないダミー」。古いリンクをここで即座に
       // 無効化し、実際に配る値は配送タスクが送信直前に発行する。
       await tx
-        .update(videoGroupInvitations)
+        .update(videoCourseInvitations)
         .set({
           tokenHash,
           expiresAt: expiresAt.toISOString(),
@@ -712,21 +712,21 @@ export async function rotatePendingGroupInvitation(
           lastError: null,
           updatedAt: now.toISOString(),
         })
-        .where(eq(videoGroupInvitations.id, invitationId));
+        .where(eq(videoCourseInvitations.id, invitationId));
       await insertInvitationEmailTasks(tx, [invitationId], now);
       return {
         id: Number(rows[0].id),
         email: rows[0].email,
-        groupName: rows[0].groupName,
+        courseName: rows[0].courseName,
         inviterName: rows[0].inviterName.trim() || rows[0].inviterUsername,
       };
     }),
   );
 }
 
-export async function revokePendingGroupInvitation(
+export async function revokePendingCourseInvitation(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   invitationId: number,
   ownerUserId: string,
   now: Date,
@@ -735,16 +735,16 @@ export async function revokePendingGroupInvitation(
     db.transaction(async (tx) => {
       const rows = await tx
         .select({
-          status: videoGroupInvitations.status,
-          expiresAt: videoGroupInvitations.expiresAt,
+          status: videoCourseInvitations.status,
+          expiresAt: videoCourseInvitations.expiresAt,
         })
-        .from(videoGroupInvitations)
-        .innerJoin(videoGroups, eq(videoGroups.id, videoGroupInvitations.groupId))
+        .from(videoCourseInvitations)
+        .innerJoin(videoCourses, eq(videoCourses.id, videoCourseInvitations.courseId))
         .where(
           and(
-            eq(videoGroupInvitations.id, invitationId),
-            eq(videoGroupInvitations.groupId, groupId),
-            eq(videoGroups.userId, ownerUserId),
+            eq(videoCourseInvitations.id, invitationId),
+            eq(videoCourseInvitations.courseId, courseId),
+            eq(videoCourses.userId, ownerUserId),
           ),
         )
         .limit(1)
@@ -758,84 +758,84 @@ export async function revokePendingGroupInvitation(
       if (status !== "pending") {
         if (status === "expired" && rows[0].status === "pending") {
           await tx
-            .update(videoGroupInvitations)
+            .update(videoCourseInvitations)
             .set({ status: "expired", updatedAt: now.toISOString() })
-            .where(eq(videoGroupInvitations.id, invitationId));
+            .where(eq(videoCourseInvitations.id, invitationId));
         }
         return { invalidState: status } as const;
       }
       await tx
-        .update(videoGroupInvitations)
+        .update(videoCourseInvitations)
         .set({ status: "revoked", updatedAt: now.toISOString() })
-        .where(eq(videoGroupInvitations.id, invitationId));
+        .where(eq(videoCourseInvitations.id, invitationId));
       return { ok: true } as const;
     }),
   );
 }
 
-export async function removeGroupUserMember(
+export async function removeCourseUserMember(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   memberUserId: string,
   ownerUserId: string,
 ): Promise<{ notFound: true } | { ok: true }> {
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
       const owner = await tx
-        .select({ id: videoGroups.id })
-        .from(videoGroups)
-        .where(and(eq(videoGroups.id, groupId), eq(videoGroups.userId, ownerUserId)))
+        .select({ id: videoCourses.id })
+        .from(videoCourses)
+        .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, ownerUserId)))
         .limit(1);
       if (owner.length === 0) return { notFound: true } as const;
       const removed = await tx
-        .delete(videoGroupMemberships)
+        .delete(videoCourseMemberships)
         .where(
           and(
-            eq(videoGroupMemberships.groupId, groupId),
-            eq(videoGroupMemberships.userId, memberUserId),
+            eq(videoCourseMemberships.courseId, courseId),
+            eq(videoCourseMemberships.userId, memberUserId),
           ),
         )
-        .returning({ id: videoGroupMemberships.id });
+        .returning({ id: videoCourseMemberships.id });
       if (removed.length === 0) return { notFound: true } as const;
       return { ok: true } as const;
     }),
   );
 }
 
-export async function leaveGroupMembership(
+export async function leaveCourseMembership(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   userId: string,
 ): Promise<{ notFound: true } | { ok: true }> {
   return withDb(env, async (db) => {
     const removed = await db
-      .delete(videoGroupMemberships)
+      .delete(videoCourseMemberships)
       .where(
         and(
-          eq(videoGroupMemberships.groupId, groupId),
-          eq(videoGroupMemberships.userId, userId),
+          eq(videoCourseMemberships.courseId, courseId),
+          eq(videoCourseMemberships.userId, userId),
         ),
       )
-      .returning({ id: videoGroupMemberships.id });
+      .returning({ id: videoCourseMemberships.id });
     return removed.length > 0 ? ({ ok: true } as const) : ({ notFound: true } as const);
   });
 }
 
-export async function userHasGroupAccess(
+export async function userHasCourseAccess(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   userId: string,
 ): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db.execute(sql`
       SELECT 1
-        FROM video_groups g
-       WHERE g.id = ${groupId}
+        FROM video_courses g
+       WHERE g.id = ${courseId}
          AND (
            g.user_id = ${userId}
            OR EXISTS (
-             SELECT 1 FROM video_group_memberships gm
-              WHERE gm.group_id = g.id AND gm.user_id = ${userId}
+             SELECT 1 FROM video_course_memberships gm
+              WHERE gm.course_id = g.id AND gm.user_id = ${userId}
            )
          )
        LIMIT 1

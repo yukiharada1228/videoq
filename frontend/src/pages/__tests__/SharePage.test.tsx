@@ -2,9 +2,9 @@ import { render, screen, waitFor } from '@testing-library/react'
 import SharePage from '../SharePage'
 import { apiClient } from '@/lib/api'
 
-const mockGroup = {
+const mockCourse = {
   id: 1,
-  name: 'Shared Group',
+  name: 'Shared Course',
   description: 'Shared Description',
   videos: [
     { id: 1, title: 'Shared Video 1', description: 'Desc 1', status: 'completed', file: 'video1.mp4', source_type: 'uploaded', order: 0 },
@@ -23,7 +23,7 @@ vi.mock('react-router-dom', async () => {
 vi.mock('@/lib/api', () => ({
   apiClient: {
     getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
-    getSharedGroup: vi.fn(),
+    getSharedCourse: vi.fn(),
     getSharedVideoUrl: vi.fn((url, token) => `${url}?token=${token}`),
   },
 }))
@@ -35,18 +35,18 @@ vi.mock('@/components/chat/ChatPanel', () => ({
 describe('SharePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-      ; (apiClient.getSharedGroup as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroup)
+      ; (apiClient.getSharedCourse as ReturnType<typeof vi.fn>).mockResolvedValue(mockCourse)
   })
 
   afterEach(() => {
     globalThis.__setMockLanguage('en')
   })
 
-  it('should render group name', async () => {
+  it('should render course name', async () => {
     render(<SharePage />)
 
     await waitFor(() => {
-      expect(screen.getAllByText('Shared Group').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('Shared Course').length).toBeGreaterThan(0)
     })
   })
 
@@ -77,17 +77,17 @@ describe('SharePage', () => {
     })
   })
 
-  it('should load shared group on mount', async () => {
+  it('should load shared course on mount', async () => {
     render(<SharePage />)
 
     await waitFor(() => {
-      expect(apiClient.getSharedGroup).toHaveBeenCalledWith('test-share-token')
+      expect(apiClient.getSharedCourse).toHaveBeenCalledWith('test-share-token')
     })
   })
 
   it('should not autoplay youtube video on initial render', async () => {
-    const youtubeGroup = {
-      ...mockGroup,
+    const youtubeCourse = {
+      ...mockCourse,
       videos: [
         {
           id: 1,
@@ -101,7 +101,7 @@ describe('SharePage', () => {
         },
       ],
     }
-    ; (apiClient.getSharedGroup as ReturnType<typeof vi.fn>).mockResolvedValue(youtubeGroup)
+    ; (apiClient.getSharedCourse as ReturnType<typeof vi.fn>).mockResolvedValue(youtubeCourse)
 
     const { container } = render(<SharePage />)
 
@@ -121,7 +121,7 @@ describe('SharePage - Error Handling', () => {
   })
 
   it('should display error message when share link is invalid', async () => {
-    ; (apiClient.getSharedGroup as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Not found'))
+    ; (apiClient.getSharedCourse as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Not found'))
 
     render(<SharePage />)
 
@@ -131,14 +131,14 @@ describe('SharePage - Error Handling', () => {
   })
 })
 
-describe('SharePage - Empty Group', () => {
+describe('SharePage - Empty Course', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    const emptyGroup = { ...mockGroup, videos: [] }
-      ; (apiClient.getSharedGroup as ReturnType<typeof vi.fn>).mockResolvedValue(emptyGroup)
+    const emptyCourse = { ...mockCourse, videos: [] }
+      ; (apiClient.getSharedCourse as ReturnType<typeof vi.fn>).mockResolvedValue(emptyCourse)
   })
 
-  it('should display no videos message when group is empty', async () => {
+  it('should display no videos message when course is empty', async () => {
     render(<SharePage />)
 
     await waitFor(() => {

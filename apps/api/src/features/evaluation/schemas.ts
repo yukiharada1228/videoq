@@ -1,13 +1,13 @@
 import { z } from "../../shared/openapi";
 import { paginationQuerySchema } from "../../shared/pagination";
 
-export const evaluationGroupParamSchema = z.object({
-  groupId: z.coerce.number().int().positive(),
+export const evaluationCourseParamSchema = z.object({
+  courseId: z.coerce.number().int().positive(),
 });
 
 export const evaluationSummarySchema = z
   .object({
-    group_id: z.number().int(),
+    course_id: z.number().int(),
     evaluated_count: z.number().int(),
     avg_faithfulness: z.number().nullable(),
     avg_answer_relevancy: z.number().nullable(),

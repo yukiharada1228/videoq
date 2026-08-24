@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
   apiClient,
-  type GroupInviteRecipientResult,
+  type CourseInviteRecipientResult,
 } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
@@ -85,26 +85,26 @@ function previewRecipients(
   });
 }
 
-export function GroupParticipantsDialog({
-  groupId,
+export function CourseParticipantsDialog({
+  courseId,
   isOpen,
   onOpenChange,
 }: {
-  groupId: number;
+  courseId: number;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [emailInput, setEmailInput] = useState('');
-  const [inviteResults, setInviteResults] = useState<GroupInviteRecipientResult[]>([]);
+  const [inviteResults, setInviteResults] = useState<CourseInviteRecipientResult[]>([]);
   // メール送信はサーバー側のキューで進むので、送信直後だけ配送状態を追う。
   // 恒久的なポーリングにしないよう、追跡する期間を明示的に区切る。
   const [trackDeliveryUntil, setTrackDeliveryUntil] = useState(0);
 
   const participantsQuery = useQuery({
-    queryKey: queryKeys.videoGroups.participants(groupId),
-    queryFn: () => apiClient.getGroupParticipants(groupId),
+    queryKey: queryKeys.videoCourses.participants(courseId),
+    queryFn: () => apiClient.getCourseParticipants(courseId),
     enabled: isOpen,
     refetchInterval: (query) => {
       if (Date.now() >= trackDeliveryUntil) return false;
@@ -115,10 +115,10 @@ export function GroupParticipantsDialog({
     },
   });
   const refresh = () => queryClient.invalidateQueries({
-    queryKey: queryKeys.videoGroups.participants(groupId),
+    queryKey: queryKeys.videoCourses.participants(courseId),
   });
   const inviteMutation = useMutation({
-    mutationFn: (emails: string[]) => apiClient.inviteGroupMembers(groupId, emails),
+    mutationFn: (emails: string[]) => apiClient.inviteCourseMembers(courseId, emails),
     onSuccess: async ({ results }) => {
       setInviteResults(results);
       setEmailInput('');
@@ -127,18 +127,18 @@ export function GroupParticipantsDialog({
     },
   });
   const resendMutation = useMutation({
-    mutationFn: (invitationId: number) => apiClient.resendGroupInvitation(groupId, invitationId),
+    mutationFn: (invitationId: number) => apiClient.resendCourseInvitation(courseId, invitationId),
     onSuccess: () => {
       setTrackDeliveryUntil(Date.now() + DELIVERY_POLL_WINDOW_MS);
       return refresh();
     },
   });
   const revokeMutation = useMutation({
-    mutationFn: (invitationId: number) => apiClient.revokeGroupInvitation(groupId, invitationId),
+    mutationFn: (invitationId: number) => apiClient.revokeCourseInvitation(courseId, invitationId),
     onSuccess: refresh,
   });
   const removeMutation = useMutation({
-    mutationFn: (userId: string) => apiClient.removeGroupMember(groupId, userId),
+    mutationFn: (userId: string) => apiClient.removeCourseMember(courseId, userId),
     onSuccess: refresh,
   });
 
@@ -175,30 +175,30 @@ export function GroupParticipantsDialog({
     <Dialog {...dialog.dialogProps} scroll="inner" width="min(48rem, 95vw)">
       <DialogContent>
         <DialogHeader>
-          <DialogHeading {...dialog.headingProps}>{t('videos.groupMembers.title')}</DialogHeading>
+          <DialogHeading {...dialog.headingProps}>{t('videos.courseMembers.title')}</DialogHeading>
         </DialogHeader>
         <DialogScrollArea>
           <DialogBody>
             <div className="space-y-8">
               <section className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="group-invitation-emails">{t('videos.groupMembers.emailLabel')}</Label>
+                  <Label htmlFor="course-invitation-emails">{t('videos.courseMembers.emailLabel')}</Label>
                   <Textarea
-                    id="group-invitation-emails"
+                    id="course-invitation-emails"
                     rows={4}
                     value={emailInput}
                     onChange={(event) => setEmailInput(event.target.value)}
                     disabled={inviteMutation.isPending}
                   />
                   <p className="text-dns-14N-130 text-solid-gray-600">
-                    {t('videos.groupMembers.emailHelp')}
+                    {t('videos.courseMembers.emailHelp')}
                   </p>
                 </div>
                 {recipientPreview.length > 0 ? (
                   <div className="space-y-2">
-                    <h3 className="text-std-16B-170">{t('videos.groupMembers.previewTitle')}</h3>
+                    <h3 className="text-std-16B-170">{t('videos.courseMembers.previewTitle')}</h3>
                     <p className="text-dns-14N-130 text-solid-gray-600">
-                      {t('videos.groupMembers.previewSummary', {
+                      {t('videos.courseMembers.previewSummary', {
                         count: readyRecipientCount,
                         total: recipientPreview.length,
                       })}
@@ -212,8 +212,8 @@ export function GroupParticipantsDialog({
                           <span className="break-all">{recipient.email}</span>
                           <span>
                             {recipient.status === 'ready'
-                              ? t('videos.groupMembers.preview.ready')
-                              : t(`videos.groupMembers.result.${recipient.status}`)}
+                              ? t('videos.courseMembers.preview.ready')
+                              : t(`videos.courseMembers.result.${recipient.status}`)}
                           </span>
                         </li>
                       ))}
@@ -226,14 +226,14 @@ export function GroupParticipantsDialog({
                   disabled={inviteMutation.isPending || readyRecipientCount === 0}
                 >
                   {inviteMutation.isPending ? <InlineSpinner className="h-4 w-4" /> : null}
-                  {t('videos.groupMembers.invite')}
+                  {t('videos.courseMembers.invite')}
                 </Button>
                 {inviteResults.length > 0 ? (
                   <ul className="divide-y divide-solid-gray-200 border border-solid-gray-300">
                     {inviteResults.map((result, index) => (
                       <li key={`${result.email}-${index}`} className="flex justify-between gap-4 px-4 py-3">
                         <span className="break-all">{result.email}</span>
-                        <span>{t(`videos.groupMembers.result.${result.status}`)}</span>
+                        <span>{t(`videos.courseMembers.result.${result.status}`)}</span>
                       </li>
                     ))}
                   </ul>
@@ -251,7 +251,7 @@ export function GroupParticipantsDialog({
               ) : (
                 <>
                   <section className="space-y-3">
-                    <h3 className="text-std-18B-160">{t('videos.groupMembers.membersTitle')}</h3>
+                    <h3 className="text-std-18B-160">{t('videos.courseMembers.membersTitle')}</h3>
                     {participants?.members.length ? (
                       <ul className="divide-y divide-solid-gray-200 border border-solid-gray-300">
                         {participants.members.map((member) => (
@@ -267,16 +267,16 @@ export function GroupParticipantsDialog({
                               onClick={() => removeMutation.mutate(member.user_id)}
                               disabled={removeMutation.isPending}
                             >
-                              {t('videos.groupMembers.remove')}
+                              {t('videos.courseMembers.remove')}
                             </Button>
                           </li>
                         ))}
                       </ul>
-                    ) : <p>{t('videos.groupMembers.noMembers')}</p>}
+                    ) : <p>{t('videos.courseMembers.noMembers')}</p>}
                   </section>
 
                   <section className="space-y-3">
-                    <h3 className="text-std-18B-160">{t('videos.groupMembers.invitationsTitle')}</h3>
+                    <h3 className="text-std-18B-160">{t('videos.courseMembers.invitationsTitle')}</h3>
                     {participants?.invitations.length ? (
                       <ul className="divide-y divide-solid-gray-200 border border-solid-gray-300">
                         {participants.invitations.map((invitation) => (
@@ -284,7 +284,7 @@ export function GroupParticipantsDialog({
                             <div>
                               <p className="break-all font-bold">{invitation.email}</p>
                               <p className="text-dns-14N-130 text-solid-gray-600">
-                                {t(`videos.groupMembers.status.${invitation.status}`)} / {t(`videos.groupMembers.delivery.${invitation.delivery_status}`)}
+                                {t(`videos.courseMembers.status.${invitation.status}`)} / {t(`videos.courseMembers.delivery.${invitation.delivery_status}`)}
                               </p>
                             </div>
                             {invitation.status === 'pending' ? (
@@ -296,7 +296,7 @@ export function GroupParticipantsDialog({
                                   onClick={() => resendMutation.mutate(invitation.id)}
                                   disabled={resendMutation.isPending}
                                 >
-                                  {t('videos.groupMembers.resend')}
+                                  {t('videos.courseMembers.resend')}
                                 </Button>
                                 <Button
                                   type="button"
@@ -305,14 +305,14 @@ export function GroupParticipantsDialog({
                                   onClick={() => revokeMutation.mutate(invitation.id)}
                                   disabled={revokeMutation.isPending}
                                 >
-                                  {t('videos.groupMembers.revoke')}
+                                  {t('videos.courseMembers.revoke')}
                                 </Button>
                               </div>
                             ) : null}
                           </li>
                         ))}
                       </ul>
-                    ) : <p>{t('videos.groupMembers.noInvitations')}</p>}
+                    ) : <p>{t('videos.courseMembers.noInvitations')}</p>}
                   </section>
                 </>
               )}

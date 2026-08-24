@@ -17,12 +17,12 @@ export const THROTTLE_RATES = {
   email_change_email: { limit: 3, periodSec: 3600 },
   // 招待は「リクエスト数」ではなく「宛先数」で消費する（1 回 50 件 × 10 回で
   // 500 通送れてしまうのを防ぐ）。
-  group_invitation_user: { limit: 200, periodSec: 3600 },
-  group_invitation_group: { limit: 200, periodSec: 3600 },
-  group_invitation_resend: { limit: 3, periodSec: 3600 },
+  course_invitation_user: { limit: 200, periodSec: 3600 },
+  course_invitation_course: { limit: 200, periodSec: 3600 },
+  course_invitation_resend: { limit: 3, periodSec: 3600 },
   // トークン式エンドポイントは未認証で叩けるので、IP 単位で総当り・負荷を絞る。
-  group_invitation_token_ip: { limit: 60, periodSec: 3600 },
-  group_invitation_decision_user: { limit: 30, periodSec: 3600 },
+  course_invitation_token_ip: { limit: 60, periodSec: 3600 },
+  course_invitation_decision_user: { limit: 30, periodSec: 3600 },
   // 共有スラッグは利用者が決める短い文字列なので推測できる。解決に「失敗した」
   // 試行だけを絞り、正規の共有視聴（Range 連打）には一切かけない。
   share_slug_probe_ip: { limit: 30, periodSec: 3600 },

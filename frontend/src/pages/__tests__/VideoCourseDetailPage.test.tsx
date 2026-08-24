@@ -1,11 +1,11 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
-import VideoGroupDetailPage from '../VideoGroupDetailPage'
+import VideoCourseDetailPage from '../VideoCourseDetailPage'
 import { apiClient } from '@/lib/api'
 import { useI18nNavigate } from '@/lib/i18n'
 
-const mockGroup = {
+const mockCourse = {
   id: 1,
-  name: 'Test Group',
+  name: 'Test Course',
   description: 'Test Description',
   share_slug: null,
   access_role: 'owner' as const,
@@ -27,22 +27,22 @@ vi.mock('@/lib/api', () => ({
   apiClient: {
     getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
     getMeOrNull: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
-    getVideoGroup: vi.fn(),
+    getVideoCourse: vi.fn(),
     getVideos: vi.fn(),
-    updateVideoGroup: vi.fn(),
-    deleteVideoGroup: vi.fn(),
-    addVideosToGroup: vi.fn(),
-    removeVideoFromGroup: vi.fn(),
-    reorderVideosInGroup: vi.fn(),
+    updateVideoCourse: vi.fn(),
+    deleteVideoCourse: vi.fn(),
+    addVideosToCourse: vi.fn(),
+    removeVideoFromCourse: vi.fn(),
+    reorderVideosInCourse: vi.fn(),
     createShareLink: vi.fn(),
     deleteShareLink: vi.fn(),
     getVideoUrl: vi.fn((url) => url),
-    getGroupParticipants: vi.fn(),
-    inviteGroupMembers: vi.fn(),
-    resendGroupInvitation: vi.fn(),
-    revokeGroupInvitation: vi.fn(),
-    removeGroupMember: vi.fn(),
-    leaveVideoGroup: vi.fn(),
+    getCourseParticipants: vi.fn(),
+    inviteCourseMembers: vi.fn(),
+    resendCourseInvitation: vi.fn(),
+    revokeCourseInvitation: vi.fn(),
+    removeCourseMember: vi.fn(),
+    leaveVideoCourse: vi.fn(),
   },
 }))
 
@@ -68,35 +68,35 @@ vi.mock('@/components/video/TagManagementModal', () => ({
   TagManagementModal: () => null,
 }))
 
-describe('VideoGroupDetailPage', () => {
+describe('VideoCourseDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-      ; (apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroup)
+      ; (apiClient.getVideoCourse as ReturnType<typeof vi.fn>).mockResolvedValue(mockCourse)
       ; (apiClient.getVideos as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], meta: { total: 0, limit: 24, offset: 0 } })
-      ; (apiClient.getGroupParticipants as ReturnType<typeof vi.fn>).mockResolvedValue({ invitations: [], members: [] })
+      ; (apiClient.getCourseParticipants as ReturnType<typeof vi.fn>).mockResolvedValue({ invitations: [], members: [] })
   })
 
   afterEach(() => {
     globalThis.__setMockLanguage('en')
   })
 
-  it('should render group name', async () => {
-    render(<VideoGroupDetailPage />)
+  it('should render course name', async () => {
+    render(<VideoCourseDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getAllByText('Test Group').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('Test Course').length).toBeGreaterThan(0)
     })
   })
 
-  it('should render group description in edit form', async () => {
-    render(<VideoGroupDetailPage />)
+  it('should render course description in edit form', async () => {
+    render(<VideoCourseDetailPage />)
 
     // Click edit button (icon-only, accessed via title)
     await waitFor(() => {
-      expect(screen.getByTitle('videos.groupDetail.editTitle')).toBeInTheDocument()
+      expect(screen.getByTitle('videos.courseDetail.editTitle')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByTitle('videos.groupDetail.editTitle'))
+    fireEvent.click(screen.getByTitle('videos.courseDetail.editTitle'))
 
     // Description should be in the edit textarea
     await waitFor(() => {
@@ -106,40 +106,40 @@ describe('VideoGroupDetailPage', () => {
   })
 
   it('should render edit button', async () => {
-    render(<VideoGroupDetailPage />)
+    render(<VideoCourseDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByTitle('videos.groupDetail.editTitle')).toBeInTheDocument()
+      expect(screen.getByTitle('videos.courseDetail.editTitle')).toBeInTheDocument()
     })
   })
 
   it('should render add videos button', async () => {
-    render(<VideoGroupDetailPage />)
+    render(<VideoCourseDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('videos.groupDetail.add')).toBeInTheDocument()
+      expect(screen.getByText('videos.courseDetail.add')).toBeInTheDocument()
     })
   })
 
-  it('should render breadcrumbs for the group hierarchy', async () => {
-    render(<VideoGroupDetailPage />)
+  it('should render breadcrumbs for the course hierarchy', async () => {
+    render(<VideoCourseDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('navigation.groupsNav')).toBeInTheDocument()
-      expect(screen.getAllByText('Test Group').length).toBeGreaterThan(0)
+      expect(screen.getByText('navigation.coursesNav')).toBeInTheDocument()
+      expect(screen.getAllByText('Test Course').length).toBeGreaterThan(0)
     })
   })
 
   it('should render delete button', async () => {
-    render(<VideoGroupDetailPage />)
+    render(<VideoCourseDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByTitle('videos.groupDetail.delete')).toBeInTheDocument()
+      expect(screen.getByTitle('videos.courseDetail.delete')).toBeInTheDocument()
     })
   })
 
   it('should render video list', async () => {
-    render(<VideoGroupDetailPage />)
+    render(<VideoCourseDetailPage />)
 
     await waitFor(() => {
       expect(screen.getAllByText('Video 1').length).toBeGreaterThan(0)
@@ -148,7 +148,7 @@ describe('VideoGroupDetailPage', () => {
   })
 
   it('should render chat panel', async () => {
-    render(<VideoGroupDetailPage />)
+    render(<VideoCourseDetailPage />)
 
     await waitFor(() => {
       expect(screen.getAllByTestId('chat-panel').length).toBeGreaterThan(0)
@@ -156,102 +156,102 @@ describe('VideoGroupDetailPage', () => {
   })
 
   it('should enter edit mode when edit button is clicked', async () => {
-    render(<VideoGroupDetailPage />)
+    render(<VideoCourseDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByTitle('videos.groupDetail.editTitle')).toBeInTheDocument()
+      expect(screen.getByTitle('videos.courseDetail.editTitle')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByTitle('videos.groupDetail.editTitle'))
+    fireEvent.click(screen.getByTitle('videos.courseDetail.editTitle'))
 
     expect(screen.getAllByText('common.actions.save').length).toBeGreaterThan(0)
     expect(screen.getByText('common.actions.cancel')).toBeInTheDocument()
   })
 
   it('should show share section in dialog', async () => {
-    render(<VideoGroupDetailPage />)
+    render(<VideoCourseDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('videos.groupDetail.shareOpen')).toBeInTheDocument()
+      expect(screen.getByText('videos.courseDetail.shareOpen')).toBeInTheDocument()
     })
-    fireEvent.click(screen.getByText('videos.groupDetail.shareOpen'))
+    fireEvent.click(screen.getByText('videos.courseDetail.shareOpen'))
 
     const dialog = await screen.findByRole('dialog')
-    expect(within(dialog).getByText('videos.groupDetail.shareLinkLabel')).toBeInTheDocument()
+    expect(within(dialog).getByText('videos.courseDetail.shareLinkLabel')).toBeInTheDocument()
     expect(within(dialog).getByText('common.actions.save')).toBeInTheDocument()
   })
 
   it('opens member management for the owner', async () => {
-    render(<VideoGroupDetailPage />)
+    render(<VideoCourseDetailPage />)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'videos.groupMembers.open' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'videos.courseMembers.open' }))
 
-    expect(await screen.findByText('videos.groupMembers.title')).toBeInTheDocument()
-    expect(apiClient.getGroupParticipants).toHaveBeenCalledWith(1)
+    expect(await screen.findByText('videos.courseMembers.title')).toBeInTheDocument()
+    expect(apiClient.getCourseParticipants).toHaveBeenCalledWith(1)
   })
 
   it('shows read-only controls to a joined member and asks for confirmation before leaving', async () => {
-    ; (apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ...mockGroup,
+    ; (apiClient.getVideoCourse as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...mockCourse,
       access_role: 'member',
     })
-    ; (apiClient.leaveVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
+    ; (apiClient.leaveVideoCourse as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
 
-    render(<VideoGroupDetailPage />)
+    render(<VideoCourseDetailPage />)
 
-    expect(await screen.findByRole('button', { name: 'videos.groupDetail.leave' })).toBeInTheDocument()
-    expect(screen.queryByText('videos.groupDetail.shareOpen')).not.toBeInTheDocument()
-    expect(screen.queryByTitle('videos.groupDetail.editTitle')).not.toBeInTheDocument()
-    expect(screen.queryByTitle('videos.groupDetail.delete')).not.toBeInTheDocument()
-    expect(screen.queryByText('videos.groupDetail.add')).not.toBeInTheDocument()
-    expect(screen.queryAllByRole('button', { name: 'videos.groupDetail.removeFromGroup' })).toHaveLength(0)
+    expect(await screen.findByRole('button', { name: 'videos.courseDetail.leave' })).toBeInTheDocument()
+    expect(screen.queryByText('videos.courseDetail.shareOpen')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('videos.courseDetail.editTitle')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('videos.courseDetail.delete')).not.toBeInTheDocument()
+    expect(screen.queryByText('videos.courseDetail.add')).not.toBeInTheDocument()
+    expect(screen.queryAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })).toHaveLength(0)
 
-    fireEvent.click(screen.getByRole('button', { name: 'videos.groupDetail.leave' }))
+    fireEvent.click(screen.getByRole('button', { name: 'videos.courseDetail.leave' }))
 
-    const dialog = await screen.findByRole('dialog', { name: /confirmations\.leaveGroup/ })
-    expect(within(dialog).getByText('confirmations.leaveGroupDescription')).toBeInTheDocument()
-    expect(apiClient.leaveVideoGroup).not.toHaveBeenCalled()
+    const dialog = await screen.findByRole('dialog', { name: /confirmations\.leaveCourse/ })
+    expect(within(dialog).getByText('confirmations.leaveCourseDescription')).toBeInTheDocument()
+    expect(apiClient.leaveVideoCourse).not.toHaveBeenCalled()
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'common.actions.cancel' }))
 
     await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: /confirmations\.leaveGroup/ })).not.toBeInTheDocument()
+      expect(screen.queryByRole('dialog', { name: /confirmations\.leaveCourse/ })).not.toBeInTheDocument()
     })
-    expect(apiClient.leaveVideoGroup).not.toHaveBeenCalled()
+    expect(apiClient.leaveVideoCourse).not.toHaveBeenCalled()
   })
 
-  it('leaves a joined group only after the member confirms', async () => {
-    ; (apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ...mockGroup,
+  it('leaves a joined course only after the member confirms', async () => {
+    ; (apiClient.getVideoCourse as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...mockCourse,
       access_role: 'member',
     })
-    ; (apiClient.leaveVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
+    ; (apiClient.leaveVideoCourse as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
     const navigate = useI18nNavigate() as ReturnType<typeof vi.fn>
 
-    render(<VideoGroupDetailPage />)
+    render(<VideoCourseDetailPage />)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'videos.groupDetail.leave' }))
-    const dialog = await screen.findByRole('dialog', { name: /confirmations\.leaveGroup/ })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'videos.groupDetail.leave' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'videos.courseDetail.leave' }))
+    const dialog = await screen.findByRole('dialog', { name: /confirmations\.leaveCourse/ })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'videos.courseDetail.leave' }))
 
     await waitFor(() => {
-      expect(apiClient.leaveVideoGroup).toHaveBeenCalledWith(1)
-      expect(navigate).toHaveBeenCalledWith('/videos/groups')
+      expect(apiClient.leaveVideoCourse).toHaveBeenCalledWith(1)
+      expect(navigate).toHaveBeenCalledWith('/videos/courses')
     })
   })
 
   it('should not render a fixed sub-header below the nav', async () => {
-    const { container } = render(<VideoGroupDetailPage />)
+    const { container } = render(<VideoCourseDetailPage />)
     await waitFor(() => {
-      expect(screen.getAllByText('Test Group').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('Test Course').length).toBeGreaterThan(0)
     })
     const subHeader = container.querySelector('.fixed.top-16.z-40')
     expect(subHeader).toBeNull()
   })
 
   it('should not autoplay youtube video on initial render', async () => {
-    const youtubeGroup = {
-      ...mockGroup,
+    const youtubeCourse = {
+      ...mockCourse,
       videos: [
         {
           id: 1,
@@ -265,9 +265,9 @@ describe('VideoGroupDetailPage', () => {
         },
       ],
     }
-    ; (apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue(youtubeGroup)
+    ; (apiClient.getVideoCourse as ReturnType<typeof vi.fn>).mockResolvedValue(youtubeCourse)
 
-    const { container } = render(<VideoGroupDetailPage />)
+    const { container } = render(<VideoCourseDetailPage />)
 
     await waitFor(() => {
       const iframe = container.querySelector('iframe')
@@ -279,23 +279,23 @@ describe('VideoGroupDetailPage', () => {
 
 })
 
-describe('VideoGroupDetailPage - Edit modal error', () => {
+describe('VideoCourseDetailPage - Edit modal error', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroup)
-    ;(apiClient.updateVideoGroup as ReturnType<typeof vi.fn>).mockRejectedValue(
+    ;(apiClient.getVideoCourse as ReturnType<typeof vi.fn>).mockResolvedValue(mockCourse)
+    ;(apiClient.updateVideoCourse as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error('Update failed'),
     )
   })
 
   it('should clear update error when modal is reopened after cancel', async () => {
-    render(<VideoGroupDetailPage />)
+    render(<VideoCourseDetailPage />)
 
     // Open edit modal
     await waitFor(() => {
-      expect(screen.getByTitle('videos.groupDetail.editTitle')).toBeInTheDocument()
+      expect(screen.getByTitle('videos.courseDetail.editTitle')).toBeInTheDocument()
     })
-    fireEvent.click(screen.getByTitle('videos.groupDetail.editTitle'))
+    fireEvent.click(screen.getByTitle('videos.courseDetail.editTitle'))
 
     const dialog = await screen.findByRole('dialog')
 
@@ -309,47 +309,47 @@ describe('VideoGroupDetailPage - Edit modal error', () => {
     fireEvent.click(within(dialog).getByText('common.actions.cancel'))
 
     // Reopen → error should NOT be visible
-    fireEvent.click(screen.getByTitle('videos.groupDetail.editTitle'))
+    fireEvent.click(screen.getByTitle('videos.courseDetail.editTitle'))
     const dialog2 = await screen.findByRole('dialog')
     expect(within(dialog2).queryByText('Update failed')).not.toBeInTheDocument()
   })
 })
 
-describe('VideoGroupDetailPage - Share Link', () => {
+describe('VideoCourseDetailPage - Share Link', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    const groupWithShare = { ...mockGroup, share_slug: 'test-token-123' }
-      ; (apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue(groupWithShare)
+    const courseWithShare = { ...mockCourse, share_slug: 'test-token-123' }
+      ; (apiClient.getVideoCourse as ReturnType<typeof vi.fn>).mockResolvedValue(courseWithShare)
   })
 
   it('should show share link when token exists', async () => {
-    render(<VideoGroupDetailPage />)
+    render(<VideoCourseDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('videos.groupDetail.shareOpen')).toBeInTheDocument()
+      expect(screen.getByText('videos.courseDetail.shareOpen')).toBeInTheDocument()
     })
-    fireEvent.click(screen.getByText('videos.groupDetail.shareOpen'))
+    fireEvent.click(screen.getByText('videos.courseDetail.shareOpen'))
 
     const dialog = await screen.findByRole('dialog')
-    expect(within(dialog).getByText('videos.groupDetail.copyButton')).toBeInTheDocument()
-    expect(within(dialog).getByText('videos.groupDetail.disable')).toBeInTheDocument()
+    expect(within(dialog).getByText('videos.courseDetail.copyButton')).toBeInTheDocument()
+    expect(within(dialog).getByText('videos.courseDetail.disable')).toBeInTheDocument()
   })
 })
 
-describe('VideoGroupDetailPage - Loading state', () => {
+describe('VideoCourseDetailPage - Loading state', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     // Never-resolving promise simulates initial loading
-    ;(apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockImplementation(() => new Promise(() => {}))
+    ;(apiClient.getVideoCourse as ReturnType<typeof vi.fn>).mockImplementation(() => new Promise(() => {}))
   })
 
   it('should render AppNav during initial loading', async () => {
-    render(<VideoGroupDetailPage />)
+    render(<VideoCourseDetailPage />)
     expect(screen.getByTestId('app-nav')).toBeInTheDocument()
   })
 
   it('should show loading spinner in content area below nav (not full-screen overlay)', async () => {
-    const { container } = render(<VideoGroupDetailPage />)
+    const { container } = render(<VideoCourseDetailPage />)
     // Must NOT be a standalone full-screen wrapper (old behavior without AppNav)
     const fullScreenWrapper = container.querySelector('.min-h-screen.flex.items-center.justify-center')
     expect(fullScreenWrapper).toBeNull()
@@ -359,15 +359,15 @@ describe('VideoGroupDetailPage - Loading state', () => {
   })
 })
 
-describe('VideoGroupDetailPage - Delete', () => {
-  let currentGroup = structuredClone(mockGroup)
+describe('VideoCourseDetailPage - Delete', () => {
+  let currentGroup = structuredClone(mockCourse)
 
   beforeEach(() => {
     vi.clearAllMocks()
-    currentGroup = structuredClone(mockGroup)
-      ; (apiClient.getVideoGroup as ReturnType<typeof vi.fn>).mockImplementation(() => Promise.resolve(structuredClone(currentGroup)))
-      ; (apiClient.deleteVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue({})
-      ; (apiClient.removeVideoFromGroup as ReturnType<typeof vi.fn>).mockImplementation(async (_groupId: number, videoId: number) => {
+    currentGroup = structuredClone(mockCourse)
+      ; (apiClient.getVideoCourse as ReturnType<typeof vi.fn>).mockImplementation(() => Promise.resolve(structuredClone(currentGroup)))
+      ; (apiClient.deleteVideoCourse as ReturnType<typeof vi.fn>).mockResolvedValue({})
+      ; (apiClient.removeVideoFromCourse as ReturnType<typeof vi.fn>).mockImplementation(async (_courseId: number, videoId: number) => {
         currentGroup = {
           ...currentGroup,
           videos: currentGroup.videos.filter((video) => video.id !== videoId),
@@ -375,25 +375,25 @@ describe('VideoGroupDetailPage - Delete', () => {
       })
   })
 
-  it('should call deleteVideoGroup when delete is confirmed', async () => {
-    render(<VideoGroupDetailPage />)
+  it('should call deleteVideoCourse when delete is confirmed', async () => {
+    render(<VideoCourseDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByTitle('videos.groupDetail.delete')).toBeInTheDocument()
+      expect(screen.getByTitle('videos.courseDetail.delete')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByTitle('videos.groupDetail.delete'))
+    fireEvent.click(screen.getByTitle('videos.courseDetail.delete'))
     fireEvent.click(await screen.findByRole('button', { name: 'common.actions.delete' }))
 
     await waitFor(() => {
-      expect(apiClient.deleteVideoGroup).toHaveBeenCalledWith(1)
+      expect(apiClient.deleteVideoCourse).toHaveBeenCalledWith(1)
     })
   })
 
-  it('should show a visible remove-from-group action for each video without hover-only classes', async () => {
-    render(<VideoGroupDetailPage />)
+  it('should show a visible remove-from-course action for each video without hover-only classes', async () => {
+    render(<VideoCourseDetailPage />)
 
-    const removeButtons = await screen.findAllByRole('button', { name: 'videos.groupDetail.removeFromGroup' })
+    const removeButtons = await screen.findAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })
 
     expect(removeButtons).toHaveLength(2)
     removeButtons.forEach((button) => {
@@ -404,17 +404,17 @@ describe('VideoGroupDetailPage - Delete', () => {
   })
 
   it('should show delete error when delete fails', async () => {
-    ;(apiClient.deleteVideoGroup as ReturnType<typeof vi.fn>).mockRejectedValue(
+    ;(apiClient.deleteVideoCourse as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error('Delete failed'),
     )
 
-    render(<VideoGroupDetailPage />)
+    render(<VideoCourseDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByTitle('videos.groupDetail.delete')).toBeInTheDocument()
+      expect(screen.getByTitle('videos.courseDetail.delete')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByTitle('videos.groupDetail.delete'))
+    fireEvent.click(screen.getByTitle('videos.courseDetail.delete'))
     fireEvent.click(await screen.findByRole('button', { name: 'common.actions.delete' }))
 
     await waitFor(() => {
@@ -422,15 +422,15 @@ describe('VideoGroupDetailPage - Delete', () => {
     })
   })
 
-  it('should remove the video from the group list when removal is confirmed', async () => {
-    render(<VideoGroupDetailPage />)
+  it('should remove the video from the course list when removal is confirmed', async () => {
+    render(<VideoCourseDetailPage />)
 
-    const [firstRemoveButton] = await screen.findAllByRole('button', { name: 'videos.groupDetail.removeFromGroup' })
+    const [firstRemoveButton] = await screen.findAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })
     fireEvent.click(firstRemoveButton)
     fireEvent.click(await screen.findByRole('button', { name: 'common.actions.confirm' }))
 
     await waitFor(() => {
-      expect(apiClient.removeVideoFromGroup).toHaveBeenCalledWith(1, 1)
+      expect(apiClient.removeVideoFromCourse).toHaveBeenCalledWith(1, 1)
     })
 
     await waitFor(() => {
@@ -439,16 +439,16 @@ describe('VideoGroupDetailPage - Delete', () => {
     })
   })
 
-  it('should reset autoVideoId when the auto-selected video is removed from the group', async () => {
+  it('should reset autoVideoId when the auto-selected video is removed from the course', async () => {
     // After Video 1 (initially auto-selected) is removed, autoVideoId should
     // update to Video 2. Subsequent title queries confirm Video 2 is now tracked.
-    render(<VideoGroupDetailPage />)
+    render(<VideoCourseDetailPage />)
 
     // Wait for initial render with Video 1 auto-selected
-    await screen.findAllByRole('button', { name: 'videos.groupDetail.removeFromGroup' })
+    await screen.findAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })
 
     // Remove Video 1 (the auto-selected one)
-    const [firstRemoveButton] = screen.getAllByRole('button', { name: 'videos.groupDetail.removeFromGroup' })
+    const [firstRemoveButton] = screen.getAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })
     fireEvent.click(firstRemoveButton)
     fireEvent.click(await screen.findByRole('button', { name: 'common.actions.confirm' }))
 
@@ -464,23 +464,23 @@ describe('VideoGroupDetailPage - Delete', () => {
     // Regression: after deletion shifts autoVideoId to V2, a subsequent reorder
     // that puts V3 first must NOT override autoVideoId with V3.
 
-    // Override to 3-video group for this test
+    // Override to 3-video course for this test
     const video3 = { id: 3, title: 'Video 3', description: 'Desc 3', status: 'completed', file: 'video3.mp4', source_type: 'uploaded', order: 2 }
-    currentGroup = { ...mockGroup, videos: [...mockGroup.videos, video3] }
-    ;(apiClient.updateVideoGroup as ReturnType<typeof vi.fn>).mockResolvedValue({})
+    currentGroup = { ...mockCourse, videos: [...mockCourse.videos, video3] }
+    ;(apiClient.updateVideoCourse as ReturnType<typeof vi.fn>).mockResolvedValue({})
 
-    const { container } = render(<VideoGroupDetailPage />)
+    const { container } = render(<VideoCourseDetailPage />)
 
     // Wait for all 3 remove buttons (initial load with V1, V2, V3)
     await waitFor(() => {
-      expect(screen.getAllByRole('button', { name: 'videos.groupDetail.removeFromGroup' })).toHaveLength(3)
+      expect(screen.getAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })).toHaveLength(3)
     })
 
     // Step 1: Delete Video 1 (auto-selected)
-    // removeVideoFromGroup mock mutates currentGroup → [V2, V3]
-    // syncGroupDetail → invalidateQueries → refetch returns [V2, V3]
+    // removeVideoFromCourse mock mutates currentGroup → [V2, V3]
+    // syncCourseDetail → invalidateQueries → refetch returns [V2, V3]
     // autoVideoId: V1 stale → resets to V2 (first in new list)
-    const [firstRemoveButton] = screen.getAllByRole('button', { name: 'videos.groupDetail.removeFromGroup' })
+    const [firstRemoveButton] = screen.getAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })
     fireEvent.click(firstRemoveButton)
     fireEvent.click(await screen.findByRole('button', { name: 'common.actions.confirm' }))
 
@@ -498,8 +498,8 @@ describe('VideoGroupDetailPage - Delete', () => {
       ],
     }
 
-    // Trigger a refetch by saving the edit modal (updateGroupMutation.onSuccess → syncGroupDetail)
-    fireEvent.click(screen.getByTitle('videos.groupDetail.editTitle'))
+    // Trigger a refetch by saving the edit modal (updateCourseMutation.onSuccess → syncCourseDetail)
+    fireEvent.click(screen.getByTitle('videos.courseDetail.editTitle'))
     const dialog = await screen.findByRole('dialog')
     fireEvent.click(within(dialog).getByText('common.actions.save'))
 

@@ -34,10 +34,10 @@
     "messages": {
       "noDescription": "No description",
       "videoNotFound": "Video not found",
-      "groupNotFound": "Chat group not found",
+      "courseNotFound": "Chat course not found",
       "browserNoVideoSupport": "Your browser does not support the video tag.",
-      "shareLoadFailed": "Failed to load the shared chat group",
-      "shareNotFound": "Shared chat group not found",
+      "shareLoadFailed": "Failed to load the shared chat course",
+      "shareNotFound": "Shared chat course not found",
       "videoFileMissing": "Video file is unavailable",
       "copyFailed": "Copy failed. Please copy it manually."
     }
@@ -69,7 +69,7 @@
   "navigation": {
     "home": "Home",
     "videosNav": "Videos",
-    "groupsNav": "Groups",
+    "coursesNav": "Courses",
     "docs": "Developer Docs",
     "settings": "Settings",
     "pricing": "Pricing",
@@ -88,7 +88,7 @@
     "welcome": {
       "badge": "Home",
       "greeting": "{{username}}",
-      "dailyMotivation": "Register videos, run transcription, and manage learning groups."
+      "dailyMotivation": "Register videos, run transcription, and manage learning courses."
     },
     "actions": {
       "sectionTitle": "Menus",
@@ -100,9 +100,9 @@
         "title": "Video list",
         "descriptionLong": "Review, edit, and share your {{count}} registered videos."
       },
-      "groups": {
-        "title": "Group management",
-        "descriptionLong": "Manage {{count}} learning groups."
+      "courses": {
+        "title": "Course management",
+        "descriptionLong": "Manage {{count}} learning courses."
       }
     },
     "stats": {
@@ -110,7 +110,7 @@
       "processing": "Processing",
       "totalVideos": "Total Videos",
       "analysisCompleted": "Analysis Completed",
-      "groups": "Groups"
+      "courses": "Courses"
     },
     "recentVideos": {
       "title": "Recently Uploaded",
@@ -177,7 +177,7 @@
       },
       "share": {
         "title": "Share lecture videos with a class",
-        "body": "Group class recordings and share them with a course or training team. Learners can ask questions against the same lecture video, and instructors keep assigned material in one place."
+        "body": "Collect class recordings into a course and share them with a class or training team. Learners can ask questions against the same lecture video, and instructors keep assigned material in one place."
       },
       "analytics": {
         "title": "See unclear parts from student questions",
@@ -189,7 +189,7 @@
       "intro": "After you create an account, lecture video transcription takes three steps. No credit card is required.",
       "upload": {
         "title": "Add a lecture video",
-        "body": "Upload a class recording, or paste a YouTube lecture URL. Putting it in a group makes it easier to share with a class later."
+        "body": "Upload a class recording, or paste a YouTube lecture URL. Putting it in a course makes it easier to share with a class later."
       },
       "index": {
         "title": "Wait for transcription",
@@ -308,39 +308,39 @@
         "unavailable": "No transcript yet"
       }
     },
-    "groups": {
-      "title": "Chat groups",
-      "subtitle": "Manage and share your learning content in groups",
-      "emptyDescription": "Group videos together to manage your learning efficiently",
+    "courses": {
+      "title": "Chat courses",
+      "subtitle": "Manage and share your learning content in courses",
+      "emptyDescription": "Collect videos into a course to manage your learning efficiently",
       "optional": "(optional)",
-      "create": "Create chat group",
-      "createTitle": "Create chat group",
-      "nameLabel": "Chat group name",
-      "namePlaceholder": "Chat group name",
+      "create": "Create chat course",
+      "createTitle": "Create chat course",
+      "nameLabel": "Chat course name",
+      "namePlaceholder": "Chat course name",
       "descriptionLabel": "Description",
       "descriptionPlaceholder": "Optional description",
-      "createError": "Failed to create chat group",
-      "empty": "No chat groups yet",
+      "createError": "Failed to create chat course",
+      "empty": "No chat courses yet",
       "dragHandle": "Drag to reorder",
       "open": "Open {{name}}",
       "moveUp": "Move {{name}} up",
       "moveDown": "Move {{name}} down",
-      "joinedTitle": "Groups you've joined",
+      "joinedTitle": "Courses you've joined",
       "memberBadge": "Member",
       "loadingMore": "Loading...",
       "videoCount_one": "{{count}} video",
       "videoCount_other": "{{count}} videos"
     },
-    "groupDetail": {
+    "courseDetail": {
       "addVideos": "Add videos",
-      "addVideosDescription": "Select videos to add to this group.",
+      "addVideosDescription": "Select videos to add to this course.",
       "delete": "Delete",
-      "removeVideoConfirm": "Remove this video from the chat group?",
-      "addError": "Failed to add videos to the chat group",
-      "removeVideoError": "Failed to remove the video from the chat group",
+      "removeVideoConfirm": "Remove this video from the chat course?",
+      "addError": "Failed to add videos to the chat course",
+      "removeVideoError": "Failed to remove the video from the chat course",
       "share": {
-        "title": "Share this chat group",
-        "enabled": "This chat group is shared via a public link.",
+        "title": "Share this chat course",
+        "enabled": "This chat course is shared via a public link.",
         "disabled": "Generate a share link to allow access without signing in."
       },
       "shareOpen": "Share",
@@ -380,18 +380,18 @@
       "videoListTitle": "Videos",
       "videoListEmpty": "No videos yet",
       "videoCount": "{{count}} videos",
-      "editTitle": "Edit group",
-      "editDescription": "Update the group name and description.",
+      "editTitle": "Edit course",
+      "editDescription": "Update the course name and description.",
       "shareLinkLabel": "Share link:",
       "shareSlugPlaceholder": "Enter a share link",
       "shareSlugHelp": "3-64 chars, lowercase letters, numbers, and hyphens only",
       "copyButton": "Copy",
-      "removeFromGroup": "Remove from group",
-      "deleteError": "Failed to delete the chat group",
-      "leave": "Leave group",
-      "leaveError": "Failed to leave the group"
+      "removeFromCourse": "Remove from course",
+      "deleteError": "Failed to delete the chat course",
+      "leave": "Leave course",
+      "leaveError": "Failed to leave the course"
     },
-    "groupMembers": {
+    "courseMembers": {
       "title": "Manage members and invitations",
       "open": "Manage members",
       "emailLabel": "Email addresses to invite",
@@ -441,15 +441,15 @@
       "publicBadge": "Public share link"
     }
   },
-  "groupInvitation": {
-    "badge": "Group invitation",
+  "courseInvitation": {
+    "badge": "Course invitation",
     "title": "Review invitation",
     "description": "Join using an account whose verified email matches the invitation.",
     "inviter": "Invited by",
     "recipient": "Invited email",
     "notFound": "This invitation could not be found or is unavailable.",
     "accept": "Accept and join",
-    "openGroup": "Open group",
+    "openCourse": "Open course",
     "decline": "Decline",
     "declined": "You declined this invitation.",
     "authRequired": "Sign in with the invited email address to accept or decline.",
@@ -605,10 +605,10 @@
   },
   "confirmations": {
     "deleteVideo": "Are you sure you want to delete this video?",
-    "deleteGroup": "Are you sure you want to delete this chat group?",
+    "deleteCourse": "Are you sure you want to delete this chat course?",
     "disableShareLink": "Disable the share link?",
-    "leaveGroup": "Leave “{{name}}”?",
-    "leaveGroupDescription": "You will no longer be able to view this group's videos or chat. You will need a new invitation to join again."
+    "leaveCourse": "Leave “{{name}}”?",
+    "leaveCourseDescription": "You will no longer be able to view this course's videos or chat. You will need a new invitation to join again."
   },
   "pricing": {
     "title": "Pricing",
@@ -954,7 +954,7 @@
     "dateRange": "Period: {{first}} – {{last}}",
     "empty": {
       "title": "No data yet",
-      "description": "There are no questions in this group yet. Start chatting to see analytics."
+      "description": "There are no questions in this course yet. Start chatting to see analytics."
     },
     "timeSeries": {
       "title": "Question Trends",
@@ -982,11 +982,11 @@
       "exampleTitle": "OpenAI SDK Examples",
       "exampleDescription": "Sample code for accessing VideoQ RAG chat using the OpenAI SDK.",
       "ragExample": {
-        "title": "RAG chat (video group reference)",
-        "description": "With group_id, the endpoint searches indexed video scenes to answer. citations and chat_log_id are returned as extension fields."
+        "title": "RAG chat (video course reference)",
+        "description": "With course_id, the endpoint searches indexed video scenes to answer. citations and chat_log_id are returned as extension fields."
       },
       "code": {
-        "ragComment": "RAG chat targeting a video group via group_id",
+        "ragComment": "RAG chat targeting a video course via course_id",
         "sampleQuestion": "What is a neural network?",
         "relatedVideosComment": "VideoQ extension fields (referenced scenes and chat log ID)",
         "language": "en"
@@ -1057,14 +1057,14 @@
           "GET /api/videos accepts q / status / ordering / tags plus limit / offset"
         ]
       },
-      "groups": {
-        "title": "Groups / Membership API",
-        "description": "Create video groups, manage their members, and issue share links.",
+      "courses": {
+        "title": "Courses / Membership API",
+        "description": "Create video courses, manage their members, and issue share links.",
         "bullets": [
-          "Create a group with POST /api/videos/groups and reuse the returned id as group_id in the Chat API",
-          "Add videos in bulk with POST /api/videos/groups/{groupId}/videos",
-          "Reorder them with PATCH /api/videos/groups/{groupId}/videos/order",
-          "POST /api/videos/groups/{id}/share issues a share link, after which GET /api/videos/groups/share/{slug} is readable without authentication"
+          "Create a course with POST /api/videos/courses and reuse the returned id as course_id in the Chat API",
+          "Add videos in bulk with POST /api/videos/courses/{courseId}/videos",
+          "Reorder them with PATCH /api/videos/courses/{courseId}/videos/order",
+          "POST /api/videos/courses/{id}/share issues a share link, after which GET /api/videos/courses/share/{slug} is readable without authentication"
         ]
       },
       "tags": {
@@ -1080,10 +1080,10 @@
         "title": "Chat API",
         "description": "Run RAG chat and pull history and analytics.",
         "bullets": [
-          "POST /api/chat/messages with messages and group_id (set mode to study for study mode)",
+          "POST /api/chat/messages with messages and course_id (set mode to study for study mode)",
           "Use POST /api/chat/messages/stream (SSE) when you want token-by-token output",
           "Control the response language with the Accept-Language header",
-          "GET /api/chat/groups/{groupId}/history returns history (?download=csv for CSV) and GET /api/chat/groups/{groupId}/analytics returns volume and feedback totals",
+          "GET /api/chat/courses/{courseId}/history returns history (?download=csv for CSV) and GET /api/chat/courses/{courseId}/analytics returns volume and feedback totals",
           "Record ratings by sending good / bad / null to PATCH /api/chat/logs/{logId}/feedback"
         ]
       },
@@ -1092,7 +1092,7 @@
         "description": "Access VideoQ RAG chat using the OpenAI SDK with no code changes.",
         "bullets": [
           "Set base_url to /api/v1 and api_key to vq_... (sent as Authorization: Bearer)",
-          "Use model videoq and select the target group with group_id (extra_body in the Python SDK)",
+          "Use model videoq and select the target course with course_id (extra_body in the Python SDK)",
           "Pass language to control the response language (falls back to Accept-Language, then English)",
           "citations and chat_log_id are returned as extension fields on choices[0].message (access via msg.model_extra in Python SDK)"
         ]
@@ -1109,10 +1109,10 @@
       },
       "evaluation": {
         "title": "Evaluation API",
-        "description": "Per-group answer evaluation logs and summaries.",
+        "description": "Per-course answer evaluation logs and summaries.",
         "bullets": [
-          "GET /api/evaluation/groups/{groupId}/summary returns aggregated evaluation results",
-          "GET /api/evaluation/groups/{groupId}/logs returns individual evaluation logs"
+          "GET /api/evaluation/courses/{courseId}/summary returns aggregated evaluation results",
+          "GET /api/evaluation/courses/{courseId}/logs returns individual evaluation logs"
         ]
       },
       "admin": {
@@ -1230,7 +1230,7 @@
       "editTitle": "Edit {{username}}",
       "delete": "Delete",
       "deleteTitle": "Delete {{username}}?",
-      "deleteBody": "The account is deactivated immediately, then videos, groups, tags, chat history, and the user row are permanently deleted. This cannot be undone.",
+      "deleteBody": "The account is deactivated immediately, then videos, courses, tags, chat history, and the user row are permanently deleted. This cannot be undone.",
       "deleteConfirm": "Delete user",
       "deleteSuccess": "Deletion started for {{username}} ({{jobId}}).",
       "deleteError": "Failed to delete user.",

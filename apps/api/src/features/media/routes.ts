@@ -31,11 +31,11 @@ const mediaAuth = createMiddleware<AppEnv>(async (c, next) => {
   }
   const shareSlug = c.req.query("share_slug") || c.req.query("share_token");
   if (shareSlug) {
-    const groupId = await mediaService.resolveShareSlugGroupId(c.env, shareSlug);
-    if (groupId !== null) {
+    const courseId = await mediaService.resolveShareSlugCourseId(c.env, shareSlug);
+    if (courseId !== null) {
       c.set("authVia", "share");
       c.set("shareSlug", shareSlug);
-      c.set("shareGroupId", groupId);
+      c.set("shareCourseId", courseId);
       return next();
     }
     // 存在するスラッグは 404、存在しないスラッグは 401 になるため、この経路は
@@ -56,7 +56,7 @@ const serveMedia = async (c: Context<AppEnv>) => {
   const path = mediaService.mediaPathFromUrl(new URL(c.req.url).pathname);
   const authz = await mediaService.authorizeMediaPath(c.env, path, {
     userId: c.var.userId,
-    shareGroupId: c.var.shareGroupId,
+    shareCourseId: c.var.shareCourseId,
   });
   if ("notFound" in authz) return c.body(null, 404);
 

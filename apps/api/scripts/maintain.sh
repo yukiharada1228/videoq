@@ -104,7 +104,7 @@ smoke_counts() {
   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
 SELECT 'users' AS t, count(*)::bigint AS n FROM users
 UNION ALL SELECT 'videos', count(*) FROM videos
-UNION ALL SELECT 'video_groups', count(*) FROM video_groups
+UNION ALL SELECT 'video_courses', count(*) FROM video_courses
 UNION ALL SELECT 'chat_logs', count(*) FROM chat_logs
 UNION ALL SELECT 'scene_embeddings', count(*) FROM scene_embeddings
 ORDER BY 1;

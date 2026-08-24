@@ -2,53 +2,53 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 
-interface CreateVideoGroupPayload {
+interface CreateVideoCoursePayload {
   name: string;
   description: string;
 }
 
-interface UseCreateVideoGroupMutationParams {
+interface UseCreateVideoCourseMutationParams {
   userId: string | null | undefined;
   onSuccess?: () => void | Promise<void>;
 }
 
-export function useCreateVideoGroupMutation({
+export function useCreateVideoCourseMutation({
   userId,
   onSuccess,
-}: UseCreateVideoGroupMutationParams) {
+}: UseCreateVideoCourseMutationParams) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: CreateVideoGroupPayload) => await apiClient.createVideoGroup(payload),
+    mutationFn: async (payload: CreateVideoCoursePayload) => await apiClient.createVideoCourse(payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.videoGroups.prefix });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.videoCourses.prefix });
       if (userId != null) {
-        await queryClient.invalidateQueries({ queryKey: queryKeys.videoGroups.all(userId) });
-        await queryClient.invalidateQueries({ queryKey: queryKeys.videoGroups.infinite(userId) });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.videoCourses.all(userId) });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.videoCourses.infinite(userId) });
       }
       await onSuccess?.();
     },
   });
 }
 
-interface UseReorderVideoGroupsMutationParams {
+interface UseReorderVideoCoursesMutationParams {
   userId: string | null | undefined;
   onSuccess?: () => void | Promise<void>;
 }
 
-export function useReorderVideoGroupsMutation({
+export function useReorderVideoCoursesMutation({
   userId,
   onSuccess,
-}: UseReorderVideoGroupsMutationParams) {
+}: UseReorderVideoCoursesMutationParams) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (groupIds: number[]) => await apiClient.reorderVideoGroups(groupIds),
+    mutationFn: async (courseIds: number[]) => await apiClient.reorderVideoCourses(courseIds),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.videoGroups.prefix });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.videoCourses.prefix });
       if (userId != null) {
-        await queryClient.invalidateQueries({ queryKey: queryKeys.videoGroups.all(userId) });
-        await queryClient.invalidateQueries({ queryKey: queryKeys.videoGroups.infinite(userId) });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.videoCourses.all(userId) });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.videoCourses.infinite(userId) });
       }
       await onSuccess?.();
     },

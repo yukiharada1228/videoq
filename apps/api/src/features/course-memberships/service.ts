@@ -1,16 +1,16 @@
 import {
-  acceptGroupInvitation,
-  createPendingGroupInvitations,
-  declineGroupInvitation,
-  getGroupInvitationByTokenHash,
-  leaveGroupMembership,
-  listGroupParticipants,
-  markGroupInvitationExpired,
+  acceptCourseInvitation,
+  createPendingCourseInvitations,
+  declineCourseInvitation,
+  getCourseInvitationByTokenHash,
+  leaveCourseMembership,
+  listCourseParticipants,
+  markCourseInvitationExpired,
   recordInvitationDeliveryOutcomes,
-  removeGroupUserMember,
-  revokePendingGroupInvitation,
-  rotatePendingGroupInvitation,
-} from "../../repositories/group-invitation-repository";
+  removeCourseUserMember,
+  revokePendingCourseInvitation,
+  rotatePendingCourseInvitation,
+} from "../../repositories/course-invitation-repository";
 import {
   createInvitationToken,
   hashInvitationToken,
@@ -20,7 +20,7 @@ import {
   normalizeInvitationEmail,
   planInvitationEmails,
   resolveInvitationBatchLimit,
-} from "../../lib/group-invitations";
+} from "../../lib/course-invitations";
 import type { Bindings } from "../../types/bindings";
 
 export type InviteResultStatus =
@@ -45,9 +45,9 @@ function placeholderTokenHash(): Promise<string> {
   return hashInvitationToken(createInvitationToken());
 }
 
-export async function inviteGroupMembers(
+export async function inviteCourseMembers(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   ownerUserId: string,
   rawEmails: readonly string[],
   issuedAt = new Date(),
@@ -56,7 +56,7 @@ export async function inviteGroupMembers(
   | { tooMany: true; limit: number }
   | { results: InviteRecipientResult[] }
 > {
-  const limit = resolveInvitationBatchLimit(env.GROUP_INVITATION_BATCH_LIMIT);
+  const limit = resolveInvitationBatchLimit(env.COURSE_INVITATION_BATCH_LIMIT);
   const plan = planInvitationEmails(rawEmails);
   if (plan.ready.length > limit) return { tooMany: true, limit };
   const prepared = await Promise.all(
@@ -71,9 +71,9 @@ export async function inviteGroupMembers(
   // 招待行と配送タスクを同じtransactionで作る。メール送信はここでは行わない。
   // 最大50通をリクエスト内で送ると、途中でWorkerが終了したときに配信状態が
   // 失われるため、送信は external task 側に完全に委譲する。
-  const stored = await createPendingGroupInvitations(
+  const stored = await createPendingCourseInvitations(
     env,
-    groupId,
+    courseId,
     ownerUserId,
     prepared,
   );
@@ -111,32 +111,32 @@ export async function inviteGroupMembers(
   return { results };
 }
 
-export function getGroupParticipants(
+export function getCourseParticipants(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   ownerUserId: string,
 ) {
-  return listGroupParticipants(env, groupId, ownerUserId);
+  return listCourseParticipants(env, courseId, ownerUserId);
 }
 
-export async function previewGroupInvitation(
+export async function previewCourseInvitation(
   env: Bindings,
   token: string,
   now = new Date(),
 ) {
   const tokenHash = await hashInvitationToken(token);
-  const invitation = await getGroupInvitationByTokenHash(env, tokenHash);
+  const invitation = await getCourseInvitationByTokenHash(env, tokenHash);
   if (!invitation) return null;
   if (
     invitation.status === "pending" &&
     isInvitationExpired(new Date(invitation.expires_at), now)
   ) {
-    await markGroupInvitationExpired(env, invitation.id, now);
+    await markCourseInvitationExpired(env, invitation.id, now);
     invitation.status = "expired";
   }
   return {
-    group_id: invitation.group_id,
-    group_name: invitation.group_name,
+    course_id: invitation.course_id,
+    course_name: invitation.course_name,
     inviter_name: invitation.inviter_name,
     email_hint: maskInvitationEmail(invitation.email),
     status: invitation.status,
@@ -150,7 +150,7 @@ export async function acceptInvitation(
   userId: string,
   now = new Date(),
 ) {
-  return acceptGroupInvitation(env, await hashInvitationToken(token), userId, now);
+  return acceptCourseInvitation(env, await hashInvitationToken(token), userId, now);
 }
 
 export async function declineInvitation(
@@ -159,7 +159,7 @@ export async function declineInvitation(
   userId: string,
   now = new Date(),
 ) {
-  return declineGroupInvitation(env, await hashInvitationToken(token), userId, now);
+  return declineCourseInvitation(env, await hashInvitationToken(token), userId, now);
 }
 
 /**
@@ -168,14 +168,14 @@ export async function declineInvitation(
  */
 export async function resendInvitation(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   invitationId: number,
   ownerUserId: string,
   now = new Date(),
 ) {
-  const rotated = await rotatePendingGroupInvitation(
+  const rotated = await rotatePendingCourseInvitation(
     env,
-    groupId,
+    courseId,
     invitationId,
     ownerUserId,
     await placeholderTokenHash(),
@@ -188,14 +188,14 @@ export async function resendInvitation(
 
 export function revokeInvitation(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   invitationId: number,
   ownerUserId: string,
   now = new Date(),
 ) {
-  return revokePendingGroupInvitation(
+  return revokePendingCourseInvitation(
     env,
-    groupId,
+    courseId,
     invitationId,
     ownerUserId,
     now,
@@ -204,13 +204,13 @@ export function revokeInvitation(
 
 export function removeMember(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   memberUserId: string,
   ownerUserId: string,
 ) {
-  return removeGroupUserMember(env, groupId, memberUserId, ownerUserId);
+  return removeCourseUserMember(env, courseId, memberUserId, ownerUserId);
 }
 
-export function leaveGroup(env: Bindings, groupId: number, userId: string) {
-  return leaveGroupMembership(env, groupId, userId);
+export function leaveCourse(env: Bindings, courseId: number, userId: string) {
+  return leaveCourseMembership(env, courseId, userId);
 }

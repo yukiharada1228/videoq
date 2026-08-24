@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { ChipLabel } from '@/components/ui/chip-label';
 import { UtilityLink } from '@/components/ui/utility-link';
 
-export default function GroupInvitationPage() {
+export default function CourseInvitationPage() {
   const { token = '' } = useParams<{ token: string }>();
   const { t } = useTranslation();
   const navigate = useI18nNavigate();
@@ -24,56 +24,56 @@ export default function GroupInvitationPage() {
   const [decision, setDecision] = useState<'declined' | null>(null);
 
   const invitationQuery = useQuery({
-    queryKey: queryKeys.videoGroups.invitation(token),
-    queryFn: () => apiClient.getGroupInvitation(token),
+    queryKey: queryKeys.videoCourses.invitation(token),
+    queryFn: () => apiClient.getCourseInvitation(token),
     enabled: Boolean(token),
     retry: false,
   });
 
   const acceptMutation = useMutation({
-    mutationFn: () => apiClient.acceptGroupInvitation(token),
-    onSuccess: (result) => navigate(`/videos/groups/${result.group_id}`),
+    mutationFn: () => apiClient.acceptCourseInvitation(token),
+    onSuccess: (result) => navigate(`/videos/courses/${result.course_id}`),
   });
   const declineMutation = useMutation({
-    mutationFn: () => apiClient.declineGroupInvitation(token),
+    mutationFn: () => apiClient.declineCourseInvitation(token),
     onSuccess: () => setDecision('declined'),
   });
 
   const invitation = invitationQuery.data;
   const isSignedIn = Boolean(session.data?.user);
-  const nextParam = encodeURIComponent(`/group-invitations/${token}`);
+  const nextParam = encodeURIComponent(`/course-invitations/${token}`);
   const actionError = acceptMutation.error ?? declineMutation.error;
 
   return (
     <AuthLayout>
       <AuthPageIntro
-        badge={t('groupInvitation.badge')}
-        title={t('groupInvitation.title')}
-        description={t('groupInvitation.description')}
+        badge={t('courseInvitation.badge')}
+        title={t('courseInvitation.title')}
+        description={t('courseInvitation.description')}
       />
 
       {invitationQuery.isLoading || session.isPending ? (
         <div className="flex justify-center py-12"><LoadingSpinner /></div>
       ) : invitationQuery.error || !invitation ? (
-        <ErrorMessage message={t('groupInvitation.notFound')} />
+        <ErrorMessage message={t('courseInvitation.notFound')} />
       ) : decision === 'declined' ? (
-        <MessageAlert type="success" message={t('groupInvitation.declined')} />
+        <MessageAlert type="success" message={t('courseInvitation.declined')} />
       ) : (
         <div className="space-y-6">
           <div className="space-y-4 border border-solid-gray-420 bg-white p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-std-20B-150 text-solid-gray-800">{invitation.group_name}</h2>
+              <h2 className="text-std-20B-150 text-solid-gray-800">{invitation.course_name}</h2>
               <ChipLabel variant="filled-1" color="gray">
-                {t(`groupInvitation.status.${invitation.status}`)}
+                {t(`courseInvitation.status.${invitation.status}`)}
               </ChipLabel>
             </div>
             <dl className="space-y-3 text-std-16N-170">
               <div>
-                <dt className="text-solid-gray-600">{t('groupInvitation.inviter')}</dt>
+                <dt className="text-solid-gray-600">{t('courseInvitation.inviter')}</dt>
                 <dd className="font-bold text-solid-gray-800">{invitation.inviter_name}</dd>
               </div>
               <div>
-                <dt className="text-solid-gray-600">{t('groupInvitation.recipient')}</dt>
+                <dt className="text-solid-gray-600">{t('courseInvitation.recipient')}</dt>
                 <dd className="font-mono text-solid-gray-800">{invitation.email_hint}</dd>
               </div>
             </dl>
@@ -85,12 +85,12 @@ export default function GroupInvitationPage() {
             <div className="space-y-4">
               <MessageAlert
                 type="warning"
-                message={t(`groupInvitation.terminal.${invitation.status}`)}
+                message={t(`courseInvitation.terminal.${invitation.status}`)}
               />
               {invitation.status === 'accepted' ? (
                 <Button asChild variant="solid" size="lg">
-                  <Link href={`/videos/groups/${invitation.group_id}`}>
-                    {t('groupInvitation.openGroup')}
+                  <Link href={`/videos/courses/${invitation.course_id}`}>
+                    {t('courseInvitation.openCourse')}
                   </Link>
                 </Button>
               ) : null}
@@ -105,7 +105,7 @@ export default function GroupInvitationPage() {
                 disabled={acceptMutation.isPending || declineMutation.isPending}
               >
                 {acceptMutation.isPending ? <InlineSpinner className="h-4 w-4" /> : null}
-                {t('groupInvitation.accept')}
+                {t('courseInvitation.accept')}
               </Button>
               <Button
                 type="button"
@@ -115,18 +115,18 @@ export default function GroupInvitationPage() {
                 disabled={acceptMutation.isPending || declineMutation.isPending}
               >
                 {declineMutation.isPending ? <InlineSpinner className="h-4 w-4" /> : null}
-                {t('groupInvitation.decline')}
+                {t('courseInvitation.decline')}
               </Button>
             </div>
           ) : (
             <div className="space-y-4">
-              <MessageAlert type="warning" message={t('groupInvitation.authRequired')} />
+              <MessageAlert type="warning" message={t('courseInvitation.authRequired')} />
               <div className="flex flex-wrap gap-4">
                 <Button asChild variant="solid" size="lg">
-                  <Link href={`/login?next=${nextParam}`}>{t('groupInvitation.login')}</Link>
+                  <Link href={`/login?next=${nextParam}`}>{t('courseInvitation.login')}</Link>
                 </Button>
                 <UtilityLink asChild>
-                  <Link href={`/signup?next=${nextParam}`}>{t('groupInvitation.signup')}</Link>
+                  <Link href={`/signup?next=${nextParam}`}>{t('courseInvitation.signup')}</Link>
                 </UtilityLink>
               </div>
             </div>

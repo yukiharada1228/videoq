@@ -25,7 +25,7 @@ export const batchInviteSchema = z
     // Keep raw malformed values available for per-recipient partial results.
     emails: z.array(z.string().max(1024)).min(1).max(100),
   })
-  .openapi("GroupBatchInvite");
+  .openapi("CourseBatchInvite");
 
 export const inviteRecipientResultSchema = z
   .object({
@@ -33,7 +33,7 @@ export const inviteRecipientResultSchema = z
     status: inviteResultStatusSchema,
     invitation_id: z.number().int().positive().optional(),
   })
-  .openapi("GroupInviteRecipientResult");
+  .openapi("CourseInviteRecipientResult");
 
 export const invitationListItemSchema = z
   .object({
@@ -46,46 +46,46 @@ export const invitationListItemSchema = z
     last_sent_at: z.string().nullable(),
     send_attempts: z.number().int().nonnegative(),
   })
-  .openapi("GroupInvitationListItem");
+  .openapi("CourseInvitationListItem");
 
-export const groupUserMemberSchema = z
+export const courseUserMemberSchema = z
   .object({
     user_id: z.string(),
     username: z.string(),
     email: z.string(),
     joined_at: z.string(),
   })
-  .openapi("GroupUserMember");
+  .openapi("CourseUserMember");
 
-export const groupParticipantsSchema = z
+export const courseParticipantsSchema = z
   .object({
     invitations: z.array(invitationListItemSchema),
-    members: z.array(groupUserMemberSchema),
+    members: z.array(courseUserMemberSchema),
   })
-  .openapi("GroupParticipants");
+  .openapi("CourseParticipants");
 
 export const invitationPreviewSchema = z
   .object({
-    group_id: z.number().int().positive(),
-    group_name: z.string(),
+    course_id: z.number().int().positive(),
+    course_name: z.string(),
     inviter_name: z.string(),
     email_hint: z.string(),
     status: invitationStatusSchema,
     expires_at: z.string(),
   })
-  .openapi("GroupInvitationPreview");
+  .openapi("CourseInvitationPreview");
 
-export const groupParamSchema = z.object({
-  groupId: z.coerce.number().int().positive(),
+export const courseParamSchema = z.object({
+  courseId: z.coerce.number().int().positive(),
 });
 
 export const invitationOwnerParamsSchema = z.object({
-  groupId: z.coerce.number().int().positive(),
+  courseId: z.coerce.number().int().positive(),
   invitationId: z.coerce.number().int().positive(),
 });
 
 export const memberOwnerParamsSchema = z.object({
-  groupId: z.coerce.number().int().positive(),
+  courseId: z.coerce.number().int().positive(),
   userId: z.string().min(1),
 });
 

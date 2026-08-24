@@ -22,8 +22,8 @@ import {
 import type { AppEnv } from "../../types/bindings";
 import {
   batchInviteSchema,
-  groupParamSchema,
-  groupParticipantsSchema,
+  courseParamSchema,
+  courseParticipantsSchema,
   invitationDeliveryStatusSchema,
   invitationOwnerParamsSchema,
   invitationPreviewSchema,
@@ -31,10 +31,10 @@ import {
   inviteRecipientResultSchema,
   memberOwnerParamsSchema,
 } from "./schemas";
-import * as groupMembershipService from "./service";
+import * as courseMembershipService from "./service";
 import { processExternalTasks } from "../../lib/external-tasks";
 
-export const groupMembershipRoutes = createFeatureRouter();
+export const courseMembershipRoutes = createFeatureRouter();
 
 const auth = requireAuth(apiKeyMethod, sessionMethod);
 const writeGuards = [auth, requireScope("write")] as const;
@@ -45,9 +45,9 @@ const writeGuards = [auth, requireScope("write")] as const;
  */
 const invitationTokenThrottle = createMiddleware<AppEnv>(async (c, next) => {
   const denied = await enforceThrottles(c.env, [
-    { scope: "group_invitation_token_ip", ident: clientIp(c) },
+    { scope: "course_invitation_token_ip", ident: clientIp(c) },
     {
-      scope: "group_invitation_decision_user",
+      scope: "course_invitation_decision_user",
       ident: c.var.userId != null ? String(c.var.userId) : null,
     },
   ]);
@@ -86,12 +86,12 @@ function flushInvitationEmails(c: Context<AppEnv>, count: number): void {
 
 const batchInviteRoute = createRoute({
   method: "post",
-  path: "/groups/{groupId}/invitations",
-  tags: ["Group memberships"],
-  summary: "Invite group members by email (bulk)",
+  path: "/courses/{courseId}/invitations",
+  tags: ["Course memberships"],
+  summary: "Invite course members by email (bulk)",
   middleware: [...writeGuards] as const,
   request: {
-    params: groupParamSchema,
+    params: courseParamSchema,
     body: {
       content: { "application/json": { schema: batchInviteSchema } },
       required: true,
@@ -105,25 +105,25 @@ const batchInviteRoute = createRoute({
   },
 });
 
-groupMembershipRoutes.openapi(batchInviteRoute, async (c) => {
+courseMembershipRoutes.openapi(batchInviteRoute, async (c) => {
   const userId = c.var.userId!;
-  const { groupId } = c.req.valid("param");
+  const { courseId } = c.req.valid("param");
   const { emails } = c.req.valid("json");
   // スパム対策の単位はリクエスト数ではなく宛先数。無効・重複アドレスも
   // 枠を消費させ、ゴミを混ぜて送信枠を稼げないようにする。
   const denied = await enforceThrottles(c.env, [
-    { scope: "group_invitation_user", ident: userId, cost: emails.length },
-    { scope: "group_invitation_group", ident: String(groupId), cost: emails.length },
+    { scope: "course_invitation_user", ident: userId, cost: emails.length },
+    { scope: "course_invitation_course", ident: String(courseId), cost: emails.length },
   ]);
   if (denied) return throttledResponse(c, denied);
 
-  const result = await groupMembershipService.inviteGroupMembers(
+  const result = await courseMembershipService.inviteCourseMembers(
     c.env,
-    groupId,
+    courseId,
     userId,
     emails,
   );
-  if ("notFound" in result) throw apiNotFound("Group not found");
+  if ("notFound" in result) throw apiNotFound("Course not found");
   if ("tooMany" in result) {
     throw apiBadRequest(
       `At most ${result.limit} recipients can be invited at once.`,
@@ -140,33 +140,33 @@ groupMembershipRoutes.openapi(batchInviteRoute, async (c) => {
 
 const participantsRoute = createRoute({
   method: "get",
-  path: "/groups/{groupId}/participants",
-  tags: ["Group memberships"],
+  path: "/courses/{courseId}/participants",
+  tags: ["Course memberships"],
   summary: "List invitations and accepted members",
   middleware: [auth] as const,
-  request: { params: groupParamSchema },
+  request: { params: courseParamSchema },
   responses: {
-    200: jsonResponse(groupParticipantsSchema),
+    200: jsonResponse(courseParticipantsSchema),
     404: errorResponse("Not found"),
   },
 });
 
-groupMembershipRoutes.openapi(participantsRoute, async (c) => {
-  const { groupId } = c.req.valid("param");
-  const result = await groupMembershipService.getGroupParticipants(
+courseMembershipRoutes.openapi(participantsRoute, async (c) => {
+  const { courseId } = c.req.valid("param");
+  const result = await courseMembershipService.getCourseParticipants(
     c.env,
-    groupId,
+    courseId,
     c.var.userId!,
   );
-  if ("notFound" in result) throw apiNotFound("Group not found");
+  if ("notFound" in result) throw apiNotFound("Course not found");
   return c.json(result, 200);
 });
 
 const previewRoute = createRoute({
   method: "get",
-  path: "/group-invitations/{token}",
-  tags: ["Group memberships"],
-  summary: "Preview an email-bound group invitation",
+  path: "/course-invitations/{token}",
+  tags: ["Course memberships"],
+  summary: "Preview an email-bound course invitation",
   middleware: [invitationTokenThrottle] as const,
   request: { params: invitationTokenParamSchema },
   responses: {
@@ -176,9 +176,9 @@ const previewRoute = createRoute({
   },
 });
 
-groupMembershipRoutes.openapi(previewRoute, async (c) => {
+courseMembershipRoutes.openapi(previewRoute, async (c) => {
   const { token } = c.req.valid("param");
-  const invitation = await groupMembershipService.previewGroupInvitation(c.env, token);
+  const invitation = await courseMembershipService.previewCourseInvitation(c.env, token);
   if (!invitation) throw apiNotFound("Invitation not found");
   return c.json(invitation, 200);
 });
@@ -214,14 +214,14 @@ function throwDecisionError(result: Record<string, unknown>): never {
 
 const acceptRoute = createRoute({
   method: "post",
-  path: "/group-invitations/{token}/accept",
-  tags: ["Group memberships"],
-  summary: "Accept a group invitation",
+  path: "/course-invitations/{token}/accept",
+  tags: ["Course memberships"],
+  summary: "Accept a course invitation",
   // 認証を先に通してから、IP とユーザーの両方でスロットルする。
   middleware: [...writeGuards, invitationTokenThrottle] as const,
   request: { params: invitationTokenParamSchema },
   responses: {
-    200: jsonResponse(z.object({ group_id: z.number().int(), status: z.literal("accepted") })),
+    200: jsonResponse(z.object({ course_id: z.number().int(), status: z.literal("accepted") })),
     403: errorResponse("Forbidden"),
     404: errorResponse("Not found"),
     409: errorResponse("Conflict"),
@@ -230,22 +230,22 @@ const acceptRoute = createRoute({
   },
 });
 
-groupMembershipRoutes.openapi(acceptRoute, async (c) => {
+courseMembershipRoutes.openapi(acceptRoute, async (c) => {
   const { token } = c.req.valid("param");
-  const result = await groupMembershipService.acceptInvitation(
+  const result = await courseMembershipService.acceptInvitation(
     c.env,
     token,
     c.var.userId!,
   );
   if (!("ok" in result)) throwDecisionError(result);
-  return c.json({ group_id: result.groupId, status: "accepted" as const }, 200);
+  return c.json({ course_id: result.courseId, status: "accepted" as const }, 200);
 });
 
 const declineRoute = createRoute({
   method: "post",
-  path: "/group-invitations/{token}/decline",
-  tags: ["Group memberships"],
-  summary: "Decline a group invitation",
+  path: "/course-invitations/{token}/decline",
+  tags: ["Course memberships"],
+  summary: "Decline a course invitation",
   middleware: [...writeGuards, invitationTokenThrottle] as const,
   request: { params: invitationTokenParamSchema },
   responses: {
@@ -258,9 +258,9 @@ const declineRoute = createRoute({
   },
 });
 
-groupMembershipRoutes.openapi(declineRoute, async (c) => {
+courseMembershipRoutes.openapi(declineRoute, async (c) => {
   const { token } = c.req.valid("param");
-  const result = await groupMembershipService.declineInvitation(
+  const result = await courseMembershipService.declineInvitation(
     c.env,
     token,
     c.var.userId!,
@@ -271,8 +271,8 @@ groupMembershipRoutes.openapi(declineRoute, async (c) => {
 
 const resendRoute = createRoute({
   method: "post",
-  path: "/groups/{groupId}/invitations/{invitationId}/resend",
-  tags: ["Group memberships"],
+  path: "/courses/{courseId}/invitations/{invitationId}/resend",
+  tags: ["Course memberships"],
   summary: "Rotate and resend a pending invitation",
   middleware: [...writeGuards] as const,
   request: { params: invitationOwnerParamsSchema },
@@ -284,15 +284,15 @@ const resendRoute = createRoute({
   },
 });
 
-groupMembershipRoutes.openapi(resendRoute, async (c) => {
-  const { groupId, invitationId } = c.req.valid("param");
+courseMembershipRoutes.openapi(resendRoute, async (c) => {
+  const { courseId, invitationId } = c.req.valid("param");
   const denied = await enforceThrottles(c.env, [
-    { scope: "group_invitation_resend", ident: String(invitationId) },
+    { scope: "course_invitation_resend", ident: String(invitationId) },
   ]);
   if (denied) return throttledResponse(c, denied);
-  const result = await groupMembershipService.resendInvitation(
+  const result = await courseMembershipService.resendInvitation(
     c.env,
-    groupId,
+    courseId,
     invitationId,
     c.var.userId!,
   );
@@ -304,8 +304,8 @@ groupMembershipRoutes.openapi(resendRoute, async (c) => {
 
 const revokeRoute = createRoute({
   method: "delete",
-  path: "/groups/{groupId}/invitations/{invitationId}",
-  tags: ["Group memberships"],
+  path: "/courses/{courseId}/invitations/{invitationId}",
+  tags: ["Course memberships"],
   summary: "Revoke a pending invitation",
   middleware: [...writeGuards] as const,
   request: { params: invitationOwnerParamsSchema },
@@ -316,11 +316,11 @@ const revokeRoute = createRoute({
   },
 });
 
-groupMembershipRoutes.openapi(revokeRoute, async (c) => {
-  const { groupId, invitationId } = c.req.valid("param");
-  const result = await groupMembershipService.revokeInvitation(
+courseMembershipRoutes.openapi(revokeRoute, async (c) => {
+  const { courseId, invitationId } = c.req.valid("param");
+  const result = await courseMembershipService.revokeInvitation(
     c.env,
-    groupId,
+    courseId,
     invitationId,
     c.var.userId!,
   );
@@ -331,9 +331,9 @@ groupMembershipRoutes.openapi(revokeRoute, async (c) => {
 
 const removeMemberRoute = createRoute({
   method: "delete",
-  path: "/groups/{groupId}/members/{userId}",
-  tags: ["Group memberships"],
-  summary: "Remove an accepted group member",
+  path: "/courses/{courseId}/members/{userId}",
+  tags: ["Course memberships"],
+  summary: "Remove an accepted course member",
   middleware: [...writeGuards] as const,
   request: { params: memberOwnerParamsSchema },
   responses: {
@@ -342,11 +342,11 @@ const removeMemberRoute = createRoute({
   },
 });
 
-groupMembershipRoutes.openapi(removeMemberRoute, async (c) => {
-  const { groupId, userId } = c.req.valid("param");
-  const result = await groupMembershipService.removeMember(
+courseMembershipRoutes.openapi(removeMemberRoute, async (c) => {
+  const { courseId, userId } = c.req.valid("param");
+  const result = await courseMembershipService.removeMember(
     c.env,
-    groupId,
+    courseId,
     userId,
     c.var.userId!,
   );
@@ -356,20 +356,20 @@ groupMembershipRoutes.openapi(removeMemberRoute, async (c) => {
 
 const leaveRoute = createRoute({
   method: "delete",
-  path: "/groups/{groupId}/membership",
-  tags: ["Group memberships"],
-  summary: "Leave a joined group",
+  path: "/courses/{courseId}/membership",
+  tags: ["Course memberships"],
+  summary: "Leave a joined course",
   middleware: [...writeGuards] as const,
-  request: { params: groupParamSchema },
+  request: { params: courseParamSchema },
   responses: {
     204: { description: "Left" },
     404: errorResponse("Not found"),
   },
 });
 
-groupMembershipRoutes.openapi(leaveRoute, async (c) => {
-  const { groupId } = c.req.valid("param");
-  const result = await groupMembershipService.leaveGroup(c.env, groupId, c.var.userId!);
+courseMembershipRoutes.openapi(leaveRoute, async (c) => {
+  const { courseId } = c.req.valid("param");
+  const result = await courseMembershipService.leaveCourse(c.env, courseId, c.var.userId!);
   if ("notFound" in result) throw apiNotFound("Membership not found");
   return c.body(null, 204);
 });

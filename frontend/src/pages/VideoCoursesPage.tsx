@@ -18,18 +18,18 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
 import { useI18nNavigate } from '@/lib/i18n';
-import type { VideoGroupList } from '@/lib/api';
+import type { VideoCourseList } from '@/lib/api';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { useAuth } from '@/hooks/useAuth';
-import { useVideoGroups } from '@/hooks/useVideoGroups';
+import { useVideoCourses } from '@/hooks/useVideoCourses';
 import {
-  useCreateVideoGroupMutation,
-  useReorderVideoGroupsMutation,
-} from '@/hooks/useVideoGroupsPageData';
-import { VideoGroupCreateModal } from '@/components/video/VideoGroupCreateModal';
+  useCreateVideoCourseMutation,
+  useReorderVideoCoursesMutation,
+} from '@/hooks/useVideoCoursesPageData';
+import { VideoCourseCreateModal } from '@/components/video/VideoCourseCreateModal';
 import { Button } from '@/components/ui/button';
 import { ChipLabel } from '@/components/ui/chip-label';
 import { Heading, HeadingTitle } from '@/components/ui/heading';
@@ -42,28 +42,28 @@ import {
   Plus,
 } from 'lucide-react';
 
-interface SortableGroupRowProps {
-  group: VideoGroupList;
+interface SortableCourseRowProps {
+  course: VideoCourseList;
   isFirst: boolean;
   isLast: boolean;
   canReorder: boolean;
   isSortingDisabled: boolean;
-  onOpen: (groupId: number) => void;
-  onMove: (groupId: number, direction: 'up' | 'down') => void;
+  onOpen: (courseId: number) => void;
+  onMove: (courseId: number, direction: 'up' | 'down') => void;
 }
 
-function SortableGroupRow({
-  group,
+function SortableCourseRow({
+  course,
   isFirst,
   isLast,
   canReorder,
   isSortingDisabled,
   onOpen,
   onMove,
-}: SortableGroupRowProps) {
+}: SortableCourseRowProps) {
   const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: group.id,
+    id: course.id,
     disabled: isSortingDisabled,
   });
 
@@ -86,7 +86,7 @@ function SortableGroupRow({
             {...listeners}
             onClick={(event) => event.stopPropagation()}
             className={`shrink-0 text-solid-gray-420 ${isSortingDisabled ? 'cursor-wait opacity-50' : 'cursor-grab active:cursor-grabbing'}`}
-            aria-label={t('videos.groups.dragHandle')}
+            aria-label={t('videos.courses.dragHandle')}
           >
             <GripVertical className="h-5 w-5" />
           </span>
@@ -94,23 +94,23 @@ function SortableGroupRow({
 
         <button
           type="button"
-          onClick={() => onOpen(group.id)}
+          onClick={() => onOpen(course.id)}
           className="min-w-0 flex-1 text-left focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-black focus-visible:bg-yellow-300"
         >
           <span className="block truncate text-std-16B-170 text-solid-gray-800 hover:underline">
-            {group.name}
+            {course.name}
           </span>
           <span className="mt-1 block line-clamp-1 text-std-16N-170 text-solid-gray-600">
-            {group.description || t('common.messages.noDescription')}
+            {course.description || t('common.messages.noDescription')}
           </span>
         </button>
 
         <ChipLabel variant="filled-1" color="blue" className="min-h-0 shrink-0 text-oln-14N-100">
-          {t('videos.groups.videoCount', { count: group.video_count })}
+          {t('videos.courses.videoCount', { count: course.video_count })}
         </ChipLabel>
-        {group.access_role === 'member' ? (
+        {course.access_role === 'member' ? (
           <ChipLabel variant="filled-1" color="gray" className="min-h-0 shrink-0 text-oln-14N-100">
-            {t('videos.groups.memberBadge')}
+            {t('videos.courses.memberBadge')}
           </ChipLabel>
         ) : null}
 
@@ -123,10 +123,10 @@ function SortableGroupRow({
                 size="xs"
                 onClick={(event) => {
                   event.stopPropagation();
-                  onMove(group.id, 'up');
+                  onMove(course.id, 'up');
                 }}
                 disabled={isFirst || isSortingDisabled}
-                aria-label={t('videos.groups.moveUp', { name: group.name })}
+                aria-label={t('videos.courses.moveUp', { name: course.name })}
                 className="min-w-0 w-8 px-0"
               >
                 <ArrowUp className="h-4 w-4" />
@@ -137,10 +137,10 @@ function SortableGroupRow({
                 size="xs"
                 onClick={(event) => {
                   event.stopPropagation();
-                  onMove(group.id, 'down');
+                  onMove(course.id, 'down');
                 }}
                 disabled={isLast || isSortingDisabled}
-                aria-label={t('videos.groups.moveDown', { name: group.name })}
+                aria-label={t('videos.courses.moveDown', { name: course.name })}
                 className="min-w-0 w-8 px-0"
               >
                 <ArrowDown className="h-4 w-4" />
@@ -151,8 +151,8 @@ function SortableGroupRow({
             type="button"
             variant="solid"
             size="xs"
-            onClick={() => onOpen(group.id)}
-            aria-label={t('videos.groups.open', { name: group.name })}
+            onClick={() => onOpen(course.id)}
+            aria-label={t('videos.courses.open', { name: course.name })}
             className="min-w-0 w-8 px-0"
           >
             <ArrowRight className="h-4 w-4" />
@@ -163,22 +163,22 @@ function SortableGroupRow({
   );
 }
 
-export default function VideoGroupsPage() {
+export default function VideoCoursesPage() {
   const { user, isLoading: authLoading } = useAuth();
   const navigate = useI18nNavigate();
   const {
-    groups,
+    courses,
     isLoading,
     error: loadError,
     isFetchingNextPage,
     sentinelRef,
-  } = useVideoGroups(true);
+  } = useVideoCourses(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [orderedGroupIds, setOrderedGroupIds] = useState<number[] | null>(null);
+  const [orderedCourseIds, setOrderedCourseIds] = useState<number[] | null>(null);
   const { t } = useTranslation();
 
-  const createGroupMutation = useCreateVideoGroupMutation({ userId: user?.id });
-  const reorderGroupsMutation = useReorderVideoGroupsMutation({ userId: user?.id });
+  const createCourseMutation = useCreateVideoCourseMutation({ userId: user?.id });
+  const reorderCoursesMutation = useReorderVideoCoursesMutation({ userId: user?.id });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -188,61 +188,61 @@ export default function VideoGroupsPage() {
   );
 
   const handleCreate = async (name: string, description: string) => {
-    await createGroupMutation.mutateAsync({ name, description });
+    await createCourseMutation.mutateAsync({ name, description });
   };
 
-  const ownedGroups = groups.filter((group) => group.access_role !== 'member');
-  const joinedGroups = groups.filter((group) => group.access_role === 'member');
-  const visibleGroups = useMemo(() => {
-    if (!orderedGroupIds) return ownedGroups;
-    const groupsById = new Map(ownedGroups.map((group) => [group.id, group]));
-    const ordered = orderedGroupIds
-      .map((id) => groupsById.get(id))
-      .filter((group): group is VideoGroupList => Boolean(group));
-    const included = new Set(ordered.map((group) => group.id));
-    return [...ordered, ...ownedGroups.filter((group) => !included.has(group.id))];
-  }, [orderedGroupIds, ownedGroups]);
-  const reorderError = reorderGroupsMutation.error instanceof Error
-    ? reorderGroupsMutation.error.message
+  const ownedCourses = courses.filter((course) => course.access_role !== 'member');
+  const joinedCourses = courses.filter((course) => course.access_role === 'member');
+  const visibleCourses = useMemo(() => {
+    if (!orderedCourseIds) return ownedCourses;
+    const coursesById = new Map(ownedCourses.map((course) => [course.id, course]));
+    const ordered = orderedCourseIds
+      .map((id) => coursesById.get(id))
+      .filter((course): course is VideoCourseList => Boolean(course));
+    const included = new Set(ordered.map((course) => course.id));
+    return [...ordered, ...ownedCourses.filter((course) => !included.has(course.id))];
+  }, [orderedCourseIds, ownedCourses]);
+  const reorderError = reorderCoursesMutation.error instanceof Error
+    ? reorderCoursesMutation.error.message
     : null;
-  const canReorder = visibleGroups.length > 1;
-  const isSortingDisabled = !canReorder || reorderGroupsMutation.isPending;
+  const canReorder = visibleCourses.length > 1;
+  const isSortingDisabled = !canReorder || reorderCoursesMutation.isPending;
 
-  const applyGroupOrder = (nextGroups: VideoGroupList[]) => {
-    const previousIds = orderedGroupIds;
-    setOrderedGroupIds(nextGroups.map((group) => group.id));
-    reorderGroupsMutation.mutate(
-      nextGroups.map((group) => group.id),
+  const applyCourseOrder = (nextCourses: VideoCourseList[]) => {
+    const previousIds = orderedCourseIds;
+    setOrderedCourseIds(nextCourses.map((course) => course.id));
+    reorderCoursesMutation.mutate(
+      nextCourses.map((course) => course.id),
       {
-        onError: () => setOrderedGroupIds(previousIds),
+        onError: () => setOrderedCourseIds(previousIds),
       },
     );
   };
 
-  const handleMoveGroup = (groupId: number, direction: 'up' | 'down') => {
+  const handleMoveCourse = (courseId: number, direction: 'up' | 'down') => {
     if (isSortingDisabled) return;
-    const oldIndex = visibleGroups.findIndex((group) => group.id === groupId);
+    const oldIndex = visibleCourses.findIndex((course) => course.id === courseId);
     if (oldIndex === -1) return;
     const newIndex = direction === 'up' ? oldIndex - 1 : oldIndex + 1;
-    if (newIndex < 0 || newIndex >= visibleGroups.length) return;
-    applyGroupOrder(arrayMove(visibleGroups, oldIndex, newIndex));
+    if (newIndex < 0 || newIndex >= visibleCourses.length) return;
+    applyCourseOrder(arrayMove(visibleCourses, oldIndex, newIndex));
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     if (isSortingDisabled) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = visibleGroups.findIndex((group) => group.id === active.id);
-    const newIndex = visibleGroups.findIndex((group) => group.id === over.id);
+    const oldIndex = visibleCourses.findIndex((course) => course.id === active.id);
+    const newIndex = visibleCourses.findIndex((course) => course.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-    applyGroupOrder(arrayMove(visibleGroups, oldIndex, newIndex));
+    applyCourseOrder(arrayMove(visibleCourses, oldIndex, newIndex));
   };
 
   return (
-    <AppPageShell activePage="groups">
+    <AppPageShell activePage="courses">
       <AppPageHeader
-        title={t('videos.groups.title')}
-        description={t('videos.groups.subtitle')}
+        title={t('videos.courses.title')}
+        description={t('videos.courses.subtitle')}
         action={(
           <Button
             type="button"
@@ -252,7 +252,7 @@ export default function VideoGroupsPage() {
             className="shrink-0"
           >
             <Plus className="w-4 h-4 mr-2" />
-            {t('videos.groups.create')}
+            {t('videos.courses.create')}
           </Button>
         )}
       />
@@ -268,13 +268,13 @@ export default function VideoGroupsPage() {
           <div className="flex justify-center py-24">
             <LoadingSpinner />
           </div>
-        ) : groups.length === 0 ? (
+        ) : courses.length === 0 ? (
           <div className="flex flex-col items-start justify-center border-t border-solid-gray-420 py-12">
             <Heading size="20" hasChip className="mb-2">
-              <HeadingTitle level="h2">{t('videos.groups.empty')}</HeadingTitle>
+              <HeadingTitle level="h2">{t('videos.courses.empty')}</HeadingTitle>
             </Heading>
             <p className="mb-8 max-w-lg text-std-16N-170 text-solid-gray-600">
-              {t('videos.groups.emptyDescription')}
+              {t('videos.courses.emptyDescription')}
             </p>
             <Button
               type="button"
@@ -283,54 +283,54 @@ export default function VideoGroupsPage() {
               onClick={() => setIsModalOpen(true)}
             >
               <Plus className="w-4 h-4 mr-2" />
-              {t('videos.groups.create')}
+              {t('videos.courses.create')}
             </Button>
           </div>
         ) : (
           <>
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              {visibleGroups.length > 0 ? (
+              {visibleCourses.length > 0 ? (
                 <SortableContext
-                  items={visibleGroups.map((group) => group.id)}
+                  items={visibleCourses.map((course) => course.id)}
                   strategy={verticalListSortingStrategy}
                 >
                   <MenuList className="border-t border-solid-gray-420">
-                    {visibleGroups.map((group, index) => (
-                      <SortableGroupRow
-                        key={group.id}
-                        group={group}
+                    {visibleCourses.map((course, index) => (
+                      <SortableCourseRow
+                        key={course.id}
+                        course={course}
                         isFirst={index === 0}
-                        isLast={index === visibleGroups.length - 1}
+                        isLast={index === visibleCourses.length - 1}
                         canReorder={canReorder}
                         isSortingDisabled={isSortingDisabled}
-                        onOpen={(groupId) => navigate(`/videos/groups/${groupId}`)}
-                        onMove={handleMoveGroup}
+                        onOpen={(courseId) => navigate(`/videos/courses/${courseId}`)}
+                        onMove={handleMoveCourse}
                       />
                     ))}
                   </MenuList>
                 </SortableContext>
               ) : null}
 
-              {joinedGroups.length > 0 ? (
-                <section className={visibleGroups.length > 0 ? 'mt-10' : ''}>
+              {joinedCourses.length > 0 ? (
+                <section className={visibleCourses.length > 0 ? 'mt-10' : ''}>
                   <Heading size="20" className="mb-3">
-                    <HeadingTitle level="h2">{t('videos.groups.joinedTitle')}</HeadingTitle>
+                    <HeadingTitle level="h2">{t('videos.courses.joinedTitle')}</HeadingTitle>
                   </Heading>
                   <SortableContext
-                    items={joinedGroups.map((group) => group.id)}
+                    items={joinedCourses.map((course) => course.id)}
                     strategy={verticalListSortingStrategy}
                   >
                     <MenuList className="border-t border-solid-gray-420">
-                      {joinedGroups.map((group, index) => (
-                        <SortableGroupRow
-                          key={group.id}
-                          group={group}
+                      {joinedCourses.map((course, index) => (
+                        <SortableCourseRow
+                          key={course.id}
+                          course={course}
                           isFirst={index === 0}
-                          isLast={index === joinedGroups.length - 1}
+                          isLast={index === joinedCourses.length - 1}
                           canReorder={false}
                           isSortingDisabled
-                          onOpen={(groupId) => navigate(`/videos/groups/${groupId}`)}
-                          onMove={handleMoveGroup}
+                          onOpen={(courseId) => navigate(`/videos/courses/${courseId}`)}
+                          onMove={handleMoveCourse}
                         />
                       ))}
                     </MenuList>
@@ -339,18 +339,18 @@ export default function VideoGroupsPage() {
               ) : null}
             </DndContext>
 
-            <div ref={sentinelRef} data-testid="groups-infinite-scroll-sentinel" />
+            <div ref={sentinelRef} data-testid="courses-infinite-scroll-sentinel" />
 
             {isFetchingNextPage && (
               <div className="flex justify-center mt-4">
-                <span className="text-std-16N-170 text-solid-gray-600">{t('videos.groups.loadingMore')}</span>
+                <span className="text-std-16N-170 text-solid-gray-600">{t('videos.courses.loadingMore')}</span>
               </div>
             )}
           </>
         )}
       </div>
 
-      <VideoGroupCreateModal
+      <VideoCourseCreateModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onCreate={handleCreate}

@@ -100,11 +100,11 @@ users
 ├── auth_action_tokens
 ├── api_keys
 ├── videos
-│   ├── video_group_members
+│   ├── video_course_members
 │   ├── video_tags
 │   ├── scene_embeddings
 │   └── plog_*
-├── video_groups
+├── video_courses
 │   └── chat_logs
 │       └── chat_log_evaluations
 └── oauth_*

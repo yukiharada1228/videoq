@@ -1,8 +1,8 @@
 import { z } from "../../shared/openapi";
 import { paginationQuerySchema } from "../../shared/pagination";
 
-export const chatGroupParamSchema = z.object({
-  groupId: z.coerce.number().int().positive(),
+export const chatCourseParamSchema = z.object({
+  courseId: z.coerce.number().int().positive(),
 });
 
 export const chatLogParamSchema = z.object({
@@ -26,7 +26,7 @@ export const chatCitationSchema = z.object({
 export const chatLogItemSchema = z
   .object({
     id: z.number().int(),
-    group: z.number().int(),
+    course: z.number().int(),
     asked_by: z
       .object({
         user_id: z.string(),
@@ -82,12 +82,12 @@ const chatMessageItemSchema = z.object({
   content: z.string().trim().min(1),
 });
 
-const optionalGroupId = z.coerce.number().int().nullable().optional();
+const optionalCourseId = z.coerce.number().int().nullable().optional();
 
 export const chatMessageBodySchema = z
   .object({
     messages: z.array(chatMessageItemSchema).min(1),
-    group_id: optionalGroupId,
+    course_id: optionalCourseId,
     mode: z.enum(["qa", "study"]).optional().default("qa"),
     study_session_id: z.string().max(128).nullable().optional(),
   })
@@ -99,7 +99,7 @@ export const openAiCompletionBodySchema = z
   .object({
     model: z.string().trim().min(1).optional().default("videoq"),
     messages: z.array(chatMessageItemSchema).min(1),
-    group_id: optionalGroupId,
+    course_id: optionalCourseId,
     language: z.string().trim().min(1).nullable().optional(),
     // Accepted but unused (OpenAI SDK fields).
     temperature: z.number().optional(),

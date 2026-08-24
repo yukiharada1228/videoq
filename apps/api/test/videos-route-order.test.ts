@@ -14,20 +14,20 @@ vi.mock("../src/repositories/auth-repository", () => ({
   isAuthSessionActive: vi.fn(async () => true),
 }));
 
-vi.mock("../src/features/groups/service", () => ({
-  listGroups: vi.fn(async () => ({ count: 0, results: [] })),
+vi.mock("../src/features/courses/service", () => ({
+  listCourses: vi.fn(async () => ({ count: 0, results: [] })),
 }));
 
-describe("GET /api/videos/groups route order", () => {
+describe("GET /api/videos/courses route order", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("does not treat 'groups' as a video id (NaN validation)", async () => {
+  it("does not treat 'courses' as a video id (NaN validation)", async () => {
     const app = createApp();
     const token = await signAccessToken(SECRET);
     const res = await app.request(
-      "/api/videos/groups",
+      "/api/videos/courses",
       { headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" } },
       ENV,
     );

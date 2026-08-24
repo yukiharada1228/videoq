@@ -1,43 +1,43 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const repo = vi.hoisted(() => ({
-  createPendingGroupInvitations: vi.fn(),
+  createPendingCourseInvitations: vi.fn(),
   recordInvitationDeliveryOutcomes: vi.fn(),
-  rotatePendingGroupInvitation: vi.fn(),
+  rotatePendingCourseInvitation: vi.fn(),
 }));
 
 const mail = vi.hoisted(() => ({ sendMail: vi.fn() }));
 
-vi.mock("../src/repositories/group-invitation-repository", () => repo);
+vi.mock("../src/repositories/course-invitation-repository", () => repo);
 vi.mock("../src/lib/mail", () => mail);
 
 import {
-  inviteGroupMembers,
+  inviteCourseMembers,
   resendInvitation,
-} from "../src/features/group-memberships/service";
+} from "../src/features/course-memberships/service";
 
 const ENV = {
   FRONTEND_URL: "https://videoq.example",
-  GROUP_INVITATION_BATCH_LIMIT: "3",
+  COURSE_INVITATION_BATCH_LIMIT: "3",
 } as never;
 
-describe("inviteGroupMembers", () => {
+describe("inviteCourseMembers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     repo.recordInvitationDeliveryOutcomes.mockResolvedValue(undefined);
   });
 
   it("メール送信はリクエスト内で行わず、配送タスクに委譲する", async () => {
-    repo.createPendingGroupInvitations.mockResolvedValue({
+    repo.createPendingCourseInvitations.mockResolvedValue({
       created: [
-        { id: 10, email: "a@example.com", groupName: "Physics", inviterName: "Teacher" },
-        { id: 11, email: "b@example.com", groupName: "Physics", inviterName: "Teacher" },
+        { id: 10, email: "a@example.com", courseName: "Physics", inviterName: "Teacher" },
+        { id: 11, email: "b@example.com", courseName: "Physics", inviterName: "Teacher" },
       ],
       alreadyMemberEmails: [],
       alreadyPendingEmails: [],
     });
 
-    const result = await inviteGroupMembers(
+    const result = await inviteCourseMembers(
       ENV,
       5,
       "teacher-user",
@@ -57,18 +57,18 @@ describe("inviteGroupMembers", () => {
   });
 
   it("平文トークンを保存せず、招待ごとに異なるダミーhashを渡す", async () => {
-    repo.createPendingGroupInvitations.mockResolvedValue({
+    repo.createPendingCourseInvitations.mockResolvedValue({
       created: [],
       alreadyMemberEmails: [],
       alreadyPendingEmails: [],
     });
 
-    await inviteGroupMembers(ENV, 5, "teacher-user", [
+    await inviteCourseMembers(ENV, 5, "teacher-user", [
       "a@example.com",
       "b@example.com",
     ]);
 
-    const prepared = repo.createPendingGroupInvitations.mock.calls[0][3] as {
+    const prepared = repo.createPendingCourseInvitations.mock.calls[0][3] as {
       email: string;
       tokenHash: string;
     }[];
@@ -80,14 +80,14 @@ describe("inviteGroupMembers", () => {
   });
 
   it("returns invalid, duplicate, already-member, and already-invited results", async () => {
-    repo.createPendingGroupInvitations.mockResolvedValue({
+    repo.createPendingCourseInvitations.mockResolvedValue({
       created: [],
       alreadyMemberEmails: ["member@example.com"],
       alreadyPendingEmails: ["pending@example.com"],
     });
 
-    const result = await inviteGroupMembers(
-      { ...ENV, GROUP_INVITATION_BATCH_LIMIT: "4" } as never,
+    const result = await inviteCourseMembers(
+      { ...ENV, COURSE_INVITATION_BATCH_LIMIT: "4" } as never,
       5,
       "teacher-user",
       [
@@ -110,7 +110,7 @@ describe("inviteGroupMembers", () => {
   });
 
   it("rejects requests above the configured batch limit before touching storage", async () => {
-    const result = await inviteGroupMembers(
+    const result = await inviteCourseMembers(
       ENV,
       5,
       "teacher-user",
@@ -118,17 +118,17 @@ describe("inviteGroupMembers", () => {
     );
 
     expect(result).toEqual({ tooMany: true, limit: 3 });
-    expect(repo.createPendingGroupInvitations).not.toHaveBeenCalled();
+    expect(repo.createPendingCourseInvitations).not.toHaveBeenCalled();
   });
 
   it("counts case-insensitive duplicates as one recipient for the batch limit", async () => {
-    repo.createPendingGroupInvitations.mockResolvedValue({
+    repo.createPendingCourseInvitations.mockResolvedValue({
       created: [],
       alreadyMemberEmails: [],
       alreadyPendingEmails: [],
     });
 
-    const result = await inviteGroupMembers(
+    const result = await inviteCourseMembers(
       ENV,
       5,
       "teacher-user",
@@ -143,13 +143,13 @@ describe("inviteGroupMembers", () => {
         { email: "c@example.com", status: "queued" },
       ],
     });
-    expect(repo.createPendingGroupInvitations).toHaveBeenCalledOnce();
+    expect(repo.createPendingCourseInvitations).toHaveBeenCalledOnce();
   });
 
-  it("does not send mail when the group is not owned by the caller", async () => {
-    repo.createPendingGroupInvitations.mockResolvedValue({ notFound: true });
+  it("does not send mail when the course is not owned by the caller", async () => {
+    repo.createPendingCourseInvitations.mockResolvedValue({ notFound: true });
 
-    const result = await inviteGroupMembers(
+    const result = await inviteCourseMembers(
       ENV,
       999,
       "not-owner",
@@ -165,10 +165,10 @@ describe("resendInvitation", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("古いトークンを即座に失効させ、配送はタスクに任せる", async () => {
-    repo.rotatePendingGroupInvitation.mockResolvedValue({
+    repo.rotatePendingCourseInvitation.mockResolvedValue({
       id: 10,
       email: "a@example.com",
-      groupName: "Physics",
+      courseName: "Physics",
       inviterName: "Teacher",
     });
 
@@ -176,13 +176,13 @@ describe("resendInvitation", () => {
 
     expect(result).toEqual({ ok: true, delivery_status: "queued" });
     // 差し替え先は誰も知らないダミーhash。平文トークンは渡さない。
-    const tokenHash = repo.rotatePendingGroupInvitation.mock.calls[0][4];
+    const tokenHash = repo.rotatePendingCourseInvitation.mock.calls[0][4];
     expect(tokenHash).toMatch(/^[0-9a-f]{64}$/);
     expect(mail.sendMail).not.toHaveBeenCalled();
   });
 
   it("pending でない招待は再送しない", async () => {
-    repo.rotatePendingGroupInvitation.mockResolvedValue({ invalidState: "revoked" });
+    repo.rotatePendingCourseInvitation.mockResolvedValue({ invalidState: "revoked" });
 
     const result = await resendInvitation(ENV, 5, 10, "teacher-user");
 

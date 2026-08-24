@@ -17,18 +17,18 @@ import { useEvaluationSummary } from '@/hooks/useEvaluationSummary';
 import { AnalyticsDashboard } from './AnalyticsDashboard';
 
 interface DashboardButtonProps {
-  groupId: number;
+  courseId: number;
   size?: 'sm' | 'md';
 }
 
-export function DashboardButton({ groupId, size = 'md' }: DashboardButtonProps) {
+export function DashboardButton({ courseId, size = 'md' }: DashboardButtonProps) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
-  const { data, isLoading } = useChatAnalytics(groupId, isOpen);
+  const { data, isLoading } = useChatAnalytics(courseId, isOpen);
   const {
     data: evaluationSummary,
     isLoading: isEvaluationLoading,
-  } = useEvaluationSummary(groupId, isOpen);
+  } = useEvaluationSummary(courseId, isOpen);
 
   const dialog = useDialog({
     open: isOpen,

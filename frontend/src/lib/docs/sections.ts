@@ -3,7 +3,7 @@ import { listOperations, type OpenApiOperation, type OpenApiSchema } from '@/lib
 export const docsSectionIds = [
   'auth',
   'videos',
-  'groups',
+  'courses',
   'tags',
   'chat',
   'openai',
@@ -29,11 +29,11 @@ type SectionFilter = {
 // Every integration operation in the schema belongs to exactly one section.
 // /health and /ready are deliberately linked from the reference list instead.
 // Membership operations are split by path because their shared OpenAPI tag
-// covers both group-video and video-tag relationships.
+// covers both course-video and video-tag relationships.
 const sectionFilters: Record<DocsSectionId, SectionFilter> = {
   auth: { pathPrefixes: ['/api/account'] },
   videos: { tags: ['Videos'] },
-  groups: { tags: ['Groups'], pathPrefixes: ['/api/videos/groups/'] },
+  courses: { tags: ['Courses'], pathPrefixes: ['/api/videos/courses/'] },
   tags: { tags: ['Tags'], pathPrefixes: ['/api/videos/{videoId}/tags'] },
   chat: { tags: ['Chat'], excludePathPrefixes: ['/api/v1/'] },
   openai: { pathPrefixes: ['/api/v1/'] },
@@ -43,7 +43,7 @@ const sectionFilters: Record<DocsSectionId, SectionFilter> = {
 };
 
 /** Endpoints that authenticate through neither an API key nor a session. */
-const publicPathPrefixes = ['/health', '/ready', '/api/videos/groups/share/'];
+const publicPathPrefixes = ['/health', '/ready', '/api/videos/courses/share/'];
 
 export type DocsAuthMode = 'public' | 'session' | 'apiKey' | 'bearerApiKey';
 

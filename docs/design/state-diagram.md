@@ -106,18 +106,18 @@ stateDiagram-v2
     end note
 ```
 
-## 動画グループ共有の状態遷移
+## 講座共有の状態遷移
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Private: Group Created
+    [*] --> Private: Course Created
     
     Private --> Shared: Generate Share Link
     Shared --> Private: Delete Share Link
     Shared --> Shared: Regenerate Share Link
     
-    Private --> [*]: Group Deleted
-    Shared --> [*]: Group Deleted
+    Private --> [*]: Course Deleted
+    Shared --> [*]: Course Deleted
     
     note right of Private
         Private

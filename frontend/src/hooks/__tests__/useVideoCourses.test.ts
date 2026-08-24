@@ -1,11 +1,11 @@
 import { renderHook, act, waitFor } from '@testing-library/react'
-import { useVideoGroups } from '../useVideoGroups'
+import { useVideoCourses } from '../useVideoCourses'
 import { apiClient } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 
 vi.mock('@/lib/api', () => ({
   apiClient: {
-    getVideoGroupsPage: vi.fn(),
+    getVideoCoursesPage: vi.fn(),
   },
 }))
 
@@ -26,53 +26,53 @@ const mockPaginatedResponse = (
   },
 })
 
-describe('useVideoGroups', () => {
+describe('useVideoCourses', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     ;(useAuth as any).mockReturnValue({ user: { id: 1 } })
   })
 
   it('does not fetch when trigger is false', () => {
-    ;(apiClient.getVideoGroupsPage as any).mockResolvedValue(mockPaginatedResponse([]))
+    ;(apiClient.getVideoCoursesPage as any).mockResolvedValue(mockPaginatedResponse([]))
 
-    const { result } = renderHook(({ trigger }) => useVideoGroups(trigger), {
+    const { result } = renderHook(({ trigger }) => useVideoCourses(trigger), {
       initialProps: { trigger: false },
     })
 
-    expect(result.current.groups).toEqual([])
-    expect(apiClient.getVideoGroupsPage).not.toHaveBeenCalled()
+    expect(result.current.courses).toEqual([])
+    expect(apiClient.getVideoCoursesPage).not.toHaveBeenCalled()
   })
 
   it('does not fetch when user is not available', () => {
     ;(useAuth as any).mockReturnValue({ user: null })
-    ;(apiClient.getVideoGroupsPage as any).mockResolvedValue(mockPaginatedResponse([]))
+    ;(apiClient.getVideoCoursesPage as any).mockResolvedValue(mockPaginatedResponse([]))
 
-    const { result } = renderHook(() => useVideoGroups(true))
+    const { result } = renderHook(() => useVideoCourses(true))
 
-    expect(result.current.groups).toEqual([])
-    expect(apiClient.getVideoGroupsPage).not.toHaveBeenCalled()
+    expect(result.current.courses).toEqual([])
+    expect(apiClient.getVideoCoursesPage).not.toHaveBeenCalled()
   })
 
   it('fetches the first page when enabled', async () => {
-    const mockGroups = [{ id: 1, name: 'g1' }]
-    ;(apiClient.getVideoGroupsPage as any).mockResolvedValue(mockPaginatedResponse(mockGroups))
+    const mockCourses = [{ id: 1, name: 'g1' }]
+    ;(apiClient.getVideoCoursesPage as any).mockResolvedValue(mockPaginatedResponse(mockCourses))
 
-    const { result } = renderHook(() => useVideoGroups(true))
+    const { result } = renderHook(() => useVideoCourses(true))
 
     await waitFor(() => {
-      expect(apiClient.getVideoGroupsPage).toHaveBeenCalledWith({ limit: 24, offset: 0 })
-      expect(result.current.groups).toEqual(mockGroups)
+      expect(apiClient.getVideoCoursesPage).toHaveBeenCalledWith({ limit: 24, offset: 0 })
+      expect(result.current.courses).toEqual(mockCourses)
       expect(result.current.isLoading).toBe(false)
     })
   })
 
   it('exposes hasNextPage and totalCount from the paginated response', async () => {
-    const mockGroups = Array.from({ length: 24 }, (_, i) => ({ id: i + 1, name: `g${i + 1}` }))
-    ;(apiClient.getVideoGroupsPage as any).mockResolvedValue(
-      mockPaginatedResponse(mockGroups, 25, 0),
+    const mockCourses = Array.from({ length: 24 }, (_, i) => ({ id: i + 1, name: `g${i + 1}` }))
+    ;(apiClient.getVideoCoursesPage as any).mockResolvedValue(
+      mockPaginatedResponse(mockCourses, 25, 0),
     )
 
-    const { result } = renderHook(() => useVideoGroups(true))
+    const { result } = renderHook(() => useVideoCourses(true))
 
     await waitFor(() => {
       expect(result.current.hasNextPage).toBe(true)
@@ -81,16 +81,16 @@ describe('useVideoGroups', () => {
   })
 
   it('refetch triggers another request', async () => {
-    const mockGroups1 = [{ id: 1, name: 'g1' }]
-    const mockGroups2 = [{ id: 2, name: 'g2' }]
-    ;(apiClient.getVideoGroupsPage as any)
-      .mockResolvedValueOnce(mockPaginatedResponse(mockGroups1))
-      .mockResolvedValueOnce(mockPaginatedResponse(mockGroups2))
+    const mockCourses1 = [{ id: 1, name: 'g1' }]
+    const mockCourses2 = [{ id: 2, name: 'g2' }]
+    ;(apiClient.getVideoCoursesPage as any)
+      .mockResolvedValueOnce(mockPaginatedResponse(mockCourses1))
+      .mockResolvedValueOnce(mockPaginatedResponse(mockCourses2))
 
-    const { result } = renderHook(() => useVideoGroups(true))
+    const { result } = renderHook(() => useVideoCourses(true))
 
     await waitFor(() => {
-      expect(result.current.groups).toEqual(mockGroups1)
+      expect(result.current.courses).toEqual(mockCourses1)
     })
 
     await act(async () => {
@@ -98,13 +98,13 @@ describe('useVideoGroups', () => {
     })
 
     await waitFor(() => {
-      expect(apiClient.getVideoGroupsPage).toHaveBeenCalledTimes(2)
-      expect(result.current.groups).toEqual(mockGroups2)
+      expect(apiClient.getVideoCoursesPage).toHaveBeenCalledTimes(2)
+      expect(result.current.courses).toEqual(mockCourses2)
     })
   })
 })
 
-describe('useVideoGroups - sentinelRef', () => {
+describe('useVideoCourses - sentinelRef', () => {
   let capturedCallback: IntersectionObserverCallback | undefined
   const mockObserve = vi.fn()
   const mockDisconnect = vi.fn()
@@ -127,14 +127,14 @@ describe('useVideoGroups - sentinelRef', () => {
   })
 
   it('fetches the next page when sentinel enters the viewport', async () => {
-    const page1 = Array.from({ length: 24 }, (_, i) => ({ id: i + 1, name: `Group ${i + 1}` }))
-    const page2 = [{ id: 25, name: 'Group 25' }]
+    const page1 = Array.from({ length: 24 }, (_, i) => ({ id: i + 1, name: `Course ${i + 1}` }))
+    const page2 = [{ id: 25, name: 'Course 25' }]
 
-    ;(apiClient.getVideoGroupsPage as any)
+    ;(apiClient.getVideoCoursesPage as any)
       .mockResolvedValueOnce(mockPaginatedResponse(page1, 25, 0))
       .mockResolvedValueOnce(mockPaginatedResponse(page2, 25, 24))
 
-    const { result } = renderHook(() => useVideoGroups(true))
+    const { result } = renderHook(() => useVideoCourses(true))
     await waitFor(() => expect(result.current.hasNextPage).toBe(true))
 
     const div = document.createElement('div')
@@ -145,13 +145,13 @@ describe('useVideoGroups - sentinelRef', () => {
     })
 
     await waitFor(() => {
-      expect(result.current.groups).toHaveLength(25)
+      expect(result.current.courses).toHaveLength(25)
     })
   })
 
   it('disconnects observer when sentinel is detached', async () => {
-    ;(apiClient.getVideoGroupsPage as any).mockResolvedValue(mockPaginatedResponse([]))
-    const { result } = renderHook(() => useVideoGroups(true))
+    ;(apiClient.getVideoCoursesPage as any).mockResolvedValue(mockPaginatedResponse([]))
+    const { result } = renderHook(() => useVideoCourses(true))
     await waitFor(() => expect(result.current.isLoading).toBe(false))
 
     const div = document.createElement('div')

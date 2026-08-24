@@ -38,8 +38,8 @@ def _delete_chat_history_for_user(conn, user_id: str) -> None:
     conn.execute("DELETE FROM chat_logs WHERE user_id = %s", (user_id,))
 
 
-def _delete_video_groups_for_user(conn, user_id: str) -> None:
-    conn.execute("DELETE FROM video_groups WHERE user_id = %s", (user_id,))
+def _delete_video_courses_for_user(conn, user_id: str) -> None:
+    conn.execute("DELETE FROM video_courses WHERE user_id = %s", (user_id,))
 
 
 def _delete_tags_for_user(conn, user_id: str) -> None:
@@ -60,7 +60,7 @@ def delete_account_data(user_id: str) -> None:
     steps = [
         ("delete_all_videos_for_user", _delete_all_videos_for_user),
         ("delete_chat_history_for_user", _delete_chat_history_for_user),
-        ("delete_video_groups_for_user", _delete_video_groups_for_user),
+        ("delete_video_courses_for_user", _delete_video_courses_for_user),
         ("delete_tags_for_user", _delete_tags_for_user),
         ("delete_remaining_vectors_for_user", _delete_remaining_vectors_for_user),
         ("delete_user_row", _delete_user_row),

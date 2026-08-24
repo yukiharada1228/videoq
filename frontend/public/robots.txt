@@ -12,7 +12,7 @@ Disallow: /videos
 Disallow: /settings
 Disallow: /admin
 Disallow: /share/
-Disallow: /group-invitations/
+Disallow: /course-invitations/
 Disallow: /en/login
 Disallow: /en/signup
 Disallow: /en/forgot-password
@@ -25,7 +25,7 @@ Disallow: /en/videos
 Disallow: /en/settings
 Disallow: /en/admin
 Disallow: /en/share/
-Disallow: /en/group-invitations/
+Disallow: /en/course-invitations/
 Disallow: /ja/login
 Disallow: /ja/signup
 Disallow: /ja/forgot-password
@@ -38,6 +38,6 @@ Disallow: /ja/videos
 Disallow: /ja/settings
 Disallow: /ja/admin
 Disallow: /ja/share/
-Disallow: /ja/group-invitations/
+Disallow: /ja/course-invitations/
 
 Sitemap: https://videoq.jp/sitemap.xml

@@ -14,13 +14,13 @@ import {
 } from '@/components/ui/dialog';
 import { useTranslation } from 'react-i18next';
 
-interface VideoGroupCreateModalProps {
+interface VideoCourseCreateModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreate: (name: string, description: string) => Promise<void>;
 }
 
-export function VideoGroupCreateModal({ isOpen, onClose, onCreate }: VideoGroupCreateModalProps) {
+export function VideoCourseCreateModal({ isOpen, onClose, onCreate }: VideoCourseCreateModalProps) {
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -57,7 +57,7 @@ export function VideoGroupCreateModal({ isOpen, onClose, onCreate }: VideoGroupC
       await onCreate(name.trim(), description.trim());
       handleClose();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t('videos.groups.createError');
+      const msg = err instanceof Error ? err.message : t('videos.courses.createError');
       setFormError(msg);
     } finally {
       setIsCreating(false);
@@ -71,13 +71,13 @@ export function VideoGroupCreateModal({ isOpen, onClose, onCreate }: VideoGroupC
       <DialogContent>
         <DialogHeader>
           <DialogHeading {...dialog.headingProps}>
-            {t('videos.groups.createTitle')}
+            {t('videos.courses.createTitle')}
           </DialogHeading>
         </DialogHeader>
 
         <DialogBody>
           <p className="mb-4 text-std-16N-170 text-solid-gray-700">
-            {t('videos.groups.subtitle')}
+            {t('videos.courses.subtitle')}
           </p>
 
           <div className="space-y-4">
@@ -89,13 +89,13 @@ export function VideoGroupCreateModal({ isOpen, onClose, onCreate }: VideoGroupC
 
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-solid-gray-700">
-                {t('videos.groups.nameLabel')}
+                {t('videos.courses.nameLabel')}
               </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={t('videos.groups.namePlaceholder')}
+                placeholder={t('videos.courses.namePlaceholder')}
                 disabled={isCreating}
                 autoFocus
                 className="w-full rounded-8 border border-solid-gray-300 bg-white px-4 py-3 text-sm text-solid-gray-800 placeholder:text-solid-gray-420 focus:outline focus:outline-4 focus:outline-black focus:outline-offset-[calc(2/16*1rem)] focus:ring-[calc(2/16*1rem)] focus:ring-yellow-300"
@@ -104,16 +104,16 @@ export function VideoGroupCreateModal({ isOpen, onClose, onCreate }: VideoGroupC
 
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-solid-gray-700">
-                {t('videos.groups.descriptionLabel')}
+                {t('videos.courses.descriptionLabel')}
                 <span className="ml-1 normal-case font-normal text-solid-gray-420">
-                  {t('videos.groups.optional')}
+                  {t('videos.courses.optional')}
                 </span>
               </label>
               <input
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder={t('videos.groups.descriptionPlaceholder')}
+                placeholder={t('videos.courses.descriptionPlaceholder')}
                 disabled={isCreating}
                 className="w-full rounded-8 border border-solid-gray-300 bg-white px-4 py-3 text-sm text-solid-gray-800 placeholder:text-solid-gray-420 focus:outline focus:outline-4 focus:outline-black focus:outline-offset-[calc(2/16*1rem)] focus:ring-[calc(2/16*1rem)] focus:ring-yellow-300"
               />

@@ -5,16 +5,16 @@ import {
   chatLogs,
   chatLogEvaluations,
   videos,
-  videoGroups,
-  videoGroupMembers,
-  videoGroupMemberships,
+  videoCourses,
+  videoCourseMembers,
+  videoCourseMemberships,
 } from "../db/schema";
 import { toUtcIso } from "../shared/datetime";
 import { mapVideoListRow, type VideoListItem } from "./video-repository";
 import type { Bindings } from "../types/bindings";
 
-/** VideoGroup 一覧 API のレスポンス表現。 */
-export type GroupListItem = {
+/** VideoCourse 一覧 API のレスポンス表現。 */
+export type CourseListItem = {
   id: number;
   name: string;
   description: string;
@@ -25,12 +25,12 @@ export type GroupListItem = {
 };
 
 /**
- * ユーザーのグループ一覧（ページ）+ 総数を単一接続で取得。
+ * ユーザーの講座一覧（ページ）+ 総数を単一接続で取得。
  * 並び: display_order ASC, created_at DESC, id ASC。
  * video_count は所属する動画の重複を除いた件数。
  */
-// VideoGroupDetailSerializer: 一覧 + updated_at / share_slug / videos（ネスト）
-export type GroupDetail = {
+// VideoCourseDetailSerializer: 一覧 + updated_at / share_slug / videos（ネスト）
+export type CourseDetail = {
   id: number;
   name: string;
   description: string;
@@ -43,8 +43,8 @@ export type GroupDetail = {
   access_role: "owner" | "member" | "public";
 };
 
-// Must be "video_groups"."id": ${videoGroups.id} becomes bare "id" → m.id.
-const groupVideoCount = sql<number>`(SELECT count(DISTINCT m.video_id)::int FROM video_group_members m WHERE m.group_id = "video_groups"."id")`.as(
+// Must be "video_courses"."id": ${videoCourses.id} becomes bare "id" → m.id.
+const courseVideoCount = sql<number>`(SELECT count(DISTINCT m.video_id)::int FROM video_course_members m WHERE m.course_id = "video_courses"."id")`.as(
   "video_count",
 );
 // Outer table must be qualified — ${videos.id} becomes bare "id" (ambiguous vs t.id).
@@ -55,36 +55,36 @@ const videoTagsJson = sql<string>`COALESCE((
 ), '[]'::json)::text`.as("tags");
 
 /**
- * 指定 WHERE 条件でグループ詳細を1件取得（VideoGroupDetailSerializer 形）。
+ * 指定 WHERE 条件で講座詳細を1件取得（VideoCourseDetailSerializer 形）。
  * 未一致は null。videos は各メンバーの動画一覧表現 + order。
  */
-async function fetchGroupDetail(
+async function fetchCourseDetail(
   env: Bindings,
   where: SQL,
   accessRole: "public" | { viewerUserId: string },
-): Promise<GroupDetail | null> {
+): Promise<CourseDetail | null> {
   const data = await withDb(env, async (db) => {
-    const groupRows = await db
+    const courseRows = await db
       .select({
-        id: videoGroups.id,
-        name: videoGroups.name,
-        description: videoGroups.description,
-        display_order: videoGroups.displayOrder,
-        created_at: videoGroups.createdAt,
-        updated_at: videoGroups.updatedAt,
-        share_slug: videoGroups.shareSlug,
-        video_count: groupVideoCount,
-        owner_user_id: videoGroups.userId,
+        id: videoCourses.id,
+        name: videoCourses.name,
+        description: videoCourses.description,
+        display_order: videoCourses.displayOrder,
+        created_at: videoCourses.createdAt,
+        updated_at: videoCourses.updatedAt,
+        share_slug: videoCourses.shareSlug,
+        video_count: courseVideoCount,
+        owner_user_id: videoCourses.userId,
       })
-      .from(videoGroups)
+      .from(videoCourses)
       .where(where)
       .limit(1);
-    if (groupRows.length === 0) return null;
-    const groupId = Number(groupRows[0].id);
+    if (courseRows.length === 0) return null;
+    const courseId = Number(courseRows[0].id);
 
     const memberRows = await db
       .select({
-        member_order: videoGroupMembers.order,
+        member_order: videoCourseMembers.order,
         id: videos.id,
         file: videos.file,
         title: videos.title,
@@ -96,12 +96,12 @@ async function fetchGroupDetail(
         youtube_video_id: videos.youtubeVideoId,
         tags: videoTagsJson,
       })
-      .from(videoGroupMembers)
-      .innerJoin(videos, eq(videos.id, videoGroupMembers.videoId))
-      .where(eq(videoGroupMembers.groupId, groupId))
-      .orderBy(asc(videoGroupMembers.order), asc(videoGroupMembers.addedAt));
+      .from(videoCourseMembers)
+      .innerJoin(videos, eq(videos.id, videoCourseMembers.videoId))
+      .where(eq(videoCourseMembers.courseId, courseId))
+      .orderBy(asc(videoCourseMembers.order), asc(videoCourseMembers.addedAt));
 
-    return { group: groupRows[0], members: memberRows };
+    return { course: courseRows[0], members: memberRows };
   });
 
   if (!data) return null;
@@ -113,7 +113,7 @@ async function fetchGroupDetail(
     })),
   );
 
-  const g = data.group;
+  const g = data.course;
   return {
     id: Number(g.id),
     name: g.name,
@@ -134,24 +134,24 @@ async function fetchGroupDetail(
 }
 
 /**
- * VideoGroupDetailView: id + user_id で1件取得（未所有/不在は null）。
+ * VideoCourseDetailView: id + user_id で1件取得（未所有/不在は null）。
  * videos は各メンバーの VideoListSerializer 出力 + order（メンバー順 order, added_at）。
  */
-export function getGroupDetail(
+export function getCourseDetail(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   userId: string,
-): Promise<GroupDetail | null> {
-  return fetchGroupDetail(
+): Promise<CourseDetail | null> {
+  return fetchCourseDetail(
     env,
     and(
-      eq(videoGroups.id, groupId),
+      eq(videoCourses.id, courseId),
       or(
-        eq(videoGroups.userId, userId),
+        eq(videoCourses.userId, userId),
         sql`EXISTS (
-          SELECT 1 FROM ${videoGroupMemberships}
-           WHERE ${videoGroupMemberships.groupId} = ${videoGroups.id}
-             AND ${videoGroupMemberships.userId} = ${userId}
+          SELECT 1 FROM ${videoCourseMemberships}
+           WHERE ${videoCourseMemberships.courseId} = ${videoCourses.id}
+             AND ${videoCourseMemberships.userId} = ${userId}
         )`,
       ),
     )!,
@@ -161,17 +161,17 @@ export function getGroupDetail(
 
 /**
  * share_slug で1件取得する（認証不要・完全一致）。未一致は null。
- * 出力は VideoGroupDetailSerializer（getGroupDetail と同形）。
+ * 出力は VideoCourseDetailSerializer（getCourseDetail と同形）。
  */
-export function getGroupDetailByShareSlug(
+export function getCourseDetailByShareSlug(
   env: Bindings,
   shareSlug: string,
-): Promise<GroupDetail | null> {
-  return fetchGroupDetail(env, eq(videoGroups.shareSlug, shareSlug), "public");
+): Promise<CourseDetail | null> {
+  return fetchCourseDetail(env, eq(videoCourses.shareSlug, shareSlug), "public");
 }
 
-/** グループ作成（display_order = MAX+1 を単一 INSERT で原子採番）。作成した id を返す。 */
-export async function createGroup(
+/** 講座作成（display_order = MAX+1 を単一 INSERT で原子採番）。作成した id を返す。 */
+export async function createCourse(
   env: Bindings,
   userId: string,
   name: string,
@@ -181,34 +181,34 @@ export async function createGroup(
     db.transaction(async (tx) => {
       await tx.execute(sql`SELECT 1 FROM users WHERE id = ${userId} FOR UPDATE`);
       const rows = await tx
-        .insert(videoGroups)
+        .insert(videoCourses)
         .values({
           userId,
           name,
           description,
-          displayOrder: sql`(SELECT COALESCE(MAX(display_order), -1) + 1 FROM video_groups WHERE user_id = ${userId})`,
+          displayOrder: sql`(SELECT COALESCE(MAX(display_order), -1) + 1 FROM video_courses WHERE user_id = ${userId})`,
           createdAt: sql`CURRENT_TIMESTAMP`,
           updatedAt: sql`CURRENT_TIMESTAMP`,
           shareSlug: null,
         })
-        .returning({ id: videoGroups.id });
+        .returning({ id: videoCourses.id });
       return Number(rows[0].id);
     }),
   );
 }
 
-/** グループ更新（提供フィールドのみ動的 SET。updated_at は更新しない）。 */
-export async function updateGroup(
+/** 講座更新（提供フィールドのみ動的 SET。updated_at は更新しない）。 */
+export async function updateCourse(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   userId: string,
   fields: { name?: string; description?: string },
 ): Promise<{ notFound: true } | { ok: true }> {
   return withDb(env, async (db) => {
     const owner = await db
-      .select({ id: videoGroups.id })
-      .from(videoGroups)
-      .where(and(eq(videoGroups.id, groupId), eq(videoGroups.userId, userId)))
+      .select({ id: videoCourses.id })
+      .from(videoCourses)
+      .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, userId)))
       .limit(1);
     if (owner.length === 0) return { notFound: true } as const;
 
@@ -217,70 +217,70 @@ export async function updateGroup(
     if (fields.description !== undefined) patch.description = fields.description;
     if (Object.keys(patch).length > 0) {
       await db
-        .update(videoGroups)
+        .update(videoCourses)
         .set(patch)
-        .where(and(eq(videoGroups.id, groupId), eq(videoGroups.userId, userId)));
+        .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, userId)));
     }
     return { ok: true } as const;
   });
 }
 
-/** グループ削除（所有権を先に確認し、tx で cascade 削除）。 */
-export async function deleteGroup(
+/** 講座削除（所有権を先に確認し、tx で cascade 削除）。 */
+export async function deleteCourse(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   userId: string,
 ): Promise<{ notFound: true } | { ok: true }> {
   return withDb(env, async (db) => {
     return db.transaction(async (tx) => {
       const owner = await tx
-        .select({ id: videoGroups.id })
-        .from(videoGroups)
-        .where(and(eq(videoGroups.id, groupId), eq(videoGroups.userId, userId)))
+        .select({ id: videoCourses.id })
+        .from(videoCourses)
+        .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, userId)))
         .for("update");
       if (owner.length === 0) return { notFound: true } as const;
 
       await tx.execute(sql`
         DELETE FROM chat_log_evaluations
-         WHERE chat_log_id IN (SELECT id FROM chat_logs WHERE group_id = ${groupId})
+         WHERE chat_log_id IN (SELECT id FROM chat_logs WHERE course_id = ${courseId})
       `);
-      await tx.delete(chatLogs).where(eq(chatLogs.groupId, groupId));
-      await tx.delete(videoGroupMembers).where(eq(videoGroupMembers.groupId, groupId));
+      await tx.delete(chatLogs).where(eq(chatLogs.courseId, courseId));
+      await tx.delete(videoCourseMembers).where(eq(videoCourseMembers.courseId, courseId));
       await tx
-        .delete(videoGroups)
-        .where(and(eq(videoGroups.id, groupId), eq(videoGroups.userId, userId)));
+        .delete(videoCourses)
+        .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, userId)));
       return { ok: true } as const;
     });
   });
 }
 
 /**
- * グループ表示順を並び替える。
- * 空/重複 → mismatch。選択グループの既存 display_order 値集合を
- * ソート順のまま group_ids の並びへ再割り当て（値集合は保存）。
+ * 講座表示順を並び替える。
+ * 空/重複 → mismatch。選択講座の既存 display_order 値集合を
+ * ソート順のまま course_ids の並びへ再割り当て（値集合は保存）。
  */
-export async function reorderGroups(
+export async function reorderCourses(
   env: Bindings,
   userId: string,
-  groupIds: number[],
+  courseIds: number[],
 ): Promise<{ mismatch: true } | { ok: true }> {
-  if (groupIds.length === 0) return { mismatch: true } as const;
-  if (new Set(groupIds).size !== groupIds.length) return { mismatch: true } as const;
+  if (courseIds.length === 0) return { mismatch: true } as const;
+  if (new Set(courseIds).size !== courseIds.length) return { mismatch: true } as const;
 
   return withDb(env, async (db) => {
     return db.transaction(async (tx) => {
       const sel = await tx.execute(sql`
-        SELECT id, display_order FROM video_groups
-         WHERE user_id = ${userId} AND id = ANY(${sqlNumberArray(groupIds)})
+        SELECT id, display_order FROM video_courses
+         WHERE user_id = ${userId} AND id = ANY(${sqlNumberArray(courseIds)})
          ORDER BY display_order ASC, created_at DESC, id ASC
          FOR UPDATE
       `);
       const rows = sel.rows as Array<{ id: number; display_order: number }>;
-      if (rows.length !== groupIds.length) return { mismatch: true } as const;
+      if (rows.length !== courseIds.length) return { mismatch: true } as const;
       const slots = rows.map((r) => r.display_order);
       await tx.execute(sql`
-        UPDATE video_groups AS g SET display_order = d.slot
-          FROM unnest(${sqlNumberArray(groupIds)}, ${sqlNumberArray(slots, "int")}) AS d(gid, slot)
+        UPDATE video_courses AS g SET display_order = d.slot
+          FROM unnest(${sqlNumberArray(courseIds)}, ${sqlNumberArray(slots, "int")}) AS d(gid, slot)
          WHERE g.id = d.gid AND g.user_id = ${userId}
       `);
       return { ok: true } as const;
@@ -289,39 +289,39 @@ export async function reorderGroups(
 }
 
 /**
- * グループ内動画を並び替える。order = 0 始まりの連番。
+ * 講座内動画を並び替える。order = 0 始まりの連番。
  * 呼び出し側で「メンバー集合と一致」を検証済み前提。
  */
 export async function reorderVideos(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   videoIds: number[],
 ): Promise<void> {
   return withDb(env, async (db) => {
     await db.transaction(async (tx) => {
-      await tx.execute(sql`SELECT 1 FROM video_groups WHERE id = ${groupId} FOR UPDATE`);
+      await tx.execute(sql`SELECT 1 FROM video_courses WHERE id = ${courseId} FOR UPDATE`);
       if (videoIds.length > 0) {
         await tx.execute(sql`
-          UPDATE video_group_members AS m SET "order" = v.ord - 1
+          UPDATE video_course_members AS m SET "order" = v.ord - 1
             FROM unnest(${sqlNumberArray(videoIds)}) WITH ORDINALITY AS v(video_id, ord)
-           WHERE m.group_id = ${groupId} AND m.video_id = v.video_id
+           WHERE m.course_id = ${courseId} AND m.video_id = v.video_id
         `);
       }
     });
   });
 }
 
-/** グループの現在の share_slug（グループ不在/未所有は found:false）。 */
-export async function getGroupShareSlug(
+/** 講座の現在の share_slug（講座不在/未所有は found:false）。 */
+export async function getCourseShareSlug(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   userId: string,
 ): Promise<{ found: false } | { found: true; slug: string | null }> {
   return withDb(env, async (db) => {
     const rows = await db
-      .select({ share_slug: videoGroups.shareSlug })
-      .from(videoGroups)
-      .where(and(eq(videoGroups.id, groupId), eq(videoGroups.userId, userId)))
+      .select({ share_slug: videoCourses.shareSlug })
+      .from(videoCourses)
+      .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, userId)))
       .limit(1);
     if (rows.length === 0) return { found: false } as const;
     return { found: true, slug: rows[0].share_slug ?? null };
@@ -334,16 +334,16 @@ export async function getGroupShareSlug(
  */
 export async function setShareSlug(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   userId: string,
   slug: string | null,
 ): Promise<{ conflict: true } | { ok: true }> {
   return withDb(env, async (db) => {
     try {
       await db
-        .update(videoGroups)
+        .update(videoCourses)
         .set({ shareSlug: slug })
-        .where(and(eq(videoGroups.id, groupId), eq(videoGroups.userId, userId)));
+        .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, userId)));
       return { ok: true } as const;
     } catch (e) {
       if ((e as { code?: string }).code === "23505") return { conflict: true } as const;
@@ -352,61 +352,61 @@ export async function setShareSlug(
   });
 }
 
-export async function listGroupsPage(
+export async function listCoursesPage(
   env: Bindings,
   userId: string,
   limit: number,
   offset: number,
-): Promise<{ count: number; results: GroupListItem[] }> {
+): Promise<{ count: number; results: CourseListItem[] }> {
   return withDb(env, async (db) => {
     const countRows = await db
       .select({ c: sql<number>`count(*)::int` })
-      .from(videoGroups)
+      .from(videoCourses)
       .where(
         or(
-          eq(videoGroups.userId, userId),
+          eq(videoCourses.userId, userId),
           sql`EXISTS (
-            SELECT 1 FROM ${videoGroupMemberships}
-             WHERE ${videoGroupMemberships.groupId} = ${videoGroups.id}
-               AND ${videoGroupMemberships.userId} = ${userId}
+            SELECT 1 FROM ${videoCourseMemberships}
+             WHERE ${videoCourseMemberships.courseId} = ${videoCourses.id}
+               AND ${videoCourseMemberships.userId} = ${userId}
           )`,
         ),
       );
 
     const rows = await db
       .select({
-        id: videoGroups.id,
-        name: videoGroups.name,
-        description: videoGroups.description,
-        display_order: videoGroups.displayOrder,
-        created_at: videoGroups.createdAt,
-        video_count: groupVideoCount,
+        id: videoCourses.id,
+        name: videoCourses.name,
+        description: videoCourses.description,
+        display_order: videoCourses.displayOrder,
+        created_at: videoCourses.createdAt,
+        video_count: courseVideoCount,
         access_role: sql<"owner" | "member">`CASE
-          WHEN ${videoGroups.userId} = ${userId} THEN 'owner'
+          WHEN ${videoCourses.userId} = ${userId} THEN 'owner'
           ELSE 'member'
         END`,
       })
-      .from(videoGroups)
+      .from(videoCourses)
       .where(
         or(
-          eq(videoGroups.userId, userId),
+          eq(videoCourses.userId, userId),
           sql`EXISTS (
-            SELECT 1 FROM ${videoGroupMemberships}
-             WHERE ${videoGroupMemberships.groupId} = ${videoGroups.id}
-               AND ${videoGroupMemberships.userId} = ${userId}
+            SELECT 1 FROM ${videoCourseMemberships}
+             WHERE ${videoCourseMemberships.courseId} = ${videoCourses.id}
+               AND ${videoCourseMemberships.userId} = ${userId}
           )`,
         ),
       )
       .orderBy(
-        sql`CASE WHEN ${videoGroups.userId} = ${userId} THEN 0 ELSE 1 END`,
-        asc(videoGroups.displayOrder),
-        desc(videoGroups.createdAt),
-        asc(videoGroups.id),
+        sql`CASE WHEN ${videoCourses.userId} = ${userId} THEN 0 ELSE 1 END`,
+        asc(videoCourses.displayOrder),
+        desc(videoCourses.createdAt),
+        asc(videoCourses.id),
       )
       .limit(limit)
       .offset(offset);
 
-    const results: GroupListItem[] = rows.map((r) => ({
+    const results: CourseListItem[] = rows.map((r) => ({
       id: Number(r.id),
       name: r.name,
       description: r.description,

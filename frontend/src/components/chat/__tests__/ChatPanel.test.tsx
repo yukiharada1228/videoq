@@ -89,7 +89,7 @@ describe('ChatPanel', () => {
   it('should open history when history button is clicked', async () => {
     ;(apiClient.getChatHistory as any).mockResolvedValue([])
 
-    render(<ChatPanel groupId={1} />)
+    render(<ChatPanel courseId={1} />)
 
     const historyButton = screen.getByText(/chat.history/)
 
@@ -103,13 +103,13 @@ describe('ChatPanel', () => {
   })
 
   it('should not show history button when shareToken is provided', () => {
-    render(<ChatPanel groupId={1} shareToken="token123" />)
+    render(<ChatPanel courseId={1} shareToken="token123" />)
 
     expect(screen.queryByText(/chat.history/)).not.toBeInTheDocument()
   })
 
   it('fills the composer when a suggested question is clicked', () => {
-    render(<ChatPanel groupId={1} shareToken="token123" suggestedQuestions={['CNNとは？']} />)
+    render(<ChatPanel courseId={1} shareToken="token123" suggestedQuestions={['CNNとは？']} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'CNNとは？' }))
 
@@ -313,7 +313,7 @@ describe('ChatPanel', () => {
     const mockHistory = [
       {
         id: 1,
-        group: 1,
+        course: 1,
         asked_by: {
           user_id: 'student-user',
           username: 'student',
@@ -327,7 +327,7 @@ describe('ChatPanel', () => {
       },
       {
         id: 2,
-        group: 1,
+        course: 1,
         asked_by: null,
         question: 'Shared question',
         answer: 'Shared answer',
@@ -338,7 +338,7 @@ describe('ChatPanel', () => {
     ]
     ;(apiClient.getChatHistory as any).mockResolvedValue(mockHistory)
 
-    render(<ChatPanel groupId={1} />)
+    render(<ChatPanel courseId={1} />)
 
     const historyButton = screen.getByText(/chat.history/)
 
@@ -359,7 +359,7 @@ describe('ChatPanel', () => {
     const mockHistory = [
       {
         id: 1,
-        group: 1,
+        course: 1,
         question: 'Test question',
         answer: 'Test answer',
         is_shared_origin: false,
@@ -380,7 +380,7 @@ describe('ChatPanel', () => {
       },
     ])
 
-    render(<ChatPanel groupId={1} />)
+    render(<ChatPanel courseId={1} />)
 
     const historyButton = screen.getByText(/chat.history/)
 
@@ -403,7 +403,7 @@ describe('ChatPanel', () => {
     const mockHistory = [
       {
         id: 1,
-        group: 1,
+        course: 1,
         question: 'Pending question',
         answer: 'Pending answer',
         is_shared_origin: false,
@@ -412,7 +412,7 @@ describe('ChatPanel', () => {
       },
       {
         id: 2,
-        group: 1,
+        course: 1,
         question: 'Failed question',
         answer: 'Failed answer',
         is_shared_origin: false,
@@ -421,7 +421,7 @@ describe('ChatPanel', () => {
       },
       {
         id: 3,
-        group: 1,
+        course: 1,
         question: 'No evaluation question',
         answer: 'No evaluation answer',
         is_shared_origin: false,
@@ -451,7 +451,7 @@ describe('ChatPanel', () => {
       },
     ])
 
-    render(<ChatPanel groupId={1} />)
+    render(<ChatPanel courseId={1} />)
 
     const historyButton = screen.getByText(/chat.history/)
 
@@ -471,7 +471,7 @@ describe('ChatPanel', () => {
   it('should switch back to chat tab from history', async () => {
     ;(apiClient.getChatHistory as any).mockResolvedValue([])
 
-    render(<ChatPanel groupId={1} />)
+    render(<ChatPanel courseId={1} />)
 
     // Switch to history tab
     const historyButton = screen.getByText(/chat.history/)
@@ -493,7 +493,7 @@ describe('ChatPanel', () => {
     const mockHistory = [
       {
         id: 1,
-        group: 1,
+        course: 1,
         question: 'Test question',
         answer: 'Test answer',
         is_shared_origin: false,
@@ -504,7 +504,7 @@ describe('ChatPanel', () => {
     ;(apiClient.getChatHistory as any).mockResolvedValue(mockHistory)
     ;(apiClient.exportChatHistoryCsv as any).mockResolvedValue(undefined)
 
-    render(<ChatPanel groupId={1} />)
+    render(<ChatPanel courseId={1} />)
 
     const historyButton = screen.getByText(/chat.history/)
 
@@ -560,7 +560,7 @@ describe('ChatPanel', () => {
       () => new Promise(resolve => setTimeout(() => resolve([]), 100))
     )
 
-    render(<ChatPanel groupId={1} />)
+    render(<ChatPanel courseId={1} />)
 
     const historyButton = screen.getByText(/chat.history/)
 
@@ -578,7 +578,7 @@ describe('ChatPanel', () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     ;(apiClient.getChatHistory as any).mockRejectedValue(new Error('Failed to load history'))
 
-    render(<ChatPanel groupId={1} />)
+    render(<ChatPanel courseId={1} />)
 
     const historyButton = screen.getByText(/chat.history/)
 
@@ -598,7 +598,7 @@ describe('ChatPanel', () => {
     const mockHistory = [
       {
         id: 1,
-        group: 1,
+        course: 1,
         question: 'Test question',
         answer: 'Test answer',
         is_shared_origin: false,
@@ -609,7 +609,7 @@ describe('ChatPanel', () => {
     ;(apiClient.getChatHistory as any).mockResolvedValue(mockHistory)
     ;(apiClient.exportChatHistoryCsv as any).mockRejectedValue(new Error('Failed to export CSV'))
 
-    render(<ChatPanel groupId={1} />)
+    render(<ChatPanel courseId={1} />)
 
     const historyButton = screen.getByText(/chat.history/)
 
@@ -699,7 +699,7 @@ describe('ChatPanel', () => {
     const mockHistory = [
       {
         id: 1,
-        group: 1,
+        course: 1,
         question: 'Test question',
         answer: 'Test answer[1]',
         citations: [
@@ -718,7 +718,7 @@ describe('ChatPanel', () => {
     ]
     ;(apiClient.getChatHistory as any).mockResolvedValue(mockHistory)
 
-    render(<ChatPanel groupId={1} />)
+    render(<ChatPanel courseId={1} />)
 
     const historyButton = screen.getByText(/chat.history/)
 

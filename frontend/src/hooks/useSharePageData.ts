@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiClient, type VideoGroup } from '@/lib/api';
+import { apiClient, type VideoCourse } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 
-export function useSharedGroupQuery(shareToken: string) {
-  return useQuery<VideoGroup>({
-    queryKey: queryKeys.videoGroups.shared(shareToken),
+export function useSharedCourseQuery(shareToken: string) {
+  return useQuery<VideoCourse>({
+    queryKey: queryKeys.videoCourses.shared(shareToken),
     enabled: !!shareToken,
-    queryFn: async () => await apiClient.getSharedGroup(shareToken),
+    queryFn: async () => await apiClient.getSharedCourse(shareToken),
   });
 }

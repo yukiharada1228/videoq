@@ -34,10 +34,10 @@
     "messages": {
       "noDescription": "説明なし",
       "videoNotFound": "動画が見つかりません",
-      "groupNotFound": "チャットグループが見つかりません",
+      "courseNotFound": "講座が見つかりません",
       "browserNoVideoSupport": "お使いのブラウザは動画タグをサポートしていません。",
-      "shareLoadFailed": "共有チャットグループの読み込みに失敗しました",
-      "shareNotFound": "共有チャットグループが見つかりません",
+      "shareLoadFailed": "共有講座の読み込みに失敗しました",
+      "shareNotFound": "共有講座が見つかりません",
       "videoFileMissing": "動画ファイルがありません",
       "copyFailed": "コピーに失敗しました。手動でコピーしてください。"
     }
@@ -69,7 +69,7 @@
   "navigation": {
     "home": "ホーム",
     "videosNav": "動画",
-    "groupsNav": "グループ",
+    "coursesNav": "講座",
     "docs": "開発者Docs",
     "settings": "設定",
     "pricing": "料金",
@@ -88,7 +88,7 @@
     "welcome": {
       "badge": "ホーム",
       "greeting": "{{username}}さん",
-      "dailyMotivation": "動画の登録、文字起こし、学習用グループの管理を行えます。"
+      "dailyMotivation": "動画の登録、文字起こし、講座の管理を行えます。"
     },
     "actions": {
       "sectionTitle": "利用メニュー",
@@ -100,9 +100,9 @@
         "title": "動画一覧",
         "descriptionLong": "登録済みの動画（{{count}}本）を確認・編集・共有できます。"
       },
-      "groups": {
-        "title": "グループ管理",
-        "descriptionLong": "学習単位のグループ（{{count}}件）を管理します。"
+      "courses": {
+        "title": "講座管理",
+        "descriptionLong": "講座（{{count}}件）を管理します。"
       }
     },
     "stats": {
@@ -110,7 +110,7 @@
       "processing": "処理中",
       "totalVideos": "総動画数",
       "analysisCompleted": "分析完了",
-      "groups": "グループ数"
+      "courses": "講座数"
     },
     "recentVideos": {
       "title": "最近アップロードした動画",
@@ -177,7 +177,7 @@
       },
       "share": {
         "title": "講義動画をクラスで共有",
-        "body": "授業録画をグループにまとめて、クラスや研修チームへ共有できます。学習者は同じ講義動画に質問でき、教員は配布した教材を一箇所で管理できます。"
+        "body": "授業録画を講座にまとめて、クラスや研修チームへ共有できます。学習者は同じ講義動画に質問でき、教員は配布した教材を一箇所で管理できます。"
       },
       "analytics": {
         "title": "学生の質問から、分からない箇所を見る",
@@ -189,7 +189,7 @@
       "intro": "アカウント登録のあと、講義動画の文字起こしまで3ステップです。クレジットカードは不要です。",
       "upload": {
         "title": "講義動画を登録する",
-        "body": "授業録画のファイルを上げるか、YouTubeの講義URLを登録します。グループにまとめておくと、あとからクラスへ配布しやすくなります。"
+        "body": "授業録画のファイルを上げるか、YouTubeの講義URLを登録します。講座にまとめておくと、あとからクラスへ配布しやすくなります。"
       },
       "index": {
         "title": "文字起こしが終わるのを待つ",
@@ -308,39 +308,39 @@
         "unavailable": "文字起こしはまだありません"
       }
     },
-    "groups": {
-      "title": "チャットグループ",
-      "subtitle": "学習コンテンツをグループにまとめて管理・共有できます",
-      "emptyDescription": "動画をグループにまとめて、効率よく学習を管理しましょう",
+    "courses": {
+      "title": "講座",
+      "subtitle": "学習コンテンツを講座にまとめて管理・共有できます",
+      "emptyDescription": "動画を講座にまとめて、効率よく学習を管理しましょう",
       "optional": "（任意）",
-      "create": "新規チャットグループを作成",
-      "createTitle": "新規チャットグループを作成",
-      "nameLabel": "チャットグループ名",
-      "namePlaceholder": "チャットグループ名",
+      "create": "新しい講座を作成",
+      "createTitle": "新しい講座を作成",
+      "nameLabel": "講座名",
+      "namePlaceholder": "講座名",
       "descriptionLabel": "説明",
       "descriptionPlaceholder": "説明（任意）",
-      "createError": "チャットグループの作成に失敗しました",
-      "empty": "チャットグループがありません",
+      "createError": "講座の作成に失敗しました",
+      "empty": "講座がありません",
       "dragHandle": "ドラッグして並べ替え",
       "open": "{{name}}を開く",
       "moveUp": "{{name}}を上へ移動",
       "moveDown": "{{name}}を下へ移動",
-      "joinedTitle": "参加中のグループ",
+      "joinedTitle": "参加中の講座",
       "memberBadge": "参加メンバー",
       "loadingMore": "読み込み中...",
       "videoCount_one": "{{count}}個の動画",
       "videoCount_other": "{{count}}個の動画"
     },
-    "groupDetail": {
+    "courseDetail": {
       "addVideos": "動画を追加",
-      "addVideosDescription": "このグループに追加する動画を選択してください。",
+      "addVideosDescription": "この講座に追加する動画を選択してください。",
       "delete": "削除",
-      "removeVideoConfirm": "この動画をチャットグループから削除しますか？",
+      "removeVideoConfirm": "この動画を講座から削除しますか？",
       "addError": "動画の追加に失敗しました",
       "removeVideoError": "動画の削除に失敗しました",
       "share": {
-        "title": "チャットグループを共有",
-        "enabled": "このチャットグループは共有リンクで公開されています。",
+        "title": "講座を共有",
+        "enabled": "この講座は共有リンクで公開されています。",
         "disabled": "共有リンクを生成すると、ログインなしで閲覧できるようになります。"
       },
       "shareOpen": "共有",
@@ -380,18 +380,18 @@
       "videoListTitle": "動画一覧",
       "videoListEmpty": "動画がありません",
       "videoCount": "全{{count}}本",
-      "editTitle": "グループを編集",
-      "editDescription": "グループ名と説明を更新します。",
+      "editTitle": "講座を編集",
+      "editDescription": "講座名と説明を更新します。",
       "shareLinkLabel": "共有リンク:",
       "shareSlugPlaceholder": "共有リンクを入力",
       "shareSlugHelp": "3〜64文字。英小文字、数字、ハイフンのみ使えます",
       "copyButton": "コピー",
-      "removeFromGroup": "グループから削除",
-      "deleteError": "チャットグループの削除に失敗しました",
-      "leave": "グループから退出",
-      "leaveError": "グループから退出できませんでした"
+      "removeFromCourse": "講座から削除",
+      "deleteError": "講座の削除に失敗しました",
+      "leave": "講座から退出",
+      "leaveError": "講座から退出できませんでした"
     },
-    "groupMembers": {
+    "courseMembers": {
       "title": "メンバーと招待を管理",
       "open": "メンバー管理",
       "emailLabel": "招待するメールアドレス",
@@ -441,15 +441,15 @@
       "publicBadge": "公開共有リンク"
     }
   },
-  "groupInvitation": {
-    "badge": "グループへの招待",
+  "courseInvitation": {
+    "badge": "講座への招待",
     "title": "招待内容を確認",
     "description": "招待先の確認済みメールアドレスと一致するアカウントで参加できます。",
     "inviter": "招待者",
     "recipient": "招待先メールアドレス",
     "notFound": "この招待は見つからないか、利用できません。",
     "accept": "招待を承認して参加",
-    "openGroup": "グループを開く",
+    "openCourse": "講座を開く",
     "decline": "辞退する",
     "declined": "招待を辞退しました。",
     "authRequired": "承認または辞退するには、招待されたメールアドレスのアカウントでログインしてください。",
@@ -605,10 +605,10 @@
   },
   "confirmations": {
     "deleteVideo": "この動画を削除しますか？",
-    "deleteGroup": "このチャットグループを削除しますか？",
+    "deleteCourse": "この講座を削除しますか？",
     "disableShareLink": "共有リンクを無効化しますか？",
-    "leaveGroup": "「{{name}}」から退出しますか？",
-    "leaveGroupDescription": "退出すると、このグループの動画とチャットを閲覧できなくなります。再び参加するには、新しい招待が必要です。"
+    "leaveCourse": "「{{name}}」から退出しますか？",
+    "leaveCourseDescription": "退出すると、この講座の動画とチャットを閲覧できなくなります。再び参加するには、新しい招待が必要です。"
   },
   "pricing": {
     "title": "料金プラン",
@@ -954,7 +954,7 @@
     "dateRange": "期間: {{first}} 〜 {{last}}",
     "empty": {
       "title": "データがありません",
-      "description": "このグループにはまだ質問がありません。チャットで質問すると分析データが表示されます。"
+      "description": "この講座にはまだ質問がありません。チャットで質問すると分析データが表示されます。"
     },
     "timeSeries": {
       "title": "質問の推移",
@@ -982,11 +982,11 @@
       "exampleTitle": "OpenAI SDK サンプルコード",
       "exampleDescription": "OpenAI SDK を使って VideoQ の RAG チャットを利用するサンプルです。",
       "ragExample": {
-        "title": "RAG チャット（動画グループ参照）",
-        "description": "group_id を指定すると、インデックス済みの動画シーンを検索して回答します。citations と chat_log_id が拡張フィールドとして返されます。"
+        "title": "RAG チャット（講座参照）",
+        "description": "course_id を指定すると、インデックス済みの動画シーンを検索して回答します。citations と chat_log_id が拡張フィールドとして返されます。"
       },
       "code": {
-        "ragComment": "group_id を指定して動画グループに対して RAG チャット",
+        "ragComment": "course_id を指定して講座に対して RAG チャット",
         "sampleQuestion": "ニューラルネットワークとは？",
         "relatedVideosComment": "VideoQ 拡張フィールド（参照シーンとチャットログID）",
         "language": "ja"
@@ -1057,14 +1057,14 @@
           "GET /api/videos は q / status / ordering / tags と limit / offset で絞り込める"
         ]
       },
-      "groups": {
-        "title": "Groups / Membership API",
-        "description": "動画グループの作成、所属動画の管理、共有リンクの発行。",
+      "courses": {
+        "title": "Courses / Membership API",
+        "description": "講座の作成、所属動画の管理、共有リンクの発行。",
         "bullets": [
-          "POST /api/videos/groups でグループを作成し、返却された id を Chat API の group_id に使う",
-          "POST /api/videos/groups/{groupId}/videos で動画をまとめて追加する",
-          "PATCH /api/videos/groups/{groupId}/videos/order で並び順を更新する",
-          "POST /api/videos/groups/{id}/share で共有リンクを発行すると、GET /api/videos/groups/share/{slug} が認証なしで参照できる"
+          "POST /api/videos/courses で講座を作成し、返却された id を Chat API の course_id に使う",
+          "POST /api/videos/courses/{courseId}/videos で動画をまとめて追加する",
+          "PATCH /api/videos/courses/{courseId}/videos/order で並び順を更新する",
+          "POST /api/videos/courses/{id}/share で共有リンクを発行すると、GET /api/videos/courses/share/{slug} が認証なしで参照できる"
         ]
       },
       "tags": {
@@ -1080,10 +1080,10 @@
         "title": "Chat API",
         "description": "RAG チャットの実行と、履歴・分析データの取得。",
         "bullets": [
-          "POST /api/chat/messages に messages と group_id を渡して質問する（mode に study を指定すると学習モード）",
+          "POST /api/chat/messages に messages と course_id を渡して質問する（mode に study を指定すると学習モード）",
           "逐次表示したい場合は POST /api/chat/messages/stream（SSE）を使う",
           "回答言語は Accept-Language ヘッダーで切り替える",
-          "GET /api/chat/groups/{groupId}/history で履歴（?download=csv で CSV）、GET /api/chat/groups/{groupId}/analytics で件数と評価の集計を取得する",
+          "GET /api/chat/courses/{courseId}/history で履歴（?download=csv で CSV）、GET /api/chat/courses/{courseId}/analytics で件数と評価の集計を取得する",
           "PATCH /api/chat/logs/{logId}/feedback に good / bad / null を送って評価を記録する"
         ]
       },
@@ -1092,7 +1092,7 @@
         "description": "OpenAI SDK をそのまま使って VideoQ の RAG チャットにアクセス。",
         "bullets": [
           "base_url に /api/v1、api_key に vq_... を設定する（Authorization: Bearer で送信される）",
-          "model は videoq、対象グループは group_id で指定する（Python SDK では extra_body）",
+          "model は videoq、対象講座は course_id で指定する（Python SDK では extra_body）",
           "language フィールドで応答言語を指定する（省略時は Accept-Language、それも無ければ英語）",
           "citations と chat_log_id は choices[0].message の拡張フィールドとして返される（Python SDK では msg.model_extra で取得）"
         ]
@@ -1109,10 +1109,10 @@
       },
       "evaluation": {
         "title": "Evaluation API",
-        "description": "グループ単位の回答評価ログとサマリー。",
+        "description": "講座単位の回答評価ログとサマリー。",
         "bullets": [
-          "GET /api/evaluation/groups/{groupId}/summary で評価の集計を取得する",
-          "GET /api/evaluation/groups/{groupId}/logs で個別の評価ログを取得する"
+          "GET /api/evaluation/courses/{courseId}/summary で評価の集計を取得する",
+          "GET /api/evaluation/courses/{courseId}/logs で個別の評価ログを取得する"
         ]
       },
       "admin": {
@@ -1230,7 +1230,7 @@
       "editTitle": "{{username}} を編集",
       "delete": "削除",
       "deleteTitle": "{{username}} を削除しますか？",
-      "deleteBody": "アカウントを直ちに無効化し、動画・グループ・タグ・チャット履歴・ユーザー本体を完全に削除します。この操作は取り消せません。",
+      "deleteBody": "アカウントを直ちに無効化し、動画・講座・タグ・チャット履歴・ユーザー本体を完全に削除します。この操作は取り消せません。",
       "deleteConfirm": "ユーザーを削除",
       "deleteSuccess": "{{username}} の削除を開始しました（{{jobId}}）。",
       "deleteError": "ユーザーの削除に失敗しました。",

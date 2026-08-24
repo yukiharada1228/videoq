@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefCallback } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { apiClient, type VideoGroupList } from '@/lib/api';
+import { apiClient, type VideoCourseList } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { queryKeys } from '@/lib/queryKeys';
 
 const PAGE_SIZE = 24;
 
-interface UseVideoGroupsReturn {
-  groups: VideoGroupList[];
+interface UseVideoCoursesReturn {
+  courses: VideoCourseList[];
   isLoading: boolean;
   error: string | null;
   hasNextPage: boolean;
@@ -19,18 +19,18 @@ interface UseVideoGroupsReturn {
 }
 
 /**
- * Fetch the list of video groups with infinite scroll pagination.
+ * Fetch the list of video courses with infinite scroll pagination.
  * Keeps the original public fields while adding page-loading controls.
  */
-export function useVideoGroups(trigger: boolean = true): UseVideoGroupsReturn {
+export function useVideoCourses(trigger: boolean = true): UseVideoCoursesReturn {
   const { user } = useAuth();
   const userId = user?.id ?? null;
 
-  const groupsQuery = useInfiniteQuery({
-    queryKey: queryKeys.videoGroups.infinite(userId),
+  const coursesQuery = useInfiniteQuery({
+    queryKey: queryKeys.videoCourses.infinite(userId),
     enabled: trigger && userId !== null,
     queryFn: async ({ pageParam }) => (
-      apiClient.getVideoGroupsPage({
+      apiClient.getVideoCoursesPage({
         limit: PAGE_SIZE,
         offset: pageParam as number,
       })
@@ -43,32 +43,32 @@ export function useVideoGroups(trigger: boolean = true): UseVideoGroupsReturn {
     },
   });
 
-  const groups = useMemo(
-    () => groupsQuery.data?.pages.flatMap((page) => page.data) ?? [],
-    [groupsQuery.data],
+  const courses = useMemo(
+    () => coursesQuery.data?.pages.flatMap((page) => page.data) ?? [],
+    [coursesQuery.data],
   );
 
-  const totalCount = groupsQuery.data?.pages[0]?.meta.total ?? 0;
+  const totalCount = coursesQuery.data?.pages[0]?.meta.total ?? 0;
 
   useEffect(() => {
-    if (groupsQuery.error) {
-      console.error('Failed to load video groups', groupsQuery.error);
+    if (coursesQuery.error) {
+      console.error('Failed to load video courses', coursesQuery.error);
     }
-  }, [groupsQuery.error]);
+  }, [coursesQuery.error]);
 
   const refetch = useCallback(async () => {
     if (userId === null || !trigger) {
       return;
     }
-    const result = await groupsQuery.refetch();
+    const result = await coursesQuery.refetch();
     if (result.error) {
       throw result.error;
     }
-  }, [groupsQuery, trigger, userId]);
+  }, [coursesQuery, trigger, userId]);
 
   const fetchNextPage = useCallback(() => {
-    void groupsQuery.fetchNextPage();
-  }, [groupsQuery]);
+    void coursesQuery.fetchNextPage();
+  }, [coursesQuery]);
 
   const fetchNextPageRef = useRef(fetchNextPage);
   useEffect(() => {
@@ -83,21 +83,21 @@ export function useVideoGroups(trigger: boolean = true): UseVideoGroupsReturn {
   useEffect(() => {
     if (!sentinelNode) return;
     const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && groupsQuery.hasNextPage && !groupsQuery.isFetchingNextPage) {
+      if (entries[0].isIntersecting && coursesQuery.hasNextPage && !coursesQuery.isFetchingNextPage) {
         fetchNextPageRef.current();
       }
     });
     observer.observe(sentinelNode);
     return () => observer.disconnect();
-  }, [sentinelNode, groupsQuery.hasNextPage, groupsQuery.isFetchingNextPage]);
+  }, [sentinelNode, coursesQuery.hasNextPage, coursesQuery.isFetchingNextPage]);
 
   return {
-    groups,
-    isLoading: groupsQuery.isLoading,
-    error: groupsQuery.error instanceof Error ? groupsQuery.error.message : null,
-    hasNextPage: groupsQuery.hasNextPage,
+    courses,
+    isLoading: coursesQuery.isLoading,
+    error: coursesQuery.error instanceof Error ? coursesQuery.error.message : null,
+    hasNextPage: coursesQuery.hasNextPage,
     fetchNextPage,
-    isFetchingNextPage: groupsQuery.isFetchingNextPage,
+    isFetchingNextPage: coursesQuery.isFetchingNextPage,
     totalCount,
     refetch,
     sentinelRef,

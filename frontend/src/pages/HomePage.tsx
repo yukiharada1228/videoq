@@ -40,7 +40,7 @@ export default function HomePage() {
   const currentUser = hasSession ? user ?? null : null;
   const usageSource: Partial<User> = currentUser ?? {};
 
-  const { videos, groups, isLoading: isLoadingData } = useHomePageData({ userId: currentUser?.id });
+  const { videos, courses, isLoading: isLoadingData } = useHomePageData({ userId: currentUser?.id });
   const videoStats = useVideoStats(videos);
 
   const recentVideos = useMemo(
@@ -123,7 +123,7 @@ export default function HomePage() {
     { label: t('home.stats.totalVideos'), value: videoStats.total },
     { label: t('home.stats.analysisCompleted'), value: videoStats.completed },
     { label: t('home.stats.processing'), value: videoStats.processing + videoStats.pending + videoStats.indexing },
-    { label: t('home.stats.groups'), value: groups.length },
+    { label: t('home.stats.courses'), value: courses.length },
   ];
 
   const actionItems = [
@@ -138,9 +138,9 @@ export default function HomePage() {
       onClick: () => navigate('/videos'),
     },
     {
-      title: t('home.actions.groups.title'),
-      description: t('home.actions.groups.descriptionLong', { count: groups.length }),
-      onClick: () => navigate('/videos/groups'),
+      title: t('home.actions.courses.title'),
+      description: t('home.actions.courses.descriptionLong', { count: courses.length }),
+      onClick: () => navigate('/videos/courses'),
     },
   ];
 

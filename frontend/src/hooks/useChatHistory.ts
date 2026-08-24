@@ -4,33 +4,33 @@ import { apiClient, type ChatHistoryItem, type ChatLogEvaluation } from '@/lib/a
 import { queryKeys } from '@/lib/queryKeys';
 
 interface UseChatHistoryParams {
-  groupId?: number;
+  courseId?: number;
   shareToken?: string;
   enabled: boolean;
 }
 
-export function useChatHistory({ groupId, shareToken, enabled }: UseChatHistoryParams) {
+export function useChatHistory({ courseId, shareToken, enabled }: UseChatHistoryParams) {
   const queryClient = useQueryClient();
 
   const historyQuery = useQuery<ChatHistoryItem[]>({
-    queryKey: queryKeys.chat.history(groupId ?? null, shareToken),
-    enabled: enabled && !!groupId && !shareToken,
+    queryKey: queryKeys.chat.history(courseId ?? null, shareToken),
+    enabled: enabled && !!courseId && !shareToken,
     queryFn: async () => {
-      if (!groupId || shareToken) {
+      if (!courseId || shareToken) {
         return [];
       }
-      return await apiClient.getChatHistory(groupId);
+      return await apiClient.getChatHistory(courseId);
     },
   });
 
   const evaluationsQuery = useQuery<ChatLogEvaluation[]>({
-    queryKey: queryKeys.chat.evaluations(groupId ?? null),
-    enabled: enabled && !!groupId && !shareToken,
+    queryKey: queryKeys.chat.evaluations(courseId ?? null),
+    enabled: enabled && !!courseId && !shareToken,
     queryFn: async () => {
-      if (!groupId || shareToken) {
+      if (!courseId || shareToken) {
         return [];
       }
-      return await apiClient.getChatEvaluations(groupId);
+      return await apiClient.getChatEvaluations(courseId);
     },
   });
 
@@ -62,10 +62,10 @@ export function useChatHistory({ groupId, shareToken, enabled }: UseChatHistoryP
 
   const exportHistoryCsvMutation = useMutation({
     mutationFn: async () => {
-      if (!groupId || shareToken) {
+      if (!courseId || shareToken) {
         return;
       }
-      await apiClient.exportChatHistoryCsv(groupId);
+      await apiClient.exportChatHistoryCsv(courseId);
     },
     onError: (e) => {
       console.error('Failed to export CSV', e);
@@ -73,7 +73,7 @@ export function useChatHistory({ groupId, shareToken, enabled }: UseChatHistoryP
   });
 
   const exportHistoryCsv = useCallback(async () => {
-    if (!groupId || shareToken) {
+    if (!courseId || shareToken) {
       return;
     }
     try {
@@ -81,12 +81,12 @@ export function useChatHistory({ groupId, shareToken, enabled }: UseChatHistoryP
     } catch {
       // Handled in mutation onError.
     }
-  }, [exportHistoryCsvMutation, groupId, shareToken]);
+  }, [exportHistoryCsvMutation, courseId, shareToken]);
 
   const syncFeedbackInHistoryCache = useCallback(
     (chatLogId: number, nextFeedback: 'good' | 'bad' | null) => {
       queryClient.setQueryData<ChatHistoryItem[]>(
-        queryKeys.chat.history(groupId ?? null, shareToken),
+        queryKeys.chat.history(courseId ?? null, shareToken),
         (prev) =>
           prev
             ? prev.map((item) =>
@@ -95,7 +95,7 @@ export function useChatHistory({ groupId, shareToken, enabled }: UseChatHistoryP
             : prev,
       );
     },
-    [groupId, queryClient, shareToken],
+    [courseId, queryClient, shareToken],
   );
 
   return {

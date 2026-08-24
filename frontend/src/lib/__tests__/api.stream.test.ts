@@ -100,7 +100,7 @@ describe('apiClient.chatStream', () => {
     })
   })
 
-  it('calls correct endpoint for group chat with share_slug', async () => {
+  it('calls correct endpoint for course chat with share_slug', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       makeSSEResponse(['data: {"type":"done","chat_log_id":null,"feedback":null}']),
     )

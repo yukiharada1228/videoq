@@ -4,9 +4,9 @@ import {
   chatLogs,
   chatLogEvaluations,
   users,
-  videoGroups,
-  videoGroupMembers,
-  videoGroupMemberships,
+  videoCourses,
+  videoCourseMembers,
+  videoCourseMemberships,
 } from "../db/schema";
 import { toUtcIso } from "../shared/datetime";
 import type { Bindings } from "../types/bindings";
@@ -33,7 +33,7 @@ export type ChatQuestionAuthor = {
 // ChatLog API のレスポンス表現。
 export type ChatLogItem = {
   id: number;
-  group: number;
+  course: number;
   asked_by: ChatQuestionAuthor | null;
   question: string;
   answer: string;
@@ -44,12 +44,12 @@ export type ChatLogItem = {
 };
 
 /**
- * グループのチャット履歴（所有者のみ）。
- * - 所有権: video_groups(id=group, user_id) が無ければ notFound（→404 "Group not found."）。
- * - 並び: created_at DESC（Meta.ordering=-created_at, get_logs_for_group）。
+ * 講座のチャット履歴（所有者のみ）。
+ * - 所有権: video_courses(id=course, user_id) が無ければ notFound（→404 "Course not found."）。
+ * - 並び: created_at DESC（Meta.ordering=-created_at, get_logs_for_course）。
  * - citations: JSON 配列を {id:1始まりindex, video_id, title, start_time, end_time} へ整形。
  */
-/** チャット送信時のグループ文脈。 */
+/** チャット送信時の講座文脈。 */
 export type GroupChatContext = {
   id: number;
   userId: string;
@@ -90,15 +90,15 @@ function mapQuestionAuthor(
   return { user_id: userId, username, email };
 }
 
-async function groupOwnedBy(
+async function courseOwnedBy(
   db: Parameters<Parameters<typeof withDb>[1]>[0],
-  groupId: number,
+  courseId: number,
   userId: string,
 ): Promise<boolean> {
   const rows = await db
-    .select({ id: videoGroups.id })
-    .from(videoGroups)
-    .where(and(eq(videoGroups.id, groupId), eq(videoGroups.userId, userId)))
+    .select({ id: videoCourses.id })
+    .from(videoCourses)
+    .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, userId)))
     .limit(1);
   return rows.length > 0;
 }
@@ -107,45 +107,45 @@ async function groupOwnedBy(
  * share_token 指定時は share_slug で、
  * それ以外は user_id で絞る（どちらも無ければ id のみ）。見つからなければ null。
  */
-export async function getGroupWithMembers(
+export async function getCourseWithMembers(
   env: Bindings,
-  params: { groupId: number; userId?: string | null; shareToken?: string | null },
+  params: { courseId: number; userId?: string | null; shareToken?: string | null },
 ): Promise<GroupChatContext | null> {
   return withDb(env, async (db) => {
-    const conditions = [eq(videoGroups.id, params.groupId)];
+    const conditions = [eq(videoCourses.id, params.courseId)];
     if (params.shareToken) {
-      conditions.push(eq(videoGroups.shareSlug, params.shareToken));
+      conditions.push(eq(videoCourses.shareSlug, params.shareToken));
     } else if (params.userId) {
       conditions.push(
         or(
-          eq(videoGroups.userId, params.userId),
+          eq(videoCourses.userId, params.userId),
           sql`EXISTS (
-            SELECT 1 FROM ${videoGroupMemberships}
-             WHERE ${videoGroupMemberships.groupId} = ${videoGroups.id}
-               AND ${videoGroupMemberships.userId} = ${params.userId}
+            SELECT 1 FROM ${videoCourseMemberships}
+             WHERE ${videoCourseMemberships.courseId} = ${videoCourses.id}
+               AND ${videoCourseMemberships.userId} = ${params.userId}
           )`,
         )!,
       );
     }
 
-    const groups = await db
+    const courses = await db
       .select({
-        id: videoGroups.id,
-        userId: videoGroups.userId,
-        description: videoGroups.description,
+        id: videoCourses.id,
+        userId: videoCourses.userId,
+        description: videoCourses.description,
       })
-      .from(videoGroups)
+      .from(videoCourses)
       .where(and(...conditions))
       .limit(1);
-    if (groups.length === 0) return null;
+    if (courses.length === 0) return null;
 
     const members = await db
-      .select({ videoId: videoGroupMembers.videoId })
-      .from(videoGroupMembers)
-      .where(eq(videoGroupMembers.groupId, params.groupId))
-      .orderBy(asc(videoGroupMembers.order), asc(videoGroupMembers.id));
+      .select({ videoId: videoCourseMembers.videoId })
+      .from(videoCourseMembers)
+      .where(eq(videoCourseMembers.courseId, params.courseId))
+      .orderBy(asc(videoCourseMembers.order), asc(videoCourseMembers.id));
 
-    const row = groups[0];
+    const row = courses[0];
     return {
       id: Number(row.id),
       userId: String(row.userId),
@@ -163,7 +163,7 @@ export async function createChatLog(
   env: Bindings,
   params: {
     userId: string;
-    groupId: number;
+    courseId: number;
     question: string;
     answer: string;
     citations: readonly Record<string, unknown>[] | null;
@@ -177,7 +177,7 @@ export async function createChatLog(
         .insert(chatLogs)
         .values({
           userId: params.userId,
-          groupId: params.groupId,
+          courseId: params.courseId,
           question: params.question,
           answer: params.answer,
           citations: params.citations ?? [],
@@ -206,29 +206,29 @@ export async function createChatLog(
 }
 
 /**
- * グループのチャット履歴を全削除する。
+ * 講座のチャット履歴を全削除する。
  * ChatLogEvaluation は関連する ChatLog より先に削除する。
  * DB 側に ON DELETE CASCADE は無いため、依存順にトランザクションで明示削除する。
  */
-export async function deleteGroupChatLogs(
+export async function deleteCourseChatLogs(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   userId: string,
 ): Promise<{ notFound: true } | { ok: true }> {
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
       const owner = await tx
-        .select({ id: videoGroups.id })
-        .from(videoGroups)
-        .where(and(eq(videoGroups.id, groupId), eq(videoGroups.userId, userId)))
+        .select({ id: videoCourses.id })
+        .from(videoCourses)
+        .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, userId)))
         .limit(1);
       if (owner.length === 0) return { notFound: true } as const;
 
       await tx.execute(sql`
         DELETE FROM chat_log_evaluations
-         WHERE chat_log_id IN (SELECT id FROM chat_logs WHERE group_id = ${groupId})
+         WHERE chat_log_id IN (SELECT id FROM chat_logs WHERE course_id = ${courseId})
       `);
-      await tx.delete(chatLogs).where(eq(chatLogs.groupId, groupId));
+      await tx.delete(chatLogs).where(eq(chatLogs.courseId, courseId));
       return { ok: true } as const;
     }),
   );
@@ -250,13 +250,13 @@ export type ChatHistoryExportRow = {
  * created_at は DB の日時を UTC ISO 8601 形式で返す。
  * マイクロ秒 0 のときは小数秒を省略する。
  */
-export async function getGroupChatHistoryForExport(
+export async function getCourseChatHistoryForExport(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   userId: string,
 ): Promise<{ notFound: true } | { rows: ChatHistoryExportRow[] }> {
   return withDb(env, async (db) => {
-    if (!(await groupOwnedBy(db, groupId, userId))) {
+    if (!(await courseOwnedBy(db, courseId, userId))) {
       return { notFound: true } as const;
     }
 
@@ -266,7 +266,7 @@ export async function getGroupChatHistoryForExport(
              cl.is_shared_origin, cl.feedback, cl.created_at
         FROM chat_logs cl
         LEFT JOIN users u ON u.id = cl.user_id
-       WHERE cl.group_id = ${groupId}
+       WHERE cl.course_id = ${courseId}
        ORDER BY cl.created_at ASC
     `);
     const rows = result.rows as Array<{
@@ -300,7 +300,7 @@ export async function getGroupChatHistoryForExport(
   });
 }
 
-/** feedback 用: chat log + その group の user_id / share_slug（権限判定に使う）。 */
+/** feedback 用: chat log + その course の user_id / share_slug（権限判定に使う）。 */
 export async function getFeedbackLog(
   env: Bindings,
   logId: number,
@@ -309,8 +309,8 @@ export async function getFeedbackLog(
   | {
       id: number;
       log_user_id: string;
-      group_user_id: string;
-      group_share_token: string | null;
+      course_user_id: string;
+      course_share_slug: string | null;
     }
 > {
   return withDb(env, async (db) => {
@@ -318,11 +318,11 @@ export async function getFeedbackLog(
       .select({
         id: chatLogs.id,
         log_user_id: chatLogs.userId,
-        group_user_id: videoGroups.userId,
-        group_share_token: videoGroups.shareSlug,
+        course_user_id: videoCourses.userId,
+        course_share_slug: videoCourses.shareSlug,
       })
       .from(chatLogs)
-      .innerJoin(videoGroups, eq(videoGroups.id, chatLogs.groupId))
+      .innerJoin(videoCourses, eq(videoCourses.id, chatLogs.courseId))
       .where(eq(chatLogs.id, logId))
       .limit(1);
     if (rows.length === 0) return null;
@@ -330,8 +330,8 @@ export async function getFeedbackLog(
     return {
       id: Number(r.id),
       log_user_id: String(r.log_user_id),
-      group_user_id: String(r.group_user_id),
-      group_share_token: r.group_share_token ?? null,
+      course_user_id: String(r.course_user_id),
+      course_share_slug: r.course_share_slug ?? null,
     };
   });
 }
@@ -353,16 +353,16 @@ export async function updateChatLogFeedback(
   });
 }
 
-/** share_slug が何らかのグループに解決するか判定する。 */
+/** share_slug が何らかの講座に解決するか判定する。 */
 export async function shareSlugExists(
   env: Bindings,
   shareSlug: string,
 ): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db
-      .select({ id: videoGroups.id })
-      .from(videoGroups)
-      .where(eq(videoGroups.shareSlug, shareSlug))
+      .select({ id: videoCourses.id })
+      .from(videoCourses)
+      .where(eq(videoCourses.shareSlug, shareSlug))
       .limit(1);
     return rows.length > 0;
   });
@@ -378,19 +378,19 @@ export type ChatAnalytics = {
 };
 
 /**
- * グループのチャット分析（ChatGroupAnalyticsView）。
+ * 講座のチャット分析（ChatGroupAnalyticsView）。
  * - date_range.first/last: min/max(created_at) の UTC ISO 8601（+00:00）。
  * - time_series.date: UTC 日付境界 → "YYYY-MM-DD"。
  * - feedback.none: feedback IS NULL の件数（'' は none に含めない）。
- * - 未所有/不在は notFound（→404 "Group not found."）。
+ * - 未所有/不在は notFound（→404 "Course not found."）。
  */
-export async function getGroupChatAnalytics(
+export async function getCourseChatAnalytics(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   userId: string,
 ): Promise<{ notFound: true } | ChatAnalytics> {
   return withDb(env, async (db) => {
-    if (!(await groupOwnedBy(db, groupId, userId))) {
+    if (!(await courseOwnedBy(db, courseId, userId))) {
       return { notFound: true } as const;
     }
 
@@ -401,12 +401,12 @@ export async function getGroupChatAnalytics(
              count(*) FILTER (WHERE feedback = 'good')::int AS good,
              count(*) FILTER (WHERE feedback = 'bad')::int AS bad,
              count(*) FILTER (WHERE feedback IS NULL)::int AS none
-        FROM chat_logs WHERE group_id = ${groupId}
+        FROM chat_logs WHERE course_id = ${courseId}
     `);
     const tsResult = await db.execute(sql`
       SELECT (created_at AT TIME ZONE 'UTC')::date::text AS date,
              count(*)::int AS count
-        FROM chat_logs WHERE group_id = ${groupId}
+        FROM chat_logs WHERE course_id = ${courseId}
        GROUP BY (created_at AT TIME ZONE 'UTC')::date
        ORDER BY (created_at AT TIME ZONE 'UTC')::date
     `);
@@ -435,27 +435,27 @@ export async function getGroupChatAnalytics(
   });
 }
 
-export async function getGroupChatHistory(
+export async function getCourseChatHistory(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   userId: string,
   limit: number,
   offset: number,
 ): Promise<{ notFound: true } | { count: number; results: ChatLogItem[] }> {
   return withDb(env, async (db) => {
-    if (!(await groupOwnedBy(db, groupId, userId))) {
+    if (!(await courseOwnedBy(db, courseId, userId))) {
       return { notFound: true } as const;
     }
 
     const countRes = await db
       .select({ c: sql<number>`count(*)::int` })
       .from(chatLogs)
-      .where(eq(chatLogs.groupId, groupId));
+      .where(eq(chatLogs.courseId, courseId));
 
     const rows = await db
       .select({
         id: chatLogs.id,
-        group_id: chatLogs.groupId,
+        course_id: chatLogs.courseId,
         user_id: chatLogs.userId,
         username: users.username,
         email: users.email,
@@ -468,14 +468,14 @@ export async function getGroupChatHistory(
       })
       .from(chatLogs)
       .leftJoin(users, eq(users.id, chatLogs.userId))
-      .where(eq(chatLogs.groupId, groupId))
+      .where(eq(chatLogs.courseId, courseId))
       .orderBy(desc(chatLogs.createdAt))
       .limit(limit)
       .offset(offset);
 
     const results: ChatLogItem[] = rows.map((r) => ({
       id: Number(r.id),
-      group: Number(r.group_id),
+      course: Number(r.course_id),
       asked_by: mapQuestionAuthor(
         r.is_shared_origin,
         r.user_id,

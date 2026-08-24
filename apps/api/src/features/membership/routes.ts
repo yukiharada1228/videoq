@@ -13,8 +13,8 @@ import {
 } from "../../shared/openapi";
 import { apiBadRequest, apiNotFound } from "../../shared/errors";
 import {
-  groupIdParamSchema,
-  groupVideoParamsSchema,
+  courseIdParamSchema,
+  courseVideoParamsSchema,
   membershipMutationSchema,
   reorderVideosBodySchema,
   tagIdsBodySchema,
@@ -100,12 +100,12 @@ membershipRoutes.openapi(removeTagRoute, async (c) => {
 
 const reorderVideosRoute = createRoute({
   method: "patch",
-  path: "/groups/{groupId}/videos/order",
+  path: "/courses/{courseId}/videos/order",
   tags: ["Membership"],
-  summary: "Reorder videos in a group",
+  summary: "Reorder videos in a course",
   middleware: [...writeGuards] as const,
   request: {
-    params: groupIdParamSchema,
+    params: courseIdParamSchema,
     body: {
       content: { "application/json": { schema: reorderVideosBodySchema } },
       required: true,
@@ -120,12 +120,12 @@ const reorderVideosRoute = createRoute({
 
 membershipRoutes.openapi(reorderVideosRoute, async (c) => {
   const userId = c.var.userId!;
-  const { groupId } = c.req.valid("param");
+  const { courseId } = c.req.valid("param");
   const { video_ids } = c.req.valid("json");
   const res = await membershipService.reorderGroupVideos(
     c.env,
     userId,
-    groupId,
+    courseId,
     video_ids,
   );
   if ("notFound" in res) throw apiNotFound(res.notFound ?? "Not found");
@@ -135,12 +135,12 @@ membershipRoutes.openapi(reorderVideosRoute, async (c) => {
 
 const addVideosBulkRoute = createRoute({
   method: "post",
-  path: "/groups/{groupId}/videos",
+  path: "/courses/{courseId}/videos",
   tags: ["Membership"],
-  summary: "Add videos to a group (bulk)",
+  summary: "Add videos to a course (bulk)",
   middleware: [...writeGuards] as const,
   request: {
-    params: groupIdParamSchema,
+    params: courseIdParamSchema,
     body: {
       content: { "application/json": { schema: videoIdsBodySchema } },
       required: true,
@@ -155,12 +155,12 @@ const addVideosBulkRoute = createRoute({
 
 membershipRoutes.openapi(addVideosBulkRoute, async (c) => {
   const userId = c.var.userId!;
-  const { groupId } = c.req.valid("param");
+  const { courseId } = c.req.valid("param");
   const { video_ids } = c.req.valid("json");
-  const res = await membershipService.addVideosToGroupBulk(
+  const res = await membershipService.addVideosToCourseBulk(
     c.env,
     userId,
-    groupId,
+    courseId,
     video_ids,
   );
   if ("notFound" in res) throw apiNotFound(res.notFound);
@@ -176,11 +176,11 @@ membershipRoutes.openapi(addVideosBulkRoute, async (c) => {
 
 const addVideoRoute = createRoute({
   method: "post",
-  path: "/groups/{groupId}/videos/{videoId}",
+  path: "/courses/{courseId}/videos/{videoId}",
   tags: ["Membership"],
-  summary: "Add a single video to a group",
+  summary: "Add a single video to a course",
   middleware: [...writeGuards] as const,
-  request: { params: groupVideoParamsSchema },
+  request: { params: courseVideoParamsSchema },
   responses: {
     201: jsonResponse(membershipMutationSchema, "Created"),
     400: errorResponse("Bad request"),
@@ -190,11 +190,11 @@ const addVideoRoute = createRoute({
 
 membershipRoutes.openapi(addVideoRoute, async (c) => {
   const userId = c.var.userId!;
-  const { groupId, videoId } = c.req.valid("param");
-  const res = await membershipService.addVideoToGroupOne(
+  const { courseId, videoId } = c.req.valid("param");
+  const res = await membershipService.addVideoToCourseOne(
     c.env,
     userId,
-    groupId,
+    courseId,
     videoId,
   );
   if ("notFound" in res) throw apiNotFound(res.notFound ?? "Not found");
@@ -204,11 +204,11 @@ membershipRoutes.openapi(addVideoRoute, async (c) => {
 
 const removeVideoRoute = createRoute({
   method: "delete",
-  path: "/groups/{groupId}/videos/{videoId}",
+  path: "/courses/{courseId}/videos/{videoId}",
   tags: ["Membership"],
-  summary: "Remove a video from a group",
+  summary: "Remove a video from a course",
   middleware: [...writeGuards] as const,
-  request: { params: groupVideoParamsSchema },
+  request: { params: courseVideoParamsSchema },
   responses: {
     204: { description: "Deleted" },
     404: errorResponse("Not found"),
@@ -217,11 +217,11 @@ const removeVideoRoute = createRoute({
 
 membershipRoutes.openapi(removeVideoRoute, async (c) => {
   const userId = c.var.userId!;
-  const { groupId, videoId } = c.req.valid("param");
-  const res = await membershipService.removeVideoFromGroupOne(
+  const { courseId, videoId } = c.req.valid("param");
+  const res = await membershipService.removeVideoFromCourseOne(
     c.env,
     userId,
-    groupId,
+    courseId,
     videoId,
   );
   if ("notFound" in res) throw apiNotFound(res.notFound);

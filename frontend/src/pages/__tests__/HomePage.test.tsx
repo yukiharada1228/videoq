@@ -13,9 +13,9 @@ const mockVideos = [
   { id: 5, title: 'Video 5', status: 'error', file: 'v5.mp4', uploaded_at: '2024-01-05T00:00:00Z' },
 ]
 
-const mockGroups = [
-  { id: 1, name: 'Group 1', video_count: 2 },
-  { id: 2, name: 'Group 2', video_count: 3 },
+const mockCourses = [
+  { id: 1, name: 'Course 1', video_count: 2 },
+  { id: 2, name: 'Course 2', video_count: 3 },
 ]
 
 describe('HomePage - authenticated', () => {
@@ -37,7 +37,7 @@ describe('HomePage - authenticated', () => {
       data: mockVideos,
       meta: { total: mockVideos.length, limit: 24, offset: 0 },
     })
-    ;(apiClient.getVideoGroups as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroups)
+    ;(apiClient.getVideoCourses as ReturnType<typeof vi.fn>).mockResolvedValue(mockCourses)
   })
 
   it('should render welcome title', async () => {
@@ -73,19 +73,19 @@ describe('HomePage - authenticated', () => {
     })
   })
 
-  it('should render groups action card', async () => {
+  it('should render courses action card', async () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getByText('home.actions.groups.title')).toBeInTheDocument()
+      expect(screen.getByText('home.actions.courses.title')).toBeInTheDocument()
     })
   })
 
-  it('should not render the redundant groups tip', async () => {
+  it('should not render the redundant courses tip', async () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getByText('home.actions.groups.title')).toBeInTheDocument()
+      expect(screen.getByText('home.actions.courses.title')).toBeInTheDocument()
     })
 
     expect(screen.queryByText('home.tips.hint')).not.toBeInTheDocument()
@@ -99,7 +99,7 @@ describe('HomePage - authenticated', () => {
       expect(screen.getByText('home.stats.totalVideos')).toBeInTheDocument()
       expect(screen.getByText('home.stats.analysisCompleted')).toBeInTheDocument()
       expect(screen.getByText('home.stats.processing')).toBeInTheDocument()
-      expect(screen.getByText('home.stats.groups')).toBeInTheDocument()
+      expect(screen.getByText('home.stats.courses')).toBeInTheDocument()
     })
   })
 
@@ -152,26 +152,26 @@ describe('HomePage - authenticated', () => {
     })
   })
 
-  it('should navigate to groups page when groups card is clicked', async () => {
+  it('should navigate to courses page when courses card is clicked', async () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getByText('home.actions.groups.title')).toBeInTheDocument()
+      expect(screen.getByText('home.actions.courses.title')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByText('home.actions.groups.title'))
+    fireEvent.click(screen.getByText('home.actions.courses.title'))
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/videos/groups')
+      expect(mockNavigate).toHaveBeenCalledWith('/videos/courses')
     })
   })
 
-  it('should load videos and groups on mount', async () => {
+  it('should load videos and courses on mount', async () => {
     render(<HomePage />)
 
     await waitFor(() => {
       expect(apiClient.getVideos).toHaveBeenCalled()
-      expect(apiClient.getVideoGroups).toHaveBeenCalled()
+      expect(apiClient.getVideoCourses).toHaveBeenCalled()
     })
   })
 
@@ -185,12 +185,12 @@ describe('HomePage - Data Loading', () => {
       data: mockVideos,
       meta: { total: mockVideos.length, limit: 24, offset: 0 },
     })
-    ;(apiClient.getVideoGroups as ReturnType<typeof vi.fn>).mockResolvedValue(mockGroups)
+    ;(apiClient.getVideoCourses as ReturnType<typeof vi.fn>).mockResolvedValue(mockCourses)
   })
 
   it('should handle API errors gracefully', async () => {
     ;(apiClient.getVideos as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'))
-    ;(apiClient.getVideoGroups as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'))
+    ;(apiClient.getVideoCourses as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'))
 
     render(<HomePage />)
 

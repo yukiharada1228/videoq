@@ -11,11 +11,11 @@ export const tagIdParamSchema = z.object({
 
 export const videoTagParamsSchema = videoIdParamSchema.merge(tagIdParamSchema);
 
-export const groupIdParamSchema = z.object({
-  groupId: z.coerce.number().int().positive(),
+export const courseIdParamSchema = z.object({
+  courseId: z.coerce.number().int().positive(),
 });
 
-export const groupVideoParamsSchema = groupIdParamSchema.merge(videoIdParamSchema);
+export const courseVideoParamsSchema = courseIdParamSchema.merge(videoIdParamSchema);
 
 export const tagIdsBodySchema = z
   .object({

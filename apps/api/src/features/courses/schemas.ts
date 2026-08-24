@@ -1,6 +1,6 @@
 import { z } from "../../shared/openapi";
 
-export const groupListItemSchema = z
+export const courseListItemSchema = z
   .object({
     id: z.number().int(),
     name: z.string(),
@@ -10,9 +10,9 @@ export const groupListItemSchema = z
     video_count: z.number().int(),
     access_role: z.enum(["owner", "member"]),
   })
-  .openapi("GroupListItem");
+  .openapi("CourseListItem");
 
-export const groupDetailSchema = groupListItemSchema
+export const courseDetailSchema = courseListItemSchema
   .omit({ access_role: true })
   .extend({
     access_role: z.enum(["owner", "member", "public"]),
@@ -20,33 +20,33 @@ export const groupDetailSchema = groupListItemSchema
     share_slug: z.string().nullable(),
     videos: z.array(z.record(z.string(), z.unknown())),
   })
-  .openapi("GroupDetail");
+  .openapi("CourseDetail");
 
-export const groupCreateSchema = z
+export const courseCreateSchema = z
   .object({
     name: z.string().min(1).max(255),
     description: z.string().optional().default(""),
   })
-  .openapi("GroupCreate");
+  .openapi("CourseCreate");
 
-export const groupPatchSchema = z
+export const coursePatchSchema = z
   .object({
     name: z.string().min(1).max(255).optional(),
     description: z.string().optional(),
   })
-  .openapi("GroupPatch");
+  .openapi("CoursePatch");
 
-export const groupPutSchema = groupCreateSchema.openapi("GroupPut");
+export const coursePutSchema = courseCreateSchema.openapi("CoursePut");
 
-export const groupIdParamSchema = z.object({
+export const courseIdParamSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
 
-export const reorderGroupsSchema = z
+export const reorderCoursesSchema = z
   .object({
-    group_ids: z.array(z.number().int().positive()).min(1),
+    course_ids: z.array(z.number().int().positive()).min(1),
   })
-  .openapi("ReorderGroups");
+  .openapi("ReorderCourses");
 
 export const shareLinkSchema = z
   .object({

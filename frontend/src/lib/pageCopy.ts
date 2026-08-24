@@ -62,9 +62,9 @@ const DOCS_SECTION_COPY: Record<SiteLocale, Record<string, { title: string; desc
       title: 'Videos API | VideoQ',
       description: '動画のアップロードと YouTube 登録、処理状況の確認。',
     },
-    groups: {
-      title: 'Groups / Membership API | VideoQ',
-      description: '動画グループの作成、所属動画の管理、共有リンクの発行。',
+    courses: {
+      title: 'Courses / Membership API | VideoQ',
+      description: '講座の作成、所属動画の管理、共有リンクの発行。',
     },
     tags: {
       title: 'Tags API | VideoQ',
@@ -84,7 +84,7 @@ const DOCS_SECTION_COPY: Record<SiteLocale, Record<string, { title: string; desc
     },
     evaluation: {
       title: 'Evaluation API | VideoQ',
-      description: 'グループ単位の回答評価ログとサマリー。',
+      description: '講座単位の回答評価ログとサマリー。',
     },
     admin: {
       title: 'Admin API | VideoQ',
@@ -100,9 +100,9 @@ const DOCS_SECTION_COPY: Record<SiteLocale, Record<string, { title: string; desc
       title: 'Videos API | VideoQ',
       description: 'Upload videos, register YouTube URLs, and track processing status.',
     },
-    groups: {
-      title: 'Groups / Membership API | VideoQ',
-      description: 'Create video groups, manage their members, and issue share links.',
+    courses: {
+      title: 'Courses / Membership API | VideoQ',
+      description: 'Create video courses, manage their members, and issue share links.',
     },
     tags: {
       title: 'Tags API | VideoQ',
@@ -122,7 +122,7 @@ const DOCS_SECTION_COPY: Record<SiteLocale, Record<string, { title: string; desc
     },
     evaluation: {
       title: 'Evaluation API | VideoQ',
-      description: 'Per-group answer evaluation logs and summaries.',
+      description: 'Per-course answer evaluation logs and summaries.',
     },
     admin: {
       title: 'Admin API | VideoQ',

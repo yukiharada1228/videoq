@@ -10,8 +10,8 @@ import { toErrorBody } from "./shared/errors";
 import { registerOpenApiDoc } from "./shared/openapi";
 import { healthRoutes } from "./features/health/routes";
 import { accountRoutes } from "./features/account/routes";
-import { groupRoutes } from "./features/groups/routes";
-import { groupMembershipRoutes } from "./features/group-memberships/routes";
+import { courseRoutes } from "./features/courses/routes";
+import { courseMembershipRoutes } from "./features/course-memberships/routes";
 import { tagRoutes } from "./features/tags/routes";
 import { membershipRoutes } from "./features/membership/routes";
 import { videoRoutes } from "./features/videos/routes";
@@ -54,20 +54,18 @@ export function createApp() {
   });
 
   // OAuth / OIDC discovery at well-known roots (MCP clients expect these).
-  app.get("/.well-known/oauth-authorization-server", async (c) => {
+  const authorizationServerMetadata = async (c: Context<AppEnv>) => {
     return withDb(c.env, async (db) => {
       const auth = createAuth(c.env, db);
       // Plugin typing does not always surface oauth metadata helpers on Auth.
       return oauthProviderAuthServerMetadata(auth as never)(c.req.raw);
     });
-  });
-  // RFC 8414 alternate form for issuers with a path (`/api/auth`).
-  app.get("/.well-known/oauth-authorization-server/api/auth", async (c) => {
-    return withDb(c.env, async (db) => {
-      const auth = createAuth(c.env, db);
-      return oauthProviderAuthServerMetadata(auth as never)(c.req.raw);
-    });
-  });
+  };
+  app.get("/.well-known/oauth-authorization-server", authorizationServerMetadata);
+  // RFC 8414 issuer-path form. ChatGPT also probes /mcp and /api/mcp.
+  app.get("/.well-known/oauth-authorization-server/api/auth", authorizationServerMetadata);
+  app.get("/.well-known/oauth-authorization-server/mcp", authorizationServerMetadata);
+  app.get("/.well-known/oauth-authorization-server/api/mcp", authorizationServerMetadata);
   app.get("/.well-known/openid-configuration", async (c) => {
     return withDb(c.env, async (db) => {
       const auth = createAuth(c.env, db);
@@ -76,15 +74,16 @@ export function createApp() {
   });
   const protectedResourceMetadata = (c: Context<AppEnv>) => {
     const origin = new URL(c.req.url).origin;
-    const issuer = (
+    const site = (
       c.env.BETTER_AUTH_URL?.trim() ||
       c.env.OAUTH_ISSUER_URL?.trim() ||
       c.env.FRONTEND_URL?.trim() ||
       origin
     ).replace(/\/+$/, "");
     return c.json({
-      resource: `${issuer}/api/mcp`,
-      authorization_servers: [issuer],
+      resource: `${site}/api/mcp`,
+      authorization_servers: [`${site}/api/auth`],
+      scopes_supported: ["openid", "profile", "email", "offline_access"],
     });
   };
   app.get("/.well-known/oauth-protected-resource", protectedResourceMetadata);
@@ -93,8 +92,8 @@ export function createApp() {
 
   app.route("/api/account", accountRoutes);
   app.route("/api/billing", billingRoutes);
-  app.route("/api/videos", groupRoutes);
-  app.route("/api/videos", groupMembershipRoutes);
+  app.route("/api/videos", courseRoutes);
+  app.route("/api/videos", courseMembershipRoutes);
   app.route("/api/videos", tagRoutes);
   app.route("/api/videos", membershipRoutes);
   app.route("/api/videos", plogRoutes);

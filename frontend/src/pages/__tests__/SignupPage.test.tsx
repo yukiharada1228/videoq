@@ -70,7 +70,7 @@ describe('SignupPage', () => {
   })
 
   it('preserves a safe invitation return path through email verification', async () => {
-    globalThis.__setMockSearchParams('next=%2Fgroup-invitations%2Finvite-token')
+    globalThis.__setMockSearchParams('next=%2Fcourse-invitations%2Finvite-token')
     ; (apiClient.signup as ReturnType<typeof vi.fn>).mockResolvedValue({})
 
     render(<SignupPage />)
@@ -86,7 +86,7 @@ describe('SignupPage', () => {
         email: 'student@example.com',
         username: 'student',
         password: 'test12345678',
-        callbackURL: '/group-invitations/invite-token',
+        callbackURL: '/course-invitations/invite-token',
       })
     })
   })

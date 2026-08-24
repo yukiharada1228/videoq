@@ -5,9 +5,9 @@ import {
   isInvitationExpired,
   maskInvitationEmail,
   planInvitationEmails,
-} from "../src/lib/group-invitations";
+} from "../src/lib/course-invitations";
 
-describe("group invitation domain", () => {
+describe("course invitation domain", () => {
   it("normalizes valid addresses and preserves first-seen order", () => {
     expect(
       planInvitationEmails([

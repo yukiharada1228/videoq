@@ -562,103 +562,103 @@ describe('ApiClient', () => {
     });
   });
 
-  describe('Video Group Methods', () => {
-    it('getVideoGroups calls correct endpoint', async () => {
+  describe('Video Course Methods', () => {
+    it('getVideoCourses calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         text: () => Promise.resolve(JSON.stringify({ data: [], meta: { total: 0, limit: 24, offset: 0 } }))
       });
-      await apiClient.getVideoGroups();
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups', expect.anything());
+      await apiClient.getVideoCourses();
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/courses', expect.anything());
     });
 
-    it('getVideoGroupsPage calls correct endpoint with pagination params', async () => {
+    it('getVideoCoursesPage calls correct endpoint with pagination params', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         text: () => Promise.resolve(JSON.stringify({ data: [], meta: { total: 0, limit: 24, offset: 0 } }))
       });
-      await apiClient.getVideoGroupsPage({ limit: 24, offset: 48 });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups?limit=24&offset=48', expect.anything());
+      await apiClient.getVideoCoursesPage({ limit: 24, offset: 48 });
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/courses?limit=24&offset=48', expect.anything());
     });
 
-    it('getVideoGroup calls correct endpoint', async () => {
+    it('getVideoCourse calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         text: () => Promise.resolve(JSON.stringify({ id: 1 }))
       });
-      await apiClient.getVideoGroup(1);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1', expect.anything());
+      await apiClient.getVideoCourse(1);
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/courses/1', expect.anything());
     });
 
-    it('createVideoGroup calls correct endpoint', async () => {
+    it('createVideoCourse calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         text: () => Promise.resolve(JSON.stringify({ id: 1 }))
       });
-      await apiClient.createVideoGroup({ name: 'Group' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups', expect.objectContaining({ method: 'POST' }));
+      await apiClient.createVideoCourse({ name: 'Course' });
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/courses', expect.objectContaining({ method: 'POST' }));
     });
 
-    it('updateVideoGroup calls correct endpoint', async () => {
+    it('updateVideoCourse calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         text: () => Promise.resolve(JSON.stringify({ id: 1 }))
       });
-      await apiClient.updateVideoGroup(1, { name: 'Updated' });
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1', expect.objectContaining({ method: 'PATCH' }));
+      await apiClient.updateVideoCourse(1, { name: 'Updated' });
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/courses/1', expect.objectContaining({ method: 'PATCH' }));
     });
 
-    it('deleteVideoGroup calls correct endpoint', async () => {
+    it('deleteVideoCourse calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
-      await apiClient.deleteVideoGroup(1);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1', expect.objectContaining({ method: 'DELETE' }));
+      await apiClient.deleteVideoCourse(1);
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/courses/1', expect.objectContaining({ method: 'DELETE' }));
     });
 
-    it('reorderVideoGroups calls correct endpoint', async () => {
+    it('reorderVideoCourses calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         text: () => Promise.resolve(JSON.stringify({ message: "OK" }))
       });
-      await apiClient.reorderVideoGroups([2, 1]);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/order', expect.objectContaining({ method: 'PATCH' }));
+      await apiClient.reorderVideoCourses([2, 1]);
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/courses/order', expect.objectContaining({ method: 'PATCH' }));
     });
 
-    it('addVideoToGroup calls correct endpoint', async () => {
+    it('addVideoToCourse calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
-      await apiClient.addVideoToGroup(1, 100);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/videos/100', expect.objectContaining({ method: 'POST' }));
+      await apiClient.addVideoToCourse(1, 100);
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/courses/1/videos/100', expect.objectContaining({ method: 'POST' }));
     });
 
-    it('addVideosToGroup calls correct endpoint', async () => {
+    it('addVideosToCourse calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         text: () => Promise.resolve(JSON.stringify({ message: "OK" }))
       });
-      await apiClient.addVideosToGroup(1, [100, 101]);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/videos', expect.objectContaining({ method: 'POST' }));
+      await apiClient.addVideosToCourse(1, [100, 101]);
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/courses/1/videos', expect.objectContaining({ method: 'POST' }));
     });
 
-    it('removeVideoFromGroup calls correct endpoint', async () => {
+    it('removeVideoFromCourse calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({ ok: true, headers: new Headers() });
-      await apiClient.removeVideoFromGroup(1, 100);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/videos/100', expect.objectContaining({ method: 'DELETE' }));
+      await apiClient.removeVideoFromCourse(1, 100);
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/courses/1/videos/100', expect.objectContaining({ method: 'DELETE' }));
     });
 
-    it('reorderVideosInGroup calls correct endpoint', async () => {
+    it('reorderVideosInCourse calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         text: () => Promise.resolve(JSON.stringify({ message: "OK" }))
       });
-      await apiClient.reorderVideosInGroup(1, [101, 100]);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/videos/order', expect.objectContaining({ method: 'PATCH' }));
+      await apiClient.reorderVideosInCourse(1, [101, 100]);
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/courses/1/videos/order', expect.objectContaining({ method: 'PATCH' }));
     });
   });
 
@@ -764,7 +764,7 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({ data: [], meta: { total: 0, limit: 24, offset: 0 } }))
       });
       await apiClient.getChatHistory(1);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/groups/1/history', expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/courses/1/history', expect.anything());
     });
 
     it('getEvaluationSummary calls correct endpoint', async () => {
@@ -772,7 +772,7 @@ describe('ApiClient', () => {
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         text: () => Promise.resolve(JSON.stringify({
-          group_id: 1,
+          course_id: 1,
           evaluated_count: 2,
           avg_faithfulness: 0.86,
           avg_answer_relevancy: 0.81,
@@ -782,7 +782,7 @@ describe('ApiClient', () => {
 
       await apiClient.getEvaluationSummary(1);
 
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/evaluation/groups/1/summary', expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/evaluation/courses/1/summary', expect.anything());
     });
 
     it('getChatEvaluations calls correct endpoint', async () => {
@@ -794,7 +794,7 @@ describe('ApiClient', () => {
 
       await apiClient.getChatEvaluations(1);
 
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/evaluation/groups/1/logs?limit=200', expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/evaluation/courses/1/logs?limit=200', expect.anything());
     });
 
     it('exportChatHistoryCsv should download file', async () => {
@@ -818,7 +818,7 @@ describe('ApiClient', () => {
 
       await apiClient.exportChatHistoryCsv(1);
 
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/groups/1/history?download=csv', expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/chat/courses/1/history?download=csv', expect.anything());
       expect(createElementSpy).toHaveBeenCalledWith('a');
       expect(appendChildSpy).toHaveBeenCalledWith(mockLink);
       expect(mockLink.click).toHaveBeenCalled();
@@ -834,8 +834,8 @@ describe('ApiClient', () => {
         headers: new Headers({ 'content-type': 'application/json' }),
         text: () => Promise.resolve(JSON.stringify({ share_slug: 'abc' }))
       });
-      await apiClient.createShareLink(1, 'my-group');
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/share', expect.objectContaining({ method: 'POST', body: JSON.stringify({ share_slug: 'my-group' }) }));
+      await apiClient.createShareLink(1, 'my-course');
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/courses/1/share', expect.objectContaining({ method: 'POST', body: JSON.stringify({ share_slug: 'my-course' }) }));
     });
 
     it('deleteShareLink calls correct endpoint', async () => {
@@ -845,33 +845,33 @@ describe('ApiClient', () => {
         text: () => Promise.resolve(JSON.stringify({}))
       });
       await apiClient.deleteShareLink(1);
-      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/groups/1/share', expect.objectContaining({ method: 'DELETE' }));
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/courses/1/share', expect.objectContaining({ method: 'DELETE' }));
     });
 
-    it('getSharedGroup calls correct endpoint', async () => {
+    it('getSharedCourse calls correct endpoint', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         headers: new Headers({ 'content-type': 'application/json' }),
         text: () => Promise.resolve(JSON.stringify({ id: 1 })),
         json: () => Promise.resolve({ id: 1 })
       });
-      await apiClient.getSharedGroup('token');
+      await apiClient.getSharedCourse('token');
       expect(fetchMock).toHaveBeenCalledWith(
-        'http://localhost:8000/api/videos/groups/share/token',
+        'http://localhost:8000/api/videos/courses/share/token',
         expect.objectContaining({ headers: expect.any(Object) }),
       );
     });
 
-    it('getSharedGroup should throw on error', async () => {
+    it('getSharedCourse should throw on error', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: false,
         statusText: 'Not Found',
-        text: () => Promise.resolve('Group not found')
+        text: () => Promise.resolve('Course not found')
       });
-      await expect(apiClient.getSharedGroup('token')).rejects.toThrow('Group not found');
+      await expect(apiClient.getSharedCourse('token')).rejects.toThrow('Course not found');
     });
 
-    it('supports the complete group invitation lifecycle endpoints', async () => {
+    it('supports the complete course invitation lifecycle endpoints', async () => {
       const jsonResponse = (body: unknown = {}) => ({
         ok: true,
         status: 200,
@@ -881,39 +881,39 @@ describe('ApiClient', () => {
       fetchMock
         .mockResolvedValueOnce(jsonResponse({ results: [] }))
         .mockResolvedValueOnce(jsonResponse({ invitations: [], members: [] }))
-        .mockResolvedValueOnce(jsonResponse({ group_id: 1, status: 'pending' }))
-        .mockResolvedValueOnce(jsonResponse({ group_id: 1, status: 'accepted' }))
+        .mockResolvedValueOnce(jsonResponse({ course_id: 1, status: 'pending' }))
+        .mockResolvedValueOnce(jsonResponse({ course_id: 1, status: 'accepted' }))
         .mockResolvedValueOnce(jsonResponse({ status: 'declined' }));
 
-      await apiClient.inviteGroupMembers(1, ['student@example.com']);
-      await apiClient.getGroupParticipants(1);
-      await apiClient.getGroupInvitation('invite-token');
-      await apiClient.acceptGroupInvitation('invite-token');
-      await apiClient.declineGroupInvitation('invite-token');
+      await apiClient.inviteCourseMembers(1, ['student@example.com']);
+      await apiClient.getCourseParticipants(1);
+      await apiClient.getCourseInvitation('invite-token');
+      await apiClient.acceptCourseInvitation('invite-token');
+      await apiClient.declineCourseInvitation('invite-token');
 
       expect(fetchMock).toHaveBeenNthCalledWith(
         1,
-        'http://localhost:8000/api/videos/groups/1/invitations',
+        'http://localhost:8000/api/videos/courses/1/invitations',
         expect.objectContaining({ method: 'POST', body: JSON.stringify({ emails: ['student@example.com'] }) }),
       );
       expect(fetchMock).toHaveBeenNthCalledWith(
         2,
-        'http://localhost:8000/api/videos/groups/1/participants',
+        'http://localhost:8000/api/videos/courses/1/participants',
         expect.anything(),
       );
       expect(fetchMock).toHaveBeenNthCalledWith(
         3,
-        'http://localhost:8000/api/videos/group-invitations/invite-token',
+        'http://localhost:8000/api/videos/course-invitations/invite-token',
         expect.anything(),
       );
       expect(fetchMock).toHaveBeenNthCalledWith(
         4,
-        'http://localhost:8000/api/videos/group-invitations/invite-token/accept',
+        'http://localhost:8000/api/videos/course-invitations/invite-token/accept',
         expect.objectContaining({ method: 'POST' }),
       );
       expect(fetchMock).toHaveBeenNthCalledWith(
         5,
-        'http://localhost:8000/api/videos/group-invitations/invite-token/decline',
+        'http://localhost:8000/api/videos/course-invitations/invite-token/decline',
         expect.objectContaining({ method: 'POST' }),
       );
     });

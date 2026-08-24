@@ -38,7 +38,7 @@ export function extractLatestUserQuery(messages: readonly ChatMessageInput[]): s
 
 /**
  * 検索とプロンプト生成まで（LLM 呼び出し前）。
- * group が無い、またはメンバー動画が無い場合は検索も埋め込みも実行しない。
+ * course が無い、またはメンバー動画が無い場合は検索も埋め込みも実行しない。
  */
 export async function prepareRagContext(
   env: Bindings,
@@ -47,7 +47,7 @@ export async function prepareRagContext(
     ownerUserId: string;
     videoIds: readonly number[] | null;
     locale: string | null;
-    groupContext: string | null;
+    courseContext: string | null;
   },
 ): Promise<RagContext> {
   const queryText = extractLatestUserQuery(params.messages);
@@ -67,7 +67,7 @@ export async function prepareRagContext(
 
   return {
     queryText,
-    systemPrompt: buildSystemPrompt(params.locale, references, params.groupContext),
+    systemPrompt: buildSystemPrompt(params.locale, references, params.courseContext),
     citations:
       docs.length === 0
         ? null

@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient, type VideoGroup, type VideoList } from '@/lib/api';
+import { apiClient, type VideoCourse, type VideoList } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import {
   invalidateAfterGroupDelete,
@@ -8,37 +8,37 @@ import {
 } from '@/lib/cacheInvalidation';
 import { createVideoIdSet } from '@/lib/utils/videoConversion';
 
-interface UseVideoGroupDetailQueryResult {
-  group: VideoGroup | null;
+interface UseVideoCourseDetailQueryResult {
+  course: VideoCourse | null;
   isLoading: boolean;
   isFetching: boolean;
   errorMessage: string | null;
 }
 
-export function useVideoGroupDetailQuery(groupId: number | null): UseVideoGroupDetailQueryResult {
-  const groupQuery = useQuery<VideoGroup>({
-    queryKey: queryKeys.videoGroups.detail(groupId),
-    enabled: !!groupId,
+export function useVideoCourseDetailQuery(courseId: number | null): UseVideoCourseDetailQueryResult {
+  const courseQuery = useQuery<VideoCourse>({
+    queryKey: queryKeys.videoCourses.detail(courseId),
+    enabled: !!courseId,
     queryFn: async () => {
-      if (!groupId) {
-        throw new Error('Group ID is required');
+      if (!courseId) {
+        throw new Error('Course ID is required');
       }
-      return await apiClient.getVideoGroup(groupId);
+      return await apiClient.getVideoCourse(courseId);
     },
   });
 
   return {
-    group: groupQuery.data ?? null,
-    isLoading: groupQuery.isLoading,
-    isFetching: groupQuery.isFetching,
-    errorMessage: groupQuery.error instanceof Error ? groupQuery.error.message : null,
+    course: courseQuery.data ?? null,
+    isLoading: courseQuery.isLoading,
+    isFetching: courseQuery.isFetching,
+    errorMessage: courseQuery.error instanceof Error ? courseQuery.error.message : null,
   };
 }
 
 interface UseAddableVideosQueryParams {
   isOpen: boolean;
-  groupId: number | null;
-  group: VideoGroup | null;
+  courseId: number | null;
+  course: VideoCourse | null;
   q: string;
   status: string;
   ordering: string;
@@ -47,8 +47,8 @@ interface UseAddableVideosQueryParams {
 
 export function useAddableVideosQuery({
   isOpen,
-  groupId,
-  group,
+  courseId,
+  course,
   q,
   status,
   ordering,
@@ -59,17 +59,17 @@ export function useAddableVideosQuery({
   >['ordering'];
 
   return useQuery<VideoList[]>({
-    queryKey: queryKeys.videoGroups.addableVideos({
-      groupId,
+    queryKey: queryKeys.videoCourses.addableVideos({
+      courseId,
       q,
       status,
       ordering,
       tagIds,
-      currentVideoIds: (group?.videos?.map((v) => v.id) ?? []).slice().sort((a, b) => a - b),
+      currentVideoIds: (course?.videos?.map((v) => v.id) ?? []).slice().sort((a, b) => a - b),
     }),
-    enabled: isOpen && !!group && !!groupId,
+    enabled: isOpen && !!course && !!courseId,
     queryFn: async () => {
-      if (!group?.videos) {
+      if (!course?.videos) {
         return [];
       }
 
@@ -79,90 +79,90 @@ export function useAddableVideosQuery({
         ordering: normalizedOrdering,
         tags: tagIds,
       });
-      const currentVideoIdSet = createVideoIdSet(group.videos.map((v) => v.id));
+      const currentVideoIdSet = createVideoIdSet(course.videos.map((v) => v.id));
       return response.data.filter((v) => !currentVideoIdSet.has(v.id));
     },
   });
 }
 
-interface UseVideoGroupDetailMutationsParams {
-  groupId: number | null;
+interface UseVideoCourseDetailMutationsParams {
+  courseId: number | null;
   onDeleteSuccess: () => void;
   onUpdateSuccess?: () => void;
 }
 
-export function useAddVideosToGroupMutation(groupId: number | null, onSuccess?: () => void | Promise<void>) {
+export function useAddVideosToCourseMutation(courseId: number | null, onSuccess?: () => void | Promise<void>) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (videoIds: number[]) => {
-      if (!groupId) {
-        throw new Error('Group ID is required');
+      if (!courseId) {
+        throw new Error('Course ID is required');
       }
-      return await apiClient.addVideosToGroup(groupId, videoIds);
+      return await apiClient.addVideosToCourse(courseId, videoIds);
     },
     onSuccess: async () => {
-      if (groupId) {
-        await queryClient.invalidateQueries({ queryKey: queryKeys.videoGroups.detail(groupId) });
+      if (courseId) {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.videoCourses.detail(courseId) });
       }
       await onSuccess?.();
     },
   });
 }
 
-export function useVideoGroupDetailMutations({
-  groupId,
+export function useVideoCourseDetailMutations({
+  courseId,
   onDeleteSuccess,
   onUpdateSuccess,
-}: UseVideoGroupDetailMutationsParams) {
+}: UseVideoCourseDetailMutationsParams) {
   const queryClient = useQueryClient();
 
-  const syncGroupDetail = useCallback(async () => {
-    if (!groupId) {
+  const syncCourseDetail = useCallback(async () => {
+    if (!courseId) {
       return;
     }
-    await queryClient.invalidateQueries({ queryKey: queryKeys.videoGroups.detail(groupId) });
-  }, [groupId, queryClient]);
+    await queryClient.invalidateQueries({ queryKey: queryKeys.videoCourses.detail(courseId) });
+  }, [courseId, queryClient]);
 
-  const setGroupDetailCache = useCallback((nextGroup: VideoGroup) => {
-    if (!groupId) {
+  const setCourseDetailCache = useCallback((nextGroup: VideoCourse) => {
+    if (!courseId) {
       return;
     }
-    queryClient.setQueryData<VideoGroup>(queryKeys.videoGroups.detail(groupId), nextGroup);
-  }, [groupId, queryClient]);
+    queryClient.setQueryData<VideoCourse>(queryKeys.videoCourses.detail(courseId), nextGroup);
+  }, [courseId, queryClient]);
 
-  const addVideosMutation = useAddVideosToGroupMutation(groupId);
+  const addVideosMutation = useAddVideosToCourseMutation(courseId);
 
   const removeVideoMutation = useMutation({
     mutationFn: async (videoId: number) => {
-      if (!groupId) {
-        throw new Error('Group ID is required');
+      if (!courseId) {
+        throw new Error('Course ID is required');
       }
-      await apiClient.removeVideoFromGroup(groupId, videoId);
+      await apiClient.removeVideoFromCourse(courseId, videoId);
       return videoId;
     },
     onSuccess: async () => {
-      if (groupId) {
-        await invalidateAfterGroupVideoRemove(queryClient, groupId);
+      if (courseId) {
+        await invalidateAfterGroupVideoRemove(queryClient, courseId);
       }
     },
   });
 
   const reorderVideosMutation = useMutation({
     mutationFn: async (videoIds: number[]) => {
-      if (!groupId) {
-        throw new Error('Group ID is required');
+      if (!courseId) {
+        throw new Error('Course ID is required');
       }
-      await apiClient.reorderVideosInGroup(groupId, videoIds);
+      await apiClient.reorderVideosInCourse(courseId, videoIds);
     },
   });
 
-  const deleteGroupMutation = useMutation({
+  const deleteCourseMutation = useMutation({
     mutationFn: async () => {
-      if (!groupId) {
-        throw new Error('Group ID is required');
+      if (!courseId) {
+        throw new Error('Course ID is required');
       }
-      await apiClient.deleteVideoGroup(groupId);
+      await apiClient.deleteVideoCourse(courseId);
     },
     onSuccess: async () => {
       await invalidateAfterGroupDelete(queryClient);
@@ -170,26 +170,26 @@ export function useVideoGroupDetailMutations({
     },
   });
 
-  const updateGroupMutation = useMutation({
+  const updateCourseMutation = useMutation({
     mutationFn: async (payload: { name: string; description: string }) => {
-      if (!groupId) {
-        throw new Error('Group ID is required');
+      if (!courseId) {
+        throw new Error('Course ID is required');
       }
-      await apiClient.updateVideoGroup(groupId, payload);
+      await apiClient.updateVideoCourse(courseId, payload);
     },
     onSuccess: async () => {
       onUpdateSuccess?.();
-      await syncGroupDetail();
+      await syncCourseDetail();
     },
   });
 
   return {
-    syncGroupDetail,
-    setGroupDetailCache,
+    syncCourseDetail,
+    setCourseDetailCache,
     addVideosMutation,
     removeVideoMutation,
     reorderVideosMutation,
-    deleteGroupMutation,
-    updateGroupMutation,
+    deleteCourseMutation,
+    updateCourseMutation,
   };
 }

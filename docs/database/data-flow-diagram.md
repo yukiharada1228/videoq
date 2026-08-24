@@ -24,8 +24,8 @@ flowchart TD
 flowchart TD
     Question --> API[Hono chat feature]
     API --> Auth[Session / API key / share authorization]
-    Auth --> Group[(video_groups)]
-    Group --> Search[Authorized vector search]
+    Auth --> Course[(video_courses)]
+    Course --> Search[Authorized vector search]
     Search --> Scenes[(scene_embeddings)]
     Scenes --> Prompt[Prompt + context]
     Prompt --> LLM[LLM]

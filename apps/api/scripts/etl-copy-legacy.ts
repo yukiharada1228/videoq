@@ -44,16 +44,16 @@ const COPIES: TableCopy[] = [
 		sequence: "videos_id_seq",
 	},
 	{
-		label: "video_groups",
+		label: "video_courses",
 		oldTable: "app_videogroup",
-		newTable: "video_groups",
-		sequence: "video_groups_id_seq",
+		newTable: "video_courses",
+		sequence: "video_courses_id_seq",
 	},
 	{
-		label: "video_group_members",
+		label: "video_course_members",
 		oldTable: "app_videogroupmember",
-		newTable: "video_group_members",
-		sequence: "video_group_members_id_seq",
+		newTable: "video_course_members",
+		sequence: "video_course_members_id_seq",
 	},
 	{
 		label: "tags",
@@ -80,10 +80,10 @@ const COPIES: TableCopy[] = [
 		sequence: "chat_log_evaluations_id_seq",
 	},
 	{
-		label: "group_evaluation_snapshots",
+		label: "course_evaluation_snapshots",
 		oldTable: "app_groupevaluationsnapshot",
-		newTable: "group_evaluation_snapshots",
-		sequence: "group_evaluation_snapshots_id_seq",
+		newTable: "course_evaluation_snapshots",
+		sequence: "course_evaluation_snapshots_id_seq",
 	},
 	{
 		label: "plog_build_jobs",
@@ -142,16 +142,16 @@ const ORPHAN_CHECKS: { label: string; sql: string; legacySql?: string }[] = [
 		sql: `SELECT COUNT(*) AS n FROM videos v LEFT JOIN users u ON v.user_id = u.id WHERE u.id IS NULL`,
 	},
 	{
-		label: "video_group_members.group_id → video_groups",
-		sql: `SELECT COUNT(*) AS n FROM video_group_members m LEFT JOIN video_groups g ON m.group_id = g.id WHERE g.id IS NULL`,
+		label: "video_course_members.course_id → video_courses",
+		sql: `SELECT COUNT(*) AS n FROM video_course_members m LEFT JOIN video_courses g ON m.course_id = g.id WHERE g.id IS NULL`,
 	},
 	{
-		label: "video_group_members.video_id → videos",
-		sql: `SELECT COUNT(*) AS n FROM video_group_members m LEFT JOIN videos v ON m.video_id = v.id WHERE v.id IS NULL`,
+		label: "video_course_members.video_id → videos",
+		sql: `SELECT COUNT(*) AS n FROM video_course_members m LEFT JOIN videos v ON m.video_id = v.id WHERE v.id IS NULL`,
 	},
 	{
-		label: "chat_logs.group_id → video_groups",
-		sql: `SELECT COUNT(*) AS n FROM chat_logs c LEFT JOIN video_groups g ON c.group_id = g.id WHERE g.id IS NULL`,
+		label: "chat_logs.course_id → video_courses",
+		sql: `SELECT COUNT(*) AS n FROM chat_logs c LEFT JOIN video_courses g ON c.course_id = g.id WHERE g.id IS NULL`,
 	},
 	{
 		label: "plog_concepts.video_id → videos",

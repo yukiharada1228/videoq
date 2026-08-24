@@ -18,7 +18,7 @@ import {
   plogSummaryNodes,
   sceneEmbeddings,
   videos,
-  videoGroupMembers,
+  videoCourseMembers,
   videoTags,
 } from "../db/schema";
 import {
@@ -136,7 +136,7 @@ export const TAGS_SUBQUERY = `COALESCE((
   WHERE vt.video_id = v.id
 ), '[]'::json)::text`;
 
-// 動画一覧の行→オブジェクト変換（一覧・詳細・グループ詳細で共有）。
+// 動画一覧の行→オブジェクト変換（一覧・詳細・講座詳細で共有）。
 // 行は少なくとも id/file/title/description/uploaded_at(to_char済)/status/source_type/
 // source_url/youtube_video_id/tags(::text) を含むこと。
 export async function mapVideoListRow(
@@ -481,7 +481,7 @@ export async function getVideoFileKey(
  * DB 側 FK は ON DELETE CASCADE を持たないため、
  * 子テーブルを依存順に明示削除する。存在確認は呼び出し側で済ませる前提。
  *
- * 依存グラフ: video → {videotag, videogroupmember, plogbuildjob, plogsummarynode(self),
+ * 依存グラフ: video → {videotag, videocoursemember, plogbuildjob, plogsummarynode(self),
  *   plogconcept → {learnerconceptstate, ploglearningobject, plogedge}}
  *   （plogedge は video_id と concept(source/target) の双方を参照）。
  * expectedStatus 指定時は、ロック取得時にもその状態である場合だけ削除する。
@@ -543,7 +543,7 @@ export async function deleteVideoCascade(
       await tx.delete(plogSummaryNodes).where(eq(plogSummaryNodes.videoId, videoId));
       await tx.delete(plogBuildJobs).where(eq(plogBuildJobs.videoId, videoId));
       await tx.delete(videoTags).where(eq(videoTags.videoId, videoId));
-      await tx.delete(videoGroupMembers).where(eq(videoGroupMembers.videoId, videoId));
+      await tx.delete(videoCourseMembers).where(eq(videoCourseMembers.videoId, videoId));
       // No FK; remove vector rows so orphan embeddings do not linger.
       await tx.execute(sql`DELETE FROM scene_embeddings WHERE video_id = ${videoId}`);
 

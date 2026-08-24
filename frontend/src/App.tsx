@@ -17,10 +17,10 @@ const ConsentPage = lazy(() => import('@/pages/ConsentPage'));
 const DevicePage = lazy(() => import('@/pages/DevicePage'));
 const VideosPage = lazy(() => import('@/pages/VideosPage'));
 const VideoDetailPage = lazy(() => import('@/pages/VideoDetailPage'));
-const VideoGroupsPage = lazy(() => import('@/pages/VideoGroupsPage'));
-const VideoGroupDetailPage = lazy(() => import('@/pages/VideoGroupDetailPage'));
+const VideoCoursesPage = lazy(() => import('@/pages/VideoCoursesPage'));
+const VideoCourseDetailPage = lazy(() => import('@/pages/VideoCourseDetailPage'));
 const SharePage = lazy(() => import('@/pages/SharePage'));
-const GroupInvitationPage = lazy(() => import('@/pages/GroupInvitationPage'));
+const CourseInvitationPage = lazy(() => import('@/pages/CourseInvitationPage'));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
 const PricingPage = lazy(() => import('@/pages/PricingPage'));
 const LegalPage = lazy(() => import('@/pages/LegalPage'));
@@ -77,10 +77,10 @@ const routeChildren = (
     <Route path="device" element={<DevicePage />} />
     <Route path="videos" element={<VideosPage />} />
     <Route path="videos/:id" element={<VideoDetailPage />} />
-    <Route path="videos/groups" element={<VideoGroupsPage />} />
-    <Route path="videos/groups/:id" element={<VideoGroupDetailPage />} />
+    <Route path="videos/courses" element={<VideoCoursesPage />} />
+    <Route path="videos/courses/:id" element={<VideoCourseDetailPage />} />
     <Route path="share/:token" element={<SharePage />} />
-    <Route path="group-invitations/:token" element={<GroupInvitationPage />} />
+    <Route path="course-invitations/:token" element={<CourseInvitationPage />} />
     <Route path="settings" element={<SettingsPage />} />
     <Route path="pricing" element={<PricingPage />} />
     <Route path="terms" element={<LegalPage page="terms" />} />

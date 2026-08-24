@@ -217,7 +217,7 @@ export interface Citation {
 
 export interface ChatHistoryItem {
   id: number;
-  group: number;
+  course: number;
   asked_by: {
     user_id: string;
     username: string;
@@ -252,7 +252,7 @@ export interface ChatAnalytics {
 export type EvaluationStatus = 'pending' | 'completed' | 'failed';
 
 export interface EvaluationSummary {
-  group_id: number;
+  course_id: number;
   evaluated_count: number;
   avg_faithfulness: number | null;
   avg_answer_relevancy: number | null;
@@ -271,7 +271,7 @@ export interface ChatLogEvaluation {
 
 export interface ChatRequest {
   messages: ChatMessage[];
-  group_id?: number;
+  course_id?: number;
   share_slug?: string;
   mode?: 'qa' | 'study';
   /** Ephemeral study progress key for shared-link sessions (sessionStorage). */
@@ -385,7 +385,7 @@ export interface VideoUpdateRequest {
   transcript?: string;
 }
 
-export interface VideoGroup {
+export interface VideoCourse {
   id: number;
   name: string;
   description: string;
@@ -393,12 +393,12 @@ export interface VideoGroup {
   created_at: string;
   updated_at?: string;
   video_count: number;
-  videos?: VideoInGroup[];
+  videos?: VideoInCourse[];
   share_slug?: string | null;
   access_role?: 'owner' | 'member' | 'public';
 }
 
-export interface VideoInGroup {
+export interface VideoInCourse {
   id: number;
   title: string;
   description: string;
@@ -417,17 +417,17 @@ export interface UploadRequestResponse {
   upload_url: string;
 }
 
-export interface VideoGroupCreateRequest {
+export interface VideoCourseCreateRequest {
   name: string;
   description?: string;
 }
 
-export interface VideoGroupUpdateRequest {
+export interface VideoCourseUpdateRequest {
   name?: string;
   description?: string;
 }
 
-export interface VideoGroupList {
+export interface VideoCourseList {
   id: number;
   name: string;
   description: string;
@@ -437,10 +437,10 @@ export interface VideoGroupList {
   access_role?: 'owner' | 'member';
 }
 
-export type GroupInvitationStatus = 'pending' | 'accepted' | 'declined' | 'expired' | 'revoked';
-export type GroupInvitationDeliveryStatus = 'queued' | 'sent' | 'failed';
+export type CourseInvitationStatus = 'pending' | 'accepted' | 'declined' | 'expired' | 'revoked';
+export type CourseInvitationDeliveryStatus = 'queued' | 'sent' | 'failed';
 
-export interface GroupInviteRecipientResult {
+export interface CourseInviteRecipientResult {
   email: string;
   // 送信はサーバー側のキューに載るため、レスポンス時点では配送結果は出ない。
   // 実際の sent/failed は participants の delivery_status で確認する。
@@ -448,35 +448,35 @@ export interface GroupInviteRecipientResult {
   invitation_id?: number;
 }
 
-export interface GroupInvitationListItem {
+export interface CourseInvitationListItem {
   id: number;
   email: string;
-  status: GroupInvitationStatus;
-  delivery_status: GroupInvitationDeliveryStatus;
+  status: CourseInvitationStatus;
+  delivery_status: CourseInvitationDeliveryStatus;
   expires_at: string;
   created_at: string;
   last_sent_at: string | null;
   send_attempts: number;
 }
 
-export interface GroupUserMember {
+export interface CourseUserMember {
   user_id: string;
   username: string;
   email: string;
   joined_at: string;
 }
 
-export interface GroupParticipants {
-  invitations: GroupInvitationListItem[];
-  members: GroupUserMember[];
+export interface CourseParticipants {
+  invitations: CourseInvitationListItem[];
+  members: CourseUserMember[];
 }
 
-export interface GroupInvitationPreview {
-  group_id: number;
-  group_name: string;
+export interface CourseInvitationPreview {
+  course_id: number;
+  course_name: string;
   inviter_name: string;
   email_hint: string;
-  status: GroupInvitationStatus;
+  status: CourseInvitationStatus;
   expires_at: string;
 }
 
@@ -1016,23 +1016,23 @@ export class ApiClient {
     });
   }
 
-  async getChatHistory(groupId: number): Promise<ChatHistoryItem[]> {
-    const response = await this.request<PaginatedResponse<ChatHistoryItem>>(`/chat/groups/${groupId}/history`);
+  async getChatHistory(courseId: number): Promise<ChatHistoryItem[]> {
+    const response = await this.request<PaginatedResponse<ChatHistoryItem>>(`/chat/courses/${courseId}/history`);
     return response.data;
   }
 
-  async getEvaluationSummary(groupId: number): Promise<EvaluationSummary> {
-    return this.request<EvaluationSummary>(`/evaluation/groups/${groupId}/summary`);
+  async getEvaluationSummary(courseId: number): Promise<EvaluationSummary> {
+    return this.request<EvaluationSummary>(`/evaluation/courses/${courseId}/summary`);
   }
 
-  async getChatEvaluations(groupId: number, limit = 200): Promise<ChatLogEvaluation[]> {
-    const response = await this.request<PaginatedResponse<ChatLogEvaluation>>(`/evaluation/groups/${groupId}/logs?limit=${limit}`);
+  async getChatEvaluations(courseId: number, limit = 200): Promise<ChatLogEvaluation[]> {
+    const response = await this.request<PaginatedResponse<ChatLogEvaluation>>(`/evaluation/courses/${courseId}/logs?limit=${limit}`);
     return response.data;
   }
 
 
-  async exportChatHistoryCsv(groupId: number): Promise<void> {
-    const url = this.buildUrl(`/chat/groups/${groupId}/history?download=csv`);
+  async exportChatHistoryCsv(courseId: number): Promise<void> {
+    const url = this.buildUrl(`/chat/courses/${courseId}/history?download=csv`);
 
     const doFetch = async (): Promise<Response> => {
       return this.fetchFn(url, {
@@ -1055,7 +1055,7 @@ export class ApiClient {
     const blob = await response.blob();
     const disposition = response.headers.get('Content-Disposition') || response.headers.get('content-disposition') || '';
     const match = disposition.match(/filename="?([^";]+)"?/i);
-    const filename = match?.[1] || `chat_history_group_${groupId}.csv`;
+    const filename = match?.[1] || `chat_history_course_${courseId}.csv`;
 
     const link = document.createElement('a');
     const href = window.URL.createObjectURL(blob);
@@ -1329,8 +1329,8 @@ export class ApiClient {
     });
   }
 
-  // VideoGroup-related methods
-  async getVideoGroupsPage(params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<VideoGroupList>> {
+  // VideoCourse-related methods
+  async getVideoCoursesPage(params?: { limit?: number; offset?: number }): Promise<PaginatedResponse<VideoCourseList>> {
     const queryParams: Record<string, string> = {};
     if (params?.limit !== undefined) queryParams.limit = String(params.limit);
     if (params?.offset !== undefined) queryParams.offset = String(params.offset);
@@ -1338,133 +1338,133 @@ export class ApiClient {
       ? `?${new URLSearchParams(queryParams).toString()}`
       : '';
 
-    return this.request<PaginatedResponse<VideoGroupList>>(`/videos/groups${query}`);
+    return this.request<PaginatedResponse<VideoCourseList>>(`/videos/courses${query}`);
   }
 
-  async getVideoGroups(): Promise<VideoGroupList[]> {
-    const response = await this.getVideoGroupsPage();
+  async getVideoCourses(): Promise<VideoCourseList[]> {
+    const response = await this.getVideoCoursesPage();
     return response.data;
   }
 
-  async getVideoGroup(id: number): Promise<VideoGroup> {
-    return this.request<VideoGroup>(`/videos/groups/${id}`);
+  async getVideoCourse(id: number): Promise<VideoCourse> {
+    return this.request<VideoCourse>(`/videos/courses/${id}`);
   }
 
-  async createVideoGroup(data: VideoGroupCreateRequest): Promise<VideoGroup> {
-    return this.request<VideoGroup>('/videos/groups', {
+  async createVideoCourse(data: VideoCourseCreateRequest): Promise<VideoCourse> {
+    return this.request<VideoCourse>('/videos/courses', {
       method: 'POST',
       body: data,
     });
   }
 
-  async updateVideoGroup(id: number, data: VideoGroupUpdateRequest): Promise<VideoGroup> {
-    return this.request<VideoGroup>(`/videos/groups/${id}`, {
+  async updateVideoCourse(id: number, data: VideoCourseUpdateRequest): Promise<VideoCourse> {
+    return this.request<VideoCourse>(`/videos/courses/${id}`, {
       method: 'PATCH',
       body: data,
     });
   }
 
-  async deleteVideoGroup(id: number): Promise<void> {
-    return this.request<void>(`/videos/groups/${id}`, {
+  async deleteVideoCourse(id: number): Promise<void> {
+    return this.request<void>(`/videos/courses/${id}`, {
       method: 'DELETE',
     });
   }
 
-  async reorderVideoGroups(groupIds: number[]): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/videos/groups/order', {
+  async reorderVideoCourses(courseIds: number[]): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/videos/courses/order', {
       method: 'PATCH',
-      body: { group_ids: groupIds },
+      body: { course_ids: courseIds },
     });
   }
 
-  // Add/remove videos to/from group
-  async addVideoToGroup(groupId: number, videoId: number): Promise<void> {
-    return this.request<void>(`/videos/groups/${groupId}/videos/${videoId}`, {
+  // Add/remove videos to/from course
+  async addVideoToCourse(courseId: number, videoId: number): Promise<void> {
+    return this.request<void>(`/videos/courses/${courseId}/videos/${videoId}`, {
       method: 'POST',
     });
   }
 
-  async addVideosToGroup(groupId: number, videoIds: number[]): Promise<{ message: string; added_count: number; skipped_count: number }> {
-    return this.request<{ message: string; added_count: number; skipped_count: number }>(`/videos/groups/${groupId}/videos`, {
+  async addVideosToCourse(courseId: number, videoIds: number[]): Promise<{ message: string; added_count: number; skipped_count: number }> {
+    return this.request<{ message: string; added_count: number; skipped_count: number }>(`/videos/courses/${courseId}/videos`, {
       method: 'POST',
       body: { video_ids: videoIds },
     });
   }
 
-  async removeVideoFromGroup(groupId: number, videoId: number): Promise<void> {
-    return this.request<void>(`/videos/groups/${groupId}/videos/${videoId}`, {
+  async removeVideoFromCourse(courseId: number, videoId: number): Promise<void> {
+    return this.request<void>(`/videos/courses/${courseId}/videos/${videoId}`, {
       method: 'DELETE',
     });
   }
 
-  async reorderVideosInGroup(groupId: number, videoIds: number[]): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/videos/groups/${groupId}/videos/order`, {
+  async reorderVideosInCourse(courseId: number, videoIds: number[]): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/videos/courses/${courseId}/videos/order`, {
       method: 'PATCH',
       body: { video_ids: videoIds },
     });
   }
 
-  async inviteGroupMembers(
-    groupId: number,
+  async inviteCourseMembers(
+    courseId: number,
     emails: string[],
-  ): Promise<{ results: GroupInviteRecipientResult[] }> {
-    return this.request(`/videos/groups/${groupId}/invitations`, {
+  ): Promise<{ results: CourseInviteRecipientResult[] }> {
+    return this.request(`/videos/courses/${courseId}/invitations`, {
       method: 'POST',
       body: { emails },
     });
   }
 
-  async getGroupParticipants(groupId: number): Promise<GroupParticipants> {
-    return this.request(`/videos/groups/${groupId}/participants`);
+  async getCourseParticipants(courseId: number): Promise<CourseParticipants> {
+    return this.request(`/videos/courses/${courseId}/participants`);
   }
 
-  async getGroupInvitation(token: string): Promise<GroupInvitationPreview> {
-    return this.request(`/videos/group-invitations/${encodeURIComponent(token)}`);
+  async getCourseInvitation(token: string): Promise<CourseInvitationPreview> {
+    return this.request(`/videos/course-invitations/${encodeURIComponent(token)}`);
   }
 
-  async acceptGroupInvitation(
+  async acceptCourseInvitation(
     token: string,
-  ): Promise<{ group_id: number; status: 'accepted' }> {
-    return this.request(`/videos/group-invitations/${encodeURIComponent(token)}/accept`, {
+  ): Promise<{ course_id: number; status: 'accepted' }> {
+    return this.request(`/videos/course-invitations/${encodeURIComponent(token)}/accept`, {
       method: 'POST',
     });
   }
 
-  async declineGroupInvitation(token: string): Promise<{ status: 'declined' }> {
-    return this.request(`/videos/group-invitations/${encodeURIComponent(token)}/decline`, {
+  async declineCourseInvitation(token: string): Promise<{ status: 'declined' }> {
+    return this.request(`/videos/course-invitations/${encodeURIComponent(token)}/decline`, {
       method: 'POST',
     });
   }
 
-  async resendGroupInvitation(
-    groupId: number,
+  async resendCourseInvitation(
+    courseId: number,
     invitationId: number,
-  ): Promise<{ delivery_status: GroupInvitationDeliveryStatus }> {
-    return this.request(`/videos/groups/${groupId}/invitations/${invitationId}/resend`, {
+  ): Promise<{ delivery_status: CourseInvitationDeliveryStatus }> {
+    return this.request(`/videos/courses/${courseId}/invitations/${invitationId}/resend`, {
       method: 'POST',
     });
   }
 
-  async revokeGroupInvitation(groupId: number, invitationId: number): Promise<void> {
-    await this.request(`/videos/groups/${groupId}/invitations/${invitationId}`, {
+  async revokeCourseInvitation(courseId: number, invitationId: number): Promise<void> {
+    await this.request(`/videos/courses/${courseId}/invitations/${invitationId}`, {
       method: 'DELETE',
     });
   }
 
-  async removeGroupMember(groupId: number, userId: string): Promise<void> {
-    await this.request(`/videos/groups/${groupId}/members/${encodeURIComponent(userId)}`, {
+  async removeCourseMember(courseId: number, userId: string): Promise<void> {
+    await this.request(`/videos/courses/${courseId}/members/${encodeURIComponent(userId)}`, {
       method: 'DELETE',
     });
   }
 
-  async leaveVideoGroup(groupId: number): Promise<void> {
-    await this.request(`/videos/groups/${groupId}/membership`, { method: 'DELETE' });
+  async leaveVideoCourse(courseId: number): Promise<void> {
+    await this.request(`/videos/courses/${courseId}/membership`, { method: 'DELETE' });
   }
 
   // Share link related
-  async createShareLink(groupId: number, shareSlug: string): Promise<{ message: string; share_slug: string }> {
+  async createShareLink(courseId: number, shareSlug: string): Promise<{ message: string; share_slug: string }> {
     return this.request<{ message: string; share_slug: string }>(
-      `/videos/groups/${groupId}/share`,
+      `/videos/courses/${courseId}/share`,
       {
         method: 'POST',
         body: { share_slug: shareSlug },
@@ -1472,19 +1472,19 @@ export class ApiClient {
     );
   }
 
-  async deleteShareLink(groupId: number): Promise<void> {
-    await this.request<void>(`/videos/groups/${groupId}/share`, {
+  async deleteShareLink(courseId: number): Promise<void> {
+    await this.request<void>(`/videos/courses/${courseId}/share`, {
       method: 'DELETE',
     });
   }
 
-  async getSharedGroup(shareSlug: string): Promise<VideoGroup> {
-    const url = this.buildUrl(`/videos/groups/share/${shareSlug}`);
+  async getSharedCourse(shareSlug: string): Promise<VideoCourse> {
+    const url = this.buildUrl(`/videos/courses/share/${shareSlug}`);
     const response = await this.fetchFn(url, { headers: this.buildHeaders() });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(errorText || `Failed to fetch shared group: ${response.statusText}`);
+      throw new Error(errorText || `Failed to fetch shared course: ${response.statusText}`);
     }
 
     return response.json();
@@ -1515,7 +1515,7 @@ export class ApiClient {
     return `${resolvedBase.origin}${basePath}/${videoFile}`;
   }
 
-  // Get video URL for shared group (add share_slug as query parameter)
+  // Get video URL for shared course (add share_slug as query parameter)
   getSharedVideoUrl(videoFile: string, shareSlug: string): string {
     // First convert to absolute URL using backend origin
     const absoluteUrl = this.getVideoUrl(videoFile);
@@ -1594,8 +1594,8 @@ export class ApiClient {
     });
   }
 
-  async getChatAnalytics(groupId: number): Promise<ChatAnalytics> {
-    return this.request<ChatAnalytics>(`/chat/groups/${groupId}/analytics`);
+  async getChatAnalytics(courseId: number): Promise<ChatAnalytics> {
+    return this.request<ChatAnalytics>(`/chat/courses/${courseId}/analytics`);
   }
 
   async getAdminUsers(params?: {

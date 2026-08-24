@@ -31,7 +31,7 @@ import {
   LanguageSelectorMenuItem,
 } from '@/components/ui/language-selector';
 
-export type ActivePage = 'home' | 'videos' | 'groups' | 'docs' | 'pricing' | 'settings' | 'admin';
+export type ActivePage = 'home' | 'videos' | 'courses' | 'docs' | 'pricing' | 'settings' | 'admin';
 
 interface AppNavProps {
   activePage?: ActivePage;
@@ -177,7 +177,7 @@ export function AppNav({ activePage }: AppNavProps) {
   }[] = [
     { href: '/', label: t('navigation.home'), key: 'home' },
     { href: '/videos', label: t('navigation.videosNav'), key: 'videos', authRequired: true },
-    { href: '/videos/groups', label: t('navigation.groupsNav'), key: 'groups', authRequired: true },
+    { href: '/videos/courses', label: t('navigation.coursesNav'), key: 'courses', authRequired: true },
     { href: '/pricing', label: t('navigation.pricing'), key: 'pricing' },
     { href: '/docs', label: t('navigation.docs'), key: 'docs' },
     { href: '/settings', label: t('navigation.settings'), key: 'settings', authRequired: true },

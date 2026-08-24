@@ -23,7 +23,7 @@ export interface Message {
 }
 
 interface UseChatMessagesOptions {
-  groupId?: number;
+  courseId?: number;
   shareToken?: string;
   mode?: 'qa' | 'study';
 }
@@ -60,7 +60,7 @@ function getOrCreateStudySessionId(scope: string): string | undefined {
   }
 }
 
-export function useChatMessages({ groupId, shareToken, mode = 'qa' }: UseChatMessagesOptions): UseChatMessagesReturn {
+export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMessagesOptions): UseChatMessagesReturn {
   const { t } = useTranslation();
   const tRef = useRef(t);
   const [messages, setMessages] = useState<Message[]>(() => [
@@ -181,12 +181,12 @@ export function useChatMessages({ groupId, shareToken, mode = 'qa' }: UseChatMes
     try {
       for await (const event of apiClient.chatStream({
         messages: historyForApi,
-        ...(groupId ? { group_id: groupId } : {}),
+        ...(courseId ? { course_id: courseId } : {}),
         ...(shareToken ? { share_slug: shareToken } : {}),
         ...(mode === 'study'
           ? {
               study_session_id: getOrCreateStudySessionId(
-                shareToken ? `share:${shareToken}` : `group:${groupId ?? 'local'}`,
+                shareToken ? `share:${shareToken}` : `course:${courseId ?? 'local'}`,
               ),
             }
           : {}),
@@ -213,7 +213,7 @@ export function useChatMessages({ groupId, shareToken, mode = 'qa' }: UseChatMes
       setIsLoading(false);
     }
   }, [
-    groupId,
+    courseId,
     input,
     messages,
     mode,

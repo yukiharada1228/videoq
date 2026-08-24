@@ -1,7 +1,7 @@
 import { render, screen, act } from '@testing-library/react'
 import { VideoUpload } from '../VideoUpload'
 import { useVideoUpload } from '@/hooks/useVideoUpload'
-import { useVideoGroups } from '@/hooks/useVideoGroups'
+import { useVideoCourses } from '@/hooks/useVideoCourses'
 
 // Mock useTags
 vi.mock('@/hooks/useTags', () => ({
@@ -22,9 +22,9 @@ vi.mock('@/hooks/useVideoUpload', () => ({
   useVideoUpload: vi.fn(),
 }))
 
-// Mock useVideoGroups (avoid real API calls)
-vi.mock('@/hooks/useVideoGroups', () => ({
-  useVideoGroups: vi.fn(),
+// Mock useVideoCourses (avoid real API calls)
+vi.mock('@/hooks/useVideoCourses', () => ({
+  useVideoCourses: vi.fn(),
 }))
 
 // Mock VideoUploadFormFields
@@ -82,7 +82,7 @@ describe('VideoUpload', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-      ; (useVideoGroups as any).mockReturnValue({ groups: [], isLoading: false, error: null, refetch: vi.fn() })
+      ; (useVideoCourses as any).mockReturnValue({ courses: [], isLoading: false, error: null, refetch: vi.fn() })
       ; (useVideoUpload as any).mockReturnValue(mockUseVideoUpload)
   })
 

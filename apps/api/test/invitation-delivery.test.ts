@@ -6,7 +6,7 @@ const repo = vi.hoisted(() => ({
 }));
 const mail = vi.hoisted(() => ({ sendMail: vi.fn() }));
 
-vi.mock("../src/repositories/group-invitation-repository", () => repo);
+vi.mock("../src/repositories/course-invitation-repository", () => repo);
 vi.mock("../src/lib/mail", () => mail);
 
 import { deliverInvitationEmail } from "../src/lib/invitation-delivery";
@@ -27,7 +27,7 @@ describe("deliverInvitationEmail", () => {
   it("送信直前にトークンを発行し、そのトークンだけをメールに載せる", async () => {
     repo.rotateInvitationTokenForDelivery.mockResolvedValue({
       email: "a@example.com",
-      groupName: "Physics",
+      courseName: "Physics",
       inviterName: "Teacher",
     });
 
@@ -38,9 +38,9 @@ describe("deliverInvitationEmail", () => {
     expect(storedHash).toMatch(/^[0-9a-f]{64}$/);
 
     const lines = (mail.sendMail.mock.calls[0][3] as string[]).join("\n");
-    expect(lines).toContain("https://videoq.example/group-invitations/");
+    expect(lines).toContain("https://videoq.example/course-invitations/");
     // メール本文に載るのは平文トークン。保存されるのはその hash だけ。
-    const token = lines.match(/group-invitations\/([^\s]+)/)?.[1];
+    const token = lines.match(/course-invitations\/([^\s]+)/)?.[1];
     expect(token).toBeTruthy();
     expect(lines).not.toContain(storedHash);
 
@@ -54,7 +54,7 @@ describe("deliverInvitationEmail", () => {
   it("送信失敗はfailedとして記録したうえで再スローする", async () => {
     repo.rotateInvitationTokenForDelivery.mockResolvedValue({
       email: "a@example.com",
-      groupName: "Physics",
+      courseName: "Physics",
       inviterName: "Teacher",
     });
     mail.sendMail.mockRejectedValue(new Error("provider unavailable"));
@@ -93,7 +93,7 @@ describe("配送タスクの完了", () => {
   it("成功時は配信結果とタスク完了を同じ書き込みにまとめる", async () => {
     repo.rotateInvitationTokenForDelivery.mockResolvedValue({
       email: "a@example.com",
-      groupName: "Physics",
+      courseName: "Physics",
       inviterName: "Teacher",
     });
 
@@ -109,7 +109,7 @@ describe("配送タスクの完了", () => {
   it("送信失敗時はタスクを完了させない（再試行させる）", async () => {
     repo.rotateInvitationTokenForDelivery.mockResolvedValue({
       email: "a@example.com",
-      groupName: "Physics",
+      courseName: "Physics",
       inviterName: "Teacher",
     });
     mail.sendMail.mockRejectedValue(new Error("provider unavailable"));

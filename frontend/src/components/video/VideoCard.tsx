@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { VideoInGroup, VideoList as VideoListType } from '@/lib/api';
+import type { VideoInCourse, VideoList as VideoListType } from '@/lib/api';
 import { apiClient } from '@/lib/api';
 import { formatDate, getStatusChipColor, getStatusLabel } from '@/lib/utils/video';
 import { Link } from '@/lib/i18n';
@@ -12,7 +12,7 @@ import { ChipLabel } from '@/components/ui/chip-label';
 import { cn } from '@/lib/digital-agency/cn';
 
 interface VideoCardProps {
-  video: VideoListType | VideoInGroup;
+  video: VideoListType | VideoInCourse;
   showLink?: boolean;
   className?: string;
   onClick?: () => void;
@@ -108,7 +108,7 @@ function VideoThumbnail({
   video,
   videoRef,
 }: {
-  video: VideoListType | VideoInGroup;
+  video: VideoListType | VideoInCourse;
   videoRef: React.RefObject<HTMLVideoElement | null>;
 }) {
   const { ref: thumbRef, isInView } = useInView('200px');

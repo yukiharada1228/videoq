@@ -4,20 +4,20 @@ import {
 } from "../../repositories/evaluation-repository";
 import type { Bindings } from "../../types/bindings";
 
-export async function summaryForGroup(
+export async function summaryForCourse(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   userId: string,
 ) {
-  return getEvaluationSummary(env, groupId, userId);
+  return getEvaluationSummary(env, courseId, userId);
 }
 
-export async function logsForGroup(
+export async function logsForCourse(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   userId: string,
   limit: number,
   offset: number,
 ) {
-  return listEvaluationLogs(env, groupId, userId, limit, offset);
+  return listEvaluationLogs(env, courseId, userId, limit, offset);
 }

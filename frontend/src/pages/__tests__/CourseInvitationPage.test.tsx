@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { apiClient } from '@/lib/api';
 import { useI18nNavigate } from '@/lib/i18n';
-import GroupInvitationPage from '../GroupInvitationPage';
+import CourseInvitationPage from '../CourseInvitationPage';
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
@@ -10,108 +10,108 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('@/lib/api', () => ({
   apiClient: {
-    getGroupInvitation: vi.fn(),
-    acceptGroupInvitation: vi.fn(),
-    declineGroupInvitation: vi.fn(),
+    getCourseInvitation: vi.fn(),
+    acceptCourseInvitation: vi.fn(),
+    declineCourseInvitation: vi.fn(),
   },
 }));
 
 const preview = {
-  group_id: 12,
-  group_name: 'Physics 101',
+  course_id: 12,
+  course_name: 'Physics 101',
   inviter_name: 'Teacher',
   email_hint: 's*****t@example.com',
   status: 'pending' as const,
   expires_at: '2026-08-29T00:00:00.000Z',
 };
 
-describe('GroupInvitationPage', () => {
+describe('CourseInvitationPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (apiClient.getGroupInvitation as ReturnType<typeof vi.fn>).mockResolvedValue(preview);
+    (apiClient.getCourseInvitation as ReturnType<typeof vi.fn>).mockResolvedValue(preview);
   });
 
   it('shows a public masked preview and asks anonymous recipients to sign in', async () => {
     globalThis.__setMockAuthSession(null);
 
-    render(<GroupInvitationPage />);
+    render(<CourseInvitationPage />);
 
     expect(await screen.findByText('Physics 101')).toBeInTheDocument();
     expect(screen.getByText('s*****t@example.com')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'groupInvitation.accept' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'groupInvitation.login' })).toHaveAttribute(
+    expect(screen.queryByRole('button', { name: 'courseInvitation.accept' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'courseInvitation.login' })).toHaveAttribute(
       'href',
-      '/login?next=%2Fgroup-invitations%2Finvite-token',
+      '/login?next=%2Fcourse-invitations%2Finvite-token',
     );
-    expect(screen.getByRole('link', { name: 'groupInvitation.signup' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'courseInvitation.signup' })).toHaveAttribute(
       'href',
-      '/signup?next=%2Fgroup-invitations%2Finvite-token',
+      '/signup?next=%2Fcourse-invitations%2Finvite-token',
     );
   });
 
-  it('accepts while signed in and opens the joined group', async () => {
-    (apiClient.acceptGroupInvitation as ReturnType<typeof vi.fn>).mockResolvedValue({
-      group_id: 12,
+  it('accepts while signed in and opens the joined course', async () => {
+    (apiClient.acceptCourseInvitation as ReturnType<typeof vi.fn>).mockResolvedValue({
+      course_id: 12,
       status: 'accepted',
     });
     const navigate = useI18nNavigate() as ReturnType<typeof vi.fn>;
 
-    render(<GroupInvitationPage />);
-    fireEvent.click(await screen.findByRole('button', { name: 'groupInvitation.accept' }));
+    render(<CourseInvitationPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'courseInvitation.accept' }));
 
     await waitFor(() => {
-      expect(apiClient.acceptGroupInvitation).toHaveBeenCalledWith('invite-token');
-      expect(navigate).toHaveBeenCalledWith('/videos/groups/12');
+      expect(apiClient.acceptCourseInvitation).toHaveBeenCalledWith('invite-token');
+      expect(navigate).toHaveBeenCalledWith('/videos/courses/12');
     });
   });
 
   it('allows a signed-in recipient to decline', async () => {
-    (apiClient.declineGroupInvitation as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (apiClient.declineCourseInvitation as ReturnType<typeof vi.fn>).mockResolvedValue({
       status: 'declined',
     });
 
-    render(<GroupInvitationPage />);
-    fireEvent.click(await screen.findByRole('button', { name: 'groupInvitation.decline' }));
+    render(<CourseInvitationPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'courseInvitation.decline' }));
 
-    expect(await screen.findByText('groupInvitation.declined')).toBeInTheDocument();
+    expect(await screen.findByText('courseInvitation.declined')).toBeInTheDocument();
   });
 
-  it('offers the group detail link for an already accepted invitation', async () => {
-    (apiClient.getGroupInvitation as ReturnType<typeof vi.fn>).mockResolvedValue({
+  it('offers the course detail link for an already accepted invitation', async () => {
+    (apiClient.getCourseInvitation as ReturnType<typeof vi.fn>).mockResolvedValue({
       ...preview,
       status: 'accepted',
     });
 
-    render(<GroupInvitationPage />);
+    render(<CourseInvitationPage />);
 
-    expect(await screen.findByRole('link', { name: 'groupInvitation.openGroup' })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: 'courseInvitation.openCourse' })).toHaveAttribute(
       'href',
-      '/videos/groups/12',
+      '/videos/courses/12',
     );
-    expect(screen.queryByRole('button', { name: 'groupInvitation.accept' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'courseInvitation.accept' })).not.toBeInTheDocument();
   });
 
   it.each(['accepted', 'declined', 'expired', 'revoked'] as const)(
     'resolves the status chip and terminal message for %s',
     async (status) => {
-      (apiClient.getGroupInvitation as ReturnType<typeof vi.fn>).mockResolvedValue({
+      (apiClient.getCourseInvitation as ReturnType<typeof vi.fn>).mockResolvedValue({
         ...preview,
         status,
       });
 
-      render(<GroupInvitationPage />);
+      render(<CourseInvitationPage />);
 
       // `.undefined` に落ちていないこと（i18n キーが具体値で解決されること）。
-      expect(await screen.findByText(`groupInvitation.status.${status}`)).toBeInTheDocument();
-      expect(screen.getByText(`groupInvitation.terminal.${status}`)).toBeInTheDocument();
-      expect(screen.queryByText(/groupInvitation\.(status|terminal)\.undefined/)).toBeNull();
+      expect(await screen.findByText(`courseInvitation.status.${status}`)).toBeInTheDocument();
+      expect(screen.getByText(`courseInvitation.terminal.${status}`)).toBeInTheDocument();
+      expect(screen.queryByText(/courseInvitation\.(status|terminal)\.undefined/)).toBeNull();
     },
   );
 
   it('shows the pending status chip while the invitation is open', async () => {
-    render(<GroupInvitationPage />);
+    render(<CourseInvitationPage />);
 
-    expect(await screen.findByText('groupInvitation.status.pending')).toBeInTheDocument();
-    expect(screen.queryByText(/groupInvitation\.status\.undefined/)).toBeNull();
+    expect(await screen.findByText('courseInvitation.status.pending')).toBeInTheDocument();
+    expect(screen.queryByText(/courseInvitation\.status\.undefined/)).toBeNull();
   });
 });

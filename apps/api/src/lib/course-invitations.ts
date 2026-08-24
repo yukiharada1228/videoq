@@ -1,8 +1,8 @@
 import { sha256Hex } from "../shared/crypto";
 
-export const GROUP_INVITATION_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
-export const GROUP_INVITATION_HARD_BATCH_LIMIT = 100;
-export const DEFAULT_GROUP_INVITATION_BATCH_LIMIT = 50;
+export const COURSE_INVITATION_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
+export const COURSE_INVITATION_HARD_BATCH_LIMIT = 100;
+export const DEFAULT_COURSE_INVITATION_BATCH_LIMIT = 50;
 
 export type InvitationStatus =
   | "pending"
@@ -67,7 +67,7 @@ export function planInvitationEmails(rawEmails: readonly string[]): {
 }
 
 export function invitationExpiresAt(issuedAt: Date): Date {
-  return new Date(issuedAt.getTime() + GROUP_INVITATION_LIFETIME_MS);
+  return new Date(issuedAt.getTime() + COURSE_INVITATION_LIFETIME_MS);
 }
 
 export function isInvitationExpired(expiresAt: Date, now = new Date()): boolean {
@@ -107,10 +107,10 @@ export function hashInvitationToken(token: string): Promise<string> {
 }
 
 export function resolveInvitationBatchLimit(raw: string | undefined): number {
-  if (!raw) return DEFAULT_GROUP_INVITATION_BATCH_LIMIT;
+  if (!raw) return DEFAULT_COURSE_INVITATION_BATCH_LIMIT;
   const value = Number.parseInt(raw, 10);
   if (!Number.isFinite(value) || value <= 0) {
-    return DEFAULT_GROUP_INVITATION_BATCH_LIMIT;
+    return DEFAULT_COURSE_INVITATION_BATCH_LIMIT;
   }
-  return Math.min(value, GROUP_INVITATION_HARD_BATCH_LIMIT);
+  return Math.min(value, COURSE_INVITATION_HARD_BATCH_LIMIT);
 }

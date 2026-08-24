@@ -9,7 +9,7 @@ const schema = {
       get: { summary: 'List videos', tags: ['Videos'] },
       post: { summary: 'Upload a video', tags: ['Videos'] },
     },
-    '/api/videos/groups': { get: { summary: 'List groups', tags: ['Groups'] } },
+    '/api/videos/courses': { get: { summary: 'List courses', tags: ['Courses'] } },
     '/api/chat/messages': { post: { summary: 'Send chat message', tags: ['Chat'] } },
     '/api/v1/chat/completions': {
       post: { summary: 'OpenAI-compatible chat completions', tags: ['Chat'] },

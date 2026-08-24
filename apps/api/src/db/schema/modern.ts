@@ -215,7 +215,7 @@ export const jobExecutions = pgTable(
 );
 
 // ---------------------------------------------------------------------------
-// Videos, groups, tags
+// Videos, courses, tags
 // ---------------------------------------------------------------------------
 
 export const videos = pgTable(
@@ -261,11 +261,11 @@ export const videos = pgTable(
 	],
 );
 
-export const videoGroups = pgTable(
-	"video_groups",
+export const videoCourses = pgTable(
+	"video_courses",
 	{
 		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-			name: "video_groups_id_seq",
+			name: "video_courses_id_seq",
 			startWith: 1,
 			increment: 1,
 			minValue: 1,
@@ -281,26 +281,26 @@ export const videoGroups = pgTable(
 		displayOrder: integer("display_order").notNull(),
 	},
 	(table) => [
-		index("video_groups_user_id_idx").using("btree", table.userId.asc().nullsLast()),
-		index("video_groups_share_slug_idx")
+		index("video_courses_user_id_idx").using("btree", table.userId.asc().nullsLast()),
+		index("video_courses_share_slug_idx")
 			.using("btree", table.shareSlug.asc().nullsLast())
 			.where(sql`(share_slug IS NOT NULL)`),
-		uniqueIndex("video_groups_share_slug_ci_uniq")
+		uniqueIndex("video_courses_share_slug_ci_uniq")
 			.using("btree", sql`lower((share_slug)::text)`)
 			.where(sql`(share_slug IS NOT NULL)`),
 		foreignKey({
 			columns: [table.userId],
 			foreignColumns: [users.id],
-			name: "video_groups_user_id_fkey",
+			name: "video_courses_user_id_fkey",
 		}).onDelete("cascade"),
 	],
 );
 
-export const videoGroupMembers = pgTable(
-	"video_group_members",
+export const videoCourseMembers = pgTable(
+	"video_course_members",
 	{
 		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-			name: "video_group_members_id_seq",
+			name: "video_course_members_id_seq",
 			startWith: 1,
 			increment: 1,
 			minValue: 1,
@@ -309,44 +309,44 @@ export const videoGroupMembers = pgTable(
 		}),
 		addedAt: timestamp("added_at", { withTimezone: true, mode: "string" }).notNull(),
 		order: integer().notNull(),
-		groupId: bigint("group_id", { mode: "number" }).notNull(),
+		courseId: bigint("course_id", { mode: "number" }).notNull(),
 		videoId: bigint("video_id", { mode: "number" }).notNull(),
 	},
 	(table) => [
-		index("video_group_members_group_id_idx").using("btree", table.groupId.asc().nullsLast()),
-		index("video_group_members_video_id_idx").using("btree", table.videoId.asc().nullsLast()),
-		index("video_group_members_group_order_idx").using(
+		index("video_course_members_course_id_idx").using("btree", table.courseId.asc().nullsLast()),
+		index("video_course_members_video_id_idx").using("btree", table.videoId.asc().nullsLast()),
+		index("video_course_members_course_order_idx").using(
 			"btree",
-			table.groupId.asc().nullsLast(),
+			table.courseId.asc().nullsLast(),
 			table.order.asc().nullsLast(),
 		),
 		foreignKey({
-			columns: [table.groupId],
-			foreignColumns: [videoGroups.id],
-			name: "video_group_members_group_id_fkey",
+			columns: [table.courseId],
+			foreignColumns: [videoCourses.id],
+			name: "video_course_members_course_id_fkey",
 		}).onDelete("cascade"),
 		foreignKey({
 			columns: [table.videoId],
 			foreignColumns: [videos.id],
-			name: "video_group_members_video_id_fkey",
+			name: "video_course_members_video_id_fkey",
 		}).onDelete("cascade"),
-		unique("video_group_members_group_video_uniq").on(table.groupId, table.videoId),
+		unique("video_course_members_course_video_uniq").on(table.courseId, table.videoId),
 	],
 );
 
-/** Email-bound invitations for user membership in a video group. */
-export const videoGroupInvitations = pgTable(
-	"video_group_invitations",
+/** Email-bound invitations for user membership in a video course. */
+export const videoCourseInvitations = pgTable(
+	"video_course_invitations",
 	{
 		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-			name: "video_group_invitations_id_seq",
+			name: "video_course_invitations_id_seq",
 			startWith: 1,
 			increment: 1,
 			minValue: 1,
 			maxValue: "9223372036854775807",
 			cache: 1,
 		}),
-		groupId: bigint("group_id", { mode: "number" }).notNull(),
+		courseId: bigint("course_id", { mode: "number" }).notNull(),
 		email: varchar({ length: 254 }).notNull(),
 		invitedByUserId: text("invited_by_user_id").notNull(),
 		status: varchar({ length: 20 }).notNull().default("pending"),
@@ -362,79 +362,79 @@ export const videoGroupInvitations = pgTable(
 		lastError: text("last_error"),
 	},
 	(table) => [
-		index("video_group_invitations_group_status_idx").using(
+		index("video_course_invitations_course_status_idx").using(
 			"btree",
-			table.groupId.asc().nullsLast(),
+			table.courseId.asc().nullsLast(),
 			table.status.asc().nullsLast(),
 		),
-		index("video_group_invitations_email_idx").using("btree", table.email.asc().nullsLast()),
-		unique("video_group_invitations_token_hash_key").on(table.tokenHash),
-		uniqueIndex("video_group_invitations_pending_email_uniq")
-			.on(table.groupId, table.email)
+		index("video_course_invitations_email_idx").using("btree", table.email.asc().nullsLast()),
+		unique("video_course_invitations_token_hash_key").on(table.tokenHash),
+		uniqueIndex("video_course_invitations_pending_email_uniq")
+			.on(table.courseId, table.email)
 			.where(sql`status = 'pending'`),
 		foreignKey({
-			columns: [table.groupId],
-			foreignColumns: [videoGroups.id],
-			name: "video_group_invitations_group_id_fkey",
+			columns: [table.courseId],
+			foreignColumns: [videoCourses.id],
+			name: "video_course_invitations_course_id_fkey",
 		}).onDelete("cascade"),
 		foreignKey({
 			columns: [table.invitedByUserId],
 			foreignColumns: [users.id],
-			name: "video_group_invitations_invited_by_user_id_fkey",
+			name: "video_course_invitations_invited_by_user_id_fkey",
 		}).onDelete("cascade"),
 		foreignKey({
 			columns: [table.acceptedByUserId],
 			foreignColumns: [users.id],
-			name: "video_group_invitations_accepted_by_user_id_fkey",
+			name: "video_course_invitations_accepted_by_user_id_fkey",
 		}).onDelete("set null"),
 		check(
-			"video_group_invitations_status_check",
+			"video_course_invitations_status_check",
 			sql`status IN ('pending', 'accepted', 'declined', 'expired', 'revoked')`,
 		),
 		check(
-			"video_group_invitations_delivery_status_check",
+			"video_course_invitations_delivery_status_check",
 			sql`delivery_status IN ('queued', 'sent', 'failed')`,
 		),
-		check("video_group_invitations_send_attempts_check", sql`send_attempts >= 0`),
+		check("video_course_invitations_send_attempts_check", sql`send_attempts >= 0`),
 	],
 );
 
-/** Accepted user memberships. Owners are represented by video_groups.user_id, not here. */
-export const videoGroupMemberships = pgTable(
-	"video_group_memberships",
+/** Accepted user memberships. Owners are represented by video_courses.user_id, not here. */
+export const videoCourseMemberships = pgTable(
+	"video_course_memberships",
 	{
 		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-			name: "video_group_memberships_id_seq",
+			name: "video_course_memberships_id_seq",
 			startWith: 1,
 			increment: 1,
 			minValue: 1,
 			maxValue: "9223372036854775807",
 			cache: 1,
 		}),
-		groupId: bigint("group_id", { mode: "number" }).notNull(),
+		courseId: bigint("course_id", { mode: "number" }).notNull(),
 		userId: text("user_id").notNull(),
 		invitationId: bigint("invitation_id", { mode: "number" }),
 		joinedAt: timestamp("joined_at", { withTimezone: true, mode: "string" }).notNull(),
 	},
 	(table) => [
-		index("video_group_memberships_group_id_idx").using("btree", table.groupId.asc().nullsLast()),
-		index("video_group_memberships_user_id_idx").using("btree", table.userId.asc().nullsLast()),
-		unique("video_group_memberships_group_user_uniq").on(table.groupId, table.userId),
-		unique("video_group_memberships_invitation_id_key").on(table.invitationId),
+		index("video_course_memberships_course_id_idx").using("btree", table.courseId.asc().nullsLast()),
+		index("video_course_memberships_user_id_idx").using("btree", table.userId.asc().nullsLast()),
+		unique("video_course_memberships_course_user_uniq").on(table.courseId, table.userId),
+		unique("video_course_memberships_invitation_id_key").on(table.invitationId),
 		foreignKey({
-			columns: [table.groupId],
-			foreignColumns: [videoGroups.id],
-			name: "video_group_memberships_group_id_fkey",
+			columns: [table.courseId],
+			foreignColumns: [videoCourses.id],
+			name: "video_course_memberships_course_id_fkey",
 		}).onDelete("cascade"),
 		foreignKey({
 			columns: [table.userId],
 			foreignColumns: [users.id],
-			name: "video_group_memberships_user_id_fkey",
+			name: "video_course_memberships_user_id_fkey",
 		}).onDelete("cascade"),
 		foreignKey({
 			columns: [table.invitationId],
-			foreignColumns: [videoGroupInvitations.id],
-			name: "video_group_memberships_invitation_id_fkey",
+			foreignColumns: [videoCourseInvitations.id],
+			name: "video_course_memberships_invitation_id_fkey",
 		}).onDelete("set null"),
 	],
 );
@@ -520,15 +520,15 @@ export const chatLogs = pgTable(
 		feedback: varchar({ length: 4 }),
 		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
 		userId: text("user_id").notNull(),
-		groupId: bigint("group_id", { mode: "number" }).notNull(),
+		courseId: bigint("course_id", { mode: "number" }).notNull(),
 		retrievedContexts: jsonb("retrieved_contexts").notNull(),
 	},
 	(table) => [
 		index("chat_logs_user_id_idx").using("btree", table.userId.asc().nullsLast()),
-		index("chat_logs_group_id_idx").using("btree", table.groupId.asc().nullsLast()),
-		index("chat_logs_group_created_idx").using(
+		index("chat_logs_course_id_idx").using("btree", table.courseId.asc().nullsLast()),
+		index("chat_logs_course_created_idx").using(
 			"btree",
-			table.groupId.asc().nullsLast(),
+			table.courseId.asc().nullsLast(),
 			table.createdAt.desc().nullsFirst(),
 		),
 		foreignKey({
@@ -537,9 +537,9 @@ export const chatLogs = pgTable(
 			name: "chat_logs_user_id_fkey",
 		}).onDelete("cascade"),
 		foreignKey({
-			columns: [table.groupId],
-			foreignColumns: [videoGroups.id],
-			name: "chat_logs_group_id_fkey",
+			columns: [table.courseId],
+			foreignColumns: [videoCourses.id],
+			name: "chat_logs_course_id_fkey",
 		}).onDelete("cascade"),
 	],
 );
@@ -575,11 +575,11 @@ export const chatLogEvaluations = pgTable(
 	],
 );
 
-export const groupEvaluationSnapshots = pgTable(
-	"group_evaluation_snapshots",
+export const courseEvaluationSnapshots = pgTable(
+	"course_evaluation_snapshots",
 	{
 		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-			name: "group_evaluation_snapshots_id_seq",
+			name: "course_evaluation_snapshots_id_seq",
 			startWith: 1,
 			increment: 1,
 			minValue: 1,
@@ -592,23 +592,23 @@ export const groupEvaluationSnapshots = pgTable(
 		samples: jsonb().notNull(),
 		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
 		updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
-		groupId: bigint("group_id", { mode: "number" }).notNull(),
+		courseId: bigint("course_id", { mode: "number" }).notNull(),
 		userId: text("user_id").notNull(),
 		contextPrecisionMean: doublePrecision("context_precision_mean"),
 	},
 	(table) => [
-		index("group_evaluation_snapshots_user_id_idx").using("btree", table.userId.asc().nullsLast()),
+		index("course_evaluation_snapshots_user_id_idx").using("btree", table.userId.asc().nullsLast()),
 		foreignKey({
-			columns: [table.groupId],
-			foreignColumns: [videoGroups.id],
-			name: "group_evaluation_snapshots_group_id_fkey",
+			columns: [table.courseId],
+			foreignColumns: [videoCourses.id],
+			name: "course_evaluation_snapshots_course_id_fkey",
 		}).onDelete("cascade"),
 		foreignKey({
 			columns: [table.userId],
 			foreignColumns: [users.id],
-			name: "group_evaluation_snapshots_user_id_fkey",
+			name: "course_evaluation_snapshots_user_id_fkey",
 		}).onDelete("cascade"),
-		unique("group_evaluation_snapshots_group_id_key").on(table.groupId),
+		unique("course_evaluation_snapshots_course_id_key").on(table.courseId),
 	],
 );
 

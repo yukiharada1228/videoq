@@ -47,9 +47,9 @@ const defaultRows = (sql: string): Record<string, unknown>[] => {
     return [{ usage_period_start: "2026-08-01 00:00:00+00" }];
   if (sql.includes("is_over_quota, ai_answers_limit"))
     return [{ is_over_quota: false, ai_answers_limit: null, used_ai_answers: 0 }];
-  if (sql.includes("FROM video_groups WHERE"))
+  if (sql.includes("FROM video_courses WHERE"))
     return [{ id: 3, user_id: "00000000-0000-4000-8000-000000000005", description: null }];
-  if (sql.includes("FROM video_group_members")) return [{ video_id: 60 }];
+  if (sql.includes("FROM video_course_members")) return [{ video_id: 60 }];
   if (sql.includes("FROM scene_embeddings"))
     return [
       {
@@ -143,7 +143,7 @@ describe("POST /completions", () => {
   it("OpenAI 形式のレスポンス（citations/chat_log_id は message の拡張）", async () => {
     stubOpenAi();
     const res = await post(
-      { model: "videoq-pro", messages: [{ role: "user", content: "何が起きた?" }], group_id: 3 },
+      { model: "videoq-pro", messages: [{ role: "user", content: "何が起きた?" }], course_id: 3 },
       { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" },
     );
 
@@ -185,7 +185,7 @@ describe("POST /completions", () => {
     expect(calls.some((c) => c.sql.includes("used_ai_answers"))).toBe(true);
   });
 
-  it("group_id 無しなら citations も chat_log_id も付かない", async () => {
+  it("course_id 無しなら citations も chat_log_id も付かない", async () => {
     stubOpenAi("plain answer");
     const res = await post(
       { messages: [{ role: "user", content: "hi" }] },
@@ -207,7 +207,7 @@ describe("POST /completions", () => {
     };
 
     const res = await post(
-      { messages: [{ role: "user", content: "hi" }], group_id: 3 },
+      { messages: [{ role: "user", content: "hi" }], course_id: 3 },
       { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" },
     );
 
@@ -237,16 +237,16 @@ describe("POST /completions", () => {
     expect(j.error.details.messages).toBeTruthy();
   });
 
-  it("存在しない group は 404 invalid_request_error", async () => {
+  it("存在しない course は 404 invalid_request_error", async () => {
     rowsFor = (sql) =>
-      sql.includes("FROM video_groups WHERE") ? [] : defaultRows(sql);
+      sql.includes("FROM video_courses WHERE") ? [] : defaultRows(sql);
     const res = await post(
-      { messages: [{ role: "user", content: "hi" }], group_id: 999 },
+      { messages: [{ role: "user", content: "hi" }], course_id: 999 },
       { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" },
     );
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({
-      error: { message: "Group not found.", type: "invalid_request_error" },
+      error: { message: "Course not found.", type: "invalid_request_error" },
     });
   });
 
@@ -329,7 +329,7 @@ describe("POST /completions", () => {
       { ...ENV, OPENAI_API_KEY: undefined },
     );
     expect(noKey.status).toBe(400);
-    // group_id無しでは埋め込みを呼ばず、LLM設定エラーを返す。
+    // course_id無しでは埋め込みを呼ばず、LLM設定エラーを返す。
     expect((await noKey.json()) as any).toEqual({
       error: {
         message:
@@ -352,7 +352,7 @@ describe("POST /completions", () => {
         },
         body: JSON.stringify({
           messages: [{ role: "user", content: "hi" }],
-          group_id: 3,
+          course_id: 3,
         }),
       },
       ENV,
@@ -388,13 +388,13 @@ describe("openAiCompletionBodySchema（Zod）", () => {
       max_tokens: 512,
       top_p: 1,
       stream: true,
-      group_id: "7",
+      course_id: "7",
       language: "ja",
     });
     expect(r).toMatchObject({
       model: "gpt-4o-mini",
       messages: [{ role: "system", content: "s" }],
-      group_id: 7,
+      course_id: 7,
       language: "ja",
     });
   });

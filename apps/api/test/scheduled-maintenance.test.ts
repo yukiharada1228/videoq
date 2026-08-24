@@ -11,7 +11,7 @@ const invitations = vi.hoisted(() => ({ failInvitationsWithoutLiveDelivery: vi.f
 vi.mock("../src/lib/external-tasks", () => tasks);
 vi.mock("../src/lib/upload-reconcile", () => uploads);
 vi.mock("../src/repositories/external-task-repository", () => repository);
-vi.mock("../src/repositories/group-invitation-repository", () => invitations);
+vi.mock("../src/repositories/course-invitation-repository", () => invitations);
 
 import {
   INVITATION_QUEUED_STALE_MS,

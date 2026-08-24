@@ -22,8 +22,8 @@
 | テーブル | 用途 |
 |---|---|
 | `videos` | file、title、source、transcript、processing status |
-| `video_groups` | user の動画グループと share slug |
-| `video_group_members` | group と video の関連・表示順 |
+| `video_courses` | user の講座と share slug |
+| `video_course_members` | course と video の関連・表示順 |
 | `tags` | user 単位の tag |
 | `video_tags` | video と tag の関連 |
 
@@ -33,7 +33,7 @@
 |---|---|
 | `chat_logs` | question、answer、citation、feedback |
 | `chat_log_evaluations` | log 単位の評価 |
-| `group_evaluation_snapshots` | group 集計 snapshot |
+| `course_evaluation_snapshots` | course 集計 snapshot |
 
 ## Vector / PLOG
 

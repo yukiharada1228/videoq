@@ -103,11 +103,11 @@ describe("GET /*", () => {
     expect(await res.text()).toBe("mp4data");
   });
 
-  it("streams a group video for an accepted group member", async () => {
+  it("streams a course video for an accepted course member", async () => {
     bucketStore.set("media/videos/member.mp4", new TextEncoder().encode("member-data"));
     rowsFor = (sql) => {
       if (sql.includes("videos") && sql.includes("file")) return [{ id: 12 }];
-      if (sql.includes("video_group_memberships")) return [{ id: 12 }];
+      if (sql.includes("video_course_memberships")) return [{ id: 12 }];
       return [];
     };
 
@@ -121,14 +121,14 @@ describe("GET /*", () => {
     expect(await res.text()).toBe("member-data");
   });
 
-  it("allows share_slug when video is in the shared group", async () => {
+  it("allows share_slug when video is in the shared course", async () => {
     bucketStore.set("media/videos/a.mp4", new TextEncoder().encode("x"));
     rowsFor = (sql) => {
-      if (sql.includes("video_groups") && sql.includes("share_slug")) {
+      if (sql.includes("video_courses") && sql.includes("share_slug")) {
         return [{ id: 3 }];
       }
       if (sql.includes("videos") && sql.includes("file")) return [{ id: 9 }];
-      if (sql.includes("video_group_members")) return [{ id: 1 }];
+      if (sql.includes("video_course_members")) return [{ id: 1 }];
       return [];
     };
     const res = await mediaRoutes.request(

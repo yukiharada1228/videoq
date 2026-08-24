@@ -276,7 +276,7 @@ describe("runStudy smoke", () => {
       }),
     ).rejects.toMatchObject({
       name: "PlogNotReadyError",
-      message: "Study mode requires a video group with members.",
+      message: "Study mode requires a video course with members.",
     });
   });
 
