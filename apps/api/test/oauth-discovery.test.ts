@@ -22,24 +22,27 @@ const ENV = {
 } as unknown as Parameters<ReturnType<typeof createApp>["request"]>[2];
 
 describe("OAuth discovery", () => {
-  it("serves RFC 8414 metadata at the issuer-path well-known URL", async () => {
-    const res = await createApp().request(
+  it("serves RFC 8414 metadata at issuer and ChatGPT probe paths", async () => {
+    for (const path of [
+      "/.well-known/oauth-authorization-server",
       "/.well-known/oauth-authorization-server/api/auth",
-      {},
-      ENV,
-    );
-
-    expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({
-      issuer: "https://api.example.com/api/auth",
-      authorization_endpoint: "https://api.example.com/api/auth/oauth2/authorize",
-    });
+      "/.well-known/oauth-authorization-server/mcp",
+      "/.well-known/oauth-authorization-server/api/mcp",
+    ]) {
+      const res = await createApp().request(path, {}, ENV);
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({
+        issuer: "https://api.example.com/api/auth",
+        authorization_endpoint: "https://api.example.com/api/auth/oauth2/authorize",
+      });
+    }
   });
 
   it("serves RFC 9728 metadata at both resource well-known URLs", async () => {
     const expected = {
       resource: "https://api.example.com/api/mcp",
-      authorization_servers: ["https://api.example.com"],
+      authorization_servers: ["https://api.example.com/api/auth"],
+      scopes_supported: ["openid", "profile", "email", "offline_access"],
     };
     for (const path of [
       "/.well-known/oauth-protected-resource",
