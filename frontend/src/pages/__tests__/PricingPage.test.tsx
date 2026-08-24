@@ -40,4 +40,17 @@ describe('PricingPage', () => {
     expect(await screen.findByText('pricing.plans.free.name')).toBeInTheDocument()
     expect(screen.getByText('pricing.plans.basic.name')).toBeInTheDocument()
   })
+
+  it('keeps the page chrome visible while plans are loading', () => {
+    ;(apiClient.getBillingPlans as ReturnType<typeof vi.fn>).mockImplementation(
+      () => new Promise(() => {}),
+    )
+
+    render(<PricingPage />)
+
+    expect(screen.getByText('pricing.title')).toBeInTheDocument()
+    expect(screen.getByText('pricing.monthly')).toBeInTheDocument()
+    expect(screen.getByLabelText('Loading')).toBeInTheDocument()
+    expect(screen.queryByText('pricing.plans.free.name')).not.toBeInTheDocument()
+  })
 })

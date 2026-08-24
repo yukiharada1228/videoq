@@ -68,14 +68,6 @@ export default function PricingPage() {
     },
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <LoadingSpinner />
-      </div>
-    );
-  }
-
   return (
     <AppPageShell activePage="pricing">
       <AppPageHeader
@@ -118,91 +110,97 @@ export default function PricingPage() {
         </Button>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {cards.map((plan) => {
-          const isCurrent = plan.code === currentPlan;
-          return (
-            <section
-              key={`${plan.code}-${plan.interval ?? 'free'}`}
-              className={cn(
-                'flex flex-col border border-solid-gray-420 p-6',
-                isCurrent && 'border-2 border-blue-900',
-              )}
-            >
-              <Heading size="18" className="mb-2">
-                <HeadingTitle level="h2">{t(`pricing.plans.${plan.code}.name`)}</HeadingTitle>
-              </Heading>
-              <p className="mb-4 text-std-16N-170 text-solid-gray-700">
-                {t(`pricing.plans.${plan.code}.blurb`)}
-              </p>
-              <p className="mb-6 text-std-20B-150 text-solid-gray-800">
-                {plan.code === 'free'
-                  ? t('pricing.freePrice')
-                  : `${formatYen(plan.amount_yen, locale)}${interval === 'year' ? t('pricing.perYear') : t('pricing.perMonth')}`}
-              </p>
-              <ul className="mb-6 flex-1 space-y-2 text-std-16N-170 text-solid-gray-700">
-                <li>
-                  {t('pricing.limits.storage', { gb: plan.entitlements.storage_limit_gb })}
-                </li>
-                <li>
-                  {t('pricing.limits.processing', {
-                    minutes: plan.entitlements.processing_limit_minutes,
-                  })}
-                </li>
-                <li>
-                  {t('pricing.limits.answers', {
-                    count: plan.entitlements.ai_answers_limit,
-                  })}
-                </li>
-                <li>
-                  {t('pricing.limits.upload', {
-                    mb: plan.entitlements.max_video_upload_size_mb,
-                  })}
-                </li>
-              </ul>
-              {plan.code === 'free' ? (
-                isCurrent ? (
-                  <p className="text-std-16N-170 text-solid-gray-600">{t('pricing.currentPlan')}</p>
-                ) : (
-                  <Button asChild variant="outline">
-                    <Link href="/signup">{t('pricing.startFree')}</Link>
+      {isLoading ? (
+        <div className="flex justify-center py-24">
+          <LoadingSpinner />
+        </div>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-3">
+          {cards.map((plan) => {
+            const isCurrent = plan.code === currentPlan;
+            return (
+              <section
+                key={`${plan.code}-${plan.interval ?? 'free'}`}
+                className={cn(
+                  'flex flex-col border border-solid-gray-420 p-6',
+                  isCurrent && 'border-2 border-blue-900',
+                )}
+              >
+                <Heading size="18" className="mb-2">
+                  <HeadingTitle level="h2">{t(`pricing.plans.${plan.code}.name`)}</HeadingTitle>
+                </Heading>
+                <p className="mb-4 text-std-16N-170 text-solid-gray-700">
+                  {t(`pricing.plans.${plan.code}.blurb`)}
+                </p>
+                <p className="mb-6 text-std-20B-150 text-solid-gray-800">
+                  {plan.code === 'free'
+                    ? t('pricing.freePrice')
+                    : `${formatYen(plan.amount_yen, locale)}${interval === 'year' ? t('pricing.perYear') : t('pricing.perMonth')}`}
+                </p>
+                <ul className="mb-6 flex-1 space-y-2 text-std-16N-170 text-solid-gray-700">
+                  <li>
+                    {t('pricing.limits.storage', { gb: plan.entitlements.storage_limit_gb })}
+                  </li>
+                  <li>
+                    {t('pricing.limits.processing', {
+                      minutes: plan.entitlements.processing_limit_minutes,
+                    })}
+                  </li>
+                  <li>
+                    {t('pricing.limits.answers', {
+                      count: plan.entitlements.ai_answers_limit,
+                    })}
+                  </li>
+                  <li>
+                    {t('pricing.limits.upload', {
+                      mb: plan.entitlements.max_video_upload_size_mb,
+                    })}
+                  </li>
+                </ul>
+                {plan.code === 'free' ? (
+                  isCurrent ? (
+                    <p className="text-std-16N-170 text-solid-gray-600">{t('pricing.currentPlan')}</p>
+                  ) : (
+                    <Button asChild variant="outline">
+                      <Link href="/signup">{t('pricing.startFree')}</Link>
+                    </Button>
+                  )
+                ) : !hasSession ? (
+                  <Button asChild>
+                    <Link href="/signup">{t('pricing.signUpToSubscribe')}</Link>
                   </Button>
-                )
-              ) : !hasSession ? (
-                <Button asChild>
-                  <Link href="/signup">{t('pricing.signUpToSubscribe')}</Link>
-                </Button>
-              ) : isCurrent ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={portal.isPending}
-                  onClick={() => portal.mutate()}
-                >
-                  {t('pricing.manage')}
-                </Button>
-              ) : currentPlan !== 'free' ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={portal.isPending}
-                  onClick={() => portal.mutate()}
-                >
-                  {t('pricing.changePlan')}
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  disabled={!plan.lookup_key || checkout.isPending}
-                  onClick={() => plan.lookup_key && checkout.mutate(plan.lookup_key)}
-                >
-                  {t('pricing.subscribe')}
-                </Button>
-              )}
-            </section>
-          );
-        })}
-      </div>
+                ) : isCurrent ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={portal.isPending}
+                    onClick={() => portal.mutate()}
+                  >
+                    {t('pricing.manage')}
+                  </Button>
+                ) : currentPlan !== 'free' ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={portal.isPending}
+                    onClick={() => portal.mutate()}
+                  >
+                    {t('pricing.changePlan')}
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    disabled={!plan.lookup_key || checkout.isPending}
+                    onClick={() => plan.lookup_key && checkout.mutate(plan.lookup_key)}
+                  >
+                    {t('pricing.subscribe')}
+                  </Button>
+                )}
+              </section>
+            );
+          })}
+        </div>
+      )}
 
       <p className="mt-10 max-w-3xl text-std-16N-170 text-solid-gray-600">
         {t('pricing.legalNotice')}{' '}
