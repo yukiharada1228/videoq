@@ -4,6 +4,7 @@ import { Check, ChevronDown, ChevronUp } from "lucide-react"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/digital-agency/cn"
+import { DialogPortalContext } from "./dialog"
 
 export type SelectBlockSize = "lg" | "md" | "sm"
 
@@ -99,34 +100,38 @@ SelectScrollDownButton.displayName =
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, position = "popper", ...props }, ref) => (
-  <SelectPrimitive.Portal>
-    <SelectPrimitive.Content
-      ref={ref}
-      data-slot="select-content"
-      className={cn(
-        "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-8 border border-solid-gray-600 bg-white text-solid-gray-800 shadow-md",
-        position === "popper" &&
-          "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
-        className
-      )}
-      position={position}
-      {...props}
-    >
-      <SelectScrollUpButton />
-      <SelectPrimitive.Viewport
+>(({ className, children, position = "popper", ...props }, ref) => {
+  const dialogContainer = React.useContext(DialogPortalContext)
+
+  return (
+    <SelectPrimitive.Portal container={dialogContainer ?? undefined}>
+      <SelectPrimitive.Content
+        ref={ref}
+        data-slot="select-content"
         className={cn(
-          "p-1",
+          "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-8 border border-solid-gray-600 bg-white text-solid-gray-800 shadow-md",
           position === "popper" &&
-            "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"
+            "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+          className
         )}
+        position={position}
+        {...props}
       >
-        {children}
-      </SelectPrimitive.Viewport>
-      <SelectScrollDownButton />
-    </SelectPrimitive.Content>
-  </SelectPrimitive.Portal>
-))
+        <SelectScrollUpButton />
+        <SelectPrimitive.Viewport
+          className={cn(
+            "p-1",
+            position === "popper" &&
+              "w-full min-w-[var(--radix-select-trigger-width)]"
+          )}
+        >
+          {children}
+        </SelectPrimitive.Viewport>
+        <SelectScrollDownButton />
+      </SelectPrimitive.Content>
+    </SelectPrimitive.Portal>
+  )
+})
 SelectContent.displayName = SelectPrimitive.Content.displayName
 
 const SelectLabel = React.forwardRef<

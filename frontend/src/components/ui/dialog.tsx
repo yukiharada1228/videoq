@@ -3,6 +3,22 @@ import { cva } from "class-variance-authority"
 
 import { cn } from "@/lib/digital-agency/cn"
 
+/**
+ * Native <dialog showModal()> renders in the top layer. Portaled overlays
+ * (Select, etc.) must mount inside this element or they appear behind it.
+ */
+export const DialogPortalContext = React.createContext<HTMLElement | null>(null)
+
+function assignRef<T>(ref: React.ForwardedRef<T> | undefined, value: T | null) {
+  if (typeof ref === "function") {
+    ref(value)
+    return
+  }
+  if (ref) {
+    ref.current = value
+  }
+}
+
 export const dialogVariants = cva(
   "group/modal-dialog inset-0 w-auto h-auto max-w-none max-h-none border-0 bg-transparent px-4 [container-type:inline-size] [color-scheme:dark] break-words text-std-16N-170 [&:modal]:flex [&:modal]:flex-col [&:modal]:items-center backdrop:bg-opacity-gray-600 forced-colors:backdrop:bg-[#000b] [scrollbar-gutter:stable] data-[scroll=inner]:[scrollbar-gutter:auto]"
 )
@@ -20,19 +36,31 @@ const Dialog = React.forwardRef<HTMLDialogElement, DialogProps>(
       ...style,
       ["--modal-dialog-width" as string]: width ?? "fit-content",
     }
+    const [portalContainer, setPortalContainer] =
+      React.useState<HTMLElement | null>(null)
+
+    const setDialogRef = React.useCallback(
+      (node: HTMLDialogElement | null) => {
+        setPortalContainer(node)
+        assignRef(ref, node)
+      },
+      [ref],
+    )
 
     return (
       <dialog
-        ref={ref}
+        ref={setDialogRef}
         data-slot="dialog"
         data-scroll={scroll}
         style={mergedStyle}
         className={cn(dialogVariants(), className)}
         {...props}
       >
-        <div className="shrink-[9999] w-px h-[calc(120/16*1rem)] min-h-4" />
-        {children}
-        <div className="shrink-[9999] w-px h-[calc(120/16*1rem)] min-h-4" />
+        <DialogPortalContext.Provider value={portalContainer}>
+          <div className="shrink-[9999] w-px h-[calc(120/16*1rem)] min-h-4" />
+          {children}
+          <div className="shrink-[9999] w-px h-[calc(120/16*1rem)] min-h-4" />
+        </DialogPortalContext.Provider>
       </dialog>
     )
   }
