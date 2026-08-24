@@ -130,37 +130,39 @@
     "tryOwn": "Try it with your lecture",
     "login": "Log in",
     "startNote": "Free to start. No credit card required.",
-    "shareMeta": {
-      "linearAlgebra": "A public VideoQ sample. Ask this linear algebra lecture a question and play from the part you need. No account required.",
-      "deepLearning": "A public VideoQ sample. Ask this deep learning lecture a question and play from the part you need. No account required."
-    },
-    "publicSamples": {
-      "title": "Public sample lectures",
-      "linearAlgebra": {
-        "title": "【ヨビノリ】線形代数",
-        "body": "An introductory linear algebra lecture. Ask things like “What is linear algebra?”",
-        "questions": {
-          "0": "What is linear algebra?",
-          "1": "What is linear independence?",
-          "2": "How do you find eigenvalues?"
-        }
-      },
-      "deepLearning": {
-        "title": "Deep Learning の世界",
-        "body": "A deep learning lecture. Ask things like “What is a CNN?”",
-        "questions": {
-          "0": "What is a CNN?",
-          "1": "What is a convolution layer?",
-          "2": "What is an RNN?"
-        }
-      }
-    },
     "demo": {
       "title": "Ask a question, then play from that scene",
-      "intro": "Ask a public lecture without creating an account. Press a timestamp in the answer to play from that scene.",
-      "videosLabel": "Lectures in this group",
-      "openFull": "Open this lecture on its own page",
-      "loadError": "The public sample could not be loaded. Open it on its own page to try it."
+      "intro": "This is a demo lecture made by VideoQ. Ask a question without creating an account, then press a timestamp in the answer to play from that scene.",
+      "greeting": "This is a demo lecture created by VideoQ. Press a question below, or type the same wording.",
+      "fallback": "This demo answers the prepared questions. After you register your own lecture, you can ask about its content freely.",
+      "play": "Play",
+      "pause": "Pause",
+      "timeline": "Playback position",
+      "lectureTitle": "How to review a class recording",
+      "scenes": {
+        "hard": {
+          "title": "Reviewing takes time",
+          "body": "Even if you keep a class recording, you often have to watch from the beginning to find the explanation you need."
+        },
+        "jump": {
+          "title": "Ask, then jump to that scene",
+          "body": "Ask the lecture a question and play from the matching moment. You do not have to hunt on the timeline by hand."
+        },
+        "own": {
+          "title": "The same with your lecture",
+          "body": "Register your own class recording and you can ask questions the same way, then play from the part you need."
+        }
+      },
+      "questions": {
+        "hard": "What makes reviewing a class recording hard?",
+        "jump": "What happens when I ask a question?",
+        "own": "Can I use this with my own lecture?"
+      },
+      "answers": {
+        "hard": "Even if you keep a class recording, finding the explanation you need takes time.",
+        "jump": "Ask the lecture a question and you can play from the matching scene.",
+        "own": "Register your own class recording and you can ask questions the same way."
+      }
     },
     "features": {
       "title": "Search lecture videos and ask questions",

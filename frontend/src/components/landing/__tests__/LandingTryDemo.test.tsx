@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { apiClient } from '@/lib/api'
 import { LandingTryDemo } from '../LandingTryDemo'
 
@@ -7,52 +7,43 @@ describe('LandingTryDemo', () => {
     vi.clearAllMocks()
   })
 
-  it('loads the public linear algebra sample in the demo', async () => {
+  it('shows an owned demo lecture without loading third-party shares', () => {
     render(<LandingTryDemo />)
 
     expect(screen.getByRole('heading', { level: 2, name: 'landing.demo.title' })).toBeInTheDocument()
-
-    await waitFor(() => {
-      expect(apiClient.getSharedGroup).toHaveBeenCalledWith('yobinori-linearalgebra')
-    })
-
-    expect(await screen.findByTitle('Sample lecture 1')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Sample lecture 2' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'landing.demo.openFull' })).toHaveAttribute(
-      'href',
-      '/share/yobinori-linearalgebra',
-    )
+    expect(screen.getByText('landing.demo.lectureTitle')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 3, name: 'landing.demo.scenes.hard.title' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'landing.tryOwn' })).toHaveAttribute('href', '/signup')
+    expect(apiClient.getSharedGroup).not.toHaveBeenCalled()
+    expect(document.querySelector('iframe')).toBeNull()
+    expect(screen.queryByRole('link', { name: /share\// })).not.toBeInTheDocument()
   })
 
-  it('switches to the deep learning sample', async () => {
+  it('jumps to the matching scene when a prepared question is asked', () => {
     render(<LandingTryDemo />)
 
-    await waitFor(() => {
-      expect(apiClient.getSharedGroup).toHaveBeenCalledWith('yobinori-linearalgebra')
-    })
+    fireEvent.click(screen.getByRole('button', { name: 'landing.demo.questions.jump' }))
 
-    fireEvent.click(screen.getByRole('button', { name: 'landing.publicSamples.deepLearning.title' }))
-
-    await waitFor(() => {
-      expect(apiClient.getSharedGroup).toHaveBeenCalledWith('aicia-deeplearning')
-    })
-
-    expect(screen.getByRole('link', { name: 'landing.demo.openFull' })).toHaveAttribute(
-      'href',
-      '/share/aicia-deeplearning',
-    )
+    expect(screen.getByText(/landing\.demo\.answers\.jump/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 3, name: 'landing.demo.scenes.jump.title' })).toBeInTheDocument()
   })
 
-  it('shows a fallback when the public sample cannot be loaded', async () => {
-    ;(apiClient.getSharedGroup as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('offline'))
-
+  it('plays from the cited timestamp when the answer time is pressed', () => {
     render(<LandingTryDemo />)
 
-    expect(await screen.findByText('landing.demo.loadError')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'landing.demo.openFull' })).toHaveAttribute(
-      'href',
-      '/share/yobinori-linearalgebra',
-    )
+    fireEvent.click(screen.getByRole('button', { name: 'landing.demo.questions.own' }))
+    fireEvent.click(screen.getByRole('button', { name: 'landing.demo.lectureTitle 00:00:40' }))
+
+    expect(screen.getByRole('heading', { level: 3, name: 'landing.demo.scenes.own.title' })).toBeInTheDocument()
+  })
+
+  it('does not pretend to answer questions about third-party lectures', () => {
+    render(<LandingTryDemo />)
+
+    fireEvent.change(screen.getByLabelText('chat.placeholder'), { target: { value: 'CNNとは？' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.actions.send' }))
+
+    expect(screen.getByText('landing.demo.fallback')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 3, name: 'landing.demo.scenes.hard.title' })).toBeInTheDocument()
   })
 })

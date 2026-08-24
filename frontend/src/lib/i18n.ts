@@ -10,7 +10,6 @@ import {
   pageMetaKey,
   type SiteLocale,
 } from '@/lib/seo';
-import { LANDING_PUBLIC_SAMPLES } from '@/lib/landingSamples';
 
 const LOCALE_STORAGE_KEY = 'videoq.locale';
 
@@ -176,16 +175,6 @@ function resolvePageCopy(
   }
   if (key === 'auth.signup') {
     return { title: `${t('auth.signup.title')} | VideoQ`, description: t('site.description') };
-  }
-  if (key.startsWith('share:')) {
-    const slug = key.slice('share:'.length);
-    const sample = LANDING_PUBLIC_SAMPLES.find((item) => item.slug === slug);
-    if (sample) {
-      return {
-        title: `${t(`landing.publicSamples.${sample.key}.title`)} | VideoQ`,
-        description: t(`landing.shareMeta.${sample.key}`),
-      };
-    }
   }
   return { title: t('site.title'), description: t('site.description') };
 }

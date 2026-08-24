@@ -29,16 +29,6 @@ const PAGE_COPY: Record<SiteLocale, Record<string, { title: string; description:
     '/legal': { title: '特定商取引法に基づく表記 | VideoQ', description: '特定商取引法に基づく表記です。' },
     '/login': { title: 'ログイン | VideoQ', description: DEFAULT_COPY.ja.description },
     '/signup': { title: '新規登録 | VideoQ', description: DEFAULT_COPY.ja.description },
-    '/share/yobinori-linearalgebra': {
-      title: '【ヨビノリ】線形代数 | VideoQ',
-      description:
-        'VideoQの公開サンプルです。線形代数の講義動画に質問して、見たいところから再生できます。登録不要。',
-    },
-    '/share/aicia-deeplearning': {
-      title: 'Deep Learning の世界 | VideoQ',
-      description:
-        'VideoQの公開サンプルです。Deep Learningの講義動画に質問して、見たいところから再生できます。登録不要。',
-    },
   },
   en: {
     '/pricing': {
@@ -59,16 +49,6 @@ const PAGE_COPY: Record<SiteLocale, Record<string, { title: string; description:
     },
     '/login': { title: 'Log in | VideoQ', description: DEFAULT_COPY.en.description },
     '/signup': { title: 'Sign up | VideoQ', description: DEFAULT_COPY.en.description },
-    '/share/yobinori-linearalgebra': {
-      title: '【ヨビノリ】線形代数 | VideoQ',
-      description:
-        'A public VideoQ sample. Ask this linear algebra lecture a question and play from the part you need. No account required.',
-    },
-    '/share/aicia-deeplearning': {
-      title: 'Deep Learning の世界 | VideoQ',
-      description:
-        'A public VideoQ sample. Ask this deep learning lecture a question and play from the part you need. No account required.',
-    },
   },
 };
 

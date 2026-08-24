@@ -303,9 +303,9 @@ vi.mock('@/lib/api', async (importOriginal) => {
     chat: vi.fn(() => Promise.resolve({ response: 'Mock chat response' })),
     getVideoUrl: vi.fn(mockGetVideoUrl),
     getSharedVideoUrl: vi.fn(mockGetSharedVideoUrl),
-    getSharedGroup: vi.fn((slug: string) => Promise.resolve({
-      id: slug === 'aicia-deeplearning' ? 2 : 1,
-      name: slug === 'aicia-deeplearning' ? 'Deep Learning の世界' : '【ヨビノリ】線形代数',
+    getSharedGroup: vi.fn(() => Promise.resolve({
+      id: 1,
+      name: 'Sample group',
       description: '',
       display_order: 0,
       created_at: '2024-01-01T00:00:00Z',
