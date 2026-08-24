@@ -1,5 +1,5 @@
 import { act, fireEvent, renderHook, screen, waitFor } from '@testing-library/react'
-import { apiClient, type VideoGroup } from '@/lib/api'
+import { apiClient, type VideoCourse } from '@/lib/api'
 import { useShareLink } from '../useShareLink'
 
 vi.mock('@/lib/api', () => ({
@@ -9,9 +9,9 @@ vi.mock('@/lib/api', () => ({
   },
 }))
 
-const group: VideoGroup = {
+const course: VideoCourse = {
   id: 1,
-  name: 'Group',
+  name: 'Course',
   description: '',
   display_order: 0,
   videos: [],
@@ -38,7 +38,7 @@ describe('useShareLink', () => {
 
   it('uses the shared confirm dialog before disabling a share link', async () => {
     ;(apiClient.deleteShareLink as ReturnType<typeof vi.fn>).mockResolvedValue({})
-    const { result } = renderHook(() => useShareLink(group))
+    const { result } = renderHook(() => useShareLink(course))
 
     act(() => {
       void result.current.deleteShareLink()
@@ -56,7 +56,7 @@ describe('useShareLink', () => {
   it('shows a toast when copying the share link fails', async () => {
     const clipboard = navigator.clipboard as { writeText: ReturnType<typeof vi.fn> }
     clipboard.writeText.mockRejectedValue(new Error('copy failed'))
-    const { result } = renderHook(() => useShareLink(group))
+    const { result } = renderHook(() => useShareLink(course))
 
     await waitFor(() => {
       expect(result.current.shareLink).toContain('/share/share-token')

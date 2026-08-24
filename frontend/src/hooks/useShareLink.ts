@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient, type VideoGroup } from '@/lib/api';
+import { apiClient, type VideoCourse } from '@/lib/api';
 import { addLocalePrefix } from '@/lib/i18n';
 import { type Locale } from '@/i18n/config';
 import { handleAsyncError } from '@/lib/utils/errorHandling';
@@ -17,7 +17,7 @@ interface UseShareLinkReturn {
   copyShareLink: () => Promise<void>;
 }
 
-export function useShareLink(group: VideoGroup | null): UseShareLinkReturn {
+export function useShareLink(course: VideoCourse | null): UseShareLinkReturn {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const requestConfirmation = useConfirm();
@@ -26,42 +26,42 @@ export function useShareLink(group: VideoGroup | null): UseShareLinkReturn {
   const [isCopied, setIsCopied] = useState(false);
 
   const createShareLinkMutation = useMutation({
-    mutationFn: async ({ groupId, shareSlug }: { groupId: number; shareSlug: string }) =>
-      await apiClient.createShareLink(groupId, shareSlug),
+    mutationFn: async ({ courseId, shareSlug }: { courseId: number; shareSlug: string }) =>
+      await apiClient.createShareLink(courseId, shareSlug),
   });
   const deleteShareLinkMutation = useMutation({
-    mutationFn: async (groupId: number) => await apiClient.deleteShareLink(groupId),
+    mutationFn: async (courseId: number) => await apiClient.deleteShareLink(courseId),
   });
 
-  // Sync share link URL from group's share_slug
+  // Sync share link URL from course's share_slug
   useEffect(() => {
-    if (group?.share_slug) {
+    if (course?.share_slug) {
       const locale = i18n.language as Locale;
-      const shareUrl = `${window.location.origin}${addLocalePrefix(`/share/${group.share_slug}`, locale)}`;
+      const shareUrl = `${window.location.origin}${addLocalePrefix(`/share/${course.share_slug}`, locale)}`;
       setShareLink(shareUrl);
     } else {
       setShareLink(null);
     }
     setIsCopied(false);
-  }, [group?.share_slug, i18n.language]);
+  }, [course?.share_slug, i18n.language]);
 
   const generateShareLink = useCallback(async (shareSlug: string) => {
-    if (!group) return;
+    if (!course) return;
     try {
-      const result = await createShareLinkMutation.mutateAsync({ groupId: group.id, shareSlug });
-      queryClient.setQueryData<VideoGroup>(queryKeys.videoGroups.detail(group.id), (prev) =>
+      const result = await createShareLinkMutation.mutateAsync({ courseId: course.id, shareSlug });
+      queryClient.setQueryData<VideoCourse>(queryKeys.videoCourses.detail(course.id), (prev) =>
         prev ? { ...prev, share_slug: result.share_slug } : prev
       );
       const locale = i18n.language as Locale;
       const shareUrl = `${window.location.origin}${addLocalePrefix(`/share/${result.share_slug}`, locale)}`;
       setShareLink(shareUrl);
     } catch (err) {
-      handleAsyncError(err, t('videos.groupDetail.generateShareError'), () => { });
+      handleAsyncError(err, t('videos.courseDetail.generateShareError'), () => { });
     }
-  }, [group, createShareLinkMutation, queryClient, i18n.language, t]);
+  }, [course, createShareLinkMutation, queryClient, i18n.language, t]);
 
   const deleteShareLink = useCallback(async () => {
-    if (!group) return;
+    if (!course) return;
     const confirmed = await requestConfirmation({
       title: t('confirmations.disableShareLink'),
       confirmLabel: t('common.actions.disable'),
@@ -70,15 +70,15 @@ export function useShareLink(group: VideoGroup | null): UseShareLinkReturn {
     });
     if (!confirmed) return;
     try {
-      await deleteShareLinkMutation.mutateAsync(group.id);
-      queryClient.setQueryData<VideoGroup>(queryKeys.videoGroups.detail(group.id), (prev) =>
+      await deleteShareLinkMutation.mutateAsync(course.id);
+      queryClient.setQueryData<VideoCourse>(queryKeys.videoCourses.detail(course.id), (prev) =>
         prev ? { ...prev, share_slug: null } : prev
       );
       setShareLink(null);
     } catch (err) {
-      handleAsyncError(err, t('videos.groupDetail.disableShareError'), () => { });
+      handleAsyncError(err, t('videos.courseDetail.disableShareError'), () => { });
     }
-  }, [requestConfirmation, group, deleteShareLinkMutation, queryClient, t]);
+  }, [requestConfirmation, course, deleteShareLinkMutation, queryClient, t]);
 
   const copyShareLink = useCallback(async () => {
     if (!shareLink) return;

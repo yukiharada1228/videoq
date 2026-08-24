@@ -171,8 +171,8 @@ describe("MCP JSON-RPC", () => {
       [
         "list_videos",
         "get_video",
-        "list_groups",
-        "get_group",
+        "list_courses",
+        "get_course",
         "list_tags",
         "get_chat_history",
         "get_chat_analytics",

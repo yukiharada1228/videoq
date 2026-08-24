@@ -4,15 +4,15 @@ import { sqlNumberArray } from "../db/sql-array";
 import {
   tags,
   videos,
-  videoGroups,
-  videoGroupMembers,
+  videoCourses,
+  videoCourseMembers,
   videoTags,
 } from "../db/schema";
 import type { Bindings } from "../types/bindings";
 
 /**
- * video↔tag / group↔video の関連付け書き込み（トランザクション適用）。
- * video/group の user_id による所有権判定を各書き込み前に行う。
+ * video↔tag / course↔video の関連付け書き込み（トランザクション適用）。
+ * video/course の user_id による所有権判定を各書き込み前に行う。
  */
 
 // ---- 所有確認 ----
@@ -31,16 +31,16 @@ export async function videoOwnedBy(
   });
 }
 
-export async function groupOwnedBy(
+export async function courseOwnedBy(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   userId: string,
 ): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db
-      .select({ id: videoGroups.id })
-      .from(videoGroups)
-      .where(and(eq(videoGroups.id, groupId), eq(videoGroups.userId, userId)))
+      .select({ id: videoCourses.id })
+      .from(videoCourses)
+      .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, userId)))
       .limit(1);
     return rows.length > 0;
   });
@@ -143,29 +143,29 @@ export async function detachTag(
 }
 
 // =========================================================================
-// group ↔ video（単体）
+// course ↔ video（単体）
 // =========================================================================
 
 /**
- * 動画 1 件をグループに追加（tx: group を FOR UPDATE → 既存なら alreadyIn →
+ * 動画 1 件を講座に追加（tx: course を FOR UPDATE → 既存なら alreadyIn →
  * order = MAX+1 で作成）。
  */
-export async function addVideoToGroup(
+export async function addVideoToCourse(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   videoId: number,
 ): Promise<{ alreadyIn: true } | { id: number }> {
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
-      await tx.execute(sql`SELECT 1 FROM video_groups WHERE id = ${groupId} FOR UPDATE`);
+      await tx.execute(sql`SELECT 1 FROM video_courses WHERE id = ${courseId} FOR UPDATE`);
 
       const exists = await tx
-        .select({ id: videoGroupMembers.id })
-        .from(videoGroupMembers)
+        .select({ id: videoCourseMembers.id })
+        .from(videoCourseMembers)
         .where(
           and(
-            eq(videoGroupMembers.groupId, groupId),
-            eq(videoGroupMembers.videoId, videoId),
+            eq(videoCourseMembers.courseId, courseId),
+            eq(videoCourseMembers.videoId, videoId),
           ),
         )
         .limit(1);
@@ -174,56 +174,56 @@ export async function addVideoToGroup(
       }
 
       const rows = await tx
-        .insert(videoGroupMembers)
+        .insert(videoCourseMembers)
         .values({
-          groupId,
+          courseId,
           videoId,
-          order: sql`(SELECT COALESCE(MAX("order"), -1) + 1 FROM video_group_members WHERE group_id = ${groupId})`,
+          order: sql`(SELECT COALESCE(MAX("order"), -1) + 1 FROM video_course_members WHERE course_id = ${courseId})`,
           addedAt: sql`CURRENT_TIMESTAMP`,
         })
-        .returning({ id: videoGroupMembers.id });
+        .returning({ id: videoCourseMembers.id });
       return { id: Number(rows[0].id) } as const;
     }),
   );
 }
 
-/** 動画 1 件をグループから除去（tx: 非メンバーなら notMember）。 */
-export async function removeVideoFromGroup(
+/** 動画 1 件を講座から除去（tx: 非メンバーなら notMember）。 */
+export async function removeVideoFromCourse(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   videoId: number,
 ): Promise<{ notMember: true } | { ok: true }> {
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
-      await tx.execute(sql`SELECT 1 FROM video_groups WHERE id = ${groupId} FOR UPDATE`);
+      await tx.execute(sql`SELECT 1 FROM video_courses WHERE id = ${courseId} FOR UPDATE`);
       const rows = await tx
-        .delete(videoGroupMembers)
+        .delete(videoCourseMembers)
         .where(
           and(
-            eq(videoGroupMembers.groupId, groupId),
-            eq(videoGroupMembers.videoId, videoId),
+            eq(videoCourseMembers.courseId, courseId),
+            eq(videoCourseMembers.videoId, videoId),
           ),
         )
-        .returning({ id: videoGroupMembers.id });
+        .returning({ id: videoCourseMembers.id });
       return rows.length > 0 ? ({ ok: true } as const) : ({ notMember: true } as const);
     }),
   );
 }
 
 // =========================================================================
-// group ↔ video（一括）
+// course ↔ video（一括）
 // =========================================================================
 
-/** グループの現メンバー video_id 一覧（plan_bulk_add 用）。 */
-export async function getGroupMemberVideoIds(
+/** 講座の現メンバー video_id 一覧（plan_bulk_add 用）。 */
+export async function getCourseMemberVideoIds(
   env: Bindings,
-  groupId: number,
+  courseId: number,
 ): Promise<number[]> {
   return withDb(env, async (db) => {
     const rows = await db
-      .select({ videoId: videoGroupMembers.videoId })
-      .from(videoGroupMembers)
-      .where(eq(videoGroupMembers.groupId, groupId));
+      .select({ videoId: videoCourseMembers.videoId })
+      .from(videoCourseMembers)
+      .where(eq(videoCourseMembers.courseId, courseId));
     return rows.map((row) => Number(row.videoId));
   });
 }
@@ -245,18 +245,18 @@ export async function getExistingVideoIdsForUser(
 }
 
 /**
- * 動画を一括追加（tx: group を FOR UPDATE → Video 実在 & 未メンバーのみ →
+ * 動画を一括追加（tx: course を FOR UPDATE → Video 実在 & 未メンバーのみ →
  * order = base+idx で bulk INSERT）。返り値は added。
  */
 export async function addVideosBulk(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   idsToAdd: number[],
 ): Promise<number> {
   if (idsToAdd.length === 0) return 0;
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
-      await tx.execute(sql`SELECT 1 FROM video_groups WHERE id = ${groupId} FOR UPDATE`);
+      await tx.execute(sql`SELECT 1 FROM video_courses WHERE id = ${courseId} FOR UPDATE`);
 
       const videosRes = await tx
         .select({ id: videos.id })
@@ -265,12 +265,12 @@ export async function addVideosBulk(
       const videoSet = new Set(videosRes.map((r) => Number(r.id)));
 
       const memberRes = await tx
-        .select({ videoId: videoGroupMembers.videoId })
-        .from(videoGroupMembers)
+        .select({ videoId: videoCourseMembers.videoId })
+        .from(videoCourseMembers)
         .where(
           and(
-            eq(videoGroupMembers.groupId, groupId),
-            inArray(videoGroupMembers.videoId, idsToAdd),
+            eq(videoCourseMembers.courseId, courseId),
+            inArray(videoCourseMembers.videoId, idsToAdd),
           ),
         );
       const memberSet = new Set(memberRes.map((r) => Number(r.videoId)));
@@ -279,9 +279,9 @@ export async function addVideosBulk(
       if (videosToAdd.length === 0) return 0;
 
       await tx.execute(sql`
-        INSERT INTO video_group_members (group_id, video_id, "order", added_at)
-        SELECT ${groupId}, v.video_id,
-               (SELECT COALESCE(MAX("order"), -1) FROM video_group_members WHERE group_id = ${groupId}) + v.ord,
+        INSERT INTO video_course_members (course_id, video_id, "order", added_at)
+        SELECT ${courseId}, v.video_id,
+               (SELECT COALESCE(MAX("order"), -1) FROM video_course_members WHERE course_id = ${courseId}) + v.ord,
                CURRENT_TIMESTAMP
           FROM unnest(${sqlNumberArray(videosToAdd)}) WITH ORDINALITY AS v(video_id, ord)
       `);

@@ -71,7 +71,7 @@ export const PUBLIC_AUTH_PATHS = [
   '/consent',
   '/device',
   '/share',
-  '/group-invitations',
+  '/course-invitations',
   '/docs',
   '/pricing',
   '/terms',

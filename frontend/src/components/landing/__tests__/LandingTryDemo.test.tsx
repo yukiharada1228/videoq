@@ -14,7 +14,7 @@ describe('LandingTryDemo', () => {
     expect(screen.getByText('landing.demo.lectureTitle')).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 3, name: 'landing.demo.scenes.hard.title' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'landing.tryOwn' })).toHaveAttribute('href', '/signup')
-    expect(apiClient.getSharedGroup).not.toHaveBeenCalled()
+    expect(apiClient.getSharedCourse).not.toHaveBeenCalled()
     expect(document.querySelector('iframe')).toBeNull()
     expect(screen.queryByRole('link', { name: /share\// })).not.toBeInTheDocument()
   })

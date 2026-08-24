@@ -3,11 +3,11 @@
  *
  * 招待トークンやパスワード再設定トークンはパスセグメントに載るため、
  * 素の `pathname` を記録すると保持期間の長いアクセスログに秘密が残り、
- * ログ閲覧権限だけでグループ参加やパスワード変更ができてしまう。
+ * ログ閲覧権限だけで講座参加やパスワード変更ができてしまう。
  */
 const TOKEN_SEGMENT_PATTERNS: readonly RegExp[] = [
-  // 招待プレビュー / 承認 / 辞退（`/group-invitations/{token}[/accept|/decline]`）
-  /(\/group-invitations\/)[^/]+/g,
+  // 招待プレビュー / 承認 / 辞退
+  /(\/course-invitations\/)[^/]+/g,
   // Better Auth のパスワード再設定コールバック（`/reset-password/{token}`）
   /(\/reset-password\/)[^/]+/g,
   // Better Auth のメール確認コールバック（パス形式で来た場合）

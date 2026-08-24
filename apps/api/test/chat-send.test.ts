@@ -3,7 +3,7 @@ import { chatRoutes } from "../src/features/chat/routes";
 import { signAccessToken } from "./helpers/auth";
 
 /**
- * ルート全体（認証 → 検証 → group/quota → RAG → ChatLog → 応答）の結線テスト。
+ * ルート全体（認証 → 検証 → course/quota → RAG → ChatLog → 応答）の結線テスト。
  * SQL は pg をモックして「どの文が・どの引数で」発行されたかを検証する
  * （実 SQL の意味論は docs の psql 検証で別途確認済み）。
  */
@@ -47,9 +47,9 @@ const defaultRows = (sql: MatchableSql, args: unknown[] = []): Record<string, un
     return [{ usage_period_start: QUOTA_PERIOD_START }];
   if (sql.includes("SELECT is_over_quota"))
     return [{ is_over_quota: false, ai_answers_limit: null, used_ai_answers: 0 }];
-  if (sql.includes("video_groups"))
-    return [{ id: 3, userId: "00000000-0000-4000-8000-000000000005", description: "Group about pgvector" }];
-  if (sql.includes("video_group_members"))
+  if (sql.includes("video_courses"))
+    return [{ id: 3, userId: "00000000-0000-4000-8000-000000000005", description: "Course about pgvector" }];
+  if (sql.includes("video_course_members"))
     return [{ videoId: 60 }, { videoId: 61 }];
   if (sql.includes("scene_embeddings"))
     return [
@@ -243,7 +243,7 @@ describe("POST /messages（非ストリーミング）", () => {
       "/messages",
       {
         messages: [{ role: "user", content: "hi" }],
-        group_id: 3,
+        course_id: 3,
         mode: "study",
         study_session_id: "s1",
       },
@@ -256,16 +256,16 @@ describe("POST /messages（非ストリーミング）", () => {
     expect(await res.json()).toEqual({
       error: {
         code: "PLOG_NOT_READY",
-        message: "PLOG is not ready for this group's videos. Wait for build or rebuild.",
+        message: "PLOG is not ready for this course's videos. Wait for build or rebuild.",
       },
     });
   });
 
-  it("group_id ありで RAG → citations / chat_log_id を返し、利用量を記録する", async () => {
+  it("course_id ありで RAG → citations / chat_log_id を返し、利用量を記録する", async () => {
     const requests = stubOpenAi({});
     const res = await post(
       "/messages",
-      { messages: [{ role: "user", content: "何が起きた?" }], group_id: 3 },
+      { messages: [{ role: "user", content: "何が起きた?" }], course_id: 3 },
       {
         token: await accessToken(),
         env: { ...OPENAI_ENV, ...SQS_ENV },
@@ -294,11 +294,11 @@ describe("POST /messages（非ストリーミング）", () => {
     expect(search.args).toEqual(["00000000-0000-4000-8000-000000000005", "[0.1,0.2]", 20]);
     expect(String(search.sql)).toMatch(/ARRAY\[60,61\]::bigint\[\]/);
 
-    // プロンプトは ja ロケール + group_context + 参照シーンを含む
+    // プロンプトは ja ロケール + course_context + 参照シーンを含む
     const chat = requests.find((r) => r.url.endsWith("/chat/completions"))!;
     const messages = chat.body.messages as { role: string; content: string }[];
-    expect(messages[0].content).toContain("# グループ情報");
-    expect(messages[0].content).toContain("Group about pgvector");
+    expect(messages[0].content).toContain("# 講座情報");
+    expect(messages[0].content).toContain("Course about pgvector");
     expect(messages[0].content).toContain("[1] Video A 00:00:10 - 00:00:20\nscene text A");
     expect(messages[1]).toEqual({ role: "user", content: "何が起きた?" });
 
@@ -330,21 +330,21 @@ describe("POST /messages（非ストリーミング）", () => {
     expect(typeof message.job_id).toBe("string");
   });
 
-  it("参加メンバーはグループ所有者の割当でチャットし、履歴は本人名義で保存する", async () => {
+  it("参加メンバーは講座所有者の割当でチャットし、履歴は本人名義で保存する", async () => {
     stubOpenAi({});
     const memberUserId = "00000000-0000-4000-8000-000000000006";
 
     const res = await post(
       "/messages",
-      { messages: [{ role: "user", content: "member question" }], group_id: 3 },
+      { messages: [{ role: "user", content: "member question" }], course_id: 3 },
       { token: await accessToken(memberUserId), env: { ...OPENAI_ENV, ...SQS_ENV } },
     );
 
     expect(res.status).toBe(200);
-    const groupLookup = calls.find(
-      (call) => call.sql.includes("video_groups") && call.sql.includes("video_group_memberships"),
+    const courseLookup = calls.find(
+      (call) => call.sql.includes("video_courses") && call.sql.includes("video_course_memberships"),
     );
-    expect(groupLookup).toBeTruthy();
+    expect(courseLookup).toBeTruthy();
 
     const search = calls.find((call) => call.sql.includes("scene_embeddings"))!;
     expect(search.args[0]).toBe("00000000-0000-4000-8000-000000000005");
@@ -361,16 +361,16 @@ describe("POST /messages（非ストリーミング）", () => {
     expect(insert.args).toContain(memberUserId);
   });
 
-  it("グループが解決できなければ 404", async () => {
-    rowsFor = (sql) => (sql.includes("video_groups") ? [] : defaultRows(sql));
+  it("講座が解決できなければ 404", async () => {
+    rowsFor = (sql) => (sql.includes("video_courses") ? [] : defaultRows(sql));
     const res = await post(
       "/messages",
-      { messages: [{ role: "user", content: "hi" }], group_id: 3 },
+      { messages: [{ role: "user", content: "hi" }], course_id: 3 },
       { token: await accessToken(), env: OPENAI_ENV },
     );
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({
-      error: { code: "VALIDATION_ERROR", message: "Group not found." },
+      error: { code: "VALIDATION_ERROR", message: "Course not found." },
     });
   });
 
@@ -452,7 +452,7 @@ describe("POST /messages（非ストリーミング）", () => {
 
     const res = await post(
       "/messages",
-      { messages: [{ role: "user", content: "hi" }], group_id: 3 },
+      { messages: [{ role: "user", content: "hi" }], course_id: 3 },
       { token: await accessToken(), env: OPENAI_ENV },
     );
 
@@ -460,7 +460,7 @@ describe("POST /messages（非ストリーミング）", () => {
     expect(calls.some((call) => call.sql.includes("GREATEST"))).toBe(false);
   });
 
-  it("共有アクセス（share_slug）は group 所有者で処理し is_shared_origin=true で保存", async () => {
+  it("共有アクセス（share_slug）は course 所有者で処理し is_shared_origin=true で保存", async () => {
     stubOpenAi({});
     const res = await chatRoutes.request(
       "/messages?share_slug=abc123",
@@ -469,29 +469,29 @@ describe("POST /messages（非ストリーミング）", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           messages: [{ role: "user", content: "hi" }],
-          group_id: 3,
+          course_id: 3,
         }),
       },
       { ...ENV, ...OPENAI_ENV },
     );
     expect(res.status).toBe(200);
 
-    const group = calls.find(
-      (c) => c.sql.includes("share_slug") && c.sql.includes("video_groups"),
+    const course = calls.find(
+      (c) => c.sql.includes("share_slug") && c.sql.includes("video_courses"),
     )!;
-    expect(group.args).toContain("abc123");
+    expect(course.args).toContain("abc123");
     expect(calls.some((c) => c.sql.includes("share_slug") && c.args.includes(3))).toBe(true);
 
     const quota = calls.find(
       (c) => c.sql.includes("UPDATE users") && c.sql.includes("RETURNING usage_period_start"),
     )!;
-    expect(quota.args[0]).toBe("00000000-0000-4000-8000-000000000005"); // 共有訪問者ではなくグループ所有者
+    expect(quota.args[0]).toBe("00000000-0000-4000-8000-000000000005"); // 共有訪問者ではなく講座所有者
 
     const insert = calls.find((c) => c.sql.includes("chat_logs") && c.sql.includes("returning"))!;
     expect(insert.args).toContain(true);
   });
 
-  it("共有アクセスで group_id が無ければ 400", async () => {
+  it("共有アクセスで course_id が無ければ 400", async () => {
     const res = await chatRoutes.request(
       "/messages?share_token=abc123",
       {
@@ -503,7 +503,7 @@ describe("POST /messages（非ストリーミング）", () => {
     );
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({
-      error: { code: "VALIDATION_ERROR", message: "Group ID not specified." },
+      error: { code: "VALIDATION_ERROR", message: "Course ID not specified." },
     });
   });
 });
@@ -537,7 +537,7 @@ describe("POST /messages/stream（SSE）", () => {
     stubOpenAi({ stream: true, content: "Hello!" });
     const res = await post(
       "/messages/stream",
-      { messages: [{ role: "user", content: "hi" }], group_id: 3 },
+      { messages: [{ role: "user", content: "hi" }], course_id: 3 },
       { token: await accessToken(), env: OPENAI_ENV },
     );
 

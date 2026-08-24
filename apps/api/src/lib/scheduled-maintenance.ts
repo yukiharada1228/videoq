@@ -2,7 +2,7 @@ import {
   getExternalTaskHealth,
   pruneDeliveryHistory,
 } from "../repositories/external-task-repository";
-import { failInvitationsWithoutLiveDelivery } from "../repositories/group-invitation-repository";
+import { failInvitationsWithoutLiveDelivery } from "../repositories/course-invitation-repository";
 import type { Bindings } from "../types/bindings";
 import { processExternalTasks } from "./external-tasks";
 import { reconcileAbandonedUploads } from "./upload-reconcile";

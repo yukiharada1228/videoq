@@ -1,5 +1,5 @@
 import {
-  getGroupWithMembers,
+  getCourseWithMembers,
   createChatLog,
   type GroupChatContext,
 } from "../../repositories/chat-repository";
@@ -29,7 +29,7 @@ export type JsonResult = {
 /** Normalized chat request after Zod validation. */
 export type ChatRequestInput = {
   messages: { role: string; content: string }[];
-  groupId: number | null;
+  courseId: number | null;
   mode: "qa" | "study";
   studySessionId: string | null;
 };
@@ -104,7 +104,7 @@ export type ChatSetup = {
   ownerUserId: string;
   actorUserId: string;
   quotaReservation: AiAnswerReservation;
-  group: GroupChatContext | null;
+  course: GroupChatContext | null;
   isShared: boolean;
   locale: string | null;
 };
@@ -112,13 +112,13 @@ export type ChatSetup = {
 export function toChatRequestInput(body: ChatMessageBody): ChatRequestInput {
   return {
     messages: body.messages,
-    groupId: body.group_id ?? null,
+    courseId: body.course_id ?? null,
     mode: body.mode ?? "qa",
     studySessionId: body.study_session_id ?? null,
   };
 }
 
-/** LLM 呼び出し前の共通セットアップ（group/owner/quota）。 */
+/** LLM 呼び出し前の共通セットアップ（course/owner/quota）。 */
 export async function setupChat(
   env: Bindings,
   opts: {
@@ -134,24 +134,24 @@ export async function setupChat(
   if (opts.req.messages.length === 0) {
     return { ok: false, failure: failures.invalidRequest("Messages are empty.") };
   }
-  if (isShared && opts.req.groupId === null) {
+  if (isShared && opts.req.courseId === null) {
     return {
       ok: false,
-      failure: failures.invalidRequest("Group ID not specified."),
+      failure: failures.invalidRequest("Course ID not specified."),
     };
   }
 
-  let group: GroupChatContext | null = null;
-  if (opts.req.groupId !== null) {
-    group = await getGroupWithMembers(env, {
-      groupId: opts.req.groupId,
+  let course: GroupChatContext | null = null;
+  if (opts.req.courseId !== null) {
+    course = await getCourseWithMembers(env, {
+      courseId: opts.req.courseId,
       userId: isShared && opts.shareSlug ? null : userId,
       shareToken: isShared && opts.shareSlug ? opts.shareSlug : null,
     });
-    if (!group) return { ok: false, failure: failures.notFound("Group") };
+    if (!course) return { ok: false, failure: failures.notFound("Course") };
   }
 
-  const ownerUserId = group?.userId ?? userId;
+  const ownerUserId = course?.userId ?? userId;
   if (ownerUserId === null) {
     return {
       ok: false,
@@ -173,7 +173,7 @@ export async function setupChat(
       ownerUserId,
       actorUserId: isShared ? ownerUserId : (userId ?? ownerUserId),
       quotaReservation: quota.reservation,
-      group,
+      course,
       isShared,
       locale: opts.locale,
     },
@@ -199,8 +199,8 @@ function scopedStudySessionId(
   clientSessionId: string | null,
 ): string | null {
   if (!clientSessionId) return null;
-  const group = setup.group?.id ?? "direct";
-  return `${setup.actorUserId}:${group}:${clientSessionId}`;
+  const course = setup.course?.id ?? "direct";
+  return `${setup.actorUserId}:${course}:${clientSessionId}`;
 }
 
 export async function persistTurn(
@@ -213,10 +213,10 @@ export async function persistTurn(
     retrievedContexts: string[];
   },
 ): Promise<{ chatLogId: number | null; feedback: string | null }> {
-  if (!setup.group) return { chatLogId: null, feedback: null };
+  if (!setup.course) return { chatLogId: null, feedback: null };
   const log = await createChatLog(env, {
     userId: setup.actorUserId,
-    groupId: setup.group.id,
+    courseId: setup.course.id,
     question: turn.question,
     answer: turn.answer,
     citations: turn.citations,
@@ -290,7 +290,7 @@ export async function sendChatMessage(
   }
 
   const setup = prepared.setup;
-  const videoIds = setup.group ? setup.group.memberVideoIds : null;
+  const videoIds = setup.course ? setup.course.memberVideoIds : null;
 
   let result: {
     content: string;
@@ -312,7 +312,7 @@ export async function sendChatMessage(
         ownerUserId: setup.ownerUserId,
         videoIds,
         locale: setup.locale,
-        groupContext: setup.group?.description ?? null,
+        courseContext: setup.course?.description ?? null,
       });
     }
   } catch (e) {
@@ -337,7 +337,7 @@ export async function sendChatMessage(
       role: "assistant",
       content: result.content,
     };
-    if (req.groupId !== null && result.citations?.length) {
+    if (req.courseId !== null && result.citations?.length) {
       body.citations = withCitationIds(result.citations);
     }
     if (chatLogId !== null) {
@@ -383,7 +383,7 @@ export async function streamChatMessage(
     locale: opts.locale,
   });
 
-  const groupId = req.groupId;
+  const courseId = req.courseId;
   const messages = req.messages;
   const mode = req.mode;
   const studySessionId = req.studySessionId;
@@ -402,7 +402,7 @@ export async function streamChatMessage(
         return;
       }
       const setup = prepared.setup;
-      const videoIds = setup.group ? setup.group.memberVideoIds : null;
+      const videoIds = setup.course ? setup.course.memberVideoIds : null;
 
       let content = "";
       let final: {
@@ -438,7 +438,7 @@ export async function streamChatMessage(
               ownerUserId: setup.ownerUserId,
               videoIds,
               locale: setup.locale,
-              groupContext: setup.group?.description ?? null,
+              courseContext: setup.course?.description ?? null,
             },
             clientSignal,
           )) {
@@ -486,7 +486,7 @@ export async function streamChatMessage(
         chat_log_id: chatLogId,
         feedback,
       };
-      if (groupId !== null && final.citations?.length) {
+      if (courseId !== null && final.citations?.length) {
         done.citations = withCitationIds(final.citations);
       }
       await send(done);
@@ -503,13 +503,13 @@ export async function openAiChatCompletions(
     localeFallback: string | null;
   },
 ): Promise<JsonResult> {
-  const { model, messages, group_id: groupId, language } = opts.body;
+  const { model, messages, course_id: courseId, language } = opts.body;
 
   const prepared = await setupChat(env, {
     userId: opts.userId,
     req: {
       messages,
-      groupId: groupId ?? null,
+      courseId: courseId ?? null,
       mode: "qa",
       studySessionId: null,
     },
@@ -531,9 +531,9 @@ export async function openAiChatCompletions(
     result = await runRag(env, {
       messages,
       ownerUserId: setup.ownerUserId,
-      videoIds: setup.group ? setup.group.memberVideoIds : null,
+      videoIds: setup.course ? setup.course.memberVideoIds : null,
       locale: setup.locale,
-      groupContext: setup.group?.description ?? null,
+      courseContext: setup.course?.description ?? null,
     });
   } catch (e) {
     await releaseReservedUsage(env, setup);

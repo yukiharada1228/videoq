@@ -1,5 +1,5 @@
 import { useQueries } from '@tanstack/react-query';
-import { apiClient, type VideoGroupList, type VideoList } from '@/lib/api';
+import { apiClient, type VideoCourseList, type VideoList } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 
 interface UseHomePageDataParams {
@@ -7,7 +7,7 @@ interface UseHomePageDataParams {
 }
 
 export function useHomePageData({ userId }: UseHomePageDataParams) {
-  const [videosQuery, groupsQuery] = useQueries({
+  const [videosQuery, coursesQuery] = useQueries({
     queries: [
       {
         queryKey: queryKeys.videos.list(),
@@ -17,19 +17,19 @@ export function useHomePageData({ userId }: UseHomePageDataParams) {
         initialData: [] as VideoList[],
       },
       {
-        queryKey: queryKeys.videoGroups.all(userId ?? null),
+        queryKey: queryKeys.videoCourses.all(userId ?? null),
         enabled: !!userId,
-        queryFn: async (): Promise<VideoGroupList[]> => await apiClient.getVideoGroups().catch(() => []),
-        initialData: [] as VideoGroupList[],
+        queryFn: async (): Promise<VideoCourseList[]> => await apiClient.getVideoCourses().catch(() => []),
+        initialData: [] as VideoCourseList[],
       },
     ],
   });
 
   return {
     videos: videosQuery.data ?? [],
-    groups: groupsQuery.data ?? [],
-    isLoading: videosQuery.isLoading || groupsQuery.isLoading,
+    courses: coursesQuery.data ?? [],
+    isLoading: videosQuery.isLoading || coursesQuery.isLoading,
     videosQuery,
-    groupsQuery,
+    coursesQuery,
   };
 }

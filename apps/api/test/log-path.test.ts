@@ -3,18 +3,18 @@ import { loggablePath, redactLogPath } from "../src/shared/log-path";
 
 describe("redactLogPath", () => {
   it("招待トークンをログに残さない", () => {
-    expect(redactLogPath("/api/videos/group-invitations/abc123SECRET")).toBe(
-      "/api/videos/group-invitations/[redacted]",
+    expect(redactLogPath("/api/videos/course-invitations/abc123SECRET")).toBe(
+      "/api/videos/course-invitations/[redacted]",
     );
   });
 
   it("承認・辞退の末尾セグメントは残す", () => {
     expect(
-      redactLogPath("/api/videos/group-invitations/abc123SECRET/accept"),
-    ).toBe("/api/videos/group-invitations/[redacted]/accept");
+      redactLogPath("/api/videos/course-invitations/abc123SECRET/accept"),
+    ).toBe("/api/videos/course-invitations/[redacted]/accept");
     expect(
-      redactLogPath("/api/videos/group-invitations/abc123SECRET/decline"),
-    ).toBe("/api/videos/group-invitations/[redacted]/decline");
+      redactLogPath("/api/videos/course-invitations/abc123SECRET/decline"),
+    ).toBe("/api/videos/course-invitations/[redacted]/decline");
   });
 
   it("Better Auth のパスワード再設定トークンを伏せる", () => {

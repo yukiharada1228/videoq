@@ -78,17 +78,17 @@ describe('LoginPage', () => {
   })
 
   it('preserves an invitation return path for Google sign-in and the signup link', async () => {
-    globalThis.__setMockSearchParams('next=%2Fgroup-invitations%2Finvite-token')
+    globalThis.__setMockSearchParams('next=%2Fcourse-invitations%2Finvite-token')
     render(<LoginPage />)
 
     fireEvent.click(screen.getByText('auth.login.continueWithGoogle'))
 
     await waitFor(() => {
-      expect(apiClient.loginWithGoogle).toHaveBeenCalledWith('/group-invitations/invite-token')
+      expect(apiClient.loginWithGoogle).toHaveBeenCalledWith('/course-invitations/invite-token')
     })
     expect(screen.getByText('auth.login.footerLink').closest('a')).toHaveAttribute(
       'href',
-      '/signup?next=%2Fgroup-invitations%2Finvite-token',
+      '/signup?next=%2Fcourse-invitations%2Finvite-token',
     )
   })
 
@@ -185,6 +185,21 @@ describe('LoginPage', () => {
       fireEvent.change(screen.getByLabelText(/auth\.fields\.password\.label/), { target: { value: 'p' } })
       fireEvent.click(screen.getByText('auth.login.submit'))
     }
+
+    it('resumes the Better Auth authorize query after login', async () => {
+      globalThis.__setMockSearchParams(
+        '?client_id=abc&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fconnector%2Foauth%2Fcb&response_type=code',
+      )
+
+      await submitLoginForm()
+
+      await waitFor(() => {
+        expect(hrefSetter).toHaveBeenCalledWith(
+          '/api/auth/oauth2/authorize?client_id=abc&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fconnector%2Foauth%2Fcb&response_type=code',
+        )
+      })
+      expect(mockNavigate).not.toHaveBeenCalled()
+    })
 
     it('redirects to the safe next path via full navigation', async () => {
       globalThis.__setMockSearchParams('?next=%2Fapi%2Foauth%2Fauthorize%3Fclient_id%3Dabc')

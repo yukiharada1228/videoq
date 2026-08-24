@@ -133,11 +133,11 @@ export function resolveOpeningQuestion(
   return text;
 }
 
-/** locale、参照情報、グループ文脈から system prompt を構築する。 */
+/** locale、参照情報、講座文脈から system prompt を構築する。 */
 export function buildSystemPrompt(
   locale?: string | null,
   references?: readonly string[],
-  groupContext?: string | null,
+  courseContext?: string | null,
 ): string {
   const config = resolveLocaleSection("rag", locale) as LocaleSection;
 
@@ -156,7 +156,7 @@ export function buildSystemPrompt(
   const rulesLabel = sectionTitles.rules ?? "# Rules";
   const formatLabel = sectionTitles.format ?? "# Format";
   const referenceLabel = sectionTitles.reference ?? "# Reference Materials";
-  const groupContextLabel = sectionTitles.group_context ?? "# Group Context";
+  const courseContextLabel = sectionTitles.course_context ?? "# Course Context";
 
   const header = formatTemplate(headerTemplate, {
     role,
@@ -170,8 +170,8 @@ export function buildSystemPrompt(
 
   const lines: string[] = [header.trim()];
 
-  if (groupContext && groupContext.trim())
-    lines.push("", groupContextLabel, groupContext.trim());
+  if (courseContext && courseContext.trim())
+    lines.push("", courseContextLabel, courseContext.trim());
 
   lines.push("", rulesLabel);
   if (rules.length > 0) {

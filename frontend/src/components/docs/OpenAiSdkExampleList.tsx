@@ -37,7 +37,7 @@ client = OpenAI(
 response = client.chat.completions.create(
     model="videoq",
     messages=[{"role": "user", "content": "${c.sampleQuestion}"}],
-    extra_body={"group_id": 1, "language": "${c.language}"},
+    extra_body={"course_id": 1, "language": "${c.language}"},
 )
 
 msg = response.choices[0].message
@@ -69,7 +69,7 @@ const response = await client.chat.completions.create({
   model: 'videoq',
   messages: [{ role: 'user', content: '${c.sampleQuestion}' }],
   // @ts-expect-error: VideoQ extension fields
-  group_id: 1,
+  course_id: 1,
   language: '${c.language}',
 });
 
@@ -94,7 +94,7 @@ const client = new OpenAI({
 const response = await client.chat.completions.create({
   model: 'videoq',
   messages: [{ role: 'user', content: '${c.sampleQuestion}' }],
-  group_id: 1,
+  course_id: 1,
   language: '${c.language}',
 });
 

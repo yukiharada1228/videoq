@@ -1,11 +1,11 @@
 import { z } from "zod";
 import type { Bindings } from "../types/bindings";
 import { listVideosPage, getVideoDetail } from "../repositories/video-repository";
-import { listGroupsPage, getGroupDetail } from "../repositories/group-repository";
+import { listCoursesPage, getCourseDetail } from "../repositories/course-repository";
 import { listTagsPage } from "../repositories/tag-repository";
 import {
-  getGroupChatHistory,
-  getGroupChatAnalytics,
+  getCourseChatHistory,
+  getCourseChatAnalytics,
 } from "../repositories/chat-repository";
 import {
   getEvaluationSummary,
@@ -96,27 +96,27 @@ export const mcpToolSchemas = {
   get_video: {
     video_id: intId,
   },
-  list_groups: {
+  list_courses: {
     ...paginationShape,
   },
-  get_group: {
-    group_id: intId,
+  get_course: {
+    course_id: intId,
   },
   list_tags: {
     ...paginationShape,
   },
   get_chat_history: {
-    group_id: intId,
+    course_id: intId,
     ...paginationShape,
   },
   get_chat_analytics: {
-    group_id: intId,
+    course_id: intId,
   },
   get_evaluation_summary: {
-    group_id: intId,
+    course_id: intId,
   },
   list_evaluation_logs: {
-    group_id: intId,
+    course_id: intId,
     ...paginationShape,
   },
 } as const;
@@ -126,21 +126,21 @@ export const MCP_TOOL_DESCRIPTIONS = {
     "List your videos. Supports keyword, status, ordering, tag filters, " +
     "and limit/offset pagination. Returns count/next/previous/videos.",
   get_video: "Get a video's detail by ID, including transcript when available.",
-  list_groups: "List your video groups. Supports limit/offset pagination.",
-  get_group: "Get a video group's detail and its member videos.",
+  list_courses: "List your video courses. Supports limit/offset pagination.",
+  get_course: "Get a video course's detail and its member videos.",
   list_tags: "List your tags. Supports limit/offset pagination.",
   get_chat_history:
-    "Get chat history for a group. Each entry includes role, content, " +
+    "Get chat history for a course. Each entry includes role, content, " +
     "feedback (good/bad/null), citations, and timestamps. " +
     "Supports limit/offset pagination.",
   get_chat_analytics:
-    "Get aggregated chat analytics for a group: total question count, " +
+    "Get aggregated chat analytics for a course: total question count, " +
     "date range, daily time series, and feedback breakdown (good/bad/none).",
   get_evaluation_summary:
-    "Get averaged RAGAS evaluation scores for a group: evaluated_count, " +
+    "Get averaged RAGAS evaluation scores for a course: evaluated_count, " +
     "avg_faithfulness, avg_answer_relevancy, avg_context_precision.",
   list_evaluation_logs:
-    "List per-ChatLog RAGAS evaluation results for a group. Each entry " +
+    "List per-ChatLog RAGAS evaluation results for a course. Each entry " +
     "has chat_log_id, status, faithfulness, answer_relevancy, " +
     "context_precision, error_message, evaluated_at. " +
     "Supports limit/offset pagination.",
@@ -182,19 +182,19 @@ export async function callMcpTool(
       if (!video) throw new McpToolError("Video not found", { status: 404 });
       return { video };
     }
-    case "list_groups": {
+    case "list_courses": {
       const { limit, offset } = normalizePagination(arguments_);
-      const page = await listGroupsPage(ctx.env, ctx.userId, limit, offset);
-      return envelope(page.results, page.count, "groups", limit, offset);
+      const page = await listCoursesPage(ctx.env, ctx.userId, limit, offset);
+      return envelope(page.results, page.count, "courses", limit, offset);
     }
-    case "get_group": {
-      const group = await getGroupDetail(
+    case "get_course": {
+      const course = await getCourseDetail(
         ctx.env,
-        Number(arguments_.group_id),
+        Number(arguments_.course_id),
         ctx.userId,
       );
-      if (!group) throw new McpToolError("Group not found", { status: 404 });
-      return { group };
+      if (!course) throw new McpToolError("Course not found", { status: 404 });
+      return { course };
     }
     case "list_tags": {
       const { limit, offset } = normalizePagination(arguments_);
@@ -203,37 +203,37 @@ export async function callMcpTool(
     }
     case "get_chat_history": {
       const { limit, offset } = normalizePagination(arguments_);
-      const res = await getGroupChatHistory(
+      const res = await getCourseChatHistory(
         ctx.env,
-        Number(arguments_.group_id),
+        Number(arguments_.course_id),
         ctx.userId,
         limit,
         offset,
       );
       if ("notFound" in res) {
-        throw new McpToolError("Group not found", { status: 404 });
+        throw new McpToolError("Course not found", { status: 404 });
       }
       return envelope(res.results, res.count, "history", limit, offset);
     }
     case "get_chat_analytics": {
-      const res = await getGroupChatAnalytics(
+      const res = await getCourseChatAnalytics(
         ctx.env,
-        Number(arguments_.group_id),
+        Number(arguments_.course_id),
         ctx.userId,
       );
       if ("notFound" in res) {
-        throw new McpToolError("Group not found", { status: 404 });
+        throw new McpToolError("Course not found", { status: 404 });
       }
       return { analytics: res };
     }
     case "get_evaluation_summary": {
       const res = await getEvaluationSummary(
         ctx.env,
-        Number(arguments_.group_id),
+        Number(arguments_.course_id),
         ctx.userId,
       );
       if ("notFound" in res) {
-        throw new McpToolError("Group not found", { status: 404 });
+        throw new McpToolError("Course not found", { status: 404 });
       }
       return { summary: res };
     }
@@ -241,13 +241,13 @@ export async function callMcpTool(
       const { limit, offset } = normalizePagination(arguments_);
       const res = await listEvaluationLogs(
         ctx.env,
-        Number(arguments_.group_id),
+        Number(arguments_.course_id),
         ctx.userId,
         limit,
         offset,
       );
       if ("notFound" in res) {
-        throw new McpToolError("Group not found", { status: 404 });
+        throw new McpToolError("Course not found", { status: 404 });
       }
       return envelope(res.results, res.count, "logs", limit, offset);
     }

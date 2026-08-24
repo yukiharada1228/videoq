@@ -8,9 +8,9 @@ const schema = {
     '/api/videos': {
       get: { summary: 'List videos', tags: ['Videos'] },
     },
-    '/api/videos/groups': { get: { summary: 'List groups', tags: ['Groups'] } },
-    '/api/videos/groups/{groupId}/videos': {
-      post: { summary: 'Add videos to a group', tags: ['Membership'] },
+    '/api/videos/courses': { get: { summary: 'List courses', tags: ['Courses'] } },
+    '/api/videos/courses/{courseId}/videos': {
+      post: { summary: 'Add videos to a course', tags: ['Membership'] },
     },
     '/api/videos/{videoId}/tags': {
       post: { summary: 'Attach tags to a video', tags: ['Membership'] },
@@ -47,7 +47,7 @@ describe('DeveloperDocsSectionPage', () => {
     render(<DeveloperDocsSectionPage />)
 
     expect(await screen.findAllByText('/api/videos')).not.toHaveLength(0)
-    expect(screen.queryByText('/api/videos/groups')).not.toBeInTheDocument()
+    expect(screen.queryByText('/api/videos/courses')).not.toBeInTheDocument()
   })
 
   it('keeps the OpenAI-compatible endpoint out of the chat section', async () => {
@@ -58,11 +58,11 @@ describe('DeveloperDocsSectionPage', () => {
     expect(screen.queryByText('/api/v1/chat/completions')).not.toBeInTheDocument()
   })
 
-  it('splits membership endpoints between the groups and tags sections', async () => {
-    params.section = 'groups'
+  it('splits membership endpoints between the courses and tags sections', async () => {
+    params.section = 'courses'
     const { unmount } = render(<DeveloperDocsSectionPage />)
 
-    expect(await screen.findAllByText('/api/videos/groups/{groupId}/videos')).not.toHaveLength(0)
+    expect(await screen.findAllByText('/api/videos/courses/{courseId}/videos')).not.toHaveLength(0)
     expect(screen.queryByText('/api/videos/{videoId}/tags')).not.toBeInTheDocument()
 
     unmount()
@@ -70,7 +70,7 @@ describe('DeveloperDocsSectionPage', () => {
     render(<DeveloperDocsSectionPage />)
 
     expect(await screen.findAllByText('/api/videos/{videoId}/tags')).not.toHaveLength(0)
-    expect(screen.queryByText('/api/videos/groups/{groupId}/videos')).not.toBeInTheDocument()
+    expect(screen.queryByText('/api/videos/courses/{courseId}/videos')).not.toBeInTheDocument()
   })
 
   it('shows SDK examples and the raw endpoint for the OpenAI section', async () => {

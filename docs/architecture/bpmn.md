@@ -81,14 +81,14 @@ flowchart TD
     RateLimit -->|OK| CheckAccess{Authenticated or Share Token?}
     CheckAccess -->|No| RequireAuth[Require Authentication or Share Link]
     RequireAuth --> End([End])
-    CheckAccess -->|Yes| CheckGroup{Group Specified}
+    CheckAccess -->|Yes| CheckCourse{Course Specified}
     
-    CheckGroup -->|Specified| GetGroup[Get Group]
-    GetGroup --> SearchVector[Vector Search]
+    CheckCourse -->|Specified| GetCourse[Get Course]
+    GetCourse --> SearchVector[Vector Search]
     SearchVector --> GetContext[Get Context]
     GetContext --> BuildPrompt[Build Prompt]
     
-    CheckGroup -->|Not Specified| BuildPrompt2[Build Prompt<br>No Context]
+    CheckCourse -->|Not Specified| BuildPrompt2[Build Prompt<br>No Context]
     
     BuildPrompt --> CallLLM[LLM API Call]
     BuildPrompt2 --> CallLLM
@@ -105,7 +105,7 @@ flowchart TD
     SaveFeedback --> Complete([Complete])
 ```
 
-## 4. グループ共有プロセス
+## 4. 講座共有プロセス
 
 ```mermaid
 flowchart TD
@@ -126,8 +126,8 @@ flowchart TD
     AccessLink --> ValidateToken{Token Verification}
     ValidateToken -->|Invalid| InvalidLink[Link Invalid]
     InvalidLink --> End
-    ValidateToken -->|Valid| GetSharedGroup[Get Shared Group]
-    GetSharedGroup --> DisplayGroup[Display Group Information]
+    ValidateToken -->|Valid| GetSharedGroup[Get Shared Course]
+    GetSharedGroup --> DisplayGroup[Display Course Information]
     DisplayGroup --> AllowChat[Allow Chat Usage]
     AllowChat --> ChatProcess[Execute Chat Process]
     ChatProcess --> Complete([Complete])
@@ -140,41 +140,41 @@ flowchart TD
     InvalidateLink --> Complete
 ```
 
-## 5. 動画グループ管理プロセス
+## 5. 講座管理プロセス
 
 ```mermaid
 flowchart TD
     Start([Start]) --> SelectAction{Select Operation}
-    SelectAction -->|Create| CreateGroup[Create Group]
-    SelectAction -->|Edit| EditGroup[Edit Group]
-    SelectAction -->|Delete| DeleteGroup[Delete Group]
+    SelectAction -->|Create| CreateGroup[Create Course]
+    SelectAction -->|Edit| EditGroup[Edit Course]
+    SelectAction -->|Delete| DeleteCourse[Delete Course]
     SelectAction -->|Add Video| AddVideo[Add Video]
     SelectAction -->|Reorder| ReorderVideo[Reorder]
     
-    CreateGroup --> InputInfo[Input Group Information]
+    CreateGroup --> InputInfo[Input Course Information]
     InputInfo --> ValidateInfo{Input Validation}
     ValidateInfo -->|Invalid| ShowError[Error Display]
     ShowError --> InputInfo
-    ValidateInfo -->|Valid| SaveGroup[Save Group]
-    SaveGroup --> Complete([Complete])
+    ValidateInfo -->|Valid| SaveCourse[Save Course]
+    SaveCourse --> Complete([Complete])
     
-    EditGroup --> SelectGroup[Select Group]
+    EditGroup --> SelectGroup[Select Course]
     SelectGroup --> InputEdit[Input Edit Information]
     InputEdit --> ValidateEdit{Input Validation}
     ValidateEdit -->|Invalid| ShowError2[Error Display]
     ShowError2 --> InputEdit
-    ValidateEdit -->|Valid| UpdateGroup[Update Group]
-    UpdateGroup --> Complete
+    ValidateEdit -->|Valid| UpdateCourse[Update Course]
+    UpdateCourse --> Complete
     
-    DeleteGroup --> SelectGroup2[Select Group]
+    DeleteCourse --> SelectGroup2[Select Course]
     SelectGroup2 --> ConfirmDelete{Delete Confirmation}
     ConfirmDelete -->|Cancel| Cancel[Cancel]
     Cancel --> Complete
-    ConfirmDelete -->|Confirm| ExecuteDelete[Execute Group Deletion]
+    ConfirmDelete -->|Confirm| ExecuteDelete[Execute Course Deletion]
     ExecuteDelete --> CascadeDelete[Delete Related Data<br/>CASCADE]
     CascadeDelete --> Complete
     
-    AddVideo --> SelectGroup3[Select Group]
+    AddVideo --> SelectGroup3[Select Course]
     SelectGroup3 --> SelectVideos[Select Videos]
     SelectVideos --> ValidateOwnership{Ownership Verification}
     ValidateOwnership -->|Invalid| RejectVideo[Ownership Error]
@@ -185,7 +185,7 @@ flowchart TD
     AddMember --> Complete
     SkipVideo --> Complete
     
-    ReorderVideo --> SelectGroup4[Select Group]
+    ReorderVideo --> SelectGroup4[Select Course]
     SelectGroup4 --> InputOrder[Input Order]
     InputOrder --> ValidateOrder{Order Validation}
     ValidateOrder -->|Invalid| ShowError3[Error Display]
@@ -241,7 +241,7 @@ flowchart TD
     Reject --> End
     ValidateOwnership -->|Valid| DeleteFile[Delete File]
     DeleteFile --> DeleteVectors[Delete Vector Data]
-    DeleteVectors --> DeleteMemberships[Delete Group Memberships]
+    DeleteVectors --> DeleteMemberships[Delete Course Memberships]
     DeleteMemberships --> DeleteRecord[Delete Database Record]
     DeleteRecord --> Complete([Deletion Complete])
 ```

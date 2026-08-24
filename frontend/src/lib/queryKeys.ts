@@ -5,24 +5,24 @@ export const queryKeys = {
     searchApiKey: ['auth', 'searchApiKey'] as const,
     oauthTokens: ['auth', 'oauthTokens'] as const,
   },
-  videoGroups: {
-    prefix: ['videoGroups'] as const,
-    all: (userId: number | string | null) => ['videoGroups', userId] as const,
-    infinite: (userId: number | string | null) => ['videoGroups', 'infinite', userId] as const,
-    allDetail: ['videoGroup'] as const,
-    detail: (groupId: number | null) => ['videoGroup', groupId] as const,
-    allShared: ['sharedVideoGroup'] as const,
-    shared: (shareToken: string) => ['sharedVideoGroup', shareToken] as const,
-    invitation: (token: string) => ['groupInvitation', token] as const,
-    participants: (groupId: number | null) => ['groupParticipants', groupId] as const,
+  videoCourses: {
+    prefix: ['videoCourses'] as const,
+    all: (userId: number | string | null) => ['videoCourses', userId] as const,
+    infinite: (userId: number | string | null) => ['videoCourses', 'infinite', userId] as const,
+    allDetail: ['videoCourse'] as const,
+    detail: (courseId: number | null) => ['videoCourse', courseId] as const,
+    allShared: ['sharedVideoCourse'] as const,
+    shared: (shareToken: string) => ['sharedVideoCourse', shareToken] as const,
+    invitation: (token: string) => ['courseInvitation', token] as const,
+    participants: (courseId: number | null) => ['courseParticipants', courseId] as const,
     addableVideos: (params: {
-      groupId: number | null;
+      courseId: number | null;
       q: string;
       status: string;
       ordering: string;
       tagIds: number[];
       currentVideoIds: number[];
-    }) => ['videoGroups', 'addableVideos', params] as const,
+    }) => ['videoCourses', 'addableVideos', params] as const,
   },
   videos: {
     all: ['videos'] as const,
@@ -34,16 +34,16 @@ export const queryKeys = {
   },
   popularScenes: {
     all: ['popularScenes'] as const,
-    byGroup: (groupId: number) => ['popularScenes', groupId] as const,
+    byCourse: (courseId: number) => ['popularScenes', courseId] as const,
   },
   tags: {
     all: ['tags'] as const,
   },
   chat: {
-    history: (groupId: number | null, shareToken?: string) => ['chatHistory', groupId, shareToken ?? null] as const,
-    analytics: (groupId: number) => ['chatAnalytics', groupId] as const,
-    evaluations: (groupId: number | null) => ['chatEvaluations', groupId] as const,
-    evaluationSummary: (groupId: number | null) => ['evaluationSummary', groupId] as const,
+    history: (courseId: number | null, shareToken?: string) => ['chatHistory', courseId, shareToken ?? null] as const,
+    analytics: (courseId: number) => ['chatAnalytics', courseId] as const,
+    evaluations: (courseId: number | null) => ['chatEvaluations', courseId] as const,
+    evaluationSummary: (courseId: number | null) => ['evaluationSummary', courseId] as const,
   },
   billing: {
     plans: ['billing', 'plans'] as const,

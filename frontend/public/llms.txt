@@ -13,7 +13,7 @@ VideoQ transcribes and searches lecture videos and class recordings. Ask the vid
 - YouTubeの講義URLの登録
 - Register YouTube lecture URLs
 - クラスや研修チームへの講義共有
-- Share lecture groups with a class or training team
+- Share lecture courses with a class or training team
 - 学生の質問傾向の確認
 - Review what students asked about a lecture
 - 日本語・英語のインターフェース
@@ -89,7 +89,7 @@ VideoQ acts as an MCP server, allowing AI agent clients such as Claude Desktop t
 
 - [Authentication API](https://videoq.jp/docs/auth)
 - [Video API](https://videoq.jp/docs/videos)
-- [Group and Membership API](https://videoq.jp/docs/groups)
+- [Course and Membership API](https://videoq.jp/docs/courses)
 - [Tag API](https://videoq.jp/docs/tags)
 - [Chat API](https://videoq.jp/docs/chat)
 - [OpenAI-Compatible API](https://videoq.jp/docs/openai)

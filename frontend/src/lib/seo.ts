@@ -6,7 +6,7 @@ export const PUBLIC_INDEX_PATHS = [
   '/docs',
   '/docs/auth',
   '/docs/videos',
-  '/docs/groups',
+  '/docs/courses',
   '/docs/tags',
   '/docs/chat',
   '/docs/openai',
@@ -32,7 +32,7 @@ const NOINDEX_PREFIXES = [
   '/settings',
   '/admin',
   '/share',
-  '/group-invitations',
+  '/course-invitations',
 ] as const;
 
 export type SiteLocale = 'en' | 'ja';

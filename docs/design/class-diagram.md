@@ -76,13 +76,13 @@ classDiagram
 ```mermaid
 classDiagram
     User "1" --> "*" Video
-    User "1" --> "*" VideoGroup
+    User "1" --> "*" VideoCourse
     User "1" --> "*" Tag
-    VideoGroup "1" --> "*" VideoGroupMember
-    Video "1" --> "*" VideoGroupMember
+    VideoCourse "1" --> "*" VideoCourseMember
+    Video "1" --> "*" VideoCourseMember
     Video "1" --> "*" VideoTag
     Tag "1" --> "*" VideoTag
-    VideoGroup "1" --> "*" ChatLog
+    VideoCourse "1" --> "*" ChatLog
     ChatLog "1" --> "0..1" ChatLogEvaluation
     Video "1" --> "*" SceneEmbedding
     Video "1" --> "*" PlogConcept

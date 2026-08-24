@@ -11,7 +11,7 @@ interface __BaseEnv_CloudflareBindings {
 	FRONTEND_URL: "https://videoq.jp" | "http://localhost";
 	DEFAULT_FROM_EMAIL: "noreply@mg.videoq.jp" | "noreply@videoq.local";
 	MAILGUN_SENDER_DOMAIN?: "mg.videoq.jp";
-	GROUP_INVITATION_BATCH_LIMIT: "50";
+	COURSE_INVITATION_BATCH_LIMIT: "50";
 	MAX_VIDEO_UPLOAD_SIZE_MB: "200";
 	DEFAULT_STORAGE_LIMIT_GB: "1";
 	DEFAULT_PROCESSING_LIMIT_MINUTES: "45";
@@ -54,7 +54,7 @@ declare namespace Cloudflare {
 		FRONTEND_URL: "https://videoq.jp";
 		DEFAULT_FROM_EMAIL: "noreply@mg.videoq.jp";
 		MAILGUN_SENDER_DOMAIN: "mg.videoq.jp";
-		GROUP_INVITATION_BATCH_LIMIT: "50";
+		COURSE_INVITATION_BATCH_LIMIT: "50";
 		MAX_VIDEO_UPLOAD_SIZE_MB: "200";
 		DEFAULT_STORAGE_LIMIT_GB: "1";
 		DEFAULT_PROCESSING_LIMIT_MINUTES: "45";
@@ -89,7 +89,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "ENVIRONMENT" | "USE_S3_STORAGE" | "CORS_ALLOW_ORIGIN" | "FRONTEND_URL" | "DEFAULT_FROM_EMAIL" | "MAILGUN_SENDER_DOMAIN" | "GROUP_INVITATION_BATCH_LIMIT" | "MAX_VIDEO_UPLOAD_SIZE_MB" | "DEFAULT_STORAGE_LIMIT_GB" | "DEFAULT_PROCESSING_LIMIT_MINUTES" | "DEFAULT_AI_ANSWERS_LIMIT" | "STRIPE_AUTOMATIC_TAX" | "EMBEDDING_PROVIDER" | "EMBEDDING_MODEL" | "EMBEDDING_VECTOR_SIZE" | "OLLAMA_BASE_URL" | "LLM_MODEL" | "PGVECTOR_COLLECTION_NAME" | "OAUTH_ISSUER_URL" | "BETTER_AUTH_SECRET" | "BETTER_AUTH_URL" | "USER_SECRET_ENCRYPTION_KEY" | "R2_ACCESS_KEY_ID" | "R2_SECRET_ACCESS_KEY" | "R2_S3_ENDPOINT" | "R2_BUCKET_NAME" | "R2_S3_REGION" | "SQS_QUEUE_URL" | "AWS_REGION" | "AWS_ACCESS_KEY_ID" | "AWS_SECRET_ACCESS_KEY">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "ENVIRONMENT" | "USE_S3_STORAGE" | "CORS_ALLOW_ORIGIN" | "FRONTEND_URL" | "DEFAULT_FROM_EMAIL" | "MAILGUN_SENDER_DOMAIN" | "COURSE_INVITATION_BATCH_LIMIT" | "MAX_VIDEO_UPLOAD_SIZE_MB" | "DEFAULT_STORAGE_LIMIT_GB" | "DEFAULT_PROCESSING_LIMIT_MINUTES" | "DEFAULT_AI_ANSWERS_LIMIT" | "STRIPE_AUTOMATIC_TAX" | "EMBEDDING_PROVIDER" | "EMBEDDING_MODEL" | "EMBEDDING_VECTOR_SIZE" | "OLLAMA_BASE_URL" | "LLM_MODEL" | "PGVECTOR_COLLECTION_NAME" | "OAUTH_ISSUER_URL" | "BETTER_AUTH_SECRET" | "BETTER_AUTH_URL" | "USER_SECRET_ENCRYPTION_KEY" | "R2_ACCESS_KEY_ID" | "R2_SECRET_ACCESS_KEY" | "R2_S3_ENDPOINT" | "R2_BUCKET_NAME" | "R2_S3_REGION" | "SQS_QUEUE_URL" | "AWS_REGION" | "AWS_ACCESS_KEY_ID" | "AWS_SECRET_ACCESS_KEY">> {}
 }
 
 // Begin runtime types
@@ -224,19 +224,19 @@ interface Console {
      */
     error(...data: any[]): void;
     /**
-     * The **`console.group()`** static method creates a new inline group in the Web console log, causing any subsequent console messages to be indented by an additional level, until console.groupEnd() is called.
+     * The **`console.course()`** static method creates a new inline course in the Web console log, causing any subsequent console messages to be indented by an additional level, until console.groupEnd() is called.
      *
      * [MDN Reference](https://developer.mozilla.org/docs/Web/API/console/group_static)
      */
-    group(...data: any[]): void;
+    course(...data: any[]): void;
     /**
-     * The **`console.groupCollapsed()`** static method creates a new inline group in the console. Unlike console.group(), however, the new group is created collapsed. The user will need to use the disclosure button next to it to expand it, revealing the entries created in the group.
+     * The **`console.groupCollapsed()`** static method creates a new inline course in the console. Unlike console.course(), however, the new course is created collapsed. The user will need to use the disclosure button next to it to expand it, revealing the entries created in the course.
      *
      * [MDN Reference](https://developer.mozilla.org/docs/Web/API/console/groupCollapsed_static)
      */
     groupCollapsed(...data: any[]): void;
     /**
-     * The **`console.groupEnd()`** static method exits the current inline group in the console. See Using groups in the console in the console documentation for details and examples.
+     * The **`console.groupEnd()`** static method exits the current inline course in the console. See Using courses in the console in the console documentation for details and examples.
      *
      * [MDN Reference](https://developer.mozilla.org/docs/Web/API/console/groupEnd_static)
      */
@@ -3119,7 +3119,7 @@ declare class URLSearchParams {
     ]>;
 }
 /**
- * The **`URLPattern`** interface of the URL Pattern API matches URLs or parts of URLs against a pattern. The pattern can contain capturing groups that extract parts of the matched URL.
+ * The **`URLPattern`** interface of the URL Pattern API matches URLs or parts of URLs against a pattern. The pattern can contain capturing courses that extract parts of the matched URL.
  *
  * [MDN Reference](https://developer.mozilla.org/docs/Web/API/URLPattern)
  */
@@ -3174,7 +3174,7 @@ declare class URLPattern {
      */
     get hash(): string;
     /**
-     * The **`hasRegExpGroups`** read-only property of the URLPattern interface is a boolean indicating whether or not any of the URLPattern components contain regular expression capturing groups.
+     * The **`hasRegExpGroups`** read-only property of the URLPattern interface is a boolean indicating whether or not any of the URLPattern components contain regular expression capturing courses.
      *
      * [MDN Reference](https://developer.mozilla.org/docs/Web/API/URLPattern/hasRegExpGroups)
      */
@@ -3205,7 +3205,7 @@ interface URLPatternInit {
 }
 interface URLPatternComponentResult {
     input: string;
-    groups: Record<string, string>;
+    courses: Record<string, string>;
 }
 interface URLPatternResult {
     inputs: (string | URLPatternInit)[];
@@ -3716,8 +3716,8 @@ interface CloudflareAccessIdentity extends Record<string, unknown> {
     geo?: {
         country: string;
     };
-    /** Group memberships from the identity provider. */
-    groups?: Array<{
+    /** Course memberships from the identity provider. */
+    courses?: Array<{
         id: string;
         name: string;
         email?: string;
@@ -10329,7 +10329,7 @@ type AiOptions = {
      */
     websocket?: boolean;
     /**
-     * Tag your requests to group and view them in Cloudflare dashboard.
+     * Tag your requests to course and view them in Cloudflare dashboard.
      *
      * Rules:
      * Tags must only contain letters, numbers, and the symbols: : - . / @
@@ -11966,7 +11966,7 @@ interface IncomingRequestCfPropertiesBase extends Record<string, unknown> {
      *
      * If no information was set, defaults to the empty string `""`
      *
-     * @example "weight=192;exclusive=0;group=3;group-weight=127"
+     * @example "weight=192;exclusive=0;course=3;course-weight=127"
      * @default ""
      */
     requestPriority: string;

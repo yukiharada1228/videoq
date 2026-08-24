@@ -39,7 +39,7 @@ Package READMEs: [`apps/`](apps/README.md) · [`apps/api/`](apps/api/README.md) 
 - **Ask questions** - For example, "What did they say about the budget?" or "Summarize the key points"
 - **Search video content** - Find specific moments without scrubbing through hours of footage
 - **Organize with tags** - Manage videos with custom tags and colors
-- **Share insights** - Create shareable video groups for team collaboration
+- **Share insights** - Create shareable video courses for team collaboration
 - **Multilingual UI** - Switch between Japanese and English interfaces
 - **Developer integrations** - REST API, OpenAI-compatible chat, and analytics MCP tools
 
@@ -350,9 +350,9 @@ VideoQ exposes a built-in **analytics-only** remote MCP server at `/api/mcp` (St
 | Tool | Purpose |
 |---|---|
 | `list_videos` / `get_video` | List videos and view details (including transcripts) |
-| `list_groups` / `get_group` | List groups and their member videos |
+| `list_courses` / `get_course` | List courses and their member videos |
 | `list_tags` | List tags |
-| `get_chat_history` | Chat history for a group (with feedback) |
+| `get_chat_history` | Chat history for a course (with feedback) |
 | `get_chat_analytics` | Question counts, period, daily time series, feedback aggregates |
 | `get_evaluation_summary` | RAGAS average scores (faithfulness / answer_relevancy / context_precision) |
 | `list_evaluation_logs` | Per-log RAGAS scores |
@@ -428,7 +428,7 @@ Config file locations:
 
 #### Step 3: Verify
 
-Restart the client and confirm that the MCP server appears as `videoq`. Try prompts like "Show the RAGAS evaluation summary for group 1" or "List my recent videos" to trigger the matching tools.
+Restart the client and confirm that the MCP server appears as `videoq`. Try prompts like "Show the RAGAS evaluation summary for course 1" or "List my recent videos" to trigger the matching tools.
 
 ### Troubleshooting
 

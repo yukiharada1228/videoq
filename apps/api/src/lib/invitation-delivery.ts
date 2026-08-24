@@ -1,9 +1,9 @@
 import {
   recordInvitationDeliveryOutcomes,
   rotateInvitationTokenForDelivery,
-} from "../repositories/group-invitation-repository";
+} from "../repositories/course-invitation-repository";
 import type { Bindings } from "../types/bindings";
-import { createInvitationToken, hashInvitationToken } from "./group-invitations";
+import { createInvitationToken, hashInvitationToken } from "./course-invitations";
 import { sendMail } from "./mail";
 
 function frontendBaseUrl(env: Bindings): string {
@@ -11,22 +11,22 @@ function frontendBaseUrl(env: Bindings): string {
 }
 
 export function invitationUrl(env: Bindings, token: string): string {
-  return `${frontendBaseUrl(env)}/group-invitations/${encodeURIComponent(token)}`;
+  return `${frontendBaseUrl(env)}/course-invitations/${encodeURIComponent(token)}`;
 }
 
 export function invitationMessage(
-  groupName: string,
+  courseName: string,
   inviterName: string,
   url: string,
 ): string[] {
   return [
-    `${inviterName}さんからVideoQの「${groupName}」グループへ招待されました。`,
+    `${inviterName}さんからVideoQの「${courseName}」講座へ招待されました。`,
     "以下のURLから招待内容を確認し、7日以内に承認してください。",
     "",
     "招待を確認:",
     url,
     "",
-    "リンクを開いただけではグループに参加しません。心当たりがない場合は、このメールを破棄してください。",
+    "リンクを開いただけでは講座に参加しません。心当たりがない場合は、このメールを破棄してください。",
   ];
 }
 
@@ -66,9 +66,9 @@ export async function deliverInvitationEmail(
     await sendMail(
       env,
       rotated.email,
-      `[VideoQ] 「${rotated.groupName}」への招待`,
+      `[VideoQ] 「${rotated.courseName}」への招待`,
       invitationMessage(
-        rotated.groupName,
+        rotated.courseName,
         rotated.inviterName,
         invitationUrl(env, token),
       ),

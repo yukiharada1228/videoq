@@ -75,7 +75,7 @@ const EXPECTED_CSV =
   "2026-05-02T00:00:01.123Z,,,,second,answer,true,[],\r\n";
 
 const defaultRows = (sql: MatchableSql): Record<string, unknown>[] => {
-  if (sql.includes("video_groups")) return [{ id: 1 }];
+  if (sql.includes("video_courses")) return [{ id: 1 }];
   if (sql.includes("chat_logs") && sql.includes("ORDER BY cl.created_at ASC"))
     return exportRows;
   return [];
@@ -97,53 +97,53 @@ const request = async (path: string, method: string, token?: string) =>
     ENV,
   );
 
-describe("GET /groups/:id/history/?download=csv", () => {
+describe("GET /courses/:id/history/?download=csv", () => {
   it("CRLF・最小引用・compact JSON の CSV を返す", async () => {
     const res = await request(
-      "/groups/3/history?download=csv",
+      "/courses/3/history?download=csv",
       "GET",
       await accessToken(),
     );
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("text/csv; charset=utf-8");
     expect(res.headers.get("content-disposition")).toBe(
-      'attachment; filename="chat_history_group_3.csv"',
+      'attachment; filename="chat_history_course_3.csv"',
     );
 
     const body = await res.text();
     expect(body).toBe(EXPECTED_CSV);
   });
 
-  it("他人のグループは 404 Group not found.", async () => {
+  it("他人の講座は 404 Course not found.", async () => {
     rowsFor = (sql) =>
-      sql.includes("video_groups") ? [] : defaultRows(sql);
+      sql.includes("video_courses") ? [] : defaultRows(sql);
     const res = await request(
-      "/groups/3/history?download=csv",
+      "/courses/3/history?download=csv",
       "GET",
       await accessToken(),
     );
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({
-      error: { code: "VALIDATION_ERROR", message: "Group not found." },
+      error: { code: "VALIDATION_ERROR", message: "Course not found." },
     });
   });
 
   it("未認証は 401", async () => {
-    const res = await request("/groups/3/history?download=csv", "GET");
+    const res = await request("/courses/3/history?download=csv", "GET");
     expect(res.status).toBe(401);
   });
 });
 
-describe("GET /groups/:id/history", () => {
+describe("GET /courses/:id/history", () => {
   it("質問者を返し、共有リンク由来は匿名として返す", async () => {
     rowsFor = (sql) => {
-      if (sql.includes("video_groups")) return [{ id: 3 }];
+      if (sql.includes("video_courses")) return [{ id: 3 }];
       if (sql.includes("count(*)::int")) return [{ c: 2 }];
       if (sql.includes("chat_logs") && sql.includes("order by")) {
         return [
           {
             id: 10,
-            group_id: 3,
+            course_id: 3,
             user_id: "00000000-0000-4000-8000-000000000006",
             username: "student",
             email: "student@example.com",
@@ -156,7 +156,7 @@ describe("GET /groups/:id/history", () => {
           },
           {
             id: 11,
-            group_id: 3,
+            course_id: 3,
             user_id: "00000000-0000-4000-8000-000000000005",
             username: "owner",
             email: "owner@example.com",
@@ -172,7 +172,7 @@ describe("GET /groups/:id/history", () => {
       return [];
     };
 
-    const res = await request("/groups/3/history?limit=10", "GET", await accessToken());
+    const res = await request("/courses/3/history?limit=10", "GET", await accessToken());
     expect(res.status).toBe(200);
     const body = await res.json() as { data: Array<Record<string, unknown>> };
     expect(body.data[0].asked_by).toEqual({
@@ -246,34 +246,34 @@ describe("CSV の細部", () => {
   });
 });
 
-describe("DELETE /groups/:id/history/", () => {
+describe("DELETE /courses/:id/history/", () => {
   it("評価 → chat log の順に削除して 204 を返す", async () => {
-    const res = await request("/groups/3/history", "DELETE", await accessToken());
+    const res = await request("/courses/3/history", "DELETE", await accessToken());
     expect(res.status).toBe(204);
     expect(await res.text()).toBe("");
 
     const txnCalls = calls.filter((c) => !c.sql.includes("FROM session"));
     const sqls = txnCalls.map((c) => c.sql.replace(/\s+/g, " ").trim());
     expect(sqls[0]).toBe("begin");
-    expect(sqls[1]).toContain("video_groups");
+    expect(sqls[1]).toContain("video_courses");
     expect(sqls[2]).toContain("chat_log_evaluations");
     expect(sqls[3]).toContain("chat_logs");
     expect(sqls[4]).toBe("commit");
     expect(txnCalls[1].args.slice(0, 2)).toEqual([3, "00000000-0000-4000-8000-000000000005"]);
   });
 
-  it("グループが無ければ ROLLBACK して 404", async () => {
+  it("講座が無ければ ROLLBACK して 404", async () => {
     rowsFor = () => [];
-    const res = await request("/groups/3/history", "DELETE", await accessToken());
+    const res = await request("/courses/3/history", "DELETE", await accessToken());
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({
-      error: { code: "VALIDATION_ERROR", message: "Group not found." },
+      error: { code: "VALIDATION_ERROR", message: "Course not found." },
     });
     expect(calls.some((c) => c.sql.includes("delete from"))).toBe(false);
   });
 
   it("未認証は 401", async () => {
-    const res = await request("/groups/3/history", "DELETE");
+    const res = await request("/courses/3/history", "DELETE");
     expect(res.status).toBe(401);
   });
 });

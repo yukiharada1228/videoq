@@ -17,6 +17,7 @@ import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { Button } from '@/components/ui/button';
 import { Divider } from '@/components/ui/divider';
 import { UtilityLink } from '@/components/ui/utility-link';
+import { oauthAuthorizeResumeUrl } from '@/lib/oauthResume';
 
 // Only allow same-origin absolute paths to prevent open redirects to attacker
 // origins (e.g. ?next=//evil.com or ?next=https://evil.com).
@@ -33,6 +34,8 @@ export default function LoginPage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const nextPath = getSafeNextPath(searchParams.get('next'));
+  const oauthResume = oauthAuthorizeResumeUrl(searchParams);
+  const afterLogin = oauthResume || nextPath;
   const oauthError = searchParams.get('error');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -48,9 +51,9 @@ export default function LoginPage() {
     },
     initialData: { username: '', password: '' },
     onSuccessRedirect: () => {
-      if (nextPath) {
+      if (afterLogin) {
         // OAuth authorize pages are served by the API, outside the SPA router.
-        window.location.href = nextPath;
+        window.location.href = afterLogin;
         return;
       }
       navigate('/');
@@ -131,7 +134,7 @@ export default function LoginPage() {
         </span>
       </div>
 
-      <GoogleSignInButton callbackURL={nextPath || '/'} />
+      <GoogleSignInButton callbackURL={afterLogin || '/'} />
 
       <div className="mt-8 text-center">
         <AuthFormFooter

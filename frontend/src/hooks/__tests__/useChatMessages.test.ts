@@ -207,10 +207,10 @@ describe('useChatMessages streaming', () => {
     vi.useRealTimers()
   })
 
-  it('calls chatStream with groupId when provided', async () => {
+  it('calls chatStream with courseId when provided', async () => {
     ;(apiClient.chatStream as any).mockImplementation(makeStreamMock(['ok']))
 
-    const { result } = renderHook(() => useChatMessages({ groupId: 5 }))
+    const { result } = renderHook(() => useChatMessages({ courseId: 5 }))
 
     act(() => { result.current.setInput('Hi') })
 
@@ -220,7 +220,7 @@ describe('useChatMessages streaming', () => {
 
     await waitFor(() => {
       expect(apiClient.chatStream).toHaveBeenCalledWith(
-        expect.objectContaining({ group_id: 5 }),
+        expect.objectContaining({ course_id: 5 }),
       )
     })
   })

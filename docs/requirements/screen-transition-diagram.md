@@ -26,25 +26,25 @@ stateDiagram-v2
     
     Home --> VideoList: Logged In
     VideoList --> VideoDetail: Select Video
-    VideoList --> VideoGroupList: Group List
+    VideoList --> VideoCourseList: Course List
     
     VideoDetail --> VideoList: Back
-    VideoDetail --> VideoGroupDetail: Select Group
+    VideoDetail --> VideoCourseDetail: Select Course
     
-    VideoGroupList --> VideoGroupDetail: Select Group
-    VideoGroupList --> VideoList: Back
+    VideoCourseList --> VideoCourseDetail: Select Course
+    VideoCourseList --> VideoList: Back
     
-    VideoGroupDetail --> VideoGroupList: Back
-    VideoGroupDetail --> VideoDetail: Select Video
-    VideoGroupDetail --> SharePage: Generate Share Link
+    VideoCourseDetail --> VideoCourseList: Back
+    VideoCourseDetail --> VideoDetail: Select Video
+    VideoCourseDetail --> SharePage: Generate Share Link
 
-    VideoGroupDetail --> VideoGroupDetail: Open Analytics Dashboard
-    VideoGroupDetail --> VideoGroupDetail: Open Shorts Player
+    VideoCourseDetail --> VideoCourseDetail: Open Analytics Dashboard
+    VideoCourseDetail --> VideoCourseDetail: Open Shorts Player
     
     SharePage --> Home: Leave Shared View
 
     Home --> SharePage: Share Token URL
-    SharePage --> SharePage: Chat with Shared Group
+    SharePage --> SharePage: Chat with Shared Course
     SharePage --> SharePage: Open Shorts Player
 
     VideoList --> Settings: Settings Menu
@@ -71,13 +71,13 @@ stateDiagram-v2
         Video Detail Page
         - Video information display
         - Transcript display
-        - Add to group
+        - Add to course
         - Tag management
     end note
     
-    note right of VideoGroupDetail
-        Group Detail Page
-        - Group video list
+    note right of VideoCourseDetail
+        Course Detail Page
+        - Course video list
         - Chat functionality
         - Share link management
         - Analytics dashboard
@@ -107,9 +107,9 @@ stateDiagram-v2
 - **VideoList** (`/videos` または `/:locale/videos`): 動画一覧ページ
 - **VideoDetail** (`/videos/:id` または `/:locale/videos/:id`): 動画詳細ページ
 
-### グループ管理
-- **VideoGroupList** (`/videos/groups` または `/:locale/videos/groups`): グループ一覧ページ
-- **VideoGroupDetail** (`/videos/groups/:id` または `/:locale/videos/groups/:id`): グループ詳細ページ
+### 講座管理
+- **VideoCourseList** (`/videos/courses` または `/:locale/videos/courses`): 講座一覧ページ
+- **VideoCourseDetail** (`/videos/courses/:id` または `/:locale/videos/courses/:id`): 講座詳細ページ
 
 ### 共有
 - **SharePage** (`/share/:token` または `/:locale/share/:token`): 共有ページ（認証不要）
@@ -150,14 +150,14 @@ stateDiagram-v2
 
 以下のインタラクションは、新しいルートに移動せず、ページ内（モーダル、パネル、ドロワー）で発生します:
 
-### VideoGroupDetail
-- **分析ダッシュボード**: グループ詳細ページ内のモーダル/パネルとして開く
-- **ショートプレイヤー**: グループ詳細ページからフルスクリーンオーバーレイで開く
-- **チャットパネル**: グループの動画とチャットするためのインラインパネル
+### VideoCourseDetail
+- **分析ダッシュボード**: 講座詳細ページ内のモーダル/パネルとして開く
+- **ショートプレイヤー**: 講座詳細ページからフルスクリーンオーバーレイで開く
+- **チャットパネル**: 講座の動画とチャットするためのインラインパネル
 
 ### VideoDetail
 - **タグ管理**: タグセレクターと作成ダイアログはインラインモーダル
-- **グループに追加**: 動画をグループに追加するモーダル
+- **講座に追加**: 動画を講座に追加するモーダル
 
 ### VideoList
 - **動画アップロード**: 新しい動画をアップロードするモーダル

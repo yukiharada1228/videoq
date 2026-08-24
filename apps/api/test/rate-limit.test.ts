@@ -77,10 +77,10 @@ describe("enforceThrottles (memory backend)", () => {
   });
 
   it("cost 分をまとめて消費し、枠に収まらなければ 1 件も記録しない", async () => {
-    const { limit } = THROTTLE_RATES.group_invitation_user;
+    const { limit } = THROTTLE_RATES.course_invitation_user;
     const invite = (cost: number) =>
       enforceThrottles(ENV, [
-        { scope: "group_invitation_user", ident: "owner", cost },
+        { scope: "course_invitation_user", ident: "owner", cost },
       ]);
 
     expect(await invite(limit - 1)).toBeNull();
@@ -94,19 +94,19 @@ describe("enforceThrottles (memory backend)", () => {
   });
 
   it("宛先数ではなくリクエスト数で数えない", async () => {
-    const { limit } = THROTTLE_RATES.group_invitation_group;
+    const { limit } = THROTTLE_RATES.course_invitation_course;
     // 50 宛先 × N 回で limit を超えた時点で止まる（リクエスト数は少なくても）。
     const batches = Math.floor(limit / 50);
     for (let i = 0; i < batches; i++) {
       expect(
         await enforceThrottles(ENV, [
-          { scope: "group_invitation_group", ident: "7", cost: 50 },
+          { scope: "course_invitation_course", ident: "7", cost: 50 },
         ]),
       ).toBeNull();
     }
     expect(
       await enforceThrottles(ENV, [
-        { scope: "group_invitation_group", ident: "7", cost: 50 },
+        { scope: "course_invitation_course", ident: "7", cost: 50 },
       ]),
     ).not.toBeNull();
   });

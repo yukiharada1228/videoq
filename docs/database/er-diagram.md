@@ -44,9 +44,9 @@ erDiagram
 
 ## コンテンツテーブル
 
-- `videos`, `video_groups`, `video_group_members`
+- `videos`, `video_courses`, `video_course_members`
 - `tags`, `video_tags`
-- `chat_logs`, `chat_log_evaluations`, `group_evaluation_snapshots`
+- `chat_logs`, `chat_log_evaluations`, `course_evaluation_snapshots`
 - `scene_embeddings`
 - `plog_*`, `learner_concept_states`
 
@@ -55,5 +55,5 @@ erDiagram
 - 所有関係は FK で表現
 - user / parent 削除時の関連行は schema 定義の cascade 方針に従う
 - API key hash、session token hash、action token hash は unique
-- group member、video tag などの重複関係は複合 unique
+- course member、video tag などの重複関係は複合 unique
 - vector 次元は設定した embedding model と一致させる

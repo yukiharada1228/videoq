@@ -8,10 +8,10 @@ describe("chatMessageBodySchema", () => {
   it("accepts qa payload", () => {
     const r = chatMessageBodySchema.parse({
       messages: [{ role: "user", content: "hi" }],
-      group_id: 3,
+      course_id: 3,
     });
     expect(r.mode).toBe("qa");
-    expect(r.group_id).toBe(3);
+    expect(r.course_id).toBe(3);
   });
 
   it("rejects empty messages", () => {

@@ -53,17 +53,17 @@ describe('invalidateAfterVideoDelete', () => {
     })
   })
 
-  it('invalidates all videoGroup detail queries', async () => {
+  it('invalidates all videoCourse detail queries', async () => {
     await invalidateAfterVideoDelete(queryClient, 42)
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: queryKeys.videoGroups.allDetail,
+      queryKey: queryKeys.videoCourses.allDetail,
     })
   })
 
-  it('invalidates all sharedVideoGroup queries', async () => {
+  it('invalidates all sharedVideoCourse queries', async () => {
     await invalidateAfterVideoDelete(queryClient, 42)
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: queryKeys.videoGroups.allShared,
+      queryKey: queryKeys.videoCourses.allShared,
     })
   })
 
@@ -96,17 +96,17 @@ describe('invalidateAfterVideoUpdate', () => {
     })
   })
 
-  it('invalidates all videoGroup detail queries', async () => {
+  it('invalidates all videoCourse detail queries', async () => {
     await invalidateAfterVideoUpdate(queryClient, 7)
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: queryKeys.videoGroups.allDetail,
+      queryKey: queryKeys.videoCourses.allDetail,
     })
   })
 
-  it('invalidates all sharedVideoGroup queries', async () => {
+  it('invalidates all sharedVideoCourse queries', async () => {
     await invalidateAfterVideoUpdate(queryClient, 7)
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: queryKeys.videoGroups.allShared,
+      queryKey: queryKeys.videoCourses.allShared,
     })
   })
 })
@@ -125,17 +125,17 @@ describe('invalidateAfterTranscriptEdit', () => {
     })
   })
 
-  it('invalidates all videoGroup detail queries', async () => {
+  it('invalidates all videoCourse detail queries', async () => {
     await invalidateAfterTranscriptEdit(queryClient, 3)
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: queryKeys.videoGroups.allDetail,
+      queryKey: queryKeys.videoCourses.allDetail,
     })
   })
 
-  it('invalidates all sharedVideoGroup queries', async () => {
+  it('invalidates all sharedVideoCourse queries', async () => {
     await invalidateAfterTranscriptEdit(queryClient, 3)
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: queryKeys.videoGroups.allShared,
+      queryKey: queryKeys.videoCourses.allShared,
     })
   })
 
@@ -154,10 +154,10 @@ describe('invalidateAfterGroupDelete', () => {
     queryClient = createMockQueryClient()
   })
 
-  it('invalidates all videoGroups queries', async () => {
+  it('invalidates all videoCourses queries', async () => {
     await invalidateAfterGroupDelete(queryClient)
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: queryKeys.videoGroups.prefix,
+      queryKey: queryKeys.videoCourses.prefix,
     })
   })
 })
@@ -169,17 +169,17 @@ describe('invalidateAfterGroupVideoRemove', () => {
     queryClient = createMockQueryClient()
   })
 
-  it('invalidates the specific group detail', async () => {
+  it('invalidates the specific course detail', async () => {
     await invalidateAfterGroupVideoRemove(queryClient, 10)
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: queryKeys.videoGroups.detail(10),
+      queryKey: queryKeys.videoCourses.detail(10),
     })
   })
 
-  it('invalidates popularScenes for the specific group', async () => {
+  it('invalidates popularScenes for the specific course', async () => {
     await invalidateAfterGroupVideoRemove(queryClient, 10)
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: queryKeys.popularScenes.byGroup(10),
+      queryKey: queryKeys.popularScenes.byCourse(10),
     })
   })
 })

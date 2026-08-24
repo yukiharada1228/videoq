@@ -56,12 +56,12 @@ flowchart TD
     ErrorRateLimit --> End
     RateLimit -->|OK| Auth{Authenticated or Share Token?}
     Auth -->|No| Error1[Authentication Error]
-    Auth -->|Yes| GetGroup{Group Specified?}
+    Auth -->|Yes| GetCourse{Course Specified?}
     
-    GetGroup -->|Yes| ValidateGroup[Validate Group Existence]
-    GetGroup -->|No| ParseQuery[Parse Question Text]
+    GetCourse -->|Yes| ValidateGroup[Validate Course Existence]
+    GetCourse -->|No| ParseQuery[Parse Question Text]
     ValidateGroup --> ParseQuery
-    ParseQuery --> VectorSearch{Group Specified?}
+    ParseQuery --> VectorSearch{Course Specified?}
     
     VectorSearch -->|Yes| SearchVectors[Search Related Scenes<br/>with PGVector]
     VectorSearch -->|No| NoContext[No Context]
@@ -107,14 +107,14 @@ flowchart TD
     Error1 --> End
 ```
 
-## 4. グループ共有フロー
+## 4. 講座共有フロー
 
 ```mermaid
 flowchart TD
     Start([User Generates Share Link]) --> CheckAuth{Authentication Check}
     CheckAuth -->|Unauthenticated| Error1[Authentication Error]
-    CheckAuth -->|Authenticated| GetGroup[Get Group]
-    GetGroup --> ValidateOwner{Owner Verification}
+    CheckAuth -->|Authenticated| GetCourse[Get Course]
+    GetCourse --> ValidateOwner{Owner Verification}
     ValidateOwner -->|Mismatch| Error2[Permission Error]
     ValidateOwner -->|Match| GenerateToken[Generate Share Token]
     GenerateToken --> SaveToken[Save to Database]
@@ -128,25 +128,25 @@ flowchart TD
         Guest([Guest Accesses Share Link]) --> ExtractToken[Extract Token]
         ExtractToken --> ValidateToken{Token Verification}
         ValidateToken -->|Invalid| Error3[Link Invalid]
-        ValidateToken -->|Valid| GetSharedGroup[Get Shared Group]
-        GetSharedGroup --> ShowGroup[Display Group Information]
+        ValidateToken -->|Valid| GetSharedGroup[Get Shared Course]
+        GetSharedGroup --> ShowGroup[Display Course Information]
         ShowGroup --> AllowChat[Chat Function Available]
         AllowChat --> End2([Complete])
         Error3 --> End2
     end
 ```
 
-## 5. 動画グループ管理フロー
+## 5. 講座管理フロー
 
 ```mermaid
 flowchart TD
-    Start([User Creates Group]) --> CreateGroup[Create Group]
+    Start([User Creates Course]) --> CreateGroup[Create Course]
     CreateGroup --> AddVideos[Add Videos]
     AddVideos --> ValidateVideos{"Video Ownership<br>Verification"}
     ValidateVideos -->|Invalid| Error1[Error Display]
     ValidateVideos -->|Valid| CheckDuplicate{Already Added?}
     CheckDuplicate -->|Yes| Skip[Skip]
-    CheckDuplicate -->|No| CreateMember[Create VideoGroupMember]
+    CheckDuplicate -->|No| CreateMember[Create VideoCourseMember]
     CreateMember --> SetOrder[Set Order]
     SetOrder --> Save[Save to Database]
     Save --> Success[Success]
@@ -156,7 +156,7 @@ flowchart TD
     Error1 --> End
     
     subgraph Reorder[Reorder]
-        ReorderStart([Reorder Request]) --> GetVideos[Get Videos in Group]
+        ReorderStart([Reorder Request]) --> GetVideos[Get Videos in Course]
         GetVideos --> ValidateOrder{"Order Array<br>Validation"}
         ValidateOrder -->|Invalid| Error2[Error]
         ValidateOrder -->|Valid| UpdateOrder[Bulk Update]
@@ -210,7 +210,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start([User Opens Group Detail]) --> SelectAction{Select Operation}
+    Start([User Opens Course Detail]) --> SelectAction{Select Operation}
 
     SelectAction -->|View Analytics| OpenDashboard[Open Analytics Dashboard]
     OpenDashboard --> FetchAnalytics[Fetch Analytics Data<br/>Aggregated DB Queries]

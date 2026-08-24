@@ -45,9 +45,9 @@ describe('AppNav - no authenticated user (empty cache)', () => {
     expect(screen.queryByText('navigation.videosNav')).not.toBeInTheDocument()
   })
 
-  it('hides groups nav link', () => {
+  it('hides courses nav link', () => {
     render(<AppNav />)
-    expect(screen.queryByText('navigation.groupsNav')).not.toBeInTheDocument()
+    expect(screen.queryByText('navigation.coursesNav')).not.toBeInTheDocument()
   })
 
   it('hides settings nav link', () => {
@@ -77,9 +77,9 @@ describe('AppNav - authenticated user (cache populated)', () => {
     expect(within(getPrimaryNav()).getByText('navigation.videosNav')).toBeInTheDocument()
   })
 
-  it('shows groups nav link', () => {
+  it('shows courses nav link', () => {
     renderWithUser(<AppNav />)
-    expect(within(getPrimaryNav()).getByText('navigation.groupsNav')).toBeInTheDocument()
+    expect(within(getPrimaryNav()).getByText('navigation.coursesNav')).toBeInTheDocument()
   })
 
   it('shows settings nav link', () => {

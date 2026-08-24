@@ -503,13 +503,13 @@ async function runTurn(
   },
 ): Promise<{ result: StudyResult; states: StudySessionSnapshot["states"] }> {
   if (!params.videoIds.length) {
-    throw new PlogNotReadyError("Study mode requires a video group with members.");
+    throw new PlogNotReadyError("Study mode requires a video course with members.");
   }
 
   const graphs = await listReadyGraphs(env, params.videoIds);
   if (graphs.length === 0) {
     throw new PlogNotReadyError(
-      "PLOG is not ready for this group's videos. Wait for build or rebuild.",
+      "PLOG is not ready for this course's videos. Wait for build or rebuild.",
     );
   }
 

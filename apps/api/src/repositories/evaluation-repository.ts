@@ -1,11 +1,11 @@
 import { and, avg, count, desc, eq, sql } from "drizzle-orm";
 import { withDb } from "../db/pool";
-import { chatLogs, chatLogEvaluations, videoGroups } from "../db/schema";
+import { chatLogs, chatLogEvaluations, videoCourses } from "../db/schema";
 import { toUtcIso } from "../shared/datetime";
 import type { Bindings } from "../types/bindings";
 
 export type EvaluationSummary = {
-  group_id: number;
+  course_id: number;
   evaluated_count: number;
   avg_faithfulness: number | null;
   avg_answer_relevancy: number | null;
@@ -30,14 +30,14 @@ const numOrNull = (v: unknown): number | null => (v === null ? null : Number(v))
  */
 export async function getEvaluationSummary(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   userId: string,
 ): Promise<{ notFound: true } | EvaluationSummary> {
   return withDb(env, async (db) => {
     const owner = await db
       .select({ x: sql<number>`1` })
-      .from(videoGroups)
-      .where(and(eq(videoGroups.id, groupId), eq(videoGroups.userId, userId)))
+      .from(videoCourses)
+      .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, userId)))
       .limit(1);
     if (owner.length === 0) return { notFound: true } as const;
 
@@ -50,10 +50,10 @@ export async function getEvaluationSummary(
       })
       .from(chatLogEvaluations)
       .innerJoin(chatLogs, eq(chatLogEvaluations.chatLogId, chatLogs.id))
-      .where(and(eq(chatLogs.groupId, groupId), eq(chatLogEvaluations.status, "completed")));
+      .where(and(eq(chatLogs.courseId, courseId), eq(chatLogEvaluations.status, "completed")));
 
     return {
-      group_id: groupId,
+      course_id: courseId,
       evaluated_count: r.evaluated_count,
       avg_faithfulness: numOrNull(r.avg_faithfulness),
       avg_answer_relevancy: numOrNull(r.avg_answer_relevancy),
@@ -64,7 +64,7 @@ export async function getEvaluationSummary(
 
 export async function listEvaluationLogs(
   env: Bindings,
-  groupId: number,
+  courseId: number,
   userId: string,
   limit: number,
   offset: number,
@@ -72,8 +72,8 @@ export async function listEvaluationLogs(
   return withDb(env, async (db) => {
     const owner = await db
       .select({ x: sql<number>`1` })
-      .from(videoGroups)
-      .where(and(eq(videoGroups.id, groupId), eq(videoGroups.userId, userId)))
+      .from(videoCourses)
+      .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, userId)))
       .limit(1);
     if (owner.length === 0) return { notFound: true } as const;
 
@@ -81,7 +81,7 @@ export async function listEvaluationLogs(
       .select({ c: count() })
       .from(chatLogEvaluations)
       .innerJoin(chatLogs, eq(chatLogEvaluations.chatLogId, chatLogs.id))
-      .where(eq(chatLogs.groupId, groupId));
+      .where(eq(chatLogs.courseId, courseId));
 
     const rows = await db
       .select({
@@ -95,7 +95,7 @@ export async function listEvaluationLogs(
       })
       .from(chatLogEvaluations)
       .innerJoin(chatLogs, eq(chatLogEvaluations.chatLogId, chatLogs.id))
-      .where(eq(chatLogs.groupId, groupId))
+      .where(eq(chatLogs.courseId, courseId))
       .orderBy(desc(chatLogs.createdAt))
       .limit(limit)
       .offset(offset);

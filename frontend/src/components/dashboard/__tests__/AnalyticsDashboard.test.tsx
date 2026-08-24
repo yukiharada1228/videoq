@@ -12,7 +12,7 @@ const analytics: ChatAnalytics = {
 }
 
 const evaluationSummary: EvaluationSummary = {
-  group_id: 1,
+  course_id: 1,
   evaluated_count: 24,
   avg_faithfulness: 0.86,
   avg_answer_relevancy: 0.81,

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Heading, HeadingTitle } from '@/components/ui/heading';
 
 interface ChatPanelProps {
-  groupId?: number;
+  courseId?: number;
   onVideoPlay?: (videoId: number, startTime: string) => void;
   shareToken?: string;
   className?: string;
@@ -23,7 +23,7 @@ type PanelTab = 'chat' | 'history';
 type ChatMode = 'qa' | 'study';
 
 export function ChatPanel({
-  groupId,
+  courseId,
   onVideoPlay,
   shareToken,
   className,
@@ -46,7 +46,7 @@ export function ChatPanel({
     handleSend,
     handleKeyPress,
     handleFeedback,
-  } = useChatMessages({ groupId, shareToken, mode });
+  } = useChatMessages({ courseId, shareToken, mode });
 
   const {
     history,
@@ -55,7 +55,7 @@ export function ChatPanel({
     isExportingHistoryCsv,
     syncFeedbackInHistoryCache,
   } = useChatHistory({
-    groupId,
+    courseId,
     shareToken,
     enabled: tab === 'history',
   });
@@ -89,7 +89,7 @@ export function ChatPanel({
     ]);
   };
 
-  const showTabs = !!groupId && !shareToken && showHistory;
+  const showTabs = !!courseId && !shareToken && showHistory;
 
   const containerClass = cn(
     'flex min-h-0 flex-col overflow-hidden border border-solid-gray-420 bg-white',
@@ -130,7 +130,7 @@ export function ChatPanel({
         )}
       </div>
 
-      {tab === 'chat' && groupId && (
+      {tab === 'chat' && courseId && (
         <div className="px-4 py-2 border-b border-solid-gray-100 flex gap-2 shrink-0">
           <button
             type="button"

@@ -71,11 +71,11 @@ flowchart TD
     RateLimit -->|Exceeded| Error6[Rate Limit Error<br/>429 Too Many Requests]
     RateLimit -->|OK| Auth{Authenticated or Share Token?}
     Auth -->|No| Error2[Authentication Error]
-    Auth -->|Yes| CheckGroup{Group Specified?}
-    CheckGroup -->|No| NoContext[No Context]
-    CheckGroup -->|Yes| GetGroup[(Database<br/>Get VideoGroup)]
-    GetGroup --> ValidateGroup{"Group Exists<br>Check"}
-    ValidateGroup -->|Not Exists| Error4[Group Not Found Error]
+    Auth -->|Yes| CheckCourse{Course Specified?}
+    CheckCourse -->|No| NoContext[No Context]
+    CheckCourse -->|Yes| GetCourse[(Database<br/>Get VideoCourse)]
+    GetCourse --> ValidateGroup{"Course Exists<br>Check"}
+    ValidateGroup -->|Not Exists| Error4[Course Not Found Error]
     ValidateGroup -->|Exists| VectorSearch[PGVector<br/>Vector Search]
     VectorSearch --> GetScenes[Get Related Scenes]
     GetScenes --> BuildContext[Build Context]
@@ -155,53 +155,53 @@ flowchart TD
     ErrorRateLimit --> End
 ```
 
-## 4. グループ管理フロー
+## 4. 講座管理フロー
 
 ```mermaid
 flowchart TD
-    Start([Group Management]) --> Action{Select Operation}
-    Action -->|Create| Create[Create Group]
-    Action -->|Edit| Edit[Edit Group]
-    Action -->|Delete| Delete[Delete Group]
+    Start([Course Management]) --> Action{Select Operation}
+    Action -->|Create| Create[Create Course]
+    Action -->|Edit| Edit[Edit Course]
+    Action -->|Delete| Delete[Delete Course]
     Action -->|Add Video| AddVideo[Add Video]
     Action -->|Reorder| Reorder[Reorder]
     
-    Create --> InputCreate[Input Group Information]
+    Create --> InputCreate[Input Course Information]
     InputCreate --> ValidateCreate{Input Validation}
     ValidateCreate -->|Invalid| ErrorCreate[Error Display]
-    ValidateCreate -->|Valid| SaveGroup[(Database<br/>Create VideoGroup)]
-    SaveGroup --> SuccessCreate[Create Success]
+    ValidateCreate -->|Valid| SaveCourse[(Database<br/>Create VideoCourse)]
+    SaveCourse --> SuccessCreate[Create Success]
     SuccessCreate --> End([Complete])
     
-    Edit --> SelectGroup[Select Group]
+    Edit --> SelectGroup[Select Course]
     SelectGroup --> InputEdit[Input Edit Information]
     InputEdit --> ValidateEdit{Input Validation}
     ValidateEdit -->|Invalid| ErrorEdit[Error Display]
-    ValidateEdit -->|Valid| UpdateGroup[(Database<br/>Update VideoGroup)]
-    UpdateGroup --> SuccessEdit[Update Success]
+    ValidateEdit -->|Valid| UpdateCourse[(Database<br/>Update VideoCourse)]
+    UpdateCourse --> SuccessEdit[Update Success]
     SuccessEdit --> End
     
-    Delete --> SelectGroup2[Select Group]
+    Delete --> SelectGroup2[Select Course]
     SelectGroup2 --> Confirm{Delete Confirmation}
     Confirm -->|Cancel| Cancel[Cancel]
-    Confirm -->|Confirm| DeleteGroup[(Database<br/>Delete VideoGroup<br/>CASCADE)]
-    DeleteGroup --> SuccessDelete[Delete Success]
+    Confirm -->|Confirm| DeleteCourse[(Database<br/>Delete VideoCourse<br/>CASCADE)]
+    DeleteCourse --> SuccessDelete[Delete Success]
     SuccessDelete --> End
     Cancel --> End
     
-    AddVideo --> SelectGroup3[Select Group]
+    AddVideo --> SelectGroup3[Select Course]
     SelectGroup3 --> SelectVideos[Select Videos]
     SelectVideos --> ValidateOwnership{Ownership Verification}
     ValidateOwnership -->|Invalid| ErrorOwnership[Ownership Error]
     ValidateOwnership -->|Valid| CheckDuplicate{Duplicate Check}
     CheckDuplicate -->|Duplicate| Skip[Skip]
-    CheckDuplicate -->|New| CreateMember[(Database<br/>Create VideoGroupMember)]
+    CheckDuplicate -->|New| CreateMember[(Database<br/>Create VideoCourseMember)]
     CreateMember --> SuccessAdd[Add Success]
     SuccessAdd --> End
     Skip --> End
     ErrorOwnership --> End
     
-    Reorder --> SelectGroup4[Select Group]
+    Reorder --> SelectGroup4[Select Course]
     SelectGroup4 --> InputOrder[Input Order Array]
     InputOrder --> ValidateOrder{Order Validation}
     ValidateOrder -->|Invalid| ErrorOrder[Error Display]
@@ -223,7 +223,7 @@ flowchart TD
     Action -->|Delete Link| Delete[Delete Share Link]
     Action -->|Share Access| Access[Access Share Link]
     
-    Generate --> SelectGroup[Select Group]
+    Generate --> SelectGroup[Select Course]
     SelectGroup --> ValidateOwner{Ownership Verification}
     ValidateOwner -->|Invalid| ErrorOwner[Ownership Error]
     ValidateOwner -->|Valid| GenerateToken[Generate Share Token]
@@ -232,7 +232,7 @@ flowchart TD
     CreateURL --> DisplayURL[Display Share URL]
     DisplayURL --> End([Complete])
     
-    Delete --> SelectGroup2[Select Group]
+    Delete --> SelectGroup2[Select Course]
     SelectGroup2 --> ValidateOwner2{Ownership Verification}
     ValidateOwner2 -->|Invalid| ErrorOwner2[Ownership Error]
     ValidateOwner2 -->|Valid| CheckToken{"Token Exists<br>Check"}
@@ -244,9 +244,9 @@ flowchart TD
     Access --> ExtractToken[Extract Token from URL]
     ExtractToken --> ValidateToken{Token Verification}
     ValidateToken -->|Invalid| ErrorToken[Token Invalid Error]
-    ValidateToken -->|Valid| GetGroup[(Database<br/>Get VideoGroup)]
-    GetGroup --> GetVideos[(Database<br/>Get Related Videos)]
-    GetVideos --> DisplayGroup[Display Group Information]
+    ValidateToken -->|Valid| GetCourse[(Database<br/>Get VideoCourse)]
+    GetCourse --> GetVideos[(Database<br/>Get Related Videos)]
+    GetVideos --> DisplayGroup[Display Course Information]
     DisplayGroup --> AllowChat[Chat Feature Available]
     AllowChat --> End
     
@@ -446,7 +446,7 @@ flowchart TD
 
     ViewScenes --> FetchSceneLogs[(Database<br/>Get Scene Logs)]
     FetchSceneLogs --> AggregateScenes[Aggregate Scene References<br/>aggregate_scenes]
-    AggregateScenes --> FilterScenes[Filter Group Scenes<br/>filter_group_scenes]
+    AggregateScenes --> FilterScenes[Filter Course Scenes<br/>filter_course_scenes]
     FilterScenes --> ExtractKeywords[Extract Keywords<br/>JanomeNltkKeywordExtractor]
     ExtractKeywords --> DisplayScenes[Display Popular Scenes<br/>+ KeywordCloudChart<br/>+ SceneDistributionChart]
     DisplayScenes --> End

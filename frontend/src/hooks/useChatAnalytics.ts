@@ -2,11 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { apiClient, type ChatAnalytics } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 
-export function useChatAnalytics(groupId: number | null, enabled = true) {
+export function useChatAnalytics(courseId: number | null, enabled = true) {
   return useQuery<ChatAnalytics>({
-    queryKey: queryKeys.chat.analytics(groupId!),
-    queryFn: () => apiClient.getChatAnalytics(groupId!),
-    enabled: enabled && groupId != null,
+    queryKey: queryKeys.chat.analytics(courseId!),
+    queryFn: () => apiClient.getChatAnalytics(courseId!),
+    enabled: enabled && courseId != null,
     staleTime: 5 * 60 * 1000,
   });
 }

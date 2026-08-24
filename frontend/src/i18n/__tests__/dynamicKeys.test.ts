@@ -24,27 +24,27 @@ function resolve(locale: KeyMap, path: string): KeyMap {
 /** キーのプレフィックス → バックエンドが返しうる値の網羅。 */
 const DYNAMIC_KEYS: { path: string; values: readonly string[] }[] = [
   {
-    // GroupInvitationPage: ステータスチップ
-    path: 'groupInvitation.status',
+    // CourseInvitationPage: ステータスチップ
+    path: 'courseInvitation.status',
     values: ['pending', 'accepted', 'declined', 'expired', 'revoked'],
   },
   {
-    // GroupInvitationPage: 終了状態の説明。pending では描画されない。
-    path: 'groupInvitation.terminal',
+    // CourseInvitationPage: 終了状態の説明。pending では描画されない。
+    path: 'courseInvitation.terminal',
     values: ['accepted', 'declined', 'expired', 'revoked'],
   },
   {
-    // GroupParticipantsDialog: 一括招待の宛先ごとの結果。
+    // CourseParticipantsDialog: 一括招待の宛先ごとの結果。
     // 送信はキューに載るため sent/send_failed は返らない。
-    path: 'videos.groupMembers.result',
+    path: 'videos.courseMembers.result',
     values: ['queued', 'already_member', 'already_invited', 'invalid', 'duplicate'],
   },
   {
-    path: 'videos.groupMembers.status',
+    path: 'videos.courseMembers.status',
     values: ['pending', 'accepted', 'declined', 'expired', 'revoked'],
   },
   {
-    path: 'videos.groupMembers.delivery',
+    path: 'videos.courseMembers.delivery',
     values: ['queued', 'sent', 'failed'],
   },
 ];

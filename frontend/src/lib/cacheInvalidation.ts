@@ -12,8 +12,8 @@ export async function invalidateAfterVideoDelete(
   queryClient.removeQueries({ queryKey: queryKeys.videos.detail(videoId) })
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: queryKeys.videos.all }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.videoGroups.allDetail }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.videoGroups.allShared }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.videoCourses.allDetail }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.videoCourses.allShared }),
     queryClient.invalidateQueries({ queryKey: queryKeys.popularScenes.all }),
   ])
 }
@@ -25,8 +25,8 @@ export async function invalidateAfterVideoUpdate(
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: queryKeys.videos.detail(videoId) }),
     queryClient.invalidateQueries({ queryKey: queryKeys.videos.all }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.videoGroups.allDetail }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.videoGroups.allShared }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.videoCourses.allDetail }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.videoCourses.allShared }),
   ])
 }
 
@@ -36,22 +36,22 @@ export async function invalidateAfterTranscriptEdit(
 ): Promise<void> {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: queryKeys.videos.detail(videoId) }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.videoGroups.allDetail }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.videoGroups.allShared }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.videoCourses.allDetail }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.videoCourses.allShared }),
     queryClient.invalidateQueries({ queryKey: queryKeys.popularScenes.all }),
   ])
 }
 
 export async function invalidateAfterGroupDelete(queryClient: QueryClient): Promise<void> {
-  await queryClient.invalidateQueries({ queryKey: queryKeys.videoGroups.prefix })
+  await queryClient.invalidateQueries({ queryKey: queryKeys.videoCourses.prefix })
 }
 
 export async function invalidateAfterGroupVideoRemove(
   queryClient: QueryClient,
-  groupId: number,
+  courseId: number,
 ): Promise<void> {
   await Promise.all([
-    queryClient.invalidateQueries({ queryKey: queryKeys.videoGroups.detail(groupId) }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.popularScenes.byGroup(groupId) }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.videoCourses.detail(courseId) }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.popularScenes.byCourse(courseId) }),
   ])
 }

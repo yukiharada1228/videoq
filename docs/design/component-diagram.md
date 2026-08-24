@@ -35,7 +35,7 @@ flowchart TD
 主な feature:
 
 - auth
-- videos / groups / tags
+- videos / courses / tags
 - chat / evaluation / plog
 - oauth / mcp
 - membership / ops / media

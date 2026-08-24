@@ -2,9 +2,9 @@ import { and, eq, or, sql } from "drizzle-orm";
 import { withDb } from "../db/pool";
 import {
   videos,
-  videoGroups,
-  videoGroupMembers,
-  videoGroupMemberships,
+  videoCourses,
+  videoCourseMembers,
+  videoCourseMemberships,
 } from "../db/schema";
 import type { Bindings } from "../types/bindings";
 
@@ -46,11 +46,11 @@ export async function isVideoAccessibleToUser(
             eq(videos.userId, userId),
             sql`EXISTS (
               SELECT 1
-                FROM ${videoGroupMembers}
-                JOIN ${videoGroupMemberships}
-                  ON ${videoGroupMemberships.groupId} = ${videoGroupMembers.groupId}
-               WHERE ${videoGroupMembers.videoId} = ${videos.id}
-                 AND ${videoGroupMemberships.userId} = ${userId}
+                FROM ${videoCourseMembers}
+                JOIN ${videoCourseMemberships}
+                  ON ${videoCourseMemberships.courseId} = ${videoCourseMembers.courseId}
+               WHERE ${videoCourseMembers.videoId} = ${videos.id}
+                 AND ${videoCourseMemberships.userId} = ${userId}
             )`,
           ),
         ),
@@ -60,19 +60,19 @@ export async function isVideoAccessibleToUser(
   });
 }
 
-export async function isVideoInGroup(
+export async function isVideoInCourse(
   env: Bindings,
   videoId: number,
-  groupId: number,
+  courseId: number,
 ): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db
-      .select({ id: videoGroupMembers.id })
-      .from(videoGroupMembers)
+      .select({ id: videoCourseMembers.id })
+      .from(videoCourseMembers)
       .where(
         and(
-          eq(videoGroupMembers.videoId, videoId),
-          eq(videoGroupMembers.groupId, groupId),
+          eq(videoCourseMembers.videoId, videoId),
+          eq(videoCourseMembers.courseId, courseId),
         ),
       )
       .limit(1);
@@ -80,16 +80,16 @@ export async function isVideoInGroup(
   });
 }
 
-/** share_slug から group_id を解決する。 */
-export async function resolveShareSlugGroupId(
+/** share_slug から course_id を解決する。 */
+export async function resolveShareSlugCourseId(
   env: Bindings,
   shareSlug: string,
 ): Promise<number | null> {
   return withDb(env, async (db) => {
     const rows = await db
-      .select({ id: videoGroups.id })
-      .from(videoGroups)
-      .where(eq(videoGroups.shareSlug, shareSlug))
+      .select({ id: videoCourses.id })
+      .from(videoCourses)
+      .where(eq(videoCourses.shareSlug, shareSlug))
       .limit(1);
     return rows[0]?.id ?? null;
   });

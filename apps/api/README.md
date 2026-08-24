@@ -79,8 +79,8 @@ Drizzle の modern schema を runtime の唯一のモデルとして使用しま
 主なテーブル群:
 
 - auth (Better Auth): `users` (text UUID PK), `session`, `account`, `verification`, `apikey`, `jwks`, `device_code`, `oauth_*`
-- video: `videos`, `video_groups`, `video_group_members`, `tags`, `video_tags`
-- chat/evaluation: `chat_logs`, `chat_log_evaluations`, `group_evaluation_snapshots`
+- video: `videos`, `video_courses`, `video_course_members`, `tags`, `video_tags`
+- chat/evaluation: `chat_logs`, `chat_log_evaluations`, `course_evaluation_snapshots`
 - PLOG: `plog_*`, `learner_concept_states`
 - vector: `scene_embeddings`（workerはPGVectorStore、Hono検索は認可列付き直接SQL）
 

@@ -36,15 +36,15 @@ graph TB
         UC14[Check Transcription Status]
     end
 
-    subgraph GroupManagement["Group Management"]
-        UC15[Create Group]
-        UC16[List Groups]
-        UC17[View Group Details]
-        UC18[Edit Group]
-        UC19[Delete Group]
-        UC20[Add Video to Group]
-        UC21[Remove Video from Group]
-        UC22[Reorder Videos in Group]
+    subgraph GroupManagement["Course Management"]
+        UC15[Create Course]
+        UC16[List Courses]
+        UC17[View Course Details]
+        UC18[Edit Course]
+        UC19[Delete Course]
+        UC20[Add Video to Course]
+        UC21[Remove Video from Course]
+        UC22[Reorder Videos in Course]
     end
 
     subgraph Chat["Chat Features"]
@@ -59,8 +59,8 @@ graph TB
     subgraph Sharing["Sharing Features"]
         UC27[Generate Share Link]
         UC28[Delete Share Link]
-        UC29[View Shared Group]
-        UC30[Chat with Shared Group]
+        UC29[View Shared Course]
+        UC30[Chat with Shared Course]
     end
 
     subgraph Settings["Settings"]
@@ -169,15 +169,15 @@ graph TB
 - **UC13 自動文字起こし**: アップロード後の自動文字起こし（バックグラウンド）
 - **UC14 文字起こしステータス確認**: 処理状況の確認
 
-### グループ管理
-- **UC15 グループ作成**: 動画グループの作成
-- **UC16 グループ一覧**: グループリストの表示
-- **UC17 グループ詳細表示**: グループの詳細情報表示
-- **UC18 グループ編集**: グループ名と説明の編集
-- **UC19 グループ削除**: グループの削除
-- **UC20 動画をグループに追加**: グループへの動画追加
-- **UC21 動画をグループから削除**: グループからの動画削除
-- **UC22 グループ内動画の並べ替え**: グループ内の動画順序を変更
+### 講座管理
+- **UC15 講座作成**: 講座の作成
+- **UC16 講座一覧**: 講座リストの表示
+- **UC17 講座詳細表示**: 講座の詳細情報表示
+- **UC18 講座編集**: 講座名と説明の編集
+- **UC19 講座削除**: 講座の削除
+- **UC20 動画を講座に追加**: 講座への動画追加
+- **UC21 動画を講座から削除**: 講座からの動画削除
+- **UC22 講座内動画の並べ替え**: 講座内の動画順序を変更
 
 ### チャット機能
 - **UC23 チャット送信**: AIチャットに質問を送信
@@ -188,10 +188,10 @@ graph TB
 - **UC40 チャット分析表示**: フィードバック分布、キーワードクラウド、質問時系列、シーン分布チャートを含む分析ダッシュボードを表示
 
 ### 共有機能
-- **UC27 共有リンク生成**: グループの共有リンクを生成
+- **UC27 共有リンク生成**: 講座の共有リンクを生成
 - **UC28 共有リンク削除**: 共有リンクを無効化
-- **UC29 共有グループ表示**: 共有リンクでグループを閲覧（認証不要）
-- **UC30 共有グループとチャット**: 共有グループでチャット（認証不要）
+- **UC29 共有講座表示**: 共有リンクで講座を閲覧（認証不要）
+- **UC30 共有講座とチャット**: 共有講座でチャット（認証不要）
 
 ### 設定
 - **UC31 ユーザー情報表示**: 現在のユーザー情報を表示

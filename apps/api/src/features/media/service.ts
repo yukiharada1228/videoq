@@ -3,13 +3,13 @@ import {
   isSafeMediaPath,
   findVideoIdByFilePath,
   isVideoAccessibleToUser,
-  isVideoInGroup,
-  resolveShareSlugGroupId as repositoryResolveShareSlugGroupId,
+  isVideoInCourse,
+  resolveShareSlugCourseId as repositoryResolveShareSlugCourseId,
 } from "../../repositories/media-repository";
 import type { Bindings } from "../../types/bindings";
 
-export function resolveShareSlugGroupId(env: Bindings, shareSlug: string) {
-  return repositoryResolveShareSlugGroupId(env, shareSlug);
+export function resolveShareSlugCourseId(env: Bindings, shareSlug: string) {
+  return repositoryResolveShareSlugCourseId(env, shareSlug);
 }
 
 export function guessContentType(path: string): string {
@@ -30,14 +30,14 @@ export function guessContentType(path: string): string {
 export async function authorizeMediaPath(
   env: Bindings,
   path: string,
-  opts: { userId?: string; shareGroupId?: number },
+  opts: { userId?: string; shareCourseId?: number },
 ): Promise<{ ok: true; objectKey: string } | { notFound: true }> {
   if (!isSafeMediaPath(path)) return { notFound: true };
   const videoId = await findVideoIdByFilePath(env, path);
   if (videoId === null) return { notFound: true };
 
-  if (opts.shareGroupId != null) {
-    if (!(await isVideoInGroup(env, videoId, opts.shareGroupId))) {
+  if (opts.shareCourseId != null) {
+    if (!(await isVideoInCourse(env, videoId, opts.shareCourseId))) {
       return { notFound: true };
     }
   } else if (opts.userId != null) {

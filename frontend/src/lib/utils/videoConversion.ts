@@ -1,4 +1,4 @@
-import type { VideoInGroup, VideoList } from '@/lib/api';
+import type { VideoInCourse, VideoList } from '@/lib/api';
 
 export interface SelectedVideo {
   id: number;
@@ -13,9 +13,9 @@ export interface SelectedVideo {
 }
 
 /**
- * Common function to convert VideoInGroup to SelectedVideo
+ * Common function to convert VideoInCourse to SelectedVideo
  */
-export function convertVideoInGroupToSelectedVideo(video: VideoInGroup): SelectedVideo {
+export function convertVideoInCourseToSelectedVideo(video: VideoInCourse): SelectedVideo {
   return {
     id: video.id,
     title: video.title,
@@ -56,6 +56,6 @@ export function createVideoIdSet(videoIds: number[]): Set<number> {
 /**
  * Common function to extract array of IDs from array of videos
  */
-export function extractVideoIds(videos: VideoInGroup[] | VideoList[]): number[] {
+export function extractVideoIds(videos: VideoInCourse[] | VideoList[]): number[] {
   return videos.map(video => video.id);
 }

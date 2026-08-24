@@ -30,7 +30,7 @@ import {
 import type { AppEnv } from "../../types/bindings";
 import {
   chatAnalyticsSchema,
-  chatGroupParamSchema,
+  chatCourseParamSchema,
   chatHistoryQuerySchema,
   chatLogItemSchema,
   chatLogParamSchema,
@@ -54,17 +54,17 @@ export const chatRoutes = createFeatureRouter();
 export const chatCompletionsRoutes = createFeatureRouter();
 
 const chatAuth = requireAuth(apiKeyMethod, sessionMethod);
-const groupNotFound = () =>
-  new ApiError(404, "VALIDATION_ERROR", "Group not found.");
+const courseNotFound = () =>
+  new ApiError(404, "VALIDATION_ERROR", "Course not found.");
 
 const historyRoute = createRoute({
   method: "get",
-  path: "/groups/{groupId}/history",
+  path: "/courses/{courseId}/history",
   tags: ["Chat"],
   summary: "Chat history (or CSV download)",
   middleware: [chatAuth] as const,
   request: {
-    params: chatGroupParamSchema,
+    params: chatCourseParamSchema,
     query: chatHistoryQuerySchema,
   },
   responses: {
@@ -83,12 +83,12 @@ const historyRoute = createRoute({
 
 chatRoutes.openapi(historyRoute, async (c) => {
   const userId = c.var.userId!;
-  const { groupId } = c.req.valid("param");
+  const { courseId } = c.req.valid("param");
   const query = c.req.valid("query");
 
   if (query.download === "csv") {
-    const res = await chatService.exportHistoryCsv(c.env, groupId, userId);
-    if ("notFound" in res) throw groupNotFound();
+    const res = await chatService.exportHistoryCsv(c.env, courseId, userId);
+    if ("notFound" in res) throw courseNotFound();
     return c.body(res.csv, 200, {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": `attachment; filename="${res.filename}"`,
@@ -96,14 +96,14 @@ chatRoutes.openapi(historyRoute, async (c) => {
   }
 
   const { limit, offset } = parseLimitOffset(c);
-  const res = await chatService.historyForGroup(
+  const res = await chatService.historyForCourse(
     c.env,
-    groupId,
+    courseId,
     userId,
     limit,
     offset,
   );
-  if ("notFound" in res) throw groupNotFound();
+  if ("notFound" in res) throw courseNotFound();
   return c.json(
     listResponse(res.results, { total: res.count, limit, offset }),
     200,
@@ -114,11 +114,11 @@ const resetGuards = [chatAuth, requireScope()] as const;
 
 const resetHistoryRoute = createRoute({
   method: "delete",
-  path: "/groups/{groupId}/history",
+  path: "/courses/{courseId}/history",
   tags: ["Chat"],
   summary: "Reset chat history",
   middleware: [...resetGuards] as const,
-  request: { params: chatGroupParamSchema },
+  request: { params: chatCourseParamSchema },
   responses: {
     204: { description: "Deleted" },
     404: errorResponse("Not found"),
@@ -126,19 +126,19 @@ const resetHistoryRoute = createRoute({
 });
 
 chatRoutes.openapi(resetHistoryRoute, async (c) => {
-  const { groupId } = c.req.valid("param");
-  const res = await chatService.resetHistory(c.env, groupId, c.var.userId!);
-  if ("notFound" in res) throw groupNotFound();
+  const { courseId } = c.req.valid("param");
+  const res = await chatService.resetHistory(c.env, courseId, c.var.userId!);
+  if ("notFound" in res) throw courseNotFound();
   return c.body(null, 204);
 });
 
 const analyticsRoute = createRoute({
   method: "get",
-  path: "/groups/{groupId}/analytics",
+  path: "/courses/{courseId}/analytics",
   tags: ["Chat"],
   summary: "Chat analytics",
   middleware: [chatAuth] as const,
-  request: { params: chatGroupParamSchema },
+  request: { params: chatCourseParamSchema },
   responses: {
     200: jsonResponse(chatAnalyticsSchema),
     404: errorResponse("Not found"),
@@ -146,13 +146,13 @@ const analyticsRoute = createRoute({
 });
 
 chatRoutes.openapi(analyticsRoute, async (c) => {
-  const { groupId } = c.req.valid("param");
-  const res = await chatService.analyticsForGroup(
+  const { courseId } = c.req.valid("param");
+  const res = await chatService.analyticsForCourse(
     c.env,
-    groupId,
+    courseId,
     c.var.userId!,
   );
-  if ("notFound" in res) throw groupNotFound();
+  if ("notFound" in res) throw courseNotFound();
   return c.json(res, 200);
 });
 
@@ -239,7 +239,7 @@ chatRoutes.openapi(feedbackRoute, async (c) => {
 // --- 書き込み: チャット送信（ChatView / StreamChatView）---
 //
 // チャット送信は次の順序で処理する:
-//   前提条件 → group 解決 → owner 解決 → AI 回答上限 →
+//   前提条件 → course 解決 → owner 解決 → AI 回答上限 →
 //   mode=qa: RAG / mode=study: PlogGuidedChatGateway → ChatLog → 使用量記録。
 // throttle: AuthenticatedChatThrottle(300/h) + ShareTokenIPThrottle(100/h)。
 

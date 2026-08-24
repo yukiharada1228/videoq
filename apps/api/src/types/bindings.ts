@@ -46,8 +46,8 @@ export type Variables = {
   apiKeyAccessLevel?: string;
   // Share 認証時の share_slug（feedback 等の共有アクセス）。
   shareSlug?: string;
-  // ProtectedMedia の share 認証時に解決した group_id。
-  shareGroupId?: number;
+  // ProtectedMedia の share 認証時に解決した course_id。
+  shareCourseId?: number;
 };
 
 export type AppEnv = { Bindings: Bindings; Variables: Variables };
