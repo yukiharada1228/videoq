@@ -36,3 +36,44 @@ def test_storage_delete_failure_propagates_for_sqs_retry(monkeypatch) -> None:
         account_deletion._delete_all_videos_for_user(conn, "u1")
 
     delete_video.assert_called_once_with(conn, 42, "u1")
+
+
+def test_account_deletion_uses_renamed_courses_table() -> None:
+    conn = MagicMock()
+    conn.execute.return_value.fetchone.return_value = {
+        "video_courses": "video_courses",
+        "video_groups": None,
+    }
+
+    account_deletion._delete_owned_courses_for_user(conn, "u1")
+
+    conn.execute.assert_any_call(
+        "DELETE FROM video_courses WHERE user_id = %s",
+        ("u1",),
+    )
+
+
+def test_account_deletion_remains_compatible_before_course_rename() -> None:
+    conn = MagicMock()
+    conn.execute.return_value.fetchone.return_value = {
+        "video_courses": None,
+        "video_groups": "video_groups",
+    }
+
+    account_deletion._delete_owned_courses_for_user(conn, "u1")
+
+    conn.execute.assert_any_call(
+        "DELETE FROM video_groups WHERE user_id = %s",
+        ("u1",),
+    )
+
+
+def test_account_deletion_fails_if_course_table_is_missing() -> None:
+    conn = MagicMock()
+    conn.execute.return_value.fetchone.return_value = {
+        "video_courses": None,
+        "video_groups": None,
+    }
+
+    with pytest.raises(RuntimeError, match="Neither video_courses nor video_groups exists"):
+        account_deletion._delete_owned_courses_for_user(conn, "u1")

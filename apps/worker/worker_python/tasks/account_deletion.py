@@ -38,8 +38,21 @@ def _delete_chat_history_for_user(conn, user_id: str) -> None:
     conn.execute("DELETE FROM chat_logs WHERE user_id = %s", (user_id,))
 
 
-def _delete_video_courses_for_user(conn, user_id: str) -> None:
-    conn.execute("DELETE FROM video_courses WHERE user_id = %s", (user_id,))
+def _delete_owned_courses_for_user(conn, user_id: str) -> None:
+    """Delete owned courses across the video_groups -> video_courses rollout."""
+    tables = conn.execute(
+        """
+        SELECT to_regclass('video_courses') AS video_courses,
+               to_regclass('video_groups') AS video_groups
+        """
+    ).fetchone()
+    if tables and tables.get("video_courses") is not None:
+        conn.execute("DELETE FROM video_courses WHERE user_id = %s", (user_id,))
+        return
+    if tables and tables.get("video_groups") is not None:
+        conn.execute("DELETE FROM video_groups WHERE user_id = %s", (user_id,))
+        return
+    raise RuntimeError("Neither video_courses nor video_groups exists")
 
 
 def _delete_tags_for_user(conn, user_id: str) -> None:
@@ -60,7 +73,7 @@ def delete_account_data(user_id: str) -> None:
     steps = [
         ("delete_all_videos_for_user", _delete_all_videos_for_user),
         ("delete_chat_history_for_user", _delete_chat_history_for_user),
-        ("delete_video_courses_for_user", _delete_video_courses_for_user),
+        ("delete_owned_courses_for_user", _delete_owned_courses_for_user),
         ("delete_tags_for_user", _delete_tags_for_user),
         ("delete_remaining_vectors_for_user", _delete_remaining_vectors_for_user),
         ("delete_user_row", _delete_user_row),

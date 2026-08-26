@@ -49,6 +49,15 @@ jobs:
               - '.github/workflows/cd.yml'
             worker:
               - 'apps/worker/**'
+              # A migration can rename objects used by the Python worker. If a
+              # coordinated deploy is blocked on migration and the follow-up
+              # only fixes SQL, redeploy the worker too so production cannot
+              # remain on the pre-migration schema contract.
+              - 'apps/api/drizzle/**'
+              - 'apps/api/src/db/**'
+              - 'apps/api/drizzle.config.ts'
+              - 'apps/api/scripts/db-migrate.sh'
+              - 'apps/api/scripts/stamp-baseline.mjs'
               - '.github/workflows/cd.yml'
             migrate:
               - 'apps/api/drizzle/**'
