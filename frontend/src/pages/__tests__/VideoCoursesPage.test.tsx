@@ -75,6 +75,15 @@ describe('VideoCoursesPage', () => {
     })
   })
 
+  it('stacks course meta below the title so the name can use the full row width', async () => {
+    render(<VideoCoursesPage />)
+
+    const title = await screen.findByText('Course 1')
+    const stack = title.closest('div.flex-col')
+    expect(stack).toBeTruthy()
+    expect(stack).toHaveClass('min-w-0', 'flex-1')
+  })
+
   it('should display video count for each course', async () => {
     render(<VideoCoursesPage />)
 
