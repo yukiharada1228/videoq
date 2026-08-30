@@ -1,7 +1,10 @@
 import { Fragment } from 'react';
+import katex from 'katex';
 import type { Citation } from '@/lib/api';
+import { parseMessageContent } from '@/lib/chat/parseMessageContent';
 import { linkVariants } from '@/components/ui/link';
 import { cn } from '@/lib/digital-agency/cn';
+import 'katex/dist/katex.min.css';
 
 interface MessageBodyProps {
   content: string;
@@ -22,38 +25,36 @@ function formatTimeRange(startTime: string | undefined, endTime: string | undefi
   return start || end;
 }
 
+function renderMath(tex: string, display: boolean): string {
+  return katex.renderToString(tex, {
+    displayMode: display,
+    throwOnError: false,
+    trust: false,
+  });
+}
+
 export function MessageBody({ content, citations, onVideoNavigate }: MessageBodyProps) {
-  const tagPattern = /\[(\d+)\]/g;
-  const nodes: Array<
-    | { type: 'text'; value: string }
-    | { type: 'ref'; id: number }
-  > = [];
-  let lastIndex = 0;
-
-  for (const match of content.matchAll(tagPattern)) {
-    const id = Number(match[1]);
-    const start = match.index ?? 0;
-
-    if (start > lastIndex) {
-      nodes.push({ type: 'text', value: content.slice(lastIndex, start) });
-    }
-
-    nodes.push({ type: 'ref', id });
-    lastIndex = start + match[0].length;
-  }
-
-  if (lastIndex < content.length) {
-    nodes.push({ type: 'text', value: content.slice(lastIndex) });
-  }
-
-  const normalizedNodes = nodes.length > 0 ? nodes : [{ type: 'text' as const, value: content }];
+  const nodes = parseMessageContent(content);
   const citationMap = new Map((citations ?? []).map((citation) => [citation.id, citation]));
 
   return (
     <div className="text-solid-gray-700 leading-relaxed whitespace-pre-wrap">
-      {normalizedNodes.map((node, i) => {
+      {nodes.map((node, i) => {
         if (node.type === 'text') {
           return <Fragment key={`text-${i}`}>{node.value}</Fragment>;
+        }
+
+        if (node.type === 'math') {
+          return (
+            <span
+              key={`math-${i}`}
+              className={cn(
+                'whitespace-normal',
+                node.display && 'my-3 block overflow-x-auto text-center',
+              )}
+              dangerouslySetInnerHTML={{ __html: renderMath(node.value, node.display) }}
+            />
+          );
         }
 
         const video = citationMap.get(node.id);
