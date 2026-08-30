@@ -80,84 +80,88 @@ function SortableCourseRow({
       style={style}
       className={`border-b border-solid-gray-200 ${isDragging ? 'z-50 bg-white' : ''}`}
     >
-      <div className="flex w-full items-center gap-3 px-2 py-3 md:px-4">
+      <div className="flex w-full items-start gap-2 px-2 py-3 md:items-center md:gap-3 md:px-4">
         {canReorder && (
           <span
             {...attributes}
             {...listeners}
             onClick={(event) => event.stopPropagation()}
-            className={`shrink-0 text-solid-gray-420 ${isSortingDisabled ? 'cursor-wait opacity-50' : 'cursor-grab active:cursor-grabbing'}`}
+            className={`mt-1 shrink-0 text-solid-gray-420 md:mt-0 ${isSortingDisabled ? 'cursor-wait opacity-50' : 'cursor-grab active:cursor-grabbing'}`}
             aria-label={t('videos.courses.dragHandle')}
           >
             <GripVertical className="h-5 w-5" />
           </span>
         )}
 
-        <button
-          type="button"
-          onClick={() => onOpen(course.id)}
-          className="min-w-0 flex-1 text-left focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-black focus-visible:bg-yellow-300"
-        >
-          <span className="block truncate text-std-16B-170 text-solid-gray-800 hover:underline">
-            {course.name}
-          </span>
-          <span className="mt-1 block line-clamp-1 text-std-16N-170 text-solid-gray-600">
-            {course.description || t('common.messages.noDescription')}
-          </span>
-        </button>
-
-        <ChipLabel variant="filled-1" color="blue" className="min-h-0 shrink-0 text-oln-14N-100">
-          {t('videos.courses.videoCount', { count: course.video_count })}
-        </ChipLabel>
-        {course.access_role === 'member' ? (
-          <ChipLabel variant="filled-1" color="gray" className="min-h-0 shrink-0 text-oln-14N-100">
-            {t('videos.courses.memberBadge')}
-          </ChipLabel>
-        ) : null}
-
-        <div className="flex shrink-0 items-center gap-1">
-          {canReorder && (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                size="xs"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onMove(course.id, 'up');
-                }}
-                disabled={isFirst || isSortingDisabled}
-                aria-label={t('videos.courses.moveUp', { name: course.name })}
-                className="min-w-0 w-8 px-0"
-              >
-                <ArrowUp className="h-4 w-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="xs"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onMove(course.id, 'down');
-                }}
-                disabled={isLast || isSortingDisabled}
-                aria-label={t('videos.courses.moveDown', { name: course.name })}
-                className="min-w-0 w-8 px-0"
-              >
-                <ArrowDown className="h-4 w-4" />
-              </Button>
-            </>
-          )}
-          <Button
+        <div className="flex min-w-0 flex-1 flex-col gap-2 md:flex-row md:items-center md:gap-3">
+          <button
             type="button"
-            variant="solid"
-            size="xs"
             onClick={() => onOpen(course.id)}
-            aria-label={t('videos.courses.open', { name: course.name })}
-            className="min-w-0 w-8 px-0"
+            className="min-w-0 flex-1 text-left focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-black focus-visible:bg-yellow-300"
           >
-            <ArrowRight className="h-4 w-4" />
-          </Button>
+            <span className="block truncate text-std-16B-170 text-solid-gray-800 hover:underline">
+              {course.name}
+            </span>
+            <span className="mt-1 block truncate text-std-16N-170 text-solid-gray-600">
+              {course.description || t('common.messages.noDescription')}
+            </span>
+          </button>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <ChipLabel variant="filled-1" color="blue" className="min-h-0 shrink-0 text-oln-14N-100">
+              {t('videos.courses.videoCount', { count: course.video_count })}
+            </ChipLabel>
+            {course.access_role === 'member' ? (
+              <ChipLabel variant="filled-1" color="gray" className="min-h-0 shrink-0 text-oln-14N-100">
+                {t('videos.courses.memberBadge')}
+              </ChipLabel>
+            ) : null}
+
+            <div className="ml-auto flex shrink-0 items-center gap-1 md:ml-0">
+              {canReorder && (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="xs"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onMove(course.id, 'up');
+                    }}
+                    disabled={isFirst || isSortingDisabled}
+                    aria-label={t('videos.courses.moveUp', { name: course.name })}
+                    className="min-w-0 w-8 px-0"
+                  >
+                    <ArrowUp className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="xs"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onMove(course.id, 'down');
+                    }}
+                    disabled={isLast || isSortingDisabled}
+                    aria-label={t('videos.courses.moveDown', { name: course.name })}
+                    className="min-w-0 w-8 px-0"
+                  >
+                    <ArrowDown className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+              <Button
+                type="button"
+                variant="solid"
+                size="xs"
+                onClick={() => onOpen(course.id)}
+                aria-label={t('videos.courses.open', { name: course.name })}
+                className="min-w-0 w-8 px-0"
+              >
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </MenuListItem>
