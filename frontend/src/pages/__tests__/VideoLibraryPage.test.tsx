@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import VideoLibraryPage from '../VideoLibraryPage'
+import { invalidateAfterVideoUpload } from '@/lib/cacheInvalidation'
 
 const mockVideos = [
   { id: 1, title: 'Video 1', status: 'completed', file: 'test1.mp4', uploaded_at: '2024-01-01' },
@@ -21,13 +22,17 @@ vi.mock('@/hooks/useVideos', () => ({
 }))
 
 vi.mock('@/hooks/useVideoStats', () => ({
-  useVideoStats: () => ({
-    total: 4,
-    completed: 1,
-    pending: 1,
-    processing: 1,
-    indexing: 1,
-    error: 0,
+  useVideoStatusCounts: () => ({
+    stats: {
+      total: 4,
+      completed: 1,
+      pending: 1,
+      processing: 1,
+      indexing: 1,
+      error: 0,
+      uploading: 0,
+    },
+    isLoading: false,
   }),
 }))
 
@@ -46,8 +51,17 @@ vi.mock('@/hooks/useTags', () => ({
 }))
 
 vi.mock('@/components/video/VideoUploadModal', () => ({
-  VideoUploadModal: ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) =>
-    isOpen ? <div data-testid="upload-modal"><button onClick={onClose}>Close</button></div> : null,
+  VideoUploadModal: ({ isOpen, onClose, onUploadSuccess }: { isOpen: boolean, onClose: () => void, onUploadSuccess: () => void }) =>
+    isOpen ? (
+      <div data-testid="upload-modal">
+        <button onClick={onClose}>Close</button>
+        <button onClick={onUploadSuccess}>Upload Success</button>
+      </div>
+    ) : null,
+}))
+
+vi.mock('@/lib/cacheInvalidation', () => ({
+  invalidateAfterVideoUpload: vi.fn(),
 }))
 
 vi.mock('@/components/video/VideoCard', () => ({
@@ -222,6 +236,17 @@ describe('VideoLibraryPage', () => {
     render(<VideoLibraryPage />)
 
     expect(screen.getByText('videos.list.loadingMore')).toBeInTheDocument()
+  })
+
+  it('should invalidate video cache after upload success', async () => {
+    render(<VideoLibraryPage />)
+
+    fireEvent.click(screen.getByText('videos.list.uploadButton'))
+    fireEvent.click(screen.getByText('Upload Success'))
+
+    await waitFor(() => {
+      expect(invalidateAfterVideoUpload).toHaveBeenCalled()
+    })
   })
 })
 

@@ -54,6 +54,18 @@ export const videoIdParamSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
 
+export const videoStatsSchema = z
+  .object({
+    total: z.number().int().nonnegative(),
+    completed: z.number().int().nonnegative(),
+    pending: z.number().int().nonnegative(),
+    processing: z.number().int().nonnegative(),
+    indexing: z.number().int().nonnegative(),
+    error: z.number().int().nonnegative(),
+    uploading: z.number().int().nonnegative(),
+  })
+  .openapi("VideoStats");
+
 const requiredTitle = zReqString()
   .trim()
   .min(1, "This field may not be blank.")

@@ -8,6 +8,7 @@ export const queryKeys = {
   videoCourses: {
     prefix: ['videoCourses'] as const,
     all: (userId: number | string | null) => ['videoCourses', userId] as const,
+    count: (userId: number | string | null) => ['videoCourses', userId, 'count'] as const,
     infinite: (userId: number | string | null) => ['videoCourses', 'infinite', userId] as const,
     allDetail: ['videoCourse'] as const,
     detail: (courseId: number | null) => ['videoCourse', courseId] as const,
@@ -26,6 +27,8 @@ export const queryKeys = {
   },
   videos: {
     all: ['videos'] as const,
+    stats: ['videos', 'stats'] as const,
+    recent: ['videos', 'list', { tags: [], limit: 5, ordering: 'uploaded_at_desc' }] as const,
     list: (params?: { tags?: number[] }) =>
       ['videos', 'list', { tags: params?.tags ?? [] }] as const,
     infinite: (params?: { tags?: number[]; q?: string; status?: string; ordering?: string }) =>

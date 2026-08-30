@@ -28,6 +28,7 @@ import {
   videoListItemSchema,
   videoListQuerySchema,
   videoMultipartSchema,
+  videoStatsSchema,
   videoPatchSchema,
   videoPutSchema,
   youtubeCreateSchema,
@@ -67,6 +68,25 @@ videoRoutes.openapi(listVideosRoute, async (c) => {
     offset,
   );
   return c.json(listResponse(results, { total: count, limit, offset }), 200);
+});
+
+// Static `/stats` must be registered before `/{id}` so GET .../stats
+// is not coerced as id="stats" → NaN.
+const videoStatsRoute = createRoute({
+  method: "get",
+  path: "/stats",
+  tags: ["Videos"],
+  summary: "Video status counts",
+  middleware: [videoAuth] as const,
+  responses: {
+    200: jsonResponse(videoStatsSchema),
+    401: errorResponse("Unauthorized"),
+  },
+});
+
+videoRoutes.openapi(videoStatsRoute, async (c) => {
+  const stats = await videoService.getUserVideoStats(c.env, c.var.userId!);
+  return c.json(stats, 200);
 });
 
 const getVideoRoute = createRoute({

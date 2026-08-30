@@ -555,6 +555,61 @@ export async function deleteVideoCascade(
   });
 }
 
+export type VideoStatusCounts = {
+  total: number;
+  completed: number;
+  pending: number;
+  processing: number;
+  indexing: number;
+  error: number;
+  uploading: number;
+};
+
+const EMPTY_STATUS_COUNTS: VideoStatusCounts = {
+  total: 0,
+  completed: 0,
+  pending: 0,
+  processing: 0,
+  indexing: 0,
+  error: 0,
+  uploading: 0,
+};
+
+const COUNTED_STATUSES = [
+  "completed",
+  "pending",
+  "processing",
+  "indexing",
+  "error",
+  "uploading",
+] as const satisfies ReadonlyArray<Exclude<keyof VideoStatusCounts, "total">>;
+
+/** ユーザー所有動画の status 別件数（ページングしない全件）。 */
+export async function countVideosByStatus(
+  env: Bindings,
+  userId: string,
+): Promise<VideoStatusCounts> {
+  return withDb(env, async (db) => {
+    const rows = await db
+      .select({
+        status: videos.status,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(videos)
+      .where(eq(videos.userId, userId))
+      .groupBy(videos.status);
+
+    const stats = { ...EMPTY_STATUS_COUNTS };
+    for (const row of rows) {
+      stats.total += row.count;
+      if ((COUNTED_STATUSES as readonly string[]).includes(row.status)) {
+        stats[row.status as (typeof COUNTED_STATUSES)[number]] += row.count;
+      }
+    }
+    return stats;
+  });
+}
+
 export async function listVideosPage(
   env: Bindings,
   userId: string,
