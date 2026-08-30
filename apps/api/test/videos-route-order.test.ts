@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/app";
-import { signAccessToken } from "./helpers/auth";
+import { TEST_USER_ID, signAccessToken, testAuthHeaders } from "./helpers/auth";
+import * as courseService from "../src/features/courses/service";
 
 const SECRET = "route-order-secret";
 
@@ -56,7 +57,7 @@ describe("PATCH /api/videos/courses/order route order", () => {
       {
         method: "PATCH",
         headers: {
-          "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005",
+          ...testAuthHeaders(),
           "content-type": "application/json",
         },
         body: JSON.stringify({ course_ids: [2, 1] }),
@@ -65,9 +66,11 @@ describe("PATCH /api/videos/courses/order route order", () => {
     );
     const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body).not.toMatchObject({
-      error: { message: expect.stringContaining("NaN") },
-    });
     expect(body).toEqual({ message: "Course order updated" });
+    expect(courseService.reorderUserCourses).toHaveBeenCalledWith(
+      ENV,
+      TEST_USER_ID,
+      [2, 1],
+    );
   });
 });
