@@ -51,11 +51,11 @@ vi.mock('@/hooks/useTags', () => ({
 }))
 
 vi.mock('@/components/video/VideoUploadModal', () => ({
-  VideoUploadModal: ({ isOpen, onClose, onSuccess }: { isOpen: boolean, onClose: () => void, onSuccess: () => void }) =>
+  VideoUploadModal: ({ isOpen, onClose, onUploadSuccess }: { isOpen: boolean, onClose: () => void, onUploadSuccess: () => void }) =>
     isOpen ? (
       <div data-testid="upload-modal">
         <button onClick={onClose}>Close</button>
-        <button onClick={onSuccess}>Upload Success</button>
+        <button onClick={onUploadSuccess}>Upload Success</button>
       </div>
     ) : null,
 }))
