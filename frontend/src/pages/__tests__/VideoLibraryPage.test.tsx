@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import VideosPage from '../VideosPage'
+import VideoLibraryPage from '../VideoLibraryPage'
 
 const mockVideos = [
   { id: 1, title: 'Video 1', status: 'completed', file: 'test1.mp4', uploaded_at: '2024-01-01' },
@@ -61,7 +61,7 @@ vi.mock('@/components/video/TagManagementModal', () => ({
     isOpen ? <div data-testid="tag-modal" /> : null,
 }))
 
-describe('VideosPage', () => {
+describe('VideoLibraryPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockLoadVideos.mockClear()
@@ -90,25 +90,25 @@ describe('VideosPage', () => {
   })
 
   it('should render page title', () => {
-    render(<VideosPage />)
+    render(<VideoLibraryPage />)
 
     expect(screen.getByText('videos.list.title')).toBeInTheDocument()
   })
 
   it('should render video count subtitle using totalCount', () => {
-    render(<VideosPage />)
+    render(<VideoLibraryPage />)
 
     expect(screen.getByText('videos.list.managingCount {"count":4}')).toBeInTheDocument()
   })
 
   it('should render upload button', () => {
-    render(<VideosPage />)
+    render(<VideoLibraryPage />)
 
     expect(screen.getByText('videos.list.uploadButton')).toBeInTheDocument()
   })
 
   it('should render stats cards', () => {
-    render(<VideosPage />)
+    render(<VideoLibraryPage />)
 
     expect(screen.getByText('videos.list.statsRow.all')).toBeInTheDocument()
     expect(screen.getByText('videos.list.statsRow.completed')).toBeInTheDocument()
@@ -118,7 +118,7 @@ describe('VideosPage', () => {
   })
 
   it('should render video list', () => {
-    render(<VideosPage />)
+    render(<VideoLibraryPage />)
 
     expect(screen.getByText('Video 1')).toBeInTheDocument()
     expect(screen.getByText('Video 2')).toBeInTheDocument()
@@ -129,7 +129,7 @@ describe('VideosPage', () => {
   it('should pass URL filters to useVideos on initial render', () => {
     globalThis.__setMockSearchParams('q=python&status=completed&ordering=title_asc&tags=2,1')
 
-    render(<VideosPage />)
+    render(<VideoLibraryPage />)
 
     expect(mockUseVideos).toHaveBeenCalledWith({
       tagIds: [1, 2],
@@ -142,7 +142,7 @@ describe('VideosPage', () => {
   it('should map the processing URL filter to all in-progress API statuses', () => {
     globalThis.__setMockSearchParams('status=processing')
 
-    render(<VideosPage />)
+    render(<VideoLibraryPage />)
 
     expect(mockUseVideos).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -152,7 +152,7 @@ describe('VideosPage', () => {
   })
 
   it('should update the URL when filters change', () => {
-    render(<VideosPage />)
+    render(<VideoLibraryPage />)
 
     fireEvent.change(screen.getByLabelText('videos.list.searchPlaceholder'), {
       target: { value: 'django' },
@@ -168,13 +168,13 @@ describe('VideosPage', () => {
   })
 
   it('should not manually load videos on mount (query handles initial fetch)', () => {
-    render(<VideosPage />)
+    render(<VideoLibraryPage />)
 
     expect(mockLoadVideos).not.toHaveBeenCalled()
   })
 
   it('should open upload modal when upload button is clicked', () => {
-    render(<VideosPage />)
+    render(<VideoLibraryPage />)
 
     const uploadButton = screen.getByText('videos.list.uploadButton')
     fireEvent.click(uploadButton)
@@ -183,7 +183,7 @@ describe('VideosPage', () => {
   })
 
   it('should close upload modal when close is clicked', async () => {
-    render(<VideosPage />)
+    render(<VideoLibraryPage />)
 
     const uploadButton = screen.getByText('videos.list.uploadButton')
     fireEvent.click(uploadButton)
@@ -199,33 +199,33 @@ describe('VideosPage', () => {
   })
 
   it('should display stat values correctly', () => {
-    render(<VideosPage />)
+    render(<VideoLibraryPage />)
 
     const statCards = screen.getAllByText(/^\d+$/)
     expect(statCards.length).toBeGreaterThan(0)
   })
 
   it('should not render load more button', () => {
-    render(<VideosPage />)
+    render(<VideoLibraryPage />)
 
     expect(screen.queryByText('videos.list.loadMore')).not.toBeInTheDocument()
   })
 
   it('should render infinite scroll sentinel element', () => {
-    render(<VideosPage />)
+    render(<VideoLibraryPage />)
 
     expect(screen.getByTestId('infinite-scroll-sentinel')).toBeInTheDocument()
   })
 
   it('should show loading text when isFetchingNextPage is true', () => {
     mockIsFetchingNextPage = true
-    render(<VideosPage />)
+    render(<VideoLibraryPage />)
 
     expect(screen.getByText('videos.list.loadingMore')).toBeInTheDocument()
   })
 })
 
-describe('VideosPage - Upload Limit', () => {
+describe('VideoLibraryPage - Upload Limit', () => {
   beforeEach(() => {
     mockHasNextPage = false
     mockIsFetchingNextPage = false
@@ -233,7 +233,7 @@ describe('VideosPage - Upload Limit', () => {
   })
 
   it('should show upload button', () => {
-    render(<VideosPage />)
+    render(<VideoLibraryPage />)
 
     const uploadButton = screen.getByText('videos.list.uploadButton')
     expect(uploadButton).toBeInTheDocument()

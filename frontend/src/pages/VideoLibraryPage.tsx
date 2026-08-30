@@ -59,7 +59,7 @@ function toApiStatusFilter(statusFilter: StatusFilter): string | undefined {
   return statusFilter;
 }
 
-export default function VideosPage() {
+export default function VideoLibraryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedTagIds = useMemo(
     () => parseTagIds(searchParams.get('tags')),
@@ -150,7 +150,7 @@ export default function VideosPage() {
   ];
 
   return (
-    <AppPageShell activePage="videos">
+    <AppPageShell activePage="videoLibrary">
       <AppPageHeader
         title={t('videos.list.title')}
         description={t('videos.list.managingCount', { count: totalCount })}

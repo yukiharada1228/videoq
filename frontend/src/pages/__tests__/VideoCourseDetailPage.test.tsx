@@ -117,8 +117,46 @@ describe('VideoCourseDetailPage', () => {
     render(<VideoCourseDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('videos.courseDetail.add')).toBeInTheDocument()
+      expect(screen.getByText('videos.courseDetail.pickFromLibrary')).toBeInTheDocument()
     })
+  })
+
+  it('explains the empty course list and how to pick from the library', async () => {
+    ;(apiClient.getVideoCourse as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...mockCourse,
+      videos: [],
+    })
+
+    render(<VideoCourseDetailPage />)
+
+    expect(await screen.findByText('videos.courseDetail.videoListEmpty')).toBeInTheDocument()
+    expect(screen.getByText('videos.courseDetail.videoListEmptyHint')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'videos.courseDetail.pickFromLibrary' }).length).toBeGreaterThan(0)
+  })
+
+  it('does not tell joined members to pick from the library on an empty course', async () => {
+    ;(apiClient.getVideoCourse as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...mockCourse,
+      access_role: 'member',
+      videos: [],
+    })
+
+    render(<VideoCourseDetailPage />)
+
+    expect(await screen.findByText('videos.courseDetail.videoListEmpty')).toBeInTheDocument()
+    expect(screen.queryByText('videos.courseDetail.videoListEmptyHint')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'videos.courseDetail.pickFromLibrary' })).not.toBeInTheDocument()
+  })
+
+  it('links to the video library when no videos can be added', async () => {
+    render(<VideoCourseDetailPage />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'videos.courseDetail.pickFromLibrary' }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(await within(dialog).findByText('videos.courseDetail.noAvailableVideos')).toBeInTheDocument()
+    expect(within(dialog).getByText('videos.courseDetail.noAvailableVideosHint')).toBeInTheDocument()
+    expect(within(dialog).getByRole('link', { name: 'videos.goToLibrary' })).toHaveAttribute('href', '/videos')
   })
 
   it('should render breadcrumbs for the course hierarchy', async () => {
@@ -203,7 +241,7 @@ describe('VideoCourseDetailPage', () => {
     expect(screen.queryByText('videos.courseDetail.shareOpen')).not.toBeInTheDocument()
     expect(screen.queryByTitle('videos.courseDetail.editTitle')).not.toBeInTheDocument()
     expect(screen.queryByTitle('videos.courseDetail.delete')).not.toBeInTheDocument()
-    expect(screen.queryByText('videos.courseDetail.add')).not.toBeInTheDocument()
+    expect(screen.queryByText('videos.courseDetail.pickFromLibrary')).not.toBeInTheDocument()
     expect(screen.queryAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })).toHaveLength(0)
 
     fireEvent.click(screen.getByRole('button', { name: 'videos.courseDetail.leave' }))

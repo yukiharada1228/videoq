@@ -42,7 +42,7 @@ describe('AppNav - no authenticated user (empty cache)', () => {
 
   it('hides videos nav link', () => {
     render(<AppNav />)
-    expect(screen.queryByText('navigation.videosNav')).not.toBeInTheDocument()
+    expect(screen.queryByText('navigation.videoLibrary')).not.toBeInTheDocument()
   })
 
   it('hides courses nav link', () => {
@@ -74,7 +74,7 @@ describe('AppNav - no authenticated user (empty cache)', () => {
 describe('AppNav - authenticated user (cache populated)', () => {
   it('shows videos nav link', () => {
     renderWithUser(<AppNav />)
-    expect(within(getPrimaryNav()).getByText('navigation.videosNav')).toBeInTheDocument()
+    expect(within(getPrimaryNav()).getByText('navigation.videoLibrary')).toBeInTheDocument()
   })
 
   it('shows courses nav link', () => {
@@ -112,7 +112,7 @@ describe('AppNav - auth cache uninitialized (fetches from API)', () => {
   it('loads app profile via getMeOrNull only when BA session exists', async () => {
     render(<AppNav />)
     await waitFor(() => {
-      expect(within(getPrimaryNav()).getByText('navigation.videosNav')).toBeInTheDocument()
+      expect(within(getPrimaryNav()).getByText('navigation.videoLibrary')).toBeInTheDocument()
     })
     expect(apiClient.getMe).not.toHaveBeenCalled()
     expect(apiClient.getMeOrNull).toHaveBeenCalled()
@@ -122,7 +122,7 @@ describe('AppNav - auth cache uninitialized (fetches from API)', () => {
     ;(apiClient.getMeOrNull as ReturnType<typeof vi.fn>).mockResolvedValue({ id: '1', username: 'testuser' })
     render(<AppNav />)
     await waitFor(() => {
-      expect(within(getPrimaryNav()).getByText('navigation.videosNav')).toBeInTheDocument()
+      expect(within(getPrimaryNav()).getByText('navigation.videoLibrary')).toBeInTheDocument()
     })
     expect(screen.queryByText('auth.login.submit')).not.toBeInTheDocument()
   })
@@ -134,7 +134,7 @@ describe('AppNav - auth cache uninitialized (fetches from API)', () => {
     await waitFor(() => {
       expect(screen.getAllByText('auth.login.submit').length).toBeGreaterThan(0)
     })
-    expect(screen.queryByText('navigation.videosNav')).not.toBeInTheDocument()
+    expect(screen.queryByText('navigation.videoLibrary')).not.toBeInTheDocument()
     expect(apiClient.getMeOrNull).not.toHaveBeenCalled()
   })
 })

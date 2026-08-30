@@ -91,6 +91,8 @@ describe('VideoCoursesPage', () => {
     await waitFor(() => {
       expect(screen.getByText('videos.courses.empty')).toBeInTheDocument()
     })
+    expect(screen.getByText('videos.courses.emptyDescription')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'videos.goToLibrary' })).toHaveAttribute('href', '/videos')
   })
 
   it('should open create modal when create button is clicked', async () => {

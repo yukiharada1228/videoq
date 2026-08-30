@@ -68,7 +68,7 @@
   },
   "navigation": {
     "home": "Home",
-    "videosNav": "Videos",
+    "videoLibrary": "Video library",
     "coursesNav": "Courses",
     "docs": "Developer Docs",
     "settings": "Settings",
@@ -88,7 +88,7 @@
     "welcome": {
       "badge": "Home",
       "greeting": "{{username}}",
-      "dailyMotivation": "Register videos, run transcription, and manage learning courses."
+      "dailyMotivation": "Register videos in the library, then pick them into a course."
     },
     "actions": {
       "sectionTitle": "Menus",
@@ -97,7 +97,7 @@
         "descriptionLong": "Register a lecture or training video and start automatic transcription."
       },
       "library": {
-        "title": "Video list",
+        "title": "Video library",
         "descriptionLong": "Review, edit, and share your {{count}} registered videos."
       },
       "courses": {
@@ -226,6 +226,7 @@
     }
   },
   "videos": {
+    "goToLibrary": "Open video library",
     "list": {
       "title": "Video library",
       "uploadButton": "Upload video",
@@ -252,7 +253,7 @@
       "manageTags": "Manage tags",
       "managingCount": "Managing {{count}} videos",
       "noVideos": "No videos yet",
-      "noVideosHint": "Use the \"Upload video\" button above to add videos.",
+      "noVideosHint": "Use \"Upload video\" to add videos to the library. To put them in a course, choose them from the library on the course page.",
       "loadingMore": "Loading..."
     },
     "upload": {
@@ -310,8 +311,8 @@
     },
     "courses": {
       "title": "Chat courses",
-      "subtitle": "Manage and share your learning content in courses",
-      "emptyDescription": "Collect videos into a course to manage your learning efficiently",
+      "subtitle": "Group library videos into a course to manage and share them",
+      "emptyDescription": "A course is a selection from your video library. Register videos in the library first.",
       "optional": "(optional)",
       "create": "Create chat course",
       "createTitle": "Create chat course",
@@ -332,8 +333,8 @@
       "videoCount_other": "{{count}} videos"
     },
     "courseDetail": {
-      "addVideos": "Add videos",
-      "addVideosDescription": "Select videos to add to this course.",
+      "pickFromLibrary": "Choose from library",
+      "pickFromLibraryDescription": "Select videos from your library to add to this course.",
       "delete": "Delete",
       "removeVideoConfirm": "Remove this video from the chat course?",
       "addError": "Failed to add videos to the chat course",
@@ -366,7 +367,8 @@
       },
       "selectAll": "Select all",
       "clearSelection": "Clear selection",
-      "noAvailableVideos": "No videos available to add",
+      "noAvailableVideos": "No library videos are available to add to this course",
+      "noAvailableVideosHint": "Upload videos in the library first, or clear the current filters.",
       "add": "Add",
       "adding": "Adding...",
       "addResult": "{{added}} videos added ({{skipped}} already existed).",
@@ -378,7 +380,8 @@
       "playerPlaceholder": "Select a video from the list",
       "videoNoFile": "Video file is unavailable",
       "videoListTitle": "Videos",
-      "videoListEmpty": "No videos yet",
+      "videoListEmpty": "This course has no videos yet",
+      "videoListEmptyHint": "Choose videos from the library, or upload them to the library first.",
       "videoCount": "{{count}} videos",
       "editTitle": "Edit course",
       "editDescription": "Update the course name and description.",
