@@ -41,10 +41,11 @@ export function DashboardButton({ courseId, size = 'md' }: DashboardButtonProps)
         variant="outline"
         size={size}
         onClick={() => setIsOpen(true)}
-        className="gap-2"
+        aria-label={t('dashboard.button')}
+        className="min-w-9 gap-2 px-2.5 sm:min-w-20 sm:px-3"
       >
         <BarChart3 className="h-4 w-4" />
-        {t('dashboard.button')}
+        <span className="hidden sm:inline">{t('dashboard.button')}</span>
       </Button>
 
       {isOpen && (
