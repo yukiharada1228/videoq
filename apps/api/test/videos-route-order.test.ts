@@ -16,6 +16,7 @@ vi.mock("../src/repositories/auth-repository", () => ({
 
 vi.mock("../src/features/courses/service", () => ({
   listCourses: vi.fn(async () => ({ count: 0, results: [] })),
+  reorderUserCourses: vi.fn(async () => ({ ok: true })),
 }));
 
 describe("GET /api/videos/courses route order", () => {
@@ -40,5 +41,33 @@ describe("GET /api/videos/courses route order", () => {
       data: [],
       meta: { total: 0 },
     });
+  });
+});
+
+describe("PATCH /api/videos/courses/order route order", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("does not treat 'order' as a course id (NaN validation)", async () => {
+    const app = createApp();
+    const res = await app.request(
+      "/api/videos/courses/order",
+      {
+        method: "PATCH",
+        headers: {
+          "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ course_ids: [2, 1] }),
+      },
+      ENV,
+    );
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body).not.toMatchObject({
+      error: { message: expect.stringContaining("NaN") },
+    });
+    expect(body).toEqual({ message: "Course order updated" });
   });
 });

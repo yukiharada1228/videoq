@@ -148,6 +148,36 @@ courseRoutes.openapi(createCourseRoute, async (c) => {
   return c.json(course, 201);
 });
 
+// Static `/courses/order` must be registered before `/courses/{id}` so
+// PATCH .../order is not coerced as id="order" → NaN.
+const reorderRoute = createRoute({
+  method: "patch",
+  path: "/courses/order",
+  tags: ["Courses"],
+  summary: "Reorder courses",
+  middleware: [...courseWriteGuards] as const,
+  request: {
+    body: {
+      content: { "application/json": { schema: reorderCoursesSchema } },
+      required: true,
+    },
+  },
+  responses: {
+    200: jsonResponse(z.object({ message: z.string() })),
+    400: errorResponse("Bad request"),
+  },
+});
+
+courseRoutes.openapi(reorderRoute, async (c) => {
+  const userId = c.var.userId!;
+  const { course_ids } = c.req.valid("json");
+  const res = await courseService.reorderUserCourses(c.env, userId, course_ids);
+  if ("mismatch" in res) {
+    throw apiBadRequest("Specified course IDs do not match user courses");
+  }
+  return c.json({ message: "Course order updated" }, 200);
+});
+
 const patchCourseRoute = createRoute({
   method: "patch",
   path: "/courses/{id}",
@@ -226,34 +256,6 @@ courseRoutes.openapi(deleteCourseRoute, async (c) => {
   const res = await courseService.removeCourse(c.env, id, userId);
   if ("notFound" in res) throw apiNotFound("Course not found");
   return c.body(null, 204);
-});
-
-const reorderRoute = createRoute({
-  method: "patch",
-  path: "/courses/order",
-  tags: ["Courses"],
-  summary: "Reorder courses",
-  middleware: [...courseWriteGuards] as const,
-  request: {
-    body: {
-      content: { "application/json": { schema: reorderCoursesSchema } },
-      required: true,
-    },
-  },
-  responses: {
-    200: jsonResponse(z.object({ message: z.string() })),
-    400: errorResponse("Bad request"),
-  },
-});
-
-courseRoutes.openapi(reorderRoute, async (c) => {
-  const userId = c.var.userId!;
-  const { course_ids } = c.req.valid("json");
-  const res = await courseService.reorderUserCourses(c.env, userId, course_ids);
-  if ("mismatch" in res) {
-    throw apiBadRequest("Specified course IDs do not match user courses");
-  }
-  return c.json({ message: "Course order updated" }, 200);
 });
 
 const createShareRoute = createRoute({
