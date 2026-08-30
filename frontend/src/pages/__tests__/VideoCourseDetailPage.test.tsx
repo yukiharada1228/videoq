@@ -117,7 +117,7 @@ describe('VideoCourseDetailPage', () => {
     render(<VideoCourseDetailPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('videos.courseDetail.pickFromLibrary')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'videos.courseDetail.pickFromLibrary' })).toBeInTheDocument()
     })
   })
 
@@ -241,7 +241,7 @@ describe('VideoCourseDetailPage', () => {
     expect(screen.queryByText('videos.courseDetail.shareOpen')).not.toBeInTheDocument()
     expect(screen.queryByTitle('videos.courseDetail.editTitle')).not.toBeInTheDocument()
     expect(screen.queryByTitle('videos.courseDetail.delete')).not.toBeInTheDocument()
-    expect(screen.queryByText('videos.courseDetail.pickFromLibrary')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'videos.courseDetail.pickFromLibrary' })).not.toBeInTheDocument()
     expect(screen.queryAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })).toHaveLength(0)
 
     fireEvent.click(screen.getByRole('button', { name: 'videos.courseDetail.leave' }))
