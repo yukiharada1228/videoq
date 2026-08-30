@@ -134,6 +134,20 @@ describe('VideoCourseDetailPage', () => {
     expect(screen.getAllByRole('button', { name: 'videos.courseDetail.pickFromLibrary' }).length).toBeGreaterThan(0)
   })
 
+  it('does not tell joined members to pick from the library on an empty course', async () => {
+    ;(apiClient.getVideoCourse as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...mockCourse,
+      access_role: 'member',
+      videos: [],
+    })
+
+    render(<VideoCourseDetailPage />)
+
+    expect(await screen.findByText('videos.courseDetail.videoListEmpty')).toBeInTheDocument()
+    expect(screen.queryByText('videos.courseDetail.videoListEmptyHint')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'videos.courseDetail.pickFromLibrary' })).not.toBeInTheDocument()
+  })
+
   it('links to the video library when no videos can be added', async () => {
     render(<VideoCourseDetailPage />)
 

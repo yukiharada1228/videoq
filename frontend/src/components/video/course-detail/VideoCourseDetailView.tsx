@@ -769,13 +769,15 @@ function GroupVideoList({
               <p className="text-std-16N-170 text-solid-gray-600">
                 {t('videos.courseDetail.videoListEmpty')}
               </p>
-              <p className="text-dns-14N-130 text-solid-gray-600">
-                {t('videos.courseDetail.videoListEmptyHint')}
-              </p>
               {canManage ? (
-                <Button type="button" variant="outline" size="sm" onClick={onOpenAdd}>
-                  {t('videos.courseDetail.pickFromLibrary')}
-                </Button>
+                <>
+                  <p className="text-dns-14N-130 text-solid-gray-600">
+                    {t('videos.courseDetail.videoListEmptyHint')}
+                  </p>
+                  <Button type="button" variant="outline" size="sm" onClick={onOpenAdd}>
+                    {t('videos.courseDetail.pickFromLibrary')}
+                  </Button>
+                </>
               ) : null}
             </div>
           )}
