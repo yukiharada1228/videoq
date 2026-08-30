@@ -101,7 +101,6 @@ export default function VideoLibraryPage() {
     isFetchingNextPage,
     totalCount,
     sentinelRef,
-    refetch: refetchVideos,
   } = useVideos({
     tagIds: selectedTagIds,
     q: searchQuery,
