@@ -43,13 +43,7 @@ export default function HomePage() {
   const { videos, courseCount, isLoading: isLoadingData } = useHomePageData({ userId: currentUser?.id });
   const { stats: videoStats } = useVideoStatusCounts(!!currentUser?.id);
 
-  const recentVideos = useMemo(
-    () =>
-      [...videos]
-        .sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime())
-        .slice(0, 5),
-    [videos],
-  );
+  const recentVideos = videos;
 
   const usageItems = useMemo(() => {
     const formatBytesToGb = (bytes?: number | null) => {

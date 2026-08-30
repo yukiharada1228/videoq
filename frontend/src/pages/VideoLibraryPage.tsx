@@ -131,10 +131,9 @@ export default function VideoLibraryPage() {
   }, [selectedTagIds, updateSearchParams]);
 
   const handleUploadSuccess = useCallback(() => {
-    void refetchVideos();
     void refetchUser();
     void invalidateAfterVideoUpload(queryClient);
-  }, [refetchVideos, refetchUser, queryClient]);
+  }, [refetchUser, queryClient]);
 
   const handleCloseModal = () => {
     setIsUploadModalOpen(false);

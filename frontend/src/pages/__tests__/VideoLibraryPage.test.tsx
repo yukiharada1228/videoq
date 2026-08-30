@@ -50,8 +50,18 @@ vi.mock('@/hooks/useTags', () => ({
 }))
 
 vi.mock('@/components/video/VideoUploadModal', () => ({
-  VideoUploadModal: ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) =>
-    isOpen ? <div data-testid="upload-modal"><button onClick={onClose}>Close</button></div> : null,
+  VideoUploadModal: ({ isOpen, onClose, onSuccess }: { isOpen: boolean, onClose: () => void, onSuccess: () => void }) =>
+    isOpen ? (
+      <div data-testid="upload-modal">
+        <button onClick={onClose}>Close</button>
+        <button onClick={onSuccess}>Upload Success</button>
+      </div>
+    ) : null,
+}))
+
+const mockInvalidateAfterVideoUpload = vi.fn()
+vi.mock('@/lib/cacheInvalidation', () => ({
+  invalidateAfterVideoUpload: (...args: unknown[]) => mockInvalidateAfterVideoUpload(...args),
 }))
 
 vi.mock('@/components/video/VideoCard', () => ({
@@ -226,6 +236,17 @@ describe('VideoLibraryPage', () => {
     render(<VideoLibraryPage />)
 
     expect(screen.getByText('videos.list.loadingMore')).toBeInTheDocument()
+  })
+
+  it('should invalidate video cache after upload success', async () => {
+    render(<VideoLibraryPage />)
+
+    fireEvent.click(screen.getByText('videos.list.uploadButton'))
+    fireEvent.click(screen.getByText('Upload Success'))
+
+    await waitFor(() => {
+      expect(mockInvalidateAfterVideoUpload).toHaveBeenCalled()
+    })
   })
 })
 
