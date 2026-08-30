@@ -47,4 +47,23 @@ describe('parseMessageContent', () => {
       { type: 'text', value: '途中まで \\[ a^2' },
     ])
   })
+
+  it('keeps later TeX when a lone $ is not a closed formula', () => {
+    expect(parseMessageContent('PATH は $PATH です。\n\n\\[ x = 1 \\]')).toEqual([
+      { type: 'text', value: 'PATH は $PATH です。\n\n' },
+      { type: 'math', value: ' x = 1 ', display: true },
+    ])
+    expect(parseMessageContent('コストは $ 程度。そのあと \\(a\\) です。')).toEqual([
+      { type: 'text', value: 'コストは $ 程度。そのあと ' },
+      { type: 'math', value: 'a', display: false },
+      { type: 'text', value: ' です。' },
+    ])
+  })
+
+  it('does not let a stray $ consume a later $$ block', () => {
+    expect(parseMessageContent('Let $ and then $$a^2$$')).toEqual([
+      { type: 'text', value: 'Let $ and then ' },
+      { type: 'math', value: 'a^2', display: true },
+    ])
+  })
 })

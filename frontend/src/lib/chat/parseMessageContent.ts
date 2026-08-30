@@ -44,6 +44,7 @@ function findInlineDollarEnd(text: string, startIndex: number): number {
 
   const body = text.slice(startIndex, end);
   if (!body || body.includes('\n')) return -1;
+  if (text[end + 1] === '$') return -1;
   if (/[A-Za-z0-9]/.test(text[end + 1] ?? '')) return -1;
 
   return end;
@@ -84,8 +85,9 @@ function splitMath(content: string): Array<Extract<MessageContentNode, { type: '
     if (nextDelim === 'dollar') {
       const end = findInlineDollarEnd(remaining, 1);
       if (end === -1) {
-        nodes.push({ type: 'text', value: remaining });
-        break;
+        nodes.push({ type: 'text', value: remaining.slice(0, 1) });
+        remaining = remaining.slice(1);
+        continue;
       }
       nodes.push({ type: 'math', value: remaining.slice(1, end), display: false });
       remaining = remaining.slice(end + 1);
@@ -94,8 +96,9 @@ function splitMath(content: string): Array<Extract<MessageContentNode, { type: '
 
     const end = findMathEnd(nextDelim.right, remaining, nextDelim.left.length);
     if (end === -1) {
-      nodes.push({ type: 'text', value: remaining });
-      break;
+      nodes.push({ type: 'text', value: remaining.slice(0, nextDelim.left.length) });
+      remaining = remaining.slice(nextDelim.left.length);
+      continue;
     }
 
     nodes.push({
