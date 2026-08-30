@@ -364,7 +364,7 @@ function ShareLinkDialog({
   );
 }
 
-interface AddVideosDialogProps {
+interface PickFromLibraryDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   courseId: number | null;
@@ -372,13 +372,13 @@ interface AddVideosDialogProps {
   onVideosAdded?: () => void;
 }
 
-function AddVideosDialog({
+function PickFromLibraryDialog({
   isOpen,
   onOpenChange,
   courseId,
   course,
   onVideosAdded,
-}: AddVideosDialogProps) {
+}: PickFromLibraryDialogProps) {
   const { t } = useTranslation();
   const toast = useToast();
   const { tags } = useTags();
@@ -460,12 +460,12 @@ function AddVideosDialog({
       <Dialog {...dialog.dialogProps} scroll="inner" width="min(42rem, 95vw)">
         <DialogContent>
           <DialogHeader>
-            <DialogHeading {...dialog.headingProps}>{t('videos.courseDetail.addVideos')}</DialogHeading>
+            <DialogHeading {...dialog.headingProps}>{t('videos.courseDetail.pickFromLibrary')}</DialogHeading>
           </DialogHeader>
           <DialogScrollArea>
             <DialogBody>
               <p className="mb-4 text-std-16N-170 text-solid-gray-700">
-                {t('videos.courseDetail.addVideosDescription', 'Select videos to add to this course.')}
+                {t('videos.courseDetail.pickFromLibraryDescription')}
               </p>
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center gap-2">
@@ -530,7 +530,17 @@ function AddVideosDialog({
                 {isLoadingVideos ? (
                   <div className="flex justify-center py-8"><LoadingSpinner /></div>
                 ) : availableVideos.length === 0 ? (
-                  <p className="text-center text-solid-gray-600 py-8">{t('videos.courseDetail.noAvailableVideos')}</p>
+                  <div className="flex flex-col items-center gap-3 py-8 text-center">
+                    <p className="text-std-16N-170 text-solid-gray-600">
+                      {t('videos.courseDetail.noAvailableVideos')}
+                    </p>
+                    <p className="text-dns-14N-130 text-solid-gray-600">
+                      {t('videos.courseDetail.noAvailableVideosHint')}
+                    </p>
+                    <UtilityLink asChild>
+                      <Link href="/videos">{t('videos.goToLibrary')}</Link>
+                    </UtilityLink>
+                  </div>
                 ) : (
                   <div className="space-y-2 max-h-[400px] overflow-y-auto">
                     {availableVideos.map((video) => (
@@ -716,10 +726,18 @@ function GroupVideoList({
             <ChipLabel variant="filled-1" color="gray" className="min-h-0 text-oln-14N-100">
               {t('videos.courseDetail.videoCount', { count: course.videos?.length ?? 0 })}
             </ChipLabel>
-            {canManage ? <Button type="button" variant="outline" size="sm" onClick={onOpenAdd}>
-              <Plus className="h-3.5 w-3.5" />
-              <span className="ml-1.5 hidden sm:inline">{t('videos.courseDetail.add')}</span>
-            </Button> : null}
+            {canManage ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onOpenAdd}
+                aria-label={t('videos.courseDetail.pickFromLibrary')}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span className="ml-1.5 hidden sm:inline">{t('videos.courseDetail.pickFromLibrary')}</span>
+              </Button>
+            ) : null}
           </div>
         </div>
         <div className="flex-1 space-y-2 overflow-y-auto p-3">
@@ -747,9 +765,19 @@ function GroupVideoList({
               </SortableContext>
             </DndContext>
           ) : (
-            <p className="py-10 text-center text-std-16N-170 text-solid-gray-600">
-              {t('videos.courseDetail.videoListEmpty')}
-            </p>
+            <div className="flex flex-col items-center gap-3 py-10 text-center">
+              <p className="text-std-16N-170 text-solid-gray-600">
+                {t('videos.courseDetail.videoListEmpty')}
+              </p>
+              <p className="text-dns-14N-130 text-solid-gray-600">
+                {t('videos.courseDetail.videoListEmptyHint')}
+              </p>
+              {canManage ? (
+                <Button type="button" variant="outline" size="sm" onClick={onOpenAdd}>
+                  {t('videos.courseDetail.pickFromLibrary')}
+                </Button>
+              ) : null}
+            </div>
           )}
         </div>
       </div>
@@ -1101,7 +1129,7 @@ export function VideoCourseDetailView({
 
           <GroupMobileNav mobileTab={mobileTab} onChange={onMobileTabChange} />
 
-          {canManage ? <AddVideosDialog
+          {canManage ? <PickFromLibraryDialog
             isOpen={isAddModalOpen}
             onOpenChange={onOpenAddModalChange}
             courseId={courseId}

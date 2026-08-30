@@ -15,7 +15,7 @@ const VerifyEmailPage = lazy(() => import('@/pages/VerifyEmailPage'));
 const EmailChangeConfirmPage = lazy(() => import('@/pages/EmailChangeConfirmPage'));
 const ConsentPage = lazy(() => import('@/pages/ConsentPage'));
 const DevicePage = lazy(() => import('@/pages/DevicePage'));
-const VideosPage = lazy(() => import('@/pages/VideosPage'));
+const VideoLibraryPage = lazy(() => import('@/pages/VideoLibraryPage'));
 const VideoDetailPage = lazy(() => import('@/pages/VideoDetailPage'));
 const VideoCoursesPage = lazy(() => import('@/pages/VideoCoursesPage'));
 const VideoCourseDetailPage = lazy(() => import('@/pages/VideoCourseDetailPage'));
@@ -75,7 +75,7 @@ const routeChildren = (
     <Route path="change-email" element={<EmailChangeConfirmPage />} />
     <Route path="consent" element={<ConsentPage />} />
     <Route path="device" element={<DevicePage />} />
-    <Route path="videos" element={<VideosPage />} />
+    <Route path="videos" element={<VideoLibraryPage />} />
     <Route path="videos/:id" element={<VideoDetailPage />} />
     <Route path="videos/courses" element={<VideoCoursesPage />} />
     <Route path="videos/courses/:id" element={<VideoCourseDetailPage />} />

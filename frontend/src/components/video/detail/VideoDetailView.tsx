@@ -624,7 +624,7 @@ export function VideoDetailView({
 
   return (
     <div className="bg-solid-gray-50 flex flex-col min-h-screen text-solid-gray-800">
-      <AppNav activePage="videos" />
+      <AppNav activePage="videoLibrary" />
 
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center">
@@ -674,7 +674,7 @@ export function VideoDetailView({
               <BreadcrumbList>
                 <BreadcrumbItem>
                   <BreadcrumbLink asChild>
-                    <Link href="/videos">{t('navigation.videosNav')}</Link>
+                    <Link href="/videos">{t('navigation.videoLibrary')}</Link>
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbItem isCurrent>{video.title}</BreadcrumbItem>

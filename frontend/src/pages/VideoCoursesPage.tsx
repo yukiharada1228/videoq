@@ -17,7 +17,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
-import { useI18nNavigate } from '@/lib/i18n';
+import { Link, useI18nNavigate } from '@/lib/i18n';
 import type { VideoCourseList } from '@/lib/api';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
@@ -31,6 +31,7 @@ import {
 } from '@/hooks/useVideoCoursesPageData';
 import { VideoCourseCreateModal } from '@/components/video/VideoCourseCreateModal';
 import { Button } from '@/components/ui/button';
+import { UtilityLink } from '@/components/ui/utility-link';
 import { ChipLabel } from '@/components/ui/chip-label';
 import { Heading, HeadingTitle } from '@/components/ui/heading';
 import { MenuList, MenuListItem } from '@/components/ui/menu-list';
@@ -276,15 +277,20 @@ export default function VideoCoursesPage() {
             <p className="mb-8 max-w-lg text-std-16N-170 text-solid-gray-600">
               {t('videos.courses.emptyDescription')}
             </p>
-            <Button
-              type="button"
-              variant="solid"
-              size="md"
-              onClick={() => setIsModalOpen(true)}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              {t('videos.courses.create')}
-            </Button>
+            <div className="flex flex-wrap items-center gap-4">
+              <Button
+                type="button"
+                variant="solid"
+                size="md"
+                onClick={() => setIsModalOpen(true)}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                {t('videos.courses.create')}
+              </Button>
+              <UtilityLink asChild>
+                <Link href="/videos">{t('videos.goToLibrary')}</Link>
+              </UtilityLink>
+            </div>
           </div>
         ) : (
           <>
