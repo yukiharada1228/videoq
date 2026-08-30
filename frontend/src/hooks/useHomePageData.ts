@@ -10,7 +10,7 @@ export function useHomePageData({ userId }: UseHomePageDataParams) {
   const [videosQuery, coursesQuery] = useQueries({
     queries: [
       {
-        queryKey: [...queryKeys.videos.list(), { limit: 5, ordering: 'uploaded_at_desc' }],
+        queryKey: queryKeys.videos.recent,
         enabled: !!userId,
         queryFn: async (): Promise<VideoList[]> =>
           await apiClient
@@ -30,8 +30,8 @@ export function useHomePageData({ userId }: UseHomePageDataParams) {
   });
 
   return {
-    videos: videosQuery.data ?? [],
-    courseCount: coursesQuery.data ?? 0,
+    videos: videosQuery.data,
+    courseCount: coursesQuery.data,
     isLoading: videosQuery.isLoading || coursesQuery.isLoading,
     videosQuery,
     coursesQuery,

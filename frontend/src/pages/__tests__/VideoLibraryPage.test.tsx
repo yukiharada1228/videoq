@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import VideoLibraryPage from '../VideoLibraryPage'
+import { invalidateAfterVideoUpload } from '@/lib/cacheInvalidation'
 
 const mockVideos = [
   { id: 1, title: 'Video 1', status: 'completed', file: 'test1.mp4', uploaded_at: '2024-01-01' },
@@ -59,9 +60,8 @@ vi.mock('@/components/video/VideoUploadModal', () => ({
     ) : null,
 }))
 
-const mockInvalidateAfterVideoUpload = vi.fn()
 vi.mock('@/lib/cacheInvalidation', () => ({
-  invalidateAfterVideoUpload: (...args: unknown[]) => mockInvalidateAfterVideoUpload(...args),
+  invalidateAfterVideoUpload: vi.fn(),
 }))
 
 vi.mock('@/components/video/VideoCard', () => ({
@@ -245,7 +245,7 @@ describe('VideoLibraryPage', () => {
     fireEvent.click(screen.getByText('Upload Success'))
 
     await waitFor(() => {
-      expect(mockInvalidateAfterVideoUpload).toHaveBeenCalled()
+      expect(invalidateAfterVideoUpload).toHaveBeenCalled()
     })
   })
 })
