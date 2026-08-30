@@ -1012,7 +1012,7 @@ export function VideoCourseDetailView({
             />
           )}
 
-          <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 overflow-y-auto px-6 py-4 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:h-[calc(100dvh-var(--app-header-offset,5rem))] lg:gap-5 lg:overflow-hidden lg:px-8 lg:pb-4">
+          <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 overflow-y-auto px-4 py-4 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-6 lg:h-[calc(100dvh-var(--app-header-offset,5rem))] lg:gap-5 lg:overflow-hidden lg:px-8 lg:pb-4">
             <div className="shrink-0 space-y-4">
               <Breadcrumbs aria-label={t('common.actions.backToList')}>
                 <BreadcrumbsLabel className="sr-only">
@@ -1028,27 +1028,31 @@ export function VideoCourseDetailView({
                 </BreadcrumbList>
               </Breadcrumbs>
 
-              <header className="flex flex-wrap items-center justify-end gap-3">
+              <header className="flex min-w-0 items-center justify-end">
                 {/* 見出しは非表示にしたが、ページの h1 として構造には残す。 */}
                 <h1 className="sr-only">{course.name}</h1>
-                {canManage ? <div className="flex shrink-0 flex-wrap items-center gap-3">
+                {canManage ? <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => onOpenMembersModalChange(true)}
+                    aria-label={t('videos.courseMembers.open')}
+                    className="min-w-9 px-2.5 sm:min-w-20 sm:px-3"
                   >
-                    <Users className="mr-1.5 h-3.5 w-3.5" />
-                    {t('videos.courseMembers.open')}
+                    <Users className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">{t('videos.courseMembers.open')}</span>
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => setIsShareDialogOpen(true)}
+                    aria-label={t('videos.courseDetail.shareOpen')}
+                    className="min-w-9 px-2.5 sm:min-w-20 sm:px-3"
                   >
-                    <Share2 className="mr-1.5 h-3.5 w-3.5" />
-                    {t('videos.courseDetail.shareOpen')}
+                    <Share2 className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">{t('videos.courseDetail.shareOpen')}</span>
                   </Button>
                   <Button
                     type="button"
@@ -1056,9 +1060,11 @@ export function VideoCourseDetailView({
                     size="sm"
                     onClick={onStartEditing}
                     title={t('videos.courseDetail.editTitle')}
+                    aria-label={t('videos.courseDetail.editTitle')}
+                    className="min-w-9 px-2.5 sm:min-w-20 sm:px-3"
                   >
-                    <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                    {t('videos.courseDetail.editTitle')}
+                    <Pencil className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">{t('videos.courseDetail.editTitle')}</span>
                   </Button>
                   <Button
                     type="button"
@@ -1067,14 +1073,15 @@ export function VideoCourseDetailView({
                     onClick={onDeleteCourse}
                     disabled={isDeleting}
                     title={t('videos.courseDetail.delete')}
-                    className="text-error-1 hover:bg-red-50"
+                    aria-label={t('videos.courseDetail.delete')}
+                    className="min-w-9 px-2.5 text-error-1 hover:bg-red-50 sm:min-w-20 sm:px-3"
                   >
                     {isDeleting ? (
-                      <InlineSpinner className="mr-1.5 h-3.5 w-3.5" />
+                      <InlineSpinner className="h-3.5 w-3.5" />
                     ) : (
-                      <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     )}
-                    {t('videos.courseDetail.delete')}
+                    <span className="hidden sm:inline">{t('videos.courseDetail.delete')}</span>
                   </Button>
                 </div> : (
                   <Button
@@ -1083,9 +1090,11 @@ export function VideoCourseDetailView({
                     size="sm"
                     onClick={onLeaveGroup}
                     disabled={isLeaving}
+                    aria-label={t('videos.courseDetail.leave')}
+                    className="min-w-9 px-2.5 sm:min-w-20 sm:px-3"
                   >
-                    {isLeaving ? <InlineSpinner className="mr-1.5 h-3.5 w-3.5" /> : <LogOut className="mr-1.5 h-3.5 w-3.5" />}
-                    {t('videos.courseDetail.leave')}
+                    {isLeaving ? <InlineSpinner className="h-3.5 w-3.5" /> : <LogOut className="h-3.5 w-3.5" />}
+                    <span className="hidden sm:inline">{t('videos.courseDetail.leave')}</span>
                   </Button>
                 )}
               </header>
