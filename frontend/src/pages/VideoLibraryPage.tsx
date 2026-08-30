@@ -1,8 +1,10 @@
 import { useMemo, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import { useVideos, type VideosOrdering } from '@/hooks/useVideos';
 import { useVideoStatusCounts } from '@/hooks/useVideoStats';
+import { invalidateAfterVideoUpload } from '@/lib/cacheInvalidation';
 import { VideoUploadModal } from '@/components/video/VideoUploadModal';
 import { VideoCard } from '@/components/video/VideoCard';
 import { TagManagementModal } from '@/components/video/TagManagementModal';
@@ -60,6 +62,7 @@ function toApiStatusFilter(statusFilter: StatusFilter): string | undefined {
 }
 
 export default function VideoLibraryPage() {
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedTagIds = useMemo(
     () => parseTagIds(searchParams.get('tags')),
@@ -130,7 +133,8 @@ export default function VideoLibraryPage() {
   const handleUploadSuccess = useCallback(() => {
     void refetchVideos();
     void refetchUser();
-  }, [refetchVideos, refetchUser]);
+    void invalidateAfterVideoUpload(queryClient);
+  }, [refetchVideos, refetchUser, queryClient]);
 
   const handleCloseModal = () => {
     setIsUploadModalOpen(false);

@@ -41,7 +41,7 @@ export default function HomePage() {
   const usageSource: Partial<User> = currentUser ?? {};
 
   const { videos, courseCount, isLoading: isLoadingData } = useHomePageData({ userId: currentUser?.id });
-  const { stats: videoStats, isLoading: isLoadingStats } = useVideoStatusCounts(!!currentUser?.id);
+  const { stats: videoStats } = useVideoStatusCounts(!!currentUser?.id);
 
   const recentVideos = useMemo(
     () =>
@@ -111,7 +111,7 @@ export default function HomePage() {
     return <LandingPage />;
   }
 
-  if (isLoadingData || isLoadingStats) {
+  if (isLoadingData) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
         <LoadingSpinner />

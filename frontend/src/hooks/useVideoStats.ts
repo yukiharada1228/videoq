@@ -73,6 +73,7 @@ export function useVideoStatusCounts(enabled = true) {
     queryKey: queryKeys.videos.stats,
     queryFn: () => apiClient.getVideoStats(),
     enabled,
+    staleTime: 30_000,
   });
 
   return {
