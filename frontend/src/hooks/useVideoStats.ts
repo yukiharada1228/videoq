@@ -1,6 +1,19 @@
 import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { apiClient, type VideoStatusCounts } from '@/lib/api';
+import { queryKeys } from '@/lib/queryKeys';
 
 export type VideoStatus = 'uploading' | 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
+
+export const EMPTY_VIDEO_STATUS_COUNTS: VideoStatusCounts = {
+  total: 0,
+  completed: 0,
+  pending: 0,
+  processing: 0,
+  indexing: 0,
+  error: 0,
+  uploading: 0,
+};
 
 export interface VideoLike {
   status: VideoStatus;
@@ -53,4 +66,18 @@ export function useVideoStats<T extends VideoLike>(videos: T[]): VideoStats {
 
     return stats;
   }, [videos]);
+}
+
+export function useVideoStatusCounts(enabled = true) {
+  const query = useQuery({
+    queryKey: queryKeys.videos.stats,
+    queryFn: () => apiClient.getVideoStats(),
+    enabled,
+  });
+
+  return {
+    stats: query.data ?? EMPTY_VIDEO_STATUS_COUNTS,
+    isLoading: query.isLoading,
+    error: query.error,
+  };
 }

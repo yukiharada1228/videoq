@@ -2,7 +2,7 @@ import { useMemo, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useVideos, type VideosOrdering } from '@/hooks/useVideos';
-import { useVideoStats } from '@/hooks/useVideoStats';
+import { useVideoStatusCounts } from '@/hooks/useVideoStats';
 import { VideoUploadModal } from '@/components/video/VideoUploadModal';
 import { VideoCard } from '@/components/video/VideoCard';
 import { TagManagementModal } from '@/components/video/TagManagementModal';
@@ -106,7 +106,7 @@ export default function VideoLibraryPage() {
     ordering: sortOrder,
   });
 
-  const stats = useVideoStats(videos);
+  const { stats } = useVideoStatusCounts();
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isTagManagementOpen, setIsTagManagementOpen] = useState(false);
   const { t } = useTranslation();

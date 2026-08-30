@@ -37,7 +37,19 @@ describe('HomePage - authenticated', () => {
       data: mockVideos,
       meta: { total: mockVideos.length, limit: 24, offset: 0 },
     })
-    ;(apiClient.getVideoCourses as ReturnType<typeof vi.fn>).mockResolvedValue(mockCourses)
+    ;(apiClient.getVideoCoursesPage as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: mockCourses,
+      meta: { total: mockCourses.length, limit: 1, offset: 0 },
+    })
+    ;(apiClient.getVideoStats as ReturnType<typeof vi.fn>).mockResolvedValue({
+      total: 24,
+      completed: 20,
+      pending: 0,
+      processing: 0,
+      indexing: 0,
+      error: 0,
+      uploading: 0,
+    })
   })
 
   it('should render welcome title', async () => {
@@ -100,6 +112,15 @@ describe('HomePage - authenticated', () => {
       expect(screen.getByText('home.stats.analysisCompleted')).toBeInTheDocument()
       expect(screen.getByText('home.stats.processing')).toBeInTheDocument()
       expect(screen.getByText('home.stats.courses')).toBeInTheDocument()
+    })
+  })
+
+  it('should show library-wide counts instead of the first video page', async () => {
+    render(<HomePage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('home.stats.totalVideos').parentElement).toHaveTextContent('24')
+      expect(screen.getByText('home.stats.analysisCompleted').parentElement).toHaveTextContent('20')
     })
   })
 
@@ -171,7 +192,8 @@ describe('HomePage - authenticated', () => {
 
     await waitFor(() => {
       expect(apiClient.getVideos).toHaveBeenCalled()
-      expect(apiClient.getVideoCourses).toHaveBeenCalled()
+      expect(apiClient.getVideoCoursesPage).toHaveBeenCalled()
+      expect(apiClient.getVideoStats).toHaveBeenCalled()
     })
   })
 
@@ -185,12 +207,25 @@ describe('HomePage - Data Loading', () => {
       data: mockVideos,
       meta: { total: mockVideos.length, limit: 24, offset: 0 },
     })
-    ;(apiClient.getVideoCourses as ReturnType<typeof vi.fn>).mockResolvedValue(mockCourses)
+    ;(apiClient.getVideoCoursesPage as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: mockCourses,
+      meta: { total: mockCourses.length, limit: 1, offset: 0 },
+    })
+    ;(apiClient.getVideoStats as ReturnType<typeof vi.fn>).mockResolvedValue({
+      total: 5,
+      completed: 1,
+      pending: 1,
+      processing: 1,
+      indexing: 1,
+      error: 1,
+      uploading: 0,
+    })
   })
 
   it('should handle API errors gracefully', async () => {
     ;(apiClient.getVideos as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'))
-    ;(apiClient.getVideoCourses as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'))
+    ;(apiClient.getVideoCoursesPage as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'))
+    ;(apiClient.getVideoStats as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'))
 
     render(<HomePage />)
 

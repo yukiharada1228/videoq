@@ -5,7 +5,7 @@ import type { User } from '@/lib/api';
 import { authMeQueryOptions } from '@/lib/authQuery';
 import { useAuthSession } from '@/lib/authSession';
 import { useHomePageData } from '@/hooks/useHomePageData';
-import { useVideoStats } from '@/hooks/useVideoStats';
+import { useVideoStatusCounts } from '@/hooks/useVideoStats';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { AppPageShell } from '@/components/layout/AppPageShell';
@@ -40,8 +40,8 @@ export default function HomePage() {
   const currentUser = hasSession ? user ?? null : null;
   const usageSource: Partial<User> = currentUser ?? {};
 
-  const { videos, courses, isLoading: isLoadingData } = useHomePageData({ userId: currentUser?.id });
-  const videoStats = useVideoStats(videos);
+  const { videos, courseCount, isLoading: isLoadingData } = useHomePageData({ userId: currentUser?.id });
+  const { stats: videoStats, isLoading: isLoadingStats } = useVideoStatusCounts(!!currentUser?.id);
 
   const recentVideos = useMemo(
     () =>
@@ -111,7 +111,7 @@ export default function HomePage() {
     return <LandingPage />;
   }
 
-  if (isLoadingData) {
+  if (isLoadingData || isLoadingStats) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
         <LoadingSpinner />
@@ -122,8 +122,8 @@ export default function HomePage() {
   const statsItems = [
     { label: t('home.stats.totalVideos'), value: videoStats.total },
     { label: t('home.stats.analysisCompleted'), value: videoStats.completed },
-    { label: t('home.stats.processing'), value: videoStats.processing + videoStats.pending + videoStats.indexing },
-    { label: t('home.stats.courses'), value: courses.length },
+    { label: t('home.stats.processing'), value: videoStats.processing + videoStats.pending + videoStats.indexing + videoStats.uploading },
+    { label: t('home.stats.courses'), value: courseCount },
   ];
 
   const actionItems = [
@@ -139,7 +139,7 @@ export default function HomePage() {
     },
     {
       title: t('home.actions.courses.title'),
-      description: t('home.actions.courses.descriptionLong', { count: courses.length }),
+      description: t('home.actions.courses.descriptionLong', { count: courseCount }),
       onClick: () => navigate('/videos/courses'),
     },
   ];

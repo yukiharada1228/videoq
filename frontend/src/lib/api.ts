@@ -379,6 +379,16 @@ export interface YoutubeVideoCreateRequest {
   description?: string;
 }
 
+export interface VideoStatusCounts {
+  total: number;
+  completed: number;
+  pending: number;
+  processing: number;
+  indexing: number;
+  error: number;
+  uploading: number;
+}
+
 export interface VideoUpdateRequest {
   title?: string;
   description?: string;
@@ -1086,6 +1096,10 @@ export class ApiClient {
       : '';
 
     return this.request<PaginatedResponse<VideoList>>(`/videos${query}`);
+  }
+
+  async getVideoStats(): Promise<VideoStatusCounts> {
+    return this.request<VideoStatusCounts>('/videos/stats');
   }
 
   async getVideo(id: number): Promise<Video> {

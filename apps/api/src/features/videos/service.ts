@@ -1,5 +1,6 @@
 import {
   listVideosPage,
+  countVideosByStatus,
   getVideoDetail,
   updateVideo,
   getVideoFileKey,
@@ -84,6 +85,10 @@ export async function listUserVideos(
     limit,
     offset,
   );
+}
+
+export async function getUserVideoStats(env: Bindings, userId: string) {
+  return countVideosByStatus(env, userId);
 }
 
 export async function getUserVideo(

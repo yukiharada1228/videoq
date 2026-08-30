@@ -21,13 +21,17 @@ vi.mock('@/hooks/useVideos', () => ({
 }))
 
 vi.mock('@/hooks/useVideoStats', () => ({
-  useVideoStats: () => ({
-    total: 4,
-    completed: 1,
-    pending: 1,
-    processing: 1,
-    indexing: 1,
-    error: 0,
+  useVideoStatusCounts: () => ({
+    stats: {
+      total: 4,
+      completed: 1,
+      pending: 1,
+      processing: 1,
+      indexing: 1,
+      error: 0,
+      uploading: 0,
+    },
+    isLoading: false,
   }),
 }))
 

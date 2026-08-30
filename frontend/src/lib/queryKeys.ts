@@ -26,6 +26,7 @@ export const queryKeys = {
   },
   videos: {
     all: ['videos'] as const,
+    stats: ['videos', 'stats'] as const,
     list: (params?: { tags?: number[] }) =>
       ['videos', 'list', { tags: params?.tags ?? [] }] as const,
     infinite: (params?: { tags?: number[]; q?: string; status?: string; ordering?: string }) =>

@@ -485,6 +485,24 @@ describe('ApiClient', () => {
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos', expect.anything());
     });
 
+    it('getVideoStats should call /videos/stats', async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: () => Promise.resolve(JSON.stringify({
+          total: 24,
+          completed: 24,
+          pending: 0,
+          processing: 0,
+          indexing: 0,
+          error: 0,
+          uploading: 0,
+        })),
+      });
+      await apiClient.getVideoStats();
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/videos/stats', expect.anything());
+    });
+
     it('uploadVideo should use FormData when S3 is disabled', async () => {
       const mockVideo = { id: 1, title: 'Test Video' };
       fetchMock.mockResolvedValueOnce({
