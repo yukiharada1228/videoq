@@ -20,7 +20,7 @@ export function useHomePageData({ userId }: UseHomePageDataParams) {
         initialData: [] as VideoList[],
       },
       {
-        queryKey: [...queryKeys.videoCourses.all(userId ?? null), 'count'],
+        queryKey: queryKeys.videoCourses.count(userId ?? null),
         enabled: !!userId,
         queryFn: async (): Promise<number> =>
           await apiClient.getVideoCoursesPage({ limit: 1 }).then((r) => r.meta.total).catch(() => 0),

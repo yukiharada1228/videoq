@@ -8,6 +8,7 @@ export const queryKeys = {
   videoCourses: {
     prefix: ['videoCourses'] as const,
     all: (userId: number | string | null) => ['videoCourses', userId] as const,
+    count: (userId: number | string | null) => ['videoCourses', userId, 'count'] as const,
     infinite: (userId: number | string | null) => ['videoCourses', 'infinite', userId] as const,
     allDetail: ['videoCourse'] as const,
     detail: (courseId: number | null) => ['videoCourse', courseId] as const,
