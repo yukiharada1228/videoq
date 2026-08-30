@@ -68,7 +68,7 @@
   },
   "navigation": {
     "home": "Home",
-    "videoLibrary": "Video library",
+    "videoLibrary": "Library",
     "coursesNav": "Courses",
     "docs": "Developer Docs",
     "settings": "Settings",
@@ -97,7 +97,7 @@
         "descriptionLong": "Register a lecture or training video and start automatic transcription."
       },
       "library": {
-        "title": "Video library",
+        "title": "Library",
         "descriptionLong": "Review, edit, and share your {{count}} registered videos."
       },
       "courses": {
@@ -226,9 +226,9 @@
     }
   },
   "videos": {
-    "goToLibrary": "Open video library",
+    "goToLibrary": "Open library",
     "list": {
-      "title": "Video library",
+      "title": "Library",
       "uploadButton": "Upload video",
       "statsRow": {
         "all": "All",
@@ -312,7 +312,7 @@
     "courses": {
       "title": "Chat courses",
       "subtitle": "Group library videos into a course to manage and share them",
-      "emptyDescription": "A course is a selection from your video library. Register videos in the library first.",
+      "emptyDescription": "A course is a selection from your library. Register videos in the library first.",
       "optional": "(optional)",
       "create": "Create chat course",
       "createTitle": "Create chat course",

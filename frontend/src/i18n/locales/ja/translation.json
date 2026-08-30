@@ -68,7 +68,7 @@
   },
   "navigation": {
     "home": "ホーム",
-    "videoLibrary": "動画ライブラリ",
+    "videoLibrary": "ライブラリ",
     "coursesNav": "講座",
     "docs": "開発者Docs",
     "settings": "設定",
@@ -97,7 +97,7 @@
         "descriptionLong": "授業・研修動画を登録し、自動文字起こしを開始します。"
       },
       "library": {
-        "title": "動画ライブラリ",
+        "title": "ライブラリ",
         "descriptionLong": "登録済みの動画（{{count}}本）を確認・編集・共有できます。"
       },
       "courses": {
@@ -226,9 +226,9 @@
     }
   },
   "videos": {
-    "goToLibrary": "動画ライブラリを開く",
+    "goToLibrary": "ライブラリを開く",
     "list": {
-      "title": "動画ライブラリ",
+      "title": "ライブラリ",
       "uploadButton": "動画をアップロード",
       "statsRow": {
         "all": "全体",
@@ -312,7 +312,7 @@
     "courses": {
       "title": "講座",
       "subtitle": "ライブラリの動画を講座にまとめて、管理・共有できます",
-      "emptyDescription": "講座はライブラリにある動画を選んで作ります。先に動画ライブラリへ動画を登録してください。",
+      "emptyDescription": "講座はライブラリにある動画を選んで作ります。先にライブラリへ動画を登録してください。",
       "optional": "（任意）",
       "create": "新しい講座を作成",
       "createTitle": "新しい講座を作成",
@@ -368,7 +368,7 @@
       "selectAll": "全選択",
       "clearSelection": "選択解除",
       "noAvailableVideos": "この講座に追加できる動画がライブラリにありません",
-      "noAvailableVideosHint": "先に動画ライブラリでアップロードするか、絞り込み条件を外してください。",
+      "noAvailableVideosHint": "先にライブラリでアップロードするか、絞り込み条件を外してください。",
       "add": "追加",
       "adding": "追加中...",
       "addResult": "{{added}}個の動画を追加しました（{{skipped}}個は既に追加済みでした）",
@@ -381,7 +381,7 @@
       "videoNoFile": "動画ファイルがありません",
       "videoListTitle": "動画一覧",
       "videoListEmpty": "この講座にはまだ動画がありません",
-      "videoListEmptyHint": "ライブラリから選ぶか、先に動画ライブラリでアップロードしてください。",
+      "videoListEmptyHint": "ライブラリから選ぶか、先にライブラリでアップロードしてください。",
       "videoCount": "全{{count}}本",
       "editTitle": "講座を編集",
       "editDescription": "講座名と説明を更新します。",

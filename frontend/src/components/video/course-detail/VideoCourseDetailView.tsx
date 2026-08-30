@@ -718,27 +718,25 @@ function GroupVideoList({
             <ErrorMessage message={deleteError} />
           </div>
         ) : null}
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-solid-gray-200 px-5 py-4">
-          <Heading size="18" className="min-w-0 flex-1 truncate">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-solid-gray-200 px-5 py-4">
+          <Heading size="18" className="shrink-0">
             <HeadingTitle level="h2">{t('videos.courseDetail.videoListTitle')}</HeadingTitle>
           </Heading>
-          <div className="flex shrink-0 items-center gap-3">
-            <ChipLabel variant="filled-1" color="gray" className="min-h-0 text-oln-14N-100">
-              {t('videos.courseDetail.videoCount', { count: course.videos?.length ?? 0 })}
-            </ChipLabel>
-            {canManage ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onOpenAdd}
-                aria-label={t('videos.courseDetail.pickFromLibrary')}
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span className="ml-1.5 hidden sm:inline">{t('videos.courseDetail.pickFromLibrary')}</span>
-              </Button>
-            ) : null}
-          </div>
+          <ChipLabel variant="filled-1" color="gray" className="min-h-0 shrink-0 text-oln-14N-100">
+            {t('videos.courseDetail.videoCount', { count: course.videos?.length ?? 0 })}
+          </ChipLabel>
+          {canManage ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onOpenAdd}
+              aria-label={t('videos.courseDetail.pickFromLibrary')}
+              className="ml-auto min-w-9 shrink-0 px-2.5"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+          ) : null}
         </div>
         <div className="flex-1 space-y-2 overflow-y-auto p-3">
           {course.videos && course.videos.length > 0 ? (
