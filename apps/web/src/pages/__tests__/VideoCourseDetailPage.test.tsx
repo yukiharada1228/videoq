@@ -187,6 +187,66 @@ describe('VideoCourseDetailPage', () => {
     })
   })
 
+  it('marks only the video being removed as busy and blocks every remove button meanwhile', async () => {
+    let resolveRemove: () => void = () => {}
+    courseTrpcMocks.removeVideo.mockImplementation(
+      () => new Promise<void>((resolve) => {
+        resolveRemove = () => resolve()
+      })
+    )
+
+    render(<VideoCourseDetailPage />)
+
+    const removeButtons = await screen.findAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })
+    expect(removeButtons[0]).not.toBeDisabled()
+    fireEvent.click(removeButtons[0])
+
+    const dialog = await screen.findByRole('dialog', { name: /videos\.courseDetail\.removeVideoConfirm/ })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'common.actions.confirm' }))
+
+    await waitFor(() => {
+      expect(courseTrpcMocks.removeVideo).toHaveBeenCalledWith({ courseId: 1, videoId: 1 })
+    })
+
+    const pending = screen.getAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })
+    expect(pending[0]).toBeDisabled()
+    expect(pending[0]).toHaveAttribute('aria-busy', 'true')
+    // The other row must not claim to be busy, but it must not accept a second
+    // removal while one is already in flight either.
+    expect(pending[1]).toBeDisabled()
+    expect(pending[1]).not.toHaveAttribute('aria-busy', 'true')
+
+    resolveRemove()
+
+    await waitFor(() => {
+      const settled = screen.getAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })
+      expect(settled[0]).not.toBeDisabled()
+      expect(settled[0]).not.toHaveAttribute('aria-busy', 'true')
+    })
+  })
+
+  it('re-enables the remove buttons when the removal fails', async () => {
+    courseTrpcMocks.removeVideo.mockRejectedValue(new Error('boom'))
+
+    render(<VideoCourseDetailPage />)
+
+    const removeButtons = await screen.findAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })
+    fireEvent.click(removeButtons[0])
+
+    const dialog = await screen.findByRole('dialog', { name: /videos\.courseDetail\.removeVideoConfirm/ })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'common.actions.confirm' }))
+
+    await waitFor(() => {
+      expect(courseTrpcMocks.removeVideo).toHaveBeenCalled()
+    })
+
+    await waitFor(() => {
+      for (const button of screen.getAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })) {
+        expect(button).not.toBeDisabled()
+      }
+    })
+  })
+
   it('should render chat panel', async () => {
     render(<VideoCourseDetailPage />)
 

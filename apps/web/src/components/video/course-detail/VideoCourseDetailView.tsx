@@ -106,6 +106,8 @@ interface VideoCourseDetailViewProps {
   selectedVideo: SelectedVideo | null;
   deleteError: string | null;
   isDeleting: boolean;
+  /** Id of the video whose removal is in flight, or null when idle. */
+  removingVideoId: number | null;
   isEditing: boolean;
   editedName: string;
   editedDescription: string;
@@ -151,6 +153,10 @@ interface SortableVideoItemProps {
   isSelected: boolean;
   onSelect: (videoId: number) => void;
   onRemove: (videoId: number) => void;
+  /** True while this video's own removal is in flight. */
+  isRemoving: boolean;
+  /** True while any video in the course is being removed. */
+  isRemoveBlocked: boolean;
   isMobile?: boolean;
   canManage: boolean;
 }
@@ -160,6 +166,8 @@ function SortableVideoItem({
   isSelected,
   onSelect,
   onRemove,
+  isRemoving,
+  isRemoveBlocked,
   isMobile = false,
   canManage,
 }: SortableVideoItemProps) {
@@ -212,10 +220,12 @@ function SortableVideoItem({
         }}
         onPointerDown={(event) => event.stopPropagation()}
         onMouseDown={(event) => event.stopPropagation()}
+        disabled={isRemoveBlocked}
+        aria-busy={isRemoving}
         aria-label={t('videos.courseDetail.removeFromCourse')}
         className="min-w-0 shrink-0 p-1.5 text-error-1 hover:bg-red-50"
       >
-        <Trash2 className="w-3.5 h-3.5" />
+        {isRemoving ? <InlineSpinner className="h-3.5 w-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
       </Button> : null}
     </div>
   );
@@ -692,6 +702,7 @@ function GroupVideoList({
   onVideoSelect,
   onMobileTabChange,
   onRemoveVideo,
+  removingVideoId,
   onDragEnd,
   canManage,
 }: {
@@ -705,6 +716,7 @@ function GroupVideoList({
   onVideoSelect: (videoId: number) => void;
   onMobileTabChange: (tab: MobileTab) => void;
   onRemoveVideo: (videoId: number) => Promise<void> | void;
+  removingVideoId: number | null;
   onDragEnd: (event: DragEndEvent) => Promise<void> | void;
   canManage: boolean;
 }) {
@@ -758,6 +770,8 @@ function GroupVideoList({
                       if (isMobile) onMobileTabChange('player');
                     }}
                     onRemove={onRemoveVideo}
+                    isRemoving={removingVideoId === video.id}
+                    isRemoveBlocked={removingVideoId !== null}
                   />
                 ))}
               </SortableContext>
@@ -936,6 +950,7 @@ export function VideoCourseDetailView({
   onLeaveGroup,
   onVideoSelect,
   onRemoveVideo,
+  removingVideoId,
   onDragEnd,
   onVideoCanPlay,
   onVideoPlayFromTime,
@@ -1110,6 +1125,7 @@ export function VideoCourseDetailView({
                 onVideoSelect={onVideoSelect}
                 onMobileTabChange={onMobileTabChange}
                 onRemoveVideo={onRemoveVideo}
+                removingVideoId={removingVideoId}
                 onDragEnd={onDragEnd}
                 canManage={canManage}
               />
