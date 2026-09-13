@@ -15,7 +15,7 @@ interface VideoUploadButtonProps {
 
 export function VideoUploadButton({
   isUploading,
-  progress,
+  progress = 0,
   disabled = false,
   className,
   variant = 'solid',
@@ -33,7 +33,7 @@ export function VideoUploadButton({
       {isUploading ? (
         <span className={fullWidth ? "flex items-center" : "flex items-center justify-center"}>
           <InlineSpinner className="mr-2" />
-          {progress
+          {progress > 0
             ? t('videos.upload.uploadingWithProgress', { percent: Math.round(progress) })
             : t('videos.upload.uploading')}
         </span>
