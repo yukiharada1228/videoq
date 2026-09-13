@@ -1,17 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react'
 import type { VideoStatusCounts } from '@videoq/trpc'
 
-import { useVideoStats, useVideoStatusCounts } from '../useVideoStats'
-
-const EMPTY_STATS: VideoStatusCounts = {
-  total: 0,
-  completed: 0,
-  pending: 0,
-  processing: 0,
-  indexing: 0,
-  error: 0,
-  uploading: 0,
-}
+import { useVideoStats, useVideoStatusCounts, EMPTY_VIDEO_STATUS_COUNTS } from '../useVideoStats'
 
 describe('useVideoStats', () => {
   it('should calculate stats for empty array', () => {
@@ -106,8 +96,8 @@ describe('useVideoStatusCounts', () => {
     async (status) => {
       vi.useFakeTimers()
       try {
-        const inProgressStats: VideoStatusCounts = { ...EMPTY_STATS, total: 1, [status]: 1 }
-        const settledStats: VideoStatusCounts = { ...EMPTY_STATS, total: 1, completed: 1 }
+        const inProgressStats: VideoStatusCounts = { ...EMPTY_VIDEO_STATUS_COUNTS, total: 1, [status]: 1 }
+        const settledStats: VideoStatusCounts = { ...EMPTY_VIDEO_STATUS_COUNTS, total: 1, completed: 1 }
         const getCounts = vi.fn()
           .mockResolvedValueOnce(inProgressStats)
           .mockResolvedValueOnce(settledStats)
@@ -141,7 +131,7 @@ describe('useVideoStatusCounts', () => {
   it('does not poll once no status is in progress', async () => {
     vi.useFakeTimers()
     try {
-      const settledStats: VideoStatusCounts = { ...EMPTY_STATS, total: 1, completed: 1 }
+      const settledStats: VideoStatusCounts = { ...EMPTY_VIDEO_STATUS_COUNTS, total: 1, completed: 1 }
       const getCounts = vi.fn().mockResolvedValue(settledStats)
       globalThis.__setTrpcHandler('videos.statusCounts', getCounts)
 
