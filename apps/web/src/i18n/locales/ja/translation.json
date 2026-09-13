@@ -577,6 +577,7 @@
     }
   },
   "chat": {
+    "generating": "回答を生成しています",
     "title": "チャット",
     "teacher": "教師",
     "newConsultation": "新規相談",

@@ -169,6 +169,7 @@ export function ChatPanel({
         <>
           <ChatMessagesView
             messages={messages}
+            isLoading={isLoading}
             feedbackUpdatingId={feedbackUpdatingId}
             messagesContainerRef={messagesContainerRef}
             messagesEndRef={messagesEndRef}

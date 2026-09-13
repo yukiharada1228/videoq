@@ -4,6 +4,7 @@ import { ChatMessageBubble } from '@/components/chat/ChatMessageBubble';
 
 interface ChatMessagesViewProps {
   messages: Message[];
+  isLoading: boolean;
   feedbackUpdatingId: number | null;
   messagesContainerRef: RefObject<HTMLDivElement | null>;
   messagesEndRef: RefObject<HTMLDivElement | null>;
@@ -13,6 +14,7 @@ interface ChatMessagesViewProps {
 
 export function ChatMessagesView({
   messages,
+  isLoading,
   feedbackUpdatingId,
   messagesContainerRef,
   messagesEndRef,
@@ -25,6 +27,8 @@ export function ChatMessagesView({
         <ChatMessageBubble
           key={index}
           message={message}
+          // Only the trailing bubble can be the one the stream is filling in.
+          isAwaitingResponse={isLoading && index === messages.length - 1}
           feedbackUpdatingId={feedbackUpdatingId}
           onVideoNavigate={onVideoNavigate}
           onFeedback={onFeedback}

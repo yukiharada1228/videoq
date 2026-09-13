@@ -2,10 +2,13 @@ import { BookOpen, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Message } from '@/hooks/useChatMessages';
 import { MessageBody } from '@/components/chat/MessageBody';
+import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { Button } from '@/components/ui/button';
 
 interface ChatMessageBubbleProps {
   message: Message;
+  /** True while this bubble is the one waiting on the in-flight response. */
+  isAwaitingResponse?: boolean;
   feedbackUpdatingId: number | null;
   onVideoNavigate: (videoId: number, startTime: string) => void;
   onFeedback: (chatLogId: number, value: 'good' | 'bad') => Promise<unknown>;
@@ -13,6 +16,7 @@ interface ChatMessageBubbleProps {
 
 export function ChatMessageBubble({
   message,
+  isAwaitingResponse = false,
   feedbackUpdatingId,
   onVideoNavigate,
   onFeedback,
@@ -36,11 +40,15 @@ export function ChatMessageBubble({
           <BookOpen className="h-3.5 w-3.5" />
           AI {t('chat.teacher')}
         </div>
-        <MessageBody
-          content={message.content}
-          citations={message.citations}
-          onVideoNavigate={onVideoNavigate}
-        />
+        {isAwaitingResponse && message.content === '' ? (
+          <TypingIndicator />
+        ) : (
+          <MessageBody
+            content={message.content}
+            citations={message.citations}
+            onVideoNavigate={onVideoNavigate}
+          />
+        )}
         {message.chatLogId && (
           <div className="flex gap-2 pt-2">
             <Button
