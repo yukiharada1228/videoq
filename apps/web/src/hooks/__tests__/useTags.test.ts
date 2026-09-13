@@ -127,6 +127,45 @@ describe('useTags', () => {
     })
   })
 
+  it('should expose the id of the tag currently being deleted', async () => {
+    const initialTags = [
+      tag({ id: 1, name: 'Tag 1', color: 'red' }),
+      tag({ id: 2, name: 'Tag 2', color: 'green', created_at: '2023-01-02' }),
+    ]
+    trpcApi.listTags.mockResolvedValue(initialTags)
+    let resolveDelete: () => void = () => {}
+    trpcApi.deleteTag.mockImplementation(
+      () => new Promise((resolve) => {
+        resolveDelete = () => resolve({ id: 2 })
+      })
+    )
+
+    const { result } = renderHook(() => useTags())
+
+    await waitFor(() => {
+      expect(result.current.tags).toEqual(initialTags)
+    })
+    expect(result.current.deletingTagId).toBeNull()
+
+    let deletion: Promise<unknown> | undefined
+    act(() => {
+      deletion = result.current.deleteTag(2)
+    })
+
+    await waitFor(() => {
+      expect(result.current.deletingTagId).toBe(2)
+    })
+
+    await act(async () => {
+      resolveDelete()
+      await deletion
+    })
+
+    await waitFor(() => {
+      expect(result.current.deletingTagId).toBeNull()
+    })
+  })
+
   it('should handle loading errors', async () => {
     trpcApi.listTags.mockRejectedValue(new Error('Failed to load'))
 

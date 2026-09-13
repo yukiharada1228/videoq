@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { InlineSpinner } from '@/components/common/InlineSpinner';
 import {
   Dialog,
   DialogActions,
@@ -23,7 +24,8 @@ interface TagManagementModalProps {
 
 export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps) {
   const { t } = useTranslation();
-  const { tags, deleteTag } = useTags();
+  const { tags, deleteTag, deletingTagId } = useTags();
+  const isDeleting = deletingTagId !== null;
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
   const dialog = useDialog({
@@ -81,14 +83,18 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
                           size="sm"
                           className="bg-error-1 hover:bg-red-1000 active:bg-red-1200"
                           onClick={() => handleDelete(tag.id)}
+                          disabled={isDeleting}
+                          aria-busy={deletingTagId === tag.id}
                           data-testid={`confirm-delete-${tag.id}`}
                         >
+                          {deletingTagId === tag.id ? <InlineSpinner className="h-4 w-4" color="red" /> : null}
                           {t('common.actions.delete', 'Delete')}
                         </Button>
                         <Button
                           variant="text"
                           size="sm"
                           onClick={() => setDeleteConfirmId(null)}
+                          disabled={isDeleting}
                           data-testid={`cancel-delete-${tag.id}`}
                         >
                           {t('common.actions.cancel', 'Cancel')}
@@ -100,6 +106,7 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
                         size="sm"
                         className="min-w-9 px-2 text-solid-gray-600 hover:text-error-1"
                         onClick={() => setDeleteConfirmId(tag.id)}
+                        disabled={isDeleting}
                         data-testid={`delete-tag-${tag.id}`}
                         aria-label={t('common.actions.delete', 'Delete')}
                       >
