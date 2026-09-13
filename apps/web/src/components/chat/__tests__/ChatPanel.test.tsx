@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import { ChatPanel } from '../ChatPanel'
 import { apiClient } from '@/lib/api'
 
@@ -564,7 +564,10 @@ describe('ChatPanel', () => {
       await sendMessage(input, 'Test message')
     })
 
-    expect(await screen.findByRole('status', { name: /chat.generating/ })).toBeInTheDocument()
+    // The live region must carry the text itself: an aria-label would give it a
+    // name but leave a screen reader with nothing to announce.
+    const indicator = await screen.findByRole('status')
+    expect(within(indicator).getByText('chat.generating')).toBeInTheDocument()
 
     await act(async () => {
       releaseFirstChunk()
@@ -574,7 +577,7 @@ describe('ChatPanel', () => {
     await waitFor(() => {
       expect(screen.getByText('Streamed answer')).toBeInTheDocument()
     })
-    expect(screen.queryByRole('status', { name: /chat.generating/ })).not.toBeInTheDocument()
+    expect(screen.queryByText('chat.generating')).not.toBeInTheDocument()
   })
 
   it('drops the typing indicator when the stream ends without any text', async () => {
@@ -596,7 +599,7 @@ describe('ChatPanel', () => {
     // The bubble stays empty, but an indicator that never stops would claim the
     // answer is still being generated.
     await waitFor(() => {
-      expect(screen.queryByRole('status', { name: /chat.generating/ })).not.toBeInTheDocument()
+      expect(screen.queryByText('chat.generating')).not.toBeInTheDocument()
     })
   })
 
