@@ -27,6 +27,12 @@ export type PersistedExternalTask = {
 
 export const MAX_EXTERNAL_TASK_ATTEMPTS = 48;
 
+/**
+ * リース満了までの猶予。下の各クエリの `INTERVAL '5 minutes'` と同じ値であること。
+ * TASK_SCHEDULER は、この猶予を過ぎた lock を回収するために起床時刻を決める。
+ */
+export const EXTERNAL_TASK_LEASE_MS = 5 * 60 * 1000;
+
 export class ExternalTaskLeaseLostError extends Error {
   constructor() {
     super("External task lease is no longer owned by this attempt.");

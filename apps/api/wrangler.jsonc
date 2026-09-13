@@ -72,16 +72,22 @@
   "durable_objects": {
     "bindings": [
       { "name": "RATE_LIMITER", "class_name": "RateLimiter" },
-      { "name": "STUDY_SESSION", "class_name": "StudySession" }
+      { "name": "STUDY_SESSION", "class_name": "StudySession" },
+      { "name": "TASK_SCHEDULER", "class_name": "TaskScheduler" }
     ]
   },
   "migrations": [
     { "tag": "v1-rate-limiter", "new_sqlite_classes": ["RateLimiter"] },
-    { "tag": "v2-study-session", "new_sqlite_classes": ["StudySession"] }
+    { "tag": "v2-study-session", "new_sqlite_classes": ["StudySession"] },
+    { "tag": "v3-task-scheduler", "new_sqlite_classes": ["TaskScheduler"] }
   ],
 
+  // 回復処理のポーリング cron は TASK_SCHEDULER（DO アラーム）へ移した。
+  // 5分間隔だと Neon の自動サスペンド（無操作5分）に一度も入れず、
+  // 処理対象ゼロでも compute が常時課金され続ける。残すのは日次の保持期間掃除
+  // だけで、これがアラームを張り損ねた対象を拾う最終防衛線も兼ねる。
   "triggers": {
-    "crons": ["*/5 * * * *", "17 3 * * *"]
+    "crons": ["17 3 * * *"]
   },
 
   "env": {
@@ -141,11 +147,12 @@
       "durable_objects": {
         "bindings": [
           { "name": "RATE_LIMITER", "class_name": "RateLimiter" },
-          { "name": "STUDY_SESSION", "class_name": "StudySession" }
+          { "name": "STUDY_SESSION", "class_name": "StudySession" },
+          { "name": "TASK_SCHEDULER", "class_name": "TaskScheduler" }
         ]
       },
       "triggers": {
-        "crons": ["*/5 * * * *", "17 3 * * *"]
+        "crons": ["17 3 * * *"]
       }
     }
   }

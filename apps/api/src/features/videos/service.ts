@@ -35,6 +35,8 @@ import {
 } from "../../lib/youtube";
 import type { Bindings } from "../../types/bindings";
 import { processExternalTaskById } from "../../lib/external-tasks";
+import { armMaintenance } from "../../lib/task-scheduler";
+import { ABANDONED_UPLOAD_MS } from "../../lib/upload-reconcile";
 import type { CreationIdempotency } from "../../repositories/mcp-idempotency-repository";
 
 type UploadRequest = {
@@ -191,6 +193,10 @@ export async function requestPresignedUpload(
       code: "STORAGE_LIMIT_EXCEEDED",
     } as const;
   }
+
+  // 署名 URL を渡した先でアップロードが放棄されうる。予約したストレージを
+  // 返すのは回復処理なので、その起床時刻をここで予約しておく。
+  await armMaintenance(env, Date.now() + ABANDONED_UPLOAD_MS);
 
   const videoId = pending.videoId;
   try {
@@ -577,6 +583,9 @@ export async function createVideoFromMultipart(
       },
     };
   }
+
+  // 転送中に Worker が落ちれば uploading の行だけが残る。回収時刻を先に予約する。
+  await armMaintenance(env, Date.now() + ABANDONED_UPLOAD_MS);
 
   try {
     await putMediaObject(env, fileKey, file.stream(), contentType);

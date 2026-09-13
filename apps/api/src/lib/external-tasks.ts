@@ -9,6 +9,7 @@ import {
 import type { Bindings } from "../types/bindings";
 import { deliverInvitationEmail } from "./invitation-delivery";
 import { sendSqsMessage } from "./sqs";
+import { armMaintenance, DISPATCH_SAFETY_NET_MS } from "./task-scheduler";
 
 export type ExternalTaskRunResult = {
   claimed: number;
@@ -72,11 +73,18 @@ async function runTask(env: Bindings, task: ClaimedExternalTask): Promise<void> 
 
 export async function processExternalTasks(
   env: Bindings,
-  options: { limit?: number; taskId?: number } = {},
+  options: { limit?: number; taskId?: number; arm?: boolean } = {},
 ): Promise<ExternalTaskRunResult> {
   const limit = options.taskId === undefined ? (options.limit ?? 50) : 1;
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
     throw new Error("External task limit must be an integer between 1 and 100.");
+  }
+
+  // 着手前に保険のアラームを張る。この実行が Worker ごと落ちても、
+  // 掴んだままのリースとバックオフ待ちを TASK_SCHEDULER が拾い直す。
+  // 起床を自分で管理する呼び出し元（alarm / 日次 cron）は arm: false。
+  if (options.arm !== false) {
+    await armMaintenance(env, Date.now() + DISPATCH_SAFETY_NET_MS);
   }
   const result: ExternalTaskRunResult = {
     claimed: 0,
