@@ -2,8 +2,10 @@ import pg from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   getNextMaintenanceWakeup,
+  type MaintenanceWakeup,
   type MaintenanceWindows,
 } from "../src/repositories/maintenance-schedule-repository";
+import { chooseWakeup, nextIdleStrikes } from "../src/lib/task-scheduler";
 
 const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
 const describeWithPostgres = databaseUrl ? describe : describe.skip;
@@ -19,6 +21,11 @@ const WINDOWS: MaintenanceWindows = {
 function expectAbout(actual: Date | null, expectedMs: number, toleranceMs = 5_000) {
   expect(actual).not.toBeNull();
   expect(Math.abs((actual as Date).getTime() - expectedMs)).toBeLessThan(toleranceMs);
+}
+
+function expectFutureWakeup(actual: MaintenanceWakeup, expectedMs: number) {
+  expectAbout(actual.nextAt, expectedMs);
+  expectAbout(actual.nextFutureAt, expectedMs);
 }
 
 describeWithPostgres("next maintenance wakeup on PostgreSQL", () => {
@@ -81,18 +88,24 @@ describeWithPostgres("next maintenance wakeup on PostgreSQL", () => {
   });
 
   it("回復対象が無ければ起床しない（DBが無音になる条件）", async () => {
-    await expect(getNextMaintenanceWakeup(env, WINDOWS)).resolves.toBeNull();
+    await expect(getNextMaintenanceWakeup(env, WINDOWS)).resolves.toEqual({
+      nextAt: null,
+      nextFutureAt: null,
+    });
   });
 
   it("完了・deadのタスクは起床理由にならない", async () => {
     await admin.query(`
-      INSERT INTO ${quotedSchema}.external_tasks (kind, payload, dedupe_key, completed_at)
-      VALUES ('sqs_job', '{}', 'done', now());
-      INSERT INTO ${quotedSchema}.external_tasks (kind, payload, dedupe_key, dead_at)
-      VALUES ('sqs_job', '{}', 'dead', now());
+      INSERT INTO ${quotedSchema}.external_tasks (kind, payload, dedupe_key, completed_at, available_at)
+      VALUES ('sqs_job', '{}', 'done', now(), now() + interval '1 minute');
+      INSERT INTO ${quotedSchema}.external_tasks (kind, payload, dedupe_key, dead_at, available_at)
+      VALUES ('sqs_job', '{}', 'dead', now(), now() + interval '2 minutes');
     `);
 
-    await expect(getNextMaintenanceWakeup(env, WINDOWS)).resolves.toBeNull();
+    await expect(getNextMaintenanceWakeup(env, WINDOWS)).resolves.toEqual({
+      nextAt: null,
+      nextFutureAt: null,
+    });
   });
 
   it("バックオフ待ちのタスクをavailable_atちょうどで起こす", async () => {
@@ -101,7 +114,7 @@ describeWithPostgres("next maintenance wakeup on PostgreSQL", () => {
       VALUES ('sqs_job', '{}', 'backoff', now() + interval '10 minutes')
     `);
 
-    expectAbout(
+    expectFutureWakeup(
       await getNextMaintenanceWakeup(env, WINDOWS),
       Date.now() + 10 * 60_000,
     );
@@ -113,7 +126,9 @@ describeWithPostgres("next maintenance wakeup on PostgreSQL", () => {
       VALUES ('sqs_job', '{}', 'overdue', now() - interval '3 hours')
     `);
 
-    expectAbout(await getNextMaintenanceWakeup(env, WINDOWS), Date.now());
+    const schedule = await getNextMaintenanceWakeup(env, WINDOWS);
+    expectAbout(schedule.nextAt, Date.now());
+    expect(schedule.nextFutureAt).toBeNull();
   });
 
   it("掴まれたままのタスクはリース満了時刻で起こす", async () => {
@@ -123,7 +138,7 @@ describeWithPostgres("next maintenance wakeup on PostgreSQL", () => {
       VALUES ('sqs_job', '{}', 'leased', now() - interval '1 hour', now())
     `);
 
-    expectAbout(await getNextMaintenanceWakeup(env, WINDOWS), Date.now() + WINDOWS.leaseMs);
+    expectFutureWakeup(await getNextMaintenanceWakeup(env, WINDOWS), Date.now() + WINDOWS.leaseMs);
   });
 
   it("リースが切れたタスクは即座に回収対象になる", async () => {
@@ -133,7 +148,9 @@ describeWithPostgres("next maintenance wakeup on PostgreSQL", () => {
       VALUES ('sqs_job', '{}', 'expired', now() - interval '1 hour', now() - interval '6 minutes')
     `);
 
-    expectAbout(await getNextMaintenanceWakeup(env, WINDOWS), Date.now());
+    const schedule = await getNextMaintenanceWakeup(env, WINDOWS);
+    expectAbout(schedule.nextAt, Date.now());
+    expect(schedule.nextFutureAt).toBeNull();
   });
 
   it("uploadingの行は放棄とみなす時刻で起こす", async () => {
@@ -143,7 +160,7 @@ describeWithPostgres("next maintenance wakeup on PostgreSQL", () => {
              ('completed', now() - interval '10 days')
     `);
 
-    expectAbout(
+    expectFutureWakeup(
       await getNextMaintenanceWakeup(env, WINDOWS),
       Date.now() + WINDOWS.abandonedUploadMs - 30 * 60_000,
     );
@@ -155,7 +172,7 @@ describeWithPostgres("next maintenance wakeup on PostgreSQL", () => {
       VALUES ('pending', 'queued', now() - interval '5 minutes')
     `);
 
-    expectAbout(
+    expectFutureWakeup(
       await getNextMaintenanceWakeup(env, WINDOWS),
       Date.now() + WINDOWS.staleInvitationMs - 5 * 60_000,
     );
@@ -177,7 +194,7 @@ describeWithPostgres("next maintenance wakeup on PostgreSQL", () => {
       [invitation.rows[0].id],
     );
 
-    expectAbout(await getNextMaintenanceWakeup(env, WINDOWS), Date.now() + 86_400_000);
+    expectFutureWakeup(await getNextMaintenanceWakeup(env, WINDOWS), Date.now() + 86_400_000);
   });
 
   it("対象が複数あれば最も早い期限を返す", async () => {
@@ -191,6 +208,77 @@ describeWithPostgres("next maintenance wakeup on PostgreSQL", () => {
     `);
 
     // タスク +90分 / 放棄アップロード uploaded_at+2h = +10分 / 招待 +15分。
-    expectAbout(await getNextMaintenanceWakeup(env, WINDOWS), Date.now() + 10 * 60_000);
+    expectFutureWakeup(await getNextMaintenanceWakeup(env, WINDOWS), Date.now() + 10 * 60_000);
   });
+
+  it("期限切れアップロードが残っても、別タスクのリース満了までに起こす", async () => {
+    await admin.query(`
+      INSERT INTO ${quotedSchema}.videos (status, uploaded_at)
+      VALUES ('uploading', now() - interval '3 hours')
+    `);
+    const leased = await admin.query<{ expires_at: Date }>(`
+      INSERT INTO ${quotedSchema}.external_tasks
+        (kind, payload, dedupe_key, available_at, locked_at)
+      VALUES ('sqs_job', '{}', 'in-flight', now() - interval '2 minutes', now() - interval '1 minute')
+      RETURNING locked_at + interval '5 minutes' AS expires_at
+    `);
+
+    const schedule = await getNextMaintenanceWakeup(env, WINDOWS);
+    const now = Date.now();
+    const expiresAt = leased.rows[0].expires_at.getTime();
+    expect(schedule.nextAt!.getTime()).toBeLessThan(now);
+    expect(schedule.nextFutureAt?.getTime()).toBe(expiresAt);
+
+    // 回収失敗が6回続いた状態で保険のアラームが発火した。リースが切れるまで
+    // 配送を掴めなくても、次の起床を60分後へ遅らせてはいけない。
+    const strikes = nextIdleStrikes({ progressed: false, overdue: true, previous: 6 });
+    expect(
+      chooseWakeup({
+        nextAt: schedule.nextAt!.getTime(),
+        nextFutureAt: schedule.nextFutureAt!.getTime(),
+        pendingAlarm: null,
+        strikes,
+        now,
+      }),
+    ).toBe(expiresAt);
+  });
+
+  it.each(["external task", "upload", "invitation"] as const)(
+    "同じ種類に期限切れと未来の対象があっても未来の期限を保持する: %s",
+    async (kind) => {
+      if (kind === "external task") {
+        await admin.query(`
+          INSERT INTO ${quotedSchema}.external_tasks (kind, payload, dedupe_key, available_at)
+          VALUES ('sqs_job', '{}', 'overdue', now() - interval '1 hour'),
+                 ('sqs_job', '{}', 'future', now() + interval '4 minutes')
+        `);
+      } else if (kind === "upload") {
+        await admin.query(`
+          INSERT INTO ${quotedSchema}.videos (status, uploaded_at)
+          VALUES ('uploading', now() - interval '3 hours'),
+                 ('uploading', now() - interval '116 minutes')
+        `);
+      } else {
+        await admin.query(`
+          INSERT INTO ${quotedSchema}.video_course_invitations (status, delivery_status, updated_at)
+          VALUES ('pending', 'queued', now() - interval '1 hour'),
+                 ('pending', 'queued', now() - interval '11 minutes')
+        `);
+      }
+
+      const schedule = await getNextMaintenanceWakeup(env, WINDOWS);
+      const now = Date.now();
+      expect(schedule.nextAt!.getTime()).toBeLessThanOrEqual(now);
+      expectAbout(schedule.nextFutureAt, now + 4 * 60_000);
+      expect(
+        chooseWakeup({
+          nextAt: schedule.nextAt!.getTime(),
+          nextFutureAt: schedule.nextFutureAt!.getTime(),
+          pendingAlarm: null,
+          strikes: 7,
+          now,
+        }),
+      ).toBe(schedule.nextFutureAt!.getTime());
+    },
+  );
 });

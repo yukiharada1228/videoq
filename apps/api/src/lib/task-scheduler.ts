@@ -60,6 +60,8 @@ export function nextIdleStrikes(params: {
 export function chooseWakeup(params: {
   /** DB が示す次の期限。対象が無ければ null。 */
   nextAt: number | null;
+  /** DB 問い合わせ時点で未来だった最も早い期限。バックオフの上限に使う。 */
+  nextFutureAt: number | null;
   /** 現在張られているアラーム。 */
   pendingAlarm: number | null;
   strikes: number;
@@ -68,9 +70,18 @@ export function chooseWakeup(params: {
   if (params.nextAt === null) return null;
 
   const overdue = params.nextAt <= params.now;
-  const target = overdue
+  let target = overdue
     ? params.now + idleBackoffMs(params.strikes)
     : Math.max(params.nextAt, params.now + ARM_FLOOR_MS);
+
+  if (params.nextFutureAt !== null) {
+    // 期限切れ対象の空振りが続いても、別対象のリース満了や配送期限は守る。
+    // 問い合わせ後に期限を迎えていた場合も、バックオフせず最小猶予で起こす。
+    target = Math.min(
+      target,
+      Math.max(params.nextFutureAt, params.now + ARM_FLOOR_MS),
+    );
+  }
 
   if (params.pendingAlarm !== null && params.pendingAlarm <= target) return null;
   return target;

@@ -67,35 +67,113 @@ describe("chooseWakeup", () => {
   const now = 1_700_000_000_000;
 
   it("対象が無ければ張り直さない", () => {
-    expect(chooseWakeup({ nextAt: null, pendingAlarm: null, strikes: 0, now })).toBeNull();
+    expect(
+      chooseWakeup({
+        nextAt: null,
+        nextFutureAt: null,
+        pendingAlarm: null,
+        strikes: 0,
+        now,
+      }),
+    ).toBeNull();
   });
 
   it("対象が無くても、並行して予約された起床は残す", () => {
     // DB問い合わせ中に届いた armAt を、古いスナップショットで消してはならない。
     expect(
-      chooseWakeup({ nextAt: null, pendingAlarm: now + 60_000, strikes: 0, now }),
+      chooseWakeup({
+        nextAt: null,
+        nextFutureAt: null,
+        pendingAlarm: now + 60_000,
+        strikes: 0,
+        now,
+      }),
     ).toBeNull();
   });
 
   it("未来の期限はバックオフに関係なくそのまま使う", () => {
     expect(
-      chooseWakeup({ nextAt: now + 120_000, pendingAlarm: null, strikes: 6, now }),
+      chooseWakeup({
+        nextAt: now + 120_000,
+        nextFutureAt: now + 120_000,
+        pendingAlarm: null,
+        strikes: 6,
+        now,
+      }),
     ).toBe(now + 120_000);
   });
 
+  it.each([null, now + 10 * 60_000])(
+    "期限切れ対象の空振りが続いても別タスクのリース満了を遅らせない（予約: %s）",
+    (pendingAlarm) => {
+      const strikes = nextIdleStrikes({ progressed: false, overdue: true, previous: 6 });
+      const leaseExpiresAt = now + 4 * 60_000;
+
+      expect(
+        chooseWakeup({
+          nextAt: now - 3_600_000,
+          nextFutureAt: leaseExpiresAt,
+          pendingAlarm,
+          strikes,
+          now,
+        }),
+      ).toBe(leaseExpiresAt);
+    },
+  );
+
+  it("未来の期限よりバックオフ明けが早ければ回復を先送りしない", () => {
+    expect(
+      chooseWakeup({
+        nextAt: now - 1,
+        nextFutureAt: now + 90 * 60_000,
+        pendingAlarm: null,
+        strikes: 2,
+        now,
+      }),
+    ).toBe(now + 2 * 60_000);
+  });
+
+  it.each([now - 1, now, now + ARM_FLOOR_MS / 2])(
+    "DB 問い合わせ中に迫った未来の期限は最小猶予で起こす（期限: %s）",
+    (nextFutureAt) => {
+      expect(
+        chooseWakeup({
+          nextAt: now - 3_600_000,
+          nextFutureAt,
+          pendingAlarm: null,
+          strikes: 7,
+          now,
+        }),
+      ).toBe(now + ARM_FLOOR_MS);
+    },
+  );
+
   it("期限切れのまま前進できないときだけ間隔を広げる", () => {
-    expect(chooseWakeup({ nextAt: now - 1, pendingAlarm: null, strikes: 0, now })).toBe(
-      now + ARM_FLOOR_MS,
-    );
-    expect(chooseWakeup({ nextAt: now - 1, pendingAlarm: null, strikes: 2, now })).toBe(
-      now + IDLE_BACKOFF_BASE_MS * 2,
-    );
+    expect(
+      chooseWakeup({
+        nextAt: now - 1,
+        nextFutureAt: null,
+        pendingAlarm: null,
+        strikes: 0,
+        now,
+      }),
+    ).toBe(now + ARM_FLOOR_MS);
+    expect(
+      chooseWakeup({
+        nextAt: now - 1,
+        nextFutureAt: null,
+        pendingAlarm: null,
+        strikes: 2,
+        now,
+      }),
+    ).toBe(now + IDLE_BACKOFF_BASE_MS * 2);
   });
 
   it("既存アラームの方が早ければ動かさない", () => {
     expect(
       chooseWakeup({
         nextAt: now + 600_000,
+        nextFutureAt: now + 600_000,
         pendingAlarm: now + 60_000,
         strikes: 0,
         now,
@@ -107,6 +185,7 @@ describe("chooseWakeup", () => {
     expect(
       chooseWakeup({
         nextAt: now + 30_000,
+        nextFutureAt: now + 30_000,
         pendingAlarm: now + 600_000,
         strikes: 0,
         now,
@@ -118,6 +197,7 @@ describe("chooseWakeup", () => {
     expect(
       chooseWakeup({
         nextAt: now - 1,
+        nextFutureAt: now + 4 * 60_000,
         pendingAlarm: now + 5_000,
         strikes: 8,
         now,

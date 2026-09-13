@@ -65,7 +65,10 @@ export class TaskScheduler extends DurableObject<Bindings> {
       import("../lib/scheduled-maintenance"),
       import("../repositories/maintenance-schedule-repository"),
     ]);
-    const nextAt = await getNextMaintenanceWakeup(this.env, MAINTENANCE_WINDOWS);
+    const { nextAt, nextFutureAt } = await getNextMaintenanceWakeup(
+      this.env,
+      MAINTENANCE_WINDOWS,
+    );
 
     // ここから先は await の合間に他のイベントを挟まない（input gate 内で完結）。
     const previous = (await this.ctx.storage.get<number>(STRIKES_KEY)) ?? 0;
@@ -78,6 +81,7 @@ export class TaskScheduler extends DurableObject<Bindings> {
     });
     const target = chooseWakeup({
       nextAt: nextAt === null ? null : nextAt.getTime(),
+      nextFutureAt: nextFutureAt === null ? null : nextFutureAt.getTime(),
       pendingAlarm,
       strikes,
       now,
