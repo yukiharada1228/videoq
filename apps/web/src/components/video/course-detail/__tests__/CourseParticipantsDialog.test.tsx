@@ -117,6 +117,33 @@ describe('CourseParticipantsDialog', () => {
     expect(screen.getByRole('button', { name: 'videos.courseMembers.remove' })).toBeInTheDocument();
   });
 
+  it('marks the invite button as busy while the invitations are being sent', async () => {
+    let resolveInvite: () => void = () => {};
+    inviteMembers.mockImplementation(
+      () => new Promise((resolve) => {
+        resolveInvite = () => resolve({ results: [] });
+      }),
+    );
+
+    render(<CourseParticipantsDialog courseId={3} isOpen onOpenChange={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText('videos.courseMembers.emailLabel'), {
+      target: { value: 'a@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'videos.courseMembers.invite' }));
+
+    await waitFor(() => {
+      expect(inviteMembers).toHaveBeenCalled();
+    });
+    expect(screen.getByRole('button', { name: 'videos.courseMembers.invite' })).toHaveAttribute('aria-busy', 'true');
+
+    resolveInvite();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'videos.courseMembers.invite' })).not.toHaveAttribute('aria-busy', 'true');
+    });
+  });
+
   it.each([
     { action: 'resend' as const, handler: () => resendInvitation },
     { action: 'revoke' as const, handler: () => revokeInvitation },

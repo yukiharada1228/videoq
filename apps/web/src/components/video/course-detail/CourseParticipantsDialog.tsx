@@ -184,8 +184,9 @@ export function CourseParticipantsDialog({
   const removingUserId = removeMutation.isPending ? removeMutation.variables ?? null : null;
   const resendingInvitationId = resendMutation.isPending ? resendMutation.variables ?? null : null;
   const revokingInvitationId = revokeMutation.isPending ? revokeMutation.variables ?? null : null;
-  // Resending and revoking target the same invitation, and the server rejects
-  // whichever loses the race with CONFLICT, so only one may run at a time.
+  // One invitation action at a time. Two actions on the SAME invitation race
+  // and the loser comes back as CONFLICT; blocking across rows as well keeps
+  // the rule simple and matches how member removal already behaves.
   const isInvitationActionPending = resendMutation.isPending || revokeMutation.isPending;
 
   const mutationError = inviteMutation.error
@@ -246,6 +247,7 @@ export function CourseParticipantsDialog({
                   type="button"
                   onClick={() => inviteMutation.mutate(emailInputs)}
                   disabled={inviteMutation.isPending || readyRecipientCount === 0}
+                  aria-busy={inviteMutation.isPending}
                 >
                   {inviteMutation.isPending ? <InlineSpinner className="h-4 w-4" /> : null}
                   {t('videos.courseMembers.invite')}
