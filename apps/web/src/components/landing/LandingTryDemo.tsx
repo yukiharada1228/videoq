@@ -205,6 +205,9 @@ export function LandingTryDemo() {
               </div>
               <ChatMessagesView
                 messages={messages}
+                // The demo answers from a canned script, so nothing is ever
+                // in flight — same reason ChatComposer below is never loading.
+                isLoading={false}
                 feedbackUpdatingId={null}
                 messagesContainerRef={messagesContainerRef}
                 messagesEndRef={messagesEndRef}

@@ -577,6 +577,7 @@
     }
   },
   "chat": {
+    "generating": "Generating a response",
     "title": "Chat",
     "teacher": "Teacher",
     "newConsultation": "New chat",

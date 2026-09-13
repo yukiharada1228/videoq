@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import { ChatPanel } from '../ChatPanel'
 import { apiClient } from '@/lib/api'
 
@@ -542,6 +542,64 @@ describe('ChatPanel', () => {
 
     await waitFor(() => {
       expect(apiClient.exportChatHistoryCsv).toHaveBeenCalledWith(1)
+    })
+  })
+
+  it('shows a typing indicator in the bubble until the first token arrives', async () => {
+    let releaseFirstChunk: () => void = () => {}
+    const firstChunkGate = new Promise<void>((resolve) => {
+      releaseFirstChunk = resolve
+    })
+    ;(apiClient.chatStream as any).mockImplementation(async function* () {
+      await firstChunkGate
+      yield { type: 'content_chunk' as const, text: 'Streamed answer' }
+      yield { type: 'done' as const, chat_log_id: 1, feedback: null }
+    })
+
+    render(<ChatPanel />)
+
+    const input = screen.getByLabelText(/chat.placeholder/)
+
+    await act(async () => {
+      await sendMessage(input, 'Test message')
+    })
+
+    // The live region must carry the text itself: an aria-label would give it a
+    // name but leave a screen reader with nothing to announce.
+    const indicator = await screen.findByRole('status')
+    expect(within(indicator).getByText('chat.generating')).toBeInTheDocument()
+
+    await act(async () => {
+      releaseFirstChunk()
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Streamed answer')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('chat.generating')).not.toBeInTheDocument()
+  })
+
+  it('drops the typing indicator when the stream ends without any text', async () => {
+    ;(apiClient.chatStream as any).mockImplementation(async function* () {
+      yield { type: 'done' as const, chat_log_id: 2, feedback: null }
+    })
+
+    render(<ChatPanel />)
+
+    const input = screen.getByLabelText(/chat.placeholder/)
+
+    await act(async () => {
+      await sendMessage(input, 'Test message')
+    })
+
+    await waitFor(() => {
+      expect(apiClient.chatStream).toHaveBeenCalled()
+    })
+    // The bubble stays empty, but an indicator that never stops would claim the
+    // answer is still being generated.
+    await waitFor(() => {
+      expect(screen.queryByText('chat.generating')).not.toBeInTheDocument()
     })
   })
 
