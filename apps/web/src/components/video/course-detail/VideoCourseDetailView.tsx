@@ -174,7 +174,10 @@ function SortableVideoItem({
   const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: video.id,
-    disabled: isMobile || !canManage,
+    // Reordering while a removal is in flight would POST a video list the
+    // server no longer recognises, which it rejects with a 400 and surfaces as
+    // a spurious "order update failed" error.
+    disabled: isMobile || !canManage || isRemoveBlocked,
   });
 
   const style = {
@@ -210,23 +213,31 @@ function SortableVideoItem({
         </p>
         <VideoStatusBadge status={video.status} />
       </div>
-      {canManage ? <Button
-        type="button"
-        variant="text"
-        size="xs"
-        onClick={(event) => {
-          event.stopPropagation();
-          onRemove(video.id);
-        }}
-        onPointerDown={(event) => event.stopPropagation()}
-        onMouseDown={(event) => event.stopPropagation()}
-        disabled={isRemoveBlocked}
-        aria-busy={isRemoving}
-        aria-label={t('videos.courseDetail.removeFromCourse')}
-        className="min-w-0 shrink-0 p-1.5 text-error-1 hover:bg-red-50"
-      >
-        {isRemoving ? <InlineSpinner className="h-3.5 w-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
-      </Button> : null}
+      {canManage ? (
+        // The wrapper keeps swallowing row-level events even while the button
+        // is disabled: a disabled Button gets `pointer-events: none`, so
+        // without it a click on the spinner would fall through and select the
+        // row underneath.
+        <span
+          onClick={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+          className="shrink-0"
+        >
+          <Button
+            type="button"
+            variant="text"
+            size="xs"
+            onClick={() => onRemove(video.id)}
+            disabled={isRemoveBlocked}
+            aria-busy={isRemoving}
+            aria-label={t('videos.courseDetail.removeFromCourse')}
+            className="min-w-0 shrink-0 p-1.5 text-error-1 hover:bg-red-50"
+          >
+            {isRemoving ? <InlineSpinner className="h-3.5 w-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
+          </Button>
+        </span>
+      ) : null}
     </div>
   );
 }
