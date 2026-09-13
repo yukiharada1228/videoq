@@ -131,10 +131,11 @@ describe('VideoUploadFormFields', () => {
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
   })
 
-  it('should not render a progress bar when progress is still zero', () => {
+  it('should not render a progress bar or a stray "0" when progress is still zero', () => {
     render(<VideoUploadFormFields {...defaultProps} isUploading={true} progress={0} />)
 
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(screen.queryByText('0')).not.toBeInTheDocument()
   })
 
   it('should not render a progress bar when not uploading', () => {

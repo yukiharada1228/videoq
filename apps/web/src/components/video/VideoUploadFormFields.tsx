@@ -104,7 +104,7 @@ export function VideoUploadFormFields({
       {warning && <MessageAlert type="warning" message={t(warning, { defaultValue: warning, ...warningParams })} />}
       {success && <MessageAlert type="success" message={t('videos.upload.success')} />}
 
-      {isUploading && progress && (
+      {isUploading && progress > 0 && (
         <ProgressIndicator type="stacked" value={progress} aria-label={t('videos.upload.uploading')}>
           <ProgressIndicatorLinear />
           <span className="text-std-14N-170 text-solid-gray-700">{Math.round(progress)}%</span>
