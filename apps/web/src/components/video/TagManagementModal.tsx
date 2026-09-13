@@ -25,7 +25,8 @@ interface TagManagementModalProps {
 
 export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps) {
   const { t } = useTranslation();
-  const { tags, deleteTag, deletingTagId, error } = useTags();
+  // Not `error`: handleDelete's catch clause would shadow it.
+  const { tags, deleteTag, deletingTagId, error: tagsError } = useTags();
   const isDeleting = deletingTagId !== null;
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
@@ -63,9 +64,9 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
 
           {/* Outside the scrolling list on purpose: a failure on a tag further
               down would otherwise be reported off screen. */}
-          {error ? (
+          {tagsError ? (
             <div className="mb-4">
-              <ErrorMessage message={error} />
+              <ErrorMessage message={tagsError} />
             </div>
           ) : null}
 
