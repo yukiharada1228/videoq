@@ -246,6 +246,23 @@ describe('CourseParticipantsDialog', () => {
     });
   });
 
+  it('keeps an operation error out of the scrollable area so it cannot scroll away', async () => {
+    removeMember.mockRejectedValue(new Error('remove failed'));
+
+    render(<CourseParticipantsDialog courseId={3} isOpen onOpenChange={vi.fn()} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'videos.courseMembers.remove' }));
+    const confirmDialog = await screen.findByRole('dialog', { name: /confirmations\.removeMember/ });
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: 'videos.courseMembers.remove' }));
+
+    const alert = await screen.findByRole('alert');
+    const scrollArea = document.querySelector('.modal-dialog-scroll-area');
+    expect(scrollArea).not.toBeNull();
+    // Inside the scroll area the message sits above both lists, so acting on a
+    // row further down leaves the failure off screen.
+    expect(scrollArea!.contains(alert)).toBe(false);
+  });
+
   it('asks for confirmation before removing a member and does nothing when cancelled', async () => {
     render(<CourseParticipantsDialog courseId={3} isOpen onOpenChange={vi.fn()} />);
 

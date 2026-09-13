@@ -200,6 +200,15 @@ export function CourseParticipantsDialog({
         <DialogHeader>
           <DialogHeading {...dialog.headingProps}>{t('videos.courseMembers.title')}</DialogHeading>
         </DialogHeader>
+        {/* Outside the scroll area on purpose: acting on a row further down the
+            list would otherwise leave the failure message off screen. The
+            padding mirrors DialogHeader / DialogBody so the banner lines up
+            with the rest of the dialog at every breakpoint. */}
+        {mutationError ? (
+          <div className="px-4 md:px-6">
+            <ErrorMessage message={mutationError instanceof Error ? mutationError.message : t('common.messages.error')} />
+          </div>
+        ) : null}
         <DialogScrollArea>
           <DialogBody>
             <div className="space-y-8">
@@ -263,10 +272,6 @@ export function CourseParticipantsDialog({
                   </ul>
                 ) : null}
               </section>
-
-              {mutationError ? (
-                <ErrorMessage message={mutationError instanceof Error ? mutationError.message : t('common.messages.error')} />
-              ) : null}
 
               {participantsQuery.isLoading ? (
                 <div className="flex justify-center py-8"><LoadingSpinner /></div>

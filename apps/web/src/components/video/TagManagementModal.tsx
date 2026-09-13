@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
+import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import {
   Dialog,
   DialogActions,
@@ -24,7 +25,7 @@ interface TagManagementModalProps {
 
 export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps) {
   const { t } = useTranslation();
-  const { tags, deleteTag, deletingTagId } = useTags();
+  const { tags, deleteTag, deletingTagId, error } = useTags();
   const isDeleting = deletingTagId !== null;
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
@@ -59,6 +60,14 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
           <p className="mb-4 text-std-16N-170 text-solid-gray-700">
             {t('tags.management.description', 'Review existing tags and remove tags you no longer need.')}
           </p>
+
+          {/* Outside the scrolling list on purpose: a failure on a tag further
+              down would otherwise be reported off screen. */}
+          {error ? (
+            <div className="mb-4">
+              <ErrorMessage message={error} />
+            </div>
+          ) : null}
 
           <div className="max-h-[60vh] space-y-4 overflow-y-auto py-2">
             {tags.length === 0 ? (
