@@ -108,6 +108,7 @@ describe('CourseParticipantsDialog', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'videos.courseMembers.remove' }));
 
     const confirmDialog = await screen.findByRole('dialog', { name: /confirmations\.removeMember/ });
+    expect(within(confirmDialog).getByText('confirmations.removeMemberDescription')).toBeInTheDocument();
     expect(removeMember).not.toHaveBeenCalled();
 
     fireEvent.click(within(confirmDialog).getByRole('button', { name: 'common.actions.cancel' }));
