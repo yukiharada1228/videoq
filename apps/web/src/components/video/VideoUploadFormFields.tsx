@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RequirementBadge } from '@/components/ui/requirement-badge';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { Button } from '@/components/ui/button';
+import { ProgressIndicator, ProgressIndicatorLinear } from '@/components/ui/progress-indicator';
 import { VideoUploadButton } from './VideoUploadButton';
 import { useTranslation } from 'react-i18next';
 
@@ -13,6 +14,7 @@ interface VideoUploadFormFieldsProps {
   title: string;
   description: string;
   isUploading: boolean;
+  progress?: number;
   disabled?: boolean;
   error: string | null;
   errorParams?: Record<string, unknown>;
@@ -34,6 +36,7 @@ export function VideoUploadFormFields({
   title,
   description,
   isUploading,
+  progress,
   disabled = false,
   error,
   errorParams = {},
@@ -101,24 +104,31 @@ export function VideoUploadFormFields({
       {warning && <MessageAlert type="warning" message={t(warning, { defaultValue: warning, ...warningParams })} />}
       {success && <MessageAlert type="success" message={t('videos.upload.success')} />}
 
+      {isUploading && progress && (
+        <ProgressIndicator type="stacked" value={progress} aria-label={t('videos.upload.uploading')}>
+          <ProgressIndicatorLinear />
+          <span className="text-std-14N-170 text-solid-gray-700">{Math.round(progress)}%</span>
+        </ProgressIndicator>
+      )}
+
       {!hideButtons && (
         renderButtons ? (
           renderButtons()
         ) : showCancelButton ? (
           <div className="flex gap-2">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={onCancel} 
-              disabled={isUploading || disabled} 
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              disabled={isUploading || disabled}
               className={cancelButtonClassName}
             >
               {t('common.actions.cancel')}
             </Button>
-            <VideoUploadButton isUploading={isUploading} disabled={disabled} fullWidth className="flex-1" />
+            <VideoUploadButton isUploading={isUploading} progress={progress} disabled={disabled} fullWidth className="flex-1" />
           </div>
         ) : (
-          <VideoUploadButton isUploading={isUploading} disabled={disabled} fullWidth />
+          <VideoUploadButton isUploading={isUploading} progress={progress} disabled={disabled} fullWidth />
         )
       )}
     </>

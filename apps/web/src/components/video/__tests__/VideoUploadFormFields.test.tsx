@@ -114,7 +114,39 @@ describe('VideoUploadFormFields', () => {
 
   it('should hide buttons when hideButtons is true', () => {
     render(<VideoUploadFormFields {...defaultProps} hideButtons={true} />)
-    
+
     expect(screen.queryByText(/videos.upload.upload/)).not.toBeInTheDocument()
+  })
+
+  it('should render a progress bar while uploading with a known progress value', () => {
+    render(<VideoUploadFormFields {...defaultProps} isUploading={true} progress={55} />)
+
+    const progressBar = screen.getByRole('progressbar')
+    expect(progressBar).toHaveAttribute('aria-valuenow', '55')
+  })
+
+  it('should not render a progress bar when progress is not provided', () => {
+    render(<VideoUploadFormFields {...defaultProps} isUploading={true} />)
+
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+  })
+
+  it('should not render a progress bar when progress is still zero', () => {
+    render(<VideoUploadFormFields {...defaultProps} isUploading={true} progress={0} />)
+
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+  })
+
+  it('should not render a progress bar when not uploading', () => {
+    render(<VideoUploadFormFields {...defaultProps} isUploading={false} progress={55} />)
+
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+  })
+
+  it('should forward progress to the submit button', () => {
+    render(<VideoUploadFormFields {...defaultProps} isUploading={true} progress={55} />)
+
+    const button = screen.getByRole('button', { name: /videos.upload.uploading/ })
+    expect(button.textContent).toContain('55')
   })
 })

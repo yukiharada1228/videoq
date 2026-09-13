@@ -20,6 +20,7 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
     description,
     tagIds,
     isUploading,
+    progress,
     error,
     errorParams,
     warning,
@@ -71,6 +72,7 @@ export function VideoUpload({ onUploadSuccess }: VideoUploadProps) {
           title={title}
           description={description}
           isUploading={isUploading}
+          progress={progress}
           error={error}
           errorParams={errorParams}
           warning={warning}

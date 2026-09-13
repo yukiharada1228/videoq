@@ -14,7 +14,9 @@ vi.mock('@/hooks/useVideoUpload', () => ({
 }))
 
 vi.mock('../VideoUploadFormFields', () => ({
-  VideoUploadFormFields: () => <div data-testid="file-fields">file fields</div>,
+  VideoUploadFormFields: (props: any) => (
+    <div data-testid="file-fields" data-progress={props.progress}>file fields</div>
+  ),
 }))
 
 describe('VideoUploadModal', () => {
@@ -85,5 +87,44 @@ describe('VideoUploadModal', () => {
     render(<VideoUploadModal isOpen={true} onClose={vi.fn()} />)
 
     expect(screen.getByText('videos.upload.warning.tagsFailed')).toBeInTheDocument()
+  })
+
+  it('passes the upload progress through to the file upload form fields', () => {
+    ;(useVideoUpload as any).mockReturnValue({
+      ...baseHook,
+      isUploading: true,
+      progress: 77,
+    })
+
+    render(<VideoUploadModal isOpen={true} onClose={vi.fn()} />)
+
+    expect(screen.getByTestId('file-fields')).toHaveAttribute('data-progress', '77')
+  })
+
+  it('shows the upload percentage on the submit button while uploading a file', () => {
+    ;(useVideoUpload as any).mockReturnValue({
+      ...baseHook,
+      isUploading: true,
+      progress: 42,
+    })
+
+    render(<VideoUploadModal isOpen={true} onClose={vi.fn()} />)
+
+    const submitButton = screen.getByRole('button', { name: /videos.upload.uploading/ })
+    expect(submitButton.textContent).toContain('42')
+  })
+
+  it('does not show a percentage on the submit button in youtube mode', () => {
+    ;(useVideoUpload as any).mockReturnValue({
+      ...baseHook,
+      sourceMode: 'youtube',
+      isUploading: true,
+      progress: 0,
+    })
+
+    render(<VideoUploadModal isOpen={true} onClose={vi.fn()} />)
+
+    const submitButton = screen.getByRole('button', { name: /videos.upload.uploading/ })
+    expect(submitButton.textContent).not.toContain('uploadingWithProgress')
   })
 })

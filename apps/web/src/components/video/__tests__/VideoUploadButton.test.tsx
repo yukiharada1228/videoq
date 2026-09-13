@@ -31,9 +31,31 @@ describe('VideoUploadButton', () => {
 
   it('should use outline variant', () => {
     render(<VideoUploadButton isUploading={false} variant="outline" />)
-    
+
     const button = screen.getByRole('button')
     expect(button).toBeInTheDocument()
+  })
+
+  it('should include the progress percentage in the uploading label once known', () => {
+    render(<VideoUploadButton isUploading={true} progress={42} />)
+
+    const button = screen.getByRole('button')
+    expect(button.textContent).toContain('uploadingWithProgress')
+    expect(button.textContent).toContain('42')
+  })
+
+  it('should fall back to the plain uploading label when progress is not yet known', () => {
+    render(<VideoUploadButton isUploading={true} progress={0} />)
+
+    const button = screen.getByRole('button')
+    expect(button.textContent).not.toContain('uploadingWithProgress')
+  })
+
+  it('should fall back to the plain uploading label when progress is omitted', () => {
+    render(<VideoUploadButton isUploading={true} />)
+
+    const button = screen.getByRole('button')
+    expect(button.textContent).not.toContain('uploadingWithProgress')
   })
 })
 
