@@ -14,8 +14,14 @@ const STRIKES_KEY = "idleStrikes";
  * 5分ごとのポーリング cron を置き換える。回復対象が無い間はアラームを張らない
  * ため DB へのアクセスが完全に止まり、Neon がサスペンドできる。
  *
- * DB 層（pg / repositories）は alarm 経路でしか使わないので動的に読み込む。
- * リクエストから毎回呼ばれる `armAt` に、接続まわりの初期化を持ち込まない。
+ * DB 層（pg / repositories）を動的に読むのは、Workers ランタイムテストの都合。
+ * `test/workers/worker.ts` は app を経由しないため、静的 import にすると pg を
+ * 解決できずテストファイルごと落ちる。本番では `src/index.ts` が同じバンドルで
+ * pg を静的に読むので、遅延させても起動コストは変わらない。
+ *
+ * 裏を返すと `alarm` / `reschedule` の実行時経路はテストで踏めていない。
+ * 判断ロジックは lib/task-scheduler.ts の純粋関数に、クエリは
+ * maintenance-schedule.integration.test.ts に切り出して個別に検証している。
  */
 export class TaskScheduler extends DurableObject<Bindings> {
   /**
