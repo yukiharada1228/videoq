@@ -182,6 +182,12 @@ export function CourseParticipantsDialog({
   // which member is being removed. `variables` holds the userId passed to
   // mutate, which lets only the targeted row show the spinner.
   const removingUserId = removeMutation.isPending ? removeMutation.variables ?? null : null;
+  const resendingInvitationId = resendMutation.isPending ? resendMutation.variables ?? null : null;
+  const revokingInvitationId = revokeMutation.isPending ? revokeMutation.variables ?? null : null;
+  // One invitation action at a time. Two actions on the SAME invitation race
+  // and the loser comes back as CONFLICT; blocking across rows as well keeps
+  // the rule simple and matches how member removal already behaves.
+  const isInvitationActionPending = resendMutation.isPending || revokeMutation.isPending;
 
   const mutationError = inviteMutation.error
     ?? resendMutation.error
@@ -241,6 +247,7 @@ export function CourseParticipantsDialog({
                   type="button"
                   onClick={() => inviteMutation.mutate(emailInputs)}
                   disabled={inviteMutation.isPending || readyRecipientCount === 0}
+                  aria-busy={inviteMutation.isPending}
                 >
                   {inviteMutation.isPending ? <InlineSpinner className="h-4 w-4" /> : null}
                   {t('videos.courseMembers.invite')}
@@ -313,8 +320,10 @@ export function CourseParticipantsDialog({
                                   variant="outline"
                                   size="sm"
                                   onClick={() => resendMutation.mutate(invitation.id)}
-                                  disabled={resendMutation.isPending}
+                                  disabled={isInvitationActionPending}
+                                  aria-busy={resendingInvitationId === invitation.id}
                                 >
+                                  {resendingInvitationId === invitation.id ? <InlineSpinner className="h-4 w-4" /> : null}
                                   {t('videos.courseMembers.resend')}
                                 </Button>
                                 <Button
@@ -322,8 +331,10 @@ export function CourseParticipantsDialog({
                                   variant="text"
                                   size="sm"
                                   onClick={() => revokeMutation.mutate(invitation.id)}
-                                  disabled={revokeMutation.isPending}
+                                  disabled={isInvitationActionPending}
+                                  aria-busy={revokingInvitationId === invitation.id}
                                 >
+                                  {revokingInvitationId === invitation.id ? <InlineSpinner className="h-4 w-4" /> : null}
                                   {t('videos.courseMembers.revoke')}
                                 </Button>
                               </div>
