@@ -616,7 +616,9 @@
     "deleteCourse": "Are you sure you want to delete this chat course?",
     "disableShareLink": "Disable the share link?",
     "leaveCourse": "Leave “{{name}}”?",
-    "leaveCourseDescription": "You will no longer be able to view this course's videos or chat. You will need a new invitation to join again."
+    "leaveCourseDescription": "You will no longer be able to view this course's videos or chat. You will need a new invitation to join again.",
+    "removeMember": "Remove “{{name}}” from this course?",
+    "removeMemberDescription": "They will no longer be able to view this course's videos or chat. You will need to invite them again."
   },
   "pricing": {
     "title": "Pricing",

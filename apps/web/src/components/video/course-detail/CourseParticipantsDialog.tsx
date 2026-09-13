@@ -6,6 +6,7 @@ import { trpc } from '@/lib/trpc';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
+import { useConfirm } from '@/components/common/feedback';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -93,6 +94,7 @@ export function CourseParticipantsDialog({
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const requestConfirmation = useConfirm();
   const invite = useMutation(trpc.courseMemberships.invite.mutationOptions());
   const resend = useMutation(trpc.courseMemberships.resend.mutationOptions());
   const revoke = useMutation(trpc.courseMemberships.revoke.mutationOptions());
@@ -163,6 +165,18 @@ export function CourseParticipantsDialog({
     },
   });
   if (!isOpen) return null;
+
+  const confirmRemoveMember = async (member: { user_id: string; username: string }) => {
+    const confirmed = await requestConfirmation({
+      title: t('confirmations.removeMember', { name: member.username }),
+      description: t('confirmations.removeMemberDescription'),
+      confirmLabel: t('videos.courseMembers.remove'),
+      cancelLabel: t('common.actions.cancel'),
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+    removeMutation.mutate(member.user_id);
+  };
 
   // `removeMutation` is shared by every row, so `isPending` alone cannot say
   // which member is being removed. `variables` holds the userId passed to
@@ -267,7 +281,7 @@ export function CourseParticipantsDialog({
                               type="button"
                               variant="text"
                               size="sm"
-                              onClick={() => removeMutation.mutate(member.user_id)}
+                              onClick={() => { void confirmRemoveMember(member); }}
                               disabled={removeMutation.isPending}
                               aria-busy={removingUserId === member.user_id}
                             >

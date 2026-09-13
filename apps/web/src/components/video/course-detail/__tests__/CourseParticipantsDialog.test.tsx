@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { CourseParticipantsDialog } from '../CourseParticipantsDialog';
 
 const getParticipants = vi.fn();
@@ -102,6 +102,37 @@ describe('CourseParticipantsDialog', () => {
     expect(screen.getByRole('button', { name: 'videos.courseMembers.remove' })).toBeInTheDocument();
   });
 
+  it('asks for confirmation before removing a member and does nothing when cancelled', async () => {
+    render(<CourseParticipantsDialog courseId={3} isOpen onOpenChange={vi.fn()} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'videos.courseMembers.remove' }));
+
+    const confirmDialog = await screen.findByRole('dialog', { name: /confirmations\.removeMember/ });
+    expect(removeMember).not.toHaveBeenCalled();
+
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: 'common.actions.cancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /confirmations\.removeMember/ })).not.toBeInTheDocument();
+    });
+    expect(removeMember).not.toHaveBeenCalled();
+  });
+
+  it('removes the member only after the confirmation is accepted', async () => {
+    removeMember.mockResolvedValue({});
+
+    render(<CourseParticipantsDialog courseId={3} isOpen onOpenChange={vi.fn()} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'videos.courseMembers.remove' }));
+
+    const confirmDialog = await screen.findByRole('dialog', { name: /confirmations\.removeMember/ });
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: 'videos.courseMembers.remove' }));
+
+    await waitFor(() => {
+      expect(removeMember).toHaveBeenCalledWith({ courseId: 3, userId: 'student-user' });
+    });
+  });
+
   it('shows a spinner on the member being removed and not on the other rows', async () => {
     getParticipants.mockResolvedValue({
       invitations: [],
@@ -122,6 +153,9 @@ describe('CourseParticipantsDialog', () => {
     const removeButtons = await screen.findAllByRole('button', { name: 'videos.courseMembers.remove' });
     expect(removeButtons).toHaveLength(2);
     fireEvent.click(removeButtons[0]);
+
+    const confirmDialog = await screen.findByRole('dialog', { name: /confirmations\.removeMember/ });
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: 'videos.courseMembers.remove' }));
 
     await waitFor(() => {
       expect(removeMember).toHaveBeenCalledWith({ courseId: 3, userId: 'student-user' });

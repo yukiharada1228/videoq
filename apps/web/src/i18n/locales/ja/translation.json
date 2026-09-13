@@ -616,7 +616,9 @@
     "deleteCourse": "この講座を削除しますか？",
     "disableShareLink": "共有リンクを無効化しますか？",
     "leaveCourse": "「{{name}}」から退出しますか？",
-    "leaveCourseDescription": "退出すると、この講座の動画とチャットを閲覧できなくなります。再び参加するには、新しい招待が必要です。"
+    "leaveCourseDescription": "退出すると、この講座の動画とチャットを閲覧できなくなります。再び参加するには、新しい招待が必要です。",
+    "removeMember": "「{{name}}」をこの講座から削除しますか？",
+    "removeMemberDescription": "削除すると、このメンバーは講座の動画とチャットを閲覧できなくなります。再び参加するには、新しい招待が必要です。"
   },
   "pricing": {
     "title": "料金プラン",
