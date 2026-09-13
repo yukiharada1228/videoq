@@ -1,7 +1,7 @@
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook, act, waitFor } from '@testing-library/react'
 import type { VideoStatusCounts } from '@videoq/trpc'
 
-import { useVideoStats, useVideoStatusCounts } from '../useVideoStats'
+import { useVideoStats, useVideoStatusCounts, EMPTY_VIDEO_STATUS_COUNTS } from '../useVideoStats'
 
 describe('useVideoStats', () => {
   it('should calculate stats for empty array', () => {
@@ -89,5 +89,64 @@ describe('useVideoStatusCounts', () => {
       isLoading: false,
       error: null,
     })
+  })
+
+  it.each(['pending', 'processing', 'indexing', 'uploading'] as const)(
+    'automatically refetches while the %s count is non-zero',
+    async (status) => {
+      vi.useFakeTimers()
+      try {
+        const inProgressStats: VideoStatusCounts = { ...EMPTY_VIDEO_STATUS_COUNTS, total: 1, [status]: 1 }
+        const settledStats: VideoStatusCounts = { ...EMPTY_VIDEO_STATUS_COUNTS, total: 1, completed: 1 }
+        const getCounts = vi.fn()
+          .mockResolvedValueOnce(inProgressStats)
+          .mockResolvedValueOnce(settledStats)
+        globalThis.__setTrpcHandler('videos.statusCounts', getCounts)
+
+        renderHook(() => useVideoStatusCounts(true))
+
+        await act(async () => {
+          await vi.waitFor(() => expect(getCounts).toHaveBeenCalledTimes(1))
+        })
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(3000)
+        })
+
+        await act(async () => {
+          await vi.waitFor(() => expect(getCounts).toHaveBeenCalledTimes(2))
+        })
+
+        // counts are now all settled — polling should stop
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(10000)
+        })
+        expect(getCounts).toHaveBeenCalledTimes(2)
+      } finally {
+        vi.useRealTimers()
+      }
+    },
+  )
+
+  it('does not poll once no status is in progress', async () => {
+    vi.useFakeTimers()
+    try {
+      const settledStats: VideoStatusCounts = { ...EMPTY_VIDEO_STATUS_COUNTS, total: 1, completed: 1 }
+      const getCounts = vi.fn().mockResolvedValue(settledStats)
+      globalThis.__setTrpcHandler('videos.statusCounts', getCounts)
+
+      renderHook(() => useVideoStatusCounts(true))
+
+      await act(async () => {
+        await vi.waitFor(() => expect(getCounts).toHaveBeenCalledTimes(1))
+      })
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10000)
+      })
+      expect(getCounts).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

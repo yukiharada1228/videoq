@@ -19,6 +19,7 @@ let mockTotalCount = 4
 
 vi.mock('@/hooks/useVideos', () => ({
   useVideos: (params: unknown) => mockUseVideos(params),
+  IN_PROGRESS_STATUSES: ['pending', 'processing', 'indexing', 'uploading'],
 }))
 
 vi.mock('@/hooks/useVideoStats', () => ({

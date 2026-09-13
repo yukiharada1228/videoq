@@ -1,10 +1,16 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useEffect, useState, useRef } from 'react';
-import type { Video, VideoListItem as VideoListType } from '@videoq/trpc';
+import type { Video, VideoListItem as VideoListType, VideoStatus } from '@videoq/trpc';
 import { useAuth } from '@/hooks/useAuth';
 import { trpc } from '@/lib/trpc';
 
 const PAGE_SIZE = 24;
+
+export const IN_PROGRESS_STATUSES: VideoStatus[] = ['pending', 'processing', 'indexing', 'uploading'];
+
+function isInProgressStatus(status: VideoStatus | undefined): boolean {
+  return !!status && IN_PROGRESS_STATUSES.includes(status);
+}
 
 export type VideosOrdering = 'uploaded_at_desc' | 'uploaded_at_asc' | 'title_asc' | 'title_desc';
 
@@ -51,6 +57,13 @@ export function useVideos(params?: UseVideosParams): UseVideosReturn {
     getNextPageParam: (lastPage) => {
       const nextOffset = lastPage.meta.offset + lastPage.data.length;
       return nextOffset < lastPage.meta.total ? nextOffset : undefined;
+    },
+    refetchInterval: (query) => {
+      const pages = query.state.data?.pages ?? [];
+      const hasInProgress = pages.some((page) =>
+        page.data.some((video) => isInProgressStatus(video.status)),
+      );
+      return hasInProgress ? 3000 : false;
     },
   }));
 
@@ -126,6 +139,7 @@ export function useVideo(videoId: number | null): UseVideoReturn {
 
   const videoQuery = useQuery(trpc.videos.get.queryOptions({ id: videoId! }, {
     enabled: !!videoId && !!user,
+    refetchInterval: (query) => (isInProgressStatus(query.state.data?.status) ? 3000 : false),
   }));
 
   const handleLoadVideo = useCallback(async () => {
