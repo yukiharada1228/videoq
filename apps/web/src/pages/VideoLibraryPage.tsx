@@ -2,7 +2,7 @@ import { useMemo, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
-import { useVideos, type VideosOrdering } from '@/hooks/useVideos';
+import { useVideos, IN_PROGRESS_STATUSES, type VideosOrdering } from '@/hooks/useVideos';
 import { useVideoStatusCounts } from '@/hooks/useVideoStats';
 import { invalidateAfterVideoUpload } from '@/lib/cacheInvalidation';
 import { VideoUploadModal } from '@/components/video/VideoUploadModal';
@@ -36,7 +36,6 @@ type StatusFilter = (typeof STATUS_FILTERS)[number];
 
 type SortOrder = Extract<VideosOrdering, 'uploaded_at_desc' | 'uploaded_at_asc' | 'title_asc'>;
 const SORT_ORDERS: SortOrder[] = ['uploaded_at_desc', 'uploaded_at_asc', 'title_asc'];
-const IN_PROGRESS_STATUSES = ['pending', 'processing', 'indexing', 'uploading'];
 
 function parseStatusFilter(value: string | null): StatusFilter {
   return STATUS_FILTERS.includes(value as StatusFilter) ? (value as StatusFilter) : 'all';

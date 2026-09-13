@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import type { VideoStatusCounts } from '@videoq/trpc';
 import { trpc } from '@/lib/trpc';
+import { IN_PROGRESS_STATUSES } from '@/hooks/useVideos';
 
 export type VideoStatus = 'uploading' | 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
 
@@ -72,6 +73,11 @@ export function useVideoStatusCounts(enabled = true) {
   const query = useQuery(trpc.videos.statusCounts.queryOptions(undefined, {
     enabled,
     staleTime: 30_000,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      const hasInProgress = !!data && IN_PROGRESS_STATUSES.some((status) => data[status] > 0);
+      return hasInProgress ? 3000 : false;
+    },
   }));
 
   return {
