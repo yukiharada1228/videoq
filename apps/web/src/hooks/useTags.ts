@@ -113,10 +113,17 @@ export function useTags() {
     createTagMutation.isPending ||
     updateTagMutation.isPending ||
     deleteTagMutation.isPending;
+  // `isLoading` also covers list refetches and the other mutations, so it
+  // cannot drive a per-tag indicator. `variables` holds the argument passed to
+  // mutateAsync, which identifies the tag whose deletion is in flight.
+  const deletingTagId = deleteTagMutation.isPending
+    ? deleteTagMutation.variables?.id ?? null
+    : null;
 
   return {
     tags: tagsQuery.data?.data ?? [],
     isLoading,
+    deletingTagId,
     error,
     loadTags,
     refetchTags: loadTags,

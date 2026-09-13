@@ -69,6 +69,7 @@ describe('TagManagementModal', () => {
             ; (useTags as any).mockReturnValue({
                 tags: mockTags,
                 deleteTag: mockDeleteTag,
+                deletingTagId: null,
             })
     })
 
@@ -109,6 +110,7 @@ describe('TagManagementModal', () => {
         ; (useTags as any).mockReturnValue({
             tags: [],
             deleteTag: mockDeleteTag,
+            deletingTagId: null,
         })
 
         render(<TagManagementModal isOpen={true} onClose={vi.fn()} />)
@@ -137,6 +139,43 @@ describe('TagManagementModal', () => {
             expect(mockDeleteTag).toHaveBeenCalledWith(1)
             expect(screen.queryByTestId('confirm-delete-1')).not.toBeInTheDocument()
         })
+    })
+
+    it('should mark the confirm button busy and freeze the other delete controls while deleting', () => {
+        const { rerender } = render(<TagManagementModal isOpen={true} onClose={vi.fn()} />)
+
+        // Reveal the confirm/cancel pair first, the way a user reaches it.
+        fireEvent.click(screen.getByTestId('delete-tag-1'))
+
+        ; (useTags as any).mockReturnValue({
+            tags: mockTags,
+            deleteTag: mockDeleteTag,
+            deletingTagId: 1,
+        })
+        rerender(<TagManagementModal isOpen={true} onClose={vi.fn()} />)
+
+        const confirmButton = screen.getByTestId('confirm-delete-1')
+        expect(confirmButton).toBeDisabled()
+        expect(confirmButton).toHaveAttribute('aria-busy', 'true')
+        // aria-busy alone would still pass if the spinner itself were dropped.
+        expect(confirmButton.querySelector('.animate-spin')).toBeInTheDocument()
+        // Cancelling mid-flight would swap the confirm UI back to the trash icon
+        // and let the same tag be deleted twice.
+        expect(screen.getByTestId('cancel-delete-1')).toBeDisabled()
+        // Switching the confirm UI to another tag would orphan the spinner.
+        expect(screen.getByTestId('delete-tag-2')).toBeDisabled()
+    })
+
+    it('should leave the delete controls enabled when no deletion is in flight', () => {
+        render(<TagManagementModal isOpen={true} onClose={vi.fn()} />)
+
+        fireEvent.click(screen.getByTestId('delete-tag-1'))
+
+        const confirmButton = screen.getByTestId('confirm-delete-1')
+        expect(confirmButton).not.toBeDisabled()
+        expect(confirmButton).not.toHaveAttribute('aria-busy', 'true')
+        expect(screen.getByTestId('cancel-delete-1')).not.toBeDisabled()
+        expect(screen.getByTestId('delete-tag-2')).not.toBeDisabled()
     })
 
     it('should cancel delete when cancel is clicked', () => {
