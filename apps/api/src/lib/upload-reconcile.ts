@@ -10,6 +10,9 @@ import { processExternalTaskById } from "./external-tasks";
 /** 署名 URL 有効期限(1h) + 余裕。これより古い uploading を放棄とみなす。 */
 export const DEFAULT_ABANDON_HOURS = 2;
 
+/** TASK_SCHEDULER が放棄アップロードの回収時刻を決めるのに使う。 */
+export const ABANDONED_UPLOAD_MS = DEFAULT_ABANDON_HOURS * 60 * 60 * 1000;
+
 export type ReconcileResult = {
   scanned: number;
   released: number;

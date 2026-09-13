@@ -21,3 +21,4 @@ export default {
 // Durable Objects（wrangler `durable_objects.bindings` の class_name と一致させる）
 export { RateLimiter } from "./durable-objects/rate-limiter";
 export { StudySession } from "./durable-objects/study-session";
+export { TaskScheduler } from "./durable-objects/task-scheduler";

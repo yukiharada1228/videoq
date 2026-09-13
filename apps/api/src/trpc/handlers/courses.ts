@@ -3,6 +3,7 @@ import * as courseService from "../../features/courses/service";
 import * as courseMembershipService from "../../features/course-memberships/service";
 import * as membershipService from "../../features/membership/service";
 import { processExternalTasks } from "../../lib/external-tasks";
+import { armMaintenance, DISPATCH_SAFETY_NET_MS } from "../../lib/task-scheduler";
 import { clientIp, enforceThrottles } from "../../lib/rate-limit";
 import type { AppEnv } from "../../types/bindings";
 import { requireUserId, rpcError, type HandlersFor } from "./shared";
@@ -14,8 +15,14 @@ function throttleError(retryAfterSec: number): never {
   );
 }
 
-function flushInvitationEmails(c: Context<AppEnv>, count: number): void {
+async function flushInvitationEmails(
+  c: Context<AppEnv>,
+  count: number,
+): Promise<void> {
   if (count <= 0) return;
+  // 即時配送より先に起床を予約する。この直後に Worker が落ちても、
+  // 予約さえ残っていれば TASK_SCHEDULER が配送を拾い直せる。
+  await armMaintenance(c.env, Date.now() + DISPATCH_SAFETY_NET_MS);
   try {
     c.executionCtx.waitUntil(
       processExternalTasks(c.env, { limit: count }).catch((error) => {
@@ -26,7 +33,8 @@ function flushInvitationEmails(c: Context<AppEnv>, count: number): void {
       }),
     );
   } catch {
-    // Tests without ExecutionContext rely on the recovery cron.
+    // ExecutionContext が無い経路では即時配送に乗せられない。上で予約した
+    // 起床に任せる。
   }
 }
 
@@ -143,7 +151,7 @@ export function courseHandlers(
       if ("tooMany" in result) {
         return rpcError("BAD_REQUEST", `At most ${result.limit} recipients can be invited at once.`);
       }
-      flushInvitationEmails(c, result.results.filter((item) => item.status === "queued").length);
+      await flushInvitationEmails(c, result.results.filter((item) => item.status === "queued").length);
       return { results: result.results };
     },
     "courseMemberships.participants": async ({ courseId }) => {
@@ -195,7 +203,7 @@ export function courseHandlers(
       );
       if ("notFound" in result) return rpcError("NOT_FOUND", "Invitation not found");
       if ("invalidState" in result) return invitationDecisionError(result);
-      flushInvitationEmails(c, 1);
+      await flushInvitationEmails(c, 1);
       return { delivery_status: result.delivery_status };
     },
     "courseMemberships.revoke": async ({ courseId, invitationId }) => {
