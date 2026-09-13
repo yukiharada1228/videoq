@@ -185,6 +185,40 @@ describe('CourseParticipantsDialog', () => {
     resolveResend();
   });
 
+  it('blocks revoking an invitation while a resend is still in flight', async () => {
+    getParticipants.mockResolvedValue({
+      invitations: [pendingInvitation(7, 'first@example.com')],
+      members: [],
+    });
+    let resolveResend: () => void = () => {};
+    resendInvitation.mockImplementation(
+      () => new Promise((resolve) => {
+        resolveResend = () => resolve({});
+      }),
+    );
+
+    render(<CourseParticipantsDialog courseId={3} isOpen onOpenChange={vi.fn()} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'videos.courseMembers.resend' }));
+
+    await waitFor(() => {
+      expect(resendInvitation).toHaveBeenCalled();
+    });
+
+    // Both actions target the same invitation: the server rejects whichever
+    // loses the race with CONFLICT (`This invitation is ...`), so only one
+    // may be in flight at a time.
+    expect(screen.getByRole('button', { name: 'videos.courseMembers.revoke' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'videos.courseMembers.revoke' }));
+    expect(revokeInvitation).not.toHaveBeenCalled();
+
+    resolveResend();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'videos.courseMembers.revoke' })).not.toBeDisabled();
+    });
+  });
+
   it('asks for confirmation before removing a member and does nothing when cancelled', async () => {
     render(<CourseParticipantsDialog courseId={3} isOpen onOpenChange={vi.fn()} />);
 

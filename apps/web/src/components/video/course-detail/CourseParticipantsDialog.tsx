@@ -184,6 +184,9 @@ export function CourseParticipantsDialog({
   const removingUserId = removeMutation.isPending ? removeMutation.variables ?? null : null;
   const resendingInvitationId = resendMutation.isPending ? resendMutation.variables ?? null : null;
   const revokingInvitationId = revokeMutation.isPending ? revokeMutation.variables ?? null : null;
+  // Resending and revoking target the same invitation, and the server rejects
+  // whichever loses the race with CONFLICT, so only one may run at a time.
+  const isInvitationActionPending = resendMutation.isPending || revokeMutation.isPending;
 
   const mutationError = inviteMutation.error
     ?? resendMutation.error
@@ -315,7 +318,7 @@ export function CourseParticipantsDialog({
                                   variant="outline"
                                   size="sm"
                                   onClick={() => resendMutation.mutate(invitation.id)}
-                                  disabled={resendMutation.isPending}
+                                  disabled={isInvitationActionPending}
                                   aria-busy={resendingInvitationId === invitation.id}
                                 >
                                   {resendingInvitationId === invitation.id ? <InlineSpinner className="h-4 w-4" /> : null}
@@ -326,7 +329,7 @@ export function CourseParticipantsDialog({
                                   variant="text"
                                   size="sm"
                                   onClick={() => revokeMutation.mutate(invitation.id)}
-                                  disabled={revokeMutation.isPending}
+                                  disabled={isInvitationActionPending}
                                   aria-busy={revokingInvitationId === invitation.id}
                                 >
                                   {revokingInvitationId === invitation.id ? <InlineSpinner className="h-4 w-4" /> : null}
