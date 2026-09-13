@@ -265,6 +265,7 @@
       "success": "アップロード成功！",
       "upload": "アップロード",
       "uploading": "アップロード中...",
+      "uploadingWithProgress": "アップロード中... {{percent}}%",
       "validation": {
         "noFile": "ファイルを選択してください",
         "noYoutubeUrl": "YouTube URLを入力してください",

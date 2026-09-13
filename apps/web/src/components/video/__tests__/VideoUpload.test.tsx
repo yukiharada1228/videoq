@@ -29,16 +29,17 @@ vi.mock('@/hooks/useVideoCourses', () => ({
 
 // Mock VideoUploadFormFields
 vi.mock('../VideoUploadFormFields', () => ({
-  VideoUploadFormFields: ({ title, description, isUploading, error, onFileChange, onTitleChange, onDescriptionChange }: {
+  VideoUploadFormFields: ({ title, description, isUploading, progress, error, onFileChange, onTitleChange, onDescriptionChange }: {
     title: string
     description: string
     isUploading: boolean
+    progress?: number
     error: string | null
     onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void
     onTitleChange: (value: string) => void
     onDescriptionChange: (value: string) => void
   }) => (
-    <div>
+    <div data-testid="form-fields" data-progress={progress}>
       <input
         type="file"
         data-testid="file-input"
@@ -137,6 +138,18 @@ describe('VideoUpload', () => {
     render(<VideoUpload />)
 
     expect(screen.getByTestId('uploading')).toBeInTheDocument()
+  })
+
+  it('should forward upload progress to the form fields', () => {
+    ; (useVideoUpload as any).mockReturnValue({
+      ...mockUseVideoUpload,
+      isUploading: true,
+      progress: 55,
+    })
+
+    render(<VideoUpload />)
+
+    expect(screen.getByTestId('form-fields')).toHaveAttribute('data-progress', '55')
   })
 })
 

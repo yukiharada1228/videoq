@@ -47,6 +47,7 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
     description,
     tagIds,
     isUploading,
+    progress,
     error,
     errorParams,
     warning,
@@ -146,6 +147,7 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
                     title={title}
                     description={description}
                     isUploading={isUploading}
+                    progress={progress}
                     disabled={false}
                     error={error}
                     errorParams={errorParams}
@@ -235,7 +237,7 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
                 <Button type="button" variant="outline" onClick={handleClose} disabled={isUploading}>
                   {t('common.actions.cancel')}
                 </Button>
-                <VideoUploadButton isUploading={isUploading} disabled={false} />
+                <VideoUploadButton isUploading={isUploading} progress={progress} disabled={false} />
               </div>
             </DialogActions>
           </form>

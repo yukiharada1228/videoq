@@ -66,7 +66,6 @@ export function useVideoUpload(): UseVideoUploadReturn {
 
   const uploadMutation = useMutation({
     mutationFn: async ({ command, tagIds }: RunUploadMutationVariables) => {
-      setProgress(0);
       return runUploadWorkflow(command, tagIds, {
         uploadVideo: (data, onProgress) => apiClient.uploadVideo(data, onProgress),
         createYoutubeVideo: (data) => createYoutube.mutateAsync({
@@ -178,6 +177,10 @@ export function useVideoUpload(): UseVideoUploadReturn {
 
   const handleSubmit = useCallback(async (e: React.FormEvent, onSuccess?: () => void) => {
     e.preventDefault();
+
+    // Clear any progress left over from a previous submission before the
+    // pending state flips, so the button never flashes a stale percentage.
+    setProgress(0);
 
     const command = createUploadCommand((pct) => {
       setProgress(pct);

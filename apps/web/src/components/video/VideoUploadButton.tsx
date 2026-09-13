@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 
 interface VideoUploadButtonProps {
   isUploading: boolean;
+  progress?: number;
   disabled?: boolean;
   className?: string;
   variant?: 'solid' | 'outline';
@@ -14,6 +15,7 @@ interface VideoUploadButtonProps {
 
 export function VideoUploadButton({
   isUploading,
+  progress = 0,
   disabled = false,
   className,
   variant = 'solid',
@@ -31,7 +33,9 @@ export function VideoUploadButton({
       {isUploading ? (
         <span className={fullWidth ? "flex items-center" : "flex items-center justify-center"}>
           <InlineSpinner className="mr-2" />
-          {t('videos.upload.uploading')}
+          {progress > 0
+            ? t('videos.upload.uploadingWithProgress', { percent: Math.round(progress) })
+            : t('videos.upload.uploading')}
         </span>
       ) : (
         t('videos.upload.upload')

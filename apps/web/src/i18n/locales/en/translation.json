@@ -265,6 +265,7 @@
       "success": "Upload succeeded!",
       "upload": "Upload",
       "uploading": "Uploading...",
+      "uploadingWithProgress": "Uploading... {{percent}}%",
       "validation": {
         "noFile": "Please select a file",
         "noYoutubeUrl": "Please enter a YouTube URL",
