@@ -3,12 +3,14 @@ import { CourseParticipantsDialog } from '../CourseParticipantsDialog';
 
 const getParticipants = vi.fn();
 const inviteMembers = vi.fn();
+const removeMember = vi.fn();
 
 describe('CourseParticipantsDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     globalThis.__setTrpcHandler('courseMemberships.participants', getParticipants);
     globalThis.__setTrpcHandler('courseMemberships.invite', inviteMembers);
+    globalThis.__setTrpcHandler('courseMemberships.removeMember', removeMember);
     getParticipants.mockResolvedValue({
       invitations: [
         {
@@ -98,5 +100,48 @@ describe('CourseParticipantsDialog', () => {
     expect(screen.getByRole('button', { name: 'videos.courseMembers.resend' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'videos.courseMembers.revoke' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'videos.courseMembers.remove' })).toBeInTheDocument();
+  });
+
+  it('shows a spinner on the member being removed and not on the other rows', async () => {
+    getParticipants.mockResolvedValue({
+      invitations: [],
+      members: [
+        { user_id: 'student-user', username: 'student', email: 'student@example.com', joined_at: '2026-08-22T00:00:00.000Z' },
+        { user_id: 'other-user', username: 'other', email: 'other@example.com', joined_at: '2026-08-22T00:00:00.000Z' },
+      ],
+    });
+    let resolveRemove: () => void = () => {};
+    removeMember.mockImplementation(
+      () => new Promise((resolve) => {
+        resolveRemove = () => resolve({});
+      }),
+    );
+
+    render(<CourseParticipantsDialog courseId={3} isOpen onOpenChange={vi.fn()} />);
+
+    const removeButtons = await screen.findAllByRole('button', { name: 'videos.courseMembers.remove' });
+    expect(removeButtons).toHaveLength(2);
+    fireEvent.click(removeButtons[0]);
+
+    await waitFor(() => {
+      expect(removeMember).toHaveBeenCalledWith({ courseId: 3, userId: 'student-user' });
+    });
+
+    const pending = screen.getAllByRole('button', { name: 'videos.courseMembers.remove' });
+    expect(pending[0]).toHaveAttribute('aria-busy', 'true');
+    // The shared mutation already disables every row; only the targeted one
+    // may claim to be busy.
+    expect(pending[1]).not.toHaveAttribute('aria-busy', 'true');
+    expect(pending[0]).toBeDisabled();
+    expect(pending[1]).toBeDisabled();
+
+    resolveRemove();
+
+    await waitFor(() => {
+      for (const button of screen.getAllByRole('button', { name: 'videos.courseMembers.remove' })) {
+        expect(button).not.toBeDisabled();
+        expect(button).not.toHaveAttribute('aria-busy', 'true');
+      }
+    });
   });
 });

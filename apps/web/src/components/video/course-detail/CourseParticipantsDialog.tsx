@@ -164,6 +164,11 @@ export function CourseParticipantsDialog({
   });
   if (!isOpen) return null;
 
+  // `removeMutation` is shared by every row, so `isPending` alone cannot say
+  // which member is being removed. `variables` holds the userId passed to
+  // mutate, which lets only the targeted row show the spinner.
+  const removingUserId = removeMutation.isPending ? removeMutation.variables ?? null : null;
+
   const mutationError = inviteMutation.error
     ?? resendMutation.error
     ?? revokeMutation.error
@@ -264,7 +269,9 @@ export function CourseParticipantsDialog({
                               size="sm"
                               onClick={() => removeMutation.mutate(member.user_id)}
                               disabled={removeMutation.isPending}
+                              aria-busy={removingUserId === member.user_id}
                             >
+                              {removingUserId === member.user_id ? <InlineSpinner className="h-4 w-4" /> : null}
                               {t('videos.courseMembers.remove')}
                             </Button>
                           </li>
