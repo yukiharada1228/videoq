@@ -35,6 +35,9 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
     onOpenChange: (open) => {
       if (!open) onClose();
     },
+    onRequestClose: (event) => {
+      if (isDeleting) event.preventDefault();
+    },
   });
 
   const handleDelete = async (id: number) => {
@@ -132,7 +135,7 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
 
         <DialogActions>
           <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={onClose}>
+            <Button variant="outline" {...dialog.closeButtonProps} disabled={isDeleting}>
               {t('common.actions.close', 'Close')}
             </Button>
           </div>
