@@ -182,6 +182,8 @@ export function CourseParticipantsDialog({
   // which member is being removed. `variables` holds the userId passed to
   // mutate, which lets only the targeted row show the spinner.
   const removingUserId = removeMutation.isPending ? removeMutation.variables ?? null : null;
+  const resendingInvitationId = resendMutation.isPending ? resendMutation.variables ?? null : null;
+  const revokingInvitationId = revokeMutation.isPending ? revokeMutation.variables ?? null : null;
 
   const mutationError = inviteMutation.error
     ?? resendMutation.error
@@ -314,7 +316,9 @@ export function CourseParticipantsDialog({
                                   size="sm"
                                   onClick={() => resendMutation.mutate(invitation.id)}
                                   disabled={resendMutation.isPending}
+                                  aria-busy={resendingInvitationId === invitation.id}
                                 >
+                                  {resendingInvitationId === invitation.id ? <InlineSpinner className="h-4 w-4" /> : null}
                                   {t('videos.courseMembers.resend')}
                                 </Button>
                                 <Button
@@ -323,7 +327,9 @@ export function CourseParticipantsDialog({
                                   size="sm"
                                   onClick={() => revokeMutation.mutate(invitation.id)}
                                   disabled={revokeMutation.isPending}
+                                  aria-busy={revokingInvitationId === invitation.id}
                                 >
+                                  {revokingInvitationId === invitation.id ? <InlineSpinner className="h-4 w-4" /> : null}
                                   {t('videos.courseMembers.revoke')}
                                 </Button>
                               </div>

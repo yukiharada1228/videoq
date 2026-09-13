@@ -4,6 +4,19 @@ import { CourseParticipantsDialog } from '../CourseParticipantsDialog';
 const getParticipants = vi.fn();
 const inviteMembers = vi.fn();
 const removeMember = vi.fn();
+const resendInvitation = vi.fn();
+const revokeInvitation = vi.fn();
+
+const pendingInvitation = (id: number, email: string) => ({
+  id,
+  email,
+  status: 'pending',
+  delivery_status: 'sent',
+  expires_at: '2026-08-29T00:00:00.000Z',
+  created_at: '2026-08-22T00:00:00.000Z',
+  last_sent_at: '2026-08-22T00:00:00.000Z',
+  send_attempts: 1,
+});
 
 describe('CourseParticipantsDialog', () => {
   beforeEach(() => {
@@ -11,6 +24,8 @@ describe('CourseParticipantsDialog', () => {
     globalThis.__setTrpcHandler('courseMemberships.participants', getParticipants);
     globalThis.__setTrpcHandler('courseMemberships.invite', inviteMembers);
     globalThis.__setTrpcHandler('courseMemberships.removeMember', removeMember);
+    globalThis.__setTrpcHandler('courseMemberships.resend', resendInvitation);
+    globalThis.__setTrpcHandler('courseMemberships.revoke', revokeInvitation);
     getParticipants.mockResolvedValue({
       invitations: [
         {
@@ -100,6 +115,74 @@ describe('CourseParticipantsDialog', () => {
     expect(screen.getByRole('button', { name: 'videos.courseMembers.resend' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'videos.courseMembers.revoke' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'videos.courseMembers.remove' })).toBeInTheDocument();
+  });
+
+  it.each([
+    { action: 'resend' as const, handler: () => resendInvitation },
+    { action: 'revoke' as const, handler: () => revokeInvitation },
+  ])('shows a spinner on the invitation being $action-ed and not on the other rows', async ({ action, handler }) => {
+    getParticipants.mockResolvedValue({
+      invitations: [pendingInvitation(7, 'first@example.com'), pendingInvitation(8, 'second@example.com')],
+      members: [],
+    });
+    let resolveAction: () => void = () => {};
+    handler().mockImplementation(
+      () => new Promise((resolve) => {
+        resolveAction = () => resolve({});
+      }),
+    );
+
+    render(<CourseParticipantsDialog courseId={3} isOpen onOpenChange={vi.fn()} />);
+
+    const buttons = await screen.findAllByRole('button', { name: `videos.courseMembers.${action}` });
+    expect(buttons).toHaveLength(2);
+    fireEvent.click(buttons[0]);
+
+    await waitFor(() => {
+      expect(handler()).toHaveBeenCalledWith({ courseId: 3, invitationId: 7 });
+    });
+
+    const pending = screen.getAllByRole('button', { name: `videos.courseMembers.${action}` });
+    expect(pending[0]).toHaveAttribute('aria-busy', 'true');
+    expect(pending[1]).not.toHaveAttribute('aria-busy', 'true');
+    expect(pending[0]).toBeDisabled();
+    expect(pending[1]).toBeDisabled();
+
+    resolveAction();
+
+    await waitFor(() => {
+      for (const button of screen.getAllByRole('button', { name: `videos.courseMembers.${action}` })) {
+        expect(button).not.toBeDisabled();
+        expect(button).not.toHaveAttribute('aria-busy', 'true');
+      }
+    });
+  });
+
+  it('keeps the resend and revoke spinners independent of each other', async () => {
+    getParticipants.mockResolvedValue({
+      invitations: [pendingInvitation(7, 'first@example.com')],
+      members: [],
+    });
+    let resolveResend: () => void = () => {};
+    resendInvitation.mockImplementation(
+      () => new Promise((resolve) => {
+        resolveResend = () => resolve({});
+      }),
+    );
+
+    render(<CourseParticipantsDialog courseId={3} isOpen onOpenChange={vi.fn()} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'videos.courseMembers.resend' }));
+
+    await waitFor(() => {
+      expect(resendInvitation).toHaveBeenCalled();
+    });
+
+    // A pending resend must not make the revoke button claim to be busy.
+    expect(screen.getByRole('button', { name: 'videos.courseMembers.resend' })).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('button', { name: 'videos.courseMembers.revoke' })).not.toHaveAttribute('aria-busy', 'true');
+
+    resolveResend();
   });
 
   it('asks for confirmation before removing a member and does nothing when cancelled', async () => {
