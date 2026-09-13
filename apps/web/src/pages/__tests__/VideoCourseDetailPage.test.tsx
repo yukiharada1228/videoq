@@ -187,6 +187,136 @@ describe('VideoCourseDetailPage', () => {
     })
   })
 
+  it('marks only the video being removed as busy and blocks every remove button meanwhile', async () => {
+    let resolveRemove: () => void = () => {}
+    courseTrpcMocks.removeVideo.mockImplementation(
+      () => new Promise<void>((resolve) => {
+        resolveRemove = () => resolve()
+      })
+    )
+
+    render(<VideoCourseDetailPage />)
+
+    const removeButtons = await screen.findAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })
+    expect(removeButtons[0]).not.toBeDisabled()
+    fireEvent.click(removeButtons[0])
+
+    const dialog = await screen.findByRole('dialog', { name: /videos\.courseDetail\.removeVideoConfirm/ })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'common.actions.confirm' }))
+
+    await waitFor(() => {
+      expect(courseTrpcMocks.removeVideo).toHaveBeenCalledWith({ courseId: 1, videoId: 1 })
+    })
+
+    const pending = screen.getAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })
+    expect(pending[0]).toBeDisabled()
+    expect(pending[0]).toHaveAttribute('aria-busy', 'true')
+    // The other row must not claim to be busy, but it must not accept a second
+    // removal while one is already in flight either.
+    expect(pending[1]).toBeDisabled()
+    expect(pending[1]).not.toHaveAttribute('aria-busy', 'true')
+
+    resolveRemove()
+
+    await waitFor(() => {
+      const settled = screen.getAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })
+      expect(settled[0]).not.toBeDisabled()
+      expect(settled[0]).not.toHaveAttribute('aria-busy', 'true')
+    })
+  })
+
+  it('blocks drag reordering while a removal is in flight', async () => {
+    let resolveRemove: () => void = () => {}
+    courseTrpcMocks.removeVideo.mockImplementation(
+      () => new Promise<void>((resolve) => {
+        resolveRemove = () => resolve()
+      })
+    )
+
+    const { container } = render(<VideoCourseDetailPage />)
+
+    const removeButtons = await screen.findAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })
+    const handles = () => Array.from(container.querySelectorAll('[aria-roledescription="sortable"]'))
+    expect(handles()).toHaveLength(2)
+    for (const handle of handles()) {
+      expect(handle).toHaveAttribute('aria-disabled', 'false')
+    }
+
+    fireEvent.click(removeButtons[0])
+    const dialog = await screen.findByRole('dialog', { name: /videos\.courseDetail\.removeVideoConfirm/ })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'common.actions.confirm' }))
+
+    // A reorder sent mid-removal would include the video being deleted, which
+    // the server rejects with a 400 and the UI surfaces as an order-update error.
+    await waitFor(() => {
+      for (const handle of handles()) {
+        expect(handle).toHaveAttribute('aria-disabled', 'true')
+      }
+    })
+
+    resolveRemove()
+
+    await waitFor(() => {
+      for (const handle of handles()) {
+        expect(handle).toHaveAttribute('aria-disabled', 'false')
+      }
+    })
+  })
+
+  it('does not select a row when its disabled remove button is clicked', async () => {
+    let resolveRemove: () => void = () => {}
+    courseTrpcMocks.removeVideo.mockImplementation(
+      () => new Promise<void>((resolve) => {
+        resolveRemove = () => resolve()
+      })
+    )
+
+    const { container } = render(<VideoCourseDetailPage />)
+
+    const removeButtons = await screen.findAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })
+    await waitFor(() => {
+      expect(container.querySelector('video')?.getAttribute('src')).toBe('video1.mp4')
+    })
+
+    fireEvent.click(removeButtons[0])
+    const dialog = await screen.findByRole('dialog', { name: /videos\.courseDetail\.removeVideoConfirm/ })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'common.actions.confirm' }))
+
+    await waitFor(() => {
+      expect(courseTrpcMocks.removeVideo).toHaveBeenCalled()
+    })
+
+    // A disabled Button has `pointer-events: none`, so this click must be
+    // swallowed by the wrapper instead of falling through to the row.
+    fireEvent.click(screen.getAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })[1])
+
+    expect(container.querySelector('video')?.getAttribute('src')).toBe('video1.mp4')
+
+    resolveRemove()
+  })
+
+  it('re-enables the remove buttons when the removal fails', async () => {
+    courseTrpcMocks.removeVideo.mockRejectedValue(new Error('boom'))
+
+    render(<VideoCourseDetailPage />)
+
+    const removeButtons = await screen.findAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })
+    fireEvent.click(removeButtons[0])
+
+    const dialog = await screen.findByRole('dialog', { name: /videos\.courseDetail\.removeVideoConfirm/ })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'common.actions.confirm' }))
+
+    await waitFor(() => {
+      expect(courseTrpcMocks.removeVideo).toHaveBeenCalled()
+    })
+
+    await waitFor(() => {
+      for (const button of screen.getAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })) {
+        expect(button).not.toBeDisabled()
+      }
+    })
+  })
+
   it('should render chat panel', async () => {
     render(<VideoCourseDetailPage />)
 

@@ -106,6 +106,8 @@ interface VideoCourseDetailViewProps {
   selectedVideo: SelectedVideo | null;
   deleteError: string | null;
   isDeleting: boolean;
+  /** Id of the video whose removal is in flight, or null when idle. */
+  removingVideoId: number | null;
   isEditing: boolean;
   editedName: string;
   editedDescription: string;
@@ -151,6 +153,10 @@ interface SortableVideoItemProps {
   isSelected: boolean;
   onSelect: (videoId: number) => void;
   onRemove: (videoId: number) => void;
+  /** True while this video's own removal is in flight. */
+  isRemoving: boolean;
+  /** True while any video in the course is being removed. */
+  isRemoveBlocked: boolean;
   isMobile?: boolean;
   canManage: boolean;
 }
@@ -160,13 +166,18 @@ function SortableVideoItem({
   isSelected,
   onSelect,
   onRemove,
+  isRemoving,
+  isRemoveBlocked,
   isMobile = false,
   canManage,
 }: SortableVideoItemProps) {
   const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: video.id,
-    disabled: isMobile || !canManage,
+    // Reordering while a removal is in flight would POST a video list the
+    // server no longer recognises, which it rejects with a 400 and surfaces as
+    // a spurious "order update failed" error.
+    disabled: isMobile || !canManage || isRemoveBlocked,
   });
 
   const style = {
@@ -202,21 +213,31 @@ function SortableVideoItem({
         </p>
         <VideoStatusBadge status={video.status} />
       </div>
-      {canManage ? <Button
-        type="button"
-        variant="text"
-        size="xs"
-        onClick={(event) => {
-          event.stopPropagation();
-          onRemove(video.id);
-        }}
-        onPointerDown={(event) => event.stopPropagation()}
-        onMouseDown={(event) => event.stopPropagation()}
-        aria-label={t('videos.courseDetail.removeFromCourse')}
-        className="min-w-0 shrink-0 p-1.5 text-error-1 hover:bg-red-50"
-      >
-        <Trash2 className="w-3.5 h-3.5" />
-      </Button> : null}
+      {canManage ? (
+        // The wrapper keeps swallowing row-level events even while the button
+        // is disabled: a disabled Button gets `pointer-events: none`, so
+        // without it a click on the spinner would fall through and select the
+        // row underneath.
+        <span
+          onClick={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+          className="shrink-0"
+        >
+          <Button
+            type="button"
+            variant="text"
+            size="xs"
+            onClick={() => onRemove(video.id)}
+            disabled={isRemoveBlocked}
+            aria-busy={isRemoving}
+            aria-label={t('videos.courseDetail.removeFromCourse')}
+            className="min-w-0 shrink-0 p-1.5 text-error-1 hover:bg-red-50"
+          >
+            {isRemoving ? <InlineSpinner className="h-3.5 w-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
+          </Button>
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -692,6 +713,7 @@ function GroupVideoList({
   onVideoSelect,
   onMobileTabChange,
   onRemoveVideo,
+  removingVideoId,
   onDragEnd,
   canManage,
 }: {
@@ -705,6 +727,7 @@ function GroupVideoList({
   onVideoSelect: (videoId: number) => void;
   onMobileTabChange: (tab: MobileTab) => void;
   onRemoveVideo: (videoId: number) => Promise<void> | void;
+  removingVideoId: number | null;
   onDragEnd: (event: DragEndEvent) => Promise<void> | void;
   canManage: boolean;
 }) {
@@ -758,6 +781,8 @@ function GroupVideoList({
                       if (isMobile) onMobileTabChange('player');
                     }}
                     onRemove={onRemoveVideo}
+                    isRemoving={removingVideoId === video.id}
+                    isRemoveBlocked={removingVideoId !== null}
                   />
                 ))}
               </SortableContext>
@@ -936,6 +961,7 @@ export function VideoCourseDetailView({
   onLeaveGroup,
   onVideoSelect,
   onRemoveVideo,
+  removingVideoId,
   onDragEnd,
   onVideoCanPlay,
   onVideoPlayFromTime,
@@ -1110,6 +1136,7 @@ export function VideoCourseDetailView({
                 onVideoSelect={onVideoSelect}
                 onMobileTabChange={onMobileTabChange}
                 onRemoveVideo={onRemoveVideo}
+                removingVideoId={removingVideoId}
                 onDragEnd={onDragEnd}
                 canManage={canManage}
               />

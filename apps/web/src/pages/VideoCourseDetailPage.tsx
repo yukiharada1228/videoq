@@ -157,6 +157,9 @@ export default function VideoCourseDetailPage() {
   const isLoading = courseIsLoading;
   const isDeleting = deleteCourseMutation.isPending;
   const isUpdating = updateCourseMutation.isPending;
+  // `variables` holds the videoId passed to mutateAsync, so the list can show a
+  // spinner on the row being removed instead of on every remove button.
+  const removingVideoId = removeVideoMutation.isPending ? removeVideoMutation.variables ?? null : null;
   const updateError = updateCourseMutation.error instanceof Error ? updateCourseMutation.error.message : null;
 
   const handleLeave = async () => {
@@ -219,6 +222,7 @@ export default function VideoCourseDetailPage() {
       onLeaveGroup={handleLeave}
       onVideoSelect={handleVideoSelect}
       onRemoveVideo={handleRemoveVideo}
+      removingVideoId={removingVideoId}
       onDragEnd={handleDragEnd}
       onVideoCanPlay={handleVideoCanPlay}
       onVideoPlayFromTime={handleVideoPlayFromTime}
