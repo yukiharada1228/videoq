@@ -124,6 +124,10 @@ describe('VideoUploadModal', () => {
 
     render(<VideoUploadModal isOpen={true} onClose={vi.fn()} />)
 
+    // Guard that the youtube branch is really the one being rendered, otherwise
+    // this assertion would hold for any mode simply because progress is 0.
+    expect(screen.queryByTestId('file-fields')).not.toBeInTheDocument()
+
     const submitButton = screen.getByRole('button', { name: /videos.upload.uploading/ })
     expect(submitButton.textContent).not.toContain('uploadingWithProgress')
   })

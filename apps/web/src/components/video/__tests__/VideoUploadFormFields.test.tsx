@@ -125,6 +125,13 @@ describe('VideoUploadFormFields', () => {
     expect(progressBar).toHaveAttribute('aria-valuenow', '55')
   })
 
+  it('should round a fractional progress value consistently in the bar and the label', () => {
+    render(<VideoUploadFormFields {...defaultProps} isUploading={true} progress={55.6} />)
+
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '56')
+    expect(screen.getByText('56%')).toBeInTheDocument()
+  })
+
   it('should not render a progress bar when progress is not provided', () => {
     render(<VideoUploadFormFields {...defaultProps} isUploading={true} />)
 
