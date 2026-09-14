@@ -194,7 +194,7 @@ describe.each([false, true])("検索障害（stream=%s）", (stream) => {
     hitsByQuery = () => {
       throw error;
     };
-    stubOpenAi([
+    const bodies = stubOpenAi([
       { toolCall: { name: "search_scenes", args: { query: "scene" } }, preamble: "調べますね。" },
       { content: "検索できませんでした。" },
     ], { stream });
@@ -209,15 +209,16 @@ describe.each([false, true])("検索障害（stream=%s）", (stream) => {
     );
     expect(chunks.some((chunk) => "text" in chunk || "final" in chunk)).toBe(false);
     expect(searchCalls).toEqual(["scene"]);
+    expect(bodies).toHaveLength(1);
     expect(closed).toBe(1);
   });
 
-  it("検索後のモデル呼び出しも失敗した場合に、元の設定エラーを保つ", async () => {
+  it("検索失敗後はモデルを再度呼ばず、元の設定エラーを保つ", async () => {
     const error = new LlmConfigurationError("EMBEDDING_MODEL is required");
     hitsByQuery = () => {
       throw error;
     };
-    stubOpenAi([
+    const bodies = stubOpenAi([
       { toolCall: { name: "search_scenes", args: { query: "scene" } } },
       { status: 503 },
     ], { stream });
@@ -230,6 +231,30 @@ describe.each([false, true])("検索障害（stream=%s）", (stream) => {
       }
     };
     await expect(execute()).rejects.toBe(error);
+    expect(bodies).toHaveLength(1);
+    expect(closed).toBe(1);
+  });
+
+  it("ツール引数の不備はモデルが修正して検索を続けられる", async () => {
+    hitsByQuery = () => [scene(1)];
+    const bodies = stubOpenAi([
+      { toolCall: { name: "search_scenes", args: { query: "" } } },
+      { toolCall: { name: "search_scenes", args: { query: "scene" } } },
+      { content: "回答 [1]" },
+    ], { stream });
+
+    if (stream) {
+      const chunks: RagStreamChunk[] = [];
+      for await (const chunk of streamRag(ENV, PARAMS)) chunks.push(chunk);
+      expect(chunks.at(-1)).toMatchObject({ final: { citations: [{ video_id: 60 }] } });
+    } else {
+      const result = await runRag(ENV, PARAMS);
+      expect(result.content).toBe("回答 [1]");
+      expect(result.citations).toHaveLength(1);
+    }
+
+    expect(searchCalls).toEqual(["scene"]);
+    expect(bodies).toHaveLength(3);
     expect(closed).toBe(1);
   });
 });

@@ -1,4 +1,4 @@
-import { createAgent, tool, type ToolRuntime } from "langchain";
+import { createAgent, createMiddleware, tool, type ToolRuntime } from "langchain";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { AIMessageChunk, BaseMessage } from "@langchain/core/messages";
 import { z } from "zod";
@@ -43,9 +43,6 @@ export const MAX_SCENE_SEARCHES = 3;
 
 /** ヒット 0 件でも「検索したが無かった」と伝える。空文字だとモデルが再検索を繰り返す。 */
 const NO_HITS = "No scenes matched this query.";
-
-/** 検索そのものが失敗したとき。この回答は実行後に例外として破棄される。 */
-const SEARCH_FAILED = "The scene search failed.";
 
 /** 上限超過はツール結果として返す。エラーで打ち切ると回答本文が無いまま終わるため。 */
 const SEARCH_LIMIT_REACHED =
@@ -110,7 +107,6 @@ const formatHit = (hit: SceneHit, index: number) =>
 function sceneSearchTool(
   search: SceneSearch,
   collector: SceneCollector,
-  hooks: { onFailure: (error: unknown) => void },
 ) {
   let used = 0;
   return tool(
@@ -121,16 +117,7 @@ function sceneSearchTool(
       const searchId = ++used;
       // custom stream は検索の完了や次のモデルの応答を待たずに UI へ届く。
       runtime.writer?.({ searching: query, searchId } satisfies RagSearchProgress);
-      let hits: SceneHit[];
-      try {
-        hits = await search.search(query);
-      } catch (error) {
-        // ToolNode はツールの例外を握り潰して ToolMessage に変換するため、
-        // ここで握らないと DB / 埋め込みの障害が「検索できませんでした」という
-        // 普通の回答になり、利用枠だけ消費される。実行後に投げ直す。
-        hooks.onFailure(error);
-        return SEARCH_FAILED;
-      }
+      const hits = await search.search(query);
       runtime.writer?.({
         searchCompleted: { id: searchId, query, count: hits.length },
       } satisfies RagSearchProgress);
@@ -160,7 +147,6 @@ function buildAgent(
     search: SceneSearch;
     collector: SceneCollector;
     timeoutMs: number;
-    onFailure: (error: unknown) => void;
   },
 ) {
   // system は createAgent の systemPrompt ではなく messages で渡す。
@@ -168,9 +154,14 @@ function buildAgent(
   // 素の文字列しか受け付けない OpenAI 互換ゲートウェイでも動くようにする。
   return createAgent({
     model: createChatModel(env, { maxTokens: MAX_TOKENS, timeoutMs: params.timeoutMs }),
-    tools: [
-      sceneSearchTool(params.search, params.collector, {
-        onFailure: params.onFailure,
+    tools: [sceneSearchTool(params.search, params.collector)],
+    middleware: [
+      createMiddleware({
+        name: "propagateSearchErrors",
+        // wrapToolCall 経由の実行例外は、そのまま呼び出し元へ伝播する。
+        // DB / 埋め込み障害で次の LLM 呼び出しを始めず、利用枠を返却する。
+        // ツール引数の検証エラーは LangChain が従来どおりモデルへ返す。
+        wrapToolCall: (request, handler) => handler(request),
       }),
     ],
   });
@@ -234,24 +225,21 @@ export async function runRag(
     params.courseContext,
     MAX_SCENE_SEARCHES,
   );
-  let searchError: unknown = null;
   try {
     const agent = buildAgent(env, {
       search,
       collector,
       timeoutMs: LLM_REQUEST_TIMEOUT_MS,
-      onFailure: (error) => (searchError ??= error),
     });
     const result = await agent.invoke(agentInput(systemPrompt, queryText), {
       recursionLimit: RECURSION_LIMIT,
     });
-    if (searchError !== null) throw searchError;
     return {
       ...toContext(queryText, systemPrompt, collector),
       content: finalText(result.messages),
     };
   } catch (error) {
-    throw toLlmError(searchError ?? error);
+    throw toLlmError(error);
   } finally {
     await search.close();
   }
@@ -307,13 +295,11 @@ export async function* streamRag(
     params.courseContext,
     MAX_SCENE_SEARCHES,
   );
-  let searchError: unknown = null;
   try {
     const agent = buildAgent(env, {
       search,
       collector,
       timeoutMs: LLM_STREAM_TIMEOUT_MS,
-      onFailure: (error) => (searchError ??= error),
     });
 
     const stream = await agent.stream(agentInput(systemPrompt, queryText), {
@@ -328,8 +314,6 @@ export async function* streamRag(
     let toolCallTurn = false;
     let turnId: string | undefined;
     for await (const [mode, chunk] of stream) {
-      // 検索失敗後のモデルの回答を流すと、正常な回答として利用枠が消費される。
-      if (searchError !== null) throw searchError;
       if (mode === "custom") {
         const progress = searchProgressSchema.safeParse(chunk);
         if (progress.success) yield progress.data;
@@ -350,13 +334,12 @@ export async function* streamRag(
       if (toolCallTurn) continue;
       if (message.text) answerParts.push(message.text);
     }
-    if (searchError !== null) throw searchError;
     requestSignal.throwIfAborted();
 
     for (const text of answerParts) yield { text };
     yield { final: toContext(queryText, systemPrompt, collector) };
   } catch (error) {
-    throw toLlmError(searchError ?? error);
+    throw toLlmError(error);
   } finally {
     await search.close();
   }
