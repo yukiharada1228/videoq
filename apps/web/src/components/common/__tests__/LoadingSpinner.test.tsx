@@ -12,6 +12,7 @@ describe('LoadingSpinner', () => {
     render(<LoadingSpinner message="Loading data..." />)
 
     expect(screen.getByText('Loading data...')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: 'Loading data...' }).textContent).toBe('Loading data...')
   })
 
   it('should not display message when not provided', () => {
