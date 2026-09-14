@@ -1,12 +1,15 @@
-import { afterEach, beforeEach, vi } from 'vitest'
+import { afterEach, beforeEach, expect, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
-import '@testing-library/jest-dom/vitest'
+import * as matchers from '@testing-library/jest-dom/matchers'
 import React from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { createAppQueryClient } from './src/lib/queryClient'
 import { FeedbackProvider } from './src/components/common/FeedbackProvider'
 import enTranslation from './src/i18n/locales/en/translation.json'
 import jaTranslation from './src/i18n/locales/ja/translation.json'
+
+// Register on this workspace's Vitest; a hoisted jest-dom can resolve the API's Vitest 4.
+expect.extend(matchers)
 
 type MockAuthUser = { id: string; name?: string; email?: string };
 type TrpcTestHandler = (input: unknown) => unknown | Promise<unknown>;

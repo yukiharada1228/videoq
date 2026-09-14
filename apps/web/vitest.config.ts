@@ -1,22 +1,9 @@
 import { defineConfig } from 'vitest/config'
-import react from '@vitejs/plugin-react-swc'
-import path from 'path'
 
 export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
   test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: ['./vitest.setup.ts'],
-    css: true,
-    env: {
-      VITE_USE_S3_STORAGE: 'false',
-    },
+    // @storybook/addon-vitest discovers this workspace; unit tests keep their own setup.
+    projects: ['./vitest.unit.ts', './vitest.storybook.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -27,6 +14,10 @@ export default defineConfig({
         '**/*.config.*',
         '**/coverage/**',
         '**/dist/**',
+        '**/*.stories.*',
+        '**/.storybook/**',
+        '**/storybook-static/**',
+        'vitest.*.ts',
       ],
       thresholds: {
         branches: 50,
