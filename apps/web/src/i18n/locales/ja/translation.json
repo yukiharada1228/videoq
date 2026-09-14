@@ -331,6 +331,7 @@
     "courseDetail": {
       "pickFromLibrary": "ライブラリから選ぶ",
       "pickFromLibraryDescription": "この講座に入れる動画を、ライブラリから選択してください。",
+      "loadVideosError": "動画一覧を取得できませんでした",
       "delete": "削除",
       "removeVideoConfirm": "この動画を講座から削除しますか？",
       "addError": "動画の追加に失敗しました",
