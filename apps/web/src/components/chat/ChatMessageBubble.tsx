@@ -68,6 +68,7 @@ export function ChatMessageBubble({
                 message.feedback === 'good' ? 'text-key-900' : 'text-solid-gray-420'
               }`}
               aria-label={t('chat.feedbackGood')}
+              aria-pressed={message.feedback === 'good'}
             >
               <ThumbsUp className="h-4 w-4" />
             </Button>
@@ -81,6 +82,7 @@ export function ChatMessageBubble({
                 message.feedback === 'bad' ? 'text-error-1' : 'text-solid-gray-420'
               }`}
               aria-label={t('chat.feedbackBad')}
+              aria-pressed={message.feedback === 'bad'}
             >
               <ThumbsDown className="h-4 w-4" />
             </Button>

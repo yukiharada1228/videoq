@@ -52,6 +52,7 @@ export function ChatPanel({
   const {
     history,
     historyLoading,
+    historyError,
     exportHistoryCsv,
     isExportingHistoryCsv,
     syncFeedbackInHistoryCache,
@@ -99,7 +100,7 @@ export function ChatPanel({
 
   return (
     <div className={containerClass}>
-      <div className="px-4 py-3 border-b border-solid-gray-200 shrink-0 flex items-center justify-between gap-4">
+      <div className="px-4 py-3 border-b border-solid-gray-200 shrink-0 flex flex-wrap items-center justify-between gap-4">
         <Heading size="18" className="shrink-0">
           <HeadingTitle level={shareToken ? 'h3' : 'h2'}>{t('chat.title')}</HeadingTitle>
         </Heading>
@@ -108,6 +109,7 @@ export function ChatPanel({
             <button
               type="button"
               onClick={() => setTab('chat')}
+              aria-pressed={tab === 'chat'}
               className={`text-dns-14B-120 pb-1 transition-colors ${
                 tab === 'chat'
                   ? 'text-key-900 border-b-2 border-key-900'
@@ -119,6 +121,7 @@ export function ChatPanel({
             <button
               type="button"
               onClick={() => setTab('history')}
+              aria-pressed={tab === 'history'}
               className={`text-dns-14B-120 pb-1 transition-colors ${
                 tab === 'history'
                   ? 'text-key-900 border-b-2 border-key-900'
@@ -137,6 +140,7 @@ export function ChatPanel({
             type="button"
             disabled={isLoading}
             onClick={() => switchMode('qa')}
+            aria-pressed={mode === 'qa'}
             className={`text-dns-14B-120 px-3 py-1 transition-colors ${
               mode === 'qa'
                 ? 'bg-key-900 text-white'
@@ -149,6 +153,7 @@ export function ChatPanel({
             type="button"
             disabled={isLoading}
             onClick={() => switchMode('study')}
+            aria-pressed={mode === 'study'}
             className={`text-dns-14B-120 px-3 py-1 transition-colors ${
               mode === 'study'
                 ? 'bg-key-900 text-white'
@@ -164,6 +169,7 @@ export function ChatPanel({
         <ChatHistoryView
           history={history}
           historyLoading={historyLoading}
+          historyError={historyError}
           isExportingHistoryCsv={isExportingHistoryCsv}
           onExportHistoryCsv={exportHistoryCsv}
           onVideoNavigate={navigateToVideo}

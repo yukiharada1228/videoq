@@ -7,7 +7,7 @@ export default defineProject({
   resolve: previewViteConfig.resolve,
   define: previewViteConfig.define,
   // Prebundle SWC's injected runtime and chart stories before browser tests start.
-  optimizeDeps: { include: ['react/jsx-dev-runtime', 'recharts'] },
+  optimizeDeps: { include: ['react/jsx-dev-runtime', 'react-dom', 'recharts'] },
   plugins: [storybookTest({ configDir: fileURLToPath(new URL('./.storybook', import.meta.url)) })],
   test: {
     name: 'storybook',

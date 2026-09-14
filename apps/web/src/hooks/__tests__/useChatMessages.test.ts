@@ -287,6 +287,7 @@ describe('useChatMessages streaming', () => {
     await waitFor(() => {
       expect(apiClient.chatStream).toHaveBeenCalledWith(
         expect.objectContaining({ course_id: 5 }),
+        expect.any(AbortSignal),
       )
     })
   })
@@ -349,5 +350,54 @@ describe('useChatMessages streaming', () => {
     })
     expect(result.current.messages[0].feedback).toBeNull()
     expect(result.current.feedbackUpdatingId).toBeNull()
+  })
+
+  it('aborts an in-flight request and ignores late events after unmount', async () => {
+    let resume!: () => void
+    let signal!: AbortSignal
+    const waiting = new Promise<void>(resolve => { resume = resolve })
+    const closed = vi.fn()
+    vi.mocked(apiClient.chatStream).mockImplementation(async function* (_, requestSignal) {
+      signal = requestSignal!
+      try {
+        yield { type: 'searching', query: 'pending search', search_id: 1 }
+        await waiting
+        yield { type: 'content_chunk', text: 'Late answer' }
+      } finally { closed() }
+    })
+    const { result, unmount } = renderHook(() => useChatMessages({ courseId: 3 }))
+    act(() => result.current.setInput('hello'))
+    let sending!: Promise<void>
+    act(() => { sending = result.current.handleSend() })
+    await waitFor(() => expect(result.current.messages.at(-1)?.progress?.phase).toBe('searching'))
+    const lastMessage = result.current.messages.at(-1)
+    unmount()
+    expect(signal.aborted).toBe(true)
+    const createTimer = vi.spyOn(globalThis, 'setInterval')
+    await act(async () => { resume(); await sending })
+    expect(closed).toHaveBeenCalledTimes(1)
+    expect(lastMessage?.content).toBe('')
+    expect(createTimer).not.toHaveBeenCalled()
+    createTimer.mockRestore()
+  })
+
+  it('finishes and closes the stream on done without waiting for more network events', async () => {
+    const nextRead = vi.fn()
+    const closed = vi.fn()
+    vi.mocked(apiClient.chatStream).mockImplementation(async function* () {
+      try {
+        yield { type: 'content_chunk', text: 'Done' }
+        yield { type: 'done', chat_log_id: 42, feedback: null }
+        nextRead()
+        yield { type: 'content_chunk', text: 'Unexpected late content' }
+      } finally { closed() }
+    })
+    const { result } = renderHook(() => useChatMessages({ courseId: 3 }))
+    act(() => result.current.setInput('hello'))
+    await act(async () => { await result.current.handleSend() })
+    expect(result.current.messages.at(-1)).toMatchObject({ content: 'Done', chatLogId: 42 })
+    expect(result.current.isLoading).toBe(false)
+    expect(nextRead).not.toHaveBeenCalled()
+    expect(closed).toHaveBeenCalledTimes(1)
   })
 })

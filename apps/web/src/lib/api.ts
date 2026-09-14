@@ -353,7 +353,7 @@ export class ApiClient {
     }
   }
 
-  async *chatStream(data: ChatRequest): AsyncGenerator<ChatStreamEvent> {
+  async *chatStream(data: ChatRequest, signal?: AbortSignal): AsyncGenerator<ChatStreamEvent> {
     const { share_slug, ...bodyData } = data;
     const endpoint = share_slug
       ? `/chat/messages/stream?share_slug=${encodeURIComponent(share_slug)}`
@@ -365,6 +365,7 @@ export class ApiClient {
       credentials: 'include',
       headers: this.jsonHeaders(),
       body: JSON.stringify(bodyData),
+      signal,
     });
 
     const response = await fetchStream();
@@ -407,6 +408,8 @@ export class ApiClient {
         }
       }
     } finally {
+      // Returning early on a terminal SSE event must release the connection too.
+      await reader.cancel().catch(() => {});
       reader.releaseLock();
     }
   }
