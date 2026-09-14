@@ -31,13 +31,14 @@ npm exec --workspace @videoq/web -- playwright install chromium
 npm run test:storybook     # Chromiumで全ストーリーとplayの操作を検証
 ```
 
-ツールバーで日本語／英語とMobile（390px）／Desktop（1280px）を切り替えられます。
+ツールバーで日本語／英語とMobile（390px）／Tablet（1024px）／Desktop（1280px）を切り替えられます。
 カタログにはチャットの回答・本文・検索進捗・入力欄、動画アップロードのフォーム・ボタン、
 認証フォーム・入力欄、エラー・通知バナー、読み込み状態、確認ダイアログ・トーストを収録しています。
 動画カード・一覧、タグバッジ・選択・絞り込み、処理状態バッジも、件数やタグの量を固定して確認できます。
 チャット一覧・履歴は、長い会話、末尾だけの回答待ち、投稿者、評価の各状態、CSV出力中を収録しています。
 分析ダッシュボード・評価サマリー・時系列グラフ・フィードバック円グラフも、空データや値の偏りを再現できます。
 タグ作成・講座作成ダイアログでは、入力・プレビュー・作成中・失敗後の再試行を確認できます。
+ページヘッダー、ログイン状態別のナビゲーション、OAuth接続アプリの一覧・解除も収録しています。
 Controlsでpropsを変更でき、Actionsで送信・評価・動画引用・確認結果などのコールバックを確認できます。
 フォームの入力はストーリー内の状態に反映し、送信しても認証・アップロード・AIへの通信は発生しません。
 
@@ -69,6 +70,21 @@ CSV出力はモックコールバックの記録のみで、ファイルはダ�
 タグ作成の失敗は現仕様どおりconsole出力のみで、フォームの値を保って再試行できます。
 `EscapeRequest`のplayはネイティブの`cancel`イベントを使って閉じる要求を検証します。CanvasではEscapeキーも操作できます。
 API通信は行わず、作成内容と閉じるコールバックをActionsで確認できます。
+
+`Layout/AppPageHeader`はタイトル・説明・バッジ・アクションの有無、長文、日本語／英語のスマホ表示を確認します。
+`Layout/AppNav`は未ログイン・一般ユーザー・管理者、各ページの選択状態、メニュー・言語切替を再現します。
+幅1280px未満ではメニュー内にリンクとログアウトをまとめ、`EnglishAdministratorTablet`で1024pxの操作ボタンが画面内に収まることを検証します。
+開閉には[W3Cのdisclosure navigationパターン](https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/examples/disclosure-navigation/)を使い、
+Tabでリンクを移動し、Escapeで閉じて起点へフォーカスを戻します。言語選択後も起点へ戻ります。
+`Logout`はMSWで成功を返してログイン画面の代替表示へ遷移し、`LogoutPending`は保留中の無効化を確認します。
+認証fixture自体は固定です。ストーリー終了時には言語のlocalStorage設定を復元します。
+
+`Auth/ConnectedAppsSection`は実際のBetter Auth clientを使い、同意一覧・公開クライアント名・解除のREST応答をMSWで返します。
+日付は固定ISO値を選択言語・閲覧環境のタイムゾーンで表示します。現在のadapterは有効期限を常にnullへ変換するため、期限なしの「—」を収録しています。
+`LongContentMobile`は長いアプリ名・scopeの表を横スクロールし、`EnglishMobile`は英語の表示を確認します。
+`RevokePending`と`RefetchPending`では解除開始から一覧の再取得完了まで全解除ボタンを無効化します。
+`RevokeSucceeded`で対象だけの削除、`FailureThenRetry`で失敗後の再試行、`KeyboardRevokeLastApp`で最後の1件を削除した後の結果へのフォーカスを検証します。
+再実行時は`beforeEach`で同意一覧と試行回数を作り直します。実際の接続解除は発生しません。
 
 ストーリーは対象コンポーネントと同じディレクトリの`*.stories.tsx`に追加します。
 共有データは`.storybook/fixtures/`に置き、API由来の型には`import type`を使います。
@@ -126,7 +142,8 @@ export const Loaded = {
 
 `trpcQuery` / `trpcMutation`はprocedure名と入出力をAppRouterの型で検査します。
 固定応答のほか、`trpcMutation('tags.create', input => success({ ...tagFixture, ...input }))`のように入力を使えます。
-RESTは`restGet`のほか通常のMSW `http.post`等も`api.rest`または`beforeEach({ msw })`で登録できます。
+RESTは`restGet` / `restPost`と通常のMSW `http.get` / `http.post`等を`api.rest`または`beforeEach({ msw })`で登録できます。
+`restPost('/api/auth/sign-out', pending())`のように更新リクエストも終了時に解放される保留応答を使えます。
 回数によって応答を変える場合は`RestFailureThenRetry`のようにカウンターとhandlerを`beforeEach`内で作り直してください。
 既存の画像用`parameters.msw`とも併用できます。
 

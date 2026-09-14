@@ -1,4 +1,5 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { apiClient } from '@/lib/api'
 
 // Unmock AppNav so we can test the real implementation
 vi.unmock('@/components/layout/AppNav')
@@ -10,6 +11,7 @@ beforeEach(() => {
   getAccount.mockReset()
   getAccount.mockResolvedValue({ id: '1', username: 'testuser' })
   globalThis.__setTrpcHandler('account.me', getAccount)
+  vi.mocked(apiClient.logout).mockReset().mockResolvedValue(undefined)
 })
 
 function renderWithUser(ui: React.ReactElement) {
@@ -19,6 +21,57 @@ function renderWithUser(ui: React.ReactElement) {
 function getPrimaryNav() {
   return screen.getByRole('navigation', { name: 'navigation.menu' })
 }
+
+describe('AppNav - disclosure focus and pending actions', () => {
+  it('returns focus to the menu trigger on Escape and backdrop dismissal', () => {
+    render(<AppNav />)
+    const trigger = screen.getByRole('button', { name: 'navigation.menu' })
+    fireEvent.click(trigger)
+    const panel = document.getElementById(trigger.getAttribute('aria-controls')!)!
+    within(panel).getAllByRole('link')[0].focus()
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    expect(trigger).toHaveFocus()
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+
+    fireEvent.click(trigger)
+    const backdrop = screen.getAllByRole('button', { name: 'navigation.closeMenu' }).find((button) => button.tabIndex === -1)!
+    expect(backdrop).toBeInTheDocument()
+    fireEvent.click(backdrop)
+    expect(trigger).toHaveFocus()
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('returns focus to the language trigger on Escape and selection', () => {
+    render(<AppNav />)
+    const trigger = screen.getByRole('button', { name: 'Language' })
+    fireEvent.click(trigger)
+    const panel = document.getElementById(trigger.getAttribute('aria-controls')!)!
+    within(panel).getByRole('link', { name: '日本語' }).focus()
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    expect(trigger).toHaveFocus()
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+
+    fireEvent.click(trigger)
+    fireEvent.click(within(document.getElementById(trigger.getAttribute('aria-controls')!)!).getByRole('link', { name: '日本語' }))
+    expect(trigger).toHaveFocus()
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('disables desktop and expanded-menu logout while the request is pending', async () => {
+    let finish!: () => void
+    vi.mocked(apiClient.logout).mockReturnValueOnce(new Promise<void>((resolve) => { finish = resolve }))
+    render(<AppNav />)
+    fireEvent.click(screen.getByRole('button', { name: 'navigation.menu' }))
+    const actions = screen.getAllByRole('button', { name: 'navigation.logout' })
+    expect(actions).toHaveLength(2)
+    fireEvent.click(actions[0])
+    await waitFor(() => actions.forEach((action) => expect(action).toBeDisabled()))
+    fireEvent.click(actions[1])
+    expect(apiClient.logout).toHaveBeenCalledTimes(1)
+    await act(async () => { finish() })
+    await waitFor(() => expect(actions[0]).toBeEnabled())
+  })
+})
 
 describe('AppNav - no authenticated user (empty cache)', () => {
   beforeEach(() => {

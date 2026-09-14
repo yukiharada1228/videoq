@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { apiClient } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -15,10 +15,11 @@ import { Heading, HeadingTitle } from '@/components/ui/heading';
 type StatusMessage = { tone: 'success' | 'error'; text: string } | null;
 
 export function ConnectedAppsSection() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [statusMessage, setStatusMessage] = useState<StatusMessage>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const statusRef = useRef<HTMLDivElement>(null);
 
   const tokensQuery = useQuery({
     queryKey: queryKeys.auth.oauthTokens,
@@ -26,13 +27,10 @@ export function ConnectedAppsSection() {
   });
 
   const revokeMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: (id: string) => apiClient.revokeAuthorizedOAuthToken(id),
+    onMutate: (id: string) => {
       setRevokingId(id);
-      try {
-        await apiClient.revokeAuthorizedOAuthToken(id);
-      } finally {
-        setRevokingId(null);
-      }
+      setStatusMessage(null);
     },
     onSuccess: async () => {
       setStatusMessage({ tone: 'success', text: t('settings.connectedApps.successRevoked') });
@@ -41,7 +39,12 @@ export function ConnectedAppsSection() {
     onError: () => {
       setStatusMessage({ tone: 'error', text: t('settings.connectedApps.errorRevoking') });
     },
+    onSettled: () => setRevokingId(null),
   });
+
+  useEffect(() => {
+    if (statusMessage && !revokeMutation.isPending) statusRef.current?.focus();
+  }, [statusMessage, revokeMutation.isPending]);
 
   return (
     <section className="border-t border-solid-gray-420 pt-8">
@@ -55,7 +58,7 @@ export function ConnectedAppsSection() {
       </div>
 
       {statusMessage && (
-        <div className="mb-5">
+        <div ref={statusRef} tabIndex={-1} className="mb-5 focus-visible:outline-4 focus-visible:outline-black focus-visible:outline-offset-2">
           <MessageAlert type={statusMessage.tone} message={statusMessage.text} />
         </div>
       )}
@@ -90,11 +93,11 @@ export function ConnectedAppsSection() {
                   <td className="px-5 py-4 font-medium text-solid-gray-800">{token.client_name}</td>
                   <td className="px-5 py-4 font-mono text-dns-14N-130 text-solid-gray-600">{token.scope || '—'}</td>
                   <td className="px-5 py-4 text-dns-14N-130 text-solid-gray-600">
-                    {new Date(token.issued_at).toLocaleString()}
+                    {new Date(token.issued_at).toLocaleString(i18n.language)}
                   </td>
                   <td className="px-5 py-4 text-dns-14N-130 text-solid-gray-600">
                     {token.expires_at
-                      ? new Date(token.expires_at).toLocaleString()
+                      ? new Date(token.expires_at).toLocaleString(i18n.language)
                       : t('settings.connectedApps.expiresNever')}
                   </td>
                   <td className="px-5 py-4 text-center">
@@ -102,9 +105,10 @@ export function ConnectedAppsSection() {
                       type="button"
                       variant="text"
                       size="xs"
-                      disabled={revokeMutation.isPending && revokingId === token.id}
+                      disabled={revokeMutation.isPending}
+                      aria-busy={revokeMutation.isPending && revokingId === token.id}
                       onClick={() => revokeMutation.mutate(token.id)}
-                      aria-label={t('settings.connectedApps.revoke')}
+                      aria-label={`${t('settings.connectedApps.revoke')}: ${token.client_name}`}
                       className="min-w-0 text-error-1 hover:bg-red-50"
                     >
                       {revokeMutation.isPending && revokingId === token.id ? (
