@@ -21,6 +21,8 @@ npm run build --workspace @videoq/web
 
 ## Storybook
 
+UI変更時のStory追加・更新とレビューは[Storybookの変更・レビュー手順](STORYBOOK.md)を参照してください。
+
 Node.js 22.12以降を推奨します。repository rootで実行します。
 
 ```bash
@@ -199,7 +201,7 @@ Storybookとbrowser projectでは`VITE_API_URL`を`/api`、S3直接送信を無�
 保留応答は長時間timerを作らず、リクエストabortまたはストーリー終了で解放します。
 コンポーネントのpolling・購読はunmountで解除されます。ストーリー独自のtimer・listenerは`beforeEach`の戻り値で必ず解除してください。
 アプリと同じsingleton cacheを使うため、API依存のDocsは上記の`inline: false`でiframeごとに分離します。
-SSEの段階的応答はChatPanelのIssue #915で追加します。
+SSEの段階的応答・中断は[ChatPanelのStory](src/components/chat/ChatPanel.stories.tsx)と[専用モック](.storybook/mocks/chatPanel.ts)を参照してください。
 
 `npm test`と`test:coverage`は既存のjsdomテスト（unit project）を実行します。
 Storybookは独立したbrowser projectとして実行し、`vitest.setup.ts`のAPIモックを流用しません。
