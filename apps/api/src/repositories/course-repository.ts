@@ -110,7 +110,7 @@ async function fetchCourseDetail(
       .from(videoCourseMembers)
       .innerJoin(videos, eq(videos.id, videoCourseMembers.videoId))
       .where(eq(videoCourseMembers.courseId, courseId))
-      .orderBy(asc(videoCourseMembers.order), asc(videoCourseMembers.addedAt))
+      .orderBy(asc(videoCourseMembers.order), asc(videoCourseMembers.addedAt), asc(videoCourseMembers.id))
       .$dynamic();
     if (options.videoLimit !== undefined) {
       memberQuery = memberQuery.limit(options.videoLimit);

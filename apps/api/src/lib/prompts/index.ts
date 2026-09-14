@@ -16,7 +16,7 @@ type LocaleSection = {
   rules?: unknown;
   section_titles?: Record<string, string>;
   reference?: Record<string, string>;
-  agent?: { instructions?: unknown };
+  agent?: { instructions?: unknown; role?: unknown; background?: unknown; rules?: unknown };
 };
 
 type PromptRoot = Record<string, Record<string, LocaleSection>>;
@@ -210,10 +210,11 @@ export function buildAgentSystemPrompt(
   locale?: string | null,
   courseContext?: string | null,
   maxSearches = 1,
+  maxCourseInfoCalls = 5,
 ): string {
   const config = resolveLocaleSection("rag", locale) as LocaleSection;
   const searchLabel = config.section_titles?.search ?? "# Scene Search";
-  const { lines } = buildPromptBase(config, courseContext, searchLabel);
+  const { lines } = buildPromptBase({ ...config, ...config.agent }, courseContext, searchLabel);
 
   const instructions = config.agent?.instructions;
   if (!Array.isArray(instructions) || instructions.some((i) => typeof i !== "string")) {
@@ -223,7 +224,10 @@ export function buildAgentSystemPrompt(
   lines.push("", searchLabel);
   lines.push(
     ...(instructions as string[]).map((instruction) =>
-      formatTemplate(instruction, { max_searches: String(maxSearches) }),
+      formatTemplate(instruction, {
+        max_searches: String(maxSearches),
+        max_course_info_calls: String(maxCourseInfoCalls),
+      }),
     ),
   );
 

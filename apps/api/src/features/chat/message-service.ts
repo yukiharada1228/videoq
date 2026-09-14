@@ -310,6 +310,7 @@ export async function sendChatMessage(
         videoIds,
         locale: setup.locale,
         courseContext: setup.course?.description ?? null,
+        courseId: setup.course?.id ?? null,
       });
     }
   } catch (e) {
@@ -436,6 +437,7 @@ export async function streamChatMessage(
               videoIds,
               locale: setup.locale,
               courseContext: setup.course?.description ?? null,
+              courseId: setup.course?.id ?? null,
             },
             clientSignal,
           )) {

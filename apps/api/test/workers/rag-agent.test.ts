@@ -10,12 +10,17 @@ import type { RagStreamChunk } from "../../src/lib/rag";
  */
 
 const searchCalls: string[] = [];
+let opened = 0;
+const videoSelections: (readonly number[] | undefined)[] = [];
 
 vi.mock("../../src/repositories/vector-repository", () => ({
   RETRIEVER_K: 20,
-  openSceneSearch: async () => ({
-    search: async (query: string): Promise<SceneHit[]> => {
+  openSceneSearch: async () => {
+    opened += 1;
+    return {
+    search: async (query: string, _k?: number, videoIds?: readonly number[]): Promise<SceneHit[]> => {
       searchCalls.push(query);
+      videoSelections.push(videoIds);
       return [
         {
           content: "scene text A",
@@ -27,6 +32,14 @@ vi.mock("../../src/repositories/vector-repository", () => ({
       ];
     },
     close: async () => {},
+    };
+  },
+}));
+
+vi.mock("../../src/repositories/course-repository", () => ({
+  getCourseDetail: async () => ({
+    name: "Course A", description: "Course description", video_count: 1,
+    videos: [{ id: 60, title: "Video A", description: "", order: 0, status: "processing" }],
   }),
 }));
 
@@ -45,29 +58,35 @@ const json = (body: unknown) =>
   });
 
 describe("RAG agent in the Workers runtime", () => {
-  it.each([false, true])("runs the search_scenes tool loop and answers with citations (stream=%s)", async (streaming) => {
+  it.each([false, true].flatMap((streaming) => ["search", "metadata", "metadata-search"].map((mode) => ({ streaming, mode }))))
+    ("runs the $mode tool loop (stream=$streaming)", async ({ streaming, mode }) => {
     let call = 0;
     vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
       expect(url).toBe("https://openai.test/v1/chat/completions");
       expect(JSON.parse(String(init.body)).stream).toBe(streaming);
       call += 1;
+      const metadataTurn = mode !== "search" && call === 1;
+      const searchTurn = mode === "search" ? call === 1 : mode === "metadata-search" && call === 2;
+      const toolName = metadataTurn ? "get_course_info" : "search_scenes";
+      const args = metadataTurn ? {} : { query: "pgvector", ...(mode === "metadata-search" ? { video_ids: [60] } : {}) };
+      const answer = mode === "metadata" ? "Course A has one video." : "Answer [1].";
       if (streaming) {
-        const deltas = call === 1
+        const deltas = metadataTurn || searchTurn
           ? [
               { role: "assistant", content: "Let me search." },
               { tool_calls: [{
                 index: 0,
-                id: "call_1",
+                id: `call_${call}`,
                 type: "function",
-                function: { name: "search_scenes", arguments: JSON.stringify({ query: "pgvector" }) },
+                function: { name: toolName, arguments: JSON.stringify(args) },
               }] },
             ]
-          : [{ role: "assistant", content: "Answer [1]." }];
+          : [{ role: "assistant", content: answer }];
         const frames = deltas.map((delta) => `data: ${JSON.stringify({ choices: [{ delta }] })}\n\n`);
         frames.push("data: [DONE]\n\n");
         return new Response(frames.join(""), { headers: { "content-type": "text/event-stream" } });
       }
-      if (call === 1) {
+      if (metadataTurn || searchTurn) {
         return json({
           choices: [
             {
@@ -77,11 +96,11 @@ describe("RAG agent in the Workers runtime", () => {
                 content: null,
                 tool_calls: [
                   {
-                    id: "call_1",
+                    id: `call_${call}`,
                     type: "function",
                     function: {
-                      name: "search_scenes",
-                      arguments: JSON.stringify({ query: "pgvector" }),
+                      name: toolName,
+                      arguments: JSON.stringify(args),
                     },
                   },
                 ],
@@ -91,7 +110,7 @@ describe("RAG agent in the Workers runtime", () => {
         });
       }
       return json({
-        choices: [{ finish_reason: "stop", message: { role: "assistant", content: "Answer [1]." } }],
+        choices: [{ finish_reason: "stop", message: { role: "assistant", content: answer } }],
       });
     });
 
@@ -102,6 +121,7 @@ describe("RAG agent in the Workers runtime", () => {
         videoIds: [60],
         locale: null,
         courseContext: null,
+        courseId: mode === "search" ? null : 3,
       };
       const chunks: RagStreamChunk[] = [];
       const result = streaming
@@ -115,15 +135,29 @@ describe("RAG agent in the Workers runtime", () => {
           })()
         : await runRag(ENV, params);
 
+      if (mode === "metadata") {
+        expect(searchCalls).toEqual([]);
+        expect(opened).toBe(0);
+        expect(result.content).toBe("Course A has one video.");
+        expect(result.citations).toBeNull();
+        expect(result.retrievedContexts?.[0]).toContain("Course metadata");
+        return;
+      }
       expect(searchCalls).toEqual(["pgvector"]);
       expect(result.content).toBe("Answer [1].");
       expect(result.citations).toEqual([
         { video_id: 60, title: "Video A", start_time: "00:00:10", end_time: "00:00:20" },
       ]);
-      expect(result.retrievedContexts).toEqual(["scene text A"]);
+      expect(result.retrievedContexts?.[0]).toBe("scene text A");
+      if (mode === "metadata-search") {
+        expect(videoSelections).toEqual([[60]]);
+        expect(result.retrievedContexts?.[1]).toContain("Course metadata");
+      }
     } finally {
       vi.unstubAllGlobals();
       searchCalls.length = 0;
+      opened = 0;
+      videoSelections.length = 0;
     }
   });
 });
