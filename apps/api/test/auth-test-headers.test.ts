@@ -42,7 +42,7 @@ describe("テスト用認証ヘッダの受付条件", () => {
   it("ENVIRONMENT が development でも、公開ホスト宛なら受け付けない", async () => {
     // `--env production` を付け忘れた deploy を想定。なりすましを許さない。
     for (const host of [
-      "https://backend-hono-dev.example.workers.dev",
+      "https://videoq-api-dev.example.workers.dev",
       "https://videoq.jp",
     ]) {
       const res = await appWith().request(
