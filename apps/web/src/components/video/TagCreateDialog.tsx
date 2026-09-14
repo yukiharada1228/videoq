@@ -37,6 +37,8 @@ export function TagCreateDialog({ isOpen, onClose, onCreate }: TagCreateDialogPr
 
   const handleClose = () => {
     if (!isCreating) {
+      // Restore native dialog focus before the parent can unmount it.
+      dialog.dialogProps.ref.current?.close();
       setName('');
       setColor(DEFAULT_TAG_CHIP_COLOR);
       onClose();
@@ -61,6 +63,7 @@ export function TagCreateDialog({ isOpen, onClose, onCreate }: TagCreateDialogPr
       await onCreate(name.trim(), color);
       setName('');
       setColor(DEFAULT_TAG_CHIP_COLOR);
+      dialog.dialogProps.ref.current?.close();
       onClose();
     } catch (error) {
       console.error('Failed to create tag:', error);

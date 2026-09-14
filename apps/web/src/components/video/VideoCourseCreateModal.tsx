@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import {
@@ -22,6 +22,8 @@ interface VideoCourseCreateModalProps {
 
 export function VideoCourseCreateModal({ isOpen, onClose, onCreate }: VideoCourseCreateModalProps) {
   const { t } = useTranslation();
+  const nameId = useId();
+  const descriptionId = useId();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
@@ -29,6 +31,8 @@ export function VideoCourseCreateModal({ isOpen, onClose, onCreate }: VideoCours
 
   const handleClose = () => {
     if (!isCreating) {
+      // Restore native dialog focus before the parent can unmount it.
+      dialog.dialogProps.ref.current?.close();
       setName('');
       setDescription('');
       setFormError(null);
@@ -82,16 +86,17 @@ export function VideoCourseCreateModal({ isOpen, onClose, onCreate }: VideoCours
 
           <div className="space-y-4">
             {formError && (
-              <div className="rounded-8 border border-error-1 bg-red-50 p-3 text-sm text-error-1">
+              <div role="alert" className="rounded-8 border border-error-1 bg-red-50 p-3 text-sm text-error-1">
                 {formError}
               </div>
             )}
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-solid-gray-700">
+              <label htmlFor={nameId} className="text-xs font-bold uppercase tracking-wider text-solid-gray-700">
                 {t('videos.courses.nameLabel')}
               </label>
               <input
+                id={nameId}
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -103,13 +108,14 @@ export function VideoCourseCreateModal({ isOpen, onClose, onCreate }: VideoCours
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-solid-gray-700">
+              <label htmlFor={descriptionId} className="text-xs font-bold uppercase tracking-wider text-solid-gray-700">
                 {t('videos.courses.descriptionLabel')}
                 <span className="ml-1 normal-case font-normal text-solid-gray-420">
                   {t('videos.courses.optional')}
                 </span>
               </label>
               <input
+                id={descriptionId}
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
