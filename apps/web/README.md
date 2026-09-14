@@ -37,6 +37,7 @@ npm run test:storybook     # Chromiumで全ストーリーとplayの操作を検
 動画カード・一覧、タグバッジ・選択・絞り込み、処理状態バッジも、件数やタグの量を固定して確認できます。
 チャット一覧・履歴は、長い会話、末尾だけの回答待ち、投稿者、評価の各状態、CSV出力中を収録しています。
 分析ダッシュボード・評価サマリー・時系列グラフ・フィードバック円グラフも、空データや値の偏りを再現できます。
+タグ作成・講座作成ダイアログでは、入力・プレビュー・作成中・失敗後の再試行を確認できます。
 Controlsでpropsを変更でき、Actionsで送信・評価・動画引用・確認結果などのコールバックを確認できます。
 フォームの入力はストーリー内の状態に反映し、送信しても認証・アップロード・AIへの通信は発生しません。
 
@@ -60,6 +61,14 @@ CSV出力はモックコールバックの記録のみで、ファイルはダ�
 円グラフのキーボード操作には[Recharts 3.8.1の修正](https://github.com/recharts/recharts/pull/7140)を使用します。
 `HoverTooltip`は円グラフのマウス操作、`AllZeroHidden`は全件0で非表示になることを確認します。
 初回のブラウザテスト中に依存の最適化で再読み込みされないよう、`vitest.storybook.ts`でRechartsを事前に最適化します。
+
+`Video/TagCreateDialog`と`Video/VideoCourseCreateModal`はボタンから実際のダイアログを開きます。
+`KeyboardCreate`では入力・タグの色選択・送信・起点へのフォーカス復帰、`CancelAndReopen`では入力の初期化を検証します。
+`Creating`は`onCreate`を保留して入力と閉じる操作の無効状態を維持します。ストーリーを再実行すると初期化できます。
+`CreateFailed`は講座作成のエラーを表示し、`FailureThenRetry`は初回失敗・再試行成功を実行ごとに設定します。
+タグ作成の失敗は現仕様どおりconsole出力のみで、フォームの値を保って再試行できます。
+`EscapeRequest`のplayはネイティブの`cancel`イベントを使って閉じる要求を検証します。CanvasではEscapeキーも操作できます。
+API通信は行わず、作成内容と閉じるコールバックをActionsで確認できます。
 
 ストーリーは対象コンポーネントと同じディレクトリの`*.stories.tsx`に追加します。
 共有データは`.storybook/fixtures/`に置き、API由来の型には`import type`を使います。
