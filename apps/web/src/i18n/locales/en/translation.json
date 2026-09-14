@@ -331,6 +331,7 @@
     "courseDetail": {
       "pickFromLibrary": "Choose from library",
       "pickFromLibraryDescription": "Select videos from your library to add to this course.",
+      "loadVideosError": "Could not load the video library.",
       "delete": "Delete",
       "removeVideoConfirm": "Remove this video from the chat course?",
       "addError": "Failed to add videos to the chat course",

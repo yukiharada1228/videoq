@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type RefObject } from 'react';
+import { useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DndContext,
@@ -12,14 +12,10 @@ import {
 import {
   SortableContext,
   sortableKeyboardCoordinates,
-  useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import {
   ArrowLeft,
-  Copy,
-  GripVertical,
   List,
   Pencil,
   Play,
@@ -31,9 +27,8 @@ import {
   LogOut,
   X,
 } from 'lucide-react';
-import { apiClient, type VideoCourse, type VideoInCourse } from '@/lib/api';
+import { apiClient, type VideoCourse } from '@/lib/api';
 import { buildYoutubeEmbedSrc } from '@/lib/video/embed';
-import { handleAsyncError } from '@/lib/utils/errorHandling';
 import type { SelectedVideo } from '@/lib/utils/videoConversion';
 import { Link } from '@/lib/i18n';
 import { AppNav } from '@/components/layout/AppNav';
@@ -41,11 +36,7 @@ import { ChatPanel } from '@/components/chat/ChatPanel';
 import { DashboardButton } from '@/components/dashboard/DashboardButton';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
-import { StatusBadge } from '@/components/common/StatusBadge';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
-import { useToast } from '@/components/common/feedback';
-import { TagFilterPanel } from '@/components/video/TagFilterPanel';
-import { TagManagementModal } from '@/components/video/TagManagementModal';
 import {
   BreadcrumbItem,
   BreadcrumbLink,
@@ -53,23 +44,14 @@ import {
   Breadcrumbs,
   BreadcrumbsLabel,
 } from '@/components/ui/breadcrumbs';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { SupportText } from '@/components/ui/support-text';
 import { ChipLabel } from '@/components/ui/chip-label';
 import { Heading, HeadingTitle } from '@/components/ui/heading';
 import { UtilityLink } from '@/components/ui/utility-link';
 import { CourseParticipantsDialog } from './CourseParticipantsDialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Dialog,
   DialogActions,
@@ -77,26 +59,15 @@ import {
   DialogContent,
   DialogHeader,
   DialogHeading,
-  DialogScrollArea,
   useDialog,
 } from '@/components/ui/dialog';
-import { useTags } from '@/hooks/useTags';
-import {
-  useAddableVideosQuery,
-  useAddVideosToCourseMutation,
-} from '@/hooks/useVideoCourseDetailData';
+import { SortableVideoItem } from './SortableVideoItem';
+import { PickFromLibraryDialog } from './PickFromLibraryDialog';
+import { ShareLinkDialog } from './ShareLinkDialog';
 
 const MOBILE_SENSORS: ReturnType<typeof useSensors> = [];
 
 type MobileTab = 'videos' | 'player';
-
-const ORDERING_OPTIONS = [
-  'uploaded_at_desc',
-  'uploaded_at_asc',
-  'title_asc',
-  'title_desc',
-] as const;
-type OrderingOption = (typeof ORDERING_OPTIONS)[number];
 
 interface VideoCourseDetailViewProps {
   course: VideoCourse | null;
@@ -142,469 +113,6 @@ interface VideoCourseDetailViewProps {
   onGenerateShareLink: (shareSlug: string) => Promise<void> | void;
   onDeleteShareLink: () => void;
   onCopyShareLink: () => void;
-}
-
-function VideoStatusBadge({ status }: { status: VideoInCourse['status'] }) {
-  return <StatusBadge status={status} size="xs" className="mt-1 ml-0" />;
-}
-
-interface SortableVideoItemProps {
-  video: VideoInCourse;
-  isSelected: boolean;
-  onSelect: (videoId: number) => void;
-  onRemove: (videoId: number) => void;
-  /** True while this video's own removal is in flight. */
-  isRemoving: boolean;
-  /** True while any video in the course is being removed. */
-  isRemoveBlocked: boolean;
-  isMobile?: boolean;
-  canManage: boolean;
-}
-
-function SortableVideoItem({
-  video,
-  isSelected,
-  onSelect,
-  onRemove,
-  isRemoving,
-  isRemoveBlocked,
-  isMobile = false,
-  canManage,
-}: SortableVideoItemProps) {
-  const { t } = useTranslation();
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: video.id,
-    // Reordering while a removal is in flight would POST a video list the
-    // server no longer recognises, which it rejects with a 400 and surfaces as
-    // a spurious "order update failed" error.
-    disabled: isMobile || !canManage || isRemoveBlocked,
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      onClick={() => onSelect(video.id)}
-      className={`group flex cursor-pointer items-center gap-3 rounded-8 px-4 py-3.5 transition-colors ${
-        isSelected
-          ? 'border-l-4 border-key-900 bg-blue-50'
-          : 'hover:bg-solid-gray-50'
-      } ${isDragging ? 'z-50 border border-solid-gray-420 bg-white' : ''}`}
-    >
-      {!isMobile && canManage && (
-        <span
-          {...attributes}
-          {...listeners}
-          onClick={(event) => event.stopPropagation()}
-          className="text-solid-gray-420 cursor-grab active:cursor-grabbing shrink-0"
-        >
-          <GripVertical className="w-4 h-4" />
-        </span>
-      )}
-      <div className="flex-1 min-w-0">
-        <p className={`truncate text-std-16N-170 ${isSelected ? 'font-bold text-key-900' : 'text-solid-gray-800'}`}>
-          {video.title}
-        </p>
-        <VideoStatusBadge status={video.status} />
-      </div>
-      {canManage ? (
-        // The wrapper keeps swallowing row-level events even while the button
-        // is disabled: a disabled Button gets `pointer-events: none`, so
-        // without it a click on the spinner would fall through and select the
-        // row underneath.
-        <span
-          onClick={(event) => event.stopPropagation()}
-          onPointerDown={(event) => event.stopPropagation()}
-          onMouseDown={(event) => event.stopPropagation()}
-          className="shrink-0"
-        >
-          <Button
-            type="button"
-            variant="text"
-            size="xs"
-            onClick={() => onRemove(video.id)}
-            disabled={isRemoveBlocked}
-            aria-busy={isRemoving}
-            aria-label={t('videos.courseDetail.removeFromCourse')}
-            className="min-w-0 shrink-0 p-1.5 text-error-1 hover:bg-red-50"
-          >
-            {isRemoving ? <InlineSpinner className="h-3.5 w-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
-          </Button>
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
-function ShareLinkDialog({
-  isOpen,
-  shareSlug,
-  shareLink,
-  isGeneratingLink,
-  isCopied,
-  onOpenChange,
-  onGenerate,
-  onDelete,
-  onCopy,
-}: {
-  isOpen: boolean;
-  shareSlug: string;
-  shareLink: string | null;
-  isGeneratingLink: boolean;
-  isCopied: boolean;
-  onOpenChange: (open: boolean) => void;
-  onGenerate: (shareSlug: string) => Promise<void> | void;
-  onDelete: () => void;
-  onCopy: () => void;
-}) {
-  const { t } = useTranslation();
-  const [inputValue, setInputValue] = useState(shareSlug);
-
-  const dialog = useDialog({
-    open: isOpen,
-    onOpenChange,
-    onRequestClose: (event) => {
-      if (isGeneratingLink) event.preventDefault();
-    },
-  });
-
-  return (
-    <Dialog {...dialog.dialogProps} width="min(42rem, 92vw)">
-      <DialogContent>
-        <DialogHeader>
-          <DialogHeading {...dialog.headingProps}>
-            {t('videos.courseDetail.share.title')}
-          </DialogHeading>
-        </DialogHeader>
-        <DialogBody>
-          <p className="mb-6 text-std-16N-170 text-solid-gray-700">
-            {shareLink
-              ? t('videos.courseDetail.share.enabled')
-              : t('videos.courseDetail.share.disabled')}
-          </p>
-
-          <div className="space-y-8">
-            <div className="flex flex-col gap-3">
-              <Label htmlFor="course-share-slug">
-                {t('videos.courseDetail.shareSlugPlaceholder')}
-              </Label>
-              <Input
-                id="course-share-slug"
-                type="text"
-                blockSize="lg"
-                value={inputValue}
-                onChange={(event) => setInputValue(event.target.value)}
-                disabled={isGeneratingLink}
-              />
-              <SupportText>{t('videos.courseDetail.shareSlugHelp')}</SupportText>
-              <div className="flex flex-wrap items-center gap-3 pt-1">
-                <Button
-                  type="button"
-                  variant="solid"
-                  size="md"
-                  onClick={() => {
-                    void onGenerate(inputValue);
-                  }}
-                  disabled={isGeneratingLink || !inputValue.trim()}
-                >
-                  {isGeneratingLink ? (
-                    <InlineSpinner className="mr-1.5 h-4 w-4" />
-                  ) : (
-                    <Plus className="mr-1.5 h-4 w-4" />
-                  )}
-                  {isGeneratingLink
-                    ? t('videos.courseDetail.generating')
-                    : t('common.actions.save')}
-                </Button>
-                {shareLink ? (
-                  <Button
-                    type="button"
-                    variant="text"
-                    size="md"
-                    onClick={onDelete}
-                    disabled={isGeneratingLink}
-                    className="text-error-1 hover:bg-red-50"
-                  >
-                    {t('videos.courseDetail.disable')}
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <Label id="course-share-link-label">
-                {t('videos.courseDetail.shareLinkLabel')}
-              </Label>
-              {shareLink ? (
-                <div className="flex flex-col gap-4">
-                  <div
-                    aria-labelledby="course-share-link-label"
-                    className="min-h-16 break-all rounded-8 border border-solid-gray-420 bg-solid-gray-50 px-5 py-4 font-mono text-std-16N-170 text-solid-gray-800"
-                  >
-                    {shareLink}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="md"
-                    onClick={onCopy}
-                    className="self-start"
-                  >
-                    <Copy className="mr-1.5 h-4 w-4" />
-                    {isCopied
-                      ? t('videos.courseDetail.copied')
-                      : t('videos.courseDetail.copyButton')}
-                  </Button>
-                </div>
-              ) : (
-                <SupportText>{t('videos.courseDetail.share.disabled')}</SupportText>
-              )}
-            </div>
-          </div>
-        </DialogBody>
-        <DialogActions>
-          <div className="flex justify-end gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isGeneratingLink}
-            >
-              {t('common.actions.close')}
-            </Button>
-          </div>
-        </DialogActions>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-interface PickFromLibraryDialogProps {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  courseId: number | null;
-  course: VideoCourse | null;
-  onVideosAdded?: () => void;
-}
-
-function PickFromLibraryDialog({
-  isOpen,
-  onOpenChange,
-  courseId,
-  course,
-  onVideosAdded,
-}: PickFromLibraryDialogProps) {
-  const { t } = useTranslation();
-  const toast = useToast();
-  const { tags } = useTags();
-
-  const [videoSearchInput, setVideoSearchInput] = useState('');
-  const [videoSearch, setVideoSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [ordering, setOrdering] = useState<OrderingOption>('uploaded_at_desc');
-  const [selectedVideos, setSelectedVideos] = useState<number[]>([]);
-  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
-  const [isTagManagementOpen, setIsTagManagementOpen] = useState(false);
-
-  const handleOrderingChange = useCallback((value: string) => {
-    if (ORDERING_OPTIONS.includes(value as OrderingOption)) {
-      setOrdering(value as OrderingOption);
-    }
-  }, []);
-
-  const handleTagToggle = useCallback((tagId: number) => {
-    setSelectedTagIds((prev) =>
-      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId],
-    );
-  }, []);
-
-  const handleTagClear = useCallback(() => setSelectedTagIds([]), []);
-
-  useEffect(() => {
-    const handler = setTimeout(() => setVideoSearch(videoSearchInput), 300);
-    return () => clearTimeout(handler);
-  }, [videoSearchInput]);
-
-  const availableVideosQuery = useAddableVideosQuery({
-    isOpen,
-    courseId,
-    course,
-    q: videoSearch.trim(),
-    status: statusFilter,
-    ordering,
-    tagIds: selectedTagIds,
-  });
-
-  const availableVideos = availableVideosQuery.data ?? [];
-  const isLoadingVideos = availableVideosQuery.isLoading || availableVideosQuery.isFetching;
-  const addVideosMutation = useAddVideosToCourseMutation(courseId, onVideosAdded);
-
-  const handleAddVideos = async () => {
-    if (!courseId || selectedVideos.length === 0) return;
-    try {
-      const result = await addVideosMutation.mutateAsync(selectedVideos);
-      onOpenChange(false);
-      setSelectedVideos([]);
-      if (result.skipped_count > 0) {
-        toast({
-          message: t('videos.courseDetail.addResult', { added: result.added_count, skipped: result.skipped_count }),
-          variant: 'info',
-        });
-      }
-    } catch (err) {
-      handleAsyncError(err, t('videos.courseDetail.addError'), () => {});
-    }
-  };
-
-  const dialog = useDialog({
-    open: isOpen,
-    onOpenChange,
-    onRequestClose: (event) => {
-      if (addVideosMutation.isPending) event.preventDefault();
-    },
-  });
-
-  if (!isOpen) {
-    return (
-      <TagManagementModal isOpen={isTagManagementOpen} onClose={() => setIsTagManagementOpen(false)} />
-    );
-  }
-
-  return (
-    <>
-      <Dialog {...dialog.dialogProps} scroll="inner" width="min(42rem, 95vw)">
-        <DialogContent>
-          <DialogHeader>
-            <DialogHeading {...dialog.headingProps}>{t('videos.courseDetail.pickFromLibrary')}</DialogHeading>
-          </DialogHeader>
-          <DialogScrollArea>
-            <DialogBody>
-              <p className="mb-4 text-std-16N-170 text-solid-gray-700">
-                {t('videos.courseDetail.pickFromLibraryDescription')}
-              </p>
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Input
-                    aria-label={t('videos.courseDetail.searchPlaceholder')}
-                    value={videoSearchInput}
-                    onChange={(event) => setVideoSearchInput(event.target.value)}
-                    blockSize="md"
-                    className="w-full md:w-1/2"
-                  />
-                  <Select value={statusFilter || 'all'} onValueChange={(value) => setStatusFilter(value === 'all' ? '' : value)}>
-                    <SelectTrigger blockSize="md" className="w-auto min-w-[10rem]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t('videos.courseDetail.statusFilter.all')}</SelectItem>
-                      <SelectItem value="completed">{t('videos.courseDetail.statusFilter.completed')}</SelectItem>
-                      <SelectItem value="processing">{t('videos.courseDetail.statusFilter.processing')}</SelectItem>
-                      <SelectItem value="indexing">{t('videos.courseDetail.statusFilter.indexing')}</SelectItem>
-                      <SelectItem value="pending">{t('videos.courseDetail.statusFilter.pending')}</SelectItem>
-                      <SelectItem value="error">{t('videos.courseDetail.statusFilter.error')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={ordering} onValueChange={handleOrderingChange}>
-                    <SelectTrigger blockSize="md" className="w-auto min-w-[12rem]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="uploaded_at_desc">{t('videos.courseDetail.ordering.uploadedDesc')}</SelectItem>
-                      <SelectItem value="uploaded_at_asc">{t('videos.courseDetail.ordering.uploadedAsc')}</SelectItem>
-                      <SelectItem value="title_asc">{t('videos.courseDetail.ordering.titleAsc')}</SelectItem>
-                      <SelectItem value="title_desc">{t('videos.courseDetail.ordering.titleDesc')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSelectedVideos(availableVideos.map((video) => video.id))}
-                    disabled={!availableVideos.length}
-                  >
-                    {t('videos.courseDetail.selectAll')}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSelectedVideos([])}
-                    disabled={selectedVideos.length === 0}
-                  >
-                    {t('videos.courseDetail.clearSelection')}
-                  </Button>
-                </div>
-                <TagFilterPanel
-                  tags={tags}
-                  selectedTagIds={selectedTagIds}
-                  onToggle={handleTagToggle}
-                  onClear={handleTagClear}
-                  onManageTags={() => setIsTagManagementOpen(true)}
-                  disabled={isLoadingVideos}
-                />
-                {isLoadingVideos ? (
-                  <div className="flex justify-center py-8"><LoadingSpinner /></div>
-                ) : availableVideos.length === 0 ? (
-                  <div className="flex flex-col items-center gap-3 py-8 text-center">
-                    <p className="text-std-16N-170 text-solid-gray-600">
-                      {t('videos.courseDetail.noAvailableVideos')}
-                    </p>
-                    <p className="text-dns-14N-130 text-solid-gray-600">
-                      {t('videos.courseDetail.noAvailableVideosHint')}
-                    </p>
-                    <UtilityLink asChild>
-                      <Link href="/videos">{t('videos.goToLibrary')}</Link>
-                    </UtilityLink>
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                    {availableVideos.map((video) => (
-                      <div key={video.id} className="flex items-center gap-3 p-3 border border-solid-gray-200 rounded-8 hover:bg-solid-gray-50 transition-colors">
-                        <Checkbox
-                          id={`video-${video.id}`}
-                          checked={selectedVideos.includes(video.id)}
-                          onCheckedChange={(checked: boolean | 'indeterminate') => {
-                            if (checked === true) setSelectedVideos([...selectedVideos, video.id]);
-                            else if (checked === false) setSelectedVideos(selectedVideos.filter((id) => id !== video.id));
-                          }}
-                        />
-                        <Label htmlFor={`video-${video.id}`} className="flex-1 cursor-pointer">
-                          <div className="text-std-16B-170 text-solid-gray-800">{video.title}</div>
-                          <div className="text-dns-14N-130 text-solid-gray-600">{video.description || t('common.messages.noDescription')}</div>
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </DialogBody>
-          </DialogScrollArea>
-          <DialogActions>
-            <div className="flex justify-end gap-3">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                {t('common.actions.cancel')}
-              </Button>
-              <Button
-                type="button"
-                onClick={handleAddVideos}
-                disabled={addVideosMutation.isPending || selectedVideos.length === 0}
-              >
-                {addVideosMutation.isPending && <InlineSpinner className="w-3.5 h-3.5" />}
-                {addVideosMutation.isPending ? t('videos.courseDetail.adding') : t('videos.courseDetail.add')}
-              </Button>
-            </div>
-          </DialogActions>
-        </DialogContent>
-      </Dialog>
-      <TagManagementModal isOpen={isTagManagementOpen} onClose={() => setIsTagManagementOpen(false)} />
-    </>
-  );
 }
 
 function GroupEditDialog({

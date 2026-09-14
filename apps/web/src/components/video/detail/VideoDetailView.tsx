@@ -7,11 +7,8 @@ import {
   CheckCircle,
   Pencil,
   Play,
-  Save,
-  Search,
   Trash2,
   Video as VideoIcon,
-  X,
 } from 'lucide-react';
 import { Link, useLocale } from '@/lib/i18n';
 import { apiClient, type Tag, type Video } from '@/lib/api';
@@ -24,13 +21,9 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { TagCreateDialog } from '@/components/video/TagCreateDialog';
-import { TagSelector } from '@/components/video/TagSelector';
 import { TagBadge } from '@/components/video/TagBadge';
 import { PlogPanel } from '@/components/video/detail/PlogPanel';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   BreadcrumbItem,
   BreadcrumbLink,
@@ -40,15 +33,8 @@ import {
 } from '@/components/ui/breadcrumbs';
 import { Heading, HeadingTitle } from '@/components/ui/heading';
 import { UtilityLink } from '@/components/ui/utility-link';
-import {
-  Dialog,
-  DialogActions,
-  DialogBody,
-  DialogContent,
-  DialogHeader,
-  DialogHeading,
-  useDialog,
-} from '@/components/ui/dialog';
+import { TranscriptPanel } from './TranscriptPanel';
+import { VideoDetailEditDialog } from './VideoDetailEditDialog';
 
 type MobileTab = 'transcript' | 'video';
 
@@ -95,122 +81,6 @@ interface VideoDetailViewProps {
   activeSegmentIdx: number | null;
   onSeek: (seconds: number, idx: number) => void;
   isPlainTextTranscript: boolean;
-}
-
-function VideoDetailEditDialog({
-  isOpen,
-  tags,
-  editedTitle,
-  editedDescription,
-  editedTagIds,
-  isUpdating,
-  updateError,
-  onOpenChange,
-  onEditedTitleChange,
-  onEditedDescriptionChange,
-  onEditedTagIdsChange,
-  onCreateNewTag,
-  onSave,
-}: {
-  isOpen: boolean;
-  tags: Tag[];
-  editedTitle: string;
-  editedDescription: string;
-  editedTagIds: number[];
-  isUpdating: boolean;
-  updateError: string | null;
-  onOpenChange: (open: boolean) => void;
-  onEditedTitleChange: (title: string) => void;
-  onEditedDescriptionChange: (description: string) => void;
-  onEditedTagIdsChange: Dispatch<SetStateAction<number[]>>;
-  onCreateNewTag: () => void;
-  onSave: () => void;
-}) {
-  const { t } = useTranslation();
-
-  const dialog = useDialog({
-    open: isOpen,
-    onOpenChange,
-    onRequestClose: (event) => {
-      if (isUpdating) event.preventDefault();
-    },
-  });
-
-  if (!isOpen) return null;
-
-  return (
-    <Dialog {...dialog.dialogProps} width="min(32rem, 92vw)">
-      <DialogContent>
-        <DialogHeader>
-          <DialogHeading {...dialog.headingProps}>{t('videos.detail.editButton')}</DialogHeading>
-        </DialogHeader>
-        <DialogBody>
-          <p className="mb-4 text-std-16N-170 text-solid-gray-700">
-            {t('videos.detail.editDescriptionLabel')}
-          </p>
-          <div className="space-y-4">
-            {updateError && <ErrorMessage message={updateError} />}
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="video-edit-title">{t('videos.detail.editTitleLabel')}</Label>
-              <Input
-                id="video-edit-title"
-                type="text"
-                value={editedTitle}
-                onChange={(event) => onEditedTitleChange(event.target.value)}
-                disabled={isUpdating}
-                blockSize="md"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="video-edit-description">{t('videos.detail.editDescriptionLabel')}</Label>
-              <Textarea
-                id="video-edit-description"
-                value={editedDescription}
-                onChange={(event) => onEditedDescriptionChange(event.target.value)}
-                disabled={isUpdating}
-                rows={4}
-                className="resize-none"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <TagSelector
-                tags={tags}
-                selectedTagIds={editedTagIds}
-                onToggle={(tagId) =>
-                  onEditedTagIdsChange((prev) =>
-                    prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId],
-                  )
-                }
-                onCreateNew={onCreateNewTag}
-                disabled={isUpdating}
-              />
-            </div>
-          </div>
-        </DialogBody>
-        <DialogActions>
-          <div className="flex justify-end gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isUpdating}
-            >
-              <X className="w-3.5 h-3.5" />
-              {t('common.actions.cancel')}
-            </Button>
-            <Button
-              type="button"
-              onClick={onSave}
-              disabled={isUpdating || !editedTitle.trim()}
-            >
-              {isUpdating ? <InlineSpinner className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
-              {isUpdating ? t('common.actions.saving') : t('common.actions.save')}
-            </Button>
-          </div>
-        </DialogActions>
-      </DialogContent>
-    </Dialog>
-  );
 }
 
 function VideoDetailMobileTabs({
@@ -396,181 +266,6 @@ function VideoMetaPanel({
           {isDeleting ? <InlineSpinner className="w-3.5 h-3.5 mr-1.5" /> : <Trash2 className="w-3.5 h-3.5 mr-1.5" />}
           {isDeleting ? t('common.actions.deleting') : t('videos.detail.deleteButton')}
         </Button>
-      </div>
-    </div>
-  );
-}
-
-function TranscriptPanel({
-  video,
-  isMobile,
-  mobileTab,
-  transcriptSearch,
-  onTranscriptSearchChange,
-  isTranscriptEditing,
-  onStartTranscriptEditing,
-  onCancelTranscriptEditing,
-  editedTranscript,
-  onEditedTranscriptChange,
-  onSaveTranscript,
-  isTranscriptSaving,
-  transcriptSaveError,
-  filteredSegments,
-  activeSegmentIdx,
-  onSeek,
-  isPlainTextTranscript,
-}: {
-  video: Video;
-  isMobile: boolean;
-  mobileTab: MobileTab;
-  transcriptSearch: string;
-  onTranscriptSearchChange: (value: string) => void;
-  isTranscriptEditing: boolean;
-  onStartTranscriptEditing: () => void;
-  onCancelTranscriptEditing: () => void;
-  editedTranscript: string;
-  onEditedTranscriptChange: (value: string) => void;
-  onSaveTranscript: () => void;
-  isTranscriptSaving: boolean;
-  transcriptSaveError: string | null;
-  filteredSegments: TranscriptSegment[];
-  activeSegmentIdx: number | null;
-  onSeek: (seconds: number, idx: number) => void;
-  isPlainTextTranscript: boolean;
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <div
-      className={`lg:col-span-4 lg:relative ${isMobile && mobileTab !== 'transcript' ? 'hidden' : ''}`}
-    >
-      <div className="flex min-h-[31.25rem] flex-col border border-solid-gray-420 bg-white lg:absolute lg:inset-0 lg:min-h-0">
-        <div className="p-4 border-b border-solid-gray-200 flex flex-col gap-3 shrink-0">
-          <div className="flex justify-between items-center">
-            <Heading size="18">
-              <HeadingTitle level="h2">{t('videos.detail.transcriptSection')}</HeadingTitle>
-            </Heading>
-            {!isTranscriptEditing && (
-              <Button
-                type="button"
-                variant="outline"
-                size="xs"
-                onClick={onStartTranscriptEditing}
-                disabled={!video.transcript}
-              >
-                <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                {t('videos.detail.editTranscriptButton')}
-              </Button>
-            )}
-          </div>
-          {!isTranscriptEditing && (
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-solid-gray-600 w-3.5 h-3.5 z-10" />
-              <Input
-                type="search"
-                blockSize="sm"
-                value={transcriptSearch}
-                onChange={(event) => onTranscriptSearchChange(event.target.value)}
-                aria-label={t('videos.detail.transcriptSearchPlaceholder')}
-                className="pl-9"
-              />
-            </div>
-          )}
-        </div>
-
-        {isTranscriptEditing ? (
-          <div className="flex-1 overflow-hidden flex flex-col">
-            <div className="flex shrink-0 flex-col gap-3 border-b border-solid-gray-200 bg-solid-gray-50 p-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex shrink-0 gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="xs"
-                  onClick={onCancelTranscriptEditing}
-                  disabled={isTranscriptSaving}
-                >
-                  {t('videos.detail.cancel')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="solid"
-                  size="xs"
-                  onClick={onSaveTranscript}
-                  disabled={isTranscriptSaving}
-                >
-                  {isTranscriptSaving ? <InlineSpinner className="h-3 w-3 mr-1.5" /> : <Save className="h-3 w-3 mr-1.5" />}
-                  {isTranscriptSaving ? t('videos.detail.saving') : t('videos.detail.saveTranscriptButton')}
-                </Button>
-              </div>
-            </div>
-            {transcriptSaveError && (
-              <div className="shrink-0 p-3 border-b border-solid-gray-200">
-                <ErrorMessage message={transcriptSaveError} />
-              </div>
-            )}
-            <Textarea
-              value={editedTranscript}
-              onChange={(event) => onEditedTranscriptChange(event.target.value)}
-              disabled={isTranscriptSaving}
-              spellCheck={false}
-              className="min-h-0 flex-1 resize-none rounded-none border-0 font-mono text-dns-14N-130 leading-relaxed focus:outline-none focus:ring-0"
-            />
-          </div>
-        ) : (
-          <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1">
-            {filteredSegments.length > 0 ? (
-              filteredSegments.map((segment, index) => (
-                <div
-                  key={index}
-                  onClick={() => onSeek(segment.seconds, index)}
-                  className={`flex cursor-pointer gap-4 rounded-8 p-3 transition-colors group ${
-                    activeSegmentIdx === index
-                      ? 'border-l-4 border-key-900 bg-blue-50'
-                      : 'hover:bg-solid-gray-50'
-                  }`}
-                >
-                  <span className="mt-0.5 h-fit shrink-0 whitespace-nowrap rounded-8 bg-blue-50 px-2 py-0.5 font-mono text-dns-14B-120 text-key-900">
-                    {segment.timestamp}
-                  </span>
-                  <p
-                    className={`text-std-16N-170 leading-relaxed ${
-                      activeSegmentIdx === index
-                        ? 'text-solid-gray-800 font-medium'
-                        : 'text-solid-gray-700 group-hover:text-solid-gray-800'
-                    }`}
-                  >
-                    {segment.text}
-                  </p>
-                </div>
-              ))
-            ) : isPlainTextTranscript ? (
-              <div className="p-4 bg-white rounded-8">
-                <p className="text-std-16N-170 text-solid-gray-700 whitespace-pre-wrap leading-relaxed">
-                  {video.transcript}
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-16 text-solid-gray-600">
-                <div className="w-16 h-16 bg-solid-gray-50 border border-solid-gray-200 rounded-full flex items-center justify-center mb-4">
-                  <Search className="w-8 h-8 text-solid-gray-420" />
-                </div>
-                <p className="text-std-16N-170 font-medium text-center px-4">
-                  {transcriptSearch
-                    ? t('videos.detail.transcriptNotFound')
-                    : (() => {
-                        const statusMsgs: Partial<Record<Video['status'], string>> = {
-                          pending: t('videos.detail.transcriptStatus.pending'),
-                          processing: t('videos.detail.transcriptStatus.processing'),
-                          indexing: t('videos.detail.transcriptStatus.indexing'),
-                          error: t('videos.detail.transcriptStatus.error'),
-                        };
-                        return statusMsgs[video.status] ?? t('videos.detail.transcriptStatus.unavailable');
-                      })()}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

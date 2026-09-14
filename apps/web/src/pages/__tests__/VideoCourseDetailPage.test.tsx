@@ -1,4 +1,5 @@
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import VideoCourseDetailPage from '../VideoCourseDetailPage'
 import { useI18nNavigate } from '@/lib/i18n'
 
@@ -159,6 +160,63 @@ describe('VideoCourseDetailPage', () => {
     expect(await within(dialog).findByText('videos.courseDetail.noAvailableVideos')).toBeInTheDocument()
     expect(within(dialog).getByText('videos.courseDetail.noAvailableVideosHint')).toBeInTheDocument()
     expect(within(dialog).getByRole('link', { name: 'videos.goToLibrary' })).toHaveAttribute('href', '/videos')
+  })
+
+  it('distinguishes a failed library request from an empty library', async () => {
+    courseTrpcMocks.listVideos.mockRejectedValue(new Error('Library unavailable'))
+    render(<VideoCourseDetailPage />)
+    fireEvent.click(await screen.findByRole('button', { name: 'videos.courseDetail.pickFromLibrary' }))
+    const dialog = within(await screen.findByRole('dialog'))
+    expect(await dialog.findByRole('alert')).toHaveTextContent('Library unavailable')
+    expect(dialog.queryByText('videos.courseDetail.noAvailableVideos')).not.toBeInTheDocument()
+  })
+
+  it('keeps selection and closing disabled until adding and course refetch finish', async () => {
+    const available = { ...mockCourse.videos[0], id: 3, title: 'New video', uploaded_at: '2026-09-01T00:00:00Z' }
+    courseTrpcMocks.listVideos.mockResolvedValue({ data: [available], meta: { total: 1, limit: 100, offset: 0 } })
+    let resolveCourse!: (value: typeof mockCourse) => void
+    const addVideos = vi.fn(() => {
+      courseTrpcMocks.get.mockImplementation(() => new Promise(resolve => { resolveCourse = resolve }))
+      return { message: 'Added', added_count: 1, skipped_count: 0 }
+    })
+    globalThis.__setTrpcHandler('memberships.addVideos', addVideos)
+    render(<VideoCourseDetailPage />)
+    fireEvent.click(await screen.findByRole('button', { name: 'videos.courseDetail.pickFromLibrary' }))
+    const element = await screen.findByRole('dialog')
+    const dialog = within(element)
+    fireEvent.click(await dialog.findByRole('checkbox'))
+    fireEvent.click(dialog.getByRole('button', { name: 'videos.courseDetail.add' }))
+    await waitFor(() => expect(resolveCourse).toBeDefined())
+    expect(dialog.getByRole('checkbox')).toBeDisabled()
+    expect(dialog.getByRole('textbox')).toBeDisabled()
+    expect(dialog.getByRole('button', { name: 'common.actions.cancel' })).toBeDisabled()
+    await userEvent.click(dialog.getByRole('button', { name: 'common.actions.cancel' }))
+    fireEvent(element, new Event('cancel', { cancelable: true }))
+    expect(element).toBeInTheDocument()
+    await act(async () => resolveCourse({ ...mockCourse, videos: [...mockCourse.videos, available] }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(addVideos).toHaveBeenCalledWith({ courseId: 1, videoIds: [3] })
+  })
+
+  it('retains selection and exposes the add error before retrying', async () => {
+    const available = { ...mockCourse.videos[0], id: 3, title: 'New video', uploaded_at: '2026-09-01T00:00:00Z' }
+    courseTrpcMocks.listVideos.mockResolvedValue({ data: [available], meta: { total: 1, limit: 100, offset: 0 } })
+    const addVideos = vi.fn().mockRejectedValueOnce(new Error('Add failed')).mockResolvedValue({ message: 'Added', added_count: 1, skipped_count: 0 })
+    globalThis.__setTrpcHandler('memberships.addVideos', addVideos)
+    render(<VideoCourseDetailPage />)
+    fireEvent.click(await screen.findByRole('button', { name: 'videos.courseDetail.pickFromLibrary' }))
+    const element = await screen.findByRole('dialog')
+    const dialog = within(element)
+    fireEvent.click(await dialog.findByRole('checkbox'))
+    fireEvent.click(dialog.getByRole('button', { name: 'videos.courseDetail.add' }))
+    const error = await dialog.findByRole('alert')
+    expect(error).toHaveTextContent('Add failed')
+    await waitFor(() => expect(error.parentElement).toHaveFocus())
+    expect(dialog.getByRole('checkbox')).toBeChecked()
+    fireEvent.click(dialog.getByRole('button', { name: 'videos.courseDetail.add' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(addVideos).toHaveBeenCalledTimes(2)
+    expect(addVideos).toHaveBeenLastCalledWith({ courseId: 1, videoIds: [3] })
   })
 
   it('should render breadcrumbs for the course hierarchy', async () => {
