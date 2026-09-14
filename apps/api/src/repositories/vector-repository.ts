@@ -57,24 +57,32 @@ function parseMetadataColumn(rows: Array<Record<string, unknown>>): void {
  * 文字列のままだと TypeError で落ちる。ここでクエリ結果を正規化してから渡す。
  */
 function withMetadataParsing(pool: pg.Pool): pg.Pool {
-  const rawQuery = pool.query.bind(pool) as (...args: unknown[]) => Promise<pg.QueryResult>;
-  const rawConnect = pool.connect.bind(pool) as (...args: unknown[]) => Promise<pg.PoolClient>;
+  const rawQuery = pool.query.bind(pool) as (...args: unknown[]) => Promise<pg.QueryResult> | void;
+  const rawConnect = pool.connect.bind(pool) as (...args: unknown[]) => Promise<pg.PoolClient> | void;
+  const wrappedClients = new WeakSet<pg.PoolClient>();
 
-  (pool as unknown as { query: unknown }).query = async (...args: unknown[]) => {
-    const result = await rawQuery(...args);
-    parseMetadataColumn(result.rows);
-    return result;
-  };
-
-  (pool as unknown as { connect: unknown }).connect = async (...args: unknown[]) => {
-    const client = await rawConnect(...args);
-    const rawClientQuery = client.query.bind(client) as (...args: unknown[]) => Promise<pg.QueryResult>;
-    (client as unknown as { query: unknown }).query = async (...args: unknown[]) => {
-      const result = await rawClientQuery(...args);
+  (pool as unknown as { query: unknown }).query = (...args: unknown[]) => {
+    // pg 内部は callback 形式も使う。戻り値が Promise の呼び出しだけを加工する。
+    return rawQuery(...args)?.then((result) => {
       parseMetadataColumn(result.rows);
       return result;
-    };
-    return client;
+    });
+  };
+
+  (pool as unknown as { connect: unknown }).connect = (...args: unknown[]) => {
+    return rawConnect(...args)?.then((client) => {
+      if (!wrappedClients.has(client)) {
+        wrappedClients.add(client);
+        const rawClientQuery = client.query.bind(client) as (...args: unknown[]) => Promise<pg.QueryResult> | void;
+        (client as unknown as { query: unknown }).query = (...queryArgs: unknown[]) => {
+          return rawClientQuery(...queryArgs)?.then((result) => {
+            parseMetadataColumn(result.rows);
+            return result;
+          });
+        };
+      }
+      return client;
+    });
   };
 
   return pool;
@@ -88,8 +96,8 @@ const text = (v: unknown) => (typeof v === "string" ? v : v == null ? "" : Strin
  * 使い回し、呼び出し側が finally で close する。
  */
 export type SceneSearch = {
-  /** 検索スコープは open 時に固定される（LLM にフィルタを選ばせない）。 */
-  search(query: string, k?: number): Promise<SceneHit[]>;
+  /** open 時のスコープ内に限り、動画をさらに絞り込める。 */
+  search(query: string, k?: number, videoIds?: readonly number[]): Promise<SceneHit[]>;
   close(): Promise<void>;
 };
 
@@ -98,10 +106,7 @@ export async function openSceneSearch(
   params: { userId: string; videoIds: readonly number[] },
 ): Promise<SceneSearch> {
   const table = resolveVectorTable(env);
-  const filter = {
-    user_id: params.userId,
-    video_id: { $in: [...params.videoIds] },
-  };
+  const allowedVideoIds = new Set(params.videoIds);
 
   // 重要（要件 §11.4 / PoC #01d）: Pool はリクエストごとに生成し、
   // リクエストをまたいで使い回さない（max: 1 で実質 pg.Client 相当）。
@@ -123,7 +128,18 @@ export async function openSceneSearch(
   }
 
   return {
-    async search(query: string, k = RETRIEVER_K): Promise<SceneHit[]> {
+    async search(query: string, k = RETRIEVER_K, videoIds?: readonly number[]): Promise<SceneHit[]> {
+      if (videoIds !== undefined && (
+        videoIds.length === 0 || videoIds.some((id) => !allowedVideoIds.has(id))
+      )) {
+        throw new Error("Video selection must be a non-empty subset of the current course.");
+      }
+      const selected = videoIds === undefined ? [...allowedVideoIds] : [...new Set(videoIds)];
+      if (selected.length === 0) return [];
+      const filter = {
+        user_id: params.userId,
+        video_id: { $in: selected },
+      };
       const hits = await store.similaritySearchWithScore(query, k, filter);
       return hits.map(([doc]) => ({
         content: doc.pageContent ?? "",

@@ -1,4 +1,7 @@
-import { describe, it, expect, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import type { CourseDetail } from "../src/repositories/course-repository";
+import { getCourseDetail } from "../src/repositories/course-repository";
+import { MAX_COURSE_INFO_CALLS, COURSE_DESCRIPTION_LIMIT, VIDEO_DESCRIPTION_LIMIT } from "../src/lib/rag-course-info";
 import type { SceneHit } from "../src/repositories/vector-repository";
 import type { Bindings } from "../src/types/bindings";
 import { LlmConfigurationError, LlmProviderError } from "../src/lib/openai";
@@ -13,22 +16,30 @@ import { stalledChatResponse } from "./helpers/stalled-chat-response";
 
 const searchCalls: string[] = [];
 let closed = 0;
+let opened = 0;
+const videoSelections: (readonly number[] | undefined)[] = [];
 let hitsByQuery: (query: string) => SceneHit[] | Promise<SceneHit[]>;
 
 vi.mock("../src/repositories/vector-repository", () => ({
   RETRIEVER_K: 20,
-  openSceneSearch: async () => ({
-    search: async (query: string) => {
+  openSceneSearch: async () => {
+    opened += 1;
+    return {
+    search: async (query: string, _k?: number, videoIds?: readonly number[]) => {
       searchCalls.push(query);
+      videoSelections.push(videoIds);
       return hitsByQuery(query);
     },
     close: async () => {
       closed += 1;
     },
-  }),
+    };
+  },
 }));
 
-const { runRag, streamRag, MAX_SCENE_SEARCHES } = await import("../src/lib/rag");
+vi.mock("../src/repositories/course-repository", () => ({ getCourseDetail: vi.fn() }));
+
+const { runRag, streamRag, MAX_SCENE_SEARCHES, MAX_TOOL_ROUNDS } = await import("../src/lib/rag");
 
 const ENV = {
   OPENAI_API_KEY: "sk-test",
@@ -50,6 +61,22 @@ const scene = (n: number, videoId = 60): SceneHit => ({
   videoTitle: `Video ${videoId}`,
   startTime: `00:0${n}:00`,
   endTime: `00:0${n}:30`,
+});
+
+const COURSE: CourseDetail = {
+  id: 3, name: "デジタル回路", description: "回路の基礎を学ぶ講座", video_count: 2,
+  display_order: 0, created_at: "2026-09-14T00:00:00Z", updated_at: "2026-09-14T00:00:00Z",
+  access_role: "owner", share_slug: "private-share-token",
+  videos: [60, 61].map((id, index) => ({
+    id, title: `第${index + 7}回`, description: `動画${id}の説明`, order: index * 10,
+    status: "completed", file: "https://private.example/signed-url", tags: [],
+    uploaded_at: "2026-09-14T00:00:00Z", source_type: "uploaded", source_url: null,
+    youtube_video_id: null, youtube_embed_url: null,
+  })),
+};
+
+beforeEach(() => {
+  vi.mocked(getCourseDetail).mockReset().mockResolvedValue(COURSE);
 });
 
 type Turn =
@@ -183,6 +210,8 @@ afterEach(() => {
   vi.restoreAllMocks();
   searchCalls.length = 0;
   closed = 0;
+  opened = 0;
+  videoSelections.length = 0;
 });
 
 describe.each([false, true])("検索障害（stream=%s）", (stream) => {
@@ -325,9 +354,9 @@ describe("RAG エージェント（非ストリーミング）", () => {
     // 1 通目に search_scenes がツールとして渡っている。
     const tools = bodies[0].tools as { function: { name: string; parameters: unknown } }[];
     expect(tools.map((t) => t.function.name)).toEqual(["search_scenes"]);
-    // フィルタ（user_id / video_id）はスキーマに露出しない。
+    // 所有者スコープは非公開。動画IDは講座内でのみ指定できる。
     expect(JSON.stringify(tools[0].function.parameters)).not.toContain("user_id");
-    expect(JSON.stringify(tools[0].function.parameters)).not.toContain("video_id");
+    expect(JSON.stringify(tools[0].function.parameters)).toContain("video_ids");
   });
 
   it("複数クエリのヒットは重複排除し、[N] は回答全体で通し番号になる", async () => {
@@ -482,5 +511,169 @@ describe("RAG エージェント（ストリーミング）", () => {
       finishSearch?.([]);
       await stream.return();
     }
+  });
+});
+
+describe.each([false, true])("講座メタ情報（stream=%s）", (streaming) => {
+  const execute = async (overrides: Partial<Parameters<typeof runRag>[1]> = {}) => {
+    const params = { ...PARAMS, courseId: 3, ...overrides };
+    if (!streaming) return runRag(ENV, params);
+    const chunks: RagStreamChunk[] = [];
+    for await (const chunk of streamRag(ENV, params)) chunks.push(chunk);
+    const final = chunks.find((chunk) => "final" in chunk);
+    return {
+      ...final!.final,
+      content: chunks.filter((chunk) => "text" in chunk).map((chunk) => chunk.text).join(""),
+    };
+  };
+  const toolResults = (body: Record<string, unknown>) =>
+    (body.messages as { role: string; content: string }[])
+      .filter((message) => message.role === "tool").map((message) => message.content);
+
+  it("メタ情報だけで回答し、検索接続を開かず、機密情報や架空の引用を根拠に含めない", async () => {
+    const bodies = stubOpenAi([
+      { toolCall: { name: "get_course_info", args: {} }, preamble: "確認します。" },
+      { content: "デジタル回路は2本の動画で構成されています。" },
+    ], { stream: streaming });
+    const result = await execute({ messages: [{ role: "user", content: "この講座の名前と動画数は？" }] });
+    expect(result.content).toBe("デジタル回路は2本の動画で構成されています。");
+    expect(result.citations).toBeNull();
+    expect(opened).toBe(0);
+    expect(closed).toBe(0);
+    expect(searchCalls).toEqual([]);
+    expect(getCourseDetail).toHaveBeenCalledWith(ENV, 3, PARAMS.ownerUserId, {
+      includeFileUrls: false, videoLimit: 20, videoOffset: 0,
+    });
+    const context = JSON.parse(toolResults(bodies[1])[0]);
+    expect(context).toMatchObject({ name: COURSE.name, video_count: 2,
+      videos: [{ id: 60, position: 1, order: 0 }, { id: 61, position: 2, order: 10 }],
+      videos_meta: { total: 2, has_more: false, next_offset: null },
+    });
+    expect(result.retrievedContexts).toHaveLength(1);
+    expect(result.retrievedContexts[0]).toContain("Course metadata");
+    for (const secret of ["private-share-token", "signed-url", PARAMS.ownerUserId]) {
+      expect(JSON.stringify(bodies)).not.toContain(secret);
+      expect(JSON.stringify(result)).not.toContain(secret);
+    }
+  });
+
+  it.each(["empty", "processing"])("%s の講座でも説明未登録と本数・処理状態を取得できる", async (state) => {
+    vi.mocked(getCourseDetail).mockResolvedValue({ ...COURSE, description: "",
+      video_count: state === "empty" ? 0 : 1,
+      videos: state === "empty" ? [] : [{ ...COURSE.videos[0], description: "", status: "processing" }],
+    });
+    const bodies = stubOpenAi([
+      { toolCall: { name: "get_course_info", args: {} } },
+      { content: "説明文は登録されていません。" },
+    ], { stream: streaming });
+    const result = await execute({ videoIds: state === "empty" ? [] : [60] });
+    expect(result.content).toBe("説明文は登録されていません。");
+    const metadata = JSON.parse(toolResults(bodies[1])[0]);
+    expect(metadata.description).toBe("");
+    expect(metadata.video_count).toBe(state === "empty" ? 0 : 1);
+    if (state === "processing") expect(metadata.videos[0].status).toBe("processing");
+    expect(opened).toBe(0);
+  });
+
+  it("2ページ目で特定した動画を指定して検索し、シーン引用を保持する", async () => {
+    vi.mocked(getCourseDetail)
+      .mockResolvedValueOnce({ ...COURSE, videos: [COURSE.videos[0]] })
+      .mockResolvedValueOnce({ ...COURSE, videos: [COURSE.videos[1]] });
+    hitsByQuery = () => [scene(1, 61)];
+    const bodies = stubOpenAi([
+      { toolCall: { name: "get_course_info", args: { video_limit: 1 } } },
+      { toolCall: { name: "get_course_info", args: { video_limit: 1, video_offset: 1 } } },
+      { toolCall: { name: "search_scenes", args: { query: "回路の説明", video_ids: [61] } } },
+      { content: "第8回の説明です [1]。" },
+    ], { stream: streaming });
+    const result = await execute();
+    expect(JSON.parse(toolResults(bodies[1])[0])).toMatchObject({
+      video_count: 2, videos_meta: { total: 2, has_more: true, next_offset: 1 },
+    });
+    expect(JSON.parse(toolResults(bodies[2])[1])).toMatchObject({
+      videos: [{ id: 61, position: 2 }], videos_meta: { total: 2, has_more: false, next_offset: null },
+    });
+    expect(videoSelections).toEqual([[61]]);
+    expect(result.citations).toEqual([{ video_id: 61, title: "Video 61", start_time: "00:01:00", end_time: "00:01:30" }]);
+    expect(result.retrievedContexts).toHaveLength(3);
+    expect(opened).toBe(1);
+    expect(closed).toBe(1);
+  });
+
+  it.each([[999], [60, 999], [], [-1]].map((video_ids) => ({ video_ids })))
+    ("不正な動画指定 $video_ids を検索せずモデルへ返す", async ({ video_ids }) => {
+    stubOpenAi([
+      { toolCall: { name: "search_scenes", args: { query: "private", video_ids } } },
+      { content: "指定された動画を検索できません。" },
+    ], { stream: streaming });
+    const result = await execute();
+    expect(result.citations).toBeNull();
+    expect(opened).toBe(0);
+    expect(searchCalls).toEqual([]);
+  });
+
+  it("モデル引数による講座ID差し替えを受け付けず、正しい引数で再試行できる", async () => {
+    stubOpenAi([
+      { toolCall: { name: "get_course_info", args: { course_id: 999 } } },
+      { toolCall: { name: "get_course_info", args: {} } },
+      { content: "デジタル回路です。" },
+    ], { stream: streaming });
+    await execute();
+    expect(getCourseDetail).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(getCourseDetail).mock.calls[0][1]).toBe(3);
+  });
+
+  it("長い説明文を上限で切り、取得済み根拠にも省略を明示する", async () => {
+    vi.mocked(getCourseDetail).mockResolvedValue({ ...COURSE,
+      description: "あ".repeat(COURSE_DESCRIPTION_LIMIT + 1),
+      videos: [{ ...COURSE.videos[0], description: "い".repeat(VIDEO_DESCRIPTION_LIMIT + 1) }],
+    });
+    const bodies = stubOpenAi([
+      { toolCall: { name: "get_course_info", args: {} } }, { content: "説明の一部です。" },
+    ], { stream: streaming });
+    await execute();
+    const metadata = JSON.parse(toolResults(bodies[1])[0]);
+    expect(metadata.description).toHaveLength(COURSE_DESCRIPTION_LIMIT);
+    expect(metadata.description_truncated).toBe(true);
+    expect(metadata.videos[0].description).toHaveLength(VIDEO_DESCRIPTION_LIMIT);
+    expect(metadata.videos[0].description_truncated).toBe(true);
+  });
+
+  it("取得回数を制限し、最終回答を返す", async () => {
+    stubOpenAi([
+      ...Array.from({ length: MAX_COURSE_INFO_CALLS + 1 }, (): Turn => ({
+        toolCall: { name: "get_course_info", args: {} },
+      })),
+      { content: "取得済みの講座情報です。" },
+    ], { stream: streaming });
+    const result = await execute();
+    expect(getCourseDetail).toHaveBeenCalledTimes(MAX_COURSE_INFO_CALLS);
+    expect(result.content).toBe("取得済みの講座情報です。");
+    expect(result.retrievedContexts).toHaveLength(1);
+  });
+
+  it("引数不備が続いても最終ターンはツールを外して回答させる", async () => {
+    const bodies = stubOpenAi([
+      ...Array.from({ length: MAX_TOOL_ROUNDS }, (): Turn => ({
+        toolCall: { name: "get_course_info", args: { video_limit: 999 } },
+      })),
+      { content: "講座情報を取得できませんでした。" },
+    ], { stream: streaming });
+    const result = await execute();
+    expect(result.content).toBe("講座情報を取得できませんでした。");
+    expect(bodies.at(-1)?.tools ?? []).toEqual([]);
+    expect(getCourseDetail).not.toHaveBeenCalled();
+    expect(opened).toBe(0);
+  });
+
+  it("メタ情報取得のDB障害では回答を生成せず例外を伝える", async () => {
+    vi.mocked(getCourseDetail).mockRejectedValue(new Error("database unavailable"));
+    const bodies = stubOpenAi([
+      { toolCall: { name: "get_course_info", args: {} }, preamble: "確認します。" },
+      { content: "誤った成功回答" },
+    ], { stream: streaming });
+    await expect(execute()).rejects.toThrow(LlmProviderError);
+    expect(bodies).toHaveLength(1);
+    expect(opened).toBe(0);
   });
 });

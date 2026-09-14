@@ -47,7 +47,7 @@ vi.mock("pg", () => {
     }
     async connect() {
       return {
-        query: (sqlOrConfig: unknown, args: unknown[] = []) =>
+        query: async (sqlOrConfig: unknown, args: unknown[] = []) =>
           executeFakePgQuery({
             calls,
             sqlOrConfig: sqlOrConfig as PgQueryInput,
@@ -231,6 +231,7 @@ function stubOpenAi(opts: {
   failAfterFirstChunk?: boolean;
   failOllamaEmbedding?: boolean;
   preamble?: string;
+  toolCall?: typeof SEARCH_TOOL_CALL;
 }) {
   const requests: { url: string; body: Record<string, unknown>; raw: string }[] = [];
   vi.stubGlobal("fetch", async (input: string | Request, init?: RequestInit) => {
@@ -266,7 +267,7 @@ function stubOpenAi(opts: {
           choices: [
             {
               finish_reason: "tool_calls",
-              message: { role: "assistant", content: opts.preamble ?? null, tool_calls: [SEARCH_TOOL_CALL] },
+              message: { role: "assistant", content: opts.preamble ?? null, tool_calls: [opts.toolCall ?? SEARCH_TOOL_CALL] },
             },
           ],
         });
@@ -286,7 +287,7 @@ function stubOpenAi(opts: {
                     {
                       delta: {
                         role: "assistant",
-                        tool_calls: [{ index: 0, ...SEARCH_TOOL_CALL }],
+                        tool_calls: [{ index: 0, ...(opts.toolCall ?? SEARCH_TOOL_CALL) }],
                       },
                     },
                   ],
@@ -347,6 +348,60 @@ function stubOpenAi(opts: {
   });
   return requests;
 }
+
+describe.each([false, true])("講座メタ情報のチャット経路（stream=%s）", (stream) => {
+  it.each(["owner", "member", "public"])("%s でメタ情報を取得し、検索なしで回答・根拠を保存する", async (access) => {
+    rowsFor = (sql, args) => {
+      if (sql.includes("video_courses") && sql.includes("video_count")) {
+        return [{
+          id: 3, name: "Digital circuits", description: "Registered description", display_order: 0,
+          created_at: "2026-09-14T00:00:00Z", updated_at: "2026-09-14T00:00:00Z",
+          share_slug: "abc123", video_count: 1, owner_user_id: "00000000-0000-4000-8000-000000000005",
+        }];
+      }
+      if (sql.includes("video_course_members") && sql.includes("inner join videos")) {
+        return [{
+          member_order: 10, id: 60, file: "private.mp4", title: "Lecture 7", description: "",
+          uploaded_at: "2026-09-14T00:00:00Z", status: "processing", source_type: "uploaded",
+          source_url: "", youtube_video_id: "", tags: "[]",
+        }];
+      }
+      return defaultRows(sql, args);
+    };
+    const answer = "Digital circuits has one video.";
+    const requests = stubOpenAi({ stream, content: answer, toolCall: {
+      id: "call_course", type: "function", function: { name: "get_course_info", arguments: "{}" },
+    } });
+    const path = (stream ? "/messages/stream" : "/messages") + (access === "public" ? "?share_slug=abc123" : "");
+    const res = await post(path, {
+      messages: [{ role: "user", content: "講座名と動画数は？" }], course_id: 3,
+    }, {
+      token: access === "public" ? undefined : await accessToken(access === "member"
+        ? "00000000-0000-4000-8000-000000000006" : "00000000-0000-4000-8000-000000000005"),
+      env: { ...OPENAI_ENV, ...SQS_ENV },
+    });
+    expect(res.status).toBe(200);
+    if (stream) {
+      const events = sseEvents(await res.text());
+      expect(events.filter((event) => event.type === "content_chunk").map((event) => event.text).join("")).toBe(answer);
+      expect(events.at(-1)).toMatchObject({ type: "done" });
+      expect(events.at(-1)).not.toHaveProperty("citations");
+      expect(events.some((event) => event.type === "searching")).toBe(false);
+    } else {
+      const data = await trpcData(res);
+      expect(data).toMatchObject({ content: answer });
+      expect(data).not.toHaveProperty("citations");
+    }
+    expect(calls.some((call) => call.sql.includes("scene_embeddings"))).toBe(false);
+    expect(requests.some((request) => request.url.includes("embeddings"))).toBe(false);
+    const stored = calls.find((call) => call.sql.includes("chat_logs") && call.sql.includes("returning"))!;
+    expect(JSON.stringify(stored.args)).toContain("Course metadata");
+    const modelRequests = requests.filter((request) => request.url.endsWith("/chat/completions"));
+    expect(JSON.stringify(modelRequests)).toContain("Digital circuits");
+    expect(JSON.stringify(modelRequests)).not.toContain("abc123");
+    expect(JSON.stringify(modelRequests)).not.toContain("private.mp4");
+  });
+});
 
 const sseEvents = (text: string) =>
   text
@@ -523,18 +578,18 @@ describe("POST /messages（非ストリーミング）", () => {
     ]);
     expect(String(search.sql)).toMatch(/user_id = \$1 AND video_id = ANY\(\$2\)/);
 
-    // system プロンプトは ja ロケール + course_context + 検索ツールの指示
+    // 講座の説明文は必要時にツールで取得する。system は日英の根拠の使い分けを指示。
     const chatRequests = requests.filter((r) => r.url.endsWith("/chat/completions"));
     const first = chatRequests[0].body.messages as { role: string; content: string }[];
-    expect(first[0].content).toContain("# 講座情報");
-    expect(first[0].content).toContain("Course about pgvector");
+    expect(first[0].content).toContain("get_course_info");
+    expect(first[0].content).not.toContain("Course about pgvector");
     expect(first[0].content).toContain("# シーン検索");
     expect(first[1]).toEqual({ role: "user", content: "何が起きた?" });
     expect(
       (chatRequests[0].body.tools as { function: { name: string } }[]).map(
         (t) => t.function.name,
       ),
-    ).toEqual(["search_scenes"]);
+    ).toEqual(["search_scenes", "get_course_info"]);
 
     // 参照シーンは 2 通目でツール結果として渡る（[N] 付き）
     const second = chatRequests[1].body.messages as { role: string; content: string }[];

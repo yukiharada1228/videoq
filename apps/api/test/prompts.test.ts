@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildSystemPrompt } from "../src/lib/prompts";
+import { buildAgentSystemPrompt, buildSystemPrompt } from "../src/lib/prompts";
 
 /** System prompt output is pinned with SHA-256 vectors. */
 async function sha256(text: string): Promise<string> {
@@ -49,5 +49,18 @@ describe("buildSystemPrompt", () => {
     const base = await sha256(buildSystemPrompt(null, undefined, null));
     expect(await sha256(buildSystemPrompt("fr-FR", undefined, null))).toBe(base);
     expect(await sha256(buildSystemPrompt(null, ["   ", ""], null))).toBe(base);
+  });
+});
+
+describe("ReAct の根拠の使い分け", () => {
+  it.each([null, "ja", "ja-JP"])("%s: メタ情報ツールと取得上限を説明する", (locale) => {
+    const prompt = buildAgentSystemPrompt(locale, null, 3, 5);
+    expect(prompt).toContain("get_course_info");
+    expect(prompt).toContain("search_scenes.video_ids");
+    expect(prompt).toContain("videos_meta.next_offset");
+    expect(prompt).not.toContain("{max_course_info_calls}");
+    expect(prompt).not.toContain("Always search at least once");
+    expect(prompt).not.toContain("最低1回は検索");
+    expect(prompt).toContain(locale ? "メタ情報だけの回答にシーン引用は不要" : "Metadata-only answers need no scene citations");
   });
 });
