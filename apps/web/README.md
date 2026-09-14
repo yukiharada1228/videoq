@@ -80,10 +80,64 @@ MSWはStorybook専用の`.storybook/public/mockServiceWorker.js`を使用しま�
 メディアモックの設定は[Storybookのネットワークモック手順](https://storybook.js.org/docs/writing-stories/mocking-data-and-modules/mocking-network-requests)に従います。
 翻訳は実際のアプリの辞書・CSSを使用します。入力する文やサンプル回答は固定データなので、言語切替で自動翻訳されません。
 
-共通decoratorはMemoryRouterとI18nextProviderを用意します。
+共通decoratorはMemoryRouter・I18nextProviderと、アプリのtRPC options proxyが参照する
+`appQueryClient`を渡したQueryClientProviderを用意します。
 ルート依存の部品には`parameters: { pathname: '/videos/7' }`を指定できます。
 英語では`/en`のprefixと`:locale`を付け、日本語では実アプリ同様にprefixを付けません。
-API依存の画面に必要なReact Query・認証・tRPC/RESTモックは後続Issue #911で整備します。
+`parameters.api`を指定したストーリーにはAuthProvider・FeedbackProviderも追加します。
+
+### 認証・API依存のストーリー
+
+`Foundation/ApiMocks`は実際の`useAuth`・TanStack Query・tRPC transport・`apiClient`を使う最小の利用例です。
+成功、空、保留、失敗、一般ユーザー／管理者／未ログイン、更新操作と再試行、日本語／英語・スマホ幅・長文を収録しています。
+`MixedBatchAndInputs`はGETとPOSTの複数procedure、入力の対応、成功・失敗の混在（HTTP 207）を検証します。
+`KeyboardMutation`はTab・Enterでの更新と共有キャッシュの反映、`MutationPending`は更新中の無効状態を確認します。
+`RestMutation`ではBetter AuthのRESTを通したAPIキー作成を固定値で再現します。
+`UnmockedRequestsBlocked`は未登録のAPI GET/POST・外部画像・tRPCが遮断されることを確認し、意図的にMSWエラーをconsoleへ出します。
+
+モック境界は[Storybookのmodule mock](https://storybook.js.org/docs/writing-stories/mocking-data-and-modules/mocking-modules)とMSWです。
+`authSession.ts`の2つの読み取り関数だけを`sb.mock`で置き換え、Better Authのセッション購読・cookieに依存しない表示を作ります。
+sessionと`account.me`は`.storybook/fixtures/auth.ts`の同じfixtureから設定します。
+`account.me`を個別に上書きせず、`authFixtures.loggedOut / user / admin`または`authFixture(profile)`を指定してください。
+未ログインではsessionがnull、`account.me`を直接呼ぶと401になります。ログイン・ログアウトの状態遷移自体はこのfixtureの対象外です。
+RESTのAPIキー処理などは本物のBetter Auth clientを通し、応答だけをMSWで返します。
+tRPCは[公式HTTP仕様](https://trpc.io/docs/rpc)に沿ってbatchの入出力とエラーを再現します。
+
+```tsx
+import { authFixtures } from '../../../.storybook/fixtures/auth';
+import { tagPage } from '../../../.storybook/fixtures/api';
+import { success, pending, failure, trpcQuery, restGet } from '../../../.storybook/mocks/network';
+
+export const Loaded = {
+  parameters: {
+    pathname: '/videos',
+    api: {
+      auth: authFixtures.user,
+      trpc: [trpcQuery('tags.list', success(tagPage))],
+      rest: [restGet('/api/auth/api-key/list', success({ apiKeys: [] }))],
+    },
+    docs: { story: { inline: false, height: '520px' } },
+  },
+};
+// 読み込み中: trpcQuery('tags.list', pending())
+// エラー:     trpcQuery('tags.list', failure('取得できませんでした', 500))
+// 空:         success({ data: [], meta: { total: 0, limit: 100, offset: 0 } })
+```
+
+`trpcQuery` / `trpcMutation`はprocedure名と入出力をAppRouterの型で検査します。
+固定応答のほか、`trpcMutation('tags.create', input => success({ ...tagFixture, ...input }))`のように入力を使えます。
+RESTは`restGet`のほか通常のMSW `http.post`等も`api.rest`または`beforeEach({ msw })`で登録できます。
+回数によって応答を変える場合は`RestFailureThenRetry`のようにカウンターとhandlerを`beforeEach`内で作り直してください。
+既存の画像用`parameters.msw`とも併用できます。
+
+Storybookとbrowser projectでは`VITE_API_URL`を`/api`、S3直接送信を無効に固定し、実環境の設定を継承しません。
+未定義のAPI・書き込み・外部URLへのリクエストはMSWがエラーにして遮断します。ローカルの表示用assetは読み込めます。
+未登録tRPC procedureもエラーになるため、必要な操作は明示的にモックしてください。
+各ストーリーの開始・終了時にqueryのキャンセルとcacheのclear、認証mock・handlerのリセットを行います。
+保留応答は長時間timerを作らず、リクエストabortまたはストーリー終了で解放します。
+コンポーネントのpolling・購読はunmountで解除されます。ストーリー独自のtimer・listenerは`beforeEach`の戻り値で必ず解除してください。
+アプリと同じsingleton cacheを使うため、API依存のDocsは上記の`inline: false`でiframeごとに分離します。
+SSEの段階的応答はChatPanelのIssue #915で追加します。
 
 `npm test`と`test:coverage`は既存のjsdomテスト（unit project）を実行します。
 Storybookは独立したbrowser projectとして実行し、`vitest.setup.ts`のAPIモックを流用しません。
