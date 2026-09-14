@@ -550,6 +550,8 @@ Found a bug or want to add a feature? Contributions are welcome.
 4. Add tests as needed
 5. Submit a pull request
 
+For frontend UI changes, follow the [Storybook change and review workflow](apps/web/STORYBOOK.md) to update the relevant stories and share verification results in your PR.
+
 ## Citation
 
 - 藤吉 弘亘. "AIと共に生きる時代における教育への生成 AI 活用：「藤吉 AI先生」". 情報処理学会 会誌「情報処理」 Vol.66, No.11 (2025).
