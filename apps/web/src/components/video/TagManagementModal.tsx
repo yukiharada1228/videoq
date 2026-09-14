@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -29,16 +29,37 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
   const { tags, deleteTag, deletingTagId, error: tagsError } = useTags();
   const isDeleting = deletingTagId !== null;
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const deleteButtons = useRef(new Map<number, HTMLButtonElement>());
+  const cancelDeleteRef = useRef<HTMLButtonElement>(null);
+  const previousConfirmId = useRef<number | null>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
 
   const dialog = useDialog({
     open: isOpen,
     onOpenChange: (open) => {
-      if (!open) onClose();
+      if (!open) {
+        dialog.dialogProps.ref.current?.close();
+        setDeleteConfirmId(null);
+        onClose();
+      }
     },
     onRequestClose: (event) => {
       if (isDeleting) event.preventDefault();
     },
   });
+
+  useEffect(() => {
+    if (deleteConfirmId !== null) cancelDeleteRef.current?.focus();
+    else if (previousConfirmId.current !== null) {
+      const target = deleteButtons.current.get(previousConfirmId.current) ?? dialog.headingProps.ref.current;
+      target?.focus();
+    }
+    previousConfirmId.current = deleteConfirmId;
+  }, [deleteConfirmId, dialog.headingProps.ref]);
+
+  useEffect(() => {
+    if (tagsError && !isDeleting) errorRef.current?.focus();
+  }, [tagsError, isDeleting]);
 
   const handleDelete = async (id: number) => {
     try {
@@ -68,7 +89,7 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
           {/* Outside the scrolling list on purpose: a failure on a tag further
               down would otherwise be reported off screen. */}
           {tagsError ? (
-            <div className="mb-4">
+            <div ref={errorRef} tabIndex={-1} className="mb-4 focus-visible:outline-4 focus-visible:outline-black focus-visible:outline-offset-2">
               <ErrorMessage message={tagsError} />
             </div>
           ) : null}
@@ -83,18 +104,18 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
                 {tags.map((tag) => (
                   <div
                     key={tag.id}
-                    className="flex items-center justify-between rounded-8 border border-solid-gray-200 bg-solid-gray-50 p-3"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-8 border border-solid-gray-200 bg-solid-gray-50 p-3"
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 flex-1 basis-40 items-center gap-2">
                       <TagBadge tag={tag} size="sm" />
                     </div>
 
                     {deleteConfirmId === tag.id ? (
-                      <div className="flex items-center gap-2">
+                      <div className="ml-auto flex shrink-0 items-center gap-2">
                         <Button
                           variant="solid"
                           size="sm"
-                          className="bg-error-1 hover:bg-red-1000 active:bg-red-1200"
+                          className="whitespace-nowrap bg-error-1 hover:bg-red-1000 active:bg-red-1200"
                           onClick={() => handleDelete(tag.id)}
                           disabled={isDeleting}
                           aria-busy={deletingTagId === tag.id}
@@ -104,8 +125,10 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
                           {t('common.actions.delete', 'Delete')}
                         </Button>
                         <Button
+                          ref={cancelDeleteRef}
                           variant="text"
                           size="sm"
+                          className="whitespace-nowrap"
                           onClick={() => setDeleteConfirmId(null)}
                           disabled={isDeleting}
                           data-testid={`cancel-delete-${tag.id}`}
@@ -115,13 +138,17 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
                       </div>
                     ) : (
                       <Button
+                        ref={(node) => {
+                          if (node) deleteButtons.current.set(tag.id, node);
+                          else deleteButtons.current.delete(tag.id);
+                        }}
                         variant="text"
                         size="sm"
                         className="min-w-9 px-2 text-solid-gray-600 hover:text-error-1"
                         onClick={() => setDeleteConfirmId(tag.id)}
                         disabled={isDeleting}
                         data-testid={`delete-tag-${tag.id}`}
-                        aria-label={t('common.actions.delete', 'Delete')}
+                        aria-label={`${t('common.actions.delete', 'Delete')}: ${tag.name}`}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

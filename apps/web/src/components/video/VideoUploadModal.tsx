@@ -28,6 +28,8 @@ interface VideoUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUploadSuccess?: () => void;
+  /** null keeps the success result open until the user closes it. */
+  autoCloseDelayMs?: number | null;
 }
 
 /**
@@ -38,7 +40,7 @@ interface VideoUploadModalProps {
  * after a successful upload. Submitting the form delegates to the upload hook and passes the
  * optional `onUploadSuccess` callback.
  */
-export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUploadModalProps) {
+export function VideoUploadModal({ isOpen, onClose, onUploadSuccess, autoCloseDelayMs = 2000 }: VideoUploadModalProps) {
   const {
     sourceMode,
     file,
@@ -76,13 +78,6 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
     await createTag(name, color);
   }, [createTag]);
 
-  const handleClose = useCallback(() => {
-    if (!isUploading) {
-      reset();
-      onClose();
-    }
-  }, [isUploading, onClose, reset]);
-
   const dialog = useDialog({
     open: isOpen,
     onOpenChange: (open) => {
@@ -93,14 +88,23 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
     },
   });
 
+  const handleClose = useCallback(() => {
+    if (!isUploading) {
+      dialog.dialogProps.ref.current?.close();
+      reset();
+      setIsCreateDialogOpen(false);
+      onClose();
+    }
+  }, [isUploading, onClose, reset, dialog.dialogProps.ref]);
+
   useEffect(() => {
-    if (success) {
+    if (isOpen && success && autoCloseDelayMs !== null) {
       const timer = setTimeout(() => {
         handleClose();
-      }, 2000);
+      }, autoCloseDelayMs);
       return () => clearTimeout(timer);
     }
-  }, [success, handleClose]);
+  }, [isOpen, success, autoCloseDelayMs, handleClose]);
 
   if (!isOpen) return null;
 
@@ -116,7 +120,8 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
 
           <form
             onSubmit={(e) => {
-              handleSubmit(e, onUploadSuccess);
+              // The hook has already exposed mutation errors through `error`.
+              void handleSubmit(e, onUploadSuccess).catch(() => undefined);
             }}
           >
             <DialogBody>
@@ -130,6 +135,8 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess }: VideoUplo
                     <button
                       key={mode}
                       type="button"
+                      disabled={isUploading}
+                      aria-pressed={sourceMode === mode}
                       onClick={() => setSourceMode(mode)}
                       className={`flex-1 px-3 py-2 text-sm font-semibold transition-colors ${
                         sourceMode === mode

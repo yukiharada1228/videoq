@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { VideoUploadModal } from '../VideoUploadModal'
 import { useVideoUpload } from '@/hooks/useVideoUpload'
 
@@ -46,6 +46,72 @@ describe('VideoUploadModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     ;(useVideoUpload as any).mockReturnValue(baseHook)
+  })
+
+  afterEach(() => { vi.useRealTimers() })
+
+  it('disables source switching and prevents Escape while uploading', () => {
+    vi.mocked(useVideoUpload).mockReturnValue({ ...baseHook, progress: 46, isUploading: true })
+    const onClose = vi.fn()
+    render(<VideoUploadModal isOpen onClose={onClose} />)
+    expect(screen.getByRole('button', { name: 'videos.upload.modes.file' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'videos.upload.modes.youtube' })).toBeDisabled()
+    fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }))
+    expect(onClose).not.toHaveBeenCalled()
+    expect(baseHook.reset).not.toHaveBeenCalled()
+  })
+
+  it('closes the native dialog and resets exactly once after the default two seconds', () => {
+    vi.useFakeTimers()
+    vi.mocked(useVideoUpload).mockReturnValue({ ...baseHook, progress: 100, success: true })
+    const onClose = vi.fn()
+    render(<VideoUploadModal isOpen onClose={onClose} />)
+    const dialog = screen.getByRole('dialog') as HTMLDialogElement
+    act(() => vi.advanceTimersByTime(1999))
+    expect(onClose).not.toHaveBeenCalled()
+    act(() => vi.advanceTimersByTime(1))
+    expect(dialog.open).toBe(false)
+    expect(baseHook.reset).toHaveBeenCalledTimes(1)
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps success open when auto close is disabled and permits manual close', () => {
+    vi.useFakeTimers()
+    vi.mocked(useVideoUpload).mockReturnValue({ ...baseHook, progress: 100, success: true })
+    const onClose = vi.fn()
+    render(<VideoUploadModal isOpen onClose={onClose} autoCloseDelayMs={null} />)
+    act(() => vi.advanceTimersByTime(10000))
+    expect(onClose).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'common.actions.cancel' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('cancels the success timer when hidden or unmounted', () => {
+    vi.useFakeTimers()
+    vi.mocked(useVideoUpload).mockReturnValue({ ...baseHook, progress: 100, success: true })
+    const onClose = vi.fn()
+    const { rerender, unmount } = render(<VideoUploadModal isOpen onClose={onClose} />)
+    act(() => vi.advanceTimersByTime(1000))
+    rerender(<VideoUploadModal isOpen={false} onClose={onClose} />)
+    act(() => vi.advanceTimersByTime(2000))
+    expect(onClose).not.toHaveBeenCalled()
+    rerender(<VideoUploadModal isOpen onClose={onClose} />)
+    unmount()
+    act(() => vi.advanceTimersByTime(2000))
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('handles a rejected upload without closing or calling the success callback', async () => {
+    const handleSubmit = vi.fn().mockRejectedValue(new Error('Upload failed'))
+    vi.mocked(useVideoUpload).mockReturnValue({ ...baseHook, progress: 0, handleSubmit })
+    const onClose = vi.fn()
+    const onUploadSuccess = vi.fn()
+    const { container } = render(<VideoUploadModal isOpen onClose={onClose} onUploadSuccess={onUploadSuccess} />)
+    fireEvent.submit(container.querySelector('form')!)
+    await waitFor(() => expect(handleSubmit).toHaveBeenCalledTimes(1))
+    expect(onClose).not.toHaveBeenCalled()
+    expect(onUploadSuccess).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
   it('shows file upload fields by default', () => {
