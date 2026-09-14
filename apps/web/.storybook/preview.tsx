@@ -1,11 +1,13 @@
 import type { Preview } from '@storybook/react-vite';
 import { I18nextProvider } from 'react-i18next';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { mswLoader } from 'msw-storybook-addon/csf3';
 import i18n from '../src/i18n/config';
 import '../src/index.css';
 
 const preview: Preview = {
   tags: ['autodocs'],
+  loaders: [mswLoader()],
   globalTypes: {
     locale: {
       description: '表示言語 / Language',
