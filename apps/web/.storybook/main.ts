@@ -7,7 +7,11 @@ const packagePath = (name: string) => dirname(fileURLToPath(import.meta.resolve(
 
 const config: StorybookConfig = {
   stories: ['../src/**/*.stories.@(ts|tsx)'],
-  addons: ['@storybook/addon-docs', '@storybook/addon-a11y', '@storybook/addon-vitest'].map(packagePath),
+  staticDirs: ['./public'],
+  addons: [
+    ...['@storybook/addon-docs', '@storybook/addon-a11y', '@storybook/addon-vitest'].map(packagePath),
+    'msw-storybook-addon',
+  ],
   framework: {
     name: packagePath('@storybook/react-vite'),
     options: {

@@ -34,6 +34,7 @@ npm run test:storybook     # Chromiumで全ストーリーとplayの操作を検
 ツールバーで日本語／英語とMobile（390px）／Desktop（1280px）を切り替えられます。
 カタログにはチャットの回答・本文・検索進捗・入力欄、動画アップロードのフォーム・ボタン、
 認証フォーム・入力欄、エラー・通知バナー、読み込み状態、確認ダイアログ・トーストを収録しています。
+動画カード・一覧、タグバッジ・選択・絞り込み、処理状態バッジも、件数やタグの量を固定して確認できます。
 Controlsでpropsを変更でき、Actionsで送信・評価・動画引用・確認結果などのコールバックを確認できます。
 フォームの入力はストーリー内の状態に反映し、送信しても認証・アップロード・AIへの通信は発生しません。
 
@@ -46,6 +47,11 @@ Controlsでpropsを変更でき、Actionsで送信・評価・動画引用・確
 ストーリーは対象コンポーネントと同じディレクトリの`*.stories.tsx`に追加します。
 共有データは`.storybook/fixtures/`に置き、API由来の型には`import type`を使います。
 画像・動画が必要な場合も小さな固定のローカルfixtureを使い、外部メディアに依存させません。
+動画カードは`.storybook/fixtures/media/`の2秒のWebMを使用し、YouTubeの固定IDのサムネイル要求を
+MSWで捕捉してローカルのSVGを返します。`HoverPreview`で動画の再生・停止、`YouTube`で画像の読み込みを検証します。
+MSWはStorybook専用の`.storybook/public/mockServiceWorker.js`を使用します。MSW更新時は
+`npm exec --workspace @videoq/web -- msw init .storybook/public --save`でworkerも更新してください。
+メディアモックの設定は[Storybookのネットワークモック手順](https://storybook.js.org/docs/writing-stories/mocking-data-and-modules/mocking-network-requests)に従います。
 翻訳は実際のアプリの辞書・CSSを使用します。入力する文やサンプル回答は固定データなので、言語切替で自動翻訳されません。
 
 共通decoratorはMemoryRouterとI18nextProviderを用意します。

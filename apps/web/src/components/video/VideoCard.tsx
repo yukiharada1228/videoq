@@ -6,7 +6,6 @@ import type { VideoInCourse, VideoList as VideoListType } from '@/lib/api';
 import { apiClient } from '@/lib/api';
 import { formatDate, getStatusChipColor, getStatusLabel } from '@/lib/utils/video';
 import { Link } from '@/lib/i18n';
-import { useParams } from 'react-router-dom';
 import { TagBadge } from './TagBadge';
 import { ChipLabel } from '@/components/ui/chip-label';
 import { cn } from '@/lib/digital-agency/cn';
@@ -161,8 +160,7 @@ function VideoThumbnail({
 }
 
 export function VideoCard({ video, showLink = true, className = '', onClick }: VideoCardProps) {
-  const { locale } = useParams<{ locale: string }>();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const handleMouseEnter = useCallback(() => {
@@ -194,7 +192,7 @@ export function VideoCard({ video, showLink = true, className = '', onClick }: V
           {video.title}
         </p>
         <p className="mt-1 text-dns-14N-130 text-solid-gray-600">
-          {formatDate(video.uploaded_at, 'full', locale || 'en')}
+          {formatDate(video.uploaded_at, 'full', i18n.language)}
         </p>
         {'tags' in video && video.tags && video.tags.length > 0 ? (
           <div className="mt-2 flex flex-wrap gap-1">
