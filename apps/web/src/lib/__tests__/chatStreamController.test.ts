@@ -163,6 +163,34 @@ describe('ChatStreamController', () => {
     expect(controller.getSnapshot().queuedContent).toBe('')
   })
 
+  it('ignores progress-only events such as searching', async () => {
+    const rendered: string[] = []
+    const onError = vi.fn()
+    const onDone = vi.fn()
+    const controller = new ChatStreamController({
+      onAppendContent: (text) => rendered.push(text),
+      onDone,
+      onError,
+    })
+
+    controller.start()
+    controller.handleEvent({ type: 'searching', query: 'pgvector' })
+    // 未知の種別（API が先にデプロイされた場合）もエラーにしない。
+    controller.handleEvent({ type: 'noop' } as unknown as Parameters<
+      typeof controller.handleEvent
+    >[0])
+    controller.handleEvent({ type: 'content_chunk', text: 'ABC' })
+    controller.handleEvent({ type: 'done', chat_log_id: 1, feedback: null })
+
+    const completion = controller.complete()
+    await vi.advanceTimersByTimeAsync(24)
+    await completion
+
+    expect(onError).not.toHaveBeenCalled()
+    expect(rendered.join('')).toBe('ABC')
+    expect(onDone).toHaveBeenCalledTimes(1)
+  })
+
   it('cleans up the drain timer on dispose', async () => {
     const rendered: string[] = []
     const controller = new ChatStreamController({

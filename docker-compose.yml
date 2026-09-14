@@ -84,6 +84,8 @@ services:
       - ./packages/trpc:/workspace/packages/trpc:ro
       - api_node_modules:/workspace/node_modules
       - api_workspace_node_modules:/workspace/apps/api/node_modules
+      # npm ci also updates workspace-local dependencies beneath the read-only source mount.
+      - api_trpc_node_modules:/workspace/packages/trpc/node_modules
     command: ["scripts/docker-migrate.sh"]
     depends_on:
       postgres:
@@ -124,6 +126,7 @@ services:
       - ./packages/trpc:/workspace/packages/trpc:ro
       - api_node_modules:/workspace/node_modules
       - api_workspace_node_modules:/workspace/apps/api/node_modules
+      - api_trpc_node_modules:/workspace/packages/trpc/node_modules
     depends_on:
       postgres:
         condition: service_healthy
@@ -215,6 +218,7 @@ services:
       - ./packages/trpc:/workspace/packages/trpc:ro
       - web_node_modules:/workspace/node_modules
       - web_workspace_node_modules:/workspace/apps/web/node_modules
+      - web_trpc_node_modules:/workspace/packages/trpc/node_modules
     depends_on:
       - api
     networks:
@@ -249,8 +253,10 @@ volumes:
   caddy_config:
   api_node_modules:
   api_workspace_node_modules:
+  api_trpc_node_modules:
   web_node_modules:
   web_workspace_node_modules:
+  web_trpc_node_modules:
 
 networks:
   videoq-network:

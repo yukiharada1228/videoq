@@ -205,11 +205,32 @@ const SQS_ENV = {
   AWS_SECRET_ACCESS_KEY: "secret",
 };
 
-/** 埋め込み → チャット生成の順で応答するスタブ。 */
+const jsonBody = (body: unknown) =>
+  new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+
+const SEARCH_TOOL_CALL = {
+  id: "call_search_1",
+  type: "function",
+  function: {
+    name: "search_scenes",
+    arguments: JSON.stringify({ query: "scene" }),
+  },
+};
+
+/**
+ * ReAct を含むチャット生成のスタブ。
+ * tools 付き かつ まだツール結果が無い要求には search_scenes の呼び出しを返し、
+ * 次の要求（ツール結果あり）で回答本文を返す。
+ */
 function stubOpenAi(opts: {
   stream?: boolean;
   content?: string;
   failAfterFirstChunk?: boolean;
+  failOllamaEmbedding?: boolean;
+  preamble?: string;
 }) {
   const requests: { url: string; body: Record<string, unknown>; raw: string }[] = [];
   vi.stubGlobal("fetch", async (input: string | Request, init?: RequestInit) => {
@@ -230,17 +251,60 @@ function stubOpenAi(opts: {
       return new Response("<MessageId>m-1</MessageId>", { status: 200 });
     }
     if (url.endsWith("/embeddings")) {
-      return new Response(JSON.stringify({ data: [{ embedding: [0.1, 0.2] }] }), {
-        status: 200,
-      });
+      if (url.endsWith("/api/embeddings")) {
+        if (opts.failOllamaEmbedding) throw new TypeError("Ollama connection refused");
+        return jsonBody({ embedding: [0.1, 0.2] });
+      }
+      return jsonBody({ data: [{ embedding: [0.1, 0.2] }] });
     }
+
+    const enc = new TextEncoder();
+    const messages = (body.messages ?? []) as { role?: string }[];
+    if (Array.isArray(body.tools) && !messages.some((m) => m.role === "tool")) {
+      if (!opts.stream) {
+        return jsonBody({
+          choices: [
+            {
+              finish_reason: "tool_calls",
+              message: { role: "assistant", content: opts.preamble ?? null, tool_calls: [SEARCH_TOOL_CALL] },
+            },
+          ],
+        });
+      }
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            if (opts.preamble) {
+              controller.enqueue(enc.encode(
+                `data: ${JSON.stringify({ choices: [{ delta: { role: "assistant", content: opts.preamble } }] })}\n\n`,
+              ));
+            }
+            controller.enqueue(
+              enc.encode(
+                `data: ${JSON.stringify({
+                  choices: [
+                    {
+                      delta: {
+                        role: "assistant",
+                        tool_calls: [{ index: 0, ...SEARCH_TOOL_CALL }],
+                      },
+                    },
+                  ],
+                })}\n\n`,
+              ),
+            );
+            controller.enqueue(enc.encode("data: [DONE]\n\n"));
+            controller.close();
+          },
+        }),
+        { status: 200, headers: { "content-type": "text/event-stream" } },
+      );
+    }
+
     const text = opts.content ?? "Answer [1].";
     if (!opts.stream) {
-      return new Response(JSON.stringify({ choices: [{ message: { content: text } }] }), {
-        status: 200,
-      });
+      return jsonBody({ choices: [{ message: { role: "assistant", content: text } }] });
     }
-    const enc = new TextEncoder();
     if (opts.failAfterFirstChunk) {
       let pullCount = 0;
       return new Response(
@@ -263,10 +327,14 @@ function stubOpenAi(opts: {
     return new Response(
       new ReadableStream<Uint8Array>({
         start(controller) {
-          for (const part of [text.slice(0, 3), text.slice(3)]) {
+          for (const [i, part] of [text.slice(0, 3), text.slice(3)].entries()) {
             controller.enqueue(
               enc.encode(
-                `data: ${JSON.stringify({ choices: [{ delta: { content: part } }] })}\n\n`,
+                `data: ${JSON.stringify({
+                  choices: [
+                    { delta: i === 0 ? { role: "assistant", content: part } : { content: part } },
+                  ],
+                })}\n\n`,
               ),
             );
           }
@@ -455,13 +523,23 @@ describe("POST /messages（非ストリーミング）", () => {
     ]);
     expect(String(search.sql)).toMatch(/user_id = \$1 AND video_id = ANY\(\$2\)/);
 
-    // プロンプトは ja ロケール + course_context + 参照シーンを含む
-    const chat = requests.find((r) => r.url.endsWith("/chat/completions"))!;
-    const messages = chat.body.messages as { role: string; content: string }[];
-    expect(messages[0].content).toContain("# 講座情報");
-    expect(messages[0].content).toContain("Course about pgvector");
-    expect(messages[0].content).toContain("[1] Video A 00:00:10 - 00:00:20\nscene text A");
-    expect(messages[1]).toEqual({ role: "user", content: "何が起きた?" });
+    // system プロンプトは ja ロケール + course_context + 検索ツールの指示
+    const chatRequests = requests.filter((r) => r.url.endsWith("/chat/completions"));
+    const first = chatRequests[0].body.messages as { role: string; content: string }[];
+    expect(first[0].content).toContain("# 講座情報");
+    expect(first[0].content).toContain("Course about pgvector");
+    expect(first[0].content).toContain("# シーン検索");
+    expect(first[1]).toEqual({ role: "user", content: "何が起きた?" });
+    expect(
+      (chatRequests[0].body.tools as { function: { name: string } }[]).map(
+        (t) => t.function.name,
+      ),
+    ).toEqual(["search_scenes"]);
+
+    // 参照シーンは 2 通目でツール結果として渡る（[N] 付き）
+    const second = chatRequests[1].body.messages as { role: string; content: string }[];
+    const toolMessage = second.find((m) => m.role === "tool")!;
+    expect(toolMessage.content).toContain("[1] Video A 00:00:10 - 00:00:20\nscene text A");
 
     // ChatLog は citations（id なし）と retrieved_contexts を保存
     const insert = calls.find((c) => c.sql.includes("chat_logs") && c.sql.includes("returning"))!;
@@ -660,6 +738,47 @@ describe("POST /messages（非ストリーミング）", () => {
   });
 });
 
+describe.each([false, true])("Ollama 検索障害の利用枠返却（stream=%s）", (stream) => {
+  it("エラーを返し、通常回答の保存・完了通知を行わず利用枠を返す", async () => {
+    const requests = stubOpenAi({ stream, failOllamaEmbedding: true, preamble: "調べますね。" });
+    const res = await post(
+      stream ? "/messages/stream" : "/messages",
+      { messages: [{ role: "user", content: "scene" }], course_id: 3 },
+      {
+        token: await accessToken(),
+        env: {
+          ...OPENAI_ENV,
+          EMBEDDING_PROVIDER: "ollama",
+          EMBEDDING_MODEL: "qwen3-embedding:0.6b",
+          OLLAMA_BASE_URL: "http://127.0.0.1:11434",
+        },
+      },
+    );
+
+    if (stream) {
+      const events = sseEvents(await res.text());
+      expect(events.at(-1)).toEqual({
+        type: "error",
+        code: "LLM_PROVIDER_ERROR",
+        message: "An internal server error occurred.",
+      });
+      expect(events.some((event) => event.type === "content_chunk" || event.type === "done"))
+        .toBe(false);
+    } else {
+      expect(res.status).toBe(500);
+      expect(await trpcError(res)).toEqual({
+        code: "INTERNAL_ERROR",
+        message: "An internal server error occurred.",
+      });
+    }
+    expect(requests.some((request) => request.url.endsWith("/api/embeddings"))).toBe(true);
+    expect(calls.filter((call) => call.sql.includes("GREATEST")).map((call) => call.args))
+      .toEqual([["00000000-0000-4000-8000-000000000005", QUOTA_PERIOD_START]]);
+    expect(calls.some((call) => call.sql.includes("chat_logs") && call.sql.includes("returning")))
+      .toBe(false);
+  });
+});
+
 describe("POST /messages/stream（SSE）", () => {
   it("バリデーション失敗は非ストリームと同じ {error:{code,message,details}}", async () => {
     const res = await post(
@@ -702,7 +821,7 @@ describe("POST /messages/stream（SSE）", () => {
   });
 
   it("チャンク → done（citations 付き）の順で流す", async () => {
-    stubOpenAi({ stream: true, content: "Hello!" });
+    stubOpenAi({ stream: true, content: "Hello!", preamble: "調べますね。" });
     const res = await post(
       "/messages/stream",
       { messages: [{ role: "user", content: "hi" }], course_id: 3 },
@@ -715,6 +834,9 @@ describe("POST /messages/stream（SSE）", () => {
     expect(res.headers.get("x-accel-buffering")).toBe("no");
 
     expect(sseEvents(await res.text())).toEqual([
+      // 検索ラウンドの間はトークンが出ないので、進行中であることを先に伝える
+      { type: "searching", query: "scene", search_id: 1 },
+      { type: "search_completed", query: "scene", search_id: 1, result_count: 1 },
       { type: "content_chunk", text: "Hel" },
       { type: "content_chunk", text: "lo!" },
       {

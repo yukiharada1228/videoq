@@ -578,6 +578,13 @@
   },
   "chat": {
     "generating": "Generating a response",
+    "progress": {
+      "preparing": "Reviewing your question",
+      "checkingVideos": "Checking lecture videos",
+      "searched": "Searched lecture videos",
+      "interrupted": "Response interrupted",
+      "details": "Search activity"
+    },
     "title": "Chat",
     "teacher": "Teacher",
     "newConsultation": "New chat",

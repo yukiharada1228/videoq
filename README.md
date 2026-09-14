@@ -251,7 +251,7 @@ docker compose restart worker
 **Pull a model:**
 
 ```bash
-ollama pull qwen3:0.6b
+ollama pull qwen3-vl:8b-instruct
 ```
 
 **Configure VideoQ:**
@@ -259,15 +259,23 @@ ollama pull qwen3:0.6b
 Edit `.env`:
 
 ```bash
-LLM_PROVIDER=ollama
-LLM_MODEL=qwen3:0.6b
-OLLAMA_BASE_URL=http://host.docker.internal:11434
+OPENAI_API_KEY=ollama
+OPENAI_BASE_URL=http://host.docker.internal:11434/v1
+LLM_MODEL=qwen3-vl:8b-instruct
 ```
 
-Restart the API and worker:
+Chat uses Ollama's [OpenAI-compatible API](https://docs.ollama.com/api/openai-compatibility)
+through ChatOpenAI. Course QA requires a model with tool calling support.
+`LLM_PROVIDER` is no longer used. Embeddings have their own settings below;
+`OPENAI_API_KEY=ollama` is a placeholder for local Ollama and cannot authenticate to OpenAI.
+
+For `npm run dev:api` outside Docker, put these values in `apps/api/.dev.vars`
+and use `OPENAI_BASE_URL=http://127.0.0.1:11434/v1`.
+
+Recreate the API container to load the updated `.env`:
 
 ```bash
-docker compose restart api worker
+docker compose up -d --force-recreate api
 ```
 
 </details>
@@ -290,12 +298,17 @@ EMBEDDING_PROVIDER=ollama
 EMBEDDING_MODEL=qwen3-embedding:0.6b
 EMBEDDING_VECTOR_SIZE=1024
 OLLAMA_BASE_URL=http://host.docker.internal:11434
+WORKER_OLLAMA_BASE_URL=http://host.docker.internal:11434
 ```
 
-Restart the API and worker:
+For `npm run dev:api` outside Docker, set the embedding values in
+`apps/api/.dev.vars` and use `OLLAMA_BASE_URL=http://127.0.0.1:11434`.
+The API and indexing worker must use the same embedding model and dimensions.
+
+Recreate the API and worker containers to load the updated `.env`:
 
 ```bash
-docker compose restart api worker
+docker compose up -d --force-recreate api worker
 ```
 
 **Important:** If you switch embedding providers or dimensions, re-index existing videos from the Admin UI.

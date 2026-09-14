@@ -1,6 +1,7 @@
 import { PGEngine, PGVectorStore } from "@yukiharada1228/langchain-postgres";
 import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 import pg from "pg";
+import { embedQuery } from "../lib/embeddings";
 import type { Bindings } from "../types/bindings";
 
 const ALLOWED_TABLES = new Set(["scene_embeddings"]);
@@ -24,18 +25,17 @@ export type SceneHit = {
 export const RETRIEVER_K = 20;
 
 /**
- * searchScenes は呼び出し側で計算済みの埋め込みベクトルを渡す
- * （similaritySearchVectorWithScore）ため、PGVectorStore.initialize が
- * 要求する Embeddings は実際には呼び出されない。
+ * 検索クエリの埋め込みは EMBEDDING_PROVIDER（openai / ollama）の切り替えを持つ
+ * lib/embeddings.ts に一本化する。インデックス作成は worker 側の責務なので、
+ * embedDocuments は API からは呼ばれない。
  */
-const unsupportedEmbeddings: EmbeddingsInterface = {
-  embedDocuments(): Promise<number[][]> {
-    throw new Error("embedDocuments is unused: searchScenes only queries by precomputed vector.");
-  },
-  embedQuery(): Promise<number[]> {
-    throw new Error("embedQuery is unused: searchScenes only queries by precomputed vector.");
-  },
-};
+function sceneEmbeddings(env: Bindings): EmbeddingsInterface {
+  return {
+    embedQuery: (text: string) => embedQuery(env, text),
+    embedDocuments: (texts: string[]) =>
+      Promise.all(texts.map((text) => embedQuery(env, text))),
+  };
+}
 
 function parseMetadataColumn(rows: Array<Record<string, unknown>>): void {
   for (const row of rows) {
@@ -80,20 +80,30 @@ function withMetadataParsing(pool: pg.Pool): pg.Pool {
   return pool;
 }
 
-export async function searchScenes(
-  env: Bindings,
-  params: {
-    userId: string;
-    videoIds: readonly number[];
-    embedding: readonly number[];
-    k?: number;
-  },
-): Promise<SceneHit[]> {
-  const table = resolveVectorTable(env);
-  const k = params.k ?? RETRIEVER_K;
-  if (params.videoIds.length === 0) return [];
+const text = (v: unknown) => (typeof v === "string" ? v : v == null ? "" : String(v));
 
-  // 重要（要件 §11.4 / PoC #01d）: Pool もリクエストごとに生成し、
+/**
+ * リクエストスコープのシーン検索ハンドル。
+ * ReAct は 1 リクエスト内で複数回検索するため、engine / store は開きっぱなしにして
+ * 使い回し、呼び出し側が finally で close する。
+ */
+export type SceneSearch = {
+  /** 検索スコープは open 時に固定される（LLM にフィルタを選ばせない）。 */
+  search(query: string, k?: number): Promise<SceneHit[]>;
+  close(): Promise<void>;
+};
+
+export async function openSceneSearch(
+  env: Bindings,
+  params: { userId: string; videoIds: readonly number[] },
+): Promise<SceneSearch> {
+  const table = resolveVectorTable(env);
+  const filter = {
+    user_id: params.userId,
+    video_id: { $in: [...params.videoIds] },
+  };
+
+  // 重要（要件 §11.4 / PoC #01d）: Pool はリクエストごとに生成し、
   // リクエストをまたいで使い回さない（max: 1 で実質 pg.Client 相当）。
   const pool = withMetadataParsing(
     new pg.Pool({
@@ -102,27 +112,27 @@ export async function searchScenes(
     }),
   );
   const engine = PGEngine.fromPool(pool);
+  let store: PGVectorStore;
   try {
-    const store = await PGVectorStore.initialize(engine, unsupportedEmbeddings, table, {
+    store = await PGVectorStore.initialize(engine, sceneEmbeddings(env), table, {
       metadataColumns: ["user_id", "video_id"],
     });
-    const hits = await store.similaritySearchVectorWithScore(
-      [...params.embedding],
-      k,
-      {
-        user_id: params.userId,
-        video_id: { $in: [...params.videoIds] },
-      },
-    );
-    const text = (v: unknown) => (typeof v === "string" ? v : v == null ? "" : String(v));
-    return hits.map(([doc]) => ({
-      content: doc.pageContent ?? "",
-      videoId: Number(doc.metadata?.video_id),
-      videoTitle: text(doc.metadata?.video_title),
-      startTime: text(doc.metadata?.start_time),
-      endTime: text(doc.metadata?.end_time),
-    }));
-  } finally {
+  } catch (error) {
     await engine.close();
+    throw error;
   }
+
+  return {
+    async search(query: string, k = RETRIEVER_K): Promise<SceneHit[]> {
+      const hits = await store.similaritySearchWithScore(query, k, filter);
+      return hits.map(([doc]) => ({
+        content: doc.pageContent ?? "",
+        videoId: Number(doc.metadata?.video_id),
+        videoTitle: text(doc.metadata?.video_title),
+        startTime: text(doc.metadata?.start_time),
+        endTime: text(doc.metadata?.end_time),
+      }));
+    },
+    close: () => engine.close(),
+  };
 }

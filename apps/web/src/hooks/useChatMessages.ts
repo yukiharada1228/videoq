@@ -1,9 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { apiClient, ApiError, type Citation } from '@/lib/api';
 import { trpc } from '@/lib/trpc';
+import { createChatProgress, updateChatProgress, type ChatProgress } from '@/lib/chatProgress';
 import {
   ChatStreamController,
   type ChatStreamDoneEvent,
@@ -21,6 +22,8 @@ export interface Message {
   citations?: Citation[];
   chatLogId?: number;
   feedback?: ChatFeedbackValue;
+  /** Actual tool activity for this turn; kept locally with the answer. */
+  progress?: ChatProgress;
 }
 
 interface UseChatMessagesOptions {
@@ -38,6 +41,7 @@ interface UseChatMessagesReturn {
   feedbackUpdatingId: number | null;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   messagesContainerRef: React.RefObject<HTMLDivElement | null>;
+  handleMessagesScroll: () => void;
   handleSend: () => Promise<void>;
   handleKeyPress: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   handleFeedback: (chatLogId: number, value: 'good' | 'bad') => Promise<ChatFeedbackValue | undefined>;
@@ -73,6 +77,7 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const sendInFlightRef = useRef(false);
+  const followLatestRef = useRef(true);
 
   useEffect(() => {
     tRef.current = t;
@@ -115,7 +120,13 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
       }
 
       const updated = [...prev];
-      updated[updated.length - 1] = { role: 'assistant', content };
+      const last = updated[updated.length - 1];
+      updated[updated.length - 1] = {
+        role: 'assistant', content,
+        ...(last.progress ? { progress: updateChatProgress(last.progress, {
+          type: 'error', code: 'STREAM_FAILED', message: '',
+        }) } : {}),
+      };
       return updated;
     });
   }, []);
@@ -143,12 +154,22 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
     [appendAssistantContent, applyDoneMetadata, handleStreamError],
   );
 
-  // Auto-scroll on new messages
-  useEffect(() => {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+  const handleMessagesScroll = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (container) {
+      followLatestRef.current = container.scrollHeight - container.scrollTop - container.clientHeight <= 48;
     }
-  }, [messages]);
+  }, []);
+
+  // Follow growing answers before paint, but leave readers where they scrolled.
+  // Tool status changes alone must not move the conversation.
+  const lastMessage = messages.at(-1);
+  useLayoutEffect(() => {
+    const container = messagesContainerRef.current;
+    if (container && followLatestRef.current) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }, [messages.length, lastMessage?.content, lastMessage?.chatLogId, isLoading]);
 
   useEffect(() => {
     return () => {
@@ -171,8 +192,11 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
     ].slice(-12);
 
     sendInFlightRef.current = true;
+    followLatestRef.current = true;
     streamController.start();
-    setMessages((prev) => [...prev, userMessage, { role: 'assistant', content: '' }]);
+    setMessages((prev) => [...prev, userMessage, {
+      role: 'assistant', content: '', progress: createChatProgress(),
+    }]);
     setInput('');
     setIsLoading(true);
 
@@ -190,6 +214,13 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
           : {}),
         mode,
       })) {
+        setMessages((prev) => {
+          const last = prev.at(-1);
+          if (!last?.progress) return prev;
+          const progress = updateChatProgress(last.progress, event);
+          if (progress === last.progress) return prev;
+          return [...prev.slice(0, -1), { ...last, progress }];
+        });
         streamController.handleEvent(event);
         if (event.type === 'error') {
           return;
@@ -262,6 +293,7 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
     feedbackUpdatingId,
     messagesEndRef,
     messagesContainerRef,
+    handleMessagesScroll,
     handleSend,
     handleKeyPress,
     handleFeedback,

@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { generateReply, streamReply } from "../src/lib/llm";
+import { generateReply, streamReply, LLM_STREAM_TIMEOUT_MS } from "../src/lib/llm";
+import { stalledChatResponse } from "./helpers/stalled-chat-response";
 import { embedQuery, toVectorLiteral } from "../src/lib/embeddings";
 import { LlmConfigurationError, LlmProviderError } from "../src/lib/openai";
 import type { Bindings } from "../src/types/bindings";
@@ -27,9 +28,58 @@ const sseResponse = (frames: string[]) =>
     { status: 200, headers: { "content-type": "text/event-stream" } },
   );
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe("LLM 呼び出し（ChatOpenAI 相当）", () => {
+  it.each(["local-codex-model", "gpt-5.4-pro"])(
+    "%s でも通常応答・ストリームを /chat/completions に送る", async (model) => {
+      const urls: string[] = [];
+      vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
+        urls.push(String(url));
+        const body = JSON.parse(String(init.body));
+        expect(body.model).toBe(model);
+        return body.stream
+          ? sseResponse([
+              'data: {"choices":[{"delta":{"role":"assistant","content":"answer"}}]}\n\n',
+              "data: [DONE]\n\n",
+            ])
+          : jsonResponse({ choices: [{ message: { role: "assistant", content: "answer" } }] });
+      });
+      const env = { ...ENV, LLM_MODEL: model };
+      expect(await generateReply(env, "SYS", "Q")).toBe("answer");
+      const parts: string[] = [];
+      for await (const text of streamReply(env, "SYS", "Q")) parts.push(text);
+      expect(parts.join("")).toBe("answer");
+      expect(urls).toEqual(Array(2).fill("https://openai.test/v1/chat/completions"));
+    },
+  );
+
+  it.each(["deadline", "client"])("本文受信中も %s による中断を上流へ伝播する", async (source) => {
+    const deadline = new AbortController();
+    const client = new AbortController();
+    const timeout = vi.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
+    let upstream: AbortSignal | undefined;
+    const reading = Promise.withResolvers<void>();
+    vi.stubGlobal("fetch", async (_url: string, init: RequestInit) => {
+      upstream = init.signal!;
+      return stalledChatResponse(upstream, reading.resolve);
+    });
+    const parts: string[] = [];
+    const consume = (async () => {
+      for await (const text of streamReply(ENV, "SYS", "Q", client.signal)) parts.push(text);
+    })();
+    const rejected = expect(consume).rejects.toThrow();
+    await reading.promise;
+    if (source === "deadline") deadline.abort(new DOMException("deadline reached", "TimeoutError"));
+    else client.abort();
+    await rejected;
+    expect(upstream?.aborted).toBe(true);
+    expect(timeout).toHaveBeenCalledWith(LLM_STREAM_TIMEOUT_MS);
+  });
+
   it("非ストリーミングは gpt-4o-mini / temperature 0 / max_tokens 1024 で system+user のみ送る", async () => {
     const calls: { url: string; init: RequestInit }[] = [];
     vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
@@ -45,6 +95,7 @@ describe("LLM 呼び出し（ChatOpenAI 相当）", () => {
       model: "gpt-4o-mini",
       temperature: 0,
       max_tokens: 1024,
+      stream: false,
       messages: [
         { role: "system", content: "SYS" },
         { role: "user", content: "Q?" },
@@ -119,6 +170,26 @@ describe("LLM 呼び出し（ChatOpenAI 相当）", () => {
 });
 
 describe("埋め込み生成", () => {
+  it("Ollama は専用エンドポイントとモデルを使い、OpenAI キーを必要としない", async () => {
+    vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
+      expect(url).toBe("http://127.0.0.1:11434/api/embeddings");
+      expect(JSON.parse(String(init.body))).toEqual({
+        model: "qwen3-embedding:0.6b",
+        prompt: "hello",
+      });
+      expect(new Headers(init.headers).has("authorization")).toBe(false);
+      return jsonResponse({ embedding: [0.5, -0.25, 0] });
+    });
+
+    await expect(embedQuery({
+      ...ENV,
+      OPENAI_API_KEY: "",
+      EMBEDDING_PROVIDER: "ollama",
+      EMBEDDING_MODEL: "qwen3-embedding:0.6b",
+      OLLAMA_BASE_URL: "http://127.0.0.1:11434/",
+    }, "hello")).resolves.toEqual([0.5, -0.25, 0]);
+  });
+
   it("text-embedding-3-small に単一テキストを送り、pgvector リテラル化できる", async () => {
     let sent: Record<string, unknown> = {};
     vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {

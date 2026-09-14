@@ -139,6 +139,9 @@ export interface ChatRequest {
 
 export type ChatStreamEvent =
   | { type: 'content_chunk'; text: string }
+  /** RAG がシーン検索を開始した。回答トークンはまだ流れない。 */
+  | { type: 'searching'; query: string; search_id?: number }
+  | { type: 'search_completed'; query: string; search_id: number; result_count: number }
   | {
       type: 'done';
       chat_log_id: number | null;

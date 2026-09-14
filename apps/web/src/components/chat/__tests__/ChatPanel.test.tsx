@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { ChatPanel } from '../ChatPanel'
 import { apiClient } from '@/lib/api'
 
@@ -545,7 +545,7 @@ describe('ChatPanel', () => {
     })
   })
 
-  it('shows a typing indicator in the bubble until the first token arrives', async () => {
+  it('shows preparation status in the bubble until the first token arrives', async () => {
     let releaseFirstChunk: () => void = () => {}
     const firstChunkGate = new Promise<void>((resolve) => {
       releaseFirstChunk = resolve
@@ -567,7 +567,8 @@ describe('ChatPanel', () => {
     // The live region must carry the text itself: an aria-label would give it a
     // name but leave a screen reader with nothing to announce.
     const indicator = await screen.findByRole('status')
-    expect(within(indicator).getByText('chat.generating')).toBeInTheDocument()
+    expect(indicator).toHaveTextContent('chat.progress.preparing')
+    expect(screen.getByText('chat.progress.preparing', { selector: 'span' })).toBeVisible()
 
     await act(async () => {
       releaseFirstChunk()
@@ -600,6 +601,7 @@ describe('ChatPanel', () => {
     // answer is still being generated.
     await waitFor(() => {
       expect(screen.queryByText('chat.generating')).not.toBeInTheDocument()
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
     })
   })
 
