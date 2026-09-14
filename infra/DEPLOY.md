@@ -2,8 +2,8 @@
 
 ## 本番構成
 
-- frontend: Cloudflare Pages
-- Web API: Cloudflare Workers（Hono）
+- frontend: Cloudflare Pages `videoq-web`（`apps/web`、公開URL: `https://videoq.jp`）
+- Web API: Cloudflare Workers `videoq-api`（`apps/api`、Hono）
 - DB: Neon PostgreSQL + Hyperdrive
 - object storage: Cloudflare R2
 - async queue: Amazon SQS
@@ -94,6 +94,11 @@ Google Cloud Console の OAuth Web クライアントに Authorized redirect URI
 Cookie session は `sameSite=lax` です。frontend と API を同一サイト（例: `videoq.jp` + `/api`）で配信してください。オリジン分離する場合は cookie 属性の見直しが必要です。
 
 ## 3. API deploy
+
+本番Worker名は `videoq-api`、開発用は `videoq-api-dev` です。
+既存Workerを改名するときは、Cloudflare dashboardで既存サービスの名前を変更してから
+`wrangler.jsonc` を更新します。設定の名前だけを変えてdeployすると別Workerを作成するため、
+Durable Objectの保存データを引き継げません。改名後はrouteとbindingの維持を確認してください。
 
 `main` への CI 成功後、CD が `apps/api` の変更を検知すると
 `wrangler deploy --minify --env production` を実行します
@@ -264,6 +269,7 @@ Pages project:
 
 | 項目 | 値 |
 |---|---|
+| project name | `videoq-web` |
 | root directory | `/`（repository root） |
 | build command | `npm ci && npm run build --workspace @videoq/web` |
 | output | `apps/web/dist` |

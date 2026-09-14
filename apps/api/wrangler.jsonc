@@ -12,9 +12,9 @@
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  // 本番は `env.production` の `backend-hono`。名前を分けておかないと
+  // 本番は `env.production` の `videoq-api`。名前を分けておかないと
   // `--env production` を付け忘れた `wrangler deploy` が本番を上書きする。
-  "name": "backend-hono-dev",
+  "name": "videoq-api-dev",
   // このトップレベル設定は `wrangler dev` 専用。`--env production` を付け忘れた
   // deploy が公開URLを持たないよう workers.dev を閉じる。ENVIRONMENT が
   // "development" のまま到達可能になると、テスト用認証ヘッダの経路が開く。
@@ -92,7 +92,7 @@
 
   "env": {
     "production": {
-      "name": "backend-hono",
+      "name": "videoq-api",
       // 公開経路は下の routes だけ。workers.dev を開けると CORS も
       // Cookie ドメインも効かない第二の入口ができてしまう。
       "workers_dev": false,
