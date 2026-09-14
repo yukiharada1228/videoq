@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { ChatPanel } from '../ChatPanel'
 import { apiClient } from '@/lib/api'
 
