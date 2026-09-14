@@ -442,6 +442,16 @@ export async function streamChatMessage(
             if ("text" in chunk) {
               content += chunk.text;
               await send({ type: "content_chunk", text: chunk.text });
+            } else if ("searching" in chunk) {
+              // 検索ラウンドの間はトークンが流れないので、進行中であることだけ伝える。
+              await send({ type: "searching", query: chunk.searching, search_id: chunk.searchId });
+            } else if ("searchCompleted" in chunk) {
+              await send({
+                type: "search_completed",
+                search_id: chunk.searchCompleted.id,
+                query: chunk.searchCompleted.query,
+                result_count: chunk.searchCompleted.count,
+              });
             } else {
               final = chunk.final;
             }

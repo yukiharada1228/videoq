@@ -16,6 +16,7 @@ type LocaleSection = {
   rules?: unknown;
   section_titles?: Record<string, string>;
   reference?: Record<string, string>;
+  agent?: { instructions?: unknown };
 };
 
 type PromptRoot = Record<string, Record<string, LocaleSection>>;
@@ -133,14 +134,16 @@ export function resolveOpeningQuestion(
   return text;
 }
 
-/** locale、参照情報、講座文脈から system prompt を構築する。 */
-export function buildSystemPrompt(
-  locale?: string | null,
-  references?: readonly string[],
-  courseContext?: string | null,
-): string {
-  const config = resolveLocaleSection("rag", locale) as LocaleSection;
-
+/**
+ * header / course_context / rules / format までの共通部分を組み立てる。
+ * 末尾（参照シーン or 検索の指示）だけが呼び出し側で変わる。
+ */
+function buildPromptBase(
+  config: LocaleSection,
+  courseContext: string | null | undefined,
+  /** header テンプレート内の {reference_label} に差し込む末尾セクション名。 */
+  referenceLabel: string,
+): { lines: string[]; sectionTitles: Record<string, string> } {
   const headerTemplate = requireText(config.header, "header");
   const role = requireText(config.role, "role");
   const background = requireText(config.background, "background");
@@ -151,11 +154,9 @@ export function buildSystemPrompt(
     throw new Error("Prompt rules must be a list of strings.");
   }
   const sectionTitles = config.section_titles ?? {};
-  const reference = config.reference ?? {};
 
   const rulesLabel = sectionTitles.rules ?? "# Rules";
   const formatLabel = sectionTitles.format ?? "# Format";
-  const referenceLabel = sectionTitles.reference ?? "# Reference Materials";
   const courseContextLabel = sectionTitles.course_context ?? "# Course Context";
 
   const header = formatTemplate(headerTemplate, {
@@ -180,8 +181,51 @@ export function buildSystemPrompt(
     lines.push("1. Follow common-sense safety best practices.");
   }
 
-  lines.push("", formatLabel, formatInstruction.trim(), "", referenceLabel);
-  lines.push(...referenceLines(reference, references));
+  lines.push("", formatLabel, formatInstruction.trim());
+
+  return { lines, sectionTitles };
+}
+
+/** locale、参照情報、講座文脈から system prompt を構築する。 */
+export function buildSystemPrompt(
+  locale?: string | null,
+  references?: readonly string[],
+  courseContext?: string | null,
+): string {
+  const config = resolveLocaleSection("rag", locale) as LocaleSection;
+  const referenceLabel = config.section_titles?.reference ?? "# Reference Materials";
+  const { lines } = buildPromptBase(config, courseContext, referenceLabel);
+
+  lines.push("", referenceLabel);
+  lines.push(...referenceLines(config.reference ?? {}, references));
+
+  return lines.join("\n");
+}
+
+/**
+ * ReAct エージェント用の system prompt。
+ * 参照シーンは実行前には決まらないので、代わりに検索ツールの使い方を指示する。
+ */
+export function buildAgentSystemPrompt(
+  locale?: string | null,
+  courseContext?: string | null,
+  maxSearches = 1,
+): string {
+  const config = resolveLocaleSection("rag", locale) as LocaleSection;
+  const searchLabel = config.section_titles?.search ?? "# Scene Search";
+  const { lines } = buildPromptBase(config, courseContext, searchLabel);
+
+  const instructions = config.agent?.instructions;
+  if (!Array.isArray(instructions) || instructions.some((i) => typeof i !== "string")) {
+    throw new Error("Prompt agent.instructions must be a list of strings.");
+  }
+
+  lines.push("", searchLabel);
+  lines.push(
+    ...(instructions as string[]).map((instruction) =>
+      formatTemplate(instruction, { max_searches: String(maxSearches) }),
+    ),
+  );
 
   return lines.join("\n");
 }

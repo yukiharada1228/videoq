@@ -1,68 +1,22 @@
-import {
-  DEFAULT_LLM_MODEL,
-  LlmProviderError,
-  openAiBaseUrl,
-  resolveOpenAiKey,
-  throwForResponse,
-} from "./openai";
-import type { Bindings } from "../types/bindings";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { createChatModel, toLlmError } from "./chat-model";
 import { deadlineSignal } from "./request-timeout";
+import type { Bindings } from "../types/bindings";
 
 /**
- * QA RAG の LLM 呼び出し。temperature=0.0、max_tokens=1024 を使う。
+ * QA RAG / PLOG の LLM 呼び出し。temperature=0.0、max_tokens=1024 を使う。
  * プロンプトは system + human の 2 通のみで、
  * 会話履歴は渡さない（`ChatPromptTemplate.from_messages([system, human])`）。
  */
-const MAX_TOKENS = 1024;
-const LLM_REQUEST_TIMEOUT_MS = 2 * 60_000;
-const LLM_STREAM_TIMEOUT_MS = 5 * 60_000;
+export const MAX_TOKENS = 1024;
+export const LLM_REQUEST_TIMEOUT_MS = 2 * 60_000;
+export const LLM_STREAM_TIMEOUT_MS = 5 * 60_000;
 /** GradeReply 用の max_tokens=256 設定。 */
 export const GRADING_MAX_TOKENS = 256;
 
-type ChatMessage = { role: "system" | "user"; content: string };
-
-function requestBody(
-  env: Bindings,
-  messages: ChatMessage[],
-  stream: boolean,
-  maxTokens: number,
-) {
-  return JSON.stringify({
-    model: env.LLM_MODEL || DEFAULT_LLM_MODEL,
-    messages,
-    temperature: 0,
-    max_tokens: maxTokens,
-    ...(stream ? { stream: true } : {}),
-  });
-}
-
-async function postChatCompletions(
-  env: Bindings,
-  messages: ChatMessage[],
-  stream: boolean,
-  signal?: AbortSignal,
-  maxTokens: number = MAX_TOKENS,
-): Promise<Response> {
-  const apiKey = resolveOpenAiKey(env, "OpenAI LLM");
-  const res = await fetch(`${openAiBaseUrl(env)}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${apiKey}`,
-    },
-    body: requestBody(env, messages, stream, maxTokens),
-    signal: deadlineSignal(
-      stream ? LLM_STREAM_TIMEOUT_MS : LLM_REQUEST_TIMEOUT_MS,
-      signal,
-    ),
-  });
-  if (!res.ok) await throwForResponse(res);
-  return res;
-}
-
-const promptMessages = (systemPrompt: string, queryText: string): ChatMessage[] => [
-  { role: "system", content: systemPrompt },
-  { role: "user", content: queryText },
+const promptMessages = (systemPrompt: string, queryText: string) => [
+  new SystemMessage(systemPrompt),
+  new HumanMessage(queryText),
 ];
 
 /** 非ストリーミング（`llm.invoke`）。回答本文だけを返す。 */
@@ -72,17 +26,16 @@ export async function generateReply(
   queryText: string,
   opts?: { maxTokens?: number },
 ): Promise<string> {
-  const res = await postChatCompletions(
-    env,
-    promptMessages(systemPrompt, queryText),
-    false,
-    undefined,
-    opts?.maxTokens ?? MAX_TOKENS,
-  );
-  const json = (await res.json()) as {
-    choices?: { message?: { content?: string | null } }[];
-  };
-  return json.choices?.[0]?.message?.content ?? "";
+  const model = createChatModel(env, {
+    maxTokens: opts?.maxTokens ?? MAX_TOKENS,
+    timeoutMs: LLM_REQUEST_TIMEOUT_MS,
+  });
+  try {
+    const message = await model.invoke(promptMessages(systemPrompt, queryText));
+    return message.text;
+  } catch (error) {
+    throw toLlmError(error);
+  }
 }
 
 /** GradeReply 用（max_tokens=256）。 */
@@ -95,8 +48,7 @@ export async function generateGradingReply(
 }
 
 /**
- * ストリーミング（`llm.stream`）。空でないテキスト差分のみを yield する
- * 文字列以外と空文字は破棄する。
+ * ストリーミング（`llm.stream`）。空でないテキスト差分のみを yield する。
  *
  * `signal` にはクライアント接続の中断シグナルを渡す。切断後も OpenAI からの
  * 受信を続けるとサーバー側キーの課金だけが進むため、上流ごと止める。
@@ -107,43 +59,23 @@ export async function* streamReply(
   queryText: string,
   signal?: AbortSignal,
 ): AsyncGenerator<string> {
-  const res = await postChatCompletions(
-    env,
-    promptMessages(systemPrompt, queryText),
-    true,
-    signal,
-  );
-  if (!res.body) throw new LlmProviderError("OpenAI stream response had no body.");
-
-  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
-  let buffer = "";
+  const model = createChatModel(env, {
+    maxTokens: MAX_TOKENS,
+    timeoutMs: LLM_STREAM_TIMEOUT_MS,
+  });
+  // SDK の timeout は SSE 本文の受信を保護しないため、受信完了まで期限を保つ。
+  const requestSignal = deadlineSignal(LLM_STREAM_TIMEOUT_MS, signal);
   try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += value;
-
-      // SSE フレームは空行区切り。行頭 "data: " のみ扱う（OpenAI は event 名を使わない）。
-      let sep: number;
-      while ((sep = buffer.indexOf("\n\n")) !== -1) {
-        const frame = buffer.slice(0, sep);
-        buffer = buffer.slice(sep + 2);
-        for (const line of frame.split("\n")) {
-          if (!line.startsWith("data:")) continue;
-          const payload = line.slice(5).trim();
-          if (payload === "" || payload === "[DONE]") continue;
-          let parsed: { choices?: { delta?: { content?: string | null } }[] };
-          try {
-            parsed = JSON.parse(payload);
-          } catch {
-            continue; // 壊れたストリームフレームは無視する。
-          }
-          const text = parsed.choices?.[0]?.delta?.content;
-          if (typeof text === "string" && text) yield text;
-        }
-      }
+    const stream = await model.stream(promptMessages(systemPrompt, queryText), {
+      signal: requestSignal,
+    });
+    for await (const chunk of stream) {
+      requestSignal.throwIfAborted();
+      if (chunk.text) yield chunk.text;
     }
-  } finally {
-    await reader.cancel().catch(() => {});
+    // SDK が中断を正常なストリーム終端として返す場合も成功にはしない。
+    requestSignal.throwIfAborted();
+  } catch (error) {
+    throw toLlmError(error);
   }
 }

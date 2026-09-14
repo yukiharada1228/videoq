@@ -39,6 +39,69 @@ describe('useChatMessages streaming', () => {
     globalThis.__setTrpcHandler('chat.feedback', setFeedback)
   })
 
+  it('follows answer growth only at the bottom and leaves tool-only updates in place', () => {
+    const { result } = renderHook(() => useChatMessages({ courseId: 18 }))
+    const container = document.createElement('div')
+    let height = 800
+    let top = 400
+    const scrollTo = vi.fn((value: number) => { top = Math.min(value, height - 400) })
+    Object.defineProperties(container, {
+      clientHeight: { get: () => 400 },
+      scrollHeight: { get: () => height },
+      scrollTop: { get: () => top, set: scrollTo },
+    })
+    result.current.messagesContainerRef.current = container
+
+    height = 900
+    act(() => result.current.setMessages([{ role: 'assistant', content: '回答の始まり' }]))
+    expect(top).toBe(500)
+
+    scrollTo.mockClear()
+    act(() => result.current.setMessages([{ role: 'assistant', content: '回答の始まり', progress: {
+      phase: 'searching', searches: [{ id: 1, query: '追加の検索', status: 'running' }],
+    } }]))
+    expect(scrollTo).not.toHaveBeenCalled()
+
+    // A reader scrolls away from the bottom while more answer text arrives.
+    top = 100
+    act(() => result.current.handleMessagesScroll())
+    height = 1000
+    act(() => result.current.setMessages([{ role: 'assistant', content: '回答の続き' }]))
+    expect(top).toBe(100)
+    expect(scrollTo).not.toHaveBeenCalled()
+
+    // Returning to the bottom resumes following subsequent content.
+    top = 600
+    act(() => result.current.handleMessagesScroll())
+    height = 1100
+    act(() => result.current.setMessages([{ role: 'assistant', content: '回答の終わり' }]))
+    expect(top).toBe(700)
+  })
+
+  it('updates progress before answer content and retains it with the finished message', async () => {
+    let resume!: () => void
+    const waiting = new Promise<void>((resolve) => { resume = resolve })
+    vi.mocked(apiClient.chatStream).mockImplementation(async function* () {
+      yield { type: 'searching', search_id: 1, query: 'ドモルガンの定理' }
+      await waiting
+      yield { type: 'search_completed', search_id: 1, query: 'ドモルガンの定理', result_count: 20 }
+      yield { type: 'content_chunk', text: '回答' }
+      yield { type: 'done', chat_log_id: 12, feedback: null }
+    })
+    const { result } = renderHook(() => useChatMessages({ courseId: 18 }))
+    act(() => { result.current.setInput('回路について') })
+    let sending: Promise<void>
+    act(() => { sending = result.current.handleSend() })
+    await waitFor(() => expect(result.current.messages.at(-1)?.progress?.phase).toBe('searching'))
+    expect(result.current.messages.at(-1)?.content).toBe('')
+    expect(result.current.messages.at(-1)?.progress?.searches[0].query).toBe('ドモルガンの定理')
+    await act(async () => { resume(); await sending! })
+    expect(result.current.messages.at(-1)).toMatchObject({
+      content: '回答', chatLogId: 12,
+      progress: { phase: 'complete', searches: [{ query: 'ドモルガンの定理', status: 'complete', resultCount: 20 }] },
+    })
+  })
+
   it('adds an empty assistant message immediately when sending', async () => {
     ;(apiClient.chatStream as any).mockImplementation(makeStreamMock([]))
 

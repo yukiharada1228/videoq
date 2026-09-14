@@ -42,6 +42,7 @@ export function ChatPanel({
     isLoading,
     feedbackUpdatingId,
     messagesContainerRef,
+    handleMessagesScroll,
     messagesEndRef,
     handleSend,
     handleKeyPress,
@@ -134,6 +135,7 @@ export function ChatPanel({
         <div className="px-4 py-2 border-b border-solid-gray-100 flex gap-2 shrink-0">
           <button
             type="button"
+            disabled={isLoading}
             onClick={() => switchMode('qa')}
             className={`text-dns-14B-120 px-3 py-1 transition-colors ${
               mode === 'qa'
@@ -145,6 +147,7 @@ export function ChatPanel({
           </button>
           <button
             type="button"
+            disabled={isLoading}
             onClick={() => switchMode('study')}
             className={`text-dns-14B-120 px-3 py-1 transition-colors ${
               mode === 'study'
@@ -172,6 +175,7 @@ export function ChatPanel({
             isLoading={isLoading}
             feedbackUpdatingId={feedbackUpdatingId}
             messagesContainerRef={messagesContainerRef}
+            onScroll={handleMessagesScroll}
             messagesEndRef={messagesEndRef}
             onVideoNavigate={navigateToVideo}
             onFeedback={handleFeedbackWithSync}

@@ -10,6 +10,7 @@
         "rules": "# Rules",
         "format": "# Format",
         "reference": "# Reference Scenes",
+        "search": "# Scene Search",
         "course_context": "# Course Context"
       },
       "rules": [
@@ -38,6 +39,16 @@
         "usage": "When answering factual or definitional questions, cite the relevant scenes inline in the form [N].",
         "footer": "Include a brief description of a scene only when it is needed to supplement the explanation.",
         "empty": "If no relevant scenes are provided, explicitly state that the content is outside the scope of the video materials and do not speculate."
+      },
+      "agent": {
+        "instructions": [
+          "Reference scenes are not given to you up front. Call the `search_scenes` tool to retrieve them from the user’s video course before you answer.",
+          "Always search at least once, even when you believe you already know the answer.",
+          "You may call the tool up to {max_searches} times in one answer. Use the extra calls to cover different aspects of the question: rephrase the question, split it into sub-questions, or search for the specific terms and synonyms it depends on.",
+          "Do not repeat a search with a query you have already used. Stop searching once the results are enough to answer.",
+          "Scenes come back numbered as [N]. The numbers are shared across every search in this answer, so keep using the number a scene was given when you cite it inline.",
+          "If every search comes back with nothing relevant, explicitly state that the content is outside the scope of the video materials and do not speculate."
+        ]
       }
     },
     "ja": {
@@ -50,6 +61,7 @@
         "rules": "# ルール",
         "format": "# 形式",
         "reference": "# 参照シーン",
+        "search": "# シーン検索",
         "course_context": "# 講座情報"
       },
       "rules": [
@@ -78,6 +90,16 @@
         "usage": "事実・定義に関する質問に回答する際は、関連シーンをインラインで [N] の形式で参照してください。",
         "footer": "説明を補足する場合のみ、シーンの簡単な説明を含めてください。",
         "empty": "関連シーンが提供されていない場合は、その内容が動画教材の範囲外であることを明示し、推測は行わないでください。"
+      },
+      "agent": {
+        "instructions": [
+          "参照シーンは最初から与えられていません。回答する前に `search_scenes` ツールを呼び出し、ユーザーの講座からシーンを取得してください。",
+          "すでに答えがわかると思う場合でも、必ず 1 回以上検索してください。",
+          "1 回の回答につき最大 {max_searches} 回までツールを呼び出せます。追加の呼び出しは質問の別の側面を埋めるために使ってください（質問の言い換え、下位の問いへの分割、前提となる用語や同義語での検索など）。",
+          "すでに使ったクエリで再検索しないでください。回答に十分な結果が得られた時点で検索をやめてください。",
+          "シーンは [N] の番号付きで返ります。番号はこの回答内のすべての検索で共通なので、引用する際は、そのシーンに与えられた番号をそのまま使ってください。",
+          "すべての検索で関連するシーンが得られなかった場合は、その内容が動画教材の範囲外であることを明示し、推測は行わないでください。"
+        ]
       }
     }
   },

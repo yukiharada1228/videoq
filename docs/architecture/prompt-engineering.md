@@ -32,10 +32,11 @@ Study mode は PLOG の concept graph と learning object を使います。
 | 変数 | 用途 |
 |---|---|
 | `LLM_MODEL` | 回答・PLOG 生成モデル |
+| `OPENAI_BASE_URL` | チャット用 OpenAI 互換 API（Ollama は `/v1` を指定） |
 | `EMBEDDING_PROVIDER` | `openai` / `ollama` |
 | `EMBEDDING_MODEL` | query / scene embedding model |
 | `EMBEDDING_VECTOR_SIZE` | `scene_embeddings.embedding` の次元 |
-| `OLLAMA_BASE_URL` | local provider endpoint |
+| `OLLAMA_BASE_URL` | Ollama 埋め込み用 endpoint（`/v1` なし） |
 
 prompt の組み立ては API の chat / PLOG service、offline PLOG build は
 `apps/worker/worker_python/pipeline/` を参照してください。

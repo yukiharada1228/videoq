@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Message } from '@/hooks/useChatMessages';
 import { MessageBody } from '@/components/chat/MessageBody';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
+import { ChatProgressView } from '@/components/chat/ChatProgressView';
 import { Button } from '@/components/ui/button';
 
 interface ChatMessageBubbleProps {
@@ -35,12 +36,18 @@ export function ChatMessageBubble({
 
   return (
     <div className="flex flex-col items-start gap-1">
-      <div className="max-w-[90%] space-y-2 border border-solid-gray-420 border-l-4 border-l-key-900 bg-white p-4 text-std-16N-170">
+      <div className="w-[90%] space-y-2 border border-solid-gray-420 border-l-4 border-l-key-900 bg-white p-4 text-std-16N-170">
         <div className="mb-1 flex items-center gap-2 text-dns-14B-120 font-bold text-key-900">
           <BookOpen className="h-3.5 w-3.5" />
           AI {t('chat.teacher')}
         </div>
-        {isAwaitingResponse && message.content === '' ? (
+        {message.progress && (
+          <ChatProgressView
+            progress={message.progress}
+            waitingForAnswer={isAwaitingResponse && message.content.trim() === ''}
+          />
+        )}
+        {isAwaitingResponse && message.content === '' && !message.progress ? (
           <TypingIndicator />
         ) : (
           <MessageBody

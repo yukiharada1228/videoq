@@ -63,13 +63,19 @@ export function chatStreamReducer(
           streamFinished: true,
         };
       }
-      return {
-        ...state,
-        queuedContent: '',
-        doneEvent: null,
-        errorEvent: action.event,
-        streamFinished: true,
-      };
+      if (action.event.type === 'error') {
+        return {
+          ...state,
+          queuedContent: '',
+          doneEvent: null,
+          errorEvent: action.event,
+          streamFinished: true,
+        };
+      }
+      // 検索の進行状況は useChatMessages 側で扱う。本文の描画キューは変更しない。
+      // 未知のイベント種別をエラー扱いにすると、API が先にデプロイされた時に
+      // 正常な応答がエラー表示になる。
+      return state;
     case 'stream_finished':
       return {
         ...state,
@@ -142,6 +148,8 @@ export class ChatStreamController {
       this.tryFinalizeDrain();
       return;
     }
+
+    if (event.type !== 'error') return; // searching など進行状況のみのイベント
 
     this.stopDrainTimer();
     this.flushDrainWaiters();

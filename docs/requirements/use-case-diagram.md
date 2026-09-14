@@ -212,7 +212,7 @@ graph TB
 - **UC42 利用量・利用枠確認**: ホーム画面でストレージ・月間処理時間・月間AI回答数の使用量と、管理者が設定した上限値を確認
 
 **注記:**
-- LLMとエンベディングの設定は環境変数（`LLM_PROVIDER`、`LLM_MODEL`、`EMBEDDING_PROVIDER`、`EMBEDDING_MODEL`）でグローバルに管理されます。
+- LLMとエンベディングの設定は環境変数（`OPENAI_BASE_URL`、`LLM_MODEL`、`EMBEDDING_PROVIDER`、`EMBEDDING_MODEL`）でグローバルに管理されます。
 - サインアップは `ENABLE_SIGNUP` で制御されます。無効時は Better Auth のメールサインアップが拒否されます。
 - ローカル whisper.cpp サーバー（WHISPER_BACKEND=whisper.cpp）使用時は、文字起こしにOpenAI APIキーは不要です。
 - 再インデックスはサーバー側の `OPENAI_API_KEY` または `OLLAMA_BASE_URL`（`EMBEDDING_PROVIDER` に依存）を使用し、エンベディングプロバイダー（OpenAI ↔ Ollama）やモデルの切り替え時に必要です。
