@@ -5,6 +5,7 @@ import { ErrorMessage } from './ErrorMessage';
 const meta = {
   title: 'Auth/ErrorMessage',
   component: ErrorMessage,
+  parameters: { a11y: { test: 'error' } },
   args: { message: 'ユーザー名またはパスワードが正しくありません。' },
   decorators: [(Story) => <div className="max-w-xl"><Story /></div>],
 } satisfies Meta<typeof ErrorMessage>;

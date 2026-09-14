@@ -61,6 +61,7 @@ const meta = {
   title: 'Common/FeedbackProvider',
   component: FeedbackExample,
   parameters: {
+    a11y: { test: 'error' },
     layout: 'padded',
     docs: { description: { component: 'Router内で実際のFeedbackProviderとuseConfirm/useToastを使います。Canvasではplayが対象状態を開き、ボタンで繰り返し操作できます。通常の通知はdurationMs: 0で固定し、自動消去はAutoDismissだけで検証します。Controls変更時はProviderを作り直し、前の確認・通知を持ち越しません。' } },
   },
