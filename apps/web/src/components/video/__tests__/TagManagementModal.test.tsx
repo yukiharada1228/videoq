@@ -212,4 +212,34 @@ describe('TagManagementModal', () => {
         expect(screen.queryByText('Confirm?')).not.toBeInTheDocument()
         expect(mockDeleteTag).not.toHaveBeenCalled()
     })
+
+    it('focuses cancel when asking to delete and restores the original button on cancellation', () => {
+        render(<TagManagementModal isOpen onClose={vi.fn()} />)
+        fireEvent.click(screen.getByTestId('delete-tag-1'))
+        expect(screen.getByTestId('cancel-delete-1')).toHaveFocus()
+        fireEvent.click(screen.getByTestId('cancel-delete-1'))
+        expect(screen.getByRole('button', { name: 'Delete: Tag 1' })).toHaveFocus()
+    })
+
+    it('closes the native dialog and clears the confirmation before reopening', () => {
+        const onClose = vi.fn()
+        const { rerender } = render(<TagManagementModal isOpen onClose={onClose} />)
+        fireEvent.click(screen.getByTestId('delete-tag-1'))
+        const dialog = screen.getByRole('dialog') as HTMLDialogElement
+        fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+        expect(dialog.open).toBe(false)
+        expect(onClose).toHaveBeenCalledTimes(1)
+        rerender(<TagManagementModal isOpen={false} onClose={onClose} />)
+        rerender(<TagManagementModal isOpen onClose={onClose} />)
+        expect(screen.queryByTestId('confirm-delete-1')).not.toBeInTheDocument()
+    })
+
+    it('focuses a deletion error outside the list after the pending state ends', () => {
+        const { rerender } = render(<TagManagementModal isOpen onClose={vi.fn()} />)
+        fireEvent.click(screen.getByTestId('delete-tag-1'))
+        vi.mocked(useTags).mockReturnValue({ tags: mockTags, deleteTag: mockDeleteTag, deletingTagId: null, error: 'Failed to delete tag' } as ReturnType<typeof useTags>)
+        rerender(<TagManagementModal isOpen onClose={vi.fn()} />)
+        expect(screen.getByRole('alert').closest('[tabindex="-1"]')).toHaveFocus()
+        expect(screen.getByTestId('confirm-delete-1')).toBeEnabled()
+    })
 })
