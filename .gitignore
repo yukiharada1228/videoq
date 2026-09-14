@@ -21,6 +21,8 @@ dist
 .mypy_cache
 .coverage
 coverage
+storybook-static
+test-results
 # Playwright MCP の検証生成物（コンソールログ・スクリーンショット）
 .playwright-mcp/
 
