@@ -5,8 +5,8 @@ import previewViteConfig from './.storybook/vite.config';
 
 export default defineProject({
   resolve: previewViteConfig.resolve,
-  // SWC injects this import after dependency scanning; avoid reloading running tests.
-  optimizeDeps: { include: ['react/jsx-dev-runtime'] },
+  // Prebundle SWC's injected runtime and chart stories before browser tests start.
+  optimizeDeps: { include: ['react/jsx-dev-runtime', 'recharts'] },
   plugins: [storybookTest({ configDir: fileURLToPath(new URL('./.storybook', import.meta.url)) })],
   test: {
     name: 'storybook',

@@ -36,6 +36,7 @@ npm run test:storybook     # Chromiumで全ストーリーとplayの操作を検
 認証フォーム・入力欄、エラー・通知バナー、読み込み状態、確認ダイアログ・トーストを収録しています。
 動画カード・一覧、タグバッジ・選択・絞り込み、処理状態バッジも、件数やタグの量を固定して確認できます。
 チャット一覧・履歴は、長い会話、末尾だけの回答待ち、投稿者、評価の各状態、CSV出力中を収録しています。
+分析ダッシュボード・評価サマリー・時系列グラフ・フィードバック円グラフも、空データや値の偏りを再現できます。
 Controlsでpropsを変更でき、Actionsで送信・評価・動画引用・確認結果などのコールバックを確認できます。
 フォームの入力はストーリー内の状態に反映し、送信しても認証・アップロード・AIへの通信は発生しません。
 
@@ -51,6 +52,14 @@ Controlsでpropsを変更でき、Actionsで送信・評価・動画引用・確
 `Chat/ChatHistoryView`の日時は固定ISO文字列を閲覧環境のタイムゾーン・アプリの選択言語で表示します。
 `MissingMetrics`は未取得の指標と0%を区別し、`KeyboardExportAndCitation`はCSVと引用をキーボードで操作します。
 CSV出力はモックコールバックの記録のみで、ファイルはダウンロードしません。
+
+`Dashboard/`はAPI接続なしで固定日付・集計値を切り替えます。`EvaluationLoading`ではグラフを表示したまま評価のみ読み込み中にします。
+グラフの親に幅を設定し、実際の`ResponsiveContainer`で高さ220pxのSVGを描画します。
+`NarrowContainer`と`EnglishNarrow`は親幅280px、`NinetyDays`は90日分のデータを使用します。
+`KeyboardTooltip`はフォーカス後の矢印キー操作、時系列グラフではEnterでの開閉も検証します。
+円グラフのキーボード操作には[Recharts 3.8.1の修正](https://github.com/recharts/recharts/pull/7140)を使用します。
+`HoverTooltip`は円グラフのマウス操作、`AllZeroHidden`は全件0で非表示になることを確認します。
+初回のブラウザテスト中に依存の最適化で再読み込みされないよう、`vitest.storybook.ts`でRechartsを事前に最適化します。
 
 ストーリーは対象コンポーネントと同じディレクトリの`*.stories.tsx`に追加します。
 共有データは`.storybook/fixtures/`に置き、API由来の型には`import type`を使います。
