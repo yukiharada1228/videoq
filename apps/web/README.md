@@ -32,9 +32,16 @@ npm run test:storybook     # Chromiumで全ストーリーとplayの操作を検
 ```
 
 ツールバーで日本語／英語とMobile（390px）／Desktop（1280px）を切り替えられます。
-初期カタログはチャットの回答・本文・検索進捗・入力欄と、動画アップロードのフォーム・ボタンです。
-Controlsでpropsを変更でき、Actionsで送信・評価・動画引用などのコールバックを確認できます。
-フォームの入力はストーリー内の状態に反映し、送信してもアップロードやAIへの通信は発生しません。
+カタログにはチャットの回答・本文・検索進捗・入力欄、動画アップロードのフォーム・ボタン、
+認証フォーム・入力欄、エラー・通知バナー、読み込み状態、確認ダイアログ・トーストを収録しています。
+Controlsでpropsを変更でき、Actionsで送信・評価・動画引用・確認結果などのコールバックを確認できます。
+フォームの入力はストーリー内の状態に反映し、送信しても認証・アップロード・AIへの通信は発生しません。
+
+`Common/FeedbackProvider`は実際のProviderを使い、Canvasで確認ダイアログや通知を開きます。
+ボタンで再表示でき、Controlsで確認文言や通知の配列を変更すると状態をリセットします。
+通知は通常`durationMs: 0`で表示を保持し、`AutoDismiss`で1秒後の自動消去を確認します。
+`ConfirmWithKeyboard`、`CancelConfirmation`、`DismissWithKeyboard`は操作後の状態を表示します。
+フォームでは`KeyboardSubmit`と`KeyboardInput`で入力・フォーカス・送信を検証します。
 
 ストーリーは対象コンポーネントと同じディレクトリの`*.stories.tsx`に追加します。
 共有データは`.storybook/fixtures/`に置き、API由来の型には`import type`を使います。
