@@ -88,7 +88,7 @@ export const LongConversation: Story = {
     // scrollIntoView reveals the end marker, leaving the container's bottom padding below it.
     await waitFor(() => expect(scroller.lastElementChild!.getBoundingClientRect().bottom).toBeLessThanOrEqual(scroller.getBoundingClientRect().bottom));
     await expect(scroller.scrollTop).toBeGreaterThan(0);
-    await expect(args.onScroll).toHaveBeenCalled();
+    await waitFor(() => expect(args.onScroll).toHaveBeenCalled());
     await userEvent.click(canvas.getByRole('button', { name: '先頭へ' }));
     await waitFor(() => expect(scroller.scrollTop).toBe(0));
   },
