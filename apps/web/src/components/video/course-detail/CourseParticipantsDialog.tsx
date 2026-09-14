@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { CourseInviteRecipientResult } from '@videoq/trpc';
@@ -101,6 +101,9 @@ export function CourseParticipantsDialog({
   const removeMember = useMutation(trpc.courseMemberships.removeMember.mutationOptions());
   const [emailInput, setEmailInput] = useState('');
   const [inviteResults, setInviteResults] = useState<CourseInviteRecipientResult[]>([]);
+  const resultsRef = useRef<HTMLUListElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+  const [focusRequest, setFocusRequest] = useState<{ target: 'results' | 'error' | 'heading' } | null>(null);
   // メール送信はサーバー側のキューで進むので、送信直後だけ配送状態を追う。
   // 恒久的なポーリングにしないよう、追跡する期間を明示的に区切る。
   const [trackDeliveryUntil, setTrackDeliveryUntil] = useState(0);
@@ -125,6 +128,7 @@ export function CourseParticipantsDialog({
       setTrackDeliveryUntil(Date.now() + DELIVERY_POLL_WINDOW_MS);
       await refresh();
     },
+    onSettled: (_, error) => setFocusRequest({ target: error ? 'error' : 'results' }),
   });
   const resendMutation = useMutation({
     mutationFn: (invitationId: number) => resend.mutateAsync({ courseId, invitationId }),
@@ -132,14 +136,17 @@ export function CourseParticipantsDialog({
       setTrackDeliveryUntil(Date.now() + DELIVERY_POLL_WINDOW_MS);
       return refresh();
     },
+    onSettled: (_, error) => setFocusRequest({ target: error ? 'error' : 'heading' }),
   });
   const revokeMutation = useMutation({
     mutationFn: (invitationId: number) => revoke.mutateAsync({ courseId, invitationId }),
     onSuccess: refresh,
+    onSettled: (_, error) => setFocusRequest({ target: error ? 'error' : 'heading' }),
   });
   const removeMutation = useMutation({
     mutationFn: (userId: string) => removeMember.mutateAsync({ courseId, userId }),
     onSuccess: refresh,
+    onSettled: (_, error) => setFocusRequest({ target: error ? 'error' : 'heading' }),
   });
 
   const participants = participantsQuery.data;
@@ -159,11 +166,31 @@ export function CourseParticipantsDialog({
 
   const dialog = useDialog({
     open: isOpen,
-    onOpenChange,
+    onOpenChange: (open) => {
+      if (!open) closeDialog();
+    },
     onRequestClose: (event) => {
       if (inviteMutation.isPending) event.preventDefault();
     },
   });
+
+  const closeDialog = () => {
+    if (inviteMutation.isPending) return;
+    // Restore the opener's focus before the parent can unmount the dialog.
+    dialog.dialogProps.ref.current?.close();
+    setTrackDeliveryUntil(0);
+    onOpenChange(false);
+  };
+
+  useEffect(() => {
+    if (!focusRequest || !dialog.dialogProps.ref.current?.open) return;
+    const target = focusRequest.target === 'error' ? errorRef.current
+      : focusRequest.target === 'results' ? resultsRef.current
+        : dialog.headingProps.ref.current;
+    // Row actions can remove their own trigger. Focus the result only after
+    // the refreshed participants have arrived, and never reopen a closed dialog.
+    (target ?? dialog.headingProps.ref.current)?.focus();
+  }, [focusRequest, dialog.dialogProps.ref, dialog.headingProps.ref]);
   if (!isOpen) return null;
 
   const confirmRemoveMember = async (member: { user_id: string; username: string }) => {
@@ -205,7 +232,7 @@ export function CourseParticipantsDialog({
             padding mirrors DialogHeader / DialogBody so the banner lines up
             with the rest of the dialog at every breakpoint. */}
         {mutationError ? (
-          <div className="px-4 md:px-6">
+          <div ref={errorRef} tabIndex={-1} className="px-4 md:px-6 focus-visible:outline-4 focus-visible:outline-black focus-visible:outline-offset-2">
             <ErrorMessage message={mutationError instanceof Error ? mutationError.message : t('common.messages.error')} />
           </div>
         ) : null}
@@ -239,10 +266,10 @@ export function CourseParticipantsDialog({
                       {recipientPreview.map((recipient, index) => (
                         <li
                           key={`${recipient.email}-${index}`}
-                          className="flex justify-between gap-4 px-4 py-3"
+                          className="flex flex-wrap justify-between gap-x-4 gap-y-1 px-4 py-3"
                         >
-                          <span className="break-all">{recipient.email}</span>
-                          <span>
+                          <span className="min-w-0 max-w-full break-all">{recipient.email}</span>
+                          <span className="shrink-0">
                             {recipient.status === 'ready'
                               ? t('videos.courseMembers.preview.ready')
                               : t(`videos.courseMembers.result.${recipient.status}`)}
@@ -262,11 +289,11 @@ export function CourseParticipantsDialog({
                   {t('videos.courseMembers.invite')}
                 </Button>
                 {inviteResults.length > 0 ? (
-                  <ul className="divide-y divide-solid-gray-200 border border-solid-gray-300">
+                  <ul ref={resultsRef} tabIndex={-1} className="divide-y divide-solid-gray-200 border border-solid-gray-300 focus-visible:outline-4 focus-visible:outline-black focus-visible:outline-offset-2">
                     {inviteResults.map((result, index) => (
-                      <li key={`${result.email}-${index}`} className="flex justify-between gap-4 px-4 py-3">
-                        <span className="break-all">{result.email}</span>
-                        <span>{t(`videos.courseMembers.result.${result.status}`)}</span>
+                      <li key={`${result.email}-${index}`} className="flex flex-wrap justify-between gap-x-4 gap-y-1 px-4 py-3">
+                        <span className="min-w-0 max-w-full break-all">{result.email}</span>
+                        <span className="shrink-0">{t(`videos.courseMembers.result.${result.status}`)}</span>
                       </li>
                     ))}
                   </ul>
@@ -355,7 +382,7 @@ export function CourseParticipantsDialog({
           </DialogBody>
         </DialogScrollArea>
         <DialogActions>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" onClick={closeDialog} disabled={inviteMutation.isPending}>
             {t('common.actions.close')}
           </Button>
         </DialogActions>
