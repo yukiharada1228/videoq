@@ -54,14 +54,31 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const nextToastId = useRef(1);
 
+  const visibleConfirmRequest =
+    confirmRequest && confirmRequest.navigationKey === navigationKey
+      ? confirmRequest
+      : null;
+  const isConfirmOpen = !!visibleConfirmRequest;
+  const {
+    dialogProps: { ref: confirmDialogRef, 'aria-labelledby': confirmHeadingId },
+    headingProps,
+  } = useDialog({
+    open: isConfirmOpen,
+    onOpenChange: (open) => {
+      if (!open) resolveConfirm(false);
+    },
+  });
+
   const resolveConfirm = useCallback((confirmed: boolean) => {
     const current = activeConfirmRequest.current;
     if (!current) return;
 
+    // Close before unmounting so the native dialog restores the opener's focus.
+    confirmDialogRef.current?.close();
     activeConfirmRequest.current = null;
     setConfirmRequestState(null);
     current.resolve(confirmed);
-  }, []);
+  }, [confirmDialogRef]);
 
   const requestConfirmation = useCallback((options: ConfirmOptions | string) => {
     return new Promise<boolean>((resolve) => {
@@ -93,21 +110,6 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     }
   }, [navigationKey]);
 
-  const visibleConfirmRequest =
-    confirmRequest &&
-    confirmRequest.navigationKey === navigationKey
-      ? confirmRequest
-      : null;
-
-  const isConfirmOpen = !!visibleConfirmRequest;
-
-  const confirmDialog = useDialog({
-    open: isConfirmOpen,
-    onOpenChange: (open) => {
-      if (!open) resolveConfirm(false);
-    },
-  });
-
   const dismissToast = useCallback((id: number) => {
     setToasts((current) => current.filter((toast) => toast.id !== id));
   }, []);
@@ -138,10 +140,10 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
       {children}
 
       {isConfirmOpen && visibleConfirmRequest && (
-        <Dialog {...confirmDialog.dialogProps} width="min(28rem, 92vw)">
+        <Dialog ref={confirmDialogRef} aria-labelledby={confirmHeadingId} width="min(28rem, 92vw)">
           <DialogContent>
             <DialogHeader>
-              <DialogHeading {...confirmDialog.headingProps}>
+              <DialogHeading {...headingProps}>
                 {visibleConfirmRequest.options.title}
               </DialogHeading>
             </DialogHeader>

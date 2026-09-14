@@ -52,5 +52,28 @@ describe('FormField', () => {
     const input = screen.getByLabelText(/Username/) as HTMLInputElement
     expect(input.value).toBe('testuser')
   })
-})
 
+  it('describes the input with only the visible support or error text', () => {
+    const { rerender } = render(
+      <FormField {...defaultProps} supportText="Use at least 3 characters." />,
+    )
+    const input = screen.getByLabelText('Username')
+    expect(input).toHaveAccessibleDescription('Use at least 3 characters.')
+    expect(input).toHaveAttribute('aria-describedby', 'username-support')
+
+    rerender(
+      <FormField {...defaultProps} supportText="Use at least 3 characters." error="Username is already taken." />,
+    )
+    expect(input).toHaveAccessibleDescription('Username is already taken.')
+    expect(input).toHaveAttribute('aria-describedby', 'username-error')
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.queryByText('Use at least 3 characters.')).not.toBeInTheDocument()
+
+    rerender(<FormField {...defaultProps} supportText="Use at least 3 characters." />)
+    expect(input).toHaveAccessibleDescription('Use at least 3 characters.')
+    expect(input).not.toHaveAttribute('aria-invalid')
+
+    rerender(<FormField {...defaultProps} />)
+    expect(input).not.toHaveAttribute('aria-describedby')
+  })
+})

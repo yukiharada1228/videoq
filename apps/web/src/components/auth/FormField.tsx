@@ -45,7 +45,7 @@ export function FormField({
   const { t } = useTranslation();
   const shouldShowBadge = showRequirementBadge ?? (required || isOptional);
   const errorId = error ? `${id}-error` : undefined;
-  const supportId = supportText ? `${id}-support` : undefined;
+  const supportId = supportText && !error ? `${id}-support` : undefined;
   const describedBy = [errorId, supportId].filter(Boolean).join(' ') || undefined;
 
   return (
