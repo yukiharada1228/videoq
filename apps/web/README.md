@@ -35,6 +35,7 @@ npm run test:storybook     # Chromiumで全ストーリーとplayの操作を検
 カタログにはチャットの回答・本文・検索進捗・入力欄、動画アップロードのフォーム・ボタン、
 認証フォーム・入力欄、エラー・通知バナー、読み込み状態、確認ダイアログ・トーストを収録しています。
 動画カード・一覧、タグバッジ・選択・絞り込み、処理状態バッジも、件数やタグの量を固定して確認できます。
+チャット一覧・履歴は、長い会話、末尾だけの回答待ち、投稿者、評価の各状態、CSV出力中を収録しています。
 Controlsでpropsを変更でき、Actionsで送信・評価・動画引用・確認結果などのコールバックを確認できます。
 フォームの入力はストーリー内の状態に反映し、送信しても認証・アップロード・AIへの通信は発生しません。
 
@@ -43,6 +44,13 @@ Controlsでpropsを変更でき、Actionsで送信・評価・動画引用・確
 通知は通常`durationMs: 0`で表示を保持し、`AutoDismiss`で1秒後の自動消去を確認します。
 `ConfirmWithKeyboard`、`CancelConfirmation`、`DismissWithKeyboard`は操作後の状態を表示します。
 フォームでは`KeyboardSubmit`と`KeyboardInput`で入力・フォーカス・送信を検証します。
+
+`Chat/ChatMessagesView`はストーリーごとにスクロール用refとフィードバック状態を作成します。
+`LongConversation`の先頭・末尾ボタンで固定高の会話欄をスクロールでき、Controlsの`height`で高さを変更できます。
+`AwaitingLastResponse`は以前の空の回答に待機表示が出ないこと、`FeedbackUpdating`は更新対象だけの操作無効化を検証します。
+`Chat/ChatHistoryView`の日時は固定ISO文字列を閲覧環境のタイムゾーン・アプリの選択言語で表示します。
+`MissingMetrics`は未取得の指標と0%を区別し、`KeyboardExportAndCitation`はCSVと引用をキーボードで操作します。
+CSV出力はモックコールバックの記録のみで、ファイルはダウンロードしません。
 
 ストーリーは対象コンポーネントと同じディレクトリの`*.stories.tsx`に追加します。
 共有データは`.storybook/fixtures/`に置き、API由来の型には`import type`を使います。

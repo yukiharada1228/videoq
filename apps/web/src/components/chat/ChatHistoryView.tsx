@@ -87,13 +87,13 @@ function HistoryItem({
   item: ChatHistoryItem;
   onVideoNavigate: (videoId: number, startTime: string) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   return (
     <div className="space-y-3">
       <div className="flex justify-center">
         <ChipLabel variant="filled-1" color="gray" className="min-h-0 text-oln-14N-100">
-          {new Date(item.created_at).toLocaleString()}
+          {new Date(item.created_at).toLocaleString(i18n.language)}
         </ChipLabel>
       </div>
 
