@@ -328,10 +328,15 @@ export default function VideoLibraryPage() {
         onUploadSuccess={handleUploadSuccess}
       />
 
-      <TagManagementModal
-        isOpen={isTagManagementOpen}
-        onClose={() => setIsTagManagementOpen(false)}
-      />
+      {/* Mounted only while open, like CourseParticipantsDialog: otherwise the
+          modal's useTags state outlives the close and a failed delete's error
+          is still on screen the next time it is opened. */}
+      {isTagManagementOpen ? (
+        <TagManagementModal
+          isOpen={isTagManagementOpen}
+          onClose={() => setIsTagManagementOpen(false)}
+        />
+      ) : null}
     </AppPageShell>
   );
 }

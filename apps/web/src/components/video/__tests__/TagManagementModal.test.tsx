@@ -178,6 +178,31 @@ describe('TagManagementModal', () => {
         expect(screen.getByTestId('delete-tag-2')).not.toBeDisabled()
     })
 
+    it('should surface a tag operation error outside the scrollable list', () => {
+        ; (useTags as any).mockReturnValue({
+            tags: mockTags,
+            deleteTag: mockDeleteTag,
+            deletingTagId: null,
+            error: 'Failed to delete tag',
+        })
+
+        const { container } = render(<TagManagementModal isOpen={true} onClose={vi.fn()} />)
+
+        const alert = screen.getByRole('alert')
+        expect(alert).toHaveTextContent('Failed to delete tag')
+        // The tag list scrolls; an error placed inside it would be unreachable
+        // once the user has scrolled down to the tag they acted on.
+        const scrollArea = container.querySelector('.overflow-y-auto')
+        expect(scrollArea).not.toBeNull()
+        expect(scrollArea!.contains(alert)).toBe(false)
+    })
+
+    it('should not render an alert when there is no error', () => {
+        render(<TagManagementModal isOpen={true} onClose={vi.fn()} />)
+
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
     it('should cancel delete when cancel is clicked', () => {
         render(<TagManagementModal isOpen={true} onClose={vi.fn()} />)
 

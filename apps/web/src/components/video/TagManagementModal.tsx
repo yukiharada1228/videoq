@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
+import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import {
   Dialog,
   DialogActions,
@@ -24,7 +25,8 @@ interface TagManagementModalProps {
 
 export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps) {
   const { t } = useTranslation();
-  const { tags, deleteTag, deletingTagId } = useTags();
+  // Not `error`: handleDelete's catch clause would shadow it.
+  const { tags, deleteTag, deletingTagId, error: tagsError } = useTags();
   const isDeleting = deletingTagId !== null;
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
@@ -32,6 +34,9 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
     open: isOpen,
     onOpenChange: (open) => {
       if (!open) onClose();
+    },
+    onRequestClose: (event) => {
+      if (isDeleting) event.preventDefault();
     },
   });
 
@@ -59,6 +64,14 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
           <p className="mb-4 text-std-16N-170 text-solid-gray-700">
             {t('tags.management.description', 'Review existing tags and remove tags you no longer need.')}
           </p>
+
+          {/* Outside the scrolling list on purpose: a failure on a tag further
+              down would otherwise be reported off screen. */}
+          {tagsError ? (
+            <div className="mb-4">
+              <ErrorMessage message={tagsError} />
+            </div>
+          ) : null}
 
           <div className="max-h-[60vh] space-y-4 overflow-y-auto py-2">
             {tags.length === 0 ? (
@@ -122,7 +135,7 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
 
         <DialogActions>
           <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={onClose}>
+            <Button variant="outline" {...dialog.closeButtonProps} disabled={isDeleting}>
               {t('common.actions.close', 'Close')}
             </Button>
           </div>

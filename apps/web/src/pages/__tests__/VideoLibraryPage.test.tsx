@@ -45,9 +45,13 @@ vi.mock('@/hooks/useAuth', () => ({
   }),
 }))
 
+// The tag filter row — and the "manage tags" button inside it — only renders
+// when there is at least one tag, so tests that need it override this.
+const mockTags: { value: unknown[] } = { value: [] }
+
 vi.mock('@/hooks/useTags', () => ({
   useTags: () => ({
-    tags: [],
+    tags: mockTags.value,
   }),
 }))
 
@@ -72,8 +76,11 @@ vi.mock('@/components/video/VideoCard', () => ({
 }))
 
 vi.mock('@/components/video/TagManagementModal', () => ({
-  TagManagementModal: ({ isOpen }: { isOpen: boolean }) =>
-    isOpen ? <div data-testid="tag-modal" /> : null,
+  // The outer marker reports that the component is mounted at all, which is
+  // what decides whether its useTags state survives a close.
+  TagManagementModal: ({ isOpen }: { isOpen: boolean }) => (
+    <div data-testid="tag-modal-mounted">{isOpen ? <div data-testid="tag-modal" /> : null}</div>
+  ),
 }))
 
 describe('VideoLibraryPage', () => {
@@ -84,6 +91,7 @@ describe('VideoLibraryPage', () => {
     mockHasNextPage = false
     mockIsFetchingNextPage = false
     mockTotalCount = 4
+    mockTags.value = []
     globalThis.__setMockSearchParams('')
     globalThis.__getMockSetSearchParams().mockClear()
     mockUseVideos.mockImplementation(() => ({
@@ -114,6 +122,21 @@ describe('VideoLibraryPage', () => {
     render(<VideoLibraryPage />)
 
     expect(screen.getByText('videos.list.managingCount {"count":4}')).toBeInTheDocument()
+  })
+
+  it('mounts the tag management modal only while it is open', () => {
+    mockTags.value = [{ id: 1, name: 'Tag 1', color: 'red', video_count: 0 }]
+
+    render(<VideoLibraryPage />)
+
+    // Kept mounted, its useTags state — including a failed delete's error —
+    // would survive a close and greet the user again on reopen.
+    expect(screen.queryByTestId('tag-modal-mounted')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('videos.list.manageTags'))
+
+    expect(screen.getByTestId('tag-modal-mounted')).toBeInTheDocument()
+    expect(screen.getByTestId('tag-modal')).toBeInTheDocument()
   })
 
   it('should render upload button', () => {
