@@ -139,6 +139,10 @@ function sceneSearchTool(
       name: "search_scenes",
       description:
         "Search the scenes of the user's video course by meaning and return the closest ones. " +
+        "Required before answering definitions, explanations, comparisons, examples, calculations " +
+        "or summaries, including short terms and questions that do not explicitly mention the course. " +
+        "For course-wide content, call directly with video_ids omitted. For a specific video or lecture, " +
+        "first identify it with get_course_info and include its ID in video_ids on every search. " +
         "Pass a natural-language query describing what you need; it does not have to be the " +
         "user's question verbatim. Optionally select video_ids from get_course_info; omitting " +
         "them searches the whole current course. Scenes come back numbered as [N] for inline citation.",

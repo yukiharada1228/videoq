@@ -90,9 +90,17 @@ QAモードはReActで、アクセス確認済みの現在の講座を対象に�
 
 講座名・本数などはメタ情報だけで回答でき、この場合はベクトル検索の接続や埋め込みAPIを使いません。授業内容の説明では字幕を検索して `[N]` で引用します。メタ情報も回答評価用の `retrieved_contexts` に保存しますが、シーンの引用番号や時刻は付けません。
 
+定義・比較・具体例・計算・要約や「何を学べる？」は内容の質問として検索を指示します。用語だけの質問も同様です。講座全体の検索では `get_course_info` を経由せず `video_ids` を省略できます。「登録されている説明文を見せて」はメタ情報の取得依頼ですが、「講座の内容を要約して」では説明文の有無にかかわらず字幕を検索します。
+
 動画の `position` は1始まりの掲載位置、`order` は登録された並べ替え用の値です。タイトル中の「第7回」などの講義番号とは区別します。ツールを使うモデルターンは最大8回で、その後はツールを外して最終回答を生成します。ストリーム・非ストリームの両経路に対応します。
 
 検証: `test/rag-agent.test.ts`、`test/chat-send.test.ts`、`test/workers/rag-agent.test.ts`。実PostgreSQLでのページング・権限・動画絞り込みは `QUOTA_TEST_DATABASE_URL` を指定して `test/rag-course-info.integration.test.ts` を実行します。
+
+実モデルのツール選択は次の任意テストで検証します。`OPENAI_API_KEY`・`OPENAI_BASE_URL`・`LLM_MODEL` は環境変数、または `apps/api/.dev.vars` から読みます。LLM APIの利用料金が発生します。DBと検索結果は固定データを使い、説明文の有無、メタ情報のみ・内容・混合質問、日英、ストリーム・非ストリームを確認します。通常のCIでは実行しません。
+
+```bash
+RAG_SELECTION_LIVE=1 npm run test:unit --workspace @videoq/api -- test/rag-agent-selection.live.test.ts
+```
 
 ## データベース
 
