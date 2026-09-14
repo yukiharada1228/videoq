@@ -116,7 +116,7 @@ export const Deleting: Story = {
     context.canvas.getByRole('dialog').dispatchEvent(new Event('cancel', { cancelable: true }));
     await expect(context.canvas.getByRole('dialog')).toBeVisible();
     await expect(context.args.onClose).not.toHaveBeenCalled();
-    await expect(deleteRequest).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(deleteRequest).toHaveBeenCalledTimes(1));
   },
 };
 export const DeleteSucceeded: Story = { async play(context) {

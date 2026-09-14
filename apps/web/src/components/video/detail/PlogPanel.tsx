@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PlogConcept, PlogEdge, PlogGraph } from '@videoq/trpc';
 import { trpc } from '@/lib/trpc';
@@ -72,6 +72,12 @@ function listToLines(items: string[] | undefined): string {
   return (items ?? []).join('\n');
 }
 
+function PlogActionError({ message }: { message: string }) {
+  const ref = useRef<HTMLParagraphElement>(null);
+  useEffect(() => { ref.current?.focus(); }, []);
+  return <p ref={ref} role="alert" tabIndex={-1} className="mb-2 text-dns-14N-120 text-error-1 [overflow-wrap:anywhere] focus-visible:outline-4 focus-visible:outline-black focus-visible:outline-offset-2">{message}</p>;
+}
+
 export function PlogPanel({ videoId, enabled = true }: PlogPanelProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -94,9 +100,7 @@ export function PlogPanel({ videoId, enabled = true }: PlogPanelProps) {
     },
   }));
 
-  const invalidate = () => {
-    void queryClient.invalidateQueries(trpc.plog.graph.queryFilter(graphInput));
-  };
+  const invalidate = () => queryClient.invalidateQueries(trpc.plog.graph.queryFilter(graphInput));
 
   const rebuildMutation = useMutation({
     mutationFn: () => rebuild.mutateAsync({ videoId }),
@@ -252,6 +256,7 @@ export function PlogPanel({ videoId, enabled = true }: PlogPanelProps) {
     status === 'ready' || status === 'failed' ? t('plog.rebuild') : t('plog.build');
 
   const requestRebuild = () => {
+    if (isBusy || mutating) return;
     const hasGraph =
       status === 'ready' && (data?.concepts.length ?? 0) + (data?.edges.length ?? 0) > 0;
     if (hasGraph && !window.confirm(t('plog.rebuildConfirm'))) {
@@ -299,7 +304,7 @@ export function PlogPanel({ videoId, enabled = true }: PlogPanelProps) {
               variant="outline"
               size="sm"
               onClick={requestRebuild}
-              disabled={rebuildMutation.isPending}
+              disabled={isBusy || mutating}
             >
               {rebuildMutation.isPending ? <InlineSpinner /> : primaryActionLabel}
             </Button>
@@ -308,6 +313,7 @@ export function PlogPanel({ videoId, enabled = true }: PlogPanelProps) {
       </div>
 
       <div className="px-4 py-4">
+        {rebuildMutation.error && !rebuildMutation.isPending && <PlogActionError message={t('plog.failedTitle')} />}
         {isLoading && (
           <p className="text-dns-14N-120 text-solid-gray-560">{t('plog.loading')}</p>
         )}
@@ -560,6 +566,9 @@ function ConceptEditor({
   const [newLabel, setNewLabel] = useState('');
   const [newType, setNewType] = useState<string>('object');
   const [newIntro, setNewIntro] = useState('0');
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const closeDetail = () => { setExpandedId(null); headingRef.current?.focus(); };
+  const closeNew = () => { setAdding(false); headingRef.current?.focus(); };
 
   const submitNew = async () => {
     setError('');
@@ -573,7 +582,7 @@ function ConceptEditor({
       setNewLabel('');
       setNewType('object');
       setNewIntro('0');
-      setAdding(false);
+      closeNew();
     } catch {
       setError(t('plog.saveError'));
     }
@@ -582,7 +591,7 @@ function ConceptEditor({
   return (
     <div>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-dns-16B-120 text-solid-gray-800">{t('plog.conceptList')}</h3>
+        <h3 ref={headingRef} tabIndex={-1} className="text-dns-16B-120 text-solid-gray-800">{t('plog.conceptList')}</h3>
         <Button
           type="button"
           size="xs"
@@ -594,19 +603,19 @@ function ConceptEditor({
         </Button>
       </div>
 
-      {error && <p className="mb-2 text-dns-14N-120 text-error-1">{error}</p>}
+      {error && <PlogActionError message={error} />}
 
       {adding && (
-        <div className="mb-3 space-y-2 border border-solid-gray-200 p-3">
+        <fieldset disabled={disabled} className="min-w-0 mb-3 space-y-2 border border-solid-gray-200 p-3">
           <label className="block space-y-1 text-dns-14N-120">
             <span>{t('plog.label')}</span>
-            <Input blockSize="sm" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} />
+            <Input autoFocus className="block w-full" blockSize="sm" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} />
           </label>
           <div className="flex flex-wrap gap-3">
-            <label className="space-y-1 text-dns-14N-120">
+            <label className="min-w-0 max-w-full space-y-1 text-dns-14N-120">
               <span className="block">{t('plog.nodeTypeLabel')}</span>
               <select
-                className="h-10 rounded-8 border border-solid-gray-600 bg-white px-3"
+                className="h-10 max-w-full rounded-8 border border-solid-gray-600 bg-white px-3"
                 value={newType}
                 onChange={(e) => setNewType(e.target.value)}
               >
@@ -617,10 +626,10 @@ function ConceptEditor({
                 ))}
               </select>
             </label>
-            <label className="space-y-1 text-dns-14N-120">
+            <label className="min-w-0 max-w-full space-y-1 text-dns-14N-120">
               <span className="block">{t('plog.introSec')}</span>
               <Input
-                blockSize="sm"
+                className="block w-full" blockSize="sm"
                 type="number"
                 value={newIntro}
                 onChange={(e) => setNewIntro(e.target.value)}
@@ -631,11 +640,11 @@ function ConceptEditor({
             <Button type="button" size="sm" onClick={() => void submitNew()} disabled={disabled || !newLabel.trim()}>
               {t('plog.save')}
             </Button>
-            <Button type="button" size="sm" variant="text" onClick={() => setAdding(false)}>
+            <Button type="button" size="sm" variant="text" onClick={closeNew}>
               {t('plog.cancel')}
             </Button>
           </div>
-        </div>
+        </fieldset>
       )}
 
       <ul className="divide-y divide-solid-gray-100 border-y border-solid-gray-100">
@@ -644,7 +653,9 @@ function ConceptEditor({
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-dns-14N-120">
               <button
                 type="button"
-                className="font-medium text-solid-gray-800 underline-offset-2 hover:underline"
+                className="min-w-0 text-left [overflow-wrap:anywhere] font-medium text-solid-gray-800 underline-offset-2 hover:underline"
+                disabled={disabled}
+                aria-expanded={expandedId === c.id}
                 onClick={() => setExpandedId((id) => (id === c.id ? null : c.id))}
               >
                 {c.label}
@@ -662,6 +673,8 @@ function ConceptEditor({
                 size="xs"
                 variant="text"
                 className="ml-auto"
+                disabled={disabled}
+                aria-expanded={expandedId === c.id}
                 onClick={() => setExpandedId((id) => (id === c.id ? null : c.id))}
               >
                 {expandedId === c.id ? t('plog.collapse') : t('plog.expand')}
@@ -676,7 +689,7 @@ function ConceptEditor({
                 onUpdateLearningObject={onUpdateLearningObject}
                 onDelete={onDelete}
                 onMerge={onMerge}
-                onClose={() => setExpandedId(null)}
+                onClose={closeDetail}
               />
             )}
           </li>
@@ -787,17 +800,17 @@ function ConceptDetailForm({
   };
 
   return (
-    <div className="mt-3 space-y-3 border border-solid-gray-200 bg-solid-gray-50 p-3">
-      {error && <p className="text-dns-14N-120 text-error-1">{error}</p>}
+    <fieldset disabled={disabled || saving} className="min-w-0 mt-3 space-y-3 border border-solid-gray-200 bg-solid-gray-50 p-3">
+      {error && <PlogActionError message={error} />}
       <label className="block space-y-1 text-dns-14N-120">
         <span>{t('plog.label')}</span>
-        <Input blockSize="sm" value={label} onChange={(e) => setLabel(e.target.value)} disabled={disabled || saving} />
+        <Input autoFocus className="block w-full" blockSize="sm" value={label} onChange={(e) => setLabel(e.target.value)} disabled={disabled || saving} />
       </label>
       <div className="flex flex-wrap gap-3">
-        <label className="space-y-1 text-dns-14N-120">
+        <label className="min-w-0 max-w-full space-y-1 text-dns-14N-120">
           <span className="block">{t('plog.nodeTypeLabel')}</span>
           <select
-            className="h-10 rounded-8 border border-solid-gray-600 bg-white px-3"
+            className="h-10 max-w-full rounded-8 border border-solid-gray-600 bg-white px-3"
             value={nodeType}
             disabled={disabled || saving}
             onChange={(e) => setNodeType(e.target.value)}
@@ -809,10 +822,10 @@ function ConceptDetailForm({
             ))}
           </select>
         </label>
-        <label className="space-y-1 text-dns-14N-120">
+        <label className="min-w-0 max-w-full space-y-1 text-dns-14N-120">
           <span className="block">{t('plog.introSec')}</span>
           <Input
-            blockSize="sm"
+            className="block w-full" blockSize="sm"
             type="number"
             value={introSec}
             disabled={disabled || saving}
@@ -900,7 +913,7 @@ function ConceptDetailForm({
           {t('plog.delete')}
         </Button>
       </div>
-    </div>
+    </fieldset>
   );
 }
 
@@ -935,6 +948,9 @@ function EdgeEditor({
   const [targetId, setTargetId] = useState<number>(concepts[1]?.id ?? concepts[0]?.id ?? 0);
   const [edgeType, setEdgeType] = useState<string>('prerequisite_of');
   const [quote, setQuote] = useState('');
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const closeNew = () => { setAdding(false); headingRef.current?.focus(); };
+  const closeEdit = () => { setEditingId(null); headingRef.current?.focus(); };
 
   const submitNew = async () => {
     setError('');
@@ -945,7 +961,7 @@ function EdgeEditor({
         edge_type: edgeType,
         quote,
       });
-      setAdding(false);
+      closeNew();
       setQuote('');
     } catch {
       setError(t('plog.saveError'));
@@ -955,28 +971,35 @@ function EdgeEditor({
   return (
     <div>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-dns-16B-120 text-solid-gray-800">{t('plog.edgeList')}</h3>
+        <h3 ref={headingRef} tabIndex={-1} className="text-dns-16B-120 text-solid-gray-800">{t('plog.edgeList')}</h3>
         <Button
           type="button"
           size="xs"
           variant="outline"
           disabled={disabled || concepts.length < 2}
-          onClick={() => setAdding((v) => !v)}
+          onClick={() => {
+            if (!adding) {
+              setSourceId(concepts[0]?.id ?? 0);
+              setTargetId(concepts[1]?.id ?? 0);
+            }
+            setAdding((v) => !v);
+          }}
         >
           {t('plog.addEdge')}
         </Button>
       </div>
       <p className="mb-2 text-dns-14N-120 text-solid-gray-560">{t('plog.edgeHelp')}</p>
-      {error && <p className="mb-2 text-dns-14N-120 text-error-1">{error}</p>}
+      {error && <PlogActionError message={error} />}
 
       {adding && (
-        <div className="mb-3 space-y-2 border border-solid-gray-200 p-3">
+        <fieldset disabled={disabled} className="min-w-0 mb-3 space-y-2 border border-solid-gray-200 p-3">
           <div className="flex flex-wrap gap-3">
-            <label className="space-y-1 text-dns-14N-120">
+            <label className="min-w-0 max-w-full space-y-1 text-dns-14N-120">
               <span className="block">{t('plog.source')}</span>
               <select
-                className="h-10 rounded-8 border border-solid-gray-600 bg-white px-3"
+                className="h-10 max-w-full rounded-8 border border-solid-gray-600 bg-white px-3"
                 value={sourceId}
+                autoFocus
                 onChange={(e) => setSourceId(Number(e.target.value))}
               >
                 {concepts.map((c) => (
@@ -986,10 +1009,10 @@ function EdgeEditor({
                 ))}
               </select>
             </label>
-            <label className="space-y-1 text-dns-14N-120">
+            <label className="min-w-0 max-w-full space-y-1 text-dns-14N-120">
               <span className="block">{t('plog.target')}</span>
               <select
-                className="h-10 rounded-8 border border-solid-gray-600 bg-white px-3"
+                className="h-10 max-w-full rounded-8 border border-solid-gray-600 bg-white px-3"
                 value={targetId}
                 onChange={(e) => setTargetId(Number(e.target.value))}
               >
@@ -1000,10 +1023,10 @@ function EdgeEditor({
                 ))}
               </select>
             </label>
-            <label className="space-y-1 text-dns-14N-120">
+            <label className="min-w-0 max-w-full space-y-1 text-dns-14N-120">
               <span className="block">{t('plog.edgeTypeLabel')}</span>
               <select
-                className="h-10 rounded-8 border border-solid-gray-600 bg-white px-3"
+                className="h-10 max-w-full rounded-8 border border-solid-gray-600 bg-white px-3"
                 value={edgeType}
                 onChange={(e) => setEdgeType(e.target.value)}
               >
@@ -1023,18 +1046,18 @@ function EdgeEditor({
             <Button type="button" size="sm" onClick={() => void submitNew()} disabled={disabled}>
               {t('plog.save')}
             </Button>
-            <Button type="button" size="sm" variant="text" onClick={() => setAdding(false)}>
+            <Button type="button" size="sm" variant="text" onClick={closeNew}>
               {t('plog.cancel')}
             </Button>
           </div>
-        </div>
+        </fieldset>
       )}
 
       <ul className="space-y-0 divide-y divide-solid-gray-100 border-y border-solid-gray-100">
         {edges.map((edge) => (
           <li key={edge.id} className="py-2.5 text-dns-14N-120">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-solid-gray-800">
+              <span className="min-w-0 [overflow-wrap:anywhere] text-solid-gray-800">
                 {edge.source_label}
                 <span className="mx-1.5 text-solid-gray-420">→</span>
                 {edge.target_label}
@@ -1048,6 +1071,7 @@ function EdgeEditor({
                   size="xs"
                   variant="text"
                   disabled={disabled}
+                  aria-expanded={editingId === edge.id}
                   onClick={() => setEditingId((id) => (id === edge.id ? null : edge.id))}
                 >
                   {t('plog.edit')}
@@ -1059,7 +1083,8 @@ function EdgeEditor({
                   disabled={disabled}
                   onClick={() => {
                     if (!window.confirm(t('plog.deleteEdgeConfirm'))) return;
-                    void onDelete(edge.id).catch(() => setError(t('plog.saveError')));
+                    setError('');
+                    void onDelete(edge.id).then(() => headingRef.current?.focus()).catch(() => setError(t('plog.saveError')));
                   }}
                 >
                   {t('plog.delete')}
@@ -1067,7 +1092,7 @@ function EdgeEditor({
               </span>
             </div>
             {edge.quote && (
-              <p className="mt-1 text-solid-gray-560">
+              <p className="mt-1 [overflow-wrap:anywhere] text-solid-gray-560">
                 {t('plog.quote')}: {edge.quote}
               </p>
             )}
@@ -1077,14 +1102,15 @@ function EdgeEditor({
                 concepts={concepts}
                 disabled={disabled}
                 onSave={async (body) => {
+                  setError('');
                   try {
                     await onUpdate(edge.id, body);
-                    setEditingId(null);
+                    closeEdit();
                   } catch {
                     setError(t('plog.saveError'));
                   }
                 }}
-                onCancel={() => setEditingId(null)}
+                onCancel={closeEdit}
               />
             )}
           </li>
@@ -1119,13 +1145,14 @@ function EdgeEditForm({
   const [quote, setQuote] = useState(edge.quote || '');
 
   return (
-    <div className="mt-2 space-y-2 border border-solid-gray-200 bg-solid-gray-50 p-3">
+    <fieldset disabled={disabled} className="min-w-0 mt-2 space-y-2 border border-solid-gray-200 bg-solid-gray-50 p-3">
       <div className="flex flex-wrap gap-3">
-        <label className="space-y-1 text-dns-14N-120">
+        <label className="min-w-0 max-w-full space-y-1 text-dns-14N-120">
           <span className="block">{t('plog.source')}</span>
           <select
-            className="h-10 rounded-8 border border-solid-gray-600 bg-white px-3"
+            className="h-10 max-w-full rounded-8 border border-solid-gray-600 bg-white px-3"
             value={sourceId}
+            autoFocus
             disabled={disabled}
             onChange={(e) => setSourceId(Number(e.target.value))}
           >
@@ -1136,10 +1163,10 @@ function EdgeEditForm({
             ))}
           </select>
         </label>
-        <label className="space-y-1 text-dns-14N-120">
+        <label className="min-w-0 max-w-full space-y-1 text-dns-14N-120">
           <span className="block">{t('plog.target')}</span>
           <select
-            className="h-10 rounded-8 border border-solid-gray-600 bg-white px-3"
+            className="h-10 max-w-full rounded-8 border border-solid-gray-600 bg-white px-3"
             value={targetId}
             disabled={disabled}
             onChange={(e) => setTargetId(Number(e.target.value))}
@@ -1151,10 +1178,10 @@ function EdgeEditForm({
             ))}
           </select>
         </label>
-        <label className="space-y-1 text-dns-14N-120">
+        <label className="min-w-0 max-w-full space-y-1 text-dns-14N-120">
           <span className="block">{t('plog.edgeTypeLabel')}</span>
           <select
-            className="h-10 rounded-8 border border-solid-gray-600 bg-white px-3"
+            className="h-10 max-w-full rounded-8 border border-solid-gray-600 bg-white px-3"
             value={edgeType}
             disabled={disabled}
             onChange={(e) => setEdgeType(e.target.value)}
@@ -1191,6 +1218,6 @@ function EdgeEditForm({
           {t('plog.cancel')}
         </Button>
       </div>
-    </div>
+    </fieldset>
   );
 }
