@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { CourseParticipantsDialog } from '../CourseParticipantsDialog';
 
 const getParticipants = vi.fn();
@@ -20,7 +20,7 @@ const pendingInvitation = (id: number, email: string) => ({
 
 describe('CourseParticipantsDialog', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    for (const handler of [getParticipants, inviteMembers, removeMember, resendInvitation, revokeInvitation]) handler.mockReset();
     globalThis.__setTrpcHandler('courseMemberships.participants', getParticipants);
     globalThis.__setTrpcHandler('courseMemberships.invite', inviteMembers);
     globalThis.__setTrpcHandler('courseMemberships.removeMember', removeMember);
@@ -49,6 +49,8 @@ describe('CourseParticipantsDialog', () => {
       ],
     });
   });
+
+  afterEach(() => vi.useRealTimers());
 
   it('renders the invitation textarea as a full-width block below its label', () => {
     render(<CourseParticipantsDialog courseId={3} isOpen onOpenChange={vi.fn()} />);
@@ -80,6 +82,7 @@ describe('CourseParticipantsDialog', () => {
     expect(await screen.findByText('a@example.com')).toBeInTheDocument();
     expect(screen.getByText('videos.courseMembers.result.queued')).toBeInTheDocument();
     expect(screen.getByText('videos.courseMembers.result.invalid')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('videos.courseMembers.result.queued').closest('ul')).toHaveFocus());
   });
 
   it('previews normalized, invalid, duplicate, member, and pending recipients before sending', async () => {
@@ -118,6 +121,7 @@ describe('CourseParticipantsDialog', () => {
   });
 
   it('marks the invite button as busy while the invitations are being sent', async () => {
+    const onOpenChange = vi.fn();
     let resolveInvite: () => void = () => {};
     inviteMembers.mockImplementation(
       () => new Promise((resolve) => {
@@ -125,7 +129,7 @@ describe('CourseParticipantsDialog', () => {
       }),
     );
 
-    render(<CourseParticipantsDialog courseId={3} isOpen onOpenChange={vi.fn()} />);
+    render(<CourseParticipantsDialog courseId={3} isOpen onOpenChange={onOpenChange} />);
 
     fireEvent.change(screen.getByLabelText('videos.courseMembers.emailLabel'), {
       target: { value: 'a@example.com' },
@@ -136,12 +140,20 @@ describe('CourseParticipantsDialog', () => {
       expect(inviteMembers).toHaveBeenCalled();
     });
     expect(screen.getByRole('button', { name: 'videos.courseMembers.invite' })).toHaveAttribute('aria-busy', 'true');
+    const close = screen.getByRole('button', { name: 'common.actions.close' });
+    expect(close).toBeDisabled();
+    fireEvent.click(close);
+    fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }));
+    expect(onOpenChange).not.toHaveBeenCalled();
 
     resolveInvite();
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'videos.courseMembers.invite' })).not.toHaveAttribute('aria-busy', 'true');
     });
+    expect(close).toBeEnabled();
+    fireEvent.click(close);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   it.each([
@@ -261,6 +273,61 @@ describe('CourseParticipantsDialog', () => {
     // Inside the scroll area the message sits above both lists, so acting on a
     // row further down leaves the failure off screen.
     expect(scrollArea!.contains(alert)).toBe(false);
+    await waitFor(() => expect(alert.closest('[tabindex="-1"]')).toHaveFocus());
+  });
+
+  async function startDeliveryPolling() {
+    getParticipants.mockResolvedValue({
+      members: [],
+      invitations: [{ ...pendingInvitation(7, 'pending@example.com'), delivery_status: 'queued' }],
+    });
+    resendInvitation.mockResolvedValue({ delivery_status: 'queued' });
+    const onOpenChange = vi.fn();
+    const view = render(<CourseParticipantsDialog courseId={3} isOpen onOpenChange={onOpenChange} />);
+    const resend = await screen.findByRole('button', { name: 'videos.courseMembers.resend' });
+    vi.useFakeTimers();
+    fireEvent.click(resend);
+    await act(() => vi.advanceTimersByTimeAsync(50));
+    await act(() => vi.advanceTimersByTimeAsync(50));
+    expect(resendInvitation).toHaveBeenCalledTimes(1);
+    expect(getParticipants).toHaveBeenCalledTimes(2);
+    expect(resend).toBeEnabled();
+    return { ...view, onOpenChange };
+  }
+
+  it.each(['sent', 'failed'])('stops polling when delivery becomes %s', async (deliveryStatus) => {
+    await startDeliveryPolling();
+    getParticipants.mockResolvedValue({
+      members: [],
+      invitations: [{ ...pendingInvitation(7, 'pending@example.com'), delivery_status: deliveryStatus }],
+    });
+    await act(() => vi.advanceTimersByTimeAsync(3000));
+    await act(() => vi.advanceTimersByTimeAsync(50));
+    expect(screen.getByText(`videos.courseMembers.status.pending / videos.courseMembers.delivery.${deliveryStatus}`)).toBeInTheDocument();
+    const reads = getParticipants.mock.calls.length;
+    await act(() => vi.advanceTimersByTimeAsync(9000));
+    expect(getParticipants).toHaveBeenCalledTimes(reads);
+  });
+
+  it('stops polling after thirty seconds even when delivery remains queued', async () => {
+    await startDeliveryPolling();
+    for (let interval = 0; interval < 10; interval++) {
+      await act(() => vi.advanceTimersByTimeAsync(3000));
+      await act(() => vi.advanceTimersByTimeAsync(50));
+    }
+    expect(getParticipants.mock.calls.length).toBeGreaterThan(2);
+    const reads = getParticipants.mock.calls.length;
+    await act(() => vi.advanceTimersByTimeAsync(9000));
+    expect(getParticipants).toHaveBeenCalledTimes(reads);
+  });
+
+  it.each(['hidden', 'unmounted'])('stops polling when the dialog is %s', async (state) => {
+    const { rerender, unmount, onOpenChange } = await startDeliveryPolling();
+    if (state === 'unmounted') unmount();
+    else rerender(<CourseParticipantsDialog courseId={3} isOpen={false} onOpenChange={onOpenChange} />);
+    const reads = getParticipants.mock.calls.length;
+    await act(() => vi.advanceTimersByTimeAsync(9000));
+    expect(getParticipants).toHaveBeenCalledTimes(reads);
   });
 
   it('asks for confirmation before removing a member and does nothing when cancelled', async () => {
