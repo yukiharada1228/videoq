@@ -4,6 +4,7 @@ import { MessageAlert } from './MessageAlert';
 const meta = {
   title: 'Common/MessageAlert',
   component: MessageAlert,
+  parameters: { a11y: { test: 'error' } },
   args: { type: 'success', message: '変更を保存しました。' },
   argTypes: { type: { control: 'inline-radio', options: ['success', 'warning', 'error'] } },
   decorators: [(Story) => <div className="max-w-xl"><Story /></div>],

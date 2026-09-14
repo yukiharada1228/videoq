@@ -17,6 +17,7 @@ function FieldExample(args: ComponentProps<typeof FormField>) {
 const meta = {
   title: 'Auth/FormField',
   component: FormField,
+  parameters: { a11y: { test: 'error' } },
   args: {
     id: 'username',
     name: 'username',

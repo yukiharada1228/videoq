@@ -100,4 +100,22 @@ python3 -m http.server 6007 --bind 127.0.0.1
 | 操作直後のassertionが不安定 | 通信開始・完了や画面更新を待っているか。固定sleepやタイムアウトの延長だけで回避しない。 |
 | 次のStoryだけ失敗する | Query・モック・timer・listenerの初期化とcleanupが揃っているか。 |
 
-Accessibilityパネルは既存の問題を報告します。現在の[a11y設定](.storybook/preview.tsx)は`test: 'todo'`なので、CI成功だけではアクセシビリティの確認完了にはなりません。今回の変更に関係する指摘と手動のキーボード操作を確認してください。
+## アクセシビリティ検査
+
+次の6部品はStoryのmetaで`parameters.a11y.test: 'error'`を指定しています。既存の`test:storybook`とCIの`Frontend Storybook`で自動検査が実行され、違反があれば失敗します。同じファイルに追加したStoryにも適用されます。
+
+| 対象 | Story |
+|---|---|
+| 通知・確認ダイアログ | [FeedbackProvider](src/components/common/FeedbackProvider.stories.tsx)、[MessageAlert](src/components/common/MessageAlert.stories.tsx) |
+| 読み込み・処理状態 | [LoadingState](src/components/common/LoadingState.stories.tsx)、[StatusBadge](src/components/common/StatusBadge.stories.tsx) |
+| フォーム・認証エラー | [FormField](src/components/auth/FormField.stories.tsx)、[ErrorMessage](src/components/auth/ErrorMessage.stories.tsx) |
+
+この範囲だけを検証する場合は次を実行します。
+
+```bash
+npm run test:storybook -- src/components/common src/components/auth/FormField.stories.tsx src/components/auth/ErrorMessage.stories.tsx
+```
+
+それ以外は[共通設定](.storybook/preview.tsx)の`test: 'todo'`を継承し、違反を報告する段階です。対象を広げるときは、その部品のmetaに`parameters: { a11y: { test: 'error' } }`を追加し、各Storyの表示・操作後の状態を検証して問題を修正します。検査を通すためだけにルールを無効化したり、`todo`へ戻したりせず、必要な例外は理由・再現Story・対応Issueを記録してください。設定の詳細は[Storybook公式ドキュメント](https://storybook.js.org/docs/writing-tests/accessibility-testing)を参照してください。
+
+自動検査の成功だけではアクセシビリティの確認完了にはなりません。Accessibilityパネルの手動確認が必要な項目（Incomplete）と、キーボード操作・フォーカス・読み上げを確認してください。操作途中の状態も、検証したい状態で終了するStoryを用意して確認します。

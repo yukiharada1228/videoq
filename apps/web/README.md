@@ -207,7 +207,7 @@ SSEの段階的応答・中断は[ChatPanelのStory](src/components/chat/ChatPan
 Storybookは独立したbrowser projectとして実行し、`vitest.setup.ts`のAPIモックを流用しません。
 `typecheck`はアプリとStorybookをそれぞれ検査します。
 CIでは静的ビルドとChromiumでのストーリー検証を実行します。
-Accessibilityパネルは既存の問題を報告する設定で、現時点ではアクセシビリティ違反をCIの失敗条件にはしていません。
+Accessibility検査は共通の通知・読み込み表示・フォームなど6部品で必須にしており、違反するとCIが失敗します。それ以外は報告のみです。対象部品と追加手順は[運用ガイド](STORYBOOK.md#アクセシビリティ検査)を参照してください。
 
 ## API client
 

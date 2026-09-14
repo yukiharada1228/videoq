@@ -5,6 +5,7 @@ const statuses = ['uploading', 'pending', 'processing', 'indexing', 'completed',
 const meta = {
   title: 'Common/StatusBadge',
   component: StatusBadge,
+  parameters: { a11y: { test: 'error' } },
   args: { status: 'completed', size: 'sm' },
   argTypes: {
     status: { control: 'select', options: statuses },

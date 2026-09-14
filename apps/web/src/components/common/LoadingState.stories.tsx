@@ -5,6 +5,7 @@ import { LoadingState } from './LoadingState';
 const meta = {
   title: 'Common/LoadingState',
   component: LoadingState,
+  parameters: { a11y: { test: 'error' } },
   args: {
     isLoading: true,
     error: null,
