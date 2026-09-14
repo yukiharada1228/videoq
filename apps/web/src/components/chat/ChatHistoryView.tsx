@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { ChatHistoryItem, ChatLogEvaluation } from '@/lib/api';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { MessageBody } from '@/components/chat/MessageBody';
 import { Button } from '@/components/ui/button';
 import { ChipLabel } from '@/components/ui/chip-label';
@@ -11,6 +12,7 @@ import { Divider } from '@/components/ui/divider';
 interface ChatHistoryViewProps {
   history: ChatHistoryItem[] | null;
   historyLoading: boolean;
+  historyError?: { message: string } | null;
   isExportingHistoryCsv: boolean;
   onExportHistoryCsv: () => Promise<void>;
   onVideoNavigate: (videoId: number, startTime: string) => void;
@@ -136,6 +138,7 @@ function HistoryItem({
 export function ChatHistoryView({
   history,
   historyLoading,
+  historyError,
   isExportingHistoryCsv,
   onExportHistoryCsv,
   onVideoNavigate,
@@ -145,7 +148,7 @@ export function ChatHistoryView({
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      {!historyLoading && historyCount > 0 && (
+      {!historyLoading && !historyError && historyCount > 0 && (
         <div className="flex justify-end px-4 pt-3 shrink-0">
           <Button
             type="button"
@@ -163,10 +166,11 @@ export function ChatHistoryView({
         {historyLoading && (
           <LoadingSpinner />
         )}
-        {!historyLoading && historyCount === 0 && (
+        {!historyLoading && historyError && <ErrorMessage message={historyError.message} />}
+        {!historyLoading && !historyError && historyCount === 0 && (
           <p className="text-std-16N-170 text-solid-gray-420 text-center py-8">{t('chat.historyEmpty')}</p>
         )}
-        {!historyLoading && history?.map((item, i) => (
+        {!historyLoading && !historyError && history?.map((item, i) => (
           <div key={item.id}>
             {i > 0 && <Divider className="mb-6" />}
             <HistoryItem item={item} onVideoNavigate={onVideoNavigate} />

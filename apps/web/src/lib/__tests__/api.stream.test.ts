@@ -183,4 +183,38 @@ describe('apiClient.chatStream', () => {
     expect(chunks).toHaveLength(1)
     expect(chunks[0]).toEqual({ type: 'content_chunk', text: 'split' })
   })
+
+  it('cancels the response body when a consumer stops at a terminal event', async () => {
+    const cancel = vi.fn()
+    const body = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('data: {"type":"done","chat_log_id":42,"feedback":null}\n\n'))
+      },
+      cancel,
+    })
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(body))
+    const stream = apiClient.chatStream({ messages: [{ role: 'user', content: 'hi' }] })
+    expect((await stream.next()).value).toMatchObject({ type: 'done' })
+    await stream.return(undefined)
+    expect(cancel).toHaveBeenCalledTimes(1)
+    expect(body.locked).toBe(false)
+  })
+
+  it('passes the abort signal to fetch and releases a reader interrupted while waiting', async () => {
+    const request = new AbortController()
+    let controller!: ReadableStreamDefaultController<Uint8Array>
+    const body = new ReadableStream<Uint8Array>({ start(value) { controller = value } })
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_, init) => {
+      init?.signal?.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')), { once: true })
+      return new Response(body)
+    })
+    const stream = apiClient.chatStream({ messages: [{ role: 'user', content: 'hi' }] }, request.signal)
+    const next = stream.next()
+    const rejected = expect(next).rejects.toThrow('Aborted')
+    await vi.waitFor(() => expect(body.locked).toBe(true))
+    expect(fetch).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ signal: request.signal }))
+    request.abort()
+    await rejected
+    expect(body.locked).toBe(false)
+  })
 })

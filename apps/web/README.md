@@ -111,6 +111,13 @@ Tabでリンクを移動し、Escapeで閉じて起点へフォーカスを戻�
 配送状態の30秒の追跡上限と非表示／unmount時の停止はユニットテストでも検証します。Story切り替え時にはquery・timer・モックの一覧と試行回数を初期化します。
 保留中の通信は共通MSW helperで終了時に解放します。メールの配送や参加者の変更は実サーバーへ送信しません。
 
+`Chat/ChatPanel`は実際の`useChatMessages`／`useChatHistory`とMSWを使います。SSEは`ReadableStream`へ型付きイベントを書き込み、初期待機・検索・検索完了・本文途中・完了・HTTP失敗・SSEエラーを固定します。
+`ProgressToComplete`はplay関数からイベントを順に送り、`InterruptedResponse`／`RetryAfterInterruption`では回答途中の中断と再送を確認します。本文の文字送りは本番と同じ24msごとに3文字で、長文のStoryは描画完了を待ちます。
+`CompleteWithOpenConnection`はdone後に接続が開いたままでも回答が完了すること、`UnmountDuringResponse`は画面を外すと通信が中止され、再表示に古い回答が混ざらないことを確認します。
+Story終了時にストリーム・保留したCSV要求・abortリスナーを解放し、React側もfetchと描画timerを終了します。学習セッションIDは固定し、終了時に元のsessionStorageへ戻します。
+通常／学習モード、共有リンク、履歴取得・評価の反映、キーボード送信・引用、長文、日英のスマホ表示を用意しています。履歴取得失敗は空一覧と区別してエラーを表示します。
+`ExportCsv`は固定の`storybook-chat.csv`を生成します。CSV／フィードバック失敗は現行hookと同じくconsoleへ記録し、再操作できます。外部AI・実APIには接続しません。
+
 ストーリーは対象コンポーネントと同じディレクトリの`*.stories.tsx`に追加します。
 共有データは`.storybook/fixtures/`に置き、API由来の型には`import type`を使います。
 画像・動画が必要な場合も小さな固定のローカルfixtureを使い、外部メディアに依存させません。

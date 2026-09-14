@@ -77,6 +77,7 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const sendInFlightRef = useRef(false);
+  const streamAbortRef = useRef<AbortController | null>(null);
   const followLatestRef = useRef(true);
 
   useEffect(() => {
@@ -173,6 +174,7 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
 
   useEffect(() => {
     return () => {
+      streamAbortRef.current?.abort();
       streamController.dispose();
     };
   }, [streamController]);
@@ -192,6 +194,8 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
     ].slice(-12);
 
     sendInFlightRef.current = true;
+    const request = new AbortController();
+    streamAbortRef.current = request;
     followLatestRef.current = true;
     streamController.start();
     setMessages((prev) => [...prev, userMessage, {
@@ -213,7 +217,8 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
             }
           : {}),
         mode,
-      })) {
+      }, request.signal)) {
+        if (request.signal.aborted) return;
         setMessages((prev) => {
           const last = prev.at(-1);
           if (!last?.progress) return prev;
@@ -225,9 +230,11 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
         if (event.type === 'error') {
           return;
         }
+        if (event.type === 'done') break;
       }
       await streamController.complete();
     } catch (error) {
+      if (request.signal.aborted) return;
       streamController.abort();
       console.error('Chat error:', error);
       const errorMessage =
@@ -238,8 +245,11 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
             : tRef.current('chat.error');
       replaceLastAssistantMessage(errorMessage);
     } finally {
-      sendInFlightRef.current = false;
-      setIsLoading(false);
+      if (streamAbortRef.current === request) {
+        streamAbortRef.current = null;
+        sendInFlightRef.current = false;
+        if (!request.signal.aborted) setIsLoading(false);
+      }
     }
   }, [
     courseId,

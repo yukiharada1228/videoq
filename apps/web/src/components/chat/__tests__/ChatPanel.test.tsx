@@ -658,6 +658,8 @@ describe('ChatPanel', () => {
     await waitFor(() => {
       expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to load history', expect.any(Error))
     })
+    expect(screen.getByRole('alert')).toHaveTextContent('Failed to load history')
+    expect(screen.queryByText('chat.historyEmpty')).not.toBeInTheDocument()
 
     consoleErrorSpy.mockRestore()
   })
