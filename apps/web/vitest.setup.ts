@@ -338,6 +338,7 @@ vi.mock('@/lib/i18n', () => ({
   removeLocalePrefix: (pathname: string) => pathname,
   addLocalePrefix: (pathname: string) => pathname,
   useLocale: () => mockLanguage,
+  setPreferredLocale: vi.fn(),
   Link: ({ children, to, href, ...props }: { children?: React.ReactNode; to?: unknown; href?: string } & Record<string, unknown>) =>
     React.createElement('a', { href: href || (typeof to === 'string' ? to : ''), ...props }, children),
   i18nConfig: {

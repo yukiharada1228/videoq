@@ -73,6 +73,8 @@ export function AppNav({ activePage }: AppNavProps) {
   const langMenuId = useId();
   const megaMenuId = useId();
   const langRootRef = useRef<HTMLDivElement>(null);
+  const langButtonRef = useRef<HTMLButtonElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const headerRef = useRef<HTMLElement>(null);
 
   const session = useAuthSession();
@@ -119,7 +121,10 @@ export function AppNav({ activePage }: AppNavProps) {
       }
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsLangOpen(false);
+      if (event.key === 'Escape') {
+        setIsLangOpen(false);
+        langButtonRef.current?.focus();
+      }
     };
     document.addEventListener('mousedown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
@@ -132,7 +137,10 @@ export function AppNav({ activePage }: AppNavProps) {
   useEffect(() => {
     if (!isMenuOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsMenuOpen(false);
+      if (event.key === 'Escape') {
+        setIsMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
@@ -215,7 +223,7 @@ export function AppNav({ activePage }: AppNavProps) {
 
           <div className="flex shrink-0 items-center justify-end gap-4">
             <nav
-              className="hidden items-center lg:flex"
+              className="hidden items-center xl:flex"
               aria-label={t('navigation.menu')}
             >
               <ul className="flex items-center gap-3.5">
@@ -237,17 +245,17 @@ export function AppNav({ activePage }: AppNavProps) {
             </nav>
 
             <div
-              className="mx-2 hidden h-4 w-px shrink-0 bg-solid-gray-420 lg:block"
+              className="mx-2 hidden h-4 w-px shrink-0 bg-solid-gray-420 xl:block"
               aria-hidden="true"
             />
 
-            <div ref={langRootRef} className="relative hidden lg:block">
+            <div ref={langRootRef} className="relative hidden xl:block">
               <LanguageSelector>
                 <LanguageSelectorButton
+                  ref={langButtonRef}
                   className="px-3"
                   aria-expanded={isLangOpen}
                   aria-controls={langMenuId}
-                  aria-haspopup="menu"
                   onClick={() => setIsLangOpen((open) => !open)}
                 >
                   <LanguageSelectorGlobeIcon />
@@ -267,6 +275,7 @@ export function AppNav({ activePage }: AppNavProps) {
                           onClick={(event) => {
                             event.preventDefault();
                             switchLocale(code);
+                            langButtonRef.current?.focus();
                           }}
                         >
                           {LOCALE_LABELS[code]}
@@ -279,7 +288,7 @@ export function AppNav({ activePage }: AppNavProps) {
             </div>
 
             {!isAuthenticated ? (
-              <Button variant="text" size="sm" className="hidden px-3 lg:inline-flex" asChild>
+              <Button variant="text" size="sm" className="hidden px-3 xl:inline-flex" asChild>
                 <Link href="/login" className="no-underline">
                   {t('auth.login.submit')}
                 </Link>
@@ -289,7 +298,8 @@ export function AppNav({ activePage }: AppNavProps) {
                 type="button"
                 variant="text"
                 size="sm"
-                className="hidden px-3 lg:inline-flex"
+                className="hidden px-3 xl:inline-flex"
+                disabled={logoutMutation.isPending}
                 onClick={() => void handleLogout()}
               >
                 {t('navigation.logout')}
@@ -297,6 +307,7 @@ export function AppNav({ activePage }: AppNavProps) {
             )}
 
             <HamburgerMenuButton
+              ref={menuButtonRef}
               className="px-3 py-1.5"
               aria-expanded={isMenuOpen}
               aria-controls={megaMenuId}
@@ -321,9 +332,10 @@ export function AppNav({ activePage }: AppNavProps) {
           <>
             <button
               type="button"
+              tabIndex={-1}
               className="fixed top-[var(--app-header-offset,5rem)] inset-x-0 bottom-0 z-40 cursor-default bg-black/20"
               aria-label={t('navigation.closeMenu')}
-              onClick={closeMenu}
+              onClick={() => { closeMenu(); menuButtonRef.current?.focus(); }}
             />
             <div className="absolute inset-x-0 top-full z-50">
               <div
@@ -385,6 +397,7 @@ export function AppNav({ activePage }: AppNavProps) {
                           type="button"
                           className={cn(megaMenuLinkClassName, 'bg-transparent text-left')}
                           onClick={() => void handleLogout()}
+                          disabled={logoutMutation.isPending}
                         >
                           {t('navigation.logout')}
                         </button>
