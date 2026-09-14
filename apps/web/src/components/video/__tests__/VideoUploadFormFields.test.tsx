@@ -123,6 +123,8 @@ describe('VideoUploadFormFields', () => {
 
     const progressBar = screen.getByRole('progressbar')
     expect(progressBar).toHaveAttribute('aria-valuenow', '55')
+    expect(progressBar).toHaveAccessibleName('videos.upload.uploading')
+    expect(progressBar.textContent).toBe('55%')
   })
 
   it('should round a fractional progress value consistently in the bar and the label', () => {

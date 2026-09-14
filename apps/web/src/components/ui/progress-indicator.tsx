@@ -1,3 +1,6 @@
+// Portions derived from or inspired by digital-go-jp/design-system-example-components-react.
+// Original code licensed under the MIT License.
+// See THIRD_PARTY_LICENSES.md for details.
 import * as React from "react"
 
 import { cn } from "@/lib/digital-agency/cn"
@@ -72,11 +75,15 @@ const ProgressIndicator = React.forwardRef<
     }
 
     return (
-      <div
-        ref={ref}
-        data-slot="progress-indicator"
-        className={cn(
-          `
+      <>
+        <style
+          dangerouslySetInnerHTML={{ __html: progressIndicatorKeyframes }}
+        />
+        <div
+          ref={ref}
+          data-slot="progress-indicator"
+          className={cn(
+            `
         group/progress-indicator flex justify-center items-center gap-y-4 gap-x-2 text-solid-gray-900 text-std-16N-170
         data-[type=stacked]:flex-col
         data-[type=stacked-underlay]:flex-col data-[type=stacked-underlay]:mx-auto data-[type=stacked-underlay]:box-border data-[type=stacked-underlay]:w-fit data-[type=stacked-underlay]:rounded-16 data-[type=stacked-underlay]:border data-[type=stacked-underlay]:border-solid-gray-500 data-[type=stacked-underlay]:bg-white
@@ -84,22 +91,20 @@ const ProgressIndicator = React.forwardRef<
         data-[type=stacked-underlay]:has-[[data-indicator=static]]:min-w-[calc(128/16*1rem)] data-[type=stacked-underlay]:has-[[data-indicator=static]]:min-h-[calc(128/16*1rem)] data-[type=stacked-underlay]:has-[[data-indicator=static]]:p-4
         data-[type=stacked-underlay]:has-[[data-indicator=linear]]:p-6
       `,
-          className
-        )}
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={normalizedValue}
-        data-type={type}
-        data-indeterminate={isIndeterminate ? "" : undefined}
-        style={mergedStyle}
-        {...rest}
-      >
-        <style
-          dangerouslySetInnerHTML={{ __html: progressIndicatorKeyframes }}
-        />
-        {children}
-      </div>
+            className
+          )}
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={normalizedValue}
+          data-type={type}
+          data-indeterminate={isIndeterminate ? "" : undefined}
+          style={mergedStyle}
+          {...rest}
+        >
+          {children}
+        </div>
+      </>
     )
   }
 )
