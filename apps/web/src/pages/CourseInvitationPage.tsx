@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { trpc } from '@/lib/trpc';
 import { useAuthSession } from '@/lib/authSession';
 import { Link, useI18nNavigate } from '@/lib/i18n';
-import { AuthLayout } from '@/components/layout/AuthLayout';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -40,7 +39,7 @@ export default function CourseInvitationPage() {
   const actionError = acceptMutation.error ?? declineMutation.error;
 
   return (
-    <AuthLayout>
+    <>
       <AuthPageIntro
         badge={t('courseInvitation.badge')}
         title={t('courseInvitation.title')}
@@ -128,6 +127,6 @@ export default function CourseInvitationPage() {
           )}
         </div>
       )}
-    </AuthLayout>
+    </>
   );
 }

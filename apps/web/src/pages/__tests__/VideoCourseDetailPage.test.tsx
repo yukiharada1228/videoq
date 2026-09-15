@@ -45,10 +45,6 @@ vi.mock('@/hooks/useTags', () => ({
   }),
 }))
 
-vi.mock('@/components/layout/AppNav', () => ({
-  AppNav: () => <nav data-testid="app-nav" />,
-}))
-
 vi.mock('@/components/chat/ChatPanel', () => ({
   ChatPanel: () => <div data-testid="chat-panel">Chat Panel</div>,
 }))
@@ -571,19 +567,9 @@ describe('VideoCourseDetailPage - Loading state', () => {
     courseTrpcMocks.get.mockImplementation(() => new Promise(() => {}))
   })
 
-  it('should render AppNav during initial loading', async () => {
+  it('should show loading content', async () => {
     render(<VideoCourseDetailPage />)
-    expect(screen.getByTestId('app-nav')).toBeInTheDocument()
-  })
-
-  it('should show loading spinner in content area below nav (not full-screen overlay)', async () => {
-    const { container } = render(<VideoCourseDetailPage />)
-    // Must NOT be a standalone full-screen wrapper (old behavior without AppNav)
-    const fullScreenWrapper = container.querySelector('.min-h-screen.flex.items-center.justify-center')
-    expect(fullScreenWrapper).toBeNull()
-    // Must be positioned below the nav with viewport-filling height
-    const contentArea = container.querySelector('.flex.items-center.justify-center')
-    expect(contentArea).not.toBeNull()
+    expect(screen.getByText('Loading')).toBeInTheDocument()
   })
 })
 

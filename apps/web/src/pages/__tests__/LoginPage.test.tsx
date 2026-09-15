@@ -141,13 +141,7 @@ describe('LoginPage', () => {
     })
   })
 
-  it('should have AuthLayout main element', () => {
-    render(<LoginPage />)
 
-    const main = screen.getByRole('main')
-    expect(main).toBeInTheDocument()
-    expect(screen.getByText('auth.login.title')).toBeInTheDocument()
-  })
 
   describe('?next= redirect after login', () => {
     let originalLocation: Location

@@ -1,14 +1,11 @@
-import { Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from '@/lib/i18n';
 import { apiClient } from '@/lib/api';
-import { AuthLayout } from '@/components/layout/AuthLayout';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { UtilityLink } from '@/components/ui/utility-link';
 
@@ -61,7 +58,7 @@ function EmailChangeConfirmContent() {
   }
 
   return (
-    <AuthLayout>
+    <>
       <UtilityLink asChild className="mb-12 inline-flex items-center text-sm font-bold">
         <Link href="/login">
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -104,20 +101,10 @@ function EmailChangeConfirmContent() {
         )}
       </div>
 
-    </AuthLayout>
+    </>
   );
 }
 
 export default function EmailChangeConfirmPage() {
-  return (
-    <Suspense fallback={
-      <AuthLayout>
-        <div className="flex items-center justify-center h-full">
-          <LoadingSpinner />
-        </div>
-      </AuthLayout>
-    }>
-      <EmailChangeConfirmContent />
-    </Suspense>
-  );
+  return <EmailChangeConfirmContent />;
 }

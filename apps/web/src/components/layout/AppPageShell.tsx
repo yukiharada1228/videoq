@@ -8,6 +8,7 @@ interface AppPageShellProps {
   children: ReactNode;
   contentClassName?: string;
   isPublic?: boolean;
+  variant?: 'standard' | 'workspace';
 }
 
 export function AppPageShell({
@@ -15,17 +16,22 @@ export function AppPageShell({
   children,
   contentClassName = APP_CONTAINER_CLASS,
   isPublic = false,
+  variant = 'standard',
 }: AppPageShellProps) {
+  const mainClassName = variant === 'workspace'
+    ? 'flex w-full flex-1 flex-col'
+    : `mx-auto w-full flex-1 pb-16 pt-8 ${contentClassName}`;
+
   return (
     <div
-      className="flex min-h-screen flex-col bg-white text-solid-gray-800"
+      className={`flex min-h-screen flex-col text-solid-gray-800 ${variant === 'standard' ? 'bg-white' : 'bg-solid-gray-50'}`}
       style={{ scrollbarGutter: 'stable' }}
     >
       <AppNav activePage={activePage} isPublic={isPublic} />
-      <main className={`mx-auto w-full flex-1 pb-16 pt-8 ${contentClassName}`}>
+      <main className={mainClassName}>
         {children}
       </main>
-      <AppFooter />
+      {variant === 'standard' && <AppFooter />}
     </div>
   );
 }

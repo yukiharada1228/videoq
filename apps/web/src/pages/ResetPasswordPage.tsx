@@ -1,12 +1,10 @@
-import { Suspense, useState } from 'react';
+import { useState } from 'react';
 import { Link } from '@/lib/i18n';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft } from 'lucide-react';
-import { AuthLayout } from '@/components/layout/AuthLayout';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { useConfirmPasswordResetMutation } from '@/hooks/usePasswordRecovery';
 import { PASSWORD_MIN_LENGTH } from '@/lib/authConfig';
 import { FormField } from '@/components/auth/FormField';
@@ -60,7 +58,7 @@ function ResetPasswordContent() {
   };
 
   return (
-    <AuthLayout>
+    <>
       <UtilityLink asChild className="mb-12 inline-flex items-center">
         <Link href="/login">
           <ArrowLeft className="mr-2 w-4 h-4" />
@@ -133,20 +131,10 @@ function ResetPasswordContent() {
         )}
       </div>
 
-    </AuthLayout>
+    </>
   );
 }
 
 export default function ResetPasswordPage() {
-  return (
-    <Suspense fallback={
-      <AuthLayout>
-        <div className="flex items-center justify-center h-full">
-          <LoadingSpinner />
-        </div>
-      </AuthLayout>
-    }>
-      <ResetPasswordContent />
-    </Suspense>
-  );
+  return <ResetPasswordContent />;
 }

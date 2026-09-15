@@ -44,10 +44,6 @@ vi.mock('@/hooks/useVideos', () => ({
   useVideo: () => mockUseVideoReturn,
 }))
 
-vi.mock('@/components/layout/AppNav', () => ({
-  AppNav: () => <nav data-testid="app-nav" />,
-}))
-
 vi.mock('@/hooks/useTags', () => ({
   useTags: () => ({
     tags: [{ id: 1, name: 'Tag1', color: 'red' }],
@@ -318,16 +314,9 @@ describe('VideoDetailPage - Loading state', () => {
     mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null, loadVideo: mockLoadVideo }
   })
 
-  it('should render AppNav during initial loading', () => {
+  it('should show loading content', () => {
     render(<VideoDetailPage />)
-    expect(screen.getByTestId('app-nav')).toBeInTheDocument()
-  })
-
-  it('should not show full-screen loading overlay (AppNav is separate)', () => {
-    const { container } = render(<VideoDetailPage />)
-    // The outer wrapper should NOT be the sole full-screen centering container
-    const loadingWrapper = container.querySelector('.min-h-screen.flex.items-center.justify-center')
-    expect(loadingWrapper).toBeNull()
+    expect(screen.getByText('Loading')).toBeInTheDocument()
   })
 })
 
@@ -341,9 +330,10 @@ describe('VideoDetailPage - Error state', () => {
     mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null, loadVideo: mockLoadVideo }
   })
 
-  it('should render AppNav when there is an error', () => {
+  it('should show the error and a link back to the library', () => {
     render(<VideoDetailPage />)
-    expect(screen.getByTestId('app-nav')).toBeInTheDocument()
+    expect(screen.getByText('Network error')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'common.actions.backToList' })).toHaveAttribute('href', '/videos')
   })
 })
 
@@ -357,9 +347,9 @@ describe('VideoDetailPage - Not found state', () => {
     mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null, loadVideo: mockLoadVideo }
   })
 
-  it('should render AppNav when video is not found', () => {
+  it('should show the not-found message', () => {
     render(<VideoDetailPage />)
-    expect(screen.getByTestId('app-nav')).toBeInTheDocument()
+    expect(screen.getByText('common.messages.videoNotFound')).toBeInTheDocument()
   })
 })
 

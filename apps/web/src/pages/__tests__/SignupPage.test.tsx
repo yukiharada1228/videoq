@@ -114,13 +114,7 @@ describe('SignupPage', () => {
     })
   })
 
-  it('should have AuthLayout main element', () => {
-    render(<SignupPage />)
 
-    const main = screen.getByRole('main')
-    expect(main).toBeInTheDocument()
-    expect(screen.getByText('auth.signup.title')).toBeInTheDocument()
-  })
 
   it('should display footer question text', () => {
     render(<SignupPage />)

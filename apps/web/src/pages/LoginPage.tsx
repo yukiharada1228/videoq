@@ -8,7 +8,6 @@ import { apiClient } from '@/lib/api';
 import { trpc } from '@/lib/trpc';
 import { Eye, EyeOff } from 'lucide-react';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
-import { AuthLayout } from '@/components/layout/AuthLayout';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { FormField } from '@/components/auth/FormField';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
@@ -59,7 +58,7 @@ export default function LoginPage() {
   });
 
   return (
-    <AuthLayout>
+    <>
       <AuthPageIntro badge={t('auth.login.badge')} title={t('auth.login.title')} />
 
       {(error || oauthError) && (
@@ -141,6 +140,6 @@ export default function LoginPage() {
           href={nextPath ? `/signup?next=${encodeURIComponent(nextPath)}` : '/signup'}
         />
       </div>
-    </AuthLayout>
+    </>
   );
 }

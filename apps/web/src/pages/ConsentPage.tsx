@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AuthLayout } from '@/components/layout/AuthLayout';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { Button } from '@/components/ui/button';
@@ -44,7 +43,7 @@ export default function ConsentPage() {
   }
 
   return (
-    <AuthLayout>
+    <>
       <AuthPageIntro
         badge="OAuth"
         title={t('auth.consent.title', { defaultValue: 'Authorize application' })}
@@ -103,6 +102,6 @@ export default function ConsentPage() {
           {t('auth.consent.deny', { defaultValue: 'Deny' })}
         </Button>
       </div>
-    </AuthLayout>
+    </>
   );
 }

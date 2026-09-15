@@ -31,7 +31,6 @@ import { apiClient, type VideoCourse } from '@/lib/api';
 import { buildYoutubeEmbedSrc } from '@/lib/video/embed';
 import type { SelectedVideo } from '@/lib/utils/videoConversion';
 import { Link } from '@/lib/i18n';
-import { AppNav } from '@/components/layout/AppNav';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { DashboardButton } from '@/components/dashboard/DashboardButton';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -486,9 +485,7 @@ export function VideoCourseDetailView({
   );
 
   return (
-    <div className="bg-solid-gray-50 flex flex-col text-solid-gray-800">
-      <AppNav activePage="courses" />
-
+    <>
       {isLoading ? (
         <div className="flex min-h-[calc(100dvh-var(--app-header-offset,5rem))] items-center justify-center">
           <LoadingSpinner />
@@ -544,7 +541,7 @@ export function VideoCourseDetailView({
             />
           )}
 
-          <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 overflow-y-auto px-4 py-4 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-6 lg:h-[calc(100dvh-var(--app-header-offset,5rem))] lg:gap-5 lg:overflow-hidden lg:px-8 lg:pb-4">
+          <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 overflow-y-auto px-4 py-4 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-6 lg:h-[calc(100dvh-var(--app-header-offset,5rem))] lg:gap-5 lg:overflow-hidden lg:px-8 lg:pb-4">
             <div className="shrink-0 space-y-4">
               <Breadcrumbs aria-label={t('common.actions.backToList')}>
                 <BreadcrumbsLabel className="sr-only">
@@ -669,7 +666,7 @@ export function VideoCourseDetailView({
                 />
               </aside>
             </div>
-          </main>
+          </div>
 
           <GroupMobileNav mobileTab={mobileTab} onChange={onMobileTabChange} />
 
@@ -681,6 +678,6 @@ export function VideoCourseDetailView({
           /> : null}
         </>
       )}
-    </div>
+    </>
   );
 }

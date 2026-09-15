@@ -32,6 +32,7 @@
       "error": "エラー"
     },
     "messages": {
+      "pageLoadFailed": "ページを読み込めませんでした。もう一度開くか、ナビゲーションから別のページへ移動してください。",
       "noDescription": "説明なし",
       "videoNotFound": "動画が見つかりません",
       "courseNotFound": "講座が見つかりません",

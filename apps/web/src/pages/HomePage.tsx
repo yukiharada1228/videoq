@@ -8,7 +8,6 @@ import { useHomePageData } from '@/hooks/useHomePageData';
 import { useVideoStatusCounts } from '@/hooks/useVideoStats';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
-import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { Button } from '@/components/ui/button';
 import { Heading, HeadingTitle } from '@/components/ui/heading';
@@ -94,9 +93,9 @@ export default function HomePage() {
     t,
   ]);
 
-  if (isLoading) {
+  if (isLoading || (currentUser && isLoadingData)) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
+      <div className="flex justify-center py-24">
         <LoadingSpinner />
       </div>
     );
@@ -104,14 +103,6 @@ export default function HomePage() {
 
   if (!currentUser) {
     return <LandingPage />;
-  }
-
-  if (isLoadingData) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <LoadingSpinner />
-      </div>
-    );
   }
 
   const statsItems = [
@@ -140,7 +131,7 @@ export default function HomePage() {
   ];
 
   return (
-    <AppPageShell activePage="home">
+    <>
       <AppPageHeader
         badge={t('home.welcome.badge')}
         title={t('home.welcome.greeting', { username: currentUser?.username })}
@@ -276,6 +267,6 @@ export default function HomePage() {
           </ul>
         </section>
       )}
-    </AppPageShell>
+    </>
   );
 }

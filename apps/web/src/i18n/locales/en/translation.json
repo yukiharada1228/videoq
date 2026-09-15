@@ -32,6 +32,7 @@
       "error": "Error"
     },
     "messages": {
+      "pageLoadFailed": "This page could not be loaded. Try again or use the navigation to open another page.",
       "noDescription": "No description",
       "videoNotFound": "Video not found",
       "courseNotFound": "Chat course not found",

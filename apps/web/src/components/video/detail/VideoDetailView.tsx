@@ -15,7 +15,6 @@ import { apiClient, type Tag, type Video } from '@/lib/api';
 import { buildYoutubeEmbedSrc } from '@/lib/video/embed';
 import { formatDate } from '@/lib/utils/video';
 import type { TranscriptSegment } from '@/lib/transcript/srt';
-import { AppNav } from '@/components/layout/AppNav';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { StatusBadge } from '@/components/common/StatusBadge';
@@ -318,9 +317,7 @@ export function VideoDetailView({
   const { t } = useTranslation();
 
   return (
-    <div className="bg-solid-gray-50 flex flex-col min-h-screen text-solid-gray-800">
-      <AppNav activePage="videoLibrary" />
-
+    <>
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center">
           <LoadingSpinner />
@@ -361,7 +358,7 @@ export function VideoDetailView({
             <VideoDetailMobileTabs activeTab={mobileTab} onChange={onMobileTabChange} />
           )}
 
-          <main className="mx-auto flex w-full max-w-screen-xl flex-grow flex-col gap-6 px-6 py-6 lg:px-8">
+          <div className="mx-auto flex w-full max-w-screen-xl flex-grow flex-col gap-6 px-6 py-6 lg:px-8">
             <Breadcrumbs aria-label={t('common.actions.backToList')}>
               <BreadcrumbsLabel className="sr-only">
                 {t('common.actions.backToList')}
@@ -421,7 +418,7 @@ export function VideoDetailView({
             {video.status === 'completed' && !(isMobile && mobileTab !== 'video') && (
               <PlogPanel videoId={video.id} />
             )}
-          </main>
+          </div>
 
           <TagCreateDialog
             isOpen={isCreateDialogOpen}
@@ -430,6 +427,6 @@ export function VideoDetailView({
           />
         </>
       )}
-    </div>
+    </>
   );
 }

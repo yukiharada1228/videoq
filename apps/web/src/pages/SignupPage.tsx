@@ -7,7 +7,6 @@ import { apiClient } from '@/lib/api';
 import { PASSWORD_MIN_LENGTH } from '@/lib/authConfig';
 import { Eye, EyeOff } from 'lucide-react';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
-import { AuthLayout } from '@/components/layout/AuthLayout';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { FormField } from '@/components/auth/FormField';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
@@ -46,7 +45,7 @@ export default function SignupPage() {
   });
 
   return (
-    <AuthLayout>
+    <>
       <AuthPageIntro badge={t('auth.signup.badge')} title={t('auth.signup.title')} />
 
       {error && <div className="mb-4"><ErrorMessage message={error} /></div>}
@@ -164,6 +163,6 @@ export default function SignupPage() {
           href={nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : '/login'}
         />
       </div>
-    </AuthLayout>
+    </>
   );
 }

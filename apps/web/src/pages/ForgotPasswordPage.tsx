@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Send } from 'lucide-react';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { useRequestPasswordResetMutation } from '@/hooks/usePasswordRecovery';
-import { AuthLayout } from '@/components/layout/AuthLayout';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { FormField } from '@/components/auth/FormField';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
@@ -40,7 +39,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <AuthLayout>
+    <>
       <UtilityLink asChild className="mb-12 inline-flex items-center">
         <Link href="/login">
           <ArrowLeft className="mr-2 w-4 h-4" />
@@ -100,6 +99,6 @@ export default function ForgotPasswordPage() {
         </div>
       </div>
 
-    </AuthLayout>
+    </>
   );
 }

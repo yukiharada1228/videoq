@@ -12,7 +12,6 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { useAuth } from '@/hooks/useAuth';
 import { useTags } from '@/hooks/useTags';
-import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -151,7 +150,7 @@ export default function VideoLibraryPage() {
   ];
 
   return (
-    <AppPageShell activePage="videoLibrary">
+    <>
       <AppPageHeader
         title={t('videos.list.title')}
         description={t('videos.list.managingCount', { count: totalCount })}
@@ -337,6 +336,6 @@ export default function VideoLibraryPage() {
           onClose={() => setIsTagManagementOpen(false)}
         />
       ) : null}
-    </AppPageShell>
+    </>
   );
 }
