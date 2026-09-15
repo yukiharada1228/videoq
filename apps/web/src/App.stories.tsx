@@ -34,7 +34,7 @@ const meta = {
       import('./pages/HomePage'), import('./pages/PricingPage'),
       import('./pages/LoginPage'), import('./pages/SignupPage'),
       import('./pages/VideoLibraryPage'), import('./pages/VideoDetailPage'),
-      import('./pages/VideoCourseDetailPage'),
+      import('./pages/VideoCoursesPage'), import('./pages/VideoCourseDetailPage'),
     ]);
     const cleanupUpload = installUploadFixture({});
     const saved = localStorage.getItem('videoq.locale');
@@ -78,6 +78,31 @@ export const HomeNavigationMobile: Story = {
 export const HomeNavigationEnglish: Story = { ...HomeNavigation, globals: { locale: 'en' } };
 export const HomeNavigationEnglishMobile: Story = {
   ...HomeNavigation,
+  globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
+};
+
+export const CoursesCaseInsensitive: Story = {
+  parameters: { pathname: '/videos/COURSES' },
+  async play({ canvasElement, userEvent, globals }) {
+    const canvas = within(canvasElement);
+    const heading = await canvas.findByRole('heading', { level: 1, name: i18n.t('videos.courses.title') });
+    const header = canvas.getByRole('link', { name: 'VideoQ' }).closest('header')!;
+    const main = canvas.getByRole('main');
+    const footer = canvas.getByRole('contentinfo');
+    await expect(heading.getBoundingClientRect().left).toBeGreaterThan(0);
+    if (globals.viewport?.value === 'mobile') {
+      await userEvent.click(within(header).getByRole('button', { name: i18n.t('navigation.menu') }));
+    }
+    await expect(within(header).getByRole('link', { name: i18n.t('navigation.coursesNav') })).toHaveAttribute('aria-current', 'page');
+    await userEvent.click(within(header).getByRole('link', { name: i18n.t('navigation.home') }));
+    await canvas.findByRole('heading', { level: 1, name: i18n.t('home.welcome.greeting', { username: api.auth.profile!.username }) });
+    await expect(canvas.getByRole('link', { name: 'VideoQ' }).closest('header')).toBe(header);
+    await expect(canvas.getByRole('main')).toBe(main);
+    await expect(canvas.getByRole('contentinfo')).toBe(footer);
+  },
+};
+export const CoursesCaseInsensitiveEnglishMobile: Story = {
+  ...CoursesCaseInsensitive,
   globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
 };
 

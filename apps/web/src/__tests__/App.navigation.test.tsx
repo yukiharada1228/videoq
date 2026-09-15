@@ -1,7 +1,9 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
+import { useQueryClient } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import App from '@/App';
 import i18n from '@/i18n/config';
+import { trpc } from '@/lib/trpc';
 
 // Exercise the real router, translated links, and persistent layout together.
 vi.unmock('react-router-dom');
@@ -150,6 +152,18 @@ it.each(['ja', 'en'] as const)('preserves the layout across standard pages and h
   }
 });
 
+it.each([
+  ['/videos/COURSES', 'videos.courses.title', 'navigation.coursesNav'],
+  ['/en/VIDEOS/Courses/', 'videos.courses.title', 'navigation.coursesNav'],
+  ['/videos/%63ourses', 'videos.courses.title', 'navigation.coursesNav'],
+  ['/PRICING', 'pricing.title', 'navigation.pricing'],
+])('uses the matched page’s standard layout at %s', async (path, title, activeLabel) => {
+  renderApp(path);
+  await screen.findByRole('heading', { name: i18n.t(title), level: 1 });
+  expect(screen.getByRole('contentinfo')).toBeInTheDocument();
+  expect(within(primaryNav()).getByRole('link', { name: i18n.t(activeLabel) })).toHaveAttribute('aria-current', 'page');
+});
+
 it('keeps navigation available after an API failure and allows leaving the page', async () => {
   listVideos.mockRejectedValue(new Error('Network error'));
   renderApp('/videos');
@@ -172,9 +186,25 @@ it('keeps the search input mounted and focused when query parameters change', as
 });
 
 it.each([
+  ['/VIDEOS/7/', 'videos.get', 'navigation.videoLibrary', 'common.messages.videoNotFound'],
+  ['/en/%76ideos/courses/7', 'courses.get', 'navigation.coursesNav', 'common.messages.courseNotFound'],
+])('uses the matched page’s workspace layout at %s', async (path, procedure, activeLabel, message) => {
+  globalThis.__setTrpcHandler(procedure, () => null);
+  renderApp(path);
+  await screen.findByText(i18n.t(message));
+  expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
+  expect(within(primaryNav()).getByRole('link', { name: i18n.t(activeLabel) })).toHaveAttribute('aria-current', 'page');
+});
+
+it.each([
   ['/videos/7', 'videos.get', 'navigation.videoLibrary'],
   ['/videos/courses/7', 'courses.get', 'navigation.coursesNav'],
 ])('keeps the header when leaving a pending workspace at %s', async (path, procedure, activeLabel) => {
+  // Finish authentication before stalling the detail request; requests in the
+  // same tRPC batch share a response, which would also hold Home's account query.
+  const cache = renderHook(() => useQueryClient());
+  await cache.result.current.ensureQueryData(trpc.account.me.queryOptions());
+  cache.unmount();
   const load = vi.fn(() => new Promise(() => {}));
   globalThis.__setTrpcHandler(procedure, load);
   renderApp(path);
@@ -185,7 +215,7 @@ it.each([
   expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
   expect(within(main).getByText('Loading')).toBeInTheDocument();
   fireEvent.click(homeLink());
-  await screen.findByRole('heading', { name: i18n.t('home.welcome.greeting', { username: profile.username }), level: 1 });
+  await within(main).findByRole('heading', { name: i18n.t('home.welcome.greeting', { username: profile.username }), level: 1 });
   expect(primaryNav()).toBe(nav);
   expect(screen.getByRole('main')).toBe(main);
   expect(screen.getByRole('contentinfo')).toBeInTheDocument();

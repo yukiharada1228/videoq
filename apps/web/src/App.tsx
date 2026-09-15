@@ -3,7 +3,7 @@ import { Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-r
 import { addLocalePrefix, getSavedLocale, useLocaleSync } from '@/lib/i18n';
 import { defaultLocale, locales, type Locale } from '@/i18n/config';
 import { withQueryAndHash } from '@/lib/seo';
-import { AppRouteLayout, AuthRouteLayout } from '@/components/layout/AppRouteLayout';
+import { AppRouteLayout, AuthRouteLayout, type AppPageRoute } from '@/components/layout/AppRouteLayout';
 import { RouteContent } from '@/components/layout/RouteContent';
 
 const HomePage = lazy(() => import('@/pages/HomePage'));
@@ -61,21 +61,25 @@ function LocaleGate() {
   return <Outlet />;
 }
 
+const appPageRoutes: AppPageRoute[] = [
+  { index: true, element: <HomePage />, handle: { activePage: 'home' } },
+  { path: 'videos', element: <VideoLibraryPage />, handle: { activePage: 'videoLibrary' } },
+  { path: 'videos/:id', element: <VideoDetailPage />, handle: { activePage: 'videoLibrary', variant: 'workspace' } },
+  { path: 'videos/courses', element: <VideoCoursesPage />, handle: { activePage: 'courses' } },
+  { path: 'videos/courses/:id', element: <VideoCourseDetailPage />, handle: { activePage: 'courses', variant: 'workspace' } },
+  { path: 'settings', element: <SettingsPage />, handle: { activePage: 'settings' } },
+  { path: 'pricing', element: <PricingPage />, handle: { activePage: 'pricing' } },
+  { path: 'terms', element: <LegalPage page="terms" />, handle: {} },
+  { path: 'privacy', element: <LegalPage page="privacy" />, handle: {} },
+  { path: 'refund', element: <LegalPage page="refund" />, handle: {} },
+  { path: 'legal', element: <LegalPage page="scta" />, handle: {} },
+  { path: 'admin', element: <AdminPage />, handle: { activePage: 'admin' } },
+];
+
 const routeChildren = (
   <>
-    <Route element={<AppRouteLayout />}>
-      <Route index element={<HomePage />} />
-      <Route path="videos" element={<VideoLibraryPage />} />
-      <Route path="videos/:id" element={<VideoDetailPage />} />
-      <Route path="videos/courses" element={<VideoCoursesPage />} />
-      <Route path="videos/courses/:id" element={<VideoCourseDetailPage />} />
-      <Route path="settings" element={<SettingsPage />} />
-      <Route path="pricing" element={<PricingPage />} />
-      <Route path="terms" element={<LegalPage page="terms" />} />
-      <Route path="privacy" element={<LegalPage page="privacy" />} />
-      <Route path="refund" element={<LegalPage page="refund" />} />
-      <Route path="legal" element={<LegalPage page="scta" />} />
-      <Route path="admin" element={<AdminPage />} />
+    <Route element={<AppRouteLayout routes={appPageRoutes} />}>
+      {appPageRoutes.map((route) => <Route key={route.path ?? 'home'} {...route} />)}
     </Route>
 
     <Route element={<AuthRouteLayout />}>

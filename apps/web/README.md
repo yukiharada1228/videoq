@@ -27,7 +27,7 @@ npm run build --workspace @videoq/web
 - `AuthRouteLayout`: ログイン・登録・メール確認・講座への招待など。認証用ヘッダーと本文の幅を共通化します。
 - 公開共有ページは専用の画面構成を持ちます。
 
-ページと動画のViewは本文のみを返します。`AppPageShell`・`AppNav`・`AppFooter`・`AuthLayout` などの直接importはLintで禁止しています。ナビゲーションを追加するときは `AppRouteLayout` の選択状態も更新してください。
+ページと動画のViewは本文のみを返します。`AppPageShell`・`AppNav`・`AppFooter`・`AuthLayout` などの直接importはLintで禁止しています。通常画面は `App.tsx` の `appPageRoutes` に追加し、`handle` にナビゲーションの選択状態と必要なレイアウト種別を指定します。`AppRouteLayout` は同じ定義を `matchRoutes` で照合するため、パスの優先順位・大文字小文字・URLエンコードの扱いがルーターと一致します。
 
 `RouteContent` の `Suspense` とエラー境界は本文の内側に置き、コードの初回読み込みや描画エラーでレイアウトが消えないようにします。APIの読み込み・失敗・空状態は本文内で扱います。検索条件の変更では入力のフォーカスや編集中の状態を保持するため、本文をURLのクエリ文字列で再マウントしません。
 

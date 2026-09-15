@@ -1,28 +1,22 @@
-import { matchPath } from 'react-router-dom';
+import type { ComponentProps, ReactNode } from 'react';
+import { matchRoutes } from 'react-router-dom';
 import { useI18nLocation } from '@/lib/i18n';
-import type { ActivePage } from '@/components/layout/AppNav';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AuthLayout } from '@/components/layout/AuthLayout';
 import { RouteContent } from '@/components/layout/RouteContent';
 
-const ACTIVE_PAGES: Record<string, ActivePage> = {
-  '/': 'home',
-  '/videos': 'videoLibrary',
-  '/videos/courses': 'courses',
-  '/pricing': 'pricing',
-  '/settings': 'settings',
-  '/admin': 'admin',
+export type AppPageRoute = ({ index: true; path?: never } | { index?: false; path: string }) & {
+  element: ReactNode;
+  handle: Pick<ComponentProps<typeof AppPageShell>, 'activePage' | 'variant'>;
 };
 
-export function AppRouteLayout() {
+export function AppRouteLayout({ routes }: { routes: AppPageRoute[] }) {
   const { pathname } = useI18nLocation();
-  const path = pathname.replace(/\/$/, '') || '/';
-  const isCourse = Boolean(matchPath('/videos/courses/:id', path));
-  const isVideo = path !== '/videos/courses' && Boolean(matchPath('/videos/:id', path));
-  const activePage = isCourse ? 'courses' : isVideo ? 'videoLibrary' : ACTIVE_PAGES[path];
+  // Match the same definitions as <Routes>, including ranking, decoding and case handling.
+  const layout = matchRoutes(routes, { pathname })?.at(-1)?.route.handle;
 
   return (
-    <AppPageShell activePage={activePage} variant={isCourse || isVideo ? 'workspace' : 'standard'}>
+    <AppPageShell {...layout}>
       <RouteContent />
     </AppPageShell>
   );
