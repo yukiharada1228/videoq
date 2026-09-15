@@ -203,7 +203,7 @@ GitHub Actionsは固定AWS access keyではなく、plan / deployを分離した
 `monitoring.tf`の宣言的な`import`ブロックが最初のapplyで既存groupをstateへ取り込み、
 以後は通常のTerraformリソースとして管理します。
 
-`operations_alert_email`を設定すると、Lambda error / throttle / 長時間実行、SQS滞留、
+`operations_alert_email`を設定すると、Lambda error / ジョブ失敗 / throttle / 長時間実行、SQS滞留、
 DLQ到達をSNS emailで通知します。apply後にAWSから届くsubscription確認メールを承認して
 ください。ログ保持期間は`lambda_log_retention_days`（既定30日）です。
 
@@ -212,6 +212,7 @@ DLQ到達をSNS emailで通知します。apply後にAWSから届くsubscription
 
 | アラーム末尾 | 条件 |
 |---|---|
+| `job-failures` | SQSイベントの失敗数が5分間の合計で1件以上。`batchItemFailures`で返された失敗も対象 |
 | `queue-waiting` | 取得可能な処理待ちが1件以上の状態を、1分ごとの最小値で5回連続観測 |
 | `queue-depth` | 処理待ち10件以上を5分ごとの最大値で2回連続観測 |
 | `duration` | 15分区間の最大実行時間がLambdaタイムアウトの80%以上（既定12分）。1件でも検知 |
@@ -220,6 +221,14 @@ DLQ到達をSNS emailで通知します。apply後にAWSから届くsubscription
 計測しません。[SQSの可視メッセージ数](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-available-cloudwatch-metrics.html)を
 使うため、処理待ち0件で8〜9分かかる実行中ジョブだけでは警告しません。
 旧`queue-age`はapply時に`queue-waiting`へ置き換えます。
+
+`job-failures`はイベントソースで`EventCount`を有効にし、`EventSourceMappingUUID`単位の
+[`FailedInvokeEventCount`](https://docs.aws.amazon.com/lambda/latest/dg/monitoring-metrics-types.html#event-source-mapping-metrics)を
+監視します。ハンドラーが例外を捕捉して`batchItemFailures`を返す場合、Lambdaの`Errors`では
+検知できません。この指標は処理終了時刻で記録されるため、失敗したジョブが再試行まで
+非表示になる間も、処理待ち件数や実行時間に依存せず失敗を通知できます。
+`job-failures`のOK通知は直近の集計から失敗の検知がなくなったことを示し、対象ジョブの
+再試行成功を保証しません。再試行の結果は`job_executions`とworker logsで確認してください。
 
 [Lambdaの実行時間指標](https://docs.aws.amazon.com/lambda/latest/dg/monitoring-metrics-view.html)は
 開始時刻をタイムスタンプとして処理終了後に送信されるため、`duration`は実行中の即時通知では

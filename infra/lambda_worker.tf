@@ -87,6 +87,11 @@ resource "aws_lambda_event_source_mapping" "worker" {
   batch_size              = 1
   function_response_types = ["ReportBatchItemFailures"]
 
+  # Partial batch failures return normally; opt in to per-event failure metrics.
+  metrics_config {
+    metrics = ["EventCount"]
+  }
+
   scaling_config {
     maximum_concurrency = 10
   }

@@ -45,6 +45,28 @@ resource "aws_cloudwatch_metric_alarm" "worker_errors" {
   }
 }
 
+# Unlike Lambda Errors, this includes failures returned in batchItemFailures.
+# FailedInvokeEventCount is timestamped at completion, before the SQS retry wait.
+resource "aws_cloudwatch_metric_alarm" "worker_job_failures" {
+  alarm_name          = "${local.names.worker}-job-failures"
+  alarm_description   = "One or more worker SQS events failed in five minutes, including partial batch failures. Messages may still be waiting for retry."
+  namespace           = "AWS/Lambda"
+  metric_name         = "FailedInvokeEventCount"
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  threshold           = 1
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.operations.arn]
+  ok_actions          = [aws_sns_topic.operations.arn]
+
+  # Event-source metrics use this dimension, not FunctionName.
+  dimensions = {
+    EventSourceMappingUUID = aws_lambda_event_source_mapping.worker.uuid
+  }
+}
+
 resource "aws_cloudwatch_metric_alarm" "worker_throttles" {
   alarm_name          = "${local.names.worker}-throttles"
   alarm_description   = "Worker Lambda was throttled."
