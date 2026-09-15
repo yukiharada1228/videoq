@@ -38,10 +38,15 @@ function LocaleGate() {
     return <Navigate to="/" replace />;
   }
 
-  // Strip redundant default-locale prefix (/ja/foo → /foo).
-  if (locale === defaultLocale) {
-    const withoutLocale = location.pathname.replace(/^\/[^/]+(\/|$)/, '$1') || '/';
-    return <Navigate to={withQueryAndHash(withoutLocale, location.search, location.hash)} replace />;
+  // Use the router-decoded locale to normalize only the matched prefix:
+  // /ja/foo → /foo, /%65n/foo → /en/foo. Preserve the rest of the URL as encoded.
+  if (locale) {
+    const pathname = locale === defaultLocale
+      ? location.pathname.replace(/^\/[^/]+(\/|$)/, '$1') || '/'
+      : location.pathname.replace(/^\/[^/]+/, `/${locale}`);
+    if (pathname !== location.pathname) {
+      return <Navigate to={withQueryAndHash(pathname, location.search, location.hash)} replace />;
+    }
   }
 
   // Returning visitors who explicitly chose English. Never use Accept-Language

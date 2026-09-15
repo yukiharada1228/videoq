@@ -29,6 +29,8 @@ npm run build --workspace @videoq/web
 
 ページと動画のViewは本文のみを返します。`AppPageShell`・`AppNav`・`AppFooter`・`AuthLayout` などの直接importはLintで禁止しています。通常画面は `App.tsx` の `appPageRoutes` に追加し、`handle` にナビゲーションの選択状態と必要なレイアウト種別を指定します。`AppRouteLayout` は同じ定義を `matchRoutes` で照合するため、パスの優先順位・大文字小文字・URLエンコードの扱いがルーターと一致します。
 
+`LocaleGate` はルーターが解釈した言語パラメーターから、ページ表示前に言語プレフィックスを正規化します（`/%65n/...` → `/en/...`、`/ja/...` → `/...`）。プレフィックス以外のエンコード・クエリ文字列・ハッシュは保持し、履歴を追加せず置き換えます。
+
 `RouteContent` の `Suspense` とエラー境界は本文の内側に置き、コードの初回読み込みや描画エラーでレイアウトが消えないようにします。APIの読み込み・失敗・空状態は本文内で扱います。検索条件の変更では入力のフォーカスや編集中の状態を保持するため、本文をURLのクエリ文字列で再マウントしません。
 
 `src/__tests__/App.navigation.test.tsx` は実際のルーター・翻訳・ナビゲーションで遷移、読み込み待ち、エラー時の操作を検証します。ページ単体のテストとは別に、この統合テストで親レイアウトを確認してください。ブラウザーでの表示・操作は `Application/Navigation`（`src/App.stories.tsx`）で確認できます。

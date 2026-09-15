@@ -156,6 +156,7 @@ it.each([
   ['/videos/COURSES', 'videos.courses.title', 'navigation.coursesNav'],
   ['/en/VIDEOS/Courses/', 'videos.courses.title', 'navigation.coursesNav'],
   ['/videos/%63ourses', 'videos.courses.title', 'navigation.coursesNav'],
+  ['/%65n/videos/courses', 'videos.courses.title', 'navigation.coursesNav'],
   ['/PRICING', 'pricing.title', 'navigation.pricing'],
 ])('uses the matched page’s standard layout at %s', async (path, title, activeLabel) => {
   renderApp(path);
@@ -188,12 +189,43 @@ it('keeps the search input mounted and focused when query parameters change', as
 it.each([
   ['/VIDEOS/7/', 'videos.get', 'navigation.videoLibrary', 'common.messages.videoNotFound'],
   ['/en/%76ideos/courses/7', 'courses.get', 'navigation.coursesNav', 'common.messages.courseNotFound'],
+  ['/%65n/videos/7', 'videos.get', 'navigation.videoLibrary', 'common.messages.videoNotFound'],
+  ['/e%6e/videos/courses/7', 'courses.get', 'navigation.coursesNav', 'common.messages.courseNotFound'],
+  ['/ja/videos/7', 'videos.get', 'navigation.videoLibrary', 'common.messages.videoNotFound'],
+  ['/%6Aa/videos/7', 'videos.get', 'navigation.videoLibrary', 'common.messages.videoNotFound'],
 ])('uses the matched page’s workspace layout at %s', async (path, procedure, activeLabel, message) => {
   globalThis.__setTrpcHandler(procedure, () => null);
   renderApp(path);
   await screen.findByText(i18n.t(message));
   expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
   expect(within(primaryNav()).getByRole('link', { name: i18n.t(activeLabel) })).toHaveAttribute('aria-current', 'page');
+});
+
+it('normalizes the matched locale without decoding the remaining path or losing query and hash', async () => {
+  const getVideo = vi.fn(() => null);
+  globalThis.__setTrpcHandler('videos.get', getVideo);
+  const historyLength = window.history.length;
+  renderApp('/%65%6e/%76ideos/%37?t=12&next=%2Fvideos#transcript');
+  await screen.findByText(i18n.t('common.messages.videoNotFound'));
+  expect(window.location.pathname).toBe('/en/%76ideos/%37');
+  expect(window.location.search).toBe('?t=12&next=%2Fvideos');
+  expect(window.location.hash).toBe('#transcript');
+  expect(window.history.length).toBe(historyLength);
+  expect(getVideo).toHaveBeenCalledWith({ id: 7 });
+  expect(i18n.language).toBe('en');
+  expect(homeLink()).toHaveAttribute('href', '/en/');
+  expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
+});
+
+it('normalizes the locale before rendering an authentication page', async () => {
+  globalThis.__setMockAuthSession(null);
+  renderApp('/%65n/login?next=%2Fvideos%2F7#login');
+  await screen.findByRole('heading', { name: i18n.t('auth.login.title'), level: 1 });
+  expect(window.location.pathname).toBe('/en/login');
+  expect(window.location.search).toBe('?next=%2Fvideos%2F7');
+  expect(window.location.hash).toBe('#login');
+  expect(screen.getByRole('link', { name: 'VideoQ' })).toHaveAttribute('href', '/en/');
+  expect(screen.getAllByRole('main')).toHaveLength(1);
 });
 
 it.each([

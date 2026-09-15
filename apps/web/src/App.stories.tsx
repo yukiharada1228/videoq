@@ -214,6 +214,27 @@ export const VideoMobileLayout: Story = {
   },
 };
 
+export const EncodedLocaleVideoMobile: Story = {
+  ...VideoMobileLayout,
+  // Start in Japanese; the encoded URL must select English before rendering the page.
+  globals: { locale: 'ja', viewport: { value: 'mobile', isRotated: false } },
+  parameters: { ...VideoMobileLayout.parameters, pathname: '/%65n/videos/7' },
+  async play(context) {
+    await VideoMobileLayout.play!(context);
+    const canvas = within(context.canvasElement);
+    const header = canvas.getByRole('link', { name: 'VideoQ' }).closest('header')!;
+    const main = canvas.getByRole('main');
+    await expect(i18n.language).toBe('en');
+    await context.userEvent.click(within(header).getByRole('button', { name: i18n.t('navigation.menu') }));
+    await expect(within(header).getByRole('link', { name: i18n.t('navigation.videoLibrary') })).toHaveAttribute('aria-current', 'page');
+    await context.userEvent.click(within(header).getByRole('link', { name: i18n.t('navigation.home') }));
+    await canvas.findByRole('heading', { level: 1, name: i18n.t('home.welcome.greeting', { username: api.auth.profile!.username }) });
+    await expect(canvas.getByRole('link', { name: 'VideoQ' }).closest('header')).toBe(header);
+    await expect(canvas.getByRole('main')).toBe(main);
+    await expect(canvas.getByRole('contentinfo')).toBeInTheDocument();
+  },
+};
+
 export const LoggedOutHome: Story = {
   parameters: { pathname: '/', api: { ...api, auth: authFixtures.loggedOut } },
   async play({ canvasElement }) {
