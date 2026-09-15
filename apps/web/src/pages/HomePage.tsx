@@ -8,7 +8,6 @@ import { useHomePageData } from '@/hooks/useHomePageData';
 import { useVideoStatusCounts } from '@/hooks/useVideoStats';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
-import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { Button } from '@/components/ui/button';
 import { Heading, HeadingTitle } from '@/components/ui/heading';
@@ -96,11 +95,9 @@ export default function HomePage() {
 
   if (isLoading || (currentUser && isLoadingData)) {
     return (
-      <AppPageShell activePage="home">
-        <div className="flex justify-center py-24">
-          <LoadingSpinner />
-        </div>
-      </AppPageShell>
+      <div className="flex justify-center py-24">
+        <LoadingSpinner />
+      </div>
     );
   }
 
@@ -134,7 +131,7 @@ export default function HomePage() {
   ];
 
   return (
-    <AppPageShell activePage="home">
+    <>
       <AppPageHeader
         badge={t('home.welcome.badge')}
         title={t('home.welcome.greeting', { username: currentUser?.username })}
@@ -270,6 +267,6 @@ export default function HomePage() {
           </ul>
         </section>
       )}
-    </AppPageShell>
+    </>
   );
 }

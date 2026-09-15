@@ -11,7 +11,6 @@ import {
 } from '@/lib/api';
 import { ApiError, getApiError } from '@/lib/api-error';
 import { trpc } from '@/lib/trpc';
-import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
@@ -299,7 +298,7 @@ export default function AdminPage() {
   if (!user || !isSuperuser) return <LoadingSpinner />;
 
   return (
-    <AppPageShell activePage="admin">
+    <>
       <AppPageHeader
         title={t('admin.title')}
         description={t('admin.description')}
@@ -652,6 +651,6 @@ export default function AdminPage() {
           </DialogActions>
         </DialogContent>
       </Dialog>
-    </AppPageShell>
+    </>
   );
 }

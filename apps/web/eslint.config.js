@@ -21,6 +21,18 @@ export default defineConfig([
     },
   },
   {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/App.tsx', 'src/components/layout/**', '**/__tests__/**', '**/*.test.*', '**/*.spec.*', '**/*.stories.*'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [{
+          group: ['**/AppNav', '**/AppNav.*', '**/AppFooter', '**/AppFooter.*', '**/AppPageShell', '**/AppPageShell.*', '**/AuthLayout', '**/AuthLayout.*', '**/AuthPageFooter', '**/AuthPageFooter.*', '**/AppRouteLayout', '**/AppRouteLayout.*', '**/RouteContent', '**/RouteContent.*'],
+          message: 'Layouts belong to parent routes in App.tsx. Pages must render content only so loading and errors cannot remove navigation.',
+        }],
+      }],
+    },
+  },
+  {
     files: ['**/*.stories.{ts,tsx}', '.storybook/**/*.{ts,tsx}'],
     rules: {
       'react-refresh/only-export-components': 'off',

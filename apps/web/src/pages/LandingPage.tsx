@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from '@/lib/i18n';
-import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { Button } from '@/components/ui/button';
 import { Heading, HeadingTitle } from '@/components/ui/heading';
@@ -20,7 +19,7 @@ export default function LandingPage() {
   const { t } = useTranslation();
 
   return (
-    <AppPageShell activePage="home" isPublic>
+    <>
       <AppPageHeader
         badge={t('landing.badge')}
         title={t('landing.title')}
@@ -137,6 +136,6 @@ export default function LandingPage() {
           <p className="text-std-16N-170 text-solid-gray-700">{t('landing.startNote')}</p>
         </div>
       </section>
-    </AppPageShell>
+    </>
   );
 }

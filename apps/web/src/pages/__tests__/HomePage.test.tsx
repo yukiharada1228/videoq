@@ -1,8 +1,6 @@
-import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import HomePage from '../HomePage'
 import { useI18nNavigate } from '@/lib/i18n'
-
-vi.unmock('@/components/layout/AppNav')
 
 const mockUseVideoStatusCounts = vi.hoisted(() => vi.fn())
 const getAccount = vi.fn()
@@ -245,48 +243,6 @@ describe('HomePage - Data Loading', () => {
       error: null,
     })
   })
-
-  it.each(['account', 'videos', 'courses'] as const)(
-    'keeps navigation and footer mounted while %s is loading',
-    async (pendingResource) => {
-      const responses = {
-        account: { id: 1, username: 'testuser' },
-        videos: {
-          data: mockVideos,
-          meta: { total: mockVideos.length, limit: 5, offset: 0 },
-        },
-        courses: {
-          data: mockCourses,
-          meta: { total: mockCourses.length, limit: 1, offset: 0 },
-        },
-      }
-      const handler = { account: getAccount, videos: listVideos, courses: listCourses }[pendingResource]
-      let finish!: (value: unknown) => void
-      handler.mockReturnValue(new Promise((resolve) => { finish = resolve }))
-
-      render(<HomePage />)
-
-      await waitFor(() => expect(handler).toHaveBeenCalled())
-      const header = screen.getByRole('banner')
-      const footer = screen.getByRole('contentinfo')
-      expect(within(screen.getByRole('main')).getByText('Loading')).toBeInTheDocument()
-      expect(within(header).getByRole('link', { name: 'navigation.home' })).toHaveAttribute('aria-current', 'page')
-
-      const menuButton = within(header).getByRole('button', { name: 'navigation.menu' })
-      fireEvent.click(menuButton)
-      expect(menuButton).toHaveAttribute('aria-expanded', 'true')
-
-      await act(async () => { finish(responses[pendingResource]) })
-
-      await waitFor(() => {
-        expect(screen.getByText('home.welcome.greeting {"username":"testuser"}')).toBeInTheDocument()
-      })
-      expect(header).toBeInTheDocument()
-      expect(screen.getByRole('contentinfo')).toBe(footer)
-      expect(menuButton).toHaveAttribute('aria-expanded', 'true')
-      expect(screen.queryByText('Loading')).not.toBeInTheDocument()
-    },
-  )
 
   it('should handle API errors gracefully', async () => {
     listVideos.mockRejectedValue(new Error('Network error'))

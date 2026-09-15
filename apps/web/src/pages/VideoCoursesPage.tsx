@@ -19,7 +19,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
 import type { CourseListItem } from '@videoq/trpc';
 import { Link, useI18nNavigate } from '@/lib/i18n';
-import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
@@ -244,7 +243,7 @@ export default function VideoCoursesPage() {
   };
 
   return (
-    <AppPageShell activePage="courses">
+    <>
       <AppPageHeader
         title={t('videos.courses.title')}
         description={t('videos.courses.subtitle')}
@@ -365,6 +364,6 @@ export default function VideoCoursesPage() {
         onClose={() => setIsModalOpen(false)}
         onCreate={handleCreate}
       />
-    </AppPageShell>
+    </>
   );
 }

@@ -6,7 +6,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { apiClient, type IntegrationApiKeyCreateResponse } from '@/lib/api';
 import { Link, useLocale } from '@/lib/i18n';
 import { queryKeys } from '@/lib/queryKeys';
-import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -340,7 +339,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <AppPageShell activePage="settings">
+    <>
       <AppPageHeader
         title={t('settings.title')}
         description={t('settings.subtitle')}
@@ -969,7 +968,7 @@ export default function SettingsPage() {
         </Dialog>
       )}
 
-    </AppPageShell>
+    </>
   );
 }
 

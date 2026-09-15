@@ -6,7 +6,6 @@ import type { BillingPlan } from '@videoq/trpc';
 import { trpc } from '@/lib/trpc';
 import { useAuthSession } from '@/lib/authSession';
 import { Link, useLocale } from '@/lib/i18n';
-import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { Heading, HeadingTitle } from '@/components/ui/heading';
 import { Button } from '@/components/ui/button';
@@ -61,7 +60,7 @@ export default function PricingPage() {
   }));
 
   return (
-    <AppPageShell activePage="pricing">
+    <>
       <AppPageHeader
         title={t('pricing.title')}
         description={t('pricing.subtitle')}
@@ -215,6 +214,6 @@ export default function PricingPage() {
           {t('legal.scta.shortTitle')}
         </Link>
       </p>
-    </AppPageShell>
+    </>
   );
 }

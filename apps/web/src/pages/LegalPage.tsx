@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from '@/lib/i18n';
-import { AppPageShell } from '@/components/layout/AppPageShell';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { Heading, HeadingTitle } from '@/components/ui/heading';
 import { UtilityLink } from '@/components/ui/utility-link';
@@ -60,7 +59,7 @@ export default function LegalPage({ page }: { page: LegalPageId }) {
   const { t } = useTranslation();
 
   return (
-    <AppPageShell isPublic>
+    <>
       <AppPageHeader
         title={t(`legal.${page}.title`)}
         description={t(`legal.${page}.updated`)}
@@ -108,6 +107,6 @@ export default function LegalPage({ page }: { page: LegalPageId }) {
           ),
         )}
       </nav>
-    </AppPageShell>
+    </>
   );
 }

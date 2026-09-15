@@ -1,11 +1,9 @@
-import { Suspense, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft } from 'lucide-react';
-import { AuthLayout } from '@/components/layout/AuthLayout';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { UtilityLink } from '@/components/ui/utility-link';
@@ -55,7 +53,7 @@ function VerifyEmailContent() {
   }
 
   return (
-    <AuthLayout>
+    <>
       <UtilityLink asChild className="mb-12 inline-flex items-center text-sm font-bold">
         <Link href="/login">
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -102,20 +100,10 @@ function VerifyEmailContent() {
         )}
       </div>
 
-    </AuthLayout>
+    </>
   );
 }
 
 export default function VerifyEmailPage() {
-  return (
-    <Suspense fallback={
-      <AuthLayout>
-        <div className="flex items-center justify-center h-full">
-          <LoadingSpinner />
-        </div>
-      </AuthLayout>
-    }>
-      <VerifyEmailContent />
-    </Suspense>
-  );
+  return <VerifyEmailContent />;
 }

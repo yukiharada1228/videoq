@@ -1,6 +1,5 @@
 import { Link } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
-import { AuthLayout } from '@/components/layout/AuthLayout';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { UtilityLink } from '@/components/ui/utility-link';
@@ -9,7 +8,7 @@ export default function SignupCheckEmailPage() {
   const { t } = useTranslation();
 
   return (
-    <AuthLayout>
+    <>
       <div className="space-y-6">
         <AuthPageIntro
           badge={t('auth.checkEmail.badge')}
@@ -30,6 +29,6 @@ export default function SignupCheckEmailPage() {
         </div>
       </div>
 
-    </AuthLayout>
+    </>
   );
 }

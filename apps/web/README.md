@@ -19,6 +19,20 @@ npm test --workspace @videoq/web
 npm run build --workspace @videoq/web
 ```
 
+## ルーティングとレイアウト
+
+共通レイアウトは `src/App.tsx` の親ルートで管理します。新しいページは用途に応じた親ルートの子に追加してください。
+
+- `AppRouteLayout`: ホーム・一覧・設定・管理・料金・規約と、動画／講座の詳細。ヘッダーはルート間で維持し、詳細画面ではフッターを省きます。本文の幅・タブ配置は各Viewが管理します。
+- `AuthRouteLayout`: ログイン・登録・メール確認・講座への招待など。認証用ヘッダーと本文の幅を共通化します。
+- 公開共有ページは専用の画面構成を持ちます。
+
+ページと動画のViewは本文のみを返します。`AppPageShell`・`AppNav`・`AppFooter`・`AuthLayout` などの直接importはLintで禁止しています。ナビゲーションを追加するときは `AppRouteLayout` の選択状態も更新してください。
+
+`RouteContent` の `Suspense` とエラー境界は本文の内側に置き、コードの初回読み込みや描画エラーでレイアウトが消えないようにします。APIの読み込み・失敗・空状態は本文内で扱います。検索条件の変更では入力のフォーカスや編集中の状態を保持するため、本文をURLのクエリ文字列で再マウントしません。
+
+`src/__tests__/App.navigation.test.tsx` は実際のルーター・翻訳・ナビゲーションで遷移、読み込み待ち、エラー時の操作を検証します。ページ単体のテストとは別に、この統合テストで親レイアウトを確認してください。ブラウザーでの表示・操作は `Application/Navigation`（`src/App.stories.tsx`）で確認できます。
+
 ## Storybook
 
 UI変更時のStory追加・更新とレビューは[Storybookの変更・レビュー手順](STORYBOOK.md)を参照してください。
