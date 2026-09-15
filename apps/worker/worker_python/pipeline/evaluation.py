@@ -96,9 +96,20 @@ def _langchain_llm():
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is required for RAGAS evaluation.")
     model = env_str("LLM_MODEL", "gpt-4o-mini")
-    llm = ChatOpenAI(model=model, api_key=SecretStr(api_key), temperature=0.0)
-    llm.max_tokens = 1024
-    return llm
+    try:
+        max_tokens = int(env_str("RAGAS_MAX_TOKENS", "4096"))
+    except ValueError as exc:
+        raise ValueError("RAGAS_MAX_TOKENS must be a positive integer.") from exc
+    if max_tokens <= 0:
+        raise ValueError("RAGAS_MAX_TOKENS must be a positive integer.")
+    # Faithfulness expands answers into structured statements and verdicts.
+    # A 1,024-token budget can truncate these intermediate evaluation outputs.
+    return ChatOpenAI(
+        model=model,
+        api_key=SecretStr(api_key),
+        temperature=0.0,
+        max_tokens=max_tokens,
+    )
 
 
 def _langchain_embeddings():

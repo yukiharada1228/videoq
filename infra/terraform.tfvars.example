@@ -31,6 +31,9 @@ worker_lambda_memory_mb = 5120
 # Worker Lambda timeout in seconds. Lambda's 15-minute maximum is 900 seconds.
 worker_lambda_timeout_seconds = 900
 
+# Per-call output budget for RAGAS evaluation (must fit the selected LLM model).
+worker_ragas_max_tokens = 4096
+
 # --- SQS settings ------------------------------------------------------------
 
 # SQS visibility timeout in seconds.

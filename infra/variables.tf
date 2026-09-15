@@ -27,6 +27,17 @@ variable "worker_lambda_timeout_seconds" {
   }
 }
 
+variable "worker_ragas_max_tokens" {
+  description = "RAGAS評価でLLMが1回に生成できる最大トークン数。利用モデルの出力上限以下に設定。"
+  type        = number
+  default     = 4096
+
+  validation {
+    condition     = var.worker_ragas_max_tokens > 0 && floor(var.worker_ragas_max_tokens) == var.worker_ragas_max_tokens
+    error_message = "worker_ragas_max_tokens must be a positive integer."
+  }
+}
+
 variable "sqs_visibility_timeout_seconds" {
   description = "SQS の visibility timeout (秒)。Lambda のタイムアウトの6倍以上。"
   type        = number
