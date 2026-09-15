@@ -94,24 +94,18 @@ export default function HomePage() {
     t,
   ]);
 
-  if (isLoading) {
+  if (isLoading || (currentUser && isLoadingData)) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <LoadingSpinner />
-      </div>
+      <AppPageShell activePage="home">
+        <div className="flex justify-center py-24">
+          <LoadingSpinner />
+        </div>
+      </AppPageShell>
     );
   }
 
   if (!currentUser) {
     return <LandingPage />;
-  }
-
-  if (isLoadingData) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <LoadingSpinner />
-      </div>
-    );
   }
 
   const statsItems = [
