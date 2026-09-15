@@ -207,6 +207,32 @@ GitHub Actionsは固定AWS access keyではなく、plan / deployを分離した
 DLQ到達をSNS emailで通知します。apply後にAWSから届くsubscription確認メールを承認して
 ください。ログ保持期間は`lambda_log_retention_days`（既定30日）です。
 
+待ち行列と実行時間は別々のアラームで監視します。すべてのアラームは警告（ALARM）と
+復旧（OK）の両方を通知します。OKメールは新しい障害の通知ではありません。
+
+| アラーム末尾 | 条件 |
+|---|---|
+| `queue-waiting` | 取得可能な処理待ちが1件以上の状態を、1分ごとの最小値で5回連続観測 |
+| `queue-depth` | 処理待ち10件以上を5分ごとの最大値で2回連続観測 |
+| `duration` | 15分区間の最大実行時間がLambdaタイムアウトの80%以上（既定12分）。1件でも検知 |
+
+`queue-waiting`はキュー全体の処理待ちが続く状態を検知し、個々のジョブの待ち時間は
+計測しません。[SQSの可視メッセージ数](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-available-cloudwatch-metrics.html)を
+使うため、処理待ち0件で8〜9分かかる実行中ジョブだけでは警告しません。
+旧`queue-age`はapply時に`queue-waiting`へ置き換えます。
+
+[Lambdaの実行時間指標](https://docs.aws.amazon.com/lambda/latest/dg/monitoring-metrics-view.html)は
+開始時刻をタイムスタンプとして処理終了後に送信されるため、`duration`は実行中の即時通知では
+ありません。長い処理の遅れて届く指標も評価できるよう、15分の集計区間を使います。
+
+RAGAS評価の出力上限は`worker_ragas_max_tokens`（既定4,096）で設定し、Lambdaへ
+`RAGAS_MAX_TOKENS`として渡します。ローカルでは`.env`に同じ環境変数を設定します。
+これは評価の中間JSONを含むLLM呼び出しごとの上限です。切り詰め警告が続く場合は、
+利用モデルの出力上限内で調整してください（既定の
+[`gpt-4o-mini`](https://developers.openai.com/api/docs/models/gpt-4o-mini)は最大16,384）。
+上限の増加により、長い評価の生成時間と使用トークン数が増える場合があります。
+この環境変数を読むworker imageとTerraform設定の両方をリリースしてください。
+
 **arm64 cutover:** Lambda の `architectures = ["arm64"]` とイメージ arch は一致が必須です。
 
 SQS の `sqs_visibility_timeout_seconds` は Lambda のタイムアウトの6倍以上にします

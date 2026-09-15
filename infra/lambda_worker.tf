@@ -72,6 +72,7 @@ resource "aws_lambda_function" "worker" {
 
   environment {
     variables = merge(local.common_lambda_environment, {
+      RAGAS_MAX_TOKENS                        = tostring(var.worker_ragas_max_tokens)
       MEDIA_PROCESS_MEMORY_LIMIT_MB           = "2048"
       MEDIA_PROCESS_CPU_TIME_LIMIT_SECONDS    = "300"
       FFMPEG_PROCESS_TIMEOUT_SECONDS          = "600"
