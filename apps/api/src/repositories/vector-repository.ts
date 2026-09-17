@@ -108,7 +108,7 @@ export async function openSceneSearch(
   const table = resolveVectorTable(env);
   const allowedVideoIds = new Set(params.videoIds);
 
-  // 重要（要件 §11.4 / PoC #01d）: Pool はリクエストごとに生成し、
+  // Pool はリクエストごとに生成し、
   // リクエストをまたいで使い回さない（max: 1 で実質 pg.Client 相当）。
   const pool = withMetadataParsing(
     new pg.Pool({

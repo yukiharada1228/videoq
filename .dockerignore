@@ -3,6 +3,8 @@
 .cutover-secrets
 **/node_modules
 **/dist
+apps/docs/build
+apps/docs/.docusaurus
 **/.wrangler
 **/__pycache__
 apps/worker
@@ -10,5 +12,4 @@ archive
 assets
 docs
 infra
-poc
 whisper.cpp

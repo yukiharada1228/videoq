@@ -1,245 +1,46 @@
-# アクティビティ図
+---
+title: 利用者の操作とシステムの動き
+description: 動画登録と質問の操作が、裏側の処理にどうつながるか。
+---
 
-## 概要
+# 利用者の操作とシステムの動き
 
-VideoQシステムの主要な業務フローを示す図です。
+画面での操作と、システム内部で起こる処理を対応させます。実装を読む前に、利用者がどこで待ち、何を見て次へ進むかを確認するための図です。
 
-## 1. 動画アップロードから文字起こし完了までのフロー
-
-```mermaid
-flowchart TD
-    Start([User Uploads Video]) --> Upload[Upload Video File]
-    Upload --> Validate{"File Format<br>Validation"}
-    Validate -->|Invalid| Error1[Error Display]
-    Validate -->|Valid| CheckFileSize{"File size vs<br>User.max_video_upload_size_mb"}
-    CheckFileSize -->|Exceeded| ErrorLimit[Error: File Size Exceeded]
-    CheckFileSize -->|OK| CheckStorage{"Storage quota<br>check (User limits)"}
-    CheckStorage -->|Exceeded| ErrorStorage[Error: Storage Limit Exceeded]
-    CheckStorage -->|OK| Save[Save to Database<br/>status: pending]
-    Save --> Queue[Send Native Job to SQS]
-    Queue --> Wait[User Waits]
-    
-    Queue --> Worker[Python Worker<br/>Receives Task]
-    Worker --> UpdateStatus1[Update status: processing]
-    UpdateStatus1 --> CheckBackend{"WHISPER_BACKEND<br>Setting Check"}
-    CheckBackend -->|whisper.cpp| Extract[Extract Audio with ffmpeg]
-    CheckBackend -->|openai| Extract[Extract Audio with ffmpeg]
-    Extract --> CheckSize{"File Size<br>Check"}
-    CheckSize -->|24MB or less| Transcribe1[Execute Transcription<br/>with Whisper API]
-    CheckSize -->|Over 24MB| Split[Split Audio]
-    Split --> Transcribe2[Transcribe Each Segment<br/>in Parallel]
-    Transcribe2 --> Merge[Merge Segments]
-    Merge --> CreateSRT[Convert to SRT Format]
-    Transcribe1 --> CreateSRT
-    CreateSRT --> SceneSplit[Scene Splitting Process]
-    SceneSplit --> SaveTranscript[Save Transcription Result<br/>to Database]
-    SaveTranscript --> UpdateIndexing[Update status: indexing]
-    UpdateIndexing --> QueueIndexing[Enqueue Indexing Task]
-    QueueIndexing --> IndexWorker[Python Worker<br/>Indexing Task]
-    IndexWorker --> Vectorize[Vectorize and Save<br/>to PGVector]
-    Vectorize --> UpdateStatus2[Update status: completed]
-    UpdateStatus2 --> Notify[Notify User of Completion]
-    Notify --> End([Complete])
-    
-    Error1 --> End
-    ErrorLimit --> End
-    Worker -->|Error Occurred| UpdateError[Update status: error<br/>Save Error Message]
-    UpdateError --> End
-```
-
-## 2. チャット処理フロー（RAG）
+## 動画を質問に使えるようにする
 
 ```mermaid
 flowchart TD
-    Start([User Sends Question]) --> RateLimit{"Rate Limit<br>Check"}
-    RateLimit -->|Exceeded| ErrorRateLimit[Rate Limit Error<br/>429 Too Many Requests]
-    ErrorRateLimit --> End
-    RateLimit -->|OK| Auth{Authenticated or Share Token?}
-    Auth -->|No| Error1[Authentication Error]
-    Auth -->|Yes| GetCourse{Course Specified?}
-    
-    GetCourse -->|Yes| ValidateGroup[Validate Course Existence]
-    GetCourse -->|No| ParseQuery[Parse Question Text]
-    ValidateGroup --> ParseQuery
-    ParseQuery --> VectorSearch{Course Specified?}
-    
-    VectorSearch -->|Yes| SearchVectors[Search Related Scenes<br/>with PGVector]
-    VectorSearch -->|No| NoContext[No Context]
-    
-    SearchVectors --> BuildContext[Build Context from<br/>Related Scenes]
-    BuildContext --> CallLLM[Generate Answer<br/>with OpenAI / Ollama LLM]
-    NoContext --> CallLLM
-    
-    CallLLM --> SaveLog[Save Chat Log<br/>to Database]
-    SaveLog --> ReturnAnswer[Return Answer]
-    ReturnAnswer --> End([Complete])
-
-    Error1 --> End
-    CallLLM -->|Error| Error2[Error Response]
-    Error2 --> End
+    Select[利用者が動画を選ぶ] --> Validate[APIがサイズ・利用上限を確認]
+    Validate --> Upload[ブラウザがストレージへ送る]
+    Upload --> Confirm[送信完了をAPIに通知]
+    Confirm --> Queue[APIが処理を依頼]
+    Queue --> Transcribe[workerが文字起こし]
+    Transcribe --> Index[workerが検索用データを作成]
+    Index --> Ready[画面で処理完了を確認]
+    Ready --> Course[講座に動画を追加して質問]
 ```
 
-## 3. ユーザー登録フロー
+ファイル送信後も、文字起こしと検索準備が終わるまでは待ち時間があります。エラーが起きたときに、送信失敗と処理失敗を同じ表示にしないことが重要です。
+
+## 質問に答える
 
 ```mermaid
 flowchart TD
-    Start([User Signs Up]) --> Input[Input User Information]
-    Input --> Validate{Input Validation}
-    Validate -->|Invalid| ShowError[Error Display]
-    Validate -->|Valid| RateLimitSignup{"Rate Limit<br>Check"}
-    RateLimitSignup -->|Exceeded| ErrorRateLimitSignup[Rate Limit Error<br/>429 Too Many Requests]
-    ErrorRateLimitSignup --> End
-    RateLimitSignup -->|OK| CreateUser[Create User<br/>is_active: False]
-    CreateUser --> GenerateToken[Generate Verification Token]
-    GenerateToken --> SendEmail[Send Verification Email]
-    SendEmail --> ShowMessage[Display Email Confirmation Waiting Screen]
-    ShowMessage --> Wait[User Checks Email]
-    
-    Wait --> ClickLink[Click Verification Link]
-    ClickLink --> VerifyToken{Token Verification}
-    VerifyToken -->|Invalid| Error1[Error Message]
-    VerifyToken -->|Valid| ActivateUser[Update is_active: True]
-    ActivateUser --> Success[Registration Complete]
-    Success --> Redirect[Redirect to Login Page]
-    Redirect --> End([Complete])
-    
-    ShowError --> Input
-    Error1 --> End
+    Ask[質問を入力] --> Access[APIが講座へのアクセスを確認]
+    Access --> Agent[回答処理が必要な情報を選ぶ]
+    Agent --> Meta[講座名・動画一覧などを取得]
+    Agent --> Search[字幕の関連シーンを検索]
+    Meta --> Answer[回答を作成]
+    Search --> Answer
+    Answer --> Display[画面に回答を順次表示]
+    Display --> Citation[引用元があれば場面へ移動]
 ```
 
-## 4. 講座共有フロー
+登録情報だけで答えられる質問もあります。授業内容に関する質問では字幕を参照します。具体的なツールと制限は[プロンプト設計](../architecture/prompt-engineering.md)にまとめています。
 
-```mermaid
-flowchart TD
-    Start([User Generates Share Link]) --> CheckAuth{Authentication Check}
-    CheckAuth -->|Unauthenticated| Error1[Authentication Error]
-    CheckAuth -->|Authenticated| GetCourse[Get Course]
-    GetCourse --> ValidateOwner{Owner Verification}
-    ValidateOwner -->|Mismatch| Error2[Permission Error]
-    ValidateOwner -->|Match| GenerateToken[Generate Share Token]
-    GenerateToken --> SaveToken[Save to Database]
-    SaveToken --> ReturnURL[Return Share URL]
-    ReturnURL --> End([Complete])
-    
-    Error1 --> End
-    Error2 --> End
-    
-    subgraph ShareAccess[Share Link Access]
-        Guest([Guest Accesses Share Link]) --> ExtractToken[Extract Token]
-        ExtractToken --> ValidateToken{Token Verification}
-        ValidateToken -->|Invalid| Error3[Link Invalid]
-        ValidateToken -->|Valid| GetSharedGroup[Get Shared Course]
-        GetSharedGroup --> ShowGroup[Display Course Information]
-        ShowGroup --> AllowChat[Chat Function Available]
-        AllowChat --> End2([Complete])
-        Error3 --> End2
-    end
-```
+## 学習モードとの違い
 
-## 5. 講座管理フロー
+学習モードでは、自由な質問への回答に加えて、PLOGの概念・前提関係・問い・ヒントを使います。動画の処理完了と学習用グラフの準備完了は別です。
 
-```mermaid
-flowchart TD
-    Start([User Creates Course]) --> CreateGroup[Create Course]
-    CreateGroup --> AddVideos[Add Videos]
-    AddVideos --> ValidateVideos{"Video Ownership<br>Verification"}
-    ValidateVideos -->|Invalid| Error1[Error Display]
-    ValidateVideos -->|Valid| CheckDuplicate{Already Added?}
-    CheckDuplicate -->|Yes| Skip[Skip]
-    CheckDuplicate -->|No| CreateMember[Create VideoCourseMember]
-    CreateMember --> SetOrder[Set Order]
-    SetOrder --> Save[Save to Database]
-    Save --> Success[Success]
-    Success --> End([Complete])
-    
-    Skip --> Success
-    Error1 --> End
-    
-    subgraph Reorder[Reorder]
-        ReorderStart([Reorder Request]) --> GetVideos[Get Videos in Course]
-        GetVideos --> ValidateOrder{"Order Array<br>Validation"}
-        ValidateOrder -->|Invalid| Error2[Error]
-        ValidateOrder -->|Valid| UpdateOrder[Bulk Update]
-        UpdateOrder --> ReorderEnd([Complete])
-        Error2 --> ReorderEnd
-    end
-```
-
-## 6. アカウント無効化フロー
-
-```mermaid
-flowchart TD
-    Start([User Requests Account Deactivation]) --> InputReason[Input Reason]
-    InputReason --> Submit[Submit Request]
-    Submit --> CreateRequest[Create AccountDeletionRequest]
-    CreateRequest --> Deactivate[Deactivate Account<br/>is_active: False<br/>deactivated_at: now]
-    Deactivate --> EnqueueTask[Enqueue Account Deletion Task]
-    EnqueueTask --> ClearSession[Clear Auth Cookies]
-    ClearSession --> Redirect[Redirect to Home Page]
-    Redirect --> End([Complete])
-```
-
-## 7. APIキー管理フロー
-
-```mermaid
-flowchart TD
-    Start([User Opens Settings]) --> SelectAction{Select API Key Operation}
-
-    SelectAction -->|List| ListKeys[Fetch Active API Keys]
-    ListKeys --> DisplayKeys[Display Key List<br/>prefix, name, access_level, created_at]
-    DisplayKeys --> End([Complete])
-
-    SelectAction -->|Create| InputName[Input Key Name]
-    InputName --> SelectAccess[Select Access Level<br/>all / read_only]
-    SelectAccess --> GenerateKey[Better Auth<br/>Generate Raw Key]
-    GenerateKey --> SaveKey[Store apikey Hash<br/>+ accessLevel Metadata]
-    SaveKey --> ShowRawKey[Display Raw Key<br/>One-time only, cannot be retrieved again]
-    ShowRawKey --> End
-
-    SelectAction -->|Revoke| SelectKey[Select API Key to Revoke]
-    SelectKey --> ConfirmRevoke{"Confirm<br>Revocation?"}
-    ConfirmRevoke -->|Cancel| End
-    ConfirmRevoke -->|Confirm| DeleteKey[Better Auth<br/>Delete API Key]
-    DeleteKey --> End
-```
-
-## 8. チャット分析・フィードバックフロー
-
-```mermaid
-flowchart TD
-    Start([User Opens Course Detail]) --> SelectAction{Select Operation}
-
-    SelectAction -->|View Analytics| OpenDashboard[Open Analytics Dashboard]
-    OpenDashboard --> FetchAnalytics[Fetch Analytics Data<br/>Aggregated DB Queries]
-    FetchAnalytics --> DisplayCharts[Display Charts<br/>Feedback Donut, TimeSeries,<br/>Keyword Cloud, Scene Distribution]
-    DisplayCharts --> End([Complete])
-
-    SelectAction -->|Submit Feedback| SelectResponse[Select Chat Response]
-    SelectResponse --> ChooseFeedback{"Choose<br>Feedback"}
-    ChooseFeedback -->|Good| SetGood[Set feedback: good]
-    ChooseFeedback -->|Bad| SetBad[Set feedback: bad]
-    ChooseFeedback -->|Remove| ClearFeedback[Clear feedback: null]
-    SetGood --> SaveFeedback[Update feedback in DB]
-    SetBad --> SaveFeedback
-    ClearFeedback --> SaveFeedback
-    SaveFeedback --> End
-
-    SelectAction -->|View Popular Scenes| FetchScenes[Fetch Scene Logs]
-    FetchScenes --> AggregateScenes[Aggregate Scene References + Questions]
-    AggregateScenes --> DisplayPopular[Display Popular Scenes]
-    DisplayPopular --> End
-
-    SelectAction -->|Export History| FetchAllLogs[Fetch All Chat Logs]
-    FetchAllLogs --> FormatCSV[Format as CSV]
-    FormatCSV --> DownloadCSV[Download CSV File]
-    DownloadCSV --> End
-```
-
-## Related Documentation
-
-- [📖 ドキュメント一覧](../README.md)
-- [ユースケース図](use-case-diagram.md) — ユーザー操作一覧
-- [画面遷移図](screen-transition-diagram.md) — フロントエンドの画面遷移
-- [フローチャート](../architecture/flowchart.md) — 処理フローの詳細
-- [BPMN](../architecture/bpmn.md) — ビジネスプロセス
-- [シーケンス図](../design/sequence-diagram.md) — 処理シーケンスの詳細
+**関連:** [動画の状態](../design/state-diagram.md)、[PLOGと学習モード](../plog/README.md)、[担当別のフロー](../architecture/bpmn.md)。

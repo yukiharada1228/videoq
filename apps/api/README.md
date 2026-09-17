@@ -2,6 +2,10 @@
 
 VideoQ の Web API。Hono / TypeScript を Cloudflare Workers で実行します。
 
+初めて参加した人は[開発環境のセットアップ](../../docs/getting-started/local-setup.md)から、
+APIを変更する人は[API変更ガイド](../../docs/guides/api.md)から読み始めてください。
+以下はAPIパッケージ固有の詳細資料です。
+
 ## 構成
 
 通常の JSON API は `packages/trpc` の router を正本とし、API workspace は
@@ -160,9 +164,9 @@ SQS message は native JSON です。
 consumer は [`apps/worker/`](../worker/) です。ローカルでは ElasticMQ、本番では Amazon SQS を使います。
 
 ジョブ投入と業務データ更新は `external_tasks` outbox に同一transactionで保存し、通常はその場で
-SQSへ配送します。`*/5 * * * *` のcronは、DB commit直後のプロセス停止やSQS障害で残った行と
-放棄uploadを回収するための安全網です。通常配送の代わりではないため、削除すると障害時に
-永続的な取りこぼしが生じます。48回失敗した行は `dead_at` を設定して停止し、構造化ログで通知します。
+SQSへ配送します。`TASK_SCHEDULER` Durable Objectのアラームが、DB commit直後のプロセス停止や
+SQS障害で残った行、放棄uploadの回復を予約します。5分ごとのcronは現在使用しません。
+日次の保守処理でも回復を行います。48回失敗した行は `dead_at` を設定して停止し、構造化ログで通知します。
 
 `17 3 * * *`（UTC）では、SQSの最大保持期間より長い30日を過ぎた完了済みoutbox／実行台帳を
 小分けで削除します。未完了outboxが参照中の実行台帳は削除しません。
@@ -179,6 +183,7 @@ Cloudflare Dashboard側にrepositoryのルートディレクトリ設定はあ�
 | `VIDEO_BUCKET` | 動画・字幕・サムネイル |
 | `RATE_LIMITER` | 分散 rate limit |
 | `STUDY_SESSION` | 学習モードの一時状態（Durable Object） |
+| `TASK_SCHEDULER` | 未配送ジョブ・放棄uploadなどの回復予約（Durable Object） |
 
 R2 の S3 互換 endpoint、SQS、LLM/embedding、OAuth issuer などは
 `wrangler.jsonc` と `.dev.vars.example` を参照してください。

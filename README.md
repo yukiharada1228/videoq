@@ -10,7 +10,7 @@ VideoQ is a video learning platform that turns uploaded videos and YouTube lectu
 
 > **MCP integration supported** - Connect Claude Code and other MCP clients through OAuth or API keys.
 >
-> **Design documentation** - See [docs/](docs/README.md) for architecture diagrams, ER diagrams, sequence diagrams, and other technical details.
+> **New to the team?** Start with the [developer documentation](docs/README.md): [local setup](docs/getting-started/local-setup.md), [first walkthrough](docs/getting-started/first-walkthrough.md), and [codebase tour](docs/getting-started/codebase.md). Architecture and design references are also available there.
 
 ## Architecture
 
@@ -332,7 +332,7 @@ After switching models or providers, reindex existing videos from Admin. Rebuild
 
 ## Development
 
-Run npm commands from the repository root. Dependencies for `apps/api`, `apps/web`, and `packages/trpc` share the root lockfile.
+Run npm commands from the repository root. Dependencies for `apps/api`, `apps/docs`, `apps/web`, and `packages/trpc` share the root lockfile.
 
 ```bash
 npm ci
@@ -343,6 +343,20 @@ npm run build
 ```
 
 `npm test` runs API unit / Workers runtime tests and frontend tests. API database integration tests additionally require `QUOTA_TEST_DATABASE_URL` pointing to a test PostgreSQL instance with pgvector and permission to create test databases.
+
+### Documentation site
+
+The Docusaurus site reads the Markdown files in [`docs/`](docs/README.md) directly,
+with Japanese navigation, Mermaid diagrams, and local Japanese / English search.
+
+```bash
+npm run dev:docs      # http://localhost:3001
+npm run build:docs    # Static output: apps/docs/build
+npm run preview:docs  # Preview the build, including search, on port 3001
+```
+
+Search indexes are generated during the production build. See
+[`apps/docs/README.md`](apps/docs/README.md) for editing and hosting settings.
 
 ### Frontend and API on the host
 
@@ -533,7 +547,6 @@ packages/trpc/   Shared Hono ↔ React tRPC router and contract
 package.json     npm workspace root
 infra/           Terraform (SQS, Lambda, ECR, IAM) + deploy notes
 docs/            Architecture and design docs
-poc/             Spike / verification projects
 whisper.cpp/     Optional local transcription server (Git submodule)
 .github/workflows/   CI, CD, Terraform, Cloudflare resource management
 docker-compose.yml   Local full stack

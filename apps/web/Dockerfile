@@ -21,6 +21,7 @@ ENV VITE_OPERATOR_PHONE=${VITE_OPERATOR_PHONE}
 
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/package.json
+COPY apps/docs/package.json apps/docs/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/trpc/package.json packages/trpc/package.json
 RUN npm ci --workspace @videoq/web

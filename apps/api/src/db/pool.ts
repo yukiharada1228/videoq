@@ -8,7 +8,7 @@ export type Db = NodePgDatabase<typeof schema>;
 /**
  * Neon への接続（Hyperdrive 経由）。
  *
- * 重要（要件 §11.4 / PoC #01d）: **接続 Client はリクエストごとに生成**し、
+ * **接続 Client はリクエストごとに生成**し、
  * リクエストをまたいで使い回さない（global Pool 禁止）。
  * Drizzle は `withDb` 内でのみ `drizzle(client)` する。
  */

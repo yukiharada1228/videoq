@@ -1,5 +1,11 @@
 # tRPC API 設計
 
+通常のデータ取得・更新を、画面とAPIで同じ型を使って実装するための詳細資料です。
+初めてAPIを変更する場合は、先に[APIを変更する](../guides/api.md)の手順を読んでください。
+
+「procedure」は `videos.get` のような1つの操作、「契約」は入力と出力の約束です。
+ここでは、その契約をどこに置き、Honoの処理へどう接続するかを説明します。
+
 ## 方針
 
 VideoQ の通常の JSON API は tRPC に統一します。React と Hono の間で
@@ -8,13 +14,13 @@ VideoQ の通常の JSON API は tRPC に統一します。React と Hono の間
 
 ```mermaid
 flowchart LR
-    React[React SPA] --> Client[tRPC client]
-    Client --> Endpoint[/api/trpc]
-    Endpoint --> Hono[Hono middleware]
-    Hono --> Router[shared AppRouter]
-    Router --> Adapter[request-scoped handlers]
-    Adapter --> Service[feature services]
-    Service --> Repository[repositories]
+    React[Reactの画面] --> Client[tRPCクライアント]
+    Client --> Endpoint["/api/trpc"]
+    Endpoint --> Hono[Honoの共通処理]
+    Hono --> Router[共有AppRouter]
+    Router --> Adapter[リクエストごとのハンドラー]
+    Adapter --> Service[機能のサービス]
+    Service --> Repository[DBの読み書き]
 ```
 
 ## Workspace 境界

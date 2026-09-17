@@ -1,352 +1,45 @@
-# BPMN図
-
-## 概要
-
-BPMN（Business Process Model and Notation）を使用したVideoQシステムのビジネスプロセスを示す図です。
-
-## 1. ユーザー登録プロセス
-
-```mermaid
-flowchart TD
-    Start([Start]) --> UserInput[Input User Information]
-    UserInput --> Validate{Input Validation}
-    Validate -->|Invalid| ShowError[Error Display]
-    ShowError --> UserInput
-    Validate -->|Valid| RateLimit{"Rate Limit Check"}
-    RateLimit -->|Exceeded| ErrorRateLimit[Error Display]
-    ErrorRateLimit --> UserInput
-    RateLimit -->|OK| CreateAccount[Create Account]
-    CreateAccount --> SendEmail[Send Verification Email]
-    SendEmail --> WaitEmail{"User Checks<br>Email"}
-    WaitEmail -->|Not Checked| Timeout{Timeout}
-    Timeout -->|Timeout| Expire[Token Expired]
-    Expire --> Resend[Resend Possible]
-    Resend --> SendEmail
-    Timeout -->|Continue Waiting| WaitEmail
-    WaitEmail -->|Checked| ClickLink[Click Verification Link]
-    ClickLink --> VerifyToken{Token Verification}
-    VerifyToken -->|Invalid| InvalidToken[Token Invalid]
-    InvalidToken --> Resend
-    VerifyToken -->|Valid| ActivateAccount[Activate Account]
-    ActivateAccount --> Complete([Registration Complete])
-```
-
-## 2. 動画アップロード・文字起こしプロセス
-
-```mermaid
-flowchart TD
-    Start([Start]) --> Upload[Upload Video File]
-    Upload --> ValidateFile{"Validation<br>- File type/size (max_video_upload_size_mb)<br>- Storage quota (User limits)"}
-    ValidateFile -->|Invalid| Reject[Reject Upload]
-    Reject --> ShowError[Error Display]
-    ShowError --> End([End])
-    ValidateFile -->|Valid| SaveFile[Save File]
-    SaveFile --> CreateRecord[Create Database Record]
-    CreateRecord --> QueueTask[Add to Task Queue]
-    QueueTask --> NotifyUser[Notify User]
-    NotifyUser --> ProcessTask[Start Background Processing]
-    
-    ProcessTask --> ExtractAudio[Extract Audio]
-    ExtractAudio --> CheckBackend{"WHISPER_BACKEND<br>Setting Check"}
-    CheckBackend -->|whisper.cpp| Transcribe[Execute Transcription<br>Local whisper.cpp]
-    CheckBackend -->|openai| TranscribeAPI[Execute Transcription<br>OpenAI API]
-    Transcribe --> CheckResult{Processing Result}
-    TranscribeAPI --> CheckResult
-    CheckResult -->|Success| CreateTranscript[Save Transcription]
-    CheckResult -->|Failure| HandleError[Error Processing]
-    HandleError --> UpdateErrorStatus[Update Error Status]
-    UpdateErrorStatus --> NotifyError[Error Notification]
-    NotifyError --> End
-    
-    CreateTranscript --> MarkIndexing[Update Status: Indexing]
-    MarkIndexing --> QueueIndexTask[Enqueue Indexing Task]
-    QueueIndexTask --> Vectorize[Vectorization Process]
-    Vectorize --> SaveVector[Save Vector Data]
-    SaveVector --> UpdateStatus[Update Status: Completed]
-    UpdateStatus --> NotifyComplete[Completion Notification]
-    NotifyComplete --> End
-```
-
-## 3. チャット質問応答プロセス
-
-```mermaid
-flowchart TD
-    Start([Start]) --> InputQuestion[Input Question]
-    InputQuestion --> ValidateQuestion{Question Validation}
-    ValidateQuestion -->|Invalid| ShowError[Error Display]
-    ShowError --> InputQuestion
-    ValidateQuestion -->|Valid| RateLimit{"Rate Limit Check"}
-    RateLimit -->|Exceeded| ErrorRateLimit[Error Display]
-    ErrorRateLimit --> InputQuestion
-    RateLimit -->|OK| CheckAccess{Authenticated or Share Token?}
-    CheckAccess -->|No| RequireAuth[Require Authentication or Share Link]
-    RequireAuth --> End([End])
-    CheckAccess -->|Yes| CheckCourse{Course Specified}
-    
-    CheckCourse -->|Specified| GetCourse[Get Course]
-    GetCourse --> SearchVector[Vector Search]
-    SearchVector --> GetContext[Get Context]
-    GetContext --> BuildPrompt[Build Prompt]
-    
-    CheckCourse -->|Not Specified| BuildPrompt2[Build Prompt<br>No Context]
-    
-    BuildPrompt --> CallLLM[LLM API Call]
-    BuildPrompt2 --> CallLLM
-    CallLLM --> CheckResponse{Response Check}
-    CheckResponse -->|Error| HandleLLMError[LLM Error Processing]
-    HandleLLMError --> ShowError2[Error Display]
-    ShowError2 --> End
-    CheckResponse -->|Success| ParseAnswer[Parse Answer]
-    ParseAnswer --> SaveLog[Save Chat Log]
-    SaveLog --> DisplayAnswer[Display Answer]
-    DisplayAnswer --> WaitFeedback{Wait for Feedback}
-    WaitFeedback -->|Feedback Exists| SaveFeedback[Save Feedback]
-    WaitFeedback -->|No Feedback| Complete
-    SaveFeedback --> Complete([Complete])
-```
-
-## 4. 講座共有プロセス
-
-```mermaid
-flowchart TD
-    Start([Start]) --> OwnerAction{Owner Operation}
-    OwnerAction -->|Generate Link| GenerateLink[Generate Share Link]
-    OwnerAction -->|Delete Link| DeleteLink[Delete Share Link]
-    
-    GenerateLink --> ValidateOwner{Ownership Verification}
-    ValidateOwner -->|Invalid| RejectOwner[Permission Error]
-    RejectOwner --> End([End])
-    ValidateOwner -->|Valid| CreateToken[Generate Token]
-    CreateToken --> SaveToken[Save Token]
-    SaveToken --> CreateURL[Create Share URL]
-    CreateURL --> ShareURL[Share URL]
-    ShareURL --> GuestAccess[Wait for Guest Access]
-    
-    GuestAccess --> AccessLink[Access Share Link]
-    AccessLink --> ValidateToken{Token Verification}
-    ValidateToken -->|Invalid| InvalidLink[Link Invalid]
-    InvalidLink --> End
-    ValidateToken -->|Valid| GetSharedGroup[Get Shared Course]
-    GetSharedGroup --> DisplayGroup[Display Course Information]
-    DisplayGroup --> AllowChat[Allow Chat Usage]
-    AllowChat --> ChatProcess[Execute Chat Process]
-    ChatProcess --> Complete([Complete])
-    
-    DeleteLink --> ValidateOwner2{Ownership Verification}
-    ValidateOwner2 -->|Invalid| RejectOwner2[Permission Error]
-    RejectOwner2 --> End
-    ValidateOwner2 -->|Valid| RemoveToken[Remove Token]
-    RemoveToken --> InvalidateLink[Invalidate Link]
-    InvalidateLink --> Complete
-```
-
-## 5. 講座管理プロセス
-
-```mermaid
-flowchart TD
-    Start([Start]) --> SelectAction{Select Operation}
-    SelectAction -->|Create| CreateGroup[Create Course]
-    SelectAction -->|Edit| EditGroup[Edit Course]
-    SelectAction -->|Delete| DeleteCourse[Delete Course]
-    SelectAction -->|Add Video| AddVideo[Add Video]
-    SelectAction -->|Reorder| ReorderVideo[Reorder]
-    
-    CreateGroup --> InputInfo[Input Course Information]
-    InputInfo --> ValidateInfo{Input Validation}
-    ValidateInfo -->|Invalid| ShowError[Error Display]
-    ShowError --> InputInfo
-    ValidateInfo -->|Valid| SaveCourse[Save Course]
-    SaveCourse --> Complete([Complete])
-    
-    EditGroup --> SelectGroup[Select Course]
-    SelectGroup --> InputEdit[Input Edit Information]
-    InputEdit --> ValidateEdit{Input Validation}
-    ValidateEdit -->|Invalid| ShowError2[Error Display]
-    ShowError2 --> InputEdit
-    ValidateEdit -->|Valid| UpdateCourse[Update Course]
-    UpdateCourse --> Complete
-    
-    DeleteCourse --> SelectGroup2[Select Course]
-    SelectGroup2 --> ConfirmDelete{Delete Confirmation}
-    ConfirmDelete -->|Cancel| Cancel[Cancel]
-    Cancel --> Complete
-    ConfirmDelete -->|Confirm| ExecuteDelete[Execute Course Deletion]
-    ExecuteDelete --> CascadeDelete[Delete Related Data<br/>CASCADE]
-    CascadeDelete --> Complete
-    
-    AddVideo --> SelectGroup3[Select Course]
-    SelectGroup3 --> SelectVideos[Select Videos]
-    SelectVideos --> ValidateOwnership{Ownership Verification}
-    ValidateOwnership -->|Invalid| RejectVideo[Ownership Error]
-    RejectVideo --> Complete
-    ValidateOwnership -->|Valid| CheckDuplicate{Duplicate Check}
-    CheckDuplicate -->|Duplicate| SkipVideo[Skip]
-    CheckDuplicate -->|New| AddMember[Add Member]
-    AddMember --> Complete
-    SkipVideo --> Complete
-    
-    ReorderVideo --> SelectGroup4[Select Course]
-    SelectGroup4 --> InputOrder[Input Order]
-    InputOrder --> ValidateOrder{Order Validation}
-    ValidateOrder -->|Invalid| ShowError3[Error Display]
-    ShowError3 --> InputOrder
-    ValidateOrder -->|Valid| UpdateOrder[Update Order]
-    UpdateOrder --> Complete
-```
-
-## 6. パスワードリセットプロセス
-
-```mermaid
-flowchart TD
-    Start([Start]) --> RequestReset[Request Password Reset]
-    RequestReset --> InputEmail[Input Email Address]
-    InputEmail --> RateLimit{"Rate Limit Check"}
-    RateLimit -->|Exceeded| ErrorRateLimit[Error Display: Too Many Requests]
-    ErrorRateLimit --> InputEmail
-    RateLimit -->|OK| ValidateEmail{"Email Address<br>Existence Check"}
-    ValidateEmail -->|Not Exists| ShowError[Error Display<br/>For Security, Show Success<br/>Even if Not Exists]
-    ValidateEmail -->|Exists| GenerateToken[Generate Reset Token]
-    GenerateToken --> SendEmail[Send Reset Email]
-    SendEmail --> ShowMessage[Email Sent Message]
-    ShowMessage --> WaitEmail{"User Checks<br>Email"}
-    WaitEmail -->|Not Checked| Timeout{Timeout}
-    Timeout -->|Timeout| Expire[Token Expired]
-    Expire --> Resend[Resend Possible]
-    Resend --> SendEmail
-    Timeout -->|Continue Waiting| WaitEmail
-    WaitEmail -->|Checked| ClickLink[Click Reset Link]
-    ClickLink --> VerifyToken{Token Verification}
-    VerifyToken -->|Invalid| InvalidToken[Token Invalid]
-    InvalidToken --> Resend
-    VerifyToken -->|Valid| InputPassword[Input New Password]
-    InputPassword --> ValidatePassword{Password Validation}
-    ValidatePassword -->|Invalid| ShowError2[Error Display]
-    ShowError2 --> InputPassword
-    ValidatePassword -->|Valid| UpdatePassword[Update Password]
-    UpdatePassword --> InvalidateToken[Invalidate Token]
-    InvalidateToken --> Complete([Complete])
-    ShowError --> Complete
-```
-
-## 7. 動画削除プロセス
-
-```mermaid
-flowchart TD
-    Start([Start]) --> SelectVideo[Select Video]
-    SelectVideo --> ConfirmDelete{Delete Confirmation}
-    ConfirmDelete -->|Cancel| Cancel[Cancel]
-    Cancel --> End([End])
-    ConfirmDelete -->|Confirm| ValidateOwnership{Ownership Verification}
-    ValidateOwnership -->|Invalid| Reject[Permission Error]
-    Reject --> End
-    ValidateOwnership -->|Valid| DeleteFile[Delete File]
-    DeleteFile --> DeleteVectors[Delete Vector Data]
-    DeleteVectors --> DeleteMemberships[Delete Course Memberships]
-    DeleteMemberships --> DeleteRecord[Delete Database Record]
-    DeleteRecord --> Complete([Deletion Complete])
-```
-
-## プロセス特性
-
-### 非同期処理
-- 動画の文字起こしはバックグラウンドで非同期に処理されます
-- SQS と Python worker による非同期ジョブ管理
-
-### エラーハンドリング
-- 各プロセスで適切なエラーハンドリングを実施
-- ユーザーフレンドリーなエラーメッセージ
-
-### セキュリティ
-- 各プロセスで認証・認可チェックを実施
-- 安全なトークンベースの認証
-
-### データ整合性
-- `transaction.atomic` によるトランザクション管理でデータの整合性を保証
-- CASCADE削除による参照整合性の保証
-
-## 8. アカウント無効化プロセス
-
-```mermaid
-flowchart TD
-    Start([Start]) --> RequestDelete[Request Account Deactivation]
-    RequestDelete --> InputReason[Input Reason for Leaving]
-    InputReason --> CreateRequest[Create AccountDeletionRequest]
-    CreateRequest --> DeactivateUser[Deactivate User<br/>is_active: False<br/>deactivated_at: now]
-    DeactivateUser --> EnqueueTask[Enqueue Account Deletion Task]
-    EnqueueTask --> ClearCookies[Clear Auth Cookies<br/>HttpOnly Cookie Deletion]
-    ClearCookies --> Complete([Account Deactivated])
-```
-
-## 9. APIキー管理プロセス
-
-```mermaid
-flowchart TD
-    Start([Start]) --> SelectAction{Select Operation}
-    SelectAction -->|List| ListKeys[List API Keys]
-    SelectAction -->|Create| CreateKey[Create API Key]
-    SelectAction -->|Revoke| RevokeKey[Revoke API Key]
-
-    ListKeys --> FetchKeys[Better Auth<br/>List User API Keys]
-    FetchKeys --> DisplayKeys[Display Key List<br/>prefix, name, access_level]
-    DisplayKeys --> Complete([Complete])
-
-    CreateKey --> InputName[Input Key Name]
-    InputName --> SelectAccess[Select Access Level<br/>all / read_only]
-    SelectAccess --> GenerateKey[Better Auth<br/>Generate Raw Key vq_...]
-    GenerateKey --> HashAndSave[Store Hash + accessLevel Metadata]
-    HashAndSave --> ShowRawKey[Display Raw Key<br/>One-Time Only]
-    ShowRawKey --> Complete
-
-    RevokeKey --> SelectKey[Select API Key]
-    SelectKey --> ConfirmRevoke{Confirm Revocation}
-    ConfirmRevoke -->|Cancel| Complete
-    ConfirmRevoke -->|Confirm| DeleteKey[Better Auth<br/>Delete API Key]
-    DeleteKey --> Complete
-```
-
-## 10. チャット分析プロセス
-
-```mermaid
-flowchart TD
-    Start([Start]) --> SelectAction{Select Operation}
-    SelectAction -->|View Analytics| ViewAnalytics[View Analytics Dashboard]
-    SelectAction -->|Submit Feedback| SubmitFeedback[Submit Chat Feedback]
-    SelectAction -->|View Popular Scenes| ViewScenes[View Popular Scenes]
-    SelectAction -->|Export History| ExportHistory[Export Chat History]
-
-    ViewAnalytics --> FetchAnalytics[Fetch Analytics Data<br/>Aggregated Queries]
-    FetchAnalytics --> ComputeMetrics[Compute Metrics<br/>feedback distribution, time series]
-    ComputeMetrics --> DisplayCharts[Display Charts<br/>Donut, TimeSeries, KeywordCloud]
-    DisplayCharts --> Complete([Complete])
-
-    SubmitFeedback --> SelectLog[Select Chat Response]
-    SelectLog --> ChooseFeedback{Choose Feedback}
-    ChooseFeedback -->|Good| SetGood[Set feedback: good]
-    ChooseFeedback -->|Bad| SetBad[Set feedback: bad]
-    ChooseFeedback -->|Remove| ClearFeedback[Set feedback: null]
-    SetGood --> SaveFeedback[(Database<br/>Update feedback)]
-    SetBad --> SaveFeedback
-    ClearFeedback --> SaveFeedback
-    SaveFeedback --> Complete
-
-    ViewScenes --> FetchSceneLogs[Fetch Scene Logs]
-    FetchSceneLogs --> AggregateScenes[Aggregate Scene References]
-    AggregateScenes --> ExtractKeywords[Extract Keywords<br/>Janome/NLTK]
-    ExtractKeywords --> DisplayScenes[Display Popular Scenes<br/>+ Keyword Cloud]
-    DisplayScenes --> Complete
-
-    ExportHistory --> FetchAllLogs[Fetch All ChatLogs]
-    FetchAllLogs --> FormatCSV[Format as CSV]
-    FormatCSV --> DownloadFile[Download CSV File]
-    DownloadFile --> Complete
-```
-
+---
+title: 担当別に見る処理の流れ
+description: 利用者・API・workerがどのタイミングで何を担当するか。
 ---
 
-## Related Documentation
+# 担当別に見る処理の流れ
 
-- [📖 ドキュメント一覧](../README.md)
-- [フローチャート](flowchart.md) — 処理フローの詳細
-- [アクティビティ図](../requirements/activity-diagram.md) — 業務フロー概要
-- [シーケンス図](../design/sequence-diagram.md) — 処理シーケンスの詳細
-- [ユースケース図](../requirements/use-case-diagram.md) — ユーザー操作一覧
+このページは、処理の担当がどこで切り替わるかを確認するための役割別フローです。厳密なBPMN記法ではなく、Mermaidで読みやすく表しています。
+
+## 動画から回答まで
+
+```mermaid
+flowchart TB
+    subgraph User[利用者とブラウザ]
+      Upload[動画を送信] --> Confirm[送信完了を通知]
+      Ask[講座について質問] --> Read[回答と引用元を見る]
+    end
+    subgraph API[Hono API]
+      Accept[権限・状態を確認]
+      Dispatch[ジョブを配送]
+      Answer[許可された情報で回答を生成]
+    end
+    subgraph Worker[Python worker]
+      Transcribe[文字起こし]
+      Index[検索用データを保存]
+      Plog[PLOGを生成]
+    end
+    Confirm --> Accept --> Dispatch
+    Dispatch --> Transcribe --> Index --> Plog
+    Index -. 検索に利用 .-> Answer
+    Ask --> Answer --> Read
+```
+
+質問への応答はAPIが担当します。workerが処理完了後にブラウザへ直接回答を返す構成ではありません。学習モードには索引に加えてPLOGが必要です。
+
+## 問題が起きたときの担当
+
+| 問題 | 最初に確認する場所 | 次に見る資料 |
+|---|---|---|
+| ファイルを送れない | ブラウザ、ストレージ、API | [困ったとき](../guides/troubleshooting.md) |
+| 動画が処理されない | ジョブ配送、キュー、worker | [ジョブの配送と回復](flowchart.md) |
+| 内容と関係のない回答になる | 検索範囲、字幕、プロンプト | [プロンプト設計](prompt-engineering.md) |
+| Studyだけ使えない | PLOGの生成状態と順序 | [PLOGと学習モード](../plog/README.md) |
+
+**関連:** 時間順に呼び出しを追うなら[シーケンス図](../design/sequence-diagram.md)、画面操作から追うなら[アクティビティ](../requirements/activity-diagram.md)へ進みます。

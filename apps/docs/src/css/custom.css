@@ -1,0 +1,35 @@
+:root {
+  --ifm-color-primary: #005aff;
+  --ifm-color-primary-dark: #0051e6;
+  --ifm-color-primary-darker: #004dd9;
+  --ifm-color-primary-darkest: #003fb3;
+  --ifm-color-primary-light: #1a6bff;
+  --ifm-color-primary-lighter: #2673ff;
+  --ifm-color-primary-lightest: #4d8cff;
+  --ifm-font-family-base: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #80adff;
+  --ifm-color-primary-dark: #5a95ff;
+  --ifm-color-primary-darker: #4788ff;
+  --ifm-color-primary-darkest: #0d63ff;
+  --ifm-color-primary-light: #a6c5ff;
+  --ifm-color-primary-lighter: #b9d2ff;
+  --ifm-color-primary-lightest: #f3f7ff;
+}
+
+.markdown {
+  line-height: 1.85;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  text-wrap: balance;
+}
+
+.docusaurus-mermaid-container {
+  overflow-x: auto;
+}

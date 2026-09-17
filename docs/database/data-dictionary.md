@@ -1,72 +1,78 @@
+---
+title: データ辞書
+description: 目的からテーブルを探し、実際の列定義へ進むための一覧。
+---
+
 # データ辞書
 
-完全な型、default、constraint、index はdomain dataについて
-`apps/api/src/db/schema/modern.ts`、認証について
-`apps/api/src/db/schema/better-auth.ts`を正本とします。
+調べたいデータがどのテーブルにあるかを探す一覧です。列の型・既定値・制約の完全な定義は [modern.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/modern.ts) と [better-auth.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/better-auth.ts)を確認してください。
 
-## 認証
+## 利用者と認証
 
-| テーブル | 用途 |
+| テーブル | 保存するもの |
 |---|---|
-| `users` | Better Auth user、quota、Stripe 課金、暗号化済み外部 key |
-| `stripe_events` | Stripe webhook の冪等（event id） |
-| `session` | Better Auth cookie session と期限 |
-| `account` | credential password hash とGoogle等のprovider account |
-| `verification` | メール確認・password reset・email change の一回限り token |
-| `apikey` | MCP integration key のhash、prefix、accessLevel metadata |
-| `jwks` | OAuth access token署名用の鍵 |
+| `users` | 利用者、利用上限、課金との関連、暗号化した外部APIキー |
+| `session` | Better Authのログインセッションと期限 |
+| `account` | パスワード認証やGoogleなどの認証先との対応 |
+| `verification` | メール確認・パスワード再設定などの検証情報 |
+| `apikey` | MCP用APIキーとアクセス範囲の情報 |
+| `jwks` | OAuthトークンの署名に使う鍵 |
 | `account_deletion_requests` | アカウント削除依頼 |
 
-認証テーブルの完全な列定義は `apps/api/src/db/schema/better-auth.ts` を正本とします。
+## 動画・講座・タグ
 
-## 動画・整理
-
-| テーブル | 用途 |
+| テーブル | 保存するもの |
 |---|---|
-| `videos` | file、title、source、transcript、processing status |
-| `video_courses` | user の講座と share slug |
-| `video_course_members` | course と video の関連・表示順 |
-| `tags` | user 単位の tag |
-| `video_tags` | video と tag の関連 |
+| `videos` | 動画のタイトル・所有者・ファイル参照・文字起こし・処理状態 |
+| `video_courses` | 講座、所有者、共有に関する設定 |
+| `video_course_members` | 講座に含める**動画**と表示順 |
+| `video_course_memberships` | 講座を利用する**人**の参加情報 |
+| `video_course_invitations` | 講座への招待と状態 |
+| `tags` / `video_tags` | 利用者のタグ / 動画との対応 |
 
-## チャット・評価
+## 質問・回答・評価
 
-| テーブル | 用途 |
+| テーブル | 保存するもの |
 |---|---|
-| `chat_logs` | question、answer、citation、feedback |
-| `chat_log_evaluations` | log 単位の評価 |
-| `course_evaluation_snapshots` | course 集計 snapshot |
+| `chat_logs` | 質問・回答・引用・利用者のフィードバック |
+| `chat_log_evaluations` | 回答ごとの評価結果 |
+| `course_evaluation_snapshots` | 講座単位の評価集計 |
 
-## Vector / PLOG
+## 検索とPLOG
 
-| テーブル | 用途 |
+| テーブル | 保存するもの・注意点 |
 |---|---|
-| `scene_embeddings` | LangChain標準列、filter可能なuser / video metadata columns、JSON metadata |
-| `plog_build_jobs` | build status |
-| `plog_summary_nodes` | summary hierarchy |
-| `plog_concepts` | concept |
-| `plog_edges` | concept relation |
-| `plog_learning_objects` | concept の learning object |
-| `learner_concept_states` | user ごとの学習状態 |
+| `scene_embeddings` | 字幕の区間と検索用の埋め込み。現行のベクトル次元は1536 |
+| `plog_build_jobs` | 学習用データの生成状態 |
+| `plog_concepts` | 動画から抽出した概念 |
+| `plog_edges` | 概念同士の前提関係など |
+| `plog_learning_objects` | 最初の問い・ヒント・誤解の例など |
+| `plog_summary_nodes` | 階層要約用の定義。現行の簡略生成器では新規生成しない |
+| `learner_concept_states` | 学習状態用の定義。現行Studyの一時状態は別途Durable Objectに保存 |
 
-`scene_embeddings.embedding` の次元は設定した embedding model と一致させます。
+テーブルの存在と、現在の処理が書き込むことは別です。[PLOGの現行実装](../plog/README.md)も確認してください。
 
-## OAuth / OIDC
+## 配送・重複対策・課金
 
-| テーブル | 用途 |
+| テーブル | 保存するもの |
 |---|---|
-| `oauth_client` | DCRで登録されたMCP client metadata |
-| `oauth_resource` | MCP resource identifier、scope policy、token TTL |
-| `oauth_client_resource` | clientとresource identifierの許可関係 |
-| `oauth_access_token` | resource-bound JWT access tokenの発行記録 |
-| `oauth_refresh_token` | refresh tokenとrotation/replay情報 |
-| `oauth_consent` | userがclientへ許可したscope/resource |
-| `oauth_client_assertion` | private_key_jwt assertionのreplay防止 |
+| `external_tasks` | 外部へ配送する仕事と配送状態 |
+| `job_executions` | workerが受け取ったジョブの実行状態 |
+| `mcp_idempotency_records` | MCP操作の再実行による重複を防ぐ記録 |
+| `stripe_events` | 受信したStripeイベントの重複処理を防ぐ記録 |
 
-## 共通規則
+## OAuth
 
-- ID は bigint identity または UUID
-- 日時は `TIMESTAMPTZ`、API 出力は UTC ISO-8601
-- owner / parent relation は FK
-- 関連テーブルは複合 unique で重複を防止
-- secret は hash または AES-256-GCM envelope で保存
+| テーブル | 保存するもの |
+|---|---|
+| `oauth_client` | 外部クライアントの登録情報 |
+| `oauth_resource` / `oauth_client_resource` | 対象APIと、クライアントに許可された対応 |
+| `oauth_access_token` / `oauth_refresh_token` | 発行したトークンと更新に関する情報 |
+| `oauth_consent` | 利用者がクライアントへ許可した範囲 |
+| `oauth_client_assertion` | クライアント認証の再利用を防ぐ情報 |
+
+## 共通の読み方
+
+利用者IDはtextのUUID、動画や講座などには数値IDを使います。日時は主にタイムゾーン付きで保存し、APIではUTCのISO-8601形式で扱います。関連行の削除や重複防止は、各テーブルの外部キー・一意制約を確認します。
+
+**関連:** [ER図](er-diagram.md)、[DBを変更する](../guides/database.md)。

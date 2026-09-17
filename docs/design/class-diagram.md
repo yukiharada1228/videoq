@@ -1,95 +1,39 @@
-# クラス・モジュール関係
+---
+title: モジュールの責任と依存方向
+description: 契約、ハンドラー、サービス、repositoryに何を書くか。
+---
 
-VideoQ API はフレームワーク固有の controller class 階層ではなく、
-feature module と明示的な依存方向で構成します。
+# モジュールの責任と依存方向
 
-```mermaid
-classDiagram
-    class TrpcRouter {
-      +procedure definitions
-      +Zod input schemas
-      +auth middleware
-    }
-    class HonoAdapter {
-      +request context
-      +procedure handlers
-      +raw protocol routes
-    }
-    class FeatureService {
-      +use case orchestration
-      +transaction and side-effect ordering
-    }
-    class Repository {
-      +queries
-      +commands
-      +transactions
-    }
-    class ModernSchema {
-      +tables
-      +relations
-      +constraints
-      +indexes
-    }
-    class ExternalServices {
-      +R2
-      +SQS
-      +Email
-      +OpenAI
-    }
-
-    TrpcRouter --> HonoAdapter
-    HonoAdapter --> FeatureService
-    FeatureService --> Repository
-    Repository --> ModernSchema
-    FeatureService --> ExternalServices
-```
-
-## 認証モデル
+APIの変更場所を判断するための図です。VideoQでは、機能ごとの関数やモジュールを組み合わせます。下の箱は責任の区分で、同名のクラスがすべて存在するという意味ではありません。
 
 ```mermaid
-classDiagram
-    class User
-    class AuthSession {
-      uuid id
-      uuid familyId
-      string tokenHash
-      datetime expiresAt
-      datetime revokedAt
-      uuid replacedBy
-    }
-    class AuthActionToken {
-      uuid id
-      string purpose
-      string tokenHash
-      json payload
-      datetime expiresAt
-      datetime consumedAt
-    }
-    class ApiKey {
-      string prefix
-      string hashedKey
-      string accessLevel
-      datetime revokedAt
-    }
-
-    User "1" --> "*" AuthSession
-    User "1" --> "*" AuthActionToken
-    User "1" --> "*" ApiKey
+flowchart LR
+    Contract[共有tRPC契約] --> Handler[リクエストごとのハンドラー]
+    Handler --> Service[機能のサービス]
+    Service --> Repository[DBの読み書き]
+    Repository --> Schema[Drizzleスキーマ]
+    Service --> External[キュー・ストレージ・外部API]
 ```
 
-## コンテンツモデル
+## どこに何を書くか
 
-```mermaid
-classDiagram
-    User "1" --> "*" Video
-    User "1" --> "*" VideoCourse
-    User "1" --> "*" Tag
-    VideoCourse "1" --> "*" VideoCourseMember
-    Video "1" --> "*" VideoCourseMember
-    Video "1" --> "*" VideoTag
-    Tag "1" --> "*" VideoTag
-    VideoCourse "1" --> "*" ChatLog
-    ChatLog "1" --> "0..1" ChatLogEvaluation
-    Video "1" --> "*" SceneEmbedding
-    Video "1" --> "*" PlogConcept
-```
+| 区分 | 責任 | 例 |
+|---|---|---|
+| 共有契約 | 操作名・入力・出力・認証要件 | タグ作成で必要な名前と色 |
+| ハンドラー | Honoのリクエストとサービスをつなぐ | 認証した利用者IDを渡す |
+| サービス | 業務上の手順を組み立てる | 動画を登録し、処理を依頼する |
+| repository | データを許可された範囲で読む・書く | 所有者のタグ一覧を取得する |
+| スキーマ | テーブル、型、制約、indexを定義する | 同じ関係の重複を防ぐ |
+
+共有契約にHono固有の値やDB接続を持ち込まず、API側のコンテキストで処理を接続します。詳しくは[tRPC API設計](../architecture/trpc-api.md)を参照してください。
+
+## 認証と業務データ
+
+認証のアカウント・セッション・確認トークンはBetter Authのスキーマを使います。動画・講座・タグの所有者は `users` と関連付けます。独自の `AuthSession` クラスや古い `auth_sessions` テーブルを追加する構成ではありません。
+
+現在のテーブルと関係は[データ辞書](../database/data-dictionary.md)と[ER図](../database/er-diagram.md)を参照します。
+
+## 実装を読む練習
+
+[タグ一覧の呼び出しを追う](../getting-started/codebase.md)では、実際のファイルをこの順に読めます。新しい処理を追加するときも、近い既存機能を1つ選んで同じ責任の分け方を確認してください。
