@@ -15,6 +15,44 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  workflow-security:
+    name: Deployment Security Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Test production deployment policy
+        run: node --test .github/scripts/*.test.cjs
+
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    needs: [changes, workflow-security, hono-test, worker-test, frontend-lint, frontend-test, frontend-build, frontend-storybook, docs-build]
+    steps:
+      - name: Require every selected CI job to pass
+        env:
+          JOB_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          node <<'NODE'
+          const jobs = JSON.parse(process.env.JOB_RESULTS);
+          const failed = Object.entries(jobs).filter(([name, job]) =>
+            ['changes', 'workflow-security'].includes(name)
+              ? job.result !== 'success'
+              : !['success', 'skipped'].includes(job.result)
+          );
+          if (failed.length) {
+            console.error('Required CI jobs did not pass:', failed.map(([name]) => name).join(', '));
+            process.exit(1);
+          }
+          NODE
+
   changes:
     name: Detect Changes
     runs-on: ubuntu-latest
@@ -24,8 +62,10 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       docs: ${{ steps.filter.outputs.docs }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
         id: filter
         with:
           filters: |
@@ -71,8 +111,10 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: npm
@@ -107,8 +149,10 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
       - name: Install and test
@@ -124,8 +168,10 @@ jobs:
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "20"
           cache: npm
@@ -147,8 +193,10 @@ jobs:
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "20"
           cache: npm
@@ -160,7 +208,7 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
         run: npm run test:coverage --workspace @videoq/web
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
         with:
           files: ./apps/web/coverage/lcov.info,./apps/web/coverage/coverage-final.json
           flags: frontend
@@ -174,8 +222,10 @@ jobs:
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "20"
           cache: npm
@@ -187,7 +237,7 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
         run: npm run build --workspace @videoq/web
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: frontend-build
           path: apps/web/dist
@@ -199,8 +249,10 @@ jobs:
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: npm
@@ -214,7 +266,7 @@ jobs:
       - name: Test stories in Chromium
         run: npm run test:storybook
       - name: Upload Storybook
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: frontend-storybook
           path: apps/web/storybook-static
@@ -226,8 +278,10 @@ jobs:
     needs: changes
     if: needs.changes.outputs.docs == 'true'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: npm
@@ -239,38 +293,8 @@ jobs:
       - name: Build documentation and check links
         run: npm run build:docs
       - name: Upload documentation
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: documentation-build
           path: apps/docs/build
           retention-days: 7
-
-  ci-success:
-    name: CI Success
-    runs-on: ubuntu-latest
-    needs:
-      - changes
-      - hono-test
-      - worker-test
-      - frontend-lint
-      - frontend-test
-      - frontend-build
-      - frontend-storybook
-      - docs-build
-    if: always()
-    steps:
-      - name: Check all jobs status
-        run: |
-          if [[ "${{ needs.hono-test.result }}" == "failure" ]] || \
-             [[ "${{ needs.docs-build.result }}" == "failure" ]] || \
-             [[ "${{ needs.docs-build.result }}" == "cancelled" ]] || \
-             [[ "${{ needs.worker-test.result }}" == "failure" ]] || \
-             [[ "${{ needs.frontend-lint.result }}" == "failure" ]] || \
-             [[ "${{ needs.frontend-test.result }}" == "failure" ]] || \
-             [[ "${{ needs.frontend-build.result }}" == "failure" ]] || \
-             [[ "${{ needs.frontend-storybook.result }}" == "failure" ]] || \
-             [[ "${{ needs.frontend-storybook.result }}" == "cancelled" ]]; then
-            echo "One or more jobs failed"
-            exit 1
-          fi
-          echo "All jobs succeeded or were skipped"

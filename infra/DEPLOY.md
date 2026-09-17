@@ -100,17 +100,57 @@ Cookie session は `sameSite=lax` です。frontend と API を同一サイト�
 `wrangler.jsonc` を更新します。設定の名前だけを変えてdeployすると別Workerを作成するため、
 Durable Objectの保存データを引き継げません。改名後はrouteとbindingの維持を確認してください。
 
-`main` への CI 成功後、CD が `apps/api` の変更を検知すると
+本体repositoryの`main`へのpushで起動したCIが成功した後、CDが変更を検知すると
 `wrangler deploy --minify --env production` を実行します
 （[`.github/workflows/cd.yml`](../.github/workflows/cd.yml)）。
+CDはGitHub APIでCIのworkflow ID、起動event、repository、branch、commit、最新attemptの成功を
+再検証します。fork／PRからのCI、古いcommitの再実行、`main`以外の手動実行はdeployしません。
+手動CDも現在の`main`と同じSHAのpush CI成功が必要です。rollbackは修正／revertをPR経由で
+`main`へ反映してCIを通します。
 
-必要な GitHub Actions secrets:
+### GitHubの保護設定
 
-| Secret | 用途 |
-|---|---|
-| `CLOUDFLARE_API_TOKEN` | Workers デプロイ用 API トークン（Edit Cloudflare Workers 相当） |
-| `CLOUDFLARE_INFRA_TOKEN` | 手動resource同期用（対象accountのHyperdrive更新とR2 CORS更新に限定） |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID |
+- `main`: PR必須、`CI Success`成功必須、最新mainとの同期必須、force push／削除禁止。
+  管理者にも適用します。現在は管理者1名のため必須の他者承認数は0です。
+  複数のmaintainerで運用する場合は1以上にし、workflow変更のCODEOWNERSも設定してください。
+- `production-deploy`: API deploy／DB migration専用。deploy可能なbranchは`main`だけ
+  （同名tagは許可しない）。手動承認は不要で、上記CI検証後に自動deployします。
+- `production`: インフラ／Cloudflare resource同期用。既存の手動承認を維持し、
+  deploy可能なbranchを`main`だけにします。
+- forkのActionsはすべての外部contributorについて承認を要求します。
+- Actionsは完全なcommit SHAに固定し、Dependabotで更新します。
+
+環境のbranch制限は`GITHUB_REF`を判定するため、`workflow_run`の起動元検証の代用には
+なりません。CDの検証jobは本番secretもOIDC権限も持たず、信頼されたworkflow revisionの
+検証コードを実行します。AWS用OIDC権限はLambda deploy jobだけに付与します。
+
+### GitHub Actions secretsの保存先
+
+| Secret | 保存先 | 用途 |
+|---|---|---|
+| `CLOUDFLARE_API_TOKEN` | `production-deploy`と`production`のEnvironment secrets | Workers deploy／resource同期時のsecret名確認 |
+| `DATABASE_URL` | `production-deploy`のEnvironment secrets | 本番DB migration専用。依存インストール時は渡さない |
+| `CLOUDFLARE_INFRA_TOKEN` | `production`のEnvironment secrets | 対象accountのHyperdrive更新とR2 CORS更新 |
+| `CLOUDFLARE_ACCOUNT_ID` | Repository secrets（非機密ID） | Cloudflare account ID |
+
+Workers deploy tokenは、指定されたWorkersの`videoq-api`に対する`Editor`と、
+`videoq.jp` zoneの`Workers Routes Write`だけを許可します。Workerの新規作成／削除や、
+他のWorkerの更新権限は付与しません。R2／Hyperdrive bindingのあるWorkerのdeployに、
+それらのリソース自体への編集権限は不要です。
+resource同期tokenは対象accountの`Hyperdrive Write`と`Workers R2 Storage Write`に限定します。
+Global API Keyは使用しません。tokenの有効期限は90日とし、期限前に同じ権限で更新します。
+権限の詳細は[Workers roles and permissions](https://developers.cloudflare.com/workers/authorization/workers/)と
+[Bindingsの権限](https://developers.cloudflare.com/workers/authorization/#bindings)を参照してください。
+
+既存Repository secretsから移行する場合、GitHubは保存済みsecret値を返さないため、
+元の値をEnvironment secretsへ再登録します。値をログやPRへ出力しないでください。
+上表の4件を登録したことを確認してから、repository側の`CLOUDFLARE_API_TOKEN`、
+`DATABASE_URL`、`CLOUDFLARE_INFRA_TOKEN`を削除します。同名Repository secretsを残すと、
+environmentを指定しないworkflowでも利用できるため、隔離は完了しません。
+元のDB接続文字列が手元にない場合は、稼働中のworker Lambdaの`DB_PARAM_NAME`が指す
+SSM SecureStringから再登録できます。DBパスワードをresetして稼働中の接続を切らないでください。
+旧CDはenvironmentを指定していないため、移行とこのworkflow変更のmergeを同じ作業時間帯で
+行い、他のdeployを開始しないでください。登録完了前に旧secretを削除しないでください。
 
 手動resource同期workflowは、上記tokenに加えて必須Worker secretの「名前」がproductionに
 揃っていることも検証します。値は取得・出力しません。
