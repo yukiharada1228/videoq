@@ -1,172 +1,63 @@
-# 画面遷移図
-
-## 概要
-
-VideoQアプリケーションのフロントエンドの画面遷移を、現行の React Router 実装に基づいて示す図です。
-
-## 画面遷移図
-
-```mermaid
-stateDiagram-v2
-    [*] --> Home: Initial Access
-    
-    Home --> Login: Login Button
-    Home --> Signup: Sign Up Button
-    
-    Login --> Home: Login Success
-    Login --> ForgotPassword: Forgot Password
-    Login --> Signup: Sign Up Link
-    
-    Signup --> CheckEmail: Sign Up Success
-    CheckEmail --> VerifyEmail: Email Verification Link
-    VerifyEmail --> Login: Verification Success
-    
-    ForgotPassword --> ResetPassword: Reset Email Sent
-    ResetPassword --> Login: Password Reset Success
-    
-    Home --> VideoList: Logged In
-    VideoList --> VideoDetail: Select Video
-    VideoList --> VideoCourseList: Course List
-    
-    VideoDetail --> VideoList: Back
-    VideoDetail --> VideoCourseDetail: Select Course
-    
-    VideoCourseList --> VideoCourseDetail: Select Course
-    VideoCourseList --> VideoList: Back
-    
-    VideoCourseDetail --> VideoCourseList: Back
-    VideoCourseDetail --> VideoDetail: Select Video
-    VideoCourseDetail --> SharePage: Generate Share Link
-
-    VideoCourseDetail --> VideoCourseDetail: Open Analytics Dashboard
-    VideoCourseDetail --> VideoCourseDetail: Open Shorts Player
-    
-    SharePage --> Home: Leave Shared View
-
-    Home --> SharePage: Share Token URL
-    SharePage --> SharePage: Chat with Shared Course
-    SharePage --> SharePage: Open Shorts Player
-
-    VideoList --> Settings: Settings Menu
-    Settings --> VideoList: Back
-    
-    note right of Home
-        Home Page
-        - Unauthenticated: Login/Sign Up
-        - Authenticated: Main landing page
-    end note
-    
-    note right of VideoList
-        Video List Page
-        - Video list display
-        - Upload functionality
-        - Search & Filter
-        - Tag filtering
-    end note
-    
-    note right of VideoDetail
-        Video Detail Page
-        - Video information display
-        - Transcript display
-        - Add to course
-        - Tag management
-    end note
-    
-    note right of VideoCourseDetail
-        Course Detail Page
-        - Course video list
-        - Chat functionality
-        - Share link management
-        - Analytics dashboard
-        - Shorts player
-    end note
-
-    note right of Settings
-        Settings Page
-        - User info display
-        - Account deactivation
-        - API key management
-    end note
-```
-
-## 画面一覧
-
-### 認証関連
-- **Home** (`/` または `/:locale`): ホームページ（例: `/`、`/en`、`/ja`）
-- **Login** (`/login` または `/:locale/login`): ログインページ
-- **Signup** (`/signup` または `/:locale/signup`): サインアップページ（`ENABLE_SIGNUP=true` の場合のみ）
-- **CheckEmail** (`/signup/check-email` または `/:locale/signup/check-email`): メール確認待ちページ
-- **VerifyEmail** (`/verify-email` または `/:locale/verify-email`): メール確認ページ
-- **ForgotPassword** (`/forgot-password` または `/:locale/forgot-password`): パスワードリセットリクエストページ
-- **ResetPassword** (`/reset-password` または `/:locale/reset-password`): パスワードリセットページ
-
-### 動画管理
-- **VideoList** (`/videos` または `/:locale/videos`): 動画一覧ページ
-- **VideoDetail** (`/videos/:id` または `/:locale/videos/:id`): 動画詳細ページ
-
-### 講座管理
-- **VideoCourseList** (`/videos/courses` または `/:locale/videos/courses`): 講座一覧ページ
-- **VideoCourseDetail** (`/videos/courses/:id` または `/:locale/videos/courses/:id`): 講座詳細ページ
-
-### 共有
-- **SharePage** (`/share/:token` または `/:locale/share/:token`): 共有ページ（認証不要）
-
-### 設定
-- **Settings** (`/settings` または `/:locale/settings`): 設定ページ（アカウント情報、無効化、APIキー管理）
-
-**注記**: このプロジェクトはReact Router + react-i18next（Next.js / next-intl ではない）でロケール対応ルーティングを実装しています（`apps/web/src/App.tsx`）。
-- デフォルトロケール（`en`）はプレフィックスなし: `/videos`
-- その他のロケールは `/:locale` プレフィックスを使用: `/ja/videos`
-- `/:locale` が欠落しており、ユーザーの優先ロケールがデフォルトでない場合、アプリは自動的に `/:locale/...` にリダイレクトします
-
-## 遷移条件
-
-### 認証状態による遷移
-- **未認証ユーザー**: Home → Login/Signup → 認証後 → VideoList
-- **認証済みユーザー**: Home → VideoList（直接遷移）
-
-### 機能フラグ
-- `ENABLE_SIGNUP=false` の場合、Better Authのメールサインアップが拒否され、サインアップフローは利用不可になります。
-
-### 共有リンクによる遷移
-- **共有トークンURL**: SharePageへの直接アクセス（認証不要）
-
-### APIキーによる遷移
-- **MCPクライアント**: 画面遷移なし — APIキーはMCP transport専用であり、ブラウザ向けtRPCには使用しません
-
-### エラーハンドリング
-- 認証エラー: API レベルでは 401/403 を返却し、フロントエンドは必要に応じてログイン導線やメッセージを表示
-- 不明なルート: `*` → `/` にリダイレクト
-- 権限エラー: アクセス不可なリソース → エラーメッセージ表示
-
-## ページ内インタラクション（ルート変更なし）
-
-以下のインタラクションは、新しいルートに移動せず、ページ内（モーダル、パネル、ドロワー）で発生します:
-
-### VideoCourseDetail
-- **分析ダッシュボード**: 講座詳細ページ内のモーダル/パネルとして開く
-- **ショートプレイヤー**: 講座詳細ページからフルスクリーンオーバーレイで開く
-- **チャットパネル**: 講座の動画とチャットするためのインラインパネル
-
-### VideoDetail
-- **タグ管理**: タグセレクターと作成ダイアログはインラインモーダル
-- **講座に追加**: 動画を講座に追加するモーダル
-
-### VideoList
-- **動画アップロード**: 新しい動画をアップロードするモーダル
-- **タグフィルターパネル**: タグでフィルタリングするためのインラインパネル
-
-### Settings
-- **APIキー作成**: 設定ページ内の新規APIキー作成フォーム
-- **APIキー失効**: 設定ページ内の確認ダイアログ
-- **アカウント無効化**: 設定ページ内のフォームと確認ダイアログ
-
+---
+title: 画面一覧と移動の流れ
+description: よく使うURLと、共通レイアウト・共有画面の役割。
 ---
 
-## Related Documentation
+# 画面一覧と移動の流れ
 
-- [📖 ドキュメント一覧](../README.md)
-- [ユースケース図](use-case-diagram.md) — ユーザー操作一覧
-- [アクティビティ図](activity-diagram.md) — 主要な業務フロー
-- [コンポーネント図](../design/component-diagram.md) — フロントエンドコンポーネント構成
-- [状態遷移図](../design/state-diagram.md) — 状態遷移の詳細
+画面を追加・修正するときの地図です。URLの定義は [App.tsx](https://github.com/yukiharada1228/videoq/blob/main/apps/web/src/App.tsx)を基準にします。
+
+## よく使う画面
+
+| URL | 画面 | 主な用途 |
+|---|---|---|
+| `/` | ホーム | アプリの入口 |
+| `/videos` | 動画ライブラリ | 登録、検索、タグによる整理 |
+| `/videos/:id` | 動画詳細 | 再生、文字起こし、PLOGの確認・編集 |
+| `/videos/courses` | 講座一覧 | 講座の作成と選択 |
+| `/videos/courses/:id` | 講座詳細 | 動画の整理、チャット、共有、分析 |
+| `/settings` | 設定 | プロフィール、外部APIキーなど |
+| `/pricing` | 料金 | プランの確認・変更 |
+| `/admin` | 管理 | 利用者・利用上限・再索引 |
+| `/share/:token` | 共有講座 | 共有された講座の利用 |
+| `/course-invitations/:token` | 招待 | 講座への招待を確認 |
+
+`:id` と `:token` は実際のID・トークンが入る場所です。
+
+## 主な移動
+
+```mermaid
+flowchart LR
+    Home[ホーム] --> Videos[動画ライブラリ]
+    Home --> Courses[講座一覧]
+    Videos --> Video[動画詳細]
+    Courses --> Course[講座詳細]
+    Video --> Course
+    Course --> Video
+    Course --> Share[共有講座]
+    Home --> Settings[設定]
+```
+
+図はよく使う移動の概略です。ログインや対象データへの権限確認は、各画面とAPIで行います。
+
+## 認証関連の画面
+
+| URL | 用途 |
+|---|---|
+| `/login` / `/signup` | ログイン / アカウント登録 |
+| `/signup/check-email` / `/verify-email` | メール確認待ち / 確認リンクの処理 |
+| `/forgot-password` / `/reset-password` | パスワード再設定 |
+| `/change-email` | メールアドレス変更の確認 |
+| `/consent` | 外部クライアントへのアクセス許可 |
+
+日本語は原則プレフィックスなし、英語は `/en/...` です。`/ja/...` でアクセスした場合は日本語の正規URLへ置き換えます。
+
+## レイアウトの使い分け
+
+- `AppRouteLayout`: 通常の画面。ヘッダーを共有し、詳細画面ではフッターを省く構成があります。
+- `AuthRouteLayout`: ログイン・登録・招待などの認証関連画面。
+- 共有講座: 専用の画面構成。
+
+共通ヘッダーをページ内に重複して置かず、本文だけを実装します。読み込み・エラーの表示も本文側で扱います。
+
+**関連:** [画面を変更する](../guides/frontend.md)、[テストの使い分け](../guides/testing.md)。

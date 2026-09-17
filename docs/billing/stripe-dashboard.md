@@ -1,6 +1,12 @@
 # Stripe Dashboard 設定（VideoQ Billing）
 
-コードは Price の `lookup_key` だけを見る。金額は Dashboard が正本。
+有料プランの購入・変更と、利用上限の反映を確認する担当者向けの手順です。
+通常の画面・API開発を始めるために、Stripeを設定する必要はありません。
+
+StripeのProductは商品、Priceは金額と課金間隔、Webhookは決済状態の変更をAPIへ通知する仕組みです。
+VideoQはPriceの `lookup_key` でプランを対応付けます。金額はDashboardが基準です。
+
+まずテスト環境で設定し、末尾の動作確認を行います。APIキー・Price・Webhookの設定が同じ環境に属することを確認してください。
 
 ## 1. API キー
 
@@ -8,7 +14,7 @@ Restricted API key（`rk_`）を推奨する。Checkout / Customer / Subscriptio
 
 - Worker secret: `STRIPE_SECRET_KEY`
 - Worker secret: `STRIPE_WEBHOOK_SECRET`
-- ローカル: [`apps/api/.dev.vars.example`](../../apps/api/.dev.vars.example)
+- ローカル: [`apps/api/.dev.vars.example`](https://github.com/yukiharada1228/videoq/blob/main/apps/api/.dev.vars.example)
 
 ## 2. Product と Price
 
@@ -82,7 +88,7 @@ Dashboard の dynamic payment methods を使う。コードに `payment_method_t
 2. 日本の消費税登録を **Collecting** にする
 3. 登録なしでフラグを立てると、エラーなしで税額 0 のままになる
 
-日本の遠隔事業者は課税売上 1,000 万円超で登録義務。税理士に確認する。
+税務上の登録や税コードは、このシステム設定だけでは判断できません。契約主体の状況に合わせ、担当者が確認した設定を使用してください。
 
 ## 7. 動作確認
 

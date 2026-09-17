@@ -5,7 +5,7 @@ import { deadlineSignal } from "./request-timeout";
 const SQS_TIMEOUT_MS = 10_000;
 
 /**
- * SQS SendMessage（aws4fetch SigV4, query プロトコル）。PoC #02 で実 AWS/ElasticMQ 疎通済み。
+ * SQS SendMessage（aws4fetch SigV4, query プロトコル）。
  * MessageBody はそのまま送る（方式 B: 外側 base64 不要の plain JSON）。返り値は MessageId。
  * IAM は sqs:SendMessage のみに限定する（JR-5）。
  */

@@ -97,6 +97,6 @@ export async function embedQuery(env: Bindings, text: string): Promise<number[]>
   );
 }
 
-/** pgvector のリテラル表現（PoC #01c: 文字列 + `::vector` キャストで param 渡し可）。 */
+/** pgvector のリテラル表現（文字列 + `::vector` キャストで param 渡し可）。 */
 export const toVectorLiteral = (embedding: readonly number[]): string =>
   `[${embedding.join(",")}]`;

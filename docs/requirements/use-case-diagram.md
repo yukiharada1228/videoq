@@ -1,230 +1,44 @@
-# ユースケース図
-
-## 概要
-
-VideoQシステムの主要なユースケースを、現行の API / フロントエンド実装に基づいて示す図です。
-
-## ユースケース図
-
-```mermaid
-graph TB
-    User[User]
-    Guest[Guest User]
-    Admin[Administrator]
-    ApiClient[API Client]
-
-    subgraph Authentication["Authentication"]
-        UC1[Sign Up]
-        UC2[Email Verification]
-        UC3[Login]
-        UC4[Logout]
-        UC5[Password Reset]
-        UC6[Token Refresh]
-    end
-
-    subgraph VideoManagement["Video Management"]
-        UC7[Upload Video]
-        UC8[List Videos]
-        UC9[View Video Details]
-        UC10[Edit Video]
-        UC11[Delete Video]
-        UC12[View Transcript]
-    end
-
-    subgraph Transcription["Transcription Processing"]
-        UC13[Auto Transcription]
-        UC14[Check Transcription Status]
-    end
-
-    subgraph GroupManagement["Course Management"]
-        UC15[Create Course]
-        UC16[List Courses]
-        UC17[View Course Details]
-        UC18[Edit Course]
-        UC19[Delete Course]
-        UC20[Add Video to Course]
-        UC21[Remove Video from Course]
-        UC22[Reorder Videos in Course]
-    end
-
-    subgraph Chat["Chat Features"]
-        UC23[Send Chat]
-        UC24[View Chat History]
-        UC25[Export Chat History]
-        UC26[Send Feedback]
-        UC32[View Popular Scenes]
-        UC40[View Chat Analytics]
-    end
-
-    subgraph Sharing["Sharing Features"]
-        UC27[Generate Share Link]
-        UC28[Delete Share Link]
-        UC29[View Shared Course]
-        UC30[Chat with Shared Course]
-    end
-
-    subgraph Settings["Settings"]
-        UC31[View User Info]
-        UC33[Deactivate Account]
-        UC34[Request Account Deletion]
-    end
-
-    subgraph ApiKeyManagement["API Key Management"]
-        UC37[List API Keys]
-        UC38[Create API Key]
-        UC39[Revoke API Key]
-    end
-
-    subgraph Administration["Administration"]
-        UC35[Re-index Video Embeddings]
-        UC36[Monitor Re-indexing Progress]
-        UC41[Manage Upload Limits]
-    end
-
-    subgraph Quota["Usage & Quota"]
-        UC42[View Usage and Limits]
-    end
-    
-    User --> UC1
-    User --> UC2
-    User --> UC3
-    User --> UC4
-    User --> UC5
-    User --> UC6
-    User --> UC7
-    User --> UC8
-    User --> UC9
-    User --> UC10
-    User --> UC11
-    User --> UC12
-    User --> UC13
-    User --> UC14
-    User --> UC15
-    User --> UC16
-    User --> UC17
-    User --> UC18
-    User --> UC19
-    User --> UC20
-    User --> UC21
-    User --> UC22
-    User --> UC23
-    User --> UC24
-    User --> UC25
-    User --> UC26
-    User --> UC27
-    User --> UC28
-    User --> UC29
-    User --> UC30
-    User --> UC31
-    User --> UC32
-    User --> UC33
-    User --> UC34
-    User --> UC37
-    User --> UC38
-    User --> UC39
-    User --> UC40
-    User --> UC42
-
-    Guest --> UC29
-    Guest --> UC30
-
-    ApiClient --> UC8
-    ApiClient --> UC9
-    ApiClient --> UC16
-    ApiClient --> UC17
-    ApiClient --> UC23
-
-    Admin --> UC35
-    Admin --> UC36
-    Admin --> UC41
-
-    UC7 -.->|Auto Execute| UC13
-    UC13 -.->|Completion Notification| UC14
-    UC13 -.->|Creates Embeddings| UC35
-    UC20 --> UC23
-    UC27 --> UC29
-    UC29 --> UC30
-    UC38 -.->|Enables| ApiClient
-```
-
-## ユースケース詳細
-
-### 認証
-- **UC1 サインアップ**: 新規ユーザー登録
-- **UC2 メール確認**: メールアドレスの確認
-- **UC3 ログイン**: ユーザー認証
-- **UC4 ログアウト**: セッション終了
-- **UC5 パスワードリセット**: パスワードの再設定
-- **UC6 トークンリフレッシュ**: JWTトークンの更新
-
-### 動画管理
-- **UC7 動画アップロード**: 動画ファイルのアップロード
-- **UC8 動画一覧**: アップロード済み動画の一覧表示
-- **UC9 動画詳細表示**: 動画の詳細情報を表示
-- **UC10 動画編集**: タイトルと説明の編集
-- **UC11 動画削除**: 動画の削除
-- **UC12 文字起こし表示**: 文字起こし結果の閲覧
-
-### 文字起こし処理
-- **UC13 自動文字起こし**: アップロード後の自動文字起こし（バックグラウンド）
-- **UC14 文字起こしステータス確認**: 処理状況の確認
-
-### 講座管理
-- **UC15 講座作成**: 講座の作成
-- **UC16 講座一覧**: 講座リストの表示
-- **UC17 講座詳細表示**: 講座の詳細情報表示
-- **UC18 講座編集**: 講座名と説明の編集
-- **UC19 講座削除**: 講座の削除
-- **UC20 動画を講座に追加**: 講座への動画追加
-- **UC21 動画を講座から削除**: 講座からの動画削除
-- **UC22 講座内動画の並べ替え**: 講座内の動画順序を変更
-
-### チャット機能
-- **UC23 チャット送信**: AIチャットに質問を送信
-- **UC24 チャット履歴表示**: 過去のチャット履歴を表示
-- **UC25 チャット履歴エクスポート**: チャット履歴をCSVでエクスポート
-- **UC26 フィードバック送信**: チャット回答へのフィードバック
-- **UC32 人気シーン表示**: チャットで参照された人気シーンを表示
-- **UC40 チャット分析表示**: フィードバック分布、キーワードクラウド、質問時系列、シーン分布チャートを含む分析ダッシュボードを表示
-
-### 共有機能
-- **UC27 共有リンク生成**: 講座の共有リンクを生成
-- **UC28 共有リンク削除**: 共有リンクを無効化
-- **UC29 共有講座表示**: 共有リンクで講座を閲覧（認証不要）
-- **UC30 共有講座とチャット**: 共有講座でチャット（認証不要）
-
-### 設定
-- **UC31 ユーザー情報表示**: 現在のユーザー情報を表示
-- **UC33 アカウント無効化**: ユーザーアカウントを無効化（論理削除、`is_active=False` に設定し `deactivated_at` を記録）
-- **UC34 アカウント削除リクエスト**: 理由を添えてアカウント削除を申請
-
-### APIキー管理
-- **UC37 APIキー一覧**: ユーザーのアクティブなAPIキーを一覧表示
-- **UC38 APIキー作成**: 名前とアクセスレベル（`all` または `read_only`）を指定してAPIキーを作成
-- **UC39 APIキー失効**: Better AuthからAPIキーを削除して失効
-
-### 管理機能
-- **UC35 動画エンベディング再インデックス**: 新しいモデルで全動画のエンベディングを再生成（スーパーユーザーのみ）
-- **UC36 再インデックス進捗監視**: worker の構造化ログで再インデックスタスクの進捗を監視
-- **UC41 アップロード上限管理**: 運用 API から `users.max_video_upload_size_mb` と各種上限値を設定し、ストレージ・処理時間・AI回答数の月次クォータを制御
-
-### 利用量・利用枠
-- **UC42 利用量・利用枠確認**: ホーム画面でストレージ・月間処理時間・月間AI回答数の使用量と、管理者が設定した上限値を確認
-
-**注記:**
-- LLMとエンベディングの設定は環境変数（`OPENAI_BASE_URL`、`LLM_MODEL`、`EMBEDDING_PROVIDER`、`EMBEDDING_MODEL`）でグローバルに管理されます。
-- サインアップは `ENABLE_SIGNUP` で制御されます。無効時は Better Auth のメールサインアップが拒否されます。
-- ローカル whisper.cpp サーバー（WHISPER_BACKEND=whisper.cpp）使用時は、文字起こしにOpenAI APIキーは不要です。
-- 再インデックスはサーバー側の `OPENAI_API_KEY` または `OLLAMA_BASE_URL`（`EMBEDDING_PROVIDER` に依存）を使用し、エンベディングプロバイダー（OpenAI ↔ Ollama）やモデルの切り替え時に必要です。
-- Integration APIキーはMCP連携専用です。生のキーは作成時に1回のみ表示され、ハッシュのみが保存されます。
-- `read_only` APIキーはMCPの読み取りツールだけを実行でき、書き込みツールには `all` APIキーが必要です。RAGチャットはMCPに公開しません。
-
+---
+title: 利用者とできること
+description: VideoQ の主要な利用者と、動画の登録・学習・共有・管理の関係。
 ---
 
-## Related Documentation
+# 利用者とできること
 
-- [📖 ドキュメント一覧](../README.md)
-- [アクティビティ図](activity-diagram.md) — 主要な業務フロー
-- [画面遷移図](screen-transition-diagram.md) — フロントエンドの画面遷移
-- [システム構成図](../architecture/system-configuration-diagram.md) — 全体アーキテクチャ
-- [ER図](../database/er-diagram.md) — エンティティ関連
+VideoQの機能を、利用者が達成したいことから整理したページです。個々の画面やAPIの詳細を調べる前に、誰のための変更なのかを確認するために使います。
+
+## 基本の使い方
+
+```mermaid
+flowchart LR
+    Owner[教材を用意する人] --> Upload[動画を登録]
+    Upload --> Course[講座にまとめる]
+    Course --> Share[講座を共有・招待]
+    Learner[学習する人] --> Ask[講座について質問]
+    Ask --> Source[引用元の場面を再生]
+    Learner --> Study[問いとヒントで学ぶ]
+    Admin[管理者] --> Manage[利用者・利用上限を管理]
+```
+
+同じ人が教材を登録し、自分で学ぶこともできます。図の役割は、必ず別々のアカウントを用意するという意味ではありません。
+
+## 主な操作
+
+| 目的 | 操作 | 確認したい結果 |
+|---|---|---|
+| 教材を準備する | ファイルをアップロード、YouTubeから取り込む | 文字起こしと検索準備ができる |
+| 教材を整理する | 講座への追加・並べ替え、タグ付け | 探したい動画と質問する範囲が明確になる |
+| 内容を調べる | 講座のチャットで質問する | 回答と根拠の場面を確認できる |
+| 順序立てて学ぶ | PLOGを使った学習モードを開始する | 問いに答え、ヒントを使って進める |
+| 他の人と使う | 共有リンク、講座への招待 | 許可された講座を他の人が利用できる |
+| 回答の質を確認する | 履歴、フィードバック、分析、評価を見る | 改善すべき回答や教材を見つけられる |
+| 利用状況を管理する | 利用者・クォータ・再索引を管理する | 上限や処理状態を運用できる |
+| 外部ツールとつなぐ | APIキーまたはOAuthでMCPへ接続する | 許可された操作をクライアントから実行できる |
+
+## アクセス権との関係
+
+登録・編集する対象には所有者がいます。共有リンクや招待による閲覧と、所有者による編集は同じ権限ではありません。管理者の操作も通常利用とは分けます。
+
+機能を変更するときは、対象の利用者とデータへのアクセス権をセットで確認します。[認証とアクセス権](../concepts/auth.md)を参照してください。
+
+**関連:** [初回の操作](../getting-started/first-walkthrough.md)、[画面一覧](screen-transition-diagram.md)。

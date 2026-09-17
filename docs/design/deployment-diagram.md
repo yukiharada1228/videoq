@@ -1,4 +1,8 @@
-# デプロイメント図
+# 実行環境とデプロイの単位
+
+「ローカルで動くものが、本番ではどこで動くか」を確認する資料です。
+初参加時は[開発環境を動かす](../getting-started/local-setup.md)を使ってください。
+本番へ反映する作業では、この配置図に加えて末尾の運用手順を確認します。
 
 ## ローカル Docker Compose
 
@@ -46,5 +50,10 @@ flowchart TB
 | Cloudflare binding | Wrangler (`wrangler.jsonc`) |
 | Hyperdrive cache / R2 CORS | 手動承認付き `cloudflare-resources.yml` |
 | AWS worker infrastructure | Terraform |
+| ドキュメント | `npm run build:docs` で `apps/docs/build` を生成し、静的ホストへ配置 |
 
-詳細は [`infra/DEPLOY.md`](../../infra/DEPLOY.md) を参照してください。
+上のコマンドは各作業の入口です。本番のAPI・worker・DBは `.github/workflows/cd.yml` の手順と順序も確認します。
+新しい列を使うコードを先に公開すると、古いDBに対して動かなくなる場合があります。
+
+詳細は [`infra/DEPLOY.md`](https://github.com/yukiharada1228/videoq/blob/main/infra/DEPLOY.md) を参照してください。
+文書サイトの公開先とドメインは別途用意します。サイト設定のURLだけでは公開されません。

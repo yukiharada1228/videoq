@@ -4,12 +4,16 @@
   "version": "0.0.0",
   "workspaces": [
     "apps/api",
+    "apps/docs",
     "apps/web",
     "packages/*"
   ],
   "scripts": {
     "build": "npm run build --workspace @videoq/web",
     "dev:api": "npm run dev --workspace @videoq/api",
+    "dev:docs": "npm run dev --workspace @videoq/docs",
+    "build:docs": "npm run build --workspace @videoq/docs",
+    "preview:docs": "npm run serve --workspace @videoq/docs",
     "dev:web": "npm run dev --workspace @videoq/web",
     "storybook": "npm run storybook --workspace @videoq/web --",
     "build:storybook": "npm run build-storybook --workspace @videoq/web",
@@ -23,7 +27,7 @@
     "test": "npm run test --workspace @videoq/api && npm run test --workspace @videoq/web",
     "test:api": "npm run test --workspace @videoq/api",
     "test:web": "npm run test --workspace @videoq/web",
-    "typecheck": "npm run typecheck --workspace @videoq/trpc && npm run typecheck --workspace @videoq/api && npm run typecheck --workspace @videoq/web"
+    "typecheck": "npm run typecheck --workspace @videoq/trpc && npm run typecheck --workspace @videoq/api && npm run typecheck --workspace @videoq/web && npm run typecheck --workspace @videoq/docs"
   },
   "devDependencies": {
     "drizzle-orm": "^0.45.2",

@@ -1,233 +1,45 @@
-# 状態遷移図
-
-## 概要
-
-VideoQシステムの主要オブジェクトの状態遷移を示す図です。
-
-## 動画の状態遷移
-
-```mermaid
-stateDiagram-v2
-    [*] --> Pending: Video Upload
-    
-    Pending --> Processing: Worker Job Starts
-    Processing --> Indexing: Transcription Success
-    Indexing --> Completed: Vector Indexing Success
-    Processing --> Error: Transcription Failure
-    Indexing --> Error: Indexing Failure
-    Completed --> Processing: Re-transcription Triggered
-    Error --> Processing: Retry Triggered
-    
-    Completed --> [*]: Video Deleted
-    Error --> [*]: Video Deleted
-    Pending --> [*]: Video Deleted
-    
-    note right of Pending
-        Initial State
-        - Upload Complete
-        - Waiting for Transcription
-    end note
-    
-    note right of Processing
-        Processing
-        - Extracting Audio
-        - Running Transcription (Whisper API or local server)
-    end note
-
-    note right of Indexing
-        Indexing
-        - Transcript already saved
-        - Async vector indexing in progress
-    end note
-    
-    note right of Completed
-        Completed
-        - Transcription Success
-        - Vectorization Complete
-        - Chat Available
-    end note
-    
-    note right of Error
-        Error
-        - Processing Failed
-        - Error Message Saved
-        - Can transition back to Processing via retry/reprocess trigger
-    end note
-```
-
-## ユーザーの状態遷移
-
-```mermaid
-stateDiagram-v2
-    [*] --> Unregistered: Not Registered
-    
-    Unregistered --> Registered: Sign Up
-    Registered --> Inactive: Email Not Verified
-    Inactive --> Active: Email Verification Complete
-    Active --> Active: Login
-    Active --> LoggedOut: Logout
-    LoggedOut --> Active: Login
-    
-    Active --> Deactivated: Account Deactivation
-    Active --> [*]: Account Deleted
-    Inactive --> [*]: Account Deleted
-    
-    note right of Unregistered
-        Unregistered
-        - Not Registered in System
-    end note
-    
-    note right of Inactive
-        Inactive
-        - Signed Up
-        - Waiting for Email Verification
-        - Cannot Login
-    end note
-    
-    note right of Active
-        Active
-        - Email Verified
-        - Can Login
-        - All Features Available
-    end note
-    
-    note right of LoggedOut
-        Logged Out
-        - Session Terminated
-        - Can Login Again
-    end note
-
-    note right of Deactivated
-        Deactivated
-        - is_active: False
-        - deactivated_at recorded
-        - Cannot Login
-        - Data retained for admin review
-    end note
-```
-
-## 講座共有の状態遷移
-
-```mermaid
-stateDiagram-v2
-    [*] --> Private: Course Created
-    
-    Private --> Shared: Generate Share Link
-    Shared --> Private: Delete Share Link
-    Shared --> Shared: Regenerate Share Link
-    
-    Private --> [*]: Course Deleted
-    Shared --> [*]: Course Deleted
-    
-    note right of Private
-        Private
-        - Only Owner Can Access
-        - No Share Link
-    end note
-    
-    note right of Shared
-        Shared
-        - Share Token Exists
-        - Guest Access Available
-        - Chat Available
-    end note
-```
-
-## チャットログフィードバックの状態遷移
-
-```mermaid
-stateDiagram-v2
-    [*] --> NoFeedback: Chat Log Created
-    
-    NoFeedback --> Good: Send Feedback(good)
-    NoFeedback --> Bad: Send Feedback(bad)
-    NoFeedback --> NoFeedback: No Feedback Sent
-    
-    Good --> Bad: Change Feedback
-    Bad --> Good: Change Feedback
-    Good --> NoFeedback: Delete Feedback
-    Bad --> NoFeedback: Delete Feedback
-    
-    note right of NoFeedback
-        No Feedback
-        - Initial State
-        - Feedback Not Sent
-    end note
-    
-    note right of Good
-        Good Rating
-        - User Rated as Good
-        - Answer Quality Indicator
-    end note
-    
-    note right of Bad
-        Bad Rating
-        - User Rated as Bad
-        - Improvement Indicator
-    end note
-```
-
-## 認証トークンの状態遷移
-
-```mermaid
-stateDiagram-v2
-    [*] --> Valid: Token Issued
-    
-    Valid --> Expired: Expired
-    Valid --> Refreshed: Refresh
-    Refreshed --> Valid: New Token Issued
-    Expired --> Valid: Update with Refresh Token
-    
-    Valid --> [*]: Logout
-    Expired --> [*]: Logout
-    Refreshed --> [*]: Logout
-    
-    note right of Valid
-        Valid
-        - Access Token Valid
-        - API Calls Possible
-        - Expiration: 10 minutes
-    end note
-    
-    note right of Expired
-        Expired
-        - Access Token Invalid
-        - Refresh Required
-    end note
-    
-    note right of Refreshed
-        Refreshing
-        - Using Refresh Token
-        - Waiting for New Token
-    end note
-```
-
-## APIキーの状態遷移
-
-```mermaid
-stateDiagram-v2
-    [*] --> Active: API Key Created
-
-    Active --> Active: Used (last_request updated)
-    Active --> [*]: Revoke API Key (Delete)
-    Active --> [*]: User Deleted (CASCADE)
-
-    note right of Active
-        Active
-        - enabled: true
-        - Can authenticate MCP requests
-        - last_request tracked
-        - Access level enforced (all / read_only)
-    end note
-
-```
-
+---
+title: 動画の状態と処理完了
+description: uploadingからcompletedまでの意味と、PLOGの状態との違い。
 ---
 
-## Related Documentation
+# 動画の状態と処理完了
 
-- [📖 ドキュメント一覧](../README.md)
-- [シーケンス図](sequence-diagram.md) — 処理シーケンスの詳細
-- [ER図](../database/er-diagram.md) — エンティティ関連
-- [画面遷移図](../requirements/screen-transition-diagram.md) — フロントエンドの画面遷移
-- [アクティビティ図](../requirements/activity-diagram.md) — 業務フロー
+動画の `status` は、ファイル送信・文字起こし・検索準備のどこまで進んだかを表します。画面の待ち状態を実装したり、処理停止を調べたりするときに参照します。
+
+## 通常の流れ
+
+```mermaid
+stateDiagram-v2
+    [*] --> uploading: ファイル送信の枠を予約
+    uploading --> pending: 送信完了を確認
+    uploading --> error: 放棄された送信など
+    pending --> processing: workerが開始
+    processing --> indexing: 文字起こしを保存
+    processing --> error: 処理失敗
+    indexing --> completed: 検索用データを保存
+    indexing --> error: 再試行後も索引作成に失敗
+    error --> processing: 再処理
+    completed --> processing: 再処理
+```
+
+これは処理状態の図です。すべての矢印が利用者向けのボタンとして提供されるという意味ではありません。YouTube取り込みなど、登録経路によってはファイル送信段階を通りません。
+
+| 値 | 何を待っているか | 確認する場所 |
+|---|---|---|
+| `uploading` | ファイル送信と完了通知 | ブラウザ・ストレージ・API |
+| `pending` | 文字起こし処理の開始 | キュー配送・worker |
+| `processing` | 音声から文字への変換など | worker・Whisper |
+| `indexing` | 字幕の検索用データ作成 | worker・埋め込みAPI・DB |
+| `completed` | 動画の検索準備は完了 | 講座に追加して質問できる |
+| `error` | いずれかの段階で失敗 | エラー内容と該当ログ |
+
+再索引などの経路は処理ごとの実装も確認します。通常遷移の定義は [video_status.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/video_status.py)、索引完了の扱いは [tasks/indexing.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/indexing.py)にあります。
+
+## PLOGの準備完了は別に確認する
+
+検索用データの作成後に、`build_plog` ジョブで学習用の概念とヒントを作ります。そのため `completed` でも、学習モードを開始できない場合があります。
+
+`plog_build_jobs` で生成状態を管理し、生成が完了していても、概念が空・順序を作れない場合は学習に使えません。動画の状態だけを見てStudyボタンを有効化しないでください。
+
+**関連:** [PLOGと学習モード](../plog/README.md)、[処理が進まないとき](../guides/troubleshooting.md)。

@@ -1,59 +1,45 @@
-# VideoQ Documentation
+---
+slug: /
+sidebar_label: はじめに
+description: VideoQ に初めて参加する人のための、セットアップ・基本概念・開発ガイド。
+---
 
-現行 VideoQ の要件、Hono / Cloudflare Workers アーキテクチャ、modern schema、
-フロントエンド、非同期 worker を説明します。
+# VideoQ 開発ドキュメント
 
-## ドキュメントマップ
+VideoQ は、**動画の内容に質問し、根拠となる場面へすぐに戻れる学習アプリ**です。動画を講座にまとめて共有し、Q&Aや問い・ヒントを使った学習に利用できます。
 
-### 要件
+このサイトは、初めて開発に参加する人が、アプリを動かし、小さな変更を進められるようにするための案内です。すべての設計図を先に読む必要はありません。
 
-- [ユースケース図](requirements/use-case-diagram.md)
-- [アクティビティ図](requirements/activity-diagram.md)
-- [画面遷移図](requirements/screen-transition-diagram.md)
+## 初めて参加したら
 
-### アーキテクチャ
+次の順に進めると、使い方と実装が結び付きます。
 
-- [システム構成図](architecture/system-configuration-diagram.md)
-- [tRPC API 設計](architecture/trpc-api.md)
-- [フローチャート](architecture/flowchart.md)
-- [BPMN](architecture/bpmn.md)
-- [プロンプトエンジニアリング](architecture/prompt-engineering.md)
+| 順番 | 読むページ | ここまでできれば次へ |
+|---|---|---|
+| 1 | [開発環境を動かす](getting-started/local-setup.md) | ローカルにログインできる |
+| 2 | [動画を登録して質問する](getting-started/first-walkthrough.md) | 回答の引用から動画の場面へ戻れる |
+| 3 | [コードの場所を知る](getting-started/codebase.md) | 画面・API・動画処理の担当場所が分かる |
+| 4 | [最初の変更を進める](getting-started/first-change.md) | 小さな変更と、その確認結果をレビューに出せる |
 
-### データベース
+文書だけの変更なら、[ドキュメントを更新する](guides/documentation.md)から始められます。
 
-- [ER 図](database/er-diagram.md)
-- [データ辞書](database/data-dictionary.md)
-- [データフロー図](database/data-flow-diagram.md)
+## まず知っておくこと
 
-### 詳細設計
+- **動画**は1本の教材、**講座**は質問・共有の対象となる動画のまとまりです。[データの関係を見る](concepts/domain-model.md)
+- 画面はReact、APIはHono、時間のかかる動画処理はPythonが担当します。[全体像を見る](architecture/system-configuration-diagram.md)
+- 動画の文字起こし・検索準備・学習用データの作成は順に進みます。登録直後にすべて使えるわけではありません。[状態の意味を見る](design/state-diagram.md)
 
-- [コンポーネント図](design/component-diagram.md)
-- [クラス図](design/class-diagram.md)
-- [シーケンス図](design/sequence-diagram.md)
-- [状態遷移図](design/state-diagram.md)
-- [デプロイメント図](design/deployment-diagram.md)
+## 作業に合わせて読む
 
-### 課金
-
-- [Stripe Dashboard 設定](billing/stripe-dashboard.md)
-
-### PLOG / 検証
-
-- [PLOG](plog/README.md)
-- [pgvector 検索 PoC](architecture/poc-01-pgvector-cross-runtime-search.md)
-- [quota 原子予約 PoC](architecture/poc-04-quota-upload-race.md)
-
-## 技術スタック
-
-| レイヤー | 技術 |
+| やりたいこと | ガイド |
 |---|---|
-| フロントエンド | React 19, TypeScript, Vite, React Router, TanStack Query |
-| Web API | Hono, tRPC, Zod, Drizzle ORM, Cloudflare Workers |
-| 非同期処理 | Python, AWS Lambda, Amazon SQS |
-| データ | Neon PostgreSQL, pgvector, Hyperdrive |
-| ストレージ | Cloudflare R2（ローカル MinIO） |
-| Edge state | Durable Objects（rate limit、study session） |
-| AI | OpenAI, Ollama, whisper.cpp |
+| 画面・文言・フォームを変える | [画面を変更する](guides/frontend.md) |
+| 取得・更新するデータや操作を増やす | [APIを変更する](guides/api.md) |
+| テーブルや列を変更する | [DBを変更する](guides/database.md) |
+| 文字起こし・索引・学習データを変える | [動画の非同期処理を変更する](guides/worker.md) |
+| 変更が正しいか確かめる | [テストと確認コマンド](guides/testing.md) |
+| 起動や動画処理で困っている | [困ったとき](guides/troubleshooting.md) |
 
-API の実行仕様は [`apps/api/README.md`](../apps/api/README.md)、worker は
-[`apps/worker/README.md`](../apps/worker/README.md) を参照してください。
+## 詳しく調べる
+
+必要になったときに、左の「設計リファレンス」から各図や仕様を参照してください。DBの名前は[データ辞書](database/data-dictionary.md)、略語は[用語集](reference/glossary.md)で確認できます。
