@@ -133,11 +133,14 @@ CDはGitHub APIでCIのworkflow ID、起動event、repository、branch、commit�
 | `CLOUDFLARE_INFRA_TOKEN` | `production`のEnvironment secrets | 対象accountのHyperdrive更新とR2 CORS更新 |
 | `CLOUDFLARE_ACCOUNT_ID` | Repository secrets（非機密ID） | Cloudflare account ID |
 
-Workers deploy tokenは、指定されたWorkersの`videoq-api`に対する`Editor`、
-`videoq.jp` zoneの`Workers Routes Write`、対象accountのWorkers productに対する
-`Metadata Read-Only`を許可します。最後の読み取り権限はWranglerが参照するサービス情報用です。
-Workerの新規作成／削除や、他のWorkerの更新権限は付与しません。
-`Metadata Read-Only`は他のWorkerのメタデータ／ログも参照できますが、ソースやsecret値は読めません。
+Workers deploy tokenは、対象accountの`Workers Scripts Write`（画面ではWorkers Scriptsの
+Edit／レガシー）と、`videoq.jp` zoneの`Workers Routes Write`を許可します。
+同じaccountの他のWorkerの作成・更新・削除にも使えるため、Environment secretsの隔離を
+維持してください。2026-09-18の実デプロイでは、`videoq-api`単体の`Editor`は
+サービス情報取得とversion uploadで認証エラーになりました。productの`Metadata Read-Only`を
+追加すると前者のみ解消し、productの`Editor`はtoken保存時に`Scope not found`となったため、
+現状は対応済みの`Workers Scripts Write`を使用します。Cloudflare側の対応を確認できたら、
+個別Workerの権限でdeployを再検証して範囲を縮小してください。
 R2／Hyperdrive bindingのあるWorkerのdeployに、
 それらのリソース自体への編集権限は不要です。
 resource同期tokenは対象accountの`Hyperdrive Write`と`Workers R2 Storage Write`に限定します。
