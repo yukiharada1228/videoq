@@ -27,22 +27,25 @@ jobs:
   terraform-apply:
     name: Terraform Apply (production)
     runs-on: ubuntu-latest
+    if: github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main'
     environment: production
     defaults:
       run:
         working-directory: infra
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_DEPLOY_ROLE_ARN }}
           role-session-name: videoq-terraform-apply
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
         with:
           terraform_wrapper: false
 
