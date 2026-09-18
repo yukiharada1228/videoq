@@ -16,13 +16,6 @@
   "observability": { "enabled": true },
   "vars": { "ENVIRONMENT": "development" },
   "env": {
-    "preview": {
-      "name": "videoq-web-preview",
-      "workers_dev": true,
-      "preview_urls": false,
-      "routes": [],
-      "vars": { "ENVIRONMENT": "preview" }
-    },
     "production": {
       "name": "videoq-web",
       "workers_dev": false,

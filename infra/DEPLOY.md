@@ -364,7 +364,7 @@ wwwは `https://videoq.jp` の同じパスへ転送します。
 
 公開stepにだけ `production-deploy` の `CLOUDFLARE_API_TOKEN` と
 `CLOUDFLARE_ACCOUNT_ID` を渡します。Worker Scripts編集と対象zoneのWorker Routes編集、
-Custom Domainを管理できる権限が必要です。Pages Git連携は無効化し、二重デプロイを防ぎます。
+Custom Domainを管理できる権限が必要です。公開はGitHub ActionsのCDで管理します。
 
 ```bash
 # repository root
@@ -375,8 +375,8 @@ npm run deploy --workspace @videoq/web
 ```
 
 Viteの公開変数は `apps/web/.env.production` で管理します。
-`VITE_API_URL=/api`、`VITE_USE_S3_STORAGE=true`、`VITE_MAX_VIDEO_UPLOAD_SIZE_MB=500` は
-移行前のPages設定を引き継いでいます（API側の制限は別途適用されます）。
+`VITE_API_URL=/api`、`VITE_USE_S3_STORAGE=true`、`VITE_MAX_VIDEO_UPLOAD_SIZE_MB=500` を
+使用します（API側の制限は別途適用されます）。
 `worker/index.ts` が言語別SEO情報をHTMLへ反映し、静的ファイルと共通のセキュリティ
 ヘッダーを付けます。`/assets/*` はWorker処理を省いてStatic Assetsから配信します。
 
@@ -384,16 +384,13 @@ API Workerは独立したままです。`apps/api/wrangler.jsonc` の `videoq.jp
 `videoq.jp/.well-known/*`、`videoq.jp/health`、`videoq.jp/ready` が
 Custom Domainより先に適用されるため、フロントからAPIへのproxyやService Bindingは不要です。
 
-### プレビューと切り戻し
+### ローカル確認と切り戻し
 
-`npm run deploy:preview --workspace @videoq/web` は、本番ドメインを持たない
-`videoq-web-preview` をworkers.devへ公開します。noindexを返し、本番APIは接続しません。
 `npm run preview:worker --workspace @videoq/web` はビルド済みフロントのローカル確認です。
+noindexを返し、本番APIへは接続しません。
 
 通常の切り戻しは `apps/web` で `npx wrangler rollback --env production` を使用します。
-Pages移行自体を戻す必要がある場合に備えて、旧 `videoq-web` Pages projectと最後の
-deploymentを残します。WorkersのCustom Domainを外して旧PagesへドメインとDNSを戻し、
-必要に応じてPagesのGit連携を再有効化します。APIの4つのrouteは変更しません。
+Workersのデプロイ履歴から切り戻し、本番ドメインとAPIの4つのrouteは維持します。
 
 ## 5.1 ドキュメント
 
