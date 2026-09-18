@@ -1,3 +1,4 @@
+import { embedding as testEmbedding } from "./helpers/embedding";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { CourseDetail } from "../src/repositories/course-repository";
 import { getCourseDetail } from "../src/repositories/course-repository";
@@ -161,7 +162,7 @@ function stubOpenAi(turns: Turn[], opts: { stream?: boolean } = {}) {
   let index = 0;
   vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
     if (String(url).endsWith("/embeddings")) {
-      return new Response(JSON.stringify({ data: [{ embedding: [0.1, 0.2] }] }), {
+      return new Response(JSON.stringify({ data: [{ index: 0, embedding: testEmbedding(0.1, 0.2) }] }), {
         status: 200,
         headers: { "content-type": "application/json" },
       });

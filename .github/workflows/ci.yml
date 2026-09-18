@@ -70,12 +70,15 @@ jobs:
         with:
           filters: |
             hono:
+              - 'test-fixtures/embedding-contract.json'
               - 'apps/api/**'
+              - 'apps/worker/**'
               - 'packages/trpc/**'
               - 'package.json'
               - 'package-lock.json'
               - '.github/workflows/ci.yml'
             worker:
+              - 'test-fixtures/embedding-contract.json'
               - 'apps/worker/**'
               - '.github/workflows/ci.yml'
             frontend:
@@ -99,6 +102,7 @@ jobs:
     if: needs.changes.outputs.hono == 'true'
     env:
       QUOTA_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      EMBEDDING_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
     services:
       postgres:
         image: pgvector/pgvector:pg17
@@ -120,6 +124,11 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: package-lock.json
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install worker for cross-language embedding tests
+        run: pip install -e ./apps/worker
       - name: Install / typecheck / test
         run: |
           npm ci

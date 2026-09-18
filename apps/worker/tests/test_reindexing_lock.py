@@ -30,6 +30,8 @@ def test_full_reindex_runs_after_acquiring_global_lock(monkeypatch) -> None:
 
 
 def test_full_reindex_partial_failure_is_retried(monkeypatch) -> None:
+    monkeypatch.setattr(reindexing.vector_index, "check_embedding_storage", MagicMock())
+    monkeypatch.setattr(reindexing, "embed_texts", MagicMock())
     videos = [
         VideoRow(
             id=42,

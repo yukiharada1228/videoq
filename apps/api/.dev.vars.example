@@ -20,9 +20,8 @@ USER_SECRET_ENCRYPTION_KEY=""
 # OPENAI_BASE_URL="http://127.0.0.1:11434/v1"
 # LLM_MODEL="qwen3-vl:8b-instruct"
 # 埋め込みは別設定。wrangler.jsonc のローカル既定値は以下と同じ。
-# EMBEDDING_PROVIDER="ollama"
-# EMBEDDING_MODEL="qwen3-embedding:0.6b"
-# EMBEDDING_VECTOR_SIZE="1024"
+# EMBEDDING_PROVIDER="openai"
+# EMBEDDING_MODEL="text-embedding-3-small"
 # OLLAMA_BASE_URL="http://127.0.0.1:11434"
 
 # Stripe Billing（restricted key rk_ を推奨）。未設定なら /api/billing/plans はカタログ金額を返す。

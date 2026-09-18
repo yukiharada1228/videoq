@@ -4,6 +4,7 @@
  */
 
 import { embedQuery } from "./embeddings";
+import { checkEmbeddingStorage } from "./embedding-schema";
 import { generateGradingReply, generateReply } from "./llm";
 import { LlmConfigurationError, LlmProviderError } from "./openai";
 import {
@@ -512,6 +513,9 @@ async function runTurn(
       "PLOG is not ready for this course's videos. Wait for build or rebuild.",
     );
   }
+
+  // Check before grading or changing the learner state, including completed paths.
+  await checkEmbeddingStorage(env);
 
   const studyCfg = getPlogStudyConfig(params.locale);
   if (!graphsHaveOrderingPath(graphs)) {

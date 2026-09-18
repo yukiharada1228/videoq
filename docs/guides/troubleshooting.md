@@ -60,7 +60,7 @@ See [video state transitions](../design/state-diagram.md) for the meaning of eac
 
 1. Check that the course you are asking about contains the video.
 2. Check that the video is `completed` and has a transcript.
-3. Compare `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`, and `EMBEDDING_VECTOR_SIZE` between the API and worker. The current database uses 1536 dimensions.
+3. Compare API and worker `EMBEDDING_PROVIDER` / `EMBEDDING_MODEL` using the [embedding diagnostic commands](embeddings.md). Dimensions are fixed at 1536. Check the logged reason for configuration, schema, output, or stored PLOG data errors.
 4. Reindex after changing models. Configuration alone cannot change the dimensions of existing data.
 
 Questions about course names or video counts may be answered from metadata without scene citations. Even content questions may not produce the expected answer if the video contains no supporting evidence.

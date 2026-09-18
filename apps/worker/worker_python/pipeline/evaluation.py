@@ -6,6 +6,7 @@ import asyncio
 import logging
 from typing import Any
 
+from .embedding_contract import EmbeddingContractError
 from worker_python.env import env_str
 
 logger = logging.getLogger(__name__)
@@ -113,41 +114,19 @@ def _langchain_llm():
 
 
 def _langchain_embeddings():
-    provider = env_str("EMBEDDING_PROVIDER", "openai").lower()
-    if provider == "ollama":
-        from langchain_ollama import OllamaEmbeddings
+    from .embedding_contract import resolve_embedding_config
+    from .langchain_embeddings import VideoQEmbeddings
 
-        model = env_str("EMBEDDING_MODEL")
-        if not model:
-            raise RuntimeError(
-                "EMBEDDING_MODEL is required when EMBEDDING_PROVIDER=ollama."
-            )
-        return OllamaEmbeddings(
-            model=model,
-            base_url=env_str("OLLAMA_BASE_URL", "http://127.0.0.1:11434"),
-        )
-    if provider == "openai":
-        from langchain_openai import OpenAIEmbeddings
-        from pydantic import SecretStr
-
-        api_key = env_str("OPENAI_API_KEY")
-        if not api_key:
-            raise RuntimeError("OPENAI_API_KEY is required for OpenAI embeddings.")
-        kwargs: dict[str, Any] = {
-            "model": env_str("EMBEDDING_MODEL", "text-embedding-3-small"),
-            "api_key": SecretStr(api_key),
-        }
-        dims = env_str("EMBEDDING_VECTOR_SIZE")
-        if dims.isdigit() and int(dims) > 0:
-            kwargs["dimensions"] = int(dims)
-        return OpenAIEmbeddings(**kwargs)
-    raise RuntimeError(f"Unsupported EMBEDDING_PROVIDER={provider!r}")
+    resolve_embedding_config()
+    return VideoQEmbeddings()
 
 
 def _run_metric(metric: Any, sample: Any) -> float | None:
     try:
         score = asyncio.run(metric.single_turn_ascore(sample))
         return float(score) if score is not None else None
+    except EmbeddingContractError:
+        raise
     except Exception as exc:  # noqa: BLE001 - isolate third-party metric failures
         logger.warning("Metric %s failed: %s", metric.__class__.__name__, exc)
         return None

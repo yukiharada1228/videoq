@@ -16,7 +16,6 @@ locals {
     FRONTEND_URL          = "https://videoq.jp"
     EMBEDDING_PROVIDER    = "openai"
     EMBEDDING_MODEL       = "text-embedding-3-small"
-    EMBEDDING_VECTOR_SIZE = "1536"
     ENABLE_HEAVY_PIPELINE = "true"
   }
 

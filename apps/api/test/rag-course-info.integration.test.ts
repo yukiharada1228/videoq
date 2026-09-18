@@ -1,31 +1,35 @@
 import pg from "pg";
-import { PGVectorStore } from "@yukiharada1228/langchain-postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { getCourseWithMembers } from "../src/repositories/chat-repository";
 import { courseInfoTool } from "../src/lib/rag-course-info";
 import { openSceneSearch } from "../src/repositories/vector-repository";
+import { embedding as testEmbedding } from "./helpers/embedding";
 import type { Bindings } from "../src/types/bindings";
 
-vi.mock("../src/lib/embeddings", () => ({ embedQuery: vi.fn(async () => [1, 0]) }));
+vi.mock("../src/lib/embeddings", () => ({ embedQuery: vi.fn(async () => testEmbedding(1, 0)) }));
 
 const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
 const describeWithPostgres = databaseUrl ? describe : describe.skip;
 
 describeWithPostgres("course metadata and scene selection on PostgreSQL without PLOG", () => {
-  const schemaName = `rag_metadata_${crypto.randomUUID().replaceAll("-", "")}`;
-  const quotedSchema = `"${schemaName}"`;
+  const databaseName = `rag_metadata_${crypto.randomUUID().replaceAll("-", "")}`;
+  const quotedDatabase = `"${databaseName}"`;
   let admin: pg.Client;
+  let databaseClient: pg.Client;
   let env: Bindings;
-  let schemaCreated = false;
+  let databaseCreated = false;
 
   beforeAll(async () => {
     admin = new pg.Client({ connectionString: databaseUrl });
     await admin.connect();
-    await admin.query("CREATE EXTENSION IF NOT EXISTS vector");
-    await admin.query(`CREATE SCHEMA ${quotedSchema}`);
-    schemaCreated = true;
-    await admin.query(`SET search_path TO ${quotedSchema}, public`);
-    await admin.query(`
+    await admin.query(`CREATE DATABASE ${quotedDatabase}`);
+    databaseCreated = true;
+    const scopedUrl = new URL(databaseUrl!);
+    scopedUrl.pathname = `/${databaseName}`;
+    databaseClient = new pg.Client({ connectionString: scopedUrl.toString() });
+    await databaseClient.connect();
+    await databaseClient.query("CREATE EXTENSION vector");
+    await databaseClient.query(`
       CREATE TABLE video_courses (
         id integer PRIMARY KEY, user_id text NOT NULL, name text NOT NULL, description text NOT NULL DEFAULT '',
         display_order integer NOT NULL DEFAULT 0, share_slug text,
@@ -46,7 +50,7 @@ describeWithPostgres("course metadata and scene selection on PostgreSQL without 
       CREATE TABLE tags (id integer PRIMARY KEY, name text, color text);
       CREATE TABLE video_tags (video_id integer, tag_id integer);
       CREATE TABLE scene_embeddings (
-        langchain_id uuid PRIMARY KEY, content text NOT NULL, embedding vector(2),
+        langchain_id uuid PRIMARY KEY, content text NOT NULL, embedding vector(1536),
         user_id text NOT NULL, video_id bigint NOT NULL, langchain_metadata json NOT NULL
       );
       INSERT INTO video_courses (id, user_id, name, description, share_slug) VALUES
@@ -63,20 +67,19 @@ describeWithPostgres("course metadata and scene selection on PostgreSQL without 
         (3, 4, 99, 0, '2026-09-14');
       INSERT INTO video_course_memberships VALUES (3, 'member');
       INSERT INTO scene_embeddings VALUES
-        ('00000000-0000-4000-8000-000000000060', 'allowed scene', '[1,0]', 'owner', 60,
+        ('00000000-0000-4000-8000-000000000060', 'allowed scene', '${JSON.stringify(testEmbedding(1, 0))}', 'owner', 60,
          '{"video_title":"Lecture 7","start_time":"00:00:00","end_time":"00:00:10"}'),
-        ('00000000-0000-4000-8000-000000000061', 'selected scene', '[0.9,0.1]', 'owner', 61,
+        ('00000000-0000-4000-8000-000000000061', 'selected scene', '${JSON.stringify(testEmbedding(0.9, 0.1))}', 'owner', 61,
          '{"video_title":"Lecture 8","start_time":"00:00:10","end_time":"00:00:20"}'),
-        ('00000000-0000-4000-8000-000000000062', 'same owner other course', '[1,0]', 'owner', 62, '{}'),
-        ('00000000-0000-4000-8000-000000000099', 'foreign owner', '[1,0]', 'outsider', 60, '{}');
+        ('00000000-0000-4000-8000-000000000062', 'same owner other course', '${JSON.stringify(testEmbedding(1, 0))}', 'owner', 62, '{}'),
+        ('00000000-0000-4000-8000-000000000099', 'foreign owner', '${JSON.stringify(testEmbedding(1, 0))}', 'outsider', 60, '{}');
     `);
-    const scopedUrl = new URL(databaseUrl!);
-    scopedUrl.searchParams.set("options", `-c search_path=${schemaName},public`);
     env = { HYPERDRIVE: { connectionString: scopedUrl.toString() } } as Bindings;
   });
 
   afterAll(async () => {
-    try { if (schemaCreated) await admin.query(`DROP SCHEMA ${quotedSchema} CASCADE`); }
+    await databaseClient?.end();
+    try { if (databaseCreated) await admin.query(`DROP DATABASE ${quotedDatabase} WITH (FORCE)`); }
     finally { await admin?.end(); }
   });
 
@@ -119,11 +122,6 @@ describeWithPostgres("course metadata and scene selection on PostgreSQL without 
   });
 
   it("intersects selection with the fixed course/owner scope and preserves default whole-course search", async () => {
-    // SDK の既定スキーマは public。SQL・検索は実物のまま、一時スキーマへ接続先を固定する。
-    const initialize = PGVectorStore.initialize;
-    const initializeSpy = vi.spyOn(PGVectorStore, "initialize").mockImplementation(
-      (engine, embeddings, table, options) => initialize(engine, embeddings, table, { ...options, schemaName }),
-    );
     const search = await openSceneSearch(env, { userId: "owner", videoIds: [60, 61] });
     try {
       expect((await search.search("scene")).map((hit) => hit.content)).toEqual(["allowed scene", "selected scene"]);
@@ -134,7 +132,6 @@ describeWithPostgres("course metadata and scene selection on PostgreSQL without 
       }
     } finally {
       await search.close();
-      initializeSpy.mockRestore();
     }
   });
 });

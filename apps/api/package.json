@@ -32,7 +32,8 @@
     "db:legacy:drop": "sh scripts/maintain.sh drop",
     "user:password:local": "node scripts/reset-local-password.mjs",
     "user:superuser": "node scripts/create-superuser.mjs",
-    "rate-limit:reset": "sh scripts/reset-rate-limit.sh"
+    "rate-limit:reset": "sh scripts/reset-rate-limit.sh",
+    "embeddings:check": "tsx scripts/check-embeddings.ts"
   },
   "dependencies": {
     "@better-auth/api-key": "^1.7.2",

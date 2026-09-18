@@ -1,3 +1,4 @@
+import { embedding as testEmbedding } from "./helpers/embedding";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { ProcedureName, RpcInputMap } from "@videoq/trpc";
 import { signAccessToken } from "./helpers/auth";
@@ -58,6 +59,7 @@ const conceptNode = {
 beforeEach(() => {
   calls.length = 0;
   rowsFor = (sql) => {
+    if (sql.includes("FROM pg_attribute")) return [{ type_name: "vector", dimensions: 1536 }];
     if (sql.includes("videos") && sql.includes("user_id")) return [{ id: 1 }];
     if (sql.includes("plog_build_jobs")) return [{ status: "ready" }];
     if (sql.includes("plog_concepts") && sql.includes("returning")) return [{ id: 10 }];
@@ -88,7 +90,7 @@ beforeEach(() => {
     return [];
   };
   vi.stubGlobal("fetch", async () =>
-    new Response(JSON.stringify({ data: [{ embedding: [0.1, 0.2, 0.3] }] }), {
+    new Response(JSON.stringify({ data: [{ index: 0, embedding: testEmbedding(0.1, 0.2, 0.3) }] }), {
       status: 200,
     }),
   );
@@ -141,6 +143,7 @@ describe("plog.createConcept", () => {
 
   it("rebuild 中は 400", async () => {
     rowsFor = (sql) => {
+      if (sql.includes("FROM pg_attribute")) return [{ type_name: "vector", dimensions: 1536 }];
       if (sql.includes("videos") && sql.includes("user_id")) return [{ id: 1 }];
       if (sql.includes("plog_build_jobs")) return [{ status: "running" }];
       return [];
@@ -253,6 +256,7 @@ describe("plog.createEdge", () => {
 describe("PLOG delete and learner-state procedures", () => {
   it("concept 削除は依存順に消して {deleted:true}", async () => {
     rowsFor = (sql) => {
+      if (sql.includes("FROM pg_attribute")) return [{ type_name: "vector", dimensions: 1536 }];
       if (sql.includes("videos") && sql.includes("user_id")) return [{ id: 1 }];
       if (sql.includes("plog_concepts")) return [{ id: 10 }];
       return [];
@@ -273,6 +277,7 @@ describe("PLOG delete and learner-state procedures", () => {
 
   it("learner-state リセットは {deleted:N}", async () => {
     rowsFor = (sql) => {
+      if (sql.includes("FROM pg_attribute")) return [{ type_name: "vector", dimensions: 1536 }];
       if (sql.includes("videos") && sql.includes("user_id")) return [{ id: 1 }];
       if (sql.includes("learner_concept_states"))
         return [{}, {}, {}];
@@ -298,6 +303,7 @@ describe("plog.mergeConcepts", () => {
     expect(same.status).toBe(400);
 
     rowsFor = (sql) => {
+      if (sql.includes("FROM pg_attribute")) return [{ type_name: "vector", dimensions: 1536 }];
       if (sql.includes("videos") && sql.includes("user_id")) return [{ id: 1 }];
       if (sql.includes("plog_concepts") && sql.includes("node_type"))
         return [
