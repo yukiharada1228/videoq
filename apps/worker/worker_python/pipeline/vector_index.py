@@ -8,12 +8,13 @@ import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from langchain_core.embeddings import Embeddings
 from langchain_postgres import PGEngine, PGVectorStore
 
 from worker_python.db import db_connection, get_database_url
 from worker_python.env import env_str
 from worker_python.pipeline.embeddings import embed_texts
+from worker_python.pipeline.langchain_embeddings import VideoQEmbeddings
+from worker_python.pipeline.embedding_schema import check_embedding_storage
 from worker_python.pipeline.srt import parse_srt_scenes
 from worker_python.video_sql import VideoRow
 
@@ -38,19 +39,6 @@ def _sqlalchemy_database_url() -> str:
     if url.startswith("postgresql://"):
         return "postgresql+psycopg://" + url.removeprefix("postgresql://")
     raise RuntimeError("DATABASE_URL must use a PostgreSQL URL")
-
-
-class VideoQEmbeddings(Embeddings):
-    """Expose the configured VideoQ provider through LangChain's interface."""
-
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        return embed_texts(texts)
-
-    def embed_query(self, text: str) -> list[float]:
-        vectors = embed_texts([text])
-        if not vectors:
-            raise RuntimeError("Embedding provider returned no query vector")
-        return vectors[0]
 
 
 @contextmanager
@@ -117,6 +105,8 @@ def index_video_transcript(video: VideoRow) -> int:
         logger.info("No SRT scenes for video %d; skipping vector index", video.id)
         return 0
 
+    _table_name()
+    check_embedding_storage()
     texts = [s.text for s in scenes]
     # Batch embeddings in chunks to avoid provider limits.
     embeddings: list[list[float]] = []

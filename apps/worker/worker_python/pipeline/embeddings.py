@@ -8,6 +8,14 @@ import urllib.error
 import urllib.request
 
 from worker_python.env import env_str
+from .embedding_contract import (
+    EMBEDDING_DIMENSIONS,
+    EmbeddingConfig,
+    EmbeddingContractError,
+    invalid_output,
+    resolve_embedding_config,
+    validate_embedding,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -15,24 +23,18 @@ logger = logging.getLogger(__name__)
 def embed_texts(texts: list[str]) -> list[list[float]]:
     if not texts:
         return []
-    provider = env_str("EMBEDDING_PROVIDER", "openai").lower()
-    if provider == "ollama":
-        return [_embed_ollama(t) for t in texts]
-    if provider == "openai":
-        return _embed_openai_batch(texts)
-    raise RuntimeError(f"Unsupported EMBEDDING_PROVIDER={provider!r}")
+    config = resolve_embedding_config()
+    if config.provider == "ollama":
+        return _embed_ollama(texts, config)
+    return _embed_openai_batch(texts, config)
 
 
-def _embed_openai_batch(texts: list[str]) -> list[list[float]]:
+def _embed_openai_batch(texts: list[str], config: EmbeddingConfig) -> list[list[float]]:
     api_key = env_str("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is required for OpenAI embeddings")
-    model = env_str("EMBEDDING_MODEL", "text-embedding-3-small")
     base = env_str("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
-    body: dict = {"model": model, "input": texts, "encoding_format": "float"}
-    dims_raw = env_str("EMBEDDING_VECTOR_SIZE")
-    if dims_raw.isdigit() and int(dims_raw) > 0:
-        body["dimensions"] = int(dims_raw)
+    body: dict = {"model": config.model, "input": texts, "encoding_format": "float", "dimensions": EMBEDDING_DIMENSIONS}
 
     req = urllib.request.Request(
         f"{base}/embeddings",
@@ -45,45 +47,61 @@ def _embed_openai_batch(texts: list[str]) -> list[list[float]]:
     )
     try:
         with urllib.request.urlopen(req, timeout=120) as resp:
-            payload = json.loads(resp.read().decode("utf-8"))
+            payload = _read_payload(resp, config)
     except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")[:500]
-        raise RuntimeError(f"OpenAI embeddings failed ({exc.code}): {detail}") from exc
+        raise _provider_http_error(config, exc.code) from None
+    except urllib.error.URLError:
+        raise RuntimeError("OpenAI embeddings request failed. Check the server connection.") from None
 
-    data = sorted(payload.get("data") or [], key=lambda d: int(d.get("index", 0)))
-    out: list[list[float]] = []
-    for item in data:
-        emb = item.get("embedding")
-        if not isinstance(emb, list) or not emb:
-            raise RuntimeError("OpenAI embeddings response missing vectors")
-        out.append([float(x) for x in emb])
-    if len(out) != len(texts):
-        raise RuntimeError(
-            f"OpenAI returned {len(out)} embeddings for {len(texts)} inputs"
-        )
-    return out
+    data = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(data, list) or len(data) != len(texts) or not all(
+        isinstance(item, dict) and type(item.get("index")) is int for item in data
+    ) or sorted(item["index"] for item in data) != list(range(len(texts))):
+        raise invalid_output(config)
+    return [validate_embedding(item.get("embedding"), config) for item in sorted(data, key=lambda item: item["index"])]
 
 
-def _embed_ollama(text: str) -> list[float]:
-    model = env_str("EMBEDDING_MODEL")
-    if not model:
-        raise RuntimeError("EMBEDDING_MODEL is required when EMBEDDING_PROVIDER=ollama")
+def _embed_ollama(texts: list[str], config: EmbeddingConfig) -> list[list[float]]:
     base = env_str("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
     req = urllib.request.Request(
-        f"{base}/api/embeddings",
-        data=json.dumps({"model": model, "prompt": text}).encode("utf-8"),
+        f"{base}/api/embed",
+        data=json.dumps({"model": config.model, "input": texts, "dimensions": EMBEDDING_DIMENSIONS}).encode("utf-8"),
         headers={"content-type": "application/json"},
         method="POST",
     )
     try:
         with urllib.request.urlopen(req, timeout=120) as resp:
-            payload = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.URLError as exc:
-        raise RuntimeError(f"Ollama embeddings unreachable at {base}: {exc}") from exc
-    emb = payload.get("embedding")
-    if not isinstance(emb, list) or not emb:
-        raise RuntimeError("Ollama embeddings response missing vector")
-    return [float(x) for x in emb]
+            payload = _read_payload(resp, config)
+    except urllib.error.HTTPError as exc:
+        raise _provider_http_error(config, exc.code) from None
+    except urllib.error.URLError:
+        raise RuntimeError("Ollama embeddings request failed. Check the server connection.") from None
+    vectors = payload.get("embeddings") if isinstance(payload, dict) else None
+    if not isinstance(vectors, list) or len(vectors) != len(texts):
+        raise invalid_output(config)
+    return [validate_embedding(vector, config) for vector in vectors]
+
+
+def _provider_http_error(config: EmbeddingConfig, status: int) -> RuntimeError:
+    provider = "OpenAI" if config.provider == "openai" else "Ollama"
+    # Permanent request rejection (e.g. unsupported model/dimensions) must not
+    # become a successful scene fallback or a missing RAGAS score. Preserve the
+    # existing best-effort behavior for timeouts, rate limits and server failures.
+    if 400 <= status < 500 and status not in {408, 429}:
+        return EmbeddingContractError(
+            "EMBEDDING_CONFIG_INVALID",
+            f"{provider} embeddings request rejected (HTTP {status}). "
+            "Check the model, requested dimensions and provider configuration.",
+            config,
+        )
+    return RuntimeError(f"{provider} embeddings failed (HTTP {status}).")
+
+
+def _read_payload(response, config: EmbeddingConfig):
+    try:
+        return json.loads(response.read().decode("utf-8"))
+    except (ValueError, UnicodeError):
+        raise invalid_output(config) from None
 
 
 def to_vector_literal(embedding: list[float]) -> str:

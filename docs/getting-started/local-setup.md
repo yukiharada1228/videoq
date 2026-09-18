@@ -42,10 +42,9 @@ LLM_MODEL=gpt-4o-mini
 WHISPER_BACKEND=openai
 EMBEDDING_PROVIDER=openai
 EMBEDDING_MODEL=text-embedding-3-small
-EMBEDDING_VECTOR_SIZE=1536
 ```
 
-**Set `EMBEDDING_VECTOR_SIZE` to `1536`.** The current `.env.example` uses `1024`, but the database schema defines 1536 dimensions. Search will not work if the API and video processing use different dimensions. See [embeddings in the glossary](../reference/glossary.md).
+The templates already use these embedding defaults. Dimensions are fixed at 1536; no dimension environment variable is needed. The API and worker must use the same provider and model. For Ollama and diagnostic commands, see [embedding configuration](../guides/embeddings.md).
 
 Generate two development secrets:
 

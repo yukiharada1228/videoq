@@ -7,7 +7,7 @@ import logging
 import numpy as np
 import tiktoken
 
-from worker_python.env import env_str
+from worker_python.pipeline.embedding_contract import resolve_embedding_config
 from worker_python.pipeline.embeddings import embed_texts
 
 logger = logging.getLogger(__name__)
@@ -37,9 +37,9 @@ def create_embedder(*, batch_size: int = 16) -> SceneEmbedder:
 
 
 def _resolve_encoding() -> tiktoken.Encoding:
-    provider = env_str("EMBEDDING_PROVIDER", "openai").lower()
-    model = env_str("EMBEDDING_MODEL", "text-embedding-3-small")
-    if provider == "openai":
+    config = resolve_embedding_config()
+    model = config.model
+    if config.provider == "openai":
         try:
             return tiktoken.encoding_for_model(model)
         except KeyError:

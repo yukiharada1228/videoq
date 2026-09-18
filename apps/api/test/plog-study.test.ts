@@ -1,3 +1,4 @@
+import { embedding as testEmbedding } from "./helpers/embedding";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { runStudy, PlogNotReadyError, EphemeralLearnerStateStore } from "../src/lib/plog-study";
 import type { Bindings } from "../src/types/bindings";
@@ -111,6 +112,7 @@ const ENV = {
 
 function readyGraphRows(): void {
   rowsFor = (sql) => {
+    if (sql.includes("FROM pg_attribute")) return [{ type_name: "vector", dimensions: 1536 }];
     if (sql.includes("FROM plog_build_jobs")) return [{ status: "ready" }];
     if (sql.includes("FROM plog_concepts")) {
       return [
@@ -121,7 +123,7 @@ function readyGraphRows(): void {
           node_type: "object",
           intro_sec: 1,
           source_quote: "",
-          embedding: JSON.stringify([1, 0]),
+          embedding: JSON.stringify(testEmbedding(1, 0)),
           lo_id: 100,
           opening_question: "「オアゲート」について、すでに知っていることは何ですか？",
           hint_ladder: JSON.stringify(["ヒント1", "ヒント2"]),
@@ -137,7 +139,7 @@ function readyGraphRows(): void {
           node_type: "object",
           intro_sec: 2,
           source_quote: "",
-          embedding: JSON.stringify([0, 1]),
+          embedding: JSON.stringify(testEmbedding(0, 1)),
           lo_id: 101,
           opening_question: "「ノットゲート」について、すでに知っていることは何ですか？",
           hint_ladder: JSON.stringify(["ヒントA"]),
@@ -197,9 +199,27 @@ describe("EphemeralLearnerStateStore", () => {
 });
 
 describe("runStudy smoke", () => {
+  it.each(["schema", "stored data"])("rejects invalid %s before grading or committing progress", async (stage) => {
+    const originalRowsFor = rowsFor;
+    rowsFor = (sql, args) => {
+      if (stage === "schema" && sql.includes("FROM pg_attribute")) return [{ type_name: "vector", dimensions: 1024 }];
+      const rows = originalRowsFor(sql, args);
+      return stage === "stored data" && sql.includes("FROM plog_concepts")
+        ? rows.map((row) => ({ ...row, embedding: "[1,2]" })) : rows;
+    };
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    await expect(runStudy(ENV, {
+      messages: [{ role: "assistant", content: "前の質問" }, { role: "user", content: "回答" }],
+      videoIds: [10], locale: "ja", studySessionId: "invalid",
+    })).rejects.toMatchObject({ reason: stage === "schema" ? "EMBEDDING_SCHEMA_MISMATCH" : "EMBEDDING_DATA_INVALID" });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(studySessions.commits).not.toHaveBeenCalled();
+  });
+
   it.each([
-    { routing: "semantic match", embedding: [1, 0] },
-    { routing: "first-unreached fallback", embedding: [0, 0] },
+    { routing: "semantic match", embedding: testEmbedding(1, 0) },
+    { routing: "first-unreached fallback", embedding: testEmbedding(0, 0, 1) },
   ])("single-concept study opens and stays completed after mastery ($routing)", async ({ embedding }) => {
     const originalRowsFor = rowsFor;
     rowsFor = (sql, args) => {
@@ -210,7 +230,7 @@ describe("runStudy smoke", () => {
     const fetchMock = vi.fn(async (input: RequestInfo, init?: RequestInit) => {
       const url = String(input);
       if (url.endsWith("/embeddings")) {
-        return Response.json({ data: [{ embedding }] });
+        return Response.json({ data: [{ index: 0, embedding }] });
       }
       if (url.endsWith("/chat/completions")) {
         const body = JSON.parse(String(init?.body ?? "{}"));
@@ -263,7 +283,7 @@ describe("runStudy smoke", () => {
     const fetchMock = vi.fn(async (input: RequestInfo) => {
       const url = String(input);
       if (url.endsWith("/embeddings")) {
-        return new Response(JSON.stringify({ data: [{ embedding: [1, 0] }] }), {
+        return new Response(JSON.stringify({ data: [{ index: 0, embedding: testEmbedding(1, 0) }] }), {
           headers: { "content-type": "application/json" },
         });
       }
@@ -292,7 +312,7 @@ describe("runStudy smoke", () => {
     studySessions.contendOnce();
     const fetchMock = vi.fn(async (input: RequestInfo) => {
       if (String(input).endsWith("/embeddings")) {
-        return new Response(JSON.stringify({ data: [{ embedding: [1, 0] }] }), {
+        return new Response(JSON.stringify({ data: [{ index: 0, embedding: testEmbedding(1, 0) }] }), {
           headers: { "content-type": "application/json" },
         });
       }
@@ -315,6 +335,7 @@ describe("runStudy smoke", () => {
 
   it("throws PlogNotReadyError when no ready graphs", async () => {
     rowsFor = (sql) => {
+    if (sql.includes("FROM pg_attribute")) return [{ type_name: "vector", dimensions: 1536 }];
       if (sql.includes("FROM plog_build_jobs")) return [{ status: "pending" }];
       return [];
     };
@@ -357,7 +378,7 @@ describe("runStudy smoke", () => {
     const fetchMock = vi.fn(async (input: RequestInfo, init?: RequestInit) => {
       const url = String(input);
       if (url.endsWith("/embeddings")) {
-        return new Response(JSON.stringify({ data: [{ embedding: [1, 0] }] }), {
+        return new Response(JSON.stringify({ data: [{ index: 0, embedding: testEmbedding(1, 0) }] }), {
           headers: { "content-type": "application/json" },
         });
       }

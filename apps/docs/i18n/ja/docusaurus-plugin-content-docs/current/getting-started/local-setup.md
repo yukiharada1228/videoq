@@ -42,10 +42,9 @@ LLM_MODEL=gpt-4o-mini
 WHISPER_BACKEND=openai
 EMBEDDING_PROVIDER=openai
 EMBEDDING_MODEL=text-embedding-3-small
-EMBEDDING_VECTOR_SIZE=1536
 ```
 
-**`EMBEDDING_VECTOR_SIZE` は必ず `1536` に変更してください。** 現在の `.env.example` は `1024` ですが、DBは1536次元で定義されています。APIと動画処理が異なる次元を使うと検索できません。[埋め込みとは](../reference/glossary.md)も参照できます。
+設定テンプレートも上記の埋め込み設定を使用します。次元は1536固定で、次元数の環境変数は不要です。API・workerのproviderとmodelを揃えてください。Ollamaの設定と診断コマンドは[埋め込みの設定と検証](../guides/embeddings.md)を参照してください。
 
 次のコマンドで2つの開発用秘密鍵を生成します。
 

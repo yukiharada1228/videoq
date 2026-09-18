@@ -2,6 +2,8 @@ import { PGEngine, PGVectorStore } from "@yukiharada1228/langchain-postgres";
 import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 import pg from "pg";
 import { embedQuery } from "../lib/embeddings";
+import { resolveEmbeddingConfig } from "../lib/embedding-contract";
+import { assertEmbeddingSchema } from "../lib/embedding-schema";
 import type { Bindings } from "../types/bindings";
 
 const ALLOWED_TABLES = new Set(["scene_embeddings"]);
@@ -106,6 +108,7 @@ export async function openSceneSearch(
   params: { userId: string; videoIds: readonly number[] },
 ): Promise<SceneSearch> {
   const table = resolveVectorTable(env);
+  const config = resolveEmbeddingConfig(env);
   const allowedVideoIds = new Set(params.videoIds);
 
   // Pool はリクエストごとに生成し、
@@ -119,6 +122,7 @@ export async function openSceneSearch(
   const engine = PGEngine.fromPool(pool);
   let store: PGVectorStore;
   try {
+    await assertEmbeddingSchema(pool, config);
     store = await PGVectorStore.initialize(engine, sceneEmbeddings(env), table, {
       metadataColumns: ["user_id", "video_id"],
     });

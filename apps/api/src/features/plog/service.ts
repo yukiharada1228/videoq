@@ -1,4 +1,5 @@
 import { embedQuery } from "../../lib/embeddings";
+import { checkEmbeddingStorage } from "../../lib/embedding-schema";
 import { EDGE_TYPES, NODE_TYPES } from "../../lib/plog-ordering";
 import {
   PlogConflictError,
@@ -133,13 +134,14 @@ export async function editCreateConcept(
   if (!label) return bad("label is required");
   if (!NODE_TYPES.has(input.nodeType)) return bad(`Invalid node_type: ${input.nodeType}`);
   try {
-    await ensureReadyBuildJob(env, videoId);
     let embedding: number[];
     try {
+      await checkEmbeddingStorage(env);
       embedding = await embedQuery(env, label);
     } catch (e) {
       return bad(`Failed to embed concept label: ${e}`);
     }
+    await ensureReadyBuildJob(env, videoId);
     return {
       ok: true,
       value: await createConcept(env, {
@@ -179,6 +181,7 @@ export async function editUpdateConcept(
     if (!label) return bad("label cannot be empty");
     if (label !== existing.label) {
       try {
+        await checkEmbeddingStorage(env);
         embedding = await embedQuery(env, label);
       } catch (e) {
         return bad(`Failed to embed concept label: ${e}`);

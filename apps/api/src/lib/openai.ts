@@ -21,7 +21,7 @@ export const DEFAULT_LLM_MODEL = "gpt-4o-mini";
 const DEFAULT_BASE_URL = "https://api.openai.com/v1";
 
 /** 用途別の OpenAI API キーを解決する。purpose はエラーメッセージにそのまま入る。 */
-export function resolveOpenAiKey(env: Bindings, purpose: string): string {
+export function resolveOpenAiKey(env: Pick<Bindings, "OPENAI_API_KEY">, purpose: string): string {
   const key = env.OPENAI_API_KEY;
   if (!key) {
     throw new LlmConfigurationError(
@@ -32,7 +32,7 @@ export function resolveOpenAiKey(env: Bindings, purpose: string): string {
   return key;
 }
 
-export const openAiBaseUrl = (env: Bindings): string =>
+export const openAiBaseUrl = (env: Pick<Bindings, "OPENAI_BASE_URL">): string =>
   (env.OPENAI_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, "");
 
 /** OpenAI HTTP エラーを VideoQ の LLM エラー分類へ変換する。 */
