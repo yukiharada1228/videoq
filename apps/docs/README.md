@@ -58,7 +58,20 @@ The site is hosted as static assets on Cloudflare Worker `videoq-docs`:
 - English: <https://docs.videoq.jp/>
 - Japanese: <https://docs.videoq.jp/ja/>
 
-To rebuild and publish both languages from the repository root:
+After documentation changes are merged into `main` and its push CI succeeds,
+[GitHub Actions CD](../../.github/workflows/cd.yml) automatically rebuilds and publishes both languages.
+It watches `docs/**`, `apps/docs/**` (including Japanese translations), the root `package.json`
+and `package-lock.json`, the CI/CD workflows, and deployment policy scripts.
+Changes are compared with the last successful CD run, so changes from cancelled CI runs are included.
+
+The docs job uses the verified `main` commit and runs independently of API, Lambda, and database deployment.
+It uses the existing `production-deploy` environment's `CLOUDFLARE_API_TOKEN` and the repository's
+`CLOUDFLARE_ACCOUNT_ID` secret. Credentials are passed only to the upload step, after type checking
+and building both languages. PRs and feature-branch pushes do not publish the site.
+Manually running CD on `main` also republishes the docs, along with the other deployment targets,
+and requires successful push CI for that commit.
+
+To rebuild and publish both languages manually from the repository root:
 
 ```bash
 npm ci
@@ -66,7 +79,7 @@ npx wrangler login
 npm run deploy:docs
 ```
 
-Wrangler requires access to the Cloudflare account containing `videoq-docs` and the `videoq.jp` zone. `apps/docs/wrangler.jsonc` fixes the Worker name, static asset directory, and custom domain. This uploads the current working tree, including uncommitted documentation changes. It does not publish automatically on a Git push.
+Wrangler requires access to the Cloudflare account containing `videoq-docs` and the `videoq.jp` zone. `apps/docs/wrangler.jsonc` fixes the Worker name, static asset directory, and custom domain. This manual command uploads the current working tree, including uncommitted documentation changes.
 
 The custom domain `docs.videoq.jp` is declared in Wrangler configuration. Cloudflare creates its DNS record and manages the HTTPS certificate during deployment. Trailing slashes match Docusaurus URLs, and missing paths serve the generated 404 page. The `workers.dev` and preview URLs are disabled.
 

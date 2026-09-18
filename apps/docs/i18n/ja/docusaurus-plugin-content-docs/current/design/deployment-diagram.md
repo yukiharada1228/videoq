@@ -50,10 +50,10 @@ flowchart TB
 | Cloudflare binding | Wrangler (`wrangler.jsonc`) |
 | Hyperdrive cache / R2 CORS | 手動承認付き `cloudflare-resources.yml` |
 | AWS worker infrastructure | Terraform |
-| ドキュメント | `npm run deploy:docs` で両言語をビルドし、Cloudflare Worker `videoq-docs` へ静的アセットをアップロード |
+| ドキュメント | 関連する変更が`main`へ入り、CIが成功すると、GitHub Actions CDが両言語をCloudflare Worker `videoq-docs`へ公開 |
 
 上のコマンドは各作業の入口です。本番のAPI・worker・DBは `.github/workflows/cd.yml` の手順と順序も確認します。
 新しい列を使うコードを先に公開すると、古いDBに対して動かなくなる場合があります。
 
 詳細は [`infra/DEPLOY.md`](https://github.com/yukiharada1228/videoq/blob/main/infra/DEPLOY.md) を参照してください。
-文書サイトは専用のWorkerから [docs.videoq.jp](https://docs.videoq.jp/) で公開し、日本語は [/ja/](https://docs.videoq.jp/ja/) です。現在の作業ツリーから静的アセットをデプロイする構成で、Gitへのpushでは自動公開しません。[文書サイトのデプロイ手順](https://github.com/yukiharada1228/videoq/blob/main/apps/docs/README.md)を参照してください。
+文書サイトは専用のWorkerから [docs.videoq.jp](https://docs.videoq.jp/) で公開し、日本語は [/ja/](https://docs.videoq.jp/ja/) です。本文・翻訳・サイト設定の変更は、`main`のCI成功後に自動公開します。`npm run deploy:docs`で現在の作業ツリーを手動公開することもできます。[文書サイトのデプロイ手順](https://github.com/yukiharada1228/videoq/blob/main/apps/docs/README.md)を参照してください。

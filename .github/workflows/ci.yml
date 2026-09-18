@@ -90,6 +90,7 @@ jobs:
               - 'package.json'
               - 'package-lock.json'
               - '.github/workflows/ci.yml'
+              - '.github/workflows/cd.yml'
 
   hono-test:
     name: Hono (apps/api)

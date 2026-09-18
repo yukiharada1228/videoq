@@ -118,7 +118,7 @@ CDはGitHub APIでCIのworkflow ID、起動event、repository、branch、commit�
 - `main`: PR必須、`CI Success`成功必須、最新mainとの同期必須、force push／削除禁止。
   管理者にも適用します。現在は管理者1名のため必須の他者承認数は0です。
   複数のmaintainerで運用する場合は1以上にし、workflow変更のCODEOWNERSも設定してください。
-- `production-deploy`: API deploy／DB migration専用。deploy可能なbranchは`main`だけ
+- `production-deploy`: API・docs deploy／DB migration用。deploy可能なbranchは`main`だけ
   （同名tagは許可しない）。手動承認は不要で、上記CI検証後に自動deployします。
 - `production`: インフラ／Cloudflare resource同期用。既存の手動承認を維持し、
   deploy可能なbranchを`main`だけにします。
@@ -386,7 +386,18 @@ npx wrangler pages deploy ../web/dist \
 英語は `https://docs.videoq.jp/`、日本語は `https://docs.videoq.jp/ja/` です。
 アプリの `videoq-web` とは独立した公開先です。
 
-リポジトリルートで実行します:
+`main`へのpush CIが成功すると、CDの`docs-deploy`が変更を検知して両言語を自動公開します。
+対象は`docs/**`、`apps/docs/**`（日本語翻訳を含む）、ルートの`package.json`・`package-lock.json`、
+CI/CD workflow、`.github/scripts/**`です。前回成功したCDとの差分で判定するため、
+途中でCIがキャンセルされたcommitの文書変更も含みます。
+
+検証済みの`main`のSHAをcheckoutして型チェック・ビルドを行い、公開stepだけに
+`production-deploy`の`CLOUDFLARE_API_TOKEN`とRepository secretの`CLOUDFLARE_ACCOUNT_ID`を渡します。
+docs jobはAPI・Lambda・DBのjobとは独立しており、docsだけの変更ではそれらを更新しません。
+PRやfeature branchへのpushは公開対象外です。`main`からCDを手動実行した場合は、
+同じSHAのpush CI成功を確認したうえで、他のデプロイ対象とともにdocsも再公開します。
+
+ローカルから手動で公開する場合は、リポジトリルートで実行します:
 
 ```bash
 npm ci
@@ -395,7 +406,7 @@ npm run deploy:docs
 ```
 
 このコマンドは現在の作業ツリーから両言語をビルドし、`apps/docs/build` をWorkerの静的アセットとして
-アップロードします。未コミットの文書変更も含まれます。Gitへのpushでは自動公開しません。
+アップロードします。この手動コマンドでは未コミットの文書変更も含まれます。
 公開先の正本は `apps/docs/wrangler.jsonc` です。
 
 独自ドメイン `docs.videoq.jp` はWranglerの `routes` で `custom_domain: true` として宣言します。

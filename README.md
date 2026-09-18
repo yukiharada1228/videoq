@@ -352,6 +352,8 @@ The Docusaurus site reads English Markdown from [`docs/`](docs/README.md) and Ja
 translations from `apps/docs/i18n/ja/docusaurus-plugin-content-docs/current/`.
 English is the default at `/`; the header language menu switches to Japanese at `/ja/`.
 Both languages include Mermaid diagrams and local full-text search.
+Documentation changes merged into `main` are automatically published by
+[CD](.github/workflows/cd.yml) after CI succeeds.
 
 ```bash
 npm run dev:docs      # http://localhost:3001

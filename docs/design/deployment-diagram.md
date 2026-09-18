@@ -50,11 +50,11 @@ flowchart TB
 | Cloudflare bindings | Wrangler (`wrangler.jsonc`) |
 | Hyperdrive cache / R2 CORS | `cloudflare-resources.yml` with manual approval |
 | AWS worker infrastructure | Terraform |
-| Documentation | `npm run deploy:docs` builds both languages and uploads to Cloudflare Worker `videoq-docs` as static assets |
+| Documentation | GitHub Actions CD publishes both languages to Cloudflare Worker `videoq-docs` after relevant changes reach `main` and CI succeeds |
 
 These commands are entry points for each task. Also check the steps and ordering in `.github/workflows/cd.yml`
 for the production API, worker, and database. Publishing code that uses a new column before migrating
 can cause failures against the old database.
 
 See [`infra/DEPLOY.md`](https://github.com/yukiharada1228/videoq/blob/main/infra/DEPLOY.md) for details.
-The documentation site uses a dedicated Worker at [docs.videoq.jp](https://docs.videoq.jp/), with Japanese at [/ja/](https://docs.videoq.jp/ja/). It deploys static assets from the current working tree; Git pushes do not automatically publish documentation. See the [docs deployment instructions](https://github.com/yukiharada1228/videoq/blob/main/apps/docs/README.md).
+The documentation site uses a dedicated Worker at [docs.videoq.jp](https://docs.videoq.jp/), with Japanese at [/ja/](https://docs.videoq.jp/ja/). Changes to the documentation, translations, or site configuration are published automatically after CI succeeds on `main`. You can also publish the current working tree manually with `npm run deploy:docs`. See the [docs deployment instructions](https://github.com/yukiharada1228/videoq/blob/main/apps/docs/README.md).
