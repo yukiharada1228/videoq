@@ -8,48 +8,77 @@ on:
 
 permissions:
   contents: read
-  id-token: write
-  pull-requests: write
 
 concurrency:
   group: terraform-plan-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  terraform-plan:
-    name: Terraform Plan
+  terraform-validate:
+    name: Terraform Validate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: infra
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
-        with:
-          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_PLAN_ROLE_ARN }}
-          role-session-name: videoq-terraform-plan
-          aws-region: ${{ secrets.AWS_REGION }}
-
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_wrapper: false
 
-      - name: Terraform init
-        run: terraform init -input=false -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}"
-
       - name: Terraform fmt
         run: terraform fmt -check -recursive
+
+      # Dependabot and fork PRs must validate without production state or secrets.
+      - name: Terraform init (without backend)
+        run: terraform init -backend=false -input=false
 
       - name: Terraform validate
         run: terraform validate -no-color
 
       - name: Terraform tests (mock providers)
         run: terraform test -no-color
+
+  terraform-plan:
+    name: Terraform Plan (AWS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: terraform-validate
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
+      github.actor != 'dependabot[bot]'
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_PLAN_ROLE_ARN }}
+          role-session-name: videoq-terraform-plan
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform init
+        run: terraform init -input=false -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}"
 
       - name: Terraform plan
         id: plan
@@ -71,7 +100,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Find existing comment
-        uses: peter-evans/find-comment@3eae4d37986fb5a8592848f6a574fdf654e61f9e # v3
+        uses: peter-evans/find-comment@b30e6a3c0ed37e7c023ccd3f1db5c6c0b0c23aad # v4.0.0
         id: find-comment
         with:
           issue-number: ${{ github.event.pull_request.number }}
@@ -79,7 +108,7 @@ jobs:
           body-includes: '<!-- terraform-plan -->'
 
       - name: Post terraform plan comment
-        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4
+        uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9 # v5.0.0
         with:
           comment-id: ${{ steps.find-comment.outputs.comment-id }}
           issue-number: ${{ github.event.pull_request.number }}
@@ -106,3 +135,24 @@ jobs:
         run: |
           echo "Terraform plan failed (exit ${{ steps.plan.outputs.exit_code }}). Review the comment above."
           exit 1
+
+  terraform-result:
+    # Preserve the existing check name and fail it when validation fails,
+    # even when the AWS job is skipped for a Dependabot or fork PR.
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    needs: [terraform-validate, terraform-plan]
+    steps:
+      - name: Require Terraform checks to pass
+        env:
+          VALIDATE_RESULT: ${{ needs.terraform-validate.result }}
+          PLAN_RESULT: ${{ needs.terraform-plan.result }}
+        run: |
+          test "$VALIDATE_RESULT" = success
+          case "$PLAN_RESULT" in
+            success) echo 'Terraform validation and AWS plan passed.' >> "$GITHUB_STEP_SUMMARY" ;;
+            skipped) echo 'Terraform validation and mock tests passed. AWS plan is skipped for Dependabot and fork PRs because production secrets are unavailable.' >> "$GITHUB_STEP_SUMMARY" ;;
+            *) echo "::error::Terraform plan did not pass ($PLAN_RESULT)"; exit 1 ;;
+          esac
