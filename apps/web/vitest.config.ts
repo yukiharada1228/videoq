@@ -18,6 +18,11 @@ export default defineConfig({
         '**/.storybook/**',
         '**/storybook-static/**',
         'vitest.*.ts',
+        // These run in workerd via test:worker in the required frontend-build
+        // job, not in the browser's jsdom/V8 process that produces this report.
+        'worker/**',
+        'scripts/test-worker.mjs',
+        '**/.wrangler/**',
       ],
       thresholds: {
         branches: 50,

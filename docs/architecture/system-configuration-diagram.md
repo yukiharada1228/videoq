@@ -32,7 +32,7 @@ Web and API share operation names and input/output types through `packages/trpc`
 
 | Role | Local | Production |
 |---|---|---|
-| Frontend | Static nginx build or Vite | Cloudflare Pages |
+| Frontend | Static nginx build or Vite | Cloudflare Workers Static Assets |
 | API | Wrangler development server | Cloudflare Workers |
 | Database | PostgreSQL + pgvector | Neon PostgreSQL + pgvector |
 | API-to-DB connection | Local connection string | Hyperdrive |
@@ -47,7 +47,7 @@ Locally, Caddy routes `http://localhost` to the frontend and API. Development Vi
 
 ```mermaid
 flowchart TB
-    User[Browser] --> Pages[Cloudflare Pages]
+    User[Browser] --> Web[Cloudflare Workers Static Assets]
     User --> API[Cloudflare Workers / Hono]
     API --> HD[Hyperdrive] --> DB[(Neon PostgreSQL)]
     API --> R2[(Videos and subtitles: R2)]

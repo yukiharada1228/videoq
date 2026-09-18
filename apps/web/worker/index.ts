@@ -1,4 +1,5 @@
 import { resolveFirstByteCopy } from '../src/lib/pageCopy';
+import headerRules from '../public/_headers';
 import {
   absoluteUrl,
   hreflangEntries,
@@ -13,17 +14,38 @@ function splitLocale(pathname: string): { locale: 'en' | 'ja'; path: string } {
   return { locale: 'ja', path: pathname || '/' };
 }
 
-export const onRequest: PagesFunction = async (context) => {
-  const url = new URL(context.request.url);
-  const { pathname, search } = url;
+// The shared _headers file contains one global /* rule. Apply it to generated
+// responses too: Workers Static Assets only applies it to asset responses.
+const securityHeaders = [...headerRules.matchAll(/^[ \t]+([^:\r\n]+):[ \t]*(.+)$/gm)]
+  .map(([, name, value]) => [name.trim(), value.trim()] as const);
+
+async function serve(request: Request, env: WebEnv): Promise<Response> {
+  const url = new URL(request.url);
+  const { pathname } = url;
+
+  if (url.hostname === 'www.videoq.jp') {
+    url.protocol = 'https:';
+    url.hostname = 'videoq.jp';
+    url.port = '';
+    return Response.redirect(url.href, 301);
+  }
 
   if (pathname === '/ja' || pathname === '/ja/' || pathname.startsWith('/ja/')) {
     const rest = pathname === '/ja' || pathname === '/ja/' ? '/' : pathname.slice(3);
-    const dest = rest.startsWith('/') ? rest : `/${rest}`;
-    return Response.redirect(new URL(dest + search, url.origin).href, 301);
+    // Assign the pathname so /ja//example.com cannot become an external redirect.
+    url.pathname = rest;
+    return Response.redirect(url.href, 301);
   }
 
-  const response = await context.next();
+  // Production API routes run before this custom-domain Worker. Do not mask
+  // missing API routes with the SPA, or connect public previews to production.
+  if (pathname === '/api' || pathname.startsWith('/api/') ||
+      pathname === '/.well-known' || pathname.startsWith('/.well-known/') ||
+      pathname === '/health' || pathname === '/ready') {
+    return new Response('Not Found', { status: 404 });
+  }
+
+  const response = await env.ASSETS.fetch(request);
   const contentType = response.headers.get('content-type') ?? '';
   if (!contentType.includes('text/html')) {
     return response;
@@ -31,11 +53,12 @@ export const onRequest: PagesFunction = async (context) => {
 
   const { locale, path } = splitLocale(pathname);
   const copy = resolveFirstByteCopy(locale, path);
-  const robots = isNoindexPath(path) ? 'noindex, nofollow' : 'index, follow';
+  const robots = env.ENVIRONMENT !== 'production' || isNoindexPath(path)
+    ? 'noindex, nofollow' : 'index, follow';
   const canonical = absoluteUrl(path, locale);
   const alternates = hreflangEntries(path);
 
-  return new HTMLRewriter()
+  const rewritten = new HTMLRewriter()
     .on('html', {
       element(el) {
         el.setAttribute('lang', locale);
@@ -89,4 +112,20 @@ export const onRequest: PagesFunction = async (context) => {
       },
     })
     .transform(response);
-};
+  // The source asset validator does not describe the rewritten representation.
+  rewritten.headers.delete('etag');
+  rewritten.headers.delete('content-length');
+  return rewritten;
+}
+
+export default {
+  async fetch(request, env) {
+    const original = await serve(request, env);
+    const response = new Response(original.body, original);
+    for (const [name, value] of securityHeaders) response.headers.set(name, value);
+    if (env.ENVIRONMENT !== 'production') {
+      response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    }
+    return response;
+  },
+} satisfies ExportedHandler<WebEnv>;

@@ -16,7 +16,7 @@ VideoQ is a video learning platform that turns uploaded videos and YouTube lectu
 
 | Layer | Stack |
 |---|---|
-| Frontend | React 19, TypeScript, Vite, TanStack Query → Cloudflare Pages |
+| Frontend | React 19, TypeScript, Vite, TanStack Query → Cloudflare Workers Static Assets |
 | Web API | Hono + tRPC, Zod, Drizzle ORM → Cloudflare Workers |
 | Authentication | Better Auth cookie sessions, API keys, OAuth provider; optional Google sign-in |
 | Async jobs | Python worker → Amazon SQS / AWS Lambda |
@@ -428,9 +428,9 @@ PostgreSQL integration tests additionally use `DATABASE_URL`. Running transcript
 
 ## Deployment
 
-The production topology is Cloudflare Pages + Workers + Hyperdrive, Neon PostgreSQL, Cloudflare R2, and an ARM64 Python Lambda consuming SQS. Follow [`infra/DEPLOY.md`](infra/DEPLOY.md) for provisioning, secrets, migrations, CORS, and deployment checks.
+The production topology is Cloudflare Workers (separate frontend, API, and docs) + Hyperdrive, Neon PostgreSQL, Cloudflare R2, and an ARM64 Python Lambda consuming SQS. Follow [`infra/DEPLOY.md`](infra/DEPLOY.md) for provisioning, secrets, migrations, CORS, and deployment checks.
 
-- Frontend: Cloudflare Pages Git integration, root `apps/web`, build `npm run build`, output `dist`.
+- Frontend: `videoq-web` Worker + Static Assets, configured in `apps/web/wrangler.jsonc`; GitHub Actions CD deploys after successful main CI.
 - API and worker: [GitHub Actions CD](.github/workflows/cd.yml) applies database migrations before deployment. Terraform in `infra/` manages AWS resources.
 - Authentication: configure `BETTER_AUTH_SECRET`, public URLs, and Mailgun for verification / invitation email; Google sign-in is optional.
 - Billing: configure Stripe keys, products, and the webhook using the [billing setup](docs/billing/stripe-dashboard.md).
