@@ -49,16 +49,16 @@ Do not use the generic `txcd_10000000`.
 
 ## 3.1 Public details (required)
 
-To show terms and privacy policies in Checkout / Customer Portal, enter URLs in [Public details](https://dashboard.stripe.com/acct_1Re0SMJ2c6Th1a6w/settings/public).
+To show terms and privacy policies in Checkout / Customer Portal, select the appropriate account in Stripe and enter URLs in [Public details](https://dashboard.stripe.com/settings/public). Keep account-specific URLs and contact details in the team's access-controlled operations records.
 
 | Field | URL |
 |---|---|
 | Terms of service | `https://videoq.jp/terms` |
 | Privacy policy | `https://videoq.jp/privacy` |
-| Support email | `yukiharada1228@gmail.com` |
+| Support email | The approved support address for the selected environment |
 | Support website | `https://videoq.jp` |
 
-Enable Legal policies and Refund policy in [Checkout settings](https://dashboard.stripe.com/acct_1Re0SMJ2c6Th1a6w/settings/checkout), linking the full refund policy to `https://videoq.jp/refund`. Also publish the [disclosure under Japan's Specified Commercial Transactions Act](https://videoq.jp/legal) for Japanese mail-order sales.
+Enable Legal policies and Refund policy in [Checkout settings](https://dashboard.stripe.com/settings/checkout), linking the full refund policy to `https://videoq.jp/refund`. Also publish the [disclosure under Japan's Specified Commercial Transactions Act](https://videoq.jp/legal) for Japanese mail-order sales.
 
 Use the same privacy and terms URLs in Customer Portal.
 

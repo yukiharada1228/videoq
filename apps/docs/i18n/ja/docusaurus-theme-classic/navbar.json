@@ -11,6 +11,10 @@
     "message": "開発ガイド",
     "description": "Navbar item with label Development guides"
   },
+  "item.label.AI behavior": {
+    "message": "AIの仕組み",
+    "description": "Navbar item with label AI behavior"
+  },
   "item.label.Glossary": {
     "message": "用語集",
     "description": "Navbar item with label Glossary"

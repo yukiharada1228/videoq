@@ -3,11 +3,18 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
+    "predev": "npm run check:content",
     "dev": "docusaurus start --host 127.0.0.1 --port 3001 --no-open",
+    "prebuild": "npm run test:content && npm run check:content",
     "build": "docusaurus build",
+    "postbuild": "npm run check:build",
+    "predeploy": "npm run check:build",
     "deploy": "wrangler deploy",
     "serve": "docusaurus serve --host 127.0.0.1 --port 3001 --no-open",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:content": "node scripts/check-public-content.mjs source",
+    "check:build": "node scripts/check-public-content.mjs build",
+    "test:content": "node --test scripts/*.test.mjs"
   },
   "dependencies": {
     "@docusaurus/core": "3.10.2",

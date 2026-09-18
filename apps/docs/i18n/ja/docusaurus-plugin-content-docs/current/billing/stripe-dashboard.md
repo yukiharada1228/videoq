@@ -47,16 +47,16 @@ JPY はゼロ小数。`tax_behavior` は inclusive（内税）か、Tax settings
 
 ## 3.1 Public details（必須）
 
-Checkout / Customer Portal に利用規約とプライバシーを出すには、[Public details](https://dashboard.stripe.com/acct_1Re0SMJ2c6Th1a6w/settings/public) に URL を入れる。
+Checkout / Customer Portal に利用規約とプライバシーを出すには、Stripeで対象アカウントを選び、[Public details](https://dashboard.stripe.com/settings/public) に URL を入れる。アカウント固有のURLや連絡先は、チームのアクセス制限された運用記録で管理する。
 
 | 項目 | URL |
 |---|---|
 | Terms of service | `https://videoq.jp/terms` |
 | Privacy policy | `https://videoq.jp/privacy` |
-| Support email | `yukiharada1228@gmail.com` |
+| Support email | 対象環境で承認されたサポート窓口のアドレス |
 | Support website | `https://videoq.jp` |
 
-[Checkout settings](https://dashboard.stripe.com/acct_1Re0SMJ2c6Th1a6w/settings/checkout) で Legal policies と Refund policy を有効にし、返金ポリシー全文は `https://videoq.jp/refund` を指す。日本の通信販売として [特商法表記](https://videoq.jp/legal) もサイトに置く。
+[Checkout settings](https://dashboard.stripe.com/settings/checkout) で Legal policies と Refund policy を有効にし、返金ポリシー全文は `https://videoq.jp/refund` を指す。日本の通信販売として [特商法表記](https://videoq.jp/legal) もサイトに置く。
 
 Customer Portal の privacy / terms URL も同じ値にする。
 

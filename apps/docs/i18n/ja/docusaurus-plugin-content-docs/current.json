@@ -11,6 +11,10 @@
     "message": "基本を理解する",
     "description": "The label for category 'Core concepts' in sidebar 'docs'"
   },
+  "sidebar.docs.category.AI behavior": {
+    "message": "AIの仕組み",
+    "description": "The label for category 'AI behavior' in sidebar 'docs'"
+  },
   "sidebar.docs.category.Development guides": {
     "message": "開発ガイド",
     "description": "The label for category 'Development guides' in sidebar 'docs'"
