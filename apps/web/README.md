@@ -259,9 +259,8 @@ npm run deploy:web
 それ以外はStatic AssetsとSPA fallbackで配信し、HTMLは配信前にSEO情報を更新します。
 `public/_headers` は静的配信とWorker生成レスポンスで共用する単一の `/*` ルールです。
 
-`npm run deploy:preview --workspace @videoq/web` で本番と別の
-`videoq-web-preview` を公開できます。プレビューはnoindexで、本番APIへは接続しません。
-旧PagesのGit自動デプロイは無効化します。
+`npm run preview:worker --workspace @videoq/web` でローカルの配信を確認できます。
+ローカル環境はnoindexで、本番APIへは接続しません。
 
 Worker bindingを変えたら `npm run cf-typegen --workspace @videoq/web` を実行し、
 生成された `worker/env.d.ts` もコミットしてください。

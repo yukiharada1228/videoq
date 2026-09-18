@@ -111,9 +111,9 @@ test('static files and hashed JavaScript retain content types and security heade
   }
 });
 
-test('public preview is marked noindex and has no production API access', async () => {
+test('local development is marked noindex and has no production API access', async () => {
   const preview = await unstable_dev('worker/index.ts', {
-    config: 'wrangler.jsonc', env: 'preview', local: true,
+    config: 'wrangler.jsonc', local: true,
     ip: '127.0.0.1', port: 0, logLevel: 'error',
     experimental: { disableExperimentalWarning: true, watch: false },
   });
