@@ -44,6 +44,10 @@ DATABASE_URL="<Neon pooler URL>" npm run db:migrate
 DBを参照するAPI／Lambdaの更新より先にmigrationを完了させます。CDも
 `db-migrate → API/worker deploy` の順序を強制し、`DATABASE_URL` 未設定時は停止します。
 
+本番はアプリ用・migration用・管理用のDB roleを分離しています。
+保存先、権限、ローテーション手順は[DB_SECURITY.md](DB_SECURITY.md)を参照してください。
+アプリ用の接続文字列をmigrationに流用しないでください。
+
 ## 2. API secrets
 
 機密値は `wrangler secret put` で設定します。
@@ -133,12 +137,21 @@ CDはGitHub APIでCIのworkflow ID、起動event、repository、branch、commit�
 | `CLOUDFLARE_INFRA_TOKEN` | `production`のEnvironment secrets | 対象accountのHyperdrive更新とR2 CORS更新 |
 | `CLOUDFLARE_ACCOUNT_ID` | Repository secrets（非機密ID） | Cloudflare account ID |
 
-Workers deploy tokenは、指定されたWorkersの`videoq-api`に対する`Editor`と、
-`videoq.jp` zoneの`Workers Routes Write`だけを許可します。Workerの新規作成／削除や、
-他のWorkerの更新権限は付与しません。R2／Hyperdrive bindingのあるWorkerのdeployに、
+Workers deploy tokenは、対象accountの`Workers Scripts Write`（画面ではWorkers Scriptsの
+Edit／レガシー）と、`videoq.jp` zoneの`Workers Routes Write`を許可します。
+同じaccountの他のWorkerの作成・更新・削除にも使えるため、Environment secretsの隔離を
+維持してください。2026-09-18の実デプロイでは、`videoq-api`単体の`Editor`は
+サービス情報取得とversion uploadで認証エラーになりました。productの`Metadata Read-Only`を
+追加すると前者のみ解消し、productの`Editor`はtoken保存時に`Scope not found`となったため、
+現状は対応済みの`Workers Scripts Write`を使用します。Cloudflare側の対応を確認できたら、
+個別Workerの権限でdeployを再検証して範囲を縮小してください。
+R2／Hyperdrive bindingのあるWorkerのdeployに、
 それらのリソース自体への編集権限は不要です。
 resource同期tokenは対象accountの`Hyperdrive Write`と`Workers R2 Storage Write`に限定します。
 Global API Keyは使用しません。tokenの有効期限は90日とし、期限前に同じ権限で更新します。
+期限は[監視用JSON](../.github/cloudflare-token-expiry.json)に記録し、GitHub Actionsで
+30日前から通知します。[更新・通知の運用手順](CLOUDFLARE_TOKEN_ROTATION.md)に従って、
+secret更新と同時に期限記録・予備のカレンダー通知も更新してください。
 権限の詳細は[Workers roles and permissions](https://developers.cloudflare.com/workers/authorization/workers/)と
 [Bindingsの権限](https://developers.cloudflare.com/workers/authorization/#bindings)を参照してください。
 
@@ -147,8 +160,10 @@ Global API Keyは使用しません。tokenの有効期限は90日とし、期�
 上表の4件を登録したことを確認してから、repository側の`CLOUDFLARE_API_TOKEN`、
 `DATABASE_URL`、`CLOUDFLARE_INFRA_TOKEN`を削除します。同名Repository secretsを残すと、
 environmentを指定しないworkflowでも利用できるため、隔離は完了しません。
-元のDB接続文字列が手元にない場合は、稼働中のworker Lambdaの`DB_PARAM_NAME`が指す
-SSM SecureStringから再登録できます。DBパスワードをresetして稼働中の接続を切らないでください。
+元のmigration用DB接続文字列が手元にない場合は、管理者権限でSSM SecureStringの
+`/videoq/security/prod/db-migration`から再登録できます。Lambdaの`DB_PARAM_NAME`が指す
+`/videoq/prod/db`はアプリ専用で、migrationには使えません。
+DBパスワードをresetして稼働中の接続を切らないでください。
 旧CDはenvironmentを指定していないため、移行とこのworkflow変更のmergeを同じ作業時間帯で
 行い、他のdeployを開始しないでください。登録完了前に旧secretを削除しないでください。
 
