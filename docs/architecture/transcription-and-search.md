@@ -43,7 +43,7 @@ The indexing job parses the scene SRT, embeds each scene's text, and writes rows
 
 Indexing replaces that video's existing vector rows. API search and worker indexing must use compatible embedding models and dimensions. The current database column has **1536 dimensions**; changing a model setting alone does not migrate the column or rebuild old vectors. A changed embedding model requires reindexing the material that will be searched with it.
 
-When indexing finishes, Q&A can use the scenes. PLOG is built in a subsequent job, so search readiness and study-mode readiness are separate. See [video states](../design/state-diagram.md).
+During initial processing, when indexing finishes, Q&A can use the scenes. PLOG is built in a subsequent job, so search readiness and study-mode readiness are separate. This handoff does **not** run after a transcript edit or a search reindex. See [update scope and verification](#update-scope) below and [video states](../design/state-diagram.md).
 
 ## 4. Search when the model requests evidence
 
@@ -65,6 +65,44 @@ The model can revise its query and search again, up to three times per answer. T
 A scene tool result contains the citation number, video title, timestamps, and subtitle text. Course metadata comes from a separate tool. The answer model sees these results during the current tool loop and writes a response under the configured instructions.
 
 This path does not perform a web search. The available tools read registered course information and indexed scenes. A long-video summary is limited by the scenes actually retrieved; there is no automatic traversal of every scene to ensure full coverage.
+
+## What changes after an edit or rebuild? {#update-scope}
+
+The initial flow is **transcription → scene indexing → PLOG generation**. Later updates have different scopes; “reindex” and “rebuild PLOG” are separate operations.
+
+| Operation | Data updated | What happens to manual edits? | Where to verify completion |
+|---|---|---|---|
+| Initial upload / YouTube import | Obtain transcript, group scenes, index them, then enqueue PLOG concepts, relationships, questions, and hints | This creates a new resource; do not use this flow as a way to preserve edits on an existing video | Video becomes `completed` for search; separately check the learning graph's build status and contents |
+| Save an edited transcript | Save SRT and register a `reindex_video_transcript` job in the same DB transaction; the worker later replaces that video's scene text/vectors, or deletes its vectors if the transcript was cleared. Study support reads the saved transcript directly, independently of this reindex | Existing PLOG edits remain unchanged, including any questions/hints that still reflect the old transcript | Reopen the transcript to check persistence; check worker completion separately for Q&A search as described below. The video's existing `completed` status is not evidence of this reindex finishing |
+| Reindex search embeddings from Admin | `reindex_all_videos_embeddings` rebuilds the search index from completed videos with nonempty stored transcripts; it does not transcribe audio or build PLOG | Stored transcripts and manually edited PLOG data remain unchanged | Admin returns a queued job ID; check that job's worker logs / `job_executions` status, then test a new search |
+| Rebuild PLOG from the video's learning graph | Generate from the stored transcript and replace concepts (with new IDs), edges, learning objects, and summary nodes; delete DB learner states linked to the old concepts | Existing manual concept, relationship, question, and hint edits are replaced, not merged. Transcript and scene index remain unchanged | Check PLOG `pending` / `running` → `ready` or `failed`, then inspect the generated contents. `ready` may still contain an empty or unusable graph |
+
+Saving identical transcript text does not enqueue another reindex. Changing only a title or description does not regenerate PLOG either. Search reindexing does not update PLOG concept embeddings; see [embedding configuration](../guides/embeddings.md) when changing models.
+
+### When to treat PLOG as potentially outdated
+
+After **any saved transcript change** following the transcript used for the last PLOG build or manual review, treat the graph as potentially outdated until the owner reviews the affected data or rebuilds it from the corrected transcript. Text, timing, removed passages, and an emptied transcript all count. A title-only edit or reindex of an unchanged transcript does not itself imply changed learning content.
+
+This is a review policy, not an automatically detected application status. The current implementation does not store a transcript revision/hash on the PLOG build and has no stale badge or automatic Study block. A graph can still say `ready` and be used by Study after its source changes. Study support reads nearby passages directly from the stored transcript, so its next read can combine corrected subtitles with older saved questions or hints even while the Q&A search reindex is pending or has failed.
+
+- For a typo or timing correction, compare the affected concept labels, source quotes, introduction times, relationships, questions, and hints. Keep using the graph once those remain valid or have been corrected manually; rebuilding is optional.
+- If a definition, answer, prerequisite, or substantial passage changed, pause use of the affected Study material and review/correct it or rebuild before relying on it again. Prefer targeted manual corrections when preserving edited learning content matters.
+- A search reindex alone never establishes that PLOG is current. Avoid editing the transcript during a PLOG build; it uses the transcript read when that job started.
+
+Copy any manual material you want to keep before rebuilding. The panel asks for confirmation when rebuilding an existing ready graph, but it does not offer a merge or restore of old edits. See [rebuilding during active Study](../plog/README.md#rebuild-and-active-study).
+
+### Verify a subtitle correction in Q&A and Study {#verify-transcript-update}
+
+Use a video you own, with completed initial processing, in a course. For example, suppose a spoken explanation of the **dot product** was transcribed as “cross product.”
+
+1. Open the video detail page and note the incorrect subtitle's time and any affected learning-graph question/hint. Copy edited learning material you may want to retain.
+2. Choose **Edit** in the transcript panel, correct the term in the SRT text while preserving cue numbers and timestamps, then **Save transcript**. Reopen or reload the transcript to confirm the corrected text was saved. This proves persistence, not completion of the asynchronous search update.
+3. Before checking Q&A search, wait for the edit's reindex job to finish. Study support's direct transcript read does not depend on this job. The current UI has no per-edit index completion indicator. In local development, run `docker compose logs --since=10m worker` and match `reindex_video_transcript`, the video ID, and the dispatch/job ID to the save time. Look for `Successfully reindexed transcript for video …` (or the vectors-deleted message for a cleared transcript). An operator can check that same job in `job_executions` has `status = 'completed'`; a queue delivery/outbox completion only proves delivery. If it failed or never started, investigate worker/API delivery logs before assuming a fixed waiting time is enough.
+4. In that course's **Q&A**, ask a new, self-contained question such as “How is the dot product defined in this lesson?” Open the cited scene and compare its time and corrected transcript with the answer. Old displayed answers and saved chat logs do not regenerate. Correct wording from the model alone is not proof that reindexing completed; if uncertain, have an operator inspect that video's stored `scene_embeddings` text and retrieved context.
+5. Return to the video's **Learning graph** and inspect the affected concept, opening question, and hint ladder. They have not automatically changed. Apply targeted edits, or choose **Rebuild** after preserving needed edits and accepting their replacement. Wait for `ready`, inspect the actual generated content, and correct omissions or errors; regeneration does not guarantee the corrected passage is included.
+6. After either manual edits or a rebuild, open the course in a [fresh verification session](../plog/README.md#verify-in-fresh-session), select **Study**, and ask about the corrected concept. Work through any prerequisites presented first, then check the target concept's saved opening question and subsequent hints. Switching Q&A → Study in the original tab only clears visible dialogue; existing progress can cause the test message to be graded as a reply to an earlier question.
+
+The update paths are implemented in [updateVideo](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/video-repository.ts), [transcript reindexing](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/reindex_video_transcript.py), [full reindexing](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/reindexing.py), and [PLOG replacement](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/plog_build.py).
 
 ## Diagnose a poor answer at the right step
 

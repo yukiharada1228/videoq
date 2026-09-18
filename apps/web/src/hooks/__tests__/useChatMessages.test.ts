@@ -292,6 +292,55 @@ describe('useChatMessages streaming', () => {
     })
   })
 
+  it.each([
+    { courseId: 5 },
+    { courseId: 5, shareToken: 'shared' },
+    {},
+  ])('sends only the latest Q&A question while retaining visible messages (%j)', async (scope) => {
+    vi.mocked(apiClient.chatStream).mockImplementation(makeStreamMock([]))
+    const { result } = renderHook(() => useChatMessages(scope))
+    const prior = [
+      { role: 'user' as const, content: '内積とは？' },
+      { role: 'assistant' as const, content: 'ベクトルの内積は…' },
+    ]
+    act(() => {
+      result.current.setMessages(prior)
+      result.current.setInput('具体例を教えて')
+    })
+    await act(async () => { await result.current.handleSend() })
+    expect(apiClient.chatStream).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: 'qa',
+        messages: [{ role: 'user', content: '具体例を教えて' }],
+      }),
+      expect.any(AbortSignal),
+    )
+    expect(result.current.messages.slice(0, 2)).toEqual(prior)
+  })
+
+  it('retains the preceding Study question within the 12-message history limit', async () => {
+    vi.mocked(apiClient.chatStream).mockImplementation(makeStreamMock([]))
+    const { result } = renderHook(() => useChatMessages({ courseId: 5, mode: 'study' }))
+    const prior = Array.from({ length: 8 }, (_, index) => [
+      { role: 'user' as const, content: `answer ${index}` },
+      { role: 'assistant' as const, content: `question ${index}` },
+    ]).flat()
+    const reply = { role: 'user' as const, content: '0' }
+    act(() => {
+      result.current.setMessages([{ role: 'assistant', content: 'greeting' }, ...prior])
+      result.current.setInput(reply.content)
+    })
+    await act(async () => { await result.current.handleSend() })
+    expect(apiClient.chatStream).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: 'study',
+        messages: [...prior.slice(-11), reply],
+        study_session_id: expect.any(String),
+      }),
+      expect.any(AbortSignal),
+    )
+  })
+
   it('guards against rapid consecutive sends before loading state rerenders', async () => {
     const resolvers: Array<() => void> = []
     ;(apiClient.chatStream as any).mockImplementation(async function* () {

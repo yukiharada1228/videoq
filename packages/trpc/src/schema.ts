@@ -17,6 +17,11 @@ export const chatMessageSchema = z.object({
     .max(CHAT_MAX_MESSAGE_CHARS, `Message must be at most ${CHAT_MAX_MESSAGE_CHARS} characters`),
 });
 
+/**
+ * Q&A uses only the latest user message; send one self-contained question.
+ * Study also uses the previous assistant question (web: up to 12 messages).
+ * Accepting a message array does not imply Q&A conversation memory.
+ */
 export const chatMessagesSchema = z
   .array(chatMessageSchema)
   .min(1)

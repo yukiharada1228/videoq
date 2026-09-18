@@ -70,9 +70,13 @@ For a question about a **specific lesson**, the model is instructed to identify 
 
 ## Does it remember the conversation?
 
-For ordinary Q&A, the answer model starts with the system instructions and the **latest user question**. Earlier user questions and assistant answers are not passed as conversation history. Tool calls and results from the current answer are available during that answer's generation.
+Ordinary Q&A is offered as **independent questions**, including course chats and shared links. This keeps the subject and evidence scope explicit in each question and avoids carrying earlier answers or unrelated topics into the next answer. The input area reminds you to include the subject every time.
+
+The browser sends only the latest question. The answer model starts with the system instructions and that **latest user question**. Earlier user questions and assistant answers are not passed as conversation history. Tool calls and results from the current answer are available during that answer's generation.
 
 Consequently, “Why is that?” may lack the subject it needs. “Why is the dot product zero for perpendicular vectors?” is more self-contained. Saving chat logs and showing past messages in the UI does not mean the model receives them on its next call.
+
+For example, after “What is the dot product?”, sending “Give me an example” starts a new question without the dot-product subject. The expected contract is that the previous topic is **not carried over**; the model's wording can vary, and asking for clarification is not guaranteed. Send “Give me an example of the dot product” to request that example explicitly.
 
 Study mode uses a different flow: it reads the previous assistant question for grading and maintains concept progress and hint position in a study session. [See how study mode makes decisions](../plog/README.md).
 

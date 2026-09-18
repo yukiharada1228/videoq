@@ -71,6 +71,7 @@ async function assertBusy(context: Context) {
 const waiting = { events: [], keepOpen: true } satisfies ChatPanelScenario;
 
 export const Initial: Story = { async play(context) {
+  await expect(input(context)).toHaveAccessibleDescription(label('qaGuidance'));
   await expect(context.canvas.getByText(label('assistantGreeting'))).toBeVisible();
   await expect(context.canvas.getByRole('button', { name: label('modeQa') })).toHaveAttribute('aria-pressed', 'true');
   await expect(chatButton(context)).toHaveAttribute('aria-pressed', 'true');
@@ -89,6 +90,7 @@ export const HistoryHidden: Story = { args: { showHistory: false }, async play({
 } };
 export const StudyMode: Story = { async play(context) {
   await context.userEvent.click(context.canvas.getByRole('button', { name: label('modeStudy') }));
+  await expect(context.canvas.queryByText(label('qaGuidance'))).not.toBeInTheDocument();
   await expect(context.canvas.getByText(label('studyGreeting'))).toBeVisible();
   await complete(context);
   await expect(chatRequest).toHaveBeenCalledWith(expect.objectContaining({ course_id: courseId, mode: 'study', study_session_id: studySessionId }));
@@ -104,6 +106,17 @@ export const ModeReset: Story = { async play(context) {
   await expect(context.canvas.getByText(label('studyGreeting'))).toBeVisible();
   await context.userEvent.click(context.canvas.getByRole('button', { name: label('modeQa') }));
   await expect(context.canvas.getByText(label('assistantGreeting'))).toBeVisible();
+  await expect(input(context)).toHaveAccessibleDescription(label('qaGuidance'));
+} };
+export const IndependentQuestions: Story = { async play(context) {
+  await send(context, '内積とは？');
+  await waitFor(() => expect(input(context)).toBeEnabled());
+  await send(context, '具体例を教えて');
+  await waitFor(() => expect(chatRequest).toHaveBeenCalledTimes(2));
+  await expect(chatRequest.mock.calls[1][0].messages).toEqual([{ role: 'user', content: '具体例を教えて' }]);
+  await expect(context.canvas.getByText('内積とは？')).toBeVisible();
+  await expect(input(context)).toHaveAccessibleDescription(label('qaGuidance'));
+  await waitFor(() => expect(input(context)).toBeEnabled());
 } };
 export const SharedLink: Story = { args: { shareToken }, parameters: { api: { auth: authFixtures.loggedOut } }, async play(context) {
   await complete(context);
