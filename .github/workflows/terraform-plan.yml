@@ -8,17 +8,55 @@ on:
 
 permissions:
   contents: read
-  id-token: write
-  pull-requests: write
 
 concurrency:
   group: terraform-plan-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  terraform-plan:
-    name: Terraform Plan
+  terraform-validate:
+    name: Terraform Validate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive
+
+      # Dependabot and fork PRs must validate without production state or secrets.
+      - name: Terraform init (without backend)
+        run: terraform init -backend=false -input=false -lockfile=readonly
+
+      - name: Terraform validate
+        run: terraform validate -no-color
+
+      - name: Terraform tests (mock providers)
+        run: terraform test -no-color
+
+  terraform-plan:
+    name: Terraform Plan (AWS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: terraform-validate
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
+      github.actor != 'dependabot[bot]'
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
     defaults:
       run:
         working-directory: infra
@@ -41,15 +79,6 @@ jobs:
 
       - name: Terraform init
         run: terraform init -input=false -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}"
-
-      - name: Terraform fmt
-        run: terraform fmt -check -recursive
-
-      - name: Terraform validate
-        run: terraform validate -no-color
-
-      - name: Terraform tests (mock providers)
-        run: terraform test -no-color
 
       - name: Terraform plan
         id: plan
@@ -106,3 +135,24 @@ jobs:
         run: |
           echo "Terraform plan failed (exit ${{ steps.plan.outputs.exit_code }}). Review the comment above."
           exit 1
+
+  terraform-result:
+    # Preserve the existing check name and fail it when validation fails,
+    # even when the AWS job is skipped for a Dependabot or fork PR.
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    needs: [terraform-validate, terraform-plan]
+    steps:
+      - name: Require Terraform checks to pass
+        env:
+          VALIDATE_RESULT: ${{ needs.terraform-validate.result }}
+          PLAN_RESULT: ${{ needs.terraform-plan.result }}
+        run: |
+          test "$VALIDATE_RESULT" = success
+          case "$PLAN_RESULT" in
+            success) echo 'Terraform validation and AWS plan passed.' >> "$GITHUB_STEP_SUMMARY" ;;
+            skipped) echo 'Terraform validation and mock tests passed. AWS plan is skipped for Dependabot and fork PRs because production secrets are unavailable.' >> "$GITHUB_STEP_SUMMARY" ;;
+            *) echo "::error::Terraform plan did not pass ($PLAN_RESULT)"; exit 1 ;;
+          esac

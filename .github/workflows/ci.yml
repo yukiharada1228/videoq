@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: always()
-    needs: [changes, workflow-security, hono-test, worker-test, frontend-lint, frontend-test, frontend-build, frontend-storybook, docs-build]
+    needs: [changes, workflow-security, hono-test, worker-test, frontend-lint, frontend-test, frontend-coverage, frontend-build, frontend-storybook, docs-build]
     steps:
       - name: Require every selected CI job to pass
         env:
@@ -207,14 +207,41 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: "1"
         run: npm run test:coverage --workspace @videoq/web
+      - name: Save frontend coverage
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: frontend-coverage
+          path: apps/web/coverage/coverage-final.json
+          if-no-files-found: error
+          retention-days: 7
+
+  frontend-coverage:
+    name: Frontend Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: frontend-test
+    # Keep OIDC credentials out of the job that installs and executes PR code.
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download frontend coverage
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: frontend-coverage
+          path: coverage
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
         with:
-          files: ./apps/web/coverage/lcov.info,./apps/web/coverage/coverage-final.json
+          files: ./coverage/coverage-final.json
+          disable_search: true
+          plugins: noop
           flags: frontend
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          directory: ./apps/web
+          use_oidc: true
+          fail_ci_if_error: true
 
   frontend-build:
     name: Frontend Build
