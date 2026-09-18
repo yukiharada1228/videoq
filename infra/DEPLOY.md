@@ -149,6 +149,9 @@ R2／Hyperdrive bindingのあるWorkerのdeployに、
 それらのリソース自体への編集権限は不要です。
 resource同期tokenは対象accountの`Hyperdrive Write`と`Workers R2 Storage Write`に限定します。
 Global API Keyは使用しません。tokenの有効期限は90日とし、期限前に同じ権限で更新します。
+期限は[監視用JSON](../.github/cloudflare-token-expiry.json)に記録し、GitHub Actionsで
+30日前から通知します。[更新・通知の運用手順](CLOUDFLARE_TOKEN_ROTATION.md)に従って、
+secret更新と同時に期限記録・予備のカレンダー通知も更新してください。
 権限の詳細は[Workers roles and permissions](https://developers.cloudflare.com/workers/authorization/workers/)と
 [Bindingsの権限](https://developers.cloudflare.com/workers/authorization/#bindings)を参照してください。
 
