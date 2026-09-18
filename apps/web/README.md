@@ -235,19 +235,36 @@ SPA 内部の型付き API は `@videoq/trpc` の `AppRouter` を共有し、
 SSE、multipart / direct upload、CSV、media URL、Better Authのように
 tRPCでは表現しないprotocol専用adapterだけを持ちます。
 
-## Cloudflare Pages
+## Cloudflare Workers
 
-Git連携のビルド設定は次の値を使用します。
+フロントは `videoq-web` Worker + Static Assets で公開します。設定は
+`wrangler.jsonc`、HTMLの言語・SEO書き換えは `worker/index.ts` にあります。
+`videoq-api` と `videoq-docs` は独立したWorkerです。
 
-| 設定 | 値 |
-|---|---|
-| ルートディレクトリ | `apps/web` |
-| ビルドコマンド | `npm run build` |
-| ビルド出力 | `dist` |
-| ビルド監視パス | `apps/web/*`, `packages/trpc/*`, `package.json`, `package-lock.json` |
+```bash
+# repository root
+npm run build
+npm run test:worker --workspace @videoq/web
+npm run preview:worker --workspace @videoq/web
+npm run deploy:web
+```
 
-依存関係はrepository rootのnpm workspaceと`package-lock.json`で管理します。
-Cloudflare Pages側のルートディレクトリを変更した場合も、上記の監視パスを同期してください。
+`main` のpush CI成功後にGitHub ActionsのCDがフロントを自動更新します。
+対象は `apps/web/**`、`packages/trpc/**`、ルートのpackage/lock、CI/CD設定です。
+本番のVite公開変数は `.env.production` にあり、APIは同一originの `/api`、
+アップロードはR2署名付きURLを使います。`VITE_*` に秘密情報は置けません。
+
+`videoq.jp` と `www.videoq.jp` をCustom Domainに設定し、wwwはapexへ転送します。
+`/api/*`・`/.well-known/*`・`/health`・`/ready` は既存のAPI Worker routeが先に処理します。
+それ以外はStatic AssetsとSPA fallbackで配信し、HTMLは配信前にSEO情報を更新します。
+`public/_headers` は静的配信とWorker生成レスポンスで共用する単一の `/*` ルールです。
+
+`npm run deploy:preview --workspace @videoq/web` で本番と別の
+`videoq-web-preview` を公開できます。プレビューはnoindexで、本番APIへは接続しません。
+旧PagesのGit自動デプロイは無効化します。
+
+Worker bindingを変えたら `npm run cf-typegen --workspace @videoq/web` を実行し、
+生成された `worker/env.d.ts` もコミットしてください。
 
 ## Digital Agency UI
 

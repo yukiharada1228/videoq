@@ -27,7 +27,7 @@ Vite HMR without changing the API, database, or queue setup.
 
 ```mermaid
 flowchart TB
-    Client --> Pages[Cloudflare Pages]
+    Client --> Web[Cloudflare Workers Static Assets]
     Client --> API[Cloudflare Worker]
     API --> HD[Hyperdrive] --> Neon[(Neon)]
     API --> R2[(R2)]
@@ -43,7 +43,7 @@ flowchart TB
 
 | Target | Method |
 |---|---|
-| Frontend | Cloudflare Pages Git integration |
+| Frontend | Cloudflare Workers Static Assets via GitHub Actions CD |
 | API | `cd apps/api && npm run deploy` |
 | Database | `DATABASE_URL=... npm run db:migrate` |
 | Worker | Push a container image to ECR and update the Lambda image |

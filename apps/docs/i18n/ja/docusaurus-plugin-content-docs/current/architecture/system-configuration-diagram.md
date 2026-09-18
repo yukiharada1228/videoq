@@ -32,7 +32,7 @@ WebとAPIは `packages/trpc` で操作名・入力・出力の型を共有しま
 
 | 役割 | ローカル | 本番 |
 |---|---|---|
-| 画面 | nginxの静的ビルド、またはVite | Cloudflare Pages |
+| 画面 | nginxの静的ビルド、またはVite | Cloudflare Workers Static Assets |
 | API | Wranglerの開発サーバー | Cloudflare Workers |
 | DB | PostgreSQL + pgvector | Neon PostgreSQL + pgvector |
 | APIからDBへの接続 | ローカル接続文字列 | Hyperdrive |
@@ -47,7 +47,7 @@ WebとAPIは `packages/trpc` で操作名・入力・出力の型を共有しま
 
 ```mermaid
 flowchart TB
-    User[ブラウザ] --> Pages[Cloudflare Pages]
+    User[ブラウザ] --> Web[Cloudflare Workers Static Assets]
     User --> API[Cloudflare Workers / Hono]
     API --> HD[Hyperdrive] --> DB[(Neon PostgreSQL)]
     API --> R2[(動画・字幕: R2)]

@@ -247,6 +247,7 @@ jobs:
   frontend-build:
     name: Frontend Build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
     steps:
@@ -255,7 +256,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
@@ -264,6 +265,12 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: "1"
         run: npm run build --workspace @videoq/web
+      - name: Check Worker binding types
+        run: |
+          npm run cf-typegen --workspace @videoq/web
+          git diff --exit-code -- apps/web/worker/env.d.ts
+      - name: Test frontend Worker and static assets
+        run: npm run test:worker --workspace @videoq/web
       - name: Upload build artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

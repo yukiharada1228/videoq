@@ -8,7 +8,12 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.storybook.json --noEmit",
+    "preview:worker": "wrangler dev",
+    "deploy": "wrangler deploy --env production",
+    "deploy:preview": "wrangler deploy --env preview",
+    "cf-typegen": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types worker/env.d.ts --env-interface WebEnv --include-runtime=false",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.storybook.json --noEmit && tsc -p worker/tsconfig.json --noEmit",
+    "test:worker": "node --test scripts/test-worker.mjs",
     "test": "vitest run --project unit",
     "test:watch": "vitest --project unit",
     "test:coverage": "vitest run --project unit --coverage",
@@ -49,7 +54,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260426.1",
+    "@cloudflare/workers-types": "^5.20260918.1",
     "@eslint/js": "^9.39.1",
     "@storybook/addon-a11y": "^10.6.0",
     "@storybook/addon-docs": "^10.6.0",
@@ -83,7 +88,8 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4",
-    "vitest": "^3.2.2"
+    "vitest": "^3.2.2",
+    "wrangler": "^4.131.1"
   },
   "optionalDependencies": {
     "@esbuild/linux-arm64": "0.27.2",

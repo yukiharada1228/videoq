@@ -2,7 +2,7 @@
 
 ## 本番構成
 
-- frontend: Cloudflare Pages `videoq-web`（`apps/web`、公開URL: `https://videoq.jp`）
+- frontend: Cloudflare Worker + Static Assets `videoq-web`（`apps/web`、公開URL: `https://videoq.jp`）
 - docs: Cloudflare Workers Static Assets `videoq-docs`（公開URL: `https://docs.videoq.jp`、日本語: `/ja/`）
 - Web API: Cloudflare Workers `videoq-api`（`apps/api`、Hono）
 - DB: Neon PostgreSQL + Hyperdrive
@@ -353,32 +353,47 @@ API Worker（Cloudflare）の SQS 送信用クレデンシャルは別 IAM ユ�
 
 ## 5. Frontend
 
-Cloudflare PagesはGit integrationを正本とし、`main`へのpushで自動deployします。
-同じprojectにCDからDirect Uploadも行うと二重deployになるため併用しません。
+フロントは専用Worker `videoq-web` + Static Assetsです。`apps/web/wrangler.jsonc` を
+正本とし、`videoq.jp` と `www.videoq.jp` のCustom Domainを管理します。
+wwwは `https://videoq.jp` の同じパスへ転送します。
 
-Pages project:
+`main`のpush CI成功後、CDの`web-deploy`が検証済みSHAをビルドして公開します。
+変更検知は `apps/web/**`、`packages/trpc/**`、ルートのpackage/lock、CI/CD workflow、
+`.github/scripts/**`。APIも変更した場合はAPIの公開成功後にフロントを公開します。
+フロントのみの変更ではAPIのデプロイは不要です。
 
-| 項目 | 値 |
-|---|---|
-| project name | `videoq-web` |
-| root directory | `/`（repository root） |
-| build command | `npm ci && npm run build --workspace @videoq/web` |
-| output | `apps/web/dist` |
-| `VITE_API_URL` | 公開 API origin または `/api` |
-| `VITE_USE_S3_STORAGE` | `true` |
-
-Build watch pathsには `apps/web/**`、`packages/trpc/**`、ルートの`package.json`と
-`package-lock.json`を含めます。production branchが`main`であることもPages dashboardで確認します。
-Git integrationを使わずDirect Upload projectとして運用する場合のみ、CI成果物を次でdeployします:
+公開stepにだけ `production-deploy` の `CLOUDFLARE_API_TOKEN` と
+`CLOUDFLARE_ACCOUNT_ID` を渡します。Worker Scripts編集と対象zoneのWorker Routes編集、
+Custom Domainを管理できる権限が必要です。Pages Git連携は無効化し、二重デプロイを防ぎます。
 
 ```bash
-cd apps/api
-npx wrangler pages deploy ../web/dist \
-  --project-name "$CLOUDFLARE_PAGES_PROJECT" \
-  --branch main
+# repository root
+npm ci
+npm run build
+npm run test:worker --workspace @videoq/web
+npm run deploy --workspace @videoq/web
 ```
 
-同一 host で配信する場合、`/api/*` と `/.well-known/*` を Worker route に割り当てます。
+Viteの公開変数は `apps/web/.env.production` で管理します。
+`VITE_API_URL=/api`、`VITE_USE_S3_STORAGE=true`、`VITE_MAX_VIDEO_UPLOAD_SIZE_MB=500` は
+移行前のPages設定を引き継いでいます（API側の制限は別途適用されます）。
+`worker/index.ts` が言語別SEO情報をHTMLへ反映し、静的ファイルと共通のセキュリティ
+ヘッダーを付けます。`/assets/*` はWorker処理を省いてStatic Assetsから配信します。
+
+API Workerは独立したままです。`apps/api/wrangler.jsonc` の `videoq.jp/api/*`、
+`videoq.jp/.well-known/*`、`videoq.jp/health`、`videoq.jp/ready` が
+Custom Domainより先に適用されるため、フロントからAPIへのproxyやService Bindingは不要です。
+
+### プレビューと切り戻し
+
+`npm run deploy:preview --workspace @videoq/web` は、本番ドメインを持たない
+`videoq-web-preview` をworkers.devへ公開します。noindexを返し、本番APIは接続しません。
+`npm run preview:worker --workspace @videoq/web` はビルド済みフロントのローカル確認です。
+
+通常の切り戻しは `apps/web` で `npx wrangler rollback --env production` を使用します。
+Pages移行自体を戻す必要がある場合に備えて、旧 `videoq-web` Pages projectと最後の
+deploymentを残します。WorkersのCustom Domainを外して旧PagesへドメインとDNSを戻し、
+必要に応じてPagesのGit連携を再有効化します。APIの4つのrouteは変更しません。
 
 ## 5.1 ドキュメント
 

@@ -31,6 +31,7 @@ jobs:
       worker: ${{ steps.resolve.outputs.worker }}
       migrate: ${{ steps.resolve.outputs.migrate }}
       docs: ${{ steps.resolve.outputs.docs }}
+      web: ${{ steps.resolve.outputs.web }}
     steps:
       # Read the policy from the trusted workflow revision, not the CI head SHA.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -96,6 +97,14 @@ jobs:
           base: ${{ steps.path_base.outputs.sha }}
           ref: ${{ github.event.workflow_run.head_sha }}
           filters: |
+            web:
+              - 'apps/web/**'
+              - 'packages/trpc/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/cd.yml'
+              - '.github/scripts/**'
             api:
               - 'apps/api/**'
               - 'packages/trpc/**'
@@ -140,12 +149,48 @@ jobs:
             echo "worker=true" >> "$GITHUB_OUTPUT"
             echo "migrate=true" >> "$GITHUB_OUTPUT"
             echo "docs=true" >> "$GITHUB_OUTPUT"
+            echo "web=true" >> "$GITHUB_OUTPUT"
           else
             echo "api=${{ steps.filter.outputs.api }}" >> "$GITHUB_OUTPUT"
             echo "worker=${{ steps.filter.outputs.worker }}" >> "$GITHUB_OUTPUT"
             echo "migrate=${{ steps.filter.outputs.migrate }}" >> "$GITHUB_OUTPUT"
             echo "docs=${{ steps.filter.outputs.docs }}" >> "$GITHUB_OUTPUT"
+            echo "web=${{ steps.filter.outputs.web }}" >> "$GITHUB_OUTPUT"
           fi
+
+  web-deploy:
+    name: Deploy Frontend (Cloudflare Workers)
+    runs-on: ubuntu-latest
+    environment: production-deploy
+    timeout-minutes: 15
+    needs: [changes, api-deploy]
+    if: |
+      always() &&
+      needs.changes.result == 'success' &&
+      needs.changes.outputs.web == 'true' &&
+      (needs.changes.outputs.api != 'true' || needs.api-deploy.result == 'success')
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.changes.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+      - name: Install dependencies
+        run: npm ci
+      - name: Build frontend
+        run: npm run build --workspace @videoq/web
+      - name: Deploy frontend
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo "::error::Cloudflare deployment credentials are required"
+            exit 1
+          fi
+          npm run deploy --workspace @videoq/web
 
   docs-deploy:
     name: Deploy Documentation (Cloudflare Workers)
