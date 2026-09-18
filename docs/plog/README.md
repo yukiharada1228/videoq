@@ -22,7 +22,9 @@ For example, “vectors → dot product → similarity” describes an order tha
 
 ## Current generation pipeline
 
-After building the search index, the Python worker runs `build_plog`:
+After initial search indexing, the Python worker runs `build_plog`. Transcript edits and search reindexing do not trigger this handoff; see [the update scope table](../architecture/transcription-and-search.md#update-scope).
+
+The build performs these steps:
 
 1. Use an LLM to extract concepts, questions, hints, and related content from the transcript.
 2. Generate concept embeddings and save concepts and learning objects.
@@ -99,6 +101,16 @@ Study mode generates its response before sending the complete text as a stream c
 Review concepts, relationships, and questions on the video detail screen, and edit, merge, or delete them as needed. Regeneration replaces existing concepts, edges, learning objects, and related data, so consider its effect on manually edited videos.
 
 Study mode requires a usable learning order. Empty concepts, multiple concepts with no ordering path, or cycles can lead to `PLOG_NOT_READY`. A single concept can form a usable path without an edge. Q&A can be used independently of PLOG readiness.
+
+### Rebuilding during active Study {#rebuild-and-active-study}
+
+A rebuild replaces the video's concepts and their IDs. It deletes the DB's `learner_concept_states` for those old concepts, but does **not** clear the current `STUDY_SESSION` Durable Object. Study reads only ready graphs and matches progress by concept ID: old IDs no longer match the rebuilt video, so their reached state, active concept, and hint position do not carry over to the new concepts. Progress on unchanged videos in the course can remain.
+
+While the latest build is `pending`, `running`, or `failed`, that video's graph is excluded from new Study turns. A course with no other usable graph cannot start Study; one with other ready graphs can still use those. An already running response may finish using the graph it loaded before the rebuild. Rebuilding does not rewrite visible messages or saved chat history.
+
+Plan a rebuild between learning sessions when possible. After it is `ready`, inspect the new questions and hints, switch Q&A → Study to clear the old visible dialogue, and start a new question sequence about the desired concept. Switching modes does not reset all session progress. Do not present the rebuilt path as a seamless continuation of the old one.
+
+For a small subtitle correction, reviewing and editing the affected learning objects can preserve the remaining manual work. See [the freshness policy and verification steps](../architecture/transcription-and-search.md#update-scope); `ready` by itself does not mean the graph matches the latest transcript.
 
 ## Where to look
 
