@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 from io import BytesIO
-from pathlib import Path
 from unittest.mock import MagicMock
 from urllib.error import HTTPError
 
@@ -19,16 +18,23 @@ from worker_python.pipeline.scene_otsu import apply_scene_splitting
 from worker_python.pipeline.scene_otsu import embedders as scene_embedders
 from worker_python.tasks import reindexing
 
-FIXTURE = json.loads((Path(__file__).resolve().parents[3] / "test-fixtures/embedding-contract.json").read_text())
-VECTOR = [1.0] + [0.0] * (FIXTURE["dimensions"] - 1)
+VECTOR = [1.0] + [0.0] * (1536 - 1)
 
 
 def test_fixed_dimension():
-    assert EMBEDDING_DIMENSIONS == FIXTURE["dimensions"]
+    assert EMBEDDING_DIMENSIONS == 1536
 
 
-@pytest.mark.parametrize("case", FIXTURE["configCases"])
-def test_shared_settings(case):
+@pytest.mark.parametrize("case", [
+    {"env": {}, "expected": {"provider": "openai", "model": "text-embedding-3-small"}},
+    {"env": {"EMBEDDING_PROVIDER": "  ", "EMBEDDING_MODEL": "  "}, "expected": {"provider": "openai", "model": "text-embedding-3-small"}},
+    {"env": {"EMBEDDING_PROVIDER": " OPENAI ", "EMBEDDING_MODEL": " CustomModel "}, "expected": {"provider": "openai", "model": "CustomModel"}},
+    {"env": {"EMBEDDING_PROVIDER": " Ollama ", "EMBEDDING_MODEL": " qwen3-embedding:4b "}, "expected": {"provider": "ollama", "model": "qwen3-embedding:4b"}},
+    {"env": {"EMBEDDING_PROVIDER": "ollama"}, "error": "EMBEDDING_CONFIG_INVALID"},
+    {"env": {"EMBEDDING_PROVIDER": "ollama", "EMBEDDING_MODEL": "  "}, "error": "EMBEDDING_CONFIG_INVALID"},
+    {"env": {"EMBEDDING_PROVIDER": "unknown"}, "error": "EMBEDDING_CONFIG_INVALID"},
+])
+def test_settings(case):
     if "error" in case:
         with pytest.raises(EmbeddingContractError) as caught:
             resolve_embedding_config(case["env"])

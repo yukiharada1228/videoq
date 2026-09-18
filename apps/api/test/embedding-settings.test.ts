@@ -4,13 +4,13 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { unstable_getVarsForDev, unstable_readConfig } from "wrangler";
 import { describe, expect, it } from "vitest";
-import fixture from "../../../test-fixtures/embedding-contract.json";
 import { resolveEmbeddingConfig } from "../src/lib/embedding-contract";
+import { embeddingConfigCases } from "./helpers/embedding-config";
 
 const configPath = fileURLToPath(new URL("../wrangler.jsonc", import.meta.url));
 
 describe.each([undefined, "production"])("Wrangler embedding settings (%s)", (environment) => {
-  it.each(fixture.configCases)("resolves merged overrides $env", (testCase) => {
+  it.each(embeddingConfigCases)("resolves merged overrides $env", (testCase) => {
     const config = unstable_readConfig({ config: configPath, env: environment });
     const directory = mkdtempSync(join(tmpdir(), "videoq-embedding-settings-"));
     try {
