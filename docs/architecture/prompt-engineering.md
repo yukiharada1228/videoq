@@ -1,11 +1,26 @@
 ---
-title: Prompt design for Q&A and study mode
-description: Selecting information for answers, citations, study mode, and evaluating changes.
+title: Q&A prompts and answer evaluation
+description: The model's inputs, tool decisions, citations, failure behavior, and evaluation after answering.
 ---
 
-# Prompt design for Q&A and study mode
+# Q&A prompts and answer evaluation
 
 Prompts contain instructions and reference material for AI. VideoQ answers using the user's question together with accessible course information and subtitles.
+
+Start with [How AI builds an answer](../concepts/how-ai-works.md) for a complete question-to-citation example. This page explains the inputs and controls behind that example.
+
+## What reaches the answer model
+
+| Stage | Material passed to the model |
+|---|---|
+| Start of ordinary Q&A | System instructions and the latest user question; earlier conversation turns are not included |
+| Tool definitions | What each tool can do, its argument schema, and instructions about when to use it |
+| After a tool call | The current answer's tool-call history and returned course metadata or numbered subtitle scenes |
+| Final response | The model writes using the evidence acquired during that answer |
+
+The prompt selects language-specific instructions from `prompts.json`. Course metadata includes names, descriptions, video counts, and a page of video IDs/titles/statuses. The tool explicitly omits share tokens, owner IDs, and file URLs. Descriptions can be truncated: course descriptions at 2,000 characters and video descriptions at 500, with flags indicating truncation. A missing page or truncated field must not be treated as proof that information does not exist.
+
+Showing older chat messages in the UI does not change this Q&A input contract. Follow-up questions need enough context in their latest message. Study-mode grading separately uses the previous assistant question.
 
 ## Selecting information for Q&A
 
@@ -26,15 +41,44 @@ The model can make up to 8 tool-enabled turns, after which tools are removed and
 
 ## Citations and permissions
 
-Content answers include citation numbers and timestamps from retrieved subtitles. Metadata such as course names and video counts does not receive scene citation numbers or timestamps.
+The model is instructed to attach `[N]` to claims supported by retrieved scenes. The API assigns the scene numbers and returns each scene's video and timestamps to the UI. Metadata such as course names and video counts does not receive scene citation numbers or timestamps.
 
-Search is restricted to a course whose access has already been verified. Instructions appearing in subtitles are treated as reference material and never take priority over system instructions.
+The collector retains the retrieved scenes, not just those cited in the final prose. Citation data therefore describes the evidence made available; it is not an automatic proof of every sentence's correctness.
+
+Search filters enforce the course access scope established by the API. Separately, prompt instructions tell the model to treat subtitles as reference material and ignore instructions embedded in them. The latter is model guidance, not a guarantee that prompt injection or unsupported claims are impossible.
+
+## When evidence or services are unavailable
+
+| Situation | Current behavior |
+|---|---|
+| A scene search returns no hits | The tool reports no matching scenes. The model can try another query within its allowance |
+| Three scene searches have already run | Further searches return a limit message; the model is instructed to answer from acquired evidence or explain the missing support |
+| A selected video ID is outside the course | The tool rejects that search and tells the model to use valid IDs |
+| Retrieved scenes only partly answer the question | The prompt asks for a supported partial answer with an explanation of its limits |
+| Database or embedding execution fails | The exception propagates; it is not presented to the model as “no evidence,” and reserved answer usage is released by the chat flow |
+| The answer provider fails or times out | The request follows the error path; the chat-model wrapper does not automatically retry provider calls |
+
+Weak search matches can still be returned because the application currently has no minimum similarity cutoff. See [scene search](transcription-and-search.md). Prompt wording alone cannot fix missing transcript content or a mismatched embedding index.
 
 ## Study mode
 
 Study mode uses [PLOG](../plog/README.md) concepts, prerequisite relationships, questions, and hints. It selects a target concept and unmastered prerequisites, evaluates the learner's answers, and updates progress.
 
-The first question uses saved text. Subsequent support and evaluation use an LLM, with temporary state stored in `STUDY_SESSION`.
+The first question uses saved text. Ordinary answer grading and support can use an LLM, while explicit requests to reveal the answer use a saved hint and template. Program rules update the temporary state in `STUDY_SESSION`. See [the grading and hint decisions](../plog/README.md).
+
+## Answer quality is evaluated separately
+
+For course chats, the API saves the question, answer, citations, and retrieved context. An asynchronous worker job evaluates the saved answer with RAGAS. The generation request does not wait for that evaluation to approve or rewrite the response.
+
+| Stored metric | What it examines |
+|---|---|
+| `faithfulness` | Whether the answer's claims are supported by the retrieved material |
+| `answer_relevancy` | Whether the answer addresses the question |
+| `context_precision` | Whether the retrieved material is useful for the answer |
+
+These are automated estimates, not verified grades or probabilities of correctness. The implementation uses reference-free metrics; it does not compare every response with a human-written correct answer. Context precision is skipped when no retrieved context exists. Individual metric failures can leave a value unset, while failure of the evaluation job is recorded as `failed`.
+
+This evaluation is distinct from the `mastery` / `partial` / `miss` grades that drive study mode. See [pipeline/evaluation.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/evaluation.py) and [tasks/evaluation.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/evaluation.py).
 
 ## Where to make changes
 

@@ -38,16 +38,30 @@ The development server runs one language at a time. Use `build:docs` followed by
 | Japanese sidebar categories | `apps/docs/i18n/ja/docusaurus-plugin-content-docs/current.json` |
 
 - Keep the same relative paths, document IDs, and slugs in both languages. Add each new page to both content roots and register it in `sidebars.ts` in reading order.
-- Update both languages when instructions change. Docusaurus falls back to the English source when a Japanese page is missing, so a successful build alone does not guarantee translation completeness.
-- The sidebar groups pages into Get started, Core concepts, Development guides, Design reference, Operations, and the Glossary. Organize around reader goals as well as document types.
-- `.md` files use ordinary Markdown; `.mdx` files can embed React components.
+- Add a reviewed page's exact relative path to `public-content.json`. Only listed pages are built in either language; adding a file or sidebar item does not approve it for publication.
+- Update both languages when instructions change. The prebuild check requires both files for each approved page; review their contents to keep translations complete and current.
+- The sidebar groups pages into Get started, AI behavior, Core concepts, Development guides, Design reference, Operations, and the Glossary. Organize around reader goals as well as document types.
+- Public pages use ordinary Markdown (`.md`). Supporting React components in `.mdx` requires reviewing the publication policy and embedded content; the current manifest rejects `.mdx` files.
 - Use fenced `mermaid` blocks for diagrams, and translate their visible labels while preserving identifiers.
 - Use relative `.md` links between documents so readers stay in their selected language.
 - Link to files outside the site, such as `apps/` or `infra/`, using GitHub `blob/main/` or `tree/main/` URLs.
 - The edit-page link targets the displayed language's source file.
 - English and Japanese search indexes are generated at build time. No external search service or API key is needed.
 
-CI detects changes to the documents and site configuration, then runs type checking, builds both languages, and validates links and anchors. Output is saved in the `documentation-build` artifact.
+CI detects changes to the documents and site configuration, then runs type checking, publication-policy tests, content checks, builds both languages, and validates links and anchors. Generated output is checked before it is saved in the `documentation-build` artifact.
+
+## Public information policy
+
+This site and its GitHub repository are public. Existing development, design, and generic operational documentation is intentionally published. Excluding a page from the site does **not** make its repository source or Git history private. Keep confidential operational records in an access-controlled system outside this repository.
+
+- Use generic service-dashboard links. Do not include real account IDs, personal/contact email addresses, credentials, signed URLs, customer data, or production logs. Use reserved example addresses such as `developer@example.com` when an example is necessary.
+- Review both languages before adding exact file paths to `public-content.json`; wildcard entries are rejected. The current policy supports Markdown pages with their default routes (including README category indexes). A custom slug requires updating and reviewing the generated-route check.
+- Review downloads separately. Every file under `static/` must be listed in `public-content.json`'s `staticAssets`; adding a document to the page list does not approve an attachment.
+- `npm run check:content --workspace @videoq/docs` scans both source trees, including pages excluded from the site, and static assets. It requires both translations of each approved page.
+- `npm run build:docs` runs the policy tests and source check, builds both languages, then scans all output files, including HTML, JavaScript, search indexes, and sitemaps. It rejects unapproved HTML routes and incomplete locale builds.
+- `npm run deploy --workspace @videoq/docs` repeats the source and output checks before uploading. Rebuild after editing content; do not deploy old artifacts directly with Wrangler.
+
+These checks detect common credential/account patterns, non-example email addresses, and remote PostgreSQL credentials; they are not a complete secret scanner or a substitute for reviewing the content and attachments. Diagnostics show only file locations and categories, never matched values. Removing published content cannot retract copies already downloaded, indexed, or preserved in Git history.
 
 The language setup follows [Docusaurus internationalization](https://docusaurus.io/docs/i18n/tutorial).
 

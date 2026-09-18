@@ -1,0 +1,43 @@
+{
+  "documents": [
+    "README.md",
+    "architecture/bpmn.md",
+    "architecture/flowchart.md",
+    "architecture/prompt-engineering.md",
+    "architecture/system-configuration-diagram.md",
+    "architecture/transcription-and-search.md",
+    "architecture/trpc-api.md",
+    "billing/stripe-dashboard.md",
+    "concepts/auth.md",
+    "concepts/domain-model.md",
+    "concepts/how-ai-works.md",
+    "database/data-dictionary.md",
+    "database/data-flow-diagram.md",
+    "database/er-diagram.md",
+    "design/class-diagram.md",
+    "design/component-diagram.md",
+    "design/deployment-diagram.md",
+    "design/sequence-diagram.md",
+    "design/state-diagram.md",
+    "getting-started/codebase.md",
+    "getting-started/first-change.md",
+    "getting-started/first-walkthrough.md",
+    "getting-started/local-setup.md",
+    "guides/api.md",
+    "guides/database.md",
+    "guides/documentation.md",
+    "guides/embeddings.md",
+    "guides/frontend.md",
+    "guides/testing.md",
+    "guides/troubleshooting.md",
+    "guides/worker.md",
+    "plog/README.md",
+    "reference/glossary.md",
+    "requirements/activity-diagram.md",
+    "requirements/screen-transition-diagram.md",
+    "requirements/use-case-diagram.md"
+  ],
+  "staticAssets": [
+    "img/favicon.ico"
+  ]
+}

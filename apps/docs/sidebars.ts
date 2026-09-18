@@ -16,12 +16,22 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: 'AI behavior',
+      collapsed: false,
+      items: [
+        'concepts/how-ai-works',
+        'architecture/transcription-and-search',
+        'architecture/prompt-engineering',
+        'plog/README',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Core concepts',
       items: [
         'concepts/domain-model',
         'architecture/system-configuration-diagram',
         'concepts/auth',
-        'plog/README',
       ],
     },
     {
@@ -48,7 +58,6 @@ const sidebars: SidebarsConfig = {
           items: [
             'architecture/trpc-api',
             'architecture/flowchart',
-            'architecture/prompt-engineering',
             'architecture/bpmn',
           ],
         },

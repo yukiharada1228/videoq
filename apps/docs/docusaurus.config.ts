@@ -1,6 +1,7 @@
 import type {Config} from '@docusaurus/types';
 import type {Options, ThemeConfig} from '@docusaurus/preset-classic';
 import type {PluginOptions as SearchOptions} from '@easyops-cn/docusaurus-search-local';
+import publicContent from './public-content.json';
 
 const config: Config = {
   title: 'VideoQ Docs',
@@ -38,6 +39,8 @@ const config: Config = {
         debug: false,
         docs: {
           path: '../../docs',
+          // A new source file must never become public merely by being committed.
+          include: publicContent.documents,
           routeBasePath: '/',
           sidebarPath: './sidebars.ts',
           editUrl: ({locale, docPath}) => {
@@ -73,6 +76,7 @@ const config: Config = {
       title: 'VideoQ Docs',
       items: [
         {type: 'doc', docId: 'getting-started/local-setup', label: 'Get started', position: 'left'},
+        {type: 'doc', docId: 'concepts/how-ai-works', label: 'AI behavior', position: 'left'},
         {type: 'doc', docId: 'guides/frontend', label: 'Development guides', position: 'left'},
         {type: 'doc', docId: 'reference/glossary', label: 'Glossary', position: 'left'},
         {type: 'localeDropdown', position: 'right'},

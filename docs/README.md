@@ -10,6 +10,12 @@ VideoQ is a **learning app that lets you ask questions about videos and jump str
 
 This site helps new contributors run the app and make their first small change. You do not need to read every design diagram before getting started.
 
+## Understand the AI
+
+Start with [How AI builds an answer](concepts/how-ai-works.md) to follow one question through search, evidence, an answer, and a playable citation. It also explains what the AI reads and how much conversation context it receives.
+
+Then explore [transcription and scene search](architecture/transcription-and-search.md), [Q&A prompts and answer evaluation](architecture/prompt-engineering.md), or [study-mode grading and hints](plog/README.md). The **AI behavior** menu groups these explanations together.
+
 ## New to the project?
 
 Follow these steps to connect the user experience with the implementation.

@@ -7,6 +7,8 @@ description: Try VideoQ's core workflow and check the results using a short vide
 
 VideoQ transcribes videos, finds scenes related to your questions, and answers based on them. Try the full workflow with one video: upload → course → question → play the cited scene.
 
+To understand what happens behind these actions, see [How AI builds an answer](../concepts/how-ai-works.md).
+
 Prerequisite: Complete [Run the development environment](local-setup.md) and log in to the local app.
 
 ## 1. Add a short video
@@ -21,7 +23,7 @@ A video may not be ready for questions immediately after upload. The following s
 
 ```mermaid
 flowchart LR
-    A[Submit video] --> B[Transcribe audio]
+    A[Submit video] --> B[Obtain timestamped text]
     B --> C[Create searchable data for each scene]
     C --> D[Ready for questions]
 ```
