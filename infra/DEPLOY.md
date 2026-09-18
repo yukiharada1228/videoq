@@ -44,6 +44,10 @@ DATABASE_URL="<Neon pooler URL>" npm run db:migrate
 DBを参照するAPI／Lambdaの更新より先にmigrationを完了させます。CDも
 `db-migrate → API/worker deploy` の順序を強制し、`DATABASE_URL` 未設定時は停止します。
 
+本番はアプリ用・migration用・管理用のDB roleを分離しています。
+保存先、権限、ローテーション手順は[DB_SECURITY.md](DB_SECURITY.md)を参照してください。
+アプリ用の接続文字列をmigrationに流用しないでください。
+
 ## 2. API secrets
 
 機密値は `wrangler secret put` で設定します。
@@ -153,8 +157,10 @@ Global API Keyは使用しません。tokenの有効期限は90日とし、期�
 上表の4件を登録したことを確認してから、repository側の`CLOUDFLARE_API_TOKEN`、
 `DATABASE_URL`、`CLOUDFLARE_INFRA_TOKEN`を削除します。同名Repository secretsを残すと、
 environmentを指定しないworkflowでも利用できるため、隔離は完了しません。
-元のDB接続文字列が手元にない場合は、稼働中のworker Lambdaの`DB_PARAM_NAME`が指す
-SSM SecureStringから再登録できます。DBパスワードをresetして稼働中の接続を切らないでください。
+元のmigration用DB接続文字列が手元にない場合は、管理者権限でSSM SecureStringの
+`/videoq/security/prod/db-migration`から再登録できます。Lambdaの`DB_PARAM_NAME`が指す
+`/videoq/prod/db`はアプリ専用で、migrationには使えません。
+DBパスワードをresetして稼働中の接続を切らないでください。
 旧CDはenvironmentを指定していないため、移行とこのworkflow変更のmergeを同じ作業時間帯で
 行い、他のdeployを開始しないでください。登録完了前に旧secretを削除しないでください。
 
