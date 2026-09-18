@@ -36,7 +36,7 @@ jobs:
 
       # Dependabot and fork PRs must validate without production state or secrets.
       - name: Terraform init (without backend)
-        run: terraform init -backend=false -input=false -lockfile=readonly
+        run: terraform init -backend=false -input=false
 
       - name: Terraform validate
         run: terraform validate -no-color
