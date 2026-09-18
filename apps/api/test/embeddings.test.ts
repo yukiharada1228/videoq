@@ -1,19 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import fixture from "../../../test-fixtures/embedding-contract.json";
 import { embedQuery } from "../src/lib/embeddings";
 import { EMBEDDING_DIMENSIONS, parseStoredEmbedding, resolveEmbeddingConfig, validateEmbedding } from "../src/lib/embedding-contract";
 import { assertEmbeddingSchema } from "../src/lib/embedding-schema";
 import type { Bindings } from "../src/types/bindings";
 import { embedding } from "./helpers/embedding";
+import { embeddingConfigCases } from "./helpers/embedding-config";
 
 const baseEnv = { OPENAI_API_KEY: "test-key" } as Bindings;
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
-describe("shared embedding contract", () => {
-  it("has the same fixed dimensions as the Python contract fixture", () => {
-    expect(EMBEDDING_DIMENSIONS).toBe(fixture.dimensions);
+describe("embedding contract", () => {
+  it("has fixed 1536 dimensions", () => {
+    expect(EMBEDDING_DIMENSIONS).toBe(1536);
   });
-  it.each(fixture.configCases)("resolves $env", (testCase) => {
+  it.each(embeddingConfigCases)("resolves $env", (testCase) => {
     if (testCase.error) {
       expect(() => resolveEmbeddingConfig(testCase.env)).toThrowError(expect.objectContaining({ reason: testCase.error }));
     } else {

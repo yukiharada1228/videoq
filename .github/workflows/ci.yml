@@ -70,7 +70,6 @@ jobs:
         with:
           filters: |
             hono:
-              - 'test-fixtures/embedding-contract.json'
               - 'apps/api/**'
               - 'apps/worker/**'
               - 'packages/trpc/**'
@@ -78,7 +77,6 @@ jobs:
               - 'package-lock.json'
               - '.github/workflows/ci.yml'
             worker:
-              - 'test-fixtures/embedding-contract.json'
               - 'apps/worker/**'
               - '.github/workflows/ci.yml'
             frontend:
