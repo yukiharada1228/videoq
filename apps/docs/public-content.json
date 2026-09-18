@@ -26,6 +26,7 @@
     "guides/api.md",
     "guides/database.md",
     "guides/documentation.md",
+    "guides/embeddings.md",
     "guides/frontend.md",
     "guides/testing.md",
     "guides/troubleshooting.md",
