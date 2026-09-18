@@ -1,3 +1,4 @@
+import { embedding as testEmbedding } from "./helpers/embedding";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import {
   CHAT_REQUEST_MAX_BYTES,
@@ -72,6 +73,7 @@ const QUOTA_PERIOD_START = "2026-08-01 00:00:00+00";
 let lastExternalPayload: Record<string, unknown> | null = null;
 
 const defaultRows = (sql: MatchableSql, args: unknown[] = []): Record<string, unknown>[] => {
+  if (sql.includes("FROM pg_attribute")) return [{ type_name: "vector", dimensions: 1536 }];
   if (sql.includes("UPDATE users") && sql.includes("RETURNING usage_period_start"))
     return [{ usage_period_start: QUOTA_PERIOD_START }];
   if (sql.includes("SELECT is_over_quota"))
@@ -251,12 +253,12 @@ function stubOpenAi(opts: {
     if (url.includes("sqs")) {
       return new Response("<MessageId>m-1</MessageId>", { status: 200 });
     }
-    if (url.endsWith("/embeddings")) {
-      if (url.endsWith("/api/embeddings")) {
+    if (url.endsWith("/embeddings") || url.endsWith("/api/embed")) {
+      if (url.endsWith("/api/embed")) {
         if (opts.failOllamaEmbedding) throw new TypeError("Ollama connection refused");
-        return jsonBody({ embedding: [0.1, 0.2] });
+        return jsonBody({ embeddings: [testEmbedding(0.1, 0.2)] });
       }
-      return jsonBody({ data: [{ embedding: [0.1, 0.2] }] });
+      return jsonBody({ data: [{ index: 0, embedding: testEmbedding(0.1, 0.2) }] });
     }
 
     const enc = new TextEncoder();
@@ -573,7 +575,7 @@ describe("POST /messages（非ストリーミング）", () => {
     expect(search.args).toEqual([
       "00000000-0000-4000-8000-000000000005",
       [60, 61],
-      "[0.1,0.2]",
+      JSON.stringify(testEmbedding(0.1, 0.2)),
       20,
     ]);
     expect(String(search.sql)).toMatch(/user_id = \$1 AND video_id = ANY\(\$2\)/);
@@ -794,6 +796,29 @@ describe("POST /messages（非ストリーミング）", () => {
 });
 
 describe.each([false, true])("Ollama 検索障害の利用枠返却（stream=%s）", (stream) => {
+  it("DB次元の不一致は埋め込み呼び出し前に失敗し、利用枠を返す", async () => {
+    const requests = stubOpenAi({ stream });
+    rowsFor = (sql, args) => sql.includes("FROM pg_attribute")
+      ? [{ type_name: "vector", dimensions: 1024 }] : defaultRows(sql, args);
+    const res = await post(
+      stream ? "/messages/stream" : "/messages",
+      { messages: [{ role: "user", content: "scene" }], course_id: 3 },
+      { token: await accessToken(), env: OPENAI_ENV },
+    );
+    if (stream) {
+      const events = sseEvents(await res.text());
+      expect(events.at(-1)).toMatchObject({ type: "error", code: "LLM_CONFIGURATION_ERROR" });
+      expect(events.some((event) => event.type === "content_chunk" || event.type === "done")).toBe(false);
+    } else {
+      expect(res.status).toBe(400);
+      expect(await trpcError(res)).toMatchObject({ code: "VALIDATION_ERROR" });
+    }
+    expect(requests.some((request) => request.url.endsWith("/embeddings"))).toBe(false);
+    expect(calls.filter((call) => call.sql.includes("GREATEST")).map((call) => call.args))
+      .toEqual([["00000000-0000-4000-8000-000000000005", QUOTA_PERIOD_START]]);
+    expect(calls.some((call) => call.sql.includes("chat_logs") && call.sql.includes("returning"))).toBe(false);
+  });
+
   it("エラーを返し、通常回答の保存・完了通知を行わず利用枠を返す", async () => {
     const requests = stubOpenAi({ stream, failOllamaEmbedding: true, preamble: "調べますね。" });
     const res = await post(
@@ -804,7 +829,7 @@ describe.each([false, true])("Ollama 検索障害の利用枠返却（stream=%s�
         env: {
           ...OPENAI_ENV,
           EMBEDDING_PROVIDER: "ollama",
-          EMBEDDING_MODEL: "qwen3-embedding:0.6b",
+          EMBEDDING_MODEL: "qwen3-embedding:4b",
           OLLAMA_BASE_URL: "http://127.0.0.1:11434",
         },
       },
@@ -826,7 +851,7 @@ describe.each([false, true])("Ollama 検索障害の利用枠返却（stream=%s�
         message: "An internal server error occurred.",
       });
     }
-    expect(requests.some((request) => request.url.endsWith("/api/embeddings"))).toBe(true);
+    expect(requests.some((request) => request.url.endsWith("/api/embed"))).toBe(true);
     expect(calls.filter((call) => call.sql.includes("GREATEST")).map((call) => call.args))
       .toEqual([["00000000-0000-4000-8000-000000000005", QUOTA_PERIOD_START]]);
     expect(calls.some((call) => call.sql.includes("chat_logs") && call.sql.includes("returning")))

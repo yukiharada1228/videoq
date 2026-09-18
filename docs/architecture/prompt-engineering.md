@@ -94,6 +94,6 @@ This evaluation is distinct from the `mastery` / `partial` / `miss` grades that 
 
 Test metadata-only questions, lesson-content questions, and questions requiring both, in English and Japanese. Check the selected tools and citations as well as the answer, and verify that information outside the course is not included.
 
-`LLM_MODEL` is used for answers and generation; `EMBEDDING_MODEL` is used for search. Keep their roles distinct, and align API, worker, and DB dimensions when changing embeddings.
+`LLM_MODEL` is used for answers and generation; `EMBEDDING_MODEL` is used for search. Embeddings are fixed at 1536 dimensions, and the API and worker must also use the same model. Changing models requires regenerating existing vectors. See [embedding configuration and limitations](../guides/embeddings.md).
 
 See [tests and verification commands](../guides/testing.md) for live-model tests and when they incur charges.

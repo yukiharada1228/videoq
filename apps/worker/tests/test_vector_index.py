@@ -71,6 +71,7 @@ def test_index_video_transcript_uses_pgvectorstore_with_standard_metadata(
 ) -> None:
     store = FakeStore()
     use_fake_store(monkeypatch, store)
+    monkeypatch.setattr(vector_index, "check_embedding_storage", lambda: None)
     monkeypatch.setattr(
         vector_index,
         "embed_texts",

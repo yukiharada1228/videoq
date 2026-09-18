@@ -18,6 +18,7 @@ import type {
 } from "../lib/plog-runtime";
 import type { PlogWaypoint } from "@videoq/trpc";
 import { ORDERING, isDag } from "../lib/plog-ordering";
+import { parseStoredEmbedding } from "../lib/embedding-contract";
 import { stableKey } from "../shared/canonical-json";
 import { insertJobTask } from "./external-task-repository";
 import { buildJobMessage, JOB_BUILD_PLOG } from "../lib/job-message";
@@ -1222,13 +1223,7 @@ export async function listReadyGraphs(
       const concepts: PlogConcept[] = [];
       const learning_objects: Record<number, PlogLearningObject> = {};
       for (const r of conceptsRes.rows as Array<Record<string, unknown>>) {
-        let embedding: number[] = [];
-        try {
-          const raw = r.embedding ? JSON.parse(r.embedding as string) : [];
-          embedding = Array.isArray(raw) ? raw.map(Number) : [];
-        } catch {
-          embedding = [];
-        }
+        const embedding = parseStoredEmbedding(r.embedding);
         const conceptId = Number(r.id);
         concepts.push({
           id: conceptId,

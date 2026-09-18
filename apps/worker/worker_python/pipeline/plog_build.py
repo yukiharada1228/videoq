@@ -10,6 +10,8 @@ import psycopg
 
 from worker_python.env import env_str, heavy_pipeline_enabled
 from worker_python.pipeline.embeddings import embed_texts
+from worker_python.pipeline.embedding_schema import assert_embedding_schema
+from worker_python.pipeline.embedding_contract import resolve_embedding_config
 from worker_python.pipeline.srt import parse_srt_scenes
 
 logger = logging.getLogger(__name__)
@@ -22,10 +24,13 @@ def run_plog_pipeline(conn: psycopg.Connection[Any], video_id: int, transcript: 
         )
         return
 
+    config = resolve_embedding_config()
     scenes = parse_srt_scenes(transcript)
     concepts = _extract_concepts(transcript, scenes)
     # An explicit empty inventory is a completed analysis, not a retryable error.
     # Still replace previous artifacts so a rebuild cannot leave a stale graph.
+    if concepts:
+        assert_embedding_schema(conn, config)
     embeddings = embed_texts([c["label"] for c in concepts]) if concepts else []
 
     # Clear previous artifacts for this video (order matters for FKs).

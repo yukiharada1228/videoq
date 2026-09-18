@@ -94,7 +94,6 @@ LLM_MODEL=gpt-4o-mini
 WHISPER_BACKEND=openai
 EMBEDDING_PROVIDER=openai
 EMBEDDING_MODEL=text-embedding-3-small
-EMBEDDING_VECTOR_SIZE=1536
 
 # Docker API startup currently forwards AUTH_JWT_SECRET as the auth fallback.
 # AUTH_JWT_SECRET: openssl rand -base64 48
@@ -103,7 +102,7 @@ AUTH_JWT_SECRET=
 USER_SECRET_ENCRYPTION_KEY=
 ```
 
-**Set `EMBEDDING_VECTOR_SIZE=1536` even though `.env.example` currently says `1024`.** The current Drizzle schema and migration history define `scene_embeddings.embedding` as `vector(1536)`. API queries and worker indexing must use the same model and vector dimensions.
+Embedding dimensions are fixed at 1536 in the API, worker, and DB. The templates use OpenAI / `text-embedding-3-small`; no dimension setting is needed. Configure the same provider and model for both runtimes. See [embedding configuration and diagnostics](docs/guides/embeddings.md).
 
 Docker Compose supplies development-only fallback secrets when these fields are blank. The API container generates `apps/api/.dev.vars` using [`docker-dev.sh`](apps/api/scripts/docker-dev.sh), which currently forwards `AUTH_JWT_SECRET`, not `BETTER_AUTH_SECRET`. Host-run API development and production use `BETTER_AUTH_SECRET` directly. Configure independent secrets for shared deployments.
 
@@ -310,9 +309,9 @@ docker compose up -d --force-recreate api worker
 <details>
 <summary><strong>Local embeddings with Ollama</strong></summary>
 
-Set `EMBEDDING_PROVIDER=ollama` and `EMBEDDING_MODEL` to your installed embedding model. For Docker, use `OLLAMA_BASE_URL=http://host.docker.internal:11434` and `WORKER_OLLAMA_BASE_URL=http://host.docker.internal:11434`.
+For a new disposable development DB, run `ollama pull qwen3-embedding:4b`, then set `EMBEDDING_PROVIDER=ollama` and `EMBEDDING_MODEL=qwen3-embedding:4b`. For Docker, use `OLLAMA_BASE_URL=http://host.docker.internal:11434` and `WORKER_OLLAMA_BASE_URL=http://host.docker.internal:11434`.
 
-The model must emit vectors matching the database column. The current schema uses **1536 dimensions**, while the `qwen3-embedding:0.6b` example in the local configuration uses 1024. Setting `EMBEDDING_VECTOR_SIZE` does not resize Ollama output: the current Ollama adapter does not send a dimensions parameter. Use a compatible model, or change the Drizzle schema through a generated migration and rebuild the vectors before using a different dimension.
+The adapters use `/api/embed` with `dimensions: 1536` and validate every output against the fixed `vector(1536)` contract. The 1024-dimensional `qwen3-embedding:0.6b` is incompatible. Equal dimensions do not make models interchangeable: existing scene and PLOG vectors need regeneration, and this change does not provide a model migration tool. See [diagnostics and migration constraints](docs/guides/embeddings.md).
 
 For `npm run dev:api` outside Docker, set the embedding values in
 `apps/api/.dev.vars` and use `OLLAMA_BASE_URL=http://127.0.0.1:11434`.
@@ -392,7 +391,6 @@ OAUTH_ISSUER_URL=http://localhost:3000
 OPENAI_BASE_URL=https://api.openai.com/v1
 EMBEDDING_PROVIDER=openai
 EMBEDDING_MODEL=text-embedding-3-small
-EMBEDDING_VECTOR_SIZE=1536
 ```
 
 Keep the MinIO / ElasticMQ settings from `.dev.vars.example`, use the same user-secret encryption key as the Python worker, then run `npm run dev:api` in another terminal. Wrangler's local Hyperdrive connection targets `localhost:55432`; override it if you changed the database credentials. The Compose dependencies and Python worker continue running.

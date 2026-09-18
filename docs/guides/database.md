@@ -58,6 +58,6 @@ Add `-- drizzle-kit:custom` at the start of the generated custom migration. Use 
 
 For schema changes, run type checking and integration tests against a dedicated test database. See [tests and verification commands](testing.md). In shared and production environments, apply reviewed migrations through the deployment process instead of using `drizzle-kit push`.
 
-Changing the embedding model configuration does not change the database's vector dimensions. The current `scene_embeddings.embedding` column has 1536 dimensions.
+Embedding dimensions are fixed at 1536 in the application and `scene_embeddings.embedding vector(1536)`. Environment variables cannot change the dimension. Even a same-dimension model change requires scene and PLOG re-embedding; existing-data migration tooling is not provided. See [diagnostics and future migration requirements](embeddings.md).
 
 **Related:** [Data dictionary](../database/data-dictionary.md), [Reading the ER diagram](../database/er-diagram.md).

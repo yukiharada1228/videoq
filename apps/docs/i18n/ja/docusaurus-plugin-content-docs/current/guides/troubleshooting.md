@@ -60,7 +60,7 @@ npm run user:password:local --workspace @videoq/api -- your-username
 
 1. 質問先の講座に動画が含まれているか確認します。
 2. 対象動画が `completed` で、文字起こしがあるか確認します。
-3. APIとworkerの `EMBEDDING_PROVIDER`・`EMBEDDING_MODEL`・`EMBEDDING_VECTOR_SIZE` を照合します。現行DBは1536次元です。
+3. [埋め込み診断コマンド](embeddings.md)でAPI・workerの `EMBEDDING_PROVIDER`・`EMBEDDING_MODEL` を照合します。次元は1536固定です。ログの内部理由から設定・DB・出力・保存済みPLOGデータのどこに不整合があるか確認します。
 4. モデルを変更した場合は再索引が必要です。既存データの次元を設定値だけで変えることはできません。
 
 講座名や動画本数などの質問は、登録情報だけで回答し、シーン引用がない場合があります。内容の質問でも動画に根拠がなければ、期待した回答が得られるとは限りません。

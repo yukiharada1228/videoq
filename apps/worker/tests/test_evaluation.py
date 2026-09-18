@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import builtins
+from contextlib import nullcontext
+from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
+from urllib.error import HTTPError
 
 import pytest
 
-from worker_python.pipeline import evaluation
+from worker_python.pipeline import embeddings, evaluation
+from worker_python.tasks import evaluation as evaluation_task
 
 
 def test_score_chat_log_raises_when_ragas_missing():
@@ -110,3 +114,54 @@ def test_run_metric_returns_none_on_failure():
     metric.__class__.__name__ = "Faithfulness"
     metric.single_turn_ascore = AsyncMock(side_effect=RuntimeError("boom"))
     assert evaluation._run_metric(metric, MagicMock()) is None
+
+
+def test_rejected_embedding_marks_evaluation_failed(monkeypatch, caplog):
+    monkeypatch.setenv("EMBEDDING_PROVIDER", "ollama")
+    monkeypatch.setenv("EMBEDDING_MODEL", "qwen3-embedding:4b")
+    private_body = "private provider response"
+    http = MagicMock(side_effect=HTTPError(
+        "http://example.invalid/api/embed", 400, private_body, {}, BytesIO(private_body.encode()),
+    ))
+    monkeypatch.setattr(embeddings.urllib.request, "urlopen", http)
+
+    class RelevancyMetric:
+        def __init__(self, *, llm, embeddings):
+            self.embeddings = embeddings
+
+        async def single_turn_ascore(self, sample):
+            await self.embeddings.aembed_query("synthetic question")
+            return 1.0
+
+    # Stub third-party LLM scoring; exercise the real task, common adapter,
+    # provider error classification and _run_metric propagation together.
+    modules = {
+        "ragas": MagicMock(),
+        "ragas.dataset_schema": MagicMock(),
+        "ragas.embeddings": MagicMock(LangchainEmbeddingsWrapper=lambda value: value),
+        "ragas.llms": MagicMock(LangchainLLMWrapper=lambda value: value),
+        "ragas.metrics": MagicMock(
+            Faithfulness=MagicMock(return_value=MagicMock(single_turn_ascore=AsyncMock(return_value=1.0))),
+            ResponseRelevancy=RelevancyMetric,
+        ),
+    }
+    monkeypatch.setattr(evaluation, "_ensure_ragas_importable", lambda: None)
+    monkeypatch.setattr(evaluation, "_langchain_llm", MagicMock())
+    monkeypatch.setattr(evaluation_task, "db_connection", lambda: nullcontext(MagicMock()))
+    monkeypatch.setattr(evaluation_task, "_fetch_chat_log", lambda *_: {
+        "question": "question", "answer": "answer", "retrieved_contexts": [],
+    })
+    save = MagicMock()
+    monkeypatch.setattr(evaluation_task, "_save_evaluation", save)
+    with patch.dict("sys.modules", modules):
+        evaluation_task.evaluate_chat_log(42)
+
+    http.assert_called_once()
+    save.assert_called_once()
+    result = save.call_args.kwargs
+    assert result["status"] == "failed"
+    assert result["evaluated_at"] is None
+    assert result["answer_relevancy"] is None
+    assert "HTTP 400" in result["error_message"]
+    assert private_body not in result["error_message"]
+    assert private_body not in caplog.text

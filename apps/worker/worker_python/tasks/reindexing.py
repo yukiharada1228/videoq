@@ -6,6 +6,7 @@ import logging
 
 from worker_python.advisory_locks import full_vector_write_lock
 from worker_python.pipeline import vector_index
+from worker_python.pipeline.embeddings import embed_texts
 from worker_python.video_sql import VideoRow, list_completed_videos_with_transcript
 
 logger = logging.getLogger(__name__)
@@ -41,6 +42,8 @@ def _run_reindex(videos: list[VideoRow]) -> dict:
         logger.info("Re-indexing completed: %s", result["message"])
         return result
 
+    vector_index.check_embedding_storage()
+    embed_texts(["VideoQ embedding preflight"])
     deleted_count = vector_index.delete_all_vectors()
     logger.info("Deleted %d vectors", deleted_count)
 

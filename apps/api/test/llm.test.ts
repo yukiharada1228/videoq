@@ -1,3 +1,4 @@
+import { embedding as testEmbedding } from "./helpers/embedding";
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { generateReply, streamReply, LLM_STREAM_TIMEOUT_MS } from "../src/lib/llm";
 import { stalledChatResponse } from "./helpers/stalled-chat-response";
@@ -172,22 +173,23 @@ describe("LLM 呼び出し（ChatOpenAI 相当）", () => {
 describe("埋め込み生成", () => {
   it("Ollama は専用エンドポイントとモデルを使い、OpenAI キーを必要としない", async () => {
     vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
-      expect(url).toBe("http://127.0.0.1:11434/api/embeddings");
+      expect(url).toBe("http://127.0.0.1:11434/api/embed");
       expect(JSON.parse(String(init.body))).toEqual({
-        model: "qwen3-embedding:0.6b",
-        prompt: "hello",
+        model: "qwen3-embedding:4b",
+        input: "hello",
+        dimensions: 1536,
       });
       expect(new Headers(init.headers).has("authorization")).toBe(false);
-      return jsonResponse({ embedding: [0.5, -0.25, 0] });
+      return jsonResponse({ embeddings: [testEmbedding(0.5, -0.25, 0)] });
     });
 
     await expect(embedQuery({
       ...ENV,
       OPENAI_API_KEY: "",
       EMBEDDING_PROVIDER: "ollama",
-      EMBEDDING_MODEL: "qwen3-embedding:0.6b",
+      EMBEDDING_MODEL: "qwen3-embedding:4b",
       OLLAMA_BASE_URL: "http://127.0.0.1:11434/",
-    }, "hello")).resolves.toEqual([0.5, -0.25, 0]);
+    }, "hello")).resolves.toEqual(testEmbedding(0.5, -0.25, 0));
   });
 
   it("text-embedding-3-small に単一テキストを送り、pgvector リテラル化できる", async () => {
@@ -195,7 +197,7 @@ describe("埋め込み生成", () => {
     vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
       expect(url).toBe("https://openai.test/v1/embeddings");
       sent = JSON.parse(init.body as string);
-      return jsonResponse({ data: [{ embedding: [0.5, -0.25, 0] }] });
+      return jsonResponse({ data: [{ index: 0, embedding: testEmbedding(0.5, -0.25, 0) }] });
     });
 
     const v = await embedQuery(ENV, "hello");
@@ -203,8 +205,9 @@ describe("埋め込み生成", () => {
       model: "text-embedding-3-small",
       input: "hello",
       encoding_format: "float",
+      dimensions: 1536,
     });
-    expect(toVectorLiteral(v)).toBe("[0.5,-0.25,0]");
+    expect(toVectorLiteral(v)).toBe(JSON.stringify(testEmbedding(0.5, -0.25, 0)));
   });
 
   it("空レスポンスはプロバイダエラー", async () => {

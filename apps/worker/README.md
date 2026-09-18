@@ -53,8 +53,8 @@ SQSはat-least-once配送のため、workerは `job_executions.job_id` を15分�
 | `SQS_QUEUE_URL` | Amazon SQS / ElasticMQ |
 | `OPENAI_API_KEY` | Whisper、LLM、評価 |
 | `RAGAS_MAX_TOKENS` | RAGAS評価の1回のLLM呼び出しあたりの出力上限（既定4,096、正の整数。利用モデルの上限以下） |
-| `EMBEDDING_PROVIDER` | `openai` または `ollama` |
-| `EMBEDDING_MODEL` / `EMBEDDING_VECTOR_SIZE` | `scene_embeddings` と一致するモデル・次元 |
+| `EMBEDDING_PROVIDER` | `openai`（既定）または `ollama` |
+| `EMBEDDING_MODEL` | OpenAIは `text-embedding-3-small` が既定。Ollamaでは明示必須（検証構成: `qwen3-embedding:4b`） |
 | `USE_S3_STORAGE` | S3 互換 object storage の利用 |
 | `R2_BUCKET_NAME` / `R2_S3_ENDPOINT` / `R2_S3_REGION` | R2 bucket / endpoint / region |
 | `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | R2 S3 API token（Lambda の `APP_PARAM_NAME` JSON ではこの名前を使う。`AWS_ACCESS_KEY_ID` は実行ロール予約） |
@@ -94,3 +94,11 @@ docker buildx build --platform linux/arm64 -f Dockerfile -t videoq-worker .
 
 handler は `handler.handler` です。機密は SSM SecureString
 （`DB_PARAM_NAME` / `APP_PARAM_NAME`）から読み込みます。
+
+## 埋め込みの診断
+
+次元は定数 `EMBEDDING_DIMENSIONS = 1536` で固定し、両providerに1536を要求します。Ollamaは `/api/embed` を使用します。`EMBEDDING_VECTOR_SIZE` は廃止し、残っていても参照しません。
+
+workerの環境変数を設定したPython環境で `python -m worker_python.check_embeddings` を実行すると、設定とDBの宣言型を検証します。`--probe` を付けた場合だけモデル出力も確認します。実モデルへの通信・料金が発生する場合があります。
+
+APIと同じprovider・modelを使ってください。同次元でも異なるモデルのベクトルは混在できません。既存データの移行ツールは未提供です。[設定・診断・移行の制約](../../docs/guides/embeddings.md)を参照してください。

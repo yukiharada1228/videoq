@@ -1,3 +1,4 @@
+import { EMBEDDING_DIMENSIONS } from "../../lib/embedding-dimensions";
 import {
 	pgTable,
 	bigint,
@@ -880,7 +881,7 @@ export const sceneEmbeddings = pgTable(
 	{
 		langchainId: uuid("langchain_id").primaryKey().notNull(),
 		content: text().notNull(),
-		embedding: vector({ dimensions: 1536 }).notNull(),
+		embedding: vector({ dimensions: EMBEDDING_DIMENSIONS }).notNull(),
 		userId: text("user_id").notNull(),
 		videoId: bigint("video_id", { mode: "number" }).notNull(),
 		langchainMetadata: json("langchain_metadata"),

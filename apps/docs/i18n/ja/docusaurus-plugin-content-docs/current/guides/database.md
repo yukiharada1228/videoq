@@ -58,6 +58,6 @@ npm run db:generate:custom -- --name describe_the_data_change
 
 スキーマ変更は、型チェックに加えて検証専用DBでの統合テストを実行します。[テストの使い分け](testing.md)を参照してください。共有環境や本番では `drizzle-kit push` を使わず、レビュー済みmigrationをデプロイ手順に沿って適用します。
 
-埋め込みモデルの変更は、設定値だけではDBのベクトル次元を変更しません。現行の `scene_embeddings.embedding` は1536次元です。
+埋め込みはアプリ・DBとも1536次元固定で、`scene_embeddings.embedding` は `vector(1536)` です。環境変数では次元を変更できません。同じ次元のモデル変更でもシーン・PLOGの再埋め込みが必要です。既存データの移行ツールは提供していません。[診断方法と今後の移行要件](embeddings.md)を参照してください。
 
 **関連:** [データ辞書](../database/data-dictionary.md)、[ER図の読み方](../database/er-diagram.md)。
