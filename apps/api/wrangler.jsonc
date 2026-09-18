@@ -41,7 +41,8 @@
     "DEFAULT_AI_ANSWERS_LIMIT": "30",
     "STRIPE_AUTOMATIC_TAX": "false",
     "EMBEDDING_PROVIDER": "openai",
-    "EMBEDDING_MODEL": "text-embedding-3-small",
+    // Resolve the OpenAI default in the adapter; Ollama requires an explicit model.
+    "EMBEDDING_MODEL": "",
     "OLLAMA_BASE_URL": "http://127.0.0.1:11434",
     "LLM_MODEL": "gpt-4o-mini",
     "PGVECTOR_COLLECTION_NAME": "scene_embeddings",
@@ -114,7 +115,8 @@
         "DEFAULT_AI_ANSWERS_LIMIT": "30",
         "STRIPE_AUTOMATIC_TAX": "false",
         "EMBEDDING_PROVIDER": "openai",
-        "EMBEDDING_MODEL": "text-embedding-3-small",
+        // Keep provider-specific defaults in the application, as in local dev.
+        "EMBEDDING_MODEL": "",
         "OLLAMA_BASE_URL": "",
         "LLM_MODEL": "gpt-4o-mini",
         "PGVECTOR_COLLECTION_NAME": "scene_embeddings",

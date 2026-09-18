@@ -11,6 +11,7 @@ from worker_python.env import env_str
 from .embedding_contract import (
     EMBEDDING_DIMENSIONS,
     EmbeddingConfig,
+    EmbeddingContractError,
     invalid_output,
     resolve_embedding_config,
     validate_embedding,
@@ -48,7 +49,7 @@ def _embed_openai_batch(texts: list[str], config: EmbeddingConfig) -> list[list[
         with urllib.request.urlopen(req, timeout=120) as resp:
             payload = _read_payload(resp, config)
     except urllib.error.HTTPError as exc:
-        raise RuntimeError(f"OpenAI embeddings failed (HTTP {exc.code}).") from None
+        raise _provider_http_error(config, exc.code) from None
     except urllib.error.URLError:
         raise RuntimeError("OpenAI embeddings request failed. Check the server connection.") from None
 
@@ -72,13 +73,28 @@ def _embed_ollama(texts: list[str], config: EmbeddingConfig) -> list[list[float]
         with urllib.request.urlopen(req, timeout=120) as resp:
             payload = _read_payload(resp, config)
     except urllib.error.HTTPError as exc:
-        raise RuntimeError(f"Ollama embeddings failed (HTTP {exc.code}).") from None
+        raise _provider_http_error(config, exc.code) from None
     except urllib.error.URLError:
         raise RuntimeError("Ollama embeddings request failed. Check the server connection.") from None
     vectors = payload.get("embeddings") if isinstance(payload, dict) else None
     if not isinstance(vectors, list) or len(vectors) != len(texts):
         raise invalid_output(config)
     return [validate_embedding(vector, config) for vector in vectors]
+
+
+def _provider_http_error(config: EmbeddingConfig, status: int) -> RuntimeError:
+    provider = "OpenAI" if config.provider == "openai" else "Ollama"
+    # Permanent request rejection (e.g. unsupported model/dimensions) must not
+    # become a successful scene fallback or a missing RAGAS score. Preserve the
+    # existing best-effort behavior for timeouts, rate limits and server failures.
+    if 400 <= status < 500 and status not in {408, 429}:
+        return EmbeddingContractError(
+            "EMBEDDING_CONFIG_INVALID",
+            f"{provider} embeddings request rejected (HTTP {status}). "
+            "Check the model, requested dimensions and provider configuration.",
+            config,
+        )
+    return RuntimeError(f"{provider} embeddings failed (HTTP {status}).")
 
 
 def _read_payload(response, config: EmbeddingConfig):

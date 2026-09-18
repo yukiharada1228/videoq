@@ -20,6 +20,8 @@ Set `OPENAI_API_KEY` in the relevant environment. Both query and document reques
 
 Provider names are trimmed and lowercased. Empty provider values select OpenAI; an empty model selects `text-embedding-3-small` for OpenAI. Model names are trimmed but retain their case. An unknown provider or a missing Ollama model is a configuration error.
 
+Wrangler keeps `EMBEDDING_MODEL` empty in both development and production so the adapter resolves this default. Overriding only the provider to Ollama therefore fails validation instead of inheriting an OpenAI model name.
+
 For a **new, disposable development database**, Ollama is another option:
 
 ```bash
@@ -76,12 +78,14 @@ The probe additionally reports `actual_dimensions`. Compare `provider`, `model`,
 
 | Internal reason | Meaning |
 |---|---|
-| `EMBEDDING_CONFIG_INVALID` | Unsupported provider or missing required model |
+| `EMBEDDING_CONFIG_INVALID` | Unsupported provider, missing required model, or a worker embedding request rejected with HTTP 4xx (except 408/429) |
 | `EMBEDDING_SCHEMA_MISMATCH` | DB declaration differs from `vector(1536)` |
 | `EMBEDDING_OUTPUT_INVALID` | Invalid model output, count, or indices |
 | `EMBEDDING_DATA_INVALID` | Invalid stored PLOG vector |
 
 Q&A and Study keep their existing public errors: configuration/schema errors use HTTP 400 `VALIDATION_ERROR` or SSE `LLM_CONFIGURATION_ERROR`; output/stored-data errors use HTTP 500 `INTERNAL_ERROR` or SSE `LLM_PROVIDER_ERROR`. Failed answers release reserved quota and do not commit Study progress. Worker jobs use the existing failure/retry handling.
+
+The worker propagates permanent provider rejections, including unsupported models or dimensions, through scene splitting and RAGAS; evaluations are recorded as failed. It does not log the provider's response body. Timeouts, rate limits, and server failures retain the existing best-effort fallback in those two paths.
 
 ## Existing data and future model changes
 

@@ -20,6 +20,8 @@ EMBEDDING_MODEL=text-embedding-3-small
 
 providerは前後空白を除去して小文字化し、空ならOpenAIを選びます。OpenAIでmodelが空なら `text-embedding-3-small` を使います。modelは前後空白を除去しますが大小文字は保持します。不明なproviderやOllamaのmodel未指定は設定エラーです。
 
+Wranglerは開発・本番とも `EMBEDDING_MODEL` を空にし、この既定値をアダプターで解決します。providerだけをOllamaに変更してもOpenAIのモデル名が補完されず、モデル未指定として検証で拒否されます。
+
 **破棄可能な新しい開発DB**ではOllamaも選べます。
 
 ```bash
@@ -76,12 +78,14 @@ DB検証の成功時は次のようなJSONが出力されます。
 
 | 内部理由 | 意味 |
 |---|---|
-| `EMBEDDING_CONFIG_INVALID` | 未対応provider・必須modelの未指定 |
+| `EMBEDDING_CONFIG_INVALID` | 未対応provider・必須modelの未指定・workerの埋め込み要求に対するHTTP 4xxの拒否（408/429を除く） |
 | `EMBEDDING_SCHEMA_MISMATCH` | DBの宣言型が `vector(1536)` と異なる |
 | `EMBEDDING_OUTPUT_INVALID` | モデル出力・件数・indexが不正 |
 | `EMBEDDING_DATA_INVALID` | 保存済みPLOGベクトルが不正 |
 
 Q&A・Studyの公開エラーは既存の分類を維持します。設定・スキーマ不整合はHTTP 400の `VALIDATION_ERROR` またはSSEの `LLM_CONFIGURATION_ERROR`、出力・保存データ不整合はHTTP 500の `INTERNAL_ERROR` またはSSEの `LLM_PROVIDER_ERROR` です。失敗した回答では予約済み利用枠を解放し、Studyの進捗を確定しません。workerは既存の失敗・再試行処理に接続します。
+
+workerは、非対応モデル・次元指定などに対する恒久的な拒否をシーン分割・RAGASの上位へ伝え、評価も失敗として記録します。providerのエラー本文はログに出しません。タイムアウト・利用制限・サーバー障害は、この2経路の既存フォールバックを維持します。
 
 ## 既存データと今後のモデル変更
 
