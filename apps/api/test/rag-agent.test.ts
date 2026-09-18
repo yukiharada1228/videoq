@@ -215,6 +215,31 @@ afterEach(() => {
   videoSelections.length = 0;
 });
 
+describe.each([false, true])("Q&A single-question contract (stream=%s)", (stream) => {
+  it.each([true, false])("ignores earlier turns even when supplied (course=%s)", async (course) => {
+    const bodies = stubOpenAi([{ content: "Which subject would you like an example of?" }], { stream });
+    const params = {
+      ...PARAMS,
+      ...(course ? {} : { ownerUserId: null, videoIds: [] }),
+      messages: [
+        { role: "user", content: "内積とは？" },
+        { role: "assistant", content: "The dot product is…" },
+        { role: "user", content: "具体例を教えて" },
+      ],
+    };
+    if (stream) {
+      for await (const _chunk of streamRag(ENV, params)) { /* consume the response */ }
+    } else {
+      await runRag(ENV, params);
+    }
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0].messages).toEqual([
+      expect.objectContaining({ role: "system" }),
+      expect.objectContaining({ role: "user", content: "具体例を教えて" }),
+    ]);
+  });
+});
+
 describe.each([false, true])("検索障害（stream=%s）", (stream) => {
   it.each([
     new LlmProviderError("Ollama embeddings unreachable"),

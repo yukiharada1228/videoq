@@ -597,6 +597,7 @@
     "feedbackGood": "Good",
     "feedbackBad": "Bad",
     "placeholder": "Type a message...",
+    "qaGuidance": "Q&A does not use earlier messages. Include the subject in each question. Example: “Give me an example of the dot product.”",
     "suggestedQuestions": "Suggested questions",
     "assistantGreeting": "Hello! Ask me anything about your videos.",
     "studyGreeting": "Study mode: I will guide you with questions instead of revealing answers, following lecture prerequisites.",
