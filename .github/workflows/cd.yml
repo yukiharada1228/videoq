@@ -30,6 +30,7 @@ jobs:
       api: ${{ steps.resolve.outputs.api }}
       worker: ${{ steps.resolve.outputs.worker }}
       migrate: ${{ steps.resolve.outputs.migrate }}
+      docs: ${{ steps.resolve.outputs.docs }}
     steps:
       # Read the policy from the trusted workflow revision, not the CI head SHA.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -123,6 +124,14 @@ jobs:
               - 'apps/api/scripts/stamp-baseline.mjs'
               - '.github/workflows/cd.yml'
               - '.github/scripts/**'
+            docs:
+              - 'apps/docs/**'
+              - 'docs/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/cd.yml'
+              - '.github/scripts/**'
       - name: Resolve deploy flags
         id: resolve
         run: |
@@ -130,11 +139,46 @@ jobs:
             echo "api=true" >> "$GITHUB_OUTPUT"
             echo "worker=true" >> "$GITHUB_OUTPUT"
             echo "migrate=true" >> "$GITHUB_OUTPUT"
+            echo "docs=true" >> "$GITHUB_OUTPUT"
           else
             echo "api=${{ steps.filter.outputs.api }}" >> "$GITHUB_OUTPUT"
             echo "worker=${{ steps.filter.outputs.worker }}" >> "$GITHUB_OUTPUT"
             echo "migrate=${{ steps.filter.outputs.migrate }}" >> "$GITHUB_OUTPUT"
+            echo "docs=${{ steps.filter.outputs.docs }}" >> "$GITHUB_OUTPUT"
           fi
+
+  docs-deploy:
+    name: Deploy Documentation (Cloudflare Workers)
+    runs-on: ubuntu-latest
+    environment: production-deploy
+    timeout-minutes: 15
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.changes.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+      - name: Install documentation dependencies
+        run: npm ci --workspace @videoq/docs
+      - name: Type check documentation
+        run: npm run typecheck --workspace @videoq/docs
+      # Rebuild the verified SHA, including changes from cancelled CI runs.
+      - name: Build documentation and check links
+        run: npm run build:docs
+      - name: Deploy documentation
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo "::error::Cloudflare deployment credentials are required"
+            exit 1
+          fi
+          npm run deploy --workspace @videoq/docs
 
   # DB スキーマは Drizzle（stamp + migrate）。manage.py migrate は廃止。
   db-migrate:

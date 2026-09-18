@@ -1,54 +1,54 @@
 ---
-title: 動画・講座・シーンの関係
-description: VideoQ を読むために最初に覚えるデータと利用者の役割。
+title: Videos, courses, and scenes
+description: The core data and user roles to learn first when exploring VideoQ.
 ---
 
-# 動画・講座・シーンの関係
+# Videos, courses, and scenes
 
-VideoQ では、**動画を登録し、講座にまとめ、その講座について質問する**のが基本の使い方です。まずこの3つを押さえると、画面やコードの名前を追いやすくなります。
+The basic VideoQ workflow is to **add videos, organize them into a course, and ask questions about that course**. Understanding these three steps makes screen and code names easier to follow.
 
-## 具体例で考える
+## A concrete example
 
-「開発環境の準備」と「APIの実装」という2本の動画を、「新メンバー向け研修」という講座に追加したとします。
+Suppose you add “Preparing the development environment” and “Implementing the API” to a course called “New team member training.”
 
-「APIはどう起動する？」と質問すると、VideoQは講座に含まれる動画の文字起こしを探します。回答に使った場面には時刻を付け、利用者が元の動画へ戻れるようにします。
+When you ask “How do I start the API?”, VideoQ searches transcripts of videos in that course. Scenes used in the answer include timestamps so you can return to the original video.
 
-| 名前 | 意味 | 例 |
+| Name | Meaning | Example |
 |---|---|---|
-| 動画（video） | 登録した1本の動画と、そのタイトル・文字起こし・処理状態 | 「APIの実装」 |
-| 講座（course） | 質問や共有の対象としてまとめた動画の集合 | 「新メンバー向け研修」 |
-| シーン（scene） | 開始・終了時刻を持つ文字起こしの区間 | 02:10〜02:40の起動手順 |
-| タグ（tag） | 動画を整理するラベル | 「入門」「バックエンド」 |
-| チャットログ | 質問・回答・引用元・フィードバックの記録 | 起動手順への回答 |
+| Video | One registered video with its title, transcript, and processing state | “Implementing the API” |
+| Course | A set of videos grouped for questions and sharing | “New team member training” |
+| Scene | A transcript segment with start and end times | Startup instructions from 02:10 to 02:40 |
+| Tag | A label for organizing videos | “Introduction”, “Backend” |
+| Chat log | A record of a question, answer, citations, and feedback | An answer explaining startup steps |
 
 ```mermaid
 flowchart LR
-    Course[講座] --> V1[動画1]
-    Course --> V2[動画2]
-    V1 --> S1[時刻付きのシーン]
-    V2 --> S2[時刻付きのシーン]
-    Question[利用者の質問] --> Course
-    S1 --> Answer[引用付きの回答]
+    Course[Course] --> V1[Video 1]
+    Course --> V2[Video 2]
+    V1 --> S1[Timestamped scenes]
+    V2 --> S2[Timestamped scenes]
+    Question[User question] --> Course
+    S1 --> Answer[Answer with citations]
     S2 --> Answer
 ```
 
-## 講座の「メンバー」には2つの意味がある
+## Course membership has two meanings
 
-コードを読むときは、動画と人を区別してください。
+Distinguish videos from people when reading the code:
 
-- `video_course_members`: **講座に含まれる動画**と表示順を管理する関連テーブル。
-- 講座への招待・参加: **講座を利用する人**のアクセス権を管理する機能。
+- `video_course_members`: A join table for the **videos included in a course** and their display order.
+- Course invitations and participation: Features that manage access for **people using a course**.
 
-動画を講座から外すことと、保存した動画そのものを削除することも別の操作です。
+Removing a video from a course and deleting the stored video itself are also separate operations.
 
-## 所有者・参加者・管理者
+## Owners, participants, and administrators
 
-動画や講座には所有者がいます。共有リンクや招待を使うと、他の人も許可された講座を利用できます。利用できる操作は、ログインの有無だけでなく、そのデータへのアクセス権で決まります。
+Videos and courses have owners. Share links and invitations let others use permitted courses. Available operations depend on access to the data, not just login status.
 
-管理者は利用者・利用上限・再索引などを管理します。**画面でボタンを隠すだけでは権限の確認になりません。** APIでも対象データへのアクセスを確認します。[認証と権限](auth.md)を参照してください。
+Administrators manage users, usage limits, reindexing, and related tasks. **Hiding a button does not enforce permissions.** The API must also check access to the target data. See [authentication and access control](auth.md).
 
-## Q&Aと学習モード
+## Q&A and study mode
 
-Q&Aは質問に答えるために場面を探します。学習モードは、PLOGという概念のつながりを使って、問いやヒントを提示します。同じ動画を使いますが、必要な準備データは異なります。
+Q&A finds scenes to answer questions. Study mode uses a graph of concepts called PLOG to present questions and hints. They use the same videos but require different prepared data.
 
-**次に読む:** [システムの全体像](../architecture/system-configuration-diagram.md)。テーブルの詳細を調べるときは[データ辞書](../database/data-dictionary.md)へ進みます。
+**Read next:** [System overview](../architecture/system-configuration-diagram.md). For table details, see the [data dictionary](../database/data-dictionary.md).

@@ -1,45 +1,45 @@
 ---
 slug: /
-sidebar_label: はじめに
-description: VideoQ に初めて参加する人のための、セットアップ・基本概念・開発ガイド。
+sidebar_label: Introduction
+description: Setup, core concepts, and development guides for new VideoQ contributors.
 ---
 
-# VideoQ 開発ドキュメント
+# VideoQ developer documentation
 
-VideoQ は、**動画の内容に質問し、根拠となる場面へすぐに戻れる学習アプリ**です。動画を講座にまとめて共有し、Q&Aや問い・ヒントを使った学習に利用できます。
+VideoQ is a **learning app that lets you ask questions about videos and jump straight to the scenes that support the answers**. Organize videos into courses, share them, and learn through Q&A or guided questions and hints.
 
-このサイトは、初めて開発に参加する人が、アプリを動かし、小さな変更を進められるようにするための案内です。すべての設計図を先に読む必要はありません。
+This site helps new contributors run the app and make their first small change. You do not need to read every design diagram before getting started.
 
-## 初めて参加したら
+## New to the project?
 
-次の順に進めると、使い方と実装が結び付きます。
+Follow these steps to connect the user experience with the implementation.
 
-| 順番 | 読むページ | ここまでできれば次へ |
+| Step | Page | Ready to move on when… |
 |---|---|---|
-| 1 | [開発環境を動かす](getting-started/local-setup.md) | ローカルにログインできる |
-| 2 | [動画を登録して質問する](getting-started/first-walkthrough.md) | 回答の引用から動画の場面へ戻れる |
-| 3 | [コードの場所を知る](getting-started/codebase.md) | 画面・API・動画処理の担当場所が分かる |
-| 4 | [最初の変更を進める](getting-started/first-change.md) | 小さな変更と、その確認結果をレビューに出せる |
+| 1 | [Run the development environment](getting-started/local-setup.md) | You can log in locally |
+| 2 | [Add a video and ask questions](getting-started/first-walkthrough.md) | You can follow an answer's citation to a scene in the video |
+| 3 | [Find your way around the code](getting-started/codebase.md) | You know where the UI, API, and video processing live |
+| 4 | [Make your first change](getting-started/first-change.md) | You can submit a small change with verification results for review |
 
-文書だけの変更なら、[ドキュメントを更新する](guides/documentation.md)から始められます。
+For documentation-only changes, start with [Update the documentation](guides/documentation.md).
 
-## まず知っておくこと
+## What to know first
 
-- **動画**は1本の教材、**講座**は質問・共有の対象となる動画のまとまりです。[データの関係を見る](concepts/domain-model.md)
-- 画面はReact、APIはHono、時間のかかる動画処理はPythonが担当します。[全体像を見る](architecture/system-configuration-diagram.md)
-- 動画の文字起こし・検索準備・学習用データの作成は順に進みます。登録直後にすべて使えるわけではありません。[状態の意味を見る](design/state-diagram.md)
+- A **video** is one learning resource; a **course** groups videos for questions and sharing. [See the data model](concepts/domain-model.md)
+- React handles the UI, Hono handles the API, and Python handles time-consuming video processing. [See the architecture](architecture/system-configuration-diagram.md)
+- Transcription, search preparation, and learning data generation happen in sequence. Not every feature is ready immediately after upload. [Understand the states](design/state-diagram.md)
 
-## 作業に合わせて読む
+## Find the guide for your task
 
-| やりたいこと | ガイド |
+| What you want to do | Guide |
 |---|---|
-| 画面・文言・フォームを変える | [画面を変更する](guides/frontend.md) |
-| 取得・更新するデータや操作を増やす | [APIを変更する](guides/api.md) |
-| テーブルや列を変更する | [DBを変更する](guides/database.md) |
-| 文字起こし・索引・学習データを変える | [動画の非同期処理を変更する](guides/worker.md) |
-| 変更が正しいか確かめる | [テストと確認コマンド](guides/testing.md) |
-| 起動や動画処理で困っている | [困ったとき](guides/troubleshooting.md) |
+| Change screens, copy, or forms | [Change the frontend](guides/frontend.md) |
+| Add data or operations to the API | [Change the API](guides/api.md) |
+| Change tables or columns | [Change the database](guides/database.md) |
+| Change transcription, indexing, or learning data | [Change asynchronous video processing](guides/worker.md) |
+| Verify a change | [Tests and verification commands](guides/testing.md) |
+| Troubleshoot startup or video processing | [Troubleshooting](guides/troubleshooting.md) |
 
-## 詳しく調べる
+## Explore the details
 
-必要になったときに、左の「設計リファレンス」から各図や仕様を参照してください。DBの名前は[データ辞書](database/data-dictionary.md)、略語は[用語集](reference/glossary.md)で確認できます。
+Use **Design reference** in the sidebar when you need a diagram or specification. Look up database names in the [data dictionary](database/data-dictionary.md) and abbreviations in the [glossary](reference/glossary.md).

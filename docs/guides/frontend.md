@@ -1,36 +1,36 @@
 ---
-title: 画面を変更する
-description: Reactのページ、翻訳、データ取得、Storybookの変更場所と確認方法。
+title: Change the frontend
+description: Where to edit React pages, translations, data fetching, and Storybook, and how to verify changes.
 ---
 
-# 画面を変更する
+# Change the frontend
 
-画面の変更は、表示を担当するコンポーネントと、データを取得するフックを分けて考えると追いやすくなります。前提は[開発環境](../getting-started/local-setup.md)の起動です。
+UI changes are easier to follow when you distinguish display components from data-fetching hooks. Start the [development environment](../getting-started/local-setup.md) first.
 
-## 編集内容からファイルを選ぶ
+## Choose files by the change you need
 
-| 変更したいこと | 主な場所 |
+| What you want to change | Main location |
 |---|---|
-| URLと画面の対応 | `apps/web/src/App.tsx` |
-| ページの表示 | `apps/web/src/pages/`、`components/` |
-| データの取得・更新 | `apps/web/src/hooks/` |
-| 日本語・英語の文言 | `apps/web/src/i18n/locales/` |
-| APIの型と操作 | `packages/trpc/src/` |
-| 読み込み中・失敗・空状態の見本 | 対象の `*.stories.tsx` |
+| URL-to-screen mapping | `apps/web/src/App.tsx` |
+| Page content | `apps/web/src/pages/`, `components/` |
+| Fetching and updating data | `apps/web/src/hooks/` |
+| English and Japanese copy | `apps/web/src/i18n/locales/` |
+| API types and operations | `packages/trpc/src/` |
+| Loading, error, and empty state examples | The relevant `*.stories.tsx` |
 
-## 開発サーバーを使う
+## Use the development server
 
-Composeの `web-dev` を使うか、ホストで次を実行します。両方ともポート3000を使うため、どちらか一方を選びます。
+Use Compose's `web-dev`, or run the following on the host. Both use port 3000, so choose one.
 
 ```bash
 VITE_API_URL=/api VITE_USE_S3_STORAGE=true npm run dev:web
 ```
 
-ホストのViteは通常、APIを `127.0.0.1:8787` に転送します。APIやDBはComposeで起動しておきます。
+The host Vite server normally proxies API requests to `127.0.0.1:8787`. Keep the API and database running in Compose.
 
-## データ取得は既存フックから読む
+## Start with existing data-fetching hooks
 
-タグ一覧なら `useTags.ts` に次の呼び出しがあります。
+For example, `useTags.ts` fetches tags with:
 
 ```tsx
 const tagsQuery = useQuery(
@@ -38,15 +38,15 @@ const tagsQuery = useQuery(
 );
 ```
 
-これはフック内での利用例です。TanStack Queryが取得結果・読み込み中・エラーの状態を管理し、tRPCが入力と出力の型を共有します。更新後は既存実装に合わせてキャッシュを更新するか、再取得します。
+This example runs inside a hook. TanStack Query manages results, loading, and errors; tRPC shares input and output types. After a mutation, update the cache or refetch according to the existing implementation.
 
-## ページを追加するとき
+## Add a page
 
-通常画面は `App.tsx` の `appPageRoutes` に追加し、`handle` で選択中のナビゲーションやレイアウト種別を指定します。ログイン関連は `AuthRouteLayout`、共有講座は専用の構成です。
+Add ordinary screens to `appPageRoutes` in `App.tsx`. Use `handle` to specify the active navigation item and layout type. Authentication pages use `AuthRouteLayout`; shared courses have their own setup.
 
-ページ側は本文を返します。共通ヘッダーやフッターをページごとに追加すると二重表示になるため、親レイアウトに任せます。
+Pages return their main content. Leave shared headers and footers to the parent layout to avoid rendering them twice.
 
-## 確認する
+## Verify
 
 ```bash
 npm run typecheck --workspace @videoq/web
@@ -54,6 +54,6 @@ npm run lint --workspace @videoq/web
 npm run build --workspace @videoq/web
 ```
 
-表示・操作はStorybookと実画面で確認します。成功時だけでなく、読み込み中・失敗・データが空の状態も扱います。手順は [Storybookの変更・レビュー](https://github.com/yukiharada1228/videoq/blob/main/apps/web/STORYBOOK.md)を参照してください。
+Check appearance and interactions in Storybook and the app. Cover loading, failure, and empty states as well as success. See [changing and reviewing Storybook](https://github.com/yukiharada1228/videoq/blob/main/apps/web/STORYBOOK.md).
 
-**関連:** [画面遷移](../requirements/screen-transition-diagram.md)、[テストの使い分け](testing.md)。
+**Related:** [Screen transitions](../requirements/screen-transition-diagram.md), [Tests and verification commands](testing.md).

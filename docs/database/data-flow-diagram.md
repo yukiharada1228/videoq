@@ -1,52 +1,52 @@
 ---
-title: データが保存される場所
-description: 動画ファイル、検索データ、質問と回答、認証情報の保管先。
+title: Where data is stored
+description: Storage locations for video files, search data, questions and answers, and authentication data.
 ---
 
-# データが保存される場所
+# Where data is stored
 
-動画ファイル本体と、動画についての情報は別の場所に保存されます。問題を調べるときは、どちらのデータを確認すべきかを切り分けます。
+Video files and information about those videos are stored separately. When investigating a problem, first identify which kind of data you need to inspect.
 
-## 動画から検索データへ
+## From video to search data
 
 ```mermaid
 flowchart LR
-    File[動画ファイル] --> Store[(R2 / MinIO)]
+    File[Video file] --> Store[(R2 / MinIO)]
     Store --> Worker[Python worker]
-    Worker --> Transcript[(videosの文字起こし)]
-    Transcript --> Index[埋め込みの生成]
+    Worker --> Transcript[(Transcript in videos)]
+    Transcript --> Index[Generate embeddings]
     Index --> Scenes[(scene_embeddings)]
-    Transcript --> Plog[PLOGの生成]
-    Plog --> Concepts[(概念・関係・問い)]
+    Transcript --> Plog[Generate PLOG]
+    Plog --> Concepts[(Concepts, edges, and questions)]
 ```
 
-`videos` はタイトル、所有者、ファイルへの参照、文字起こし、処理状態などを持ちます。ファイル本体をDBの行に保存する構成ではありません。
+`videos` stores the title, owner, file reference, transcript, processing state, and related metadata. The file itself is not stored in a DB row.
 
-`scene_embeddings` は文字起こしの区間を意味で検索するためのデータです。APIが質問を検索用の数値に変換し、許可された動画の中から近い場面を探します。
+`scene_embeddings` enables semantic search of transcript segments. The API converts questions into numeric search vectors and finds similar scenes within permitted videos.
 
-## 質問と回答
+## Questions and answers
 
 ```mermaid
 flowchart LR
-    Question[質問] --> Access[講座へのアクセスを確認]
-    Access --> Context[登録情報・字幕の検索]
-    Context --> Answer[回答と引用]
+    Question[Question] --> Access[Check course access]
+    Access --> Context[Retrieve metadata and subtitles]
+    Context --> Answer[Answer and citations]
     Answer --> Logs[(chat_logs)]
-    Logs --> Evaluation[非同期の回答評価]
+    Logs --> Evaluation[Asynchronous answer evaluation]
     Evaluation --> Scores[(chat_log_evaluations)]
 ```
 
-チャットの記録と、その回答を評価した結果は別のテーブルです。回答が返ったことと、評価が終わったことは分けて扱います。
+Chat records and answer evaluations use separate tables. Returning an answer and completing its evaluation are separate events.
 
-## その他の保存先
+## Other storage locations
 
-| データ | 保存先・管理する仕組み |
+| Data | Storage or management |
 |---|---|
-| ブラウザのログイン状態 | Better Authの `session` とブラウザCookie |
-| ユーザーが保存した外部APIキー | DB内に暗号化して保存 |
-| MCPのAPIキー・OAuth | `apikey`、`oauth_*` など |
-| 未配送のジョブ | `external_tasks` |
-| workerの実行記録 | `job_executions` |
-| 学習モードの一時状態 | `STUDY_SESSION` Durable Object |
+| Browser login state | Better Auth `session` and browser cookies |
+| External API keys saved by users | Encrypted in the database |
+| MCP API keys and OAuth | `apikey`, `oauth_*`, and related tables |
+| Undelivered jobs | `external_tasks` |
+| Worker execution records | `job_executions` |
+| Temporary study mode state | `STUDY_SESSION` Durable Object |
 
-**関連:** [データ辞書](data-dictionary.md)、[ER図](er-diagram.md)、[ジョブの配送と回復](../architecture/flowchart.md)。
+**Related:** [Data dictionary](data-dictionary.md), [ER diagrams](er-diagram.md), [Job delivery and recovery](../architecture/flowchart.md).

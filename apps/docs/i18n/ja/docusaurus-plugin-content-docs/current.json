@@ -1,0 +1,42 @@
+{
+  "version.label": {
+    "message": "開発版",
+    "description": "The label for version current"
+  },
+  "sidebar.docs.category.Get started": {
+    "message": "はじめる",
+    "description": "The label for category 'Get started' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Core concepts": {
+    "message": "基本を理解する",
+    "description": "The label for category 'Core concepts' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Development guides": {
+    "message": "開発ガイド",
+    "description": "The label for category 'Development guides' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Design reference": {
+    "message": "設計リファレンス",
+    "description": "The label for category 'Design reference' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.API and processing": {
+    "message": "APIと処理",
+    "description": "The label for category 'API and processing' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Database": {
+    "message": "データベース",
+    "description": "The label for category 'Database' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Screens and features": {
+    "message": "画面と機能",
+    "description": "The label for category 'Screens and features' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Modules and state": {
+    "message": "モジュールと状態",
+    "description": "The label for category 'Modules and state' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Operations": {
+    "message": "運用",
+    "description": "The label for category 'Operations' in sidebar 'docs'"
+  }
+}

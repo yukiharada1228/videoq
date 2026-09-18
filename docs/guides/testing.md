@@ -1,69 +1,69 @@
 ---
-title: テストと確認コマンド
-description: 変更箇所ごとに必要な確認を選び、DB・ブラウザ・外部APIの前提を確認する。
+title: Tests and verification commands
+description: Choose checks for your change and understand database, browser, and external API prerequisites.
 ---
 
-# テストと確認コマンド
+# Tests and verification commands
 
-まず変更箇所に近いテストを実行し、API契約やDBを変えた場合は利用側まで確認します。すべてのテストが同じ実行環境で動くわけではありません。
+Start with tests close to the changed code. When changing API contracts or the database, also check their consumers. Not all tests run in the same environment.
 
-## どれを実行するか
+## Which checks to run
 
-すべてリポジトリルートからのコマンドです。
+Run these commands from the repository root.
 
-| 変更箇所 | 確認コマンド | 前提 |
+| Changed area | Commands | Prerequisites |
 |---|---|---|
-| TypeScriptの共有契約 | `npm run typecheck` | `npm ci` 済み |
-| 画面 | `npm run lint` / `npm run test:web` / `npm run build` | Node.js |
-| API | `npm run test:api` | Node.jsとWorkersのテスト実行環境 |
-| DB定義 | `npm run db:check` / `npm run db:verify` | 生成したmigration |
-| UIの操作と見た目 | `npm run test:storybook` / `npm run build:storybook` | Chromium |
-| 文書 | `npm run build:docs` | Node.js |
+| Shared TypeScript contracts | `npm run typecheck` | Dependencies installed with `npm ci` |
+| Frontend | `npm run lint` / `npm run test:web` / `npm run build` | Node.js |
+| API | `npm run test:api` | Node.js and the Workers test runtime |
+| DB schema | `npm run db:check` / `npm run db:verify` | Generated migrations |
+| UI interactions and appearance | `npm run test:storybook` / `npm run build:storybook` | Chromium |
+| Documentation | `npm run build:docs` | Node.js; builds English and Japanese |
 
-`npm test` はAPIとフロントエンドのテストを実行します。PythonとStorybookのテストは別コマンドです。
+`npm test` runs API and frontend tests. Python and Storybook tests use separate commands.
 
-## APIの単体テストを絞る
+## Run selected API unit tests
 
 ```bash
 npm run test:unit --workspace @videoq/api -- test/rag-agent.test.ts
 ```
 
-APIの通常の `test` は、単体テストの後にWorkers環境のテストも実行します。Workers側だけなら次のコマンドです。
+The API's regular `test` command runs unit tests followed by Workers runtime tests. To run only the Workers tests:
 
 ```bash
 npm run test:workers --workspace @videoq/api
 ```
 
-## DB統合テスト
+## Database integration tests
 
-一部のテストは実際のPostgreSQLとpgvectorを使います。`QUOTA_TEST_DATABASE_URL` を指定しない場合にスキップされるテストがあるため、単体テストの成功だけでDBの挙動まで確認できたとは判断しません。
+Some tests use real PostgreSQL and pgvector. Tests may be skipped when `QUOTA_TEST_DATABASE_URL` is unset, so passing unit tests alone does not verify database behavior.
 
 ```bash
 QUOTA_TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:55432/postgres npm run test:api
 ```
 
-上記は標準ローカル接続先の例です。**検証用DBだけを指定してください。** テストによってDB・スキーマを作成して後片付けするため、接続ユーザーにはテストDBの作成権限も必要です。
+This uses the default local connection as an example. **Use a test database only.** Some tests create and clean up databases or schemas, so the connection user also needs permission to create test databases.
 
-## 画面・Storybook
+## Frontend and Storybook
 
-特定のフックを確認する例です。
+For example, to check a specific hook:
 
 ```bash
 npm test --workspace @videoq/web -- src/hooks/__tests__/useTags.test.ts
 ```
 
-Storybookの操作テストには、先にChromiumを導入します。
+Install Chromium before running Storybook interaction tests:
 
 ```bash
 npm exec --workspace @videoq/web -- playwright install chromium
 npm run test:storybook
 ```
 
-画面遷移や親レイアウトを変更した場合は `src/__tests__/App.navigation.test.tsx` と `Application/Navigation` のStoryも確認します。
+If you change navigation or parent layouts, also check `src/__tests__/App.navigation.test.tsx` and the `Application/Navigation` story.
 
 ## Python worker
 
-Python 3.12以上で、専用の仮想環境を作ります。次のコマンドだけは `apps/worker/` に移動して実行します。
+Create a dedicated virtual environment with Python 3.12 or later. For these commands only, switch to `apps/worker/`:
 
 ```bash
 cd apps/worker
@@ -73,16 +73,16 @@ python -m pip install -e '.[dev]'
 python -m pytest tests/ -q
 ```
 
-DBを使うworkerテストには、テスト用の `DATABASE_URL` が必要です。個別のテストの前提も確認してください。
+Worker tests that use the database need a test `DATABASE_URL`. Check each test's prerequisites as well.
 
-## 実モデルを使うテスト
+## Tests using real models
 
-通常のCIとは別に、モデルが検索ツールを適切に選ぶかを確認するテストがあります。
+Separate from normal CI, a test verifies that a model chooses search tools appropriately:
 
 ```bash
 RAG_SELECTION_LIVE=1 npm run test:unit --workspace @videoq/api -- test/rag-agent-selection.live.test.ts
 ```
 
-これはOpenAI互換APIへ実際に接続し、利用料金が発生します。`OPENAI_API_KEY`、`OPENAI_BASE_URL`、`LLM_MODEL` は環境変数またはAPIの `.dev.vars` から読みます。初回参加時の必須手順ではありません。
+This connects to a real OpenAI-compatible API and incurs usage charges. It reads `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `LLM_MODEL` from environment variables or the API's `.dev.vars`. It is not required for first-time setup.
 
-**関連:** [最初の変更](../getting-started/first-change.md)、[困ったとき](troubleshooting.md)。
+**Related:** [Make your first change](../getting-started/first-change.md), [Troubleshooting](troubleshooting.md).

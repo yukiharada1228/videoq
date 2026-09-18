@@ -1,56 +1,56 @@
 ---
-title: コードの場所を知る
-description: 画面・API・Python worker・共有契約の責任範囲と、コードを読む順番。
+title: Find your way around the code
+description: Responsibilities of the frontend, API, Python worker, and shared contracts, with a suggested reading order.
 ---
 
-# コードの場所を知る
+# Find your way around the code
 
-VideoQ の中心は、画面を表示する `web`、リクエストに応答する `api`、時間のかかる処理を実行する `worker` の3つです。
+VideoQ has three main parts: `web` displays the UI, `api` responds to requests, and `worker` runs time-consuming tasks.
 
-## 最初に覚えるディレクトリ
+## Directories to learn first
 
-| 場所 | 担当すること | ここを変更する例 |
+| Location | Responsibility | Example changes |
 |---|---|---|
-| `apps/web/` | Reactの画面と利用者の操作 | 動画一覧の表示、フォーム、チャットUI |
-| `apps/api/` | 認証、権限、業務処理、DBアクセス | 動画取得、講座編集、利用量の確認 |
-| `packages/trpc/` | 画面とAPIが共有する呼び出し名・入力・出力の型 | APIに項目や操作を追加する |
-| `apps/worker/` | Pythonの非同期処理 | 文字起こし、索引、PLOG生成 |
-| `docs/` | このサイトの本文 | 操作や設計の説明を直す |
-| `apps/docs/` | 文書サイトの設定 | メニュー、検索、スタイル |
-| `infra/` | 本番基盤・デプロイの資料と設定 | 運用構成を確認する |
+| `apps/web/` | React screens and user interactions | Video lists, forms, chat UI |
+| `apps/api/` | Authentication, authorization, business logic, and DB access | Fetching videos, editing courses, checking usage |
+| `packages/trpc/` | Procedure names and input/output types shared by the UI and API | Adding fields or operations to the API |
+| `apps/worker/` | Asynchronous Python processing | Transcription, indexing, PLOG generation |
+| `docs/` | English documentation | Updating instructions and design explanations |
+| `apps/docs/` | Documentation site configuration and Japanese translations | Menus, search, styles, translations |
+| `infra/` | Production infrastructure configuration and deployment documentation | Reviewing the operational setup |
 
-Node.jsの依存関係はルートの `package-lock.json`、Python workerは `apps/worker/pyproject.toml` と `uv.lock` で管理します。
+Node.js dependencies use the root `package-lock.json`. The Python worker uses `apps/worker/pyproject.toml` and `uv.lock`.
 
-## 1つの操作を端から追う
+## Trace one operation from end to end
 
-最初は、動画処理より小さい「タグ一覧の取得」を読むと役割が分かります。
+Start with fetching the tag list, which is smaller than the video processing pipeline.
 
 ```mermaid
 flowchart LR
-    UI[画面の操作] --> Hook[useTags]
+    UI[User interaction] --> Hook[useTags]
     Hook --> Contract[tags.list]
-    Contract --> Handler[APIのハンドラー]
-    Handler --> Service[タグのサービス]
-    Service --> Repo[DBへの問い合わせ]
+    Contract --> Handler[API handler]
+    Handler --> Service[Tag service]
+    Service --> Repo[Database query]
 ```
 
-| 順番 | ファイル | 見るポイント |
+| Step | File | What to look for |
 |---|---|---|
-| 1 | [useTags.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/web/src/hooks/useTags.ts) | 画面がデータを取得・更新する入口 |
-| 2 | [routers/tags.ts](https://github.com/yukiharada1228/videoq/blob/main/packages/trpc/src/routers/tags.ts) | `tags.list` の入力、出力、ログイン要件 |
-| 3 | [media-library.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/trpc/handlers/media-library.ts) | 利用者IDを使ってサービスを呼ぶ部分 |
-| 4 | [tags/service.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/features/tags/service.ts) | タグの操作を組み立てる部分 |
-| 5 | [tag-repository.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/tag-repository.ts) | 利用者の範囲に絞ってDBを読む部分 |
+| 1 | [useTags.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/web/src/hooks/useTags.ts) | Where the UI fetches and updates data |
+| 2 | [routers/tags.ts](https://github.com/yukiharada1228/videoq/blob/main/packages/trpc/src/routers/tags.ts) | Inputs, outputs, and login requirements for `tags.list` |
+| 3 | [media-library.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/trpc/handlers/media-library.ts) | Calling the service with the user ID |
+| 4 | [tags/service.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/features/tags/service.ts) | Coordinating tag operations |
+| 5 | [tag-repository.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/tag-repository.ts) | Reading the DB within the user's scope |
 
-ここでいう「契約」は、呼び出し側とAPIが守る入力・出力の約束です。共有契約から型が伝わるので、変更すると影響先を型チェックで確認できます。
+A **contract** is the input/output agreement between the caller and the API. Types flow from the shared contract, so type checking reveals which callers are affected by a change.
 
-## 次に読む入口
+## Where to read next
 
-- **画面:** [App.tsx](https://github.com/yukiharada1228/videoq/blob/main/apps/web/src/App.tsx) → `pages/` → `hooks/`。
-- **API:** [app.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/app.ts) → `trpc/context.ts` → `trpc/handlers/`。
-- **動画処理:** [tasks/registry.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/registry.py) → `tasks/transcription.py` → `tasks/indexing.py`。
-- **DB:** [schema/index.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/index.ts) → `modern.ts` と `better-auth.ts`。
+- **Frontend:** [App.tsx](https://github.com/yukiharada1228/videoq/blob/main/apps/web/src/App.tsx) → `pages/` → `hooks/`.
+- **API:** [app.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/app.ts) → `trpc/context.ts` → `trpc/handlers/`.
+- **Video processing:** [tasks/registry.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/registry.py) → `tasks/transcription.py` → `tasks/indexing.py`.
+- **Database:** [schema/index.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/index.ts) → `modern.ts` and `better-auth.ts`.
 
-Cloudflare **Workers** はAPIの実行基盤、`apps/worker` は **Pythonの動画処理** です。名前は似ていますが、別のプログラムです。
+Cloudflare **Workers** is the API runtime. `apps/worker` is the **Python video processing service**. They are separate programs with similar names.
 
-**次に読む:** [最初の変更を進める](first-change.md)。全体の配置を確認したい場合は[システムの全体像](../architecture/system-configuration-diagram.md)へ進みます。
+**Read next:** [Make your first change](first-change.md). For the deployment layout, see the [system overview](../architecture/system-configuration-diagram.md).

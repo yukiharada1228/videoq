@@ -1,40 +1,40 @@
 ---
-title: 用語集
-description: VideoQ のコードや文書に出てくる略語を、このプロジェクトでの役割から説明する。
+title: Glossary
+description: Abbreviations and terminology in VideoQ, explained through their role in the project.
 ---
 
-# 用語集
+# Glossary
 
-すべてを覚える必要はありません。初めて出てきた言葉を、このプロジェクトでの役割に結び付けるためのページです。
+You do not need to memorize everything. Use this page to connect unfamiliar terms with their role in the project.
 
-| 用語 | VideoQでの意味 |
+| Term | Meaning in VideoQ |
 |---|---|
-| API | 画面や外部ツールからの要求を受け、権限を確認してデータや処理結果を返す部分 |
-| Hono | APIのHTTPリクエストや共通処理を組み立てるフレームワーク |
-| tRPC / procedure | TypeScriptの型を共有するAPIの仕組み / `videos.get` のような1つの操作 |
-| Zod | 受け取った値・返す値の形を検査するライブラリ |
-| TanStack Query | 画面でのデータ取得、キャッシュ、読み込みやエラー状態を管理するライブラリ |
-| Drizzle / migration | DB定義・問い合わせのための道具 / DBの構造やデータを更新する変更履歴 |
-| repository | DBの読み書きをまとめたコード。Gitリポジトリとは文脈が異なる |
-| service | 権限確認やDB・外部サービスへの操作を組み立てる業務処理 |
-| Cloudflare Workers | Hono APIが動く本番の実行基盤 |
-| Python worker | `apps/worker` にある、文字起こしなどの非同期処理プログラム |
-| SQS / ElasticMQ | ジョブを受け渡すキュー / ローカルで使うSQS互換のキュー |
-| R2 / MinIO | 動画ファイルなどの保管先 / ローカルで使う互換ストレージ |
-| Neon / PostgreSQL | 本番で使うDBサービス / その基盤となるデータベース |
-| Hyperdrive | Cloudflare WorkersからPostgreSQLへ接続するための仕組み |
-| Durable Object（DO） | 状態を持つCloudflareの実行単位。利用制限、学習セッション、ジョブ回復の予約に使用 |
-| embedding（埋め込み） | 文章の意味を比較できるようにした数値の配列。APIの質問とworkerの字幕で同じモデル・次元を使う |
-| pgvector | PostgreSQLで埋め込みを保存・検索する拡張 |
-| RAG | 関連資料を検索してから回答を作る方式。VideoQでは動画の字幕や登録情報を参照する |
-| LLM | 回答や概念の生成に使う言語モデル |
-| PLOG | 学習する概念と、その前提関係を表すグラフ。問い・ヒントと組み合わせて学習モードに使う |
-| outbox | 業務データと同じDBに「あとで配送するジョブ」を記録し、配送漏れを回復できるようにする仕組み |
-| 冪等性 | 同じ処理を再実行しても、意図しない重複などを生まない性質 |
-| lease（リース） | 一定時間だけ処理の実行権を確保する仕組み。処理停止後に再試行できるよう期限を持つ |
-| SSE | サーバーからブラウザへ順次データを送る通信方式。チャット回答の逐次表示に使用 |
-| MCP | AIアシスタントなどの外部クライアントがツールを呼び出すためのプロトコル |
-| OAuth / scope | 外部クライアントにアクセスを許可する仕組み / 許可する操作の範囲 |
-| quota（クォータ） | 保存容量・動画処理時間・AI回答数などの利用上限 |
+| API | Receives requests from the UI or external tools, checks permissions, and returns data or processing results |
+| Hono | The framework for HTTP requests and shared API middleware |
+| tRPC / procedure | An API mechanism sharing TypeScript types / one operation such as `videos.get` |
+| Zod | A library for validating the shapes of inputs and outputs |
+| TanStack Query | Manages frontend data fetching, caching, loading, and error states |
+| Drizzle / migration | Tools for DB definitions and queries / a recorded change to DB structure or data |
+| Repository | Code that groups DB reads and writes; distinct from a Git repository |
+| Service | Business logic coordinating permission checks, DB operations, and external services |
+| Cloudflare Workers | The production runtime for the Hono API |
+| Python worker | The asynchronous processing program in `apps/worker`, handling transcription and other jobs |
+| SQS / ElasticMQ | The job queue / an SQS-compatible local queue |
+| R2 / MinIO | Storage for video files and other objects / compatible local storage |
+| Neon / PostgreSQL | The production database service / its underlying database |
+| Hyperdrive | Connects Cloudflare Workers to PostgreSQL |
+| Durable Object (DO) | A stateful Cloudflare execution unit, used for rate limits, study sessions, and job recovery scheduling |
+| Embedding | A numeric array for comparing text meaning. API questions and worker subtitles must use the same model and dimensions |
+| pgvector | A PostgreSQL extension for storing and searching embeddings |
+| RAG | Retrieval-augmented generation: finding relevant material before producing an answer. VideoQ refers to video subtitles and metadata |
+| LLM | A language model used to generate answers and concepts |
+| PLOG | A graph of learning concepts and their prerequisites, used with questions and hints in study mode |
+| Outbox | Records jobs awaiting delivery in the same DB as business data, enabling recovery from missed dispatches |
+| Idempotency | The property of avoiding unintended duplicates or other effects when repeating an operation |
+| Lease | A time-limited right to execute work, allowing retries after a process stops |
+| SSE | Server-Sent Events: streams data from the server to the browser for incremental chat answers |
+| MCP | A protocol that lets external clients such as AI assistants call tools |
+| OAuth / scope | A mechanism for authorizing external client access / the range of permitted operations |
+| Quota | Usage limits such as storage capacity, video processing time, and AI answer counts |
 
-**次に読む:** [動画・講座・シーンの関係](../concepts/domain-model.md)、[コードの場所](../getting-started/codebase.md)。
+**Read next:** [Videos, courses, and scenes](../concepts/domain-model.md), [Find your way around the code](../getting-started/codebase.md).

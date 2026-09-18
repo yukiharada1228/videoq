@@ -1,14 +1,14 @@
-# ER図の読み方
+# Reading the ER diagrams
 
-テーブル同士がどうつながるかを調べるページです。まず[動画・講座・シーン](../concepts/domain-model.md)の意味を確認すると読みやすくなります。
+Use this page to understand table relationships. Start with [videos, courses, and scenes](../concepts/domain-model.md) to learn what the entities mean.
 
-## 記号の意味
+## Symbols
 
-`||` は1つ、`o{` は0個以上、`o|` は0個または1つを表します。例えば `USERS ||--o{ VIDEOS` は、1人の利用者が複数の動画を持てる関係です。
+`||` means one, `o{` means zero or more, and `o|` means zero or one. For example, `USERS ||--o{ VIDEOS` means one user can own multiple videos.
 
-以下は主要な関係を目的別に分けた図です。全列・全制約の一覧ではありません。列の詳細は[データ辞書](data-dictionary.md)からスキーマ定義へ進んで確認してください。
+The diagrams group key relationships by purpose. They do not list every column or constraint. Follow the [data dictionary](data-dictionary.md) to schema definitions for column details.
 
-## 動画と講座
+## Videos and courses
 
 ```mermaid
 erDiagram
@@ -21,9 +21,9 @@ erDiagram
     TAGS ||--o{ VIDEO_TAGS : labels
 ```
 
-`VIDEO_COURSE_MEMBERS` は講座と動画を結びます。タグも `VIDEO_TAGS` を介して動画と結びます。同じ関係の重複は一意制約で防ぎます。
+`VIDEO_COURSE_MEMBERS` connects courses to videos. Tags connect to videos through `VIDEO_TAGS`. Unique constraints prevent duplicate relationships.
 
-## 人の参加と認証
+## User participation and authentication
 
 ```mermaid
 erDiagram
@@ -35,9 +35,9 @@ erDiagram
     VIDEO_COURSES ||--o{ VIDEO_COURSE_INVITATIONS : invites
 ```
 
-`VIDEO_COURSE_MEMBERSHIPS` は人の参加情報です。上の図の `VIDEO_COURSE_MEMBERS`（動画の所属）とは別のテーブルです。認証関連の完全な定義は [better-auth.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/better-auth.ts)で確認します。
+`VIDEO_COURSE_MEMBERSHIPS` stores people's participation. It is distinct from `VIDEO_COURSE_MEMBERS` above, which stores videos' course associations. See [better-auth.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/better-auth.ts) for the full authentication schema.
 
-## 質問と評価
+## Questions and evaluations
 
 ```mermaid
 erDiagram
@@ -46,9 +46,9 @@ erDiagram
     CHAT_LOGS ||--o| CHAT_LOG_EVALUATIONS : evaluated
 ```
 
-質問・回答・引用はチャットログ、品質評価は別の記録です。回答が返った時点で評価が完了しているとは限りません。
+Questions, answers, and citations live in chat logs; quality evaluations are separate records. Evaluation may not be complete when the answer is returned.
 
-## 動画から作る学習データ
+## Learning data generated from videos
 
 ```mermaid
 erDiagram
@@ -60,10 +60,10 @@ erDiagram
     PLOG_CONCEPTS ||--o{ PLOG_LEARNING_OBJECTS : has
 ```
 
-1つの関係には出発点と到着点の概念があります。どちらの概念が削除された場合にどう扱うかなどは、外部キーと削除時の制約を確認します。
+Each edge has a source and target concept. Check foreign keys and deletion constraints to understand what happens when either concept is deleted.
 
-## 変更する前に
+## Before changing the schema
 
-業務データの定義は [modern.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/modern.ts)が基準です。利用者や動画を削除した場合の関連行の扱い、重複を防ぐ制約、検索のindexを合わせて確認します。
+[modern.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/modern.ts) is the source of truth for business data. Check related-row handling when users or videos are deleted, duplicate-prevention constraints, and query indexes together.
 
-**関連:** [DBを変更する](../guides/database.md)、[データが保存される場所](data-flow-diagram.md)。
+**Related:** [Change the database](../guides/database.md), [Where data is stored](data-flow-diagram.md).

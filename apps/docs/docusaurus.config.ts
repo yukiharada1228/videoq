@@ -4,7 +4,7 @@ import type {PluginOptions as SearchOptions} from '@easyops-cn/docusaurus-search
 
 const config: Config = {
   title: 'VideoQ Docs',
-  tagline: '初めての参加から、日々の開発まで',
+  tagline: 'From your first contribution to everyday development',
   url: process.env.DOCS_URL ?? 'https://docs.videoq.jp',
   baseUrl: process.env.DOCS_BASE_URL ?? '/',
   trailingSlash: true,
@@ -15,8 +15,12 @@ const config: Config = {
   onBrokenAnchors: 'throw',
   onDuplicateRoutes: 'throw',
   i18n: {
-    defaultLocale: 'ja',
-    locales: ['ja'],
+    defaultLocale: 'en',
+    locales: ['en', 'ja'],
+    localeConfigs: {
+      en: {label: 'English'},
+      ja: {label: '日本語'},
+    },
   },
   markdown: {
     // Keep GitHub-compatible .md documents; opt into React with .mdx files.
@@ -36,8 +40,12 @@ const config: Config = {
           path: '../../docs',
           routeBasePath: '/',
           sidebarPath: './sidebars.ts',
-          editUrl: ({docPath}) =>
-            `https://github.com/yukiharada1228/videoq/edit/main/docs/${docPath}`,
+          editUrl: ({locale, docPath}) => {
+            const docsPath = locale === 'ja'
+              ? 'apps/docs/i18n/ja/docusaurus-plugin-content-docs/current'
+              : 'docs';
+            return `https://github.com/yukiharada1228/videoq/edit/main/${docsPath}/${docPath}`;
+          },
         },
         blog: false,
         pages: false,
@@ -64,9 +72,10 @@ const config: Config = {
     navbar: {
       title: 'VideoQ Docs',
       items: [
-        {type: 'doc', docId: 'getting-started/local-setup', label: 'はじめる', position: 'left'},
-        {type: 'doc', docId: 'guides/frontend', label: '開発ガイド', position: 'left'},
-        {type: 'doc', docId: 'reference/glossary', label: '用語集', position: 'left'},
+        {type: 'doc', docId: 'getting-started/local-setup', label: 'Get started', position: 'left'},
+        {type: 'doc', docId: 'guides/frontend', label: 'Development guides', position: 'left'},
+        {type: 'doc', docId: 'reference/glossary', label: 'Glossary', position: 'left'},
+        {type: 'localeDropdown', position: 'right'},
         {href: 'https://videoq.jp', label: 'VideoQ', position: 'right'},
         {href: 'https://github.com/yukiharada1228/videoq', label: 'GitHub', position: 'right'},
       ],
@@ -77,8 +86,8 @@ const config: Config = {
         {
           title: 'VideoQ',
           items: [
-            {label: 'アプリを開く', href: 'https://videoq.jp'},
-            {label: 'ソースコード', href: 'https://github.com/yukiharada1228/videoq'},
+            {label: 'Open the app', href: 'https://videoq.jp'},
+            {label: 'Source code', href: 'https://github.com/yukiharada1228/videoq'},
           ],
         },
       ],

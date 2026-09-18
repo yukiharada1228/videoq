@@ -1,61 +1,61 @@
 ---
-title: 動画を登録して質問する
-description: 短い動画で VideoQ の基本操作と処理結果を確かめる。
+title: Add a video and ask questions
+description: Try VideoQ's core workflow and check the results using a short video.
 ---
 
-# 動画を登録して質問する
+# Add a video and ask questions
 
-VideoQ は、動画から文字起こしを作り、質問に関連する場面を探して回答する学習アプリです。まず1本の動画で「登録 → 講座 → 質問 → 引用元の再生」を体験します。
+VideoQ transcribes videos, finds scenes related to your questions, and answers based on them. Try the full workflow with one video: upload → course → question → play the cited scene.
 
-前提: [開発環境を動かす](local-setup.md)を終え、ローカルの画面にログインしていること。
+Prerequisite: Complete [Run the development environment](local-setup.md) and log in to the local app.
 
-## 1. 短い動画を登録する
+## 1. Add a short video
 
-動画ライブラリを開き、音声で内容を説明している短い動画をアップロードします。初回は、自分が内容を知っている動画が検証しやすいです。
+Open the video library and upload a short video with spoken explanations. A video whose content you already know makes the first check easier.
 
-YouTubeを使う場合は、先に設定画面で自分の SearchAPI キーを保存してからURLを登録します。ファイルのアップロードには SearchAPI は不要です。
+To import from YouTube, save your own SearchAPI key in settings before registering the URL. File uploads do not need SearchAPI.
 
-## 2. 処理完了を待つ
+## 2. Wait for processing
 
-動画は送信後すぐに質問できるとは限りません。裏側で次の処理が進みます。
+A video may not be ready for questions immediately after upload. The following steps run in the background.
 
 ```mermaid
 flowchart LR
-    A[動画を送る] --> B[音声を文字にする]
-    B --> C[場面ごとに検索用データを作る]
-    C --> D[質問に使える]
+    A[Submit video] --> B[Transcribe audio]
+    B --> C[Create searchable data for each scene]
+    C --> D[Ready for questions]
 ```
 
-動画の状態が `completed` になり、動画詳細で文字起こしを確認できれば検索の準備は完了です。状態が進まない場合は[動画処理の切り分け](../guides/troubleshooting.md)を参照してください。
+Search preparation is complete when the video status is `completed` and its transcript appears on the video detail screen. If the status stops progressing, see [video processing troubleshooting](../guides/troubleshooting.md).
 
-## 3. 講座に動画を追加する
+## 3. Add the video to a course
 
-講座を1つ作り、登録した動画を追加します。講座は「この範囲の動画について質問する」というまとまりです。動画の保存先を移す操作ではありません。
+Create a course and add the video. A course defines the set of videos you want to ask questions about; adding a video does not move its stored file.
 
-例えば「チームの開発環境」という講座に、セットアップの説明動画を追加します。動画と講座の関係は[基本のデータモデル](../concepts/domain-model.md)で説明しています。
+For example, add a setup tutorial video to a course called “Team development environment.” See the [core data model](../concepts/domain-model.md) for the relationship between videos and courses.
 
-## 4. 内容について質問する
+## 4. Ask about the content
 
-講座のチャットで、動画に含まれる内容を質問します。
+Ask a question in the course chat about something covered in the video.
 
-> この動画で説明しているセットアップの手順を教えて。
+> What are the setup steps explained in this video?
 
-回答の引用を選び、対応する動画の時刻に移動できるか確認します。回答が動画の内容に沿っていることと、引用先がその説明に対応していることを見ます。
+Select a citation in the answer and check that it jumps to the corresponding time in the video. Verify that the answer matches the content and that the cited scene supports the explanation.
 
-「この講座に動画は何本ある？」のような質問では、登録情報だけで回答できるため、場面の引用が付かないことがあります。
+Questions such as “How many videos are in this course?” can be answered from metadata alone, so they may not include scene citations.
 
-## 5. 学習モードを試す
+## 5. Try study mode
 
-Q&Aは自分の質問への回答、学習モード（Study）は概念に沿った問いとヒントを使う学習です。
+Q&A answers your own questions. **Study mode** guides learning with questions and hints organized around concepts.
 
-学習モードには **PLOG** という概念のつながりが必要です。PLOGは検索用データの作成後に別ジョブで生成されるので、動画が `completed` でも学習モードの準備が終わっているとは限りません。
+Study mode requires **PLOG**, a graph of connected concepts. PLOG is generated in a separate job after search data is created, so a video with status `completed` may not yet be ready for study mode.
 
-使えない場合は動画詳細のPLOG状態を確認します。概念が空、または学習順序を作れないグラフの場合も開始できません。[PLOGと学習モード](../plog/README.md)で条件を確認できます。
+If study mode is unavailable, check the PLOG status on the video detail screen. It also cannot start when there are no concepts or the graph cannot produce a learning order. See [PLOG and study mode](../plog/README.md) for the conditions.
 
-## ここまでで確認できること
+## What you should be able to verify
 
-- 自分の動画がライブラリに表示され、文字起こしが読める。
-- 講座に動画を追加できる。
-- 動画の内容について質問し、引用元の場面に移動できる。
+- Your video appears in the library and you can read its transcript.
+- You can add the video to a course.
+- You can ask about the content and jump to a cited scene.
 
-**次に読む:** [コードの場所を知る](codebase.md)。今試した操作がどのコードを通るか追ってみます。
+**Read next:** [Find your way around the code](codebase.md) to trace the operations you just tried.

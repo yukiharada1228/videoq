@@ -1,48 +1,48 @@
 ---
-title: 動画の非同期処理を変更する
-description: ジョブの入口、処理本体、再試行の考え方とローカルでの確認方法。
+title: Change asynchronous video processing
+description: Job entry points, pipeline implementation, retries, and local verification.
 ---
 
-# 動画の非同期処理を変更する
+# Change asynchronous video processing
 
-文字起こしや索引作成は時間がかかるため、APIの応答を待たせずにPython workerで実行します。APIは「この動画を処理してほしい」というジョブをキューへ送り、workerが受け取ります。
+Transcription and indexing take time, so the Python worker runs them without blocking API responses. The API submits a job requesting that a video be processed, and the worker consumes it from the queue.
 
-## 処理の入口
+## Processing entry points
 
-| 変更したいこと | 主な場所 |
+| What you want to change | Main location |
 |---|---|
-| ジョブの種類・データ形式 | `apps/worker/worker_python/contracts.py` |
-| ジョブ名と処理関数の対応 | `worker_python/tasks/registry.py` |
-| 状態更新・次のジョブへの受け渡し | `worker_python/tasks/` |
-| 文字起こし・検索用データ・PLOGの処理本体 | `worker_python/pipeline/` |
-| 重複実行の制御 | `worker_python/job_execution.py` |
-| AWS Lambdaの入口 | `worker_python/lambda_handler.py` |
+| Job types and payloads | `apps/worker/worker_python/contracts.py` |
+| Mapping job names to functions | `worker_python/tasks/registry.py` |
+| State updates and dispatching the next job | `worker_python/tasks/` |
+| Transcription, search data, and PLOG implementation | `worker_python/pipeline/` |
+| Duplicate execution control | `worker_python/job_execution.py` |
+| AWS Lambda entry point | `worker_python/lambda_handler.py` |
 
-ファイルの実体はすべて `apps/worker/` 配下にあります。API側のメッセージ形式は [job-message.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/job-message.ts)も確認します。
+All of these files are under `apps/worker/`. Also check the API's message format in [job-message.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/job-message.ts).
 
-## メッセージの形
+## Message format
 
 ```json
 {
   "type": "transcribe_video",
-  "job_id": "ジョブを識別するUUID",
+  "job_id": "a-uuid-identifying-the-job",
   "payload": {"video_id": 123}
 }
 ```
 
-上記は形式の例です。通常はAPIの操作でジョブを作り、手でキューへ投入する必要はありません。
+This illustrates the format. Normally, API operations create jobs; you do not need to submit queue messages manually.
 
-処理は概ね `transcribe_video` → `index_video_transcript` → `build_plog` の順です。検索可能な状態とPLOGの準備完了は分けて確認します。[動画の状態](../design/state-diagram.md)を参照してください。
+Processing generally follows `transcribe_video` → `index_video_transcript` → `build_plog`. Check search readiness separately from PLOG readiness. See [video states](../design/state-diagram.md).
 
-## 再試行を前提にする
+## Design for retries
 
-SQSは同じメッセージを複数回届ける可能性があります。workerは `job_id` の実行記録と期限付きの実行権を使い、完了した処理の重複を避けます。後続ジョブのIDも親ジョブから決定します。
+SQS may deliver the same message more than once. The worker uses execution records keyed by `job_id` and time-limited leases to avoid repeating completed work. Follow-up job IDs are also derived from the parent job.
 
-処理を追加するときは「途中で失敗して再実行されても、データや後続ジョブが重複しないか」を確認します。これを冪等性と呼びます。例外を握り潰すと再試行されず、状態だけが途中で残ることがあります。
+When adding processing, check whether retrying after a partial failure could duplicate data or downstream jobs. This property is called **idempotency**. Swallowing an exception can prevent retries and leave a job in an intermediate state.
 
-## ローカルで追う
+## Trace processing locally
 
-Pythonのコードを編集したら、起動中のworkerを再起動して読み直します。依存パッケージを変更した場合はイメージの再ビルドも必要です。
+Restart a running worker after editing Python code so it reloads the changes. Rebuild the image if dependencies changed.
 
 ```bash
 docker compose restart worker
@@ -53,8 +53,8 @@ docker compose logs --tail=100 worker
 docker compose logs -f worker
 ```
 
-画面から短い動画を登録し、対象の動画IDでログを追います。`Ctrl+C` でログ表示を止めてもworkerは動き続けます。文字起こし・埋め込み・PLOG生成を実行すると、設定した外部APIが呼ばれます。
+Upload a short video through the UI and follow its video ID in the logs. `Ctrl+C` stops log streaming but leaves the worker running. Transcription, embeddings, and PLOG generation call the configured external APIs.
 
-Pythonのテスト環境とコマンドは[テストの使い分け](testing.md)を参照してください。接続先やモデル設定は [worker README](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/README.md)にあります。
+See [tests and verification commands](testing.md) for the Python test environment. Connection and model settings are documented in the [worker README](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/README.md).
 
-**関連:** [ジョブの配送と回復](../architecture/flowchart.md)、[PLOGと学習モード](../plog/README.md)。
+**Related:** [Job delivery and recovery](../architecture/flowchart.md), [PLOG and study mode](../plog/README.md).

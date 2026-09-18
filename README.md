@@ -346,16 +346,25 @@ npm run build
 
 ### Documentation site
 
-The Docusaurus site reads the Markdown files in [`docs/`](docs/README.md) directly,
-with Japanese navigation, Mermaid diagrams, and local Japanese / English search.
+Read the published docs in [English](https://docs.videoq.jp/) or [日本語](https://docs.videoq.jp/ja/).
+
+The Docusaurus site reads English Markdown from [`docs/`](docs/README.md) and Japanese
+translations from `apps/docs/i18n/ja/docusaurus-plugin-content-docs/current/`.
+English is the default at `/`; the header language menu switches to Japanese at `/ja/`.
+Both languages include Mermaid diagrams and local full-text search.
+Documentation changes merged into `main` are automatically published by
+[CD](.github/workflows/cd.yml) after CI succeeds.
 
 ```bash
 npm run dev:docs      # http://localhost:3001
-npm run build:docs    # Static output: apps/docs/build
+npm run dev:docs -- --locale ja  # Japanese only: http://localhost:3001/ja/
+npm run build:docs    # Both languages: apps/docs/build
 npm run preview:docs  # Preview the build, including search, on port 3001
+npm run deploy:docs   # Build and publish the current working tree to docs.videoq.jp
 ```
 
-Search indexes are generated during the production build. See
+The development server runs one language at a time. Build and preview to check
+the language switcher and search; search indexes are generated during the build. See
 [`apps/docs/README.md`](apps/docs/README.md) for editing and hosting settings.
 
 ### Frontend and API on the host

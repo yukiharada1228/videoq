@@ -5,7 +5,7 @@ const sidebars: SidebarsConfig = {
     'README',
     {
       type: 'category',
-      label: 'はじめる',
+      label: 'Get started',
       collapsed: false,
       items: [
         'getting-started/local-setup',
@@ -16,7 +16,7 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: '基本を理解する',
+      label: 'Core concepts',
       items: [
         'concepts/domain-model',
         'architecture/system-configuration-diagram',
@@ -26,7 +26,7 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: '開発ガイド',
+      label: 'Development guides',
       items: [
         'guides/frontend',
         'guides/api',
@@ -39,11 +39,11 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: '設計リファレンス',
+      label: 'Design reference',
       items: [
         {
           type: 'category',
-          label: 'APIと処理',
+          label: 'API and processing',
           items: [
             'architecture/trpc-api',
             'architecture/flowchart',
@@ -53,12 +53,12 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: 'category',
-          label: 'データベース',
+          label: 'Database',
           items: ['database/er-diagram', 'database/data-dictionary', 'database/data-flow-diagram'],
         },
         {
           type: 'category',
-          label: '画面と機能',
+          label: 'Screens and features',
           items: [
             'requirements/use-case-diagram',
             'requirements/activity-diagram',
@@ -67,7 +67,7 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: 'category',
-          label: 'モジュールと状態',
+          label: 'Modules and state',
           items: [
             'design/component-diagram',
             'design/class-diagram',
@@ -79,7 +79,7 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: '運用',
+      label: 'Operations',
       items: ['design/deployment-diagram', 'billing/stripe-dashboard'],
     },
     'reference/glossary',

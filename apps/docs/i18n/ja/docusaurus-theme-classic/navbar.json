@@ -1,0 +1,26 @@
+{
+  "title": {
+    "message": "VideoQ Docs",
+    "description": "The title in the navbar"
+  },
+  "item.label.Get started": {
+    "message": "はじめる",
+    "description": "Navbar item with label Get started"
+  },
+  "item.label.Development guides": {
+    "message": "開発ガイド",
+    "description": "Navbar item with label Development guides"
+  },
+  "item.label.Glossary": {
+    "message": "用語集",
+    "description": "Navbar item with label Glossary"
+  },
+  "item.label.VideoQ": {
+    "message": "VideoQ",
+    "description": "Navbar item with label VideoQ"
+  },
+  "item.label.GitHub": {
+    "message": "GitHub",
+    "description": "Navbar item with label GitHub"
+  }
+}

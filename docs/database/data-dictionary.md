@@ -1,78 +1,78 @@
 ---
-title: データ辞書
-description: 目的からテーブルを探し、実際の列定義へ進むための一覧。
+title: Data dictionary
+description: Find tables by purpose and follow links to the actual column definitions.
 ---
 
-# データ辞書
+# Data dictionary
 
-調べたいデータがどのテーブルにあるかを探す一覧です。列の型・既定値・制約の完全な定義は [modern.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/modern.ts) と [better-auth.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/better-auth.ts)を確認してください。
+Use this list to find the table containing the data you need. For complete column types, defaults, and constraints, see [modern.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/modern.ts) and [better-auth.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/better-auth.ts).
 
-## 利用者と認証
+## Users and authentication
 
-| テーブル | 保存するもの |
+| Table | Stores |
 |---|---|
-| `users` | 利用者、利用上限、課金との関連、暗号化した外部APIキー |
-| `session` | Better Authのログインセッションと期限 |
-| `account` | パスワード認証やGoogleなどの認証先との対応 |
-| `verification` | メール確認・パスワード再設定などの検証情報 |
-| `apikey` | MCP用APIキーとアクセス範囲の情報 |
-| `jwks` | OAuthトークンの署名に使う鍵 |
-| `account_deletion_requests` | アカウント削除依頼 |
+| `users` | Users, quotas, billing relationships, and encrypted external API keys |
+| `session` | Better Auth login sessions and expiration |
+| `account` | Password credentials and identity-provider connections such as Google |
+| `verification` | Verification data for email confirmation, password resets, and related flows |
+| `apikey` | MCP API keys and access scopes |
+| `jwks` | Keys used to sign OAuth tokens |
+| `account_deletion_requests` | Account deletion requests |
 
-## 動画・講座・タグ
+## Videos, courses, and tags
 
-| テーブル | 保存するもの |
+| Table | Stores |
 |---|---|
-| `videos` | 動画のタイトル・所有者・ファイル参照・文字起こし・処理状態 |
-| `video_courses` | 講座、所有者、共有に関する設定 |
-| `video_course_members` | 講座に含める**動画**と表示順 |
-| `video_course_memberships` | 講座を利用する**人**の参加情報 |
-| `video_course_invitations` | 講座への招待と状態 |
-| `tags` / `video_tags` | 利用者のタグ / 動画との対応 |
+| `videos` | Video title, owner, file reference, transcript, and processing state |
+| `video_courses` | Courses, owners, and sharing settings |
+| `video_course_members` | **Videos** included in a course and their display order |
+| `video_course_memberships` | Membership information for **people** using a course |
+| `video_course_invitations` | Course invitations and their state |
+| `tags` / `video_tags` | User tags / their associations with videos |
 
-## 質問・回答・評価
+## Questions, answers, and evaluations
 
-| テーブル | 保存するもの |
+| Table | Stores |
 |---|---|
-| `chat_logs` | 質問・回答・引用・利用者のフィードバック |
-| `chat_log_evaluations` | 回答ごとの評価結果 |
-| `course_evaluation_snapshots` | 講座単位の評価集計 |
+| `chat_logs` | Questions, answers, citations, and user feedback |
+| `chat_log_evaluations` | Evaluation results for each answer |
+| `course_evaluation_snapshots` | Course-level evaluation aggregates |
 
-## 検索とPLOG
+## Search and PLOG
 
-| テーブル | 保存するもの・注意点 |
+| Table | Stores and caveats |
 |---|---|
-| `scene_embeddings` | 字幕の区間と検索用の埋め込み。現行のベクトル次元は1536 |
-| `plog_build_jobs` | 学習用データの生成状態 |
-| `plog_concepts` | 動画から抽出した概念 |
-| `plog_edges` | 概念同士の前提関係など |
-| `plog_learning_objects` | 最初の問い・ヒント・誤解の例など |
-| `plog_summary_nodes` | 階層要約用の定義。現行の簡略生成器では新規生成しない |
-| `learner_concept_states` | 学習状態用の定義。現行Studyの一時状態は別途Durable Objectに保存 |
+| `scene_embeddings` | Subtitle segments and search embeddings; currently 1536 dimensions |
+| `plog_build_jobs` | Learning data generation status |
+| `plog_concepts` | Concepts extracted from videos |
+| `plog_edges` | Prerequisites and other relationships between concepts |
+| `plog_learning_objects` | Initial questions, hints, example misconceptions, and related content |
+| `plog_summary_nodes` | Defined for hierarchical summaries; the current simplified generator does not populate it |
+| `learner_concept_states` | Defined for learning state; current Study temporary state is stored separately in a Durable Object |
 
-テーブルの存在と、現在の処理が書き込むことは別です。[PLOGの現行実装](../plog/README.md)も確認してください。
+A table's existence does not mean the current pipeline writes to it. See the [current PLOG implementation](../plog/README.md).
 
-## 配送・重複対策・課金
+## Delivery, duplicate protection, and billing
 
-| テーブル | 保存するもの |
+| Table | Stores |
 |---|---|
-| `external_tasks` | 外部へ配送する仕事と配送状態 |
-| `job_executions` | workerが受け取ったジョブの実行状態 |
-| `mcp_idempotency_records` | MCP操作の再実行による重複を防ぐ記録 |
-| `stripe_events` | 受信したStripeイベントの重複処理を防ぐ記録 |
+| `external_tasks` | Work to dispatch externally and its delivery state |
+| `job_executions` | Execution state of jobs received by the worker |
+| `mcp_idempotency_records` | Records preventing duplicate effects from repeated MCP operations |
+| `stripe_events` | Records preventing duplicate processing of received Stripe events |
 
 ## OAuth
 
-| テーブル | 保存するもの |
+| Table | Stores |
 |---|---|
-| `oauth_client` | 外部クライアントの登録情報 |
-| `oauth_resource` / `oauth_client_resource` | 対象APIと、クライアントに許可された対応 |
-| `oauth_access_token` / `oauth_refresh_token` | 発行したトークンと更新に関する情報 |
-| `oauth_consent` | 利用者がクライアントへ許可した範囲 |
-| `oauth_client_assertion` | クライアント認証の再利用を防ぐ情報 |
+| `oauth_client` | Registered external clients |
+| `oauth_resource` / `oauth_client_resource` | Target APIs and permitted client associations |
+| `oauth_access_token` / `oauth_refresh_token` | Issued tokens and refresh information |
+| `oauth_consent` | Scopes authorized by users for clients |
+| `oauth_client_assertion` | Information preventing reuse of client authentication assertions |
 
-## 共通の読み方
+## Common conventions
 
-利用者IDはtextのUUID、動画や講座などには数値IDを使います。日時は主にタイムゾーン付きで保存し、APIではUTCのISO-8601形式で扱います。関連行の削除や重複防止は、各テーブルの外部キー・一意制約を確認します。
+User IDs are UUIDs stored as text; videos, courses, and similar entities use numeric IDs. Timestamps are mostly stored with time zones and exposed by the API as UTC ISO-8601 values. Check each table's foreign keys and unique constraints for related-row deletion and duplicate prevention.
 
-**関連:** [ER図](er-diagram.md)、[DBを変更する](../guides/database.md)。
+**Related:** [ER diagrams](er-diagram.md), [Change the database](../guides/database.md).

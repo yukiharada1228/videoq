@@ -1,72 +1,72 @@
 ---
-title: 主要な通信の順序
-description: アップロード・ログイン・質問で、どの相手とどの順番で通信するか。
+title: Key request sequences
+description: The order of communication during uploads, login, and questions.
 ---
 
-# 主要な通信の順序
+# Key request sequences
 
-図は上から下へ時間が進みます。縦線は処理の担当、矢印は呼び出しや応答です。ネットワークログやAPIのコードを追うときに使います。
+Time moves from top to bottom. Vertical lines represent participants; arrows represent calls or responses. Use these diagrams when following network logs or API code.
 
-## ファイルのアップロード
+## File upload
 
 ```mermaid
 sequenceDiagram
-    participant User as ブラウザ
+    participant User as Browser
     participant API as Hono API
     participant DB as PostgreSQL
     participant Store as R2 / MinIO
     participant Queue as SQS / ElasticMQ
     participant Worker as Python worker
     User->>API: videos.requestUpload
-    API->>DB: 容量を予約・動画を作成
-    API-->>User: 署名付きアップロードURL
-    User->>Store: ファイル本体を送信
+    API->>DB: Reserve capacity and create video
+    API-->>User: Signed upload URL
+    User->>Store: Upload file
     User->>API: videos.confirmUpload
-    API->>Store: 送信したファイルを確認
-    API->>DB: 状態更新・配送予定を保存
-    API->>Queue: ジョブを送信
-    API-->>User: 登録結果
-    Queue->>Worker: 文字起こしジョブ
-    Worker->>DB: 文字起こし・処理結果を保存
+    API->>Store: Verify uploaded file
+    API->>DB: Update state and save delivery intent
+    API->>Queue: Send job
+    API-->>User: Registration result
+    Queue->>Worker: Transcription job
+    Worker->>DB: Save transcript and processing results
 ```
 
-APIが返す登録結果と、動画の処理完了は別です。後続の索引作成・PLOG生成は[状態遷移](state-diagram.md)を参照してください。
+The API's registration response and video processing completion are separate events. See [state transitions](state-diagram.md) for subsequent indexing and PLOG generation.
 
-## ブラウザのログイン
+## Browser login
 
 ```mermaid
 sequenceDiagram
-    participant User as ブラウザ
+    participant User as Browser
     participant Auth as Better Auth
     participant DB as PostgreSQL
-    User->>Auth: ログイン情報を送る
-    Auth->>DB: アカウントを検証
-    Auth->>DB: セッションを保存
-    Auth-->>User: セッションCookie
-    User->>Auth: Cookieを付けてセッションを確認
-    Auth-->>User: ログイン状態
+    User->>Auth: Submit login credentials
+    Auth->>DB: Validate account
+    Auth->>DB: Save session
+    Auth-->>User: Session cookie
+    User->>Auth: Check session with cookie
+    Auth-->>User: Login state
 ```
 
-Better AuthはAPIの `/api/auth/*` で動きます。MCP向けOAuthトークンの発行・更新とは別の経路です。
+Better Auth runs at the API's `/api/auth/*`. This is separate from issuing and refreshing OAuth tokens for MCP.
 
-## 講座への質問
+## Asking about a course
 
 ```mermaid
 sequenceDiagram
-    participant User as ブラウザ
-    participant API as チャット処理
+    participant User as Browser
+    participant API as Chat handler
     participant DB as PostgreSQL
-    participant AI as AIサービス
-    User->>API: 質問と講座を送る
-    API->>DB: 講座へのアクセスを確認
-    API->>AI: 質問に応じた情報取得を判断
-    AI-->>API: 登録情報・シーン検索を要求
-    API->>DB: 許可された範囲の情報を取得
-    API->>AI: 情報を渡して回答を生成
-    API-->>User: 回答を順次送信
-    API->>DB: 質問・回答・引用などを保存
+    participant AI as AI service
+    User->>API: Submit question and course
+    API->>DB: Check course access
+    API->>AI: Decide which information the question needs
+    AI-->>API: Request metadata or scene search
+    API->>DB: Fetch information within permitted scope
+    API->>AI: Provide information and generate answer
+    API-->>User: Stream answer
+    API->>DB: Save question, answer, and citations
 ```
 
-情報取得は必要に応じて繰り返されます。図はQ&Aの概略で、登録情報だけで回答する経路や非ストリーミングの応答もあります。
+Information retrieval repeats as needed. This is a Q&A overview; there are also metadata-only paths and non-streaming responses.
 
-**関連:** [認証とアクセス権](../concepts/auth.md)、[プロンプト設計](../architecture/prompt-engineering.md)。
+**Related:** [Authentication and access control](../concepts/auth.md), [Prompt design](../architecture/prompt-engineering.md).

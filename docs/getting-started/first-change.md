@@ -1,43 +1,43 @@
 ---
-title: 最初の変更を進める
-description: 小さな画面変更で、編集・確認・レビュー依頼の流れを体験する。
+title: Make your first change
+description: Practice editing, verification, and review with a small UI change.
 ---
 
-# 最初の変更を進める
+# Make your first change
 
-最初の変更には、担当タスクに関係する文言の改善や小さな表示修正が向いています。このページでは「タグを作る画面の説明文を改善する」を例に、作業の進め方を説明します。練習のためだけに機能の仕様を変える必要はありません。
+A copy improvement or small display fix related to your assigned task is a good first change. This guide uses improving the help text in the tag creation dialog as an example. You do not need to change feature behavior just for practice.
 
-## 1. 変更前に完了条件を決める
+## 1. Define done before you edit
 
-例えば「タグの用途が初めての人に伝わり、日本語と英語の両方で表示が崩れない」を完了条件にします。現在の画面と、関連するStorybookの表示を確認してから編集します。
+For example: “New users understand what tags are for, and the layout works in both English and Japanese.” Check the current screen and its Storybook stories before editing.
 
 ```bash
 git status --short
 git switch -c docs/improve-tag-help
 ```
 
-すでに作業ブランチがある場合はそのブランチを使います。未完了の変更がある場合は、今回の作業と混ざらないように確認してください。
+Use your existing working branch if you already have one. Check any unfinished changes so they do not get mixed into this task.
 
-## 2. 表示と文言の場所を探す
+## 2. Find the UI and its copy
 
 ```bash
 rg --files apps/web/src | rg 'TagCreateDialog|useTags'
 rg -n 'tag|タグ' apps/web/src/i18n/locales
 ```
 
-表示はコンポーネント、翻訳文言は `apps/web/src/i18n/locales/ja/translation.json` と `en/translation.json` にあります。両言語で同じキーを使います。
+Components control the display. Translations live in `apps/web/src/i18n/locales/ja/translation.json` and `en/translation.json`. Use the same keys in both languages.
 
-フォームの説明だけを直すなら、APIやDBを変更する必要はありません。APIへの入力も変える場合は[APIを変更する](../guides/api.md)で影響範囲を確認します。
+Updating form help text does not require API or DB changes. If you also change API inputs, review the scope in [Change the API](../guides/api.md).
 
-## 3. 利用者が見る状態を確認する
+## 3. Check the states users see
 
 ```bash
 npm run storybook
 ```
 
-[http://127.0.0.1:6006](http://127.0.0.1:6006)を開きます。日本語・英語、モバイル・デスクトップを切り替え、長い文言やエラー表示も確認します。実際の画面で操作を試す場合は、[開発環境](local-setup.md)の `web-dev` を使います。
+Open [http://127.0.0.1:6006](http://127.0.0.1:6006). Switch between English and Japanese, mobile and desktop, and check long text and error messages. To try interactions in the app, use `web-dev` from the [development environment](local-setup.md).
 
-## 4. 変更に合った確認をする
+## 4. Verify the change
 
 ```bash
 npm run typecheck --workspace @videoq/web
@@ -45,17 +45,17 @@ npm run lint --workspace @videoq/web
 npm run build --workspace @videoq/web
 ```
 
-操作や状態を変えた場合は、その挙動を確かめる既存テスト・Storyも更新します。文言だけの変更なら、同じ文言を比較するだけのテストを増やすより、表示確認を重視します。[テストの使い分け](../guides/testing.md)も参照してください。
+When changing interactions or state, update the existing tests and stories that cover that behavior. For copy-only changes, prioritize visual checks over adding tests that simply compare the same text. See [choosing the right checks](../guides/testing.md).
 
-## 5. レビューで判断できる状態にする
+## 5. Make the change ready for review
 
-差分を読み、今回の変更以外が入っていないか確認します。
+Read the diff and check for unrelated changes.
 
 ```bash
 git diff --check
 git diff
 ```
 
-レビュー依頼には「何に困っていたか」「どう変わるか」「何を確認したか」を記載します。画面の変更なら、変更後の画像やStory名もあると伝わります。利用者の手順が変わった場合は、同じ変更で文書も更新します。
+In the review request, describe the problem, the resulting behavior, and what you verified. For UI changes, include a screenshot or story name. Update the documentation in the same change if user instructions have changed.
 
-**次に読む:** 担当範囲に合わせて[画面](../guides/frontend.md)、[API](../guides/api.md)、[DB](../guides/database.md)、[動画処理](../guides/worker.md)のガイドへ進みます。
+**Read next:** Choose the guide for your area: [frontend](../guides/frontend.md), [API](../guides/api.md), [database](../guides/database.md), or [video processing](../guides/worker.md).

@@ -1,0 +1,69 @@
+# ER図の読み方
+
+テーブル同士がどうつながるかを調べるページです。まず[動画・講座・シーン](../concepts/domain-model.md)の意味を確認すると読みやすくなります。
+
+## 記号の意味
+
+`||` は1つ、`o{` は0個以上、`o|` は0個または1つを表します。例えば `USERS ||--o{ VIDEOS` は、1人の利用者が複数の動画を持てる関係です。
+
+以下は主要な関係を目的別に分けた図です。全列・全制約の一覧ではありません。列の詳細は[データ辞書](data-dictionary.md)からスキーマ定義へ進んで確認してください。
+
+## 動画と講座
+
+```mermaid
+erDiagram
+    USERS ||--o{ VIDEOS : owns
+    USERS ||--o{ VIDEO_COURSES : owns
+    USERS ||--o{ TAGS : owns
+    VIDEO_COURSES ||--o{ VIDEO_COURSE_MEMBERS : contains
+    VIDEOS ||--o{ VIDEO_COURSE_MEMBERS : belongs
+    VIDEOS ||--o{ VIDEO_TAGS : has
+    TAGS ||--o{ VIDEO_TAGS : labels
+```
+
+`VIDEO_COURSE_MEMBERS` は講座と動画を結びます。タグも `VIDEO_TAGS` を介して動画と結びます。同じ関係の重複は一意制約で防ぎます。
+
+## 人の参加と認証
+
+```mermaid
+erDiagram
+    USERS ||--o{ SESSION : signs_in
+    USERS ||--o{ ACCOUNT : authenticates
+    USERS ||--o{ APIKEY : creates
+    USERS ||--o{ VIDEO_COURSE_MEMBERSHIPS : joins
+    VIDEO_COURSES ||--o{ VIDEO_COURSE_MEMBERSHIPS : grants
+    VIDEO_COURSES ||--o{ VIDEO_COURSE_INVITATIONS : invites
+```
+
+`VIDEO_COURSE_MEMBERSHIPS` は人の参加情報です。上の図の `VIDEO_COURSE_MEMBERS`（動画の所属）とは別のテーブルです。認証関連の完全な定義は [better-auth.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/better-auth.ts)で確認します。
+
+## 質問と評価
+
+```mermaid
+erDiagram
+    USERS ||--o{ CHAT_LOGS : asks
+    VIDEO_COURSES ||--o{ CHAT_LOGS : receives
+    CHAT_LOGS ||--o| CHAT_LOG_EVALUATIONS : evaluated
+```
+
+質問・回答・引用はチャットログ、品質評価は別の記録です。回答が返った時点で評価が完了しているとは限りません。
+
+## 動画から作る学習データ
+
+```mermaid
+erDiagram
+    VIDEOS ||--o{ SCENE_EMBEDDINGS : indexed
+    VIDEOS ||--o{ PLOG_BUILD_JOBS : builds
+    VIDEOS ||--o{ PLOG_CONCEPTS : contains
+    PLOG_CONCEPTS ||--o{ PLOG_EDGES : source
+    PLOG_CONCEPTS ||--o{ PLOG_EDGES : target
+    PLOG_CONCEPTS ||--o{ PLOG_LEARNING_OBJECTS : has
+```
+
+1つの関係には出発点と到着点の概念があります。どちらの概念が削除された場合にどう扱うかなどは、外部キーと削除時の制約を確認します。
+
+## 変更する前に
+
+業務データの定義は [modern.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/modern.ts)が基準です。利用者や動画を削除した場合の関連行の扱い、重複を防ぐ制約、検索のindexを合わせて確認します。
+
+**関連:** [DBを変更する](../guides/database.md)、[データが保存される場所](data-flow-diagram.md)。
