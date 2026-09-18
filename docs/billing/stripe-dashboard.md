@@ -1,70 +1,72 @@
-# Stripe Dashboard 設定（VideoQ Billing）
+# Stripe Dashboard setup (VideoQ Billing)
 
-有料プランの購入・変更と、利用上限の反映を確認する担当者向けの手順です。
-通常の画面・API開発を始めるために、Stripeを設定する必要はありません。
+This guide is for those verifying paid-plan purchases, changes, and usage limits.
+Stripe setup is not required to begin ordinary frontend or API development.
 
-StripeのProductは商品、Priceは金額と課金間隔、Webhookは決済状態の変更をAPIへ通知する仕組みです。
-VideoQはPriceの `lookup_key` でプランを対応付けます。金額はDashboardが基準です。
+A Stripe Product represents a product, a Price defines its amount and billing interval,
+and a webhook notifies the API of payment state changes. VideoQ maps plans through
+Price `lookup_key` values. The Dashboard is the source of truth for amounts.
 
-まずテスト環境で設定し、末尾の動作確認を行います。APIキー・Price・Webhookの設定が同じ環境に属することを確認してください。
+Configure the test environment first, then follow the verification steps below.
+Ensure API keys, Prices, and webhooks all belong to the same environment.
 
-## 1. API キー
+## 1. API keys
 
-Restricted API key（`rk_`）を推奨する。Checkout / Customer / Subscriptions / Prices / Webhooks を許可する。
+Use a restricted API key (`rk_`) where possible. Allow Checkout / Customer / Subscriptions / Prices / Webhooks.
 
 - Worker secret: `STRIPE_SECRET_KEY`
 - Worker secret: `STRIPE_WEBHOOK_SECRET`
-- ローカル: [`apps/api/.dev.vars.example`](https://github.com/yukiharada1228/videoq/blob/main/apps/api/.dev.vars.example)
+- Local configuration: [`apps/api/.dev.vars.example`](https://github.com/yukiharada1228/videoq/blob/main/apps/api/.dev.vars.example)
 
-## 2. Product と Price
+## 2. Products and Prices
 
-**別 Product にする。** Basic と Pro を同一 Product に載せない。
+**Use separate Products.** Do not put Basic and Pro under the same Product.
 
-| Product | Price | lookup_key | 金額（JPY） | 間隔 |
+| Product | Price | lookup_key | Amount (JPY) | Interval |
 |---|---|---|---|---|
-| VideoQ Basic | 月額 | `basic_monthly` | 1480 | month |
-| VideoQ Basic | 年額 | `basic_yearly` | 14800 | year |
-| VideoQ Pro | 月額 | `pro_monthly` | 3980 | month |
-| VideoQ Pro | 年額 | `pro_yearly` | 39800 | year |
+| VideoQ Basic | Monthly | `basic_monthly` | 1480 | month |
+| VideoQ Basic | Yearly | `basic_yearly` | 14800 | year |
+| VideoQ Pro | Monthly | `pro_monthly` | 3980 | month |
+| VideoQ Pro | Yearly | `pro_yearly` | 39800 | year |
 
-JPY はゼロ小数。`tax_behavior` は inclusive（内税）か、Tax settings の Automatic（JPY は inclusive）。
+JPY is a zero-decimal currency. Set `tax_behavior` to inclusive, or use Automatic in Tax settings (inclusive for JPY).
 
-税コードは法務確認のうえ Product に付ける。候補:
+Assign a tax code to each Product after legal review. Candidates:
 
 - `txcd_10103001` SaaS — Business Use
 - `txcd_10103000` SaaS — Personal Use
 
-汎用 `txcd_10000000` は使わない。
+Do not use the generic `txcd_10000000`.
 
 ## 3. Customer Portal
 
 [Customer portal settings](https://dashboard.stripe.com/test/settings/billing/portal)
 
-- 支払い方法の更新
-- サブスクリプションの更新（Basic ⇔ Pro、月 ⇔ 年）
-- Proration: `always_invoice`（日割りを作って即時請求。`create_prorations` でも可）
-- 解約（期間末）
+- Payment method updates
+- Subscription updates (Basic ⇔ Pro, monthly ⇔ yearly)
+- Proration: `always_invoice` (create prorations and invoice immediately; `create_prorations` is also an option)
+- Cancellation at the end of the period
 
-## 3.1 Public details（必須）
+## 3.1 Public details (required)
 
-Checkout / Customer Portal に利用規約とプライバシーを出すには、[Public details](https://dashboard.stripe.com/acct_1Re0SMJ2c6Th1a6w/settings/public) に URL を入れる。
+To show terms and privacy policies in Checkout / Customer Portal, enter URLs in [Public details](https://dashboard.stripe.com/acct_1Re0SMJ2c6Th1a6w/settings/public).
 
-| 項目 | URL |
+| Field | URL |
 |---|---|
 | Terms of service | `https://videoq.jp/terms` |
 | Privacy policy | `https://videoq.jp/privacy` |
 | Support email | `yukiharada1228@gmail.com` |
 | Support website | `https://videoq.jp` |
 
-[Checkout settings](https://dashboard.stripe.com/acct_1Re0SMJ2c6Th1a6w/settings/checkout) で Legal policies と Refund policy を有効にし、返金ポリシー全文は `https://videoq.jp/refund` を指す。日本の通信販売として [特商法表記](https://videoq.jp/legal) もサイトに置く。
+Enable Legal policies and Refund policy in [Checkout settings](https://dashboard.stripe.com/acct_1Re0SMJ2c6Th1a6w/settings/checkout), linking the full refund policy to `https://videoq.jp/refund`. Also publish the [disclosure under Japan's Specified Commercial Transactions Act](https://videoq.jp/legal) for Japanese mail-order sales.
 
-Customer Portal の privacy / terms URL も同じ値にする。
+Use the same privacy and terms URLs in Customer Portal.
 
 ## 4. Webhook
 
 Endpoint: `https://videoq.jp/api/billing/webhook`
 
-購読イベント:
+Subscribe to:
 
 - `checkout.session.completed`
 - `customer.subscription.updated`
@@ -72,29 +74,29 @@ Endpoint: `https://videoq.jp/api/billing/webhook`
 - `invoice.paid`
 - `invoice.payment_failed`
 
-ローカル: `stripe listen --forward-to localhost:8787/api/billing/webhook`
+Local forwarding: `stripe listen --forward-to localhost:8787/api/billing/webhook`
 
-## 5. 決済手段
+## 5. Payment methods
 
-Dashboard の dynamic payment methods を使う。コードに `payment_method_types` は渡さない。
+Use the Dashboard's dynamic payment methods. Do not pass `payment_method_types` in code.
 
 ## 6. Stripe Tax
 
-`automatic_tax` は Worker の `STRIPE_AUTOMATIC_TAX=true` のときだけ有効。
+`automatic_tax` is enabled only when the Worker's `STRIPE_AUTOMATIC_TAX=true`.
 
-有効化する前に:
+Before enabling it:
 
-1. Tax Settings で本店住所を入れる
-2. 日本の消費税登録を **Collecting** にする
-3. 登録なしでフラグを立てると、エラーなしで税額 0 のままになる
+1. Enter the business address in Tax Settings.
+2. Set the Japanese consumption tax registration to **Collecting**.
+3. Enabling the flag without a registration can leave tax at 0 without an error.
 
-税務上の登録や税コードは、このシステム設定だけでは判断できません。契約主体の状況に合わせ、担当者が確認した設定を使用してください。
+Tax registration and tax-code choices cannot be determined from this system configuration alone. Use settings verified by the responsible person for the contracting entity's circumstances.
 
-## 7. 動作確認
+## 7. Verify behavior
 
-1. Free アカウントで `/pricing` から Basic 月額へ Checkout
-2. Settings でプラン表示が Basic になる
-3. Portal で年額または Pro に変更し、日割り請求を確認
-4. 解約後に Free 枠へ戻る
-5. Admin でクォータを手編集すると `quota_source=admin` になり、以降の webhook は枠を上書きしない。`quota_source=plan` に戻すとカタログを再適用する
-6. 既存ユーザーの枠は `0015_raise_plan_quotas` でカタログに揃える（Free 45分 / AI 30、Basic 300分 / AI 500、Pro 1,500分 / AI 2,500）。`quota_source=admin` と `used_*` は触らない
+1. From a Free account, check out for Basic monthly via `/pricing`.
+2. Confirm that Settings shows the Basic plan.
+3. Switch to yearly billing or Pro in the Portal and verify proration.
+4. Confirm that quotas return to Free after cancellation takes effect.
+5. Manually editing quotas in Admin sets `quota_source=admin`; subsequent webhooks do not overwrite those limits. Setting it back to `quota_source=plan` reapplies the catalog.
+6. `0015_raise_plan_quotas` aligns existing users with the catalog (Free: 45 minutes / 30 AI answers; Basic: 300 minutes / 500 AI answers; Pro: 1,500 minutes / 2,500 AI answers). It leaves `quota_source=admin` and `used_*` unchanged.

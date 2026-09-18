@@ -1,55 +1,55 @@
 ---
-title: Q&Aと学習モードのプロンプト設計
-description: 回答に使う情報の選択、引用、学習モード、変更後の評価。
+title: Prompt design for Q&A and study mode
+description: Selecting information for answers, citations, study mode, and evaluating changes.
 ---
 
-# Q&Aと学習モードのプロンプト設計
+# Prompt design for Q&A and study mode
 
-プロンプトは、AIへ渡す指示と参照情報です。VideoQでは、利用者の質問だけでなく、アクセスできる講座の情報や字幕を使って回答します。
+Prompts contain instructions and reference material for AI. VideoQ answers using the user's question together with accessible course information and subtitles.
 
-## Q&Aで情報を選ぶ
+## Selecting information for Q&A
 
-Q&Aは、必要に応じてツールで情報を取得し、回答を組み立てます。すべての質問で同じ検索を実行するわけではありません。
+Q&A retrieves information through tools as needed, then composes an answer. Different questions do not necessarily use the same search.
 
-| 質問の例 | 主に使う情報 |
+| Example question | Primary information source |
 |---|---|
-| 「この講座には動画が何本ある？」 | 登録された講座・動画の情報 |
-| 「この授業の内容を要約して」 | 字幕の関連シーン |
-| 「この動画の説明文を見せて」 | 登録済みの説明文 |
+| “How many videos are in this course?” | Registered course and video metadata |
+| “Summarize this lesson.” | Relevant subtitle scenes |
+| “Show me this video's description.” | The saved description |
 
-使えるツールは次の2つです。
+Two tools are available:
 
-- `get_course_info`: 講座名・説明・動画一覧など。1ページ最大20動画、1回答最大5回。
-- `search_scenes`: 字幕を意味で検索。講座全体または指定した講座内動画を対象にし、1回答最大3回。
+- `get_course_info`: Course name, description, video list, and related metadata. Up to 20 videos per page and 5 calls per answer.
+- `search_scenes`: Semantic subtitle search across a course or a specified video within it. Up to 3 calls per answer.
 
-ツールを使うモデルターンには最大8回の上限があり、その後はツールを外して最終回答を生成します。モデルが返した要求をそのまま実行せず、API側でも引数とアクセス範囲を検証します。
+The model can make up to 8 tool-enabled turns, after which tools are removed and it generates a final answer. The API validates arguments and access scope rather than executing model requests unchecked.
 
-## 引用と権限
+## Citations and permissions
 
-内容の回答には、検索した字幕から引用番号と時刻を付けます。講座名や動画本数などの登録情報には、シーンの引用番号や時刻を付けません。
+Content answers include citation numbers and timestamps from retrieved subtitles. Metadata such as course names and video counts does not receive scene citation numbers or timestamps.
 
-検索対象は先にアクセスが確認された講座の範囲です。字幕に命令文が含まれていても参照資料として扱い、システムの指示より優先させません。
+Search is restricted to a course whose access has already been verified. Instructions appearing in subtitles are treated as reference material and never take priority over system instructions.
 
-## 学習モード
+## Study mode
 
-学習モードは[PLOG](../plog/README.md)の概念・前提関係・問い・ヒントを使います。扱う概念や未理解の前提を選び、学習者の答えを評価して進行状態を更新します。
+Study mode uses [PLOG](../plog/README.md) concepts, prerequisite relationships, questions, and hints. It selects a target concept and unmastered prerequisites, evaluates the learner's answers, and updates progress.
 
-最初の問いは保存済みの文面を使います。その後の支援や評価はLLMを利用し、一時状態は `STUDY_SESSION` に保存します。
+The first question uses saved text. Subsequent support and evaluation use an LLM, with temporary state stored in `STUDY_SESSION`.
 
-## 変更する場所
+## Where to make changes
 
-| 場所 | 役割 |
+| Location | Role |
 |---|---|
-| [prompts/](https://github.com/yukiharada1228/videoq/tree/main/apps/api/src/lib/prompts) | 指示文と設定 |
-| [rag.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag.ts) | Q&Aのツール呼び出し・回答生成 |
-| [rag-course-info.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag-course-info.ts) | 講座・動画の登録情報 |
-| [plog-study.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/plog-study.ts) | 学習モードの回答と評価 |
-| [plog_build.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/plog_build.py) | 学習用の概念・問い・ヒントの生成 |
+| [prompts/](https://github.com/yukiharada1228/videoq/tree/main/apps/api/src/lib/prompts) | Instructions and settings |
+| [rag.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag.ts) | Q&A tool calls and answer generation |
+| [rag-course-info.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag-course-info.ts) | Registered course and video metadata |
+| [plog-study.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/plog-study.ts) | Study mode responses and evaluation |
+| [plog_build.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/plog_build.py) | Generating learning concepts, questions, and hints |
 
-## 変更後に見ること
+## What to check after a change
 
-日本語・英語で、登録情報だけの質問、授業内容の質問、両方が必要な質問を試します。回答だけでなく、使ったツール、引用先、講座外の情報が混ざらないことを確認します。
+Test metadata-only questions, lesson-content questions, and questions requiring both, in English and Japanese. Check the selected tools and citations as well as the answer, and verify that information outside the course is not included.
 
-`LLM_MODEL` は回答や生成に使うモデル、`EMBEDDING_MODEL` は検索用のモデルです。役割を混同せず、埋め込みの変更ではAPI・worker・DBの次元も揃えます。
+`LLM_MODEL` is used for answers and generation; `EMBEDDING_MODEL` is used for search. Keep their roles distinct, and align API, worker, and DB dimensions when changing embeddings.
 
-実モデルのテスト方法と料金が発生する条件は[テストと確認コマンド](../guides/testing.md)を参照してください。
+See [tests and verification commands](../guides/testing.md) for live-model tests and when they incur charges.

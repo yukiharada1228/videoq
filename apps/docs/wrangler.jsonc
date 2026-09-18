@@ -1,0 +1,15 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "videoq-docs",
+  "compatibility_date": "2026-09-18",
+  "assets": {
+    "directory": "./build",
+    "html_handling": "force-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+  "routes": [
+    {"pattern": "docs.videoq.jp", "custom_domain": true}
+  ],
+  "workers_dev": false,
+  "preview_urls": false
+}

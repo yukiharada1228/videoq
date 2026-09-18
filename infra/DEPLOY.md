@@ -3,6 +3,7 @@
 ## 本番構成
 
 - frontend: Cloudflare Pages `videoq-web`（`apps/web`、公開URL: `https://videoq.jp`）
+- docs: Cloudflare Workers Static Assets `videoq-docs`（公開URL: `https://docs.videoq.jp`、日本語: `/ja/`）
 - Web API: Cloudflare Workers `videoq-api`（`apps/api`、Hono）
 - DB: Neon PostgreSQL + Hyperdrive
 - object storage: Cloudflare R2
@@ -378,6 +379,30 @@ npx wrangler pages deploy ../web/dist \
 ```
 
 同一 host で配信する場合、`/api/*` と `/.well-known/*` を Worker route に割り当てます。
+
+## 5.1 ドキュメント
+
+ドキュメントは専用のCloudflare Worker `videoq-docs` から静的ファイルとして公開します。
+英語は `https://docs.videoq.jp/`、日本語は `https://docs.videoq.jp/ja/` です。
+アプリの `videoq-web` とは独立した公開先です。
+
+リポジトリルートで実行します:
+
+```bash
+npm ci
+npx wrangler login
+npm run deploy:docs
+```
+
+このコマンドは現在の作業ツリーから両言語をビルドし、`apps/docs/build` をWorkerの静的アセットとして
+アップロードします。未コミットの文書変更も含まれます。Gitへのpushでは自動公開しません。
+公開先の正本は `apps/docs/wrangler.jsonc` です。
+
+独自ドメイン `docs.videoq.jp` はWranglerの `routes` で `custom_domain: true` として宣言します。
+デプロイ時にCloudflareがDNSレコードとHTTPS証明書を設定します。`workers.dev` とpreview URLは無効です。
+末尾スラッシュを維持し、存在しないパスにはDocusaurusの404ページを返します。
+
+詳しくは [apps/docs/README.md](../apps/docs/README.md) を参照してください。
 
 ## 6. 既存環境の破壊的cutover
 

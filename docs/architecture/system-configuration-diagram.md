@@ -1,76 +1,76 @@
 ---
-title: システムの全体像
-description: 画面・API・動画処理の役割と、ローカルから本番への対応。
+title: System overview
+description: The roles of the frontend, API, and video processing, and how local services map to production.
 ---
 
-# システムの全体像
+# System overview
 
-VideoQは、利用者の操作にすぐ応答するAPIと、時間のかかる動画処理を分けています。最初は次の図の3つの箱から読むと、各技術の役割を整理できます。
+VideoQ separates the API that responds to user actions from time-consuming video processing. Start with the three application components in this diagram to understand each technology's role.
 
 ```mermaid
 flowchart LR
-    Browser[Reactの画面] --> API[Hono API]
-    API --> DB[(動画・講座・利用者のDB)]
-    API --> Queue[処理待ちのキュー]
-    Queue --> Worker[Pythonの動画処理]
+    Browser[React frontend] --> API[Hono API]
+    API --> DB[(Videos, courses, and users)]
+    API --> Queue[Job queue]
+    Queue --> Worker[Python video processing]
     Worker --> DB
 ```
 
-画面はAPIから状態を取得します。workerが文字起こしや索引を保存すると、画面からその結果を利用できるようになります。
+The frontend fetches state from the API. Once the worker saves transcripts and indexes, the frontend can use those results.
 
-## 3つのアプリの責任
+## Responsibilities of the three apps
 
-| アプリ | 担当 | 主なコード |
+| App | Responsibility | Main code |
 |---|---|---|
-| Web | 表示、フォーム、質問の入力、結果の再生 | `apps/web/src/` |
-| API | 認証・アクセス権、業務処理、ジョブの依頼 | `apps/api/src/` |
-| Python worker | 文字起こし、索引、PLOG生成、回答評価 | `apps/worker/worker_python/` |
+| Web | Display, forms, question input, and playback | `apps/web/src/` |
+| API | Authentication, access control, business logic, and job requests | `apps/api/src/` |
+| Python worker | Transcription, indexing, PLOG generation, and answer evaluation | `apps/worker/worker_python/` |
 
-WebとAPIは `packages/trpc` で操作名・入力・出力の型を共有します。Pythonとの境界はSQSのJSONメッセージとDBです。
+Web and API share operation names and input/output types through `packages/trpc`. SQS JSON messages and the database form the boundary with Python.
 
-## ローカルと本番の対応
+## Local and production equivalents
 
-| 役割 | ローカル | 本番 |
+| Role | Local | Production |
 |---|---|---|
-| 画面 | nginxの静的ビルド、またはVite | Cloudflare Pages |
-| API | Wranglerの開発サーバー | Cloudflare Workers |
-| DB | PostgreSQL + pgvector | Neon PostgreSQL + pgvector |
-| APIからDBへの接続 | ローカル接続文字列 | Hyperdrive |
-| 動画・字幕などの保管 | MinIO | Cloudflare R2 |
-| ジョブキュー | ElasticMQ | Amazon SQS |
-| Python worker | キューを継続的に取得するコンテナ | SQSを契機に動くAWS Lambda |
-| APIが持つ一時状態 | ローカルのDurable Objects | Cloudflare Durable Objects |
+| Frontend | Static nginx build or Vite | Cloudflare Pages |
+| API | Wrangler development server | Cloudflare Workers |
+| Database | PostgreSQL + pgvector | Neon PostgreSQL + pgvector |
+| API-to-DB connection | Local connection string | Hyperdrive |
+| Video, subtitle, and other storage | MinIO | Cloudflare R2 |
+| Job queue | ElasticMQ | Amazon SQS |
+| Python worker | Container continuously polling the queue | AWS Lambda triggered by SQS |
+| Temporary API state | Local Durable Objects | Cloudflare Durable Objects |
 
-ローカルではCaddyが `http://localhost` の入口になり、画面とAPIへ転送します。開発用Viteはポート3000、文書サイトは3001です。
+Locally, Caddy routes `http://localhost` to the frontend and API. Development Vite uses port 3000, and the documentation site uses 3001.
 
-## 本番の配置
+## Production layout
 
 ```mermaid
 flowchart TB
-    User[ブラウザ] --> Pages[Cloudflare Pages]
+    User[Browser] --> Pages[Cloudflare Pages]
     User --> API[Cloudflare Workers / Hono]
     API --> HD[Hyperdrive] --> DB[(Neon PostgreSQL)]
-    API --> R2[(動画・字幕: R2)]
+    API --> R2[(Videos and subtitles: R2)]
     API --> DO[Durable Objects]
     API --> Queue[Amazon SQS]
     Queue --> Worker[Python / AWS Lambda]
     Worker --> DB
     Worker --> R2
-    API --> AI[AIサービス]
+    API --> AI[AI services]
     Worker --> AI
     API --> Mail[Mailgun]
 ```
 
-APIはHyperdrive経由、Python workerはPostgreSQL接続で同じDBを利用します。DBの列を変更するときは両方への影響を確認します。
+The API reaches the shared database through Hyperdrive; the Python worker uses a PostgreSQL connection. Check both when changing database columns.
 
-## Durable Objectsの役割
+## Durable Object roles
 
-- `RATE_LIMITER`: 短時間の過剰なリクエストを制限します。
-- `STUDY_SESSION`: 学習モードの一時状態を保存し、同じセッションの競合を制御します。
-- `TASK_SCHEDULER`: 未配送ジョブや放棄されたアップロードの回復を予約します。
+- `RATE_LIMITER`: Limits excessive requests over short periods.
+- `STUDY_SESSION`: Stores temporary study state and controls concurrent operations in the same session.
+- `TASK_SCHEDULER`: Schedules recovery of undelivered jobs and abandoned uploads.
 
-回復処理はDOのアラームで予定されます。現在の定期実行は日次の `17 3 * * *`（UTC）で、古い記録の整理と回復を行います。5分ごとのcronを前提に運用しないでください。
+Recovery is scheduled with Durable Object alarms. The current cron schedule is daily at `17 3 * * *` (UTC), for cleanup and recovery. Do not assume a five-minute cron schedule.
 
-実装の入口は [app.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/app.ts)、実行設定は [wrangler.jsonc](https://github.com/yukiharada1228/videoq/blob/main/apps/api/wrangler.jsonc)です。
+The implementation entry point is [app.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/app.ts), and runtime configuration is in [wrangler.jsonc](https://github.com/yukiharada1228/videoq/blob/main/apps/api/wrangler.jsonc).
 
-**次に読む:** [コードの場所](../getting-started/codebase.md)、[ジョブの配送と回復](flowchart.md)。
+**Read next:** [Find your way around the code](../getting-started/codebase.md), [Job delivery and recovery](flowchart.md).

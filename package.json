@@ -11,9 +11,10 @@
   "scripts": {
     "build": "npm run build --workspace @videoq/web",
     "dev:api": "npm run dev --workspace @videoq/api",
-    "dev:docs": "npm run dev --workspace @videoq/docs",
-    "build:docs": "npm run build --workspace @videoq/docs",
-    "preview:docs": "npm run serve --workspace @videoq/docs",
+    "dev:docs": "npm run dev --workspace @videoq/docs --",
+    "build:docs": "npm run build --workspace @videoq/docs --",
+    "deploy:docs": "npm run build:docs && npm run deploy --workspace @videoq/docs --",
+    "preview:docs": "npm run serve --workspace @videoq/docs --",
     "dev:web": "npm run dev --workspace @videoq/web",
     "storybook": "npm run storybook --workspace @videoq/web --",
     "build:storybook": "npm run build-storybook --workspace @videoq/web",

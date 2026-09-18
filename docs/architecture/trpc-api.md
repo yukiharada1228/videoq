@@ -1,116 +1,114 @@
-# tRPC API 設計
+# tRPC API design
 
-通常のデータ取得・更新を、画面とAPIで同じ型を使って実装するための詳細資料です。
-初めてAPIを変更する場合は、先に[APIを変更する](../guides/api.md)の手順を読んでください。
+This reference explains how ordinary data fetching and updates share types between the frontend and API.
+If this is your first API change, start with [Change the API](../guides/api.md).
 
-「procedure」は `videos.get` のような1つの操作、「契約」は入力と出力の約束です。
-ここでは、その契約をどこに置き、Honoの処理へどう接続するかを説明します。
+A **procedure** is one operation such as `videos.get`; a **contract** is its input/output agreement.
+This page explains where contracts live and how they connect to Hono's implementation.
 
-## 方針
+## Approach
 
-VideoQ の通常の JSON API は tRPC に統一します。React と Hono の間で
-`AppRouter` を共有し、procedure 名、input validation、入出力型を一つの契約として
-管理します。OpenAPI schema と API reference UI は生成しません。
+VideoQ standardizes regular JSON APIs on tRPC. React and Hono share `AppRouter`,
+with procedure names, input validation, and input/output types managed as one contract.
+No OpenAPI schema or API reference UI is generated.
 
 ```mermaid
 flowchart LR
-    React[Reactの画面] --> Client[tRPCクライアント]
+    React[React frontend] --> Client[tRPC client]
     Client --> Endpoint["/api/trpc"]
-    Endpoint --> Hono[Honoの共通処理]
-    Hono --> Router[共有AppRouter]
-    Router --> Adapter[リクエストごとのハンドラー]
-    Adapter --> Service[機能のサービス]
-    Service --> Repository[DBの読み書き]
+    Endpoint --> Hono[Shared Hono middleware]
+    Hono --> Router[Shared AppRouter]
+    Router --> Adapter[Per-request handlers]
+    Adapter --> Service[Feature service]
+    Service --> Repository[Database reads and writes]
 ```
 
-## Workspace 境界
+## Workspace boundaries
 
 ```text
 packages/trpc/
-├── src/init.ts          tRPC 初期化、認証・権限 middleware、error formatter
-├── src/inputs/          Zod input（validation と handler 入力型の定義元）
-├── src/outputs.ts       Zod output（validation と handler 出力型の定義元）
-├── src/model-schemas.ts 共有 DTO の出力検証スキーマ
-├── src/routers/         domain router と procedure の接続
-├── src/router.ts        AppRouter の合成
-├── src/contracts.ts     Zod から導出する入出力 map と handler 契約
-├── src/models.ts        出力スキーマから導出する API / SPA 共有 DTO
-├── src/context.ts       framework 非依存の request context
-└── src/schema.ts        runtime 共有定数
+├── src/init.ts          tRPC setup, auth/permission middleware, error formatter
+├── src/inputs/          Zod inputs: source of validation and handler input types
+├── src/outputs.ts       Zod outputs: source of validation and handler output types
+├── src/model-schemas.ts Output validation schemas for shared DTOs
+├── src/routers/         Domain routers and procedure wiring
+├── src/router.ts        AppRouter composition
+├── src/contracts.ts     Zod-derived input/output maps and handler contracts
+├── src/models.ts        API / SPA DTOs derived from output schemas
+├── src/context.ts       Framework-independent request context
+└── src/schema.ts        Shared runtime constants
 
 apps/api/src/trpc/
-├── context.ts           Hono request から auth と handler を組み立てる
-└── handlers/            service を procedure 契約へ接続する
+├── context.ts           Builds auth and handlers from a Hono request
+└── handlers/            Connects services to procedure contracts
 
 apps/web/src/lib/
-├── trpc.ts              batch client、TanStack Query options、procedure 単位の401検知
-├── api-error.ts         raw HTTP / tRPC の共通エラー読み取り
-└── api.ts               Better Auth・SSE・CSV・upload・media URL adapter
+├── trpc.ts              Batch client, TanStack Query options, per-procedure 401 detection
+├── api-error.ts         Shared raw HTTP / tRPC error reading
+└── api.ts               Better Auth, SSE, CSV, upload, and media URL adapters
 ```
 
-`packages/trpc` は Hono、DB、Cloudflare bindings に依存しません。API 実装は
-`ctx.call()` の adapter として注入し、Web は `AppRouter` を type-only import します。
+`packages/trpc` does not depend on Hono, the database, or Cloudflare bindings.
+The API implementation is injected as a `ctx.call()` adapter, and Web imports `AppRouter` as a type only.
 
-入力スキーマは `src/inputs/` に一度だけ定義します。procedure の `.input()` と
-`RpcInputMap` が同じスキーマを参照し、handler には `z.output` で default / transform
-適用後の型を渡します。SPA の呼び出し側の型は引き続き `AppRouter` から推論します。
+Define input schemas once in `src/inputs/`. A procedure's `.input()` and `RpcInputMap`
+reference the same schema. Handlers receive `z.output` types after defaults and transforms
+have been applied. SPA caller types are still inferred from `AppRouter`.
 
-出力スキーマは `src/outputs.ts` に全 procedure 分を定義します。`.output()` と
-`RpcOutputMap` が同じスキーマを使い、共有 DTO も `src/model-schemas.ts` と
-`src/schema.ts` から導出します。出力検証では必須項目・型を確認し、未定義フィールドを
-除去します。タグの書き込みは `tagColorSchema` でパレット名に制限しますが、出力では
-旧 hex 色の保存データも受け入れます。
+Define every procedure's output schema in `src/outputs.ts`. `.output()` and `RpcOutputMap`
+use the same schemas, and shared DTOs are derived from `src/model-schemas.ts` and `src/schema.ts`.
+Output validation checks required fields and types, and strips undeclared fields.
+Tag writes are restricted to palette names by `tagColorSchema`, while outputs also accept
+legacy stored hex colors.
 
-## React とキャッシュ
+## React and caching
 
-`@trpc/tanstack-react-query` の `createTRPCOptionsProxy` を使い、
-`useQuery(trpc.videos.get.queryOptions({ id }))` のように TanStack Query の hooks を呼びます。
-Vite SPA の client と QueryClient は共有し、`QueryClientProvider` でキャッシュを渡します。
+Use `createTRPCOptionsProxy` from `@trpc/tanstack-react-query` with TanStack Query hooks,
+for example `useQuery(trpc.videos.get.queryOptions({ id }))`.
+The Vite SPA shares its client and QueryClient, with the cache provided by `QueryClientProvider`.
 
-キャッシュ操作は `useQueryClient()` を使います。個別データには `queryKey()` /
-`queryFilter()`、一覧全体には `pathFilter()` を使い、通常 query と infinite query の
-両方を更新します。無限スクロールは `infiniteQueryOptions()` と `initialCursor: 0` を使います。
+Use `useQueryClient()` for cache operations. Use `queryKey()` / `queryFilter()` for individual
+queries and `pathFilter()` for whole lists, updating both regular and infinite queries.
+Infinite scrolling uses `infiniteQueryOptions()` with `initialCursor: 0`.
 
-## 認証と権限
+## Authentication and authorization
 
-- `publicProcedure`: 公開情報、または share token を handler で検証する操作
-- `protectedProcedure`: Better Auth の browser session が必要
-- `adminProcedure`: superuser を遅延検証
+- `publicProcedure`: Public information, or operations whose handler validates a share token.
+- `protectedProcedure`: Requires a Better Auth browser session.
+- `adminProcedure`: Lazily verifies superuser status.
 
-Integration API key と OAuth Bearer は MCP transport 専用です。通常のtRPC、SSE、
-CSV、multipart upload、media routeの認証には利用しません。
+Integration API keys and OAuth Bearer tokens are for MCP transport only. They do not authenticate
+regular tRPC, SSE, CSV, multipart upload, or media routes.
 
-## Hono に残す endpoint
+## Endpoints that stay in Hono
 
-HTTP protocol または payload transport 自体に意味があるものだけ raw route とします。
+Use raw routes only when the HTTP protocol or payload transport itself matters:
 
-- Better Auth と OAuth / OIDC discovery
-- Stripe webhook
+- Better Auth and OAuth / OIDC discovery
+- Stripe webhooks
 - MCP Streamable HTTP
-- health / readiness
-- media binary
-- multipart video upload
-- chat SSE
-- chat history CSV export
+- Health / readiness
+- Media binaries
+- Multipart video uploads
+- Chat SSE
+- Chat history CSV export
 
-新しい通常 JSON 操作は `packages/trpc/src/inputs` に入力スキーマを定義し、
-`packages/trpc/src/outputs.ts` に出力スキーマを定義します。
-`packages/trpc/src/routers` で `.input()` / `.output()` を接続し、
-`apps/api/src/trpc/handlers` に実装を追加します。
+For a new regular JSON operation, define its input schema in `packages/trpc/src/inputs`
+and output schema in `packages/trpc/src/outputs.ts`. Wire `.input()` / `.output()` in
+`packages/trpc/src/routers` and add its implementation in `apps/api/src/trpc/handlers`.
 
 ## Error contract
 
-tRPC の標準 error code / HTTP status に加え、既存 UI が判断に使う
-`applicationCode` と field validation の `details` を error data に保持します。
-内部エラーの message は公開時に固定文へ置き換えます。
-出力検証の失敗も `INTERNAL_SERVER_ERROR` とし、入力の `VALIDATION_ERROR` と区別します。
-出力検証エラーには `applicationCode` や検証の `details` を付けません。
+In addition to standard tRPC error codes and HTTP statuses, error data preserves
+`applicationCode` for existing UI decisions and `details` for field validation.
+Internal error messages are replaced with fixed text before being exposed.
+Output validation failures use `INTERNAL_SERVER_ERROR`, distinct from input `VALIDATION_ERROR`.
+Output validation errors do not include `applicationCode` or validation `details`.
 
-SPA は tRPC 標準の `TRPCClientError` をそのまま受け取り、画面で application code や
-details が必要な場合は `getApiError()` を使います。認証切れは link で procedure ごとに
-判定し、HTTP 207 の混在 batch にも対応します。同じ HTTP response でのログアウト通知は
-一度だけ行います。
+The SPA receives standard `TRPCClientError` objects directly. Use `getApiError()` when a screen
+needs the application code or details. The link detects expired authentication per procedure,
+including mixed batches with HTTP 207. Logout is signaled only once per HTTP response.
 
-tRPC の内部例外は adapter の `onError` で request ID、procedure、error code、
-安全なエラー属性と stack frame を記録します。入力値、Cookie、query string、
-エラーメッセージ中の SQL parameter や個人情報は記録しません。
+tRPC's adapter `onError` logs the request ID, procedure, error code, safe error attributes,
+and stack frames for internal exceptions. It does not log inputs, cookies, query strings,
+SQL parameters in error messages, or personal data.

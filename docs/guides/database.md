@@ -1,30 +1,30 @@
 ---
-title: DBを変更する
-description: Drizzleの定義からmigrationを生成し、ローカルDBに適用する手順。
+title: Change the database
+description: Generate migrations from Drizzle definitions and apply them to your local database.
 ---
 
-# DBを変更する
+# Change the database
 
-DBの変更は、TypeScriptで書いたDrizzleのスキーマ定義から始めます。**migration** は、既存のDBを新しい構造に進めるための変更履歴です。
+Start DB changes in the Drizzle schema definitions written in TypeScript. A **migration** records changes that move an existing database to a new structure.
 
-前提: [ローカル環境](../getting-started/local-setup.md)のPostgreSQLが起動していること。以下は自分の開発DBに対する手順です。
+Prerequisite: PostgreSQL from the [local environment](../getting-started/local-setup.md) is running. These instructions target your own development database.
 
-## 定義の場所
+## Where definitions live
 
-| 場所 | 内容 |
+| Location | Contents |
 |---|---|
-| `apps/api/src/db/schema/modern.ts` | 動画・講座・チャット・PLOGなどの業務データ |
-| `apps/api/src/db/schema/better-auth.ts` | セッション・認証・OAuthなど |
-| `apps/api/src/db/schema/index.ts` | スキーマ定義の集約 |
-| `apps/api/drizzle/` | 生成したSQLとスキーマ変更の履歴 |
+| `apps/api/src/db/schema/modern.ts` | Business data such as videos, courses, chat, and PLOG |
+| `apps/api/src/db/schema/better-auth.ts` | Sessions, authentication, OAuth, and related data |
+| `apps/api/src/db/schema/index.ts` | Schema exports |
+| `apps/api/drizzle/` | Generated SQL and schema change history |
 
-`modern` はファイル名です。新しいテーブルを別のモデル定義に重複して追加せず、このスキーマを基準にします。
+`modern` is a file name. Use this schema as the source of truth instead of adding duplicate tables to another model definition.
 
-## 列やテーブルを変更する
+## Change columns or tables
 
-1. スキーマ定義を変更します。
-2. 既存行に値がある場合の扱いを決めます。必須列の追加では既定値やデータ補完が必要になる場合があります。
-3. migrationを生成し、差分を確認します。
+1. Edit the schema definition.
+2. Decide how to handle existing rows. Adding a required column may need a default or backfill.
+3. Generate a migration and review the diff.
 
 ```bash
 npm run db:generate -- --name describe_the_schema_change
@@ -32,32 +32,32 @@ npm run db:check
 npm run db:verify
 ```
 
-生成されたSQL・snapshot・journalは手で書き換えません。修正が必要なら、スキーマ定義と生成手順を見直します。`db:verify` は生成履歴とSQLの整合性などを検査します。
+Do not manually edit generated SQL, snapshots, or journals. If a correction is needed, revisit the schema and generation steps. `db:verify` checks consistency between the generated history and SQL, among other things.
 
-## ローカルに適用する
+## Apply locally
 
-標準構成の接続先を明示する例です。認証情報を変更した場合は合わせてください。
+This example explicitly selects the default local database. Adjust the credentials if you changed them.
 
 ```bash
 DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:55432/postgres npm run db:migrate
 ```
 
-適用後は、変更した列を読み書きするAPIとworkerの両方を確認します。APIはDrizzleを使いますが、Python workerには同じテーブルを読むSQLもあります。
+After applying the migration, check both the API and worker code that reads or writes the affected columns. The API uses Drizzle, while the Python worker also contains SQL that reads the same tables.
 
-## データだけを変更する場合
+## Change data only
 
-既存行の値を補完する処理はcustom migrationを使います。
+Use a custom migration to backfill existing rows:
 
 ```bash
 npm run db:generate:custom -- --name describe_the_data_change
 ```
 
-生成したcustom migrationの先頭に `-- drizzle-kit:custom` を記載します。ここにはデータ補完を書き、テーブル・列・indexなどの構造変更は書きません。
+Add `-- drizzle-kit:custom` at the start of the generated custom migration. Use it for data backfills, not structural changes to tables, columns, or indexes.
 
-## 確認する
+## Verify
 
-スキーマ変更は、型チェックに加えて検証専用DBでの統合テストを実行します。[テストの使い分け](testing.md)を参照してください。共有環境や本番では `drizzle-kit push` を使わず、レビュー済みmigrationをデプロイ手順に沿って適用します。
+For schema changes, run type checking and integration tests against a dedicated test database. See [tests and verification commands](testing.md). In shared and production environments, apply reviewed migrations through the deployment process instead of using `drizzle-kit push`.
 
-埋め込みモデルの変更は、設定値だけではDBのベクトル次元を変更しません。現行の `scene_embeddings.embedding` は1536次元です。
+Changing the embedding model configuration does not change the database's vector dimensions. The current `scene_embeddings.embedding` column has 1536 dimensions.
 
-**関連:** [データ辞書](../database/data-dictionary.md)、[ER図の読み方](../database/er-diagram.md)。
+**Related:** [Data dictionary](../database/data-dictionary.md), [Reading the ER diagram](../database/er-diagram.md).

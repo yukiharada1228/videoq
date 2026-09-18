@@ -1,33 +1,33 @@
-# コンポーネント図
+# Component diagrams
 
-画面の操作からDB・動画処理まで、どの部品が呼び出されるかを示します。
-各箱の実装場所を探すときは[コードの場所](../getting-started/codebase.md)、
-責任の分け方を判断するときは[モジュールの責任](class-diagram.md)を参照してください。
+These diagrams show which components are called from UI interactions through database access and video processing.
+See [Find your way around the code](../getting-started/codebase.md) for implementation locations,
+and [Module responsibilities](class-diagram.md) for how responsibilities are divided.
 
-図の矢印は主な処理の依存方向です。HTTP通信・共有する型・関数呼び出しをまとめて表しています。
+Arrows show the main dependency direction, combining HTTP communication, shared types, and function calls.
 
-## 全体
+## Overview
 
 ```mermaid
 flowchart LR
-    UI[Reactの画面] --> Hooks[データ取得フック / TanStack Query]
-    Hooks --> Client[APIクライアント]
-    Client --> Contract[共有tRPC契約]
-    Contract --> Adapter[Honoのハンドラー]
-    Adapter --> Services[機能のサービス]
-    Services --> Repositories[DBの読み書き]
+    UI[React frontend] --> Hooks[Data-fetching hooks / TanStack Query]
+    Hooks --> Client[API client]
+    Client --> Contract[Shared tRPC contract]
+    Contract --> Adapter[Hono handlers]
+    Adapter --> Services[Feature services]
+    Services --> Repositories[Database reads and writes]
     Repositories --> DB[(PostgreSQL)]
     Services --> R2[(R2)]
     Services --> SQS[SQS]
-    SQS --> Tasks[Python workerのタスク]
-    Tasks --> Pipelines[文字起こし・索引・PLOG・評価]
+    SQS --> Tasks[Python worker tasks]
+    Tasks --> Pipelines[Transcription, indexing, PLOG, and evaluation]
     Pipelines --> DB
     Pipelines --> R2
 ```
 
-## API feature
+## API features
 
-通常の JSON API は共有 tRPC router と API adapter を通ります。
+Regular JSON APIs go through the shared tRPC router and API adapter.
 
 ```mermaid
 flowchart TD
@@ -40,7 +40,7 @@ flowchart TD
     Router --> Response[tRPC response]
 ```
 
-主な feature:
+Main features:
 
 - auth
 - videos / courses / tags
@@ -49,8 +49,8 @@ flowchart TD
 - membership / media
 - health
 
-OAuth、webhook、SSE、multipart、CSV、media binary は
-HTTP protocol 固有のため Hono route として分離します。
+OAuth, webhooks, SSE, multipart, CSV, and media binaries are separated into Hono routes
+because they depend on specific HTTP protocol behavior.
 
 ## Worker
 
@@ -65,6 +65,6 @@ flowchart TD
     Registry --> AccountDeletion
 ```
 
-HTTP の責務は API、CPU・時間を要する処理は worker に分離します。
+The API handles HTTP responsibilities; the worker handles CPU-intensive or time-consuming processing.
 
-**関連:** [APIを変更する](../guides/api.md)、[動画の非同期処理を変更する](../guides/worker.md)。
+**Related:** [Change the API](../guides/api.md), [Change asynchronous video processing](../guides/worker.md).

@@ -1,27 +1,27 @@
 ---
-title: APIを変更する
-description: tRPCの入力・出力からHonoのハンドラー、サービス、DBまで変更を追う。
+title: Change the API
+description: Trace changes from tRPC inputs and outputs through Hono handlers, services, and the database.
 ---
 
-# APIを変更する
+# Change the API
 
-通常のJSON APIは、`packages/trpc` の共有契約から変更します。HonoはHTTPの受け口を担当し、実際の処理をAPI側のハンドラーにつなぎます。
+Start changes to regular JSON APIs in the shared contracts in `packages/trpc`. Hono handles HTTP requests and connects them to the API's implementation handlers.
 
-Honoのドキュメントにある `hc` を使ったRPCとは別に、このプロジェクトでは **tRPC** を使っています。入口は `/api/trpc` です。
+This project uses **tRPC**, separately from the `hc` RPC client described in Hono's documentation. The endpoint is `/api/trpc`.
 
-## 編集しながら動作を見る
+## Run the API while editing
 
-[開発環境](../getting-started/local-setup.md)を起動しておきます。ComposeのAPIにはソースコードがマウントされ、Wranglerの開発サーバーが変更を読み込みます。リクエストの結果とログを合わせて確認します。
+Start the [development environment](../getting-started/local-setup.md). The Compose API mounts the source code, and Wrangler's development server reloads changes. Check request results alongside the logs:
 
 ```bash
 docker compose logs -f api
 ```
 
-依存関係やDockerの構成を変更した場合は、必要に応じてAPIのイメージを再ビルドします。
+Rebuild the API image as needed after changing dependencies or Docker configuration.
 
-## 例: タグ作成の入力を追う
+## Example: follow tag creation inputs
 
-`packages/trpc/src/inputs/tags.ts` では、タグ作成の入力が次のように定義されています。
+`packages/trpc/src/inputs/tags.ts` defines tag creation inputs as follows:
 
 ```ts
 "tags.create": z.object({
@@ -30,38 +30,38 @@ docker compose logs -f api
 }),
 ```
 
-これは既存定義の抜粋です。`name` は1〜50文字、色の省略時は `gray` になります。値の検証と既定値がここで決まります。
+This is an excerpt of the existing definition. `name` must contain 1–50 characters, and the color defaults to `gray`. Validation and defaults are defined here.
 
-## 変更する順番
+## Order of changes
 
-1. **入力を定義する。** `packages/trpc/src/inputs/` で、受け取る値・制約・既定値を決めます。
-2. **出力を定義する。** `outputs.ts` / `model-schemas.ts` で、呼び出し側に返す形を確認します。
-3. **操作を登録する。** `routers/` でqueryまたはmutationと、必要な認証を選びます。
-4. **APIへつなぐ。** `apps/api/src/trpc/handlers/` で入力と利用者IDをサービスに渡します。
-5. **業務処理を書く。** `features/<機能>/service.ts` に処理の組み立て、`repositories/` にDBアクセスを置きます。
-6. **画面の呼び出しを更新する。** 関連フックやコンポーネントを変更し、取得結果の再表示まで確認します。
+1. **Define inputs.** Set accepted values, constraints, and defaults in `packages/trpc/src/inputs/`.
+2. **Define outputs.** Check the response shape in `outputs.ts` / `model-schemas.ts`.
+3. **Register the operation.** Choose a query or mutation and its authentication requirements in `routers/`.
+4. **Connect the API.** Pass inputs and the user ID to the service in `apps/api/src/trpc/handlers/`.
+5. **Implement business logic.** Coordinate operations in `features/<feature>/service.ts` and put DB access in `repositories/`.
+6. **Update UI callers.** Change related hooks and components, and verify that refreshed results appear after updates.
 
-新しい操作や分野を増やす場合は、共有routerの集約と `trpc/context.ts` のハンドラー登録も確認します。[タグ一覧を追う例](../getting-started/codebase.md)が入口になります。
+When adding an operation or domain, also check shared router aggregation and handler registration in `trpc/context.ts`. The [tag list walkthrough](../getting-started/codebase.md) is a useful starting point.
 
-## 権限をどこで確認するか
+## Where to check permissions
 
-`protectedProcedure` はログインを確認しますが、それだけでは対象動画・タグの所有権までは保証しません。既存実装のように、サービスやrepositoryへ利用者IDを渡し、検索範囲を絞ります。
+`protectedProcedure` checks login status, but does not by itself guarantee ownership of a video or tag. Follow the existing implementation: pass the user ID to services and repositories and restrict query scope.
 
-テストでは正常入力だけでなく、不正入力、未ログイン、他人のデータ、存在しないIDも確認します。[認証とアクセス権](../concepts/auth.md)も参照してください。
+Test valid and invalid inputs, unauthenticated access, another user's data, and nonexistent IDs. See [authentication and access control](../concepts/auth.md).
 
-## Honoのrouteを使う場面
+## When to use Hono routes
 
-認証、MCP、Stripe webhook、動画バイナリ、multipartアップロード、チャットのSSE、CSV出力などは、通常のJSON呼び出しとは形式が異なります。これらは `features/*/routes.ts` と `app.ts` で組み立てます。
+Authentication, MCP, Stripe webhooks, video binaries, multipart uploads, chat SSE, and CSV exports use formats other than regular JSON calls. These are assembled in `features/*/routes.ts` and `app.ts`.
 
-通常の一覧・取得・更新を追加するときは、まず既存のtRPC routerを確認してください。
+For ordinary list, fetch, or update operations, check the existing tRPC routers first.
 
-## 確認する
+## Verify
 
 ```bash
 npm run typecheck
 npm run test:api
 ```
 
-`typecheck` は画面側を含めた契約の不整合も検出します。APIのテストはNode.jsの単体テストとWorkers実行環境のテストを含みます。DB統合テストには別途検証用DBが必要です。[テストの使い分け](testing.md)に実行条件をまとめています。
+`typecheck` also detects contract mismatches in the frontend. API tests include Node.js unit tests and Workers runtime tests. DB integration tests require a separate test database. See [tests and verification commands](testing.md) for prerequisites.
 
-**関連:** [tRPC APIの詳細設計](../architecture/trpc-api.md)、[DBを変更する](database.md)。
+**Related:** [tRPC API design](../architecture/trpc-api.md), [Change the database](database.md).

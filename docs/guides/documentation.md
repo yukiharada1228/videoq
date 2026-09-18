@@ -1,53 +1,64 @@
 ---
-title: ドキュメントを更新する
-description: 読者が手順を実行できる文書の書き方と、ローカルでの確認。
+title: Update the documentation
+description: Write actionable documentation and preview the English and Japanese sites locally.
 ---
 
-# ドキュメントを更新する
+# Update the documentation
 
-このサイトの本文はリポジトリ直下の `docs/` にあります。Docusaurusが直接読み込むため、別の場所へコピーする必要はありません。
+English is the default language. English pages live in the repository's `docs/` directory; Japanese translations live in `apps/docs/i18n/ja/docusaurus-plugin-content-docs/current/`. Docusaurus reads both locations directly.
 
-## 起動と確認
+## Start and preview
 
 ```bash
 npm ci
 npm run dev:docs
 ```
 
-`http://localhost:3001` を開きます。APIやDBは不要です。全文検索も確認する場合は、開発サーバーを止めてから次を実行します。
+Open `http://localhost:3001` for English. The API and database are not required. The development server runs one language at a time. Stop it before starting Japanese:
+
+```bash
+npm run dev:docs -- --locale ja
+# http://localhost:3001/ja/
+```
+
+To check the language switcher and full-text search, stop the development server and build both languages:
 
 ```bash
 npm run build:docs
 npm run preview:docs
 ```
 
-## 内容の置き場所
+English is served at `/` and Japanese at `/ja/`. Use the language menu in the header to switch between translations of the current page.
 
-| 読者がしたいこと | 場所 |
+## Where content belongs
+
+| Reader's goal | Directory within each language's content root |
 |---|---|
-| 初めて動かす・最初の変更をする | `getting-started/` |
-| 用語や仕組みを理解する | `concepts/` |
-| 特定の作業を進める | `guides/` |
-| 設計の細部を調べる | `architecture/`、`database/`、`design/`、`requirements/` |
-| 用語を引く | `reference/` |
+| Run the app or make a first change | `getting-started/` |
+| Understand terms and mechanisms | `concepts/` |
+| Complete a specific task | `guides/` |
+| Explore design details | `architecture/`, `database/`, `design/`, `requirements/` |
+| Look up terminology | `reference/` |
 
-新しいページを追加したら `apps/docs/sidebars.ts` に読んでほしい順番で登録し、関連するページからもリンクします。
+When adding a page, create the English page and its Japanese counterpart at the same relative path. Keep document IDs and slugs aligned so switching languages stays on the same page. Register it in reading order in `apps/docs/sidebars.ts` and link to it from related pages.
 
-## 初めて読む人が迷わない書き方
+Navigation and sidebar translations are in the JSON files under `apps/docs/i18n/ja/`. Update the English labels in the configuration and their Japanese translations together. Keep both language versions current when changing instructions.
 
-- 冒頭で「何ができるようになるか」と前提条件を説明します。
-- コマンドの実行場所を明記し、実行後に何を見れば成功と分かるかを書きます。
-- 新しい略語は最初に説明します。コードの名前はそのまま示し、意味を日本語で添えます。
-- 図は1つの問いに絞ります。図の前後に、どこから読んで何が重要かを書きます。
-- 現在動いている仕様、検証の記録、今後の構想を区別します。
-- 最後に、次の作業や関連する詳細資料へのリンクを置きます。
+## Write for first-time readers
 
-Honoのような「短い説明 → 小さな例 → 試す手順 → 次に読むページ」を参考にしています。見出しや見た目だけでなく、読者が行動できる内容を揃えます。[参考: Hono Getting Started](https://hono.dev/docs/getting-started/basic)
+- Begin with what the reader will be able to do and any prerequisites.
+- State where to run commands and what successful output looks like.
+- Explain new abbreviations on first use. Preserve code identifiers and explain their meaning in the page's language.
+- Keep each diagram focused on one question. Explain where to start reading and what matters.
+- Distinguish current behavior, verification records, and future plans.
+- End with links to the next task or relevant reference material.
 
-## リンクと図
+Follow the pattern “short explanation → small example → steps to try → next page,” as in Hono's documentation. Make the content actionable, not just visually similar. [Reference: Hono Getting Started](https://hono.dev/docs/getting-started/basic)
 
-文書同士は相対パスの `.md` リンク、サイト外のコードはGitHubのリンクを使います。通常は `.md`、Reactを埋め込む必要がある場合だけ `.mdx` を使います。
+## Links and diagrams
 
-Mermaidの図はコードブロックで書けますが、本文のリンクと違ってビルド成功だけでは描画の正しさを保証しません。ブラウザでも確認してください。
+Use relative `.md` links between documents and GitHub links for source code outside the site. Use `.md` by default; use `.mdx` only when embedding React components.
 
-ビルドでは文書間リンクと見出しへのリンクを検査します。設定の詳細は [apps/docs/README.md](https://github.com/yukiharada1228/videoq/blob/main/apps/docs/README.md)を参照してください。
+Write Mermaid diagrams in fenced code blocks. A successful build checks document links but does not guarantee that diagrams render correctly, so inspect them in a browser too.
+
+The build checks document links and heading anchors for both languages. See [apps/docs/README.md](https://github.com/yukiharada1228/videoq/blob/main/apps/docs/README.md) for configuration details.

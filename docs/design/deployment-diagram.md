@@ -1,10 +1,10 @@
-# 実行環境とデプロイの単位
+# Runtime environments and deployment units
 
-「ローカルで動くものが、本番ではどこで動くか」を確認する資料です。
-初参加時は[開発環境を動かす](../getting-started/local-setup.md)を使ってください。
-本番へ反映する作業では、この配置図に加えて末尾の運用手順を確認します。
+This reference maps local services to their production counterparts.
+New contributors should start with [Run the development environment](../getting-started/local-setup.md).
+For production changes, check both this layout and the operational guide linked below.
 
-## ローカル Docker Compose
+## Local Docker Compose
 
 ```mermaid
 flowchart TB
@@ -20,10 +20,10 @@ flowchart TB
     Migrate[migrate<br/>Drizzle] --> DB
 ```
 
-`migrate` が完了してから API と worker が起動します。`web-dev` profile は
-Vite HMR を追加しますが、API・DB・queue の構成は変わりません。
+The API and worker start after `migrate` completes. The `web-dev` profile adds
+Vite HMR without changing the API, database, or queue setup.
 
-## 本番
+## Production
 
 ```mermaid
 flowchart TB
@@ -39,21 +39,22 @@ flowchart TB
     Lambda --> R2
 ```
 
-## デプロイ単位
+## Deployment units
 
-| 対象 | 方法 |
+| Target | Method |
 |---|---|
-| frontend | Cloudflare Pages の Git 連携 |
+| Frontend | Cloudflare Pages Git integration |
 | API | `cd apps/api && npm run deploy` |
-| DB | `DATABASE_URL=... npm run db:migrate` |
-| worker | container image を ECR へ push し Lambda image を更新 |
-| Cloudflare binding | Wrangler (`wrangler.jsonc`) |
-| Hyperdrive cache / R2 CORS | 手動承認付き `cloudflare-resources.yml` |
+| Database | `DATABASE_URL=... npm run db:migrate` |
+| Worker | Push a container image to ECR and update the Lambda image |
+| Cloudflare bindings | Wrangler (`wrangler.jsonc`) |
+| Hyperdrive cache / R2 CORS | `cloudflare-resources.yml` with manual approval |
 | AWS worker infrastructure | Terraform |
-| ドキュメント | `npm run build:docs` で `apps/docs/build` を生成し、静的ホストへ配置 |
+| Documentation | `npm run deploy:docs` builds both languages and uploads to Cloudflare Worker `videoq-docs` as static assets |
 
-上のコマンドは各作業の入口です。本番のAPI・worker・DBは `.github/workflows/cd.yml` の手順と順序も確認します。
-新しい列を使うコードを先に公開すると、古いDBに対して動かなくなる場合があります。
+These commands are entry points for each task. Also check the steps and ordering in `.github/workflows/cd.yml`
+for the production API, worker, and database. Publishing code that uses a new column before migrating
+can cause failures against the old database.
 
-詳細は [`infra/DEPLOY.md`](https://github.com/yukiharada1228/videoq/blob/main/infra/DEPLOY.md) を参照してください。
-文書サイトの公開先とドメインは別途用意します。サイト設定のURLだけでは公開されません。
+See [`infra/DEPLOY.md`](https://github.com/yukiharada1228/videoq/blob/main/infra/DEPLOY.md) for details.
+The documentation site uses a dedicated Worker at [docs.videoq.jp](https://docs.videoq.jp/), with Japanese at [/ja/](https://docs.videoq.jp/ja/). It deploys static assets from the current working tree; Git pushes do not automatically publish documentation. See the [docs deployment instructions](https://github.com/yukiharada1228/videoq/blob/main/apps/docs/README.md).

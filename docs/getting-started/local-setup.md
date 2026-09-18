@@ -1,26 +1,26 @@
 ---
-title: 開発環境を動かす
-description: Docker Compose で VideoQ を起動し、ローカルアカウントでログインするまで。
+title: Run the development environment
+description: Start VideoQ with Docker Compose and log in with a local account.
 ---
 
-# 開発環境を動かす
+# Run the development environment
 
-このページのゴールは、自分のPCで VideoQ を起動し、ログインできることです。まずは Docker Compose に API・DB・動画処理を任せる構成で始めます。
+The goal is to run VideoQ on your computer and log in. Start with Docker Compose managing the API, database, and video processing.
 
-文書だけを直す場合は、[ドキュメントを更新する](../guides/documentation.md)へ進んでください。アプリの起動は不要です。
+For documentation-only changes, go to [Update the documentation](../guides/documentation.md). You do not need to start the app.
 
-## 用意するもの
+## Prerequisites
 
-| 必要なもの | 用途 |
+| Requirement | Purpose |
 |---|---|
-| Git とリポジトリへのアクセス | ソースコードの取得 |
-| Docker と Docker Compose | DB、API、動画処理などの起動 |
-| Node.js 22.12 以上と npm | 依存関係の導入、ローカルアカウントの設定 |
-| 開発用の OpenAI API キー | 文字起こし、検索用データの生成、AI回答 |
+| Git and repository access | Get the source code |
+| Docker and Docker Compose | Run the database, API, video processing, and related services |
+| Node.js 22.12 or later and npm | Install dependencies and configure a local account |
+| An OpenAI API key for development | Transcription, search data generation, and AI answers |
 
-この手順の動画処理・AI回答では外部APIの利用料金が発生します。開発用のキーと短い検証動画を使ってください。YouTube取り込みを試す場合だけ、別途 SearchAPI のキーが必要です。
+The video processing and AI answers in this guide incur external API usage charges. Use a development key and a short test video. A separate SearchAPI key is needed only for YouTube imports.
 
-## 1. コードと設定ファイルを用意する
+## 1. Get the code and configuration
 
 ```bash
 git clone https://github.com/yukiharada1228/videoq.git
@@ -29,14 +29,14 @@ cp -n .env.example .env
 npm ci
 ```
 
-以降のコマンドは、特に記載がなければリポジトリルートの `videoq/` で実行します。すでに作業用コピーがある場合は、clone を省略してください。
+Run subsequent commands from the repository root, `videoq/`, unless stated otherwise. Skip cloning if you already have a working copy.
 
-## 2. 開発用のAI設定を入れる
+## 2. Configure AI services for development
 
-`.env` の同名項目を次の値に編集します。`OPENAI_API_KEY` には自分の開発用キーを入れてください。
+Edit the matching entries in `.env` to use these values. Set `OPENAI_API_KEY` to your own development key.
 
 ```dotenv
-OPENAI_API_KEY=ここに開発用キーを入力
+OPENAI_API_KEY=your-development-key
 OPENAI_BASE_URL=https://api.openai.com/v1
 LLM_MODEL=gpt-4o-mini
 WHISPER_BACKEND=openai
@@ -45,79 +45,79 @@ EMBEDDING_MODEL=text-embedding-3-small
 EMBEDDING_VECTOR_SIZE=1536
 ```
 
-**`EMBEDDING_VECTOR_SIZE` は必ず `1536` に変更してください。** 現在の `.env.example` は `1024` ですが、DBは1536次元で定義されています。APIと動画処理が異なる次元を使うと検索できません。[埋め込みとは](../reference/glossary.md)も参照できます。
+**Set `EMBEDDING_VECTOR_SIZE` to `1536`.** The current `.env.example` uses `1024`, but the database schema defines 1536 dimensions. Search will not work if the API and video processing use different dimensions. See [embeddings in the glossary](../reference/glossary.md).
 
-次のコマンドで2つの開発用秘密鍵を生成します。
+Generate two development secrets:
 
 ```bash
 openssl rand -base64 48
 openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
 ```
 
-1つ目の出力を `.env` の `AUTH_JWT_SECRET`、2つ目を `USER_SECRET_ENCRYPTION_KEY` に設定します。
+Set `.env`'s `AUTH_JWT_SECRET` to the first output and `USER_SECRET_ENCRYPTION_KEY` to the second.
 
-`AUTH_JWT_SECRET` は現在のCompose起動スクリプトが使う互換設定名です。ブラウザの認証方式は Better Auth のCookieセッションです。ホストでAPIを直接動かすときは `BETTER_AUTH_SECRET` を使います。[認証の仕組み](../concepts/auth.md)に違いをまとめています。
+`AUTH_JWT_SECRET` is a compatibility setting used by the current Compose startup script. Browser authentication uses Better Auth cookie sessions. When running the API directly on the host, use `BETTER_AUTH_SECRET`. See [authentication](../concepts/auth.md) for the distinction.
 
-## 3. サービスを起動する
+## 3. Start the services
 
 ```bash
 docker compose up --build -d
 docker compose ps -a
 ```
 
-初回はイメージの取得・ビルドがあるため、起動まで時間がかかります。
+The first start takes time to download and build images.
 
-- `postgres`、`api`、`worker`、`web`、`gateway` などが起動していれば次へ進めます。
-- `migrate` と `minio-init` は準備が終わると停止します。終了コードが `0` なら正常です。
-- 失敗したサービスがある場合は `docker compose logs --tail=100 migrate api worker` で原因を確認します。
+- Continue when services such as `postgres`, `api`, `worker`, `web`, and `gateway` are running.
+- `migrate` and `minio-init` stop after initialization. Exit code `0` means they completed successfully.
+- If a service fails, inspect it with `docker compose logs --tail=100 migrate api worker`.
 
 ```bash
 curl -fsS http://localhost/health
 curl -fsS http://localhost/ready
 ```
 
-`/health` はAPIが応答すること、`/ready` はDBにも接続できることを確認します。`/ready` の正常な応答は次の形です。
+`/health` checks that the API responds; `/ready` also checks DB connectivity. A successful `/ready` response looks like this:
 
 ```json
 {"data":{"status":"ready","db":"ok"}}
 ```
 
-## 4. アカウントを作ってログインする
+## 4. Create an account and log in
 
-1. [ローカルの登録画面](http://localhost/signup)でユーザーを作成します。
-2. メールを設定していないローカル環境では、次のコマンドでそのアカウントを有効化・管理者化します。`your-username` を登録したユーザー名またはメールアドレスに置き換えます。
+1. Create a user on the [local signup screen](http://localhost/signup).
+2. In a local environment without email configured, activate the account and grant administrator access with the following command. Replace `your-username` with the username or email address you registered.
 
 ```bash
 npm run user:superuser --workspace @videoq/api -- your-username
 ```
 
-3. [ログイン画面](http://localhost/login)でログインします。
+3. Log in on the [login screen](http://localhost/login).
 
-この昇格手順は自分のローカル開発DB向けです。既定の接続先はホストの `127.0.0.1:55432` です。既存の `DATABASE_URL` を設定している場合は、実行前に接続先を確認してください。
+This promotion procedure is for your own local development database. The default connection is `127.0.0.1:55432` on the host. If you have already set `DATABASE_URL`, check its target before running the command.
 
-## 5. 画面を編集する場合
+## 5. Edit the frontend
 
-標準構成の `http://localhost` はビルド済みの画面を表示します。編集をすぐ反映するには、Viteの開発サーバーを追加します。
+The default `http://localhost` serves a built frontend. Add the Vite development server to see changes immediately:
 
 ```bash
 docker compose --profile dev up --build -d web-dev
 ```
 
-開発時は [http://localhost:3000](http://localhost:3000) を開きます。`http://localhost` の静的画面とは別の入口です。
+Open [http://localhost:3000](http://localhost:3000) during development. This is a separate entry point from the static frontend at `http://localhost`.
 
-## 終了と再開
+## Stop and restart
 
 ```bash
 docker compose stop
 docker compose up -d
 ```
 
-`stop` ではローカルのDBや動画を保持します。`.env` を変更した場合は、対象サービスを再作成して設定を読み直します。
+`stop` preserves the local database and videos. After changing `.env`, recreate the affected services to reload their settings:
 
 ```bash
 docker compose up -d --force-recreate api worker
 ```
 
-Docker経由のAPI起動時は `apps/api/.dev.vars` が生成されます。このファイルへの手編集は次回起動で上書きされるため、Compose構成では `.env` を編集してください。ただし転送される項目は起動スクリプトで限定されています。
+Starting the API through Docker generates `apps/api/.dev.vars`. Manual edits to this file are overwritten at the next start, so edit `.env` for Compose setups. The startup script forwards only a defined subset of settings.
 
-**次に読む:** [動画を登録して質問する](first-walkthrough.md)。起動できない場合は[困ったとき](../guides/troubleshooting.md)へ進みます。
+**Read next:** [Add a video and ask questions](first-walkthrough.md). If startup fails, see [Troubleshooting](../guides/troubleshooting.md).

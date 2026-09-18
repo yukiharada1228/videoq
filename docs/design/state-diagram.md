@@ -1,45 +1,45 @@
 ---
-title: 動画の状態と処理完了
-description: uploadingからcompletedまでの意味と、PLOGの状態との違い。
+title: Video states and processing completion
+description: What uploading through completed mean, and how they differ from PLOG readiness.
 ---
 
-# 動画の状態と処理完了
+# Video states and processing completion
 
-動画の `status` は、ファイル送信・文字起こし・検索準備のどこまで進んだかを表します。画面の待ち状態を実装したり、処理停止を調べたりするときに参照します。
+A video's `status` indicates progress through upload, transcription, and search preparation. Refer to it when implementing waiting states or investigating stalled processing.
 
-## 通常の流れ
+## Normal flow
 
 ```mermaid
 stateDiagram-v2
-    [*] --> uploading: ファイル送信の枠を予約
-    uploading --> pending: 送信完了を確認
-    uploading --> error: 放棄された送信など
-    pending --> processing: workerが開始
-    processing --> indexing: 文字起こしを保存
-    processing --> error: 処理失敗
-    indexing --> completed: 検索用データを保存
-    indexing --> error: 再試行後も索引作成に失敗
-    error --> processing: 再処理
-    completed --> processing: 再処理
+    [*] --> uploading: Reserve upload capacity
+    uploading --> pending: Confirm upload completion
+    uploading --> error: Abandoned upload or similar failure
+    pending --> processing: Worker starts
+    processing --> indexing: Save transcript
+    processing --> error: Processing fails
+    indexing --> completed: Save searchable data
+    indexing --> error: Indexing still fails after retries
+    error --> processing: Reprocess
+    completed --> processing: Reprocess
 ```
 
-これは処理状態の図です。すべての矢印が利用者向けのボタンとして提供されるという意味ではありません。YouTube取り込みなど、登録経路によってはファイル送信段階を通りません。
+This diagram shows processing states, not a user-facing button for every arrow. Some registration paths, such as YouTube imports, skip file upload.
 
-| 値 | 何を待っているか | 確認する場所 |
+| Value | What it means or waits for | Where to check |
 |---|---|---|
-| `uploading` | ファイル送信と完了通知 | ブラウザ・ストレージ・API |
-| `pending` | 文字起こし処理の開始 | キュー配送・worker |
-| `processing` | 音声から文字への変換など | worker・Whisper |
-| `indexing` | 字幕の検索用データ作成 | worker・埋め込みAPI・DB |
-| `completed` | 動画の検索準備は完了 | 講座に追加して質問できる |
-| `error` | いずれかの段階で失敗 | エラー内容と該当ログ |
+| `uploading` | File upload and completion notification | Browser, storage, API |
+| `pending` | Transcription to start | Queue delivery, worker |
+| `processing` | Audio-to-text conversion and related work | Worker, Whisper |
+| `indexing` | Building searchable subtitle data | Worker, embedding API, DB |
+| `completed` | Video is ready for search | Add it to a course and ask questions |
+| `error` | A stage failed | Error details and relevant logs |
 
-再索引などの経路は処理ごとの実装も確認します。通常遷移の定義は [video_status.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/video_status.py)、索引完了の扱いは [tasks/indexing.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/indexing.py)にあります。
+Also inspect individual implementations for paths such as reindexing. Normal transition definitions are in [video_status.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/video_status.py); indexing completion is handled in [tasks/indexing.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/indexing.py).
 
-## PLOGの準備完了は別に確認する
+## Check PLOG readiness separately
 
-検索用データの作成後に、`build_plog` ジョブで学習用の概念とヒントを作ります。そのため `completed` でも、学習モードを開始できない場合があります。
+After search data is created, a `build_plog` job generates learning concepts and hints. A `completed` video may therefore still be unavailable for study mode.
 
-`plog_build_jobs` で生成状態を管理し、生成が完了していても、概念が空・順序を作れない場合は学習に使えません。動画の状態だけを見てStudyボタンを有効化しないでください。
+`plog_build_jobs` tracks generation state. Even after generation completes, empty concepts or an unusable learning order prevent study. Do not enable the Study button based only on video status.
 
-**関連:** [PLOGと学習モード](../plog/README.md)、[処理が進まないとき](../guides/troubleshooting.md)。
+**Related:** [PLOG and study mode](../plog/README.md), [Stalled processing](../guides/troubleshooting.md).

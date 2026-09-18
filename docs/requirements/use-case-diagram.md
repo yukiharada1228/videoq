@@ -1,44 +1,44 @@
 ---
-title: 利用者とできること
-description: VideoQ の主要な利用者と、動画の登録・学習・共有・管理の関係。
+title: Users and capabilities
+description: VideoQ's main users and their video registration, learning, sharing, and administration tasks.
 ---
 
-# 利用者とできること
+# Users and capabilities
 
-VideoQの機能を、利用者が達成したいことから整理したページです。個々の画面やAPIの詳細を調べる前に、誰のための変更なのかを確認するために使います。
+This page organizes VideoQ features by what users want to accomplish. Use it to identify who a change serves before exploring screen or API details.
 
-## 基本の使い方
+## Basic workflow
 
 ```mermaid
 flowchart LR
-    Owner[教材を用意する人] --> Upload[動画を登録]
-    Upload --> Course[講座にまとめる]
-    Course --> Share[講座を共有・招待]
-    Learner[学習する人] --> Ask[講座について質問]
-    Ask --> Source[引用元の場面を再生]
-    Learner --> Study[問いとヒントで学ぶ]
-    Admin[管理者] --> Manage[利用者・利用上限を管理]
+    Owner[Content creator] --> Upload[Register video]
+    Upload --> Course[Organize into a course]
+    Course --> Share[Share course or invite people]
+    Learner[Learner] --> Ask[Ask about a course]
+    Ask --> Source[Play the cited scene]
+    Learner --> Study[Learn with questions and hints]
+    Admin[Administrator] --> Manage[Manage users and quotas]
 ```
 
-同じ人が教材を登録し、自分で学ぶこともできます。図の役割は、必ず別々のアカウントを用意するという意味ではありません。
+The same person can register materials and learn from them. These roles do not require separate accounts.
 
-## 主な操作
+## Main operations
 
-| 目的 | 操作 | 確認したい結果 |
+| Goal | Operation | Expected result |
 |---|---|---|
-| 教材を準備する | ファイルをアップロード、YouTubeから取り込む | 文字起こしと検索準備ができる |
-| 教材を整理する | 講座への追加・並べ替え、タグ付け | 探したい動画と質問する範囲が明確になる |
-| 内容を調べる | 講座のチャットで質問する | 回答と根拠の場面を確認できる |
-| 順序立てて学ぶ | PLOGを使った学習モードを開始する | 問いに答え、ヒントを使って進める |
-| 他の人と使う | 共有リンク、講座への招待 | 許可された講座を他の人が利用できる |
-| 回答の質を確認する | 履歴、フィードバック、分析、評価を見る | 改善すべき回答や教材を見つけられる |
-| 利用状況を管理する | 利用者・クォータ・再索引を管理する | 上限や処理状態を運用できる |
-| 外部ツールとつなぐ | APIキーまたはOAuthでMCPへ接続する | 許可された操作をクライアントから実行できる |
+| Prepare learning materials | Upload a file or import from YouTube | Transcript and search data are ready |
+| Organize materials | Add or reorder course videos and assign tags | Videos are easy to find and the question scope is clear |
+| Explore content | Ask questions in course chat | Review an answer and its supporting scenes |
+| Learn in sequence | Start PLOG-based study mode | Answer questions and progress with hints |
+| Work with others | Use share links and course invitations | Others can access permitted courses |
+| Review answer quality | Inspect history, feedback, analytics, and evaluations | Identify answers or materials to improve |
+| Manage usage | Manage users, quotas, and reindexing | Operate limits and processing state |
+| Connect external tools | Connect to MCP with an API key or OAuth | Run permitted operations from a client |
 
-## アクセス権との関係
+## Relationship to access control
 
-登録・編集する対象には所有者がいます。共有リンクや招待による閲覧と、所有者による編集は同じ権限ではありません。管理者の操作も通常利用とは分けます。
+Registered and edited data has an owner. Viewing through a share link or invitation differs from editing as the owner. Administrative operations are separate from ordinary use.
 
-機能を変更するときは、対象の利用者とデータへのアクセス権をセットで確認します。[認証とアクセス権](../concepts/auth.md)を参照してください。
+When changing a feature, check both the intended user and their access to the data. See [authentication and access control](../concepts/auth.md).
 
-**関連:** [初回の操作](../getting-started/first-walkthrough.md)、[画面一覧](screen-transition-diagram.md)。
+**Related:** [First walkthrough](../getting-started/first-walkthrough.md), [Screens and navigation](screen-transition-diagram.md).

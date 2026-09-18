@@ -1,63 +1,63 @@
 ---
-title: 画面一覧と移動の流れ
-description: よく使うURLと、共通レイアウト・共有画面の役割。
+title: Screens and navigation
+description: Common URLs and the roles of shared layouts and shared-course screens.
 ---
 
-# 画面一覧と移動の流れ
+# Screens and navigation
 
-画面を追加・修正するときの地図です。URLの定義は [App.tsx](https://github.com/yukiharada1228/videoq/blob/main/apps/web/src/App.tsx)を基準にします。
+Use this map when adding or editing screens. [App.tsx](https://github.com/yukiharada1228/videoq/blob/main/apps/web/src/App.tsx) is the source of truth for URL definitions.
 
-## よく使う画面
+## Common screens
 
-| URL | 画面 | 主な用途 |
+| URL | Screen | Main use |
 |---|---|---|
-| `/` | ホーム | アプリの入口 |
-| `/videos` | 動画ライブラリ | 登録、検索、タグによる整理 |
-| `/videos/:id` | 動画詳細 | 再生、文字起こし、PLOGの確認・編集 |
-| `/videos/courses` | 講座一覧 | 講座の作成と選択 |
-| `/videos/courses/:id` | 講座詳細 | 動画の整理、チャット、共有、分析 |
-| `/settings` | 設定 | プロフィール、外部APIキーなど |
-| `/pricing` | 料金 | プランの確認・変更 |
-| `/admin` | 管理 | 利用者・利用上限・再索引 |
-| `/share/:token` | 共有講座 | 共有された講座の利用 |
-| `/course-invitations/:token` | 招待 | 講座への招待を確認 |
+| `/` | Home | App entry point |
+| `/videos` | Video library | Registration, search, and tag organization |
+| `/videos/:id` | Video details | Playback, transcript, and PLOG review/editing |
+| `/videos/courses` | Course list | Creating and selecting courses |
+| `/videos/courses/:id` | Course details | Organizing videos, chat, sharing, and analytics |
+| `/settings` | Settings | Profile, external API keys, and related settings |
+| `/pricing` | Pricing | Reviewing and changing plans |
+| `/admin` | Administration | Users, quotas, and reindexing |
+| `/share/:token` | Shared course | Accessing a shared course |
+| `/course-invitations/:token` | Invitation | Reviewing a course invitation |
 
-`:id` と `:token` は実際のID・トークンが入る場所です。
+`:id` and `:token` are placeholders for actual IDs and tokens.
 
-## 主な移動
+## Main navigation paths
 
 ```mermaid
 flowchart LR
-    Home[ホーム] --> Videos[動画ライブラリ]
-    Home --> Courses[講座一覧]
-    Videos --> Video[動画詳細]
-    Courses --> Course[講座詳細]
+    Home[Home] --> Videos[Video library]
+    Home --> Courses[Course list]
+    Videos --> Video[Video details]
+    Courses --> Course[Course details]
     Video --> Course
     Course --> Video
-    Course --> Share[共有講座]
-    Home --> Settings[設定]
+    Course --> Share[Shared course]
+    Home --> Settings[Settings]
 ```
 
-図はよく使う移動の概略です。ログインや対象データへの権限確認は、各画面とAPIで行います。
+This is an overview of common navigation. Each screen and the API check login status and access to the target data.
 
-## 認証関連の画面
+## Authentication screens
 
-| URL | 用途 |
+| URL | Purpose |
 |---|---|
-| `/login` / `/signup` | ログイン / アカウント登録 |
-| `/signup/check-email` / `/verify-email` | メール確認待ち / 確認リンクの処理 |
-| `/forgot-password` / `/reset-password` | パスワード再設定 |
-| `/change-email` | メールアドレス変更の確認 |
-| `/consent` | 外部クライアントへのアクセス許可 |
+| `/login` / `/signup` | Login / account registration |
+| `/signup/check-email` / `/verify-email` | Waiting for email verification / handling the verification link |
+| `/forgot-password` / `/reset-password` | Password reset |
+| `/change-email` | Email change confirmation |
+| `/consent` | Authorizing external client access |
 
-日本語は原則プレフィックスなし、英語は `/en/...` です。`/ja/...` でアクセスした場合は日本語の正規URLへ置き換えます。
+In the **VideoQ app**, Japanese generally has no prefix and English uses `/en/...`. Requests to `/ja/...` are replaced with the canonical Japanese URL. The documentation site uses a separate convention: English at `/` and Japanese at `/ja/`.
 
-## レイアウトの使い分け
+## Choosing a layout
 
-- `AppRouteLayout`: 通常の画面。ヘッダーを共有し、詳細画面ではフッターを省く構成があります。
-- `AuthRouteLayout`: ログイン・登録・招待などの認証関連画面。
-- 共有講座: 専用の画面構成。
+- `AppRouteLayout`: Ordinary screens share a header; some detail layouts omit the footer.
+- `AuthRouteLayout`: Authentication-related screens, such as login, registration, and invitations.
+- Shared courses: A dedicated screen layout.
 
-共通ヘッダーをページ内に重複して置かず、本文だけを実装します。読み込み・エラーの表示も本文側で扱います。
+Implement only the page body without duplicating the shared header. Handle loading and error displays within the body as well.
 
-**関連:** [画面を変更する](../guides/frontend.md)、[テストの使い分け](../guides/testing.md)。
+**Related:** [Change the frontend](../guides/frontend.md), [Tests and verification commands](../guides/testing.md).
