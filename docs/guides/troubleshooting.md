@@ -73,7 +73,9 @@ Questions about course names or video counts may be answered from metadata witho
 
 Saving subtitles and completing their asynchronous search reindex are separate events. The video's existing `completed` label does not confirm an edit's reindex finished. Check the matching worker job, then send a new Q&A question; previously displayed or saved answers stay unchanged.
 
-Study's stored questions and hints do not update when subtitles are saved or search is reindexed. Review and edit the affected learning data, or explicitly rebuild PLOG after preserving any manual work you need. A rebuild replaces those edits and does not migrate ongoing progress to the new concept IDs. Follow the [update scope table and correction walkthrough](../architecture/transcription-and-search.md#update-scope) before choosing an operation.
+Study support reads nearby text directly from the saved transcript and can use a correction before search reindexing finishes. Its stored questions and hints do not update when subtitles are saved or search is reindexed. Review and edit the affected learning data, or explicitly rebuild PLOG after preserving any manual work you need. A rebuild replaces those edits and does not migrate ongoing progress to the new concept IDs. Follow the [update scope table and correction walkthrough](../architecture/transcription-and-search.md#update-scope) before choosing an operation.
+
+Check the corrected opening questions and hints in a [fresh Study session](../plog/README.md#verify-in-fresh-session). Switching Q&A → Study only clears visible messages; existing progress can cause a check to skip the opening question or grade the new message as a reply to an earlier question.
 
 ## Configuration changes have no effect
 

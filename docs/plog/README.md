@@ -92,6 +92,8 @@ For an ordinary supporting response, the model receives the study policy, target
 
 The material includes up to four subtitle scenes whose start times are within 90 seconds of the concept's introduction, plus nearby summaries if present. The current generator does not populate those hierarchical summaries. It also initially saves no playback waypoints, so study responses are not guaranteed to include a playable citation; the citation path uses a configured learning object's first waypoint when one exists.
 
+These subtitle scenes are parsed directly from the video's stored transcript when Study loads its supporting material; they do not come from Q&A's scene search index. After a subtitle edit is saved, the next read can use corrected nearby text even if search reindexing is pending or has failed. Saved PLOG questions and hints remain unchanged until edited or rebuilt, so support can mix new transcript text with old learning material. A response already in progress may still use the transcript it loaded earlier.
+
 For “tell me the answer,” the response uses the refusal/help template and saved hint instead of generating a new support message. Model-generated support also passes a phrase-based reveal check that can replace it with that template. This is a heuristic, not a semantic proof that an answer was withheld.
 
 Study mode generates its response before sending the complete text as a stream chunk. It does not currently stream individual generated tokens as ordinary Q&A can.
@@ -108,9 +110,19 @@ A rebuild replaces the video's concepts and their IDs. It deletes the DB's `lear
 
 While the latest build is `pending`, `running`, or `failed`, that video's graph is excluded from new Study turns. A course with no other usable graph cannot start Study; one with other ready graphs can still use those. An already running response may finish using the graph it loaded before the rebuild. Rebuilding does not rewrite visible messages or saved chat history.
 
-Plan a rebuild between learning sessions when possible. After it is `ready`, inspect the new questions and hints, switch Q&A → Study to clear the old visible dialogue, and start a new question sequence about the desired concept. Switching modes does not reset all session progress. Do not present the rebuilt path as a seamless continuation of the old one.
+Plan a rebuild between learning sessions when possible. After it is `ready`, inspect the new questions and hints and [verify them in a fresh session](#verify-in-fresh-session). Switching Q&A → Study clears visible dialogue but retains the session ID and any remaining progress. Do not present the rebuilt path as a seamless continuation of the old one.
 
 For a small subtitle correction, reviewing and editing the affected learning objects can preserve the remaining manual work. See [the freshness policy and verification steps](../architecture/transcription-and-search.md#update-scope); `ready` by itself does not mean the graph matches the latest transcript.
+
+### Verify edits in a fresh Study session {#verify-in-fresh-session}
+
+Manual edits retain concept IDs and their session progress. To check opening questions and hints after either an edit or a rebuild, use a separate verification session:
+
+1. Copy the course URL, or the same share URL used for the check. Keep the original tab open.
+2. Use the browser's **New Tab** command (`Ctrl+T` / `Cmd+T`), then paste the URL into its address bar. Do not duplicate or restore the original tab, or open the page through a link that retains an opener. Those routes can retain or copy the existing `sessionStorage`, where the application keeps its Study session ID. A new independent tab gets a separate ID; reloading the original tab or switching modes does not. See [browser session storage behavior](https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage).
+3. Select **Study** and ask about the target concept. If prerequisites appear first, work through them before checking the target's saved opening question and subsequent hints against the edited learning graph.
+
+The separate session leaves the original tab's progress intact; it does not delete saved chat history. Reusing the original session can skip the opening question or grade the verification message as a reply to an earlier question, even when that earlier dialogue is no longer visible.
 
 ## Where to look
 
