@@ -37,6 +37,10 @@ React側のログイン判定は `useSession`、プロフィールの取得は `
 
 定義は [packages/trpc/src/init.ts](https://github.com/yukiharada1228/videoq/blob/main/packages/trpc/src/init.ts)、リクエストとの接続は [trpc/context.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/trpc/context.ts)にあります。
 
+## 講座の共有と招待
+
+所有者・招待参加者・共有リンク利用者の権限表、AI回答枠の負担者、履歴の公開範囲、取り消し手順は、[共有・招待の権限とチャット履歴](course-sharing.md)を参照してください。
+
 ## MCPでの確認
 
 APIキーは設定画面で管理します。OAuthでは利用者がクライアントへのアクセスを許可し、`videoq.read` / `videoq.write` などの範囲で操作します。ブラウザのセッションとMCPのトークンを同じものとして扱わないでください。

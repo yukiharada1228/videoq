@@ -442,6 +442,13 @@
       "publicBadge": "Public share link"
     }
   },
+  "courseSharing": {
+    "link": "Anyone with the share link can view this course and chat without signing in. Questions are recorded as coming from a shared link.",
+    "invitation": "Invited members can view this course and chat. They cannot edit it. The owner's chat history includes the questioner's username and email address.",
+    "quotaAndHistory": "Q&A and Study use the course owner's AI answer allowance. The owner can read and export questions and answers.",
+    "learnMore": "Sharing permissions, usage and history",
+    "opensInNewTab": "Opens in a new tab"
+  },
   "courseInvitation": {
     "badge": "Course invitation",
     "title": "Review invitation",
