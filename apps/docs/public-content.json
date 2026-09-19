@@ -9,6 +9,7 @@
     "architecture/trpc-api.md",
     "billing/stripe-dashboard.md",
     "concepts/auth.md",
+    "concepts/course-sharing.md",
     "concepts/domain-model.md",
     "concepts/how-ai-works.md",
     "database/data-dictionary.md",

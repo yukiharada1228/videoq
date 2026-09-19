@@ -32,6 +32,7 @@ const sidebars: SidebarsConfig = {
         'concepts/domain-model',
         'architecture/system-configuration-diagram',
         'concepts/auth',
+        'concepts/course-sharing',
       ],
     },
     {
