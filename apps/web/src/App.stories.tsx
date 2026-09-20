@@ -39,6 +39,7 @@ const meta = {
       import('./pages/LoginPage'), import('./pages/SignupPage'),
       import('./pages/VideoLibraryPage'), import('./pages/VideoDetailPage'),
       import('./pages/VideoCoursesPage'), import('./pages/VideoCourseDetailPage'),
+      import('./pages/SharePage'), import('./pages/CourseInvitationPage'),
     ]);
     const cleanupUpload = installUploadFixture({});
     const saved = localStorage.getItem('videoq.locale');
