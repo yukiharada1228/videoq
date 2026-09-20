@@ -9,19 +9,20 @@ import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { UtilityLink } from '@/components/ui/utility-link';
 
-type EmailChangeState = 'loading' | 'success' | 'error';
+type EmailChangeState = 'loading' | 'pending' | 'success' | 'error';
 
 function EmailChangeConfirmContent() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   const errorParam = searchParams.get('error');
+  const awaitingVerification = !token && searchParams.get('step') === 'verify-new';
   const { t } = useTranslation();
 
   // BA verify-email redirects here via callbackURL after success (no token).
   // Token is only present if the SPA is used as a handoff target.
   const confirmQuery = useQuery({
     queryKey: ['emailChangeConfirm', token ?? 'callback', errorParam ?? null],
-    enabled: !errorParam,
+    enabled: !errorParam && !awaitingVerification,
     retry: false,
     staleTime: Infinity,
     refetchOnMount: false,
@@ -29,9 +30,9 @@ function EmailChangeConfirmContent() {
     refetchOnWindowFocus: false,
     queryFn: async () => {
       if (token) {
-        await apiClient.confirmEmailChange({ token });
+        return apiClient.confirmEmailChange({ token });
       }
-      return {};
+      return { requiresNewEmailVerification: false };
     },
   });
 
@@ -41,6 +42,9 @@ function EmailChangeConfirmContent() {
   if (errorParam) {
     state = 'error';
     message = t('auth.emailChange.error');
+  } else if (awaitingVerification || confirmQuery.data?.requiresNewEmailVerification) {
+    state = 'pending';
+    message = t('auth.emailChange.pendingVerification');
   } else if (confirmQuery.isPending) {
     state = 'loading';
     message = t('auth.emailChange.loading');
@@ -90,6 +94,8 @@ function EmailChangeConfirmContent() {
             </p>
           </div>
         )}
+
+        {state === 'pending' && <MessageAlert type="warning" message={message} />}
 
         {state === 'error' && (
           <div className="space-y-4">

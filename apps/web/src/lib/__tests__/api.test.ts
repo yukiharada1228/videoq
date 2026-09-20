@@ -167,6 +167,16 @@ describe('ApiClient protocol adapters', () => {
     await expect(client.logout()).rejects.toBe(failure);
   });
 
+  it.each([
+    [{ status: true }, true],
+    [{ status: true, user: { email: 'new@example.test' } }, false],
+  ])('distinguishes email-change approval from completion: %j', async (data, pending) => {
+    authClientMock.verifyEmail.mockResolvedValueOnce({ data, error: null });
+    await expect(client.confirmEmailChange({ token: 'email-change-token' })).resolves.toEqual({
+      requiresNewEmailVerification: pending,
+    });
+  });
+
   it.each(['stream', 'csv', 'upload'] as const)(
     'reports a %s 401 without signing out the current session',
     async (protocol) => {

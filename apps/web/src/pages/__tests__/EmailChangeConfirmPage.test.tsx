@@ -19,7 +19,7 @@ describe('EmailChangeConfirmPage', () => {
   })
 
   it('confirms email change when token query is present', async () => {
-    ;(apiClient.confirmEmailChange as ReturnType<typeof vi.fn>).mockResolvedValue({})
+    ;(apiClient.confirmEmailChange as ReturnType<typeof vi.fn>).mockResolvedValue({ requiresNewEmailVerification: false })
 
     render(<EmailChangeConfirmPage />)
 
@@ -47,5 +47,33 @@ describe('EmailChangeConfirmPage', () => {
 
     expect(await screen.findByText('auth.emailChange.error')).toBeInTheDocument()
     expect(apiClient.confirmEmailChange).not.toHaveBeenCalled()
+  })
+
+  it('asks for new-address verification after current-address approval', async () => {
+    globalThis.__setMockSearchParams('step=verify-new')
+
+    render(<EmailChangeConfirmPage />)
+
+    expect(await screen.findByText('auth.emailChange.pendingVerification')).toBeInTheDocument()
+    expect(screen.queryByText('auth.emailChange.success')).not.toBeInTheDocument()
+    expect(apiClient.confirmEmailChange).not.toHaveBeenCalled()
+  })
+
+  it('shows an approval error even when the callback has a pending step', async () => {
+    globalThis.__setMockSearchParams('step=verify-new&error=INVALID_TOKEN')
+
+    render(<EmailChangeConfirmPage />)
+
+    expect(await screen.findByText('auth.emailChange.error')).toBeInTheDocument()
+    expect(screen.queryByText('auth.emailChange.pendingVerification')).not.toBeInTheDocument()
+  })
+
+  it('keeps token handoff approval pending until the new address is verified', async () => {
+    vi.mocked(apiClient.confirmEmailChange).mockResolvedValueOnce({ requiresNewEmailVerification: true })
+
+    render(<EmailChangeConfirmPage />)
+
+    expect(await screen.findByText('auth.emailChange.pendingVerification')).toBeInTheDocument()
+    expect(screen.queryByText('auth.emailChange.success')).not.toBeInTheDocument()
   })
 })
