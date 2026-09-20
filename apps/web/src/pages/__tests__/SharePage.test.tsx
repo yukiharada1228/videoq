@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import SharePage from '../SharePage'
 
 const getSharedCourse = vi.fn()
@@ -59,12 +59,23 @@ describe('SharePage', () => {
     })
   })
 
-  it('should render chat panel', async () => {
+  it('keeps one chat panel mounted across responsive layouts and mobile tabs', async () => {
     render(<SharePage />)
 
-    await waitFor(() => {
-      expect(screen.getAllByTestId('chat-panel').length).toBeGreaterThan(0)
-    })
+    const panel = await screen.findByTestId('chat-panel')
+    try {
+      for (const width of [390, 1280, 390]) {
+        vi.stubGlobal('innerWidth', width)
+        fireEvent(window, new Event('resize'))
+        expect(screen.getByTestId('chat-panel')).toBe(panel)
+      }
+      for (const tab of ['videos', 'player']) {
+        fireEvent.click(screen.getByRole('button', { name: `videos.shared.tabs.${tab}` }))
+        expect(screen.getByTestId('chat-panel')).toBe(panel)
+      }
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('should select first video by default', async () => {
