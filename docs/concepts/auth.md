@@ -27,6 +27,33 @@ React uses `useSession` to check login status and `account.me` to fetch the prof
 
 Session reads use the database, without a cookie cache. Inactive users cannot create new sessions; inactive or banned users cannot use existing sessions at Better Auth endpoints, including its administrator and API-key APIs. Signing out remains available.
 
+## Implementation boundary
+
+Prefer Better Auth's documented options, plugins and server/client APIs. It owns password hashing, session cookies, email verification, Google token verification, OAuth protocol validation and provider-token encryption. Use its inferred API types. Session lookup failures caused by an outage must not be treated as logout; server-side authentication refusals must be translated into the application's normal unauthorized response.
+
+The implementation follows this boundary:
+
+| Requirement | Better Auth implementation |
+|---|---|
+| Password and username login, Google login, email verification/change, recovery, cookies | Core options, Google provider and the `username` plugin |
+| Administrator roles and account banning | `admin` plugin |
+| API key creation, storage, verification and revocation | `@better-auth/api-key` |
+| OAuth/OIDC, PKCE, refresh rotation and replay detection | `@better-auth/oauth-provider` and `jwt` |
+| VideoQ account status, immediate consent revocation and reset-link invalidation | `videoq-auth-security` companion plugin |
+| MCP access using a verified API key or OAuth token | `videoq-resource-access` server-only plugin APIs |
+
+The companion plugins add only application policy that the installed standard plugins do not supply:
+
+- Current account status and consent are checked at the token endpoint before issuance. The official `extensions` option supplies the consent claim and UserInfo policy; token-claim callbacks do not repeat issuance checks. Refresh-token reuse retains Better Auth's default rejection and family revocation.
+- A before hook extends the standard consent-deletion endpoint to remove token records atomically with consent. It uses Better Auth's session middleware and adapter transaction; the official provider object is not modified. The stored authorization-code binding prevents old codes from becoming valid after reconnection.
+- Resource verification is available only through `auth.api.verifyVideoqApiKey` and `auth.api.verifyVideoqOAuth`. Both use the standard credential verifiers and add VideoQ account/access policy. Issuance, UserInfo, introspection and MCP share the same consent check. Hono only selects the credential mechanism and maps the result to application permissions and HTTP responses.
+- The standard request verifier currently requires a remote JWKS URL. Because a Cloudflare Worker cannot fetch its own same-zone Route, the resource plugin composes Better Auth's public JWT and DPoP helpers with the JWT plugin's in-process JWKS endpoint and a shared replay store.
+- Recovery and completed email/password changes invalidate that user's other reset links. The `verification.storeIdentifier` hash callback retains a reset-specific namespace so these deletions preserve unrelated verification values and existing links remain usable.
+
+Better Auth's configured logger excludes provider responses, token-bearing URLs and SQL details from library logs.
+
+Keep the real-route regression tests when upgrading Better Auth. Remove a workaround when a supported library feature provides the same behavior; add independent auth logic only for a demonstrated gap or an explicit VideoQ requirement.
+
 ## tRPC checks
 
 | Procedure | Entry-point check |

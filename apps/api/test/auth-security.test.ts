@@ -3,6 +3,7 @@ import { hashPassword } from "better-auth/crypto";
 import { verifyJwsAccessToken } from "better-auth/oauth2";
 import { createHash } from "node:crypto";
 import { decodeJwt } from "jose";
+import { Hono } from "hono";
 
 // Exercise the production Better Auth configuration and real HTTP endpoints.
 // Only persistence is replaced; no auth, password or token verifier is mocked.
@@ -11,11 +12,16 @@ vi.mock("@better-auth/drizzle-adapter", async () => {
   const { memoryAdapter } = await import("better-auth/adapters/memory");
   return { drizzleAdapter: () => memoryAdapter(store.data) };
 });
+vi.mock("../src/db/pool", () => ({
+  withDb: (_env: unknown, fn: (db: object) => unknown) => fn({}),
+}));
 
 import { createAuth } from "../src/lib/auth";
 import { OAUTH_GRANT_CLAIM } from "../src/lib/auth-security";
-import type { Bindings } from "../src/types/bindings";
+import type { AppEnv, Bindings } from "../src/types/bindings";
 import type { Db } from "../src/db/pool";
+import { requireAuth, sessionMethod } from "../src/middleware/auth";
+import { onError } from "../src/middleware/error-handler";
 
 const BASE = "https://auth-security.example";
 const RESOURCE = `${BASE}/api/mcp`;
@@ -149,6 +155,21 @@ async function introspect(auth: Auth, linked: Awaited<ReturnType<typeof connect>
 }
 
 describe("account suspension across Better Auth endpoints", () => {
+  it.each(["active", "inactive", "banned", "revoked"])("maps a real %s session to the application API's auth result", async (state) => {
+    const cookie = await login(makeAuth());
+    if (state === "inactive") store.data.user[0].isActive = false;
+    if (state === "banned") store.data.user[0].banned = true;
+    if (state === "revoked") store.data.session = [];
+    const app = new Hono<AppEnv>();
+    app.onError(onError);
+    app.get("/private", requireAuth(sessionMethod), (c) => c.json({ userId: c.var.userId }));
+    const response = await app.request(`${BASE}/private`, { headers: { cookie } }, env);
+    expect(response.status).toBe(state === "active" ? 200 : 401);
+    expect(await response.json()).toMatchObject(state === "active"
+      ? { userId: USER_ID }
+      : { error: { code: "UNAUTHORIZED" } });
+  });
+
   it.each(["/sign-in/username", "/sign-in/email"])("rejects new sessions for inactive users at %s", async (path) => {
     store.data.user[0].isActive = false;
     const response = await post(makeAuth(), path, {
@@ -195,6 +216,48 @@ describe("API key credential boundaries", () => {
     expect(response.status, await response.clone().text()).toBe(200);
     return await response.json() as { id: string; key: string };
   }
+
+  it.each(["active", "inactive", "banned", "missing"])("applies %s account policy through the server-only extension", async (status) => {
+    const auth = makeAuth();
+    const key = await createKey(auth, await login(auth));
+    if (status === "inactive") store.data.user[0].isActive = false;
+    if (status === "banned") store.data.user[0].banned = true;
+    if (status === "missing") store.data.user = [];
+    const result = await auth.api.verifyVideoqApiKey({ body: { key: key.key } });
+    expect(result.kind).toBe(status === "active" ? "ok" : "invalid");
+  });
+
+  it.each([
+    [{ accessLevel: "all" }, "all"],
+    [{ accessLevel: "read_only" }, "read_only"],
+    [{ access_level: "all" }, "all"],
+    [JSON.stringify({ access_level: "all" }), "all"],
+    [{ accessLevel: "read_only", access_level: "all" }, "read_only"],
+    [{ accessLevel: "", access_level: "all" }, ""],
+    [{ accessLevel: "unknown" }, "unknown"],
+    [null, "read_only"],
+  ])("preserves access policy for stored metadata %j", async (metadata, accessLevel) => {
+    const auth = makeAuth();
+    const key = await createKey(auth, await login(auth));
+    store.data.apikey[0].metadata = metadata;
+    expect(await auth.api.verifyVideoqApiKey({ body: { key: key.key } })).toMatchObject({
+      kind: "ok", userId: USER_ID, accessLevel,
+    });
+  });
+
+  it("honors the standard verifier's rejection of corrupt stored metadata", async () => {
+    const auth = makeAuth();
+    const key = await createKey(auth, await login(auth));
+    store.data.apikey[0].metadata = "invalid-json";
+    expect(await auth.api.verifyVideoqApiKey({ body: { key: key.key } })).toMatchObject({ kind: "invalid" });
+  });
+
+  it("does not expose resource verification as a public auth endpoint", async () => {
+    const auth = makeAuth();
+    for (const path of ["/verify-videoq-api-key", "/verify-videoq-oauth"]) {
+      expect((await post(auth, path, {})).status).toBe(404);
+    }
+  });
 
   it.each(["read_only", "all"])("does not turn a %s key into an account-management session", async (accessLevel) => {
     const auth = makeAuth();
@@ -333,6 +396,21 @@ describe.each([
   { name: "JWT", includeResource: true },
   { name: "opaque", includeResource: false },
 ])("OAuth policy for $name access tokens", ({ includeResource }) => {
+  it("uses Better Auth's refresh-token rotation and reuse detection", async () => {
+    const auth = makeAuth();
+    const linked = await connect(auth, await login(auth), { includeResource, scopes: OIDC_SCOPES });
+    const params = { grant_type: "refresh_token", refresh_token: linked.refresh_token };
+    const rotated = await tokensFrom(await tokenRequest(auth, linked.clientId, params, includeResource));
+    const response = await tokenRequest(auth, linked.clientId, params, includeResource);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "invalid_grant" });
+    const family = await tokenRequest(auth, linked.clientId, {
+      grant_type: "refresh_token", refresh_token: rotated.refresh_token,
+    }, includeResource);
+    expect(family.status).toBe(400);
+    expect(await family.json()).toMatchObject({ error: "invalid_grant" });
+  });
+
   it("supports OIDC code exchange, refresh and both UserInfo transports", async () => {
     const auth = makeAuth();
     const linked = await connect(auth, await login(auth), { includeResource, scopes: OIDC_SCOPES });
@@ -370,12 +448,13 @@ describe.each([
     expect((await userInfo(auth, reconnected.access_token)).status).toBe(200);
   });
 
-  it.each(["inactive", "banned", "scope removed"])("rejects UserInfo for %s authorization", async (reason) => {
+  it.each(["inactive", "banned", "scope removed", "disabled client"])("rejects UserInfo for %s authorization", async (reason) => {
     const auth = makeAuth();
     const linked = await connect(auth, await login(auth), { includeResource, scopes: OIDC_SCOPES });
     if (reason === "inactive") store.data.user[0].isActive = false;
     if (reason === "banned") store.data.user[0].banned = true;
     if (reason === "scope removed") store.data.oauthConsent[0].scopes = ["openid"];
+    if (reason === "disabled client") store.data.oauthClient[0].disabled = true;
     expect((await userInfo(auth, linked.access_token)).status).toBe(401);
   });
 

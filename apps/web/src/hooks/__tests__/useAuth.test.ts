@@ -1,10 +1,12 @@
 import { renderHook, waitFor } from '@testing-library/react'
 import { useAuth } from '../useAuth'
 import { useI18nNavigate } from '@/lib/i18n'
+import * as authSession from '@/lib/authSession'
 
 const getAccount = vi.fn()
 
 describe('useAuth', () => {
+  afterEach(() => vi.restoreAllMocks())
   beforeEach(() => {
     vi.clearAllMocks()
     getAccount.mockReset()
@@ -154,6 +156,27 @@ describe('useAuth', () => {
       expect.objectContaining({ message: failure.message }),
     )
     consoleError.mockRestore()
+  })
+
+  it('keeps the current route when the Better Auth session endpoint is unavailable', async () => {
+    const state = authSession.useAuthSession()
+    const session = vi.spyOn(authSession, 'useAuthSession').mockReturnValue({
+      ...state, data: null, isPending: false,
+      error: { status: 503, statusText: 'Service Unavailable', message: 'Temporary failure' },
+    })
+    const onAuthError = vi.fn()
+    const { result, rerender } = renderHook(() => useAuth({ onAuthError }))
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(useI18nNavigate()).not.toHaveBeenCalled()
+    expect(onAuthError).not.toHaveBeenCalled()
+    expect(getAccount).not.toHaveBeenCalled()
+
+    // A later successful anonymous response is authoritative again.
+    session.mockReturnValue({ ...state, data: null, isPending: false, error: null })
+    rerender()
+    await waitFor(() => expect(useI18nNavigate()).toHaveBeenCalledWith('/login'))
+    expect(onAuthError).toHaveBeenCalledTimes(1)
   })
 
   it('should not redirect when redirectToLogin is false', async () => {

@@ -16,7 +16,8 @@ import { authLogger, summarizeAuthApiError } from "./auth-error-log";
 import { rateLimitBackend } from "./rate-limit";
 import { MCP_OAUTH_SCOPES } from "./mcp-auth";
 import { resolveSignupQuotaDefaults } from "../shared/signup-quota";
-import { passwordResetIdentifierStorage, revokeOAuthConsent, videoqAuthSecurity } from "./auth-security";
+import { passwordResetIdentifierStorage, videoqAuthSecurity, videoqOAuthClaims } from "./auth-security";
+import { videoqResourceAccess } from "./auth-access";
 
 function trustedOrigins(env: Bindings): string[] {
   return (env.CORS_ALLOW_ORIGIN ?? "")
@@ -65,6 +66,7 @@ export function oauthProviderConfig(env: Bindings) {
   return {
     scopes: [...MCP_OAUTH_SCOPES],
     grantTypes: ["authorization_code", "refresh_token"],
+    extensions: [videoqOAuthClaims],
     resources: [
       {
         identifier: resource,
@@ -500,11 +502,9 @@ export function createAuth(env: Bindings, db: Db) {
         },
       }),
       jwt(),
-      {
-        ...oauth,
-        endpoints: { ...oauth.endpoints, deleteOAuthConsent: revokeOAuthConsent },
-      },
+      oauth,
       videoqAuthSecurity(oauth.options),
+      videoqResourceAccess(env, oauthResourceAudience(env)),
     ],
   });
 }

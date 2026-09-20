@@ -1,27 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const userRow = vi.hoisted(() => ({ value: [] as unknown[] }));
-const verifyApiKey = vi.hoisted(() => vi.fn());
+const verifyVideoqApiKey = vi.hoisted(() => vi.fn());
 const getSession = vi.hoisted(() => vi.fn());
-
-// users テーブルの参照だけを差し替えた最小の Drizzle スタブ。
-const fakeDb = {
-  select: () => ({
-    from: () => ({ where: () => ({ limit: async () => userRow.value }) }),
-  }),
-};
-
 vi.mock("../src/db/pool", () => ({
-  withDb: (_env: unknown, fn: (db: unknown) => unknown) => fn(fakeDb),
-  withClient: vi.fn(),
+  withDb: (_env: unknown, fn: (db: object) => unknown) => fn({}),
 }));
 vi.mock("../src/lib/auth", () => ({
-  createAuth: () => ({ api: { getSession, verifyApiKey } }),
+  createAuth: () => ({ api: { getSession, verifyVideoqApiKey } }),
   authBaseURL: () => "http://localhost",
   oauthResourceAudience: () => "http://localhost/api/mcp",
 }));
 
 import { Hono } from "hono";
+import { APIError } from "better-auth/api";
 import {
   apiKeyMethod,
   requireAuth,
@@ -31,7 +22,7 @@ import {
 import type { AppEnv } from "../src/types/bindings";
 import { TEST_USER_ID } from "./helpers/auth";
 
-// テスト用ヘッダの近道を使わず、本物の API key 検証経路を通す。
+// テスト用ヘッダを使わず、Better Auth APIとの接続とHTTP応答への変換を確認する。
 const ENV = { ENVIRONMENT: "production" } as unknown as AppEnv["Bindings"];
 
 function app() {
@@ -54,10 +45,7 @@ function request() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  verifyApiKey.mockResolvedValue({
-    valid: true,
-    key: { referenceId: TEST_USER_ID, metadata: { accessLevel: "all" } },
-  });
+  verifyVideoqApiKey.mockResolvedValue({ kind: "ok", userId: TEST_USER_ID, via: "apikey", accessLevel: "all" });
   getSession.mockResolvedValue(null);
 });
 
@@ -78,73 +66,38 @@ describe("Better Auth session と停止アカウント", () => {
     }));
   });
 
-  it("キャッシュ済みセッションでもbannedユーザーを拒否する", async () => {
-    getSession.mockResolvedValue({
-      user: { id: TEST_USER_ID, banned: true, isActive: true },
-    });
-
+  it.each(["UNAUTHORIZED", "FORBIDDEN"] as const)("Better Authの%sを認証拒否として扱う", async (status) => {
+    getSession.mockRejectedValueOnce(new APIError(status));
     expect((await sessionRequest()).status).toBe(401);
   });
 
-  it("キャッシュ済みセッションでもis_active=falseを拒否する", async () => {
-    getSession.mockResolvedValue({
-      user: { id: TEST_USER_ID, banned: false, isActive: false },
-    });
-
-    expect((await sessionRequest()).status).toBe(401);
+  it.each([new Error("database unavailable"), new APIError("INTERNAL_SERVER_ERROR")])("サーバー障害を認証拒否に変換しない: %s", async (error) => {
+    getSession.mockRejectedValueOnce(error);
+    const a = app();
+    const onError = vi.fn(() => new Response(null, { status: 500 }));
+    a.onError(onError);
+    expect((await a.request("https://videoq.jp/session", {}, ENV)).status).toBe(500);
+    expect(onError).toHaveBeenCalledWith(error, expect.anything());
   });
 });
 
-describe("API key と停止アカウント", () => {
-  it("有効なアカウントのキーは通る", async () => {
-    userRow.value = [{ banned: false, isActive: true }];
-
+describe("Better Auth resource plugin integration", () => {
+  it("delegates API key verification to the server-only plugin endpoint", async () => {
     const res = await request();
-
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ userId: TEST_USER_ID });
+    expect(verifyVideoqApiKey).toHaveBeenCalledWith({ body: { key: "vq_abcdefghijklmnop" } });
   });
 
-  it("banned なユーザーのAPIキーは、キー自体が有効でも拒否する", async () => {
-    userRow.value = [{ banned: true, isActive: true }];
-
-    const res = await request();
-
-    expect(res.status).toBe(401);
+  it("maps a refused API key to 401", async () => {
+    verifyVideoqApiKey.mockResolvedValue({ kind: "invalid", message: "User is inactive" });
+    expect((await request()).status).toBe(401);
   });
 
-  it("is_active=false のユーザーも拒否する", async () => {
-    userRow.value = [{ banned: false, isActive: false }];
-
-    const res = await request();
-
-    expect(res.status).toBe(401);
-  });
-
-  it("ユーザーが消えている場合も拒否する", async () => {
-    userRow.value = [];
-
-    const res = await request();
-
-    expect(res.status).toBe(401);
-  });
-});
-
-describe("検証済み API キーの権限メタデータ", () => {
   it.each([
-    [{ accessLevel: "all" }, 200, 200],
-    [{ accessLevel: "read_only" }, 200, 403],
-    [{ access_level: "all" }, 200, 200],
-    [JSON.stringify({ access_level: "all" }), 200, 200],
-    [{ accessLevel: "read_only", access_level: "all" }, 200, 403],
-    [{ accessLevel: "", access_level: "all" }, 403, 403],
-    [{ accessLevel: "unknown" }, 403, 403],
-    [null, 200, 403],
-    ["invalid-json", 200, 403],
-  ])("metadata=%j の読み取り=%i、書き込み=%i", async (metadata, readStatus, writeStatus) => {
-    userRow.value = [{ banned: false, isActive: true }];
-    verifyApiKey.mockResolvedValue({ valid: true, key: { referenceId: TEST_USER_ID, metadata } });
-
+    ["all", 200, 200], ["read_only", 200, 403], ["unknown", 403, 403],
+  ])("enforces verified access level %s", async (accessLevel, readStatus, writeStatus) => {
+    verifyVideoqApiKey.mockResolvedValue({ kind: "ok", userId: TEST_USER_ID, via: "apikey", accessLevel });
     for (const [method, status] of [["GET", readStatus], ["POST", writeStatus]] as const) {
       const response = await app().request("https://videoq.jp/scoped", {
         method, headers: { "X-API-Key": "vq_abcdefghijklmnop" },

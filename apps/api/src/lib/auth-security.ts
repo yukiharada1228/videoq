@@ -1,16 +1,14 @@
 import type { AuthContext, BetterAuthPlugin, GenericEndpointContext } from "better-auth";
 import {
   APIError,
-  createAuthEndpoint,
   createAuthMiddleware,
   getSessionFromCtx,
   sensitiveSessionMiddleware,
 } from "better-auth/api";
 import {
-  extendOAuthProvider,
   getOAuthProviderApi,
-  type OAuthClaimExtensionInput,
   type OAuthOptions,
+  type OAuthProviderExtension,
   type OAuthRefreshToken,
 } from "@better-auth/oauth-provider";
 import { stripAccessTokenAuthorizationScheme } from "better-auth/oauth2";
@@ -58,11 +56,11 @@ export type OAuthConsentGrant = {
   scopes: string[];
 };
 
-function isInactive(user: object): boolean {
+export function isInactive(user: object): boolean {
   return "isActive" in user && user.isActive === false;
 }
 
-function isBanned(user: object): boolean {
+export function isBanned(user: object): boolean {
   return "banned" in user && user.banned === true;
 }
 
@@ -80,7 +78,7 @@ type GrantIdentity = {
   scopes: readonly string[];
 };
 
-async function hasActiveGrant(context: AuthContext, grant: GrantIdentity): Promise<boolean> {
+export async function hasActiveGrant(context: AuthContext, grant: GrantIdentity): Promise<boolean> {
   const { userId, clientId, referenceId, scopes } = grant;
   if (
     typeof userId !== "string" || !userId ||
@@ -89,8 +87,22 @@ async function hasActiveGrant(context: AuthContext, grant: GrantIdentity): Promi
   ) return false;
   const user = await context.internalAdapter.findUserById(userId);
   if (!user || isInactive(user) || isBanned(user)) return false;
-  const consent = await context.adapter.findOne<OAuthConsentGrant>({
+  return hasOAuthConsent(context.adapter, userId, clientId, referenceId, scopes);
+}
+
+/** Shared by issuance, UserInfo, introspection and the resource-server plugin. */
+export async function hasOAuthConsent(
+  adapter: AuthContext["adapter"], userId: string, clientId: string,
+  referenceId: string, scopes: readonly string[],
+): Promise<boolean> {
+  const client = await adapter.findOne<{ disabled?: boolean | null }>({
+    model: "oauthClient", where: [{ field: "clientId", value: clientId }],
+    select: ["disabled"],
+  });
+  if (!client || client.disabled) return false;
+  const consent = await adapter.findOne<Pick<OAuthConsentGrant, "scopes">>({
     model: "oauthConsent",
+    select: ["scopes"],
     where: [
       { field: "id", value: referenceId },
       { field: "userId", value: userId },
@@ -98,13 +110,6 @@ async function hasActiveGrant(context: AuthContext, grant: GrantIdentity): Promi
     ],
   });
   return Boolean(consent && scopes.every((scope) => consent.scopes.includes(scope)));
-}
-
-async function requireIssuanceGrant(input: OAuthClaimExtensionInput): Promise<void> {
-  if (!await hasActiveGrant(input.ctx.context, {
-    userId: input.user?.id, clientId: input.client.clientId,
-    referenceId: input.referenceId, scopes: input.scopes,
-  })) invalidGrant();
 }
 
 const authorizationCodeSchema = z
@@ -174,6 +179,27 @@ const introspectionSchema = z.object({
   [OAUTH_GRANT_CLAIM]: z.string().optional(),
 });
 
+// The token endpoint's before hook applies issuance policy to every format,
+// including opaque tokens and cached refresh responses. Claims only carry the
+// consent binding; checking policy here again would miss some formats anyway.
+export const videoqOAuthClaims: OAuthProviderExtension = {
+  claims: {
+    accessToken: ({ referenceId }) => ({ [OAUTH_GRANT_CLAIM]: referenceId }),
+    userInfo: async ({ ctx, user, jwt, scopes }) => {
+      // Better Auth owns token/DPoP verification; VideoQ owns current access.
+      if (!await hasActiveGrant(ctx.context, {
+        userId: user.id, clientId: jwt.client_id ?? jwt.azp,
+        referenceId: jwt[OAUTH_GRANT_CLAIM], scopes,
+      })) {
+        throw new APIError("UNAUTHORIZED", { error: "invalid_token" }, {
+          "WWW-Authenticate": 'Bearer error="invalid_token"',
+        });
+      }
+      return {};
+    },
+  },
+};
+
 /**
  * Bind each authorization code (and every rotated refresh token) to the
  * immutable consent id. A new consent after revocation must never revive an
@@ -183,32 +209,6 @@ export function videoqAuthSecurity(options: OAuthOptions<string[]>): BetterAuthP
   return {
     id: "videoq-auth-security",
     init(authContext) {
-      extendOAuthProvider(authContext, {
-        claims: {
-          accessToken: async (input) => {
-            await requireIssuanceGrant(input);
-            return { [OAUTH_GRANT_CLAIM]: input.referenceId };
-          },
-          idToken: async (input) => {
-            // OIDC can issue an ID token alongside an opaque access token.
-            await requireIssuanceGrant(input);
-            return {};
-          },
-          userInfo: async ({ ctx, user, jwt, scopes }) => {
-            // The provider has already verified the token and its DPoP proof.
-            // JWT validation alone does not re-read the grant or user status.
-            if (!await hasActiveGrant(ctx.context, {
-              userId: user.id, clientId: jwt.client_id ?? jwt.azp,
-              referenceId: jwt[OAUTH_GRANT_CLAIM], scopes,
-            })) {
-              throw new APIError("UNAUTHORIZED", { error: "invalid_token" }, {
-                "WWW-Authenticate": 'Bearer error="invalid_token"',
-              });
-            }
-            return {};
-          },
-        },
-      });
       return {
         options: {
           emailAndPassword: {
@@ -292,6 +292,16 @@ export function videoqAuthSecurity(options: OAuthOptions<string[]>): BetterAuthP
       }, {
         matcher: ({ path }) => path === "/oauth2/token",
         handler: createAuthMiddleware(async (ctx) => { await checkTokenGrant(ctx, options); }),
+      }, {
+        matcher: ({ path }) => path === "/oauth2/delete-consent",
+        // Extend the standard endpoint through a documented before hook;
+        // do not mutate the OAuth provider's endpoint definitions.
+        handler: createAuthMiddleware({ use: [sensitiveSessionMiddleware] }, async (ctx) => {
+          const body = z.object({ id: z.string().min(1) }).safeParse(ctx.body);
+          if (!body.success) throw new APIError("BAD_REQUEST", { message: "Invalid consent id" });
+          await deleteOAuthGrant(ctx.context.adapter, ctx.context.session.user.id, body.data.id);
+          return ctx.json({ success: true });
+        }),
       }],
       after: [{
         matcher: ({ path }) => path === "/change-password",
@@ -354,13 +364,3 @@ export async function deleteOAuthGrant(
     await tx.deleteMany({ model: "oauthConsent", where });
   });
 }
-
-/** Replace the provider's consent-only deletion with an atomic disconnection. */
-export const revokeOAuthConsent = createAuthEndpoint("/oauth2/delete-consent", {
-  method: "POST",
-  body: z.object({ id: z.string().min(1) }),
-  use: [sensitiveSessionMiddleware],
-}, async (ctx) => {
-  await deleteOAuthGrant(ctx.context.adapter, ctx.context.session.user.id, ctx.body.id);
-  return ctx.json({ success: true });
-});

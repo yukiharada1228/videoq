@@ -8,33 +8,13 @@ import {
   vi,
 } from "vitest";
 
-const authMocks = vi.hoisted(() => ({
-  getJwks: vi.fn(),
-  isOAuthGrantActive: vi.fn(),
-  userRows: [{ banned: false, isActive: true }] as unknown[],
-}));
-
-const fakeDb = {
-  select: () => ({
-    from: () => ({
-      where: () => ({ limit: async () => authMocks.userRows }),
-    }),
-  }),
-};
-
+const store = vi.hoisted(() => ({ data: {} as Record<string, Record<string, unknown>[]> }));
+vi.mock("@better-auth/drizzle-adapter", async () => {
+  const { memoryAdapter } = await import("better-auth/adapters/memory");
+  return { drizzleAdapter: () => memoryAdapter(store.data) };
+});
 vi.mock("../src/db/pool", () => ({
-  withDb: (_env: unknown, fn: (db: unknown) => unknown) => fn(fakeDb),
-  withClient: vi.fn(),
-}));
-
-vi.mock("../src/lib/auth", () => ({
-  createAuth: () => ({ api: { getJwks: authMocks.getJwks } }),
-  authBaseURL: () => "https://videoq.jp",
-  oauthResourceAudience: () => "https://videoq.jp/api/mcp",
-}));
-
-vi.mock("../src/repositories/oauth-grant-repository", () => ({
-  isOAuthGrantActive: authMocks.isOAuthGrantActive,
+  withDb: (_env: unknown, fn: (db: object) => unknown) => fn({}),
 }));
 
 import { deriveDpopAth, deriveDpopJkt } from "better-auth/oauth2";
@@ -70,10 +50,21 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-  vi.clearAllMocks();
-  authMocks.userRows = [{ banned: false, isActive: true }];
-  authMocks.getJwks.mockResolvedValue({ keys: [accessTokenPublicJwk] });
-  authMocks.isOAuthGrantActive.mockResolvedValue(true);
+  store.data = Object.fromEntries([
+    "user", "account", "session", "verification", "apikey", "jwks",
+    "oauthClient", "oauthResource", "oauthClientResource", "oauthRefreshToken",
+    "oauthAccessToken", "oauthConsent", "oauthClientAssertion",
+  ].map((model) => [model, []]));
+  store.data.user.push({ id: TEST_USER_ID, banned: false, isActive: true });
+  store.data.oauthClient.push({ id: "client-row", clientId: "test-client", disabled: false });
+  store.data.oauthConsent.push({
+    id: "test-consent", userId: TEST_USER_ID, clientId: "test-client",
+    scopes: ["videoq.read", "videoq.write"],
+  });
+  store.data.jwks.push({
+    id: KEY_ID, publicKey: JSON.stringify(accessTokenPublicJwk), privateKey: "unused",
+    createdAt: new Date(), alg: "EdDSA", crv: "Ed25519",
+  });
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -110,7 +101,10 @@ async function request(
 ) {
   // A distinct env also proves the verifier can load key material directly
   // instead of relying on a prior cache entry.
-  const env = { ENVIRONMENT: "production" } as AppEnv["Bindings"];
+  const env = {
+    ENVIRONMENT: "production", BETTER_AUTH_URL: "https://videoq.jp",
+    BETTER_AUTH_SECRET: "isolated-oauth-test-secret-01234567890123456789",
+  } as AppEnv["Bindings"];
   return app().request(
     "https://videoq.jp/who",
     {
@@ -137,18 +131,44 @@ describe("OAuth bearer authentication", () => {
       authVia: "oauth",
       accessLevel: "all",
     });
-    expect(authMocks.getJwks).toHaveBeenCalledOnce();
     expect(networkFetch).not.toHaveBeenCalled();
-    expect(authMocks.isOAuthGrantActive).toHaveBeenCalledWith(
-      fakeDb, TEST_USER_ID, "test-client", "test-consent", new Set(["videoq.read", "videoq.write"]),
-    );
+
   });
 
   it("rejects an already-issued JWT after its grant is revoked", async () => {
     const token = await signAccessToken("videoq.read videoq.write");
     expect((await request(token)).status).toBe(200);
-    authMocks.isOAuthGrantActive.mockResolvedValue(false);
+    store.data.oauthConsent = [];
     expect((await request(token)).status).toBe(401);
+  });
+
+  it.each(["inactive", "banned", "missing user", "disabled client", "missing client", "scope removed"])("rejects %s using the shared grant policy", async (reason) => {
+    if (reason === "inactive") store.data.user[0].isActive = false;
+    if (reason === "banned") store.data.user[0].banned = true;
+    if (reason === "missing user") store.data.user = [];
+    if (reason === "disabled client") store.data.oauthClient[0].disabled = true;
+    if (reason === "missing client") store.data.oauthClient = [];
+    if (reason === "scope removed") store.data.oauthConsent[0].scopes = [];
+    expect((await request(await signAccessToken("videoq.read"))).status).toBe(401);
+  });
+
+  it.each(["", "videoq.read  videoq.write", "videoq.read\tvideoq.write", ["videoq.read"]])("rejects a malformed scope claim %j", async (scope) => {
+    expect((await request(await signAccessToken("videoq.read", { scope }))).status).toBe(401);
+  });
+
+  it("keeps the standard JWT signature, issuer, audience and expiry checks", async () => {
+    const token = await signAccessToken("videoq.read");
+    const [header, body, signature] = token.split(".");
+    const tampered = `${header}.${body}.${signature[0] === "A" ? "B" : "A"}${signature.slice(1)}`;
+    expect((await request(tampered)).status).toBe(401);
+    for (const claims of [{ iss: "https://other.example" }, { aud: "other-resource" }, { exp: 1 }]) {
+      const invalid = await new SignJWT({ scope: "videoq.read", client_id: "test-client", videoq_grant: "test-consent" })
+        .setProtectedHeader({ alg: "EdDSA", kid: KEY_ID })
+        .setSubject(TEST_USER_ID).setIssuer(claims.iss ?? ISSUER)
+        .setAudience(claims.aud ?? AUDIENCE).setExpirationTime(claims.exp ?? "5m")
+        .sign(accessTokenPrivateKey);
+      expect((await request(invalid)).status).toBe(401);
+    }
   });
 
   it.each([
@@ -156,7 +176,6 @@ describe("OAuth bearer authentication", () => {
     { client_id: undefined }, { client_id: "" },
   ])("rejects legacy or malformed grant identity %j", async (claims) => {
     expect((await request(await signAccessToken("videoq.read", claims))).status).toBe(401);
-    expect(authMocks.isOAuthGrantActive).not.toHaveBeenCalled();
   });
 
   it("videoq.read が無い token は 403 にする", async () => {
@@ -202,5 +221,9 @@ describe("OAuth bearer authentication", () => {
       authVia: "oauth",
       accessLevel: "read_only",
     });
+    expect((await request(accessToken, {
+      Authorization: `DPoP ${accessToken}`, DPoP: proof,
+    })).status).toBe(401);
+    expect((await request(accessToken)).status).toBe(401);
   });
 });
