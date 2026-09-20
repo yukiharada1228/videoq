@@ -62,7 +62,7 @@ function AccountField({ field, currentValue }: { field: 'username' | 'email'; cu
   });
 
   return (
-    <div className="py-5 first:pt-0 last:pb-0">
+    <div className="py-4 first:pt-0 last:pb-0">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <h3 className="text-std-16B-170">{t(`${prefix}.title`)}</h3>
@@ -148,7 +148,7 @@ export function AccountSettingsSection() {
   const { t } = useTranslation();
   return (
     <section id="account" aria-labelledby="account-heading" className="scroll-mt-24">
-      <Heading size="20" hasChip className="mb-5">
+      <Heading size="20" hasChip className="mb-4">
         <HeadingTitle id="account-heading" level="h2">{t('settings.account.title')}</HeadingTitle>
       </Heading>
       <div className="divide-y divide-solid-gray-200">

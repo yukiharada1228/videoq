@@ -68,7 +68,7 @@ export function ConnectedAppsSection({ headingLevel = 'h2' }: { headingLevel?: '
 
   return (
     <section aria-labelledby="connected-apps-heading">
-      <div className="mb-5">
+      <div className="mb-4">
         <Heading size="18" className="mb-2">
           <HeadingTitle id="connected-apps-heading" level={headingLevel}>{t('settings.connectedApps.title')}</HeadingTitle>
         </Heading>

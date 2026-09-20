@@ -274,23 +274,23 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div>
       <AppPageHeader
         title={t('settings.title')}
         description={t('settings.subtitle')}
       />
 
-      <nav aria-label={t('settings.navigation')} className="mb-8 flex flex-wrap gap-x-6 gap-y-3 border-b border-solid-gray-200 pb-5">
+      <nav aria-label={t('settings.navigation')} className="mb-6 flex flex-wrap gap-x-6 gap-y-2 border-b border-solid-gray-200 pb-4">
         <DaLink href="#account">{t('settings.account.title')}</DaLink>
         <DaLink href="#billing">{t('settings.billing.title')}</DaLink>
         <DaLink href="#youtube">{t('settings.searchApiKey.title')}</DaLink>
         <DaLink href="#integrations">{t('settings.integrations.title')}</DaLink>
       </nav>
 
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
           <AccountSettingsSection />
           <section id="billing" aria-labelledby="billing-heading" className={SETTINGS_SECTION_CLASS}>
-            <div className="mb-5">
+            <div className="mb-4">
               <Heading size="20" hasChip className="mb-2">
                 <HeadingTitle id="billing-heading" level="h2">{t('settings.billing.title')}</HeadingTitle>
               </Heading>
@@ -325,20 +325,20 @@ export default function SettingsPage() {
           </section>
 
           <section id="youtube" aria-labelledby="youtube-heading" className={SETTINGS_SECTION_CLASS}>
-            <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <Heading size="20" hasChip className="mb-2">
+            <div className="mb-4">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <Heading size="20" hasChip>
                   <HeadingTitle id="youtube-heading" level="h2">{t('settings.searchApiKey.title')}</HeadingTitle>
                 </Heading>
-                <p className="text-std-16N-170 text-solid-gray-600">
-                  {t('settings.searchApiKey.description')}
-                </p>
+                {searchApiKeyStatusQuery.isSuccess && (
+                  <ChipLabel variant="filled-1" color={searchApiKeyStatusQuery.data.has_api_key ? 'blue' : 'gray'} className="shrink-0 text-oln-14N-100">
+                    {t(searchApiKeyStatusQuery.data.has_api_key ? 'settings.searchApiKey.configured' : 'settings.searchApiKey.notConfigured')}
+                  </ChipLabel>
+                )}
               </div>
-              {searchApiKeyStatusQuery.isSuccess && (
-                <ChipLabel variant="filled-1" color={searchApiKeyStatusQuery.data.has_api_key ? 'blue' : 'gray'} className="shrink-0 text-oln-14N-100">
-                  {t(searchApiKeyStatusQuery.data.has_api_key ? 'settings.searchApiKey.configured' : 'settings.searchApiKey.notConfigured')}
-                </ChipLabel>
-              )}
+              <p className="text-std-16N-170 text-solid-gray-600">
+                {t('settings.searchApiKey.description')}
+              </p>
             </div>
 
             {searchApiStatusMessage && (
@@ -442,12 +442,12 @@ export default function SettingsPage() {
 
           {/* ── Integration API Keys ─────────────────────────────────── */}
           <section id="integrations" aria-labelledby="integrations-heading" className={SETTINGS_SECTION_CLASS}>
-            <Heading size="20" hasChip className="mb-5">
+            <Heading size="20" hasChip className="mb-4">
               <HeadingTitle id="integrations-heading" level="h2">{t('settings.integrations.title')}</HeadingTitle>
             </Heading>
             <ConnectedAppsSection headingLevel="h3" />
             <section className="mt-6 border-t border-solid-gray-200 pt-6" aria-labelledby="api-keys-heading">
-            <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <Heading size="18" className="mb-2">
                   <HeadingTitle id="api-keys-heading" level="h3">{t('settings.integrationApiKeys.title')}</HeadingTitle>
