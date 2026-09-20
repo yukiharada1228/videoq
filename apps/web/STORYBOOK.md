@@ -46,7 +46,7 @@ Storybookの検索から部品を選び、変更前の状態・操作を確認�
 
 `play`では`canvas.getByRole`などで利用者が操作する要素を選び、`userEvent`で操作して結果を確認します。非同期の画面反映は`findByRole`や`waitFor`で待ちます。固定時間の待機はポーリング間隔など、時間自体を検証する場合に使います。
 
-Rechartsの扇形はアニメーション中にDOM要素が置き換わるため、要素数だけを待っても操作対象が安定したとは限りません。[FeedbackDonutChartのホバーStory](src/components/dashboard/FeedbackDonutChart.stories.tsx)では、そのStory内だけ`prefers-reduced-motion`を再現し、ライブラリが対応している「動きを減らす」表示で操作を検証します。他のメディアクエリーは元のブラウザーへ渡し、終了時に設定を戻します。通常のアニメーションは別のStoryで維持し、固定sleepや待機時間の延長だけで不安定さを隠さないでください。
+Rechartsの扇形はアニメーション中にDOM要素が置き換わるため、要素数だけを待っても操作対象が安定したとは限りません。[FeedbackDonutChartのホバーStory](src/components/dashboard/FeedbackDonutChart.stories.tsx)では、そのStory内だけ`prefers-reduced-motion`を再現し、ライブラリが対応している「動きを減らす」表示で操作を検証します。他のメディアクエリーは元のブラウザーへ渡し、終了時に設定を戻します。ブラウザー全体の設定を変えるStoryは`parameters.docs.story.inline: false`でDocs内でも分離します。通常のアニメーションは別のStoryで維持し、固定sleepや待機時間の延長だけで不安定さを隠さないでください。
 
 ## 3. 変更した範囲を検証する
 

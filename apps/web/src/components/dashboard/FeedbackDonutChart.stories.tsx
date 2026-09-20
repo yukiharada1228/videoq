@@ -55,7 +55,10 @@ export const HoverTooltip: Story = {
   // checks. Other stories retain the normal animation, and cleanup restores it.
   beforeEach: preferReducedMotion,
   parameters: {
-    docs: { description: { story: 'ブラウザーの「動きを減らす」設定でホバー・解除を検証します。通常のアニメーションはMixedなどのStoryで確認できます。' } },
+    docs: {
+      story: { inline: false, height: '320px' },
+      description: { story: 'ブラウザーの「動きを減らす」設定でホバー・解除を検証します。通常のアニメーションはMixedなどのStoryで確認できます。' },
+    },
   },
   play: async ({ canvas, canvasElement, userEvent }) => {
     await waitFor(() => expect(canvasElement.querySelectorAll('.recharts-pie-sector')).toHaveLength(3), { timeout: 3000 });
