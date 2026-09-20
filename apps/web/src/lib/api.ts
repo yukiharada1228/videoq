@@ -258,16 +258,17 @@ export class ApiClient {
     if (error) throw new ApiError(error.message || 'Failed to list keys', error.code || 'API_KEY');
     const keys = (data?.apiKeys ?? data ?? []) as Array<Record<string, unknown>>;
     return keys.map((k) => {
-      // Missing/corrupt legacy metadata is read-only, matching API enforcement.
+      // Use the same field precedence as API enforcement, including legacy keys.
       let accessLevel: 'all' | 'read_only' = 'read_only';
-      const meta = k.metadata;
+      let meta = k.metadata;
       if (typeof meta === 'string') {
         try {
-          const parsed = JSON.parse(meta) as { accessLevel?: string };
-          if (parsed.accessLevel === 'all') accessLevel = 'all';
-        } catch { /* ignore */ }
-      } else if (meta && typeof meta === 'object' && (meta as { accessLevel?: string }).accessLevel === 'all') {
-        accessLevel = 'all';
+          meta = JSON.parse(meta);
+        } catch { meta = null; }
+      }
+      if (meta && typeof meta === 'object') {
+        const parsed = meta as { accessLevel?: unknown; access_level?: unknown };
+        if ((parsed.accessLevel ?? parsed.access_level) === 'all') accessLevel = 'all';
       }
       return {
         id: String(k.id),

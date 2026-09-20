@@ -187,6 +187,58 @@ describe("account suspension across Better Auth endpoints", () => {
   });
 });
 
+describe("API key credential boundaries", () => {
+  async function createKey(auth: Auth, cookie: string, accessLevel = "read_only") {
+    const response = await post(auth, "/api-key/create", {
+      name: "test-key", metadata: { accessLevel },
+    }, cookie);
+    expect(response.status, await response.clone().text()).toBe(200);
+    return await response.json() as { id: string; key: string };
+  }
+
+  it.each(["read_only", "all"])("does not turn a %s key into an account-management session", async (accessLevel) => {
+    const auth = makeAuth();
+    const key = await createKey(auth, await login(auth), accessLevel);
+    expect((await auth.api.verifyApiKey({ body: { key: key.key } })).valid).toBe(true);
+    const headers = { origin: BASE, "x-api-key": key.key };
+
+    const session = await auth.handler(new Request(`${BASE}/api/auth/get-session`, { headers }));
+    expect(await session.json()).toBeNull();
+    const list = await auth.handler(new Request(`${BASE}/api/auth/api-key/list`, { headers }));
+    expect(list.status).toBe(401);
+
+    for (const [path, body] of [
+      ["/api-key/create", { name: "injected", userId: USER_ID, metadata: { accessLevel: "all" } }],
+      ["/api-key/update", { keyId: key.id, userId: USER_ID, metadata: { accessLevel: "all" } }],
+      ["/api-key/delete", { keyId: key.id }],
+      ["/update-user", { name: "Changed through API key" }],
+    ] as const) {
+      const response = await auth.handler(new Request(`${BASE}/api/auth${path}`, {
+        method: "POST", headers: { ...headers, "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }));
+      expect(response.status, path).toBe(401);
+    }
+    expect(store.data.apikey).toHaveLength(1);
+    expect((await auth.api.verifyApiKey({ body: { key: key.key } })).key?.metadata).toEqual({ accessLevel });
+    expect(store.data.user[0].name).toBe("Test user");
+  });
+
+  it("immediately rejects disabled and deleted keys", async () => {
+    const auth = makeAuth();
+    const cookie = await login(auth);
+    const key = await createKey(auth, cookie);
+    expect((await auth.api.verifyApiKey({ body: { key: key.key } })).valid).toBe(true);
+
+    expect((await post(auth, "/api-key/update", { keyId: key.id, enabled: false }, cookie)).status).toBe(200);
+    expect((await auth.api.verifyApiKey({ body: { key: key.key } })).valid).toBe(false);
+    expect((await post(auth, "/api-key/update", { keyId: key.id, enabled: true }, cookie)).status).toBe(200);
+    expect((await auth.api.verifyApiKey({ body: { key: key.key } })).valid).toBe(true);
+    expect((await post(auth, "/api-key/delete", { keyId: key.id }, cookie)).status).toBe(200);
+    expect((await auth.api.verifyApiKey({ body: { key: key.key } })).valid).toBe(false);
+  });
+});
+
 describe("OAuth grant revocation", () => {
   it("binds real PKCE code exchange and refresh tokens to the original consent", async () => {
     const auth = makeAuth();
