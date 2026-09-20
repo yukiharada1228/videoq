@@ -1,3 +1,5 @@
+import type { BetterAuthOptions } from "better-auth";
+
 /**
  * Fields safe to put in Workers logs for Better Auth failures (SEC-9).
  * Omit message/detail: Postgres unique violations include the email in DETAIL.
@@ -54,3 +56,44 @@ export function summarizeAuthApiError(error: unknown): AuthApiErrorSummary {
 
   return summary;
 }
+
+// Only exact, static library messages may reach logs. Other messages can embed
+// callback URLs, provider responses, account ids or token-bearing SQL.
+const SAFE_LIBRARY_MESSAGES = new Set([
+  "Failed to parse state",
+  "State not found",
+  "INVALID_CALLBACK_REQUEST",
+  "Code not found",
+  "Invalid id token",
+  "OAuth issuer mismatch",
+  "Failed to create verification",
+  "Failed to create session",
+  "Failed to get user info",
+  "Unable to get user info",
+  "Unable to link account",
+  "User not found",
+  "Password not found",
+  "Invalid password",
+  "Introspection error:",
+  "authorization code replay cleanup failed",
+  "refresh token rotation replay failed",
+  "failed to store refresh token rotation replay",
+]);
+
+/** Covers internal library catches that never reach onAPIError. */
+export const authLogger: NonNullable<BetterAuthOptions["logger"]> = {
+  level: "warn",
+  log: (level, message, ...args) => {
+    const entry = JSON.stringify({
+      level,
+      event: "better_auth_library_log",
+      message: SAFE_LIBRARY_MESSAGES.has(message) ? message : "Authentication library event",
+      // No raw message, stack, cause, request, provider data or string arguments.
+      errors: args.filter((arg): arg is Error => arg instanceof Error)
+        .slice(0, 3).map(summarizeAuthApiError),
+    });
+    if (level === "error") console.error(entry);
+    else if (level === "warn") console.warn(entry);
+    else console.log(entry);
+  },
+};
