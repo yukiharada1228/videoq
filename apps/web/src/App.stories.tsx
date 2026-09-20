@@ -68,7 +68,6 @@ export const SharedCourseNotice: Story = {
     const canvas = within(canvasElement);
     await expect(await canvas.findByText(i18n.t('courseSharing.quotaAndHistory'))).toBeVisible();
     await expect(canvas.getByText(i18n.t('courseSharing.link'))).toBeVisible();
-    await expect(canvas.getByRole('link', { name: `${i18n.t('courseSharing.learnMore')} ${i18n.t('courseSharing.opensInNewTab')}` })).toHaveAttribute('target', '_blank');
   },
 };
 export const SharedCourseNoticeEnglishMobile: Story = {

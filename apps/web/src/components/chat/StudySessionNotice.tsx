@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { StudySessionInfo } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { UtilityLink } from '@/components/ui/utility-link';
 
 export function StudySessionNotice({ info, restarted, storageAvailable, isLoading, onRestart }: {
   info?: StudySessionInfo;
@@ -34,11 +33,6 @@ export function StudySessionNotice({ info, restarted, storageAvailable, isLoadin
       <details className="min-w-0 flex-1 basis-40">
         <summary className="cursor-pointer underline underline-offset-4">{t('chat.studySession.help')}</summary>
         <p className="mt-2">{t('chat.studySession.explanation')}</p>
-        <UtilityLink
-          href={`https://docs.videoq.jp${locale.startsWith('ja') ? '/ja' : ''}/plog/study-sessions/`}
-          target="_blank" rel="noopener noreferrer"
-          icon={{ 'aria-label': t('chat.studySession.opensInNewTab') }}
-        >{t('chat.studySession.learnMore')}</UtilityLink>
       </details>
       <Button type="button" size="sm" variant="outline" disabled={isLoading} onClick={onRestart}>
         {t('chat.studySession.restart')}

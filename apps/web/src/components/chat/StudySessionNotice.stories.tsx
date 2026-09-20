@@ -18,7 +18,6 @@ export const BeforeSending: Story = { async play({ canvas, userEvent }) {
   await expect(canvas.getByRole('status')).toHaveTextContent(label('unconfirmed'));
   await userEvent.click(canvas.getByText(label('help')));
   await expect(canvas.getByText(label('explanation'))).toBeVisible();
-  await expect(canvas.getByRole('link')).toHaveAttribute('href', 'https://docs.videoq.jp/ja/plog/study-sessions/');
 } };
 export const Continued: Story = { args: { info: { status: 'continued', expires_at: Date.now() + 43_200_000 } }, async play({ canvas }) {
   await expect(canvas.getByRole('status')).toHaveTextContent(label('continued'));
@@ -34,5 +33,5 @@ export const StorageUnavailable: Story = { args: { storageAvailable: false }, as
 } };
 export const EnglishMobile: Story = { globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } }, async play({ canvas, userEvent }) {
   await userEvent.click(canvas.getByText(label('help')));
-  await expect(canvas.getByRole('link')).toHaveAttribute('href', 'https://docs.videoq.jp/plog/study-sessions/');
+  await expect(canvas.getByText(label('explanation'))).toBeVisible();
 } };

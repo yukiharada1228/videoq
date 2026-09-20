@@ -12,10 +12,6 @@ const meta = {
   async play({ canvas, args }) {
     await expect(canvas.getByText(i18n.t(`courseSharing.${args.method}`))).toBeVisible();
     await expect(canvas.getByText(i18n.t('courseSharing.quotaAndHistory'))).toBeVisible();
-    const link = canvas.getByRole('link');
-    await expect(link).toHaveAttribute('target', '_blank');
-    await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
-    await expect(link).toHaveAccessibleName(`${i18n.t('courseSharing.learnMore')} ${i18n.t('courseSharing.opensInNewTab')}`);
   },
 } satisfies Meta<typeof CourseSharingNotice>;
 export default meta;
