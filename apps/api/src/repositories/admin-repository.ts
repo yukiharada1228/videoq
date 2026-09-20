@@ -42,9 +42,9 @@ const adminUserSelect = {
   id: users.id,
   username: users.username,
   email: users.email,
-  is_active: users.isActive,
+  is_active: sql<boolean>`NOT (COALESCE(${users.banned}, false) AND (${users.banExpires} IS NULL OR ${users.banExpires} >= now()))`.as("is_active"),
   is_staff: users.isStaff,
-  is_superuser: users.isSuperuser,
+  is_superuser: sql<boolean>`COALESCE('admin' = ANY(string_to_array(${users.role}, ',')), false)`.as("is_superuser"),
   max_video_upload_size_mb: users.maxVideoUploadSizeMb,
   storage_limit_gb: users.storageLimitGb,
   processing_limit_minutes: users.processingLimitMinutes,
@@ -102,12 +102,12 @@ function mapUser(r: {
 export async function isSuperuser(env: Bindings, userId: string): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db
-      .select({ isSuperuser: users.isSuperuser, role: users.role })
+      .select({ role: users.role })
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
     if (rows.length === 0) return false;
-    return Boolean(rows[0].isSuperuser) || rows[0].role === "admin";
+    return rows[0].role?.split(",").includes("admin") ?? false;
   });
 }
 
@@ -212,44 +212,6 @@ export async function patchAdminUserQuota(
   });
 }
 
-export async function patchAdminUserFlags(
-  env: Bindings,
-  userId: string,
-  patch: FlagsPatch,
-): Promise<AdminUser | null> {
-  const set: Partial<{
-    isActive: boolean;
-    isStaff: boolean;
-    isSuperuser: boolean;
-  }> = {};
-  if (patch.is_active !== undefined) set.isActive = patch.is_active;
-  if (patch.is_staff !== undefined) set.isStaff = patch.is_staff;
-  if (patch.is_superuser !== undefined) set.isSuperuser = patch.is_superuser;
-  if (Object.keys(set).length === 0) return getAdminUser(env, userId);
-
-  return withDb(env, async (db) => {
-    return db.transaction(async (tx) => {
-      const rows = await tx
-        .update(users)
-        .set(set)
-        .where(eq(users.id, userId))
-        .returning(adminUserSelect);
-      const updated = rows[0] ? mapUser(rows[0]) : null;
-      if (updated && patch.is_active === false) {
-        await tx.delete(session).where(eq(session.userId, userId));
-      }
-      if (updated && patch.is_superuser !== undefined) {
-        await tx
-          .update(users)
-          .set({ role: patch.is_superuser ? "admin" : "user" })
-          .where(eq(users.id, userId));
-        updated.is_superuser = patch.is_superuser;
-      }
-      return updated;
-    });
-  });
-}
-
 export async function lockUserForHardDelete(
   env: Bindings,
   userId: string,
@@ -258,7 +220,7 @@ export async function lockUserForHardDelete(
     return db.transaction(async (tx) => {
       const updated = await tx
         .update(users)
-        .set({ isActive: false, banned: true })
+        .set({ banned: true, banExpires: null })
         .where(eq(users.id, userId))
         .returning({ id: users.id });
       if (updated.length === 0) return false;

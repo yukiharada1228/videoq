@@ -6,7 +6,6 @@ import {
   getAdminUser,
   listAdminUsers,
   lockUserForHardDelete,
-  patchAdminUserFlags,
   patchAdminUserQuota,
   patchAdminUserUsage,
   isSuperuser as repositoryIsSuperuser,
@@ -14,29 +13,9 @@ import {
   type QuotaPatch,
   type UsagePatch,
 } from "../../repositories/admin-repository";
-import { and, eq, isNull } from "drizzle-orm";
 import { withDb } from "../../db/pool";
-import {
-  oauthAccessToken,
-  oauthConsent,
-  oauthRefreshToken,
-  session,
-} from "../../db/schema";
+import { createAuth } from "../../lib/auth";
 import type { Bindings } from "../../types/bindings";
-
-async function revokeAuthMaterialForUser(env: Bindings, userId: string) {
-  await withDb(env, async (db) => {
-    await db.delete(session).where(eq(session.userId, userId));
-    await db.delete(oauthAccessToken).where(eq(oauthAccessToken.userId, userId));
-    await db
-      .update(oauthRefreshToken)
-      .set({ revoked: new Date() })
-      .where(
-        and(eq(oauthRefreshToken.userId, userId), isNull(oauthRefreshToken.revoked)),
-      );
-    await db.delete(oauthConsent).where(eq(oauthConsent.userId, userId));
-  });
-}
 
 export function isSuperuser(env: Bindings, userId: string) {
   return repositoryIsSuperuser(env, userId);
@@ -83,6 +62,7 @@ export async function patchFlags(
   actorUserId: string,
   targetUserId: string,
   patch: FlagsPatch,
+  headers: Headers,
 ) {
   if (
     actorUserId === targetUserId &&
@@ -91,13 +71,29 @@ export async function patchFlags(
     return { selfLockout: true as const };
   }
 
-  const user = await patchAdminUserFlags(env, targetUserId, patch);
-  if (!user) return { notFound: true as const };
-  // Sessions are deleted in the repository; drop OAuth/MCP tokens too.
-  if (patch.is_active === false) {
-    await revokeAuthMaterialForUser(env, targetUserId);
-  }
-  return { user } as const;
+  if (!await getAdminUser(env, targetUserId)) return { notFound: true as const };
+  await withDb(env, async (db) => {
+    await db.transaction(async (tx) => {
+      const auth = createAuth(env, tx);
+      if (patch.is_active !== undefined) {
+        const input = { body: { userId: targetUserId }, headers };
+        if (patch.is_active) await auth.api.unbanUser(input);
+        else await auth.api.banUser(input);
+      }
+      if (patch.is_superuser !== undefined) {
+        await auth.api.setRole({
+          body: { userId: targetUserId, role: patch.is_superuser ? "admin" : "user" }, headers,
+        });
+      }
+      if (patch.is_staff !== undefined) {
+        await auth.api.adminUpdateUser({
+          body: { userId: targetUserId, data: { isStaff: patch.is_staff } }, headers,
+        });
+      }
+    });
+  });
+  const user = await getAdminUser(env, targetUserId);
+  return user ? { user } as const : { notFound: true as const };
 }
 
 export async function enqueueReindexAll(env: Bindings) {

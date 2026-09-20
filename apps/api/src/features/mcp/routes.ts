@@ -2,6 +2,10 @@ import type { Context } from "hono";
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
 import { StreamableHTTPTransport } from "@hono/mcp";
+import { APIError } from "better-auth/api";
+import { createInsufficientScopeError } from "better-auth/oauth2";
+import { createResourceServerChallenge } from "@better-auth/oauth-provider";
+import { authBaseURL } from "../../lib/auth";
 import {
   oauthBearerMethod,
   bearerApiKeyMethod,
@@ -25,12 +29,15 @@ function mcpWwwAuthenticate(
   c: Context<AppEnv>,
   error?: "insufficient_scope",
 ): string {
-  const issuer = (
-    c.env.OAUTH_ISSUER_URL || new URL(c.req.url).origin
-  ).replace(/\/$/, "");
-  const meta = `${issuer}/.well-known/oauth-protected-resource/api/mcp`;
-  const challenge = `Bearer realm="api",resource_metadata="${meta}",scope="${MCP_READ_SCOPE}"`;
-  return error ? `${challenge},error="${error}"` : challenge;
+  const resource = `${authBaseURL(c.env, new URL(c.req.url).origin)}/api/mcp`;
+  const challenge = createResourceServerChallenge(
+    error ? createInsufficientScopeError([MCP_READ_SCOPE]) : new APIError("UNAUTHORIZED"),
+    resource,
+    { challengeScopes: [MCP_READ_SCOPE] },
+  );
+  const header = new Headers(challenge?.headers).get("WWW-Authenticate");
+  if (!header) throw new Error("Better Auth did not produce a resource challenge");
+  return header;
 }
 
 const mcpAuth = createMiddleware<AppEnv>(async (c, next) => {
@@ -44,7 +51,7 @@ const mcpAuth = createMiddleware<AppEnv>(async (c, next) => {
     }
     if (r.kind === "invalid") {
       return c.json(toErrorBody("UNAUTHORIZED", r.message), 401, {
-        "WWW-Authenticate": mcpWwwAuthenticate(c),
+        "WWW-Authenticate": r.wwwAuthenticate ?? mcpWwwAuthenticate(c),
       });
     }
     if (r.kind === "forbidden") {

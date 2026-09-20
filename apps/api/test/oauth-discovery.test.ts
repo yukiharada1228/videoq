@@ -31,7 +31,7 @@ describe("OAuth discovery", () => {
       expect.objectContaining({
         identifier: "https://api.example.com/api/mcp",
         allowedScopes: expect.arrayContaining(["videoq.read", "videoq.write"]),
-        accessTokenTtl: 900,
+        accessTokenTtl: 300,
       }),
     ]);
     expect(config.clientRegistrationDefaultResources).toEqual([
@@ -65,10 +65,6 @@ describe("OAuth discovery", () => {
       resource: "https://api.example.com/api/mcp",
       authorization_servers: ["https://api.example.com/api/auth"],
       scopes_supported: [
-        "openid",
-        "profile",
-        "email",
-        "offline_access",
         "videoq.read",
         "videoq.write",
       ],
@@ -79,7 +75,10 @@ describe("OAuth discovery", () => {
     ]) {
       const res = await createApp().request(path, {}, ENV);
       expect(res.status).toBe(200);
-      expect(await res.json()).toEqual(expected);
+      expect(await res.json()).toMatchObject({
+        ...expected,
+        dpop_signing_alg_values_supported: expect.arrayContaining(["ES256"]),
+      });
     }
   });
 

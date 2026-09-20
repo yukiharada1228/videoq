@@ -863,13 +863,13 @@
   },
   "settings": {
     "title": "設定",
-    "subtitle": "アカウントと統合の設定を管理します",
+    "subtitle": "アカウント、プラン、動画の取り込み、外部連携を管理します。",
     "billing": {
       "title": "プランと支払い",
       "description": "現在のプランの確認と、支払い方法・解約の管理ができます。",
       "currentPlan": "現在のプラン",
       "viewPlans": "料金プランを見る",
-      "manage": "支払いポータルを開く",
+      "manage": "支払い・解約を管理",
       "success": "お支払いが完了しました。プランが反映されるまで数秒かかることがあります。",
       "pastDue": "お支払いに失敗しています。支払い方法を更新してください。"
     },
@@ -888,7 +888,8 @@
       "errorTooShort": "ユーザー名が短すぎます（3文字以上）",
       "errorTooLong": "ユーザー名が長すぎます（150文字以内）",
       "errorInvalid": "ユーザー名に使えるのは英数字、アンダースコア、ピリオドだけです",
-      "errorSubmitting": "ユーザー名の変更に失敗しました"
+      "errorSubmitting": "ユーザー名の変更に失敗しました",
+      "edit": "ユーザー名を変更する"
     },
     "emailChange": {
       "title": "メールアドレス",
@@ -900,14 +901,15 @@
       "submitting": "送信中...",
       "success": "確認メールを送信しました。現在のメールアドレスで変更を承認した後、新しいメールアドレスの確認を完了してください。",
       "errorEmpty": "新しいメールアドレスを入力してください",
-      "errorSubmitting": "メールアドレス変更のリクエストに失敗しました"
+      "errorSubmitting": "メールアドレス変更のリクエストに失敗しました",
+      "edit": "メールアドレスを変更する"
     },
     "integrationApiKeys": {
-      "title": "連携用APIキー",
-      "description": "既存システム向けのシークレットキーを発行・管理します。",
+      "title": "開発者向けAPIキー",
+      "description": "自作のアプリやシステムからVideoQにアクセスするためのキーを管理します。",
       "nameLabel": "キー名",
       "nameHelp": "この名前は一覧にだけ表示されます。あとで見て分かる連携名にしてください。",
-      "create": "新しいシークレットキーを作成",
+      "create": "APIキーを作成",
       "createDialogTitle": "新しいシークレットキーを作成",
       "createDialogDescription": "キー名を付けて、最初の権限を選択してください。",
       "createDialogCta": "シークレットキーを作成",
@@ -936,12 +938,12 @@
         "readOnlyTitle": "Read only",
         "readOnlyDescription": "データの登録・更新・削除を行わない、読み取り系のAPIだけを使う連携向けです。"
       },
-      "revoke": "失効",
-      "revoking": "失効中...",
-      "revokeConfirmTitle": "APIキーを失効しますか？",
+      "revoke": "キーを無効化",
+      "revoking": "無効化中...",
+      "revokeConfirmTitle": "APIキーを無効化しますか？",
       "revokeConfirmDescription": "このキーは、既存の連携ですぐに使えなくなります。",
       "revokeConfirmWarning": "この操作は元に戻せません。このキーを使っているシステムは、新しいキーに差し替えるまで失敗します。",
-      "revokeConfirmCta": "はい、失効します",
+      "revokeConfirmCta": "キーを無効化",
       "cancel": "キャンセル",
       "errorEmpty": "キー名を入力してください",
       "errorLoading": "APIキーの読み込みに失敗しました",
@@ -952,41 +954,62 @@
       "successRevoked": "APIキーを失効しました"
     },
     "connectedApps": {
+      "details": "連携の詳細",
       "title": "連携アプリ",
-      "description": "OAuth で連携を許可したアプリ（例: Claude Desktop / claude.ai）。トークンを失効するとそのアプリは即座に切断されます。",
+      "description": "VideoQへのアクセスを許可したアプリを確認・管理できます。",
       "empty": "現在連携中のアプリはありません。",
       "columns": {
         "app": "アプリ",
-        "scope": "スコープ",
+        "scope": "アクセス権限",
         "issued": "連携日時",
         "expires": "有効期限",
         "action": "操作"
       },
       "expiresNever": "—",
-      "revoke": "失効",
+      "revoke": "連携を解除",
       "errorLoading": "連携アプリの読み込みに失敗しました",
-      "errorRevoking": "失効に失敗しました",
-      "successRevoked": "連携を失効しました"
+      "errorRevoking": "連携の解除に失敗しました",
+      "successRevoked": "アプリとの連携を解除しました",
+      "revoking": "解除中...",
+      "confirmTitle": "アプリとの連携を解除しますか？",
+      "confirmDescription": "このアプリからVideoQへのアクセスができなくなります。アクセス停止まで数分かかる場合があります。再び利用するには、アプリ側で連携し直してください。"
     },
     "searchApiKey": {
-      "title": "SearchAPI キー",
-      "description": "YouTube 字幕の取り込みに使う、自分用の SearchAPI キーを設定します。",
-      "usageTitle": "YouTube 取り込みで使用",
-      "usageDescription": "YouTube 動画を取り込むとき、このキーを使って SearchAPI から字幕を取得します。料金は VideoQ ではなく、設定したご自身の SearchAPI アカウントに請求されます。",
-      "apiKeyLabel": "APIキー",
+      "title": "YouTube取り込み",
+      "description": "YouTubeの字幕を取り込むためのSearchAPIを設定します。",
+      "usageTitle": "SearchAPIの利用料金について",
+      "usageDescription": "字幕の取得には、ご自身のSearchAPIアカウントを使用します。SearchAPIの利用料金はVideoQの料金に含まれず、SearchAPIから別途請求されます。",
+      "apiKeyLabel": "SearchAPIキー",
       "hasApiKeyMessage": "すでに SearchAPI キーが設定されています。新しいキーを入力すると更新されます。",
       "noApiKeyMessage": "YouTube 動画を取り込むには、先に自分の SearchAPI キーを設定してください。",
-      "getApiKeyMessage": "APIキーは",
+      "getApiKeyMessage": "キーの取得先：",
       "save": "保存",
       "saving": "保存中...",
-      "delete": "削除",
+      "delete": "キーを削除",
       "deleting": "削除中...",
       "errorEmpty": "APIキーを入力してください",
       "errorSaving": "SearchAPI キーの保存に失敗しました",
       "errorDeleting": "SearchAPI キーの削除に失敗しました",
       "successSaved": "SearchAPI キーを保存しました",
       "successDeleted": "SearchAPI キーを削除しました",
-      "configured": "設定済み"
+      "configured": "設定済み",
+      "notConfigured": "未設定",
+      "show": "入力したキーを表示",
+      "hide": "入力したキーを隠す",
+      "errorLoading": "SearchAPIの設定状態を取得できませんでした",
+      "edit": "キーを変更",
+      "deleteConfirmTitle": "SearchAPIキーを削除しますか？",
+      "deleteConfirmDescription": "新しいキーを設定するまで、YouTube動画の取り込みができなくなります。取り込み済みの動画は削除されません。"
+    },
+    "navigation": "設定項目",
+    "edit": "変更",
+    "cancel": "キャンセル",
+    "retry": "再読み込み",
+    "account": {
+      "title": "アカウント"
+    },
+    "integrations": {
+      "title": "外部連携"
     }
   },
   "dashboard": {

@@ -1,26 +1,13 @@
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
-import {
-  type DpopReplayStore,
-  enforceDpopBinding,
-  parseAccessTokenAuthorization,
-  requestToResourceInput,
-  verifyJwsAccessToken,
-} from "better-auth/oauth2";
-import { eq } from "drizzle-orm";
+import { isAPIError } from "better-auth/api";
+import { parseAccessTokenAuthorization, requestToResourceInput } from "better-auth/oauth2";
 import type { AppEnv } from "../types/bindings";
 import { toErrorBody } from "../shared/errors";
-import { type Db, withDb } from "../db/pool";
-import * as schema from "../db/schema";
-import {
-  authBaseURL,
-  createAuth,
-  oauthResourceAudience,
-} from "../lib/auth";
+import { withDb } from "../db/pool";
+import { createAuth } from "../lib/auth";
+import type { ResourceAccessResult } from "../lib/auth-access";
 import { MCP_READ_SCOPE, MCP_WRITE_SCOPE } from "../lib/mcp-auth";
-import { rateLimitBackend } from "../lib/rate-limit";
-import { OAUTH_GRANT_CLAIM } from "../lib/auth-security";
-import { isOAuthGrantActive } from "../repositories/oauth-grant-repository";
 
 /**
  * Cookie session/API key/OAuth の各認証方式は共通の結果型を返す:
@@ -33,8 +20,7 @@ export type AuthVia = "apikey" | "session" | "oauth";
 export type AuthOutcome =
   | { kind: "ok"; userId: string; via: AuthVia; accessLevel?: string }
   | { kind: "absent" }
-  | { kind: "invalid"; message: string }
-  | { kind: "forbidden"; message: string; requiredScope: string };
+  | Exclude<ResourceAccessResult, { kind: "ok" }>;
 
 export type AuthMethod = (c: Context<AppEnv>) => Promise<AuthOutcome>;
 
@@ -62,48 +48,13 @@ function allowsTestAuthHeaders(c: Context<AppEnv>): boolean {
   return LOCAL_HOSTNAMES.has(new URL(c.req.url).hostname);
 }
 
-/**
- * 停止・無効化されたアカウントを、セッション以外の資格情報からも締め出す。
- * API key と OAuth access token は資格情報自体の検証しかしないため、
- * ここを通さないと ban してもキーが生き続ける。
- */
-async function isUserDisabled(db: Db, userId: string): Promise<boolean> {
-  const rows = await db
-    .select({ banned: schema.users.banned, isActive: schema.users.isActive })
-    .from(schema.users)
-    .where(eq(schema.users.id, userId))
-    .limit(1);
-  if (rows.length === 0) return true;
-  return Boolean(rows[0].banned) || !rows[0].isActive;
-}
-
 /** Better Auth user ids are string UUIDs (text PK). */
 function toUserId(raw: unknown): string | null {
   if (typeof raw === "string") {
     const id = raw.trim();
     return id.length > 0 ? id : null;
   }
-  if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) {
-    // Legacy numeric ids during transition / old tokens — reject after UUID cutover.
-    return null;
-  }
   return null;
-}
-
-function accessLevelFromMetadata(metadata: unknown): string | undefined {
-  if (!metadata) return undefined;
-  let obj: Record<string, unknown> | null = null;
-  if (typeof metadata === "string") {
-    try {
-      obj = JSON.parse(metadata) as Record<string, unknown>;
-    } catch {
-      return undefined;
-    }
-  } else if (typeof metadata === "object") {
-    obj = metadata as Record<string, unknown>;
-  }
-  const level = obj?.accessLevel ?? obj?.access_level;
-  return typeof level === "string" ? level : undefined;
 }
 
 /** Better Auth cookie session. */
@@ -117,7 +68,7 @@ export const sessionMethod: AuthMethod = async (c) => {
     }
   }
 
-  return withDb(c.env, async (db) => {
+  return withDb<AuthOutcome>(c.env, async (db) => {
     const auth = createAuth(c.env, db);
     // Authorization decisions must observe session revocation and account changes
     // immediately. Better Auth's signed cookie cache is suitable for display-only
@@ -129,13 +80,14 @@ export const sessionMethod: AuthMethod = async (c) => {
     if (!session?.user) return { kind: "absent" };
     const userId = toUserId(session.user.id);
     if (!userId) return { kind: "invalid", message: "Invalid session" };
-    if ((session.user as { banned?: boolean | null }).banned) {
-      return { kind: "invalid", message: "User is banned" };
-    }
-    if ((session.user as { isActive?: boolean | null }).isActive === false) {
-      return { kind: "invalid", message: "User is inactive" };
-    }
     return { kind: "ok", userId, via: "session" };
+  }).catch((error: unknown): AuthOutcome => {
+    // Server-side Better Auth calls throw APIError instead of an HTTP response.
+    // Translate only auth refusals; database/server failures must remain errors.
+    if (isAPIError(error) && (error.statusCode === 401 || error.statusCode === 403)) {
+      return { kind: "invalid", message: "Invalid session" };
+    }
+    throw error;
   });
 };
 
@@ -143,7 +95,7 @@ const apiKeyMethodWithKeyword = (keyword: string): AuthMethod => async (c) => {
   const headerKey = c.req.header("X-API-Key")?.trim();
   const authz = parseAuthHeader(c);
   const raw =
-    headerKey || (authz?.keyword === keyword ? authz.value : undefined);
+    headerKey || (authz?.keyword.toLowerCase() === keyword.toLowerCase() ? authz.value : undefined);
 
   if (!raw) return { kind: "absent" };
   if (!raw.startsWith("vq_") || raw.length < 12) return { kind: "absent" };
@@ -161,81 +113,27 @@ const apiKeyMethodWithKeyword = (keyword: string): AuthMethod => async (c) => {
 
   return withDb(c.env, async (db) => {
     const auth = createAuth(c.env, db);
-    const api = auth.api as {
-      verifyApiKey: (args: {
-        body: { key: string };
-      }) => Promise<{
-        valid: boolean;
-        key?: { referenceId?: string | number; metadata?: unknown } | null;
-      }>;
-    };
-    try {
-      const result = await api.verifyApiKey({ body: { key: raw } });
-      if (!result.valid || !result.key) {
-        return { kind: "invalid", message: "Invalid API key" };
-      }
-      const userId = toUserId(result.key.referenceId);
-      if (!userId) {
-        return { kind: "invalid", message: "Invalid API key" };
-      }
-      if (await isUserDisabled(db, userId)) {
-        return { kind: "invalid", message: "User is banned" };
-      }
-      // Missing/corrupt legacy metadata must not silently become a write key.
-      const accessLevel =
-        accessLevelFromMetadata(result.key.metadata) ?? "read_only";
-      return { kind: "ok", userId, via: "apikey", accessLevel };
-    } catch {
-      return { kind: "invalid", message: "Invalid API key" };
-    }
+    return auth.api.verifyVideoqApiKey({ body: { key: raw } });
   });
 };
 
 export const apiKeyMethod = apiKeyMethodWithKeyword("ApiKey");
 export const bearerApiKeyMethod = apiKeyMethodWithKeyword("Bearer");
 
-const OAUTH_SCOPE_TOKEN_PATTERN = /^[\x21\x23-\x5b\x5d-\x7e]+$/;
-
-/** Parse the RFC 6749 space-delimited scope claim without accepting malformed JWTs. */
-function oauthScopes(scope: unknown): Set<string> | null {
-  if (scope === undefined) return new Set();
-  if (typeof scope !== "string" || scope.length === 0) return null;
-  const values = scope.split(" ");
-  if (values.some((value) => !OAUTH_SCOPE_TOKEN_PATTERN.test(value))) {
-    return null;
-  }
-  return new Set(values);
-}
-
-/** DPoP proof jti reservations must survive isolate changes and concurrent requests. */
-function dpopReplayStore(c: Context<AppEnv>): DpopReplayStore {
-  const backend = rateLimitBackend(c.env);
-  return {
-    async reserve({ key, expiresAt, now }) {
-      const ttlSec = Math.max(
-        1,
-        Math.ceil((expiresAt.getTime() - now.getTime()) / 1000),
-      );
-      const result = await backend.consume(`dpop_${key}`, 1, ttlSec);
-      return result.allowed;
-    },
-  };
-}
-
 /**
  * OAuth 2 Bearer access token (MCP / third-party clients) via Better Auth
  * oauth-provider / JWT verification.
  */
 export const oauthBearerMethod: AuthMethod = async (c) => {
-  const authz = parseAuthHeader(c);
+  const authz = parseAccessTokenAuthorization(c.req.header("Authorization"));
   if (
     !authz ||
-    (authz.keyword !== "Bearer" && authz.keyword !== "DPoP") ||
-    !authz.value
+    (authz.scheme !== "Bearer" && authz.scheme !== "DPoP") ||
+    !authz.token
   ) {
     return { kind: "absent" };
   }
-  if (authz.value.startsWith("vq_")) return { kind: "absent" };
+  if (authz.token.startsWith("vq_")) return { kind: "absent" };
 
   if (allowsTestAuthHeaders(c)) {
     const testOauth = c.req.header("X-VideoQ-Test-OAuth-User-Id");
@@ -265,75 +163,9 @@ export const oauthBearerMethod: AuthMethod = async (c) => {
     }
   }
 
-  const resourceRequest = requestToResourceInput(c.req.raw);
-  const authorization = parseAccessTokenAuthorization(
-    resourceRequest.authorizationHeader,
-  );
-  if (!authorization?.token || authorization.scheme === "Unknown") {
-    return { kind: "invalid", message: "Invalid OAuth access token" };
-  }
-
   return withDb(c.env, async (db) => {
     const auth = createAuth(c.env, db);
-    try {
-      const baseURL = authBaseURL(c.env);
-      const issuer = `${baseURL}/api/auth`;
-      // Read Better Auth's JWKS through its in-process server API. A public
-      // fetch to `${issuer}/jwks` cannot target a same-zone Cloudflare Route.
-      const verified = await verifyJwsAccessToken(authorization.token, {
-        jwksFetch: () => auth.api.getJwks(),
-        // Bind the five-minute Better Auth JWKS cache to this Worker env. The
-        // cached value is plain key material and contains no request-scoped I/O.
-        jwksCacheKey: c.env,
-        verifyOptions: {
-          issuer,
-          audience: oauthResourceAudience(c.env),
-        },
-      });
-      await enforceDpopBinding({
-        payload: verified,
-        authorization,
-        proofJwt: resourceRequest.dpopProofJwt,
-        method: resourceRequest.method,
-        url: resourceRequest.url,
-        replayStore: dpopReplayStore(c),
-      });
-      const userId = toUserId(verified.sub);
-      if (!userId) {
-        return { kind: "invalid", message: "Invalid OAuth access token" };
-      }
-      if (await isUserDisabled(db, userId)) {
-        return { kind: "invalid", message: "User is banned" };
-      }
-      const scopes = oauthScopes(verified.scope);
-      if (!scopes) {
-        return { kind: "invalid", message: "Invalid OAuth access token" };
-      }
-      const grantId = verified[OAUTH_GRANT_CLAIM];
-      const clientId = verified.client_id;
-      if (
-        typeof grantId !== "string" || !grantId ||
-        typeof clientId !== "string" || !clientId ||
-        !(await isOAuthGrantActive(db, userId, clientId, grantId, scopes))
-      ) {
-        return { kind: "invalid", message: "OAuth authorization has been revoked" };
-      }
-      if (!scopes.has(MCP_READ_SCOPE)) {
-        return {
-          kind: "forbidden",
-          message: "OAuth token lacks videoq.read scope",
-          requiredScope: MCP_READ_SCOPE,
-        };
-      }
-      return {
-        kind: "ok",
-        userId,
-        via: "oauth",
-        accessLevel: scopes.has(MCP_WRITE_SCOPE) ? "all" : "read_only",
-      };
-    } catch {
-      return { kind: "invalid", message: "Invalid OAuth access token" };
-    }
+    return auth.api.verifyVideoqOAuth({ body: requestToResourceInput(c.req.raw) });
   });
 };
 

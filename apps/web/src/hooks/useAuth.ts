@@ -40,6 +40,8 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
 
   useEffect(() => {
     if (!authRequired || session.isPending) return;
+    // Match AuthProvider: a failed session lookup does not prove sign-out.
+    if (session.error && session.error.status !== 401 && session.error.status !== 403) return;
 
     // A transient API/server failure is not proof that the session is invalid.
     // Keep the user on the current page and allow recovery through `refetch`.
@@ -67,6 +69,7 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
     authRequired,
     hasSession,
     redirectToLogin,
+    session.error,
     session.isPending,
     navigate,
   ]);

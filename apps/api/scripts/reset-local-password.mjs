@@ -98,7 +98,9 @@ try {
     `UPDATE users
         SET password_reset_required = false,
             email_verified = true,
-            is_active = true,
+            banned = false,
+            ban_expires = NULL,
+            ban_reason = NULL,
             updated_at = now()
       WHERE id = $1`,
     [user.id],

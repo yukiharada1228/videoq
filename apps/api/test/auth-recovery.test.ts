@@ -91,12 +91,16 @@ function legacyReset(token = "previously-issued-reset-token") {
   return token;
 }
 
-describe("password recovery invalidation", () => {
+describe("standard password recovery", () => {
   it("stores no usable reset token in the verification row", async () => {
     const auth = makeAuth();
     const issued = await requestReset(auth);
     const stored = store.data.verification.find((row) => row.value === "recovery-owner")!;
-    expect(stored.identifier).toMatch(/^reset-password-sha256:[a-f0-9]{64}$/);
+    expect(stored.identifier).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    const lifetime = new Date(stored.expiresAt as Date).getTime() - new Date(stored.createdAt as Date).getTime();
+    expect(lifetime).toBeGreaterThan(899_000);
+    expect(lifetime).toBeLessThanOrEqual(900_000);
+    expect(vi.mocked(sendMail).mock.calls[0][3]).toContain("15分以内に、以下のURLから新しいパスワードを設定してください。");
     expect(JSON.stringify(stored)).not.toContain(issued.token);
 
     // A database reader must not be able to submit either the stored identifier
@@ -115,7 +119,7 @@ describe("password recovery invalidation", () => {
     expect((await login(auth, NEW_PASSWORD)).status).toBe(200);
   });
 
-  it("accepts a previously issued plaintext link and invalidates other old and new links", async () => {
+  it("accepts legacy plaintext links and consumes each independently", async () => {
     const auth = makeAuth();
     const old = legacyReset();
     const otherOld = legacyReset("second-previously-issued-token");
@@ -125,11 +129,15 @@ describe("password recovery invalidation", () => {
     ));
     expect(new URL(callback.headers.get("location")!).searchParams.get("token")).toBe(old);
     expect((await reset(auth, old)).status).toBe(200);
-    for (const token of [old, otherOld, current.token]) expect((await reset(auth, token)).status).toBe(400);
+    expect((await reset(auth, old)).status).toBe(400);
+    for (const token of [otherOld, current.token]) {
+      expect((await reset(auth, token)).status).toBe(200);
+      expect((await reset(auth, token)).status).toBe(400);
+    }
     expect((await login(auth, NEW_PASSWORD)).status).toBe(200);
   });
 
-  it("invalidates old recovery links after an authenticated password change", async () => {
+  it("uses native link expiry after an authenticated password change", async () => {
     const auth = makeAuth();
     const cookie = cookieFrom(await login(auth));
     const oldReset = await requestReset(auth);
@@ -138,8 +146,8 @@ describe("password recovery invalidation", () => {
       currentPassword: PASSWORD, newPassword: NEW_PASSWORD,
     }, cookie);
     expect(changed.status).toBe(200);
-    expect((await reset(auth, oldReset.token)).status).toBe(400);
-    expect((await reset(auth, legacy)).status).toBe(400);
+    expect((await reset(auth, oldReset.token)).status).toBe(200);
+    expect((await reset(auth, legacy)).status).toBe(200);
     expect((await login(auth, NEW_PASSWORD)).status).toBe(200);
   });
 
@@ -165,7 +173,7 @@ describe("password recovery invalidation", () => {
     expect((await reset(auth, issued.token)).status).toBe(200);
   });
 
-  it("preserves password-change session rotation while invalidating recovery links", async () => {
+  it("preserves native password-change session rotation", async () => {
     const auth = makeAuth();
     const firstCookie = cookieFrom(await login(auth));
     const secondCookie = cookieFrom(await login(auth));
@@ -182,10 +190,10 @@ describe("password recovery invalidation", () => {
       headers: { cookie: cookieFrom(changed) },
     }));
     expect((await current.json()).user.id).toBe("recovery-owner");
-    expect((await reset(auth, issued.token)).status).toBe(400);
+    expect((await reset(auth, issued.token)).status).toBe(200);
   });
 
-  it("rejects a link sent to the old email after both email-change approvals", async () => {
+  it("keeps native short-lived recovery links valid across an approved email change", async () => {
     const auth = makeAuth();
     const oldReset = await requestReset(auth);
     const legacy = legacyReset();
@@ -198,15 +206,15 @@ describe("password recovery invalidation", () => {
     expect((await auth.handler(new Request(mailUrl(2)))).status).toBe(302);
     expect(store.data.user[0].email).toBe(NEW_EMAIL);
 
-    expect((await reset(auth, oldReset.token)).status).toBe(400);
-    expect((await reset(auth, legacy)).status).toBe(400);
-    expect((await login(auth)).status).toBe(200);
+    expect((await reset(auth, oldReset.token)).status).toBe(200);
+    expect((await reset(auth, legacy)).status).toBe(200);
+    expect((await login(auth, NEW_PASSWORD)).status).toBe(200);
     const freshReset = await requestReset(auth, NEW_EMAIL);
     expect((await reset(auth, freshReset.token)).status).toBe(200);
     expect((await login(auth, NEW_PASSWORD)).status).toBe(200);
   });
 
-  it("invalidates other outstanding reset links and all prior sessions after recovery", async () => {
+  it("revokes all prior sessions while each outstanding link retains its own single-use expiry", async () => {
     const auth = makeAuth();
     const cookie = cookieFrom(await login(auth));
     await login(auth);
@@ -219,7 +227,7 @@ describe("password recovery invalidation", () => {
     expect(store.data.session).toHaveLength(0);
     const session = await auth.handler(new Request(`${BASE}/api/auth/get-session`, { headers: { cookie } }));
     expect(await session.json()).toBeNull();
-    expect((await reset(auth, second.token)).status).toBe(400);
+    expect((await reset(auth, second.token)).status).toBe(200);
     expect((await reset(auth, first.token)).status).toBe(400);
     expect((await login(auth)).status).toBe(401);
     expect((await post(auth, "/sign-in/email", { email: EMAIL, password: NEW_PASSWORD })).status).toBe(200);

@@ -16,7 +16,8 @@ import { authLogger, summarizeAuthApiError } from "./auth-error-log";
 import { rateLimitBackend } from "./rate-limit";
 import { MCP_OAUTH_SCOPES } from "./mcp-auth";
 import { resolveSignupQuotaDefaults } from "../shared/signup-quota";
-import { passwordResetIdentifierStorage, revokeOAuthConsent, videoqAuthSecurity } from "./auth-security";
+import { videoqAuthSecurity, videoqOAuthAccountPolicy } from "./auth-security";
+import { videoqResourceAccess } from "./auth-access";
 
 function trustedOrigins(env: Bindings): string[] {
   return (env.CORS_ALLOW_ORIGIN ?? "")
@@ -47,12 +48,12 @@ function emailChangeMailUrl(url: string, stage: "approval" | "verification"): st
   return link.href;
 }
 
-export function authBaseURL(env: Bindings): string {
+export function authBaseURL(env: Bindings, fallback = "http://localhost"): string {
   return (
     env.BETTER_AUTH_URL?.trim() ||
     env.OAUTH_ISSUER_URL?.trim() ||
     env.FRONTEND_URL?.trim() ||
-    "http://localhost"
+    fallback
   ).replace(/\/+$/, "");
 }
 
@@ -65,12 +66,16 @@ export function oauthProviderConfig(env: Bindings) {
   return {
     scopes: [...MCP_OAUTH_SCOPES],
     grantTypes: ["authorization_code", "refresh_token"],
+    extensions: [videoqOAuthAccountPolicy],
+    // Accept native JWT expiry instead of a database consent check on every
+    // request. Bound both resource JWTs and resource-less opaque access tokens.
+    accessTokenExpiresIn: 5 * 60,
     resources: [
       {
         identifier: resource,
         name: "VideoQ MCP",
         allowedScopes: [...MCP_OAUTH_SCOPES],
-        accessTokenTtl: 15 * 60,
+        accessTokenTtl: 5 * 60,
       },
     ],
     resourceSeedMode: "merge" as const,
@@ -142,7 +147,7 @@ type AuthRateLimitStorage = NonNullable<
 const AUTH_RATE_LIMIT_WINDOW_SEC = 60;
 
 /** パスワード再設定トークンの有効期限。案内メールの文面と必ず一致させる。 */
-export const PASSWORD_RESET_TOKEN_TTL_SEC = 60 * 60;
+export const PASSWORD_RESET_TOKEN_TTL_SEC = 15 * 60;
 
 /**
  * Better Auth のレート制限を RateLimiter Durable Object に載せる。
@@ -177,7 +182,9 @@ export function createAuth(env: Bindings, db: Db) {
   const googleClientId = env.GOOGLE_CLIENT_ID?.trim();
   const googleClientSecret = env.GOOGLE_CLIENT_SECRET?.trim();
   const googleEnabled = Boolean(googleClientId && googleClientSecret);
-  const oauth = oauthProvider(oauthProviderConfig(env));
+  const oauthConfig = oauthProviderConfig(env);
+  const security = videoqAuthSecurity(oauthConfig);
+  const oauth = oauthProvider({ ...oauthConfig, customTokenResponseFields: security.tokenResponseFields });
 
   return betterAuth({
     database: drizzleAdapter(db, {
@@ -219,7 +226,9 @@ export function createAuth(env: Bindings, db: Db) {
     // OAuth provider owns /oauth2/token; disable BA's first-party /token alias.
     disabledPaths: ["/token"],
     verification: {
-      storeIdentifier: passwordResetIdentifierStorage,
+      // OAuth codes already have provider-owned hashing; only reset identifiers
+      // need this core option. No custom digest format or cleanup namespace.
+      storeIdentifier: { default: "plain", overrides: { "reset-password:": "hashed" } },
     },
     emailAndPassword: {
       enabled: true,
@@ -232,7 +241,7 @@ export function createAuth(env: Bindings, db: Db) {
       sendResetPassword: async ({ user, url }) => {
         await sendMail(env, user.email, "[VideoQ] パスワード再設定のご案内", [
           "VideoQ のパスワード再設定リクエストを受け付けました。",
-          `${PASSWORD_RESET_TOKEN_TTL_SEC / 3600}時間以内に、以下のURLから新しいパスワードを設定してください。`,
+          `${PASSWORD_RESET_TOKEN_TTL_SEC / 60}分以内に、以下のURLから新しいパスワードを設定してください。`,
           "",
           url,
           "",
@@ -342,22 +351,10 @@ export function createAuth(env: Bindings, db: Db) {
           defaultValue: 0,
           input: false,
         },
-        isSuperuser: {
-          type: "boolean",
-          required: true,
-          defaultValue: false,
-          input: false,
-        },
         isStaff: {
           type: "boolean",
           required: true,
           defaultValue: false,
-          input: false,
-        },
-        isActive: {
-          type: "boolean",
-          required: true,
-          defaultValue: true,
           input: false,
         },
         firstName: {
@@ -468,12 +465,9 @@ export function createAuth(env: Bindings, db: Db) {
                 usedAiAnswers: 0,
                 usedProcessingSeconds: 0,
                 usedStorageBytes: 0,
-                isSuperuser: false,
                 isStaff: false,
-                isActive: true,
                 firstName: "",
                 lastName: "",
-                role: "user",
                 passwordResetRequired: false,
               },
             };
@@ -490,21 +484,22 @@ export function createAuth(env: Bindings, db: Db) {
         defaultRole: "user",
         adminRoles: ["admin"],
       }),
-      apiKey({
-        enableMetadata: true,
+      apiKey(["default", "read-write"].map((configId) => ({
+        configId,
         defaultPrefix: "vq_",
         apiKeyHeaders: ["x-api-key"],
+        permissions: {
+          defaultPermissions: { videoq: configId === "read-write" ? ["read", "write"] : ["read"] },
+        },
         startingCharactersConfig: {
           shouldStore: true,
           charactersLength: 8,
         },
-      }),
+      }))),
       jwt(),
-      {
-        ...oauth,
-        endpoints: { ...oauth.endpoints, deleteOAuthConsent: revokeOAuthConsent },
-      },
-      videoqAuthSecurity(oauth.options),
+      oauth,
+      security,
+      videoqResourceAccess(env, oauthResourceAudience(env)),
     ],
   });
 }

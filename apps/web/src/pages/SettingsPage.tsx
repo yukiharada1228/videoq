@@ -25,48 +25,19 @@ import {
   useDialog,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Plus, X } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import { AccountSettingsSection } from '@/components/auth/AccountSettingsSection';
 import { ConnectedAppsSection } from '@/components/auth/ConnectedAppsSection';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { trpc } from '@/lib/trpc';
 
 const SETTINGS_SECTION_CLASS =
-  'border-t border-solid-gray-420 pt-8';
+  'scroll-mt-24 border-t border-solid-gray-200 pt-6';
 const SETTINGS_CALLOUT_CLASS =
-  'border border-solid-gray-420 bg-solid-gray-50 p-4 text-std-16N-170 text-solid-gray-700';
+  'rounded-8 bg-solid-gray-50 p-4 text-std-16N-170 text-solid-gray-700';
 
 type AccessLevel = 'all' | 'read_only';
-
-const USERNAME_CHANGE_ERROR_CODES: Record<string, string> = {
-  USERNAME_IS_ALREADY_TAKEN: 'settings.usernameChange.errorTaken',
-  USERNAME_TOO_SHORT: 'settings.usernameChange.errorTooShort',
-  USERNAME_TOO_LONG: 'settings.usernameChange.errorTooLong',
-  INVALID_USERNAME: 'settings.usernameChange.errorInvalid',
-};
-
-function errorCode(error: unknown): string {
-  if (typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string') {
-    return error.code;
-  }
-  return '';
-}
-
-function usernameChangeErrorMessage(error: unknown, t: (key: string) => string): string {
-  const key = USERNAME_CHANGE_ERROR_CODES[errorCode(error)];
-  if (key) return t(key);
-  return error instanceof Error && error.message
-    ? error.message
-    : t('settings.usernameChange.errorSubmitting');
-}
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -98,16 +69,9 @@ export default function SettingsPage() {
     tone: 'success' | 'error';
     text: string;
   } | null>(null);
-  const [emailChangeEmail, setEmailChangeEmail] = useState('');
-  const [emailChangeStatusMessage, setEmailChangeStatusMessage] = useState<{
-    tone: 'success' | 'error';
-    text: string;
-  } | null>(null);
-  const [usernameChangeUsername, setUsernameChangeUsername] = useState('');
-  const [usernameChangeStatusMessage, setUsernameChangeStatusMessage] = useState<{
-    tone: 'success' | 'error';
-    text: string;
-  } | null>(null);
+  const [showSearchApiKey, setShowSearchApiKey] = useState(false);
+  const [editingSearchApiKey, setEditingSearchApiKey] = useState(false);
+  const [confirmDeleteSearchApiKey, setConfirmDeleteSearchApiKey] = useState(false);
 
   const accessLevelOptions: {
     value: AccessLevel;
@@ -137,14 +101,6 @@ export default function SettingsPage() {
       window.clearTimeout(timeoutId);
     };
   }, [isCopyAcknowledged]);
-
-  useEffect(() => {
-    setEmailChangeEmail(user?.email ?? '');
-  }, [user?.email]);
-
-  useEffect(() => {
-    setUsernameChangeUsername(user?.username ?? '');
-  }, [user?.username]);
 
   const apiKeysQuery = useQuery({
     queryKey: queryKeys.auth.apiKeys,
@@ -179,7 +135,9 @@ export default function SettingsPage() {
   });
 
   const revokeApiKeyMutation = useMutation({
-    mutationFn: async (id: string) => apiClient.revokeIntegrationApiKey(id),
+    mutationFn: async (id: string) => apiClient.revokeIntegrationApiKey(
+      id, apiKeysQuery.data?.find((key) => key.id === id)?.config_id,
+    ),
     onSuccess: async () => {
       setStatusMessage({
         tone: 'success',
@@ -197,44 +155,11 @@ export default function SettingsPage() {
     },
   });
 
-  const requestEmailChangeMutation = useMutation({
-    mutationFn: async (email: string) => apiClient.requestEmailChange({ email }),
-    onSuccess: () => {
-      setEmailChangeStatusMessage({
-        tone: 'success',
-        text: t('settings.emailChange.success'),
-      });
-    },
-    onError: (error) => {
-      setEmailChangeStatusMessage({
-        tone: 'error',
-        text: error instanceof Error
-          ? error.message
-          : t('settings.emailChange.errorSubmitting'),
-      });
-    },
-  });
-
-  const updateUsernameMutation = useMutation({
-    mutationFn: async (username: string) => apiClient.updateUsername({ username }),
-    onSuccess: async () => {
-      setUsernameChangeStatusMessage({
-        tone: 'success',
-        text: t('settings.usernameChange.success'),
-      });
-      await queryClient.invalidateQueries(trpc.account.me.pathFilter());
-    },
-    onError: (error) => {
-      setUsernameChangeStatusMessage({
-        tone: 'error',
-        text: usernameChangeErrorMessage(error, t),
-      });
-    },
-  });
-
   const saveSearchApiKeyMutation = useMutation(trpc.account.saveSearchApiKey.mutationOptions({
     onSuccess: async () => {
       setSearchApiKey('');
+      setShowSearchApiKey(false);
+      setEditingSearchApiKey(false);
       setSearchApiStatusMessage({
         tone: 'success',
         text: t('settings.searchApiKey.successSaved'),
@@ -253,6 +178,9 @@ export default function SettingsPage() {
 
   const deleteSearchApiKeyMutation = useMutation(trpc.account.deleteSearchApiKey.mutationOptions({
     onSuccess: async () => {
+      setSearchApiKey('');
+      setShowSearchApiKey(false);
+      setEditingSearchApiKey(false);
       setSearchApiStatusMessage({
         tone: 'success',
         text: t('settings.searchApiKey.successDeleted'),
@@ -267,7 +195,14 @@ export default function SettingsPage() {
           : t('settings.searchApiKey.errorDeleting'),
       });
     },
+    onSettled: () => setConfirmDeleteSearchApiKey(false),
   }));
+
+  const deleteSearchApiKeyDialog = useDialog({
+    open: confirmDeleteSearchApiKey,
+    onOpenChange: setConfirmDeleteSearchApiKey,
+    onRequestClose: (event) => { if (deleteSearchApiKeyMutation.isPending) event.preventDefault(); },
+  });
 
   const createApiKeyDialog = useDialog({
     open: isCreateApiKeyDialogOpen,
@@ -339,17 +274,25 @@ export default function SettingsPage() {
   };
 
   return (
-    <>
+    <div className="mx-auto max-w-4xl">
       <AppPageHeader
         title={t('settings.title')}
         description={t('settings.subtitle')}
       />
 
-      <div className="flex flex-col gap-12">
-          <section className={SETTINGS_SECTION_CLASS}>
+      <nav aria-label={t('settings.navigation')} className="mb-8 flex flex-wrap gap-x-6 gap-y-3 border-b border-solid-gray-200 pb-5">
+        <DaLink href="#account">{t('settings.account.title')}</DaLink>
+        <DaLink href="#billing">{t('settings.billing.title')}</DaLink>
+        <DaLink href="#youtube">{t('settings.searchApiKey.title')}</DaLink>
+        <DaLink href="#integrations">{t('settings.integrations.title')}</DaLink>
+      </nav>
+
+      <div className="flex flex-col gap-8">
+          <AccountSettingsSection />
+          <section id="billing" aria-labelledby="billing-heading" className={SETTINGS_SECTION_CLASS}>
             <div className="mb-5">
-              <Heading size="18" hasChip className="mb-2">
-                <HeadingTitle level="h2">{t('settings.billing.title')}</HeadingTitle>
+              <Heading size="20" hasChip className="mb-2">
+                <HeadingTitle id="billing-heading" level="h2">{t('settings.billing.title')}</HeadingTitle>
               </Heading>
               <p className="text-std-16N-170 text-solid-gray-600">
                 {t('settings.billing.description')}
@@ -365,187 +308,35 @@ export default function SettingsPage() {
                 <MessageAlert type="error" message={t('settings.billing.pastDue')} />
               </div>
             )}
-            <div className={SETTINGS_CALLOUT_CLASS}>
-              <div className="font-bold text-solid-gray-800 mb-1">
-                {t('settings.billing.currentPlan')}
-              </div>
-              <p>{t(`pricing.plans.${user?.plan_code ?? 'free'}.name`)}</p>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Button asChild variant="outline">
-                <Link href="/pricing">{t('settings.billing.viewPlans')}</Link>
-              </Button>
-              {user?.plan_code === 'basic' || user?.plan_code === 'pro' ? (
-                <ManageBillingButton locale={locale} />
-              ) : null}
-            </div>
-          </section>
-
-          <section className={SETTINGS_SECTION_CLASS}>
-            <div className="mb-5">
-              <Heading size="18" hasChip className="mb-2">
-                <HeadingTitle level="h2">{t('settings.usernameChange.title')}</HeadingTitle>
-              </Heading>
-              <p className="text-std-16N-170 text-solid-gray-600">
-                {t('settings.usernameChange.description')}
-              </p>
-            </div>
-
-            {usernameChangeStatusMessage && (
-              <div className="mb-5">
-                <MessageAlert
-                  type={usernameChangeStatusMessage.tone}
-                  message={usernameChangeStatusMessage.text}
-                />
-              </div>
-            )}
-
-            <form
-              className="space-y-4"
-              onSubmit={async (event) => {
-                event.preventDefault();
-                const trimmedUsername = usernameChangeUsername.trim();
-                if (!trimmedUsername) {
-                  setUsernameChangeStatusMessage({
-                    tone: 'error',
-                    text: t('settings.usernameChange.errorEmpty'),
-                  });
-                  return;
-                }
-                if (trimmedUsername.toLowerCase() === (user?.username ?? '').toLowerCase()) {
-                  setUsernameChangeStatusMessage({
-                    tone: 'error',
-                    text: t('settings.usernameChange.errorUnchanged'),
-                  });
-                  return;
-                }
-                setUsernameChangeStatusMessage(null);
-                try {
-                  await updateUsernameMutation.mutateAsync(trimmedUsername);
-                } catch {
-                  // onError renders the user-facing message.
-                }
-              }}
-            >
-              <div className={SETTINGS_CALLOUT_CLASS}>
-                <div className="font-bold text-solid-gray-800 mb-1">
-                  {t('settings.usernameChange.currentUsernameLabel')}
-                </div>
-                <p>{user?.username ?? t('common.notProvided')}</p>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="username-change-username">
-                  {t('settings.usernameChange.newUsernameLabel')}
-                </Label>
-                <Input
-                  id="username-change-username"
-                  type="text"
-                  autoComplete="username"
-                  value={usernameChangeUsername}
-                  onChange={(event) => setUsernameChangeUsername(event.target.value)}
-                />
-                <SupportText>{t('settings.usernameChange.help')}</SupportText>
-              </div>
-
-              <div className="flex justify-end">
-                <Button type="submit" disabled={updateUsernameMutation.isPending}>
-                  {updateUsernameMutation.isPending ? (
-                    <span className="flex items-center gap-2">
-                      <InlineSpinner className="w-4 h-4" />
-                      {t('settings.usernameChange.submitting')}
-                    </span>
-                  ) : t('settings.usernameChange.submit')}
-                </Button>
-              </div>
-            </form>
-          </section>
-
-          <section className={SETTINGS_SECTION_CLASS}>
-            <div className="mb-5">
-              <Heading size="18" hasChip className="mb-2">
-                <HeadingTitle level="h2">{t('settings.emailChange.title')}</HeadingTitle>
-              </Heading>
-              <p className="text-std-16N-170 text-solid-gray-600">
-                {t('settings.emailChange.description')}
-              </p>
-            </div>
-
-            {emailChangeStatusMessage && (
-              <div className="mb-5">
-                <MessageAlert
-                  type={emailChangeStatusMessage.tone}
-                  message={emailChangeStatusMessage.text}
-                />
-              </div>
-            )}
-
-            <form
-              className="space-y-4"
-              onSubmit={async (event) => {
-                event.preventDefault();
-                const trimmedEmail = emailChangeEmail.trim();
-                if (!trimmedEmail) {
-                  setEmailChangeStatusMessage({
-                    tone: 'error',
-                    text: t('settings.emailChange.errorEmpty'),
-                  });
-                  return;
-                }
-                setEmailChangeStatusMessage(null);
-                try {
-                  await requestEmailChangeMutation.mutateAsync(trimmedEmail);
-                } catch {
-                  // onError renders the user-facing message.
-                }
-              }}
-            >
-              <div className={SETTINGS_CALLOUT_CLASS}>
-                <div className="font-bold text-solid-gray-800 mb-1">
-                  {t('settings.emailChange.currentEmailLabel')}
-                </div>
-                <p>{user?.email ?? t('common.notProvided')}</p>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="email-change-email">
-                  {t('settings.emailChange.newEmailLabel')}
-                </Label>
-                <Input
-                  id="email-change-email"
-                  type="email"
-                  value={emailChangeEmail}
-                  onChange={(event) => setEmailChangeEmail(event.target.value)}
-                />
-                <SupportText>{t('settings.emailChange.help')}</SupportText>
-              </div>
-
-              <div className="flex justify-end">
-                <Button type="submit" disabled={requestEmailChangeMutation.isPending}>
-                  {requestEmailChangeMutation.isPending ? (
-                    <span className="flex items-center gap-2">
-                      <InlineSpinner className="w-4 h-4" />
-                      {t('settings.emailChange.submitting')}
-                    </span>
-                  ) : t('settings.emailChange.submit')}
-                </Button>
-              </div>
-            </form>
-          </section>
-
-          <section className={SETTINGS_SECTION_CLASS}>
-            <div className="mb-5 flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <Heading size="18" hasChip className="mb-2">
-                  <HeadingTitle level="h2">{t('settings.searchApiKey.title')}</HeadingTitle>
+                <p className="text-std-16N-170 text-solid-gray-600">{t('settings.billing.currentPlan')}</p>
+                <p className="text-std-24B-150">{t(`pricing.plans.${user?.plan_code ?? 'free'}.name`)}</p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Button asChild variant="outline">
+                  <Link href="/pricing">{t('settings.billing.viewPlans')}</Link>
+                </Button>
+                {user?.plan_code === 'basic' || user?.plan_code === 'pro' ? (
+                  <ManageBillingButton locale={locale} />
+                ) : null}
+              </div>
+            </div>
+          </section>
+
+          <section id="youtube" aria-labelledby="youtube-heading" className={SETTINGS_SECTION_CLASS}>
+            <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <Heading size="20" hasChip className="mb-2">
+                  <HeadingTitle id="youtube-heading" level="h2">{t('settings.searchApiKey.title')}</HeadingTitle>
                 </Heading>
                 <p className="text-std-16N-170 text-solid-gray-600">
                   {t('settings.searchApiKey.description')}
                 </p>
               </div>
-              {searchApiKeyStatusQuery.data?.has_api_key && (
-                <ChipLabel variant="filled-1" color="blue" className="min-h-0 text-oln-14N-100">
-                  {t('settings.searchApiKey.configured')}
+              {searchApiKeyStatusQuery.isSuccess && (
+                <ChipLabel variant="filled-1" color={searchApiKeyStatusQuery.data.has_api_key ? 'blue' : 'gray'} className="shrink-0 text-oln-14N-100">
+                  {t(searchApiKeyStatusQuery.data.has_api_key ? 'settings.searchApiKey.configured' : 'settings.searchApiKey.notConfigured')}
                 </ChipLabel>
               )}
             </div>
@@ -559,7 +350,14 @@ export default function SettingsPage() {
               </div>
             )}
 
-            <div className="space-y-4">
+            {searchApiKeyStatusQuery.isPending && <LoadingSpinner />}
+            {searchApiKeyStatusQuery.isError && (
+              <div className="space-y-3">
+                <ErrorMessage message={t('settings.searchApiKey.errorLoading')} />
+                <Button variant="outline" onClick={() => void searchApiKeyStatusQuery.refetch()}>{t('settings.retry')}</Button>
+              </div>
+            )}
+            {searchApiKeyStatusQuery.isSuccess && <div className="space-y-4">
               <div className={SETTINGS_CALLOUT_CLASS}>
                 <div className="font-bold text-solid-gray-800 mb-1">
                   {t('settings.searchApiKey.usageTitle')}
@@ -567,16 +365,42 @@ export default function SettingsPage() {
                 <p>{t('settings.searchApiKey.usageDescription')}</p>
               </div>
 
+              {searchApiKeyStatusQuery.data.has_api_key && !editingSearchApiKey ? (
+                <div className="flex flex-wrap gap-3">
+                  <Button variant="outline" onClick={() => setEditingSearchApiKey(true)}>{t('settings.searchApiKey.edit')}</Button>
+                  <Button variant="text" className="text-error-1" onClick={() => setConfirmDeleteSearchApiKey(true)}>{t('settings.searchApiKey.delete')}</Button>
+                </div>
+              ) : <form className="space-y-4" onSubmit={(event) => {
+                event.preventDefault();
+                if (!searchApiKey.trim() || saveSearchApiKeyMutation.isPending) return;
+                setSearchApiStatusMessage(null);
+                saveSearchApiKeyMutation.mutate({ apiKey: searchApiKey.trim() });
+              }}>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="search-api-key">
                   {t('settings.searchApiKey.apiKeyLabel')}
                 </Label>
                 <Input
                   id="search-api-key"
+                  type={showSearchApiKey ? 'text' : 'password'}
+                  autoComplete="off"
+                  spellCheck={false}
+                  disabled={saveSearchApiKeyMutation.isPending}
+                  aria-describedby="search-api-key-help"
                   value={searchApiKey}
                   onChange={(event) => setSearchApiKey(event.target.value)}
                 />
-                <SupportText>
+                <Button
+                  type="button"
+                  variant="text"
+                  size="sm"
+                  className="self-start"
+                  aria-pressed={showSearchApiKey}
+                  onClick={() => setShowSearchApiKey(!showSearchApiKey)}
+                >
+                  {t(showSearchApiKey ? 'settings.searchApiKey.hide' : 'settings.searchApiKey.show')}
+                </Button>
+                <SupportText id="search-api-key-help">
                   {searchApiKeyStatusQuery.data?.has_api_key
                     ? t('settings.searchApiKey.hasApiKeyMessage')
                     : t('settings.searchApiKey.noApiKeyMessage')}
@@ -594,45 +418,39 @@ export default function SettingsPage() {
               </div>
 
               <div className="flex flex-wrap items-center justify-end gap-2">
-                <Button
+                {searchApiKeyStatusQuery.data.has_api_key && <Button
+                  type="button"
                   variant="outline"
-                  disabled={!searchApiKeyStatusQuery.data?.has_api_key || deleteSearchApiKeyMutation.isPending}
-                  onClick={async () => {
-                    setSearchApiStatusMessage(null);
-                    await deleteSearchApiKeyMutation.mutateAsync();
-                  }}
-                >
-                  {deleteSearchApiKeyMutation.isPending ? t('settings.searchApiKey.deleting') : t('settings.searchApiKey.delete')}
-                </Button>
-                <Button
                   disabled={saveSearchApiKeyMutation.isPending}
-                  onClick={async () => {
-                    const trimmedKey = searchApiKey.trim();
-                    if (!trimmedKey) {
-                      setSearchApiStatusMessage({
-                        tone: 'error',
-                        text: t('settings.searchApiKey.errorEmpty'),
-                      });
-                      return;
-                    }
+                  onClick={() => {
+                    setEditingSearchApiKey(false);
+                    setSearchApiKey('');
+                    setShowSearchApiKey(false);
                     setSearchApiStatusMessage(null);
-                    await saveSearchApiKeyMutation.mutateAsync({
-                      apiKey: searchApiKey.trim(),
-                    });
                   }}
+                >{t('settings.cancel')}</Button>}
+                <Button
+                  type="submit"
+                  disabled={!searchApiKey.trim() || saveSearchApiKeyMutation.isPending || deleteSearchApiKeyMutation.isPending}
                 >
                   {saveSearchApiKeyMutation.isPending ? t('settings.searchApiKey.saving') : t('settings.searchApiKey.save')}
                 </Button>
               </div>
-            </div>
+              </form>}
+            </div>}
           </section>
 
           {/* ── Integration API Keys ─────────────────────────────────── */}
-          <section className={SETTINGS_SECTION_CLASS}>
+          <section id="integrations" aria-labelledby="integrations-heading" className={SETTINGS_SECTION_CLASS}>
+            <Heading size="20" hasChip className="mb-5">
+              <HeadingTitle id="integrations-heading" level="h2">{t('settings.integrations.title')}</HeadingTitle>
+            </Heading>
+            <ConnectedAppsSection headingLevel="h3" />
+            <section className="mt-6 border-t border-solid-gray-200 pt-6" aria-labelledby="api-keys-heading">
             <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <Heading size="18" hasChip className="mb-2">
-                  <HeadingTitle level="h2">{t('settings.integrationApiKeys.title')}</HeadingTitle>
+                <Heading size="18" className="mb-2">
+                  <HeadingTitle id="api-keys-heading" level="h3">{t('settings.integrationApiKeys.title')}</HeadingTitle>
                 </Heading>
                 <p className="text-std-16N-170 text-solid-gray-600">
                   {t('settings.integrationApiKeys.description')}
@@ -640,7 +458,7 @@ export default function SettingsPage() {
               </div>
               <Button
                 type="button"
-                variant="solid"
+                variant="outline"
                 size="sm"
                 className="w-full shrink-0 sm:w-auto"
                 onClick={() => {
@@ -656,7 +474,7 @@ export default function SettingsPage() {
               </Button>
             </div>
 
-            {statusMessage && (
+            {statusMessage && !pendingRevokeKey && (
               <div className="mb-5">
                 <MessageAlert type={statusMessage.tone} message={statusMessage.text} />
               </div>
@@ -667,66 +485,71 @@ export default function SettingsPage() {
               <ErrorMessage message={t('settings.integrationApiKeys.errorLoading')} />
             )}
             {!apiKeysQuery.isLoading && !apiKeysQuery.isError && apiKeysQuery.data?.length === 0 && (
-              <p className="border-t border-solid-gray-420 py-6 text-std-16N-170 text-solid-gray-600">
+              <p className="rounded-8 bg-solid-gray-50 p-4 text-std-16N-170 text-solid-gray-600">
                 {t('settings.integrationApiKeys.empty')}
               </p>
             )}
 
             {apiKeysQuery.data && apiKeysQuery.data.length > 0 && (
-              <div className="overflow-x-auto border-t border-solid-gray-420">
-                <Table className="min-w-[560px]">
-                  <TableHeader>
-                    <TableRow className="text-dns-14B-120 text-solid-gray-600">
-                      <TableHead>{t('settings.integrationApiKeys.columns.name')}</TableHead>
-                      <TableHead>{t('settings.integrationApiKeys.columns.secret')}</TableHead>
-                      <TableHead>{t('settings.integrationApiKeys.columns.permissions')}</TableHead>
-                      <TableHead>{t('settings.integrationApiKeys.columns.lastUsed')}</TableHead>
-                      <TableHead className="text-center">
-                        {t('settings.integrationApiKeys.columns.action')}
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {apiKeysQuery.data.map((apiKey) => (
-                      <TableRow key={apiKey.id}>
-                        <TableCell className="font-medium text-solid-gray-800">
-                          {apiKey.name}
-                        </TableCell>
-                        <TableCell className="font-mono text-dns-14N-130 text-solid-gray-600">
-                          {apiKey.prefix}...
-                        </TableCell>
-                        <TableCell>{getAccessLevelBadge(apiKey.access_level)}</TableCell>
-                        <TableCell className="text-dns-14N-130 text-solid-gray-600">
-                          {apiKey.last_used_at
-                            ? new Date(apiKey.last_used_at).toLocaleDateString()
-                            : t('settings.integrationApiKeys.neverUsed')}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Button
-                            type="button"
-                            variant="text"
-                            size="xs"
-                            disabled={revokeApiKeyMutation.isPending && revokingId === apiKey.id}
-                            onClick={() => setPendingRevokeKey({ id: apiKey.id, name: apiKey.name, prefix: apiKey.prefix })}
-                            className="min-w-0 text-error-1 hover:bg-red-50"
-                            aria-label={t('settings.integrationApiKeys.revoke')}
-                          >
-                            {revokeApiKeyMutation.isPending && revokingId === apiKey.id
-                              ? <InlineSpinner className="w-4 h-4" />
-                              : <X className="w-4 h-4" />}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <ul aria-label={t('settings.integrationApiKeys.title')} className="divide-y divide-solid-gray-200 rounded-8 border border-solid-gray-200">
+                {apiKeysQuery.data.map((apiKey) => (
+                  <li key={apiKey.id} className="p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="break-words text-std-16B-170 [overflow-wrap:anywhere]">{apiKey.name}</p>
+                        <p className="mt-1 break-all font-mono text-dns-14N-130 text-solid-gray-600">{apiKey.prefix}...</p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="text"
+                        size="sm"
+                        disabled={revokeApiKeyMutation.isPending}
+                        onClick={() => {
+                          setStatusMessage(null);
+                          setPendingRevokeKey({ id: apiKey.id, name: apiKey.name, prefix: apiKey.prefix });
+                        }}
+                        className="shrink-0 text-error-1 hover:bg-red-50"
+                        aria-label={`${t('settings.integrationApiKeys.revoke')}: ${apiKey.name}`}
+                      >
+                        {revokeApiKeyMutation.isPending && revokingId === apiKey.id && <InlineSpinner className="mr-1 h-4 w-4" />}
+                        {t('settings.integrationApiKeys.revoke')}
+                      </Button>
+                    </div>
+                    <dl className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-dns-14N-130 text-solid-gray-600">
+                      <div className="flex items-center gap-2">
+                        <dt>{t('settings.integrationApiKeys.columns.permissions')}</dt>
+                        <dd>{getAccessLevelBadge(apiKey.access_level)}</dd>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <dt>{t('settings.integrationApiKeys.columns.lastUsed')}</dt>
+                        <dd>{apiKey.last_used_at ? new Date(apiKey.last_used_at).toLocaleDateString(locale) : t('settings.integrationApiKeys.neverUsed')}</dd>
+                      </div>
+                    </dl>
+                  </li>
+                ))}
+              </ul>
             )}
+            </section>
           </section>
-
-          {/* ── Connected Apps (OAuth tokens) ────────────────────────── */}
-          <ConnectedAppsSection />
       </div>
+
+      {confirmDeleteSearchApiKey && (
+        <Dialog {...deleteSearchApiKeyDialog.dialogProps} width="min(32rem, 92vw)">
+          <DialogContent>
+            <DialogHeader><DialogHeading {...deleteSearchApiKeyDialog.headingProps}>{t('settings.searchApiKey.deleteConfirmTitle')}</DialogHeading></DialogHeader>
+            <DialogBody><p>{t('settings.searchApiKey.deleteConfirmDescription')}</p></DialogBody>
+            <DialogActions>
+              <div className="flex flex-wrap justify-end gap-3">
+                <Button variant="outline" disabled={deleteSearchApiKeyMutation.isPending} onClick={() => setConfirmDeleteSearchApiKey(false)}>{t('settings.cancel')}</Button>
+                <Button className="bg-error-1 hover:bg-red-1000 active:bg-red-1200" disabled={deleteSearchApiKeyMutation.isPending} onClick={() => {
+                  setSearchApiStatusMessage(null);
+                  deleteSearchApiKeyMutation.mutate();
+                }}>{t(deleteSearchApiKeyMutation.isPending ? 'settings.searchApiKey.deleting' : 'settings.searchApiKey.delete')}</Button>
+              </div>
+            </DialogActions>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* ── Create API Key Dialog ──────────────────────────────────────── */}
       {isCreateApiKeyDialogOpen && (
@@ -804,7 +627,7 @@ export default function SettingsPage() {
 
             <DialogActions>
               <div className="flex justify-end gap-3">
-                <Button variant="outline" onClick={() => setIsCreateApiKeyDialogOpen(false)}>
+                <Button variant="outline" disabled={createApiKeyMutation.isPending} onClick={() => setIsCreateApiKeyDialogOpen(false)}>
                   {t('settings.integrationApiKeys.cancel')}
                 </Button>
                 <Button
@@ -816,7 +639,7 @@ export default function SettingsPage() {
                       return;
                     }
                     setApiKeyDialogError(null);
-                    await createApiKeyMutation.mutateAsync();
+                    createApiKeyMutation.mutate();
                   }}
                 >
                   {createApiKeyMutation.isPending ? (
@@ -924,6 +747,7 @@ export default function SettingsPage() {
               </p>
 
               <div className="space-y-4">
+                {statusMessage?.tone === 'error' && <MessageAlert type="error" message={statusMessage.text} />}
                 <MessageAlert
                   type="warning"
                   message={t('settings.integrationApiKeys.revokeConfirmWarning')}
@@ -937,7 +761,7 @@ export default function SettingsPage() {
 
             <DialogActions>
               <div className="flex justify-end gap-3">
-                <Button variant="outline" onClick={() => setPendingRevokeKey(null)}>
+                <Button variant="outline" disabled={revokeApiKeyMutation.isPending} onClick={() => setPendingRevokeKey(null)}>
                   {t('settings.integrationApiKeys.cancel')}
                 </Button>
                 <Button
@@ -950,6 +774,8 @@ export default function SettingsPage() {
                     try {
                       await revokeApiKeyMutation.mutateAsync(pendingRevokeKey.id);
                       setPendingRevokeKey(null);
+                    } catch {
+                      // The error stays visible inside the confirmation dialog.
                     } finally {
                       setRevokingId(null);
                     }
@@ -968,7 +794,7 @@ export default function SettingsPage() {
         </Dialog>
       )}
 
-    </>
+    </div>
   );
 }
 
@@ -980,7 +806,7 @@ function ManageBillingButton({ locale }: { locale: 'en' | 'ja' }) {
     },
   }));
   return (
-    <Button type="button" disabled={portal.isPending} onClick={() => portal.mutate({ locale })}>
+    <Button type="button" variant="outline" disabled={portal.isPending} onClick={() => portal.mutate({ locale })}>
       {t('settings.billing.manage')}
     </Button>
   );

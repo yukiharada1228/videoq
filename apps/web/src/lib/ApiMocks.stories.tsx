@@ -199,7 +199,7 @@ export const RestMutation: Story = {
   beforeEach({ msw }) {
     msw.use(http.post('/api/auth/api-key/create', async ({ request }) => {
       const body = await request.json();
-      await expect(body).toMatchObject({ name: 'Sample key', metadata: { accessLevel: 'read_only' } });
+      await expect(body).toMatchObject({ name: 'Sample key', configId: 'default' });
       return HttpResponse.json({ ...apiKeysResponse.apiKeys[0], name: 'Sample key', key: 'storybook-key-not-valid' });
     }));
   },
