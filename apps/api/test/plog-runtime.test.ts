@@ -16,7 +16,7 @@ import {
 import {
   isAskForAnswer,
   isMetaOrConfused,
-  pregradeReply,
+  classifyStudyMessage,
   shouldStayOnActive,
 } from "../src/lib/plog-study";
 
@@ -131,19 +131,26 @@ describe("plog-runtime helpers", () => {
   });
 });
 
-describe("algorithm-1 grading guards", () => {
-  it("pregrade only forces empty / ask-for-answer / meta", () => {
-    expect(pregradeReply("")).toBe("miss");
-    expect(pregradeReply("教えて")).toBe("miss");
-    expect(pregradeReply("関係なくない？")).toBe("miss");
-    expect(pregradeReply("何を言っている？")).toBe("miss");
-    expect(pregradeReply("？")).toBe("miss");
-    expect(pregradeReply("はい")).toBeNull();
-    expect(pregradeReply("片方が1なら出力は1")).toBeNull();
+describe("study message intents", () => {
+  it.each([
+    ["ヒントを教えて", "hint"], ["Can I have a hint?", "hint"],
+    ["なんで出力が変わるの？", "explanation"], ["Why does it change?", "explanation"],
+    ["用語の意味を教えて", "explanation"], ["Explain this term", "explanation"],
+    ["教えて", "explanation"], ["関係なくない？", "explanation"],
+    ["何を言っている？", "explanation"], ["？", "explanation"], ["", "explanation"],
+    ["答えをそのまま教えて", "reveal"], ["Tell me the answer", "reveal"],
+    ["0", "answer"], ["はい", "answer"], ["答えは0です", "answer"],
+    ["片方が1なら出力は1", "answer"], ["My answer is 0", "answer"],
+    ["ヒントから考えると0です", "answer"], ["Using the hint, my answer is 0", "answer"],
+    ["Why does this hint mention input?", "explanation"],
+  ])("classifies %s as %s without grading", (reply, intent) => {
+    expect(classifyStudyMessage(reply)).toBe(intent);
   });
 
   it("ask-for-answer detection", () => {
-    expect(isAskForAnswer("教えて")).toBe(true);
+    expect(isAskForAnswer("教えて")).toBe(false);
+    expect(isAskForAnswer("ヒントを教えて")).toBe(false);
+    expect(isAskForAnswer("解答の考え方を教えて")).toBe(false);
     expect(isAskForAnswer("答えを教えてください")).toBe(true);
     expect(isAskForAnswer("ノットゲートは否定")).toBe(false);
   });

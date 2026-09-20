@@ -2,6 +2,7 @@ import { embedding as testEmbedding } from "./helpers/embedding";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { runStudy, PlogNotReadyError, EphemeralLearnerStateStore } from "../src/lib/plog-study";
 import type { Bindings } from "../src/types/bindings";
+import { getPlogStudyConfig } from "../src/lib/prompts";
 
 import {
   executeFakePgQuery,
@@ -273,7 +274,8 @@ describe("runStudy smoke", () => {
         { role: "user", content: "続けます" },
       ],
     });
-    expect(next.content).toBe(completed.content);
+    expect(next.content).toContain("学習パス上の概念を一通り終えました");
+    expect(next.content).not.toContain("mastery");
     expect(studySessions.commits).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith("/chat/completions")))
       .toHaveLength(1);
@@ -422,5 +424,127 @@ describe("runStudy smoke", () => {
       String(c[0]).endsWith("/chat/completions"),
     );
     expect(chatCalls.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("study grading and help requests", () => {
+  const initial: SessionState["states"] = {
+    "1": { concept_id: 1, reached: false, hint_index: 0, last_grade: "", active: true },
+  };
+  const submit = (reply: string, locale = "ja", prior = "入力が両方0なら出力は？") => runStudy(ENV, {
+    messages: [{ role: "assistant", content: prior }, { role: "user", content: reply }],
+    videoIds: [10], locale, studySessionId: "grading",
+  });
+  const mockModel = (grade: string | Response) => {
+    const fetchMock = vi.fn(async (input: RequestInfo, init?: RequestInit) => {
+      if (String(input).endsWith("/embeddings")) {
+        return Response.json({ data: [{ index: 0, embedding: testEmbedding(1, 0) }] });
+      }
+      const body = JSON.parse(String(init?.body ?? "{}"));
+      if (body.max_tokens === 256 && grade instanceof Response) return grade.clone();
+      return Response.json({ choices: [{ message: {
+        content: body.max_tokens === 256 ? grade : "入力に注目してみましょう。どの条件で変化しますか？",
+      } }] });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  };
+  beforeEach(() => studySessions.seed("grading", initial));
+
+  it.each([
+    ["ヒントを教えて", "現在のヒント: ヒント1", 0],
+    ["なんで出力が変わるの？", "入力に注目", 1],
+    ["答えをそのまま教えて", "ここでは答えをそのまま教えません", 0],
+  ])("does not grade or advance %s, even directly after opening", async (reply, text, calls) => {
+    const fetchMock = mockModel('{"grade":"miss","reason":"must not be called"}');
+    const result = await submit(String(reply));
+    expect(result.content).toContain(String(text));
+    expect(result.content).toContain("採点対象外");
+    expect(studySessions.commits).toHaveBeenLastCalledWith("grading", 1, initial);
+    expect(fetchMock).toHaveBeenCalledTimes(Number(calls));
+    for (const [, init] of fetchMock.mock.calls) {
+      expect(JSON.parse(String(init?.body)).max_tokens).toBe(1024);
+      expect(String(init?.body)).toContain("Help request (not graded)");
+      expect(String(init?.body)).not.toContain("Current answer grade");
+    }
+  });
+
+  it("keeps all progress fields and bypasses prerequisite routing for a help request", async () => {
+    const states = {
+      "1": { ...initial["1"]!, hint_index: 1, last_grade: "miss", active: false },
+      "2": { concept_id: 2, reached: false, hint_index: 0, last_grade: "partial", active: true },
+    };
+    studySessions.seed("grading", states);
+    const fetchMock = mockModel("invalid");
+    const result = await submit("ヒントを教えて");
+    expect(result.content).toContain("ヒントA");
+    expect(studySessions.commits).toHaveBeenLastCalledWith("grading", 1, states);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("grades a short correct answer by meaning, advances, and shows its reason", async () => {
+    const fetchMock = mockModel('{"grade":"mastery","reason":"問いの条件に合っています"}');
+    const result = await submit("0");
+    expect(result.content).toContain("mastery");
+    expect(result.content).toContain("理由: 問いの条件に合っています");
+    expect(result.content).toContain("次は「ノットゲート」");
+    expect(studySessions.commits).toHaveBeenLastCalledWith("grading", 1, {
+      "1": { ...initial["1"], reached: true, active: false, last_grade: "mastery" },
+      "2": { concept_id: 2, reached: false, hint_index: 0, last_grade: "", active: true },
+    });
+    const prompt = JSON.parse(String(fetchMock.mock.calls[0]![1]?.body)).messages[1].content;
+    expect(prompt).toContain("入力が両方0なら出力は？");
+    expect(prompt).toContain("Saved opening question:");
+  });
+
+  it.each(["partial", "miss"])("shows %s and reason and advances the hint only up to its last rung", async (grade) => {
+    mockModel(JSON.stringify({ grade, reason: "条件をもう一つ確認してください" }));
+    for (const revision of [1, 2]) {
+      const result = await submit("片方が1なら");
+      expect(result.content).toContain(`（${grade}）。理由: 条件をもう一つ確認してください`);
+      expect(studySessions.commits).toHaveBeenLastCalledWith("grading", revision, {
+        "1": { ...initial["1"], hint_index: 1, last_grade: grade },
+      });
+    }
+  });
+
+  it.each([
+    ["provider failure", Response.json({ error: { message: "unavailable" } }, { status: 403 })],
+    ["invalid JSON", "{broken"], ["missing grade", '{"reason":"unknown"}'],
+    ["invalid grade", '{"grade":"correct","reason":"unknown"}'],
+    ["missing reason", '{"grade":"mastery"}'],
+    ["empty reason", '{"grade":"miss","reason":"  "}'],
+    ["wrong reason type", '{"grade":"partial","reason":false}'],
+    ["no judgment", '{"grade":"ungradable","reason":"insufficient context"}'],
+    ["null", "null"],
+  ])("preserves progress for %s, without guessing from answer length", async (_name, output) => {
+    const states = { "1": { ...initial["1"]!, hint_index: 1, last_grade: "partial" } };
+    studySessions.seed("grading", states);
+    const fetchMock = mockModel(output);
+    for (const [index, reply] of ["0", "片方が1であれば出力が1になるゲートです"].entries()) {
+      const result = await submit(reply);
+      expect(result.content).toBe(getPlogStudyConfig("ja").grading_unavailable);
+      expect(studySessions.commits).toHaveBeenLastCalledWith("grading", index + 1, states);
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls.every(([, init]) => JSON.parse(String(init?.body)).max_tokens === 256)).toBe(true);
+  });
+
+  it("allows retry after a failed grade and retains the tutor question across a locale change", async () => {
+    mockModel("bad JSON");
+    const failed = await submit("0");
+    const fetchMock = mockModel('{"grade":"mastery","reason":"Matches the question"}');
+    const result = await runStudy(ENV, {
+      messages: [
+        { role: "assistant", content: "入力が両方0なら出力は？" },
+        { role: "user", content: "0" }, { role: "assistant", content: failed.content },
+        { role: "user", content: "0" },
+      ],
+      videoIds: [10], locale: "en", studySessionId: "grading",
+    });
+    expect(result.content).toContain("AI assessment: ready to move on (mastery). Reason: Matches the question");
+    const prompt = JSON.parse(String(fetchMock.mock.calls[0]![1]?.body)).messages[1].content;
+    expect(prompt).toContain("入力が両方0なら出力は？");
+    expect(prompt).not.toContain(failed.content);
   });
 });

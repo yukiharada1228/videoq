@@ -172,23 +172,16 @@ function previousAssistantContent(messages: readonly ChatMessageInput[]): string
 }
 
 export function isAskForAnswer(text: string): boolean {
-  const t = (text || "").trim().toLowerCase();
-  if (!t) return false;
-  const cues = [
-    "教えて",
-    "答えを",
-    "答え教えて",
-    "解答",
-    "tell me the answer",
-    "give me the answer",
-    "what is the answer",
-    "just tell me",
-  ];
-  return cues.some((c) => t.includes(c));
+  const t = text.trim().toLowerCase();
+  return (
+    /(?:答え|解答|正解)(?:を|が)?(?:そのまま|直接|全部|すぐに|だけ)?(?:教えて|見せて|ください|知りたい)/u.test(t) ||
+    /^(?:答え|解答|正解)(?:は)?[?？]$/u.test(t) ||
+    /\b(?:tell|give|show) me (?:the |a )?(?:full |correct )?answer\b|\bwhat(?: is|'s) the answer\b|\banswer please\b/u.test(t)
+  );
 }
 
 export function isMetaOrConfused(text: string): boolean {
-  const t = (text || "").trim();
+  const t = (text || "").trim().toLowerCase();
   if (!t) return true;
   if (t.length <= 2 && ["?", "？", "…", "...", "。", "!"].includes(t)) return true;
   const cues = [
@@ -200,7 +193,6 @@ export function isMetaOrConfused(text: string): boolean {
     "分からない",
     "変じゃ",
     "おかしい",
-    "なんで",
     "なぜ今",
     "話が違う",
     "急に",
@@ -212,12 +204,21 @@ export function isMetaOrConfused(text: string): boolean {
   return cues.some((c) => t.includes(c));
 }
 
-export function pregradeReply(reply: string): "miss" | null {
-  const t = (reply || "").trim();
-  if (!t) return "miss";
-  if (isAskForAnswer(t)) return "miss";
-  if (isMetaOrConfused(t)) return "miss";
-  return null;
+export type StudyMessageIntent = "answer" | "hint" | "explanation" | "reveal";
+
+/** Conservative help routing, not a judgment of understanding. */
+export function classifyStudyMessage(reply: string): StudyMessageIntent {
+  const t = reply.trim().toLowerCase();
+  if (isAskForAnswer(t)) return "reveal";
+  if (/^(?:ヒント|hint)[。.!！]?$/u.test(t) ||
+      /ヒント(?:を|が)?(?:教えて|ください|ほしい|欲しい|お願い|ちょうだい)/u.test(t) ||
+      /\b(?:give|show|need|want|have)\b.*\bhint\b|\bhint please\b/u.test(t)) return "hint";
+  if (
+    isMetaOrConfused(t) || /[?？]/u.test(t) ||
+    /教えて|説明して|説明してください|どういう意味|^(?:なぜ|なんで|どうして)/u.test(t) ||
+    /\b(?:explain|help me)\b|^(?:why|how|what is|what does|can you|could you)\b/u.test(t)
+  ) return "explanation";
+  return "answer";
 }
 
 export function shouldStayOnActive(
@@ -311,6 +312,19 @@ async function firstUnreached(
   return null;
 }
 
+type Grade = "mastery" | "partial" | "miss";
+type GradingResult = { grade: Grade; reason: string } | null;
+type GradeOutcome =
+  | { kind: "opening" }
+  | {
+      kind: "help";
+      intent: Exclude<StudyMessageIntent, "answer">;
+      graph: PlogGraphSnapshot;
+      concept: PlogConcept;
+    }
+  | { kind: "ungraded" }
+  | { kind: "graded"; grade: Grade; reason: string; progression: "advanced" | "path_complete" | null };
+
 async function gradeReply(
   env: Bindings,
   reply: string,
@@ -318,9 +332,7 @@ async function gradeReply(
   lo: PlogLearningObject | undefined,
   priorAssistant: string,
   studyCfg: Record<string, unknown>,
-): Promise<string> {
-  const pre = pregradeReply(reply);
-  if (pre !== null) return pre;
+): Promise<GradingResult> {
   try {
     const opening = lo?.opening_question ?? "";
     const gradeSystem = String(
@@ -329,21 +341,22 @@ async function gradeReply(
     );
     const userPrompt =
       `Concept: ${conceptLabel}\n` +
-      `Tutor's previous question: ${priorAssistant || opening}\n` +
+      `Saved opening question: ${opening}\n` +
+      `Tutor's previous message (may be a hint or explanation): ${priorAssistant}\n` +
       `Learner reply: ${reply}`;
     const content = await generateGradingReply(env, gradeSystem, userPrompt);
-    const start = content.indexOf("{");
-    const end = content.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-      const data = JSON.parse(content.slice(start, end + 1)) as { grade?: string };
-      const grade = String(data.grade || "partial").toLowerCase();
-      if (grade === "mastery" || grade === "partial" || grade === "miss") return grade;
+    const data: unknown = JSON.parse(content.trim());
+    if (data && typeof data === "object" && "grade" in data && "reason" in data) {
+      const { grade, reason } = data;
+      if ((grade === "mastery" || grade === "partial" || grade === "miss") &&
+          typeof reason === "string" && reason.trim()) {
+        return { grade, reason: reason.trim().replace(/\s+/gu, " ").slice(0, 240) };
+      }
     }
   } catch {
-    // GradeReply failed; default below
+    // A provider/format failure says nothing about the learner's understanding.
   }
-  if (reply.trim().length < 8) return "miss";
-  return "partial";
+  return null;
 }
 
 async function maybeGradePrevious(
@@ -353,7 +366,7 @@ async function maybeGradePrevious(
   graphs: readonly PlogGraphSnapshot[],
   priorAssistant: string,
   studyCfg: Record<string, unknown>,
-): Promise<"advanced" | "path_complete" | null> {
+): Promise<GradeOutcome> {
   let active: LearnerConceptState | null = null;
   let activeGraph: PlogGraphSnapshot | null = null;
   for (const g of graphs) {
@@ -367,13 +380,16 @@ async function maybeGradePrevious(
     }
     if (active) break;
   }
-  if (!active || !activeGraph) return null;
+  if (!active || !activeGraph) return { kind: "opening" };
 
   const lo = activeGraph.learning_objects[active.concept_id];
   const concept = activeGraph.concepts.find((c) => c.id === active!.concept_id);
-  if (!concept) return null;
+  if (!concept) return { kind: "opening" };
 
-  const grade = await gradeReply(
+  const intent = classifyStudyMessage(query);
+  if (intent !== "answer") return { kind: "help", intent, graph: activeGraph, concept };
+
+  const result = await gradeReply(
     env,
     query,
     concept.label,
@@ -381,6 +397,8 @@ async function maybeGradePrevious(
     priorAssistant,
     studyCfg,
   );
+  if (!result) return { kind: "ungraded" };
+  const { grade, reason } = result;
   if (grade === "mastery") {
     const conceptsById = new Map(activeGraph.concepts.map((c) => [c.id, c]));
     for (const twinId of nearDuplicateIds(active.concept_id, conceptsById)) {
@@ -399,9 +417,9 @@ async function maybeGradePrevious(
     if (nxt == null) nxt = nextUncoveredInOrder(order, reached, conceptsById);
     if (nxt != null) {
       await store.upsert(nxt, { active: true, hint_index: 0, last_grade: "" });
-      return "advanced";
+      return { kind: "graded", grade, reason, progression: "advanced" };
     }
-    return "path_complete";
+    return { kind: "graded", grade, reason, progression: "path_complete" };
   }
 
   let newHint = active.hint_index + 1;
@@ -412,7 +430,7 @@ async function maybeGradePrevious(
     hint_index: newHint,
     active: true,
   });
-  return null;
+  return { kind: "graded", grade, reason, progression: null };
 }
 
 async function resolveTarget(
@@ -530,8 +548,19 @@ async function runTurn(
   }
 
   const store = buildLearnerStateStore(params.initialStates, graphs);
-  const done = (result: StudyResult) => ({ result, states: store.snapshot() });
-  const priorAssistant = previousAssistantContent(params.messages);
+  let notice = "";
+  const done = (result: StudyResult) => ({
+    result: { ...result, content: notice ? `${notice}\n\n${result.content}` : result.content },
+    states: store.snapshot(),
+  });
+  // Retry notices are not tutor questions. Preserve the question being retried,
+  // including when the UI language changes between attempts.
+  const retryNotices = new Set(
+    ["en", "ja"].map((locale) => getPlogStudyConfig(locale).grading_unavailable),
+  );
+  const priorAssistant = previousAssistantContent(
+    params.messages.filter((message) => message.role !== "assistant" || !retryNotices.has(message.content)),
+  );
   const gradeOutcome = await maybeGradePrevious(
     env,
     store,
@@ -541,7 +570,23 @@ async function runTurn(
     studyCfg,
   );
 
-  if (gradeOutcome === "path_complete") {
+  if (gradeOutcome.kind === "ungraded") {
+    return done({
+      content: String(studyCfg.grading_unavailable),
+      queryText: params.query,
+      citations: null,
+      retrievedContexts: [],
+    });
+  }
+  if (gradeOutcome.kind === "graded") {
+    notice = formatTemplate(String(studyCfg[`grade_${gradeOutcome.grade}`]), {
+      reason: gradeOutcome.reason,
+    });
+  } else if (gradeOutcome.kind === "help") {
+    notice = String(studyCfg.help_not_graded);
+  }
+  const progression = gradeOutcome.kind === "graded" ? gradeOutcome.progression : null;
+  if (progression === "path_complete") {
     return done({
       content: String(studyCfg.path_complete || ""),
       queryText: params.query,
@@ -550,13 +595,9 @@ async function runTurn(
     });
   }
 
-  const resolved = await resolveTarget(
-    env,
-    store,
-    params.query,
-    graphs,
-    gradeOutcome === "advanced",
-  );
+  const resolved = gradeOutcome.kind === "help"
+    ? { graph: gradeOutcome.graph, concept: gradeOutcome.concept, redirected: false }
+    : await resolveTarget(env, store, params.query, graphs, progression === "advanced");
   if (!resolved) {
     return done({
       content: String(studyCfg.path_complete || ""),
@@ -580,7 +621,7 @@ async function runTurn(
     params.locale,
   );
   const isOpening = Boolean(
-    opening && (!state || (state.hint_index === 0 && !state.last_grade)),
+    gradeOutcome.kind !== "help" && opening && (!state || (state.hint_index === 0 && !state.last_grade)),
   );
 
   const citations: RagCitation[] = [];
@@ -605,7 +646,7 @@ async function runTurn(
         opening,
       });
     } else if (
-      gradeOutcome === "advanced" ||
+      progression === "advanced" ||
       (state && !state.last_grade && states.some((s) => s.reached))
     ) {
       content = formatTemplate(String(studyCfg.advance_next || "{opening}"), {
@@ -629,17 +670,16 @@ async function runTurn(
   const scenes = await loadL0Scenes(env, graph.video_id);
   const ctx = retrieveContext(graph, target, scenes);
 
-  if (isAskForAnswer(params.query)) {
+  if (gradeOutcome.kind === "help" && (gradeOutcome.intent === "reveal" || gradeOutcome.intent === "hint")) {
     const hint = nextHint(lo, hintIndex);
-    hintIndex = hint.index;
-    let content = formatTemplate(String(studyCfg.refuse_reveal || "{hint}"), {
+    const template = gradeOutcome.intent === "reveal" ? studyCfg.refuse_reveal : studyCfg.requested_hint;
+    let content = formatTemplate(String(template || "{hint}"), {
       label: target.label,
       hint: hint.text || opening,
     });
     if (citations.length && !content.includes("[1]")) {
       content = content.replace(/\s*$/, "") + " [1]";
     }
-    await activateConcept(store, target.id, states, hintIndex);
     return done({
       content,
       queryText: params.query,
@@ -670,11 +710,16 @@ async function runTurn(
   }
 
   const freshParts = [`# Current hint rung\n${hint.text}`];
-  if (state?.last_grade) {
+  if (gradeOutcome.kind === "graded") {
     freshParts.push(
-      `# Last grade\n${state.last_grade}\n` +
+      `# Current answer grade\n${gradeOutcome.grade}\nReason: ${gradeOutcome.reason}\n` +
         "Adapt the next nudge to that grade using the current hint rung " +
         "(encourage on partial, simplify on miss). Do not invent a new topic.",
+    );
+  } else if (gradeOutcome.kind === "help") {
+    freshParts.push(
+      "# Help request (not graded)\nExplain the requested point briefly, then use the current hint. " +
+      "Do not judge the learner's understanding or claim they answered incorrectly. Progress is unchanged.",
     );
   }
   freshParts.push(`# Learner reply\n${params.query}`);
@@ -698,7 +743,7 @@ async function runTurn(
     content = content.replace(/\s*$/, "") + " [1]";
   }
 
-  await activateConcept(store, target.id, states, hintIndex);
+  if (gradeOutcome.kind !== "help") await activateConcept(store, target.id, states, hintIndex);
   return done({
     content,
     queryText: params.query,
