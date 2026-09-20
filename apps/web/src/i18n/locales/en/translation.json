@@ -622,7 +622,7 @@
     "qaGuidance": "Q&A does not use earlier messages. Include the subject in each question. Example: “Give me an example of the dot product.”",
     "suggestedQuestions": "Suggested questions",
     "assistantGreeting": "Hello! Ask me anything about your videos.",
-    "studyGreeting": "Study mode: I will guide you with questions instead of revealing answers, following lecture prerequisites.",
+    "studyGreeting": "Study mode: I will guide you with questions, following lecture prerequisites. Questions and hint requests are not graded. If grading fails, your progress stays unchanged. AI assessments include a reason and may be mistaken.",
     "modeQa": "Q&A",
     "modeStudy": "Study",
     "error": "An error occurred in the chat.",

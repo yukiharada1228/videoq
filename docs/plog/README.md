@@ -52,8 +52,13 @@ flowchart LR
     Concept --> Prerequisite[Check prerequisite understanding]
     Prerequisite --> Question[Return question or hint]
     Question --> Reply[Learner answers]
-    Reply --> Grade[Evaluate answer and update state]
-    Grade --> Concept
+    Reply --> Intent{Answer or help request?}
+    Intent -->|Answer| Grade{Can it be graded?}
+    Grade -->|Valid grade| Concept
+    Grade -->|No| Retry[Keep progress and ask to retry]
+    Intent -->|Help| Help[Keep progress and give help]
+    Retry --> Reply
+    Help --> Reply
 ```
 
 The first question uses saved text. Subsequent answer evaluation and support generation can use an LLM; some paths use fixed rules and saved hints. Temporary progress is stored in a `STUDY_SESSION` Durable Object with a TTL. Leases and revisions control concurrent requests within the same session.
@@ -65,38 +70,49 @@ This is separate from permanently storing a learner's full history as grades. Do
 Suppose an illustrative graph contains “vectors → dot product.” Asking about the dot product may first produce a stored question about vectors if that prerequisite has not been reached. The exact wording depends on the generated or edited learning objects.
 
 1. **Load the graph and session.** The API reads concepts, ordering edges, saved questions/hints, and the current concept's progress.
-2. **Grade a reply if a concept is active.** It reads the learner's latest message and the previous assistant question. This step is skipped when there is no active concept yet.
+2. **Classify the message when a concept is active.** Answer submissions go to the grading model; recognized help requests bypass grading. If no concept is active yet, this step is skipped and the saved opening question starts the study turn.
 3. **Choose the target concept.** It compares the message embedding with concept-label embeddings, while applying rules that keep a short or confused reply on the active concept. It can redirect to an unmet direct prerequisite.
 4. **Choose the response path.** A newly activated concept uses its saved opening question. A request to reveal the answer uses a saved hint and a template. Other support uses the model with the selected concept, hint, grade, and nearby material.
-5. **Save progress.** The program updates the active concept, reached state, last grade, and hint index. A response's wording alone does not update these fields.
+5. **Save progress.** Valid grades update the reached state, last grade, and hint index; routing can change the active concept. Help requests and ungradable turns keep all these fields unchanged. A response's wording alone does not update them.
 
 Concept routing uses a minimum cosine similarity of 0.25. For a normal reply to switch away from an active concept, the alternative must score at least 0.55 and exceed the active score by at least 0.12; replies shorter than 12 characters and recognized requests for help/answers stay on the active concept. These are code thresholds, not confidence probabilities. A concept activated immediately after mastery is kept for that turn.
 
 ## How grading changes the next step
 
-The grading model receives the concept label, the previous tutor question (or saved opening question), and the learner's reply. It is asked to return JSON with `grade` and `reason`. This grading call does not include the full transcript or the support-generation scene context.
+With an active concept, the following message categories control whether grading runs:
 
-| Grade | Program action |
-|---|---|
-| `mastery` | Mark the concept and recognized near-duplicates as reached, then activate the next uncovered concept in the learning order; finish if none remain |
-| `partial` | Keep working on the concept and advance the hint index, stopping at the last saved hint |
-| `miss` | Also advance the hint index; the support prompt asks for a simpler nudge |
+| Message category | Examples | Response and progress |
+|---|---|---|
+| Answer submission | `0`, “My answer is 0” | Ask the model to assess meaning, regardless of length; only a valid grade changes progress |
+| Explanation or hint request | “Why does it change?”, “Explain this term”, “Give me a hint” / 「なんで〜？」「ヒントを教えて」 | No grading or topic rerouting; explain the point or return the current saved hint without advancing it |
+| Direct answer request | “Tell me the answer” / 「答えをそのまま教えて」 | No grading; refuse to reveal the answer and return the current saved hint; keep progress |
+| Ungradable | Provider failure, invalid JSON, missing/unknown grade or missing/empty reason, or model result `ungradable` | Keep progress, display “I could not grade this reply,” and ask the learner to resend the answer |
 
-Target selection runs after grading. A sufficiently clear change of topic can therefore move to another concept even after `partial` or `miss`, subject to the routing rules above.
+Help detection uses fixed phrases and question markers, not semantic certainty. Bare 「教えて」 means help, not a demand for the full answer. Recognized confusion is also a help request. Mixed answers/questions and unrecognized wording can be misclassified; ask explicitly for a hint or explanation, or submit the answer separately. The model can return `ungradable` for a help request missed by these checks or insufficient context. No character-count fallback assigns a grade.
 
-Before calling the grading model, fixed checks classify an empty reply, recognized confusion, or a request for the answer as `miss`. If grading fails or returns an unusable grade, replies shorter than eight characters fall back to `miss`; others fall back to `partial`. This fallback keeps the interaction moving, but does not establish the learner's actual understanding.
+The grading model receives the concept label, saved opening question, previous tutor message, and learner's reply. A previous message may be a hint or explanation; retry notices are skipped to retain the question being retried. This call does not include the full transcript or support-generation scene context. The model must return JSON with a recognized `grade` and a nonempty `reason`.
 
-These grades control study progression. They are separate from the [RAGAS metrics used to evaluate generated answers](../architecture/prompt-engineering.md).
+| Grade | Meaning | Program action |
+|---|---|---|
+| `mastery` | The answer addresses the question well enough to move on | Mark the concept and recognized near-duplicates reached; activate the next uncovered concept or finish |
+| `partial` | A relevant, partly correct but incomplete answer | Advance the hint index, stopping at the last saved hint; ask for an encouraging nudge addressing what is missing |
+| `miss` | An attempted answer is incorrect or unrelated | Advance the hint index with the same limit; ask for a simpler nudge addressing the error |
+
+A valid grade and its short reason appear in the assistant response, including when moving on or finishing. Help requests are labeled “not graded”; ungradable turns are explicitly distinguished from incorrect answers. These messages follow the ordinary chat-history rules. Only the last valid grade is stored in the temporary progress record, not an `ungradable` grade or an assessment reason.
+
+Target selection runs after a valid grade. A sufficiently clear change of topic can move to another concept even after `partial` or `miss`, subject to the routing rules above. Help requests and ungradable turns skip that routing entirely. A retry is a new message in the same study session; it leaves the failed attempt visible and can update progress only if grading succeeds.
+
+These are fallible AI assessments for study progression, not verified grades or a complete measure of understanding. Both `partial` and `miss` keep the concept unreached; their meaning and requested support differ even though both advance the hint index. They are separate from the [RAGAS metrics used to evaluate generated answers](../architecture/prompt-engineering.md).
 
 ## What the support model reads
 
-For an ordinary supporting response, the model receives the study policy, target concept, opening question, possible misconceptions, relevant material, labels of downstream concepts to withhold, the current hint, the last grade if available, and the latest learner reply.
+For an ordinary supporting response, the model receives the study policy, target concept, opening question, possible misconceptions, relevant material, labels of downstream concepts to withhold, the current hint, the current answer grade and reason if grading succeeded, and the latest learner reply. Explanation requests instead carry an explicit “not graded” instruction; an old grade is not reused to judge the new question.
 
 The material includes up to four subtitle scenes whose start times are within 90 seconds of the concept's introduction, plus nearby summaries if present. The current generator does not populate those hierarchical summaries. It also initially saves no playback waypoints, so study responses are not guaranteed to include a playable citation; the citation path uses a configured learning object's first waypoint when one exists.
 
 These subtitle scenes are parsed directly from the video's stored transcript when Study loads its supporting material; they do not come from Q&A's scene search index. After a subtitle edit is saved, the next read can use corrected nearby text even if search reindexing is pending or has failed. Saved PLOG questions and hints remain unchanged until edited or rebuilt, so support can mix new transcript text with old learning material. A response already in progress may still use the transcript it loaded earlier.
 
-For “tell me the answer,” the response uses the refusal/help template and saved hint instead of generating a new support message. Model-generated support also passes a phrase-based reveal check that can replace it with that template. This is a heuristic, not a semantic proof that an answer was withheld.
+For a hint request or “tell me the answer,” the response uses the refusal/help template and saved hint instead of generating a new support message. Model-generated support also passes a phrase-based reveal check that can replace it with that template. This is a heuristic, not a semantic proof that an answer was withheld.
 
 Study mode generates its response before sending the complete text as a stream chunk. It does not currently stream individual generated tokens as ordinary Q&A can.
 

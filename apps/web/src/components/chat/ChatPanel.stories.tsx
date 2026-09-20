@@ -95,6 +95,54 @@ export const StudyMode: Story = { async play(context) {
   await complete(context);
   await expect(chatRequest).toHaveBeenCalledWith(expect.objectContaining({ course_id: courseId, mode: 'study', study_session_id: studySessionId }));
 } };
+async function finishStudyResponse(context: Context, text: string) {
+  await waitFor(() => expect(network.activeStreams).toBe(1));
+  network.emit([{ type: 'content_chunk', text }, { type: 'done', chat_log_id: 101, feedback: null }]);
+  network.finish();
+  await waitFor(() => expect(input(context)).toBeEnabled(), { timeout: 10000 });
+  await expect(context.canvas.getByText(text)).toBeVisible();
+}
+export const StudyHelpNotGraded: Story = { parameters: { chat: waiting }, async play(context) {
+  await context.userEvent.click(context.canvas.getByRole('button', { name: label('modeStudy') }));
+  await send(context, english() ? 'Give me a hint' : 'ヒントを教えて');
+  await finishStudyResponse(context, english()
+    ? 'Help request — not graded. Your concept progress and hint position are unchanged. Current hint: Look at the inputs.'
+    : '質問・ヒントの要求として受け付けました（採点対象外）。概念の進捗とヒント位置は変えていません。現在のヒント: 入力に注目してください。');
+} };
+export const StudyPartialReason: Story = { parameters: { chat: waiting }, async play(context) {
+  await context.userEvent.click(context.canvas.getByRole('button', { name: label('modeStudy') }));
+  await send(context, english() ? 'It depends on the input' : '入力によって変わります');
+  await finishStudyResponse(context, english()
+    ? 'AI assessment: partly correct, but incomplete (partial). Reason: Describe the condition for the output to change.'
+    : 'AIの判定: 一部正しいが不完全な解答（partial）。理由: 出力が変わる条件も説明してください。');
+} };
+export const StudyMissReason: Story = { parameters: { chat: waiting }, async play(context) {
+  await context.userEvent.click(context.canvas.getByRole('button', { name: label('modeStudy') }));
+  await send(context, english() ? 'It never changes' : '変化しません');
+  await finishStudyResponse(context, english()
+    ? 'AI assessment: this answer needs correction (miss). Reason: The output can change with the inputs.'
+    : 'AIの判定: 修正が必要な解答（miss）。理由: 入力によって出力が変わる場合があります。');
+} };
+export const StudyGradingUnavailable: Story = { parameters: { chat: waiting }, async play(context) {
+  await context.userEvent.click(context.canvas.getByRole('button', { name: label('modeStudy') }));
+  await send(context, '0');
+  await finishStudyResponse(context, english()
+    ? 'I could not grade this reply. Your concept progress and hint position are unchanged. This was not marked incorrect. Please send your answer again to retry. If it was a question, ask explicitly for a hint or explanation.'
+    : '今回は採点できませんでした。概念の進捗とヒント位置は変えておらず、不正解扱いにはしていません。同じ解答をもう一度送って再試行してください。質問の場合は、ヒントや説明の依頼だと明記してください。');
+} };
+export const StudyGradingRetry: Story = { parameters: { chat: waiting }, async play(context) {
+  await StudyGradingUnavailable.play!(context);
+  input(context).focus();
+  await context.userEvent.type(input(context), '0');
+  await context.userEvent.keyboard('{Tab}');
+  await expect(context.canvas.getByRole('button', { name: i18n.t('common.actions.send') })).toHaveFocus();
+  await context.userEvent.keyboard('{Enter}');
+  await waitFor(() => expect(chatRequest).toHaveBeenCalledTimes(2));
+  await expect(chatRequest.mock.calls[1][0]).toMatchObject({ mode: 'study', study_session_id: studySessionId });
+  await finishStudyResponse(context, english()
+    ? 'AI assessment: ready to move on (mastery). Reason: Your answer matches the question.'
+    : 'AIの判定: 次に進める解答（mastery）。理由: 問いの条件に合っています。');
+} };
 export const Conversation: Story = { async play(context) {
   await complete(context);
   await expect(chatRequest).toHaveBeenCalledWith({ course_id: courseId, mode: 'qa', messages: [{ role: 'user', content: english() ? englishQuestion : question }], share_slug: undefined });
