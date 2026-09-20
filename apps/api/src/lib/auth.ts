@@ -285,6 +285,9 @@ export function createAuth(env: Bindings, db: Db) {
         }
       : {},
     account: {
+      // Encrypt provider access/refresh tokens with the auth secret at rest.
+      // Better Auth still accepts legacy plaintext tokens during the transition.
+      encryptOAuthTokens: true,
       accountLinking: {
         enabled: true,
       },
