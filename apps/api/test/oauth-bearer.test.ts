@@ -10,6 +10,7 @@ import {
 
 const authMocks = vi.hoisted(() => ({
   getJwks: vi.fn(),
+  isOAuthGrantActive: vi.fn(),
   userRows: [{ banned: false, isActive: true }] as unknown[],
 }));
 
@@ -30,6 +31,10 @@ vi.mock("../src/lib/auth", () => ({
   createAuth: () => ({ api: { getJwks: authMocks.getJwks } }),
   authBaseURL: () => "https://videoq.jp",
   oauthResourceAudience: () => "https://videoq.jp/api/mcp",
+}));
+
+vi.mock("../src/repositories/oauth-grant-repository", () => ({
+  isOAuthGrantActive: authMocks.isOAuthGrantActive,
 }));
 
 import { deriveDpopAth, deriveDpopJkt } from "better-auth/oauth2";
@@ -68,6 +73,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   authMocks.userRows = [{ banned: false, isActive: true }];
   authMocks.getJwks.mockResolvedValue({ keys: [accessTokenPublicJwk] });
+  authMocks.isOAuthGrantActive.mockResolvedValue(true);
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -88,7 +94,7 @@ async function signAccessToken(
   scope: string,
   extraClaims: Record<string, unknown> = {},
 ) {
-  return new SignJWT({ scope, ...extraClaims })
+  return new SignJWT({ scope, client_id: "test-client", videoq_grant: "test-consent", ...extraClaims })
     .setProtectedHeader({ alg: "EdDSA", kid: KEY_ID })
     .setSubject(TEST_USER_ID)
     .setIssuer(ISSUER)
@@ -133,6 +139,24 @@ describe("OAuth bearer authentication", () => {
     });
     expect(authMocks.getJwks).toHaveBeenCalledOnce();
     expect(networkFetch).not.toHaveBeenCalled();
+    expect(authMocks.isOAuthGrantActive).toHaveBeenCalledWith(
+      fakeDb, TEST_USER_ID, "test-client", "test-consent", new Set(["videoq.read", "videoq.write"]),
+    );
+  });
+
+  it("rejects an already-issued JWT after its grant is revoked", async () => {
+    const token = await signAccessToken("videoq.read videoq.write");
+    expect((await request(token)).status).toBe(200);
+    authMocks.isOAuthGrantActive.mockResolvedValue(false);
+    expect((await request(token)).status).toBe(401);
+  });
+
+  it.each([
+    { videoq_grant: undefined }, { videoq_grant: "" },
+    { client_id: undefined }, { client_id: "" },
+  ])("rejects legacy or malformed grant identity %j", async (claims) => {
+    expect((await request(await signAccessToken("videoq.read", claims))).status).toBe(401);
+    expect(authMocks.isOAuthGrantActive).not.toHaveBeenCalled();
   });
 
   it("videoq.read が無い token は 403 にする", async () => {
