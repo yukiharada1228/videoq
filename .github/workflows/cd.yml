@@ -292,12 +292,16 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    needs: [changes, db-migrate]
+    # Deploy readers before the worker can write a new shared data format
+    # (for example PLOG presentation_order relationships).
+    needs: [changes, db-migrate, api-deploy, web-deploy]
     if: |
       always() &&
       needs.changes.result == 'success' &&
       needs.changes.outputs.worker == 'true' &&
-      (needs.db-migrate.result == 'success' || needs.db-migrate.result == 'skipped')
+      (needs.db-migrate.result == 'success' || needs.db-migrate.result == 'skipped') &&
+      (needs.changes.outputs.api != 'true' || needs.api-deploy.result == 'success') &&
+      (needs.changes.outputs.web != 'true' || needs.web-deploy.result == 'success')
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
