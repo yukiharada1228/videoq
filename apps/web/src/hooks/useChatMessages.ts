@@ -185,7 +185,11 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
     if (!input.trim() || sendInFlightRef.current) return;
 
     const userMessage: Message = { role: 'user', content: input };
-    const prior = messages[0]?.role === 'assistant' ? messages.slice(1) : messages;
+    // Q&A answers each question independently. Only Study needs the preceding
+    // assistant question and bounded dialogue history for grading.
+    const prior = mode === 'study'
+      ? (messages[0]?.role === 'assistant' ? messages.slice(1) : messages)
+      : [];
     const historyForApi = [
       ...prior
         .filter((m) => m.content.trim().length > 0)

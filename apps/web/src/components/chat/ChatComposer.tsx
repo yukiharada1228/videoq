@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from 'react';
+import { useId, type KeyboardEvent } from 'react';
 import { Send } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 interface ChatComposerProps {
   input: string;
   isLoading: boolean;
+  mode?: 'qa' | 'study';
   onInputChange: (input: string) => void;
   onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
   onSend: () => Promise<void>;
@@ -16,11 +17,13 @@ interface ChatComposerProps {
 export function ChatComposer({
   input,
   isLoading,
+  mode = 'qa',
   onInputChange,
   onKeyDown,
   onSend,
 }: ChatComposerProps) {
   const { t } = useTranslation();
+  const guidanceId = useId();
 
   return (
     <div className="shrink-0 border-t border-solid-gray-420 p-4">
@@ -33,6 +36,7 @@ export function ChatComposer({
           blockSize="lg"
           className="w-full pr-14"
           aria-label={t('chat.placeholder')}
+          aria-describedby={mode === 'qa' ? guidanceId : undefined}
         />
         <Button
           type="button"
@@ -46,6 +50,11 @@ export function ChatComposer({
           {isLoading ? <InlineSpinner className="h-4 w-4" /> : <Send className="h-4 w-4" />}
         </Button>
       </div>
+      {mode === 'qa' && (
+        <p id={guidanceId} className="mt-2 text-dns-14N-120 leading-relaxed text-solid-gray-600">
+          {t('chat.qaGuidance')}
+        </p>
+      )}
     </div>
   );
 }
