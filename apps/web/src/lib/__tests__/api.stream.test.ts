@@ -14,6 +14,7 @@ vi.mock('@/lib/auth-client', () => ({
 }))
 
 import { apiClient } from '../api'
+import { TRPC_UNAUTHORIZED_EVENT } from '../trpc'
 
 // Helper: build a fake SSE ReadableStream from an array of SSE lines
 function makeSSEResponse(lines: string[], status = 200): Response {
@@ -133,7 +134,9 @@ describe('apiClient.chatStream', () => {
     })).rejects.toThrow()
   })
 
-  it('signs out and fails when the stream request returns 401', async () => {
+  it('reports an unauthorized stream without signing out the current session', async () => {
+    const unauthorized = vi.fn()
+    window.addEventListener(TRPC_UNAUTHORIZED_EVENT, unauthorized)
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ error: { code: 'AUTHENTICATION_FAILED', message: 'Expired' } }), {
         status: 401,
@@ -147,7 +150,9 @@ describe('apiClient.chatStream', () => {
 
     expect(fetchSpy).toHaveBeenCalledTimes(1)
     expect(fetchSpy.mock.calls[0][0]).toBe('http://localhost:8000/api/chat/messages/stream')
-    expect(authClientMock.signOut).toHaveBeenCalledTimes(1)
+    expect(unauthorized).toHaveBeenCalledTimes(1)
+    expect(authClientMock.signOut).not.toHaveBeenCalled()
+    window.removeEventListener(TRPC_UNAUTHORIZED_EVENT, unauthorized)
   })
 
   it('handles chunked SSE delivery across multiple reads', async () => {

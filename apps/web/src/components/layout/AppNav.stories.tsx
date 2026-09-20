@@ -101,7 +101,7 @@ export const DesktopMenu: Story = {
 export const MobileMenu: Story = { ...DesktopMenu, globals: { viewport: { value: 'mobile', isRotated: false } } };
 export const LoggedOutMobile: Story = {
   ...MobileMenu,
-  parameters: { api: { ...api, auth: authFixtures.loggedOut } },
+  parameters: { api: { ...api, auth: authFixtures.loggedOut }, pathname: '/' },
   async play({ canvasElement, userEvent }) {
     const canvas = within(canvasElement);
     const trigger = canvas.getByRole('button', { name: menuName });
@@ -200,5 +200,29 @@ export const LogoutPending: Story = {
     const button = within(canvasElement).getByRole('button', { name: logoutName });
     await userEvent.click(button);
     await waitFor(() => expect(button).toBeDisabled());
+  },
+};
+
+export const LogoutFailure: Story = {
+  parameters: {
+    api: {
+      ...api,
+      rest: [http.post('/api/auth/sign-out', () => {
+        logout();
+        return logout.mock.calls.length === 1
+          ? HttpResponse.json({ message: 'Service unavailable', code: 'SERVICE_UNAVAILABLE' }, { status: 503 })
+          : HttpResponse.json({ success: true });
+      })],
+    },
+  },
+  async play({ canvasElement, userEvent, globals }) {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: logoutName }));
+    await expect(await canvas.findByRole('alert')).toHaveTextContent(/ログアウトできませんでした|Could not log out/);
+    await expect(canvas.getByLabelText('Current route')).toHaveTextContent(globals.locale === 'en' ? '/en/videos' : '/videos');
+    await expect(canvas.getByRole('button', { name: logoutName })).toBeEnabled();
+    await userEvent.click(canvas.getByRole('button', { name: logoutName }));
+    await waitFor(() => expect(canvas.getByLabelText('Current route')).toHaveTextContent(globals.locale === 'en' ? '/en/login' : '/login'));
+    await expect(logout).toHaveBeenCalledTimes(2);
   },
 };

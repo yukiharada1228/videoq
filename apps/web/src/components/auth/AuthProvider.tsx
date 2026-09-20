@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { useI18nLocation, useI18nNavigate } from '@/lib/i18n';
@@ -15,8 +15,8 @@ interface AuthProviderProps {
 export function AuthProvider({ children, initialQueryClient = appQueryClient }: AuthProviderProps) {
   const navigate = useI18nNavigate();
   const location = useI18nLocation();
-  const pathnameRef = useRef(location.pathname);
   const session = useAuthSession();
+  const { refetch: refetchSession, isPending: sessionPending, error: sessionError } = session;
   const userId = session.data?.user.id ?? null;
   const [cache, setCache] = useState({ userId, queryClient: initialQueryClient });
   const { queryClient } = cache;
@@ -37,28 +37,34 @@ export function AuthProvider({ children, initialQueryClient = appQueryClient }: 
   }, [identityChanged, queryClient, userId]);
 
   useEffect(() => {
-    pathnameRef.current = location.pathname;
-  }, [location.pathname]);
+    const unavailable = sessionError && sessionError.status !== 401 && sessionError.status !== 403;
+    if (!sessionPending && !unavailable && !userId && !isPublicAuthPath(location.pathname)) {
+      navigate('/login');
+    }
+  }, [location.pathname, navigate, sessionError, sessionPending, userId]);
 
   useEffect(() => {
-    const resetAndRedirect = () => {
-      queryClient.clear();
-      if (!isPublicAuthPath(pathnameRef.current)) {
-        navigate('/login');
-      }
+    let pendingRefresh: Promise<void> | undefined;
+    const revalidateSession = () => {
+      // A response can belong to a request sent before an account switch.
+      // Only the session endpoint can determine the current cookie's validity.
+      pendingRefresh ??= Promise.resolve().then(() => refetchSession()).catch(() => {
+        // Transient failures leave the session available for a later retry.
+      }).finally(() => { pendingRefresh = undefined; });
+      return pendingRefresh;
     };
     const handleTrpcUnauthorized = () => {
-      void apiClient.logout().catch(() => undefined).then(resetAndRedirect);
+      void revalidateSession();
     };
 
-    apiClient.setUnauthorizedHandler(resetAndRedirect);
+    apiClient.setUnauthorizedHandler(revalidateSession);
     window.addEventListener(TRPC_UNAUTHORIZED_EVENT, handleTrpcUnauthorized);
 
     return () => {
       apiClient.setUnauthorizedHandler(undefined);
       window.removeEventListener(TRPC_UNAUTHORIZED_EVENT, handleTrpcUnauthorized);
     };
-  }, [navigate, queryClient]);
+  }, [refetchSession]);
 
   return identityChanged ? null : (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
