@@ -294,6 +294,24 @@ describe('ApiClient protocol adapters', () => {
     ]);
   });
 
+  it.each([
+    [{ access_level: 'all' }, 'all'],
+    [JSON.stringify({ access_level: 'all' }), 'all'],
+    [{ accessLevel: 'read_only', access_level: 'all' }, 'read_only'],
+    [JSON.stringify({ accessLevel: 'read_only', access_level: 'all' }), 'read_only'],
+    [{ accessLevel: '', access_level: 'all' }, 'read_only'],
+    [null, 'read_only'],
+    ['invalid-json', 'read_only'],
+  ])('displays API key access from current and legacy metadata: %j', async (metadata, accessLevel) => {
+    authClientMock.apiKey.list.mockResolvedValueOnce({
+      data: { apiKeys: [{ id: 'legacy', metadata }] }, error: null,
+    });
+
+    expect(await client.getIntegrationApiKeys()).toEqual([
+      expect.objectContaining({ id: 'legacy', access_level: accessLevel }),
+    ]);
+  });
+
   it('uploads multipart data over the dedicated raw route', async () => {
     fetchMock.mockResolvedValueOnce(rawJson({
       id: 1,

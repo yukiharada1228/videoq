@@ -25,6 +25,7 @@ import { Hono } from "hono";
 import {
   apiKeyMethod,
   requireAuth,
+  requireScope,
   sessionMethod,
 } from "../src/middleware/auth";
 import type { AppEnv } from "../src/types/bindings";
@@ -36,6 +37,7 @@ const ENV = { ENVIRONMENT: "production" } as unknown as AppEnv["Bindings"];
 function app() {
   const a = new Hono<AppEnv>();
   a.get("/who", requireAuth(apiKeyMethod), (c) => c.json({ userId: c.var.userId }));
+  a.all("/scoped", requireAuth(apiKeyMethod), requireScope(), (c) => c.json({ allowed: true }));
   a.get("/session", requireAuth(sessionMethod), (c) =>
     c.json({ userId: c.var.userId, authVia: c.var.authVia }),
   );
@@ -125,5 +127,29 @@ describe("API key と停止アカウント", () => {
     const res = await request();
 
     expect(res.status).toBe(401);
+  });
+});
+
+describe("検証済み API キーの権限メタデータ", () => {
+  it.each([
+    [{ accessLevel: "all" }, 200, 200],
+    [{ accessLevel: "read_only" }, 200, 403],
+    [{ access_level: "all" }, 200, 200],
+    [JSON.stringify({ access_level: "all" }), 200, 200],
+    [{ accessLevel: "read_only", access_level: "all" }, 200, 403],
+    [{ accessLevel: "", access_level: "all" }, 403, 403],
+    [{ accessLevel: "unknown" }, 403, 403],
+    [null, 200, 403],
+    ["invalid-json", 200, 403],
+  ])("metadata=%j の読み取り=%i、書き込み=%i", async (metadata, readStatus, writeStatus) => {
+    userRow.value = [{ banned: false, isActive: true }];
+    verifyApiKey.mockResolvedValue({ valid: true, key: { referenceId: TEST_USER_ID, metadata } });
+
+    for (const [method, status] of [["GET", readStatus], ["POST", writeStatus]] as const) {
+      const response = await app().request("https://videoq.jp/scoped", {
+        method, headers: { "X-API-Key": "vq_abcdefghijklmnop" },
+      }, ENV);
+      expect(response.status).toBe(status);
+    }
   });
 });
