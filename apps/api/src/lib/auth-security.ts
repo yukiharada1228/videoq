@@ -18,6 +18,17 @@ import { z } from "zod";
 
 export const OAUTH_GRANT_CLAIM = "videoq_grant";
 
+/** Reset links must not survive recovery or verification of a new mailbox. */
+async function invalidatePasswordResetLinks(adapter: AuthContext["adapter"], userId: string): Promise<void> {
+  await adapter.deleteMany({
+    model: "verification",
+    where: [
+      { field: "value", value: userId },
+      { field: "identifier", operator: "starts_with", value: "reset-password:" },
+    ],
+  });
+}
+
 export type OAuthConsentGrant = {
   id: string;
   userId: string | null;
@@ -178,6 +189,20 @@ export function videoqAuthSecurity(options: OAuthOptions<string[]>): BetterAuthP
       });
       return {
         options: {
+          emailAndPassword: {
+            enabled: authContext.options.emailAndPassword?.enabled ?? false,
+            onPasswordReset: async ({ user }) => {
+              await invalidatePasswordResetLinks(authContext.adapter, user.id);
+              await authContext.internalAdapter.updateUser(user.id, { passwordResetRequired: false });
+            },
+          },
+          emailVerification: {
+            afterEmailVerification: async (user) => {
+              // Also runs after the final email-change approval. The initial
+              // approval alone must not revoke recovery of the current email.
+              await invalidatePasswordResetLinks(authContext.adapter, user.id);
+            },
+          },
           databaseHooks: {
             session: {
               create: {
