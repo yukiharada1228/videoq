@@ -175,13 +175,15 @@ For a small subtitle correction, reviewing and editing the affected learning obj
 
 ### Verify edits in a fresh Study session {#verify-in-fresh-session}
 
-Manual edits retain concept IDs and their session progress. To check opening questions and hints after either an edit or a rebuild, use a separate verification session:
+Manual edits retain concept IDs and their session progress. To check opening questions and hints after either an edit or a rebuild, start a fresh verification session:
 
-1. Copy the course URL, or the same share URL used for the check. Keep the original tab open.
-2. Use the browser's **New Tab** command (`Ctrl+T` / `Cmd+T`), then paste the URL into its address bar. Do not duplicate or restore the original tab, or open the page through a link that retains an opener. Those routes can retain or copy the existing `sessionStorage`, where the application keeps its Study session ID. A new independent tab gets a separate ID; reloading the original tab or switching modes does not. See [browser session storage behavior](https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage).
-3. Select **Study** and ask about the target concept. If prerequisites appear first, work through them before checking the target's saved opening question and subsequent hints against the edited learning graph.
+1. Open the course or the share URL used for the check and select **Study**.
+2. Select **Start over** and confirm. This clears the displayed conversation and draft and selects an empty progress session for this tab and route. Saved chat history remains available to the course owner.
+3. Ask about the target concept. If prerequisites appear first, work through them before checking the target's saved opening question and subsequent hints against the edited learning graph.
 
-The separate session leaves the original tab's progress intact; it does not delete saved chat history. Reusing the original session can skip the opening question or grade the verification message as a reply to an earlier question, even when that earlier dialogue is no longer visible.
+To preserve the original tab's progress, keep it open and paste the same URL into a tab created with the browser's **New Tab** command (`Ctrl+T` / `Cmd+T`), then perform the steps above there. Duplicating or restoring a tab, or opening a link with an opener, can copy its session ID; see [session behavior and starting over](study-sessions.md).
+
+Reloading or switching Q&A → Study does not start fresh. Reusing the original session can skip the opening question or grade the verification message as a reply to an earlier question, even when that earlier dialogue is no longer visible.
 
 ## Where to look
 

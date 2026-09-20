@@ -221,6 +221,7 @@ describe("runStudy smoke", () => {
       videoIds: [10], locale: "ja", studySessionId: "edge-semantics",
     });
     expect(result.content).toContain(`${expected}について考えましょう`);
+    expect(result.studySession).toEqual({ status: "started", expires_at: expect.any(Number) });
     expect(result.content.includes("前提となる")).toBe(redirected);
     const active = redirected ? 1 : 2;
     expect(studySessions.commits).toHaveBeenLastCalledWith("edge-semantics", 0, {
@@ -232,6 +233,7 @@ describe("runStudy smoke", () => {
       videoIds: [10], locale: "ja", studySessionId: "edge-semantics",
     });
     expect(next.content).toContain(`${labels[nextId - 1]}について考えましょう`);
+    expect(next.studySession).toEqual({ status: "continued", expires_at: expect.any(Number) });
     expect(studySessions.commits).toHaveBeenLastCalledWith("edge-semantics", 1, {
       [active]: { concept_id: active, reached: true, hint_index: 0, last_grade: "mastery", active: false },
       [nextId]: { concept_id: nextId, reached: false, hint_index: 0, last_grade: "", active: true },
@@ -529,6 +531,7 @@ describe("study grading and help requests", () => {
     const result = await submit(String(reply));
     expect(result.content).toContain(String(text));
     expect(result.content).toContain("採点対象外");
+    expect(result.studySession).toEqual({ status: "continued", expires_at: expect.any(Number) });
     expect(studySessions.commits).toHaveBeenLastCalledWith("grading", 1, initial);
     expect(fetchMock).toHaveBeenCalledTimes(Number(calls));
     for (const [, init] of fetchMock.mock.calls) {
@@ -593,6 +596,7 @@ describe("study grading and help requests", () => {
     for (const [index, reply] of ["0", "片方が1であれば出力が1になるゲートです"].entries()) {
       const result = await submit(reply);
       expect(result.content).toBe(getPlogStudyConfig("ja").grading_unavailable);
+      expect(result.studySession).toEqual({ status: "continued", expires_at: expect.any(Number) });
       expect(studySessions.commits).toHaveBeenLastCalledWith("grading", index + 1, states);
     }
     expect(fetchMock).toHaveBeenCalledTimes(2);

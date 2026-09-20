@@ -100,7 +100,7 @@ flowchart TD
 3. Q&Aの検索を確認する前に、今回の再索引ジョブの完了を待ちます。Studyが保存字幕を直接読む処理は、このジョブの完了に依存しません。現行画面には、字幕編集ごとの索引完了表示はありません。ローカル開発では `docker compose logs --since=10m worker` を実行し、`reindex_video_transcript`・動画ID・配送時のジョブIDを保存時刻と照合します。`Successfully reindexed transcript for video …`、または字幕を空にした場合のベクトル削除ログを確認します。運用者は、同じジョブの `job_executions` が `status = 'completed'` になったことも確認できます。キューへの配送やoutboxの完了は配送成功を示すだけです。失敗・未開始なら、一定時間待てば完了すると考えず、workerとAPIの配送ログを調べます。
 4. 同じ講座の **Q&A（通常）** で「この授業での内積の定義は？」のように対象を含む新しい質問を送ります。引用先の場面を開き、時刻と修正済み字幕を回答と照合します。以前の画面上の回答や保存済みチャット履歴は再生成されません。モデルが正しい用語を答えただけでは索引完了の証明にならないため、判断できなければ運用者がその動画の `scene_embeddings` の文章と取得した根拠を確認します。
 5. 動画の**学習グラフ**へ戻り、該当概念・最初の問い・ヒントの段階を確認します。これらは自動更新されていません。必要な箇所を編集するか、手編集を控えて置換を了承したうえで**再構築**を選びます。`ready` を待ち、実際の生成内容を点検して、欠落や誤りを修正します。再生成しても修正箇所が必ず含まれる保証はありません。
-6. 手修正・再構築のどちらの場合も、[確認用の新しいセッション](../plog/README.md#verify-in-fresh-session)で講座を開き、**Study（学習）** を選んで修正した概念について尋ねます。前提概念が先に出た場合は順に取り組み、対象概念の最初の問いと続くヒントを確認します。元のタブでQ&A → Studyと切り替えても、消えるのは会話表示だけです。既存の進捗があると、確認用の発言が以前の問いへの返答として採点される場合があります。
+6. 手修正・再構築のどちらの場合も、**Study（学習）→ 最初からやり直す** を選んで確認し、[確認用の新しいセッション](../plog/README.md#verify-in-fresh-session)で修正した概念について尋ねます。前提概念が先に出た場合は順に取り組み、対象概念の最初の問いと続くヒントを確認します。元のタブでQ&A → Studyと切り替えても、消えるのは会話表示だけです。既存の進捗があると、確認用の発言が以前の問いへの返答として採点される場合があります。
 
 更新の実装は、[updateVideo](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/video-repository.ts)、[字幕の再索引](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/reindex_video_transcript.py)、[全体再索引](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/reindexing.py)、[PLOGの置換処理](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/plog_build.py)にあります。
 

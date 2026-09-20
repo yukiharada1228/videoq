@@ -95,12 +95,16 @@ export const StudyMode: Story = { async play(context) {
   await complete(context);
   await expect(chatRequest).toHaveBeenCalledWith(expect.objectContaining({ course_id: courseId, mode: 'study', study_session_id: studySessionId }));
 } };
-async function finishStudyResponse(context: Context, text: string) {
+async function finishStudyResponse(context: Context, text: string, status: 'started' | 'continued' = 'continued') {
   await waitFor(() => expect(network.activeStreams).toBe(1));
-  network.emit([{ type: 'content_chunk', text }, { type: 'done', chat_log_id: 101, feedback: null }]);
+  network.emit([{ type: 'content_chunk', text }, {
+    type: 'done', chat_log_id: 101, feedback: null,
+    study_session: { status, expires_at: Date.now() + 43_200_000 },
+  }]);
   network.finish();
   await waitFor(() => expect(input(context)).toBeEnabled(), { timeout: 10000 });
   await expect(context.canvas.getByText(text)).toBeVisible();
+  await expect(context.canvas.getByRole('status')).toHaveTextContent(label(`studySession.${status}`));
 }
 export const StudyHelpNotGraded: Story = { parameters: { chat: waiting }, async play(context) {
   await context.userEvent.click(context.canvas.getByRole('button', { name: label('modeStudy') }));
@@ -142,6 +146,29 @@ export const StudyGradingRetry: Story = { parameters: { chat: waiting }, async p
   await finishStudyResponse(context, english()
     ? 'AI assessment: ready to move on (mastery). Reason: Your answer matches the question.'
     : 'AIの判定: 次に進める解答（mastery）。理由: 問いの条件に合っています。');
+} };
+export const StudyRetryThenRestart: Story = { parameters: { chat: waiting }, async play(context) {
+  await StudyGradingRetry.play!(context);
+  await expect(chatRequest.mock.calls[1][0].messages).toEqual([
+    { role: 'user', content: '0' },
+    expect.objectContaining({ role: 'assistant', content: expect.stringContaining(english() ? 'could not grade' : '採点できませんでした') }),
+    { role: 'user', content: '0' },
+  ]);
+  const restart = context.canvas.getByRole('button', { name: label('studySession.restart') });
+  await context.userEvent.click(restart);
+  const dialog = within(context.canvas.getByRole('dialog'));
+  await context.userEvent.click(dialog.getByRole('button', { name: label('studySession.restart') }));
+  await waitFor(() => expect(context.canvas.queryByRole('dialog')).not.toBeInTheDocument());
+  await expect(context.canvas.getByRole('status')).toHaveTextContent(label('studySession.restarted'));
+  await expect(context.canvas.queryByRole('button', { name: label('feedbackGood') })).not.toBeInTheDocument();
+  const question = english() ? 'Start with topic B' : '話題Bから始めたい';
+  await send(context, question);
+  await expect(chatRequest.mock.calls[2][0].study_session_id).not.toBe(studySessionId);
+  await expect(chatRequest.mock.calls[2][0].messages).toEqual([{ role: 'user', content: question }]);
+  await finishStudyResponse(context, english() ? 'What do you notice about topic B?' : '話題Bについて、何に気づきますか？', 'started');
+  await context.userEvent.click(context.canvas.getByRole('button', { name: label('modeQa') }));
+  await expect(context.canvas.queryByRole('status')).not.toBeInTheDocument();
+  await expect(input(context)).toHaveAccessibleDescription(label('qaGuidance'));
 } };
 export const Conversation: Story = { async play(context) {
   await complete(context);
