@@ -243,6 +243,7 @@ export const plogEdgeSchema = z.object({
   target_label: z.string(),
   edge_type: z.string(),
   quote: z.string(),
+  provenance: z.enum(["generated", "edited", "unknown"]).optional(),
 });
 
 export const plogGraphSchema = z.object({

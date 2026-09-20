@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isDag, EDGE_TYPES, NODE_TYPES, ORDERING } from "../src/lib/plog-ordering";
+import { isDag, EDGE_TYPES, NODE_TYPES, ORDERING, PREREQUISITES } from "../src/lib/plog-ordering";
 
 describe("isDag（ordering.py 相当）", () => {
   it("空・単一辺は DAG", () => {
@@ -39,7 +39,8 @@ describe("isDag（ordering.py 相当）", () => {
 
 describe("定数集合", () => {
   it("ordering members", () => {
-    expect([...ORDERING].sort()).toEqual(["builds_on", "prerequisite_of"]);
+    expect([...ORDERING].sort()).toEqual(["builds_on", "prerequisite_of", "presentation_order"]);
+    expect([...PREREQUISITES].sort()).toEqual(["builds_on", "prerequisite_of"]);
     expect([...NODE_TYPES].sort()).toEqual(["limitation", "object", "property"]);
     expect([...EDGE_TYPES].sort()).toEqual([
       "analogy_for",
@@ -47,6 +48,7 @@ describe("定数集合", () => {
       "contrasts_with",
       "example_of",
       "prerequisite_of",
+      "presentation_order",
     ]);
   });
 });

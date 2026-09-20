@@ -3,7 +3,7 @@
  * PLOG の実行時グラフ・埋め込み・メトリクス処理。
  */
 
-import { isDag, ORDERING } from "./plog-ordering";
+import { isDag, ORDERING, PREREQUISITES } from "./plog-ordering";
 
 export type PlogConcept = {
   id: number;
@@ -194,7 +194,7 @@ export function orderingEdges(edges: readonly PlogEdge[]): PlogEdge[] {
 export function ancestors(conceptId: number, edges: readonly PlogEdge[]): Set<number> {
   const parents = new Map<number, Set<number>>();
   for (const e of edges) {
-    if (!ORDERING.has(e.edge_type)) continue;
+    if (!PREREQUISITES.has(e.edge_type)) continue;
     let set = parents.get(e.target_id);
     if (!set) {
       set = new Set();
@@ -216,7 +216,7 @@ export function ancestors(conceptId: number, edges: readonly PlogEdge[]): Set<nu
 export function descendants(conceptId: number, edges: readonly PlogEdge[]): Set<number> {
   const children = new Map<number, Set<number>>();
   for (const e of edges) {
-    if (!ORDERING.has(e.edge_type)) continue;
+    if (!PREREQUISITES.has(e.edge_type)) continue;
     let set = children.get(e.source_id);
     if (!set) {
       set = new Set();
@@ -238,7 +238,7 @@ export function descendants(conceptId: number, edges: readonly PlogEdge[]): Set<
 export function prerequisitesOf(conceptId: number, edges: readonly PlogEdge[]): Set<number> {
   const out = new Set<number>();
   for (const e of edges) {
-    if (ORDERING.has(e.edge_type) && e.target_id === conceptId) out.add(e.source_id);
+    if (PREREQUISITES.has(e.edge_type) && e.target_id === conceptId) out.add(e.source_id);
   }
   return out;
 }
@@ -421,8 +421,6 @@ export function orderingPathReady(graph: PlogGraphSnapshot): boolean {
   if (!isDag(pairs)) return false;
   return studyPathConceptIds(graph.concepts, ordering).length > 0;
 }
-
-export const humanValidatedOrderingReady = orderingPathReady;
 
 export function reachedConceptIds(states: readonly LearnerConceptState[]): Set<number> {
   return new Set(states.filter((s) => s.reached).map((s) => s.concept_id));

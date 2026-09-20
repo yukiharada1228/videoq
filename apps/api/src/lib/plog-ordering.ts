@@ -2,11 +2,15 @@
  * PLOG グラフの順序制約ヘルパー。
  */
 
-export const ORDERING = new Set(["prerequisite_of", "builds_on"]);
+/** Only semantic dependencies gate access or withhold downstream concepts. */
+export const PREREQUISITES = new Set(["prerequisite_of", "builds_on"]);
+/** Presentation order also guides the next concept, but does not imply dependency. */
+export const ORDERING = new Set([...PREREQUISITES, "presentation_order"]);
 
 export const NODE_TYPES = new Set(["object", "property", "limitation"]);
 
 export const EDGE_TYPES = new Set([
+  "presentation_order",
   "prerequisite_of",
   "builds_on",
   "analogy_for",

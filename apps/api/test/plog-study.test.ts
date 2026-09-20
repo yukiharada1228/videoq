@@ -199,6 +199,66 @@ describe("EphemeralLearnerStateStore", () => {
 });
 
 describe("runStudy smoke", () => {
+  it.each([
+    { type: "presentation_order", labels: ["話題A", "話題B"], expected: "話題B", redirected: false },
+    { type: "prerequisite_of", labels: ["ベクトル", "内積"], expected: "ベクトル", redirected: true },
+  ])("routes a question about the second concept with $type semantics", async ({ type, labels, expected, redirected }) => {
+    const originalRows = rowsFor;
+    rowsFor = (sql, args) => {
+      const rows = originalRows(sql, args);
+      if (sql.includes("FROM plog_edges")) return rows.map((row) => ({ ...row, edge_type: type }));
+      if (sql.includes("FROM plog_concepts")) return rows.map((row, index) => ({
+        ...row, label: labels[index], opening_question: `${labels[index]}について考えましょう`,
+      }));
+      return rows;
+    };
+    vi.stubGlobal("fetch", async (input: RequestInfo) => String(input).endsWith("/embeddings")
+      ? Response.json({ data: [{ index: 0, embedding: testEmbedding(0, 1) }] })
+      : Response.json({ choices: [{ message: { content: '{"grade":"mastery","reason":"correct"}' } }] }));
+    const result = await runStudy(ENV, {
+      messages: [{ role: "user", content: `${labels[1]}について学びたい` }],
+      videoIds: [10], locale: "ja", studySessionId: "edge-semantics",
+    });
+    expect(result.content).toContain(`${expected}について考えましょう`);
+    expect(result.content.includes("前提となる")).toBe(redirected);
+    const active = redirected ? 1 : 2;
+    expect(studySessions.commits).toHaveBeenLastCalledWith("edge-semantics", 0, {
+      [active]: { concept_id: active, reached: false, hint_index: 0, last_grade: "", active: true },
+    });
+    const nextId = redirected ? 2 : 1;
+    const next = await runStudy(ENV, {
+      messages: [{ role: "assistant", content: result.content }, { role: "user", content: "条件と結果の関係を説明できます" }],
+      videoIds: [10], locale: "ja", studySessionId: "edge-semantics",
+    });
+    expect(next.content).toContain(`${labels[nextId - 1]}について考えましょう`);
+    expect(studySessions.commits).toHaveBeenLastCalledWith("edge-semantics", 1, {
+      [active]: { concept_id: active, reached: true, hint_index: 0, last_grade: "mastery", active: false },
+      [nextId]: { concept_id: nextId, reached: false, hint_index: 0, last_grade: "", active: true },
+    });
+  });
+
+  it("starts A then advances to B after mastery along a generated presentation path", async () => {
+    const originalRows = rowsFor;
+    rowsFor = (sql, args) => {
+      const rows = originalRows(sql, args);
+      return sql.includes("FROM plog_edges") ? rows.map((row) => ({ ...row, edge_type: "presentation_order" })) : rows;
+    };
+    vi.stubGlobal("fetch", async (input: RequestInfo) => String(input).endsWith("/embeddings")
+      ? Response.json({ data: [{ index: 0, embedding: testEmbedding(1, 0) }] })
+      : Response.json({ choices: [{ message: { content: '{"grade":"mastery","reason":"correct"}' } }] }));
+    const session = { videoIds: [10], locale: "ja", studySessionId: "presentation-path" };
+    const opening = await runStudy(ENV, { ...session, messages: [{ role: "user", content: "始めます" }] });
+    expect(opening.content).toContain("オアゲート");
+    const next = await runStudy(ENV, { ...session, messages: [
+      { role: "assistant", content: opening.content }, { role: "user", content: "どちらかの入力が1なら出力が1です" },
+    ] });
+    expect(next.content).toContain("次は「ノットゲート」");
+    expect(studySessions.commits).toHaveBeenLastCalledWith("presentation-path", 1, {
+      "1": { concept_id: 1, reached: true, hint_index: 0, last_grade: "mastery", active: false },
+      "2": { concept_id: 2, reached: false, hint_index: 0, last_grade: "", active: true },
+    });
+  });
+
   it.each(["schema", "stored data"])("rejects invalid %s before grading or committing progress", async (stage) => {
     const originalRowsFor = rowsFor;
     rowsFor = (sql, args) => {

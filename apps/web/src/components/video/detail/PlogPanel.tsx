@@ -23,6 +23,7 @@ type PlogUiStatus = 'missing' | 'pending' | 'running' | 'ready' | 'failed';
 
 const NODE_TYPES = ['object', 'property', 'limitation'] as const;
 const EDGE_TYPES = [
+  'presentation_order',
   'prerequisite_of',
   'builds_on',
   'analogy_for',
@@ -989,6 +990,7 @@ function EdgeEditor({
         </Button>
       </div>
       <p className="mb-2 text-dns-14N-120 text-solid-gray-560">{t('plog.edgeHelp')}</p>
+      <p className="mb-2 text-dns-14N-120 text-solid-gray-560">{t('plog.edgeProvenanceHelp')}</p>
       {error && <PlogActionError message={error} />}
 
       {adding && (
@@ -1064,6 +1066,9 @@ function EdgeEditor({
               </span>
               <ChipLabel variant="outlined" color="gray" className="min-h-0 text-oln-14N-100">
                 {t(`plog.edgeType.${edge.edge_type}`, { defaultValue: edge.edge_type })}
+              </ChipLabel>
+              <ChipLabel variant="outlined" color="gray" className="min-h-0 text-oln-14N-100">
+                {t(`plog.edgeProvenance.${edge.provenance ?? 'unknown'}`)}
               </ChipLabel>
               <span className="ml-auto flex flex-wrap gap-1">
                 <Button

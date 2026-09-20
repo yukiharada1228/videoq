@@ -6,6 +6,9 @@ import {
   labelsNearDuplicate,
   nextUncoveredInOrder,
   orderingEdges,
+  prerequisitesOf,
+  ancestors,
+  descendants,
   orderingPathReady,
   revealProxy,
   studyPathConceptIds,
@@ -92,6 +95,30 @@ describe("plog-runtime helpers", () => {
     ];
     const edges = [edge(1, 1, 2)];
     expect(studyPathConceptIds(concepts, edges)).toEqual([1, 2]);
+  });
+
+  it("presentation order suggests A then B without making A a prerequisite or withholding B", () => {
+    const concepts = [concept(1, "A", 1), concept(2, "B", 2)];
+    const edges = [edge(1, 1, 2, "presentation_order")];
+    expect(studyPathConceptIds(concepts, edges)).toEqual([1, 2]);
+    expect(orderingPathReady(graphOf(concepts, edges))).toBe(true);
+    expect(prerequisitesOf(2, edges).size).toBe(0);
+    expect(ancestors(2, edges).size).toBe(0);
+    expect(descendants(1, edges).size).toBe(0);
+  });
+
+  it("a semantic vector prerequisite gates dot products, including downstream withholding", () => {
+    const edges = [edge(1, 1, 2, "prerequisite_of"), edge(2, 2, 3, "presentation_order")];
+    expect([...prerequisitesOf(2, edges)]).toEqual([1]);
+    expect([...ancestors(3, edges)]).toEqual([]);
+    expect([...descendants(1, edges)]).toEqual([2]);
+  });
+
+  it("rejects a cycle combining presentation order and semantic prerequisites", () => {
+    const graph = graphOf([concept(1, "A", 1), concept(2, "B", 2)], [
+      edge(1, 1, 2, "presentation_order"), edge(2, 2, 1, "prerequisite_of"),
+    ]);
+    expect(orderingPathReady(graph)).toBe(false);
   });
 
   it("ordering_path_ready requires DAG ordering path", () => {

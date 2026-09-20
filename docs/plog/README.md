@@ -1,22 +1,22 @@
 ---
 title: PLOG and study mode
-description: How concepts, prerequisites, questions, and hints support study mode.
+description: How presentation order, prerequisites, questions, and hints support study mode.
 ---
 
 # PLOG and study mode
 
-PLOG (Prerequisite-aware Learning-Object Graph) is **data connecting concepts to the concepts they require as prerequisites**. VideoQ's study mode uses this graph together with questions and hints to guide learning.
+PLOG (Prerequisite-aware Learning-Object Graph) stores **concepts, a suggested presentation order, and explicitly configured prerequisite relationships**. VideoQ distinguishes the order in which concepts are presented from a claim that understanding one concept is necessary for another. Study mode uses this graph together with questions and hints.
 
 For the difference between answering a question and guiding learning, start with [How AI builds an answer](../concepts/how-ai-works.md).
 
-For example, “vectors → dot product → similarity” describes an order that covers prerequisites before moving on. This illustrates the mechanism; it does not guarantee that generated orders are always correct.
+For example, independent topics A and B may be presented in that order without A being a prerequisite for B. A “vectors → dot product” prerequisite is a separate relationship to set after checking the lecture; extraction order alone does not establish it.
 
 ## What is stored?
 
 | Data | Meaning | Storage |
 |---|---|---|
 | Concepts | Units of content to learn from a video | `plog_concepts` |
-| Edges | Relationships between concepts, such as prerequisites | `plog_edges` |
+| Edges | Presentation order, prerequisites, and other relationships between concepts | `plog_edges` |
 | Learning objects | Initial questions, progressive hints, example misconceptions, and more | `plog_learning_objects` |
 | Build jobs | Records of generation in progress, completion, and failure | `plog_build_jobs` |
 
@@ -26,7 +26,7 @@ After building the search index, the Python worker runs `build_plog`:
 
 1. Use an LLM to extract concepts, questions, hints, and related content from the transcript.
 2. Generate concept embeddings and save concepts and learning objects.
-3. Create `prerequisite_of` edges connecting the extracted concepts in sequence.
+3. Create `presentation_order` edges connecting the concepts in the order returned by the model, with provenance `generated`. This is an ordering proposal, not a prerequisite claim.
 
 The current implementation is a simplified generator that connects concepts in a chain. It does not implement every validation step or hierarchical summary from the paper. The existence of tables such as `plog_summary_nodes` does not mean the current pipeline populates them.
 
@@ -36,9 +36,50 @@ The input contains the first 40 transcript scenes, at most 200 characters from e
 
 The model returns JSON. The worker checks that there is a concept array and that each concept has a nonempty label. An explicit empty array is accepted and replaces old artifacts, although it leaves no concepts for study mode. Invalid JSON or invalid required structure fails generation.
 
-The worker embeds the concept labels, stores the results, and connects adjacent concepts in the returned order. The model does not independently validate every prerequisite relationship, and an edge marked `accepted` is not evidence of a human review. Because the input is truncated, the result may miss material later in a long video.
+The worker embeds the concept labels, stores the results, and connects adjacent concepts in the returned order. It does not independently infer or verify prerequisites. Because the input is truncated, the result may miss material later in a long video.
 
 [pipeline/plog_build.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/plog_build.py) is the implementation source of truth.
+
+## Relationship meanings and expected study paths
+
+All arrows run from the source to the target. Three types participate in the study order; only two impose prerequisite checks.
+
+| Relationship | Meaning | Study behavior |
+|---|---|---|
+| Presentation order (`presentation_order`) | Suggest presenting A before B | Used to choose the next uncovered concept. Does not redirect a question about B back to A or add B to the concepts withheld while studying A |
+| Prerequisite (`prerequisite_of`) | Understanding A is required before B | An unreached direct prerequisite A redirects a question about B to A; downstream dependent concepts are withheld from supporting explanations |
+| Builds on (`builds_on`) | B builds on A | Has the same prerequisite-gating behavior as `prerequisite_of`, not merely a presentation preference |
+| Analogy, example, contrast | Descriptive relationships | Do not set the study order, gate progress, or withhold concepts |
+
+**Independent topics A and B:** the generated A → B presentation edge supports a normal A-then-B path. A learner who asks to start with B can receive B's opening question without first mastering A. After B is mastered, the remaining uncovered A may be offered; this is course coverage, not a prerequisite judgment.
+
+**Vectors and dot products:** after checking that understanding vectors is required, set vectors → dot product to Prerequisite and record the supporting lecture passage. A question about dot products redirects to vectors while vectors are unreached. After mastery of vectors, the path advances to dot products. A newly generated presentation edge alone does not trigger that redirect.
+
+### Generated, edited, and verified are different
+
+| UI provenance | What is known | What it does not guarantee |
+|---|---|---|
+| Generated | The current generator saved this relationship | Semantic dependency, correctness, or human review |
+| Manually created/edited | The owner saved the relationship or a concept merge rewired it | Independent verification or educational validity |
+| Unknown origin (legacy or unspecified) | Provenance was not recorded in the current format | Whether the relationship was generated, edited, or reviewed |
+
+There is **no separate verification/approval workflow or verified badge**. Adding a quote or saving an edit is not verification. The API exposes this history as `provenance`; it does not use provenance to decide whether an edge participates in study.
+
+The historical database field `validation_status` stores `generated` or `edited` for new writes. Older `accepted` and `validated` values appear as unknown origin: `accepted` was used when storing generated chains, and `validated` was used for manual creation, but neither records a reviewer or proves the relationship's meaning. An edited generated edge is shown as edited; a complete edit/review audit trail is not stored.
+
+### When a generated graph can be used
+
+A completed build with concept embeddings and a usable ordering path can be used immediately, without a human approval step. Presentation order, prerequisites, and builds-on edges **together must be acyclic (a DAG)**. A single concept needs no edge. For multiple concepts, the learning path contains concepts connected to those ordering edges; descriptive edges alone do not create a path. Empty graphs or unusable paths produce `PLOG_NOT_READY`. “Ready” means a build completed, not that a person checked its content.
+
+The new relationship type uses the existing text fields, so it requires no database schema migration. Deploy the API and web support before enabling the updated Python generator: an older runtime does not recognize `presentation_order`. Existing edges are not silently reclassified because old generated and edited relationships cannot be reliably distinguished.
+
+### Check and repair a relationship
+
+1. Open the video's Learning graph and inspect Concept relationships: source, target, relationship type, provenance, and quote. Check the relevant transcript/video passage.
+2. For independent topics, edit the relationship to Presentation order. For a genuine prerequisite, choose Prerequisite or Builds on and record supporting evidence. Both prerequisite types use source → target direction.
+3. Correct the endpoints or delete a relationship with no useful meaning. Retain presentation edges if independent concepts should remain in the suggested path. If reversing an edge creates a cycle, remove or change the conflicting edge first; saves that introduce a cycle are rejected.
+4. Save, then inspect the refreshed type, provenance, and quote. Use a fresh study session to check B-first behavior in the examples above; an existing session's progress may affect routing.
+5. Review legacy `prerequisite_of` chains explicitly: they continue to gate study until edited, deleted, or replaced. Changing an independent A → B edge to Presentation order removes that gate. Rebuild only if replacing the entire graph is intended, because it discards manual concepts, relationships, and hints as well.
 
 ## How study mode uses it
 
@@ -98,7 +139,7 @@ Study mode generates its response before sending the complete text as a stream c
 
 Review concepts, relationships, and questions on the video detail screen, and edit, merge, or delete them as needed. Regeneration replaces existing concepts, edges, learning objects, and related data, so consider its effect on manually edited videos.
 
-Study mode requires a usable learning order. Empty concepts, multiple concepts with no ordering path, or cycles can lead to `PLOG_NOT_READY`. A single concept can form a usable path without an edge. Q&A can be used independently of PLOG readiness.
+Study mode requires a usable learning order across presentation, prerequisite, and builds-on edges. Empty concepts, multiple concepts with no ordering path, or cycles can lead to `PLOG_NOT_READY`. A single concept can form a usable path without an edge. Q&A can be used independently of PLOG readiness.
 
 ## Where to look
 
