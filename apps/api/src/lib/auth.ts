@@ -31,6 +31,22 @@ function authSecret(env: Bindings): string {
   return secret;
 }
 
+/** The first email approves the change; only the second completes it. */
+function emailChangeMailUrl(url: string, stage: "approval" | "verification"): string {
+  const link = new URL(url);
+  const callbackURL = link.searchParams.get("callbackURL");
+  if (!callbackURL) return url;
+  const callback = new URL(callbackURL, link);
+  // Leave other callers' callback pages unchanged. This is a display hint for
+  // the app's confirmation page, never an authorization or verification check.
+  if (!/^\/(?:en\/|ja\/)?change-email\/?$/.test(callback.pathname)) return url;
+  if (stage === "approval") callback.searchParams.set("step", "verify-new");
+  else if (callback.searchParams.get("step") === "verify-new") callback.searchParams.delete("step");
+  else return url;
+  link.searchParams.set("callbackURL", callback.href);
+  return link.href;
+}
+
 export function authBaseURL(env: Bindings): string {
   return (
     env.BETTER_AUTH_URL?.trim() ||
@@ -235,11 +251,11 @@ export function createAuth(env: Bindings, db: Db) {
       sendOnSignUp: true,
       autoSignInAfterVerification: true,
       sendVerificationEmail: async ({ user, url }) => {
-        await sendMail(env, user.email, "[VideoQ] 仮登録が完了しました", [
-          "VideoQ へのご登録ありがとうございます。",
-          "以下のURLをクリックして、本登録を完了させてください。",
+        await sendMail(env, user.email, "[VideoQ] メールアドレスの確認", [
+          "VideoQ のメールアドレス確認リクエストを受け付けました。",
+          "以下のURLをクリックして、このメールアドレスの確認を完了させてください。",
           "",
-          url,
+          emailChangeMailUrl(url, "verification"),
         ]);
       },
     },
@@ -365,12 +381,15 @@ export function createAuth(env: Bindings, db: Db) {
       changeEmail: {
         enabled: true,
         sendChangeEmailConfirmation: async ({ user, newEmail, url }) => {
-          await sendMail(env, newEmail, "[VideoQ] メールアドレス変更の確認", [
+          await sendMail(env, user.email, "[VideoQ] メールアドレス変更の承認", [
             "VideoQ のメールアドレス変更リクエストを受け付けました。",
             `現在のアカウント: ${user.email}`,
-            "以下のURLをクリックして、新しいメールアドレスへの変更を完了させてください。",
+            `変更先のメールアドレス: ${newEmail}`,
+            "変更を承認する場合は、以下のURLをクリックしてください。承認後、新しいメールアドレスへ確認メールを送信します。",
             "",
-            url,
+            emailChangeMailUrl(url, "approval"),
+            "",
+            "このリクエストに心当たりがない場合は、リンクを開かないでください。",
           ]);
         },
       },

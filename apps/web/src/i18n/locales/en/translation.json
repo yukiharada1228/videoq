@@ -561,12 +561,13 @@
     "emailChange": {
       "badge": "Email change",
       "title": "Email change confirmation",
-      "description": "We are confirming your new email address.",
+      "description": "Check the progress of your email address change.",
       "loading": "Checking your email change link...",
       "invalidLink": "The email change link is invalid.",
       "success": "Your email address has been updated.",
       "error": "Email change failed. The link may have expired.",
-      "backToLogin": "Back to sign-in"
+      "backToLogin": "Back to sign-in",
+      "pendingVerification": "You approved the change from your current address. Open the verification link sent to your new address to complete the change."
     },
     "fields": {
       "email": {
@@ -894,13 +895,13 @@
     },
     "emailChange": {
       "title": "Email address",
-      "description": "Change the email address associated with your account. The change is applied only after you confirm the new address.",
+      "description": "Approve the change from your current email address, then verify your new address to complete the change.",
       "currentEmailLabel": "Current email address",
       "newEmailLabel": "New email address",
-      "help": "We will send a confirmation link to the new email address. Your current address stays active until confirmation.",
+      "help": "We first send an approval link to your current address. After approval, open the verification link sent to your new address.",
       "submit": "Send confirmation email",
       "submitting": "Sending...",
-      "success": "Confirmation email sent. Please check your new email address.",
+      "success": "Confirmation email sent. Approve the change from your current address, then verify your new address.",
       "errorEmpty": "Please enter a new email address",
       "errorSubmitting": "Failed to request email change"
     },

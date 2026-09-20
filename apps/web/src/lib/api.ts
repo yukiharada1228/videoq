@@ -239,14 +239,17 @@ export class ApiClient {
    * Completes email change when the verification link lands on the SPA with `?token=`.
    * Prefer BA's `/api/auth/verify-email` link; this covers callback/token handoff cases.
    */
-  async confirmEmailChange(data: EmailChangeConfirmRequest): Promise<void> {
+  async confirmEmailChange(data: EmailChangeConfirmRequest): Promise<{ requiresNewEmailVerification: boolean }> {
     const { authClient } = await import('@/lib/auth-client');
-    const { error } = await authClient.verifyEmail({
+    const { data: result, error } = await authClient.verifyEmail({
       query: { token: data.token },
     });
     if (error) {
       throw new ApiError(error.message || 'Email change failed', error.code || 'EMAIL_CHANGE_FAILED');
     }
+    // Current-address approval sends the next email and returns only status.
+    // New-address verification returns the updated user.
+    return { requiresNewEmailVerification: !result || !('user' in result) || !result.user };
   }
 
   async getIntegrationApiKeys(): Promise<IntegrationApiKey[]> {
