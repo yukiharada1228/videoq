@@ -71,9 +71,9 @@ export function createAppTrpcClient(settings: AppTrpcClientOptions = {}) {
 
 export const appTrpcClient = createAppTrpcClient()
 
-// This Vite SPA shares one client and cache; React consumes the options with
-// TanStack Query hooks and only needs QueryClientProvider.
+// Resolve the active cache when building options: AuthProvider replaces it when
+// the signed-in user changes, including session updates from another tab.
 export const trpc = createTRPCOptionsProxy<AppRouter>({
   client: appTrpcClient,
-  queryClient: appQueryClient,
+  queryClient: () => appQueryClient,
 })

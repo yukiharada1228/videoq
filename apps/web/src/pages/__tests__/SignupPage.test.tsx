@@ -114,6 +114,26 @@ describe('SignupPage', () => {
     })
   })
 
+  it('does not forward a disguised external redirect to signup or the login link', async () => {
+    globalThis.__setMockSearchParams(`next=${encodeURIComponent('/\t/evil.example')}`)
+    ;(apiClient.signup as ReturnType<typeof vi.fn>).mockResolvedValue({})
+
+    render(<SignupPage />)
+    fireEvent.change(screen.getByLabelText(/auth\.fields\.email\.label/), { target: { value: 'student@example.com' } })
+    fireEvent.change(screen.getByLabelText(/auth\.fields\.username\.label/), { target: { value: 'student' } })
+    fireEvent.change(screen.getByLabelText(/auth\.fields\.password\.label/), { target: { value: 'test12345678' } })
+    fireEvent.change(screen.getByLabelText(/auth\.fields\.passwordConfirmation\.label/), { target: { value: 'test12345678' } })
+    fireEvent.click(screen.getByText('auth.signup.submit'))
+
+    await waitFor(() => {
+      expect(apiClient.signup).toHaveBeenCalledWith({
+        email: 'student@example.com', username: 'student', password: 'test12345678',
+      })
+      expect(mockNavigate).toHaveBeenCalledWith('/signup/check-email')
+    })
+    expect(screen.getByText('auth.signup.footerLink').closest('a')).toHaveAttribute('href', '/login')
+  })
+
 
 
   it('should display footer question text', () => {

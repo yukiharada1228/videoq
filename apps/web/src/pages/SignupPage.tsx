@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuthForm } from '@/hooks/useAuthForm';
 import { apiClient } from '@/lib/api';
 import { PASSWORD_MIN_LENGTH } from '@/lib/authConfig';
+import { getSafeNextPath } from '@/lib/authRedirect';
 import { Eye, EyeOff } from 'lucide-react';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
@@ -19,10 +20,7 @@ export default function SignupPage() {
   const navigate = useI18nNavigate();
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
-  const rawNextPath = searchParams.get('next');
-  const nextPath = rawNextPath?.startsWith('/') && !rawNextPath.startsWith('//') && !rawNextPath.startsWith('/\\')
-    ? rawNextPath
-    : null;
+  const nextPath = getSafeNextPath(searchParams.get('next'));
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 

@@ -2,13 +2,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import LoginPage from '../LoginPage'
 import { apiClient } from '@/lib/api'
 import { useI18nNavigate } from '@/lib/i18n'
+import { authClient } from '@/lib/auth-client'
+import { AuthProvider } from '@/components/auth/AuthProvider'
+import { appQueryClient, createAppQueryClient } from '@/lib/queryClient'
 
 let mockNavigate: ReturnType<typeof vi.fn>
-const getAccount = vi.fn(() => Promise.resolve({
-  id: '1',
-  username: 'testuser',
-  email: 'test@example.com',
-}))
 
 vi.mock('@/lib/auth-client', () => ({
   AUTH_BASE_URL: 'http://localhost:8000',
@@ -21,13 +19,14 @@ vi.mock('@/lib/api', () => ({
   apiClient: {
     login: vi.fn(),
     loginWithGoogle: vi.fn(() => Promise.resolve()),
+    setUnauthorizedHandler: vi.fn(),
+    logout: vi.fn(() => Promise.resolve()),
   },
 }))
 
 describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    globalThis.__setTrpcHandler('account.me', getAccount)
     mockNavigate = useI18nNavigate() as ReturnType<typeof vi.fn>
   })
 
@@ -136,8 +135,31 @@ describe('LoginPage', () => {
     fireEvent.click(submitButton)
 
     await waitFor(() => {
-      expect(getAccount).toHaveBeenCalled()
+      expect(authClient.getSession).toHaveBeenCalled()
       expect(mockNavigate).toHaveBeenCalledWith('/')
+    })
+  })
+
+  it('completes login when the session change replaces the previous account cache', async () => {
+    const previousClient = createAppQueryClient()
+    previousClient.setQueryData(['private-videos'], ['previous-user-video'])
+    const content = <AuthProvider initialQueryClient={previousClient}><LoginPage /></AuthProvider>
+    const view = render(content)
+    vi.mocked(apiClient.login).mockResolvedValue()
+    vi.mocked(authClient.getSession).mockImplementationOnce(async () => {
+      globalThis.__setMockAuthSession({ user: { id: '2' } })
+      view.rerender(<AuthProvider initialQueryClient={previousClient}><LoginPage /></AuthProvider>)
+      return { data: { user: { id: '2' } }, error: null } as Awaited<ReturnType<typeof authClient.getSession>>
+    })
+
+    fireEvent.change(screen.getByLabelText(/auth\.fields\.username\.label/), { target: { value: 'newuser' } })
+    fireEvent.change(screen.getByLabelText(/auth\.fields\.password\.label/), { target: { value: 'password12345' } })
+    fireEvent.click(screen.getByText('auth.login.submit'))
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/')
+      expect(appQueryClient).not.toBe(previousClient)
+      expect(appQueryClient.getQueryData(['private-videos'])).toBeUndefined()
     })
   })
 
@@ -231,6 +253,20 @@ describe('LoginPage', () => {
       })
       expect(hrefSetter).not.toHaveBeenCalled()
     })
+
+    it.each(['/\t/evil.example', '/\n/evil.example', '/\r/evil.example', '/\t\\evil.example'])(
+      'rejects a next path that URL parsing converts to an external origin: %j',
+      async (next) => {
+        globalThis.__setMockSearchParams(`next=${encodeURIComponent(next)}`)
+
+        await submitLoginForm()
+
+        await waitFor(() => {
+          expect(mockNavigate).toHaveBeenCalledWith('/')
+        })
+        expect(hrefSetter).not.toHaveBeenCalled()
+      },
+    )
   })
 
 })

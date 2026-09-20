@@ -14,5 +14,9 @@ export function createAppQueryClient() {
   });
 }
 
-export const appQueryClient = createAppQueryClient();
+export let appQueryClient = createAppQueryClient();
 
+export function replaceAppQueryClient(): QueryClient {
+  appQueryClient = createAppQueryClient();
+  return appQueryClient;
+}
