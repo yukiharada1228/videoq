@@ -25,6 +25,8 @@ MCP is a protocol that lets external clients, such as AI assistants, call tools.
 
 React uses `useSession` to check login status and `account.me` to fetch the profile. Regular browser APIs do not need custom access-token refresh logic.
 
+Session reads use the database, without a cookie cache. Inactive users cannot create new sessions; inactive or banned users cannot use existing sessions at Better Auth endpoints, including its administrator and API-key APIs. Signing out remains available.
+
 ## tRPC checks
 
 | Procedure | Entry-point check |
@@ -44,6 +46,12 @@ For the owner/participant/share-link permission table, AI answer allowance, hist
 ## MCP checks
 
 API keys are managed in settings. With OAuth, users authorize client access within scopes such as `videoq.read` / `videoq.write`. Do not treat browser sessions and MCP tokens as interchangeable.
+
+Disconnecting an OAuth app atomically deletes that user's consent and access/refresh-token records for the selected client. Each authorization code and refresh-token chain carries the original consent ID in `referenceId`; issued JWTs carry it in `videoq_grant`. MCP checks that exact consent, its owner, client and scopes in the database on every request. Reconnecting creates a new consent, so old tokens and authorization codes remain invalid.
+
+The supported OAuth grants are authorization-code exchange and refresh. Both check the original consent and current user status before issuance, including requests without `resource` that produce opaque access tokens. UserInfo (GET and POST) applies the same checks; authenticated token introspection reports revoked or suspended-user credentials as `active: false`. Normal OAuth/OIDC flows without `resource` remain supported.
+
+When deploying consent-bound tokens for the first time, existing OAuth clients must authorize again: tokens without this binding are rejected. No database migration is required. Browser sessions and API keys continue using their existing formats.
 
 ## Understanding configuration names
 

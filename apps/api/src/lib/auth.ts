@@ -16,6 +16,7 @@ import { summarizeAuthApiError } from "./auth-error-log";
 import { rateLimitBackend } from "./rate-limit";
 import { MCP_OAUTH_SCOPES } from "./mcp-auth";
 import { resolveSignupQuotaDefaults } from "../shared/signup-quota";
+import { revokeOAuthConsent, videoqAuthSecurity } from "./auth-security";
 
 function trustedOrigins(env: Bindings): string[] {
   return (env.CORS_ALLOW_ORIGIN ?? "")
@@ -47,6 +48,7 @@ export function oauthProviderConfig(env: Bindings) {
   const resource = oauthResourceAudience(env);
   return {
     scopes: [...MCP_OAUTH_SCOPES],
+    grantTypes: ["authorization_code", "refresh_token"],
     resources: [
       {
         identifier: resource,
@@ -159,6 +161,7 @@ export function createAuth(env: Bindings, db: Db) {
   const googleClientId = env.GOOGLE_CLIENT_ID?.trim();
   const googleClientSecret = env.GOOGLE_CLIENT_SECRET?.trim();
   const googleEnabled = Boolean(googleClientId && googleClientSecret);
+  const oauth = oauthProvider(oauthProviderConfig(env));
 
   return betterAuth({
     database: drizzleAdapter(db, {
@@ -376,11 +379,14 @@ export function createAuth(env: Bindings, db: Db) {
       expiresIn: 60 * 60 * 24 * 14,
       updateAge: 60 * 60 * 24,
       cookieCache: {
-        enabled: true,
-        maxAge: 5 * 60,
+        // All Better Auth endpoints must observe suspension and revocation.
+        enabled: false,
       },
     },
     advanced: {
+      // Keep origin/CSRF enforcement identical in tests and deployed Workers.
+      disableOriginCheck: false,
+      disableCSRFCheck: false,
       // Better Auth default: string UUIDs for all models including user.
       database: {
         generateId: () => crypto.randomUUID(),
@@ -474,7 +480,11 @@ export function createAuth(env: Bindings, db: Db) {
         },
       }),
       jwt(),
-      oauthProvider(oauthProviderConfig(env)),
+      {
+        ...oauth,
+        endpoints: { ...oauth.endpoints, deleteOAuthConsent: revokeOAuthConsent },
+      },
+      videoqAuthSecurity(oauth.options),
     ],
   });
 }

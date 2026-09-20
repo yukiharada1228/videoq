@@ -19,6 +19,8 @@ import {
 } from "../lib/auth";
 import { MCP_READ_SCOPE, MCP_WRITE_SCOPE } from "../lib/mcp-auth";
 import { rateLimitBackend } from "../lib/rate-limit";
+import { OAUTH_GRANT_CLAIM } from "../lib/auth-security";
+import { isOAuthGrantActive } from "../repositories/oauth-grant-repository";
 
 /**
  * Cookie session/API key/OAuth の各認証方式は共通の結果型を返す:
@@ -306,6 +308,15 @@ export const oauthBearerMethod: AuthMethod = async (c) => {
       const scopes = oauthScopes(verified.scope);
       if (!scopes) {
         return { kind: "invalid", message: "Invalid OAuth access token" };
+      }
+      const grantId = verified[OAUTH_GRANT_CLAIM];
+      const clientId = verified.client_id;
+      if (
+        typeof grantId !== "string" || !grantId ||
+        typeof clientId !== "string" || !clientId ||
+        !(await isOAuthGrantActive(db, userId, clientId, grantId, scopes))
+      ) {
+        return { kind: "invalid", message: "OAuth authorization has been revoked" };
       }
       if (!scopes.has(MCP_READ_SCOPE)) {
         return {
