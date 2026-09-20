@@ -1,13 +1,19 @@
-import { act, render } from '@testing-library/react'
-import { useEffect } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { act, render, screen, waitFor } from '@testing-library/react'
+import { useEffect, type ReactNode } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api'
 import { useI18nNavigate } from '@/lib/i18n'
 import { TRPC_UNAUTHORIZED_EVENT } from '@/lib/trpc'
-import { AuthProvider } from '../AuthProvider'
+import { AuthProvider as SessionAuthProvider } from '../AuthProvider'
+import { useAuthSession } from '@/lib/authSession'
 
 const cachedProfileKey = ['test', 'account.me'] as const
+
+function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient()
+  return <SessionAuthProvider initialQueryClient={queryClient}>{children}</SessionAuthProvider>
+}
 
 vi.mock('@/lib/api', () => ({
   apiClient: {
@@ -113,5 +119,80 @@ describe('AuthProvider', () => {
     unmount()
 
     expect(apiClient.setUnauthorizedHandler).toHaveBeenLastCalledWith(undefined)
+  })
+
+  it.each([null, { user: { id: 'another-user' } }])(
+    'clears private data when a session changes without a local logout: %j',
+    async (nextSession) => {
+      const content = <AuthProvider><QueryClientProbe onClient={(client) => { queryClient = client }} /></AuthProvider>
+      const { rerender } = render(content)
+      queryClient!.setQueryData(cachedProfileKey, { id: '1', username: 'previous-user' })
+      queryClient!.setQueryData(['private-videos'], ['previous-user-video'])
+
+      globalThis.__setMockAuthSession(nextSession)
+      rerender(<AuthProvider><QueryClientProbe onClient={(client) => { queryClient = client }} /></AuthProvider>)
+
+      await waitFor(() => {
+        expect(queryClient!.getQueryData(cachedProfileKey)).toBeUndefined()
+        expect(queryClient!.getQueryData(['private-videos'])).toBeUndefined()
+      })
+      expect(apiClient.logout).not.toHaveBeenCalled()
+    },
+  )
+
+  it('never renders the previous account data under a new session and reloads mounted queries', async () => {
+    const observed: Array<{ userId: string | undefined; data: string | undefined }> = []
+    function PrivateData() {
+      const userId = useAuthSession().data?.user.id
+      const query = useQuery({
+        queryKey: ['private-videos'],
+        queryFn: async () => `${userId}-video`,
+        staleTime: Infinity,
+      })
+      observed.push({ userId, data: query.data })
+      return <p>{query.data}</p>
+    }
+    const { rerender } = render(<AuthProvider><PrivateData /></AuthProvider>)
+    await screen.findByText('1-video')
+
+    globalThis.__setMockAuthSession({ user: { id: '2' } })
+    rerender(<AuthProvider><PrivateData /></AuthProvider>)
+
+    await screen.findByText('2-video')
+    expect(observed).not.toContainEqual({ userId: '2', data: '1-video' })
+  })
+
+  it('keeps the cache when the same user refreshes their session', () => {
+    const { rerender } = render(<AuthProvider><QueryClientProbe onClient={(client) => { queryClient = client }} /></AuthProvider>)
+    queryClient!.setQueryData(['private-videos'], ['current-user-video'])
+
+    globalThis.__setMockAuthSession({ user: { id: '1', name: 'updated-name' } })
+    rerender(<AuthProvider><QueryClientProbe onClient={(client) => { queryClient = client }} /></AuthProvider>)
+
+    expect(queryClient!.getQueryData(['private-videos'])).toEqual(['current-user-video'])
+  })
+
+  it('isolates late responses and mutation cache writes from the previous account', async () => {
+    const { rerender } = render(<AuthProvider><QueryClientProbe onClient={(client) => { queryClient = client }} /></AuthProvider>)
+    const previousClient = queryClient!
+    let resolveRequest!: (value: string) => void
+    const pendingRequest = previousClient.fetchQuery({
+      queryKey: ['private-videos'],
+      queryFn: () => new Promise<string>((resolve) => { resolveRequest = resolve }),
+    }).catch(() => undefined)
+
+    globalThis.__setMockAuthSession({ user: { id: '2' } })
+    rerender(<AuthProvider><QueryClientProbe onClient={(client) => { queryClient = client }} /></AuthProvider>)
+    await waitFor(() => expect(queryClient).not.toBe(previousClient))
+
+    await act(async () => {
+      resolveRequest('previous-user-video')
+      await pendingRequest
+      // A request that already reached the server cannot be cancelled reliably;
+      // its mutation callback may still update the client captured by its hook.
+      previousClient.setQueryData(['private-videos'], ['late-private-video'])
+    })
+
+    expect(queryClient!.getQueryData(['private-videos'])).toBeUndefined()
   })
 })

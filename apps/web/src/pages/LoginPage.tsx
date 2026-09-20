@@ -1,11 +1,9 @@
-import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
 import { useAuthForm } from '@/hooks/useAuthForm';
 import { apiClient } from '@/lib/api';
-import { trpc } from '@/lib/trpc';
 import { Eye, EyeOff } from 'lucide-react';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
@@ -17,19 +15,10 @@ import { Button } from '@/components/ui/button';
 import { Divider } from '@/components/ui/divider';
 import { UtilityLink } from '@/components/ui/utility-link';
 import { oauthAuthorizeResumeUrl } from '@/lib/oauthResume';
-
-// Only allow same-origin absolute paths to prevent open redirects to attacker
-// origins (e.g. ?next=//evil.com or ?next=https://evil.com).
-function getSafeNextPath(next: string | null): string | null {
-  if (!next) return null;
-  if (!next.startsWith('/')) return null;
-  if (next.startsWith('//') || next.startsWith('/\\')) return null;
-  return next;
-}
+import { getSafeNextPath } from '@/lib/authRedirect';
 
 export default function LoginPage() {
   const navigate = useI18nNavigate();
-  const queryClient = useQueryClient();
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const nextPath = getSafeNextPath(searchParams.get('next'));
@@ -41,10 +30,10 @@ export default function LoginPage() {
   const { formData, error, isLoading, handleChange, handleSubmit } = useAuthForm({
     onSubmit: async (data) => {
       await apiClient.login(data);
-      // Refresh BA session atom, then load app profile into the shared cache.
+      // Refresh the session atom. AuthProvider clears the previous account's
+      // cache before the destination page loads its own profile and data.
       const { authClient } = await import('@/lib/auth-client');
       await authClient.getSession();
-      await queryClient.fetchQuery(trpc.account.me.queryOptions());
     },
     initialData: { username: '', password: '' },
     onSuccessRedirect: () => {
