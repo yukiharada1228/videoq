@@ -2,11 +2,15 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, waitFor, within } from 'storybook/test';
 import App from './App';
 import i18n from './i18n/config';
+import { appQueryClient } from './lib/queryClient';
+import { trpc } from './lib/trpc';
 import { authFixtures } from '../.storybook/fixtures/auth';
 import { emptyTagPage } from '../.storybook/fixtures/api';
 import { course, detailVideo } from '../.storybook/fixtures/detail';
 import { installUploadFixture } from '../.storybook/mocks/videoUpload';
 import { failure, pending, success, trpcQuery } from '../.storybook/mocks/network';
+import { studySessionId } from '../.storybook/fixtures/chatPanel';
+import { chatRequest, createChatPanelMock } from '../.storybook/mocks/chatPanel';
 
 const emptyPage = { data: [], meta: { total: 0, limit: 24, offset: 0 } };
 const api = {
@@ -70,6 +74,107 @@ export const SharedCourseNoticeEnglishMobile: Story = {
   ...SharedCourseNotice,
   globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
 };
+
+let courseChatNetwork: ReturnType<typeof createChatPanelMock>;
+export const CourseChatContinuity: Story = {
+  parameters: {
+    pathname: `/videos/courses/${course.id}`,
+    api: { ...api, trpc: [...api.trpc, trpcQuery('courses.get', success(course))] },
+  },
+  beforeEach({ parameters, msw }) {
+    const mock = createChatPanelMock({ events: [], keepOpen: true });
+    courseChatNetwork = mock;
+    // Keep the app's account/course tRPC handlers from the common decorator.
+    msw.use(...mock.handlers.filter(({ info }) => info.path === '/api/chat/messages/stream'));
+    const scope = parameters.pathname.startsWith('/share/') ? 'share:linear-algebra' : `course:${course.id}`;
+    const key = `plog-study-session:${scope}`;
+    const saved = sessionStorage.getItem(key);
+    sessionStorage.setItem(key, studySessionId);
+    return () => {
+      mock.dispose();
+      if (saved === null) sessionStorage.removeItem(key);
+      else sessionStorage.setItem(key, saved);
+    };
+  },
+  async play({ canvasElement, userEvent, parameters }) {
+    const canvas = within(canvasElement);
+    const shared = parameters.pathname.startsWith('/share/');
+    const mobile = window.innerWidth < 1024;
+    const english = i18n.language.startsWith('en');
+    const original = english ? 'Study rotation matrices' : '回転行列を学ぶ';
+    const restarted = english ? 'Ask me the first question' : '最初の問いをお願いします';
+    const reply = english ? 'Explain the relationship between input and output.' : '入力と出力の関係を説明してください。';
+    const draft = english ? 'The length does not change.' : '長さは変わりません。';
+    const input = await canvas.findByRole('textbox', { name: i18n.t('chat.placeholder') });
+    // Include CSS-hidden panels: two separately mounted chats lose state on resize.
+    await expect(canvas.getAllByRole('textbox', { hidden: true })).toHaveLength(1);
+    await userEvent.click(canvas.getByRole('button', { name: i18n.t('chat.modeStudy') }));
+    const finish = async (status: 'started' | 'continued') => {
+      await waitFor(() => expect(courseChatNetwork.activeStreams).toBe(1));
+      courseChatNetwork.emit([{ type: 'content_chunk', text: reply }, {
+        type: 'done', chat_log_id: 101, feedback: null,
+        study_session: { status, expires_at: Date.now() + 43_200_000 },
+      }]);
+      courseChatNetwork.finish();
+      await waitFor(() => expect(input).toBeEnabled(), { timeout: 10000 });
+      await expect(canvas.getByText(reply)).toBeVisible();
+    };
+    const send = async (text: string, count: number) => {
+      await userEvent.type(input, text);
+      await userEvent.keyboard('{Enter}');
+      await waitFor(() => expect(chatRequest).toHaveBeenCalledTimes(count));
+    };
+    const changeMobileTab = async (tab: 'videos' | 'player') => {
+      await userEvent.click(canvas.getByRole('button', {
+        name: i18n.t(shared ? `videos.shared.tabs.${tab}` : `videos.courseDetail.mobileTabs.${tab}`),
+      }));
+      await expect(canvas.getByRole('textbox', { hidden: true })).toBe(input);
+      if (tab === 'videos') await expect(input).not.toBeVisible();
+      else await expect(input).toBeVisible();
+    };
+    await send(original, 1);
+    await expect(chatRequest.mock.calls[0][0]).toMatchObject({ course_id: course.id, study_session_id: studySessionId, mode: 'study' });
+    await finish('continued');
+    const restart = canvas.getByRole('button', { name: i18n.t('chat.studySession.restart') });
+    restart.focus();
+    await userEvent.keyboard('{Enter}');
+    await userEvent.click(within(canvas.getByRole('dialog')).getByRole('button', { name: i18n.t('chat.studySession.restart') }));
+    await waitFor(() => expect(restart).toHaveFocus());
+    await expect(canvas.queryByText(original)).not.toBeInTheDocument();
+    await send(restarted, 2);
+    const request = chatRequest.mock.calls[1][0];
+    await expect(request.study_session_id).not.toBe(studySessionId);
+    await expect(request.share_slug).toBe(shared ? 'linear-algebra' : undefined);
+    await expect(request.messages).toEqual([{ role: 'user', content: restarted }]);
+    if (mobile) {
+      await changeMobileTab('videos');
+      await changeMobileTab('player');
+      await expect(input).toBeDisabled();
+    }
+    await finish('started');
+    await userEvent.type(input, draft);
+    if (mobile) {
+      await changeMobileTab('videos');
+      await changeMobileTab('player');
+    }
+    await expect(input).toHaveValue(draft);
+    await expect(canvas.getByText(restarted)).toBeVisible();
+    await expect(canvas.getByRole('button', { name: i18n.t('chat.modeStudy') })).toHaveAttribute('aria-pressed', 'true');
+    await expect(canvas.getByText(i18n.t('chat.studySession.started'))).toBeVisible();
+  },
+};
+export const CourseChatContinuityMobile: Story = {
+  ...CourseChatContinuity, globals: { viewport: { value: 'mobile', isRotated: false } },
+};
+export const CourseChatContinuityEnglish: Story = { ...CourseChatContinuity, globals: { locale: 'en' } };
+export const CourseChatContinuityEnglishMobile: Story = {
+  ...CourseChatContinuity, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
+};
+export const SharedChatContinuity: Story = { ...CourseChatContinuity, parameters: SharedCourseNotice.parameters };
+export const SharedChatContinuityMobile: Story = { ...CourseChatContinuityMobile, parameters: SharedCourseNotice.parameters };
+export const SharedChatContinuityEnglish: Story = { ...CourseChatContinuityEnglish, parameters: SharedCourseNotice.parameters };
+export const SharedChatContinuityEnglishMobile: Story = { ...CourseChatContinuityEnglishMobile, parameters: SharedCourseNotice.parameters };
+
 export const InvitationNotice: Story = {
   parameters: {
     pathname: '/course-invitations/sample-invitation',
@@ -217,6 +322,11 @@ export const PendingVideo: Story = {
   parameters: {
     pathname: '/videos/7',
     api: { ...api, trpc: [...api.trpc, trpcQuery('videos.get', pending())] },
+  },
+  async beforeEach() {
+    // Model an authenticated visitor before holding the content request open.
+    // Otherwise a warm route can batch account.me with the pending fixture.
+    await appQueryClient.fetchQuery(trpc.account.me.queryOptions());
   },
   async play({ canvasElement, userEvent }) {
     const canvas = within(canvasElement);

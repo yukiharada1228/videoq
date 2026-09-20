@@ -64,8 +64,6 @@ import { SortableVideoItem } from './SortableVideoItem';
 import { PickFromLibraryDialog } from './PickFromLibraryDialog';
 import { ShareLinkDialog } from './ShareLinkDialog';
 
-const MOBILE_SENSORS: ReturnType<typeof useSensors> = [];
-
 type MobileTab = 'videos' | 'player';
 
 interface VideoCourseDetailViewProps {
@@ -271,7 +269,9 @@ function GroupVideoList({
         <div className="flex-1 space-y-2 overflow-y-auto p-3">
           {course.videos && course.videos.length > 0 ? (
             <DndContext
-              sensors={isMobile ? MOBILE_SENSORS : sensors}
+              // SortableVideoItem disables dragging on mobile. Keep the sensor
+              // list stable across resize for dnd-kit's effect dependencies.
+              sensors={sensors}
               collisionDetection={closestCenter}
               onDragEnd={onDragEnd}
             >
@@ -324,7 +324,6 @@ function GroupPlayerPanel({
   videoRef,
   youtubeStartSeconds,
   onVideoCanPlay,
-  onVideoPlayFromTime,
   canManage,
 }: {
   courseId: number | null;
@@ -333,7 +332,6 @@ function GroupPlayerPanel({
   videoRef: RefObject<HTMLVideoElement | null>;
   youtubeStartSeconds: number | null;
   onVideoCanPlay: () => void;
-  onVideoPlayFromTime: (videoId: number, startTime: string) => void;
   canManage: boolean;
 }) {
   const { t } = useTranslation();
@@ -380,14 +378,6 @@ function GroupPlayerPanel({
             <p className="text-solid-gray-420 text-std-16N-170 text-center px-4">{t('videos.courseDetail.playerPlaceholder')}</p>
           )}
         </div>
-      </div>
-      <div className="lg:hidden">
-        <ChatPanel
-          courseId={courseId ?? undefined}
-          showHistory={canManage}
-          onVideoPlay={onVideoPlayFromTime}
-          className="h-[480px]"
-        />
       </div>
     </section>
   );
@@ -653,16 +643,16 @@ export function VideoCourseDetailView({
                 videoRef={videoRef}
                 youtubeStartSeconds={youtubeStartSeconds}
                 onVideoCanPlay={onVideoCanPlay}
-                onVideoPlayFromTime={onVideoPlayFromTime}
                 canManage={canManage}
               />
 
-              <aside className="hidden min-h-0 flex-col lg:col-span-1 lg:flex">
+              {/* Keep one mounted chat when the viewport or mobile tab changes. */}
+              <aside className={`min-h-0 shrink-0 flex-col lg:col-span-1 ${mobileTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
                 <ChatPanel
                   courseId={courseId ?? undefined}
                   showHistory={canManage}
                   onVideoPlay={onVideoPlayFromTime}
-                  className="h-full min-h-0 flex-1"
+                  className="h-[480px] lg:h-full lg:min-h-0 lg:flex-1"
                 />
               </aside>
             </div>

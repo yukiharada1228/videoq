@@ -236,24 +236,15 @@ export default function SharePage() {
                 )}
               </div>
             </div>
-            {/* Chat below player on mobile */}
-            <div className="lg:hidden">
-              <ChatPanel
-                courseId={course.id}
-                onVideoPlay={handleVideoPlayFromTime}
-                shareToken={shareToken}
-                className="h-[480px]"
-              />
-            </div>
           </section>
 
-          {/* RIGHT: Chat (desktop only) */}
-          <aside className="hidden lg:flex lg:col-span-1 flex-col min-h-0">
+          {/* One mounted chat: below the player on mobile, beside it on desktop. */}
+          <aside className={`min-h-0 shrink-0 flex-col lg:col-span-1 ${mobileTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
             <ChatPanel
               courseId={course.id}
               onVideoPlay={handleVideoPlayFromTime}
               shareToken={shareToken}
-              className="min-h-0 flex-1"
+              className="h-[480px] lg:h-full lg:min-h-0 lg:flex-1"
             />
           </aside>
 

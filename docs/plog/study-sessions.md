@@ -24,6 +24,7 @@ Continuing requires the same browser-held identifier, server actor, course, and 
 | Situation | Displayed conversation | Temporary progress |
 |---|---|---|
 | Reload in the same tab | Cleared | Continues on the next Study request if the identifier remains and progress has not expired |
+| Resize the window, rotate the device, or switch between the mobile video list and player | Conversation, draft, selected mode, and a pending reply stay in the same panel | Keeps the current identifier, including after **Start over**; these display changes do not renew its deadline |
 | Switch Study → Q&A → Study | Cleared at each mode switch | Kept; Q&A does not renew its deadline |
 | Leave the course and return in the same tab | A new panel is shown | Can continue for that course under the same conditions |
 | Switch to another course or share link while a reply is pending | Stops receiving the old reply and clears the conversation and draft; the new panel accepts input | Uses the destination's session. Returning to the original route keeps its identifier; stopping the response does not undo server-side progress saves |
