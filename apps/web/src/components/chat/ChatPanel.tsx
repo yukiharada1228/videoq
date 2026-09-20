@@ -24,7 +24,13 @@ interface ChatPanelProps {
 type PanelTab = 'chat' | 'history';
 type ChatMode = 'qa' | 'study';
 
-export function ChatPanel({
+export function ChatPanel(props: ChatPanelProps) {
+  // Cached route transitions can reuse this component. Keep all chat state and
+  // pending requests inside the course/access-route boundary, not the parent.
+  return <ChatPanelSession key={JSON.stringify([props.courseId, props.shareToken])} {...props} />;
+}
+
+function ChatPanelSession({
   courseId,
   onVideoPlay,
   shareToken,
