@@ -7,7 +7,7 @@ import {
   jwt,
   username,
 } from "better-auth/plugins";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { Db } from "../db/pool";
 import * as schema from "../db/schema";
 import type { Bindings } from "../types/bindings";
@@ -234,17 +234,6 @@ export function createAuth(env: Bindings, db: Db) {
           "",
           "もしこのリクエストに心当たりがない場合は、このメールを破棄してください。",
         ]);
-      },
-      onPasswordReset: async ({ user }) => {
-        const userId = typeof user.id === "string" ? user.id.trim() : "";
-        if (!userId) return;
-        await db
-          .update(schema.users)
-          .set({
-            passwordResetRequired: false,
-            updatedAt: sql`CURRENT_TIMESTAMP`,
-          })
-          .where(eq(schema.users.id, userId));
       },
     },
     emailVerification: {
