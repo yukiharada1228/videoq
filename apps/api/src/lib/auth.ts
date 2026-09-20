@@ -254,9 +254,15 @@ export function createAuth(env: Bindings, db: Db) {
             clientId: googleClientId!,
             clientSecret: googleClientSecret!,
             prompt: "select_account",
+            requireEmailVerification: true,
             mapProfileToUser: async (profile) => {
               const email =
                 typeof profile.email === "string" ? profile.email : "";
+              // Google is authoritative for Gmail and hosted Workspace mail.
+              // A third-party email may have changed owners since Google
+              // originally verified it; require our own mailbox verification.
+              const authoritativeEmail = email.toLowerCase().endsWith("@gmail.com") ||
+                (typeof profile.hd === "string" && profile.hd.trim().length > 0);
               const preferred =
                 typeof profile.name === "string" && profile.name.trim()
                   ? profile.name.trim()
@@ -265,7 +271,7 @@ export function createAuth(env: Bindings, db: Db) {
               return {
                 name: preferred || allocated,
                 email,
-                emailVerified: Boolean(profile.email_verified),
+                emailVerified: profile.email_verified === true && authoritativeEmail,
                 image: typeof profile.picture === "string" ? profile.picture : undefined,
                 username: allocated,
                 displayUsername: allocated,
@@ -277,7 +283,6 @@ export function createAuth(env: Bindings, db: Db) {
     account: {
       accountLinking: {
         enabled: true,
-        trustedProviders: ["google"],
       },
     },
     user: {

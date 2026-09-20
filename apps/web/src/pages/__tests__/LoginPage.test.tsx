@@ -101,6 +101,16 @@ describe('LoginPage', () => {
     expect(screen.getByText('auth.login.oauthCallbackFailed')).toBeInTheDocument()
   })
 
+  it.each([
+    ['email_not_verified', 'auth.login.oauthEmailVerificationRequired'],
+    ['account_not_linked', 'auth.login.oauthAccountNotLinked'],
+  ])('explains the next step for %s', (error, message) => {
+    globalThis.__setMockSearchParams(`?error=${error}`)
+    render(<LoginPage />)
+    expect(screen.getByRole('alert')).toHaveTextContent(message)
+    expect(screen.queryByText('auth.login.oauthCallbackFailed')).not.toBeInTheDocument()
+  })
+
   it('should call apiClient.login on submit', async () => {
     ;(apiClient.login as ReturnType<typeof vi.fn>).mockResolvedValue({})
 

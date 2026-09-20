@@ -272,6 +272,16 @@ export function videoqAuthSecurity(options: OAuthOptions<string[]>): BetterAuthP
         handler: createAuthMiddleware(async (ctx) => { await checkTokenGrant(ctx, options); }),
       }],
       after: [{
+        matcher: ({ path }) => path === "/change-password",
+        handler: createAuthMiddleware(async (ctx) => {
+          // The reset callback does not run for authenticated password changes.
+          // Only invalidate links after the endpoint has verified the current
+          // password and returned a successful change for this user.
+          const result = z.object({ user: z.object({ id: z.string().min(1) }) })
+            .safeParse(ctx.context.returned);
+          if (result.success) await invalidatePasswordResetLinks(ctx.context.adapter, result.data.user.id);
+        }),
+      }, {
         matcher: ({ path }) => path === "/oauth2/introspect",
         handler: createAuthMiddleware(async (ctx) => {
           // Preserve the provider's client authentication, signature checks and

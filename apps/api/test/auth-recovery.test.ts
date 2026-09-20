@@ -84,6 +84,60 @@ async function requestReset(auth: Auth, email = EMAIL) {
 const reset = (auth: Auth, token: string) => post(auth, "/reset-password", { token, newPassword: NEW_PASSWORD });
 
 describe("password recovery invalidation", () => {
+  it("invalidates old recovery links after an authenticated password change", async () => {
+    const auth = makeAuth();
+    const cookie = cookieFrom(await login(auth));
+    const oldReset = await requestReset(auth);
+    const changed = await post(auth, "/change-password", {
+      currentPassword: PASSWORD, newPassword: NEW_PASSWORD,
+    }, cookie);
+    expect(changed.status).toBe(200);
+    expect((await reset(auth, oldReset.token)).status).toBe(400);
+    expect((await login(auth, NEW_PASSWORD)).status).toBe(200);
+  });
+
+  it("keeps recovery available when the current password is wrong", async () => {
+    const auth = makeAuth();
+    const cookie = cookieFrom(await login(auth));
+    const issued = await requestReset(auth);
+    const changed = await post(auth, "/change-password", {
+      currentPassword: "incorrect-current-password", newPassword: NEW_PASSWORD,
+    }, cookie);
+    expect(changed.status).toBe(400);
+    expect((await login(auth)).status).toBe(200);
+    expect((await reset(auth, issued.token)).status).toBe(200);
+  });
+
+  it("cannot revoke recovery links through an unauthenticated password change", async () => {
+    const auth = makeAuth();
+    const issued = await requestReset(auth);
+    const changed = await post(auth, "/change-password", {
+      currentPassword: PASSWORD, newPassword: NEW_PASSWORD,
+    });
+    expect(changed.status).toBe(401);
+    expect((await reset(auth, issued.token)).status).toBe(200);
+  });
+
+  it("preserves password-change session rotation while invalidating recovery links", async () => {
+    const auth = makeAuth();
+    const firstCookie = cookieFrom(await login(auth));
+    const secondCookie = cookieFrom(await login(auth));
+    const issued = await requestReset(auth);
+    const changed = await post(auth, "/change-password", {
+      currentPassword: PASSWORD, newPassword: NEW_PASSWORD, revokeOtherSessions: true,
+    }, firstCookie);
+    expect(changed.status).toBe(200);
+    for (const cookie of [firstCookie, secondCookie]) {
+      const session = await auth.handler(new Request(`${BASE}/api/auth/get-session`, { headers: { cookie } }));
+      expect(await session.json()).toBeNull();
+    }
+    const current = await auth.handler(new Request(`${BASE}/api/auth/get-session`, {
+      headers: { cookie: cookieFrom(changed) },
+    }));
+    expect((await current.json()).user.id).toBe("recovery-owner");
+    expect((await reset(auth, issued.token)).status).toBe(400);
+  });
+
   it("rejects a link sent to the old email after both email-change approvals", async () => {
     const auth = makeAuth();
     const oldReset = await requestReset(auth);
