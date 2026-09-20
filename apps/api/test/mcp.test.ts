@@ -219,6 +219,19 @@ describe("MCP auth", () => {
     expect(res.headers.get("WWW-Authenticate")).toBeNull();
   });
 
+  it("leaves invalid JSON-RPC envelopes to the SDK instead of requesting more permission", async () => {
+    const res = await post({
+      jsonrpc: "invalid", id: 1, method: "tools/call", params: { name: "create_course" },
+    }, {
+      authorization: "Bearer oauth-access-token-value",
+      "X-VideoQ-Test-OAuth-User-Id": "00000000-0000-4000-8000-000000000009",
+      "X-VideoQ-Test-OAuth-Scopes": "videoq.read",
+    });
+    expect(res.status).toBe(400);
+    expect(res.headers.get("WWW-Authenticate")).toBeNull();
+    expect(calls).toHaveLength(0);
+  });
+
   it("returns an insufficient_scope challenge when OAuth lacks videoq.read", async () => {
     const res = await mcpRoutes.request(
       "/",
@@ -621,16 +634,16 @@ describe("MCP JSON-RPC", () => {
 describe("MCP connector CORS", () => {
   const app = createApp();
 
-  it("OPTIONS /api/mcp allows Claude.ai with wildcard origin and no credentials", async () => {
+  it.each(["/api/mcp", "/api/auth/oauth2/token"])("OPTIONS %s allows browser DPoP with wildcard origin and no credentials", async (path) => {
     const res = await app.request(
-      "/api/mcp",
+      path,
       {
         method: "OPTIONS",
         headers: {
           Origin: "https://claude.ai",
           "Access-Control-Request-Method": "POST",
           "Access-Control-Request-Headers":
-            "authorization,content-type,accept,mcp-protocol-version",
+            "authorization,content-type,accept,mcp-protocol-version,dpop",
         },
       },
       ENV,
@@ -644,6 +657,7 @@ describe("MCP connector CORS", () => {
     expect(allowHeaders).toContain("authorization");
     expect(allowHeaders).toContain("mcp-protocol-version");
     expect(allowHeaders).toContain("accept");
+    expect(allowHeaders).toContain("dpop");
     const expose = (
       res.headers.get("Access-Control-Expose-Headers") ?? ""
     ).toLowerCase();

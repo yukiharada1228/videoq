@@ -33,7 +33,7 @@ const PASSWORD = "isolated-test-password-123";
 const VERIFIER = "isolated-test-pkce-verifier-with-at-least-43-characters";
 const SCOPES = ["offline_access", "videoq.read", "videoq.write"];
 const OIDC_SCOPES = ["openid", "profile", "email", ...SCOPES];
-type OAuthTestOptions = { includeResource?: boolean; scopes?: string[]; confidential?: boolean };
+type OAuthTestOptions = { includeResource?: boolean; scopes?: string[]; confidential?: boolean; registrationScope?: string };
 const env = {
   ENVIRONMENT: "production",
   BETTER_AUTH_SECRET: "isolated-test-secret-012345678901234567890123456789",
@@ -79,12 +79,13 @@ async function login(auth: Auth) {
   expect(response.status, await response.clone().text()).toBe(200);
   return response.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
 }
-async function register(auth: Auth, confidential = false) {
+async function register(auth: Auth, confidential = false, scope?: string) {
   const response = await post(auth, "/oauth2/register", {
     client_name: "Test client", application_type: "native",
     token_endpoint_auth_method: confidential ? "client_secret_post" : "none",
     redirect_uris: ["http://127.0.0.1:54321/callback"],
     grant_types: ["authorization_code", "refresh_token"],
+    ...(scope ? { scope } : {}),
   });
   expect(response.status, await response.clone().text()).toBe(201);
   return await response.json() as { client_id: string; client_secret?: string };
@@ -126,7 +127,7 @@ async function tokensFrom(response: Response) {
   return await response.json() as { access_token: string; refresh_token: string; id_token?: string; expires_in: number };
 }
 async function connect(auth: Auth, cookie: string, options: OAuthTestOptions = {}) {
-  const client = await register(auth, options.confidential);
+  const client = await register(auth, options.confidential, options.registrationScope);
   const code = await authorize(auth, cookie, client.client_id, options);
   const grantId = store.data.oauthConsent.find((row) => row.clientId === client.client_id)!.id as string;
   const tokens = await tokensFrom(await tokenRequest(auth, client.client_id, {
@@ -215,10 +216,13 @@ describe("MCP OAuth permission negotiation", () => {
     } })).toMatchObject({ kind: "ok", accessLevel: "all" });
   });
 
-  it("upgrades read-only OAuth through the write challenge and native consent", async () => {
+  it("upgrades a read-only DCR request through native consent without re-registering the client", async () => {
     const auth = makeAuth();
     const cookie = await login(auth);
-    const linked = await connect(auth, cookie, { scopes: ["videoq.read"] });
+    const linked = await connect(auth, cookie, { scopes: ["videoq.read"], registrationScope: "videoq.read" });
+    expect(store.data.oauthClient).toHaveLength(1);
+    expect(store.data.oauthClient[0].scopes).toContain("videoq.write");
+    expect(store.data.oauthConsent[0].scopes).toEqual(["videoq.read"]);
     const challenge = await createApp().request(RESOURCE, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${linked.access_token}` },
@@ -237,6 +241,7 @@ describe("MCP OAuth permission negotiation", () => {
     expect(await auth.api.verifyVideoqOAuth({ body: {
       authorizationHeader: `Bearer ${upgraded.access_token}`, method: "POST", url: RESOURCE,
     } })).toMatchObject({ kind: "ok", accessLevel: "all" });
+    expect(store.data.oauthClient).toHaveLength(1);
     // A challenge never elevates the old token without explicit consent.
     expect(await auth.api.verifyVideoqOAuth({ body: {
       authorizationHeader: `Bearer ${linked.access_token}`, method: "POST", url: RESOURCE,

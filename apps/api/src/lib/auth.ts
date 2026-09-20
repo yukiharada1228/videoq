@@ -81,10 +81,6 @@ export function oauthProviderConfig(env: Bindings) {
     resourceSeedMode: "merge" as const,
     clientRegistrationDefaultResources: [resource],
     clientRegistrationAllowedResources: [resource],
-    // DCR clients that omit scope still receive the VideoQ read/write scopes;
-    // clients may explicitly request only videoq.read for least privilege.
-    clientRegistrationDefaultScopes: [...MCP_OAUTH_SCOPES],
-    clientRegistrationAllowedScopes: [...MCP_OAUTH_SCOPES],
     loginPage: "/login",
     consentPage: "/consent",
     // MCP clients (Claude etc.) need unauthenticated DCR for public clients.

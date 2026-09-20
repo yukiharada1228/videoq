@@ -2,7 +2,7 @@ import type { Context } from "hono";
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
 import { StreamableHTTPTransport } from "@hono/mcp";
-import { CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, isJSONRPCRequest } from "@modelcontextprotocol/sdk/types.js";
 import { APIError } from "better-auth/api";
 import { createInsufficientScopeError } from "better-auth/oauth2";
 import { createResourceServerChallenge } from "@better-auth/oauth-provider";
@@ -50,6 +50,7 @@ async function requestedMcpScopes(c: Context<AppEnv>): Promise<string[]> {
     const body: unknown = await c.req.json().catch(() => undefined);
     const messages = Array.isArray(body) ? body : [body];
     const writes = messages.some((message) => {
+      if (!isJSONRPCRequest(message)) return false;
       const request = CallToolRequestSchema.safeParse(message);
       return request.success && MCP_WRITE_TOOLS.has(request.data.params.name as McpToolName);
     });
