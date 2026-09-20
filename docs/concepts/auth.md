@@ -101,6 +101,8 @@ For the owner/participant/share-link permission table, AI answer allowance, hist
 
 API keys are managed in settings. With OAuth, users authorize client access within scopes such as `videoq.read` / `videoq.write`. Do not treat browser sessions and MCP tokens as interchangeable.
 
+The initial MCP authentication challenge points to resource metadata without overriding its scopes, so clients can request both read and write access. A read-only OAuth token remains usable for read tools. Calling a write tool returns HTTP 403 with Better Auth's `insufficient_scope` challenge naming both required scopes, allowing the client to request consent again. Existing tokens never gain permissions automatically. If a client was registered with only `videoq.read`, remove and re-add the connection in that client so it can register for both scopes.
+
 Disconnecting an OAuth app atomically deletes that user's consent and access/refresh-token records for the selected client. New issuance requires current consent and matching scopes. The application does not maintain separate authorization generations across reconnection.
 
 An already-issued JWT remains usable until its expiry, at most five minutes for newly issued tokens. Disconnecting, changing consent scopes or disabling a client does not immediately revoke its JWT at MCP. Banned or deleted owners are rejected immediately. Unbanning allows still-valid integrations to resume; revoked browser sessions remain invalid. API-key revocation and deletion of stored opaque access tokens remain immediate.

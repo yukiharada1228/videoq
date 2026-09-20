@@ -69,6 +69,8 @@ React側のログイン判定は `useSession`、プロフィールの取得は `
 
 APIキーは設定画面で管理します。OAuthでは利用者がクライアントへのアクセスを許可し、`videoq.read` / `videoq.write` などの範囲で操作します。ブラウザのセッションとMCPのトークンを同じものとして扱わないでください。
 
+接続時の認証応答はスコープを読み取りだけに絞らず、公開メタデータから読み取り・書き込みの両方を要求できるようにします。読み取り専用のOAuthトークンで書き込みツールを呼ぶと、Better Authの公式機能でHTTP 403と `insufficient_scope`、必要な両スコープを返し、クライアントから再同意を求められるようにします。既存トークンの権限は自動で増えません。クライアント自体が `videoq.read` だけで登録済みの場合は、クライアント側で接続を削除して追加し直し、両スコープで登録してください。
+
 APIキーの権限は公式API Keyプラグインの `permissions` で管理します。`default` 設定は読み取り、`read-write` 設定は読み書きを許可し、ブラウザは設定IDを選択します。権限自体の設定はサーバーが行います。旧メタデータの `accessLevel` / `access_level` による独自判定は使用しません。
 
 MCPの公開メタデータと認証チャレンジは公式OAuth Resource Clientと `createResourceServerChallenge` を使用します。公式MCPプラグインのリクエスト検証はHTTPでのJWKS取得が必要なため、同じWorker内でJWKSを取得する接続処理は拡張として残します。JWT・DPoPの検証と再利用検知はBetter Authの公開APIを利用します。

@@ -118,6 +118,10 @@ async function request(
 }
 
 describe("OAuth bearer authentication", () => {
+  it.each(["invalid-token", "a.b.c", "bnVsbA.e30.signature", "W10.e30.signature"])("rejects malformed JWT headers with 401: %s", async (token) => {
+    expect((await request(token)).status).toBe(401);
+  });
+
   it("Better Auth の in-process JWKS で検証し、同一 Route を fetch しない", async () => {
     const networkFetch = vi.fn(() => {
       throw new Error("OAuth verification must not perform a same-zone fetch");
