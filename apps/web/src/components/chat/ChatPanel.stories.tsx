@@ -7,7 +7,7 @@ import { ChatPanel } from './ChatPanel';
 import { authFixtures } from '../../../.storybook/fixtures/auth';
 import { answer, citations, longAnswer } from '../../../.storybook/fixtures/chat';
 import { englishCitations, englishQuestion, mixedHistory } from '../../../.storybook/fixtures/chatHistory';
-import { answerEvents, courseId, courseHistory, englishHistory, firstTokens, question, reviewedEvents, searchingEvents, searchQuery, shareToken, studySessionId } from '../../../.storybook/fixtures/chatPanel';
+import { answerEvents, courseId, courseHistory, englishHistory, firstTokens, otherCourseId, otherShareToken, otherStudySessionId, question, reviewedEvents, searchingEvents, searchQuery, shareToken, studySessionId } from '../../../.storybook/fixtures/chatPanel';
 import { chatRequest, createChatPanelMock, csvRequest, evaluationRequest, feedbackRequest, historyError, historyRequest, type ChatPanelScenario } from '../../../.storybook/mocks/chatPanel';
 
 let network: ReturnType<typeof createChatPanelMock>;
@@ -21,11 +21,21 @@ function PanelExample({ lifecycleControl, ...args }: ComponentProps<typeof ChatP
     {visible && <ChatPanel {...args} />}
   </div>;
 }
+
+const switchContextLabel = () => english() ? 'Switch course or link' : '講座・リンクを切り替える';
+type ChatScope = Pick<ComponentProps<typeof ChatPanel>, 'courseId' | 'shareToken'>;
+function ScopeSwitchExample({ target, ...args }: ComponentProps<typeof ChatPanel> & { target: ChatScope }) {
+  const [switched, setSwitched] = useState(false);
+  return <div style={{ maxWidth: 800 }}>
+    <Button variant="outline" className="mb-2" onClick={() => setSwitched(value => !value)}>{switchContextLabel()}</Button>
+    <ChatPanel {...args} {...(switched ? target : {})} />
+  </div>;
+}
 const meta = {
   title: 'Chat/ChatPanel',
   component: ChatPanel,
   args: { courseId, onVideoPlay: fn(), className: 'h-[min(720px,calc(100dvh-32px))]' },
-  render: (args, { parameters }) => <PanelExample key={`${args.courseId}:${args.shareToken ?? ''}`} {...args} lifecycleControl={parameters.lifecycleControl === true} />,
+  render: (args, { parameters }) => <PanelExample {...args} lifecycleControl={parameters.lifecycleControl === true} />,
   parameters: { api: { auth: authFixtures.user }, docs: { story: { inline: false, height: '800px' } } },
   beforeEach({ parameters, msw }) {
     const mock = createChatPanelMock({
@@ -34,9 +44,12 @@ const meta = {
     });
     network = mock;
     msw.use(...mock.handlers);
-    const keys = [`plog-study-session:course:${courseId}`, `plog-study-session:share:${shareToken}`];
+    const keys = [
+      `plog-study-session:course:${courseId}`, `plog-study-session:share:${shareToken}`,
+      `plog-study-session:course:${otherCourseId}`, `plog-study-session:share:${otherShareToken}`,
+    ];
     const saved = keys.map(key => sessionStorage.getItem(key));
-    keys.forEach(key => sessionStorage.setItem(key, studySessionId));
+    keys.forEach((key, index) => sessionStorage.setItem(key, index < 2 ? studySessionId : otherStudySessionId));
     return () => {
       mock.dispose();
       keys.forEach((key, index) => { if (saved[index] === null) sessionStorage.removeItem(key); else sessionStorage.setItem(key, saved[index]!); });
@@ -423,6 +436,52 @@ export const StudySaving: Story = { parameters: { chat: waiting }, async play(co
   await expect(context.canvas.getByRole('button', { name: label('studySession.restart') })).toBeDisabled();
   await expect(context.canvas.getByRole('button', { name: label('modeQa') })).toBeDisabled();
 } };
+async function switchScopeDuringStudy(context: Context, target: ChatScope) {
+  await StudySaving.play!(context);
+  const original = chatRequest.mock.calls[0][0];
+  const switchButton = context.canvas.getByRole('button', { name: switchContextLabel() });
+  switchButton.focus();
+  await context.userEvent.keyboard('{Enter}');
+  await waitFor(() => expect(network.activeStreams).toBe(0));
+  await expect(input(context)).toBeEnabled();
+  await expect(context.canvas.getByRole('button', { name: label('modeQa') })).toHaveAttribute('aria-pressed', 'true');
+  await expect(context.canvas.queryByText(english() ? englishQuestion : question)).not.toBeInTheDocument();
+  await expect(input(context)).toHaveAccessibleDescription(label('qaGuidance'));
+  await context.userEvent.click(context.canvas.getByRole('button', { name: label('modeStudy') }));
+  await expect(context.canvas.getByRole('status')).toHaveTextContent(label('studySession.unconfirmed'));
+  const newQuestion = english() ? 'Start this course' : 'この講座の学習を始めたい';
+  await send(context, newQuestion);
+  await waitFor(() => expect(chatRequest).toHaveBeenCalledTimes(2));
+  await expect(chatRequest.mock.calls[1][0]).toMatchObject({
+    course_id: target.courseId, share_slug: target.shareToken,
+    study_session_id: otherStudySessionId,
+    messages: [{ role: 'user', content: newQuestion }],
+  });
+  await finishStudyResponse(context, english() ? 'New course question' : '切り替え先の講座の問い', 'started');
+  await context.userEvent.type(input(context), english() ? 'Unsent draft' : '送信前の下書き');
+  await context.userEvent.click(switchButton);
+  await expect(input(context)).toHaveValue('');
+  await expect(context.canvas.queryByRole('button', { name: label('feedbackGood') })).not.toBeInTheDocument();
+  await context.userEvent.click(context.canvas.getByRole('button', { name: label('modeStudy') }));
+  await send(context, english() ? 'Resume this course' : '元の講座を続けたい');
+  await waitFor(() => expect(chatRequest).toHaveBeenCalledTimes(3));
+  await expect(chatRequest.mock.calls[2][0]).toMatchObject({
+    course_id: original.course_id, share_slug: original.share_slug, study_session_id: studySessionId,
+  });
+  await expect(chatRequest.mock.calls[2][0].messages).toHaveLength(1);
+  await finishStudyResponse(context, english() ? 'Resuming this course' : '元の講座の学習を再開します');
+}
+export const CourseSwitchDuringStudy: Story = {
+  parameters: { chat: waiting },
+  render: args => <ScopeSwitchExample {...args} target={{ courseId: otherCourseId }} />,
+  play: context => switchScopeDuringStudy(context, { courseId: otherCourseId }),
+};
+export const ShareSwitchDuringStudy: Story = {
+  args: { shareToken },
+  parameters: { chat: waiting, api: { auth: authFixtures.loggedOut } },
+  render: args => <ScopeSwitchExample {...args} target={{ courseId, shareToken: otherShareToken }} />,
+  play: context => switchScopeDuringStudy(context, { courseId, shareToken: otherShareToken }),
+};
 export const StudyContinued: Story = { parameters: { chat: {
   events: [{ type: 'content_chunk', text: 'Study question' }, { type: 'done', chat_log_id: 101, feedback: null, study_session: { status: 'continued', expires_at: Date.now() + 43_200_000 } }],
 } satisfies ChatPanelScenario }, async play(context) {

@@ -69,6 +69,49 @@ describe('ChatPanel', () => {
     expect(screen.getByText(/chat.assistantGreeting/)).toBeInTheDocument()
   })
 
+  it.each([
+    { name: 'course', before: { courseId: 1 }, after: { courseId: 2 } },
+    { name: 'share link', before: { courseId: 1, shareToken: 'first' }, after: { courseId: 1, shareToken: 'second' } },
+    { name: 'access route', before: { courseId: 1 }, after: { courseId: 1, shareToken: 'first' } },
+  ])('isolates a new $name from a pending Study reply', async ({ before, after }) => {
+    let finishOld!: () => void
+    const pending = new Promise<void>(resolve => { finishOld = resolve })
+    let oldSignal: AbortSignal | undefined
+    vi.mocked(apiClient.chatStream).mockImplementationOnce(async function* (_request, signal) {
+      oldSignal = signal
+      await pending
+      yield { type: 'content_chunk', text: 'Late response from old course' }
+      yield { type: 'done', chat_log_id: 71, feedback: null }
+    })
+    const { rerender } = render(<ChatPanel {...before} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.modeStudy' }))
+    await act(async () => { await sendMessage(screen.getByLabelText('chat.placeholder'), 'Old course answer') })
+    expect(screen.getByLabelText('chat.placeholder')).toBeDisabled()
+    const oldSession = vi.mocked(apiClient.chatStream).mock.calls[0][0].study_session_id
+
+    rerender(<ChatPanel {...after} />)
+    try {
+      expect(oldSignal?.aborted).toBe(true)
+      expect(screen.getByLabelText('chat.placeholder')).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'chat.modeQa' })).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.queryByText('Old course answer')).not.toBeInTheDocument()
+      expect(screen.getByText('chat.assistantGreeting')).toBeInTheDocument()
+    } finally {
+      await act(async () => { finishOld(); await pending })
+    }
+    expect(screen.queryByText('Late response from old course')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'chat.modeStudy' }))
+    await act(async () => { await sendMessage(screen.getByLabelText('chat.placeholder'), 'New course question') })
+    await waitFor(() => expect(apiClient.chatStream).toHaveBeenCalledTimes(2))
+    const request = vi.mocked(apiClient.chatStream).mock.calls[1][0]
+    expect(request).toMatchObject({
+      course_id: after.courseId, mode: 'study',
+      messages: [{ role: 'user', content: 'New course question' }],
+    })
+    expect(request.study_session_id).not.toBe(oldSession)
+    expect(request.share_slug).toBe('shareToken' in after ? after.shareToken : undefined)
+  })
+
   it('should send message when form is submitted', async () => {
     render(<ChatPanel />)
 
@@ -81,6 +124,23 @@ describe('ChatPanel', () => {
     await waitFor(() => {
       expect(apiClient.chatStream).toHaveBeenCalled()
     })
+  })
+
+  it('clears completed dialogue and a draft only when the chat scope changes', async () => {
+    const { rerender } = render(<ChatPanel courseId={1} />)
+    await act(async () => { await sendMessage(screen.getByLabelText('chat.placeholder'), 'Original question') })
+    await waitFor(() => expect(screen.getByText('Test response')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByLabelText('chat.placeholder')).toBeEnabled())
+    fireEvent.change(screen.getByLabelText('chat.placeholder'), { target: { value: 'Unsent draft' } })
+    rerender(<ChatPanel courseId={1} className="h-[600px]" onVideoPlay={vi.fn()} />)
+    expect(screen.getByText('Original question')).toBeInTheDocument()
+    expect(screen.getByLabelText('chat.placeholder')).toHaveValue('Unsent draft')
+
+    rerender(<ChatPanel courseId={2} />)
+    expect(screen.getByLabelText('chat.placeholder')).toHaveValue('')
+    expect(screen.queryByText('Original question')).not.toBeInTheDocument()
+    expect(screen.queryByText('Test response')).not.toBeInTheDocument()
+    expect(screen.getByText('chat.assistantGreeting')).toBeInTheDocument()
   })
 
   it('should not send message when input is empty', async () => {

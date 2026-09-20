@@ -26,6 +26,7 @@ Continuing requires the same browser-held identifier, server actor, course, and 
 | Reload in the same tab | Cleared | Continues on the next Study request if the identifier remains and progress has not expired |
 | Switch Study → Q&A → Study | Cleared at each mode switch | Kept; Q&A does not renew its deadline |
 | Leave the course and return in the same tab | A new panel is shown | Can continue for that course under the same conditions |
+| Switch to another course or share link while a reply is pending | Stops receiving the old reply and clears the conversation and draft; the new panel accepts input | Uses the destination's session. Returning to the original route keeps its identifier; stopping the response does not undo server-side progress saves |
 | Open a fresh tab without copied storage, another browser, or another device | New | New; signing in does not synchronize it |
 | Duplicate a tab, or open one that copies its opener's storage | New panel | May share the original identifier and therefore the same server progress; the tabs can advance each other's progress |
 | Use the public share page instead of the signed-in course page | New panel | Separate browser storage key; signing in while using the share page does not select the signed-in route's progress |
