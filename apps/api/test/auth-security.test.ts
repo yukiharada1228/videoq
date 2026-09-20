@@ -303,6 +303,17 @@ describe("API key credential boundaries", () => {
 });
 
 describe("OAuth grant revocation", () => {
+  it("does not report a JWKS database outage as invalid credentials", async () => {
+    const auth = makeAuth();
+    const linked = await connect(auth, await login(auth));
+    const jwt = (await auth.$context).getPlugin("jwt")!;
+    const unavailable = new Error("JWKS database unavailable");
+    vi.spyOn(jwt.endpoints, "getJwks").mockRejectedValueOnce(unavailable);
+    await expect(auth.api.verifyVideoqOAuth({ body: {
+      authorizationHeader: `Bearer ${linked.access_token}`, method: "POST", url: RESOURCE,
+    } })).rejects.toBe(unavailable);
+  });
+
   it("binds real PKCE code exchange and refresh tokens to the original consent", async () => {
     const auth = makeAuth();
     const linked = await connect(auth, await login(auth));

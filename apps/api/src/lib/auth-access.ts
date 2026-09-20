@@ -2,10 +2,12 @@ import type { BetterAuthPlugin } from "better-auth";
 import { createAuthEndpoint } from "better-auth/api";
 import {
   enforceDpopBinding,
+  isDpopBindingError,
   parseAccessTokenAuthorization,
   verifyJwsAccessToken,
   type DpopReplayStore,
 } from "better-auth/oauth2";
+import { errors as jwtErrors } from "jose";
 import { z } from "zod";
 import type { Bindings } from "../types/bindings";
 import { hasActiveGrant, isBanned, isInactive, OAUTH_GRANT_CLAIM } from "./auth-security";
@@ -85,8 +87,18 @@ export function videoqResourceAccess(env: Bindings, audience: string) {
             payload, authorization, proofJwt: ctx.body.dpopProofJwt,
             method: ctx.body.method, url: ctx.body.url, replayStore,
           });
-        } catch {
-          return { kind: "invalid", message: "Invalid OAuth access token" };
+        } catch (error) {
+          // Match Better Auth's resource verifier: malformed credentials are
+          // refusals, while database/JWKS/replay-store failures remain errors.
+          const invalidJwt = error instanceof jwtErrors.JOSEError && !(
+            error instanceof jwtErrors.JWKSInvalid ||
+            error instanceof jwtErrors.JWKSTimeout ||
+            error instanceof jwtErrors.JWKSMultipleMatchingKeys
+          );
+          if (invalidJwt || isDpopBindingError(error)) {
+            return { kind: "invalid", message: "Invalid OAuth access token" };
+          }
+          throw error;
         }
         // The composed verifier has no scope parser. Keep this RFC 6749 shape
         // check until the standard request verifier supports local JWKS.
