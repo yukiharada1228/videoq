@@ -16,7 +16,7 @@ import { summarizeAuthApiError } from "./auth-error-log";
 import { rateLimitBackend } from "./rate-limit";
 import { MCP_OAUTH_SCOPES } from "./mcp-auth";
 import { resolveSignupQuotaDefaults } from "../shared/signup-quota";
-import { revokeOAuthConsent, videoqAuthSecurity } from "./auth-security";
+import { passwordResetIdentifierStorage, revokeOAuthConsent, videoqAuthSecurity } from "./auth-security";
 
 function trustedOrigins(env: Bindings): string[] {
   return (env.CORS_ALLOW_ORIGIN ?? "")
@@ -217,6 +217,9 @@ export function createAuth(env: Bindings, db: Db) {
     },
     // OAuth provider owns /oauth2/token; disable BA's first-party /token alias.
     disabledPaths: ["/token"],
+    verification: {
+      storeIdentifier: passwordResetIdentifierStorage,
+    },
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,
