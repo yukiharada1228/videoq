@@ -74,12 +74,19 @@ export const citationSchema = z.object({
 
 export const chatFeedbackSchema = z.enum(["good", "bad"]).nullable();
 
+export const studySessionInfoSchema = z.object({
+  status: z.enum(["started", "continued"]),
+  /** Server-confirmed expiration time, in Unix milliseconds. */
+  expires_at: z.number().int().positive(),
+});
+
 export const chatMessageSchema = z.object({
   role: z.enum(["user", "assistant"]),
   content: z.string(),
   citations: z.array(citationSchema).optional(),
   chat_log_id: z.number().optional(),
   feedback: chatFeedbackSchema.optional(),
+  study_session: studySessionInfoSchema.optional(),
 });
 
 export const chatLogEvaluationSchema = z.object({
@@ -243,6 +250,7 @@ export const plogEdgeSchema = z.object({
   target_label: z.string(),
   edge_type: z.string(),
   quote: z.string(),
+  provenance: z.enum(["generated", "edited", "unknown"]).optional(),
 });
 
 export const plogGraphSchema = z.object({

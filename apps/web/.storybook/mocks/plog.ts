@@ -89,13 +89,13 @@ export function plogHandler(scenario: PlogScenario = {}) {
     }),
     trpcMutation('plog.createEdge', input => {
       const error = begin('createEdge', input); if (error) return error;
-      const edge = { id: 1 + Math.max(10, ...data.edges.map(item => item.id)), source_id: input.sourceId, source_label: findConcept(input.sourceId).label, target_id: input.targetId, target_label: findConcept(input.targetId).label, edge_type: input.edgeType, quote: input.quote ?? '' };
+      const edge = { id: 1 + Math.max(10, ...data.edges.map(item => item.id)), source_id: input.sourceId, source_label: findConcept(input.sourceId).label, target_id: input.targetId, target_label: findConcept(input.targetId).label, edge_type: input.edgeType, quote: input.quote ?? '', provenance: 'edited' as const };
       data.edges.push(edge); return success(edge);
     }),
     trpcMutation('plog.updateEdge', input => {
       const error = begin('updateEdge', input); if (error) return error;
       const item = data.edges.find(item => item.id === input.edgeId)!;
-      Object.assign(item, { source_id: input.sourceId ?? item.source_id, target_id: input.targetId ?? item.target_id, edge_type: input.edgeType ?? item.edge_type, quote: input.quote ?? item.quote });
+      Object.assign(item, { source_id: input.sourceId ?? item.source_id, target_id: input.targetId ?? item.target_id, edge_type: input.edgeType ?? item.edge_type, quote: input.quote ?? item.quote, provenance: 'edited' });
       refreshLabels(); return success(data.edges.find(item => item.id === input.edgeId)!);
     }),
     trpcMutation('plog.deleteEdge', input => {

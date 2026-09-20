@@ -55,5 +55,7 @@ flowchart TB
 上のコマンドは各作業の入口です。本番のAPI・worker・DBは `.github/workflows/cd.yml` の手順と順序も確認します。
 新しい列を使うコードを先に公開すると、古いDBに対して動かなくなる場合があります。
 
+API・frontend・Python workerを同時に変更した場合、CDは必要なDB移行の後、API → frontend → workerの順に反映します。workerは、更新対象となったAPI・frontendの成功を待ってから、PLOGの `presentation_order` 関係など新しい形式の共有データを生成します。対象のデプロイが失敗・キャンセルされた場合、workerも反映しません。workerだけの変更では、変更のないAPI・frontendがスキップされてもデプロイできます。
+
 詳細は [`infra/DEPLOY.md`](https://github.com/yukiharada1228/videoq/blob/main/infra/DEPLOY.md) を参照してください。
 文書サイトは専用のWorkerから [docs.videoq.jp](https://docs.videoq.jp/) で公開し、日本語は [/ja/](https://docs.videoq.jp/ja/) です。本文・翻訳・サイト設定の変更は、`main`のCI成功後に自動公開します。`npm run deploy:docs`で現在の作業ツリーを手動公開することもできます。[文書サイトのデプロイ手順](https://github.com/yukiharada1228/videoq/blob/main/apps/docs/README.md)を参照してください。

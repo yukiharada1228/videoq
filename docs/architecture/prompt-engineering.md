@@ -22,6 +22,14 @@ The prompt selects language-specific instructions from `prompts.json`. Course me
 
 Showing older chat messages in the UI does not change this Q&A input contract. Follow-up questions need enough context in their latest message. Study-mode grading separately uses the previous assistant question.
 
+### Client and API contract
+
+Q&A deliberately remains a single-question feature so each request specifies its own subject and retrieves evidence without inheriting earlier answers. This applies to authenticated chats, shared-link chats, and Q&A without a course. The browser sends one `user` message. The streaming endpoint (`/api/chat/messages/stream`) and `chat.send` still accept a `messages` array for compatibility and Study, but Q&A selects only its latest `user` entry; older entries do not provide context. Omitting `mode` selects `qa`.
+
+For “What is the dot product?” → “Give me an example”, the second request is independent. It must not inherit “dot product” from the first request. A particular clarification response is not guaranteed by code; the input guidance instead asks for “Give me an example of the dot product.” Tests assert the actual model input for both streaming and non-streaming Q&A.
+
+Only Study sends recent dialogue (at most 12 non-empty messages including the new reply, excluding the initial greeting) so it can refer to the previous assistant question. This does not make saved chat logs part of either mode's model input.
+
 ## Selecting information for Q&A
 
 Q&A retrieves information through tools as needed, then composes an answer. Different questions do not necessarily use the same search.

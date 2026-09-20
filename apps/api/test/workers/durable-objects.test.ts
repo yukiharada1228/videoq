@@ -38,6 +38,45 @@ describe("RateLimiter Durable Object", () => {
 });
 
 describe("StudySession Durable Object", () => {
+  it("expires progress at the stored deadline and renews it only on a successful commit", async () => {
+    const stub = env.STUDY_SESSION.getByName("runtime-study-expiry");
+    const readExpiry = () => runInDurableObject(stub, (_instance, state) =>
+      state.storage.sql.exec<{ expires_at: number }>("SELECT expires_at FROM session_state WHERE id = 1").one().expires_at);
+    const before = Date.now();
+    await stub.tryAcquire("first");
+    const first = await stub.commit(0, {}, "first");
+    expect(first).not.toBe(false);
+    if (!first) throw new Error("commit failed");
+    expect(first.expiresAt).toBeGreaterThanOrEqual(before + 12 * 60 * 60 * 1000);
+    expect(first.expiresAt).toBeLessThanOrEqual(Date.now() + 12 * 60 * 60 * 1000);
+    expect(await readExpiry()).toBe(first.expiresAt);
+
+    await stub.tryAcquire("next");
+    await expect(stub.commit(0, {}, "next")).resolves.toBe(false);
+    expect(await readExpiry()).toBe(first.expiresAt);
+    await stub.release("next");
+    await stub.getSnapshot();
+    expect(await readExpiry()).toBe(first.expiresAt);
+    await runInDurableObject(stub, (_instance, state) => {
+      state.storage.sql.exec("UPDATE session_state SET expires_at = ?", Date.now());
+    });
+    await expect(stub.getSnapshot()).resolves.toEqual({ revision: 0, states: {} });
+    await stub.tryAcquire("fresh");
+    await expect(stub.commit(0, {}, "fresh")).resolves.toEqual({ expiresAt: expect.any(Number) });
+    await expect(stub.getSnapshot()).resolves.toEqual({ revision: 1, states: {} });
+  });
+
+  it("cleans up expired progress through its alarm without restoring it", async () => {
+    const stub = env.STUDY_SESSION.getByName("runtime-study-expired-alarm");
+    await stub.tryAcquire("turn");
+    await stub.commit(0, {}, "turn");
+    await runInDurableObject(stub, (_instance, state) => {
+      state.storage.sql.exec("UPDATE session_state SET expires_at = ?", Date.now() - 1);
+    });
+    await runDurableObjectAlarm(stub);
+    await expect(stub.getSnapshot()).resolves.toEqual({ revision: 0, states: {} });
+  });
+
   it("serializes turns and persists revisions across eviction", async () => {
     const stub = env.STUDY_SESSION.getByName("runtime-study-session");
     const states = {
@@ -57,7 +96,7 @@ describe("StudySession Durable Object", () => {
     await expect(stub.tryAcquire("turn-2")).resolves.toMatchObject({
       acquired: false,
     });
-    await expect(stub.commit(0, states, "turn-1")).resolves.toBe(true);
+    await expect(stub.commit(0, states, "turn-1")).resolves.toEqual({ expiresAt: expect.any(Number) });
 
     await evictDurableObject(stub);
     await expect(stub.getSnapshot()).resolves.toEqual({

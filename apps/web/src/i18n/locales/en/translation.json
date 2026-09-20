@@ -442,6 +442,13 @@
       "publicBadge": "Public share link"
     }
   },
+  "courseSharing": {
+    "link": "Anyone with the share link can view this course and chat without signing in. Questions are recorded as coming from a shared link.",
+    "invitation": "Invited members can view this course and chat. They cannot edit it. The owner's chat history includes the questioner's username and email address.",
+    "quotaAndHistory": "Q&A and Study use the course owner's AI answer allowance. The owner can read and export questions and answers.",
+    "learnMore": "Sharing permissions, usage and history",
+    "opensInNewTab": "Opens in a new tab"
+  },
   "courseInvitation": {
     "badge": "Course invitation",
     "title": "Review invitation",
@@ -579,6 +586,21 @@
     }
   },
   "chat": {
+    "studySession": {
+      "unconfirmed": "Progress will be checked when you send a message. Clearing the conversation does not reset saved progress.",
+      "started": "Started with new progress. This happens on your first turn or when earlier progress has expired.",
+      "continued": "Continued from saved study progress.",
+      "expired": "The last confirmed expiry time has passed. Your next message will check for progress and start afresh if none remains.",
+      "restarted": "Ready to start over. Send what you would like to study.",
+      "expires": "Last confirmed expiry: {{time}}",
+      "help": "How progress continues",
+      "explanation": "Progress lasts for 12 hours after a successful save, within the same tab, course and access route. Switching to Q&A keeps it. It is separate from the displayed conversation and saved chat history, and does not sync across devices.",
+      "learnMore": "Resuming, expiry and starting over",
+      "opensInNewTab": "Opens in a new tab",
+      "restart": "Start over",
+      "restartConfirm": "Start new progress for this course and access route in this tab. The displayed conversation and draft will be cleared. Saved chat history and progress in other tabs will remain.",
+      "storageUnavailable": "This browser cannot save the progress identifier. You can continue while this panel stays open, but resuming after a reload is not guaranteed."
+    },
     "generating": "Generating a response",
     "progress": {
       "preparing": "Reviewing your question",
@@ -597,9 +619,10 @@
     "feedbackGood": "Good",
     "feedbackBad": "Bad",
     "placeholder": "Type a message...",
+    "qaGuidance": "Q&A does not use earlier messages. Include the subject in each question. Example: “Give me an example of the dot product.”",
     "suggestedQuestions": "Suggested questions",
     "assistantGreeting": "Hello! Ask me anything about your videos.",
-    "studyGreeting": "Study mode: I will guide you with questions instead of revealing answers, following lecture prerequisites.",
+    "studyGreeting": "Study mode: I will guide you with questions, following the learning graph’s presentation order and any prerequisite relationships set in it. Questions and hint requests are not graded. If grading fails, your progress stays unchanged. AI assessments include a reason and may be mistaken.",
     "modeQa": "Q&A",
     "modeStudy": "Study",
     "error": "An error occurred in the chat.",
@@ -1012,7 +1035,7 @@
   },
   "plog": {
     "title": "Learning graph",
-    "subtitle": "Pre-builds prerequisite structure and guiding questions for Study mode from this video.",
+    "subtitle": "Pre-builds concepts, a suggested presentation order, and guiding questions for Study mode from this video.",
     "build": "Create learning graph",
     "rebuild": "Rebuild",
     "retry": "Try again",
@@ -1028,7 +1051,7 @@
       "failed": "Failed"
     },
     "emptyTitle": "No learning graph yet",
-    "emptyDescription": "Once created, Study mode can guide learners along lecture prerequisites instead of revealing answers. The first build may take a few minutes.",
+    "emptyDescription": "Build a suggested presentation order, questions, and hints for study mode. Check the lecture before setting relationships that require prior understanding. The first build may take a few minutes.",
     "noConceptsTitle": "No concepts are available for this learning graph",
     "noConceptsDescription": "Short recordings or videos without educational content may have no learning concepts. You can add concepts manually if needed.",
     "buildingTitle": "Building the learning graph",
@@ -1039,8 +1062,8 @@
     "metricEdges": "Relations",
     "metricSummaries": "Summaries",
     "conceptList": "Concepts",
-    "edgeList": "Relations",
-    "edgeHelp": "Edges are used while they exist. Edit or delete mistakes. Study mode uses only ordering edges (prerequisite / builds-on).",
+    "edgeList": "Concept relationships",
+    "edgeHelp": "Presentation order suggests which concept to cover next. You can start with a later concept before mastering earlier ones. Prerequisite and Builds on redirect to an unmet prerequisite. Edit or delete incorrect relationships.",
     "introAt": "around {{seconds}}s",
     "hintCount": "{{count}} hints",
     "addConcept": "Add concept",
@@ -1083,7 +1106,14 @@
       "builds_on": "builds on",
       "analogy_for": "analogy",
       "example_of": "example",
-      "contrasts_with": "contrast"
+      "contrasts_with": "contrast",
+      "presentation_order": "Presentation order"
+    },
+    "edgeProvenanceHelp": "Generated and Manually created/edited describe how a relationship was saved, not whether its content was verified. The origin of legacy data is unknown. Check its type and supporting evidence.",
+    "edgeProvenance": {
+      "generated": "Generated",
+      "edited": "Manually created/edited",
+      "unknown": "Unknown origin (legacy or unspecified)"
     }
   },
   "admin": {

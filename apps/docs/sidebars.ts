@@ -23,6 +23,7 @@ const sidebars: SidebarsConfig = {
         'architecture/transcription-and-search',
         'architecture/prompt-engineering',
         'plog/README',
+        'plog/study-sessions',
       ],
     },
     {
@@ -32,6 +33,7 @@ const sidebars: SidebarsConfig = {
         'concepts/domain-model',
         'architecture/system-configuration-diagram',
         'concepts/auth',
+        'concepts/course-sharing',
       ],
     },
     {

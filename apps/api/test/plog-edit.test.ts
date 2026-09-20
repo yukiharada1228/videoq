@@ -176,7 +176,7 @@ describe("plog.createConcept", () => {
 });
 
 describe("plog.createEdge", () => {
-  it("サイクルになる ordering 辺は 400", async () => {
+  it.each(["prerequisite_of", "presentation_order"])("サイクルになる %s 辺は 400", async (edgeType) => {
     rowsFor = (sql, args) => {
       if (sql.includes("videos") && sql.includes("user_id")) return [{ id: 1 }];
       if (sql.includes("plog_build_jobs")) return [{ status: "ready" }];
@@ -192,7 +192,7 @@ describe("plog.createEdge", () => {
     };
     const res = await mutate(
       "plog.createEdge",
-      { videoId: 1, sourceId: 10, targetId: 11, edgeType: "prerequisite_of" },
+      { videoId: 1, sourceId: 10, targetId: 11, edgeType },
       await token(),
     );
     expect(res.status).toBe(400);
@@ -201,7 +201,7 @@ describe("plog.createEdge", () => {
     });
   });
 
-  it("正常作成は 200", async () => {
+  it.each(["prerequisite_of", "presentation_order"])("%s の正常作成は手編集として返す", async (edgeType) => {
     rowsFor = (sql, args) => {
       if (sql.includes("videos") && sql.includes("user_id")) return [{ id: 1 }];
       if (sql.includes("plog_build_jobs")) return [{ status: "ready" }];
@@ -224,7 +224,8 @@ describe("plog.createEdge", () => {
             id: 20,
             source_id: 10,
             target_id: 11,
-            edge_type: "prerequisite_of",
+            edge_type: edgeType,
+            validation_status: "edited",
             quote: "",
             source_label: "AND",
             target_label: "OR",
@@ -234,7 +235,7 @@ describe("plog.createEdge", () => {
     };
     const res = await mutate(
       "plog.createEdge",
-      { videoId: 1, sourceId: 10, targetId: 11, edgeType: "prerequisite_of" },
+      { videoId: 1, sourceId: 10, targetId: 11, edgeType },
       await token(),
     );
     expect(res.status).toBe(200);
@@ -244,12 +245,62 @@ describe("plog.createEdge", () => {
       target_id: 11,
       source_label: "AND",
       target_label: "OR",
+      edge_type: edgeType,
+      provenance: "edited",
     });
     expect(
       calls.some(
         (call) => call.sql.includes("SELECT 1 FROM videos") && call.sql.includes("FOR UPDATE"),
       ),
     ).toBe(true);
+    expect(calls.find((call) => call.sql.includes("insert into plog_edges"))?.args).toContain("edited");
+  });
+});
+
+describe("PLOG relationship provenance", () => {
+  it.each([
+    ["generated", "generated"], ["edited", "edited"], ["accepted", "unknown"],
+    ["validated", "unknown"], ["unrecognized", "unknown"],
+  ])("maps stored %s to %s without implying verification", async (status, provenance) => {
+    const originalRows = rowsFor;
+    rowsFor = (sql, args) => {
+      if (sql.includes("plog_build_jobs")) return [{ status: "ready", input_tokens: 0, output_tokens: 0, error_message: "" }];
+      if (sql.includes("plog_summary_nodes")) return [{ c: 0 }];
+      const rows = originalRows(sql, args);
+      return sql.includes("source_label") ? rows.map((row) => ({ ...row, validation_status: status })) : rows;
+    };
+    const res = await requestTrpc("plog.graph", "query", { videoId: 1 }, {
+      headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" },
+    }, ENV);
+    expect(res.status).toBe(200);
+    expect(await trpcData(res)).toMatchObject({ edges: [{ provenance }] });
+  });
+
+  it("converts a legacy prerequisite to presentation order and records manual editing", async () => {
+    const stored = {
+      id: 20, source_id: 10, target_id: 11, edge_type: "prerequisite_of", quote: "",
+      validation_status: "accepted", source_label: "A", target_label: "B",
+    };
+    const originalRows = rowsFor;
+    rowsFor = (sql, args) => {
+      if (sql.includes("update plog_edges")) {
+        stored.edge_type = String(args[0]); stored.quote = String(args[1]); stored.validation_status = String(args[2]);
+        return [{ id: 20 }];
+      }
+      if (sql.includes("plog_edges") && sql.includes("source_label")) return [stored];
+      if (sql.includes("plog_edges") && sql.includes("quote")) return [{
+        id: 20, source_id: 10, target_id: 11, edge_type: stored.edge_type, quote: stored.quote,
+      }];
+      if (sql.includes("plog_edges") && sql.includes("limit")) return [{ sourceId: 10, targetId: 11, edgeType: stored.edge_type }];
+      return originalRows(sql, args);
+    };
+    const res = await mutate("plog.updateEdge", {
+      videoId: 1, edgeId: 20, edgeType: "presentation_order", quote: "These topics are independent.",
+    }, await token());
+    expect(res.status).toBe(200);
+    expect(await trpcData(res)).toMatchObject({
+      edge_type: "presentation_order", provenance: "edited", quote: "These topics are independent.",
+    });
   });
 });
 

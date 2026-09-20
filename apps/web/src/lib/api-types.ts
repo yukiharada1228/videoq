@@ -18,6 +18,7 @@ export type BillingPlan = RouterOutputs['billing']['plans'][number];
 export type SearchApiKeyStatus = RouterOutputs['account']['searchApiKeyStatus'];
 
 export type ChatMessage = RouterOutputs['chat']['send'];
+export type StudySessionInfo = NonNullable<ChatMessage['study_session']>;
 export type Citation = NonNullable<ChatMessage['citations']>[number];
 export type ChatHistoryItem = RouterOutputs['chat']['history']['data'][number];
 export type ChatAnalytics = RouterOutputs['chat']['analytics'];
@@ -133,7 +134,7 @@ export interface ChatRequest {
   course_id?: number;
   share_slug?: string;
   mode?: 'qa' | 'study';
-  /** Ephemeral study progress key for shared-link sessions (sessionStorage). */
+  /** Tab-scoped study progress key, per course or share link (sessionStorage). */
   study_session_id?: string;
 }
 
@@ -147,6 +148,7 @@ export type ChatStreamEvent =
       chat_log_id: number | null;
       feedback: 'good' | 'bad' | null;
       citations?: Citation[];
+      study_session?: StudySessionInfo;
     }
   | { type: 'error'; code: string; message: string };
 

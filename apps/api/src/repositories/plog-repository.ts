@@ -48,7 +48,13 @@ export type PlogEdgeItem = {
   target_label: string;
   edge_type: string;
   quote: string;
+  provenance: "generated" | "edited" | "unknown";
 };
+
+/** Historical accepted/validated values do not establish authorship or review. */
+function edgeProvenance(status: unknown): PlogEdgeItem["provenance"] {
+  return status === "generated" || status === "edited" ? status : "unknown";
+}
 export type PlogGraph = {
   video_id: number;
   build_status: string;
@@ -145,7 +151,7 @@ async function fetchEdgeItem(
   videoId: number,
 ): Promise<PlogEdgeItem | null> {
   const result = await db.execute(sql`
-    SELECT e.id, e.source_id, e.target_id, e.edge_type, e.quote,
+    SELECT e.id, e.source_id, e.target_id, e.edge_type, e.quote, e.validation_status,
            sc.label AS source_label, tc.label AS target_label
       FROM plog_edges e
       JOIN plog_concepts sc ON sc.id = e.source_id
@@ -163,6 +169,7 @@ async function fetchEdgeItem(
     target_label: r.target_label as string,
     edge_type: r.edge_type as string,
     quote: r.quote as string,
+    provenance: edgeProvenance(r.validation_status),
   };
 }
 
@@ -230,7 +237,7 @@ export async function getPlogGraph(
        ORDER BY c.intro_sec, c.id
     `);
     const edgesRes = await db.execute(sql`
-      SELECT e.id, e.source_id, e.target_id, e.edge_type, e.quote,
+      SELECT e.id, e.source_id, e.target_id, e.edge_type, e.quote, e.validation_status,
              sc.label AS source_label, tc.label AS target_label
         FROM plog_edges e
         JOIN plog_concepts sc ON sc.id = e.source_id
@@ -254,6 +261,7 @@ export async function getPlogGraph(
       target_label: r.target_label as string,
       edge_type: r.edge_type as string,
       quote: r.quote as string,
+      provenance: edgeProvenance(r.validation_status),
     }));
 
     return {
@@ -697,7 +705,7 @@ export async function listOrderingEdges(
       .where(
         and(
           eq(plogEdges.videoId, videoId),
-          inArray(plogEdges.edgeType, ["prerequisite_of", "builds_on"]),
+          inArray(plogEdges.edgeType, [...ORDERING]),
         ),
       );
     return rows.map((r) => ({
@@ -770,7 +778,7 @@ export async function createEdge(
             targetId: params.targetId,
             edgeType: params.edgeType,
             quote: params.quote,
-            validationStatus: "validated",
+            validationStatus: "edited",
             createdAt: sql`CURRENT_TIMESTAMP`,
           })
           .returning({ id: plogEdges.id });
@@ -832,6 +840,7 @@ export async function updateEdge(
       if (Object.keys(set).length === 0) {
         return fetchEdgeItem(tx, params.edgeId, params.videoId);
       }
+      set.validationStatus = "edited";
 
       try {
         const rows = await tx
@@ -974,7 +983,7 @@ export async function mergeConcepts(
         } else {
           await tx
             .update(plogEdges)
-            .set({ sourceId: survivorId })
+            .set({ sourceId: survivorId, validationStatus: "edited" })
             .where(eq(plogEdges.id, e.id));
         }
       }
@@ -1010,7 +1019,7 @@ export async function mergeConcepts(
         } else {
           await tx
             .update(plogEdges)
-            .set({ targetId: survivorId })
+            .set({ targetId: survivorId, validationStatus: "edited" })
             .where(eq(plogEdges.id, e.id));
         }
       }
@@ -1140,7 +1149,7 @@ export async function mergeConcepts(
   );
 }
 
-/** ResetLearnerStateUseCase: 当該 user×video の learner state を全削除。件数を返す。 */
+/** Deletes DB learner_concept_states for this owner/video; does not reset StudySession DO progress. */
 export async function resetLearnerStates(
   env: Bindings,
   userId: string,

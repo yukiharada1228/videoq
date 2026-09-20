@@ -6,6 +6,9 @@ import {
   labelsNearDuplicate,
   nextUncoveredInOrder,
   orderingEdges,
+  prerequisitesOf,
+  ancestors,
+  descendants,
   orderingPathReady,
   revealProxy,
   studyPathConceptIds,
@@ -16,7 +19,7 @@ import {
 import {
   isAskForAnswer,
   isMetaOrConfused,
-  pregradeReply,
+  classifyStudyMessage,
   shouldStayOnActive,
 } from "../src/lib/plog-study";
 
@@ -94,6 +97,30 @@ describe("plog-runtime helpers", () => {
     expect(studyPathConceptIds(concepts, edges)).toEqual([1, 2]);
   });
 
+  it("presentation order suggests A then B without making A a prerequisite or withholding B", () => {
+    const concepts = [concept(1, "A", 1), concept(2, "B", 2)];
+    const edges = [edge(1, 1, 2, "presentation_order")];
+    expect(studyPathConceptIds(concepts, edges)).toEqual([1, 2]);
+    expect(orderingPathReady(graphOf(concepts, edges))).toBe(true);
+    expect(prerequisitesOf(2, edges).size).toBe(0);
+    expect(ancestors(2, edges).size).toBe(0);
+    expect(descendants(1, edges).size).toBe(0);
+  });
+
+  it("a semantic vector prerequisite gates dot products, including downstream withholding", () => {
+    const edges = [edge(1, 1, 2, "prerequisite_of"), edge(2, 2, 3, "presentation_order")];
+    expect([...prerequisitesOf(2, edges)]).toEqual([1]);
+    expect([...ancestors(3, edges)]).toEqual([]);
+    expect([...descendants(1, edges)]).toEqual([2]);
+  });
+
+  it("rejects a cycle combining presentation order and semantic prerequisites", () => {
+    const graph = graphOf([concept(1, "A", 1), concept(2, "B", 2)], [
+      edge(1, 1, 2, "presentation_order"), edge(2, 2, 1, "prerequisite_of"),
+    ]);
+    expect(orderingPathReady(graph)).toBe(false);
+  });
+
   it("ordering_path_ready requires DAG ordering path", () => {
     const concepts = [concept(1, "A", 1), concept(2, "B", 2), concept(3, "C", 3)];
     const empty = graphOf(concepts, []);
@@ -131,19 +158,26 @@ describe("plog-runtime helpers", () => {
   });
 });
 
-describe("algorithm-1 grading guards", () => {
-  it("pregrade only forces empty / ask-for-answer / meta", () => {
-    expect(pregradeReply("")).toBe("miss");
-    expect(pregradeReply("教えて")).toBe("miss");
-    expect(pregradeReply("関係なくない？")).toBe("miss");
-    expect(pregradeReply("何を言っている？")).toBe("miss");
-    expect(pregradeReply("？")).toBe("miss");
-    expect(pregradeReply("はい")).toBeNull();
-    expect(pregradeReply("片方が1なら出力は1")).toBeNull();
+describe("study message intents", () => {
+  it.each([
+    ["ヒントを教えて", "hint"], ["Can I have a hint?", "hint"],
+    ["なんで出力が変わるの？", "explanation"], ["Why does it change?", "explanation"],
+    ["用語の意味を教えて", "explanation"], ["Explain this term", "explanation"],
+    ["教えて", "explanation"], ["関係なくない？", "explanation"],
+    ["何を言っている？", "explanation"], ["？", "explanation"], ["", "explanation"],
+    ["答えをそのまま教えて", "reveal"], ["Tell me the answer", "reveal"],
+    ["0", "answer"], ["はい", "answer"], ["答えは0です", "answer"],
+    ["片方が1なら出力は1", "answer"], ["My answer is 0", "answer"],
+    ["ヒントから考えると0です", "answer"], ["Using the hint, my answer is 0", "answer"],
+    ["Why does this hint mention input?", "explanation"],
+  ])("classifies %s as %s without grading", (reply, intent) => {
+    expect(classifyStudyMessage(reply)).toBe(intent);
   });
 
   it("ask-for-answer detection", () => {
-    expect(isAskForAnswer("教えて")).toBe(true);
+    expect(isAskForAnswer("教えて")).toBe(false);
+    expect(isAskForAnswer("ヒントを教えて")).toBe(false);
+    expect(isAskForAnswer("解答の考え方を教えて")).toBe(false);
     expect(isAskForAnswer("答えを教えてください")).toBe(true);
     expect(isAskForAnswer("ノットゲートは否定")).toBe(false);
   });

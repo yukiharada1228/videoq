@@ -10,6 +10,7 @@ import { useConfirm } from '@/components/common/feedback';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { CourseSharingNotice } from './CourseSharingNotice';
 import {
   Dialog,
   DialogActions,
@@ -239,6 +240,7 @@ export function CourseParticipantsDialog({
         <DialogScrollArea>
           <DialogBody>
             <div className="space-y-8">
+              <CourseSharingNotice method="invitation" />
               <section className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="course-invitation-emails">{t('videos.courseMembers.emailLabel')}</Label>

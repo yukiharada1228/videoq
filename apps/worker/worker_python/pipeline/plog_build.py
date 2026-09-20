@@ -93,14 +93,14 @@ def run_plog_pipeline(conn: psycopg.Connection[Any], video_id: int, transcript: 
             ),
         )
 
-    # Chain prerequisite_of edges so study mode has an ordering path.
+    # Extraction order proposes a presentation path, not a semantic prerequisite.
     for src, tgt in zip(concept_ids, concept_ids[1:], strict=False):
         conn.execute(
             """
             INSERT INTO plog_edges
                 (edge_type, quote, validation_status, created_at,
                  source_id, target_id, video_id)
-            VALUES ('prerequisite_of', '', 'accepted', NOW(), %s, %s, %s)
+            VALUES ('presentation_order', '', 'generated', NOW(), %s, %s, %s)
             """,
             (src, tgt, video_id),
         )

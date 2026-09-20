@@ -294,6 +294,7 @@ export async function sendChatMessage(
     queryText: string;
     citations: RagCitation[] | null;
     retrievedContexts: string[];
+    studySession?: ChatMessage["study_session"];
   };
   try {
     if (req.mode === "study") {
@@ -335,6 +336,7 @@ export async function sendChatMessage(
       role: "assistant",
       content: result.content,
     };
+    if (result.studySession) body.study_session = result.studySession;
     if (req.courseId !== null && result.citations?.length) {
       body.citations = withCitationIds(result.citations);
     }
@@ -407,6 +409,7 @@ export async function streamChatMessage(
         citations: RagCitation[] | null;
         retrievedContexts: string[];
         queryText: string;
+        studySession?: ChatMessage["study_session"];
       } = { citations: null, retrievedContexts: [], queryText: "" };
 
       try {
@@ -425,6 +428,7 @@ export async function streamChatMessage(
                 citations: chunk.final.citations,
                 retrievedContexts: chunk.final.retrievedContexts,
                 queryText: chunk.final.queryText,
+                studySession: chunk.final.studySession,
               };
             }
           }
@@ -498,6 +502,7 @@ export async function streamChatMessage(
       if (courseId !== null && final.citations?.length) {
         done.citations = withCitationIds(final.citations);
       }
+      if (final.studySession) done.study_session = final.studySession;
       await send(done);
     },
   };
