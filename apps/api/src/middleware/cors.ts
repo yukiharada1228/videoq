@@ -6,6 +6,7 @@ import type { AppEnv } from "../types/bindings";
 const PROTOCOL_ALLOW_HEADERS = [
   "Content-Type",
   "Authorization",
+  "DPoP",
   "X-API-Key",
   "Accept",
   "Mcp-Session-Id",

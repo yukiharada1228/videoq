@@ -73,7 +73,7 @@ The remaining policy uses documented hooks, callbacks and adapter operations. It
 
 The official [API Key](https://better-auth.com/docs/plugins/api-key) plugin supplies two configurations: `default` grants `videoq: [read]`, and `read-write` grants `videoq: [read, write]`. The browser selects a configuration, while only the server sets permissions. Legacy `metadata.accessLevel` / `access_level` no longer determine access. Listing and deletion retain each key's configuration ID, including migrated write-capable keys in the `default` configuration.
 
-The official [MCP](https://better-auth.com/docs/plugins/mcp) plugin was also reviewed. Its request verifier uses an HTTP JWKS URL, so it does not replace the in-process Workers adapter in the installed version. Resource metadata uses the official Resource Client without DB access and advertises only `videoq.read` / `videoq.write`; OIDC and refresh scopes remain advertised by the authorization server.
+The official [MCP](https://better-auth.com/docs/plugins/mcp) plugin was also reviewed, including version 1.7.5. Its request verifier accepts an HTTP JWKS URL rather than an in-process key callback, so it does not replace the Workers adapter. The adapter composes Better Auth's public JWT and DPoP verifiers; it does not implement cryptography. Resource metadata uses the official Resource Client without DB access and advertises only `videoq.read` / `videoq.write`; OIDC and refresh scopes remain advertised by the authorization server. Mapping VideoQ tools to the required scopes is application policy, using the MCP SDK's request schemas and Better Auth's official challenge builders.
 
 ### Migrating existing installations
 
@@ -100,6 +100,8 @@ For the owner/participant/share-link permission table, AI answer allowance, hist
 ## MCP checks
 
 API keys are managed in settings. With OAuth, users authorize client access within scopes such as `videoq.read` / `videoq.write`. Do not treat browser sessions and MCP tokens as interchangeable.
+
+The initial MCP authentication challenge points to resource metadata without overriding its scopes, so clients can request both read and write access. A read-only OAuth token remains usable for read tools. Calling a write tool returns HTTP 403 with Better Auth's `insufficient_scope` challenge naming both required scopes, allowing the client to request consent again. Existing tokens never gain permissions automatically. Better Auth keeps the server-approved registration capabilities even when a DCR request asks only for `videoq.read`; the same client can obtain write access through a new authorization and consent. Re-registration is unnecessary for these clients. If a client does not handle the challenge, restart its authorization flow and request both scopes.
 
 Disconnecting an OAuth app atomically deletes that user's consent and access/refresh-token records for the selected client. New issuance requires current consent and matching scopes. The application does not maintain separate authorization generations across reconnection.
 

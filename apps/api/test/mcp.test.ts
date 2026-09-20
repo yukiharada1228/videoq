@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createApp } from "../src/app";
 import { mcpRoutes } from "../src/features/mcp/routes";
 import { setRateLimitBackendForTests } from "../src/lib/rate-limit";
+import { MCP_WRITE_TOOLS } from "../src/lib/mcp-tools";
 
 import {
   executeFakePgQuery,
@@ -101,6 +102,7 @@ describe("MCP auth", () => {
     expect(challenge).toContain(
       'resource_metadata="https://api.example.com/.well-known/oauth-protected-resource/api/mcp"',
     );
+    expect(challenge).not.toContain('scope="');
   });
 
   it("accepts X-API-Key", async () => {
@@ -143,7 +145,7 @@ describe("MCP auth", () => {
     expect(await res.json()).toEqual({ jsonrpc: "2.0", id: 1, result: {} });
   });
 
-  it("enforces videoq.write for OAuth write tools", async () => {
+  it.each([...MCP_WRITE_TOOLS])("challenges for videoq.write before executing %s", async (name) => {
     const res = await mcpRoutes.request(
       "/",
       {
@@ -158,7 +160,7 @@ describe("MCP auth", () => {
         },
         body: JSON.stringify(
           jsonrpc("tools/call", {
-            name: "create_course",
+            name,
             arguments: {
               idempotency_key: "course-physics-oauth-1",
               name: "Physics",
@@ -168,9 +170,66 @@ describe("MCP auth", () => {
       },
       ENV,
     );
-    const result = (await res.json()).result;
-    expect(result.isError).toBe(true);
-    expect(result.structuredContent).toEqual({ status: 403, code: "FORBIDDEN" });
+    expect(res.status).toBe(403);
+    expect(res.headers.get("WWW-Authenticate")).toContain('error="insufficient_scope"');
+    expect(res.headers.get("WWW-Authenticate")).toContain('scope="videoq.read videoq.write"');
+    expect(await res.json()).toMatchObject({ error: { code: "FORBIDDEN" } });
+    expect(calls).toHaveLength(0);
+  });
+
+  it("challenges before executing any part of a batch containing a write", async () => {
+    const res = await post([
+      jsonrpc("ping", undefined, 1),
+      jsonrpc("tools/call", { name: "create_course", arguments: { name: "Physics" } }, 2),
+    ], {
+      authorization: "Bearer oauth-access-token-value",
+      "X-VideoQ-Test-OAuth-User-Id": "00000000-0000-4000-8000-000000000009",
+      "X-VideoQ-Test-OAuth-Scopes": "videoq.read",
+    });
+    expect(res.status).toBe(403);
+    expect(res.headers.get("WWW-Authenticate")).toContain('scope="videoq.read videoq.write"');
+    expect(calls).toHaveLength(0);
+  });
+
+  it("keeps read-only OAuth usable for discovery and reading requests", async () => {
+    for (const method of ["ping", "tools/list"]) {
+      const res = await post(jsonrpc(method), {
+        authorization: "Bearer oauth-access-token-value",
+        "X-VideoQ-Test-OAuth-User-Id": "00000000-0000-4000-8000-000000000009",
+        "X-VideoQ-Test-OAuth-Scopes": "videoq.read",
+      });
+      expect(res.status).toBe(200);
+      expect(res.headers.get("WWW-Authenticate")).toBeNull();
+      expect(await res.json()).toHaveProperty("result");
+    }
+  });
+
+  it("leaves malformed JSON errors to the MCP transport for read-only OAuth", async () => {
+    const res = await mcpRoutes.request("/", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: "Bearer oauth-access-token-value",
+        "X-VideoQ-Test-OAuth-User-Id": "00000000-0000-4000-8000-000000000009",
+        "X-VideoQ-Test-OAuth-Scopes": "videoq.read",
+      },
+      body: "{",
+    }, ENV);
+    expect(res.status).toBe(400);
+    expect(res.headers.get("WWW-Authenticate")).toBeNull();
+  });
+
+  it("leaves invalid JSON-RPC envelopes to the SDK instead of requesting more permission", async () => {
+    const res = await post({
+      jsonrpc: "invalid", id: 1, method: "tools/call", params: { name: "create_course" },
+    }, {
+      authorization: "Bearer oauth-access-token-value",
+      "X-VideoQ-Test-OAuth-User-Id": "00000000-0000-4000-8000-000000000009",
+      "X-VideoQ-Test-OAuth-Scopes": "videoq.read",
+    });
+    expect(res.status).toBe(400);
+    expect(res.headers.get("WWW-Authenticate")).toBeNull();
+    expect(calls).toHaveLength(0);
   });
 
   it("returns an insufficient_scope challenge when OAuth lacks videoq.read", async () => {
@@ -339,7 +398,7 @@ describe("MCP JSON-RPC", () => {
     expect(result.structuredContent).toEqual({ status: 403, code: "FORBIDDEN" });
   });
 
-  it("validates structured output for a successful idempotent course creation", async () => {
+  it.each(["apikey", "oauth"])("allows course creation with write permission via %s", async (via) => {
     rowsFor = (sql) => {
       if (sql.includes("UPDATE api_keys")) return apiKeyRow();
       if (sql.includes('FROM "mcp_idempotency_records"')) return [];
@@ -375,7 +434,13 @@ describe("MCP JSON-RPC", () => {
           description: "Semester 1",
         },
       }),
+      via === "oauth" ? {
+        authorization: "Bearer oauth-access-token-value",
+        "X-VideoQ-Test-OAuth-User-Id": "00000000-0000-4000-8000-000000000005",
+        "X-VideoQ-Test-OAuth-Scopes": "videoq.read videoq.write",
+      } : {},
     );
+    expect(res.status).toBe(200);
     const result = (await res.json()).result;
     expect(result.isError).toBe(false);
     expect(result.structuredContent).toMatchObject({
@@ -569,16 +634,16 @@ describe("MCP JSON-RPC", () => {
 describe("MCP connector CORS", () => {
   const app = createApp();
 
-  it("OPTIONS /api/mcp allows Claude.ai with wildcard origin and no credentials", async () => {
+  it.each(["/api/mcp", "/api/auth/oauth2/token"])("OPTIONS %s allows browser DPoP with wildcard origin and no credentials", async (path) => {
     const res = await app.request(
-      "/api/mcp",
+      path,
       {
         method: "OPTIONS",
         headers: {
           Origin: "https://claude.ai",
           "Access-Control-Request-Method": "POST",
           "Access-Control-Request-Headers":
-            "authorization,content-type,accept,mcp-protocol-version",
+            "authorization,content-type,accept,mcp-protocol-version,dpop",
         },
       },
       ENV,
@@ -592,6 +657,7 @@ describe("MCP connector CORS", () => {
     expect(allowHeaders).toContain("authorization");
     expect(allowHeaders).toContain("mcp-protocol-version");
     expect(allowHeaders).toContain("accept");
+    expect(allowHeaders).toContain("dpop");
     const expose = (
       res.headers.get("Access-Control-Expose-Headers") ?? ""
     ).toLowerCase();

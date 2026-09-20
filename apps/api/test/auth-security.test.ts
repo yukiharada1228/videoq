@@ -4,6 +4,8 @@ import { verifyJwsAccessToken } from "better-auth/oauth2";
 import { createHash } from "node:crypto";
 import { decodeJwt } from "jose";
 import { Hono } from "hono";
+import { auth as authorizeMcpClient, extractWWWAuthenticateParams, type OAuthClientProvider } from "@modelcontextprotocol/sdk/client/auth.js";
+import type { OAuthClientInformationMixed, OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
 
 // Exercise the production Better Auth configuration and real HTTP endpoints.
 // Persistence and mail delivery are replaced; credential verifiers are real.
@@ -18,6 +20,7 @@ vi.mock("../src/db/pool", () => ({
 }));
 
 import { createAuth } from "../src/lib/auth";
+import { createApp } from "../src/app";
 import type { AppEnv, Bindings } from "../src/types/bindings";
 import type { Db } from "../src/db/pool";
 import { requireAuth, sessionMethod } from "../src/middleware/auth";
@@ -30,7 +33,7 @@ const PASSWORD = "isolated-test-password-123";
 const VERIFIER = "isolated-test-pkce-verifier-with-at-least-43-characters";
 const SCOPES = ["offline_access", "videoq.read", "videoq.write"];
 const OIDC_SCOPES = ["openid", "profile", "email", ...SCOPES];
-type OAuthTestOptions = { includeResource?: boolean; scopes?: string[]; confidential?: boolean };
+type OAuthTestOptions = { includeResource?: boolean; scopes?: string[]; confidential?: boolean; registrationScope?: string };
 const env = {
   ENVIRONMENT: "production",
   BETTER_AUTH_SECRET: "isolated-test-secret-012345678901234567890123456789",
@@ -76,12 +79,13 @@ async function login(auth: Auth) {
   expect(response.status, await response.clone().text()).toBe(200);
   return response.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
 }
-async function register(auth: Auth, confidential = false) {
+async function register(auth: Auth, confidential = false, scope?: string) {
   const response = await post(auth, "/oauth2/register", {
     client_name: "Test client", application_type: "native",
     token_endpoint_auth_method: confidential ? "client_secret_post" : "none",
     redirect_uris: ["http://127.0.0.1:54321/callback"],
     grant_types: ["authorization_code", "refresh_token"],
+    ...(scope ? { scope } : {}),
   });
   expect(response.status, await response.clone().text()).toBe(201);
   return await response.json() as { client_id: string; client_secret?: string };
@@ -123,7 +127,7 @@ async function tokensFrom(response: Response) {
   return await response.json() as { access_token: string; refresh_token: string; id_token?: string; expires_in: number };
 }
 async function connect(auth: Auth, cookie: string, options: OAuthTestOptions = {}) {
-  const client = await register(auth, options.confidential);
+  const client = await register(auth, options.confidential, options.registrationScope);
   const code = await authorize(auth, cookie, client.client_id, options);
   const grantId = store.data.oauthConsent.find((row) => row.clientId === client.client_id)!.id as string;
   const tokens = await tokensFrom(await tokenRequest(auth, client.client_id, {
@@ -148,6 +152,102 @@ async function introspect(auth: Auth, linked: Awaited<ReturnType<typeof connect>
     body: new URLSearchParams({ client_id: linked.clientId, client_secret: secret ?? "", token, token_type_hint: hint }),
   }));
 }
+
+describe("MCP OAuth permission negotiation", () => {
+  it.each([
+    ["missing", undefined],
+    ["malformed", "invalid-token"],
+    ["invalid signature", "eyJhbGciOiJFZERTQSIsImtpZCI6InVua25vd24ifQ.e30.c2lnbmF0dXJl"],
+  ])("lets the official MCP client obtain read/write permissions after %s credentials", async (_credentials, token) => {
+    const app = createApp();
+    const challenge = await app.request(RESOURCE, {
+      headers: token ? { authorization: `Bearer ${token}` } : {},
+    }, env);
+    expect(challenge.status).toBe(401);
+    const saveClient = vi.fn<(value: OAuthClientInformationMixed) => void>();
+    const saveTokens = vi.fn<(value: OAuthTokens) => void>();
+    const saveVerifier = vi.fn<(value: string) => void>();
+    const redirect = vi.fn<(url: URL) => void>();
+    const provider: OAuthClientProvider = {
+      redirectUrl: "http://127.0.0.1:54321/callback",
+      clientMetadata: {
+        client_name: "MCP SDK test", application_type: "native",
+        redirect_uris: ["http://127.0.0.1:54321/callback"],
+        token_endpoint_auth_method: "none", grant_types: ["authorization_code"],
+        response_types: ["code"],
+      },
+      clientInformation: () => saveClient.mock.lastCall?.[0],
+      saveClientInformation: saveClient,
+      tokens: () => saveTokens.mock.lastCall?.[0],
+      saveTokens,
+      redirectToAuthorization: redirect,
+      saveCodeVerifier: saveVerifier,
+      codeVerifier: () => saveVerifier.mock.lastCall![0],
+    };
+    const options = {
+      serverUrl: RESOURCE,
+      ...extractWWWAuthenticateParams(challenge),
+      fetchFn: async (input: string | URL | Request, init?: RequestInit) => {
+        const request = new Request(input, init);
+        // Never let this integration test use a real external OAuth server.
+        expect(new URL(request.url).origin).toBe(BASE);
+        return app.fetch(request, env);
+      },
+    };
+    expect(await authorizeMcpClient(provider, options)).toBe("REDIRECT");
+    const authorizationUrl = redirect.mock.lastCall![0];
+    expect(authorizationUrl.searchParams.get("scope")).toBe("videoq.read videoq.write");
+    const auth = makeAuth();
+    const cookie = await login(auth);
+    const authorization = await auth.handler(new Request(authorizationUrl, { headers: { cookie } }));
+    expect(authorization.status).toBe(302);
+    const consentUrl = new URL(authorization.headers.get("location")!, BASE);
+    expect(consentUrl.pathname).toBe("/consent");
+    expect(consentUrl.searchParams.get("scope")).toBe("videoq.read videoq.write");
+    const consent = await post(auth, "/oauth2/consent", {
+      accept: true, oauth_query: consentUrl.search.slice(1),
+    }, cookie);
+    expect(consent.status).toBe(200);
+    const authorizationCode = new URL((await consent.json() as { url: string }).url).searchParams.get("code")!;
+    expect(await authorizeMcpClient(provider, { ...options, authorizationCode })).toBe("AUTHORIZED");
+    const accessToken = saveTokens.mock.lastCall![0].access_token;
+    expect(await auth.api.verifyVideoqOAuth({ body: {
+      authorizationHeader: `Bearer ${accessToken}`, method: "POST", url: RESOURCE,
+    } })).toMatchObject({ kind: "ok", accessLevel: "all" });
+  });
+
+  it("upgrades a read-only DCR request through native consent without re-registering the client", async () => {
+    const auth = makeAuth();
+    const cookie = await login(auth);
+    const linked = await connect(auth, cookie, { scopes: ["videoq.read"], registrationScope: "videoq.read" });
+    expect(store.data.oauthClient).toHaveLength(1);
+    expect(store.data.oauthClient[0].scopes).toContain("videoq.write");
+    expect(store.data.oauthConsent[0].scopes).toEqual(["videoq.read"]);
+    const challenge = await createApp().request(RESOURCE, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${linked.access_token}` },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: {
+        name: "create_course", arguments: { name: "Physics", idempotency_key: "course-write-scope-test" },
+      } }),
+    }, env);
+    expect(challenge.status).toBe(403);
+    const { scope, error } = extractWWWAuthenticateParams(challenge);
+    expect(error).toBe("insufficient_scope");
+    expect(scope).toBe("videoq.read videoq.write");
+    const code = await authorize(auth, cookie, linked.clientId, { scopes: scope!.split(" ") });
+    const upgraded = await tokensFrom(await tokenRequest(auth, linked.clientId, {
+      grant_type: "authorization_code", code, code_verifier: VERIFIER,
+    }));
+    expect(await auth.api.verifyVideoqOAuth({ body: {
+      authorizationHeader: `Bearer ${upgraded.access_token}`, method: "POST", url: RESOURCE,
+    } })).toMatchObject({ kind: "ok", accessLevel: "all" });
+    expect(store.data.oauthClient).toHaveLength(1);
+    // A challenge never elevates the old token without explicit consent.
+    expect(await auth.api.verifyVideoqOAuth({ body: {
+      authorizationHeader: `Bearer ${linked.access_token}`, method: "POST", url: RESOURCE,
+    } })).toMatchObject({ kind: "ok", accessLevel: "read_only" });
+  });
+});
 
 describe("account suspension across Better Auth endpoints", () => {
   it("uses native signup field protection and the Admin plugin's default role", async () => {
@@ -382,11 +482,11 @@ describe("API key credential boundaries", () => {
 });
 
 describe("OAuth grant revocation", () => {
-  it("does not report a JWKS database outage as invalid credentials", async () => {
+  it.each([Error, TypeError])("does not report a JWKS database outage as invalid credentials (%s)", async (ErrorType) => {
     const auth = makeAuth();
     const linked = await connect(auth, await login(auth));
     const jwt = (await auth.$context).getPlugin("jwt")!;
-    const unavailable = new Error("JWKS database unavailable");
+    const unavailable = new ErrorType("JWKS database unavailable");
     vi.spyOn(jwt.endpoints, "getJwks").mockRejectedValueOnce(unavailable);
     await expect(auth.api.verifyVideoqOAuth({ body: {
       authorizationHeader: `Bearer ${linked.access_token}`, method: "POST", url: RESOURCE,

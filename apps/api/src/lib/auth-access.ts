@@ -9,7 +9,7 @@ import {
   parseAccessTokenAuthorization,
   verifyJwsAccessToken,
 } from "better-auth/oauth2";
-import { errors as jwtErrors } from "jose";
+import { decodeProtectedHeader, errors as jwtErrors } from "jose";
 import { z } from "zod";
 import { isBanned } from "./auth-security";
 import { MCP_READ_SCOPE, MCP_WRITE_SCOPE } from "./mcp-auth";
@@ -59,6 +59,14 @@ export function videoqResourceAccess(jwksCacheKey: object, audience: string) {
         if (!authorization?.token || authorization.scheme === "Unknown") {
           return { kind: "invalid", message: "Invalid OAuth access token" };
         }
+        // The official verifier reads the header before signature validation.
+        // Malformed input can throw TypeError there; isolate that pure parse
+        // from verification so DB/JWKS TypeErrors still propagate as failures.
+        try {
+          decodeProtectedHeader(authorization.token);
+        } catch {
+          return { kind: "invalid", message: "Invalid OAuth access token" };
+        }
         const jwt = ctx.context.getPlugin("jwt");
         if (!jwt) throw new Error("VideoQ requires the Better Auth JWT plugin");
         let payload;
@@ -89,7 +97,7 @@ export function videoqResourceAccess(jwksCacheKey: object, audience: string) {
               isDpopBindingError(error) ? new APIError("UNAUTHORIZED", {
                 error: error.code, error_description: error.message,
               }) : new APIError("UNAUTHORIZED"),
-              audience, { challengeScopes: [MCP_READ_SCOPE] },
+              audience,
             );
             return {
               kind: "invalid", message: "Invalid OAuth access token",

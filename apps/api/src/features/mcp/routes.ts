@@ -2,6 +2,7 @@ import type { Context } from "hono";
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
 import { StreamableHTTPTransport } from "@hono/mcp";
+import { CallToolRequestSchema, isJSONRPCRequest } from "@modelcontextprotocol/sdk/types.js";
 import { APIError } from "better-auth/api";
 import { createInsufficientScopeError } from "better-auth/oauth2";
 import { createResourceServerChallenge } from "@better-auth/oauth-provider";
@@ -13,7 +14,8 @@ import {
   isScopeAllowed,
   requireScope,
 } from "../../middleware/auth";
-import { MCP_READ_SCOPE } from "../../lib/mcp-auth";
+import { MCP_READ_SCOPE, MCP_WRITE_SCOPE } from "../../lib/mcp-auth";
+import { MCP_WRITE_TOOLS, type McpToolName } from "../../lib/mcp-tools";
 import { toErrorBody } from "../../shared/errors";
 import type { AppEnv } from "../../types/bindings";
 import { createVideoqMcpServer } from "./server";
@@ -27,23 +29,48 @@ export const mcpRoutes = new Hono<AppEnv>();
 
 function mcpWwwAuthenticate(
   c: Context<AppEnv>,
-  error?: "insufficient_scope",
+  requiredScopes?: string[],
 ): string {
   const resource = `${authBaseURL(c.env, new URL(c.req.url).origin)}/api/mcp`;
+  // Without a scope override, clients discover both read and write from the
+  // resource metadata. Explicit read-only authorization remains supported.
   const challenge = createResourceServerChallenge(
-    error ? createInsufficientScopeError([MCP_READ_SCOPE]) : new APIError("UNAUTHORIZED"),
+    requiredScopes ? createInsufficientScopeError(requiredScopes) : new APIError("UNAUTHORIZED"),
     resource,
-    { challengeScopes: [MCP_READ_SCOPE] },
   );
   const header = new Headers(challenge?.headers).get("WWW-Authenticate");
   if (!header) throw new Error("Better Auth did not produce a resource challenge");
   return header;
 }
 
+async function requestedMcpScopes(c: Context<AppEnv>): Promise<string[]> {
+  if (c.req.method === "POST" && c.req.header("Content-Type")?.includes("application/json")) {
+    // Hono caches the parsed body for the MCP transport. Leave invalid JSON
+    // and protocol validation to the transport, and support its batch requests.
+    const body: unknown = await c.req.json().catch(() => undefined);
+    const messages = Array.isArray(body) ? body : [body];
+    const writes = messages.some((message) => {
+      if (!isJSONRPCRequest(message)) return false;
+      const request = CallToolRequestSchema.safeParse(message);
+      return request.success && MCP_WRITE_TOOLS.has(request.data.params.name as McpToolName);
+    });
+    if (writes) return [MCP_READ_SCOPE, MCP_WRITE_SCOPE];
+  }
+  return [MCP_READ_SCOPE];
+}
+
 const mcpAuth = createMiddleware<AppEnv>(async (c, next) => {
   for (const method of [oauthBearerMethod, bearerApiKeyMethod, apiKeyMethod]) {
     const r = await method(c);
     if (r.kind === "ok") {
+      if (r.via === "oauth" && !isScopeAllowed(r.accessLevel ?? "", "write")) {
+        const scopes = await requestedMcpScopes(c);
+        if (scopes.includes(MCP_WRITE_SCOPE)) {
+          return c.json(toErrorBody("FORBIDDEN", "OAuth token lacks videoq.write scope"), 403, {
+            "WWW-Authenticate": mcpWwwAuthenticate(c, scopes),
+          });
+        }
+      }
       c.set("userId", r.userId);
       c.set("authVia", r.via);
       if (r.accessLevel) c.set("apiKeyAccessLevel", r.accessLevel);
@@ -56,7 +83,7 @@ const mcpAuth = createMiddleware<AppEnv>(async (c, next) => {
     }
     if (r.kind === "forbidden") {
       return c.json(toErrorBody("FORBIDDEN", r.message), 403, {
-        "WWW-Authenticate": mcpWwwAuthenticate(c, "insufficient_scope"),
+        "WWW-Authenticate": mcpWwwAuthenticate(c, await requestedMcpScopes(c)),
       });
     }
   }
