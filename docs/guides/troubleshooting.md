@@ -77,6 +77,10 @@ Study support reads nearby text directly from the saved transcript and can use a
 
 Check the corrected opening questions and hints in a [fresh Study session](../plog/README.md#verify-in-fresh-session). Switching Q&A → Study only clears visible messages; existing progress can cause a check to skip the opening question or grade the new message as a reply to an earlier question.
 
+## Study progress changed after returning
+
+A cleared conversation does not reset temporary progress. Reloading, copied tabs, the 12-hour expiry, and starting over have different effects. See [Resuming study and starting over](../plog/study-sessions.md).
+
 ## Configuration changes have no effect
 
 Changes to Compose's `.env` do not automatically reach running processes:

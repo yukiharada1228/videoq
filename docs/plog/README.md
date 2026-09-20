@@ -9,6 +9,8 @@ PLOG (Prerequisite-aware Learning-Object Graph) is **data connecting concepts to
 
 For the difference between answering a question and guiding learning, start with [How AI builds an answer](../concepts/how-ai-works.md).
 
+For the 12-hour progress lifetime, behavior after reloading or switching modes, and **Start over**, see [Resuming study and starting over](study-sessions.md).
+
 For example, “vectors → dot product → similarity” describes an order that covers prerequisites before moving on. This illustrates the mechanism; it does not guarantee that generated orders are always correct.
 
 ## What is stored?

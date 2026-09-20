@@ -23,6 +23,7 @@ const sidebars: SidebarsConfig = {
         'architecture/transcription-and-search',
         'architecture/prompt-engineering',
         'plog/README',
+        'plog/study-sessions',
       ],
     },
     {

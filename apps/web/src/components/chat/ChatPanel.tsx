@@ -5,6 +5,8 @@ import { cn } from '@/lib/digital-agency/cn';
 import { useChatMessages } from '@/hooks/useChatMessages';
 import { useChatHistory } from '@/hooks/useChatHistory';
 import { ChatComposer } from '@/components/chat/ChatComposer';
+import { StudySessionNotice } from '@/components/chat/StudySessionNotice';
+import { useConfirm } from '@/components/common/feedback';
 import { ChatHistoryView } from '@/components/chat/ChatHistoryView';
 import { ChatMessagesView } from '@/components/chat/ChatMessagesView';
 import { Button } from '@/components/ui/button';
@@ -31,10 +33,15 @@ export function ChatPanel({
   suggestedQuestions,
 }: ChatPanelProps) {
   const { t } = useTranslation();
+  const confirm = useConfirm();
   const [tab, setTab] = useState<PanelTab>('chat');
   const [mode, setMode] = useState<ChatMode>('qa');
 
   const {
+    studySession,
+    studyRestarted,
+    studyStorageAvailable,
+    restartStudy,
     messages,
     setMessages,
     input,
@@ -92,6 +99,15 @@ export function ChatPanel({
   };
 
   const showTabs = !!courseId && !shareToken && showHistory;
+
+  const confirmRestartStudy = async () => {
+    if (await confirm({
+      title: t('chat.studySession.restart'),
+      description: t('chat.studySession.restartConfirm'),
+      confirmLabel: t('chat.studySession.restart'),
+      cancelLabel: t('common.actions.cancel'),
+    })) restartStudy();
+  };
 
   const containerClass = cn(
     'flex min-h-0 flex-col overflow-hidden border border-solid-gray-420 bg-white',
@@ -176,6 +192,13 @@ export function ChatPanel({
         />
       ) : (
         <>
+          {mode === 'study' && <StudySessionNotice
+            info={studySession}
+            restarted={studyRestarted}
+            storageAvailable={studyStorageAvailable}
+            isLoading={isLoading}
+            onRestart={() => { void confirmRestartStudy(); }}
+          />}
           <ChatMessagesView
             messages={messages}
             isLoading={isLoading}

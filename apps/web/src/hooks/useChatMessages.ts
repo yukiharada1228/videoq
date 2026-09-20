@@ -2,7 +2,8 @@ import { useMutation } from '@tanstack/react-query';
 import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { apiClient, ApiError, type Citation } from '@/lib/api';
+import { apiClient, ApiError, type Citation, type StudySessionInfo } from '@/lib/api';
+import { TabStudySession } from '@/lib/studySession';
 import { trpc } from '@/lib/trpc';
 import { createChatProgress, updateChatProgress, type ChatProgress } from '@/lib/chatProgress';
 import {
@@ -33,6 +34,10 @@ interface UseChatMessagesOptions {
 }
 
 interface UseChatMessagesReturn {
+  studySession: StudySessionInfo | undefined;
+  studyRestarted: boolean;
+  studyStorageAvailable: boolean;
+  restartStudy: () => boolean;
   messages: Message[];
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   input: string;
@@ -45,24 +50,6 @@ interface UseChatMessagesReturn {
   handleSend: () => Promise<void>;
   handleKeyPress: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   handleFeedback: (chatLogId: number, value: 'good' | 'bad') => Promise<ChatFeedbackValue | undefined>;
-}
-
-/** Browser-tab study session key (paper: dialogue-session state, not durable DB). */
-function getOrCreateStudySessionId(scope: string): string | undefined {
-  if (!scope || typeof window === 'undefined' || !window.sessionStorage) {
-    return undefined;
-  }
-  const key = `plog-study-session:${scope}`;
-  try {
-    let id = window.sessionStorage.getItem(key);
-    if (!id) {
-      id = crypto.randomUUID();
-      window.sessionStorage.setItem(key, id);
-    }
-    return id;
-  } catch {
-    return undefined;
-  }
 }
 
 export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMessagesOptions): UseChatMessagesReturn {
@@ -79,6 +66,25 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
   const sendInFlightRef = useRef(false);
   const streamAbortRef = useRef<AbortController | null>(null);
   const followLatestRef = useRef(true);
+  const scope = shareToken ? `share:${shareToken}` : `course:${courseId ?? 'local'}`;
+  const session = useMemo(() => new TabStudySession(scope), [scope]);
+  const [studyState, setStudyState] = useState<{
+    session: TabStudySession;
+    info?: StudySessionInfo;
+    restarted?: boolean;
+    persistent: boolean;
+  }>({ session, persistent: true });
+  const currentStudyState = studyState.session === session ? studyState : undefined;
+
+  const restartStudy = useCallback(() => {
+    if (sendInFlightRef.current) return false;
+    session.restart();
+    setStudyState({ session, restarted: true, persistent: session.persistent });
+    setMessages([{ role: 'assistant', content: tRef.current('chat.studyGreeting') }]);
+    setInput('');
+    followLatestRef.current = true;
+    return true;
+  }, [session]);
 
   useEffect(() => {
     tRef.current = t;
@@ -98,6 +104,9 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
   }, []);
 
   const applyDoneMetadata = useCallback((event: ChatStreamDoneEvent) => {
+    if (event.study_session) {
+      setStudyState({ session, info: event.study_session, persistent: session.persistent });
+    }
     setMessages((prev) => {
       if (prev.length === 0) {
         return prev;
@@ -112,7 +121,7 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
       };
       return updated;
     });
-  }, []);
+  }, [session]);
 
   const replaceLastAssistantMessage = useCallback((content: string) => {
     setMessages((prev) => {
@@ -209,15 +218,18 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
     setIsLoading(true);
 
     try {
+      const studySessionId = mode === 'study' ? session.getId() : undefined;
+      if (mode === 'study') {
+        // Until a successful response arrives, a disconnect may have left the server ahead.
+        setStudyState({ session, persistent: session.persistent });
+      }
       for await (const event of apiClient.chatStream({
         messages: historyForApi,
         ...(courseId ? { course_id: courseId } : {}),
         ...(shareToken ? { share_slug: shareToken } : {}),
         ...(mode === 'study'
           ? {
-              study_session_id: getOrCreateStudySessionId(
-                shareToken ? `share:${shareToken}` : `course:${courseId ?? 'local'}`,
-              ),
+              study_session_id: studySessionId,
             }
           : {}),
         mode,
@@ -262,6 +274,7 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
     mode,
     replaceLastAssistantMessage,
     shareToken,
+    session,
     streamController,
   ]);
 
@@ -299,6 +312,10 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
   }, [feedbackMutation, messages, shareToken]);
 
   return {
+    studySession: currentStudyState?.info,
+    studyRestarted: currentStudyState?.restarted ?? false,
+    studyStorageAvailable: currentStudyState?.persistent ?? true,
+    restartStudy,
     messages,
     setMessages,
     input,

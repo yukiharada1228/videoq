@@ -586,6 +586,21 @@
     }
   },
   "chat": {
+    "studySession": {
+      "unconfirmed": "Progress will be checked when you send a message. Clearing the conversation does not reset saved progress.",
+      "started": "Started with new progress. This happens on your first turn or when earlier progress has expired.",
+      "continued": "Continued from saved study progress.",
+      "expired": "The last confirmed expiry time has passed. Your next message will check for progress and start afresh if none remains.",
+      "restarted": "Ready to start over. Send what you would like to study.",
+      "expires": "Last confirmed expiry: {{time}}",
+      "help": "How progress continues",
+      "explanation": "Progress lasts for 12 hours after a successful save, within the same tab, course and access route. Switching to Q&A keeps it. It is separate from the displayed conversation and saved chat history, and does not sync across devices.",
+      "learnMore": "Resuming, expiry and starting over",
+      "opensInNewTab": "Opens in a new tab",
+      "restart": "Start over",
+      "restartConfirm": "Start new progress for this course and access route in this tab. The displayed conversation and draft will be cleared. Saved chat history and progress in other tabs will remain.",
+      "storageUnavailable": "This browser cannot save the progress identifier. You can continue while this panel stays open, but resuming after a reload is not guaranteed."
+    },
     "generating": "Generating a response",
     "progress": {
       "preparing": "Reviewing your question",
