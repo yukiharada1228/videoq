@@ -12,7 +12,7 @@ import type { Db } from "../db/pool";
 import * as schema from "../db/schema";
 import type { Bindings } from "../types/bindings";
 import { sendMail } from "./mail";
-import { summarizeAuthApiError } from "./auth-error-log";
+import { authLogger, summarizeAuthApiError } from "./auth-error-log";
 import { rateLimitBackend } from "./rate-limit";
 import { MCP_OAUTH_SCOPES } from "./mcp-auth";
 import { resolveSignupQuotaDefaults } from "../shared/signup-quota";
@@ -203,6 +203,7 @@ export function createAuth(env: Bindings, db: Db) {
     baseURL,
     basePath: "/api/auth",
     trustedOrigins: trustedOrigins(env),
+    logger: authLogger,
     onAPIError: {
       errorURL: `${(env.FRONTEND_URL ?? baseURL).replace(/\/+$/, "")}/login`,
       onError: (error) => {
