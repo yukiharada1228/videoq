@@ -23,7 +23,13 @@ const meta = {
   parameters: { api: { auth: authFixtures.user }, docs: { story: { inline: false, height: '900px' } } },
   render: (args, { parameters }) => <PanelExample key={args.videoId} {...args} lifecycleControl={parameters.lifecycleControl === true} />,
   beforeEach({ parameters, msw }) {
-    msw.use(plogHandler({ data: i18n.language.startsWith('en') ? englishGraph : readyGraph, ...parameters.plog as PlogScenario | undefined }));
+    const graph = i18n.language.startsWith('en') ? englishGraph : readyGraph;
+    const data = parameters.relationshipExample === 'generated'
+      ? { ...graph, edges: [graph.edges[5]] }
+      : parameters.relationshipExample === 'legacy'
+        ? { ...graph, edges: [{ ...graph.edges[0], provenance: undefined }] }
+        : graph;
+    msw.use(plogHandler({ data, ...parameters.plog as PlogScenario | undefined }));
     const original = window.confirm;
     confirmRequest.mockReset().mockReturnValue(parameters.confirm !== false);
     window.confirm = confirmRequest;
@@ -117,6 +123,50 @@ export const Running: Story = { parameters: { plog: { data: { ...emptyGraph, bui
 export const Failed: Story = { parameters: { plog: { data: failedGraph } satisfies PlogScenario }, async play({ canvas }) { await expect(await canvas.findByRole('alert')).toHaveTextContent(failedGraph.error_message); } };
 export const FailedWithoutDetails: Story = { parameters: { plog: { data: { ...failedGraph, error_message: '' } } satisfies PlogScenario }, async play({ canvas }) { await expect(await canvas.findByRole('alert')).toHaveTextContent(label('failedDescription')); } };
 export const Ready: Story = { async play(context) { await ready(context); for (const type of edgeTypes) await expect(section(context, 'edge').getByText(label(`edgeType.${type}`))).toBeVisible(); } };
+export const RelationshipProvenance: Story = { async play(context) {
+  await Ready.play!(context);
+  const relationships = section(context, 'edge');
+  for (const provenance of ['generated', 'edited', 'unknown']) {
+    await expect(relationships.getAllByText(label(`edgeProvenance.${provenance}`))[0]).toBeVisible();
+  }
+  await expect(relationships.getByText(label('edgeProvenanceHelp'))).toBeVisible();
+} };
+export const GeneratedPresentationOrder: Story = {
+  parameters: { relationshipExample: 'generated' },
+  async play(context) {
+    await ready(context);
+    await expect(section(context, 'edge').getByText(label('edgeType.presentation_order'))).toBeVisible();
+    await expect(section(context, 'edge').getByText(label('edgeProvenance.generated'))).toBeVisible();
+  },
+};
+export const ConvertPresentationToPrerequisite: Story = {
+  parameters: GeneratedPresentationOrder.parameters,
+  async play(context) {
+    const fields = await editEdge(context);
+    await expect(fields.getByRole('combobox', { name: label('edgeTypeLabel') })).toHaveValue('presentation_order');
+    await context.userEvent.selectOptions(fields.getByRole('combobox', { name: label('edgeTypeLabel') }), 'prerequisite_of');
+    await context.userEvent.type(fields.getByRole('textbox', { name: label('quote') }), 'Lecture evidence for prerequisite');
+    fields.getByRole('button', { name: label('save') }).focus();
+    await context.userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(heading(context, 'edge')).toHaveFocus());
+    await expect(section(context, 'edge').getByText(label('edgeProvenance.edited'))).toBeVisible();
+    await expect(section(context, 'edge').queryByText(label('edgeProvenance.generated'))).not.toBeInTheDocument();
+    await expect(mutationRequests.updateEdge).toHaveBeenCalledWith(expect.objectContaining({ edgeType: 'prerequisite_of', quote: 'Lecture evidence for prerequisite' }));
+  },
+};
+export const ConvertLegacyToPresentation: Story = {
+  parameters: { relationshipExample: 'legacy' },
+  async play(context) {
+    await ready(context);
+    await expect(section(context, 'edge').getByText(label('edgeProvenance.unknown'))).toBeVisible();
+    const fields = await editEdge(context);
+    await context.userEvent.selectOptions(fields.getByRole('combobox', { name: label('edgeTypeLabel') }), 'presentation_order');
+    await context.userEvent.click(fields.getByRole('button', { name: label('save') }));
+    await waitFor(() => expect(heading(context, 'edge')).toHaveFocus());
+    await expect(section(context, 'edge').getByText(label('edgeType.presentation_order'))).toBeVisible();
+    await expect(section(context, 'edge').getByText(label('edgeProvenance.edited'))).toBeVisible();
+  },
+};
 export const EmptyGraph: Story = { parameters: { plog: { data: emptyGraph } satisfies PlogScenario }, async play(context) { await ready(context); await expect(context.canvas.getByRole('status')).toHaveTextContent(label('noConceptsTitle')); await expect(section(context, 'edge').getByRole('button', { name: label('addEdge') })).toBeDisabled(); } };
 export const ManyItems: Story = { parameters: { plog: { data: manyGraph } satisfies PlogScenario }, async play(context) { await ready(context); await expect(section(context, 'concept').getAllByRole('button', { name: label('expand') })).toHaveLength(24); await expect(section(context, 'edge').getAllByRole('button', { name: label('edit') })).toHaveLength(23); } };
 export const BuildFromMissing: Story = { parameters: Missing.parameters, async play(context) {
@@ -238,7 +288,7 @@ export const DeleteEdgeFailed = mutationStory('deleteEdge', 'error');
 export const DeleteEdgeSucceeded: Story = { async play(context) {
   await submit(context, 'deleteEdge'); await waitFor(() => expect(heading(context, 'edge')).toHaveFocus());
   await expect(confirmRequest).toHaveBeenCalledWith(label('deleteEdgeConfirm'));
-  await expect(section(context, 'edge').getAllByRole('button', { name: label('delete') })).toHaveLength(4);
+  await expect(section(context, 'edge').getAllByRole('button', { name: label('delete') })).toHaveLength(edges.length - 1);
 } };
 export const KeyboardConcept: Story = { async play(context) {
   const fields = await addConcept(context, 'キーボード入力');
