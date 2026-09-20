@@ -4,7 +4,7 @@ import App from './App';
 import i18n from './i18n/config';
 import { authFixtures } from '../.storybook/fixtures/auth';
 import { emptyTagPage } from '../.storybook/fixtures/api';
-import { detailVideo } from '../.storybook/fixtures/detail';
+import { course, detailVideo } from '../.storybook/fixtures/detail';
 import { installUploadFixture } from '../.storybook/mocks/videoUpload';
 import { failure, pending, success, trpcQuery } from '../.storybook/mocks/network';
 
@@ -48,6 +48,50 @@ const meta = {
 } satisfies Meta<typeof App>;
 export default meta;
 type Story = StoryObj<typeof meta>;
+
+export const SharedCourseNotice: Story = {
+  parameters: {
+    pathname: '/share/linear-algebra',
+    api: {
+      auth: authFixtures.loggedOut,
+      trpc: [trpcQuery('courses.shared', success({
+        ...course, updated_at: course.created_at, share_slug: 'linear-algebra', access_role: 'public',
+      }))],
+    },
+  },
+  async play({ canvasElement }) {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByText(i18n.t('courseSharing.quotaAndHistory'))).toBeVisible();
+    await expect(canvas.getByText(i18n.t('courseSharing.link'))).toBeVisible();
+    await expect(canvas.getByRole('link', { name: `${i18n.t('courseSharing.learnMore')} ${i18n.t('courseSharing.opensInNewTab')}` })).toHaveAttribute('target', '_blank');
+  },
+};
+export const SharedCourseNoticeEnglishMobile: Story = {
+  ...SharedCourseNotice,
+  globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
+};
+export const InvitationNotice: Story = {
+  parameters: {
+    pathname: '/course-invitations/sample-invitation',
+    api: {
+      auth: authFixtures.loggedOut,
+      trpc: [trpcQuery('courseMemberships.preview', success({
+        course_id: course.id, course_name: course.name, inviter_name: 'Teacher',
+        email_hint: 's*****t@example.com', status: 'pending', expires_at: '2026-10-01T00:00:00Z',
+      }))],
+    },
+  },
+  async play({ canvasElement }) {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByText(i18n.t('courseSharing.invitation'))).toBeVisible();
+    await expect(canvas.getByText(i18n.t('courseSharing.quotaAndHistory'))).toBeVisible();
+    await expect(canvas.getByRole('link', { name: i18n.t('courseInvitation.login') })).toBeVisible();
+  },
+};
+export const InvitationNoticeEnglishMobile: Story = {
+  ...InvitationNotice,
+  globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
+};
 
 export const HomeNavigation: Story = {
   async play({ canvasElement, userEvent, globals }) {

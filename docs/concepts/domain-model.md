@@ -45,6 +45,8 @@ Removing a video from a course and deleting the stored video itself are also sep
 
 Videos and courses have owners. Share links and invitations let others use permitted courses. Available operations depend on access to the data, not just login status.
 
+See [Sharing, invitations, and chat history](course-sharing.md) to compare permissions, whose AI allowance a question uses, and who can read learners' questions.
+
 Administrators manage users, usage limits, reindexing, and related tasks. **Hiding a button does not enforce permissions.** The API must also check access to the target data. See [authentication and access control](auth.md).
 
 ## Q&A and study mode

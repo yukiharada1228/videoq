@@ -37,6 +37,10 @@ Services and database queries then check ownership and course access scope. For 
 
 Definitions are in [packages/trpc/src/init.ts](https://github.com/yukiharada1228/videoq/blob/main/packages/trpc/src/init.ts); request integration is in [trpc/context.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/trpc/context.ts).
 
+## Course sharing and invitations
+
+For the owner/participant/share-link permission table, AI answer allowance, history visibility, and revocation steps, see [Sharing, invitations, and chat history](course-sharing.md).
+
 ## MCP checks
 
 API keys are managed in settings. With OAuth, users authorize client access within scopes such as `videoq.read` / `videoq.write`. Do not treat browser sessions and MCP tokens as interchangeable.

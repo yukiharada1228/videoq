@@ -13,6 +13,7 @@ import { MessageAlert } from '@/components/common/MessageAlert';
 import { Button } from '@/components/ui/button';
 import { ChipLabel } from '@/components/ui/chip-label';
 import { UtilityLink } from '@/components/ui/utility-link';
+import { CourseSharingNotice } from '@/components/video/course-detail/CourseSharingNotice';
 
 export default function CourseInvitationPage() {
   const { token = '' } = useParams<{ token: string }>();
@@ -54,6 +55,7 @@ export default function CourseInvitationPage() {
         <MessageAlert type="success" message={t('courseInvitation.declined')} />
       ) : (
         <div className="space-y-6">
+          <CourseSharingNotice method="invitation" />
           <div className="space-y-4 border border-solid-gray-420 bg-white p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-std-20B-150 text-solid-gray-800">{invitation.course_name}</h2>
