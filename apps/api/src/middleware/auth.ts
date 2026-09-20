@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import { isAPIError } from "better-auth/api";
-import { requestToResourceInput } from "better-auth/oauth2";
+import { parseAccessTokenAuthorization, requestToResourceInput } from "better-auth/oauth2";
 import type { AppEnv } from "../types/bindings";
 import { toErrorBody } from "../shared/errors";
 import { withDb } from "../db/pool";
@@ -95,7 +95,7 @@ const apiKeyMethodWithKeyword = (keyword: string): AuthMethod => async (c) => {
   const headerKey = c.req.header("X-API-Key")?.trim();
   const authz = parseAuthHeader(c);
   const raw =
-    headerKey || (authz?.keyword === keyword ? authz.value : undefined);
+    headerKey || (authz?.keyword.toLowerCase() === keyword.toLowerCase() ? authz.value : undefined);
 
   if (!raw) return { kind: "absent" };
   if (!raw.startsWith("vq_") || raw.length < 12) return { kind: "absent" };
@@ -125,15 +125,15 @@ export const bearerApiKeyMethod = apiKeyMethodWithKeyword("Bearer");
  * oauth-provider / JWT verification.
  */
 export const oauthBearerMethod: AuthMethod = async (c) => {
-  const authz = parseAuthHeader(c);
+  const authz = parseAccessTokenAuthorization(c.req.header("Authorization"));
   if (
     !authz ||
-    (authz.keyword !== "Bearer" && authz.keyword !== "DPoP") ||
-    !authz.value
+    (authz.scheme !== "Bearer" && authz.scheme !== "DPoP") ||
+    !authz.token
   ) {
     return { kind: "absent" };
   }
-  if (authz.value.startsWith("vq_")) return { kind: "absent" };
+  if (authz.token.startsWith("vq_")) return { kind: "absent" };
 
   if (allowsTestAuthHeaders(c)) {
     const testOauth = c.req.header("X-VideoQ-Test-OAuth-User-Id");

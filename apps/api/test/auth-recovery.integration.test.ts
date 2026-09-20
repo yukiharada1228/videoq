@@ -3,6 +3,7 @@ import { Client } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { schema } from "../src/db/schema";
 import { createAuth } from "../src/lib/auth";
+import { createDpopReplayStore } from "better-auth/oauth2";
 import type { Bindings } from "../src/types/bindings";
 
 const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
@@ -44,6 +45,17 @@ describe.skipIf(!databaseUrl)("recovery link invalidation with PostgreSQL", () =
     `);
   });
   afterAll(async () => { await client.end(); });
+
+  it("uses Better Auth's atomic DB reservation across auth instances for DPoP replay", async () => {
+    const contexts = await Promise.all([makeAuth().$context, makeAuth().$context]);
+    const stores = contexts.map((context) => createDpopReplayStore(context.internalAdapter));
+    const now = new Date();
+    const proof = { key: "same-proof", now, expiresAt: new Date(now.getTime() + 300_000) };
+    const accepted = await Promise.all(stores.map((store) => store.reserve(proof)));
+    expect(accepted.filter(Boolean)).toHaveLength(1);
+    expect(await stores[1].reserve(proof)).toBe(false);
+    expect(await stores[1].reserve({ ...proof, key: "new-proof" })).toBe(true);
+  });
 
   it("deletes only the verified user's password reset values through the real Drizzle adapter", async () => {
     const context = await makeAuth().$context;

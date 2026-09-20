@@ -1,18 +1,16 @@
 import type { BetterAuthPlugin } from "better-auth";
 import { createAuthEndpoint } from "better-auth/api";
 import {
+  createDpopReplayStore,
   enforceDpopBinding,
   isDpopBindingError,
   parseAccessTokenAuthorization,
   verifyJwsAccessToken,
-  type DpopReplayStore,
 } from "better-auth/oauth2";
 import { errors as jwtErrors } from "jose";
 import { z } from "zod";
-import type { Bindings } from "../types/bindings";
 import { hasActiveGrant, isBanned, isInactive, OAUTH_GRANT_CLAIM } from "./auth-security";
 import { MCP_READ_SCOPE, MCP_WRITE_SCOPE } from "./mcp-auth";
-import { rateLimitBackend } from "./rate-limit";
 
 export type ResourceAccessResult =
   | { kind: "ok"; userId: string; via: "apikey" | "oauth"; accessLevel: string }
@@ -33,13 +31,7 @@ function accessLevelFromMetadata(metadata: unknown): string {
  * Better Auth verifies credentials; this extension applies VideoQ account,
  * consent and read/write access policy to the verified identity.
  */
-export function videoqResourceAccess(env: Bindings, audience: string) {
-  const replayStore: DpopReplayStore = {
-    async reserve({ key, expiresAt, now }) {
-      const ttl = Math.max(1, Math.ceil((expiresAt.getTime() - now.getTime()) / 1000));
-      return (await rateLimitBackend(env).consume(`dpop_${key}`, 1, ttl)).allowed;
-    },
-  };
+export function videoqResourceAccess(jwksCacheKey: object, audience: string) {
   return {
     id: "videoq-resource-access",
     endpoints: {
@@ -80,12 +72,13 @@ export function videoqResourceAccess(env: Bindings, audience: string) {
           // public verifier and DPoP helper with the JWT plugin's local endpoint.
           payload = await verifyJwsAccessToken(authorization.token, {
             jwksFetch: () => jwt.endpoints.getJwks({ context: ctx.context }),
-            jwksCacheKey: env,
+            jwksCacheKey,
             verifyOptions: { issuer: ctx.context.baseURL, audience },
           });
           await enforceDpopBinding({
             payload, authorization, proofJwt: ctx.body.dpopProofJwt,
-            method: ctx.body.method, url: ctx.body.url, replayStore,
+            method: ctx.body.method, url: ctx.body.url,
+            replayStore: createDpopReplayStore(ctx.context.internalAdapter),
           });
         } catch (error) {
           // Match Better Auth's resource verifier: malformed credentials are

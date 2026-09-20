@@ -142,6 +142,11 @@ describe("OAuth bearer authentication", () => {
     expect((await request(token)).status).toBe(401);
   });
 
+  it.each(["bearer", "bEaReR"])("uses Better Auth's case-insensitive %s header parser", async (scheme) => {
+    const token = await signAccessToken("videoq.read");
+    expect((await request(token, { Authorization: `${scheme}\t${token}` })).status).toBe(200);
+  });
+
   it.each(["inactive", "banned", "missing user", "disabled client", "missing client", "scope removed"])("rejects %s using the shared grant policy", async (reason) => {
     if (reason === "inactive") store.data.user[0].isActive = false;
     if (reason === "banned") store.data.user[0].banned = true;
@@ -221,9 +226,8 @@ describe("OAuth bearer authentication", () => {
       authVia: "oauth",
       accessLevel: "read_only",
     });
-    expect((await request(accessToken, {
-      Authorization: `DPoP ${accessToken}`, DPoP: proof,
-    })).status).toBe(401);
+    // Replay concurrency needs real primary-key uniqueness; it is covered by
+    // the PostgreSQL integration test, not the in-memory adapter.
     expect((await request(accessToken)).status).toBe(401);
   });
 });
