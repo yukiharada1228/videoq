@@ -95,7 +95,7 @@ export class StudySession extends DurableObject<Bindings> {
     expectedRevision: number,
     states: Record<string, StudySessionStateRecord>,
     lockToken: string,
-  ): Promise<boolean> {
+  ): Promise<false | { expiresAt: number }> {
     const lock = this.ctx.storage.sql
       .exec<{ token: string; expires_at: number }>(
         "SELECT token, expires_at FROM session_lock WHERE id = 1",
@@ -143,7 +143,7 @@ export class StudySession extends DurableObject<Bindings> {
     } catch {
       // Expiration is cleanup only; a failed alarm must not turn a committed turn into an error.
     }
-    return true;
+    return { expiresAt };
   }
 
   async release(lockToken: string): Promise<void> {

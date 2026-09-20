@@ -4,6 +4,7 @@ import {
   CHAT_REQUEST_MAX_BYTES,
   TRPC_MAX_BATCH_SIZE,
 } from "@videoq/trpc/schema";
+import * as studyGateway from "../src/lib/plog-study";
 import { chatRoutes } from "../src/features/chat/routes";
 import { signAccessToken } from "./helpers/auth";
 import { createApp } from "../src/app";
@@ -1018,5 +1019,31 @@ describe("POST /messages/stream（SSE）", () => {
       },
     ]);
     expect(calls.some((call) => call.sql.includes("GREATEST"))).toBe(false);
+  });
+});
+
+
+describe.each([false, true])("Study session metadata (stream=%s)", (stream) => {
+  afterEach(() => vi.restoreAllMocks());
+  it.each(["owner", "member", "public"])("returns confirmed expiry and scopes %s progress to the actor and course", async (access) => {
+    const studySession = { status: "continued" as const, expires_at: 1_800_000_000_000 };
+    const result = { content: "次の問い", queryText: "学習する", citations: null, retrievedContexts: [], studySession };
+    const run = vi.spyOn(studyGateway, "runStudy").mockResolvedValue(result);
+    const streamRun = vi.spyOn(studyGateway, "streamStudy").mockImplementation(async function* () {
+      yield { text: result.content };
+      yield { final: result };
+    });
+    stubOpenAi({});
+    const actor = access === "member" ? "00000000-0000-4000-8000-000000000006" : "00000000-0000-4000-8000-000000000005";
+    const path = (stream ? "/messages/stream" : "/messages") + (access === "public" ? "?share_slug=abc123" : "");
+    const res = await post(path, {
+      messages: [{ role: "user", content: "学習する" }], course_id: 3, mode: "study", study_session_id: "browser-session",
+    }, { token: access === "public" ? undefined : await accessToken(actor), env: { ...OPENAI_ENV, ...SQS_ENV } });
+    expect(res.status).toBe(200);
+    const response = stream ? sseEvents(await res.text()).at(-1) : await trpcData(res);
+    expect(response).toMatchObject({ study_session: studySession });
+    expect(stream ? streamRun : run).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      studySessionId: `${actor}:3:browser-session`,
+    }));
   });
 });

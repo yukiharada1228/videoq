@@ -69,6 +69,10 @@ npm run user:password:local --workspace @videoq/api -- your-username
 
 `completed` は動画の検索準備完了であり、PLOGの完了とは別です。動画詳細のPLOG状態と概念・関係を確認します。空のグラフや学習順序を作れないグラフは、編集・再生成の対象です。[PLOGと学習モード](../plog/README.md)を参照してください。
 
+## Studyに戻ったら進捗が変わった
+
+会話表示の初期化と一時的な進捗のリセットは別です。再読み込み、タブ複製、12時間の保存期限、やり直しの違いは[Studyの再開・期限・やり直し](../plog/study-sessions.md)を参照してください。
+
 ## 設定を変えたのに変化がない
 
 Composeの `.env` は起動済みプロセスに自動反映されません。

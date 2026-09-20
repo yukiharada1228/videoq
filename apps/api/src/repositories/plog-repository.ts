@@ -1140,7 +1140,7 @@ export async function mergeConcepts(
   );
 }
 
-/** ResetLearnerStateUseCase: 当該 user×video の learner state を全削除。件数を返す。 */
+/** Deletes DB learner_concept_states for this owner/video; does not reset StudySession DO progress. */
 export async function resetLearnerStates(
   env: Bindings,
   userId: string,

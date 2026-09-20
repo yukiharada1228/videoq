@@ -401,3 +401,70 @@ describe('useChatMessages streaming', () => {
     expect(closed).toHaveBeenCalledTimes(1)
   })
 })
+
+
+describe('Study progress lifecycle', () => {
+  beforeEach(() => { vi.clearAllMocks(); sessionStorage.clear(); });
+
+  const saved = { status: 'continued' as const, expires_at: Date.now() + 43_200_000 };
+  const studyStream = async function* () {
+    yield { type: 'done' as const, chat_log_id: 1, feedback: null, study_session: saved };
+  };
+
+  it('keeps the session across mode changes and reload, while requiring a new server confirmation', async () => {
+    vi.mocked(apiClient.chatStream).mockImplementation(studyStream);
+    const hook = renderHook(({ mode }: { mode: 'qa' | 'study' }) => useChatMessages({ courseId: 1, mode }), { initialProps: { mode: 'study' } });
+    act(() => hook.result.current.setInput('開始'));
+    await act(async () => { await hook.result.current.handleSend(); });
+    const first = vi.mocked(apiClient.chatStream).mock.calls[0][0].study_session_id;
+    expect(hook.result.current.studySession).toEqual(saved);
+    hook.rerender({ mode: 'qa' });
+    hook.rerender({ mode: 'study' });
+    act(() => hook.result.current.setInput('回答'));
+    await act(async () => { await hook.result.current.handleSend(); });
+    expect(vi.mocked(apiClient.chatStream).mock.calls[1][0].study_session_id).toBe(first);
+    hook.unmount();
+    const reloaded = renderHook(() => useChatMessages({ courseId: 1, mode: 'study' }));
+    expect(reloaded.result.current.studySession).toBeUndefined();
+    act(() => reloaded.result.current.setInput('回答'));
+    await act(async () => { await reloaded.result.current.handleSend(); });
+    expect(vi.mocked(apiClient.chatStream).mock.calls[2][0].study_session_id).toBe(first);
+  });
+
+  it('clears the displayed conversation and draft, then sends only a new turn with a new ID on restart', async () => {
+    vi.mocked(apiClient.chatStream).mockImplementation(studyStream);
+    const { result } = renderHook(() => useChatMessages({ courseId: 1, mode: 'study' }));
+    act(() => result.current.setInput('旧解答'));
+    await act(async () => { await result.current.handleSend(); });
+    const first = vi.mocked(apiClient.chatStream).mock.calls[0][0].study_session_id;
+    act(() => { result.current.setInput('未送信の解答'); result.current.restartStudy(); });
+    expect(result.current.input).toBe('');
+    expect(result.current.studySession).toBeUndefined();
+    expect(result.current.studyRestarted).toBe(true);
+    expect(result.current.messages).toHaveLength(1);
+    expect(apiClient.chatStream).toHaveBeenCalledTimes(1);
+    act(() => result.current.setInput('新しく学ぶ'));
+    await act(async () => { await result.current.handleSend(); });
+    const request = vi.mocked(apiClient.chatStream).mock.calls[1][0];
+    expect(request.study_session_id).not.toBe(first);
+    expect(request.messages).toEqual([{ role: 'user', content: '新しく学ぶ' }]);
+  });
+
+  it('blocks restarting during a turn and does not claim a confirmed save after an error', async () => {
+    let fail!: () => void;
+    const waiting = new Promise<void>(resolve => { fail = resolve; });
+    vi.mocked(apiClient.chatStream).mockImplementation(async function* () {
+      await waiting;
+      yield { type: 'error', code: 'STUDY_SESSION_CONFLICT', message: '' };
+    });
+    const { result } = renderHook(() => useChatMessages({ courseId: 1, mode: 'study' }));
+    act(() => result.current.setInput('解答'));
+    let sending!: Promise<void>;
+    act(() => { sending = result.current.handleSend(); });
+    expect(result.current.restartStudy()).toBe(false);
+    expect(result.current.studySession).toBeUndefined();
+    await act(async () => { fail(); await sending; });
+    expect(result.current.studySession).toBeUndefined();
+    expect(result.current.isLoading).toBe(false);
+  });
+});

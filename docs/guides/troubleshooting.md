@@ -69,6 +69,10 @@ Questions about course names or video counts may be answered from metadata witho
 
 `completed` means a video is ready for search, independently of PLOG completion. Check the PLOG status, concepts, and relationships on the video detail screen. Empty graphs or graphs that cannot produce a learning order need editing or regeneration. See [PLOG and study mode](../plog/README.md).
 
+## Study progress changed after returning
+
+A cleared conversation does not reset temporary progress. Reloading, copied tabs, the 12-hour expiry, and starting over have different effects. See [Resuming study and starting over](../plog/study-sessions.md).
+
 ## Configuration changes have no effect
 
 Changes to Compose's `.env` do not automatically reach running processes:

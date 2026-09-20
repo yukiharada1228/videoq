@@ -39,6 +39,7 @@ import {
   listReadyGraphs,
 } from "../repositories/plog-repository";
 import type { Bindings } from "../types/bindings";
+import type { ChatMessage } from "@videoq/trpc";
 import type { ChatMessageInput, RagCitation } from "./rag";
 import type {
   StudySessionSnapshot,
@@ -60,6 +61,7 @@ export type StudyResult = {
   queryText: string;
   citations: RagCitation[] | null;
   retrievedContexts: string[];
+  studySession?: ChatMessage["study_session"];
 };
 
 type StateRecord = StudySessionStateRecord;
@@ -741,8 +743,15 @@ export async function runStudy(
   try {
     const snapshot = await stub.getSnapshot();
     const turn = await run(snapshot.states);
-    if (await stub.commit(snapshot.revision, turn.states, lockToken)) {
-      return turn.result;
+    const committed = await stub.commit(snapshot.revision, turn.states, lockToken);
+    if (committed) {
+      return {
+        ...turn.result,
+        studySession: {
+          status: snapshot.revision === 0 ? "started" : "continued",
+          expires_at: committed.expiresAt,
+        },
+      };
     }
     throw new StudySessionConflictError(
       "Study session lease expired before the turn could be committed.",

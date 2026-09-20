@@ -78,7 +78,7 @@ function memoryStudySessions() {
             if (current.revision !== expectedRevision) return false;
             sessions.set(key, { revision: expectedRevision + 1, states: structuredClone(states) });
             locks.delete(key);
-            return true;
+            return { expiresAt: Date.now() + 12 * 60 * 60 * 1000 };
           },
           async release(token: string) {
             releases(key, token);
@@ -249,6 +249,7 @@ describe("runStudy smoke", () => {
       messages: [{ role: "user", content: "始めます" }],
     });
     expect(opening.content).toContain("オアゲート");
+    expect(opening.studySession).toEqual({ status: "started", expires_at: expect.any(Number) });
     expect(opening.citations?.[0]?.video_id).toBe(10);
     expect(studySessions.commits).toHaveBeenLastCalledWith("single", 0, {
       "1": { concept_id: 1, reached: false, hint_index: 0, last_grade: "", active: true },
@@ -262,6 +263,7 @@ describe("runStudy smoke", () => {
       ],
     });
     expect(completed.content).toContain("学習パス上の概念を一通り終えました");
+    expect(completed.studySession).toEqual({ status: "continued", expires_at: expect.any(Number) });
     expect(studySessions.commits).toHaveBeenLastCalledWith("single", 1, {
       "1": { concept_id: 1, reached: true, hint_index: 0, last_grade: "mastery", active: false },
     });
@@ -275,6 +277,13 @@ describe("runStudy smoke", () => {
     });
     expect(next.content).toBe(completed.content);
     expect(studySessions.commits).toHaveBeenCalledTimes(3);
+    const restarted = await runStudy(ENV, {
+      ...session,
+      studySessionId: "fresh-after-restart",
+      messages: [{ role: "user", content: "始めます" }],
+    });
+    expect(restarted.content).toBe(opening.content);
+    expect(restarted.studySession?.status).toBe("started");
     expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith("/chat/completions")))
       .toHaveLength(1);
   });

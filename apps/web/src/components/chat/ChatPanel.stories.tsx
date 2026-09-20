@@ -1,6 +1,6 @@
 import { useState, type ComponentProps } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, waitFor } from 'storybook/test';
+import { expect, fn, waitFor, within } from 'storybook/test';
 import i18n from '@/i18n/config';
 import { Button } from '@/components/ui/button';
 import { ChatPanel } from './ChatPanel';
@@ -298,4 +298,51 @@ export const UnmountDuringResponse: Story = { parameters: { lifecycleControl: tr
   await expect(context.canvas.getByText(label('assistantGreeting'))).toBeVisible();
   await expect(context.canvas.queryByRole('button', { name: label('feedbackGood') })).not.toBeInTheDocument();
   await expect(input(context)).toBeEnabled();
+} };
+
+
+export const StudyRestart: Story = { async play(context) {
+  await StudyMode.play!(context);
+  const restart = context.canvas.getByRole('button', { name: label('studySession.restart') });
+  await context.userEvent.type(input(context), '未送信の回答');
+  await context.userEvent.click(restart);
+  let dialog = within(context.canvas.getByRole('dialog'));
+  await expect(dialog.getByText(label('studySession.restartConfirm'))).toBeVisible();
+  await context.userEvent.click(dialog.getByRole('button', { name: i18n.t('common.actions.cancel') }));
+  await expect(input(context)).toHaveValue('未送信の回答');
+  await expect(context.canvas.getByRole('button', { name: label('feedbackGood') })).toBeVisible();
+  await expect(sessionStorage.getItem(`plog-study-session:course:${courseId}`)).toBe(studySessionId);
+  restart.focus();
+  await context.userEvent.keyboard('{Enter}');
+  dialog = within(context.canvas.getByRole('dialog'));
+  await context.userEvent.click(dialog.getByRole('button', { name: label('studySession.restart') }));
+  await waitFor(() => expect(context.canvas.queryByRole('dialog')).not.toBeInTheDocument());
+  await expect(context.canvas.getByRole('status')).toHaveTextContent(label('studySession.restarted'));
+  await expect(input(context)).toHaveValue('');
+  await expect(context.canvas.queryByRole('button', { name: label('feedbackGood') })).not.toBeInTheDocument();
+  await waitFor(() => expect(restart).toHaveFocus());
+  await expect(chatRequest).toHaveBeenCalledTimes(1);
+  await send(context, '新しい学習');
+  const request = chatRequest.mock.calls[1][0];
+  await expect(request.study_session_id).not.toBe(studySessionId);
+  await expect(request.messages).toEqual([{ role: 'user', content: '新しい学習' }]);
+  await expect(sessionStorage.getItem(`plog-study-session:share:${shareToken}`)).toBe(studySessionId);
+} };
+export const StudyRestartEnglishMobile: Story = { ...StudyRestart, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
+export const StudySaving: Story = { parameters: { chat: waiting }, async play(context) {
+  await context.userEvent.click(context.canvas.getByRole('button', { name: label('modeStudy') }));
+  await send(context);
+  await expect(context.canvas.getByRole('button', { name: label('studySession.restart') })).toBeDisabled();
+  await expect(context.canvas.getByRole('button', { name: label('modeQa') })).toBeDisabled();
+} };
+export const StudyContinued: Story = { parameters: { chat: {
+  events: [{ type: 'content_chunk', text: 'Study question' }, { type: 'done', chat_log_id: 101, feedback: null, study_session: { status: 'continued', expires_at: Date.now() + 43_200_000 } }],
+} satisfies ChatPanelScenario }, async play(context) {
+  await StudyMode.play!(context);
+  await expect(context.canvas.getByText(label('studySession.continued'))).toBeVisible();
+  await context.userEvent.click(context.canvas.getByRole('button', { name: label('modeQa') }));
+  await context.userEvent.click(context.canvas.getByRole('button', { name: label('modeStudy') }));
+  await expect(context.canvas.getByText(label('studySession.continued'))).toBeVisible();
+  await send(context, '次の解答');
+  await expect(chatRequest.mock.calls[1][0].study_session_id).toBe(studySessionId);
 } };
