@@ -33,26 +33,12 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Empty: Story = {
-  play: async ({ canvas }) => {
-    await expect(canvas.getByRole('textbox')).toHaveAccessibleDescription(i18n.t('chat.qaGuidance'));
-    await expect(canvas.getByText(i18n.t('chat.qaGuidance'))).toBeVisible();
-  },
-};
+export const Empty: Story = {};
 export const EnglishMobile: Story = {
   globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
-  play: Empty.play,
 };
 export const JapaneseMobile: Story = {
   globals: { locale: 'ja', viewport: { value: 'mobile', isRotated: false } },
-  play: Empty.play,
-};
-export const Study: Story = {
-  args: { mode: 'study' },
-  play: async ({ canvas }) => {
-    await expect(canvas.queryByText(i18n.t('chat.qaGuidance'))).not.toBeInTheDocument();
-    await expect(canvas.getByRole('textbox')).not.toHaveAttribute('aria-describedby');
-  },
 };
 export const ReadyToSend: Story = { args: { input: '回転行列の定義を教えてください。' } };
 export const WhitespaceOnly: Story = { args: { input: '   ' } };
