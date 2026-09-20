@@ -498,6 +498,8 @@
       "googleRedirecting": "Redirecting to Google...",
       "googleFailed": "Google sign-in failed",
       "oauthCallbackFailed": "Google sign-in failed. Please try again.",
+      "oauthEmailVerificationRequired": "Please verify your email address using the link in your verification email.",
+      "oauthAccountNotLinked": "This Google account is not linked. Sign in with your username and password, or reset your password if you have forgotten it.",
       "footerQuestion": "Don't have an account?",
       "footerLink": "Register here",
       "forgotPassword": "Forgot your password?"

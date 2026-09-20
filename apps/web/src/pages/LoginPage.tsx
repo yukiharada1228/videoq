@@ -25,6 +25,11 @@ export default function LoginPage() {
   const oauthResume = oauthAuthorizeResumeUrl(searchParams);
   const afterLogin = oauthResume || nextPath;
   const oauthError = searchParams.get('error');
+  const oauthErrorMessage = oauthError === 'email_not_verified'
+    ? t('auth.login.oauthEmailVerificationRequired')
+    : oauthError === 'account_not_linked'
+      ? t('auth.login.oauthAccountNotLinked')
+      : t('auth.login.oauthCallbackFailed');
   const [showPassword, setShowPassword] = useState(false);
 
   const { formData, error, isLoading, handleChange, handleSubmit } = useAuthForm({
@@ -52,7 +57,7 @@ export default function LoginPage() {
 
       {(error || oauthError) && (
         <div className="mb-4">
-          <ErrorMessage message={error || t('auth.login.oauthCallbackFailed')} />
+          <ErrorMessage message={error || oauthErrorMessage} />
         </div>
       )}
 
