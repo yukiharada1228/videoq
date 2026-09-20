@@ -70,7 +70,6 @@ async function remove(context: Context, member = participants.members[0]) {
 export const Loaded: Story = { async play(context) {
   const dialog = await openLoaded(context);
   await expect(dialog.getByText(i18n.t('courseSharing.invitation'))).toBeVisible();
-  await expect(dialog.getByRole('link')).toHaveAttribute('href', 'https://docs.videoq.jp/ja/concepts/course-sharing/');
   await expect(dialog.getByText(participants.members[0].email)).toBeVisible();
   await expect(dialog.getAllByRole('button', { name: label('resend') })).toHaveLength(2);
 } };
@@ -283,8 +282,6 @@ export const ErrorOutsideScrollArea: Story = {
 };
 export const KeyboardInvite: Story = { async play(context) {
   const dialog = await openLoaded(context);
-  await context.userEvent.tab();
-  await expect(dialog.getByRole('link')).toHaveFocus();
   await context.userEvent.tab();
   await expect(dialog.getByRole('textbox')).toHaveFocus();
   await context.userEvent.keyboard('keyboard@example.com');

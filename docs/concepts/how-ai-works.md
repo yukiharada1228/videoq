@@ -70,7 +70,7 @@ For a question about a **specific lesson**, the model is instructed to identify 
 
 ## Does it remember the conversation?
 
-Ordinary Q&A is offered as **independent questions**, including course chats and shared links. This keeps the subject and evidence scope explicit in each question and avoids carrying earlier answers or unrelated topics into the next answer. The input area reminds you to include the subject every time.
+Ordinary Q&A is offered as **independent questions**, including course chats and shared links. This keeps the subject and evidence scope explicit in each question and avoids carrying earlier answers or unrelated topics into the next answer.
 
 The browser sends only the latest question. The answer model starts with the system instructions and that **latest user question**. Earlier user questions and assistant answers are not passed as conversation history. Tool calls and results from the current answer are available during that answer's generation.
 

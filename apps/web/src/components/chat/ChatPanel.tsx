@@ -236,7 +236,6 @@ function ChatPanelSession({
             </div>
           ) : null}
           <ChatComposer
-            mode={mode}
             input={input}
             isLoading={isLoading}
             onInputChange={setInput}

@@ -39,7 +39,6 @@ export const NoLink: Story = { async play(context) {
   const dialog = await open(context);
   await expect(dialog.queryByRole('button', { name: label('copyButton') })).not.toBeInTheDocument();
   await expect(dialog.getByText(i18n.t('courseSharing.quotaAndHistory'))).toBeVisible();
-  await expect(dialog.getByRole('link')).toHaveAttribute('href', 'https://docs.videoq.jp/ja/concepts/course-sharing/');
 } };
 export const WithLink: Story = { args: { shareLink }, async play(context) { const dialog = await open(context); await expect(dialog.getByText(shareLink)).toBeVisible(); } };
 export const BlankSlug: Story = { args: { shareSlug: '  ' }, async play(context) { const dialog = await open(context); await expect(dialog.getByRole('button', { name: i18n.t('common.actions.save') })).toBeDisabled(); } };
@@ -48,7 +47,7 @@ export const Generating: Story = { parameters: { pending: true }, async play(con
 export const UpdatingLink: Story = { ...Generating, args: { shareLink }, async play(context) { await Generating.play!(context); await expect(within(context.canvas.getByRole('dialog')).getByRole('button', { name: label('disable') })).toBeDisabled(); } };
 export const Copied: Story = { args: { shareLink }, async play(context) { const dialog = await open(context); await context.userEvent.click(dialog.getByRole('button', { name: label('copyButton') })); await expect(dialog.getByRole('button', { name: label('copied') })).toHaveFocus(); await expect(context.args.onCopy).toHaveBeenCalledTimes(1); } };
 export const DisableLink: Story = { args: { shareLink }, async play(context) { const dialog = await open(context); await context.userEvent.click(dialog.getByRole('button', { name: label('disable') })); await expect(context.args.onDelete).toHaveBeenCalledTimes(1); await expect(dialog.queryByText(shareLink)).not.toBeInTheDocument(); } };
-export const KeyboardClose: Story = { async play(context) { const dialog = await open(context); await context.userEvent.tab(); await expect(dialog.getByRole('link')).toHaveFocus(); await context.userEvent.tab(); await expect(dialog.getByRole('textbox')).toHaveFocus(); await context.userEvent.tab(); await expect(dialog.getByRole('button', { name: i18n.t('common.actions.save') })).toHaveFocus(); await context.userEvent.tab(); await context.userEvent.keyboard('{Enter}'); await expect(context.canvas.getByRole('button', { name: label('shareOpen') })).toHaveFocus(); } };
+export const KeyboardClose: Story = { async play(context) { const dialog = await open(context); await context.userEvent.tab(); await expect(dialog.getByRole('textbox')).toHaveFocus(); await context.userEvent.tab(); await expect(dialog.getByRole('button', { name: i18n.t('common.actions.save') })).toHaveFocus(); await context.userEvent.tab(); await context.userEvent.keyboard('{Enter}'); await expect(context.canvas.getByRole('button', { name: label('shareOpen') })).toHaveFocus(); } };
 export const EscapeClose: Story = { async play(context) { await open(context); context.canvas.getByRole('dialog').dispatchEvent(new Event('cancel', { cancelable: true })); await waitFor(() => expect(context.canvas.queryByRole('dialog')).not.toBeInTheDocument()); await expect(context.args.onOpenChange).toHaveBeenCalledWith(false); } };
 export const LongUrlMobile: Story = { globals: { viewport: { value: 'mobile', isRotated: false } }, args: { shareSlug: 'lesson'.repeat(10), shareLink: shareLink + longText }, async play(context) {
   const dialog = await open(context);
@@ -60,7 +59,6 @@ export const LongUrlMobile: Story = { globals: { viewport: { value: 'mobile', is
   await expectCloseWithinViewport(context);
 } };
 export const EnglishMobile: Story = { globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } }, args: { shareLink }, async play(context) {
-  const dialog = await open(context);
-  await expect(dialog.getByRole('link')).toHaveAttribute('href', 'https://docs.videoq.jp/concepts/course-sharing/');
+  await open(context);
   await expectCloseWithinViewport(context);
 } };
