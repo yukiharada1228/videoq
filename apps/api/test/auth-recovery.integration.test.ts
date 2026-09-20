@@ -47,7 +47,8 @@ describe.skipIf(!databaseUrl)("recovery link invalidation with PostgreSQL", () =
   afterAll(async () => { await client.end(); });
 
   it("uses Better Auth's atomic DB reservation across auth instances for DPoP replay", async () => {
-    const contexts = await Promise.all([makeAuth().$context, makeAuth().$context]);
+    // Seed the configured OAuth resource before racing proof reservations.
+    const contexts = [await makeAuth().$context, await makeAuth().$context];
     const stores = contexts.map((context) => createDpopReplayStore(context.internalAdapter));
     const now = new Date();
     const proof = { key: "same-proof", now, expiresAt: new Date(now.getTime() + 300_000) };
