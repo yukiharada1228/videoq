@@ -14,12 +14,12 @@ interface AppFixture {
   refetchPending?: boolean;
 }
 const revokeRequest = fn();
-const successMessage = /連携を失効しました|Connection revoked/;
-const errorMessage = /失効に失敗しました|Failed to revoke token/;
+const successMessage = /アプリとの連携を解除しました|App disconnected/;
+const errorMessage = /連携の解除に失敗しました|Failed to disconnect app/;
 
 async function firstRevokeButton(canvasElement: HTMLElement) {
-  const table = await within(canvasElement).findByRole('table');
-  return within(within(table).getAllByRole('row')[1]).getByRole('button', { name: /失効|Revoke/ });
+  const table = await within(canvasElement).findByRole('list');
+  return within(within(table).getAllByRole('listitem')[0]).getByRole('button', { name: /連携を解除|Disconnect/ });
 }
 
 const meta = {
@@ -51,7 +51,7 @@ const meta = {
     );
   },
   async play({ canvasElement }) {
-    await expect(await within(canvasElement).findByRole('table')).toBeVisible();
+    await expect(await within(canvasElement).findByRole('list')).toBeVisible();
   },
 } satisfies Meta<typeof ConnectedAppsSection>;
 export default meta;
@@ -60,11 +60,11 @@ type Story = StoryObj<typeof meta>;
 export const MultipleApps: Story = {
   async play({ canvasElement }) {
     const canvas = within(canvasElement);
-    const table = await canvas.findByRole('table');
-    await expect(within(table).getAllByRole('row')).toHaveLength(3);
+    const table = await canvas.findByRole('list');
+    await expect(within(table).getAllByRole('listitem')).toHaveLength(2);
     await expect(canvas.getByText('授業サポート')).toBeVisible();
     // Better Auth consents currently have no expiry; the adapter maps them to null.
-    await expect(within(table).getAllByRole('cell', { name: '—' })).toHaveLength(2);
+    await expect(within(table).getAllByText('—')).toHaveLength(2);
   },
 };
 export const Empty: Story = {
@@ -72,7 +72,7 @@ export const Empty: Story = {
   async play({ canvasElement }) {
     const canvas = within(canvasElement);
     await expect(await canvas.findByText(/現在連携中のアプリはありません。|No apps are currently connected./)).toBeVisible();
-    await expect(canvas.queryByRole('table')).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('list')).not.toBeInTheDocument();
   },
 };
 export const Loading: Story = {
@@ -80,7 +80,7 @@ export const Loading: Story = {
   async play({ canvasElement }) {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole('progressbar')).toBeVisible();
-    await expect(canvas.queryByRole('table')).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('list')).not.toBeInTheDocument();
   },
 };
 export const LoadFailed: Story = {
@@ -88,7 +88,7 @@ export const LoadFailed: Story = {
   async play({ canvasElement }) {
     const canvas = within(canvasElement);
     await expect(await canvas.findByText(/連携アプリの読み込みに失敗しました|Failed to load connected apps/)).toBeVisible();
-    await expect(canvas.queryByRole('table')).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('list')).not.toBeInTheDocument();
   },
 };
 export const LongContent: Story = { parameters: { connectedApps: { consents: longConsents, names: longClientNames } satisfies AppFixture } };
@@ -96,10 +96,13 @@ export const LongContentMobile: Story = {
   ...LongContent,
   globals: { viewport: { value: 'mobile', isRotated: false } },
   async play({ canvasElement }) {
-    const table = await within(canvasElement).findByRole('table');
-    const scroller = table.parentElement!;
-    scroller.scrollLeft = scroller.scrollWidth;
-    await waitFor(() => expect(scroller.scrollLeft).toBeGreaterThan(0));
+    const list = await within(canvasElement).findByRole('list');
+    await expect(list.scrollWidth).toBeLessThanOrEqual(canvasElement.ownerDocument.documentElement.clientWidth);
+    for (const action of within(list).getAllByRole('button')) {
+      const bounds = action.getBoundingClientRect();
+      await expect(bounds.left).toBeGreaterThanOrEqual(0);
+      await expect(bounds.right).toBeLessThanOrEqual(canvasElement.ownerDocument.documentElement.clientWidth);
+    }
   },
 };
 export const EnglishMobile: Story = {
@@ -114,10 +117,11 @@ export const RevokePending: Story = {
   async play({ canvasElement, userEvent }) {
     const button = await firstRevokeButton(canvasElement);
     await userEvent.click(button);
+    await userEvent.click(within(within(canvasElement).getByRole('dialog')).getByRole('button', { name: /連携を解除|Disconnect/ }));
     await waitFor(() => expect(button).toBeDisabled());
     for (const action of within(canvasElement).getAllByRole('button')) await expect(action).toBeDisabled();
     await expect(button).toHaveAttribute('aria-busy', 'true');
-    await expect(within(canvasElement).getAllByRole('row')).toHaveLength(3);
+    await expect(within(canvasElement).getAllByRole('listitem')).toHaveLength(2);
   },
 };
 export const RefetchPending: Story = {
@@ -125,6 +129,7 @@ export const RefetchPending: Story = {
   async play({ canvasElement, userEvent }) {
     const button = await firstRevokeButton(canvasElement);
     await userEvent.click(button);
+    await userEvent.click(within(within(canvasElement).getByRole('dialog')).getByRole('button', { name: /連携を解除|Disconnect/ }));
     await expect(await within(canvasElement).findByText(successMessage)).toBeVisible();
     for (const action of within(canvasElement).getAllByRole('button')) await expect(action).toBeDisabled();
     await expect(button).toHaveAttribute('aria-busy', 'true');
@@ -135,14 +140,16 @@ export const RevokeFailed: Story = {
   async play({ canvasElement, userEvent }) {
     const button = await firstRevokeButton(canvasElement);
     await userEvent.click(button);
+    await userEvent.click(within(within(canvasElement).getByRole('dialog')).getByRole('button', { name: /連携を解除|Disconnect/ }));
     await expect(await within(canvasElement).findByText(errorMessage)).toBeVisible();
     await waitFor(() => expect(button).toBeEnabled());
-    await expect(within(canvasElement).getAllByRole('row')).toHaveLength(3);
+    await expect(within(canvasElement).getAllByRole('listitem')).toHaveLength(2);
   },
 };
 export const RevokeSucceeded: Story = {
   async play({ canvasElement, userEvent }) {
     await userEvent.click(await firstRevokeButton(canvasElement));
+    await userEvent.click(within(within(canvasElement).getByRole('dialog')).getByRole('button', { name: /連携を解除|Disconnect/ }));
     const canvas = within(canvasElement);
     await expect(await canvas.findByText(successMessage)).toBeVisible();
     await waitFor(() => expect(canvas.queryByText('授業サポート')).not.toBeInTheDocument());
@@ -157,9 +164,11 @@ export const FailureThenRetry: Story = {
     const button = await firstRevokeButton(canvasElement);
     const canvas = within(canvasElement);
     await userEvent.click(button);
+    await userEvent.click(within(within(canvasElement).getByRole('dialog')).getByRole('button', { name: /連携を解除|Disconnect/ }));
     await expect(await canvas.findByText(errorMessage)).toBeVisible();
     await waitFor(() => expect(button).toBeEnabled());
     await userEvent.click(button);
+    await userEvent.click(within(within(canvasElement).getByRole('dialog')).getByRole('button', { name: /連携を解除|Disconnect/ }));
     await expect(await canvas.findByText(successMessage)).toBeVisible();
     await waitFor(() => expect(canvas.queryByText('授業サポート')).not.toBeInTheDocument());
     await expect(revokeRequest).toHaveBeenCalledTimes(2);
@@ -171,6 +180,9 @@ export const KeyboardRevokeLastApp: Story = {
     const button = await firstRevokeButton(canvasElement);
     await userEvent.tab();
     await expect(button).toHaveFocus();
+    await userEvent.keyboard('{Enter}');
+    const confirm = within(within(canvasElement).getByRole('dialog')).getByRole('button', { name: /連携を解除|Disconnect/ });
+    confirm.focus();
     await userEvent.keyboard('{Enter}');
     const canvas = within(canvasElement);
     await expect(await canvas.findByText(/現在連携中のアプリはありません。|No apps are currently connected./)).toBeVisible();

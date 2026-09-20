@@ -148,6 +148,20 @@
       "when": 1788663635789,
       "tag": "0020_finalize_better_auth_issuer",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1789920755239,
+      "tag": "0021_better_auth_permissions_and_account_state",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1789923542365,
+      "tag": "0022_standard_password_reset_identifiers",
+      "breakpoints": true
     }
   ]
 }

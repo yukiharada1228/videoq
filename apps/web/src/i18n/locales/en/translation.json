@@ -863,13 +863,13 @@
   },
   "settings": {
     "title": "Settings",
-    "subtitle": "Manage your account and integration settings",
+    "subtitle": "Manage your account, plan, video imports, and connected services.",
     "billing": {
       "title": "Plan and billing",
       "description": "See your current plan and manage payment methods or cancellation.",
       "currentPlan": "Current plan",
       "viewPlans": "View plans",
-      "manage": "Open billing portal",
+      "manage": "Manage billing and cancellation",
       "success": "Payment completed. It may take a few seconds for the plan to appear.",
       "pastDue": "A payment failed. Please update your payment method."
     },
@@ -888,7 +888,8 @@
       "errorTooShort": "Username is too short (minimum 3 characters)",
       "errorTooLong": "Username is too long (maximum 150 characters)",
       "errorInvalid": "Usernames can only include letters, numbers, underscores, and periods",
-      "errorSubmitting": "Failed to update username"
+      "errorSubmitting": "Failed to update username",
+      "edit": "Edit username"
     },
     "emailChange": {
       "title": "Email address",
@@ -900,14 +901,15 @@
       "submitting": "Sending...",
       "success": "Confirmation email sent. Approve the change from your current address, then verify your new address.",
       "errorEmpty": "Please enter a new email address",
-      "errorSubmitting": "Failed to request email change"
+      "errorSubmitting": "Failed to request email change",
+      "edit": "Edit email address"
     },
     "integrationApiKeys": {
-      "title": "Integration API Keys",
-      "description": "Create and manage secret keys for server-to-server access from your existing systems.",
+      "title": "Developer API keys",
+      "description": "Manage keys for accessing VideoQ from your own apps and systems.",
       "nameLabel": "Key name",
       "nameHelp": "This name is only shown here, so use something that makes the integration easy to identify later.",
-      "create": "Create new secret key",
+      "create": "Create API key",
       "createDialogTitle": "Create a new secret key",
       "createDialogDescription": "Give your key a name and choose the permissions it should start with.",
       "createDialogCta": "Create secret key",
@@ -952,41 +954,62 @@
       "successRevoked": "API key revoked"
     },
     "connectedApps": {
+      "details": "Connection details",
       "title": "Connected Apps",
-      "description": "Apps you authorized via OAuth (e.g. Claude Desktop, claude.ai). Revoke a token to disconnect that app immediately.",
+      "description": "Review and manage apps you have allowed to access VideoQ.",
       "empty": "No apps are currently connected.",
       "columns": {
         "app": "App",
-        "scope": "Scope",
+        "scope": "Permissions",
         "issued": "Authorized",
         "expires": "Expires",
         "action": "Action"
       },
       "expiresNever": "—",
-      "revoke": "Revoke",
+      "revoke": "Disconnect",
       "errorLoading": "Failed to load connected apps",
-      "errorRevoking": "Failed to revoke token",
-      "successRevoked": "Connection revoked"
+      "errorRevoking": "Failed to disconnect app",
+      "successRevoked": "App disconnected",
+      "revoking": "Disconnecting...",
+      "confirmTitle": "Disconnect this app?",
+      "confirmDescription": "This app will lose access to VideoQ. Existing access may continue for a few minutes. To use it again, reconnect from the app."
     },
     "searchApiKey": {
-      "title": "SearchAPI Key",
-      "description": "Set your own SearchAPI key to import YouTube transcripts.",
-      "usageTitle": "Used for YouTube imports",
-      "usageDescription": "When you import a YouTube video, VideoQ uses this key to fetch the transcript from SearchAPI. Charges are billed to your own SearchAPI account.",
-      "apiKeyLabel": "API Key",
+      "title": "YouTube imports",
+      "description": "Configure SearchAPI to import transcripts from YouTube.",
+      "usageTitle": "SearchAPI charges",
+      "usageDescription": "Transcripts are fetched using your own SearchAPI account. SearchAPI usage is billed separately by SearchAPI and is not included in your VideoQ plan.",
+      "apiKeyLabel": "SearchAPI key",
       "hasApiKeyMessage": "A SearchAPI key is already configured. Enter a new key to update it.",
       "noApiKeyMessage": "To import YouTube videos, you need to set your own SearchAPI key first.",
       "getApiKeyMessage": "Get your API key from",
       "save": "Save",
       "saving": "Saving...",
-      "delete": "Delete",
+      "delete": "Delete key",
       "deleting": "Deleting...",
       "errorEmpty": "Please enter an API key",
       "errorSaving": "Failed to save SearchAPI key",
       "errorDeleting": "Failed to delete SearchAPI key",
       "successSaved": "SearchAPI key saved successfully",
       "successDeleted": "SearchAPI key deleted successfully",
-      "configured": "Configured"
+      "configured": "Configured",
+      "notConfigured": "Not configured",
+      "show": "Show entered key",
+      "hide": "Hide entered key",
+      "errorLoading": "Unable to load SearchAPI settings",
+      "edit": "Change key",
+      "deleteConfirmTitle": "Delete your SearchAPI key?",
+      "deleteConfirmDescription": "You will need to set a new key before importing more YouTube videos. Videos already imported will not be deleted."
+    },
+    "navigation": "Settings sections",
+    "edit": "Edit",
+    "cancel": "Cancel",
+    "retry": "Reload",
+    "account": {
+      "title": "Account"
+    },
+    "integrations": {
+      "title": "Integrations"
     }
   },
   "dashboard": {

@@ -53,31 +53,27 @@ describe.skipIf(!databaseUrl)("OAuth grant persistence with PostgreSQL", () => {
     `);
   });
 
-  it("requires the original consent, subject, client, scope and enabled client", async () => {
+  it("requires current consent for the subject, client and scopes", async () => {
     const read = ["videoq.read"];
-    expect(await hasOAuthConsent((await auth.$context).adapter, "user", "client", "grant", read)).toBe(true);
-    expect(await hasOAuthConsent((await auth.$context).adapter, "other-user", "client", "grant", read)).toBe(false);
-    expect(await hasOAuthConsent((await auth.$context).adapter, "user", "other-client", "grant", read)).toBe(false);
-    expect(await hasOAuthConsent((await auth.$context).adapter, "user", "client", "missing", read)).toBe(false);
-    expect(await hasOAuthConsent((await auth.$context).adapter, "user", "client", "grant", ["ungranted"])).toBe(false);
-    await client.query("UPDATE oauth_client SET disabled = true WHERE client_id = 'client'");
-    expect(await hasOAuthConsent((await auth.$context).adapter, "user", "client", "grant", read)).toBe(false);
+    expect(await hasOAuthConsent((await auth.$context).adapter, "user", "client", read)).toBe(true);
+    expect(await hasOAuthConsent((await auth.$context).adapter, "other-user", "client", read)).toBe(false);
+    expect(await hasOAuthConsent((await auth.$context).adapter, "user", "missing-client", read)).toBe(false);
+    expect(await hasOAuthConsent((await auth.$context).adapter, "user", "client", ["ungranted"])).toBe(false);
   });
 
   it("removes all credentials for the selected app without affecting another app", async () => {
     await deleteOAuthGrant((await auth.$context).adapter, "user", "grant");
     expect((await client.query("SELECT id FROM oauth_refresh_token")).rows).toEqual([{ id: "other-refresh" }]);
     expect((await client.query("SELECT id FROM oauth_access_token")).rows).toEqual([{ id: "other-access" }]);
-    expect(await hasOAuthConsent((await auth.$context).adapter, "user", "client", "grant", ["videoq.read"])).toBe(false);
+    expect(await hasOAuthConsent((await auth.$context).adapter, "user", "client", ["videoq.read"])).toBe(false);
     await client.query("INSERT INTO oauth_consent (id, client_id, user_id, scopes) VALUES ('new-grant', 'client', 'user', ARRAY['videoq.read'])");
-    expect(await hasOAuthConsent((await auth.$context).adapter, "user", "client", "grant", ["videoq.read"])).toBe(false);
-    expect(await hasOAuthConsent((await auth.$context).adapter, "user", "client", "new-grant", ["videoq.read"])).toBe(true);
+    expect(await hasOAuthConsent((await auth.$context).adapter, "user", "client", ["videoq.read"])).toBe(true);
   });
 
   it("does not let another user revoke a grant", async () => {
     await expect(deleteOAuthGrant((await auth.$context).adapter, "attacker", "grant")).rejects.toMatchObject({ status: "NOT_FOUND" });
     expect((await client.query("SELECT id FROM oauth_refresh_token")).rows).toHaveLength(2);
-    expect(await hasOAuthConsent((await auth.$context).adapter, "user", "client", "grant", ["videoq.read"])).toBe(true);
+    expect(await hasOAuthConsent((await auth.$context).adapter, "user", "client", ["videoq.read"])).toBe(true);
   });
 
   it("rolls back every deletion if revocation fails midway", async () => {
@@ -86,7 +82,7 @@ describe.skipIf(!databaseUrl)("OAuth grant persistence with PostgreSQL", () => {
       await expect(deleteOAuthGrant((await auth.$context).adapter, "user", "grant")).rejects.toThrow();
       expect((await client.query("SELECT id FROM oauth_access_token WHERE id = 'access'")).rows).toHaveLength(1);
       expect((await client.query("SELECT id FROM oauth_refresh_token WHERE id = 'refresh'")).rows).toHaveLength(1);
-      expect(await hasOAuthConsent((await auth.$context).adapter, "user", "client", "grant", ["videoq.read"])).toBe(true);
+      expect(await hasOAuthConsent((await auth.$context).adapter, "user", "client", ["videoq.read"])).toBe(true);
     } finally {
       await client.query("DROP TABLE revoke_blocker");
     }

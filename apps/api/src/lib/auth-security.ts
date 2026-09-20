@@ -11,43 +11,7 @@ import {
   type OAuthProviderExtension,
   type OAuthRefreshToken,
 } from "@better-auth/oauth-provider";
-import { stripAccessTokenAuthorizationScheme } from "better-auth/oauth2";
 import { z } from "zod";
-
-export const OAUTH_GRANT_CLAIM = "videoq_grant";
-
-const RESET_TOKEN_PREFIX = "reset-password:";
-const HASHED_RESET_TOKEN_PREFIX = "reset-password-sha256:";
-
-/** Preserve other verification namespaces, including OAuth's own code hashing. */
-export const passwordResetIdentifierStorage = {
-  default: "plain" as const,
-  overrides: {
-    [RESET_TOKEN_PREFIX]: {
-      hash: async (identifier: string): Promise<string> => {
-        const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(identifier));
-        const hex = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-        // Better Auth also looks up the original identifier for legacy links.
-        // Keep digests outside that namespace so stored values cannot be used
-        // as bearer tokens through the plaintext fallback.
-        return `${HASHED_RESET_TOKEN_PREFIX}${hex}`;
-      },
-    },
-  },
-};
-
-/** Reset links must not survive recovery or verification of a new mailbox. */
-async function invalidatePasswordResetLinks(adapter: AuthContext["adapter"], userId: string): Promise<void> {
-  for (const prefix of [RESET_TOKEN_PREFIX, HASHED_RESET_TOKEN_PREFIX]) {
-    await adapter.deleteMany({
-      model: "verification",
-      where: [
-        { field: "value", value: userId },
-        { field: "identifier", operator: "starts_with", value: prefix },
-      ],
-    });
-  }
-}
 
 export type OAuthConsentGrant = {
   id: string;
@@ -56,12 +20,13 @@ export type OAuthConsentGrant = {
   scopes: string[];
 };
 
-export function isInactive(user: object): boolean {
-  return "isActive" in user && user.isActive === false;
-}
-
 export function isBanned(user: object): boolean {
-  return "banned" in user && user.banned === true;
+  if (!("banned" in user) || user.banned !== true) return false;
+  // Match the Admin plugin's temporary-ban expiry semantics for non-session
+  // credentials as well. Its session creation hook clears expired bans.
+  const expires = "banExpires" in user ? user.banExpires : null;
+  return !((expires instanceof Date || typeof expires === "string") &&
+    new Date(expires).getTime() < Date.now());
 }
 
 function invalidGrant(): never {
@@ -71,58 +36,20 @@ function invalidGrant(): never {
   });
 }
 
-type GrantIdentity = {
-  userId: unknown;
-  clientId: unknown;
-  referenceId: unknown;
-  scopes: readonly string[];
-};
-
-export async function hasActiveGrant(context: AuthContext, grant: GrantIdentity): Promise<boolean> {
-  const { userId, clientId, referenceId, scopes } = grant;
-  if (
-    typeof userId !== "string" || !userId ||
-    typeof clientId !== "string" || !clientId ||
-    typeof referenceId !== "string" || !referenceId
-  ) return false;
-  const user = await context.internalAdapter.findUserById(userId);
-  if (!user || isInactive(user) || isBanned(user)) return false;
-  return hasOAuthConsent(context.adapter, userId, clientId, referenceId, scopes);
-}
-
-/** Shared by issuance, UserInfo, introspection and the resource-server plugin. */
+/** Current consent is enough; reconnecting does not create a private token generation. */
 export async function hasOAuthConsent(
-  adapter: AuthContext["adapter"], userId: string, clientId: string,
-  referenceId: string, scopes: readonly string[],
+  adapter: AuthContext["adapter"], userId: string, clientId: string, scopes: readonly string[],
 ): Promise<boolean> {
-  const client = await adapter.findOne<{ disabled?: boolean | null }>({
-    model: "oauthClient", where: [{ field: "clientId", value: clientId }],
-    select: ["disabled"],
-  });
-  if (!client || client.disabled) return false;
   const consent = await adapter.findOne<Pick<OAuthConsentGrant, "scopes">>({
     model: "oauthConsent",
     select: ["scopes"],
     where: [
-      { field: "id", value: referenceId },
       { field: "userId", value: userId },
       { field: "clientId", value: clientId },
     ],
   });
   return Boolean(consent && scopes.every((scope) => consent.scopes.includes(scope)));
 }
-
-const authorizationCodeSchema = z
-  .object({
-    type: z.literal("authorization_code"),
-    userId: z.string().min(1),
-    referenceId: z.string().optional(),
-    query: z.object({
-      client_id: z.string().min(1),
-      scope: z.string().optional(),
-    }).passthrough(),
-  })
-  .passthrough();
 
 async function findRefreshToken(
   ctx: GenericEndpointContext, options: OAuthOptions<string[]>, token: string,
@@ -142,55 +69,29 @@ async function findRefreshToken(
   });
 }
 
-/** Runs before *all* token formats, including opaque tokens and rotation replay. */
-async function checkTokenGrant(ctx: GenericEndpointContext, options: OAuthOptions<string[]>) {
-  // Before hooks run ahead of the provider's zod schema, which trims grant_type.
-  const grantType = typeof ctx.body?.grant_type === "string" ? ctx.body.grant_type.trim() : undefined;
-  if (grantType === "authorization_code" && typeof ctx.body.code === "string") {
-    const identifier = await getOAuthProviderApi(ctx, options).hashToken(ctx.body.code, "authorization_code");
-    const verification = await ctx.context.internalAdapter.findVerificationValue(identifier);
-    // Let the provider consume codes and handle missing/replayed codes itself:
-    // its replay handling also revokes tokens issued for the consumed code.
-    if (!verification) return;
-    let value: unknown;
-    try { value = JSON.parse(verification.value); } catch { return; }
-    const parsed = authorizationCodeSchema.safeParse(value);
-    if (!parsed.success) return;
-    const grant = parsed.data;
-    if (!await hasActiveGrant(ctx.context, {
-      userId: grant.userId, clientId: grant.query.client_id,
-      referenceId: grant.referenceId, scopes: grant.query.scope?.split(" ") ?? [],
-    })) invalidGrant();
-  } else if (grantType === "refresh_token" && typeof ctx.body.refresh_token === "string") {
-    const token = await findRefreshToken(ctx, options, ctx.body.refresh_token);
-    if (!token) return;
-    if (!await hasActiveGrant(ctx.context, {
-      userId: token.userId, clientId: token.clientId, referenceId: token.referenceId,
-      scopes: typeof ctx.body.scope === "string" ? ctx.body.scope.split(" ") : token.scopes,
-    })) invalidGrant();
-  }
+/** Native code exchange supplies validated input through tokenResponseFields below. */
+async function checkRefreshConsent(ctx: GenericEndpointContext, options: OAuthOptions<string[]>) {
+  if (typeof ctx.body?.grant_type !== "string" || ctx.body.grant_type.trim() !== "refresh_token" ||
+    typeof ctx.body.refresh_token !== "string") return;
+  const token = await findRefreshToken(ctx, options, ctx.body.refresh_token);
+  // Missing/replayed credentials stay with the provider's rotation and family-revocation handling.
+  if (!token || token.revoked) return;
+  if (!token.userId || !token.clientId || !await hasOAuthConsent(ctx.context.adapter, token.userId, token.clientId,
+    typeof ctx.body.scope === "string" ? ctx.body.scope.split(" ") : token.scopes,
+  )) invalidGrant();
 }
 
 const introspectionSchema = z.object({
   active: z.literal(true),
   sub: z.string(),
-  client_id: z.string(),
-  scope: z.string(),
-  [OAUTH_GRANT_CLAIM]: z.string().optional(),
 });
 
-// The token endpoint's before hook applies issuance policy to every format,
-// including opaque tokens and cached refresh responses. Claims only carry the
-// consent binding; checking policy here again would miss some formats anyway.
-export const videoqOAuthClaims: OAuthProviderExtension = {
+// Native UserInfo validates the credential. Only the account ban is additional
+// policy; consent/client changes take effect when the short-lived JWT expires.
+export const videoqOAuthAccountPolicy: OAuthProviderExtension = {
   claims: {
-    accessToken: ({ referenceId }) => ({ [OAUTH_GRANT_CLAIM]: referenceId }),
-    userInfo: async ({ ctx, user, jwt, scopes }) => {
-      // Better Auth owns token/DPoP verification; VideoQ owns current access.
-      if (!await hasActiveGrant(ctx.context, {
-        userId: user.id, clientId: jwt.client_id ?? jwt.azp,
-        referenceId: jwt[OAUTH_GRANT_CLAIM], scopes,
-      })) {
+    userInfo: async ({ user }) => {
+      if (isBanned(user)) {
         throw new APIError("UNAUTHORIZED", { error: "invalid_token" }, {
           "WWW-Authenticate": 'Bearer error="invalid_token"',
         });
@@ -200,76 +101,34 @@ export const videoqOAuthClaims: OAuthProviderExtension = {
   },
 };
 
-/**
- * Bind each authorization code (and every rotated refresh token) to the
- * immutable consent id. A new consent after revocation must never revive an
- * old grant. Better Auth carries referenceId from code -> refresh -> claims.
- */
-export function videoqAuthSecurity(options: OAuthOptions<string[]>): BetterAuthPlugin {
+type TokenResponseFields = NonNullable<OAuthOptions<string[]>["customTokenResponseFields"]>;
+
+/** Application policy only; the provider owns code storage, PKCE and rotation. */
+export function videoqAuthSecurity(options: OAuthOptions<string[]>): BetterAuthPlugin & {
+  tokenResponseFields: TokenResponseFields;
+} {
+  // Per-auth-instance state: createAuth is request-scoped, never a module singleton.
+  let context: AuthContext | undefined;
   return {
     id: "videoq-auth-security",
+    tokenResponseFields: async ({ user, scopes, verificationValue }) => {
+      if (!user || isBanned(user)) invalidGrant();
+      if (verificationValue) {
+        if (!context) throw new Error("VideoQ auth policy was not initialized");
+        if (!await hasOAuthConsent(context.adapter, user.id, verificationValue.query.client_id, scopes)) {
+          invalidGrant();
+        }
+      }
+      return {};
+    },
     init(authContext) {
+      context = authContext;
       return {
         options: {
           emailAndPassword: {
             enabled: authContext.options.emailAndPassword?.enabled ?? false,
             onPasswordReset: async ({ user }) => {
-              await invalidatePasswordResetLinks(authContext.adapter, user.id);
               await authContext.internalAdapter.updateUser(user.id, { passwordResetRequired: false });
-            },
-          },
-          emailVerification: {
-            afterEmailVerification: async (user) => {
-              // Also runs after the final email-change approval. The initial
-              // approval alone must not revoke recovery of the current email.
-              await invalidatePasswordResetLinks(authContext.adapter, user.id);
-            },
-          },
-          databaseHooks: {
-            session: {
-              create: {
-                before: async (session) => {
-                  const user = await authContext.internalAdapter.findUserById(session.userId);
-                  if (!user || isInactive(user)) {
-                    throw new APIError("FORBIDDEN", {
-                      code: "USER_INACTIVE",
-                      message: "User is inactive",
-                    });
-                  }
-                },
-              },
-            },
-            verification: {
-              create: {
-                before: async (verification) => {
-                  let value: unknown;
-                  try {
-                    value = JSON.parse(verification.value);
-                  } catch {
-                    return;
-                  }
-                  if (
-                    !value || typeof value !== "object" ||
-                    !("type" in value) || value.type !== "authorization_code"
-                  ) return;
-                  const parsed = authorizationCodeSchema.safeParse(value);
-                  if (!parsed.success) invalidGrant();
-                  const consent = await authContext.adapter.findOne<OAuthConsentGrant>({
-                    model: "oauthConsent",
-                    where: [
-                      { field: "userId", value: parsed.data.userId },
-                      { field: "clientId", value: parsed.data.query.client_id },
-                    ],
-                  });
-                  if (!consent) invalidGrant();
-                  return {
-                    data: {
-                      ...verification,
-                      value: JSON.stringify({ ...parsed.data, referenceId: consent.id }),
-                    },
-                  };
-                },
-              },
             },
           },
         },
@@ -282,7 +141,7 @@ export function videoqAuthSecurity(options: OAuthOptions<string[]>): BetterAuthP
           // This reads the underlying session endpoint, not auth.api, so it
           // does not recursively invoke this hook. Never authorize from cache.
           const session = await getSessionFromCtx(ctx, { disableCookieCache: true });
-          if (session && (isInactive(session.user) || isBanned(session.user))) {
+          if (session && isBanned(session.user)) {
             throw new APIError("FORBIDDEN", {
               code: "USER_INACTIVE",
               message: "User is inactive",
@@ -291,7 +150,7 @@ export function videoqAuthSecurity(options: OAuthOptions<string[]>): BetterAuthP
         }),
       }, {
         matcher: ({ path }) => path === "/oauth2/token",
-        handler: createAuthMiddleware(async (ctx) => { await checkTokenGrant(ctx, options); }),
+        handler: createAuthMiddleware(async (ctx) => { await checkRefreshConsent(ctx, options); }),
       }, {
         matcher: ({ path }) => path === "/oauth2/delete-consent",
         // Extend the standard endpoint through a documented before hook;
@@ -304,38 +163,17 @@ export function videoqAuthSecurity(options: OAuthOptions<string[]>): BetterAuthP
         }),
       }],
       after: [{
-        matcher: ({ path }) => path === "/change-password",
-        handler: createAuthMiddleware(async (ctx) => {
-          // The reset callback does not run for authenticated password changes.
-          // Only invalidate links after the endpoint has verified the current
-          // password and returned a successful change for this user.
-          const result = z.object({ user: z.object({ id: z.string().min(1) }) })
-            .safeParse(ctx.context.returned);
-          if (result.success) await invalidatePasswordResetLinks(ctx.context.adapter, result.data.user.id);
-        }),
-      }, {
         matcher: ({ path }) => path === "/oauth2/introspect",
         handler: createAuthMiddleware(async (ctx) => {
-          // Preserve the provider's client authentication, signature checks and
-          // errors. Only narrow a successfully validated introspection result.
+          // Native introspection owns token/session revocation. Its remaining
+          // application policy is rejecting banned or deleted owners, including
+          // offline tokens that no longer have an associated browser session.
           const result = ctx.context.returned;
           if (!result || typeof result !== "object" || !("active" in result) || result.active !== true) return;
           const parsed = introspectionSchema.safeParse(result);
           if (!parsed.success) return ctx.json({ active: false });
-          const payload = parsed.data;
-          let referenceId = payload[OAUTH_GRANT_CLAIM];
-          if (!referenceId && typeof ctx.body?.token === "string") {
-            // Refresh-token introspection has no custom claims. Bind it to the
-            // stored original consent instead of trusting the current consent.
-            const token = await findRefreshToken(ctx, options, stripAccessTokenAuthorizationScheme(ctx.body.token));
-            if (token?.userId === payload.sub && token.clientId === payload.client_id) {
-              referenceId = token.referenceId;
-            }
-          }
-          if (!await hasActiveGrant(ctx.context, {
-            userId: payload.sub, clientId: payload.client_id,
-            referenceId, scopes: payload.scope.split(" "),
-          })) return ctx.json({ active: false });
+          const user = await ctx.context.internalAdapter.findUserById(parsed.data.sub);
+          if (!user || isBanned(user)) return ctx.json({ active: false });
         }),
       }],
     },

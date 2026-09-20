@@ -9,7 +9,8 @@ export const apiKeysResponse = { apiKeys: [{
   id: 'storybook-key',
   name: '授業資料の連携',
   start: 'vq_demo',
-  metadata: { accessLevel: 'read_only' },
+  configId: 'default',
+  permissions: { videoq: ['read'] },
   lastRequest: null,
   createdAt: '2026-09-01T00:00:00Z',
 }] };

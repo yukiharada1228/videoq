@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { hashPassword } from "better-auth/crypto";
 import { verifyJwsAccessToken } from "better-auth/oauth2";
 import { createHash } from "node:crypto";
@@ -6,7 +6,8 @@ import { decodeJwt } from "jose";
 import { Hono } from "hono";
 
 // Exercise the production Better Auth configuration and real HTTP endpoints.
-// Only persistence is replaced; no auth, password or token verifier is mocked.
+// Persistence and mail delivery are replaced; credential verifiers are real.
+vi.mock("../src/lib/mail", () => ({ sendMail: vi.fn() }));
 const store = vi.hoisted(() => ({ data: {} as Record<string, Record<string, unknown>[]> }));
 vi.mock("@better-auth/drizzle-adapter", async () => {
   const { memoryAdapter } = await import("better-auth/adapters/memory");
@@ -17,7 +18,6 @@ vi.mock("../src/db/pool", () => ({
 }));
 
 import { createAuth } from "../src/lib/auth";
-import { OAUTH_GRANT_CLAIM } from "../src/lib/auth-security";
 import type { AppEnv, Bindings } from "../src/types/bindings";
 import type { Db } from "../src/db/pool";
 import { requireAuth, sessionMethod } from "../src/middleware/auth";
@@ -38,6 +38,8 @@ const env = {
   FRONTEND_URL: BASE,
   CORS_ALLOW_ORIGIN: BASE,
 } as Bindings;
+
+afterEach(() => vi.useRealTimers());
 
 beforeEach(async () => {
   store.data = Object.fromEntries([
@@ -84,13 +86,6 @@ async function register(auth: Auth, confidential = false) {
   expect(response.status, await response.clone().text()).toBe(201);
   return await response.json() as { client_id: string; client_secret?: string };
 }
-function consent(clientId: string, id = crypto.randomUUID()) {
-  store.data.oauthConsent.push({
-    id, clientId, userId: USER_ID, scopes: [...SCOPES], resources: [RESOURCE],
-    createdAt: new Date(), updatedAt: new Date(),
-  });
-  return id;
-}
 async function authorize(auth: Auth, cookie: string, clientId: string, options: OAuthTestOptions = {}) {
   const query = new URLSearchParams({
     client_id: clientId, redirect_uri: "http://127.0.0.1:54321/callback",
@@ -125,7 +120,7 @@ async function tokenRequest(auth: Auth, clientId: string, params: Record<string,
 }
 async function tokensFrom(response: Response) {
   expect(response.status, await response.clone().text()).toBe(200);
-  return await response.json() as { access_token: string; refresh_token: string; id_token?: string };
+  return await response.json() as { access_token: string; refresh_token: string; id_token?: string; expires_in: number };
 }
 async function connect(auth: Auth, cookie: string, options: OAuthTestOptions = {}) {
   const client = await register(auth, options.confidential);
@@ -155,9 +150,70 @@ async function introspect(auth: Auth, linked: Awaited<ReturnType<typeof connect>
 }
 
 describe("account suspension across Better Auth endpoints", () => {
-  it.each(["active", "inactive", "banned", "revoked"])("maps a real %s session to the application API's auth result", async (state) => {
+  it("uses native signup field protection and the Admin plugin's default role", async () => {
+    const auth = makeAuth();
+    const body = {
+      email: "signup@example.test", username: "newsignup", name: "New signup", password: PASSWORD,
+    };
+    expect((await post(auth, "/sign-up/email", { ...body, role: "admin" })).status).toBe(400);
+    const response = await post(auth, "/sign-up/email", { ...body, banned: true, isSuperuser: true, isActive: false });
+    expect(response.status, await response.clone().text()).toBe(200);
+    const user = store.data.user.find((row) => row.email === "signup@example.test");
+    expect(user).toMatchObject({ role: "user", banned: false });
+  });
+
+  it("uses native bans immediately and lets unbanned users resume valid integrations", async () => {
+    const auth = makeAuth();
+    const cookie = await login(auth);
+    const linked = await connect(auth, cookie);
+    const key = await auth.api.createApiKey({ body: { userId: USER_ID } });
+    const adminId = "10000000-0000-4000-8000-000000000002";
+    store.data.user.push({ ...store.data.user[0], id: adminId, username: "otheradmin", email: "admin@example.test" });
+    store.data.account.push({ ...store.data.account[0], id: "other-admin-account", userId: adminId, accountId: adminId });
+    const adminLogin = await post(auth, "/sign-in/username", { username: "otheradmin", password: PASSWORD });
+    expect(adminLogin.status).toBe(200);
+    const adminCookie = adminLogin.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
+    const headers = new Headers({ cookie: adminCookie });
+
+    await auth.api.banUser({ body: { userId: USER_ID }, headers });
+    expect(store.data.user[0].banned).toBe(true);
+    expect(store.data.session.some((row) => row.userId === USER_ID)).toBe(false);
+    expect(store.data.oauthConsent).toHaveLength(1);
+    expect((await tokenRequest(auth, linked.clientId, {
+      grant_type: "refresh_token", refresh_token: linked.refresh_token,
+    })).status).toBe(400);
+    expect((await auth.api.verifyVideoqApiKey({ body: { key: key.key } })).kind).toBe("invalid");
+    expect((await auth.api.verifyVideoqOAuth({ body: {
+      authorizationHeader: `Bearer ${linked.access_token}`, method: "POST", url: RESOURCE,
+    } })).kind).toBe("invalid");
+
+    await auth.api.unbanUser({ body: { userId: USER_ID }, headers });
+    expect(store.data.user[0].banned).toBe(false);
+    expect((await auth.api.verifyVideoqApiKey({ body: { key: key.key } })).kind).toBe("ok");
+    await tokensFrom(await tokenRequest(auth, linked.clientId, {
+      grant_type: "refresh_token", refresh_token: linked.refresh_token,
+    }));
+    expect((await auth.api.verifyVideoqOAuth({ body: {
+      authorizationHeader: `Bearer ${linked.access_token}`, method: "POST", url: RESOURCE,
+    } })).kind).toBe("ok");
+
+    await auth.api.setRole({ body: { userId: USER_ID, role: "user" }, headers });
+    const downgradedCookie = await login(auth);
+    expect((await post(auth, "/admin/unban-user", { userId: adminId }, downgradedCookie)).status).toBe(403);
+  });
+
+  it("honors the official temporary-ban expiry for sessions and API keys", async () => {
+    const auth = makeAuth();
+    const key = await auth.api.createApiKey({ body: { userId: USER_ID } });
+    store.data.user[0].banned = true;
+    store.data.user[0].banExpires = new Date(Date.now() - 60_000);
+    expect((await auth.api.verifyVideoqApiKey({ body: { key: key.key } })).kind).toBe("ok");
+    await login(auth);
+    expect(store.data.user[0].banned).toBe(false);
+  });
+
+  it.each(["active", "banned", "revoked"])("maps a real %s session to the application API's auth result", async (state) => {
     const cookie = await login(makeAuth());
-    if (state === "inactive") store.data.user[0].isActive = false;
     if (state === "banned") store.data.user[0].banned = true;
     if (state === "revoked") store.data.session = [];
     const app = new Hono<AppEnv>();
@@ -171,7 +227,7 @@ describe("account suspension across Better Auth endpoints", () => {
   });
 
   it.each(["/sign-in/username", "/sign-in/email"])("rejects new sessions for inactive users at %s", async (path) => {
-    store.data.user[0].isActive = false;
+    store.data.user[0].banned = true;
     const response = await post(makeAuth(), path, {
       username: "testuser", email: "security@example.test", password: PASSWORD,
     });
@@ -182,10 +238,10 @@ describe("account suspension across Better Auth endpoints", () => {
   it("blocks self-reactivation and key creation even if a session survived suspension", async () => {
     const auth = makeAuth();
     const cookie = await login(auth);
-    store.data.user[0].isActive = false;
-    expect((await post(auth, "/admin/update-user", { userId: USER_ID, data: { isActive: true } }, cookie)).status).toBe(403);
+    store.data.user[0].banned = true;
+    expect((await post(auth, "/admin/update-user", { userId: USER_ID, data: { banned: false } }, cookie)).status).toBe(403);
     expect((await post(auth, "/api-key/create", { name: "test", metadata: { accessLevel: "all" } }, cookie)).status).toBe(403);
-    expect(store.data.user[0].isActive).toBe(false);
+    expect(store.data.user[0].banned).toBe(true);
     expect(store.data.apikey).toHaveLength(0);
     expect((await post(auth, "/sign-out", {}, cookie)).status).toBe(200);
   });
@@ -211,45 +267,67 @@ describe("account suspension across Better Auth endpoints", () => {
 describe("API key credential boundaries", () => {
   async function createKey(auth: Auth, cookie: string, accessLevel = "read_only") {
     const response = await post(auth, "/api-key/create", {
-      name: "test-key", metadata: { accessLevel },
+      name: "test-key", configId: accessLevel === "all" ? "read-write" : "default",
     }, cookie);
     expect(response.status, await response.clone().text()).toBe(200);
     return await response.json() as { id: string; key: string };
   }
 
-  it.each(["active", "inactive", "banned", "missing"])("applies %s account policy through the server-only extension", async (status) => {
+  it.each(["active", "banned", "missing"])("applies %s account policy through the server-only extension", async (status) => {
     const auth = makeAuth();
     const key = await createKey(auth, await login(auth));
-    if (status === "inactive") store.data.user[0].isActive = false;
     if (status === "banned") store.data.user[0].banned = true;
     if (status === "missing") store.data.user = [];
     const result = await auth.api.verifyVideoqApiKey({ body: { key: key.key } });
     expect(result.kind).toBe(status === "active" ? "ok" : "invalid");
   });
 
-  it.each([
-    [{ accessLevel: "all" }, "all"],
-    [{ accessLevel: "read_only" }, "read_only"],
-    [{ access_level: "all" }, "all"],
-    [JSON.stringify({ access_level: "all" }), "all"],
-    [{ accessLevel: "read_only", access_level: "all" }, "read_only"],
-    [{ accessLevel: "", access_level: "all" }, ""],
-    [{ accessLevel: "unknown" }, "unknown"],
-    [null, "read_only"],
-  ])("preserves access policy for stored metadata %j", async (metadata, accessLevel) => {
+  it.each(["read_only", "all"])("creates and enforces the official %s permission profile", async (accessLevel) => {
     const auth = makeAuth();
-    const key = await createKey(auth, await login(auth));
-    store.data.apikey[0].metadata = metadata;
+    const cookie = await login(auth);
+    const key = await createKey(auth, cookie, accessLevel);
     expect(await auth.api.verifyVideoqApiKey({ body: { key: key.key } })).toMatchObject({
       kind: "ok", userId: USER_ID, accessLevel,
     });
+    expect((await auth.api.verifyApiKey({ body: { key: key.key, permissions: { videoq: ["write"] } } })).valid)
+      .toBe(accessLevel === "all");
+    const configId = accessLevel === "all" ? "read-write" : "default";
+    const listed = await auth.api.listApiKeys({ headers: new Headers({ cookie }) });
+    expect(listed.apiKeys).toEqual([expect.objectContaining({ id: key.id, configId })]);
+    expect((await post(auth, "/api-key/delete", { keyId: key.id, configId }, cookie)).status).toBe(200);
+    expect((await auth.api.verifyVideoqApiKey({ body: { key: key.key } })).kind).toBe("invalid");
   });
 
-  it("honors the standard verifier's rejection of corrupt stored metadata", async () => {
+  it("uses native permissions even when legacy metadata disagrees", async () => {
     const auth = makeAuth();
     const key = await createKey(auth, await login(auth));
-    store.data.apikey[0].metadata = "invalid-json";
-    expect(await auth.api.verifyVideoqApiKey({ body: { key: key.key } })).toMatchObject({ kind: "invalid" });
+    store.data.apikey[0].metadata = { accessLevel: "all" };
+    expect(await auth.api.verifyVideoqApiKey({ body: { key: key.key } })).toMatchObject({
+      kind: "ok", accessLevel: "read_only",
+    });
+    store.data.apikey[0].permissions = JSON.stringify({ videoq: [] });
+    expect((await auth.api.verifyVideoqApiKey({ body: { key: key.key } })).kind).toBe("invalid");
+  });
+
+  it("rejects missing/corrupt native permissions instead of falling back to metadata", async () => {
+    const auth = makeAuth();
+    const key = await createKey(auth, await login(auth));
+    for (const permissions of [null, "invalid-json", "{}", '{"videoq":["write"]}']) {
+      store.data.apikey[0].permissions = permissions;
+      expect((await auth.api.verifyVideoqApiKey({ body: { key: key.key } })).kind).toBe("invalid");
+    }
+  });
+
+  it("does not let client-side permission or metadata injection change the selected profile", async () => {
+    const auth = makeAuth();
+    const cookie = await login(auth);
+    expect((await post(auth, "/api-key/create", {
+      name: "injected", permissions: { videoq: ["read", "write"] },
+    }, cookie)).status).toBe(400);
+    expect((await post(auth, "/api-key/create", {
+      name: "injected", metadata: { accessLevel: "all" },
+    }, cookie)).status).toBe(400);
+    expect(store.data.apikey).toHaveLength(0);
   });
 
   it("does not expose resource verification as a public auth endpoint", async () => {
@@ -283,7 +361,8 @@ describe("API key credential boundaries", () => {
       expect(response.status, path).toBe(401);
     }
     expect(store.data.apikey).toHaveLength(1);
-    expect((await auth.api.verifyApiKey({ body: { key: key.key } })).key?.metadata).toEqual({ accessLevel });
+    expect((await auth.api.verifyApiKey({ body: { key: key.key } })).key?.permissions)
+      .toEqual({ videoq: accessLevel === "all" ? ["read", "write"] : ["read"] });
     expect(store.data.user[0].name).toBe("Test user");
   });
 
@@ -314,17 +393,38 @@ describe("OAuth grant revocation", () => {
     } })).rejects.toBe(unavailable);
   });
 
-  it("binds real PKCE code exchange and refresh tokens to the original consent", async () => {
+  it("issues standard five-minute JWTs and refresh tokens without private consent identifiers", async () => {
     const auth = makeAuth();
     const linked = await connect(auth, await login(auth));
     const payload = await verifyJwsAccessToken(linked.access_token, {
       jwksFetch: () => auth.api.getJwks(), verifyOptions: { issuer: `${BASE}/api/auth`, audience: RESOURCE },
     });
-    expect(payload[OAUTH_GRANT_CLAIM]).toBe(linked.grantId);
+    expect(payload.videoq_grant).toBeUndefined();
+    expect(payload.exp! - payload.iat!).toBe(300);
+    expect(linked.expires_in).toBe(300);
+    expect(store.data.oauthRefreshToken[0].referenceId).toBeFalsy();
     const refreshed = await tokensFrom(await tokenRequest(auth, linked.clientId, {
       grant_type: "refresh_token", refresh_token: linked.refresh_token,
     }));
-    expect(decodeJwt(refreshed.access_token)[OAUTH_GRANT_CLAIM]).toBe(linked.grantId);
+    expect(decodeJwt(refreshed.access_token).videoq_grant).toBeUndefined();
+    expect(store.data.oauthRefreshToken.every((row) => !row.referenceId)).toBe(true);
+  });
+
+  it("lets an issued JWT expire within five minutes of disconnect while refusing renewal", async () => {
+    const auth = makeAuth();
+    const cookie = await login(auth);
+    const linked = await connect(auth, cookie);
+    expect((await post(auth, "/oauth2/delete-consent", { id: linked.grantId }, cookie)).status).toBe(200);
+    const verify = () => auth.api.verifyVideoqOAuth({ body: {
+      authorizationHeader: `Bearer ${linked.access_token}`, method: "POST", url: RESOURCE,
+    } });
+    expect(await verify()).toMatchObject({ kind: "ok" });
+    expect((await tokenRequest(auth, linked.clientId, {
+      grant_type: "refresh_token", refresh_token: linked.refresh_token,
+    })).status).toBe(400);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date((decodeJwt(linked.access_token).exp! + 1) * 1000));
+    expect(await verify()).toMatchObject({ kind: "invalid" });
   });
 
   it("disconnects only the selected app and rejects refresh and cached rotation replay", async () => {
@@ -349,45 +449,52 @@ describe("OAuth grant revocation", () => {
     }));
   });
 
-  it("rejects old authorization codes after revoke and re-consent", async () => {
+  it("accepts a still-valid pending code after explicit re-consent, without resurrecting deleted refresh tokens", async () => {
     const auth = makeAuth();
     const cookie = await login(auth);
     const linked = await connect(auth, cookie);
     const oldCode = await authorize(auth, cookie, linked.clientId);
-    await post(auth, "/oauth2/delete-consent", { id: linked.grantId }, cookie);
-    const newGrant = consent(linked.clientId);
-    const rejected = await tokenRequest(auth, linked.clientId, { grant_type: "authorization_code", code: oldCode, code_verifier: VERIFIER });
-    expect(rejected.status).toBe(400);
-    expect(await rejected.json()).toMatchObject({ error: "invalid_grant" });
-    const newCode = await authorize(auth, cookie, linked.clientId);
-    const tokens = await tokensFrom(await tokenRequest(auth, linked.clientId, { grant_type: "authorization_code", code: newCode, code_verifier: VERIFIER }));
-    expect(decodeJwt(tokens.access_token)[OAUTH_GRANT_CLAIM]).toBe(newGrant);
-    expect(decodeJwt(linked.access_token)[OAUTH_GRANT_CLAIM]).not.toBe(newGrant);
+    expect((await post(auth, "/oauth2/delete-consent", { id: linked.grantId }, cookie)).status).toBe(200);
+    await authorize(auth, cookie, linked.clientId);
+    const tokens = await tokensFrom(await tokenRequest(auth, linked.clientId, {
+      grant_type: "authorization_code", code: oldCode, code_verifier: VERIFIER,
+    }));
+    expect(decodeJwt(tokens.access_token).videoq_grant).toBeUndefined();
+    expect((await tokenRequest(auth, linked.clientId, {
+      grant_type: "refresh_token", refresh_token: linked.refresh_token,
+    })).status).toBe(400);
   });
 
-  it("rejects a surviving refresh token from a revoked generation", async () => {
+  it("rejects an in-flight refresh left behind after disconnect until consent is granted again", async () => {
     const auth = makeAuth();
     const cookie = await login(auth);
     const linked = await connect(auth, cookie);
     const oldRows = structuredClone(store.data.oauthRefreshToken);
     await post(auth, "/oauth2/delete-consent", { id: linked.grantId }, cookie);
-    // Simulate an in-flight rotation persisting an old generation after revoke.
+    // Simulate a rotation persisting after disconnect deleted the original rows.
     store.data.oauthRefreshToken.push(...oldRows);
-    consent(linked.clientId);
-    const rejected = await tokenRequest(auth, linked.clientId, { grant_type: "refresh_token", refresh_token: linked.refresh_token });
+    const refresh = { grant_type: "refresh_token", refresh_token: linked.refresh_token };
+    const rejected = await tokenRequest(auth, linked.clientId, refresh);
     expect(rejected.status).toBe(400);
     expect(await rejected.json()).toMatchObject({ error: "invalid_grant" });
+    const narrowed = ["offline_access", "videoq.read"];
+    await authorize(auth, cookie, linked.clientId, { scopes: narrowed });
+    expect((await tokenRequest(auth, linked.clientId, refresh)).status).toBe(400);
+    const tokens = await tokensFrom(await tokenRequest(auth, linked.clientId, {
+      ...refresh, scope: narrowed.join(" "),
+    }));
+    expect(decodeJwt(tokens.access_token).scope).toBe(narrowed.join(" "));
   });
 
-  it.each(["inactive", "banned", "legacy"])("rejects refresh for %s credentials", async (reason) => {
+  it("rejects refresh for banned credentials before persisting new tokens", async () => {
     const auth = makeAuth();
     const linked = await connect(auth, await login(auth));
-    if (reason === "inactive") store.data.user[0].isActive = false;
-    if (reason === "banned") store.data.user[0].banned = true;
-    if (reason === "legacy") delete store.data.oauthRefreshToken[0].referenceId;
+    store.data.user[0].banned = true;
+    const before = structuredClone(store.data.oauthRefreshToken);
     const response = await tokenRequest(auth, linked.clientId, { grant_type: "refresh_token", refresh_token: linked.refresh_token });
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({ error: "invalid_grant" });
+    expect(store.data.oauthRefreshToken).toEqual(before);
   });
 
   it("checks ownership, authentication and CSRF before deleting anything", async () => {
@@ -407,6 +514,21 @@ describe.each([
   { name: "JWT", includeResource: true },
   { name: "opaque", includeResource: false },
 ])("OAuth policy for $name access tokens", ({ includeResource }) => {
+  it("checks current consent scopes after native PKCE validation and before storing any tokens", async () => {
+    const auth = makeAuth();
+    const cookie = await login(auth);
+    const client = await register(auth);
+    const code = await authorize(auth, cookie, client.client_id, { includeResource, scopes: OIDC_SCOPES });
+    store.data.oauthConsent[0].scopes = OIDC_SCOPES.filter((scope) => scope !== "videoq.write");
+    const response = await tokenRequest(auth, client.client_id, {
+      grant_type: "authorization_code", code, code_verifier: VERIFIER,
+    }, includeResource);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "invalid_grant" });
+    expect(store.data.oauthAccessToken).toHaveLength(0);
+    expect(store.data.oauthRefreshToken).toHaveLength(0);
+  });
+
   it("uses Better Auth's refresh-token rotation and reuse detection", async () => {
     const auth = makeAuth();
     const linked = await connect(auth, await login(auth), { includeResource, scopes: OIDC_SCOPES });
@@ -426,6 +548,7 @@ describe.each([
     const auth = makeAuth();
     const linked = await connect(auth, await login(auth), { includeResource, scopes: OIDC_SCOPES });
     expect(linked.id_token).toBeTruthy();
+    expect(linked.expires_in).toBe(300);
     expect(linked.access_token.includes(".")).toBe(includeResource);
     for (const method of ["GET", "POST"] as const) {
       const response = await userInfo(auth, linked.access_token, method);
@@ -439,7 +562,7 @@ describe.each([
     expect((await userInfo(auth, refreshed.access_token)).status).toBe(200);
   });
 
-  it("rejects UserInfo after disconnect and reconnect without affecting a new grant", async () => {
+  it("uses native UserInfo revocation: stored opaque tokens are deleted, JWTs expire", async () => {
     const auth = makeAuth();
     const cookie = await login(auth);
     const options = { includeResource, scopes: OIDC_SCOPES };
@@ -447,29 +570,55 @@ describe.each([
     expect((await post(auth, "/oauth2/delete-consent", { id: linked.grantId }, cookie)).status).toBe(200);
     for (const method of ["GET", "POST"] as const) {
       const response = await userInfo(auth, linked.access_token, method);
-      expect(response.status).toBe(401);
-      expect(await response.json()).toMatchObject({ error: "invalid_token" });
-      expect(response.headers.get("www-authenticate")).toContain("invalid_token");
+      expect(response.status).toBe(includeResource ? 200 : 401);
+      if (!includeResource) {
+        expect(await response.json()).toMatchObject({ error: "invalid_token" });
+        expect(response.headers.get("www-authenticate")).toContain("invalid_token");
+      }
     }
     const code = await authorize(auth, cookie, linked.clientId, options);
     const reconnected = await tokensFrom(await tokenRequest(auth, linked.clientId, {
       grant_type: "authorization_code", code, code_verifier: VERIFIER,
     }, includeResource));
-    expect((await userInfo(auth, linked.access_token)).status).toBe(401);
+    expect((await userInfo(auth, linked.access_token)).status).toBe(includeResource ? 200 : 401);
     expect((await userInfo(auth, reconnected.access_token)).status).toBe(200);
+    if (includeResource) {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date((decodeJwt(linked.access_token).exp! + 1) * 1000));
+      expect((await userInfo(auth, linked.access_token)).status).toBe(401);
+    }
   });
 
-  it.each(["inactive", "banned", "scope removed", "disabled client"])("rejects UserInfo for %s authorization", async (reason) => {
+  it("rejects UserInfo for a banned owner even when its browser session still exists", async () => {
     const auth = makeAuth();
     const linked = await connect(auth, await login(auth), { includeResource, scopes: OIDC_SCOPES });
-    if (reason === "inactive") store.data.user[0].isActive = false;
-    if (reason === "banned") store.data.user[0].banned = true;
-    if (reason === "scope removed") store.data.oauthConsent[0].scopes = ["openid"];
-    if (reason === "disabled client") store.data.oauthClient[0].disabled = true;
+    store.data.user[0].banned = true;
     expect((await userInfo(auth, linked.access_token)).status).toBe(401);
   });
 
-  it("reports revoked access and refresh tokens as inactive at introspection", async () => {
+  it("applies reduced consent scopes on renewal while preserving issued-token expiry", async () => {
+    const auth = makeAuth();
+    const linked = await connect(auth, await login(auth), { includeResource, scopes: OIDC_SCOPES });
+    const narrowed = OIDC_SCOPES.filter((scope) => scope !== "videoq.write");
+    store.data.oauthConsent[0].scopes = narrowed;
+    expect((await userInfo(auth, linked.access_token)).status).toBe(200);
+    const rejected = await tokenRequest(auth, linked.clientId, {
+      grant_type: "refresh_token", refresh_token: linked.refresh_token,
+    }, includeResource);
+    expect(rejected.status).toBe(400);
+    expect(await rejected.json()).toMatchObject({ error: "invalid_grant" });
+    const refreshed = await tokensFrom(await tokenRequest(auth, linked.clientId, {
+      grant_type: "refresh_token", refresh_token: linked.refresh_token, scope: narrowed.join(" "),
+    }, includeResource));
+    expect(refreshed.expires_in).toBe(300);
+    if (includeResource) {
+      expect(await auth.api.verifyVideoqOAuth({ body: {
+        authorizationHeader: `Bearer ${refreshed.access_token}`, method: "POST", url: RESOURCE,
+      } })).toMatchObject({ kind: "ok", accessLevel: "read_only" });
+    }
+  });
+
+  it("uses native introspection after disconnect: JWTs expire, stored tokens become inactive", async () => {
     const auth = makeAuth();
     const cookie = await login(auth);
     const linked = await connect(auth, cookie, { includeResource, scopes: OIDC_SCOPES, confidential: true });
@@ -485,14 +634,14 @@ describe.each([
     for (const [token, hint] of [[linked.access_token, "access_token"], [linked.refresh_token, "refresh_token"]]) {
       const response = await introspect(auth, linked, token, hint);
       expect(response.status, await response.clone().text()).toBe(200);
-      expect(await response.json()).toEqual({ active: false });
+      expect(await response.json()).toMatchObject({ active: includeResource && hint === "access_token" });
     }
   });
 
   it("reports suspended user credentials as inactive at introspection", async () => {
     const auth = makeAuth();
     const linked = await connect(auth, await login(auth), { includeResource, confidential: true });
-    store.data.user[0].isActive = false;
+    store.data.user[0].banned = true;
     for (const [token, hint] of [[linked.access_token, "access_token"], [linked.refresh_token, "refresh_token"]]) {
       const response = await introspect(auth, linked, token, hint);
       expect(response.status, await response.clone().text()).toBe(200);
@@ -528,21 +677,19 @@ describe.each([
     expect(store.data.oauthAccessToken).toHaveLength(0);
   });
 
-  it.each(["inactive", "banned", "legacy", "revoked generation"])("rejects refresh for %s credentials before rotation", async (reason) => {
+  it.each(["inactive", "banned", "consent removed"])("rejects refresh for %s credentials before rotation", async (reason) => {
     const auth = makeAuth();
     const cookie = await login(auth);
     const linked = await connect(auth, cookie, { includeResource: false, scopes });
     if (reason === "inactive") {
-      store.data.user[0].isActive = false;
+      store.data.user[0].banned = true;
       store.data.session = [];
     }
     if (reason === "banned") store.data.user[0].banned = true;
-    if (reason === "legacy") delete store.data.oauthRefreshToken[0].referenceId;
-    if (reason === "revoked generation") {
+    if (reason === "consent removed") {
       const oldRows = structuredClone(store.data.oauthRefreshToken);
       expect((await post(auth, "/oauth2/delete-consent", { id: linked.grantId }, cookie)).status).toBe(200);
       store.data.oauthRefreshToken.push(...oldRows);
-      await authorize(auth, cookie, linked.clientId, { includeResource: false, scopes });
     }
     const accessBefore = structuredClone(store.data.oauthAccessToken);
     const refreshBefore = structuredClone(store.data.oauthRefreshToken);

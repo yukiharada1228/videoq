@@ -258,20 +258,12 @@ export class ApiClient {
     if (error) throw new ApiError(error.message || 'Failed to list keys', error.code || 'API_KEY');
     const keys = (data?.apiKeys ?? data ?? []) as Array<Record<string, unknown>>;
     return keys.map((k) => {
-      // Use the same field precedence as API enforcement, including legacy keys.
-      let accessLevel: 'all' | 'read_only' = 'read_only';
-      let meta = k.metadata;
-      if (typeof meta === 'string') {
-        try {
-          meta = JSON.parse(meta);
-        } catch { meta = null; }
-      }
-      if (meta && typeof meta === 'object') {
-        const parsed = meta as { accessLevel?: unknown; access_level?: unknown };
-        if ((parsed.accessLevel ?? parsed.access_level) === 'all') accessLevel = 'all';
-      }
+      const permissions = k.permissions as { videoq?: string[] } | null;
+      const accessLevel = permissions?.videoq?.includes('read') && permissions.videoq.includes('write')
+        ? 'all' : 'read_only';
       return {
         id: String(k.id),
+        config_id: String(k.configId ?? 'default'),
         name: String(k.name ?? ''),
         access_level: accessLevel,
         prefix: String(k.start ?? k.prefix ?? 'vq_'),
@@ -288,13 +280,14 @@ export class ApiClient {
     const { data: created, error } = await authClient.apiKey.create({
       name: data.name,
       prefix: 'vq_',
-      metadata: { accessLevel: data.access_level },
+      configId: data.access_level === 'all' ? 'read-write' : 'default',
     });
     if (error || !created) {
       throw new ApiError(error?.message || 'Failed to create key', error?.code || 'API_KEY');
     }
     return {
       id: String(created.id),
+      config_id: created.configId,
       name: String(created.name ?? data.name),
       access_level: data.access_level,
       prefix: String(created.start ?? created.prefix ?? 'vq_'),
@@ -304,9 +297,9 @@ export class ApiClient {
     };
   }
 
-  async revokeIntegrationApiKey(id: string | number): Promise<void> {
+  async revokeIntegrationApiKey(id: string | number, configId = 'default'): Promise<void> {
     const { authClient } = await import('@/lib/auth-client');
-    const { error } = await authClient.apiKey.delete({ keyId: String(id) });
+    const { error } = await authClient.apiKey.delete({ keyId: String(id), configId });
     if (error) throw new ApiError(error.message || 'Failed to revoke key', error.code || 'API_KEY');
   }
 

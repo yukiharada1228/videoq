@@ -1,5 +1,7 @@
 import type { BetterAuthPlugin } from "better-auth";
-import { createAuthEndpoint } from "better-auth/api";
+import { APIError, createAuthEndpoint } from "better-auth/api";
+import { role } from "better-auth/plugins/access";
+import { createResourceServerChallenge } from "@better-auth/oauth-provider";
 import {
   createDpopReplayStore,
   enforceDpopBinding,
@@ -9,27 +11,18 @@ import {
 } from "better-auth/oauth2";
 import { errors as jwtErrors } from "jose";
 import { z } from "zod";
-import { hasActiveGrant, isBanned, isInactive, OAUTH_GRANT_CLAIM } from "./auth-security";
+import { isBanned } from "./auth-security";
 import { MCP_READ_SCOPE, MCP_WRITE_SCOPE } from "./mcp-auth";
 
 export type ResourceAccessResult =
   | { kind: "ok"; userId: string; via: "apikey" | "oauth"; accessLevel: string }
-  | { kind: "invalid"; message: string }
+  | { kind: "invalid"; message: string; wwwAuthenticate?: string }
   | { kind: "forbidden"; message: string; requiredScope: string };
-
-function accessLevelFromMetadata(metadata: unknown): string {
-  // The API key plugin owns metadata deserialization, including legacy rows.
-  if (!metadata || typeof metadata !== "object") return "read_only";
-  const current = "accessLevel" in metadata ? metadata.accessLevel : undefined;
-  const legacy = "access_level" in metadata ? metadata.access_level : undefined;
-  const level = current ?? legacy;
-  return typeof level === "string" ? level : "read_only";
-}
 
 /**
  * Resource-server policy exposed only through auth.api, never HTTP endpoints.
- * Better Auth verifies credentials; this extension applies VideoQ account,
- * consent and read/write access policy to the verified identity.
+ * Better Auth verifies credentials; this extension applies VideoQ account
+ * status and read/write access policy to the verified identity.
  */
 export function videoqResourceAccess(jwksCacheKey: object, audience: string) {
   return {
@@ -40,15 +33,18 @@ export function videoqResourceAccess(jwksCacheKey: object, audience: string) {
       }, async (ctx): Promise<ResourceAccessResult> => {
         const plugin = ctx.context.getPlugin("api-key");
         if (!plugin) throw new Error("VideoQ requires the Better Auth API key plugin");
-        const result = await plugin.endpoints.verifyApiKey({ body: ctx.body, context: ctx.context });
+        const result = await plugin.endpoints.verifyApiKey({
+          body: { ...ctx.body, permissions: { videoq: ["read"] } }, context: ctx.context,
+        });
         if (!result.valid || !result.key) return { kind: "invalid", message: "Invalid API key" };
         const user = await ctx.context.internalAdapter.findUserById(result.key.referenceId);
-        if (!user || isBanned(user) || isInactive(user)) {
+        if (!user || isBanned(user)) {
           return { kind: "invalid", message: "User is inactive" };
         }
         return {
           kind: "ok", userId: user.id, via: "apikey",
-          accessLevel: accessLevelFromMetadata(result.key.metadata),
+          accessLevel: role(result.key.permissions ?? {}).authorize({ videoq: ["write"] }).success
+            ? "all" : "read_only",
         };
       }),
       verifyVideoqOAuth: createAuthEndpoint.serverOnly({
@@ -89,7 +85,16 @@ export function videoqResourceAccess(jwksCacheKey: object, audience: string) {
             error instanceof jwtErrors.JWKSMultipleMatchingKeys
           );
           if (invalidJwt || isDpopBindingError(error)) {
-            return { kind: "invalid", message: "Invalid OAuth access token" };
+            const challenge = createResourceServerChallenge(
+              isDpopBindingError(error) ? new APIError("UNAUTHORIZED", {
+                error: error.code, error_description: error.message,
+              }) : new APIError("UNAUTHORIZED"),
+              audience, { challengeScopes: [MCP_READ_SCOPE] },
+            );
+            return {
+              kind: "invalid", message: "Invalid OAuth access token",
+              wwwAuthenticate: new Headers(challenge?.headers).get("WWW-Authenticate") ?? undefined,
+            };
           }
           throw error;
         }
@@ -102,10 +107,13 @@ export function videoqResourceAccess(jwksCacheKey: object, audience: string) {
         }
         const scopes = typeof scope === "string" ? scope.split(" ") : [];
         const userId = payload.sub;
-        if (!userId || !await hasActiveGrant(ctx.context, {
-          userId, clientId: payload.client_id,
-          referenceId: payload[OAUTH_GRANT_CLAIM], scopes,
-        })) return { kind: "invalid", message: "OAuth authorization has been revoked" };
+        if (!userId || typeof payload.client_id !== "string" || !payload.client_id) {
+          return { kind: "invalid", message: "Invalid OAuth access token" };
+        }
+        // A disconnected client's existing JWT remains usable until native
+        // expiry (five minutes for new tokens). Bans still apply immediately.
+        const user = await ctx.context.internalAdapter.findUserById(userId);
+        if (!user || isBanned(user)) return { kind: "invalid", message: "User is inactive" };
         if (!scopes.includes(MCP_READ_SCOPE)) {
           return {
             kind: "forbidden", message: "OAuth token lacks videoq.read scope",

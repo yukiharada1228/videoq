@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { APIError } from "better-auth/api";
 import { requestTrpc, trpcData } from "./helpers/trpc";
 
 import {
@@ -7,6 +8,14 @@ import {
   type QueryCall,
   type MatchableSql,
 } from "./helpers/pg-fake";
+
+const nativeAdmin = vi.hoisted(() => ({
+  banUser: vi.fn(), unbanUser: vi.fn(), setRole: vi.fn(), adminUpdateUser: vi.fn(),
+}));
+vi.mock("../src/lib/auth", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../src/lib/auth")>(),
+  createAuth: () => ({ api: nativeAdmin }),
+}));
 
 const calls: QueryCall[] = [];
 let rowsFor: (sql: MatchableSql, args: unknown[]) => Record<string, unknown>[];
@@ -46,10 +55,11 @@ const ENV = {
 
 beforeEach(() => {
   calls.length = 0;
+  for (const method of Object.values(nativeAdmin)) method.mockReset().mockResolvedValue({});
   enqueueAll.mockReset().mockResolvedValue("job-abc");
   processExternalTask.mockReset().mockResolvedValue(true);
   rowsFor = (sql) => {
-    if (sql.includes("SELECT is_superuser")) return [{ is_superuser: true }];
+    if (sql.includes("SELECT role FROM users")) return [{ role: "admin" }];
     if (sql.includes("count(*)")) return [{ c: 1 }];
     if (sql.includes("external_tasks") && sql.includes("RETURNING")) {
       return [{ id: 73 }];
@@ -153,14 +163,18 @@ describe("admin API", () => {
       body: JSON.stringify({ is_staff: true, is_superuser: true }),
     });
     expect(res.status).toBe(200);
-    expect(calls.some((c) => c.sql.includes("UPDATE") && c.sql.includes("users"))).toBe(
-      true,
-    );
+    expect(nativeAdmin.setRole).toHaveBeenCalledWith(expect.objectContaining({
+      body: { userId: "00000000-0000-4000-8000-000000000009", role: "admin" },
+      headers: expect.any(Headers),
+    }));
+    expect(nativeAdmin.adminUpdateUser).toHaveBeenCalledWith(expect.objectContaining({
+      body: { userId: "00000000-0000-4000-8000-000000000009", data: { isStaff: true } },
+    }));
   });
 
   it("自分の superuser フラグは外せない", async () => {
     rowsFor = (sql) => {
-      if (sql.includes("SELECT is_superuser")) return [{ is_superuser: true }];
+      if (sql.includes("SELECT role FROM users")) return [{ role: "admin" }];
       if (sql.includes("FROM users")) {
         return [
           {
@@ -232,22 +246,38 @@ describe("admin API", () => {
     ).toBe(true);
   });
 
-  it("is_active=false で OAuth トークンも消す", async () => {
+  it.each([false, true])("is_active=%s uses the official Admin API", async (is_active) => {
     const res = await req("/users/00000000-0000-4000-8000-000000000009/flags", {
       method: "PATCH",
       headers: {
         "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001",
+        cookie: "forwarded-session-cookie",
         "content-type": "application/json",
       },
-      body: JSON.stringify({ is_active: false }),
+      body: JSON.stringify({ is_active }),
     });
     expect(res.status).toBe(200);
-    expect(calls.some((c) => c.sql.includes("DELETE") && c.sql.includes("session"))).toBe(
-      true,
-    );
-    expect(
-      calls.some((c) => c.sql.includes("DELETE") && c.sql.includes("oauth_access_token")),
-    ).toBe(true);
+    const method = is_active ? nativeAdmin.unbanUser : nativeAdmin.banUser;
+    expect(method).toHaveBeenCalledWith({
+      body: { userId: "00000000-0000-4000-8000-000000000009" }, headers: expect.any(Headers),
+    });
+    expect(method.mock.calls[0][0].headers.get("cookie")).toBe("forwarded-session-cookie");
+  });
+
+  it("does not fall back to a legacy superuser flag after native role removal", async () => {
+    rowsFor = (sql) => sql.includes("SELECT role FROM users") ? [{ role: "user" }] : [];
+    expect((await req("/users", { headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001" } })).status).toBe(403);
+  });
+
+  it("returns native authorization failures and rolls back the flag transaction", async () => {
+    nativeAdmin.banUser.mockRejectedValueOnce(new APIError("FORBIDDEN", { message: "Permission denied" }));
+    const response = await req("/users/00000000-0000-4000-8000-000000000009/flags", {
+      method: "PATCH", headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001" },
+      body: JSON.stringify({ is_active: false, is_superuser: true }),
+    });
+    expect(response.status).toBe(403);
+    expect(nativeAdmin.setRole).not.toHaveBeenCalled();
+    expect(calls.some((call) => call.sql.includes("ROLLBACK"))).toBe(true);
   });
 
   it("永続化済みの削除ジョブを返し、リクエスト内では削除しない", async () => {
@@ -270,7 +300,7 @@ describe("admin API", () => {
 
   it("自分自身は削除できない", async () => {
     rowsFor = (sql) => {
-      if (sql.includes("SELECT is_superuser")) return [{ is_superuser: true }];
+      if (sql.includes("SELECT role FROM users")) return [{ role: "admin" }];
       if (sql.includes("FROM users")) {
         return [
           {
@@ -304,7 +334,7 @@ describe("admin API", () => {
 
   it("他 superuser は削除できない", async () => {
     rowsFor = (sql) => {
-      if (sql.includes("SELECT is_superuser")) return [{ is_superuser: true }];
+      if (sql.includes("SELECT role FROM users")) return [{ role: "admin" }];
       if (sql.includes("FROM users")) {
         return [
           {

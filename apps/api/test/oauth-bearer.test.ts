@@ -27,6 +27,7 @@ import {
   type JWK,
 } from "jose";
 import { oauthBearerMethod, requireAuth } from "../src/middleware/auth";
+import { mcpRoutes } from "../src/features/mcp/routes";
 import type { AppEnv } from "../src/types/bindings";
 import { TEST_USER_ID } from "./helpers/auth";
 
@@ -71,6 +72,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 function app() {
   const instance = new Hono<AppEnv>();
+  instance.route("/api/mcp", mcpRoutes);
   instance.get("/who", requireAuth(oauthBearerMethod), (c) =>
     c.json({
       userId: c.var.userId,
@@ -85,7 +87,7 @@ async function signAccessToken(
   scope: string,
   extraClaims: Record<string, unknown> = {},
 ) {
-  return new SignJWT({ scope, client_id: "test-client", videoq_grant: "test-consent", ...extraClaims })
+  return new SignJWT({ scope, client_id: "test-client", ...extraClaims })
     .setProtectedHeader({ alg: "EdDSA", kid: KEY_ID })
     .setSubject(TEST_USER_ID)
     .setIssuer(ISSUER)
@@ -98,6 +100,7 @@ async function signAccessToken(
 async function request(
   accessToken: string,
   headers: Record<string, string> = {},
+  path = "/who",
 ) {
   // A distinct env also proves the verifier can load key material directly
   // instead of relying on a prior cache entry.
@@ -106,7 +109,7 @@ async function request(
     BETTER_AUTH_SECRET: "isolated-oauth-test-secret-01234567890123456789",
   } as AppEnv["Bindings"];
   return app().request(
-    "https://videoq.jp/who",
+    `https://videoq.jp${path}`,
     {
       headers: { Authorization: `Bearer ${accessToken}`, ...headers },
     },
@@ -135,11 +138,11 @@ describe("OAuth bearer authentication", () => {
 
   });
 
-  it("rejects an already-issued JWT after its grant is revoked", async () => {
+  it("accepts an unexpired standard JWT after consent deletion without a private grant claim", async () => {
     const token = await signAccessToken("videoq.read videoq.write");
     expect((await request(token)).status).toBe(200);
     store.data.oauthConsent = [];
-    expect((await request(token)).status).toBe(401);
+    expect((await request(token)).status).toBe(200);
   });
 
   it.each(["bearer", "bEaReR"])("uses Better Auth's case-insensitive %s header parser", async (scheme) => {
@@ -147,13 +150,9 @@ describe("OAuth bearer authentication", () => {
     expect((await request(token, { Authorization: `${scheme}\t${token}` })).status).toBe(200);
   });
 
-  it.each(["inactive", "banned", "missing user", "disabled client", "missing client", "scope removed"])("rejects %s using the shared grant policy", async (reason) => {
-    if (reason === "inactive") store.data.user[0].isActive = false;
+  it.each(["banned", "missing user"])("rejects %s immediately", async (reason) => {
     if (reason === "banned") store.data.user[0].banned = true;
     if (reason === "missing user") store.data.user = [];
-    if (reason === "disabled client") store.data.oauthClient[0].disabled = true;
-    if (reason === "missing client") store.data.oauthClient = [];
-    if (reason === "scope removed") store.data.oauthConsent[0].scopes = [];
     expect((await request(await signAccessToken("videoq.read"))).status).toBe(401);
   });
 
@@ -167,7 +166,7 @@ describe("OAuth bearer authentication", () => {
     const tampered = `${header}.${body}.${signature[0] === "A" ? "B" : "A"}${signature.slice(1)}`;
     expect((await request(tampered)).status).toBe(401);
     for (const claims of [{ iss: "https://other.example" }, { aud: "other-resource" }, { exp: 1 }]) {
-      const invalid = await new SignJWT({ scope: "videoq.read", client_id: "test-client", videoq_grant: "test-consent" })
+      const invalid = await new SignJWT({ scope: "videoq.read", client_id: "test-client" })
         .setProtectedHeader({ alg: "EdDSA", kid: KEY_ID })
         .setSubject(TEST_USER_ID).setIssuer(claims.iss ?? ISSUER)
         .setAudience(claims.aud ?? AUDIENCE).setExpirationTime(claims.exp ?? "5m")
@@ -177,9 +176,8 @@ describe("OAuth bearer authentication", () => {
   });
 
   it.each([
-    { videoq_grant: undefined }, { videoq_grant: "" },
     { client_id: undefined }, { client_id: "" },
-  ])("rejects legacy or malformed grant identity %j", async (claims) => {
+  ])("rejects a malformed client identity %j", async (claims) => {
     expect((await request(await signAccessToken("videoq.read", claims))).status).toBe(401);
   });
 
@@ -229,5 +227,9 @@ describe("OAuth bearer authentication", () => {
     // Replay concurrency needs real primary-key uniqueness; it is covered by
     // the PostgreSQL integration test, not the in-memory adapter.
     expect((await request(accessToken)).status).toBe(401);
+    const missingProof = await request(accessToken, { Authorization: `DPoP ${accessToken}` }, "/api/mcp");
+    expect(missingProof.status).toBe(401);
+    expect(missingProof.headers.get("WWW-Authenticate")).toMatch(/^DPoP /);
+    expect(missingProof.headers.get("WWW-Authenticate")).toContain('algs="');
   });
 });

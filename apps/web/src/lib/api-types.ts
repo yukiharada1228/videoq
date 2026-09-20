@@ -63,6 +63,7 @@ export type { PlogWaypoint };
 // part of the tRPC router.
 export interface IntegrationApiKey {
   id: string;
+  config_id?: string;
   name: string;
   access_level: 'all' | 'read_only';
   prefix: string;

@@ -7,6 +7,7 @@ import type {
   RpcOutputMap,
 } from "@videoq/trpc";
 import { ApiError } from "../../shared/errors";
+import { isAPIError } from "better-auth/api";
 
 export type HandlersFor<Domain extends string> = Pick<
   ProcedureHandlers,
@@ -50,6 +51,13 @@ function apiStatusToTrpcCode(status: number): TRPC_ERROR_CODE_KEY {
 
 function normalizeError(error: unknown): never {
   if (error instanceof TRPCError) throw error;
+  if (isAPIError(error)) {
+    throw new TRPCError({
+      code: apiStatusToTrpcCode(error.statusCode),
+      message: error.statusCode < 500 ? error.message : "Request failed",
+      cause: error,
+    });
+  }
   if (error instanceof ApiError) {
     throw new TRPCError({
       code: apiStatusToTrpcCode(error.status),

@@ -6,6 +6,7 @@ import type { AppEnv } from "../types/bindings";
 import { toErrorBody } from "../shared/errors";
 import { withDb } from "../db/pool";
 import { createAuth } from "../lib/auth";
+import type { ResourceAccessResult } from "../lib/auth-access";
 import { MCP_READ_SCOPE, MCP_WRITE_SCOPE } from "../lib/mcp-auth";
 
 /**
@@ -19,8 +20,7 @@ export type AuthVia = "apikey" | "session" | "oauth";
 export type AuthOutcome =
   | { kind: "ok"; userId: string; via: AuthVia; accessLevel?: string }
   | { kind: "absent" }
-  | { kind: "invalid"; message: string }
-  | { kind: "forbidden"; message: string; requiredScope: string };
+  | Exclude<ResourceAccessResult, { kind: "ok" }>;
 
 export type AuthMethod = (c: Context<AppEnv>) => Promise<AuthOutcome>;
 

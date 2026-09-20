@@ -38,7 +38,7 @@ const { authClientMock, fetchAuthSessionMock } = vi.hoisted(() => {
             start: 'vq_123',
             lastRequest: null,
             createdAt: '2026-03-02T00:00:00Z',
-            metadata: { accessLevel: 'all' },
+            permissions: { videoq: ['read', 'write'] },
           }],
         })),
         create: vi.fn(() => ok({
@@ -255,6 +255,7 @@ describe('ApiClient protocol adapters', () => {
       id: '1',
       name: 'integration',
       access_level: 'all',
+      config_id: 'default',
       prefix: 'vq_123',
       last_used_at: null,
       created_at: '2026-03-02T00:00:00Z',
@@ -295,21 +296,27 @@ describe('ApiClient protocol adapters', () => {
   });
 
   it.each([
-    [{ access_level: 'all' }, 'all'],
-    [JSON.stringify({ access_level: 'all' }), 'all'],
-    [{ accessLevel: 'read_only', access_level: 'all' }, 'read_only'],
-    [JSON.stringify({ accessLevel: 'read_only', access_level: 'all' }), 'read_only'],
-    [{ accessLevel: '', access_level: 'all' }, 'read_only'],
+    [{ videoq: ['read', 'write'] }, 'all'],
+    [{ videoq: ['read'] }, 'read_only'],
+    [{ videoq: ['write'] }, 'read_only'],
     [null, 'read_only'],
-    ['invalid-json', 'read_only'],
-  ])('displays API key access from current and legacy metadata: %j', async (metadata, accessLevel) => {
+    [{}, 'read_only'],
+  ])('displays native API key permissions: %j', async (permissions, accessLevel) => {
     authClientMock.apiKey.list.mockResolvedValueOnce({
-      data: { apiKeys: [{ id: 'legacy', metadata }] }, error: null,
+      data: { apiKeys: [{ id: 'native', configId: 'read-write', permissions, metadata: { accessLevel: 'all' } }] }, error: null,
     });
-
     expect(await client.getIntegrationApiKeys()).toEqual([
-      expect.objectContaining({ id: 'legacy', access_level: accessLevel }),
+      expect.objectContaining({ id: 'native', config_id: 'read-write', access_level: accessLevel }),
     ]);
+  });
+
+  it('uses the selected native profile for creation and revocation', async () => {
+    await client.createIntegrationApiKey({ name: 'writer', access_level: 'all' });
+    expect(authClientMock.apiKey.create).toHaveBeenCalledWith({
+      name: 'writer', prefix: 'vq_', configId: 'read-write',
+    });
+    await client.revokeIntegrationApiKey('native', 'read-write');
+    expect(authClientMock.apiKey.delete).toHaveBeenCalledWith({ keyId: 'native', configId: 'read-write' });
   });
 
   it('uploads multipart data over the dedicated raw route', async () => {

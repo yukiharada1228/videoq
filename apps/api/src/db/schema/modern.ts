@@ -54,7 +54,7 @@ export const users = pgTable(
 		lastLogin: timestamp("last_login", { withTimezone: true, mode: "string" }),
 		firstName: varchar("first_name", { length: 150 }).notNull().default(""),
 		lastName: varchar("last_name", { length: 150 }).notNull().default(""),
-		/** Legacy flag kept for admin UI / quota tooling; prefer `role` + `banned`. */
+		/** Historical migration columns; runtime authorization uses `role` + `banned`. */
 		isSuperuser: boolean("is_superuser").notNull().default(false),
 		isStaff: boolean("is_staff").notNull().default(false),
 		isActive: boolean("is_active").notNull().default(true),

@@ -16,14 +16,15 @@ import { mcpRoutes } from "./features/mcp/routes";
 import { mediaRoutes } from "./features/media/routes";
 import { billingRoutes } from "./features/billing/routes";
 import { withDb } from "./db/pool";
-import { createAuth } from "./lib/auth";
+import { authBaseURL, createAuth } from "./lib/auth";
 import { createTrpcContext } from "./trpc/context";
 import { appRouter } from "@videoq/trpc/router";
 import {
   oauthProviderAuthServerMetadata,
   oauthProviderOpenIdConfigMetadata,
 } from "@better-auth/oauth-provider";
-import { MCP_OAUTH_SCOPES } from "./lib/mcp-auth";
+import { oauthProviderResourceClient } from "@better-auth/oauth-provider/resource-client";
+import { MCP_READ_SCOPE, MCP_WRITE_SCOPE } from "./lib/mcp-auth";
 import { limitChatTrpcRequestBody } from "./features/chat/body-limit";
 import { loggablePath } from "./shared/log-path";
 import { summarizeAuthApiError } from "./lib/auth-error-log";
@@ -70,19 +71,15 @@ export function createApp() {
       return oauthProviderOpenIdConfigMetadata(auth as never)(c.req.raw);
     });
   });
-  const protectedResourceMetadata = (c: Context<AppEnv>) => {
-    const origin = new URL(c.req.url).origin;
-    const site = (
-      c.env.BETTER_AUTH_URL?.trim() ||
-      c.env.OAUTH_ISSUER_URL?.trim() ||
-      c.env.FRONTEND_URL?.trim() ||
-      origin
-    ).replace(/\/+$/, "");
-    return c.json({
+  const protectedResourceMetadata = async (c: Context<AppEnv>) => {
+    const site = authBaseURL(c.env, new URL(c.req.url).origin);
+    const scopes = [MCP_READ_SCOPE, MCP_WRITE_SCOPE];
+    const resourceClient = oauthProviderResourceClient().getActions();
+    return c.json(await resourceClient.getProtectedResourceMetadata({
       resource: `${site}/api/mcp`,
       authorization_servers: [`${site}/api/auth`],
-      scopes_supported: [...MCP_OAUTH_SCOPES],
-    });
+      scopes_supported: scopes,
+    }, { externalScopes: scopes }));
   };
   app.get("/.well-known/oauth-protected-resource", protectedResourceMetadata);
   // RFC 9728 path form. MCP 401 の resource_metadata が指す先。

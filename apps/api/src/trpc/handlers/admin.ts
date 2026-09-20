@@ -34,7 +34,7 @@ export function adminHandlers(
       return user;
     },
     "admin.patchFlags": async ({ id, ...patch }) => {
-      const result = await adminService.patchFlags(c.env, actorId(), id, patch);
+      const result = await adminService.patchFlags(c.env, actorId(), id, patch, c.req.raw.headers);
       if ("notFound" in result) return rpcError("NOT_FOUND", "User not found");
       if ("selfLockout" in result) {
         return rpcError(

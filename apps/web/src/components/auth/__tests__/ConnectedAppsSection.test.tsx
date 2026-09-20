@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { apiClient } from '@/lib/api';
 import { ConnectedAppsSection } from '../ConnectedAppsSection';
 
@@ -33,6 +33,7 @@ it('blocks every revoke until the refreshed list arrives and focuses the result'
   const notes = screen.getByRole('button', { name: revokeName('Notes') });
 
   fireEvent.click(classroom);
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'settings.connectedApps.revoke' }));
   await waitFor(() => expect(classroom).toBeDisabled());
   expect(notes).toBeDisabled();
   expect(classroom).toHaveAttribute('aria-busy', 'true');
@@ -60,18 +61,20 @@ it('retains the app after failure, clears the error during retry, and handles th
   render(<ConnectedAppsSection />);
   const button = await screen.findByRole('button', { name: revokeName('Classroom') });
   fireEvent.click(button);
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'settings.connectedApps.revoke' }));
   const error = await screen.findByText('settings.connectedApps.errorRevoking');
   await waitFor(() => expect(button).toBeEnabled());
   expect(screen.getByText('Classroom')).toBeInTheDocument();
   expect(error.closest('[tabindex="-1"]')).toHaveFocus();
 
   fireEvent.click(button);
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'settings.connectedApps.revoke' }));
   await waitFor(() => expect(button).toBeDisabled());
   expect(screen.queryByText('settings.connectedApps.errorRevoking')).not.toBeInTheDocument();
   await act(async () => { retry.resolve(); });
   expect(await screen.findByText('settings.connectedApps.empty')).toBeInTheDocument();
   await waitFor(() => expect(screen.getByText('settings.connectedApps.successRevoked').closest('[tabindex="-1"]')).toHaveFocus());
-  expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  expect(screen.queryByRole('list')).not.toBeInTheDocument();
   expect(revokeToken).toHaveBeenCalledTimes(2);
 });
 
@@ -81,4 +84,18 @@ it.each(['ja', 'en'] as const)('formats issue and expiry dates with the selected
   expect(await screen.findByText(new Date(tokens[0].issued_at).toLocaleString(locale))).toBeInTheDocument();
   expect(screen.getByText(new Date(tokens[1].expires_at!).toLocaleString(locale))).toBeInTheDocument();
   expect(screen.getByText('settings.connectedApps.expiresNever')).toBeInTheDocument();
+});
+
+
+it('does not disconnect when confirmation is cancelled', async () => {
+  render(<ConnectedAppsSection />);
+  const button = await screen.findByRole('button', { name: revokeName('Classroom') });
+  fireEvent.click(button);
+  expect(revokeToken).not.toHaveBeenCalled();
+  const dialog = screen.getByRole('dialog');
+  expect(within(dialog).getByText('Classroom')).toBeInTheDocument();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'settings.cancel' }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(revokeToken).not.toHaveBeenCalled();
+  expect(screen.getByText('Classroom')).toBeInTheDocument();
 });

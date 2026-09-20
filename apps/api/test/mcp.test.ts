@@ -97,7 +97,7 @@ describe("MCP auth", () => {
     );
     expect(res.status).toBe(401);
     const challenge = res.headers.get("WWW-Authenticate") ?? "";
-    expect(challenge).toContain('Bearer realm="api"');
+    expect(challenge).toMatch(/^Bearer /);
     expect(challenge).toContain(
       'resource_metadata="https://api.example.com/.well-known/oauth-protected-resource/api/mcp"',
     );
