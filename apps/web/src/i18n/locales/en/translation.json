@@ -74,6 +74,7 @@
     "settings": "Settings",
     "pricing": "Pricing",
     "logout": "Log out",
+    "logoutFailed": "Could not log out. You may still be signed in. Please try again.",
     "menu": "All menus",
     "closeMenu": "Close menu",
     "admin": "Admin"

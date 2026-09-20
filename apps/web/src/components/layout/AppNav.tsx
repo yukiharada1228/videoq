@@ -14,6 +14,7 @@ import { type Locale, locales } from '@/i18n/config';
 import { apiClient } from '@/lib/api';
 import { useAuthSession } from '@/lib/authSession';
 import { trpc } from '@/lib/trpc';
+import { useToast } from '@/components/common/feedback';
 import { APP_CONTAINER_CLASS } from '@/components/layout/layoutTokens';
 import { cn } from '@/lib/digital-agency/cn';
 import { Button } from '@/components/ui/button';
@@ -68,8 +69,14 @@ export function AppNav({ activePage }: AppNavProps) {
   const location = useLocation();
   const locale = useLocale();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [isLangOpen, setIsLangOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [menuPathname, setMenuPathname] = useState(location.pathname);
+  if (menuPathname !== location.pathname) {
+    setMenuPathname(location.pathname);
+    setIsMenuOpen(false);
+  }
   const langMenuId = useId();
   const megaMenuId = useId();
   const langRootRef = useRef<HTMLDivElement>(null);
@@ -87,7 +94,7 @@ export function AppNav({ activePage }: AppNavProps) {
 
   const logoutMutation = useMutation({
     mutationFn: async () => await apiClient.logout(),
-    onSettled: async () => {
+    onSuccess: () => {
       queryClient.clear();
     },
   });
@@ -97,11 +104,10 @@ export function AppNav({ activePage }: AppNavProps) {
   const handleLogout = async () => {
     try {
       await logoutMutation.mutateAsync();
-    } catch (error) {
-      console.error('Logout failed:', error);
-    } finally {
       closeMenu();
       navigate('/login');
+    } catch {
+      toast({ message: t('navigation.logoutFailed'), variant: 'error', durationMs: 0 });
     }
   };
 
@@ -145,10 +151,6 @@ export function AppNav({ activePage }: AppNavProps) {
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [isMenuOpen]);
-
-  useEffect(() => {
-    closeMenu();
-  }, [location.pathname]);
 
   useEffect(() => {
     const header = headerRef.current;

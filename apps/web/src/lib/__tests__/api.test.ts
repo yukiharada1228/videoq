@@ -152,6 +152,51 @@ describe('ApiClient protocol adapters', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('rejects logout when Better Auth returns an error', async () => {
+    authClientMock.signOut.mockResolvedValueOnce({
+      data: null, error: { message: 'Session could not be revoked', code: 'SIGN_OUT_FAILED' },
+    });
+    await expect(client.logout()).rejects.toMatchObject({
+      name: 'ApiError', code: 'SIGN_OUT_FAILED', message: 'Session could not be revoked',
+    });
+  });
+
+  it('rejects logout when the network request fails', async () => {
+    const failure = new TypeError('Failed to fetch');
+    authClientMock.signOut.mockRejectedValueOnce(failure);
+    await expect(client.logout()).rejects.toBe(failure);
+  });
+
+  it.each(['stream', 'csv', 'upload'] as const)(
+    'reports a %s 401 without signing out the current session',
+    async (protocol) => {
+      const onUnauthorized = vi.fn();
+      client = createApiClient({ baseUrl: BASE_URL, fetchFn: fetchMock, onUnauthorized });
+      fetchMock.mockResolvedValueOnce(new Response('Unauthorized', { status: 401 }));
+      const request = protocol === 'stream'
+        ? client.chatStream({ messages: [{ role: 'user', content: 'hello' }] }).next()
+        : protocol === 'csv'
+          ? client.exportChatHistoryCsv(1)
+          : client.uploadVideo({ file: new File(['video'], 'video.mp4'), title: 'Video' });
+
+      await expect(request).rejects.toThrow('Authentication failed');
+      expect(onUnauthorized).toHaveBeenCalledTimes(1);
+      expect(authClientMock.signOut).not.toHaveBeenCalled();
+    },
+  );
+
+  it('preserves the request authentication error if session revalidation fails', async () => {
+    client = createApiClient({
+      baseUrl: BASE_URL,
+      fetchFn: fetchMock,
+      onUnauthorized: async () => { throw new TypeError('Revalidation failed'); },
+    });
+    fetchMock.mockResolvedValueOnce(new Response('Unauthorized', { status: 401 }));
+
+    await expect(client.exportChatHistoryCsv(1)).rejects.toThrow('Authentication failed');
+    expect(authClientMock.signOut).not.toHaveBeenCalled();
+  });
+
   it('uses Better Auth for sign-in, signup, recovery, and profile changes', async () => {
     await client.login({ username: 'user', password: 'pw' });
     await client.loginWithGoogle('/videos');

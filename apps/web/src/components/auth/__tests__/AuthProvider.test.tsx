@@ -46,13 +46,14 @@ describe('AuthProvider', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(useAuthSession().refetch).mockReset().mockResolvedValue(undefined)
     queryClient = null
     ;(globalThis as any).__setMockPathname?.('/videos')
     window.history.pushState({}, '', '/videos')
   })
 
-  it('clears cached auth state and redirects protected routes when any API reports unauthorized', async () => {
-    render(
+  it('clears cached auth state and redirects after revalidation confirms session expiry', async () => {
+    const { rerender } = render(
       <AuthProvider>
         <QueryClientProbe onClient={(client) => { queryClient = client }} />
       </AuthProvider>,
@@ -61,6 +62,10 @@ describe('AuthProvider', () => {
     expect(apiClient.setUnauthorizedHandler).toHaveBeenCalledWith(expect.any(Function))
     expect(queryClient).not.toBeNull()
     queryClient!.setQueryData(cachedProfileKey, { id: 1, username: 'testuser' })
+    vi.mocked(useAuthSession().refetch).mockImplementationOnce(async () => {
+      globalThis.__setMockAuthSession(null)
+      rerender(<AuthProvider><QueryClientProbe onClient={(client) => { queryClient = client }} /></AuthProvider>)
+    })
 
     await act(async () => {
       await latestUnauthorizedHandler()()
@@ -74,13 +79,17 @@ describe('AuthProvider', () => {
     ;(globalThis as any).__setMockPathname?.('/login')
     window.history.pushState({}, '', '/login')
 
-    render(
+    const { rerender } = render(
       <AuthProvider>
         <QueryClientProbe onClient={(client) => { queryClient = client }} />
       </AuthProvider>,
     )
 
     queryClient!.setQueryData(cachedProfileKey, { id: 1, username: 'testuser' })
+    vi.mocked(useAuthSession().refetch).mockImplementationOnce(async () => {
+      globalThis.__setMockAuthSession(null)
+      rerender(<AuthProvider><QueryClientProbe onClient={(client) => { queryClient = client }} /></AuthProvider>)
+    })
 
     await act(async () => {
       await latestUnauthorizedHandler()()
@@ -90,13 +99,17 @@ describe('AuthProvider', () => {
     expect(useI18nNavigate()).not.toHaveBeenCalled()
   })
 
-  it('signs out and redirects when tRPC reports an unauthorized response', async () => {
-    render(
+  it('revalidates and redirects when a tRPC 401 confirms an expired session', async () => {
+    const { rerender } = render(
       <AuthProvider>
         <QueryClientProbe onClient={(client) => { queryClient = client }} />
       </AuthProvider>,
     )
     queryClient!.setQueryData(cachedProfileKey, { id: 1, username: 'testuser' })
+    vi.mocked(useAuthSession().refetch).mockImplementationOnce(async () => {
+      globalThis.__setMockAuthSession(null)
+      rerender(<AuthProvider><QueryClientProbe onClient={(client) => { queryClient = client }} /></AuthProvider>)
+    })
 
     await act(async () => {
       window.dispatchEvent(new Event(TRPC_UNAUTHORIZED_EVENT))
@@ -104,9 +117,52 @@ describe('AuthProvider', () => {
       await Promise.resolve()
     })
 
-    expect(apiClient.logout).toHaveBeenCalledTimes(1)
+    expect(useAuthSession().refetch).toHaveBeenCalledTimes(1)
+    expect(apiClient.logout).not.toHaveBeenCalled()
     expect(queryClient!.getQueryData(cachedProfileKey)).toBeUndefined()
     expect(useI18nNavigate()).toHaveBeenCalledWith('/login')
+  })
+
+  it('revalidates the current session for a late 401 without signing it out', async () => {
+    globalThis.__setMockAuthSession({ user: { id: 'new-user' } })
+    render(<AuthProvider><QueryClientProbe onClient={(client) => { queryClient = client }} /></AuthProvider>)
+    queryClient!.setQueryData(cachedProfileKey, { id: 'new-user', username: 'current-user' })
+
+    await act(async () => {
+      window.dispatchEvent(new Event(TRPC_UNAUTHORIZED_EVENT))
+    })
+
+    expect(useAuthSession().refetch).toHaveBeenCalledTimes(1)
+    expect(apiClient.logout).not.toHaveBeenCalled()
+    expect(queryClient!.getQueryData(cachedProfileKey)).toEqual({ id: 'new-user', username: 'current-user' })
+    expect(useI18nNavigate()).not.toHaveBeenCalled()
+  })
+
+  it('coalesces concurrent unauthorized responses into one session revalidation', async () => {
+    let finish!: () => void
+    vi.mocked(useAuthSession().refetch).mockReturnValueOnce(new Promise<void>((resolve) => { finish = resolve }))
+    render(<AuthProvider><span>Signed in</span></AuthProvider>)
+
+    await act(async () => {
+      window.dispatchEvent(new Event(TRPC_UNAUTHORIZED_EVENT))
+      window.dispatchEvent(new Event(TRPC_UNAUTHORIZED_EVENT))
+      void latestUnauthorizedHandler()()
+    })
+    expect(useAuthSession().refetch).toHaveBeenCalledTimes(1)
+    await act(async () => { finish() })
+    expect(apiClient.logout).not.toHaveBeenCalled()
+  })
+
+  it('keeps the session and cache when revalidation fails temporarily', async () => {
+    vi.mocked(useAuthSession().refetch).mockRejectedValueOnce(new TypeError('Network error'))
+    render(<AuthProvider><QueryClientProbe onClient={(client) => { queryClient = client }} /></AuthProvider>)
+    queryClient!.setQueryData(['private-videos'], ['current-user-video'])
+
+    await act(async () => { await latestUnauthorizedHandler()() })
+
+    expect(queryClient!.getQueryData(['private-videos'])).toEqual(['current-user-video'])
+    expect(useI18nNavigate()).not.toHaveBeenCalled()
+    expect(apiClient.logout).not.toHaveBeenCalled()
   })
 
   it('unregisters the unauthorized handler on unmount', () => {

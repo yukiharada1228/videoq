@@ -1,5 +1,7 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react'
 import { apiClient } from '@/lib/api'
+import { useQueryClient } from '@tanstack/react-query'
+import { useI18nNavigate } from '@/lib/i18n'
 
 // Unmock AppNav so we can test the real implementation
 vi.unmock('@/components/layout/AppNav')
@@ -70,6 +72,30 @@ describe('AppNav - disclosure focus and pending actions', () => {
     expect(apiClient.logout).toHaveBeenCalledTimes(1)
     await act(async () => { finish() })
     await waitFor(() => expect(actions[0]).toBeEnabled())
+  })
+
+  it('shows logout failure, preserves the current page and cache, and allows retry', async () => {
+    const navigate = vi.mocked(useI18nNavigate())
+    navigate.mockClear()
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.mocked(apiClient.logout).mockRejectedValueOnce(new Error('Network error'))
+    const { result } = renderHook(() => useQueryClient())
+    result.current.setQueryData(['private-videos'], ['current-user-video'])
+    render(<AppNav />)
+    const logout = screen.getByRole('button', { name: 'navigation.logout' })
+
+    fireEvent.click(logout)
+
+    await screen.findByText('navigation.logoutFailed')
+    expect(navigate).not.toHaveBeenCalled()
+    expect(result.current.getQueryData(['private-videos'])).toEqual(['current-user-video'])
+    await waitFor(() => expect(logout).toBeEnabled())
+
+    fireEvent.click(logout)
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/login'))
+    expect(apiClient.logout).toHaveBeenCalledTimes(2)
+    expect(result.current.getQueryData(['private-videos'])).toBeUndefined()
+    consoleError.mockRestore()
   })
 })
 

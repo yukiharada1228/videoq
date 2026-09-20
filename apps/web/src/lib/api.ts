@@ -1,6 +1,6 @@
 import { API_URL } from './apiConfig';
 import { ApiError } from './api-error';
-import { createAppTrpcClient } from './trpc';
+import { createAppTrpcClient, TRPC_UNAUTHORIZED_EVENT } from './trpc';
 import { videoSchema } from '@videoq/trpc/schema';
 import type {
   AuthorizedOAuthToken,
@@ -76,10 +76,7 @@ export class ApiClient {
     this.rpc = createAppTrpcClient({
       baseUrl: this.baseUrl,
       fetchFn: this.fetchFn,
-      onUnauthorized: async () => {
-        await this.logout();
-        await this.onUnauthorized?.();
-      },
+      onUnauthorized: () => this.notifyUnauthorized(),
     });
   }
 
@@ -94,11 +91,17 @@ export class ApiClient {
   }
 
   async logout(): Promise<void> {
+    const { authClient } = await import('@/lib/auth-client');
+    const { error } = await authClient.signOut();
+    if (error) throw new ApiError(error.message || 'Logout failed', error.code || 'LOGOUT_FAILED');
+  }
+
+  private async notifyUnauthorized(): Promise<void> {
     try {
-      const { authClient } = await import('@/lib/auth-client');
-      await authClient.signOut();
+      if (this.onUnauthorized) await this.onUnauthorized();
+      else if (typeof window !== 'undefined') window.dispatchEvent(new Event(TRPC_UNAUTHORIZED_EVENT));
     } catch {
-      // Silently handle logout errors
+      // A failed session refresh must not hide the original request error.
     }
   }
 
@@ -144,9 +147,8 @@ export class ApiClient {
     throw new ApiError(`HTTP error! status: ${response.status}`, 'UNKNOWN');
   }
 
-  private async handleAuthError(): Promise<void> {
-    await this.logout();
-    await this.onUnauthorized?.();
+  private async handleAuthError(): Promise<never> {
+    await this.notifyUnauthorized();
     throw new Error("Authentication failed");
   }
 
@@ -427,8 +429,7 @@ export class ApiClient {
 
     const response = await doFetch();
     if (response.status === 401) {
-      await this.logout();
-      throw new Error('Authentication failed');
+      await this.handleAuthError();
     }
 
     if (!response.ok) {
