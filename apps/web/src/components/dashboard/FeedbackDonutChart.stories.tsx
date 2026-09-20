@@ -16,6 +16,18 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+function preferReducedMotion() {
+  const matchMedia = window.matchMedia;
+  window.matchMedia = (query) => {
+    const result = matchMedia.call(window, query);
+    if (query === '(prefers-reduced-motion: reduce)') {
+      Object.defineProperty(result, 'matches', { value: true });
+    }
+    return result;
+  };
+  return () => { window.matchMedia = matchMedia; };
+}
+
 export const Mixed: Story = {
   play: async ({ canvas }) => {
     const chart = await canvas.findByRole('application');
@@ -38,12 +50,29 @@ export const OnlyBad: Story = { args: { data: { good: 0, bad: 40, none: 0 } } };
 export const OnlyUnrated: Story = { args: { data: { good: 0, bad: 0, none: 40 } } };
 export const Skewed: Story = { args: { data: { good: 1, bad: 1, none: 998 } } };
 export const HoverTooltip: Story = {
+  // Pie replaces sector nodes while animating; a queued hover can target a
+  // detached node. Use Recharts' native reduced-motion behavior for interaction
+  // checks. Other stories retain the normal animation, and cleanup restores it.
+  beforeEach: preferReducedMotion,
+  parameters: {
+    docs: {
+      story: { inline: false, height: '320px' },
+      description: { story: 'ブラウザーの「動きを減らす」設定でホバー・解除を検証します。通常のアニメーションはMixedなどのStoryで確認できます。' },
+    },
+  },
   play: async ({ canvas, canvasElement, userEvent }) => {
     await waitFor(() => expect(canvasElement.querySelectorAll('.recharts-pie-sector')).toHaveLength(3), { timeout: 3000 });
-    await userEvent.hover(canvasElement.querySelectorAll('.recharts-pie-sector')[1]);
-    const tooltip = await canvas.findByRole('status');
-    await expect(within(tooltip).getByText(i18n.t('dashboard.feedback.bad'))).toBeVisible();
-    await expect(within(tooltip).getByText('6')).toBeVisible();
+    const sector = canvasElement.querySelectorAll('.recharts-pie-sector')[1];
+    const hover = async () => {
+      await userEvent.hover(sector);
+      const tooltip = await canvas.findByRole('status');
+      await expect(within(tooltip).getByText(i18n.t('dashboard.feedback.bad'))).toBeVisible();
+      await expect(within(tooltip).getByText('6')).toBeVisible();
+    };
+    await hover();
+    await userEvent.unhover(sector);
+    await waitFor(() => expect(canvas.queryByRole('status')).not.toBeInTheDocument());
+    await hover();
   },
 };
 export const KeyboardTooltip: Story = {
@@ -63,9 +92,11 @@ export const KeyboardTooltip: Story = {
   },
 };
 export const JapaneseMobile: Story = {
+  ...HoverTooltip,
   globals: { locale: 'ja', viewport: { value: 'mobile', isRotated: false } },
 };
 export const EnglishNarrow: Story = {
-  parameters: { chartWidth: 280 },
+  ...HoverTooltip,
+  parameters: { ...HoverTooltip.parameters, chartWidth: 280 },
   globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
 };
