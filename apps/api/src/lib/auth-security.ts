@@ -18,15 +18,37 @@ import { z } from "zod";
 
 export const OAUTH_GRANT_CLAIM = "videoq_grant";
 
+const RESET_TOKEN_PREFIX = "reset-password:";
+const HASHED_RESET_TOKEN_PREFIX = "reset-password-sha256:";
+
+/** Preserve other verification namespaces, including OAuth's own code hashing. */
+export const passwordResetIdentifierStorage = {
+  default: "plain" as const,
+  overrides: {
+    [RESET_TOKEN_PREFIX]: {
+      hash: async (identifier: string): Promise<string> => {
+        const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(identifier));
+        const hex = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+        // Better Auth also looks up the original identifier for legacy links.
+        // Keep digests outside that namespace so stored values cannot be used
+        // as bearer tokens through the plaintext fallback.
+        return `${HASHED_RESET_TOKEN_PREFIX}${hex}`;
+      },
+    },
+  },
+};
+
 /** Reset links must not survive recovery or verification of a new mailbox. */
 async function invalidatePasswordResetLinks(adapter: AuthContext["adapter"], userId: string): Promise<void> {
-  await adapter.deleteMany({
-    model: "verification",
-    where: [
-      { field: "value", value: userId },
-      { field: "identifier", operator: "starts_with", value: "reset-password:" },
-    ],
-  });
+  for (const prefix of [RESET_TOKEN_PREFIX, HASHED_RESET_TOKEN_PREFIX]) {
+    await adapter.deleteMany({
+      model: "verification",
+      where: [
+        { field: "value", value: userId },
+        { field: "identifier", operator: "starts_with", value: prefix },
+      ],
+    });
+  }
 }
 
 export type OAuthConsentGrant = {

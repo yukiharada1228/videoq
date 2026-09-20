@@ -83,16 +83,63 @@ async function requestReset(auth: Auth, email = EMAIL) {
 
 const reset = (auth: Auth, token: string) => post(auth, "/reset-password", { token, newPassword: NEW_PASSWORD });
 
+function legacyReset(token = "previously-issued-reset-token") {
+  store.data.verification.push({
+    id: `legacy-${token}`, identifier: `reset-password:${token}`, value: "recovery-owner",
+    expiresAt: new Date(Date.now() + 60_000), createdAt: new Date(), updatedAt: new Date(),
+  });
+  return token;
+}
+
 describe("password recovery invalidation", () => {
+  it("stores no usable reset token in the verification row", async () => {
+    const auth = makeAuth();
+    const issued = await requestReset(auth);
+    const stored = store.data.verification.find((row) => row.value === "recovery-owner")!;
+    expect(stored.identifier).toMatch(/^reset-password-sha256:[a-f0-9]{64}$/);
+    expect(JSON.stringify(stored)).not.toContain(issued.token);
+
+    // A database reader must not be able to submit either the stored identifier
+    // or its digest through Better Auth's legacy plaintext lookup fallback.
+    for (const token of [String(stored.identifier), String(stored.identifier).split(":").at(-1)!]) {
+      const callback = new URL(issued.url);
+      callback.pathname = `/api/auth/reset-password/${token}`;
+      const rejected = await auth.handler(new Request(callback));
+      expect(rejected.status).toBe(302);
+      expect(new URL(rejected.headers.get("location")!).searchParams.get("error")).toBe("INVALID_TOKEN");
+      expect((await reset(auth, token)).status).toBe(400);
+    }
+    const callback = await auth.handler(new Request(issued.url));
+    expect(new URL(callback.headers.get("location")!).searchParams.get("token")).toBe(issued.token);
+    expect((await reset(auth, issued.token)).status).toBe(200);
+    expect((await login(auth, NEW_PASSWORD)).status).toBe(200);
+  });
+
+  it("accepts a previously issued plaintext link and invalidates other old and new links", async () => {
+    const auth = makeAuth();
+    const old = legacyReset();
+    const otherOld = legacyReset("second-previously-issued-token");
+    const current = await requestReset(auth);
+    const callback = await auth.handler(new Request(
+      `${BASE}/api/auth/reset-password/${old}?callbackURL=${encodeURIComponent(`${BASE}/reset-password`)}`,
+    ));
+    expect(new URL(callback.headers.get("location")!).searchParams.get("token")).toBe(old);
+    expect((await reset(auth, old)).status).toBe(200);
+    for (const token of [old, otherOld, current.token]) expect((await reset(auth, token)).status).toBe(400);
+    expect((await login(auth, NEW_PASSWORD)).status).toBe(200);
+  });
+
   it("invalidates old recovery links after an authenticated password change", async () => {
     const auth = makeAuth();
     const cookie = cookieFrom(await login(auth));
     const oldReset = await requestReset(auth);
+    const legacy = legacyReset();
     const changed = await post(auth, "/change-password", {
       currentPassword: PASSWORD, newPassword: NEW_PASSWORD,
     }, cookie);
     expect(changed.status).toBe(200);
     expect((await reset(auth, oldReset.token)).status).toBe(400);
+    expect((await reset(auth, legacy)).status).toBe(400);
     expect((await login(auth, NEW_PASSWORD)).status).toBe(200);
   });
 
@@ -141,6 +188,7 @@ describe("password recovery invalidation", () => {
   it("rejects a link sent to the old email after both email-change approvals", async () => {
     const auth = makeAuth();
     const oldReset = await requestReset(auth);
+    const legacy = legacyReset();
     const response = await post(auth, "/change-email", { newEmail: NEW_EMAIL }, cookieFrom(await login(auth)));
     expect(response.status).toBe(200);
     expect((await auth.handler(new Request(mailUrl(1)))).status).toBe(302);
@@ -151,6 +199,7 @@ describe("password recovery invalidation", () => {
     expect(store.data.user[0].email).toBe(NEW_EMAIL);
 
     expect((await reset(auth, oldReset.token)).status).toBe(400);
+    expect((await reset(auth, legacy)).status).toBe(400);
     expect((await login(auth)).status).toBe(200);
     const freshReset = await requestReset(auth, NEW_EMAIL);
     expect((await reset(auth, freshReset.token)).status).toBe(200);

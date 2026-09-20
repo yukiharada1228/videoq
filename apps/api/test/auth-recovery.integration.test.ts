@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { Client } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { schema } from "../src/db/schema";
@@ -9,6 +9,10 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
 
 describe.skipIf(!databaseUrl)("recovery link invalidation with PostgreSQL", () => {
   const client = new Client({ connectionString: databaseUrl });
+  const makeAuth = () => createAuth({
+    ENVIRONMENT: "production", BETTER_AUTH_URL: "https://recovery-test.example",
+    BETTER_AUTH_SECRET: "isolated-recovery-pg-secret-012345678901234567890123",
+  } as Bindings, drizzle(client, { schema }));
 
   beforeAll(async () => {
     await client.connect();
@@ -27,6 +31,11 @@ describe.skipIf(!databaseUrl)("recovery link invalidation with PostgreSQL", () =
         expires_at timestamptz NOT NULL, created_at timestamptz NOT NULL DEFAULT now(),
         updated_at timestamptz NOT NULL DEFAULT now()
       );
+    `);
+  });
+  beforeEach(async () => {
+    await client.query(`
+      TRUNCATE pg_temp.verification;
       INSERT INTO verification (id, identifier, value, expires_at) VALUES
         ('reset-1', 'reset-password:one', 'owner', now() + interval '1 hour'),
         ('reset-2', 'reset-password:two', 'owner', now() + interval '1 hour'),
@@ -37,18 +46,40 @@ describe.skipIf(!databaseUrl)("recovery link invalidation with PostgreSQL", () =
   afterAll(async () => { await client.end(); });
 
   it("deletes only the verified user's password reset values through the real Drizzle adapter", async () => {
-    const auth = createAuth({
-      ENVIRONMENT: "production", BETTER_AUTH_URL: "https://recovery-test.example",
-      BETTER_AUTH_SECRET: "isolated-recovery-pg-secret-012345678901234567890123",
-    } as Bindings, drizzle(client, { schema }));
-    const context = await auth.$context;
+    const context = await makeAuth().$context;
+    for (const value of ["owner", "other"]) {
+      await context.internalAdapter.createVerificationValue({
+        identifier: `reset-password:hashed-${value}`, value, expiresAt: new Date(Date.now() + 60_000),
+      });
+    }
     await context.options.emailVerification!.afterEmailVerification!({
       id: "owner", email: "verified@example.test", emailVerified: true, name: "Owner",
       createdAt: new Date(), updatedAt: new Date(),
     });
 
-    expect((await client.query("SELECT id FROM verification ORDER BY id")).rows).toEqual([
-      { id: "other-purpose" }, { id: "other-user" },
+    expect((await client.query("SELECT id FROM verification WHERE value = 'owner'")).rows).toEqual([
+      { id: "other-purpose" },
     ]);
+    expect((await client.query("SELECT id FROM verification WHERE value = 'other'")).rows).toHaveLength(2);
+  });
+
+  it("stores a digest, resolves the original link and consumes it only once", async () => {
+    const context = await makeAuth().$context;
+    const identifier = "reset-password:isolated-postgres-token";
+    const stored = await context.internalAdapter.createVerificationValue({
+      identifier, value: "owner", expiresAt: new Date(Date.now() + 60_000),
+    });
+    const row = (await client.query("SELECT identifier FROM verification WHERE id = $1", [stored.id])).rows[0];
+    expect(row.identifier).toMatch(/^reset-password-sha256:[a-f0-9]{64}$/);
+    expect(row.identifier).not.toContain("isolated-postgres-token");
+    expect(await context.internalAdapter.findVerificationValue(identifier)).toMatchObject({ id: stored.id });
+    for (const token of [row.identifier, row.identifier.split(":").at(-1)]) {
+      expect(await context.internalAdapter.consumeVerificationValue(`reset-password:${token}`)).toBeNull();
+    }
+    expect(await context.internalAdapter.consumeVerificationValue(identifier)).toMatchObject({ id: stored.id });
+    expect(await context.internalAdapter.consumeVerificationValue(identifier)).toBeNull();
+    // Deployment does not break unexpired links issued before hashing was enabled.
+    expect(await context.internalAdapter.consumeVerificationValue("reset-password:one")).toMatchObject({ id: "reset-1" });
+    expect(await context.internalAdapter.consumeVerificationValue("reset-password:one")).toBeNull();
   });
 });
