@@ -38,8 +38,8 @@ production environments、外部メールサービスのキーは使いません
 
 1. Cloudflareで新しいトークンを発行する。必要な権限は[DEPLOY.md](DEPLOY.md)を参照。
 2. GitHub Environment secretsを更新する。
-   - deploy用: `production-deploy.CLOUDFLARE_API_TOKEN` と `production.CLOUDFLARE_API_TOKEN`
-   - resource同期用: `production.CLOUDFLARE_INFRA_TOKEN`
+   - deploy用: `production-app.CLOUDFLARE_API_TOKEN` と `production-infra.CLOUDFLARE_API_TOKEN`
+   - resource同期用: `production-infra.CLOUDFLARE_INFRA_TOKEN`
 3. 新しいトークンでCD／resource同期が成功することを確認する。
 4. 使用先を確認した旧トークンを失効させる。
 5. `.github/cloudflare-token-expiry.json`の該当する`name`と`expiresOn`を実際の新トークンに合わせ、

@@ -9,7 +9,7 @@ productionの1件です。
 | 用途 | PostgreSQL role | 保存先 |
 |---|---|---|
 | Workers API / Lambda | `videoq_app_20260918` | Hyperdrive `videoq-neon-prod` / SSM `/videoq/prod/db` |
-| DB migration | `videoq_migrate_20260918` | GitHub `production-deploy.DATABASE_URL` / 復旧用SSM `/videoq/security/prod/db-migration` |
+| DB migration | `videoq_migrate_20260918` | GitHub `production-app.DATABASE_URL` / 復旧用SSM `/videoq/security/prod/db-migration` |
 | 管理・障害復旧 | `neondb_owner` | SSM `/videoq/security/prod/db-admin` |
 
 SSMの値はいずれも`SecureString`のJSONで、キーは`DATABASE_URL`です。migrationと管理用は

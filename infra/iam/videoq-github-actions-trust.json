@@ -14,7 +14,7 @@
         "StringLike": {
           "token.actions.githubusercontent.com:sub": [
             "repo:yukiharada1228/videoq:ref:refs/heads/main",
-            "repo:yukiharada1228/videoq:environment:production"
+            "repo:yukiharada1228/videoq:environment:production-infra"
           ]
         }
       }

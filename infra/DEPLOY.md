@@ -17,7 +17,7 @@
 3. R2 bucket と、`videoq-media-prod` の Object Read & Write のみに制限した S3 API token を作成
 4. `apps/api/wrangler.jsonc` の binding ID / bucket を本番値に設定
 
-既存の本番 Hyperdrive と R2 CORS は、production environment の承認後に手動workflow
+既存の本番 Hyperdrive と R2 CORS は、`production-infra` environment の承認後に手動workflow
 [`cloudflare-resources.yml`](../.github/workflows/cloudflare-resources.yml)を実行して同期します。
 同じ処理をローカルから行う場合:
 
@@ -115,12 +115,17 @@ CDはGitHub APIでCIのworkflow ID、起動event、repository、branch、commit�
 
 ### GitHubの保護設定
 
+GitHub Environmentは、同じ本番へのアプリ更新とインフラ更新を承認ルールで分けます。
+`production-app`／`production-infra`はGitHub上の名前です。Wranglerの
+`--env production`やAWS・DBの本番リソース名は変更しません。Lambda deployは
+Environmentを指定せず、検証済みmainのOIDC認証で実行します。
+
 - `main`: PR必須、`CI Success`成功必須、最新mainとの同期必須、force push／削除禁止。
   管理者にも適用します。現在は管理者1名のため必須の他者承認数は0です。
   複数のmaintainerで運用する場合は1以上にし、workflow変更のCODEOWNERSも設定してください。
-- `production-deploy`: API・docs deploy／DB migration用。deploy可能なbranchは`main`だけ
+- `production-app`: フロントエンド・API・docs deploy／DB migration用。deploy可能なbranchは`main`だけ
   （同名tagは許可しない）。手動承認は不要で、上記CI検証後に自動deployします。
-- `production`: インフラ／Cloudflare resource同期用。既存の手動承認を維持し、
+- `production-infra`: インフラ／Cloudflare resource同期用。既存の手動承認を維持し、
   deploy可能なbranchを`main`だけにします。
 - forkのActionsはすべての外部contributorについて承認を要求します。
 - Actionsは完全なcommit SHAに固定し、Dependabotで更新します。
@@ -133,9 +138,9 @@ CDはGitHub APIでCIのworkflow ID、起動event、repository、branch、commit�
 
 | Secret | 保存先 | 用途 |
 |---|---|---|
-| `CLOUDFLARE_API_TOKEN` | `production-deploy`と`production`のEnvironment secrets | Workers deploy／resource同期時のsecret名確認 |
-| `DATABASE_URL` | `production-deploy`のEnvironment secrets | 本番DB migration専用。依存インストール時は渡さない |
-| `CLOUDFLARE_INFRA_TOKEN` | `production`のEnvironment secrets | 対象accountのHyperdrive更新とR2 CORS更新 |
+| `CLOUDFLARE_API_TOKEN` | `production-app`と`production-infra`のEnvironment secrets | Workers deploy／resource同期時のsecret名確認 |
+| `DATABASE_URL` | `production-app`のEnvironment secrets | 本番DB migration専用。依存インストール時は渡さない |
+| `CLOUDFLARE_INFRA_TOKEN` | `production-infra`のEnvironment secrets | 対象accountのHyperdrive更新とR2 CORS更新 |
 | `CLOUDFLARE_ACCOUNT_ID` | Repository secrets（非機密ID） | Cloudflare account ID |
 
 Workers deploy tokenは、対象accountの`Workers Scripts Write`（画面ではWorkers Scriptsの
@@ -362,7 +367,7 @@ wwwは `https://videoq.jp` の同じパスへ転送します。
 `.github/scripts/**`。APIも変更した場合はAPIの公開成功後にフロントを公開します。
 フロントのみの変更ではAPIのデプロイは不要です。
 
-公開stepにだけ `production-deploy` の `CLOUDFLARE_API_TOKEN` と
+公開stepにだけ `production-app` の `CLOUDFLARE_API_TOKEN` と
 `CLOUDFLARE_ACCOUNT_ID` を渡します。Worker Scripts編集と対象zoneのWorker Routes編集、
 Custom Domainを管理できる権限が必要です。公開はGitHub ActionsのCDで管理します。
 
@@ -404,7 +409,7 @@ CI/CD workflow、`.github/scripts/**`です。前回成功したCDとの差分�
 途中でCIがキャンセルされたcommitの文書変更も含みます。
 
 検証済みの`main`のSHAをcheckoutして型チェック・ビルドを行い、公開stepだけに
-`production-deploy`の`CLOUDFLARE_API_TOKEN`とRepository secretの`CLOUDFLARE_ACCOUNT_ID`を渡します。
+`production-app`の`CLOUDFLARE_API_TOKEN`とRepository secretの`CLOUDFLARE_ACCOUNT_ID`を渡します。
 docs jobはAPI・Lambda・DBのjobとは独立しており、docsだけの変更ではそれらを更新しません。
 PRやfeature branchへのpushは公開対象外です。`main`からCDを手動実行した場合は、
 同じSHAのpush CI成功を確認したうえで、他のデプロイ対象とともにdocsも再公開します。

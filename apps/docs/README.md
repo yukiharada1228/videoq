@@ -79,7 +79,7 @@ and `package-lock.json`, the CI/CD workflows, and deployment policy scripts.
 Changes are compared with the last successful CD run, so changes from cancelled CI runs are included.
 
 The docs job uses the verified `main` commit and runs independently of API, Lambda, and database deployment.
-It uses the existing `production-deploy` environment's `CLOUDFLARE_API_TOKEN` and the repository's
+It uses the existing `production-app` environment's `CLOUDFLARE_API_TOKEN` and the repository's
 `CLOUDFLARE_ACCOUNT_ID` secret. Credentials are passed only to the upload step, after type checking
 and building both languages. PRs and feature-branch pushes do not publish the site.
 Manually running CD on `main` also republishes the docs, along with the other deployment targets,

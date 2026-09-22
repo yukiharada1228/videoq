@@ -6,15 +6,15 @@
       "name": "videoq-github-workers-deploy-20260918",
       "expiresOn": "2026-12-17",
       "secrets": [
-        "production-deploy.CLOUDFLARE_API_TOKEN",
-        "production.CLOUDFLARE_API_TOKEN"
+        "production-app.CLOUDFLARE_API_TOKEN",
+        "production-infra.CLOUDFLARE_API_TOKEN"
       ]
     },
     {
       "id": "cloudflare-resources",
       "name": "videoq-cloudflare-resources-20260918",
       "expiresOn": "2026-12-17",
-      "secrets": ["production.CLOUDFLARE_INFRA_TOKEN"]
+      "secrets": ["production-infra.CLOUDFLARE_INFRA_TOKEN"]
     }
   ]
 }
