@@ -6,7 +6,7 @@ roleに分ける。
 
 - `videoq-github-actions-plan`: pull requestだけが引き受け可能。AWS managed
   `ReadOnlyAccess`と、stateの読み取り・lock操作だけを許可する。
-- `videoq-github-actions-deploy`: mainまたは`production` environmentだけが引き受け
+- `videoq-github-actions-deploy`: mainまたは`production-infra` environmentだけが引き受け
   可能。本番のapplyとLambda deployに使う。
 
 役割ごとのカスタマーマネージドポリシーは4分割している。`<ACCOUNT_ID>` は実アカウント

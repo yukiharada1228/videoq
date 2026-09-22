@@ -161,7 +161,7 @@ jobs:
   web-deploy:
     name: Deploy Frontend (Cloudflare Workers)
     runs-on: ubuntu-latest
-    environment: production-deploy
+    environment: production-app
     timeout-minutes: 15
     needs: [changes, api-deploy]
     if: |
@@ -195,7 +195,7 @@ jobs:
   docs-deploy:
     name: Deploy Documentation (Cloudflare Workers)
     runs-on: ubuntu-latest
-    environment: production-deploy
+    environment: production-app
     timeout-minutes: 15
     needs: changes
     if: needs.changes.outputs.docs == 'true'
@@ -229,7 +229,7 @@ jobs:
   db-migrate:
     name: Drizzle DB Migrate
     runs-on: ubuntu-latest
-    environment: production-deploy
+    environment: production-app
     timeout-minutes: 15
     needs: changes
     if: needs.changes.outputs.migrate == 'true'
@@ -256,7 +256,7 @@ jobs:
   api-deploy:
     name: Deploy API (Cloudflare Workers)
     runs-on: ubuntu-latest
-    environment: production-deploy
+    environment: production-app
     timeout-minutes: 15
     needs: [changes, db-migrate]
     if: |

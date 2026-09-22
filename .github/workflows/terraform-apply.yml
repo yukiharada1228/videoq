@@ -28,7 +28,7 @@ jobs:
     name: Terraform Apply (production)
     runs-on: ubuntu-latest
     if: github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main'
-    environment: production
+    environment: production-infra
     defaults:
       run:
         working-directory: infra
