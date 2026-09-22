@@ -1,0 +1,79 @@
+name: Migrate Production Environment Secrets
+
+# Temporary migration: encrypt directly to each destination environment's GitHub
+# public key. No plaintext secret, private key, or administrator token is exported.
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: production-environment-secret-migration
+  cancel-in-progress: false
+
+jobs:
+  seal:
+    name: Prepare ${{ matrix.target }} secrets
+    if: github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: ${{ matrix.source }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - source: production-deploy
+            target: production-app
+            key_id: "3380204578043523366"
+            public_key: "/rktOJ6yOWpS3xKXuvBtFQ6YqLSnEGmBE7tsyF5wCGg="
+            secret_names: '["CLOUDFLARE_API_TOKEN", "DATABASE_URL"]'
+          - source: production
+            target: production-infra
+            key_id: "3380204578043523366"
+            public_key: "1xCaKmJl5uVcWe48eZCcQl8rrwDNlLpsCCLunvRI8zE="
+            secret_names: '["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_INFRA_TOKEN"]'
+    steps:
+      - name: Install encryption library before accessing secrets
+        run: |
+          python3 -m venv "$RUNNER_TEMP/migration-venv"
+          "$RUNNER_TEMP/migration-venv/bin/pip" install --disable-pip-version-check PyNaCl==1.6.0
+      - name: Seal secrets for the destination environment
+        env:
+          TARGET_ENVIRONMENT: ${{ matrix.target }}
+          TARGET_KEY_ID: ${{ matrix.key_id }}
+          TARGET_PUBLIC_KEY: ${{ matrix.public_key }}
+          SECRET_NAMES: ${{ matrix.secret_names }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_INFRA_TOKEN: ${{ secrets.CLOUDFLARE_INFRA_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          "$RUNNER_TEMP/migration-venv/bin/python" <<'PYTHON'
+          import base64
+          import json
+          import os
+          from pathlib import Path
+          from nacl import encoding, public
+
+          names = json.loads(os.environ['SECRET_NAMES'])
+          if any(not os.environ.get(name) for name in names):
+              raise SystemExit('A required source secret is missing')
+          key = public.PublicKey(os.environ['TARGET_PUBLIC_KEY'], encoding.Base64Encoder)
+          box = public.SealedBox(key)
+          payload = {
+              'environment': os.environ['TARGET_ENVIRONMENT'],
+              'key_id': os.environ['TARGET_KEY_ID'],
+              'secrets': {
+                  name: base64.b64encode(box.encrypt(os.environ[name].encode())).decode()
+                  for name in names
+              },
+          }
+          Path(os.environ['RUNNER_TEMP'], 'sealed-secrets.json').write_text(json.dumps(payload))
+          print(f"Prepared {len(names)} encrypted secrets for {payload['environment']}")
+          PYTHON
+      - name: Upload only destination-encrypted secrets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        with:
+          name: sealed-secrets-${{ matrix.target }}
+          path: ${{ runner.temp }}/sealed-secrets.json
+          if-no-files-found: error
+          retention-days: 1
