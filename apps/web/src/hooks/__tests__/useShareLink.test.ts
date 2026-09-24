@@ -333,6 +333,47 @@ describe('useShareLink', () => {
     }
   })
 
+  it.each([false, true])('copies inside the modal and restores focus (failure=%s)', async (fails) => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined })
+    const original = Object.getOwnPropertyDescriptor(document, 'execCommand')
+    const dialog = document.createElement('dialog')
+    const button = document.createElement('button')
+    dialog.appendChild(button)
+    let selectedText: string | null = null
+    let selectionContainer: Element | null = null
+    const copy = vi.fn(() => {
+      const target = document.activeElement
+      if (target instanceof HTMLTextAreaElement) {
+        selectedText = target.value.slice(target.selectionStart, target.selectionEnd)
+        selectionContainer = target.parentElement
+      }
+      if (fails) throw new Error('Copy not supported')
+      return true
+    })
+    Object.defineProperty(document, 'execCommand', { configurable: true, value: copy })
+    try {
+      document.body.appendChild(dialog)
+      dialog.showModal()
+      button.focus()
+      const { result } = renderHook(() => useShareLink(course))
+
+      await act(() => result.current.copyShareLink())
+
+      expect(copy).toHaveBeenCalledExactlyOnceWith('copy')
+      expect(selectedText).toBe(result.current.shareLink)
+      expect(selectionContainer).toBe(dialog)
+      expect(dialog.querySelector('textarea')).toBeNull()
+      expect(button).toHaveFocus()
+      expect(result.current.isCopied).toBe(!fails)
+      if (fails) expect(screen.getByRole('alert')).toHaveTextContent('common.messages.copyFailed')
+    } finally {
+      dialog.close()
+      dialog.remove()
+      if (original) Object.defineProperty(document, 'execCommand', original)
+      else Reflect.deleteProperty(document, 'execCommand')
+    }
+  })
+
   it('shows a toast when copying the share link fails', async () => {
     const clipboard = navigator.clipboard as { writeText: ReturnType<typeof vi.fn> }
     clipboard.writeText.mockRejectedValue(new Error('copy failed'))

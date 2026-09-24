@@ -93,20 +93,24 @@ export function useShareLink(course: VideoCourse | null): UseShareLinkReturn {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(shareLink);
       } else {
+        const previousFocus = document.activeElement instanceof HTMLElement
+          ? document.activeElement : null;
         const textArea = document.createElement('textarea');
         textArea.value = shareLink;
         textArea.style.position = 'fixed';
         textArea.style.left = '-999999px';
         textArea.style.top = '-999999px';
-        document.body.appendChild(textArea);
+        // Content outside a modal dialog is inert and cannot be selected for copying.
+        (previousFocus?.closest('dialog[open]') ?? document.body).appendChild(textArea);
         try {
-          textArea.focus();
+          textArea.focus({ preventScroll: true });
           textArea.select();
           if (!document.execCommand('copy')) {
             throw new Error('Copy command failed');
           }
         } finally {
           textArea.remove();
+          previousFocus?.focus({ preventScroll: true });
         }
       }
 

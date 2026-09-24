@@ -3,10 +3,21 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, waitFor, within } from 'storybook/test';
 import i18n from '@/i18n/config';
 import { Button } from '@/components/ui/button';
-import { longText, shareLink } from '../../../../.storybook/fixtures/detail';
+import { FeedbackProvider } from '@/components/common/FeedbackProvider';
+import { useShareLink } from '@/hooks/useShareLink';
+import { course, longText, shareLink } from '../../../../.storybook/fixtures/detail';
 import { ShareLinkDialog } from './ShareLinkDialog';
 
 const label = (key: string) => i18n.t(`videos.courseDetail.${key}`);
+const fallbackCopy = fn();
+function ClipboardExample(args: ComponentProps<typeof ShareLinkDialog>) {
+  const [open, setOpen] = useState(args.isOpen);
+  const sharing = useShareLink({ ...course, share_slug: args.shareSlug });
+  return <><Button onClick={() => setOpen(true)}>{label('shareOpen')}</Button>
+    <ShareLinkDialog {...args} isOpen={open} onOpenChange={setOpen}
+      shareLink={sharing.shareLink} isCopied={sharing.isCopied} onCopy={sharing.copyShareLink} />
+  </>;
+}
 function Example(args: ComponentProps<typeof ShareLinkDialog> & { pending?: boolean }) {
   const [open, setOpen] = useState(args.isOpen);
   const [link, setLink] = useState(args.shareLink);
@@ -47,6 +58,37 @@ export const Generate: Story = { async play(context) { const dialog = await open
 export const Generating: Story = { parameters: { pending: true }, async play(context) { const dialog = await open(context); await context.userEvent.click(dialog.getByRole('button', { name: i18n.t('common.actions.save') })); await expect(dialog.getByRole('textbox')).toBeDisabled(); await expect(dialog.getByRole('button', { name: label('generating') })).toBeDisabled(); await expect(dialog.getByRole('button', { name: i18n.t('common.actions.close') })).toBeDisabled(); context.canvas.getByRole('dialog').dispatchEvent(new Event('cancel', { cancelable: true })); await expect(context.canvas.getByRole('dialog')).toBeVisible(); await expect(context.args.onOpenChange).not.toHaveBeenCalled(); } };
 export const UpdatingLink: Story = { ...Generating, args: { shareLink }, async play(context) { await Generating.play!(context); await expect(within(context.canvas.getByRole('dialog')).getByRole('button', { name: label('disable') })).toBeDisabled(); } };
 export const Copied: Story = { args: { shareLink }, async play(context) { const dialog = await open(context); await context.userEvent.click(dialog.getByRole('button', { name: label('copyButton') })); await expect(dialog.getByRole('button', { name: label('copied') })).toHaveFocus(); await expect(context.args.onCopy).toHaveBeenCalledTimes(1); } };
+export const FallbackCopy: Story = {
+  render: args => <FeedbackProvider><ClipboardExample {...args} /></FeedbackProvider>,
+  beforeEach() {
+    fallbackCopy.mockClear();
+    const clipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    const execCommand = Object.getOwnPropertyDescriptor(document, 'execCommand');
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
+    Object.defineProperty(document, 'execCommand', { configurable: true, value: (command: string) => {
+      const target = document.activeElement;
+      fallbackCopy(command, target instanceof HTMLTextAreaElement
+        ? target.value.slice(target.selectionStart, target.selectionEnd) : null);
+      return true;
+    } });
+    return () => {
+      if (clipboard) Object.defineProperty(navigator, 'clipboard', clipboard);
+      else Reflect.deleteProperty(navigator, 'clipboard');
+      if (execCommand) Object.defineProperty(document, 'execCommand', execCommand);
+      else Reflect.deleteProperty(document, 'execCommand');
+    };
+  },
+  async play(context) {
+    const dialog = await open(context);
+    const url = dialog.getByText(/\/share\/linear-algebra$/).textContent;
+    await context.userEvent.click(dialog.getByRole('button', { name: label('copyButton') }));
+    await expect(fallbackCopy).toHaveBeenCalledTimes(1);
+    await expect(fallbackCopy).toHaveBeenCalledWith('copy', url);
+    await expect(dialog.getByRole('button', { name: label('copied') })).toHaveFocus();
+    await expect(context.canvasElement.querySelector('textarea')).toBeNull();
+  },
+};
+export const FallbackCopyEnglishMobile: Story = { ...FallbackCopy, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
 export const DisableLink: Story = { args: { shareLink }, async play(context) { const dialog = await open(context); await context.userEvent.click(dialog.getByRole('button', { name: label('disable') })); await expect(context.args.onDelete).toHaveBeenCalledTimes(1); await expect(dialog.queryByText(shareLink)).not.toBeInTheDocument(); } };
 export const DisablingLink: Story = { args: { shareLink }, parameters: { pending: true }, async play(context) {
   const dialog = await open(context);
