@@ -68,7 +68,7 @@ export const SearchAfterDeletion: Story = {
     await expect(canvas.getByText(i18n.t('admin.users.pageRange', { from: 1, to: 20, total: 21 }))).toBeVisible();
     await userEvent.click(canvas.getByRole('button', { name: i18n.t('admin.users.next') }));
     await waitFor(() => expect(listRequest).toHaveBeenLastCalledWith({ q: 'Alice', limit: 20, offset: 20 }));
-    await expect(canvas.getByText(i18n.t('admin.users.pageRange', { from: 21, to: 21, total: 21 }))).toBeVisible();
+    await expect(await canvas.findByText(i18n.t('admin.users.pageRange', { from: 21, to: 21, total: 21 }))).toBeVisible();
   },
 };
 export const SearchAfterDeletionEnglishMobile: Story = {
