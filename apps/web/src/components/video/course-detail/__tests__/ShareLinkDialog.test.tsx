@@ -22,7 +22,6 @@ describe('ShareLinkDialog', () => {
     'closes the native dialog before the parent unmounts it on %s',
     (action) => {
       const props = createProps();
-      const onNativeClose = vi.fn();
 
       function Parent() {
         const [open, setOpen] = useState(true);
@@ -38,8 +37,8 @@ describe('ShareLinkDialog', () => {
       }
 
       render(<Parent />);
-      const dialog = screen.getByRole('dialog');
-      dialog.addEventListener('close', onNativeClose);
+      const dialog = screen.getByRole<HTMLDialogElement>('dialog');
+      const closeDialog = vi.spyOn(dialog, 'close');
 
       if (action === 'button') {
         fireEvent.click(screen.getByRole('button', { name: 'common.actions.close' }));
@@ -47,9 +46,9 @@ describe('ShareLinkDialog', () => {
         fireEvent(dialog, new Event('cancel', { cancelable: true }));
       }
 
-      expect(onNativeClose).toHaveBeenCalledTimes(1);
+      expect(closeDialog).toHaveBeenCalledTimes(1);
       expect(props.onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
-      expect(onNativeClose.mock.invocationCallOrder[0]).toBeLessThan(
+      expect(closeDialog.mock.invocationCallOrder[0]).toBeLessThan(
         vi.mocked(props.onOpenChange).mock.invocationCallOrder[0],
       );
       expect(dialog).not.toHaveAttribute('open');
