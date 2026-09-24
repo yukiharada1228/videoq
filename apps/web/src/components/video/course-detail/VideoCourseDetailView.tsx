@@ -88,6 +88,7 @@ interface VideoCourseDetailViewProps {
   isMobile: boolean;
   videoRef: RefObject<HTMLVideoElement | null>;
   youtubeStartSeconds: number | null;
+  youtubeSeekId: number;
   shareSlug: string;
   shareLink: string | null;
   isGeneratingLink: boolean;
@@ -325,6 +326,7 @@ function GroupPlayerPanel({
   mobileTab,
   videoRef,
   youtubeStartSeconds,
+  youtubeSeekId,
   onVideoCanPlay,
   canManage,
 }: {
@@ -333,6 +335,7 @@ function GroupPlayerPanel({
   mobileTab: MobileTab;
   videoRef: RefObject<HTMLVideoElement | null>;
   youtubeStartSeconds: number | null;
+  youtubeSeekId: number;
   onVideoCanPlay: () => void;
   canManage: boolean;
 }) {
@@ -355,7 +358,7 @@ function GroupPlayerPanel({
           {selectedVideo ? (
             selectedVideo.source_type === 'youtube' && selectedVideo.youtube_embed_url ? (
               <iframe
-                key={`${selectedVideo.id}-${youtubeStartSeconds ?? 0}`}
+                key={`${selectedVideo.id}-${youtubeSeekId}`}
                 className="w-full h-full"
                 src={buildYoutubeEmbedSrc(selectedVideo.youtube_embed_url, youtubeStartSeconds)}
                 title={selectedVideo.title}
@@ -444,6 +447,7 @@ export function VideoCourseDetailView({
   isMobile,
   videoRef,
   youtubeStartSeconds,
+  youtubeSeekId,
   shareSlug,
   shareLink,
   isGeneratingLink,
@@ -650,6 +654,7 @@ export function VideoCourseDetailView({
                 mobileTab={mobileTab}
                 videoRef={videoRef}
                 youtubeStartSeconds={youtubeStartSeconds}
+                youtubeSeekId={youtubeSeekId}
                 onVideoCanPlay={onVideoCanPlay}
                 canManage={canManage}
               />

@@ -15,6 +15,7 @@ interface UseVideoPlaybackReturn {
   handleVideoCanPlay: (event?: React.SyntheticEvent<HTMLVideoElement>) => void;
   handleVideoPlayFromTime: (videoId: number, startTime: string) => void;
   youtubeStartSeconds: number | null;
+  youtubeSeekId: number;
 }
 
 type PlaybackTarget = { videoId: number; seconds: number };
@@ -26,7 +27,7 @@ export function useVideoPlayback({
 }: UseVideoPlaybackOptions): UseVideoPlaybackReturn {
   const videoRef = useRef<HTMLVideoElement>(null);
   const pendingStartTimeRef = useRef<PlaybackTarget | null>(null);
-  const [youtubeStart, setYoutubeStart] = useState<PlaybackTarget | null>(null);
+  const [youtubeStart, setYoutubeStart] = useState<(PlaybackTarget & { seekId: number }) | null>(null);
 
   const handleVideoSelect = (videoId: number) => {
     pendingStartTimeRef.current = null;
@@ -55,17 +56,21 @@ export function useVideoPlayback({
     } else {
       const target = { videoId, seconds };
       pendingStartTimeRef.current = target;
-      setYoutubeStart(target);
+      // Each click must reload the embed, even when its start time is unchanged.
+      setYoutubeStart(previous => ({ ...target, seekId: (previous?.seekId ?? 0) + 1 }));
       if (selectedVideo?.id !== videoId) onVideoSelect(videoId);
     }
   };
+
+  const youtubeTarget = selectedVideo?.source_type === 'youtube' && youtubeStart?.videoId === selectedVideo.id
+    ? youtubeStart : null;
 
   return {
     videoRef,
     handleVideoSelect,
     handleVideoCanPlay,
     handleVideoPlayFromTime,
-    youtubeStartSeconds: selectedVideo?.source_type === 'youtube' && youtubeStart?.videoId === selectedVideo.id
-      ? youtubeStart.seconds : null,
+    youtubeStartSeconds: youtubeTarget?.seconds ?? null,
+    youtubeSeekId: youtubeTarget?.seekId ?? 0,
   };
 }

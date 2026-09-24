@@ -18,6 +18,7 @@ const mockVideo = {
   status: 'completed',
   file: 'test.mp4',
   source_type: 'uploaded',
+  youtube_embed_url: null as string | null,
   uploaded_at: '2024-01-01T00:00:00Z',
   transcript: '1\n00:00:00,000 --> 00:00:05,000\nHello world',
   tags: [{ id: 1, name: 'Tag1', color: 'red' }],
@@ -362,6 +363,24 @@ describe('VideoDetailPage - Transcript and playback', () => {
   })
 
   afterEach(() => vi.restoreAllMocks())
+
+  it.each(['', 't=5'])('restarts the same YouTube subtitle without resetting on unrelated renders (%s)', query => {
+    mockSearchParams = new URLSearchParams(query)
+    mockUseVideoReturn.video = {
+      ...mockVideo, transcript, source_type: 'youtube',
+      youtube_embed_url: 'https://www.youtube.com/embed/video1',
+    }
+    const { container } = render(<VideoDetailPage />)
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const previous = container.querySelector('iframe')
+      fireEvent.click(screen.getByRole('button', { name: /Second segment/ }))
+      const current = container.querySelector('iframe')
+      expect(current).not.toBe(previous)
+      expect(current).toHaveAttribute('src', 'https://www.youtube.com/embed/video1?autoplay=1&start=5')
+      fireEvent.change(screen.getByRole('searchbox'), { target: { value: attempt % 2 ? '' : 'Second' } })
+      expect(container.querySelector('iframe')).toBe(current)
+    }
+  })
 
   it('closes an unchanged transcript without updating or refetching cached data', async () => {
     const { result } = renderHook(() => useQueryClient())

@@ -24,7 +24,7 @@ export default function VideoDetailPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const parsedStartTime = Number.parseInt(searchParams.get('t') ?? '', 10);
   const queryStartSeconds = Number.isNaN(parsedStartTime) ? null : parsedStartTime;
-  const [manualYoutubeStartSeconds, setManualYoutubeStartSeconds] = useState<number | null>(null);
+  const [youtubeSeek, setYoutubeSeek] = useState<{ seconds: number; id: number } | null>(null);
   const { t } = useTranslation();
   const requestConfirmation = useConfirm();
   const queryClient = useQueryClient();
@@ -64,7 +64,7 @@ export default function VideoDetailPage() {
     }
   };
 
-  const youtubeStartSeconds = manualYoutubeStartSeconds ?? queryStartSeconds;
+  const youtubeStartSeconds = youtubeSeek?.seconds ?? queryStartSeconds;
 
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -132,7 +132,7 @@ export default function VideoDetailPage() {
 
   const handleSeek = (seconds: number, idx: number) => {
     if (video?.source_type === 'youtube') {
-      setManualYoutubeStartSeconds(seconds);
+      setYoutubeSeek(previous => ({ seconds, id: (previous?.id ?? 0) + 1 }));
     } else if (videoRef.current) {
       seekAndPlay(videoRef.current, seconds);
     }
@@ -146,6 +146,7 @@ export default function VideoDetailPage() {
       error={error}
       videoRef={videoRef}
       youtubeStartSeconds={youtubeStartSeconds}
+      youtubeSeekId={youtubeSeek?.id ?? 0}
       onVideoLoaded={handleVideoLoaded}
       isMobile={isMobile}
       mobileTab={mobileTab}

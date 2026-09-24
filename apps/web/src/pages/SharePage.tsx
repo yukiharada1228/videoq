@@ -76,7 +76,7 @@ export default function SharePage() {
   }, [course, selectedVideoId]);
 
 
-  const { videoRef, handleVideoSelect, handleVideoCanPlay, handleVideoPlayFromTime, youtubeStartSeconds } = useVideoPlayback({
+  const { videoRef, handleVideoSelect, handleVideoCanPlay, handleVideoPlayFromTime, youtubeStartSeconds, youtubeSeekId } = useVideoPlayback({
     selectedVideo,
     onVideoSelect: setSelectedVideoId,
     onMobileSwitch: () => setMobileTab('player'),
@@ -199,7 +199,7 @@ export default function SharePage() {
                 {selectedVideo ? (
                   selectedVideo.source_type === 'youtube' && selectedVideo.youtube_embed_url ? (
                     <iframe
-                      key={`${selectedVideo.id}-${youtubeStartSeconds ?? 0}`}
+                      key={`${selectedVideo.id}-${youtubeSeekId}`}
                       className="w-full h-full"
                       src={buildYoutubeEmbedSrc(selectedVideo.youtube_embed_url, youtubeStartSeconds)}
                       title={selectedVideo.title}

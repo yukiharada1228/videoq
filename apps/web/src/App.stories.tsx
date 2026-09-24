@@ -176,6 +176,79 @@ export const SharedChatContinuityMobile: Story = { ...CourseChatContinuityMobile
 export const SharedChatContinuityEnglish: Story = { ...CourseChatContinuityEnglish, parameters: SharedCourseNotice.parameters };
 export const SharedChatContinuityEnglishMobile: Story = { ...CourseChatContinuityEnglishMobile, parameters: SharedCourseNotice.parameters };
 
+function youtubeReplayStory(scope: 'video' | 'course' | 'share'): Story {
+  // A local blank document exercises iframe navigation without loading YouTube.
+  const video = { ...detailVideo, source_type: 'youtube' as const, youtube_embed_url: 'about:blank' };
+  const youtubeCourse = { ...course, videos: [{ ...video, order: 0 }] };
+  return {
+    parameters: {
+      pathname: scope === 'video' ? `/videos/${video.id}` : scope === 'course' ? `/videos/courses/${course.id}` : '/share/linear-algebra',
+      api: { ...api, auth: scope === 'share' ? authFixtures.loggedOut : authFixtures.user, trpc: [
+        ...api.trpc,
+        trpcQuery('videos.get', success(video)),
+        trpcQuery('plog.graph', success({ ...missingGraph, video_id: video.id })),
+        trpcQuery('courses.get', success(youtubeCourse)),
+        trpcQuery('courses.shared', success({
+          ...youtubeCourse, updated_at: course.created_at, share_slug: 'linear-algebra', access_role: 'public',
+        })),
+      ] },
+    },
+    beforeEach({ msw }) {
+      const mock = createChatPanelMock({ events: [
+        { type: 'content_chunk', text: '[1]' },
+        { type: 'done', chat_log_id: 101, feedback: null, citations: [{
+          id: 1, video_id: video.id, title: video.title, start_time: '00:00:05', end_time: '00:00:12',
+        }] },
+      ] });
+      msw.use(...mock.handlers.filter(({ info }) => info.path === '/api/chat/messages/stream'));
+      return () => mock.dispose();
+    },
+    async play({ canvas, canvasElement, userEvent, globals }) {
+      let replay: HTMLElement;
+      if (scope === 'video') {
+        await canvas.findByRole('heading', { level: 1, name: video.title });
+        if (globals.viewport?.value === 'mobile') {
+          await userEvent.click(canvas.getByRole('button', { name: i18n.t('videos.detail.transcriptSection') }));
+        }
+        replay = await canvas.findByRole('button', { name: /00:00:05/ });
+      } else {
+        const input = await canvas.findByRole('textbox', { name: i18n.t('chat.placeholder') });
+        await userEvent.type(input, 'Replay');
+        await userEvent.keyboard('{Enter}');
+        replay = await canvas.findByRole('button', { name: `${video.title} 00:00:05` });
+        await waitFor(() => expect(input).toBeEnabled());
+      }
+      const player = () => canvasElement.querySelector('iframe');
+      await expect(player()).toHaveAttribute('src', 'about:blank');
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const previous = player();
+        if (attempt === 1) {
+          replay.focus();
+          await userEvent.keyboard('{Enter}');
+        } else {
+          await userEvent.click(replay);
+        }
+        await waitFor(() => expect(player()).not.toBe(previous));
+        await expect(player()).toHaveAttribute('src', 'about:blank?autoplay=1&start=5');
+        await expect(previous).not.toBeInTheDocument();
+        await expect(replay).toHaveFocus();
+      }
+      const current = player();
+      const input = scope === 'video'
+        ? canvas.getByRole('searchbox')
+        : canvas.getByRole('textbox', { name: i18n.t('chat.placeholder') });
+      await userEvent.type(input, 'a');
+      await expect(player()).toBe(current);
+    },
+  };
+}
+export const YoutubeSubtitleReplay = youtubeReplayStory('video');
+export const YoutubeSubtitleReplayEnglishMobile: Story = { ...YoutubeSubtitleReplay, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
+export const YoutubeCourseCitationReplay = youtubeReplayStory('course');
+export const YoutubeCourseCitationReplayEnglishMobile: Story = { ...YoutubeCourseCitationReplay, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
+export const YoutubeSharedCitationReplay = youtubeReplayStory('share');
+export const YoutubeSharedCitationReplayEnglishMobile: Story = { ...YoutubeSharedCitationReplay, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
+
 export const InvitationNotice: Story = {
   parameters: {
     pathname: '/course-invitations/sample-invitation',

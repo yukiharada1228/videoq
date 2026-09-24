@@ -71,7 +71,7 @@ export default function VideoCourseDetailPage() {
   const { mobileTab, setMobileTab, isMobile } = useMobileTab<'videos' | 'player'>('player');
   const { shareLink, isGeneratingLink, isDeletingLink, isCopied, generateShareLink, deleteShareLink, copyShareLink } = useShareLink(course);
 
-  const { videoRef, handleVideoSelect, handleVideoCanPlay, handleVideoPlayFromTime, youtubeStartSeconds } = useVideoPlayback({
+  const { videoRef, handleVideoSelect, handleVideoCanPlay, handleVideoPlayFromTime, youtubeStartSeconds, youtubeSeekId } = useVideoPlayback({
     selectedVideo,
     onVideoSelect: setSelectedVideoId,
     onMobileSwitch: () => setMobileTab('player'),
@@ -198,6 +198,7 @@ export default function VideoCourseDetailPage() {
       isMobile={isMobile}
       videoRef={videoRef}
       youtubeStartSeconds={youtubeStartSeconds}
+      youtubeSeekId={youtubeSeekId}
       shareSlug={course?.share_slug ?? ''}
       shareLink={shareLink}
       isGeneratingLink={isGeneratingLink}

@@ -123,6 +123,23 @@ describe('SharePage', () => {
     expect(container.querySelector('iframe')).toHaveAttribute('src', 'https://www.youtube.com/embed/video1')
   })
 
+  it('restarts YouTube playback each time the same citation is clicked', async () => {
+    getSharedCourse.mockResolvedValue({ ...mockCourse, videos: mockCourse.videos.map(video => ({
+      ...video, file: null, source_type: 'youtube', youtube_embed_url: `https://www.youtube.com/embed/video${video.id}`,
+    })) })
+    const { container, rerender } = render(<SharePage />)
+    const citation = await screen.findByRole('button', { name: 'Play citation' })
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const previous = container.querySelector('iframe')
+      fireEvent.click(citation)
+      const current = container.querySelector('iframe')
+      expect(current).not.toBe(previous)
+      expect(current).toHaveAttribute('src', 'https://www.youtube.com/embed/video1?autoplay=1&start=120')
+      rerender(<SharePage />)
+      expect(container.querySelector('iframe')).toBe(current)
+    }
+  })
+
   it('should load shared course on mount', async () => {
     render(<SharePage />)
 
