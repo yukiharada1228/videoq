@@ -4,12 +4,12 @@ import { expect, fn } from 'storybook/test';
 import { FormField } from './FormField';
 
 function FieldExample(args: ComponentProps<typeof FormField>) {
-  const [value, setValue] = useState(args.value);
+  const [value, setValue] = useState(args.value ?? '');
   return (
     <FormField
       {...args}
       value={value}
-      onChange={(event) => { args.onChange(event); setValue(event.target.value); }}
+      onChange={(event) => { args.onChange?.(event); setValue(event.target.value); }}
     />
   );
 }

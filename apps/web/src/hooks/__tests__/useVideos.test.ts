@@ -57,6 +57,28 @@ describe('useVideos', () => {
     })
   })
 
+  it('shares an in-flight page request when load more is triggered twice', async () => {
+    const videos = Array.from({ length: 25 }, (_, index) => ({ id: index + 1, title: `Video ${index + 1}`, status: 'completed' }))
+    let finishPage!: (page: ReturnType<typeof mockPaginatedResponse>) => void
+    listVideos.mockResolvedValueOnce(mockPaginatedResponse(videos.slice(0, 24), 25))
+      .mockImplementationOnce(() => new Promise(resolve => { finishPage = resolve }))
+    const { result } = renderHook(useVideos)
+    await waitFor(() => expect(result.current.videos).toHaveLength(24))
+
+    act(() => {
+      result.current.fetchNextPage()
+      result.current.fetchNextPage()
+    })
+    await waitFor(() => expect(finishPage).toBeDefined())
+    try {
+      expect(listVideos).toHaveBeenCalledTimes(2)
+      expect(result.current.isFetchingNextPage).toBe(true)
+    } finally {
+      await act(async () => finishPage(mockPaginatedResponse(videos.slice(24), 25, 24)))
+    }
+    await waitFor(() => expect(result.current.videos).toEqual(videos))
+  })
+
   it('should set hasNextPage to true when next is not null', async () => {
     const mockVideos = Array.from({ length: 24 }, (_, i) => ({
       id: i + 1,
@@ -162,6 +184,13 @@ describe('useVideos', () => {
       )
       expect(listVideos.mock.calls[0]?.[0]).toHaveProperty('cursor', 0)
     })
+  })
+
+  it('stops pagination after an empty page even if the total is stale', async () => {
+    listVideos.mockResolvedValue(mockPaginatedResponse([], 25, 0))
+    const { result } = renderHook(() => useVideos())
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.hasNextPage).toBe(false)
   })
 
   it('should load next page when fetchNextPage is called', async () => {
@@ -467,11 +496,7 @@ describe('useVideo', () => {
 
   it('should not load video if videoId is null', async () => {
     const { result } = renderHook(() => useVideo(null))
-
-    await act(async () => {
-      await result.current.loadVideo()
-    })
-
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
     expect(getVideo).not.toHaveBeenCalled()
   })
 
@@ -490,10 +515,6 @@ describe('useVideo', () => {
 
     const { result } = renderHook(() => useVideo(1))
 
-    await act(async () => {
-      await result.current.loadVideo()
-    })
-
     await waitFor(() => {
       expect(result.current.video).toEqual(mockVideo)
       expect(result.current.isLoading).toBe(false)
@@ -503,15 +524,7 @@ describe('useVideo', () => {
   it('should redirect to login if not authenticated', async () => {
     getAccount.mockResolvedValue(null)
 
-    const { result } = renderHook(() => useVideo(1))
-
-    await act(async () => {
-      try {
-        await result.current.loadVideo()
-      } catch {
-        // Expected when auth is missing
-      }
-    })
+    renderHook(() => useVideo(1))
 
     const navigate = useI18nNavigate()
     await waitFor(() => {
@@ -546,14 +559,6 @@ describe('useVideo', () => {
     getVideo.mockRejectedValue(new Error('Failed to load'))
 
     const { result } = renderHook(() => useVideo(1))
-
-    await act(async () => {
-      try {
-        await result.current.loadVideo()
-      } catch {
-        // Expected to throw
-      }
-    })
 
     await waitFor(() => {
       expect(result.current.error).toBe('Failed to load')

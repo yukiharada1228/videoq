@@ -6,7 +6,6 @@ import { http, HttpResponse } from 'msw';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { API_URL, apiClient } from './api';
-import { fetchAuthSession } from './authSession';
 import { appQueryClient } from './queryClient';
 import { createAppTrpcClient, trpc } from './trpc';
 import { authFixtures } from '../../.storybook/fixtures/auth';
@@ -96,7 +95,6 @@ export const Success: Story = {
     await expect(await canvas.findByText('授業資料の連携')).toBeVisible();
     await expect(appQueryClient.getQueryData(trpc.tags.list.queryKey(listInput))).toEqual(tagPage);
     await expect(await appQueryClient.fetchQuery(trpc.account.me.queryOptions())).toEqual(authFixtures.user.profile);
-    await expect((await fetchAuthSession()).data?.user.id).toBe(authFixtures.user.profile?.id);
   },
 };
 export const Administrator: Story = {
@@ -109,7 +107,6 @@ export const LoggedOut: Story = {
     const canvas = within(canvasElement);
     await expect(await canvas.findByText(/未ログイン|Signed out/)).toBeVisible();
     await expect(canvas.getByRole('button', { name: /タグを追加|Add tag/ })).toBeDisabled();
-    await expect((await fetchAuthSession()).data).toBeNull();
     await expect(appQueryClient.getQueryData(trpc.account.me.queryKey())).toBeUndefined();
     const onUnauthorized = fn();
     const client = createAppTrpcClient({ onUnauthorized });

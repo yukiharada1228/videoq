@@ -95,38 +95,23 @@ export async function getSearchApiKeyStatus(
 ): Promise<boolean | null> {
   return withDb(env, async (db) => {
     const rows = await db
-      .select({ key: users.searchapiApiKeyEncrypted })
+      .select({ hasKey: sql<boolean>`COALESCE(${users.searchapiApiKeyEncrypted} <> '', false)` })
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
-    if (rows.length === 0) return null;
-    return rows[0].key != null && rows[0].key.length > 0;
+    return rows[0]?.hasKey ?? null;
   });
 }
 
 export async function setSearchApiKey(
   env: Bindings,
   userId: string,
-  encryptedValue: string,
+  encryptedValue: string | null,
 ): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db
       .update(users)
       .set({ searchapiApiKeyEncrypted: encryptedValue, updatedAt: sql`CURRENT_TIMESTAMP` })
-      .where(eq(users.id, userId))
-      .returning({ id: users.id });
-    return rows.length > 0;
-  });
-}
-
-export async function deleteSearchApiKey(
-  env: Bindings,
-  userId: string,
-): Promise<boolean> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .update(users)
-      .set({ searchapiApiKeyEncrypted: null, updatedAt: sql`CURRENT_TIMESTAMP` })
       .where(eq(users.id, userId))
       .returning({ id: users.id });
     return rows.length > 0;

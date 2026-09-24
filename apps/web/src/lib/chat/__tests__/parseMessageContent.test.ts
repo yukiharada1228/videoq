@@ -66,4 +66,62 @@ describe('parseMessageContent', () => {
       { type: 'math', value: 'a^2', display: true },
     ])
   })
+
+  it('parses adjacent delimiter kinds without skipping formulas or citations', () => {
+    expect(parseMessageContent(String.raw`$x$\(y\)$$z$$\[w\][2]`)).toEqual([
+      { type: 'math', value: 'x', display: false },
+      { type: 'math', value: 'y', display: false },
+      { type: 'math', value: 'z', display: true },
+      { type: 'math', value: 'w', display: true },
+      { type: 'ref', id: 2 },
+    ])
+  })
+
+  it('preserves display math priority and inline dollar exclusions', () => {
+    expect(parseMessageContent(String.raw`x$$a$$y \$x$ $20 $z$`)).toEqual([
+      { type: 'text', value: 'x' },
+      { type: 'math', value: 'a', display: true },
+      { type: 'text', value: String.raw`y \$x$ $20 ` },
+      { type: 'math', value: 'z', display: false },
+    ])
+  })
+
+  it('ignores closing delimiters inside TeX braces', () => {
+    expect(parseMessageContent(String.raw`\[\frac{a\]b}{c} + d\] [3]`)).toEqual([
+      { type: 'math', value: String.raw`\frac{a\]b}{c} + d`, display: true },
+      { type: 'text', value: ' ' },
+      { type: 'ref', id: 3 },
+    ])
+  })
+
+  it('finds later formulas after an unclosed expression', () => {
+    expect(parseMessageContent(String.raw`prefix \[a {b\] still text \(c\) [1]`)).toEqual([
+      { type: 'text', value: String.raw`prefix \[a {b\] still text ` },
+      { type: 'math', value: 'c', display: false },
+      { type: 'text', value: ' ' },
+      { type: 'ref', id: 1 },
+    ])
+  })
+
+  it('keeps reference syntax inside formulas as math', () => {
+    expect(parseMessageContent('$x[1]$ [1] $$y[2]$$ [2]')).toEqual([
+      { type: 'math', value: 'x[1]', display: false },
+      { type: 'text', value: ' ' },
+      { type: 'ref', id: 1 },
+      { type: 'text', value: ' ' },
+      { type: 'math', value: 'y[2]', display: true },
+      { type: 'text', value: ' ' },
+      { type: 'ref', id: 2 },
+    ])
+  })
+
+  it('parses each streaming update independently', () => {
+    for (let repeat = 0; repeat < 2; repeat++) {
+      expect(parseMessageContent('')).toEqual([])
+      expect(parseMessageContent('$$x')).toEqual([{ type: 'text', value: '$$x' }])
+      expect(parseMessageContent('$$x$$')).toEqual([{ type: 'math', value: 'x', display: true }])
+      expect(parseMessageContent(String.raw`\(y`)).toEqual([{ type: 'text', value: String.raw`\(y` }])
+      expect(parseMessageContent(String.raw`\(y\)`)).toEqual([{ type: 'math', value: 'y', display: false }])
+    }
+  })
 })

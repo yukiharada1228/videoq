@@ -20,7 +20,9 @@ export function libraryHandler(scenario: LibraryScenario = {}) {
       if (scenario.load === 'error') return failure(loadError);
       const data = (scenario.videos ?? libraryVideos).filter(video => (!input?.q || `${video.title} ${video.description}`.toLowerCase().includes(input.q.toLowerCase())) && (!input?.status || video.status === input.status) && (!input?.tags?.length || input.tags.every(id => video.tags?.some(tag => tag.id === id))));
       data.sort((a, b) => input?.ordering?.startsWith('title') ? a.title.localeCompare(b.title, 'ja') * (input.ordering === 'title_desc' ? -1 : 1) : a.uploaded_at.localeCompare(b.uploaded_at) * (input?.ordering === 'uploaded_at_asc' ? 1 : -1));
-      return success({ data, meta: { total: data.length, limit: 100, offset: 0 } });
+      const limit = input?.limit ?? 24;
+      const offset = input?.cursor ?? 0;
+      return success({ data: data.slice(offset, offset + limit), meta: { total: data.length, limit, offset } });
     }),
     trpcMutation('memberships.addVideos', input => {
       addRequest(input); attempts++;

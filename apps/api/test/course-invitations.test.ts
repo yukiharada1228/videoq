@@ -14,13 +14,10 @@ describe("course invitation domain", () => {
         " Student@One.EXAMPLE ",
         "second@example.com",
       ]),
-    ).toEqual({
-      ready: [
-        { input: " Student@One.EXAMPLE ", email: "student@one.example" },
-        { input: "second@example.com", email: "second@example.com" },
-      ],
-      rejected: [],
-    });
+    ).toEqual([
+      { email: "student@one.example", status: "ready" },
+      { email: "second@example.com", status: "ready" },
+    ]);
   });
 
   it("rejects invalid addresses and reports case-insensitive duplicates", () => {
@@ -31,14 +28,12 @@ describe("course invitation domain", () => {
         "STUDENT@example.com",
         "",
       ]),
-    ).toEqual({
-      ready: [{ input: "student@example.com", email: "student@example.com" }],
-      rejected: [
-        { input: "not-an-email", status: "invalid" },
-        { input: "STUDENT@example.com", status: "duplicate" },
-        { input: "", status: "invalid" },
-      ],
-    });
+    ).toEqual([
+      { email: "not-an-email", status: "invalid" },
+      { email: "student@example.com", status: "ready" },
+      { email: "STUDENT@example.com", status: "duplicate" },
+      { email: "", status: "invalid" },
+    ]);
   });
 
   it("uses an exact seven-day lifetime and treats the boundary as expired", () => {

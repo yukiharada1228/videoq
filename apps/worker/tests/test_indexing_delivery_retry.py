@@ -24,7 +24,6 @@ def test_plog_delivery_failure_propagates_for_sqs_retry(monkeypatch) -> None:
         source_type="uploaded",
         file_key=None,
         youtube_video_id="",
-        error_message="",
     )
     conn = MagicMock()
 
@@ -61,7 +60,6 @@ def test_completed_video_retry_only_resumes_plog_handoff(monkeypatch) -> None:
         source_type="uploaded",
         file_key=None,
         youtube_video_id="",
-        error_message="",
     )
     conn = MagicMock()
 

@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import { type Db, withDb } from "../db/pool";
+import { type Db, withClient } from "../db/pool";
 import { users } from "../db/schema";
 import type { Bindings } from "../types/bindings";
 
@@ -59,7 +59,7 @@ export async function reserveAiAnswerUsage(
   env: Bindings,
   userId: string,
 ): Promise<AiAnswerReservationResult> {
-  return withDb(env, async (_db, client) => {
+  return withClient(env, async (client) => {
     const reserved = await client.query<{ usage_period_start: string }>(
       RESERVE_AI_ANSWER_SQL,
       [userId],
@@ -104,7 +104,7 @@ export async function releaseAiAnswerReservation(
   env: Bindings,
   reservation: AiAnswerReservation,
 ): Promise<void> {
-  return withDb(env, async (_db, client) => {
+  return withClient(env, async (client) => {
     await client.query(
       `UPDATE users
           SET used_ai_answers = GREATEST(used_ai_answers - 1, 0)
@@ -113,40 +113,6 @@ export async function releaseAiAnswerReservation(
       [reservation.userId, reservation.usagePeriodStart],
     );
   });
-}
-
-/** 1 ファイルあたりの最大アップロードサイズ MB（get_max_upload_size_bytes の元値）。 */
-export async function getMaxUploadSizeMb(
-  env: Bindings,
-  userId: string,
-): Promise<number> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .select({ maxVideoUploadSizeMb: users.maxVideoUploadSizeMb })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-    return Number(rows[0].maxVideoUploadSizeMb);
-  });
-}
-
-/**
- * ストレージ容量を確認して予約する。
- * over_quota → overQuota。無制限 → 無条件加算。制限あり → 条件付き原子 UPDATE
- * （used <= limit - additional なら加算）。加算不可なら exceeded(limit)。
- * limit = int(storage_limit_gb * 1024^3)。
- */
-export async function checkAndReserveStorage(
-  env: Bindings,
-  userId: string,
-  additionalBytes: number,
-): Promise<StorageReservationResult> {
-  if (!Number.isSafeInteger(additionalBytes) || additionalBytes < 0) {
-    throw new Error("Storage reservation bytes must be a non-negative safe integer.");
-  }
-  return withDb(env, async (db) =>
-    db.transaction((tx) => reserveStorageInTransaction(tx, userId, additionalBytes)),
-  );
 }
 
 /** 動画行などと同じtransactionへ容量予約を含めるための共通primitive。 */

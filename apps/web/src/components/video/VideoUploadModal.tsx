@@ -27,20 +27,18 @@ import { TagCreateDialog } from './TagCreateDialog';
 interface VideoUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUploadSuccess?: () => void;
   /** null keeps the success result open until the user closes it. */
   autoCloseDelayMs?: number | null;
 }
 
 /**
- * Render a modal dialog for uploading a video with title, description, external ID, file selection,
+ * Render a modal dialog for uploading a video with title, description, file selection,
  * tag selection, and tag creation.
  *
  * The modal disables closing while an upload is in progress and automatically closes 2 seconds
- * after a successful upload. Submitting the form delegates to the upload hook and passes the
- * optional `onUploadSuccess` callback.
+ * after a successful upload. The upload hook handles refreshing affected queries.
  */
-export function VideoUploadModal({ isOpen, onClose, onUploadSuccess, autoCloseDelayMs = 2000 }: VideoUploadModalProps) {
+export function VideoUploadModal({ isOpen, onClose, autoCloseDelayMs = 2000 }: VideoUploadModalProps) {
   const {
     sourceMode,
     file,
@@ -65,7 +63,7 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess, autoCloseDe
     reset,
   } = useVideoUpload();
   const { t } = useTranslation();
-  const { tags, createTag } = useTags();
+  const { tags, createTag } = useTags({ enabled: isOpen });
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   const handleTagToggle = useCallback((tagId: number) => {
@@ -121,7 +119,7 @@ export function VideoUploadModal({ isOpen, onClose, onUploadSuccess, autoCloseDe
           <form
             onSubmit={(e) => {
               // The hook has already exposed mutation errors through `error`.
-              void handleSubmit(e, onUploadSuccess).catch(() => undefined);
+              void handleSubmit(e).catch(() => undefined);
             }}
           >
             <DialogBody>

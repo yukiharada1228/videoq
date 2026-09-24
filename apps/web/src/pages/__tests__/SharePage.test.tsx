@@ -1,4 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
+import { useQueryClient } from '@tanstack/react-query'
+import { trpc } from '@/lib/trpc'
 import SharePage from '../SharePage'
 
 const getSharedCourse = vi.fn()
@@ -28,7 +30,9 @@ vi.mock('@/lib/api', () => ({
 }))
 
 vi.mock('@/components/chat/ChatPanel', () => ({
-  ChatPanel: () => <div data-testid="chat-panel">Chat Panel</div>,
+  ChatPanel: ({ onVideoPlay }: { onVideoPlay: (id: number, time: string) => void }) => (
+    <div data-testid="chat-panel"><button onClick={() => onVideoPlay(1, '00:02:00')}>Play citation</button></div>
+  ),
 }))
 
 describe('SharePage', () => {
@@ -86,6 +90,37 @@ describe('SharePage', () => {
       const titles = screen.getAllByText('Shared Video 1')
       expect(titles.length).toBeGreaterThan(0)
     })
+  })
+
+  it('keeps the player and chat mounted while the shared course refreshes', async () => {
+    const { result } = renderHook(() => useQueryClient())
+    const { container } = render(<SharePage />)
+    const chat = await screen.findByTestId('chat-panel')
+    const player = container.querySelector('video')!
+    player.currentTime = 45
+    let finish!: (course: typeof mockCourse) => void
+    getSharedCourse.mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+    let refresh!: Promise<void>
+    act(() => { refresh = result.current.invalidateQueries(trpc.courses.shared.pathFilter()) })
+    await waitFor(() => expect(getSharedCourse).toHaveBeenCalledTimes(2))
+    expect(container.querySelector('video')).toBe(player)
+    expect(screen.getByTestId('chat-panel')).toBe(chat)
+    await act(async () => { finish(mockCourse); await refresh })
+    expect(container.querySelector('video')).toBe(player)
+    expect(player.currentTime).toBe(45)
+  })
+
+  it('clears citation playback when manually selecting another YouTube video', async () => {
+    getSharedCourse.mockResolvedValue({ ...mockCourse, videos: mockCourse.videos.map(video => ({
+      ...video, file: null, source_type: 'youtube', youtube_embed_url: `https://www.youtube.com/embed/video${video.id}`,
+    })) })
+    const { container } = render(<SharePage />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Play citation' }))
+    expect(container.querySelector('iframe')).toHaveAttribute('src', 'https://www.youtube.com/embed/video1?autoplay=1&start=120')
+    fireEvent.click(screen.getByText('Shared Video 2'))
+    expect(container.querySelector('iframe')).toHaveAttribute('src', 'https://www.youtube.com/embed/video2')
+    fireEvent.click(screen.getByText('Shared Video 1'))
+    expect(container.querySelector('iframe')).toHaveAttribute('src', 'https://www.youtube.com/embed/video1')
   })
 
   it('should load shared course on mount', async () => {

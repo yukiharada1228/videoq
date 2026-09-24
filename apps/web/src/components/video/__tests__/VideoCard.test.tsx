@@ -20,7 +20,6 @@ Object.defineProperty(window, 'IntersectionObserver', {
 })
 
 vi.mock('@/lib/utils/video', () => ({
-  getStatusBadgeClassName: vi.fn(() => 'badge-class'),
   getStatusChipColor: vi.fn(() => 'green'),
   getStatusLabel: vi.fn(() => 'Status Label'),
   formatDate: vi.fn(() => '2024-01-15'),

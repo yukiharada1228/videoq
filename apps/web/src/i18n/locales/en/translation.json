@@ -326,6 +326,7 @@
       "moveDown": "Move {{name}} down",
       "joinedTitle": "Courses you've joined",
       "memberBadge": "Member",
+      "retryLoad": "Retry loading courses",
       "loadingMore": "Loading...",
       "videoCount_one": "{{count}} video",
       "videoCount_other": "{{count}} videos"
@@ -333,7 +334,8 @@
     "courseDetail": {
       "pickFromLibrary": "Choose from library",
       "pickFromLibraryDescription": "Select videos from your library to add to this course.",
-      "loadVideosError": "Could not load the video library.",
+      "loadMoreVideos": "Load more videos",
+      "retryLoadVideos": "Retry loading videos",
       "delete": "Delete",
       "removeVideoConfirm": "Remove this video from the chat course?",
       "addError": "Failed to add videos to the chat course",
@@ -364,7 +366,7 @@
         "titleAsc": "Title (A-Z)",
         "titleDesc": "Title (Z-A)"
       },
-      "selectAll": "Select all",
+      "selectAll": "Select loaded videos",
       "clearSelection": "Clear selection",
       "noAvailableVideos": "No library videos are available to add to this course",
       "noAvailableVideosHint": "Upload videos in the library first, or clear the current filters.",
@@ -667,7 +669,9 @@
     "manage": "Manage billing",
     "changePlan": "Change plan",
     "canceled": "Checkout was canceled.",
-    "checkoutError": "Could not start checkout.",
+    "retry": "Retry",
+    "loadingAccount": "Checking your plan...",
+    "accountUnavailable": "Plan information unavailable",
     "limits": {
       "storage": "{{gb}} GB storage",
       "processing": "{{minutes}} transcription minutes / month",
@@ -1158,6 +1162,7 @@
       "deleteBody": "The account is deactivated immediately, then videos, courses, tags, chat history, and the user row are permanently deleted. This cannot be undone.",
       "deleteConfirm": "Delete user",
       "deleteSuccess": "Deletion started for {{username}} ({{jobId}}).",
+      "deletionPending": "Deletion pending",
       "deleteError": "Failed to delete user.",
       "save": "Save",
       "cancel": "Cancel",

@@ -2,7 +2,6 @@ import { and, asc, desc, eq, gt, or, sql } from "drizzle-orm";
 import { withDb } from "../db/pool";
 import {
   chatLogs,
-  chatLogEvaluations,
   users,
   videoCourses,
   videoCourseMembers,
@@ -53,7 +52,6 @@ export type ChatLogItem = {
 export type GroupChatContext = {
   id: number;
   userId: string;
-  description: string | null;
   memberVideoIds: number[];
 };
 
@@ -94,27 +92,6 @@ function mapQuestionAuthor(
   return { user_id: userId, username, email };
 }
 
-async function courseOwnedBy(
-  db: Parameters<Parameters<typeof withDb>[1]>[0],
-  courseId: number,
-  userId: string,
-): Promise<boolean> {
-  const rows = await db
-    .select({ id: videoCourses.id })
-    .from(videoCourses)
-    .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, userId)))
-    .limit(1);
-  return rows.length > 0;
-}
-
-export function canExportCourseChatHistory(
-  env: Bindings,
-  courseId: number,
-  userId: string,
-): Promise<boolean> {
-  return withDb(env, (db) => courseOwnedBy(db, courseId, userId));
-}
-
 /**
  * share_token 指定時は share_slug で、
  * それ以外は user_id で絞る（どちらも無ければ id のみ）。見つからなければ null。
@@ -144,7 +121,6 @@ export async function getCourseWithMembers(
       .select({
         id: videoCourses.id,
         userId: videoCourses.userId,
-        description: videoCourses.description,
       })
       .from(videoCourses)
       .where(and(...conditions))
@@ -161,7 +137,6 @@ export async function getCourseWithMembers(
     return {
       id: Number(row.id),
       userId: String(row.userId),
-      description: row.description ?? null,
       memberVideoIds: members.map((m) => Number(m.videoId)),
     };
   });
@@ -219,8 +194,7 @@ export async function createChatLog(
 
 /**
  * 講座のチャット履歴を全削除する。
- * ChatLogEvaluation は関連する ChatLog より先に削除する。
- * DB 側に ON DELETE CASCADE は無いため、依存順にトランザクションで明示削除する。
+ * 評価は ChatLog の ON DELETE CASCADE で削除する。
  */
 export async function deleteCourseChatLogs(
   env: Bindings,
@@ -236,10 +210,6 @@ export async function deleteCourseChatLogs(
         .limit(1);
       if (owner.length === 0) return { notFound: true } as const;
 
-      await tx.execute(sql`
-        DELETE FROM chat_log_evaluations
-         WHERE chat_log_id IN (SELECT id FROM chat_logs WHERE course_id = ${courseId})
-      `);
       await tx.delete(chatLogs).where(eq(chatLogs.courseId, courseId));
       return { ok: true } as const;
     }),
@@ -363,56 +333,38 @@ export async function* iterateCourseChatHistoryForExport(
   } while (cursor);
 }
 
-/** feedback 用: chat log + その course の user_id / share_slug（権限判定に使う）。 */
-export async function getFeedbackLog(
-  env: Bindings,
-  logId: number,
-): Promise<
-  | null
-  | {
-      id: number;
-      log_user_id: string;
-      course_user_id: string;
-      course_share_slug: string | null;
-    }
-> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .select({
-        id: chatLogs.id,
-        log_user_id: chatLogs.userId,
-        course_user_id: videoCourses.userId,
-        course_share_slug: videoCourses.shareSlug,
-      })
-      .from(chatLogs)
-      .innerJoin(videoCourses, eq(videoCourses.id, chatLogs.courseId))
-      .where(eq(chatLogs.id, logId))
-      .limit(1);
-    if (rows.length === 0) return null;
-    const r = rows[0];
-    return {
-      id: Number(r.id),
-      log_user_id: String(r.log_user_id),
-      course_user_id: String(r.course_user_id),
-      course_share_slug: r.course_share_slug ?? null,
-    };
-  });
-}
-
-/** feedback を更新して {id, feedback} を返す（feedback は good/bad/null）。 */
+/** Authorize and update feedback in one statement, preserving missing/forbidden results. */
 export async function updateChatLogFeedback(
   env: Bindings,
   logId: number,
   feedback: "good" | "bad" | null,
-): Promise<{ id: number; feedback: "good" | "bad" | null }> {
+  opts: { userId?: string; shareSlug?: string | null },
+) {
+  const permission = opts.shareSlug
+    ? sql`course.share_slug = ${opts.shareSlug}`
+    : sql`course.user_id = ${opts.userId ?? null} OR log.user_id = ${opts.userId ?? null}`;
   return withDb(env, async (db) => {
-    const rows = await db
-      .update(chatLogs)
-      .set({ feedback })
-      .where(eq(chatLogs.id, logId))
-      .returning({ id: chatLogs.id, feedback: chatLogs.feedback });
-    const r = rows[0];
-    return { id: Number(r.id), feedback: chatFeedback(r.feedback) };
+    const result = await db.execute<{ allowed: boolean; id: string | null; feedback: string | null }>(sql`
+      WITH target AS (
+        SELECT log.id, COALESCE((${permission}), false) AS allowed
+          FROM chat_logs log
+          JOIN video_courses course ON course.id = log.course_id
+         WHERE log.id = ${logId}
+      ), updated AS (
+        UPDATE chat_logs log SET feedback = ${feedback}
+          FROM target
+         WHERE log.id = target.id AND target.allowed
+        RETURNING log.id, log.feedback
+      )
+      SELECT target.allowed, updated.id, updated.feedback
+        FROM target LEFT JOIN updated ON updated.id = target.id
+    `);
+    const row = result.rows[0];
+    if (!row) return { notFound: true } as const;
+    if (!row.allowed) return { forbidden: true } as const;
+    // A concurrent history reset may delete an authorized row before UPDATE acquires it.
+    if (row.id === null) return { notFound: true } as const;
+    return { id: Number(row.id), feedback: chatFeedback(row.feedback) };
   });
 }
 
@@ -453,36 +405,43 @@ export async function getCourseChatAnalytics(
   userId: string,
 ): Promise<{ notFound: true } | ChatAnalytics> {
   return withDb(env, async (db) => {
-    if (!(await courseOwnedBy(db, courseId, userId))) {
-      return { notFound: true } as const;
-    }
-
-    const sumResult = await db.execute(sql`
-      SELECT count(*)::int AS total,
-             min(created_at) AS first_dt,
-             max(created_at) AS last_dt,
-             count(*) FILTER (WHERE feedback = 'good')::int AS good,
-             count(*) FILTER (WHERE feedback = 'bad')::int AS bad,
-             count(*) FILTER (WHERE feedback IS NULL)::int AS none
-        FROM chat_logs WHERE course_id = ${courseId}
+    // Scan the authorized course's history once, then derive both totals and days.
+    const result = await db.execute(sql`
+      SELECT COALESCE(sum(day.count), 0)::int AS total,
+             min(day.first_dt) AS first_dt,
+             max(day.last_dt) AS last_dt,
+             COALESCE(sum(day.good), 0)::int AS good,
+             COALESCE(sum(day.bad), 0)::int AS bad,
+             COALESCE(sum(day.none), 0)::int AS none,
+             COALESCE(
+               json_agg(json_build_object('date', day.date::text, 'count', day.count) ORDER BY day.date)
+                 FILTER (WHERE day.date IS NOT NULL), '[]'::json
+             ) AS time_series
+        FROM video_courses course
+        LEFT JOIN LATERAL (
+          SELECT (created_at AT TIME ZONE 'UTC')::date AS date,
+                 count(*)::int AS count,
+                 min(created_at) AS first_dt,
+                 max(created_at) AS last_dt,
+                 count(*) FILTER (WHERE feedback = 'good')::int AS good,
+                 count(*) FILTER (WHERE feedback = 'bad')::int AS bad,
+                 count(*) FILTER (WHERE feedback IS NULL)::int AS none
+            FROM chat_logs WHERE course_id = course.id
+           GROUP BY (created_at AT TIME ZONE 'UTC')::date
+        ) day ON true
+       WHERE course.id = ${courseId} AND course.user_id = ${userId}
+       GROUP BY course.id
     `);
-    const tsResult = await db.execute(sql`
-      SELECT (created_at AT TIME ZONE 'UTC')::date::text AS date,
-             count(*)::int AS count
-        FROM chat_logs WHERE course_id = ${courseId}
-       GROUP BY (created_at AT TIME ZONE 'UTC')::date
-       ORDER BY (created_at AT TIME ZONE 'UTC')::date
-    `);
-
-    const s = sumResult.rows[0] as {
+    const s = result.rows[0] as {
       total: number;
-      first_dt: string | null;
-      last_dt: string | null;
+      first_dt: string | Date | null;
+      last_dt: string | Date | null;
       good: number;
       bad: number;
       none: number;
-    };
-    const ts = tsResult.rows as Array<{ date: string; count: number }>;
+      time_series: ChatAnalytics["time_series"];
+    } | undefined;
+    if (!s) return { notFound: true } as const;
 
     return {
       summary: {
@@ -492,7 +451,7 @@ export async function getCourseChatAnalytics(
           last: s.last_dt == null ? null : toUtcIso(s.last_dt),
         },
       },
-      time_series: ts.map((r) => ({ date: r.date, count: r.count })),
+      time_series: s.time_series,
       feedback: { good: s.good, bad: s.bad, none: s.none },
     };
   });
@@ -506,14 +465,15 @@ export async function getCourseChatHistory(
   offset: number,
 ): Promise<{ notFound: true } | { count: number; results: ChatLogItem[] }> {
   return withDb(env, async (db) => {
-    if (!(await courseOwnedBy(db, courseId, userId))) {
-      return { notFound: true } as const;
-    }
-
-    const countRes = await db
-      .select({ c: sql<number>`count(*)::int` })
-      .from(chatLogs)
-      .where(eq(chatLogs.courseId, courseId));
+    const [total] = await db
+      .select({
+        count: sql<number>`(SELECT count(*)::int FROM chat_logs WHERE course_id = "video_courses"."id")`,
+      })
+      .from(videoCourses)
+      .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, userId)))
+      .limit(1);
+    if (!total) return { notFound: true } as const;
+    if (offset >= total.count) return { count: total.count, results: [] };
 
     const rows = await db
       .select({
@@ -524,7 +484,7 @@ export async function getCourseChatHistory(
         email: users.email,
         question: chatLogs.question,
         answer: chatLogs.answer,
-        citations: sql<string>`${chatLogs.citations}::text`.as("citations"),
+        citations: chatLogs.citations,
         is_shared_origin: chatLogs.isSharedOrigin,
         feedback: chatLogs.feedback,
         created_at: chatLogs.createdAt,
@@ -532,7 +492,7 @@ export async function getCourseChatHistory(
       .from(chatLogs)
       .leftJoin(users, eq(users.id, chatLogs.userId))
       .where(eq(chatLogs.courseId, courseId))
-      .orderBy(desc(chatLogs.createdAt))
+      .orderBy(desc(chatLogs.createdAt), desc(chatLogs.id))
       .limit(limit)
       .offset(offset);
 
@@ -553,6 +513,6 @@ export async function getCourseChatHistory(
       created_at: toUtcIso(r.created_at)!,
     }));
 
-    return { count: countRes[0].c, results };
+    return { count: total.count, results };
   });
 }

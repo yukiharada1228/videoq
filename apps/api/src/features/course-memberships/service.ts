@@ -5,8 +5,6 @@ import {
   getCourseInvitationByTokenHash,
   leaveCourseMembership,
   listCourseParticipants,
-  markCourseInvitationExpired,
-  recordInvitationDeliveryOutcomes,
   removeCourseUserMember,
   revokePendingCourseInvitation,
   rotatePendingCourseInvitation,
@@ -15,9 +13,8 @@ import {
   createInvitationToken,
   hashInvitationToken,
   invitationExpiresAt,
-  isInvitationExpired,
+  effectiveInvitationStatus,
   maskInvitationEmail,
-  normalizeInvitationEmail,
   planInvitationEmails,
   resolveInvitationBatchLimit,
 } from "../../lib/course-invitations";
@@ -58,12 +55,14 @@ export async function inviteCourseMembers(
 > {
   const limit = resolveInvitationBatchLimit(env.COURSE_INVITATION_BATCH_LIMIT);
   const plan = planInvitationEmails(rawEmails);
-  if (plan.ready.length > limit) return { tooMany: true, limit };
+  const ready = plan.filter(({ status }) => status === "ready");
+  if (ready.length > limit) return { tooMany: true, limit };
+  const expiresAt = invitationExpiresAt(issuedAt);
   const prepared = await Promise.all(
-    plan.ready.map(async ({ email }) => ({
+    ready.map(async ({ email }) => ({
       email,
       tokenHash: await placeholderTokenHash(),
-      expiresAt: invitationExpiresAt(issuedAt),
+      expiresAt,
       createdAt: issuedAt,
     })),
   );
@@ -93,21 +92,11 @@ export async function inviteCourseMembers(
     });
   }
 
-  const results: InviteRecipientResult[] = [];
-  const seen = new Set<string>();
-  for (const input of rawEmails) {
-    const email = normalizeInvitationEmail(input);
-    if (!email) {
-      results.push({ email: input, status: "invalid" });
-      continue;
-    }
-    if (seen.has(email)) {
-      results.push({ email: input, status: "duplicate" });
-      continue;
-    }
-    seen.add(email);
-    results.push({ email, ...(resultByEmail.get(email) ?? { status: "queued" }) });
-  }
+  const results: InviteRecipientResult[] = plan.map(({ email, status }) =>
+    status === "ready"
+      ? { email, ...(resultByEmail.get(email) ?? { status: "queued" }) }
+      : { email, status },
+  );
   return { results };
 }
 
@@ -127,19 +116,12 @@ export async function previewCourseInvitation(
   const tokenHash = await hashInvitationToken(token);
   const invitation = await getCourseInvitationByTokenHash(env, tokenHash);
   if (!invitation) return null;
-  if (
-    invitation.status === "pending" &&
-    isInvitationExpired(new Date(invitation.expires_at), now)
-  ) {
-    await markCourseInvitationExpired(env, invitation.id, now);
-    invitation.status = "expired";
-  }
   return {
     course_id: invitation.course_id,
     course_name: invitation.course_name,
     inviter_name: invitation.inviter_name,
     email_hint: maskInvitationEmail(invitation.email),
-    status: invitation.status,
+    status: effectiveInvitationStatus(invitation.status, new Date(invitation.expires_at), now),
     expires_at: invitation.expires_at,
   };
 }

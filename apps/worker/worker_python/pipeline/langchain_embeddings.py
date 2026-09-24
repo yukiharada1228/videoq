@@ -1,4 +1,4 @@
-"""One validated provider adapter for PGVectorStore and RAGAS."""
+"""Validated provider adapter for RAGAS and storage compatibility tests."""
 
 from langchain_core.embeddings import Embeddings
 

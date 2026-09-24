@@ -1,8 +1,7 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { BillingPlan } from '@videoq/trpc';
 import { trpc } from '@/lib/trpc';
 import { useAuthSession } from '@/lib/authSession';
 import { Link, useLocale } from '@/lib/i18n';
@@ -30,22 +29,18 @@ export default function PricingPage() {
   const [interval, setInterval] = useState<Interval>('month');
   const session = useAuthSession();
   const hasSession = Boolean(session.data?.user);
-  const { data: user } = useQuery(trpc.account.me.queryOptions(undefined, {
+  const account = useQuery(trpc.account.me.queryOptions(undefined, {
     enabled: hasSession && !session.isPending,
     retry: false,
     staleTime: 60_000,
   }));
-  const { data: plans, isLoading } = useQuery(trpc.billing.plans.queryOptions());
+  const catalog = useQuery(trpc.billing.plans.queryOptions());
 
   const canceled = searchParams.get('billing') === 'cancel';
-  const currentPlan = user?.plan_code ?? 'free';
-
-  const cards = useMemo(() => {
-    const list = plans ?? [];
-    const free = list.find((p) => p.code === 'free');
-    const paid = list.filter((p) => p.code !== 'free' && p.interval === interval);
-    return [free, ...paid].filter((p): p is BillingPlan => Boolean(p));
-  }, [plans, interval]);
+  const currentPlan = hasSession ? account.data?.plan_code : undefined;
+  const awaitingAccount = session.isPending || (hasSession && account.isPending);
+  const loadError = catalog.error ?? (hasSession ? account.error : null);
+  const cards = (catalog.data ?? []).filter(plan => plan.code === 'free' || plan.interval === interval);
 
   const checkout = useMutation(trpc.billing.checkout.mutationOptions({
     onSuccess: (res) => {
@@ -58,6 +53,7 @@ export default function PricingPage() {
       window.location.assign(res.url);
     },
   }));
+  const actionError = checkout.error ?? portal.error;
 
   return (
     <>
@@ -71,16 +67,25 @@ export default function PricingPage() {
           <MessageAlert type="warning" message={t('pricing.canceled')} />
         </div>
       )}
-      {checkout.isError && (
+      {loadError && (
+        <div className="mb-6 space-y-2">
+          <MessageAlert type="error" message={loadError.message} />
+          <Button
+            type="button"
+            variant="outline"
+            disabled={catalog.isFetching || (hasSession && account.isFetching)}
+            onClick={() => {
+              if (catalog.isError) void catalog.refetch();
+              if (hasSession && account.isError) void account.refetch();
+            }}
+          >
+            {t('pricing.retry')}
+          </Button>
+        </div>
+      )}
+      {actionError && (
         <div className="mb-6">
-          <MessageAlert
-            type="error"
-            message={
-              checkout.error instanceof Error
-                ? checkout.error.message
-                : t('pricing.checkoutError')
-            }
-          />
+          <MessageAlert type="error" message={actionError.message} />
         </div>
       )}
 
@@ -101,7 +106,7 @@ export default function PricingPage() {
         </Button>
       </div>
 
-      {isLoading ? (
+      {catalog.isLoading ? (
         <div className="flex justify-center py-24">
           <LoadingSpinner />
         </div>
@@ -148,27 +153,16 @@ export default function PricingPage() {
                     })}
                   </li>
                 </ul>
-                {plan.code === 'free' ? (
-                  isCurrent ? (
-                    <p className="text-std-16N-170 text-solid-gray-600">{t('pricing.currentPlan')}</p>
-                  ) : (
-                    <Button asChild variant="outline">
-                      <Link href="/signup">{t('pricing.startFree')}</Link>
-                    </Button>
-                  )
-                ) : !hasSession ? (
-                  <Button asChild>
-                    <Link href="/signup">{t('pricing.signUpToSubscribe')}</Link>
+                {!hasSession && !session.isPending ? (
+                  <Button asChild variant={plan.code === 'free' ? 'outline' : 'solid-fill'}>
+                    <Link href="/signup">{t(plan.code === 'free' ? 'pricing.startFree' : 'pricing.signUpToSubscribe')}</Link>
                   </Button>
-                ) : isCurrent ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={portal.isPending}
-                    onClick={() => portal.mutate({ locale })}
-                  >
-                    {t('pricing.manage')}
+                ) : awaitingAccount || !account.data ? (
+                  <Button type="button" disabled>
+                    {t(awaitingAccount ? 'pricing.loadingAccount' : 'pricing.accountUnavailable')}
                   </Button>
+                ) : plan.code === 'free' && isCurrent ? (
+                  <p className="text-std-16N-170 text-solid-gray-600">{t('pricing.currentPlan')}</p>
                 ) : currentPlan !== 'free' ? (
                   <Button
                     type="button"
@@ -176,7 +170,7 @@ export default function PricingPage() {
                     disabled={portal.isPending}
                     onClick={() => portal.mutate({ locale })}
                   >
-                    {t('pricing.changePlan')}
+                    {t(isCurrent ? 'pricing.manage' : 'pricing.changePlan')}
                   </Button>
                 ) : (
                   <Button

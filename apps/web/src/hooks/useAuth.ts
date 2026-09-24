@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useI18nNavigate, useI18nLocation, removeLocalePrefix } from '@/lib/i18n';
 import type { User } from '@/lib/api';
 import { useAuthSession } from '@/lib/authSession';
@@ -9,7 +9,6 @@ import { trpc } from '@/lib/trpc';
 interface UseAuthReturn {
   user: User | null;
   isLoading: boolean;
-  refetch: () => Promise<User | null>;
 }
 
 interface UseAuthOptions {
@@ -44,7 +43,7 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
     if (session.error && session.error.status !== 401 && session.error.status !== 403) return;
 
     // A transient API/server failure is not proof that the session is invalid.
-    // Keep the user on the current page and allow recovery through `refetch`.
+    // Keep the user on the current page so a later query refresh can recover.
     if (authQuery.error) {
       console.error('Authentication check failed:', authQuery.error);
       return;
@@ -54,8 +53,6 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
       !hasSession ||
       (!authQuery.isPending && authQuery.data === null);
     if (!unauthorized) return;
-    // Wait for account.me only when a BA session exists.
-    if (hasSession && authQuery.isPending) return;
 
     if (redirectToLogin) {
       const currentPath = removeLocalePrefix(window.location.pathname);
@@ -74,18 +71,10 @@ export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
     navigate,
   ]);
 
-  const checkAuth = useCallback(async () => {
-    if (!authRequired) return null;
-    await session.refetch();
-    const result = await authQuery.refetch();
-    return result.data ?? null;
-  }, [authQuery, authRequired, session]);
-
   return {
     user: authRequired && hasSession ? authQuery.data ?? null : null,
     isLoading: authRequired
       ? session.isPending || (hasSession && authQuery.isPending)
       : false,
-    refetch: checkAuth,
   };
 }

@@ -1,4 +1,6 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
+import { useQueryClient } from '@tanstack/react-query';
+import { trpc } from '@/lib/trpc';
 import { CourseParticipantsDialog } from '../CourseParticipantsDialog';
 
 const getParticipants = vi.fn();
@@ -276,6 +278,102 @@ describe('CourseParticipantsDialog', () => {
     await waitFor(() => expect(alert.closest('[tabindex="-1"]')).toHaveFocus());
   });
 
+  it('shows the latest operation error when switching from invite to resend', async () => {
+    inviteMembers.mockRejectedValue(new Error('Invite failed'));
+    resendInvitation.mockRejectedValue(new Error('Resend failed'));
+    render(<CourseParticipantsDialog courseId={3} isOpen onOpenChange={vi.fn()} />);
+    await screen.findByText('pending@example.com');
+    fireEvent.change(screen.getByLabelText('videos.courseMembers.emailLabel'), { target: { value: 'new@example.com' } });
+    fireEvent.click(screen.getByRole('button', { name: 'videos.courseMembers.invite' }));
+    await screen.findByText('Invite failed');
+    fireEvent.click(screen.getByRole('button', { name: 'videos.courseMembers.resend' }));
+    expect(await screen.findByText('Resend failed')).toBeInTheDocument();
+    expect(screen.queryByText('Invite failed')).not.toBeInTheDocument();
+  });
+
+  it('blocks all participant actions until invitation creation and its refresh finish', async () => {
+    let finish!: () => void;
+    inviteMembers.mockImplementation(() => new Promise(resolve => { finish = () => resolve({
+      results: [{ email: 'new@example.com', status: 'queued', invitation_id: 8 }],
+    }); }));
+    const { result } = renderHook(() => useQueryClient());
+    render(<CourseParticipantsDialog courseId={3} isOpen onOpenChange={vi.fn()} />);
+    await screen.findByText('pending@example.com');
+    const original = result.current.getQueryData(trpc.courseMemberships.participants.queryKey({ courseId: 3 }))!;
+    let finishRead!: (value: typeof original) => void;
+    getParticipants.mockImplementationOnce(() => new Promise(resolve => { finishRead = resolve; }));
+    fireEvent.change(screen.getByLabelText('videos.courseMembers.emailLabel'), { target: { value: 'new@example.com' } });
+    fireEvent.click(screen.getByRole('button', { name: 'videos.courseMembers.invite' }));
+    await waitFor(() => expect(inviteMembers).toHaveBeenCalledTimes(1));
+    for (const action of ['resend', 'revoke', 'remove']) {
+      const button = screen.getByRole('button', { name: `videos.courseMembers.${action}` });
+      expect(button).toBeDisabled();
+      fireEvent.click(button);
+    }
+    expect(resendInvitation).not.toHaveBeenCalled();
+    expect(revokeInvitation).not.toHaveBeenCalled();
+    expect(removeMember).not.toHaveBeenCalled();
+    await act(async () => finish());
+    await waitFor(() => expect(getParticipants).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole('button', { name: 'videos.courseMembers.revoke' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'videos.courseMembers.remove' })).toBeDisabled();
+    await act(async () => finishRead({ ...original, invitations: [
+      ...original.invitations, { ...original.invitations[0], id: 8, email: 'new@example.com' },
+    ] }));
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'videos.courseMembers.resend' })).toHaveLength(2));
+    for (const button of screen.getAllByRole('button', { name: 'videos.courseMembers.resend' })) expect(button).toBeEnabled();
+  });
+
+  it('starts only one participant operation before the pending state renders', async () => {
+    let finish!: () => void;
+    resendInvitation.mockImplementation(() => new Promise(resolve => { finish = () => resolve({ delivery_status: 'queued' }); }));
+    render(<CourseParticipantsDialog courseId={3} isOpen onOpenChange={vi.fn()} />);
+    const resend = await screen.findByRole('button', { name: 'videos.courseMembers.resend' });
+    const revoke = screen.getByRole('button', { name: 'videos.courseMembers.revoke' });
+    act(() => { fireEvent.click(resend); fireEvent.click(revoke); fireEvent.click(resend); });
+    await waitFor(() => expect(resendInvitation).toHaveBeenCalledTimes(1));
+    expect(revokeInvitation).not.toHaveBeenCalled();
+    await act(async () => finish());
+    await waitFor(() => expect(revoke).toBeEnabled());
+  });
+
+  it.each(['revoke', 'remove'] as const)('applies %s without reloading and ignores an older participant response', async (action) => {
+    const { result } = renderHook(() => useQueryClient());
+    render(<CourseParticipantsDialog courseId={3} isOpen onOpenChange={vi.fn()} />);
+    await screen.findByText('pending@example.com');
+    const filter = trpc.courseMemberships.participants.queryFilter({ courseId: 3 });
+    const key = trpc.courseMemberships.participants.queryKey({ courseId: 3 });
+    const original = result.current.getQueryData(key)!;
+    let finish!: (value: typeof original) => void;
+    getParticipants.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }))
+      .mockRejectedValue(new Error('Do not reload after deletion'));
+    let loading!: Promise<void>;
+    act(() => { loading = result.current.refetchQueries(filter); });
+    await waitFor(() => expect(getParticipants).toHaveBeenCalledTimes(2));
+    revokeInvitation.mockResolvedValue({ success: true });
+    removeMember.mockResolvedValue({ success: true });
+    fireEvent.click(screen.getByRole('button', { name: `videos.courseMembers.${action}` }));
+    if (action === 'remove') {
+      const confirmation = await screen.findByRole('dialog', { name: /confirmations\.removeMember/ });
+      fireEvent.click(within(confirmation).getByRole('button', { name: 'videos.courseMembers.remove' }));
+    }
+    await waitFor(() => {
+      if (action === 'revoke') expect(screen.queryByRole('button', { name: 'videos.courseMembers.revoke' })).not.toBeInTheDocument();
+      else expect(screen.queryByText('student@example.com')).not.toBeInTheDocument();
+    });
+    await act(async () => { finish(original); await loading; });
+    const current = result.current.getQueryData(key)!;
+    if (action === 'revoke') {
+      expect(current.invitations[0]).toEqual({ ...original.invitations[0], status: 'revoked' });
+      expect(current.members).toEqual(original.members);
+    } else {
+      expect(current.members).toEqual([]);
+      expect(current.invitations).toEqual(original.invitations);
+    }
+    expect(getParticipants).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   async function startDeliveryPolling() {
     getParticipants.mockResolvedValue({
       members: [],
@@ -319,6 +417,16 @@ describe('CourseParticipantsDialog', () => {
     const reads = getParticipants.mock.calls.length;
     await act(() => vi.advanceTimersByTimeAsync(9000));
     expect(getParticipants).toHaveBeenCalledTimes(reads);
+  });
+
+  it('stops delivery polling immediately after the queued invitation is revoked', async () => {
+    await startDeliveryPolling();
+    revokeInvitation.mockResolvedValue({ success: true });
+    fireEvent.click(screen.getByRole('button', { name: 'videos.courseMembers.revoke' }));
+    await act(() => vi.advanceTimersByTimeAsync(100));
+    expect(screen.getByText('videos.courseMembers.status.revoked / videos.courseMembers.delivery.queued')).toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(9000));
+    expect(getParticipants).toHaveBeenCalledTimes(2);
   });
 
   it.each(['hidden', 'unmounted'])('stops polling when the dialog is %s', async (state) => {

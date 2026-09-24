@@ -1,5 +1,6 @@
-import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { type Db, withDb } from "../db/pool";
+import { isUniqueViolation } from "../db/errors";
 import {
   learnerConceptStates,
   plogBuildJobs,
@@ -9,15 +10,9 @@ import {
   plogSummaryNodes,
   videos,
 } from "../db/schema";
-import type {
-  PlogConcept,
-  PlogEdge,
-  PlogGraphSnapshot,
-  PlogLearningObject,
-  PlogSummaryNode,
-} from "../lib/plog-runtime";
+import type { PlogGraphSnapshot } from "../lib/plog-runtime";
 import type { PlogWaypoint } from "@videoq/trpc";
-import { ORDERING, isDag } from "../lib/plog-ordering";
+import { EDGE_TYPES, ORDERING, isDag } from "../lib/plog-ordering";
 import { parseStoredEmbedding } from "../lib/embedding-contract";
 import { stableKey } from "../shared/canonical-json";
 import { insertJobTask } from "./external-task-repository";
@@ -77,6 +72,12 @@ export type LearnerStateItem = {
 
 const parseArr = (v: unknown): unknown[] => (v ? JSON.parse(v as string) : []);
 const parseStringArr = (v: unknown): string[] => parseArr(v).map(String);
+// Older builds stored { text, level }; array order determines the hint rung.
+const parseHintLadder = (v: unknown): string[] => parseArr(v).map((hint) =>
+  typeof hint === "object" && hint !== null && "text" in hint && typeof hint.text === "string"
+    ? hint.text
+    : String(hint),
+);
 const parseWaypoints = (v: unknown): PlogWaypoint[] =>
   parseArr(v).flatMap((item) => {
     if (typeof item !== "object" || item === null || Array.isArray(item)) return [];
@@ -91,7 +92,7 @@ const parseWaypoints = (v: unknown): PlogWaypoint[] =>
   });
 
 function mapConcept(r: Record<string, unknown>): PlogConceptNode {
-  const hint_ladder = parseStringArr(r.hint_ladder);
+  const hint_ladder = parseHintLadder(r.hint_ladder);
   const waypoints = parseWaypoints(r.waypoints);
   return {
     id: Number(r.id),
@@ -206,7 +207,7 @@ export async function getPlogGraph(
       })
       .from(plogBuildJobs)
       .where(eq(plogBuildJobs.videoId, videoId))
-      .orderBy(desc(plogBuildJobs.createdAt))
+      .orderBy(desc(plogBuildJobs.createdAt), desc(plogBuildJobs.id))
       .limit(1);
 
     if (jobRows.length === 0) {
@@ -323,21 +324,27 @@ export async function getPlogLearnerState(
 // rebuild レスポンスで使う build job の id/status。
 export type PlogBuildJob = { id: number; status: string };
 export type ActivePlogBuildJob = PlogBuildJob & {
-  created: boolean;
   taskId: number | null;
 };
 
 /**
  * 動画ごとの active build job を1件だけ確保する。
- * partial unique index が並行 INSERT を直列化し、作成者だけが enqueue 権を得る。
+ * 動画ロックの下で所有者と字幕を確認し、作成者だけが配送taskを確保する。
  */
 export async function getOrCreateActiveBuildJob(
   env: Bindings,
   videoId: number,
-): Promise<ActivePlogBuildJob> {
+  userId: string,
+): Promise<ActivePlogBuildJob | { notFound: string }> {
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
-      await tx.execute(sql`SELECT 1 FROM videos WHERE id = ${videoId} FOR UPDATE`);
+      const [video] = await tx
+        .select({ hasTranscript: sql<boolean>`COALESCE(${videos.transcript}, '') <> ''` })
+        .from(videos)
+        .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
+        .for("update");
+      if (!video) return { notFound: "Video not found." };
+      if (!video.hasTranscript) return { notFound: "Transcript not found." };
       const inserted = await tx
         .insert(plogBuildJobs)
         .values({
@@ -362,29 +369,24 @@ export async function getOrCreateActiveBuildJob(
         return {
           id: buildJobId,
           status: inserted[0].status,
-          created: true,
           taskId: task.id,
         };
       }
 
-      const active = await tx
+      // The worker can finish after our conflicting INSERT. Its build still
+      // satisfies this request, even if its status is no longer active.
+      const latest = await tx
         .select({ id: plogBuildJobs.id, status: plogBuildJobs.status })
         .from(plogBuildJobs)
-        .where(
-          and(
-            eq(plogBuildJobs.videoId, videoId),
-            inArray(plogBuildJobs.status, ["pending", "running"]),
-          ),
-        )
+        .where(eq(plogBuildJobs.videoId, videoId))
         .orderBy(desc(plogBuildJobs.id))
         .limit(1);
-      if (active.length === 0) {
-        throw new Error("Active PLOG build job disappeared during creation.");
+      if (latest.length === 0) {
+        throw new Error("PLOG build job disappeared during creation.");
       }
       return {
-        id: Number(active[0].id),
-        status: active[0].status,
-        created: false,
+        id: Number(latest[0].id),
+        status: latest[0].status,
         taskId: null,
       };
     }),
@@ -449,6 +451,35 @@ async function assertOrderingDagInTransaction(
   }
 }
 
+async function assertValidEdgeInTransaction(
+  db: Db,
+  videoId: number,
+  proposed: { sourceId: number; targetId: number; edgeType: string },
+  excludeEdgeId?: number,
+): Promise<void> {
+  if (!EDGE_TYPES.has(proposed.edgeType)) {
+    throw new PlogEditError(`Invalid edge_type: ${proposed.edgeType}`);
+  }
+  if (proposed.sourceId === proposed.targetId) {
+    throw new PlogEditError("source_id and target_id must differ");
+  }
+  const concepts = await db
+    .select({ id: plogConcepts.id })
+    .from(plogConcepts)
+    .where(and(
+      eq(plogConcepts.videoId, videoId),
+      inArray(plogConcepts.id, [proposed.sourceId, proposed.targetId]),
+    ));
+  const ids = new Set(concepts.map(concept => Number(concept.id)));
+  if (!ids.has(proposed.sourceId)) {
+    throw new PlogEditError("source_id does not exist for this video");
+  }
+  if (!ids.has(proposed.targetId)) {
+    throw new PlogEditError("target_id does not exist for this video");
+  }
+  await assertOrderingDagInTransaction(db, videoId, proposed, excludeEdgeId);
+}
+
 /** 所有者確認。無ければ notFound。 */
 export async function requireOwnedVideo(
   env: Bindings,
@@ -462,86 +493,42 @@ export async function requireOwnedVideo(
   );
 }
 
-/**
- * ready 状態の build job を確保する。
- * ready ならそのまま / pending|running なら編集不可 / それ以外は ready ジョブを作成。
- */
-export async function ensureReadyBuildJob(
-  env: Bindings,
+/** Called after lockEditableGraph; the ready job commits with the new graph item. */
+async function ensureReadyBuildJob(
+  db: Db,
   videoId: number,
 ): Promise<void> {
-  return withDb(env, async (db) =>
-    db.transaction(async (tx) => {
-      await tx.execute(sql`SELECT 1 FROM videos WHERE id = ${videoId} FOR UPDATE`);
-      const rows = await tx
-        .select({ status: plogBuildJobs.status })
-        .from(plogBuildJobs)
-        .where(eq(plogBuildJobs.videoId, videoId))
-        .orderBy(desc(plogBuildJobs.createdAt))
-        .limit(1);
-      if (rows.length > 0) {
-        const status = rows[0].status;
-        if (status === "ready") return;
-        if (status === "pending" || status === "running") {
-          throw new PlogEditError("Cannot edit graph while a rebuild is in progress.");
-        }
-      }
-      await tx.insert(plogBuildJobs).values({
-        videoId,
-        status: "ready",
-        errorMessage: "",
-        inputTokens: 0,
-        outputTokens: 0,
-        createdAt: sql`CURRENT_TIMESTAMP`,
-        updatedAt: sql`CURRENT_TIMESTAMP`,
-        finishedAt: null,
-      });
-    }),
-  );
+  const rows = await db
+    .select({ status: plogBuildJobs.status })
+    .from(plogBuildJobs)
+    .where(eq(plogBuildJobs.videoId, videoId))
+    .orderBy(desc(plogBuildJobs.createdAt), desc(plogBuildJobs.id))
+    .limit(1);
+  if (rows[0]?.status === "ready") return;
+  await db.insert(plogBuildJobs).values({
+    videoId,
+    status: "ready",
+    errorMessage: "",
+    inputTokens: 0,
+    outputTokens: 0,
+    createdAt: sql`CURRENT_TIMESTAMP`,
+    updatedAt: sql`CURRENT_TIMESTAMP`,
+    finishedAt: null,
+  });
 }
 
-export async function getConceptNode(
+export async function getConceptLabel(
   env: Bindings,
   conceptId: number,
   videoId: number,
-): Promise<PlogConceptNode | null> {
-  return withDb(env, async (db) => fetchConceptNode(db, conceptId, videoId));
-}
-
-export type ConceptRow = {
-  id: number;
-  label: string;
-  node_type: string;
-  intro_sec: number;
-  source_quote: string;
-};
-
-export async function getConceptRow(
-  env: Bindings,
-  conceptId: number,
-  videoId: number,
-): Promise<ConceptRow | null> {
+): Promise<string | null> {
   return withDb(env, async (db) => {
     const rows = await db
-      .select({
-        id: plogConcepts.id,
-        label: plogConcepts.label,
-        node_type: plogConcepts.nodeType,
-        intro_sec: plogConcepts.introSec,
-        source_quote: plogConcepts.sourceQuote,
-      })
+      .select({ label: plogConcepts.label })
       .from(plogConcepts)
       .where(and(eq(plogConcepts.id, conceptId), eq(plogConcepts.videoId, videoId)))
       .limit(1);
-    if (rows.length === 0) return null;
-    const r = rows[0];
-    return {
-      id: Number(r.id),
-      label: r.label,
-      node_type: r.node_type,
-      intro_sec: Number(r.intro_sec),
-      source_quote: r.source_quote ?? "",
-    };
+    return rows[0]?.label ?? null;
   });
 }
 
@@ -559,6 +546,7 @@ export async function createConcept(
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
       await lockEditableGraph(tx, params.videoId);
+      await ensureReadyBuildJob(tx, params.videoId);
       let conceptId: number;
       try {
         const rows = await tx
@@ -575,8 +563,7 @@ export async function createConcept(
           .returning({ id: plogConcepts.id });
         conceptId = Number(rows[0].id);
       } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : "";
-        if (msg.includes("plog_concept_unique_label_per_video") || msg.includes("unique")) {
+        if (isUniqueViolation(e)) {
           throw new PlogConflictError("A concept with this label already exists.");
         }
         throw e;
@@ -612,6 +599,8 @@ export async function updateConcept(
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
     await lockEditableGraph(tx, params.videoId);
+    // Reusing the stored embedding is safe only while its label still matches.
+    const reuseEmbedding = params.label !== undefined && params.embedding === undefined;
     const set: Record<string, unknown> = {};
     if (params.label !== undefined) set.label = params.label.slice(0, 255);
     if (params.nodeType !== undefined) set.nodeType = params.nodeType;
@@ -628,13 +617,26 @@ export async function updateConcept(
         .update(plogConcepts)
         .set(set)
         .where(
-          and(eq(plogConcepts.id, params.conceptId), eq(plogConcepts.videoId, params.videoId)),
+          and(
+            eq(plogConcepts.id, params.conceptId),
+            eq(plogConcepts.videoId, params.videoId),
+            reuseEmbedding ? eq(plogConcepts.label, params.label!.slice(0, 255)) : undefined,
+          ),
         )
         .returning({ id: plogConcepts.id });
-      if (rows.length === 0) return null;
+      if (rows.length === 0) {
+        if (reuseEmbedding) {
+          const existing = await tx.select({ id: plogConcepts.id }).from(plogConcepts)
+            .where(and(eq(plogConcepts.id, params.conceptId), eq(plogConcepts.videoId, params.videoId)))
+            .limit(1);
+          if (existing.length > 0) {
+            throw new PlogConflictError("Concept label changed. Please retry the edit.");
+          }
+        }
+        return null;
+      }
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "";
-      if (msg.includes("plog_concept_unique_label_per_video") || msg.includes("unique")) {
+      if (isUniqueViolation(e)) {
         throw new PlogConflictError("A concept with this label already exists.");
       }
       throw e;
@@ -644,10 +646,7 @@ export async function updateConcept(
   );
 }
 
-/**
- * concept 削除。DB に ON DELETE CASCADE が無いため依存を明示削除する
- * learner → learning object → edge → concept の順に関連行を削除する。
- */
+/** Concept deletion cascades to learner states, learning objects, and incident edges. */
 export async function deleteConcept(
   env: Bindings,
   conceptId: number,
@@ -656,27 +655,6 @@ export async function deleteConcept(
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
       await lockEditableGraph(tx, videoId);
-      const exists = await tx
-        .select({ id: plogConcepts.id })
-        .from(plogConcepts)
-        .where(and(eq(plogConcepts.id, conceptId), eq(plogConcepts.videoId, videoId)))
-        .limit(1);
-      if (exists.length === 0) return false;
-
-      await tx
-        .delete(learnerConceptStates)
-        .where(eq(learnerConceptStates.conceptId, conceptId));
-      await tx
-        .delete(plogLearningObjects)
-        .where(eq(plogLearningObjects.conceptId, conceptId));
-      await tx
-        .delete(plogEdges)
-        .where(
-          and(
-            eq(plogEdges.videoId, videoId),
-            or(eq(plogEdges.sourceId, conceptId), eq(plogEdges.targetId, conceptId)),
-          ),
-        );
       const deleted = await tx
         .delete(plogConcepts)
         .where(and(eq(plogConcepts.id, conceptId), eq(plogConcepts.videoId, videoId)))
@@ -684,74 +662,6 @@ export async function deleteConcept(
       return deleted.length > 0;
     }),
   );
-}
-
-export type OrderingEdgePair = { id: number; source_id: number; target_id: number; edge_type: string };
-
-/** ordering 辺の一覧（DAG 検証用）。 */
-export async function listOrderingEdges(
-  env: Bindings,
-  videoId: number,
-): Promise<OrderingEdgePair[]> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .select({
-        id: plogEdges.id,
-        source_id: plogEdges.sourceId,
-        target_id: plogEdges.targetId,
-        edge_type: plogEdges.edgeType,
-      })
-      .from(plogEdges)
-      .where(
-        and(
-          eq(plogEdges.videoId, videoId),
-          inArray(plogEdges.edgeType, [...ORDERING]),
-        ),
-      );
-    return rows.map((r) => ({
-      id: Number(r.id),
-      source_id: Number(r.source_id),
-      target_id: Number(r.target_id),
-      edge_type: r.edge_type,
-    }));
-  });
-}
-
-export type EdgeRow = {
-  id: number;
-  source_id: number;
-  target_id: number;
-  edge_type: string;
-  quote: string;
-};
-
-export async function getEdgeRow(
-  env: Bindings,
-  edgeId: number,
-  videoId: number,
-): Promise<EdgeRow | null> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .select({
-        id: plogEdges.id,
-        source_id: plogEdges.sourceId,
-        target_id: plogEdges.targetId,
-        edge_type: plogEdges.edgeType,
-        quote: plogEdges.quote,
-      })
-      .from(plogEdges)
-      .where(and(eq(plogEdges.id, edgeId), eq(plogEdges.videoId, videoId)))
-      .limit(1);
-    if (rows.length === 0) return null;
-    const r = rows[0];
-    return {
-      id: Number(r.id),
-      source_id: Number(r.source_id),
-      target_id: Number(r.target_id),
-      edge_type: r.edge_type,
-      quote: r.quote ?? "",
-    };
-  });
 }
 
 export async function createEdge(
@@ -767,7 +677,8 @@ export async function createEdge(
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
       await lockEditableGraph(tx, params.videoId);
-      await assertOrderingDagInTransaction(tx, params.videoId, params);
+      await assertValidEdgeInTransaction(tx, params.videoId, params);
+      await ensureReadyBuildJob(tx, params.videoId);
       let edgeId: number;
       try {
         const rows = await tx
@@ -784,8 +695,7 @@ export async function createEdge(
           .returning({ id: plogEdges.id });
         edgeId = Number(rows[0].id);
       } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : "";
-        if (msg.includes("plog_edge_unique_typed_pair") || msg.includes("unique")) {
+        if (isUniqueViolation(e)) {
           throw new PlogConflictError("This edge already exists.");
         }
         throw e;
@@ -810,27 +720,28 @@ export async function updateEdge(
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
       await lockEditableGraph(tx, params.videoId);
-      const current = await tx
-        .select({
-          sourceId: plogEdges.sourceId,
-          targetId: plogEdges.targetId,
-          edgeType: plogEdges.edgeType,
-        })
-        .from(plogEdges)
-        .where(and(eq(plogEdges.id, params.edgeId), eq(plogEdges.videoId, params.videoId)))
-        .limit(1);
-      if (current.length === 0) return null;
-
-      await assertOrderingDagInTransaction(
-        tx,
-        params.videoId,
-        {
-          sourceId: params.sourceId ?? Number(current[0].sourceId),
-          targetId: params.targetId ?? Number(current[0].targetId),
-          edgeType: params.edgeType ?? current[0].edgeType,
-        },
-        params.edgeId,
-      );
+      if (params.sourceId !== undefined || params.targetId !== undefined || params.edgeType !== undefined) {
+        const current = await tx
+          .select({
+            sourceId: plogEdges.sourceId,
+            targetId: plogEdges.targetId,
+            edgeType: plogEdges.edgeType,
+          })
+          .from(plogEdges)
+          .where(and(eq(plogEdges.id, params.edgeId), eq(plogEdges.videoId, params.videoId)))
+          .limit(1);
+        if (current.length === 0) return null;
+        await assertValidEdgeInTransaction(
+          tx,
+          params.videoId,
+          {
+            sourceId: params.sourceId ?? Number(current[0].sourceId),
+            targetId: params.targetId ?? Number(current[0].targetId),
+            edgeType: params.edgeType ?? current[0].edgeType,
+          },
+          params.edgeId,
+        );
+      }
 
       const set: Record<string, unknown> = {};
       if (params.sourceId !== undefined) set.sourceId = params.sourceId;
@@ -850,8 +761,7 @@ export async function updateEdge(
           .returning({ id: plogEdges.id });
         if (rows.length === 0) return null;
       } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : "";
-        if (msg.includes("plog_edge_unique_typed_pair") || msg.includes("unique")) {
+        if (isUniqueViolation(e)) {
           throw new PlogConflictError("This edge already exists.");
         }
         throw e;
@@ -952,77 +862,50 @@ export async function mergeConcepts(
         );
       if (concepts.length !== 2) return null;
 
-      const fromAbsorb = await tx
+      const orderingEdges = await tx
         .select({
-          id: plogEdges.id,
-          target_id: plogEdges.targetId,
-          edge_type: plogEdges.edgeType,
+          sourceId: plogEdges.sourceId,
+          targetId: plogEdges.targetId,
         })
         .from(plogEdges)
-        .where(and(eq(plogEdges.videoId, videoId), eq(plogEdges.sourceId, absorbId)));
-
-      for (const e of fromAbsorb) {
-        if (Number(e.target_id) === survivorId) {
-          await tx.delete(plogEdges).where(eq(plogEdges.id, e.id));
-          continue;
-        }
-        const dup = await tx
-          .select({ id: plogEdges.id })
-          .from(plogEdges)
-          .where(
-            and(
-              eq(plogEdges.videoId, videoId),
-              eq(plogEdges.sourceId, survivorId),
-              eq(plogEdges.targetId, e.target_id),
-              eq(plogEdges.edgeType, e.edge_type),
-            ),
-          )
-          .limit(1);
-        if (dup.length > 0) {
-          await tx.delete(plogEdges).where(eq(plogEdges.id, e.id));
-        } else {
-          await tx
-            .update(plogEdges)
-            .set({ sourceId: survivorId, validationStatus: "edited" })
-            .where(eq(plogEdges.id, e.id));
-        }
+        .where(and(eq(plogEdges.videoId, videoId), inArray(plogEdges.edgeType, [...ORDERING])));
+      const pairs = orderingEdges.flatMap((edge): [string, string][] => {
+        const source = Number(edge.sourceId) === absorbId ? survivorId : Number(edge.sourceId);
+        const target = Number(edge.targetId) === absorbId ? survivorId : Number(edge.targetId);
+        // Only edges touching the absorbed concept collapse during this merge.
+        if (source === target && (Number(edge.sourceId) === absorbId || Number(edge.targetId) === absorbId)) return [];
+        return [[String(source), String(target)]];
+      });
+      if (!isDag(pairs)) {
+        throw new PlogEditError("Ordering edges must form a DAG (cycle detected).");
       }
 
-      const toAbsorb = await tx
-        .select({
-          id: plogEdges.id,
-          source_id: plogEdges.sourceId,
-          edge_type: plogEdges.edgeType,
-        })
-        .from(plogEdges)
-        .where(and(eq(plogEdges.videoId, videoId), eq(plogEdges.targetId, absorbId)));
-
-      for (const e of toAbsorb) {
-        if (Number(e.source_id) === survivorId) {
-          await tx.delete(plogEdges).where(eq(plogEdges.id, e.id));
-          continue;
-        }
-        const dup = await tx
-          .select({ id: plogEdges.id })
-          .from(plogEdges)
-          .where(
-            and(
-              eq(plogEdges.videoId, videoId),
-              eq(plogEdges.sourceId, e.source_id),
-              eq(plogEdges.targetId, survivorId),
-              eq(plogEdges.edgeType, e.edge_type),
-            ),
-          )
-          .limit(1);
-        if (dup.length > 0) {
-          await tx.delete(plogEdges).where(eq(plogEdges.id, e.id));
-        } else {
-          await tx
-            .update(plogEdges)
-            .set({ targetId: survivorId, validationStatus: "edited" })
-            .where(eq(plogEdges.id, e.id));
-        }
-      }
+      // Keep existing survivor edges (including their IDs/quotes), remove only
+      // duplicates and collapsed edges, then rewire all remaining incident edges.
+      await tx.execute(sql`
+        DELETE FROM plog_edges AS edge
+         WHERE edge.video_id = ${videoId}
+           AND (edge.source_id = ${absorbId} OR edge.target_id = ${absorbId})
+           AND (
+             edge.source_id = ${survivorId} OR edge.target_id = ${survivorId}
+             OR edge.source_id = edge.target_id
+             OR EXISTS (
+               SELECT 1 FROM plog_edges AS existing
+                WHERE existing.video_id = edge.video_id
+                  AND existing.edge_type = edge.edge_type
+                  AND existing.source_id = CASE WHEN edge.source_id = ${absorbId} THEN ${survivorId} ELSE edge.source_id END
+                  AND existing.target_id = CASE WHEN edge.target_id = ${absorbId} THEN ${survivorId} ELSE edge.target_id END
+             )
+           )
+      `);
+      await tx.execute(sql`
+        UPDATE plog_edges
+           SET source_id = CASE WHEN source_id = ${absorbId} THEN ${survivorId} ELSE source_id END,
+               target_id = CASE WHEN target_id = ${absorbId} THEN ${survivorId} ELSE target_id END,
+               validation_status = 'edited'
+         WHERE video_id = ${videoId}
+           AND (source_id = ${absorbId} OR target_id = ${absorbId})
+      `);
 
       await tx.execute(sql`
         INSERT INTO plog_learning_objects
@@ -1033,20 +916,16 @@ export async function mergeConcepts(
          ON CONFLICT (concept_id) DO NOTHING
       `);
 
-      const survivorLoRes = await tx.execute(sql`
-        SELECT opening_question, hint_ladder::text, misconceptions::text,
+      const learningObjects = await tx.execute(sql`
+        SELECT concept_id, opening_question, hint_ladder::text, misconceptions::text,
                canonical_order::text, worked_examples::text, waypoints::text
-          FROM plog_learning_objects WHERE concept_id = ${survivorId}
+          FROM plog_learning_objects WHERE concept_id IN (${survivorId}, ${absorbId})
       `);
-      const absorbLoRes = await tx.execute(sql`
-        SELECT opening_question, hint_ladder::text, misconceptions::text,
-               canonical_order::text, worked_examples::text, waypoints::text
-          FROM plog_learning_objects WHERE concept_id = ${absorbId}
-      `);
+      const materials = learningObjects.rows as Array<Record<string, string | null>>;
+      const a = materials.find(row => Number(row.concept_id) === absorbId);
 
-      if (absorbLoRes.rows.length > 0) {
-        const s = survivorLoRes.rows[0] as Record<string, string | null>;
-        const a = absorbLoRes.rows[0] as Record<string, string | null>;
+      if (a) {
+        const s = materials.find(row => Number(row.concept_id) === survivorId)!;
         let opening = s.opening_question ?? "";
         if (!opening.trim() && a.opening_question) opening = a.opening_question;
 
@@ -1076,70 +955,30 @@ export async function mergeConcepts(
         `);
       }
 
-      const absorbStates = await tx
-        .select({
-          id: learnerConceptStates.id,
-          user_id: learnerConceptStates.userId,
-          reached: learnerConceptStates.reached,
-          hint_index: learnerConceptStates.hintIndex,
-          last_grade: learnerConceptStates.lastGrade,
-          active: learnerConceptStates.active,
-        })
-        .from(learnerConceptStates)
-        .where(eq(learnerConceptStates.conceptId, absorbId));
+      await tx.execute(sql`
+        UPDATE learner_concept_states AS survivor
+           SET reached = survivor.reached OR absorbed.reached,
+               hint_index = GREATEST(survivor.hint_index, absorbed.hint_index),
+               active = survivor.active OR absorbed.active,
+               last_grade = COALESCE(NULLIF(survivor.last_grade, ''), absorbed.last_grade, '')
+          FROM learner_concept_states AS absorbed
+         WHERE survivor.concept_id = ${survivorId}
+           AND absorbed.concept_id = ${absorbId}
+           AND survivor.user_id = absorbed.user_id
+      `);
+      // Move unmatched rows instead of reinserting them so their IDs survive.
+      await tx.execute(sql`
+        UPDATE learner_concept_states AS absorbed
+           SET concept_id = ${survivorId}
+         WHERE absorbed.concept_id = ${absorbId}
+           AND NOT EXISTS (
+             SELECT 1 FROM learner_concept_states AS survivor
+              WHERE survivor.concept_id = ${survivorId}
+                AND survivor.user_id = absorbed.user_id
+           )
+      `);
 
-      for (const state of absorbStates) {
-        const existing = await tx
-          .select({
-            id: learnerConceptStates.id,
-            reached: learnerConceptStates.reached,
-            hint_index: learnerConceptStates.hintIndex,
-            last_grade: learnerConceptStates.lastGrade,
-            active: learnerConceptStates.active,
-          })
-          .from(learnerConceptStates)
-          .where(
-            and(
-              eq(learnerConceptStates.userId, state.user_id),
-              eq(learnerConceptStates.conceptId, survivorId),
-            ),
-          )
-          .limit(1);
-
-        if (existing.length === 0) {
-          await tx
-            .update(learnerConceptStates)
-            .set({ conceptId: survivorId })
-            .where(eq(learnerConceptStates.id, state.id));
-        } else {
-          const ex = existing[0];
-          await tx
-            .update(learnerConceptStates)
-            .set({
-              reached: Boolean(ex.reached) || Boolean(state.reached),
-              hintIndex: Math.max(Number(ex.hint_index), Number(state.hint_index)),
-              active: Boolean(ex.active) || Boolean(state.active),
-              lastGrade: ex.last_grade || state.last_grade || "",
-            })
-            .where(eq(learnerConceptStates.id, ex.id));
-          await tx.delete(learnerConceptStates).where(eq(learnerConceptStates.id, state.id));
-        }
-      }
-
-      await tx
-        .delete(learnerConceptStates)
-        .where(eq(learnerConceptStates.conceptId, absorbId));
-      await tx
-        .delete(plogLearningObjects)
-        .where(eq(plogLearningObjects.conceptId, absorbId));
-      await tx
-        .delete(plogEdges)
-        .where(
-          and(
-            eq(plogEdges.videoId, videoId),
-            or(eq(plogEdges.sourceId, absorbId), eq(plogEdges.targetId, absorbId)),
-          ),
-        );
+      // Material and progress have been merged; FKs remove the absorbed rows.
       await tx
         .delete(plogConcepts)
         .where(and(eq(plogConcepts.id, absorbId), eq(plogConcepts.videoId, videoId)));
@@ -1179,111 +1018,98 @@ export async function listReadyGraphs(
   if (videoIds.length === 0) return [];
 
   return withDb(env, async (db) => {
-    const ready: PlogGraphSnapshot[] = [];
-    for (const videoId of videoIds) {
-      const jobRows = await db
-        .select({ status: plogBuildJobs.status })
-        .from(plogBuildJobs)
-        .where(eq(plogBuildJobs.videoId, videoId))
-        .orderBy(desc(plogBuildJobs.createdAt))
-        .limit(1);
-      if (jobRows.length === 0 || jobRows[0].status !== "ready") continue;
+    const latestJobs = await db
+      .selectDistinctOn([plogBuildJobs.videoId], {
+        video_id: plogBuildJobs.videoId,
+        status: plogBuildJobs.status,
+      })
+      .from(plogBuildJobs)
+      .where(inArray(plogBuildJobs.videoId, videoIds))
+      .orderBy(asc(plogBuildJobs.videoId), desc(plogBuildJobs.createdAt), desc(plogBuildJobs.id));
+    const graphs = new Map<number, PlogGraphSnapshot>();
+    for (const job of latestJobs) {
+      if (job.status !== "ready") continue;
+      graphs.set(job.video_id, {
+        video_id: job.video_id,
+        concepts: [], edges: [], learning_objects: {}, summary_nodes: [],
+      });
+    }
+    if (graphs.size === 0) return [];
+    const readyIds = [...graphs.keys()];
 
-      const conceptsRes = await db.execute(sql`
-        SELECT c.id, c.video_id, c.label, c.node_type, c.intro_sec, c.source_quote,
-               c.embedding::text AS embedding,
-               lo.id AS lo_id, lo.opening_question,
-               lo.hint_ladder::text AS hint_ladder,
-               lo.misconceptions::text AS misconceptions,
-               lo.canonical_order::text AS canonical_order,
-               lo.worked_examples::text AS worked_examples,
-               lo.waypoints::text AS waypoints
-          FROM plog_concepts c
-          LEFT JOIN plog_learning_objects lo ON lo.concept_id = c.id
-         WHERE c.video_id = ${videoId}
-         ORDER BY c.intro_sec, c.id
-      `);
-      const edgesRes = await db
-        .select({
-          id: plogEdges.id,
-          video_id: plogEdges.videoId,
-          source_id: plogEdges.sourceId,
-          target_id: plogEdges.targetId,
-          edge_type: plogEdges.edgeType,
-          quote: plogEdges.quote,
-        })
-        .from(plogEdges)
-        .where(eq(plogEdges.videoId, videoId))
-        .orderBy(asc(plogEdges.id));
-      const sumRes = await db
-        .select({
-          id: plogSummaryNodes.id,
-          video_id: plogSummaryNodes.videoId,
-          parent_id: plogSummaryNodes.parentId,
-          level: plogSummaryNodes.level,
-          text: plogSummaryNodes.text,
-          start_sec: plogSummaryNodes.startSec,
-          end_sec: plogSummaryNodes.endSec,
-        })
-        .from(plogSummaryNodes)
-        .where(eq(plogSummaryNodes.videoId, videoId))
-        .orderBy(asc(plogSummaryNodes.level), asc(plogSummaryNodes.startSec));
+    const conceptsRes = await db.execute(sql`
+      SELECT c.id, c.video_id, c.label, c.intro_sec,
+             c.embedding::text AS embedding,
+             lo.id AS lo_id, lo.opening_question,
+             lo.hint_ladder::text AS hint_ladder,
+             lo.misconceptions::text AS misconceptions,
+             lo.waypoints::text AS waypoints
+        FROM plog_concepts c
+        LEFT JOIN plog_learning_objects lo ON lo.concept_id = c.id
+       WHERE c.video_id IN (${sql.join(readyIds.map(id => sql`${id}`), sql`, `)})
+       ORDER BY c.intro_sec, c.id
+    `);
+    const edgesRes = await db
+      .select({
+        video_id: plogEdges.videoId,
+        source_id: plogEdges.sourceId,
+        target_id: plogEdges.targetId,
+        edge_type: plogEdges.edgeType,
+      })
+      .from(plogEdges)
+      .where(inArray(plogEdges.videoId, readyIds))
+      .orderBy(asc(plogEdges.id));
+    const sumRes = await db
+      .select({
+        video_id: plogSummaryNodes.videoId,
+        level: plogSummaryNodes.level,
+        text: plogSummaryNodes.text,
+        start_sec: plogSummaryNodes.startSec,
+        end_sec: plogSummaryNodes.endSec,
+      })
+      .from(plogSummaryNodes)
+      .where(inArray(plogSummaryNodes.videoId, readyIds))
+      .orderBy(asc(plogSummaryNodes.level), asc(plogSummaryNodes.startSec));
 
-      const concepts: PlogConcept[] = [];
-      const learning_objects: Record<number, PlogLearningObject> = {};
-      for (const r of conceptsRes.rows as Array<Record<string, unknown>>) {
-        const embedding = parseStoredEmbedding(r.embedding);
-        const conceptId = Number(r.id);
-        concepts.push({
-          id: conceptId,
-          video_id: Number(r.video_id),
-          label: r.label as string,
-          node_type: r.node_type as string,
-          intro_sec: Number(r.intro_sec),
-          source_quote: (r.source_quote as string) ?? "",
-          embedding,
-        });
-        if (r.lo_id != null) {
-          learning_objects[conceptId] = {
-            id: Number(r.lo_id),
-            concept_id: conceptId,
-            opening_question: (r.opening_question as string) ?? "",
-            hint_ladder: parseArr(r.hint_ladder).map(String),
-            misconceptions: parseArr(r.misconceptions).map(String),
-            canonical_order: parseArr(r.canonical_order).map(String),
-            worked_examples: parseArr(r.worked_examples).map(String),
-            waypoints: parseArr(r.waypoints) as Record<string, unknown>[],
-          };
-        }
+    for (const r of conceptsRes.rows as Array<Record<string, unknown>>) {
+      const graph = graphs.get(Number(r.video_id))!;
+      const embedding = parseStoredEmbedding(r.embedding);
+      const conceptId = Number(r.id);
+      graph.concepts.push({
+        id: conceptId,
+        label: r.label as string,
+        intro_sec: Number(r.intro_sec),
+        embedding,
+      });
+      if (r.lo_id != null) {
+        graph.learning_objects[conceptId] = {
+          opening_question: (r.opening_question as string) ?? "",
+          hint_ladder: parseHintLadder(r.hint_ladder),
+          misconceptions: parseArr(r.misconceptions).map(String),
+          waypoints: parseArr(r.waypoints) as Record<string, unknown>[],
+        };
       }
-      const edges: PlogEdge[] = edgesRes.map((r) => ({
-        id: Number(r.id),
-        video_id: Number(r.video_id),
+    }
+    for (const r of edgesRes) {
+      graphs.get(r.video_id)!.edges.push({
         source_id: Number(r.source_id),
         target_id: Number(r.target_id),
         edge_type: r.edge_type,
-        quote: r.quote ?? "",
-      }));
-      const summary_nodes: PlogSummaryNode[] = sumRes.map((r) => ({
-        id: Number(r.id),
-        video_id: Number(r.video_id),
-        parent_id: r.parent_id == null ? null : Number(r.parent_id),
+      });
+    }
+    for (const r of sumRes) {
+      graphs.get(r.video_id)!.summary_nodes.push({
         level: Number(r.level),
         text: r.text ?? "",
         start_sec: Number(r.start_sec),
         end_sec: Number(r.end_sec),
-      }));
-
-      ready.push({
-        video_id: videoId,
-        concepts,
-        edges,
-        learning_objects,
-        summary_nodes,
-        build_status: "ready",
       });
     }
-    return ready;
+    // Preserve the caller's course order, independently of SQL result ordering.
+    return videoIds.flatMap(videoId => {
+      const graph = graphs.get(videoId);
+      return graph ? [graph] : [];
+    });
   });
 }
 

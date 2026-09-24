@@ -10,8 +10,8 @@ interface FormFieldProps {
   name: string;
   label: string;
   type: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   required?: boolean;
   minLength?: number;
   error?: string | null;

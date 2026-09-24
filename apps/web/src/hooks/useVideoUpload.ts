@@ -1,10 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { getApiError } from '@/lib/api-error';
 import { invalidateAfterVideoUpload } from '@/lib/cacheInvalidation';
 import { useAuth } from '@/hooks/useAuth';
-import { trpc } from '@/lib/trpc';
+import { appTrpcClient } from '@/lib/trpc';
 import {
   FileUploadCommand,
   VideoUploadValidationError,
@@ -34,7 +34,7 @@ interface UseVideoUploadReturn {
   setSourceMode: (mode: UploadSourceMode) => void;
   setTagIds: React.Dispatch<React.SetStateAction<number[]>>;
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleSubmit: (e: React.FormEvent, onSuccess?: () => void) => Promise<void>;
+  handleSubmit: (e: React.FormEvent) => Promise<void>;
   reset: () => void;
 }
 
@@ -60,33 +60,32 @@ export function useVideoUpload(): UseVideoUploadReturn {
   const [warning, setWarning] = useState<string | null>(null);
   const [warningParams, setWarningParams] = useState<Record<string, unknown>>({});
   const [progress, setProgress] = useState(0);
+  const uploadInFlight = useRef(false);
   const queryClient = useQueryClient();
-  const createYoutube = useMutation(trpc.videos.createYoutube.mutationOptions());
-  const addTags = useMutation(trpc.memberships.addTags.mutationOptions());
 
   const uploadMutation = useMutation({
     mutationFn: async ({ command, tagIds }: RunUploadMutationVariables) => {
       return runUploadWorkflow(command, tagIds, {
         uploadVideo: (data, onProgress) => apiClient.uploadVideo(data, onProgress),
-        createYoutubeVideo: (data) => createYoutube.mutateAsync({
+        createYoutubeVideo: (data) => appTrpcClient.videos.createYoutube.mutate({
           youtubeUrl: data.youtube_url,
           title: data.title,
           description: data.description,
         }),
-        addTagsToVideo: (videoId, nextTagIds) => addTags.mutateAsync({
+        addTagsToVideo: (videoId, nextTagIds) => appTrpcClient.memberships.addTags.mutate({
           videoId,
           tagIds: nextTagIds,
         }),
       });
     },
-    onSuccess: async ({ warning }) => {
+    onSuccess: async ({ warning }, { tagIds }) => {
       setSuccess(true);
       setError(null);
       setErrorParams({});
       setWarning(warning?.message ?? null);
       setWarningParams(warning?.params ?? {});
       setProgress(100);
-      await invalidateAfterVideoUpload(queryClient);
+      await invalidateAfterVideoUpload(queryClient, { tagsChanged: tagIds.length > 0 });
     },
     onError: (err) => {
       const apiError = getApiError(err);
@@ -175,8 +174,9 @@ export function useVideoUpload(): UseVideoUploadReturn {
     setProgress(0);
   }, []);
 
-  const handleSubmit = useCallback(async (e: React.FormEvent, onSuccess?: () => void) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+    if (uploadInFlight.current) return;
 
     // Clear any progress left over from a previous submission before the
     // pending state flips, so the button never flashes a stale percentage.
@@ -199,10 +199,12 @@ export function useVideoUpload(): UseVideoUploadReturn {
     setWarning(null);
     setWarningParams({});
     setSuccess(false);
-    await uploadMutation.mutateAsync({ command, tagIds });
-
-    if (onSuccess) {
-      onSuccess();
+    // Guard before React renders the pending state, including cache refreshes.
+    uploadInFlight.current = true;
+    try {
+      await uploadMutation.mutateAsync({ command, tagIds });
+    } finally {
+      uploadInFlight.current = false;
     }
   }, [createUploadCommand, tagIds, uploadMutation]);
 

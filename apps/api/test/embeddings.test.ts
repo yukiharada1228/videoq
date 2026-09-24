@@ -38,6 +38,33 @@ describe("embedding contract", () => {
 });
 
 describe("embedQuery", () => {
+  it.each(["openai", "ollama"].flatMap(provider => ["headers", "body"].map(stage => ({ provider, stage }))))
+    ("stops $provider embedding requests during $stage when the caller aborts", async ({ provider, stage }) => {
+    const controller = new AbortController();
+    const reason = new DOMException("client disconnected", "AbortError");
+    const started = Promise.withResolvers<void>();
+    let upstream: AbortSignal | undefined;
+    vi.stubGlobal("fetch", async (_url: string, init: RequestInit) => {
+      upstream = init.signal!;
+      if (stage === "headers") return new Promise<Response>((_resolve, reject) => {
+        upstream!.addEventListener("abort", () => reject(upstream!.reason), { once: true });
+        started.resolve();
+      });
+      return new Response(new ReadableStream({
+        start(body) {
+          upstream!.addEventListener("abort", () => body.error(upstream!.reason), { once: true });
+          started.resolve();
+        },
+      }), { headers: { "content-type": "application/json" } });
+    });
+    const pending = embedQuery({ ...baseEnv, EMBEDDING_PROVIDER: provider, EMBEDDING_MODEL: "model" }, "input", controller.signal);
+    const rejected = expect(pending).rejects.toBe(reason);
+    await started.promise;
+    controller.abort(reason);
+    expect(upstream?.aborted).toBe(true);
+    await rejected;
+  });
+
   it.each(["openai", "ollama"])("requests and validates 1536 dimensions via %s", async (provider) => {
     const fetch = vi.fn(async () => Response.json(provider === "openai"
       ? { data: [{ index: 0, embedding: embedding(1) }] }

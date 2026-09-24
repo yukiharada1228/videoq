@@ -14,6 +14,7 @@ export function ShareLinkDialog({
   shareSlug,
   shareLink,
   isGeneratingLink,
+  isDeletingLink,
   isCopied,
   onOpenChange,
   onGenerate,
@@ -24,6 +25,7 @@ export function ShareLinkDialog({
   shareSlug: string;
   shareLink: string | null;
   isGeneratingLink: boolean;
+  isDeletingLink: boolean;
   isCopied: boolean;
   onOpenChange: (open: boolean) => void;
   onGenerate: (shareSlug: string) => Promise<void> | void;
@@ -32,12 +34,17 @@ export function ShareLinkDialog({
 }) {
   const { t } = useTranslation();
   const [inputValue, setInputValue] = useState(shareSlug);
+  const isUpdatingLink = isGeneratingLink || isDeletingLink;
 
   const dialog = useDialog({
     open: isOpen,
-    onOpenChange,
+    onOpenChange: (open) => {
+      // Close before the parent unmounts this dialog, restoring the opener's focus.
+      if (!open) dialog.dialogProps.ref.current?.close();
+      onOpenChange(open);
+    },
     onRequestClose: (event) => {
-      if (isGeneratingLink) event.preventDefault();
+      if (isUpdatingLink) event.preventDefault();
     },
   });
 
@@ -69,7 +76,7 @@ export function ShareLinkDialog({
                   blockSize="lg"
                   value={inputValue}
                   onChange={(event) => setInputValue(event.target.value)}
-                  disabled={isGeneratingLink}
+                  disabled={isUpdatingLink}
                 />
                 <SupportText>{t('videos.courseDetail.shareSlugHelp')}</SupportText>
                 <div className="flex flex-wrap items-center gap-3 pt-1">
@@ -80,7 +87,7 @@ export function ShareLinkDialog({
                     onClick={() => {
                       void onGenerate(inputValue);
                     }}
-                    disabled={isGeneratingLink || !inputValue.trim()}
+                    disabled={isUpdatingLink || !inputValue.trim()}
                   >
                     {isGeneratingLink ? (
                       <InlineSpinner className="mr-1.5 h-4 w-4" />
@@ -97,9 +104,11 @@ export function ShareLinkDialog({
                       variant="text"
                       size="md"
                       onClick={onDelete}
-                      disabled={isGeneratingLink}
+                      disabled={isUpdatingLink}
+                      aria-busy={isDeletingLink}
                       className="text-error-1 hover:bg-red-50"
                     >
+                      {isDeletingLink && <InlineSpinner className="mr-1.5 h-4 w-4" />}
                       {t('videos.courseDetail.disable')}
                     </Button>
                   ) : null}
@@ -123,6 +132,7 @@ export function ShareLinkDialog({
                       variant="outline"
                       size="md"
                       onClick={onCopy}
+                      disabled={isDeletingLink}
                       className="self-start"
                     >
                       <Copy className="mr-1.5 h-4 w-4" />
@@ -143,8 +153,8 @@ export function ShareLinkDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isGeneratingLink}
+              onClick={dialog.closeButtonProps.onClick}
+              disabled={isUpdatingLink}
             >
               {t('common.actions.close')}
             </Button>

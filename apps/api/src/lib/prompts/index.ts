@@ -83,67 +83,35 @@ function requireText(value: unknown, field: string): string {
   return value;
 }
 
-function referenceLines(
-  reference: Record<string, string>,
-  references: readonly string[] | undefined,
-): string[] {
-  const lines: string[] = [];
-  const lead = reference.lead ?? "";
-  const footer = reference.footer ?? "";
-  const empty = reference.empty ?? "";
-
-  const texts = (references ?? []).map(String).filter((t) => t.trim() !== "");
-  if (texts.length > 0) {
-    if (lead) lines.push(lead);
-    lines.push(...texts);
-    if (footer) lines.push(footer);
-  } else if (empty) {
-    lines.push(empty);
-  }
-  return lines;
-}
-
 /** locale に対応する PLOG Study 設定を返す。 */
 export function getPlogStudyConfig(locale?: string | null): Record<string, unknown> {
   return resolveLocaleSection("plog_study", locale);
 }
 
-/** build_fallback_learning_object の opening_question のみ。 */
-export function buildFallbackOpening(label: string, locale?: string | null): string {
-  const config = getPlogStudyConfig(locale);
-  const template = String(
-    config.opening_question || "What do you already know about {label}?",
-  );
-  return formatTemplate(template, { label });
-}
-
 /**
- * locale に対応する開始質問を解決する。
+ * 解決済みのロケール設定から開始質問を返す。
  * 空 / 既知の英語フォールバックテンプレだけ locale 向けに差し替える。
  */
 export function resolveOpeningQuestion(
   label: string,
   opening: string | null | undefined,
-  locale?: string | null,
+  config: Readonly<Record<string, unknown>>,
 ): string {
-  const preferred = buildFallbackOpening(label, locale);
   const text = (opening || "").trim();
-  if (!text) return preferred;
-  const enDefault = buildFallbackOpening(label, DEFAULT_LOCALE);
-  if (text === enDefault) return preferred;
-  return text;
+  const defaultTemplate = promptConfig.plog_study.default.opening_question;
+  if (text && text !== formatTemplate(defaultTemplate, { label })) return text;
+  return formatTemplate(String(config.opening_question || defaultTemplate), { label });
 }
 
 /**
- * header / course_context / rules / format までの共通部分を組み立てる。
- * 末尾（参照シーン or 検索の指示）だけが呼び出し側で変わる。
+ * header / rules / format までの共通部分を組み立てる。
+ * 末尾（参照なしの案内 or 検索の指示）だけが呼び出し側で変わる。
  */
 function buildPromptBase(
   config: LocaleSection,
-  courseContext: string | null | undefined,
   /** header テンプレート内の {reference_label} に差し込む末尾セクション名。 */
   referenceLabel: string,
-): { lines: string[]; sectionTitles: Record<string, string> } {
+): string[] {
   const headerTemplate = requireText(config.header, "header");
   const role = requireText(config.role, "role");
   const background = requireText(config.background, "background");
@@ -157,7 +125,6 @@ function buildPromptBase(
 
   const rulesLabel = sectionTitles.rules ?? "# Rules";
   const formatLabel = sectionTitles.format ?? "# Format";
-  const courseContextLabel = sectionTitles.course_context ?? "# Course Context";
 
   const header = formatTemplate(headerTemplate, {
     role,
@@ -171,9 +138,6 @@ function buildPromptBase(
 
   const lines: string[] = [header.trim()];
 
-  if (courseContext && courseContext.trim())
-    lines.push("", courseContextLabel, courseContext.trim());
-
   lines.push("", rulesLabel);
   if (rules.length > 0) {
     rules.forEach((rule, i) => lines.push(`${i + 1}. ${rule}`));
@@ -183,21 +147,17 @@ function buildPromptBase(
 
   lines.push("", formatLabel, formatInstruction.trim());
 
-  return { lines, sectionTitles };
+  return lines;
 }
 
-/** locale、参照情報、講座文脈から system prompt を構築する。 */
-export function buildSystemPrompt(
-  locale?: string | null,
-  references?: readonly string[],
-  courseContext?: string | null,
-): string {
+/** 講座未指定の Q&A 用。参照シーンがないことを明示する。 */
+export function buildNoCourseSystemPrompt(locale?: string | null): string {
   const config = resolveLocaleSection("rag", locale) as LocaleSection;
   const referenceLabel = config.section_titles?.reference ?? "# Reference Materials";
-  const { lines } = buildPromptBase(config, courseContext, referenceLabel);
+  const lines = buildPromptBase(config, referenceLabel);
 
   lines.push("", referenceLabel);
-  lines.push(...referenceLines(config.reference ?? {}, references));
+  if (config.reference?.empty) lines.push(config.reference.empty);
 
   return lines.join("\n");
 }
@@ -207,14 +167,13 @@ export function buildSystemPrompt(
  * 参照シーンは実行前には決まらないので、代わりに検索ツールの使い方を指示する。
  */
 export function buildAgentSystemPrompt(
-  locale?: string | null,
-  courseContext?: string | null,
-  maxSearches = 1,
-  maxCourseInfoCalls = 5,
+  locale: string | null | undefined,
+  maxSearches: number,
+  maxCourseInfoCalls: number,
 ): string {
   const config = resolveLocaleSection("rag", locale) as LocaleSection;
   const searchLabel = config.section_titles?.search ?? "# Scene Search";
-  const { lines } = buildPromptBase({ ...config, ...config.agent }, courseContext, searchLabel);
+  const lines = buildPromptBase({ ...config, ...config.agent }, searchLabel);
 
   const instructions = config.agent?.instructions;
   if (!Array.isArray(instructions) || instructions.some((i) => typeof i !== "string")) {

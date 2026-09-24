@@ -126,7 +126,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install worker for cross-language embedding tests
-        run: pip install -e ./apps/worker
+        run: pip install -e "./apps/worker[dev]"
       - name: Install / typecheck / test
         run: |
           npm ci
@@ -146,7 +146,7 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
     services:
       postgres:
-        image: postgres:17
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_PASSWORD: postgres
         ports:
@@ -166,8 +166,7 @@ jobs:
       - name: Install and test
         working-directory: apps/worker
         run: |
-          pip install -e ".[dev]" 2>/dev/null || pip install -e . pytest
-          pip install pytest
+          pip install -e ".[dev]"
           python -m pytest tests/ -q
 
   frontend-lint:
@@ -187,12 +186,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Lint
-        env:
-          NEXT_TELEMETRY_DISABLED: "1"
         run: npm run lint --workspace @videoq/web
       - name: Type check
-        env:
-          NEXT_TELEMETRY_DISABLED: "1"
         run: npm run typecheck --workspace @videoq/web
 
   frontend-test:
@@ -212,8 +207,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Run tests with coverage
-        env:
-          NEXT_TELEMETRY_DISABLED: "1"
         run: npm run test:coverage --workspace @videoq/web
       - name: Save frontend coverage
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -269,8 +262,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Build
-        env:
-          NEXT_TELEMETRY_DISABLED: "1"
         run: npm run build --workspace @videoq/web
       - name: Check Worker binding types
         run: |

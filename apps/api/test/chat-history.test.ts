@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { chatRoutes } from "../src/features/chat/routes";
-import { buildChatHistoryCsv, csvDocument } from "../src/shared/csv";
+import { csvRow, streamChatHistoryCsv } from "../src/shared/csv";
+import type { ChatHistoryExportRow } from "../src/repositories/chat-repository";
 import { signAccessToken } from "./helpers/auth";
 import { requestTrpc, trpcData, trpcError } from "./helpers/trpc";
 
@@ -255,23 +256,21 @@ describe("GET /courses/:id/history", () => {
 
 describe("CSV の細部", () => {
   it("QUOTE_MINIMAL: 区切り・引用符・改行を含む値だけ引用する", () => {
-    expect(csvDocument([["a", "b,c", 'q"q', "line\nbreak", "cr\r"]])).toBe(
+    expect(csvRow(["a", "b,c", 'q"q', "line\nbreak", "cr\r"])).toBe(
       'a,"b,c","q""q","line\nbreak","cr\r"\r\n',
     );
   });
 
   it("スプレッドシート数式として解釈される先頭文字を無害化する", () => {
     expect(
-      csvDocument([
-        ["=1+1", "+SUM(A1:A2)", "-2+3", "@command", "  =hidden", "\tformula"],
-      ]),
+      csvRow(["=1+1", "+SUM(A1:A2)", "-2+3", "@command", "  =hidden", "\tformula"]),
     ).toBe(
       "'=1+1,'+SUM(A1:A2),'-2+3,'@command,'  =hidden,'\tformula\r\n",
     );
   });
 
-  it("絵文字・制御文字・CRLF を含む入力を欠損なく出力する", () => {
-    const csv = buildChatHistoryCsv([
+  it("絵文字・制御文字・CRLF を含む入力を欠損なく出力する", async () => {
+    const rows: ChatHistoryExportRow[] = [
       {
         created_at: "2026-05-01T12:34:56+00:00",
         asked_by: {
@@ -318,7 +317,10 @@ describe("CSV の細部", () => {
           { id: 1, video_id: 7, title: "", start_time: "0:00:00", end_time: "0:00:00" },
         ],
       },
-    ]);
+    ];
+    const csv = await new Response(streamChatHistoryCsv((async function* () {
+      yield* rows;
+    })())).text();
     expect(csv).toContain("絵文字 🎥");
     expect(csv).toContain("surrogate pair 𝕏");
     expect(csv).toContain('""video_id"":60');
@@ -326,7 +328,7 @@ describe("CSV の細部", () => {
 });
 
 describe("chat.resetHistory", () => {
-  it("評価 → chat log の順に削除して success を返す", async () => {
+  it("chat log の連鎖削除で評価も削除して success を返す", async () => {
     const res = await request("/courses/3/history", "DELETE", await accessToken());
     expect(res.status).toBe(200);
     expect(await trpcData(res)).toEqual({ success: true });
@@ -335,9 +337,8 @@ describe("chat.resetHistory", () => {
     const sqls = txnCalls.map((c) => c.sql.replace(/\s+/g, " ").trim());
     expect(sqls[0]).toBe("begin");
     expect(sqls[1]).toContain("video_courses");
-    expect(sqls[2]).toContain("chat_log_evaluations");
-    expect(sqls[3]).toContain("chat_logs");
-    expect(sqls[4]).toBe("commit");
+    expect(sqls[2]).toContain("chat_logs");
+    expect(sqls[3]).toBe("commit");
     expect(txnCalls[1].args.slice(0, 2)).toEqual([3, "00000000-0000-4000-8000-000000000005"]);
   });
 

@@ -65,8 +65,7 @@ export function fileExtension(filename: string): string {
   let start = 0;
   while (start < base.length && base[start] === ".") start++;
   const dot = base.lastIndexOf(".");
-  if (dot <= start - 1 || dot < start) return "";
-  if (dot < 0) return "";
+  if (dot < start) return "";
   return base.slice(dot).toLowerCase();
 }
 

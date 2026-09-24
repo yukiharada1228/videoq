@@ -18,8 +18,8 @@ interface SortableVideoItemProps {
   onRemove: (videoId: number) => void;
   /** True while this video's own removal is in flight. */
   isRemoving: boolean;
-  /** True while any video in the course is being removed. */
-  isRemoveBlocked: boolean;
+  /** True while the course's video membership or order is being saved. */
+  isMutationPending: boolean;
   isMobile?: boolean;
   canManage: boolean;
 }
@@ -30,17 +30,14 @@ export function SortableVideoItem({
   onSelect,
   onRemove,
   isRemoving,
-  isRemoveBlocked,
+  isMutationPending,
   isMobile = false,
   canManage,
 }: SortableVideoItemProps) {
   const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: video.id,
-    // Reordering while a removal is in flight would POST a video list the
-    // server no longer recognises, which it rejects with a 400 and surfaces as
-    // a spurious "order update failed" error.
-    disabled: isMobile || !canManage || isRemoveBlocked,
+    disabled: isMobile || !canManage || isMutationPending,
   });
 
   const style = {
@@ -64,7 +61,7 @@ export function SortableVideoItem({
         <button
           type="button"
           aria-label={`${t('videos.courses.dragHandle')}: ${video.title}`}
-          disabled={isRemoveBlocked}
+          disabled={isMutationPending}
           {...attributes}
           {...listeners}
           onClick={(event) => event.stopPropagation()}
@@ -95,7 +92,7 @@ export function SortableVideoItem({
             variant="text"
             size="xs"
             onClick={() => onRemove(video.id)}
-            disabled={isRemoveBlocked}
+            disabled={isMutationPending}
             aria-busy={isRemoving}
             aria-label={t('videos.courseDetail.removeFromCourse')}
             className="min-w-0 shrink-0 p-1.5 text-error-1 hover:bg-red-50"

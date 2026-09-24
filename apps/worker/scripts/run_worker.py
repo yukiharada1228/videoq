@@ -23,14 +23,16 @@ import logging
 import os
 import sys
 import time
+from contextlib import closing
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from worker_python.lambda_handler import handler
-from worker_python.sqs_client import create_sqs_client
+# Direct script execution needs the repository path above before these imports.
+from worker_python.lambda_handler import handler  # noqa: E402
+from worker_python.sqs_client import create_sqs_client  # noqa: E402
 
 logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO"),
@@ -49,67 +51,65 @@ def main() -> int:
     visibility = int(os.environ.get("SQS_VISIBILITY_TIMEOUT", "900"))
     max_messages = int(os.environ.get("SQS_MAX_MESSAGES", "1"))
 
-    client = create_sqs_client()
-    logger.info(
-        "Polling %s (wait=%ss visibility=%ss). Ctrl+C to stop.",
-        queue_url,
-        wait,
-        visibility,
-    )
+    with closing(create_sqs_client()) as client:
+        logger.info(
+            "Polling %s (wait=%ss visibility=%ss). Ctrl+C to stop.",
+            queue_url,
+            wait,
+            visibility,
+        )
 
-    while True:
-        try:
-            resp = client.receive_message(
-                QueueUrl=queue_url,
-                MaxNumberOfMessages=max(1, min(max_messages, 10)),
-                WaitTimeSeconds=wait,
-                VisibilityTimeout=visibility,
-            )
-        except KeyboardInterrupt:
-            logger.info("Stopped")
-            return 0
-        except Exception:
-            logger.exception("ReceiveMessage failed; retry in 3s")
-            time.sleep(3)
-            continue
-
-        messages = resp.get("Messages") or []
-        if not messages:
-            continue
-
-        records = [
-            {"messageId": m["MessageId"], "body": m["Body"], "receiptHandle": m["ReceiptHandle"]}
-            for m in messages
-        ]
-        event = {
-            "Records": [
-                {"messageId": r["messageId"], "body": r["body"]} for r in records
-            ]
-        }
-
-        try:
-            result = handler(event, None)
-        except Exception:
-            logger.exception("handler crashed; messages will reappear after visibility timeout")
-            continue
-
-        failed = {
-            item["itemIdentifier"]
-            for item in (result or {}).get("batchItemFailures", [])
-        }
-        for r in records:
-            mid = r["messageId"]
-            if mid in failed:
-                logger.warning("Leaving message %s for retry/DLQ", mid)
-                continue
+        while True:
             try:
-                client.delete_message(
+                resp = client.receive_message(
                     QueueUrl=queue_url,
-                    ReceiptHandle=r["receiptHandle"],
+                    MaxNumberOfMessages=max(1, min(max_messages, 10)),
+                    WaitTimeSeconds=wait,
+                    VisibilityTimeout=visibility,
                 )
-                logger.info("Deleted message %s", mid)
+            except KeyboardInterrupt:
+                logger.info("Stopped")
+                return 0
             except Exception:
-                logger.exception("DeleteMessage failed for %s", mid)
+                logger.exception("ReceiveMessage failed; retry in 3s")
+                time.sleep(3)
+                continue
+
+            messages = resp.get("Messages") or []
+            if not messages:
+                continue
+
+            event = {
+                "Records": [
+                    {"messageId": m["MessageId"], "body": m["Body"]} for m in messages
+                ]
+            }
+
+            try:
+                result = handler(event, None)
+            except Exception:
+                logger.exception(
+                    "handler crashed; messages will reappear after visibility timeout"
+                )
+                continue
+
+            failed = {
+                item["itemIdentifier"]
+                for item in (result or {}).get("batchItemFailures", [])
+            }
+            for message in messages:
+                mid = message["MessageId"]
+                if mid in failed:
+                    logger.warning("Leaving message %s for retry/DLQ", mid)
+                    continue
+                try:
+                    client.delete_message(
+                        QueueUrl=queue_url,
+                        ReceiptHandle=message["ReceiptHandle"],
+                    )
+                    logger.info("Deleted message %s", mid)
+                except Exception:
+                    logger.exception("DeleteMessage failed for %s", mid)
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ import type { Message } from '@/hooks/useChatMessages';
 
 describe('chat activity display', () => {
   it.each([false, true])('keeps the waiting label until queued answer text is visible (searched: %s)', (searched) => {
-    const props = { feedbackUpdatingId: null, onFeedback: vi.fn(), onVideoNavigate: vi.fn() };
+    const props = { isFeedbackUpdating: false, onFeedback: vi.fn(), onVideoNavigate: vi.fn() };
     const message: Message = {
       role: 'assistant', content: '', progress: {
         phase: searched ? 'reviewing' : 'preparing',
@@ -29,10 +29,10 @@ describe('chat activity display', () => {
   });
 
   it('shows a compact status and reveals only the searched topics on demand', () => {
-    const props = { feedbackUpdatingId: null, onFeedback: vi.fn(), onVideoNavigate: vi.fn() };
+    const props = { isFeedbackUpdating: false, onFeedback: vi.fn(), onVideoNavigate: vi.fn() };
     const message: Message = {
       role: 'assistant', content: '', progress: { phase: 'searching', searches: [
-        { id: 1, query: '回路を簡単にする', status: 'complete', resultCount: 20 },
+        { id: 1, query: '回路を簡単にする', status: 'complete' },
         { id: 2, query: 'ドモルガンの定理', status: 'running' },
       ] },
     };
@@ -43,7 +43,7 @@ describe('chat activity display', () => {
 
     rerender(<ChatMessageBubble {...props} message={{
       ...message, progress: {
-        phase: 'reviewing', searches: message.progress!.searches.map((search) => ({ ...search, status: 'complete', resultCount: 20 })),
+        phase: 'reviewing', searches: message.progress!.searches.map((search) => ({ ...search, status: 'complete' })),
       },
     }} isAwaitingResponse />);
     expect(screen.getByRole('status')).toHaveTextContent('chat.progress.checkingVideos');
@@ -55,8 +55,8 @@ describe('chat activity display', () => {
     rerender(<ChatMessageBubble {...props} message={{
       ...message, content: '定理を使って簡単にできます。', progress: {
         phase: 'complete', searches: [
-          ...message.progress!.searches.map((search) => ({ ...search, status: 'complete' as const, resultCount: 20 })),
-          { id: 3, query: 'ドモルガンの定理', status: 'complete', resultCount: 20 },
+          ...message.progress!.searches.map((search) => ({ ...search, status: 'complete' as const })),
+          { id: 3, query: 'ドモルガンの定理', status: 'complete' },
         ],
       },
     }} />);

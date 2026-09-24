@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from contextlib import closing
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,11 @@ def ensure_secrets_loaded() -> None:
     if _LOADED:
         return
 
-    db_param = _param_ref("DB_PARAM_NAME", "DB_SECRET_ARN")
+    db_param = (
+        ""
+        if os.environ.get("DATABASE_URL")
+        else _param_ref("DB_PARAM_NAME", "DB_SECRET_ARN")
+    )
     app_param = _param_ref("APP_PARAM_NAME", "APP_SECRET_ARN")
     if not db_param and not app_param:
         _LOADED = True
@@ -58,29 +63,28 @@ def ensure_secrets_loaded() -> None:
         _LOADED = True
         return
 
-    client = boto3.client("ssm")
+    with closing(boto3.client("ssm")) as client:
+        if db_param:
+            payload = _get_json_parameter(client, db_param)
+            url = (payload.get("DATABASE_URL") or "").strip()
+            if url:
+                os.environ["DATABASE_URL"] = url
+                logger.info("Loaded DATABASE_URL from DB_PARAM_NAME")
 
-    if db_param and not os.environ.get("DATABASE_URL"):
-        payload = _get_json_parameter(client, db_param)
-        url = (payload.get("DATABASE_URL") or "").strip()
-        if url:
-            os.environ["DATABASE_URL"] = url
-            logger.info("Loaded DATABASE_URL from DB_PARAM_NAME")
-
-    if app_param:
-        payload = _get_json_parameter(client, app_param)
-        # Prefer canonical R2_* secret keys over legacy AWS_* aliases when both exist.
-        for src, dest in _APP_ENV_MAP.items():
-            if os.environ.get(dest):
-                continue
-            value = payload.get(src)
-            if isinstance(value, str) and value.strip():
-                os.environ[dest] = value.strip()
-        # Keep legacy env names some callers still read.
-        _mirror_if_missing("R2_BUCKET_NAME", "AWS_STORAGE_BUCKET_NAME")
-        _mirror_if_missing("R2_S3_ENDPOINT", "AWS_S3_ENDPOINT_URL")
-        _mirror_if_missing("R2_S3_REGION", "AWS_S3_REGION_NAME")
-        logger.info("Loaded app secrets from APP_PARAM_NAME")
+        if app_param:
+            payload = _get_json_parameter(client, app_param)
+            # Prefer canonical R2_* secret keys over legacy AWS_* aliases when both exist.
+            for src, dest in _APP_ENV_MAP.items():
+                if os.environ.get(dest):
+                    continue
+                value = payload.get(src)
+                if isinstance(value, str) and value.strip():
+                    os.environ[dest] = value.strip()
+            # Keep legacy env names some callers still read.
+            _mirror_if_missing("R2_BUCKET_NAME", "AWS_STORAGE_BUCKET_NAME")
+            _mirror_if_missing("R2_S3_ENDPOINT", "AWS_S3_ENDPOINT_URL")
+            _mirror_if_missing("R2_S3_REGION", "AWS_S3_REGION_NAME")
+            logger.info("Loaded app secrets from APP_PARAM_NAME")
 
     _LOADED = True
 

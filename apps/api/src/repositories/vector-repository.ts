@@ -24,18 +24,18 @@ export type SceneHit = {
   endTime: string;
 };
 
-export const RETRIEVER_K = 20;
+const RETRIEVER_K = 20;
 
 /**
  * 検索クエリの埋め込みは EMBEDDING_PROVIDER（openai / ollama）の切り替えを持つ
  * lib/embeddings.ts に一本化する。インデックス作成は worker 側の責務なので、
  * embedDocuments は API からは呼ばれない。
  */
-function sceneEmbeddings(env: Bindings): EmbeddingsInterface {
+function sceneEmbeddings(env: Bindings, signal?: AbortSignal): EmbeddingsInterface {
   return {
-    embedQuery: (text: string) => embedQuery(env, text),
+    embedQuery: (text: string) => embedQuery(env, text, signal),
     embedDocuments: (texts: string[]) =>
-      Promise.all(texts.map((text) => embedQuery(env, text))),
+      Promise.all(texts.map((text) => embedQuery(env, text, signal))),
   };
 }
 
@@ -99,14 +99,16 @@ const text = (v: unknown) => (typeof v === "string" ? v : v == null ? "" : Strin
  */
 export type SceneSearch = {
   /** open 時のスコープ内に限り、動画をさらに絞り込める。 */
-  search(query: string, k?: number, videoIds?: readonly number[]): Promise<SceneHit[]>;
+  search(query: string, videoIds?: readonly number[]): Promise<SceneHit[]>;
   close(): Promise<void>;
 };
 
 export async function openSceneSearch(
   env: Bindings,
   params: { userId: string; videoIds: readonly number[] },
+  signal?: AbortSignal,
 ): Promise<SceneSearch> {
+  signal?.throwIfAborted();
   const table = resolveVectorTable(env);
   const config = resolveEmbeddingConfig(env);
   const allowedVideoIds = new Set(params.videoIds);
@@ -123,16 +125,20 @@ export async function openSceneSearch(
   let store: PGVectorStore;
   try {
     await assertEmbeddingSchema(pool, config);
-    store = await PGVectorStore.initialize(engine, sceneEmbeddings(env), table, {
+    signal?.throwIfAborted();
+    store = await PGVectorStore.initialize(engine, sceneEmbeddings(env, signal), table, {
       metadataColumns: ["user_id", "video_id"],
     });
+    signal?.throwIfAborted();
   } catch (error) {
-    await engine.close();
+    // 初期化や中断の原因を、接続の後始末のエラーで上書きしない。
+    await engine.close().catch(() => undefined);
     throw error;
   }
 
   return {
-    async search(query: string, k = RETRIEVER_K, videoIds?: readonly number[]): Promise<SceneHit[]> {
+    async search(query: string, videoIds?: readonly number[]): Promise<SceneHit[]> {
+      signal?.throwIfAborted();
       if (videoIds !== undefined && (
         videoIds.length === 0 || videoIds.some((id) => !allowedVideoIds.has(id))
       )) {
@@ -144,7 +150,7 @@ export async function openSceneSearch(
         user_id: params.userId,
         video_id: { $in: selected },
       };
-      const hits = await store.similaritySearchWithScore(query, k, filter);
+      const hits = await store.similaritySearchWithScore(query, RETRIEVER_K, filter);
       return hits.map(([doc]) => ({
         content: doc.pageContent ?? "",
         videoId: Number(doc.metadata?.video_id),

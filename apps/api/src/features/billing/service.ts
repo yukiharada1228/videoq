@@ -1,8 +1,8 @@
 import type Stripe from "stripe";
 import {
-  entitlementsForSubscription,
   isPaidLookupKey,
   isPaidPlan,
+  isUsableSubscriptionStatus,
   PAID_LOOKUP_KEYS,
   PLAN_CATALOG,
   planCodeFromLookupKey,
@@ -12,8 +12,11 @@ import {
 import {
   applyBillingState,
   getBillingUser,
-  getBillingUserByStripeCustomerId,
-  type BillingUser,
+  getBillingUserId,
+  hasProcessedStripeEvent,
+  commitStripeEvent,
+  type BillingPatch,
+  type BillingUpdate,
 } from "../../repositories/billing-repository";
 import {
   apiBadRequest,
@@ -142,14 +145,11 @@ export async function createCheckoutSession(
   }
   const user = await getBillingUser(env, userId);
   if (!user) throw apiNotFound("User not found");
-  if (user.stripeSubscriptionId && user.subscriptionStatus && isPaidPlan(user.planCode)) {
-    const active = ["active", "trialing", "past_due"].includes(user.subscriptionStatus);
-    if (active) {
-      throw apiConflict(
-        "You already have an active subscription. Manage it in the customer portal.",
-        "SUBSCRIPTION_EXISTS",
-      );
-    }
+  if (user.stripeSubscriptionId && isPaidPlan(user.planCode) && isUsableSubscriptionStatus(user.subscriptionStatus)) {
+    throw apiConflict(
+      "You already have an active subscription. Manage it in the customer portal.",
+      "SUBSCRIPTION_EXISTS",
+    );
   }
 
   const stripe = requireStripeClient(env);
@@ -161,7 +161,7 @@ export async function createCheckoutSession(
       metadata: { userId: user.id },
     });
     customerId = customer.id;
-    await applyBillingState(env, user.id, { stripeCustomerId: customerId }, false);
+    await applyBillingState(env, user.id, { stripeCustomerId: customerId });
   }
 
   const origin = frontendOrigin(env);
@@ -223,152 +223,92 @@ function subscriptionIdFrom(
   return typeof value === "string" ? value : value.id;
 }
 
-async function resolveUser(
-  env: Bindings,
-  opts: { userId?: string | null; customerId?: string | null },
-): Promise<BillingUser | null> {
-  if (opts.userId) return getBillingUser(env, opts.userId);
-  if (opts.customerId) return getBillingUserByStripeCustomerId(env, opts.customerId);
-  return null;
-}
-
-function planFromSubscription(subscription: Stripe.Subscription): {
-  planCode: PlanCode;
-  status: string;
-} {
-  const item = subscription.items.data[0];
-  const lookupKey = item?.price?.lookup_key ?? null;
-  const fromKey = lookupKey ? planCodeFromLookupKey(lookupKey) : null;
-  const planCode = fromKey ?? "free";
-  return { planCode, status: subscription.status };
-}
-
-export async function syncSubscriptionForUser(
-  env: Bindings,
-  user: BillingUser,
+function subscriptionPatch(
   subscription: Stripe.Subscription | null,
   customerId: string | null,
-): Promise<void> {
-  if (!subscription) {
-    await applyBillingState(
-      env,
-      user.id,
-      {
-        stripeCustomerId: customerId ?? user.stripeCustomerId,
-        stripeSubscriptionId: null,
-        planCode: "free",
-        subscriptionStatus: "canceled",
-        entitlements: entitlementsForSubscription("free", "canceled"),
-      },
-      user.quotaSource === "plan",
-    );
-    return;
-  }
-
-  const { planCode, status } = planFromSubscription(subscription);
-  const effectivePlan =
-    status === "active" || status === "trialing" || status === "past_due"
-      ? planCode
-      : "free";
-  await applyBillingState(
-    env,
-    user.id,
-    {
-      stripeCustomerId: customerId ?? user.stripeCustomerId,
-      stripeSubscriptionId: subscription.id,
-      planCode: effectivePlan,
-      subscriptionStatus: status,
-      entitlements: entitlementsForSubscription(effectivePlan, status),
-    },
-    user.quotaSource === "plan",
-  );
+): BillingPatch {
+  const status = subscription?.status ?? "canceled";
+  const lookupKey = subscription?.items.data[0]?.price?.lookup_key;
+  const planCode = lookupKey ? planCodeFromLookupKey(lookupKey) ?? "free" : "free";
+  const effectivePlan = isUsableSubscriptionStatus(status) ? planCode : "free";
+  return {
+    stripeCustomerId: customerId ?? undefined,
+    stripeSubscriptionId: subscription?.id ?? null,
+    planCode: effectivePlan,
+    subscriptionStatus: status,
+    entitlements: PLAN_CATALOG[effectivePlan].entitlements,
+  };
 }
 
-export async function handleCheckoutCompleted(
+async function prepareCheckoutCompleted(
   env: Bindings,
   session: Stripe.Checkout.Session,
-): Promise<void> {
-  const userId = session.client_reference_id ?? session.metadata?.userId ?? null;
+): Promise<BillingUpdate | null> {
   const customerId = customerIdFrom(session.customer);
-  const user = await resolveUser(env, { userId, customerId });
-  if (!user) return;
-
-  const stripe = requireStripeClient(env);
+  const userId = await getBillingUserId(env, {
+    userId: session.client_reference_id ?? session.metadata?.userId,
+    customerId,
+  });
+  if (!userId) return null;
   const subId = subscriptionIdFrom(session.subscription);
   const subscription = subId
-    ? await stripe.subscriptions.retrieve(subId)
+    ? await requireStripeClient(env).subscriptions.retrieve(subId)
     : null;
-  await syncSubscriptionForUser(env, user, subscription, customerId);
+  return { userId, patch: subscriptionPatch(subscription, customerId) };
 }
 
-export async function handleSubscriptionChange(
+async function prepareSubscriptionChange(
   env: Bindings,
   subscription: Stripe.Subscription,
-): Promise<void> {
-  const userId = subscription.metadata?.userId ?? null;
+): Promise<BillingUpdate | null> {
   const customerId = customerIdFrom(subscription.customer);
-  const user = await resolveUser(env, { userId, customerId });
-  if (!user) return;
+  const userId = await getBillingUserId(env, { userId: subscription.metadata?.userId, customerId });
+  if (!userId) return null;
   const ended =
     subscription.status === "canceled" ||
     subscription.status === "unpaid" ||
     subscription.status === "incomplete_expired";
-  await syncSubscriptionForUser(
-    env,
-    user,
-    ended ? null : subscription,
-    customerId,
-  );
+  return { userId, patch: subscriptionPatch(ended ? null : subscription, customerId) };
 }
 
-function invoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
-  const parentSub = invoice.parent?.subscription_details?.subscription;
-  return subscriptionIdFrom(parentSub ?? null);
-}
-
-export async function handleInvoiceEvent(
+async function prepareInvoiceEvent(
   env: Bindings,
   invoice: Stripe.Invoice,
   failed: boolean,
-): Promise<void> {
+): Promise<BillingUpdate | null> {
   const customerId = customerIdFrom(invoice.customer);
-  const subId = invoiceSubscriptionId(invoice);
-  const user = await resolveUser(env, {
-    userId: invoice.metadata?.userId ?? null,
-    customerId,
-  });
-  if (!user) return;
+  const subId = subscriptionIdFrom(invoice.parent?.subscription_details?.subscription);
+  if (!failed && !subId) return null;
+  const userId = await getBillingUserId(env, { userId: invoice.metadata?.userId, customerId });
+  if (!userId) return null;
   if (failed) {
-    await applyBillingState(
-      env,
-      user.id,
-      {
-        subscriptionStatus: "past_due",
-        stripeCustomerId: customerId ?? user.stripeCustomerId,
-        stripeSubscriptionId: subId ?? user.stripeSubscriptionId,
-      },
-      false,
-    );
-    return;
+    return { userId, patch: {
+      subscriptionStatus: "past_due",
+      stripeCustomerId: customerId ?? undefined,
+      stripeSubscriptionId: subId ?? undefined,
+    } };
   }
-  if (!subId) return;
-  const stripe = requireStripeClient(env);
-  const subscription = await stripe.subscriptions.retrieve(subId);
-  await syncSubscriptionForUser(env, user, subscription, customerId);
+  const subscription = await requireStripeClient(env).subscriptions.retrieve(subId!);
+  return { userId, patch: subscriptionPatch(subscription, customerId) };
 }
 
-export async function reapplyPlanEntitlements(
-  env: Bindings,
-  userId: string,
-): Promise<BillingUser | null> {
-  const user = await getBillingUser(env, userId);
-  if (!user) return null;
-  const entitlements = entitlementsForSubscription(user.planCode, user.subscriptionStatus);
-  await applyBillingState(
-    env,
-    userId,
-    { entitlements },
-    true,
-  );
-  return getBillingUser(env, userId);
+export async function handleStripeEvent(env: Bindings, event: Stripe.Event): Promise<void> {
+  // This read avoids Stripe I/O on redelivery. The transaction below is the authoritative dedupe.
+  if (await hasProcessedStripeEvent(env, event.id)) return;
+  let update: BillingUpdate | null = null;
+  switch (event.type) {
+    case "checkout.session.completed":
+      update = await prepareCheckoutCompleted(env, event.data.object);
+      break;
+    case "customer.subscription.updated":
+    case "customer.subscription.deleted":
+      update = await prepareSubscriptionChange(env, event.data.object);
+      break;
+    case "invoice.paid":
+    case "invoice.payment_failed":
+      update = await prepareInvoiceEvent(env, event.data.object, event.type === "invoice.payment_failed");
+      break;
+  }
+  // All network lookups finish before opening the write transaction.
+  await commitStripeEvent(env, event, update);
 }

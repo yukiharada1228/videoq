@@ -35,7 +35,7 @@ function useUploadFixture(scenario: UploadScenario): ReturnType<typeof useVideoU
       const selected = event.target.files?.[0];
       if (selected) { setFile(selected); setTitle(selected.name.replace(/\.[^/.]+$/, '')); setError(null); }
     },
-    async handleSubmit(event, onSuccess) {
+    async handleSubmit(event) {
       event.preventDefault();
       uploadRequest({ sourceMode, fileName: file?.name ?? null, youtubeUrl, title, description, tagIds });
       setError(null); setWarning(null); setSuccess(false);
@@ -51,7 +51,6 @@ function useUploadFixture(scenario: UploadScenario): ReturnType<typeof useVideoU
       }
       setProgress(100); setSuccess(true);
       if (scenario.result === 'warning') setWarning('videos.upload.warning.tagsFailed');
-      onSuccess?.();
     },
   };
 }

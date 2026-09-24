@@ -11,7 +11,9 @@ export interface ChatPanelScenario {
   httpError?: boolean;
   history?: ChatHistoryItem[];
   historyState?: 'pending' | 'error';
+  historyRefetch?: 'pending' | 'error';
   evaluations?: ChatLogEvaluation[];
+  evaluationState?: 'pending' | 'error';
   feedback?: 'pending' | 'error' | 'retry';
   csv?: 'pending' | 'error';
 }
@@ -68,12 +70,15 @@ export function createChatPanelMock(scenario: ChatPanelScenario = {}) {
     trpcHandler([
       trpcQuery('chat.history', input => {
         historyRequest(input);
-        if (scenario.historyState === 'pending') return pending();
-        if (scenario.historyState === 'error') return failure(historyError);
+        const state = historyRequest.mock.calls.length > 1 ? scenario.historyRefetch ?? scenario.historyState : scenario.historyState;
+        if (state === 'pending') return pending();
+        if (state === 'error') return failure(historyError);
         return success({ data: history, meta: { total: history.length, limit: input.limit ?? 100, offset: input.offset ?? 0 } });
       }),
       trpcQuery('evaluation.logs', input => {
         evaluationRequest(input);
+        if (scenario.evaluationState === 'pending') return pending();
+        if (scenario.evaluationState === 'error') return failure('Evaluation failed (fixture)');
         const data = scenario.evaluations ?? [completedEvaluation];
         return success({ data, meta: { total: data.length, limit: input.limit ?? 200, offset: input.offset ?? 0 } });
       }),

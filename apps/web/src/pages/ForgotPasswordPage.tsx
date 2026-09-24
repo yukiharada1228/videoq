@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useRef } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { Link } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Send } from 'lucide-react';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
-import { useRequestPasswordResetMutation } from '@/hooks/usePasswordRecovery';
+import { apiClient } from '@/lib/api';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { FormField } from '@/components/auth/FormField';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
@@ -13,29 +14,19 @@ import { Button } from '@/components/ui/button';
 import { UtilityLink } from '@/components/ui/utility-link';
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState('');
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const { t } = useTranslation();
-  const requestResetMutation = useRequestPasswordResetMutation();
+  const submitInFlightRef = useRef(false);
+  const requestResetMutation = useMutation({
+    mutationFn: (email: string) => apiClient.requestPasswordReset({ email }),
+    onSettled: () => { submitInFlightRef.current = false; },
+  });
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setSuccess(false);
-    setError(null);
-
-    try {
-      await requestResetMutation.mutateAsync(email);
-      setSuccess(true);
-    } catch {
-      setError(
-        requestResetMutation.error instanceof Error
-          ? requestResetMutation.error.message
-          : requestResetMutation.error
-            ? String(requestResetMutation.error)
-            : null,
-      );
-    }
+    if (submitInFlightRef.current) return;
+    const email = String(new FormData(event.currentTarget).get('email') ?? '');
+    submitInFlightRef.current = true;
+    requestResetMutation.mutate(email);
   };
 
   return (
@@ -54,8 +45,8 @@ export default function ForgotPasswordPage() {
           description={t('auth.forgotPassword.description')}
         />
 
-        {success && <MessageAlert type="success" message={t('auth.forgotPassword.success')} />}
-        {error && <ErrorMessage message={error} />}
+        {requestResetMutation.isSuccess && <MessageAlert type="success" message={t('auth.forgotPassword.success')} />}
+        <ErrorMessage message={requestResetMutation.error?.message ?? null} />
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <FormField
@@ -64,8 +55,7 @@ export default function ForgotPasswordPage() {
             label={t('auth.fields.email.label')}
             type="email"
             required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            disabled={requestResetMutation.isPending}
             autoComplete="email"
           />
 

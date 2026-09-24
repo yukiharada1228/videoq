@@ -9,7 +9,6 @@ export type ChatStreamErrorEvent = Extract<ChatStreamEvent, { type: 'error' }>;
 export interface ChatStreamState {
   queuedContent: string;
   doneEvent: ChatStreamDoneEvent | null;
-  errorEvent: ChatStreamErrorEvent | null;
   streamFinished: boolean;
 }
 
@@ -36,7 +35,6 @@ export function createInitialChatStreamState(): ChatStreamState {
   return {
     queuedContent: '',
     doneEvent: null,
-    errorEvent: null,
     streamFinished: false,
   };
 }
@@ -59,7 +57,6 @@ export function chatStreamReducer(
         return {
           ...state,
           doneEvent: action.event,
-          errorEvent: null,
           streamFinished: true,
         };
       }
@@ -68,7 +65,6 @@ export function chatStreamReducer(
           ...state,
           queuedContent: '',
           doneEvent: null,
-          errorEvent: action.event,
           streamFinished: true,
         };
       }

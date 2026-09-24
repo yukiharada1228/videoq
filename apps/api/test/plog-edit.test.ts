@@ -67,6 +67,7 @@ beforeEach(() => {
       return [conceptNode];
     if (sql.includes("plog_concepts") && sql.includes("node_type"))
       return [{ id: 10, label: "AND", node_type: "object", intro_sec: 1.5, source_quote: "" }];
+    if (sql.includes("plog_concepts") && sql.includes("id in")) return [{ id: 10 }, { id: 11 }];
     if (sql.includes("plog_edges") && sql.includes("returning")) return [{ id: 20 }];
     if (sql.includes("plog_edges") && sql.includes("source_label"))
       return [
@@ -177,13 +178,10 @@ describe("plog.createConcept", () => {
 
 describe("plog.createEdge", () => {
   it.each(["prerequisite_of", "presentation_order"])("サイクルになる %s 辺は 400", async (edgeType) => {
-    rowsFor = (sql, args) => {
+    rowsFor = (sql) => {
       if (sql.includes("videos") && sql.includes("user_id")) return [{ id: 1 }];
       if (sql.includes("plog_build_jobs")) return [{ status: "ready" }];
-      if (sql.includes("plog_concepts") && sql.includes("node_type"))
-        return [
-          { id: Number(args[0]), label: "n", node_type: "object", intro_sec: 0, source_quote: "" },
-        ];
+      if (sql.includes("plog_concepts") && sql.includes("id in")) return [{ id: 10 }, { id: 11 }];
       if (sql.includes("plog_edges") && sql.includes("edge_type") && !sql.includes("source_label"))
         return [
           { id: 1, source_id: 11, target_id: 10, edge_type: "prerequisite_of" },
@@ -202,19 +200,10 @@ describe("plog.createEdge", () => {
   });
 
   it.each(["prerequisite_of", "presentation_order"])("%s の正常作成は手編集として返す", async (edgeType) => {
-    rowsFor = (sql, args) => {
+    rowsFor = (sql) => {
       if (sql.includes("videos") && sql.includes("user_id")) return [{ id: 1 }];
       if (sql.includes("plog_build_jobs")) return [{ status: "ready" }];
-      if (sql.includes("plog_concepts") && sql.includes("node_type"))
-        return [
-          {
-            id: Number(args[0]),
-            label: "n",
-            node_type: "object",
-            intro_sec: 0,
-            source_quote: "",
-          },
-        ];
+      if (sql.includes("plog_concepts") && sql.includes("id in")) return [{ id: 10 }, { id: 11 }];
       if (sql.includes("plog_edges") && sql.includes("returning")) return [{ id: 20 }];
       if (sql.includes("plog_edges") && sql.includes("edge_type") && !sql.includes("source_label"))
         return [];
@@ -305,7 +294,7 @@ describe("PLOG relationship provenance", () => {
 });
 
 describe("PLOG delete and learner-state procedures", () => {
-  it("concept 削除は依存順に消して {deleted:true}", async () => {
+  it("concept 削除は DB の連鎖削除を使い {deleted:true}", async () => {
     rowsFor = (sql) => {
       if (sql.includes("FROM pg_attribute")) return [{ type_name: "vector", dimensions: 1536 }];
       if (sql.includes("videos") && sql.includes("user_id")) return [{ id: 1 }];
@@ -320,9 +309,6 @@ describe("PLOG delete and learner-state procedures", () => {
     expect(res.status).toBe(200);
     expect(await trpcData(res)).toEqual({ deleted: true, id: 10 });
     const sqls = calls.map((c) => c.sql.replace(/\s+/g, " "));
-    expect(sqls.some((s) => s.includes("delete from learner_concept_states"))).toBe(true);
-    expect(sqls.some((s) => s.includes("delete from plog_learning_objects"))).toBe(true);
-    expect(sqls.some((s) => s.includes("delete from plog_edges"))).toBe(true);
     expect(sqls.some((s) => s.includes("delete from plog_concepts"))).toBe(true);
   });
 

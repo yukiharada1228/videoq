@@ -205,22 +205,4 @@ describe('useAuth', () => {
     expect(onAuthError).toHaveBeenCalled()
   })
 
-  it('should refetch user data', async () => {
-    const mockUser = { id: 1, username: 'testuser' }
-    getAccount.mockResolvedValue(mockUser)
-
-    const { result } = renderHook(() => useAuth())
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false)
-    })
-
-    getAccount.mockResolvedValue({ ...mockUser, username: 'updated' })
-
-    await result.current.refetch()
-
-    await waitFor(() => {
-      expect(result.current.user?.username).toBe('updated')
-    })
-  })
 })

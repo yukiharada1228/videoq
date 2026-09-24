@@ -27,7 +27,7 @@ export function accountHandlers(
       return { success: true };
     },
     "account.deleteSearchApiKey": async () => {
-      const ok = await userRepository.deleteSearchApiKey(c.env, userId());
+      const ok = await userRepository.setSearchApiKey(c.env, userId(), null);
       if (!ok) return rpcError("NOT_FOUND", "User not found");
       return { success: true };
     },

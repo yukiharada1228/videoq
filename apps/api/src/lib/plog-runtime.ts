@@ -7,38 +7,25 @@ import { isDag, ORDERING, PREREQUISITES } from "./plog-ordering";
 
 export type PlogConcept = {
   id: number;
-  video_id: number;
   label: string;
-  node_type: string;
   intro_sec: number;
-  source_quote?: string;
   embedding: number[];
 };
 
 export type PlogEdge = {
-  id: number;
-  video_id: number;
   source_id: number;
   target_id: number;
   edge_type: string;
-  quote?: string;
 };
 
 export type PlogLearningObject = {
-  id: number;
-  concept_id: number;
   opening_question: string;
   hint_ladder: string[];
   misconceptions: string[];
-  canonical_order: string[];
-  worked_examples: string[];
   waypoints: Record<string, unknown>[];
 };
 
 export type PlogSummaryNode = {
-  id: number;
-  video_id: number;
-  parent_id: number | null;
   level: number;
   text: string;
   start_sec: number;
@@ -59,7 +46,6 @@ export type PlogGraphSnapshot = {
   edges: PlogEdge[];
   learning_objects: Record<number, PlogLearningObject>;
   summary_nodes: PlogSummaryNode[];
-  build_status: string;
 };
 
 export type L0Scene = {
@@ -74,12 +60,6 @@ export function canonicalConceptLabel(label: string): string {
   return text.replace(/\s+/g, "");
 }
 
-export function labelsNearDuplicate(a: string, b: string): boolean {
-  const ca = canonicalConceptLabel(a);
-  const cb = canonicalConceptLabel(b);
-  return Boolean(ca) && ca === cb;
-}
-
 export function cosineSimilarity(a: readonly number[], b: readonly number[]): number {
   if (!a.length || !b.length || a.length !== b.length) return 0;
   let dot = 0;
@@ -92,22 +72,6 @@ export function cosineSimilarity(a: readonly number[], b: readonly number[]): nu
   }
   if (na <= 0 || nb <= 0) return 0;
   return dot / (Math.sqrt(na) * Math.sqrt(nb));
-}
-
-export function bestMatchIndex(
-  query: readonly number[],
-  candidates: readonly (readonly number[])[],
-): number {
-  let bestI = -1;
-  let bestS = -1;
-  for (let i = 0; i < candidates.length; i++) {
-    const s = cosineSimilarity(query, candidates[i]!);
-    if (s > bestS) {
-      bestS = s;
-      bestI = i;
-    }
-  }
-  return bestI;
 }
 
 /** Lexical premature-reveal proxy (paper §5.5). */
@@ -126,21 +90,19 @@ export function revealProxy(text: string, answerCues?: readonly string[]): boole
 
 export function coveredConceptIds(
   reached: Iterable<number>,
-  conceptsById: Map<number, PlogConcept> | Record<number, PlogConcept>,
+  conceptsById: ReadonlyMap<number, PlogConcept>,
 ): Set<number> {
-  const byId =
-    conceptsById instanceof Map
-      ? conceptsById
-      : new Map(Object.entries(conceptsById).map(([k, v]) => [Number(k), v]));
-  const reachedSet = new Set<number>();
+  const covered = new Set<number>();
   for (const cid of reached) {
-    if (byId.has(cid)) reachedSet.add(cid);
+    if (conceptsById.has(cid)) covered.add(cid);
   }
-  const covered = new Set(reachedSet);
-  const reachedLabels = [...reachedSet].map((cid) => byId.get(cid)!.label);
-  for (const [cid, concept] of byId) {
+  const reachedLabels = new Set(
+    [...covered].map((cid) => canonicalConceptLabel(conceptsById.get(cid)!.label)).filter(Boolean),
+  );
+  if (reachedLabels.size === 0) return covered;
+  for (const [cid, concept] of conceptsById) {
     if (covered.has(cid)) continue;
-    if (reachedLabels.some((lab) => labelsNearDuplicate(concept.label, lab))) {
+    if (reachedLabels.has(canonicalConceptLabel(concept.label))) {
       covered.add(cid);
     }
   }
@@ -150,14 +112,10 @@ export function coveredConceptIds(
 export function nextUncoveredInOrder(
   order: readonly number[],
   reached: Iterable<number>,
-  conceptsById: Map<number, PlogConcept> | Record<number, PlogConcept>,
+  conceptsById: ReadonlyMap<number, PlogConcept>,
   afterId?: number | null,
 ): number | null {
-  const byId =
-    conceptsById instanceof Map
-      ? conceptsById
-      : new Map(Object.entries(conceptsById).map(([k, v]) => [Number(k), v]));
-  const covered = coveredConceptIds(reached, byId);
+  const covered = coveredConceptIds(reached, conceptsById);
   let start = 0;
   if (afterId != null) {
     const idx = order.indexOf(afterId);
@@ -165,52 +123,28 @@ export function nextUncoveredInOrder(
   }
   for (let i = start; i < order.length; i++) {
     const cid = order[i]!;
-    if (!covered.has(cid) && byId.has(cid)) return cid;
+    if (!covered.has(cid) && conceptsById.has(cid)) return cid;
   }
   return null;
 }
 
 export function nearDuplicateIds(
   conceptId: number,
-  conceptsById: Map<number, PlogConcept> | Record<number, PlogConcept>,
+  conceptsById: ReadonlyMap<number, PlogConcept>,
 ): Set<number> {
-  const byId =
-    conceptsById instanceof Map
-      ? conceptsById
-      : new Map(Object.entries(conceptsById).map(([k, v]) => [Number(k), v]));
-  const concept = byId.get(conceptId);
+  const concept = conceptsById.get(conceptId);
   if (!concept) return new Set();
+  const label = canonicalConceptLabel(concept.label);
+  if (!label) return new Set();
   const out = new Set<number>();
-  for (const [cid, other] of byId) {
-    if (labelsNearDuplicate(concept.label, other.label)) out.add(cid);
+  for (const [cid, other] of conceptsById) {
+    if (canonicalConceptLabel(other.label) === label) out.add(cid);
   }
   return out;
 }
 
 export function orderingEdges(edges: readonly PlogEdge[]): PlogEdge[] {
   return edges.filter((e) => ORDERING.has(e.edge_type));
-}
-
-export function ancestors(conceptId: number, edges: readonly PlogEdge[]): Set<number> {
-  const parents = new Map<number, Set<number>>();
-  for (const e of edges) {
-    if (!PREREQUISITES.has(e.edge_type)) continue;
-    let set = parents.get(e.target_id);
-    if (!set) {
-      set = new Set();
-      parents.set(e.target_id, set);
-    }
-    set.add(e.source_id);
-  }
-  const reached = new Set<number>();
-  const q = [...(parents.get(conceptId) ?? [])];
-  while (q.length > 0) {
-    const n = q.shift()!;
-    if (reached.has(n)) continue;
-    reached.add(n);
-    for (const p of parents.get(n) ?? []) q.push(p);
-  }
-  return reached;
 }
 
 export function descendants(conceptId: number, edges: readonly PlogEdge[]): Set<number> {
@@ -226,8 +160,8 @@ export function descendants(conceptId: number, edges: readonly PlogEdge[]): Set<
   }
   const reached = new Set<number>();
   const q = [...(children.get(conceptId) ?? [])];
-  while (q.length > 0) {
-    const n = q.shift()!;
+  for (let head = 0; head < q.length; head++) {
+    const n = q[head]!;
     if (reached.has(n)) continue;
     reached.add(n);
     for (const c of children.get(n) ?? []) q.push(c);
@@ -245,17 +179,13 @@ export function prerequisitesOf(conceptId: number, edges: readonly PlogEdge[]): 
 
 export function selectNearestUnmet(
   unmet: Set<number>,
-  conceptsById: Map<number, PlogConcept> | Record<number, PlogConcept>,
+  conceptsById: ReadonlyMap<number, PlogConcept>,
 ): number | null {
   if (unmet.size === 0) return null;
-  const byId =
-    conceptsById instanceof Map
-      ? conceptsById
-      : new Map(Object.entries(conceptsById).map(([k, v]) => [Number(k), v]));
   let best: number | null = null;
   let bestIntro = Infinity;
   for (const cid of unmet) {
-    const intro = byId.get(cid)?.intro_sec ?? Infinity;
+    const intro = conceptsById.get(cid)?.intro_sec ?? Infinity;
     if (intro < bestIntro) {
       bestIntro = intro;
       best = cid;
@@ -272,11 +202,11 @@ export function topologicalConceptIds(
   const introById = new Map(concepts.map((c) => [c.id, c.intro_sec]));
   const indeg = new Map(ids.map((id) => [id, 0]));
   const adj = new Map<number, Set<number>>();
-  const idSet = new Set(ids);
+  const remaining = new Set(ids);
 
   for (const e of edges) {
     if (!ORDERING.has(e.edge_type)) continue;
-    if (!idSet.has(e.source_id) || !idSet.has(e.target_id)) continue;
+    if (!remaining.has(e.source_id) || !remaining.has(e.target_id)) continue;
     let outs = adj.get(e.source_id);
     if (!outs) {
       outs = new Set();
@@ -288,14 +218,14 @@ export function topologicalConceptIds(
     }
   }
 
-  const zeros = ids
+  const q = ids
     .filter((i) => (indeg.get(i) ?? 0) === 0)
     .sort((a, b) => (introById.get(a) ?? 0) - (introById.get(b) ?? 0));
-  const q = [...zeros];
   const order: number[] = [];
-  while (q.length > 0) {
-    const n = q.shift()!;
+  for (let head = 0; head < q.length; head++) {
+    const n = q[head]!;
     order.push(n);
+    remaining.delete(n);
     const outs = [...(adj.get(n) ?? [])].sort((a, b) => a - b);
     for (const m of outs) {
       const next = (indeg.get(m) ?? 0) - 1;
@@ -303,8 +233,9 @@ export function topologicalConceptIds(
       if (next === 0) q.push(m);
     }
   }
+  // Keep cycle-blocked concepts in their original input order.
   for (const cid of ids) {
-    if (!order.includes(cid)) order.push(cid);
+    if (remaining.delete(cid)) order.push(cid);
   }
   return order;
 }
@@ -322,10 +253,7 @@ export function studyPathConceptIds(
     incident.add(e.source_id);
     incident.add(e.target_id);
   }
-  const conceptsById = new Set(concepts.map((c) => c.id));
-  return topologicalConceptIds(concepts, edges).filter(
-    (cid) => incident.has(cid) && conceptsById.has(cid),
-  );
+  return topologicalConceptIds(concepts, ordering).filter((cid) => incident.has(cid));
 }
 
 export function routeToConceptScored(
@@ -335,14 +263,13 @@ export function routeToConceptScored(
 ): { score: number; graph: PlogGraphSnapshot; concept: PlogConcept } | null {
   let best: { score: number; graph: PlogGraphSnapshot; concept: PlogConcept } | null = null;
   for (const g of graphs) {
-    if (g.concepts.length === 0) continue;
-    const embeddings = g.concepts.map((c) => c.embedding);
-    if (!embeddings.some((e) => e.length > 0)) continue;
-    const idx = bestMatchIndex(queryEmbedding, embeddings);
-    if (idx < 0) continue;
-    const score = cosineSimilarity(queryEmbedding, embeddings[idx]!);
-    if (best === null || score > best.score) {
-      best = { score, graph: g, concept: g.concepts[idx]! };
+    if (!g.concepts.some((c) => c.embedding.length > 0)) continue;
+    for (const concept of g.concepts) {
+      const score = cosineSimilarity(queryEmbedding, concept.embedding);
+      // Ties keep the first concept; an exact opposite is not a match.
+      if (score > -1 && (best === null || score > best.score)) {
+        best = { score, graph: g, concept };
+      }
     }
   }
   if (best === null || best.score < minScore) return null;
@@ -417,9 +344,12 @@ export function retrieveContext(
 
 export function orderingPathReady(graph: PlogGraphSnapshot): boolean {
   const ordering = orderingEdges(graph.edges);
+  if (ordering.length === 0) return graph.concepts.length === 1;
   const pairs = ordering.map((e) => [String(e.source_id), String(e.target_id)] as const);
   if (!isDag(pairs)) return false;
-  return studyPathConceptIds(graph.concepts, ordering).length > 0;
+  // Readiness only needs a concept on the path, not its full topological order.
+  const conceptIds = new Set(graph.concepts.map((c) => c.id));
+  return ordering.some((e) => conceptIds.has(e.source_id) || conceptIds.has(e.target_id));
 }
 
 export function reachedConceptIds(states: readonly LearnerConceptState[]): Set<number> {

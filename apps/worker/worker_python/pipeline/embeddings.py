@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import urllib.error
 import urllib.request
 
@@ -16,8 +15,6 @@ from .embedding_contract import (
     resolve_embedding_config,
     validate_embedding,
 )
-
-logger = logging.getLogger(__name__)
 
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
@@ -45,20 +42,17 @@ def _embed_openai_batch(texts: list[str], config: EmbeddingConfig) -> list[list[
         },
         method="POST",
     )
-    try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            payload = _read_payload(resp, config)
-    except urllib.error.HTTPError as exc:
-        raise _provider_http_error(config, exc.code) from None
-    except urllib.error.URLError:
-        raise RuntimeError("OpenAI embeddings request failed. Check the server connection.") from None
+    payload = _request_payload(req, config)
 
     data = payload.get("data") if isinstance(payload, dict) else None
     if not isinstance(data, list) or len(data) != len(texts) or not all(
         isinstance(item, dict) and type(item.get("index")) is int for item in data
-    ) or sorted(item["index"] for item in data) != list(range(len(texts))):
+    ):
         raise invalid_output(config)
-    return [validate_embedding(item.get("embedding"), config) for item in sorted(data, key=lambda item: item["index"])]
+    ordered = sorted(data, key=lambda item: item["index"])
+    if any(item["index"] != index for index, item in enumerate(ordered)):
+        raise invalid_output(config)
+    return [validate_embedding(item.get("embedding"), config) for item in ordered]
 
 
 def _embed_ollama(texts: list[str], config: EmbeddingConfig) -> list[list[float]]:
@@ -69,13 +63,7 @@ def _embed_ollama(texts: list[str], config: EmbeddingConfig) -> list[list[float]
         headers={"content-type": "application/json"},
         method="POST",
     )
-    try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            payload = _read_payload(resp, config)
-    except urllib.error.HTTPError as exc:
-        raise _provider_http_error(config, exc.code) from None
-    except urllib.error.URLError:
-        raise RuntimeError("Ollama embeddings request failed. Check the server connection.") from None
+    payload = _request_payload(req, config)
     vectors = payload.get("embeddings") if isinstance(payload, dict) else None
     if not isinstance(vectors, list) or len(vectors) != len(texts):
         raise invalid_output(config)
@@ -97,12 +85,15 @@ def _provider_http_error(config: EmbeddingConfig, status: int) -> RuntimeError:
     return RuntimeError(f"{provider} embeddings failed (HTTP {status}).")
 
 
-def _read_payload(response, config: EmbeddingConfig):
+def _request_payload(request: urllib.request.Request, config: EmbeddingConfig):
     try:
-        return json.loads(response.read().decode("utf-8"))
+        with urllib.request.urlopen(request, timeout=120) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        with exc:
+            raise _provider_http_error(config, exc.code) from None
+    except urllib.error.URLError:
+        provider = "OpenAI" if config.provider == "openai" else "Ollama"
+        raise RuntimeError(f"{provider} embeddings request failed. Check the server connection.") from None
     except (ValueError, UnicodeError):
         raise invalid_output(config) from None
-
-
-def to_vector_literal(embedding: list[float]) -> str:
-    return "[" + ",".join(str(float(x)) for x in embedding) + "]"

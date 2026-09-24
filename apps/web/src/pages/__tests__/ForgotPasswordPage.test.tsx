@@ -94,11 +94,44 @@ describe('ForgotPasswordPage', () => {
     const submitButton = screen.getByText('auth.forgotPassword.submit')
     fireEvent.click(submitButton)
 
-    expect(screen.getByText('auth.forgotPassword.submitting')).toBeInTheDocument()
+    expect(await screen.findByText('auth.forgotPassword.submitting')).toBeInTheDocument()
 
     await act(async () => {
       resolveRequest?.()
       await pendingRequest
     })
+  })
+
+  it('shows the current request error and clears it after a successful retry', async () => {
+    vi.mocked(apiClient.requestPasswordReset)
+      .mockRejectedValueOnce(new Error('Service unavailable'))
+      .mockRejectedValueOnce(new Error('Please wait before retrying'))
+      .mockResolvedValue(undefined)
+    render(<ForgotPasswordPage />)
+    fireEvent.change(screen.getByLabelText(/auth\.fields\.email\.label/), { target: { value: 'test@example.com' } })
+    const submit = () => fireEvent.click(screen.getByRole('button', { name: 'auth.forgotPassword.submit' }))
+    submit()
+    expect(await screen.findByRole('alert')).toHaveTextContent('Service unavailable')
+    expect(screen.queryByText('auth.forgotPassword.success')).not.toBeInTheDocument()
+    submit()
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Please wait before retrying'))
+    expect(screen.queryByText('Service unavailable')).not.toBeInTheDocument()
+    submit()
+    expect(await screen.findByText('auth.forgotPassword.success')).toBeInTheDocument()
+    expect(screen.queryByText('Please wait before retrying')).not.toBeInTheDocument()
+    expect(apiClient.requestPasswordReset).toHaveBeenCalledTimes(3)
+  })
+
+  it('uses autofilled email and ignores repeated submissions while pending', async () => {
+    let finish!: () => void
+    vi.mocked(apiClient.requestPasswordReset).mockImplementation(() => new Promise(resolve => { finish = resolve }))
+    render(<ForgotPasswordPage />)
+    const input = screen.getByLabelText<HTMLInputElement>(/auth\.fields\.email\.label/)
+    input.value = 'autofilled@example.com'
+    const form = input.closest('form')!
+    act(() => { fireEvent.submit(form); fireEvent.submit(form) })
+    await waitFor(() => expect(apiClient.requestPasswordReset).toHaveBeenCalled())
+    await act(async () => { finish() })
+    expect(apiClient.requestPasswordReset).toHaveBeenCalledExactlyOnceWith({ email: 'autofilled@example.com' })
   })
 })

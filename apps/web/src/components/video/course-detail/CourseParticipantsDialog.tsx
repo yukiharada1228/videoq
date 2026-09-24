@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { CourseInviteRecipientResult } from '@videoq/trpc';
-import { trpc } from '@/lib/trpc';
+import { normalizeInvitationEmail } from '@videoq/trpc/course-invitations';
+import { appTrpcClient, trpc } from '@/lib/trpc';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
@@ -45,23 +46,10 @@ type RecipientPreview = {
   status: RecipientPreviewStatus;
 };
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function normalizeEmail(raw: string): string | null {
-  const email = raw.trim().toLowerCase();
-  if (!email || email.length > 254 || !EMAIL_PATTERN.test(email)) return null;
-  const [local, domain] = email.split('@');
-  if (!local || !domain || local.length > 64 || domain.length > 253) return null;
-  if (local.startsWith('.') || local.endsWith('.') || local.includes('..')) return null;
-  if (
-    domain.startsWith('.')
-    || domain.endsWith('.')
-    || domain.startsWith('-')
-    || domain.endsWith('-')
-    || domain.includes('..')
-  ) return null;
-  return email;
-}
+type ParticipantAction =
+  | { kind: 'invite'; emails: string[] }
+  | { kind: 'resend' | 'revoke'; invitationId: number }
+  | { kind: 'remove'; userId: string };
 
 function previewRecipients(
   inputs: readonly string[],
@@ -70,7 +58,7 @@ function previewRecipients(
 ): RecipientPreview[] {
   const seen = new Set<string>();
   return inputs.map((input) => {
-    const normalized = normalizeEmail(input);
+    const normalized = normalizeInvitationEmail(input);
     if (!normalized) return { email: input, status: 'invalid' };
     if (seen.has(normalized)) return { email: normalized, status: 'duplicate' };
     seen.add(normalized);
@@ -96,10 +84,6 @@ export function CourseParticipantsDialog({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const requestConfirmation = useConfirm();
-  const invite = useMutation(trpc.courseMemberships.invite.mutationOptions());
-  const resend = useMutation(trpc.courseMemberships.resend.mutationOptions());
-  const revoke = useMutation(trpc.courseMemberships.revoke.mutationOptions());
-  const removeMember = useMutation(trpc.courseMemberships.removeMember.mutationOptions());
   const [emailInput, setEmailInput] = useState('');
   const [inviteResults, setInviteResults] = useState<CourseInviteRecipientResult[]>([]);
   const resultsRef = useRef<HTMLUListElement>(null);
@@ -108,6 +92,7 @@ export function CourseParticipantsDialog({
   // メール送信はサーバー側のキューで進むので、送信直後だけ配送状態を追う。
   // 恒久的なポーリングにしないよう、追跡する期間を明示的に区切る。
   const [trackDeliveryUntil, setTrackDeliveryUntil] = useState(0);
+  const operationPending = useRef(false);
 
   const participantsQuery = useQuery({
     ...trpc.courseMemberships.participants.queryOptions({ courseId }),
@@ -115,40 +100,60 @@ export function CourseParticipantsDialog({
     refetchInterval: (query) => {
       if (Date.now() >= trackDeliveryUntil) return false;
       const queued = query.state.data?.invitations.some(
-        (invitation) => invitation.delivery_status === 'queued',
+        (invitation) => invitation.status === 'pending' && invitation.delivery_status === 'queued',
       );
       return queued ? DELIVERY_POLL_INTERVAL_MS : false;
     },
   });
-  const refresh = () => queryClient.invalidateQueries(trpc.courseMemberships.participants.queryFilter({ courseId }));
-  const inviteMutation = useMutation({
-    mutationFn: (emails: string[]) => invite.mutateAsync({ courseId, emails }),
-    onSuccess: async ({ results }) => {
-      setInviteResults(results);
-      setEmailInput('');
-      setTrackDeliveryUntil(Date.now() + DELIVERY_POLL_WINDOW_MS);
-      await refresh();
+  const operation = useMutation({
+    mutationFn: async (action: ParticipantAction) => {
+      switch (action.kind) {
+        case 'invite':
+          return { kind: action.kind, courseId, ...await appTrpcClient.courseMemberships.invite.mutate({ courseId, emails: action.emails }) };
+        case 'resend':
+          await appTrpcClient.courseMemberships.resend.mutate({ courseId, invitationId: action.invitationId });
+          return { ...action, courseId };
+        case 'revoke':
+          await appTrpcClient.courseMemberships.revoke.mutate({ courseId, invitationId: action.invitationId });
+          return { ...action, courseId };
+        case 'remove':
+          await appTrpcClient.courseMemberships.removeMember.mutate({ courseId, userId: action.userId });
+          return { ...action, courseId };
+      }
     },
-    onSettled: (_, error) => setFocusRequest({ target: error ? 'error' : 'results' }),
-  });
-  const resendMutation = useMutation({
-    mutationFn: (invitationId: number) => resend.mutateAsync({ courseId, invitationId }),
-    onSuccess: () => {
-      setTrackDeliveryUntil(Date.now() + DELIVERY_POLL_WINDOW_MS);
-      return refresh();
+    onSuccess: async (result) => {
+      const filter = trpc.courseMemberships.participants.queryFilter({ courseId: result.courseId });
+      if (result.kind === 'invite' || result.kind === 'resend') {
+        if (result.kind === 'invite') {
+          setInviteResults(result.results);
+          setEmailInput('');
+        }
+        setTrackDeliveryUntil(Date.now() + DELIVERY_POLL_WINDOW_MS);
+        await queryClient.invalidateQueries(filter);
+        return;
+      }
+      await queryClient.cancelQueries(filter);
+      queryClient.setQueryData(trpc.courseMemberships.participants.queryKey({ courseId: result.courseId }), current => {
+        if (!current) return current;
+        return result.kind === 'remove'
+          ? { ...current, members: current.members.filter(member => member.user_id !== result.userId) }
+          : { ...current, invitations: current.invitations.map(invitation => invitation.id === result.invitationId
+            ? { ...invitation, status: 'revoked' as const } : invitation) };
+      });
     },
-    onSettled: (_, error) => setFocusRequest({ target: error ? 'error' : 'heading' }),
+    onSettled: (_, error, action) => {
+      operationPending.current = false;
+      setFocusRequest({ target: error ? 'error' : action.kind === 'invite' ? 'results' : 'heading' });
+    },
   });
-  const revokeMutation = useMutation({
-    mutationFn: (invitationId: number) => revoke.mutateAsync({ courseId, invitationId }),
-    onSuccess: refresh,
-    onSettled: (_, error) => setFocusRequest({ target: error ? 'error' : 'heading' }),
-  });
-  const removeMutation = useMutation({
-    mutationFn: (userId: string) => removeMember.mutateAsync({ courseId, userId }),
-    onSuccess: refresh,
-    onSettled: (_, error) => setFocusRequest({ target: error ? 'error' : 'heading' }),
-  });
+
+  const runOperation = (action: ParticipantAction) => {
+    if (operationPending.current) return;
+    operationPending.current = true;
+    operation.mutate(action);
+  };
+  const pendingAction = operation.isPending ? operation.variables : null;
+  const isInviting = pendingAction?.kind === 'invite';
 
   const participants = participantsQuery.data;
   const emailInputs = useMemo(() => splitEmails(emailInput), [emailInput]);
@@ -171,12 +176,12 @@ export function CourseParticipantsDialog({
       if (!open) closeDialog();
     },
     onRequestClose: (event) => {
-      if (inviteMutation.isPending) event.preventDefault();
+      if (isInviting) event.preventDefault();
     },
   });
 
   const closeDialog = () => {
-    if (inviteMutation.isPending) return;
+    if (isInviting) return;
     // Restore the opener's focus before the parent can unmount the dialog.
     dialog.dialogProps.ref.current?.close();
     setTrackDeliveryUntil(0);
@@ -189,7 +194,7 @@ export function CourseParticipantsDialog({
       : focusRequest.target === 'results' ? resultsRef.current
         : dialog.headingProps.ref.current;
     // Row actions can remove their own trigger. Focus the result only after
-    // the refreshed participants have arrived, and never reopen a closed dialog.
+    // the updated participants have arrived, and never reopen a closed dialog.
     (target ?? dialog.headingProps.ref.current)?.focus();
   }, [focusRequest, dialog.dialogProps.ref, dialog.headingProps.ref]);
   if (!isOpen) return null;
@@ -203,24 +208,13 @@ export function CourseParticipantsDialog({
       variant: 'danger',
     });
     if (!confirmed) return;
-    removeMutation.mutate(member.user_id);
+    runOperation({ kind: 'remove', userId: member.user_id });
   };
 
-  // `removeMutation` is shared by every row, so `isPending` alone cannot say
-  // which member is being removed. `variables` holds the userId passed to
-  // mutate, which lets only the targeted row show the spinner.
-  const removingUserId = removeMutation.isPending ? removeMutation.variables ?? null : null;
-  const resendingInvitationId = resendMutation.isPending ? resendMutation.variables ?? null : null;
-  const revokingInvitationId = revokeMutation.isPending ? revokeMutation.variables ?? null : null;
-  // One invitation action at a time. Two actions on the SAME invitation race
-  // and the loser comes back as CONFLICT; blocking across rows as well keeps
-  // the rule simple and matches how member removal already behaves.
-  const isInvitationActionPending = resendMutation.isPending || revokeMutation.isPending;
-
-  const mutationError = inviteMutation.error
-    ?? resendMutation.error
-    ?? revokeMutation.error
-    ?? removeMutation.error;
+  const removingUserId = pendingAction?.kind === 'remove' ? pendingAction.userId : null;
+  const resendingInvitationId = pendingAction?.kind === 'resend' ? pendingAction.invitationId : null;
+  const revokingInvitationId = pendingAction?.kind === 'revoke' ? pendingAction.invitationId : null;
+  const mutationError = operation.error;
 
   return (
     <Dialog {...dialog.dialogProps} scroll="inner" width="min(48rem, 95vw)">
@@ -249,7 +243,7 @@ export function CourseParticipantsDialog({
                     rows={4}
                     value={emailInput}
                     onChange={(event) => setEmailInput(event.target.value)}
-                    disabled={inviteMutation.isPending}
+                    disabled={operation.isPending}
                   />
                   <p className="text-dns-14N-130 text-solid-gray-600">
                     {t('videos.courseMembers.emailHelp')}
@@ -283,11 +277,11 @@ export function CourseParticipantsDialog({
                 ) : null}
                 <Button
                   type="button"
-                  onClick={() => inviteMutation.mutate(emailInputs)}
-                  disabled={inviteMutation.isPending || readyRecipientCount === 0}
-                  aria-busy={inviteMutation.isPending}
+                  onClick={() => runOperation({ kind: 'invite', emails: emailInputs })}
+                  disabled={operation.isPending || readyRecipientCount === 0}
+                  aria-busy={isInviting}
                 >
-                  {inviteMutation.isPending ? <InlineSpinner className="h-4 w-4" /> : null}
+                  {isInviting ? <InlineSpinner className="h-4 w-4" /> : null}
                   {t('videos.courseMembers.invite')}
                 </Button>
                 {inviteResults.length > 0 ? (
@@ -323,7 +317,7 @@ export function CourseParticipantsDialog({
                               variant="text"
                               size="sm"
                               onClick={() => { void confirmRemoveMember(member); }}
-                              disabled={removeMutation.isPending}
+                              disabled={operation.isPending}
                               aria-busy={removingUserId === member.user_id}
                             >
                               {removingUserId === member.user_id ? <InlineSpinner className="h-4 w-4" /> : null}
@@ -353,8 +347,8 @@ export function CourseParticipantsDialog({
                                   type="button"
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => resendMutation.mutate(invitation.id)}
-                                  disabled={isInvitationActionPending}
+                                  onClick={() => runOperation({ kind: 'resend', invitationId: invitation.id })}
+                                  disabled={operation.isPending}
                                   aria-busy={resendingInvitationId === invitation.id}
                                 >
                                   {resendingInvitationId === invitation.id ? <InlineSpinner className="h-4 w-4" /> : null}
@@ -364,8 +358,8 @@ export function CourseParticipantsDialog({
                                   type="button"
                                   variant="text"
                                   size="sm"
-                                  onClick={() => revokeMutation.mutate(invitation.id)}
-                                  disabled={isInvitationActionPending}
+                                  onClick={() => runOperation({ kind: 'revoke', invitationId: invitation.id })}
+                                  disabled={operation.isPending}
                                   aria-busy={revokingInvitationId === invitation.id}
                                 >
                                   {revokingInvitationId === invitation.id ? <InlineSpinner className="h-4 w-4" /> : null}
@@ -384,7 +378,7 @@ export function CourseParticipantsDialog({
           </DialogBody>
         </DialogScrollArea>
         <DialogActions>
-          <Button type="button" variant="outline" onClick={closeDialog} disabled={inviteMutation.isPending}>
+          <Button type="button" variant="outline" onClick={closeDialog} disabled={isInviting}>
             {t('common.actions.close')}
           </Button>
         </DialogActions>

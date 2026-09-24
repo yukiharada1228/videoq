@@ -2,7 +2,7 @@ import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PlogConcept, PlogEdge, PlogGraph } from '@videoq/trpc';
-import { trpc } from '@/lib/trpc';
+import { appTrpcClient, trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { ChipLabel } from '@/components/ui/chip-label';
 import { Heading, HeadingTitle } from '@/components/ui/heading';
@@ -20,6 +20,25 @@ interface PlogPanelProps {
 }
 
 type PlogUiStatus = 'missing' | 'pending' | 'running' | 'ready' | 'failed';
+type ConceptFields = Pick<PlogConcept, 'label' | 'node_type' | 'intro_sec' | 'source_quote'>;
+type LearningFields = Pick<PlogConcept, 'opening_question' | 'hint_ladder' | 'misconceptions' | 'canonical_order' | 'worked_examples'>;
+type EdgeFields = Pick<PlogEdge, 'source_id' | 'target_id' | 'edge_type' | 'quote'>;
+type ConceptChanges = { concept: Partial<ConceptFields>; learning: Partial<LearningFields> };
+type ConceptDraft = Partial<Record<keyof ConceptFields | keyof LearningFields, string>>;
+type SaveConcept = (conceptId: number, changes: ConceptChanges) => Promise<unknown>;
+
+function changedFields<T extends object>(previous: T, next: Partial<T>): Partial<T> {
+  const changes: Partial<T> = {};
+  for (const key of Object.keys(next) as (keyof T)[]) {
+    const before = previous[key];
+    const after = next[key];
+    const equal = Array.isArray(before) && Array.isArray(after)
+      ? before.length === after.length && before.every((value, index) => value === after[index])
+      : before === after;
+    if (!equal) changes[key] = after;
+  }
+  return changes;
+}
 
 const NODE_TYPES = ['object', 'property', 'limitation'] as const;
 const EDGE_TYPES = [
@@ -82,15 +101,6 @@ function PlogActionError({ message }: { message: string }) {
 export function PlogPanel({ videoId, enabled = true }: PlogPanelProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const rebuild = useMutation(trpc.plog.rebuild.mutationOptions());
-  const createConcept = useMutation(trpc.plog.createConcept.mutationOptions());
-  const updateConcept = useMutation(trpc.plog.updateConcept.mutationOptions());
-  const updateLearningObject = useMutation(trpc.plog.updateLearningObject.mutationOptions());
-  const deleteConcept = useMutation(trpc.plog.deleteConcept.mutationOptions());
-  const mergeConcepts = useMutation(trpc.plog.mergeConcepts.mutationOptions());
-  const createEdge = useMutation(trpc.plog.createEdge.mutationOptions());
-  const updateEdge = useMutation(trpc.plog.updateEdge.mutationOptions());
-  const deleteEdge = useMutation(trpc.plog.deleteEdge.mutationOptions());
 
   const graphInput = { videoId };
   const { data, isLoading, error, isFetching } = useQuery(trpc.plog.graph.queryOptions(graphInput, {
@@ -104,7 +114,7 @@ export function PlogPanel({ videoId, enabled = true }: PlogPanelProps) {
   const invalidate = () => queryClient.invalidateQueries(trpc.plog.graph.queryFilter(graphInput));
 
   const rebuildMutation = useMutation({
-    mutationFn: () => rebuild.mutateAsync({ videoId }),
+    mutationFn: () => appTrpcClient.plog.rebuild.mutate({ videoId }),
     onMutate: async () => {
       await queryClient.cancelQueries(trpc.plog.graph.queryFilter(graphInput));
       const previous = queryClient.getQueryData(trpc.plog.graph.queryKey(graphInput));
@@ -141,8 +151,8 @@ export function PlogPanel({ videoId, enabled = true }: PlogPanelProps) {
   });
 
   const createConceptMutation = useMutation({
-    mutationFn: (body: { label: string; node_type: string; intro_sec: number; source_quote: string }) =>
-      createConcept.mutateAsync({
+    mutationFn: (body: ConceptFields) =>
+      appTrpcClient.plog.createConcept.mutate({
         videoId,
         label: body.label,
         nodeType: body.node_type,
@@ -152,67 +162,41 @@ export function PlogPanel({ videoId, enabled = true }: PlogPanelProps) {
     onSuccess: invalidate,
   });
 
-  const updateConceptMutation = useMutation({
-    mutationFn: ({
-      conceptId,
-      body,
-    }: {
-      conceptId: number;
-      body: Partial<{ label: string; node_type: string; intro_sec: number; source_quote: string }>;
-    }) => updateConcept.mutateAsync({
-      videoId,
-      conceptId,
-      label: body.label,
-      nodeType: body.node_type,
-      introSec: body.intro_sec,
-      sourceQuote: body.source_quote,
-    }),
-    onSuccess: invalidate,
-  });
-
-  const updateLoMutation = useMutation({
-    mutationFn: ({
-      conceptId,
-      body,
-    }: {
-      conceptId: number;
-      body: Partial<{
-        opening_question: string;
-        hint_ladder: string[];
-        misconceptions: string[];
-        canonical_order: string[];
-        worked_examples: string[];
-      }>;
-    }) => updateLearningObject.mutateAsync({
-      videoId,
-      conceptId,
-      openingQuestion: body.opening_question,
-      hintLadder: body.hint_ladder,
-      misconceptions: body.misconceptions,
-      canonicalOrder: body.canonical_order,
-      workedExamples: body.worked_examples,
-    }),
-    onSuccess: invalidate,
+  const saveConceptMutation = useMutation({
+    mutationFn: async ({ conceptId, concept, learning }: ConceptChanges & { conceptId: number }) => {
+      if (Object.keys(concept).length) {
+        await appTrpcClient.plog.updateConcept.mutate({
+          videoId, conceptId,
+          label: concept.label, nodeType: concept.node_type,
+          introSec: concept.intro_sec, sourceQuote: concept.source_quote,
+        });
+      }
+      if (Object.keys(learning).length) {
+        await appTrpcClient.plog.updateLearningObject.mutate({
+          videoId, conceptId,
+          openingQuestion: learning.opening_question, hintLadder: learning.hint_ladder,
+          misconceptions: learning.misconceptions, canonicalOrder: learning.canonical_order,
+          workedExamples: learning.worked_examples,
+        });
+      }
+    },
+    // One refresh for the whole save, including partially successful requests.
+    onSettled: invalidate,
   });
 
   const deleteConceptMutation = useMutation({
-    mutationFn: (conceptId: number) => deleteConcept.mutateAsync({ videoId, conceptId }),
+    mutationFn: (conceptId: number) => appTrpcClient.plog.deleteConcept.mutate({ videoId, conceptId }),
     onSuccess: invalidate,
   });
 
   const mergeConceptMutation = useMutation({
     mutationFn: ({ survivorId, absorbId }: { survivorId: number; absorbId: number }) =>
-      mergeConcepts.mutateAsync({ videoId, survivorId, absorbId }),
+      appTrpcClient.plog.mergeConcepts.mutate({ videoId, survivorId, absorbId }),
     onSuccess: invalidate,
   });
 
   const createEdgeMutation = useMutation({
-    mutationFn: (body: {
-      source_id: number;
-      target_id: number;
-      edge_type: string;
-      quote: string;
-    }) => createEdge.mutateAsync({
+    mutationFn: (body: EdgeFields) => appTrpcClient.plog.createEdge.mutate({
       videoId,
       sourceId: body.source_id,
       targetId: body.target_id,
@@ -228,8 +212,8 @@ export function PlogPanel({ videoId, enabled = true }: PlogPanelProps) {
       body,
     }: {
       edgeId: number;
-      body: Partial<{ edge_type: string; quote: string; source_id: number; target_id: number }>;
-    }) => updateEdge.mutateAsync({
+      body: Partial<EdgeFields>;
+    }) => appTrpcClient.plog.updateEdge.mutate({
       videoId,
       edgeId,
       sourceId: body.source_id,
@@ -241,7 +225,7 @@ export function PlogPanel({ videoId, enabled = true }: PlogPanelProps) {
   });
 
   const deleteEdgeMutation = useMutation({
-    mutationFn: (edgeId: number) => deleteEdge.mutateAsync({ videoId, edgeId }),
+    mutationFn: (edgeId: number) => appTrpcClient.plog.deleteEdge.mutate({ videoId, edgeId }),
     onSuccess: invalidate,
   });
 
@@ -268,8 +252,7 @@ export function PlogPanel({ videoId, enabled = true }: PlogPanelProps) {
 
   const mutating =
     createConceptMutation.isPending ||
-    updateConceptMutation.isPending ||
-    updateLoMutation.isPending ||
+    saveConceptMutation.isPending ||
     deleteConceptMutation.isPending ||
     mergeConceptMutation.isPending ||
     createEdgeMutation.isPending ||
@@ -330,7 +313,7 @@ export function PlogPanel({ videoId, enabled = true }: PlogPanelProps) {
           </NotificationBanner>
         )}
 
-        {!isLoading && !error && data && (
+        {data && (
           <PlogBody
             data={data}
             status={status}
@@ -339,12 +322,7 @@ export function PlogPanel({ videoId, enabled = true }: PlogPanelProps) {
             onBuild={requestRebuild}
             rebuildPending={rebuildMutation.isPending}
             onCreateConcept={(body) => createConceptMutation.mutateAsync(body)}
-            onUpdateConcept={(conceptId, body) =>
-              updateConceptMutation.mutateAsync({ conceptId, body })
-            }
-            onUpdateLearningObject={(conceptId, body) =>
-              updateLoMutation.mutateAsync({ conceptId, body })
-            }
+            onSaveConcept={(conceptId, changes) => saveConceptMutation.mutateAsync({ conceptId, ...changes })}
             onDeleteConcept={(conceptId) => deleteConceptMutation.mutateAsync(conceptId)}
             onMergeConcept={(survivorId, absorbId) =>
               mergeConceptMutation.mutateAsync({ survivorId, absorbId })
@@ -367,8 +345,7 @@ function PlogBody({
   onBuild,
   rebuildPending,
   onCreateConcept,
-  onUpdateConcept,
-  onUpdateLearningObject,
+  onSaveConcept,
   onDeleteConcept,
   onMergeConcept,
   onCreateEdge,
@@ -381,37 +358,14 @@ function PlogBody({
   primaryActionLabel: string;
   onBuild: () => void;
   rebuildPending: boolean;
-  onCreateConcept: (body: {
-    label: string;
-    node_type: string;
-    intro_sec: number;
-    source_quote: string;
-  }) => Promise<unknown>;
-  onUpdateConcept: (
-    conceptId: number,
-    body: Partial<{ label: string; node_type: string; intro_sec: number; source_quote: string }>,
-  ) => Promise<unknown>;
-  onUpdateLearningObject: (
-    conceptId: number,
-    body: Partial<{
-      opening_question: string;
-      hint_ladder: string[];
-      misconceptions: string[];
-      canonical_order: string[];
-      worked_examples: string[];
-    }>,
-  ) => Promise<unknown>;
+  onCreateConcept: (body: ConceptFields) => Promise<unknown>;
+  onSaveConcept: SaveConcept;
   onDeleteConcept: (conceptId: number) => Promise<unknown>;
   onMergeConcept: (survivorId: number, absorbId: number) => Promise<unknown>;
-  onCreateEdge: (body: {
-    source_id: number;
-    target_id: number;
-    edge_type: string;
-    quote: string;
-  }) => Promise<unknown>;
+  onCreateEdge: (body: EdgeFields) => Promise<unknown>;
   onUpdateEdge: (
     edgeId: number,
-    body: Partial<{ edge_type: string; quote: string; source_id: number; target_id: number }>,
+    body: Partial<EdgeFields>,
   ) => Promise<unknown>;
   onDeleteEdge: (edgeId: number) => Promise<unknown>;
 }) {
@@ -508,8 +462,7 @@ function PlogBody({
         concepts={data.concepts}
         disabled={isBusy}
         onCreate={onCreateConcept}
-        onUpdate={onUpdateConcept}
-        onUpdateLearningObject={onUpdateLearningObject}
+        onSave={onSaveConcept}
         onDelete={onDeleteConcept}
         onMerge={onMergeConcept}
       />
@@ -530,33 +483,14 @@ function ConceptEditor({
   concepts,
   disabled,
   onCreate,
-  onUpdate,
-  onUpdateLearningObject,
+  onSave,
   onDelete,
   onMerge,
 }: {
   concepts: PlogConcept[];
   disabled: boolean;
-  onCreate: (body: {
-    label: string;
-    node_type: string;
-    intro_sec: number;
-    source_quote: string;
-  }) => Promise<unknown>;
-  onUpdate: (
-    conceptId: number,
-    body: Partial<{ label: string; node_type: string; intro_sec: number; source_quote: string }>,
-  ) => Promise<unknown>;
-  onUpdateLearningObject: (
-    conceptId: number,
-    body: Partial<{
-      opening_question: string;
-      hint_ladder: string[];
-      misconceptions: string[];
-      canonical_order: string[];
-      worked_examples: string[];
-    }>,
-  ) => Promise<unknown>;
+  onCreate: (body: ConceptFields) => Promise<unknown>;
+  onSave: SaveConcept;
   onDelete: (conceptId: number) => Promise<unknown>;
   onMerge: (survivorId: number, absorbId: number) => Promise<unknown>;
 }) {
@@ -686,8 +620,7 @@ function ConceptEditor({
                 concept={c}
                 concepts={concepts}
                 disabled={disabled}
-                onUpdate={onUpdate}
-                onUpdateLearningObject={onUpdateLearningObject}
+                onSave={onSave}
                 onDelete={onDelete}
                 onMerge={onMerge}
                 onClose={closeDetail}
@@ -704,8 +637,7 @@ function ConceptDetailForm({
   concept,
   concepts,
   disabled,
-  onUpdate,
-  onUpdateLearningObject,
+  onSave,
   onDelete,
   onMerge,
   onClose,
@@ -713,55 +645,41 @@ function ConceptDetailForm({
   concept: PlogConcept;
   concepts: PlogConcept[];
   disabled: boolean;
-  onUpdate: (
-    conceptId: number,
-    body: Partial<{ label: string; node_type: string; intro_sec: number; source_quote: string }>,
-  ) => Promise<unknown>;
-  onUpdateLearningObject: (
-    conceptId: number,
-    body: Partial<{
-      opening_question: string;
-      hint_ladder: string[];
-      misconceptions: string[];
-      canonical_order: string[];
-      worked_examples: string[];
-    }>,
-  ) => Promise<unknown>;
+  onSave: SaveConcept;
   onDelete: (conceptId: number) => Promise<unknown>;
   onMerge: (survivorId: number, absorbId: number) => Promise<unknown>;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const [label, setLabel] = useState(concept.label);
-  const [nodeType, setNodeType] = useState(concept.node_type);
-  const [introSec, setIntroSec] = useState(String(concept.intro_sec));
-  const [sourceQuote, setSourceQuote] = useState(concept.source_quote || '');
-  const [opening, setOpening] = useState(concept.opening_question || '');
-  const [hints, setHints] = useState(listToLines(concept.hint_ladder));
-  const [misconceptions, setMisconceptions] = useState(listToLines(concept.misconceptions));
-  const [canonical, setCanonical] = useState(listToLines(concept.canonical_order));
-  const [examples, setExamples] = useState(listToLines(concept.worked_examples));
+  // Keep only edited fields locally so refreshed, untouched values stay current.
+  const [draft, setDraft] = useState<ConceptDraft>({});
+  const edit = (field: keyof ConceptDraft, value: string) => setDraft(current => ({ ...current, [field]: value }));
+  const label = draft.label ?? concept.label;
   const [absorbId, setAbsorbId] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
+    const conceptChanges = changedFields<ConceptFields>(concept, {
+      label: label.trim(), node_type: draft.node_type ?? concept.node_type,
+      intro_sec: Number(draft.intro_sec ?? concept.intro_sec) || 0,
+      source_quote: draft.source_quote ?? concept.source_quote,
+    });
+    const learningChanges = changedFields<LearningFields>(concept, {
+      opening_question: draft.opening_question ?? concept.opening_question,
+      hint_ladder: draft.hint_ladder === undefined ? concept.hint_ladder : linesToList(draft.hint_ladder),
+      misconceptions: draft.misconceptions === undefined ? concept.misconceptions : linesToList(draft.misconceptions),
+      canonical_order: draft.canonical_order === undefined ? concept.canonical_order : linesToList(draft.canonical_order),
+      worked_examples: draft.worked_examples === undefined ? concept.worked_examples : linesToList(draft.worked_examples),
+    });
+    if (!Object.keys(conceptChanges).length && !Object.keys(learningChanges).length) {
+      onClose();
+      return;
+    }
     setSaving(true);
     setError('');
     try {
-      await onUpdate(concept.id, {
-        label: label.trim(),
-        node_type: nodeType,
-        intro_sec: Number(introSec) || 0,
-        source_quote: sourceQuote,
-      });
-      await onUpdateLearningObject(concept.id, {
-        opening_question: opening,
-        hint_ladder: linesToList(hints),
-        misconceptions: linesToList(misconceptions),
-        canonical_order: linesToList(canonical),
-        worked_examples: linesToList(examples),
-      });
+      await onSave(concept.id, { concept: conceptChanges, learning: learningChanges });
       onClose();
     } catch {
       setError(t('plog.saveError'));
@@ -805,16 +723,16 @@ function ConceptDetailForm({
       {error && <PlogActionError message={error} />}
       <label className="block space-y-1 text-dns-14N-120">
         <span>{t('plog.label')}</span>
-        <Input autoFocus className="block w-full" blockSize="sm" value={label} onChange={(e) => setLabel(e.target.value)} disabled={disabled || saving} />
+        <Input autoFocus className="block w-full" blockSize="sm" value={label} onChange={(e) => edit('label', e.target.value)} disabled={disabled || saving} />
       </label>
       <div className="flex flex-wrap gap-3">
         <label className="min-w-0 max-w-full space-y-1 text-dns-14N-120">
           <span className="block">{t('plog.nodeTypeLabel')}</span>
           <select
             className="h-10 max-w-full rounded-8 border border-solid-gray-600 bg-white px-3"
-            value={nodeType}
+            value={draft.node_type ?? concept.node_type}
             disabled={disabled || saving}
-            onChange={(e) => setNodeType(e.target.value)}
+            onChange={(e) => edit('node_type', e.target.value)}
           >
             {NODE_TYPES.map((nt) => (
               <option key={nt} value={nt}>
@@ -828,40 +746,40 @@ function ConceptDetailForm({
           <Input
             className="block w-full" blockSize="sm"
             type="number"
-            value={introSec}
+            value={draft.intro_sec ?? String(concept.intro_sec)}
             disabled={disabled || saving}
-            onChange={(e) => setIntroSec(e.target.value)}
+            onChange={(e) => edit('intro_sec', e.target.value)}
           />
         </label>
       </div>
       <label className="block space-y-1 text-dns-14N-120">
         <span>{t('plog.sourceQuote')}</span>
-        <Textarea value={sourceQuote} onChange={(e) => setSourceQuote(e.target.value)} disabled={disabled || saving} rows={2} />
+        <Textarea value={draft.source_quote ?? concept.source_quote} onChange={(e) => edit('source_quote', e.target.value)} disabled={disabled || saving} rows={2} />
       </label>
       <label className="block space-y-1 text-dns-14N-120">
         <span>{t('plog.openingQuestion')}</span>
-        <Textarea value={opening} onChange={(e) => setOpening(e.target.value)} disabled={disabled || saving} rows={2} />
+        <Textarea value={draft.opening_question ?? concept.opening_question} onChange={(e) => edit('opening_question', e.target.value)} disabled={disabled || saving} rows={2} />
       </label>
       <label className="block space-y-1 text-dns-14N-120">
         <span>{t('plog.hintLadder')}</span>
-        <Textarea value={hints} onChange={(e) => setHints(e.target.value)} disabled={disabled || saving} rows={3} />
+        <Textarea value={draft.hint_ladder ?? listToLines(concept.hint_ladder)} onChange={(e) => edit('hint_ladder', e.target.value)} disabled={disabled || saving} rows={3} />
       </label>
       <label className="block space-y-1 text-dns-14N-120">
         <span>{t('plog.misconceptions')}</span>
         <Textarea
-          value={misconceptions}
-          onChange={(e) => setMisconceptions(e.target.value)}
+          value={draft.misconceptions ?? listToLines(concept.misconceptions)}
+          onChange={(e) => edit('misconceptions', e.target.value)}
           disabled={disabled || saving}
           rows={2}
         />
       </label>
       <label className="block space-y-1 text-dns-14N-120">
         <span>{t('plog.canonicalOrder')}</span>
-        <Textarea value={canonical} onChange={(e) => setCanonical(e.target.value)} disabled={disabled || saving} rows={2} />
+        <Textarea value={draft.canonical_order ?? listToLines(concept.canonical_order)} onChange={(e) => edit('canonical_order', e.target.value)} disabled={disabled || saving} rows={2} />
       </label>
       <label className="block space-y-1 text-dns-14N-120">
         <span>{t('plog.workedExamples')}</span>
-        <Textarea value={examples} onChange={(e) => setExamples(e.target.value)} disabled={disabled || saving} rows={2} />
+        <Textarea value={draft.worked_examples ?? listToLines(concept.worked_examples)} onChange={(e) => edit('worked_examples', e.target.value)} disabled={disabled || saving} rows={2} />
       </label>
       {(concept.waypoints?.length ?? 0) > 0 && (
         <div className="text-dns-14N-120 text-solid-gray-700">
@@ -929,15 +847,10 @@ function EdgeEditor({
   concepts: PlogConcept[];
   edges: PlogEdge[];
   disabled: boolean;
-  onCreate: (body: {
-    source_id: number;
-    target_id: number;
-    edge_type: string;
-    quote: string;
-  }) => Promise<unknown>;
+  onCreate: (body: EdgeFields) => Promise<unknown>;
   onUpdate: (
     edgeId: number,
-    body: Partial<{ edge_type: string; quote: string; source_id: number; target_id: number }>,
+    body: Partial<EdgeFields>,
   ) => Promise<unknown>;
   onDelete: (edgeId: number) => Promise<unknown>;
 }) {
@@ -1135,19 +1048,12 @@ function EdgeEditForm({
   edge: PlogEdge;
   concepts: PlogConcept[];
   disabled: boolean;
-  onSave: (body: {
-    source_id: number;
-    target_id: number;
-    edge_type: string;
-    quote: string;
-  }) => Promise<void>;
+  onSave: (body: Partial<EdgeFields>) => Promise<void>;
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
-  const [sourceId, setSourceId] = useState(edge.source_id);
-  const [targetId, setTargetId] = useState(edge.target_id);
-  const [edgeType, setEdgeType] = useState(edge.edge_type);
-  const [quote, setQuote] = useState(edge.quote || '');
+  const [draft, setDraft] = useState<Partial<EdgeFields>>({});
+  const edit = <K extends keyof EdgeFields>(field: K, value: EdgeFields[K]) => setDraft(current => ({ ...current, [field]: value }));
 
   return (
     <fieldset disabled={disabled} className="min-w-0 mt-2 space-y-2 border border-solid-gray-200 bg-solid-gray-50 p-3">
@@ -1156,10 +1062,10 @@ function EdgeEditForm({
           <span className="block">{t('plog.source')}</span>
           <select
             className="h-10 max-w-full rounded-8 border border-solid-gray-600 bg-white px-3"
-            value={sourceId}
+            value={draft.source_id ?? edge.source_id}
             autoFocus
             disabled={disabled}
-            onChange={(e) => setSourceId(Number(e.target.value))}
+            onChange={(e) => edit('source_id', Number(e.target.value))}
           >
             {concepts.map((c) => (
               <option key={c.id} value={c.id}>
@@ -1172,9 +1078,9 @@ function EdgeEditForm({
           <span className="block">{t('plog.target')}</span>
           <select
             className="h-10 max-w-full rounded-8 border border-solid-gray-600 bg-white px-3"
-            value={targetId}
+            value={draft.target_id ?? edge.target_id}
             disabled={disabled}
-            onChange={(e) => setTargetId(Number(e.target.value))}
+            onChange={(e) => edit('target_id', Number(e.target.value))}
           >
             {concepts.map((c) => (
               <option key={c.id} value={c.id}>
@@ -1187,9 +1093,9 @@ function EdgeEditForm({
           <span className="block">{t('plog.edgeTypeLabel')}</span>
           <select
             className="h-10 max-w-full rounded-8 border border-solid-gray-600 bg-white px-3"
-            value={edgeType}
+            value={draft.edge_type ?? edge.edge_type}
             disabled={disabled}
-            onChange={(e) => setEdgeType(e.target.value)}
+            onChange={(e) => edit('edge_type', e.target.value)}
           >
             {EDGE_TYPES.map((et) => (
               <option key={et} value={et}>
@@ -1201,21 +1107,18 @@ function EdgeEditForm({
       </div>
       <label className="block space-y-1 text-dns-14N-120">
         <span>{t('plog.quote')}</span>
-        <Textarea value={quote} onChange={(e) => setQuote(e.target.value)} disabled={disabled} rows={2} />
+        <Textarea value={draft.quote ?? edge.quote} onChange={(e) => edit('quote', e.target.value)} disabled={disabled} rows={2} />
       </label>
       <div className="flex gap-2">
         <Button
           type="button"
           size="sm"
           disabled={disabled}
-          onClick={() =>
-            void onSave({
-              source_id: sourceId,
-              target_id: targetId,
-              edge_type: edgeType,
-              quote,
-            })
-          }
+          onClick={() => {
+            const changes = changedFields<EdgeFields>(edge, draft);
+            if (Object.keys(changes).length) void onSave(changes);
+            else onCancel();
+          }}
         >
           {t('plog.save')}
         </Button>

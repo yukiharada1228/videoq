@@ -7,7 +7,6 @@ interface AppPageShellProps {
   activePage?: ActivePage;
   children: ReactNode;
   contentClassName?: string;
-  isPublic?: boolean;
   variant?: 'standard' | 'workspace';
 }
 
@@ -15,7 +14,6 @@ export function AppPageShell({
   activePage,
   children,
   contentClassName = APP_CONTAINER_CLASS,
-  isPublic = false,
   variant = 'standard',
 }: AppPageShellProps) {
   const mainClassName = variant === 'workspace'
@@ -27,7 +25,7 @@ export function AppPageShell({
       className={`flex min-h-screen flex-col text-solid-gray-800 ${variant === 'standard' ? 'bg-white' : 'bg-solid-gray-50'}`}
       style={{ scrollbarGutter: 'stable' }}
     >
-      <AppNav activePage={activePage} isPublic={isPublic} />
+      <AppNav activePage={activePage} />
       <main className={mainClassName}>
         {children}
       </main>

@@ -1,3 +1,4 @@
+import { authClient } from './auth-client';
 import { API_URL } from './apiConfig';
 import { ApiError } from './api-error';
 import { createAppTrpcClient, TRPC_UNAUTHORIZED_EVENT } from './trpc';
@@ -40,14 +41,6 @@ export interface ApiClientOptions {
   onUnauthorized?: () => void | Promise<void>;
 }
 
-/**
- * Origin the API is served from. `VITE_API_URL` is a same-origin path (`/api`)
- * in Docker and production, but an absolute URL in local development.
- */
-export function getApiOrigin(): string {
-  return new URL(API_URL, window.location.origin).origin;
-}
-
 /** Strip trailing slashes from API paths (except root). Preserves query strings. */
 export function apiPath(path: string): string {
   if (!path || path === '/') return path;
@@ -84,14 +77,7 @@ export class ApiClient {
     this.onUnauthorized = onUnauthorized;
   }
 
-  async isAuthenticated(): Promise<boolean> {
-    const { fetchAuthSession } = await import('@/lib/authSession');
-    const { data } = await fetchAuthSession();
-    return Boolean(data?.user);
-  }
-
   async logout(): Promise<void> {
-    const { authClient } = await import('@/lib/auth-client');
     const { error } = await authClient.signOut();
     if (error) throw new ApiError(error.message || 'Logout failed', error.code || 'LOGOUT_FAILED');
   }
@@ -110,10 +96,9 @@ export class ApiClient {
     return `${this.baseUrl}${apiPath(endpoint)}`;
   }
 
-  private jsonHeaders(additionalHeaders?: HeadersInit): Record<string, string> {
+  private jsonHeaders(): Record<string, string> {
     return {
       'Content-Type': 'application/json',
-      ...(additionalHeaders as Record<string, string>),
     };
   }
 
@@ -153,7 +138,6 @@ export class ApiClient {
   }
 
   async signup(data: SignupRequest): Promise<void> {
-    const { authClient } = await import('@/lib/auth-client');
     const { error } = await authClient.signUp.email({
       email: data.email,
       password: data.password,
@@ -165,14 +149,12 @@ export class ApiClient {
   }
 
   async verifyEmail(data: VerifyEmailRequest): Promise<VerifyEmailResponse> {
-    const { authClient } = await import('@/lib/auth-client');
     const { error } = await authClient.verifyEmail({ query: { token: data.token } });
     if (error) throw new ApiError(error.message || 'Verification failed', error.code || 'VERIFY_FAILED');
     return { detail: 'Email verified' };
   }
 
   async login(data: LoginRequest): Promise<void> {
-    const { authClient } = await import('@/lib/auth-client');
     const { error } = await authClient.signIn.username({
       username: data.username,
       password: data.password,
@@ -182,7 +164,6 @@ export class ApiClient {
 
   /** Redirects to Google OAuth via Better Auth (`signIn.social`). */
   async loginWithGoogle(callbackURL = '/'): Promise<void> {
-    const { authClient } = await import('@/lib/auth-client');
     const { error } = await authClient.signIn.social({
       provider: 'google',
       callbackURL,
@@ -193,7 +174,6 @@ export class ApiClient {
   }
 
   async requestPasswordReset(data: PasswordResetRequest): Promise<void> {
-    const { authClient } = await import('@/lib/auth-client');
     const { error } = await authClient.requestPasswordReset({
       email: data.email,
       redirectTo: `${window.location.origin}/reset-password`,
@@ -202,7 +182,6 @@ export class ApiClient {
   }
 
   async confirmPasswordReset(data: PasswordResetConfirmRequest): Promise<void> {
-    const { authClient } = await import('@/lib/auth-client');
     const { error } = await authClient.resetPassword({
       token: data.token,
       newPassword: data.new_password,
@@ -211,7 +190,6 @@ export class ApiClient {
   }
 
   async requestEmailChange(data: EmailChangeRequest): Promise<void> {
-    const { authClient } = await import('@/lib/auth-client');
     const { error } = await authClient.changeEmail({
       newEmail: data.email,
       callbackURL: `${window.location.origin}/change-email`,
@@ -224,7 +202,6 @@ export class ApiClient {
    * Also sets `displayUsername` so Google-signup accounts stay in sync.
    */
   async updateUsername(data: UsernameChangeRequest): Promise<void> {
-    const { authClient } = await import('@/lib/auth-client');
     const username = data.username.trim();
     const { error } = await authClient.updateUser({
       username,
@@ -240,7 +217,6 @@ export class ApiClient {
    * Prefer BA's `/api/auth/verify-email` link; this covers callback/token handoff cases.
    */
   async confirmEmailChange(data: EmailChangeConfirmRequest): Promise<{ requiresNewEmailVerification: boolean }> {
-    const { authClient } = await import('@/lib/auth-client');
     const { data: result, error } = await authClient.verifyEmail({
       query: { token: data.token },
     });
@@ -253,7 +229,6 @@ export class ApiClient {
   }
 
   async getIntegrationApiKeys(): Promise<IntegrationApiKey[]> {
-    const { authClient } = await import('@/lib/auth-client');
     const { data, error } = await authClient.apiKey.list();
     if (error) throw new ApiError(error.message || 'Failed to list keys', error.code || 'API_KEY');
     const keys = (data?.apiKeys ?? data ?? []) as Array<Record<string, unknown>>;
@@ -276,7 +251,6 @@ export class ApiClient {
   async createIntegrationApiKey(
     data: IntegrationApiKeyCreateRequest,
   ): Promise<IntegrationApiKeyCreateResponse> {
-    const { authClient } = await import('@/lib/auth-client');
     const { data: created, error } = await authClient.apiKey.create({
       name: data.name,
       prefix: 'vq_',
@@ -298,13 +272,11 @@ export class ApiClient {
   }
 
   async revokeIntegrationApiKey(id: string | number, configId = 'default'): Promise<void> {
-    const { authClient } = await import('@/lib/auth-client');
     const { error } = await authClient.apiKey.delete({ keyId: String(id), configId });
     if (error) throw new ApiError(error.message || 'Failed to revoke key', error.code || 'API_KEY');
   }
 
   async getAuthorizedOAuthTokens(): Promise<AuthorizedOAuthToken[]> {
-    const { authClient } = await import('@/lib/auth-client');
     const { data, error } = await authClient.oauth2.getConsents();
     if (error) {
       throw new ApiError(error.message || 'Failed to list connected apps', error.code || 'OAUTH');
@@ -345,7 +317,6 @@ export class ApiClient {
   }
 
   async revokeAuthorizedOAuthToken(id: number | string): Promise<void> {
-    const { authClient } = await import('@/lib/auth-client');
     const { error } = await authClient.oauth2.deleteConsent({ id: String(id) });
     if (error) {
       throw new ApiError(error.message || 'Failed to revoke connected app', error.code || 'OAUTH');
@@ -359,7 +330,7 @@ export class ApiClient {
       : '/chat/messages/stream';
 
     const url = this.buildUrl(endpoint);
-    const fetchStream = () => this.fetchFn(url, {
+    const response = await this.fetchFn(url, {
       method: 'POST',
       credentials: 'include',
       headers: this.jsonHeaders(),
@@ -367,7 +338,6 @@ export class ApiClient {
       signal,
     });
 
-    const response = await fetchStream();
     if (response.status === 401) {
       await this.handleAuthError();
     }
@@ -416,15 +386,11 @@ export class ApiClient {
   async exportChatHistoryCsv(courseId: number): Promise<void> {
     const url = this.buildUrl(`/chat/courses/${courseId}/history.csv`);
 
-    const doFetch = async (): Promise<Response> => {
-      return this.fetchFn(url, {
-        method: 'GET',
-        credentials: 'include',
-        headers: this.jsonHeaders(),
-      });
-    };
-
-    const response = await doFetch();
+    const response = await this.fetchFn(url, {
+      method: 'GET',
+      credentials: 'include',
+      headers: this.jsonHeaders(),
+    });
     if (response.status === 401) {
       await this.handleAuthError();
     }
@@ -435,18 +401,21 @@ export class ApiClient {
     }
 
     const blob = await response.blob();
-    const disposition = response.headers.get('Content-Disposition') || response.headers.get('content-disposition') || '';
+    const disposition = response.headers.get('Content-Disposition') || '';
     const match = disposition.match(/filename="?([^";]+)"?/i);
     const filename = match?.[1] || `chat_history_course_${courseId}.csv`;
 
     const link = document.createElement('a');
     const href = window.URL.createObjectURL(blob);
-    link.href = href;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(href);
+    try {
+      link.href = href;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+    } finally {
+      link.remove();
+      window.URL.revokeObjectURL(href);
+    }
   }
   private async requestUploadUrl(data: {
     filename: string;

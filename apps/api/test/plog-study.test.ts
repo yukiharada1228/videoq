@@ -1,6 +1,6 @@
 import { embedding as testEmbedding } from "./helpers/embedding";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { runStudy, PlogNotReadyError, EphemeralLearnerStateStore } from "../src/lib/plog-study";
+import { runStudy, streamStudy, PlogNotReadyError, EphemeralLearnerStateStore } from "../src/lib/plog-study";
 import type { Bindings } from "../src/types/bindings";
 import { getPlogStudyConfig } from "../src/lib/prompts";
 
@@ -114,39 +114,31 @@ const ENV = {
 function readyGraphRows(): void {
   rowsFor = (sql) => {
     if (sql.includes("FROM pg_attribute")) return [{ type_name: "vector", dimensions: 1536 }];
-    if (sql.includes("FROM plog_build_jobs")) return [{ status: "ready" }];
+    if (sql.includes("FROM plog_build_jobs")) return [{ video_id: 10, status: "ready" }];
     if (sql.includes("FROM plog_concepts")) {
       return [
         {
           id: 1,
           video_id: 10,
           label: "オアゲート",
-          node_type: "object",
           intro_sec: 1,
-          source_quote: "",
           embedding: JSON.stringify(testEmbedding(1, 0)),
           lo_id: 100,
           opening_question: "「オアゲート」について、すでに知っていることは何ですか？",
           hint_ladder: JSON.stringify(["ヒント1", "ヒント2"]),
           misconceptions: JSON.stringify([]),
-          canonical_order: JSON.stringify([]),
-          worked_examples: JSON.stringify([]),
           waypoints: JSON.stringify([{ start_time: "00:00:01", end_time: "00:00:05" }]),
         },
         {
           id: 2,
           video_id: 10,
           label: "ノットゲート",
-          node_type: "object",
           intro_sec: 2,
-          source_quote: "",
           embedding: JSON.stringify(testEmbedding(0, 1)),
           lo_id: 101,
           opening_question: "「ノットゲート」について、すでに知っていることは何ですか？",
           hint_ladder: JSON.stringify(["ヒントA"]),
           misconceptions: JSON.stringify([]),
-          canonical_order: JSON.stringify([]),
-          worked_examples: JSON.stringify([]),
           waypoints: JSON.stringify([]),
         },
       ];
@@ -154,12 +146,10 @@ function readyGraphRows(): void {
     if (sql.includes("FROM plog_edges")) {
       return [
         {
-          id: 1,
           video_id: 10,
           source_id: 1,
           target_id: 2,
           edge_type: "builds_on",
-          quote: "q",
         },
       ];
     }
@@ -498,6 +488,116 @@ describe("runStudy smoke", () => {
   });
 });
 
+describe("study video context reads", () => {
+  const initial = {
+    "1": { concept_id: 1, reached: false, hint_index: 0, last_grade: "partial", active: true },
+  };
+  const params = {
+    videoIds: [10], locale: "ja", studySessionId: "video-context",
+    messages: [{ role: "user", content: "始めます" }],
+  };
+  const transcript = (text: string) => `1\n00:00:01,000 --> 00:00:05,000\n${text}`;
+  const videoReads = () => calls.filter(({ sql }) => sql.includes("FROM videos"));
+  let prompts: string[];
+
+  beforeEach(() => {
+    prompts = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo, init?: RequestInit) => {
+      if (String(input).endsWith("/embeddings")) {
+        return Response.json({ data: [{ index: 0, embedding: testEmbedding(1, 0) }] });
+      }
+      const body = JSON.parse(String(init?.body));
+      if (body.max_tokens !== 256) prompts.push(body.messages[0].content);
+      return Response.json({ choices: [{ message: { content: body.max_tokens === 256
+        ? '{"grade":"partial","reason":"条件を確認してください"}'
+        : "入力に注目してみましょう。" } }] });
+    });
+  });
+
+  it.each([
+    { mode: "opening", query: "始めます", active: false },
+    { mode: "hint", query: "ヒントを教えて", active: true },
+    { mode: "reveal", query: "答えをそのまま教えて", active: true },
+    { mode: "explanation", query: "なぜ出力が変わるの？", active: true },
+    { mode: "answer", query: "片方が1なら出力が1になります", active: true },
+    { mode: "stream", query: "なぜ出力が変わるの？", active: true },
+  ])("uses one video snapshot for citations and evidence during $mode", async ({ mode, query, active }) => {
+    if (active) studySessions.seed(params.studySessionId, initial);
+    const originalRows = rowsFor;
+    let reads = 0;
+    rowsFor = (sql, args) => {
+      if (sql.includes("FROM videos")) {
+        const version = ++reads;
+        return [{ title: `Version ${version}`, transcript: transcript(`Evidence ${version}`) }];
+      }
+      return originalRows(sql, args);
+    };
+    const input = { ...params, messages: [{ role: "user", content: query }] };
+    let result;
+    if (mode === "stream") {
+      const chunks = [];
+      for await (const chunk of streamStudy(ENV, input)) chunks.push(chunk);
+      expect(chunks).toHaveLength(2);
+      expect(chunks[0]).toHaveProperty("text");
+      const final = chunks.at(-1)!;
+      expect(final).toHaveProperty("final");
+      result = "final" in final ? final.final : undefined;
+    } else result = await runStudy(ENV, input);
+    expect(result).toMatchObject({
+      citations: [{ video_id: 10, title: "Version 1", start_time: "00:00:01", end_time: "00:00:05" }],
+      retrievedContexts: ["Evidence 1"],
+    });
+    expect(videoReads()).toHaveLength(1);
+    for (const prompt of prompts) {
+      expect(prompt).toContain("Evidence 1");
+      expect(prompt).not.toContain("Evidence 2");
+    }
+  });
+
+  it("reads fresh evidence for the next turn", async () => {
+    const originalRows = rowsFor;
+    let version = 1;
+    rowsFor = (sql, args) => sql.includes("FROM videos")
+      ? [{ title: `Version ${version}`, transcript: transcript(`Evidence ${version}`) }]
+      : originalRows(sql, args);
+    await runStudy(ENV, params);
+    version = 2;
+    const result = await runStudy(ENV, { ...params, messages: [{ role: "user", content: "ヒントを教えて" }] });
+    expect(result).toMatchObject({ citations: [{ title: "Version 2" }], retrievedContexts: ["Evidence 2"] });
+    expect(videoReads()).toHaveLength(2);
+  });
+
+  it.each([null, "", " \n ", "not SRT", "1\ninvalid --> invalid\ntext"])(
+    "retains the opening and citation when the transcript is unusable (%j)", async value => {
+      const originalRows = rowsFor;
+      rowsFor = (sql, args) => sql.includes("FROM videos")
+        ? [{ title: "Logic Gates", transcript: value }]
+        : originalRows(sql, args);
+      expect(await runStudy(ENV, params)).toMatchObject({
+        content: expect.stringContaining("[1]"), citations: [{ title: "Logic Gates" }], retrievedContexts: [],
+      });
+    },
+  );
+
+  it("keeps the fallback title for a missing video", async () => {
+    const originalRows = rowsFor;
+    rowsFor = (sql, args) => sql.includes("FROM videos") ? [] : originalRows(sql, args);
+    expect(await runStudy(ENV, params)).toMatchObject({ citations: [{ title: "Video 10" }], retrievedContexts: [] });
+  });
+
+  it("propagates a video read failure and releases the session without committing", async () => {
+    const originalRows = rowsFor;
+    rowsFor = (sql, args) => {
+      if (sql.includes("FROM videos")) throw new Error("database unavailable");
+      return originalRows(sql, args);
+    };
+    await expect(runStudy(ENV, params)).rejects.toThrow();
+    expect(studySessions.commits).not.toHaveBeenCalled();
+    expect(studySessions.releases).toHaveBeenCalledTimes(1);
+    expect(prompts).toEqual([]);
+  });
+});
+
 describe("study grading and help requests", () => {
   const initial: SessionState["states"] = {
     "1": { concept_id: 1, reached: false, hint_index: 0, last_grade: "", active: true },
@@ -506,10 +606,11 @@ describe("study grading and help requests", () => {
     messages: [{ role: "assistant", content: prior }, { role: "user", content: reply }],
     videoIds: [10], locale, studySessionId: "grading",
   });
-  const mockModel = (grade: string | Response) => {
+  const mockModel = (grade: string | Response, embedding: number[] | (() => Response) = testEmbedding(1, 0)) => {
     const fetchMock = vi.fn(async (input: RequestInfo, init?: RequestInit) => {
       if (String(input).endsWith("/embeddings")) {
-        return Response.json({ data: [{ index: 0, embedding: testEmbedding(1, 0) }] });
+        return typeof embedding === "function" ? embedding()
+          : Response.json({ data: [{ index: 0, embedding }] });
       }
       const body = JSON.parse(String(init?.body ?? "{}"));
       if (body.max_tokens === 256 && grade instanceof Response) return grade.clone();
@@ -567,6 +668,89 @@ describe("study grading and help requests", () => {
     const prompt = JSON.parse(String(fetchMock.mock.calls[0]![1]?.body)).messages[1].content;
     expect(prompt).toContain("入力が両方0なら出力は？");
     expect(prompt).toContain("Saved opening question:");
+  });
+
+  it.each([
+    { grade: "mastery", reply: "どちらか一方でも入力が1なら出力は1になります", target: 2, requests: 1 },
+    { grade: "partial", reply: "片方が1なら", target: 1, requests: 2 },
+    { grade: "miss", reply: "0", target: 1, requests: 2 },
+  ])("skips embeddings when $grade already fixes the target", async ({ grade, reply, target, requests }) => {
+    const fetchMock = mockModel(JSON.stringify({ grade, reason: "判定理由" }),
+      () => Response.json({ error: { message: "embedding unavailable" } }, { status: 503 }));
+
+    const result = await submit(reply);
+
+    expect(result.content).toContain(`（${grade}）。理由: 判定理由`);
+    expect(fetchMock).toHaveBeenCalledTimes(requests);
+    expect(fetchMock.mock.calls.every(([url]) => !String(url).endsWith("/embeddings"))).toBe(true);
+    const states = studySessions.commits.mock.lastCall![2] as SessionState["states"];
+    expect(states[String(target)]?.active).toBe(true);
+    expect(states["1"]?.reached).toBe(grade === "mastery");
+  });
+
+  it.each([11, 12])("preserves the short-reply routing boundary at %i characters", async (length) => {
+    const originalRows = rowsFor;
+    rowsFor = (sql, args) => originalRows(sql, args).map(row => sql.includes("FROM plog_edges")
+      ? { ...row, edge_type: "presentation_order" } : row);
+    const fetchMock = mockModel('{"grade":"partial","reason":"続けましょう"}', testEmbedding(0, 1));
+
+    await submit("あ".repeat(length));
+
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/embeddings"))).toHaveLength(length < 12 ? 0 : 1);
+    const states = studySessions.commits.mock.lastCall![2] as SessionState["states"];
+    expect(states[length < 12 ? "1" : "2"]?.active).toBe(true);
+  });
+
+  it.each([401, 503])("preserves state when required routing fails with HTTP %i", async (status) => {
+    mockModel('{"grade":"partial","reason":"条件を確認"}',
+      () => Response.json({ error: { message: "unavailable" } }, { status }));
+
+    await expect(submit("偶数と奇数の関係について詳しく知りたいです")).rejects.toMatchObject({
+      name: status === 401 ? "LlmConfigurationError" : "LlmProviderError",
+    });
+
+    expect(studySessions.commits).not.toHaveBeenCalled();
+    expect(studySessions.releases).toHaveBeenCalledTimes(1);
+  });
+
+  it("still redirects a pinned short reply to an unmet prerequisite", async () => {
+    studySessions.seed("grading", {
+      "2": { concept_id: 2, reached: false, hint_index: 0, last_grade: "", active: true },
+    });
+    const fetchMock = mockModel('{"grade":"partial","reason":"条件を確認"}');
+
+    const result = await submit("0");
+
+    expect(result.content).toContain("オアゲート");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const states = studySessions.commits.mock.lastCall![2] as SessionState["states"];
+    expect(states["1"]?.active).toBe(true);
+    expect(states["2"]?.active).toBe(false);
+  });
+
+  it("does not pin a reached concept after a short reply", async () => {
+    studySessions.seed("grading", { "1": { ...initial["1"]!, reached: true } });
+    const fetchMock = mockModel('{"grade":"partial","reason":"条件を確認"}', testEmbedding(0, 1));
+
+    await submit("0");
+
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/embeddings"))).toHaveLength(1);
+    const states = studySessions.commits.mock.lastCall![2] as SessionState["states"];
+    expect(states["1"]?.active).toBe(false);
+    expect(states["2"]?.active).toBe(true);
+  });
+
+  it("validates embedding storage before grading even when routing can be skipped", async () => {
+    const originalRows = rowsFor;
+    rowsFor = (sql, args) => sql.includes("FROM pg_attribute")
+      ? [{ type_name: "vector", dimensions: 1024 }] : originalRows(sql, args);
+    const fetchMock = mockModel('{"grade":"mastery","reason":"correct"}');
+
+    await expect(submit("0")).rejects.toThrow();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(studySessions.commits).not.toHaveBeenCalled();
+    expect(studySessions.releases).toHaveBeenCalledTimes(1);
   });
 
   it.each(["partial", "miss"])("shows %s and reason and advances the hint only up to its last rung", async (grade) => {

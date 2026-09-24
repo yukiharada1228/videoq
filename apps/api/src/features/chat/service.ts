@@ -1,13 +1,12 @@
 import {
   getCourseChatHistory,
-  canExportCourseChatHistory,
   deleteCourseChatLogs,
   getCourseChatAnalytics,
-  getFeedbackLog,
   updateChatLogFeedback,
   shareSlugExists as repositoryShareSlugExists,
   iterateCourseChatHistoryForExport,
 } from "../../repositories/chat-repository";
+import { courseOwnedBy } from "../../repositories/course-repository";
 import { streamChatHistoryCsv } from "../../shared/csv";
 import type { Bindings } from "../../types/bindings";
 
@@ -30,7 +29,7 @@ export async function exportHistoryCsv(
   courseId: number,
   userId: string,
 ) {
-  if (!(await canExportCourseChatHistory(env, courseId, userId))) {
+  if (!(await courseOwnedBy(env, courseId, userId))) {
     return { notFound: true } as const;
   }
   return {
@@ -63,18 +62,11 @@ export async function submitFeedback(
   feedback: "good" | "bad" | null,
   opts: { userId?: string; shareSlug?: string | null },
 ) {
-  const log = await getFeedbackLog(env, logId);
-  if (!log) return { notFound: "Specified chat history not found" } as const;
-
-  if (opts.shareSlug) {
-    if (log.course_share_slug !== opts.shareSlug) {
-      return { forbidden: "Share token mismatch" } as const;
-    }
-  } else if (log.course_user_id !== opts.userId && log.log_user_id !== opts.userId) {
-    return { forbidden: "No permission to access this history" } as const;
+  const updated = await updateChatLogFeedback(env, logId, feedback, opts);
+  if ("notFound" in updated) return { notFound: "Specified chat history not found" } as const;
+  if ("forbidden" in updated) {
+    return { forbidden: opts.shareSlug ? "Share token mismatch" : "No permission to access this history" } as const;
   }
-
-  const updated = await updateChatLogFeedback(env, logId, feedback);
   return {
     ok: true as const,
     chat_log_id: updated.id,

@@ -1,11 +1,10 @@
-import { alias } from "drizzle-orm/pg-core";
 import { and, asc, count, eq, sql } from "drizzle-orm";
 import { TAG_COLORS as TRPC_TAG_COLORS } from "@videoq/trpc";
 import { type Db, withDb } from "../db/pool";
 import { tags, videos, videoTags } from "../db/schema";
 import { toUtcIso } from "../shared/datetime";
 import {
-  TAGS_SUBQUERY,
+  videoTagsJson,
   mapVideoListRow,
   type VideoListItem,
 } from "./video-repository";
@@ -47,15 +46,18 @@ const videoCountSubquery = sql<number>`(SELECT count(*) FROM video_tags vt WHERE
   "video_count",
 );
 
-const tagListSelect = {
+const tagSelect = {
   id: tags.id,
   name: tags.name,
   color: tags.color,
   created_at: tags.createdAt,
-  video_count: videoCountSubquery,
 };
 
-const v = alias(videos, "v");
+const tagListSelect = { ...tagSelect, video_count: videoCountSubquery };
+
+function mapTagListItem(row: TagListItem): TagListItem {
+  return { ...row, id: Number(row.id), created_at: toUtcIso(row.created_at) };
+}
 
 /**
  * タグ一覧（ページ）。Tag.Meta.ordering=["name"] に従い name ASC。
@@ -73,6 +75,8 @@ export async function listTagsPage(
       .select({ c: count() })
       .from(tags)
       .where(eq(tags.userId, userId));
+    const total = Number(countRow.c);
+    if (offset >= total) return { count: total, results: [] };
 
     const rows = await db
       .select(tagListSelect)
@@ -82,14 +86,7 @@ export async function listTagsPage(
       .limit(limit)
       .offset(offset);
 
-    const results: TagListItem[] = rows.map((r) => ({
-      id: Number(r.id),
-      name: r.name,
-      color: r.color,
-      created_at: toUtcIso(r.created_at)!,
-      video_count: r.video_count,
-    }));
-    return { count: Number(countRow.c), results };
+    return { count: total, results: rows.map(mapTagListItem) };
   });
 }
 
@@ -103,7 +100,7 @@ async function readTagDetail(
   userId: string,
 ) {
   const tagRows = await db
-    .select(tagListSelect)
+    .select(tagSelect)
     .from(tags)
     .where(and(eq(tags.id, tagId), eq(tags.userId, userId)))
     .limit(1);
@@ -111,42 +108,23 @@ async function readTagDetail(
 
   const videoRows = await db
     .select({
-      id: v.id,
-      file: v.file,
-      title: v.title,
-      description: v.description,
-      uploaded_at: v.uploadedAt,
-      status: v.status,
-      source_type: v.sourceType,
-      source_url: v.sourceUrl,
-      youtube_video_id: v.youtubeVideoId,
-      tags: sql<string>`${sql.raw(TAGS_SUBQUERY)}`.as("tags"),
+      id: videos.id,
+      file: videos.file,
+      title: videos.title,
+      description: videos.description,
+      uploaded_at: videos.uploadedAt,
+      status: videos.status,
+      source_type: videos.sourceType,
+      source_url: videos.sourceUrl,
+      youtube_video_id: videos.youtubeVideoId,
+      tags: videoTagsJson,
     })
     .from(videoTags)
-    .innerJoin(v, eq(videoTags.videoId, v.id))
+    .innerJoin(videos, eq(videoTags.videoId, videos.id))
     .where(eq(videoTags.tagId, tagId))
     .orderBy(asc(videoTags.id));
 
   return { tag: tagRows[0], videoRows };
-}
-
-async function mapTagDetail(
-  env: Bindings,
-  data: NonNullable<Awaited<ReturnType<typeof readTagDetail>>>,
-): Promise<TagDetail> {
-  const videos = await Promise.all(
-    data.videoRows.map((r) => mapVideoListRow(env, r)),
-  );
-
-  const t = data.tag;
-  return {
-    id: Number(t.id),
-    name: t.name,
-    color: t.color,
-    created_at: toUtcIso(t.created_at)!,
-    video_count: t.video_count,
-    videos,
-  };
 }
 
 export async function getTagDetail(
@@ -155,28 +133,20 @@ export async function getTagDetail(
   userId: string,
 ): Promise<TagDetail | null> {
   const data = await withDb(env, (db) => readTagDetail(db, tagId, userId));
-  return data ? mapTagDetail(env, data) : null;
-}
+  if (!data) return null;
+  const videos = await Promise.all(
+    data.videoRows.map((r) => mapVideoListRow(env, r)),
+  );
 
-/** Membership operations also need an ownership check without loading tag videos. */
-export async function tagExists(
-  env: Bindings,
-  tagId: number,
-  userId: string,
-): Promise<boolean> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .select({ x: sql<number>`1` })
-      .from(tags)
-      .where(and(eq(tags.id, tagId), eq(tags.userId, userId)))
-      .limit(1);
-    return rows.length > 0;
-  });
+  return {
+    ...mapTagListItem({ ...data.tag, video_count: videos.length }),
+    videos,
+  };
 }
 
 /**
- * 所有確認・更新・再取得を1接続のtransactionにまとめ、削除との競合も防ぐ。
- * URL署名は接続を閉じてから行う。
+ * 所有者条件付きのUPDATE RETURNINGで、更新と応答取得を1文で行う。
+ * 更新APIはタグ情報だけを返すため、関連動画の取得とURL署名は不要。
  * name×user 一意違反は現行同様に未処理（pg 23505 → 500）。
  */
 export async function updateTag(
@@ -184,39 +154,32 @@ export async function updateTag(
   tagId: number,
   userId: string,
   fields: { name?: string; color?: string },
-): Promise<{ notFound: true } | { error: string } | { tag: TagDetail }> {
-  const result = await withDb(env, (db) => db.transaction(async (tx) => {
-    const owner = await tx
-      .select({ x: sql<number>`1` })
-      .from(tags)
-      .where(and(eq(tags.id, tagId), eq(tags.userId, userId)))
-      .for("update")
-      .limit(1);
-    if (owner.length === 0) return { notFound: true } as const;
-
-    const set: Partial<{ name: string; color: string }> = {};
-    if (fields.name !== undefined) {
-      const name = normalizeTagName(fields.name);
-      if (name === null) return { error: EMPTY_NAME_MESSAGE } as const;
-      set.name = name;
-    }
-    if (fields.color !== undefined) {
-      if (!isValidTagColor(fields.color)) return { error: INVALID_COLOR_MESSAGE } as const;
-      set.color = fields.color;
+): Promise<{ notFound: true } | { error: string } | { tag: TagListItem }> {
+  const name = fields.name === undefined ? undefined : normalizeTagName(fields.name);
+  const error = name === null ? EMPTY_NAME_MESSAGE
+    : fields.color !== undefined && !isValidTagColor(fields.color) ? INVALID_COLOR_MESSAGE
+      : null;
+  const ownedTag = and(eq(tags.id, tagId), eq(tags.userId, userId));
+  return withDb(env, async (db) => {
+    if (error) {
+      // Preserve notFound precedence without writing valid parts of an invalid patch.
+      const [owner] = await db.select({ id: tags.id }).from(tags).where(ownedTag).limit(1);
+      return owner ? { error } : { notFound: true } as const;
     }
 
-    if (Object.keys(set).length > 0) {
-      await tx
+    const rows = name !== undefined || fields.color !== undefined
+      ? await db
         .update(tags)
-        .set(set)
-        .where(and(eq(tags.id, tagId), eq(tags.userId, userId)));
-    }
-    const data = await readTagDetail(tx, tagId, userId);
-    if (!data) throw new Error("Locked tag disappeared.");
-    return { data };
-  }));
-  if (result.data !== undefined) return { tag: await mapTagDetail(env, result.data) };
-  return result;
+        .set({ name: name ?? undefined, color: fields.color })
+        .where(ownedTag)
+        .returning(tagListSelect)
+      : await db
+        .select(tagListSelect)
+        .from(tags)
+        .where(ownedTag)
+        .limit(1);
+    return rows[0] ? { tag: mapTagListItem(rows[0]) } : { notFound: true } as const;
+  });
 }
 
 /**
@@ -238,44 +201,22 @@ export async function createTag(
         color,
         createdAt: sql`CURRENT_TIMESTAMP`,
       })
-      .returning({
-        id: tags.id,
-        name: tags.name,
-        color: tags.color,
-        created_at: tags.createdAt,
-      });
-    const r = rows[0];
-    return {
-      id: Number(r.id),
-      name: r.name,
-      color: r.color,
-      created_at: toUtcIso(r.created_at)!,
-      video_count: 0,
-    };
+      .returning(tagSelect);
+    return mapTagListItem({ ...rows[0], video_count: 0 });
   });
 }
 
-/** タグ削除（所有権を先に確認し、tx で video_tags → tags を削除）。 */
+/** 所有タグを削除し、video_tags は FK の連鎖削除に任せる。 */
 export async function deleteTag(
   env: Bindings,
   tagId: number,
   userId: string,
 ): Promise<{ notFound: true } | { ok: true }> {
   return withDb(env, async (db) => {
-    return db.transaction(async (tx) => {
-      const owner = await tx
-        .select({ id: tags.id })
-        .from(tags)
-        .where(and(eq(tags.id, tagId), eq(tags.userId, userId)))
-        .for("update")
-        .limit(1);
-      if (owner.length === 0) return { notFound: true } as const;
-
-      await tx.delete(videoTags).where(eq(videoTags.tagId, tagId));
-      await tx
-        .delete(tags)
-        .where(and(eq(tags.id, tagId), eq(tags.userId, userId)));
-      return { ok: true } as const;
-    });
+    const rows = await db
+      .delete(tags)
+      .where(and(eq(tags.id, tagId), eq(tags.userId, userId)))
+      .returning({ id: tags.id });
+    return rows.length > 0 ? { ok: true } as const : { notFound: true } as const;
   });
 }

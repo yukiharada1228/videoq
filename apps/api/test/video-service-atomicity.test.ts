@@ -1,15 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const videoRepository = vi.hoisted(() => ({
-  getVideoStatus: vi.fn(),
+  getVideoUploadState: vi.fn(),
   getVideoFileKey: vi.fn(),
-  transitionVideoStatus: vi.fn(),
+  confirmUploadedVideo: vi.fn(),
   getVideoDetail: vi.fn(),
+  mapVideoDetailRow: vi.fn(),
   reserveAndCreatePendingVideo: vi.fn(),
   deleteVideoCascade: vi.fn(),
-}));
-const quotaRepository = vi.hoisted(() => ({
-  getMaxUploadSizeMb: vi.fn(),
+  updateVideo: vi.fn(),
 }));
 const media = vi.hoisted(() => ({
   isS3Storage: vi.fn(),
@@ -22,7 +21,6 @@ const externalTasks = vi.hoisted(() => ({
 }));
 
 vi.mock("../src/repositories/video-repository", () => videoRepository);
-vi.mock("../src/repositories/quota-repository", () => quotaRepository);
 vi.mock("../src/integrations/media", () => media);
 vi.mock("../src/lib/external-tasks", () => ({
   processExternalTaskById: externalTasks.processExternalTaskById,
@@ -32,17 +30,20 @@ vi.mock("../src/repositories/membership-repository", () => ({
 }));
 
 import {
+  patchUserVideo,
+  putUserVideo,
   confirmVideoUpload,
   createVideoFromMultipart,
+  deleteUserVideo,
   requestPresignedUpload,
 } from "../src/features/videos/service";
+import { videoOwnedBy } from "../src/repositories/membership-repository";
 
 const env = { USE_S3_STORAGE: "true" } as never;
 const userId = "00000000-0000-4000-8000-000000000005";
 
 beforeEach(() => {
   vi.clearAllMocks();
-  quotaRepository.getMaxUploadSizeMb.mockResolvedValue(100);
   videoRepository.reserveAndCreatePendingVideo.mockResolvedValue({
     ok: true,
     videoId: 42,
@@ -54,6 +55,7 @@ beforeEach(() => {
   media.putMediaObject.mockResolvedValue(undefined);
   media.getR2ObjectSize.mockResolvedValue(4096);
   videoRepository.getVideoDetail.mockResolvedValue({ id: 42 });
+  videoRepository.mapVideoDetailRow.mockResolvedValue({ id: 42 });
   videoRepository.getVideoFileKey.mockResolvedValue({
     found: true,
     fileKey: "videos/5/video_1700000000000_4096.mp4",
@@ -63,12 +65,74 @@ beforeEach(() => {
     cleanupTaskId: 77,
   });
   externalTasks.processExternalTaskById.mockResolvedValue(true);
+  videoRepository.updateVideo.mockResolvedValue({ row: { id: 42 }, reindexTaskId: null });
+  vi.mocked(videoOwnedBy).mockResolvedValue(true);
 });
 
 describe("動画処理の原子性", () => {
+  it.each([
+    ["patch", patchUserVideo],
+    ["put", putUserVideo],
+  ] as const)("%s metadata updates rely on the atomic ownership check", async (_name, update) => {
+    const fields = { title: "Edited", description: "Updated description" };
+    expect(await update(env, 42, userId, fields)).toEqual({ video: { id: 42 } });
+    expect(videoOwnedBy).not.toHaveBeenCalled();
+    expect(videoRepository.updateVideo).toHaveBeenCalledExactlyOnceWith(env, 42, userId, fields);
+    expect(videoRepository.getVideoDetail).not.toHaveBeenCalled();
+    expect(externalTasks.processExternalTaskById).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["patch", patchUserVideo],
+    ["put", putUserVideo],
+  ] as const)("%s does not reload missing or foreign videos", async (_name, update) => {
+    videoRepository.updateVideo.mockResolvedValue({ notFound: true });
+    expect(await update(env, 42, userId, { title: "Edited", description: "" })).toEqual({ notFound: true });
+    expect(videoOwnedBy).not.toHaveBeenCalled();
+    expect(videoRepository.getVideoDetail).not.toHaveBeenCalled();
+  });
+
+  it("keeps subtitle validation errors behind ownership checks", async () => {
+    vi.mocked(videoOwnedBy).mockResolvedValueOnce(false);
+    expect(await patchUserVideo(env, 42, userId, { transcript: "invalid" })).toEqual({ notFound: true });
+    expect(await patchUserVideo(env, 42, userId, { transcript: "invalid" })).toHaveProperty("fieldError.transcript");
+    expect(videoRepository.updateVideo).not.toHaveBeenCalled();
+  });
+
+  it("dispatches a committed subtitle reindex and returns the saved video without reloading", async () => {
+    videoRepository.updateVideo.mockResolvedValue({ row: { id: 42 }, reindexTaskId: 79 });
+    expect(await patchUserVideo(env, 42, userId, { transcript: "" })).toEqual({ video: { id: 42 } });
+    expect(videoOwnedBy).not.toHaveBeenCalled();
+    expect(externalTasks.processExternalTaskById).toHaveBeenCalledExactlyOnceWith(env, 79);
+    expect(videoRepository.updateVideo.mock.invocationCallOrder[0]).toBeLessThan(externalTasks.processExternalTaskById.mock.invocationCallOrder[0]);
+    expect(videoRepository.getVideoDetail).not.toHaveBeenCalled();
+    expect(externalTasks.processExternalTaskById.mock.invocationCallOrder[0]).toBeLessThan(videoRepository.mapVideoDetailRow.mock.invocationCallOrder[0]);
+  });
+
+  it("動画削除は予約済み容量を使い、不要なサイズ確認をしない", async () => {
+    media.getR2ObjectSize.mockResolvedValue(8192);
+    await expect(deleteUserVideo(env, 42, userId)).resolves.toEqual({ ok: true });
+    expect(media.getR2ObjectSize).not.toHaveBeenCalled();
+    expect(videoRepository.deleteVideoCascade).toHaveBeenCalledWith(env, 42, userId, {
+      fallbackStorageBytes: 4096,
+    });
+    expect(externalTasks.processExternalTaskById).toHaveBeenCalledWith(env, 77);
+  });
+
+  it.each([false, true])("旧形式の動画削除はサイズ取得失敗=%sでも削除を続ける", async failure => {
+    const fileKey = "videos/5/video_1700000000000.mp4";
+    videoRepository.getVideoFileKey.mockResolvedValue({ found: true, fileKey });
+    if (failure) media.getR2ObjectSize.mockRejectedValue(new Error("Storage unavailable"));
+    await expect(deleteUserVideo(env, 42, userId)).resolves.toEqual({ ok: true });
+    expect(media.getR2ObjectSize).toHaveBeenCalledExactlyOnceWith(env, fileKey);
+    expect(videoRepository.deleteVideoCascade).toHaveBeenCalledWith(env, 42, userId, {
+      fallbackStorageBytes: failure ? null : 4096,
+    });
+  });
+
   it("uploading→pending の遷移に負けた確認リクエストはジョブを投入しない", async () => {
-    videoRepository.getVideoStatus.mockResolvedValue({ found: true, status: "uploading" });
-    videoRepository.transitionVideoStatus.mockResolvedValue(false);
+    videoRepository.getVideoUploadState.mockResolvedValue({ found: true, status: "uploading", fileKey: "videos/5/video_1700000000000_4096.mp4" });
+    videoRepository.confirmUploadedVideo.mockResolvedValue(false);
 
     const result = await confirmVideoUpload(env, 42, userId);
 
@@ -77,10 +141,10 @@ describe("動画処理の原子性", () => {
   });
 
   it("並行確認に負けても相手がpendingへ進めていれば成功として再利用する", async () => {
-    videoRepository.getVideoStatus
-      .mockResolvedValueOnce({ found: true, status: "uploading" })
-      .mockResolvedValueOnce({ found: true, status: "pending" });
-    videoRepository.transitionVideoStatus.mockResolvedValue(false);
+    videoRepository.getVideoUploadState
+      .mockResolvedValueOnce({ found: true, status: "uploading", fileKey: "videos/5/video_1700000000000_4096.mp4" })
+      .mockResolvedValueOnce({ found: true, status: "pending", fileKey: "videos/5/video_1700000000000_4096.mp4" });
+    videoRepository.confirmUploadedVideo.mockResolvedValue(false);
 
     await expect(confirmVideoUpload(env, 42, userId)).resolves.toMatchObject({
       video: { id: 42 },
@@ -90,8 +154,8 @@ describe("動画処理の原子性", () => {
   });
 
   it("uploading→pending と同じtransactionで保存した配送taskを実行する", async () => {
-    videoRepository.getVideoStatus.mockResolvedValue({ found: true, status: "uploading" });
-    videoRepository.transitionVideoStatus.mockResolvedValue({
+    videoRepository.getVideoUploadState.mockResolvedValue({ found: true, status: "uploading", fileKey: "videos/5/video_1700000000000_4096.mp4" });
+    videoRepository.confirmUploadedVideo.mockResolvedValue({
       videoId: 42,
       taskId: 79,
       jobId: "job-79",
@@ -100,11 +164,14 @@ describe("動画処理の原子性", () => {
     await expect(confirmVideoUpload(env, 42, userId)).resolves.toMatchObject({
       video: { id: 42 },
     });
+    expect(videoRepository.confirmUploadedVideo).toHaveBeenCalledExactlyOnceWith(
+      env, 42, userId, "videos/5/video_1700000000000_4096.mp4",
+    );
     expect(externalTasks.processExternalTaskById).toHaveBeenCalledWith(env, 79);
   });
 
   it("アップロード実サイズが予約と違えば削除した勝者だけが予約を返却する", async () => {
-    videoRepository.getVideoStatus.mockResolvedValue({ found: true, status: "uploading" });
+    videoRepository.getVideoUploadState.mockResolvedValue({ found: true, status: "uploading", fileKey: "videos/5/video_1700000000000_4096.mp4" });
     media.getR2ObjectSize.mockResolvedValue(8192);
 
     const result = await confirmVideoUpload(env, 42, userId);
@@ -114,21 +181,21 @@ describe("動画処理の原子性", () => {
       env,
       42,
       userId,
-      { expectedStatus: "uploading", fallbackStorageBytes: 4096 },
+      { expectedStatus: "uploading", expectedFileKey: "videos/5/video_1700000000000_4096.mp4", fallbackStorageBytes: 4096 },
     );
     expect(externalTasks.processExternalTaskById).toHaveBeenCalledWith(env, 77);
-    expect(videoRepository.transitionVideoStatus).not.toHaveBeenCalled();
+    expect(videoRepository.confirmUploadedVideo).not.toHaveBeenCalled();
     expect(externalTasks.processExternalTaskById).toHaveBeenCalledTimes(1);
   });
 
   it("オブジェクト未着では確定もジョブ投入もしない", async () => {
-    videoRepository.getVideoStatus.mockResolvedValue({ found: true, status: "uploading" });
+    videoRepository.getVideoUploadState.mockResolvedValue({ found: true, status: "uploading", fileKey: "videos/5/video_1700000000000_4096.mp4" });
     media.getR2ObjectSize.mockResolvedValue(null);
 
     const result = await confirmVideoUpload(env, 42, userId);
 
     expect(result).toMatchObject({ badState: true });
-    expect(videoRepository.transitionVideoStatus).not.toHaveBeenCalled();
+    expect(videoRepository.confirmUploadedVideo).not.toHaveBeenCalled();
     expect(externalTasks.processExternalTaskById).not.toHaveBeenCalled();
   });
 
@@ -166,7 +233,7 @@ describe("動画処理の原子性", () => {
       env,
       42,
       userId,
-      { expectedStatus: "uploading", fallbackStorageBytes: 4096 },
+      { expectedStatus: "uploading", expectedFileKey: "videos/5/video_1700000000000_4096.mp4", fallbackStorageBytes: 4096 },
     );
     expect(media.presignR2Put).toHaveBeenCalledWith(
       env,
@@ -231,8 +298,20 @@ describe("動画処理の原子性", () => {
       env,
       42,
       userId,
-      { expectedStatus: "uploading", fallbackStorageBytes: 4 },
+      { expectedStatus: "uploading", expectedFileKey: media.putMediaObject.mock.calls[0][1], fallbackStorageBytes: 4 },
     );
     expect(externalTasks.processExternalTaskById).toHaveBeenCalledWith(env, 77);
+  });
+
+  it("multipart confirmation is scoped to the owner and the stored file", async () => {
+    media.isS3Storage.mockReturnValue(false);
+    videoRepository.confirmUploadedVideo.mockResolvedValue({ taskId: 79 });
+    const file = new File(["abcd"], "clip.mp4", { type: "video/mp4" });
+    await expect(createVideoFromMultipart(env, userId, { file, title: "clip", description: "" }))
+      .resolves.toMatchObject({ ok: true, video: { id: 42 } });
+    expect(videoRepository.confirmUploadedVideo).toHaveBeenCalledExactlyOnceWith(
+      env, 42, userId, media.putMediaObject.mock.calls[0][1],
+    );
+    expect(externalTasks.processExternalTaskById).toHaveBeenCalledExactlyOnceWith(env, 79);
   });
 });

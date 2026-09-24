@@ -1,7 +1,8 @@
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { getCourseWithMembers } from "../src/repositories/chat-repository";
-import { courseInfoTool } from "../src/lib/rag-course-info";
+import { getCourseInfo } from "../src/repositories/course-repository";
+import { courseInfoTool, COURSE_DESCRIPTION_LIMIT, VIDEO_DESCRIPTION_LIMIT } from "../src/lib/rag-course-info";
 import { openSceneSearch } from "../src/repositories/vector-repository";
 import { embedding as testEmbedding } from "./helpers/embedding";
 import type { Bindings } from "../src/types/bindings";
@@ -47,8 +48,6 @@ describeWithPostgres("course metadata and scene selection on PostgreSQL without 
         "order" integer NOT NULL DEFAULT 0, added_at timestamptz NOT NULL DEFAULT now()
       );
       CREATE TABLE video_course_memberships (course_id integer NOT NULL, user_id text NOT NULL);
-      CREATE TABLE tags (id integer PRIMARY KEY, name text, color text);
-      CREATE TABLE video_tags (video_id integer, tag_id integer);
       CREATE TABLE scene_embeddings (
         langchain_id uuid PRIMARY KEY, content text NOT NULL, embedding vector(1536),
         user_id text NOT NULL, video_id bigint NOT NULL, langchain_metadata json NOT NULL
@@ -113,6 +112,13 @@ describeWithPostgres("course metadata and scene selection on PostgreSQL without 
     expect(await getCourseWithMembers(env, access)).toBeNull();
   });
 
+  it.each(["member", "outsider"])("does not accept %s as the course owner", async (ownerUserId) => {
+    expect(await getCourseInfo(env, 3, ownerUserId, {
+      videoLimit: 20, videoOffset: 0,
+      courseDescriptionLimit: COURSE_DESCRIPTION_LIMIT, videoDescriptionLimit: VIDEO_DESCRIPTION_LIMIT,
+    })).toBeNull();
+  });
+
   it("retrieves a course with no videos, description, embeddings or PLOG", async () => {
     const tool = courseInfoTool(env, { courseId: 5, ownerUserId: "owner" }, () => {});
     expect(JSON.parse(await tool.invoke({}))).toMatchObject({
@@ -121,14 +127,60 @@ describeWithPostgres("course metadata and scene selection on PostgreSQL without 
     });
   });
 
+  it.each([
+    { name: "empty", text: (_limit: number) => "" },
+    { name: "short Unicode", text: (_limit: number) => "日本語 e\u0301 😀" },
+    { name: "below the limit", text: (limit: number) => "あ".repeat(limit - 1) },
+    { name: "exactly the limit", text: (limit: number) => "あ".repeat(limit) },
+    { name: "above the limit", text: (limit: number) => "あ".repeat(limit + 1) },
+    { name: "exact UTF-16 limit", text: (limit: number) => "😀".repeat(limit / 2) },
+    { name: "extra surrogate pair", text: (limit: number) => "😀".repeat(limit / 2 + 1) },
+    { name: "split surrogate pair", text: (limit: number) => "a".repeat(limit - 1) + "😀tail" },
+    { name: "split combining sequence", text: (limit: number) => "a".repeat(limit - 1) + "e\u0301tail" },
+    { name: "large Unicode text", text: (_limit: number) => "説明😀".repeat(100_000) },
+  ])("bounds database replies while preserving $name descriptions", async ({ text }) => {
+    const courseDescription = text(COURSE_DESCRIPTION_LIMIT);
+    const videoDescription = text(VIDEO_DESCRIPTION_LIMIT);
+    await databaseClient.query("UPDATE video_courses SET description = $1 WHERE id = 3", [courseDescription]);
+    await databaseClient.query("UPDATE videos SET description = $1 WHERE id = 60", [videoDescription]);
+    const query = vi.spyOn(pg.Client.prototype, "query");
+    try {
+      const contexts: string[] = [];
+      const tool = courseInfoTool(env, { courseId: 3, ownerUserId: "owner" }, s => contexts.push(s));
+      const result = JSON.parse(await tool.invoke({ video_limit: 1 }));
+      expect(result).toMatchObject({
+        description: courseDescription.slice(0, COURSE_DESCRIPTION_LIMIT),
+        description_truncated: courseDescription.length > COURSE_DESCRIPTION_LIMIT,
+        videos: [{
+          description: videoDescription.slice(0, VIDEO_DESCRIPTION_LIMIT),
+          description_truncated: videoDescription.length > VIDEO_DESCRIPTION_LIMIT,
+        }],
+      });
+      expect(contexts).toEqual([`Course metadata (not subtitle scenes): ${JSON.stringify(result)}`]);
+      expect(query).toHaveBeenCalledTimes(2);
+      for (const [index, limit] of [COURSE_DESCRIPTION_LIMIT, VIDEO_DESCRIPTION_LIMIT].entries()) {
+        // Inspect the actual PostgreSQL response, before application-side slicing.
+        const reply = await query.mock.results[index]!.value as pg.QueryResult;
+        const descriptionIndex = reply.fields.findIndex(field => field.name === "description");
+        expect(descriptionIndex).toBeGreaterThanOrEqual(0);
+        const description = reply.rows[0][descriptionIndex] as string;
+        expect([...description].length).toBeLessThanOrEqual(limit + 1);
+      }
+    } finally {
+      query.mockRestore();
+      await databaseClient.query("UPDATE video_courses SET description = 'Registered course description' WHERE id = 3");
+      await databaseClient.query("UPDATE videos SET description = 'First listed video' WHERE id = 60");
+    }
+  });
+
   it("intersects selection with the fixed course/owner scope and preserves default whole-course search", async () => {
     const search = await openSceneSearch(env, { userId: "owner", videoIds: [60, 61] });
     try {
       expect((await search.search("scene")).map((hit) => hit.content)).toEqual(["allowed scene", "selected scene"]);
-      expect((await search.search("scene", undefined, [61])).map((hit) => hit.content)).toEqual(["selected scene"]);
-      expect((await search.search("scene", undefined, [60, 60])).map((hit) => hit.content)).toEqual(["allowed scene"]);
+      expect((await search.search("scene", [61])).map((hit) => hit.content)).toEqual(["selected scene"]);
+      expect((await search.search("scene", [60, 60])).map((hit) => hit.content)).toEqual(["allowed scene"]);
       for (const ids of [[], [62], [99], [60, 99]]) {
-        await expect(search.search("scene", undefined, ids)).rejects.toThrow("subset");
+        await expect(search.search("scene", ids)).rejects.toThrow("subset");
       }
     } finally {
       await search.close();

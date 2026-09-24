@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { filterTranscriptSegments, isSrtFormat, parseSrtTranscript } from '../srt';
 
 describe('parseSrtTranscript', () => {
-  it('parses SRT blocks into seekable transcript segments', () => {
+  it.each(['\n', '\r\n', '\r'])('parses SRT blocks with %j newlines into seekable segments', (newline) => {
     const srt = [
       '1',
       '00:00:01,250 --> 00:00:03,000',
@@ -12,12 +12,17 @@ describe('parseSrtTranscript', () => {
       '2',
       '00:01:02.500 --> 00:01:04.000',
       'Second segment',
-    ].join('\n');
+    ].join(newline);
 
     expect(parseSrtTranscript(srt)).toEqual([
       { timestamp: '00:00:01', seconds: 1, text: 'Hello world' },
       { timestamp: '00:01:02', seconds: 62, text: 'Second segment' },
     ]);
+  });
+
+  it('preserves numeric caption text after the timing line', () => {
+    const srt = '1\n00:00:01,000 --> 00:00:03,000\n2026\n\n2\n00:00:04,000 --> 00:00:05,000\nThe answer is\n42';
+    expect(parseSrtTranscript(srt).map((segment) => segment.text)).toEqual(['2026', 'The answer is 42']);
   });
 
   it('ignores malformed or empty caption blocks', () => {

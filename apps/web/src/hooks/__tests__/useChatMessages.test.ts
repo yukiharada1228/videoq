@@ -98,7 +98,7 @@ describe('useChatMessages streaming', () => {
     await act(async () => { resume(); await sending! })
     expect(result.current.messages.at(-1)).toMatchObject({
       content: '回答', chatLogId: 12,
-      progress: { phase: 'complete', searches: [{ query: 'ドモルガンの定理', status: 'complete', resultCount: 20 }] },
+      progress: { phase: 'complete', searches: [{ query: 'ドモルガンの定理', status: 'complete' }] },
     })
   })
 
@@ -318,16 +318,21 @@ describe('useChatMessages streaming', () => {
     expect(result.current.messages.slice(0, 2)).toEqual(prior)
   })
 
-  it('retains the preceding Study question within the 12-message history limit', async () => {
+  it('retains the latest nonempty Study messages without reading discarded history', async () => {
     vi.mocked(apiClient.chatStream).mockImplementation(makeStreamMock([]))
     const { result } = renderHook(() => useChatMessages({ courseId: 5, mode: 'study' }))
     const prior = Array.from({ length: 8 }, (_, index) => [
       { role: 'user' as const, content: `answer ${index}` },
       { role: 'assistant' as const, content: `question ${index}` },
     ]).flat()
+    const readOldContent = vi.fn(() => 'older answer')
     const reply = { role: 'user' as const, content: '0' }
     act(() => {
-      result.current.setMessages([{ role: 'assistant', content: 'greeting' }, ...prior])
+      result.current.setMessages([
+        { role: 'assistant', content: 'greeting' },
+        { role: 'user', get content() { return readOldContent() } },
+        ...prior.flatMap(message => [message, { role: 'assistant' as const, content: ' \n ' }]),
+      ])
       result.current.setInput(reply.content)
     })
     await act(async () => { await result.current.handleSend() })
@@ -339,6 +344,7 @@ describe('useChatMessages streaming', () => {
       }),
       expect.any(AbortSignal),
     )
+    expect(readOldContent).not.toHaveBeenCalled()
   })
 
   it('guards against rapid consecutive sends before loading state rerenders', async () => {
@@ -398,7 +404,7 @@ describe('useChatMessages streaming', () => {
       shareSlug: 'shared',
     })
     expect(result.current.messages[0].feedback).toBeNull()
-    expect(result.current.feedbackUpdatingId).toBeNull()
+    expect(result.current.feedbackUpdatingIds.size).toBe(0)
   })
 
   it('aborts an in-flight request and ignores late events after unmount', async () => {

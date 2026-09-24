@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { parse } from "dotenv";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CourseDetail } from "../src/repositories/course-repository";
-import { getCourseDetail } from "../src/repositories/course-repository";
+import { getCourseInfo } from "../src/repositories/course-repository";
 import type { SceneHit } from "../src/repositories/vector-repository";
 import type { Bindings } from "../src/types/bindings";
 
@@ -17,16 +17,15 @@ const env = Object.fromEntries(
   ]),
 ) as unknown as Bindings;
 
-const search = vi.fn(async (_query: string, _k?: number, videoIds?: readonly number[]) =>
+const search = vi.fn(async (_query: string, videoIds?: readonly number[]) =>
   SCENES.filter((scene) => !videoIds || videoIds.includes(scene.videoId)),
 );
 const close = vi.fn(async () => {});
 const open = vi.fn(async () => ({ search, close }));
 vi.mock("../src/repositories/vector-repository", () => ({
-  RETRIEVER_K: 20,
   openSceneSearch: (...args: Parameters<typeof open>) => open(...args),
 }));
-vi.mock("../src/repositories/course-repository", () => ({ getCourseDetail: vi.fn() }));
+vi.mock("../src/repositories/course-repository", () => ({ getCourseInfo: vi.fn() }));
 
 const { runRag, streamRag } = await import("../src/lib/rag");
 
@@ -79,7 +78,7 @@ describe.skipIf(!enabled).each([false, true])("実モデルの検索選択（str
       description: "論理ゲートと順序回路を学ぶ講座。",
       videos: COURSE.videos.map((video, i) => ({ ...video, description: SCENES[i].content })),
     } : COURSE;
-    vi.mocked(getCourseDetail).mockImplementation(async (_env, _id, _owner, options) => ({
+    vi.mocked(getCourseInfo).mockImplementation(async (_env, _id, _owner, options) => ({
       ...course,
       videos: course.videos.slice(options?.videoOffset ?? 0,
         (options?.videoOffset ?? 0) + (options?.videoLimit ?? 20)),
@@ -87,7 +86,7 @@ describe.skipIf(!enabled).each([false, true])("実モデルの検索選択（str
     const params = {
       messages: [{ role: "user", content: query }],
       ownerUserId: "00000000-0000-4000-8000-000000000005",
-      courseId: 3, videoIds: [60, 61], locale, courseContext: null,
+      courseId: 3, videoIds: [60, 61], locale,
     };
     const result = stream ? await (async () => {
       let content = "";
@@ -100,7 +99,7 @@ describe.skipIf(!enabled).each([false, true])("実モデルの検索選択（str
 
     expect(result.content.trim()).not.toBe("");
     if (kind === "metadata") {
-      expect(getCourseDetail).toHaveBeenCalled();
+      expect(getCourseInfo).toHaveBeenCalled();
       expect(open).not.toHaveBeenCalled();
       expect(result.citations).toBeNull();
       expect(result.content).not.toMatch(/\[\d+\]/);
@@ -111,9 +110,9 @@ describe.skipIf(!enabled).each([false, true])("実モデルの検索選択（str
       expect(markers.length).toBeGreaterThan(0);
       expect(markers.every((id) => id > 0 && id <= result.citations!.length)).toBe(true);
       expect(close).toHaveBeenCalledOnce();
-      if (kind === "lecture" || kind === "mixed") expect(getCourseDetail).toHaveBeenCalled();
+      if (kind === "lecture" || kind === "mixed") expect(getCourseInfo).toHaveBeenCalled();
       if (kind === "lecture") {
-        expect(search.mock.calls.map((args) => args[2])).toEqual(search.mock.calls.map(() => [60]));
+        expect(search.mock.calls.map((args) => args[1])).toEqual(search.mock.calls.map(() => [60]));
       }
     }
   }, 180_000);

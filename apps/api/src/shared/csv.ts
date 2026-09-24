@@ -19,10 +19,6 @@ export function csvRow(fields: readonly string[]): string {
   return `${fields.map(csvField).join(",")}\r\n`;
 }
 
-export function csvDocument(rows: readonly (readonly string[])[]): string {
-  return rows.map(csvRow).join("");
-}
-
 const CHAT_HISTORY_HEADER = csvRow([
   "created_at",
   "asked_by_user_id",
@@ -47,13 +43,6 @@ export function chatHistoryCsvRow(row: ChatHistoryExportRow): string {
     JSON.stringify(row.citations),
     row.feedback ?? "",
   ]);
-}
-
-/** RFC 4180 chat-history export with native JSON in the citations field. */
-export function buildChatHistoryCsv(
-  rows: readonly ChatHistoryExportRow[],
-): string {
-  return CHAT_HISTORY_HEADER + rows.map(chatHistoryCsvRow).join("");
 }
 
 /** Encode one CSV row per pull so history size never determines Worker memory use. */

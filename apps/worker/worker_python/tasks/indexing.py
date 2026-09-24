@@ -10,7 +10,7 @@ from worker_python.db import db_connection
 from worker_python.pipeline import vector_index
 from worker_python.sqs_enqueue import child_job_id, enqueue_job
 from worker_python.video_sql import get_video_for_task, transition_video_status
-from worker_python.video_status import VideoStatus, plan_indexing_failure, plan_indexing_success
+from worker_python.video_status import VideoStatus, plan_indexing_success
 
 logger = logging.getLogger(__name__)
 
@@ -77,16 +77,3 @@ def index_video_transcript(video_id: int, *, job_id: str | None = None) -> None:
         build_plog_artifacts(video_id)
 
     logger.info("Successfully indexed video %d", video_id)
-
-
-def mark_indexing_failed(video_id: int, reason: str = "") -> None:
-    """Transition INDEXING → ERROR after retries are exhausted."""
-    from_status, to_status = plan_indexing_failure()
-    with db_connection() as conn:
-        transition_video_status(
-            conn, video_id, from_status, to_status, error_message=reason
-        )
-        conn.commit()
-    logger.error(
-        "Marked video %d as ERROR after indexing failure: %s", video_id, reason
-    )

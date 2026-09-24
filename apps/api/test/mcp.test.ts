@@ -504,6 +504,32 @@ describe("MCP JSON-RPC", () => {
     expect(result.content[0].text).toBe("Video not found");
   });
 
+  it("returns transcript metadata without content for a default get_video request", async () => {
+    rowsFor = (sql) => {
+      if (sql.includes("UPDATE api_keys")) return apiKeyRow();
+      if (sql.includes('FROM "videos"')) {
+        return [{
+          id: 42, file: null, title: "Lecture", description: "",
+          uploaded_at: "2026-09-01T00:00:00.000Z", status: "completed",
+          source_type: "uploaded", source_url: "", youtube_video_id: "", tags: "[]",
+          error_message: "", transcript_total_chars: 100_000,
+        }];
+      }
+      return [];
+    };
+
+    const response = await post(jsonrpc("tools/call", { name: "get_video", arguments: { video_id: 42 } }));
+    const result = (await response.json()).result;
+
+    expect(result.isError).toBe(false);
+    expect(result.structuredContent.video).toMatchObject({
+      id: 42, transcript_available: true, transcript_total_chars: 100_000,
+    });
+    for (const field of ["transcript", "file", "user"]) {
+      expect(result.structuredContent.video).not.toHaveProperty(field);
+    }
+  });
+
   it("returns only a bounded transcript chunk and omits signed file/user fields", async () => {
     rowsFor = (sql) => {
       if (sql.includes("UPDATE api_keys")) return apiKeyRow();

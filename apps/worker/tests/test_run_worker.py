@@ -1,0 +1,51 @@
+from unittest.mock import MagicMock
+
+import pytest
+
+from scripts import run_worker
+
+
+@pytest.mark.parametrize("handler_crashes", [False, True])
+def test_poller_reuses_one_client_and_closes_it_on_shutdown(
+    monkeypatch, handler_crashes
+):
+    monkeypatch.setenv("SQS_QUEUE_URL", "https://example.invalid/test")
+    client = MagicMock()
+    client.receive_message.side_effect = [
+        {
+            "Messages": [
+                {"MessageId": "failed", "Body": "first", "ReceiptHandle": "receipt-1"},
+                {"MessageId": "ok", "Body": "second", "ReceiptHandle": "receipt-2"},
+            ]
+        },
+        KeyboardInterrupt(),
+    ]
+    create = MagicMock(return_value=client)
+    monkeypatch.setattr(run_worker, "create_sqs_client", create)
+    handler = MagicMock(
+        return_value={"batchItemFailures": [{"itemIdentifier": "failed"}]}
+    )
+    if handler_crashes:
+        handler.side_effect = RuntimeError("Worker failed")
+    monkeypatch.setattr(run_worker, "handler", handler)
+
+    assert run_worker.main() == 0
+    create.assert_called_once()
+    assert client.receive_message.call_count == 2
+    handler.assert_called_once_with(
+        {
+            "Records": [
+                {"messageId": "failed", "body": "first"},
+                {"messageId": "ok", "body": "second"},
+            ]
+        },
+        None,
+    )
+    if handler_crashes:
+        client.delete_message.assert_not_called()
+    else:
+        client.delete_message.assert_called_once_with(
+            QueueUrl="https://example.invalid/test",
+            ReceiptHandle="receipt-2",
+        )
+    client.close.assert_called_once()

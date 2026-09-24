@@ -1,7 +1,7 @@
 import { fn, mocked } from 'storybook/test';
 import type { StoryContext } from '@storybook/react-vite';
 import { http, HttpResponse } from 'msw';
-import { fetchAuthSession, useAuthSession } from '@/lib/authSession';
+import { useAuthSession } from '@/lib/authSession';
 import { appQueryClient } from '@/lib/queryClient';
 import { authFixtures } from '../fixtures/auth';
 import { disposeMockRequests, failure, resetMockRequests, success, trpcHandler, trpcQuery } from './network';
@@ -18,7 +18,6 @@ export async function prepareStoryEnvironment({ parameters, msw }: StoryContext)
     isRefetching: false,
     refetch: fn(async () => undefined),
   });
-  mocked(fetchAuthSession).mockResolvedValue({ data: auth.session, error: null });
   const procedures = parameters.api?.trpc ?? [];
   if (procedures.some(({ path }) => path === 'account.me')) {
     throw new Error('Set parameters.api.auth to keep session and account.me consistent.');
@@ -34,6 +33,5 @@ export async function prepareStoryEnvironment({ parameters, msw }: StoryContext)
     disposeMockRequests();
     msw.resetHandlers();
     mocked(useAuthSession).mockReset();
-    mocked(fetchAuthSession).mockReset();
   };
 }

@@ -7,7 +7,8 @@ import logging
 import math
 import subprocess
 import tempfile
-from collections.abc import Callable
+from collections.abc import Callable, Generator
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -58,14 +59,8 @@ def run_transcription(
     else:
         raw_srt = _transcribe_uploaded(video.file_key, reserve_processing)
 
-    original_count = sum(
-        1 for line in raw_srt.split("\n") if line.strip().isdigit()
-    )
     logger.info("Applying Otsu scene splitting for video %d", video.id)
-    scene_srt, _ = apply_scene_splitting(
-        raw_srt, original_segment_count=original_count or None
-    )
-    return scene_srt
+    return apply_scene_splitting(raw_srt)
 
 
 def _transcribe_uploaded(
@@ -131,16 +126,19 @@ def _whisper_transcribe(audio_path: Path) -> list[dict[str, Any]]:
         client = OpenAI(api_key=api_key)
         model = "whisper-1"
 
-    # Whisper API soft limit ~25MB; split longer audio into ~10min chunks if needed.
-    size_mb = audio_path.stat().st_size / (1024 * 1024)
-    if size_mb <= 24:
-        return _whisper_file(client, audio_path, model, offset=0.0)
+    with client:
+        # Whisper API soft limit ~25MB; split longer audio into ~10min chunks if needed.
+        size_mb = audio_path.stat().st_size / (1024 * 1024)
+        if size_mb <= 24:
+            return _whisper_file(client, audio_path, model, offset=0.0)
 
-    chunks = _split_audio_chunks(audio_path, chunk_seconds=600)
-    all_segments: list[dict[str, Any]] = []
-    for offset, chunk_path in chunks:
-        all_segments.extend(_whisper_file(client, chunk_path, model, offset=offset))
-    return all_segments
+        all_segments: list[dict[str, Any]] = []
+        with closing(_split_audio_chunks(audio_path, chunk_seconds=600)) as chunks:
+            for offset, chunk_path in chunks:
+                all_segments.extend(
+                    _whisper_file(client, chunk_path, model, offset=offset)
+                )
+        return all_segments
 
 
 def _whisper_file(
@@ -157,23 +155,25 @@ def _whisper_file(
     out: list[dict[str, Any]] = []
     for seg in segments:
         if isinstance(seg, dict):
-            start = float(seg.get("start", 0)) + offset
-            end = float(seg.get("end", start)) + offset
+            start = float(seg.get("start", 0))
+            end = float(seg.get("end", start))
             text = str(seg.get("text", ""))
         else:
-            start = float(getattr(seg, "start", 0)) + offset
-            end = float(getattr(seg, "end", start)) + offset
+            start = float(getattr(seg, "start", 0))
+            end = float(getattr(seg, "end", start))
             text = str(getattr(seg, "text", ""))
-        out.append({"start": start, "end": end, "text": text})
+        out.append({"start": start + offset, "end": end + offset, "text": text})
     if not out and getattr(result, "text", None):
         # Fallback when backend returns text only.
         out.append({"start": offset, "end": offset + 1.0, "text": str(result.text)})
     return out
 
 
-def _split_audio_chunks(audio_path: Path, chunk_seconds: int) -> list[tuple[float, Path]]:
+def _split_audio_chunks(
+    audio_path: Path, chunk_seconds: int
+) -> Generator[tuple[float, Path], None, None]:
+    """Keep one temporary chunk until it is consumed or transcription fails."""
     duration = _ffprobe_duration(audio_path)
-    chunks: list[tuple[float, Path]] = []
     start = 0.0
     idx = 0
     while start < duration:
@@ -191,13 +191,15 @@ def _split_audio_chunks(audio_path: Path, chunk_seconds: int) -> list[tuple[floa
             "copy",
             str(out),
         ]
-        proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
-        if proc.returncode != 0:
-            raise RuntimeError(f"ffmpeg chunk split failed: {proc.stderr[-500:]}")
-        chunks.append((start, out))
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            if proc.returncode != 0:
+                raise RuntimeError(f"ffmpeg chunk split failed: {proc.stderr[-500:]}")
+            yield start, out
+        finally:
+            out.unlink(missing_ok=True)
         start += chunk_seconds
         idx += 1
-    return chunks
 
 
 def _ffprobe_duration(path: Path) -> float:
@@ -276,7 +278,9 @@ def _fetch_youtube_transcript(youtube_video_id: str, api_key: str) -> list[dict]
             with urlopen(req, timeout=timeout) as resp:
                 payload = json.loads(resp.read().decode("utf-8"))
         except HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")[:300]
+            with exc:
+                # At most four UTF-8 bytes per displayed character.
+                detail = exc.read(1200).decode("utf-8", errors="replace")[:300]
             last_error = RuntimeError(f"SearchAPI HTTP {exc.code}: {detail}")
             continue
         except URLError as exc:

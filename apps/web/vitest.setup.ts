@@ -79,10 +79,12 @@ async function trpcTestFetch(
 vi.mock('@/lib/trpc', async () => {
   const actual = await vi.importActual<typeof import('./src/lib/trpc')>('@/lib/trpc')
   const { createTRPCOptionsProxy } = await import('@trpc/tanstack-react-query')
+  const client = actual.createAppTrpcClient({ fetchFn: trpcTestFetch })
   return {
     ...actual,
+    appTrpcClient: client,
     trpc: createTRPCOptionsProxy({
-      client: actual.createAppTrpcClient({ fetchFn: trpcTestFetch }),
+      client,
       queryClient: () => testQueryClient,
     }),
   }
@@ -105,7 +107,6 @@ vi.mock('@/lib/authSession', () => ({
     error: null,
     refetch: authSessionState.refetch,
   }),
-  fetchAuthSession: vi.fn(async () => ({ data: authSessionState.data, error: null })),
 }));
 
 vi.mock('@testing-library/react', async () => {
@@ -341,10 +342,6 @@ vi.mock('@/lib/i18n', () => ({
   setPreferredLocale: vi.fn(),
   Link: ({ children, to, href, ...props }: { children?: React.ReactNode; to?: unknown; href?: string } & Record<string, unknown>) =>
     React.createElement('a', { href: href || (typeof to === 'string' ? to : ''), ...props }, children),
-  i18nConfig: {
-    locales: ['ja', 'en'],
-    defaultLocale: 'ja',
-  },
 }))
 
 // Helper function for getVideoUrl within the mock

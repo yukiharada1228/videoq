@@ -77,16 +77,20 @@ export function planCodeFromLookupKey(lookupKey: string): PlanCode | null {
 
 const ACTIVE_STATUSES = new Set(["active", "trialing", "past_due"]);
 
+export function isUsableSubscriptionStatus(status: string | null): boolean {
+  return status !== null && ACTIVE_STATUSES.has(status);
+}
+
 export function entitlementsForSubscription(
-  planCode: PlanCode,
+  planCode: string,
   status: string | null,
 ): PlanEntitlements {
-  if (status && ACTIVE_STATUSES.has(status) && planCode !== "free") {
+  if (isUsableSubscriptionStatus(status) && isPaidPlan(planCode)) {
     return PLAN_CATALOG[planCode].entitlements;
   }
   return PLAN_CATALOG.free.entitlements;
 }
 
-export function isPaidPlan(planCode: PlanCode): boolean {
+export function isPaidPlan(planCode: string): planCode is "basic" | "pro" {
   return planCode === "basic" || planCode === "pro";
 }

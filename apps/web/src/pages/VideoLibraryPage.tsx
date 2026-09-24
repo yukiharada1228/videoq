@@ -1,12 +1,10 @@
 import { useMemo, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useQueryClient } from '@tanstack/react-query';
 import { useVideos, IN_PROGRESS_STATUSES, type VideosOrdering } from '@/hooks/useVideos';
 import { useVideoStatusCounts } from '@/hooks/useVideoStats';
-import { invalidateAfterVideoUpload } from '@/lib/cacheInvalidation';
 import { VideoUploadModal } from '@/components/video/VideoUploadModal';
-import { VideoCard } from '@/components/video/VideoCard';
+import { VideoList } from '@/components/video/VideoList';
 import { TagManagementModal } from '@/components/video/TagManagementModal';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
@@ -25,7 +23,6 @@ import {
 } from '@/components/ui/select';
 import { Divider } from '@/components/ui/divider';
 import { ChipLabel } from '@/components/ui/chip-label';
-import { MenuList, MenuListItem } from '@/components/ui/menu-list';
 import { resolveTagChipColor } from '@/lib/tagColors';
 import { cn } from '@/lib/digital-agency/cn';
 import { Plus, Search, Tag } from 'lucide-react';
@@ -60,22 +57,15 @@ function toApiStatusFilter(statusFilter: StatusFilter): string | undefined {
 }
 
 export default function VideoLibraryPage() {
-  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedTagIds = useMemo(
     () => parseTagIds(searchParams.get('tags')),
     [searchParams],
   );
-  const statusFilter = useMemo(
-    () => parseStatusFilter(searchParams.get('status')),
-    [searchParams],
-  );
+  const statusFilter = parseStatusFilter(searchParams.get('status'));
   const searchQuery = searchParams.get('q') ?? '';
-  const sortOrder = useMemo(
-    () => parseSortOrder(searchParams.get('ordering')),
-    [searchParams],
-  );
-  const apiStatusFilter = useMemo(() => toApiStatusFilter(statusFilter), [statusFilter]);
+  const sortOrder = parseSortOrder(searchParams.get('ordering'));
+  const apiStatusFilter = toApiStatusFilter(statusFilter);
 
   const updateSearchParams = useCallback(
     (updates: Record<string, string | null>) => {
@@ -110,13 +100,10 @@ export default function VideoLibraryPage() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isTagManagementOpen, setIsTagManagementOpen] = useState(false);
   const { t } = useTranslation();
-  const { user, isLoading: userLoading, refetch: refetchUser } = useAuth();
+  const { user, isLoading: userLoading } = useAuth();
   const { tags } = useTags();
 
-  const shouldOpenModalFromQuery = useMemo(
-    () => searchParams?.get('upload') === 'true',
-    [searchParams],
-  );
+  const shouldOpenModalFromQuery = searchParams.get('upload') === 'true';
 
   const handleTagToggle = useCallback((tagId: number) => {
     const nextTagIds = selectedTagIds.includes(tagId)
@@ -127,11 +114,6 @@ export default function VideoLibraryPage() {
     });
   }, [selectedTagIds, updateSearchParams]);
 
-  const handleUploadSuccess = useCallback(() => {
-    void refetchUser();
-    void invalidateAfterVideoUpload(queryClient);
-  }, [refetchUser, queryClient]);
-
   const handleCloseModal = () => {
     setIsUploadModalOpen(false);
     if (shouldOpenModalFromQuery) {
@@ -139,7 +121,7 @@ export default function VideoLibraryPage() {
     }
   };
 
-  const isUploadDisabled = useMemo(() => !user || userLoading, [user, userLoading]);
+  const isUploadDisabled = !user || userLoading;
 
   const statsItems = [
     { label: t('videos.list.statsRow.all'), value: stats.total },
@@ -296,20 +278,7 @@ export default function VideoLibraryPage() {
         <ErrorMessage message={error} />
       ) : (
         <>
-          {videos.length === 0 ? (
-            <div className="border-t border-solid-gray-420 py-12 text-solid-gray-700">
-              <p className="text-std-16B-170">{t('videos.list.noVideos')}</p>
-              <p className="mt-1 text-std-16N-170 text-solid-gray-600">{t('videos.list.noVideosHint')}</p>
-            </div>
-          ) : (
-            <MenuList className="border-t border-solid-gray-420">
-              {videos.map((video) => (
-                <MenuListItem key={video.id} className="border-b border-solid-gray-200">
-                  <VideoCard video={video} />
-                </MenuListItem>
-              ))}
-            </MenuList>
-          )}
+          <VideoList videos={videos} />
 
           <div ref={sentinelRef} data-testid="infinite-scroll-sentinel" />
 
@@ -324,7 +293,6 @@ export default function VideoLibraryPage() {
       <VideoUploadModal
         isOpen={shouldOpenModalFromQuery || isUploadModalOpen}
         onClose={handleCloseModal}
-        onUploadSuccess={handleUploadSuccess}
       />
 
       {/* Mounted only while open, like CourseParticipantsDialog: otherwise the

@@ -266,12 +266,12 @@ describe("tRPC Hono adapter", () => {
     );
   });
 
-  it("routes tag updates through the shared procedure contract", async () => {
+  it.each(["tags.update", "tags.replace"])("routes %s through the shared procedure contract", async (procedure) => {
     const updatedTag = { ...sampleTag, name: "Updated", color: "green" };
     tagService.updateUserTag.mockResolvedValue({ tag: updatedTag });
 
     const response = await createApp().request(
-      "/api/trpc/tags.update",
+      `/api/trpc/${procedure}`,
       {
         method: "POST",
         headers: {

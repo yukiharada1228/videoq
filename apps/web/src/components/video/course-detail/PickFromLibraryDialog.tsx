@@ -40,7 +40,7 @@ export function PickFromLibraryDialog({
 }: PickFromLibraryDialogProps) {
   const { t } = useTranslation();
   const toast = useToast();
-  const { tags } = useTags();
+  const { tags } = useTags({ enabled: isOpen });
 
   const [addError, setAddError] = useState<string | null>(null);
   const errorRef = useRef<HTMLDivElement>(null);
@@ -73,7 +73,18 @@ export function PickFromLibraryDialog({
     return () => clearTimeout(handler);
   }, [videoSearchInput]);
 
-  const availableVideosQuery = useAddableVideosQuery({
+  const {
+    videos: availableVideos,
+    isLoading: isLoadingVideos,
+    error: videosError,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+    isFetchNextPageError,
+    isFetching,
+    refetch: refetchVideos,
+    sentinelRef,
+  } = useAddableVideosQuery({
     isOpen,
     courseId,
     course,
@@ -83,8 +94,6 @@ export function PickFromLibraryDialog({
     tagIds: selectedTagIds,
   });
 
-  const availableVideos = availableVideosQuery.data ?? [];
-  const isLoadingVideos = availableVideosQuery.isLoading || availableVideosQuery.isFetching;
   const addVideosMutation = useAddVideosToCourseMutation(courseId, onVideosAdded);
 
   const handleAddVideos = async () => {
@@ -189,9 +198,7 @@ export function PickFromLibraryDialog({
                 />
                 {isLoadingVideos ? (
                   <div className="flex justify-center py-8"><LoadingSpinner /></div>
-                ) : availableVideosQuery.isError ? (
-                  <ErrorMessage message={availableVideosQuery.error.message || t('videos.courseDetail.loadVideosError')} />
-                ) : availableVideos.length === 0 ? (
+                ) : !videosError && availableVideos.length === 0 && !hasNextPage ? (
                   <div className="flex flex-col items-center gap-3 py-8 text-center">
                     <p className="text-std-16N-170 text-solid-gray-600">
                       {t('videos.courseDetail.noAvailableVideos')}
@@ -223,6 +230,24 @@ export function PickFromLibraryDialog({
                         </Label>
                       </div>
                     ))}
+                    {hasNextPage && !addVideosMutation.isPending && (
+                      <div ref={sentinelRef} className="h-1" aria-hidden="true" />
+                    )}
+                    {videosError && (
+                      <ErrorMessage message={videosError} />
+                    )}
+                    {(hasNextPage || videosError) && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isFetching}
+                        aria-busy={isFetching}
+                        onClick={() => videosError && !isFetchNextPageError ? refetchVideos() : fetchNextPage()}
+                      >
+                        {isFetchingNextPage ? <><InlineSpinner />{t('videos.list.loadingMore')}</> :
+                          t(videosError ? 'videos.courseDetail.retryLoadVideos' : 'videos.courseDetail.loadMoreVideos')}
+                      </Button>
+                    )}
                   </div>
                 )}
               </fieldset>
@@ -245,7 +270,9 @@ export function PickFromLibraryDialog({
           </DialogActions>
         </DialogContent>}
       </Dialog>
-      <TagManagementModal isOpen={isTagManagementOpen} onClose={() => setIsTagManagementOpen(false)} />
+      {isTagManagementOpen && (
+        <TagManagementModal isOpen={isTagManagementOpen} onClose={() => setIsTagManagementOpen(false)} />
+      )}
     </>
   );
 }

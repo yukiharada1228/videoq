@@ -27,9 +27,8 @@ import {
   LogOut,
   X,
 } from 'lucide-react';
-import { apiClient, type VideoCourse } from '@/lib/api';
+import { apiClient, type VideoCourse, type VideoInCourse } from '@/lib/api';
 import { buildYoutubeEmbedSrc } from '@/lib/video/embed';
-import type { SelectedVideo } from '@/lib/utils/videoConversion';
 import { Link } from '@/lib/i18n';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { DashboardButton } from '@/components/dashboard/DashboardButton';
@@ -71,11 +70,12 @@ interface VideoCourseDetailViewProps {
   courseId: number | null;
   isLoading: boolean;
   error: string | null;
-  selectedVideo: SelectedVideo | null;
+  selectedVideo: VideoInCourse | null;
   deleteError: string | null;
   isDeleting: boolean;
   /** Id of the video whose removal is in flight, or null when idle. */
   removingVideoId: number | null;
+  isReordering: boolean;
   isEditing: boolean;
   editedName: string;
   editedDescription: string;
@@ -91,6 +91,7 @@ interface VideoCourseDetailViewProps {
   shareSlug: string;
   shareLink: string | null;
   isGeneratingLink: boolean;
+  isDeletingLink: boolean;
   isCopied: boolean;
   onMobileTabChange: (tab: MobileTab) => void;
   onOpenAddModalChange: (open: boolean) => void;
@@ -143,11 +144,9 @@ function GroupEditDialog({
     },
   });
 
-  if (!isOpen) return null;
-
   return (
     <Dialog {...dialog.dialogProps} width="min(32rem, 92vw)">
-      <DialogContent>
+      {isOpen && <DialogContent>
         <DialogHeader>
           <DialogHeading {...dialog.headingProps}>{t('videos.courseDetail.editTitle')}</DialogHeading>
         </DialogHeader>
@@ -202,7 +201,7 @@ function GroupEditDialog({
             </Button>
           </div>
         </DialogActions>
-      </DialogContent>
+      </DialogContent>}
     </Dialog>
   );
 }
@@ -219,11 +218,12 @@ function GroupVideoList({
   onMobileTabChange,
   onRemoveVideo,
   removingVideoId,
+  isMutationPending,
   onDragEnd,
   canManage,
 }: {
   course: VideoCourse;
-  selectedVideo: SelectedVideo | null;
+  selectedVideo: VideoInCourse | null;
   deleteError: string | null;
   isMobile: boolean;
   mobileTab: MobileTab;
@@ -233,6 +233,7 @@ function GroupVideoList({
   onMobileTabChange: (tab: MobileTab) => void;
   onRemoveVideo: (videoId: number) => Promise<void> | void;
   removingVideoId: number | null;
+  isMutationPending: boolean;
   onDragEnd: (event: DragEndEvent) => Promise<void> | void;
   canManage: boolean;
 }) {
@@ -259,6 +260,7 @@ function GroupVideoList({
               variant="outline"
               size="sm"
               onClick={onOpenAdd}
+              disabled={isMutationPending}
               aria-label={t('videos.courseDetail.pickFromLibrary')}
               className="ml-auto min-w-9 shrink-0 px-2.5"
             >
@@ -289,7 +291,7 @@ function GroupVideoList({
                     }}
                     onRemove={onRemoveVideo}
                     isRemoving={removingVideoId === video.id}
-                    isRemoveBlocked={removingVideoId !== null}
+                    isMutationPending={isMutationPending}
                   />
                 ))}
               </SortableContext>
@@ -304,7 +306,7 @@ function GroupVideoList({
                   <p className="text-dns-14N-130 text-solid-gray-600">
                     {t('videos.courseDetail.videoListEmptyHint')}
                   </p>
-                  <Button type="button" variant="outline" size="sm" onClick={onOpenAdd}>
+                  <Button type="button" variant="outline" size="sm" onClick={onOpenAdd} disabled={isMutationPending}>
                     {t('videos.courseDetail.pickFromLibrary')}
                   </Button>
                 </>
@@ -327,7 +329,7 @@ function GroupPlayerPanel({
   canManage,
 }: {
   courseId: number | null;
-  selectedVideo: SelectedVideo | null;
+  selectedVideo: VideoInCourse | null;
   mobileTab: MobileTab;
   videoRef: RefObject<HTMLVideoElement | null>;
   youtubeStartSeconds: number | null;
@@ -445,6 +447,7 @@ export function VideoCourseDetailView({
   shareSlug,
   shareLink,
   isGeneratingLink,
+  isDeletingLink,
   isCopied,
   onMobileTabChange,
   onOpenAddModalChange,
@@ -459,6 +462,7 @@ export function VideoCourseDetailView({
   onVideoSelect,
   onRemoveVideo,
   removingVideoId,
+  isReordering,
   onDragEnd,
   onVideoCanPlay,
   onVideoPlayFromTime,
@@ -469,6 +473,7 @@ export function VideoCourseDetailView({
   const { t } = useTranslation();
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const canManage = course?.access_role !== 'member';
+  const isMutationPending = isDeleting || isReordering || removingVideoId !== null;
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -523,6 +528,7 @@ export function VideoCourseDetailView({
               shareSlug={shareSlug}
               shareLink={shareLink}
               isGeneratingLink={isGeneratingLink}
+              isDeletingLink={isDeletingLink}
               isCopied={isCopied}
               onOpenChange={setIsShareDialogOpen}
               onGenerate={onGenerateShareLink}
@@ -578,6 +584,7 @@ export function VideoCourseDetailView({
                     variant="outline"
                     size="sm"
                     onClick={onStartEditing}
+                    disabled={isMutationPending}
                     title={t('videos.courseDetail.editTitle')}
                     aria-label={t('videos.courseDetail.editTitle')}
                     className="min-w-9 px-2.5 sm:min-w-20 sm:px-3"
@@ -590,7 +597,7 @@ export function VideoCourseDetailView({
                     variant="text"
                     size="sm"
                     onClick={onDeleteCourse}
-                    disabled={isDeleting}
+                    disabled={isMutationPending}
                     title={t('videos.courseDetail.delete')}
                     aria-label={t('videos.courseDetail.delete')}
                     className="min-w-9 px-2.5 text-error-1 hover:bg-red-50 sm:min-w-20 sm:px-3"
@@ -632,6 +639,7 @@ export function VideoCourseDetailView({
                 onMobileTabChange={onMobileTabChange}
                 onRemoveVideo={onRemoveVideo}
                 removingVideoId={removingVideoId}
+                isMutationPending={isMutationPending}
                 onDragEnd={onDragEnd}
                 canManage={canManage}
               />

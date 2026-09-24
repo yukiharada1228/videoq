@@ -1,7 +1,10 @@
-import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { act, render, renderHook, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { useQueryClient } from '@tanstack/react-query'
 import userEvent from '@testing-library/user-event'
+import type { DndContextProps, DragEndEvent } from '@dnd-kit/core'
 import VideoCourseDetailPage from '../VideoCourseDetailPage'
 import { useI18nNavigate } from '@/lib/i18n'
+import { trpc } from '@/lib/trpc'
 
 const courseTrpcMocks = vi.hoisted(() => ({
   get: vi.fn(),
@@ -9,9 +12,23 @@ const courseTrpcMocks = vi.hoisted(() => ({
   update: vi.fn(),
   delete: vi.fn(),
   removeVideo: vi.fn(),
+  reorderVideos: vi.fn(),
   participants: vi.fn(),
   leave: vi.fn(),
 }))
+
+const dragEvents = vi.hoisted(() => ({ onDragEnd: undefined as DndContextProps['onDragEnd'] }))
+vi.mock('@dnd-kit/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@dnd-kit/core')>()
+  return {
+    ...actual,
+    // Keep real sortable controls, while allowing drag completion without jsdom layout.
+    DndContext: (props: DndContextProps) => {
+      dragEvents.onDragEnd = props.onDragEnd
+      return <actual.DndContext {...props} />
+    },
+  }
+})
 
 const mockCourse = {
   id: 1,
@@ -63,6 +80,7 @@ beforeEach(() => {
   globalThis.__setTrpcHandler('courses.update', courseTrpcMocks.update)
   globalThis.__setTrpcHandler('courses.delete', courseTrpcMocks.delete)
   globalThis.__setTrpcHandler('memberships.removeVideo', courseTrpcMocks.removeVideo)
+  globalThis.__setTrpcHandler('memberships.reorderVideos', courseTrpcMocks.reorderVideos)
   globalThis.__setTrpcHandler('courseMemberships.participants', courseTrpcMocks.participants)
   globalThis.__setTrpcHandler('courseMemberships.leave', courseTrpcMocks.leave)
 })
@@ -279,7 +297,7 @@ describe('VideoCourseDetailPage', () => {
     })
   })
 
-  it('blocks drag reordering while a removal is in flight', async () => {
+  it('blocks reordering, editing, adding and deleting the course while a video removal is in flight', async () => {
     let resolveRemove: () => void = () => {}
     courseTrpcMocks.removeVideo.mockImplementation(
       () => new Promise<void>((resolve) => {
@@ -307,6 +325,12 @@ describe('VideoCourseDetailPage', () => {
         expect(handle).toHaveAttribute('aria-disabled', 'true')
       }
     })
+    const controls = [
+      screen.getByRole('button', { name: 'videos.courseDetail.pickFromLibrary' }),
+      screen.getByRole('button', { name: 'videos.courseDetail.editTitle' }),
+      screen.getByRole('button', { name: 'videos.courseDetail.delete' }),
+    ]
+    for (const control of controls) expect(control).toBeDisabled()
 
     resolveRemove()
 
@@ -314,6 +338,7 @@ describe('VideoCourseDetailPage', () => {
       for (const handle of handles()) {
         expect(handle).toHaveAttribute('aria-disabled', 'false')
       }
+      for (const control of controls) expect(control).toBeEnabled()
     })
   })
 
@@ -349,7 +374,51 @@ describe('VideoCourseDetailPage', () => {
     resolveRemove()
   })
 
-  it('re-enables the remove buttons when the removal fails', async () => {
+  it('blocks conflicting edits while saving video order, then re-enables them without a detail refetch', async () => {
+    let finishSave!: () => void
+    courseTrpcMocks.reorderVideos.mockImplementation(() => new Promise<void>((resolve) => { finishSave = resolve }))
+    const { container } = render(<VideoCourseDetailPage />)
+    await screen.findByRole('button', { name: 'videos.courses.dragHandle: Video 1' })
+    const handles = () => Array.from(container.querySelectorAll('[aria-roledescription="sortable"]'))
+    const editButtons = () => [
+      ...handles(),
+      ...screen.getAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' }),
+      screen.getByRole('button', { name: 'videos.courseDetail.pickFromLibrary' }),
+      screen.getByRole('button', { name: 'videos.courseDetail.editTitle' }),
+      screen.getByRole('button', { name: 'videos.courseDetail.delete' }),
+    ]
+    act(() => { dragEvents.onDragEnd?.({ active: { id: 1 }, over: { id: 2 } } as DragEndEvent) })
+    await waitFor(() => expect(courseTrpcMocks.reorderVideos).toHaveBeenCalledExactlyOnceWith({ courseId: 1, videoIds: [2, 1] }))
+    for (const button of editButtons()) expect(button).toBeDisabled()
+    for (const handle of handles()) expect(handle).toHaveAttribute('aria-disabled', 'true')
+    expect(handles().map((handle) => handle.getAttribute('aria-label'))).toEqual([
+      'videos.courses.dragHandle: Video 2', 'videos.courses.dragHandle: Video 1',
+    ])
+    act(() => { dragEvents.onDragEnd?.({ active: { id: 2 }, over: { id: 1 } } as DragEndEvent) })
+    expect(courseTrpcMocks.reorderVideos).toHaveBeenCalledTimes(1)
+    // Watching a video is still allowed while order is being saved.
+    fireEvent.click(screen.getByRole('button', { name: /Video 2/, pressed: false }))
+    expect(container.querySelector('video')?.getAttribute('src')).toBe('video2.mp4')
+    act(() => { finishSave() })
+    await waitFor(() => { for (const button of editButtons()) expect(button).toBeEnabled() })
+    expect(courseTrpcMocks.get).toHaveBeenCalledTimes(1)
+  })
+
+  it('restores the server order after a failed drag save and allows another drag', async () => {
+    courseTrpcMocks.reorderVideos.mockRejectedValue(new Error('Order failed'))
+    const { container } = render(<VideoCourseDetailPage />)
+    await screen.findByRole('button', { name: 'videos.courses.dragHandle: Video 1' })
+    act(() => { dragEvents.onDragEnd?.({ active: { id: 1 }, over: { id: 2 } } as DragEndEvent) })
+    expect(await screen.findByText('Order failed')).toBeInTheDocument()
+    expect(courseTrpcMocks.get).toHaveBeenCalledTimes(2)
+    const handles = Array.from(container.querySelectorAll('[aria-roledescription="sortable"]'))
+    expect(handles.map((handle) => handle.getAttribute('aria-label'))).toEqual([
+      'videos.courses.dragHandle: Video 1', 'videos.courses.dragHandle: Video 2',
+    ])
+    for (const handle of handles) expect(handle).toBeEnabled()
+  })
+
+  it('reports removal failures and re-enables the remove buttons', async () => {
     courseTrpcMocks.removeVideo.mockRejectedValue(new Error('boom'))
 
     render(<VideoCourseDetailPage />)
@@ -369,6 +438,7 @@ describe('VideoCourseDetailPage', () => {
         expect(button).not.toBeDisabled()
       }
     })
+    expect(await screen.findByRole('alert')).toHaveTextContent('boom')
   })
 
   it('keeps one chat panel mounted across responsive layouts and mobile tabs', async () => {
@@ -514,6 +584,61 @@ describe('VideoCourseDetailPage', () => {
 
 })
 
+describe('VideoCourseDetailPage - Metadata edits', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    courseTrpcMocks.get.mockResolvedValue(mockCourse)
+  })
+
+  it.each(['name', 'description'] as const)('saves only the edited %s while following background changes to the other field', async field => {
+    const other = field === 'name' ? 'description' : 'name'
+    const { result } = renderHook(() => useQueryClient())
+    render(<VideoCourseDetailPage />)
+    fireEvent.click(await screen.findByTitle('videos.courseDetail.editTitle'))
+    const dialog = within(await screen.findByRole('dialog'))
+    fireEvent.change(dialog.getByDisplayValue(mockCourse[field]), { target: { value: 'My edit' } })
+
+    const current = { ...mockCourse, [field]: 'Concurrent edit', [other]: 'Updated elsewhere' }
+    act(() => { result.current.setQueryData(trpc.courses.get.queryKey({ id: 1 }), current) })
+    await waitFor(() => expect(dialog.getByDisplayValue('Updated elsewhere')).toBeInTheDocument())
+    expect(dialog.getByDisplayValue('My edit')).toBeInTheDocument()
+    courseTrpcMocks.update.mockResolvedValue({ ...current, [field]: 'My edit' })
+    fireEvent.click(dialog.getByRole('button', { name: 'common.actions.save' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(courseTrpcMocks.update).toHaveBeenCalledExactlyOnceWith({ id: 1, [field]: 'My edit' })
+    expect(result.current.getQueryData(trpc.courses.get.queryKey({ id: 1 }))).toEqual({ ...current, [field]: 'My edit' })
+    expect(courseTrpcMocks.get).toHaveBeenCalledTimes(1)
+  })
+
+  it('discards cancelled edits, skips unchanged saves, and allows explicitly clearing a description', async () => {
+    const { result } = renderHook(() => useQueryClient())
+    render(<VideoCourseDetailPage />)
+    const edit = await screen.findByTitle('videos.courseDetail.editTitle')
+    fireEvent.click(edit)
+    let dialog = within(await screen.findByRole('dialog'))
+    fireEvent.change(dialog.getByDisplayValue(mockCourse.name), { target: { value: 'Cancelled edit' } })
+    fireEvent.click(dialog.getByRole('button', { name: 'common.actions.cancel' }))
+    const current = { ...mockCourse, name: 'Updated elsewhere' }
+    act(() => { result.current.setQueryData(trpc.courses.get.queryKey({ id: 1 }), current) })
+    fireEvent.click(edit)
+    dialog = within(await screen.findByRole('dialog'))
+    await waitFor(() => expect(dialog.getByDisplayValue(current.name)).toBeInTheDocument())
+    fireEvent.click(dialog.getByRole('button', { name: 'common.actions.save' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(courseTrpcMocks.update).not.toHaveBeenCalled()
+
+    fireEvent.click(edit)
+    dialog = within(await screen.findByRole('dialog'))
+    fireEvent.change(dialog.getByDisplayValue(current.description), { target: { value: '' } })
+    courseTrpcMocks.update.mockResolvedValue({ ...current, description: '' })
+    fireEvent.click(dialog.getByRole('button', { name: 'common.actions.save' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(courseTrpcMocks.update).toHaveBeenCalledExactlyOnceWith({ id: 1, description: '' })
+    expect(courseTrpcMocks.get).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('VideoCourseDetailPage - Edit modal error', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -534,7 +659,8 @@ describe('VideoCourseDetailPage - Edit modal error', () => {
 
     const dialog = await screen.findByRole('dialog')
 
-    // Try to save → error appears
+    // Change the name and save → error appears.
+    fireEvent.change(within(dialog).getByDisplayValue('Test Course'), { target: { value: 'Updated Course' } })
     fireEvent.click(within(dialog).getByText('common.actions.save'))
     await waitFor(() => {
       expect(within(dialog).getByText('Update failed')).toBeInTheDocument()
@@ -600,7 +726,9 @@ describe('VideoCourseDetailPage - Delete', () => {
       })
   })
 
-  it('should call deleteVideoCourse when delete is confirmed', async () => {
+  it('deletes the confirmed course while blocking competing edits until it finishes', async () => {
+    let finishDelete!: () => void
+    courseTrpcMocks.delete.mockImplementation(() => new Promise<void>((resolve) => { finishDelete = resolve }))
     render(<VideoCourseDetailPage />)
 
     await waitFor(() => {
@@ -613,6 +741,19 @@ describe('VideoCourseDetailPage - Delete', () => {
     await waitFor(() => {
       expect(courseTrpcMocks.delete).toHaveBeenCalledWith({ id: 1 })
     })
+    const controls = [
+      screen.getByRole('button', { name: 'videos.courseDetail.pickFromLibrary' }),
+      screen.getByRole('button', { name: 'videos.courseDetail.editTitle' }),
+      screen.getByRole('button', { name: 'videos.courseDetail.delete' }),
+      ...screen.getAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' }),
+      screen.getByRole('button', { name: 'videos.courses.dragHandle: Video 1' }),
+      screen.getByRole('button', { name: 'videos.courses.dragHandle: Video 2' }),
+    ]
+    for (const control of controls) expect(control).toBeDisabled()
+    act(() => { dragEvents.onDragEnd?.({ active: { id: 1 }, over: { id: 2 } } as DragEndEvent) })
+    expect(courseTrpcMocks.reorderVideos).not.toHaveBeenCalled()
+    act(() => { finishDelete() })
+    await waitFor(() => expect(useI18nNavigate()).toHaveBeenCalledWith('/videos/courses'))
   })
 
   it('should show a visible remove-from-course action for each video without hover-only classes', async () => {
@@ -692,7 +833,10 @@ describe('VideoCourseDetailPage - Delete', () => {
     // Override to 3-video course for this test
     const video3 = { id: 3, title: 'Video 3', description: 'Desc 3', status: 'completed', file: 'video3.mp4', source_type: 'uploaded', order: 2 }
     currentGroup = { ...mockCourse, videos: [...mockCourse.videos, video3] }
-    courseTrpcMocks.update.mockResolvedValue({})
+    courseTrpcMocks.update.mockImplementation(async (patch) => {
+      currentGroup = { ...currentGroup, ...patch }
+      return currentGroup
+    })
 
     const { container } = render(<VideoCourseDetailPage />)
 
@@ -703,7 +847,7 @@ describe('VideoCourseDetailPage - Delete', () => {
 
     // Step 1: Delete Video 1 (auto-selected)
     // removeVideoFromCourse mock mutates currentGroup → [V2, V3]
-    // syncCourseDetail → invalidateQueries → refetch returns [V2, V3]
+    // Removal invalidates the detail; refetch returns [V2, V3]
     // autoVideoId: V1 stale → resets to V2 (first in new list)
     const [firstRemoveButton] = screen.getAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })
     fireEvent.click(firstRemoveButton)
@@ -714,7 +858,7 @@ describe('VideoCourseDetailPage - Delete', () => {
     })
 
     // Step 2: Simulate an external reorder — V3 moves before V2
-    // Override currentGroup so the next refetch returns [V3, V2]
+    // The next save response includes the server's current order [V3, V2].
     currentGroup = {
       ...currentGroup,
       videos: [
@@ -723,10 +867,15 @@ describe('VideoCourseDetailPage - Delete', () => {
       ],
     }
 
-    // Trigger a refetch by saving the edit modal (updateCourseMutation.onSuccess → syncCourseDetail)
+    // Apply the returned course by saving a metadata change.
     fireEvent.click(screen.getByTitle('videos.courseDetail.editTitle'))
     const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByDisplayValue('Test Course'), { target: { value: 'Updated Course' } })
     fireEvent.click(within(dialog).getByText('common.actions.save'))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(courseTrpcMocks.update).toHaveBeenCalledWith({ id: 1, name: 'Updated Course' })
+    expect(courseTrpcMocks.get).toHaveBeenCalledTimes(2)
 
     // After re-render with [V3, V2]:
     //   autoVideoId is still V2 (V2 is in the list → no reset)

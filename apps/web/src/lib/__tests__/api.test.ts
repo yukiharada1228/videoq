@@ -5,7 +5,7 @@ import { getApiError } from '../api-error';
 
 vi.unmock('@/lib/api');
 
-const { authClientMock, fetchAuthSessionMock } = vi.hoisted(() => {
+const { authClientMock } = vi.hoisted(() => {
   const ok = <T,>(data: T = {} as T) => Promise.resolve({ data, error: null });
   return {
     authClientMock: {
@@ -51,24 +51,12 @@ const { authClientMock, fetchAuthSessionMock } = vi.hoisted(() => {
         delete: vi.fn(() => ok()),
       },
     },
-    fetchAuthSessionMock: vi.fn(() => ok({ user: { id: '1', name: 'user' } })),
   };
 });
 
 vi.mock('@/lib/auth-client', () => ({
   AUTH_BASE_URL: 'http://localhost:8000',
   authClient: authClientMock,
-}));
-
-vi.mock('@/lib/authSession', () => ({
-  useAuthSession: () => ({
-    data: { user: { id: '1', name: 'user' } },
-    isPending: false,
-    isRefetching: false,
-    error: null,
-    refetch: vi.fn(),
-  }),
-  fetchAuthSession: fetchAuthSessionMock,
 }));
 
 import { apiPath, createApiClient, type ApiClient } from '../api';
@@ -143,13 +131,6 @@ describe('ApiClient protocol adapters', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-  });
-
-  it('reads authentication from the Better Auth session', async () => {
-    expect(await client.isAuthenticated()).toBe(true);
-    fetchAuthSessionMock.mockResolvedValueOnce({ data: null, error: null });
-    expect(await client.isAuthenticated()).toBe(false);
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('rejects logout when Better Auth returns an error', async () => {
@@ -340,18 +321,20 @@ describe('ApiClient protocol adapters', () => {
     expect((init.body as FormData).get('description')).toBe('Desc');
   });
 
-  it('downloads chat history as CSV from the dedicated raw route', async () => {
-    const mockLink = { href: '', download: '', click: vi.fn() };
+  it.each([false, true])('cleans up CSV download resources even if the click fails (%s)', async (clickFails) => {
+    const mockLink = document.createElement('a');
+    vi.spyOn(mockLink, 'click').mockImplementation(() => {
+      if (clickFails) throw new Error('Download blocked');
+    });
     global.URL.createObjectURL = vi.fn(() => 'blob:url');
     global.URL.revokeObjectURL = vi.fn();
-    vi.spyOn(document, 'createElement').mockReturnValue(mockLink as HTMLAnchorElement);
-    vi.spyOn(document.body, 'appendChild').mockImplementation(() => mockLink as Node);
-    vi.spyOn(document.body, 'removeChild').mockImplementation(() => mockLink as Node);
+    vi.spyOn(document, 'createElement').mockReturnValue(mockLink);
     fetchMock.mockResolvedValueOnce(new Response('data', {
       headers: { 'Content-Disposition': 'attachment; filename="chat.csv"' },
     }));
 
-    await client.exportChatHistoryCsv(1);
+    if (clickFails) await expect(client.exportChatHistoryCsv(1)).rejects.toThrow('Download blocked');
+    else await client.exportChatHistoryCsv(1);
 
     expect(fetchMock).toHaveBeenCalledWith(
       `${BASE_URL}/chat/courses/1/history.csv`,
@@ -359,6 +342,8 @@ describe('ApiClient protocol adapters', () => {
     );
     expect(mockLink.download).toBe('chat.csv');
     expect(mockLink.click).toHaveBeenCalled();
+    expect(document.body.contains(mockLink)).toBe(false);
+    expect(global.URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith('blob:url');
   });
 
   it('resolves relative media URLs and only signs same-origin shared media URLs', () => {

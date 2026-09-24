@@ -189,32 +189,18 @@ export class YoutubeImportCommand implements UploadCommand {
   }
 }
 
-export async function assignTagsAfterUpload(
-  api: UploadCommandApi,
-  videoId: number,
-  tagIds: number[],
-): Promise<UploadWarning | undefined> {
-  if (tagIds.length === 0) {
-    return undefined;
-  }
-
-  try {
-    await api.addTagsToVideo(videoId, tagIds);
-    return undefined;
-  } catch {
-    return { message: 'videos.upload.warning.tagsFailed' };
-  }
-}
-
 export async function runUploadWorkflow(
   command: UploadCommand,
   tagIds: number[],
   api: UploadCommandApi,
 ): Promise<UploadWorkflowResult> {
   const video = await command.execute(api);
-  const warning = tagIds.length > 0
-    ? await assignTagsAfterUpload(api, video.id, tagIds)
-    : undefined;
-
-  return warning ? { video, warning } : { video };
+  if (tagIds.length > 0) {
+    try {
+      await api.addTagsToVideo(video.id, tagIds);
+    } catch {
+      return { video, warning: { message: 'videos.upload.warning.tagsFailed' } };
+    }
+  }
+  return { video };
 }

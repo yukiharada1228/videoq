@@ -4,8 +4,6 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/digital-agency/cn"
 
-export type CheckboxSize = "sm" | "md" | "lg"
-
 // Outer hit area (matches upstream's wrapping <span>): sized size-6/8/11, with the
 // subtle gray hover backdrop. The visible box is the inner element at 75%.
 const checkboxVariants = cva(

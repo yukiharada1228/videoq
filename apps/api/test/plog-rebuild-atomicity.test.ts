@@ -9,9 +9,6 @@ vi.mock("../src/repositories/plog-repository", async (original) => ({
   ...(await original<Record<string, unknown>>()),
   getOrCreateActiveBuildJob: repository.getOrCreateActiveBuildJob,
 }));
-vi.mock("../src/repositories/video-repository", () => ({
-  getVideoTranscriptState: vi.fn().mockResolvedValue({ found: true, hasTranscript: true }),
-}));
 vi.mock("../src/lib/external-tasks", () => externalTasks);
 
 import { rebuildPlog } from "../src/features/plog/service";
@@ -23,7 +20,6 @@ describe("PLOG rebuild の冪等性", () => {
     repository.getOrCreateActiveBuildJob.mockResolvedValue({
       id: 7,
       status: "pending",
-      created: false,
       taskId: null,
     });
 
@@ -39,7 +35,6 @@ describe("PLOG rebuild の冪等性", () => {
     repository.getOrCreateActiveBuildJob.mockResolvedValue({
       id: 8,
       status: "pending",
-      created: true,
       taskId: 91,
     });
     externalTasks.processExternalTaskById.mockResolvedValue(false);

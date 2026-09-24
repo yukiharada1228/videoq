@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getStatusBadgeClassName, getStatusChipColor, getStatusLabel, formatDate } from '../video'
+import { getStatusChipColor, getStatusLabel, formatDate } from '../video'
 
 describe('video utils', () => {
   describe('getStatusChipColor', () => {
@@ -11,47 +11,6 @@ describe('video utils', () => {
       expect(getStatusChipColor('unknown')).toBe('gray')
     })
   })
-
-  describe('getStatusBadgeClassName', () => {
-    it('should return correct class for completed status with default size', () => {
-      const result = getStatusBadgeClassName('completed');
-      expect(result).toContain('bg-green-50');
-      expect(result).toContain('text-green-900');
-      expect(result).toContain('px-3 py-1 text-oln-16N-100');
-    });
-
-    it('should return correct class for pending status with xs size', () => {
-      const result = getStatusBadgeClassName('pending', 'xs');
-      expect(result).toContain('bg-solid-gray-50');
-      expect(result).toContain('text-solid-gray-800');
-      expect(result).toContain('px-1.5 py-0.5 text-oln-14N-100');
-    });
-
-    it('should return correct class for processing status with sm size', () => {
-      const result = getStatusBadgeClassName('processing', 'sm');
-      expect(result).toContain('bg-orange-50');
-      expect(result).toContain('text-orange-1000');
-      expect(result).toContain('px-2 py-0.5 text-oln-14N-100');
-    });
-
-    it('should return correct class for error status', () => {
-      const result = getStatusBadgeClassName('error');
-      expect(result).toContain('bg-red-50');
-      expect(result).toContain('text-red-1000');
-    });
-
-    it('should return correct class for indexing status', () => {
-      const result = getStatusBadgeClassName('indexing');
-      expect(result).toContain('bg-orange-50');
-      expect(result).toContain('text-orange-1000');
-    });
-
-    it('should return default class for unknown status', () => {
-      const result = getStatusBadgeClassName('unknown');
-      expect(result).toContain('bg-solid-gray-50');
-      expect(result).toContain('text-solid-gray-800');
-    });
-  });
 
   describe('getStatusLabel', () => {
     it('should return translation key for status', () => {

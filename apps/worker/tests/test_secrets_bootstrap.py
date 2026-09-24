@@ -9,8 +9,22 @@ import pytest
 import worker_python.secrets_bootstrap as bootstrap
 
 
+@pytest.fixture(autouse=True)
+def isolate_bootstrap_environment(monkeypatch):
+    monkeypatch.setattr(bootstrap, "_LOADED", False)
+    # Bootstrap writes env directly. Record even absent keys for fixture teardown.
+    keys = {
+        "DATABASE_URL",
+        *bootstrap._APP_ENV_MAP.values(),
+        "AWS_STORAGE_BUCKET_NAME",
+        "AWS_S3_ENDPOINT_URL",
+        "AWS_S3_REGION_NAME",
+    }
+    for key in keys:
+        monkeypatch.setenv(key, os.environ.get(key, ""))
+
+
 def test_canonical_r2_keys_from_app_param(monkeypatch):
-    bootstrap._LOADED = False
     monkeypatch.setenv("APP_PARAM_NAME", "/videoq/prod/app")
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "ASIA_ROLE_EXAMPLE")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "role-secret")
@@ -30,6 +44,9 @@ def test_canonical_r2_keys_from_app_param(monkeypatch):
         monkeypatch.delenv(key, raising=False)
 
     class FakeClient:
+        def close(self):
+            pass
+
         def get_parameter(self, Name, WithDecryption):  # noqa: N803
             assert Name == "/videoq/prod/app"
             assert WithDecryption is True
@@ -59,11 +76,12 @@ def test_canonical_r2_keys_from_app_param(monkeypatch):
     assert os.environ["R2_S3_ENDPOINT"] == "https://example.r2.cloudflarestorage.com"
     # Legacy mirrors for older call sites.
     assert os.environ["AWS_STORAGE_BUCKET_NAME"] == "videoq-media-prod"
-    assert os.environ["AWS_S3_ENDPOINT_URL"] == "https://example.r2.cloudflarestorage.com"
+    assert (
+        os.environ["AWS_S3_ENDPOINT_URL"] == "https://example.r2.cloudflarestorage.com"
+    )
 
 
 def test_legacy_aws_secret_keys_map_to_r2(monkeypatch):
-    bootstrap._LOADED = False
     monkeypatch.setenv("APP_PARAM_NAME", "/videoq/prod/app")
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "ASIA_ROLE_EXAMPLE")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "role-secret")
@@ -78,6 +96,9 @@ def test_legacy_aws_secret_keys_map_to_r2(monkeypatch):
         monkeypatch.delenv(key, raising=False)
 
     class FakeClient:
+        def close(self):
+            pass
+
         def get_parameter(self, Name, WithDecryption):  # noqa: N803
             return {
                 "Parameter": {
@@ -103,7 +124,6 @@ def test_legacy_aws_secret_keys_map_to_r2(monkeypatch):
 
 def test_legacy_env_names_still_resolve_params(monkeypatch):
     """DB_SECRET_ARN / APP_SECRET_ARN env keys can hold SSM names during cutover."""
-    bootstrap._LOADED = False
     monkeypatch.setenv("DB_SECRET_ARN", "/videoq/prod/db")
     monkeypatch.delenv("DB_PARAM_NAME", raising=False)
     monkeypatch.delenv("APP_PARAM_NAME", raising=False)
@@ -111,12 +131,13 @@ def test_legacy_env_names_still_resolve_params(monkeypatch):
     monkeypatch.delenv("DATABASE_URL", raising=False)
 
     class FakeClient:
+        def close(self):
+            pass
+
         def get_parameter(self, Name, WithDecryption):  # noqa: N803
             assert Name == "/videoq/prod/db"
             return {
-                "Parameter": {
-                    "Value": '{"DATABASE_URL":"postgresql://example/db"}'
-                }
+                "Parameter": {"Value": '{"DATABASE_URL":"postgresql://example/db"}'}
             }
 
     class FakeBoto3:
@@ -132,7 +153,6 @@ def test_legacy_env_names_still_resolve_params(monkeypatch):
 
 def test_transient_ssm_failure_does_not_poison_the_container(monkeypatch):
     """A failed bootstrap must be retried, not silently skipped forever."""
-    bootstrap._LOADED = False
     monkeypatch.setenv("DB_PARAM_NAME", "/videoq/prod/db")
     for key in ("DATABASE_URL", "APP_PARAM_NAME", "APP_SECRET_ARN", "DB_SECRET_ARN"):
         monkeypatch.delenv(key, raising=False)
@@ -140,6 +160,9 @@ def test_transient_ssm_failure_does_not_poison_the_container(monkeypatch):
     attempts = {"count": 0}
 
     class FlakyClient:
+        def close(self):
+            pass
+
         def get_parameter(self, Name, WithDecryption):  # noqa: N803
             attempts["count"] += 1
             if attempts["count"] == 1:
@@ -165,7 +188,6 @@ def test_transient_ssm_failure_does_not_poison_the_container(monkeypatch):
 
 
 def test_missing_param_refs_still_mark_loaded(monkeypatch):
-    bootstrap._LOADED = False
     for key in ("DB_PARAM_NAME", "DB_SECRET_ARN", "APP_PARAM_NAME", "APP_SECRET_ARN"):
         monkeypatch.delenv(key, raising=False)
 

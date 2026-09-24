@@ -22,7 +22,6 @@ import { Link, useI18nNavigate } from '@/lib/i18n';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
-import { useAuth } from '@/hooks/useAuth';
 import { useVideoCourses } from '@/hooks/useVideoCourses';
 import {
   useCreateVideoCourseMutation,
@@ -168,21 +167,22 @@ function SortableCourseRow({
 }
 
 export default function VideoCoursesPage() {
-  const { isLoading: authLoading } = useAuth();
   const navigate = useI18nNavigate();
   const {
     courses,
     isLoading,
     error: loadError,
     isFetchingNextPage,
+    isFetching,
+    retry,
     sentinelRef,
-  } = useVideoCourses(true);
+  } = useVideoCourses();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [orderedCourseIds, setOrderedCourseIds] = useState<number[] | null>(null);
   const { t } = useTranslation();
 
-  const createCourseMutation = useCreateVideoCourseMutation({});
-  const reorderCoursesMutation = useReorderVideoCoursesMutation({});
+  const createCourseMutation = useCreateVideoCourseMutation();
+  const reorderCoursesMutation = useReorderVideoCoursesMutation();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -195,8 +195,10 @@ export default function VideoCoursesPage() {
     await createCourseMutation.mutateAsync({ name, description });
   };
 
-  const ownedCourses = courses.filter((course) => course.access_role !== 'member');
-  const joinedCourses = courses.filter((course) => course.access_role === 'member');
+  const { ownedCourses, joinedCourses } = useMemo(() => ({
+    ownedCourses: courses.filter((course) => course.access_role !== 'member'),
+    joinedCourses: courses.filter((course) => course.access_role === 'member'),
+  }), [courses]);
   const visibleCourses = useMemo(() => {
     if (!orderedCourseIds) return ownedCourses;
     const coursesById = new Map(ownedCourses.map((course) => [course.id, course]));
@@ -214,10 +216,12 @@ export default function VideoCoursesPage() {
 
   const applyCourseOrder = (nextCourses: CourseListItem[]) => {
     const previousIds = orderedCourseIds;
-    setOrderedCourseIds(nextCourses.map((course) => course.id));
+    const nextIds = nextCourses.map((course) => course.id);
+    setOrderedCourseIds(nextIds);
     reorderCoursesMutation.mutate(
-      { courseIds: nextCourses.map((course) => course.id) },
+      { courseIds: nextIds },
       {
+        onSuccess: () => setOrderedCourseIds(null),
         onError: () => setOrderedCourseIds(previousIds),
       },
     );
@@ -265,14 +269,19 @@ export default function VideoCoursesPage() {
         {(loadError || reorderError) && (
           <div className="mb-6">
             <ErrorMessage message={loadError || reorderError} />
+            {loadError && (
+              <Button type="button" variant="outline" size="sm" onClick={retry} disabled={isFetching} aria-busy={isFetching} className="mt-3">
+                {t('videos.courses.retryLoad')}
+              </Button>
+            )}
           </div>
         )}
 
-        {authLoading || isLoading ? (
+        {isLoading ? (
           <div className="flex justify-center py-24">
             <LoadingSpinner />
           </div>
-        ) : courses.length === 0 ? (
+        ) : courses.length === 0 ? !loadError && (
           <div className="flex flex-col items-start justify-center border-t border-solid-gray-420 py-12">
             <Heading size="20" hasChip className="mb-2">
               <HeadingTitle level="h2">{t('videos.courses.empty')}</HeadingTitle>

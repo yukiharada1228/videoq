@@ -1,6 +1,6 @@
 import { tool } from "langchain";
 import { z } from "zod";
-import { getCourseDetail } from "../repositories/course-repository";
+import { getCourseInfo } from "../repositories/course-repository";
 import type { Bindings } from "../types/bindings";
 
 export const MAX_COURSE_INFO_CALLS = 5;
@@ -21,10 +21,11 @@ export function courseInfoTool(
         return "Course information limit reached. Answer using the information already retrieved; " +
           "state any missing pages or details instead of guessing.";
       }
-      const course = await getCourseDetail(env, scope.courseId, scope.ownerUserId, {
-        includeFileUrls: false,
+      const course = await getCourseInfo(env, scope.courseId, scope.ownerUserId, {
         videoLimit: video_limit,
         videoOffset: video_offset,
+        courseDescriptionLimit: COURSE_DESCRIPTION_LIMIT,
+        videoDescriptionLimit: VIDEO_DESCRIPTION_LIMIT,
       });
       if (!course) return "The current course is no longer available.";
       // Explicit projection: never pass shared tokens, user IDs or file URLs to the model.

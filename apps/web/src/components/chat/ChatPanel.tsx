@@ -53,10 +53,9 @@ function ChatPanelSession({
     input,
     setInput,
     isLoading,
-    feedbackUpdatingId,
+    feedbackUpdatingIds,
     messagesContainerRef,
     handleMessagesScroll,
-    messagesEndRef,
     handleSend,
     handleKeyPress,
     handleFeedback,
@@ -68,7 +67,6 @@ function ChatPanelSession({
     historyError,
     exportHistoryCsv,
     isExportingHistoryCsv,
-    syncFeedbackInHistoryCache,
   } = useChatHistory({
     courseId,
     shareToken,
@@ -83,13 +81,6 @@ function ChatPanelSession({
 
     const seconds = timeStringToSeconds(startTime);
     window.open(`/videos/${videoId}?t=${seconds}`, '_blank');
-  };
-
-  const handleFeedbackWithSync = async (chatLogId: number, value: 'good' | 'bad') => {
-    const nextFeedback = await handleFeedback(chatLogId, value);
-    if (nextFeedback !== undefined) {
-      syncFeedbackInHistoryCache(chatLogId, nextFeedback);
-    }
   };
 
   const switchMode = (next: ChatMode) => {
@@ -208,12 +199,11 @@ function ChatPanelSession({
           <ChatMessagesView
             messages={messages}
             isLoading={isLoading}
-            feedbackUpdatingId={feedbackUpdatingId}
+            feedbackUpdatingIds={feedbackUpdatingIds}
             messagesContainerRef={messagesContainerRef}
             onScroll={handleMessagesScroll}
-            messagesEndRef={messagesEndRef}
             onVideoNavigate={navigateToVideo}
-            onFeedback={handleFeedbackWithSync}
+            onFeedback={handleFeedback}
           />
           {suggestedQuestions && suggestedQuestions.length > 0 ? (
             <div

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import builtins
+import sys
 from contextlib import nullcontext
 from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -23,11 +25,13 @@ def test_score_chat_log_raises_when_ragas_missing():
         return real_import(name, globals, locals, fromlist, level)
 
     with patch("builtins.__import__", side_effect=blocked):
-        with pytest.raises(RuntimeError, match="ragas is not installed"):
+        with pytest.raises(RuntimeError, match="RAGAS dependencies could not be imported") as caught:
             evaluation.score_chat_log("q", "a", ["ctx"])
+    assert isinstance(caught.value.__cause__, ImportError)
+    assert "pyproject.toml" in str(caught.value)
 
 
-def test_score_chat_log_runs_three_metrics_with_contexts():
+def test_score_chat_log_runs_three_metrics_with_contexts(monkeypatch):
     sample_cls = MagicMock(name="SingleTurnSample")
     faith = MagicMock(name="FaithfulnessInstance")
     relevancy = MagicMock(name="RelevancyInstance")
@@ -49,8 +53,9 @@ def test_score_chat_log_runs_three_metrics_with_contexts():
         ),
     }
 
+    for name, module in modules.items():
+        monkeypatch.setitem(sys.modules, name, module)
     with (
-        patch.dict("sys.modules", modules),
         patch.object(evaluation, "_langchain_llm", return_value=MagicMock(name="llm")),
         patch.object(
             evaluation, "_langchain_embeddings", return_value=MagicMock(name="emb")
@@ -72,7 +77,7 @@ def test_score_chat_log_runs_three_metrics_with_contexts():
     assert run_metric.call_args_list[2].args[0] is precision
 
 
-def test_score_chat_log_skips_precision_without_contexts():
+def test_score_chat_log_skips_precision_without_contexts(monkeypatch):
     modules = {
         "ragas": MagicMock(),
         "ragas.dataset_schema": MagicMock(
@@ -91,8 +96,9 @@ def test_score_chat_log_skips_precision_without_contexts():
         ),
     }
 
+    for name, module in modules.items():
+        monkeypatch.setitem(sys.modules, name, module)
     with (
-        patch.dict("sys.modules", modules),
         patch.object(evaluation, "_langchain_llm", return_value=MagicMock()),
         patch.object(evaluation, "_langchain_embeddings", return_value=MagicMock()),
         patch.object(evaluation, "_run_metric", side_effect=[0.5, 0.6]) as run_metric,
@@ -103,17 +109,25 @@ def test_score_chat_log_skips_precision_without_contexts():
     assert run_metric.call_count == 2
 
 
-def test_run_metric_returns_float_on_success():
+@pytest.mark.parametrize("score", [0.0, 0.42, 1.0, -0.25])
+def test_run_metric_returns_float_on_success(score):
     metric = MagicMock()
-    metric.single_turn_ascore = AsyncMock(return_value=0.42)
-    assert evaluation._run_metric(metric, MagicMock()) == 0.42
+    metric.single_turn_ascore = AsyncMock(return_value=score)
+    assert asyncio.run(evaluation._run_metric(metric, MagicMock())) == score
+
+
+@pytest.mark.parametrize("score", [None, float("nan"), float("inf"), float("-inf")])
+def test_run_metric_treats_unavailable_scores_as_missing(score):
+    metric = MagicMock()
+    metric.single_turn_ascore = AsyncMock(return_value=score)
+    assert asyncio.run(evaluation._run_metric(metric, MagicMock())) is None
 
 
 def test_run_metric_returns_none_on_failure():
     metric = MagicMock()
     metric.__class__.__name__ = "Faithfulness"
     metric.single_turn_ascore = AsyncMock(side_effect=RuntimeError("boom"))
-    assert evaluation._run_metric(metric, MagicMock()) is None
+    assert asyncio.run(evaluation._run_metric(metric, MagicMock())) is None
 
 
 def test_rejected_embedding_marks_evaluation_failed(monkeypatch, caplog):
@@ -145,7 +159,6 @@ def test_rejected_embedding_marks_evaluation_failed(monkeypatch, caplog):
             ResponseRelevancy=RelevancyMetric,
         ),
     }
-    monkeypatch.setattr(evaluation, "_ensure_ragas_importable", lambda: None)
     monkeypatch.setattr(evaluation, "_langchain_llm", MagicMock())
     monkeypatch.setattr(evaluation_task, "db_connection", lambda: nullcontext(MagicMock()))
     monkeypatch.setattr(evaluation_task, "_fetch_chat_log", lambda *_: {
@@ -153,8 +166,9 @@ def test_rejected_embedding_marks_evaluation_failed(monkeypatch, caplog):
     })
     save = MagicMock()
     monkeypatch.setattr(evaluation_task, "_save_evaluation", save)
-    with patch.dict("sys.modules", modules):
-        evaluation_task.evaluate_chat_log(42)
+    for name, module in modules.items():
+        monkeypatch.setitem(sys.modules, name, module)
+    evaluation_task.evaluate_chat_log(42)
 
     http.assert_called_once()
     save.assert_called_once()

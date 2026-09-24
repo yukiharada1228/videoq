@@ -60,6 +60,7 @@ beforeEach(() => {
   processExternalTask.mockReset().mockResolvedValue(true);
   rowsFor = (sql) => {
     if (sql.includes("SELECT role FROM users")) return [{ role: "admin" }];
+    if (sql.includes("FROM users") && sql.includes("FOR UPDATE")) return [{ is_superuser: false }];
     if (sql.includes("count(*)")) return [{ c: 1 }];
     if (sql.includes("external_tasks") && sql.includes("RETURNING")) {
       return [{ id: 73 }];
@@ -335,6 +336,7 @@ describe("admin API", () => {
   it("他 superuser は削除できない", async () => {
     rowsFor = (sql) => {
       if (sql.includes("SELECT role FROM users")) return [{ role: "admin" }];
+      if (sql.includes("FROM users") && sql.includes("FOR UPDATE")) return [{ is_superuser: true }];
       if (sql.includes("FROM users")) {
         return [
           {

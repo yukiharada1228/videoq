@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, memo, useMemo } from 'react';
 import katex from 'katex';
 import type { Citation } from '@/lib/api';
 import { parseMessageContent } from '@/lib/chat/parseMessageContent';
@@ -25,17 +25,23 @@ function formatTimeRange(startTime: string | null | undefined, endTime: string |
   return start || end;
 }
 
-function renderMath(tex: string, display: boolean): string {
-  return katex.renderToString(tex, {
+const MathExpression = memo(function MathExpression({ tex, display }: { tex: string; display: boolean }) {
+  const html = katex.renderToString(tex, {
     displayMode: display,
     throwOnError: false,
     trust: false,
   });
-}
+  return (
+    <span
+      className={cn('whitespace-normal', display && 'my-3 block overflow-x-auto text-center')}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+});
 
 export function MessageBody({ content, citations, onVideoNavigate }: MessageBodyProps) {
-  const nodes = parseMessageContent(content);
-  const citationMap = new Map((citations ?? []).map((citation) => [citation.id, citation]));
+  const nodes = useMemo(() => parseMessageContent(content), [content]);
+  const citationMap = useMemo(() => new Map((citations ?? []).map((citation) => [citation.id, citation])), [citations]);
 
   return (
     <div className="text-solid-gray-700 leading-relaxed whitespace-pre-wrap">
@@ -46,13 +52,10 @@ export function MessageBody({ content, citations, onVideoNavigate }: MessageBody
 
         if (node.type === 'math') {
           return (
-            <span
+            <MathExpression
               key={`math-${i}`}
-              className={cn(
-                'whitespace-normal',
-                node.display && 'my-3 block overflow-x-auto text-center',
-              )}
-              dangerouslySetInnerHTML={{ __html: renderMath(node.value, node.display) }}
+              tex={node.value}
+              display={node.display}
             />
           );
         }

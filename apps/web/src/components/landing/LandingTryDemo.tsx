@@ -208,7 +208,7 @@ export function LandingTryDemo() {
                 // The demo answers from a canned script, so nothing is ever
                 // in flight — same reason ChatComposer below is never loading.
                 isLoading={false}
-                feedbackUpdatingId={null}
+                feedbackUpdatingIds={new Set()}
                 messagesContainerRef={messagesContainerRef}
                 messagesEndRef={messagesEndRef}
                 onVideoNavigate={handleVideoNavigate}

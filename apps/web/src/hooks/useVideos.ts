@@ -1,8 +1,9 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { useCallback, useMemo, useEffect, useState, useRef } from 'react';
+import { useMemo } from 'react';
 import type { Video, VideoListItem as VideoListType, VideoStatus } from '@videoq/trpc';
 import { useAuth } from '@/hooks/useAuth';
 import { trpc } from '@/lib/trpc';
+import { useInfiniteScroll } from './useInfiniteScroll';
 
 const PAGE_SIZE = 24;
 
@@ -15,6 +16,7 @@ function isInProgressStatus(status: VideoStatus | undefined): boolean {
 export type VideosOrdering = 'uploaded_at_desc' | 'uploaded_at_asc' | 'title_asc' | 'title_desc';
 
 interface UseVideosParams {
+  enabled?: boolean;
   tagIds?: number[];
   q?: string;
   status?: string;
@@ -31,17 +33,15 @@ interface UseVideosReturn {
   hasNextPage: boolean;
   fetchNextPage: () => void;
   isFetchingNextPage: boolean;
+  isFetching: boolean;
+  isFetchNextPageError: boolean;
+  refetch: () => void;
   totalCount: number;
-  loadVideos: () => Promise<void>;
-  refetch: () => Promise<void>;
   sentinelRef: React.RefCallback<HTMLElement>;
 }
 
 export function useVideos(params?: UseVideosParams): UseVideosReturn {
-  const normalizedTagIds = useMemo(
-    () => (params?.tagIds && params.tagIds.length > 0 ? params.tagIds : undefined),
-    [params?.tagIds],
-  );
+  const normalizedTagIds = params?.tagIds?.length ? params.tagIds : undefined;
   const q = params?.q?.trim() || undefined;
   const status = params?.status?.trim() || undefined;
   const ordering: VideosOrdering | undefined = params?.ordering || undefined;
@@ -53,8 +53,10 @@ export function useVideos(params?: UseVideosParams): UseVideosReturn {
     ordering,
     limit: PAGE_SIZE,
   }, {
+    enabled: params?.enabled,
     initialCursor: 0,
     getNextPageParam: (lastPage) => {
+      if (lastPage.data.length === 0) return undefined;
       const nextOffset = lastPage.meta.offset + lastPage.data.length;
       return nextOffset < lastPage.meta.total ? nextOffset : undefined;
     },
@@ -74,51 +76,19 @@ export function useVideos(params?: UseVideosParams): UseVideosReturn {
 
   const totalCount = videosQuery.data?.pages[0]?.meta.total ?? 0;
 
-  const handleRefetch = useCallback(async () => {
-    const result = await videosQuery.refetch();
-    if (result.error) {
-      console.error('Failed to load videos:', result.error);
-      throw result.error;
-    }
-  }, [videosQuery]);
-
-  const fetchNextPage = useCallback(() => {
-    void videosQuery.fetchNextPage();
-  }, [videosQuery]);
-
-  // Keep a ref to the latest fetchNextPage so the observer is not recreated on every render
-  const fetchNextPageRef = useRef(fetchNextPage);
-  useEffect(() => {
-    fetchNextPageRef.current = fetchNextPage;
-  });
-
-  const [sentinelNode, setSentinelNode] = useState<HTMLElement | null>(null);
-
-  const sentinelRef: React.RefCallback<HTMLElement> = useCallback((node) => {
-    setSentinelNode(node);
-  }, []);
-
-  useEffect(() => {
-    if (!sentinelNode) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && videosQuery.hasNextPage && !videosQuery.isFetchingNextPage) {
-        fetchNextPageRef.current();
-      }
-    });
-    observer.observe(sentinelNode);
-    return () => observer.disconnect();
-  }, [sentinelNode, videosQuery.hasNextPage, videosQuery.isFetchingNextPage]);
+  const sentinelRef = useInfiniteScroll(videosQuery);
 
   return {
     videos,
     isLoading: videosQuery.isLoading,
     error: videosQuery.error instanceof Error ? videosQuery.error.message : null,
     hasNextPage: videosQuery.hasNextPage,
-    fetchNextPage,
+    fetchNextPage: () => videosQuery.fetchNextPage({ cancelRefetch: false }),
     isFetchingNextPage: videosQuery.isFetchingNextPage,
+    isFetching: videosQuery.isFetching,
+    isFetchNextPageError: videosQuery.isFetchNextPageError,
+    refetch: videosQuery.refetch,
     totalCount,
-    loadVideos: handleRefetch,
-    refetch: handleRefetch,
     sentinelRef,
   };
 }
@@ -130,38 +100,19 @@ interface UseVideoReturn {
   video: Video | null;
   isLoading: boolean;
   error: string | null;
-  loadVideo: () => Promise<void>;
-  refetch: () => Promise<void>;
 }
 
 export function useVideo(videoId: number | null): UseVideoReturn {
-  const { user, isLoading: authLoading, refetch: refetchAuth } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
 
   const videoQuery = useQuery(trpc.videos.get.queryOptions({ id: videoId! }, {
     enabled: !!videoId && !!user,
     refetchInterval: (query) => (isInProgressStatus(query.state.data?.status) ? 3000 : false),
   }));
 
-  const handleLoadVideo = useCallback(async () => {
-    if (!videoId) return;
-
-    const currentUser = await refetchAuth();
-    if (!currentUser) {
-      throw new Error('Authentication required');
-    }
-
-    const result = await videoQuery.refetch();
-    if (result.error) {
-      console.error('Failed to load video:', result.error);
-      throw result.error;
-    }
-  }, [videoId, refetchAuth, videoQuery]);
-
   return {
     video: videoQuery.data || null,
     isLoading: (!!videoId && authLoading) || videoQuery.isLoading,
     error: videoQuery.error instanceof Error ? videoQuery.error.message : null,
-    loadVideo: handleLoadVideo,
-    refetch: handleLoadVideo,
   };
 }

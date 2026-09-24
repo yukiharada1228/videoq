@@ -109,7 +109,7 @@ python3 -m http.server 6007 --bind 127.0.0.1
 | 対象 | Story |
 |---|---|
 | 通知・確認ダイアログ | [FeedbackProvider](src/components/common/FeedbackProvider.stories.tsx)、[MessageAlert](src/components/common/MessageAlert.stories.tsx) |
-| 読み込み・処理状態 | [LoadingState](src/components/common/LoadingState.stories.tsx)、[StatusBadge](src/components/common/StatusBadge.stories.tsx) |
+| 読み込み・処理状態 | [LoadingSpinner](src/components/common/LoadingSpinner.stories.tsx)、[StatusBadge](src/components/common/StatusBadge.stories.tsx) |
 | フォーム・認証エラー | [FormField](src/components/auth/FormField.stories.tsx)、[ErrorMessage](src/components/auth/ErrorMessage.stories.tsx) |
 
 この範囲だけを検証する場合は次を実行します。

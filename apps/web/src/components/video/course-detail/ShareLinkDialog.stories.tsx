@@ -11,17 +11,18 @@ function Example(args: ComponentProps<typeof ShareLinkDialog> & { pending?: bool
   const [open, setOpen] = useState(args.isOpen);
   const [link, setLink] = useState(args.shareLink);
   const [generating, setGenerating] = useState(args.isGeneratingLink);
+  const [deleting, setDeleting] = useState(args.isDeletingLink);
   const [copied, setCopied] = useState(args.isCopied);
   return <><Button onClick={() => setOpen(true)}>{label('shareOpen')}</Button>
-    <ShareLinkDialog {...args} isOpen={open} shareLink={link} isGeneratingLink={generating} isCopied={copied}
+    <ShareLinkDialog {...args} isOpen={open} shareLink={link} isGeneratingLink={generating} isDeletingLink={deleting} isCopied={copied}
       onOpenChange={value => { args.onOpenChange(value); setOpen(value); }}
       onGenerate={slug => { void args.onGenerate(slug); if (args.pending) setGenerating(true); else { setLink(`https://videoq.example/shared/${slug}`); setCopied(false); } }}
-      onDelete={() => { args.onDelete(); setLink(null); }} onCopy={() => { args.onCopy(); setCopied(true); }} />
+      onDelete={() => { args.onDelete(); if (args.pending) setDeleting(true); else setLink(null); }} onCopy={() => { args.onCopy(); setCopied(true); }} />
   </>;
 }
 const meta = {
   title: 'Video/ShareLinkDialog', component: ShareLinkDialog,
-  args: { isOpen: false, shareSlug: 'linear-algebra', shareLink: null, isGeneratingLink: false, isCopied: false, onOpenChange: fn(), onGenerate: fn(), onDelete: fn(), onCopy: fn() },
+  args: { isOpen: false, shareSlug: 'linear-algebra', shareLink: null, isGeneratingLink: false, isDeletingLink: false, isCopied: false, onOpenChange: fn(), onGenerate: fn(), onDelete: fn(), onCopy: fn() },
   render: (args, { parameters }) => <Example {...args} pending={parameters.pending} />,
   parameters: { docs: { story: { inline: false, height: '950px' } } },
   async play({ canvas, userEvent }) { await userEvent.click(canvas.getByRole('button', { name: label('shareOpen') })); await expect(within(canvas.getByRole('dialog')).getByRole('heading')).toHaveFocus(); },
@@ -47,6 +48,21 @@ export const Generating: Story = { parameters: { pending: true }, async play(con
 export const UpdatingLink: Story = { ...Generating, args: { shareLink }, async play(context) { await Generating.play!(context); await expect(within(context.canvas.getByRole('dialog')).getByRole('button', { name: label('disable') })).toBeDisabled(); } };
 export const Copied: Story = { args: { shareLink }, async play(context) { const dialog = await open(context); await context.userEvent.click(dialog.getByRole('button', { name: label('copyButton') })); await expect(dialog.getByRole('button', { name: label('copied') })).toHaveFocus(); await expect(context.args.onCopy).toHaveBeenCalledTimes(1); } };
 export const DisableLink: Story = { args: { shareLink }, async play(context) { const dialog = await open(context); await context.userEvent.click(dialog.getByRole('button', { name: label('disable') })); await expect(context.args.onDelete).toHaveBeenCalledTimes(1); await expect(dialog.queryByText(shareLink)).not.toBeInTheDocument(); } };
+export const DisablingLink: Story = { args: { shareLink }, parameters: { pending: true }, async play(context) {
+  const dialog = await open(context);
+  await context.userEvent.click(dialog.getByRole('button', { name: label('disable') }));
+  await expect(dialog.getByRole('textbox')).toBeDisabled();
+  for (const name of [label('disable'), label('copyButton'), i18n.t('common.actions.save'), i18n.t('common.actions.close')]) {
+    await expect(dialog.getByRole('button', { name })).toBeDisabled();
+  }
+  await expect(dialog.getByRole('button', { name: label('disable') })).toHaveAttribute('aria-busy', 'true');
+  context.canvas.getByRole('dialog').dispatchEvent(new Event('cancel', { cancelable: true }));
+  await expect(context.canvas.getByRole('dialog')).toBeVisible();
+  await expect(context.args.onDelete).toHaveBeenCalledTimes(1);
+  await expect(context.args.onGenerate).not.toHaveBeenCalled();
+  await expect(context.args.onOpenChange).not.toHaveBeenCalled();
+} };
+export const DisablingLinkEnglishMobile: Story = { ...DisablingLink, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
 export const KeyboardClose: Story = { async play(context) { const dialog = await open(context); await context.userEvent.tab(); await expect(dialog.getByRole('textbox')).toHaveFocus(); await context.userEvent.tab(); await expect(dialog.getByRole('button', { name: i18n.t('common.actions.save') })).toHaveFocus(); await context.userEvent.tab(); await context.userEvent.keyboard('{Enter}'); await expect(context.canvas.getByRole('button', { name: label('shareOpen') })).toHaveFocus(); } };
 export const EscapeClose: Story = { async play(context) { await open(context); context.canvas.getByRole('dialog').dispatchEvent(new Event('cancel', { cancelable: true })); await waitFor(() => expect(context.canvas.queryByRole('dialog')).not.toBeInTheDocument()); await expect(context.args.onOpenChange).toHaveBeenCalledWith(false); } };
 export const LongUrlMobile: Story = { globals: { viewport: { value: 'mobile', isRotated: false } }, args: { shareSlug: 'lesson'.repeat(10), shareLink: shareLink + longText }, async play(context) {

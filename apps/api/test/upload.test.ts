@@ -7,7 +7,6 @@ import {
   parseReservedBytesFromFileKey,
   unsupportedTypeMessage,
 } from "../src/lib/upload";
-import { resolveStorageBytesForRelease } from "../src/lib/upload-reconcile";
 import {
   deleteR2Object,
   getR2ObjectSize,
@@ -136,11 +135,4 @@ describe("pending upload file key（FR-Q3 予約埋め込み）", () => {
     expect(parseReservedBytesFromFileKey("videos/7/video_1700000000000.mp4")).toBeNull();
   });
 
-  it("resolveStorageBytesForRelease は予約量を優先", () => {
-    const key = "videos/1/video_1_999.mp4";
-    expect(resolveStorageBytesForRelease(key, 500)).toBe(999);
-    expect(resolveStorageBytesForRelease(key, null)).toBe(999);
-    expect(resolveStorageBytesForRelease("videos/1/video_1.mp4", 500)).toBe(500);
-    expect(resolveStorageBytesForRelease("videos/1/video_1.mp4", null)).toBeNull();
-  });
 });

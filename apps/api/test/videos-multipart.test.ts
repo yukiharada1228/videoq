@@ -4,10 +4,8 @@ import { signAccessToken } from "./helpers/auth";
 import { requestTrpc, trpcError } from "./helpers/trpc";
 
 import {
-  isAuthSessionActiveSql,
   matchableSql,
   normalizePgQuery,
-  TEST_AUTH_SESSION_ID,
   type MatchableSql,
   type PgQueryInput,
 } from "./helpers/pg-fake";
@@ -63,10 +61,7 @@ async function accessToken(userId = "00000000-0000-4000-8000-000000000005") {
 
 beforeEach(() => {
   putMock.mockReset().mockResolvedValue(undefined);
-  queryMock.mockReset().mockImplementation((sql: MatchableSql, args: unknown[] = []) => {
-    if (isAuthSessionActiveSql(sql) && args[0] === TEST_AUTH_SESSION_ID) {
-      return { rows: [{ ok: 1 }], rowCount: 1 };
-    }
+  queryMock.mockReset().mockImplementation((sql: MatchableSql) => {
     if (sql.includes("max_video_upload_size_mb")) {
       return { rows: [{ max_video_upload_size_mb: 500 }], rowCount: 1 };
     }

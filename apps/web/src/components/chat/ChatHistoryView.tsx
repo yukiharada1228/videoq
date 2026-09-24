@@ -14,7 +14,7 @@ interface ChatHistoryViewProps {
   historyLoading: boolean;
   historyError?: { message: string } | null;
   isExportingHistoryCsv: boolean;
-  onExportHistoryCsv: () => Promise<void>;
+  onExportHistoryCsv: () => void;
   onVideoNavigate: (videoId: number, startTime: string) => void;
 }
 
@@ -148,13 +148,13 @@ export function ChatHistoryView({
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      {!historyLoading && !historyError && historyCount > 0 && (
+      {historyCount > 0 && (
         <div className="flex justify-end px-4 pt-3 shrink-0">
           <Button
             type="button"
             variant="text"
             size="xs"
-            onClick={() => void onExportHistoryCsv()}
+            onClick={() => onExportHistoryCsv()}
             disabled={isExportingHistoryCsv}
           >
             {isExportingHistoryCsv ? <InlineSpinner className="w-3 h-3 mr-1.5" /> : <Download className="w-3 h-3 mr-1.5" />}
@@ -170,7 +170,7 @@ export function ChatHistoryView({
         {!historyLoading && !historyError && historyCount === 0 && (
           <p className="text-std-16N-170 text-solid-gray-420 text-center py-8">{t('chat.historyEmpty')}</p>
         )}
-        {!historyLoading && !historyError && history?.map((item, i) => (
+        {history?.map((item, i) => (
           <div key={item.id}>
             {i > 0 && <Divider className="mb-6" />}
             <HistoryItem item={item} onVideoNavigate={onVideoNavigate} />

@@ -1,8 +1,9 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef, useState, type RefCallback } from 'react';
+import { useEffect, useMemo, type RefCallback } from 'react';
 import type { CourseListItem } from '@videoq/trpc';
 import { useAuth } from '@/hooks/useAuth';
 import { trpc } from '@/lib/trpc';
+import { useInfiniteScroll } from './useInfiniteScroll';
 
 const PAGE_SIZE = 24;
 
@@ -10,31 +11,27 @@ interface UseVideoCoursesReturn {
   courses: CourseListItem[];
   isLoading: boolean;
   error: string | null;
-  hasNextPage: boolean;
-  fetchNextPage: () => void;
   isFetchingNextPage: boolean;
-  totalCount: number;
-  refetch: () => Promise<void>;
+  isFetching: boolean;
+  retry: () => void;
   sentinelRef: RefCallback<HTMLElement>;
 }
 
 /**
  * Fetch the list of video courses with infinite scroll pagination.
- * Keeps the original public fields while adding page-loading controls.
  */
-export function useVideoCourses(trigger: boolean = true): UseVideoCoursesReturn {
-  const { user } = useAuth();
-  const userId = user?.id ?? null;
+export function useVideoCourses(): UseVideoCoursesReturn {
+  const { user, isLoading: authLoading } = useAuth();
 
   const coursesQuery = useInfiniteQuery(trpc.courses.list.infiniteQueryOptions(
     { limit: PAGE_SIZE },
     {
-      enabled: trigger && userId !== null,
+      enabled: !!user,
       initialCursor: 0,
-      getNextPageParam: (lastPage, allPages) => {
-        const loaded = allPages.reduce((sum, page) => sum + page.data.length, 0);
-        if (loaded >= lastPage.meta.total) return undefined;
-        return loaded;
+      getNextPageParam: (lastPage) => {
+        if (lastPage.data.length === 0) return undefined;
+        const nextOffset = lastPage.meta.offset + lastPage.data.length;
+        return nextOffset < lastPage.meta.total ? nextOffset : undefined;
       },
     },
   ));
@@ -44,58 +41,23 @@ export function useVideoCourses(trigger: boolean = true): UseVideoCoursesReturn 
     [coursesQuery.data],
   );
 
-  const totalCount = coursesQuery.data?.pages[0]?.meta.total ?? 0;
-
   useEffect(() => {
     if (coursesQuery.error) {
       console.error('Failed to load video courses', coursesQuery.error);
     }
   }, [coursesQuery.error]);
 
-  const refetch = useCallback(async () => {
-    if (userId === null || !trigger) {
-      return;
-    }
-    const result = await coursesQuery.refetch();
-    if (result.error) {
-      throw result.error;
-    }
-  }, [coursesQuery, trigger, userId]);
-
-  const fetchNextPage = useCallback(() => {
-    void coursesQuery.fetchNextPage();
-  }, [coursesQuery]);
-
-  const fetchNextPageRef = useRef(fetchNextPage);
-  useEffect(() => {
-    fetchNextPageRef.current = fetchNextPage;
-  });
-
-  const [sentinelNode, setSentinelNode] = useState<HTMLElement | null>(null);
-  const sentinelRef: RefCallback<HTMLElement> = useCallback((node) => {
-    setSentinelNode(node);
-  }, []);
-
-  useEffect(() => {
-    if (!sentinelNode) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && coursesQuery.hasNextPage && !coursesQuery.isFetchingNextPage) {
-        fetchNextPageRef.current();
-      }
-    });
-    observer.observe(sentinelNode);
-    return () => observer.disconnect();
-  }, [sentinelNode, coursesQuery.hasNextPage, coursesQuery.isFetchingNextPage]);
+  const sentinelRef = useInfiniteScroll(coursesQuery);
 
   return {
     courses,
-    isLoading: coursesQuery.isLoading,
+    isLoading: authLoading || coursesQuery.isLoading,
     error: coursesQuery.error instanceof Error ? coursesQuery.error.message : null,
-    hasNextPage: coursesQuery.hasNextPage,
-    fetchNextPage,
     isFetchingNextPage: coursesQuery.isFetchingNextPage,
-    totalCount,
-    refetch,
+    isFetching: coursesQuery.isFetching,
+    retry: () => coursesQuery.isFetchNextPageError
+      ? coursesQuery.fetchNextPage({ cancelRefetch: false })
+      : coursesQuery.refetch({ cancelRefetch: false }),
     sentinelRef,
   };
 }

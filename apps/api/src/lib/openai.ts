@@ -34,14 +34,3 @@ export function resolveOpenAiKey(env: Pick<Bindings, "OPENAI_API_KEY">, purpose:
 
 export const openAiBaseUrl = (env: Pick<Bindings, "OPENAI_BASE_URL">): string =>
   (env.OPENAI_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, "");
-
-/** OpenAI HTTP エラーを VideoQ の LLM エラー分類へ変換する。 */
-export async function throwForResponse(res: Response): Promise<never> {
-  const body = await res.text().catch(() => "");
-  if (res.status === 401) {
-    throw new LlmConfigurationError(
-      "Invalid OpenAI API key. Please check your API key in Settings.",
-    );
-  }
-  throw new LlmProviderError(`OpenAI request failed (${res.status}): ${body.slice(0, 500)}`);
-}

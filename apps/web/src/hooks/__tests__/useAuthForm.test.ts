@@ -6,7 +6,7 @@ describe('useAuthForm', () => {
   const mockOnSubmit = vi.fn()
 
   beforeEach(() => {
-    mockOnSubmit.mockClear()
+    mockOnSubmit.mockReset()
   })
 
   it('should initialize with initial data', () => {
@@ -97,14 +97,10 @@ describe('useAuthForm', () => {
       })
     )
 
-    await act(async () => {
-      try {
-        await result.current.handleSubmit({
-          preventDefault: vi.fn(),
-        } as unknown as React.FormEvent)
-      } catch {
-        // Expected to throw
-      }
+    act(() => {
+      expect(result.current.handleSubmit({
+        preventDefault: vi.fn(),
+      } as unknown as React.FormEvent<HTMLFormElement>)).toBeUndefined()
     })
 
     await waitFor(() => {
@@ -112,19 +108,32 @@ describe('useAuthForm', () => {
     })
   })
 
-  it('should set error manually', () => {
+  it('blocks repeated submits until the current request settles and allows retry', async () => {
+    let reject!: (error: Error) => void
+    mockOnSubmit.mockImplementationOnce(() => new Promise((_, fail) => { reject = fail }))
+      .mockResolvedValue(undefined)
+    const onSuccessRedirect = vi.fn()
     const { result } = renderHook(() =>
       useAuthForm({
         onSubmit: mockOnSubmit,
         initialData,
+        onSuccessRedirect,
       })
     )
-
+    const event = { preventDefault: vi.fn() } as unknown as React.FormEvent<HTMLFormElement>
     act(() => {
-      result.current.setError('Manual error')
+      result.current.handleSubmit(event)
+      result.current.handleSubmit(event)
     })
-
-    expect(result.current.error).toBe('Manual error')
+    await waitFor(() => expect(mockOnSubmit).toHaveBeenCalledTimes(1))
+    expect(result.current.isLoading).toBe(true)
+    await act(async () => { reject(new Error('Please retry')) })
+    await waitFor(() => expect(result.current.error).toBe('Please retry'))
+    expect(onSuccessRedirect).not.toHaveBeenCalled()
+    act(() => { result.current.handleSubmit(event) })
+    await waitFor(() => expect(onSuccessRedirect).toHaveBeenCalledTimes(1))
+    expect(result.current.error).toBeNull()
+    expect(result.current.isLoading).toBe(false)
+    expect(mockOnSubmit).toHaveBeenCalledTimes(2)
   })
 })
-

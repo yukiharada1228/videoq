@@ -24,14 +24,14 @@ R(\theta) = \begin{pmatrix}
 export const searching = {
   phase: 'searching',
   searches: [
-    { id: 1, query: '回転行列の定義と具体例', status: 'complete', resultCount: 3 },
+    { id: 1, query: '回転行列の定義と具体例', status: 'complete' },
     { id: 2, query: '回転してもベクトルの長さが変わらない理由', status: 'running' },
   ],
 } satisfies ChatProgress;
 
 export const searched: ChatProgress = {
   phase: 'complete',
-  searches: searching.searches.map(search => ({ ...search, status: 'complete', resultCount: 3 })),
+  searches: searching.searches.map(search => ({ ...search, status: 'complete' })),
 };
 
 export const interrupted: ChatProgress = {

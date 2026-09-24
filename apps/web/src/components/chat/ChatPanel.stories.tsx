@@ -2,6 +2,8 @@ import { useState, type ComponentProps } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, waitFor, within } from 'storybook/test';
 import i18n from '@/i18n/config';
+import { appQueryClient } from '@/lib/queryClient';
+import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { ChatPanel } from './ChatPanel';
 import { authFixtures } from '../../../.storybook/fixtures/auth';
@@ -295,18 +297,68 @@ export const HistoryLoading: Story = { parameters: { chat: { historyState: 'pend
 } };
 export const HistoryEmpty: Story = { parameters: { chat: { history: [], evaluations: [] } satisfies ChatPanelScenario }, async play(context) {
   await openHistory(context); await expect(await context.canvas.findByText(label('historyEmpty'))).toBeVisible();
+  await expect(evaluationRequest).not.toHaveBeenCalled();
 } };
 export const HistoryLoaded: Story = { parameters: { chat: { history: mixedHistory.map(item => ({ ...item, course: courseId })), evaluations: mixedHistory.flatMap(item => item.evaluation ? [item.evaluation] : []) } satisfies ChatPanelScenario }, async play(context) {
   await openHistory(context);
   await expect(await context.canvas.findByText(label('evaluation.status.completed'))).toBeVisible();
   await expect(context.canvas.getByText('94%')).toBeVisible();
   await expect(historyRequest).toHaveBeenCalledWith({ courseId, limit: 100, offset: 0 });
-  await expect(evaluationRequest).toHaveBeenCalledWith({ courseId, limit: 200, offset: 0 });
+  await expect(evaluationRequest).toHaveBeenCalledWith({ courseId, limit: 100, offset: 0 });
 } };
 export const HistoryFailed: Story = { parameters: { chat: { historyState: 'error' } satisfies ChatPanelScenario }, async play(context) {
   await openHistory(context); await expect(await context.canvas.findByRole('alert')).toHaveTextContent(historyError);
   await expect(context.canvas.queryByText(label('historyEmpty'))).not.toBeInTheDocument();
+  await expect(evaluationRequest).not.toHaveBeenCalled();
 } };
+export const HistoryWhileEvaluationsLoad: Story = {
+  parameters: { chat: { evaluationState: 'pending' } satisfies ChatPanelScenario },
+  async play(context) {
+    await openHistory(context);
+    const item = english() ? englishHistory[0] : courseHistory[0];
+    await expect(await context.canvas.findByText(item.question)).toBeVisible();
+    await waitFor(() => expect(evaluationRequest).toHaveBeenCalledTimes(1));
+    await expect(context.canvas.queryByRole('progressbar')).not.toBeInTheDocument();
+    await expect(context.canvas.queryByRole('alert')).not.toBeInTheDocument();
+    await expect(context.canvas.getByRole('button', { name: 'CSV' })).toBeEnabled();
+    const citation = item.citations![0];
+    const button = context.canvas.getByRole('button', { name: `${citation.title} ${citation.start_time}` });
+    button.focus();
+    await context.userEvent.keyboard('{Enter}');
+    await expect(context.args.onVideoPlay).toHaveBeenCalledWith(citation.video_id, citation.start_time);
+  },
+};
+export const HistoryWhileEvaluationsLoadEnglishMobile: Story = { ...HistoryWhileEvaluationsLoad, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
+export const HistoryEvaluationFailure: Story = { ...HistoryWhileEvaluationsLoad, parameters: { chat: { evaluationState: 'error' } satisfies ChatPanelScenario } };
+
+function historyRefreshStory(state: 'pending' | 'error'): Story {
+  return {
+    parameters: { chat: { historyRefetch: state } satisfies ChatPanelScenario },
+    async play(context) {
+      await openHistory(context);
+      await context.canvas.findByText('94%');
+      const item = english() ? englishHistory[0] : courseHistory[0];
+      const question = context.canvas.getByText(item.question);
+      const csv = context.canvas.getByRole('button', { name: 'CSV' });
+      csv.focus();
+      const queryKey = trpc.chat.history.queryKey({ courseId, limit: 100, offset: 0 });
+      void appQueryClient.refetchQueries({ queryKey, exact: true });
+      await waitFor(() => expect(historyRequest).toHaveBeenCalledTimes(2));
+      if (state === 'error') await expect(await context.canvas.findByRole('alert')).toHaveTextContent(historyError);
+      await expect(context.canvas.getByText(item.question)).toBe(question);
+      await expect(question).toBeVisible();
+      await expect(context.canvas.getByText('94%')).toBeVisible();
+      await expect(csv).toHaveFocus();
+      await expect(csv).toBeEnabled();
+      await expect(context.canvas.queryByRole('progressbar')).not.toBeInTheDocument();
+      await expect(evaluationRequest).toHaveBeenCalledTimes(1);
+    },
+  };
+}
+export const HistoryBackgroundRefresh = historyRefreshStory('pending');
+export const HistoryBackgroundRefreshEnglishMobile: Story = { ...HistoryBackgroundRefresh, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
+export const HistoryBackgroundFailure = historyRefreshStory('error');
+export const HistoryBackgroundFailureEnglishMobile: Story = { ...HistoryBackgroundFailure, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
 export const FeedbackToggleAndHistory: Story = { async play(context) {
   await openHistory(context); await context.canvas.findByText('94%');
   await context.userEvent.click(chatButton(context)); await complete(context);

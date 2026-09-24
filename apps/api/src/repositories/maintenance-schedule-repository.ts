@@ -1,4 +1,4 @@
-import { withDb } from "../db/pool";
+import { withClient } from "../db/pool";
 import type { Bindings } from "../types/bindings";
 
 /**
@@ -34,7 +34,7 @@ export async function getNextMaintenanceWakeup(
   env: Bindings,
   windows: MaintenanceWindows,
 ): Promise<MaintenanceWakeup> {
-  return withDb(env, async (_db, client) => {
+  return withClient(env, async (client) => {
     const result = await client.query<{
       next_at: Date | null;
       next_future_at: Date | null;

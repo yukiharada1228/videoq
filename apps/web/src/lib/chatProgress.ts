@@ -4,7 +4,6 @@ export interface ChatSearchStep {
   id: number;
   query: string;
   status: 'running' | 'complete' | 'interrupted';
-  resultCount?: number;
 }
 
 export interface ChatProgress {
@@ -27,7 +26,7 @@ export function updateChatProgress(progress: ChatProgress, event: ChatStreamEven
   }
   if (event.type === 'search_completed') {
     const searches = progress.searches.map((search): ChatSearchStep => search.id === event.search_id
-      ? { ...search, status: 'complete', resultCount: event.result_count }
+      ? { ...search, status: 'complete' }
       : search);
     return { phase: searches.some((search) => search.status === 'running') ? 'searching' : 'reviewing', searches };
   }

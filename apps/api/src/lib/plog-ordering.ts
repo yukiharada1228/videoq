@@ -22,11 +22,9 @@ export const EDGE_TYPES = new Set([
 export function isDag(pairs: readonly (readonly [string, string])[]): boolean {
   const adj = new Map<string, Set<string>>();
   const indeg = new Map<string, number>();
-  const nodes = new Set<string>();
 
   for (const [src, tgt] of pairs) {
-    nodes.add(src);
-    nodes.add(tgt);
+    if (!indeg.has(src)) indeg.set(src, 0);
     let outs = adj.get(src);
     if (!outs) {
       outs = new Set();
@@ -37,14 +35,14 @@ export function isDag(pairs: readonly (readonly [string, string])[]): boolean {
       indeg.set(tgt, (indeg.get(tgt) ?? 0) + 1);
     }
   }
-  for (const n of nodes) {
-    if (!indeg.has(n)) indeg.set(n, 0);
-  }
 
-  const q: string[] = [...nodes].filter((n) => (indeg.get(n) ?? 0) === 0);
+  const q: string[] = [];
+  for (const [node, degree] of indeg) {
+    if (degree === 0) q.push(node);
+  }
   let seen = 0;
   while (q.length > 0) {
-    const n = q.shift()!;
+    const n = q.pop()!;
     seen += 1;
     for (const m of adj.get(n) ?? []) {
       const next = (indeg.get(m) ?? 0) - 1;
@@ -52,5 +50,5 @@ export function isDag(pairs: readonly (readonly [string, string])[]): boolean {
       if (next === 0) q.push(m);
     }
   }
-  return seen === nodes.size;
+  return seen === indeg.size;
 }

@@ -36,7 +36,6 @@ export type ActivePage = 'home' | 'videoLibrary' | 'courses' | 'pricing' | 'sett
 
 interface AppNavProps {
   activePage?: ActivePage;
-  isPublic?: boolean;
 }
 
 const LOCALE_LABELS: Record<Locale, string> = {

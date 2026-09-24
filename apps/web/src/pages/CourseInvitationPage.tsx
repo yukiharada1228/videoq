@@ -1,8 +1,8 @@
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { trpc } from '@/lib/trpc';
+import { appTrpcClient, trpc } from '@/lib/trpc';
 import { useAuthSession } from '@/lib/authSession';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
@@ -20,24 +20,40 @@ export default function CourseInvitationPage() {
   const { t } = useTranslation();
   const navigate = useI18nNavigate();
   const session = useAuthSession();
-  const [decision, setDecision] = useState<'declined' | null>(null);
+  const queryClient = useQueryClient();
+  const responding = useRef(false);
 
   const invitationQuery = useQuery(trpc.courseMemberships.preview.queryOptions({ token }, {
     enabled: Boolean(token),
     retry: false,
   }));
 
-  const acceptMutation = useMutation(trpc.courseMemberships.accept.mutationOptions({
-    onSuccess: (result) => navigate(`/videos/courses/${result.course_id}`),
-  }));
-  const declineMutation = useMutation(trpc.courseMemberships.decline.mutationOptions({
-    onSuccess: () => setDecision('declined'),
-  }));
+  const response = useMutation({
+    mutationFn: async ({ token, decision }: { token: string; decision: 'accept' | 'decline' }) => decision === 'accept'
+      ? appTrpcClient.courseMemberships.accept.mutate({ token })
+      : appTrpcClient.courseMemberships.decline.mutate({ token }),
+    onSuccess: async (result, { token }) => {
+      await queryClient.cancelQueries(trpc.courseMemberships.preview.queryFilter({ token }));
+      queryClient.setQueryData(trpc.courseMemberships.preview.queryKey({ token }), current =>
+        current ? { ...current, status: result.status } : current);
+    },
+    onSettled: () => { responding.current = false; },
+  });
+  const respond = (decision: 'accept' | 'decline') => {
+    if (responding.current) return;
+    responding.current = true;
+    response.mutate({ token, decision }, {
+      // Per-call callbacks stop when the recipient leaves this page.
+      onSuccess: (result) => {
+        if (result.status === 'accepted') navigate(`/videos/courses/${result.course_id}`);
+      },
+    });
+  };
 
   const invitation = invitationQuery.data;
   const isSignedIn = Boolean(session.data?.user);
   const nextParam = encodeURIComponent(`/course-invitations/${token}`);
-  const actionError = acceptMutation.error ?? declineMutation.error;
+  const actionError = response.error;
 
   return (
     <>
@@ -51,7 +67,7 @@ export default function CourseInvitationPage() {
         <div className="flex justify-center py-12"><LoadingSpinner /></div>
       ) : invitationQuery.error || !invitation ? (
         <ErrorMessage message={t('courseInvitation.notFound')} />
-      ) : decision === 'declined' ? (
+      ) : response.data?.status === 'declined' ? (
         <MessageAlert type="success" message={t('courseInvitation.declined')} />
       ) : (
         <div className="space-y-6">
@@ -97,20 +113,22 @@ export default function CourseInvitationPage() {
                 type="button"
                 variant="solid"
                 size="lg"
-                onClick={() => acceptMutation.mutate({ token })}
-                disabled={acceptMutation.isPending || declineMutation.isPending}
+                onClick={() => respond('accept')}
+                disabled={response.isPending}
+                aria-busy={response.isPending && response.variables.decision === 'accept'}
               >
-                {acceptMutation.isPending ? <InlineSpinner className="h-4 w-4" /> : null}
+                {response.isPending && response.variables.decision === 'accept' ? <InlineSpinner className="h-4 w-4" /> : null}
                 {t('courseInvitation.accept')}
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 size="lg"
-                onClick={() => declineMutation.mutate({ token })}
-                disabled={acceptMutation.isPending || declineMutation.isPending}
+                onClick={() => respond('decline')}
+                disabled={response.isPending}
+                aria-busy={response.isPending && response.variables.decision === 'decline'}
               >
-                {declineMutation.isPending ? <InlineSpinner className="h-4 w-4" /> : null}
+                {response.isPending && response.variables.decision === 'decline' ? <InlineSpinner className="h-4 w-4" /> : null}
                 {t('courseInvitation.decline')}
               </Button>
             </div>

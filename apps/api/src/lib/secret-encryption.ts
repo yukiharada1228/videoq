@@ -20,7 +20,6 @@ async function encryptionKey(env: Bindings): Promise<CryptoKey> {
   }
   return crypto.subtle.importKey("raw", bytes, "AES-GCM", false, [
     "encrypt",
-    "decrypt",
   ]);
 }
 
@@ -38,25 +37,4 @@ export async function encryptUserSecret(
     ),
   );
   return `v1.${encodeBase64Url(nonce)}.${encodeBase64Url(ciphertext)}`;
-}
-
-export async function decryptUserSecret(
-  env: Bindings,
-  envelope: string,
-): Promise<string | null> {
-  const [version, nonceText, ciphertextText] = envelope.split(".");
-  if (version !== "v1" || !nonceText || !ciphertextText) return null;
-  try {
-    const nonce = decodeBase64Url(nonceText);
-    const ciphertext = decodeBase64Url(ciphertextText);
-    if (nonce.length !== 12 || ciphertext.length < 17) return null;
-    const plaintext = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: nonce },
-      await encryptionKey(env),
-      ciphertext,
-    );
-    return new TextDecoder().decode(plaintext);
-  } catch {
-    return null;
-  }
 }

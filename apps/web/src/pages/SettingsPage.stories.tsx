@@ -1,17 +1,20 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, within } from 'storybook/test';
+import { expect, fn, waitFor, within } from 'storybook/test';
+import { http, HttpResponse } from 'msw';
+import i18n from '@/i18n/config';
 import SettingsPage from './SettingsPage';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { authFixture, regularUser } from '../../.storybook/fixtures/auth';
 import { apiKeysResponse } from '../../.storybook/fixtures/api';
 import { consentListPath, consents, publicClientHandler } from '../../.storybook/fixtures/connectedApps';
-import { failure, restGet, restPost, success, trpcQuery } from '../../.storybook/mocks/network';
+import { failure, restGet, restPost, success, trpcMutation, trpcQuery } from '../../.storybook/mocks/network';
 
+const keyListRequest = fn();
 const api = {
   auth: authFixture({ ...regularUser, username: 'yuki' }),
   trpc: [trpcQuery('account.searchApiKeyStatus', success({ has_api_key: false }))],
   rest: [
-    restGet('/api/auth/api-key/list', success(apiKeysResponse)),
+    http.get('/api/auth/api-key/list', () => { keyListRequest(); return HttpResponse.json(apiKeysResponse); }),
     restGet(consentListPath, success(consents)),
     publicClientHandler(),
     restPost('/api/auth/change-email', success({ status: true })),
@@ -81,4 +84,92 @@ export const EmailConfirmation: Story = {
     await expect(canvas.getByText(regularUser.email)).toBeVisible();
     await expect(canvas.queryByLabelText(/新しいメールアドレス|New email address/)).not.toBeInTheDocument();
   },
+};
+
+const searchStatusRequest = fn();
+const saveSearchKey = fn();
+const deleteSearchKey = fn();
+export const SearchApiKeyChanges: Story = {
+  parameters: { api: { ...api, trpc: [
+    trpcQuery('account.searchApiKeyStatus', () => { searchStatusRequest(); return success({ has_api_key: false }); }),
+    trpcMutation('account.saveSearchApiKey', input => { saveSearchKey(input); return success({ success: true }); }),
+    trpcMutation('account.deleteSearchApiKey', () => { deleteSearchKey(); return success({ success: true }); }),
+  ] } },
+  beforeEach() {
+    searchStatusRequest.mockClear(); saveSearchKey.mockClear(); deleteSearchKey.mockClear();
+  },
+  async play({ canvas, canvasElement, userEvent }) {
+    const label = (key: string) => i18n.t(`settings.searchApiKey.${key}`);
+    const input = await canvas.findByLabelText(label('apiKeyLabel'));
+    await userEvent.type(input, '  fixture-search-key  ');
+    await userEvent.click(canvas.getByRole('button', { name: label('show') }));
+    await expect(input).toHaveAttribute('type', 'text');
+    await userEvent.click(canvas.getByRole('button', { name: label('save') }));
+    await expect(await canvas.findByText(label('configured'))).toBeVisible();
+    await expect(saveSearchKey).toHaveBeenCalledTimes(1);
+    await expect(saveSearchKey).toHaveBeenCalledWith({ apiKey: 'fixture-search-key' });
+    await expect(canvas.queryByLabelText(label('apiKeyLabel'))).not.toBeInTheDocument();
+    await userEvent.click(canvas.getByRole('button', { name: label('edit') }));
+    await expect(canvas.getByLabelText(label('apiKeyLabel'))).toHaveValue('');
+    await expect(canvas.getByLabelText(label('apiKeyLabel'))).toHaveAttribute('type', 'password');
+    await userEvent.click(canvas.getByRole('button', { name: i18n.t('settings.cancel') }));
+    await userEvent.click(canvas.getByRole('button', { name: label('delete') }));
+    const dialog = within(canvas.getByRole('dialog'));
+    dialog.getByRole('button', { name: label('delete') }).focus();
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(canvas.queryByRole('dialog')).not.toBeInTheDocument());
+    await expect(canvas.getByText(label('notConfigured'))).toBeVisible();
+    await expect(canvas.getByLabelText(label('apiKeyLabel'))).toHaveValue('');
+    await expect(deleteSearchKey).toHaveBeenCalledTimes(1);
+    await expect(searchStatusRequest).toHaveBeenCalledTimes(1);
+    await expect(canvasElement.scrollWidth).toBeLessThanOrEqual(canvasElement.clientWidth);
+  },
+};
+export const SearchApiKeyChangesEnglishMobile: Story = {
+  ...SearchApiKeyChanges, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
+};
+
+const copyRequest = fn();
+export const GeneratedKeyCopyRetry: Story = {
+  parameters: { api: { ...api, rest: [...api.rest,
+    restPost('/api/auth/api-key/create', success({
+      id: 'generated-fixture', configId: 'read-write', name: 'Notebook', start: 'vq_fixture',
+      key: 'fixture-only-generated-secret', createdAt: '2026-09-23T00:00:00Z',
+    })),
+  ] } },
+  beforeEach() {
+    keyListRequest.mockClear();
+    const descriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    copyRequest.mockReset().mockRejectedValueOnce(new Error('Clipboard denied')).mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: copyRequest } });
+    return () => {
+      if (descriptor) Object.defineProperty(navigator, 'clipboard', descriptor);
+      else Reflect.deleteProperty(navigator, 'clipboard');
+    };
+  },
+  async play({ canvas, userEvent }) {
+    const label = (key: string) => i18n.t(`settings.integrationApiKeys.${key}`);
+    await canvas.findByText(apiKeysResponse.apiKeys[0].name);
+    await userEvent.click(canvas.getByRole('button', { name: label('create') }));
+    await userEvent.type(canvas.getByLabelText(label('nameLabel')), 'Notebook');
+    await userEvent.click(canvas.getByRole('button', { name: label('createDialogCta') }));
+    await expect(await canvas.findByText('fixture-only-generated-secret')).toBeVisible();
+    await userEvent.click(canvas.getByRole('button', { name: label('copy') }));
+    await expect(await canvas.findByText(label('errorCopying'))).toBeVisible();
+    canvas.getByRole('button', { name: label('copy') }).focus();
+    await userEvent.keyboard('{Enter}');
+    await expect(await canvas.findByRole('button', { name: label('copyDone') })).toBeEnabled();
+    await expect(canvas.queryByText(label('errorCopying'))).not.toBeInTheDocument();
+    await expect(copyRequest).toHaveBeenCalledTimes(2);
+    await expect(copyRequest).toHaveBeenLastCalledWith('fixture-only-generated-secret');
+    await userEvent.click(canvas.getByRole('button', { name: label('generatedDoneCta') }));
+    await expect(canvas.getByText('Notebook')).toBeVisible();
+    await expect(canvas.getByText(apiKeysResponse.apiKeys[0].name)).toBeVisible();
+    await expect(canvas.queryByText('fixture-only-generated-secret')).not.toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: label('create') })).toBeEnabled();
+    await expect(keyListRequest).toHaveBeenCalledTimes(1);
+  },
+};
+export const GeneratedKeyCopyRetryEnglishMobile: Story = {
+  ...GeneratedKeyCopyRetry, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
 };

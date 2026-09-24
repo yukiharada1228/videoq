@@ -23,7 +23,7 @@ def reindex_video_transcript(video_id: int) -> None:
             logger.warning("ReindexVideoTranscript: video %d not found, skipping", video_id)
             return
 
-        if video.transcript:
+        if video.transcript and video.transcript.strip():
             vector_index.index_video_transcript(video)
             logger.info("Successfully reindexed transcript for video %d", video_id)
         else:

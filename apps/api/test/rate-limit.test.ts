@@ -5,7 +5,6 @@ import {
   pruneExpiredHistory,
   setRateLimitBackendForTests,
   THROTTLE_RATES,
-  normalizeThrottleIdent,
 } from "../src/lib/rate-limit";
 import type { Bindings } from "../types/bindings";
 
@@ -17,13 +16,6 @@ const ENV = {
 
 beforeEach(() => {
   setRateLimitBackendForTests(createMemoryRateLimitBackend());
-});
-
-describe("normalizeThrottleIdent", () => {
-  it("strips and lowercases when requested", () => {
-    expect(normalizeThrottleIdent("  Foo@Bar.COM ", true)).toBe("foo@bar.com");
-    expect(normalizeThrottleIdent("  Foo ", false)).toBe("Foo");
-  });
 });
 
 describe("pruneExpiredHistory", () => {

@@ -43,7 +43,6 @@ describe('chatStreamReducer', () => {
       feedback: 'good',
       citations: [citation],
     })
-    expect(state.errorEvent).toBeNull()
   })
 
   it('clears pending content and metadata when an error event arrives', () => {
@@ -73,11 +72,6 @@ describe('chatStreamReducer', () => {
     expect(state.queuedContent).toBe('')
     expect(state.doneEvent).toBeNull()
     expect(state.streamFinished).toBe(true)
-    expect(state.errorEvent).toEqual({
-      type: 'error',
-      code: 'LLM_PROVIDER_ERROR',
-      message: 'failed',
-    })
   })
 })
 

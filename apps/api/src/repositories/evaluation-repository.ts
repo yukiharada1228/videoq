@@ -1,5 +1,6 @@
 import { and, avg, count, desc, eq, sql } from "drizzle-orm";
-import { withDb } from "../db/pool";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
+import { type Db, withDb } from "../db/pool";
 import { chatLogs, chatLogEvaluations, videoCourses } from "../db/schema";
 import { toUtcIso } from "../shared/datetime";
 import type { Bindings } from "../types/bindings";
@@ -31,6 +32,33 @@ function evaluationStatus(value: string): EvaluationStatus {
   throw new Error(`Invalid evaluation status in database: ${value}`);
 }
 
+// Older workers may have stored non-finite RAGAS scores. Normalize before
+// aggregation so valid scores still contribute to averages, and reuse for logs.
+function finiteMetric(column: AnyPgColumn) {
+  return sql<number | null>`CASE
+    WHEN ${column} IN ('NaN'::float8, 'Infinity'::float8, '-Infinity'::float8) THEN NULL
+    ELSE ${column}
+  END`.as(column.name);
+}
+
+// Keep unevaluated chats out of the LEFT JOIN used for ownership-aware counts.
+function evaluationsForCourse(db: Db, courseId: number) {
+  return db
+    .select({
+      chatLogId: chatLogEvaluations.chatLogId,
+      status: chatLogEvaluations.status,
+      faithfulness: finiteMetric(chatLogEvaluations.faithfulness),
+      answerRelevancy: finiteMetric(chatLogEvaluations.answerRelevancy),
+      contextPrecision: finiteMetric(chatLogEvaluations.contextPrecision),
+      errorMessage: chatLogEvaluations.errorMessage,
+      evaluatedAt: chatLogEvaluations.evaluatedAt,
+      chatCreatedAt: chatLogs.createdAt,
+    })
+    .from(chatLogEvaluations)
+    .innerJoin(chatLogs, eq(chatLogEvaluations.chatLogId, chatLogs.id))
+    .where(eq(chatLogs.courseId, courseId))
+    .as("course_evaluations");
+}
 
 /**
  * RAGAS 集計。接続は withDb（Drizzle）を使い、API 契約に沿った結果を返す。
@@ -41,23 +69,19 @@ export async function getEvaluationSummary(
   userId: string,
 ): Promise<{ notFound: true } | EvaluationSummary> {
   return withDb(env, async (db) => {
-    const owner = await db
-      .select({ x: sql<number>`1` })
-      .from(videoCourses)
-      .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, userId)))
-      .limit(1);
-    if (owner.length === 0) return { notFound: true } as const;
-
+    const evaluations = evaluationsForCourse(db, courseId);
     const [r] = await db
       .select({
-        evaluated_count: sql<number>`count(*)::int`,
-        avg_faithfulness: avg(chatLogEvaluations.faithfulness),
-        avg_answer_relevancy: avg(chatLogEvaluations.answerRelevancy),
-        avg_context_precision: avg(chatLogEvaluations.contextPrecision),
+        evaluated_count: count(evaluations.chatLogId),
+        avg_faithfulness: avg(evaluations.faithfulness),
+        avg_answer_relevancy: avg(evaluations.answerRelevancy),
+        avg_context_precision: avg(evaluations.contextPrecision),
       })
-      .from(chatLogEvaluations)
-      .innerJoin(chatLogs, eq(chatLogEvaluations.chatLogId, chatLogs.id))
-      .where(and(eq(chatLogs.courseId, courseId), eq(chatLogEvaluations.status, "completed")));
+      .from(videoCourses)
+      .leftJoin(evaluations, eq(evaluations.status, "completed"))
+      .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, userId)))
+      .groupBy(videoCourses.id);
+    if (!r) return { notFound: true } as const;
 
     return {
       course_id: courseId,
@@ -77,33 +101,28 @@ export async function listEvaluationLogs(
   offset: number,
 ): Promise<{ notFound: true } | { count: number; results: EvaluationLog[] }> {
   return withDb(env, async (db) => {
-    const owner = await db
-      .select({ x: sql<number>`1` })
+    const evaluations = evaluationsForCourse(db, courseId);
+    const [total] = await db
+      .select({ count: count(evaluations.chatLogId) })
       .from(videoCourses)
+      .leftJoin(evaluations, sql`true`)
       .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, userId)))
-      .limit(1);
-    if (owner.length === 0) return { notFound: true } as const;
-
-    const [cnt] = await db
-      .select({ c: count() })
-      .from(chatLogEvaluations)
-      .innerJoin(chatLogs, eq(chatLogEvaluations.chatLogId, chatLogs.id))
-      .where(eq(chatLogs.courseId, courseId));
+      .groupBy(videoCourses.id);
+    if (!total) return { notFound: true } as const;
+    if (offset >= total.count) return { count: total.count, results: [] };
 
     const rows = await db
       .select({
-        chat_log_id: chatLogEvaluations.chatLogId,
-        status: chatLogEvaluations.status,
-        faithfulness: chatLogEvaluations.faithfulness,
-        answer_relevancy: chatLogEvaluations.answerRelevancy,
-        context_precision: chatLogEvaluations.contextPrecision,
-        error_message: chatLogEvaluations.errorMessage,
-        evaluated_at: chatLogEvaluations.evaluatedAt,
+        chat_log_id: evaluations.chatLogId,
+        status: evaluations.status,
+        faithfulness: evaluations.faithfulness,
+        answer_relevancy: evaluations.answerRelevancy,
+        context_precision: evaluations.contextPrecision,
+        error_message: evaluations.errorMessage,
+        evaluated_at: evaluations.evaluatedAt,
       })
-      .from(chatLogEvaluations)
-      .innerJoin(chatLogs, eq(chatLogEvaluations.chatLogId, chatLogs.id))
-      .where(eq(chatLogs.courseId, courseId))
-      .orderBy(desc(chatLogs.createdAt))
+      .from(evaluations)
+      .orderBy(desc(evaluations.chatCreatedAt), desc(evaluations.chatLogId))
       .limit(limit)
       .offset(offset);
 
@@ -116,6 +135,6 @@ export async function listEvaluationLogs(
       error_message: r.error_message,
       evaluated_at: r.evaluated_at ? toUtcIso(r.evaluated_at) : null,
     }));
-    return { count: Number(cnt.c), results };
+    return { count: total.count, results };
   });
 }

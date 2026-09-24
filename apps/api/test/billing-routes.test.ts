@@ -123,10 +123,10 @@ describe("billing API", () => {
     constructEventAsync.mockResolvedValue({
       id: "evt_1",
       type: "invoice.paid",
-      data: { object: { customer: "cus_1", parent: null } },
+      data: { object: { customer: "cus_1", parent: { subscription_details: { subscription: "sub_1" } } } },
     });
     rowsFor = (sql) => {
-      if (sql.includes("INSERT") && sql.includes("stripe_events")) return [];
+      if (sql.includes("SELECT") && sql.includes("stripe_events")) return [{ id: "evt_1" }];
       return [];
     };
     const res = await req("/webhook", {
@@ -139,5 +139,6 @@ describe("billing API", () => {
     });
     expect(res.status).toBe(200);
     expect(subscriptionsRetrieve).not.toHaveBeenCalled();
+    expect(calls).toHaveLength(1);
   });
 });

@@ -1,6 +1,7 @@
 import { and, asc, count, eq, ilike, isNull, or, sql } from "drizzle-orm";
-import { withDb } from "../db/pool";
+import { withDb, type Db } from "../db/pool";
 import {
+  externalTasks,
   oauthAccessToken,
   oauthConsent,
   oauthRefreshToken,
@@ -8,6 +9,7 @@ import {
   users,
 } from "../db/schema";
 import { insertJobTask } from "./external-task-repository";
+import { entitlementsForSubscription } from "../features/billing/catalog";
 import {
   buildJobMessage,
   JOB_DELETE_ACCOUNT_DATA,
@@ -126,6 +128,8 @@ export async function listAdminUsers(
       .select({ c: count() })
       .from(users)
       .where(whereClause);
+    const total = Number(countRow.c);
+    if (offset >= total) return { count: total, results: [] };
 
     const rows = await db
       .select(adminUserSelect)
@@ -136,7 +140,7 @@ export async function listAdminUsers(
       .offset(offset);
 
     return {
-      count: Number(countRow.c),
+      count: total,
       results: rows.map(mapUser),
     };
   });
@@ -146,14 +150,35 @@ export async function getAdminUser(
   env: Bindings,
   userId: string,
 ): Promise<AdminUser | null> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .select(adminUserSelect)
+  return withDb(env, db => readAdminUser(db, userId));
+}
+
+async function readAdminUser(db: Db, userId: string): Promise<AdminUser | null> {
+  const [user] = await db
+    .select(adminUserSelect)
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  return user ? mapUser(user) : null;
+}
+
+/** Keep native auth changes and the response on the same locked user and connection. */
+export async function updateAdminUser(
+  env: Bindings,
+  userId: string,
+  update: (tx: Db) => Promise<void>,
+): Promise<AdminUser | null> {
+  return withDb(env, db => db.transaction(async tx => {
+    const [target] = await tx
+      .select({ id: users.id })
       .from(users)
       .where(eq(users.id, userId))
-      .limit(1);
-    return rows[0] ? mapUser(rows[0]) : null;
-  });
+      .limit(1)
+      .for("update");
+    if (!target) return null;
+    await update(tx);
+    return readAdminUser(tx, userId);
+  }));
 }
 
 export type QuotaPatch = {
@@ -183,6 +208,24 @@ export async function patchAdminUserQuota(
   userId: string,
   patch: QuotaPatch,
 ): Promise<AdminUser | null> {
+  if (patch.quota_source === "plan") {
+    return withDb(env, db => db.transaction(async tx => {
+      const [user] = await tx
+        .select({ planCode: users.planCode, subscriptionStatus: users.subscriptionStatus })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1)
+        .for("update");
+      if (!user) return null;
+      const [updated] = await tx.update(users).set({
+        ...entitlementsForSubscription(user.planCode, user.subscriptionStatus),
+        quotaSource: "plan",
+        updatedAt: sql`CURRENT_TIMESTAMP`,
+      }).where(eq(users.id, userId)).returning(adminUserSelect);
+      return updated ? mapUser(updated) : null;
+    }));
+  }
+
   const set: Partial<{
     maxVideoUploadSizeMb: number;
     storageLimitGb: number | null;
@@ -215,15 +258,22 @@ export async function patchAdminUserQuota(
 export async function lockUserForHardDelete(
   env: Bindings,
   userId: string,
-): Promise<false | { taskId: number; jobId: string }> {
+): Promise<{ notFound: true } | { forbiddenSuperuser: true } | { taskId: number; jobId: string }> {
   return withDb(env, async (db) => {
     return db.transaction(async (tx) => {
-      const updated = await tx
+      const [target] = await tx
+        .select({ is_superuser: adminUserSelect.is_superuser })
+        .from(users)
+        .where(eq(users.id, userId))
+        .for("update")
+        .limit(1);
+      if (!target) return { notFound: true };
+      if (target.is_superuser) return { forbiddenSuperuser: true };
+
+      await tx
         .update(users)
         .set({ banned: true, banExpires: null })
-        .where(eq(users.id, userId))
-        .returning({ id: users.id });
-      if (updated.length === 0) return false;
+        .where(eq(users.id, userId));
       await tx.delete(session).where(eq(session.userId, userId));
       await tx.delete(oauthAccessToken).where(eq(oauthAccessToken.userId, userId));
       await tx
@@ -239,7 +289,13 @@ export async function lockUserForHardDelete(
         message,
         dedupeKey: `account-delete:${userId}`,
       });
-      return { taskId: task.id, jobId: message.job_id };
+      if (task.created) return { taskId: task.id, jobId: message.job_id };
+      const [existing] = await tx
+        .select({ jobId: sql<string>`${externalTasks.payload}->'message'->>'job_id'` })
+        .from(externalTasks)
+        .where(eq(externalTasks.id, task.id));
+      if (!existing?.jobId) throw new Error("Persisted deletion job ID is missing.");
+      return { taskId: task.id, jobId: existing.jobId };
     });
   });
 }

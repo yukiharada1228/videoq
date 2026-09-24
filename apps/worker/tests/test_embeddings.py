@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import asdict
 from io import BytesIO
@@ -68,9 +69,10 @@ def response(monkeypatch, payload):
 def test_provider_uses_fixed_dimension_and_validates_batch(monkeypatch, provider):
     monkeypatch.setenv("EMBEDDING_PROVIDER", provider)
     monkeypatch.setenv("EMBEDDING_MODEL", "model")
-    payload = {"data": [{"index": 1, "embedding": VECTOR}, {"index": 0, "embedding": VECTOR}]} if provider == "openai" else {"embeddings": [VECTOR, VECTOR]}
+    first_vector = [0.0, 1.0] + [0.0] * (EMBEDDING_DIMENSIONS - 2)
+    payload = {"data": [{"index": 1, "embedding": VECTOR}, {"index": 0, "embedding": first_vector}]} if provider == "openai" else {"embeddings": [first_vector, VECTOR]}
     http = response(monkeypatch, payload)
-    assert embeddings.embed_texts(["first", "second"]) == [VECTOR, VECTOR]
+    assert embeddings.embed_texts(["first", "second"]) == [first_vector, VECTOR]
     request = http.call_args.args[0]
     assert json.loads(request.data) == {"model": "model", "input": ["first", "second"], "dimensions": 1536, **({"encoding_format": "float"} if provider == "openai" else {})}
     assert request.full_url.endswith("/v1/embeddings" if provider == "openai" else "/api/embed")
@@ -92,6 +94,21 @@ def test_ollama_invalid_response_never_falls_back(monkeypatch, payload):
     with pytest.raises(EmbeddingContractError):
         embeddings.embed_texts(["input"])
     http.assert_called_once()
+
+
+@pytest.mark.parametrize("provider", ["openai", "ollama"])
+@pytest.mark.parametrize("payload", [b"not json", b"\xff"])
+def test_invalid_provider_payload_closes_response(monkeypatch, provider, payload):
+    monkeypatch.setenv("EMBEDDING_PROVIDER", provider)
+    monkeypatch.setenv("EMBEDDING_MODEL", "model")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    response = BytesIO(payload)
+    monkeypatch.setattr(embeddings.urllib.request, "urlopen", MagicMock(return_value=response))
+
+    with pytest.raises(EmbeddingContractError) as caught:
+        embeddings.embed_texts(["input"])
+    assert caught.value.reason == "EMBEDDING_OUTPUT_INVALID"
+    assert response.closed
 
 
 @pytest.mark.parametrize("row", [None, {"type_name": "vector", "dimensions": 1024}, {"type_name": "vector", "dimensions": -1}, {"type_name": "text", "dimensions": 1536}])
@@ -124,7 +141,7 @@ def test_config_errors_are_not_hidden_by_scene_or_evaluation_fallback(monkeypatc
         raise error
     metric.single_turn_ascore = fail
     with pytest.raises(EmbeddingContractError):
-        evaluation._run_metric(metric, object())
+        asyncio.run(evaluation._run_metric(metric, object()))
 
 
 @pytest.mark.parametrize("stage", ["schema", "output"])
@@ -147,8 +164,12 @@ def test_invalid_plog_embeddings_do_not_delete_existing_material(monkeypatch):
     response(monkeypatch, {"data": [{"index": 0, "embedding": [1, 2]}]})
     conn = MagicMock()
     conn.execute.return_value.fetchone.return_value = {"type_name": "vector", "dimensions": 1536}
+    connect = MagicMock()
+    connect.return_value.__enter__.return_value = conn
+    monkeypatch.setattr(plog_build, "db_connection", connect)
     with pytest.raises(EmbeddingContractError) as caught:
-        plog_build.run_plog_pipeline(conn, 42, "subtitle")
+        artifacts = plog_build.generate_plog_artifacts(42, "subtitle")
+        plog_build.save_plog_artifacts(conn, 42, artifacts)
     assert caught.value.reason == "EMBEDDING_OUTPUT_INVALID"
     assert not any("DELETE" in call.args[0] for call in conn.execute.call_args_list)
 
@@ -160,14 +181,19 @@ def test_provider_request_rejection_propagates_through_scene_and_metric(monkeypa
     monkeypatch.setenv("EMBEDDING_MODEL", "model")
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     body = "private input / credentials"
+    responses = []
     http = MagicMock(side_effect=lambda *_args, **_kwargs: reject())
 
     def reject():
-        raise HTTPError("http://example.invalid", status, body, {}, BytesIO(body.encode()))
+        response = BytesIO(body.encode())
+        responses.append(response)
+        raise HTTPError("http://example.invalid", status, body, {}, response)
 
     monkeypatch.setattr(embeddings.urllib.request, "urlopen", http)
-    # The embedding request fails before token counting; avoid tokenizer downloads.
-    monkeypatch.setattr(scene_embedders, "_resolve_encoding", lambda: object())
+    # Three cues require a semantic boundary choice; two have only one boundary.
+    encoding = MagicMock()
+    encoding.encode_ordinary.return_value = list(range(300))
+    monkeypatch.setattr(scene_embedders, "_resolve_encoding", lambda: encoding)
 
     class Metric:
         async def single_turn_ascore(self, _sample):
@@ -175,8 +201,12 @@ def test_provider_request_rejection_propagates_through_scene_and_metric(monkeypa
             return 1.0
 
     operations = [
-        lambda: apply_scene_splitting("1\n00:00:00,000 --> 00:00:01,000\nWater evaporates.\n"),
-        lambda: evaluation._run_metric(Metric(), object()),
+        lambda: apply_scene_splitting(
+            "1\n00:00:00,000 --> 00:00:01,000\nWater evaporates.\n\n"
+            "2\n00:00:01,000 --> 00:00:02,000\nSteam condenses.\n\n"
+            "3\n00:00:02,000 --> 00:00:03,000\nWater freezes.\n"
+        ),
+        lambda: asyncio.run(evaluation._run_metric(Metric(), object())),
     ]
     for operation in operations:
         with pytest.raises(EmbeddingContractError) as caught:
@@ -184,6 +214,7 @@ def test_provider_request_rejection_propagates_through_scene_and_metric(monkeypa
         assert caught.value.reason == "EMBEDDING_CONFIG_INVALID"
         assert f"HTTP {status}" in str(caught.value)
         assert body not in str(caught.value)
+        assert responses[-1].closed
     assert body not in caplog.text
     assert http.call_count == len(operations)  # No retries without dimensions.
 
@@ -194,7 +225,8 @@ def test_transient_provider_errors_keep_existing_metric_fallback(monkeypatch, pr
     monkeypatch.setenv("EMBEDDING_PROVIDER", provider)
     monkeypatch.setenv("EMBEDDING_MODEL", "model")
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-    http = MagicMock(side_effect=HTTPError("http://example.invalid", status, "unavailable", {}, BytesIO()))
+    response = BytesIO()
+    http = MagicMock(side_effect=HTTPError("http://example.invalid", status, "unavailable", {}, response))
     monkeypatch.setattr(embeddings.urllib.request, "urlopen", http)
 
     class Metric:
@@ -202,5 +234,6 @@ def test_transient_provider_errors_keep_existing_metric_fallback(monkeypatch, pr
             VideoQEmbeddings().embed_query("synthetic input")
             return 1.0
 
-    assert evaluation._run_metric(Metric(), object()) is None
+    assert asyncio.run(evaluation._run_metric(Metric(), object())) is None
     http.assert_called_once()
+    assert response.closed

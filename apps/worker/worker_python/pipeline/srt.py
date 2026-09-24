@@ -1,7 +1,9 @@
-"""SRT helpers (SubtitleParser.parse_srt_scenes subset)."""
+"""Shared SRT parsing and formatting for transcription, scenes and indexing."""
 
 from __future__ import annotations
 
+import re
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 
@@ -33,16 +35,10 @@ def parse_srt_timestamp(timestamp: str) -> float:
 
 
 def format_srt_time(seconds: float) -> str:
-    if seconds < 0:
-        seconds = 0.0
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    secs = seconds % 60
-    whole = int(secs)
-    millis = int(round((secs - whole) * 1000))
-    if millis == 1000:
-        whole += 1
-        millis = 0
+    total_millis = round(max(seconds, 0.0) * 1000)
+    hours, remainder = divmod(total_millis, 3_600_000)
+    minutes, remainder = divmod(remainder, 60_000)
+    whole, millis = divmod(remainder, 1000)
     return f"{hours:02d}:{minutes:02d}:{whole:02d},{millis:03d}"
 
 
@@ -62,11 +58,21 @@ def create_srt_from_whisper_segments(segments: list[dict]) -> str:
 
 
 def parse_srt_scenes(srt_string: str) -> list[SrtScene]:
-    content = srt_string.strip()
-    if not content:
-        return []
-    scenes: list[SrtScene] = []
-    for block in content.split("\n\n"):
+    return list(iter_srt_scenes(srt_string))
+
+
+def _iter_srt_blocks(srt_string: str) -> Iterator[str]:
+    content = srt_string.replace("\r\n", "\n").replace("\r", "\n").strip()
+    start = 0
+    for separator in re.finditer(r"\n[ \t]*\n", content):
+        yield content[start : separator.start()]
+        start = separator.end()
+    yield content[start:]
+
+
+def iter_srt_scenes(srt_string: str) -> Iterator[SrtScene]:
+    """Yield valid scenes so bounded consumers can stop without parsing the rest."""
+    for block in _iter_srt_blocks(srt_string):
         block = block.strip()
         if not block:
             continue
@@ -90,14 +96,11 @@ def parse_srt_scenes(srt_string: str) -> list[SrtScene]:
             end_sec = parse_srt_timestamp(end_str)
         except ValueError:
             continue
-        scenes.append(
-            SrtScene(
-                index=index,
-                start_time=start_str,
-                end_time=end_str,
-                start_sec=start_sec,
-                end_sec=end_sec,
-                text=text,
-            )
+        yield SrtScene(
+            index=index,
+            start_time=start_str,
+            end_time=end_str,
+            start_sec=start_sec,
+            end_sec=end_sec,
+            text=text,
         )
-    return scenes

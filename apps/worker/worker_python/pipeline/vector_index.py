@@ -1,19 +1,19 @@
-"""PGVectorStore indexing into the shared scene_embeddings table."""
+"""Atomic indexing into the shared PGVectorStore-compatible scene table."""
 
 from __future__ import annotations
 
-import asyncio
+import json
 import logging
 import uuid
-from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import nullcontext
+from typing import Any
 
-from langchain_postgres import PGEngine, PGVectorStore
+import psycopg
+from psycopg.types.json import Json
 
-from worker_python.db import db_connection, get_database_url
+from worker_python.db import db_connection
 from worker_python.env import env_str
 from worker_python.pipeline.embeddings import embed_texts
-from worker_python.pipeline.langchain_embeddings import VideoQEmbeddings
 from worker_python.pipeline.embedding_schema import check_embedding_storage
 from worker_python.pipeline.srt import parse_srt_scenes
 from worker_python.video_sql import VideoRow
@@ -30,82 +30,54 @@ def _table_name() -> str:
     return name
 
 
-def _sqlalchemy_database_url() -> str:
-    url = get_database_url()
-    if url.startswith("postgresql+"):
-        return url
-    if url.startswith("postgres://"):
-        return "postgresql+psycopg://" + url.removeprefix("postgres://")
-    if url.startswith("postgresql://"):
-        return "postgresql+psycopg://" + url.removeprefix("postgresql://")
-    raise RuntimeError("DATABASE_URL must use a PostgreSQL URL")
-
-
-@contextmanager
-def _vector_store() -> Iterator[PGVectorStore]:
-    engine = PGEngine.from_connection_string(url=_sqlalchemy_database_url())
-    try:
-        yield PGVectorStore.create_sync(
-            engine=engine,
-            table_name=_table_name(),
-            embedding_service=VideoQEmbeddings(),
-            metadata_columns=["user_id", "video_id"],
-        )
-    finally:
-        asyncio.run(engine.close())
-
-
-def _count_vectors(metadata_key: str | None = None, value: int | str | None = None) -> int:
+def _delete_vectors(
+    metadata_key: str | None = None,
+    value: int | str | None = None,
+    *,
+    conn: psycopg.Connection[Any] | None = None,
+) -> int:
     table = _table_name()
-    with db_connection() as conn:
+    with nullcontext(conn) if conn is not None else db_connection() as db:
         if metadata_key is None:
-            row = conn.execute(f'SELECT count(*) AS count FROM "{table}"').fetchone()
+            result = db.execute(f'DELETE FROM "{table}"')
         else:
             if metadata_key not in {"video_id", "user_id"}:
                 raise ValueError(f"unsupported metadata key: {metadata_key}")
-            row = conn.execute(
-                f'SELECT count(*) AS count FROM "{table}" WHERE "{metadata_key}" = %s',
+            result = db.execute(
+                f'DELETE FROM "{table}" WHERE "{metadata_key}" = %s',
                 (value,),
-            ).fetchone()
-    return int(row["count"]) if row else 0
+            )
+        return result.rowcount
 
 
-def delete_video_vectors(video_id: int) -> int:
-    deleted = _count_vectors("video_id", video_id)
-    with _vector_store() as store:
-        store.delete(filter={"video_id": video_id})
+def delete_video_vectors(video_id: int, *, conn: psycopg.Connection[Any] | None = None) -> int:
+    deleted = _delete_vectors("video_id", video_id, conn=conn)
     logger.info("Deleted %d vector rows for video %d", deleted, video_id)
     return deleted
 
 
-def delete_user_vectors(user_id: str) -> int:
-    deleted = _count_vectors("user_id", user_id)
-    with _vector_store() as store:
-        store.delete(filter={"user_id": user_id})
+def delete_user_vectors(user_id: str, *, conn: psycopg.Connection[Any] | None = None) -> int:
+    deleted = _delete_vectors("user_id", user_id, conn=conn)
     logger.info("Deleted %d vector rows for user %s", deleted, user_id)
     return deleted
 
 
 def delete_all_vectors() -> int:
-    deleted = _count_vectors()
-    with _vector_store() as store:
-        if deleted:
-            store.delete(filter={"user_id": {"$exists": True}})
+    deleted = _delete_vectors()
     logger.info("Deleted %d vector rows (all)", deleted)
     return deleted
 
 
-def index_video_transcript(video: VideoRow) -> int:
-    """Parse SRT scenes, embed, and insert into scene_embeddings. Returns inserted count."""
+def index_video_transcript(video: VideoRow, *, replace_existing: bool = True) -> int:
+    """Index SRT scenes; skip replacement only after a purge under the global lock."""
     if not video.transcript:
         raise ValueError(f"Video {video.id} has no transcript")
 
     scenes = parse_srt_scenes(video.transcript)
     if not scenes:
-        logger.info("No SRT scenes for video %d; skipping vector index", video.id)
-        return 0
+        raise ValueError(f"Video {video.id} transcript contains no valid SRT scenes")
 
-    _table_name()
+    table = _table_name()
     check_embedding_storage()
     texts = [s.text for s in scenes]
     # Batch embeddings in chunks to avoid provider limits.
@@ -114,30 +86,29 @@ def index_video_transcript(video: VideoRow) -> int:
     for i in range(0, len(texts), batch_size):
         embeddings.extend(embed_texts(texts[i : i + batch_size]))
 
-    metadatas = [
-        {
-            "video_id": video.id,
-            "user_id": video.user_id,
-            "video_title": video.title,
-            "start_time": scene.start_time,
-            "end_time": scene.end_time,
-            "start_sec": scene.start_sec,
-            "end_sec": scene.end_sec,
-            "scene_index": scene.index,
-        }
-        for scene in scenes
-    ]
-    ids = [str(uuid.uuid4()) for _ in scenes]
+    # Generate embeddings before opening the write transaction. Readers keep
+    # the old scenes until every replacement row has been written successfully.
+    with db_connection() as conn:
+        if replace_existing:
+            conn.execute(f'DELETE FROM "public"."{table}" WHERE video_id = %s', (video.id,))
+        with conn.cursor() as cursor:
+            cursor.executemany(
+                f'''INSERT INTO "public"."{table}"
+                    (langchain_id, content, embedding, user_id, video_id, langchain_metadata)
+                    VALUES (%s, %s, %s::vector, %s, %s, %s)''',
+                (
+                    (uuid.uuid4(), scene.text, json.dumps(embedding), video.user_id, video.id, Json({
+                        "video_title": video.title,
+                        "start_time": scene.start_time,
+                        "end_time": scene.end_time,
+                        "start_sec": scene.start_sec,
+                        "end_sec": scene.end_sec,
+                        "scene_index": scene.index,
+                    }))
+                    for scene, embedding in zip(scenes, embeddings, strict=True)
+                ),
+            )
+    inserted = len(scenes)
 
-    with _vector_store() as store:
-        store.delete(filter={"video_id": video.id})
-        inserted_ids = store.add_embeddings(
-            texts=texts,
-            embeddings=embeddings,
-            metadatas=metadatas,
-            ids=ids,
-        )
-    inserted = len(inserted_ids)
-
-    logger.info("Indexed %d scenes for video %d into %s", inserted, video.id, _table_name())
+    logger.info("Indexed %d scenes for video %d into %s", inserted, video.id, table)
     return inserted

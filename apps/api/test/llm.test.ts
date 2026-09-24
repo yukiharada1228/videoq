@@ -2,7 +2,7 @@ import { embedding as testEmbedding } from "./helpers/embedding";
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { generateReply, streamReply, LLM_STREAM_TIMEOUT_MS } from "../src/lib/llm";
 import { stalledChatResponse } from "./helpers/stalled-chat-response";
-import { embedQuery, toVectorLiteral } from "../src/lib/embeddings";
+import { embedQuery } from "../src/lib/embeddings";
 import { LlmConfigurationError, LlmProviderError } from "../src/lib/openai";
 import type { Bindings } from "../src/types/bindings";
 
@@ -192,7 +192,7 @@ describe("埋め込み生成", () => {
     }, "hello")).resolves.toEqual(testEmbedding(0.5, -0.25, 0));
   });
 
-  it("text-embedding-3-small に単一テキストを送り、pgvector リテラル化できる", async () => {
+  it("text-embedding-3-small に単一テキストを送り、埋め込みを取得する", async () => {
     let sent: Record<string, unknown> = {};
     vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
       expect(url).toBe("https://openai.test/v1/embeddings");
@@ -207,7 +207,7 @@ describe("埋め込み生成", () => {
       encoding_format: "float",
       dimensions: 1536,
     });
-    expect(toVectorLiteral(v)).toBe(JSON.stringify(testEmbedding(0.5, -0.25, 0)));
+    expect(v).toEqual(testEmbedding(0.5, -0.25, 0));
   });
 
   it("空レスポンスはプロバイダエラー", async () => {

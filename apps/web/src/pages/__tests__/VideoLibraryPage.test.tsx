@@ -1,6 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import VideoLibraryPage from '../VideoLibraryPage'
-import { invalidateAfterVideoUpload } from '@/lib/cacheInvalidation'
 
 const mockVideos = [
   { id: 1, title: 'Video 1', status: 'completed', file: 'test1.mp4', uploaded_at: '2024-01-01' },
@@ -9,7 +8,6 @@ const mockVideos = [
   { id: 4, title: 'Video 4', status: 'indexing', file: 'test4.mp4', uploaded_at: '2024-01-04' },
 ]
 
-const mockLoadVideos = vi.fn()
 const mockFetchNextPage = vi.fn()
 const mockUseVideos = vi.fn()
 
@@ -41,7 +39,6 @@ vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     user: { id: 1, username: 'testuser', video_count: 3 },
     isLoading: false,
-    refetch: vi.fn(),
   }),
 }))
 
@@ -56,17 +53,12 @@ vi.mock('@/hooks/useTags', () => ({
 }))
 
 vi.mock('@/components/video/VideoUploadModal', () => ({
-  VideoUploadModal: ({ isOpen, onClose, onUploadSuccess }: { isOpen: boolean, onClose: () => void, onUploadSuccess: () => void }) =>
+  VideoUploadModal: ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) =>
     isOpen ? (
       <div data-testid="upload-modal">
         <button onClick={onClose}>Close</button>
-        <button onClick={onUploadSuccess}>Upload Success</button>
       </div>
     ) : null,
-}))
-
-vi.mock('@/lib/cacheInvalidation', () => ({
-  invalidateAfterVideoUpload: vi.fn(),
 }))
 
 vi.mock('@/components/video/VideoCard', () => ({
@@ -86,7 +78,6 @@ vi.mock('@/components/video/TagManagementModal', () => ({
 describe('VideoLibraryPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockLoadVideos.mockClear()
     mockFetchNextPage.mockClear()
     mockHasNextPage = false
     mockIsFetchingNextPage = false
@@ -102,8 +93,6 @@ describe('VideoLibraryPage', () => {
       fetchNextPage: mockFetchNextPage,
       isFetchingNextPage: mockIsFetchingNextPage,
       totalCount: mockTotalCount,
-      loadVideos: mockLoadVideos,
-      refetch: mockLoadVideos,
       sentinelRef: vi.fn(),
     }))
   })
@@ -205,12 +194,6 @@ describe('VideoLibraryPage', () => {
     expect(lastCall?.[1]).toEqual({ replace: true })
   })
 
-  it('should not manually load videos on mount (query handles initial fetch)', () => {
-    render(<VideoLibraryPage />)
-
-    expect(mockLoadVideos).not.toHaveBeenCalled()
-  })
-
   it('should open upload modal when upload button is clicked', () => {
     render(<VideoLibraryPage />)
 
@@ -262,16 +245,6 @@ describe('VideoLibraryPage', () => {
     expect(screen.getByText('videos.list.loadingMore')).toBeInTheDocument()
   })
 
-  it('should invalidate video cache after upload success', async () => {
-    render(<VideoLibraryPage />)
-
-    fireEvent.click(screen.getByText('videos.list.uploadButton'))
-    fireEvent.click(screen.getByText('Upload Success'))
-
-    await waitFor(() => {
-      expect(invalidateAfterVideoUpload).toHaveBeenCalled()
-    })
-  })
 })
 
 describe('VideoLibraryPage - Upload Limit', () => {

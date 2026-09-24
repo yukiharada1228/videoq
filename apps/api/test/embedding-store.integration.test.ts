@@ -47,7 +47,10 @@ afterEach(() => vi.unstubAllGlobals());
         const hits = await search.search("evaporation");
         expect(hits.map((hit) => hit.videoId)).toEqual([60]);
         expect(hits[0].content).toContain("Water evaporates");
-        await expect(search.search("evaporation", 20, [62])).rejects.toThrow("subset");
+        expect(hits[0]).toMatchObject({
+          videoTitle: "Video 60", startTime: "00:00:00,000", endTime: "00:00:05,000",
+        });
+        await expect(search.search("evaporation", [62])).rejects.toThrow("subset");
       } finally { await search.close(); }
 
       const engine = PGEngine.fromPool(pool);
@@ -75,7 +78,8 @@ afterEach(() => vi.unstubAllGlobals());
       expect(fetch).not.toHaveBeenCalled();
     } finally {
       await pool?.end();
-      await admin.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
+      // Let connections finish closing instead of terminating sockets still draining after pool.end().
+      await admin.query(`DROP DATABASE IF EXISTS "${name}"`);
       await admin.end();
     }
   }, 60_000);

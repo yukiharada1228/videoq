@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import { type Db, withDb } from "../db/pool";
+import { type Db, withClient, withDb } from "../db/pool";
 import { externalTasks, users } from "../db/schema";
 import type { JobMessage } from "../lib/job-message";
 import type { Bindings } from "../types/bindings";
@@ -109,7 +109,7 @@ export async function claimExternalTasks(
   env: Bindings,
   params: { limit: number; taskId?: number; excludeTaskIds?: readonly number[] },
 ): Promise<ClaimedExternalTask[]> {
-  return withDb(env, async (_db, client) => {
+  return withClient(env, async (client) => {
     const result = await client.query<{
       id: string;
       attempts: number;
@@ -213,7 +213,7 @@ export async function failExternalTask(
   lease: ExternalTaskLease,
   error: string,
 ): Promise<{ dead: boolean; leaseLost: boolean }> {
-  return withDb(env, async (_db, client) => {
+  return withClient(env, async (client) => {
     const result = await client.query<{ dead: boolean }>(
       `UPDATE external_tasks
           SET locked_at = NULL,
@@ -237,7 +237,7 @@ export async function failExternalTask(
 
 /** Workers Logs向けの小さなbacklog snapshot。監視系を業務処理へ混ぜない。 */
 export async function getExternalTaskHealth(env: Bindings): Promise<ExternalTaskHealth> {
-  return withDb(env, async (_db, client) => {
+  return withClient(env, async (client) => {
     const result = await client.query<{
       pending: string;
       dead: string;
@@ -276,7 +276,7 @@ export async function pruneDeliveryHistory(
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 5000) {
     throw new Error("limit must be an integer between 1 and 5000.");
   }
-  return withDb(env, async (_db, client) => {
+  return withClient(env, async (client) => {
     const external = await client.query(
       `WITH victims AS (
          SELECT id

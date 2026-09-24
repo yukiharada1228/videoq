@@ -8,12 +8,12 @@ import {
   lockUserForHardDelete,
   patchAdminUserQuota,
   patchAdminUserUsage,
+  updateAdminUser,
   isSuperuser as repositoryIsSuperuser,
   type FlagsPatch,
   type QuotaPatch,
   type UsagePatch,
 } from "../../repositories/admin-repository";
-import { withDb } from "../../db/pool";
 import { createAuth } from "../../lib/auth";
 import type { Bindings } from "../../types/bindings";
 
@@ -39,14 +39,7 @@ export async function patchQuota(
   id: string,
   patch: QuotaPatch,
 ) {
-  const user = await patchAdminUserQuota(env, id, patch);
-  if (!user) return null;
-  if (patch.quota_source === "plan") {
-    const { reapplyPlanEntitlements } = await import("../billing/service");
-    await reapplyPlanEntitlements(env, id);
-    return getAdminUser(env, id);
-  }
-  return user;
+  return patchAdminUserQuota(env, id, patch);
 }
 
 export async function patchUsage(
@@ -71,28 +64,24 @@ export async function patchFlags(
     return { selfLockout: true as const };
   }
 
-  if (!await getAdminUser(env, targetUserId)) return { notFound: true as const };
-  await withDb(env, async (db) => {
-    await db.transaction(async (tx) => {
-      const auth = createAuth(env, tx);
-      if (patch.is_active !== undefined) {
-        const input = { body: { userId: targetUserId }, headers };
-        if (patch.is_active) await auth.api.unbanUser(input);
-        else await auth.api.banUser(input);
-      }
-      if (patch.is_superuser !== undefined) {
-        await auth.api.setRole({
-          body: { userId: targetUserId, role: patch.is_superuser ? "admin" : "user" }, headers,
-        });
-      }
-      if (patch.is_staff !== undefined) {
-        await auth.api.adminUpdateUser({
-          body: { userId: targetUserId, data: { isStaff: patch.is_staff } }, headers,
-        });
-      }
-    });
+  const user = await updateAdminUser(env, targetUserId, async tx => {
+    const auth = createAuth(env, tx);
+    if (patch.is_active !== undefined) {
+      const input = { body: { userId: targetUserId }, headers };
+      if (patch.is_active) await auth.api.unbanUser(input);
+      else await auth.api.banUser(input);
+    }
+    if (patch.is_superuser !== undefined) {
+      await auth.api.setRole({
+        body: { userId: targetUserId, role: patch.is_superuser ? "admin" : "user" }, headers,
+      });
+    }
+    if (patch.is_staff !== undefined) {
+      await auth.api.adminUpdateUser({
+        body: { userId: targetUserId, data: { isStaff: patch.is_staff } }, headers,
+      });
+    }
   });
-  const user = await getAdminUser(env, targetUserId);
   return user ? { user } as const : { notFound: true as const };
 }
 
@@ -109,12 +98,8 @@ export async function deleteUser(
   if (actorUserId === targetUserId) {
     return { self: true } as const;
   }
-  const target = await getAdminUser(env, targetUserId);
-  if (!target) return { notFound: true } as const;
-  if (target.is_superuser) return { forbiddenSuperuser: true } as const;
-
   const locked = await lockUserForHardDelete(env, targetUserId);
-  if (!locked) return { notFound: true } as const;
+  if (!("taskId" in locked)) return locked;
   await processExternalTaskById(env, locked.taskId);
   return { job_id: locked.jobId } as const;
 }
