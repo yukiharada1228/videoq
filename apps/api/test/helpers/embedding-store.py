@@ -1,11 +1,15 @@
 """Python half of the cross-language PGVectorStore integration test."""
 
+import asyncio
 import os
 from unittest.mock import patch
 
+from langchain_postgres import PGEngine, PGVectorStore
 from langchain_postgres.v2.indexes import HNSWIndex
+from sqlalchemy.engine import make_url
 
 from worker_python.pipeline import vector_index
+from worker_python.pipeline.langchain_embeddings import VideoQEmbeddings
 from worker_python.video_sql import VideoRow
 
 
@@ -19,15 +23,24 @@ with patch.object(vector_index, "embed_texts", side_effect=embed):
             id=video_id, user_id=owner, title=f"Video {video_id}",
             transcript="1\n00:00:00,000 --> 00:00:05,000\nWater evaporates when heated.\n",
             status="completed", source_type="uploaded", file_key=None,
-            youtube_video_id=None, error_message="",
+            youtube_video_id=None,
         )
         assert vector_index.index_video_transcript(row) == 1
 
-with vector_index._vector_store() as store:
+engine = PGEngine.from_connection_string(
+    url=make_url(os.environ["DATABASE_URL"]).set(drivername="postgresql+psycopg"),
+)
+try:
+    store = PGVectorStore.create_sync(
+        engine=engine, table_name="scene_embeddings", embedding_service=VideoQEmbeddings(),
+        metadata_columns=["user_id", "video_id"],
+    )
     store.apply_vector_index(HNSWIndex(name="python_embedding_hnsw"))
     result = store.similarity_search_by_vector(embed(["query"])[0], k=3, filter={"user_id": "allowed-owner", "video_id": 60})
     assert len(result) == 1 and result[0].metadata["video_id"] == 60
     store.drop_vector_index("python_embedding_hnsw")
+finally:
+    asyncio.run(engine.close())
 # Pure cleanup must remain available without any usable model configuration.
 os.environ["EMBEDDING_PROVIDER"] = "invalid"
 os.environ.pop("OPENAI_API_KEY", None)

@@ -1,5 +1,7 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
+import { useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
+import { queryKeys } from '@/lib/queryKeys';
 import { ConnectedAppsSection } from '../ConnectedAppsSection';
 
 type Tokens = Awaited<ReturnType<typeof apiClient.getAuthorizedOAuthTokens>>;
@@ -23,10 +25,9 @@ beforeEach(() => {
   globalThis.__setMockLanguage('en');
 });
 
-it('blocks every revoke until the refreshed list arrives and focuses the result', async () => {
+it('blocks every revoke until it succeeds, then removes the app without fetching the list again', async () => {
   const revoke = deferred<void>();
-  const refetch = deferred<Tokens>();
-  listTokens.mockResolvedValueOnce(tokens).mockReturnValueOnce(refetch.promise);
+  listTokens.mockResolvedValueOnce(tokens).mockRejectedValueOnce(new Error('List unavailable'));
   revokeToken.mockReturnValueOnce(revoke.promise);
   render(<ConnectedAppsSection />);
   const classroom = await screen.findByRole('button', { name: revokeName('Classroom') });
@@ -43,20 +44,33 @@ it('blocks every revoke until the refreshed list arrives and focuses the result'
   expect(revokeToken).toHaveBeenCalledWith('classroom');
 
   await act(async () => { revoke.resolve(); });
-  await waitFor(() => expect(listTokens).toHaveBeenCalledTimes(2));
-  expect(classroom).toBeDisabled();
-  expect(classroom).toHaveAttribute('aria-busy', 'true');
-  expect(notes).toBeDisabled();
-
-  await act(async () => { refetch.resolve([tokens[1]]); });
   await waitFor(() => expect(screen.queryByText('Classroom')).not.toBeInTheDocument());
   await waitFor(() => expect(notes).toBeEnabled());
   expect(screen.getByText('settings.connectedApps.successRevoked').closest('[tabindex="-1"]')).toHaveFocus();
+  expect(listTokens).toHaveBeenCalledTimes(1);
+});
+
+it('keeps a disconnected app removed after an older list request resolves', async () => {
+  const pending = deferred<Tokens>();
+  listTokens.mockResolvedValueOnce(tokens).mockReturnValueOnce(pending.promise);
+  const { result } = renderHook(() => useQueryClient());
+  render(<ConnectedAppsSection />);
+  fireEvent.click(await screen.findByRole('button', { name: revokeName('Classroom') }));
+  let fetching!: Promise<void>;
+  act(() => { fetching = result.current.refetchQueries({ queryKey: queryKeys.auth.oauthTokens }); });
+  await waitFor(() => expect(listTokens).toHaveBeenCalledTimes(2));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'settings.connectedApps.revoke' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  await act(async () => { pending.resolve(tokens); await fetching; });
+  expect(result.current.getQueryData(queryKeys.auth.oauthTokens)).toEqual([tokens[1]]);
+  expect(screen.queryByText('Classroom')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: revokeName('Notes') })).toBeEnabled();
+  expect(listTokens).toHaveBeenCalledTimes(2);
 });
 
 it('retains the app after failure, clears the error during retry, and handles the final removal', async () => {
   const retry = deferred<void>();
-  listTokens.mockResolvedValueOnce([tokens[0]]).mockResolvedValueOnce([]);
+  listTokens.mockResolvedValue([tokens[0]]);
   revokeToken.mockRejectedValueOnce(new Error('Revoke failed')).mockReturnValueOnce(retry.promise);
   render(<ConnectedAppsSection />);
   const button = await screen.findByRole('button', { name: revokeName('Classroom') });
@@ -76,6 +90,7 @@ it('retains the app after failure, clears the error during retry, and handles th
   await waitFor(() => expect(screen.getByText('settings.connectedApps.successRevoked').closest('[tabindex="-1"]')).toHaveFocus());
   expect(screen.queryByRole('list')).not.toBeInTheDocument();
   expect(revokeToken).toHaveBeenCalledTimes(2);
+  expect(listTokens).toHaveBeenCalledTimes(1);
 });
 
 it.each(['ja', 'en'] as const)('formats issue and expiry dates with the selected %s locale', async (locale) => {

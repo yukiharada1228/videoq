@@ -1,9 +1,9 @@
 import { createAgent, createMiddleware, tool, type ToolRuntime } from "langchain";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import type { AIMessageChunk, BaseMessage } from "@langchain/core/messages";
+import { HumanMessage, SystemMessage, isAIMessage, type BaseMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import { createChatModel, toLlmError } from "./chat-model";
 import { deadlineSignal } from "./request-timeout";
+import { LlmProviderError } from "./openai";
 import { courseInfoTool, MAX_COURSE_INFO_CALLS } from "./rag-course-info";
 import {
   LLM_REQUEST_TIMEOUT_MS,
@@ -12,7 +12,7 @@ import {
   generateReply,
   streamReply,
 } from "./llm";
-import { buildAgentSystemPrompt, buildSystemPrompt } from "./prompts";
+import { buildAgentSystemPrompt, buildNoCourseSystemPrompt } from "./prompts";
 import { openSceneSearch, type SceneHit, type SceneSearch } from "../repositories/vector-repository";
 import type { Bindings } from "../types/bindings";
 
@@ -34,12 +34,11 @@ export type RagCitation = {
 
 export type RagContext = {
   queryText: string;
-  systemPrompt: string;
   citations: RagCitation[] | null;
   retrievedContexts: string[];
 };
 
-/** 1 回答あたりのベクトル検索回数の上限（1 回 = embedding 1 + LLM 1 のコスト）。 */
+/** 1 回答あたりのベクトル検索回数の上限。検索ごとに埋め込みを生成する。 */
 export const MAX_SCENE_SEARCHES = 3;
 
 /** ヒット 0 件でも「検索したが無かった」と伝える。空文字だとモデルが再検索を繰り返す。 */
@@ -59,7 +58,7 @@ export const MAX_TOOL_ROUNDS = MAX_SCENE_SEARCHES + MAX_COURSE_INFO_CALLS;
 const RECURSION_LIMIT = 2 * MAX_TOOL_ROUNDS + 4;
 
 /** 最新の user メッセージ本文を抽出する。 */
-export function extractLatestUserQuery(messages: readonly ChatMessageInput[]): string {
+function extractLatestUserQuery(messages: readonly ChatMessageInput[]): string {
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i];
     if (m.role === "user" && m.content) return m.content;
@@ -73,7 +72,6 @@ export type RagParams = {
   ownerUserId: string;
   videoIds: readonly number[] | null;
   locale: string | null;
-  courseContext: string | null;
   /** setupChat でアクセス確認済みの講座ID。クライアントやモデルから直接渡さない。 */
   courseId?: number | null;
 };
@@ -121,14 +119,14 @@ function sceneSearchTool(
       // 上限はツール側で数える。middleware で打ち切るとモデルが最終回答を
       // 生成する前にグラフが終わってしまう。
       if (used >= MAX_SCENE_SEARCHES) return SEARCH_LIMIT_REACHED;
-      const searchId = ++used;
       if (video_ids?.some((id) => !allowedVideoIds.has(id))) {
         return "Invalid video_ids: only videos in the current course may be searched. " +
           "Use get_course_info to find valid IDs; this search was not executed.";
       }
+      const searchId = ++used;
       // custom stream は検索の完了や次のモデルの応答を待たずに UI へ届く。
       runtime.writer?.({ searching: query, searchId } satisfies RagSearchProgress);
-      const hits = await search.search(query, undefined, video_ids);
+      const hits = await search.search(query, video_ids);
       runtime.writer?.({
         searchCompleted: { id: searchId, query, count: hits.length },
       } satisfies RagSearchProgress);
@@ -161,27 +159,33 @@ function sceneSearchTool(
 }
 
 /** 検索スコープを固定した ReAct エージェントを組み立てる。 */
-function buildAgent(
+function prepareAgent(
   env: Bindings,
   params: {
     search: SceneSearch;
-    collector: SceneCollector;
+    queryText: string;
     timeoutMs: number;
     scope: RagParams;
   },
 ) {
+  const collector = new SceneCollector();
+  const systemPrompt = buildAgentSystemPrompt(
+    params.scope.locale,
+    MAX_SCENE_SEARCHES,
+    MAX_COURSE_INFO_CALLS,
+  );
   let modelCalls = 0;
   // system は createAgent の systemPrompt ではなく messages で渡す。
   // systemPrompt はコンテンツブロック配列（[{type:"text"}]）で送信されるため、
   // 素の文字列しか受け付けない OpenAI 互換ゲートウェイでも動くようにする。
-  return createAgent({
+  const agent = createAgent({
     model: createChatModel(env, { maxTokens: MAX_TOKENS, timeoutMs: params.timeoutMs }),
     tools: [
-      sceneSearchTool(params.search, params.collector, params.scope.videoIds ?? []),
+      sceneSearchTool(params.search, collector, params.scope.videoIds ?? []),
       ...(params.scope.courseId != null ? [courseInfoTool(env, {
         courseId: params.scope.courseId,
         ownerUserId: params.scope.ownerUserId,
-      }, (context) => params.collector.courseContexts.add(context))] : []),
+      }, (context) => collector.courseContexts.add(context))] : []),
     ],
     middleware: [
       createMiddleware({
@@ -198,21 +202,20 @@ function buildAgent(
       }),
     ],
   });
+  return {
+    agent,
+    input: { messages: [new SystemMessage(systemPrompt), new HumanMessage(params.queryText)] },
+    context: () => toContext(params.queryText, collector),
+  };
 }
-
-const agentInput = (systemPrompt: string, queryText: string) => ({
-  messages: [new SystemMessage(systemPrompt), new HumanMessage(queryText)],
-});
 
 function toContext(
   queryText: string,
-  systemPrompt: string,
   collector: SceneCollector,
 ): RagContext {
   const hits = collector.hits;
   return {
     queryText,
-    systemPrompt,
     citations:
       hits.length === 0
         ? null
@@ -233,28 +236,36 @@ const hasAgentContext = (params: RagParams): boolean =>
   params.courseId != null || (params.videoIds !== null && params.videoIds.length > 0);
 
 /** 同時ツール呼び出しでも接続は1つ。検索を呼ぶまでDB・埋め込みに依存しない。 */
-function lazySceneSearch(env: Bindings, params: RagParams): SceneSearch {
+function lazySceneSearch(env: Bindings, params: RagParams, signal: AbortSignal): SceneSearch {
   let pending: Promise<SceneSearch> | undefined;
   return {
-    async search(query, k, videoIds) {
+    async search(query, videoIds) {
+      signal.throwIfAborted();
       if (!params.videoIds?.length) return [];
       pending ??= openSceneSearch(env, {
         userId: params.ownerUserId,
         videoIds: params.videoIds,
-      });
-      return (await pending).search(query, k, videoIds);
+      }, signal);
+      return (await pending).search(query, videoIds);
     },
     async close() {
       // 初期化失敗時の close は openSceneSearch が行う。元の例外を上書きしない。
       const search = await pending?.catch(() => undefined);
-      await search?.close();
+      try {
+        await search?.close();
+      } catch (error) {
+        // 後始末の障害で元の例外や送信済みの回答を上書きしない。
+        console.error(JSON.stringify({
+          event: "rag_search_close_failed",
+          errorType: error instanceof Error ? error.name : "unknown",
+        }));
+      }
     },
   };
 }
 
-const emptyContext = (queryText: string, params: RagParams): RagContext => ({
+const emptyContext = (queryText: string): RagContext => ({
   queryText,
-  systemPrompt: buildSystemPrompt(params.locale, [], params.courseContext),
   citations: null,
   retrievedContexts: [],
 });
@@ -266,47 +277,45 @@ export async function runRag(
   const queryText = extractLatestUserQuery(params.messages);
 
   if (!hasAgentContext(params)) {
-    const ctx = emptyContext(queryText, params);
-    return { ...ctx, content: await generateReply(env, ctx.systemPrompt, queryText) };
+    const systemPrompt = buildNoCourseSystemPrompt(params.locale);
+    return { ...emptyContext(queryText), content: await generateReply(env, systemPrompt, queryText) };
   }
 
-  const search = lazySceneSearch(env, params);
-  const collector = new SceneCollector();
-  const systemPrompt = buildAgentSystemPrompt(
-    params.locale,
-    params.courseId != null ? null : params.courseContext,
-    MAX_SCENE_SEARCHES,
-    MAX_COURSE_INFO_CALLS,
-  );
+  const lifecycle = new AbortController();
+  const requestSignal = deadlineSignal(LLM_REQUEST_TIMEOUT_MS, lifecycle.signal);
+  const search = lazySceneSearch(env, params, requestSignal);
   try {
-    const agent = buildAgent(env, {
+    const { agent, input, context } = prepareAgent(env, {
       search,
-      collector,
+      queryText,
       timeoutMs: LLM_REQUEST_TIMEOUT_MS,
       scope: params,
     });
-    const result = await agent.invoke(agentInput(systemPrompt, queryText), {
+    const result = await agent.invoke(input, {
       recursionLimit: RECURSION_LIMIT,
-      signal: deadlineSignal(LLM_REQUEST_TIMEOUT_MS),
+      signal: requestSignal,
     });
     return {
-      ...toContext(queryText, systemPrompt, collector),
+      ...context(),
       content: finalText(result.messages),
     };
   } catch (error) {
     throw toLlmError(error);
   } finally {
+    // 並列ツールの一方が失敗しても、残りの検索をバックグラウンドに残さない。
+    lifecycle.abort();
     await search.close();
   }
 }
 
-/** 実行後のメッセージ列から最後の AI 応答本文を取り出す。 */
+/** 完了した回答だけを返す。空の最終応答をツール呼び出し前の前置きで補わない。 */
 function finalText(messages: readonly BaseMessage[]): string {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i];
-    if (message.getType() === "ai" && message.text) return message.text;
+  const message = messages.at(-1);
+  if (!message || !isAIMessage(message) || message.tool_calls?.length ||
+      message.invalid_tool_calls?.length || !message.text.trim()) {
+    throw new LlmProviderError("OpenAI did not return a final answer.");
   }
-  return "";
+  return message.text;
 }
 
 const searchProgressSchema = z.union([
@@ -331,82 +340,54 @@ export async function* streamRag(
   const queryText = extractLatestUserQuery(params.messages);
 
   if (!hasAgentContext(params)) {
-    const ctx = emptyContext(queryText, params);
-    for await (const text of streamReply(env, ctx.systemPrompt, queryText, signal)) {
+    const systemPrompt = buildNoCourseSystemPrompt(params.locale);
+    for await (const text of streamReply(env, systemPrompt, queryText, signal)) {
       yield { text };
     }
-    yield { final: ctx };
+    yield { final: emptyContext(queryText) };
     return;
   }
 
-  const search = lazySceneSearch(env, params);
-  const collector = new SceneCollector();
-  const requestSignal = deadlineSignal(LLM_STREAM_TIMEOUT_MS, signal);
-  const systemPrompt = buildAgentSystemPrompt(
-    params.locale,
-    params.courseId != null ? null : params.courseContext,
-    MAX_SCENE_SEARCHES,
-    MAX_COURSE_INFO_CALLS,
-  );
+  const lifecycle = new AbortController();
+  const requestSignal = AbortSignal.any([
+    deadlineSignal(LLM_STREAM_TIMEOUT_MS, signal),
+    lifecycle.signal,
+  ]);
+  const search = lazySceneSearch(env, params, requestSignal);
   try {
-    const agent = buildAgent(env, {
+    const { agent, input, context } = prepareAgent(env, {
       search,
-      collector,
+      queryText,
       timeoutMs: LLM_STREAM_TIMEOUT_MS,
       scope: params,
     });
 
-    const stream = await agent.stream(agentInput(systemPrompt, queryText), {
-      streamMode: ["messages", "custom"],
+    const stream = await agent.stream(input, {
+      streamMode: ["values", "custom"],
       signal: requestSignal,
       recursionLimit: RECURSION_LIMIT,
     });
 
-    // テキストの後からツール呼び出しが来ることもあるため、本文は最終ターンの
-    // 完了まで保留する。検索前の前置きを送ると検索障害時に利用枠を返却できない。
-    let answerParts: string[] = [];
-    let toolCallTurn = false;
-    let turnId: string | undefined;
+    // 本文はグラフ完了まで保留し、非ストリーミングと同じ最終応答を使う。
+    // モデルのSSE受信・トークン再結合は不要で、検索の進捗だけ即時通知する。
+    let messages: readonly BaseMessage[] = [];
     for await (const [mode, chunk] of stream) {
       if (mode === "custom") {
         const progress = searchProgressSchema.safeParse(chunk);
         if (progress.success) yield progress.data;
-        continue;
+      } else {
+        messages = chunk.messages;
       }
-
-      const message = messageOf(chunk);
-      if (!message) continue;
-      if (message.id !== turnId) {
-        turnId = message.id;
-        toolCallTurn = false;
-        answerParts = [];
-      }
-      if (message.tool_call_chunks?.length || message.tool_calls?.length) {
-        toolCallTurn = true;
-        answerParts = [];
-      }
-      if (toolCallTurn) continue;
-      if (message.text) answerParts.push(message.text);
     }
     requestSignal.throwIfAborted();
 
-    for (const text of answerParts) yield { text };
-    yield { final: toContext(queryText, systemPrompt, collector) };
+    yield { text: finalText(messages) };
+    yield { final: context() };
   } catch (error) {
     throw toLlmError(error);
   } finally {
+    // 送信失敗などで consumer が途中終了した場合も、検索の通信を止める。
+    lifecycle.abort();
     await search.close();
   }
-}
-
-/**
- * streamMode: "messages" は [チャンク, メタデータ] のタプルを流す。
- * ツールノードが返す ToolMessage（検索結果そのもの）は回答本文ではないので除く。
- */
-function messageOf(chunk: unknown): AIMessageChunk | null {
-  const message = Array.isArray(chunk) ? chunk[0] : chunk;
-  if (typeof message !== "object" || message === null) return null;
-  const candidate = message as AIMessageChunk;
-  if (typeof candidate.getType !== "function" || candidate.getType() !== "ai") return null;
-  return candidate;
 }

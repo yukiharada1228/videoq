@@ -54,7 +54,3 @@ def plan_transcription_failure() -> tuple[VideoStatus, VideoStatus]:
 
 def plan_indexing_success() -> tuple[VideoStatus, VideoStatus]:
     return VideoStatus.INDEXING, VideoStatus.COMPLETED
-
-
-def plan_indexing_failure() -> tuple[VideoStatus, VideoStatus]:
-    return VideoStatus.INDEXING, VideoStatus.ERROR

@@ -499,5 +499,3 @@ export function createAuth(env: Bindings, db: Db) {
     ],
   });
 }
-
-export type Auth = ReturnType<typeof createAuth>;

@@ -25,7 +25,7 @@ function UploadExample(args: ComponentProps<typeof VideoUploadModal>) {
 const meta = {
   title: 'Video/VideoUploadModal',
   component: VideoUploadModal,
-  args: { isOpen: false, onClose: fn(), onUploadSuccess: fn(), autoCloseDelayMs: null },
+  args: { isOpen: false, onClose: fn(), autoCloseDelayMs: null },
   render: args => <UploadExample key={String(args.isOpen)} {...args} />,
   parameters: { api: { auth: authFixtures.user }, docs: { story: { inline: false, height: '1000px' } } },
   beforeEach({ parameters, msw }) {
@@ -179,7 +179,6 @@ export const Success: Story = { async play(context) {
   const dialog = await fillFile(context);
   await context.userEvent.click(dialog.getByRole('button', { name: i18n.t('videos.upload.upload') }));
   await expect(await dialog.findByText(i18n.t('videos.upload.success'))).toBeVisible();
-  await expect(context.args.onUploadSuccess).toHaveBeenCalledTimes(1);
   await expect(context.args.onClose).not.toHaveBeenCalled();
 } };
 export const Warning: Story = {
@@ -207,7 +206,7 @@ export const UploadFailed: Story = {
     await context.userEvent.click(dialog.getByRole('button', { name: i18n.t('videos.upload.upload') }));
     await expect(await dialog.findByText(uploadError)).toBeVisible();
     await expect(dialog.getByRole('button', { name: i18n.t('videos.upload.upload') })).toBeEnabled();
-    await expect(context.args.onUploadSuccess).not.toHaveBeenCalled();
+    await expect(dialog.queryByText(i18n.t('videos.upload.success'))).not.toBeInTheDocument();
   },
 };
 export const FailureThenRetry: Story = {

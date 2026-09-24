@@ -1,6 +1,9 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react'
+import { useQueryClient } from '@tanstack/react-query'
 import SettingsPage from '../SettingsPage'
 import { apiClient } from '@/lib/api'
+import { trpc } from '@/lib/trpc'
+import { queryKeys } from '@/lib/queryKeys'
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
@@ -23,13 +26,10 @@ vi.mock('@/lib/api', () => {
     apiClient: {
       getAuthorizedOAuthTokens: vi.fn(() => Promise.resolve([])),
       getIntegrationApiKeys: vi.fn(() => Promise.resolve([])),
-      getSearchApiKeyStatus: vi.fn(() => Promise.resolve({ has_api_key: false })),
       requestEmailChange: vi.fn(() => Promise.resolve()),
       updateUsername: vi.fn(() => Promise.resolve()),
       createIntegrationApiKey: vi.fn(),
       revokeIntegrationApiKey: vi.fn(),
-      saveSearchApiKey: vi.fn(),
-      deleteSearchApiKey: vi.fn(),
       createBillingPortal: vi.fn(),
     },
   }
@@ -151,6 +151,9 @@ describe('SettingsPage username change', () => {
 describe('SettingsPage interactions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(apiClient.getIntegrationApiKeys).mockReset().mockResolvedValue([])
+    vi.mocked(apiClient.createIntegrationApiKey).mockReset()
+    vi.mocked(apiClient.revokeIntegrationApiKey).mockReset()
     globalThis.__setTrpcHandler('account.searchApiKeyStatus', () => ({ has_api_key: false }))
   })
 
@@ -224,10 +227,57 @@ describe('SettingsPage interactions', () => {
     expect(screen.queryByLabelText('settings.searchApiKey.apiKeyLabel')).not.toBeInTheDocument()
   })
 
+  it('keeps one status retry in flight after a background load failure', async () => {
+    let finish!: (value: { has_api_key: boolean }) => void
+    const read = vi.fn().mockRejectedValueOnce(new Error('Unavailable'))
+      .mockImplementation(() => new Promise(resolve => { finish = resolve }))
+    globalThis.__setTrpcHandler('account.searchApiKeyStatus', read)
+    const { result } = renderHook(() => useQueryClient())
+    result.current.setQueryData(trpc.account.searchApiKeyStatus.queryKey(), { has_api_key: false })
+    render(<SettingsPage />)
+    const retry = await screen.findByRole('button', { name: 'settings.retry' })
+    act(() => { fireEvent.click(retry); fireEvent.click(retry) })
+    await waitFor(() => expect(read).toHaveBeenCalledTimes(2))
+    expect(retry).toBeDisabled()
+    await act(async () => { finish({ has_api_key: true }) })
+    expect(await screen.findByText('settings.searchApiKey.configured')).toBeInTheDocument()
+    expect(screen.queryByText('settings.searchApiKey.errorLoading')).not.toBeInTheDocument()
+    expect(read).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['save', 'delete'] as const)('keeps the existing SearchAPI status after a failed %s and permits retry', async (action) => {
+    const initial = { has_api_key: action === 'delete' }
+    const read = vi.fn(() => initial)
+    const update = vi.fn().mockRejectedValueOnce(new Error('Please retry')).mockResolvedValue({ success: true })
+    globalThis.__setTrpcHandler('account.searchApiKeyStatus', read)
+    globalThis.__setTrpcHandler(`account.${action}SearchApiKey`, update)
+    render(<SettingsPage />)
+    await screen.findByText(`settings.searchApiKey.${initial.has_api_key ? 'configured' : 'notConfigured'}`)
+    const submit = () => {
+      if (action === 'save') {
+        fireEvent.click(screen.getByRole('button', { name: 'settings.searchApiKey.save' }))
+      } else {
+        fireEvent.click(screen.getByRole('button', { name: 'settings.searchApiKey.delete' }))
+        fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'settings.searchApiKey.delete' }))
+      }
+    }
+    if (action === 'save') fireEvent.change(screen.getByLabelText('settings.searchApiKey.apiKeyLabel'), { target: { value: 'fixture-key' } })
+    submit()
+    await screen.findByText('Please retry')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.getByText(`settings.searchApiKey.${initial.has_api_key ? 'configured' : 'notConfigured'}`)).toBeInTheDocument()
+    if (action === 'save') expect(screen.getByLabelText('settings.searchApiKey.apiKeyLabel')).toHaveValue('fixture-key')
+    submit()
+    await screen.findByText(`settings.searchApiKey.${action === 'save' ? 'successSaved' : 'successDeleted'}`)
+    expect(update).toHaveBeenCalledTimes(2)
+    expect(read).toHaveBeenCalledTimes(1)
+  })
+
   it('saves a trimmed SearchAPI key and collapses the configured editor', async () => {
     let configured = false
     const save = vi.fn(() => { configured = true; return { success: true } })
-    globalThis.__setTrpcHandler('account.searchApiKeyStatus', () => ({ has_api_key: configured }))
+    const read = vi.fn(() => ({ has_api_key: configured }))
+    globalThis.__setTrpcHandler('account.searchApiKeyStatus', read)
     globalThis.__setTrpcHandler('account.saveSearchApiKey', save)
     render(<SettingsPage />)
     fireEvent.change(await screen.findByLabelText('settings.searchApiKey.apiKeyLabel'), { target: { value: '  fixture-key  ' } })
@@ -237,6 +287,183 @@ describe('SettingsPage interactions', () => {
     expect(screen.queryByLabelText('settings.searchApiKey.apiKeyLabel')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'settings.searchApiKey.edit' }))
     expect(screen.getByLabelText('settings.searchApiKey.apiKeyLabel')).toHaveValue('')
+    expect(read).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['save', 'delete'] as const)('keeps SearchAPI %s results when an older status read finishes later', async (action) => {
+    const initial = { has_api_key: action === 'delete' }
+    let finish!: (value: typeof initial) => void
+    const pending = new Promise<typeof initial>(resolve => { finish = resolve })
+    const read = vi.fn().mockResolvedValueOnce(initial).mockReturnValueOnce(pending).mockResolvedValue(initial)
+    globalThis.__setTrpcHandler('account.searchApiKeyStatus', read)
+    const mutation = vi.fn(() => ({ success: true }))
+    globalThis.__setTrpcHandler(`account.${action}SearchApiKey`, mutation)
+    const { result } = renderHook(() => useQueryClient())
+    render(<SettingsPage />)
+    await screen.findByText(`settings.searchApiKey.${initial.has_api_key ? 'configured' : 'notConfigured'}`)
+    let fetching!: Promise<void>
+    act(() => { fetching = result.current.refetchQueries(trpc.account.searchApiKeyStatus.queryFilter()) })
+    await waitFor(() => expect(read).toHaveBeenCalledTimes(2))
+    if (action === 'save') {
+      fireEvent.change(screen.getByLabelText('settings.searchApiKey.apiKeyLabel'), { target: { value: 'fixture-key' } })
+      fireEvent.click(screen.getByRole('button', { name: 'settings.searchApiKey.save' }))
+    } else {
+      fireEvent.click(screen.getByRole('button', { name: 'settings.searchApiKey.delete' }))
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'settings.searchApiKey.delete' }))
+    }
+    await screen.findByText(`settings.searchApiKey.${action === 'save' ? 'successSaved' : 'successDeleted'}`)
+    await act(async () => { finish(initial); await fetching })
+    await waitFor(() => expect(result.current.getQueryData(trpc.account.searchApiKeyStatus.queryKey()))
+      .toEqual({ has_api_key: !initial.has_api_key }))
+    expect(read).toHaveBeenCalledTimes(2)
+    expect(mutation).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('settings.searchApiKey.errorLoading')).not.toBeInTheDocument()
+  })
+
+  it('removes a revoked key without another list read and ignores a stale list response', async () => {
+    const key = { id: 'key-to-revoke', config_id: 'read-write', name: 'Notes', prefix: 'vq_test',
+      access_level: 'all' as const, last_used_at: null, created_at: '2026-09-01T00:00:00Z' }
+    let finish!: (keys: typeof key[]) => void
+    const pending = new Promise<typeof key[]>(resolve => { finish = resolve })
+    vi.mocked(apiClient.getIntegrationApiKeys).mockResolvedValueOnce([key]).mockReturnValueOnce(pending)
+    vi.mocked(apiClient.revokeIntegrationApiKey).mockResolvedValueOnce(undefined)
+    const { result } = renderHook(() => useQueryClient())
+    render(<SettingsPage />)
+    fireEvent.click(await screen.findByRole('button', { name: 'settings.integrationApiKeys.revoke: Notes' }))
+    let fetching!: Promise<void>
+    act(() => { fetching = result.current.refetchQueries({ queryKey: queryKeys.auth.apiKeys }) })
+    await waitFor(() => expect(apiClient.getIntegrationApiKeys).toHaveBeenCalledTimes(2))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'settings.integrationApiKeys.revokeConfirmCta' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await act(async () => { finish([key]); await fetching })
+    expect(screen.queryByText('Notes')).not.toBeInTheDocument()
+    expect(result.current.getQueryData(queryKeys.auth.apiKeys)).toEqual([])
+    expect(apiClient.getIntegrationApiKeys).toHaveBeenCalledTimes(2)
+    expect(apiClient.revokeIntegrationApiKey).toHaveBeenCalledExactlyOnceWith(key.id, key.config_id)
+  })
+
+  it('uses the selected key configuration even when the list changes during confirmation', async () => {
+    const key = { id: 'key-to-revoke', config_id: 'read-write', name: 'Notes', prefix: 'vq_test',
+      access_level: 'all' as const, last_used_at: null, created_at: '2026-09-01T00:00:00Z' }
+    vi.mocked(apiClient.getIntegrationApiKeys).mockResolvedValueOnce([key])
+    vi.mocked(apiClient.revokeIntegrationApiKey).mockResolvedValueOnce(undefined)
+    const { result } = renderHook(() => useQueryClient())
+    render(<SettingsPage />)
+    fireEvent.click(await screen.findByRole('button', { name: 'settings.integrationApiKeys.revoke: Notes' }))
+    await act(async () => { result.current.setQueryData(queryKeys.auth.apiKeys, []) })
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'settings.integrationApiKeys.revokeConfirmCta' }))
+    await waitFor(() => expect(apiClient.revokeIntegrationApiKey).toHaveBeenCalledExactlyOnceWith(key.id, key.config_id))
+  })
+
+  it('adds the created key without another list read or caching its secret', async () => {
+    const oldKey = { id: 'old-key', config_id: 'read-write', name: 'Old notes', prefix: 'vq_old',
+      access_level: 'all' as const, last_used_at: null, created_at: '2026-09-01T00:00:00Z' }
+    const newKey = { ...oldKey, id: 'new-key', name: 'New notes', prefix: 'vq_new' }
+    let finish!: (key: typeof newKey & { api_key: string }) => void
+    vi.mocked(apiClient.getIntegrationApiKeys).mockResolvedValueOnce([oldKey])
+    vi.mocked(apiClient.createIntegrationApiKey).mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+    vi.mocked(apiClient.revokeIntegrationApiKey).mockResolvedValueOnce(undefined)
+    const { result } = renderHook(() => useQueryClient())
+    render(<SettingsPage />)
+    const revoke = await screen.findByRole('button', { name: 'settings.integrationApiKeys.revoke: Old notes' })
+    const create = screen.getByRole('button', { name: 'settings.integrationApiKeys.create' })
+    fireEvent.click(create)
+    fireEvent.change(screen.getByLabelText('settings.integrationApiKeys.nameLabel'), { target: { value: newKey.name } })
+    fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.createDialogCta' }))
+    await waitFor(() => expect(apiClient.createIntegrationApiKey).toHaveBeenCalledTimes(1))
+    expect(create).toBeDisabled()
+    expect(revoke).toBeDisabled()
+    await act(async () => { finish({ ...newKey, api_key: 'fixture-created-secret' }) })
+    await screen.findByText('fixture-created-secret')
+    fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.generatedDoneCta' }))
+    await waitFor(() => expect(revoke).toBeEnabled())
+    expect(create).toBeEnabled()
+    expect(result.current.getQueryData(queryKeys.auth.apiKeys)).toEqual([newKey, oldKey])
+    fireEvent.click(revoke)
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'settings.integrationApiKeys.revokeConfirmCta' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.getByText(newKey.name)).toBeInTheDocument()
+    expect(screen.queryByText(oldKey.name)).not.toBeInTheDocument()
+    expect(apiClient.getIntegrationApiKeys).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves a newly created key when an older list request finishes later', async () => {
+    const oldKey = { id: 'old-key', config_id: 'default', name: 'Old notes', prefix: 'vq_old',
+      access_level: 'read_only' as const, last_used_at: null, created_at: '2026-09-01T00:00:00Z' }
+    const newKey = { ...oldKey, id: 'new-key', name: 'New notes', prefix: 'vq_new' }
+    let finish!: (keys: typeof oldKey[]) => void
+    vi.mocked(apiClient.getIntegrationApiKeys).mockResolvedValueOnce([oldKey])
+      .mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+    vi.mocked(apiClient.createIntegrationApiKey).mockResolvedValueOnce({ ...newKey, api_key: 'fixture-created-secret' })
+    const { result } = renderHook(() => useQueryClient())
+    render(<SettingsPage />)
+    await screen.findByText(oldKey.name)
+    let fetching!: Promise<void>
+    act(() => { fetching = result.current.refetchQueries({ queryKey: queryKeys.auth.apiKeys }) })
+    await waitFor(() => expect(apiClient.getIntegrationApiKeys).toHaveBeenCalledTimes(2))
+    fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.create' }))
+    fireEvent.change(screen.getByLabelText('settings.integrationApiKeys.nameLabel'), { target: { value: newKey.name } })
+    fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.createDialogCta' }))
+    await screen.findByText('fixture-created-secret')
+    fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.generatedDoneCta' }))
+    await act(async () => { finish([oldKey]); await fetching })
+    expect(result.current.getQueryData(queryKeys.auth.apiKeys)).toEqual([newKey, oldKey])
+    expect(screen.getByRole('button', { name: 'settings.integrationApiKeys.revoke: New notes' })).toBeEnabled()
+    expect(apiClient.getIntegrationApiKeys).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps newer key metadata when a completed refetch already includes the created key', async () => {
+    const newKey = { id: 'new-key', config_id: 'default', name: 'Notes', prefix: 'vq_new',
+      access_level: 'read_only' as const, last_used_at: null, created_at: '2026-09-01T00:00:00Z' }
+    const currentKey = { ...newKey, last_used_at: '2026-09-24T00:00:00Z' }
+    let finish!: (key: typeof newKey & { api_key: string }) => void
+    vi.mocked(apiClient.getIntegrationApiKeys).mockResolvedValueOnce([])
+    vi.mocked(apiClient.createIntegrationApiKey).mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+    const { result } = renderHook(() => useQueryClient())
+    render(<SettingsPage />)
+    await screen.findByText('settings.integrationApiKeys.empty')
+    fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.create' }))
+    fireEvent.change(screen.getByLabelText('settings.integrationApiKeys.nameLabel'), { target: { value: newKey.name } })
+    fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.createDialogCta' }))
+    await waitFor(() => expect(apiClient.createIntegrationApiKey).toHaveBeenCalledTimes(1))
+    await act(async () => {
+      result.current.setQueryData(queryKeys.auth.apiKeys, [currentKey])
+      finish({ ...newKey, api_key: 'fixture-created-secret' })
+    })
+    await screen.findByText('fixture-created-secret')
+    fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.generatedDoneCta' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'settings.integrationApiKeys.create' })).toBeEnabled())
+    expect(result.current.getQueryData(queryKeys.auth.apiKeys)).toEqual([currentKey])
+    expect(apiClient.getIntegrationApiKeys).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['loading', 'failed'])('reloads the complete key list when the initial read is %s during creation', async (state) => {
+    const oldKey = { id: 'old-key', config_id: 'default', name: 'Old notes', prefix: 'vq_old',
+      access_level: 'read_only' as const, last_used_at: null, created_at: '2026-09-01T00:00:00Z' }
+    const newKey = { ...oldKey, id: 'new-key', name: 'New notes', prefix: 'vq_new' }
+    let finishInitial!: (keys: typeof oldKey[]) => void
+    const initial = new Promise<typeof oldKey[]>(resolve => { finishInitial = resolve })
+    let finishReload!: (keys: typeof oldKey[]) => void
+    if (state === 'loading') vi.mocked(apiClient.getIntegrationApiKeys).mockReturnValueOnce(initial)
+    else vi.mocked(apiClient.getIntegrationApiKeys).mockRejectedValueOnce(new Error('Unavailable'))
+    vi.mocked(apiClient.getIntegrationApiKeys).mockReturnValueOnce(new Promise(resolve => { finishReload = resolve }))
+    vi.mocked(apiClient.createIntegrationApiKey).mockResolvedValueOnce({ ...newKey, api_key: 'fixture-created-secret' })
+    const { result } = renderHook(() => useQueryClient())
+    render(<SettingsPage />)
+    if (state === 'failed') await screen.findByText('settings.integrationApiKeys.errorLoading')
+    fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.create' }))
+    fireEvent.change(screen.getByLabelText('settings.integrationApiKeys.nameLabel'), { target: { value: newKey.name } })
+    fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.createDialogCta' }))
+    await screen.findByText('fixture-created-secret')
+    await waitFor(() => expect(apiClient.getIntegrationApiKeys).toHaveBeenCalledTimes(2))
+    expect(result.current.getQueryData(queryKeys.auth.apiKeys)).toBeUndefined()
+    fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.generatedDoneCta' }))
+    expect(screen.getByRole('button', { name: 'settings.integrationApiKeys.create' })).toBeDisabled()
+    await act(async () => { finishReload([newKey, oldKey]) })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'settings.integrationApiKeys.create' })).toBeEnabled())
+    await act(async () => { finishInitial([oldKey]); await initial })
+    expect(result.current.getQueryData(queryKeys.auth.apiKeys)).toEqual([newKey, oldKey])
+    expect(apiClient.getIntegrationApiKeys).toHaveBeenCalledTimes(2)
   })
 
   it('creates a developer key with the selected permissions', async () => {
@@ -266,5 +493,82 @@ describe('SettingsPage interactions', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'settings.integrationApiKeys.revokeConfirmCta' }))
     expect(await within(dialog).findByText('Please retry')).toBeInTheDocument()
     expect(apiClient.revokeIntegrationApiKey).toHaveBeenCalledWith('key-1', 'read-write')
+  })
+})
+
+describe('generated API key copy', () => {
+  const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+  const secureDescriptor = Object.getOwnPropertyDescriptor(window, 'isSecureContext')
+  const writeText = vi.fn()
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    writeText.mockReset().mockResolvedValue(undefined)
+    vi.mocked(apiClient.getIntegrationApiKeys).mockReset().mockResolvedValue([])
+    vi.mocked(apiClient.createIntegrationApiKey).mockReset()
+    globalThis.__setTrpcHandler('account.searchApiKeyStatus', () => ({ has_api_key: false }))
+    Object.defineProperty(window, 'isSecureContext', { configurable: true, value: true })
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+  })
+
+  afterEach(() => {
+    if (clipboardDescriptor) Object.defineProperty(navigator, 'clipboard', clipboardDescriptor)
+    else Reflect.deleteProperty(navigator, 'clipboard')
+    if (secureDescriptor) Object.defineProperty(window, 'isSecureContext', secureDescriptor)
+    else Reflect.deleteProperty(window, 'isSecureContext')
+  })
+
+  async function generateKey(id: string) {
+    vi.mocked(apiClient.createIntegrationApiKey).mockResolvedValueOnce({
+      id, name: id, config_id: 'default', prefix: 'vq_fixture', access_level: 'read_only',
+      last_used_at: null, created_at: '2026-09-01T00:00:00Z', api_key: `fixture-secret-${id}`,
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.create' }))
+    fireEvent.change(screen.getByLabelText('settings.integrationApiKeys.nameLabel'), { target: { value: id } })
+    fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.createDialogCta' }))
+    await screen.findByText(`fixture-secret-${id}`)
+  }
+
+  it('displays clipboard rejection and allows a successful retry', async () => {
+    writeText.mockRejectedValueOnce(new Error('Clipboard denied'))
+    render(<SettingsPage />)
+    await generateKey('first')
+    fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.copy' }))
+    expect(await screen.findByText('settings.integrationApiKeys.errorCopying')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.copy' }))
+    expect(await screen.findByRole('button', { name: 'settings.integrationApiKeys.copyDone' })).toBeEnabled()
+    expect(screen.queryByText('settings.integrationApiKeys.errorCopying')).not.toBeInTheDocument()
+    expect(writeText).toHaveBeenCalledTimes(2)
+    expect(writeText).toHaveBeenLastCalledWith('fixture-secret-first')
+  })
+
+  it.each(['success', 'failure'] as const)('ignores a late copy %s after the dialog is replaced', async (outcome) => {
+    let finish!: () => void
+    let fail!: (error: Error) => void
+    writeText.mockImplementationOnce(() => new Promise<void>((resolve, reject) => { finish = resolve; fail = reject }))
+    render(<SettingsPage />)
+    await generateKey('first')
+    const copy = screen.getByRole('button', { name: 'settings.integrationApiKeys.copy' })
+    fireEvent.click(copy)
+    await waitFor(() => expect(copy).toBeDisabled())
+    expect(copy).toHaveAttribute('aria-busy', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.generatedDoneCta' }))
+    await generateKey('second')
+    fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.copy' }))
+    await screen.findByRole('button', { name: 'settings.integrationApiKeys.copyDone' })
+    await act(async () => { if (outcome === 'success') finish(); else fail(new Error('Old copy failed')) })
+    expect(screen.getByRole('button', { name: 'settings.integrationApiKeys.copyDone' })).toBeEnabled()
+    expect(screen.queryByText('settings.integrationApiKeys.errorCopying')).not.toBeInTheDocument()
+    expect(screen.getByText('fixture-secret-second')).toBeInTheDocument()
+  })
+
+  it('reports clipboard unavailability without claiming the key was copied', async () => {
+    Object.defineProperty(window, 'isSecureContext', { configurable: true, value: false })
+    render(<SettingsPage />)
+    await generateKey('first')
+    fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.copy' }))
+    expect(await screen.findByText('settings.integrationApiKeys.errorCopying')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'settings.integrationApiKeys.copyDone' })).not.toBeInTheDocument()
+    expect(writeText).not.toHaveBeenCalled()
   })
 })

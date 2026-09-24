@@ -2,7 +2,7 @@
  * Utility functions related to video status
  */
 
-export type VideoStatus = 'uploading' | 'pending' | 'processing' | 'indexing' | 'completed' | 'error';
+import type { VideoStatus } from '@videoq/trpc';
 
 /** Subset of ChipLabel colors used for video status */
 export type StatusChipColor = 'gray' | 'green' | 'orange' | 'red';
@@ -22,33 +22,6 @@ const STATUS_CHIP_COLORS: Record<VideoStatus | 'default', StatusChipColor> = {
  */
 export function getStatusChipColor(status: string): StatusChipColor {
   return STATUS_CHIP_COLORS[status as VideoStatus] ?? STATUS_CHIP_COLORS.default;
-}
-
-/**
- * Get status badge class name (DA token based)
- */
-export function getStatusBadgeClassName(
-  status: string,
-  size: 'xs' | 'sm' | 'md' = 'md'
-): string {
-  const baseClass = 'inline-flex items-center rounded-8 font-medium border';
-  const sizeClass = size === 'xs'
-    ? 'px-1.5 py-0.5 text-oln-14N-100'
-    : size === 'sm'
-    ? 'px-2 py-0.5 text-oln-14N-100'
-    : 'px-3 py-1 text-oln-16N-100';
-
-  const statusColors: Record<VideoStatus | 'default', string> = {
-    uploading: 'border-orange-900 bg-orange-50 text-orange-1000',
-    pending: 'border-solid-gray-700 bg-solid-gray-50 text-solid-gray-800',
-    processing: 'border-orange-900 bg-orange-50 text-orange-1000',
-    indexing: 'border-orange-900 bg-orange-50 text-orange-1000',
-    completed: 'border-green-800 bg-green-50 text-green-900',
-    error: 'border-red-900 bg-red-50 text-red-1000',
-    default: 'border-solid-gray-700 bg-solid-gray-50 text-solid-gray-800',
-  };
-
-  return `${baseClass} ${sizeClass} ${statusColors[status as VideoStatus] || statusColors.default}`;
 }
 
 /**
@@ -105,7 +78,7 @@ export function timeStringToSeconds(timeStr: string): number {
   const timeWithoutMs = timeStr.split(/[,.]/)[0];
   const parts = timeWithoutMs.split(':').map((part) => part.trim());
 
-  if (parts.length === 0 || parts.some((part) => part === '')) {
+  if (parts.some((part) => part === '')) {
     return 0;
   }
 

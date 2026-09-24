@@ -17,7 +17,7 @@ vi.mock("../src/lib/external-tasks", () => ({
   processExternalTaskById: (...a: unknown[]) => processTask(...a),
 }));
 
-import { reconcileAbandonedUploads } from "../src/lib/upload-reconcile";
+import { reconcileAbandonedUploads, resolveStorageBytesForRelease } from "../src/lib/upload-reconcile";
 
 const ENV = {} as never;
 
@@ -27,6 +27,25 @@ beforeEach(() => {
   getSize.mockReset();
   processTask.mockReset();
   processTask.mockResolvedValue(true);
+});
+
+describe("resolveStorageBytesForRelease", () => {
+  it.each([null, "", "videos/1/video_1_999.mp4"])("予約量があるかファイルがない場合はサイズを取得しない: %s", async key => {
+    await expect(resolveStorageBytesForRelease(ENV, key)).resolves.toBe(key ? 999 : null);
+    expect(getSize).not.toHaveBeenCalled();
+  });
+
+  it.each([500, 0, null])("旧形式では実サイズを取得する: %s", async size => {
+    getSize.mockResolvedValue(size);
+    const key = "videos/1/video_1.mp4";
+    await expect(resolveStorageBytesForRelease(ENV, key)).resolves.toBe(size || null);
+    expect(getSize).toHaveBeenCalledExactlyOnceWith(ENV, key);
+  });
+
+  it("旧形式のサイズ取得失敗では容量不明として削除を続ける", async () => {
+    getSize.mockRejectedValue(new Error("Storage unavailable"));
+    await expect(resolveStorageBytesForRelease(ENV, "videos/1/video_1.mp4")).resolves.toBeNull();
+  });
 });
 
 describe("reconcileAbandonedUploads", () => {
@@ -55,6 +74,7 @@ describe("reconcileAbandonedUploads", () => {
       { expectedStatus: "uploading", fallbackStorageBytes: 4096 },
     );
     expect(processTask).toHaveBeenCalledWith(ENV, 91);
+    expect(getSize).not.toHaveBeenCalled();
   });
 
   it("R2 実体と違っても予約したサイズだけを解放する", async () => {
@@ -71,6 +91,7 @@ describe("reconcileAbandonedUploads", () => {
     const r = await reconcileAbandonedUploads(ENV);
     expect(r.releasedBytes).toBe(4096);
     expect(processTask).toHaveBeenCalledWith(ENV, 92);
+    expect(getSize).not.toHaveBeenCalled();
   });
 
   it("対象なしは zero", async () => {

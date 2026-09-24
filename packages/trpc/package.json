@@ -15,6 +15,10 @@
     "./schema": {
       "types": "./src/schema.ts",
       "default": "./src/schema.ts"
+    },
+    "./course-invitations": {
+      "types": "./src/course-invitations.ts",
+      "default": "./src/course-invitations.ts"
     }
   },
   "scripts": {

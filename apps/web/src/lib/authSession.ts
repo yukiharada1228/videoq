@@ -13,7 +13,3 @@ export function useAuthSession() {
   }
   return session;
 }
-
-export async function fetchAuthSession() {
-  return authClient.getSession();
-}

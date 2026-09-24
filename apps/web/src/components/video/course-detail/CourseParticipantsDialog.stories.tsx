@@ -143,6 +143,9 @@ export const Inviting: Story = {
     const dialog = await invite(context);
     await waitFor(() => expect(dialog.getByRole('button', { name: label('invite') })).toHaveAttribute('aria-busy', 'true'));
     await expect(dialog.getByRole('textbox')).toBeDisabled();
+    for (const action of ['remove', 'resend', 'revoke']) {
+      for (const button of dialog.getAllByRole('button', { name: label(action) })) await expect(button).toBeDisabled();
+    }
     await expect(dialog.getByRole('button', { name: i18n.t('common.actions.close') })).toBeDisabled();
     mainDialog(context).dispatchEvent(new Event('cancel', { cancelable: true }));
     await expect(mainDialog(context)).toBeVisible();
@@ -213,6 +216,8 @@ async function assertInvitationPending(context: Context, action: 'resend' | 'rev
     for (const button of dialog.getAllByRole('button', { name: label(item) })) await expect(button).toBeDisabled();
     await expect(row(context, 'retry@example.com').getByRole('button', { name: label(item) })).toHaveAttribute('aria-busy', 'false');
   }
+  await expect(dialog.getByRole('textbox')).toBeDisabled();
+  for (const button of dialog.getAllByRole('button', { name: label('remove') })) await expect(button).toBeDisabled();
 }
 export const Resending: Story = { parameters: { participants: { resend: 'pending' } satisfies ParticipantsScenario }, async play(context) { await assertInvitationPending(context, 'resend'); } };
 export const Revoking: Story = { parameters: { participants: { revoke: 'pending' } satisfies ParticipantsScenario }, async play(context) { await assertInvitationPending(context, 'revoke'); } };
@@ -227,7 +232,23 @@ export const RevokeSucceeded: Story = { async play(context) {
   await expect(row(context, 'pending@example.com').queryByRole('button')).not.toBeInTheDocument();
   await expect(revokeRequest).toHaveBeenCalledWith({ courseId, invitationId: 7 });
   await expect(within(mainDialog(context)).getByRole('heading', { level: 2 })).toHaveFocus();
+  await expect(participantsRequest).toHaveBeenCalledTimes(1);
 } };
+export const RevokeWithoutReload: Story = {
+  ...RevokeSucceeded,
+  parameters: { participants: { refetchPending: true } satisfies ParticipantsScenario },
+};
+export const InviteErrorThenRevoke: Story = {
+  parameters: InviteFailed.parameters,
+  async play(context) {
+    await InviteFailed.play!(context);
+    await context.userEvent.click(row(context, 'pending@example.com').getByRole('button', { name: label('revoke') }));
+    await expect(await row(context, 'pending@example.com').findByText(`${label('status.revoked')} / ${label('delivery.sent')}`)).toBeVisible();
+    await expect(within(mainDialog(context)).queryByRole('alert')).not.toBeInTheDocument();
+    await expect(within(mainDialog(context)).getByRole('textbox')).toHaveValue('learner@example.com');
+    await expect(participantsRequest).toHaveBeenCalledTimes(1);
+  },
+};
 export const ResendFailed: Story = {
   parameters: { participants: { resend: 'error' } satisfies ParticipantsScenario },
   async play(context) { const dialog = await invitationAction(context, 'resend'); await expect(await dialog.findByRole('alert')).toHaveTextContent(operationError); },
@@ -257,7 +278,12 @@ export const RemoveSucceeded: Story = { async play(context) {
   await waitFor(() => expect(dialog.queryByText(participants.members[0].email)).not.toBeInTheDocument());
   await expect(removeRequest).toHaveBeenCalledWith({ courseId, userId: participants.members[0].user_id });
   await expect(dialog.getByRole('heading', { level: 2 })).toHaveFocus();
+  await expect(participantsRequest).toHaveBeenCalledTimes(1);
 } };
+export const RemoveWithoutReload: Story = {
+  ...RemoveSucceeded,
+  parameters: { participants: { refetchPending: true } satisfies ParticipantsScenario },
+};
 export const RemoveFailed: Story = {
   parameters: { participants: { remove: 'error' } satisfies ParticipantsScenario },
   async play(context) {

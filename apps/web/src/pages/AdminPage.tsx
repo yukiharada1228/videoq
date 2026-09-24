@@ -3,14 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useI18nNavigate } from '@/lib/i18n';
-import {
-  type AdminFlagsPatch,
-  type AdminQuotaPatch,
-  type AdminUsagePatch,
-  type AdminUser,
-} from '@/lib/api';
+import type { AdminUser } from '@/lib/api';
 import { ApiError, getApiError } from '@/lib/api-error';
-import { trpc } from '@/lib/trpc';
+import { appTrpcClient, trpc } from '@/lib/trpc';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
@@ -63,14 +58,22 @@ function nonNegativeInt(value: string): number | undefined {
   return n;
 }
 
+function changedFields<K extends keyof AdminUser>(
+  current: AdminUser,
+  values: Pick<AdminUser, K>,
+): Partial<Pick<AdminUser, K>> {
+  const patch: Partial<Pick<AdminUser, K>> = {};
+  for (const key of Object.keys(values) as K[]) {
+    if (values[key] !== current[key]) patch[key] = values[key];
+  }
+  return patch;
+}
+
 export default function AdminPage() {
   const { user, isLoading: authLoading } = useAuth();
   const { t } = useTranslation();
   const navigate = useI18nNavigate();
   const queryClient = useQueryClient();
-  const patchFlagsMutation = useMutation(trpc.admin.patchFlags.mutationOptions());
-  const patchQuotaMutation = useMutation(trpc.admin.patchQuota.mutationOptions());
-  const patchUsageMutation = useMutation(trpc.admin.patchUsage.mutationOptions());
 
   const [searchInput, setSearchInput] = useState('');
   const [query, setQuery] = useState('');
@@ -135,6 +138,7 @@ export default function AdminPage() {
   }));
 
   const saveMutation = useMutation({
+    onMutate: () => setFormError(null),
     mutationFn: async () => {
       if (!selectedUser) throw new Error('No user selected');
 
@@ -161,33 +165,47 @@ export default function AdminPage() {
         throw new ApiError(t('admin.users.errors.invalidUsage'), 'VALIDATION');
       }
 
-      const quota: AdminQuotaPatch = {
+      const quota = changedFields(selectedUser, {
         max_video_upload_size_mb: maxMb,
         storage_limit_gb: storageGb,
         processing_limit_minutes: processingMinutes,
         ai_answers_limit: aiLimit,
-      };
-      const usage: AdminUsagePatch = {
+      });
+      const usage = changedFields(selectedUser, {
         used_storage_bytes: usedStorage,
         used_processing_seconds: usedProcessing,
         used_ai_answers: usedAi,
         is_over_quota: isOverQuota,
-      };
-      const flags: AdminFlagsPatch = {
+      });
+      const flags = changedFields(selectedUser, {
         is_active: isActive,
         is_staff: isStaff,
         is_superuser: isSuperuserFlag,
-      };
+      });
 
-      await patchFlagsMutation.mutateAsync({ id: selectedUser.id, ...flags });
-      await patchQuotaMutation.mutateAsync({ id: selectedUser.id, ...quota });
-      return patchUsageMutation.mutateAsync({ id: selectedUser.id, ...usage });
+      const id = selectedUser.id;
+      const updates = [
+        { patch: flags, save: () => appTrpcClient.admin.patchFlags.mutate({ id, ...flags }) },
+        { patch: quota, save: () => appTrpcClient.admin.patchQuota.mutate({ id, ...quota }) },
+        { patch: usage, save: () => appTrpcClient.admin.patchUsage.mutate({ id, ...usage }) },
+      ].filter(({ patch }) => Object.keys(patch).length > 0);
+      if (updates.length === 0) return;
+
+      try {
+        for (const { patch, save } of updates) {
+          await save();
+          // Remember acknowledged edits for retries without adopting unrelated
+          // server changes (for example, usage accumulated while the form is open).
+          setSelectedUser(current => current?.id === id ? { ...current, ...patch } : current);
+        }
+      } finally {
+        await queryClient.invalidateQueries(trpc.admin.listUsers.pathFilter());
+      }
     },
-    onSuccess: async () => {
+    onSuccess: () => {
       setStatusMessage({ type: 'success', text: t('admin.users.saveSuccess') });
       setIsEditOpen(false);
       setSelectedUser(null);
-      await queryClient.invalidateQueries(trpc.admin.listUsers.pathFilter());
     },
     onError: (error) => {
       const message =
@@ -212,26 +230,20 @@ export default function AdminPage() {
     },
   }));
 
-  const trpcDeleteUser = useMutation(trpc.admin.deleteUser.mutationOptions());
   const deleteMutation = useMutation({
-    mutationFn: async () => {
-      if (!userToDelete) throw new Error('No user selected');
-      return trpcDeleteUser.mutateAsync({ id: userToDelete.id });
-    },
-    onSuccess: (result) => {
-      const deletedId = userToDelete?.id;
+    mutationFn: (target: AdminUser) => appTrpcClient.admin.deleteUser.mutate({ id: target.id }),
+    onSuccess: async (result, target) => {
       setStatusMessage({
         type: 'success',
         text: t('admin.users.deleteSuccess', {
-          username: userToDelete?.username ?? '',
+          username: target.username,
           jobId: result.job_id,
         }),
       });
       setIsDeleteOpen(false);
       setUserToDelete(null);
-      if (deletedId != null) {
-        setPendingDeleteIds((prev) => new Set(prev).add(deletedId));
-      }
+      setPendingDeleteIds((prev) => new Set(prev).add(target.id));
+      await queryClient.invalidateQueries(trpc.admin.listUsers.pathFilter());
     },
     onError: (error) => {
       const message =
@@ -276,13 +288,10 @@ export default function AdminPage() {
     },
   });
 
-  const visibleUsers = (usersQuery.data?.data ?? []).filter(
-    (row) => !pendingDeleteIds.has(row.id),
-  );
-  const total = Math.max(
-    0,
-    (usersQuery.data?.meta.total ?? 0) - pendingDeleteIds.size,
-  );
+  const visibleUsers = usersQuery.data?.data ?? [];
+  const total = usersQuery.data?.meta.total ?? 0;
+  const lastOffset = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1) * PAGE_SIZE;
+  if (usersQuery.data && offset > lastOffset) setOffset(lastOffset);
   const canPrev = offset > 0;
   const canNext = offset + PAGE_SIZE < total;
   const pageLabel =
@@ -375,6 +384,9 @@ export default function AdminPage() {
                           {row.is_over_quota && (
                             <ChipLabel color="orange">{t('admin.users.flags.overQuota')}</ChipLabel>
                           )}
+                          {pendingDeleteIds.has(row.id) && (
+                            <ChipLabel>{t('admin.users.deletionPending')}</ChipLabel>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="text-std-14N-170 text-solid-gray-700">
@@ -391,6 +403,7 @@ export default function AdminPage() {
                           <Button
                             type="button"
                             variant="text"
+                            disabled={pendingDeleteIds.has(row.id)}
                             onClick={() => openEditUser(row)}
                           >
                             {t('admin.users.edit')}
@@ -398,7 +411,7 @@ export default function AdminPage() {
                           <Button
                             type="button"
                             variant="text"
-                            disabled={row.is_superuser || row.id === user.id}
+                            disabled={row.is_superuser || row.id === user.id || pendingDeleteIds.has(row.id)}
                             onClick={() => {
                               setUserToDelete(row);
                               setIsDeleteOpen(true);
@@ -461,7 +474,7 @@ export default function AdminPage() {
                 <ErrorMessage message={formError} />
               </div>
             )}
-            <div className="space-y-4">
+            <fieldset disabled={saveMutation.isPending} className="min-w-0 space-y-4">
               <fieldset className="space-y-2">
                 <legend className="mb-1 text-std-16B-170 text-solid-gray-800">
                   {t('admin.users.columns.flags')}
@@ -567,12 +580,13 @@ export default function AdminPage() {
                 />
                 {t('admin.users.fields.isOverQuota')}
               </label>
-            </div>
+            </fieldset>
           </DialogBody>
           <DialogActions>
             <Button
               type="button"
               variant="text"
+              disabled={saveMutation.isPending}
               onClick={editDialog.closeButtonProps.onClick}
             >
               {t('admin.users.cancel')}
@@ -606,6 +620,7 @@ export default function AdminPage() {
             <Button
               type="button"
               variant="text"
+              disabled={deleteMutation.isPending}
               onClick={deleteDialog.closeButtonProps.onClick}
             >
               {t('admin.users.cancel')}
@@ -613,7 +628,7 @@ export default function AdminPage() {
             <Button
               type="button"
               disabled={deleteMutation.isPending}
-              onClick={() => deleteMutation.mutate()}
+              onClick={() => { if (userToDelete) deleteMutation.mutate(userToDelete); }}
             >
               {deleteMutation.isPending ? <InlineSpinner /> : t('admin.users.deleteConfirm')}
             </Button>

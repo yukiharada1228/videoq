@@ -35,21 +35,6 @@ export function getSavedLocale(): Locale | null {
   return null;
 }
 
-export function getPreferredLocale(): Locale {
-  const saved = getSavedLocale();
-  if (saved) return saved;
-
-  if (typeof window !== 'undefined') {
-    const navLang = window.navigator.language;
-    const short = navLang?.split('-')[0];
-    if (short && locales.includes(short as Locale)) {
-      return short as Locale;
-    }
-  }
-
-  return defaultLocale;
-}
-
 export function setPreferredLocale(locale: Locale): void {
   if (typeof window === 'undefined') return;
   try {
@@ -229,8 +214,3 @@ export function useLocaleSync() {
     applyDocumentMeta(defaultLocale, pathname, i18n);
   }, [params.locale, location.pathname, i18n]);
 }
-
-export const i18nConfig = {
-  locales,
-  defaultLocale,
-};

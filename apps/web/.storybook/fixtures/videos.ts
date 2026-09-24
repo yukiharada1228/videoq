@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import type { VideoList } from '@/lib/api';
-import type { VideoStatus } from '@/lib/utils/video';
+import type { VideoStatus } from '@videoq/trpc';
 import { englishTags, longTag, tags } from './tags';
 import previewUrl from './media/preview.webm?url&no-inline';
 import thumbnail from './media/thumbnail.svg?raw';

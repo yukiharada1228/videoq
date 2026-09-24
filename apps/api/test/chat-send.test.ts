@@ -229,7 +229,6 @@ const SEARCH_TOOL_CALL = {
  * 次の要求（ツール結果あり）で回答本文を返す。
  */
 function stubOpenAi(opts: {
-  stream?: boolean;
   content?: string;
   failAfterFirstChunk?: boolean;
   failOllamaEmbedding?: boolean;
@@ -265,48 +264,17 @@ function stubOpenAi(opts: {
     const enc = new TextEncoder();
     const messages = (body.messages ?? []) as { role?: string }[];
     if (Array.isArray(body.tools) && !messages.some((m) => m.role === "tool")) {
-      if (!opts.stream) {
-        return jsonBody({
-          choices: [
-            {
-              finish_reason: "tool_calls",
-              message: { role: "assistant", content: opts.preamble ?? null, tool_calls: [opts.toolCall ?? SEARCH_TOOL_CALL] },
-            },
-          ],
-        });
-      }
-      return new Response(
-        new ReadableStream<Uint8Array>({
-          start(controller) {
-            if (opts.preamble) {
-              controller.enqueue(enc.encode(
-                `data: ${JSON.stringify({ choices: [{ delta: { role: "assistant", content: opts.preamble } }] })}\n\n`,
-              ));
-            }
-            controller.enqueue(
-              enc.encode(
-                `data: ${JSON.stringify({
-                  choices: [
-                    {
-                      delta: {
-                        role: "assistant",
-                        tool_calls: [{ index: 0, ...(opts.toolCall ?? SEARCH_TOOL_CALL) }],
-                      },
-                    },
-                  ],
-                })}\n\n`,
-              ),
-            );
-            controller.enqueue(enc.encode("data: [DONE]\n\n"));
-            controller.close();
-          },
-        }),
-        { status: 200, headers: { "content-type": "text/event-stream" } },
-      );
+      expect(body.stream).toBe(false);
+      return jsonBody({
+        choices: [{
+          finish_reason: "tool_calls",
+          message: { role: "assistant", content: opts.preamble ?? null, tool_calls: [opts.toolCall ?? SEARCH_TOOL_CALL] },
+        }],
+      });
     }
 
     const text = opts.content ?? "Answer [1].";
-    if (!opts.stream) {
+    if (!body.stream) {
       return jsonBody({ choices: [{ message: { role: "assistant", content: text } }] });
     }
     if (opts.failAfterFirstChunk) {
@@ -357,22 +325,18 @@ describe.each([false, true])("講座メタ情報のチャット経路（stream=%
     rowsFor = (sql, args) => {
       if (sql.includes("video_courses") && sql.includes("video_count")) {
         return [{
-          id: 3, name: "Digital circuits", description: "Registered description", display_order: 0,
-          created_at: "2026-09-14T00:00:00Z", updated_at: "2026-09-14T00:00:00Z",
-          share_slug: "abc123", video_count: 1, owner_user_id: "00000000-0000-4000-8000-000000000005",
+          name: "Digital circuits", description: "Registered description", video_count: 1,
         }];
       }
       if (sql.includes("video_course_members") && sql.includes("inner join videos")) {
         return [{
-          member_order: 10, id: 60, file: "private.mp4", title: "Lecture 7", description: "",
-          uploaded_at: "2026-09-14T00:00:00Z", status: "processing", source_type: "uploaded",
-          source_url: "", youtube_video_id: "", tags: "[]",
+          id: 60, title: "Lecture 7", description: "", status: "processing", member_order: 10,
         }];
       }
       return defaultRows(sql, args);
     };
     const answer = "Digital circuits has one video.";
-    const requests = stubOpenAi({ stream, content: answer, toolCall: {
+    const requests = stubOpenAi({ content: answer, toolCall: {
       id: "call_course", type: "function", function: { name: "get_course_info", arguments: "{}" },
     } });
     const path = (stream ? "/messages/stream" : "/messages") + (access === "public" ? "?share_slug=abc123" : "");
@@ -403,6 +367,12 @@ describe.each([false, true])("講座メタ情報のチャット経路（stream=%
     expect(JSON.stringify(modelRequests)).toContain("Digital circuits");
     expect(JSON.stringify(modelRequests)).not.toContain("abc123");
     expect(JSON.stringify(modelRequests)).not.toContain("private.mp4");
+    const metadataQueries = calls.filter((call) =>
+      call.sql.includes("video_count") || call.sql.includes("inner join videos"));
+    expect(metadataQueries).toHaveLength(2);
+    for (const query of metadataQueries) {
+      expect(String(query.sql)).not.toMatch(/video_tags|share_slug|\bfile\b|source_url|uploaded_at/);
+    }
   });
 });
 
@@ -796,9 +766,29 @@ describe("POST /messages（非ストリーミング）", () => {
   });
 });
 
-describe.each([false, true])("Ollama 検索障害の利用枠返却（stream=%s）", (stream) => {
+describe.each([false, true])("ReAct 障害の利用枠返却（stream=%s）", (stream) => {
+  it("空の最終回答を保存・送信せず、予約した利用枠を返す", async () => {
+    stubOpenAi({ content: " \n\t", preamble: "調べますね。" });
+    const res = await post(
+      stream ? "/messages/stream" : "/messages",
+      { messages: [{ role: "user", content: "scene" }], course_id: 3 },
+      { token: await accessToken(), env: OPENAI_ENV },
+    );
+    if (stream) {
+      const events = sseEvents(await res.text());
+      expect(events.at(-1)).toMatchObject({ type: "error", code: "LLM_PROVIDER_ERROR" });
+      expect(events.some((event) => event.type === "content_chunk" || event.type === "done")).toBe(false);
+    } else {
+      expect(res.status).toBe(500);
+      expect(await trpcError(res)).toMatchObject({ code: "INTERNAL_ERROR" });
+    }
+    expect(calls.filter((call) => call.sql.includes("GREATEST")).map((call) => call.args))
+      .toEqual([["00000000-0000-4000-8000-000000000005", QUOTA_PERIOD_START]]);
+    expect(calls.some((call) => call.sql.includes("chat_logs") && call.sql.includes("returning"))).toBe(false);
+  });
+
   it("DB次元の不一致は埋め込み呼び出し前に失敗し、利用枠を返す", async () => {
-    const requests = stubOpenAi({ stream });
+    const requests = stubOpenAi({});
     rowsFor = (sql, args) => sql.includes("FROM pg_attribute")
       ? [{ type_name: "vector", dimensions: 1024 }] : defaultRows(sql, args);
     const res = await post(
@@ -821,7 +811,7 @@ describe.each([false, true])("Ollama 検索障害の利用枠返却（stream=%s�
   });
 
   it("エラーを返し、通常回答の保存・完了通知を行わず利用枠を返す", async () => {
-    const requests = stubOpenAi({ stream, failOllamaEmbedding: true, preamble: "調べますね。" });
+    const requests = stubOpenAi({ failOllamaEmbedding: true, preamble: "調べますね。" });
     const res = await post(
       stream ? "/messages/stream" : "/messages",
       { messages: [{ role: "user", content: "scene" }], course_id: 3 },
@@ -857,6 +847,54 @@ describe.each([false, true])("Ollama 検索障害の利用枠返却（stream=%s�
       .toEqual([["00000000-0000-4000-8000-000000000005", QUOTA_PERIOD_START]]);
     expect(calls.some((call) => call.sql.includes("chat_logs") && call.sql.includes("returning")))
       .toBe(false);
+  });
+});
+
+describe("HTTP 応答の切断", () => {
+  it.each(["embedding", "answer"])("%s 待機中に応答を閉じると上流通信を中断し、利用枠を返す", async (stage) => {
+    const requests = stubOpenAi({});
+    const originalFetch = fetch;
+    const pending = Promise.withResolvers<Response>();
+    const started = Promise.withResolvers<void>();
+    const finished = Promise.withResolvers<void>();
+    let upstream: AbortSignal | undefined;
+    rowsFor = (sql, args) => {
+      if (sql.includes("GREATEST") || (sql.includes("chat_logs") && sql.includes("returning"))) finished.resolve();
+      return defaultRows(sql, args);
+    };
+    vi.stubGlobal("fetch", async (input: string | Request, init?: RequestInit) => {
+      const url = String(input);
+      const isPending = stage === "embedding"
+        ? url.endsWith("/embeddings")
+        : url.endsWith("/chat/completions") && JSON.parse(String(init?.body)).messages
+          .some((message: { role: string }) => message.role === "tool");
+      if (isPending) {
+        upstream = init!.signal!;
+        upstream.addEventListener("abort", () => pending.reject(upstream!.reason), { once: true });
+        started.resolve();
+        return pending.promise;
+      }
+      return originalFetch(input, init);
+    });
+    const response = await post("/messages/stream", {
+      messages: [{ role: "user", content: "scene" }], course_id: 3,
+    }, { token: await accessToken(), env: OPENAI_ENV });
+    const reader = response.body!.getReader();
+    await reader.read();
+    await started.promise;
+    try {
+      await reader.cancel();
+      expect(upstream?.aborted).toBe(true);
+      await finished.promise;
+      expect(calls.filter((call) => call.sql.includes("GREATEST"))).toHaveLength(1);
+      expect(calls.some((call) => call.sql.includes("chat_logs") && call.sql.includes("returning"))).toBe(false);
+      expect(requests.filter((request) => request.url.endsWith("/chat/completions"))).toHaveLength(1);
+    } finally {
+      pending.resolve(jsonBody(stage === "embedding"
+        ? { data: [{ index: 0, embedding: testEmbedding(0.1, 0.2) }] }
+        : { choices: [{ message: { role: "assistant", content: "Finished" } }] }));
+      await finished.promise;
+    }
   });
 });
 
@@ -902,7 +940,7 @@ describe("POST /messages/stream（SSE）", () => {
   });
 
   it("チャンク → done（citations 付き）の順で流す", async () => {
-    stubOpenAi({ stream: true, content: "Hello!", preamble: "調べますね。" });
+    stubOpenAi({ content: "Hello!", preamble: "調べますね。" });
     const res = await post(
       "/messages/stream",
       { messages: [{ role: "user", content: "hi" }], course_id: 3 },
@@ -918,8 +956,7 @@ describe("POST /messages/stream（SSE）", () => {
       // 検索ラウンドの間はトークンが出ないので、進行中であることを先に伝える
       { type: "searching", query: "scene", search_id: 1 },
       { type: "search_completed", query: "scene", search_id: 1, result_count: 1 },
-      { type: "content_chunk", text: "Hel" },
-      { type: "content_chunk", text: "lo!" },
+      { type: "content_chunk", text: "Hello!" },
       {
         type: "done",
         chat_log_id: 99,
@@ -1002,7 +1039,7 @@ describe("POST /messages/stream（SSE）", () => {
   });
 
   it("回答を一部生成した後の中断では消費済みの利用枠を返却しない", async () => {
-    stubOpenAi({ stream: true, content: "Hello!", failAfterFirstChunk: true });
+    stubOpenAi({ content: "Hello!", failAfterFirstChunk: true });
 
     const res = await post(
       "/messages/stream",

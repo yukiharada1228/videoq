@@ -26,6 +26,19 @@ describe('SignupPage', () => {
     expect(screen.getByText('auth.signup.submit')).toBeInTheDocument()
   })
 
+  it('displays password validation errors without sending a signup request', async () => {
+    render(<SignupPage />)
+    fireEvent.change(screen.getByLabelText(/auth\.fields\.email\.label/), { target: { value: 'test@example.com' } })
+    fireEvent.change(screen.getByLabelText(/auth\.fields\.username\.label/), { target: { value: 'testuser' } })
+    fireEvent.change(screen.getByLabelText(/auth\.fields\.password\.label/), { target: { value: 'first-password' } })
+    fireEvent.change(screen.getByLabelText(/auth\.fields\.passwordConfirmation\.label/), { target: { value: 'other-password' } })
+    fireEvent.click(screen.getByRole('button', { name: 'auth.signup.submit' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('auth.signup.passwordMismatch')
+    expect(apiClient.signup).not.toHaveBeenCalled()
+    expect(mockNavigate).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'auth.signup.submit' })).toBeEnabled()
+  })
+
   it('should render all required fields', () => {
     render(<SignupPage />)
 

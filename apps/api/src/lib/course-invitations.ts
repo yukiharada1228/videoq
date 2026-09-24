@@ -1,3 +1,4 @@
+import { normalizeInvitationEmail } from "@videoq/trpc/course-invitations";
 import { sha256Hex } from "../shared/crypto";
 
 export const COURSE_INVITATION_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
@@ -13,57 +14,24 @@ export type InvitationStatus =
 
 export type InvitationDeliveryStatus = "queued" | "sent" | "failed";
 
-export type PlannedInvitationEmail = { input: string; email: string };
-export type RejectedInvitationEmail = {
-  input: string;
-  status: "invalid" | "duplicate";
+type PlannedInvitationEmail = {
+  email: string;
+  status: "ready" | "invalid" | "duplicate";
 };
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-export function normalizeInvitationEmail(raw: string): string | null {
-  const email = raw.trim().toLowerCase();
-  if (!email || email.length > 254 || !EMAIL_PATTERN.test(email)) return null;
-  const [local, domain] = email.split("@");
-  if (!local || !domain || local.length > 64 || domain.length > 253) return null;
-  if (local.startsWith(".") || local.endsWith(".") || local.includes("..")) {
-    return null;
-  }
-  if (
-    domain.startsWith(".") ||
-    domain.endsWith(".") ||
-    domain.startsWith("-") ||
-    domain.endsWith("-") ||
-    domain.includes("..")
-  ) {
-    return null;
-  }
-  return email;
-}
-
-export function planInvitationEmails(rawEmails: readonly string[]): {
-  ready: PlannedInvitationEmail[];
-  rejected: RejectedInvitationEmail[];
-} {
-  const ready: PlannedInvitationEmail[] = [];
-  const rejected: RejectedInvitationEmail[] = [];
+export function planInvitationEmails(rawEmails: readonly string[]): PlannedInvitationEmail[] {
   const seen = new Set<string>();
-
-  for (const input of rawEmails) {
+  return rawEmails.map((input) => {
     const email = normalizeInvitationEmail(input);
     if (!email) {
-      rejected.push({ input, status: "invalid" });
-      continue;
+      return { email: input, status: "invalid" };
     }
     if (seen.has(email)) {
-      rejected.push({ input, status: "duplicate" });
-      continue;
+      return { email: input, status: "duplicate" };
     }
     seen.add(email);
-    ready.push({ input, email });
-  }
-
-  return { ready, rejected };
+    return { email, status: "ready" };
+  });
 }
 
 export function invitationExpiresAt(issuedAt: Date): Date {

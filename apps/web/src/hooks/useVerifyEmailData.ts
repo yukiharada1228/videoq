@@ -12,7 +12,9 @@ export function useVerifyEmailQuery({ token }: UseVerifyEmailQueryParams) {
     queryKey: ['verifyEmail', token ?? null],
     enabled: !isInvalidLink,
     retry: false,
-    queryFn: async () => await apiClient.verifyEmail({ token: token! }),
+    // A completed verification must not be repeated on reconnect or remount.
+    staleTime: Infinity,
+    queryFn: () => apiClient.verifyEmail({ token: token! }),
   });
 
   return {

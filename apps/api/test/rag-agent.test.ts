@@ -1,7 +1,7 @@
 import { embedding as testEmbedding } from "./helpers/embedding";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { CourseDetail } from "../src/repositories/course-repository";
-import { getCourseDetail } from "../src/repositories/course-repository";
+import { getCourseInfo } from "../src/repositories/course-repository";
 import { MAX_COURSE_INFO_CALLS, COURSE_DESCRIPTION_LIMIT, VIDEO_DESCRIPTION_LIMIT } from "../src/lib/rag-course-info";
 import type { SceneHit } from "../src/repositories/vector-repository";
 import type { Bindings } from "../src/types/bindings";
@@ -18,27 +18,30 @@ import { stalledChatResponse } from "./helpers/stalled-chat-response";
 const searchCalls: string[] = [];
 let closed = 0;
 let opened = 0;
+let closeError: Error | undefined;
+let searchSignal: AbortSignal | undefined;
 const videoSelections: (readonly number[] | undefined)[] = [];
 let hitsByQuery: (query: string) => SceneHit[] | Promise<SceneHit[]>;
 
 vi.mock("../src/repositories/vector-repository", () => ({
-  RETRIEVER_K: 20,
-  openSceneSearch: async () => {
+  openSceneSearch: async (_env: Bindings, _scope: unknown, signal?: AbortSignal) => {
     opened += 1;
+    searchSignal = signal;
     return {
-    search: async (query: string, _k?: number, videoIds?: readonly number[]) => {
+    search: async (query: string, videoIds?: readonly number[]) => {
       searchCalls.push(query);
       videoSelections.push(videoIds);
       return hitsByQuery(query);
     },
     close: async () => {
       closed += 1;
+      if (closeError) throw closeError;
     },
     };
   },
 }));
 
-vi.mock("../src/repositories/course-repository", () => ({ getCourseDetail: vi.fn() }));
+vi.mock("../src/repositories/course-repository", () => ({ getCourseInfo: vi.fn() }));
 
 const { runRag, streamRag, MAX_SCENE_SEARCHES, MAX_TOOL_ROUNDS } = await import("../src/lib/rag");
 
@@ -53,7 +56,6 @@ const PARAMS = {
   ownerUserId: "00000000-0000-4000-8000-000000000005",
   videoIds: [60, 61],
   locale: "ja",
-  courseContext: null,
 };
 
 const scene = (n: number, videoId = 60): SceneHit => ({
@@ -77,7 +79,7 @@ const COURSE: CourseDetail = {
 };
 
 beforeEach(() => {
-  vi.mocked(getCourseDetail).mockReset().mockResolvedValue(COURSE);
+  vi.mocked(getCourseInfo).mockReset().mockResolvedValue(COURSE);
 });
 
 type Turn =
@@ -114,33 +116,7 @@ const jsonTurn = (turn: Exclude<Turn, { status: number }>) =>
 
 const sseFrames = (turn: Exclude<Turn, { status: number }>): string[] => {
   if ("toolCall" in turn) {
-    return [
-      ...(turn.preamble ? [
-        `data: ${JSON.stringify({ choices: [{ delta: { role: "assistant", content: turn.preamble } }] })}\n\n`,
-      ] : []),
-      `data: ${JSON.stringify({
-        choices: [
-          {
-            delta: {
-              role: "assistant",
-              tool_calls: [
-                {
-                  index: 0,
-                  id: `call_${turn.toolCall.name}`,
-                  type: "function",
-                  function: {
-                    name: turn.toolCall.name,
-                    arguments: JSON.stringify(turn.toolCall.args),
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      })}\n\n`,
-      `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: "tool_calls" }] })}\n\n`,
-      "data: [DONE]\n\n",
-    ];
+    throw new Error("ReAct tool turns must use non-streaming model responses.");
   }
   const words = turn.content.match(/.{1,4}/g) ?? [];
   return [
@@ -157,7 +133,7 @@ const sseFrames = (turn: Exclude<Turn, { status: number }>): string[] => {
 };
 
 /** 送信順に turns を返す偽 OpenAI。埋め込みは使われない想定だが念のため応答する。 */
-function stubOpenAi(turns: Turn[], opts: { stream?: boolean } = {}) {
+function stubOpenAi(turns: Turn[]) {
   const bodies: Record<string, unknown>[] = [];
   let index = 0;
   vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
@@ -167,12 +143,13 @@ function stubOpenAi(turns: Turn[], opts: { stream?: boolean } = {}) {
         headers: { "content-type": "application/json" },
       });
     }
-    bodies.push(JSON.parse(String(init.body)));
+    const body = JSON.parse(String(init.body));
+    bodies.push(body);
     const turn = turns[Math.min(index++, turns.length - 1)];
     if ("status" in turn) {
       return new Response("upstream failed", { status: turn.status });
     }
-    if (!opts.stream) {
+    if (!body.stream) {
       return new Response(JSON.stringify(jsonTurn(turn)), {
         status: 200,
         headers: { "content-type": "application/json" },
@@ -182,8 +159,7 @@ function stubOpenAi(turns: Turn[], opts: { stream?: boolean } = {}) {
     return new Response(
       new ReadableStream<Uint8Array>({
         start(controller) {
-          // 本文にはプロバイダの ID があるが、LangChain が生成する利用量チャンクは
-          // 別の ID になる。同じターンとして扱い、本文を消さないことも検証する。
+          // 利用量だけのチャンクが来ても、取得済みの本文は保持する。
           for (const frame of sseFrames(turn)) {
             if (frame === "data: [DONE]\n\n") {
               controller.enqueue(enc.encode(`data: ${JSON.stringify({
@@ -212,12 +188,14 @@ afterEach(() => {
   searchCalls.length = 0;
   closed = 0;
   opened = 0;
+  closeError = undefined;
+  searchSignal = undefined;
   videoSelections.length = 0;
 });
 
 describe.each([false, true])("Q&A single-question contract (stream=%s)", (stream) => {
   it.each([true, false])("ignores earlier turns even when supplied (course=%s)", async (course) => {
-    const bodies = stubOpenAi([{ content: "Which subject would you like an example of?" }], { stream });
+    const bodies = stubOpenAi([{ content: "Which subject would you like an example of?" }]);
     const params = {
       ...PARAMS,
       ...(course ? {} : { ownerUserId: null, videoIds: [] }),
@@ -241,6 +219,98 @@ describe.each([false, true])("Q&A single-question contract (stream=%s)", (stream
 });
 
 describe.each([false, true])("検索障害（stream=%s）", (stream) => {
+  it("並列検索の一方が失敗したら残りの検索も中断する", async () => {
+    const started = Promise.withResolvers<void>();
+    const pending = Promise.withResolvers<SceneHit[]>();
+    const failure = new LlmProviderError("embedding failed");
+    hitsByQuery = async (query) => {
+      if (query === "fail") {
+        await started.promise;
+        throw failure;
+      }
+      searchSignal!.addEventListener("abort", () => pending.reject(searchSignal!.reason), { once: true });
+      started.resolve();
+      return pending.promise;
+    };
+    const upstream = vi.fn(async () => new Response(JSON.stringify({
+      choices: [{ finish_reason: "tool_calls", message: {
+        role: "assistant", content: null,
+        tool_calls: ["fail", "pending"].map((query) => ({
+          id: `call_${query}`, type: "function",
+          function: { name: "search_scenes", arguments: JSON.stringify({ query }) },
+        })),
+      } }],
+    }), { headers: { "content-type": "application/json" } }));
+    vi.stubGlobal("fetch", upstream);
+    try {
+      const execute = async () => {
+        if (!stream) return runRag(ENV, PARAMS);
+        for await (const _chunk of streamRag(ENV, PARAMS)) { /* consume */ }
+      };
+      await expect(execute()).rejects.toBe(failure);
+      expect(searchSignal?.aborted).toBe(true);
+      expect(upstream).toHaveBeenCalledOnce();
+      expect(closed).toBe(1);
+    } finally {
+      pending.resolve([]);
+    }
+  });
+
+  it("接続の後始末に失敗しても元の検索エラーを保つ", async () => {
+    const original = new LlmConfigurationError("EMBEDDING_MODEL is required");
+    closeError = new Error("pool close failed");
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    hitsByQuery = () => { throw original; };
+    stubOpenAi([{ toolCall: { name: "search_scenes", args: { query: "scene" } } }]);
+    const execute = async () => {
+      if (!stream) return runRag(ENV, PARAMS);
+      for await (const _chunk of streamRag(ENV, PARAMS)) { /* consume */ }
+    };
+    await expect(execute()).rejects.toBe(original);
+    expect(closed).toBe(1);
+    expect(log).toHaveBeenCalledOnce();
+  });
+
+  it.each(["", "   "])("空の最終回答を検索前の前置きや成功扱いで補わない: %j", async (content) => {
+    hitsByQuery = () => [scene(1)];
+    stubOpenAi([
+      { toolCall: { name: "search_scenes", args: { query: "scene" } }, preamble: "調べますね。" },
+      { content },
+    ]);
+    const chunks: RagStreamChunk[] = [];
+    const execute = async () => {
+      if (!stream) return runRag(ENV, PARAMS);
+      for await (const chunk of streamRag(ENV, PARAMS)) chunks.push(chunk);
+    };
+
+    await expect(execute()).rejects.toThrow(LlmProviderError);
+    expect(chunks.some((chunk) => "text" in chunk || "final" in chunk)).toBe(false);
+    expect(closed).toBe(1);
+  });
+
+  it("検索を実行しなかった動画指定エラーで検索枠を消費しない", async () => {
+    hitsByQuery = () => [scene(1)];
+    stubOpenAi([
+      ...Array.from({ length: MAX_SCENE_SEARCHES }, (): Turn => ({
+        toolCall: { name: "search_scenes", args: { query: "scene", video_ids: [999] } },
+      })),
+      { toolCall: { name: "search_scenes", args: { query: "scene", video_ids: [60] } } },
+      { content: "回答 [1]" },
+    ]);
+
+    if (stream) {
+      const chunks: RagStreamChunk[] = [];
+      for await (const chunk of streamRag(ENV, PARAMS)) chunks.push(chunk);
+      expect(chunks.at(-1)).toMatchObject({ final: { citations: [{ video_id: 60 }] } });
+      expect(chunks).toContainEqual({ searching: "scene", searchId: 1 });
+    } else {
+      expect((await runRag(ENV, PARAMS)).citations).toHaveLength(1);
+    }
+    expect(searchCalls).toEqual(["scene"]);
+    expect(videoSelections).toEqual([[60]]);
+    expect(closed).toBe(1);
+  });
+
   it.each([
     new LlmProviderError("Ollama embeddings unreachable"),
     new LlmConfigurationError("EMBEDDING_MODEL is required"),
@@ -252,7 +322,7 @@ describe.each([false, true])("検索障害（stream=%s）", (stream) => {
     const bodies = stubOpenAi([
       { toolCall: { name: "search_scenes", args: { query: "scene" } }, preamble: "調べますね。" },
       { content: "検索できませんでした。" },
-    ], { stream });
+    ]);
 
     const chunks: RagStreamChunk[] = [];
     const execute = async () => {
@@ -276,7 +346,7 @@ describe.each([false, true])("検索障害（stream=%s）", (stream) => {
     const bodies = stubOpenAi([
       { toolCall: { name: "search_scenes", args: { query: "scene" } } },
       { status: 503 },
-    ], { stream });
+    ]);
 
     const execute = async () => {
       if (!stream) return runRag(ENV, PARAMS);
@@ -296,7 +366,7 @@ describe.each([false, true])("検索障害（stream=%s）", (stream) => {
       { toolCall: { name: "search_scenes", args: { query: "" } } },
       { toolCall: { name: "search_scenes", args: { query: "scene" } } },
       { content: "回答 [1]" },
-    ], { stream });
+    ]);
 
     if (stream) {
       const chunks: RagStreamChunk[] = [];
@@ -320,7 +390,7 @@ describe.each([false, true])("Ollama 互換 API（stream=%s）", (stream) => {
     const bodies = stubOpenAi([
       { toolCall: { name: "search_scenes", args: { query: "scene" } } },
       { content: "回答 [1]" },
-    ], { stream });
+    ]);
     const fetchStub = vi.fn(fetch);
     vi.stubGlobal("fetch", fetchStub);
     const env = {
@@ -349,7 +419,7 @@ describe.each([false, true])("Ollama 互換 API（stream=%s）", (stream) => {
     }
     for (const body of bodies) {
       expect(body.model).toBe(env.LLM_MODEL);
-      expect(body.stream).toBe(stream);
+      expect(body.stream).toBe(false);
       const messages = body.messages as { role: string; content: unknown }[];
       expect(typeof messages.find((message) => message.role === "system")?.content).toBe("string");
     }
@@ -437,6 +507,66 @@ describe("RAG エージェント（非ストリーミング）", () => {
 });
 
 describe("RAG エージェント（ストリーミング）", () => {
+  it("進捗の送信を途中で打ち切った場合も実行中の検索を中断する", async () => {
+    const started = Promise.withResolvers<void>();
+    const search = Promise.withResolvers<SceneHit[]>();
+    hitsByQuery = () => {
+      searchSignal!.addEventListener("abort", () => search.reject(searchSignal!.reason), { once: true });
+      started.resolve();
+      return search.promise;
+    };
+    const bodies = stubOpenAi([
+      { toolCall: { name: "search_scenes", args: { query: "scene" } } },
+      { content: "生成してはいけない回答" },
+    ]);
+    const stream = streamRag(ENV, PARAMS);
+    try {
+      expect((await stream.next()).value).toEqual({ searching: "scene", searchId: 1 });
+      await started.promise;
+      await stream.return();
+      expect(searchSignal?.aborted).toBe(true);
+      expect(bodies).toHaveLength(1);
+      expect(closed).toBe(1);
+    } finally {
+      search.resolve([]);
+      await stream.return();
+    }
+  });
+
+  it.each(["deadline", "client"])("検索中の %s 中断を検索接続にも渡し、次のモデルを呼ばない", async (source) => {
+    const deadline = new AbortController();
+    const client = new AbortController();
+    vi.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
+    const started = Promise.withResolvers<void>();
+    const search = Promise.withResolvers<SceneHit[]>();
+    hitsByQuery = () => {
+      searchSignal?.addEventListener("abort", () => search.reject(searchSignal!.reason), { once: true });
+      started.resolve();
+      return search.promise;
+    };
+    const bodies = stubOpenAi([
+      { toolCall: { name: "search_scenes", args: { query: "scene" } } },
+      { content: "生成してはいけない回答" },
+    ]);
+    const chunks: RagStreamChunk[] = [];
+    const consume = (async () => {
+      for await (const chunk of streamRag(ENV, PARAMS, client.signal)) chunks.push(chunk);
+    })();
+    const rejected = expect(consume).rejects.toThrow();
+    try {
+      await started.promise;
+      if (source === "deadline") deadline.abort(new DOMException("deadline reached", "TimeoutError"));
+      else client.abort();
+      expect(searchSignal?.aborted).toBe(true);
+    } finally {
+      search.resolve([]);
+      await rejected;
+    }
+    expect(bodies).toHaveLength(1);
+    expect(closed).toBe(1);
+    expect(chunks.some((chunk) => "text" in chunk || "final" in chunk)).toBe(false);
+  });
+
   it.each(["deadline", "client"])("検索後の本文受信中も %s で中断し、本文・final を送らず接続を閉じる", async (source) => {
     hitsByQuery = () => [scene(1)];
     const deadline = new AbortController();
@@ -444,7 +574,7 @@ describe("RAG エージェント（ストリーミング）", () => {
     const timeout = vi.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
     stubOpenAi([
       { toolCall: { name: "search_scenes", args: { query: "scene" } } },
-    ], { stream: true });
+    ]);
     const initialFetch = fetch;
     let upstream: AbortSignal | undefined;
     const reading = Promise.withResolvers<void>();
@@ -454,7 +584,7 @@ describe("RAG エージェント（ストリーミング）", () => {
         return initialFetch(url, init);
       }
       upstream = init.signal!;
-      return stalledChatResponse(upstream, reading.resolve);
+      return stalledChatResponse(upstream, reading.resolve, false);
     });
     const chunks: RagStreamChunk[] = [];
     const consume = (async () => {
@@ -478,7 +608,7 @@ describe("RAG エージェント（ストリーミング）", () => {
       { toolCall: { name: "search_scenes", args: { query: "A" } }, preamble: "調べますね。" },
       { toolCall: { name: "search_scenes", args: { query: "B" } }, preamble: "追加で調べます。" },
       { content: "最終回答 [1]" },
-    ], { stream: true });
+    ]);
     const chunks: RagStreamChunk[] = [];
     for await (const chunk of streamRag(ENV, PARAMS)) chunks.push(chunk);
     expect(chunks.filter((chunk) => "text" in chunk).map((chunk) => chunk.text).join(""))
@@ -489,14 +619,13 @@ describe("RAG エージェント（ストリーミング）", () => {
     expect(closed).toBe(1);
   });
 
-  it("検索イベント → 回答トークン → final の順に流す", async () => {
+  it("検索イベント → 回答本文 → final の順に流す", async () => {
     hitsByQuery = () => [scene(1)];
     stubOpenAi(
       [
         { toolCall: { name: "search_scenes", args: { query: "検索語" } } },
         { content: "回答本文" },
       ],
-      { stream: true },
     );
 
     const chunks: unknown[] = [];
@@ -523,7 +652,7 @@ describe("RAG エージェント（ストリーミング）", () => {
     stubOpenAi([
       { toolCall: { name: "search_scenes", args: { query: "時間のかかる検索" } } },
       { content: "回答 [1]" },
-    ], { stream: true });
+    ]);
     const stream = streamRag(ENV, PARAMS);
     try {
       const first = await stream.next();
@@ -560,15 +689,17 @@ describe.each([false, true])("講座メタ情報（stream=%s）", (streaming) =>
     const bodies = stubOpenAi([
       { toolCall: { name: "get_course_info", args: {} }, preamble: "確認します。" },
       { content: "デジタル回路は2本の動画で構成されています。" },
-    ], { stream: streaming });
+    ]);
     const result = await execute({ messages: [{ role: "user", content: "この講座の名前と動画数は？" }] });
     expect(result.content).toBe("デジタル回路は2本の動画で構成されています。");
     expect(result.citations).toBeNull();
     expect(opened).toBe(0);
     expect(closed).toBe(0);
     expect(searchCalls).toEqual([]);
-    expect(getCourseDetail).toHaveBeenCalledWith(ENV, 3, PARAMS.ownerUserId, {
-      includeFileUrls: false, videoLimit: 20, videoOffset: 0,
+    expect(getCourseInfo).toHaveBeenCalledWith(ENV, 3, PARAMS.ownerUserId, {
+      videoLimit: 20, videoOffset: 0,
+      courseDescriptionLimit: COURSE_DESCRIPTION_LIMIT,
+      videoDescriptionLimit: VIDEO_DESCRIPTION_LIMIT,
     });
     const context = JSON.parse(toolResults(bodies[1])[0]);
     expect(context).toMatchObject({ name: COURSE.name, video_count: 2,
@@ -584,14 +715,14 @@ describe.each([false, true])("講座メタ情報（stream=%s）", (streaming) =>
   });
 
   it.each(["empty", "processing"])("%s の講座でも説明未登録と本数・処理状態を取得できる", async (state) => {
-    vi.mocked(getCourseDetail).mockResolvedValue({ ...COURSE, description: "",
+    vi.mocked(getCourseInfo).mockResolvedValue({ ...COURSE, description: "",
       video_count: state === "empty" ? 0 : 1,
       videos: state === "empty" ? [] : [{ ...COURSE.videos[0], description: "", status: "processing" }],
     });
     const bodies = stubOpenAi([
       { toolCall: { name: "get_course_info", args: {} } },
       { content: "説明文は登録されていません。" },
-    ], { stream: streaming });
+    ]);
     const result = await execute({ videoIds: state === "empty" ? [] : [60] });
     expect(result.content).toBe("説明文は登録されていません。");
     const metadata = JSON.parse(toolResults(bodies[1])[0]);
@@ -602,7 +733,7 @@ describe.each([false, true])("講座メタ情報（stream=%s）", (streaming) =>
   });
 
   it("2ページ目で特定した動画を指定して検索し、シーン引用を保持する", async () => {
-    vi.mocked(getCourseDetail)
+    vi.mocked(getCourseInfo)
       .mockResolvedValueOnce({ ...COURSE, videos: [COURSE.videos[0]] })
       .mockResolvedValueOnce({ ...COURSE, videos: [COURSE.videos[1]] });
     hitsByQuery = () => [scene(1, 61)];
@@ -611,7 +742,7 @@ describe.each([false, true])("講座メタ情報（stream=%s）", (streaming) =>
       { toolCall: { name: "get_course_info", args: { video_limit: 1, video_offset: 1 } } },
       { toolCall: { name: "search_scenes", args: { query: "回路の説明", video_ids: [61] } } },
       { content: "第8回の説明です [1]。" },
-    ], { stream: streaming });
+    ]);
     const result = await execute();
     expect(JSON.parse(toolResults(bodies[1])[0])).toMatchObject({
       video_count: 2, videos_meta: { total: 2, has_more: true, next_offset: 1 },
@@ -631,7 +762,7 @@ describe.each([false, true])("講座メタ情報（stream=%s）", (streaming) =>
     stubOpenAi([
       { toolCall: { name: "search_scenes", args: { query: "private", video_ids } } },
       { content: "指定された動画を検索できません。" },
-    ], { stream: streaming });
+    ]);
     const result = await execute();
     expect(result.citations).toBeNull();
     expect(opened).toBe(0);
@@ -643,20 +774,20 @@ describe.each([false, true])("講座メタ情報（stream=%s）", (streaming) =>
       { toolCall: { name: "get_course_info", args: { course_id: 999 } } },
       { toolCall: { name: "get_course_info", args: {} } },
       { content: "デジタル回路です。" },
-    ], { stream: streaming });
+    ]);
     await execute();
-    expect(getCourseDetail).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(getCourseDetail).mock.calls[0][1]).toBe(3);
+    expect(getCourseInfo).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(getCourseInfo).mock.calls[0][1]).toBe(3);
   });
 
   it("長い説明文を上限で切り、取得済み根拠にも省略を明示する", async () => {
-    vi.mocked(getCourseDetail).mockResolvedValue({ ...COURSE,
+    vi.mocked(getCourseInfo).mockResolvedValue({ ...COURSE,
       description: "あ".repeat(COURSE_DESCRIPTION_LIMIT + 1),
       videos: [{ ...COURSE.videos[0], description: "い".repeat(VIDEO_DESCRIPTION_LIMIT + 1) }],
     });
     const bodies = stubOpenAi([
       { toolCall: { name: "get_course_info", args: {} } }, { content: "説明の一部です。" },
-    ], { stream: streaming });
+    ]);
     await execute();
     const metadata = JSON.parse(toolResults(bodies[1])[0]);
     expect(metadata.description).toHaveLength(COURSE_DESCRIPTION_LIMIT);
@@ -671,9 +802,9 @@ describe.each([false, true])("講座メタ情報（stream=%s）", (streaming) =>
         toolCall: { name: "get_course_info", args: {} },
       })),
       { content: "取得済みの講座情報です。" },
-    ], { stream: streaming });
+    ]);
     const result = await execute();
-    expect(getCourseDetail).toHaveBeenCalledTimes(MAX_COURSE_INFO_CALLS);
+    expect(getCourseInfo).toHaveBeenCalledTimes(MAX_COURSE_INFO_CALLS);
     expect(result.content).toBe("取得済みの講座情報です。");
     expect(result.retrievedContexts).toHaveLength(1);
   });
@@ -684,20 +815,20 @@ describe.each([false, true])("講座メタ情報（stream=%s）", (streaming) =>
         toolCall: { name: "get_course_info", args: { video_limit: 999 } },
       })),
       { content: "講座情報を取得できませんでした。" },
-    ], { stream: streaming });
+    ]);
     const result = await execute();
     expect(result.content).toBe("講座情報を取得できませんでした。");
     expect(bodies.at(-1)?.tools ?? []).toEqual([]);
-    expect(getCourseDetail).not.toHaveBeenCalled();
+    expect(getCourseInfo).not.toHaveBeenCalled();
     expect(opened).toBe(0);
   });
 
   it("メタ情報取得のDB障害では回答を生成せず例外を伝える", async () => {
-    vi.mocked(getCourseDetail).mockRejectedValue(new Error("database unavailable"));
+    vi.mocked(getCourseInfo).mockRejectedValue(new Error("database unavailable"));
     const bodies = stubOpenAi([
       { toolCall: { name: "get_course_info", args: {} }, preamble: "確認します。" },
       { content: "誤った成功回答" },
-    ], { stream: streaming });
+    ]);
     await expect(execute()).rejects.toThrow(LlmProviderError);
     expect(bodies).toHaveLength(1);
     expect(opened).toBe(0);

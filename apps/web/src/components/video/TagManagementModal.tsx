@@ -26,7 +26,7 @@ interface TagManagementModalProps {
 export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps) {
   const { t } = useTranslation();
   // Not `error`: handleDelete's catch clause would shadow it.
-  const { tags, deleteTag, deletingTagId, error: tagsError } = useTags();
+  const { tags, deleteTag, deletingTagId, error: tagsError } = useTags({ enabled: isOpen });
   const isDeleting = deletingTagId !== null;
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const deleteButtons = useRef(new Map<number, HTMLButtonElement>());

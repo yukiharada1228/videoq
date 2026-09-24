@@ -1,16 +1,18 @@
 import { useQueryClient, useMutation } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useI18nNavigate } from '@/lib/i18n';
-import { filterTranscriptSegments, isSrtFormat, parseSrtTranscript } from '@/lib/transcript/srt';
+import { filterTranscriptSegments, isSrtFormat, parseSrtTranscript, type TranscriptSegment } from '@/lib/transcript/srt';
+import { seekAndPlay } from '@/lib/video/playback';
 import { trpc } from '@/lib/trpc';
 import { useConfirm } from '@/components/common/feedback';
 import { VideoDetailView } from '@/components/video/detail/VideoDetailView';
 import { useTags } from '@/hooks/useTags';
 import { useVideo } from '@/hooks/useVideos';
 import { useVideoEditing } from '@/hooks/useVideoEditing';
-import { useVideoDetailPageMutations } from '@/hooks/useVideoDetailPageData';
+import { useMobileTab } from '@/hooks/useMobileTab';
+import { invalidateAfterVideoDelete, invalidateAfterVideoUpdate } from '@/lib/cacheInvalidation';
 
 type MobileTab = 'transcript' | 'video';
 
@@ -20,8 +22,9 @@ export default function VideoDetailPage() {
   const [searchParams] = useSearchParams();
   const videoId = params?.id ? Number.parseInt(params.id, 10) : null;
   const videoRef = useRef<HTMLVideoElement>(null);
-  const startTime = searchParams.get('t');
-  const [manualYoutubeStartSeconds, setManualYoutubeStartSeconds] = useState<number | null>(null);
+  const parsedStartTime = Number.parseInt(searchParams.get('t') ?? '', 10);
+  const queryStartSeconds = Number.isNaN(parsedStartTime) ? null : parsedStartTime;
+  const [youtubeSeek, setYoutubeSeek] = useState<{ seconds: number; id: number } | null>(null);
   const { t } = useTranslation();
   const requestConfirmation = useConfirm();
   const queryClient = useQueryClient();
@@ -30,19 +33,10 @@ export default function VideoDetailPage() {
   const [isTranscriptEditing, setIsTranscriptEditing] = useState(false);
   const [editedTranscript, setEditedTranscript] = useState('');
   const [transcriptSaveError, setTranscriptSaveError] = useState<string | null>(null);
-  const [activeSegmentIdx, setActiveSegmentIdx] = useState<number | null>(null);
-  const [mobileTab, setMobileTab] = useState<MobileTab>('video');
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 1024);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
+  const [activeSegment, setActiveSegment] = useState<TranscriptSegment | null>(null);
+  const { mobileTab, setMobileTab, isMobile } = useMobileTab<MobileTab>('video');
 
   const { video, isLoading, error } = useVideo(videoId);
-  const { tags, createTag } = useTags();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   const {
@@ -55,8 +49,9 @@ export default function VideoDetailPage() {
     setEditedTagIds,
     startEditing,
     cancelEditing,
-    handleUpdateVideo,
+    updateMutation,
   } = useVideoEditing({ video, videoId });
+  const { tags, createTag } = useTags({ enabled: isEditing });
 
   const handleCreateTag = useCallback(async (name: string, color: string) => {
     const newTag = await createTag(name, color);
@@ -64,34 +59,22 @@ export default function VideoDetailPage() {
   }, [createTag, setEditedTagIds]);
 
   const handleVideoLoaded = () => {
-    if (videoRef.current && startTime) {
-      const seconds = Number.parseInt(startTime, 10);
-      if (!Number.isNaN(seconds)) {
-        videoRef.current.currentTime = seconds;
-        void videoRef.current.play();
-      }
+    if (videoRef.current && queryStartSeconds !== null) {
+      seekAndPlay(videoRef.current, queryStartSeconds);
     }
   };
 
-  const queryYoutubeStartSeconds = (() => {
-    if (!startTime) {
-      return null;
-    }
-    const seconds = Number.parseInt(startTime, 10);
-    return Number.isNaN(seconds) ? null : seconds;
-  })();
-
-  const youtubeStartSeconds = manualYoutubeStartSeconds ?? queryYoutubeStartSeconds;
+  const youtubeStartSeconds = youtubeSeek?.seconds ?? queryStartSeconds;
 
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const { deleteMutation, updateMutation } = useVideoDetailPageMutations({
-    videoId,
-    onDeleteSuccess: () => navigate('/videos'),
-    onUpdate: handleUpdateVideo,
-    onUpdateSuccess: cancelEditing,
-    onDeleteError: (err) => setDeleteError(err instanceof Error ? err.message : String(err)),
-  });
+  const deleteMutation = useMutation(trpc.videos.delete.mutationOptions({
+    onSuccess: async (_data, { id }) => {
+      await invalidateAfterVideoDelete(queryClient, id);
+      navigate('/videos');
+    },
+    onError: (err) => setDeleteError(err.message),
+  }));
 
   const isDeleting = deleteMutation.isPending;
   const isUpdating = updateMutation.isPending;
@@ -109,19 +92,9 @@ export default function VideoDetailPage() {
     if (videoId) deleteMutation.mutate({ id: videoId });
   }, [requestConfirmation, deleteMutation, t, videoId]);
 
-  const handleCancelEdit = useCallback(() => {
-    cancelEditing();
-    updateMutation.reset();
-  }, [cancelEditing, updateMutation]);
-
   const transcriptUpdateMutation = useMutation(trpc.videos.update.mutationOptions({
-    onSuccess: async () => {
-      if (videoId) {
-        await Promise.all([
-          queryClient.invalidateQueries(trpc.videos.get.queryFilter({ id: videoId })),
-          queryClient.invalidateQueries(trpc.courses.pathFilter()),
-        ]);
-      }
+    onSuccess: async (updatedVideo, { id }) => {
+      await invalidateAfterVideoUpdate(queryClient, id, { metadataChanged: false, updatedVideo });
       setIsTranscriptEditing(false);
       setTranscriptSearch('');
       setTranscriptSaveError(null);
@@ -143,10 +116,13 @@ export default function VideoDetailPage() {
     setIsTranscriptEditing(false);
   };
 
-  const transcript = video?.transcript ?? null;
-  const transcriptSegments = useMemo(() => {
-    if (!transcript || !isSrtFormat(transcript)) return [];
-    return parseSrtTranscript(transcript);
+  const transcript = video?.transcript ?? '';
+  const { transcriptSegments, isPlainTextTranscript } = useMemo(() => {
+    const isSrt = isSrtFormat(transcript);
+    return {
+      transcriptSegments: isSrt ? parseSrtTranscript(transcript) : [],
+      isPlainTextTranscript: !isSrt && transcript.trim().length > 0,
+    };
   }, [transcript]);
 
   const filteredSegments = useMemo(
@@ -156,15 +132,12 @@ export default function VideoDetailPage() {
 
   const handleSeek = (seconds: number, idx: number) => {
     if (video?.source_type === 'youtube') {
-      setManualYoutubeStartSeconds(seconds);
+      setYoutubeSeek(previous => ({ seconds, id: (previous?.id ?? 0) + 1 }));
     } else if (videoRef.current) {
-      videoRef.current.currentTime = seconds;
-      void videoRef.current.play();
+      seekAndPlay(videoRef.current, seconds);
     }
-    setActiveSegmentIdx(idx);
+    setActiveSegment(filteredSegments[idx]);
   };
-
-  const isPlainTextTranscript = Boolean(video?.transcript?.trim()) && !isSrtFormat(video?.transcript ?? '');
 
   return (
     <VideoDetailView
@@ -173,6 +146,7 @@ export default function VideoDetailPage() {
       error={error}
       videoRef={videoRef}
       youtubeStartSeconds={youtubeStartSeconds}
+      youtubeSeekId={youtubeSeek?.id ?? 0}
       onVideoLoaded={handleVideoLoaded}
       isMobile={isMobile}
       mobileTab={mobileTab}
@@ -189,7 +163,7 @@ export default function VideoDetailPage() {
       onEditedDescriptionChange={setEditedDescription}
       onEditedTagIdsChange={setEditedTagIds}
       onStartEditing={startEditing}
-      onCancelEdit={handleCancelEdit}
+      onCancelEdit={cancelEditing}
       onUpdateVideo={() => updateMutation.mutate()}
       isUpdating={isUpdating}
       updateError={updateError}
@@ -204,12 +178,17 @@ export default function VideoDetailPage() {
       editedTranscript={editedTranscript}
       onEditedTranscriptChange={setEditedTranscript}
       onSaveTranscript={() => {
-        if (videoId) transcriptUpdateMutation.mutate({ id: videoId, transcript: editedTranscript });
+        if (editedTranscript === transcript) {
+          cancelTranscriptEditing();
+          setTranscriptSearch('');
+        } else if (videoId) {
+          transcriptUpdateMutation.mutate({ id: videoId, transcript: editedTranscript });
+        }
       }}
       isTranscriptSaving={transcriptUpdateMutation.isPending}
       transcriptSaveError={transcriptSaveError}
       filteredSegments={filteredSegments}
-      activeSegmentIdx={activeSegmentIdx}
+      activeSegmentIdx={activeSegment ? filteredSegments.indexOf(activeSegment) : null}
       onSeek={handleSeek}
       isPlainTextTranscript={isPlainTextTranscript}
     />

@@ -2,16 +2,16 @@ import {
   listVideosPage,
   countVideosByStatus,
   getVideoDetail,
+  mapVideoDetailRow,
   updateVideo,
   getVideoFileKey,
   deleteVideoCascade,
-  getVideoStatus,
-  transitionVideoStatus,
+  getVideoUploadState,
+  confirmUploadedVideo,
   reserveAndCreatePendingVideo,
   createYoutubeVideo,
 } from "../../repositories/video-repository";
 import { validateTranscriptSrt } from "../../lib/srt";
-import { getMaxUploadSizeMb } from "../../repositories/quota-repository";
 import {
   getR2ObjectSize,
   isS3Storage,
@@ -53,6 +53,8 @@ type YoutubeCreateRequest = {
   description: string;
 };
 
+const CONFIRMED_UPLOAD_STATUSES = new Set(["pending", "processing", "indexing", "completed", "error"]);
+
 const reportBestEffortFailure = (operation: string, error: unknown) => {
   console.error(
     JSON.stringify({
@@ -85,15 +87,6 @@ export function multipartUnavailableBody() {
   } as const;
 }
 
-export function parseTagIds(tagsParam: string | undefined): number[] | null {
-  if (!tagsParam?.trim()) return null;
-  const parsed = tagsParam
-    .split(",")
-    .filter(Boolean)
-    .map((t) => Number(t));
-  return parsed.every((n) => Number.isInteger(n)) ? parsed : null;
-}
-
 export async function listUserVideos(
   env: Bindings,
   userId: string,
@@ -101,7 +94,7 @@ export async function listUserVideos(
     q?: string;
     status?: string;
     ordering?: string;
-    tags?: string;
+    tags?: number[];
   },
   limit: number,
   offset: number,
@@ -113,7 +106,7 @@ export async function listUserVideos(
       keyword: query.q?.trim() ?? "",
       statusFilter: query.status?.trim() ?? "",
       sortKey: query.ordering?.trim() ?? "",
-      tagIds: parseTagIds(query.tags),
+      tagIds: query.tags ?? null,
     },
     limit,
     offset,
@@ -155,11 +148,6 @@ export async function requestPresignedUpload(
   }
   if (Object.keys(fieldError).length) return { fieldError } as const;
 
-  const maxMb = await getMaxUploadSizeMb(env, userId);
-  if (body.file_size > maxMb * 1024 * 1024) {
-    return { fileTooLarge: true, maxMb } as const;
-  }
-
   const fileKey = idempotency
     ? buildPendingUploadFileKey(
         userId,
@@ -178,6 +166,7 @@ export async function requestPresignedUpload(
     body.description,
     idempotency,
   );
+  if ("fileTooLarge" in pending) return pending;
   if ("idempotencyConflict" in pending) {
     return { idempotencyConflict: true } as const;
   }
@@ -232,6 +221,7 @@ export async function requestPresignedUpload(
     try {
       const deleted = await deleteVideoCascade(env, videoId, userId, {
         expectedStatus: "uploading",
+        expectedFileKey: pending.fileKey,
         fallbackStorageBytes: body.file_size,
       });
       await dispatchCleanupTask(env, deleted.cleanupTaskId);
@@ -293,79 +283,56 @@ export async function confirmVideoUpload(
   videoId: number,
   userId: string,
 ) {
-  const cur = await getVideoStatus(env, videoId, userId);
-  if (!cur.found) return { notFound: true } as const;
-  if (cur.status !== "uploading") {
-    const upload = await getVideoFileKey(env, videoId, userId);
-    if (
-      upload.found &&
-      upload.fileKey &&
-      ["pending", "processing", "indexing", "completed", "error"].includes(
-        cur.status,
-      )
-    ) {
+  const upload = await getVideoUploadState(env, videoId, userId);
+  if (!upload.found) return { notFound: true } as const;
+  let alreadyConfirmed = upload.status !== "uploading";
+  if (alreadyConfirmed) {
+    if (!upload.fileKey || !CONFIRMED_UPLOAD_STATUSES.has(upload.status)) {
       return {
-        video: await getVideoDetail(env, videoId, userId),
-        alreadyConfirmed: true,
-      } as const;
+        badState: true as const,
+        message: `Video is in '${upload.status}' state, expected 'uploading'`,
+      };
     }
-    return {
-      badState: true as const,
-      message: `Video is in '${cur.status}' state, expected 'uploading'`,
-    };
-  }
-
-  const upload = await getVideoFileKey(env, videoId, userId);
-  if (!upload.found || !upload.fileKey) return { notFound: true } as const;
-  const reservedBytes = parseReservedBytesFromFileKey(upload.fileKey);
-  const actualBytes = await getR2ObjectSize(env, upload.fileKey);
-  if (actualBytes === null) {
-    return {
-      badState: true as const,
-      message: "Uploaded object was not found.",
-    };
-  }
-  if (reservedBytes !== null && actualBytes !== reservedBytes) {
-    const deleted = await deleteVideoCascade(env, videoId, userId, {
-      expectedStatus: "uploading",
-      fallbackStorageBytes: reservedBytes,
-    });
-    await dispatchCleanupTask(env, deleted.cleanupTaskId);
-    return {
-      badState: true as const,
-      message: "Uploaded object size does not match the reserved size.",
-    };
-  }
-  const transitioned = await transitionVideoStatus(
-    env,
-    videoId,
-    "uploading",
-    "pending",
-  );
-  if (!transitioned) {
-    // A concurrent confirmation may have won after the initial status read.
-    const latest = await getVideoStatus(env, videoId, userId);
-    if (
-      latest.found &&
-      ["pending", "processing", "indexing", "completed", "error"].includes(
-        latest.status,
-      )
-    ) {
+  } else {
+    if (!upload.fileKey) return { notFound: true } as const;
+    const reservedBytes = parseReservedBytesFromFileKey(upload.fileKey);
+    const actualBytes = await getR2ObjectSize(env, upload.fileKey);
+    if (actualBytes === null) {
       return {
-        video: await getVideoDetail(env, videoId, userId),
-        alreadyConfirmed: true,
-      } as const;
+        badState: true as const,
+        message: "Uploaded object was not found.",
+      };
     }
-    return {
-      badState: true as const,
-      message: "Video upload was already confirmed.",
-    };
+    if (reservedBytes !== null && actualBytes !== reservedBytes) {
+      const deleted = await deleteVideoCascade(env, videoId, userId, {
+        expectedStatus: "uploading",
+        expectedFileKey: upload.fileKey,
+        fallbackStorageBytes: reservedBytes,
+      });
+      await dispatchCleanupTask(env, deleted.cleanupTaskId);
+      return {
+        badState: true as const,
+        message: "Uploaded object size does not match the reserved size.",
+      };
+    }
+    const transitioned = await confirmUploadedVideo(env, videoId, userId, upload.fileKey);
+    if (transitioned) {
+      await processExternalTaskById(env, transitioned.taskId);
+    } else {
+      // A concurrent confirmation may have won after the initial status read.
+      const latest = await getVideoUploadState(env, videoId, userId);
+      if (!latest.found) return { notFound: true } as const;
+      if (!latest.fileKey || !CONFIRMED_UPLOAD_STATUSES.has(latest.status)) {
+        return {
+          badState: true as const,
+          message: "Video upload changed before confirmation.",
+        };
+      }
+      alreadyConfirmed = true;
+    }
   }
-  await processExternalTaskById(env, transitioned.taskId);
-  return {
-    video: await getVideoDetail(env, videoId, userId),
-    alreadyConfirmed: false,
-  } as const;
+  const video = await getVideoDetail(env, videoId, userId);
+  return video ? { video, alreadyConfirmed } as const : { notFound: true } as const;
 }
 
 export async function patchUserVideo(
@@ -374,12 +341,12 @@ export async function patchUserVideo(
   userId: string,
   fields: { title?: string; description?: string; transcript?: string },
 ) {
-  if (!(await videoOwnedBy(env, videoId, userId))) {
-    return { notFound: true } as const;
-  }
   if (fields.transcript !== undefined) {
     const srtErr = validateTranscriptSrt(fields.transcript);
-    if (srtErr) return { fieldError: { transcript: [srtErr] } } as const;
+    if (srtErr) {
+      if (!(await videoOwnedBy(env, videoId, userId))) return { notFound: true } as const;
+      return { fieldError: { transcript: [srtErr] } } as const;
+    }
   }
 
   const res = await updateVideo(env, videoId, userId, fields);
@@ -388,7 +355,7 @@ export async function patchUserVideo(
   if (res.reindexTaskId !== null) {
     await processExternalTaskById(env, res.reindexTaskId);
   }
-  return { video: await getVideoDetail(env, videoId, userId) } as const;
+  return { video: await mapVideoDetailRow(env, res.row) } as const;
 }
 
 export async function putUserVideo(
@@ -397,12 +364,9 @@ export async function putUserVideo(
   userId: string,
   fields: { title: string; description: string },
 ) {
-  if (!(await videoOwnedBy(env, videoId, userId))) {
-    return { notFound: true } as const;
-  }
   const res = await updateVideo(env, videoId, userId, fields);
   if ("notFound" in res) return { notFound: true } as const;
-  return { video: await getVideoDetail(env, videoId, userId) } as const;
+  return { video: await mapVideoDetailRow(env, res.row) } as const;
 }
 
 export async function deleteUserVideo(
@@ -413,15 +377,7 @@ export async function deleteUserVideo(
   const info = await getVideoFileKey(env, videoId, userId);
   if (!info.found) return { notFound: true } as const;
 
-  let r2Size: number | null = null;
-  if (info.fileKey) {
-    try {
-      r2Size = await getR2ObjectSize(env, info.fileKey);
-    } catch {
-      r2Size = null;
-    }
-  }
-  const fileSize = resolveStorageBytesForRelease(info.fileKey, r2Size);
+  const fileSize = await resolveStorageBytesForRelease(env, info.fileKey);
 
   const deleted = await deleteVideoCascade(env, videoId, userId, {
     fallbackStorageBytes: fileSize,
@@ -532,21 +488,6 @@ export async function createVideoFromMultipart(
   }
 
   const fileSize = file.size;
-  const maxMb = await getMaxUploadSizeMb(env, userId);
-  if (fileSize > maxMb * 1024 * 1024) {
-    return {
-      ok: false,
-      status: 400,
-      body: {
-        error: {
-          code: "FILE_TOO_LARGE",
-          message: `File size exceeds the limit of ${maxMb} MB.`,
-          params: { max_size_mb: maxMb },
-        },
-      },
-    };
-  }
-
   const fileKey = buildPendingUploadFileKey(userId, fileSize, ext);
   const pending = await reserveAndCreatePendingVideo(
     env,
@@ -556,6 +497,19 @@ export async function createVideoFromMultipart(
     title,
     description,
   );
+  if ("fileTooLarge" in pending) {
+    return {
+      ok: false,
+      status: 400,
+      body: {
+        error: {
+          code: "FILE_TOO_LARGE",
+          message: `File size exceeds the limit of ${pending.maxMb} MB.`,
+          params: { max_size_mb: pending.maxMb },
+        },
+      },
+    };
+  }
   if ("idempotencyConflict" in pending) {
     throw new Error("Unexpected idempotency conflict without an idempotency key.");
   }
@@ -593,6 +547,7 @@ export async function createVideoFromMultipart(
     try {
       const deleted = await deleteVideoCascade(env, pending.videoId, userId, {
         expectedStatus: "uploading",
+        expectedFileKey: fileKey,
         fallbackStorageBytes: fileSize,
       });
       await dispatchCleanupTask(env, deleted.cleanupTaskId);
@@ -613,11 +568,11 @@ export async function createVideoFromMultipart(
 
   let transitioned: false | { taskId: number };
   try {
-    transitioned = await transitionVideoStatus(
+    transitioned = await confirmUploadedVideo(
       env,
       pending.videoId,
-      "uploading",
-      "pending",
+      userId,
+      fileKey,
     );
   } catch {
     return {

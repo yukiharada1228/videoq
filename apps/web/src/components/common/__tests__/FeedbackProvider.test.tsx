@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { FeedbackProvider } from '../FeedbackProvider'
 import { useConfirm, useToast } from '../feedback'
 
@@ -42,6 +42,7 @@ describe('FeedbackProvider', () => {
 
   afterEach(() => {
     globalThis.__setMockPathname('/')
+    vi.useRealTimers()
   })
 
   it('renders an accessible confirm dialog and resolves true on confirm', async () => {
@@ -127,5 +128,26 @@ describe('FeedbackProvider', () => {
     await waitFor(() => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     })
+  })
+
+  it('cancels a pending confirmation when the provider is removed', async () => {
+    const onResult = vi.fn()
+    const { unmount } = render(<FeedbackProvider><ConfirmHarness onResult={onResult} /></FeedbackProvider>)
+    fireEvent.click(screen.getByText('Open confirm'))
+    await act(async () => unmount())
+    expect(onResult).toHaveBeenCalledExactlyOnceWith(false)
+  })
+
+  it('clears dismissed toast timers and releases remaining timers on unmount', () => {
+    vi.useFakeTimers()
+    const { unmount } = render(<FeedbackProvider><ToastHarness /></FeedbackProvider>)
+    const initialTimers = vi.getTimerCount()
+    fireEvent.click(screen.getByText('Show toast'))
+    expect(vi.getTimerCount()).toBe(initialTimers + 1)
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss notification' }))
+    expect(vi.getTimerCount()).toBe(initialTimers)
+    fireEvent.click(screen.getByText('Show toast'))
+    unmount()
+    expect(vi.getTimerCount()).toBe(initialTimers)
   })
 })

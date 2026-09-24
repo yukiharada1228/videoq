@@ -20,7 +20,6 @@ import {
   nearDuplicateIds,
   nextHint,
   nextUncoveredInOrder,
-  orderingEdges,
   prerequisitesOf,
   reachedConceptIds,
   retrieveContext,
@@ -55,6 +54,10 @@ export class StudySessionConflictError extends Error {
 }
 
 const STUDY_LOCK_POLL_MS = 250;
+// Static prompt text, shared across turns and independent of the session locale.
+const RETRY_NOTICES = new Set(
+  ["en", "ja"].map((locale) => getPlogStudyConfig(locale).grading_unavailable),
+);
 
 export type StudyResult = {
   content: string;
@@ -158,19 +161,20 @@ function latestUserQuery(messages: readonly ChatMessageInput[]): string {
 
 function previousAssistantContent(messages: readonly ChatMessageInput[]): string {
   let seenUser = false;
+  let latestAssistant = "";
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i]!;
     if (m.role === "user" && m.content && !seenUser) {
       seenUser = true;
       continue;
     }
-    if (seenUser && m.role === "assistant" && m.content) return m.content;
+    // Retry notices are not tutor questions, even after a UI language change.
+    if (m.role === "assistant" && m.content && !RETRY_NOTICES.has(m.content)) {
+      if (seenUser) return m.content;
+      if (!latestAssistant) latestAssistant = m.content;
+    }
   }
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i]!;
-    if (m.role === "assistant" && m.content) return m.content;
-  }
-  return "";
+  return latestAssistant;
 }
 
 export function isAskForAnswer(text: string): boolean {
@@ -223,16 +227,19 @@ export function classifyStudyMessage(reply: string): StudyMessageIntent {
   return "answer";
 }
 
+function shouldKeepActiveWithoutRouting(query: string): boolean {
+  return isMetaOrConfused(query) || isAskForAnswer(query) || query.trim().length < 12;
+}
+
 export function shouldStayOnActive(
   query: string,
   queryEmbedding: readonly number[],
   activeConcept: PlogConcept,
   routedScored: { score: number; concept: PlogConcept } | null,
 ): boolean {
-  if (isMetaOrConfused(query) || isAskForAnswer(query)) return true;
+  if (shouldKeepActiveWithoutRouting(query)) return true;
   if (routedScored === null) return true;
   if (routedScored.concept.id === activeConcept.id) return true;
-  if ((query || "").trim().length < 12) return true;
   const activeScore = activeConcept.embedding.length
     ? cosineSimilarity(queryEmbedding, activeConcept.embedding)
     : 0;
@@ -251,23 +258,12 @@ function requireStudySessions(
   return env.STUDY_SESSION;
 }
 
-async function loadL0Scenes(
-  env: Bindings,
-  videoId: number,
-): Promise<ReturnType<typeof parseSrtScenes>> {
+function parseL0Scenes(transcript: string): ReturnType<typeof parseSrtScenes> {
   try {
-    const video = await getVideoTitleAndTranscript(env, videoId);
-    const transcript = video?.transcript || "";
-    if (!transcript.trim()) return [];
     return parseSrtScenes(transcript);
   } catch {
     return [];
   }
-}
-
-async function videoTitle(env: Bindings, videoId: number): Promise<string> {
-  const video = await getVideoTitleAndTranscript(env, videoId);
-  return video?.title || `Video ${videoId}`;
 }
 
 async function activateConcept(
@@ -303,11 +299,10 @@ async function firstUnreached(
   graphs: readonly PlogGraphSnapshot[],
 ): Promise<{ graph: PlogGraphSnapshot; concept: PlogConcept } | null> {
   for (const g of graphs) {
-    const edges = orderingEdges(g.edges);
     const states = await store.listForVideo(g.video_id);
     const reached = reachedConceptIds(states);
     const conceptsById = new Map(g.concepts.map((c) => [c.id, c]));
-    const order = studyPathConceptIds(g.concepts, edges);
+    const order = studyPathConceptIds(g.concepts, g.edges);
     const nxt = nextUncoveredInOrder(order, reached, conceptsById);
     if (nxt != null) return { graph: g, concept: conceptsById.get(nxt)! };
   }
@@ -411,8 +406,7 @@ async function maybeGradePrevious(
         hint_index: 0,
       });
     }
-    const edges = orderingEdges(activeGraph.edges);
-    const order = studyPathConceptIds(activeGraph.concepts, edges);
+    const order = studyPathConceptIds(activeGraph.concepts, activeGraph.edges);
     const states = await store.listForVideo(activeGraph.video_id);
     const reached = reachedConceptIds(states);
     let nxt = nextUncoveredInOrder(order, reached, conceptsById, active.concept_id);
@@ -442,15 +436,6 @@ async function resolveTarget(
   graphs: readonly PlogGraphSnapshot[],
   lockActive: boolean,
 ): Promise<{ graph: PlogGraphSnapshot; concept: PlogConcept; redirected: boolean } | null> {
-  let qEmb: number[];
-  try {
-    qEmb = await embedQuery(env, query);
-  } catch (e) {
-    if (e instanceof LlmConfigurationError) throw e;
-    throw new LlmProviderError(e instanceof Error ? e.message : String(e));
-  }
-
-  const routedScored = routeToConceptScored(qEmb, graphs);
   let active = await findActive(store, graphs);
   if (active) {
     const { graph, concept } = active;
@@ -466,45 +451,44 @@ async function resolveTarget(
 
   let graph: PlogGraphSnapshot;
   let concept: PlogConcept;
-  if (
-    active &&
-    (lockActive ||
-      shouldStayOnActive(
-        query,
-        qEmb,
-        active.concept,
-        routedScored
-          ? { score: routedScored.score, concept: routedScored.concept }
-          : null,
-      ))
-  ) {
-    ({ graph, concept } = active);
-  } else if (routedScored) {
-    graph = routedScored.graph;
-    concept = routedScored.concept;
-  } else if (active) {
+  // Advancement and brief follow-ups already determine the target. Check that
+  // it is still unreached before skipping the provider request.
+  if (active && (lockActive || shouldKeepActiveWithoutRouting(query))) {
     ({ graph, concept } = active);
   } else {
-    const nextUnreached = await firstUnreached(store, graphs);
-    if (nextUnreached) {
-      ({ graph, concept } = nextUnreached);
-    } else if (graphs[0]?.concepts[0]) {
-      graph = graphs[0];
-      concept = graphs[0].concepts[0];
+    let qEmb: number[];
+    try {
+      qEmb = await embedQuery(env, query);
+    } catch (e) {
+      if (e instanceof LlmConfigurationError) throw e;
+      throw new LlmProviderError(e instanceof Error ? e.message : String(e));
+    }
+    const routedScored = routeToConceptScored(qEmb, graphs);
+    if (active && shouldStayOnActive(query, qEmb, active.concept, routedScored)) {
+      ({ graph, concept } = active);
+    } else if (routedScored) {
+      ({ graph, concept } = routedScored);
     } else {
-      return null;
+      const nextUnreached = await firstUnreached(store, graphs);
+      if (nextUnreached) {
+        ({ graph, concept } = nextUnreached);
+      } else if (graphs[0]?.concepts[0]) {
+        graph = graphs[0];
+        concept = graphs[0].concepts[0];
+      } else {
+        return null;
+      }
     }
   }
 
-  const edges = orderingEdges(graph.edges);
   const states = await store.listForVideo(graph.video_id);
   const reached = reachedConceptIds(states);
   const conceptsById = new Map(graph.concepts.map((c) => [c.id, c]));
   const covered = coveredConceptIds(reached, conceptsById);
-  const order = studyPathConceptIds(graph.concepts, edges);
+  const order = studyPathConceptIds(graph.concepts, graph.edges);
   if (order.length > 0 && order.every((cid) => covered.has(cid))) return null;
 
-  const prereqs = prerequisitesOf(concept.id, edges);
+  const prereqs = prerequisitesOf(concept.id, graph.edges);
   const unmet = new Set([...prereqs].filter((id) => !covered.has(id)));
   if (unmet.size > 0) {
     const targetId = selectNearestUnmet(unmet, conceptsById) ?? concept.id;
@@ -542,7 +526,6 @@ async function runTurn(
     throw new PlogNotReadyError(
       String(
         studyCfg.needs_ordering_path ||
-          studyCfg.needs_human_validation ||
           "Study mode needs ordering edges that form a DAG path. " +
             "Open the learning graph panel to edit or delete edges.",
       ),
@@ -555,14 +538,7 @@ async function runTurn(
     result: { ...result, content: notice ? `${notice}\n\n${result.content}` : result.content },
     states: store.snapshot(),
   });
-  // Retry notices are not tutor questions. Preserve the question being retried,
-  // including when the UI language changes between attempts.
-  const retryNotices = new Set(
-    ["en", "ja"].map((locale) => getPlogStudyConfig(locale).grading_unavailable),
-  );
-  const priorAssistant = previousAssistantContent(
-    params.messages.filter((message) => message.role !== "assistant" || !retryNotices.has(message.content)),
-  );
+  const priorAssistant = previousAssistantContent(params.messages);
   const gradeOutcome = await maybeGradePrevious(
     env,
     store,
@@ -610,24 +586,25 @@ async function runTurn(
   }
   const { graph, concept: target, redirected } = resolved;
 
-  const edges = orderingEdges(graph.edges);
   const states = await store.listForVideo(graph.video_id);
   const conceptsById = new Map(graph.concepts.map((c) => [c.id, c]));
-  const ahead = descendants(target.id, edges);
+  const ahead = descendants(target.id, graph.edges);
   const lo = graph.learning_objects[target.id];
   const state = await store.get(target.id);
   let hintIndex = state?.hint_index ?? 0;
   const opening = resolveOpeningQuestion(
     target.label,
     lo?.opening_question ?? "",
-    params.locale,
+    studyCfg,
   );
   const isOpening = Boolean(
     gradeOutcome.kind !== "help" && opening && (!state || (state.hint_index === 0 && !state.last_grade)),
   );
 
   const citations: RagCitation[] = [];
-  const title = await videoTitle(env, graph.video_id);
+  const video = await getVideoTitleAndTranscript(env, graph.video_id);
+  const title = video?.title || `Video ${graph.video_id}`;
+  const ctx = retrieveContext(graph, target, parseL0Scenes(video?.transcript ?? ""));
   if (lo?.waypoints?.length) {
     const wp = lo.waypoints[0]!;
     const start = String(wp.start_time ?? wp.start_sec ?? "");
@@ -659,18 +636,14 @@ async function runTurn(
       content = opening;
     }
     if (citations.length) content = content.replace(/\s*$/, "") + " [1]";
-    const scenes = await loadL0Scenes(env, graph.video_id);
     await activateConcept(store, target.id, states, 0);
     return done({
       content,
       queryText: params.query,
       citations: citations.length ? citations : null,
-      retrievedContexts: retrieveContext(graph, target, scenes),
+      retrievedContexts: ctx,
     });
   }
-
-  const scenes = await loadL0Scenes(env, graph.video_id);
-  const ctx = retrieveContext(graph, target, scenes);
 
   if (gradeOutcome.kind === "help" && (gradeOutcome.intent === "reveal" || gradeOutcome.intent === "hint")) {
     const hint = nextHint(lo, hintIndex);

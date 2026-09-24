@@ -63,7 +63,7 @@ const meta = {
   args: {
     messages: conversation,
     isLoading: false,
-    feedbackUpdatingId: null,
+    feedbackUpdatingIds: new Set<number>(),
     height: 600,
     showScrollControls: false,
     onScroll: fn(),
@@ -138,7 +138,7 @@ export const LongTextAndMath: Story = {
   args: { messages: [...conversation.slice(0, 1), { role: 'assistant', content: `${longAnswer}\n\n${mathAnswer}`, citations, chatLogId: 101 }], showScrollControls: true },
 };
 export const FeedbackUpdating: Story = {
-  args: { feedbackUpdatingId: 102 },
+  args: { feedbackUpdatingIds: new Set([102]) },
   play: async ({ canvas, userEvent, args }) => {
     const good = canvas.getAllByRole('button', { name: i18n.t('chat.feedbackGood') });
     const bad = canvas.getAllByRole('button', { name: i18n.t('chat.feedbackBad') });

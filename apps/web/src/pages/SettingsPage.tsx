@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
-import { apiClient, type IntegrationApiKeyCreateResponse } from '@/lib/api';
+import { apiClient, type IntegrationApiKey, type IntegrationApiKeyCreateResponse } from '@/lib/api';
 import { Link, useLocale } from '@/lib/i18n';
 import { queryKeys } from '@/lib/queryKeys';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
@@ -38,6 +38,7 @@ const SETTINGS_CALLOUT_CLASS =
   'rounded-8 bg-solid-gray-50 p-4 text-std-16N-170 text-solid-gray-700';
 
 type AccessLevel = 'all' | 'read_only';
+type ApiKeyCopyState = { keyId: string; status: 'pending' | 'success' | 'error' };
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -52,18 +53,13 @@ export default function SettingsPage() {
   const [apiKeyAccessLevel, setApiKeyAccessLevel] = useState<AccessLevel>('all');
   const [generatedApiKey, setGeneratedApiKey] = useState<IntegrationApiKeyCreateResponse | null>(null);
   const [apiKeyDialogError, setApiKeyDialogError] = useState<string | null>(null);
-  const [generatedDialogError, setGeneratedDialogError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<{
     tone: 'success' | 'error';
     text: string;
   } | null>(null);
-  const [revokingId, setRevokingId] = useState<string | null>(null);
-  const [pendingRevokeKey, setPendingRevokeKey] = useState<{
-    id: string;
-    name: string;
-    prefix: string;
-  } | null>(null);
-  const [isCopyAcknowledged, setIsCopyAcknowledged] = useState(false);
+  const [pendingRevokeKey, setPendingRevokeKey] = useState<Pick<IntegrationApiKey, 'id' | 'config_id' | 'name' | 'prefix'> | null>(null);
+  const [apiKeyCopy, setApiKeyCopy] = useState<ApiKeyCopyState | null>(null);
+  const copyStatus = apiKeyCopy?.keyId === generatedApiKey?.id ? apiKeyCopy?.status : undefined;
   const [searchApiKey, setSearchApiKey] = useState('');
   const [searchApiStatusMessage, setSearchApiStatusMessage] = useState<{
     tone: 'success' | 'error';
@@ -91,26 +87,26 @@ export default function SettingsPage() {
   ];
 
   useEffect(() => {
-    if (!isCopyAcknowledged) {
+    if (apiKeyCopy?.status !== 'success') {
       return undefined;
     }
     const timeoutId = window.setTimeout(() => {
-      setIsCopyAcknowledged(false);
+      setApiKeyCopy(current => current === apiKeyCopy ? null : current);
     }, 2000);
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [isCopyAcknowledged]);
+  }, [apiKeyCopy]);
 
   const apiKeysQuery = useQuery({
     queryKey: queryKeys.auth.apiKeys,
-    queryFn: async () => apiClient.getIntegrationApiKeys(),
+    queryFn: () => apiClient.getIntegrationApiKeys(),
   });
 
   const searchApiKeyStatusQuery = useQuery(trpc.account.searchApiKeyStatus.queryOptions());
 
   const createApiKeyMutation = useMutation({
-    mutationFn: async () => apiClient.createIntegrationApiKey({
+    mutationFn: () => apiClient.createIntegrationApiKey({
       name: apiKeyName.trim(),
       access_level: apiKeyAccessLevel,
     }),
@@ -120,10 +116,28 @@ export default function SettingsPage() {
       setIsCreateApiKeyDialogOpen(false);
       setGeneratedApiKey(data);
       setApiKeyDialogError(null);
-      setGeneratedDialogError(null);
-      setIsCopyAcknowledged(false);
+      setApiKeyCopy(null);
       setStatusMessage(null);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.auth.apiKeys });
+      const filter = { queryKey: queryKeys.auth.apiKeys };
+      await queryClient.cancelQueries(filter);
+      if (queryClient.getQueryData(queryKeys.auth.apiKeys)) {
+        queryClient.setQueryData<IntegrationApiKey[]>(queryKeys.auth.apiKeys, keys => {
+          if (!keys || keys.some(key => key.id === data.id)) return keys;
+          // Cache only list metadata; the secret belongs to the one-time dialog.
+          return [{
+            id: data.id,
+            config_id: data.config_id,
+            name: data.name,
+            access_level: data.access_level,
+            prefix: data.prefix,
+            last_used_at: data.last_used_at,
+            created_at: data.created_at,
+          }, ...keys];
+        });
+      } else {
+        // A creation can finish before the initial list. Load all existing keys.
+        await queryClient.invalidateQueries(filter);
+      }
     },
     onError: (error) => {
       setApiKeyDialogError(
@@ -135,15 +149,17 @@ export default function SettingsPage() {
   });
 
   const revokeApiKeyMutation = useMutation({
-    mutationFn: async (id: string) => apiClient.revokeIntegrationApiKey(
-      id, apiKeysQuery.data?.find((key) => key.id === id)?.config_id,
-    ),
-    onSuccess: async () => {
+    mutationFn: ({ id, config_id }: Pick<IntegrationApiKey, 'id' | 'config_id'>) =>
+      apiClient.revokeIntegrationApiKey(id, config_id),
+    onMutate: () => setStatusMessage(null),
+    onSuccess: async (_, { id }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.auth.apiKeys });
+      queryClient.setQueryData<IntegrationApiKey[]>(queryKeys.auth.apiKeys, keys => keys?.filter(key => key.id !== id));
+      setPendingRevokeKey(null);
       setStatusMessage({
         tone: 'success',
         text: t('settings.integrationApiKeys.successRevoked'),
       });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.auth.apiKeys });
     },
     onError: (error) => {
       setStatusMessage({
@@ -155,17 +171,22 @@ export default function SettingsPage() {
     },
   });
 
+  const isApiKeyMutationPending = createApiKeyMutation.isPending || revokeApiKeyMutation.isPending;
+
+  const applySearchApiKeyStatus = async (hasApiKey: boolean) => {
+    await queryClient.cancelQueries(trpc.account.searchApiKeyStatus.queryFilter());
+    queryClient.setQueryData(trpc.account.searchApiKeyStatus.queryKey(), { has_api_key: hasApiKey });
+    setSearchApiKey('');
+    setShowSearchApiKey(false);
+    setEditingSearchApiKey(false);
+    setSearchApiStatusMessage({
+      tone: 'success',
+      text: t(hasApiKey ? 'settings.searchApiKey.successSaved' : 'settings.searchApiKey.successDeleted'),
+    });
+  };
+
   const saveSearchApiKeyMutation = useMutation(trpc.account.saveSearchApiKey.mutationOptions({
-    onSuccess: async () => {
-      setSearchApiKey('');
-      setShowSearchApiKey(false);
-      setEditingSearchApiKey(false);
-      setSearchApiStatusMessage({
-        tone: 'success',
-        text: t('settings.searchApiKey.successSaved'),
-      });
-      await searchApiKeyStatusQuery.refetch();
-    },
+    onSuccess: () => applySearchApiKeyStatus(true),
     onError: (error) => {
       setSearchApiStatusMessage({
         tone: 'error',
@@ -177,16 +198,7 @@ export default function SettingsPage() {
   }));
 
   const deleteSearchApiKeyMutation = useMutation(trpc.account.deleteSearchApiKey.mutationOptions({
-    onSuccess: async () => {
-      setSearchApiKey('');
-      setShowSearchApiKey(false);
-      setEditingSearchApiKey(false);
-      setSearchApiStatusMessage({
-        tone: 'success',
-        text: t('settings.searchApiKey.successDeleted'),
-      });
-      await searchApiKeyStatusQuery.refetch();
-    },
+    onSuccess: () => applySearchApiKeyStatus(false),
     onError: (error) => {
       setSearchApiStatusMessage({
         tone: 'error',
@@ -224,8 +236,7 @@ export default function SettingsPage() {
     onOpenChange: (open) => {
       if (!open) {
         setGeneratedApiKey(null);
-        setIsCopyAcknowledged(false);
-        setGeneratedDialogError(null);
+        setApiKeyCopy(null);
       }
     },
   });
@@ -242,26 +253,24 @@ export default function SettingsPage() {
 
   const handleCopyApiKey = async () => {
     if (!generatedApiKey) return;
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(generatedApiKey.api_key);
-      setIsCopyAcknowledged(true);
-      setGeneratedDialogError(null);
-      return;
+    const attempt: ApiKeyCopyState = { keyId: generatedApiKey.id, status: 'pending' };
+    setApiKeyCopy(attempt);
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(generatedApiKey.api_key);
+        setApiKeyCopy(current => current === attempt ? { ...attempt, status: 'success' } : current);
+        return;
+      }
+    } catch {
+      // Show the same recovery message when permission is denied or unavailable.
     }
-    setGeneratedDialogError(t('settings.integrationApiKeys.errorCopying'));
+    setApiKeyCopy(current => current === attempt ? { ...attempt, status: 'error' } : current);
   };
 
   const getAccessLevelBadge = (accessLevel: AccessLevel) => {
-    if (accessLevel === 'read_only') {
-      return (
-        <ChipLabel variant="filled-1" color="blue" className="min-h-0 text-oln-14N-100">
-          {t('settings.integrationApiKeys.permissions.readOnlyTitle')}
-        </ChipLabel>
-      );
-    }
     return (
-      <ChipLabel variant="filled-1" color="gray" className="min-h-0 text-oln-14N-100">
-        {t('settings.integrationApiKeys.permissions.allTitle')}
+      <ChipLabel variant="filled-1" color={accessLevel === 'read_only' ? 'blue' : 'gray'} className="min-h-0 text-oln-14N-100">
+        {getAccessLevelLabel(accessLevel)}
       </ChipLabel>
     );
   };
@@ -354,7 +363,8 @@ export default function SettingsPage() {
             {searchApiKeyStatusQuery.isError && (
               <div className="space-y-3">
                 <ErrorMessage message={t('settings.searchApiKey.errorLoading')} />
-                <Button variant="outline" onClick={() => void searchApiKeyStatusQuery.refetch()}>{t('settings.retry')}</Button>
+                <Button variant="outline" disabled={searchApiKeyStatusQuery.isFetching} aria-busy={searchApiKeyStatusQuery.isFetching}
+                  onClick={() => void searchApiKeyStatusQuery.refetch({ cancelRefetch: false })}>{t('settings.retry')}</Button>
               </div>
             )}
             {searchApiKeyStatusQuery.isSuccess && <div className="space-y-4">
@@ -461,6 +471,7 @@ export default function SettingsPage() {
                 variant="outline"
                 size="sm"
                 className="w-full shrink-0 sm:w-auto"
+                disabled={isApiKeyMutationPending}
                 onClick={() => {
                   setStatusMessage(null);
                   setApiKeyDialogError(null);
@@ -503,15 +514,15 @@ export default function SettingsPage() {
                         type="button"
                         variant="text"
                         size="sm"
-                        disabled={revokeApiKeyMutation.isPending}
+                        disabled={isApiKeyMutationPending}
                         onClick={() => {
                           setStatusMessage(null);
-                          setPendingRevokeKey({ id: apiKey.id, name: apiKey.name, prefix: apiKey.prefix });
+                          setPendingRevokeKey({ id: apiKey.id, config_id: apiKey.config_id, name: apiKey.name, prefix: apiKey.prefix });
                         }}
                         className="shrink-0 text-error-1 hover:bg-red-50"
                         aria-label={`${t('settings.integrationApiKeys.revoke')}: ${apiKey.name}`}
                       >
-                        {revokeApiKeyMutation.isPending && revokingId === apiKey.id && <InlineSpinner className="mr-1 h-4 w-4" />}
+                        {revokeApiKeyMutation.isPending && revokeApiKeyMutation.variables.id === apiKey.id && <InlineSpinner className="mr-1 h-4 w-4" />}
                         {t('settings.integrationApiKeys.revoke')}
                       </Button>
                     </div>
@@ -632,7 +643,7 @@ export default function SettingsPage() {
                 </Button>
                 <Button
                   disabled={createApiKeyMutation.isPending}
-                  onClick={async () => {
+                  onClick={() => {
                     const trimmedName = apiKeyName.trim();
                     if (!trimmedName) {
                       setApiKeyDialogError(t('settings.integrationApiKeys.errorEmpty'));
@@ -670,9 +681,9 @@ export default function SettingsPage() {
                 {t('settings.integrationApiKeys.generatedDialogDescription')}
               </p>
 
-              {generatedDialogError && (
+              {copyStatus === 'error' && (
                 <div className="mb-4">
-                  <ErrorMessage message={generatedDialogError} />
+                  <ErrorMessage message={t('settings.integrationApiKeys.errorCopying')} />
                 </div>
               )}
 
@@ -686,11 +697,13 @@ export default function SettingsPage() {
                       <span className="block truncate">{generatedApiKey.api_key}</span>
                     </div>
                     <Button
-                      variant={isCopyAcknowledged ? 'solid' : 'outline'}
+                      variant={copyStatus === 'success' ? 'solid' : 'outline'}
                       className="h-10 w-full"
+                      disabled={copyStatus === 'pending'}
+                      aria-busy={copyStatus === 'pending'}
                       onClick={handleCopyApiKey}
                     >
-                      {isCopyAcknowledged ? t('settings.integrationApiKeys.copyDone') : t('settings.integrationApiKeys.copy')}
+                      {copyStatus === 'success' ? t('settings.integrationApiKeys.copyDone') : t('settings.integrationApiKeys.copy')}
                     </Button>
                   </div>
                   <SupportText>{t('settings.integrationApiKeys.generatedTitle')}</SupportText>
@@ -718,8 +731,7 @@ export default function SettingsPage() {
                   variant="outline"
                   onClick={() => {
                     setGeneratedApiKey(null);
-                    setIsCopyAcknowledged(false);
-                    setGeneratedDialogError(null);
+                    setApiKeyCopy(null);
                     setStatusMessage({ tone: 'success', text: t('settings.integrationApiKeys.successCreated') });
                   }}
                 >
@@ -768,18 +780,7 @@ export default function SettingsPage() {
                   variant="solid"
                   className="bg-error-1 hover:bg-red-1000 active:bg-red-1200"
                   disabled={revokeApiKeyMutation.isPending}
-                  onClick={async () => {
-                    setStatusMessage(null);
-                    setRevokingId(pendingRevokeKey.id);
-                    try {
-                      await revokeApiKeyMutation.mutateAsync(pendingRevokeKey.id);
-                      setPendingRevokeKey(null);
-                    } catch {
-                      // The error stays visible inside the confirmation dialog.
-                    } finally {
-                      setRevokingId(null);
-                    }
-                  }}
+                  onClick={() => revokeApiKeyMutation.mutate(pendingRevokeKey)}
                 >
                   {revokeApiKeyMutation.isPending ? (
                     <span className="flex items-center gap-2">

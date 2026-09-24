@@ -1,5 +1,5 @@
-/** Sends one SSE token, then stalls until the upstream signal aborts. */
-export function stalledChatResponse(signal: AbortSignal, onWaiting: () => void): Response {
+/** Starts an SSE or JSON response, then stalls until the upstream signal aborts. */
+export function stalledChatResponse(signal: AbortSignal, onWaiting: () => void, streaming = true): Response {
   let sent = false;
   return new Response(
     new ReadableStream<Uint8Array>({
@@ -16,10 +16,12 @@ export function stalledChatResponse(signal: AbortSignal, onWaiting: () => void):
         }
         sent = true;
         controller.enqueue(new TextEncoder().encode(
-          'data: {"choices":[{"delta":{"role":"assistant","content":"partial"}}]}\n\n',
+          streaming
+            ? 'data: {"choices":[{"delta":{"role":"assistant","content":"partial"}}]}\n\n'
+            : '{"choices":[{"message":{"role":"assistant","content":"partial',
         ));
       },
     }),
-    { headers: { "content-type": "text/event-stream" } },
+    { headers: { "content-type": streaming ? "text/event-stream" : "application/json" } },
   );
 }

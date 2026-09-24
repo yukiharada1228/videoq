@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
+from itertools import chain
 
 from worker_python.advisory_locks import full_vector_write_lock
 from worker_python.pipeline import vector_index
 from worker_python.pipeline.embeddings import embed_texts
-from worker_python.video_sql import VideoRow, list_completed_videos_with_transcript
+from worker_python.video_sql import VideoRow, stream_completed_videos_with_transcript
 
 logger = logging.getLogger(__name__)
 
@@ -21,17 +23,16 @@ def reindex_all_videos_embeddings() -> dict:
     logger.info("Re-indexing task started")
 
     with full_vector_write_lock() as lock_conn:
-        videos = list_completed_videos_with_transcript(lock_conn)
-        return _run_reindex(videos)
+        with stream_completed_videos_with_transcript(lock_conn) as videos:
+            return _run_reindex(videos)
 
 
-def _run_reindex(videos: list[VideoRow]) -> dict:
+def _run_reindex(videos: Iterable[VideoRow]) -> dict:
     """Run while the caller holds the global PostgreSQL advisory lock."""
 
-    total = len(videos)
-    logger.info("Starting re-indexing: %d videos", total)
-
-    if total == 0:
+    remaining = iter(videos)
+    first = next(remaining, None)
+    if first is None:
         result = {
             "status": "completed",
             "total_videos": 0,
@@ -48,36 +49,31 @@ def _run_reindex(videos: list[VideoRow]) -> dict:
     logger.info("Deleted %d vectors", deleted_count)
 
     successful_count = 0
-    failed_videos: list[dict] = []
+    failed_count = 0
 
-    for index, video in enumerate(videos, start=1):
+    for total, video in enumerate(chain((first,), remaining), start=1):
         try:
-            if not video.transcript:
-                raise ValueError("Transcript is missing")
-            vector_index.index_video_transcript(video)
+            # The global write lock excludes other writers after delete_all_vectors.
+            vector_index.index_video_transcript(video, replace_existing=False)
             successful_count += 1
             logger.info(
-                "[%d/%d] Re-indexed video %d (%s)", index, total, video.id, video.title
+                "[%d] Re-indexed video %d (%s)", total, video.id, video.title
             )
-        except Exception as exc:
+        except Exception:
             logger.exception("Failed to re-index video %d", video.id)
-            failed_videos.append(
-                {"video_id": video.id, "title": video.title, "error": str(exc)}
-            )
+            failed_count += 1
 
     message = f"Re-indexed {successful_count}/{total} videos"
     logger.info("Re-indexing completed: %s", message)
 
-    if failed_videos:
-        raise ReindexingIncompleteError(
-            f"{message}; {len(failed_videos)} video(s) failed"
-        )
+    if failed_count:
+        raise ReindexingIncompleteError(f"{message}; {failed_count} video(s) failed")
 
     return {
         "status": "completed",
         "total_videos": total,
         "successful_count": successful_count,
-        "failed_count": len(failed_videos),
-        "failed_videos": failed_videos,
+        "failed_count": 0,
+        "failed_videos": [],
         "message": message,
     }

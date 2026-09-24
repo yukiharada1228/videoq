@@ -174,11 +174,6 @@ export function clientIp(c: Context<AppEnv>): string {
   );
 }
 
-export function normalizeThrottleIdent(value: string, lowercase: boolean): string {
-  const trimmed = value.trim();
-  return lowercase ? trimmed.toLowerCase() : trimmed;
-}
-
 /**
  * 複数スコープを順に消費し、最初の超過結果を返す。
  * ident が null または空のチェックはスキップする。

@@ -22,7 +22,6 @@ def test_processing_reservation_is_idempotent_per_video() -> None:
     result = reserve_processing_seconds(conn, 10, 30)
 
     assert result.allowed is True
-    assert result.already_reserved is True
     assert conn.execute.call_count == 1
 
 
@@ -46,7 +45,7 @@ def test_processing_reservation_rejects_without_marking_video() -> None:
     conn = _connection(
         {"user_id": "u1", "processing_seconds": 0},
         None,
-        {"processing_limit_minutes": 1, "is_over_quota": False},
+        {"processing_limit_minutes": 1},
     )
 
     result = reserve_processing_seconds(conn, 10, 61)

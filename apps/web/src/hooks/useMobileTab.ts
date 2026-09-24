@@ -1,15 +1,7 @@
 import { useEffect, useState } from 'react';
 
-type MobileTab = 'videos' | 'player';
-
-interface UseMobileTabReturn {
-  mobileTab: MobileTab;
-  setMobileTab: (tab: MobileTab) => void;
-  isMobile: boolean;
-}
-
-export function useMobileTab(defaultTab: MobileTab = 'player'): UseMobileTabReturn {
-  const [mobileTab, setMobileTab] = useState<MobileTab>(defaultTab);
+export function useMobileTab<Tab extends string>(defaultTab: Tab) {
+  const [mobileTab, setMobileTab] = useState<Tab>(defaultTab);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {

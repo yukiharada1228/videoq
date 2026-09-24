@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo } from 'react';
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { trpc } from '@/lib/trpc';
 
@@ -10,22 +10,18 @@ interface UseChatHistoryParams {
 }
 
 export function useChatHistory({ courseId, shareToken, enabled }: UseChatHistoryParams) {
-  const queryClient = useQueryClient();
-  const historyInput = useMemo(
-    () => ({ courseId: courseId!, limit: 100, offset: 0 }),
-    [courseId],
-  );
-  const evaluationsInput = useMemo(
-    () => ({ courseId: courseId!, limit: 200, offset: 0 }),
-    [courseId],
-  );
+  // Both endpoints order by chat creation time and ID, newest first.
+  const pageInput = { courseId: courseId!, limit: 100, offset: 0 };
+  const canLoadHistory = enabled && !!courseId && !shareToken;
 
-  const historyQuery = useQuery(trpc.chat.history.queryOptions(historyInput, {
-    enabled: enabled && !!courseId && !shareToken,
+  const historyQuery = useQuery(trpc.chat.history.queryOptions(pageInput, {
+    enabled: canLoadHistory,
   }));
 
-  const evaluationsQuery = useQuery(trpc.evaluation.logs.queryOptions(evaluationsInput, {
-    enabled: enabled && !!courseId && !shareToken,
+  const evaluationsQuery = useQuery(trpc.evaluation.logs.queryOptions(pageInput, {
+    // Optional scores must not hold up history in the same HTTP batch, and
+    // there is nothing to evaluate when history is empty or failed to load.
+    enabled: canLoadHistory && !!historyQuery.data?.data.length,
   }));
 
   useEffect(() => {
@@ -40,7 +36,7 @@ export function useChatHistory({ courseId, shareToken, enabled }: UseChatHistory
     }
   }, [enabled, evaluationsQuery.error]);
 
-  const historyWithEvaluations = (() => {
+  const historyWithEvaluations = useMemo(() => {
     const history = historyQuery.data?.data ?? null;
     if (!history) return null;
 
@@ -52,7 +48,7 @@ export function useChatHistory({ courseId, shareToken, enabled }: UseChatHistory
       ...item,
       evaluation: evaluationsByChatLogId.get(item.id),
     }));
-  })();
+  }, [historyQuery.data, evaluationsQuery.data]);
 
   const exportHistoryCsvMutation = useMutation({
     mutationFn: async () => {
@@ -66,43 +62,11 @@ export function useChatHistory({ courseId, shareToken, enabled }: UseChatHistory
     },
   });
 
-  const exportHistoryCsv = useCallback(async () => {
-    if (!courseId || shareToken) {
-      return;
-    }
-    try {
-      await exportHistoryCsvMutation.mutateAsync();
-    } catch {
-      // Handled in mutation onError.
-    }
-  }, [exportHistoryCsvMutation, courseId, shareToken]);
-
-  const syncFeedbackInHistoryCache = useCallback(
-    (chatLogId: number, nextFeedback: 'good' | 'bad' | null) => {
-      if (!courseId || shareToken) return;
-      queryClient.setQueryData(trpc.chat.history.queryKey(historyInput), (prev) =>
-        prev
-          ? {
-              ...prev,
-              data: prev.data.map((item) =>
-                item.id === chatLogId ? { ...item, feedback: nextFeedback } : item,
-              ),
-            }
-          : prev);
-    },
-    [courseId, historyInput, shareToken, queryClient],
-  );
-
   return {
     history: historyWithEvaluations,
-    historyLoading:
-      historyQuery.isLoading ||
-      historyQuery.isFetching ||
-      evaluationsQuery.isLoading ||
-      evaluationsQuery.isFetching,
+    historyLoading: historyQuery.isLoading,
     historyError: historyQuery.error,
-    exportHistoryCsv,
+    exportHistoryCsv: exportHistoryCsvMutation.mutate,
     isExportingHistoryCsv: exportHistoryCsvMutation.isPending,
-    syncFeedbackInHistoryCache,
   };
 }

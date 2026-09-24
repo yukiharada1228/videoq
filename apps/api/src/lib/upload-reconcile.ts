@@ -23,7 +23,7 @@ export type ReconcileResult = {
 /**
  * アップロード放棄の自動解放（FR-Q3）。
  * status=uploading かつ古い行を削除し、予約ストレージを GREATEST(0, used-size) で戻す。
- * サイズは R2 実体 > file key 埋め込み予約の順で決める。どちらも無ければ行だけ削除。
+ * file key の予約バイトを優先し、旧形式だけ R2 実サイズを調べる。
  */
 export async function reconcileAbandonedUploads(
   env: Bindings,
@@ -39,15 +39,7 @@ export async function reconcileAbandonedUploads(
 
   for (const row of stale) {
     try {
-      let bytes: number | null = null;
-      if (row.fileKey) {
-        try {
-          const actualBytes = await getR2ObjectSize(env, row.fileKey);
-          bytes = parseReservedBytesFromFileKey(row.fileKey) ?? actualBytes;
-        } catch {
-          bytes = parseReservedBytesFromFileKey(row.fileKey);
-        }
-      }
+      const bytes = await resolveStorageBytesForRelease(env, row.fileKey);
 
       const deleted = await deleteVideoCascade(env, row.id, row.userId, {
         expectedStatus: "uploading",
@@ -71,13 +63,17 @@ export async function reconcileAbandonedUploads(
 }
 
 /** DELETE 時: 予約バイトを優先し、旧形式 key のみ R2 実サイズを使う。 */
-export function resolveStorageBytesForRelease(
+export async function resolveStorageBytesForRelease(
+  env: Bindings,
   fileKey: string | null,
-  r2Size: number | null,
-): number | null {
-  if (fileKey) {
-    const reservedBytes = parseReservedBytesFromFileKey(fileKey);
-    if (reservedBytes !== null) return reservedBytes;
+): Promise<number | null> {
+  if (!fileKey) return null;
+  const reservedBytes = parseReservedBytesFromFileKey(fileKey);
+  if (reservedBytes !== null) return reservedBytes;
+  try {
+    const size = await getR2ObjectSize(env, fileKey);
+    return size !== null && size > 0 ? size : null;
+  } catch {
+    return null;
   }
-  return r2Size !== null && r2Size > 0 ? r2Size : null;
 }

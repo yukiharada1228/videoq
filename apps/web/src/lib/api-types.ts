@@ -1,21 +1,11 @@
 import type { inferRouterInputs, inferRouterOutputs } from '@trpc/server';
-import type { AppRouter, Page, PlogWaypoint } from '@videoq/trpc';
+import type { AppRouter, PlogWaypoint } from '@videoq/trpc';
 
 type RouterInputs = inferRouterInputs<AppRouter>;
 type RouterOutputs = inferRouterOutputs<AppRouter>;
-
-/**
- * UI names for the inferred tRPC contract. Keep aliases here so components do
- * not duplicate response interfaces or cast client results.
- */
-export type PaginatedResponse<T> = Page<T>;
 export type User = RouterOutputs['account']['me'];
 export type AdminUser = RouterOutputs['admin']['getUser'];
-export type AdminQuotaPatch = Omit<RouterInputs['admin']['patchQuota'], 'id'>;
-export type AdminUsagePatch = Omit<RouterInputs['admin']['patchUsage'], 'id'>;
-export type AdminFlagsPatch = Omit<RouterInputs['admin']['patchFlags'], 'id'>;
 export type BillingPlan = RouterOutputs['billing']['plans'][number];
-export type SearchApiKeyStatus = RouterOutputs['account']['searchApiKeyStatus'];
 
 export type ChatMessage = RouterOutputs['chat']['send'];
 export type StudySessionInfo = NonNullable<ChatMessage['study_session']>;
@@ -30,13 +20,9 @@ export type Video = RouterOutputs['videos']['get'];
 export type VideoList = RouterOutputs['videos']['list']['data'][number];
 export type VideoStatusCounts = RouterOutputs['videos']['statusCounts'];
 export type UploadRequestResponse = RouterOutputs['videos']['requestUpload'];
-export type VideoUpdateRequest = Omit<RouterInputs['videos']['update'], 'id'>;
 
 export type VideoCourse = RouterOutputs['courses']['get'];
-export type VideoCourseList = RouterOutputs['courses']['list']['data'][number];
 export type VideoInCourse = NonNullable<VideoCourse['videos']>[number];
-export type VideoCourseCreateRequest = RouterInputs['courses']['create'];
-export type VideoCourseUpdateRequest = Omit<RouterInputs['courses']['update'], 'id'>;
 
 export type CourseParticipants = RouterOutputs['courseMemberships']['participants'];
 export type CourseInvitationListItem = CourseParticipants['invitations'][number];
@@ -50,8 +36,6 @@ export type CourseInviteRecipientResult =
 
 export type Tag = RouterOutputs['tags']['list']['data'][number];
 export type TagDetail = RouterOutputs['tags']['get'];
-export type TagCreateRequest = RouterInputs['tags']['create'];
-export type TagUpdateRequest = Omit<RouterInputs['tags']['update'], 'id'>;
 
 export type PlogConcept = RouterOutputs['plog']['graph']['concepts'][number];
 export type PlogEdge = RouterOutputs['plog']['graph']['edges'][number];

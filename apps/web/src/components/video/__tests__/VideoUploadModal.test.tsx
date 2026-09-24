@@ -101,16 +101,14 @@ describe('VideoUploadModal', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('handles a rejected upload without closing or calling the success callback', async () => {
+  it('handles a rejected upload without closing', async () => {
     const handleSubmit = vi.fn().mockRejectedValue(new Error('Upload failed'))
     vi.mocked(useVideoUpload).mockReturnValue({ ...baseHook, progress: 0, handleSubmit })
     const onClose = vi.fn()
-    const onUploadSuccess = vi.fn()
-    const { container } = render(<VideoUploadModal isOpen onClose={onClose} onUploadSuccess={onUploadSuccess} />)
+    const { container } = render(<VideoUploadModal isOpen onClose={onClose} />)
     fireEvent.submit(container.querySelector('form')!)
     await waitFor(() => expect(handleSubmit).toHaveBeenCalledTimes(1))
     expect(onClose).not.toHaveBeenCalled()
-    expect(onUploadSuccess).not.toHaveBeenCalled()
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 

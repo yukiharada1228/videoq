@@ -20,7 +20,5 @@ export function useHomePageData({ userId }: UseHomePageDataParams) {
     videos: videosQuery.data?.data ?? [],
     courseCount: coursesQuery.data?.meta.total ?? 0,
     isLoading: videosQuery.isLoading || coursesQuery.isLoading,
-    videosQuery,
-    coursesQuery,
   };
 }

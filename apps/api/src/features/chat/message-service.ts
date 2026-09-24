@@ -21,16 +21,9 @@ import type { Bindings } from "../../types/bindings";
 import type { ChatMessageBody } from "./schemas";
 import type { ChatMessage } from "@videoq/trpc";
 
-export type JsonResult = {
-  kind: "json";
-  status: number;
-  body: unknown;
-};
-
 type ChatSendResult =
-  | { kind: "json"; status: 200; body: ChatMessage }
+  | { status: 200; body: ChatMessage }
   | {
-      kind: "json";
       status: ChatFailure["status"];
       body: { error: { code: string; message: string } };
     };
@@ -280,7 +273,6 @@ export async function sendChatMessage(
   if (!prepared.ok) {
     const f = prepared.failure;
     return {
-      kind: "json",
       status: f.status,
       body: { error: { code: f.code, message: f.message } },
     };
@@ -310,7 +302,6 @@ export async function sendChatMessage(
         ownerUserId: setup.ownerUserId,
         videoIds,
         locale: setup.locale,
-        courseContext: setup.course?.description ?? null,
         courseId: setup.course?.id ?? null,
       });
     }
@@ -318,7 +309,6 @@ export async function sendChatMessage(
     await releaseReservedUsage(env, setup);
     const f = toFailure(e);
     return {
-      kind: "json",
       status: f.status,
       body: { error: { code: f.code, message: f.message } },
     };
@@ -345,11 +335,10 @@ export async function sendChatMessage(
       body.feedback = feedback === "good" || feedback === "bad" ? feedback : null;
     }
 
-    return { kind: "json", status: 200, body };
+    return { status: 200, body };
   } catch (e) {
     const f = toFailure(e);
     return {
-      kind: "json",
       status: f.status,
       body: { error: { code: f.code, message: f.message } },
     };
@@ -368,12 +357,7 @@ export async function streamChatMessage(
     locale: string | null;
     clientSignal?: AbortSignal;
   },
-): Promise<
-  JsonResult | {
-    kind: "sse";
-    write: (send: SseEventWriter) => Promise<void>;
-  }
-> {
+): Promise<{ write: (send: SseEventWriter) => Promise<void> }> {
   const req = toChatRequestInput(opts.body);
 
   const prepared = await setupChat(env, {
@@ -390,7 +374,6 @@ export async function streamChatMessage(
   const clientSignal = opts.clientSignal;
 
   return {
-    kind: "sse",
     async write(send) {
       if (!prepared.ok) {
         const failure = prepared.failure;
@@ -440,7 +423,6 @@ export async function streamChatMessage(
               ownerUserId: setup.ownerUserId,
               videoIds,
               locale: setup.locale,
-              courseContext: setup.course?.description ?? null,
               courseId: setup.course?.id ?? null,
             },
             clientSignal,

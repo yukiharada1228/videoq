@@ -1,3 +1,4 @@
+import { normalizeInvitationEmail } from "@videoq/trpc/course-invitations";
 import { and, desc, eq, inArray, lt, lte, sql } from "drizzle-orm";
 import { type Db, withDb } from "../db/pool";
 import {
@@ -10,7 +11,6 @@ import {
 import {
   effectiveInvitationStatus,
   isInvitationExpired,
-  normalizeInvitationEmail,
   type InvitationDeliveryStatus,
   type InvitationStatus,
 } from "../lib/course-invitations";
@@ -327,18 +327,7 @@ export async function listCourseParticipants(
       .limit(1);
     if (owner.length === 0) return { notFound: true } as const;
 
-    const now = new Date().toISOString();
-    await db
-      .update(videoCourseInvitations)
-      .set({ status: "expired", updatedAt: now })
-      .where(
-        and(
-          eq(videoCourseInvitations.courseId, courseId),
-          eq(videoCourseInvitations.status, "pending"),
-          lte(videoCourseInvitations.expiresAt, now),
-        ),
-      );
-
+    const now = new Date();
     const [invitationRows, memberRows] = await Promise.all([
       db
         .select({
@@ -371,7 +360,7 @@ export async function listCourseParticipants(
       invitations: invitationRows.map((row) => ({
         id: Number(row.id),
         email: row.email,
-        status: row.status as InvitationStatus,
+        status: effectiveInvitationStatus(row.status as InvitationStatus, new Date(row.expiresAt), now),
         delivery_status: row.deliveryStatus as InvitationDeliveryStatus,
         expires_at: toUtcIso(row.expiresAt)!,
         created_at: toUtcIso(row.createdAt)!,
@@ -389,7 +378,6 @@ export async function listCourseParticipants(
 }
 
 export type InvitationPreviewRecord = {
-  id: number;
   course_id: number;
   course_name: string;
   inviter_name: string;
@@ -405,7 +393,6 @@ export async function getCourseInvitationByTokenHash(
   return withDb(env, async (db) => {
     const rows = await db
       .select({
-        id: videoCourseInvitations.id,
         courseId: videoCourses.id,
         courseName: videoCourses.name,
         inviterName: users.name,
@@ -422,7 +409,6 @@ export async function getCourseInvitationByTokenHash(
     if (rows.length === 0) return null;
     const row = rows[0];
     return {
-      id: Number(row.id),
       course_id: Number(row.courseId),
       course_name: row.courseName,
       inviter_name: row.inviterName.trim() || row.inviterUsername,
@@ -430,24 +416,6 @@ export async function getCourseInvitationByTokenHash(
       status: row.status as InvitationStatus,
       expires_at: toUtcIso(row.expiresAt)!,
     };
-  });
-}
-
-export async function markCourseInvitationExpired(
-  env: Bindings,
-  invitationId: number,
-  now: Date,
-): Promise<void> {
-  await withDb(env, async (db) => {
-    await db
-      .update(videoCourseInvitations)
-      .set({ status: "expired", updatedAt: now.toISOString() })
-      .where(
-        and(
-          eq(videoCourseInvitations.id, invitationId),
-          eq(videoCourseInvitations.status, "pending"),
-        ),
-      );
   });
 }
 
@@ -821,28 +789,5 @@ export async function leaveCourseMembership(
       )
       .returning({ id: videoCourseMemberships.id });
     return removed.length > 0 ? ({ ok: true } as const) : ({ notFound: true } as const);
-  });
-}
-
-export async function userHasCourseAccess(
-  env: Bindings,
-  courseId: number,
-  userId: string,
-): Promise<boolean> {
-  return withDb(env, async (db) => {
-    const rows = await db.execute(sql`
-      SELECT 1
-        FROM video_courses g
-       WHERE g.id = ${courseId}
-         AND (
-           g.user_id = ${userId}
-           OR EXISTS (
-             SELECT 1 FROM video_course_memberships gm
-              WHERE gm.course_id = g.id AND gm.user_id = ${userId}
-           )
-         )
-       LIMIT 1
-    `);
-    return rows.rows.length > 0;
   });
 }

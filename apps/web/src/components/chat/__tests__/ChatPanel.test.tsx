@@ -54,7 +54,7 @@ describe('ChatPanel', () => {
     })
     globalThis.__setTrpcHandler('evaluation.logs', async (input) => {
       const data = await chatTrpcMocks.evaluations(input)
-      return { data, meta: { total: data.length, limit: 200, offset: 0 } }
+      return { data, meta: { total: data.length, limit: 100, offset: 0 } }
     })
     globalThis.__setTrpcHandler('chat.feedback', chatTrpcMocks.feedback)
     ;(apiClient.chatStream as any).mockImplementation(
@@ -378,6 +378,41 @@ describe('ChatPanel', () => {
     }
   })
 
+  it('keeps each answer disabled until its own feedback save completes', async () => {
+    vi.mocked(apiClient.chatStream)
+      .mockImplementationOnce(makeStreamMock({ content: 'First answer', chat_log_id: 42 }))
+      .mockImplementationOnce(makeStreamMock({ content: 'Second answer', chat_log_id: 43 }))
+    let finishFirst!: (value: { chat_log_id: number; feedback: 'good' }) => void
+    chatTrpcMocks.feedback
+      .mockImplementationOnce(() => new Promise(resolve => { finishFirst = resolve }))
+      .mockResolvedValue({ chat_log_id: 43, feedback: 'bad' })
+    render(<ChatPanel courseId={1} />)
+    const input = screen.getByLabelText('chat.placeholder')
+    await act(async () => { await sendMessage(input, 'First') })
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'chat.feedbackGood' })).toHaveLength(1))
+    await act(async () => { await sendMessage(input, 'Second') })
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'chat.feedbackGood' })).toHaveLength(2))
+    const good = screen.getAllByRole('button', { name: 'chat.feedbackGood' })
+    const bad = screen.getAllByRole('button', { name: 'chat.feedbackBad' })
+    fireEvent.click(good[0])
+    await waitFor(() => expect(chatTrpcMocks.feedback).toHaveBeenCalledTimes(1))
+    try {
+      expect(good[0]).toBeDisabled()
+      expect(bad[0]).toBeDisabled()
+      expect(bad[1]).toBeEnabled()
+      fireEvent.click(bad[1])
+      await waitFor(() => expect(bad[1]).toHaveAttribute('aria-pressed', 'true'))
+      expect(bad[1]).toBeEnabled()
+      expect(good[0]).toBeDisabled()
+      expect(bad[0]).toBeDisabled()
+    } finally {
+      await act(async () => { finishFirst({ chat_log_id: 42, feedback: 'good' }) })
+    }
+    await waitFor(() => expect(good[0]).toHaveAttribute('aria-pressed', 'true'))
+    expect(good[0]).toBeEnabled()
+    expect(chatTrpcMocks.feedback).toHaveBeenCalledTimes(2)
+  })
+
   it('should display history when opened', async () => {
     const mockHistory = [
       {
@@ -422,6 +457,8 @@ describe('ChatPanel', () => {
       expect(screen.getByText('student@example.com')).toBeInTheDocument()
       expect(screen.getByText('chat.sharedLinkUser')).toBeInTheDocument()
     })
+    expect(chatTrpcMocks.history).toHaveBeenCalledExactlyOnceWith({ courseId: 1, limit: 100, offset: 0 })
+    expect(chatTrpcMocks.evaluations).toHaveBeenCalledExactlyOnceWith({ courseId: 1, limit: 100, offset: 0 })
   })
 
   it('should display RAGAS evaluation scores for history answers', async () => {
@@ -893,29 +930,6 @@ describe('ChatPanel', () => {
     expect(screen.getByText((text) => text.includes('This is grounded text'))).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Video One 00:01:30/ })).toHaveTextContent('(1:30-15:30)')
     expect(screen.getByRole('button', { name: /Video Two 00:02:30/ })).toHaveTextContent('(2:30-8:30)')
-  })
-
-  it('should normalize millisecond timestamps in inline links', async () => {
-    ;(apiClient.chatStream as any).mockImplementation(makeStreamMock({
-      content: 'Deep learning is useful[1]. It finds a good function.',
-      citations: [{ id: 1, video_id: 1, title: 'Test Video', start_time: '00:06:37,480', end_time: '00:07:47,900' }],
-      chat_log_id: 1,
-      feedback: null,
-    }))
-
-    render(<ChatPanel />)
-
-    const input = screen.getByLabelText(/chat.placeholder/)
-
-    await act(async () => {
-      await sendMessage(input, 'Test')
-    })
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Test Video 00:06:37,480/ })).toBeInTheDocument()
-    })
-
-    expect(screen.getByRole('button', { name: /Test Video 00:06:37,480/ })).toHaveTextContent('(6:37-7:47)')
   })
 
   it('should keep unmatched citation markers as plain text', async () => {

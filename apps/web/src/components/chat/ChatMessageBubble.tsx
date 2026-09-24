@@ -10,7 +10,7 @@ interface ChatMessageBubbleProps {
   message: Message;
   /** True while this bubble is the one waiting on the in-flight response. */
   isAwaitingResponse?: boolean;
-  feedbackUpdatingId: number | null;
+  isFeedbackUpdating: boolean;
   onVideoNavigate: (videoId: number, startTime: string) => void;
   onFeedback: (chatLogId: number, value: 'good' | 'bad') => Promise<unknown>;
 }
@@ -18,7 +18,7 @@ interface ChatMessageBubbleProps {
 export function ChatMessageBubble({
   message,
   isAwaitingResponse = false,
-  feedbackUpdatingId,
+  isFeedbackUpdating,
   onVideoNavigate,
   onFeedback,
 }: ChatMessageBubbleProps) {
@@ -62,7 +62,7 @@ export function ChatMessageBubble({
               type="button"
               variant="text"
               size="xs"
-              disabled={feedbackUpdatingId === message.chatLogId}
+              disabled={isFeedbackUpdating}
               onClick={() => onFeedback(message.chatLogId!, 'good')}
               className={`min-w-0 p-1 ${
                 message.feedback === 'good' ? 'text-key-900' : 'text-solid-gray-420'
@@ -76,7 +76,7 @@ export function ChatMessageBubble({
               type="button"
               variant="text"
               size="xs"
-              disabled={feedbackUpdatingId === message.chatLogId}
+              disabled={isFeedbackUpdating}
               onClick={() => onFeedback(message.chatLogId!, 'bad')}
               className={`min-w-0 p-1 ${
                 message.feedback === 'bad' ? 'text-error-1' : 'text-solid-gray-420'

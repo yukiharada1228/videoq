@@ -17,14 +17,13 @@ dependencies = [
     "ragas>=0.4.3,<0.5",
     "langchain-community>=0.3.27,<0.4",
     "langchain-openai>=1.0.1",
-    "langchain-ollama>=1.0.1",
-    # Keep the Python/JS storage contract reproducible in the cross-language test.
-    "langchain-postgres==0.0.17",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
+    # Verify that Python writes remain compatible with both search clients.
+    "langchain-postgres==0.0.17",
 ]
 
 [build-system]

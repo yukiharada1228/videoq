@@ -1,4 +1,3 @@
-import os
 
 from worker_python.sqs_client import sqs_endpoint_url
 

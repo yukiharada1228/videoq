@@ -1,8 +1,6 @@
 import type { z } from "zod";
 import type { inputSchemas } from "./inputs";
-import type { outputSchemas, successSchema } from "./outputs";
-
-export type Success = z.output<typeof successSchema>;
+import type { outputSchemas } from "./outputs";
 
 /** Handlers receive validated inputs, including Zod defaults and transforms. */
 export type RpcInputMap = {

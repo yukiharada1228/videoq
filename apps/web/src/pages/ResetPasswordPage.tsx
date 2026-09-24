@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { Link } from '@/lib/i18n';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft } from 'lucide-react';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
-import { useConfirmPasswordResetMutation } from '@/hooks/usePasswordRecovery';
+import { apiClient } from '@/lib/api';
 import { PASSWORD_MIN_LENGTH } from '@/lib/authConfig';
 import { FormField } from '@/components/auth/FormField';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
@@ -13,48 +14,35 @@ import { MessageAlert } from '@/components/common/MessageAlert';
 import { Button } from '@/components/ui/button';
 import { UtilityLink } from '@/components/ui/utility-link';
 
-function ResetPasswordContent() {
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get('token') ?? '';
+function ResetPasswordContent({ token }: { token: string }) {
   const { t } = useTranslation();
 
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [clientError, setClientError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const submitInFlightRef = useRef(false);
 
-  const resetPasswordMutation = useConfirmPasswordResetMutation();
+  const resetPasswordMutation = useMutation({
+    mutationFn: (newPassword: string) => apiClient.confirmPasswordReset({ token, new_password: newPassword }),
+    onSettled: () => { submitInFlightRef.current = false; },
+  });
+  const error = !token
+    ? t('auth.resetPassword.invalidLink')
+    : clientError ?? resetPasswordMutation.error?.message ?? null;
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (submitInFlightRef.current) return;
     setClientError(null);
-    setError(null);
-
-    if (!token) {
-      setClientError(t('auth.resetPassword.invalidLink'));
-      return;
-    }
+    const data = new FormData(event.currentTarget);
+    const password = String(data.get('password') ?? '');
+    const confirmPassword = String(data.get('confirmPassword') ?? '');
 
     if (password !== confirmPassword) {
       setClientError(t('auth.resetPassword.passwordMismatch'));
       return;
     }
 
-    try {
-      await resetPasswordMutation.mutateAsync({ token, newPassword: password });
-      setSuccess(true);
-      setPassword('');
-      setConfirmPassword('');
-    } catch {
-      setError(
-        resetPasswordMutation.error instanceof Error
-          ? resetPasswordMutation.error.message
-          : resetPasswordMutation.error
-            ? String(resetPasswordMutation.error)
-            : null,
-      );
-    }
+    submitInFlightRef.current = true;
+    resetPasswordMutation.mutate(password);
   };
 
   return (
@@ -73,10 +61,10 @@ function ResetPasswordContent() {
           description={t('auth.resetPassword.description')}
         />
 
-        {(clientError || error) && <ErrorMessage message={clientError ?? error} />}
-        {success && <MessageAlert type="success" message={t('auth.resetPassword.success')} />}
+        <ErrorMessage message={error} />
+        {resetPasswordMutation.isSuccess && <MessageAlert type="success" message={t('auth.resetPassword.success')} />}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        {token && !resetPasswordMutation.isSuccess && <form onSubmit={handleSubmit} className="space-y-5">
           <FormField
             id="password"
             name="password"
@@ -87,8 +75,7 @@ function ResetPasswordContent() {
             supportText={t('auth.fields.password.minLengthHint', {
               min: PASSWORD_MIN_LENGTH,
             })}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            disabled={resetPasswordMutation.isPending}
             autoComplete="new-password"
           />
 
@@ -99,8 +86,7 @@ function ResetPasswordContent() {
             type="password"
             required
             minLength={PASSWORD_MIN_LENGTH}
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+            disabled={resetPasswordMutation.isPending}
             autoComplete="new-password"
           />
 
@@ -120,9 +106,9 @@ function ResetPasswordContent() {
               t('auth.resetPassword.submit')
             )}
           </Button>
-        </form>
+        </form>}
 
-        {success && (
+        {resetPasswordMutation.isSuccess && (
           <div className="text-center">
             <UtilityLink asChild>
               <Link href="/login">{t('auth.resetPassword.backToLogin')}</Link>
@@ -136,5 +122,7 @@ function ResetPasswordContent() {
 }
 
 export default function ResetPasswordPage() {
-  return <ResetPasswordContent />;
+  const [searchParams] = useSearchParams();
+  const token = searchParams.has('error') ? '' : searchParams.get('token') ?? '';
+  return <ResetPasswordContent key={token} token={token} />;
 }

@@ -27,12 +27,6 @@ export type Bindings = Omit<CloudflareBindings, keyof SecretBindings> &
     AWS_SESSION_TOKEN?: string;
     R2_S3_INTERNAL_ENDPOINT?: string;
 
-    /** @deprecated Unused after Better Auth migration. */
-    AUTH_ISSUER?: string;
-    OIDC_LOGOUT_ENABLED?: string;
-    OIDC_LOGOUT_ALWAYS_PROMPT?: string;
-    OIDC_LOGOUT_ACCEPT_EXPIRED_TOKENS?: string;
-    OIDC_LOGOUT_DELETE_TOKENS?: string;
     STRIPE_AUTOMATIC_TAX?: string;
   };
 
@@ -44,10 +38,6 @@ export type Variables = {
   authVia?: "apikey" | "session" | "share" | "oauth";
   // API キー認証時の access_level（"all" | "read_only"）。scope 判定に使う。
   apiKeyAccessLevel?: string;
-  // Share 認証時の share_slug（feedback 等の共有アクセス）。
-  shareSlug?: string;
-  // ProtectedMedia の share 認証時に解決した course_id。
-  shareCourseId?: number;
 };
 
 export type AppEnv = { Bindings: Bindings; Variables: Variables };

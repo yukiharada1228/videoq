@@ -76,14 +76,22 @@ async function editEdge(context: Context) {
 async function submit(context: Context, action: Action) {
   if (action === 'rebuild') { await ready(context); await context.userEvent.click(context.canvas.getByRole('button', { name: label('rebuild') })); }
   else if (action === 'createConcept') await context.userEvent.click((await addConcept(context)).getByRole('button', { name: label('save') }));
-  else if (action === 'updateConcept' || action === 'updateLearningObject') await context.userEvent.click((await detail(context)).getByRole('button', { name: label('save') }));
+  else if (action === 'updateConcept' || action === 'updateLearningObject') {
+    const fields = await detail(context);
+    await context.userEvent.type(fields.getByRole('textbox', { name: label(action === 'updateConcept' ? 'label' : 'hintLadder') }), ' updated');
+    await context.userEvent.click(fields.getByRole('button', { name: label('save') }));
+  }
   else if (action === 'deleteConcept') await context.userEvent.click((await detail(context)).getByRole('button', { name: label('delete') }));
   else if (action === 'mergeConcepts') {
     const fields = await detail(context);
     await context.userEvent.selectOptions(fields.getByRole('combobox', { name: label('mergeIntoThis') }), '2');
     await context.userEvent.click(fields.getByRole('button', { name: label('merge') }));
   } else if (action === 'createEdge') await context.userEvent.click((await addEdge(context)).getByRole('button', { name: label('save') }));
-  else if (action === 'updateEdge') await context.userEvent.click((await editEdge(context)).getByRole('button', { name: label('save') }));
+  else if (action === 'updateEdge') {
+    const fields = await editEdge(context);
+    await context.userEvent.type(fields.getByRole('textbox', { name: label('quote') }), ' updated');
+    await context.userEvent.click(fields.getByRole('button', { name: label('save') }));
+  }
   else { await ready(context); await context.userEvent.click(section(context, 'edge').getAllByRole('button', { name: label('delete') })[0]); }
   await waitFor(() => expect(mutationRequests[action]).toHaveBeenCalledTimes(1));
 }
@@ -204,6 +212,31 @@ export const ConceptDetails: Story = { async play(context) {
   await expect(fields.getByRole('textbox', { name: label('hintLadder') })).toHaveValue(concepts[0].hint_ladder.join('\n'));
   await expect(fields.getByText('回転行列の導入 (60s)')).toBeVisible();
 } };
+export const SaveConceptWithoutChanges: Story = { async play(context) {
+  const graph = i18n.language.startsWith('en') ? englishGraph : readyGraph;
+  const fields = await detail(context, graph.concepts[0].label);
+  fields.getByRole('button', { name: label('save') }).focus();
+  await context.userEvent.keyboard('{Enter}');
+  await waitFor(() => expect(heading(context, 'concept')).toHaveFocus());
+  await expect(mutationRequests.updateConcept).not.toHaveBeenCalled();
+  await expect(mutationRequests.updateLearningObject).not.toHaveBeenCalled();
+  await expect(graphRequest).toHaveBeenCalledTimes(1);
+} };
+export const SaveConceptWithoutChangesEnglishMobile: Story = {
+  ...SaveConceptWithoutChanges,
+  globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
+};
+export const SaveGeneratedEdgeWithoutChanges: Story = {
+  parameters: GeneratedPresentationOrder.parameters,
+  async play(context) {
+    const fields = await editEdge(context);
+    await context.userEvent.click(fields.getByRole('button', { name: label('save') }));
+    await waitFor(() => expect(heading(context, 'edge')).toHaveFocus());
+    await expect(section(context, 'edge').getByText(label('edgeProvenance.generated'))).toBeVisible();
+    await expect(mutationRequests.updateEdge).not.toHaveBeenCalled();
+    await expect(graphRequest).toHaveBeenCalledTimes(1);
+  },
+};
 export const AddConcept: Story = { async play(context) { const fields = await addConcept(context); await expect(fields.getByRole('button', { name: label('save') })).toBeEnabled(); } };
 export const CreateConceptSucceeded: Story = { async play(context) {
   await submit(context, 'createConcept'); await expect(await section(context, 'concept').findByRole('button', { name: '追加した概念' })).toBeVisible();
@@ -227,13 +260,32 @@ export const SaveConceptAndLearningFields: Story = { async play(context) {
   await waitFor(() => expect(heading(context, 'concept')).toHaveFocus());
   await expect(mutationRequests.updateConcept).toHaveBeenCalledWith({ videoId, conceptId: 1, label: '更新した概念', nodeType: 'property', introSec: 95, sourceQuote: '新しい引用' });
   await expect(mutationRequests.updateLearningObject).toHaveBeenCalledWith({ videoId, conceptId: 1, openingQuestion: '新しい問い', hintLadder: ['ヒント1', 'ヒント2'], misconceptions: ['誤概念A', '誤概念B'], canonicalOrder: ['手順1', '手順2'], workedExamples: ['例題A', '例題B'] });
+  await expect(graphRequest).toHaveBeenCalledTimes(2);
 } };
 export const LearningFailureThenRetry: Story = { parameters: { plog: { actions: { updateLearningObject: 'retry' } } satisfies PlogScenario }, async play(context) {
   await LearningObjectFailed.play!(context);
   await context.userEvent.click(form(context, 'concept').getByRole('button', { name: label('save') }));
   await waitFor(() => expect(heading(context, 'concept')).toHaveFocus());
   await expect(mutationRequests.updateLearningObject).toHaveBeenCalledTimes(2);
+  await expect(mutationRequests.updateConcept).not.toHaveBeenCalled();
 } };
+export const PartialSaveFailureThenRetry: Story = {
+  parameters: LearningFailureThenRetry.parameters,
+  async play(context) {
+    const fields = await detail(context);
+    await context.userEvent.type(fields.getByRole('textbox', { name: label('label') }), ' updated');
+    await context.userEvent.type(fields.getByRole('textbox', { name: label('hintLadder') }), ' updated');
+    await context.userEvent.click(fields.getByRole('button', { name: label('save') }));
+    await expect(await context.canvas.findByRole('alert')).toHaveTextContent(label('saveError'));
+    await expect(fields.getByRole('textbox', { name: label('label') })).toHaveValue(`${concepts[0].label} updated`);
+    await expect(graphRequest).toHaveBeenCalledTimes(2);
+    await context.userEvent.click(fields.getByRole('button', { name: label('save') }));
+    await waitFor(() => expect(heading(context, 'concept')).toHaveFocus());
+    await expect(mutationRequests.updateConcept).toHaveBeenCalledTimes(1);
+    await expect(mutationRequests.updateLearningObject).toHaveBeenCalledTimes(2);
+    await expect(graphRequest).toHaveBeenCalledTimes(3);
+  },
+};
 export const SaveRefetchPending: Story = { parameters: { plog: { refetchPending: true } satisfies PlogScenario }, async play(context) {
   await submit(context, 'createConcept');
   await waitFor(() => expect(graphRequest).toHaveBeenCalledTimes(2));
@@ -281,7 +333,7 @@ export const UpdateEdgeSucceeded: Story = { async play(context) {
   await context.userEvent.clear(fields.getByRole('textbox', { name: label('quote') })); await context.userEvent.type(fields.getByRole('textbox', { name: label('quote') }), '更新した根拠');
   await context.userEvent.click(fields.getByRole('button', { name: label('save') }));
   await waitFor(() => expect(heading(context, 'edge')).toHaveFocus());
-  await expect(mutationRequests.updateEdge).toHaveBeenCalledWith({ videoId, edgeId: 11, sourceId: 3, targetId: 2, edgeType: 'contrasts_with', quote: '更新した根拠' });
+  await expect(mutationRequests.updateEdge).toHaveBeenCalledWith({ videoId, edgeId: 11, sourceId: 3, edgeType: 'contrasts_with', quote: '更新した根拠' });
 } };
 export const DeleteEdgePending = mutationStory('deleteEdge', 'pending');
 export const DeleteEdgeFailed = mutationStory('deleteEdge', 'error');

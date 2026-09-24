@@ -1,6 +1,8 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, renderHook, screen, fireEvent, waitFor } from '@testing-library/react'
+import { QueryObserver, useQueryClient } from '@tanstack/react-query'
 import VideoDetailPage from '../VideoDetailPage'
 import { ApiError } from '@/lib/api'
+import { trpc } from '@/lib/trpc'
 
 const videoTrpcMocks = vi.hoisted(() => ({
   update: vi.fn(),
@@ -16,27 +18,27 @@ const mockVideo = {
   status: 'completed',
   file: 'test.mp4',
   source_type: 'uploaded',
+  youtube_embed_url: null as string | null,
   uploaded_at: '2024-01-01T00:00:00Z',
   transcript: '1\n00:00:00,000 --> 00:00:05,000\nHello world',
   tags: [{ id: 1, name: 'Tag1', color: 'red' }],
   error_message: '',
 }
 
-const mockLoadVideo = vi.fn()
-
 let mockUseVideoReturn = {
   video: mockVideo as typeof mockVideo | null,
   isLoading: false,
   error: null as string | null,
-  loadVideo: mockLoadVideo,
 }
+
+let mockSearchParams = new URLSearchParams()
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
   return {
     ...actual,
     useParams: () => ({ id: '1' }),
-    useSearchParams: () => [new URLSearchParams(), vi.fn()],
+    useSearchParams: () => [mockSearchParams, vi.fn()],
   }
 })
 
@@ -62,6 +64,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
 })
 
 beforeEach(() => {
+  mockSearchParams = new URLSearchParams()
   globalThis.__setTrpcHandler('videos.update', videoTrpcMocks.update)
   globalThis.__setTrpcHandler('videos.delete', videoTrpcMocks.delete)
   globalThis.__setTrpcHandler('memberships.addTags', videoTrpcMocks.addTags)
@@ -71,7 +74,7 @@ beforeEach(() => {
 describe('VideoDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null, loadVideo: mockLoadVideo }
+    mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null }
   })
 
   afterEach(() => {
@@ -143,12 +146,6 @@ describe('VideoDetailPage', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
-  it('should not manually load video on mount (query handles initial fetch)', () => {
-    render(<VideoDetailPage />)
-
-    expect(mockLoadVideo).not.toHaveBeenCalled()
-  })
-
   it('should not render a fixed sub-header below the nav', () => {
     const { container } = render(<VideoDetailPage />)
     const subHeader = container.querySelector('.fixed.top-16.z-40')
@@ -160,7 +157,49 @@ describe('VideoDetailPage', () => {
 describe('VideoDetailPage - Edit modal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null, loadVideo: mockLoadVideo }
+    mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null }
+  })
+
+  it.each(['metadata', 'transcript'] as const)('uses saved video detail and refreshes only affected lists after saving %s', async field => {
+    const saved = { ...mockVideo, ...(field === 'metadata' ? { title: 'Updated Video' } : { transcript: `${mockVideo.transcript} updated` }) }
+    videoTrpcMocks.update.mockResolvedValue(saved)
+    const { result } = renderHook(() => useQueryClient())
+    const keys = [
+      trpc.videos.get.queryKey({ id: mockVideo.id }),
+      trpc.videos.list.queryKey({ limit: 24 }),
+      trpc.courses.get.queryKey({ id: 2 }),
+    ]
+    const fetches = keys.map(() => vi.fn(async () => ({ cached: true })))
+    const unsubscribes = keys.map((queryKey, index) => {
+      result.current.setQueryData(queryKey, { cached: true })
+      return new QueryObserver(result.current, {
+        queryKey,
+        queryFn: fetches[index],
+        staleTime: Infinity,
+      }).subscribe(() => {})
+    })
+    try {
+      render(<VideoDetailPage />)
+      if (field === 'metadata') {
+        fireEvent.click(screen.getByText('videos.detail.editButton'))
+        fireEvent.change(screen.getByDisplayValue('Test Video'), { target: { value: saved.title } })
+        fireEvent.click(screen.getByText('common.actions.save'))
+      } else {
+        fireEvent.click(screen.getByText('videos.detail.editTranscriptButton'))
+        fireEvent.change(screen.getByRole('textbox'), { target: { value: saved.transcript } })
+        fireEvent.click(screen.getByText('videos.detail.saveTranscriptButton'))
+        await waitFor(() => expect(screen.queryByRole('textbox')).not.toBeInTheDocument())
+      }
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      await waitFor(() => expect(result.current.isMutating()).toBe(0))
+      expect(videoTrpcMocks.update).toHaveBeenCalledTimes(1)
+      expect(result.current.getQueryData(keys[0])).toEqual(saved)
+      expect(fetches[0]).not.toHaveBeenCalled()
+      for (const fetch of fetches.slice(1)) expect(fetch).toHaveBeenCalledTimes(field === 'metadata' ? 1 : 0)
+    } finally {
+      unsubscribes.forEach(unsubscribe => unsubscribe())
+    }
   })
 
   it('should show update error in modal when save fails', async () => {
@@ -171,6 +210,7 @@ describe('VideoDetailPage - Edit modal', () => {
     render(<VideoDetailPage />)
 
     fireEvent.click(screen.getByText('videos.detail.editButton'))
+    fireEvent.change(screen.getByDisplayValue('Test Video'), { target: { value: 'Updated Video' } })
     fireEvent.click(screen.getByText('common.actions.save'))
 
     await waitFor(() => {
@@ -186,6 +226,7 @@ describe('VideoDetailPage - Edit modal', () => {
     render(<VideoDetailPage />)
 
     fireEvent.click(screen.getByText('videos.detail.editButton'))
+    fireEvent.change(screen.getByDisplayValue('Test Video'), { target: { value: 'Updated Video' } })
     fireEvent.click(screen.getByText('common.actions.save'))
 
     await waitFor(() => {
@@ -206,6 +247,7 @@ describe('VideoDetailPage - Edit modal', () => {
 
     // Open → save → error appears
     fireEvent.click(screen.getByText('videos.detail.editButton'))
+    fireEvent.change(screen.getByDisplayValue('Test Video'), { target: { value: 'Updated Video' } })
     fireEvent.click(screen.getByText('common.actions.save'))
     await waitFor(() => {
       expect(screen.getByText('Update failed')).toBeInTheDocument()
@@ -224,7 +266,7 @@ describe('VideoDetailPage - Edit modal', () => {
 describe('VideoDetailPage - Delete error', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null, loadVideo: mockLoadVideo }
+    mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null }
   })
 
   it('should show delete error when delete fails', async () => {
@@ -246,7 +288,7 @@ describe('VideoDetailPage - Delete error', () => {
 describe('VideoDetailPage - Transcript save error', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null, loadVideo: mockLoadVideo }
+    mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null }
   })
 
   it('should show error message when transcript save returns API error', async () => {
@@ -257,6 +299,7 @@ describe('VideoDetailPage - Transcript save error', () => {
     render(<VideoDetailPage />)
 
     fireEvent.click(screen.getByText('videos.detail.editTranscriptButton'))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Invalid transcript' } })
     fireEvent.click(screen.getByText('videos.detail.saveTranscriptButton'))
 
     await waitFor(() => {
@@ -272,6 +315,7 @@ describe('VideoDetailPage - Transcript save error', () => {
     render(<VideoDetailPage />)
 
     fireEvent.click(screen.getByText('videos.detail.editTranscriptButton'))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Invalid transcript' } })
     fireEvent.click(screen.getByText('videos.detail.saveTranscriptButton'))
 
     await waitFor(() => {
@@ -291,6 +335,7 @@ describe('VideoDetailPage - Transcript save error', () => {
     render(<VideoDetailPage />)
 
     fireEvent.click(screen.getByText('videos.detail.editTranscriptButton'))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Invalid transcript' } })
     fireEvent.click(screen.getByText('videos.detail.saveTranscriptButton'))
 
     await waitFor(() => {
@@ -304,14 +349,114 @@ describe('VideoDetailPage - Transcript save error', () => {
   })
 })
 
+describe('VideoDetailPage - Transcript and playback', () => {
+  const transcript = [
+    '1\n00:00:00,000 --> 00:00:05,000\nFirst segment',
+    '2\n00:00:05,000 --> 00:00:10,000\nSecond segment',
+  ].join('\n\n')
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUseVideoReturn = { video: { ...mockVideo, transcript }, isLoading: false, error: null }
+    videoTrpcMocks.update.mockResolvedValue(mockVideo)
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
+  })
+
+  afterEach(() => vi.restoreAllMocks())
+
+  it.each(['', 't=5'])('restarts the same YouTube subtitle without resetting on unrelated renders (%s)', query => {
+    mockSearchParams = new URLSearchParams(query)
+    mockUseVideoReturn.video = {
+      ...mockVideo, transcript, source_type: 'youtube',
+      youtube_embed_url: 'https://www.youtube.com/embed/video1',
+    }
+    const { container } = render(<VideoDetailPage />)
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const previous = container.querySelector('iframe')
+      fireEvent.click(screen.getByRole('button', { name: /Second segment/ }))
+      const current = container.querySelector('iframe')
+      expect(current).not.toBe(previous)
+      expect(current).toHaveAttribute('src', 'https://www.youtube.com/embed/video1?autoplay=1&start=5')
+      fireEvent.change(screen.getByRole('searchbox'), { target: { value: attempt % 2 ? '' : 'Second' } })
+      expect(container.querySelector('iframe')).toBe(current)
+    }
+  })
+
+  it('closes an unchanged transcript without updating or refetching cached data', async () => {
+    const { result } = renderHook(() => useQueryClient())
+    const queryKey = trpc.courses.get.queryKey({ id: 2 })
+    const fetch = vi.fn(async () => ({ cached: true }))
+    result.current.setQueryData(queryKey, { cached: true })
+    const unsubscribe = new QueryObserver(result.current, {
+      queryKey, queryFn: fetch, staleTime: Infinity,
+    }).subscribe(() => {})
+    try {
+      render(<VideoDetailPage />)
+      fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'First' } })
+      fireEvent.click(screen.getByText('videos.detail.editTranscriptButton'))
+      fireEvent.click(screen.getByText('videos.detail.saveTranscriptButton'))
+
+      await waitFor(() => expect(screen.queryByRole('textbox')).not.toBeInTheDocument())
+      expect(screen.getByRole('searchbox')).toHaveValue('')
+      expect(videoTrpcMocks.update).not.toHaveBeenCalled()
+      expect(fetch).not.toHaveBeenCalled()
+    } finally {
+      unsubscribe()
+    }
+  })
+
+  it('saves an edited transcript without changing its contents', async () => {
+    const editedTranscript = `${transcript}\n\n3\n00:00:10,000 --> 00:00:15,000\n  Third segment  \n`
+    render(<VideoDetailPage />)
+    fireEvent.click(screen.getByText('videos.detail.editTranscriptButton'))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: editedTranscript } })
+    fireEvent.click(screen.getByText('videos.detail.saveTranscriptButton'))
+
+    await waitFor(() => expect(screen.queryByRole('textbox')).not.toBeInTheDocument())
+    expect(videoTrpcMocks.update).toHaveBeenCalledExactlyOnceWith({ id: 1, transcript: editedTranscript })
+  })
+
+  it('keeps the selected subtitle attached to the same segment when the search changes', () => {
+    render(<VideoDetailPage />)
+    const search = screen.getByRole('searchbox')
+    fireEvent.change(search, { target: { value: 'Second' } })
+    fireEvent.click(screen.getByRole('button', { name: /Second segment/ }))
+    fireEvent.change(search, { target: { value: '' } })
+    expect(screen.getByRole('button', { name: /Second segment/ })).toHaveAttribute('aria-current', 'true')
+    expect(screen.getByRole('button', { name: /First segment/ })).not.toHaveAttribute('aria-current')
+    fireEvent.change(search, { target: { value: 'First' } })
+    expect(screen.getByRole('button', { name: /First segment/ })).not.toHaveAttribute('aria-current')
+  })
+
+  it.each(['link', 'subtitle'])('tolerates autoplay rejection when seeking from a %s', async (trigger) => {
+    const onPlay = vi.fn()
+    // Return a real rejected promise; mock promise tracking also handles rejections.
+    HTMLMediaElement.prototype.play = () => {
+      onPlay()
+      return Promise.reject(new DOMException('Autoplay blocked', 'NotAllowedError'))
+    }
+    if (trigger === 'link') mockSearchParams = new URLSearchParams('t=30')
+    const { container } = render(<VideoDetailPage />)
+    const player = container.querySelector('video')!
+    await act(async () => {
+      if (trigger === 'link') fireEvent.loadedMetadata(player)
+      else fireEvent.click(screen.getByRole('button', { name: /Second segment/ }))
+    })
+
+    expect(player.currentTime).toBe(trigger === 'link' ? 30 : 5)
+    expect(player.controls).toBe(true)
+    expect(onPlay).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('VideoDetailPage - Loading state', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseVideoReturn = { video: null, isLoading: true, error: null, loadVideo: vi.fn() }
+    mockUseVideoReturn = { video: null, isLoading: true, error: null }
   })
 
   afterEach(() => {
-    mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null, loadVideo: mockLoadVideo }
+    mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null }
   })
 
   it('should show loading content', () => {
@@ -323,11 +468,11 @@ describe('VideoDetailPage - Loading state', () => {
 describe('VideoDetailPage - Error state', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseVideoReturn = { video: null, isLoading: false, error: 'Network error', loadVideo: vi.fn() }
+    mockUseVideoReturn = { video: null, isLoading: false, error: 'Network error' }
   })
 
   afterEach(() => {
-    mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null, loadVideo: mockLoadVideo }
+    mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null }
   })
 
   it('should show the error and a link back to the library', () => {
@@ -340,11 +485,11 @@ describe('VideoDetailPage - Error state', () => {
 describe('VideoDetailPage - Not found state', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseVideoReturn = { video: null, isLoading: false, error: null, loadVideo: vi.fn() }
+    mockUseVideoReturn = { video: null, isLoading: false, error: null }
   })
 
   afterEach(() => {
-    mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null, loadVideo: mockLoadVideo }
+    mockUseVideoReturn = { video: mockVideo, isLoading: false, error: null }
   })
 
   it('should show the not-found message', () => {

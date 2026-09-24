@@ -1,13 +1,6 @@
 import { isS3Storage, resolveFileUrl } from "../../integrations/media";
-import {
-  isMediaPathAccessible,
-  resolveShareSlugCourseId as repositoryResolveShareSlugCourseId,
-} from "../../repositories/media-repository";
+import { getMediaPathAccess } from "../../repositories/media-repository";
 import type { Bindings } from "../../types/bindings";
-
-export function resolveShareSlugCourseId(env: Bindings, shareSlug: string) {
-  return repositoryResolveShareSlugCourseId(env, shareSlug);
-}
 
 export function guessContentType(path: string): string {
   const lower = path.toLowerCase();
@@ -27,9 +20,11 @@ export function guessContentType(path: string): string {
 export async function authorizeMediaPath(
   env: Bindings,
   path: string,
-  opts: { userId?: string; shareCourseId?: number },
-): Promise<{ ok: true; objectKey: string } | { notFound: true }> {
-  if (!(await isMediaPathAccessible(env, path, opts))) return { notFound: true };
+  opts: { userId?: string; shareSlug?: string },
+): Promise<{ ok: true; objectKey: string } | { notFound: true } | { invalidShare: true }> {
+  const access = await getMediaPathAccess(env, path, opts);
+  if (access === null) return { invalidShare: true };
+  if (!access) return { notFound: true };
 
   return { ok: true, objectKey: `media/${path}` };
 }
@@ -104,5 +99,10 @@ export function mediaPathFromUrl(pathname: string): string {
   const raw = pathname.startsWith(prefix)
     ? pathname.slice(prefix.length)
     : pathname.replace(/^\/+/, "");
-  return decodeURIComponent(raw).replace(/^\/+/, "");
+  try {
+    return decodeURIComponent(raw).replace(/^\/+/, "");
+  } catch {
+    // A malformed percent escape is an invalid media path, not a server error.
+    return "";
+  }
 }

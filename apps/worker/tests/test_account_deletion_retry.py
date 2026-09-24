@@ -11,8 +11,9 @@ from worker_python.tasks import account_deletion
 def test_storage_delete_failure_propagates_for_sqs_retry(monkeypatch) -> None:
     conn = MagicMock()
     conn.execute.return_value.fetchall.return_value = [
-        {"id": 42, "file": "videos/u1/42.mp4"}
+        {"id": 42}
     ]
+    conn.execute.return_value.fetchone.return_value = {"file": "videos/u1/42.mp4"}
     delete_video = MagicMock()
 
     monkeypatch.setattr(

@@ -43,6 +43,7 @@ interface VideoDetailViewProps {
   error: string | null;
   videoRef: RefObject<HTMLVideoElement | null>;
   youtubeStartSeconds: number | null;
+  youtubeSeekId: number;
   onVideoLoaded: () => void;
   isMobile: boolean;
   mobileTab: MobileTab;
@@ -125,11 +126,13 @@ function VideoPlayerPanel({
   video,
   videoRef,
   youtubeStartSeconds,
+  youtubeSeekId,
   onVideoLoaded,
 }: {
   video: Video;
   videoRef: RefObject<HTMLVideoElement | null>;
   youtubeStartSeconds: number | null;
+  youtubeSeekId: number;
   onVideoLoaded: () => void;
 }) {
   const { t } = useTranslation();
@@ -138,7 +141,7 @@ function VideoPlayerPanel({
     <div className="w-full aspect-video overflow-hidden border border-solid-gray-420 bg-solid-gray-800">
       {video.source_type === 'youtube' && video.youtube_embed_url ? (
         <iframe
-          key={`${video.id}-${youtubeStartSeconds ?? 0}`}
+          key={`${video.id}-${youtubeStartSeconds ?? 0}-${youtubeSeekId}`}
           className="w-full h-full"
           src={buildYoutubeEmbedSrc(video.youtube_embed_url, youtubeStartSeconds)}
           title={video.title}
@@ -276,6 +279,7 @@ export function VideoDetailView({
   error,
   videoRef,
   youtubeStartSeconds,
+  youtubeSeekId,
   onVideoLoaded,
   isMobile,
   mobileTab,
@@ -383,6 +387,7 @@ export function VideoDetailView({
                   video={video}
                   videoRef={videoRef}
                   youtubeStartSeconds={youtubeStartSeconds}
+                  youtubeSeekId={youtubeSeekId}
                   onVideoLoaded={onVideoLoaded}
                 />
                 <VideoMetaPanel

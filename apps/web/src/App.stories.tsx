@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, waitFor, within } from 'storybook/test';
+import { expect, fn, waitFor, within } from 'storybook/test';
 import App from './App';
 import i18n from './i18n/config';
 import { appQueryClient } from './lib/queryClient';
@@ -7,8 +7,9 @@ import { trpc } from './lib/trpc';
 import { authFixtures } from '../.storybook/fixtures/auth';
 import { emptyTagPage } from '../.storybook/fixtures/api';
 import { course, detailVideo } from '../.storybook/fixtures/detail';
+import { missingGraph } from '../.storybook/fixtures/plog';
 import { installUploadFixture } from '../.storybook/mocks/videoUpload';
-import { failure, pending, success, trpcQuery } from '../.storybook/mocks/network';
+import { failure, pending, success, trpcMutation, trpcQuery } from '../.storybook/mocks/network';
 import { studySessionId } from '../.storybook/fixtures/chatPanel';
 import { chatRequest, createChatPanelMock } from '../.storybook/mocks/chatPanel';
 
@@ -175,6 +176,79 @@ export const SharedChatContinuityMobile: Story = { ...CourseChatContinuityMobile
 export const SharedChatContinuityEnglish: Story = { ...CourseChatContinuityEnglish, parameters: SharedCourseNotice.parameters };
 export const SharedChatContinuityEnglishMobile: Story = { ...CourseChatContinuityEnglishMobile, parameters: SharedCourseNotice.parameters };
 
+function youtubeReplayStory(scope: 'video' | 'course' | 'share'): Story {
+  // A local blank document exercises iframe navigation without loading YouTube.
+  const video = { ...detailVideo, source_type: 'youtube' as const, youtube_embed_url: 'about:blank' };
+  const youtubeCourse = { ...course, videos: [{ ...video, order: 0 }] };
+  return {
+    parameters: {
+      pathname: scope === 'video' ? `/videos/${video.id}` : scope === 'course' ? `/videos/courses/${course.id}` : '/share/linear-algebra',
+      api: { ...api, auth: scope === 'share' ? authFixtures.loggedOut : authFixtures.user, trpc: [
+        ...api.trpc,
+        trpcQuery('videos.get', success(video)),
+        trpcQuery('plog.graph', success({ ...missingGraph, video_id: video.id })),
+        trpcQuery('courses.get', success(youtubeCourse)),
+        trpcQuery('courses.shared', success({
+          ...youtubeCourse, updated_at: course.created_at, share_slug: 'linear-algebra', access_role: 'public',
+        })),
+      ] },
+    },
+    beforeEach({ msw }) {
+      const mock = createChatPanelMock({ events: [
+        { type: 'content_chunk', text: '[1]' },
+        { type: 'done', chat_log_id: 101, feedback: null, citations: [{
+          id: 1, video_id: video.id, title: video.title, start_time: '00:00:05', end_time: '00:00:12',
+        }] },
+      ] });
+      msw.use(...mock.handlers.filter(({ info }) => info.path === '/api/chat/messages/stream'));
+      return () => mock.dispose();
+    },
+    async play({ canvas, canvasElement, userEvent, globals }) {
+      let replay: HTMLElement;
+      if (scope === 'video') {
+        await canvas.findByRole('heading', { level: 1, name: video.title });
+        if (globals.viewport?.value === 'mobile') {
+          await userEvent.click(canvas.getByRole('button', { name: i18n.t('videos.detail.transcriptSection') }));
+        }
+        replay = await canvas.findByRole('button', { name: /00:00:05/ });
+      } else {
+        const input = await canvas.findByRole('textbox', { name: i18n.t('chat.placeholder') });
+        await userEvent.type(input, 'Replay');
+        await userEvent.keyboard('{Enter}');
+        replay = await canvas.findByRole('button', { name: `${video.title} 00:00:05` });
+        await waitFor(() => expect(input).toBeEnabled());
+      }
+      const player = () => canvasElement.querySelector('iframe');
+      await expect(player()).toHaveAttribute('src', 'about:blank');
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const previous = player();
+        if (attempt === 1) {
+          replay.focus();
+          await userEvent.keyboard('{Enter}');
+        } else {
+          await userEvent.click(replay);
+        }
+        await waitFor(() => expect(player()).not.toBe(previous));
+        await expect(player()).toHaveAttribute('src', 'about:blank?autoplay=1&start=5');
+        await expect(previous).not.toBeInTheDocument();
+        await expect(replay).toHaveFocus();
+      }
+      const current = player();
+      const input = scope === 'video'
+        ? canvas.getByRole('searchbox')
+        : canvas.getByRole('textbox', { name: i18n.t('chat.placeholder') });
+      await userEvent.type(input, 'a');
+      await expect(player()).toBe(current);
+    },
+  };
+}
+export const YoutubeSubtitleReplay = youtubeReplayStory('video');
+export const YoutubeSubtitleReplayEnglishMobile: Story = { ...YoutubeSubtitleReplay, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
+export const YoutubeCourseCitationReplay = youtubeReplayStory('course');
+export const YoutubeCourseCitationReplayEnglishMobile: Story = { ...YoutubeCourseCitationReplay, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
+export const YoutubeSharedCitationReplay = youtubeReplayStory('share');
+export const YoutubeSharedCitationReplayEnglishMobile: Story = { ...YoutubeSharedCitationReplay, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
+
 export const InvitationNotice: Story = {
   parameters: {
     pathname: '/course-invitations/sample-invitation',
@@ -197,6 +271,219 @@ export const InvitationNoticeEnglishMobile: Story = {
   ...InvitationNotice,
   globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
 };
+
+const invitationRequests = { preview: fn(), accept: fn(), decline: fn() };
+function invitationResponseStory(action: 'accept' | 'retry'): Story {
+  return {
+    parameters: {
+      pathname: '/course-invitations/sample-invitation',
+      api: { ...api, trpc: [
+        ...api.trpc,
+        trpcQuery('courses.get', success({ ...course, access_role: 'member' })),
+        trpcQuery('courseMemberships.preview', input => {
+          invitationRequests.preview(input);
+          return success({ course_id: course.id, course_name: course.name, inviter_name: 'Teacher',
+            email_hint: 's*****t@example.com', status: 'pending', expires_at: '2026-10-01T00:00:00Z' });
+        }),
+        trpcMutation('courseMemberships.accept', input => {
+          invitationRequests.accept(input);
+          return action === 'retry' ? failure('Accept failed (fixture)') : success({ course_id: course.id, status: 'accepted' });
+        }),
+        trpcMutation('courseMemberships.decline', input => {
+          invitationRequests.decline(input);
+          return invitationRequests.decline.mock.calls.length === 1 ? failure('Decline failed (fixture)') : success({ status: 'declined' });
+        }),
+      ] },
+    },
+    beforeEach() { Object.values(invitationRequests).forEach(request => request.mockClear()); },
+    async play({ canvas, canvasElement, userEvent }) {
+      const accept = await canvas.findByRole('button', { name: i18n.t('courseInvitation.accept') });
+      accept.focus();
+      await userEvent.keyboard('{Enter}');
+      if (action === 'accept') {
+        await expect(await canvas.findByRole('heading', { level: 1, name: course.name })).toBeVisible();
+        await expect(invitationRequests.accept).toHaveBeenCalledWith({ token: 'sample-invitation' });
+        await expect(invitationRequests.decline).not.toHaveBeenCalled();
+      } else {
+        await expect(await canvas.findByText('Accept failed (fixture)')).toBeVisible();
+        await userEvent.click(canvas.getByRole('button', { name: i18n.t('courseInvitation.decline') }));
+        await expect(await canvas.findByText('Decline failed (fixture)')).toBeVisible();
+        await expect(canvas.queryByText('Accept failed (fixture)')).not.toBeInTheDocument();
+        canvas.getByRole('button', { name: i18n.t('courseInvitation.decline') }).focus();
+        await userEvent.keyboard('{Enter}');
+        await expect(await canvas.findByText(i18n.t('courseInvitation.declined'))).toBeVisible();
+        await expect(canvas.queryByText('Decline failed (fixture)')).not.toBeInTheDocument();
+        await expect(invitationRequests.decline).toHaveBeenCalledTimes(2);
+      }
+      await expect(invitationRequests.preview).toHaveBeenCalledTimes(1);
+      await expect(canvasElement.scrollWidth).toBeLessThanOrEqual(canvasElement.clientWidth);
+    },
+  };
+}
+export const InvitationAccept = invitationResponseStory('accept');
+export const InvitationAcceptEnglishMobile: Story = { ...InvitationAccept, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
+export const InvitationDecisionRetry = invitationResponseStory('retry');
+export const InvitationDecisionRetryEnglishMobile: Story = { ...InvitationDecisionRetry, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
+
+const videoEditRequests = { get: fn(), update: fn() };
+function videoSaveStory(mode: 'metadata' | 'background' | 'transcript'): Story {
+  const backgroundUpdate = mode === 'background';
+  const savedTitle = mode === 'transcript' ? detailVideo.title : 'Saved video title';
+  const savedDescription = backgroundUpdate ? 'Updated elsewhere' : detailVideo.description;
+  const savedTranscript = '1\n00:00:00,000 --> 00:00:05,000\nSaved subtitle';
+  return {
+    parameters: {
+      pathname: `/videos/${detailVideo.id}`,
+      api: { ...api, trpc: [
+        ...api.trpc,
+        trpcQuery('videos.get', input => {
+          videoEditRequests.get(input);
+          return videoEditRequests.get.mock.calls.length === 1 ? success(detailVideo) : pending();
+        }),
+        trpcMutation('videos.update', input => {
+          videoEditRequests.update(input);
+          return success({ ...detailVideo, title: savedTitle, description: savedDescription,
+            transcript: mode === 'transcript' ? savedTranscript : detailVideo.transcript });
+        }),
+        trpcQuery('plog.graph', success({ ...missingGraph, video_id: detailVideo.id })),
+      ] },
+    },
+    beforeEach() { Object.values(videoEditRequests).forEach(request => request.mockClear()); },
+    async play({ canvas, canvasElement, userEvent, globals }) {
+      await expect(await canvas.findByRole('heading', { level: 1, name: detailVideo.title })).toBeVisible();
+      if (mode === 'transcript') {
+        if (globals.viewport?.value === 'mobile') {
+          await userEvent.click(canvas.getByRole('button', { name: i18n.t('videos.detail.transcriptSection') }));
+        }
+        const header = within(canvas.getByRole('heading', { name: i18n.t('videos.detail.transcriptSection') }).parentElement!.parentElement!);
+        await userEvent.click(header.getByRole('button', { name: i18n.t('videos.detail.editTranscriptButton') }));
+        const textbox = canvas.getByRole('textbox', { name: i18n.t('videos.detail.transcriptSection') });
+        await userEvent.clear(textbox);
+        await userEvent.type(textbox, savedTranscript);
+        canvas.getByRole('button', { name: i18n.t('videos.detail.saveTranscriptButton') }).focus();
+        await userEvent.keyboard('{Enter}');
+        await waitFor(() => expect(canvas.queryByRole('textbox')).not.toBeInTheDocument());
+        await expect(canvas.getByRole('button', { name: /Saved subtitle/ })).toBeVisible();
+        await expect(header.getByRole('button', { name: i18n.t('videos.detail.editTranscriptButton') })).toHaveFocus();
+        await expect(videoEditRequests.update).toHaveBeenCalledWith({ id: detailVideo.id, transcript: savedTranscript });
+      } else {
+        const actions = within(canvas.getByRole('button', { name: i18n.t('videos.detail.deleteButton') }).parentElement!);
+        const edit = actions.getByRole('button', { name: i18n.t('videos.detail.editButton') });
+        await userEvent.click(edit);
+        const dialog = within(canvas.getByRole('dialog'));
+        const title = dialog.getByRole('textbox', { name: i18n.t('videos.detail.editTitleLabel') });
+        await userEvent.clear(title);
+        await userEvent.type(title, 'Client title');
+        if (backgroundUpdate) {
+          appQueryClient.setQueryData(trpc.videos.get.queryKey({ id: detailVideo.id }), { ...detailVideo, description: savedDescription });
+          await waitFor(() => expect(dialog.getByRole('textbox', { name: i18n.t('videos.detail.editDescriptionLabel') })).toHaveValue(savedDescription));
+        }
+        dialog.getByRole('button', { name: i18n.t('common.actions.save') }).focus();
+        await userEvent.keyboard('{Enter}');
+        await waitFor(() => expect(canvas.queryByRole('dialog')).not.toBeInTheDocument());
+        await expect(canvas.getByRole('heading', { level: 1, name: savedTitle })).toBeVisible();
+        await expect(videoEditRequests.update).toHaveBeenCalledWith({ id: detailVideo.id, title: 'Client title' });
+        await expect(edit).toHaveFocus();
+      }
+      await expect(videoEditRequests.update).toHaveBeenCalledTimes(1);
+      await expect(videoEditRequests.get).toHaveBeenCalledTimes(1);
+      await expect(canvasElement.scrollWidth).toBeLessThanOrEqual(canvasElement.clientWidth);
+    },
+  };
+}
+export const VideoMetadataSave = videoSaveStory('metadata');
+export const VideoMetadataSaveEnglishMobile: Story = { ...VideoMetadataSave, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
+export const VideoMetadataBackgroundUpdate = videoSaveStory('background');
+export const VideoMetadataBackgroundUpdateEnglishMobile: Story = { ...VideoMetadataBackgroundUpdate, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
+export const VideoTranscriptSave = videoSaveStory('transcript');
+export const VideoTranscriptSaveEnglishMobile: Story = { ...VideoTranscriptSave, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
+
+const courseEditRequests = { get: fn(), update: fn() };
+function courseMetadataStory(field: 'name' | 'description'): Story {
+  const other = field === 'name' ? 'description' : 'name';
+  const editedValue = field === 'name' ? 'My course name' : '';
+  const current = { ...course, updated_at: course.created_at, [field]: 'Concurrent edit', [other]: 'Updated elsewhere' };
+  return {
+    parameters: {
+      pathname: `/videos/courses/${course.id}`,
+      api: { ...api, trpc: [
+        ...api.trpc,
+        trpcQuery('courses.get', input => {
+          courseEditRequests.get(input);
+          return courseEditRequests.get.mock.calls.length === 1 ? success(course) : pending();
+        }),
+        trpcMutation('courses.update', input => {
+          courseEditRequests.update(input);
+          return success({ ...current, [field]: editedValue });
+        }),
+        trpcQuery('plog.graph', success({ ...missingGraph, video_id: course.videos![0].id })),
+      ] },
+    },
+    beforeEach() { Object.values(courseEditRequests).forEach(request => request.mockClear()); },
+    async play({ canvas, canvasElement, userEvent }) {
+      const edit = await canvas.findByRole('button', { name: i18n.t('videos.courseDetail.editTitle') });
+      await userEvent.click(edit);
+      const dialog = within(canvas.getByRole('dialog'));
+      const input = dialog.getByRole('textbox', { name: i18n.t(`videos.courses.${field}Label`) });
+      await userEvent.clear(input);
+      if (editedValue) await userEvent.type(input, editedValue);
+      appQueryClient.setQueryData(trpc.courses.get.queryKey({ id: course.id }), current);
+      await waitFor(() => expect(dialog.getByRole('textbox', { name: i18n.t(`videos.courses.${other}Label`) })).toHaveValue('Updated elsewhere'));
+      await expect(input).toHaveValue(editedValue);
+      dialog.getByRole('button', { name: i18n.t('common.actions.save') }).focus();
+      await userEvent.keyboard('{Enter}');
+      await waitFor(() => expect(canvas.queryByRole('dialog')).not.toBeInTheDocument());
+      await expect(courseEditRequests.update).toHaveBeenCalledWith({ id: course.id, [field]: editedValue });
+      await expect(courseEditRequests.update).toHaveBeenCalledTimes(1);
+      await expect(courseEditRequests.get).toHaveBeenCalledTimes(1);
+      await expect(edit).toHaveFocus();
+      await userEvent.click(edit);
+      const reopened = within(canvas.getByRole('dialog'));
+      await expect(reopened.getByRole('textbox', { name: i18n.t(`videos.courses.${field}Label`) })).toHaveValue(editedValue);
+      await expect(reopened.getByRole('textbox', { name: i18n.t(`videos.courses.${other}Label`) })).toHaveValue('Updated elsewhere');
+      await userEvent.click(reopened.getByRole('button', { name: i18n.t('common.actions.save') }));
+      await waitFor(() => expect(canvas.queryByRole('dialog')).not.toBeInTheDocument());
+      await expect(courseEditRequests.update).toHaveBeenCalledTimes(1);
+      await expect(courseEditRequests.get).toHaveBeenCalledTimes(1);
+      await expect(canvasElement.scrollWidth).toBeLessThanOrEqual(canvasElement.clientWidth);
+    },
+  };
+}
+export const CourseMetadataBackgroundUpdate = courseMetadataStory('name');
+export const CourseMetadataBackgroundUpdateEnglishMobile: Story = { ...CourseMetadataBackgroundUpdate, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
+export const CourseMetadataClearDescription = courseMetadataStory('description');
+export const CourseMetadataClearDescriptionEnglishMobile: Story = { ...CourseMetadataClearDescription, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
+
+export const CourseDialogsClose: Story = {
+  parameters: {
+    pathname: `/videos/courses/${course.id}`,
+    api: { ...api, trpc: [...api.trpc,
+      trpcQuery('courses.get', success(course)),
+      trpcQuery('plog.graph', success({ ...missingGraph, video_id: course.videos![0].id })),
+    ] },
+  },
+  async play({ canvas, userEvent }) {
+    const edit = await canvas.findByRole('button', { name: i18n.t('videos.courseDetail.editTitle') });
+    await userEvent.click(edit);
+    await userEvent.click(within(canvas.getByRole('dialog')).getByRole('button', { name: i18n.t('common.actions.cancel') }));
+    await waitFor(() => expect(canvas.queryByRole('dialog')).not.toBeInTheDocument());
+    await expect(edit).toHaveFocus();
+
+    const share = canvas.getByRole('button', { name: i18n.t('videos.courseDetail.shareOpen') });
+    for (const closeWith of ['button', 'escape']) {
+      await userEvent.click(share);
+      if (closeWith === 'button') {
+        await userEvent.click(within(canvas.getByRole('dialog')).getByRole('button', { name: i18n.t('common.actions.close') }));
+      } else {
+        // Synthetic key events do not trigger the native dialog's default cancel action.
+        canvas.getByRole('dialog').dispatchEvent(new Event('cancel', { cancelable: true }));
+      }
+      await waitFor(() => expect(canvas.queryByRole('dialog')).not.toBeInTheDocument());
+      await expect(share).toHaveFocus();
+    }
+  },
+};
+export const CourseDialogsCloseEnglishMobile: Story = { ...CourseDialogsClose, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
 
 export const HomeNavigation: Story = {
   async play({ canvasElement, userEvent, globals }) {
@@ -252,6 +539,42 @@ export const CoursesCaseInsensitive: Story = {
 };
 export const CoursesCaseInsensitiveEnglishMobile: Story = {
   ...CoursesCaseInsensitive,
+  globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
+};
+
+let failCourseList = true;
+let courseListRequests = 0;
+export const CoursesRetry: Story = {
+  parameters: {
+    pathname: '/videos/courses',
+    api: { ...api, trpc: api.trpc.map((mock) => mock.path === 'courses.list'
+      ? trpcQuery('courses.list', () => {
+        courseListRequests++;
+        return failCourseList
+          ? failure('Course list unavailable')
+          : success({ data: [{ ...course, access_role: 'owner' as const }], meta: { total: 1, limit: 24, offset: 0 } });
+      })
+      : mock) },
+  },
+  beforeEach() { failCourseList = true; courseListRequests = 0; },
+  async play({ canvasElement, userEvent }) {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByText('Course list unavailable')).toBeVisible();
+    await expect(canvas.queryByText(i18n.t('videos.courses.empty'))).not.toBeInTheDocument();
+    const retry = canvas.getByRole('button', { name: i18n.t('videos.courses.retryLoad') });
+    retry.focus();
+    failCourseList = false;
+    await userEvent.keyboard('{Enter}');
+    await expect(await canvas.findByText(course.name)).toBeVisible();
+    await expect(canvas.queryByText('Course list unavailable')).not.toBeInTheDocument();
+    await expect(retry).not.toBeInTheDocument();
+    await expect(courseListRequests).toBe(2);
+    const main = canvas.getByRole('main');
+    await expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth);
+  },
+};
+export const CoursesRetryEnglishMobile: Story = {
+  ...CoursesRetry,
   globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
 };
 

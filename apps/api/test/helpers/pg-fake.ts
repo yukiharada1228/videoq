@@ -52,14 +52,6 @@ function toPgRows(
   return rawRows.map((r) => (Array.isArray(r) ? r : Object.values(r as Record<string, unknown>)));
 }
 
-/** JWT test helper (`helpers/auth.ts`) が埋め込む既定 sid。 */
-export const TEST_AUTH_SESSION_ID = "test-session";
-
-/** @deprecated Legacy JWT session probe — always false after Better Auth migration. */
-export function isAuthSessionActiveSql(_sql: MatchableSql): boolean {
-  return false;
-}
-
 /**
  * Shared FakeClient.query implementation. Call from inside `vi.mock("pg")` factories.
  */
@@ -73,8 +65,6 @@ export function executeFakePgQuery(opts: {
     args: unknown[],
     rows: Record<string, unknown>[],
   ) => number;
-  /** When true (default), empty rows for `test-session` sid probes count as active. */
-  defaultActiveTestSession?: boolean;
 }) {
   const { sql, args: a, rowMode } = normalizePgQuery(opts.sqlOrConfig, opts.args ?? []);
   const matchSql = matchableSql(sql);
@@ -82,15 +72,7 @@ export function executeFakePgQuery(opts: {
   if (/^\s*(BEGIN|COMMIT|ROLLBACK)\s*$/i.test(sql)) {
     return { rows: [], rowCount: 0 };
   }
-  let rawRows = opts.rowsFor(matchSql, a);
-  if (
-    opts.defaultActiveTestSession !== false &&
-    rawRows.length === 0 &&
-    isAuthSessionActiveSql(matchSql) &&
-    a[0] === TEST_AUTH_SESSION_ID
-  ) {
-    rawRows = [{ ok: 1 }];
-  }
+  const rawRows = opts.rowsFor(matchSql, a);
   const objectRows = rawRows.every(Array.isArray)
     ? []
     : (rawRows as Record<string, unknown>[]);

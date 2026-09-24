@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { Hono } from "hono";
 import { isScopeAllowed, requireAuth, requireScope } from "../src/middleware/auth";
 import type { AppEnv } from "../src/types/bindings";
-import { buildJobMessage } from "../src/lib/jobs";
+import { buildJobMessage } from "../src/lib/job-message";
 
 describe("API キースコープ（ApiKeyScopePermission 相当）", () => {
   it("all は全許可、read_only は読み取りのみ", () => {

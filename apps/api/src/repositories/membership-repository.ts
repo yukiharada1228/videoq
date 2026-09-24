@@ -1,5 +1,5 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
-import { withDb } from "../db/pool";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { withDb, type Db } from "../db/pool";
 import { sqlNumberArray } from "../db/sql-array";
 import {
   tags,
@@ -31,261 +31,158 @@ export async function videoOwnedBy(
   });
 }
 
-export async function courseOwnedBy(
-  env: Bindings,
-  courseId: number,
-  userId: string,
-): Promise<boolean> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .select({ id: videoCourses.id })
-      .from(videoCourses)
-      .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, userId)))
-      .limit(1);
-    return rows.length > 0;
-  });
-}
-
 // =========================================================================
 // video ↔ tag
 // =========================================================================
 
-/** 動画に現在ひも付くタグ id 一覧（plan_tag_attachment 用。動画は所有前提）。 */
-export async function getAttachedTagIds(
-  env: Bindings,
-  videoId: number,
-): Promise<number[]> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .select({ tagId: videoTags.tagId })
-      .from(videoTags)
-      .where(eq(videoTags.videoId, videoId));
-    return rows.map((row) => Number(row.tagId));
-  });
+async function lockOwnedVideo(db: Pick<Db, "select">, videoId: number, userId: string) {
+  const rows = await db.select({ id: videos.id }).from(videos)
+    .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
+    .limit(1).for("update");
+  return rows.length > 0;
 }
 
-/** user が所有する対象タグの件数（SomeTagsNotFound 判定用）。 */
-export async function countOwnedTags(
-  env: Bindings,
-  tagIds: number[],
-  userId: string,
-): Promise<number> {
-  if (tagIds.length === 0) return 0;
-  return withDb(env, async (db) => {
-    const rows = await db
-      .select({ c: sql<number>`count(*)::int` })
-      .from(tags)
-      .where(and(eq(tags.userId, userId), inArray(tags.id, tagIds)));
-    return rows[0].c;
-  });
-}
-
-/**
- * タグを動画へ付与（tx: 動画を FOR UPDATE → 既存を除外 → 一括 INSERT）。
- * ids_to_add は呼び出し側で dedupe + attached 除外済み前提。
- * 返り値は (added, skippedInPersist)。
- */
+/** 所有確認と関連付けを同じtransactionで実行し、実際の追加件数を返す。 */
 export async function attachTags(
   env: Bindings,
   videoId: number,
-  idsToAdd: number[],
-): Promise<{ added: number; skippedInPersist: number }> {
-  return withDb(env, async (db) =>
-    db.transaction(async (tx) => {
-      await tx.execute(sql`SELECT 1 FROM videos WHERE id = ${videoId} FOR UPDATE`);
+  userId: string,
+  tagIds: number[],
+): Promise<{ notFound: "Video not found" | "Resource not found" } | { added: number }> {
+  return withDb(env, (db) => db.transaction(async (tx) => {
+    if (!await lockOwnedVideo(tx, videoId, userId)) return { notFound: "Video not found" } as const;
+    const uniqueIds = [...new Set(tagIds)];
+    if (uniqueIds.length === 0) return { added: 0 };
 
-      const existing = await tx
-        .select({ tagId: videoTags.tagId })
-        .from(videoTags)
-        .where(
-          and(eq(videoTags.videoId, videoId), inArray(videoTags.tagId, idsToAdd)),
-        );
-      const existingSet = new Set(existing.map((r) => Number(r.tagId)));
-      const toAdd = idsToAdd.filter((id) => !existingSet.has(id));
-      if (toAdd.length > 0) {
-        await tx.execute(sql`
-          INSERT INTO video_tags (video_id, tag_id, added_at)
-          SELECT ${videoId}, t, CURRENT_TIMESTAMP FROM unnest(${sqlNumberArray(toAdd)}) AS t
-        `);
-      }
-      return { added: toAdd.length, skippedInPersist: idsToAdd.length - toAdd.length };
-    }),
-  );
+    // Only requested tags are read. Share locks prevent deletion/ownership changes
+    // while allowing other videos to use the same tags concurrently.
+    const requested = await tx.select({ id: tags.id, userId: tags.userId, attachedId: videoTags.id })
+      .from(tags)
+      .leftJoin(videoTags, and(eq(videoTags.tagId, tags.id), eq(videoTags.videoId, videoId)))
+      .where(inArray(tags.id, uniqueIds))
+      .orderBy(asc(tags.id))
+      .for("share", { of: tags });
+    if (requested.length !== uniqueIds.length || requested.some(tag => tag.attachedId === null && tag.userId !== userId)) {
+      return { notFound: "Resource not found" } as const;
+    }
+    const idsToAdd = requested.filter(tag => tag.attachedId === null).map(tag => tag.id);
+    if (idsToAdd.length === 0) return { added: 0 };
+    const inserted = await tx.insert(videoTags)
+      .values(idsToAdd.map(tagId => ({ videoId, tagId, addedAt: sql`CURRENT_TIMESTAMP` })))
+      .onConflictDoNothing({ target: [videoTags.tagId, videoTags.videoId] })
+      .returning({ id: videoTags.id });
+    return { added: inserted.length };
+  }));
 }
 
-/** VideoTag(video_id, tag_id) の存在を確認する。 */
-export async function videoTagExists(
-  env: Bindings,
-  videoId: number,
-  tagId: number,
-): Promise<boolean> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .select({ id: videoTags.id })
-      .from(videoTags)
-      .where(and(eq(videoTags.videoId, videoId), eq(videoTags.tagId, tagId)))
-      .limit(1);
-    return rows.length > 0;
-  });
-}
-
-/** タグを動画から剥がす（存在は呼び出し側で確認済み前提）。 */
+/** 所有確認から削除まで動画・タグのロックを保持する。 */
 export async function detachTag(
   env: Bindings,
   videoId: number,
   tagId: number,
-): Promise<void> {
-  return withDb(env, async (db) => {
-    await db
-      .delete(videoTags)
-      .where(and(eq(videoTags.videoId, videoId), eq(videoTags.tagId, tagId)));
-  });
+  userId: string,
+): Promise<{ notFound: "Video not found" | "Tag not found" | "Resource not found" } | { ok: true }> {
+  return withDb(env, (db) => db.transaction(async (tx) => {
+    if (!await lockOwnedVideo(tx, videoId, userId)) return { notFound: "Video not found" } as const;
+    const tag = await tx.select({ id: tags.id }).from(tags)
+      .where(and(eq(tags.id, tagId), eq(tags.userId, userId))).limit(1).for("share");
+    if (tag.length === 0) return { notFound: "Tag not found" } as const;
+    const deleted = await tx.delete(videoTags)
+      .where(and(eq(videoTags.videoId, videoId), eq(videoTags.tagId, tagId)))
+      .returning({ id: videoTags.id });
+    return deleted.length > 0 ? { ok: true } as const : { notFound: "Resource not found" } as const;
+  }));
 }
 
 // =========================================================================
 // course ↔ video（単体）
 // =========================================================================
 
-/**
- * 動画 1 件を講座に追加（tx: course を FOR UPDATE → 既存なら alreadyIn →
- * order = MAX+1 で作成）。
- */
+async function lockOwnedCourse(db: Pick<Db, "select">, courseId: number, userId: string) {
+  const rows = await db.select({ id: videoCourses.id }).from(videoCourses)
+    .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, userId)))
+    .limit(1).for("update");
+  return rows.length > 0;
+}
+
+async function lockOwnedCourseVideos(db: Pick<Db, "select">, videoIds: number[], userId: string) {
+  const rows = await db.select({ id: videos.id }).from(videos)
+    .where(and(inArray(videos.id, videoIds), eq(videos.userId, userId)))
+    .orderBy(asc(videos.id)).for("share");
+  return rows.length === videoIds.length;
+}
+
+type CourseVideoNotFound = { notFound: "Course not found" | "Video not found" };
+
+/** 所有する講座・動画をロックしてから、既存の関連付けを再利用または末尾に追加する。 */
 export async function addVideoToCourse(
   env: Bindings,
   courseId: number,
   videoId: number,
-): Promise<{ alreadyIn: true; id: number } | { id: number }> {
-  return withDb(env, async (db) =>
-    db.transaction(async (tx) => {
-      await tx.execute(sql`SELECT 1 FROM video_courses WHERE id = ${courseId} FOR UPDATE`);
-
-      const exists = await tx
-        .select({ id: videoCourseMembers.id })
-        .from(videoCourseMembers)
-        .where(
-          and(
-            eq(videoCourseMembers.courseId, courseId),
-            eq(videoCourseMembers.videoId, videoId),
-          ),
-        )
-        .limit(1);
-      if (exists.length > 0) {
-        return { alreadyIn: true, id: Number(exists[0].id) } as const;
-      }
-
-      const rows = await tx
-        .insert(videoCourseMembers)
-        .values({
-          courseId,
-          videoId,
-          order: sql`(SELECT COALESCE(MAX("order"), -1) + 1 FROM video_course_members WHERE course_id = ${courseId})`,
-          addedAt: sql`CURRENT_TIMESTAMP`,
-        })
-        .returning({ id: videoCourseMembers.id });
-      return { id: Number(rows[0].id) } as const;
-    }),
-  );
+  userId: string,
+): Promise<CourseVideoNotFound | { alreadyIn: true; id: number } | { id: number }> {
+  return withDb(env, (db) => db.transaction(async (tx) => {
+    if (!await lockOwnedCourse(tx, courseId, userId)) return { notFound: "Course not found" } as const;
+    if (!await lockOwnedCourseVideos(tx, [videoId], userId)) return { notFound: "Video not found" } as const;
+    const [existing] = await tx.select({ id: videoCourseMembers.id }).from(videoCourseMembers)
+      .where(and(eq(videoCourseMembers.courseId, courseId), eq(videoCourseMembers.videoId, videoId)))
+      .limit(1);
+    if (existing) return { alreadyIn: true, id: Number(existing.id) } as const;
+    const [inserted] = await tx.insert(videoCourseMembers)
+      .values({
+        courseId,
+        videoId,
+        order: sql`(SELECT COALESCE(MAX("order"), -1) + 1 FROM video_course_members WHERE course_id = ${courseId})`,
+        addedAt: sql`CURRENT_TIMESTAMP`,
+      })
+      .returning({ id: videoCourseMembers.id });
+    return { id: Number(inserted.id) };
+  }));
 }
 
-/** 動画 1 件を講座から除去（tx: 非メンバーなら notMember）。 */
+/** 所有確認から関連付けの削除まで講座・動画のロックを保持する。 */
 export async function removeVideoFromCourse(
   env: Bindings,
   courseId: number,
   videoId: number,
-): Promise<{ notMember: true } | { ok: true }> {
-  return withDb(env, async (db) =>
-    db.transaction(async (tx) => {
-      await tx.execute(sql`SELECT 1 FROM video_courses WHERE id = ${courseId} FOR UPDATE`);
-      const rows = await tx
-        .delete(videoCourseMembers)
-        .where(
-          and(
-            eq(videoCourseMembers.courseId, courseId),
-            eq(videoCourseMembers.videoId, videoId),
-          ),
-        )
-        .returning({ id: videoCourseMembers.id });
-      return rows.length > 0 ? ({ ok: true } as const) : ({ notMember: true } as const);
-    }),
-  );
-}
-
-// =========================================================================
-// course ↔ video（一括）
-// =========================================================================
-
-/** 講座の現メンバー video_id 一覧（plan_bulk_add 用）。 */
-export async function getCourseMemberVideoIds(
-  env: Bindings,
-  courseId: number,
-): Promise<number[]> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .select({ videoId: videoCourseMembers.videoId })
-      .from(videoCourseMembers)
-      .where(eq(videoCourseMembers.courseId, courseId));
-    return rows.map((row) => Number(row.videoId));
-  });
-}
-
-/** user が所有する動画 id の集合。 */
-export async function getExistingVideoIdsForUser(
-  env: Bindings,
-  videoIds: number[],
   userId: string,
-): Promise<Set<number>> {
-  if (videoIds.length === 0) return new Set();
-  return withDb(env, async (db) => {
-    const rows = await db
-      .select({ id: videos.id })
-      .from(videos)
-      .where(and(inArray(videos.id, videoIds), eq(videos.userId, userId)));
-    return new Set(rows.map((row) => Number(row.id)));
-  });
+): Promise<CourseVideoNotFound | { notMember: true } | { ok: true }> {
+  return withDb(env, (db) => db.transaction(async (tx) => {
+    if (!await lockOwnedCourse(tx, courseId, userId)) return { notFound: "Course not found" } as const;
+    if (!await lockOwnedCourseVideos(tx, [videoId], userId)) return { notFound: "Video not found" } as const;
+    const rows = await tx.delete(videoCourseMembers)
+      .where(and(eq(videoCourseMembers.courseId, courseId), eq(videoCourseMembers.videoId, videoId)))
+      .returning({ id: videoCourseMembers.id });
+    return rows.length > 0 ? { ok: true } as const : { notMember: true } as const;
+  }));
 }
 
-/**
- * 動画を一括追加（tx: course を FOR UPDATE → Video 実在 & 未メンバーのみ →
- * order = base+idx で bulk INSERT）。返り値は added。
- */
+/** 所有確認・重複除去と一括追加を同じtransactionで行い、入力順に末尾へ追加する。 */
 export async function addVideosBulk(
   env: Bindings,
   courseId: number,
-  idsToAdd: number[],
-): Promise<number> {
-  if (idsToAdd.length === 0) return 0;
-  return withDb(env, async (db) =>
-    db.transaction(async (tx) => {
-      await tx.execute(sql`SELECT 1 FROM video_courses WHERE id = ${courseId} FOR UPDATE`);
+  videoIds: number[],
+  userId: string,
+): Promise<{ notFound: "Course not found" | "Some videos not found" } | { added: number }> {
+  return withDb(env, (db) => db.transaction(async (tx) => {
+    if (!await lockOwnedCourse(tx, courseId, userId)) return { notFound: "Course not found" } as const;
+    const uniqueIds = [...new Set(videoIds)];
+    if (uniqueIds.length === 0) return { added: 0 };
+    if (!await lockOwnedCourseVideos(tx, uniqueIds, userId)) return { notFound: "Some videos not found" } as const;
 
-      const videosRes = await tx
-        .select({ id: videos.id })
-        .from(videos)
-        .where(inArray(videos.id, idsToAdd));
-      const videoSet = new Set(videosRes.map((r) => Number(r.id)));
-
-      const memberRes = await tx
-        .select({ videoId: videoCourseMembers.videoId })
-        .from(videoCourseMembers)
-        .where(
-          and(
-            eq(videoCourseMembers.courseId, courseId),
-            inArray(videoCourseMembers.videoId, idsToAdd),
-          ),
-        );
-      const memberSet = new Set(memberRes.map((r) => Number(r.videoId)));
-
-      const videosToAdd = idsToAdd.filter((id) => videoSet.has(id) && !memberSet.has(id));
-      if (videosToAdd.length === 0) return 0;
-
-      await tx.execute(sql`
-        INSERT INTO video_course_members (course_id, video_id, "order", added_at)
-        SELECT ${courseId}, v.video_id,
-               (SELECT COALESCE(MAX("order"), -1) FROM video_course_members WHERE course_id = ${courseId}) + v.ord,
-               CURRENT_TIMESTAMP
-          FROM unnest(${sqlNumberArray(videosToAdd)}) WITH ORDINALITY AS v(video_id, ord)
-      `);
-      return videosToAdd.length;
-    }),
-  );
+    const inserted = await tx.execute(sql`
+      INSERT INTO video_course_members (course_id, video_id, "order", added_at)
+      SELECT ${courseId}, v.video_id,
+             (SELECT COALESCE(MAX("order"), -1) FROM video_course_members WHERE course_id = ${courseId})
+               + ROW_NUMBER() OVER (ORDER BY v.ord),
+             CURRENT_TIMESTAMP
+        FROM unnest(${sqlNumberArray(uniqueIds)}) WITH ORDINALITY AS v(video_id, ord)
+       WHERE NOT EXISTS (
+         SELECT 1 FROM video_course_members
+          WHERE course_id = ${courseId} AND video_id = v.video_id
+       )
+      RETURNING id
+    `);
+    return { added: inserted.rows.length };
+  }));
 }

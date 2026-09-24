@@ -1,7 +1,6 @@
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
-import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { streamSSE } from "hono/streaming";
 import type { ZodError } from "zod";
 import {
@@ -97,20 +96,20 @@ chatRoutes.post(
       return validationResponse(c, parsed.error.issues[0]?.message ?? "Invalid input", parsed.error);
     }
     const shareSlug = c.req.query("share_slug") ?? c.req.query("share_token") ?? null;
+    const connection = new AbortController();
     const result = await messageService.streamChatMessage(c.env, {
       userId: c.var.userId ?? null,
       body: parsed.data,
       shareSlug,
       locale: messageService.requestLocaleFromHeader(c.req.header("Accept-Language")),
-      clientSignal: c.req.raw.signal,
+      clientSignal: AbortSignal.any([c.req.raw.signal, connection.signal]),
     });
-    if (result.kind === "json") {
-      return c.json(result.body, result.status as ContentfulStatusCode);
-    }
     c.header("Cache-Control", "no-cache");
     c.header("Content-Encoding", "Identity");
     c.header("X-Accel-Buffering", "no");
     return streamSSE(c, async (stream) => {
+      // 応答本文の cancel は Request.signal とは別。Hono の切断通知も上流へ渡す。
+      stream.onAbort(() => connection.abort());
       try {
         await result.write((data) => stream.writeSSE({ data: JSON.stringify(data) }));
       } catch (error) {

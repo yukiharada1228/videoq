@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { mediaRoutes } from "../src/features/media/routes";
 import { isSafeMediaPath } from "../src/repositories/media-repository";
-import { signAccessToken } from "./helpers/auth";
 import { THROTTLE_RATES } from "../src/lib/rate-limit";
 
 import {
@@ -58,10 +57,6 @@ beforeEach(() => {
   bucketStore.clear();
   rowsFor = () => [];
 });
-
-async function accessToken(userId = "00000000-0000-4000-8000-000000000005") {
-  return signAccessToken(SECRET, userId);
-}
 
 describe("isSafeMediaPath", () => {
   it("rejects traversal and absolute paths", () => {
@@ -125,7 +120,7 @@ describe("GET /*", () => {
     bucketStore.set("media/videos/a.mp4", new TextEncoder().encode("x"));
     rowsFor = (sql) => {
       if (sql.includes("video_courses") && sql.includes("share_slug")) {
-        return [{ id: 3 }];
+        return [{ allowed: true }];
       }
       if (sql.includes("videos") && sql.includes("file")) return [{ id: 9 }];
       if (sql.includes("video_course_members")) return [{ id: 1 }];

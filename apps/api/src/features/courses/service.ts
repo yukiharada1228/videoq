@@ -1,9 +1,10 @@
 import {
+  clearShareSlug,
+  courseOwnedBy,
   createCourse,
   deleteCourse,
   getCourseDetail,
   getCourseDetailByShareSlug,
-  getCourseShareSlug,
   listCoursesPage,
   reorderCourses,
   setShareSlug,
@@ -26,11 +27,11 @@ export async function listCourses(
 }
 
 export async function getCourse(env: Bindings, courseId: number, userId: string) {
-  return getCourseDetail(env, courseId, userId);
+  return getCourseDetail(env, courseId, userId, { includeTags: false });
 }
 
 export async function getSharedCourse(env: Bindings, slug: string) {
-  return getCourseDetailByShareSlug(env, slug);
+  return getCourseDetailByShareSlug(env, slug, { includeTags: false });
 }
 
 export async function createUserCourse(
@@ -43,7 +44,7 @@ export async function createUserCourse(
   if ("idempotencyConflict" in created) {
     throw new Error("Unexpected idempotency conflict without an idempotency key.");
   }
-  return getCourseDetail(env, created.courseId, userId);
+  return getCourseDetail(env, created.courseId, userId, { includeTags: false });
 }
 
 /** MCP 用: 同じ key + payload の再試行では同じ講座を返す。 */
@@ -63,7 +64,7 @@ export async function createUserCourseIdempotent(
   );
   if ("idempotencyConflict" in created) return created;
   return {
-    course: await getCourseDetail(env, created.courseId, userId),
+    course: await getCourseDetail(env, created.courseId, userId, { includeFileUrls: false }),
     reused: created.reused,
   } as const;
 }
@@ -74,9 +75,7 @@ export async function updateUserCourse(
   userId: string,
   data: { name?: string; description?: string },
 ) {
-  const res = await updateCourse(env, courseId, userId, data);
-  if ("notFound" in res) return { notFound: true } as const;
-  return { course: await getCourseDetail(env, courseId, userId) } as const;
+  return updateCourse(env, courseId, userId, data);
 }
 
 export async function removeCourse(env: Bindings, courseId: number, userId: string) {
@@ -97,11 +96,13 @@ export async function saveShareLink(
   userId: string,
   rawSlug: string,
 ) {
-  const cur = await getCourseShareSlug(env, courseId, userId);
-  if (!cur.found) return { notFound: true as const };
   const norm = normalizeShareSlug(rawSlug);
-  if ("error" in norm) return { error: norm.error } as const;
+  if ("error" in norm) {
+    const owned = await courseOwnedBy(env, courseId, userId);
+    return owned ? { error: norm.error } as const : { notFound: true } as const;
+  }
   const res = await setShareSlug(env, courseId, userId, norm.slug);
+  if ("notFound" in res) return res;
   if ("conflict" in res) {
     return { conflict: SLUG_ALREADY_EXISTS_MESSAGE } as const;
   }
@@ -113,9 +114,5 @@ export async function clearShareLink(
   courseId: number,
   userId: string,
 ) {
-  const cur = await getCourseShareSlug(env, courseId, userId);
-  if (!cur.found) return { notFound: true as const };
-  if (!cur.slug) return { notConfigured: true as const };
-  await setShareSlug(env, courseId, userId, null);
-  return { ok: true as const };
+  return clearShareSlug(env, courseId, userId);
 }

@@ -1,16 +1,20 @@
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
-  checkAndReserveStorage,
+  reserveStorageInTransaction,
   releaseAiAnswerReservation,
   reserveAiAnswerUsage,
 } from "../src/repositories/quota-repository";
 import { reserveAndCreatePendingVideo } from "../src/repositories/video-repository";
+import { withDb } from "../src/db/pool";
 
 const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
 const describeWithPostgres = databaseUrl ? describe : describe.skip;
 const userId = "quota-concurrency-user";
 type QuotaEnv = Parameters<typeof reserveAiAnswerUsage>[0];
+
+const checkAndReserveStorage = (env: QuotaEnv, userId: string, bytes: number) =>
+  withDb(env, (db) => db.transaction((tx) => reserveStorageInTransaction(tx, userId, bytes)));
 
 describeWithPostgres("AI回答枠の実PostgreSQL並列制御", () => {
   const schemaName = `quota_concurrency_${crypto.randomUUID().replaceAll("-", "")}`;
@@ -28,6 +32,7 @@ describeWithPostgres("AI回答枠の実PostgreSQL並列制御", () => {
       CREATE TABLE ${quotedSchema}.users (
         id text PRIMARY KEY,
         is_over_quota boolean NOT NULL DEFAULT false,
+        max_video_upload_size_mb integer NOT NULL DEFAULT 500,
         ai_answers_limit integer,
         used_ai_answers integer NOT NULL DEFAULT 0,
         used_processing_seconds integer NOT NULL DEFAULT 0,

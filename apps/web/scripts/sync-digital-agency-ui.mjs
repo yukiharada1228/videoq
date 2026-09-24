@@ -14,7 +14,6 @@ const components = [
   'checkbox',
   'chip-label',
   'dialog',
-  'disclosure',
   'divider',
   'error-text',
   'hamburger-menu-button',
@@ -30,7 +29,6 @@ const components = [
   'select',
   'support-text',
   'table',
-  'tabs',
   'textarea',
   'utility-link',
 ]

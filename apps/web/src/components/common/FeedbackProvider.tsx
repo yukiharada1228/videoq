@@ -53,6 +53,17 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   const [confirmRequest, setConfirmRequestState] = useState<ConfirmRequest | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const nextToastId = useRef(1);
+  const toastTimers = useRef(new Map<number, number>());
+
+  useLayoutEffect(() => {
+    const timers = toastTimers.current;
+    return () => {
+      activeConfirmRequest.current?.resolve(false);
+      activeConfirmRequest.current = null;
+      for (const timer of timers.values()) window.clearTimeout(timer);
+      timers.clear();
+    };
+  }, []);
 
   const visibleConfirmRequest =
     confirmRequest && confirmRequest.navigationKey === navigationKey
@@ -111,6 +122,8 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   }, [navigationKey]);
 
   const dismissToast = useCallback((id: number) => {
+    window.clearTimeout(toastTimers.current.get(id));
+    toastTimers.current.delete(id);
     setToasts((current) => current.filter((toast) => toast.id !== id));
   }, []);
 
@@ -126,7 +139,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     setToasts((current) => [...current, item]);
 
     if (options.durationMs !== 0) {
-      window.setTimeout(() => dismissToast(id), options.durationMs ?? 4000);
+      toastTimers.current.set(id, window.setTimeout(() => dismissToast(id), options.durationMs ?? 4000));
     }
   }, [dismissToast]);
 

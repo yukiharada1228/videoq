@@ -1,4 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
+import { useQueryClient } from '@tanstack/react-query';
+import { trpc } from '@/lib/trpc';
 import { useI18nNavigate } from '@/lib/i18n';
 import CourseInvitationPage from '../CourseInvitationPage';
 
@@ -23,6 +25,9 @@ const preview = {
 describe('CourseInvitationPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getInvitation.mockReset();
+    acceptInvitation.mockReset().mockResolvedValue({ course_id: 12, status: 'accepted' });
+    declineInvitation.mockReset().mockResolvedValue({ status: 'declined' });
     globalThis.__setTrpcHandler('courseMemberships.preview', getInvitation);
     globalThis.__setTrpcHandler('courseMemberships.accept', acceptInvitation);
     globalThis.__setTrpcHandler('courseMemberships.decline', declineInvitation);
@@ -72,6 +77,68 @@ describe('CourseInvitationPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'courseInvitation.decline' }));
 
     expect(await screen.findByText('courseInvitation.declined')).toBeInTheDocument();
+  });
+
+  it('reports the latest error when changing the invitation decision and permits retry', async () => {
+    acceptInvitation.mockRejectedValueOnce(new Error('Accept failed'));
+    declineInvitation.mockRejectedValueOnce(new Error('Decline failed'));
+    render(<CourseInvitationPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'courseInvitation.accept' }));
+    await screen.findByText('Accept failed');
+    fireEvent.click(screen.getByRole('button', { name: 'courseInvitation.decline' }));
+    expect(await screen.findByText('Decline failed')).toBeInTheDocument();
+    expect(screen.queryByText('Accept failed')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'courseInvitation.decline' }));
+    expect(await screen.findByText('courseInvitation.declined')).toBeInTheDocument();
+    expect(screen.queryByText('Decline failed')).not.toBeInTheDocument();
+    expect(declineInvitation).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['accept', 'decline'] as const)('keeps a successful %s in the preview cache when an older read finishes', async (action) => {
+    const { result } = renderHook(() => useQueryClient());
+    render(<CourseInvitationPage />);
+    await screen.findByText('Physics 101');
+    let finish!: () => void;
+    getInvitation.mockImplementationOnce(() => new Promise(resolve => { finish = () => resolve(preview); }));
+    let loading!: Promise<void>;
+    act(() => { loading = result.current.refetchQueries(trpc.courseMemberships.preview.queryFilter({ token: 'invite-token' })); });
+    await waitFor(() => expect(getInvitation).toHaveBeenCalledTimes(2));
+    fireEvent.click(screen.getByRole('button', { name: `courseInvitation.${action}` }));
+    await waitFor(() => expect(result.current.getQueryData(trpc.courseMemberships.preview.queryKey({ token: 'invite-token' }))?.status)
+      .toBe(action === 'accept' ? 'accepted' : 'declined'));
+    await act(async () => { finish(); await loading; });
+    expect(result.current.getQueryData(trpc.courseMemberships.preview.queryKey({ token: 'invite-token' })))
+      .toEqual({ ...preview, status: action === 'accept' ? 'accepted' : 'declined' });
+    expect(getInvitation).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not redirect after the recipient has left the invitation page', async () => {
+    let finish!: () => void;
+    acceptInvitation.mockImplementationOnce(() => new Promise(resolve => { finish = () => resolve({ course_id: 12, status: 'accepted' }); }));
+    const { result } = renderHook(() => useQueryClient());
+    const navigate = useI18nNavigate() as ReturnType<typeof vi.fn>;
+    const { unmount } = render(<CourseInvitationPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'courseInvitation.accept' }));
+    await waitFor(() => expect(acceptInvitation).toHaveBeenCalledTimes(1));
+    unmount();
+    await act(async () => finish());
+    await waitFor(() => expect(result.current.isMutating()).toBe(0));
+    expect(navigate).not.toHaveBeenCalled();
+    expect(result.current.getQueryData(trpc.courseMemberships.preview.queryKey({ token: 'invite-token' }))?.status).toBe('accepted');
+  });
+
+  it('sends only the first decision when both actions are clicked before the next render', async () => {
+    let finish!: () => void;
+    acceptInvitation.mockImplementationOnce(() => new Promise(resolve => { finish = () => resolve({ course_id: 12, status: 'accepted' }); }));
+    render(<CourseInvitationPage />);
+    const accept = await screen.findByRole('button', { name: 'courseInvitation.accept' });
+    const decline = screen.getByRole('button', { name: 'courseInvitation.decline' });
+    act(() => { fireEvent.click(accept); fireEvent.click(decline); fireEvent.click(accept); });
+    await waitFor(() => expect(acceptInvitation).toHaveBeenCalledTimes(1));
+    expect(declineInvitation).not.toHaveBeenCalled();
+    expect(accept).toBeDisabled();
+    expect(decline).toBeDisabled();
+    await act(async () => finish());
   });
 
   it('offers the course detail link for an already accepted invitation', async () => {

@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { videoSourceTypeSchema, videoStatusSchema } from "@videoq/trpc";
 import type { Bindings } from "../types/bindings";
-import { listVideosPage, getVideoDetail } from "../repositories/video-repository";
+import { sha256Hex } from "../shared/crypto";
+import { listVideosPage, getVideoDetail, getVideoMetadata } from "../repositories/video-repository";
 import { listCoursesPage, getCourseDetail } from "../repositories/course-repository";
 import { listTagsPage } from "../repositories/tag-repository";
 import {
@@ -470,16 +471,6 @@ function validateToolArguments(name: string, arguments_: Json): Json {
   return parsed.data as Json;
 }
 
-async function sha256Hex(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(value),
-  );
-  return Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, "0"),
-  ).join("");
-}
-
 async function creationIdempotency(
   action: CreationIdempotency["action"],
   key: unknown,
@@ -527,8 +518,6 @@ export async function callMcpTool(
   switch (name) {
     case "list_videos": {
       const { limit, offset } = normalizePagination(arguments_);
-      const tags = (arguments_.tags as unknown[]) || [];
-      const tagIds = tags.map((t) => Number(t)).filter((n) => Number.isInteger(n));
       const page = await listVideosPage(
         ctx.env,
         ctx.userId,
@@ -536,7 +525,7 @@ export async function callMcpTool(
           keyword: String(arguments_.q ?? "").trim(),
           statusFilter: String(arguments_.status ?? "").trim(),
           sortKey: String(arguments_.ordering ?? "").trim(),
-          tagIds: tagIds.length > 0 ? tagIds : null,
+          tagIds: (arguments_.tags as number[] | undefined) ?? null,
         },
         limit,
         offset,
@@ -551,12 +540,10 @@ export async function callMcpTool(
       );
     }
     case "get_video": {
-      const video = await getVideoDetail(
-        ctx.env,
-        Number(arguments_.video_id),
-        ctx.userId,
-        { includeFileUrl: false },
-      );
+      const videoId = Number(arguments_.video_id);
+      const video = arguments_.include_transcript === true
+        ? await getVideoDetail(ctx.env, videoId, ctx.userId, { includeFileUrl: false })
+        : await getVideoMetadata(ctx.env, videoId, ctx.userId);
       if (!video) {
         throw new McpToolError("Video not found", {
           status: 404,
@@ -564,7 +551,7 @@ export async function callMcpTool(
         });
       }
       const result = compactVideo(video);
-      if (arguments_.include_transcript === true) {
+      if ("transcript" in video) {
         const transcript = video.transcript ?? "";
         const offset = Number(arguments_.transcript_offset);
         const limit = Number(arguments_.transcript_limit);

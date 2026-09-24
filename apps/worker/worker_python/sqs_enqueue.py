@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import uuid
+from contextlib import closing
 from typing import Any
 
 from worker_python.sqs_client import create_sqs_client
@@ -57,12 +58,14 @@ def enqueue_job(
     """
     queue_url = os.environ.get("SQS_QUEUE_URL", "").strip()
     if not queue_url:
-        logger.info("SQS_QUEUE_URL unset; skip enqueue for %s payload=%s", job_type, payload)
+        logger.info(
+            "SQS_QUEUE_URL unset; skip enqueue for %s payload=%s", job_type, payload
+        )
         return None
 
-    client = create_sqs_client()
     body = json.dumps(build_job_message(job_type, payload, job_id=job_id))
-    resp = client.send_message(QueueUrl=queue_url, MessageBody=body)
+    with closing(create_sqs_client()) as client:
+        resp = client.send_message(QueueUrl=queue_url, MessageBody=body)
     message_id = resp.get("MessageId")
     logger.info("Enqueued %s payload=%s messageId=%s", job_type, payload, message_id)
     return message_id

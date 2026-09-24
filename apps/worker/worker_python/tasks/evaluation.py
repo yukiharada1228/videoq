@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 def _fetch_chat_log(conn: Any, chat_log_id: int) -> dict[str, Any] | None:
     return conn.execute(
         """
-        SELECT id, question, answer, retrieved_contexts
+        SELECT question, answer, retrieved_contexts
           FROM chat_logs
          WHERE id = %s
         """,
@@ -33,46 +33,30 @@ def _save_evaluation(
     error_message: str,
     evaluated_at: datetime | None,
 ) -> None:
-    params = (
-        status,
-        faithfulness,
-        answer_relevancy,
-        context_precision,
-        error_message,
-        evaluated_at,
-        chat_log_id,
-    )
-    updated = conn.execute(
+    conn.execute(
         """
-        UPDATE chat_log_evaluations
-           SET status = %s,
-               faithfulness = %s,
-               answer_relevancy = %s,
-               context_precision = %s,
-               error_message = %s,
-               evaluated_at = %s
-         WHERE chat_log_id = %s
+        INSERT INTO chat_log_evaluations
+            (chat_log_id, status, faithfulness, answer_relevancy,
+             context_precision, error_message, evaluated_at, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+        ON CONFLICT (chat_log_id) DO UPDATE
+           SET status = EXCLUDED.status,
+               faithfulness = EXCLUDED.faithfulness,
+               answer_relevancy = EXCLUDED.answer_relevancy,
+               context_precision = EXCLUDED.context_precision,
+               error_message = EXCLUDED.error_message,
+               evaluated_at = EXCLUDED.evaluated_at
         """,
-        params,
+        (
+            chat_log_id,
+            status,
+            faithfulness,
+            answer_relevancy,
+            context_precision,
+            error_message,
+            evaluated_at,
+        ),
     )
-    if updated.rowcount == 0:
-        conn.execute(
-            """
-            INSERT INTO chat_log_evaluations
-                (chat_log_id, status, faithfulness, answer_relevancy,
-                 context_precision, error_message, evaluated_at, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
-            """,
-            (
-                chat_log_id,
-                status,
-                faithfulness,
-                answer_relevancy,
-                context_precision,
-                error_message,
-                evaluated_at,
-            ),
-        )
     conn.commit()
 
 
@@ -91,7 +75,6 @@ def evaluate_chat_log(chat_log_id: int) -> None:
         logger.warning("ChatLog %s not found; skipping evaluation.", chat_log_id)
         return
 
-    status = "pending"
     faithfulness: float | None = None
     answer_relevancy: float | None = None
     context_precision: float | None = None

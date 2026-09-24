@@ -11,9 +11,10 @@ interface AppFixture {
   names?: Record<string, string>;
   load?: 'pending' | 'error';
   revoke?: 'pending' | 'error' | 'retry';
-  refetchPending?: boolean;
+  failListAfterRevoke?: boolean;
 }
 const revokeRequest = fn();
+const listRequest = fn();
 const successMessage = /アプリとの連携を解除しました|App disconnected/;
 const errorMessage = /連携の解除に失敗しました|Failed to disconnect app/;
 
@@ -32,9 +33,15 @@ const meta = {
     let rows = structuredClone(fixture.consents ?? consents);
     let attempts = 0;
     revokeRequest.mockClear();
+    listRequest.mockClear();
     msw.use(
       fixture.load ? restGet(consentListPath, fixture.load === 'pending' ? pending() : failure())
-        : http.get(consentListPath, () => HttpResponse.json(rows)),
+        : http.get(consentListPath, () => {
+          listRequest();
+          return attempts > 0 && fixture.failListAfterRevoke
+            ? HttpResponse.json({ message: 'List unavailable' }, { status: 500 })
+            : HttpResponse.json(rows);
+        }),
       publicClientHandler(fixture.names),
       fixture.revoke === 'pending' ? restPost(revokeConsentPath, pending())
         : http.post(revokeConsentPath, async ({ request }) => {
@@ -45,7 +52,6 @@ const meta = {
             return HttpResponse.json({ message: 'Fixture revoke failed', code: 'INTERNAL_SERVER_ERROR' }, { status: 500 });
           }
           rows = rows.filter((row) => row.id !== body.id);
-          if (fixture.refetchPending) msw.use(restGet(consentListPath, pending()));
           return HttpResponse.json({ success: true });
         }),
     );
@@ -124,15 +130,18 @@ export const RevokePending: Story = {
     await expect(within(canvasElement).getAllByRole('listitem')).toHaveLength(2);
   },
 };
-export const RefetchPending: Story = {
-  parameters: { connectedApps: { refetchPending: true } satisfies AppFixture },
+export const RevokeWithoutListRefresh: Story = {
+  parameters: { connectedApps: { failListAfterRevoke: true } satisfies AppFixture },
   async play({ canvasElement, userEvent }) {
     const button = await firstRevokeButton(canvasElement);
     await userEvent.click(button);
     await userEvent.click(within(within(canvasElement).getByRole('dialog')).getByRole('button', { name: /連携を解除|Disconnect/ }));
     await expect(await within(canvasElement).findByText(successMessage)).toBeVisible();
-    for (const action of within(canvasElement).getAllByRole('button')) await expect(action).toBeDisabled();
-    await expect(button).toHaveAttribute('aria-busy', 'true');
+    await waitFor(() => expect(button).not.toBeInTheDocument());
+    const list = within(canvasElement).getByRole('list');
+    await expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+    await expect(within(list).getByRole('button')).toBeEnabled();
+    await expect(listRequest).toHaveBeenCalledTimes(1);
   },
 };
 export const RevokeFailed: Story = {

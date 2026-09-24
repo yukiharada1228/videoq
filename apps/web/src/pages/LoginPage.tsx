@@ -1,3 +1,4 @@
+import { authClient } from '@/lib/auth-client';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Link, useI18nNavigate } from '@/lib/i18n';
@@ -37,7 +38,6 @@ export default function LoginPage() {
       await apiClient.login(data);
       // Refresh the session atom. AuthProvider clears the previous account's
       // cache before the destination page loads its own profile and data.
-      const { authClient } = await import('@/lib/auth-client');
       await authClient.getSession();
     },
     initialData: { username: '', password: '' },

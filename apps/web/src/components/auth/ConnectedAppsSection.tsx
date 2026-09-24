@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 
-import { apiClient } from '@/lib/api';
+import { apiClient, type AuthorizedOAuthToken } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -18,41 +18,36 @@ export function ConnectedAppsSection({ headingLevel = 'h2' }: { headingLevel?: '
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [statusMessage, setStatusMessage] = useState<StatusMessage>(null);
-  const [revokingId, setRevokingId] = useState<string | null>(null);
   const [pendingRevoke, setPendingRevoke] = useState<{ id: string; name: string } | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const statusRef = useRef<HTMLDivElement>(null);
 
   const tokensQuery = useQuery({
     queryKey: queryKeys.auth.oauthTokens,
-    queryFn: async () => apiClient.getAuthorizedOAuthTokens(),
+    queryFn: () => apiClient.getAuthorizedOAuthTokens(),
   });
 
   const revokeMutation = useMutation({
     mutationFn: (id: string) => apiClient.revokeAuthorizedOAuthToken(id),
-    onMutate: (id: string) => {
-      setRevokingId(id);
+    onMutate: () => {
       setStatusMessage(null);
     },
-    onSuccess: async () => {
+    onSuccess: async (_, id) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.auth.oauthTokens });
+      queryClient.setQueryData<AuthorizedOAuthToken[]>(queryKeys.auth.oauthTokens, tokens => tokens?.filter(token => token.id !== id));
       setStatusMessage({ tone: 'success', text: t('settings.connectedApps.successRevoked') });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.auth.oauthTokens });
     },
     onError: () => {
       setStatusMessage({ tone: 'error', text: t('settings.connectedApps.errorRevoking') });
     },
     onSettled: () => {
-      setRevokingId(null);
       setPendingRevoke(null);
     },
   });
 
-  const closeConfirmation = () => {
-    setPendingRevoke(null);
-  };
   const confirmation = useDialog({
     open: pendingRevoke !== null,
-    onOpenChange: (open) => { if (!open) closeConfirmation(); },
+    onOpenChange: (open) => { if (!open) setPendingRevoke(null); },
     onRequestClose: (event) => { if (revokeMutation.isPending) event.preventDefault(); },
   });
 
@@ -104,7 +99,7 @@ export function ConnectedAppsSection({ headingLevel = 'h2' }: { headingLevel?: '
                   variant="text"
                   size="sm"
                   disabled={revokeMutation.isPending}
-                  aria-busy={revokeMutation.isPending && revokingId === token.id}
+                  aria-busy={revokeMutation.isPending && revokeMutation.variables === token.id}
                   onClick={(event) => {
                     triggerRef.current = event.currentTarget;
                     setStatusMessage(null);
@@ -113,7 +108,7 @@ export function ConnectedAppsSection({ headingLevel = 'h2' }: { headingLevel?: '
                   aria-label={`${t('settings.connectedApps.revoke')}: ${token.client_name}`}
                   className="shrink-0 text-error-1 hover:bg-red-50"
                 >
-                  {revokeMutation.isPending && revokingId === token.id && <InlineSpinner className="mr-1 h-4 w-4" />}
+                  {revokeMutation.isPending && revokeMutation.variables === token.id && <InlineSpinner className="mr-1 h-4 w-4" />}
                   {t('settings.connectedApps.revoke')}
                 </Button>
               </div>
@@ -152,7 +147,7 @@ export function ConnectedAppsSection({ headingLevel = 'h2' }: { headingLevel?: '
             </DialogBody>
             <DialogActions>
               <div className="flex flex-wrap justify-end gap-3">
-                <Button variant="outline" disabled={revokeMutation.isPending} onClick={closeConfirmation}>{t('settings.cancel')}</Button>
+                <Button variant="outline" disabled={revokeMutation.isPending} onClick={() => setPendingRevoke(null)}>{t('settings.cancel')}</Button>
                 <Button
                   className="bg-error-1 hover:bg-red-1000 active:bg-red-1200"
                   disabled={revokeMutation.isPending}

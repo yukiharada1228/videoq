@@ -23,10 +23,9 @@ export function normalizeShareSlug(
   raw: string,
 ): { slug: string } | { error: string } {
   const n = raw.trim().toLowerCase();
-  if (!n) return { error: INVALID_SLUG_MESSAGE };
-  if (n.length < 3 || n.length > 64) return { error: INVALID_SLUG_MESSAGE };
-  if (n.includes("--")) return { error: INVALID_SLUG_MESSAGE };
-  if (!SLUG_PATTERN.test(n)) return { error: INVALID_SLUG_MESSAGE };
+  if (n.length < 3 || n.length > 64 || !SLUG_PATTERN.test(n)) {
+    return { error: INVALID_SLUG_MESSAGE };
+  }
   if (RESERVED_SLUGS.has(n)) return { error: RESERVED_SLUG_MESSAGE };
   return { slug: n };
 }

@@ -47,6 +47,8 @@ Two tools are available:
 
 The model can make up to 8 tool-enabled turns, after which tools are removed and it generates a final answer. The API validates arguments and access scope rather than executing model requests unchecked.
 
+For course Q&A, the streaming API sends search progress immediately and sends the final answer once the agent finishes. Tool-call preambles are not sent as answers. Client cancellation or interrupted delivery cancels outstanding model and embedding requests.
+
 ## Citations and permissions
 
 The model is instructed to attach `[N]` to claims supported by retrieved scenes. The API assigns the scene numbers and returns each scene's video and timestamps to the UI. Metadata such as course names and video counts does not receive scene citation numbers or timestamps.
@@ -61,10 +63,11 @@ Search filters enforce the course access scope established by the API. Separatel
 |---|---|
 | A scene search returns no hits | The tool reports no matching scenes. The model can try another query within its allowance |
 | Three scene searches have already run | Further searches return a limit message; the model is instructed to answer from acquired evidence or explain the missing support |
-| A selected video ID is outside the course | The tool rejects that search and tells the model to use valid IDs |
+| A selected video ID is outside the course | The tool rejects that search without consuming a search attempt and tells the model to use valid IDs |
 | Retrieved scenes only partly answer the question | The prompt asks for a supported partial answer with an explanation of its limits |
 | Database or embedding execution fails | The exception propagates; it is not presented to the model as “no evidence,” and reserved answer usage is released by the chat flow |
 | The answer provider fails or times out | The request follows the error path; the chat-model wrapper does not automatically retry provider calls |
+| The final model response is blank or still contains tool calls | The request fails and releases reserved answer usage; an earlier preamble is never substituted as the answer |
 
 Weak search matches can still be returned because the application currently has no minimum similarity cutoff. See [scene search](transcription-and-search.md). Prompt wording alone cannot fix missing transcript content or a mismatched embedding index.
 

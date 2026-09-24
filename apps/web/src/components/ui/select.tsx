@@ -6,8 +6,6 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/digital-agency/cn"
 import { DialogPortalContext } from "./dialog"
 
-export type SelectBlockSize = "lg" | "md" | "sm"
-
 const Select = SelectPrimitive.Root
 
 const SelectGroup = SelectPrimitive.Group

@@ -15,19 +15,13 @@ import {
   type VideoSourceType,
   type VideoStatus,
 } from "@videoq/trpc";
-import { withDb } from "../db/pool";
+import { type Db, withDb } from "../db/pool";
 import { sqlNumberArray } from "../db/sql-array";
 import {
-  plogBuildJobs,
-  plogConcepts,
-  plogEdges,
-  plogSummaryNodes,
   sceneEmbeddings,
   mcpIdempotencyRecords,
   users,
   videos,
-  videoCourseMembers,
-  videoTags,
 } from "../db/schema";
 import {
   insertJobTask,
@@ -87,6 +81,7 @@ export type OutboxedVideoJob = {
 export type PendingVideoReservation =
   | { ok: true; videoId: number; fileKey: string; reused: boolean }
   | { idempotencyConflict: true }
+  | { fileTooLarge: true; maxMb: number }
   | { overQuota: true }
   | { exceeded: true; limit: number };
 
@@ -113,7 +108,7 @@ function escapeLike(value: string): string {
 
 // Correlate with outer videos explicitly — ${videos.id} emits bare "id"
 // which is ambiguous once the subquery joins tags (also has id).
-const videoTagsJson = sql<string>`COALESCE((
+export const videoTagsJson = sql<string>`COALESCE((
   SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
   FROM video_tags vt JOIN tags t ON t.id = vt.tag_id
   WHERE vt.video_id = "videos"."id"
@@ -152,12 +147,6 @@ function buildFilterConditions(userId: string, c: VideoListCriteria): SQL {
   return and(...conditions)!;
 }
 
-export const TAGS_SUBQUERY = `COALESCE((
-  SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) ORDER BY t.name)
-  FROM video_tags vt JOIN tags t ON t.id = vt.tag_id
-  WHERE vt.video_id = v.id
-), '[]'::json)::text`;
-
 // 動画一覧の行→オブジェクト変換（一覧・詳細・講座詳細で共有）。
 // 行は少なくとも id/file/title/description/uploaded_at(to_char済)/status/source_type/
 // source_url/youtube_video_id/tags(::text) を含むこと。
@@ -187,6 +176,56 @@ export async function mapVideoListRow(
   };
 }
 
+const videoListSelect = {
+  id: videos.id,
+  file: videos.file,
+  title: videos.title,
+  description: videos.description,
+  uploaded_at: videos.uploadedAt,
+  status: videos.status,
+  source_type: videos.sourceType,
+  source_url: videos.sourceUrl,
+  youtube_video_id: videos.youtubeVideoId,
+  tags: videoTagsJson,
+};
+
+const videoDetailSelect = {
+  id: videos.id,
+  user_id: videos.userId,
+  file: videos.file,
+  title: videos.title,
+  description: videos.description,
+  uploaded_at: videos.uploadedAt,
+  transcript: videos.transcript,
+  status: videos.status,
+  source_type: videos.sourceType,
+  source_url: videos.sourceUrl,
+  youtube_video_id: videos.youtubeVideoId,
+  error_message: videos.errorMessage,
+  tags: videoTagsJson,
+};
+
+async function readVideoDetail(db: Db, videoId: number, userId: string) {
+  const [row] = await db.select(videoDetailSelect)
+    .from(videos)
+    .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function mapVideoDetailRow(
+  env: Bindings,
+  row: NonNullable<Awaited<ReturnType<typeof readVideoDetail>>>,
+  options: { includeFileUrl?: boolean } = {},
+): Promise<VideoDetail> {
+  return {
+    ...await mapVideoListRow(env, row, options),
+    user: String(row.user_id),
+    transcript: row.transcript || null,
+    error_message: row.error_message || null,
+  };
+}
+
 /** VideoDetailView: id + user_id で1件取得（未所有/不在は null）。 */
 export async function getVideoDetail(
   env: Bindings,
@@ -194,57 +233,40 @@ export async function getVideoDetail(
   userId: string,
   options: { includeFileUrl?: boolean } = {},
 ): Promise<VideoDetail | null> {
+  const row = await withDb(env, (db) => readVideoDetail(db, videoId, userId));
+  return row ? mapVideoDetailRow(env, row, options) : null;
+}
+
+/** Metadata-only reads do not transfer the transcript or resolve a media URL. */
+export async function getVideoMetadata(env: Bindings, videoId: number, userId: string) {
   const row = await withDb(env, async (db) => {
-    const rows = await db
-      .select({
-        id: videos.id,
-        user_id: videos.userId,
-        file: videos.file,
-        title: videos.title,
-        description: videos.description,
-        uploaded_at: videos.uploadedAt,
-        transcript: videos.transcript,
-        status: videos.status,
-        source_type: videos.sourceType,
-        source_url: videos.sourceUrl,
-        youtube_video_id: videos.youtubeVideoId,
-        error_message: videos.errorMessage,
-        tags: videoTagsJson,
-      })
-      .from(videos)
+    const [video] = await db.select({
+      ...videoListSelect,
+      file: sql<null>`NULL`,
+      error_message: videos.errorMessage,
+      // MCP offsets count UTF-16 code units, as String.length / slice do.
+      // Supplementary Unicode characters contribute two units, not one.
+      transcript_total_chars: sql<number>`COALESCE(
+        char_length(${videos.transcript}) +
+        regexp_count(${videos.transcript} COLLATE "C", ${"[\u{10000}-\u{10ffff}]"}), 0
+      )`,
+    }).from(videos)
       .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
       .limit(1);
-    return rows[0] ?? null;
+    return video;
   });
   if (!row) return null;
-
-  const youtubeId = row.youtube_video_id || null;
   return {
-    id: Number(row.id),
-    user: String(row.user_id),
-    file:
-      options.includeFileUrl === false
-        ? null
-        : await resolveFileUrl(env, row.file || null),
-    title: row.title,
-    description: row.description,
-    uploaded_at: toUtcIso(row.uploaded_at)!,
-    transcript: row.transcript || null,
-    status: videoStatus(row.status),
-    source_type: videoSourceType(row.source_type),
-    source_url: row.source_url || null,
-    youtube_video_id: youtubeId,
-    youtube_embed_url: youtubeId
-      ? `https://www.youtube.com/embed/${youtubeId}`
-      : null,
+    ...await mapVideoListRow(env, row, { includeFileUrl: false }),
     error_message: row.error_message || null,
-    tags: JSON.parse(row.tags),
+    transcript_available: row.transcript_total_chars > 0,
+    transcript_total_chars: row.transcript_total_chars,
   };
 }
 
 /**
  * 動画メタデータを更新する。タイトルのベクトルメタデータ同期と、
- * transcript再indexのoutbox作成も同じtransactionに含める。
+ * transcript再indexのoutbox作成と応答データの取得も同じtransactionに含める。
  */
 export async function updateVideo(
   env: Bindings,
@@ -254,37 +276,43 @@ export async function updateVideo(
 ): Promise<
   | { notFound: true }
   | {
-      ok: true;
+      row: NonNullable<Awaited<ReturnType<typeof readVideoDetail>>>;
       reindexTaskId: number | null;
     }
 > {
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
-      const cur = await tx
-        .select({ title: videos.title, transcript: videos.transcript })
+      // Compare under the row lock without transferring a potentially large transcript.
+      const [changes] = await tx
+        .select({
+          title: fields.title === undefined
+            ? sql<boolean>`false`
+            : sql<boolean>`${videos.title} IS DISTINCT FROM ${fields.title}`,
+          description: fields.description === undefined
+            ? sql<boolean>`false`
+            : sql<boolean>`${videos.description} IS DISTINCT FROM ${fields.description}`,
+          transcript: fields.transcript === undefined
+            ? sql<boolean>`false`
+            : sql<boolean>`COALESCE(${videos.transcript}, '') IS DISTINCT FROM ${fields.transcript}`,
+        })
         .from(videos)
         .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
         .for("update")
         .limit(1);
-      if (cur.length === 0) return { notFound: true } as const;
-      const oldTitle = cur[0].title;
-      const oldTranscript = cur[0].transcript ?? "";
+      if (!changes) return { notFound: true } as const;
 
       const patch: { title?: string; description?: string; transcript?: string } = {};
-      if (fields.title !== undefined) patch.title = fields.title;
-      if (fields.description !== undefined) patch.description = fields.description;
-      if (fields.transcript !== undefined) patch.transcript = fields.transcript;
-      if (Object.keys(patch).length > 0) {
-        await tx
-          .update(videos)
-          .set(patch)
-          .where(and(eq(videos.id, videoId), eq(videos.userId, userId)));
-      }
+      if (changes.title) patch.title = fields.title;
+      if (changes.description) patch.description = fields.description;
+      if (changes.transcript) patch.transcript = fields.transcript;
+      const row = Object.keys(patch).length > 0
+        ? (await tx.update(videos).set(patch)
+          .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
+          .returning(videoDetailSelect))[0]
+        : await readVideoDetail(tx, videoId, userId);
+      if (!row) throw new Error("Locked video disappeared.");
 
-      const transcriptChanged =
-        fields.transcript !== undefined && fields.transcript !== oldTranscript;
-      const titleChanged = fields.title !== undefined && fields.title !== oldTitle;
-      if (titleChanged) {
+      if (changes.title) {
         await tx
           .update(sceneEmbeddings)
           .set({
@@ -297,7 +325,7 @@ export async function updateVideo(
           .where(eq(sceneEmbeddings.videoId, videoId));
       }
       let reindexTaskId: number | null = null;
-      if (transcriptChanged) {
+      if (changes.transcript) {
         const message = buildJobMessage(JOB_REINDEX_VIDEO_TRANSCRIPT, {
           video_id: videoId,
         });
@@ -305,7 +333,7 @@ export async function updateVideo(
         reindexTaskId = task.id;
       }
       return {
-        ok: true,
+        row,
         reindexTaskId,
       } as const;
     }),
@@ -371,57 +399,42 @@ export async function createYoutubeVideo(
   );
 }
 
-/** 動画の存在 + transcript の有無（plog rebuild の 404 判定用）。 */
-export async function getVideoTranscriptState(
+/** 確定前の状態と保存先を取得（未所有/不在は found:false）。 */
+export async function getVideoUploadState(
   env: Bindings,
   videoId: number,
   userId: string,
-): Promise<{ found: false } | { found: true; hasTranscript: boolean }> {
+): Promise<{ found: false } | { found: true; status: string; fileKey: string | null }> {
   return withDb(env, async (db) => {
     const rows = await db
-      .select({ transcript: videos.transcript })
+      .select({ status: videos.status, file: videos.file })
       .from(videos)
       .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
       .limit(1);
     if (rows.length === 0) return { found: false } as const;
-    const t = rows[0].transcript;
-    return { found: true, hasTranscript: !!t && t !== "" } as const;
-  });
-}
-
-/** 動画の status を取得（存在確認込み。未所有/不在は found:false）。 */
-export async function getVideoStatus(
-  env: Bindings,
-  videoId: number,
-  userId: string,
-): Promise<{ found: false } | { found: true; status: string }> {
-  return withDb(env, async (db) => {
-    const rows = await db
-      .select({ status: videos.status })
-      .from(videos)
-      .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
-      .limit(1);
-    if (rows.length === 0) return { found: false } as const;
-    return { found: true, status: rows[0].status } as const;
+    return { found: true, status: rows[0].status, fileKey: rows[0].file || null } as const;
   });
 }
 
 /**
- * status を条件付き遷移する。from 状態のときのみ to へ進める。
- * error_message は "" にリセット。更新行があれば true。
+ * 所有者・確認済み保存先が一致する uploading 動画だけを pending に進める。
+ * 文字起こしジョブの保存も同じtransactionに含め、競合時はfalseを返す。
  */
-export async function transitionVideoStatus(
+export async function confirmUploadedVideo(
   env: Bindings,
   videoId: number,
-  fromStatus: string,
-  toStatus: string,
+  userId: string,
+  fileKey: string,
 ): Promise<false | OutboxedVideoJob> {
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
       const rows = await tx
         .update(videos)
-        .set({ status: toStatus, errorMessage: "" })
-        .where(and(eq(videos.id, videoId), eq(videos.status, fromStatus)))
+        .set({ status: "pending", errorMessage: "" })
+        .where(and(
+          eq(videos.id, videoId), eq(videos.userId, userId),
+          eq(videos.status, "uploading"), eq(videos.file, fileKey),
+        ))
         .returning({ id: videos.id });
       if (rows.length === 0) return false;
       const message = buildJobMessage(JOB_TRANSCRIBE_VIDEO, { video_id: videoId });
@@ -487,7 +500,16 @@ export async function reserveAndCreatePendingVideo(
 ): Promise<PendingVideoReservation> {
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
-      await tx.execute(sql`SELECT 1 FROM users WHERE id = ${userId} FOR UPDATE`);
+      const [owner] = await tx
+        .select({ maxMb: users.maxVideoUploadSizeMb })
+        .from(users)
+        .where(eq(users.id, userId))
+        .for("update");
+      if (!owner) throw new Error("Quota owner not found.");
+      // Check under the reservation lock so concurrent limit changes take effect.
+      if (storageBytes > owner.maxMb * 1024 * 1024) {
+        return { fileTooLarge: true, maxMb: owner.maxMb } as const;
+      }
       const existing = await findIdempotentResource(tx, userId, idempotency);
       if (existing.found) {
         if (existing.conflict) return { idempotencyConflict: true } as const;
@@ -557,14 +579,10 @@ export async function getVideoFileKey(
 }
 
 /**
- * 動画と関連行をトランザクション内でハード削除する。
- * DB 側 FK は ON DELETE CASCADE を持たないため、
- * 子テーブルを依存順に明示削除する。存在確認は呼び出し側で済ませる前提。
- *
- * 依存グラフ: video → {videotag, videocoursemember, plogbuildjob, plogsummarynode(self),
- *   plogconcept → {learnerconceptstate, ploglearningobject, plogedge}}
- *   （plogedge は video_id と concept(source/target) の双方を参照）。
+ * 所有権をロック下で確認し、関連行のFK cascadeと配送taskの保存を含めて削除する。
+ * FKを持たないベクトルと冪等性レコードは明示的に削除する。
  * expectedStatus 指定時は、ロック取得時にもその状態である場合だけ削除する。
+ * expectedFileKey 指定時は、検証・転送した保存先が変わっていれば削除しない。
  */
 export async function deleteVideoCascade(
   env: Bindings,
@@ -572,6 +590,7 @@ export async function deleteVideoCascade(
   userId: string,
   options: {
     expectedStatus?: string;
+    expectedFileKey?: string;
     fallbackStorageBytes?: number | null;
   } = {},
 ): Promise<
@@ -589,7 +608,9 @@ export async function deleteVideoCascade(
       if (
         locked.length === 0 ||
         (options.expectedStatus !== undefined &&
-          locked[0].status !== options.expectedStatus)
+          locked[0].status !== options.expectedStatus) ||
+        (options.expectedFileKey !== undefined &&
+          locked[0].file !== options.expectedFileKey)
       ) {
         return { deleted: false, cleanupTaskId: null } as const;
       }
@@ -622,24 +643,10 @@ export async function deleteVideoCascade(
           ),
         );
 
-      await tx.execute(sql`
-        DELETE FROM learner_concept_states
-         WHERE concept_id IN (SELECT id FROM plog_concepts WHERE video_id = ${videoId})
-      `);
-      await tx.execute(sql`
-        DELETE FROM plog_learning_objects
-         WHERE concept_id IN (SELECT id FROM plog_concepts WHERE video_id = ${videoId})
-      `);
-      await tx.delete(plogEdges).where(eq(plogEdges.videoId, videoId));
-      await tx.delete(plogConcepts).where(eq(plogConcepts.videoId, videoId));
-
-      await tx.delete(plogSummaryNodes).where(eq(plogSummaryNodes.videoId, videoId));
-      await tx.delete(plogBuildJobs).where(eq(plogBuildJobs.videoId, videoId));
-      await tx.delete(videoTags).where(eq(videoTags.videoId, videoId));
-      await tx.delete(videoCourseMembers).where(eq(videoCourseMembers.videoId, videoId));
       // No FK; remove vector rows so orphan embeddings do not linger.
       await tx.execute(sql`DELETE FROM scene_embeddings WHERE video_id = ${videoId}`);
 
+      // FK cascades remove PLOG data, learner states, tags and course memberships.
       await tx
         .delete(videos)
         .where(and(eq(videos.id, videoId), eq(videos.userId, userId)));
@@ -719,23 +726,13 @@ export async function listVideosPage(
       .select({ c: sql<number>`count(*)::int` })
       .from(videos)
       .where(where);
+    if (offset >= countRows[0].c) return { rows: [], count: countRows[0].c };
 
     const listRows = await db
-      .select({
-        id: videos.id,
-        file: videos.file,
-        title: videos.title,
-        description: videos.description,
-        uploaded_at: videos.uploadedAt,
-        status: videos.status,
-        source_type: videos.sourceType,
-        source_url: videos.sourceUrl,
-        youtube_video_id: videos.youtubeVideoId,
-        tags: videoTagsJson,
-      })
+      .select(videoListSelect)
       .from(videos)
       .where(where)
-      .orderBy(orderBy)
+      .orderBy(orderBy, desc(videos.id))
       .limit(limit)
       .offset(offset);
 

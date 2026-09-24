@@ -11,7 +11,7 @@ import { UtilityLink } from '@/components/ui/utility-link';
 
 type EmailChangeState = 'loading' | 'pending' | 'success' | 'error';
 
-function EmailChangeConfirmContent() {
+export default function EmailChangeConfirmPage() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   const errorParam = searchParams.get('error');
@@ -51,14 +51,11 @@ function EmailChangeConfirmContent() {
   } else if (confirmQuery.isSuccess) {
     state = 'success';
     message = t('auth.emailChange.success');
-  } else if (confirmQuery.isError) {
+  } else {
     state = 'error';
     message = confirmQuery.error instanceof Error
       ? confirmQuery.error.message
       : t('auth.emailChange.error');
-  } else {
-    state = 'loading';
-    message = t('auth.emailChange.loading');
   }
 
   return (
@@ -109,8 +106,4 @@ function EmailChangeConfirmContent() {
 
     </>
   );
-}
-
-export default function EmailChangeConfirmPage() {
-  return <EmailChangeConfirmContent />;
 }

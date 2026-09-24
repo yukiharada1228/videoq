@@ -34,14 +34,6 @@ class TranscriptionExecutionFailedError(Exception):
     pass
 
 
-class TranscriptionRejectedError(Exception):
-    pass
-
-
-class FileSizeExceededError(Exception):
-    pass
-
-
 class ProcessingQuotaExceededError(Exception):
     pass
 
@@ -80,7 +72,7 @@ def transcribe_video(video_id: int, *, job_id: str | None = None) -> None:
     logger.info("Transcription task started for video ID: %d", video_id)
 
     with db_connection() as conn:
-        video = get_video_for_task(conn, video_id)
+        video = get_video_for_task(conn, video_id, include_transcript=False)
 
     if video is None:
         logger.warning("Transcription target video not found: %d", video_id)
@@ -138,9 +130,6 @@ def transcribe_video(video_id: int, *, job_id: str | None = None) -> None:
             transition_video_status(conn, video_id, success_from, success_to)
             conn.commit()
 
-    except FileSizeExceededError:
-        logger.warning("File size exceeded for video %d, no retry", video_id)
-        return
     except ProcessingQuotaExceededError as exc:
         logger.warning("Processing quota exceeded for video %d: %s", video_id, exc)
         fail_from, fail_to = plan_transcription_failure()
@@ -150,15 +139,7 @@ def transcribe_video(video_id: int, *, job_id: str | None = None) -> None:
             )
             conn.commit()
         return
-    except TranscriptionRejectedError as exc:
-        logger.warning("Transcription rejected for video %d, no retry: %s", video_id, exc)
-        return
-    except (
-        TranscriptionTargetMissingError,
-        TranscriptionExecutionFailedError,
-        TranscriptionRejectedError,
-        FileSizeExceededError,
-    ):
+    except TranscriptionExecutionFailedError:
         raise
     except Exception as exc:
         error_msg = str(exc)

@@ -14,11 +14,10 @@ let opened = 0;
 const videoSelections: (readonly number[] | undefined)[] = [];
 
 vi.mock("../../src/repositories/vector-repository", () => ({
-  RETRIEVER_K: 20,
   openSceneSearch: async () => {
     opened += 1;
     return {
-    search: async (query: string, _k?: number, videoIds?: readonly number[]): Promise<SceneHit[]> => {
+    search: async (query: string, videoIds?: readonly number[]): Promise<SceneHit[]> => {
       searchCalls.push(query);
       videoSelections.push(videoIds);
       return [
@@ -37,7 +36,7 @@ vi.mock("../../src/repositories/vector-repository", () => ({
 }));
 
 vi.mock("../../src/repositories/course-repository", () => ({
-  getCourseDetail: async () => ({
+  getCourseInfo: async () => ({
     name: "Course A", description: "Course description", video_count: 1,
     videos: [{ id: 60, title: "Video A", description: "", order: 0, status: "processing" }],
   }),
@@ -63,29 +62,13 @@ describe("RAG agent in the Workers runtime", () => {
     let call = 0;
     vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
       expect(url).toBe("https://openai.test/v1/chat/completions");
-      expect(JSON.parse(String(init.body)).stream).toBe(streaming);
+      expect(JSON.parse(String(init.body)).stream).toBe(false);
       call += 1;
       const metadataTurn = mode !== "search" && call === 1;
       const searchTurn = mode === "search" ? call === 1 : mode === "metadata-search" && call === 2;
       const toolName = metadataTurn ? "get_course_info" : "search_scenes";
       const args = metadataTurn ? {} : { query: "pgvector", ...(mode === "metadata-search" ? { video_ids: [60] } : {}) };
       const answer = mode === "metadata" ? "Course A has one video." : "Answer [1].";
-      if (streaming) {
-        const deltas = metadataTurn || searchTurn
-          ? [
-              { role: "assistant", content: "Let me search." },
-              { tool_calls: [{
-                index: 0,
-                id: `call_${call}`,
-                type: "function",
-                function: { name: toolName, arguments: JSON.stringify(args) },
-              }] },
-            ]
-          : [{ role: "assistant", content: answer }];
-        const frames = deltas.map((delta) => `data: ${JSON.stringify({ choices: [{ delta }] })}\n\n`);
-        frames.push("data: [DONE]\n\n");
-        return new Response(frames.join(""), { headers: { "content-type": "text/event-stream" } });
-      }
       if (metadataTurn || searchTurn) {
         return json({
           choices: [
@@ -120,7 +103,6 @@ describe("RAG agent in the Workers runtime", () => {
         ownerUserId: "00000000-0000-4000-8000-000000000005",
         videoIds: [60],
         locale: null,
-        courseContext: null,
         courseId: mode === "search" ? null : 3,
       };
       const chunks: RagStreamChunk[] = [];

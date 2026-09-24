@@ -7,12 +7,12 @@ describe('chat progress', () => {
     progress = updateChatProgress(progress, { type: 'searching', search_id: 2, query: '定理' });
     progress = updateChatProgress(progress, { type: 'search_completed', search_id: 2, query: '定理', result_count: 0 });
     expect(progress.phase).toBe('searching');
-    expect(progress.searches[1]).toMatchObject({ status: 'complete', resultCount: 0 });
+    expect(progress.searches[1]).toMatchObject({ status: 'complete' });
     progress = updateChatProgress(progress, { type: 'search_completed', search_id: 1, query: '回路', result_count: 20 });
     expect(progress.phase).toBe('reviewing');
     progress = updateChatProgress(progress, { type: 'searching', search_id: 3, query: 'ドモルガン' });
     expect(progress.phase).toBe('searching');
-    expect(progress.searches[0].resultCount).toBe(20);
+    expect(progress.searches[0].status).toBe('complete');
   });
 
   it('preserves completed searches and stops unfinished ones on failure', () => {

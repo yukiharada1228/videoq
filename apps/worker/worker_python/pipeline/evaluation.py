@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 from typing import Any
+
+from openai import DefaultAsyncHttpxClient, DefaultHttpxClient
 
 from .embedding_contract import EmbeddingContractError
 from worker_python.env import env_str
@@ -26,7 +29,6 @@ def score_chat_log(
     - LLMContextPrecisionWithoutReference (context_precision; skipped if no contexts)
     """
     try:
-        _ensure_ragas_importable()
         from ragas.dataset_schema import SingleTurnSample
         from ragas.embeddings import LangchainEmbeddingsWrapper
         from ragas.llms import LangchainLLMWrapper
@@ -37,7 +39,8 @@ def score_chat_log(
         )
     except ImportError as exc:
         raise RuntimeError(
-            "ragas is not installed. Add it to requirements.txt."
+            "RAGAS dependencies could not be imported. "
+            "Install the worker dependencies from pyproject.toml."
         ) from exc
 
     retrieved = [str(c) for c in (contexts or []) if c is not None]
@@ -47,49 +50,35 @@ def score_chat_log(
         retrieved_contexts=retrieved or [""],
     )
 
-    wrapped_llm = LangchainLLMWrapper(_langchain_llm())
-    wrapped_embeddings = LangchainEmbeddingsWrapper(_langchain_embeddings())
+    async def score_metrics():
+        # LangChain's default HTTP pool is cached across model instances. Own
+        # both clients so connections never outlive this job's event loop.
+        with DefaultHttpxClient() as http_client:
+            async with DefaultAsyncHttpxClient() as http_async_client:
+                wrapped_llm = LangchainLLMWrapper(
+                    _langchain_llm(
+                        http_client=http_client, http_async_client=http_async_client
+                    )
+                )
+                wrapped_embeddings = LangchainEmbeddingsWrapper(_langchain_embeddings())
+                faithfulness = await _run_metric(Faithfulness(llm=wrapped_llm), sample)
+                answer_relevancy = await _run_metric(
+                    ResponseRelevancy(llm=wrapped_llm, embeddings=wrapped_embeddings),
+                    sample,
+                )
+                context_precision = (
+                    await _run_metric(
+                        LLMContextPrecisionWithoutReference(llm=wrapped_llm), sample
+                    )
+                    if retrieved
+                    else None
+                )
+                return faithfulness, answer_relevancy, context_precision
 
-    faithfulness = _run_metric(Faithfulness(llm=wrapped_llm), sample)
-    answer_relevancy = _run_metric(
-        ResponseRelevancy(llm=wrapped_llm, embeddings=wrapped_embeddings),
-        sample,
-    )
-    context_precision: float | None = None
-    if retrieved:
-        context_precision = _run_metric(
-            LLMContextPrecisionWithoutReference(llm=wrapped_llm),
-            sample,
-        )
-
-    return faithfulness, answer_relevancy, context_precision
-
-
-def _ensure_ragas_importable() -> None:
-    """
-    ragas 0.4.3 unconditionally imports ChatVertexAI from a path removed in
-    langchain-community>=0.4.2. Stub the symbol when the real module is absent
-    so OpenAI/Ollama evaluation still works (we never use Vertex).
-    """
-    import sys
-    import types
-
-    name = "langchain_community.chat_models.vertexai"
-    if name in sys.modules:
-        return
-    try:
-        __import__(name)
-    except ImportError:
-        mod = types.ModuleType(name)
-
-        class ChatVertexAI:  # noqa: N801 - match upstream symbol name
-            pass
-
-        mod.ChatVertexAI = ChatVertexAI
-        sys.modules[name] = mod
+    return asyncio.run(score_metrics())
 
 
-def _langchain_llm():
+def _langchain_llm(*, http_client, http_async_client):
     from langchain_openai import ChatOpenAI
     from pydantic import SecretStr
 
@@ -110,6 +99,8 @@ def _langchain_llm():
         api_key=SecretStr(api_key),
         temperature=0.0,
         max_tokens=max_tokens,
+        http_client=http_client,
+        http_async_client=http_async_client,
     )
 
 
@@ -121,10 +112,15 @@ def _langchain_embeddings():
     return VideoQEmbeddings()
 
 
-def _run_metric(metric: Any, sample: Any) -> float | None:
+async def _run_metric(metric: Any, sample: Any) -> float | None:
     try:
-        score = asyncio.run(metric.single_turn_ascore(sample))
-        return float(score) if score is not None else None
+        score = await metric.single_turn_ascore(sample)
+        if score is None:
+            return None
+        value = float(score)
+        # RAGAS can return NaN when it cannot score an answer. Keep it missing
+        # so one unavailable metric cannot poison PostgreSQL averages or JSON.
+        return value if math.isfinite(value) else None
     except EmbeddingContractError:
         raise
     except Exception as exc:  # noqa: BLE001 - isolate third-party metric failures

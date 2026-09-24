@@ -1,4 +1,6 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, renderHook, screen, fireEvent, waitFor } from '@testing-library/react'
+import { useQueryClient } from '@tanstack/react-query'
+import { trpc } from '@/lib/trpc'
 import VideoCoursesPage from '../VideoCoursesPage'
 import { useI18nNavigate } from '@/lib/i18n'
 
@@ -198,6 +200,37 @@ describe('VideoCoursesPage', () => {
     expect(mockNavigate).not.toHaveBeenCalled()
   })
 
+  it('uses the server order after a successful save and subsequent refresh', async () => {
+    trpcApi.listCourses.mockReset()
+      .mockResolvedValueOnce(mockPaginatedGroups())
+      .mockResolvedValueOnce(mockPaginatedGroups([mockCourses[1], mockCourses[0]]))
+      .mockResolvedValue(mockPaginatedGroups())
+    const { result } = renderHook(() => useQueryClient())
+    render(<VideoCoursesPage />)
+    await screen.findByText('Course 1')
+    const names = () => screen.getAllByRole('button', { name: /^Course [12]/ })
+      .map((button) => button.firstElementChild?.textContent)
+    fireEvent.click(screen.getByLabelText('videos.courses.moveDown {"name":"Course 1"}'))
+    await waitFor(() => expect(trpcApi.listCourses).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.getByLabelText('videos.courses.moveDown {"name":"Course 2"}')).toBeEnabled())
+    expect(names()).toEqual(['Course 2', 'Course 1'])
+    await act(() => result.current.invalidateQueries(trpc.courses.list.pathFilter()))
+    await waitFor(() => expect(names()).toEqual(['Course 1', 'Course 2']))
+  })
+
+  it('restores the displayed order after a failed save without showing a list retry', async () => {
+    trpcApi.reorderCourses.mockRejectedValueOnce(new Error('Reorder failed'))
+    render(<VideoCoursesPage />)
+    await screen.findByText('Course 1')
+    fireEvent.click(screen.getByLabelText('videos.courses.moveDown {"name":"Course 1"}'))
+    expect(await screen.findByText('Reorder failed')).toBeInTheDocument()
+    const names = screen.getAllByRole('button', { name: /^Course [12]/ })
+      .map((button) => button.firstElementChild?.textContent)
+    expect(names).toEqual(['Course 1', 'Course 2'])
+    expect(screen.queryByRole('button', { name: 'videos.courses.retryLoad' })).not.toBeInTheDocument()
+    expect(trpcApi.listCourses).toHaveBeenCalledTimes(1)
+  })
+
   it('separates joined courses and never includes them in owner reordering', async () => {
     trpcApi.listCourses.mockResolvedValue(
       mockPaginatedGroups([
@@ -239,13 +272,72 @@ describe('VideoCoursesPage - Error Handling', () => {
     globalThis.__setTrpcHandler('courses.reorder', input => trpcApi.reorderCourses(input))
   })
 
-  it('should display error message on load failure', async () => {
-    trpcApi.listCourses.mockRejectedValue(new Error('Load failed'))
+  it('retries an initial failure without claiming that the course list is empty', async () => {
+    trpcApi.listCourses.mockRejectedValueOnce(new Error('Load failed')).mockResolvedValue(mockPaginatedGroups())
 
     render(<VideoCoursesPage />)
 
     await waitFor(() => {
       expect(screen.getByText('Load failed')).toBeInTheDocument()
     })
+    expect(screen.queryByText('videos.courses.empty')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'videos.courses.retryLoad' }))
+    expect(await screen.findByText('Course 1')).toBeInTheDocument()
+    expect(screen.queryByText('Load failed')).not.toBeInTheDocument()
+    expect(trpcApi.listCourses.mock.calls.map(([input]) => input.cursor)).toEqual([0, 0])
+  })
+
+  it('retries only the failed next page and keeps one request in flight', async () => {
+    const firstPage = { ...mockPaginatedGroups(), meta: { total: 3, limit: 24, offset: 0 } }
+    const lastPage = {
+      data: [{ ...mockCourses[0], id: 3, name: 'Course 3' }],
+      meta: { total: 3, limit: 24, offset: 2 },
+    }
+    let finishPage!: (page: typeof lastPage) => void
+    trpcApi.listCourses.mockResolvedValueOnce(firstPage)
+      .mockRejectedValueOnce(new Error('Next page failed'))
+      .mockImplementationOnce(() => new Promise((resolve) => { finishPage = resolve }))
+    render(<VideoCoursesPage />)
+    expect(await screen.findByText('Next page failed')).toBeInTheDocument()
+    expect(screen.getByText('Course 1')).toBeInTheDocument()
+    expect(screen.getByText('Course 2')).toBeInTheDocument()
+    const retry = screen.getByRole('button', { name: 'videos.courses.retryLoad' })
+    fireEvent.click(retry)
+    fireEvent.click(retry)
+    await waitFor(() => expect(finishPage).toBeDefined())
+    expect(retry).toBeDisabled()
+    expect(retry).toHaveAttribute('aria-busy', 'true')
+    expect(trpcApi.listCourses.mock.calls.map(([input]) => input.cursor)).toEqual([0, 2, 2])
+    await act(async () => { finishPage(lastPage) })
+    expect(await screen.findByText('Course 3')).toBeInTheDocument()
+    expect(screen.getAllByText('Course 1')).toHaveLength(1)
+    expect(screen.getAllByText('Course 2')).toHaveLength(1)
+    expect(screen.queryByText('Next page failed')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'videos.courses.retryLoad' })).not.toBeInTheDocument()
+    expect(trpcApi.listCourses).toHaveBeenCalledTimes(3)
+  })
+
+  it('refreshes loaded pages after a background failure instead of appending a page', async () => {
+    const firstPage = { ...mockPaginatedGroups(), meta: { total: 3, limit: 24, offset: 0 } }
+    const lastPage = {
+      data: [{ ...mockCourses[0], id: 3, name: 'Course 3' }],
+      meta: { total: 3, limit: 24, offset: 2 },
+    }
+    trpcApi.listCourses.mockResolvedValueOnce(firstPage).mockResolvedValueOnce(lastPage)
+      .mockRejectedValueOnce(new Error('Refresh failed'))
+      .mockResolvedValueOnce({ ...firstPage, data: [{ ...mockCourses[0], name: 'Updated course' }, mockCourses[1]] })
+      .mockResolvedValueOnce(lastPage)
+    const { result } = renderHook(() => useQueryClient())
+    render(<VideoCoursesPage />)
+    expect(await screen.findByText('Course 3')).toBeInTheDocument()
+    await act(() => result.current.invalidateQueries(trpc.courses.list.pathFilter()))
+    expect(await screen.findByText('Refresh failed')).toBeInTheDocument()
+    expect(screen.getByText('Course 1')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'videos.courses.retryLoad' }))
+    expect(await screen.findByText('Updated course')).toBeInTheDocument()
+    expect(screen.getByText('Course 3')).toBeInTheDocument()
+    expect(screen.queryByText('Course 1')).not.toBeInTheDocument()
+    expect(screen.queryByText('Refresh failed')).not.toBeInTheDocument()
+    expect(trpcApi.listCourses.mock.calls.map(([input]) => input.cursor)).toEqual([0, 2, 0, 0, 2])
   })
 })

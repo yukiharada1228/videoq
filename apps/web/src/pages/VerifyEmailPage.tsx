@@ -11,7 +11,7 @@ import { useVerifyEmailQuery } from '@/hooks/useVerifyEmailData';
 
 type VerificationState = 'loading' | 'success' | 'error';
 
-function VerifyEmailContent() {
+export default function VerifyEmailPage() {
   const navigate = useI18nNavigate();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
@@ -44,12 +44,9 @@ function VerifyEmailContent() {
   } else if (verifyQuery.isSuccess) {
     state = 'success';
     message = verifyQuery.data?.detail ?? t('auth.verifyEmail.success');
-  } else if (verifyQuery.isError) {
+  } else {
     state = 'error';
     message = verifyQuery.error instanceof Error ? verifyQuery.error.message : t('auth.verifyEmail.error');
-  } else {
-    state = 'loading';
-    message = t('auth.verifyEmail.loading');
   }
 
   return (
@@ -102,8 +99,4 @@ function VerifyEmailContent() {
 
     </>
   );
-}
-
-export default function VerifyEmailPage() {
-  return <VerifyEmailContent />;
 }

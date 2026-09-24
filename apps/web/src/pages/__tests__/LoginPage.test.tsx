@@ -30,6 +30,21 @@ describe('LoginPage', () => {
     mockNavigate = useI18nNavigate() as ReturnType<typeof vi.fn>
   })
 
+  it('displays a rejected login without navigating and permits retry', async () => {
+    vi.mocked(apiClient.login).mockRejectedValueOnce(new Error('Invalid credentials')).mockResolvedValue(undefined)
+    render(<LoginPage />)
+    fireEvent.change(screen.getByLabelText(/auth\.fields\.username\.label/), { target: { value: 'user' } })
+    fireEvent.change(screen.getByLabelText(/auth\.fields\.password\.label/), { target: { value: 'password' } })
+    fireEvent.click(screen.getByRole('button', { name: 'auth.login.submit' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Invalid credentials')
+    expect(authClient.getSession).not.toHaveBeenCalled()
+    expect(mockNavigate).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'auth.login.submit' }))
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledExactlyOnceWith('/'))
+    expect(screen.queryByText('Invalid credentials')).not.toBeInTheDocument()
+    expect(apiClient.login).toHaveBeenCalledTimes(2)
+  })
+
   afterEach(() => {
     globalThis.__setMockLanguage('en')
     globalThis.__setMockSearchParams('')

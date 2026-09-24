@@ -10,7 +10,7 @@ const meta = {
   decorators: [(Story) => <div style={{ maxWidth: 800 }}><Story /></div>],
   args: {
     message: { role: 'assistant', content: '講義動画の内容を一緒に確認しましょう。' },
-    feedbackUpdatingId: null,
+    isFeedbackUpdating: false,
     onVideoNavigate: fn(),
     onFeedback: fn().mockResolvedValue(undefined),
   },
@@ -39,7 +39,7 @@ export const Feedback: Story = {
 export const GoodFeedback: Story = { args: { message: { role: 'assistant', content: answer, chatLogId: 42, feedback: 'good' } } };
 export const BadFeedback: Story = { args: { message: { role: 'assistant', content: answer, chatLogId: 42, feedback: 'bad' } } };
 export const FeedbackUpdating: Story = {
-  args: { message: { role: 'assistant', content: answer, chatLogId: 42 }, feedbackUpdatingId: 42 },
+  args: { message: { role: 'assistant', content: answer, chatLogId: 42 }, isFeedbackUpdating: true },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole('button', { name: i18n.t('chat.feedbackGood') })).toBeDisabled();
     await expect(canvas.getByRole('button', { name: i18n.t('chat.feedbackBad') })).toBeDisabled();

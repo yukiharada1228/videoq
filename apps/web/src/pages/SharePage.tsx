@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { List, Play } from 'lucide-react';
@@ -17,20 +17,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { ChipLabel } from '@/components/ui/chip-label';
 import { ChatPanel } from '@/components/chat/ChatPanel';
-import { convertVideoInCourseToSelectedVideo, type SelectedVideo } from '@/lib/utils/videoConversion';
 import { useVideoPlayback } from '@/hooks/useVideoPlayback';
 import { useMobileTab } from '@/hooks/useMobileTab';
 import { useSharedCourseQuery } from '@/hooks/useSharePageData';
 import { useI18nNavigate } from '@/lib/i18n';
+import { buildYoutubeEmbedSrc } from '@/lib/video/embed';
 
 type MobileTab = 'videos' | 'player';
-
-function buildYoutubeEmbedSrc(embedUrl: string, startSeconds: number | null): string {
-  if (startSeconds === null) {
-    return embedUrl;
-  }
-  return `${embedUrl}?autoplay=1&start=${startSeconds}`;
-}
 
 // ── Video list item ───────────────────────────────────────────────────────────
 
@@ -68,28 +61,24 @@ export default function SharePage() {
 
   const [selectedVideoId, setSelectedVideoId] = useState<number | null>(null);
 
-  const { mobileTab, setMobileTab, isMobile } = useMobileTab();
+  const { mobileTab, setMobileTab, isMobile } = useMobileTab<MobileTab>('player');
   const courseQuery = useSharedCourseQuery(shareToken);
   const course = courseQuery.data ?? null;
   const error = courseQuery.error ? t('common.messages.shareLoadFailed') : null;
-  const isLoading = courseQuery.isLoading || courseQuery.isFetching;
+  const isLoading = courseQuery.isLoading;
 
-  const handleVideoSelect = useCallback((videoId: number) => {
-    setSelectedVideoId(videoId);
-  }, []);
-
-  const selectedVideo = useMemo<SelectedVideo | null>(() => {
+  const selectedVideo = useMemo(() => {
     if (!course?.videos?.length) return null;
     const selected = selectedVideoId
       ? course.videos.find((video) => video.id === selectedVideoId)
       : null;
-    return convertVideoInCourseToSelectedVideo(selected ?? course.videos[0]);
+    return selected ?? course.videos[0];
   }, [course, selectedVideoId]);
 
 
-  const { videoRef, handleVideoCanPlay, handleVideoPlayFromTime, youtubeStartSeconds } = useVideoPlayback({
+  const { videoRef, handleVideoSelect, handleVideoCanPlay, handleVideoPlayFromTime, youtubeStartSeconds, youtubeSeekId } = useVideoPlayback({
     selectedVideo,
-    onVideoSelect: handleVideoSelect,
+    onVideoSelect: setSelectedVideoId,
     onMobileSwitch: () => setMobileTab('player'),
   });
 
@@ -210,7 +199,7 @@ export default function SharePage() {
                 {selectedVideo ? (
                   selectedVideo.source_type === 'youtube' && selectedVideo.youtube_embed_url ? (
                     <iframe
-                      key={`${selectedVideo.id}-${youtubeStartSeconds ?? 0}`}
+                      key={`${selectedVideo.id}-${youtubeSeekId}`}
                       className="w-full h-full"
                       src={buildYoutubeEmbedSrc(selectedVideo.youtube_embed_url, youtubeStartSeconds)}
                       title={selectedVideo.title}

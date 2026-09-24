@@ -7,16 +7,22 @@ const SRT_TIMESTAMP_RE =
 
 export const INVALID_SRT_MESSAGE = "Transcript must be in valid SRT format.";
 
+function* iterSrtBlocks(value: string): Generator<string> {
+  const content = value.replace(/\r\n?/g, "\n");
+  let start = 0;
+  for (const separator of content.matchAll(/\n[ \t]*\n/g)) {
+    const block = content.slice(start, separator.index).trim();
+    if (block) yield block;
+    start = separator.index + separator[0].length;
+  }
+  const last = content.slice(start).trim();
+  if (last) yield last;
+}
+
 /** 不正なら INVALID_SRT_MESSAGE、妥当なら null。 */
 export function validateTranscriptSrt(value: string): string | null {
-  if (!value || value.trim() === "") return null;
-
-  const blocks = value
-    .split("\n\n")
-    .map((b) => b.trim())
-    .filter((b) => b);
-  for (const block of blocks) {
-    const lines = block.split("\n");
+  for (const block of iterSrtBlocks(value)) {
+    const lines = block.split("\n", 3);
     if (lines.length < 3) return INVALID_SRT_MESSAGE;
     // int(lines[0].strip())（符号付き整数のみ）
     if (!/^[+-]?\d+$/.test(lines[0].trim())) return INVALID_SRT_MESSAGE;
@@ -57,23 +63,11 @@ export type SrtScene = {
 
 /** L0 Retrieve 用に SRT の scene 一覧を解析する。 */
 export function parseSrtScenes(srtString: string): SrtScene[] {
-  const content = srtString.trim();
-  if (!content) return [];
-  const blocks = content
-    .split("\n\n")
-    .map((b) => b.trim())
-    .filter((b) => b);
   const scenes: SrtScene[] = [];
-  for (const block of blocks) {
+  for (const block of iterSrtBlocks(srtString)) {
     const lines = block.split("\n");
     if (lines.length < 3) continue;
-    let index: number | null = null;
-    try {
-      index = Number.parseInt(lines[0]!.trim(), 10);
-      if (Number.isNaN(index)) index = null;
-    } catch {
-      index = null;
-    }
+    const index = Number.parseInt(lines[0]!.trim(), 10);
     const timing = lines[1]!.trim();
     if (!timing.includes("-->")) continue;
     const [startStr, endStr] = timing.split("-->").map((t) => t.trim());
@@ -84,7 +78,7 @@ export function parseSrtScenes(srtString: string): SrtScene[] {
       .filter((l) => l)
       .join(" ");
     scenes.push({
-      index,
+      index: Number.isNaN(index) ? null : index,
       start_time: startStr,
       end_time: endStr,
       start_sec: parseSrtTimestamp(startStr),

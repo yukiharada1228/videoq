@@ -1,7 +1,8 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import type { RpcOutputMap } from '@videoq/trpc';
 import { apiClient, ApiError, type Citation, type StudySessionInfo } from '@/lib/api';
 import { TabStudySession } from '@/lib/studySession';
 import { trpc } from '@/lib/trpc';
@@ -43,25 +44,25 @@ interface UseChatMessagesReturn {
   input: string;
   setInput: (input: string) => void;
   isLoading: boolean;
-  feedbackUpdatingId: number | null;
-  messagesEndRef: React.RefObject<HTMLDivElement | null>;
+  feedbackUpdatingIds: ReadonlySet<number>;
   messagesContainerRef: React.RefObject<HTMLDivElement | null>;
   handleMessagesScroll: () => void;
   handleSend: () => Promise<void>;
   handleKeyPress: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-  handleFeedback: (chatLogId: number, value: 'good' | 'bad') => Promise<ChatFeedbackValue | undefined>;
+  handleFeedback: (chatLogId: number, value: 'good' | 'bad') => Promise<void>;
 }
 
 export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMessagesOptions): UseChatMessagesReturn {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const tRef = useRef(t);
   const [messages, setMessages] = useState<Message[]>(() => [
     { role: 'assistant', content: t('chat.assistantGreeting') },
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [feedbackUpdatingId, setFeedbackUpdatingId] = useState<number | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const feedbackInFlightRef = useRef(new Set<number>());
+  const [feedbackUpdatingIds, setFeedbackUpdatingIds] = useState<ReadonlySet<number>>(new Set());
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const sendInFlightRef = useRef(false);
   const streamAbortRef = useRef<AbortController | null>(null);
@@ -196,15 +197,14 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
     const userMessage: Message = { role: 'user', content: input };
     // Q&A answers each question independently. Only Study needs the preceding
     // assistant question and bounded dialogue history for grading.
-    const prior = mode === 'study'
-      ? (messages[0]?.role === 'assistant' ? messages.slice(1) : messages)
-      : [];
-    const historyForApi = [
-      ...prior
-        .filter((m) => m.content.trim().length > 0)
-        .map((m) => ({ role: m.role, content: m.content })),
-      { role: 'user' as const, content: userMessage.content },
-    ].slice(-12);
+    const historyForApi: Pick<Message, 'role' | 'content'>[] = [userMessage];
+    if (mode === 'study') {
+      const first = messages[0]?.role === 'assistant' ? 1 : 0;
+      for (let i = messages.length - 1; i >= first && historyForApi.length < 12; i--) {
+        const { role, content } = messages[i];
+        if (content.trim()) historyForApi.unshift({ role, content });
+      }
+    }
 
     sendInFlightRef.current = true;
     const request = new AbortController();
@@ -287,29 +287,39 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
   }, [handleSend]);
 
   const handleFeedback = useCallback(async (chatLogId: number, value: 'good' | 'bad') => {
+    if (feedbackInFlightRef.current.has(chatLogId)) return;
     const targetMessage = messages.find((message) => message.chatLogId === chatLogId);
-    if (!targetMessage) return undefined;
+    if (!targetMessage) return;
 
     const nextFeedback = getNextChatFeedback(targetMessage.feedback, value);
 
-    setFeedbackUpdatingId(chatLogId);
+    feedbackInFlightRef.current.add(chatLogId);
+    setFeedbackUpdatingIds(new Set(feedbackInFlightRef.current));
     try {
       const result = await feedbackMutation.mutateAsync({
         chatLogId,
         feedback: nextFeedback,
         shareSlug: shareToken,
       });
-      const normalizedFeedback = result.feedback ?? null;
-
-      setMessages((prev) => applyChatFeedback(prev, chatLogId, normalizedFeedback));
-      return normalizedFeedback;
+      setMessages((prev) => applyChatFeedback(prev, chatLogId, result.feedback));
+      if (courseId && !shareToken) {
+        const filter = trpc.chat.history.queryFilter({ courseId });
+        // A read started before the save must not overwrite the saved feedback.
+        await queryClient.cancelQueries(filter);
+        queryClient.setQueriesData<RpcOutputMap['chat.history']>(filter, (prev) => prev ? {
+          ...prev,
+          data: prev.data.map((item) => item.id === chatLogId ? { ...item, feedback: result.feedback } : item),
+        } : prev);
+        // A cancelled first load has no data to patch; resume only those queries.
+        void queryClient.invalidateQueries({ ...filter, predicate: (query) => query.state.data === undefined });
+      }
     } catch (error) {
       console.error('Failed to update feedback', error);
-      return undefined;
     } finally {
-      setFeedbackUpdatingId(null);
+      feedbackInFlightRef.current.delete(chatLogId);
+      setFeedbackUpdatingIds(new Set(feedbackInFlightRef.current));
     }
-  }, [feedbackMutation, messages, shareToken]);
+  }, [courseId, feedbackMutation, messages, queryClient, shareToken]);
 
   return {
     studySession: currentStudyState?.info,
@@ -321,8 +331,7 @@ export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMe
     input,
     setInput,
     isLoading,
-    feedbackUpdatingId,
-    messagesEndRef,
+    feedbackUpdatingIds,
     messagesContainerRef,
     handleMessagesScroll,
     handleSend,
