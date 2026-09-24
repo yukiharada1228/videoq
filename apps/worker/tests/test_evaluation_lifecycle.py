@@ -71,6 +71,10 @@ def test_evaluation_reuses_one_loop_and_closes_clients_between_jobs(
             LLMContextPrecisionWithoutReference=Metric,
         ),
     }
+    # OpenAI SDK versions use different default transports. Inject the clients
+    # whose send method is patched so this lifecycle test stays offline.
+    monkeypatch.setattr(evaluation, "DefaultHttpxClient", httpx.Client)
+    monkeypatch.setattr(evaluation, "DefaultAsyncHttpxClient", httpx.AsyncClient)
     monkeypatch.setattr(httpx.AsyncClient, "send", send)
     monkeypatch.setattr(evaluation, "_langchain_llm", create_llm)
     monkeypatch.setattr(evaluation, "_langchain_embeddings", MagicMock())
