@@ -55,13 +55,7 @@ flowchart TB
 上のコマンドは各作業の入口です。本番のAPI・worker・DBは `.github/workflows/cd.yml` の手順と順序も確認します。
 新しい列を使うコードを先に公開すると、古いDBに対して動かなくなる場合があります。
 
-API・frontend・Python workerを同時に変更した場合、CDは必要なDB移行の後、API → frontend → workerの順に反映します。workerは、更新対象となったAPI・frontendの成功を待ってから、新しい形式の共有データを生成します。対象のデプロイが失敗・キャンセルされた場合、workerも反映しません。workerだけの変更では、変更のないAPI・frontendがスキップされてもデプロイできます。
+API・frontend・Python workerを同時に変更した場合、CDは必要なDB移行の後、API → frontend → workerの順に反映します。workerは、更新対象となったAPI・frontendの成功を待ってから、PLOGの `presentation_order` 関係など新しい形式の共有データを生成します。対象のデプロイが失敗・キャンセルされた場合、workerも反映しません。workerだけの変更では、変更のないAPI・frontendがスキップされてもデプロイできます。
 
 詳細は [`infra/DEPLOY.md`](https://github.com/yukiharada1228/videoq/blob/main/infra/DEPLOY.md) を参照してください。
 文書サイトは専用のWorkerから [docs.videoq.jp](https://docs.videoq.jp/) で公開し、日本語は [/ja/](https://docs.videoq.jp/ja/) です。本文・翻訳・サイト設定の変更は、`main`のCI成功後に自動公開します。`npm run deploy:docs`で現在の作業ツリーを手動公開することもできます。[文書サイトのデプロイ手順](https://github.com/yukiharada1228/videoq/blob/main/apps/docs/README.md)を参照してください。
-
-## 学習機能の撤去を反映する際の順序
-
-`0023_remove_study_mode` は学習専用の6テーブルを削除し、APIのDurable Object移行は保存済み学習セッションを削除します。必要な旧データは事前にバックアップしてください。旧API・workerが稼働中のまま、この移行を適用しないでください。保守時間中に新規リクエストとSQSの処理を止め、実行中のジョブの終了を待ち、移行とAPI・web・workerの更新を完了してから再開します。更新後のworkerは、残っている旧 `build_plog` メッセージを処理せず受領完了にします。
-
-`db:migrate` は学習テーブルが残っていて `STUDY_REMOVAL_MAINTENANCE` が `true` でない場合、変更前に停止します。通信とジョブの停止後、GitHubの `production-app` 環境変数に `STUDY_REMOVAL_MAINTENANCE=true` を設定してCDを再実行します。手動移行では同じ変数をコマンドに渡します。この変数自体は通信を停止しません。いずれかのデプロイに失敗した場合は保守を維持し、全コンポーネントの更新後に変数を削除して通信を再開してください。新規DBと移行済みDBでは、この変数は不要です。

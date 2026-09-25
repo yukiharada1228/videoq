@@ -32,6 +32,7 @@ Storybookの検索から部品を選び、変更前の状態・操作を確認�
 | props・入力・callback | [ChatComposer](src/components/chat/ChatComposer.stories.tsx) |
 | ダイアログ・キーボード・フォーカス復帰 | [TagCreateDialog](src/components/video/TagCreateDialog.stories.tsx) |
 | 認証・Query・tRPC・RESTの基本 | [ApiMocks](src/lib/ApiMocks.stories.tsx) |
+| 状態を持つAPIモック・保存後の反映 | [PlogPanel](src/components/video/detail/PlogPanel.stories.tsx)、[Plogモック](.storybook/mocks/plog.ts) |
 | SSEの進捗・完了・中断 | [ChatPanel](src/components/chat/ChatPanel.stories.tsx)、[SSEモック](.storybook/mocks/chatPanel.ts) |
 | 実際のDnD context・並べ替え | [SortableVideoItem](src/components/video/course-detail/SortableVideoItem.stories.tsx) |
 

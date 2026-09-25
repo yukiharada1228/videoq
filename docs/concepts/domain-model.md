@@ -49,4 +49,8 @@ See [Sharing, invitations, and chat history](course-sharing.md) to compare permi
 
 Administrators manage users, usage limits, reindexing, and related tasks. **Hiding a button does not enforce permissions.** The API must also check access to the target data. See [authentication and access control](auth.md).
 
+## Q&A and study mode
+
+Q&A finds scenes to answer questions. Study mode uses a graph of concepts called PLOG to present questions and hints. They use the same videos but require different prepared data.
+
 **Read next:** [System overview](../architecture/system-configuration-diagram.md). For table details, see the [data dictionary](../database/data-dictionary.md).

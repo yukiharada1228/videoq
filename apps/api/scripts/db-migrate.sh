@@ -2,7 +2,6 @@
 # Stamp existing schema (if any), then apply pending Drizzle migrations.
 set -eu
 cd "$(dirname "$0")/.."
-node scripts/check-study-removal.mjs
 node scripts/stamp-baseline.mjs
 # drizzle-kit's spinner uses ANSI erase-line and hides the SQL error in CI logs.
 set +e

@@ -208,7 +208,7 @@ def stream_completed_videos_with_transcript(
 def delete_video_cascade(
     conn: psycopg.Connection[Any], video_id: int, user_id: str
 ) -> None:
-    """Delete an owned video; foreign keys cascade to tags and membership rows."""
+    """Delete an owned video; foreign keys cascade to PLOG and membership rows."""
     deleted = conn.execute(
         "DELETE FROM videos WHERE id = %s AND user_id = %s",
         (video_id, user_id),

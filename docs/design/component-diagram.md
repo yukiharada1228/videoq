@@ -20,7 +20,7 @@ flowchart LR
     Services --> R2[(R2)]
     Services --> SQS[SQS]
     SQS --> Tasks[Python worker tasks]
-    Tasks --> Pipelines[Transcription, indexing, and evaluation]
+    Tasks --> Pipelines[Transcription, indexing, PLOG, and evaluation]
     Pipelines --> DB
     Pipelines --> R2
 ```
@@ -44,7 +44,7 @@ Main features:
 
 - auth
 - videos / courses / tags
-- chat / evaluation
+- chat / evaluation / plog
 - oauth / mcp
 - membership / media
 - health
@@ -60,6 +60,7 @@ flowchart TD
     Decode --> Registry[Task registry]
     Registry --> Transcription
     Registry --> Indexing
+    Registry --> Plog
     Registry --> Evaluation
     Registry --> AccountDeletion
 ```

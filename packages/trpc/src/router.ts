@@ -8,6 +8,7 @@ import {
   coursesRouter,
   membershipsRouter,
 } from "./routers/courses";
+import { plogRouter } from "./routers/plog";
 import { tagsRouter } from "./routers/tags";
 import { videosRouter } from "./routers/videos";
 
@@ -20,6 +21,7 @@ export const appRouter = t.router({
   courses: coursesRouter,
   courseMemberships: courseMembershipsRouter,
   memberships: membershipsRouter,
+  plog: plogRouter,
   tags: tagsRouter,
   videos: videosRouter,
 });

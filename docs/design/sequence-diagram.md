@@ -30,7 +30,7 @@ sequenceDiagram
     Worker->>DB: Save transcript and processing results
 ```
 
-The API's registration response and video processing completion are separate events. See [state transitions](state-diagram.md) for subsequent indexing.
+The API's registration response and video processing completion are separate events. See [state transitions](state-diagram.md) for subsequent indexing and PLOG generation.
 
 ## Browser login
 

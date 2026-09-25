@@ -11,6 +11,8 @@ export const chatInputSchemas = {
     messages: chatMessagesSchema,
     courseId: z.number().int().positive().nullable().optional(),
     shareSlug: z.string().min(1).optional(),
+    mode: z.enum(["qa", "study"]).default("qa"),
+    studySessionId: z.string().max(128).nullable().optional(),
   }),
   "chat.feedback": z.object({
     chatLogId: z.number().int().positive(),

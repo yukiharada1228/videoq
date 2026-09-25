@@ -7,6 +7,8 @@ export const chatMessageBodySchema = z
   .object({
     messages: chatMessagesSchema,
     course_id: optionalCourseId,
+    mode: z.enum(["qa", "study"]).optional().default("qa"),
+    study_session_id: z.string().max(128).nullable().optional(),
   });
 
 export type ChatMessageBody = z.infer<typeof chatMessageBodySchema>;

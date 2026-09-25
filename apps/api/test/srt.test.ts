@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateTranscriptSrt, INVALID_SRT_MESSAGE } from "../src/lib/srt";
+import { parseSrtScenes, validateTranscriptSrt, INVALID_SRT_MESSAGE } from "../src/lib/srt";
 
 // 字幕検証の公開契約を固定。
 const GOOD = "1\n00:00:01,000 --> 00:00:04,000\nHello world";
@@ -22,11 +22,6 @@ describe("validateTranscriptSrt", () => {
     const invalidSecondBlock = `${GOOD}\n\n2\nnot a timestamp\nInvalid cue`;
     expect(validateTranscriptSrt(invalidSecondBlock.replace(/\n/g, newline))).toBe(INVALID_SRT_MESSAGE);
   });
-  it("validates blocks separated by whitespace-only lines", () => {
-    const srt = TWO.replace("\n\n", "\n \t\n");
-    expect(validateTranscriptSrt(srt)).toBe(null);
-    expect(validateTranscriptSrt(srt.replace("00:00:05,000", "invalid"))).toBe(INVALID_SRT_MESSAGE);
-  });
   it("too few lines → error", () => {
     expect(validateTranscriptSrt("1\n00:00:01,000 --> 00:00:04,000")).toBe(
       INVALID_SRT_MESSAGE,
@@ -41,5 +36,20 @@ describe("validateTranscriptSrt", () => {
     expect(validateTranscriptSrt("1\n00:00:01.000 -> 00:00:04.000\nHi")).toBe(
       INVALID_SRT_MESSAGE,
     );
+  });
+});
+
+describe("parseSrtScenes", () => {
+  it.each(["\n", "\r\n", "\r"])("keeps cue boundaries with %j newlines", (newline) => {
+    expect(parseSrtScenes(TWO.replace(/\n/g, newline))).toEqual([
+      { index: 1, start_time: "00:00:01,000", end_time: "00:00:04,000", start_sec: 1, end_sec: 4, text: "Hello world" },
+      { index: 2, start_time: "00:00:05,000", end_time: "00:00:08,000", start_sec: 5, end_sec: 8, text: "Second block" },
+    ]);
+  });
+
+  it("handles whitespace on separator lines without including later cues in text", () => {
+    const srt = TWO.replace("\n\n", "\n \t\n");
+    expect(parseSrtScenes(srt).map((scene) => scene.text)).toEqual(["Hello world", "Second block"]);
+    expect(validateTranscriptSrt(srt.replace("00:00:05,000", "invalid"))).toBe(INVALID_SRT_MESSAGE);
   });
 });

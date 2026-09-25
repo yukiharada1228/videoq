@@ -13,7 +13,7 @@ Prerequisite: PostgreSQL from the [local environment](../getting-started/local-s
 
 | Location | Contents |
 |---|---|
-| `apps/api/src/db/schema/modern.ts` | Business data such as videos, courses, and chat |
+| `apps/api/src/db/schema/modern.ts` | Business data such as videos, courses, chat, and PLOG |
 | `apps/api/src/db/schema/better-auth.ts` | Sessions, authentication, OAuth, and related data |
 | `apps/api/src/db/schema/index.ts` | Schema exports |
 | `apps/api/drizzle/` | Generated SQL and schema change history |
@@ -58,6 +58,6 @@ Add `-- drizzle-kit:custom` at the start of the generated custom migration. Use 
 
 For schema changes, run type checking and integration tests against a dedicated test database. See [tests and verification commands](testing.md). In shared and production environments, apply reviewed migrations through the deployment process instead of using `drizzle-kit push`.
 
-Embedding dimensions are fixed at 1536 in the application and `scene_embeddings.embedding vector(1536)`. Environment variables cannot change the dimension. Even a same-dimension model change requires scene re-embedding; existing-data migration tooling is not provided. See [diagnostics and future migration requirements](embeddings.md).
+Embedding dimensions are fixed at 1536 in the application and `scene_embeddings.embedding vector(1536)`. Environment variables cannot change the dimension. Even a same-dimension model change requires scene and PLOG re-embedding; existing-data migration tooling is not provided. See [diagnostics and future migration requirements](embeddings.md).
 
 **Related:** [Data dictionary](../database/data-dictionary.md), [Reading the ER diagram](../database/er-diagram.md).

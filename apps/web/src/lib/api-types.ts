@@ -1,5 +1,5 @@
 import type { inferRouterInputs, inferRouterOutputs } from '@trpc/server';
-import type { AppRouter } from '@videoq/trpc';
+import type { AppRouter, PlogWaypoint } from '@videoq/trpc';
 
 type RouterInputs = inferRouterInputs<AppRouter>;
 type RouterOutputs = inferRouterOutputs<AppRouter>;
@@ -8,6 +8,7 @@ export type AdminUser = RouterOutputs['admin']['getUser'];
 export type BillingPlan = RouterOutputs['billing']['plans'][number];
 
 export type ChatMessage = RouterOutputs['chat']['send'];
+export type StudySessionInfo = NonNullable<ChatMessage['study_session']>;
 export type Citation = NonNullable<ChatMessage['citations']>[number];
 export type ChatHistoryItem = RouterOutputs['chat']['history']['data'][number];
 export type ChatAnalytics = RouterOutputs['chat']['analytics'];
@@ -36,6 +37,11 @@ export type CourseInviteRecipientResult =
 export type Tag = RouterOutputs['tags']['list']['data'][number];
 export type TagDetail = RouterOutputs['tags']['get'];
 
+export type PlogConcept = RouterOutputs['plog']['graph']['concepts'][number];
+export type PlogEdge = RouterOutputs['plog']['graph']['edges'][number];
+export type PlogGraph = RouterOutputs['plog']['graph'];
+export type PlogLearnerState = RouterOutputs['plog']['learnerState']['states'][number];
+export type { PlogWaypoint };
 
 // Better Auth and raw-transport request/response types are intentionally not
 // part of the tRPC router.
@@ -112,6 +118,9 @@ export interface ChatRequest {
   messages: RouterInputs['chat']['send']['messages'];
   course_id?: number;
   share_slug?: string;
+  mode?: 'qa' | 'study';
+  /** Tab-scoped study progress key, per course or share link (sessionStorage). */
+  study_session_id?: string;
 }
 
 export type ChatStreamEvent =
@@ -124,6 +133,7 @@ export type ChatStreamEvent =
       chat_log_id: number | null;
       feedback: 'good' | 'bad' | null;
       citations?: Citation[];
+      study_session?: StudySessionInfo;
     }
   | { type: 'error'; code: string; message: string };
 

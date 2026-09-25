@@ -58,7 +58,7 @@ def test_same_job_id_has_one_concurrent_owner(monkeypatch) -> None:
 
     def claim():
         try:
-            return claim_job_execution(job_id, "reindex_video_transcript", payload)
+            return claim_job_execution(job_id, "build_plog", payload)
         except JobExecutionBusyError:
             return "busy"
 
@@ -71,7 +71,7 @@ def test_same_job_id_has_one_concurrent_owner(monkeypatch) -> None:
         assert results.count("busy") == 1
 
         complete_job_execution(job_id, tokens[0])
-        assert claim_job_execution(job_id, "reindex_video_transcript", payload) is None
+        assert claim_job_execution(job_id, "build_plog", payload) is None
     finally:
         with psycopg.connect(database_url, autocommit=True) as admin:
             admin.execute(f"DROP SCHEMA IF EXISTS {quoted_schema} CASCADE")

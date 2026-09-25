@@ -23,6 +23,7 @@ API は次の native JSON を SQS へ送信します。
 | `index_video_transcript` | embedding生成と検索用シーンの一括更新（削除・保存を同一トランザクションで実行） |
 | `reindex_video_transcript` | 動画単位の再索引 |
 | `reindex_all_videos_embeddings` | 全動画の再索引 |
+| `build_plog` | PLOG 概念・辺・学習オブジェクト構築 |
 | `evaluate_chat_log` | RAG 応答評価 |
 | `delete_account_data` | DB・vector・object storage の削除 |
 

@@ -4,10 +4,10 @@ import httpx
 import openai
 import pytest
 
-from worker_python.pipeline import transcription
+from worker_python.pipeline import plog_build, transcription
 
 
-@pytest.mark.parametrize("pipeline", ["whisper", "whisper-local"])
+@pytest.mark.parametrize("pipeline", ["plog", "whisper", "whisper-local"])
 @pytest.mark.parametrize("fails", [False, True])
 def test_pipeline_closes_http_client_after_success_or_failure(
     monkeypatch,
@@ -23,6 +23,13 @@ def test_pipeline_closes_http_client_after_success_or_failure(
     def respond(request):
         if fails:
             return httpx.Response(500, json={"error": {"message": "Unavailable"}})
+        if request.url.path.endswith("/chat/completions"):
+            return httpx.Response(
+                200,
+                json={
+                    "choices": [{"message": {"content": '{"concepts":[]}'}}],
+                },
+            )
         return httpx.Response(
             200,
             json={
@@ -41,6 +48,8 @@ def test_pipeline_closes_http_client_after_success_or_failure(
         audio.write_bytes(b"audio")
 
         def run():
+            if pipeline == "plog":
+                return plog_build._extract_concepts("Recording test")
             return transcription._whisper_transcribe(audio)
 
         if fails:
@@ -48,5 +57,11 @@ def test_pipeline_closes_http_client_after_success_or_failure(
                 run()
         else:
             result = run()
-            assert result == [{"start": 0.0, "end": 1.0, "text": "Hello"}]
+            assert result == (
+                []
+                if pipeline == "plog"
+                else [
+                    {"start": 0.0, "end": 1.0, "text": "Hello"},
+                ]
+            )
         assert client.is_closed()

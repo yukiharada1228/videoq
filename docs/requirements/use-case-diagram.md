@@ -16,6 +16,7 @@ flowchart LR
     Course --> Share[Share course or invite people]
     Learner[Learner] --> Ask[Ask about a course]
     Ask --> Source[Play the cited scene]
+    Learner --> Study[Learn with questions and hints]
     Admin[Administrator] --> Manage[Manage users and quotas]
 ```
 
@@ -28,6 +29,7 @@ The same person can register materials and learn from them. These roles do not r
 | Prepare learning materials | Upload a file or import from YouTube | Transcript and search data are ready |
 | Organize materials | Add or reorder course videos and assign tags | Videos are easy to find and the question scope is clear |
 | Explore content | Ask questions in course chat | Review an answer and its supporting scenes |
+| Learn in sequence | Start PLOG-based study mode | Answer questions and progress with hints |
 | Work with others | Use share links and course invitations | Others can access permitted courses |
 | Review answer quality | Inspect history, feedback, analytics, and evaluations | Identify answers or materials to improve |
 | Manage usage | Manage users, quotas, and reindexing | Operate limits and processing state |

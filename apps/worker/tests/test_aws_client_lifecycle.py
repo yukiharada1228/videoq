@@ -45,7 +45,7 @@ def test_one_shot_aws_operations_close_connections(
                 "QueueUrl": queue_url,
                 "MessageBody": json.dumps(
                     {
-                        "type": "reindex_video_transcript",
+                        "type": "build_plog",
                         "job_id": "job-1",
                         "payload": {"video_id": 42},
                     }
@@ -53,7 +53,7 @@ def test_one_shot_aws_operations_close_connections(
             }
             response = {"MessageId": "message-1"}
             run = partial(
-                sqs_enqueue.enqueue_job, "reindex_video_transcript", {"video_id": 42}, job_id="job-1"
+                sqs_enqueue.enqueue_job, "build_plog", {"video_id": 42}, job_id="job-1"
             )
         elif operation == "bootstrap":
             monkeypatch.setattr(secrets_bootstrap, "_LOADED", False)
@@ -137,5 +137,5 @@ def test_invalid_job_payload_does_not_allocate_an_sqs_client(monkeypatch):
     create = MagicMock()
     monkeypatch.setattr(sqs_enqueue, "create_sqs_client", create)
     with pytest.raises(TypeError):
-        sqs_enqueue.enqueue_job("reindex_video_transcript", {"invalid": {1, 2}})
+        sqs_enqueue.enqueue_job("build_plog", {"invalid": {1, 2}})
     create.assert_not_called()
