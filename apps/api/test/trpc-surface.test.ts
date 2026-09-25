@@ -49,18 +49,6 @@ const EXPECTED_PROCEDURES = [
   "memberships.removeTag",
   "memberships.removeVideo",
   "memberships.reorderVideos",
-  "plog.createConcept",
-  "plog.createEdge",
-  "plog.deleteConcept",
-  "plog.deleteEdge",
-  "plog.graph",
-  "plog.learnerState",
-  "plog.mergeConcepts",
-  "plog.rebuild",
-  "plog.resetLearnerState",
-  "plog.updateConcept",
-  "plog.updateEdge",
-  "plog.updateLearningObject",
   "tags.create",
   "tags.delete",
   "tags.get",
@@ -114,7 +102,7 @@ describe("tRPC public surface", () => {
       call: async () => ({ deleted: 0 }),
     } as TrpcContext);
 
-    await expect(caller.plog.resetLearnerState({ videoId: 1 })).rejects.toMatchObject({
+    await expect(caller.chat.resetHistory({ courseId: 1 })).rejects.toMatchObject({
       code: "UNAUTHORIZED",
     });
   });

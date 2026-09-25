@@ -39,6 +39,8 @@ describe('useChatMessages streaming', () => {
     globalThis.__setTrpcHandler('chat.feedback', setFeedback)
   })
 
+  afterEach(() => vi.unstubAllEnvs())
+
   it('follows answer growth only at the bottom and leaves tool-only updates in place', () => {
     const { result } = renderHook(() => useChatMessages({ courseId: 18 }))
     const container = document.createElement('div')
@@ -163,9 +165,18 @@ describe('useChatMessages streaming', () => {
     })
   })
 
-  it('shows error message when stream yields error event', async () => {
-    ;(apiClient.chatStream as any).mockImplementation(async function* () {
-      yield { type: 'error', code: 'LLM_PROVIDER_ERROR', message: 'Internal error' }
+  it.each([
+    { scenario: 'development diagnostics', dev: true, code: 'LLM_PROVIDER_ERROR', message: 'Internal error', expected: 'chat.error (LLM_PROVIDER_ERROR: Internal error)' },
+    { scenario: 'empty diagnostics', dev: true, code: 'LLM_PROVIDER_ERROR', message: '', expected: 'chat.error' },
+    { scenario: 'whitespace diagnostics', dev: true, code: 'LLM_PROVIDER_ERROR', message: ' \n ', expected: 'chat.error' },
+    { scenario: 'production diagnostics', dev: false, code: 'LLM_PROVIDER_ERROR', message: 'Private provider details', expected: 'chat.error' },
+    { scenario: 'development quota error', dev: true, code: 'OVER_QUOTA', message: 'Private quota details', expected: 'chat.errorOverQuota' },
+    { scenario: 'production quota error', dev: false, code: 'OVER_QUOTA', message: 'Private quota details', expected: 'chat.errorOverQuota' },
+  ])('shows the appropriate error and allows retry for $scenario', async ({ dev, code, message, expected }) => {
+    vi.stubEnv('DEV', dev)
+    vi.mocked(apiClient.chatStream).mockImplementation(async function* () {
+      yield { type: 'content_chunk', text: 'Partial answer' }
+      yield { type: 'error', code, message }
     })
 
     const { result } = renderHook(() => useChatMessages({}))
@@ -174,11 +185,19 @@ describe('useChatMessages streaming', () => {
 
     await act(async () => { await result.current.handleSend() })
 
-    await waitFor(() => {
-      const last = result.current.messages.at(-1)
-      expect(last?.role).toBe('assistant')
-      expect(last?.content).toMatch(/chat\.error/)
+    expect(result.current.messages.at(-1)).toMatchObject({
+      role: 'assistant', content: expected, progress: { phase: 'error' },
     })
+    expect(result.current.isLoading).toBe(false)
+
+    // The failed turn must release the send lock and discard queued partial text.
+    vi.mocked(apiClient.chatStream).mockImplementation(makeStreamMock(['Recovered']))
+    act(() => { result.current.setInput('Try again') })
+    await act(async () => { await result.current.handleSend() })
+    expect(apiClient.chatStream).toHaveBeenCalledTimes(2)
+    expect(result.current.messages.at(-1)?.content).toBe('Recovered')
+    expect(result.current.messages.at(-3)?.content).toBe(expected)
+    expect(result.current.isLoading).toBe(false)
   })
 
   it('shows error message when chatStream throws', async () => {
@@ -310,41 +329,11 @@ describe('useChatMessages streaming', () => {
     await act(async () => { await result.current.handleSend() })
     expect(apiClient.chatStream).toHaveBeenCalledWith(
       expect.objectContaining({
-        mode: 'qa',
         messages: [{ role: 'user', content: '具体例を教えて' }],
       }),
       expect.any(AbortSignal),
     )
     expect(result.current.messages.slice(0, 2)).toEqual(prior)
-  })
-
-  it('retains the latest nonempty Study messages without reading discarded history', async () => {
-    vi.mocked(apiClient.chatStream).mockImplementation(makeStreamMock([]))
-    const { result } = renderHook(() => useChatMessages({ courseId: 5, mode: 'study' }))
-    const prior = Array.from({ length: 8 }, (_, index) => [
-      { role: 'user' as const, content: `answer ${index}` },
-      { role: 'assistant' as const, content: `question ${index}` },
-    ]).flat()
-    const readOldContent = vi.fn(() => 'older answer')
-    const reply = { role: 'user' as const, content: '0' }
-    act(() => {
-      result.current.setMessages([
-        { role: 'assistant', content: 'greeting' },
-        { role: 'user', get content() { return readOldContent() } },
-        ...prior.flatMap(message => [message, { role: 'assistant' as const, content: ' \n ' }]),
-      ])
-      result.current.setInput(reply.content)
-    })
-    await act(async () => { await result.current.handleSend() })
-    expect(apiClient.chatStream).toHaveBeenCalledWith(
-      expect.objectContaining({
-        mode: 'study',
-        messages: [...prior.slice(-11), reply],
-        study_session_id: expect.any(String),
-      }),
-      expect.any(AbortSignal),
-    )
-    expect(readOldContent).not.toHaveBeenCalled()
   })
 
   it('guards against rapid consecutive sends before loading state rerenders', async () => {
@@ -456,70 +445,3 @@ describe('useChatMessages streaming', () => {
     expect(closed).toHaveBeenCalledTimes(1)
   })
 })
-
-
-describe('Study progress lifecycle', () => {
-  beforeEach(() => { vi.clearAllMocks(); sessionStorage.clear(); });
-
-  const saved = { status: 'continued' as const, expires_at: Date.now() + 43_200_000 };
-  const studyStream = async function* () {
-    yield { type: 'done' as const, chat_log_id: 1, feedback: null, study_session: saved };
-  };
-
-  it('keeps the session across mode changes and reload, while requiring a new server confirmation', async () => {
-    vi.mocked(apiClient.chatStream).mockImplementation(studyStream);
-    const hook = renderHook(({ mode }: { mode: 'qa' | 'study' }) => useChatMessages({ courseId: 1, mode }), { initialProps: { mode: 'study' } });
-    act(() => hook.result.current.setInput('開始'));
-    await act(async () => { await hook.result.current.handleSend(); });
-    const first = vi.mocked(apiClient.chatStream).mock.calls[0][0].study_session_id;
-    expect(hook.result.current.studySession).toEqual(saved);
-    hook.rerender({ mode: 'qa' });
-    hook.rerender({ mode: 'study' });
-    act(() => hook.result.current.setInput('回答'));
-    await act(async () => { await hook.result.current.handleSend(); });
-    expect(vi.mocked(apiClient.chatStream).mock.calls[1][0].study_session_id).toBe(first);
-    hook.unmount();
-    const reloaded = renderHook(() => useChatMessages({ courseId: 1, mode: 'study' }));
-    expect(reloaded.result.current.studySession).toBeUndefined();
-    act(() => reloaded.result.current.setInput('回答'));
-    await act(async () => { await reloaded.result.current.handleSend(); });
-    expect(vi.mocked(apiClient.chatStream).mock.calls[2][0].study_session_id).toBe(first);
-  });
-
-  it('clears the displayed conversation and draft, then sends only a new turn with a new ID on restart', async () => {
-    vi.mocked(apiClient.chatStream).mockImplementation(studyStream);
-    const { result } = renderHook(() => useChatMessages({ courseId: 1, mode: 'study' }));
-    act(() => result.current.setInput('旧解答'));
-    await act(async () => { await result.current.handleSend(); });
-    const first = vi.mocked(apiClient.chatStream).mock.calls[0][0].study_session_id;
-    act(() => { result.current.setInput('未送信の解答'); result.current.restartStudy(); });
-    expect(result.current.input).toBe('');
-    expect(result.current.studySession).toBeUndefined();
-    expect(result.current.studyRestarted).toBe(true);
-    expect(result.current.messages).toHaveLength(1);
-    expect(apiClient.chatStream).toHaveBeenCalledTimes(1);
-    act(() => result.current.setInput('新しく学ぶ'));
-    await act(async () => { await result.current.handleSend(); });
-    const request = vi.mocked(apiClient.chatStream).mock.calls[1][0];
-    expect(request.study_session_id).not.toBe(first);
-    expect(request.messages).toEqual([{ role: 'user', content: '新しく学ぶ' }]);
-  });
-
-  it('blocks restarting during a turn and does not claim a confirmed save after an error', async () => {
-    let fail!: () => void;
-    const waiting = new Promise<void>(resolve => { fail = resolve; });
-    vi.mocked(apiClient.chatStream).mockImplementation(async function* () {
-      await waiting;
-      yield { type: 'error', code: 'STUDY_SESSION_CONFLICT', message: '' };
-    });
-    const { result } = renderHook(() => useChatMessages({ courseId: 1, mode: 'study' }));
-    act(() => result.current.setInput('解答'));
-    let sending!: Promise<void>;
-    act(() => { sending = result.current.handleSend(); });
-    expect(result.current.restartStudy()).toBe(false);
-    expect(result.current.studySession).toBeUndefined();
-    await act(async () => { fail(); await sending; });
-    expect(result.current.studySession).toBeUndefined();
-    expect(result.current.isLoading).toBe(false);
-  });
-});

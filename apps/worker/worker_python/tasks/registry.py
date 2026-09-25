@@ -6,7 +6,6 @@ from collections.abc import Callable
 from typing import Any
 
 from worker_python.contracts import (
-    JOB_BUILD_PLOG,
     JOB_DELETE_ACCOUNT_DATA,
     JOB_EVALUATE_CHAT_LOG,
     JOB_INDEX_VIDEO_TRANSCRIPT,
@@ -15,7 +14,6 @@ from worker_python.contracts import (
     JOB_TRANSCRIBE_VIDEO,
 )
 from worker_python.tasks.account_deletion import delete_account_data
-from worker_python.tasks.build_plog import build_plog_artifacts
 from worker_python.tasks.evaluation import evaluate_chat_log
 from worker_python.tasks.indexing import index_video_transcript
 from worker_python.tasks.reindex_video_transcript import reindex_video_transcript
@@ -31,7 +29,6 @@ TASK_REGISTRY: dict[str, TaskFn] = {
     JOB_INDEX_VIDEO_TRANSCRIPT: index_video_transcript,
     JOB_EVALUATE_CHAT_LOG: evaluate_chat_log,
     JOB_REINDEX_VIDEO_TRANSCRIPT: reindex_video_transcript,
-    JOB_BUILD_PLOG: build_plog_artifacts,
 }
 
 

@@ -3,7 +3,6 @@ import { adminInputSchemas } from "./admin";
 import { billingInputSchemas } from "./billing";
 import { chatInputSchemas } from "./chat";
 import { coursesInputSchemas } from "./courses";
-import { plogInputSchemas } from "./plog";
 import { tagsInputSchemas } from "./tags";
 import { videosInputSchemas } from "./videos";
 
@@ -15,7 +14,6 @@ export const inputSchemas = {
   ...billingInputSchemas,
   ...chatInputSchemas,
   ...coursesInputSchemas,
-  ...plogInputSchemas,
   ...tagsInputSchemas,
   ...videosInputSchemas,
 };

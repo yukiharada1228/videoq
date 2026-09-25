@@ -19,7 +19,6 @@ export const chatMessageSchema = z.object({
 
 /**
  * Q&A uses only the latest user message; send one self-contained question.
- * Study also uses the previous assistant question (web: up to 12 messages).
  * Accepting a message array does not imply Q&A conversation memory.
  */
 export const chatMessagesSchema = z

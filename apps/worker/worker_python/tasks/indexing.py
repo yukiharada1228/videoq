@@ -5,10 +5,8 @@ from __future__ import annotations
 import logging
 
 from worker_python.advisory_locks import video_vector_write_lock
-from worker_python.contracts import JOB_BUILD_PLOG
 from worker_python.db import db_connection
 from worker_python.pipeline import vector_index
-from worker_python.sqs_enqueue import child_job_id, enqueue_job
 from worker_python.video_sql import get_video_for_task, transition_video_status
 from worker_python.video_status import VideoStatus, plan_indexing_success
 
@@ -59,21 +57,10 @@ def index_video_transcript(video_id: int, *, job_id: str | None = None) -> None:
                     from_status.value,
                 )
         elif video.status == VideoStatus.COMPLETED.value:
-            logger.info("Resuming PLOG handoff for already indexed video %d", video_id)
+            logger.info("Video %d is already indexed", video_id)
         else:
             raise IndexingExecutionFailedError(
                 f"Video {video_id} is not ready for indexing (status={video.status})"
             )
-
-    # 失敗は握り潰さずSQS元メッセージを再試行させる。再indexは冪等で、
-    # COMPLETED状態でもこの配送処理まで再到達できる。
-    payload = {"video_id": video_id}
-    parent_job_id = job_id or f"index-video:{video_id}"
-    next_job_id = child_job_id(parent_job_id, JOB_BUILD_PLOG, payload)
-    message_id = enqueue_job(JOB_BUILD_PLOG, payload, job_id=next_job_id)
-    if not message_id:
-        from worker_python.tasks.build_plog import build_plog_artifacts
-
-        build_plog_artifacts(video_id)
 
     logger.info("Successfully indexed video %d", video_id)

@@ -60,26 +60,14 @@ See [video state transitions](../design/state-diagram.md) for the meaning of eac
 
 1. Check that the course you are asking about contains the video.
 2. Check that the video is `completed` and has a transcript.
-3. Compare API and worker `EMBEDDING_PROVIDER` / `EMBEDDING_MODEL` using the [embedding diagnostic commands](embeddings.md). Dimensions are fixed at 1536. Check the logged reason for configuration, schema, output, or stored PLOG data errors.
+3. Compare API and worker `EMBEDDING_PROVIDER` / `EMBEDDING_MODEL` using the [embedding diagnostic commands](embeddings.md). Dimensions are fixed at 1536. Check the logged reason for configuration, schema, or output errors.
 4. Reindex after changing models. Configuration alone cannot change the dimensions of existing data.
 
 Questions about course names or video counts may be answered from metadata without scene citations. Even content questions may not produce the expected answer if the video contains no supporting evidence.
 
-## Study mode cannot start
-
-`completed` means a video is ready for search, independently of PLOG completion. Check the PLOG status, concepts, and relationships on the video detail screen. Empty graphs or graphs that cannot produce a learning order need editing or regeneration. See [PLOG and study mode](../plog/README.md).
-
-## A corrected transcript still gives old answers or hints
+## A corrected transcript still gives old answers
 
 Saving subtitles and completing their asynchronous search reindex are separate events. The video's existing `completed` label does not confirm an edit's reindex finished. Check the matching worker job, then send a new Q&A question; previously displayed or saved answers stay unchanged.
-
-Study support reads nearby text directly from the saved transcript and can use a correction before search reindexing finishes. Its stored questions and hints do not update when subtitles are saved or search is reindexed. Review and edit the affected learning data, or explicitly rebuild PLOG after preserving any manual work you need. A rebuild replaces those edits and does not migrate ongoing progress to the new concept IDs. Follow the [update scope table and correction walkthrough](../architecture/transcription-and-search.md#update-scope) before choosing an operation.
-
-Select **Study → Start over** and confirm, then check the corrected opening questions and hints in a [fresh Study session](../plog/README.md#verify-in-fresh-session). Switching Q&A → Study only clears visible messages; existing progress can cause a check to skip the opening question or grade the new message as a reply to an earlier question.
-
-## Study progress changed after returning
-
-A cleared conversation does not reset temporary progress. Reloading, copied tabs, the 12-hour expiry, and starting over have different effects. See [Resuming study and starting over](../plog/study-sessions.md).
 
 ## Configuration changes have no effect
 

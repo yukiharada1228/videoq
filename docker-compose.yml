@@ -79,6 +79,7 @@ services:
     container_name: videoq-migrate
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-postgres}
+      STUDY_REMOVAL_MAINTENANCE: ${STUDY_REMOVAL_MAINTENANCE:-false}
     volumes:
       - ./apps/api:/workspace/apps/api
       - ./packages/trpc:/workspace/packages/trpc:ro

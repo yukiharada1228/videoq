@@ -14,7 +14,7 @@ Transcription and indexing take time, so the Python worker runs them without blo
 | Job types and payloads | `apps/worker/worker_python/contracts.py` |
 | Mapping job names to functions | `worker_python/tasks/registry.py` |
 | State updates and dispatching the next job | `worker_python/tasks/` |
-| Transcription, search data, and PLOG implementation | `worker_python/pipeline/` |
+| Transcription and search implementation | `worker_python/pipeline/` |
 | Duplicate execution control | `worker_python/job_execution.py` |
 | AWS Lambda entry point | `worker_python/lambda_handler.py` |
 
@@ -32,7 +32,7 @@ All of these files are under `apps/worker/`. Also check the API's message format
 
 This illustrates the format. Normally, API operations create jobs; you do not need to submit queue messages manually.
 
-Processing generally follows `transcribe_video` → `index_video_transcript` → `build_plog`. Check search readiness separately from PLOG readiness. See [video states](../design/state-diagram.md).
+Processing follows `transcribe_video` → `index_video_transcript`. See [video states](../design/state-diagram.md).
 
 ## Design for retries
 
@@ -53,8 +53,8 @@ docker compose logs --tail=100 worker
 docker compose logs -f worker
 ```
 
-Upload a short video through the UI and follow its video ID in the logs. `Ctrl+C` stops log streaming but leaves the worker running. Transcription, embeddings, and PLOG generation call the configured external APIs.
+Upload a short video through the UI and follow its video ID in the logs. `Ctrl+C` stops log streaming but leaves the worker running. Transcription and embeddings call the configured external APIs.
 
 See [tests and verification commands](testing.md) for the Python test environment. Connection and model settings are documented in the [worker README](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/README.md).
 
-**Related:** [Job delivery and recovery](../architecture/flowchart.md), [PLOG and study mode](../plog/README.md).
+**Related:** [Job delivery and recovery](../architecture/flowchart.md).

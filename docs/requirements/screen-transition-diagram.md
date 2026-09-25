@@ -13,7 +13,7 @@ Use this map when adding or editing screens. [App.tsx](https://github.com/yukiha
 |---|---|---|
 | `/` | Home | App entry point |
 | `/videos` | Video library | Registration, search, and tag organization |
-| `/videos/:id` | Video details | Playback, transcript, and PLOG review/editing |
+| `/videos/:id` | Video details | Playback and transcript editing |
 | `/videos/courses` | Course list | Creating and selecting courses |
 | `/videos/courses/:id` | Course details | Organizing videos, chat, sharing, and analytics |
 | `/settings` | Settings | Profile, external API keys, and related settings |

@@ -7,8 +7,7 @@ import type { Bindings } from "../src/types/bindings";
 const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
 const fixture = readFileSync(new URL("./fixtures/video-deletion.sql", import.meta.url), "utf8");
 const relatedTables = [
-  "plog_build_jobs", "plog_summary_nodes", "plog_concepts", "plog_edges",
-  "plog_learning_objects", "learner_concept_states", "video_tags", "video_course_members",
+  "video_tags", "video_course_members",
   "scene_embeddings", "mcp_idempotency_records",
 ];
 
@@ -39,7 +38,7 @@ const relatedTables = [
   async function expectIntact() {
     expect((await admin.query("SELECT id FROM videos ORDER BY id")).rows).toEqual([{ id: 10 }, { id: 20 }]);
     for (const table of relatedTables) {
-      const ids = table === "plog_summary_nodes" ? [1, 2, 3] : [1, 2];
+      const ids = [1, 2];
       expect((await admin.query(`SELECT id FROM ${table} ORDER BY id`)).rows).toEqual(ids.map(id => ({ id })));
     }
   }
