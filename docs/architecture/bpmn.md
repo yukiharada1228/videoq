@@ -23,14 +23,15 @@ flowchart TB
     subgraph Worker[Python worker]
       Transcribe[Transcribe]
       Index[Save searchable data]
+      Plog[Generate PLOG]
     end
     Confirm --> Accept --> Dispatch
-    Dispatch --> Transcribe --> Index
+    Dispatch --> Transcribe --> Index --> Plog
     Index -. Used for search .-> Answer
     Ask --> Answer --> Read
 ```
 
-The API answers questions. The worker does not send answers directly to the browser after processing.
+The API answers questions. The worker does not send answers directly to the browser after processing. Study mode requires PLOG as well as the search index.
 
 ## Where to investigate problems
 
@@ -39,5 +40,6 @@ The API answers questions. The worker does not send answers directly to the brow
 | Cannot upload a file | Browser, storage, API | [Troubleshooting](../guides/troubleshooting.md) |
 | Video is not processed | Job delivery, queue, worker | [Job delivery and recovery](flowchart.md) |
 | Answers are unrelated to the content | Search scope, subtitles, prompts | [Prompt design](prompt-engineering.md) |
+| Only Study is unavailable | PLOG generation status and ordering | [PLOG and study mode](../plog/README.md) |
 
 **Related:** Follow calls over time in the [sequence diagrams](../design/sequence-diagram.md), or start from user actions in the [activity flow](../requirements/activity-diagram.md).

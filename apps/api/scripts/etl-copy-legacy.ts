@@ -86,6 +86,42 @@ const COPIES: TableCopy[] = [
 		sequence: "course_evaluation_snapshots_id_seq",
 	},
 	{
+		label: "plog_build_jobs",
+		oldTable: "app_plogbuildjob",
+		newTable: "plog_build_jobs",
+		sequence: "plog_build_jobs_id_seq",
+	},
+	{
+		label: "plog_summary_nodes",
+		oldTable: "app_plogsummarynode",
+		newTable: "plog_summary_nodes",
+		sequence: "plog_summary_nodes_id_seq",
+	},
+	{
+		label: "plog_concepts",
+		oldTable: "app_plogconcept",
+		newTable: "plog_concepts",
+		sequence: "plog_concepts_id_seq",
+	},
+	{
+		label: "plog_edges",
+		oldTable: "app_plogedge",
+		newTable: "plog_edges",
+		sequence: "plog_edges_id_seq",
+	},
+	{
+		label: "plog_learning_objects",
+		oldTable: "app_ploglearningobject",
+		newTable: "plog_learning_objects",
+		sequence: "plog_learning_objects_id_seq",
+	},
+	{
+		label: "learner_concept_states",
+		oldTable: "app_learnerconceptstate",
+		newTable: "learner_concept_states",
+		sequence: "learner_concept_states_id_seq",
+	},
+	{
 		label: "scene_embeddings",
 		oldTable: "videoq_scenes",
 		newTable: "scene_embeddings",
@@ -116,6 +152,10 @@ const ORPHAN_CHECKS: { label: string; sql: string; legacySql?: string }[] = [
 	{
 		label: "chat_logs.course_id → video_courses",
 		sql: `SELECT COUNT(*) AS n FROM chat_logs c LEFT JOIN video_courses g ON c.course_id = g.id WHERE g.id IS NULL`,
+	},
+	{
+		label: "plog_concepts.video_id → videos",
+		sql: `SELECT COUNT(*) AS n FROM plog_concepts p LEFT JOIN videos v ON p.video_id = v.id WHERE v.id IS NULL`,
 	},
 	{
 		label: "scene_embeddings.video_id → videos (non-null)",

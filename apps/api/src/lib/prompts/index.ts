@@ -1,7 +1,7 @@
 import promptConfig from "./prompts.json";
 
 /**
- * VideoQ の RAG プロンプトを `prompts.json` から構築する。
+ * VideoQ の RAG / PLOG プロンプトを `prompts.json` から構築する。
  * ロケール解決は default をベースに locale を deep merge する。
  * 候補は `locale` → `locale` のハイフン前 → default の順で、最初に見つかった 1 つだけを merge する。
  */
@@ -69,7 +69,7 @@ export function resolveLocaleSection(
   return resolved;
 }
 
-/** RAG の名前付きプレースホルダを置換する。 */
+/** RAG / plog_study の名前付きプレースホルダを置換する。 */
 export function formatTemplate(template: string, values: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (whole, key: string) =>
     key in values ? values[key]! : whole,
@@ -81,6 +81,26 @@ function requireText(value: unknown, field: string): string {
     throw new Error(`Prompt configuration lacks required header fields (${field}).`);
   }
   return value;
+}
+
+/** locale に対応する PLOG Study 設定を返す。 */
+export function getPlogStudyConfig(locale?: string | null): Record<string, unknown> {
+  return resolveLocaleSection("plog_study", locale);
+}
+
+/**
+ * 解決済みのロケール設定から開始質問を返す。
+ * 空 / 既知の英語フォールバックテンプレだけ locale 向けに差し替える。
+ */
+export function resolveOpeningQuestion(
+  label: string,
+  opening: string | null | undefined,
+  config: Readonly<Record<string, unknown>>,
+): string {
+  const text = (opening || "").trim();
+  const defaultTemplate = promptConfig.plog_study.default.opening_question;
+  if (text && text !== formatTemplate(defaultTemplate, { label })) return text;
+  return formatTemplate(String(config.opening_question || defaultTemplate), { label });
 }
 
 /**

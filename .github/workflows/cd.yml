@@ -122,7 +122,6 @@ jobs:
               - 'apps/api/src/db/**'
               - 'apps/api/drizzle.config.ts'
               - 'apps/api/scripts/db-migrate.sh'
-              - 'apps/api/scripts/check-study-removal.mjs'
               - 'apps/api/scripts/stamp-baseline.mjs'
               - '.github/workflows/cd.yml'
               - '.github/scripts/**'
@@ -131,7 +130,6 @@ jobs:
               - 'apps/api/src/db/**'
               - 'apps/api/drizzle.config.ts'
               - 'apps/api/scripts/db-migrate.sh'
-              - 'apps/api/scripts/check-study-removal.mjs'
               - 'apps/api/scripts/stamp-baseline.mjs'
               - '.github/workflows/cd.yml'
               - '.github/scripts/**'
@@ -248,7 +246,6 @@ jobs:
       - name: Migrate database
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          STUDY_REMOVAL_MAINTENANCE: ${{ vars.STUDY_REMOVAL_MAINTENANCE }}
         run: |
           if [ -z "${DATABASE_URL:-}" ]; then
             echo "::error::DATABASE_URL secret is required for database migrations"
@@ -296,6 +293,7 @@ jobs:
       contents: read
       id-token: write
     # Deploy readers before the worker can write a new shared data format
+    # (for example PLOG presentation_order relationships).
     needs: [changes, db-migrate, api-deploy, web-deploy]
     if: |
       always() &&

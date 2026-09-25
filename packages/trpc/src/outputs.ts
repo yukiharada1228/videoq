@@ -8,6 +8,7 @@ const jobSchema = z.object({ job_id: z.string() });
 const urlSchema = z.object({ url: z.string() });
 const messageSchema = z.object({ message: z.string() });
 const addedItemsSchema = messageSchema.extend({ added_count: z.number(), skipped_count: z.number() });
+const deletedItemSchema = z.object({ deleted: z.literal(true), id: z.number() });
 
 /** Runtime output validation and handler output types share this definition. */
 export const outputSchemas = {
@@ -82,4 +83,16 @@ export const outputSchemas = {
   "tags.replace": models.tagSchema,
   "tags.delete": successSchema,
 
+  "plog.graph": models.plogGraphSchema,
+  "plog.learnerState": z.object({ states: z.array(models.plogLearnerStateSchema) }),
+  "plog.resetLearnerState": z.object({ deleted: z.number() }),
+  "plog.rebuild": z.object({ video_id: z.number(), status: z.string(), job_id: z.number() }),
+  "plog.createConcept": models.plogConceptSchema,
+  "plog.updateConcept": models.plogConceptSchema,
+  "plog.deleteConcept": deletedItemSchema,
+  "plog.mergeConcepts": models.plogConceptSchema,
+  "plog.updateLearningObject": models.plogConceptSchema,
+  "plog.createEdge": models.plogEdgeSchema,
+  "plog.updateEdge": models.plogEdgeSchema,
+  "plog.deleteEdge": deletedItemSchema,
 } satisfies Record<keyof typeof inputSchemas, z.ZodType>;

@@ -4,13 +4,15 @@ import { deadlineSignal } from "./request-timeout";
 import type { Bindings } from "../types/bindings";
 
 /**
- * QA RAG の LLM 呼び出し。temperature=0.0、max_tokens=1024 を使う。
+ * QA RAG / PLOG の LLM 呼び出し。temperature=0.0、max_tokens=1024 を使う。
  * プロンプトは system + human の 2 通のみで、
  * 会話履歴は渡さない（`ChatPromptTemplate.from_messages([system, human])`）。
  */
 export const MAX_TOKENS = 1024;
 export const LLM_REQUEST_TIMEOUT_MS = 2 * 60_000;
 export const LLM_STREAM_TIMEOUT_MS = 5 * 60_000;
+/** GradeReply 用の max_tokens=256 設定。 */
+export const GRADING_MAX_TOKENS = 256;
 
 const promptMessages = (systemPrompt: string, queryText: string) => [
   new SystemMessage(systemPrompt),
@@ -22,9 +24,10 @@ export async function generateReply(
   env: Bindings,
   systemPrompt: string,
   queryText: string,
+  opts?: { maxTokens?: number },
 ): Promise<string> {
   const model = createChatModel(env, {
-    maxTokens: MAX_TOKENS,
+    maxTokens: opts?.maxTokens ?? MAX_TOKENS,
     timeoutMs: LLM_REQUEST_TIMEOUT_MS,
   });
   try {
@@ -33,6 +36,15 @@ export async function generateReply(
   } catch (error) {
     throw toLlmError(error);
   }
+}
+
+/** GradeReply 用（max_tokens=256）。 */
+export async function generateGradingReply(
+  env: Bindings,
+  systemPrompt: string,
+  userPrompt: string,
+): Promise<string> {
+  return generateReply(env, systemPrompt, userPrompt, { maxTokens: GRADING_MAX_TOKENS });
 }
 
 /**

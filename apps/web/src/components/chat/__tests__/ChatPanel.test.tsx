@@ -73,7 +73,7 @@ describe('ChatPanel', () => {
     { name: 'course', before: { courseId: 1 }, after: { courseId: 2 } },
     { name: 'share link', before: { courseId: 1, shareToken: 'first' }, after: { courseId: 1, shareToken: 'second' } },
     { name: 'access route', before: { courseId: 1 }, after: { courseId: 1, shareToken: 'first' } },
-  ])('isolates a new $name from a pending reply', async ({ before, after }) => {
+  ])('isolates a new $name from a pending Study reply', async ({ before, after }) => {
     let finishOld!: () => void
     const pending = new Promise<void>(resolve => { finishOld = resolve })
     let oldSignal: AbortSignal | undefined
@@ -84,26 +84,31 @@ describe('ChatPanel', () => {
       yield { type: 'done', chat_log_id: 71, feedback: null }
     })
     const { rerender } = render(<ChatPanel {...before} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.modeStudy' }))
     await act(async () => { await sendMessage(screen.getByLabelText('chat.placeholder'), 'Old course answer') })
     expect(screen.getByLabelText('chat.placeholder')).toBeDisabled()
+    const oldSession = vi.mocked(apiClient.chatStream).mock.calls[0][0].study_session_id
 
     rerender(<ChatPanel {...after} />)
     try {
       expect(oldSignal?.aborted).toBe(true)
       expect(screen.getByLabelText('chat.placeholder')).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'chat.modeQa' })).toHaveAttribute('aria-pressed', 'true')
       expect(screen.queryByText('Old course answer')).not.toBeInTheDocument()
       expect(screen.getByText('chat.assistantGreeting')).toBeInTheDocument()
     } finally {
       await act(async () => { finishOld(); await pending })
     }
     expect(screen.queryByText('Late response from old course')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'chat.modeStudy' }))
     await act(async () => { await sendMessage(screen.getByLabelText('chat.placeholder'), 'New course question') })
     await waitFor(() => expect(apiClient.chatStream).toHaveBeenCalledTimes(2))
     const request = vi.mocked(apiClient.chatStream).mock.calls[1][0]
     expect(request).toMatchObject({
-      course_id: after.courseId,
+      course_id: after.courseId, mode: 'study',
       messages: [{ role: 'user', content: 'New course question' }],
     })
+    expect(request.study_session_id).not.toBe(oldSession)
     expect(request.share_slug).toBe('shareToken' in after ? after.shareToken : undefined)
   })
 

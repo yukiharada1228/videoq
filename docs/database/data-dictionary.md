@@ -38,11 +38,19 @@ Use this list to find the table containing the data you need. For complete colum
 | `chat_log_evaluations` | Evaluation results for each answer |
 | `course_evaluation_snapshots` | Course-level evaluation aggregates |
 
-## Search
+## Search and PLOG
 
 | Table | Stores and caveats |
 |---|---|
 | `scene_embeddings` | Subtitle segments and search embeddings; currently 1536 dimensions |
+| `plog_build_jobs` | Learning data generation status |
+| `plog_concepts` | Concepts extracted from videos |
+| `plog_edges` | Prerequisites and other relationships between concepts |
+| `plog_learning_objects` | Initial questions, hints, example misconceptions, and related content |
+| `plog_summary_nodes` | Defined for hierarchical summaries; the current simplified generator does not populate it |
+| `learner_concept_states` | Defined for learning state; current Study temporary state is stored separately in a Durable Object |
+
+A table's existence does not mean the current pipeline writes to it. See the [current PLOG implementation](../plog/README.md).
 
 ## Delivery, duplicate protection, and billing
 

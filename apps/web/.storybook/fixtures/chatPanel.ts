@@ -4,6 +4,10 @@ import { englishAnswer, englishCitations, englishQuestion, historyItem } from '.
 
 export const courseId = 3;
 export const shareToken = 'storybook-course-chat';
+export const studySessionId = '8cb5df8c-8841-4e51-98b4-80a48517fa0c';
+export const otherCourseId = 4;
+export const otherShareToken = 'storybook-other-course-chat';
+export const otherStudySessionId = '4c42002b-0c93-45b1-9c77-2e60cb01f274';
 export const question = historyItem.question;
 export const searchQuery = '回転行列の定義と具体例';
 export const firstTokens = '回転行列は、ベクトルの長さを変えずに';

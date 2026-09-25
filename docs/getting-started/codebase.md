@@ -14,7 +14,7 @@ VideoQ has three main parts: `web` displays the UI, `api` responds to requests, 
 | `apps/web/` | React screens and user interactions | Video lists, forms, chat UI |
 | `apps/api/` | Authentication, authorization, business logic, and DB access | Fetching videos, editing courses, checking usage |
 | `packages/trpc/` | Procedure names and input/output types shared by the UI and API | Adding fields or operations to the API |
-| `apps/worker/` | Asynchronous Python processing | Transcription and indexing |
+| `apps/worker/` | Asynchronous Python processing | Transcription, indexing, PLOG generation |
 | `docs/` | English documentation | Updating instructions and design explanations |
 | `apps/docs/` | Documentation site configuration and Japanese translations | Menus, search, styles, translations |
 | `infra/` | Production infrastructure configuration and deployment documentation | Reviewing the operational setup |

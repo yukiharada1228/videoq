@@ -12,6 +12,7 @@ describe("chatMessageBodySchema", () => {
       messages: [{ role: "user", content: "hi" }],
       course_id: 3,
     });
+    expect(r.mode).toBe("qa");
     expect(r.course_id).toBe(3);
   });
 

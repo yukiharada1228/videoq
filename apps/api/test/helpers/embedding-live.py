@@ -1,6 +1,7 @@
-"""Build a synthetic short video's search index with real providers."""
+"""Build a synthetic short video's search index and PLOG with real providers."""
 
 from worker_python.db import db_connection
+from worker_python.pipeline.plog_build import run_plog_pipeline
 from worker_python.pipeline.vector_index import index_video_transcript
 from worker_python.video_sql import VideoRow
 
@@ -31,4 +32,12 @@ row = VideoRow(id=60, user_id="embedding-live", title="水の状態変化", tran
                status="completed", source_type="uploaded", file_key=None,
                youtube_video_id=None, error_message="")
 assert index_video_transcript(row) > 0
-print("live_index_ok")
+with db_connection() as conn:
+    run_plog_pipeline(conn, 60, TRANSCRIPT)
+    assert conn.execute("SELECT count(*) AS n FROM plog_concepts").fetchone()["n"] > 0
+    conn.execute("""
+        INSERT INTO plog_build_jobs
+            (status, error_message, input_tokens, output_tokens, created_at, updated_at, video_id)
+        VALUES ('ready', '', 0, 0, NOW(), NOW(), 60)
+    """)
+print("live_index_and_plog_ok")

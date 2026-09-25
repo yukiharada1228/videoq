@@ -9,6 +9,7 @@ import { Pool } from "pg";
 import { describe, expect, it } from "vitest";
 import { embedQuery } from "../src/lib/embeddings";
 import { runRag } from "../src/lib/rag";
+import { runStudy } from "../src/lib/plog-study";
 import type { Bindings } from "../src/types/bindings";
 
 // Explicit opt-in: real model calls incur charges. Never use an existing application DB.
@@ -27,7 +28,7 @@ describe.skipIf(!enabled)("real embedding providers", () => {
   it.each([
     { provider: "openai", model: "text-embedding-3-small" },
     { provider: "ollama", model: "qwen3-embedding:4b" },
-  ])("$provider: indexes a short transcript and answers Q&A", async ({ provider, model }) => {
+  ])("$provider: indexes a short transcript and answers Q&A / Study", async ({ provider, model }) => {
     const databaseUrl = process.env.EMBEDDING_TEST_DATABASE_URL;
     if (!databaseUrl || !settings.OPENAI_API_KEY) throw new Error("Live tests require EMBEDDING_TEST_DATABASE_URL and OPENAI_API_KEY.");
     const name = `videoq_live_${crypto.randomUUID().replaceAll("-", "")}`;
@@ -49,13 +50,18 @@ describe.skipIf(!enabled)("real embedding providers", () => {
         env: { ...process.env, ...providerSettings, DATABASE_URL: url.toString(), PYTHONPATH: workerPath },
         timeout: 180_000,
       });
-      expect(stdout).toContain("live_index_ok");
+      expect(stdout).toContain("live_index_and_plog_ok");
       const env = { ...providerSettings, HYPERDRIVE: { connectionString: url.toString() } } as Bindings;
       expect(await embedQuery(env, "蒸発とは何ですか？")).toHaveLength(1536);
       const question = { messages: [{ role: "user", content: "動画に基づいて蒸発とは何か説明してください。" }], videoIds: [60], locale: "ja" };
       const answer = await runRag(env, { ...question, ownerUserId: "embedding-live" });
       expect(answer.content.trim()).not.toBe("");
       expect(answer.citations?.some((citation) => citation.video_id === 60)).toBe(true);
+      const study = await runStudy(env, { ...question, studySessionId: null });
+      expect(study.content.trim()).not.toBe("");
+      // The current builder leaves waypoints empty; Study still selects a concept
+      // and returns its transcript context without inventing a video citation.
+      expect(study.retrievedContexts.length).toBeGreaterThan(0);
       const dimensions = await pool.query("SELECT DISTINCT vector_dims(embedding) AS n FROM scene_embeddings");
       expect(dimensions.rows).toEqual([{ n: 1536 }]);
     } finally {

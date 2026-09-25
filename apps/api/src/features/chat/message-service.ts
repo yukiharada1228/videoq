@@ -10,6 +10,12 @@ import {
 } from "../../repositories/quota-repository";
 import { processExternalTaskById } from "../../lib/external-tasks";
 import { LlmConfigurationError } from "../../lib/openai";
+import {
+  PlogNotReadyError,
+  StudySessionConflictError,
+  runStudy,
+  streamStudy,
+} from "../../lib/plog-study";
 import { runRag, streamRag, type RagCitation } from "../../lib/rag";
 import type { Bindings } from "../../types/bindings";
 import type { ChatMessageBody } from "./schemas";
@@ -26,12 +32,14 @@ type ChatSendResult =
 export type ChatRequestInput = {
   messages: { role: string; content: string }[];
   courseId: number | null;
+  mode: "qa" | "study";
+  studySessionId: string | null;
 };
 
 /** ドメイン例外に対応するエラー記述。ストリーム/非ストリームで表現を変える。 */
 export type ChatFailure = {
   streamCode: string;
-  status: 400 | 403 | 404 | 500;
+  status: 400 | 403 | 404 | 409 | 500;
   code: string;
   message: string;
 };
@@ -80,6 +88,18 @@ export const failures = {
     code: "INTERNAL_ERROR",
     message: "An internal server error occurred.",
   }),
+  plogNotReady: (message: string): ChatFailure => ({
+    streamCode: "PLOG_NOT_READY",
+    status: 409,
+    code: "PLOG_NOT_READY",
+    message,
+  }),
+  studySessionConflict: (message: string): ChatFailure => ({
+    streamCode: "STUDY_SESSION_CONFLICT",
+    status: 409,
+    code: "STUDY_SESSION_CONFLICT",
+    message,
+  }),
 };
 
 export type ChatSetup = {
@@ -95,6 +115,8 @@ export function toChatRequestInput(body: ChatMessageBody): ChatRequestInput {
   return {
     messages: body.messages,
     courseId: body.course_id ?? null,
+    mode: body.mode ?? "qa",
+    studySessionId: body.study_session_id ?? null,
   };
 }
 
@@ -161,6 +183,10 @@ export async function setupChat(
 }
 
 export const toFailure = (e: unknown): ChatFailure => {
+  if (e instanceof PlogNotReadyError) return failures.plogNotReady(e.message);
+  if (e instanceof StudySessionConflictError) {
+    return failures.studySessionConflict(e.message);
+  }
   if (e instanceof LlmConfigurationError) {
     return failures.llmConfiguration(e.message);
   }
@@ -169,6 +195,15 @@ export const toFailure = (e: unknown): ChatFailure => {
 
 export const withCitationIds = (citations: readonly RagCitation[]) =>
   citations.map((v, i) => ({ id: i + 1, ...v }));
+
+function scopedStudySessionId(
+  setup: ChatSetup,
+  clientSessionId: string | null,
+): string | null {
+  if (!clientSessionId) return null;
+  const course = setup.course?.id ?? "direct";
+  return `${setup.actorUserId}:${course}:${clientSessionId}`;
+}
 
 export async function persistTurn(
   env: Bindings,
@@ -251,15 +286,25 @@ export async function sendChatMessage(
     queryText: string;
     citations: RagCitation[] | null;
     retrievedContexts: string[];
+    studySession?: ChatMessage["study_session"];
   };
   try {
-    result = await runRag(env, {
-      messages: req.messages,
-      ownerUserId: setup.ownerUserId,
-      videoIds,
-      locale: setup.locale,
-      courseId: setup.course?.id ?? null,
-    });
+    if (req.mode === "study") {
+      result = await runStudy(env, {
+        messages: req.messages,
+        videoIds,
+        locale: setup.locale,
+        studySessionId: scopedStudySessionId(setup, req.studySessionId),
+      });
+    } else {
+      result = await runRag(env, {
+        messages: req.messages,
+        ownerUserId: setup.ownerUserId,
+        videoIds,
+        locale: setup.locale,
+        courseId: setup.course?.id ?? null,
+      });
+    }
   } catch (e) {
     await releaseReservedUsage(env, setup);
     const f = toFailure(e);
@@ -281,6 +326,7 @@ export async function sendChatMessage(
       role: "assistant",
       content: result.content,
     };
+    if (result.studySession) body.study_session = result.studySession;
     if (req.courseId !== null && result.citations?.length) {
       body.citations = withCitationIds(result.citations);
     }
@@ -323,6 +369,8 @@ export async function streamChatMessage(
 
   const courseId = req.courseId;
   const messages = req.messages;
+  const mode = req.mode;
+  const studySessionId = req.studySessionId;
   const clientSignal = opts.clientSignal;
 
   return {
@@ -344,35 +392,57 @@ export async function streamChatMessage(
         citations: RagCitation[] | null;
         retrievedContexts: string[];
         queryText: string;
+        studySession?: ChatMessage["study_session"];
       } = { citations: null, retrievedContexts: [], queryText: "" };
 
       try {
-        for await (const chunk of streamRag(
-          env,
-          {
+        if (mode === "study") {
+          for await (const chunk of streamStudy(env, {
             messages,
-            ownerUserId: setup.ownerUserId,
             videoIds,
             locale: setup.locale,
-            courseId: setup.course?.id ?? null,
-          },
-          clientSignal,
-        )) {
-          if ("text" in chunk) {
-            content += chunk.text;
-            await send({ type: "content_chunk", text: chunk.text });
-          } else if ("searching" in chunk) {
-            // 検索ラウンドの間はトークンが流れないので、進行中であることだけ伝える。
-            await send({ type: "searching", query: chunk.searching, search_id: chunk.searchId });
-          } else if ("searchCompleted" in chunk) {
-            await send({
-              type: "search_completed",
-              search_id: chunk.searchCompleted.id,
-              query: chunk.searchCompleted.query,
-              result_count: chunk.searchCompleted.count,
-            });
-          } else {
-            final = chunk.final;
+            studySessionId: scopedStudySessionId(setup, studySessionId),
+          })) {
+            if ("text" in chunk) {
+              content += chunk.text;
+              await send({ type: "content_chunk", text: chunk.text });
+            } else {
+              final = {
+                citations: chunk.final.citations,
+                retrievedContexts: chunk.final.retrievedContexts,
+                queryText: chunk.final.queryText,
+                studySession: chunk.final.studySession,
+              };
+            }
+          }
+        } else {
+          for await (const chunk of streamRag(
+            env,
+            {
+              messages,
+              ownerUserId: setup.ownerUserId,
+              videoIds,
+              locale: setup.locale,
+              courseId: setup.course?.id ?? null,
+            },
+            clientSignal,
+          )) {
+            if ("text" in chunk) {
+              content += chunk.text;
+              await send({ type: "content_chunk", text: chunk.text });
+            } else if ("searching" in chunk) {
+              // 検索ラウンドの間はトークンが流れないので、進行中であることだけ伝える。
+              await send({ type: "searching", query: chunk.searching, search_id: chunk.searchId });
+            } else if ("searchCompleted" in chunk) {
+              await send({
+                type: "search_completed",
+                search_id: chunk.searchCompleted.id,
+                query: chunk.searchCompleted.query,
+                result_count: chunk.searchCompleted.count,
+              });
+            } else {
+              final = chunk.final;
+            }
           }
         }
       } catch (error) {
@@ -414,6 +484,7 @@ export async function streamChatMessage(
       if (courseId !== null && final.citations?.length) {
         done.citations = withCitationIds(final.citations);
       }
+      if (final.studySession) done.study_session = final.studySession;
       await send(done);
     },
   };

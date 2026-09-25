@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { embedQuery } from "../src/lib/embeddings";
-import { EMBEDDING_DIMENSIONS, resolveEmbeddingConfig, validateEmbedding } from "../src/lib/embedding-contract";
+import { EMBEDDING_DIMENSIONS, parseStoredEmbedding, resolveEmbeddingConfig, validateEmbedding } from "../src/lib/embedding-contract";
 import { assertEmbeddingSchema } from "../src/lib/embedding-schema";
 import type { Bindings } from "../src/types/bindings";
 import { embedding } from "./helpers/embedding";
@@ -26,6 +26,14 @@ describe("embedding contract", () => {
     embedding(NaN), embedding(Infinity), embedding(1e300), embedding(1e-300), null,
   ].map((vector) => ({ vector })))("rejects invalid vector %#", ({ vector }) => {
     expect(() => validateEmbedding(vector)).toThrowError(expect.objectContaining({ reason: "EMBEDDING_OUTPUT_INVALID" }));
+  });
+  it("preserves missing concepts but never coerces malformed JSONB", () => {
+    expect(parseStoredEmbedding(null)).toEqual([]);
+    expect(parseStoredEmbedding("[]")).toEqual([]);
+    expect(parseStoredEmbedding(JSON.stringify(embedding(1)))).toEqual(embedding(1));
+    for (const value of ["invalid json", "{}", "[1,2]", JSON.stringify(["1", ...embedding(1).slice(1)])]) {
+      expect(() => parseStoredEmbedding(value)).toThrowError(expect.objectContaining({ reason: "EMBEDDING_DATA_INVALID" }));
+    }
   });
 });
 

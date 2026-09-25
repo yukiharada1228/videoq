@@ -10,6 +10,7 @@ import {
 	foreignKey,
 	check,
 	text,
+	smallint,
 	jsonb,
 	boolean,
 	uniqueIndex,
@@ -650,6 +651,224 @@ export const courseEvaluationSnapshots = pgTable(
 			name: "course_evaluation_snapshots_user_id_fkey",
 		}).onDelete("cascade"),
 		unique("course_evaluation_snapshots_course_id_key").on(table.courseId),
+	],
+);
+
+// ---------------------------------------------------------------------------
+// Plog
+// ---------------------------------------------------------------------------
+
+export const plogBuildJobs = pgTable(
+	"plog_build_jobs",
+	{
+		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+			name: "plog_build_jobs_id_seq",
+			startWith: 1,
+			increment: 1,
+			minValue: 1,
+			maxValue: 9223372036854775807,
+			cache: 1,
+		}),
+		status: varchar({ length: 20 }).notNull(),
+		errorMessage: text("error_message").notNull(),
+		inputTokens: integer("input_tokens").notNull(),
+		outputTokens: integer("output_tokens").notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+		updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
+		finishedAt: timestamp("finished_at", { withTimezone: true, mode: "string" }),
+		videoId: bigint("video_id", { mode: "number" }).notNull(),
+	},
+	(table) => [
+		index("plog_build_jobs_video_id_idx").using("btree", table.videoId.asc().nullsLast()),
+		index("plog_build_jobs_status_idx").using("btree", table.status.asc().nullsLast()),
+		uniqueIndex("plog_build_jobs_video_active_uniq")
+			.on(table.videoId)
+			.where(sql`status IN ('pending', 'running')`),
+		foreignKey({
+			columns: [table.videoId],
+			foreignColumns: [videos.id],
+			name: "plog_build_jobs_video_id_fkey",
+		}).onDelete("cascade"),
+		check("plog_build_jobs_input_tokens_check", sql`input_tokens >= 0`),
+		check("plog_build_jobs_output_tokens_check", sql`output_tokens >= 0`),
+	],
+);
+
+export const plogSummaryNodes = pgTable(
+	"plog_summary_nodes",
+	{
+		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+			name: "plog_summary_nodes_id_seq",
+			startWith: 1,
+			increment: 1,
+			minValue: 1,
+			maxValue: 9223372036854775807,
+			cache: 1,
+		}),
+		level: smallint().notNull(),
+		text: text().notNull(),
+		startSec: doublePrecision("start_sec").notNull(),
+		endSec: doublePrecision("end_sec").notNull(),
+		sceneIndices: jsonb("scene_indices").notNull(),
+		embedding: jsonb().notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+		parentId: bigint("parent_id", { mode: "number" }),
+		videoId: bigint("video_id", { mode: "number" }).notNull(),
+	},
+	(table) => [
+		index("plog_summary_nodes_video_id_idx").using("btree", table.videoId.asc().nullsLast()),
+		index("plog_summary_nodes_parent_id_idx").using("btree", table.parentId.asc().nullsLast()),
+		foreignKey({
+			columns: [table.parentId],
+			foreignColumns: [table.id],
+			name: "plog_summary_nodes_parent_id_fkey",
+		}).onDelete("cascade"),
+		foreignKey({
+			columns: [table.videoId],
+			foreignColumns: [videos.id],
+			name: "plog_summary_nodes_video_id_fkey",
+		}).onDelete("cascade"),
+		check("plog_summary_nodes_level_check", sql`level >= 0`),
+	],
+);
+
+export const plogConcepts = pgTable(
+	"plog_concepts",
+	{
+		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+			name: "plog_concepts_id_seq",
+			startWith: 1,
+			increment: 1,
+			minValue: 1,
+			maxValue: 9223372036854775807,
+			cache: 1,
+		}),
+		label: varchar({ length: 255 }).notNull(),
+		nodeType: varchar("node_type", { length: 20 }).notNull(),
+		introSec: doublePrecision("intro_sec").notNull(),
+		sourceQuote: text("source_quote").notNull(),
+		embedding: jsonb().notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+		videoId: bigint("video_id", { mode: "number" }).notNull(),
+	},
+	(table) => [
+		index("plog_concepts_video_id_idx").using("btree", table.videoId.asc().nullsLast()),
+		foreignKey({
+			columns: [table.videoId],
+			foreignColumns: [videos.id],
+			name: "plog_concepts_video_id_fkey",
+		}).onDelete("cascade"),
+		unique("plog_concepts_label_video_uniq").on(table.label, table.videoId),
+	],
+);
+
+export const plogEdges = pgTable(
+	"plog_edges",
+	{
+		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+			name: "plog_edges_id_seq",
+			startWith: 1,
+			increment: 1,
+			minValue: 1,
+			maxValue: 9223372036854775807,
+			cache: 1,
+		}),
+		edgeType: varchar("edge_type", { length: 32 }).notNull(),
+		quote: text().notNull(),
+		validationStatus: varchar("validation_status", { length: 20 }).notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+		sourceId: bigint("source_id", { mode: "number" }).notNull(),
+		targetId: bigint("target_id", { mode: "number" }).notNull(),
+		videoId: bigint("video_id", { mode: "number" }).notNull(),
+	},
+	(table) => [
+		index("plog_edges_video_id_idx").using("btree", table.videoId.asc().nullsLast()),
+		index("plog_edges_source_id_idx").using("btree", table.sourceId.asc().nullsLast()),
+		index("plog_edges_target_id_idx").using("btree", table.targetId.asc().nullsLast()),
+		foreignKey({
+			columns: [table.sourceId],
+			foreignColumns: [plogConcepts.id],
+			name: "plog_edges_source_id_fkey",
+		}).onDelete("cascade"),
+		foreignKey({
+			columns: [table.targetId],
+			foreignColumns: [plogConcepts.id],
+			name: "plog_edges_target_id_fkey",
+		}).onDelete("cascade"),
+		foreignKey({
+			columns: [table.videoId],
+			foreignColumns: [videos.id],
+			name: "plog_edges_video_id_fkey",
+		}).onDelete("cascade"),
+		unique("plog_edges_typed_pair_uniq").on(table.edgeType, table.sourceId, table.targetId, table.videoId),
+	],
+);
+
+export const plogLearningObjects = pgTable(
+	"plog_learning_objects",
+	{
+		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+			name: "plog_learning_objects_id_seq",
+			startWith: 1,
+			increment: 1,
+			minValue: 1,
+			maxValue: 9223372036854775807,
+			cache: 1,
+		}),
+		openingQuestion: text("opening_question").notNull(),
+		hintLadder: jsonb("hint_ladder").notNull(),
+		misconceptions: jsonb().notNull(),
+		canonicalOrder: jsonb("canonical_order").notNull(),
+		workedExamples: jsonb("worked_examples").notNull(),
+		waypoints: jsonb().notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+		conceptId: bigint("concept_id", { mode: "number" }).notNull(),
+	},
+	(table) => [
+		foreignKey({
+			columns: [table.conceptId],
+			foreignColumns: [plogConcepts.id],
+			name: "plog_learning_objects_concept_id_fkey",
+		}).onDelete("cascade"),
+		unique("plog_learning_objects_concept_id_key").on(table.conceptId),
+	],
+);
+
+export const learnerConceptStates = pgTable(
+	"learner_concept_states",
+	{
+		id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+			name: "learner_concept_states_id_seq",
+			startWith: 1,
+			increment: 1,
+			minValue: 1,
+			maxValue: 9223372036854775807,
+			cache: 1,
+		}),
+		reached: boolean().notNull(),
+		hintIndex: smallint("hint_index").notNull(),
+		lastGrade: varchar("last_grade", { length: 32 }).notNull(),
+		active: boolean().notNull(),
+		updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+		conceptId: bigint("concept_id", { mode: "number" }).notNull(),
+		userId: text("user_id").notNull(),
+	},
+	(table) => [
+		index("learner_concept_states_user_id_idx").using("btree", table.userId.asc().nullsLast()),
+		index("learner_concept_states_concept_id_idx").using("btree", table.conceptId.asc().nullsLast()),
+		foreignKey({
+			columns: [table.conceptId],
+			foreignColumns: [plogConcepts.id],
+			name: "learner_concept_states_concept_id_fkey",
+		}).onDelete("cascade"),
+		foreignKey({
+			columns: [table.userId],
+			foreignColumns: [users.id],
+			name: "learner_concept_states_user_id_fkey",
+		}).onDelete("cascade"),
+		unique("learner_concept_states_concept_user_uniq").on(table.conceptId, table.userId),
+		check("learner_concept_states_hint_index_check", sql`hint_index >= 0`),
 	],
 );
 

@@ -48,12 +48,19 @@ erDiagram
 
 質問・回答・引用はチャットログ、品質評価は別の記録です。回答が返った時点で評価が完了しているとは限りません。
 
-## 動画の検索データ
+## 動画から作る学習データ
 
 ```mermaid
 erDiagram
     VIDEOS ||--o{ SCENE_EMBEDDINGS : indexed
+    VIDEOS ||--o{ PLOG_BUILD_JOBS : builds
+    VIDEOS ||--o{ PLOG_CONCEPTS : contains
+    PLOG_CONCEPTS ||--o{ PLOG_EDGES : source
+    PLOG_CONCEPTS ||--o{ PLOG_EDGES : target
+    PLOG_CONCEPTS ||--o{ PLOG_LEARNING_OBJECTS : has
 ```
+
+1つの関係には出発点と到着点の概念があります。どちらの概念が削除された場合にどう扱うかなどは、外部キーと削除時の制約を確認します。
 
 ## 変更する前に
 

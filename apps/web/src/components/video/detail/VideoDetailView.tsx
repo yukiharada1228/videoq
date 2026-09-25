@@ -21,6 +21,7 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { TagCreateDialog } from '@/components/video/TagCreateDialog';
 import { TagBadge } from '@/components/video/TagBadge';
+import { PlogPanel } from '@/components/video/detail/PlogPanel';
 import { Button } from '@/components/ui/button';
 import {
   BreadcrumbItem,
@@ -419,6 +420,9 @@ export function VideoDetailView({
               />
             </div>
 
+            {video.status === 'completed' && !(isMobile && mobileTab !== 'video') && (
+              <PlogPanel videoId={video.id} />
+            )}
           </div>
 
           <TagCreateDialog

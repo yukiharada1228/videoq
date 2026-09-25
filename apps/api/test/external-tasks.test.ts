@@ -68,7 +68,7 @@ describe("external task processor", () => {
         kind: "sqs_job",
         payload: {
           message: {
-            type: "index_video_transcript",
+            type: "build_plog",
             job_id: "job-2",
             payload: { video_id: 42 },
           },

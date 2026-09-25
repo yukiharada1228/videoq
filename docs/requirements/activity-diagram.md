@@ -39,4 +39,8 @@ flowchart TD
 
 Some questions can be answered using metadata alone. Questions about lesson content refer to subtitles. See [prompt design](../architecture/prompt-engineering.md) for tools and limits.
 
-**Related:** [Video states](../design/state-diagram.md), [Flow by responsibility](../architecture/bpmn.md).
+## How study mode differs
+
+In addition to answering open questions, study mode uses PLOG concepts, prerequisites, questions, and hints. Video processing completion and learning-graph readiness are separate states.
+
+**Related:** [Video states](../design/state-diagram.md), [PLOG and study mode](../plog/README.md), [Flow by responsibility](../architecture/bpmn.md).

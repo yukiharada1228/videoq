@@ -23,11 +23,12 @@ You do not need to memorize everything. Use this page to connect unfamiliar term
 | R2 / MinIO | Storage for video files and other objects / compatible local storage |
 | Neon / PostgreSQL | The production database service / its underlying database |
 | Hyperdrive | Connects Cloudflare Workers to PostgreSQL |
-| Durable Object (DO) | A stateful Cloudflare execution unit, used for rate limits and job recovery scheduling |
+| Durable Object (DO) | A stateful Cloudflare execution unit, used for rate limits, study sessions, and job recovery scheduling |
 | Embedding | A numeric array for comparing text meaning. API questions and worker subtitles must use the same model and dimensions |
 | pgvector | A PostgreSQL extension for storing and searching embeddings |
 | RAG | Retrieval-augmented generation: finding relevant material before producing an answer. VideoQ refers to video subtitles and metadata |
-| LLM | A language model used to generate answers |
+| LLM | A language model used to generate answers and concepts |
+| PLOG | A graph of learning concepts and their prerequisites, used with questions and hints in study mode |
 | Outbox | Records jobs awaiting delivery in the same DB as business data, enabling recovery from missed dispatches |
 | Idempotency | The property of avoiding unintended duplicates or other effects when repeating an operation |
 | Lease | A time-limited right to execute work, allowing retries after a process stops |

@@ -58,7 +58,7 @@ export function chatHandlers(
 ): HandlersFor<"chat"> & HandlersFor<"evaluation"> {
   const userId = () => requireUserId(authenticatedUserId);
   return {
-    "chat.send": async ({ messages, courseId, shareSlug }) => {
+    "chat.send": async ({ messages, courseId, shareSlug, mode, studySessionId }) => {
       if (authenticatedUserId === null && !shareSlug) {
         return rpcError("UNAUTHORIZED", "Authentication credentials were not provided.", {
           appCode: "UNAUTHORIZED",
@@ -70,6 +70,8 @@ export function chatHandlers(
         body: {
           messages,
           course_id: courseId,
+          mode: mode ?? "qa",
+          study_session_id: studySessionId,
         },
         shareSlug: shareSlug ?? null,
         locale: messageService.requestLocaleFromHeader(c.req.header("Accept-Language")),

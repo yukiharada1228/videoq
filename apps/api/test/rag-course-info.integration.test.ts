@@ -12,7 +12,7 @@ vi.mock("../src/lib/embeddings", () => ({ embedQuery: vi.fn(async () => testEmbe
 const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
 const describeWithPostgres = databaseUrl ? describe : describe.skip;
 
-describeWithPostgres("course metadata and scene selection on PostgreSQL", () => {
+describeWithPostgres("course metadata and scene selection on PostgreSQL without PLOG", () => {
   const databaseName = `rag_metadata_${crypto.randomUUID().replaceAll("-", "")}`;
   const quotedDatabase = `"${databaseName}"`;
   let admin: pg.Client;
@@ -119,7 +119,7 @@ describeWithPostgres("course metadata and scene selection on PostgreSQL", () => 
     })).toBeNull();
   });
 
-  it("retrieves a course with no videos, description, embeddings", async () => {
+  it("retrieves a course with no videos, description, embeddings or PLOG", async () => {
     const tool = courseInfoTool(env, { courseId: 5, ownerUserId: "owner" }, () => {});
     expect(JSON.parse(await tool.invoke({}))).toMatchObject({
       name: "Empty course", description: "", video_count: 0, videos: [],

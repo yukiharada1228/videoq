@@ -2,7 +2,7 @@
 
 **Jump instantly to the scenes you want by asking AI questions**
 
-VideoQ is a video learning platform that turns uploaded videos and YouTube lectures into searchable transcripts and timestamped Q&A. Organize videos into courses, share them with learners, and review questions and answer quality.
+VideoQ is a video learning platform that turns uploaded videos and YouTube lectures into searchable transcripts, timestamped Q&A, and guided study sessions. Organize videos into courses, share them with learners, and review questions and answer quality.
 
 **[https://videoq.jp/](https://videoq.jp/)**
 
@@ -22,7 +22,7 @@ VideoQ is a video learning platform that turns uploaded videos and YouTube lectu
 | Async jobs | Python worker → Amazon SQS / AWS Lambda |
 | Database | Neon PostgreSQL + pgvector through Hyperdrive (local: PostgreSQL 17 + pgvector) |
 | Object storage | Cloudflare R2 (local: MinIO) |
-| Edge state | Durable Objects (rate limits and task recovery scheduling) |
+| Edge state | Durable Objects (rate limits, study sessions, task recovery scheduling) |
 | External services | OpenAI / optional local AI, SearchAPI for YouTube transcripts, Mailgun email, Stripe billing |
 
 Locally, `docker compose` runs Postgres, MinIO, ElasticMQ, the Hono API (`wrangler dev`), the Python worker, a static frontend build, and a Caddy gateway on port 80.
@@ -36,7 +36,7 @@ Browser → MinIO (signed uploads)          ↓
 
 The SPA shares the typed `/api/trpc` contract in `packages/trpc`. Hono also serves Better Auth, MCP, chat streaming, media, CSV exports, and the Stripe webhook. Browser authentication uses cookies; MCP uses API keys or OAuth access tokens.
 
-Async processing runs transcription → scene indexing. Jobs are recorded in a database outbox and delivered to SQS, and the worker tracks job IDs to handle retries. The `TASK_SCHEDULER` Durable Object schedules recovery for pending deliveries and abandoned uploads. A daily `17 3 * * *` UTC cron performs retention cleanup and recovery; there is no five-minute polling cron.
+Async processing runs transcription → scene indexing → PLOG generation. Jobs are recorded in a database outbox and delivered to SQS, and the worker tracks job IDs to handle retries. The `TASK_SCHEDULER` Durable Object schedules recovery for pending deliveries and abandoned uploads. A daily `17 3 * * *` UTC cron performs retention cleanup and recovery; there is no five-minute polling cron.
 
 Package READMEs: [`apps/`](apps/README.md) · [`apps/api/`](apps/api/README.md) · [`apps/web/`](apps/web/README.md) · [`apps/worker/`](apps/worker/README.md)
 
@@ -45,6 +45,7 @@ Package READMEs: [`apps/`](apps/README.md) · [`apps/api/`](apps/api/README.md) 
 - **Upload supported video formats** - MP4, MOV, AVI, MKV, WebM, M4V, MPEG, 3GP, and more
 - **Import YouTube lectures** - Retrieve transcripts using a SearchAPI key saved in your settings
 - **Ask questions with sources** - Chat across course videos and jump to the cited scenes
+- **Guided study with PLOG** - Learn through concept questions and hints; inspect, edit, merge, and rebuild concepts and relationships from the video detail page
 - **Organize with tags** - Manage videos with custom tags and colors
 - **Share courses** - Group videos into courses, create share links, and invite members by email
 - **Review learning activity** - View chat history, feedback, analytics, CSV exports, and RAGAS answer evaluations
@@ -52,6 +53,7 @@ Package READMEs: [`apps/`](apps/README.md) · [`apps/api/`](apps/api/README.md) 
 - **Multilingual UI** - Switch between Japanese and English interfaces
 - **MCP integration** - Manage videos and courses and analyze chat history from Claude Code
 
+PLOG (Prerequisite-aware Learning-Object Graph) is built after scene indexing. The current worker extracts concepts, opening questions, and hints, then connects concepts in a prerequisite chain. Study mode needs a graph with a usable ordering path. See the [PLOG notes](docs/plog/README.md) and [current builder](apps/worker/worker_python/pipeline/plog_build.py) for design context and implementation.
 
 ## Quick Start
 
@@ -70,7 +72,7 @@ Package READMEs: [`apps/`](apps/README.md) · [`apps/api/`](apps/api/README.md) 
 3. Click "Create new secret key"
 4. Copy the key, which starts with `sk-...`
 
-The setup below uses OpenAI for transcription, embeddings, chat, and answer evaluation. Optional local AI configuration is described [below](#optional-reduce-costs-with-local-ai).
+The setup below uses OpenAI for transcription, embeddings, chat, PLOG generation, and answer evaluation. Optional local AI configuration is described [below](#optional-reduce-costs-with-local-ai).
 
 ### Step 2: Set up VideoQ
 
@@ -166,7 +168,7 @@ Open [http://localhost](http://localhost) in your browser.
 1. Log in with the account you promoted
 2. Upload a video, or save a SearchAPI key in Settings and import a YouTube lecture
 3. Create a course, add videos, wait for processing, and ask a question
-4. Open cited scenes to verify the answer
+4. Open cited scenes or switch to Study once PLOG generation is ready
 
 ### Free tier on signup
 
@@ -291,7 +293,7 @@ LLM_MODEL=qwen3-vl:8b-instruct
 
 Chat uses Ollama's [OpenAI-compatible API](https://docs.ollama.com/api/openai-compatibility)
 through ChatOpenAI. Course QA requires a model with tool calling support.
-`OPENAI_API_KEY=ollama` is a placeholder for local Ollama and cannot authenticate to OpenAI. `OPENAI_BASE_URL` is also used by OpenAI-provider embeddings and the Python OpenAI client, so changing it in the shared `.env` affects more than chat. A shared local configuration also needs local Whisper and compatible embeddings. For a mixed setup, configure the API and worker environments separately.
+`OPENAI_API_KEY=ollama` is a placeholder for local Ollama and cannot authenticate to OpenAI. `OPENAI_BASE_URL` is also used by OpenAI-provider embeddings and the Python OpenAI client, so changing it in the shared `.env` affects more than chat. A shared local configuration also needs local Whisper, compatible embeddings, and a model that supports the worker's JSON PLOG output. For a mixed setup, configure the API and worker environments separately.
 
 For `npm run dev:api` outside Docker, put these values in `apps/api/.dev.vars`
 and use `OPENAI_BASE_URL=http://127.0.0.1:11434/v1`.
@@ -309,7 +311,7 @@ docker compose up -d --force-recreate api worker
 
 For a new disposable development DB, run `ollama pull qwen3-embedding:4b`, then set `EMBEDDING_PROVIDER=ollama` and `EMBEDDING_MODEL=qwen3-embedding:4b`. For Docker, use `OLLAMA_BASE_URL=http://host.docker.internal:11434` and `WORKER_OLLAMA_BASE_URL=http://host.docker.internal:11434`.
 
-The adapters use `/api/embed` with `dimensions: 1536` and validate every output against the fixed `vector(1536)` contract. The 1024-dimensional `qwen3-embedding:0.6b` is incompatible. Equal dimensions do not make models interchangeable: existing scene vectors need regeneration, and this change does not provide a model migration tool. See [diagnostics and migration constraints](docs/guides/embeddings.md).
+The adapters use `/api/embed` with `dimensions: 1536` and validate every output against the fixed `vector(1536)` contract. The 1024-dimensional `qwen3-embedding:0.6b` is incompatible. Equal dimensions do not make models interchangeable: existing scene and PLOG vectors need regeneration, and this change does not provide a model migration tool. See [diagnostics and migration constraints](docs/guides/embeddings.md).
 
 For `npm run dev:api` outside Docker, set the embedding values in
 `apps/api/.dev.vars` and use `OLLAMA_BASE_URL=http://127.0.0.1:11434`.
@@ -321,7 +323,7 @@ Recreate the API and worker containers to load the updated `.env`:
 docker compose up -d --force-recreate api worker
 ```
 
-After switching models or providers, reindex existing videos from Admin. A dimension change also needs a database migration; reindexing alone does not change the column type.
+After switching models or providers, reindex existing videos from Admin. Rebuild their PLOG artifacts as well so concept embeddings use the same model. A dimension change also needs a database migration; reindexing alone does not change the column type.
 
 </details>
 

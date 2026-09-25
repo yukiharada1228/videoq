@@ -15,6 +15,7 @@ describe("Cloudflare production configuration", () => {
     const config = readFileSync(`${apiRoot}/wrangler.jsonc`, "utf8");
     expect(config).not.toContain("kv_namespaces");
     expect(config).toContain('"name": "RATE_LIMITER"');
+    expect(config).toContain('"name": "STUDY_SESSION"');
   });
 
   it("uses Mailgun without an unrestricted Email Sending binding", () => {

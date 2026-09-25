@@ -3,7 +3,8 @@ import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } fr
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { RpcOutputMap } from '@videoq/trpc';
-import { apiClient, ApiError, type Citation } from '@/lib/api';
+import { apiClient, ApiError, type Citation, type StudySessionInfo } from '@/lib/api';
+import { TabStudySession } from '@/lib/studySession';
 import { trpc } from '@/lib/trpc';
 import { createChatProgress, updateChatProgress, type ChatProgress } from '@/lib/chatProgress';
 import {
@@ -30,9 +31,14 @@ export interface Message {
 interface UseChatMessagesOptions {
   courseId?: number;
   shareToken?: string;
+  mode?: 'qa' | 'study';
 }
 
 interface UseChatMessagesReturn {
+  studySession: StudySessionInfo | undefined;
+  studyRestarted: boolean;
+  studyStorageAvailable: boolean;
+  restartStudy: () => boolean;
   messages: Message[];
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   input: string;
@@ -46,7 +52,7 @@ interface UseChatMessagesReturn {
   handleFeedback: (chatLogId: number, value: 'good' | 'bad') => Promise<void>;
 }
 
-export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions): UseChatMessagesReturn {
+export function useChatMessages({ courseId, shareToken, mode = 'qa' }: UseChatMessagesOptions): UseChatMessagesReturn {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const tRef = useRef(t);
@@ -61,6 +67,26 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
   const sendInFlightRef = useRef(false);
   const streamAbortRef = useRef<AbortController | null>(null);
   const followLatestRef = useRef(true);
+  const scope = shareToken ? `share:${shareToken}` : `course:${courseId ?? 'local'}`;
+  const session = useMemo(() => new TabStudySession(scope), [scope]);
+  const [studyState, setStudyState] = useState<{
+    session: TabStudySession;
+    info?: StudySessionInfo;
+    restarted?: boolean;
+    persistent: boolean;
+  }>({ session, persistent: true });
+  const currentStudyState = studyState.session === session ? studyState : undefined;
+
+  const restartStudy = useCallback(() => {
+    if (sendInFlightRef.current) return false;
+    session.restart();
+    setStudyState({ session, restarted: true, persistent: session.persistent });
+    setMessages([{ role: 'assistant', content: tRef.current('chat.studyGreeting') }]);
+    setInput('');
+    followLatestRef.current = true;
+    return true;
+  }, [session]);
+
   useEffect(() => {
     tRef.current = t;
   }, [t]);
@@ -79,6 +105,9 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
   }, []);
 
   const applyDoneMetadata = useCallback((event: ChatStreamDoneEvent) => {
+    if (event.study_session) {
+      setStudyState({ session, info: event.study_session, persistent: session.persistent });
+    }
     setMessages((prev) => {
       if (prev.length === 0) {
         return prev;
@@ -93,7 +122,7 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
       };
       return updated;
     });
-  }, []);
+  }, [session]);
 
   const replaceLastAssistantMessage = useCallback((content: string) => {
     setMessages((prev) => {
@@ -117,9 +146,11 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
     const errorMessage =
       event.code === 'OVER_QUOTA'
         ? tRef.current('chat.errorOverQuota')
-        : import.meta.env.DEV && event.message?.trim()
-          ? `${tRef.current('chat.error')} (${event.code}: ${event.message})`
-          : tRef.current('chat.error');
+        : event.code === 'PLOG_NOT_READY'
+          ? tRef.current('chat.errorPlogNotReady')
+          : import.meta.env.DEV && event.message?.trim()
+            ? `${tRef.current('chat.error')} (${event.code}: ${event.message})`
+            : tRef.current('chat.error');
     replaceLastAssistantMessage(errorMessage);
   }, [replaceLastAssistantMessage]);
 
@@ -164,8 +195,16 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
     if (!input.trim() || sendInFlightRef.current) return;
 
     const userMessage: Message = { role: 'user', content: input };
-    // Each question is answered independently.
-    const historyForApi = [userMessage];
+    // Q&A answers each question independently. Only Study needs the preceding
+    // assistant question and bounded dialogue history for grading.
+    const historyForApi: Pick<Message, 'role' | 'content'>[] = [userMessage];
+    if (mode === 'study') {
+      const first = messages[0]?.role === 'assistant' ? 1 : 0;
+      for (let i = messages.length - 1; i >= first && historyForApi.length < 12; i--) {
+        const { role, content } = messages[i];
+        if (content.trim()) historyForApi.unshift({ role, content });
+      }
+    }
 
     sendInFlightRef.current = true;
     const request = new AbortController();
@@ -179,10 +218,21 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
     setIsLoading(true);
 
     try {
+      const studySessionId = mode === 'study' ? session.getId() : undefined;
+      if (mode === 'study') {
+        // Until a successful response arrives, a disconnect may have left the server ahead.
+        setStudyState({ session, persistent: session.persistent });
+      }
       for await (const event of apiClient.chatStream({
         messages: historyForApi,
         ...(courseId ? { course_id: courseId } : {}),
         ...(shareToken ? { share_slug: shareToken } : {}),
+        ...(mode === 'study'
+          ? {
+              study_session_id: studySessionId,
+            }
+          : {}),
+        mode,
       }, request.signal)) {
         if (request.signal.aborted) return;
         setMessages((prev) => {
@@ -206,7 +256,9 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
       const errorMessage =
         error instanceof ApiError && error.code === 'OVER_QUOTA'
           ? tRef.current('chat.errorOverQuota')
-          : tRef.current('chat.error');
+          : error instanceof ApiError && error.code === 'PLOG_NOT_READY'
+            ? tRef.current('chat.errorPlogNotReady')
+            : tRef.current('chat.error');
       replaceLastAssistantMessage(errorMessage);
     } finally {
       if (streamAbortRef.current === request) {
@@ -218,8 +270,11 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
   }, [
     courseId,
     input,
+    messages,
+    mode,
     replaceLastAssistantMessage,
     shareToken,
+    session,
     streamController,
   ]);
 
@@ -267,6 +322,10 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
   }, [courseId, feedbackMutation, messages, queryClient, shareToken]);
 
   return {
+    studySession: currentStudyState?.info,
+    studyRestarted: currentStudyState?.restarted ?? false,
+    studyStorageAvailable: currentStudyState?.persistent ?? true,
+    restartStudy,
     messages,
     setMessages,
     input,

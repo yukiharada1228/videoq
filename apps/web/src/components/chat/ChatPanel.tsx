@@ -5,6 +5,8 @@ import { cn } from '@/lib/digital-agency/cn';
 import { useChatMessages } from '@/hooks/useChatMessages';
 import { useChatHistory } from '@/hooks/useChatHistory';
 import { ChatComposer } from '@/components/chat/ChatComposer';
+import { StudySessionNotice } from '@/components/chat/StudySessionNotice';
+import { useConfirm } from '@/components/common/feedback';
 import { ChatHistoryView } from '@/components/chat/ChatHistoryView';
 import { ChatMessagesView } from '@/components/chat/ChatMessagesView';
 import { Button } from '@/components/ui/button';
@@ -20,6 +22,7 @@ interface ChatPanelProps {
 }
 
 type PanelTab = 'chat' | 'history';
+type ChatMode = 'qa' | 'study';
 
 export function ChatPanel(props: ChatPanelProps) {
   // Cached route transitions can reuse this component. Keep all chat state and
@@ -36,10 +39,17 @@ function ChatPanelSession({
   suggestedQuestions,
 }: ChatPanelProps) {
   const { t } = useTranslation();
+  const confirm = useConfirm();
   const [tab, setTab] = useState<PanelTab>('chat');
+  const [mode, setMode] = useState<ChatMode>('qa');
 
   const {
+    studySession,
+    studyRestarted,
+    studyStorageAvailable,
+    restartStudy,
     messages,
+    setMessages,
     input,
     setInput,
     isLoading,
@@ -49,7 +59,7 @@ function ChatPanelSession({
     handleSend,
     handleKeyPress,
     handleFeedback,
-  } = useChatMessages({ courseId, shareToken });
+  } = useChatMessages({ courseId, shareToken, mode });
 
   const {
     history,
@@ -73,7 +83,28 @@ function ChatPanelSession({
     window.open(`/videos/${videoId}?t=${seconds}`, '_blank');
   };
 
+  const switchMode = (next: ChatMode) => {
+    if (next === mode) return;
+    setMode(next);
+    setMessages([
+      {
+        role: 'assistant',
+        content:
+          next === 'study' ? t('chat.studyGreeting') : t('chat.assistantGreeting'),
+      },
+    ]);
+  };
+
   const showTabs = !!courseId && !shareToken && showHistory;
+
+  const confirmRestartStudy = async () => {
+    if (await confirm({
+      title: t('chat.studySession.restart'),
+      description: t('chat.studySession.restartConfirm'),
+      confirmLabel: t('chat.studySession.restart'),
+      cancelLabel: t('common.actions.cancel'),
+    })) restartStudy();
+  };
 
   const containerClass = cn(
     'flex min-h-0 flex-col overflow-hidden border border-solid-gray-420 bg-white',
@@ -116,6 +147,37 @@ function ChatPanelSession({
         )}
       </div>
 
+      {tab === 'chat' && courseId && (
+        <div className="px-4 py-2 border-b border-solid-gray-100 flex gap-2 shrink-0">
+          <button
+            type="button"
+            disabled={isLoading}
+            onClick={() => switchMode('qa')}
+            aria-pressed={mode === 'qa'}
+            className={`text-dns-14B-120 px-3 py-1 transition-colors ${
+              mode === 'qa'
+                ? 'bg-key-900 text-white'
+                : 'bg-solid-gray-50 text-solid-gray-700 hover:bg-solid-gray-100'
+            }`}
+          >
+            {t('chat.modeQa')}
+          </button>
+          <button
+            type="button"
+            disabled={isLoading}
+            onClick={() => switchMode('study')}
+            aria-pressed={mode === 'study'}
+            className={`text-dns-14B-120 px-3 py-1 transition-colors ${
+              mode === 'study'
+                ? 'bg-key-900 text-white'
+                : 'bg-solid-gray-50 text-solid-gray-700 hover:bg-solid-gray-100'
+            }`}
+          >
+            {t('chat.modeStudy')}
+          </button>
+        </div>
+      )}
+
       {tab === 'history' ? (
         <ChatHistoryView
           history={history}
@@ -127,6 +189,13 @@ function ChatPanelSession({
         />
       ) : (
         <>
+          {mode === 'study' && <StudySessionNotice
+            info={studySession}
+            restarted={studyRestarted}
+            storageAvailable={studyStorageAvailable}
+            isLoading={isLoading}
+            onRestart={() => { void confirmRestartStudy(); }}
+          />}
           <ChatMessagesView
             messages={messages}
             isLoading={isLoading}

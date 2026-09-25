@@ -8,7 +8,8 @@ export type EmbeddingSettings = { EMBEDDING_PROVIDER?: string; EMBEDDING_MODEL?:
 export type EmbeddingReason =
   | "EMBEDDING_CONFIG_INVALID"
   | "EMBEDDING_SCHEMA_MISMATCH"
-  | "EMBEDDING_OUTPUT_INVALID";
+  | "EMBEDDING_OUTPUT_INVALID"
+  | "EMBEDDING_DATA_INVALID";
 
 export function embeddingDiagnostic(
   config: EmbeddingConfig | undefined,
@@ -31,7 +32,7 @@ export class EmbeddingConfigurationError extends LlmConfigurationError {
 
 export class EmbeddingValidationError extends LlmProviderError {
   constructor(
-    readonly reason: "EMBEDDING_OUTPUT_INVALID",
+    readonly reason: "EMBEDDING_OUTPUT_INVALID" | "EMBEDDING_DATA_INVALID",
     config?: EmbeddingConfig,
     actualDimensions?: number | null,
   ) {
@@ -54,7 +55,7 @@ export function resolveEmbeddingConfig(env: EmbeddingSettings): EmbeddingConfig 
 
 export function validateEmbedding(
   value: unknown,
-  reason: "EMBEDDING_OUTPUT_INVALID" = "EMBEDDING_OUTPUT_INVALID",
+  reason: "EMBEDDING_OUTPUT_INVALID" | "EMBEDDING_DATA_INVALID" = "EMBEDDING_OUTPUT_INVALID",
   config?: EmbeddingConfig,
 ): number[] {
   if (
@@ -65,4 +66,15 @@ export function validateEmbedding(
     throw new EmbeddingValidationError(reason, config, Array.isArray(value) ? value.length : null);
   }
   return value;
+}
+
+/** Empty arrays represent an ungenerated concept; malformed stored data does not. */
+export function parseStoredEmbedding(value: unknown): number[] {
+  let parsed: unknown = value;
+  if (typeof value === "string") {
+    try { parsed = JSON.parse(value); }
+    catch { throw new EmbeddingValidationError("EMBEDDING_DATA_INVALID"); }
+  }
+  if (parsed == null || (Array.isArray(parsed) && parsed.length === 0)) return [];
+  return validateEmbedding(parsed, "EMBEDDING_DATA_INVALID");
 }
