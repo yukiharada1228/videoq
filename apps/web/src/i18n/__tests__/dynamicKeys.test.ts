@@ -24,10 +24,6 @@ function resolve(locale: KeyMap, path: string): KeyMap {
 /** キーのプレフィックス → バックエンドが返しうる値の網羅。 */
 const DYNAMIC_KEYS: { path: string; values: readonly string[] }[] = [
   {
-    path: 'plog.statusLabel',
-    values: ['missing', 'pending', 'running', 'ready', 'empty', 'failed'],
-  },
-  {
     // CourseInvitationPage: ステータスチップ
     path: 'courseInvitation.status',
     values: ['pending', 'accepted', 'declined', 'expired', 'revoked'],

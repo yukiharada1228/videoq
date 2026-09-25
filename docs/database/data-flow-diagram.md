@@ -16,8 +16,6 @@ flowchart LR
     Worker --> Transcript[(Transcript in videos)]
     Transcript --> Index[Generate embeddings]
     Index --> Scenes[(scene_embeddings)]
-    Transcript --> Plog[Generate PLOG]
-    Plog --> Concepts[(Concepts, edges, and questions)]
 ```
 
 `videos` stores the title, owner, file reference, transcript, processing state, and related metadata. The file itself is not stored in a DB row.
@@ -47,6 +45,5 @@ Chat records and answer evaluations use separate tables. Returning an answer and
 | MCP API keys and OAuth | `apikey`, `oauth_*`, and related tables |
 | Undelivered jobs | `external_tasks` |
 | Worker execution records | `job_executions` |
-| Temporary study mode state | `STUDY_SESSION` Durable Object |
 
 **Related:** [Data dictionary](data-dictionary.md), [ER diagrams](er-diagram.md), [Job delivery and recovery](../architecture/flowchart.md).

@@ -16,8 +16,6 @@ flowchart LR
     Worker --> Transcript[(videosの文字起こし)]
     Transcript --> Index[埋め込みの生成]
     Index --> Scenes[(scene_embeddings)]
-    Transcript --> Plog[PLOGの生成]
-    Plog --> Concepts[(概念・関係・問い)]
 ```
 
 `videos` はタイトル、所有者、ファイルへの参照、文字起こし、処理状態などを持ちます。ファイル本体をDBの行に保存する構成ではありません。
@@ -47,6 +45,5 @@ flowchart LR
 | MCPのAPIキー・OAuth | `apikey`、`oauth_*` など |
 | 未配送のジョブ | `external_tasks` |
 | workerの実行記録 | `job_executions` |
-| 学習モードの一時状態 | `STUDY_SESSION` Durable Object |
 
 **関連:** [データ辞書](data-dictionary.md)、[ER図](er-diagram.md)、[ジョブの配送と回復](../architecture/flowchart.md)。

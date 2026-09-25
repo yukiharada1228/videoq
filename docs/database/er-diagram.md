@@ -48,19 +48,12 @@ erDiagram
 
 Questions, answers, and citations live in chat logs; quality evaluations are separate records. Evaluation may not be complete when the answer is returned.
 
-## Learning data generated from videos
+## Video search data
 
 ```mermaid
 erDiagram
     VIDEOS ||--o{ SCENE_EMBEDDINGS : indexed
-    VIDEOS ||--o{ PLOG_BUILD_JOBS : builds
-    VIDEOS ||--o{ PLOG_CONCEPTS : contains
-    PLOG_CONCEPTS ||--o{ PLOG_EDGES : source
-    PLOG_CONCEPTS ||--o{ PLOG_EDGES : target
-    PLOG_CONCEPTS ||--o{ PLOG_LEARNING_OBJECTS : has
 ```
-
-Each edge has a source and target concept. Check foreign keys and deletion constraints to understand what happens when either concept is deleted.
 
 ## Before changing the schema
 

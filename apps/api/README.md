@@ -87,7 +87,7 @@ Better Auth（`/api/auth/*`）が正本です。
 
 ## QAエージェント
 
-QAモードはReActで、アクセス確認済みの現在の講座を対象に次のツールを使います。PLOGの生成状態には依存しません。
+Q&AはReActで、アクセス確認済みの現在の講座を対象に次のツールを使います。
 
 - `get_course_info`: 講座名・登録説明・動画総数と、動画ID・タイトル・説明・掲載位置・処理状態を取得。1ページ最大20動画、1回答最大5回。説明文は講座2000文字・動画500文字で省略を明示し、続きの動画は `videos_meta.next_offset` で取得します。
 - `search_scenes`: 字幕の意味検索。任意の `video_ids` で講座内の動画に絞り込めます。省略時は講座全体、講座外IDや空の指定は不正として扱います。1回答最大3回。
@@ -115,7 +115,6 @@ Drizzle の modern schema を runtime の唯一のモデルとして使用しま
 - auth (Better Auth): `users` (text UUID PK), `session`, `account`, `verification`, `apikey`, `jwks`, `oauth_*`
 - video: `videos`, `video_courses`, `video_course_members`, `tags`, `video_tags`
 - chat/evaluation: `chat_logs`, `chat_log_evaluations`, `course_evaluation_snapshots`
-- PLOG: `plog_*`, `learner_concept_states`
 - vector: `scene_embeddings`（worker・HonoともPGVectorStore。Hono検索は所有者・講座内動画のスコープを固定）
 
 管理 procedure（superuser）: `admin.listUsers`、`admin.patch*`、`admin.reindexAll`。
@@ -148,6 +147,10 @@ npm run db:studio
 作成し、先頭を`-- drizzle-kit:custom`にします。custom migrationへDDLを書かず、
 `drizzle-kit push`は共有環境・本番では使用しません。`db:verify`はjournalとの一対一、
 生成DDLとsnapshot差分の完全一致、custom migrationにDDLがないことを検査します。
+
+学習機能の廃止に伴う `0023` は既存テーブルを削除するため、既存環境では
+通信・ジョブを止めてから `STUDY_REMOVAL_MAINTENANCE=true` を設定して移行します。
+未設定なら `db:migrate` は変更前に停止します。[適用手順](../../docs/design/deployment-diagram.md#deploying-the-learning-feature-removal)を参照してください。
 
 ## 非同期ジョブ
 
@@ -182,7 +185,6 @@ Cloudflare Dashboard側にrepositoryのルートディレクトリ設定はあ�
 | `HYPERDRIVE` | Neon PostgreSQL |
 | `VIDEO_BUCKET` | 動画・字幕・サムネイル |
 | `RATE_LIMITER` | 分散 rate limit |
-| `STUDY_SESSION` | 学習モードの一時状態（Durable Object） |
 | `TASK_SCHEDULER` | 未配送ジョブ・放棄uploadなどの回復予約（Durable Object） |
 
 R2 の S3 互換 endpoint、SQS、LLM/embedding、OAuth issuer などは

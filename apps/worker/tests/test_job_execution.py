@@ -30,7 +30,7 @@ def _connection(monkeypatch, *rows):
 def test_claims_new_job_once(monkeypatch) -> None:
     conn = _connection(monkeypatch, {"job_id": "job-1"})
 
-    assert job_execution.claim_job_execution("job-1", "build_plog", {"video_id": 1}) == (
+    assert job_execution.claim_job_execution("job-1", "reindex_video_transcript", {"video_id": 1}) == (
         "lease-token"
     )
     assert "ON CONFLICT (job_id) DO NOTHING" in conn.execute.call_args.args[0]
@@ -41,9 +41,9 @@ def test_completed_duplicate_is_not_claimed(monkeypatch) -> None:
         monkeypatch,
         None,
         {
-            "job_type": "build_plog",
+            "job_type": "reindex_video_transcript",
             "payload_sha256": job_execution._payload_sha256(
-                "build_plog", {"video_id": 1}
+                "reindex_video_transcript", {"video_id": 1}
             ),
             "status": "completed",
             "lease_active": False,
@@ -51,7 +51,7 @@ def test_completed_duplicate_is_not_claimed(monkeypatch) -> None:
     )
 
     assert (
-        job_execution.claim_job_execution("job-1", "build_plog", {"video_id": 1})
+        job_execution.claim_job_execution("job-1", "reindex_video_transcript", {"video_id": 1})
         is None
     )
 
@@ -61,9 +61,9 @@ def test_active_duplicate_is_retried_instead_of_acknowledged(monkeypatch) -> Non
         monkeypatch,
         None,
         {
-            "job_type": "build_plog",
+            "job_type": "reindex_video_transcript",
             "payload_sha256": job_execution._payload_sha256(
-                "build_plog", {"video_id": 1}
+                "reindex_video_transcript", {"video_id": 1}
             ),
             "status": "running",
             "lease_active": True,
@@ -71,7 +71,7 @@ def test_active_duplicate_is_retried_instead_of_acknowledged(monkeypatch) -> Non
     )
 
     with pytest.raises(job_execution.JobExecutionBusyError):
-        job_execution.claim_job_execution("job-1", "build_plog", {"video_id": 1})
+        job_execution.claim_job_execution("job-1", "reindex_video_transcript", {"video_id": 1})
 
 
 def test_failed_job_is_reclaimed_with_a_new_lease(monkeypatch) -> None:
@@ -79,9 +79,9 @@ def test_failed_job_is_reclaimed_with_a_new_lease(monkeypatch) -> None:
         monkeypatch,
         None,
         {
-            "job_type": "build_plog",
+            "job_type": "reindex_video_transcript",
             "payload_sha256": job_execution._payload_sha256(
-                "build_plog", {"video_id": 1}
+                "reindex_video_transcript", {"video_id": 1}
             ),
             "status": "failed",
             "lease_active": False,
@@ -89,7 +89,7 @@ def test_failed_job_is_reclaimed_with_a_new_lease(monkeypatch) -> None:
         {"job_id": "job-1"},
     )
 
-    assert job_execution.claim_job_execution("job-1", "build_plog", {"video_id": 1}) == (
+    assert job_execution.claim_job_execution("job-1", "reindex_video_transcript", {"video_id": 1}) == (
         "lease-token"
     )
 
@@ -99,7 +99,7 @@ def test_reused_job_id_with_different_payload_is_rejected(monkeypatch) -> None:
         monkeypatch,
         None,
         {
-            "job_type": "build_plog",
+            "job_type": "reindex_video_transcript",
             "payload_sha256": "different",
             "status": "completed",
             "lease_active": False,
@@ -107,4 +107,4 @@ def test_reused_job_id_with_different_payload_is_rejected(monkeypatch) -> None:
     )
 
     with pytest.raises(job_execution.JobIdentityConflictError):
-        job_execution.claim_job_execution("job-1", "build_plog", {"video_id": 1})
+        job_execution.claim_job_execution("job-1", "reindex_video_transcript", {"video_id": 1})

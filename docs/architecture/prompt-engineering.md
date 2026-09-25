@@ -20,15 +20,13 @@ Start with [How AI builds an answer](../concepts/how-ai-works.md) for a complete
 
 The prompt selects language-specific instructions from `prompts.json`. Course metadata includes names, descriptions, video counts, and a page of video IDs/titles/statuses. The tool explicitly omits share tokens, owner IDs, and file URLs. Descriptions can be truncated: course descriptions at 2,000 characters and video descriptions at 500, with flags indicating truncation. A missing page or truncated field must not be treated as proof that information does not exist.
 
-Showing older chat messages in the UI does not change this Q&A input contract. Follow-up questions need enough context in their latest message. Study-mode grading separately uses the previous assistant question.
+Showing older chat messages in the UI does not change this Q&A input contract. Follow-up questions need enough context in their latest message.
 
 ### Client and API contract
 
-Q&A deliberately remains a single-question feature so each request specifies its own subject and retrieves evidence without inheriting earlier answers. This applies to authenticated chats, shared-link chats, and Q&A without a course. The browser sends one `user` message. The streaming endpoint (`/api/chat/messages/stream`) and `chat.send` still accept a `messages` array for compatibility and Study, but Q&A selects only its latest `user` entry; older entries do not provide context. Omitting `mode` selects `qa`.
+Q&A deliberately remains a single-question feature so each request specifies its own subject and retrieves evidence without inheriting earlier answers. This applies to authenticated chats, shared-link chats, and Q&A without a course. The browser sends one `user` message. The streaming endpoint (`/api/chat/messages/stream`) and `chat.send` still accept a `messages` array for compatibility, but Q&A selects only its latest `user` entry; older entries do not provide context.
 
 For “What is the dot product?” → “Give me an example”, the second request is independent. It must not inherit “dot product” from the first request. A particular clarification response is not guaranteed by code; include the subject in the question, as in “Give me an example of the dot product.” Tests assert the actual model input for both streaming and non-streaming Q&A.
-
-Only Study sends recent dialogue (at most 12 non-empty messages including the new reply, excluding the initial greeting) so it can refer to the previous assistant question. This does not make saved chat logs part of either mode's model input.
 
 ## Selecting information for Q&A
 
@@ -71,12 +69,6 @@ Search filters enforce the course access scope established by the API. Separatel
 
 Weak search matches can still be returned because the application currently has no minimum similarity cutoff. See [scene search](transcription-and-search.md). Prompt wording alone cannot fix missing transcript content or a mismatched embedding index.
 
-## Study mode
-
-Study mode uses [PLOG](../plog/README.md) concepts, prerequisite relationships, questions, and hints. It selects a target concept and unmastered prerequisites, evaluates the learner's answers, and updates progress.
-
-The first question uses saved text. Ordinary answer grading and support can use an LLM, while explicit requests to reveal the answer use a saved hint and template. Program rules update the temporary state in `STUDY_SESSION`. See [the grading and hint decisions](../plog/README.md).
-
 ## Answer quality is evaluated separately
 
 For course chats, the API saves the question, answer, citations, and retrieved context. An asynchronous worker job evaluates the saved answer with RAGAS. The generation request does not wait for that evaluation to approve or rewrite the response.
@@ -89,8 +81,6 @@ For course chats, the API saves the question, answer, citations, and retrieved c
 
 These are automated estimates, not verified grades or probabilities of correctness. The implementation uses reference-free metrics; it does not compare every response with a human-written correct answer. Context precision is skipped when no retrieved context exists. Individual metric failures can leave a value unset, while failure of the evaluation job is recorded as `failed`.
 
-This evaluation is distinct from the `mastery` / `partial` / `miss` grades that drive study mode. See [pipeline/evaluation.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/evaluation.py) and [tasks/evaluation.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/evaluation.py).
-
 ## Where to make changes
 
 | Location | Role |
@@ -98,8 +88,6 @@ This evaluation is distinct from the `mastery` / `partial` / `miss` grades that 
 | [prompts/](https://github.com/yukiharada1228/videoq/tree/main/apps/api/src/lib/prompts) | Instructions and settings |
 | [rag.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag.ts) | Q&A tool calls and answer generation |
 | [rag-course-info.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag-course-info.ts) | Registered course and video metadata |
-| [plog-study.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/plog-study.ts) | Study mode responses and evaluation |
-| [plog_build.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/plog_build.py) | Generating learning concepts, questions, and hints |
 
 ## What to check after a change
 

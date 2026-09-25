@@ -24,7 +24,7 @@ flowchart LR
 |---|---|---|
 | Web | 表示、フォーム、質問の入力、結果の再生 | `apps/web/src/` |
 | API | 認証・アクセス権、業務処理、ジョブの依頼 | `apps/api/src/` |
-| Python worker | 文字起こし、索引、PLOG生成、回答評価 | `apps/worker/worker_python/` |
+| Python worker | 文字起こし、索引、回答評価 | `apps/worker/worker_python/` |
 
 WebとAPIは `packages/trpc` で操作名・入力・出力の型を共有します。Pythonとの境界はSQSのJSONメッセージとDBです。
 
@@ -66,7 +66,6 @@ APIはHyperdrive経由、Python workerはPostgreSQL接続で同じDBを利用し
 ## Durable Objectsの役割
 
 - `RATE_LIMITER`: 短時間の過剰なリクエストを制限します。
-- `STUDY_SESSION`: 学習モードの一時状態を保存し、同じセッションの競合を制御します。
 - `TASK_SCHEDULER`: 未配送ジョブや放棄されたアップロードの回復を予約します。
 
 回復処理はDOのアラームで予定されます。現在の定期実行は日次の `17 3 * * *`（UTC）で、古い記録の整理と回復を行います。5分ごとのcronを前提に運用しないでください。

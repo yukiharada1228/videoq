@@ -22,8 +22,6 @@ const sidebars: SidebarsConfig = {
         'concepts/how-ai-works',
         'architecture/transcription-and-search',
         'architecture/prompt-engineering',
-        'plog/README',
-        'plog/study-sessions',
       ],
     },
     {

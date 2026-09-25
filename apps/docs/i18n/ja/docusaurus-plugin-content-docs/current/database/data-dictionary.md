@@ -38,19 +38,11 @@ description: 目的からテーブルを探し、実際の列定義へ進むた�
 | `chat_log_evaluations` | 回答ごとの評価結果 |
 | `course_evaluation_snapshots` | 講座単位の評価集計 |
 
-## 検索とPLOG
+## 検索
 
 | テーブル | 保存するもの・注意点 |
 |---|---|
 | `scene_embeddings` | 字幕の区間と検索用の埋め込み。現行のベクトル次元は1536 |
-| `plog_build_jobs` | 学習用データの生成状態 |
-| `plog_concepts` | 動画から抽出した概念 |
-| `plog_edges` | 概念同士の前提関係など |
-| `plog_learning_objects` | 最初の問い・ヒント・誤解の例など |
-| `plog_summary_nodes` | 階層要約用の定義。現行の簡略生成器では新規生成しない |
-| `learner_concept_states` | 学習状態用の定義。現行Studyの一時状態は別途Durable Objectに保存 |
-
-テーブルの存在と、現在の処理が書き込むことは別です。[PLOGの現行実装](../plog/README.md)も確認してください。
 
 ## 配送・重複対策・課金
 

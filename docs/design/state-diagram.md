@@ -1,6 +1,6 @@
 ---
 title: Video states and processing completion
-description: What uploading through completed mean, and how they differ from PLOG readiness.
+description: What uploading through completed mean, how search preparation completes.
 ---
 
 # Video states and processing completion
@@ -36,10 +36,4 @@ This diagram shows processing states, not a user-facing button for every arrow. 
 
 Also inspect individual implementations for paths such as reindexing. Normal transition definitions are in [video_status.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/video_status.py); indexing completion is handled in [tasks/indexing.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/indexing.py).
 
-## Check PLOG readiness separately
-
-After search data is created, a `build_plog` job generates learning concepts and hints. A `completed` video may therefore still be unavailable for study mode.
-
-`plog_build_jobs` tracks generation state. Even after generation completes, empty concepts or an unusable learning order prevent study. Do not enable the Study button based only on video status.
-
-**Related:** [PLOG and study mode](../plog/README.md), [Stalled processing](../guides/troubleshooting.md).
+**Related:** [Stalled processing](../guides/troubleshooting.md).

@@ -7,7 +7,7 @@ VideoQ の実行パッケージです。
 | [`api/`](api/) | tRPC API と protocol transport | Hono / Cloudflare Workers |
 | [`docs/`](docs/) | `../docs/` の設計文書を表示・検索するサイト | Docusaurus |
 | [`web/`](web/) | ブラウザアプリ | React / Vite |
-| [`worker/`](worker/) | 文字起こし・索引・PLOG・評価などの非同期処理 | Python / SQS Lambda |
+| [`worker/`](worker/) | 文字起こし・索引・評価などの非同期処理 | Python / SQS Lambda |
 
 Node.js パッケージはリポジトリルートの npm workspace で管理します。
 

@@ -10,12 +10,6 @@ from psycopg import sql
 from worker_python.video_sql import delete_video_cascade
 
 RELATED_TABLES = (
-    "plog_build_jobs",
-    "plog_summary_nodes",
-    "plog_concepts",
-    "plog_edges",
-    "plog_learning_objects",
-    "learner_concept_states",
     "video_tags",
     "video_course_members",
 )
@@ -49,7 +43,7 @@ def assert_intact(conn):
         (20,),
     ]
     for table in RELATED_TABLES:
-        expected = [(1,), (2,), (3,)] if table == "plog_summary_nodes" else [(1,), (2,)]
+        expected = [(1,), (2,)]
         assert (
             conn.execute(
                 sql.SQL("SELECT id FROM {} ORDER BY id").format(sql.Identifier(table))

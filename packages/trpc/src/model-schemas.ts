@@ -74,19 +74,12 @@ export const citationSchema = z.object({
 
 export const chatFeedbackSchema = z.enum(["good", "bad"]).nullable();
 
-export const studySessionInfoSchema = z.object({
-  status: z.enum(["started", "continued"]),
-  /** Server-confirmed expiration time, in Unix milliseconds. */
-  expires_at: z.number().int().positive(),
-});
-
 export const chatMessageSchema = z.object({
   role: z.enum(["user", "assistant"]),
   content: z.string(),
   citations: z.array(citationSchema).optional(),
   chat_log_id: z.number().optional(),
   feedback: chatFeedbackSchema.optional(),
-  study_session: studySessionInfoSchema.optional(),
 });
 
 export const chatLogEvaluationSchema = z.object({
@@ -217,58 +210,3 @@ export const tagSchema = z.object({
 });
 
 export const tagDetailSchema = tagSchema.extend({ videos: z.array(videoListItemSchema).optional() });
-
-export const plogWaypointSchema = z.object({
-  start_sec: z.number().optional(),
-  end_sec: z.number().optional(),
-  start_time: z.string().optional(),
-  end_time: z.string().optional(),
-  label: z.string().optional(),
-});
-
-export const plogConceptSchema = z.object({
-  id: z.number(),
-  label: z.string(),
-  node_type: z.string(),
-  intro_sec: z.number(),
-  source_quote: z.string(),
-  opening_question: z.string(),
-  hint_ladder: z.array(z.string()),
-  misconceptions: z.array(z.string()),
-  canonical_order: z.array(z.string()),
-  worked_examples: z.array(z.string()),
-  waypoints: z.array(plogWaypointSchema),
-  hint_count: z.number(),
-  waypoint_count: z.number(),
-});
-
-export const plogEdgeSchema = z.object({
-  id: z.number(),
-  source_id: z.number(),
-  source_label: z.string(),
-  target_id: z.number(),
-  target_label: z.string(),
-  edge_type: z.string(),
-  quote: z.string(),
-  provenance: z.enum(["generated", "edited", "unknown"]).optional(),
-});
-
-export const plogGraphSchema = z.object({
-  video_id: z.number(),
-  build_status: z.string(),
-  input_tokens: z.number(),
-  output_tokens: z.number(),
-  error_message: z.string(),
-  summary_node_count: z.number(),
-  concepts: z.array(plogConceptSchema),
-  edges: z.array(plogEdgeSchema),
-});
-
-export const plogLearnerStateSchema = z.object({
-  concept_id: z.number(),
-  label: z.string(),
-  reached: z.boolean(),
-  hint_index: z.number(),
-  last_grade: z.string(),
-  active: z.boolean(),
-});

@@ -13,7 +13,7 @@ DBの変更は、TypeScriptで書いたDrizzleのスキーマ定義から始め�
 
 | 場所 | 内容 |
 |---|---|
-| `apps/api/src/db/schema/modern.ts` | 動画・講座・チャット・PLOGなどの業務データ |
+| `apps/api/src/db/schema/modern.ts` | 動画・講座・チャットなどの業務データ |
 | `apps/api/src/db/schema/better-auth.ts` | セッション・認証・OAuthなど |
 | `apps/api/src/db/schema/index.ts` | スキーマ定義の集約 |
 | `apps/api/drizzle/` | 生成したSQLとスキーマ変更の履歴 |
@@ -58,6 +58,6 @@ npm run db:generate:custom -- --name describe_the_data_change
 
 スキーマ変更は、型チェックに加えて検証専用DBでの統合テストを実行します。[テストの使い分け](testing.md)を参照してください。共有環境や本番では `drizzle-kit push` を使わず、レビュー済みmigrationをデプロイ手順に沿って適用します。
 
-埋め込みはアプリ・DBとも1536次元固定で、`scene_embeddings.embedding` は `vector(1536)` です。環境変数では次元を変更できません。同じ次元のモデル変更でもシーン・PLOGの再埋め込みが必要です。既存データの移行ツールは提供していません。[診断方法と今後の移行要件](embeddings.md)を参照してください。
+埋め込みはアプリ・DBとも1536次元固定で、`scene_embeddings.embedding` は `vector(1536)` です。環境変数では次元を変更できません。同じ次元のモデル変更でもシーンの再埋め込みが必要です。既存データの移行ツールは提供していません。[診断方法と今後の移行要件](embeddings.md)を参照してください。
 
 **関連:** [データ辞書](../database/data-dictionary.md)、[ER図の読み方](../database/er-diagram.md)。

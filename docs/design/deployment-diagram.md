@@ -56,7 +56,13 @@ These commands are entry points for each task. Also check the steps and ordering
 for the production API, worker, and database. Publishing code that uses a new column before migrating
 can cause failures against the old database.
 
-When API, frontend, and Python worker changes ship together, CD deploys them in that order after any database migration. The worker waits for all selected API/frontend deployments to succeed before it can produce a new shared data format, such as PLOG `presentation_order` relationships. A failed or cancelled selected deployment blocks the worker. Worker-only changes still deploy when API/frontend jobs are skipped because they have no changes.
+When API, frontend, and Python worker changes ship together, CD deploys them in that order after any database migration. The worker waits for all selected API/frontend deployments to succeed before it can produce a new shared data format. A failed or cancelled selected deployment blocks the worker. Worker-only changes still deploy when API/frontend jobs are skipped because they have no changes.
 
 See [`infra/DEPLOY.md`](https://github.com/yukiharada1228/videoq/blob/main/infra/DEPLOY.md) for details.
 The documentation site uses a dedicated Worker at [docs.videoq.jp](https://docs.videoq.jp/), with Japanese at [/ja/](https://docs.videoq.jp/ja/). Changes to the documentation, translations, or site configuration are published automatically after CI succeeds on `main`. You can also publish the current working tree manually with `npm run deploy:docs`. See the [docs deployment instructions](https://github.com/yukiharada1228/videoq/blob/main/apps/docs/README.md).
+
+## Deploying the learning feature removal
+
+Deploy the removal in two releases. First, remove the learning UI, API and worker task while retaining the database schema. The API's Durable Object migration deletes saved study sessions, and the updated worker acknowledges legacy `build_plog` messages without executing them. Wait for API, web and worker deployments to succeed before releasing the database cleanup.
+
+Before dropping storage, allow old invocations to finish: wait at least the worker's configured Lambda timeout after its update completes (currently 900 seconds), and confirm that no old API or worker deployment remains active. The second release removes learning-only tables and their embedded vectors, legacy learning tables and retired job records. The shared `scene_embeddings` table serves normal video search and Q&A and is retained. This sequence lets the application continue serving during cleanup and requires no maintenance environment variable.

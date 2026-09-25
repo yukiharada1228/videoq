@@ -132,16 +132,9 @@ Tabでリンクを移動し、Escapeで閉じて起点へフォーカスを戻�
 `Chat/ChatPanel`は実際の`useChatMessages`／`useChatHistory`とMSWを使います。SSEは`ReadableStream`へ型付きイベントを書き込み、初期待機・検索・検索完了・本文途中・完了・HTTP失敗・SSEエラーを固定します。
 `ProgressToComplete`はplay関数からイベントを順に送り、`InterruptedResponse`／`RetryAfterInterruption`では回答途中の中断と再送を確認します。本文の文字送りは本番と同じ24msごとに3文字で、長文のStoryは描画完了を待ちます。
 `CompleteWithOpenConnection`はdone後に接続が開いたままでも回答が完了すること、`UnmountDuringResponse`は画面を外すと通信が中止され、再表示に古い回答が混ざらないことを確認します。
-Story終了時にストリーム・保留したCSV要求・abortリスナーを解放し、React側もfetchと描画timerを終了します。学習セッションIDは固定し、終了時に元のsessionStorageへ戻します。
-通常／学習モード、共有リンク、履歴取得・評価の反映、キーボード送信・引用、長文、日英のスマホ表示を用意しています。履歴取得失敗は空一覧と区別してエラーを表示します。
+Story終了時にストリーム・保留したCSV要求・abortリスナーを解放し、React側もfetchと描画timerを終了します。
+通常チャット、共有リンク、履歴取得・評価の反映、キーボード送信・引用、長文、日英のスマホ表示を用意しています。履歴取得失敗は空一覧と区別してエラーを表示します。
 `ExportCsv`は固定の`storybook-chat.csv`を生成します。CSV／フィードバック失敗は現行hookと同じくconsoleへ記録し、再操作できます。外部AI・実APIには接続しません。
-
-`Video/PlogPanel`は実際の画面とtRPC clientを使い、MSWで生成／再生成、概念の追加・更新・削除・統合、学習用フィールド、関係の追加・更新・削除を再現します。
-取得中／失敗、missing／pending／running／failed／ready、概念なし、多数データ、各操作の保留／失敗／成功、保存の再試行を用意しています。通常のStoryではグラフを固定し、`BuildPolling`だけは本番の3000ms間隔でpending→running→readyへ進みます。
-Story切り替え時にquery・timer・保留した要求とモックのグラフを片付けます。`PollingStopsWhenHidden`とユニットテストでは非表示・unmount・生成完了／失敗で取得が停止することを確認します。
-再構築・削除・統合に使う`window.confirm`はStory内でのみ置き換え、呼び出し文言と許可／取り消しを検証します。OSの確認画面は表示せず、Story終了時に元の関数へ戻します。実ジョブや実データの更新は行いません。
-保存・一覧の再取得中は入力と閉じる操作・再構築を無効にします。追加／詳細を開くと最初のフィールドへ、失敗時はエラーへ、保存や削除の後は一覧の見出しへフォーカスを移します。
-長いラベル・引用と英語のフォームはスマホ幅で確認できます。概念と学習用フィールドは順に保存するため、後半の失敗時は入力を保持して再送する状態も用意しています。
 
 `Video/TranscriptPanel`・`Video/VideoDetailEditDialog`・`Video/SortableVideoItem`・`Video/PickFromLibraryDialog`・`Video/ShareLinkDialog`は、動画・講座詳細の内部から切り出した実際の部品です。既存の詳細画面も同じ部品を使用します。
 字幕の検索・アクティブ行・編集・保存、動画情報とタグの編集、動画行の選択・削除制限、共有リンクの状態は、固定データと制御propsで再現します。保存・削除・コピーのcallbackはStory内で記録し、実データ更新・クリップボード書き込みは行いません。

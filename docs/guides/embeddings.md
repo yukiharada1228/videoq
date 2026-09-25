@@ -42,9 +42,9 @@ Both adapters call `POST /api/embed` with `model`, `input`, and `dimensions: 153
 
 ## What gets checked
 
-Before scene search, indexing, PLOG concept embedding, or Study grading, the relevant path verifies the declared DB column is `vector(1536)`, including when the table is empty. A missing column, another type, or an unbounded `vector` column fails validation.
+Before scene search or indexing, the relevant path verifies the declared DB column is `vector(1536)`, including when the table is empty. A missing column, another type, or an unbounded `vector` column fails validation.
 
-Every generated vector must contain exactly 1536 finite numeric values, fit pgvector's float32 representation, and remain nonzero. Strings and booleans are rejected. Batch counts and OpenAI response indices must match the inputs. Study also validates stored nonempty PLOG vectors; an ungenerated empty vector retains its existing not-ready meaning. Invalid data is not treated as zero similarity or an incorrect learner answer.
+Every generated vector must contain exactly 1536 finite numeric values, fit pgvector's float32 representation, and remain nonzero. Strings and booleans are rejected. Batch counts and OpenAI response indices must match the inputs.
 
 Scene splitting and RAGAS share output validation without requiring a DB for standalone calculations. Contract errors propagate instead of silently producing fallback scenes or missing scores. Pure data deletion requires no model call or credentials. Full reindexing checks the configuration, DB, and a short real embedding **before deleting existing vectors**; failures later in the job still do not provide atomic rollback.
 
@@ -81,9 +81,8 @@ The probe additionally reports `actual_dimensions`. Compare `provider`, `model`,
 | `EMBEDDING_CONFIG_INVALID` | Unsupported provider, missing required model, or a worker embedding request rejected with HTTP 4xx (except 408/429) |
 | `EMBEDDING_SCHEMA_MISMATCH` | DB declaration differs from `vector(1536)` |
 | `EMBEDDING_OUTPUT_INVALID` | Invalid model output, count, or indices |
-| `EMBEDDING_DATA_INVALID` | Invalid stored PLOG vector |
 
-Q&A and Study keep their existing public errors: configuration/schema errors use HTTP 400 `VALIDATION_ERROR` or SSE `LLM_CONFIGURATION_ERROR`; output/stored-data errors use HTTP 500 `INTERNAL_ERROR` or SSE `LLM_PROVIDER_ERROR`. Failed answers release reserved quota and do not commit Study progress. Worker jobs use the existing failure/retry handling.
+Q&A keeps its existing public errors: configuration/schema errors use HTTP 400 `VALIDATION_ERROR` or SSE `LLM_CONFIGURATION_ERROR`; output errors use HTTP 500 `INTERNAL_ERROR` or SSE `LLM_PROVIDER_ERROR`. Failed answers release reserved quota. Worker jobs use the existing failure/retry handling.
 
 The worker propagates permanent provider rejections, including unsupported models or dimensions, through scene splitting and RAGAS; evaluations are recorded as failed. It does not log the provider's response body. Timeouts, rate limits, and server failures retain the existing best-effort fallback in those two paths.
 
@@ -91,15 +90,15 @@ The worker propagates permanent provider rejections, including unsupported model
 
 **Equal dimensions do not make different models compatible.** Saved embeddings do not record their generating model or revision. The DB check cannot detect an API/worker model disagreement, an old model's data, or a changed model behind the same tag. Compare diagnostics and keep operational records of the generating configuration.
 
-This change provides no existing-data model migration tool. Changing models requires regenerating both scene and PLOG concept embeddings, even at 1536 dimensions. The current full reindex only addresses scenes; rebuilding PLOG can replace concept IDs, edited teaching material, and learning history. Neither operation is a complete model migration procedure.
+No existing-data model migration tool is provided. Changing models requires regenerating scene embeddings, even at 1536 dimensions. Full reindexing updates scenes, but a migration procedure must also account for recovery after partial failures.
 
 A future migration must include all of the following:
 
 1. Verify the target model and dimensions without altering source data; determine the old generating configuration from records.
 2. For different dimensions, change the application contract and Drizzle schema and generate a new migration to a fixed `vector(N)`. Do not rewrite historical SQL/snapshots or run automatic startup DDL.
-3. Reserve maintenance time and stop Q&A, Study, worker writes, API PLOG edits, in-flight work, and old queued jobs.
-4. Back up transcripts, concepts, edited materials, vectors, schema, application version, and configuration. `ALTER TYPE` alone cannot preserve incompatible old vectors.
-5. Regenerate scene and concept vectors together while preserving PLOG IDs, labels, relationships, questions, hints, and learning history.
-6. Verify counts, missing data, dimensions, Q&A retrieval, and Study selection before resuming with matching API/worker settings. On failure, maintain downtime and restore the complete old data/schema/application/configuration set.
+3. Reserve maintenance time and stop Q&A and worker writes, in-flight work, and old queued jobs.
+4. Back up transcripts, vectors, schema, application version, and configuration. `ALTER TYPE` alone cannot preserve incompatible old vectors.
+5. Regenerate scene vectors with the same configuration while preserving transcripts.
+6. Verify counts, missing data, dimensions, and Q&A retrieval before resuming with matching API/worker settings. On failure, maintain downtime and restore the complete old data/schema/application/configuration set.
 
 Until preservation and recovery tooling exists, changing an existing database's model or dimensions is not a supported routine operation. Recreating a disposable development database is a separate choice.
