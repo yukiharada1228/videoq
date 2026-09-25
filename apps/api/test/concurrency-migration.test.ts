@@ -15,15 +15,4 @@ describe("concurrency guards migration", () => {
       'CONSTRAINT "videos_processing_seconds_check" CHECK (processing_seconds >= 0)',
     );
   });
-
-  it("deduplicates active PLOG jobs before enforcing uniqueness", () => {
-    const cleanup = migration.indexOf("WITH ranked AS");
-    const uniqueIndex = migration.indexOf(
-      'CREATE UNIQUE INDEX "plog_build_jobs_video_active_uniq"',
-    );
-
-    expect(cleanup).toBeGreaterThanOrEqual(0);
-    expect(uniqueIndex).toBeGreaterThan(cleanup);
-    expect(migration).toContain("WHERE status IN ('pending', 'running')");
-  });
 });

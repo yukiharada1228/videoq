@@ -56,7 +56,13 @@ These commands are entry points for each task. Also check the steps and ordering
 for the production API, worker, and database. Publishing code that uses a new column before migrating
 can cause failures against the old database.
 
-When API, frontend, and Python worker changes ship together, CD deploys them in that order after any database migration. The worker waits for all selected API/frontend deployments to succeed before it can produce a new shared data format, such as PLOG `presentation_order` relationships. A failed or cancelled selected deployment blocks the worker. Worker-only changes still deploy when API/frontend jobs are skipped because they have no changes.
+When API, frontend, and Python worker changes ship together, CD deploys them in that order after any database migration. The worker waits for all selected API/frontend deployments to succeed before it can produce a new shared data format. A failed or cancelled selected deployment blocks the worker. Worker-only changes still deploy when API/frontend jobs are skipped because they have no changes.
 
 See [`infra/DEPLOY.md`](https://github.com/yukiharada1228/videoq/blob/main/infra/DEPLOY.md) for details.
 The documentation site uses a dedicated Worker at [docs.videoq.jp](https://docs.videoq.jp/), with Japanese at [/ja/](https://docs.videoq.jp/ja/). Changes to the documentation, translations, or site configuration are published automatically after CI succeeds on `main`. You can also publish the current working tree manually with `npm run deploy:docs`. See the [docs deployment instructions](https://github.com/yukiharada1228/videoq/blob/main/apps/docs/README.md).
+
+## Deploying the learning feature removal
+
+`0023_remove_study_mode` drops six learning-only tables, and the API's Durable Object migration deletes saved study sessions. Back up any old data that must be retained. Do not apply this migration while the old API or worker is active. During maintenance, stop new requests and SQS consumption, wait for in-flight jobs to finish, apply the migration and update API, web, and worker, then resume traffic. The updated worker acknowledges remaining legacy `build_plog` messages without executing them.
+
+`db:migrate` stops before making changes if any study tables still exist and `STUDY_REMOVAL_MAINTENANCE` is not `true`. After stopping traffic and draining jobs, set that variable to `true` in the GitHub `production-app` environment and rerun CD, or supply it to the local migration command. This variable does not stop traffic itself. Keep maintenance in place if any deployment fails; remove the variable and resume traffic only after all components are updated. Fresh databases and databases already migrated do not require the variable.

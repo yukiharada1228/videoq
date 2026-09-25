@@ -1,6 +1,6 @@
 ---
 title: 動画の状態と処理完了
-description: uploadingからcompletedまでの意味と、PLOGの状態との違い。
+description: アップロード・文字起こし・検索準備の状態を確認する。
 ---
 
 # 動画の状態と処理完了
@@ -36,10 +36,4 @@ stateDiagram-v2
 
 再索引などの経路は処理ごとの実装も確認します。通常遷移の定義は [video_status.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/video_status.py)、索引完了の扱いは [tasks/indexing.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/indexing.py)にあります。
 
-## PLOGの準備完了は別に確認する
-
-検索用データの作成後に、`build_plog` ジョブで学習用の概念とヒントを作ります。そのため `completed` でも、学習モードを開始できない場合があります。
-
-`plog_build_jobs` で生成状態を管理し、生成が完了していても、概念が空・順序を作れない場合は学習に使えません。動画の状態だけを見てStudyボタンを有効化しないでください。
-
-**関連:** [PLOGと学習モード](../plog/README.md)、[処理が進まないとき](../guides/troubleshooting.md)。
+**関連:** [処理が進まないとき](../guides/troubleshooting.md)。

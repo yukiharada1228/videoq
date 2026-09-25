@@ -46,14 +46,6 @@ Select a citation in the answer and check that it jumps to the corresponding tim
 
 Questions such as “How many videos are in this course?” can be answered from metadata alone, so they may not include scene citations.
 
-## 5. Try study mode
-
-Q&A answers your own questions. **Study mode** guides learning with questions and hints organized around concepts.
-
-Study mode requires **PLOG**, a graph of connected concepts. PLOG is generated in a separate job after search data is created, so a video with status `completed` may not yet be ready for study mode.
-
-If study mode is unavailable, check the PLOG status on the video detail screen. It also cannot start when there are no concepts or the graph cannot produce a learning order. See [PLOG and study mode](../plog/README.md) for the conditions.
-
 ## What you should be able to verify
 
 - Your video appears in the library and you can read its transcript.

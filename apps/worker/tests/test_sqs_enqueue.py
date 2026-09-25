@@ -15,7 +15,7 @@ def test_build_job_message_shape() -> None:
 def test_child_job_id_is_stable_and_stage_scoped() -> None:
     first = child_job_id("parent-1", "index_video_transcript", {"video_id": 42})
     again = child_job_id("parent-1", "index_video_transcript", {"video_id": 42})
-    another_stage = child_job_id("parent-1", "build_plog", {"video_id": 42})
+    another_stage = child_job_id("parent-1", "reindex_video_transcript", {"video_id": 42})
 
     assert first == again
     assert first != another_stage

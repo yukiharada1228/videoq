@@ -646,7 +646,7 @@ export async function deleteVideoCascade(
       // No FK; remove vector rows so orphan embeddings do not linger.
       await tx.execute(sql`DELETE FROM scene_embeddings WHERE video_id = ${videoId}`);
 
-      // FK cascades remove PLOG data, learner states, tags and course memberships.
+      // FK cascades remove tags and course memberships.
       await tx
         .delete(videos)
         .where(and(eq(videos.id, videoId), eq(videos.userId, userId)));

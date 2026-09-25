@@ -59,6 +59,11 @@ def _execute_task(raw_body: str) -> None:
     if not isinstance(body, dict):
         raise ValueError("payload must be an object")
 
+    # Retired jobs may still be delivered from SQS or an old outbox.
+    if job_type == "build_plog":
+        logger.info("Discarding retired job: type=%s id=%s", job_type, job_id)
+        return
+
     logger.info(
         "Dispatching task: type=%s id=%s payload=%s",
         job_type,
