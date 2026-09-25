@@ -39,6 +39,8 @@ describe('useChatMessages streaming', () => {
     globalThis.__setTrpcHandler('chat.feedback', setFeedback)
   })
 
+  afterEach(() => vi.unstubAllEnvs())
+
   it('follows answer growth only at the bottom and leaves tool-only updates in place', () => {
     const { result } = renderHook(() => useChatMessages({ courseId: 18 }))
     const container = document.createElement('div')
@@ -163,9 +165,18 @@ describe('useChatMessages streaming', () => {
     })
   })
 
-  it('shows error message when stream yields error event', async () => {
-    ;(apiClient.chatStream as any).mockImplementation(async function* () {
-      yield { type: 'error', code: 'LLM_PROVIDER_ERROR', message: 'Internal error' }
+  it.each([
+    { scenario: 'development diagnostics', dev: true, code: 'LLM_PROVIDER_ERROR', message: 'Internal error', expected: 'chat.error (LLM_PROVIDER_ERROR: Internal error)' },
+    { scenario: 'empty diagnostics', dev: true, code: 'LLM_PROVIDER_ERROR', message: '', expected: 'chat.error' },
+    { scenario: 'whitespace diagnostics', dev: true, code: 'LLM_PROVIDER_ERROR', message: ' \n ', expected: 'chat.error' },
+    { scenario: 'production diagnostics', dev: false, code: 'LLM_PROVIDER_ERROR', message: 'Private provider details', expected: 'chat.error' },
+    { scenario: 'development quota error', dev: true, code: 'OVER_QUOTA', message: 'Private quota details', expected: 'chat.errorOverQuota' },
+    { scenario: 'production quota error', dev: false, code: 'OVER_QUOTA', message: 'Private quota details', expected: 'chat.errorOverQuota' },
+  ])('shows the appropriate error and allows retry for $scenario', async ({ dev, code, message, expected }) => {
+    vi.stubEnv('DEV', dev)
+    vi.mocked(apiClient.chatStream).mockImplementation(async function* () {
+      yield { type: 'content_chunk', text: 'Partial answer' }
+      yield { type: 'error', code, message }
     })
 
     const { result } = renderHook(() => useChatMessages({}))
@@ -174,11 +185,19 @@ describe('useChatMessages streaming', () => {
 
     await act(async () => { await result.current.handleSend() })
 
-    await waitFor(() => {
-      const last = result.current.messages.at(-1)
-      expect(last?.role).toBe('assistant')
-      expect(last?.content).toMatch(/chat\.error/)
+    expect(result.current.messages.at(-1)).toMatchObject({
+      role: 'assistant', content: expected, progress: { phase: 'error' },
     })
+    expect(result.current.isLoading).toBe(false)
+
+    // The failed turn must release the send lock and discard queued partial text.
+    vi.mocked(apiClient.chatStream).mockImplementation(makeStreamMock(['Recovered']))
+    act(() => { result.current.setInput('Try again') })
+    await act(async () => { await result.current.handleSend() })
+    expect(apiClient.chatStream).toHaveBeenCalledTimes(2)
+    expect(result.current.messages.at(-1)?.content).toBe('Recovered')
+    expect(result.current.messages.at(-3)?.content).toBe(expected)
+    expect(result.current.isLoading).toBe(false)
   })
 
   it('shows error message when chatStream throws', async () => {
