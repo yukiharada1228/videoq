@@ -78,6 +78,7 @@ def test_evaluation_reuses_one_loop_and_closes_clients_between_jobs(
     monkeypatch.setattr(httpx.AsyncClient, "send", send)
     monkeypatch.setattr(evaluation, "_langchain_llm", create_llm)
     monkeypatch.setattr(evaluation, "_langchain_embeddings", MagicMock())
+    monkeypatch.setattr(evaluation, "_context_precision_metric", lambda llm: Metric(llm=llm))
     # Restore only the stubbed modules; restoring all of sys.modules removes
     # lazily imported LangChain modules while Pydantic still caches their types.
     for name, module in modules.items():

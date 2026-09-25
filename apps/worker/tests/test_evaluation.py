@@ -63,6 +63,7 @@ def test_score_chat_log_runs_three_metrics_with_contexts(monkeypatch):
         patch.object(
             evaluation, "_run_metric", side_effect=[0.91, 0.82, 0.73]
         ) as run_metric,
+        patch.object(evaluation, "_context_precision_metric", return_value=precision),
     ):
         scores = evaluation.score_chat_log("question", "answer", ["ctx-a", "ctx-b"])
 

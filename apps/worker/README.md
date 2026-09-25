@@ -52,6 +52,7 @@ SQSはat-least-once配送のため、workerは `job_executions.job_id` を15分�
 | `SQS_QUEUE_URL` | Amazon SQS / ElasticMQ |
 | `OPENAI_API_KEY` | Whisper、LLM、評価 |
 | `RAGAS_MAX_TOKENS` | RAGAS評価の1回のLLM呼び出しあたりの出力上限（既定4,096、正の整数。利用モデルの上限以下） |
+| `RAGAS_DO_NOT_TRACK` | Docker/Lambdaでは`true`。評価ごとの同期的な利用統計送信を無効にし、統計サーバーへの接続待ちで採点が停止するのを防ぐ |
 | `EMBEDDING_PROVIDER` | `openai`（既定）または `ollama` |
 | `EMBEDDING_MODEL` | OpenAIは `text-embedding-3-small` が既定。Ollamaでは明示必須（検証構成: `qwen3-embedding:4b`） |
 | `USE_S3_STORAGE` | S3 互換 object storage の利用 |
@@ -60,6 +61,12 @@ SQSはat-least-once配送のため、workerは `job_executions.job_id` を15分�
 | `DB_PARAM_NAME` / `APP_PARAM_NAME` | SSM SecureString（JSON）。本番 Lambda が起動時に読む |
 | `USER_SECRET_ENCRYPTION_KEY` | AES-256-GCM のユーザー秘密復号鍵 |
 | `ENABLE_HEAVY_PIPELINE` | 文字起こし等の重量処理を有効化 |
+
+RAGASの参照文章の精度評価は、1ジョブあたり最大4件を同時に検証します。
+参照文章を切り捨てず、検索時の順序とRAGASの採点方法を維持します。
+これにより、参照文章が多い会話で逐次LLM呼び出しが積み重なり、Lambdaの
+15分制限に達する問題を抑えます。いずれかの検証が失敗した場合は、残りの
+処理をキャンセルしてからHTTPクライアントを閉じます。
 
 ## ローカル実行
 
