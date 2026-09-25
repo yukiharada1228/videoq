@@ -61,6 +61,12 @@ SQSはat-least-once配送のため、workerは `job_executions.job_id` を15分�
 | `USER_SECRET_ENCRYPTION_KEY` | AES-256-GCM のユーザー秘密復号鍵 |
 | `ENABLE_HEAVY_PIPELINE` | 文字起こし等の重量処理を有効化 |
 
+RAGASの参照文章の精度評価は、1ジョブあたり最大4件を同時に検証します。
+参照文章を切り捨てず、検索時の順序とRAGASの採点方法を維持します。
+これにより、参照文章が多い会話で逐次LLM呼び出しが積み重なり、Lambdaの
+15分制限に達する問題を抑えます。いずれかの検証が失敗した場合は、残りの
+処理をキャンセルしてからHTTPクライアントを閉じます。
+
 ## ローカル実行
 
 ```bash
