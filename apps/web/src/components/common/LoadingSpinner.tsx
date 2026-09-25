@@ -14,7 +14,7 @@ export function LoadingSpinner({ message, fullScreen = false }: LoadingSpinnerPr
     <div className={fullScreen
       ? 'pointer-events-none fixed inset-0 z-10 flex items-center justify-center p-6'
       : 'flex items-center justify-center py-8'}>
-      <ProgressIndicator type={fullScreen ? 'stacked-underlay' : 'stacked'} aria-label={message ?? 'Loading'}>
+      <ProgressIndicator type="stacked" aria-label={message ?? 'Loading'}>
         <ProgressIndicatorSpinner />
         <span className="text-center text-std-16N-170 text-solid-gray-700">
           {message ?? 'Loading'}
