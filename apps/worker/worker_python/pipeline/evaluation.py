@@ -34,7 +34,6 @@ def score_chat_log(
         from ragas.llms import LangchainLLMWrapper
         from ragas.metrics import (
             Faithfulness,
-            LLMContextPrecisionWithoutReference,
             ResponseRelevancy,
         )
     except ImportError as exc:
@@ -68,7 +67,7 @@ def score_chat_log(
                 )
                 context_precision = (
                     await _run_metric(
-                        LLMContextPrecisionWithoutReference(llm=wrapped_llm), sample
+                        _context_precision_metric(wrapped_llm), sample
                     )
                     if retrieved
                     else None
@@ -76,6 +75,12 @@ def score_chat_log(
                 return faithfulness, answer_relevancy, context_precision
 
     return asyncio.run(score_metrics())
+
+
+def _context_precision_metric(llm):
+    from .context_precision import ParallelContextPrecision
+
+    return ParallelContextPrecision(llm=llm)
 
 
 def _langchain_llm(*, http_client, http_async_client):
