@@ -9,4 +9,7 @@ migrate_output=$(npx drizzle-kit migrate 2>&1)
 migrate_status=$?
 set -e
 printf '%s\n' "$migrate_output" | sed 's/\x1B\[[0-9;]*[A-Za-z]//g'
-exit "$migrate_status"
+if [ "$migrate_status" -ne 0 ]; then
+  exit "$migrate_status"
+fi
+node scripts/purge-retired-study-data.mjs
