@@ -1,6 +1,10 @@
 # SQS worker Lambda container image (linux/arm64).
 FROM public.ecr.aws/lambda/python:3.12
 
+# RAGAS sends synchronous usage telemetry even during async scoring. An
+# unavailable telemetry endpoint must not block production evaluation jobs.
+ENV RAGAS_DO_NOT_TRACK=true
+
 # Architecture for johnvansickle static ffmpeg (buildx sets TARGETARCH).
 ARG TARGETARCH=arm64
 
