@@ -10,7 +10,6 @@ import { billingHandlers } from "./handlers/billing";
 import { chatHandlers } from "./handlers/chat";
 import { courseHandlers } from "./handlers/courses";
 import { mediaLibraryHandlers } from "./handlers/media-library";
-import { plogHandlers } from "./handlers/plog";
 import { createRpcCaller } from "./handlers/shared";
 
 /** Authenticate once and bind the request-scoped service adapters used by tRPC. */
@@ -25,7 +24,6 @@ export async function createTrpcContext(c: Context<AppEnv>): Promise<TrpcContext
     ...chatHandlers(c, userId),
     ...courseHandlers(c, userId),
     ...mediaLibraryHandlers(c, userId),
-    ...plogHandlers(c, userId),
   } satisfies ProcedureHandlers;
 
   return {

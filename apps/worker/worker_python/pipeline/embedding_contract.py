@@ -1,4 +1,4 @@
-"""The fixed embedding contract used by indexing, PLOG and evaluation."""
+"""The fixed embedding contract used by indexing and evaluation."""
 
 from __future__ import annotations
 

@@ -20,8 +20,6 @@ The system has several distinct AI jobs:
 | Transcription for uploads | Extracted audio | Timestamped text |
 | Embedding | Subtitle text or a search query | Numbers used to compare meaning |
 | Q&A | Latest question, instructions, and tool results | Answer text with scene references |
-| Learning-data generation | A bounded excerpt of the transcript | Concepts, opening questions, and hints |
-| Study mode | Learner reply, selected concept, and relevant state/material | A grade or supporting response |
 | Answer-quality evaluation | Saved question, answer, and retrieved material | Quality metrics recorded after the answer |
 
 An embedding does not write an answer. It helps find text for the language model to read. [See transcription and scene search](../architecture/transcription-and-search.md) for the preparation steps.
@@ -78,8 +76,6 @@ Consequently, “Why is that?” may lack the subject it needs. “Why is the do
 
 For example, after “What is the dot product?”, sending “Give me an example” starts a new question without the dot-product subject. The expected contract is that the previous topic is **not carried over**; the model's wording can vary, and asking for clarification is not guaranteed. Send “Give me an example of the dot product” to request that example explicitly.
 
-Study mode uses a different flow: it reads the previous assistant question for grading and maintains concept progress and hint position in a study session. [See how study mode makes decisions](../plog/README.md).
-
 ## What decides the next action?
 
 | Decision | Who makes it? |
@@ -88,13 +84,12 @@ Study mode uses a different flow: it reads the previous assistant question for g
 | Whether to request metadata or subtitle scenes, and what to search for | Model, guided by tool descriptions and prompts |
 | How many search results and tool calls are allowed | Program constants and argument validation |
 | How to phrase an answer and where to cite evidence | Model, following instructions |
-| Which concept follows a mastered concept in study mode | Program rules using the saved learning graph |
 
 Instructions ask the model to stay within the retrieved evidence and acknowledge missing information. This instruction is not the same as a program proving the answer correct. The search currently has no application-level minimum similarity cutoff, so even returned scenes can be irrelevant. A broad summary may cover only the retrieved excerpts, rather than every part of a long video.
 
 ## Where the data goes
 
-Audio transcription, embeddings, answer generation, and evaluation call their configured model services. These services receive the audio or text needed for their respective step. Choosing local transcription or local embeddings alone does not make all AI processing local; Q&A, PLOG generation, and evaluation have their own calls.
+Audio transcription, embeddings, answer generation, and evaluation call their configured model services. These services receive the audio or text needed for their respective step. Choosing local transcription or local embeddings alone does not make all AI processing local; Q&A and evaluation have their own calls.
 
 This describes the application's data flow. It does not establish a provider's retention or training policy. No production credentials or account identifiers are needed to understand or configure the flow.
 
@@ -102,6 +97,5 @@ This describes the application's data flow. It does not establish a provider's r
 
 - [Transcription and scene search](../architecture/transcription-and-search.md): subtitles, scene boundaries, embeddings, and search limits.
 - [Q&A prompts and answer evaluation](../architecture/prompt-engineering.md): model inputs, tool decisions, failure behavior, and quality checks.
-- [PLOG and study mode](../plog/README.md): generated questions, grading, hints, and progress.
 
 The Q&A implementation is [rag.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag.ts). Its tools read [course information](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag-course-info.ts) and [scene search results](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/vector-repository.ts). These are the source of truth when behavior changes.

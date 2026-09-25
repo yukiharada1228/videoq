@@ -9,7 +9,7 @@ from urllib.error import HTTPError
 
 import pytest
 
-from worker_python.pipeline import embeddings, evaluation, plog_build
+from worker_python.pipeline import embeddings, evaluation
 from worker_python.pipeline.embedding_contract import (
     EMBEDDING_DIMENSIONS, EmbeddingContractError, resolve_embedding_config, validate_embedding,
 )
@@ -156,22 +156,6 @@ def test_reindex_preflight_preserves_existing_vectors(monkeypatch, stage):
     with pytest.raises(EmbeddingContractError):
         reindexing._run_reindex([object()])
     delete.assert_not_called()
-
-
-def test_invalid_plog_embeddings_do_not_delete_existing_material(monkeypatch):
-    monkeypatch.setenv("EMBEDDING_PROVIDER", "openai")
-    monkeypatch.setattr(plog_build, "_extract_concepts", lambda *_: [{"label": "concept"}])
-    response(monkeypatch, {"data": [{"index": 0, "embedding": [1, 2]}]})
-    conn = MagicMock()
-    conn.execute.return_value.fetchone.return_value = {"type_name": "vector", "dimensions": 1536}
-    connect = MagicMock()
-    connect.return_value.__enter__.return_value = conn
-    monkeypatch.setattr(plog_build, "db_connection", connect)
-    with pytest.raises(EmbeddingContractError) as caught:
-        artifacts = plog_build.generate_plog_artifacts(42, "subtitle")
-        plog_build.save_plog_artifacts(conn, 42, artifacts)
-    assert caught.value.reason == "EMBEDDING_OUTPUT_INVALID"
-    assert not any("DELETE" in call.args[0] for call in conn.execute.call_args_list)
 
 
 @pytest.mark.parametrize("provider", ["openai", "ollama"])

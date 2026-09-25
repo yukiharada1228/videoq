@@ -7,10 +7,8 @@ import { trpc } from './lib/trpc';
 import { authFixtures } from '../.storybook/fixtures/auth';
 import { emptyTagPage } from '../.storybook/fixtures/api';
 import { course, detailVideo } from '../.storybook/fixtures/detail';
-import { missingGraph } from '../.storybook/fixtures/plog';
 import { installUploadFixture } from '../.storybook/mocks/videoUpload';
 import { failure, pending, success, trpcMutation, trpcQuery } from '../.storybook/mocks/network';
-import { studySessionId } from '../.storybook/fixtures/chatPanel';
 import { chatRequest, createChatPanelMock } from '../.storybook/mocks/chatPanel';
 
 const emptyPage = { data: [], meta: { total: 0, limit: 24, offset: 0 } };
@@ -82,19 +80,13 @@ export const CourseChatContinuity: Story = {
     pathname: `/videos/courses/${course.id}`,
     api: { ...api, trpc: [...api.trpc, trpcQuery('courses.get', success(course))] },
   },
-  beforeEach({ parameters, msw }) {
+  beforeEach({ msw }) {
     const mock = createChatPanelMock({ events: [], keepOpen: true });
     courseChatNetwork = mock;
     // Keep the app's account/course tRPC handlers from the common decorator.
     msw.use(...mock.handlers.filter(({ info }) => info.path === '/api/chat/messages/stream'));
-    const scope = parameters.pathname.startsWith('/share/') ? 'share:linear-algebra' : `course:${course.id}`;
-    const key = `plog-study-session:${scope}`;
-    const saved = sessionStorage.getItem(key);
-    sessionStorage.setItem(key, studySessionId);
     return () => {
       mock.dispose();
-      if (saved === null) sessionStorage.removeItem(key);
-      else sessionStorage.setItem(key, saved);
     };
   },
   async play({ canvasElement, userEvent, parameters }) {
@@ -102,23 +94,21 @@ export const CourseChatContinuity: Story = {
     const shared = parameters.pathname.startsWith('/share/');
     const mobile = window.innerWidth < 1024;
     const english = i18n.language.startsWith('en');
-    const original = english ? 'Study rotation matrices' : '回転行列を学ぶ';
-    const restarted = english ? 'Ask me the first question' : '最初の問いをお願いします';
+    const original = english ? 'Explain rotation matrices' : '回転行列を学ぶ';
+    const followup = english ? 'Explain with an example' : '具体例を教えてください';
     const reply = english ? 'Explain the relationship between input and output.' : '入力と出力の関係を説明してください。';
     const draft = english ? 'The length does not change.' : '長さは変わりません。';
     const input = await canvas.findByRole('textbox', { name: i18n.t('chat.placeholder') });
     // Include CSS-hidden panels: two separately mounted chats lose state on resize.
     await expect(canvas.getAllByRole('textbox', { hidden: true })).toHaveLength(1);
-    await userEvent.click(canvas.getByRole('button', { name: i18n.t('chat.modeStudy') }));
-    const finish = async (status: 'started' | 'continued') => {
+    const finish = async () => {
       await waitFor(() => expect(courseChatNetwork.activeStreams).toBe(1));
       courseChatNetwork.emit([{ type: 'content_chunk', text: reply }, {
         type: 'done', chat_log_id: 101, feedback: null,
-        study_session: { status, expires_at: Date.now() + 43_200_000 },
       }]);
       courseChatNetwork.finish();
       await waitFor(() => expect(input).toBeEnabled(), { timeout: 10000 });
-      await expect(canvas.getByText(reply)).toBeVisible();
+      await expect(canvas.getAllByText(reply).at(-1)).toBeVisible();
     };
     const send = async (text: string, count: number) => {
       await userEvent.type(input, text);
@@ -134,34 +124,25 @@ export const CourseChatContinuity: Story = {
       else await expect(input).toBeVisible();
     };
     await send(original, 1);
-    await expect(chatRequest.mock.calls[0][0]).toMatchObject({ course_id: course.id, study_session_id: studySessionId, mode: 'study' });
-    await finish('continued');
-    const restart = canvas.getByRole('button', { name: i18n.t('chat.studySession.restart') });
-    restart.focus();
-    await userEvent.keyboard('{Enter}');
-    await userEvent.click(within(canvas.getByRole('dialog')).getByRole('button', { name: i18n.t('chat.studySession.restart') }));
-    await waitFor(() => expect(restart).toHaveFocus());
-    await expect(canvas.queryByText(original)).not.toBeInTheDocument();
-    await send(restarted, 2);
+    await expect(chatRequest.mock.calls[0][0]).toMatchObject({ course_id: course.id });
+    await finish();
+    await send(followup, 2);
     const request = chatRequest.mock.calls[1][0];
-    await expect(request.study_session_id).not.toBe(studySessionId);
     await expect(request.share_slug).toBe(shared ? 'linear-algebra' : undefined);
-    await expect(request.messages).toEqual([{ role: 'user', content: restarted }]);
+    await expect(request.messages).toEqual([{ role: 'user', content: followup }]);
     if (mobile) {
       await changeMobileTab('videos');
       await changeMobileTab('player');
       await expect(input).toBeDisabled();
     }
-    await finish('started');
+    await finish();
     await userEvent.type(input, draft);
     if (mobile) {
       await changeMobileTab('videos');
       await changeMobileTab('player');
     }
     await expect(input).toHaveValue(draft);
-    await expect(canvas.getByText(restarted)).toBeVisible();
-    await expect(canvas.getByRole('button', { name: i18n.t('chat.modeStudy') })).toHaveAttribute('aria-pressed', 'true');
-    await expect(canvas.getByText(i18n.t('chat.studySession.started'))).toBeVisible();
+    await expect(canvas.getByText(followup)).toBeVisible();
   },
 };
 export const CourseChatContinuityMobile: Story = {
@@ -186,7 +167,6 @@ function youtubeReplayStory(scope: 'video' | 'course' | 'share'): Story {
       api: { ...api, auth: scope === 'share' ? authFixtures.loggedOut : authFixtures.user, trpc: [
         ...api.trpc,
         trpcQuery('videos.get', success(video)),
-        trpcQuery('plog.graph', success({ ...missingGraph, video_id: video.id })),
         trpcQuery('courses.get', success(youtubeCourse)),
         trpcQuery('courses.shared', success({
           ...youtubeCourse, updated_at: course.created_at, share_slug: 'linear-algebra', access_role: 'public',
@@ -345,7 +325,6 @@ function videoSaveStory(mode: 'metadata' | 'background' | 'transcript'): Story {
           return success({ ...detailVideo, title: savedTitle, description: savedDescription,
             transcript: mode === 'transcript' ? savedTranscript : detailVideo.transcript });
         }),
-        trpcQuery('plog.graph', success({ ...missingGraph, video_id: detailVideo.id })),
       ] },
     },
     beforeEach() { Object.values(videoEditRequests).forEach(request => request.mockClear()); },
@@ -416,7 +395,6 @@ function courseMetadataStory(field: 'name' | 'description'): Story {
           courseEditRequests.update(input);
           return success({ ...current, [field]: editedValue });
         }),
-        trpcQuery('plog.graph', success({ ...missingGraph, video_id: course.videos![0].id })),
       ] },
     },
     beforeEach() { Object.values(courseEditRequests).forEach(request => request.mockClear()); },
@@ -459,7 +437,6 @@ export const CourseDialogsClose: Story = {
     pathname: `/videos/courses/${course.id}`,
     api: { ...api, trpc: [...api.trpc,
       trpcQuery('courses.get', success(course)),
-      trpcQuery('plog.graph', success({ ...missingGraph, video_id: course.videos![0].id })),
     ] },
   },
   async play({ canvas, userEvent }) {

@@ -3,9 +3,8 @@ from __future__ import annotations
 from contextlib import contextmanager
 from unittest.mock import MagicMock
 
-import pytest
-
 from worker_python.tasks import indexing
+from worker_python import sqs_enqueue
 from worker_python.video_sql import VideoRow
 
 
@@ -14,7 +13,7 @@ def no_lock(_video_id: int):
     yield
 
 
-def test_plog_delivery_failure_propagates_for_sqs_retry(monkeypatch) -> None:
+def test_indexing_completes_without_scheduling_another_job(monkeypatch) -> None:
     video = VideoRow(
         id=42,
         user_id="u1",
@@ -41,16 +40,20 @@ def test_plog_delivery_failure_propagates_for_sqs_retry(monkeypatch) -> None:
     )
     monkeypatch.setattr(indexing, "transition_video_status", MagicMock(return_value=True))
     monkeypatch.setattr(
-        indexing,
+        sqs_enqueue,
         "enqueue_job",
         MagicMock(side_effect=RuntimeError("SQS unavailable")),
     )
 
-    with pytest.raises(RuntimeError, match="SQS unavailable"):
-        indexing.index_video_transcript(42, job_id="index-job")
+    indexing.index_video_transcript(42, job_id="index-job")
+
+    indexing.vector_index.index_video_transcript.assert_called_once_with(video)
+    indexing.transition_video_status.assert_called_once()
+    conn.commit.assert_called_once()
+    sqs_enqueue.enqueue_job.assert_not_called()
 
 
-def test_completed_video_retry_only_resumes_plog_handoff(monkeypatch) -> None:
+def test_completed_video_retry_does_not_reindex_or_schedule_jobs(monkeypatch) -> None:
     video = VideoRow(
         id=42,
         user_id="u1",
@@ -73,10 +76,9 @@ def test_completed_video_retry_only_resumes_plog_handoff(monkeypatch) -> None:
     index = MagicMock()
     enqueue = MagicMock(return_value="message-1")
     monkeypatch.setattr(indexing.vector_index, "index_video_transcript", index)
-    monkeypatch.setattr(indexing, "enqueue_job", enqueue)
+    monkeypatch.setattr(sqs_enqueue, "enqueue_job", enqueue)
 
     indexing.index_video_transcript(42, job_id="index-job")
 
     index.assert_not_called()
-    enqueue.assert_called_once()
-    assert enqueue.call_args.kwargs["job_id"]
+    enqueue.assert_not_called()

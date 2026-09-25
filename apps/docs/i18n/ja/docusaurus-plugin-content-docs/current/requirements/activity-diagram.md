@@ -39,8 +39,4 @@ flowchart TD
 
 登録情報だけで答えられる質問もあります。授業内容に関する質問では字幕を参照します。具体的なツールと制限は[プロンプト設計](../architecture/prompt-engineering.md)にまとめています。
 
-## 学習モードとの違い
-
-学習モードでは、自由な質問への回答に加えて、PLOGの概念・前提関係・問い・ヒントを使います。動画の処理完了と学習用グラフの準備完了は別です。
-
-**関連:** [動画の状態](../design/state-diagram.md)、[PLOGと学習モード](../plog/README.md)、[担当別のフロー](../architecture/bpmn.md)。
+**関連:** [動画の状態](../design/state-diagram.md)、[担当別のフロー](../architecture/bpmn.md)。
