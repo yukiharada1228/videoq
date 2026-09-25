@@ -122,6 +122,7 @@ jobs:
               - 'apps/api/src/db/**'
               - 'apps/api/drizzle.config.ts'
               - 'apps/api/scripts/db-migrate.sh'
+              - 'apps/api/scripts/purge-retired-study-data.mjs'
               - 'apps/api/scripts/stamp-baseline.mjs'
               - '.github/workflows/cd.yml'
               - '.github/scripts/**'
@@ -130,6 +131,7 @@ jobs:
               - 'apps/api/src/db/**'
               - 'apps/api/drizzle.config.ts'
               - 'apps/api/scripts/db-migrate.sh'
+              - 'apps/api/scripts/purge-retired-study-data.mjs'
               - 'apps/api/scripts/stamp-baseline.mjs'
               - '.github/workflows/cd.yml'
               - '.github/scripts/**'
@@ -293,7 +295,6 @@ jobs:
       contents: read
       id-token: write
     # Deploy readers before the worker can write a new shared data format
-    # (for example PLOG presentation_order relationships).
     needs: [changes, db-migrate, api-deploy, web-deploy]
     if: |
       always() &&

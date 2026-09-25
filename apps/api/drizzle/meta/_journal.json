@@ -162,6 +162,13 @@
       "when": 1789923542365,
       "tag": "0022_standard_password_reset_identifiers",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790309670328,
+      "tag": "0023_remove_study_mode",
+      "breakpoints": true
     }
   ]
 }
