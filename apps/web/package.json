@@ -28,7 +28,6 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@isoterik/react-word-cloud": "^1.3.0",
     "@radix-ui/react-checkbox": "^1.3.3",
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-select": "^2.3.3",
@@ -49,8 +48,7 @@
     "react-i18next": "^15.2.2",
     "react-router-dom": "^7.18.2",
     "recharts": "^3.8.1",
-    "tailwind-merge": "^3.3.1",
-    "zod": "4.4.3"
+    "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260918.1",

@@ -256,6 +256,49 @@ describe('ApiClient protocol adapters', () => {
     await client.revokeAuthorizedOAuthToken('consent-1');
   });
 
+  it('loads each OAuth client once while retaining its separate grants', async () => {
+    const grant = { scopes: ['openid'], createdAt: new Date('2026-03-02T00:00:00Z') };
+    authClientMock.oauth2.getConsents.mockResolvedValueOnce({ data: [
+      { ...grant, id: 'read', clientId: 'shared-client', scopes: ['read'] },
+      { ...grant, id: 'write', clientId: 'shared-client', scopes: ['write'] },
+      { ...grant, id: 'other', clientId: 'other-client' },
+      { ...grant, id: 'missing', clientId: '' },
+    ], error: null });
+    authClientMock.oauth2.publicClient
+      .mockResolvedValueOnce({ data: { client_name: 'Shared app' }, error: null })
+      .mockResolvedValueOnce({ data: { client_name: 'Other app' }, error: null });
+
+    const tokens = await client.getAuthorizedOAuthTokens();
+
+    expect(authClientMock.oauth2.publicClient.mock.calls).toEqual([
+      [{ query: { client_id: 'shared-client' } }],
+      [{ query: { client_id: 'other-client' } }],
+    ]);
+    expect(tokens.map(({ id, client_name, scope }) => ({ id, client_name, scope }))).toEqual([
+      { id: 'read', client_name: 'Shared app', scope: 'read' },
+      { id: 'write', client_name: 'Shared app', scope: 'write' },
+      { id: 'other', client_name: 'Other app', scope: 'openid' },
+      { id: 'missing', client_name: '', scope: 'openid' },
+    ]);
+  });
+
+  it('falls back on a failed OAuth client lookup and reloads its name on the next list request', async () => {
+    const response = { data: ['read', 'write'].map(id => ({
+      id, clientId: 'shared-client', scopes: [id], createdAt: new Date('2026-03-02T00:00:00Z'),
+    })), error: null };
+    authClientMock.oauth2.getConsents.mockResolvedValueOnce(response).mockResolvedValueOnce(response);
+    authClientMock.oauth2.publicClient.mockRejectedValueOnce(new Error('Temporary lookup failure'))
+      .mockResolvedValueOnce({ data: { client_name: 'Updated app name' }, error: null });
+
+    expect((await client.getAuthorizedOAuthTokens()).map(token => token.client_name))
+      .toEqual(['shared-client', 'shared-client']);
+    expect(authClientMock.oauth2.publicClient).toHaveBeenCalledTimes(1);
+
+    expect((await client.getAuthorizedOAuthTokens()).map(token => token.client_name))
+      .toEqual(['Updated app name', 'Updated app name']);
+    expect(authClientMock.oauth2.publicClient).toHaveBeenCalledTimes(2);
+  });
+
   it('defaults unknown API key metadata to read-only', async () => {
     authClientMock.apiKey.list.mockResolvedValueOnce({
       data: {

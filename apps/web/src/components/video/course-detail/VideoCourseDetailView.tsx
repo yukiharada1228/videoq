@@ -486,9 +486,7 @@ export function VideoCourseDetailView({
   return (
     <>
       {isLoading ? (
-        <div className="flex min-h-[calc(100dvh-var(--app-header-offset,5rem))] items-center justify-center">
-          <LoadingSpinner />
-        </div>
+        <LoadingSpinner fullScreen />
       ) : error && !course ? (
         <div className="flex min-h-[calc(100dvh-var(--app-header-offset,5rem))] flex-col items-center justify-center gap-4">
           <ErrorMessage message={error} />

@@ -282,20 +282,22 @@ export class ApiClient {
       throw new ApiError(error.message || 'Failed to list connected apps', error.code || 'OAUTH');
     }
     const consents = (Array.isArray(data) ? data : []) as Array<Record<string, unknown>>;
+    // Separate grants can share a client. Reuse its in-flight lookup for this load only.
+    const clientNames = new Map<string, Promise<string>>();
     return Promise.all(
       consents.map(async (consent) => {
         const clientId = String(consent.clientId ?? '');
-        let clientName = clientId;
-        if (clientId) {
-          try {
-            const pub = await authClient.oauth2.publicClient({
-              query: { client_id: clientId },
-            });
-            const name = (pub.data as { client_name?: string } | null)?.client_name;
-            if (name) clientName = name;
-          } catch {
-            /* keep clientId */
-          }
+        if (clientId && !clientNames.has(clientId)) {
+          clientNames.set(clientId, (async () => {
+            try {
+              const pub = await authClient.oauth2.publicClient({
+                query: { client_id: clientId },
+              });
+              return pub.data?.client_name || clientId;
+            } catch {
+              return clientId;
+            }
+          })());
         }
         const scopes = Array.isArray(consent.scopes)
           ? (consent.scopes as string[]).join(' ')
@@ -304,7 +306,7 @@ export class ApiClient {
         return {
           id: String(consent.id ?? ''),
           client_id: clientId,
-          client_name: clientName,
+          client_name: await (clientNames.get(clientId) ?? clientId),
           scope: scopes,
           issued_at:
             createdAt instanceof Date

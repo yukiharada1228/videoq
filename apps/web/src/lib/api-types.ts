@@ -5,7 +5,6 @@ type RouterInputs = inferRouterInputs<AppRouter>;
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 export type User = RouterOutputs['account']['me'];
 export type AdminUser = RouterOutputs['admin']['getUser'];
-export type BillingPlan = RouterOutputs['billing']['plans'][number];
 
 export type ChatMessage = RouterOutputs['chat']['send'];
 export type Citation = NonNullable<ChatMessage['citations']>[number];
@@ -13,29 +12,15 @@ export type ChatHistoryItem = RouterOutputs['chat']['history']['data'][number];
 export type ChatAnalytics = RouterOutputs['chat']['analytics'];
 export type EvaluationSummary = RouterOutputs['evaluation']['summary'];
 export type ChatLogEvaluation = RouterOutputs['evaluation']['logs']['data'][number];
-export type EvaluationStatus = ChatLogEvaluation['status'];
 
 export type Video = RouterOutputs['videos']['get'];
 export type VideoList = RouterOutputs['videos']['list']['data'][number];
-export type VideoStatusCounts = RouterOutputs['videos']['statusCounts'];
 export type UploadRequestResponse = RouterOutputs['videos']['requestUpload'];
 
 export type VideoCourse = RouterOutputs['courses']['get'];
 export type VideoInCourse = NonNullable<VideoCourse['videos']>[number];
 
-export type CourseParticipants = RouterOutputs['courseMemberships']['participants'];
-export type CourseInvitationListItem = CourseParticipants['invitations'][number];
-export type CourseUserMember = CourseParticipants['members'][number];
-export type CourseInvitationPreview = RouterOutputs['courseMemberships']['preview'];
-export type CourseInvitationStatus = CourseInvitationPreview['status'];
-export type CourseInvitationDeliveryStatus =
-  RouterOutputs['courseMemberships']['resend']['delivery_status'];
-export type CourseInviteRecipientResult =
-  RouterOutputs['courseMemberships']['invite']['results'][number];
-
 export type Tag = RouterOutputs['tags']['list']['data'][number];
-export type TagDetail = RouterOutputs['tags']['get'];
-
 
 // Better Auth and raw-transport request/response types are intentionally not
 // part of the tRPC router.

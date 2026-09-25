@@ -2,7 +2,7 @@
 import { readFileSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import { describe, it, expect } from 'vitest'
+import { beforeAll, describe, it, expect } from 'vitest'
 import { ESLint } from 'eslint'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -12,6 +12,13 @@ describe('eslint.config.js', () => {
     resolve(__dirname, '../../eslint.config.js'),
     'utf-8',
   )
+  let eslint: ESLint
+
+  beforeAll(async () => {
+    eslint = new ESLint({ cwd: resolve(__dirname, '../..') })
+    // Load the config and plugins once, outside the individual rule assertions.
+    await eslint.calculateConfigForFile('src/pages/ExamplePage.tsx')
+  }, 15_000)
 
   it('ignores coverage directory', () => {
     expect(configContent).toMatch(/globalIgnores\(\[.*'coverage'.*\]\)/s)
@@ -23,7 +30,6 @@ describe('eslint.config.js', () => {
     ['src/pages/ExamplePage.tsx', '@/components/layout/AppFooter.tsx', 'AppFooter'],
     ['src/components/video/ExampleView.tsx', '@/components/layout/AppNav', 'AppNav'],
   ])('rejects page-owned layout imports in %s from %s', async (filePath, source, name) => {
-    const eslint = new ESLint({ cwd: resolve(__dirname, '../..') })
     const [result] = await eslint.lintText(
       `import { ${name} } from '${source}'; export default function Example() { return <${name} />; }`,
       { filePath },

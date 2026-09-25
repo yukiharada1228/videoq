@@ -1,10 +1,7 @@
-import { withClient } from "../db/pool";
-import type { Bindings } from "../types/bindings";
 import {
   EMBEDDING_DIMENSIONS,
   EmbeddingConfigurationError,
   embeddingDiagnostic,
-  resolveEmbeddingConfig,
   type EmbeddingConfig,
 } from "./embedding-contract";
 
@@ -32,9 +29,4 @@ export async function assertEmbeddingSchema(client: SchemaConnection, config: Em
     );
   }
   console.info(JSON.stringify(embeddingDiagnostic(config, { db_dimensions: dimensions })));
-}
-
-export async function checkEmbeddingStorage(env: Bindings): Promise<void> {
-  const config = resolveEmbeddingConfig(env);
-  await withClient(env, (client) => assertEmbeddingSchema(client, config));
 }
