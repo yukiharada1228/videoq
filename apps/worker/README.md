@@ -52,6 +52,7 @@ SQSはat-least-once配送のため、workerは `job_executions.job_id` を15分�
 | `SQS_QUEUE_URL` | Amazon SQS / ElasticMQ |
 | `OPENAI_API_KEY` | Whisper、LLM、評価 |
 | `RAGAS_MAX_TOKENS` | RAGAS評価の1回のLLM呼び出しあたりの出力上限（既定4,096、正の整数。利用モデルの上限以下） |
+| `RAGAS_DO_NOT_TRACK` | Docker/Lambdaでは`true`。評価ごとの同期的な利用統計送信を無効にし、統計サーバーへの接続待ちで採点が停止するのを防ぐ |
 | `EMBEDDING_PROVIDER` | `openai`（既定）または `ollama` |
 | `EMBEDDING_MODEL` | OpenAIは `text-embedding-3-small` が既定。Ollamaでは明示必須（検証構成: `qwen3-embedding:4b`） |
 | `USE_S3_STORAGE` | S3 互換 object storage の利用 |
