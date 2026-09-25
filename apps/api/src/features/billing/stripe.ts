@@ -34,7 +34,7 @@ export function frontendOrigin(env: Bindings): string {
 }
 
 export function localePrefix(locale: string | undefined): string {
-  return locale === "ja" ? "/ja" : "";
+  return locale === "en" ? "/en" : "";
 }
 
 export function checkoutIntegrationIdentifier(): string {

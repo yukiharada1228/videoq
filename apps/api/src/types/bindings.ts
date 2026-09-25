@@ -9,7 +9,6 @@ type SecretBindings = {
   USER_SECRET_ENCRYPTION_KEY: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
-  OIDC_RSA_PRIVATE_KEY?: string;
   OPENAI_API_KEY?: string;
   MAILGUN_API_KEY?: string;
   R2_ACCESS_KEY_ID?: string;

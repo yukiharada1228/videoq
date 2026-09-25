@@ -133,16 +133,6 @@ function resolvePageCopy(
   if (key === 'pricing') {
     return { title: `${t('pricing.title')} | VideoQ`, description: t('pricing.subtitle') };
   }
-  if (key === 'docs') {
-    return { title: `${t('docs.home.title')} | VideoQ`, description: t('docs.home.subtitle') };
-  }
-  if (key.startsWith('docs:')) {
-    const section = key.slice('docs:'.length);
-    return {
-      title: `${t(`docs.sections.${section}.title`)} | VideoQ`,
-      description: t(`docs.sections.${section}.description`),
-    };
-  }
   if (key === 'legal.terms') {
     return { title: `${t('legal.terms.title')} | VideoQ`, description: t('legal.terms.title') };
   }

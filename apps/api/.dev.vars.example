@@ -52,4 +52,3 @@ AWS_SECRET_ACCESS_KEY="local"
 
 # OAuth / OIDC（任意）
 # OAUTH_ISSUER_URL="http://localhost:8787"
-# OIDC_RSA_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"

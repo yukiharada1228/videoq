@@ -303,8 +303,8 @@ export default function AdminPage() {
           total,
         });
 
-  if (authLoading && !user) return <LoadingSpinner />;
-  if (!user || !isSuperuser) return <LoadingSpinner />;
+  if (authLoading && !user) return <LoadingSpinner fullScreen />;
+  if (!user || !isSuperuser) return <LoadingSpinner fullScreen />;
 
   return (
     <>

@@ -104,7 +104,8 @@ it('retains selected videos while a later page is pending or failed, then retrie
   enterViewport();
   expect(list).toHaveBeenCalledTimes(2);
   fireEvent.click(screen.getByRole('button', { name: 'videos.courseDetail.retryLoadVideos' }));
-  await screen.findByRole('checkbox', { name: 'Video 25 Description 25' });
+  await screen.findByText('Video 25');
+  expect(screen.getByRole('checkbox', { name: 'Video 25 Description 25' })).toBeInTheDocument();
   expect(first).toBeChecked();
   expect(list.mock.calls.map(([input]) => input.cursor)).toEqual([0, 24, 24]);
   fireEvent.click(screen.getByRole('button', { name: 'videos.courseDetail.selectAll' }));

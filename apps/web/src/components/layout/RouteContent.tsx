@@ -33,7 +33,7 @@ export function RouteContent() {
       key={location.pathname}
       fallback={<MessageAlert type="error" message={t('common.messages.pageLoadFailed')} />}
     >
-      <Suspense fallback={<div className="flex justify-center py-24"><LoadingSpinner /></div>}>
+      <Suspense fallback={<LoadingSpinner fullScreen />}>
         <Outlet />
       </Suspense>
     </RouteErrorBoundary>

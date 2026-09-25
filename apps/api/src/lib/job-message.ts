@@ -21,15 +21,10 @@ export type JobMessage = {
   payload: Record<string, unknown>;
 };
 
-export function newJobId(): string {
-  return crypto.randomUUID();
-}
-
 export function buildJobMessage(
   type: JobType,
   payload: Record<string, unknown> = {},
-  jobId: string = newJobId(),
+  jobId: string = crypto.randomUUID(),
 ): JobMessage {
   return { type, job_id: jobId, payload };
 }
-

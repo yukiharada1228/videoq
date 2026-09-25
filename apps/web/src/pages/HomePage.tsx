@@ -94,11 +94,7 @@ export default function HomePage() {
   ]);
 
   if (isLoading || (currentUser && isLoadingData)) {
-    return (
-      <div className="flex justify-center py-24">
-        <LoadingSpinner />
-      </div>
-    );
+    return <LoadingSpinner fullScreen />;
   }
 
   if (!currentUser) {

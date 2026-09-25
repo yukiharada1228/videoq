@@ -37,4 +37,3 @@ export type CourseInvitationPreview = z.output<typeof models.courseInvitationPre
 export type Tag = z.output<typeof models.tagSchema>;
 export type TagDetail = z.output<typeof models.tagDetailSchema>;
 export type TagPage = Page<Tag>;
-export type CoursePage = Page<CourseListItem>;

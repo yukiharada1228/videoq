@@ -92,8 +92,8 @@ export default function SharePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-solid-gray-50">
-        <LoadingSpinner />
+      <div className="min-h-dvh bg-solid-gray-50">
+        <LoadingSpinner fullScreen />
       </div>
     );
   }
