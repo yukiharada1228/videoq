@@ -232,6 +232,14 @@ describe('apiClient.chatStream', () => {
     ])
   })
 
+  it.each([200, 204])('reports an interrupted answer when HTTP %s has no response body', async (status) => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status }))
+
+    expect(await collectStreamEvents({ messages: [{ role: 'user', content: 'hi' }] })).toEqual([
+      { type: 'error', code: 'STREAM_INTERRUPTED', message: '' },
+    ])
+  })
+
   it('passes the abort signal to fetch and releases a reader interrupted while waiting', async () => {
     const request = new AbortController()
     let controller!: ReadableStreamDefaultController<Uint8Array>
