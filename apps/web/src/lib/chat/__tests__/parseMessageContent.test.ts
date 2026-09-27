@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { parseMessageContent } from '../parseMessageContent'
+import { parseChatText, parseCitationParts } from '@videoq/trpc/chat'
+import { parseMessageParts } from '../parseMessageContent'
+
+// These fixtures assume every citation ID belongs to an available source.
+const parseMessageContent = (content: string) => parseMessageParts(parseCitationParts(content, () => true))
 
 const ROTATION_MATRIX = String.raw`\begin{pmatrix}
 \cos\theta & -\sin\theta \\
@@ -94,12 +98,11 @@ describe('parseMessageContent', () => {
     ])
   })
 
-  it('finds later formulas after an unclosed expression', () => {
+  it('renders later formulas but keeps citations inside an unclosed expression literal', () => {
     expect(parseMessageContent(String.raw`prefix \[a {b\] still text \(c\) [1]`)).toEqual([
       { type: 'text', value: String.raw`prefix \[a {b\] still text ` },
       { type: 'math', value: 'c', display: false },
-      { type: 'text', value: ' ' },
-      { type: 'ref', id: 1 },
+      { type: 'text', value: ' [1]' },
     ])
   })
 
@@ -110,6 +113,61 @@ describe('parseMessageContent', () => {
       { type: 'ref', id: 1 },
       { type: 'text', value: ' ' },
       { type: 'math', value: 'y[2]', display: true },
+      { type: 'text', value: ' ' },
+      { type: 'ref', id: 2 },
+    ])
+  })
+
+  it('keeps whitespace and reference-like subscripts in inline math', () => {
+    expect(parseMessageContent('$ x[01] $ [2]')).toEqual([
+      { type: 'math', value: ' x[01] ', display: false },
+      { type: 'text', value: ' ' },
+      { type: 'ref', id: 2 },
+    ])
+  })
+
+  it('ends unclosed inline math at a newline even after a backslash', () => {
+    const text = '$x' + '\\' + '\n'
+    expect(parseMessageContent(text + '[2]')).toEqual([{ type: 'text', value: text }, { type: 'ref', id: 2 }])
+  })
+
+  it('retains line context across references and adjacent text parts', () => {
+    const expected = [
+      { type: 'text', value: 'Before' }, { type: 'ref', id: 1 }, { type: 'text', value: '~~~ ' },
+      { type: 'math', value: 'x', display: false }, { type: 'text', value: ' ' }, { type: 'ref', id: 2 },
+    ]
+    expect(parseMessageContent('Before[1]~~~ $x$ [2]')).toEqual(expected)
+    expect(parseMessageParts([
+      { type: 'text', text: 'Before' }, { type: 'citation', sourceId: 1 },
+      { type: 'text', text: '~~~ $' }, { type: 'text', text: 'x$ ' }, { type: 'citation', sourceId: 2 },
+    ])).toEqual(expected)
+    expect(parseMessageContent('Before[1]\n~~~\n$x$\n~~~\n$y$')).toEqual([
+      { type: 'text', value: 'Before' }, { type: 'ref', id: 1 }, { type: 'text', value: '\n~~~\n$x$\n~~~\n' },
+      { type: 'math', value: 'y', display: false },
+    ])
+  })
+
+  it('preserves rendered math when citation parts split mixed delimiter sequences', () => {
+    const fragments = ['a', ' ', '\n', '\r\n', '\\', '$', '$$', '`', '``', '```', '~~~', '[1]', '[01]', '[2]', '[0]', '[99]', '[', '1', ']', '{', '}', '(', '\\[', '\\]', '\\(', '\\)', '[1](url)']
+    let seed = 994
+    const next = (limit: number) => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed % limit }
+    for (let example = 0; example < 300; example++) {
+      const input = Array.from({ length: 24 }, () => fragments[next(fragments.length)]).join('')
+      const originalMath = parseChatText(input).filter(node => node.type === 'math')
+      const parts = parseCitationParts(input, id => id === 1 || id === 2)
+      expect(parseMessageParts(parts).filter(node => node.type === 'math'), JSON.stringify(input)).toEqual(originalMath)
+    }
+  })
+
+  it.each([
+    '```js\nx[1]\n````\n',
+    '```js\nconst ticks = "```";\n$x[1]$\n```\n',
+    'Use ``a```[1]`` then ',
+    '~~~ts\n~~~not a closing fence [1]\n~~~\n',
+  ])('preserves code and renders formulas after its entire closing delimiter: %s', (code) => {
+    expect(parseMessageContent(code + '$x$ [2]')).toEqual([
+      { type: 'text', value: code },
+      { type: 'math', value: 'x', display: false },
       { type: 'text', value: ' ' },
       { type: 'ref', id: 2 },
     ])

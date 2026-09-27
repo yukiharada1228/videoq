@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } fr
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { RpcOutputMap } from '@videoq/trpc';
+import { appendChatPart, serializeChatParts, type ChatContentPart } from '@videoq/trpc/chat';
 import { apiClient, ApiError, type Citation } from '@/lib/api';
 import { trpc } from '@/lib/trpc';
 import { createChatProgress, updateChatProgress, type ChatProgress } from '@/lib/chatProgress';
@@ -21,6 +22,7 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   citations?: Citation[];
+  parts?: ChatContentPart[];
   chatLogId?: number;
   feedback?: ChatFeedbackValue;
   /** Actual tool activity for this turn; kept locally with the answer. */
@@ -87,11 +89,23 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
       const updated = [...prev];
       updated[updated.length - 1] = {
         ...updated[updated.length - 1],
-        citations: event.citations,
+        citations: event.citations ?? updated[updated.length - 1].citations,
         chatLogId: event.chat_log_id ?? undefined,
         feedback: event.feedback ?? null,
       };
       return updated;
+    });
+  }, []);
+
+  const appendAssistantParts = useCallback((parts: ChatContentPart[]) => {
+    setMessages((prev) => {
+      const last = prev.at(-1);
+      if (!last) return prev;
+      const combined = (last.parts ?? []).map((part) => ({ ...part }));
+      for (const part of parts) appendChatPart(combined, part);
+      return [...prev.slice(0, -1), {
+        ...last, content: last.content + serializeChatParts(parts), parts: combined,
+      }];
     });
   }, []);
 
@@ -128,10 +142,11 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
       new ChatStreamController({
         flush: flushSync,
         onAppendContent: appendAssistantContent,
+        onAppendParts: appendAssistantParts,
         onDone: applyDoneMetadata,
         onError: handleStreamError,
       }),
-    [appendAssistantContent, applyDoneMetadata, handleStreamError],
+    [appendAssistantContent, appendAssistantParts, applyDoneMetadata, handleStreamError],
   );
 
   const handleMessagesScroll = useCallback(() => {
@@ -187,10 +202,16 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
         if (request.signal.aborted) return;
         setMessages((prev) => {
           const last = prev.at(-1);
-          if (!last?.progress) return prev;
-          const progress = updateChatProgress(last.progress, event);
-          if (progress === last.progress) return prev;
-          return [...prev.slice(0, -1), { ...last, progress }];
+          if (!last) return prev;
+          const progress = last.progress ? updateChatProgress(last.progress, event) : undefined;
+          // 引用は本文の描画キューを待たずに反映する。done のみで送る旧 API にも対応。
+          const citations = (event.type === 'content_chunk' || event.type === 'done')
+            ? event.citations ?? last.citations
+            : event.type === 'source' && !last.citations?.some((source) => source.id === event.source.id)
+              ? [...last.citations ?? [], event.source]
+            : last.citations;
+          if (progress === last.progress && citations === last.citations) return prev;
+          return [...prev.slice(0, -1), { ...last, progress, citations }];
         });
         streamController.handleEvent(event);
         if (event.type === 'error') {

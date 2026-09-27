@@ -57,6 +57,15 @@ export function summarizeAuthApiError(error: unknown): AuthApiErrorSummary {
   return summary;
 }
 
+/** Drop the entire message before selecting frames: SQL values can contain newlines. */
+export function safeErrorStack(error: Error): string | undefined {
+  const stack = error.stack;
+  const header = `${error.name}: ${error.message}`;
+  if (!stack?.startsWith(header)) return undefined;
+  return stack.slice(header.length).split("\n")
+    .filter((line) => /^\s+at /.test(line)).join("\n") || undefined;
+}
+
 // Only exact, static library messages may reach logs. Other messages can embed
 // callback URLs, provider responses, account ids or token-bearing SQL.
 const SAFE_LIBRARY_MESSAGES = new Set([

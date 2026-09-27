@@ -3,7 +3,7 @@ import { VideoCard } from '../VideoCard'
 
 // Mock IntersectionObserver — immediately report elements as visible
 const mockIntersectionObserver = vi.fn()
-mockIntersectionObserver.mockImplementation((callback: IntersectionObserverCallback) => {
+mockIntersectionObserver.mockImplementation(function (callback: IntersectionObserverCallback) {
   callback(
     [{ isIntersecting: true } as IntersectionObserverEntry],
     {} as IntersectionObserver,

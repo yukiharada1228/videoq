@@ -24,6 +24,16 @@ npm run preview:docs
 
 The development server runs one language at a time. Use `build:docs` followed by `preview:docs` to verify the language switcher and full-text search across both builds.
 
+The root npm overrides keep Docusaurus's transitive `serialize-javascript` at 7.0.5 or later
+and SockJS's CommonJS-compatible `uuid` at 11.1.1 or later for their security fixes
+([serializer advisory](https://github.com/yahoo/serialize-javascript/security/advisories/GHSA-qj8w-gfj5-8c6v),
+[UUID advisory](https://github.com/uuidjs/uuid/security/advisories/GHSA-w5hq-g745-h8pq)).
+Remove the overrides once upstream dependencies require patched versions; verify both
+locale builds and the documentation dev server when changing them.
+Use npm 11.20 or later when updating these dependencies: older npm versions can ignore
+overrides across workspace links. To use it without changing the global installation,
+run `npm exec --yes --package=npm@11.20.0 -- npm update serialize-javascript uuid`.
+
 `dev:docs` and `preview:docs` use the same port, so stop the running server before switching. The API, database, and Docker are not required.
 
 ## Edit documentation

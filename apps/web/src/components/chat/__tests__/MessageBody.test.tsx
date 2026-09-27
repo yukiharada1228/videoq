@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import katex from 'katex'
+import { parseCitationParts } from '@videoq/trpc/chat'
 import { MessageBody } from '../MessageBody'
 
 const ROTATION_MATRIX = String.raw`\begin{pmatrix}
@@ -8,6 +9,42 @@ const ROTATION_MATRIX = String.raw`\begin{pmatrix}
 \end{pmatrix}`
 
 describe('MessageBody', () => {
+  it.each(['history', 'typed stream'])('keeps math and code intact alongside clickable citations: %s', (format) => {
+    const citations = [{ id: 1, video_id: 7, title: 'Video', start_time: '00:00:10', end_time: null }]
+    const content = '$ x[01] $[1]~~~ $y$\n```js\nconst ticks = "```";\n[1]\n````\n$z$[1]'
+    const navigate = vi.fn()
+    const { container } = render(<MessageBody content={content}
+      parts={format === 'typed stream' ? parseCitationParts(content, id => id === 1) : undefined}
+      citations={citations} onVideoNavigate={navigate} />)
+    expect(Array.from(container.querySelectorAll('annotation'), node => node.textContent)).toEqual([' x[01] ', 'y', 'z'])
+    const buttons = screen.getAllByRole('button', { name: 'Video 00:00:10' })
+    expect(buttons).toHaveLength(2)
+    fireEvent.click(buttons[1])
+    expect(navigate).toHaveBeenCalledExactlyOnceWith(7, '00:00:10')
+    expect(container.textContent).toContain('const ticks = "```";\n[1]\n````')
+  })
+
+  it('renders typed citations without interpreting references in literal text parts', () => {
+    const citations = [{ id: 1, video_id: 7, title: 'Video', start_time: '00:00:10', end_time: null }]
+    render(<MessageBody content="unused" parts={[
+      { type: 'text', text: 'Literal [1] and $x[1]$ ' },
+      { type: 'citation', sourceId: 1 },
+      { type: 'text', text: ' more' },
+    ]} citations={citations} onVideoNavigate={vi.fn()} />)
+    expect(screen.getAllByRole('button', { name: 'Video 00:00:10' })).toHaveLength(1)
+    expect(screen.getByText(/Literal \[1\]/)).toBeInTheDocument()
+    expect(screen.queryByText('unused')).not.toBeInTheDocument()
+  })
+
+  it('uses the same citation rules for legacy responses and saved history', () => {
+    const citations = [{ id: 1, video_id: 7, title: 'Video', start_time: '00:00:10', end_time: null }]
+    const { container } = render(<MessageBody content={'[1] [99] [-1] [1.5] `a[1]` $x[1]$ [1](url)'}
+      citations={citations} onVideoNavigate={vi.fn()} />)
+    expect(screen.getAllByRole('button', { name: 'Video 00:00:10' })).toHaveLength(1)
+    expect(container.textContent).toContain('[99] [-1] [1.5] `a[1]`')
+    expect(container.textContent).toContain('[1](url)')
+  })
+
   afterEach(() => vi.restoreAllMocks())
 
   it('renders display TeX instead of the raw delimiters', () => {

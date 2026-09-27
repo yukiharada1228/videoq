@@ -74,6 +74,10 @@ Endpoint: `https://videoq.jp/api/billing/webhook`
 
 ローカル: `stripe listen --forward-to localhost:8787/api/billing/webhook`
 
+Webhook受信時はStripeから取得した最新の契約状態を反映します。遅れて届いた通知や契約に関係しない請求書で、新しい契約を上書きしません。イベントの処理記録とアカウントの更新は同じトランザクションで確定し、DB更新が競合した場合は契約を再取得します。解約後も契約IDとステータスは保持し、プラン由来の利用上限をFreeに戻します。再契約のためのCheckoutは引き続き利用できます。
+
+管理画面からのアカウント削除では、アカウントを無効化した後、配送タスクが[Stripe顧客を削除](https://docs.stripe.com/api/customers/delete)してからデータ削除を開始します。顧客削除により有効な契約を解約し、開いたままのCheckoutからの再契約も防ぎます。Stripeで失敗した場合はユーザーと顧客IDを残して再試行するため、削除完了を判断する前に失敗・dead状態の外部タスクを確認してください。Stripe顧客を持たないアカウントの削除にはStripe設定は不要です。
+
 ## 5. 決済手段
 
 Dashboard の dynamic payment methods を使う。コードに `payment_method_types` は渡さない。

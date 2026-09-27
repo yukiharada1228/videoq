@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./chat": {
+      "types": "./src/chat.ts",
+      "default": "./src/chat.ts"
+    },
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"

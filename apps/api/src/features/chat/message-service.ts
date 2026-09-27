@@ -11,6 +11,8 @@ import {
 import { processExternalTaskById } from "../../lib/external-tasks";
 import { LlmConfigurationError } from "../../lib/openai";
 import { runRag, streamRag, type RagCitation } from "../../lib/rag";
+import { ChatCitationRegistry, validateChatCitations, withCitationIds } from "../../lib/chat-citations";
+import { CHAT_STREAM_FORMAT, serializeChatParts, type ChatContentPart, type ChatStreamEvent } from "@videoq/trpc/chat";
 import type { Bindings } from "../../types/bindings";
 import type { ChatMessageBody } from "./schemas";
 import type { ChatMessage } from "@videoq/trpc";
@@ -125,8 +127,8 @@ export async function setupChat(
   if (opts.req.courseId !== null) {
     course = await getCourseWithMembers(env, {
       courseId: opts.req.courseId,
-      userId: isShared && opts.shareSlug ? null : userId,
-      shareToken: isShared && opts.shareSlug ? opts.shareSlug : null,
+      userId: isShared ? null : userId,
+      shareToken: opts.shareSlug,
     });
     if (!course) return { ok: false, failure: failures.notFound("Course") };
   }
@@ -166,9 +168,6 @@ export const toFailure = (e: unknown): ChatFailure => {
   }
   return failures.llmProvider();
 };
-
-export const withCitationIds = (citations: readonly RagCitation[]) =>
-  citations.map((v, i) => ({ id: i + 1, ...v }));
 
 export async function persistTurn(
   env: Bindings,
@@ -260,6 +259,7 @@ export async function sendChatMessage(
       locale: setup.locale,
       courseId: setup.course?.id ?? null,
     });
+    result.content = validateChatCitations(result.content, result.citations ?? []);
   } catch (e) {
     await releaseReservedUsage(env, setup);
     const f = toFailure(e);
@@ -299,7 +299,7 @@ export async function sendChatMessage(
   }
 }
 
-export type SseEventWriter = (data: unknown) => Promise<void>;
+export type SseEventWriter = (data: ChatStreamEvent) => Promise<void>;
 
 /** POST /api/chat/messages/stream */
 export async function streamChatMessage(
@@ -310,6 +310,7 @@ export async function streamChatMessage(
     shareSlug: string | null;
     locale: string | null;
     clientSignal?: AbortSignal;
+    streamFormat?: typeof CHAT_STREAM_FORMAT;
   },
 ): Promise<{ write: (send: SseEventWriter) => Promise<void> }> {
   const req = toChatRequestInput(opts.body);
@@ -340,6 +341,23 @@ export async function streamChatMessage(
       const videoIds = setup.course ? setup.course.memberVideoIds : null;
 
       let content = "";
+      let generatedContent = false;
+      const registry = new ChatCitationRegistry();
+      const sendParts = async (parts: ChatContentPart[], citations?: RagCitation[]) => {
+        const text = serializeChatParts(parts);
+        content += text;
+        if (opts.streamFormat === CHAT_STREAM_FORMAT) {
+          for (const part of parts) {
+            await send(part.type === "text"
+              ? { type: "text_delta", text: part.text }
+              : { type: "citation", sourceId: part.sourceId });
+          }
+        } else if (text || citations?.length) {
+          await send({ type: "content_chunk", text,
+            ...(citations?.length ? { citations: withCitationIds(citations) } : {}),
+          });
+        }
+      };
       let final: {
         citations: RagCitation[] | null;
         retrievedContexts: string[];
@@ -359,8 +377,15 @@ export async function streamChatMessage(
           clientSignal,
         )) {
           if ("text" in chunk) {
-            content += chunk.text;
-            await send({ type: "content_chunk", text: chunk.text });
+            generatedContent ||= chunk.text.length > 0;
+            const citations = courseId !== null ? chunk.citations : undefined;
+            if (citations) {
+              const added = registry.register(citations);
+              if (opts.streamFormat === CHAT_STREAM_FORMAT) {
+                for (const source of added) await send({ type: "source", source });
+              }
+            }
+            await sendParts(registry.parser.push(chunk.text), citations);
           } else if ("searching" in chunk) {
             // 検索ラウンドの間はトークンが流れないので、進行中であることだけ伝える。
             await send({ type: "searching", query: chunk.searching, search_id: chunk.searchId });
@@ -375,9 +400,10 @@ export async function streamChatMessage(
             final = chunk.final;
           }
         }
+        await sendParts(registry.parser.finish());
       } catch (error) {
         // 一部でも回答を生成済みなら、上流LLMの実コストも消費済みなので返却しない。
-        if (content.length === 0) await releaseReservedUsage(env, setup);
+        if (!generatedContent) await releaseReservedUsage(env, setup);
         const failure = toFailure(error);
         await send({
           type: "error",
@@ -385,6 +411,8 @@ export async function streamChatMessage(
           message: failure.message,
         });
         return;
+      } finally {
+        registry.reportRejected();
       }
 
       let chatLogId: number | null;
@@ -406,10 +434,10 @@ export async function streamChatMessage(
         return;
       }
 
-      const done: Record<string, unknown> = {
+      const done: Extract<ChatStreamEvent, { type: "done" }> = {
         type: "done",
         chat_log_id: chatLogId,
-        feedback,
+        feedback: feedback === "good" || feedback === "bad" ? feedback : null,
       };
       if (courseId !== null && final.citations?.length) {
         done.citations = withCitationIds(final.citations);

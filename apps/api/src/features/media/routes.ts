@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { sessionMethod } from "../../middleware/auth";
+import { resolveAuth, sessionMethod } from "../../middleware/auth";
 import { toErrorBody } from "../../shared/errors";
 import {
   clientIp,
@@ -16,9 +16,12 @@ import * as mediaService from "./service";
 export const mediaRoutes = new Hono<AppEnv>();
 
 mediaRoutes.get("/*", async (c) => {
-  const result = await sessionMethod(c);
+  const result = await resolveAuth(c, [sessionMethod]);
   if (result.kind === "invalid") {
     return c.json(toErrorBody("UNAUTHORIZED", result.message), 401);
+  }
+  if (result.kind === "forbidden") {
+    return c.json(toErrorBody("FORBIDDEN", result.message), 403);
   }
   const shareSlug = result.kind === "ok"
     ? undefined
@@ -28,10 +31,6 @@ mediaRoutes.get("/*", async (c) => {
       toErrorBody("UNAUTHORIZED", "Authentication credentials were not provided."),
       401,
     );
-  }
-  if (result.kind === "ok") {
-    c.set("userId", result.userId);
-    c.set("authVia", result.via);
   }
 
   const path = mediaService.mediaPathFromUrl(new URL(c.req.url).pathname);

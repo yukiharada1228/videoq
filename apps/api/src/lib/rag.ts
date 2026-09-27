@@ -327,7 +327,7 @@ const searchProgressSchema = z.union([
 type RagSearchProgress = z.infer<typeof searchProgressSchema>;
 
 export type RagStreamChunk =
-  | { text: string }
+  | { text: string; citations?: RagCitation[] }
   | RagSearchProgress
   | { final: RagContext };
 
@@ -381,8 +381,11 @@ export async function* streamRag(
     }
     requestSignal.throwIfAborted();
 
-    yield { text: finalText(messages) };
-    yield { final: context() };
+    const text = finalText(messages);
+    const final = context();
+    // 本文の描画開始時点で [N] を時刻へ解決できるよう、引用も一緒に渡す。
+    yield { text, ...(final.citations?.length ? { citations: final.citations } : {}) };
+    yield { final };
   } catch (error) {
     throw toLlmError(error);
   } finally {

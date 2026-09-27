@@ -5,6 +5,8 @@ import { useVideoUpload } from '@/hooks/useVideoUpload';
 export interface UploadScenario {
   result?: 'success' | 'pending' | 'error' | 'retry' | 'warning';
   progress?: number;
+  error?: string;
+  errorParams?: Record<string, string | number>;
 }
 export const uploadRequest = fn();
 export const uploadError = 'アップロードを完了できませんでした / Upload failed';
@@ -29,7 +31,7 @@ function useUploadFixture(scenario: UploadScenario): ReturnType<typeof useVideoU
   }, []);
   return {
     sourceMode, file, youtubeUrl, title, description, tagIds, isUploading, progress, error, success, warning,
-    errorParams: {}, warningParams: {},
+    errorParams: error ? scenario.errorParams ?? {} : {}, warningParams: {},
     setSourceMode, setTitle, setDescription, setYoutubeUrl, setTagIds, reset,
     handleFileChange(event) {
       const selected = event.target.files?.[0];
@@ -45,7 +47,7 @@ function useUploadFixture(scenario: UploadScenario): ReturnType<typeof useVideoU
         return;
       }
       if (scenario.result === 'error' || (scenario.result === 'retry' && attempts.current === 1)) {
-        setError(uploadError);
+        setError(scenario.error ?? uploadError);
         // The real hook exposes the error and rejects mutateAsync; callers must handle it.
         throw new Error(uploadError);
       }

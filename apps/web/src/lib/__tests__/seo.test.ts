@@ -1,6 +1,5 @@
 import { DEFAULT_COPY, resolveFirstByteCopy } from '../pageCopy'
 import {
-  PUBLIC_INDEX_PATHS,
   absoluteUrl,
   hreflangEntries,
   isNoindexPath,
@@ -66,16 +65,6 @@ describe('pageMetaKey', () => {
   })
 })
 
-describe('PUBLIC_INDEX_PATHS', () => {
-  it('does not include app, auth, or share routes', () => {
-    expect(PUBLIC_INDEX_PATHS).not.toContain('/videos')
-    expect(PUBLIC_INDEX_PATHS).not.toContain('/login')
-    expect(PUBLIC_INDEX_PATHS).not.toContain('/share/token')
-    expect(PUBLIC_INDEX_PATHS).toContain('/')
-    expect(PUBLIC_INDEX_PATHS).toContain('/pricing')
-  })
-})
-
 describe('resolveFirstByteCopy', () => {
   it('keeps the homepage copy on /', () => {
     expect(resolveFirstByteCopy('ja', '/')).toEqual(DEFAULT_COPY.ja)
@@ -85,12 +74,9 @@ describe('resolveFirstByteCopy', () => {
     expect(resolveFirstByteCopy('ja', '/pricing/')).toEqual(resolveFirstByteCopy('ja', '/pricing'))
   })
 
-  it('does not reuse the homepage title for other public index paths', () => {
-    for (const path of PUBLIC_INDEX_PATHS) {
-      if (path === '/') continue
-      expect(resolveFirstByteCopy('ja', path).title).not.toBe(DEFAULT_COPY.ja.title)
-      expect(resolveFirstByteCopy('en', path).title).not.toBe(DEFAULT_COPY.en.title)
-    }
+  it.each(['/pricing', '/terms', '/privacy', '/refund', '/legal'])('gives %s its own page title', (path) => {
+    expect(resolveFirstByteCopy('ja', path).title).not.toBe(DEFAULT_COPY.ja.title)
+    expect(resolveFirstByteCopy('en', path).title).not.toBe(DEFAULT_COPY.en.title)
   })
 })
 

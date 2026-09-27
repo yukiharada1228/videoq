@@ -219,6 +219,45 @@ describe('useChatMessages streaming', () => {
     })
   })
 
+  it('discards rendered citation state after an error and starts a fresh registry on retry', async () => {
+    const source = { id: 1, video_id: 7, title: 'First source', start_time: '00:01:00', end_time: '00:02:00' }
+    let fail!: () => void
+    const waiting = new Promise<void>(resolve => { fail = resolve })
+    vi.mocked(apiClient.chatStream).mockImplementationOnce(async function* () {
+      yield { type: 'source', source }
+      yield { type: 'text_delta', text: 'First' }
+      yield { type: 'citation', sourceId: 1 }
+      await waiting
+      yield { type: 'error', code: 'LLM_PROVIDER_ERROR', message: '' }
+    })
+    const { result } = renderHook(() => useChatMessages({ courseId: 3 }))
+    act(() => result.current.setInput('hello'))
+    let sending!: Promise<void>
+    act(() => { sending = result.current.handleSend() })
+    await waitFor(() => expect(result.current.messages.at(-1)?.content).toBe('First[1]'))
+    expect(result.current.messages.at(-1)?.citations).toEqual([source])
+    await act(async () => { fail(); await sending })
+    expect(result.current.messages.at(-1)?.content).toBe('chat.error')
+    expect(result.current.messages.at(-1)?.parts).toBeUndefined()
+    expect(result.current.messages.at(-1)?.citations).toBeUndefined()
+
+    const nextSource = { ...source, video_id: 8, title: 'Next source' }
+    vi.mocked(apiClient.chatStream).mockImplementationOnce(async function* () {
+      yield { type: 'source', source: nextSource }
+      yield { type: 'text_delta', text: 'Next' }
+      yield { type: 'citation', sourceId: 1 }
+      yield { type: 'done', chat_log_id: 42, feedback: null }
+    })
+    act(() => result.current.setInput('retry'))
+    await act(async () => { await result.current.handleSend() })
+    expect(result.current.messages.at(-1)).toMatchObject({
+      content: 'Next[1]', citations: [nextSource],
+      parts: [{ type: 'text', text: 'Next' }, { type: 'citation', sourceId: 1 }], chatLogId: 42,
+    })
+    expect(result.current.messages.at(-3)?.content).toBe('chat.error')
+    expect(result.current.isLoading).toBe(false)
+  })
+
   it('sets isLoading to false after streaming completes', async () => {
     ;(apiClient.chatStream as any).mockImplementation(makeStreamMock(['Done']))
 

@@ -97,7 +97,7 @@ python3 -m http.server 6007 --bind 127.0.0.1
 |---|---|
 | Chromiumが見つからない | READMEの`playwright install chromium`を実行したか。 |
 | 未登録のAPI／外部URLのエラー | 必要なhandlerがあるか、認証fixtureとprocedureが一致しているか。意図的な失敗Storyのエラーは、そのStoryの仕様と照合する。 |
-| モジュールの読み込みに失敗する | テストのログに依存の再最適化が出ていないか。新しい依存が原因なら、[Vitest設定](vitest.storybook.ts)の`optimizeDeps.include`を確認する。 |
+| モジュールの読み込みに失敗する | テストのログに依存の再最適化が出ていないか。新しい依存が原因なら、[Vitest設定](vitest.storybook.config.ts)の`optimizeDeps.include`を確認する。 |
 | 操作直後のassertionが不安定 | 通信開始・完了や画面更新を待っているか。固定sleepやタイムアウトの延長だけで回避しない。 |
 | 次のStoryだけ失敗する | Query・モック・timer・listenerの初期化とcleanupが揃っているか。 |
 

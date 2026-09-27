@@ -52,6 +52,7 @@ export function ChatMessageBubble({
         ) : (
           <MessageBody
             content={message.content}
+            parts={message.parts}
             citations={message.citations}
             onVideoNavigate={onVideoNavigate}
           />

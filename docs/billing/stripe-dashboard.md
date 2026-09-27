@@ -76,6 +76,20 @@ Subscribe to:
 
 Local forwarding: `stripe listen --forward-to localhost:8787/api/billing/webhook`
 
+Webhooks reconcile the latest subscription retrieved from Stripe. Delayed events
+and standalone invoices must not overwrite a newer subscription. The API commits
+each event receipt together with its account update; database conflicts retry the
+lookup before committing. Canceled subscription IDs and statuses remain recorded,
+while plan-based quotas return to Free. A new checkout is still allowed.
+
+Admin account deletion first disables the account, then the durable delivery task
+[deletes its Stripe customer](https://docs.stripe.com/api/customers/delete) before
+dispatching data deletion. Customer deletion cancels active subscriptions and
+prevents new subscriptions through an already-open checkout. Stripe failures keep
+the user record and customer ID available for retry; inspect failed/dead external
+tasks before treating account deletion as complete. Accounts without a Stripe
+customer do not require Stripe configuration for deletion.
+
 ## 5. Payment methods
 
 Use the Dashboard's dynamic payment methods. Do not pass `payment_method_types` in code.

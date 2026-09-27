@@ -79,10 +79,10 @@ export const HoverPreview: Story = {
   play: async ({ canvas, canvasElement, userEvent, args }) => {
     await waitFor(() => expect(canvasElement.querySelector('video')).not.toBeNull());
     const video = canvasElement.querySelector('video')!;
-    await waitFor(() => expect(video.readyState).toBeGreaterThanOrEqual(2), { timeout: 5000 });
     await expect(video.src).toBe(args.video.file);
     await expect(video.muted).toBe(true);
     const title = canvas.getByText(args.video.title);
+    // preload="metadata" need not decode a frame until playback is requested.
     await userEvent.hover(title);
     await waitFor(() => expect(video.currentTime).toBeGreaterThan(0), { timeout: 3000 });
     await expect(video.paused).toBe(false);

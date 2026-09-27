@@ -8,10 +8,12 @@ const repository = vi.hoisted(() => ({
 }));
 const sqs = vi.hoisted(() => ({ sendSqsMessage: vi.fn() }));
 const media = vi.hoisted(() => ({ deleteR2Object: vi.fn() }));
+const billing = vi.hoisted(() => ({ deleteAccountBilling: vi.fn() }));
 
 vi.mock("../src/repositories/external-task-repository", () => repository);
 vi.mock("../src/lib/sqs", () => sqs);
 vi.mock("../src/integrations/media", () => media);
+vi.mock("../src/features/billing/account-deletion", () => billing);
 
 import {
   processExternalTaskById,
@@ -27,9 +29,74 @@ beforeEach(() => {
   repository.completeStorageCleanupTask.mockResolvedValue(undefined);
   repository.failExternalTask.mockResolvedValue({ dead: false, leaseLost: false });
   media.deleteR2Object.mockResolvedValue(undefined);
+  billing.deleteAccountBilling.mockResolvedValue(undefined);
 });
 
 describe("external task processor", () => {
+  it("leaves a persisted task for recovery if immediate claiming fails", async () => {
+    repository.claimExternalTasks.mockRejectedValueOnce(new Error("Database unavailable"));
+
+    await expect(processExternalTaskById(env, 1)).resolves.toBe(false);
+    expect(sqs.sendSqsMessage).not.toHaveBeenCalled();
+    expect(repository.completeExternalTask).not.toHaveBeenCalled();
+  });
+
+  it("does not reject committed work if recording a delivery failure also fails", async () => {
+    repository.claimExternalTasks.mockResolvedValueOnce([
+      { id: 1, attempt: 1, kind: "sqs_job", payload: { message: {} } },
+    ]);
+    sqs.sendSqsMessage.mockResolvedValue(null);
+    repository.failExternalTask.mockRejectedValueOnce(new Error("Database unavailable"));
+
+    await expect(processExternalTaskById(env, 1)).resolves.toBe(false);
+    expect(repository.completeExternalTask).not.toHaveBeenCalled();
+  });
+
+  it("still propagates recovery sweep failures so the scheduler can retry", async () => {
+    repository.claimExternalTasks.mockRejectedValueOnce(new Error("Database unavailable"));
+
+    await expect(processExternalTasks(env, { arm: false })).rejects.toThrow("Database unavailable");
+  });
+
+  const deletionTask = {
+    id: 99, attempt: 1, kind: "sqs_job",
+    payload: { message: { type: "delete_account_data", job_id: "delete-user-1", payload: { user_id: "user-1" } } },
+  };
+
+  it("waits for billing cancellation before admitting a data-deletion job", async () => {
+    repository.claimExternalTasks.mockResolvedValueOnce([deletionTask]);
+    let finish!: () => void;
+    billing.deleteAccountBilling.mockReturnValue(new Promise<void>(resolve => { finish = resolve; }));
+    sqs.sendSqsMessage.mockResolvedValue("deletion-message");
+    const run = processExternalTaskById(env, deletionTask.id);
+    await vi.waitFor(() => expect(billing.deleteAccountBilling).toHaveBeenCalledExactlyOnceWith(env, "user-1"));
+    expect(sqs.sendSqsMessage).not.toHaveBeenCalled();
+    expect(repository.completeExternalTask).not.toHaveBeenCalled();
+    finish();
+    await expect(run).resolves.toBe(true);
+    expect(sqs.sendSqsMessage).toHaveBeenCalledExactlyOnceWith(env, JSON.stringify(deletionTask.payload.message));
+  });
+
+  it("retains the deletion job for retry when Stripe cannot stop billing", async () => {
+    repository.claimExternalTasks.mockResolvedValueOnce([deletionTask]);
+    billing.deleteAccountBilling.mockRejectedValue(new Error("Stripe unavailable"));
+    await expect(processExternalTaskById(env, deletionTask.id)).resolves.toBe(false);
+    expect(sqs.sendSqsMessage).not.toHaveBeenCalled();
+    expect(repository.completeExternalTask).not.toHaveBeenCalled();
+    expect(repository.failExternalTask).toHaveBeenCalledWith(env, deletionTask, "Stripe unavailable");
+  });
+
+  it("rechecks billing and reuses the job identity when SQS delivery is retried", async () => {
+    repository.claimExternalTasks.mockResolvedValueOnce([deletionTask]).mockResolvedValueOnce([{ ...deletionTask, attempt: 2 }]);
+    sqs.sendSqsMessage.mockResolvedValueOnce(null).mockResolvedValueOnce("deletion-message");
+    await expect(processExternalTaskById(env, deletionTask.id)).resolves.toBe(false);
+    await expect(processExternalTaskById(env, deletionTask.id)).resolves.toBe(true);
+    expect(billing.deleteAccountBilling).toHaveBeenCalledTimes(2);
+    expect(sqs.sendSqsMessage.mock.calls.map(([, body]) => body)).toEqual([
+      JSON.stringify(deletionTask.payload.message), JSON.stringify(deletionTask.payload.message),
+    ]);
+  });
+
   it("SQS送信成功後にタスクを完了する", async () => {
     repository.claimExternalTasks.mockResolvedValueOnce([
       {

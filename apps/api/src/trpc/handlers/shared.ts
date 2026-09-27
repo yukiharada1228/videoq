@@ -22,7 +22,7 @@ export function rpcError(
   throw new TRPCError({ code, message, cause });
 }
 
-function apiStatusToTrpcCode(status: number): TRPC_ERROR_CODE_KEY {
+export function apiStatusToTrpcCode(status: number): TRPC_ERROR_CODE_KEY {
   switch (status) {
     case 400:
       return "BAD_REQUEST";
@@ -62,7 +62,7 @@ function normalizeError(error: unknown): never {
     throw new TRPCError({
       code: apiStatusToTrpcCode(error.status),
       message: error.expose ? error.message : "Request failed",
-      cause: error,
+      cause: { appCode: error.code, details: error.details, cause: error },
     });
   }
   throw error;

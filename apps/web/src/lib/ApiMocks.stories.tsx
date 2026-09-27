@@ -187,7 +187,10 @@ export const RestFailureThenRetry: Story = {
   async play({ canvasElement, userEvent }) {
     const canvas = within(canvasElement);
     await expect(await canvas.findByRole('alert')).toHaveTextContent('再読み込みしてください');
-    await userEvent.click(canvas.getByRole('button', { name: /再読み込み|Refresh/ }));
+    const refresh = canvas.getByRole('button', { name: /再読み込み|Refresh/ });
+    // The independent tags request may still be loading when the REST error arrives.
+    await waitFor(() => expect(refresh).toBeEnabled());
+    await userEvent.click(refresh);
     await expect(await canvas.findByText('授業資料の連携')).toBeVisible();
     await expect(canvas.queryByRole('alert')).not.toBeInTheDocument();
   },

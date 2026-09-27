@@ -27,7 +27,7 @@ import { oauthProviderResourceClient } from "@better-auth/oauth-provider/resourc
 import { MCP_READ_SCOPE, MCP_WRITE_SCOPE } from "./lib/mcp-auth";
 import { limitChatTrpcRequestBody } from "./features/chat/body-limit";
 import { loggablePath } from "./shared/log-path";
-import { summarizeAuthApiError } from "./lib/auth-error-log";
+import { safeErrorStack, summarizeAuthApiError } from "./lib/auth-error-log";
 
 /**
  * Hono アプリの組み立て。認証は Better Auth (`/api/auth/*`)。
@@ -105,7 +105,7 @@ export function createApp() {
           code: error.code,
           error: summarizeAuthApiError(cause),
           // Error messages can contain SQL parameters, emails, or tokens.
-          stack: cause.stack?.split("\n").filter((line) => /^\s+at /.test(line)).join("\n"),
+          stack: safeErrorStack(cause),
         }));
       },
     })(c, next),

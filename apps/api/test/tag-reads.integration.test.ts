@@ -175,7 +175,7 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
       await vi.waitFor(async () => {
         const result = await admin.query("SELECT 1 FROM pg_stat_activity WHERE application_name = $1 AND wait_event_type = 'Lock'", [schema]);
         expect(result.rowCount).toBe(1);
-      });
+      }, { timeout: 5000 }); // Include connection setup under the full suite's DB load.
       await writer.query("COMMIT");
       expect(await update).toEqual({ notFound: true });
       if (operation === "transfer") {

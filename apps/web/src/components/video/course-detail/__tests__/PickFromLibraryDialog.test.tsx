@@ -28,7 +28,7 @@ function library(videos: VideoListItem[]) {
 beforeEach(() => {
   vi.resetAllMocks();
   intersections.clear();
-  vi.stubGlobal('IntersectionObserver', vi.fn((callback: IntersectionObserverCallback) => {
+  vi.stubGlobal('IntersectionObserver', vi.fn(function (callback: IntersectionObserverCallback) {
     const observer = {
       observe: () => { intersections.add(notify); },
       disconnect: () => { intersections.delete(notify); },

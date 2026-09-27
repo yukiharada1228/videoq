@@ -2,6 +2,7 @@ import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { ApiError, toErrorBody } from "../shared/errors";
 import { loggablePath } from "../shared/log-path";
+import { safeErrorStack, summarizeAuthApiError } from "../lib/auth-error-log";
 import type { AppEnv } from "../types/bindings";
 
 /**
@@ -44,8 +45,8 @@ export function onError(e: Error, c: Context<AppEnv>): Response {
       level: "error",
       requestId: c.var.requestId,
       path: loggablePath(c.req.url),
-      error: e?.message ?? String(e),
-      stack: e?.stack,
+      error: summarizeAuthApiError(e),
+      stack: safeErrorStack(e),
     }),
   );
 

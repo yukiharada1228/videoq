@@ -3,7 +3,7 @@ import { readFileSync } from 'fs'
 import { dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
 import { describe, expect, it } from 'vitest'
-import { PUBLIC_INDEX_PATHS, SITE_ORIGIN, absoluteUrl } from '@/lib/seo'
+import { SITE_ORIGIN, absoluteUrl } from '@/lib/seo'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -44,7 +44,7 @@ describe('sitemap.xml', () => {
   })
 
   it('lists every public index path in Japanese and English', () => {
-    for (const path of PUBLIC_INDEX_PATHS) {
+    for (const path of ['/', '/pricing', '/terms', '/privacy', '/refund', '/legal']) {
       expect(content).toContain(`<loc>${absoluteUrl(path, 'ja')}</loc>`)
       expect(content).toContain(`<loc>${absoluteUrl(path, 'en')}</loc>`)
     }

@@ -27,7 +27,7 @@ it('loads the next visible page after a background refresh finishes', async () =
 it('keeps one page request in flight and stops automatic retries after failure', async () => {
   let onIntersection!: IntersectionObserverCallback;
   const observer = { observe: vi.fn(), disconnect: vi.fn(), unobserve: vi.fn() };
-  vi.stubGlobal('IntersectionObserver', vi.fn((callback: IntersectionObserverCallback) => {
+  vi.stubGlobal('IntersectionObserver', vi.fn(function (callback: IntersectionObserverCallback) {
     onIntersection = callback;
     return observer;
   }));

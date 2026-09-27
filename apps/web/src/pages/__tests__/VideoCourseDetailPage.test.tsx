@@ -371,7 +371,13 @@ describe('VideoCourseDetailPage', () => {
 
     expect(container.querySelector('video')?.getAttribute('src')).toBe('video1.mp4')
 
-    resolveRemove()
+    await act(async () => { resolveRemove() })
+    // Finish the mutation and its refetch before the next test replaces handlers.
+    await waitFor(() => {
+      for (const button of screen.getAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })) {
+        expect(button).toBeEnabled()
+      }
+    })
   })
 
   it('blocks conflicting edits while saving video order, then re-enables them without a detail refetch', async () => {

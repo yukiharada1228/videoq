@@ -1,14 +1,5 @@
 export const SITE_ORIGIN = 'https://videoq.jp';
 
-export const PUBLIC_INDEX_PATHS = [
-  '/',
-  '/pricing',
-  '/terms',
-  '/privacy',
-  '/refund',
-  '/legal',
-] as const;
-
 const NOINDEX_PREFIXES = [
   '/login',
   '/signup',

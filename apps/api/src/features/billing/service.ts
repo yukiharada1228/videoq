@@ -10,11 +10,12 @@ import {
   type PlanCode,
 } from "./catalog";
 import {
-  applyBillingState,
+  assignBillingCustomer,
   getBillingUser,
-  getBillingUserId,
+  findBillingUser,
   hasProcessedStripeEvent,
   commitStripeEvent,
+  BillingStateChangedError,
   type BillingPatch,
   type BillingUpdate,
 } from "../../repositories/billing-repository";
@@ -160,8 +161,8 @@ export async function createCheckoutSession(
       email: user.email,
       metadata: { userId: user.id },
     });
-    customerId = customer.id;
-    await applyBillingState(env, user.id, { stripeCustomerId: customerId });
+    customerId = await assignBillingCustomer(env, user.id, customer.id);
+    if (!customerId) throw apiNotFound("User not found");
   }
 
   const origin = frontendOrigin(env);
@@ -224,19 +225,50 @@ function subscriptionIdFrom(
 }
 
 function subscriptionPatch(
-  subscription: Stripe.Subscription | null,
+  subscription: Stripe.Subscription,
   customerId: string | null,
 ): BillingPatch {
-  const status = subscription?.status ?? "canceled";
-  const lookupKey = subscription?.items.data[0]?.price?.lookup_key;
+  const status = subscription.status;
+  const lookupKey = subscription.items.data[0]?.price?.lookup_key;
   const planCode = lookupKey ? planCodeFromLookupKey(lookupKey) ?? "free" : "free";
   const effectivePlan = isUsableSubscriptionStatus(status) ? planCode : "free";
   return {
     stripeCustomerId: customerId ?? undefined,
-    stripeSubscriptionId: subscription?.id ?? null,
+    stripeSubscriptionId: subscription.id,
     planCode: effectivePlan,
     subscriptionStatus: status,
     entitlements: PLAN_CATALOG[effectivePlan].entitlements,
+  };
+}
+
+/** Events are hints: their snapshots can arrive late or in reverse order. */
+async function prepareSubscriptionUpdate(
+  env: Bindings,
+  target: { userId?: string | null; customerId: string | null; subscriptionId: string },
+): Promise<BillingUpdate | null> {
+  const user = await findBillingUser(env, target);
+  if (!user || (user.stripeCustomerId && target.customerId !== user.stripeCustomerId)) return null;
+
+  const stripe = requireStripeClient(env);
+  let subscription = await stripe.subscriptions.retrieve(target.subscriptionId);
+  if (customerIdFrom(subscription.customer) !== target.customerId) return null;
+  if (user.stripeSubscriptionId && user.stripeSubscriptionId !== subscription.id) {
+    // A delayed cancellation/invoice for an older subscription must not replace
+    // a newer one. Keep a current usable contract, or the more recent contract
+    // when both have ended. Stripe creation time belongs to the contracts, not
+    // webhook event ordering.
+    const current = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+    if (isUsableSubscriptionStatus(current.status) || current.created > subscription.created ||
+      (current.created === subscription.created && !isUsableSubscriptionStatus(subscription.status))) {
+      subscription = current;
+    }
+  }
+  // Retain the contract ID even after cancellation so delayed notifications for
+  // an older contract cannot replace it. Checkout still allows a new contract.
+  return {
+    userId: user.id,
+    expectedRevision: user.revision,
+    patch: subscriptionPatch(subscription, target.customerId),
   };
 }
 
@@ -245,16 +277,14 @@ async function prepareCheckoutCompleted(
   session: Stripe.Checkout.Session,
 ): Promise<BillingUpdate | null> {
   const customerId = customerIdFrom(session.customer);
-  const userId = await getBillingUserId(env, {
+  const subId = subscriptionIdFrom(session.subscription);
+  // Payment/setup sessions and standalone invoices do not describe a subscription.
+  if (!subId) return null;
+  return prepareSubscriptionUpdate(env, {
     userId: session.client_reference_id ?? session.metadata?.userId,
     customerId,
+    subscriptionId: subId,
   });
-  if (!userId) return null;
-  const subId = subscriptionIdFrom(session.subscription);
-  const subscription = subId
-    ? await requireStripeClient(env).subscriptions.retrieve(subId)
-    : null;
-  return { userId, patch: subscriptionPatch(subscription, customerId) };
 }
 
 async function prepareSubscriptionChange(
@@ -262,37 +292,35 @@ async function prepareSubscriptionChange(
   subscription: Stripe.Subscription,
 ): Promise<BillingUpdate | null> {
   const customerId = customerIdFrom(subscription.customer);
-  const userId = await getBillingUserId(env, { userId: subscription.metadata?.userId, customerId });
-  if (!userId) return null;
-  const ended =
-    subscription.status === "canceled" ||
-    subscription.status === "unpaid" ||
-    subscription.status === "incomplete_expired";
-  return { userId, patch: subscriptionPatch(ended ? null : subscription, customerId) };
+  return prepareSubscriptionUpdate(env, {
+    userId: subscription.metadata?.userId, customerId, subscriptionId: subscription.id,
+  });
 }
 
 async function prepareInvoiceEvent(
   env: Bindings,
   invoice: Stripe.Invoice,
-  failed: boolean,
 ): Promise<BillingUpdate | null> {
   const customerId = customerIdFrom(invoice.customer);
   const subId = subscriptionIdFrom(invoice.parent?.subscription_details?.subscription);
-  if (!failed && !subId) return null;
-  const userId = await getBillingUserId(env, { userId: invoice.metadata?.userId, customerId });
-  if (!userId) return null;
-  if (failed) {
-    return { userId, patch: {
-      subscriptionStatus: "past_due",
-      stripeCustomerId: customerId ?? undefined,
-      stripeSubscriptionId: subId ?? undefined,
-    } };
-  }
-  const subscription = await requireStripeClient(env).subscriptions.retrieve(subId!);
-  return { userId, patch: subscriptionPatch(subscription, customerId) };
+  if (!subId) return null;
+  return prepareSubscriptionUpdate(env, {
+    userId: invoice.metadata?.userId, customerId, subscriptionId: subId,
+  });
 }
 
 export async function handleStripeEvent(env: Bindings, event: Stripe.Event): Promise<void> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await reconcileStripeEvent(env, event);
+      return;
+    } catch (error) {
+      if (!(error instanceof BillingStateChangedError) || attempt >= 2) throw error;
+    }
+  }
+}
+
+async function reconcileStripeEvent(env: Bindings, event: Stripe.Event): Promise<void> {
   // This read avoids Stripe I/O on redelivery. The transaction below is the authoritative dedupe.
   if (await hasProcessedStripeEvent(env, event.id)) return;
   let update: BillingUpdate | null = null;
@@ -306,7 +334,7 @@ export async function handleStripeEvent(env: Bindings, event: Stripe.Event): Pro
       break;
     case "invoice.paid":
     case "invoice.payment_failed":
-      update = await prepareInvoiceEvent(env, event.data.object, event.type === "invoice.payment_failed");
+      update = await prepareInvoiceEvent(env, event.data.object);
       break;
   }
   // All network lookups finish before opening the write transaction.
