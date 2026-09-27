@@ -5,12 +5,14 @@ import { streamSSE } from "hono/streaming";
 import type { ZodError } from "zod";
 import {
   requireAuth,
+  resolveAuth,
   sessionMethod,
 } from "../../middleware/auth";
 import { toErrorBody } from "../../shared/errors";
 import { clientIp, enforceThrottles, throttledResponse } from "../../lib/rate-limit";
 import type { AppEnv } from "../../types/bindings";
 import { chatMessageBodySchema } from "./schemas";
+import { CHAT_STREAM_FORMAT, CHAT_STREAM_FORMAT_QUERY } from "@videoq/trpc/chat";
 import { limitChatRequestBody } from "./body-limit";
 import * as chatService from "./service";
 import * as messageService from "./message-service";
@@ -18,17 +20,22 @@ import * as messageService from "./message-service";
 /** Raw transports only: CSV download and SSE. JSON chat operations use tRPC. */
 export const chatRoutes = new Hono<AppEnv>();
 
+function requestShareSlug(c: Context<AppEnv>): string | null {
+  return c.req.query("share_slug") || c.req.query("share_token") || null;
+}
+
 const optionalShareAuth = createMiddleware<AppEnv>(async (c, next) => {
-  const result = await sessionMethod(c);
+  const result = await resolveAuth(c, [sessionMethod]);
   if (result.kind === "ok") {
-    c.set("userId", result.userId);
-    c.set("authVia", result.via);
     return next();
   }
   if (result.kind === "invalid") {
     return c.json(toErrorBody("UNAUTHORIZED", result.message), 401);
   }
-  const shareSlug = c.req.query("share_slug") || c.req.query("share_token");
+  if (result.kind === "forbidden") {
+    return c.json(toErrorBody("FORBIDDEN", result.message), 403);
+  }
+  const shareSlug = requestShareSlug(c);
   if (shareSlug && await chatService.shareSlugExists(c.env, shareSlug)) {
     c.set("authVia", "share");
     return next();
@@ -40,7 +47,7 @@ const optionalShareAuth = createMiddleware<AppEnv>(async (c, next) => {
 });
 
 const chatThrottle = createMiddleware<AppEnv>(async (c, next) => {
-  const shareSlug = c.req.query("share_slug") || c.req.query("share_token");
+  const shareSlug = requestShareSlug(c);
   const denied = await enforceThrottles(c.env, [
     { scope: "chat_authenticated", ident: c.var.userId },
     { scope: "chat_share_token_ip", ident: shareSlug ? clientIp(c) : null },
@@ -95,7 +102,7 @@ chatRoutes.post(
     if (!parsed.success) {
       return validationResponse(c, parsed.error.issues[0]?.message ?? "Invalid input", parsed.error);
     }
-    const shareSlug = c.req.query("share_slug") ?? c.req.query("share_token") ?? null;
+    const shareSlug = requestShareSlug(c);
     const connection = new AbortController();
     const result = await messageService.streamChatMessage(c.env, {
       userId: c.var.userId ?? null,
@@ -103,6 +110,7 @@ chatRoutes.post(
       shareSlug,
       locale: messageService.requestLocaleFromHeader(c.req.header("Accept-Language")),
       clientSignal: AbortSignal.any([c.req.raw.signal, connection.signal]),
+      streamFormat: c.req.query(CHAT_STREAM_FORMAT_QUERY) === CHAT_STREAM_FORMAT ? CHAT_STREAM_FORMAT : undefined,
     });
     c.header("Cache-Control", "no-cache");
     c.header("Content-Encoding", "Identity");

@@ -31,8 +31,22 @@
     "test:web": "npm run test --workspace @videoq/web",
     "typecheck": "npm run typecheck --workspace @videoq/trpc && npm run typecheck --workspace @videoq/api && npm run typecheck --workspace @videoq/web && npm run typecheck --workspace @videoq/docs"
   },
+  "overrides": {
+    "vitest": "^4.1.11",
+    "@vitest/browser": "^4.1.11",
+    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/ui": "^4.1.11",
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.0"
+    },
+    "serialize-javascript": "^7.0.5",
+    "sockjs": {
+      "uuid": "^11.1.1"
+    }
+  },
   "devDependencies": {
     "drizzle-orm": "^0.45.2",
+    "jsdom": "^25.0.1",
     "pg": "^8.22.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

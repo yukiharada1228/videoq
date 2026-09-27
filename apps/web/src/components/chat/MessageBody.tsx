@@ -1,13 +1,15 @@
 import { Fragment, memo, useMemo } from 'react';
 import katex from 'katex';
 import type { Citation } from '@/lib/api';
-import { parseMessageContent } from '@/lib/chat/parseMessageContent';
+import { parseMessageParts } from '@/lib/chat/parseMessageContent';
+import { parseCitationParts, type ChatContentPart } from '@videoq/trpc/chat';
 import { linkVariants } from '@/components/ui/link';
 import { cn } from '@/lib/digital-agency/cn';
 import 'katex/dist/katex.min.css';
 
 interface MessageBodyProps {
   content: string;
+  parts?: ChatContentPart[];
   citations?: Citation[];
   onVideoNavigate: (videoId: number, startTime: string) => void;
 }
@@ -39,9 +41,9 @@ const MathExpression = memo(function MathExpression({ tex, display }: { tex: str
   );
 });
 
-export function MessageBody({ content, citations, onVideoNavigate }: MessageBodyProps) {
-  const nodes = useMemo(() => parseMessageContent(content), [content]);
+export function MessageBody({ content, parts, citations, onVideoNavigate }: MessageBodyProps) {
   const citationMap = useMemo(() => new Map((citations ?? []).map((citation) => [citation.id, citation])), [citations]);
+  const nodes = useMemo(() => parseMessageParts(parts ?? parseCitationParts(content, (id) => citationMap.has(id))), [content, parts, citationMap]);
 
   return (
     <div className="text-solid-gray-700 leading-relaxed whitespace-pre-wrap">

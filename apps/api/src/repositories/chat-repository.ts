@@ -42,12 +42,6 @@ export type ChatLogItem = {
   created_at: string;
 };
 
-/**
- * 講座のチャット履歴（所有者のみ）。
- * - 所有権: video_courses(id=course, user_id) が無ければ notFound（→404 "Course not found."）。
- * - 並び: created_at DESC（Meta.ordering=-created_at, get_logs_for_course）。
- * - citations: JSON 配列を {id:1始まりindex, video_id, title, start_time, end_time} へ整形。
- */
 /** チャット送信時の講座文脈。 */
 export type GroupChatContext = {
   id: number;
@@ -94,12 +88,13 @@ function mapQuestionAuthor(
 
 /**
  * share_token 指定時は share_slug で、
- * それ以外は user_id で絞る（どちらも無ければ id のみ）。見つからなければ null。
+ * それ以外は user_id で絞る。認証条件が無い場合も、見つからない場合も null。
  */
 export async function getCourseWithMembers(
   env: Bindings,
   params: { courseId: number; userId?: string | null; shareToken?: string | null },
 ): Promise<GroupChatContext | null> {
+  if (!params.shareToken && !params.userId) return null;
   return withDb(env, async (db) => {
     const conditions = [eq(videoCourses.id, params.courseId)];
     if (params.shareToken) {

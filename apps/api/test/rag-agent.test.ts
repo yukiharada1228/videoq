@@ -643,6 +643,8 @@ describe("RAG エージェント（ストリーミング）", () => {
 
     const last = chunks[chunks.length - 1] as { final: { citations: unknown[] } };
     expect(last.final.citations).toHaveLength(1);
+    expect(chunks.find((c) => typeof c === "object" && c !== null && "text" in c))
+      .toEqual({ text: "回答本文", citations: last.final.citations });
     expect(closed).toBe(1);
   });
 

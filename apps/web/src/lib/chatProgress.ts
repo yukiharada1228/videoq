@@ -37,7 +37,8 @@ export function updateChatProgress(progress: ChatProgress, event: ChatStreamEven
         ? { ...search, status: 'interrupted' } : search),
     };
   }
-  if (event.type === 'done' || (event.type === 'content_chunk' && event.text !== '')) {
+  if (event.type === 'done' || event.type === 'citation' ||
+      ((event.type === 'content_chunk' || event.type === 'text_delta') && event.text !== '')) {
     const phase = event.type === 'done' ? 'complete' : 'answering';
     if (phase === progress.phase) return progress;
     return {

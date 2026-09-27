@@ -4,35 +4,7 @@ import * as messageService from "../../features/chat/message-service";
 import * as evaluationService from "../../features/evaluation/service";
 import { clientIp, enforceThrottles } from "../../lib/rate-limit";
 import type { AppEnv } from "../../types/bindings";
-import { requireUserId, rpcError, type HandlersFor } from "./shared";
-
-function statusCode(status: number) {
-  if (status === 400) return "BAD_REQUEST" as const;
-  if (status === 401) return "UNAUTHORIZED" as const;
-  if (status === 403) return "FORBIDDEN" as const;
-  if (status === 404) return "NOT_FOUND" as const;
-  if (status === 409) return "CONFLICT" as const;
-  if (status === 429) return "TOO_MANY_REQUESTS" as const;
-  return "INTERNAL_SERVER_ERROR" as const;
-}
-
-function responseError(body: unknown): {
-  message: string;
-  code?: string;
-  details?: unknown;
-} {
-  if (!body || typeof body !== "object") return { message: "Request failed" };
-  const error = (body as Record<string, unknown>).error;
-  if (error && typeof error === "object") {
-    const record = error as Record<string, unknown>;
-    return {
-      message: typeof record.message === "string" ? record.message : "Request failed",
-      ...(typeof record.code === "string" ? { code: record.code } : {}),
-      ...(record.details !== undefined ? { details: record.details } : {}),
-    };
-  }
-  return { message: "Request failed" };
-}
+import { apiStatusToTrpcCode, requireUserId, rpcError, type HandlersFor } from "./shared";
 
 async function enforceChatThrottle(
   c: Context<AppEnv>,
@@ -75,10 +47,9 @@ export function chatHandlers(
         locale: messageService.requestLocaleFromHeader(c.req.header("Accept-Language")),
       });
       if (result.status !== 200) {
-        const error = responseError(result.body);
-        return rpcError(statusCode(result.status), error.message, {
+        const error = result.body.error;
+        return rpcError(apiStatusToTrpcCode(result.status), error.message, {
           appCode: error.code,
-          details: error.details,
         });
       }
       return result.body;

@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn } from 'storybook/test';
+import { parseCitationParts } from '@videoq/trpc/chat';
 import { MessageBody } from './MessageBody';
-import { answer, citations, longAnswer, mathAnswer } from '../../../.storybook/fixtures/chat';
+import { answer, citations, longAnswer, mathAnswer, syntaxAnswer } from '../../../.storybook/fixtures/chat';
 
 const meta = {
   title: 'Chat/MessageBody',
@@ -25,6 +26,22 @@ export const WithCitations: Story = {
 export const MissingCitation: Story = { args: { content: 'この説明に対応する引用データが届いていません。[9]' } };
 export const InlineMath: Story = { args: { content: String.raw`直角三角形では \(a^2 + b^2 = c^2\) が成り立ちます。` } };
 export const DisplayMath: Story = { args: { content: mathAnswer, citations } };
+export const MathAndCodeWithCitations: Story = {
+  args: { content: syntaxAnswer, citations },
+  async play({ canvas, canvasElement, userEvent, args }) {
+    await expect(Array.from(canvasElement.querySelectorAll('annotation'), node => node.textContent)).toEqual([' x[01] ', 'y', 'z']);
+    await expect(canvas.getAllByRole('button')).toHaveLength(2);
+    const button = canvas.getByRole('button', { name: '具体例で学ぶベクトル 00:03:10' });
+    button.focus();
+    await userEvent.keyboard('{Enter}');
+    await expect(args.onVideoNavigate).toHaveBeenCalledWith(12, '00:03:10');
+  },
+};
+export const TypedMathAndCodeWithCitations: Story = {
+  ...MathAndCodeWithCitations,
+  args: { ...MathAndCodeWithCitations.args, parts: parseCitationParts(syntaxAnswer, id => citations.some(source => source.id === id)) },
+};
+export const MathAndCodeEnglishMobile: Story = { ...TypedMathAndCodeWithCitations, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
 export const LongText: Story = { args: { content: longAnswer, citations } };
 export const English: Story = {
   args: { content: 'A rotation matrix changes the direction of a vector without changing its length. [1]', citations },

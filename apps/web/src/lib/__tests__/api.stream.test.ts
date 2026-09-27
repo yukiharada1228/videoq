@@ -149,7 +149,7 @@ describe('apiClient.chatStream', () => {
     })).rejects.toThrow('Authentication failed')
 
     expect(fetchSpy).toHaveBeenCalledTimes(1)
-    expect(fetchSpy.mock.calls[0][0]).toBe('http://localhost:8000/api/chat/messages/stream')
+    expect(fetchSpy.mock.calls[0][0]).toBe('http://localhost:8000/api/chat/messages/stream?stream_format=parts-v1')
     expect(unauthorized).toHaveBeenCalledTimes(1)
     expect(authClientMock.signOut).not.toHaveBeenCalled()
     window.removeEventListener(TRPC_UNAUTHORIZED_EVENT, unauthorized)
@@ -189,6 +189,22 @@ describe('apiClient.chatStream', () => {
     expect(chunks[0]).toEqual({ type: 'content_chunk', text: 'split' })
   })
 
+  it('requests parts-v1 and validates structured citation events', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(makeSSEResponse([
+      'data: {"type":"source","source":{"id":1,"video_id":7,"title":"Video","start_time":"00:00:10","end_time":null}}',
+      'data: {"type":"text_delta","text":"Answer"}',
+      'data: {"type":"citation","sourceId":1}',
+      'data: {"type":"citation","sourceId":-1}',
+      'data: {"type":"future_event"}',
+      'data: {"type":"done","chat_log_id":1,"feedback":null}',
+    ]))
+    const events = await collectStreamEvents({ messages: [{ role: 'user', content: 'Hi' }], share_slug: 'a+b' })
+    expect(events.map((event) => event.type)).toEqual(['source', 'text_delta', 'citation', 'done'])
+    const url = new URL(String(fetch.mock.calls[0][0]))
+    expect(url.searchParams.get('stream_format')).toBe('parts-v1')
+    expect(url.searchParams.get('share_slug')).toBe('a+b')
+  })
+
   it('cancels the response body when a consumer stops at a terminal event', async () => {
     const cancel = vi.fn()
     const body = new ReadableStream({
@@ -203,6 +219,17 @@ describe('apiClient.chatStream', () => {
     await stream.return(undefined)
     expect(cancel).toHaveBeenCalledTimes(1)
     expect(body.locked).toBe(false)
+  })
+
+  it('reports an interrupted answer when the connection closes without done', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(makeSSEResponse([
+      'data: {"type":"text_delta","text":"Partial answer"}',
+      'data: {"type":"citation","sourceId":',
+    ]))
+    expect(await collectStreamEvents({ messages: [{ role: 'user', content: 'hi' }] })).toEqual([
+      { type: 'text_delta', text: 'Partial answer' },
+      { type: 'error', code: 'STREAM_INTERRUPTED', message: '' },
+    ])
   })
 
   it('passes the abort signal to fetch and releases a reader interrupted while waiting', async () => {

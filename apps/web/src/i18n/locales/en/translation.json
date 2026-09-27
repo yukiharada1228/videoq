@@ -1059,7 +1059,7 @@
       "editTitle": "Edit {{username}}",
       "delete": "Delete",
       "deleteTitle": "Delete {{username}}?",
-      "deleteBody": "The account is deactivated immediately, then videos, courses, tags, chat history, and the user row are permanently deleted. This cannot be undone.",
+      "deleteBody": "The account is deactivated immediately. Subscriptions are canceled and the Stripe customer is deleted before permanently deleting videos, courses, tags, chat history, and the user account. This cannot be undone.",
       "deleteConfirm": "Delete user",
       "deleteSuccess": "Deletion started for {{username}} ({{jobId}}).",
       "deletionPending": "Deletion pending",

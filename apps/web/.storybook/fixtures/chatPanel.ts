@@ -1,4 +1,5 @@
-import type { ChatStreamEvent } from '../../src/lib/api';
+import { parseCitationParts } from '@videoq/trpc/chat';
+import type { ChatStreamEvent, Citation } from '../../src/lib/api';
 import { answer, citations } from './chat';
 import { englishAnswer, englishCitations, englishQuestion, historyItem } from './chatHistory';
 
@@ -12,8 +13,13 @@ export const reviewedEvents: ChatStreamEvent[] = [
   ...searchingEvents,
   { type: 'search_completed', search_id: 1, query: searchQuery, result_count: 3 },
 ];
+export const contentEvents = (content: string, sources: Citation[]): ChatStreamEvent[] => [
+  ...sources.map((source): ChatStreamEvent => ({ type: 'source', source })),
+  ...parseCitationParts(content, id => sources.some(source => source.id === id)).map((part): ChatStreamEvent =>
+    part.type === 'text' ? { type: 'text_delta', text: part.text } : { type: 'citation', sourceId: part.sourceId }),
+];
 export const answerEvents = (english = false): ChatStreamEvent[] => [
-  { type: 'content_chunk', text: english ? englishAnswer : answer },
+  ...contentEvents(english ? englishAnswer : answer, english ? englishCitations : citations),
   { type: 'done', chat_log_id: 101, feedback: null, citations: english ? englishCitations : citations },
 ];
 export const courseHistory = [{ ...historyItem, course: courseId }];

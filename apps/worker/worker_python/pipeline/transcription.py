@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import logging
 import math
-import subprocess
 import tempfile
 from collections.abc import Callable, Generator
 from contextlib import closing
@@ -19,6 +18,7 @@ from worker_python.env import env_str, heavy_pipeline_enabled
 from worker_python.pipeline.scene_otsu import apply_scene_splitting
 from worker_python.pipeline.srt import create_srt_from_whisper_segments, format_srt_time
 from worker_python.pipeline.storage import download_to_path
+from worker_python.pipeline.media_process import MEDIA_INPUT_OPTIONS, run_media_process
 from worker_python.video_sql import VideoRow
 
 logger = logging.getLogger(__name__)
@@ -85,7 +85,10 @@ def _transcribe_uploaded(
 def _ffmpeg_extract_mp3(video_path: Path, audio_path: Path) -> None:
     cmd = [
         "ffmpeg",
+        "-nostdin",
+        "-v", "error",
         "-y",
+        *MEDIA_INPUT_OPTIONS,
         "-i",
         str(video_path),
         "-vn",
@@ -100,7 +103,7 @@ def _ffmpeg_extract_mp3(video_path: Path, audio_path: Path) -> None:
         str(audio_path),
     ]
     logger.info("Running ffmpeg extract: %s", " ".join(cmd))
-    proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    proc = run_media_process(cmd)
     if proc.returncode != 0:
         raise RuntimeError(
             f"ffmpeg failed ({proc.returncode}): {proc.stderr[-1000:]}"
@@ -180,11 +183,14 @@ def _split_audio_chunks(
         out = audio_path.with_name(f"chunk_{idx}.mp3")
         cmd = [
             "ffmpeg",
+            "-nostdin",
+            "-v", "error",
             "-y",
             "-ss",
             str(start),
             "-t",
             str(chunk_seconds),
+            *MEDIA_INPUT_OPTIONS,
             "-i",
             str(audio_path),
             "-acodec",
@@ -192,7 +198,7 @@ def _split_audio_chunks(
             str(out),
         ]
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            proc = run_media_process(cmd)
             if proc.returncode != 0:
                 raise RuntimeError(f"ffmpeg chunk split failed: {proc.stderr[-500:]}")
             yield start, out
@@ -207,16 +213,20 @@ def _ffprobe_duration(path: Path) -> float:
         "ffprobe",
         "-v",
         "error",
+        *MEDIA_INPUT_OPTIONS,
         "-show_entries",
         "format=duration",
         "-of",
         "default=noprint_wrappers=1:nokey=1",
         str(path),
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    proc = run_media_process(cmd)
     if proc.returncode != 0:
         raise RuntimeError(f"ffprobe failed: {proc.stderr[-500:]}")
-    return float(proc.stdout.strip())
+    duration = float(proc.stdout.strip())
+    if not math.isfinite(duration) or duration <= 0:
+        raise RuntimeError("ffprobe returned an invalid media duration")
+    return duration
 
 
 def _transcribe_youtube(

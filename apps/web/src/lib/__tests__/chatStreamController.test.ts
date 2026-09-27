@@ -4,6 +4,7 @@ import {
   createInitialChatStreamState,
 } from '@/lib/chatStreamController'
 import type { ChatStreamEvent, Citation } from '@/lib/api'
+import type { ChatContentPart } from '@videoq/trpc/chat'
 
 const citation: Citation = {
   id: 1,
@@ -84,6 +85,61 @@ describe('ChatStreamController', () => {
     vi.useRealTimers()
   })
 
+  it('keeps typed references atomic and ordered, with completion after every part is rendered', async () => {
+    const rendered: ChatContentPart[][] = []
+    const onDone = vi.fn()
+    const legacy = vi.fn()
+    const controller = new ChatStreamController({
+      onAppendContent: legacy,
+      onAppendParts: (parts) => rendered.push(parts),
+      onDone, onError: vi.fn(),
+    })
+    controller.start()
+    controller.handleEvent({ type: 'source', source: citation })
+    await vi.advanceTimersByTimeAsync(24)
+    expect(rendered).toEqual([])
+    controller.handleEvent({ type: 'text_delta', text: 'AB' })
+    controller.handleEvent({ type: 'citation', sourceId: 1 })
+    controller.handleEvent({ type: 'citation', sourceId: 1 })
+    controller.handleEvent({ type: 'text_delta', text: 'CDEF' })
+    controller.handleEvent({ type: 'done', chat_log_id: 1, feedback: null })
+    const complete = controller.complete()
+    await vi.advanceTimersByTimeAsync(24)
+    expect(rendered).toEqual([[
+      { type: 'text', text: 'AB' }, { type: 'citation', sourceId: 1 },
+      { type: 'citation', sourceId: 1 }, { type: 'text', text: 'C' },
+    ]])
+    expect(onDone).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(24)
+    await complete
+    expect(rendered[1]).toEqual([{ type: 'text', text: 'DEF' }])
+    expect(onDone).toHaveBeenCalledOnce()
+    expect(legacy).not.toHaveBeenCalled()
+  })
+
+  it('discards queued typed parts on error or abort and starts the next answer cleanly', async () => {
+    const onAppendParts = vi.fn()
+    const onError = vi.fn()
+    const controller = new ChatStreamController({ onAppendContent: vi.fn(), onAppendParts, onDone: vi.fn(), onError })
+    controller.start()
+    controller.handleEvent({ type: 'text_delta', text: 'old answer' })
+    controller.handleEvent({ type: 'citation', sourceId: 1 })
+    controller.handleEvent({ type: 'error', code: 'STREAM_FAILED', message: '' })
+    await vi.advanceTimersByTimeAsync(24)
+    expect(onAppendParts).not.toHaveBeenCalled()
+    expect(onError).toHaveBeenCalledOnce()
+    controller.start()
+    controller.handleEvent({ type: 'citation', sourceId: 2 })
+    controller.abort()
+    controller.start()
+    controller.handleEvent({ type: 'text_delta', text: 'new' })
+    controller.handleEvent({ type: 'done', chat_log_id: 2, feedback: null })
+    const complete = controller.complete()
+    await vi.advanceTimersByTimeAsync(24)
+    await complete
+    expect(onAppendParts).toHaveBeenCalledExactlyOnceWith([{ type: 'text', text: 'new' }])
+  })
+
   it('drains content over render ticks and applies done metadata only after draining', async () => {
     const rendered: string[] = []
     const doneEvents: ChatStreamEvent[] = []
@@ -123,6 +179,46 @@ describe('ChatStreamController', () => {
         citations: [citation],
       },
     ])
+    expect(controller.getSnapshot().timerActive).toBe(false)
+  })
+
+  it('renders complete citation markers atomically across render ticks and network chunks', async () => {
+    const rendered: string[] = []
+    const controller = new ChatStreamController({
+      onAppendContent: (text) => rendered.push(text),
+      onDone: vi.fn(),
+      onError: vi.fn(),
+    })
+    controller.start()
+    controller.handleEvent({ type: 'content_chunk', text: 'AB[12' })
+    await vi.advanceTimersByTimeAsync(48)
+    expect(rendered).toEqual(['AB'])
+
+    controller.handleEvent({ type: 'content_chunk', text: ']CD[3]E' })
+    controller.handleEvent({ type: 'done', chat_log_id: 1, feedback: null })
+    const completion = controller.complete()
+    await vi.advanceTimersByTimeAsync(72)
+    await completion
+
+    expect(rendered).toEqual(['AB', '[12]', 'CD[3]', 'E'])
+    expect(controller.getSnapshot().timerActive).toBe(false)
+  })
+
+  it.each(['AB[12', 'AB[', 'AB[example]'])('preserves literal or unfinished brackets at completion: %s', async (text) => {
+    const rendered: string[] = []
+    const controller = new ChatStreamController({
+      onAppendContent: (slice) => rendered.push(slice),
+      onDone: vi.fn(),
+      onError: vi.fn(),
+    })
+    controller.start()
+    controller.handleEvent({ type: 'content_chunk', text })
+    await vi.advanceTimersByTimeAsync(96)
+    const completion = controller.complete()
+    await vi.advanceTimersByTimeAsync(96)
+    await completion
+
+    expect(rendered.join('')).toBe(text)
     expect(controller.getSnapshot().timerActive).toBe(false)
   })
 

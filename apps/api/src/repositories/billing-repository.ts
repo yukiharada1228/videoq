@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { withDb, type Db } from "../db/pool";
 import { stripeEvents, users } from "../db/schema";
 import type { PlanCode, PlanEntitlements } from "../features/billing/catalog";
@@ -11,6 +11,8 @@ export type BillingUser = {
   stripeSubscriptionId: string | null;
   planCode: PlanCode;
   subscriptionStatus: string | null;
+  /** Preserve PostgreSQL timestamp precision for optimistic webhook writes. */
+  revision: string;
 };
 
 export type BillingPatch = {
@@ -30,6 +32,20 @@ export async function getBillingUser(
   env: Bindings,
   userId: string,
 ): Promise<BillingUser | null> {
+  return findBillingUser(env, { userId, activeOnly: true });
+}
+
+const activeBillingUser = sql`NOT (COALESCE(${users.banned}, false)
+  AND (${users.banExpires} IS NULL OR ${users.banExpires} >= now()))`;
+
+export async function findBillingUser(
+  env: Bindings,
+  target: { userId?: string | null; customerId?: string | null; activeOnly?: boolean },
+): Promise<BillingUser | null> {
+  const where = target.userId
+    ? eq(users.id, target.userId)
+    : target.customerId ? eq(users.stripeCustomerId, target.customerId) : null;
+  if (!where) return null;
   return withDb(env, async (db) => {
     const rows = await db
       .select({
@@ -39,9 +55,10 @@ export async function getBillingUser(
         stripeSubscriptionId: users.stripeSubscriptionId,
         planCode: users.planCode,
         subscriptionStatus: users.subscriptionStatus,
+        revision: sql<string>`${users.updatedAt}::text`,
       })
       .from(users)
-      .where(eq(users.id, userId))
+      .where(and(where, target.activeOnly ? activeBillingUser : undefined))
       .limit(1);
     const row = rows[0];
     if (!row) return null;
@@ -52,25 +69,8 @@ export async function getBillingUser(
       stripeSubscriptionId: row.stripeSubscriptionId,
       planCode: asPlanCode(row.planCode),
       subscriptionStatus: row.subscriptionStatus,
+      revision: row.revision,
     };
-  });
-}
-
-export async function getBillingUserId(
-  env: Bindings,
-  target: { userId?: string | null; customerId?: string | null },
-): Promise<string | null> {
-  const where = target.userId
-    ? eq(users.id, target.userId)
-    : target.customerId ? eq(users.stripeCustomerId, target.customerId) : null;
-  if (!where) return null;
-  return withDb(env, async (db) => {
-    const rows = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(where)
-      .limit(1);
-    return rows[0]?.id ?? null;
   });
 }
 
@@ -78,11 +78,12 @@ async function updateBillingState(
   db: Pick<Db, "update">,
   userId: string,
   patch: BillingPatch,
+  expectedRevision?: string,
 ): Promise<void> {
   const { entitlements, ...fields } = patch;
-  await db.update(users).set({
+  const updated = await db.update(users).set({
     ...fields,
-    updatedAt: sql`CURRENT_TIMESTAMP`,
+    updatedAt: sql`clock_timestamp()`,
     // Evaluate the current quota source while updating, not before Stripe I/O.
     ...(entitlements ? {
       maxVideoUploadSizeMb: sql`CASE WHEN ${users.quotaSource} = 'plan' THEN ${entitlements.maxVideoUploadSizeMb} ELSE ${users.maxVideoUploadSizeMb} END`,
@@ -90,15 +91,28 @@ async function updateBillingState(
       processingLimitMinutes: sql`CASE WHEN ${users.quotaSource} = 'plan' THEN ${entitlements.processingLimitMinutes} ELSE ${users.processingLimitMinutes} END`,
       aiAnswersLimit: sql`CASE WHEN ${users.quotaSource} = 'plan' THEN ${entitlements.aiAnswersLimit} ELSE ${users.aiAnswersLimit} END`,
     } : {}),
-  }).where(eq(users.id, userId));
+  }).where(and(
+    eq(users.id, userId),
+    expectedRevision === undefined ? undefined : sql`${users.updatedAt} = ${expectedRevision}::timestamptz`,
+  )).returning({ id: users.id });
+  if (expectedRevision !== undefined && updated.length === 0) throw new BillingStateChangedError();
 }
 
-export async function applyBillingState(
+/** Concurrent first checkouts must use the same customer once one wins. */
+export async function assignBillingCustomer(
   env: Bindings,
   userId: string,
-  patch: BillingPatch,
-): Promise<void> {
-  return withDb(env, (db) => updateBillingState(db, userId, patch));
+  customerId: string,
+): Promise<string | null> {
+  return withDb(env, async (db) => {
+    // The account-deletion transaction bans and locks this same row. A checkout
+    // which started earlier must not attach a new customer after that lock.
+    const rows = await db.update(users).set({
+      stripeCustomerId: sql`coalesce(${users.stripeCustomerId}, ${customerId})`,
+      updatedAt: sql`clock_timestamp()`,
+    }).where(and(eq(users.id, userId), activeBillingUser)).returning({ customerId: users.stripeCustomerId });
+    return rows[0]?.customerId ?? null;
+  });
 }
 
 export async function hasProcessedStripeEvent(
@@ -112,7 +126,11 @@ export async function hasProcessedStripeEvent(
   });
 }
 
-export type BillingUpdate = { userId: string; patch: BillingPatch };
+export class BillingStateChangedError extends Error {
+  constructor() { super("Billing state changed during Stripe lookup; retry reconciliation."); }
+}
+
+export type BillingUpdate = { userId: string; patch: BillingPatch; expectedRevision: string };
 
 /** A receipt is committed only together with its effects; concurrent duplicates wait here. */
 export async function commitStripeEvent(
@@ -127,7 +145,7 @@ export async function commitStripeEvent(
       .onConflictDoNothing({ target: stripeEvents.id })
       .returning({ id: stripeEvents.id });
     if (inserted.length > 0 && update) {
-      await updateBillingState(tx, update.userId, update.patch);
+      await updateBillingState(tx, update.userId, update.patch, update.expectedRevision);
     }
   }));
 }

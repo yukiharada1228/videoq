@@ -126,4 +126,21 @@ describe('tRPC error handling', () => {
     expect(getApiError(error)).toBe(error);
     expect(getApiError(new Error('Unexpected error'))).toBeUndefined();
   });
+
+  it('preserves upload limits for translated error messages', async () => {
+    const client = createAppTrpcClient({
+      baseUrl: 'https://example.test/api',
+      fetchFn: async () => batchResponse([{ error: {
+        message: 'File size exceeds the limit of 50 MB.', code: -32013,
+        data: { code: 'PAYLOAD_TOO_LARGE', httpStatus: 413,
+          applicationCode: 'FILE_TOO_LARGE', params: { max_size_mb: 50 } },
+      } }], 413),
+    });
+    try {
+      await client.videos.requestUpload.mutate({ filename: 'clip.mp4', contentType: 'video/mp4', fileSize: 1024, title: 'Clip' });
+      expect.unreachable('The upload should fail');
+    } catch (error) {
+      expect(getApiError(error)).toMatchObject({ code: 'FILE_TOO_LARGE', params: { max_size_mb: 50 } });
+    }
+  });
 });

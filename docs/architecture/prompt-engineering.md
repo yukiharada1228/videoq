@@ -55,6 +55,31 @@ The collector retains the retrieved scenes, not just those cited in the final pr
 
 Search filters enforce the course access scope established by the API. Separately, prompt instructions tell the model to treat subtitles as reference material and ignore instructions embedded in them. The latter is model guidance, not a guarantee that prompt injection or unsupported claims are impossible.
 
+### Citation validation and stream contract
+
+Each answer has its own source registry, populated only from that request's scoped scene search. Repeated searches retain existing IDs and append new scenes. A citation ID must be a positive safe integer present in this registry. Video IDs, titles, and timestamps come from retrieved metadata; the model cannot supply replacement destinations. This checks whether a source exists, not whether it supports a claim.
+
+The shared parser recognizes decimal `[N]` outside TeX, backtick/tilde code, escaped text, and numeric inline Markdown link labels such as `[1](url)`. Adjacent citations such as `[1][2]` are supported. Numeric-looking invalid IDs (`[0]`, `[-1]`, `[1.5]`, unsafe integers) and unknown IDs stay literal and never become links. Other brackets, such as `[example]` and `[1, 2]`, are ordinary text. Valid leading-zero IDs are normalized (`[01]` → `[1]`). Citation lookahead is limited to 64 characters; overlong numeric markers stay literal. Unclosed math/code keeps citation-looking text literal. Single-dollar math ends at a newline; a later `$$` block is parsed independently if it cannot close inline math.
+
+Citation validation and rendering share delimiter rules in `chat-syntax.ts`. Inline math allows whitespace after `$`. Inline code closes with a run of the same length; fenced code closes at the start of a line (up to three leading spaces) with a run at least as long as the opening, followed only by whitespace. The entire closing run is consumed. Rendering retains line context across citation parts, so a citation cannot turn following text into a new code fence.
+
+The API applies this rule to both `chat.send` and SSE. It stores the normalized `content` and existing citation metadata without a database migration. History uses the same parser, so invalid markers remain literal there too. Logs contain only `chat_citations_rejected` counts grouped by `invalid_id` and `unknown_id`, without answer text, transcripts, or source metadata.
+
+New clients request `POST /api/chat/messages/stream?stream_format=parts-v1`. Each SSE `data` is a JSON event defined by `@videoq/trpc/chat`:
+
+| Event | Payload and behavior |
+|---|---|
+| `source` | `source: { id, video_id, title, start_time, end_time }`; register a candidate before any reference to it; registration alone creates no visible link |
+| `text_delta` | `text: string`; append literal text, preserving TeX/code syntax |
+| `citation` | `sourceId: number`; append one indivisible timestamp link at this position |
+| `searching`, `search_completed` | Existing search progress events; do not append answer content |
+| `done` | `chat_log_id`, `feedback`, optional `citations`; persistence completed; feedback controls appear after the rendering queue drains |
+| `error` | `code`, `message`; terminate the answer and clear pending rendering |
+
+Sources and ordered content events precede `done`. Citation candidates can include scenes not used by the answer. The parser holds a split reference until it can classify it, emits an unfinished marker literally on normal completion, and discards pending text on error/abort. The client stops at `done`, even if the transport stays open; an unexpected disconnect follows the existing interrupted-answer behavior. Retry or course/share-link changes start with fresh citation state.
+
+Requests with no recognized format keep the legacy `content_chunk` events, including early citation metadata and final `done`. An answer uses one content format, so text is never sent twice. New clients also accept legacy events when deployed against an older API and validate received events at runtime; unknown or malformed events are ignored. Legacy APIs that send citations only at `done` retain their previous timing. The agent still finishes generating its final answer before the API sends answer content; this protocol does not introduce model-token streaming.
+
 ## When evidence or services are unavailable
 
 | Situation | Current behavior |

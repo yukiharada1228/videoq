@@ -1,17 +1,22 @@
 import pg from "pg";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { billingRoutes } from "../src/features/billing/routes";
+import { createCheckoutSession } from "../src/features/billing/service";
+import { deleteAccountBilling } from "../src/features/billing/account-deletion";
 import { PLAN_CATALOG } from "../src/features/billing/catalog";
 import type { Bindings } from "../src/types/bindings";
 
-const { constructEventAsync, subscriptionsRetrieve } = vi.hoisted(() => ({
-  constructEventAsync: vi.fn(), subscriptionsRetrieve: vi.fn(),
+const { constructEventAsync, subscriptionsRetrieve, customersCreate, customersDelete, checkoutCreate } = vi.hoisted(() => ({
+  constructEventAsync: vi.fn(), subscriptionsRetrieve: vi.fn(), customersCreate: vi.fn(), customersDelete: vi.fn(), checkoutCreate: vi.fn(),
 }));
 vi.mock("stripe", () => ({
   default: class {
     static createFetchHttpClient() { return {}; }
     webhooks = { constructEventAsync };
     subscriptions = { retrieve: subscriptionsRetrieve };
+    customers = { create: customersCreate, del: customersDelete };
+    prices = { list: async () => ({ data: [{ id: "price_basic" }] }) };
+    checkout = { sessions: { create: checkoutCreate } };
   },
 }));
 
@@ -22,7 +27,7 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
   let env: Bindings;
 
   function subscription(status = "active", lookupKey = "pro_monthly") {
-    return { id: "sub_1", customer: "cus_1", status, metadata: { userId: "user_1" },
+    return { id: "sub_1", customer: "cus_1", created: 100, status, metadata: { userId: "user_1" },
       items: { data: [{ price: { lookup_key: lookupKey } }] } };
   }
   function invoice() {
@@ -56,6 +61,7 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
       SET search_path TO "${schema}";
       CREATE TABLE users (
         id text PRIMARY KEY, email text DEFAULT 'user@example.test',
+        banned boolean DEFAULT false, ban_expires timestamptz,
         stripe_customer_id text UNIQUE, stripe_subscription_id text UNIQUE,
         plan_code text NOT NULL DEFAULT 'free', subscription_status text,
         quota_source text NOT NULL DEFAULT 'plan', updated_at timestamptz NOT NULL DEFAULT now(),
@@ -78,6 +84,9 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
   beforeEach(async () => {
     constructEventAsync.mockReset().mockResolvedValue(event());
     subscriptionsRetrieve.mockReset().mockResolvedValue(subscription());
+    customersCreate.mockReset();
+    customersDelete.mockReset().mockResolvedValue({ id: "cus_1", deleted: true });
+    checkoutCreate.mockReset().mockResolvedValue({ url: "https://checkout.stripe.com/test" });
     await admin.query(`TRUNCATE users, stripe_events, billing_updates;
       INSERT INTO users (id, stripe_customer_id) VALUES ('user_1', 'cus_1'), ('user_2', 'cus_2')`);
     vi.spyOn(console, "error").mockImplementation(() => {});
@@ -94,6 +103,76 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
     expect(await state()).toMatchObject({ user: { plan_code: "pro", subscription_status: "active",
       stripe_subscription_id: "sub_1", ...limits("pro") }, events: [{ id: "evt_1", type: "invoice.paid" }],
       updates: [{ user_id: "user_1" }] });
+  });
+
+  it("uses one persisted customer when initial checkout requests race", async () => {
+    await admin.query("UPDATE users SET stripe_customer_id = NULL WHERE id = 'user_1'");
+    let release!: () => void;
+    const bothCreated = new Promise<void>(resolve => { release = resolve; });
+    let created = 0;
+    customersCreate.mockImplementation(async () => {
+      const id = `cus_race_${++created}`;
+      if (created === 2) release();
+      await bothCreated;
+      return { id };
+    });
+    const results = await Promise.all([
+      createCheckoutSession(env, "user_1", "basic_monthly"),
+      createCheckoutSession(env, "user_1", "basic_monthly"),
+    ]);
+    expect(results).toHaveLength(2);
+    const customer = (await state()).user.stripe_customer_id;
+    expect(customer).toMatch(/^cus_race_/);
+    expect(checkoutCreate).toHaveBeenCalledTimes(2);
+    for (const [params] of checkoutCreate.mock.calls) expect(params.customer).toBe(customer);
+    expect((await state()).user.plan_code).toBe("free");
+  });
+
+  it.each([null, "2999-01-01T00:00:00Z"])("blocks checkout while an account is banned (expires=%s)", async expires => {
+    await admin.query("UPDATE users SET banned = true, ban_expires = $1 WHERE id = 'user_1'", [expires]);
+    await expect(createCheckoutSession(env, "user_1", "basic_monthly")).rejects.toMatchObject({ status: 404 });
+    expect(customersCreate).not.toHaveBeenCalled();
+    expect(checkoutCreate).not.toHaveBeenCalled();
+  });
+
+  it("allows checkout after a temporary ban expires", async () => {
+    await admin.query("UPDATE users SET stripe_customer_id = NULL, banned = true, ban_expires = now() - interval '1 day' WHERE id = 'user_1'");
+    customersCreate.mockResolvedValue({ id: "cus_expired_ban" });
+    await expect(createCheckoutSession(env, "user_1", "basic_monthly")).resolves.toHaveProperty("url");
+    expect(checkoutCreate).toHaveBeenCalledWith(expect.objectContaining({ customer: "cus_expired_ban" }));
+  });
+
+  it("does not start a subscription if deletion bans the user during customer creation", async () => {
+    await admin.query("UPDATE users SET stripe_customer_id = NULL WHERE id = 'user_1'");
+    let finish!: (customer: { id: string }) => void;
+    customersCreate.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+    const checkout = createCheckoutSession(env, "user_1", "basic_monthly").catch(error => error);
+    try {
+      await vi.waitFor(() => expect(customersCreate).toHaveBeenCalledTimes(1));
+      await admin.query("UPDATE users SET banned = true, ban_expires = NULL WHERE id = 'user_1'");
+    } finally {
+      finish({ id: "cus_too_late" });
+    }
+    expect(await checkout).toMatchObject({ status: 404 });
+    expect(checkoutCreate).not.toHaveBeenCalled();
+    expect((await state()).user.stripe_customer_id).toBeNull();
+  });
+
+  it("uses the banned user's billing identity before account data is deleted", async () => {
+    await admin.query("UPDATE users SET banned = true, stripe_subscription_id = NULL WHERE id = 'user_1'");
+    await deleteAccountBilling(env, "user_1");
+    expect(customersDelete).toHaveBeenCalledExactlyOnceWith("cus_1");
+    expect((await state()).user.stripe_customer_id).toBe("cus_1");
+  });
+
+  it("ignores subscription metadata pointing to a different customer's user", async () => {
+    constructEventAsync.mockResolvedValue(event("customer.subscription.updated", {
+      ...subscription(), customer: "cus_2",
+    }));
+    const before = await state();
+    expect((await deliver()).status).toBe(200);
+    expect((await state()).user).toEqual(before.user);
+    expect(subscriptionsRetrieve).not.toHaveBeenCalled();
   });
 
   it("does not access the database or Stripe subscriptions for an invalid signature", async () => {
@@ -228,14 +307,14 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
 
   it.each(["active", "trialing", "past_due", "incomplete", "paused", "canceled", "unpaid", "incomplete_expired"])(
     "preserves subscription status handling for %s", async status => {
+      subscriptionsRetrieve.mockResolvedValue(subscription(status, "basic_yearly"));
       constructEventAsync.mockResolvedValue(event("customer.subscription.updated", subscription(status, "basic_yearly")));
       expect((await deliver()).status).toBe(200);
       const active = ["active", "trialing", "past_due"].includes(status);
-      const ended = ["canceled", "unpaid", "incomplete_expired"].includes(status);
       expect((await state()).user).toMatchObject({ plan_code: active ? "basic" : "free",
-        subscription_status: ended ? "canceled" : status, stripe_subscription_id: ended ? null : "sub_1",
+        subscription_status: status, stripe_subscription_id: "sub_1",
         ...limits(active ? "basic" : "free") });
-      expect(subscriptionsRetrieve).not.toHaveBeenCalled();
+      expect(subscriptionsRetrieve).toHaveBeenCalledExactlyOnceWith("sub_1");
     },
   );
 
@@ -247,24 +326,62 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
     expect((await state()).user.plan_code).toBe("pro");
   });
 
-  it.each(["checkout.session.completed", "customer.subscription.deleted"])("resets an ended %s subscription to free", async type => {
+  it("resets an ended subscription to free using its current Stripe state", async () => {
     await admin.query("UPDATE users SET plan_code = 'pro', subscription_status = 'active', stripe_subscription_id = 'sub_1' WHERE id = 'user_1'");
-    const object = type === "checkout.session.completed"
-      ? { client_reference_id: "user_1", customer: "cus_1", subscription: null }
-      : subscription("canceled");
-    constructEventAsync.mockResolvedValue(event(type, object));
+    subscriptionsRetrieve.mockResolvedValue(subscription("canceled"));
+    constructEventAsync.mockResolvedValue(event("customer.subscription.deleted", subscription("canceled")));
     expect((await deliver()).status).toBe(200);
-    expect((await state()).user).toMatchObject({ plan_code: "free", subscription_status: "canceled", stripe_subscription_id: null, ...limits("free") });
+    expect((await state()).user).toMatchObject({ plan_code: "free", subscription_status: "canceled", stripe_subscription_id: "sub_1", ...limits("free") });
+    expect(subscriptionsRetrieve).toHaveBeenCalledExactlyOnceWith("sub_1");
+  });
+
+  it.each(["invoice.payment_failed", "invoice.paid", "checkout.session.completed"])("ignores standalone %s events", async type => {
+    await admin.query("UPDATE users SET stripe_subscription_id = 'sub_existing', plan_code = 'basic', ai_answers_limit = 777 WHERE id = 'user_1'");
+    const before = (await state()).user;
+    constructEventAsync.mockResolvedValue(event(type, { customer: "cus_1", metadata: { userId: "user_1" }, parent: null, subscription: null }));
+    expect((await deliver()).status).toBe(200);
+    expect((await state()).user).toEqual(before);
     expect(subscriptionsRetrieve).not.toHaveBeenCalled();
   });
 
-  it("preserves existing Stripe IDs and quotas on an invoice failure without those IDs", async () => {
-    await admin.query("UPDATE users SET stripe_subscription_id = 'sub_existing', plan_code = 'basic', ai_answers_limit = 777 WHERE id = 'user_1'");
-    constructEventAsync.mockResolvedValue(event("invoice.payment_failed", { customer: null, metadata: { userId: "user_1" }, parent: null }));
+  it.each(["customer.subscription.updated", "invoice.payment_failed"])("does not restore an old status from a delayed %s event", async type => {
+    constructEventAsync.mockResolvedValue(event(type, type === "customer.subscription.updated" ? subscription("past_due", "basic_monthly") : invoice()));
+    subscriptionsRetrieve.mockResolvedValue(subscription("active", "pro_monthly"));
     expect((await deliver()).status).toBe(200);
-    expect((await state()).user).toMatchObject({ stripe_customer_id: "cus_1", stripe_subscription_id: "sub_existing",
-      plan_code: "basic", subscription_status: "past_due", ai_answers_limit: 777 });
-    expect(subscriptionsRetrieve).not.toHaveBeenCalled();
+    expect((await state()).user).toMatchObject({ plan_code: "pro", subscription_status: "active" });
+  });
+
+  it.each(["active", "canceled"])("does not replace a newer %s contract when an older cancellation arrives", async status => {
+    await admin.query("UPDATE users SET stripe_subscription_id = 'sub_new' WHERE id = 'user_1'");
+    subscriptionsRetrieve.mockImplementation(async id => id === "sub_new"
+      ? { ...subscription(status), id, created: 200 } : subscription("canceled"));
+    constructEventAsync.mockResolvedValue(event("customer.subscription.deleted", subscription("canceled")));
+    expect((await deliver()).status).toBe(200);
+    expect((await state()).user).toMatchObject({ stripe_subscription_id: "sub_new", subscription_status: status,
+      plan_code: status === "active" ? "pro" : "free" });
+  });
+
+  it("accepts a new contract after cancellation, even within the same second", async () => {
+    await admin.query("UPDATE users SET stripe_subscription_id = 'sub_old' WHERE id = 'user_1'");
+    subscriptionsRetrieve.mockImplementation(async id => id === "sub_old"
+      ? { ...subscription("canceled"), id } : subscription());
+    expect((await deliver()).status).toBe(200);
+    expect((await state()).user).toMatchObject({ stripe_subscription_id: "sub_1", plan_code: "pro" });
+  });
+
+  it("refreshes a stale lookup after a concurrent event commits, without persisting its old snapshot", async () => {
+    let release!: () => void;
+    const ready = new Promise<void>(resolve => { release = resolve; });
+    subscriptionsRetrieve.mockImplementationOnce(async () => { await ready; return subscription("active", "basic_monthly"); });
+    const first = deliver();
+    try {
+      await vi.waitFor(() => expect(subscriptionsRetrieve).toHaveBeenCalledTimes(1));
+      constructEventAsync.mockResolvedValue({ ...event(), id: "evt_2" });
+      expect((await deliver()).status).toBe(200);
+    } finally { release(); }
+    expect((await first).status).toBe(200);
+    expect(subscriptionsRetrieve).toHaveBeenCalledTimes(3);
+    expect(await state()).toMatchObject({ user: { plan_code: "pro" }, events: [{ id: "evt_1" }, { id: "evt_2" }] });
   });
 
   it.each(["missing_user", "missing_subscription", "unhandled"])("records %s events without changing users", async kind => {

@@ -6,14 +6,16 @@ type ApplicationErrorCause = {
   appCode?: unknown;
   code?: unknown;
   details?: unknown;
+  params?: Record<string, unknown>;
 };
 
 export const t = initTRPC.context<TrpcContext>().create({
   errorFormatter({ shape, error }) {
     const internalError = error.code === "INTERNAL_SERVER_ERROR";
-    // Output validation is a server failure, never a client field error.
-    const outputValidationError = internalError && error.cause instanceof ZodError;
-    const cause = outputValidationError ? undefined : error.cause as ApplicationErrorCause | undefined;
+    // Internal causes include output validation and database errors. Their
+    // details/params are server data, not public application error metadata.
+    const applicationCause = error.cause as ApplicationErrorCause | undefined;
+    const cause = internalError ? undefined : applicationCause;
     const inputValidationError = error.code === "BAD_REQUEST" && error.cause instanceof ZodError
       ? error.cause
       : undefined;
@@ -26,8 +28,8 @@ export const t = initTRPC.context<TrpcContext>().create({
     }
     const applicationCode = inputValidationError
       ? "VALIDATION_ERROR"
-      : typeof cause?.appCode === "string"
-        ? cause.appCode
+      : typeof applicationCause?.appCode === "string"
+        ? applicationCause.appCode
         : typeof cause?.code === "string"
           ? cause.code
           : undefined;
@@ -44,8 +46,11 @@ export const t = initTRPC.context<TrpcContext>().create({
           : shape.message,
       data: {
         ...shape.data,
+        // Diagnostics belong in the sanitized server log, including in dev.
+        stack: undefined,
         ...(applicationCode ? { applicationCode } : {}),
         ...(details !== undefined ? { details } : {}),
+        ...(cause?.params ? { params: cause.params } : {}),
       },
     };
   },

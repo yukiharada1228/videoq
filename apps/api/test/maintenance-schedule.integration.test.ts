@@ -267,7 +267,10 @@ describeWithPostgres("next maintenance wakeup on PostgreSQL", () => {
       }
 
       const schedule = await getNextMaintenanceWakeup(env, WINDOWS);
-      const now = Date.now();
+      // Compare DB-derived deadlines with the same clock; Docker's clock can
+      // lead the host by a few milliseconds even on a healthy local run.
+      const clock = await admin.query<{ now: Date }>("SELECT clock_timestamp() AS now");
+      const now = clock.rows[0].now.getTime();
       expect(schedule.nextAt!.getTime()).toBeLessThanOrEqual(now);
       expectAbout(schedule.nextFutureAt, now + 4 * 60_000);
       expect(

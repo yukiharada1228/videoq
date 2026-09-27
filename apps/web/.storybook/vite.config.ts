@@ -1,9 +1,9 @@
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'vite';
+import type { UserConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 
 // The preview has no application API proxy or production-only manual chunks.
-export default defineConfig({
+export default {
   // Never inherit a developer's or deployment's real API origin in previews.
   define: {
     'import.meta.env.VITE_API_URL': JSON.stringify('/api'),
@@ -13,4 +13,4 @@ export default defineConfig({
   resolve: {
     alias: { '@': fileURLToPath(new URL('../src', import.meta.url)) },
   },
-});
+} satisfies UserConfig;

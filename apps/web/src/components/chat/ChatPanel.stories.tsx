@@ -9,7 +9,7 @@ import { ChatPanel } from './ChatPanel';
 import { authFixtures } from '../../../.storybook/fixtures/auth';
 import { answer, citations, longAnswer } from '../../../.storybook/fixtures/chat';
 import { englishCitations, englishQuestion, mixedHistory } from '../../../.storybook/fixtures/chatHistory';
-import { answerEvents, courseId, courseHistory, englishHistory, firstTokens, question, reviewedEvents, searchingEvents, searchQuery, shareToken } from '../../../.storybook/fixtures/chatPanel';
+import { answerEvents, contentEvents, courseId, courseHistory, englishHistory, firstTokens, question, reviewedEvents, searchingEvents, searchQuery, shareToken } from '../../../.storybook/fixtures/chatPanel';
 import { chatRequest, createChatPanelMock, csvRequest, evaluationRequest, feedbackRequest, historyError, historyRequest, type ChatPanelScenario } from '../../../.storybook/mocks/chatPanel';
 
 let network: ReturnType<typeof createChatPanelMock>;
@@ -126,6 +126,44 @@ export const Streaming: Story = { parameters: { chat: { events: [...reviewedEven
   await expect(await context.canvas.findByText(firstTokens)).toBeVisible();
   await assertBusy(context);
 } };
+export const StreamingTimestamps: Story = {
+  name: 'Streaming timestamps / タイムスタンプの逐次表示',
+  args: { suggestedQuestions: ['回転行列について教えて'] },
+  parameters: {
+    chat: {
+      events: [
+        ...reviewedEvents,
+        ...contentEvents(`${answer}\n\n${longAnswer}`, citations),
+        { type: 'done', chat_log_id: 101, feedback: null, citations },
+      ],
+    } satisfies ChatPanelScenario,
+    docs: { description: { story: '質問を送信すると、長いサンプル回答を本番と同じ速度で表示します。引用は最初から時刻で表示されます。回答は固定のモックで、LLMには接続しません。再送して繰り返し確認できます。' } },
+  },
+};
+export const CitationsBeforeCompletion: Story = {
+  parameters: { chat: waiting },
+  async play(context) {
+    await send(context);
+    const source = english() ? englishCitations[0] : citations[0];
+    const name = `${source.title} ${source.start_time}`;
+    network.emit([{ type: 'source', source }]);
+    await expect(context.canvas.queryByRole('button', { name })).not.toBeInTheDocument();
+    network.emit([{ type: 'text_delta', text: english() ? 'Answer' : '回答' }, { type: 'citation', sourceId: source.id }]);
+    const citation = await context.canvas.findByRole('button', { name });
+    await assertBusy(context);
+    await expect(context.canvas.queryByRole('button', { name: label('feedbackGood') })).not.toBeInTheDocument();
+    await expect(context.canvas.queryByText(`[${source.id}]`)).not.toBeInTheDocument();
+    citation.focus();
+    await context.userEvent.keyboard('{Enter}');
+    await expect(context.args.onVideoPlay).toHaveBeenCalledWith(source.video_id, source.start_time);
+    network.emit([{ type: 'text_delta', text: english() ? ' continues.' : 'が続きます。' }, { type: 'done', chat_log_id: 101, feedback: null }]);
+    network.finish();
+    await context.canvas.findByRole('button', { name: label('feedbackGood') });
+    await expect(citation).toBeVisible();
+    await expect(input(context)).toBeEnabled();
+  },
+};
+export const CitationsBeforeCompletionEnglishMobile: Story = { ...CitationsBeforeCompletion, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
 export const ProgressToComplete: Story = { parameters: { chat: waiting }, async play(context) {
   await AwaitingResponse.play!(context);
   network.emit(searchingEvents);
@@ -140,6 +178,7 @@ export const ProgressToComplete: Story = { parameters: { chat: waiting }, async 
 export const CompleteWithOpenConnection: Story = { parameters: { chat: { keepOpen: true } satisfies ChatPanelScenario }, async play(context) { await complete(context); } };
 export const EmptyResponse: Story = { parameters: { chat: { events: [] } satisfies ChatPanelScenario }, async play(context) {
   await send(context); await waitFor(() => expect(input(context)).toBeEnabled());
+  await expect(await context.canvas.findByText(label('error'))).toBeVisible();
   await expect(context.canvas.queryByRole('status')).not.toBeInTheDocument();
 } };
 export const StreamError: Story = { parameters: { chat: { events: [{ type: 'error', code: 'LLM_PROVIDER_ERROR', message: '' }] } satisfies ChatPanelScenario }, async play(context) {
@@ -168,6 +207,19 @@ export const RetryAfterInterruption: Story = { parameters: InterruptedResponse.p
   await context.canvas.findByRole('button', { name: label('feedbackGood') });
   await waitFor(() => expect(input(context)).toBeEnabled());
 } };
+export const DisconnectedBeforeDone: Story = {
+  parameters: { chat: { events: [...reviewedEvents, ...contentEvents('Partial [1]', citations)], keepOpen: true } satisfies ChatPanelScenario },
+  async play(context) {
+    await send(context);
+    await context.canvas.findByRole('button', { name: `${citations[0].title} ${citations[0].start_time}` });
+    network.finish();
+    await expect(await context.canvas.findByText(label('error'))).toBeVisible();
+    await expect(context.canvas.getByRole('status')).toHaveTextContent(label('progress.interrupted'));
+    await expect(context.canvas.queryByRole('button', { name: label('feedbackGood') })).not.toBeInTheDocument();
+    await expect(context.canvas.queryByRole('button', { name: `${citations[0].title} ${citations[0].start_time}` })).not.toBeInTheDocument();
+    await waitFor(() => expect(input(context)).toBeEnabled());
+  },
+};
 export const HistoryDuringResponse: Story = { parameters: { chat: waiting }, async play(context) {
   await AwaitingResponse.play!(context); await openHistory(context);
   await context.canvas.findByText(courseHistory[0].asked_by!.email);

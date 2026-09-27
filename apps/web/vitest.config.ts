@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     // @storybook/addon-vitest discovers this workspace; unit tests keep their own setup.
-    projects: ['./vitest.unit.ts', './vitest.storybook.ts'],
+    projects: ['./vitest.unit.config.ts', './vitest.storybook.config.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

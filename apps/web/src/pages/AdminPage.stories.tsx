@@ -36,10 +36,23 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const PendingDeletion: Story = {
-  async play({ canvas, canvasElement, userEvent }) {
+export const ConfirmDeletion: Story = {
+  async play({ canvas, userEvent }) {
     await canvas.findByText('Bob');
     await userEvent.click(canvas.getByRole('button', { name: i18n.t('admin.users.delete') }));
+    const dialog = within(await within(document.body).findByRole('dialog'));
+    await expect(dialog.getByText(i18n.t('admin.users.deleteBody'))).toBeVisible();
+    await expect(dialog.getByText(i18n.t('admin.users.deleteBody'))).toHaveTextContent('Stripe');
+  },
+};
+export const ConfirmDeletionEnglishMobile: Story = {
+  ...ConfirmDeletion, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
+};
+
+export const PendingDeletion: Story = {
+  async play(context) {
+    await ConfirmDeletion.play!(context);
+    const { canvas, canvasElement, userEvent } = context;
     const dialog = within(await within(document.body).findByRole('dialog'));
     await userEvent.click(dialog.getByRole('button', { name: i18n.t('admin.users.deleteConfirm') }));
     await expect(await canvas.findByText(i18n.t('admin.users.deletionPending'))).toBeVisible();

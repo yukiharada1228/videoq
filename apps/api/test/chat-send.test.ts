@@ -7,6 +7,7 @@ import {
 import { chatRoutes } from "../src/features/chat/routes";
 import { signAccessToken } from "./helpers/auth";
 import { createApp } from "../src/app";
+import * as auth from "../src/middleware/auth";
 
 /**
  * ルート全体（認証 → 検証 → course/quota → RAG → ChatLog → 応答）の結線テスト。
@@ -378,6 +379,31 @@ const sseEvents = (text: string) =>
     .split("\n\n")
     .filter((f) => f.startsWith("data: "))
     .map((f) => JSON.parse(f.slice(6)));
+
+describe.each([false, true])("回答保存後の評価ジョブ配送障害（stream=%s）", (stream) => {
+  it("保存済みの回答と履歴IDを返し、評価はoutboxからの再試行に任せる", async () => {
+    rowsFor = (sql, args) => {
+      if (sql.includes("WITH candidates")) throw new Error("Outbox claim unavailable");
+      return defaultRows(sql, args);
+    };
+    stubOpenAi({ content: "Saved answer." });
+    const response = await post(stream ? "/messages/stream" : "/messages", {
+      messages: [{ role: "user", content: "Question" }],
+      course_id: 3,
+    }, { token: await accessToken(), env: OPENAI_ENV });
+
+    expect(response.status).toBe(200);
+    if (stream) {
+      const events = sseEvents(await response.text());
+      expect(events.some((event) => event.type === "error")).toBe(false);
+      expect(events.at(-1)).toMatchObject({ type: "done", chat_log_id: 99 });
+    } else {
+      expect(await trpcData(response)).toMatchObject({ content: "Saved answer.", chat_log_id: 99 });
+    }
+    expect(lastExternalPayload).toMatchObject({ message: { type: "evaluate_chat_log" } });
+    expect(calls.some(({ sql }) => sql.includes("used_ai_answers") && sql.includes("GREATEST"))).toBe(false);
+  });
+});
 
 describe("POST /messages（非ストリーミング）", () => {
   it("認証なしは 401", async () => {
@@ -862,6 +888,102 @@ describe("HTTP 応答の切断", () => {
 });
 
 describe("POST /messages/stream（SSE）", () => {
+  it.each([
+    { outcome: { kind: "invalid", message: "Session rejected" } as const, status: 401 },
+    { outcome: { kind: "forbidden", message: "Session rejected", requiredScope: "read" } as const, status: 403 },
+  ])("$status: 認証拒否後は共有リンクへフォールバックしない", async ({ outcome, status }) => {
+    const session = vi.spyOn(auth, "sessionMethod").mockResolvedValue(outcome);
+    try {
+      const response = await post("/messages/stream?share_slug=abc123", {
+        messages: [{ role: "user", content: "Explain this course" }], course_id: 3,
+      });
+      expect(response.status).toBe(status);
+      expect(await response.json()).toMatchObject({ error: { message: "Session rejected" } });
+      expect(calls).toEqual([]);
+    } finally {
+      session.mockRestore();
+    }
+  });
+
+  it("空の share_slug と旧 share_token を併記しても別講座へのアクセスを許可しない", async () => {
+    rowsFor = (sql, args) => {
+      if (sql.includes("video_courses") && args.includes(4)) {
+        return args.includes("abc123") ? [] : [{ id: 4, userId: "private-owner" }];
+      }
+      return defaultRows(sql, args);
+    };
+    const requests = stubOpenAi({ content: "Private course answer" });
+    const response = await post("/messages/stream?share_slug=&share_token=abc123", {
+      messages: [{ role: "user", content: "Explain this course" }], course_id: 4,
+    }, { env: OPENAI_ENV });
+    expect(sseEvents(await response.text())).toEqual([
+      { type: "error", code: "NOT_FOUND", message: "Course not found." },
+    ]);
+    expect(requests).toEqual([]);
+    expect(calls.some(call => call.sql.includes("UPDATE users"))).toBe(false);
+  });
+
+  it.each([
+    "share_token=abc123",
+    "share_slug=&share_token=abc123",
+    "share_slug=abc123&share_token=other",
+  ])("共有スラッグの選択を認証と講座検索で統一する: %s", async query => {
+    stubOpenAi({ content: "Shared course answer" });
+    const response = await post(`/messages/stream?${query}`, {
+      messages: [{ role: "user", content: "Explain this course" }], course_id: 3,
+    }, { env: OPENAI_ENV });
+    expect(sseEvents(await response.text()).at(-1)).toMatchObject({ type: "done" });
+    const courseLookup = calls.find(call => call.sql.includes("video_courses") && call.args.includes(3));
+    expect(courseLookup?.args).toContain("abc123");
+  });
+
+  it.each(["owner", "public"])("%s: parts-v1 は参照元を先に送り、検証済みの引用だけをイベントにする", async (access) => {
+    const content = "回答[1][1] 未登録[99] 数式 $x[1]$ コード `a[1]`.";
+    stubOpenAi({ content });
+    const log = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const res = await post(
+        "/messages/stream?stream_format=parts-v1" + (access === "public" ? "&share_slug=abc123" : ""),
+        { messages: [{ role: "user", content: "説明して" }], course_id: 3 },
+        { token: access === "public" ? undefined : await accessToken(), env: OPENAI_ENV },
+      );
+      const events = sseEvents(await res.text());
+      expect(events.filter((event) => ["source", "text_delta", "citation"].includes(event.type))).toEqual([
+        { type: "source", source: { id: 1, video_id: 60, title: "Video A", start_time: "00:00:10", end_time: "00:00:20" } },
+        { type: "text_delta", text: "回答" },
+        { type: "citation", sourceId: 1 },
+        { type: "citation", sourceId: 1 },
+        { type: "text_delta", text: " 未登録[99] 数式 $x[1]$ コード `a[1]`." },
+      ]);
+      expect(events.some((event) => event.type === "content_chunk")).toBe(false);
+      expect(events.at(-1)).toMatchObject({ type: "done", chat_log_id: 99 });
+      const insert = calls.find((call) => call.sql.includes("chat_logs") && call.sql.includes("returning"))!;
+      expect(insert.args).toContain(content);
+      expect(log).toHaveBeenCalledWith(JSON.stringify({ event: "chat_citations_rejected", invalid_id: 0, unknown_id: 1 }));
+    } finally { log.mockRestore(); }
+  });
+
+  it("未知の形式指定には旧形式を返し、非ストリームと同じ引用検証を適用する", async () => {
+    const content = "回答[01] 未登録[99]";
+    const log = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      stubOpenAi({ content });
+      const res = await post("/messages/stream?stream_format=future", {
+        messages: [{ role: "user", content: "説明して" }], course_id: 3,
+      }, { token: await accessToken(), env: OPENAI_ENV });
+      const events = sseEvents(await res.text());
+      const rendered = events.filter((event) => event.type === "content_chunk").map((event) => event.text).join("");
+      expect(rendered).toBe("回答[1] 未登録[99]");
+      expect(events.some((event) => event.type === "citation")).toBe(false);
+      stubOpenAi({ content });
+      const plain = await post("/messages", {
+        messages: [{ role: "user", content: "説明して" }], course_id: 3,
+      }, { token: await accessToken(), env: OPENAI_ENV });
+      expect((await trpcData(plain)).content).toBe(rendered);
+      expect(log).toHaveBeenCalledTimes(2);
+    } finally { log.mockRestore(); }
+  });
+
   it("バリデーション失敗は非ストリームと同じ {error:{code,message,details}}", async () => {
     const res = await post(
       "/messages/stream",
@@ -902,12 +1024,12 @@ describe("POST /messages/stream（SSE）", () => {
     });
   });
 
-  it("チャンク → done（citations 付き）の順で流す", async () => {
+  it.each(["owner", "public"])("%s: 最初の本文チャンクから citations を渡し、done にも保持する", async (access) => {
     stubOpenAi({ content: "Hello!", preamble: "調べますね。" });
     const res = await post(
-      "/messages/stream",
+      access === "public" ? "/messages/stream?share_slug=abc123" : "/messages/stream",
       { messages: [{ role: "user", content: "hi" }], course_id: 3 },
-      { token: await accessToken(), env: OPENAI_ENV },
+      { token: access === "public" ? undefined : await accessToken(), env: OPENAI_ENV },
     );
 
     expect(res.status).toBe(200);
@@ -919,7 +1041,13 @@ describe("POST /messages/stream（SSE）", () => {
       // 検索ラウンドの間はトークンが出ないので、進行中であることを先に伝える
       { type: "searching", query: "scene", search_id: 1 },
       { type: "search_completed", query: "scene", search_id: 1, result_count: 1 },
-      { type: "content_chunk", text: "Hello!" },
+      {
+        type: "content_chunk", text: "Hello!",
+        citations: [{
+          id: 1, video_id: 60, title: "Video A",
+          start_time: "00:00:10", end_time: "00:00:20",
+        }],
+      },
       {
         type: "done",
         chat_log_id: 99,

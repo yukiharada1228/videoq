@@ -1059,7 +1059,7 @@
       "editTitle": "{{username}} を編集",
       "delete": "削除",
       "deleteTitle": "{{username}} を削除しますか？",
-      "deleteBody": "アカウントを直ちに無効化し、動画・講座・タグ・チャット履歴・ユーザー本体を完全に削除します。この操作は取り消せません。",
+      "deleteBody": "アカウントを直ちに無効化します。有料契約の解約とStripe顧客情報の削除後、動画・講座・タグ・チャット履歴・ユーザー本体を完全に削除します。この操作は取り消せません。",
       "deleteConfirm": "ユーザーを削除",
       "deleteSuccess": "{{username}} の削除を開始しました（{{jobId}}）。",
       "deletionPending": "削除待ち",

@@ -10,6 +10,8 @@ import type { Bindings } from "../types/bindings";
 import { deliverInvitationEmail } from "./invitation-delivery";
 import { sendSqsMessage } from "./sqs";
 import { armMaintenance, DISPATCH_SAFETY_NET_MS } from "./task-scheduler";
+import { JOB_DELETE_ACCOUNT_DATA } from "./job-message";
+import { deleteAccountBilling } from "../features/billing/account-deletion";
 
 export type ExternalTaskRunResult = {
   claimed: number;
@@ -28,6 +30,11 @@ function objectPayload(value: unknown): Record<string, unknown> {
 async function runTask(env: Bindings, task: ClaimedExternalTask): Promise<void> {
   if (task.kind === "sqs_job") {
     const message = objectPayload(task.payload.message);
+    if (message.type === JOB_DELETE_ACCOUNT_DATA) {
+      const { user_id: userId } = objectPayload(message.payload);
+      if (typeof userId !== "string" || !userId) throw new Error("Account deletion user_id is invalid.");
+      await deleteAccountBilling(env, userId);
+    }
     const messageId = await sendSqsMessage(env, JSON.stringify(message));
     if (!messageId) throw new Error("SQS job delivery failed.");
     await completeExternalTask(env, task);
@@ -128,10 +135,22 @@ export async function processExternalTasks(
   return result;
 }
 
+/** The caller has committed the task; delivery failures are recovered from the outbox. */
 export async function processExternalTaskById(
   env: Bindings,
   taskId: number,
 ): Promise<boolean> {
-  const result = await processExternalTasks(env, { taskId });
-  return result.completed === 1;
+  try {
+    const result = await processExternalTasks(env, { taskId });
+    return result.completed === 1;
+  } catch (error) {
+    // Claiming or recording a failure can itself fail. Recovery was requested
+    // before claiming; the daily sweep also recovers interrupted leases.
+    console.error(JSON.stringify({
+      event: "external_task_dispatch_failed",
+      taskId,
+      error: error instanceof Error ? error.message : String(error),
+    }));
+    return false;
+  }
 }

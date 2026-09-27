@@ -112,12 +112,15 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
     expect(getObject).not.toHaveBeenCalled();
   });
 
-  it("does not fall back to sharing after a rejected session", async () => {
-    vi.mocked(auth.sessionMethod).mockResolvedValue({ kind: "invalid", message: "Invalid session" });
+  it.each([
+    { outcome: { kind: "invalid", message: "Session rejected" } as const, status: 401 },
+    { outcome: { kind: "forbidden", message: "Session rejected", requiredScope: "read" } as const, status: 403 },
+  ])("does not fall back to sharing after a $status refusal", async ({ outcome, status }) => {
+    vi.mocked(auth.sessionMethod).mockResolvedValue(outcome);
     const connect = vi.spyOn(pg.Client.prototype, "connect");
     const response = await mediaRoutes.request("/videos/owned.mp4?share_slug=shared", {}, env);
-    expect(response.status).toBe(401);
-    expect(await response.json()).toMatchObject({ error: { message: "Invalid session" } });
+    expect(response.status).toBe(status);
+    expect(await response.json()).toMatchObject({ error: { message: "Session rejected" } });
     expect(connect).not.toHaveBeenCalled();
     expect(getObject).not.toHaveBeenCalled();
   });

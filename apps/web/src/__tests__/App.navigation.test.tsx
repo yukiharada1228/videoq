@@ -14,12 +14,13 @@ vi.unmock('@/components/layout/AppNav');
 const homeModule = vi.hoisted(() => {
   let finish!: () => void;
   const ready = new Promise<void>((resolve) => { finish = resolve; });
-  return { ready, finish, requested: false };
+  return { ready, finish, requested: false, imported: undefined as Promise<unknown> | undefined };
 });
 vi.mock('@/pages/HomePage', async (importOriginal) => {
   homeModule.requested = true;
+  homeModule.imported = importOriginal();
   await homeModule.ready;
-  return importOriginal();
+  return homeModule.imported;
 });
 
 const renderFailure = vi.hoisted(() => ({ enabled: false }));
@@ -99,7 +100,9 @@ it('keeps the same layout and intercepts navigation while the home module loads'
   const menuButton = within(header).getByRole('button', { name: i18n.t('navigation.menu') });
   fireEvent.click(menuButton);
 
-  await act(async () => { homeModule.finish(); });
+  // Cold module transforms can take longer than the DOM assertion timeout when
+  // the full suite runs. Await that work separately from the deliberate delay.
+  await act(async () => { await homeModule.imported; homeModule.finish(); });
   await screen.findByRole('heading', { name: i18n.t('home.welcome.greeting', { username: profile.username }), level: 1 });
   expect(primaryNav()).toBe(nav);
   expect(screen.getByRole('contentinfo')).toBe(footer);

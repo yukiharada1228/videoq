@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TEST_USER_ID, testAuthHeaders } from "./helpers/auth";
 import { TAG_COLORS } from "@videoq/trpc/schema";
+import { apiServiceUnavailable } from "../src/shared/errors";
+import * as auth from "../src/middleware/auth";
+import * as messageService from "../src/features/chat/message-service";
 
 const tagService = vi.hoisted(() => ({
   listTags: vi.fn(),
@@ -17,6 +20,7 @@ const courseService = vi.hoisted(() => ({
 
 const videoService = vi.hoisted(() => ({
   getUserVideoStats: vi.fn(),
+  requestPresignedUpload: vi.fn(),
 }));
 
 vi.mock("../src/features/tags/service", () => tagService);
@@ -67,12 +71,62 @@ describe("tRPC Hono adapter", () => {
     vi.restoreAllMocks();
   });
 
+  it.each([
+    { outcome: { kind: "invalid", message: "Invalid session" } as const, status: 401, code: "UNAUTHORIZED" },
+    { outcome: { kind: "forbidden", message: "Access denied", requiredScope: "read" } as const, status: 403, code: "FORBIDDEN" },
+  ])("preserves an explicit authentication refusal for shared chat: $code", async ({ outcome, status, code }) => {
+    vi.spyOn(auth, "sessionMethod").mockResolvedValue(outcome);
+    const send = vi.spyOn(messageService, "sendChatMessage").mockResolvedValue({
+      status: 200, body: { role: "assistant", content: "Shared answer" },
+    });
+    const response = await createApp().request("/api/trpc/chat.send", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ messages: [{ role: "user", content: "Question" }], courseId: 7, shareSlug: "shared" }),
+    }, ENV);
+    expect(response.status).toBe(status);
+    expect(await response.json()).toMatchObject({ error: { data: { code } } });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("allows shared chat when credentials are absent", async () => {
+    vi.spyOn(auth, "sessionMethod").mockResolvedValue({ kind: "absent" });
+    const send = vi.spyOn(messageService, "sendChatMessage").mockResolvedValue({
+      status: 200, body: { role: "assistant", content: "Shared answer" },
+    });
+    const response = await createApp().request("/api/trpc/chat.send", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ messages: [{ role: "user", content: "Question" }], courseId: 7, shareSlug: "shared" }),
+    }, ENV);
+    expect(response.status).toBe(200);
+    expect(send).toHaveBeenCalledWith(ENV, expect.objectContaining({ userId: null, shareSlug: "shared" }));
+  });
+
+  it.each([
+    { result: { fileTooLarge: true, maxMb: 50 }, status: 413,
+      data: { applicationCode: "FILE_TOO_LARGE", params: { max_size_mb: 50 } } },
+    { result: { badRequest: "Storage limit exceeded", code: "STORAGE_LIMIT_EXCEEDED" }, status: 400,
+      data: { applicationCode: "STORAGE_LIMIT_EXCEEDED" } },
+    { result: { fieldError: { filename: ["Unsupported file type"] } }, status: 400,
+      data: { applicationCode: "VALIDATION_ERROR", details: { filename: ["Unsupported file type"] } } },
+  ])("preserves upload error metadata: $data.applicationCode", async ({ result, status, data }) => {
+    videoService.requestPresignedUpload.mockResolvedValue(result);
+    const response = await createApp().request("/api/trpc/videos.requestUpload", {
+      method: "POST",
+      headers: { ...testAuthHeaders(), "content-type": "application/json" },
+      body: JSON.stringify({ filename: "clip.mp4", contentType: "video/mp4", fileSize: 1024, title: "Clip" }),
+    }, ENV);
+    expect(response.status).toBe(status);
+    expect(await response.json()).toMatchObject({ error: { data } });
+  });
+
   it("logs a service exception with request and procedure context without request secrets", async () => {
     const privateValue = "private-user@example.test";
     const cause = Object.assign(new Error(`Key (email)=(${privateValue}) already exists`), {
       code: "23505", constraint: "users_email_key",
     });
-    const error = new Error(`Failed query with parameters: ${privateValue}`, { cause });
+    const error = Object.assign(new Error(`Failed query with parameters:\n    at ${privateValue}`, { cause }), {
+      params: [privateValue], details: `Internal database detail: ${privateValue}`,
+    });
     tagService.listTags.mockRejectedValueOnce(error);
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const response = await createApp().request(
@@ -82,7 +136,14 @@ describe("tRPC Hono adapter", () => {
     );
 
     expect(response.status).toBe(500);
-    expect(await response.json()).toMatchObject({ error: { message: "An internal server error occurred." } });
+    const payload = await response.json();
+    expect(payload).toMatchObject({ error: { message: "An internal server error occurred." } });
+    const serialized = JSON.stringify(payload);
+    expect(serialized).not.toContain(privateValue);
+    expect(serialized).not.toContain('"params"');
+    expect(serialized).not.toContain('"details"');
+    expect(serialized).not.toContain('"stack"');
+    expect(serialized).not.toContain("23505");
     expect(errorLog).toHaveBeenCalledTimes(1);
     const logged = errorLog.mock.calls[0][0] as string;
     expect(JSON.parse(logged)).toMatchObject({
@@ -104,6 +165,16 @@ describe("tRPC Hono adapter", () => {
     }, ENV);
     expect(response.status).toBe(400);
     expect(errorLog).not.toHaveBeenCalled();
+  });
+
+  it("preserves explicit application codes when masking a service failure", async () => {
+    tagService.listTags.mockRejectedValueOnce(apiServiceUnavailable("private upstream detail", "SERVICE_UNAVAILABLE"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const response = await createApp().request("/api/trpc/tags.list", { headers: testAuthHeaders() }, ENV);
+    expect(response.status).toBe(500);
+    const payload = await response.json();
+    expect(payload).toMatchObject({ error: { data: { applicationCode: "SERVICE_UNAVAILABLE" } } });
+    expect(JSON.stringify(payload)).not.toContain("private upstream detail");
   });
 
   it.each(["tags.create", "tags.update", "tags.replace"])(

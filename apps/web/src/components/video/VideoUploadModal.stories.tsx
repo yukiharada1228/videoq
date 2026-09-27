@@ -220,6 +220,23 @@ export const FailureThenRetry: Story = {
     await expect(uploadRequest).toHaveBeenCalledTimes(2);
   },
 };
+export const FileSizeLimit: Story = {
+  parameters: { uploadModal: {
+    result: 'error', error: 'videos.upload.validation.fileTooLarge', errorParams: { max_size_mb: 50 },
+  } satisfies ModalScenario },
+  async play(context) {
+    const dialog = await fillFile(context);
+    await context.userEvent.click(dialog.getByRole('button', { name: i18n.t('videos.upload.upload') }));
+    await expect(await dialog.findByText(i18n.t('videos.upload.validation.fileTooLarge', { max_size_mb: 50 }))).toBeVisible();
+    await expect(dialog.getByLabelText(i18n.t('videos.upload.titleLabel'), { exact: false })).toHaveValue('線形代数の講義');
+    await expect(dialog.getByRole('button', { name: i18n.t('videos.upload.upload') })).toBeEnabled();
+    await expect(context.args.onClose).not.toHaveBeenCalled();
+  },
+};
+export const FileSizeLimitEnglishMobile: Story = {
+  ...FileSizeLimit,
+  globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
+};
 export const LongContentMobile: Story = {
   globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: { uploadModal: { tags: [...tags, ...manyTags] } satisfies ModalScenario },

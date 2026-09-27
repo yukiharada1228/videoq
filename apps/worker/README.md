@@ -61,6 +61,14 @@ SQSはat-least-once配送のため、workerは `job_executions.job_id` を15分�
 | `DB_PARAM_NAME` / `APP_PARAM_NAME` | SSM SecureString（JSON）。本番 Lambda が起動時に読む |
 | `USER_SECRET_ENCRYPTION_KEY` | AES-256-GCM のユーザー秘密復号鍵 |
 | `ENABLE_HEAVY_PIPELINE` | 文字起こし等の重量処理を有効化 |
+| `FFMPEG_PROCESS_TIMEOUT_SECONDS` | FFmpeg / ffprobe の実時間上限（既定600秒） |
+| `MEDIA_PROCESS_CPU_TIME_LIMIT_SECONDS` | メディア子プロセスのCPU時間上限（既定300秒） |
+| `MEDIA_PROCESS_MEMORY_LIMIT_MB` | Linux上のメディア子プロセスのアドレス空間上限（既定2,048 MiB） |
+| `MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB` | メディア子プロセスが書くファイルのサイズ上限（既定1,024 MiB） |
+
+メディア処理の上限値は正の整数で指定します。アップロードは単体の動画ファイルとして
+解析し、プレイリストや外部URL参照は受け付けません。上限を超えた処理は失敗として
+扱い、既存のジョブ再試行の対象になります。
 
 RAGASの参照文章の精度評価は、1ジョブあたり最大4件を同時に検証します。
 参照文章を切り捨てず、検索時の順序とRAGASの採点方法を維持します。

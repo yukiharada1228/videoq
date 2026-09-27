@@ -105,6 +105,9 @@ describeWithPostgres("course metadata and scene selection on PostgreSQL", () => 
     });
 
   it.each([
+    { courseId: 3 },
+    { courseId: 3, userId: null, shareToken: null },
+    { courseId: 3, userId: "", shareToken: "" },
     { courseId: 3, userId: "outsider" },
     { courseId: 4, userId: "member" },
     { courseId: 4, shareToken: "public-course" },

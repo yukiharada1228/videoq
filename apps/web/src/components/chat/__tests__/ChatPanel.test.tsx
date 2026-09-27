@@ -77,14 +77,19 @@ describe('ChatPanel', () => {
     let finishOld!: () => void
     const pending = new Promise<void>(resolve => { finishOld = resolve })
     let oldSignal: AbortSignal | undefined
+    const oldSource = { id: 1, video_id: 7, title: 'Old source', start_time: '00:01:00', end_time: '00:02:00' }
     vi.mocked(apiClient.chatStream).mockImplementationOnce(async function* (_request, signal) {
       oldSignal = signal
+      yield { type: 'source', source: oldSource }
+      yield { type: 'text_delta', text: 'Old reply' }
+      yield { type: 'citation', sourceId: 1 }
       await pending
-      yield { type: 'content_chunk', text: 'Late response from old course' }
+      yield { type: 'text_delta', text: 'Late response from old course' }
       yield { type: 'done', chat_log_id: 71, feedback: null }
     })
     const { rerender } = render(<ChatPanel {...before} />)
     await act(async () => { await sendMessage(screen.getByLabelText('chat.placeholder'), 'Old course answer') })
+    await screen.findByRole('button', { name: 'Old source 00:01:00' })
     expect(screen.getByLabelText('chat.placeholder')).toBeDisabled()
 
     rerender(<ChatPanel {...after} />)
@@ -97,7 +102,14 @@ describe('ChatPanel', () => {
       await act(async () => { finishOld(); await pending })
     }
     expect(screen.queryByText('Late response from old course')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Old source 00:01:00' })).not.toBeInTheDocument()
+    vi.mocked(apiClient.chatStream).mockImplementationOnce(async function* () {
+      yield { type: 'text_delta', text: 'New scope [1]' }
+      yield { type: 'done', chat_log_id: 72, feedback: null }
+    })
     await act(async () => { await sendMessage(screen.getByLabelText('chat.placeholder'), 'New course question') })
+    await screen.findByText('New scope [1]')
+    expect(screen.queryByRole('button', { name: 'Old source 00:01:00' })).not.toBeInTheDocument()
     await waitFor(() => expect(apiClient.chatStream).toHaveBeenCalledTimes(2))
     const request = vi.mocked(apiClient.chatStream).mock.calls[1][0]
     expect(request).toMatchObject({
@@ -178,6 +190,39 @@ describe('ChatPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'CNNとは？' }))
 
     expect(screen.getByLabelText(/chat.placeholder/)).toHaveValue('CNNとは？')
+  })
+
+  it('shows clickable timestamps while the response is still streaming', async () => {
+    const onVideoPlay = vi.fn()
+    const citations = [{ id: 1, video_id: 1, title: 'Test Video', start_time: '00:01:30', end_time: '00:15:30' }]
+    let finish!: () => void
+    const pending = new Promise<void>((resolve) => { finish = resolve })
+    vi.mocked(apiClient.chatStream).mockImplementation(async function* () {
+      yield { type: 'source', source: citations[0] }
+      yield { type: 'text_delta', text: 'AB' }
+      yield { type: 'citation', sourceId: 1 }
+      yield { type: 'text_delta', text: '続き' }
+      await pending
+      yield { type: 'done', chat_log_id: 1, feedback: null }
+    })
+
+    render(<ChatPanel onVideoPlay={onVideoPlay} />)
+    const input = screen.getByLabelText(/chat.placeholder/)
+    await act(async () => { await sendMessage(input, 'Test') })
+    try {
+      const reference = await screen.findByRole('button', { name: 'Test Video 00:01:30' })
+      expect(reference).toHaveTextContent('(1:30-15:30)')
+      expect(screen.queryByText(/\[1\]/)).not.toBeInTheDocument()
+      expect(input).toBeDisabled()
+      expect(screen.queryByRole('button', { name: 'chat.feedbackGood' })).not.toBeInTheDocument()
+      fireEvent.click(reference)
+      expect(onVideoPlay).toHaveBeenCalledWith(1, '00:01:30')
+    } finally {
+      await act(async () => { finish(); await pending })
+    }
+    await waitFor(() => expect(input).toBeEnabled())
+    expect(screen.getByRole('button', { name: 'Test Video 00:01:30' })).toHaveTextContent('(1:30-15:30)')
+    expect(screen.getByRole('button', { name: 'chat.feedbackGood' })).toBeInTheDocument()
   })
 
   it('should handle video navigation', async () => {
@@ -918,6 +963,7 @@ describe('ChatPanel', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Video One 00:01:30/ })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Video Two 00:02:30/ })).toBeInTheDocument()
     })
 
     expect(screen.getByTitle(/Video One 00:01:30/)).toBeInTheDocument()

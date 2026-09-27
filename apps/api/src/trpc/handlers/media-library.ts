@@ -64,12 +64,20 @@ export function mediaLibraryHandlers(
         description: input.description ?? "",
       });
       if ("fieldError" in result && result.fieldError) {
-        return rpcError("BAD_REQUEST", Object.values(result.fieldError)[0]?.[0] ?? "Invalid input");
+        return rpcError("BAD_REQUEST", Object.values(result.fieldError)[0]?.[0] ?? "Invalid input", {
+          appCode: "VALIDATION_ERROR", details: result.fieldError,
+        });
       }
       if ("fileTooLarge" in result) {
-        return rpcError("PAYLOAD_TOO_LARGE", `File size exceeds the limit of ${result.maxMb} MB.`);
+        return rpcError("PAYLOAD_TOO_LARGE", `File size exceeds the limit of ${result.maxMb} MB.`, {
+          appCode: "FILE_TOO_LARGE", params: { max_size_mb: result.maxMb },
+        });
       }
-      if ("badRequest" in result && result.badRequest) return rpcError("BAD_REQUEST", result.badRequest);
+      if ("badRequest" in result && result.badRequest) {
+        return rpcError("BAD_REQUEST", result.badRequest, {
+          appCode: "code" in result ? result.code : "VALIDATION_ERROR",
+        });
+      }
       if (!result.video) return rpcError("INTERNAL_SERVER_ERROR", "Created video could not be loaded");
       if (!result.upload_url) return rpcError("INTERNAL_SERVER_ERROR", "Upload URL could not be created");
       return { video: result.video, upload_url: result.upload_url };

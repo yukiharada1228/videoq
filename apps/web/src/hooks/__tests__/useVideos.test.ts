@@ -358,7 +358,7 @@ describe('useVideos - sentinelRef', () => {
     Object.defineProperty(window, 'IntersectionObserver', {
       writable: true,
       configurable: true,
-      value: vi.fn((callback: IntersectionObserverCallback) => {
+      value: vi.fn(function (callback: IntersectionObserverCallback) {
         capturedCallback = callback
         return { observe: mockObserve, unobserve: vi.fn(), disconnect: mockDisconnect }
       }),

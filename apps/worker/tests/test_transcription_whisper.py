@@ -74,7 +74,7 @@ def test_large_audio_processes_and_removes_one_chunk_at_a_time(
             json={"segments": [{"start": 1, "end": 2, "text": "Caption"}]},
         )
 
-    monkeypatch.setattr(transcription, "subprocess", SimpleNamespace(run=split))
+    monkeypatch.setattr(transcription, "run_media_process", split)
     with httpx.Client(transport=httpx.MockTransport(transcribe)) as http_client:
         client = openai.OpenAI(
             api_key="test-key", http_client=http_client, max_retries=0

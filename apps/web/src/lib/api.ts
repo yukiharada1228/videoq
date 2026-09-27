@@ -3,6 +3,7 @@ import { API_URL } from './apiConfig';
 import { ApiError } from './api-error';
 import { createAppTrpcClient, TRPC_UNAUTHORIZED_EVENT } from './trpc';
 import { videoSchema } from '@videoq/trpc/schema';
+import { CHAT_STREAM_FORMAT, CHAT_STREAM_FORMAT_QUERY, chatStreamEventSchema } from '@videoq/trpc/chat';
 import type {
   AuthorizedOAuthToken,
   ChatRequest,
@@ -327,9 +328,9 @@ export class ApiClient {
 
   async *chatStream(data: ChatRequest, signal?: AbortSignal): AsyncGenerator<ChatStreamEvent> {
     const { share_slug, ...bodyData } = data;
-    const endpoint = share_slug
-      ? `/chat/messages/stream?share_slug=${encodeURIComponent(share_slug)}`
-      : '/chat/messages/stream';
+    const params = new URLSearchParams({ [CHAT_STREAM_FORMAT_QUERY]: CHAT_STREAM_FORMAT });
+    if (share_slug) params.set('share_slug', share_slug);
+    const endpoint = `/chat/messages/stream?${params}`;
 
     const url = this.buildUrl(endpoint);
     const response = await this.fetchFn(url, {
@@ -349,7 +350,10 @@ export class ApiClient {
       return;
     }
 
-    if (!response.body) return;
+    if (!response.body) {
+      yield { type: 'error', code: 'STREAM_INTERRUPTED', message: '' };
+      return;
+    }
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -370,7 +374,11 @@ export class ApiClient {
             const jsonStr = trimmed.slice(6).trim();
             if (jsonStr) {
               try {
-                yield JSON.parse(jsonStr) as ChatStreamEvent;
+                const event = chatStreamEventSchema.safeParse(JSON.parse(jsonStr));
+                if (event.success) {
+                  yield event.data;
+                  if (event.data.type === 'done' || event.data.type === 'error') return;
+                }
               } catch {
                 // ignore malformed JSON
               }
@@ -378,6 +386,8 @@ export class ApiClient {
           }
         }
       }
+      // EOF without a terminal event must not look like a saved, complete answer.
+      yield { type: 'error', code: 'STREAM_INTERRUPTED', message: '' };
     } finally {
       // Returning early on a terminal SSE event must release the connection too.
       await reader.cancel().catch(() => {});

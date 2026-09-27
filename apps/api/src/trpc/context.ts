@@ -15,6 +15,13 @@ import { createRpcCaller } from "./handlers/shared";
 /** Authenticate once and bind the request-scoped service adapters used by tRPC. */
 export async function createTrpcContext(c: Context<AppEnv>): Promise<TrpcContext> {
   const auth = await resolveAuth(c, [sessionMethod]);
+  // A rejected credential is not an anonymous request, even for public/share procedures.
+  if (auth.kind === "invalid" || auth.kind === "forbidden") {
+    throw new TRPCError({
+      code: auth.kind === "invalid" ? "UNAUTHORIZED" : "FORBIDDEN",
+      message: auth.message,
+    });
+  }
   const userId = auth.kind === "ok" ? auth.userId : null;
 
   const handlers = {

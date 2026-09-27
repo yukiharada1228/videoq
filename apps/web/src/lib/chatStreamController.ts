@@ -1,4 +1,5 @@
 import type { ChatStreamEvent } from '@/lib/api';
+import { appendChatPart, serializeChatParts, type ChatContentPart } from '@videoq/trpc/chat';
 
 export const CHAT_STREAM_RENDER_TICK_MS = 24;
 export const CHAT_STREAM_RENDER_CHARS_PER_TICK = 3;
@@ -8,6 +9,7 @@ export type ChatStreamErrorEvent = Extract<ChatStreamEvent, { type: 'error' }>;
 
 export interface ChatStreamState {
   queuedContent: string;
+  queuedParts: ChatContentPart[];
   doneEvent: ChatStreamDoneEvent | null;
   streamFinished: boolean;
 }
@@ -17,6 +19,7 @@ export type ChatStreamAction =
   | { type: 'stream_event'; event: ChatStreamEvent }
   | { type: 'stream_finished' }
   | { type: 'content_drained'; charCount: number }
+  | { type: 'parts_drained'; remaining: ChatContentPart[] }
   | { type: 'done_applied' }
   | { type: 'stream_aborted' };
 
@@ -27,6 +30,7 @@ interface ChatStreamControllerOptions {
   tickMs?: number;
   flush?: (callback: () => void) => void;
   onAppendContent: (text: string) => void;
+  onAppendParts?: (parts: ChatContentPart[]) => void;
   onDone: (event: ChatStreamDoneEvent) => void;
   onError: (event: ChatStreamErrorEvent) => void;
 }
@@ -34,6 +38,7 @@ interface ChatStreamControllerOptions {
 export function createInitialChatStreamState(): ChatStreamState {
   return {
     queuedContent: '',
+    queuedParts: [],
     doneEvent: null,
     streamFinished: false,
   };
@@ -47,6 +52,14 @@ export function chatStreamReducer(
     case 'stream_started':
       return createInitialChatStreamState();
     case 'stream_event':
+      if (state.streamFinished && action.event.type !== 'error') return state;
+      if (action.event.type === 'text_delta' || action.event.type === 'citation') {
+        const queuedParts = state.queuedParts.map((part) => ({ ...part }));
+        appendChatPart(queuedParts, action.event.type === 'text_delta'
+          ? { type: 'text', text: action.event.text }
+          : { type: 'citation', sourceId: action.event.sourceId });
+        return { ...state, queuedParts };
+      }
       if (action.event.type === 'content_chunk') {
         return {
           ...state,
@@ -64,6 +77,7 @@ export function chatStreamReducer(
         return {
           ...state,
           queuedContent: '',
+          queuedParts: [],
           doneEvent: null,
           streamFinished: true,
         };
@@ -82,6 +96,8 @@ export function chatStreamReducer(
         ...state,
         queuedContent: state.queuedContent.slice(action.charCount),
       };
+    case 'parts_drained':
+      return { ...state, queuedParts: action.remaining };
     case 'done_applied':
       return {
         ...state,
@@ -104,6 +120,7 @@ export class ChatStreamController {
   private readonly tickMs: number;
   private readonly flush: (callback: () => void) => void;
   private readonly onAppendContent: (text: string) => void;
+  private readonly onAppendParts: (parts: ChatContentPart[]) => void;
   private readonly onDone: (event: ChatStreamDoneEvent) => void;
   private readonly onError: (event: ChatStreamErrorEvent) => void;
   private waiters: Array<() => void> = [];
@@ -113,6 +130,7 @@ export class ChatStreamController {
     tickMs = CHAT_STREAM_RENDER_TICK_MS,
     flush = (callback) => callback(),
     onAppendContent,
+    onAppendParts,
     onDone,
     onError,
   }: ChatStreamControllerOptions) {
@@ -120,6 +138,7 @@ export class ChatStreamController {
     this.tickMs = tickMs;
     this.flush = flush;
     this.onAppendContent = onAppendContent;
+    this.onAppendParts = onAppendParts ?? ((parts) => onAppendContent(serializeChatParts(parts)));
     this.onDone = onDone;
     this.onError = onError;
   }
@@ -131,10 +150,11 @@ export class ChatStreamController {
   }
 
   handleEvent(event: ChatStreamEvent) {
+    if (this.state.streamFinished) return;
     this.state = chatStreamReducer(this.state, { type: 'stream_event', event });
 
-    if (event.type === 'content_chunk') {
-      if (event.text !== '') {
+    if (event.type === 'content_chunk' || event.type === 'text_delta' || event.type === 'citation') {
+      if (event.type === 'citation' || event.text !== '') {
         this.ensureDrainTimer();
       }
       return;
@@ -187,15 +207,52 @@ export class ChatStreamController {
   }
 
   private drainNextSlice() {
+    if (this.state.queuedParts.length > 0) {
+      const remaining = this.state.queuedParts.slice();
+      const ready: ChatContentPart[] = [];
+      let budget = this.charsPerTick;
+      while (remaining.length > 0) {
+        const part = remaining[0];
+        if (part.type === 'citation') {
+          ready.push(part);
+          remaining.shift();
+        } else {
+          if (budget <= 0) break;
+          const text = part.text.slice(0, budget);
+          ready.push({ type: 'text', text });
+          budget -= text.length;
+          if (text.length === part.text.length) remaining.shift();
+          else remaining[0] = { type: 'text', text: part.text.slice(text.length) };
+        }
+      }
+      this.state = chatStreamReducer(this.state, { type: 'parts_drained', remaining });
+      this.flush(() => this.onAppendParts(ready));
+      this.tryFinalizeDrain();
+      return;
+    }
     if (this.state.queuedContent === '') {
       this.tryFinalizeDrain();
       return;
     }
 
-    const nextText = this.state.queuedContent.slice(0, this.charsPerTick);
+    let charCount = this.charsPerTick;
+    const partialRef = /\[\d*$/.exec(this.state.queuedContent.slice(0, charCount));
+    if (partialRef) {
+      const remainder = this.state.queuedContent.slice(partialRef.index);
+      const completeRef = /^\[\d+\]/.exec(remainder);
+      if (completeRef) {
+        // [N] は一度に描画し、時刻になる前の「[」「[1」を表示しない。
+        charCount = partialRef.index + completeRef[0].length;
+      } else if (!this.state.streamFinished && /^\[\d*$/.test(remainder)) {
+        charCount = partialRef.index;
+      }
+    }
+    if (charCount === 0) return;
+
+    const nextText = this.state.queuedContent.slice(0, charCount);
     this.state = chatStreamReducer(this.state, {
       type: 'content_drained',
-      charCount: this.charsPerTick,
+      charCount,
     });
 
     this.flush(() => {
@@ -215,7 +272,7 @@ export class ChatStreamController {
   }
 
   private tryFinalizeDrain() {
-    if (this.state.queuedContent !== '') {
+    if (this.state.queuedContent !== '' || this.state.queuedParts.length > 0) {
       return;
     }
 
@@ -235,7 +292,7 @@ export class ChatStreamController {
   }
 
   private canFinalize() {
-    return this.state.queuedContent === '' && this.state.streamFinished;
+    return this.state.queuedContent === '' && this.state.queuedParts.length === 0 && this.state.streamFinished;
   }
 
   private stopDrainTimer() {

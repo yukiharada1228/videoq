@@ -7,6 +7,7 @@ export const citations = [
 ] satisfies Citation[];
 
 export const answer = '回転行列は、ベクトルの長さを変えずに向きを変える行列です。[1]\n具体例を図と一緒に確認すると理解しやすくなります。[2]';
+export const syntaxAnswer = '数式 / Formula: $ x[01] $[1]~~~ $y$\n\n```js\nconst ticks = "```";\n[1]\n````\n続き / Next: $z$[2]';
 export const longAnswer = Array.from({ length: 8 }, (_, index) =>
   `${index + 1}. 回転前後でベクトルの長さが変わらないことを確認します。角度と座標の関係を整理し、講義の例題を使って計算してみましょう。[1]`,
 ).join('\n\n');

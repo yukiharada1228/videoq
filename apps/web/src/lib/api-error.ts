@@ -23,7 +23,7 @@ export function getApiError(error: unknown): ApiError | undefined {
   return new ApiError(
     error.message,
     error.data?.applicationCode ?? error.data?.code ?? 'UNKNOWN',
-    undefined,
+    error.data?.params,
     error.data?.details,
   );
 }

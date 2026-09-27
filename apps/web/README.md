@@ -80,7 +80,7 @@ CSV出力はモックコールバックの記録のみで、ファイルはダ�
 `KeyboardTooltip`はフォーカス後の矢印キー操作、時系列グラフではEnterでの開閉も検証します。
 円グラフのキーボード操作には[Recharts 3.8.1の修正](https://github.com/recharts/recharts/pull/7140)を使用します。
 `HoverTooltip`は円グラフのマウス操作、`AllZeroHidden`は全件0で非表示になることを確認します。
-初回のブラウザテスト中に依存の最適化で再読み込みされないよう、`vitest.storybook.ts`でRechartsを事前に最適化します。
+初回のブラウザテスト中に依存の最適化で再読み込みされないよう、`vitest.storybook.config.ts`でRechartsを事前に最適化します。VitestはAPIと同じ4系を使用し、Chromiumの同時起動を2ページまでに制限しています。
 
 `Video/TagCreateDialog`と`Video/VideoCourseCreateModal`はボタンから実際のダイアログを開きます。
 `KeyboardCreate`では入力・タグの色選択・送信・起点へのフォーカス復帰、`CancelAndReopen`では入力の初期化を検証します。
