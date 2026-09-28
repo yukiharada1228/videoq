@@ -2,7 +2,9 @@ import type { ChatStreamEvent } from '@/lib/api';
 import { appendChatPart, type ChatContentPart } from '@videoq/trpc/chat';
 
 const CHAT_STREAM_RENDER_TICK_MS = 24;
-const CHAT_STREAM_RENDER_CHARS_PER_TICK = 3;
+// Batch updates for rendering, but never manufacture a typing delay for text
+// already received from the server.
+const CHAT_STREAM_RENDER_CHARS_PER_TICK = Number.POSITIVE_INFINITY;
 
 export type ChatStreamDoneEvent = Extract<ChatStreamEvent, { type: 'done' }>;
 export type ChatStreamErrorEvent = Extract<ChatStreamEvent, { type: 'error' }>;

@@ -147,12 +147,14 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
   // Tool status changes alone must not move the conversation.
   const lastMessage = messages.at(-1);
   const lastMessageText = lastMessage?.role === 'assistant' ? chatAnswerText(lastMessage.answer) : lastMessage?.content;
+  const lastMessageCitationCount = lastMessage?.role === 'assistant'
+    ? lastMessage.answer.segments.reduce((count, segment) => count + segment.sourceIds.length, 0) : 0;
   useLayoutEffect(() => {
     const container = messagesContainerRef.current;
     if (container && followLatestRef.current) {
       container.scrollTop = container.scrollHeight;
     }
-  }, [messages.length, lastMessageText, lastMessage?.chatLogId, isLoading]);
+  }, [messages.length, lastMessageText, lastMessageCitationCount, lastMessage?.chatLogId, isLoading]);
 
   useEffect(() => {
     return () => {

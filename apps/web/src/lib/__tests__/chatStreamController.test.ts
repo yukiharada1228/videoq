@@ -23,17 +23,26 @@ describe('structured answer render queue', () => {
     controller.handleEvent(done)
     const complete = controller.complete()
     await vi.advanceTimersByTimeAsync(24)
-    expect(onDone).not.toHaveBeenCalled()
     expect(snapshots[0]).toEqual([
       { type: 'text', segmentIndex: 0, text: 'AB' },
       { type: 'citation', segmentIndex: 0, sourceId: 1 },
-      { type: 'text', segmentIndex: 1, text: 'C' },
+      { type: 'text', segmentIndex: 1, text: 'CDEF' },
     ])
-    await vi.advanceTimersByTimeAsync(24)
     await complete
     expect(answer.segments).toEqual([{ text: 'AB', sourceIds: [1] }, { text: 'CDEF', sourceIds: [] }])
     expect(onDone).toHaveBeenCalledExactlyOnceWith(done)
     expect(controller.getSnapshot().timerActive).toBe(false)
+  })
+  it('renders a long received answer in one tick even while the stream is still open', async () => {
+    const append = vi.fn(), onDone = vi.fn()
+    const controller = new ChatStreamController({ onAppendParts: append, onDone, onError: vi.fn() })
+    const text = '早く読める回答🙂'.repeat(500)
+    controller.start()
+    controller.handleEvent({ type: 'text_delta', segmentIndex: 0, text })
+    await vi.advanceTimersByTimeAsync(24)
+    expect(append).toHaveBeenCalledExactlyOnceWith([{ type: 'text', segmentIndex: 0, text }])
+    expect(onDone).not.toHaveBeenCalled()
+    controller.dispose()
   })
   it('renders literal brackets immediately and never splits an emoji', async () => {
     const rendered: ChatContentPart[][] = []

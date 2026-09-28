@@ -75,6 +75,7 @@ describe.skipIf(!enabled)("structured answer comparison (paid, opt-in)", () => {
         };
         let start = performance.now();
         let firstTextMs: number | null = null;
+        let firstCitationMs: number | null = null;
         let content = "";
         let final: unknown;
         const consume = async (send: (event: ChatStreamEvent) => void) => {
@@ -89,6 +90,7 @@ describe.skipIf(!enabled)("structured answer comparison (paid, opt-in)", () => {
               content += chunk.part.text;
             }
             if ("final" in chunk) final = chunk.final;
+            if ("part" in chunk && chunk.part.type === "citation") firstCitationMs ??= performance.now() - start;
             if ("part" in chunk) send(chunk.part.type === "text" ? { ...chunk.part, type: "text_delta" } : chunk.part);
             else if ("source" in chunk) send({ type: "source", source: chunk.source });
             else if ("searching" in chunk) send({ type: "searching", search_id: chunk.searchId, query: chunk.searching });
@@ -113,7 +115,7 @@ describe.skipIf(!enabled)("structured answer comparison (paid, opt-in)", () => {
         if (scenario.id === "code-en") expect.soft(content).toMatch(/```[\s\S]*print\(a\[1\]\)[\s\S]*```/);
         if (scenario.id === "math-ja") expect.soft(content).toMatch(/\\\[|\$\$/);
         if (visible) expect.soft(visible.mathErrors).toBe(0);
-        results.push({ id: scenario.id, repeat, course: scenario.course, firstTextMs,
+        results.push({ id: scenario.id, repeat, course: scenario.course, firstTextMs, firstCitationMs,
           completionMs, calls, repairCalls: 0, rejectedIds, inputTokens, outputTokens, content, final, ...visible });
         writeFileSync(process.env.STRUCTURED_ANSWER_REPORT ?? join(tmpdir(), "videoq-answer-structured.json"), JSON.stringify({
           model: env.LLM_MODEL, results,

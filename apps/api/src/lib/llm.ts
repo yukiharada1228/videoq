@@ -55,15 +55,26 @@ export async function* streamReply(
     timeoutMs: LLM_STREAM_TIMEOUT_MS,
   });
   // SDK の timeout は SSE 本文の受信を保護しないため、受信完了まで期限を保つ。
-  const requestSignal = deadlineSignal(LLM_STREAM_TIMEOUT_MS, signal);
+  const lifecycle = new AbortController();
+  const requestSignal = AbortSignal.any([
+    deadlineSignal(LLM_STREAM_TIMEOUT_MS, signal),
+    lifecycle.signal,
+  ]);
+  let iterator: AsyncIterator<AIMessageChunk> | undefined;
   try {
     const stream = await model.stream(promptMessages(systemPrompt, queryText), {
       signal: requestSignal,
       response_format: answerResponseFormat,
     });
+    iterator = stream[Symbol.asyncIterator]();
     const parser = new AnswerTextStream();
     let aggregate: AIMessageChunk | undefined;
-    for await (const chunk of stream) {
+    // Manual iteration lets finally abort fetch before awaiting iterator.return.
+    // A for-await loop closes the prefetched iterator first and can hang on a
+    // stalled upstream when our consumer stops after a yielded text delta.
+    for (;;) {
+      const { value: chunk, done } = await iterator.next();
+      if (done) break;
       requestSignal.throwIfAborted();
       aggregate = aggregate ? aggregate.concat(chunk) : chunk;
       for (const delta of parser.push(chunk.text)) yield delta;
@@ -74,5 +85,9 @@ export async function* streamReply(
     yield { answer: parser.finish() };
   } catch (error) {
     throw toLlmError(error);
+  } finally {
+    lifecycle.abort();
+    // Cleanup must not replace the original refusal/provider/abort error.
+    await iterator?.return?.().catch(() => {});
   }
 }

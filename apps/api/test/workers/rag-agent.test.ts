@@ -1,3 +1,5 @@
+import { chatCompletionResponse } from "../helpers/chat-completion-response";
+import { stalledChatResponse } from "../helpers/stalled-chat-response";
 import { chatAnswerText } from "@videoq/trpc/chat";
 import { describe, expect, it, vi } from "vitest";
 import type { SceneHit } from "../../src/repositories/vector-repository";
@@ -51,19 +53,33 @@ const ENV = {
   LLM_MODEL: "local-codex-model",
 } as unknown as Bindings;
 
-const json = (body: unknown) =>
-  new Response(JSON.stringify(body), {
-    status: 200,
-    headers: { "content-type": "application/json" },
+describe("RAG agent in the Workers runtime", () => {
+  it("aborts the no-course provider before closing its prefetched iterator", async () => {
+    let upstream: AbortSignal | undefined;
+    vi.stubGlobal("fetch", async (_url: string, init: RequestInit) => {
+      upstream = init.signal!;
+      return stalledChatResponse(upstream, () => {}, true, '{"segments":[{"text":"First');
+    });
+    const stream = streamRag(ENV, {
+      messages: [{ role: "user", content: "Question" }],
+      ownerUserId: "00000000-0000-4000-8000-000000000005", videoIds: null, locale: null,
+    });
+    try {
+      expect((await stream.next()).value).toEqual({ part: { type: "text", segmentIndex: 0, text: "First" } });
+      await stream.return();
+      expect(upstream?.aborted).toBe(true);
+    } finally {
+      await stream.return();
+      vi.unstubAllGlobals();
+    }
   });
 
-describe("RAG agent in the Workers runtime", () => {
   it.each([false, true].flatMap((streaming) => ["search", "metadata", "metadata-search"].map((mode) => ({ streaming, mode }))))
     ("runs the $mode tool loop (stream=$streaming)", async ({ streaming, mode }) => {
     let call = 0;
     vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
       expect(url).toBe("https://openai.test/v1/chat/completions");
-      expect(JSON.parse(String(init.body)).stream).toBe(false);
+      expect(JSON.parse(String(init.body)).stream).toBe(streaming);
       call += 1;
       const metadataTurn = mode !== "search" && call === 1;
       const searchTurn = mode === "search" ? call === 1 : mode === "metadata-search" && call === 2;
@@ -71,7 +87,7 @@ describe("RAG agent in the Workers runtime", () => {
       const args = metadataTurn ? { video_limit: 20, video_offset: 0 } : { query: "pgvector", video_ids: mode === "metadata-search" ? [60] : null };
       const answer = JSON.stringify({ segments: [{ text: mode === "metadata" ? "Course A has one video." : "Answer.", sourceIds: mode === "metadata" ? [] : [1] }] });
       if (metadataTurn || searchTurn) {
-        return json({
+        return chatCompletionResponse({
           choices: [
             {
               finish_reason: "tool_calls",
@@ -91,11 +107,11 @@ describe("RAG agent in the Workers runtime", () => {
               },
             },
           ],
-        });
+        }, streaming, `chatcmpl-${call}`);
       }
-      return json({
+      return chatCompletionResponse({
         choices: [{ finish_reason: "stop", message: { role: "assistant", content: answer } }],
-      });
+      }, streaming, `chatcmpl-${call}`);
     });
 
     try {

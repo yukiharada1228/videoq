@@ -50,6 +50,8 @@ STRUCTURED_ANSWER_LIVE=1 STRUCTURED_ANSWER_BROWSER=1 STRUCTURED_ANSWER_REPORT=/t
 
 ## 2026-09-28の比較結果
 
+以下は構造化回答への切り替え時点の測定値です。講座回答の生成中ストリーミングと画面の文字送り待ち時間を取り除いた後の性能を示すものではありません。
+
 旧版 `d07f0c94` と今回の実装を、同じエンドポイントの `gpt-4o-mini` で各24回ブラウザー測定しました。[個別の回答・計測値・プロバイダー報告の使用量](https://github.com/yukiharada1228/videoq/blob/main/docs/verification/issue-996-comparison.json)を保存しています。
 
 | 1リクエストの中央値 | 講座あり：旧版 → 新版 | 講座なし：旧版 → 新版 |

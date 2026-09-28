@@ -1,3 +1,4 @@
+import { chatCompletionResponse } from "./helpers/chat-completion-response";
 import { plainChatAnswer, applyChatPart, type ChatAnswer, type ModelAnswer } from "@videoq/trpc/chat";
 import { embedding as testEmbedding } from "./helpers/embedding";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
@@ -227,6 +228,7 @@ function stubOpenAi(opts: {
   content?: string;
   answer?: ModelAnswer;
   failAfterFirstChunk?: boolean;
+  failureGate?: Promise<void>;
   failOllamaEmbedding?: boolean;
   preamble?: string;
   toolCall?: typeof SEARCH_TOOL_CALL;
@@ -260,13 +262,12 @@ function stubOpenAi(opts: {
     const enc = new TextEncoder();
     const messages = (body.messages ?? []) as { role?: string }[];
     if (Array.isArray(body.tools) && !messages.some((m) => m.role === "tool")) {
-      expect(body.stream).toBe(false);
-      return jsonBody({
+      return chatCompletionResponse({
         choices: [{
           finish_reason: "tool_calls",
           message: { role: "assistant", content: opts.preamble ?? null, tool_calls: [opts.toolCall ?? SEARCH_TOOL_CALL] },
         }],
-      });
+      }, !!body.stream, "tool-turn");
     }
 
     const prose = opts.content ?? "Answer.";
@@ -279,15 +280,16 @@ function stubOpenAi(opts: {
       let pullCount = 0;
       return new Response(
         new ReadableStream<Uint8Array>({
-          pull(controller) {
+          async pull(controller) {
             if (pullCount++ === 0) {
               controller.enqueue(
                 enc.encode(
-                  `data: ${JSON.stringify({ choices: [{ delta: { content: text.slice(0, split) } }] })}\n\n`,
+                  `data: ${JSON.stringify({ id: "final-answer", choices: [{ delta: { role: "assistant", content: text.slice(0, split) } }] })}\n\n`,
                 ),
               );
               return;
             }
+            await opts.failureGate;
             controller.error(new Error("stream interrupted"));
           },
         }),
@@ -1037,7 +1039,8 @@ describe("POST /messages/stream（SSE）", () => {
       { type: "searching", query: "scene", search_id: 1 },
       { type: "search_completed", query: "scene", search_id: 1, result_count: 1 },
       { type: "source", source: { id: 1, video_id: 60, title: "Video A", start_time: "00:00:10", end_time: "00:00:20" } },
-      { type: "text_delta", segmentIndex: 0, text: "Hello!" },
+      { type: "text_delta", segmentIndex: 0, text: "Hel" },
+      { type: "text_delta", segmentIndex: 0, text: "lo!" },
       { type: "done", chat_log_id: 99, feedback: null },
     ]);
   });
@@ -1103,16 +1106,39 @@ describe("POST /messages/stream（SSE）", () => {
     expect(release.args[0]).toBe("00000000-0000-4000-8000-000000000005");
   });
 
-  it("回答を一部生成した後の中断では消費済みの利用枠を返却しない", async () => {
-    stubOpenAi({ content: "Hello!", failAfterFirstChunk: true });
+  it.each([false, true])("回答を一部生成した後の中断では保存・利用枠の返却をしない（course=%s）", async course => {
+    const failure = Promise.withResolvers<void>();
+    stubOpenAi({ content: "Hello!", failAfterFirstChunk: true, failureGate: failure.promise });
 
     const res = await post(
       "/messages/stream",
-      { messages: [{ role: "user", content: "hi" }] },
+      { messages: [{ role: "user", content: "hi" }], ...(course ? { course_id: 3 } : {}) },
       { userId: TEST_USER_ID, env: OPENAI_ENV },
     );
 
-    expect(sseEvents(await res.text())).toEqual([
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let received = "";
+    try {
+      // Release the upstream failure only after the HTTP client received text.
+      // This also proves that course SSE doesn't wait for model completion.
+      while (!received.includes('"text":"Hel"')) {
+        const chunk = await reader.read();
+        expect(chunk.done).toBe(false);
+        received += decoder.decode(chunk.value, { stream: true });
+      }
+      failure.resolve();
+      for (;;) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        received += decoder.decode(chunk.value, { stream: true });
+      }
+    } finally {
+      failure.resolve();
+      await reader.cancel();
+    }
+    const events = sseEvents(received);
+    expect(events.filter(event => event.type === "text_delta" || event.type === "error" || event.type === "done")).toEqual([
       { type: "text_delta", segmentIndex: 0, text: "Hel" },
       {
         type: "error",
@@ -1121,5 +1147,6 @@ describe("POST /messages/stream（SSE）", () => {
       },
     ]);
     expect(calls.some((call) => call.sql.includes("GREATEST"))).toBe(false);
+    expect(calls.some(call => call.sql.includes("chat_logs") && call.sql.includes("returning"))).toBe(false);
   });
 });

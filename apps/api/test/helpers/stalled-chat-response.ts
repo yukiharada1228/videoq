@@ -1,5 +1,5 @@
 /** Starts an SSE or JSON response, then stalls until the upstream signal aborts. */
-export function stalledChatResponse(signal: AbortSignal, onWaiting: () => void, streaming = true): Response {
+export function stalledChatResponse(signal: AbortSignal, onWaiting: () => void, streaming = true, firstContent = "partial"): Response {
   let sent = false;
   return new Response(
     new ReadableStream<Uint8Array>({
@@ -17,7 +17,7 @@ export function stalledChatResponse(signal: AbortSignal, onWaiting: () => void, 
         sent = true;
         controller.enqueue(new TextEncoder().encode(
           streaming
-            ? 'data: {"choices":[{"delta":{"role":"assistant","content":"partial"}}]}\n\n'
+            ? `data: ${JSON.stringify({ choices: [{ delta: { role: "assistant", content: firstContent } }] })}\n\n`
             : '{"choices":[{"message":{"role":"assistant","content":"partial',
         ));
       },

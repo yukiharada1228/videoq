@@ -1,4 +1,4 @@
-import { chatAnswerText, type ChatContentPart } from "@videoq/trpc/chat";
+import { applyChatPart, chatAnswerText, type ChatAnswer, type ChatContentPart } from "@videoq/trpc/chat";
 import { embedding as testEmbedding } from "./helpers/embedding";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { CourseDetail } from "../src/repositories/course-repository";
@@ -9,6 +9,7 @@ import type { Bindings } from "../src/types/bindings";
 import { LlmConfigurationError, LlmProviderError } from "../src/lib/openai";
 import type { RagStreamChunk } from "../src/lib/rag";
 import { LLM_STREAM_TIMEOUT_MS } from "../src/lib/llm";
+import { chatCompletionFrames, chatCompletionResponse } from "./helpers/chat-completion-response";
 import { stalledChatResponse } from "./helpers/stalled-chat-response";
 
 /**
@@ -115,24 +116,6 @@ const jsonTurn = (turn: Exclude<Turn, { status: number }>) =>
         choices: [{ finish_reason: "stop", message: { role: "assistant", content: JSON.stringify({ segments: [{ text: turn.content, sourceIds: turn.sourceIds ?? [] }] }) } }],
       };
 
-const sseFrames = (turn: Exclude<Turn, { status: number }>): string[] => {
-  if ("toolCall" in turn) {
-    throw new Error("ReAct tool turns must use non-streaming model responses.");
-  }
-  const words = JSON.stringify({ segments: [{ text: turn.content, sourceIds: turn.sourceIds ?? [] }] }).match(/[\s\S]{1,4}/g) ?? [];
-  return [
-    // 実際の OpenAI と同じく、最初の delta にだけ role を載せる。
-    ...words.map(
-      (w, i) =>
-        `data: ${JSON.stringify({
-          choices: [{ delta: i === 0 ? { role: "assistant", content: w } : { content: w } }],
-        })}\n\n`,
-    ),
-    `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: "stop" }] })}\n\n`,
-    "data: [DONE]\n\n",
-  ];
-};
-
 /** 送信順に turns を返す偽 OpenAI。埋め込みは使われない想定だが念のため応答する。 */
 function stubOpenAi(turns: Turn[]) {
   const bodies: Record<string, unknown>[] = [];
@@ -150,35 +133,7 @@ function stubOpenAi(turns: Turn[]) {
     if ("status" in turn) {
       return new Response("upstream failed", { status: turn.status });
     }
-    if (!body.stream) {
-      return new Response(JSON.stringify(jsonTurn(turn)), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      });
-    }
-    const enc = new TextEncoder();
-    return new Response(
-      new ReadableStream<Uint8Array>({
-        start(controller) {
-          // 利用量だけのチャンクが来ても、取得済みの本文は保持する。
-          for (const frame of sseFrames(turn)) {
-            if (frame === "data: [DONE]\n\n") {
-              controller.enqueue(enc.encode(`data: ${JSON.stringify({
-                id: `chatcmpl-${index}`,
-                choices: [],
-                usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-              })}\n\n`));
-              controller.enqueue(enc.encode(frame));
-            } else {
-              const payload = JSON.parse(frame.slice(6));
-              controller.enqueue(enc.encode(`data: ${JSON.stringify({ id: `chatcmpl-${index}`, ...payload })}\n\n`));
-            }
-          }
-          controller.close();
-        },
-      }),
-      { status: 200, headers: { "content-type": "text/event-stream" } },
-    );
+    return chatCompletionResponse(jsonTurn(turn), body.stream, `chatcmpl-${index}`);
   });
   return bodies;
 }
@@ -233,7 +188,7 @@ describe.each([false, true])("検索障害（stream=%s）", (stream) => {
       started.resolve();
       return pending.promise;
     };
-    const upstream = vi.fn(async () => new Response(JSON.stringify({
+    const upstream = vi.fn(async () => chatCompletionResponse({
       choices: [{ finish_reason: "tool_calls", message: {
         role: "assistant", content: null,
         tool_calls: ["fail", "pending"].map((query) => ({
@@ -241,7 +196,7 @@ describe.each([false, true])("検索障害（stream=%s）", (stream) => {
           function: { name: "search_scenes", arguments: JSON.stringify({ query, video_ids: null }) },
         })),
       } }],
-    }), { headers: { "content-type": "application/json" } }));
+    }, stream));
     vi.stubGlobal("fetch", upstream);
     try {
       const execute = async () => {
@@ -285,7 +240,8 @@ describe.each([false, true])("検索障害（stream=%s）", (stream) => {
     };
 
     await expect(execute()).rejects.toThrow(LlmProviderError);
-    expect(chunks.some((chunk) => "part" in chunk || "final" in chunk)).toBe(false);
+    expect(chunks.some((chunk) => "final" in chunk)).toBe(false);
+    expect(chunks.flatMap(chunk => "part" in chunk && chunk.part.type === "text" ? [chunk.part.text] : []).join("").trim()).toBe("");
     expect(closed).toBe(1);
   });
 
@@ -420,7 +376,7 @@ describe.each([false, true])("Ollama 互換 API（stream=%s）", (stream) => {
     }
     for (const body of bodies) {
       expect(body.model).toBe(env.LLM_MODEL);
-      expect(body.stream).toBe(false);
+      expect(body.stream).toBe(stream);
       const messages = body.messages as { role: string; content: unknown }[];
       expect(typeof messages.find((message) => message.role === "system")?.content).toBe("string");
     }
@@ -508,6 +464,97 @@ describe("RAG エージェント（非ストリーミング）", () => {
 });
 
 describe("RAG エージェント（ストリーミング）", () => {
+  it("本文の送信を途中で打ち切った場合も上流の生成を中断する", async () => {
+    let upstream: AbortSignal | undefined;
+    vi.stubGlobal("fetch", async (_url: string, init: RequestInit) => {
+      upstream = init.signal!;
+      return stalledChatResponse(upstream, () => {}, true, '{"segments":[{"text":"First');
+    });
+    const stream = streamRag(ENV, PARAMS);
+    try {
+      expect((await stream.next()).value).toEqual({ part: { type: "text", segmentIndex: 0, text: "First" } });
+      await stream.return();
+      expect(upstream?.aborted).toBe(true);
+    } finally { await stream.return(); }
+  });
+
+  it.each(["length", "content_filter", "refusal", "truncated", "tools_after_answer"])("本文を一部送信した後の %s を完成・保存可能な回答にしない", async reason => {
+    const completion = jsonTurn({ content: "途中の回答。" });
+    const choice = completion.choices[0];
+    if (reason === "length" || reason === "content_filter") choice.finish_reason = reason;
+    if (reason === "truncated") choice.message.content = '{"segments":[{"text":"途中の回答。';
+    if (reason === "tools_after_answer") {
+      choice.finish_reason = "tool_calls";
+      choice.message.tool_calls = jsonTurn({ toolCall: { name: "search_scenes", args: { query: "late" } } }).choices[0].message.tool_calls;
+    }
+    const frames = chatCompletionFrames(completion);
+    if (reason === "refusal") frames.splice(-3, 0, 'data: {"id":"chatcmpl-test","choices":[{"index":0,"delta":{"refusal":"refused"}}]}\n\n');
+    const upstream = vi.fn(async () => new Response(frames.join(""), { headers: { "content-type": "text/event-stream" } }));
+    vi.stubGlobal("fetch", upstream);
+    const chunks: RagStreamChunk[] = [];
+    await expect((async () => {
+      for await (const chunk of streamRag(ENV, PARAMS)) chunks.push(chunk);
+    })()).rejects.toThrow(LlmProviderError);
+    expect(chunks.some(chunk => "part" in chunk && chunk.part.type === "text" && chunk.part.text.length > 0)).toBe(true);
+    expect(chunks.some(chunk => "final" in chunk)).toBe(false);
+    expect(upstream).toHaveBeenCalledOnce();
+    expect(searchCalls).toEqual([]);
+  });
+
+  it("モデルの残りを止めていても本文・引用が先に届き、同じ回答を2回の呼び出しで確定する", async () => {
+    hitsByQuery = () => [scene(1)];
+    const bodies = stubOpenAi([{ toolCall: { name: "search_scenes", args: { query: "scene" } } }]);
+    const initialFetch = fetch;
+    let controller!: ReadableStreamDefaultController<Uint8Array>;
+    let finalCalls = 0;
+    const send = (content: string, finish_reason: string | null = null) => controller.enqueue(new TextEncoder().encode(
+      `data: ${JSON.stringify({ id: "final-answer", choices: [{ index: 0, delta: { role: "assistant", content }, finish_reason }] })}\n\n`,
+    ));
+    vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      if (!body.messages.some((message: { role: string }) => message.role === "tool")) return initialFetch(url, init);
+      expect(body.stream).toBe(true);
+      finalCalls++;
+      return new Response(new ReadableStream<Uint8Array>({ start(c) {
+        controller = c;
+        send('{"segments":[{"text":"前半の回答');
+      } }), { headers: { "content-type": "text/event-stream" } });
+    });
+    const stream = streamRag(ENV, PARAMS);
+    const chunks: RagStreamChunk[] = [];
+    const until = async (predicate: (chunk: RagStreamChunk) => boolean) => {
+      for (;;) {
+        const next = await stream.next();
+        expect(next.done).toBe(false);
+        chunks.push(next.value!);
+        if (predicate(next.value!)) break;
+      }
+    };
+    try {
+      await until(chunk => "part" in chunk && chunk.part.type === "text" && chunk.part.text.includes("前半"));
+      expect(chunks.some(chunk => "final" in chunk)).toBe(false);
+      send('。","sourceIds":[1]}');
+      await until(chunk => "part" in chunk && chunk.part.type === "citation");
+      expect(chunks).toContainEqual({ source: { id: 1, video_id: 60, title: "Video 60", start_time: "00:01:00", end_time: "00:01:30" } });
+      expect(chunks.some(chunk => "final" in chunk)).toBe(false);
+      send(',{"text":" 後半の回答。","sourceIds":[1]}]}');
+      send("", "stop");
+      controller.enqueue(new TextEncoder().encode("data: [DONE]\n\n"));
+      controller.close();
+      for await (const chunk of stream) chunks.push(chunk);
+      const rendered: ChatAnswer = { segments: [], sources: [] };
+      for (const chunk of chunks) {
+        if ("part" in chunk) applyChatPart(rendered, chunk.part);
+        if ("source" in chunk) rendered.sources.push(chunk.source);
+      }
+      expect(chunks.at(-1)).toMatchObject({ final: { answer: rendered } });
+      expect(chatAnswerText(rendered)).toBe("前半の回答。 後半の回答。");
+      expect(bodies.length + finalCalls).toBe(2);
+    } finally {
+      await stream.return();
+    }
+  });
+
   it("進捗の送信を途中で打ち切った場合も実行中の検索を中断する", async () => {
     const started = Promise.withResolvers<void>();
     const search = Promise.withResolvers<SceneHit[]>();
@@ -585,7 +632,7 @@ describe("RAG エージェント（ストリーミング）", () => {
         return initialFetch(url, init);
       }
       upstream = init.signal!;
-      return stalledChatResponse(upstream, reading.resolve, false);
+      return stalledChatResponse(upstream, reading.resolve, true);
     });
     const chunks: RagStreamChunk[] = [];
     const consume = (async () => {
@@ -637,7 +684,7 @@ describe("RAG エージェント（ストリーミング）", () => {
     expect(chunks).toContainEqual({ searchCompleted: { id: 1, query: "検索語", count: 1 } });
 
     const parts = chunks.filter((c) => "part" in c).map(c => c.part);
-    expect(parts).toEqual([{ type: "text", segmentIndex: 0, text: "回答本文" }]);
+    expect(parts.filter(p => p.type === "text").map(p => p.text).join("")).toBe("回答本文");
     const last = chunks.at(-1)!;
     expect(last).toMatchObject({ final: { answer: { sources: [{ id: 1, video_id: 60 }] } } });
     expect(chunks.findIndex(c => "source" in c)).toBeLessThan(chunks.findIndex(c => "part" in c));
