@@ -1,6 +1,5 @@
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
-import { createServer } from "vite";
 import { chromium, type Browser, type Page } from "playwright";
 import type { ChatStreamEvent } from "@videoq/trpc/chat";
 
@@ -8,12 +7,14 @@ import type { ChatStreamEvent } from "@videoq/trpc/chat";
 export async function answerBrowser() {
   const root = fileURLToPath(new URL("../../../..", import.meta.url));
   const webRequire = createRequire(`${root}/apps/web/package.json`);
+  const { createServer } = await import(webRequire.resolve("vite")) as typeof import("vite");
   const react = (await import(webRequire.resolve("@vitejs/plugin-react-swc"))).default;
   let respond: ((send: (event: ChatStreamEvent) => void) => Promise<void>) | undefined;
   const server = await createServer({
     configFile: false,
     root: `${root}/apps/web`,
     cacheDir: `${root}/apps/api/node_modules/.vite-answer-benchmark`,
+    optimizeDeps: { entries: [`${root}/apps/api/test/support/answer-browser.tsx`] },
     plugins: [react(), { name: "answer-benchmark", configureServer(server) {
         server.middlewares.use((req, res, next) => {
           if (req.url?.startsWith("/api/chat/messages/stream")) {
@@ -32,7 +33,6 @@ export async function answerBrowser() {
       { find: "@", replacement: `${root}/apps/web/src` },
       { find: "i18next", replacement: webRequire.resolve("i18next") },
       { find: "react-i18next", replacement: webRequire.resolve("react-i18next") },
-      { find: /^@videoq\/trpc\/(.+)$/, replacement: `${root}/packages/trpc/src/$1.ts` },
     ] },
     server: { host: "127.0.0.1", port: 0, hmr: false, fs: { allow: [root] } },
   });

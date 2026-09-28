@@ -50,6 +50,8 @@ The browser harness uses the real API client, chat hook, event queue and message
 
 ## Recorded result: 2026-09-28
 
+These measurements describe the cutover release, before generation-time streaming was enabled for course answers and the UI typing delay was removed. They are not measurements of those later changes.
+
 Compared main commit `d07f0c94` with this implementation using `gpt-4o-mini` on the same configured endpoint. Each version completed 24 browser runs. The individual outputs, timings and provider-reported usage are in [the comparison data](https://github.com/yukiharada1228/videoq/blob/main/docs/verification/issue-996-comparison.json).
 
 | Median per request | Course: previous → structured | No course: previous → structured |

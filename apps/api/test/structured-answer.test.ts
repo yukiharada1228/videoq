@@ -21,6 +21,14 @@ describe("structured answer token decoding", () => {
     expect(parser.push('{"segments":[{"text":"Hello')).toEqual([{ segmentIndex: 0, text: "Hello" }]);
     expect(() => parser.finish()).toThrow("Invalid structured answer");
   });
+  it("rejects a final JSON object that discards a segment already displayed", () => {
+    const parser = new AnswerTextStream();
+    parser.push('{"segments":[{"text":"First.","sourceIds":[]},{"text":"Removed.","sourceIds":[]}]');
+    expect(() => {
+      parser.push(',"segments":[{"text":"First.","sourceIds":[]}]}');
+      parser.finish();
+    }).toThrow();
+  });
   it.each(['prose [1]', '```json\n{}\n```', '{"segments":[]}', '{"segments":[{"text":"x","sourceIds":[]}],"sources":[]}'])("never falls back to unstructured output", input => {
     expect(() => parseModelAnswer(input)).toThrow();
   });

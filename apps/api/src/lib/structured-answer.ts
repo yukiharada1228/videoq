@@ -39,10 +39,43 @@ function stableJsonPrefix(text: string): string {
 export class AnswerTextStream {
   private raw = "";
   private readonly emitted: string[] = [];
+  private depth = 0;
+  private inString = false;
+  private escaped = false;
+  private closedPrefix = "";
+
+  /** Only objects closed on the wire, never the SDK's repaired partial JSON. */
+  completedSegments(): ModelAnswer["segments"] {
+    if (!this.closedPrefix) return [];
+    try {
+      return modelAnswerSchema.parse(JSON.parse(this.closedPrefix + "]}")).segments;
+    } catch {
+      throw new LlmProviderError("Invalid structured answer segment.");
+    }
+  }
+
+  text(): string {
+    return this.emitted.join("");
+  }
 
   push(delta: string): Array<{ segmentIndex: number; text: string }> {
+    const start = this.raw.length;
     this.raw += delta;
     if (this.raw.length > 256_000) throw new LlmProviderError("Structured answer exceeded size limit.");
+    for (let i = start; i < this.raw.length; i++) {
+      const c = this.raw[i];
+      if (this.inString) {
+        if (this.escaped) this.escaped = false;
+        else if (c === "\\") this.escaped = true;
+        else if (c === '"') this.inString = false;
+      } else if (c === '"') this.inString = true;
+      else if (c === "{" || c === "[") this.depth++;
+      else if (c === "}" || c === "]") {
+        // root object → segments array → segment object
+        if (c === "}" && this.depth === 3) this.closedPrefix = this.raw.slice(0, i + 1);
+        this.depth--;
+      }
+    }
     let partial: unknown;
     try { partial = parsePartialJson(stableJsonPrefix(this.raw)); } catch { return []; }
     const segments = (partial as { segments?: unknown[] } | null)?.segments;
@@ -64,7 +97,8 @@ export class AnswerTextStream {
 
   finish(): ModelAnswer {
     const answer = parseModelAnswer(this.raw);
-    if (answer.segments.some((s, i) => s.text !== (this.emitted[i] ?? ""))) {
+    if (answer.segments.length !== this.emitted.length
+      || answer.segments.some((s, i) => s.text !== this.emitted[i])) {
       throw new LlmProviderError("Structured answer stream was incomplete.");
     }
     return answer;

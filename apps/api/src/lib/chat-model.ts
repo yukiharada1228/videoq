@@ -44,6 +44,11 @@ class AnswerChatModel extends ChatOpenAICompletions {
   protected override _convertCompletionsDeltaToBaseMessageChunk(delta: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta, raw: OpenAI.Chat.Completions.ChatCompletionChunk, role?: OpenAI.Chat.ChatCompletionRole) {
     const converted = super._convertCompletionsDeltaToBaseMessageChunk(delta, raw, role);
     if (delta.refusal) converted.additional_kwargs.refusal = delta.refusal;
+    // Auto-streaming through agent.invoke keeps message metadata, but does not
+    // copy generationInfo (unlike model.stream). Preserve the terminal status
+    // here so length/content_filter endings still fail final validation.
+    const finishReason = raw.choices[0]?.finish_reason;
+    if (finishReason) converted.response_metadata = { ...converted.response_metadata, finish_reason: finishReason };
     return converted;
   }
 }

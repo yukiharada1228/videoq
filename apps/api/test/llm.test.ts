@@ -68,6 +68,19 @@ describe("native structured LLM output", () => {
     for await (const chunk of streamReply(ENV, "S", "Q")) chunks.push(chunk);
     expect(chunks).toEqual([{ segmentIndex: 0, text: "Hel" }, { segmentIndex: 0, text: "lo" }, { answer: { segments: [{ text: "Hello", sourceIds: [] }] } }]);
   });
+  it("aborts the upstream when the consumer stops after receiving text", async () => {
+    let upstream: AbortSignal | undefined;
+    vi.stubGlobal("fetch", async (_url: string, init: RequestInit) => {
+      upstream = init.signal!;
+      return stalledChatResponse(upstream, () => {}, true, '{"segments":[{"text":"First');
+    });
+    const stream = streamReply(ENV, "S", "Q");
+    try {
+      expect((await stream.next()).value).toEqual({ segmentIndex: 0, text: "First" });
+      await stream.return();
+      expect(upstream?.aborted).toBe(true);
+    } finally { await stream.return(); }
+  });
   it.each(["deadline", "client"])("propagates %s cancellation while receiving the body", async (source) => {
     const deadline = new AbortController();
     const client = new AbortController();

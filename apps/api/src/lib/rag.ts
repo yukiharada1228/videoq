@@ -1,11 +1,13 @@
 import { createAgent, createMiddleware, providerStrategy, tool, type ToolRuntime } from "langchain";
-import { HumanMessage, SystemMessage, type BaseMessage } from "@langchain/core/messages";
+import { HumanMessage, SystemMessage, isAIMessage, type BaseMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import { createChatModel, toLlmError } from "./chat-model";
 import { deadlineSignal } from "./request-timeout";
 import { assertCompletedAnswer } from "./structured-answer";
+import { AnswerContentStream } from "./answer-content-stream";
+import { LlmProviderError } from "./openai";
 import { validateChatAnswer } from "./chat-citations";
-import { modelAnswerSchema, answerParts, type ChatAnswer, type ChatSource, type ChatContentPart } from "@videoq/trpc/chat";
+import { modelAnswerSchema, type ChatAnswer, type ChatSource, type ChatContentPart } from "@videoq/trpc/chat";
 import { courseInfoTool, MAX_COURSE_INFO_CALLS } from "./rag-course-info";
 import {
   LLM_REQUEST_TIMEOUT_MS,
@@ -91,6 +93,13 @@ class SceneCollector {
 
   get hits(): readonly SceneHit[] {
     return this.order;
+  }
+
+  get sources(): ChatSource[] {
+    return this.order.map((hit, index) => ({
+      id: index + 1, video_id: hit.videoId, title: hit.videoTitle,
+      start_time: hit.startTime, end_time: hit.endTime,
+    }));
   }
 }
 
@@ -197,6 +206,7 @@ function prepareAgent(
     agent,
     input: { messages: [new SystemMessage(systemPrompt), new HumanMessage(params.queryText)] },
     result: (answer: unknown) => toResult(params.queryText, collector, answer),
+    sources: () => collector.sources,
   };
 }
 
@@ -208,13 +218,7 @@ function toResult(
   const hits = collector.hits;
   return {
     queryText,
-    answer: validateChatAnswer(answer, hits.map((hit, index) => ({
-      id: index + 1,
-      video_id: hit.videoId,
-      title: hit.videoTitle,
-      start_time: hit.startTime,
-      end_time: hit.endTime,
-    }))),
+    answer: validateChatAnswer(answer, collector.sources),
     retrievedContexts: [
       ...hits.map((hit) => hit.content).filter((text) => text !== ""),
       ...collector.courseContexts,
@@ -337,19 +341,49 @@ export async function* streamRag(
     });
 
     const stream = await prepared.agent.stream(prepared.input, {
-      streamMode: ["values", "custom"],
+      streamMode: ["values", "custom", "messages"],
       signal: requestSignal,
       recursionLimit: RECURSION_LIMIT,
     });
 
-    // 本文はグラフ完了まで保留し、非ストリーミングと同じ最終応答を使う。
-    // モデルのSSE受信・トークン再結合は不要で、検索の進捗だけ即時通知する。
+    // LangGraph's messages mode streams the model invocation itself. Keep parsers
+    // per model turn: tool arguments and natural-language search preambles are
+    // never interpreted as answer text. Only segments[].text is displayed.
     let messages: readonly BaseMessage[] = [];
     let structuredResponse: unknown;
+    let currentMessageId: string | undefined;
+    let parser = new AnswerContentStream();
+    let toolTurn = false;
+    let emittedAnswer = false;
+    let sentSources = 0;
     for await (const [mode, chunk] of stream) {
       if (mode === "custom") {
         const progress = searchProgressSchema.safeParse(chunk);
         if (progress.success) yield progress.data;
+      } else if (mode === "messages") {
+        const [message] = chunk;
+        if (!isAIMessage(message)) continue;
+        if (message.id !== currentMessageId) {
+          if (emittedAnswer) throw new LlmProviderError("Model continued after streaming an answer.");
+          currentMessageId = message.id;
+          parser = new AnswerContentStream();
+          toolTurn = false;
+        }
+        if (("tool_call_chunks" in message && Array.isArray(message.tool_call_chunks) && message.tool_call_chunks.length)
+          || message.tool_calls?.length) {
+          // A provider mixing structured answer text with tools cannot retract
+          // already displayed text. Fail the stream instead of saving that text.
+          if (emittedAnswer) throw new LlmProviderError("Model called a tool after streaming an answer.");
+          toolTurn = true;
+        }
+        if (toolTurn || message.additional_kwargs.refusal) continue;
+        const sources = prepared.sources();
+        for (const source of sources.slice(sentSources)) yield { source };
+        sentSources = sources.length;
+        for (const part of parser.push(message.text, sources)) {
+          emittedAnswer = true;
+          yield { part };
+        }
       } else {
         messages = chunk.messages;
         structuredResponse = chunk.structuredResponse;
@@ -360,8 +394,8 @@ export async function* streamRag(
     assertCompletedAnswer(messages.at(-1));
     const final = prepared.result(structuredResponse);
     const { answer } = final;
-    for (const source of answer.sources) yield { source };
-    for (const part of answerParts(answer)) yield { part };
+    for (const source of answer.sources.slice(sentSources)) yield { source };
+    for (const part of parser.finish(answer)) yield { part };
     yield { final };
   } catch (error) {
     throw toLlmError(error);

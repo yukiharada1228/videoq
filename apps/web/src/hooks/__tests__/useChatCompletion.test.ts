@@ -104,22 +104,27 @@ describe('chat completion refreshes', () => {
     expect(result.current.client.getQueryState(usageKey)?.isInvalidated).toBe(refreshUsage);
   });
 
-  it('invalidates persisted data immediately even if unmounted before answer animation completes', async () => {
-    vi.spyOn(apiClient, 'chatStream').mockImplementation(async function* () {
-      yield { type: 'text_delta', segmentIndex: 0, text: 'Long answer'.repeat(50) };
-      yield { type: 'done', chat_log_id: 42, feedback: null };
-    });
-    const { result, unmount } = renderHook(() => ({ chat: useChatMessages({ courseId: 7 }), client: useQueryClient() }));
-    const client = result.current.client;
-    const keys = keysFor(7);
-    for (const key of keys) client.setQueryData(key, { cached: true });
-    act(() => result.current.chat.setInput('Question'));
-    let sending!: Promise<void>;
-    act(() => { sending = result.current.chat.handleSend(); });
-    await waitFor(() => expect(result.current.chat.messages.at(-1)?.progress?.phase).toBe('complete'));
-    expect(result.current.chat.isLoading).toBe(true);
-    unmount();
-    await sending;
-    for (const key of keys) expect(client.getQueryState(key)?.isInvalidated).toBe(true);
+  it('invalidates persisted data even if unmounted before the next render tick', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(apiClient, 'chatStream').mockImplementation(async function* () {
+        yield { type: 'text_delta', segmentIndex: 0, text: 'Long answer'.repeat(50) };
+        yield { type: 'done', chat_log_id: 42, feedback: null };
+      });
+      const { result, unmount } = renderHook(() => ({ chat: useChatMessages({ courseId: 7 }), client: useQueryClient() }));
+      const client = result.current.client;
+      const keys = keysFor(7);
+      for (const key of keys) client.setQueryData(key, { cached: true });
+      act(() => result.current.chat.setInput('Question'));
+      let sending!: Promise<void>;
+      await act(async () => { sending = result.current.chat.handleSend(); });
+      expect(result.current.chat.messages.at(-1)?.progress?.phase).toBe('complete');
+      expect(result.current.chat.isLoading).toBe(true);
+      unmount();
+      await sending;
+      for (const key of keys) expect(client.getQueryState(key)?.isInvalidated).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

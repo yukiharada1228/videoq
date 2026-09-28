@@ -44,7 +44,7 @@ describe('useChatMessages streaming', () => {
 
   afterEach(() => vi.unstubAllEnvs())
 
-  it('follows answer growth only at the bottom and leaves tool-only updates in place', () => {
+  it('follows text and arriving timestamps only at the bottom, without scrolling for tool-only updates', () => {
     const { result } = renderHook(() => useChatMessages({ courseId: 18 }))
     const container = document.createElement('div')
     let height = 800
@@ -66,6 +66,15 @@ describe('useChatMessages streaming', () => {
       phase: 'searching', searches: [{ id: 1, query: '追加の検索', status: 'running' }],
     } }]))
     expect(scrollTo).not.toHaveBeenCalled()
+
+    // The timestamp can arrive later than its text and wrap onto a new line.
+    height = 950
+    act(() => result.current.setMessages([{ role: 'assistant', answer: {
+      segments: [{ text: '回答の始まり', sourceIds: [1] }],
+      sources: [{ id: 1, video_id: 7, title: 'Source', start_time: '00:01:00', end_time: null }],
+    } }]))
+    expect(top).toBe(550)
+    scrollTo.mockClear()
 
     // A reader scrolls away from the bottom while more answer text arrives.
     top = 100
@@ -348,7 +357,7 @@ describe('useChatMessages streaming', () => {
     })
   })
 
-  it('renders a bursty chunk over multiple ticks instead of showing all text at once', async () => {
+  it('renders all received text in the next tick without a typing delay', async () => {
     vi.useFakeTimers()
     ;(apiClient.chatStream as any).mockImplementation(async function* () {
       yield { type: 'text_delta' as const, segmentIndex: 0, text: 'ABCDEF' }
@@ -360,11 +369,6 @@ describe('useChatMessages streaming', () => {
     act(() => { result.current.setInput('Hi') })
 
     act(() => { void result.current.handleSend() })
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(24)
-    })
-    expect(messageText(result.current.messages.at(-1))).toBe('ABC')
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(24)
