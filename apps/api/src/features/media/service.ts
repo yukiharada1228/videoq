@@ -2,7 +2,7 @@ import { isS3Storage, resolveFileUrl } from "../../integrations/media";
 import { getMediaPathAccess } from "../../repositories/media-repository";
 import type { Bindings } from "../../types/bindings";
 
-export function guessContentType(path: string): string {
+function guessContentType(path: string): string {
   const lower = path.toLowerCase();
   if (lower.endsWith(".mp4")) return "video/mp4";
   if (lower.endsWith(".webm")) return "video/webm";
@@ -34,19 +34,9 @@ export async function fallbackRedirectUrl(
   path: string,
 ): Promise<string | null> {
   if (!isS3Storage(env)) return null;
-  try {
-    const url = await resolveFileUrl(env, path);
-    if (!url || url.startsWith("/")) return null;
-    return url;
-  } catch {
-    return null;
-  }
+  const url = await resolveFileUrl(env, path);
+  return url && !url.startsWith("/") ? url : null;
 }
-
-type R2Range =
-  | { offset: number; length: number }
-  | { offset: number }
-  | { suffix: number };
 
 /** R2 object → 200/206 Response。オブジェクト無しは null。 */
 export async function buildR2MediaResponse(
@@ -72,16 +62,16 @@ export async function buildR2MediaResponse(
   headers.set("Cache-Control", "private, max-age=0");
 
   const total = obj.size;
-  const ranged = "range" in obj ? (obj.range as R2Range | undefined) : undefined;
-  if (ranged && total != null) {
+  const ranged = obj.range;
+  if (ranged) {
     let start = 0;
     let end = total - 1;
     if ("suffix" in ranged) {
       start = Math.max(0, total - ranged.suffix);
     } else {
-      start = ranged.offset;
-      if ("length" in ranged && ranged.length != null) {
-        end = Math.min(total - 1, start + Number(ranged.length) - 1);
+      start = ranged.offset ?? 0;
+      if (ranged.length !== undefined) {
+        end = Math.min(total - 1, start + ranged.length - 1);
       }
     }
     headers.set("Content-Range", `bytes ${start}-${end}/${total}`);
@@ -89,7 +79,7 @@ export async function buildR2MediaResponse(
     return new Response(obj.body, { status: 206, headers });
   }
 
-  if (total != null) headers.set("Content-Length", String(total));
+  headers.set("Content-Length", String(total));
   return new Response(obj.body, { status: 200, headers });
 }
 

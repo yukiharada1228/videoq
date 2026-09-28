@@ -30,10 +30,6 @@ export const videosRouter = t.router({
     .input(videosInputSchemas["videos.update"])
     .output(outputSchemas["videos.update"])
     .mutation(({ ctx, input }) => ctx.call("videos.update", input)),
-  replace: protectedProcedure
-    .input(videosInputSchemas["videos.replace"])
-    .output(outputSchemas["videos.replace"])
-    .mutation(({ ctx, input }) => ctx.call("videos.replace", input)),
   delete: protectedProcedure
     .input(videosInputSchemas["videos.delete"])
     .output(outputSchemas["videos.delete"])

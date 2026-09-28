@@ -24,7 +24,7 @@ describe('useVideoPlayback', () => {
     const target = player();
     result.current.videoRef.current = previous;
 
-    act(() => result.current.handleVideoPlayFromTime(2, '00:02:00'));
+    act(() => result.current.handleVideoPlayFromTime(2, '00:02:00,250'));
     act(() => result.current.handleVideoCanPlay());
     expect(previous.currentTime).toBe(0);
     expect(previous.play).not.toHaveBeenCalled();
@@ -33,7 +33,7 @@ describe('useVideoPlayback', () => {
     rerender({ selectedVideo: video(2) });
     result.current.videoRef.current = target;
     act(() => result.current.handleVideoCanPlay());
-    expect(target.currentTime).toBe(120);
+    expect(target.currentTime).toBe(120.25);
     target.currentTime = 125;
     act(() => result.current.handleVideoCanPlay());
     expect(target.currentTime).toBe(125);
@@ -61,8 +61,8 @@ describe('useVideoPlayback', () => {
     vi.mocked(element.play).mockRejectedValue(new DOMException('Autoplay blocked', 'NotAllowedError'));
     result.current.videoRef.current = element;
 
-    await act(async () => result.current.handleVideoPlayFromTime(1, '00:01:30'));
-    expect(element.currentTime).toBe(90);
+    await act(async () => result.current.handleVideoPlayFromTime(1, '00:01:30.750'));
+    expect(element.currentTime).toBe(90.75);
     expect(onVideoSelect).not.toHaveBeenCalled();
     expect(onMobileSwitch).toHaveBeenCalledTimes(1);
   });

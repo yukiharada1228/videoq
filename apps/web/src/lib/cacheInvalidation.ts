@@ -1,18 +1,73 @@
-import type { QueryClient } from '@tanstack/react-query'
-import type { Video } from '@videoq/trpc'
+import type { QueryClient, QueryFilters } from '@tanstack/react-query'
+import type { RpcOutputMap, Video } from '@videoq/trpc'
 import { trpc } from './trpc'
 
-const trpcVideoQueries = trpc.videos.pathKey()
-const trpcCourseQueries = trpc.courses.pathKey()
+export async function refreshQuery(queryClient: QueryClient, filter: QueryFilters): Promise<void> {
+  // Invalidation alone reuses an in-flight first load. Cancel its older snapshot
+  // too, so a read started before the write cannot hide the saved result.
+  await queryClient.cancelQueries(filter)
+  await queryClient.invalidateQueries(filter)
+}
+
+async function invalidateUsage(queryClient: QueryClient): Promise<void> {
+  const filter = trpc.account.me.pathFilter()
+  await queryClient.cancelQueries(filter)
+  // Keep cached usage stale until the next visit, even if an older read was in
+  // flight. Only restart a missing first load so authentication can finish.
+  await queryClient.invalidateQueries({ ...filter, refetchType: 'none' })
+  await queryClient.refetchQueries({
+    ...filter, type: 'active', predicate: query => query.state.data === undefined,
+  })
+}
+
+export async function invalidateAfterChatAnswer(queryClient: QueryClient, courseId?: number): Promise<void> {
+  await Promise.all([
+    invalidateUsage(queryClient),
+    ...(courseId === undefined ? [] : [
+      trpc.chat.history.queryFilter({ courseId }),
+      trpc.chat.analytics.queryFilter({ courseId }),
+      trpc.evaluation.logs.queryFilter({ courseId }),
+      trpc.evaluation.summary.queryFilter({ courseId }),
+    ].map(filter => refreshQuery(queryClient, filter))),
+  ])
+}
+
+export async function updateAfterChatFeedback(
+  queryClient: QueryClient,
+  courseId: number,
+  result: RpcOutputMap['chat.feedback'],
+): Promise<void> {
+  const history = trpc.chat.history.queryFilter({ courseId })
+  const analytics = trpc.chat.analytics.queryFilter({ courseId })
+  await Promise.all([queryClient.cancelQueries(history), queryClient.cancelQueries(analytics)])
+  queryClient.setQueriesData<RpcOutputMap['chat.history']>(history, prev => prev ? {
+    ...prev,
+    data: prev.data.map(item => item.id === result.chat_log_id ? { ...item, feedback: result.feedback } : item),
+  } : prev)
+  // Existing history pages are patched without a request. Resume cancelled
+  // first loads and refresh aggregates without delaying the feedback controls.
+  void Promise.all([
+    queryClient.invalidateQueries({ ...history, predicate: query => query.state.data === undefined }),
+    queryClient.invalidateQueries(analytics),
+  ])
+}
 
 export async function invalidateAfterCourseUpdate(
   queryClient: QueryClient,
   courseId: number,
 ): Promise<void> {
   await Promise.all([
-    queryClient.invalidateQueries(trpc.courses.get.queryFilter({ id: courseId })),
-    queryClient.invalidateQueries(trpc.courses.list.pathFilter()),
+    refreshQuery(queryClient, trpc.courses.get.queryFilter({ id: courseId })),
+    refreshQuery(queryClient, trpc.courses.list.pathFilter()),
   ])
+}
+
+export async function invalidateAfterCourseRemoval(
+  queryClient: QueryClient,
+  courseId: number,
+): Promise<void> {
+  queryClient.removeQueries(trpc.courses.get.queryFilter({ id: courseId }))
+  await refreshQuery(queryClient, trpc.courses.list.pathFilter())
 }
 
 export async function invalidateAfterVideoUpload(
@@ -20,10 +75,10 @@ export async function invalidateAfterVideoUpload(
   { tagsChanged = false }: { tagsChanged?: boolean } = {},
 ): Promise<void> {
   await Promise.all([
-    queryClient.invalidateQueries({ queryKey: trpcVideoQueries }),
-    tagsChanged && queryClient.invalidateQueries(trpc.tags.list.pathFilter()),
-    // Usage is shown on the home page; fetch it when that page mounts.
-    queryClient.invalidateQueries({ ...trpc.account.me.pathFilter(), refetchType: 'none' }),
+    refreshQuery(queryClient, trpc.videos.list.pathFilter()),
+    refreshQuery(queryClient, trpc.videos.statusCounts.pathFilter()),
+    tagsChanged && refreshQuery(queryClient, trpc.tags.list.pathFilter()),
+    invalidateUsage(queryClient),
   ])
 }
 
@@ -33,10 +88,11 @@ export async function invalidateAfterVideoDelete(
 ): Promise<void> {
   queryClient.removeQueries(trpc.videos.get.queryFilter({ id: videoId }))
   await Promise.all([
-    queryClient.invalidateQueries({ queryKey: trpcVideoQueries }),
-    queryClient.invalidateQueries({ queryKey: trpcCourseQueries }),
-    queryClient.invalidateQueries(trpc.tags.list.pathFilter()),
-    queryClient.invalidateQueries({ ...trpc.account.me.pathFilter(), refetchType: 'none' }),
+    refreshQuery(queryClient, trpc.videos.list.pathFilter()),
+    refreshQuery(queryClient, trpc.videos.statusCounts.pathFilter()),
+    refreshQuery(queryClient, trpc.courses.pathFilter()),
+    refreshQuery(queryClient, trpc.tags.list.pathFilter()),
+    invalidateUsage(queryClient),
   ])
 }
 
@@ -52,9 +108,9 @@ export async function invalidateAfterVideoUpdate(
     queryClient.setQueryData(trpc.videos.get.queryKey({ id: videoId }), updatedVideo)
   }
   await Promise.all([
-    (!updatedVideo || tagsChanged) && queryClient.invalidateQueries(trpc.videos.get.queryFilter({ id: videoId })),
-    (metadataChanged || tagsChanged) && queryClient.invalidateQueries(trpc.videos.list.pathFilter()),
-    metadataChanged && queryClient.invalidateQueries(trpc.courses.get.pathFilter()),
-    tagsChanged && queryClient.invalidateQueries(trpc.tags.list.pathFilter()),
+    (!updatedVideo || tagsChanged) && refreshQuery(queryClient, trpc.videos.get.queryFilter({ id: videoId })),
+    (metadataChanged || tagsChanged) && refreshQuery(queryClient, trpc.videos.list.pathFilter()),
+    metadataChanged && refreshQuery(queryClient, trpc.courses.get.pathFilter()),
+    tagsChanged && refreshQuery(queryClient, trpc.tags.list.pathFilter()),
   ])
 }

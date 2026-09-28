@@ -1,9 +1,15 @@
 import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react'
 import { useQueryClient } from '@tanstack/react-query'
 import SettingsPage from '../SettingsPage'
-import { apiClient } from '@/lib/api'
+import { apiClient, type IntegrationApiKey } from '@/lib/api'
 import { trpc } from '@/lib/trpc'
-import { queryKeys } from '@/lib/queryKeys'
+
+const listApiKeys = vi.fn<() => Promise<IntegrationApiKey[]>>();
+beforeEach(() => {
+  listApiKeys.mockReset().mockResolvedValue([]);
+  globalThis.__setTrpcHandler('account.integrationApiKeys', listApiKeys);
+  globalThis.__setTrpcHandler('account.connectedApps', () => []);
+});
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
@@ -24,13 +30,10 @@ vi.mock('@/lib/api', () => {
   return {
     ApiError,
     apiClient: {
-      getAuthorizedOAuthTokens: vi.fn(() => Promise.resolve([])),
-      getIntegrationApiKeys: vi.fn(() => Promise.resolve([])),
       requestEmailChange: vi.fn(() => Promise.resolve()),
       updateUsername: vi.fn(() => Promise.resolve()),
       createIntegrationApiKey: vi.fn(),
       revokeIntegrationApiKey: vi.fn(),
-      createBillingPortal: vi.fn(),
     },
   }
 })
@@ -151,7 +154,7 @@ describe('SettingsPage username change', () => {
 describe('SettingsPage interactions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(apiClient.getIntegrationApiKeys).mockReset().mockResolvedValue([])
+    listApiKeys.mockReset().mockResolvedValue([])
     vi.mocked(apiClient.createIntegrationApiKey).mockReset()
     vi.mocked(apiClient.revokeIntegrationApiKey).mockReset()
     globalThis.__setTrpcHandler('account.searchApiKeyStatus', () => ({ has_api_key: false }))
@@ -325,32 +328,32 @@ describe('SettingsPage interactions', () => {
       access_level: 'all' as const, last_used_at: null, created_at: '2026-09-01T00:00:00Z' }
     let finish!: (keys: typeof key[]) => void
     const pending = new Promise<typeof key[]>(resolve => { finish = resolve })
-    vi.mocked(apiClient.getIntegrationApiKeys).mockResolvedValueOnce([key]).mockReturnValueOnce(pending)
+    listApiKeys.mockResolvedValueOnce([key]).mockReturnValueOnce(pending)
     vi.mocked(apiClient.revokeIntegrationApiKey).mockResolvedValueOnce(undefined)
     const { result } = renderHook(() => useQueryClient())
     render(<SettingsPage />)
     fireEvent.click(await screen.findByRole('button', { name: 'settings.integrationApiKeys.revoke: Notes' }))
     let fetching!: Promise<void>
-    act(() => { fetching = result.current.refetchQueries({ queryKey: queryKeys.auth.apiKeys }) })
-    await waitFor(() => expect(apiClient.getIntegrationApiKeys).toHaveBeenCalledTimes(2))
+    act(() => { fetching = result.current.refetchQueries({ queryKey: trpc.account.integrationApiKeys.queryKey() }) })
+    await waitFor(() => expect(listApiKeys).toHaveBeenCalledTimes(2))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'settings.integrationApiKeys.revokeConfirmCta' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     await act(async () => { finish([key]); await fetching })
     expect(screen.queryByText('Notes')).not.toBeInTheDocument()
-    expect(result.current.getQueryData(queryKeys.auth.apiKeys)).toEqual([])
-    expect(apiClient.getIntegrationApiKeys).toHaveBeenCalledTimes(2)
+    expect(result.current.getQueryData(trpc.account.integrationApiKeys.queryKey())).toEqual([])
+    expect(listApiKeys).toHaveBeenCalledTimes(2)
     expect(apiClient.revokeIntegrationApiKey).toHaveBeenCalledExactlyOnceWith(key.id, key.config_id)
   })
 
   it('uses the selected key configuration even when the list changes during confirmation', async () => {
     const key = { id: 'key-to-revoke', config_id: 'read-write', name: 'Notes', prefix: 'vq_test',
       access_level: 'all' as const, last_used_at: null, created_at: '2026-09-01T00:00:00Z' }
-    vi.mocked(apiClient.getIntegrationApiKeys).mockResolvedValueOnce([key])
+    listApiKeys.mockResolvedValueOnce([key])
     vi.mocked(apiClient.revokeIntegrationApiKey).mockResolvedValueOnce(undefined)
     const { result } = renderHook(() => useQueryClient())
     render(<SettingsPage />)
     fireEvent.click(await screen.findByRole('button', { name: 'settings.integrationApiKeys.revoke: Notes' }))
-    await act(async () => { result.current.setQueryData(queryKeys.auth.apiKeys, []) })
+    await act(async () => { result.current.setQueryData(trpc.account.integrationApiKeys.queryKey(), []) })
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'settings.integrationApiKeys.revokeConfirmCta' }))
     await waitFor(() => expect(apiClient.revokeIntegrationApiKey).toHaveBeenCalledExactlyOnceWith(key.id, key.config_id))
   })
@@ -360,7 +363,7 @@ describe('SettingsPage interactions', () => {
       access_level: 'all' as const, last_used_at: null, created_at: '2026-09-01T00:00:00Z' }
     const newKey = { ...oldKey, id: 'new-key', name: 'New notes', prefix: 'vq_new' }
     let finish!: (key: typeof newKey & { api_key: string }) => void
-    vi.mocked(apiClient.getIntegrationApiKeys).mockResolvedValueOnce([oldKey])
+    listApiKeys.mockResolvedValueOnce([oldKey])
     vi.mocked(apiClient.createIntegrationApiKey).mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
     vi.mocked(apiClient.revokeIntegrationApiKey).mockResolvedValueOnce(undefined)
     const { result } = renderHook(() => useQueryClient())
@@ -378,13 +381,13 @@ describe('SettingsPage interactions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.generatedDoneCta' }))
     await waitFor(() => expect(revoke).toBeEnabled())
     expect(create).toBeEnabled()
-    expect(result.current.getQueryData(queryKeys.auth.apiKeys)).toEqual([newKey, oldKey])
+    expect(result.current.getQueryData(trpc.account.integrationApiKeys.queryKey())).toEqual([newKey, oldKey])
     fireEvent.click(revoke)
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'settings.integrationApiKeys.revokeConfirmCta' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(screen.getByText(newKey.name)).toBeInTheDocument()
     expect(screen.queryByText(oldKey.name)).not.toBeInTheDocument()
-    expect(apiClient.getIntegrationApiKeys).toHaveBeenCalledTimes(1)
+    expect(listApiKeys).toHaveBeenCalledTimes(1)
   })
 
   it('preserves a newly created key when an older list request finishes later', async () => {
@@ -392,24 +395,24 @@ describe('SettingsPage interactions', () => {
       access_level: 'read_only' as const, last_used_at: null, created_at: '2026-09-01T00:00:00Z' }
     const newKey = { ...oldKey, id: 'new-key', name: 'New notes', prefix: 'vq_new' }
     let finish!: (keys: typeof oldKey[]) => void
-    vi.mocked(apiClient.getIntegrationApiKeys).mockResolvedValueOnce([oldKey])
+    listApiKeys.mockResolvedValueOnce([oldKey])
       .mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
     vi.mocked(apiClient.createIntegrationApiKey).mockResolvedValueOnce({ ...newKey, api_key: 'fixture-created-secret' })
     const { result } = renderHook(() => useQueryClient())
     render(<SettingsPage />)
     await screen.findByText(oldKey.name)
     let fetching!: Promise<void>
-    act(() => { fetching = result.current.refetchQueries({ queryKey: queryKeys.auth.apiKeys }) })
-    await waitFor(() => expect(apiClient.getIntegrationApiKeys).toHaveBeenCalledTimes(2))
+    act(() => { fetching = result.current.refetchQueries({ queryKey: trpc.account.integrationApiKeys.queryKey() }) })
+    await waitFor(() => expect(listApiKeys).toHaveBeenCalledTimes(2))
     fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.create' }))
     fireEvent.change(screen.getByLabelText('settings.integrationApiKeys.nameLabel'), { target: { value: newKey.name } })
     fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.createDialogCta' }))
     await screen.findByText('fixture-created-secret')
     fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.generatedDoneCta' }))
     await act(async () => { finish([oldKey]); await fetching })
-    expect(result.current.getQueryData(queryKeys.auth.apiKeys)).toEqual([newKey, oldKey])
+    expect(result.current.getQueryData(trpc.account.integrationApiKeys.queryKey())).toEqual([newKey, oldKey])
     expect(screen.getByRole('button', { name: 'settings.integrationApiKeys.revoke: New notes' })).toBeEnabled()
-    expect(apiClient.getIntegrationApiKeys).toHaveBeenCalledTimes(2)
+    expect(listApiKeys).toHaveBeenCalledTimes(2)
   })
 
   it('keeps newer key metadata when a completed refetch already includes the created key', async () => {
@@ -417,7 +420,7 @@ describe('SettingsPage interactions', () => {
       access_level: 'read_only' as const, last_used_at: null, created_at: '2026-09-01T00:00:00Z' }
     const currentKey = { ...newKey, last_used_at: '2026-09-24T00:00:00Z' }
     let finish!: (key: typeof newKey & { api_key: string }) => void
-    vi.mocked(apiClient.getIntegrationApiKeys).mockResolvedValueOnce([])
+    listApiKeys.mockResolvedValueOnce([])
     vi.mocked(apiClient.createIntegrationApiKey).mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
     const { result } = renderHook(() => useQueryClient())
     render(<SettingsPage />)
@@ -427,14 +430,14 @@ describe('SettingsPage interactions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.createDialogCta' }))
     await waitFor(() => expect(apiClient.createIntegrationApiKey).toHaveBeenCalledTimes(1))
     await act(async () => {
-      result.current.setQueryData(queryKeys.auth.apiKeys, [currentKey])
+      result.current.setQueryData(trpc.account.integrationApiKeys.queryKey(), [currentKey])
       finish({ ...newKey, api_key: 'fixture-created-secret' })
     })
     await screen.findByText('fixture-created-secret')
     fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.generatedDoneCta' }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'settings.integrationApiKeys.create' })).toBeEnabled())
-    expect(result.current.getQueryData(queryKeys.auth.apiKeys)).toEqual([currentKey])
-    expect(apiClient.getIntegrationApiKeys).toHaveBeenCalledTimes(1)
+    expect(result.current.getQueryData(trpc.account.integrationApiKeys.queryKey())).toEqual([currentKey])
+    expect(listApiKeys).toHaveBeenCalledTimes(1)
   })
 
   it.each(['loading', 'failed'])('reloads the complete key list when the initial read is %s during creation', async (state) => {
@@ -444,26 +447,27 @@ describe('SettingsPage interactions', () => {
     let finishInitial!: (keys: typeof oldKey[]) => void
     const initial = new Promise<typeof oldKey[]>(resolve => { finishInitial = resolve })
     let finishReload!: (keys: typeof oldKey[]) => void
-    if (state === 'loading') vi.mocked(apiClient.getIntegrationApiKeys).mockReturnValueOnce(initial)
-    else vi.mocked(apiClient.getIntegrationApiKeys).mockRejectedValueOnce(new Error('Unavailable'))
-    vi.mocked(apiClient.getIntegrationApiKeys).mockReturnValueOnce(new Promise(resolve => { finishReload = resolve }))
+    if (state === 'loading') listApiKeys.mockReturnValueOnce(initial)
+    else listApiKeys.mockRejectedValueOnce(new Error('Unavailable'))
+    listApiKeys.mockReturnValueOnce(new Promise(resolve => { finishReload = resolve }))
     vi.mocked(apiClient.createIntegrationApiKey).mockResolvedValueOnce({ ...newKey, api_key: 'fixture-created-secret' })
     const { result } = renderHook(() => useQueryClient())
     render(<SettingsPage />)
     if (state === 'failed') await screen.findByText('settings.integrationApiKeys.errorLoading')
+    else await waitFor(() => expect(listApiKeys).toHaveBeenCalledTimes(1))
     fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.create' }))
     fireEvent.change(screen.getByLabelText('settings.integrationApiKeys.nameLabel'), { target: { value: newKey.name } })
     fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.createDialogCta' }))
     await screen.findByText('fixture-created-secret')
-    await waitFor(() => expect(apiClient.getIntegrationApiKeys).toHaveBeenCalledTimes(2))
-    expect(result.current.getQueryData(queryKeys.auth.apiKeys)).toBeUndefined()
+    await waitFor(() => expect(listApiKeys).toHaveBeenCalledTimes(2))
+    expect(result.current.getQueryData(trpc.account.integrationApiKeys.queryKey())).toBeUndefined()
     fireEvent.click(screen.getByRole('button', { name: 'settings.integrationApiKeys.generatedDoneCta' }))
     expect(screen.getByRole('button', { name: 'settings.integrationApiKeys.create' })).toBeDisabled()
     await act(async () => { finishReload([newKey, oldKey]) })
     await waitFor(() => expect(screen.getByRole('button', { name: 'settings.integrationApiKeys.create' })).toBeEnabled())
     await act(async () => { finishInitial([oldKey]); await initial })
-    expect(result.current.getQueryData(queryKeys.auth.apiKeys)).toEqual([newKey, oldKey])
-    expect(apiClient.getIntegrationApiKeys).toHaveBeenCalledTimes(2)
+    expect(result.current.getQueryData(trpc.account.integrationApiKeys.queryKey())).toEqual([newKey, oldKey])
+    expect(listApiKeys).toHaveBeenCalledTimes(2)
   })
 
   it('creates a developer key with the selected permissions', async () => {
@@ -481,7 +485,7 @@ describe('SettingsPage interactions', () => {
   })
 
   it('requires confirmation and displays revoke failures inside the key dialog', async () => {
-    vi.mocked(apiClient.getIntegrationApiKeys).mockResolvedValueOnce([{
+    listApiKeys.mockResolvedValueOnce([{
       id: 'key-1', config_id: 'read-write', name: 'Notes', prefix: 'vq_test', access_level: 'all',
       last_used_at: null, created_at: '2026-09-01T00:00:00Z',
     }])
@@ -504,7 +508,7 @@ describe('generated API key copy', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     writeText.mockReset().mockResolvedValue(undefined)
-    vi.mocked(apiClient.getIntegrationApiKeys).mockReset().mockResolvedValue([])
+    listApiKeys.mockReset().mockResolvedValue([])
     vi.mocked(apiClient.createIntegrationApiKey).mockReset()
     globalThis.__setTrpcHandler('account.searchApiKeyStatus', () => ({ has_api_key: false }))
     Object.defineProperty(window, 'isSecureContext', { configurable: true, value: true })

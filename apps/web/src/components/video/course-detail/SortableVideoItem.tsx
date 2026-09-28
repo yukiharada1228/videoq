@@ -7,10 +7,6 @@ import { Button } from '@/components/ui/button';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { StatusBadge } from '@/components/common/StatusBadge';
 
-function VideoStatusBadge({ status }: { status: VideoInCourse['status'] }) {
-  return <StatusBadge status={status} size="xs" className="mt-1 ml-0" />;
-}
-
 interface SortableVideoItemProps {
   video: VideoInCourse;
   isSelected: boolean;
@@ -74,7 +70,7 @@ export function SortableVideoItem({
         <span className={`block truncate text-std-16N-170 ${isSelected ? 'font-bold text-key-900' : 'text-solid-gray-800'}`}>
           {video.title}
         </span>
-        <VideoStatusBadge status={video.status} />
+        <StatusBadge status={video.status} size="xs" className="mt-1 ml-0" />
       </button>
       {canManage ? (
         // The wrapper keeps swallowing row-level events even while the button

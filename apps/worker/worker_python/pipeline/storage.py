@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 from contextlib import closing
 from pathlib import Path
 
-from worker_python.env import env_flag, env_str
+from worker_python.env import credential_pair, env_flag, env_str
 
 logger = logging.getLogger(__name__)
 
@@ -38,28 +39,22 @@ def _s3_client():
         env_str("R2_S3_REGION")
         or env_str("AWS_S3_REGION_NAME")
         or env_str("AWS_REGION")
-        or "auto"
-    )
-    # Prefer R2_* so Lambda execution-role AWS_ACCESS_KEY_ID is never used against R2.
-    access_key = (
-        env_str("R2_ACCESS_KEY_ID")
-        or env_str("AWS_S3_ACCESS_KEY_ID")
-        or env_str("AWS_ACCESS_KEY_ID")
-    )
-    secret_key = (
-        env_str("R2_SECRET_ACCESS_KEY")
-        or env_str("AWS_S3_SECRET_ACCESS_KEY")
-        or env_str("AWS_SECRET_ACCESS_KEY")
+        or ("auto" if endpoint else None)
     )
     kwargs: dict = {
-        "region_name": region,
         "config": Config(signature_version="s3v4"),
     }
+    if region:
+        kwargs["region_name"] = region
     if endpoint:
         kwargs["endpoint_url"] = endpoint
-    if access_key and secret_key:
-        kwargs["aws_access_key_id"] = access_key
-        kwargs["aws_secret_access_key"] = secret_key
+    # Storage-specific credentials are a pair. Otherwise let boto3 resolve AWS
+    # credentials, including session tokens and refreshable role credentials.
+    for prefix in ("R2", "AWS_S3"):
+        pair = credential_pair(os.environ, prefix)
+        if pair:
+            kwargs["aws_access_key_id"], kwargs["aws_secret_access_key"] = pair
+            break
     return boto3.client("s3", **kwargs)
 
 

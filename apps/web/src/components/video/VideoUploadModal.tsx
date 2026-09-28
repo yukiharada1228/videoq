@@ -1,5 +1,3 @@
-'use client';
-
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useVideoUpload } from '@/hooks/useVideoUpload';
@@ -41,7 +39,6 @@ interface VideoUploadModalProps {
 export function VideoUploadModal({ isOpen, onClose, autoCloseDelayMs = 2000 }: VideoUploadModalProps) {
   const {
     sourceMode,
-    file,
     youtubeUrl,
     title,
     description,
@@ -51,7 +48,6 @@ export function VideoUploadModal({ isOpen, onClose, autoCloseDelayMs = 2000 }: V
     error,
     errorParams,
     warning,
-    warningParams,
     success,
     setTitle,
     setDescription,
@@ -153,16 +149,13 @@ export function VideoUploadModal({ isOpen, onClose, autoCloseDelayMs = 2000 }: V
                     description={description}
                     isUploading={isUploading}
                     progress={progress}
-                    disabled={false}
                     error={error}
                     errorParams={errorParams}
                     warning={warning}
-                    warningParams={warningParams}
                     success={success}
                     setTitle={setTitle}
                     setDescription={setDescription}
                     handleFileChange={handleFileChange}
-                    file={file}
                     hideButtons={true}
                   />
                 ) : (
@@ -220,7 +213,7 @@ export function VideoUploadModal({ isOpen, onClose, autoCloseDelayMs = 2000 }: V
                     {warning && (
                       <MessageAlert
                         type="warning"
-                        message={t(warning, { defaultValue: warning, ...warningParams })}
+                        message={t(warning, { defaultValue: warning })}
                       />
                     )}
                     {success && <MessageAlert type="success" message={t('videos.upload.success')} />}
@@ -242,7 +235,7 @@ export function VideoUploadModal({ isOpen, onClose, autoCloseDelayMs = 2000 }: V
                 <Button type="button" variant="outline" onClick={handleClose} disabled={isUploading}>
                   {t('common.actions.cancel')}
                 </Button>
-                <VideoUploadButton isUploading={isUploading} progress={progress} disabled={false} />
+                <VideoUploadButton isUploading={isUploading} progress={progress} />
               </div>
             </DialogActions>
           </form>

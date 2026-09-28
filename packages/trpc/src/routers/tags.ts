@@ -19,10 +19,6 @@ export const tagsRouter = t.router({
     .input(tagsInputSchemas["tags.update"])
     .output(outputSchemas["tags.update"])
     .mutation(({ ctx, input }) => ctx.call("tags.update", input)),
-  replace: protectedProcedure
-    .input(tagsInputSchemas["tags.replace"])
-    .output(outputSchemas["tags.replace"])
-    .mutation(({ ctx, input }) => ctx.call("tags.replace", input)),
   delete: protectedProcedure
     .input(tagsInputSchemas["tags.delete"])
     .output(outputSchemas["tags.delete"])

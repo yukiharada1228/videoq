@@ -7,7 +7,7 @@ const requirementBadgeVariants = cva(
   "ml-2 inline-block text-oln-16N-100 text-red-800 data-[is-optional]:text-solid-gray-800"
 )
 
-export interface RequirementBadgeProps
+interface RequirementBadgeProps
   extends
     React.ComponentPropsWithoutRef<"span">,
     VariantProps<typeof requirementBadgeVariants> {
@@ -31,5 +31,4 @@ const RequirementBadge = React.forwardRef<
   )
 })
 RequirementBadge.displayName = "RequirementBadge"
-
-export { RequirementBadge, requirementBadgeVariants }
+export { RequirementBadge }

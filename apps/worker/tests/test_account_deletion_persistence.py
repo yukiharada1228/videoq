@@ -24,7 +24,7 @@ def deletion_db(monkeypatch):
                 CREATE TABLE users (id text PRIMARY KEY);
                 CREATE TABLE videos (
                     id integer PRIMARY KEY,
-                    user_id text REFERENCES users(id) ON DELETE CASCADE,
+                    user_id text REFERENCES users(id),
                     file text
                 );
                 CREATE TABLE scene_embeddings (

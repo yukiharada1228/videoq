@@ -63,7 +63,7 @@ describe('PricingPage', () => {
 
     expect(screen.getByText('pricing.title')).toBeInTheDocument()
     expect(screen.getByText('pricing.monthly')).toBeInTheDocument()
-    expect(screen.getByLabelText('Loading')).toBeInTheDocument()
+    expect(screen.getByLabelText('common.messages.loading')).toBeInTheDocument()
     expect(screen.queryByText('pricing.plans.free.name')).not.toBeInTheDocument()
     await waitFor(() => expect(getPlans).toHaveBeenCalledTimes(1))
   })

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  FREE_TIER_DEFAULTS,
   parseNullableLimit,
   resolveSignupQuotaDefaults,
 } from "../src/shared/signup-quota";
@@ -27,15 +26,38 @@ describe("parseNullableLimit", () => {
   it("falls back on non-numeric input", () => {
     expect(parseNullableLimit("abc", 10)).toBe(10);
   });
+
+  it("does not allow negative storage quotas", () => {
+    expect(parseNullableLimit("-0.5", 1)).toBe(1);
+  });
 });
 
 describe("resolveSignupQuotaDefaults", () => {
+  it.each(['-1', '1.5', '2147483648', 'Infinity', '1e309'])(
+    "falls back when integer-column overrides cannot be stored (%s)", raw => {
+      expect(resolveSignupQuotaDefaults({
+        MAX_VIDEO_UPLOAD_SIZE_MB: raw,
+        DEFAULT_AI_ANSWERS_LIMIT: raw,
+        DEFAULT_PROCESSING_LIMIT_MINUTES: raw,
+      })).toEqual({ maxVideoUploadSizeMb: 200, aiAnswersLimit: 30, processingLimitMinutes: 45, storageLimitGb: 1 });
+    },
+  );
+
+  it("preserves zero usage quotas and fractional storage overrides", () => {
+    expect(resolveSignupQuotaDefaults({
+      MAX_VIDEO_UPLOAD_SIZE_MB: '0',
+      DEFAULT_AI_ANSWERS_LIMIT: '0',
+      DEFAULT_PROCESSING_LIMIT_MINUTES: '0',
+      DEFAULT_STORAGE_LIMIT_GB: '0.5',
+    })).toEqual({ maxVideoUploadSizeMb: 200, aiAnswersLimit: 0, processingLimitMinutes: 0, storageLimitGb: 0.5 });
+  });
+
   it("uses free-tier defaults when env is empty", () => {
     expect(resolveSignupQuotaDefaults({})).toEqual({
-      maxVideoUploadSizeMb: FREE_TIER_DEFAULTS.maxVideoUploadSizeMb,
-      storageLimitGb: FREE_TIER_DEFAULTS.storageLimitGb,
-      processingLimitMinutes: FREE_TIER_DEFAULTS.processingLimitMinutes,
-      aiAnswersLimit: FREE_TIER_DEFAULTS.aiAnswersLimit,
+      maxVideoUploadSizeMb: 200,
+      storageLimitGb: 1,
+      processingLimitMinutes: 45,
+      aiAnswersLimit: 30,
     });
   });
 
@@ -63,7 +85,7 @@ describe("resolveSignupQuotaDefaults", () => {
         DEFAULT_AI_ANSWERS_LIMIT: "unlimited",
       }),
     ).toEqual({
-      maxVideoUploadSizeMb: FREE_TIER_DEFAULTS.maxVideoUploadSizeMb,
+      maxVideoUploadSizeMb: 200,
       storageLimitGb: null,
       processingLimitMinutes: null,
       aiAnswersLimit: null,

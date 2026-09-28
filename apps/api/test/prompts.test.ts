@@ -1,32 +1,17 @@
 import { describe, it, expect } from "vitest";
 import { buildAgentSystemPrompt, buildNoCourseSystemPrompt } from "../src/lib/prompts";
 
-/** System prompt output is pinned with SHA-256 vectors. */
-async function sha256(text: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-describe("buildNoCourseSystemPrompt", () => {
-  it("default ロケール・参照なし", async () => {
-    const p = buildNoCourseSystemPrompt(null);
-    expect(p.length).toBe(3590);
-    expect(await sha256(p)).toBe(
-      "49175c7173795f260d0fecf10ac4d0b2f606051ed2e36de1a52fb0101d98d703",
-    );
+describe("structured answer instructions", () => {
+  it.each([null, "ja", "ja-JP"])("%s specifies segments without prose markers", locale => {
+    const prompt = buildNoCourseSystemPrompt(locale);
+    expect(prompt).toContain('"segments"');
+    expect(prompt).toContain('"sourceIds"');
+    expect(prompt).not.toContain('[N]');
+    expect(prompt).toContain(locale ? '講座を選択' : 'select a course');
   });
-
-  it("ja-JP はハイフン前にフォールバックして ja を採用", async () => {
-    const p = buildNoCourseSystemPrompt("ja-JP");
-    expect(p.length).toBe(1473);
-    expect(await sha256(p)).toBe(
-      "4426d957e5147c698d599e622be926915a74c4189e374f8271f83122faa7885a",
-    );
-  });
-
-  it("未知ロケールは default と同一", async () => {
-    const base = await sha256(buildNoCourseSystemPrompt(null));
-    expect(await sha256(buildNoCourseSystemPrompt("fr-FR"))).toBe(base);
+  it("resolves regional and unknown locales", () => {
+    expect(buildNoCourseSystemPrompt("ja-JP")).toBe(buildNoCourseSystemPrompt("ja"));
+    expect(buildNoCourseSystemPrompt("fr-FR")).toBe(buildNoCourseSystemPrompt(null));
   });
 });
 
@@ -39,6 +24,6 @@ describe("ReAct の根拠の使い分け", () => {
     expect(prompt).not.toContain("{max_course_info_calls}");
     expect(prompt).not.toContain("Always search at least once");
     expect(prompt).not.toContain("最低1回は検索");
-    expect(prompt).toContain(locale ? "メタ情報だけの回答にシーン引用は不要" : "Metadata-only answers need no scene citations");
+    expect(prompt).toContain(locale ? "メタ情報だけの回答は sourceIds を空配列" : "Use an empty sourceIds array for metadata-only answers");
   });
 });

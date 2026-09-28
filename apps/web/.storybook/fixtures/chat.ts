@@ -1,17 +1,32 @@
-import type { Citation } from '../../src/lib/api-types';
+import { chatAnswerText, type ChatAnswer, type ChatSource } from '@videoq/trpc/chat';
 import type { ChatProgress } from '../../src/lib/chatProgress';
 
 export const citations = [
   { id: 1, video_id: 7, title: '線形代数：回転行列', start_time: '00:21:37', end_time: '00:22:20' },
   { id: 2, video_id: 12, title: '具体例で学ぶベクトル', start_time: '00:03:10', end_time: '00:04:05' },
-] satisfies Citation[];
+] satisfies ChatSource[];
 
-export const answer = '回転行列は、ベクトルの長さを変えずに向きを変える行列です。[1]\n具体例を図と一緒に確認すると理解しやすくなります。[2]';
-export const syntaxAnswer = '数式 / Formula: $ x[01] $[1]~~~ $y$\n\n```js\nconst ticks = "```";\n[1]\n````\n続き / Next: $z$[2]';
-export const longAnswer = Array.from({ length: 8 }, (_, index) =>
-  `${index + 1}. 回転前後でベクトルの長さが変わらないことを確認します。角度と座標の関係を整理し、講義の例題を使って計算してみましょう。[1]`,
-).join('\n\n');
-export const mathAnswer = String.raw`回転角を \(\theta\) とすると、回転行列は次のように表せます。
+export const answerData: ChatAnswer = { segments: [
+  { text: "回転行列は、ベクトルの長さを変えずに向きを変える行列です。", sourceIds: [1] },
+  { text: "\n具体例を図と一緒に確認すると理解しやすくなります。", sourceIds: [2] },
+], sources: citations };
+export const answer = chatAnswerText(answerData);
+
+export const syntaxAnswerData: ChatAnswer = { segments: [
+  { text: "数式 / Formula: $ x[01] $", sourceIds: [1] },
+  { text: "~~~ $y$\n\n```js\nconst ticks = \"```\";\n[1]\n````\n続き / Next: $z$", sourceIds: [2] },
+], sources: citations };
+
+export const longAnswerData: ChatAnswer = {
+  segments: Array.from({ length: 8 }, (_, index) => ({
+    text: `${index ? '\n\n' : ''}${index + 1}. 回転前後でベクトルの長さが変わらないことを確認します。角度と座標の関係を整理し、講義の例題を使って計算してみましょう。`,
+    sourceIds: [1],
+  })),
+  sources: citations,
+};
+export const longAnswer = chatAnswerText(longAnswerData);
+
+export const mathAnswerData: ChatAnswer = { segments: [{ text: String.raw`回転角を \(\theta\) とすると、回転行列は次のように表せます。
 
 \[
 R(\theta) = \begin{pmatrix}
@@ -20,7 +35,8 @@ R(\theta) = \begin{pmatrix}
 \end{pmatrix}
 \]
 
-この行列を座標ベクトルに掛けると、回転後の座標が求まります。[1]`;
+この行列を座標ベクトルに掛けると、回転後の座標が求まります。`, sourceIds: [1] }], sources: citations };
+export const mathAnswer = chatAnswerText(mathAnswerData);
 
 export const searching = {
   phase: 'searching',

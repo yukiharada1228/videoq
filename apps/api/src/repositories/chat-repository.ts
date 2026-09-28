@@ -1,3 +1,4 @@
+import { chatAnswerSchema, chatAnswerText, type ChatAnswer, type ChatSource } from "@videoq/trpc/chat";
 import { and, asc, desc, eq, gt, or, sql } from "drizzle-orm";
 import { withDb } from "../db/pool";
 import {
@@ -15,15 +16,7 @@ import {
   JOB_EVALUATE_CHAT_LOG,
 } from "../lib/job-message";
 
-export type ChatCitation = {
-  id: number;
-  video_id: number;
-  title: string;
-  start_time: string | null;
-  end_time: string | null;
-};
-
-export type ChatQuestionAuthor = {
+type ChatQuestionAuthor = {
   user_id: string;
   username: string;
   email: string;
@@ -35,8 +28,7 @@ export type ChatLogItem = {
   course: number;
   asked_by: ChatQuestionAuthor | null;
   question: string;
-  answer: string;
-  citations: ChatCitation[];
+  answer: ChatAnswer;
   is_shared_origin: boolean;
   feedback: "good" | "bad" | null;
   created_at: string;
@@ -49,21 +41,6 @@ export type GroupChatContext = {
   memberVideoIds: number[];
 };
 
-
-function mapCitations(raw: unknown): ChatCitation[] {
-  const arr = Array.isArray(raw)
-    ? raw
-    : typeof raw === "string"
-      ? (JSON.parse(raw) as Array<Record<string, unknown>>)
-      : [];
-  return arr.map((c, i) => ({
-    id: i + 1,
-    video_id: c.video_id as number,
-    title: c.title as string,
-    start_time: (c.start_time as string | null) ?? null,
-    end_time: (c.end_time as string | null) ?? null,
-  }));
-}
 
 function chatFeedback(value: unknown): "good" | "bad" | null {
   return value === "good" || value === "bad" ? value : null;
@@ -137,18 +114,14 @@ export async function getCourseWithMembers(
   });
 }
 
-/**
- * ChatLog を作成する。citations は id を持たないオブジェクト配列で保存し、
- * 参照時に 1 始まりの index を振る（既存 history/feedback 実装と同じ約束）。
- */
+/** Persist the validated answer unchanged and enqueue its evaluation atomically. */
 export async function createChatLog(
   env: Bindings,
   params: {
     userId: string;
     courseId: number;
     question: string;
-    answer: string;
-    citations: readonly Record<string, unknown>[] | null;
+    answer: ChatAnswer;
     isShared: boolean;
     retrievedContexts: readonly string[];
   },
@@ -161,9 +134,8 @@ export async function createChatLog(
           userId: params.userId,
           courseId: params.courseId,
           question: params.question,
-          answer: params.answer,
-          citations: params.citations ?? [],
-          retrievedContexts: params.retrievedContexts ?? [],
+          response: chatAnswerSchema.parse(params.answer),
+          retrievedContexts: params.retrievedContexts,
           isSharedOrigin: params.isShared,
           feedback: null,
           createdAt: sql`now()`,
@@ -218,7 +190,7 @@ export type ChatHistoryExportRow = {
   question: string;
   answer: string;
   is_shared_origin: boolean;
-  citations: ChatCitation[];
+  citations: ChatSource[];
   feedback: string | null;
 };
 
@@ -260,10 +232,9 @@ async function getCourseChatHistoryExportPage(
         username: users.username,
         email: users.email,
         question: chatLogs.question,
-        answer: chatLogs.answer,
+        answer: chatLogs.response,
         isSharedOrigin: chatLogs.isSharedOrigin,
         feedback: chatLogs.feedback,
-        citations: chatLogs.citations,
         id: chatLogs.id,
       })
       .from(chatLogs)
@@ -282,20 +253,23 @@ async function getCourseChatHistoryExportPage(
     const last = selected.at(-1);
 
     return {
-      rows: selected.map((row) => ({
-        created_at: toUtcIso(row.createdAt),
-        asked_by: mapQuestionAuthor(
-          row.isSharedOrigin,
-          row.userId,
-          row.username,
-          row.email,
-        ),
-        question: row.question,
-        answer: row.answer,
-        is_shared_origin: row.isSharedOrigin,
-        citations: mapCitations(row.citations),
-        feedback: row.feedback ?? null,
-      })),
+      rows: selected.map((row) => {
+        const answer = chatAnswerSchema.parse(row.answer);
+        return {
+          created_at: toUtcIso(row.createdAt),
+          asked_by: mapQuestionAuthor(
+            row.isSharedOrigin,
+            row.userId,
+            row.username,
+            row.email,
+          ),
+          question: row.question,
+          answer: chatAnswerText(answer),
+          is_shared_origin: row.isSharedOrigin,
+          citations: answer.sources,
+          feedback: row.feedback ?? null,
+        };
+      }),
       nextCursor:
         selected.length === CHAT_HISTORY_EXPORT_PAGE_SIZE && last
           ? {
@@ -478,8 +452,7 @@ export async function getCourseChatHistory(
         username: users.username,
         email: users.email,
         question: chatLogs.question,
-        answer: chatLogs.answer,
-        citations: chatLogs.citations,
+        answer: chatLogs.response,
         is_shared_origin: chatLogs.isSharedOrigin,
         feedback: chatLogs.feedback,
         created_at: chatLogs.createdAt,
@@ -501,8 +474,7 @@ export async function getCourseChatHistory(
         r.email,
       ),
       question: r.question,
-      answer: r.answer,
-      citations: mapCitations(r.citations),
+      answer: chatAnswerSchema.parse(r.answer),
       is_shared_origin: r.is_shared_origin,
       feedback: chatFeedback(r.feedback),
       created_at: toUtcIso(r.created_at)!,

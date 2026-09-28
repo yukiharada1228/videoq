@@ -2,11 +2,11 @@ import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { parseResourceId } from '@videoq/trpc/schema';
 import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { useI18nNavigate } from '@/lib/i18n';
 import { handleAsyncError } from '@/lib/utils/errorHandling';
-import { useAuth } from '@/hooks/useAuth';
 import { useShareLink } from '@/hooks/useShareLink';
 import { useVideoPlayback } from '@/hooks/useVideoPlayback';
 import { useMobileTab } from '@/hooks/useMobileTab';
@@ -17,18 +17,19 @@ import {
 import { useConfirm, useToast } from '@/components/common/feedback';
 import { VideoCourseDetailView } from '@/components/video/course-detail/VideoCourseDetailView';
 import { trpc } from '@/lib/trpc';
+import { invalidateAfterCourseRemoval } from '@/lib/cacheInvalidation';
 
 export default function VideoCourseDetailPage() {
   const params = useParams<{ id: string }>();
   const navigate = useI18nNavigate();
-  const courseId = params?.id ? Number.parseInt(params.id, 10) : null;
+  const courseId = parseResourceId(params.id);
   const { t } = useTranslation();
   const requestConfirmation = useConfirm();
   const toast = useToast();
   const queryClient = useQueryClient();
-  const leaveCourseMutation = useMutation(trpc.courseMemberships.leave.mutationOptions());
-
-  useAuth();
+  const leaveCourseMutation = useMutation(trpc.courseMemberships.leave.mutationOptions({
+    onSuccess: (_data, { courseId }) => invalidateAfterCourseRemoval(queryClient, courseId),
+  }));
 
   const { course, isLoading: courseIsLoading, errorMessage: error } =
     useVideoCourseDetailQuery(courseId);
@@ -36,7 +37,6 @@ export default function VideoCourseDetailPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
-  const [isLeaving, setIsLeaving] = useState(false);
   const [selectedVideoId, setSelectedVideoId] = useState<number | null>(null);
   const [autoVideoId, setAutoVideoId] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -80,7 +80,6 @@ export default function VideoCourseDetailPage() {
   const { removeVideoMutation, reorderVideosMutation, deleteCourseMutation, updateCourseMutation } =
     useVideoCourseDetailMutations({
       courseId,
-      onDeleteSuccess: () => navigate('/videos/courses'),
       onUpdateSuccess: () => setIsEditing(false),
     });
 
@@ -88,8 +87,6 @@ export default function VideoCourseDetailPage() {
     if (!courseId || reorderVideosMutation.isPending || removeVideoMutation.isPending || deleteCourseMutation.isPending) return;
     const confirmed = await requestConfirmation({
       title: t('videos.courseDetail.removeVideoConfirm'),
-      confirmLabel: t('common.actions.confirm'),
-      cancelLabel: t('common.actions.cancel'),
       variant: 'danger',
     });
     if (!confirmed) return;
@@ -122,16 +119,14 @@ export default function VideoCourseDetailPage() {
     const confirmed = await requestConfirmation({
       title: t('confirmations.deleteCourse'),
       confirmLabel: t('common.actions.delete'),
-      cancelLabel: t('common.actions.cancel'),
       variant: 'danger',
     });
     if (!confirmed) return;
     setDeleteError(null);
-    try {
-      await deleteCourseMutation.mutateAsync();
-    } catch (err) {
-      handleAsyncError(err, t('videos.courseDetail.deleteError'), setDeleteError);
-    }
+    deleteCourseMutation.mutate(undefined, {
+      onSuccess: () => navigate('/videos/courses'),
+      onError: (err) => handleAsyncError(err, t('videos.courseDetail.deleteError'), setDeleteError),
+    });
   };
 
   const handleStartEdit = () => {
@@ -147,6 +142,7 @@ export default function VideoCourseDetailPage() {
   };
 
   const isLoading = courseIsLoading;
+  const isLeaving = leaveCourseMutation.isPending;
   const isDeleting = deleteCourseMutation.isPending;
   const isUpdating = updateCourseMutation.isPending;
   // `variables` holds the videoId passed to mutateAsync, so the list can show a
@@ -160,21 +156,14 @@ export default function VideoCourseDetailPage() {
       title: t('confirmations.leaveCourse', { name: course.name }),
       description: t('confirmations.leaveCourseDescription'),
       confirmLabel: t('videos.courseDetail.leave'),
-      cancelLabel: t('common.actions.cancel'),
       variant: 'danger',
     });
     if (!confirmed) return;
-    setIsLeaving(true);
     setDeleteError(null);
-    try {
-      await leaveCourseMutation.mutateAsync({ courseId });
-      await queryClient.invalidateQueries(trpc.courses.list.pathFilter());
-      navigate('/videos/courses');
-    } catch (err) {
-      handleAsyncError(err, t('videos.courseDetail.leaveError'), setDeleteError);
-    } finally {
-      setIsLeaving(false);
-    }
+    leaveCourseMutation.mutate({ courseId }, {
+      onSuccess: () => navigate('/videos/courses'),
+      onError: (err) => handleAsyncError(err, t('videos.courseDetail.leaveError'), setDeleteError),
+    });
   };
 
   return (

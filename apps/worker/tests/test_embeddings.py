@@ -144,18 +144,14 @@ def test_config_errors_are_not_hidden_by_scene_or_evaluation_fallback(monkeypatc
         asyncio.run(evaluation._run_metric(metric, object()))
 
 
-@pytest.mark.parametrize("stage", ["schema", "output"])
-def test_reindex_preflight_preserves_existing_vectors(monkeypatch, stage):
+def test_reindex_schema_failure_stops_before_indexing(monkeypatch):
     error = EmbeddingContractError("EMBEDDING_OUTPUT_INVALID", "bad dimensions")
-    schema = MagicMock(side_effect=error if stage == "schema" else None)
-    embed = MagicMock(side_effect=error if stage == "output" else None)
-    delete = MagicMock()
-    monkeypatch.setattr(reindexing.vector_index, "check_embedding_storage", schema)
-    monkeypatch.setattr(reindexing, "embed_texts", embed)
-    monkeypatch.setattr(reindexing.vector_index, "delete_all_vectors", delete)
+    index = MagicMock()
+    monkeypatch.setattr(reindexing.vector_index, "check_embedding_storage", MagicMock(side_effect=error))
+    monkeypatch.setattr(reindexing.vector_index, "index_video_transcript", index)
     with pytest.raises(EmbeddingContractError):
         reindexing._run_reindex([object()])
-    delete.assert_not_called()
+    index.assert_not_called()
 
 
 @pytest.mark.parametrize("provider", ["openai", "ollama"])

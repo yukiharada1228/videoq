@@ -143,7 +143,7 @@ type AuthRateLimitStorage = NonNullable<
 const AUTH_RATE_LIMIT_WINDOW_SEC = 60;
 
 /** パスワード再設定トークンの有効期限。案内メールの文面と必ず一致させる。 */
-export const PASSWORD_RESET_TOKEN_TTL_SEC = 15 * 60;
+const PASSWORD_RESET_TOKEN_TTL_SEC = 15 * 60;
 
 /**
  * Better Auth のレート制限を RateLimiter Durable Object に載せる。

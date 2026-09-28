@@ -16,6 +16,8 @@ def isolate_bootstrap_environment(monkeypatch):
     keys = {
         "DATABASE_URL",
         *bootstrap._APP_ENV_MAP.values(),
+        "R2_ACCESS_KEY_ID",
+        "R2_SECRET_ACCESS_KEY",
         "AWS_STORAGE_BUCKET_NAME",
         "AWS_S3_ENDPOINT_URL",
         "AWS_S3_REGION_NAME",
@@ -74,11 +76,10 @@ def test_canonical_r2_keys_from_app_param(monkeypatch):
     assert os.environ["R2_SECRET_ACCESS_KEY"] == "r2-secret"
     assert os.environ["R2_BUCKET_NAME"] == "videoq-media-prod"
     assert os.environ["R2_S3_ENDPOINT"] == "https://example.r2.cloudflarestorage.com"
-    # Legacy mirrors for older call sites.
-    assert os.environ["AWS_STORAGE_BUCKET_NAME"] == "videoq-media-prod"
-    assert (
-        os.environ["AWS_S3_ENDPOINT_URL"] == "https://example.r2.cloudflarestorage.com"
-    )
+    # Every storage caller reads canonical keys; no legacy write-back is needed.
+    assert "AWS_STORAGE_BUCKET_NAME" not in os.environ
+    assert "AWS_S3_ENDPOINT_URL" not in os.environ
+    assert "AWS_S3_REGION_NAME" not in os.environ
 
 
 def test_legacy_aws_secret_keys_map_to_r2(monkeypatch):

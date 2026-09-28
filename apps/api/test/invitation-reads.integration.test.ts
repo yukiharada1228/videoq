@@ -1,6 +1,6 @@
 import pg from "pg";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { acceptInvitation, declineInvitation, inviteCourseMembers, previewCourseInvitation } from "../src/features/course-memberships/service";
+import { acceptInvitation, declineInvitation, inviteCourseMembers, previewCourseInvitation, resendInvitation } from "../src/features/course-memberships/service";
 import { hashInvitationToken } from "../src/lib/course-invitations";
 import { listCourseParticipants } from "../src/repositories/course-invitation-repository";
 import type { Bindings } from "../src/types/bindings";
@@ -158,5 +158,31 @@ const now = new Date("2026-09-23T12:00:00.000Z");
     expect((await admin.query("SELECT status FROM video_course_invitations WHERE course_id = 10 ORDER BY id")).rows)
       .toEqual([{ status: "expired" }, { status: "pending" }]);
     expect((await admin.query("SELECT count(*)::int AS count FROM external_tasks")).rows[0].count).toBe(1);
+  });
+
+  it("resends an invitation without waiting for an unrelated owner profile update", async () => {
+    await admin.query("UPDATE video_course_invitations SET expires_at = '2099-01-01' WHERE id = 1");
+    const writer = new pg.Client({ connectionString: env.HYPERDRIVE.connectionString });
+    await writer.connect();
+    try {
+      await writer.query("BEGIN");
+      await writer.query("SELECT id FROM users WHERE id = 'owner' FOR UPDATE");
+      const url = new URL(env.HYPERDRIVE.connectionString);
+      url.searchParams.set("options", `-c search_path=${schema} -c lock_timeout=100ms`);
+      const limited = { HYPERDRIVE: { connectionString: url.toString() } } as Bindings;
+
+      await expect(resendInvitation(limited, 10, 1, "owner", now)).resolves.toEqual({
+        ok: true, delivery_status: "queued",
+      });
+      const [invitation] = await snapshot();
+      expect(invitation.token_hash).not.toBe(await hashInvitationToken("old-token"));
+      expect(invitation.delivery_status).toBe("queued");
+      expect((await admin.query("SELECT kind, payload FROM external_tasks")).rows).toEqual([
+        { kind: "invitation_email", payload: { invitation_id: 1 } },
+      ]);
+    } finally {
+      await writer.query("ROLLBACK");
+      await writer.end();
+    }
   });
 });

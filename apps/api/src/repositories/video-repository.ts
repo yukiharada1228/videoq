@@ -17,6 +17,7 @@ import {
 } from "@videoq/trpc";
 import { type Db, withDb } from "../db/pool";
 import { sqlNumberArray } from "../db/sql-array";
+import { literalContainsPattern } from "../db/sql-like";
 import {
   sceneEmbeddings,
   mcpIdempotencyRecords,
@@ -100,12 +101,6 @@ const ORDER_MAP: Record<string, SQL> = {
   title_desc: desc(videos.title),
 };
 
-// 部分一致検索用に LIKE 特殊文字をエスケープする（ESCAPE '\'）。
-function escapeLike(value: string): string {
-  return value.replace(/([\\%_])/g, "\\$1");
-}
-
-
 // Correlate with outer videos explicitly — ${videos.id} emits bare "id"
 // which is ambiguous once the subquery joins tags (also has id).
 export const videoTagsJson = sql<string>`COALESCE((
@@ -119,7 +114,7 @@ function buildFilterConditions(userId: string, c: VideoListCriteria): SQL {
   const conditions: SQL[] = [eq(videos.userId, userId)];
 
   if (c.keyword) {
-    const pattern = `%${escapeLike(c.keyword)}%`;
+    const pattern = literalContainsPattern(c.keyword);
     conditions.push(
       or(ilike(videos.title, pattern), ilike(videos.description, pattern))!,
     );

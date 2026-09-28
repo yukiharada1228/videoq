@@ -14,9 +14,9 @@ export const linkVariants = cva(
   )
 )
 
-export type LinkExternalLinkIconProps = React.ComponentProps<"svg">
+type LinkExternalLinkIconProps = React.ComponentProps<"svg">
 
-export const LinkExternalLinkIcon = ({
+const LinkExternalLinkIcon = ({
   className,
   ...props
 }: LinkExternalLinkIconProps) => {
@@ -46,7 +46,7 @@ export const LinkExternalLinkIcon = ({
   )
 }
 
-export type LinkProps = React.ComponentPropsWithoutRef<"a"> & {
+type LinkProps = React.ComponentPropsWithoutRef<"a"> & {
   asChild?: boolean
   icon?: LinkExternalLinkIconProps
 }

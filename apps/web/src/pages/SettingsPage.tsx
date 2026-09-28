@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient, type IntegrationApiKey, type IntegrationApiKeyCreateResponse } from '@/lib/api';
 import { Link, useLocale } from '@/lib/i18n';
-import { queryKeys } from '@/lib/queryKeys';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -98,10 +97,7 @@ export default function SettingsPage() {
     };
   }, [apiKeyCopy]);
 
-  const apiKeysQuery = useQuery({
-    queryKey: queryKeys.auth.apiKeys,
-    queryFn: () => apiClient.getIntegrationApiKeys(),
-  });
+  const apiKeysQuery = useQuery(trpc.account.integrationApiKeys.queryOptions());
 
   const searchApiKeyStatusQuery = useQuery(trpc.account.searchApiKeyStatus.queryOptions());
 
@@ -118,10 +114,10 @@ export default function SettingsPage() {
       setApiKeyDialogError(null);
       setApiKeyCopy(null);
       setStatusMessage(null);
-      const filter = { queryKey: queryKeys.auth.apiKeys };
+      const filter = trpc.account.integrationApiKeys.queryFilter();
       await queryClient.cancelQueries(filter);
-      if (queryClient.getQueryData(queryKeys.auth.apiKeys)) {
-        queryClient.setQueryData<IntegrationApiKey[]>(queryKeys.auth.apiKeys, keys => {
+      if (queryClient.getQueryData(trpc.account.integrationApiKeys.queryKey())) {
+        queryClient.setQueryData(trpc.account.integrationApiKeys.queryKey(), keys => {
           if (!keys || keys.some(key => key.id === data.id)) return keys;
           // Cache only list metadata; the secret belongs to the one-time dialog.
           return [{
@@ -153,8 +149,8 @@ export default function SettingsPage() {
       apiClient.revokeIntegrationApiKey(id, config_id),
     onMutate: () => setStatusMessage(null),
     onSuccess: async (_, { id }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.auth.apiKeys });
-      queryClient.setQueryData<IntegrationApiKey[]>(queryKeys.auth.apiKeys, keys => keys?.filter(key => key.id !== id));
+      await queryClient.cancelQueries(trpc.account.integrationApiKeys.queryFilter());
+      queryClient.setQueryData(trpc.account.integrationApiKeys.queryKey(), keys => keys?.filter(key => key.id !== id));
       setPendingRevokeKey(null);
       setStatusMessage({
         tone: 'success',

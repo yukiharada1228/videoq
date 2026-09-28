@@ -22,13 +22,13 @@ describe('chat progress', () => {
     progress = updateChatProgress(progress, { type: 'error', code: 'LLM_PROVIDER_ERROR', message: 'failed' });
     expect(progress.phase).toBe('error');
     expect(progress.searches.map((search) => search.status)).toEqual(['complete', 'interrupted']);
-    expect(updateChatProgress(progress, { type: 'content_chunk', text: 'late' })).toBe(progress);
+    expect(updateChatProgress(progress, { type: 'text_delta', segmentIndex: 0, text: 'late' })).toBe(progress);
   });
 
-  it('finishes searches from older APIs when answer content arrives', () => {
-    let progress = updateChatProgress(createChatProgress(), { type: 'searching', query: '回路' });
-    expect(updateChatProgress(progress, { type: 'content_chunk', text: '' })).toBe(progress);
-    progress = updateChatProgress(progress, { type: 'content_chunk', text: '回答' });
+  it('transitions from search to nonempty answer content and completion', () => {
+    let progress = updateChatProgress(createChatProgress(), { type: 'searching', search_id: 1, query: '回路' });
+    expect(updateChatProgress(progress, { type: 'text_delta', segmentIndex: 0, text: '' })).toBe(progress);
+    progress = updateChatProgress(progress, { type: 'text_delta', segmentIndex: 0, text: '回答' });
     expect(progress.phase).toBe('answering');
     expect(progress.searches[0]).toEqual({ id: 1, query: '回路', status: 'complete' });
     progress = updateChatProgress(progress, { type: 'done', chat_log_id: 1, feedback: null });

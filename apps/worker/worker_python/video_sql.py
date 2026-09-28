@@ -25,6 +25,7 @@ class VideoRow:
     source_type: str
     file_key: str | None
     youtube_video_id: str | None
+    transcript_hash: str | None = None
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,7 @@ def _row_to_video(row: dict[str, Any]) -> VideoRow:
         source_type=row.get("source_type") or "uploaded",
         file_key=file_val if file_val else None,
         youtube_video_id=row.get("youtube_video_id") or None,
+        transcript_hash=row.get("transcript_hash"),
     )
 
 
@@ -53,7 +55,10 @@ def get_video_for_task(
 ) -> VideoRow | None:
     # Transcription and its delivery retries only need metadata. Keep the large
     # existing transcript in PostgreSQL unless the caller needs to index it.
-    transcript_column = "transcript" if include_transcript else "NULL AS transcript"
+    transcript_column = (
+        "transcript" if include_transcript
+        else "NULL AS transcript, md5(COALESCE(transcript, '')) AS transcript_hash"
+    )
     row = conn.execute(
         f"""
         SELECT id, user_id, title, {transcript_column}, status, source_type,
@@ -122,7 +127,7 @@ def reserve_processing_seconds(
                        <> date_trunc('month', now(), 'UTC')
                   THEN 0
                   ELSE used_processing_seconds
-                END + %s <= processing_limit_minutes * 60
+                END <= processing_limit_minutes::bigint * 60 - %s
            )
         RETURNING used_processing_seconds
         """,
@@ -174,13 +179,51 @@ def transition_video_status(
     return cur.rowcount > 0
 
 
-def save_transcript(
-    conn: psycopg.Connection[Any], video_id: int, transcript: str
-) -> None:
-    conn.execute(
-        "UPDATE videos SET transcript = %s WHERE id = %s",
-        (transcript, video_id),
-    )
+def finish_transcription(
+    conn: psycopg.Connection[Any],
+    video: VideoRow,
+    *,
+    transcript: str | None,
+    error_message: str = "",
+) -> str | None:
+    """Finish only the current processing attempt; preserve intervening edits.
+
+    API subtitle edits already enqueue their own reindex. A changed transcript
+    therefore completes without another automatic indexing job, including a
+    deliberate clear. Existing state changes and deletions are left alone.
+    """
+    if video.transcript_hash is None:
+        raise ValueError("Transcription requires the original transcript fingerprint")
+    row = conn.execute(
+        """
+        WITH target AS (
+            SELECT id, status, md5(COALESCE(transcript, '')) AS transcript_hash
+              FROM videos WHERE id = %(video_id)s FOR UPDATE
+        ), saved AS (
+            UPDATE videos
+               SET transcript = CASE
+                     WHEN target.transcript_hash = %(original_hash)s AND %(transcript)s::text IS NOT NULL
+                     THEN %(transcript)s ELSE videos.transcript END,
+                   status = CASE
+                     WHEN target.transcript_hash <> %(original_hash)s THEN 'completed'
+                     WHEN %(transcript)s::text IS NULL THEN 'error'
+                     ELSE 'indexing' END,
+                   error_message = CASE
+                     WHEN target.transcript_hash = %(original_hash)s AND %(transcript)s::text IS NULL
+                     THEN %(error_message)s ELSE '' END
+              FROM target
+             WHERE videos.id = target.id AND target.status = 'processing'
+            RETURNING videos.status
+        )
+        SELECT COALESCE(saved.status, target.status) AS status
+          FROM target LEFT JOIN saved ON true
+        """,
+        {
+            "video_id": video.id, "original_hash": video.transcript_hash,
+            "transcript": transcript, "error_message": error_message,
+        },
+    ).fetchone()
+    return row["status"] if row else None
 
 
 @contextmanager

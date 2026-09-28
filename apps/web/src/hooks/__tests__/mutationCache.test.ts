@@ -6,12 +6,62 @@ import { trpc } from '@/lib/trpc';
 import { useVideoEditing } from '../useVideoEditing';
 import { useTags } from '../useTags';
 import { useAddVideosToCourseMutation, useVideoCourseDetailMutations } from '../useVideoCourseDetailData';
+import { useCreateVideoCourseMutation, useReorderVideoCoursesMutation } from '../useVideoCoursesPageData';
 
 function seedCache(client: QueryClient, keys: QueryKey[]) {
   for (const key of keys) client.setQueryData(key, { cached: true });
 }
 
 describe('mutation cache updates', () => {
+  it.each(['create', 'reorder'] as const)('shows the saved course list when its first read overlaps %s', async operation => {
+    const before = { data: [], meta: { total: 0, limit: 24, offset: 0 } };
+    const after = { data: [{ id: 7, name: 'Saved course' }], meta: { total: 1, limit: 24, offset: 0 } };
+    let finishOldRead!: () => void;
+    const read = vi.fn().mockImplementationOnce(() => new Promise(resolve => {
+      finishOldRead = () => resolve(before);
+    })).mockResolvedValue(after);
+    globalThis.__setTrpcHandler('courses.list', read);
+    const write = vi.fn(() => operation === 'create' ? after.data[0] : { message: 'Reordered' });
+    globalThis.__setTrpcHandler(`courses.${operation}`, write);
+    const { result } = renderHook(() => ({
+      query: useQuery(trpc.courses.list.queryOptions({ limit: 24 })),
+      create: useCreateVideoCourseMutation(),
+      reorder: useReorderVideoCoursesMutation(),
+    }));
+    await waitFor(() => expect(read).toHaveBeenCalledTimes(1));
+    let saving!: Promise<unknown>;
+    act(() => { saving = operation === 'create'
+      ? result.current.create.mutateAsync({ name: 'Saved course' })
+      : result.current.reorder.mutateAsync({ courseIds: [7] }); });
+    await waitFor(() => expect(write).toHaveBeenCalledTimes(1));
+    await act(async () => { finishOldRead(); await saving; });
+    await waitFor(() => expect(result.current.query.data).toEqual(after));
+    expect(read).toHaveBeenCalledTimes(2);
+  });
+
+  it('removes the deleted course cache even if the hook now shows another course', async () => {
+    let finishDelete!: () => void;
+    const remove = vi.fn(() => new Promise<void>(resolve => { finishDelete = resolve; }));
+    globalThis.__setTrpcHandler('courses.delete', remove);
+    const { result, rerender } = renderHook(({ courseId }) => ({
+      client: useQueryClient(),
+      mutations: useVideoCourseDetailMutations({ courseId }),
+    }), { initialProps: { courseId: 7 } });
+    const deletedKey = trpc.courses.get.queryKey({ id: 7 });
+    const currentKey = trpc.courses.get.queryKey({ id: 8 });
+    const listKey = trpc.courses.list.queryKey();
+    seedCache(result.current.client, [deletedKey, currentKey, listKey]);
+    const current = result.current.client.getQueryData(currentKey);
+    let deletion!: Promise<unknown>;
+    act(() => { deletion = result.current.mutations.deleteCourseMutation.mutateAsync(); });
+    await waitFor(() => expect(remove).toHaveBeenCalledWith({ id: 7 }));
+    rerender({ courseId: 8 });
+    await act(async () => { finishDelete(); await deletion; });
+    expect(result.current.client.getQueryData(deletedKey)).toBeUndefined();
+    expect(result.current.client.getQueryData(currentKey)).toEqual(current);
+    expect(result.current.client.getQueryState(currentKey)?.isInvalidated).toBe(false);
+    expect(result.current.client.getQueryState(listKey)?.isInvalidated).toBe(true);
+  });
   it.each(['add', 'remove'] as const)('updates course counts in both list caches after a video %s', async (operation) => {
     const add = vi.fn(() => ({ added_count: 1 }));
     const remove = vi.fn(() => ({ message: 'Removed' }));
@@ -20,7 +70,7 @@ describe('mutation cache updates', () => {
     const { result } = renderHook(() => ({
       client: useQueryClient(),
       add: useAddVideosToCourseMutation(7),
-      mutations: useVideoCourseDetailMutations({ courseId: 7, onDeleteSuccess: vi.fn() }),
+      mutations: useVideoCourseDetailMutations({ courseId: 7 }),
     }));
     const keys = [
       trpc.courses.get.queryKey({ id: 7 }),
@@ -261,7 +311,7 @@ describe('mutation cache updates', () => {
     globalThis.__setTrpcHandler('courses.update', update);
     const { result } = renderHook(() => ({
       client: useQueryClient(),
-      mutations: useVideoCourseDetailMutations({ courseId: 7, onDeleteSuccess: vi.fn() }),
+      mutations: useVideoCourseDetailMutations({ courseId: 7 }),
     }));
     const keys = [
       trpc.courses.get.queryKey({ id: 7 }),

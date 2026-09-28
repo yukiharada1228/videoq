@@ -6,8 +6,8 @@ type RouterOutputs = inferRouterOutputs<AppRouter>;
 export type User = RouterOutputs['account']['me'];
 export type AdminUser = RouterOutputs['admin']['getUser'];
 
-export type ChatMessage = RouterOutputs['chat']['send'];
-export type Citation = NonNullable<ChatMessage['citations']>[number];
+type ChatMessage = RouterOutputs['chat']['send'];
+export type Citation = ChatMessage['answer']['sources'][number];
 export type ChatHistoryItem = RouterOutputs['chat']['history']['data'][number];
 export type ChatAnalytics = RouterOutputs['chat']['analytics'];
 export type EvaluationSummary = RouterOutputs['evaluation']['summary'];
@@ -15,24 +15,16 @@ export type ChatLogEvaluation = RouterOutputs['evaluation']['logs']['data'][numb
 
 export type Video = RouterOutputs['videos']['get'];
 export type VideoList = RouterOutputs['videos']['list']['data'][number];
-export type UploadRequestResponse = RouterOutputs['videos']['requestUpload'];
 
 export type VideoCourse = RouterOutputs['courses']['get'];
 export type VideoInCourse = NonNullable<VideoCourse['videos']>[number];
 
 export type Tag = RouterOutputs['tags']['list']['data'][number];
 
-// Better Auth and raw-transport request/response types are intentionally not
-// part of the tRPC router.
-export interface IntegrationApiKey {
-  id: string;
-  config_id?: string;
-  name: string;
-  access_level: 'all' | 'read_only';
-  prefix: string;
-  last_used_at: string | null;
-  created_at: string;
-}
+export type IntegrationApiKey = RouterOutputs['account']['integrationApiKeys'][number];
+export type AuthorizedOAuthToken = RouterOutputs['account']['connectedApps'][number];
+
+// Better Auth and raw-transport requests/responses remain explicit.
 
 export interface IntegrationApiKeyCreateRequest {
   name: string;
@@ -41,15 +33,6 @@ export interface IntegrationApiKeyCreateRequest {
 
 export interface IntegrationApiKeyCreateResponse extends IntegrationApiKey {
   api_key: string;
-}
-
-export interface AuthorizedOAuthToken {
-  id: string;
-  client_id: string;
-  client_name: string;
-  scope: string;
-  issued_at: string;
-  expires_at: string | null;
 }
 
 export interface SignupRequest {
@@ -61,10 +44,6 @@ export interface SignupRequest {
 
 export interface VerifyEmailRequest {
   token: string;
-}
-
-export interface VerifyEmailResponse {
-  detail?: string;
 }
 
 export interface PasswordResetRequest {
@@ -103,12 +82,6 @@ export type { ChatStreamEvent } from '@videoq/trpc/chat';
 
 export interface VideoUploadRequest {
   file: File;
-  title: string;
-  description?: string;
-}
-
-export interface YoutubeVideoCreateRequest {
-  youtube_url: string;
   title: string;
   description?: string;
 }

@@ -9,12 +9,6 @@ export function mediaLibraryHandlers(
   authenticatedUserId: string | null,
 ): HandlersFor<"tags"> & HandlersFor<"videos"> {
   const userId = () => requireUserId(authenticatedUserId);
-  const updateTag: HandlersFor<"tags">["tags.update"] = async ({ id, name, color }) => {
-    const result = await tagService.updateUserTag(c.env, id, userId(), { name, color });
-    if ("notFound" in result) return rpcError("NOT_FOUND", "Tag not found");
-    if ("error" in result) return rpcError("BAD_REQUEST", result.error ?? "Bad request");
-    return result.tag;
-  };
   return {
     "tags.list": async ({ limit, offset }) => {
       const { count, results } = await tagService.listTags(c.env, userId(), limit, offset);
@@ -30,8 +24,12 @@ export function mediaLibraryHandlers(
       if ("error" in result) return rpcError("BAD_REQUEST", result.error ?? "Bad request");
       return result.tag;
     },
-    "tags.update": updateTag,
-    "tags.replace": updateTag,
+    "tags.update": async ({ id, name, color }) => {
+      const result = await tagService.updateUserTag(c.env, id, userId(), { name, color });
+      if ("notFound" in result) return rpcError("NOT_FOUND", "Tag not found");
+      if ("error" in result) return rpcError("BAD_REQUEST", result.error ?? "Bad request");
+      return result.tag;
+    },
     "tags.delete": async ({ id }) => {
       const result = await tagService.removeTag(c.env, id, userId());
       if ("notFound" in result) return rpcError("NOT_FOUND", "Tag not found");
@@ -112,14 +110,6 @@ export function mediaLibraryHandlers(
           ? Object.values(result.fieldError)[0]?.[0] ?? "Invalid input"
           : "Invalid input");
       }
-      return result.video;
-    },
-    "videos.replace": async ({ id, title, description }) => {
-      const result = await videoService.putUserVideo(c.env, id, userId(), {
-        title,
-        description: description ?? "",
-      });
-      if ("notFound" in result) return rpcError("NOT_FOUND", "Video not found");
       return result.video;
     },
     "videos.delete": async ({ id }) => {

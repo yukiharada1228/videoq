@@ -1,9 +1,11 @@
-import { createAgent, createMiddleware, tool, type ToolRuntime } from "langchain";
-import { HumanMessage, SystemMessage, isAIMessage, type BaseMessage } from "@langchain/core/messages";
+import { createAgent, createMiddleware, providerStrategy, tool, type ToolRuntime } from "langchain";
+import { HumanMessage, SystemMessage, type BaseMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import { createChatModel, toLlmError } from "./chat-model";
 import { deadlineSignal } from "./request-timeout";
-import { LlmProviderError } from "./openai";
+import { assertCompletedAnswer } from "./structured-answer";
+import { validateChatAnswer } from "./chat-citations";
+import { modelAnswerSchema, answerParts, type ChatAnswer, type ChatSource, type ChatContentPart } from "@videoq/trpc/chat";
 import { courseInfoTool, MAX_COURSE_INFO_CALLS } from "./rag-course-info";
 import {
   LLM_REQUEST_TIMEOUT_MS,
@@ -22,19 +24,11 @@ import type { Bindings } from "../types/bindings";
  * 検索は最大 MAX_SCENE_SEARCHES 回。メタ情報だけの回答では検索接続を開かない。
  * 会話履歴は渡さない（system + human の 2 通のみ）。
  */
-export type ChatMessageInput = { role: string; content: string };
+type ChatMessageInput = { role: string; content: string };
 
-/** ChatLog / レスポンスに載る引用（id 付与は presentation 層で行う）。 */
-export type RagCitation = {
-  video_id: number;
-  title: string;
-  start_time: string | null;
-  end_time: string | null;
-};
-
-export type RagContext = {
+export type RagResult = {
   queryText: string;
-  citations: RagCitation[] | null;
+  answer: ChatAnswer;
   retrievedContexts: string[];
 };
 
@@ -78,11 +72,7 @@ export type RagParams = {
 
 const sceneKey = (hit: SceneHit) => `${hit.videoId}|${hit.startTime}|${hit.endTime}`;
 
-/**
- * 複数回の検索結果を 1 本の連番に束ねる。
- * 引用 [N] の N は「その回答で何番目に見つかったシーンか」で、
- * withCitationIds が振る citation id（配列順 + 1）と一致する。
- */
+/** Assign stable source IDs across all searches in one answer. */
 class SceneCollector {
   private readonly order: SceneHit[] = [];
   private readonly seen = new Map<string, number>();
@@ -105,7 +95,7 @@ class SceneCollector {
 }
 
 const formatHit = (hit: SceneHit, index: number) =>
-  `[${index}] ${hit.videoTitle} ${hit.startTime} - ${hit.endTime}\n${hit.content}`;
+  JSON.stringify({ sourceId: index, title: hit.videoTitle, startTime: hit.startTime, endTime: hit.endTime, text: hit.content });
 
 function sceneSearchTool(
   search: SceneSearch,
@@ -126,7 +116,7 @@ function sceneSearchTool(
       const searchId = ++used;
       // custom stream は検索の完了や次のモデルの応答を待たずに UI へ届く。
       runtime.writer?.({ searching: query, searchId } satisfies RagSearchProgress);
-      const hits = await search.search(query, video_ids);
+      const hits = await search.search(query, video_ids ?? undefined);
       runtime.writer?.({
         searchCompleted: { id: searchId, query, count: hits.length },
       } satisfies RagSearchProgress);
@@ -139,11 +129,11 @@ function sceneSearchTool(
         "Search the scenes of the user's video course by meaning and return the closest ones. " +
         "Required before answering definitions, explanations, comparisons, examples, calculations " +
         "or summaries, including short terms and questions that do not explicitly mention the course. " +
-        "For course-wide content, call directly with video_ids omitted. For a specific video or lecture, " +
+        "For course-wide content, call directly with video_ids set to null. For a specific video or lecture, " +
         "first identify it with get_course_info and include its ID in video_ids on every search. " +
         "Pass a natural-language query describing what you need; it does not have to be the " +
-        "user's question verbatim. Optionally select video_ids from get_course_info; omitting " +
-        "them searches the whole current course. Scenes come back numbered as [N] for inline citation.",
+        "user's question verbatim. Optionally select video_ids from get_course_info; using " +
+        "null searches the whole current course. Each scene has a sourceId for the answer segments.",
       schema: z.object({
         query: z
           .string()
@@ -151,8 +141,8 @@ function sceneSearchTool(
           .min(1)
           .max(2000)
           .describe("What to look for, in the same language as the course material."),
-        video_ids: z.array(z.number().int().positive().safe()).min(1).max(50).optional()
-          .describe("IDs of videos in the current course to search; omit for the whole course."),
+        video_ids: z.array(z.number().int().positive().safe()).min(1).max(50).nullable()
+          .describe("IDs of videos in the current course to search; null for the whole course."),
       }).strict(),
     },
   );
@@ -180,6 +170,7 @@ function prepareAgent(
   // 素の文字列しか受け付けない OpenAI 互換ゲートウェイでも動くようにする。
   const agent = createAgent({
     model: createChatModel(env, { maxTokens: MAX_TOKENS, timeoutMs: params.timeoutMs }),
+    responseFormat: providerStrategy(modelAnswerSchema),
     tools: [
       sceneSearchTool(params.search, collector, params.scope.videoIds ?? []),
       ...(params.scope.courseId != null ? [courseInfoTool(env, {
@@ -205,26 +196,25 @@ function prepareAgent(
   return {
     agent,
     input: { messages: [new SystemMessage(systemPrompt), new HumanMessage(params.queryText)] },
-    context: () => toContext(params.queryText, collector),
+    result: (answer: unknown) => toResult(params.queryText, collector, answer),
   };
 }
 
-function toContext(
+function toResult(
   queryText: string,
   collector: SceneCollector,
-): RagContext {
+  answer: unknown,
+): RagResult {
   const hits = collector.hits;
   return {
     queryText,
-    citations:
-      hits.length === 0
-        ? null
-        : hits.map((hit) => ({
-            video_id: hit.videoId,
-            title: hit.videoTitle,
-            start_time: hit.startTime,
-            end_time: hit.endTime,
-          })),
+    answer: validateChatAnswer(answer, hits.map((hit, index) => ({
+      id: index + 1,
+      video_id: hit.videoId,
+      title: hit.videoTitle,
+      start_time: hit.startTime,
+      end_time: hit.endTime,
+    }))),
     retrievedContexts: [
       ...hits.map((hit) => hit.content).filter((text) => text !== ""),
       ...collector.courseContexts,
@@ -264,41 +254,33 @@ function lazySceneSearch(env: Bindings, params: RagParams, signal: AbortSignal):
   };
 }
 
-const emptyContext = (queryText: string): RagContext => ({
-  queryText,
-  citations: null,
-  retrievedContexts: [],
-});
-
 export async function runRag(
   env: Bindings,
   params: RagParams,
-): Promise<RagContext & { content: string }> {
+): Promise<RagResult> {
   const queryText = extractLatestUserQuery(params.messages);
 
   if (!hasAgentContext(params)) {
     const systemPrompt = buildNoCourseSystemPrompt(params.locale);
-    return { ...emptyContext(queryText), content: await generateReply(env, systemPrompt, queryText) };
+    return { queryText, retrievedContexts: [], answer: validateChatAnswer(await generateReply(env, systemPrompt, queryText), []) };
   }
 
   const lifecycle = new AbortController();
   const requestSignal = deadlineSignal(LLM_REQUEST_TIMEOUT_MS, lifecycle.signal);
   const search = lazySceneSearch(env, params, requestSignal);
   try {
-    const { agent, input, context } = prepareAgent(env, {
+    const prepared = prepareAgent(env, {
       search,
       queryText,
       timeoutMs: LLM_REQUEST_TIMEOUT_MS,
       scope: params,
     });
-    const result = await agent.invoke(input, {
+    const result = await prepared.agent.invoke(prepared.input, {
       recursionLimit: RECURSION_LIMIT,
       signal: requestSignal,
     });
-    return {
-      ...context(),
-      content: finalText(result.messages),
-    };
+    assertCompletedAnswer(result.messages.at(-1));
+    return prepared.result(result.structuredResponse);
   } catch (error) {
     throw toLlmError(error);
   } finally {
@@ -306,16 +288,6 @@ export async function runRag(
     lifecycle.abort();
     await search.close();
   }
-}
-
-/** 完了した回答だけを返す。空の最終応答をツール呼び出し前の前置きで補わない。 */
-function finalText(messages: readonly BaseMessage[]): string {
-  const message = messages.at(-1);
-  if (!message || !isAIMessage(message) || message.tool_calls?.length ||
-      message.invalid_tool_calls?.length || !message.text.trim()) {
-    throw new LlmProviderError("OpenAI did not return a final answer.");
-  }
-  return message.text;
 }
 
 const searchProgressSchema = z.union([
@@ -327,9 +299,10 @@ const searchProgressSchema = z.union([
 type RagSearchProgress = z.infer<typeof searchProgressSchema>;
 
 export type RagStreamChunk =
-  | { text: string; citations?: RagCitation[] }
+  | { part: ChatContentPart }
+  | { source: ChatSource }
   | RagSearchProgress
-  | { final: RagContext };
+  | { final: RagResult };
 
 /** `signal` はクライアント切断時に上流 LLM も止めるためのもの（コスト保護）。 */
 export async function* streamRag(
@@ -341,10 +314,11 @@ export async function* streamRag(
 
   if (!hasAgentContext(params)) {
     const systemPrompt = buildNoCourseSystemPrompt(params.locale);
-    for await (const text of streamReply(env, systemPrompt, queryText, signal)) {
-      yield { text };
+    for await (const chunk of streamReply(env, systemPrompt, queryText, signal)) {
+      if ("answer" in chunk) {
+        yield { final: { queryText, retrievedContexts: [], answer: validateChatAnswer(chunk.answer, []) } };
+      } else yield { part: { type: "text", ...chunk } };
     }
-    yield { final: emptyContext(queryText) };
     return;
   }
 
@@ -355,14 +329,14 @@ export async function* streamRag(
   ]);
   const search = lazySceneSearch(env, params, requestSignal);
   try {
-    const { agent, input, context } = prepareAgent(env, {
+    const prepared = prepareAgent(env, {
       search,
       queryText,
       timeoutMs: LLM_STREAM_TIMEOUT_MS,
       scope: params,
     });
 
-    const stream = await agent.stream(input, {
+    const stream = await prepared.agent.stream(prepared.input, {
       streamMode: ["values", "custom"],
       signal: requestSignal,
       recursionLimit: RECURSION_LIMIT,
@@ -371,20 +345,23 @@ export async function* streamRag(
     // 本文はグラフ完了まで保留し、非ストリーミングと同じ最終応答を使う。
     // モデルのSSE受信・トークン再結合は不要で、検索の進捗だけ即時通知する。
     let messages: readonly BaseMessage[] = [];
+    let structuredResponse: unknown;
     for await (const [mode, chunk] of stream) {
       if (mode === "custom") {
         const progress = searchProgressSchema.safeParse(chunk);
         if (progress.success) yield progress.data;
       } else {
         messages = chunk.messages;
+        structuredResponse = chunk.structuredResponse;
       }
     }
     requestSignal.throwIfAborted();
 
-    const text = finalText(messages);
-    const final = context();
-    // 本文の描画開始時点で [N] を時刻へ解決できるよう、引用も一緒に渡す。
-    yield { text, ...(final.citations?.length ? { citations: final.citations } : {}) };
+    assertCompletedAnswer(messages.at(-1));
+    const final = prepared.result(structuredResponse);
+    const { answer } = final;
+    for (const source of answer.sources) yield { source };
+    for (const part of answerParts(answer)) yield { part };
     yield { final };
   } catch (error) {
     throw toLlmError(error);

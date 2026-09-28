@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
 import { streamSSE } from "hono/streaming";
 import type { ZodError } from "zod";
+import { parseResourceId } from "@videoq/trpc/schema";
 import {
   requireAuth,
   resolveAuth,
@@ -12,7 +13,6 @@ import { toErrorBody } from "../../shared/errors";
 import { clientIp, enforceThrottles, throttledResponse } from "../../lib/rate-limit";
 import type { AppEnv } from "../../types/bindings";
 import { chatMessageBodySchema } from "./schemas";
-import { CHAT_STREAM_FORMAT, CHAT_STREAM_FORMAT_QUERY } from "@videoq/trpc/chat";
 import { limitChatRequestBody } from "./body-limit";
 import * as chatService from "./service";
 import * as messageService from "./message-service";
@@ -76,8 +76,8 @@ chatRoutes.get(
   "/courses/:courseId/history.csv",
   requireAuth(sessionMethod),
   async (c) => {
-    const courseId = Number(c.req.param("courseId"));
-    if (!Number.isInteger(courseId) || courseId <= 0) {
+    const courseId = parseResourceId(c.req.param("courseId"));
+    if (courseId === null) {
       return validationResponse(c, "courseId must be a positive integer");
     }
     const result = await chatService.exportHistoryCsv(c.env, courseId, c.var.userId!);
@@ -110,7 +110,6 @@ chatRoutes.post(
       shareSlug,
       locale: messageService.requestLocaleFromHeader(c.req.header("Accept-Language")),
       clientSignal: AbortSignal.any([c.req.raw.signal, connection.signal]),
-      streamFormat: c.req.query(CHAT_STREAM_FORMAT_QUERY) === CHAT_STREAM_FORMAT ? CHAT_STREAM_FORMAT : undefined,
     });
     c.header("Cache-Control", "no-cache");
     c.header("Content-Encoding", "Identity");

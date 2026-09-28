@@ -15,7 +15,7 @@ import { MCP_READ_SCOPE, MCP_WRITE_SCOPE } from "../lib/mcp-auth";
  *   - invalid: 資格情報はあるが不正 → 401 で打ち切り
  *   - ok     : 認証成功（userId 確定）
  */
-export type AuthVia = "apikey" | "session" | "oauth";
+type AuthVia = "apikey" | "session" | "oauth";
 
 export type AuthOutcome =
   | { kind: "ok"; userId: string; via: AuthVia; accessLevel?: string }

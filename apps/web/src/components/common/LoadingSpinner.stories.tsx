@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect } from 'storybook/test';
+import i18n from '@/i18n/config';
 import { LoadingSpinner } from './LoadingSpinner';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { authFixtures } from '../../../.storybook/fixtures/auth';
@@ -11,7 +12,7 @@ const meta = {
   args: { message: '動画を読み込み中…' },
   decorators: [(Story, { args }) => args.fullScreen ? <Story /> : <div className="max-w-xl"><Story /></div>],
   async play({ canvas, args }) {
-    const indicator = canvas.getByRole('progressbar', { name: args.message ?? 'Loading' });
+    const indicator = canvas.getByRole('progressbar', { name: args.message ?? i18n.t('common.messages.loading') });
     await expect(indicator).toBeVisible();
     if (args.fullScreen) {
       const bounds = indicator.getBoundingClientRect();

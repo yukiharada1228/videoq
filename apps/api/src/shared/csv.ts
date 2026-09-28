@@ -4,11 +4,11 @@ const NEEDS_QUOTE = /[",\r\n]/;
 const SPREADSHEET_FORMULA_PREFIX = /^(?:[=+\-@\t\r\n]|\s+[=+\-@])/u;
 
 /** Prevent spreadsheet programs from evaluating untrusted cells as formulas. */
-export function neutralizeSpreadsheetFormula(value: string): string {
+function neutralizeSpreadsheetFormula(value: string): string {
   return SPREADSHEET_FORMULA_PREFIX.test(value) ? `'${value}` : value;
 }
 
-export function csvField(value: string): string {
+function csvField(value: string): string {
   const safeValue = neutralizeSpreadsheetFormula(value);
   return NEEDS_QUOTE.test(safeValue)
     ? `"${safeValue.replaceAll('"', '""')}"`
@@ -31,7 +31,7 @@ const CHAT_HISTORY_HEADER = csvRow([
   "feedback",
 ]);
 
-export function chatHistoryCsvRow(row: ChatHistoryExportRow): string {
+function chatHistoryCsvRow(row: ChatHistoryExportRow): string {
   return csvRow([
     row.created_at,
     row.asked_by?.user_id ?? "",

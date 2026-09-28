@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+import os
 from unittest.mock import MagicMock
+
+import psycopg
+import pytest
+from psycopg.rows import dict_row
 
 from worker_python.video_sql import reserve_processing_seconds
 
@@ -53,3 +58,44 @@ def test_processing_reservation_rejects_without_marking_video() -> None:
     assert result.allowed is False
     assert result.limit_seconds == 60
     assert conn.execute.call_count == 3
+
+
+@pytest.mark.parametrize("limit,used,seconds,allowed", [
+    (2_147_483_647, 0, 60, True),
+    (1, 2_147_483_647, 60, False),
+    (1, 30, 30, True),
+    (1, 30, 31, False),
+    (0, 0, 1, False),
+    (None, 0, 60, True),
+])
+def test_processing_quota_arithmetic_on_postgres(limit, used, seconds, allowed):
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        pytest.skip("DATABASE_URL is required for PostgreSQL integration tests")
+    with psycopg.connect(database_url, row_factory=dict_row) as conn:
+        conn.execute("""
+            CREATE TEMP TABLE users (
+                id text PRIMARY KEY, processing_limit_minutes integer,
+                used_processing_seconds integer, used_ai_answers integer DEFAULT 0,
+                usage_period_start timestamptz DEFAULT now(),
+                is_over_quota boolean DEFAULT false
+            );
+            CREATE TEMP TABLE videos (
+                id bigint PRIMARY KEY, user_id text, processing_seconds integer DEFAULT 0
+            );
+            INSERT INTO videos (id, user_id) VALUES (10, 'owner');
+        """)
+        conn.execute("INSERT INTO users (id, processing_limit_minutes, used_processing_seconds) VALUES ('owner', %s, %s)",
+                     (limit, used))
+
+        result = reserve_processing_seconds(conn, 10, seconds)
+
+        assert result.allowed is allowed
+        if not allowed:
+            assert result.limit_seconds == limit * 60
+        assert conn.execute("SELECT used_processing_seconds FROM users").fetchone()["used_processing_seconds"] == (
+            used + seconds if allowed else used
+        )
+        assert conn.execute("SELECT processing_seconds FROM videos").fetchone()["processing_seconds"] == (
+            seconds if allowed else 0
+        )

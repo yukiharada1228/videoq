@@ -4,6 +4,7 @@ import { observable } from '@trpc/server/observable'
 import type { AppRouter } from '@videoq/trpc'
 import { TRPC_MAX_BATCH_SIZE } from '@videoq/trpc/schema'
 import { API_URL } from '@/lib/apiConfig'
+import i18n from '@/i18n/config'
 import { appQueryClient } from './queryClient'
 
 export const TRPC_UNAUTHORIZED_EVENT = 'videoq:trpc-unauthorized'
@@ -58,6 +59,7 @@ export function createAppTrpcClient(settings: AppTrpcClientOptions = {}) {
       httpBatchLink({
         url: `${baseUrl}/trpc`,
         maxItems: TRPC_MAX_BATCH_SIZE,
+        headers: () => ({ 'Accept-Language': i18n.language }),
         async fetch(url, requestInit) {
           const response = await fetchFn(url, { ...requestInit, credentials: 'include' })
           // A proxy may return a 401 without a valid tRPC JSON body.

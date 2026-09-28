@@ -52,7 +52,7 @@ const BreadcrumbList = React.forwardRef<
 })
 BreadcrumbList.displayName = "BreadcrumbList"
 
-export type BreadcrumbItemProps = React.ComponentPropsWithoutRef<"span"> & {
+type BreadcrumbItemProps = React.ComponentPropsWithoutRef<"span"> & {
   isCurrent?: boolean
 }
 
@@ -99,7 +99,7 @@ const BreadcrumbItem = React.forwardRef<HTMLSpanElement, BreadcrumbItemProps>(
 )
 BreadcrumbItem.displayName = "BreadcrumbItem"
 
-export const breadcrumbLinkStyle = `
+const breadcrumbLinkStyle = `
   text-blue-1000 text-oln-16N-100 underline underline-offset-[calc(3/16*1rem)]
   hover:text-blue-900 hover:decoration-[calc(3/16*1rem)]
   active:text-orange-800 active:decoration-1
@@ -108,7 +108,7 @@ export const breadcrumbLinkStyle = `
 
 const breadcrumbLinkVariants = cva(breadcrumbLinkStyle)
 
-export type BreadcrumbLinkProps = React.ComponentPropsWithoutRef<"a"> & {
+type BreadcrumbLinkProps = React.ComponentPropsWithoutRef<"a"> & {
   asChild?: boolean
 }
 
@@ -129,12 +129,4 @@ const BreadcrumbLink = React.forwardRef<HTMLAnchorElement, BreadcrumbLinkProps>(
   }
 )
 BreadcrumbLink.displayName = "BreadcrumbLink"
-
-export {
-  Breadcrumbs,
-  BreadcrumbsLabel,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  breadcrumbLinkVariants,
-}
+export { Breadcrumbs, BreadcrumbsLabel, BreadcrumbList, BreadcrumbItem, BreadcrumbLink }

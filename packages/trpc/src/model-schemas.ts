@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { videoListItemSchema, videoSchema } from "./schema";
+import { chatAnswerSchema, chatSourceSchema } from "./chat-answer";
 
 export const paginationMetaSchema = z.object({
   total: z.number(),
@@ -64,20 +65,13 @@ export const billingPlanSchema = z.object({
   }),
 });
 
-export const citationSchema = z.object({
-  id: z.number(),
-  video_id: z.number(),
-  title: z.string(),
-  start_time: z.string().nullable(),
-  end_time: z.string().nullable(),
-});
+export const citationSchema = chatSourceSchema;
 
 export const chatFeedbackSchema = z.enum(["good", "bad"]).nullable();
 
 export const chatMessageSchema = z.object({
-  role: z.enum(["user", "assistant"]),
-  content: z.string(),
-  citations: z.array(citationSchema).optional(),
+  role: z.literal("assistant"),
+  answer: chatAnswerSchema,
   chat_log_id: z.number().optional(),
   feedback: chatFeedbackSchema.optional(),
 });
@@ -97,8 +91,7 @@ export const chatHistoryItemSchema = z.object({
   course: z.number(),
   asked_by: z.object({ user_id: z.string(), username: z.string(), email: z.string() }).nullable(),
   question: z.string(),
-  answer: z.string(),
-  citations: z.array(citationSchema).optional(),
+  answer: chatAnswerSchema,
   is_shared_origin: z.boolean(),
   feedback: chatFeedbackSchema.optional(),
   created_at: z.string(),
@@ -159,7 +152,7 @@ export const courseSchema = courseListItemSchema.extend({
   access_role: z.enum(["owner", "member", "public"]).optional(),
 });
 
-export const courseInvitationStatusSchema = z.enum(["pending", "accepted", "declined", "expired", "revoked"]);
+const courseInvitationStatusSchema = z.enum(["pending", "accepted", "declined", "expired", "revoked"]);
 export const courseInvitationDeliveryStatusSchema = z.enum(["queued", "sent", "failed"]);
 
 export const courseInviteRecipientResultSchema = z.object({
@@ -179,7 +172,7 @@ export const courseInvitationListItemSchema = z.object({
   send_attempts: z.number(),
 });
 
-export const courseUserMemberSchema = z.object({
+const courseUserMemberSchema = z.object({
   user_id: z.string(),
   username: z.string(),
   email: z.string(),

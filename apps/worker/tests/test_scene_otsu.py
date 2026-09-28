@@ -87,7 +87,7 @@ def test_transcription_parses_captions_once_and_retains_scene_counts(
     monkeypatch.setattr(transcription, "_transcribe_youtube", lambda *_: (source, 2))
     monkeypatch.setattr(transcription, "_transcribe_uploaded", lambda *_: source)
     monkeypatch.setattr(
-        "worker_python.pipeline.scene_otsu.splitter.create_embedder",
+        "worker_python.pipeline.scene_otsu.splitter.SceneEmbedder",
         lambda **_: literal_embedder,
     )
     video = VideoRow(
@@ -111,7 +111,7 @@ def test_transcription_parses_captions_once_and_retains_scene_counts(
 
 def test_scene_count_excludes_whitespace_only_chunks(monkeypatch, literal_embedder, caplog) -> None:
     monkeypatch.setattr(
-        "worker_python.pipeline.scene_otsu.splitter.create_embedder",
+        "worker_python.pipeline.scene_otsu.splitter.SceneEmbedder",
         lambda **_: literal_embedder,
     )
     caplog.set_level("INFO", logger="worker_python.pipeline.scene_otsu")
@@ -144,7 +144,7 @@ def test_process_preserves_unicode_and_literal_token_markers(
     assert all(left.end_sec == right.start_sec for left, right in zip(scenes, scenes[1:]))
     assert all(scene.start_sec < scene.end_sec for scene in scenes)
     literal_embedder.get_embeddings.assert_not_called()
-    literal_embedder.encoding.encode_ordinary.assert_called_once_with(text)
+    assert literal_embedder.encoding.encode_ordinary.call_args_list.count(call(text)) == 1
     for scene in scenes:
         assert len(literal_embedder.encoding.encode_ordinary(scene.text)) <= budget
 
@@ -173,7 +173,7 @@ def test_semantic_split_reuses_long_cue_scenes_in_the_correct_position(literal_e
     assert [(scene.start_sec, scene.end_sec) for scene in scenes] == [
         (0, 1), (1, 1.2), (1.2, 1.4), (1.4, 1.6), (1.6, 1.8), (1.8, 2), (2, 3),
     ]
-    assert literal_embedder.encoding.encode_ordinary.call_args_list == [call(text) for text in texts]
+    assert all(literal_embedder.encoding.encode_ordinary.call_args_list.count(call(text)) == 1 for text in texts)
     literal_embedder.get_embeddings.assert_called_once_with(texts)
 
 
@@ -267,7 +267,7 @@ def test_process_single_cue_needs_no_embeddings(word_count: int) -> None:
     texts = [block.split("\n", 2)[2] for block in out.strip().split("\n\n")]
     assert " ".join(texts).split() == words
     embedder.get_embeddings.assert_not_called()
-    embedder.encoding.encode_ordinary.assert_called_once_with(" ".join(words))
+    assert embedder.encoding.encode_ordinary.call_args_list.count(call(" ".join(words))) == 1
 
 
 @pytest.mark.parametrize("cue_count", [2, 4])
@@ -310,6 +310,63 @@ def test_two_cues_split_without_embeddings_and_preserve_chunks(literal_embedder,
     literal_embedder.get_embeddings.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    ("texts", "budget", "scene_count"),
+    [
+        (["abc", "def"], 6, 2),
+        (["abc", "def"], 7, 1),
+        ([letter * 128 for letter in "abcd"], 512, 2),
+    ],
+)
+def test_merged_scenes_count_joining_spaces_in_the_token_budget(
+    literal_embedder, texts, budget, scene_count
+) -> None:
+    literal_embedder.get_embeddings = MagicMock(return_value=np.eye(len(texts)))
+    source = "\n\n".join(
+        f"{index + 1}\n{format_srt_time(index)} --> {format_srt_time(index + 1)}\n{text}"
+        for index, text in enumerate(texts)
+    )
+
+    output = SceneSplitter(embedder=literal_embedder).process(source, max_tokens=budget)
+    scenes = parse_srt_scenes(output)
+
+    assert len(scenes) == scene_count
+    assert " ".join(scene.text for scene in scenes) == " ".join(texts)
+    assert all(len(literal_embedder.encoding.encode_ordinary(scene.text)) <= budget for scene in scenes)
+    assert scenes[0].start_sec == 0
+    assert scenes[-1].end_sec == len(texts)
+    assert all(left.end_sec == right.start_sec for left, right in zip(scenes, scenes[1:]))
+    if len(texts) == 2:
+        literal_embedder.get_embeddings.assert_not_called()
+    else:
+        literal_embedder.get_embeddings.assert_called_once_with(texts)
+
+
+@pytest.mark.parametrize(("budget", "words"), [(3, 12), (512, 1200)])
+def test_long_cue_budget_counts_the_text_after_srt_whitespace_normalization(budget, words) -> None:
+    # A leading-space token is shorter than its stripped text, as with real BPE
+    # vocabularies. This small real tokenizer keeps the regression offline.
+    encoding = tiktoken.Encoding(
+        name="leading-space-test",
+        pat_str=r" ?[a-z]+|\s+|[^a-z\s]+",
+        mergeable_ranks={**{bytes([value]): value for value in range(256)}, b" a": 256, b" aa": 257},
+        special_tokens={},
+    )
+    embedder = MagicMock()
+    embedder.encoding = encoding
+    text = " ".join(["aa"] * words)
+    source = f"1\n00:00:00,000 --> 00:20:00,000\n{text}\n"
+
+    scenes = parse_srt_scenes(SceneSplitter(embedder=embedder).process(source, max_tokens=budget))
+
+    assert " ".join(scene.text for scene in scenes) == text
+    assert all(len(encoding.encode_ordinary(scene.text)) <= budget for scene in scenes)
+    assert scenes[0].start_sec == 0
+    assert scenes[-1].end_sec == 1200
+    assert all(left.end_sec == right.start_sec for left, right in zip(scenes, scenes[1:]))
+    embedder.get_embeddings.assert_not_called()
+
+
 def test_apply_scene_splitting_degrades_on_failure(monkeypatch) -> None:
     def boom(*_a, **_k):
         raise RuntimeError("embed down")
@@ -325,7 +382,7 @@ def test_apply_scene_splitting_degrades_on_failure(monkeypatch) -> None:
 @pytest.mark.parametrize("source", ["", " \r\n ", "not a subtitle"])
 def test_apply_scene_splitting_with_no_valid_cues(monkeypatch, literal_embedder, source) -> None:
     monkeypatch.setattr(
-        "worker_python.pipeline.scene_otsu.splitter.create_embedder",
+        "worker_python.pipeline.scene_otsu.splitter.SceneEmbedder",
         lambda **_: literal_embedder,
     )
     assert apply_scene_splitting(source) == ""

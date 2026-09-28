@@ -32,7 +32,7 @@ export const THROTTLE_RATES = {
   mcp_write_user: { limit: 120, periodSec: 3600 },
 } as const;
 
-export type ThrottleScope = keyof typeof THROTTLE_RATES;
+type ThrottleScope = keyof typeof THROTTLE_RATES;
 
 export type ThrottleCheck = {
   scope: ThrottleScope;
@@ -44,7 +44,7 @@ export type ThrottleCheck = {
 
 export type ConsumeResult = { allowed: boolean; retryAfterSec: number };
 
-export type RateLimitSnapshot = { count: number; lastRequestMs: number };
+type RateLimitSnapshot = { count: number; lastRequestMs: number };
 
 export type RateLimitBackend = {
   consume(

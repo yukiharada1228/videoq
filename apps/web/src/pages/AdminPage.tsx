@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
+import { adminInputSchemas } from '@videoq/trpc/admin';
 import { useAuth } from '@/hooks/useAuth';
 import { useI18nNavigate } from '@/lib/i18n';
 import type { AdminUser } from '@/lib/api';
 import { ApiError, getApiError } from '@/lib/api-error';
 import { appTrpcClient, trpc } from '@/lib/trpc';
+import { refreshQuery } from '@/lib/cacheInvalidation';
 import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
@@ -38,24 +40,19 @@ import {
 const SECTION_CLASS = 'border-t border-solid-gray-420 pt-8';
 const PAGE_SIZE = 20;
 
-function nullableNumberInput(value: string): number | null | undefined {
-  const trimmed = value.trim();
-  if (trimmed === '') return null;
-  const n = Number(trimmed);
-  if (!Number.isFinite(n)) return undefined;
-  return n;
-}
+const quotaFormSchema = adminInputSchemas['admin.patchQuota']
+  .omit({ id: true, quota_source: true }).required();
+const usageFormSchema = adminInputSchemas['admin.patchUsage']
+  .omit({ id: true, usage_period_start: true }).required();
+const QUOTA_ERRORS = {
+  max_video_upload_size_mb: 'admin.users.errors.invalidUploadMb',
+  storage_limit_gb: 'admin.users.errors.invalidStorageGb',
+  processing_limit_minutes: 'admin.users.errors.invalidProcessingMinutes',
+  ai_answers_limit: 'admin.users.errors.invalidAiLimit',
+} as const;
 
-function requiredPositiveInt(value: string): number | undefined {
-  const n = Number(value.trim());
-  if (!Number.isInteger(n) || n <= 0) return undefined;
-  return n;
-}
-
-function nonNegativeInt(value: string): number | undefined {
-  const n = Number(value.trim());
-  if (!Number.isInteger(n) || n < 0) return undefined;
-  return n;
+function numberInput(value: string): number | null {
+  return value.trim() === '' ? null : Number(value);
 }
 
 function changedFields<K extends keyof AdminUser>(
@@ -142,41 +139,28 @@ export default function AdminPage() {
     mutationFn: async () => {
       if (!selectedUser) throw new Error('No user selected');
 
-      const maxMb = requiredPositiveInt(maxUploadMb);
-      if (maxMb == null) throw new ApiError(t('admin.users.errors.invalidUploadMb'), 'VALIDATION');
-
-      const storageGb = nullableNumberInput(storageLimitGb);
-      if (storageGb === undefined) {
-        throw new ApiError(t('admin.users.errors.invalidStorageGb'), 'VALIDATION');
+      const quotaInput = quotaFormSchema.safeParse({
+        max_video_upload_size_mb: numberInput(maxUploadMb),
+        storage_limit_gb: numberInput(storageLimitGb),
+        processing_limit_minutes: numberInput(processingLimitMinutes),
+        ai_answers_limit: numberInput(aiAnswersLimit),
+      });
+      if (!quotaInput.success) {
+        const field = quotaInput.error.issues[0].path[0] as keyof typeof QUOTA_ERRORS;
+        throw new ApiError(t(QUOTA_ERRORS[field]), 'VALIDATION');
       }
-      const processingMinutes = nullableNumberInput(processingLimitMinutes);
-      if (processingMinutes === undefined) {
-        throw new ApiError(t('admin.users.errors.invalidProcessingMinutes'), 'VALIDATION');
-      }
-      const aiLimit = nullableNumberInput(aiAnswersLimit);
-      if (aiLimit === undefined) {
-        throw new ApiError(t('admin.users.errors.invalidAiLimit'), 'VALIDATION');
-      }
-
-      const usedStorage = nonNegativeInt(usedStorageBytes);
-      const usedProcessing = nonNegativeInt(usedProcessingSeconds);
-      const usedAi = nonNegativeInt(usedAiAnswers);
-      if (usedStorage == null || usedProcessing == null || usedAi == null) {
+      const usageInput = usageFormSchema.safeParse({
+        used_storage_bytes: numberInput(usedStorageBytes),
+        used_processing_seconds: numberInput(usedProcessingSeconds),
+        used_ai_answers: numberInput(usedAiAnswers),
+        is_over_quota: isOverQuota,
+      });
+      if (!usageInput.success) {
         throw new ApiError(t('admin.users.errors.invalidUsage'), 'VALIDATION');
       }
 
-      const quota = changedFields(selectedUser, {
-        max_video_upload_size_mb: maxMb,
-        storage_limit_gb: storageGb,
-        processing_limit_minutes: processingMinutes,
-        ai_answers_limit: aiLimit,
-      });
-      const usage = changedFields(selectedUser, {
-        used_storage_bytes: usedStorage,
-        used_processing_seconds: usedProcessing,
-        used_ai_answers: usedAi,
-        is_over_quota: isOverQuota,
-      });
+      const quota = changedFields(selectedUser, quotaInput.data);
+      const usage = changedFields(selectedUser, usageInput.data);
       const flags = changedFields(selectedUser, {
         is_active: isActive,
         is_staff: isStaff,
@@ -199,7 +183,7 @@ export default function AdminPage() {
           setSelectedUser(current => current?.id === id ? { ...current, ...patch } : current);
         }
       } finally {
-        await queryClient.invalidateQueries(trpc.admin.listUsers.pathFilter());
+        await refreshQuery(queryClient, trpc.admin.listUsers.pathFilter());
       }
     },
     onSuccess: () => {
@@ -243,7 +227,7 @@ export default function AdminPage() {
       setIsDeleteOpen(false);
       setUserToDelete(null);
       setPendingDeleteIds((prev) => new Set(prev).add(target.id));
-      await queryClient.invalidateQueries(trpc.admin.listUsers.pathFilter());
+      await refreshQuery(queryClient, trpc.admin.listUsers.pathFilter());
     },
     onError: (error) => {
       const message =

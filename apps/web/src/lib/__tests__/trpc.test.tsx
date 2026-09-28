@@ -6,6 +6,7 @@ import { TRPCClientError } from '@trpc/client';
 import { ApiError, getApiError } from '../api-error';
 import { createAppQueryClient } from '../queryClient';
 import { createAppTrpcClient } from '../trpc';
+import i18n from '@/i18n/config';
 
 // Exercise our actual Provider and transport, without the suite's mock tRPC wrapper.
 const { act, renderHook, waitFor } = await vi.importActual<typeof import('@testing-library/react')>('@testing-library/react');
@@ -30,6 +31,25 @@ function batchResponse(results: unknown[], status: number): Response {
 }
 
 describe('tRPC error handling', () => {
+  it('uses the current UI language even after the client has been created', async () => {
+    const fetchFn = vi.fn<typeof fetch>(async () =>
+      batchResponse([{ result: { data: [] } }], 200),
+    );
+    const client = createAppTrpcClient({ baseUrl: 'https://example.test/api', fetchFn });
+    const originalLanguage = i18n.language;
+    try {
+      for (const language of ['en', 'ja']) {
+        await i18n.changeLanguage(language);
+        await client.chat.send.mutate({ messages: [{ role: 'user', content: 'hello' }] });
+        const request = fetchFn.mock.calls.at(-1)?.[1];
+        expect(new Headers(request?.headers).get('Accept-Language')).toBe(language);
+        expect(new Headers(request?.headers).get('Content-Type')).toBe('application/json');
+      }
+    } finally {
+      await i18n.changeLanguage(originalLanguage);
+    }
+  });
+
   it('handles unauthorized procedures in a mixed batch once per response', async () => {
     const onUnauthorized = vi.fn();
     const fetchFn = vi.fn(async () => batchResponse([

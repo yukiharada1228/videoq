@@ -1,9 +1,9 @@
 import { normalizeInvitationEmail } from "@videoq/trpc/course-invitations";
 import { sha256Hex } from "../shared/crypto";
 
-export const COURSE_INVITATION_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
-export const COURSE_INVITATION_HARD_BATCH_LIMIT = 100;
-export const DEFAULT_COURSE_INVITATION_BATCH_LIMIT = 50;
+const COURSE_INVITATION_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
+const COURSE_INVITATION_HARD_BATCH_LIMIT = 100;
+const DEFAULT_COURSE_INVITATION_BATCH_LIMIT = 50;
 
 export type InvitationStatus =
   | "pending"

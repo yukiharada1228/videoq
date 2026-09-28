@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 
 import { apiClient, type AuthorizedOAuthToken } from '@/lib/api';
-import { queryKeys } from '@/lib/queryKeys';
+import { trpc } from '@/lib/trpc';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
@@ -13,28 +13,27 @@ import { Heading, HeadingTitle } from '@/components/ui/heading';
 import { Dialog, DialogActions, DialogBody, DialogContent, DialogHeader, DialogHeading, useDialog } from '@/components/ui/dialog';
 
 type StatusMessage = { tone: 'success' | 'error'; text: string } | null;
+type PendingRevoke = Pick<AuthorizedOAuthToken, 'id' | 'client_id' | 'client_name'>;
 
 export function ConnectedAppsSection({ headingLevel = 'h2' }: { headingLevel?: 'h2' | 'h3' }) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [statusMessage, setStatusMessage] = useState<StatusMessage>(null);
-  const [pendingRevoke, setPendingRevoke] = useState<{ id: string; name: string } | null>(null);
+  const [pendingRevoke, setPendingRevoke] = useState<PendingRevoke | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const statusRef = useRef<HTMLDivElement>(null);
 
-  const tokensQuery = useQuery({
-    queryKey: queryKeys.auth.oauthTokens,
-    queryFn: () => apiClient.getAuthorizedOAuthTokens(),
-  });
+  const tokensQuery = useQuery(trpc.account.connectedApps.queryOptions());
 
   const revokeMutation = useMutation({
-    mutationFn: (id: string) => apiClient.revokeAuthorizedOAuthToken(id),
+    mutationFn: ({ id }: PendingRevoke) => apiClient.revokeAuthorizedOAuthToken(id),
     onMutate: () => {
       setStatusMessage(null);
     },
-    onSuccess: async (_, id) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.auth.oauthTokens });
-      queryClient.setQueryData<AuthorizedOAuthToken[]>(queryKeys.auth.oauthTokens, tokens => tokens?.filter(token => token.id !== id));
+    onSuccess: async (_, { client_id }) => {
+      await queryClient.cancelQueries(trpc.account.connectedApps.queryFilter());
+      // The server revokes every grant for this app, including other resources.
+      queryClient.setQueryData(trpc.account.connectedApps.queryKey(), tokens => tokens?.filter(token => token.client_id !== client_id));
       setStatusMessage({ tone: 'success', text: t('settings.connectedApps.successRevoked') });
     },
     onError: () => {
@@ -99,16 +98,16 @@ export function ConnectedAppsSection({ headingLevel = 'h2' }: { headingLevel?: '
                   variant="text"
                   size="sm"
                   disabled={revokeMutation.isPending}
-                  aria-busy={revokeMutation.isPending && revokeMutation.variables === token.id}
+                  aria-busy={revokeMutation.isPending && revokeMutation.variables.client_id === token.client_id}
                   onClick={(event) => {
                     triggerRef.current = event.currentTarget;
                     setStatusMessage(null);
-                    setPendingRevoke({ id: token.id, name: token.client_name });
+                    setPendingRevoke({ id: token.id, client_id: token.client_id, client_name: token.client_name });
                   }}
                   aria-label={`${t('settings.connectedApps.revoke')}: ${token.client_name}`}
                   className="shrink-0 text-error-1 hover:bg-red-50"
                 >
-                  {revokeMutation.isPending && revokeMutation.variables === token.id && <InlineSpinner className="mr-1 h-4 w-4" />}
+                  {revokeMutation.isPending && revokeMutation.variables.client_id === token.client_id && <InlineSpinner className="mr-1 h-4 w-4" />}
                   {t('settings.connectedApps.revoke')}
                 </Button>
               </div>
@@ -123,11 +122,7 @@ export function ConnectedAppsSection({ headingLevel = 'h2' }: { headingLevel?: '
                   </div>
                   <div>
                     <dt className="font-bold">{t('settings.connectedApps.columns.issued')}</dt>
-                    <dd className="mt-1">{new Date(token.issued_at).toLocaleString(i18n.language)}</dd>
-                  </div>
-                  <div>
-                    <dt className="font-bold">{t('settings.connectedApps.columns.expires')}</dt>
-                    <dd className="mt-1">{token.expires_at ? new Date(token.expires_at).toLocaleString(i18n.language) : t('settings.connectedApps.expiresNever')}</dd>
+                    <dd className="mt-1">{token.issued_at ? new Date(token.issued_at).toLocaleString(i18n.language) : '—'}</dd>
                   </div>
                 </dl>
               </details>
@@ -142,7 +137,7 @@ export function ConnectedAppsSection({ headingLevel = 'h2' }: { headingLevel?: '
               <DialogHeading {...confirmation.headingProps}>{t('settings.connectedApps.confirmTitle')}</DialogHeading>
             </DialogHeader>
             <DialogBody>
-              <p className="mb-3 break-words text-std-16B-170">{pendingRevoke.name}</p>
+              <p className="mb-3 break-words text-std-16B-170">{pendingRevoke.client_name}</p>
               <p id="disconnect-description" className="text-std-16N-170 text-solid-gray-700">{t('settings.connectedApps.confirmDescription')}</p>
             </DialogBody>
             <DialogActions>
@@ -151,7 +146,7 @@ export function ConnectedAppsSection({ headingLevel = 'h2' }: { headingLevel?: '
                 <Button
                   className="bg-error-1 hover:bg-red-1000 active:bg-red-1200"
                   disabled={revokeMutation.isPending}
-                  onClick={() => revokeMutation.mutate(pendingRevoke.id)}
+                  onClick={() => revokeMutation.mutate(pendingRevoke)}
                 >
                   {revokeMutation.isPending && <InlineSpinner className="mr-1 h-4 w-4" />}
                   {t(revokeMutation.isPending ? 'settings.connectedApps.revoking' : 'settings.connectedApps.revoke')}

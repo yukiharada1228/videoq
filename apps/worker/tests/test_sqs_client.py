@@ -1,4 +1,6 @@
 
+import pytest
+
 from worker_python.sqs_client import sqs_endpoint_url
 
 
@@ -26,3 +28,16 @@ def test_sqs_endpoint_none_for_real_aws(monkeypatch) -> None:
         "https://sqs.ap-northeast-1.amazonaws.com/123/videoq",
     )
     assert sqs_endpoint_url() is None
+
+
+@pytest.mark.parametrize(("queue_url", "expected"), [
+    ("http://127.0.0.1:9324/000000000000/amazonaws.com-jobs", "http://127.0.0.1:9324"),
+    ("https://amazonaws.com.local/123/videoq", "https://amazonaws.com.local"),
+    ("https://sqs.cn-north-1.amazonaws.com.cn/123/videoq", None),
+    ("https://SQS.AP-NORTHEAST-1.AMAZONAWS.COM/123/videoq", None),
+])
+def test_sqs_endpoint_classifies_the_hostname_only(monkeypatch, queue_url, expected) -> None:
+    monkeypatch.delenv("AWS_ENDPOINT_URL", raising=False)
+    monkeypatch.delenv("SQS_ENDPOINT_URL", raising=False)
+    monkeypatch.setenv("SQS_QUEUE_URL", queue_url)
+    assert sqs_endpoint_url() == expected

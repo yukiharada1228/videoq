@@ -3,9 +3,9 @@
 set -eu
 cd "$(dirname "$0")/.."
 node scripts/stamp-baseline.mjs
-# drizzle-kit's spinner uses ANSI erase-line and hides the SQL error in CI logs.
+# Keep complete migration output visible in deployment logs.
 set +e
-migrate_output=$(npx drizzle-kit migrate 2>&1)
+migrate_output=$(node --import tsx scripts/migrate-database.ts 2>&1)
 migrate_status=$?
 set -e
 printf '%s\n' "$migrate_output" | sed 's/\x1B\[[0-9;]*[A-Za-z]//g'

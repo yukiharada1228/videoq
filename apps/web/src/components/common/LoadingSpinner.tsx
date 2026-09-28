@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   ProgressIndicator,
   ProgressIndicatorSpinner,
@@ -10,14 +11,16 @@ interface LoadingSpinnerProps {
 }
 
 export function LoadingSpinner({ message, fullScreen = false }: LoadingSpinnerProps) {
+  const { t } = useTranslation();
+  const label = message ?? t('common.messages.loading');
   const spinner = (
     <div className={fullScreen
       ? 'pointer-events-none fixed inset-0 z-10 flex items-center justify-center p-6'
       : 'flex items-center justify-center py-8'}>
-      <ProgressIndicator type="stacked" aria-label={message ?? 'Loading'}>
+      <ProgressIndicator type="stacked" aria-label={label}>
         <ProgressIndicatorSpinner />
         <span className="text-center text-std-16N-170 text-solid-gray-700">
-          {message ?? 'Loading'}
+          {label}
         </span>
       </ProgressIndicator>
     </div>

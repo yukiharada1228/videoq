@@ -9,7 +9,7 @@ export function stripeSecretKey(env: Bindings): string | null {
   return key ? key : null;
 }
 
-export function createStripeClient(apiKey: string): Stripe {
+function createStripeClient(apiKey: string): Stripe {
   return new Stripe(apiKey, {
     apiVersion: STRIPE_API_VERSION,
     httpClient: Stripe.createFetchHttpClient(),

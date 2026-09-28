@@ -19,13 +19,13 @@ function assignRef<T>(ref: React.ForwardedRef<T> | undefined, value: T | null) {
   }
 }
 
-export const dialogVariants = cva(
+const dialogVariants = cva(
   "group/modal-dialog inset-0 w-auto h-auto max-w-none max-h-none border-0 bg-transparent px-4 [container-type:inline-size] [color-scheme:dark] break-words text-std-16N-170 [&:modal]:flex [&:modal]:flex-col [&:modal]:items-center backdrop:bg-opacity-gray-600 forced-colors:backdrop:bg-[#000b] [scrollbar-gutter:stable] data-[scroll=inner]:[scrollbar-gutter:auto]"
 )
 
-export type DialogScroll = "inner" | "outer"
+type DialogScroll = "inner" | "outer"
 
-export type DialogProps = React.ComponentProps<"dialog"> & {
+type DialogProps = React.ComponentProps<"dialog"> & {
   scroll?: DialogScroll
   width?: string
 }
@@ -67,7 +67,7 @@ const Dialog = React.forwardRef<HTMLDialogElement, DialogProps>(
 )
 Dialog.displayName = "Dialog"
 
-export type DialogContentProps = React.ComponentProps<"div">
+type DialogContentProps = React.ComponentProps<"div">
 
 const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
   ({ className, ...props }, ref) => (
@@ -84,7 +84,7 @@ const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
 )
 DialogContent.displayName = "DialogContent"
 
-export type DialogHeaderProps = React.ComponentProps<"div">
+type DialogHeaderProps = React.ComponentProps<"div">
 
 const DialogHeader = React.forwardRef<HTMLDivElement, DialogHeaderProps>(
   ({ className, ...props }, ref) => (
@@ -101,7 +101,7 @@ const DialogHeader = React.forwardRef<HTMLDivElement, DialogHeaderProps>(
 )
 DialogHeader.displayName = "DialogHeader"
 
-export type DialogHeadingProps = React.ComponentProps<"h2">
+type DialogHeadingProps = React.ComponentProps<"h2">
 
 const DialogHeading = React.forwardRef<HTMLHeadingElement, DialogHeadingProps>(
   ({ className, tabIndex = -1, ...props }, ref) => (
@@ -119,10 +119,12 @@ const DialogHeading = React.forwardRef<HTMLHeadingElement, DialogHeadingProps>(
 )
 DialogHeading.displayName = "DialogHeading"
 
-export type DialogCloseProps = Omit<React.ComponentProps<"button">, "children">
+type DialogCloseProps = React.ComponentProps<"button"> & {
+  children: React.ReactNode
+}
 
 const DialogClose = React.forwardRef<HTMLButtonElement, DialogCloseProps>(
-  ({ className, type = "button", ...props }, ref) => (
+  ({ className, children, type = "button", ...props }, ref) => (
     <button
       ref={ref}
       data-slot="dialog-close"
@@ -145,13 +147,13 @@ const DialogClose = React.forwardRef<HTMLButtonElement, DialogCloseProps>(
           fill="currentColor"
         />
       </svg>
-      閉じる
+      {children}
     </button>
   )
 )
 DialogClose.displayName = "DialogClose"
 
-export type DialogBodyProps = React.ComponentProps<"div">
+type DialogBodyProps = React.ComponentProps<"div">
 
 const DialogBody = React.forwardRef<HTMLDivElement, DialogBodyProps>(
   ({ className, ...props }, ref) => (
@@ -165,7 +167,7 @@ const DialogBody = React.forwardRef<HTMLDivElement, DialogBodyProps>(
 )
 DialogBody.displayName = "DialogBody"
 
-export type DialogActionsProps = React.ComponentProps<"div">
+type DialogActionsProps = React.ComponentProps<"div">
 
 const DialogActions = React.forwardRef<HTMLDivElement, DialogActionsProps>(
   ({ className, ...props }, ref) => (
@@ -179,7 +181,7 @@ const DialogActions = React.forwardRef<HTMLDivElement, DialogActionsProps>(
 )
 DialogActions.displayName = "DialogActions"
 
-export type DialogScrollAreaProps = React.ComponentProps<"div">
+type DialogScrollAreaProps = React.ComponentProps<"div">
 
 const DialogScrollArea = React.forwardRef<
   HTMLDivElement,
@@ -197,7 +199,7 @@ const DialogScrollArea = React.forwardRef<
 ))
 DialogScrollArea.displayName = "DialogScrollArea"
 
-export type DialogRequestCloseEvent = {
+type DialogRequestCloseEvent = {
   defaultPrevented: boolean
   preventDefault: () => void
 }

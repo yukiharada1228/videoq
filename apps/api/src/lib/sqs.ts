@@ -26,6 +26,9 @@ export async function sendSqsMessage(
     sessionToken: env.AWS_SESSION_TOKEN,
     region: env.AWS_REGION ?? "ap-northeast-1",
     service: "sqs",
+    // The durable outbox owns retries. aws4fetch's backoff is not abortable and
+    // can keep this delivery waiting after its deadline has expired.
+    retries: 0,
   });
 
   const form = new URLSearchParams({

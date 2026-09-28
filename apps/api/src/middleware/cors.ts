@@ -27,7 +27,7 @@ const PROTOCOL_ALLOW_METHODS = ["GET", "POST", "DELETE", "OPTIONS"];
  * これらは SPA Cookie ではなく外部 MCP クライアント向けなので、
  * `Access-Control-Allow-Origin: *`（credentials なし）で応答する。
  */
-export function isMcpProtocolPath(pathname: string): boolean {
+function isMcpProtocolPath(pathname: string): boolean {
   return (
     pathname === "/api/mcp" ||
     pathname.startsWith("/api/mcp/") ||

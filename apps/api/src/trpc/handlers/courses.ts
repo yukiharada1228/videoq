@@ -74,11 +74,6 @@ export function courseHandlers(
   authenticatedUserId: string | null,
 ): HandlersFor<"courses"> & HandlersFor<"courseMemberships"> & HandlersFor<"memberships"> {
   const userId = () => requireUserId(authenticatedUserId);
-  const updateCourse: HandlersFor<"courses">["courses.update"] = async ({ id, ...patch }) => {
-    const result = await courseService.updateUserCourse(c.env, id, userId(), patch);
-    if ("notFound" in result) return rpcError("NOT_FOUND", "Course not found");
-    return result.course;
-  };
   return {
     "courses.list": async ({ limit, cursor }) => {
       const offset = cursor ?? 0;
@@ -106,8 +101,11 @@ export function courseHandlers(
       }
       return { ...course, access_role: course.access_role };
     },
-    "courses.update": updateCourse,
-    "courses.replace": updateCourse,
+    "courses.update": async ({ id, ...patch }) => {
+      const result = await courseService.updateUserCourse(c.env, id, userId(), patch);
+      if ("notFound" in result) return rpcError("NOT_FOUND", "Course not found");
+      return result.course;
+    },
     "courses.delete": async ({ id }) => {
       const result = await courseService.removeCourse(c.env, id, userId());
       if ("notFound" in result) return rpcError("NOT_FOUND", "Course not found");

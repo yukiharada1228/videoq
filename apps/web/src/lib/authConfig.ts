@@ -5,7 +5,7 @@
  */
 export const PASSWORD_MIN_LENGTH = 12;
 
-export const PUBLIC_AUTH_PATHS = [
+const PUBLIC_AUTH_PATHS = [
   '/login',
   '/signup',
   '/signup/check-email',

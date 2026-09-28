@@ -2,8 +2,9 @@ import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { parseResourceId } from '@videoq/trpc/schema';
 import { useI18nNavigate } from '@/lib/i18n';
-import { filterTranscriptSegments, isSrtFormat, parseSrtTranscript, type TranscriptSegment } from '@/lib/transcript/srt';
+import { filterTranscriptSegments, parseSrtTranscript, type TranscriptSegment } from '@/lib/transcript/srt';
 import { seekAndPlay } from '@/lib/video/playback';
 import { trpc } from '@/lib/trpc';
 import { useConfirm } from '@/components/common/feedback';
@@ -20,10 +21,10 @@ export default function VideoDetailPage() {
   const params = useParams<{ id: string }>();
   const navigate = useI18nNavigate();
   const [searchParams] = useSearchParams();
-  const videoId = params?.id ? Number.parseInt(params.id, 10) : null;
+  const videoId = parseResourceId(params.id);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const parsedStartTime = Number.parseInt(searchParams.get('t') ?? '', 10);
-  const queryStartSeconds = Number.isNaN(parsedStartTime) ? null : parsedStartTime;
+  const parsedStartTime = Number(searchParams.get('t') ?? Number.NaN);
+  const queryStartSeconds = Number.isFinite(parsedStartTime) && parsedStartTime >= 0 ? parsedStartTime : null;
   const [youtubeSeek, setYoutubeSeek] = useState<{ seconds: number; id: number } | null>(null);
   const { t } = useTranslation();
   const requestConfirmation = useConfirm();
@@ -69,10 +70,7 @@ export default function VideoDetailPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const deleteMutation = useMutation(trpc.videos.delete.mutationOptions({
-    onSuccess: async (_data, { id }) => {
-      await invalidateAfterVideoDelete(queryClient, id);
-      navigate('/videos');
-    },
+    onSuccess: (_data, { id }) => invalidateAfterVideoDelete(queryClient, id),
     onError: (err) => setDeleteError(err.message),
   }));
 
@@ -84,13 +82,14 @@ export default function VideoDetailPage() {
     const confirmed = await requestConfirmation({
       title: t('confirmations.deleteVideo'),
       confirmLabel: t('common.actions.delete'),
-      cancelLabel: t('common.actions.cancel'),
       variant: 'danger',
     });
     if (!confirmed) return;
     setDeleteError(null);
-    if (videoId) deleteMutation.mutate({ id: videoId });
-  }, [requestConfirmation, deleteMutation, t, videoId]);
+    if (videoId) deleteMutation.mutate({ id: videoId }, {
+      onSuccess: () => navigate('/videos'),
+    });
+  }, [requestConfirmation, deleteMutation, navigate, t, videoId]);
 
   const transcriptUpdateMutation = useMutation(trpc.videos.update.mutationOptions({
     onSuccess: async (updatedVideo, { id }) => {
@@ -117,13 +116,8 @@ export default function VideoDetailPage() {
   };
 
   const transcript = video?.transcript ?? '';
-  const { transcriptSegments, isPlainTextTranscript } = useMemo(() => {
-    const isSrt = isSrtFormat(transcript);
-    return {
-      transcriptSegments: isSrt ? parseSrtTranscript(transcript) : [],
-      isPlainTextTranscript: !isSrt && transcript.trim().length > 0,
-    };
-  }, [transcript]);
+  const transcriptSegments = useMemo(() => parseSrtTranscript(transcript), [transcript]);
+  const isPlainTextTranscript = transcriptSegments.length === 0 && transcript.trim().length > 0;
 
   const filteredSegments = useMemo(
     () => filterTranscriptSegments(transcriptSegments, transcriptSearch),

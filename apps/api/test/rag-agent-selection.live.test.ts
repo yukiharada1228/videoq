@@ -1,3 +1,4 @@
+import { chatAnswerText } from "@videoq/trpc/chat";
 import { existsSync, readFileSync } from "node:fs";
 import { parse } from "dotenv";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -91,24 +92,27 @@ describe.skipIf(!enabled).each([false, true])("実モデルの検索選択（str
     const result = stream ? await (async () => {
       let content = "";
       for await (const chunk of streamRag(env, params)) {
-        if ("text" in chunk) content += chunk.text;
-        if ("final" in chunk) return { ...chunk.final, content };
+        if ("part" in chunk && chunk.part.type === "text") content += chunk.part.text;
+        if ("final" in chunk) {
+          expect(content).toBe(chatAnswerText(chunk.final.answer));
+          return chunk.final;
+        }
       }
       throw new Error("Missing final stream chunk");
     })() : await runRag(env, params);
 
-    expect(result.content.trim()).not.toBe("");
+    expect(chatAnswerText(result.answer).trim()).not.toBe("");
     if (kind === "metadata") {
       expect(getCourseInfo).toHaveBeenCalled();
       expect(open).not.toHaveBeenCalled();
-      expect(result.citations).toBeNull();
-      expect(result.content).not.toMatch(/\[\d+\]/);
+      expect(result.answer.sources).toEqual([]);
+      expect(chatAnswerText(result.answer)).not.toMatch(/\[\d+\]/);
     } else {
       expect(search).toHaveBeenCalled();
-      expect(result.citations?.length).toBeGreaterThan(0);
-      const markers = [...result.content.matchAll(/\[(\d+)\]/g)].map((match) => Number(match[1]));
+      expect(result.answer.sources.length).toBeGreaterThan(0);
+      const markers = result.answer.segments.flatMap(segment => segment.sourceIds);
       expect(markers.length).toBeGreaterThan(0);
-      expect(markers.every((id) => id > 0 && id <= result.citations!.length)).toBe(true);
+      expect(markers.every((id) => result.answer.sources.some(source => source.id === id))).toBe(true);
       expect(close).toHaveBeenCalledOnce();
       if (kind === "lecture" || kind === "mixed") expect(getCourseInfo).toHaveBeenCalled();
       if (kind === "lecture") {

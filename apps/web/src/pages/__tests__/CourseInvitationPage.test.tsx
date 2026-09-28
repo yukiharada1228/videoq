@@ -116,6 +116,8 @@ describe('CourseInvitationPage', () => {
     let finish!: () => void;
     acceptInvitation.mockImplementationOnce(() => new Promise(resolve => { finish = () => resolve({ course_id: 12, status: 'accepted' }); }));
     const { result } = renderHook(() => useQueryClient());
+    const courseLists = [trpc.courses.list.queryKey(), trpc.courses.list.infiniteQueryKey({ limit: 24 })];
+    for (const key of courseLists) result.current.setQueryData(key, { cached: true });
     const navigate = useI18nNavigate() as ReturnType<typeof vi.fn>;
     const { unmount } = render(<CourseInvitationPage />);
     fireEvent.click(await screen.findByRole('button', { name: 'courseInvitation.accept' }));
@@ -125,6 +127,17 @@ describe('CourseInvitationPage', () => {
     await waitFor(() => expect(result.current.isMutating()).toBe(0));
     expect(navigate).not.toHaveBeenCalled();
     expect(result.current.getQueryData(trpc.courseMemberships.preview.queryKey({ token: 'invite-token' }))?.status).toBe('accepted');
+    for (const key of courseLists) expect(result.current.getQueryState(key)?.isInvalidated).toBe(true);
+  });
+
+  it('does not refresh course lists when declining an invitation', async () => {
+    const { result } = renderHook(() => useQueryClient());
+    const key = trpc.courses.list.queryKey();
+    result.current.setQueryData(key, { cached: true });
+    render(<CourseInvitationPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'courseInvitation.decline' }));
+    await screen.findByText('courseInvitation.declined');
+    expect(result.current.getQueryState(key)?.isInvalidated).toBe(false);
   });
 
   it('sends only the first decision when both actions are clicked before the next render', async () => {

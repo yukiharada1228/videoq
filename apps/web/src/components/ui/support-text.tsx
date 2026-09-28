@@ -2,7 +2,7 @@ import * as React from "react"
 
 import { cn } from "@/lib/digital-agency/cn"
 
-export type SupportTextProps = React.ComponentPropsWithoutRef<"p">
+type SupportTextProps = React.ComponentPropsWithoutRef<"p">
 
 const SupportText = React.forwardRef<HTMLParagraphElement, SupportTextProps>(
   ({ className, children, ...props }, ref) => {

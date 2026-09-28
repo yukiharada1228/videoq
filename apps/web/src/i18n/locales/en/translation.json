@@ -18,7 +18,8 @@
       "send": "Send",
       "disable": "Disable",
       "confirm": "Confirm",
-      "close": "Close"
+      "close": "Close",
+      "dismissNotification": "Dismiss notification"
     },
     "labels": {
       "required": "Required",
@@ -32,6 +33,7 @@
       "error": "Error"
     },
     "messages": {
+      "loading": "Loading",
       "pageLoadFailed": "This page could not be loaded. Try again or use the navigation to open another page.",
       "noDescription": "No description",
       "videoNotFound": "Video not found",
@@ -44,6 +46,7 @@
     }
   },
   "tags": {
+    "removeLabel": "Remove {{name}}",
     "filter": {
       "title": "Filter by tags",
       "clear": "Clear",
@@ -399,7 +402,6 @@
       "title": "Manage members and invitations",
       "open": "Manage members",
       "emailLabel": "Email addresses to invite",
-      "emailPlaceholder": "student@example.com",
       "emailHelp": "Enter multiple addresses separated by new lines, commas, or semicolons. Invitations expire after 7 days.",
       "previewTitle": "Review before sending",
       "previewSummary": "{{count}} of {{total}} recipients will receive an invitation.",
@@ -565,7 +567,6 @@
       "title": "Email change confirmation",
       "description": "Check the progress of your email address change.",
       "loading": "Checking your email change link...",
-      "invalidLink": "The email change link is invalid.",
       "success": "Your email address has been updated.",
       "error": "Email change failed. The link may have expired.",
       "backToLogin": "Back to sign-in",
@@ -862,15 +863,12 @@
     },
     "usernameChange": {
       "title": "Username",
-      "description": "Google sign-in may set your username from your email address. You can change it to something you prefer.",
-      "currentUsernameLabel": "Current username",
       "newUsernameLabel": "New username",
       "help": "Use 3–150 characters: letters, numbers, underscores, and periods. Uppercase is stored as lowercase. Your username is also used to sign in.",
       "submit": "Change username",
       "submitting": "Saving...",
       "success": "Username updated",
       "errorEmpty": "Please enter a new username",
-      "errorUnchanged": "That is already your current username",
       "errorTaken": "This username is already taken",
       "errorTooShort": "Username is too short (minimum 3 characters)",
       "errorTooLong": "Username is too long (maximum 150 characters)",
@@ -880,8 +878,6 @@
     },
     "emailChange": {
       "title": "Email address",
-      "description": "Approve the change from your current email address, then verify your new address to complete the change.",
-      "currentEmailLabel": "Current email address",
       "newEmailLabel": "New email address",
       "help": "We first send an approval link to your current address. After approval, open the verification link sent to your new address.",
       "submit": "Send confirmation email",
@@ -913,11 +909,8 @@
       "permissionsHelp": "Choose All if the integration needs write access, or Read only if it should only read data.",
       "secretKeyLabel": "Secret key",
       "columns": {
-        "name": "Name",
-        "secret": "Secret key",
         "permissions": "Permissions",
-        "lastUsed": "Last used",
-        "action": "Action"
+        "lastUsed": "Last used"
       },
       "permissions": {
         "allTitle": "All",
@@ -946,13 +939,9 @@
       "description": "Review and manage apps you have allowed to access VideoQ.",
       "empty": "No apps are currently connected.",
       "columns": {
-        "app": "App",
         "scope": "Permissions",
-        "issued": "Authorized",
-        "expires": "Expires",
-        "action": "Action"
+        "issued": "Authorized"
       },
-      "expiresNever": "—",
       "revoke": "Disconnect",
       "errorLoading": "Failed to load connected apps",
       "errorRevoking": "Failed to disconnect app",
@@ -974,7 +963,6 @@
       "saving": "Saving...",
       "delete": "Delete key",
       "deleting": "Deleting...",
-      "errorEmpty": "Please enter an API key",
       "errorSaving": "Failed to save SearchAPI key",
       "errorDeleting": "Failed to delete SearchAPI key",
       "successSaved": "SearchAPI key saved successfully",
@@ -1101,11 +1089,11 @@
         "isOverQuota": "Mark as over quota"
       },
       "errors": {
-        "invalidUploadMb": "Max upload size must be a positive integer.",
-        "invalidStorageGb": "Storage limit must be a number or blank.",
-        "invalidProcessingMinutes": "Processing limit must be a number or blank.",
-        "invalidAiLimit": "AI answers limit must be a number or blank.",
-        "invalidUsage": "Usage counters must be non-negative integers."
+        "invalidUploadMb": "Max upload size must be an integer from 1 to 2,147,483,647.",
+        "invalidStorageGb": "Storage limit must be a non-negative number or blank.",
+        "invalidProcessingMinutes": "Processing limit must be an integer from 0 to 2,147,483,647 or blank.",
+        "invalidAiLimit": "AI answers limit must be an integer from 0 to 2,147,483,647 or blank.",
+        "invalidUsage": "Enter non-negative integers: up to 9,007,199,254,740,991 bytes of storage and 2,147,483,647 for processing seconds and AI answers."
       }
     },
     "reindex": {

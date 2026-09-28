@@ -8,6 +8,16 @@ export const CHAT_REQUEST_MAX_BYTES = 512 * 1024;
 /** Shared by the HTTP batch client and server transport. */
 export const TRPC_MAX_BATCH_SIZE = 10;
 
+/** URL resource IDs must be decimal integers represented without precision loss. */
+export function parseResourceId(value: string | undefined): number | null {
+  if (!value || !/^[0-9]+$/.test(value)) return null;
+  const id = Number(value);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+/** JSON and SSE chat requests use the same optional course selection. */
+export const chatCourseIdSchema = z.number().int().positive().nullable().optional();
+
 export const chatMessageSchema = z.object({
   role: z.enum(["user", "assistant", "system"]),
   content: z

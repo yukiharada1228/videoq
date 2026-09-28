@@ -90,16 +90,29 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
   it.each(["owner", "member"])("allows %s using the existing session permission in one query", async userId => {
     vi.mocked(auth.sessionMethod).mockResolvedValue({ kind: "ok", userId, via: "session" });
     const query = vi.spyOn(pg.Client.prototype, "query");
-    const response = await mediaRoutes.request("/videos/owned.mp4?share_slug=missing", {}, env);
+    const response = await mediaRoutes.request("/videos/owned.mp4", {}, env);
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("video");
     expect(query).toHaveBeenCalledTimes(1);
   });
 
-  it("does not use a share link to bypass a signed-in user's permissions", async () => {
+  it.each(["share_slug", "share_token"])("lets a signed-in non-member watch the shared course via %s", async parameter => {
     vi.mocked(auth.sessionMethod).mockResolvedValue({ kind: "ok", userId: "other", via: "session" });
-    const response = await mediaRoutes.request("/videos/owned.mp4?share_slug=shared", {}, env);
-    expect(response.status).toBe(404);
+    const query = vi.spyOn(pg.Client.prototype, "query");
+    const response = await mediaRoutes.request(`/videos/owned.mp4?${parameter}=shared`, {}, env);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("video");
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    { userId: "other", path: "other", slug: "shared", status: 404 },
+    { userId: "owner", path: "owned", slug: "other", status: 404 },
+    { userId: "owner", path: "owned", slug: "missing", status: 401 },
+  ])("keeps an explicit share scoped even for $userId: $path/$slug", async ({ userId, path, slug, status }) => {
+    vi.mocked(auth.sessionMethod).mockResolvedValue({ kind: "ok", userId, via: "session" });
+    const response = await mediaRoutes.request(`/videos/${path}.mp4?share_slug=${slug}`, {}, env);
+    expect(response.status).toBe(status);
     expect(getObject).not.toHaveBeenCalled();
   });
 
@@ -156,20 +169,25 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
     expect((await mediaRoutes.request("/videos/owned.mp4?share_slug=shared", {}, env)).status).toBe(401);
   });
 
-  it("preserves Range streaming and metadata after shared authorization", async () => {
+  it.each([
+    { range: { offset: 1, length: 3 }, header: "bytes=1-3", contentRange: "bytes 1-3/5", body: "ide" },
+    { range: { offset: 2 }, header: "bytes=2-", contentRange: "bytes 2-4/5", body: "deo" },
+    { range: { suffix: 3 }, header: "bytes=-3", contentRange: "bytes 2-4/5", body: "deo" },
+    { range: { length: 3 }, header: "bytes=0-2", contentRange: "bytes 0-2/5", body: "vid" },
+  ])("preserves Range streaming and metadata: $header", async ({ range, header, contentRange, body }) => {
     getObject.mockResolvedValue({
-      body: new TextEncoder().encode("ide"), size: 5, range: { offset: 1, length: 3 },
+      body: new TextEncoder().encode(body), size: 5, range,
       httpEtag: '"media-etag"', writeHttpMetadata: () => {},
     });
-    const response = await mediaRoutes.request("/videos/owned.mp4?share_slug=shared", { headers: { Range: "bytes=1-3" } }, env);
+    const response = await mediaRoutes.request("/videos/owned.mp4?share_slug=shared", { headers: { Range: header } }, env);
     expect(response.status).toBe(206);
-    expect(await response.text()).toBe("ide");
-    expect(response.headers.get("Content-Range")).toBe("bytes 1-3/5");
+    expect(await response.text()).toBe(body);
+    expect(response.headers.get("Content-Range")).toBe(contentRange);
     expect(response.headers.get("Content-Length")).toBe("3");
     expect(response.headers.get("Content-Type")).toBe("video/mp4");
     expect(response.headers.get("ETag")).toBe('"media-etag"');
     expect(response.headers.get("Accept-Ranges")).toBe("bytes");
-    expect(getObject.mock.calls[0][1].range.get("Range")).toBe("bytes=1-3");
+    expect(getObject.mock.calls[0][1].range.get("Range")).toBe(header);
   });
 
   it("throttles invalid slugs without charging valid shared requests", async () => {

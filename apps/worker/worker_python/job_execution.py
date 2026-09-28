@@ -7,7 +7,7 @@ import json
 import uuid
 from typing import Any
 
-from worker_python.db import db_transaction
+from worker_python.db import db_connection
 
 # Lambda is capped at 15 minutes; SQS visibility is at least six times as long.
 JOB_LEASE_SECONDS = 15 * 60
@@ -40,7 +40,7 @@ def claim_job_execution(
     payload_hash = _payload_sha256(job_type, payload)
     lease_token = str(uuid.uuid4())
 
-    with db_transaction() as conn:
+    with db_connection() as conn:
         inserted = conn.execute(
             """
             INSERT INTO job_executions
@@ -97,7 +97,7 @@ def claim_job_execution(
 
 
 def complete_job_execution(job_id: str, lease_token: str) -> None:
-    with db_transaction() as conn:
+    with db_connection() as conn:
         completed = conn.execute(
             """
             UPDATE job_executions
@@ -119,7 +119,7 @@ def complete_job_execution(job_id: str, lease_token: str) -> None:
 
 
 def fail_job_execution(job_id: str, lease_token: str, error: str) -> None:
-    with db_transaction() as conn:
+    with db_connection() as conn:
         conn.execute(
             """
             UPDATE job_executions

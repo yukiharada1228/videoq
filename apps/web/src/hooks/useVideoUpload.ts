@@ -6,17 +6,14 @@ import { invalidateAfterVideoUpload } from '@/lib/cacheInvalidation';
 import { useAuth } from '@/hooks/useAuth';
 import { appTrpcClient } from '@/lib/trpc';
 import {
-  FileUploadCommand,
-  VideoUploadValidationError,
-  YoutubeImportCommand,
+  prepareVideoUpload,
   runUploadWorkflow,
-  type UploadCommand,
+  type PreparedUpload,
   type UploadSourceMode,
-} from '@/lib/videoUploadCommands';
+} from '@/lib/videoUpload';
 
 interface UseVideoUploadReturn {
   sourceMode: UploadSourceMode;
-  file: File | null;
   youtubeUrl: string;
   title: string;
   description: string;
@@ -26,7 +23,6 @@ interface UseVideoUploadReturn {
   error: string | null;
   errorParams: Record<string, unknown>;
   warning: string | null;
-  warningParams: Record<string, unknown>;
   success: boolean;
   setTitle: (title: string) => void;
   setDescription: (description: string) => void;
@@ -41,12 +37,12 @@ interface UseVideoUploadReturn {
 const DEFAULT_MAX_VIDEO_UPLOAD_SIZE_MB = Number(import.meta.env.VITE_MAX_VIDEO_UPLOAD_SIZE_MB || 200);
 
 interface RunUploadMutationVariables {
-  command: UploadCommand;
+  upload: PreparedUpload;
   tagIds: number[];
 }
 
 export function useVideoUpload(): UseVideoUploadReturn {
-  const { user } = useAuth({ redirectToLogin: false });
+  const { user } = useAuth();
   const maxUploadSizeMb = user?.max_video_upload_size_mb ?? DEFAULT_MAX_VIDEO_UPLOAD_SIZE_MB;
   const [sourceMode, setSourceMode] = useState<UploadSourceMode>('file');
   const [file, setFile] = useState<File | null>(null);
@@ -58,41 +54,28 @@ export function useVideoUpload(): UseVideoUploadReturn {
   const [error, setError] = useState<string | null>(null);
   const [errorParams, setErrorParams] = useState<Record<string, unknown>>({});
   const [warning, setWarning] = useState<string | null>(null);
-  const [warningParams, setWarningParams] = useState<Record<string, unknown>>({});
   const [progress, setProgress] = useState(0);
   const uploadInFlight = useRef(false);
   const queryClient = useQueryClient();
 
   const uploadMutation = useMutation({
-    mutationFn: async ({ command, tagIds }: RunUploadMutationVariables) => {
-      return runUploadWorkflow(command, tagIds, {
+    mutationFn: ({ upload, tagIds }: RunUploadMutationVariables) =>
+      runUploadWorkflow(upload, tagIds, {
         uploadVideo: (data, onProgress) => apiClient.uploadVideo(data, onProgress),
-        createYoutubeVideo: (data) => appTrpcClient.videos.createYoutube.mutate({
-          youtubeUrl: data.youtube_url,
-          title: data.title,
-          description: data.description,
-        }),
-        addTagsToVideo: (videoId, nextTagIds) => appTrpcClient.memberships.addTags.mutate({
-          videoId,
-          tagIds: nextTagIds,
-        }),
-      });
-    },
-    onSuccess: async ({ warning }, { tagIds }) => {
+        createYoutubeVideo: appTrpcClient.videos.createYoutube.mutate,
+        addTagsToVideo: appTrpcClient.memberships.addTags.mutate,
+      }, setProgress),
+    onSuccess: async (warning, { tagIds }) => {
       setSuccess(true);
       setError(null);
       setErrorParams({});
-      setWarning(warning?.message ?? null);
-      setWarningParams(warning?.params ?? {});
+      setWarning(warning);
       setProgress(100);
       await invalidateAfterVideoUpload(queryClient, { tagsChanged: tagIds.length > 0 });
     },
     onError: (err) => {
       const apiError = getApiError(err);
-      if (err instanceof VideoUploadValidationError) {
-        setError(err.translationKey);
-        setErrorParams(err.params);
-      } else if (apiError?.code === 'FILE_TOO_LARGE') {
+      if (apiError?.code === 'FILE_TOO_LARGE') {
         setError('videos.upload.validation.fileTooLarge');
         setErrorParams(apiError.params ?? {});
       } else if (apiError?.code === 'STORAGE_LIMIT_EXCEEDED') {
@@ -103,28 +86,9 @@ export function useVideoUpload(): UseVideoUploadReturn {
         setErrorParams({});
       }
       setWarning(null);
-      setWarningParams({});
       setProgress(0);
     },
   });
-
-  const createUploadCommand = useCallback((progressHandler?: (pct: number) => void): UploadCommand => {
-    if (sourceMode === 'youtube') {
-      return new YoutubeImportCommand({
-        youtubeUrl,
-        title,
-        description,
-      });
-    }
-
-    return new FileUploadCommand({
-      file,
-      title,
-      description,
-      maxSizeMb: maxUploadSizeMb,
-      onProgress: progressHandler,
-    });
-  }, [description, file, maxUploadSizeMb, sourceMode, title, youtubeUrl]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (sourceMode !== 'file') {
@@ -132,32 +96,30 @@ export function useVideoUpload(): UseVideoUploadReturn {
     }
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-      const validation = new FileUploadCommand({
+      const validation = prepareVideoUpload({
+        source: 'file',
         file: selectedFile,
-        title,
-        description,
+        title: '',
+        description: '',
         maxSizeMb: maxUploadSizeMb,
-      }).validate();
+      });
       if (!validation.isValid) {
         setFile(null);
         setTitle('');
         setError(validation.error);
         setErrorParams(validation.errorParams ?? {});
         setWarning(null);
-        setWarningParams({});
         return;
       }
 
       setError(null);
       setErrorParams({});
       setWarning(null);
-      setWarningParams({});
       setFile(selectedFile);
       // Automatically set filename (without extension) as title
-      const fileNameWithoutExt = selectedFile.name.replace(/\.[^/.]+$/, '');
-      setTitle(fileNameWithoutExt);
+      setTitle(validation.upload.data.title);
     }
-  }, [description, setTitle, title, maxUploadSizeMb, sourceMode]);
+  }, [maxUploadSizeMb, sourceMode]);
 
   const reset = useCallback(() => {
     setSourceMode('file');
@@ -170,7 +132,6 @@ export function useVideoUpload(): UseVideoUploadReturn {
     setError(null);
     setErrorParams({});
     setWarning(null);
-    setWarningParams({});
     setProgress(0);
   }, []);
 
@@ -182,35 +143,31 @@ export function useVideoUpload(): UseVideoUploadReturn {
     // pending state flips, so the button never flashes a stale percentage.
     setProgress(0);
 
-    const command = createUploadCommand((pct) => {
-      setProgress(pct);
-    });
-    const validation = command.validate();
+    const validation = prepareVideoUpload(sourceMode === 'youtube'
+      ? { source: 'youtube', youtubeUrl, title, description }
+      : { source: 'file', file, title, description, maxSizeMb: maxUploadSizeMb });
     if (!validation.isValid) {
       setError(validation.error);
       setErrorParams(validation.errorParams ?? {});
       setWarning(null);
-      setWarningParams({});
       return;
     }
 
     setError(null);
     setErrorParams({});
     setWarning(null);
-    setWarningParams({});
     setSuccess(false);
     // Guard before React renders the pending state, including cache refreshes.
     uploadInFlight.current = true;
     try {
-      await uploadMutation.mutateAsync({ command, tagIds });
+      await uploadMutation.mutateAsync({ upload: validation.upload, tagIds });
     } finally {
       uploadInFlight.current = false;
     }
-  }, [createUploadCommand, tagIds, uploadMutation]);
+  }, [sourceMode, youtubeUrl, title, description, file, maxUploadSizeMb, tagIds, uploadMutation]);
 
   return {
     sourceMode,
-    file,
     youtubeUrl,
     title,
     description,
@@ -220,7 +177,6 @@ export function useVideoUpload(): UseVideoUploadReturn {
     error,
     errorParams,
     warning,
-    warningParams,
     success,
     setTitle,
     setDescription,

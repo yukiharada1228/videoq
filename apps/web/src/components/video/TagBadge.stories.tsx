@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState, type ComponentProps } from 'react';
 import { expect, fn } from 'storybook/test';
+import i18n from '@/i18n/config';
 import { englishTags, longTag, paletteTags, tags } from '../../../.storybook/fixtures/tags';
 import { TagBadge } from './TagBadge';
 
@@ -39,7 +40,7 @@ export const LongName: Story = {
 export const Removable: Story = {
   args: { onRemove: fn() },
   play: async ({ canvas, userEvent, args }) => {
-    const remove = canvas.getByRole('button', { name: `Remove ${args.tag.name}` });
+    const remove = canvas.getByRole('button', { name: i18n.t('tags.removeLabel', { name: args.tag.name }) });
     await userEvent.tab();
     await expect(remove).toHaveFocus();
     await userEvent.keyboard('{Enter}');
@@ -48,6 +49,7 @@ export const Removable: Story = {
   },
 };
 export const EnglishMobile: Story = {
+  ...Removable,
   args: { tag: englishTags[0], onRemove: fn() },
   globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
 };

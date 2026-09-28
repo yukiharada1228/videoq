@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from ..embedding_contract import EmbeddingContractError
 
-from .embedders import SceneEmbedder, create_embedder
+from .embedders import SceneEmbedder
 from .parsers import scenes_to_srt_string
 from .splitter import SceneSplitter, l2_normalize
 from .types import SceneSegment
@@ -17,7 +17,6 @@ __all__ = [
     "SceneSegment",
     "SceneSplitter",
     "apply_scene_splitting",
-    "create_embedder",
     "l2_normalize",
     "scenes_to_srt_string",
 ]

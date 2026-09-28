@@ -5,7 +5,7 @@ import {
   type EmbeddingConfig,
 } from "./embedding-contract";
 
-export const EMBEDDING_SCHEMA_SQL = `
+const EMBEDDING_SCHEMA_SQL = `
   SELECT t.typname AS type_name, a.atttypmod AS dimensions
     FROM pg_attribute a JOIN pg_type t ON t.oid = a.atttypid
    WHERE a.attrelid = to_regclass($1) AND a.attname = 'embedding'

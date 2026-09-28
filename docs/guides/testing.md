@@ -86,3 +86,5 @@ RAG_SELECTION_LIVE=1 npm run test:unit --workspace @videoq/api -- test/rag-agent
 This connects to a real OpenAI-compatible API and incurs usage charges. It reads `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `LLM_MODEL` from environment variables or the API's `.dev.vars`. It is not required for first-time setup.
 
 **Related:** [Make your first change](../getting-started/first-change.md), [Troubleshooting](troubleshooting.md).
+
+For the paid structured-answer comparison and browser timings, see [cutover and verification](../architecture/structured-answers.md).

@@ -228,18 +228,54 @@ describe('AdminPage', () => {
     expect(listUsers).toHaveBeenCalledTimes(3)
   })
 
-  it('validates all input before changing any user fields', async () => {
+  it.each([
+    ['usedStorageBytes', '-1', 'invalidUsage'],
+    ['usedStorageBytes', '9007199254740992', 'invalidUsage'],
+    ['usedStorageBytes', '', 'invalidUsage'],
+    ['usedProcessingSeconds', '2147483648', 'invalidUsage'],
+    ['usedAiAnswers', '2147483648', 'invalidUsage'],
+    ['maxUploadMb', '2147483648', 'invalidUploadMb'],
+    ['storageLimitGb', '-0.5', 'invalidStorageGb'],
+    ['processingLimitMinutes', '-1', 'invalidProcessingMinutes'],
+    ['processingLimitMinutes', '1.5', 'invalidProcessingMinutes'],
+    ['processingLimitMinutes', '2147483648', 'invalidProcessingMinutes'],
+    ['aiAnswersLimit', '-1', 'invalidAiLimit'],
+    ['aiAnswersLimit', '1.5', 'invalidAiLimit'],
+    ['aiAnswersLimit', '2147483648', 'invalidAiLimit'],
+  ])('rejects %s=%s before changing any user fields', async (field, value, error) => {
     render(<AdminPage />)
     fireEvent.click(await screen.findByRole('button', { name: 'admin.users.edit' }))
     fireEvent.click(screen.getByLabelText('admin.users.fields.isStaff'))
-    fireEvent.change(screen.getByLabelText('admin.users.fields.usedStorageBytes'), { target: { value: '-1' } })
+    fireEvent.change(screen.getByLabelText(`admin.users.fields.${field}`), { target: { value } })
     fireEvent.click(screen.getByRole('button', { name: 'admin.users.save' }))
 
-    expect(await screen.findByText('admin.users.errors.invalidUsage')).toBeInTheDocument()
+    expect(await screen.findByText(`admin.users.errors.${error}`)).toBeInTheDocument()
     expect(patchFlags).not.toHaveBeenCalled()
     expect(patchQuota).not.toHaveBeenCalled()
     expect(patchUsage).not.toHaveBeenCalled()
     expect(listUsers).toHaveBeenCalledTimes(1)
+  })
+
+  it('allows fractional storage quotas, zero limits and large safe byte counts', async () => {
+    render(<AdminPage />)
+    fireEvent.click(await screen.findByRole('button', { name: 'admin.users.edit' }))
+    for (const [field, value] of Object.entries({
+      maxUploadMb: '2147483647', storageLimitGb: '0.5', processingLimitMinutes: '0',
+      aiAnswersLimit: '', usedStorageBytes: '9007199254740991',
+      usedProcessingSeconds: '2147483647', usedAiAnswers: '0',
+    })) {
+      fireEvent.change(screen.getByLabelText(`admin.users.fields.${field}`), { target: { value } })
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'admin.users.save' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(patchQuota).toHaveBeenCalledExactlyOnceWith({ id: 9,
+      max_video_upload_size_mb: 2147483647, storage_limit_gb: 0.5,
+      processing_limit_minutes: 0, ai_answers_limit: null,
+    })
+    expect(patchUsage).toHaveBeenCalledExactlyOnceWith({ id: 9,
+      used_storage_bytes: 9007199254740991, used_processing_seconds: 2147483647, used_ai_answers: 0,
+    })
   })
 
   it('keeps inputs and closing disabled until saving and refetching finish', async () => {

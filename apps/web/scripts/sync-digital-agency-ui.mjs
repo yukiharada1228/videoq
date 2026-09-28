@@ -6,6 +6,8 @@ const registry = 'yukiharada1228/shadcn-digital-agency-jp' // last synced: v0.7.
 // Keep this list aligned with imports from src/components/ui. Do not use the
 // registry's all-components block: it installs demo-only components and their
 // dependencies in addition to the primitives used by VideoQ.
+// Generated files are trimmed to the exports used by the app and stories.
+// After syncing, review additions for unused components and run the web checks.
 const components = [
   'theme',
   'digital-agency-cn',

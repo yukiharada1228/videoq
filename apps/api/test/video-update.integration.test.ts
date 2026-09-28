@@ -1,7 +1,7 @@
 import pg from "pg";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getVideoDetail, updateVideo } from "../src/repositories/video-repository";
-import { patchUserVideo, putUserVideo } from "../src/features/videos/service";
+import { patchUserVideo } from "../src/features/videos/service";
 import * as media from "../src/integrations/media";
 import type { Bindings } from "../src/types/bindings";
 
@@ -76,27 +76,27 @@ const originalTranscript = "Original transcript";
     return (await admin.query("SELECT * FROM external_tasks ORDER BY id")).rows;
   }
 
-  it.each([["patch", patchUserVideo], ["put", putUserVideo]] as const)(
-    "%s returns the full updated video using one connection", async (_name, update) => {
+  it(
+    "update returns the full updated video using one connection", async () => {
       const before = await getVideoDetail(env, 10, "owner");
       const connect = vi.spyOn(pg.Client.prototype, "connect");
       const query = vi.spyOn(pg.Client.prototype, "query");
-      expect(await update(env, 10, "owner", { title: "Original", description: "Edited" }))
+      expect(await patchUserVideo(env, 10, "owner", { title: "Original", description: "Edited" }))
         .toEqual({ video: { ...before, description: "Edited" } });
       expect(connect).toHaveBeenCalledTimes(1);
       expect(query).toHaveBeenCalledTimes(4); // BEGIN, comparison, UPDATE RETURNING, COMMIT.
     },
   );
 
-  it.each([["patch", patchUserVideo], ["put", putUserVideo]] as const)(
-    "%s keeps the committed response when deletion follows the update", async (_name, update) => {
+  it(
+    "update keeps the committed response when deletion follows the update", async () => {
       const before = await getVideoDetail(env, 10, "owner");
       const end = pg.Client.prototype.end;
       vi.spyOn(pg.Client.prototype, "end").mockImplementation(async function (this: pg.Client) {
         try { await admin.query("DELETE FROM videos WHERE id = 10"); }
         finally { await end.call(this); }
       });
-      expect(await update(env, 10, "owner", { title: "Original", description: "Edited" }))
+      expect(await patchUserVideo(env, 10, "owner", { title: "Original", description: "Edited" }))
         .toEqual({ video: { ...before, description: "Edited" } });
     },
   );

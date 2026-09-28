@@ -1,3 +1,4 @@
+import { plainChatAnswer, applyChatPart, type ChatAnswer, type ModelAnswer } from "@videoq/trpc/chat";
 import { embedding as testEmbedding } from "./helpers/embedding";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import {
@@ -5,9 +6,10 @@ import {
   TRPC_MAX_BATCH_SIZE,
 } from "@videoq/trpc/schema";
 import { chatRoutes } from "../src/features/chat/routes";
-import { signAccessToken } from "./helpers/auth";
+import { TEST_USER_ID, testAuthHeaders } from "./helpers/auth";
 import { createApp } from "../src/app";
 import * as auth from "../src/middleware/auth";
+import * as messageService from "../src/features/chat/message-service";
 
 /**
  * ルート全体（認証 → 検証 → course/quota → RAG → ChatLog → 応答）の結線テスト。
@@ -64,10 +66,9 @@ vi.mock("pg", () => {
   return { default: { Client: FakeClient, Pool: FakePool } };
 });
 
-const SECRET = "test-jwt-secret-chat";
 const ENV = {
   ENVIRONMENT: "development",
-  AUTH_JWT_SECRET: SECRET,
+  BETTER_AUTH_SECRET: "test-chat-auth-secret-01234567890123456789",
   HYPERDRIVE: { connectionString: "postgres://fake/db" },
 } as unknown as Record<string, unknown>;
 const QUOTA_PERIOD_START = "2026-08-01 00:00:00+00";
@@ -136,20 +137,16 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-async function accessToken(userId = "00000000-0000-4000-8000-000000000005") {
-  return signAccessToken(SECRET, userId);
-}
-
 async function post(
   path: string,
   body: unknown,
-  opts: { token?: string; env?: Record<string, unknown>; headers?: Record<string, string> } = {},
+  opts: { userId?: string; env?: Record<string, unknown>; headers?: Record<string, string> } = {},
 ) {
   const headers: Record<string, string> = {
     "content-type": "application/json",
     ...(opts.headers ?? {}),
   };
-  if (opts.token) headers["X-VideoQ-Test-User-Id"] = String(opts.token).replace(/^test-user-/, "") || "00000000-0000-4000-8000-000000000005";
+  if (opts.userId) Object.assign(headers, testAuthHeaders(opts.userId));
   if (path === "/messages" || path.startsWith("/messages?")) {
     const payload = body as Record<string, unknown>;
     const query = new URL(path, "http://localhost").searchParams;
@@ -217,7 +214,7 @@ const SEARCH_TOOL_CALL = {
   type: "function",
   function: {
     name: "search_scenes",
-    arguments: JSON.stringify({ query: "scene" }),
+    arguments: JSON.stringify({ query: "scene", video_ids: null }),
   },
 };
 
@@ -228,6 +225,7 @@ const SEARCH_TOOL_CALL = {
  */
 function stubOpenAi(opts: {
   content?: string;
+  answer?: ModelAnswer;
   failAfterFirstChunk?: boolean;
   failOllamaEmbedding?: boolean;
   preamble?: string;
@@ -271,9 +269,11 @@ function stubOpenAi(opts: {
       });
     }
 
-    const text = opts.content ?? "Answer [1].";
+    const prose = opts.content ?? "Answer.";
+    const text = JSON.stringify(opts.answer ?? { segments: [{ text: prose, sourceIds: opts.content === undefined && body.tools ? [1] : [] }] });
+    const split = text.indexOf(prose) + Math.min(3, prose.length);
     if (!body.stream) {
-      return jsonBody({ choices: [{ message: { role: "assistant", content: text } }] });
+      return jsonBody({ choices: [{ finish_reason: "stop", message: { role: "assistant", content: text } }] });
     }
     if (opts.failAfterFirstChunk) {
       let pullCount = 0;
@@ -283,7 +283,7 @@ function stubOpenAi(opts: {
             if (pullCount++ === 0) {
               controller.enqueue(
                 enc.encode(
-                  `data: ${JSON.stringify({ choices: [{ delta: { content: text.slice(0, 3) } }] })}\n\n`,
+                  `data: ${JSON.stringify({ choices: [{ delta: { content: text.slice(0, split) } }] })}\n\n`,
                 ),
               );
               return;
@@ -297,7 +297,7 @@ function stubOpenAi(opts: {
     return new Response(
       new ReadableStream<Uint8Array>({
         start(controller) {
-          for (const [i, part] of [text.slice(0, 3), text.slice(3)].entries()) {
+          for (const [i, part] of [text.slice(0, split), text.slice(split)].entries()) {
             controller.enqueue(
               enc.encode(
                 `data: ${JSON.stringify({
@@ -308,6 +308,7 @@ function stubOpenAi(opts: {
               ),
             );
           }
+          controller.enqueue(enc.encode(`data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: "stop" }] })}\n\n`));
           controller.enqueue(enc.encode("data: [DONE]\n\n"));
           controller.close();
         },
@@ -335,26 +336,26 @@ describe.each([false, true])("講座メタ情報のチャット経路（stream=%
     };
     const answer = "Digital circuits has one video.";
     const requests = stubOpenAi({ content: answer, toolCall: {
-      id: "call_course", type: "function", function: { name: "get_course_info", arguments: "{}" },
+      id: "call_course", type: "function", function: { name: "get_course_info", arguments: JSON.stringify({ video_limit: 20, video_offset: 0 }) },
     } });
     const path = (stream ? "/messages/stream" : "/messages") + (access === "public" ? "?share_slug=abc123" : "");
     const res = await post(path, {
       messages: [{ role: "user", content: "講座名と動画数は？" }], course_id: 3,
     }, {
-      token: access === "public" ? undefined : await accessToken(access === "member"
+      userId: access === "public" ? undefined : (access === "member"
         ? "00000000-0000-4000-8000-000000000006" : "00000000-0000-4000-8000-000000000005"),
       env: { ...OPENAI_ENV, ...SQS_ENV },
     });
     expect(res.status).toBe(200);
     if (stream) {
       const events = sseEvents(await res.text());
-      expect(events.filter((event) => event.type === "content_chunk").map((event) => event.text).join("")).toBe(answer);
+      expect(events.filter((event) => event.type === "text_delta").map((event) => event.text).join("")).toBe(answer);
       expect(events.at(-1)).toMatchObject({ type: "done" });
       expect(events.at(-1)).not.toHaveProperty("citations");
       expect(events.some((event) => event.type === "searching")).toBe(false);
     } else {
       const data = await trpcData(res);
-      expect(data).toMatchObject({ content: answer });
+      expect(data).toMatchObject({ answer: plainChatAnswer(answer) });
       expect(data).not.toHaveProperty("citations");
     }
     expect(calls.some((call) => call.sql.includes("scene_embeddings"))).toBe(false);
@@ -390,7 +391,7 @@ describe.each([false, true])("回答保存後の評価ジョブ配送障害（st
     const response = await post(stream ? "/messages/stream" : "/messages", {
       messages: [{ role: "user", content: "Question" }],
       course_id: 3,
-    }, { token: await accessToken(), env: OPENAI_ENV });
+    }, { userId: TEST_USER_ID, env: OPENAI_ENV });
 
     expect(response.status).toBe(200);
     if (stream) {
@@ -398,7 +399,7 @@ describe.each([false, true])("回答保存後の評価ジョブ配送障害（st
       expect(events.some((event) => event.type === "error")).toBe(false);
       expect(events.at(-1)).toMatchObject({ type: "done", chat_log_id: 99 });
     } else {
-      expect(await trpcData(response)).toMatchObject({ content: "Saved answer.", chat_log_id: 99 });
+      expect(await trpcData(response)).toMatchObject({ answer: { segments: [{ text: "Saved answer.", sourceIds: [] }] }, chat_log_id: 99 });
     }
     expect(lastExternalPayload).toMatchObject({ message: { type: "evaluate_chat_log" } });
     expect(calls.some(({ sql }) => sql.includes("used_ai_answers") && sql.includes("GREATEST"))).toBe(false);
@@ -414,7 +415,7 @@ describe("POST /messages（非ストリーミング）", () => {
   });
 
   it("バリデーション失敗は {error:{code,message,details}}", async () => {
-    const res = await post("/messages", {}, { token: await accessToken() });
+    const res = await post("/messages", {}, { userId: TEST_USER_ID });
     expect(res.status).toBe(400);
     const error = await trpcError(res);
     expect(error.code).toBe("VALIDATION_ERROR");
@@ -422,7 +423,7 @@ describe("POST /messages（非ストリーミング）", () => {
   });
 
   it("messages が空配列なら 400（Zod min(1)）", async () => {
-    const res = await post("/messages", { messages: [] }, { token: await accessToken() });
+    const res = await post("/messages", { messages: [] }, { userId: TEST_USER_ID });
     expect(res.status).toBe(400);
     const error = await trpcError(res);
     expect(error.code).toBe("VALIDATION_ERROR");
@@ -506,7 +507,7 @@ describe("POST /messages（非ストリーミング）", () => {
       "/messages",
       { messages: [{ role: "user", content: "何が起きた?" }], course_id: 3 },
       {
-        token: await accessToken(),
+        userId: TEST_USER_ID,
         env: { ...OPENAI_ENV, ...SQS_ENV },
         headers: { "Accept-Language": "ja,en;q=0.8" },
       },
@@ -515,8 +516,7 @@ describe("POST /messages（非ストリーミング）", () => {
     expect(res.status).toBe(200);
     expect(await trpcData(res)).toEqual({
       role: "assistant",
-      content: "Answer [1].",
-      citations: [
+      answer: { segments: [{ text: "Answer.", sourceIds: [1] }], sources: [
         {
           id: 1,
           video_id: 60,
@@ -524,7 +524,7 @@ describe("POST /messages（非ストリーミング）", () => {
           start_time: "00:00:10",
           end_time: "00:00:20",
         },
-      ],
+      ] },
       chat_log_id: 99,
       feedback: null,
     });
@@ -553,19 +553,19 @@ describe("POST /messages（非ストリーミング）", () => {
       ),
     ).toEqual(["search_scenes", "get_course_info"]);
 
-    // 参照シーンは 2 通目でツール結果として渡る（[N] 付き）
+    // 参照シーンは構造化したツール結果として渡す。
     const second = chatRequests[1].body.messages as { role: string; content: string }[];
     const toolMessage = second.find((m) => m.role === "tool")!;
-    expect(toolMessage.content).toContain("[1] Video A 00:00:10 - 00:00:20\nscene text A");
+    expect(JSON.parse(toolMessage.content)).toMatchObject({ sourceId: 1, title: "Video A", text: "scene text A" });
 
-    // ChatLog は citations（id なし）と retrieved_contexts を保存
+    // ChatLog は検証済み回答と retrieved_contexts を保存
     const insert = calls.find((c) => c.sql.includes("chat_logs") && c.sql.includes("returning"))!;
     const citationsArg = insert.args.find(
       (a) => typeof a === "string" && a.includes("Video A"),
     ) as string;
-    expect(JSON.parse(citationsArg)).toEqual([
-      { video_id: 60, title: "Video A", start_time: "00:00:10", end_time: "00:00:20" },
-    ]);
+    expect(JSON.parse(citationsArg)).toEqual({ segments: [{ text: "Answer.", sourceIds: [1] }], sources: [
+      { id: 1, video_id: 60, title: "Video A", start_time: "00:00:10", end_time: "00:00:20" },
+    ] });
     const contextsArg = insert.args.find(
       (a) => typeof a === "string" && a.includes("scene text A"),
     ) as string;
@@ -593,7 +593,7 @@ describe("POST /messages（非ストリーミング）", () => {
     const res = await post(
       "/messages",
       { messages: [{ role: "user", content: "member question" }], course_id: 3 },
-      { token: await accessToken(memberUserId), env: { ...OPENAI_ENV, ...SQS_ENV } },
+      { userId: memberUserId, env: { ...OPENAI_ENV, ...SQS_ENV } },
     );
 
     expect(res.status).toBe(200);
@@ -622,7 +622,7 @@ describe("POST /messages（非ストリーミング）", () => {
     const res = await post(
       "/messages",
       { messages: [{ role: "user", content: "hi" }], course_id: 3 },
-      { token: await accessToken(), env: OPENAI_ENV },
+      { userId: TEST_USER_ID, env: OPENAI_ENV },
     );
     expect(res.status).toBe(404);
     expect(await trpcError(res)).toEqual({
@@ -644,7 +644,7 @@ describe("POST /messages（非ストリーミング）", () => {
     const res = await post(
       "/messages",
       { messages: [{ role: "user", content: "hi" }] },
-      { token: await accessToken(), env: OPENAI_ENV },
+      { userId: TEST_USER_ID, env: OPENAI_ENV },
     );
     expect(res.status).toBe(400);
     expect(await trpcError(res)).toEqual({
@@ -666,7 +666,7 @@ describe("POST /messages（非ストリーミング）", () => {
     const res = await post(
       "/messages",
       { messages: [{ role: "user", content: "hi" }] },
-      { token: await accessToken(), env: OPENAI_ENV },
+      { userId: TEST_USER_ID, env: OPENAI_ENV },
     );
     expect(res.status).toBe(403);
     expect(await trpcError(res)).toEqual({
@@ -680,7 +680,7 @@ describe("POST /messages（非ストリーミング）", () => {
     const res = await post(
       "/messages",
       { messages: [{ role: "user", content: "hi" }] },
-      { token: await accessToken(), env: OPENAI_ENV },
+      { userId: TEST_USER_ID, env: OPENAI_ENV },
     );
     expect(res.status).toBe(500);
     expect(await trpcError(res)).toEqual({
@@ -707,7 +707,7 @@ describe("POST /messages（非ストリーミング）", () => {
     const res = await post(
       "/messages",
       { messages: [{ role: "user", content: "hi" }], course_id: 3 },
-      { token: await accessToken(), env: OPENAI_ENV },
+      { userId: TEST_USER_ID, env: OPENAI_ENV },
     );
 
     expect(res.status).toBe(500);
@@ -761,12 +761,12 @@ describe.each([false, true])("ReAct 障害の利用枠返却（stream=%s）", (s
     const res = await post(
       stream ? "/messages/stream" : "/messages",
       { messages: [{ role: "user", content: "scene" }], course_id: 3 },
-      { token: await accessToken(), env: OPENAI_ENV },
+      { userId: TEST_USER_ID, env: OPENAI_ENV },
     );
     if (stream) {
       const events = sseEvents(await res.text());
       expect(events.at(-1)).toMatchObject({ type: "error", code: "LLM_PROVIDER_ERROR" });
-      expect(events.some((event) => event.type === "content_chunk" || event.type === "done")).toBe(false);
+      expect(events.some((event) => event.type === "text_delta" || event.type === "done")).toBe(false);
     } else {
       expect(res.status).toBe(500);
       expect(await trpcError(res)).toMatchObject({ code: "INTERNAL_ERROR" });
@@ -783,12 +783,12 @@ describe.each([false, true])("ReAct 障害の利用枠返却（stream=%s）", (s
     const res = await post(
       stream ? "/messages/stream" : "/messages",
       { messages: [{ role: "user", content: "scene" }], course_id: 3 },
-      { token: await accessToken(), env: OPENAI_ENV },
+      { userId: TEST_USER_ID, env: OPENAI_ENV },
     );
     if (stream) {
       const events = sseEvents(await res.text());
       expect(events.at(-1)).toMatchObject({ type: "error", code: "LLM_CONFIGURATION_ERROR" });
-      expect(events.some((event) => event.type === "content_chunk" || event.type === "done")).toBe(false);
+      expect(events.some((event) => event.type === "text_delta" || event.type === "done")).toBe(false);
     } else {
       expect(res.status).toBe(400);
       expect(await trpcError(res)).toMatchObject({ code: "VALIDATION_ERROR" });
@@ -805,7 +805,7 @@ describe.each([false, true])("ReAct 障害の利用枠返却（stream=%s）", (s
       stream ? "/messages/stream" : "/messages",
       { messages: [{ role: "user", content: "scene" }], course_id: 3 },
       {
-        token: await accessToken(),
+        userId: TEST_USER_ID,
         env: {
           ...OPENAI_ENV,
           EMBEDDING_PROVIDER: "ollama",
@@ -822,7 +822,7 @@ describe.each([false, true])("ReAct 障害の利用枠返却（stream=%s）", (s
         code: "LLM_PROVIDER_ERROR",
         message: "An internal server error occurred.",
       });
-      expect(events.some((event) => event.type === "content_chunk" || event.type === "done"))
+      expect(events.some((event) => event.type === "text_delta" || event.type === "done"))
         .toBe(false);
     } else {
       expect(res.status).toBe(500);
@@ -867,7 +867,7 @@ describe("HTTP 応答の切断", () => {
     });
     const response = await post("/messages/stream", {
       messages: [{ role: "user", content: "scene" }], course_id: 3,
-    }, { token: await accessToken(), env: OPENAI_ENV });
+    }, { userId: TEST_USER_ID, env: OPENAI_ENV });
     const reader = response.body!.getReader();
     await reader.read();
     await started.promise;
@@ -881,7 +881,7 @@ describe("HTTP 応答の切断", () => {
     } finally {
       pending.resolve(jsonBody(stage === "embedding"
         ? { data: [{ index: 0, embedding: testEmbedding(0.1, 0.2) }] }
-        : { choices: [{ message: { role: "assistant", content: "Finished" } }] }));
+        : { choices: [{ finish_reason: "stop", message: { role: "assistant", content: JSON.stringify({ segments: [{ text: "Finished", sourceIds: [] }] }) } }] }));
       await finished.promise;
     }
   });
@@ -937,49 +937,28 @@ describe("POST /messages/stream（SSE）", () => {
     expect(courseLookup?.args).toContain("abc123");
   });
 
-  it.each(["owner", "public"])("%s: parts-v1 は参照元を先に送り、検証済みの引用だけをイベントにする", async (access) => {
-    const content = "回答[1][1] 未登録[99] 数式 $x[1]$ コード `a[1]`.";
-    stubOpenAi({ content });
+  it.each(["owner", "public"])("%s: streamed, stored and nonstream answers agree after validation", async access => {
+    const answer = { segments: [{ text: "回答", sourceIds: [1, 1, 99] }, { text: " 数式 $x[1]$ コード `a[1]`.", sourceIds: [1] }] };
     const log = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
-      const res = await post(
-        "/messages/stream?stream_format=parts-v1" + (access === "public" ? "&share_slug=abc123" : ""),
-        { messages: [{ role: "user", content: "説明して" }], course_id: 3 },
-        { token: access === "public" ? undefined : await accessToken(), env: OPENAI_ENV },
-      );
-      const events = sseEvents(await res.text());
-      expect(events.filter((event) => ["source", "text_delta", "citation"].includes(event.type))).toEqual([
-        { type: "source", source: { id: 1, video_id: 60, title: "Video A", start_time: "00:00:10", end_time: "00:00:20" } },
-        { type: "text_delta", text: "回答" },
-        { type: "citation", sourceId: 1 },
-        { type: "citation", sourceId: 1 },
-        { type: "text_delta", text: " 未登録[99] 数式 $x[1]$ コード `a[1]`." },
-      ]);
-      expect(events.some((event) => event.type === "content_chunk")).toBe(false);
+      stubOpenAi({ answer });
+      const body = { messages: [{ role: "user", content: "説明して" }], course_id: 3 };
+      const options = { userId: access === "public" ? undefined : TEST_USER_ID, env: OPENAI_ENV };
+      const query = access === "public" ? "?share_slug=abc123" : "";
+      const response = await post("/messages/stream" + query, body, options);
+      const events = sseEvents(await response.text());
+      const streamed: ChatAnswer = { segments: [], sources: [] };
+      for (const event of events) {
+        if (event.type === "source") streamed.sources.push(event.source);
+        if (event.type === "text_delta" || event.type === "citation") applyChatPart(streamed, event.type === "text_delta" ? { ...event, type: "text" } : event);
+      }
+      expect(streamed.segments).toEqual([{ text: "回答", sourceIds: [1] }, { text: " 数式 $x[1]$ コード `a[1]`.", sourceIds: [1] }]);
+      expect(events.findIndex(e => e.type === "source")).toBeLessThan(events.findIndex(e => e.type === "citation"));
       expect(events.at(-1)).toMatchObject({ type: "done", chat_log_id: 99 });
-      const insert = calls.find((call) => call.sql.includes("chat_logs") && call.sql.includes("returning"))!;
-      expect(insert.args).toContain(content);
-      expect(log).toHaveBeenCalledWith(JSON.stringify({ event: "chat_citations_rejected", invalid_id: 0, unknown_id: 1 }));
-    } finally { log.mockRestore(); }
-  });
-
-  it("未知の形式指定には旧形式を返し、非ストリームと同じ引用検証を適用する", async () => {
-    const content = "回答[01] 未登録[99]";
-    const log = vi.spyOn(console, "warn").mockImplementation(() => {});
-    try {
-      stubOpenAi({ content });
-      const res = await post("/messages/stream?stream_format=future", {
-        messages: [{ role: "user", content: "説明して" }], course_id: 3,
-      }, { token: await accessToken(), env: OPENAI_ENV });
-      const events = sseEvents(await res.text());
-      const rendered = events.filter((event) => event.type === "content_chunk").map((event) => event.text).join("");
-      expect(rendered).toBe("回答[1] 未登録[99]");
-      expect(events.some((event) => event.type === "citation")).toBe(false);
-      stubOpenAi({ content });
-      const plain = await post("/messages", {
-        messages: [{ role: "user", content: "説明して" }], course_id: 3,
-      }, { token: await accessToken(), env: OPENAI_ENV });
-      expect((await trpcData(plain)).content).toBe(rendered);
+      const insert = calls.find(call => call.sql.includes("chat_logs") && call.sql.includes("returning"))!;
+      expect(insert.args).toContain(JSON.stringify(streamed));
+      stubOpenAi({ answer });
+      expect(await trpcData(await post("/messages" + query, body, options))).toMatchObject({ answer: streamed });
       expect(log).toHaveBeenCalledTimes(2);
     } finally { log.mockRestore(); }
   });
@@ -988,7 +967,7 @@ describe("POST /messages/stream（SSE）", () => {
     const res = await post(
       "/messages/stream",
       { messages: [{ role: "bad", content: "hi" }] },
-      { token: await accessToken() },
+      { userId: TEST_USER_ID },
     );
     expect(res.status).toBe(400);
     const j = await res.json();
@@ -1000,13 +979,34 @@ describe("POST /messages/stream（SSE）", () => {
     const res = await post(
       "/messages/stream",
       { messages: [] },
-      { token: await accessToken() },
+      { userId: TEST_USER_ID },
     );
     expect(res.status).toBe(400);
     const j = await res.json();
     expect(j.error.code).toBe("VALIDATION_ERROR");
     expect(j.error.details.messages).toBeTruthy();
   });
+
+  it.each([true, false, [], [3], "3", "0x3", "", 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])(
+    "SSEと通常のチャットで不正な講座ID %j を実行前に拒否する", async (courseId) => {
+      const stream = vi.spyOn(messageService, "streamChatMessage").mockResolvedValue({
+        write: async () => {},
+      });
+      try {
+        for (const path of ["/messages", "/messages/stream"]) {
+          const res = await post(path, {
+            messages: [{ role: "user", content: "hi" }], course_id: courseId,
+          }, { userId: TEST_USER_ID });
+          await res.text();
+          expect(res.status).toBe(400);
+        }
+        expect(stream).not.toHaveBeenCalled();
+        expect(calls).toHaveLength(0);
+      } finally {
+        stream.mockRestore();
+      }
+    },
+  );
 
   it("body 上限を超えた SSE 入力もストリーム開始前に 413 にする", async () => {
     const res = await post("/messages/stream", {
@@ -1024,48 +1024,22 @@ describe("POST /messages/stream（SSE）", () => {
     });
   });
 
-  it.each(["owner", "public"])("%s: 最初の本文チャンクから citations を渡し、done にも保持する", async (access) => {
+  it.each(["owner", "public"])("%s: sends source metadata before prose", async access => {
     stubOpenAi({ content: "Hello!", preamble: "調べますね。" });
-    const res = await post(
-      access === "public" ? "/messages/stream?share_slug=abc123" : "/messages/stream",
-      { messages: [{ role: "user", content: "hi" }], course_id: 3 },
-      { token: access === "public" ? undefined : await accessToken(), env: OPENAI_ENV },
-    );
-
-    expect(res.status).toBe(200);
-    expect(res.headers.get("content-type")).toBe("text/event-stream");
-    expect(res.headers.get("cache-control")).toBe("no-cache");
-    expect(res.headers.get("x-accel-buffering")).toBe("no");
-
-    expect(sseEvents(await res.text())).toEqual([
-      // 検索ラウンドの間はトークンが出ないので、進行中であることを先に伝える
+    const response = await post("/messages/stream" + (access === "public" ? "?share_slug=abc123" : ""), {
+      messages: [{ role: "user", content: "hi" }], course_id: 3,
+    }, { userId: access === "public" ? undefined : TEST_USER_ID, env: OPENAI_ENV });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("text/event-stream");
+    expect(response.headers.get("cache-control")).toBe("no-cache");
+    expect(response.headers.get("x-accel-buffering")).toBe("no");
+    expect(sseEvents(await response.text())).toEqual([
       { type: "searching", query: "scene", search_id: 1 },
       { type: "search_completed", query: "scene", search_id: 1, result_count: 1 },
-      {
-        type: "content_chunk", text: "Hello!",
-        citations: [{
-          id: 1, video_id: 60, title: "Video A",
-          start_time: "00:00:10", end_time: "00:00:20",
-        }],
-      },
-      {
-        type: "done",
-        chat_log_id: 99,
-        feedback: null,
-        citations: [
-          {
-            id: 1,
-            video_id: 60,
-            title: "Video A",
-            start_time: "00:00:10",
-            end_time: "00:00:20",
-          },
-        ],
-      },
+      { type: "source", source: { id: 1, video_id: 60, title: "Video A", start_time: "00:00:10", end_time: "00:00:20" } },
+      { type: "text_delta", segmentIndex: 0, text: "Hello!" },
+      { type: "done", chat_log_id: 99, feedback: null },
     ]);
-
-    const insert = calls.find((c) => c.sql.includes("chat_logs") && c.sql.includes("returning"))!;
-    expect(insert.args).toContain("Hello!");
   });
 
   it("クォータ超過は 200 + SSE error イベント（HTTP は 4xx にしない）", async () => {
@@ -1081,7 +1055,7 @@ describe("POST /messages/stream（SSE）", () => {
     const res = await post(
       "/messages/stream",
       { messages: [{ role: "user", content: "hi" }] },
-      { token: await accessToken(), env: OPENAI_ENV },
+      { userId: TEST_USER_ID, env: OPENAI_ENV },
     );
     expect(res.status).toBe(200);
     expect(sseEvents(await res.text())).toEqual([
@@ -1097,7 +1071,7 @@ describe("POST /messages/stream（SSE）", () => {
     const res = await post(
       "/messages/stream",
       { messages: [{ role: "user", content: "hi" }] },
-      { token: await accessToken() },
+      { userId: TEST_USER_ID },
     );
     expect(res.status).toBe(200);
     expect(sseEvents(await res.text())).toEqual([
@@ -1116,7 +1090,7 @@ describe("POST /messages/stream（SSE）", () => {
     const res = await post(
       "/messages/stream",
       { messages: [{ role: "user", content: "hi" }] },
-      { token: await accessToken(), env: OPENAI_ENV },
+      { userId: TEST_USER_ID, env: OPENAI_ENV },
     );
     expect(sseEvents(await res.text())).toEqual([
       {
@@ -1135,11 +1109,11 @@ describe("POST /messages/stream（SSE）", () => {
     const res = await post(
       "/messages/stream",
       { messages: [{ role: "user", content: "hi" }] },
-      { token: await accessToken(), env: OPENAI_ENV },
+      { userId: TEST_USER_ID, env: OPENAI_ENV },
     );
 
     expect(sseEvents(await res.text())).toEqual([
-      { type: "content_chunk", text: "Hel" },
+      { type: "text_delta", segmentIndex: 0, text: "Hel" },
       {
         type: "error",
         code: "LLM_PROVIDER_ERROR",

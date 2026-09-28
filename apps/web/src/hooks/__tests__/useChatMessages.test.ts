@@ -1,3 +1,6 @@
+import { chatAnswerText } from "@videoq/trpc/chat";
+import type { Message } from "../useChatMessages";
+const messageText = (message: Message | undefined) => message?.role === "assistant" ? chatAnswerText(message.answer) : message?.content;
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useChatMessages } from '../useChatMessages'
 import { apiClient } from '@/lib/api'
@@ -20,14 +23,14 @@ function makeStreamMock(
   done?: { chat_log_id?: number | null; feedback?: 'good' | 'bad' | null; citations?: unknown[] },
 ) {
   return async function* () {
+    for (const source of done?.citations ?? []) yield { type: 'source' as const, source };
     for (const text of chunks) {
-      yield { type: 'content_chunk' as const, text }
+      yield { type: 'text_delta' as const, segmentIndex: 0, text }
     }
     yield {
       type: 'done' as const,
       chat_log_id: done?.chat_log_id ?? null,
       feedback: done?.feedback ?? null,
-      citations: done?.citations,
     }
   }
 }
@@ -55,11 +58,11 @@ describe('useChatMessages streaming', () => {
     result.current.messagesContainerRef.current = container
 
     height = 900
-    act(() => result.current.setMessages([{ role: 'assistant', content: '回答の始まり' }]))
+    act(() => result.current.setMessages([{ role: 'assistant', answer: { segments: [{ text: '回答の始まり', sourceIds: [] }], sources: [] } }]))
     expect(top).toBe(500)
 
     scrollTo.mockClear()
-    act(() => result.current.setMessages([{ role: 'assistant', content: '回答の始まり', progress: {
+    act(() => result.current.setMessages([{ role: 'assistant', answer: { segments: [{ text: '回答の始まり', sourceIds: [] }], sources: [] }, progress: {
       phase: 'searching', searches: [{ id: 1, query: '追加の検索', status: 'running' }],
     } }]))
     expect(scrollTo).not.toHaveBeenCalled()
@@ -68,7 +71,7 @@ describe('useChatMessages streaming', () => {
     top = 100
     act(() => result.current.handleMessagesScroll())
     height = 1000
-    act(() => result.current.setMessages([{ role: 'assistant', content: '回答の続き' }]))
+    act(() => result.current.setMessages([{ role: 'assistant', answer: { segments: [{ text: '回答の続き', sourceIds: [] }], sources: [] } }]))
     expect(top).toBe(100)
     expect(scrollTo).not.toHaveBeenCalled()
 
@@ -76,7 +79,7 @@ describe('useChatMessages streaming', () => {
     top = 600
     act(() => result.current.handleMessagesScroll())
     height = 1100
-    act(() => result.current.setMessages([{ role: 'assistant', content: '回答の終わり' }]))
+    act(() => result.current.setMessages([{ role: 'assistant', answer: { segments: [{ text: '回答の終わり', sourceIds: [] }], sources: [] } }]))
     expect(top).toBe(700)
   })
 
@@ -87,7 +90,7 @@ describe('useChatMessages streaming', () => {
       yield { type: 'searching', search_id: 1, query: 'ドモルガンの定理' }
       await waiting
       yield { type: 'search_completed', search_id: 1, query: 'ドモルガンの定理', result_count: 20 }
-      yield { type: 'content_chunk', text: '回答' }
+      yield { type: 'text_delta', segmentIndex: 0, text: '回答' }
       yield { type: 'done', chat_log_id: 12, feedback: null }
     })
     const { result } = renderHook(() => useChatMessages({ courseId: 18 }))
@@ -95,11 +98,11 @@ describe('useChatMessages streaming', () => {
     let sending: Promise<void>
     act(() => { sending = result.current.handleSend() })
     await waitFor(() => expect(result.current.messages.at(-1)?.progress?.phase).toBe('searching'))
-    expect(result.current.messages.at(-1)?.content).toBe('')
+    expect(messageText(result.current.messages.at(-1))).toBe('')
     expect(result.current.messages.at(-1)?.progress?.searches[0].query).toBe('ドモルガンの定理')
     await act(async () => { resume(); await sending! })
     expect(result.current.messages.at(-1)).toMatchObject({
-      content: '回答', chatLogId: 12,
+      answer: { segments: [{ text: '回答', sourceIds: [] }] }, chatLogId: 12,
       progress: { phase: 'complete', searches: [{ query: 'ドモルガンの定理', status: 'complete' }] },
     })
   })
@@ -126,7 +129,7 @@ describe('useChatMessages streaming', () => {
     })
   })
 
-  it('accumulates content as content_chunk events arrive', async () => {
+  it('accumulates structured text deltas', async () => {
     ;(apiClient.chatStream as any).mockImplementation(
       makeStreamMock(['Hello ', 'World']),
     )
@@ -143,7 +146,7 @@ describe('useChatMessages streaming', () => {
 
     await waitFor(() => {
       const last = result.current.messages.at(-1)
-      expect(last?.content).toBe('Hello World')
+      expect(messageText(last)).toBe('Hello World')
     })
   })
 
@@ -165,6 +168,47 @@ describe('useChatMessages streaming', () => {
     })
   })
 
+  it('preserves earlier snapshots and completed segments while extending an answer', async () => {
+    let resume!: () => void
+    const waiting = new Promise<void>(resolve => { resume = resolve })
+    const source = { id: 1, video_id: 7, title: 'Source', start_time: '00:00:10', end_time: null }
+    vi.mocked(apiClient.chatStream).mockImplementation(async function* () {
+      yield { type: 'source', source }
+      yield { type: 'text_delta', segmentIndex: 0, text: 'A' }
+      yield { type: 'citation', segmentIndex: 0, sourceId: 1 }
+      yield { type: 'text_delta', segmentIndex: 1, text: 'B' }
+      await waiting
+      yield { type: 'text_delta', segmentIndex: 1, text: 'C' }
+      yield { type: 'citation', segmentIndex: 1, sourceId: 1 }
+      yield { type: 'done', chat_log_id: 42, feedback: null }
+    })
+    const { result } = renderHook(() => useChatMessages({}))
+    act(() => result.current.setInput('Hi'))
+    let sending!: Promise<void>
+    act(() => { sending = result.current.handleSend() })
+    await waitFor(() => expect(messageText(result.current.messages.at(-1))).toBe('AB'))
+    const previous = result.current.messages.at(-1)!
+    if (previous.role !== 'assistant') throw new Error('Expected assistant answer')
+    for (const segment of previous.answer.segments) {
+      Object.freeze(segment.sourceIds)
+      Object.freeze(segment)
+    }
+    Object.freeze(previous.answer.segments)
+    Object.freeze(previous.answer.sources)
+    Object.freeze(previous.answer)
+    await act(async () => { resume(); await sending })
+    const current = result.current.messages.at(-1)!
+    if (current.role !== 'assistant') throw new Error('Expected assistant answer')
+    expect(current.answer.segments).toEqual([
+      { text: 'A', sourceIds: [1] }, { text: 'BC', sourceIds: [1] },
+    ])
+    expect(previous.answer.segments).toEqual([
+      { text: 'A', sourceIds: [1] }, { text: 'B', sourceIds: [] },
+    ])
+    expect(current.answer.segments[0]).toBe(previous.answer.segments[0])
+    expect(current.answer.sources).toBe(previous.answer.sources)
+  })
+
   it.each([
     { scenario: 'development diagnostics', dev: true, code: 'LLM_PROVIDER_ERROR', message: 'Internal error', expected: 'chat.error (LLM_PROVIDER_ERROR: Internal error)' },
     { scenario: 'empty diagnostics', dev: true, code: 'LLM_PROVIDER_ERROR', message: '', expected: 'chat.error' },
@@ -175,7 +219,7 @@ describe('useChatMessages streaming', () => {
   ])('shows the appropriate error and allows retry for $scenario', async ({ dev, code, message, expected }) => {
     vi.stubEnv('DEV', dev)
     vi.mocked(apiClient.chatStream).mockImplementation(async function* () {
-      yield { type: 'content_chunk', text: 'Partial answer' }
+      yield { type: 'text_delta', segmentIndex: 0, text: 'Partial answer' }
       yield { type: 'error', code, message }
     })
 
@@ -186,7 +230,7 @@ describe('useChatMessages streaming', () => {
     await act(async () => { await result.current.handleSend() })
 
     expect(result.current.messages.at(-1)).toMatchObject({
-      role: 'assistant', content: expected, progress: { phase: 'error' },
+      role: 'assistant', answer: { segments: [{ text: expected, sourceIds: [] }], sources: [] }, progress: { phase: 'error' },
     })
     expect(result.current.isLoading).toBe(false)
 
@@ -195,8 +239,8 @@ describe('useChatMessages streaming', () => {
     act(() => { result.current.setInput('Try again') })
     await act(async () => { await result.current.handleSend() })
     expect(apiClient.chatStream).toHaveBeenCalledTimes(2)
-    expect(result.current.messages.at(-1)?.content).toBe('Recovered')
-    expect(result.current.messages.at(-3)?.content).toBe(expected)
+    expect(messageText(result.current.messages.at(-1))).toBe('Recovered')
+    expect(messageText(result.current.messages.at(-3))).toBe(expected)
     expect(result.current.isLoading).toBe(false)
   })
 
@@ -215,7 +259,7 @@ describe('useChatMessages streaming', () => {
     await waitFor(() => {
       const last = result.current.messages.at(-1)
       expect(last?.role).toBe('assistant')
-      expect(last?.content).toMatch(/chat\.error/)
+      expect(messageText(last)).toMatch(/chat\.error/)
     })
   })
 
@@ -225,8 +269,8 @@ describe('useChatMessages streaming', () => {
     const waiting = new Promise<void>(resolve => { fail = resolve })
     vi.mocked(apiClient.chatStream).mockImplementationOnce(async function* () {
       yield { type: 'source', source }
-      yield { type: 'text_delta', text: 'First' }
-      yield { type: 'citation', sourceId: 1 }
+      yield { type: 'text_delta', segmentIndex: 0, text: 'First' }
+      yield { type: 'citation', segmentIndex: 0, sourceId: 1 }
       await waiting
       yield { type: 'error', code: 'LLM_PROVIDER_ERROR', message: '' }
     })
@@ -234,27 +278,26 @@ describe('useChatMessages streaming', () => {
     act(() => result.current.setInput('hello'))
     let sending!: Promise<void>
     act(() => { sending = result.current.handleSend() })
-    await waitFor(() => expect(result.current.messages.at(-1)?.content).toBe('First[1]'))
-    expect(result.current.messages.at(-1)?.citations).toEqual([source])
+    await waitFor(() => expect(messageText(result.current.messages.at(-1))).toBe('First'))
+    expect(result.current.messages.at(-1)?.answer.sources).toEqual([source])
     await act(async () => { fail(); await sending })
-    expect(result.current.messages.at(-1)?.content).toBe('chat.error')
-    expect(result.current.messages.at(-1)?.parts).toBeUndefined()
-    expect(result.current.messages.at(-1)?.citations).toBeUndefined()
+    expect(messageText(result.current.messages.at(-1))).toBe('chat.error')
+    expect(result.current.messages.at(-1)?.answer.segments).toEqual([{ text: "chat.error", sourceIds: [] }])
+    expect(result.current.messages.at(-1)?.answer.sources).toEqual([])
 
     const nextSource = { ...source, video_id: 8, title: 'Next source' }
     vi.mocked(apiClient.chatStream).mockImplementationOnce(async function* () {
       yield { type: 'source', source: nextSource }
-      yield { type: 'text_delta', text: 'Next' }
-      yield { type: 'citation', sourceId: 1 }
+      yield { type: 'text_delta', segmentIndex: 0, text: 'Next' }
+      yield { type: 'citation', segmentIndex: 0, sourceId: 1 }
       yield { type: 'done', chat_log_id: 42, feedback: null }
     })
     act(() => result.current.setInput('retry'))
     await act(async () => { await result.current.handleSend() })
     expect(result.current.messages.at(-1)).toMatchObject({
-      content: 'Next[1]', citations: [nextSource],
-      parts: [{ type: 'text', text: 'Next' }, { type: 'citation', sourceId: 1 }], chatLogId: 42,
+      answer: { segments: [{ text: 'Next', sourceIds: [1] }], sources: [nextSource] }, chatLogId: 42,
     })
-    expect(result.current.messages.at(-3)?.content).toBe('chat.error')
+    expect(messageText(result.current.messages.at(-3))).toBe('chat.error')
     expect(result.current.isLoading).toBe(false)
   })
 
@@ -278,10 +321,10 @@ describe('useChatMessages streaming', () => {
     const resolvers: Array<() => void> = []
 
     ;(apiClient.chatStream as any).mockImplementation(async function* () {
-      yield { type: 'content_chunk' as const, text: 'A' }
+      yield { type: 'text_delta' as const, segmentIndex: 0, text: 'A' }
       // Pause — simulates network gap between tokens
       await new Promise<void>((resolve) => resolvers.push(resolve))
-      yield { type: 'content_chunk' as const, text: 'B' }
+      yield { type: 'text_delta' as const, segmentIndex: 0, text: 'B' }
       yield { type: 'done' as const, chat_log_id: null, feedback: null }
     })
 
@@ -293,7 +336,7 @@ describe('useChatMessages streaming', () => {
 
     // First token should be visible before second arrives
     await waitFor(() => {
-      expect(result.current.messages.at(-1)?.content).toBe('A')
+      expect(messageText(result.current.messages.at(-1))).toBe('A')
     })
 
     // Release second token
@@ -301,14 +344,14 @@ describe('useChatMessages streaming', () => {
 
     // Both tokens should now be visible
     await waitFor(() => {
-      expect(result.current.messages.at(-1)?.content).toBe('AB')
+      expect(messageText(result.current.messages.at(-1))).toBe('AB')
     })
   })
 
   it('renders a bursty chunk over multiple ticks instead of showing all text at once', async () => {
     vi.useFakeTimers()
     ;(apiClient.chatStream as any).mockImplementation(async function* () {
-      yield { type: 'content_chunk' as const, text: 'ABCDEF' }
+      yield { type: 'text_delta' as const, segmentIndex: 0, text: 'ABCDEF' }
       yield { type: 'done' as const, chat_log_id: null, feedback: null }
     })
 
@@ -321,12 +364,12 @@ describe('useChatMessages streaming', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(24)
     })
-    expect(result.current.messages.at(-1)?.content).toBe('ABC')
+    expect(messageText(result.current.messages.at(-1))).toBe('ABC')
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(24)
     })
-    expect(result.current.messages.at(-1)?.content).toBe('ABCDEF')
+    expect(messageText(result.current.messages.at(-1))).toBe('ABCDEF')
 
     vi.useRealTimers()
   })
@@ -359,7 +402,7 @@ describe('useChatMessages streaming', () => {
     const { result } = renderHook(() => useChatMessages(scope))
     const prior = [
       { role: 'user' as const, content: '内積とは？' },
-      { role: 'assistant' as const, content: 'ベクトルの内積は…' },
+      { role: 'assistant' as const, answer: { segments: [{ text: 'ベクトルの内積は…', sourceIds: [] }], sources: [] } },
     ]
     act(() => {
       result.current.setMessages(prior)
@@ -418,7 +461,7 @@ describe('useChatMessages streaming', () => {
 
     act(() => {
       result.current.setMessages([
-        { role: 'assistant', content: 'Answer', chatLogId: 42, feedback: 'good' },
+        { role: 'assistant', answer: { segments: [{ text: 'Answer', sourceIds: [] }], sources: [] }, chatLogId: 42, feedback: 'good' },
       ])
     })
 
@@ -445,7 +488,7 @@ describe('useChatMessages streaming', () => {
       try {
         yield { type: 'searching', query: 'pending search', search_id: 1 }
         await waiting
-        yield { type: 'content_chunk', text: 'Late answer' }
+        yield { type: 'text_delta', segmentIndex: 0, text: 'Late answer' }
       } finally { closed() }
     })
     const { result, unmount } = renderHook(() => useChatMessages({ courseId: 3 }))
@@ -459,7 +502,7 @@ describe('useChatMessages streaming', () => {
     const createTimer = vi.spyOn(globalThis, 'setInterval')
     await act(async () => { resume(); await sending })
     expect(closed).toHaveBeenCalledTimes(1)
-    expect(lastMessage?.content).toBe('')
+    expect(messageText(lastMessage)).toBe('')
     expect(createTimer).not.toHaveBeenCalled()
     createTimer.mockRestore()
   })
@@ -469,16 +512,16 @@ describe('useChatMessages streaming', () => {
     const closed = vi.fn()
     vi.mocked(apiClient.chatStream).mockImplementation(async function* () {
       try {
-        yield { type: 'content_chunk', text: 'Done' }
+        yield { type: 'text_delta', segmentIndex: 0, text: 'Done' }
         yield { type: 'done', chat_log_id: 42, feedback: null }
         nextRead()
-        yield { type: 'content_chunk', text: 'Unexpected late content' }
+        yield { type: 'text_delta', segmentIndex: 0, text: 'Unexpected late content' }
       } finally { closed() }
     })
     const { result } = renderHook(() => useChatMessages({ courseId: 3 }))
     act(() => result.current.setInput('hello'))
     await act(async () => { await result.current.handleSend() })
-    expect(result.current.messages.at(-1)).toMatchObject({ content: 'Done', chatLogId: 42 })
+    expect(result.current.messages.at(-1)).toMatchObject({ answer: { segments: [{ text: 'Done', sourceIds: [] }] }, chatLogId: 42 })
     expect(result.current.isLoading).toBe(false)
     expect(nextRead).not.toHaveBeenCalled()
     expect(closed).toHaveBeenCalledTimes(1)

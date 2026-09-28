@@ -1,48 +1,37 @@
-import { CitationTextParser, chatSourceSchema, serializeChatParts, type InvalidCitationReason } from "@videoq/trpc/chat";
-import type { Citation } from "@videoq/trpc";
-import type { RagCitation } from "./rag";
+import {
+  chatSourceSchema, modelAnswerSchema, protectedTextRanges,
+  type ChatAnswer, type ChatSource,
+} from "@videoq/trpc/chat";
 
-export const withCitationIds = (citations: readonly RagCitation[]): Citation[] =>
-  citations.map((citation, index) => ({ ...citation, id: index + 1 }));
-
-/** A new registry for every answer; sources come only from the scoped retriever. */
-export class ChatCitationRegistry {
-  private readonly sources = new Map<number, Citation>();
-  private readonly rejected: Record<InvalidCitationReason, number> = { invalid_id: 0, unknown_id: 0 };
-  private reported = false;
-  readonly parser = new CitationTextParser(
-    (id) => this.sources.has(id),
-    (reason) => { this.rejected[reason]++; },
-  );
-
-  register(citations: readonly RagCitation[]): Citation[] {
-    const added: Citation[] = [];
-    for (const source of withCitationIds(citations)) {
-      if (!chatSourceSchema.safeParse(source).success) throw new Error("Invalid retrieved citation");
-      const known = this.sources.get(source.id);
-      if (known) {
-        if (JSON.stringify(known) !== JSON.stringify(source)) throw new Error("Citation source changed within an answer");
-        continue;
-      }
-      this.sources.set(source.id, source);
-      added.push(source);
-    }
-    return added;
+/** Sources are retrieved inside an authorized scope; model metadata is never accepted. */
+export function validateChatAnswer(value: unknown, sources: readonly ChatSource[]): ChatAnswer {
+  const answer = modelAnswerSchema.parse(value);
+  if (!answer.segments.some(segment => segment.text.trim())) throw new Error("Empty structured answer");
+  const registry = new Set(sources.map(source => {
+    chatSourceSchema.parse(source);
+    return source.id;
+  }));
+  if (registry.size !== sources.length) throw new Error("Duplicate source ID");
+  const rejected = { invalid_id: 0, unknown_id: 0, duplicate_id: 0, unsafe_position: 0 };
+  const ranges = protectedTextRanges(answer.segments.map(s => s.text).join(""));
+  let offset = 0;
+  const segments = answer.segments.map(segment => {
+    offset += segment.text.length;
+    const safe = !ranges.some(range => range.start < offset && offset < range.end);
+    const seen = new Set<number>();
+    const sourceIds = segment.sourceIds.filter(id => {
+      if (!Number.isSafeInteger(id) || id <= 0) { rejected.invalid_id++; return false; }
+      if (!registry.has(id)) { rejected.unknown_id++; return false; }
+      if (seen.has(id)) { rejected.duplicate_id++; return false; }
+      seen.add(id);
+      if (!safe) { rejected.unsafe_position++; return false; }
+      return true;
+    });
+    return { text: segment.text, sourceIds };
+  });
+  if (Object.values(rejected).some(Boolean)) {
+    // Counts only: never log prose, IDs, transcripts or private source metadata.
+    console.warn(JSON.stringify({ event: "chat_citations_rejected", ...rejected }));
   }
-
-  reportRejected() {
-    if (this.reported) return;
-    this.reported = true;
-    if (this.rejected.invalid_id + this.rejected.unknown_id === 0) return;
-    // Never log model text, transcript text, source IDs or private video metadata.
-    console.warn(JSON.stringify({ event: "chat_citations_rejected", ...this.rejected }));
-  }
-}
-
-export function validateChatCitations(content: string, citations: readonly RagCitation[]): string {
-  const registry = new ChatCitationRegistry();
-  registry.register(citations);
-  const result = serializeChatParts([...registry.parser.push(content), ...registry.parser.finish()]);
-  registry.reportRejected();
-  return result;
+  return { segments, sources: sources.map(source => ({ ...source })) };
 }

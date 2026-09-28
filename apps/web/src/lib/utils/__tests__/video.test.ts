@@ -1,7 +1,16 @@
 import { describe, it, expect } from 'vitest'
-import { getStatusChipColor, getStatusLabel, formatDate } from '../video'
+import { getStatusChipColor, getStatusLabel, formatDate, timeStringToSeconds } from '../video'
 
 describe('video utils', () => {
+  it.each([
+    ['00:01:02,500', 62.5], ['00:01:02.500', 62.5], ['1:02.5', 62.5],
+    ['62.25', 62.25], ['01 : 02 : 03,125', 3723.125], ['90:00', 5400],
+    ['', 0], ['-1', 0], ['01:60', 0], ['00:99:00', 0],
+    ['01:30oops', 0], ['1e3', 0], ['1:2:3:4', 0], ['Infinity', 0],
+  ])('converts %s to a finite playback position', (value, seconds) => {
+    expect(timeStringToSeconds(value)).toBe(seconds)
+  })
+
   describe('getStatusChipColor', () => {
     it('should map statuses to chip colors', () => {
       expect(getStatusChipColor('completed')).toBe('green')

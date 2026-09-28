@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, waitFor, within } from 'storybook/test';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n/config';
 import { Button } from '@/components/ui/button';
 import { FeedbackProvider } from './FeedbackProvider';
 import { useConfirm, useToast, type ConfirmOptions, type ToastOptions } from './feedback';
@@ -86,10 +87,19 @@ const meta = {
       const dialog = await canvas.findByRole('dialog', { name: args.confirmation.title });
       await expect(dialog).toBeVisible();
       await expect(within(dialog).getByRole('heading', { name: args.confirmation.title })).toHaveFocus();
+      await expect(within(dialog).getByRole('button', {
+        name: args.confirmation.confirmLabel ?? i18n.t('common.actions.confirm'),
+      })).toBeVisible();
+      await expect(within(dialog).getByRole('button', {
+        name: args.confirmation.cancelLabel ?? i18n.t('common.actions.cancel'),
+      })).toBeVisible();
     } else {
       for (const notification of args.notifications) {
         await expect(await canvas.findByText(notification.message)).toBeVisible();
       }
+      await expect(canvas.getAllByRole('button', {
+        name: i18n.t('common.actions.dismissNotification'),
+      })).toHaveLength(args.notifications.length);
     }
   },
 } satisfies Meta<typeof FeedbackExample>;
@@ -119,7 +129,26 @@ export const LongDescriptionMobile: Story = {
   globals: { viewport: { value: 'mobile', isRotated: false } },
 };
 export const WithoutDescription: Story = {
-  args: { confirmation: { title: '続行しますか？', confirmLabel: '続行', cancelLabel: 'キャンセル' } },
+  args: { confirmation: { title: '続行しますか？' } },
+};
+export const DefaultLabelsEnglishMobile: Story = {
+  args: { triggerLabel: 'Open confirmation', confirmation: { title: 'Continue?' } },
+  globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
+  play: async (context) => {
+    await meta.play(context);
+    const { canvas, userEvent, args } = context;
+    await i18n.changeLanguage('ja');
+    try {
+      const dialog = within(canvas.getByRole('dialog'));
+      await expect(await dialog.findByRole('button', { name: '確認' })).toBeVisible();
+      await userEvent.click(dialog.getByRole('button', { name: 'キャンセル' }));
+      await expect(args.onResult).toHaveBeenCalledWith(false);
+      await expect(canvas.queryByRole('dialog')).not.toBeInTheDocument();
+      await expect(canvas.getByRole('button', { name: args.triggerLabel })).toHaveFocus();
+    } finally {
+      await i18n.changeLanguage('en');
+    }
+  },
 };
 export const ConfirmWithKeyboard: Story = {
   play: async (context) => {
@@ -183,13 +212,13 @@ export const DismissWithKeyboard: Story = {
   play: async (context) => {
     await meta.play(context);
     const { canvas, userEvent } = context;
-    const closeButtons = canvas.getAllByRole('button', { name: 'Dismiss notification' });
+    const closeButtons = canvas.getAllByRole('button', { name: i18n.t('common.actions.dismissNotification') });
     await userEvent.tab();
     await expect(closeButtons[0]).toHaveFocus();
     await userEvent.keyboard('{Enter}');
     await expect(canvas.queryByText('コースを作成しました。')).not.toBeInTheDocument();
-    await expect(canvas.getAllByRole('button', { name: 'Dismiss notification' })).toHaveLength(2);
-    await userEvent.click(within(canvas.getByRole('alert')).getByRole('button', { name: 'Dismiss notification' }));
+    await expect(canvas.getAllByRole('button', { name: i18n.t('common.actions.dismissNotification') })).toHaveLength(2);
+    await userEvent.click(within(canvas.getByRole('alert')).getByRole('button', { name: i18n.t('common.actions.dismissNotification') }));
     await expect(canvas.queryByRole('alert')).not.toBeInTheDocument();
     await expect(canvas.getByRole('status')).toHaveTextContent('招待リンクをコピーしました');
   },

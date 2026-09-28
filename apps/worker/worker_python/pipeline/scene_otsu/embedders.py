@@ -32,10 +32,6 @@ class SceneEmbedder:
         return embeddings
 
 
-def create_embedder(*, batch_size: int = 16) -> SceneEmbedder:
-    return SceneEmbedder(batch_size=batch_size)
-
-
 def _resolve_encoding() -> tiktoken.Encoding:
     config = resolve_embedding_config()
     model = config.model

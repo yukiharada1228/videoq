@@ -3,12 +3,12 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/digital-agency/cn"
 
-export type HeadingSize =
+type HeadingSize =
   "64" | "57" | "45" | "36" | "32" | "28" | "24" | "20" | "18" | "16"
-export type RuleSize = "8" | "6" | "4" | "2"
-export type HeadingLevel = "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
+type RuleSize = "8" | "6" | "4" | "2"
+type HeadingLevel = "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
 
-export const headingVariants = cva("text-solid-gray-800", {
+const headingVariants = cva("text-solid-gray-800", {
   variants: {
     size: {
       "64": "text-dsp-64B-140 [--shoulder-size:calc(28/16*1rem)] [--shoulder-line-height:1.5] [--shoulder-letter-spacing:0.01em]",
@@ -42,7 +42,7 @@ const chipClasses = cn(
 const chipShoulderClasses =
   "before:!top-[calc((var(--shoulder-size)*(var(--shoulder-line-height)-1))/2)]"
 
-export type HeadingShoulderProps = React.ComponentProps<"p">
+type HeadingShoulderProps = React.ComponentProps<"p">
 
 const HeadingShoulder = React.forwardRef<
   HTMLParagraphElement,
@@ -64,7 +64,7 @@ const HeadingShoulder = React.forwardRef<
 })
 HeadingShoulder.displayName = "HeadingShoulder"
 
-export type HeadingTitleProps = React.ComponentProps<"h2"> & {
+type HeadingTitleProps = React.ComponentProps<"h2"> & {
   level: HeadingLevel
 }
 
@@ -84,7 +84,7 @@ const HeadingTitle = React.forwardRef<HTMLHeadingElement, HeadingTitleProps>(
 )
 HeadingTitle.displayName = "HeadingTitle"
 
-export type HeadingProps = React.HTMLAttributes<HTMLElement> &
+type HeadingProps = React.HTMLAttributes<HTMLElement> &
   VariantProps<typeof headingVariants> & {
     size: HeadingSize
     hasChip?: boolean

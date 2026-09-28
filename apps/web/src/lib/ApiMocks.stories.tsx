@@ -9,9 +9,9 @@ import { API_URL, apiClient } from './api';
 import { appQueryClient } from './queryClient';
 import { createAppTrpcClient, trpc } from './trpc';
 import { authFixtures } from '../../.storybook/fixtures/auth';
-import { apiKeysResponse, emptyTagPage, tagPage } from '../../.storybook/fixtures/api';
+import { integrationApiKeys, emptyTagPage, tagPage } from '../../.storybook/fixtures/api';
 import { englishTags, longTag } from '../../.storybook/fixtures/tags';
-import { failure, pending, restGet, success, trpcMutation, trpcQuery } from '../../.storybook/mocks/network';
+import { failure, pending, success, trpcHandler, trpcMutation, trpcQuery } from '../../.storybook/mocks/network';
 
 const listInput = { limit: 100, offset: 0 };
 const createdTag = { ...tagPage.data[0], id: 99, name: '追加したタグ' };
@@ -20,10 +20,10 @@ const createdTag = { ...tagPage.data[0], id: 99, name: '追加したタグ' };
 function ApiExample() {
   const { i18n } = useTranslation();
   const en = i18n.language === 'en';
-  const { user, isLoading } = useAuth({ redirectToLogin: false });
+  const { user, isLoading } = useAuth();
   const client = useQueryClient();
   const tags = useQuery(trpc.tags.list.queryOptions(listInput));
-  const keys = useQuery({ queryKey: ['storybook', 'apiKeys'], queryFn: () => apiClient.getIntegrationApiKeys() });
+  const keys = useQuery(trpc.account.integrationApiKeys.queryOptions());
   const create = useMutation(trpc.tags.create.mutationOptions({
     onSuccess(tag) {
       client.setQueryData(trpc.tags.list.queryKey(listInput), (previous) => ({
@@ -66,8 +66,7 @@ function ApiExample() {
 
 const defaultApi = {
   auth: authFixtures.user,
-  trpc: [trpcQuery('tags.list', success(tagPage)), trpcMutation('tags.create', success(createdTag))],
-  rest: [restGet('/api/auth/api-key/list', success(apiKeysResponse))],
+  trpc: [trpcQuery('tags.list', success(tagPage)), trpcMutation('tags.create', success(createdTag)), trpcQuery('account.integrationApiKeys', success(integrationApiKeys))],
 };
 
 const meta = {
@@ -115,7 +114,7 @@ export const LoggedOut: Story = {
   },
 };
 export const Empty: Story = {
-  parameters: { api: { ...defaultApi, trpc: [trpcQuery('tags.list', success(emptyTagPage)), defaultApi.trpc[1]], rest: [restGet('/api/auth/api-key/list', success({ apiKeys: [] }))] } },
+  parameters: { api: { ...defaultApi, trpc: [trpcQuery('tags.list', success(emptyTagPage)), defaultApi.trpc[1], trpcQuery('account.integrationApiKeys', success([]))] } },
   async play({ canvasElement }) {
     const canvas = within(canvasElement);
     await expect(await canvas.findByText(/タグはまだありません|No tags yet/)).toBeVisible();
@@ -123,7 +122,7 @@ export const Empty: Story = {
   },
 };
 export const Loading: Story = {
-  parameters: { api: { ...defaultApi, trpc: [trpcQuery('tags.list', pending())], rest: [restGet('/api/auth/api-key/list', pending())] } },
+  parameters: { api: { ...defaultApi, trpc: [trpcQuery('tags.list', pending()), trpcQuery('account.integrationApiKeys', pending())] } },
   async play({ canvasElement }) {
     const canvas = within(canvasElement);
     await expect(await canvas.findByText(/タグを読み込み中…|Loading tags…/)).toBeVisible();
@@ -132,7 +131,7 @@ export const Loading: Story = {
   },
 };
 export const Failed: Story = {
-  parameters: { api: { ...defaultApi, trpc: [trpcQuery('tags.list', failure('タグを取得できませんでした'))], rest: [restGet('/api/auth/api-key/list', failure('連携を取得できませんでした'))] } },
+  parameters: { api: { ...defaultApi, trpc: [trpcQuery('tags.list', failure('タグを取得できませんでした')), trpcQuery('account.integrationApiKeys', failure('連携を取得できませんでした'))] } },
   async play({ canvasElement }) {
     const canvas = within(canvasElement);
     await expect(await canvas.findByText('タグを取得できませんでした')).toHaveAttribute('role', 'alert');
@@ -155,7 +154,7 @@ export const KeyboardMutation: Story = {
   },
 };
 export const MutationPending: Story = {
-  parameters: { api: { ...defaultApi, trpc: [defaultApi.trpc[0], trpcMutation('tags.create', pending())] } },
+  parameters: { api: { ...defaultApi, trpc: [defaultApi.trpc[0], defaultApi.trpc[2], trpcMutation('tags.create', pending())] } },
   async play({ canvasElement, userEvent }) {
     const canvas = within(canvasElement);
     const add = canvas.getByRole('button', { name: /タグを追加|Add tag/ });
@@ -166,7 +165,7 @@ export const MutationPending: Story = {
   },
 };
 export const MutationFailed: Story = {
-  parameters: { api: { ...defaultApi, trpc: [defaultApi.trpc[0], trpcMutation('tags.create', failure('タグを作成できませんでした', 403))] } },
+  parameters: { api: { ...defaultApi, trpc: [defaultApi.trpc[0], defaultApi.trpc[2], trpcMutation('tags.create', failure('タグを作成できませんでした', 403))] } },
   async play({ canvasElement, userEvent }) {
     const canvas = within(canvasElement);
     const add = canvas.getByRole('button', { name: /タグを追加|Add tag/ });
@@ -177,18 +176,21 @@ export const MutationFailed: Story = {
     await expect(appQueryClient.getQueryData(trpc.tags.list.queryKey(listInput))).toEqual(tagPage);
   },
 };
-export const RestFailureThenRetry: Story = {
+export const IntegrationFailureThenRetry: Story = {
   beforeEach({ msw }) {
     let attempts = 0;
-    msw.use(http.get('/api/auth/api-key/list', () => ++attempts === 1
-      ? HttpResponse.json({ message: '再読み込みしてください', code: 'INTERNAL_SERVER_ERROR' }, { status: 500 })
-      : HttpResponse.json(apiKeysResponse)));
+    msw.use(trpcHandler([
+      ...defaultApi.trpc.filter(mock => mock.path !== 'account.integrationApiKeys'),
+      trpcQuery('account.me', success(authFixtures.user.profile!)),
+      trpcQuery('account.integrationApiKeys', () => ++attempts === 1
+        ? failure('再読み込みしてください') : success(integrationApiKeys)),
+    ]));
   },
   async play({ canvasElement, userEvent }) {
     const canvas = within(canvasElement);
     await expect(await canvas.findByRole('alert')).toHaveTextContent('再読み込みしてください');
     const refresh = canvas.getByRole('button', { name: /再読み込み|Refresh/ });
-    // The independent tags request may still be loading when the REST error arrives.
+    // The independent tags request may still be loading when the integration error arrives.
     await waitFor(() => expect(refresh).toBeEnabled());
     await userEvent.click(refresh);
     await expect(await canvas.findByText('授業資料の連携')).toBeVisible();
@@ -200,7 +202,7 @@ export const RestMutation: Story = {
     msw.use(http.post('/api/auth/api-key/create', async ({ request }) => {
       const body = await request.json();
       await expect(body).toMatchObject({ name: 'Sample key', configId: 'default' });
-      return HttpResponse.json({ ...apiKeysResponse.apiKeys[0], name: 'Sample key', key: 'storybook-key-not-valid' });
+      return HttpResponse.json({ id: 'storybook-key', configId: 'default', name: 'Sample key', start: 'vq_demo', createdAt: '2026-09-01T00:00:00Z', key: 'storybook-key-not-valid' });
     }));
   },
   async play() {
@@ -211,8 +213,8 @@ export const RestMutation: Story = {
 export const MixedBatchAndInputs: Story = {
   async beforeEach({ msw }) {
     // Installed per run; function-local state never survives a story remount.
-    const { trpcHandler } = await import('../../.storybook/mocks/network');
     msw.use(trpcHandler([
+      defaultApi.trpc[2],
       trpcQuery('billing.plans', success([])),
       trpcQuery('videos.statusCounts', failure('Access denied', 403)),
       trpcQuery('tags.list', (input) => success({ ...tagPage, meta: { ...tagPage.meta, ...input } })),
@@ -247,7 +249,7 @@ export const UnmockedRequestsBlocked: Story = {
 };
 export const EnglishMobile: Story = {
   globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
-  parameters: { api: { ...defaultApi, auth: authFixtures.english, trpc: [trpcQuery('tags.list', success({ ...tagPage, data: englishTags })), defaultApi.trpc[1]], rest: [restGet('/api/auth/api-key/list', success({ apiKeys: [{ ...apiKeysResponse.apiKeys[0], name: 'Course materials' }] }))] } },
+  parameters: { api: { ...defaultApi, auth: authFixtures.english, trpc: [trpcQuery('tags.list', success({ ...tagPage, data: englishTags })), defaultApi.trpc[1], trpcQuery('account.integrationApiKeys', success([{ ...integrationApiKeys[0], name: 'Course materials' }]))] } },
   async play({ canvasElement }) {
     const canvas = within(canvasElement);
     await expect(await canvas.findByText('Alex Morgan · Member')).toBeVisible();
@@ -257,6 +259,6 @@ export const EnglishMobile: Story = {
 };
 export const LongContentMobile: Story = {
   globals: { viewport: { value: 'mobile', isRotated: false } },
-  parameters: { api: { ...defaultApi, auth: authFixtures.longName, trpc: [trpcQuery('tags.list', success({ ...tagPage, data: [longTag], meta: { ...tagPage.meta, total: 1 } })), defaultApi.trpc[1]] } },
+  parameters: { api: { ...defaultApi, auth: authFixtures.longName, trpc: [trpcQuery('tags.list', success({ ...tagPage, data: [longTag], meta: { ...tagPage.meta, total: 1 } })), defaultApi.trpc[1], defaultApi.trpc[2]] } },
   async play({ canvasElement }) { await expect(await within(canvasElement).findByText(longTag.name)).toBeVisible(); },
 };

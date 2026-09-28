@@ -6,7 +6,7 @@ import logging
 
 import numpy as np
 
-from .embedders import SceneEmbedder, create_embedder
+from .embedders import SceneEmbedder
 from ..srt import format_srt_time, parse_srt_scenes, parse_srt_timestamp
 from .parsers import scenes_to_srt_string
 from .types import SceneSegment
@@ -27,7 +27,7 @@ class SceneSplitter:
     """
 
     def __init__(self, batch_size: int = 16, embedder: SceneEmbedder | None = None):
-        self.embedder = embedder or create_embedder(batch_size=batch_size)
+        self.embedder = embedder or SceneEmbedder(batch_size=batch_size)
 
     def _find_otsu_threshold(self, embeddings: np.ndarray) -> int:
         t = len(embeddings)
@@ -69,12 +69,16 @@ class SceneSplitter:
                     chunk_text = self.embedder.encoding.decode(
                         encoded[chunk_start:chunk_end], errors="strict"
                     )
-                    break
+                    # SRT reads strip outer whitespace. Removing a leading space
+                    # can expand a BPE token into several tokens in the saved text.
+                    if len(self.embedder.encoding.encode_ordinary(chunk_text.strip())) <= max_tokens:
+                        break
                 except UnicodeDecodeError:
                     # Token boundaries can fall inside a UTF-8 character.
-                    chunk_end -= 1
+                    pass
+                chunk_end -= 1
             else:
-                raise ValueError("max_tokens is too small to preserve a Unicode character")
+                raise ValueError("max_tokens is too small to preserve this text")
 
             chunk_start_sec = start_sec + duration * (chunk_start / total_tokens)
             chunk_end_sec = start_sec + duration * (chunk_end / total_tokens)
@@ -119,7 +123,12 @@ class SceneSplitter:
             if start == end and range_tokens > max_tokens:
                 scenes.extend(long_text_scenes.pop(start))
                 continue
-            if range_tokens <= max_tokens:
+            # Joining cues adds spaces and can change token boundaries. Check
+            # the actual merged text before admitting a scene to the output.
+            if range_tokens <= max_tokens and (
+                start == end
+                or len(self.embedder.encoding.encode_ordinary(" ".join(texts[start : end + 1]))) <= max_tokens
+            ):
                 scenes.append(
                     SceneSegment(
                         start_time=raw_subs[start].start_time,

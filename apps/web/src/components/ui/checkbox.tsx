@@ -55,7 +55,7 @@ const checkboxBoxClass = cn(
   "group-data-[state=checked]/checkbox:group-aria-disabled/checkbox:forced-colors:!border-[GrayText] group-data-[state=indeterminate]/checkbox:group-aria-disabled/checkbox:forced-colors:!border-[GrayText]"
 )
 
-export type CheckboxProps = Omit<
+type CheckboxProps = Omit<
   React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>,
   "children"
 > &
@@ -91,5 +91,4 @@ const Checkbox = React.forwardRef<
   </CheckboxPrimitive.Root>
 ))
 Checkbox.displayName = "Checkbox"
-
-export { Checkbox, checkboxVariants }
+export { Checkbox }

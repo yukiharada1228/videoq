@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def reindex_video_transcript(video_id: int) -> None:
-    """Delete existing vectors and re-index from the current transcript."""
+    """Atomically replace this video's index, or remove it for a cleared transcript."""
     logger.info("Reindex transcript task started for video ID: %d", video_id)
 
     with video_vector_write_lock(video_id):

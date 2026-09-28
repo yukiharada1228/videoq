@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
@@ -13,6 +14,8 @@ from psycopg import sql
 from psycopg.rows import dict_row
 
 from worker_python.tasks.evaluation import _save_evaluation
+from worker_python.tasks import evaluation as evaluation_task
+from worker_python.pipeline import evaluation as evaluation_pipeline
 
 
 def save(conn, *, score=0.7, status="completed"):
@@ -34,7 +37,6 @@ def test_evaluation_save_uses_one_database_statement(existing):
     conn.execute.return_value.rowcount = int(existing)
     save(conn)
     conn.execute.assert_called_once()
-    conn.commit.assert_called_once()
 
 
 @pytest.fixture
@@ -46,11 +48,21 @@ def evaluation_db():
     with psycopg.connect(database_url, autocommit=True) as admin:
         admin.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)))
         try:
+            admin.execute(sql.SQL("""
+                CREATE TABLE {}.chat_logs (
+                    id bigint PRIMARY KEY, question text NOT NULL,
+                    response jsonb NOT NULL, retrieved_contexts jsonb NOT NULL
+                )
+            """).format(sql.Identifier(schema)))
+            admin.execute(sql.SQL("""
+                INSERT INTO {}.chat_logs VALUES
+                    (42, 'Question', '{{"segments":[{{"text":"Answer","sourceIds":[]}}],"sources":[]}}', '[]')
+            """).format(sql.Identifier(schema)))
             admin.execute(
                 sql.SQL("""
                 CREATE TABLE {}.chat_log_evaluations (
                     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-                    chat_log_id bigint NOT NULL UNIQUE,
+                    chat_log_id bigint NOT NULL UNIQUE REFERENCES {}.chat_logs(id) ON DELETE CASCADE,
                     status varchar(20) NOT NULL,
                     faithfulness double precision,
                     answer_relevancy double precision,
@@ -59,7 +71,7 @@ def evaluation_db():
                     evaluated_at timestamptz,
                     created_at timestamptz NOT NULL
                 )
-            """).format(sql.Identifier(schema))
+            """).format(sql.Identifier(schema), sql.Identifier(schema))
             )
 
             def connect():
@@ -121,3 +133,39 @@ def test_concurrent_saves_produce_one_complete_evaluation(evaluation_db):
             == result["context_precision"]
         )
         assert result["status"] == "completed"
+
+
+def test_history_deleted_during_provider_work_does_not_fail_the_job(evaluation_db, monkeypatch):
+    def score(*_):
+        with evaluation_db() as conn:
+            conn.execute("DELETE FROM chat_logs WHERE id = 42")
+        return (0.7, 0.8, 0.9)
+
+    provider = MagicMock(side_effect=score)
+    monkeypatch.setattr(evaluation_task, "db_connection", evaluation_db)
+    monkeypatch.setattr(evaluation_pipeline, "score_chat_log", provider)
+    evaluation_task.evaluate_chat_log(42)
+    provider.assert_called_once_with("Question", "Answer", [])
+    with evaluation_db() as conn:
+        assert conn.execute("SELECT * FROM chat_log_evaluations").fetchall() == []
+
+
+def test_save_waiting_for_history_deletion_completes_without_a_retry(evaluation_db):
+    with evaluation_db() as deleting, evaluation_db() as writing, evaluation_db() as observer:
+        deleting.execute("DELETE FROM chat_logs WHERE id = 42")
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(save, writing)
+            try:
+                deadline = time.monotonic() + 5
+                while not observer.execute("""
+                    SELECT 1 FROM pg_stat_activity
+                     WHERE pid = %s AND wait_event_type = 'Lock'
+                """, (writing.info.backend_pid,)).fetchone():
+                    observer.commit()
+                    assert not future.done(), "save did not wait for the deleting transaction"
+                    assert time.monotonic() < deadline, "save did not reach the row lock"
+                    time.sleep(0.01)
+            finally:
+                deleting.commit()
+            future.result(timeout=5)
+        assert writing.execute("SELECT * FROM chat_log_evaluations").fetchall() == []

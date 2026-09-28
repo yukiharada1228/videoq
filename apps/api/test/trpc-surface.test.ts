@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { appRouter, type TrpcContext } from "@videoq/trpc";
 import { createApp } from "../src/app";
 
 const EXPECTED_PROCEDURES = [
+  "account.connectedApps",
   "account.deleteSearchApiKey",
+  "account.integrationApiKeys",
   "account.me",
   "account.saveSearchApiKey",
   "account.searchApiKeyStatus",
@@ -38,7 +40,6 @@ const EXPECTED_PROCEDURES = [
   "courses.get",
   "courses.list",
   "courses.reorder",
-  "courses.replace",
   "courses.shared",
   "courses.update",
   "evaluation.logs",
@@ -53,14 +54,12 @@ const EXPECTED_PROCEDURES = [
   "tags.delete",
   "tags.get",
   "tags.list",
-  "tags.replace",
   "tags.update",
   "videos.confirmUpload",
   "videos.createYoutube",
   "videos.delete",
   "videos.get",
   "videos.list",
-  "videos.replace",
   "videos.requestUpload",
   "videos.statusCounts",
   "videos.update",
@@ -106,4 +105,11 @@ describe("tRPC public surface", () => {
       code: "UNAUTHORIZED",
     });
   });
+  it.each(["integrationApiKeys", "connectedApps"] as const)("requires a browser session before reading account.%s", async (procedure) => {
+    const call = vi.fn();
+    const caller = appRouter.createCaller({ userId: null, assertSuperuser: async () => undefined, call });
+    await expect(caller.account[procedure]()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect(call).not.toHaveBeenCalled();
+  });
+
 });

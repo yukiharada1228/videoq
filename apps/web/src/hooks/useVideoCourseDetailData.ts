@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Course as VideoCourse } from '@videoq/trpc';
 import { appTrpcClient, trpc } from '@/lib/trpc';
-import { invalidateAfterCourseUpdate } from '@/lib/cacheInvalidation';
+import { invalidateAfterCourseRemoval, invalidateAfterCourseUpdate, refreshQuery } from '@/lib/cacheInvalidation';
 import { useVideos, type VideosOrdering } from './useVideos';
 
 interface UseVideoCourseDetailQueryResult {
@@ -59,7 +59,6 @@ export function useAddableVideosQuery({
 
 interface UseVideoCourseDetailMutationsParams {
   courseId: number | null;
-  onDeleteSuccess: () => void;
   onUpdateSuccess?: () => void;
 }
 
@@ -84,7 +83,6 @@ export function useAddVideosToCourseMutation(courseId: number | null, onSuccess?
 
 export function useVideoCourseDetailMutations({
   courseId,
-  onDeleteSuccess,
   onUpdateSuccess,
 }: UseVideoCourseDetailMutationsParams) {
   const queryClient = useQueryClient();
@@ -124,7 +122,7 @@ export function useVideoCourseDetailMutations({
             ? { ...current, videos: previous.videos }
             : current
         ));
-        await queryClient.invalidateQueries(filter);
+        await refreshQuery(queryClient, filter);
         throw error;
       }
     },
@@ -136,11 +134,9 @@ export function useVideoCourseDetailMutations({
         throw new Error('Course ID is required');
       }
       await appTrpcClient.courses.delete.mutate({ id: courseId });
+      return courseId;
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries(trpc.courses.list.pathFilter());
-      onDeleteSuccess();
-    },
+    onSuccess: (id) => invalidateAfterCourseRemoval(queryClient, id),
   });
 
   const updateCourseMutation = useMutation({
@@ -162,7 +158,7 @@ export function useVideoCourseDetailMutations({
         queryClient.setQueryData(trpc.courses.get.queryKey({ id: course.id }), course);
       }
       onUpdateSuccess?.();
-      if (course) await queryClient.invalidateQueries(trpc.courses.list.pathFilter());
+      if (course) await refreshQuery(queryClient, trpc.courses.list.pathFilter());
     },
   });
 

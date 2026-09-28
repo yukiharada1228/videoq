@@ -4,7 +4,8 @@ import { createMiddleware } from "hono/factory";
 import { toErrorBody } from "../../shared/errors";
 import type { AppEnv } from "../../types/bindings";
 
-const enforceChatBodySize = bodyLimit({
+/** Bound a raw chat request before JSON parsing allocates the complete body. */
+export const limitChatRequestBody = bodyLimit({
   maxSize: CHAT_REQUEST_MAX_BYTES,
   onError: (c) =>
     c.json(
@@ -15,11 +16,6 @@ const enforceChatBodySize = bodyLimit({
       413,
     ),
 });
-
-/** Bound a raw chat request before JSON parsing allocates the complete body. */
-export const limitChatRequestBody = createMiddleware<AppEnv>((c, next) =>
-  enforceChatBodySize(c, next),
-);
 
 /** tRPC batch URLs contain comma-delimited procedure names. */
 export const limitChatTrpcRequestBody = createMiddleware<AppEnv>(
@@ -41,7 +37,7 @@ export const limitChatTrpcRequestBody = createMiddleware<AppEnv>(
     }
     const procedures = procedurePath.split(",");
     return procedures.includes("chat.send")
-      ? await enforceChatBodySize(c, next)
+      ? await limitChatRequestBody(c, next)
       : await next();
   },
 );

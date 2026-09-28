@@ -13,21 +13,12 @@ from worker_python.tasks.indexing import index_video_transcript
 from worker_python.video_sql import (
     get_video_for_task,
     reserve_processing_seconds,
-    save_transcript,
+    finish_transcription,
     transition_video_status,
 )
-from worker_python.video_status import (
-    plan_transcription_failure,
-    plan_transcription_start,
-    plan_transcription_success,
-    VideoStatus,
-)
+from worker_python.video_status import VideoStatus
 
 logger = logging.getLogger(__name__)
-
-
-class TranscriptionTargetMissingError(Exception):
-    pass
 
 
 class TranscriptionExecutionFailedError(Exception):
@@ -61,7 +52,7 @@ def _enqueue_or_run_indexing(video_id: int, parent_job_id: str) -> None:
     if message_id:
         return
     logger.info("SQS unavailable; running indexing inline for video %d", video_id)
-    index_video_transcript(video_id, job_id=next_job_id)
+    index_video_transcript(video_id)
 
 
 def transcribe_video(video_id: int, *, job_id: str | None = None) -> None:
@@ -75,8 +66,8 @@ def transcribe_video(video_id: int, *, job_id: str | None = None) -> None:
         video = get_video_for_task(conn, video_id, include_transcript=False)
 
     if video is None:
-        logger.warning("Transcription target video not found: %d", video_id)
-        raise TranscriptionTargetMissingError(f"Video {video_id} not found")
+        logger.info("Video %d was deleted; skipping transcription", video_id)
+        return
 
     parent_job_id = job_id or f"transcribe-video:{video_id}"
     if video.status == VideoStatus.INDEXING.value:
@@ -89,18 +80,21 @@ def transcribe_video(video_id: int, *, job_id: str | None = None) -> None:
     already_processing = video.status == VideoStatus.PROCESSING.value
     if already_processing:
         logger.info("Resuming interrupted transcription for video %d", video_id)
-    else:
-        from_status, to_status = plan_transcription_start(video.status)
+    elif video.status not in {VideoStatus.PENDING.value, VideoStatus.ERROR.value}:
+        raise TranscriptionExecutionFailedError(
+            f"Video {video_id} is not ready for transcription (status={video.status})"
+        )
 
+    transcript: str | None = None
+    failure: Exception | None = None
     try:
         if not already_processing:
             with db_connection() as conn:
-                if not transition_video_status(conn, video_id, from_status, to_status):
+                if not transition_video_status(conn, video_id, video.status, VideoStatus.PROCESSING):
                     raise TranscriptionExecutionFailedError(
                         f"Video {video_id} could not transition "
-                        f"{from_status.value} → {to_status.value}"
+                        f"{video.status} → {VideoStatus.PROCESSING.value}"
                     )
-                conn.commit()
 
         logger.info("Transcription started for video %d (%s)", video.id, video.title)
         searchapi_key = (
@@ -116,7 +110,6 @@ def transcribe_video(video_id: int, *, job_id: str | None = None) -> None:
                     raise ProcessingQuotaExceededError(
                         f"Processing quota exceeded (limit: {detail})"
                     )
-                conn.commit()
 
         transcript = run_transcription(
             video,
@@ -124,35 +117,30 @@ def transcribe_video(video_id: int, *, job_id: str | None = None) -> None:
             reserve_processing=reserve_processing,
         )
 
-        success_from, success_to = plan_transcription_success()
-        with db_connection() as conn:
-            save_transcript(conn, video_id, transcript)
-            transition_video_status(conn, video_id, success_from, success_to)
-            conn.commit()
-
     except ProcessingQuotaExceededError as exc:
         logger.warning("Processing quota exceeded for video %d: %s", video_id, exc)
-        fail_from, fail_to = plan_transcription_failure()
-        with db_connection() as conn:
-            transition_video_status(
-                conn, video_id, fail_from, fail_to, error_message=str(exc)
-            )
-            conn.commit()
-        return
+        failure = exc
     except TranscriptionExecutionFailedError:
         raise
     except Exception as exc:
-        error_msg = str(exc)
-        logger.error("Transcription failed for video %d: %s", video_id, error_msg)
-        fail_from, fail_to = plan_transcription_failure()
-        with db_connection() as conn:
-            transition_video_status(
-                conn, video_id, fail_from, fail_to, error_message=error_msg
-            )
-            conn.commit()
+        logger.error("Transcription failed for video %d: %s", video_id, exc)
+        failure = exc
+
+    with db_connection() as conn:
+        status = finish_transcription(
+            conn, video, transcript=transcript,
+            error_message=str(failure) if failure else "",
+        )
+    if (
+        status == VideoStatus.ERROR.value and failure
+        and not isinstance(failure, ProcessingQuotaExceededError)
+    ):
         raise TranscriptionExecutionFailedError(
-            f"Transcription failed for video {video_id}: {error_msg}"
-        ) from exc
+            f"Transcription failed for video {video_id}: {failure}"
+        ) from failure
+    if status != VideoStatus.INDEXING.value:
+        logger.info("Transcription handoff skipped for video %d (current status=%s)", video_id, status)
+        return
 
     logger.info("Transcription completed for video %d; enqueue indexing", video_id)
     try:

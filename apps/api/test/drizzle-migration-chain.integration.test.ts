@@ -1,9 +1,12 @@
+import { migrateDatabase } from "../scripts/migrate-database";
+import { convertHistoricalAnswer } from "../scripts/migrations/structured-answer/convert";
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/node-postgres";
+import { getTableConfig } from "drizzle-orm/pg-core";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { sql } from "drizzle-orm";
 import { Pool, type PoolClient } from "pg";
@@ -84,7 +87,16 @@ migrationDescribe("Drizzle migration chain", () => {
         preservedRows.external_tasks = (await targetClient.query("SELECT to_jsonb(t) AS row FROM external_tasks t WHERE dedupe_key LIKE 'keep-%' ORDER BY dedupe_key")).rows;
         preservedRows.job_executions = (await targetClient.query("SELECT to_jsonb(t) AS row FROM job_executions t WHERE job_id LIKE 'keep-%' ORDER BY job_id")).rows;
 
-        await migrate(db, { migrationsFolder: migrationDirectory });
+        // Conversion must fail before the old columns are dropped and remain retryable.
+        const oldChat = (preservedRows.chat_logs[0] as { row: Record<string, unknown> }).row;
+        await expect(migrateDatabase(targetClient)).rejects.toThrow("STRUCTURED_ANSWER_WRITERS_STOPPED=1");
+        await targetClient.query("UPDATE chat_logs SET citations = '{}'::jsonb");
+        await expect(migrateDatabase(targetClient, { writersStopped: true })).rejects.toThrow("Unable to migrate historical chat log");
+        expect((await targetClient.query("SELECT response FROM chat_logs")).rows[0].response).toBeNull();
+        await targetClient.query("UPDATE chat_logs SET citations = $1::jsonb", [JSON.stringify(oldChat.citations)]);
+        const { answer, citations, ...unchanged } = oldChat;
+        preservedRows.chat_logs = [{ row: { ...unchanged, response: convertHistoricalAnswer(answer as string, citations) } }];
+        await migrateDatabase(targetClient, { writersStopped: true });
         // A failure after DROP and outbox deletion must restore both. It can be
         // retried after the fault is resolved, even with 0023 already applied.
         await targetClient.query(`
@@ -107,7 +119,8 @@ migrationDescribe("Drizzle migration chain", () => {
         fileURLToPath(new URL("../scripts/db-migrate.sh", import.meta.url)),
       ], {
         encoding: "utf8",
-        env: { ...process.env, DATABASE_URL: targetUrl.toString() },
+        // Fresh installs and already converted databases need no acknowledgement.
+        env: { ...process.env, DATABASE_URL: targetUrl.toString(), STRUCTURED_ANSWER_WRITERS_STOPPED: "" },
         timeout: 20_000,
       });
       for (let attempt = 0; attempt < 2; attempt++) {
@@ -158,6 +171,44 @@ migrationDescribe("Drizzle migration chain", () => {
       expect(retainedTables.rows[0]).toEqual({
         videos: "videos", chat_logs: "chat_logs", scene_embeddings: "scene_embeddings",
       });
+
+      // A successful migration can still disagree with the runtime schema.
+      // In particular, deletion code must not assume cascades absent from SQL.
+      const foreignKeys = Object.values(schema).flatMap((table) => {
+        const config = getTableConfig(table);
+        return config.foreignKeys.map((key) => {
+          const reference = key.reference();
+          return {
+            table_name: config.name, name: key.getName(),
+            columns: reference.columns.map((column) => column.name),
+            foreign_table: getTableConfig(reference.foreignTable).name,
+            foreign_columns: reference.foreignColumns.map((column) => column.name),
+            on_delete: key.onDelete ?? "no action", on_update: key.onUpdate ?? "no action",
+          };
+        });
+      }).sort((a, b) => `${a.table_name}.${a.name}`.localeCompare(`${b.table_name}.${b.name}`));
+      const actualForeignKeys = await targetClient.query(`
+        SELECT source.relname AS table_name, fk.conname AS name,
+          ARRAY(SELECT attribute.attname::text FROM unnest(fk.conkey) WITH ORDINALITY AS key(num, ord)
+            JOIN pg_attribute attribute ON attribute.attrelid = fk.conrelid AND attribute.attnum = key.num
+            ORDER BY key.ord) AS columns,
+          target.relname AS foreign_table,
+          ARRAY(SELECT attribute.attname::text FROM unnest(fk.confkey) WITH ORDINALITY AS key(num, ord)
+            JOIN pg_attribute attribute ON attribute.attrelid = fk.confrelid AND attribute.attnum = key.num
+            ORDER BY key.ord) AS foreign_columns,
+          CASE fk.confdeltype WHEN 'a' THEN 'no action' WHEN 'r' THEN 'restrict'
+            WHEN 'c' THEN 'cascade' WHEN 'n' THEN 'set null' WHEN 'd' THEN 'set default' END AS on_delete,
+          CASE fk.confupdtype WHEN 'a' THEN 'no action' WHEN 'r' THEN 'restrict'
+            WHEN 'c' THEN 'cascade' WHEN 'n' THEN 'set null' WHEN 'd' THEN 'set default' END AS on_update
+        FROM pg_constraint fk
+        JOIN pg_class source ON source.oid = fk.conrelid
+        JOIN pg_namespace namespace ON namespace.oid = source.relnamespace
+        JOIN pg_class target ON target.oid = fk.confrelid
+        WHERE fk.contype = 'f' AND namespace.nspname = 'public'
+          AND source.relname = ANY($1::text[])
+      `, [Object.values(schema).map((table) => getTableConfig(table).name)]);
+      expect(actualForeignKeys.rows.sort((a, b) => `${a.table_name}.${a.name}`.localeCompare(`${b.table_name}.${b.name}`)))
+        .toEqual(foreignKeys);
 
       // Verify the migrated schema with the real Admin API and transaction
       // adapter used by the existing settings/admin UI.

@@ -1,7 +1,7 @@
-import { parseCitationParts } from '@videoq/trpc/chat';
-import type { ChatStreamEvent, Citation } from '../../src/lib/api';
-import { answer, citations } from './chat';
-import { englishAnswer, englishCitations, englishQuestion, historyItem } from './chatHistory';
+import { answerParts, type ChatAnswer } from '@videoq/trpc/chat';
+import type { ChatStreamEvent } from '../../src/lib/api';
+import { answerData } from './chat';
+import { englishAnswerData, englishQuestion, historyItem } from './chatHistory';
 
 export const courseId = 3;
 export const shareToken = 'storybook-course-chat';
@@ -13,14 +13,13 @@ export const reviewedEvents: ChatStreamEvent[] = [
   ...searchingEvents,
   { type: 'search_completed', search_id: 1, query: searchQuery, result_count: 3 },
 ];
-export const contentEvents = (content: string, sources: Citation[]): ChatStreamEvent[] => [
-  ...sources.map((source): ChatStreamEvent => ({ type: 'source', source })),
-  ...parseCitationParts(content, id => sources.some(source => source.id === id)).map((part): ChatStreamEvent =>
-    part.type === 'text' ? { type: 'text_delta', text: part.text } : { type: 'citation', sourceId: part.sourceId }),
+export const contentEvents = (answer: ChatAnswer): ChatStreamEvent[] => [
+  ...answer.sources.map((source): ChatStreamEvent => ({ type: 'source', source })),
+  ...answerParts(answer).map((part): ChatStreamEvent => part.type === 'text' ? { ...part, type: 'text_delta' } : part),
 ];
 export const answerEvents = (english = false): ChatStreamEvent[] => [
-  ...contentEvents(english ? englishAnswer : answer, english ? englishCitations : citations),
-  { type: 'done', chat_log_id: 101, feedback: null, citations: english ? englishCitations : citations },
+  ...contentEvents(english ? englishAnswerData : answerData),
+  { type: 'done', chat_log_id: 101, feedback: null },
 ];
 export const courseHistory = [{ ...historyItem, course: courseId }];
-export const englishHistory = [{ ...courseHistory[0], question: englishQuestion, answer: englishAnswer, citations: englishCitations, asked_by: null, is_shared_origin: true }];
+export const englishHistory = [{ ...courseHistory[0], question: englishQuestion, answer: englishAnswerData, asked_by: null, is_shared_origin: true }];

@@ -25,7 +25,7 @@ function useEditor() {
   }));
   return {
     query, client: useQueryClient(),
-    editor: useVideoCourseDetailMutations({ courseId: course.id, onDeleteSuccess: vi.fn() }),
+    editor: useVideoCourseDetailMutations({ courseId: course.id }),
   };
 }
 
@@ -122,7 +122,7 @@ describe('course video ordering', () => {
     globalThis.__setTrpcHandler('memberships.reorderVideos', () => new Promise<void>((_, reject) => { failSave = reject; }));
     const { result, rerender } = renderHook(({ courseId }) => ({
       client: useQueryClient(),
-      editor: useVideoCourseDetailMutations({ courseId, onDeleteSuccess: vi.fn() }),
+      editor: useVideoCourseDetailMutations({ courseId }),
     }), { initialProps: { courseId: 7 } });
     const otherKey = trpc.courses.get.queryKey({ id: 8 });
     const other = { ...course, id: 8, name: 'Other' };
@@ -144,7 +144,7 @@ describe('course video ordering', () => {
     globalThis.__setTrpcHandler('memberships.reorderVideos', () => new Promise<void>((_, reject) => { failSave = reject; }));
     const { result } = renderHook(() => ({
       client: useQueryClient(),
-      editor: useVideoCourseDetailMutations({ courseId: 7, onDeleteSuccess: vi.fn() }),
+      editor: useVideoCourseDetailMutations({ courseId: 7 }),
     }));
     result.current.client.setQueryData(key, course);
     let failure!: Promise<unknown>;
@@ -162,7 +162,7 @@ describe('course video ordering', () => {
     globalThis.__setTrpcHandler('memberships.reorderVideos', save);
     const { result } = renderHook(() => ({
       client: useQueryClient(),
-      editor: useVideoCourseDetailMutations({ courseId: 7, onDeleteSuccess: vi.fn() }),
+      editor: useVideoCourseDetailMutations({ courseId: 7 }),
     }));
     await act(() => result.current.editor.reorderVideosMutation.mutateAsync(videoIds));
     expect(save).toHaveBeenCalledExactlyOnceWith({ courseId: 7, videoIds });

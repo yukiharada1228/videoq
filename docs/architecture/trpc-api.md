@@ -55,11 +55,30 @@ Define input schemas once in `src/inputs/`. A procedure's `.input()` and `RpcInp
 reference the same schema. Handlers receive `z.output` types after defaults and transforms
 have been applied. SPA caller types are still inferred from `AppRouter`.
 
+The admin form imports its quota and usage field schemas through `@videoq/trpc/admin`.
+It converts text to numbers (blank to null) and validates every field before making
+any update. The API enforces the same limits: upload size is a positive integer;
+processing and AI quotas/counters are non-negative integers, all at most 2,147,483,647.
+Storage quotas may be fractional and non-negative; storage usage must be a non-negative
+safe integer. Null quotas mean unlimited, while zero means no allowance. Required
+counters cannot be blank. `usage_period_start` accepts null or an ISO datetime with
+an explicit timezone, so malformed dates are rejected before database writes.
+The Python worker converts minute limits to seconds with bigint arithmetic and
+compares usage against the remaining allowance, avoiding integer overflow during
+quota checks.
+
 Define every procedure's output schema in `src/outputs.ts`. `.output()` and `RpcOutputMap`
 use the same schemas, and shared DTOs are derived from `src/model-schemas.ts` and `src/schema.ts`.
 Output validation checks required fields and types, and strips undeclared fields.
 Tag writes are restricted to palette names by `tagColorSchema`, while outputs also accept
 legacy stored hex colors.
+
+## List search
+
+Video keywords and admin username/email queries use case-insensitive, literal
+substring matching. `%`, `_`, and `\` are ordinary search characters, not SQL
+wildcards. Both repositories use the same pattern escaping, and each list's
+total count and paginated rows use the same search predicate.
 
 ## React and caching
 
@@ -79,6 +98,25 @@ Infinite scrolling uses `infiniteQueryOptions()` with `initialCursor: 0`.
 
 Integration API keys and OAuth Bearer tokens are for MCP transport only. They do not authenticate
 regular tRPC, SSE, CSV, multipart upload, or media routes.
+
+The SPA's `AuthProvider` owns session revalidation, login redirects and cache
+replacement when the account changes. `useAuth` only reads the app profile;
+mounting more profile consumers must not add more redirects. A profile request
+failure alone is not evidence that the browser session expired.
+
+Email verification caches a successful token confirmation across reconnects and
+remounts. The page renders its translated success message; the auth adapter does
+not manufacture display text from a successful provider response.
+
+Settings reads integration metadata through `account.integrationApiKeys` and
+`account.connectedApps`. Both require the current browser session and return
+only that user's display fields, without API-key hashes, client secrets, or
+private metadata. The repository reads the complete list with explicit column
+selection; it does not inherit Better Auth's default 100-row adapter limit.
+Connected-app names are joined in the same query, avoiding a browser request
+for each client. Output types come from the shared schemas. Missing consent
+creation dates remain null, and consents have no token-expiry display field.
+Key creation and revocation, OAuth consent, and disconnect still use Better Auth.
 
 ## Endpoints that stay in Hono
 

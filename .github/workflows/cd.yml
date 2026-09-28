@@ -122,6 +122,8 @@ jobs:
               - 'apps/api/src/db/**'
               - 'apps/api/drizzle.config.ts'
               - 'apps/api/scripts/db-migrate.sh'
+              - 'apps/api/scripts/migrate-database.ts'
+              - 'apps/api/scripts/migrations/**'
               - 'apps/api/scripts/purge-retired-study-data.mjs'
               - 'apps/api/scripts/stamp-baseline.mjs'
               - '.github/workflows/cd.yml'
@@ -131,6 +133,8 @@ jobs:
               - 'apps/api/src/db/**'
               - 'apps/api/drizzle.config.ts'
               - 'apps/api/scripts/db-migrate.sh'
+              - 'apps/api/scripts/migrate-database.ts'
+              - 'apps/api/scripts/migrations/**'
               - 'apps/api/scripts/purge-retired-study-data.mjs'
               - 'apps/api/scripts/stamp-baseline.mjs'
               - '.github/workflows/cd.yml'
@@ -248,6 +252,8 @@ jobs:
       - name: Migrate database
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # One-time operator acknowledgement after draining/stopping old writers.
+          STRUCTURED_ANSWER_WRITERS_STOPPED: ${{ vars.STRUCTURED_ANSWER_WRITERS_STOPPED }}
         run: |
           if [ -z "${DATABASE_URL:-}" ]; then
             echo "::error::DATABASE_URL secret is required for database migrations"

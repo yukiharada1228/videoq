@@ -163,7 +163,7 @@ def test_rejected_embedding_marks_evaluation_failed(monkeypatch, caplog):
     monkeypatch.setattr(evaluation, "_langchain_llm", MagicMock())
     monkeypatch.setattr(evaluation_task, "db_connection", lambda: nullcontext(MagicMock()))
     monkeypatch.setattr(evaluation_task, "_fetch_chat_log", lambda *_: {
-        "question": "question", "answer": "answer", "retrieved_contexts": [],
+        "question": "question", "response": {"segments": [{"text": "answer", "sourceIds": []}], "sources": []}, "retrieved_contexts": [],
     })
     save = MagicMock()
     monkeypatch.setattr(evaluation_task, "_save_evaluation", save)
@@ -180,3 +180,22 @@ def test_rejected_embedding_marks_evaluation_failed(monkeypatch, caplog):
     assert "HTTP 400" in result["error_message"]
     assert private_body not in result["error_message"]
     assert private_body not in caplog.text
+
+
+def test_structured_answer_projects_exact_text_for_evaluation(monkeypatch):
+    monkeypatch.setattr(evaluation_task, "db_connection", lambda: nullcontext(MagicMock()))
+    monkeypatch.setattr(evaluation_task, "_fetch_chat_log", lambda *_: {
+        "question": "question",
+        "response": {"segments": [
+            {"text": "First [literal].", "sourceIds": [2]},
+            {"text": "\n\n`a[1]` = 20. ", "sourceIds": [1, 2]},
+        ], "sources": []},
+        "retrieved_contexts": ["context"],
+    })
+    score = MagicMock(return_value=(0.9, 0.8, 0.7))
+    monkeypatch.setattr(evaluation, "score_chat_log", score)
+    save = MagicMock()
+    monkeypatch.setattr(evaluation_task, "_save_evaluation", save)
+    evaluation_task.evaluate_chat_log(42)
+    score.assert_called_once_with("question", "First [literal].\n\n`a[1]` = 20. ", ["context"])
+    assert save.call_args.kwargs["status"] == "completed"

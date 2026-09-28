@@ -74,7 +74,6 @@ export function useShareLink(course: VideoCourse | null): UseShareLinkReturn {
       const confirmed = await requestConfirmation({
         title: t('confirmations.disableShareLink'),
         confirmLabel: t('common.actions.disable'),
-        cancelLabel: t('common.actions.cancel'),
         variant: 'danger',
       });
       if (!confirmed) return;

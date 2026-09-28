@@ -38,6 +38,8 @@ flowchart LR
 
 Delivery normally happens during API processing. `TASK_SCHEDULER` alarms handle failures and interruptions. Daily maintenance also performs recovery. Successful delivery is distinct from successful worker execution.
 
+Each API dispatch makes one SQS HTTP request with a 10-second deadline. The HTTP client does not run its own retry loop: failures return to the outbox, which persists the next attempt time and retries with the same `job_id`. This keeps retry waits outside the API request and preserves recovery across process interruptions.
+
 ## If the worker stops midway
 
 SQS may redeliver the same job. The worker keeps an execution record for each `job_id` in `job_executions`.

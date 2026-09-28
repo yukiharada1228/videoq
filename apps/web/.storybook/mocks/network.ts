@@ -34,7 +34,7 @@ function procedure<P extends ProcedurePath>(method: ProcedureMock['method'], pat
 export const trpcQuery = <P extends ProcedurePath>(path: P, reply: Parameters<typeof procedure<P>>[2]) => procedure('GET', path, reply);
 export const trpcMutation = <P extends ProcedurePath>(path: P, reply: Parameters<typeof procedure<P>>[2]) => procedure('POST', path, reply);
 
-export interface ApiScenario {
+interface ApiScenario {
   auth?: AuthFixture;
   trpc?: ProcedureMock[];
   rest?: HttpHandler[];
@@ -103,8 +103,8 @@ export function trpcHandler(procedures: ProcedureMock[]): HttpHandler {
 }
 
 // These handlers remain ordinary MSW handlers: use http.* directly for multipart, CSV, etc.
-function restHandler(method: 'get' | 'post', path: `/api/${string}`, reply: MockReply<JsonBodyType>) {
-  return http[method](path, async ({ request }) => {
+export function restPost(path: `/api/${string}`, reply: MockReply<JsonBodyType>) {
+  return http.post(path, async ({ request }) => {
     if (reply.state === 'pending') {
       await holdRequest(request, lifetime.signal);
       return new HttpResponse(null, { status: 503 });
@@ -113,9 +113,6 @@ function restHandler(method: 'get' | 'post', path: `/api/${string}`, reply: Mock
     return HttpResponse.json(reply.data);
   });
 }
-
-export const restGet = (path: `/api/${string}`, reply: MockReply<JsonBodyType>) => restHandler('get', path, reply);
-export const restPost = (path: `/api/${string}`, reply: MockReply<JsonBodyType>) => restHandler('post', path, reply);
 
 export async function setupMockWorker() {
   const mustBlock = (request: Request) => {

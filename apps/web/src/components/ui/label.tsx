@@ -7,9 +7,9 @@ const labelVariants = cva(
   "text-solid-gray-800 data-[size=sm]:text-std-16B-170 data-[size=md]:text-std-17B-170 data-[size=lg]:text-std-18B-160"
 )
 
-export type LabelSize = "lg" | "md" | "sm"
+type LabelSize = "lg" | "md" | "sm"
 
-export interface LabelProps
+interface LabelProps
   extends
     React.ComponentPropsWithoutRef<"label">,
     VariantProps<typeof labelVariants> {
@@ -32,5 +32,4 @@ const Label = React.forwardRef<HTMLLabelElement, LabelProps>(
   }
 )
 Label.displayName = "Label"
-
-export { Label, labelVariants }
+export { Label }

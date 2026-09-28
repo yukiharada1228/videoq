@@ -58,6 +58,10 @@ Add `-- drizzle-kit:custom` at the start of the generated custom migration. Use 
 
 For schema changes, run type checking and integration tests against a dedicated test database. See [tests and verification commands](testing.md). In shared and production environments, apply reviewed migrations through the deployment process instead of using `drizzle-kit push`.
 
+The migration-chain integration test applies the complete history to both empty and populated databases, then compares all current Drizzle foreign keys with PostgreSQL, including their columns and delete/update actions. This catches differences that checking generated files alone cannot detect.
+
+The user references on videos, courses, tags, chat logs, and course evaluation snapshots use `NO ACTION`. Account deletion relies on the worker removing media and dependent records before deleting the user. Keep these constraints and the worker's deletion sequence consistent.
+
 Embedding dimensions are fixed at 1536 in the application and `scene_embeddings.embedding vector(1536)`. Environment variables cannot change the dimension. Even a same-dimension model change requires scene re-embedding; existing-data migration tooling is not provided. See [diagnostics and future migration requirements](embeddings.md).
 
 **Related:** [Data dictionary](../database/data-dictionary.md), [Reading the ER diagram](../database/er-diagram.md).

@@ -42,6 +42,7 @@ const ENV = {
       if (!data) return null;
       return {
         body: data,
+        size: data.byteLength,
         httpEtag: '"etag"',
         writeHttpMetadata(headers: Headers) {
           headers.set("Content-Type", "video/mp4");

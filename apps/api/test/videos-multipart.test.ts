@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { videoRoutes } from "../src/features/videos/routes";
-import { signAccessToken } from "./helpers/auth";
+import { testAuthHeaders } from "./helpers/auth";
 import { requestTrpc, trpcError } from "./helpers/trpc";
 
 import {
@@ -42,10 +42,9 @@ vi.mock("../src/lib/external-tasks", () => ({
   processExternalTaskById: vi.fn().mockResolvedValue(true),
 }));
 
-const SECRET = "test-jwt-secret-videos-multipart";
 const baseEnv = {
   ENVIRONMENT: "development",
-  AUTH_JWT_SECRET: SECRET,
+  BETTER_AUTH_SECRET: "test-video-auth-secret-01234567890123456789",
   HYPERDRIVE: { connectionString: "postgres://fake/db" },
   VIDEO_BUCKET: {
     put: (...a: unknown[]) => putMock(...a),
@@ -54,10 +53,6 @@ const baseEnv = {
     delete: vi.fn(),
   },
 };
-
-async function accessToken(userId = "00000000-0000-4000-8000-000000000005") {
-  return signAccessToken(SECRET, userId);
-}
 
 beforeEach(() => {
   putMock.mockReset().mockResolvedValue(undefined);
@@ -158,7 +153,7 @@ describe("POST / — USE_S3_STORAGE=false（multipart）", () => {
       "/",
       {
         method: "POST",
-        headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" },
+        headers: testAuthHeaders(),
         body: form,
       },
       ENV,
@@ -187,7 +182,7 @@ describe("videos.requestUpload — local では不可", () => {
         fileSize: 10,
         title: "t",
       },
-      { headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" } },
+      { headers: testAuthHeaders() },
       ENV,
     );
     expect(res.status).toBe(400);

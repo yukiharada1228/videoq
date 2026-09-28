@@ -130,6 +130,6 @@ const ChipLabel = React.forwardRef<HTMLSpanElement, ChipLabelProps>(
   }
 )
 ChipLabel.displayName = "ChipLabel"
+export { ChipLabel }
 
-export { ChipLabel, chipLabelVariants }
-export type { ChipLabelProps, ChipLabelColor }
+export type { ChipLabelColor }

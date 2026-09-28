@@ -18,7 +18,6 @@ export const coursesInputSchemas = {
     name: z.string().min(1).max(255).optional(),
     description: z.string().optional(),
   }),
-  "courses.replace": z.object({ id, name: z.string().min(1).max(255), description: z.string().default("") }),
   "courses.delete": z.object({ id }),
   "courses.reorder": z.object({ courseIds: z.array(id).min(1) }),
   "courses.createShare": z.object({ id, shareSlug: z.string().min(1) }),

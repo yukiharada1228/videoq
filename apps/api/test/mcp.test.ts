@@ -309,6 +309,7 @@ describe("MCP JSON-RPC", () => {
       );
       expect(tool.inputSchema, `${String(tool.name)} inputSchema`).toMatchObject({
         type: "object",
+        additionalProperties: false,
       });
       expect(tool.outputSchema, `${String(tool.name)} outputSchema`).toMatchObject({
         type: "object",
@@ -322,6 +323,12 @@ describe("MCP JSON-RPC", () => {
         }),
       );
     }
+    expect(tools.find((tool) => tool.name === "list_videos")).toMatchObject({
+      inputSchema: { properties: { limit: { anyOf: expect.arrayContaining([
+        expect.objectContaining({ type: "integer", minimum: 1, maximum: 100 }),
+        expect.objectContaining({ type: "string", pattern: "^[0-9]+$" }),
+      ]) } } },
+    });
     expect(
       tools.filter(
         (tool) =>
@@ -502,6 +509,20 @@ describe("MCP JSON-RPC", () => {
     const result = (await res.json()).result;
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toBe("Video not found");
+  });
+
+  it.each([
+    ["get_video", { video_id: true }],
+    ["add_video_to_course", { course_id: 7, video_id: [42] }],
+    ["confirm_video_upload", { video_id: "0x2a" }],
+    ["get_video", { video_id: 42, unexpected: true }],
+  ])("rejects malformed %s arguments through the SDK before resource access", async (name, args) => {
+    const res = await post(jsonrpc("tools/call", { name, arguments: args }));
+    expect(res.status).toBe(200);
+    const result = (await res.json()).result;
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/Invalid arguments/i);
+    expect(calls).toHaveLength(0);
   });
 
   it("returns transcript metadata without content for a default get_video request", async () => {

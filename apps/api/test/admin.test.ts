@@ -154,6 +154,51 @@ describe("admin API", () => {
     expect(calls.some((c) => c.sql.includes("UPDATE users"))).toBe(true);
   });
 
+  it.each([
+    ["quota", "max_video_upload_size_mb", 2_147_483_648],
+    ["quota", "storage_limit_gb", -0.5],
+    ["quota", "processing_limit_minutes", -1],
+    ["quota", "processing_limit_minutes", 1.5],
+    ["quota", "processing_limit_minutes", 2_147_483_648],
+    ["quota", "ai_answers_limit", -1],
+    ["quota", "ai_answers_limit", 1.5],
+    ["quota", "ai_answers_limit", 2_147_483_648],
+    ["usage", "used_processing_seconds", 2_147_483_648],
+    ["usage", "used_ai_answers", 2_147_483_648],
+    ["usage", "used_storage_bytes", Number.MAX_SAFE_INTEGER + 1],
+    ["usage", "usage_period_start", "not-a-date"],
+    ["usage", "usage_period_start", "2026-02-30T00:00:00Z"],
+    ["usage", "usage_period_start", "2026-09-28T00:00:00"],
+  ])("rejects invalid %s.%s=%s before writing", async (section, field, value) => {
+    const response = await req(`/users/00000000-0000-4000-8000-000000000009/${section}`, {
+      method: "PATCH",
+      headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001" },
+      body: JSON.stringify({ [field]: value }),
+    });
+    expect(response.status).toBe(400);
+    expect(calls.some(call => call.sql.includes("UPDATE users"))).toBe(false);
+  });
+
+  it.each([
+    ["quota", { max_video_upload_size_mb: 2_147_483_647, storage_limit_gb: 0.5,
+      processing_limit_minutes: 0, ai_answers_limit: 2_147_483_647 }],
+    ["quota", { storage_limit_gb: 0, processing_limit_minutes: 2_147_483_647, ai_answers_limit: 0 }],
+    ["quota", { storage_limit_gb: null, processing_limit_minutes: null, ai_answers_limit: null }],
+    ["usage", { used_storage_bytes: Number.MAX_SAFE_INTEGER, used_processing_seconds: 2_147_483_647,
+      used_ai_answers: 2_147_483_647, usage_period_start: "2026-09-28T09:30:00+09:00" }],
+    ["usage", { used_storage_bytes: 0, used_processing_seconds: 0, used_ai_answers: 0, usage_period_start: null }],
+  ])("accepts valid %s boundaries without changing values", async (section, patch) => {
+    const response = await req(`/users/00000000-0000-4000-8000-000000000009/${section}`, {
+      method: "PATCH",
+      headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001" },
+      body: JSON.stringify(patch),
+    });
+    expect(response.status).toBe(200);
+    const update = calls.find(call => call.sql.includes("UPDATE users"));
+    expect(update).toBeDefined();
+    expect(update!.args).toEqual(expect.arrayContaining(Object.values(patch)));
+  });
+
   it("flags PATCH", async () => {
     const res = await req("/users/00000000-0000-4000-8000-000000000009/flags", {
       method: "PATCH",

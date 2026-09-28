@@ -10,9 +10,8 @@ import {
 } from "../../repositories/quota-repository";
 import { processExternalTaskById } from "../../lib/external-tasks";
 import { LlmConfigurationError } from "../../lib/openai";
-import { runRag, streamRag, type RagCitation } from "../../lib/rag";
-import { ChatCitationRegistry, validateChatCitations, withCitationIds } from "../../lib/chat-citations";
-import { CHAT_STREAM_FORMAT, serializeChatParts, type ChatContentPart, type ChatStreamEvent } from "@videoq/trpc/chat";
+import { runRag, streamRag, type RagResult } from "../../lib/rag";
+import { type ChatAnswer, type ChatStreamEvent } from "@videoq/trpc/chat";
 import type { Bindings } from "../../types/bindings";
 import type { ChatMessageBody } from "./schemas";
 import type { ChatMessage } from "@videoq/trpc";
@@ -25,20 +24,20 @@ type ChatSendResult =
     };
 
 /** Normalized chat request after Zod validation. */
-export type ChatRequestInput = {
+type ChatRequestInput = {
   messages: { role: string; content: string }[];
   courseId: number | null;
 };
 
 /** ドメイン例外に対応するエラー記述。ストリーム/非ストリームで表現を変える。 */
-export type ChatFailure = {
+type ChatFailure = {
   streamCode: string;
   status: 400 | 403 | 404 | 500;
   code: string;
   message: string;
 };
 
-export const failures = {
+const failures = {
   invalidRequest: (message: string): ChatFailure => ({
     streamCode: "INVALID_REQUEST",
     status: 400,
@@ -84,7 +83,7 @@ export const failures = {
   }),
 };
 
-export type ChatSetup = {
+type ChatSetup = {
   ownerUserId: string;
   actorUserId: string;
   quotaReservation: AiAnswerReservation;
@@ -93,7 +92,7 @@ export type ChatSetup = {
   locale: string | null;
 };
 
-export function toChatRequestInput(body: ChatMessageBody): ChatRequestInput {
+function toChatRequestInput(body: ChatMessageBody): ChatRequestInput {
   return {
     messages: body.messages,
     courseId: body.course_id ?? null,
@@ -101,7 +100,7 @@ export function toChatRequestInput(body: ChatMessageBody): ChatRequestInput {
 }
 
 /** LLM 呼び出し前の共通セットアップ（course/owner/quota）。 */
-export async function setupChat(
+async function setupChat(
   env: Bindings,
   opts: {
     userId: string | null;
@@ -162,20 +161,19 @@ export async function setupChat(
   };
 }
 
-export const toFailure = (e: unknown): ChatFailure => {
+const toFailure = (e: unknown): ChatFailure => {
   if (e instanceof LlmConfigurationError) {
     return failures.llmConfiguration(e.message);
   }
   return failures.llmProvider();
 };
 
-export async function persistTurn(
+async function persistTurn(
   env: Bindings,
   setup: ChatSetup,
   turn: {
     question: string;
-    answer: string;
-    citations: RagCitation[] | null;
+    answer: ChatAnswer;
     retrievedContexts: string[];
   },
 ): Promise<{ chatLogId: number | null; feedback: string | null }> {
@@ -185,7 +183,6 @@ export async function persistTurn(
     courseId: setup.course.id,
     question: turn.question,
     answer: turn.answer,
-    citations: turn.citations,
     isShared: setup.isShared,
     retrievedContexts: turn.retrievedContexts,
   });
@@ -245,12 +242,7 @@ export async function sendChatMessage(
   const setup = prepared.setup;
   const videoIds = setup.course ? setup.course.memberVideoIds : null;
 
-  let result: {
-    content: string;
-    queryText: string;
-    citations: RagCitation[] | null;
-    retrievedContexts: string[];
-  };
+  let result: RagResult;
   try {
     result = await runRag(env, {
       messages: req.messages,
@@ -259,7 +251,6 @@ export async function sendChatMessage(
       locale: setup.locale,
       courseId: setup.course?.id ?? null,
     });
-    result.content = validateChatCitations(result.content, result.citations ?? []);
   } catch (e) {
     await releaseReservedUsage(env, setup);
     const f = toFailure(e);
@@ -272,18 +263,14 @@ export async function sendChatMessage(
   try {
     const { chatLogId, feedback } = await persistTurn(env, setup, {
       question: result.queryText,
-      answer: result.content,
-      citations: result.citations,
+      answer: result.answer,
       retrievedContexts: result.retrievedContexts,
     });
 
     const body: ChatMessage = {
       role: "assistant",
-      content: result.content,
+      answer: result.answer,
     };
-    if (req.courseId !== null && result.citations?.length) {
-      body.citations = withCitationIds(result.citations);
-    }
     if (chatLogId !== null) {
       body.chat_log_id = chatLogId;
       body.feedback = feedback === "good" || feedback === "bad" ? feedback : null;
@@ -310,7 +297,6 @@ export async function streamChatMessage(
     shareSlug: string | null;
     locale: string | null;
     clientSignal?: AbortSignal;
-    streamFormat?: typeof CHAT_STREAM_FORMAT;
   },
 ): Promise<{ write: (send: SseEventWriter) => Promise<void> }> {
   const req = toChatRequestInput(opts.body);
@@ -322,7 +308,6 @@ export async function streamChatMessage(
     locale: opts.locale,
   });
 
-  const courseId = req.courseId;
   const messages = req.messages;
   const clientSignal = opts.clientSignal;
 
@@ -340,29 +325,8 @@ export async function streamChatMessage(
       const setup = prepared.setup;
       const videoIds = setup.course ? setup.course.memberVideoIds : null;
 
-      let content = "";
       let generatedContent = false;
-      const registry = new ChatCitationRegistry();
-      const sendParts = async (parts: ChatContentPart[], citations?: RagCitation[]) => {
-        const text = serializeChatParts(parts);
-        content += text;
-        if (opts.streamFormat === CHAT_STREAM_FORMAT) {
-          for (const part of parts) {
-            await send(part.type === "text"
-              ? { type: "text_delta", text: part.text }
-              : { type: "citation", sourceId: part.sourceId });
-          }
-        } else if (text || citations?.length) {
-          await send({ type: "content_chunk", text,
-            ...(citations?.length ? { citations: withCitationIds(citations) } : {}),
-          });
-        }
-      };
-      let final: {
-        citations: RagCitation[] | null;
-        retrievedContexts: string[];
-        queryText: string;
-      } = { citations: null, retrievedContexts: [], queryText: "" };
+      let final: RagResult | undefined;
 
       try {
         for await (const chunk of streamRag(
@@ -376,16 +340,14 @@ export async function streamChatMessage(
           },
           clientSignal,
         )) {
-          if ("text" in chunk) {
-            generatedContent ||= chunk.text.length > 0;
-            const citations = courseId !== null ? chunk.citations : undefined;
-            if (citations) {
-              const added = registry.register(citations);
-              if (opts.streamFormat === CHAT_STREAM_FORMAT) {
-                for (const source of added) await send({ type: "source", source });
-              }
-            }
-            await sendParts(registry.parser.push(chunk.text), citations);
+          if ("part" in chunk) {
+            const part = chunk.part;
+            generatedContent ||= part.type === "text" && part.text.length > 0;
+            await send(part.type === "text"
+              ? { ...part, type: "text_delta" }
+              : part);
+          } else if ("source" in chunk) {
+            await send({ type: "source", source: chunk.source });
           } else if ("searching" in chunk) {
             // 検索ラウンドの間はトークンが流れないので、進行中であることだけ伝える。
             await send({ type: "searching", query: chunk.searching, search_id: chunk.searchId });
@@ -400,7 +362,7 @@ export async function streamChatMessage(
             final = chunk.final;
           }
         }
-        await sendParts(registry.parser.finish());
+        if (!final) throw new Error("Missing completed structured answer");
       } catch (error) {
         // 一部でも回答を生成済みなら、上流LLMの実コストも消費済みなので返却しない。
         if (!generatedContent) await releaseReservedUsage(env, setup);
@@ -411,8 +373,6 @@ export async function streamChatMessage(
           message: failure.message,
         });
         return;
-      } finally {
-        registry.reportRejected();
       }
 
       let chatLogId: number | null;
@@ -420,8 +380,7 @@ export async function streamChatMessage(
       try {
         ({ chatLogId, feedback } = await persistTurn(env, setup, {
           question: final.queryText,
-          answer: content,
-          citations: final.citations,
+          answer: final.answer,
           retrievedContexts: final.retrievedContexts,
         }));
       } catch (error) {
@@ -439,9 +398,6 @@ export async function streamChatMessage(
         chat_log_id: chatLogId,
         feedback: feedback === "good" || feedback === "bad" ? feedback : null,
       };
-      if (courseId !== null && final.citations?.length) {
-        done.citations = withCitationIds(final.citations);
-      }
       await send(done);
     },
   };

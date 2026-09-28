@@ -25,18 +25,11 @@ export type PendingInvitationInput = {
   createdAt: Date;
 };
 
-export type CreatedInvitation = {
-  id: number;
-  email: string;
-  courseName: string;
-  inviterName: string;
-};
-
 /**
  * 招待メール配送タスクの dedupe key。再送のたびに新しいタスクを作れるよう
  * 招待 ID だけでなく enqueue 時刻も含める。
  */
-export function invitationEmailDedupeKey(
+function invitationEmailDedupeKey(
   invitationId: number,
   enqueuedAt: Date,
 ): string {
@@ -70,7 +63,7 @@ export async function createPendingCourseInvitations(
 ): Promise<
   | { notFound: true }
   | {
-      created: CreatedInvitation[];
+      created: { id: number; email: string }[];
       alreadyMemberEmails: string[];
       alreadyPendingEmails: string[];
     }
@@ -78,12 +71,7 @@ export async function createPendingCourseInvitations(
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
       const ownerRows = await tx
-        .select({
-          courseName: videoCourses.name,
-          ownerEmail: users.email,
-          inviterName: users.name,
-          inviterUsername: users.username,
-        })
+        .select({ ownerEmail: users.email })
         .from(videoCourses)
         .innerJoin(users, eq(users.id, videoCourses.userId))
         .where(and(eq(videoCourses.id, courseId), eq(videoCourses.userId, ownerUserId)))
@@ -183,15 +171,8 @@ export async function createPendingCourseInvitations(
         issuedAt,
       );
 
-      const inviterName =
-        ownerRows[0].inviterName.trim() || ownerRows[0].inviterUsername;
       return {
-        created: inserted.map((row) => ({
-          id: Number(row.id),
-          email: row.email,
-          courseName: ownerRows[0].courseName,
-          inviterName,
-        })),
+        created: inserted,
         alreadyMemberEmails: [...alreadyMemberEmails],
         alreadyPendingEmails: [...alreadyPendingEmails],
       };
@@ -631,23 +612,17 @@ export async function rotatePendingCourseInvitation(
 ): Promise<
   | { notFound: true }
   | { invalidState: InvitationStatus }
-  | CreatedInvitation
+  | { ok: true }
 > {
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
       const rows = await tx
         .select({
-          id: videoCourseInvitations.id,
-          email: videoCourseInvitations.email,
           status: videoCourseInvitations.status,
           expiresAt: videoCourseInvitations.expiresAt,
-          courseName: videoCourses.name,
-          inviterName: users.name,
-          inviterUsername: users.username,
         })
         .from(videoCourseInvitations)
         .innerJoin(videoCourses, eq(videoCourses.id, videoCourseInvitations.courseId))
-        .innerJoin(users, eq(users.id, videoCourses.userId))
         .where(
           and(
             eq(videoCourseInvitations.id, invitationId),
@@ -685,12 +660,7 @@ export async function rotatePendingCourseInvitation(
         })
         .where(eq(videoCourseInvitations.id, invitationId));
       await insertInvitationEmailTasks(tx, [invitationId], now);
-      return {
-        id: Number(rows[0].id),
-        email: rows[0].email,
-        courseName: rows[0].courseName,
-        inviterName: rows[0].inviterName.trim() || rows[0].inviterUsername,
-      };
+      return { ok: true } as const;
     }),
   );
 }

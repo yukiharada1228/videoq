@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 def _fetch_chat_log(conn: Any, chat_log_id: int) -> dict[str, Any] | None:
     return conn.execute(
         """
-        SELECT question, answer, retrieved_contexts
+        SELECT question, response, retrieved_contexts
           FROM chat_logs
          WHERE id = %s
         """,
@@ -33,12 +33,18 @@ def _save_evaluation(
     error_message: str,
     evaluated_at: datetime | None,
 ) -> None:
+    # History can be reset while the provider is scoring it. Select and lock
+    # the surviving parent in the same statement so deletion cannot race the
+    # foreign key check, and a removed chat simply produces no evaluation.
     conn.execute(
         """
         INSERT INTO chat_log_evaluations
             (chat_log_id, status, faithfulness, answer_relevancy,
              context_precision, error_message, evaluated_at, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+        SELECT id, %s, %s, %s, %s, %s, %s, NOW()
+          FROM chat_logs
+         WHERE id = %s
+           FOR KEY SHARE
         ON CONFLICT (chat_log_id) DO UPDATE
            SET status = EXCLUDED.status,
                faithfulness = EXCLUDED.faithfulness,
@@ -48,16 +54,15 @@ def _save_evaluation(
                evaluated_at = EXCLUDED.evaluated_at
         """,
         (
-            chat_log_id,
             status,
             faithfulness,
             answer_relevancy,
             context_precision,
             error_message,
             evaluated_at,
+            chat_log_id,
         ),
     )
-    conn.commit()
 
 
 def evaluate_chat_log(chat_log_id: int) -> None:
@@ -89,7 +94,7 @@ def evaluate_chat_log(chat_log_id: int) -> None:
 
         faithfulness, answer_relevancy, context_precision = score_chat_log(
             chat_log["question"],
-            chat_log["answer"],
+            "".join(segment["text"] for segment in chat_log["response"]["segments"]),
             contexts,
         )
         status = "completed"

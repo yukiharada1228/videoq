@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { appTrpcClient, trpc } from '@/lib/trpc';
 import { useAuthSession } from '@/lib/authSession';
+import { invalidateAfterCourseUpdate } from '@/lib/cacheInvalidation';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { AuthPageIntro } from '@/components/layout/AuthPageIntro';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
@@ -36,6 +37,9 @@ export default function CourseInvitationPage() {
       await queryClient.cancelQueries(trpc.courseMemberships.preview.queryFilter({ token }));
       queryClient.setQueryData(trpc.courseMemberships.preview.queryKey({ token }), current =>
         current ? { ...current, status: result.status } : current);
+      if (result.status === 'accepted') {
+        await invalidateAfterCourseUpdate(queryClient, result.course_id);
+      }
     },
     onSettled: () => { responding.current = false; },
   });

@@ -1,5 +1,7 @@
 import { and, asc, count, eq, ilike, isNull, or, sql } from "drizzle-orm";
+import type { RpcInputMap } from "@videoq/trpc";
 import { withDb, type Db } from "../db/pool";
+import { literalContainsPattern } from "../db/sql-like";
 import {
   externalTasks,
   oauthAccessToken,
@@ -120,8 +122,9 @@ export async function listAdminUsers(
   offset: number,
 ): Promise<{ count: number; results: AdminUser[] }> {
   return withDb(env, async (db) => {
+    const pattern = literalContainsPattern(q);
     const whereClause = q
-      ? or(ilike(users.username, `%${q}%`), ilike(users.email, `%${q}%`))
+      ? or(ilike(users.username, pattern), ilike(users.email, pattern))
       : undefined;
 
     const [countRow] = await db
@@ -181,32 +184,10 @@ export async function updateAdminUser(
   }));
 }
 
-export type QuotaPatch = {
-  max_video_upload_size_mb?: number;
-  storage_limit_gb?: number | null;
-  processing_limit_minutes?: number | null;
-  ai_answers_limit?: number | null;
-  quota_source?: "plan" | "admin";
-};
-
-export type UsagePatch = {
-  used_storage_bytes?: number;
-  used_processing_seconds?: number;
-  used_ai_answers?: number;
-  usage_period_start?: string | null;
-  is_over_quota?: boolean;
-};
-
-export type FlagsPatch = {
-  is_active?: boolean;
-  is_staff?: boolean;
-  is_superuser?: boolean;
-};
-
 export async function patchAdminUserQuota(
   env: Bindings,
   userId: string,
-  patch: QuotaPatch,
+  patch: Omit<RpcInputMap["admin.patchQuota"], "id">,
 ): Promise<AdminUser | null> {
   if (patch.quota_source === "plan") {
     return withDb(env, db => db.transaction(async tx => {
@@ -303,7 +284,7 @@ export async function lockUserForHardDelete(
 export async function patchAdminUserUsage(
   env: Bindings,
   userId: string,
-  patch: UsagePatch,
+  patch: Omit<RpcInputMap["admin.patchUsage"], "id">,
 ): Promise<AdminUser | null> {
   const set: Partial<{
     usedStorageBytes: number;

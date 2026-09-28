@@ -2,10 +2,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import type { RpcOutputMap } from '@videoq/trpc';
-import { appendChatPart, serializeChatParts, type ChatContentPart } from '@videoq/trpc/chat';
-import { apiClient, ApiError, type Citation } from '@/lib/api';
+import { applyChatPart, plainChatAnswer, chatAnswerText, type ChatAnswer, type ChatContentPart } from '@videoq/trpc/chat';
+import { apiClient, ApiError } from '@/lib/api';
 import { trpc } from '@/lib/trpc';
+import { invalidateAfterChatAnswer, updateAfterChatFeedback } from '@/lib/cacheInvalidation';
 import { createChatProgress, updateChatProgress, type ChatProgress } from '@/lib/chatProgress';
 import {
   ChatStreamController,
@@ -18,16 +18,14 @@ import {
   type ChatFeedbackValue,
 } from '@/lib/chatFeedback';
 
-export interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-  citations?: Citation[];
-  parts?: ChatContentPart[];
+export type Message = (
+  | { role: 'user'; content: string }
+  | { role: 'assistant'; answer: ChatAnswer }
+) & {
   chatLogId?: number;
   feedback?: ChatFeedbackValue;
-  /** Actual tool activity for this turn; kept locally with the answer. */
   progress?: ChatProgress;
-}
+};
 
 interface UseChatMessagesOptions {
   courseId?: number;
@@ -53,7 +51,7 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
   const queryClient = useQueryClient();
   const tRef = useRef(t);
   const [messages, setMessages] = useState<Message[]>(() => [
-    { role: 'assistant', content: t('chat.assistantGreeting') },
+    { role: 'assistant', answer: plainChatAnswer(t('chat.assistantGreeting')) },
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -67,19 +65,6 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
     tRef.current = t;
   }, [t]);
 
-  const appendAssistantContent = useCallback((text: string) => {
-    setMessages((prev) => {
-      if (prev.length === 0) {
-        return [{ role: 'assistant', content: text }];
-      }
-
-      const updated = [...prev];
-      const last = updated[updated.length - 1];
-      updated[updated.length - 1] = { ...last, content: last.content + text };
-      return updated;
-    });
-  }, []);
-
   const applyDoneMetadata = useCallback((event: ChatStreamDoneEvent) => {
     setMessages((prev) => {
       if (prev.length === 0) {
@@ -89,7 +74,6 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
       const updated = [...prev];
       updated[updated.length - 1] = {
         ...updated[updated.length - 1],
-        citations: event.citations ?? updated[updated.length - 1].citations,
         chatLogId: event.chat_log_id ?? undefined,
         feedback: event.feedback ?? null,
       };
@@ -100,25 +84,29 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
   const appendAssistantParts = useCallback((parts: ChatContentPart[]) => {
     setMessages((prev) => {
       const last = prev.at(-1);
-      if (!last) return prev;
-      const combined = (last.parts ?? []).map((part) => ({ ...part }));
-      for (const part of parts) appendChatPart(combined, part);
-      return [...prev.slice(0, -1), {
-        ...last, content: last.content + serializeChatParts(parts), parts: combined,
-      }];
+      if (!last || last.role !== 'assistant') return prev;
+      const answer = { ...last.answer, segments: [...last.answer.segments] };
+      for (const part of parts) {
+        const segment = answer.segments[part.segmentIndex];
+        if (segment && segment === last.answer.segments[part.segmentIndex]) {
+          answer.segments[part.segmentIndex] = { ...segment, sourceIds: [...segment.sourceIds] };
+        }
+        applyChatPart(answer, part);
+      }
+      return [...prev.slice(0, -1), { ...last, answer }];
     });
   }, []);
 
   const replaceLastAssistantMessage = useCallback((content: string) => {
     setMessages((prev) => {
       if (prev.length === 0) {
-        return [{ role: 'assistant', content }];
+        return [{ role: 'assistant', answer: plainChatAnswer(content) }];
       }
 
       const updated = [...prev];
       const last = updated[updated.length - 1];
       updated[updated.length - 1] = {
-        role: 'assistant', content,
+        role: 'assistant', answer: plainChatAnswer(content),
         ...(last.progress ? { progress: updateChatProgress(last.progress, {
           type: 'error', code: 'STREAM_FAILED', message: '',
         }) } : {}),
@@ -141,12 +129,11 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
     () =>
       new ChatStreamController({
         flush: flushSync,
-        onAppendContent: appendAssistantContent,
         onAppendParts: appendAssistantParts,
         onDone: applyDoneMetadata,
         onError: handleStreamError,
       }),
-    [appendAssistantContent, appendAssistantParts, applyDoneMetadata, handleStreamError],
+    [appendAssistantParts, applyDoneMetadata, handleStreamError],
   );
 
   const handleMessagesScroll = useCallback(() => {
@@ -159,12 +146,13 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
   // Follow growing answers before paint, but leave readers where they scrolled.
   // Tool status changes alone must not move the conversation.
   const lastMessage = messages.at(-1);
+  const lastMessageText = lastMessage?.role === 'assistant' ? chatAnswerText(lastMessage.answer) : lastMessage?.content;
   useLayoutEffect(() => {
     const container = messagesContainerRef.current;
     if (container && followLatestRef.current) {
       container.scrollTop = container.scrollHeight;
     }
-  }, [messages.length, lastMessage?.content, lastMessage?.chatLogId, isLoading]);
+  }, [messages.length, lastMessageText, lastMessage?.chatLogId, isLoading]);
 
   useEffect(() => {
     return () => {
@@ -188,7 +176,7 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
     followLatestRef.current = true;
     streamController.start();
     setMessages((prev) => [...prev, userMessage, {
-      role: 'assistant', content: '', progress: createChatProgress(),
+      role: 'assistant', answer: { segments: [], sources: [] }, progress: createChatProgress(),
     }]);
     setInput('');
     setIsLoading(true);
@@ -202,22 +190,23 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
         if (request.signal.aborted) return;
         setMessages((prev) => {
           const last = prev.at(-1);
-          if (!last) return prev;
+          if (!last || last.role !== 'assistant') return prev;
           const progress = last.progress ? updateChatProgress(last.progress, event) : undefined;
-          // 引用は本文の描画キューを待たずに反映する。done のみで送る旧 API にも対応。
-          const citations = (event.type === 'content_chunk' || event.type === 'done')
-            ? event.citations ?? last.citations
-            : event.type === 'source' && !last.citations?.some((source) => source.id === event.source.id)
-              ? [...last.citations ?? [], event.source]
-            : last.citations;
-          if (progress === last.progress && citations === last.citations) return prev;
-          return [...prev.slice(0, -1), { ...last, progress, citations }];
+          const sources = event.type === 'source' && !last.answer.sources.some(source => source.id === event.source.id)
+            ? [...last.answer.sources, event.source] : last.answer.sources;
+          if (progress === last.progress && sources === last.answer.sources) return prev;
+          return [...prev.slice(0, -1), { ...last, progress, answer: { ...last.answer, sources } }];
         });
         streamController.handleEvent(event);
         if (event.type === 'error') {
           return;
         }
-        if (event.type === 'done') break;
+        if (event.type === 'done') {
+          // Persistence is complete now, even while queued text is animating.
+          // Shared answers use the owner's quota, not the visitor's account.
+          if (!shareToken) void invalidateAfterChatAnswer(queryClient, courseId);
+          break;
+        }
       }
       await streamController.complete();
     } catch (error) {
@@ -239,6 +228,7 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
   }, [
     courseId,
     input,
+    queryClient,
     replaceLastAssistantMessage,
     shareToken,
     streamController,
@@ -269,15 +259,7 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
       });
       setMessages((prev) => applyChatFeedback(prev, chatLogId, result.feedback));
       if (courseId && !shareToken) {
-        const filter = trpc.chat.history.queryFilter({ courseId });
-        // A read started before the save must not overwrite the saved feedback.
-        await queryClient.cancelQueries(filter);
-        queryClient.setQueriesData<RpcOutputMap['chat.history']>(filter, (prev) => prev ? {
-          ...prev,
-          data: prev.data.map((item) => item.id === chatLogId ? { ...item, feedback: result.feedback } : item),
-        } : prev);
-        // A cancelled first load has no data to patch; resume only those queries.
-        void queryClient.invalidateQueries({ ...filter, predicate: (query) => query.state.data === undefined });
+        await updateAfterChatFeedback(queryClient, courseId, result);
       }
     } catch (error) {
       console.error('Failed to update feedback', error);

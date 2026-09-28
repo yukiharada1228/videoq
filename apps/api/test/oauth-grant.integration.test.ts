@@ -76,6 +76,28 @@ describe.skipIf(!databaseUrl)("OAuth grant persistence with PostgreSQL", () => {
     expect(await hasOAuthConsent((await auth.$context).adapter, "user", "client", ["videoq.read"])).toBe(true);
   });
 
+  it("revokes every grant for the selected client while preserving another user's grants", async () => {
+    await client.query(`
+      INSERT INTO oauth_consent (id, client_id, user_id, scopes, resources) VALUES
+        ('resource-grant', 'client', 'user', ARRAY['videoq.read'], ARRAY['https://other-resource.example']),
+        ('other-user-grant', 'client', 'other-user', ARRAY['videoq.read'], NULL);
+      INSERT INTO oauth_refresh_token VALUES ('other-user-refresh', 'other-user', 'client', NULL);
+      INSERT INTO oauth_access_token VALUES ('other-user-access', 'other-user', 'client', 'other-user-refresh');
+    `);
+
+    await deleteOAuthGrant((await auth.$context).adapter, "user", "grant");
+
+    expect((await client.query("SELECT id FROM oauth_consent ORDER BY id")).rows).toEqual([
+      { id: "other-grant" }, { id: "other-user-grant" },
+    ]);
+    expect((await client.query("SELECT id FROM oauth_refresh_token ORDER BY id")).rows).toEqual([
+      { id: "other-refresh" }, { id: "other-user-refresh" },
+    ]);
+    expect((await client.query("SELECT id FROM oauth_access_token ORDER BY id")).rows).toEqual([
+      { id: "other-access" }, { id: "other-user-access" },
+    ]);
+  });
+
   it("rolls back every deletion if revocation fails midway", async () => {
     await client.query("CREATE TEMP TABLE revoke_blocker (refresh_id text REFERENCES oauth_refresh_token(id)); INSERT INTO revoke_blocker VALUES ('refresh')");
     try {

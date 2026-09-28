@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { filterTranscriptSegments, isSrtFormat, parseSrtTranscript } from '../srt';
+import { filterTranscriptSegments, parseSrtTranscript } from '../srt';
+import srtCases from '../../../../../../packages/trpc/test-fixtures/srt.json';
 
 describe('parseSrtTranscript', () => {
+  it.each(srtCases)('follows the cross-runtime subtitle contract: $name', ({ srt, start }) => {
+    const segments = parseSrtTranscript(srt);
+    expect(segments.map(segment => segment.seconds)).toEqual(start === null ? [] : [start]);
+  });
   it.each(['\n', '\r\n', '\r'])('parses SRT blocks with %j newlines into seekable segments', (newline) => {
     const srt = [
       '1',
@@ -15,8 +20,8 @@ describe('parseSrtTranscript', () => {
     ].join(newline);
 
     expect(parseSrtTranscript(srt)).toEqual([
-      { timestamp: '00:00:01', seconds: 1, text: 'Hello world' },
-      { timestamp: '00:01:02', seconds: 62, text: 'Second segment' },
+      { timestamp: '00:00:01', seconds: 1.25, text: 'Hello world' },
+      { timestamp: '00:01:02', seconds: 62.5, text: 'Second segment' },
     ]);
   });
 
@@ -41,13 +46,14 @@ describe('parseSrtTranscript', () => {
       { timestamp: '00:00:13', seconds: 13, text: 'Valid caption' },
     ]);
   });
-});
 
-describe('isSrtFormat', () => {
-  it('detects SRT timing lines with comma or dot millisecond separators', () => {
-    expect(isSrtFormat('00:00:01,000 --> 00:00:02,000\nText')).toBe(true);
-    expect(isSrtFormat('00:00:01.000 --> 00:00:02.000\nText')).toBe(true);
-    expect(isSrtFormat('plain transcript')).toBe(false);
+  it.each([
+    '00:00:01,000 --> missing',
+    '00:00:02,000 --> 00:00:01,000',
+    '00:61:00,000 --> 00:62:00,000',
+    'Text mentioning 00:00:01,000 --> 00:00:02,000',
+  ])('does not turn invalid timing text into a seek target (%s)', timing => {
+    expect(parseSrtTranscript(`1\n${timing}\nCaption`)).toEqual([]);
   });
 });
 

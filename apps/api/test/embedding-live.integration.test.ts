@@ -7,6 +7,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool } from "pg";
 import { describe, expect, it } from "vitest";
+import { chatAnswerText } from "@videoq/trpc/chat";
 import { embedQuery } from "../src/lib/embeddings";
 import { runRag } from "../src/lib/rag";
 import type { Bindings } from "../src/types/bindings";
@@ -54,8 +55,8 @@ describe.skipIf(!enabled)("real embedding providers", () => {
       expect(await embedQuery(env, "蒸発とは何ですか？")).toHaveLength(1536);
       const question = { messages: [{ role: "user", content: "動画に基づいて蒸発とは何か説明してください。" }], videoIds: [60], locale: "ja" };
       const answer = await runRag(env, { ...question, ownerUserId: "embedding-live" });
-      expect(answer.content.trim()).not.toBe("");
-      expect(answer.citations?.some((citation) => citation.video_id === 60)).toBe(true);
+      expect(chatAnswerText(answer.answer).trim()).not.toBe("");
+      expect(answer.answer.sources.some((source) => source.video_id === 60)).toBe(true);
       const dimensions = await pool.query("SELECT DISTINCT vector_dims(embedding) AS n FROM scene_embeddings");
       expect(dimensions.rows).toEqual([{ n: 1536 }]);
     } finally {

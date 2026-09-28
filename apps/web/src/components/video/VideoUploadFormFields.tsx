@@ -1,5 +1,3 @@
-'use client';
-
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -9,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { ProgressIndicator, ProgressIndicatorLinear } from '@/components/ui/progress-indicator';
 import { VideoUploadButton } from './VideoUploadButton';
 import { useTranslation } from 'react-i18next';
+import { VIDEO_UPLOAD_TYPES } from '@videoq/trpc/video-upload';
+
+const acceptedVideoTypes = Object.keys(VIDEO_UPLOAD_TYPES).join(',');
 
 interface VideoUploadFormFieldsProps {
   title: string;
@@ -19,12 +20,10 @@ interface VideoUploadFormFieldsProps {
   error: string | null;
   errorParams?: Record<string, unknown>;
   warning?: string | null;
-  warningParams?: Record<string, unknown>;
   success: boolean;
   setTitle: (title: string) => void;
   setDescription: (description: string) => void;
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  file?: File | null;
   showCancelButton?: boolean;
   onCancel?: () => void;
   cancelButtonClassName?: string;
@@ -41,7 +40,6 @@ export function VideoUploadFormFields({
   error,
   errorParams = {},
   warning = null,
-  warningParams = {},
   success,
   setTitle,
   setDescription,
@@ -65,7 +63,7 @@ export function VideoUploadFormFields({
         <Input
           id="file"
           type="file"
-          accept="video/*"
+          accept={acceptedVideoTypes}
           onChange={handleFileChange}
           disabled={isUploading || disabled}
           required
@@ -102,7 +100,7 @@ export function VideoUploadFormFields({
       </div>
 
       {error && <MessageAlert type="error" message={t(error, { defaultValue: error, ...errorParams })} />}
-      {warning && <MessageAlert type="warning" message={t(warning, { defaultValue: warning, ...warningParams })} />}
+      {warning && <MessageAlert type="warning" message={t(warning, { defaultValue: warning })} />}
       {success && <MessageAlert type="success" message={t('videos.upload.success')} />}
 
       {isUploading && percent > 0 && (

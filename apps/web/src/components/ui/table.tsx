@@ -80,26 +80,4 @@ const TableCell = React.forwardRef<
   />
 ))
 TableCell.displayName = "TableCell"
-
-const TableCaption = React.forwardRef<
-  HTMLTableCaptionElement,
-  React.ComponentPropsWithoutRef<"caption">
->(({ className, ...props }, ref) => (
-  <caption
-    ref={ref}
-    data-slot="table-caption"
-    className={cn("mb-4 text-start font-bold", className)}
-    {...props}
-  />
-))
-TableCaption.displayName = "TableCaption"
-
-export {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-  TableCaption,
-}
+export { Table, TableHeader, TableBody, TableRow, TableHead, TableCell }

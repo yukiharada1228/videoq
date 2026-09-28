@@ -23,10 +23,6 @@ export const coursesRouter = t.router({
     .input(coursesInputSchemas["courses.update"])
     .output(outputSchemas["courses.update"])
     .mutation(({ ctx, input }) => ctx.call("courses.update", input)),
-  replace: protectedProcedure
-    .input(coursesInputSchemas["courses.replace"])
-    .output(outputSchemas["courses.replace"])
-    .mutation(({ ctx, input }) => ctx.call("courses.replace", input)),
   delete: protectedProcedure
     .input(coursesInputSchemas["courses.delete"])
     .output(outputSchemas["courses.delete"])

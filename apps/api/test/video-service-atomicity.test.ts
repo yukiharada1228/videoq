@@ -31,7 +31,6 @@ vi.mock("../src/repositories/membership-repository", () => ({
 
 import {
   patchUserVideo,
-  putUserVideo,
   confirmVideoUpload,
   createVideoFromMultipart,
   deleteUserVideo,
@@ -70,24 +69,18 @@ beforeEach(() => {
 });
 
 describe("動画処理の原子性", () => {
-  it.each([
-    ["patch", patchUserVideo],
-    ["put", putUserVideo],
-  ] as const)("%s metadata updates rely on the atomic ownership check", async (_name, update) => {
+  it("update metadata updates rely on the atomic ownership check", async () => {
     const fields = { title: "Edited", description: "Updated description" };
-    expect(await update(env, 42, userId, fields)).toEqual({ video: { id: 42 } });
+    expect(await patchUserVideo(env, 42, userId, fields)).toEqual({ video: { id: 42 } });
     expect(videoOwnedBy).not.toHaveBeenCalled();
     expect(videoRepository.updateVideo).toHaveBeenCalledExactlyOnceWith(env, 42, userId, fields);
     expect(videoRepository.getVideoDetail).not.toHaveBeenCalled();
     expect(externalTasks.processExternalTaskById).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ["patch", patchUserVideo],
-    ["put", putUserVideo],
-  ] as const)("%s does not reload missing or foreign videos", async (_name, update) => {
+  it("update does not reload missing or foreign videos", async () => {
     videoRepository.updateVideo.mockResolvedValue({ notFound: true });
-    expect(await update(env, 42, userId, { title: "Edited", description: "" })).toEqual({ notFound: true });
+    expect(await patchUserVideo(env, 42, userId, { title: "Edited", description: "" })).toEqual({ notFound: true });
     expect(videoOwnedBy).not.toHaveBeenCalled();
     expect(videoRepository.getVideoDetail).not.toHaveBeenCalled();
   });

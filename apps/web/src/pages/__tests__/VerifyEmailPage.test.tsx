@@ -1,138 +1,56 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import VerifyEmailPage from '../VerifyEmailPage'
 import { apiClient } from '@/lib/api'
+import { useI18nNavigate } from '@/lib/i18n'
 
-vi.mock('@/lib/api', () => ({
-  apiClient: {
-    getMe: vi.fn(() => Promise.resolve({ id: '1', username: 'testuser', email: 'test@example.com' })),
-    verifyEmail: vi.fn(),
-  },
-}));
-
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom')
-  return {
-    ...actual,
-    useSearchParams: () => [new URLSearchParams('token=test-token')],
-  }
-})
+vi.mock('@/lib/api', () => ({ apiClient: { verifyEmail: vi.fn() } }))
 
 describe('VerifyEmailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(apiClient.verifyEmail).mockReset().mockResolvedValue(undefined)
+    globalThis.__setMockSearchParams('token=test-token')
   })
+  afterEach(() => vi.useRealTimers())
 
-  afterEach(() => {
-    globalThis.__setMockLanguage('en')
-  })
-
-  it('should render page title', () => {
-    ; (apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockImplementation(
-      () => new Promise(() => { })
-    )
-
+  it('shows its title, description and loading message while verification is pending', () => {
+    vi.mocked(apiClient.verifyEmail).mockReturnValue(new Promise(() => {}))
     render(<VerifyEmailPage />)
-
     expect(screen.getByText('auth.verifyEmail.title')).toBeInTheDocument()
-  })
-
-  it('should render description', () => {
-    ; (apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockImplementation(
-      () => new Promise(() => { })
-    )
-
-    render(<VerifyEmailPage />)
-
     expect(screen.getByText('auth.verifyEmail.description')).toBeInTheDocument()
-  })
-
-  it('should show loading state initially', () => {
-    ; (apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockImplementation(
-      () => new Promise(() => { })
-    )
-
-    render(<VerifyEmailPage />)
-
     expect(screen.getByText('auth.verifyEmail.loading')).toBeInTheDocument()
+    expect(useI18nNavigate()).not.toHaveBeenCalled()
   })
 
-  it('should call verifyEmail on mount', async () => {
-    ; (apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockResolvedValue({ detail: 'Verified' })
-
+  it('displays the translated success message after verifying the token', async () => {
     render(<VerifyEmailPage />)
-
-    await waitFor(() => {
-      expect(apiClient.verifyEmail).toHaveBeenCalledWith({
-        token: 'test-token',
-      })
-    })
+    expect(await screen.findByText('auth.verifyEmail.success')).toBeInTheDocument()
+    expect(apiClient.verifyEmail).toHaveBeenCalledExactlyOnceWith({ token: 'test-token' })
   })
 
-  it('should show success message on successful verification', async () => {
-    ; (apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockResolvedValue({ detail: 'Email verified successfully' })
-
+  it('redirects to login after showing the successful verification', async () => {
+    vi.useFakeTimers()
     render(<VerifyEmailPage />)
-
-    await waitFor(() => {
-      expect(screen.getByText('Email verified successfully')).toBeInTheDocument()
-    })
+    await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+    expect(screen.getByText('auth.verifyEmail.success')).toBeInTheDocument()
+    expect(useI18nNavigate()).not.toHaveBeenCalled()
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000) })
+    expect(useI18nNavigate()).toHaveBeenCalledExactlyOnceWith('/login', { replace: true })
   })
 
-  it('should redirect to login after successful verification', async () => {
-    ; (apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockResolvedValue({ detail: 'Verified' })
-
+  it.each(['Invalid token', 'Token expired'])('shows verification failure: %s', async message => {
+    vi.mocked(apiClient.verifyEmail).mockRejectedValue(new Error(message))
     render(<VerifyEmailPage />)
-
-    // Wait for the API call to complete
-    await waitFor(() => {
-      expect(apiClient.verifyEmail).toHaveBeenCalledWith({
-        token: 'test-token',
-      })
-    }, { timeout: 3000 })
-
-    // Wait for the success message
-    await waitFor(() => {
-      expect(screen.getByText('Verified')).toBeInTheDocument()
-    }, { timeout: 3000 })
-  }, 10000)
-
-  it('should show error message on verification failure', async () => {
-    ; (apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Invalid token'))
-
-    render(<VerifyEmailPage />)
-
-    // First wait for API call
-    await waitFor(() => {
-      expect(apiClient.verifyEmail).toHaveBeenCalled()
-    }, { timeout: 3000 })
-
-    // Then wait for error message to appear
-    await waitFor(() => {
-      expect(screen.getByText('Invalid token')).toBeInTheDocument()
-    }, { timeout: 3000 })
-  }, 10000)
-
-
-})
-
-describe('VerifyEmailPage - API Calls', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
+    expect(await screen.findByText(message)).toBeInTheDocument()
+    expect(apiClient.verifyEmail).toHaveBeenCalledTimes(1)
+    expect(useI18nNavigate()).not.toHaveBeenCalled()
   })
 
-  it('should handle API error correctly', async () => {
-    ; (apiClient.verifyEmail as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Token expired'))
-
+  it.each(['', 'token='])('rejects an empty verification link: %s', search => {
+    globalThis.__setMockSearchParams(search)
     render(<VerifyEmailPage />)
-
-    // First wait for API call
-    await waitFor(() => {
-      expect(apiClient.verifyEmail).toHaveBeenCalled()
-    }, { timeout: 3000 })
-
-    // Then wait for error message to appear
-    await waitFor(() => {
-      expect(screen.getByText('Token expired')).toBeInTheDocument()
-    }, { timeout: 3000 })
-  }, 10000)
+    expect(screen.getByText('auth.verifyEmail.invalidLink')).toBeInTheDocument()
+    expect(apiClient.verifyEmail).not.toHaveBeenCalled()
+    expect(useI18nNavigate()).not.toHaveBeenCalled()
+  })
 })

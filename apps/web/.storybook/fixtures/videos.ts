@@ -6,8 +6,8 @@ import previewUrl from './media/preview.webm?url&no-inline';
 import thumbnail from './media/thumbnail.svg?raw';
 
 // An absolute same-origin URL bypasses the application's backend URL resolver.
-export const localVideoUrl = new URL(previewUrl, window.location.href).href;
-export const youtubeFixtureId = 'storybook01';
+const localVideoUrl = new URL(previewUrl, window.location.href).href;
+const youtubeFixtureId = 'storybook01';
 export const youtubeThumbnailUrl = `https://img.youtube.com/vi/${youtubeFixtureId}/hqdefault.jpg`;
 export const mediaHandlers = [
   http.get(youtubeThumbnailUrl, () => new HttpResponse(thumbnail, {
@@ -15,7 +15,7 @@ export const mediaHandlers = [
   })),
 ];
 
-export const videoStatuses: VideoStatus[] = ['uploading', 'pending', 'processing', 'indexing', 'completed', 'error'];
+const videoStatuses: VideoStatus[] = ['uploading', 'pending', 'processing', 'indexing', 'completed', 'error'];
 
 export const uploadedVideo: VideoList = {
   id: 7,

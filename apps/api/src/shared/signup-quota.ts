@@ -1,7 +1,9 @@
+import { PLAN_CATALOG } from "../features/billing/catalog";
+
 /**
  * Free-tier quotas applied when a new account is created via signup.
  * Override with DEFAULT_* / MAX_VIDEO_UPLOAD_SIZE_MB env vars.
- * Keep in sync with PLAN_CATALOG.free in features/billing/catalog.ts.
+ * The plan catalog is the single source of free-tier defaults.
  *
  * Semantics for nullable limits:
  * - positive number → capped quota
@@ -16,28 +18,24 @@ export type SignupQuotaDefaults = {
   aiAnswersLimit: number | null;
 };
 
-export const FREE_TIER_DEFAULTS = {
-  maxVideoUploadSizeMb: 200,
-  storageLimitGb: 1,
-  processingLimitMinutes: 45,
-  aiAnswersLimit: 30,
-} as const;
-
 /**
  * Parse a nullable numeric env limit.
  * - unset / empty → fallback
  * - "null" / "unlimited" → null (unlimited)
- * - finite number → that number
+ * - finite nonnegative number → that number
+ * - integer columns also require a PostgreSQL int4-compatible value
  */
 export function parseNullableLimit(
   raw: string | undefined,
   fallback: number | null,
+  { integer = false }: { integer?: boolean } = {},
 ): number | null {
   if (raw === undefined || raw.trim() === "") return fallback;
   const v = raw.trim().toLowerCase();
   if (v === "null" || v === "unlimited") return null;
   const n = Number(v);
-  if (!Number.isFinite(n)) return fallback;
+  if (!Number.isFinite(n) || n < 0 ||
+    (integer && (!Number.isInteger(n) || n > 2_147_483_647))) return fallback;
   return n;
 }
 
@@ -47,22 +45,23 @@ export function resolveSignupQuotaDefaults(env: {
   DEFAULT_PROCESSING_LIMIT_MINUTES?: string;
   DEFAULT_AI_ANSWERS_LIMIT?: string;
 }): SignupQuotaDefaults {
-  const maxMb =
-    Number(env.MAX_VIDEO_UPLOAD_SIZE_MB ?? FREE_TIER_DEFAULTS.maxVideoUploadSizeMb) ||
-    FREE_TIER_DEFAULTS.maxVideoUploadSizeMb;
+  const defaults = PLAN_CATALOG.free.entitlements;
+  const maxMb = parseNullableLimit(env.MAX_VIDEO_UPLOAD_SIZE_MB, defaults.maxVideoUploadSizeMb, { integer: true });
   return {
-    maxVideoUploadSizeMb: maxMb,
+    maxVideoUploadSizeMb: maxMb || defaults.maxVideoUploadSizeMb,
     storageLimitGb: parseNullableLimit(
       env.DEFAULT_STORAGE_LIMIT_GB,
-      FREE_TIER_DEFAULTS.storageLimitGb,
+      defaults.storageLimitGb,
     ),
     processingLimitMinutes: parseNullableLimit(
       env.DEFAULT_PROCESSING_LIMIT_MINUTES,
-      FREE_TIER_DEFAULTS.processingLimitMinutes,
+      defaults.processingLimitMinutes,
+      { integer: true },
     ),
     aiAnswersLimit: parseNullableLimit(
       env.DEFAULT_AI_ANSWERS_LIMIT,
-      FREE_TIER_DEFAULTS.aiAnswersLimit,
+      defaults.aiAnswersLimit,
+      { integer: true },
     ),
   };
 }

@@ -15,9 +15,9 @@ describe('LoadingSpinner', () => {
     expect(screen.getByRole('progressbar', { name: 'Loading data...' }).textContent).toBe('Loading data...')
   })
 
-  it('should not display message when not provided', () => {
+  it('uses the translated default message when none is provided', () => {
     render(<LoadingSpinner />)
 
-    expect(screen.getByText('Loading')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: 'common.messages.loading' })).toHaveTextContent('common.messages.loading')
   })
 })

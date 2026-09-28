@@ -1,5 +1,3 @@
-'use client';
-
 import type { VideoList as VideoListType } from '@/lib/api';
 import { VideoCard } from './VideoCard';
 import { useTranslation } from 'react-i18next';

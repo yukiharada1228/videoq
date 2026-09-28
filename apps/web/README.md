@@ -35,6 +35,12 @@ npm run build --workspace @videoq/web
 
 `src/__tests__/App.navigation.test.tsx` は実際のルーター・翻訳・ナビゲーションで遷移、読み込み待ち、エラー時の操作を検証します。ページ単体のテストとは別に、この統合テストで親レイアウトを確認してください。ブラウザーでの表示・操作は `Application/Navigation`（`src/App.stories.tsx`）で確認できます。
 
+## 動画登録
+
+`src/lib/videoUpload.ts` の `prepareVideoUpload` はフォーム入力を検証し、ファイル送信またはYouTube登録に使う型付きデータを返します。`useVideoUpload` は送信時の検証結果をそのまま `runUploadWorkflow` に渡します。YouTube登録とタグ付けの入力型はtRPCクライアントから取得します。
+
+ファイル選択時の検証は、その場で形式・サイズのエラーを表示するために行います。送信時は編集後の入力と現在のファイルサイズ上限で再検証します。動画の登録後にタグ付けだけが失敗した場合は警告を返し、動画の再登録を避けます。
+
 ## Storybook
 
 UI変更時のStory追加・更新とレビューは[Storybookの変更・レビュー手順](STORYBOOK.md)を参照してください。
@@ -178,15 +184,17 @@ tRPCは[公式HTTP仕様](https://trpc.io/docs/rpc)に沿ってbatchの入出力
 ```tsx
 import { authFixtures } from '../../../.storybook/fixtures/auth';
 import { tagPage } from '../../../.storybook/fixtures/api';
-import { success, pending, failure, trpcQuery, restGet } from '../../../.storybook/mocks/network';
+import { success, pending, failure, trpcQuery } from '../../../.storybook/mocks/network';
 
 export const Loaded = {
   parameters: {
     pathname: '/videos',
     api: {
       auth: authFixtures.user,
-      trpc: [trpcQuery('tags.list', success(tagPage))],
-      rest: [restGet('/api/auth/api-key/list', success({ apiKeys: [] }))],
+      trpc: [
+        trpcQuery('tags.list', success(tagPage)),
+        trpcQuery('account.integrationApiKeys', success([])),
+      ],
     },
     docs: { story: { inline: false, height: '520px' } },
   },
@@ -198,9 +206,9 @@ export const Loaded = {
 
 `trpcQuery` / `trpcMutation`はprocedure名と入出力をAppRouterの型で検査します。
 固定応答のほか、`trpcMutation('tags.create', input => success({ ...tagFixture, ...input }))`のように入力を使えます。
-RESTは`restGet` / `restPost`と通常のMSW `http.get` / `http.post`等を`api.rest`または`beforeEach({ msw })`で登録できます。
+RESTは`restPost`と通常のMSW `http.get` / `http.post`等を`api.rest`または`beforeEach({ msw })`で登録できます。
 `restPost('/api/auth/sign-out', pending())`のように更新リクエストも終了時に解放される保留応答を使えます。
-回数によって応答を変える場合は`RestFailureThenRetry`のようにカウンターとhandlerを`beforeEach`内で作り直してください。
+回数によって応答を変える場合は`IntegrationFailureThenRetry`のようにカウンターとhandlerを`beforeEach`内で作り直してください。
 既存の画像用`parameters.msw`とも併用できます。
 
 Storybookとbrowser projectでは`VITE_API_URL`を`/api`、S3直接送信を無効に固定し、実環境の設定を継承しません。

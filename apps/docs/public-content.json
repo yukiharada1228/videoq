@@ -4,6 +4,7 @@
     "architecture/bpmn.md",
     "architecture/flowchart.md",
     "architecture/prompt-engineering.md",
+    "architecture/structured-answers.md",
     "architecture/system-configuration-diagram.md",
     "architecture/transcription-and-search.md",
     "architecture/trpc-api.md",
