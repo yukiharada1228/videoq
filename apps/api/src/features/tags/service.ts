@@ -1,27 +1,30 @@
 import {
   createTag,
-  deleteTag,
-  getTagDetail,
-  listTagsPage,
+  updateTag,
   normalizeTagName,
   isValidTagColor,
-  updateTag,
   EMPTY_NAME_MESSAGE,
   INVALID_COLOR_MESSAGE,
 } from "../../repositories/tag-repository";
+import { isUniqueViolation } from "../../db/errors";
+import { apiConflict } from "../../shared/errors";
 import type { Bindings } from "../../types/bindings";
 
-export async function listTags(
-  env: Bindings,
-  userId: string,
-  limit: number,
-  offset: number,
-) {
-  return listTagsPage(env, userId, limit, offset);
+export {
+  listTagsPage as listTags,
+  getTagDetail as getTag,
+  deleteTag as removeTag,
+} from "../../repositories/tag-repository";
+
+function handleTagNameConflict(error: unknown): never {
+  if (isUniqueViolation(error, "tags_user_id_name_uniq")) {
+    throw apiConflict("A tag with this name already exists.");
+  }
+  throw error;
 }
 
-export async function getTag(env: Bindings, tagId: number, userId: string) {
-  return getTagDetail(env, tagId, userId);
+export function updateUserTag(...args: Parameters<typeof updateTag>) {
+  return updateTag(...args).catch(handleTagNameConflict);
 }
 
 export async function createUserTag(
@@ -33,19 +36,6 @@ export async function createUserTag(
   const name = normalizeTagName(rawName);
   if (name === null) return { error: EMPTY_NAME_MESSAGE } as const;
   if (!isValidTagColor(color)) return { error: INVALID_COLOR_MESSAGE } as const;
-  const tag = await createTag(env, userId, name, color);
+  const tag = await createTag(env, userId, name, color).catch(handleTagNameConflict);
   return { tag } as const;
-}
-
-export async function updateUserTag(
-  env: Bindings,
-  tagId: number,
-  userId: string,
-  fields: { name?: string; color?: string },
-) {
-  return updateTag(env, tagId, userId, fields);
-}
-
-export async function removeTag(env: Bindings, tagId: number, userId: string) {
-  return deleteTag(env, tagId, userId);
 }

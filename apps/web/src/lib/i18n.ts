@@ -13,7 +13,7 @@ import {
 
 const LOCALE_STORAGE_KEY = 'videoq.locale';
 
-export function getLocaleFromPathname(pathname: string): Locale {
+function getLocaleFromPathname(pathname: string): Locale {
   const segments = pathname.split('/').filter(Boolean);
   const firstSegment = segments[0];
   if (firstSegment && locales.includes(firstSegment as Locale)) {

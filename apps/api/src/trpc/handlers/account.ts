@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import * as userRepository from "../../repositories/user-repository";
+import { listConnectedApps, listIntegrationApiKeys } from "../../repositories/account-integrations-repository";
 import { encryptUserSecret } from "../../lib/secret-encryption";
 import type { AppEnv } from "../../types/bindings";
 import { requireUserId, rpcError, type HandlersFor } from "./shared";
@@ -10,6 +11,8 @@ export function accountHandlers(
 ): HandlersFor<"account"> {
   const userId = () => requireUserId(authenticatedUserId);
   return {
+    "account.integrationApiKeys": async () => listIntegrationApiKeys(c.env, userId()),
+    "account.connectedApps": async () => listConnectedApps(c.env, userId()),
     "account.me": async () => {
       const user = await userRepository.getCurrentUser(c.env, userId());
       if (!user) return rpcError("NOT_FOUND", "User not found");

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { CourseInviteRecipientResult } from '@videoq/trpc';
 import { normalizeInvitationEmail } from '@videoq/trpc/course-invitations';
 import { appTrpcClient, trpc } from '@/lib/trpc';
+import { refreshQuery } from '@/lib/cacheInvalidation';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
@@ -129,7 +130,7 @@ export function CourseParticipantsDialog({
           setEmailInput('');
         }
         setTrackDeliveryUntil(Date.now() + DELIVERY_POLL_WINDOW_MS);
-        await queryClient.invalidateQueries(filter);
+        await refreshQuery(queryClient, filter);
         return;
       }
       await queryClient.cancelQueries(filter);
@@ -204,7 +205,6 @@ export function CourseParticipantsDialog({
       title: t('confirmations.removeMember', { name: member.username }),
       description: t('confirmations.removeMemberDescription'),
       confirmLabel: t('videos.courseMembers.remove'),
-      cancelLabel: t('common.actions.cancel'),
       variant: 'danger',
     });
     if (!confirmed) return;

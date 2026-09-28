@@ -4,18 +4,21 @@ from __future__ import annotations
 
 import base64
 import json
+from contextlib import nullcontext
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from worker_python.contracts import JOB_DELETE_ACCOUNT_DATA, JOB_TRANSCRIBE_VIDEO
+from worker_python.contracts import JOB_DELETE_ACCOUNT_DATA, JOB_INDEX_VIDEO_TRANSCRIPT, JOB_TRANSCRIBE_VIDEO
 from worker_python.lambda_handler import _execute_task
+from worker_python.tasks import indexing, transcription
 
 
-def test_execute_task_decodes_native_message() -> None:
+@pytest.mark.parametrize("job_type", [JOB_TRANSCRIBE_VIDEO, JOB_INDEX_VIDEO_TRANSCRIPT])
+def test_execute_task_decodes_native_message(job_type) -> None:
     body = json.dumps(
         {
-            "type": JOB_TRANSCRIBE_VIDEO,
+            "type": job_type,
             "job_id": "job-1",
             "payload": {"video_id": 42},
         }
@@ -30,8 +33,11 @@ def test_execute_task_decodes_native_message() -> None:
     ):
         fn = get_task.return_value
         _execute_task(body)
-        get_task.assert_called_once_with(JOB_TRANSCRIBE_VIDEO)
-        fn.assert_called_once_with(42, job_id="job-1")
+        get_task.assert_called_once_with(job_type)
+        if job_type == JOB_TRANSCRIBE_VIDEO:
+            fn.assert_called_once_with(video_id=42, job_id="job-1")
+        else:
+            fn.assert_called_once_with(video_id=42)
         complete.assert_called_once_with("job-1", "lease-1")
 
 
@@ -52,7 +58,7 @@ def test_execute_task_decodes_outer_base64() -> None:
     ):
         fn = get_task.return_value
         _execute_task(outer)
-        fn.assert_called_once_with(7, job_id="job-2")
+        fn.assert_called_once_with(video_id=7, job_id="job-2")
 
 
 def test_execute_task_passes_uuid_user_id_for_account_deletion() -> None:
@@ -75,7 +81,7 @@ def test_execute_task_passes_uuid_user_id_for_account_deletion() -> None:
         fn = get_task.return_value
         _execute_task(body)
         get_task.assert_called_once_with(JOB_DELETE_ACCOUNT_DATA)
-        fn.assert_called_once_with(user_id)
+        fn.assert_called_once_with(user_id=user_id)
 
 
 def test_execute_task_skips_completed_duplicate_job_id() -> None:
@@ -93,6 +99,31 @@ def test_execute_task_skips_completed_duplicate_job_id() -> None:
         _execute_task(body)
 
     get_task.assert_not_called()
+
+
+@pytest.mark.parametrize("job_type, task", [(JOB_TRANSCRIBE_VIDEO, transcription), (JOB_INDEX_VIDEO_TRANSCRIPT, indexing)])
+def test_deleted_video_delivery_completes_without_retry_or_provider_work(monkeypatch, job_type, task):
+    monkeypatch.setattr(task, "db_connection", lambda: nullcontext(MagicMock()))
+    monkeypatch.setattr(task, "get_video_for_task", MagicMock(return_value=None))
+    monkeypatch.setattr(indexing, "video_vector_write_lock", lambda _id: nullcontext())
+    transcribe = MagicMock()
+    embed = MagicMock()
+    enqueue = MagicMock()
+    monkeypatch.setattr(transcription, "run_transcription", transcribe)
+    monkeypatch.setattr(transcription, "enqueue_job", enqueue)
+    monkeypatch.setattr(indexing.vector_index, "index_video_transcript", embed)
+    body = json.dumps({"type": job_type, "job_id": "deleted-video-job", "payload": {"video_id": 42}})
+    with (
+        patch("worker_python.lambda_handler.claim_job_execution", return_value="lease-deleted"),
+        patch("worker_python.lambda_handler.complete_job_execution") as complete,
+        patch("worker_python.lambda_handler.fail_job_execution") as fail,
+    ):
+        _execute_task(body)
+    complete.assert_called_once_with("deleted-video-job", "lease-deleted")
+    fail.assert_not_called()
+    transcribe.assert_not_called()
+    embed.assert_not_called()
+    enqueue.assert_not_called()
 
 
 def test_execute_task_releases_lease_for_sqs_retry_on_failure() -> None:

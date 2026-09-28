@@ -1,0 +1,23 @@
+[
+  { "name": "UTF-8 BOM", "srt": "\uFEFF1\n00:00:01,250 --> 00:00:02,500\nHello", "start": 1.25, "end": 2.5 },
+  { "name": "comma milliseconds", "srt": "1\n00:00:01,250 --> 00:00:02,500\nHello", "start": 1.25, "end": 2.5 },
+  { "name": "dot milliseconds", "srt": "1\n00:00:01.250 --> 00:00:02.500\nHello", "start": 1.25, "end": 2.5 },
+  { "name": "compact timing separator", "srt": "1\n00:00:01,250-->00:00:02,500\nHello", "start": 1.25, "end": 2.5 },
+  { "name": "long recordings", "srt": "1\n100:00:01,250 --> 100:00:02,500\nHello", "start": 360001.25, "end": 360002.5 },
+  { "name": "signed cue index", "srt": "+1\n00:00:01,250 --> 00:00:02,500\nHello", "start": 1.25, "end": 2.5 },
+  { "name": "zero duration", "srt": "1\n00:00:01,250 --> 00:00:01,250\nHello", "start": 1.25, "end": 1.25 },
+  { "name": "CRLF and numeric caption", "srt": "1\r\n00:00:01,250 --> 00:00:02,500\r\n2026\r\nHello", "start": 1.25, "end": 2.5 },
+  { "name": "CR newlines", "srt": "1\r00:00:01,250 --> 00:00:02,500\rHello", "start": 1.25, "end": 2.5 },
+  { "name": "reversed interval", "srt": "1\n00:00:02,500 --> 00:00:01,250\nHello", "start": null, "end": null },
+  { "name": "minute overflow", "srt": "1\n00:60:01,250 --> 01:01:02,500\nHello", "start": null, "end": null },
+  { "name": "second overflow", "srt": "1\n00:00:60,000 --> 00:01:02,500\nHello", "start": null, "end": null },
+  { "name": "negative hours", "srt": "1\n-01:00:01,250 --> 00:00:02,500\nHello", "start": null, "end": null },
+  { "name": "missing hours", "srt": "1\n00:01,250 --> 00:02,500\nHello", "start": null, "end": null },
+  { "name": "incomplete milliseconds", "srt": "1\n00:00:01,5 --> 00:00:02,500\nHello", "start": null, "end": null },
+  { "name": "extra separator", "srt": "1\n00:00:01,250,500 --> 00:00:02,500\nHello", "start": null, "end": null },
+  { "name": "noninteger cue index", "srt": "chapter\n00:00:01,250 --> 00:00:02,500\nHello", "start": null, "end": null },
+  { "name": "missing cue index", "srt": "00:00:01,250 --> 00:00:02,500\nHello", "start": null, "end": null },
+  { "name": "empty caption", "srt": "1\n00:00:01,250 --> 00:00:02,500\n \t", "start": null, "end": null },
+  { "name": "timing embedded in prose", "srt": "1\nAt 00:00:01,250 --> 00:00:02,500\nHello", "start": null, "end": null },
+  { "name": "unsafe timestamp", "srt": "1\n99999999999999999:00:01,250 --> 99999999999999999:00:02,500\nHello", "start": null, "end": null }
+]

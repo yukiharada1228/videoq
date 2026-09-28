@@ -1,0 +1,1684 @@
+{
+  "date": "2026-09-28",
+  "baselineCommit": "d07f0c94c66a1298f2cdd0f40d5d126bcce4968f",
+  "runtime": "v24.12.0",
+  "method": "Same configured Chat Completions endpoint/model, fixed retrieval, three repeats per scenario; real browser hook/controller/renderer; local SSE excludes auth, persistence and production network latency.",
+  "acceptance": {
+    "firstVisibleAndRenderedCompletionMedian": "per mode <= baseline * 1.25 + 250ms",
+    "requestFailures": 0,
+    "shapeFailures": 0,
+    "invalidSourceIds": 0,
+    "incorrectSourceLinks": 0,
+    "missingRequiredSourceLinks": 0,
+    "brokenMathOrCode": 0,
+    "repairs": 0
+  },
+  "summary": {
+    "course": {
+      "firstVisibleTextMs": {
+        "baseline": 2397.85,
+        "structured": 2314.2
+      },
+      "renderedCompletionMs": {
+        "baseline": 5555.7,
+        "structured": 4056.65
+      },
+      "firstTextMs": {
+        "baseline": 2344.04,
+        "structured": 2265.51
+      },
+      "completionMs": {
+        "baseline": 2344.87,
+        "structured": 2265.66
+      },
+      "calls": {
+        "baseline": 2.0,
+        "structured": 2.0
+      },
+      "inputTokens": {
+        "baseline": 4112.0,
+        "structured": 4265.5
+      },
+      "outputTokens": {
+        "baseline": 150.0,
+        "structured": 130.0
+      }
+    },
+    "noCourse": {
+      "firstVisibleTextMs": {
+        "baseline": 618.75,
+        "structured": 646.8
+      },
+      "renderedCompletionMs": {
+        "baseline": 2071.75,
+        "structured": 1246.9
+      },
+      "firstTextMs": {
+        "baseline": 558.14,
+        "structured": 593.68
+      },
+      "completionMs": {
+        "baseline": 899.3,
+        "structured": 802.78
+      },
+      "calls": {
+        "baseline": 1.0,
+        "structured": 1.0
+      },
+      "inputTokens": {
+        "baseline": 894.5,
+        "structured": 1261.5
+      },
+      "outputTokens": {
+        "baseline": 48.0,
+        "structured": 38.0
+      }
+    }
+  },
+  "baseline": {
+    "model": "gpt-4o-mini",
+    "results": [
+      {
+        "id": "rotation-ja",
+        "repeat": 0,
+        "course": true,
+        "firstTextMs": 2923.7994999999996,
+        "completionMs": 2925.91375,
+        "calls": 2,
+        "repairCalls": 0,
+        "inputTokens": 4128,
+        "outputTokens": 127,
+        "content": "回転行列は、ベクトルの方向を変える役割を果たしますが、ベクトルの長さは保持します。例えば、2次元の回転行列は、角度θに基づいて定義され、特定の角度でベクトルを回転させることができます。90度回転させると、ベクトル(1,0)は(0,1)に変わります [1]。",
+        "final": {
+          "queryText": "回転行列はベクトルに何をしますか？簡潔に説明してください。",
+          "citations": [
+            {
+              "video_id": 60,
+              "title": "Rotation",
+              "start_time": "00:01:00",
+              "end_time": "00:02:00"
+            },
+            {
+              "video_id": 61,
+              "title": "Python",
+              "start_time": "00:03:00",
+              "end_time": "00:04:00"
+            }
+          ]
+        },
+        "firstVisibleTextMs": 2992.399999976158,
+        "renderedCompletionMs": 3970.2999999523163,
+        "mathErrors": 0
+      },
+      {
+        "id": "rotation-ja",
+        "repeat": 1,
+        "course": true,
+        "firstTextMs": 1858.0219580000003,
+        "completionMs": 1858.9222920000002,
+        "calls": 2,
+        "repairCalls": 0,
+        "inputTokens": 4128,
+        "outputTokens": 130,
+        "content": "回転行列は、ベクトルの方向を変える役割を果たしますが、ベクトルの長さは保持します。例えば、2次元の回転行列は次のように表されます：R(θ) = [[cos(θ), -sin(θ)], [sin(θ), cos(θ)]]。90度回転させると、ベクトル(1,0)は(0,1)に変わります [1]。",
+        "final": {
+          "queryText": "回転行列はベクトルに何をしますか？簡潔に説明してください。",
+          "citations": [
+            {
+              "video_id": 60,
+              "title": "Rotation",
+              "start_time": "00:01:00",
+              "end_time": "00:02:00"
+            },
+            {
+              "video_id": 61,
+              "title": "Python",
+              "start_time": "00:03:00",
+              "end_time": "00:04:00"
+            }
+          ]
+        },
+        "firstVisibleTextMs": 1914.8000000715256,
+        "renderedCompletionMs": 3046.3000000715256,
+        "mathErrors": 0
+      },
+      {
+        "id": "rotation-ja",
+        "repeat": 2,
+        "course": true,
+        "firstTextMs": 2036.50425,
+        "completionMs": 2037.1461660000004,
+        "calls": 2,
+        "repairCalls": 0,
+        "inputTokens": 4128,
+        "outputTokens": 127,
+        "content": "回転行列は、ベクトルの方向を変える役割を果たしますが、ベクトルの長さは保持します。例えば、2次元の回転行列は、角度θに基づいて定義され、特定の角度でベクトルを回転させることができます。90度回転させると、ベクトル(1,0)は(0,1)に変わります [1]。",
+        "final": {
+          "queryText": "回転行列はベクトルに何をしますか？簡潔に説明してください。",
+          "citations": [
+            {
+              "video_id": 60,
+              "title": "Rotation",
+              "start_time": "00:01:00",
+              "end_time": "00:02:00"
+            },
+            {
+              "video_id": 61,
+              "title": "Python",
+              "start_time": "00:03:00",
+              "end_time": "00:04:00"
+            }
+          ]
+        },
+        "firstVisibleTextMs": 2097.899999976158,
+        "renderedCompletionMs": 3081.5,
+        "mathErrors": 0
+      },
+      {
+        "id": "rotation-en",
+        "repeat": 0,
+        "course": true,
+        "firstTextMs": 1888.95975,
+        "completionMs": 1890.4676670000008,
+        "calls": 2,
+        "repairCalls": 0,
+        "inputTokens": 2962,
+        "outputTokens": 121,
+        "content": "A rotation matrix transforms a vector by changing its direction while preserving its length. For example, in two dimensions, the rotation matrix is defined as \\( R(\\theta) = \\begin{bmatrix} \\cos(\\theta) & -\\sin(\\theta) \\\\ \\sin(\\theta) & \\cos(\\theta) \\end{bmatrix} \\). When applied to a vector, such as rotating the vector (1,0) by 90 degrees, it becomes (0,1) [1].",
+        "final": {
+          "queryText": "What does a rotation matrix do to a vector? Explain briefly.",
+          "citations": [
+            {
+              "video_id": 60,
+              "title": "Rotation",
+              "start_time": "00:01:00",
+              "end_time": "00:02:00"
+            },
+            {
+              "video_id": 61,
+              "title": "Python",
+              "start_time": "00:03:00",
+              "end_time": "00:04:00"
+            }
+          ]
+        },
+        "firstVisibleTextMs": 1948,
+        "renderedCompletionMs": 4847,
+        "mathErrors": 0
+      },
+      {
+        "id": "rotation-en",
+        "repeat": 1,
+        "course": true,
+        "firstTextMs": 1888.7179589999978,
+        "completionMs": 1889.8492499999993,
+        "calls": 2,
+        "repairCalls": 0,
+        "inputTokens": 2962,
+        "outputTokens": 148,
+        "content": "A rotation matrix transforms a vector by changing its direction while preserving its length. For example, in two dimensions, the rotation matrix \\( R(\\theta) \\) is defined as:\n\n\\[\nR(\\theta) = \\begin{bmatrix}\n\\cos(\\theta) & -\\sin(\\theta) \\\\\n\\sin(\\theta) & \\cos(\\theta)\n\\end{bmatrix}\n\\]\n\nWhen applied to a vector, this matrix rotates the vector by an angle \\( \\theta \\). For instance, rotating the vector (1, 0) by 90 degrees results in the vector (0, 1) [1].",
+        "final": {
+          "queryText": "What does a rotation matrix do to a vector? Explain briefly.",
+          "citations": [
+            {
+              "video_id": 60,
+              "title": "Rotation",
+              "start_time": "00:01:00",
+              "end_time": "00:02:00"
+            },
+            {
+              "video_id": 61,
+              "title": "Python",
+              "start_time": "00:03:00",
+              "end_time": "00:04:00"
+            }
+          ]
+        },
+        "firstVisibleTextMs": 1947.5,
+        "renderedCompletionMs": 5563.899999976158,
+        "mathErrors": 0
+      },
+      {
+        "id": "rotation-en",
+        "repeat": 2,
+        "course": true,
+        "firstTextMs": 1856.7595000000001,
+        "completionMs": 1858.2758329999997,
+        "calls": 2,
+        "repairCalls": 0,
+        "inputTokens": 2962,
+        "outputTokens": 160,
+        "content": "A rotation matrix transforms a vector by changing its direction while preserving its length. For example, in two dimensions, the rotation matrix \\( R(\\theta) \\) is defined as:\n\n\\[\nR(\\theta) = \\begin{bmatrix}\n\\cos(\\theta) & -\\sin(\\theta) \\\\\n\\sin(\\theta) & \\cos(\\theta)\n\\end{bmatrix}\n\\]\n\nWhen applied to a vector, this matrix rotates the vector by an angle \\( \\theta \\) around the origin. For instance, a vector (1, 0) becomes (0, 1) when rotated by 90 degrees, demonstrating the change in direction while maintaining its length [1].",
+        "final": {
+          "queryText": "What does a rotation matrix do to a vector? Explain briefly.",
+          "citations": [
+            {
+              "video_id": 60,
+              "title": "Rotation",
+              "start_time": "00:01:00",
+              "end_time": "00:02:00"
+            },
+            {
+              "video_id": 61,
+              "title": "Python",
+              "start_time": "00:03:00",
+              "end_time": "00:04:00"
+            }
+          ]
+        },
+        "firstVisibleTextMs": 1914.6999999284744,
+        "renderedCompletionMs": 6113.899999976158,
+        "mathErrors": 0
+      },
+      {
+        "id": "math-ja",
+        "repeat": 0,
+        "course": true,
+        "firstTextMs": 3728.1571669999976,
+        "completionMs": 3728.7684579999986,
+        "calls": 2,
+        "repairCalls": 0,
+        "inputTokens": 4149,
+        "outputTokens": 257,
+        "content": "2次元の回転行列は次のように表されます：\n\n\\[\nR(\\theta) = \\begin{bmatrix}\n\\cos(\\theta) & -\\sin(\\theta) \\\\\n\\sin(\\theta) & \\cos(\\theta)\n\\end{bmatrix}\n\\]\n\nここで、\\(\\theta\\)は回転角度を表します。この行列は方向を変えつつ、長さを保つ特性があります。\n\n90度の回転の場合、\\(\\theta = 90^\\circ\\)とすると、\\(\\cos(90^\\circ) = 0\\)および\\(\\sin(90^\\circ) = 1\\)となります。したがって、回転行列は次のようになります：\n\n\\[\nR(90^\\circ) = \\begin{bmatrix}\n0 & -1 \\\\\n1 & 0\n\\end{bmatrix}\n\\]\n\nこの行列を使って、点(1, 0)を90度回転させると、(0, 1)になります [1]。",
+        "final": {
+          "queryText": "2次元の回転行列の式をTeXで示し、90度回転の例を簡潔に説明してください。",
+          "citations": [
+            {
+              "video_id": 60,
+              "title": "Rotation",
+              "start_time": "00:01:00",
+              "end_time": "00:02:00"
+            },
+            {
+              "video_id": 61,
+              "title": "Python",
+              "start_time": "00:03:00",
+              "end_time": "00:04:00"
+            }
+          ]
+        },
+        "firstVisibleTextMs": 3777.7999999523163,
+        "renderedCompletionMs": 6994.200000047684,
+        "mathErrors": 0
+      },
+      {
+        "id": "math-ja",
+        "repeat": 1,
+        "course": true,
+        "firstTextMs": 3383.8332080000037,
+        "completionMs": 3384.50475,
+        "calls": 2,
+        "repairCalls": 0,
+        "inputTokens": 4149,
+        "outputTokens": 282,
+        "content": "2次元の回転行列は次のように表されます：\n\n\\[\nR(\\theta) = \\begin{bmatrix}\n\\cos(\\theta) & -\\sin(\\theta) \\\\\n\\sin(\\theta) & \\cos(\\theta)\n\\end{bmatrix}\n\\]\n\nここで、\\(\\theta\\)は回転角度を表します。90度の回転の場合、\\(\\theta = 90^\\circ\\)とすると、回転行列は次のようになります：\n\n\\[\nR(90^\\circ) = \\begin{bmatrix}\n\\cos(90^\\circ) & -\\sin(90^\\circ) \\\\\n\\sin(90^\\circ) & \\cos(90^\\circ)\n\\end{bmatrix} = \\begin{bmatrix}\n0 & -1 \\\\\n1 & 0\n\\end{bmatrix}\n\\]\n\nこの行列を使って、点(1, 0)を90度回転させると、(1, 0)は(0, 1)に変わります。このように、回転行列は方向を変えつつ、長さを保つ特性があります [1]。",
+        "final": {
+          "queryText": "2次元の回転行列の式をTeXで示し、90度回転の例を簡潔に説明してください。",
+          "citations": [
+            {
+              "video_id": 60,
+              "title": "Rotation",
+              "start_time": "00:01:00",
+              "end_time": "00:02:00"
+            },
+            {
+              "video_id": 61,
+              "title": "Python",
+              "start_time": "00:03:00",
+              "end_time": "00:04:00"
+            }
+          ]
+        },
+        "firstVisibleTextMs": 3431.1999999284744,
+        "renderedCompletionMs": 7064.199999928474,
+        "mathErrors": 0
+      },
+      {
+        "id": "math-ja",
+        "repeat": 2,
+        "course": true,
+        "firstTextMs": 3167.180290999997,
+        "completionMs": 3167.9133749999964,
+        "calls": 2,
+        "repairCalls": 0,
+        "inputTokens": 4149,
+        "outputTokens": 321,
+        "content": "2次元の回転行列は次のように表されます：\n\n\\[\nR(\\theta) = \\begin{bmatrix}\n\\cos(\\theta) & -\\sin(\\theta) \\\\\n\\sin(\\theta) & \\cos(\\theta)\n\\end{bmatrix}\n\\]\n\nここで、\\(\\theta\\)は回転角度を表します。90度の回転の場合、\\(\\theta = 90^\\circ\\)とすると、回転行列は次のようになります：\n\n\\[\nR(90^\\circ) = \\begin{bmatrix}\n\\cos(90^\\circ) & -\\sin(90^\\circ) \\\\\n\\sin(90^\\circ) & \\cos(90^\\circ)\n\\end{bmatrix} = \\begin{bmatrix}\n0 & -1 \\\\\n1 & 0\n\\end{bmatrix}\n\\]\n\nこの行列を使って、点(1, 0)を90度回転させると、次のように計算できます：\n\n\\[\nR(90^\\circ) \\cdot \\begin{bmatrix}\n1 \\\\\n0\n\\end{bmatrix} = \\begin{bmatrix}\n0 \\\\\n1\n\\end{bmatrix}\n\\]\n\nしたがって、点(1, 0)は90度回転して(0, 1)になります [1]。",
+        "final": {
+          "queryText": "2次元の回転行列の式をTeXで示し、90度回転の例を簡潔に説明してください。",
+          "citations": [
+            {
+              "video_id": 60,
+              "title": "Rotation",
+              "start_time": "00:01:00",
+              "end_time": "00:02:00"
+            },
+            {
+              "video_id": 61,
+              "title": "Python",
+              "start_time": "00:03:00",
+              "end_time": "00:04:00"
+            }
+          ]
+        },
+        "firstVisibleTextMs": 3214.7000000476837,
+        "renderedCompletionMs": 7613.600000023842,
+        "mathErrors": 0
+      },
+      {
+        "id": "code-en",
+        "repeat": 0,
+        "course": true,
+        "firstTextMs": 2821.272707999997,
+        "completionMs": 2822.563583000003,
+        "calls": 3,
+        "repairCalls": 0,
+        "inputTokens": 4673,
+        "outputTokens": 152,
+        "content": "Here is the Python indexing example from the course:\n\n```python\na = [10, 20]\nprint(a[1])  # This will output 20\n```\n\nIn this example, `a[1]` returns `20` because Python uses zero-based indexing. This means that the first element of the list `a` is at index `0`, and the second element is at index `1`. Therefore, `a[1]` accesses the second element of the list, which is `20` [2].",
+        "final": {
+          "queryText": "Show the Python indexing example from the course in a fenced code block and explain what a[1] returns.",
+          "citations": [
+            {
+              "video_id": 60,
+              "title": "Rotation",
+              "start_time": "00:01:00",
+              "end_time": "00:02:00"
+            },
+            {
+              "video_id": 61,
+              "title": "Python",
+              "start_time": "00:03:00",
+              "end_time": "00:04:00"
+            }
+          ]
+        },
+        "firstVisibleTextMs": 2881,
+        "renderedCompletionMs": 5880.699999928474,
+        "mathErrors": 0
+      },
+      {
+        "id": "code-en",
+        "repeat": 1,
+        "course": true,
+        "firstTextMs": 2496.238666999998,
+        "completionMs": 2496.9558749999997,
+        "calls": 3,
+        "repairCalls": 0,
+        "inputTokens": 4673,
+        "outputTokens": 152,
+        "content": "Here is the Python indexing example from the course:\n\n```python\na = [10, 20]\nprint(a[1])  # This will output 20\n```\n\nIn this example, `a[1]` returns `20` because Python uses zero-based indexing. This means that the first element of the list `a` is at index `0`, and the second element is at index `1`. Therefore, `a[1]` accesses the second element of the list, which is `20` [2].",
+        "final": {
+          "queryText": "Show the Python indexing example from the course in a fenced code block and explain what a[1] returns.",
+          "citations": [
+            {
+              "video_id": 60,
+              "title": "Rotation",
+              "start_time": "00:01:00",
+              "end_time": "00:02:00"
+            },
+            {
+              "video_id": 61,
+              "title": "Python",
+              "start_time": "00:03:00",
+              "end_time": "00:04:00"
+            }
+          ]
+        },
+        "firstVisibleTextMs": 2548.100000023842,
+        "renderedCompletionMs": 5547.5,
+        "mathErrors": 0
+      },
+      {
+        "id": "code-en",
+        "repeat": 2,
+        "course": true,
+        "firstTextMs": 2593.954082999997,
+        "completionMs": 2596.740125000004,
+        "calls": 3,
+        "repairCalls": 0,
+        "inputTokens": 4673,
+        "outputTokens": 141,
+        "content": "Here is the Python indexing example from the course:\n\n```python\na = [10, 20]\nprint(a[1])  # This will output 20\n```\n\nIn this example, `a[1]` returns `20` because Python uses zero-based indexing. This means that the first element of the list `a` is at index `0`, which is `10`, and the second element is at index `1`, which is `20` [2].",
+        "final": {
+          "queryText": "Show the Python indexing example from the course in a fenced code block and explain what a[1] returns.",
+          "citations": [
+            {
+              "video_id": 60,
+              "title": "Rotation",
+              "start_time": "00:01:00",
+              "end_time": "00:02:00"
+            },
+            {
+              "video_id": 61,
+              "title": "Python",
+              "start_time": "00:03:00",
+              "end_time": "00:04:00"
+            }
+          ]
+        },
+        "firstVisibleTextMs": 2661.7999999523163,
+        "renderedCompletionMs": 5294.799999952316,
+        "mathErrors": 0
+      },
+      {
+        "id": "multiple-en",
+        "repeat": 0,
+        "course": true,
+        "firstTextMs": 2574.480040999988,
+        "completionMs": 2575.102915999989,
+        "calls": 2,
+        "repairCalls": 0,
+        "inputTokens": 3121,
+        "outputTokens": 199,
+        "content": "A rotation matrix in two dimensions is defined as \\( R(\\theta) = \\begin{bmatrix} \\cos(\\theta) & -\\sin(\\theta) \\\\ \\sin(\\theta) & \\cos(\\theta) \\end{bmatrix} \\). This matrix changes the direction of a vector while preserving its length. For example, when rotating the vector (1,0) by 90 degrees, it transforms to (0,1) [1].\n\nIn the Python example, a list is created as `a = [10, 20]`. The expression `a[1]` evaluates to 20, demonstrating that Python uses zero-based indexing. The command `print(a[1])` outputs 20 [2].",
+        "final": {
+          "queryText": "Briefly summarize both rotation matrices and the Python example in this course.",
+          "citations": [
+            {
+              "video_id": 60,
+              "title": "Rotation",
+              "start_time": "00:01:00",
+              "end_time": "00:02:00"
+            },
+            {
+              "video_id": 61,
+              "title": "Python",
+              "start_time": "00:03:00",
+              "end_time": "00:04:00"
+            }
+          ]
+        },
+        "firstVisibleTextMs": 2649,
+        "renderedCompletionMs": 6698.700000047684,
+        "mathErrors": 0
+      },
+      {
+        "id": "multiple-en",
+        "repeat": 1,
+        "course": true,
+        "firstTextMs": 2513.1141250000073,
+        "completionMs": 2513.9087090000103,
+        "calls": 2,
+        "repairCalls": 0,
+        "inputTokens": 3121,
+        "outputTokens": 199,
+        "content": "A rotation matrix in two dimensions is defined as \\( R(\\theta) = \\begin{bmatrix} \\cos(\\theta) & -\\sin(\\theta) \\\\ \\sin(\\theta) & \\cos(\\theta) \\end{bmatrix} \\). This matrix changes the direction of a vector while preserving its length. For example, when rotating the vector (1,0) by 90 degrees, it transforms to (0,1) [1].\n\nIn the Python example, a list is created as `a = [10, 20]`. The expression `a[1]` evaluates to 20, demonstrating that Python uses zero-based indexing. The command `print(a[1])` outputs 20 [2].",
+        "final": {
+          "queryText": "Briefly summarize both rotation matrices and the Python example in this course.",
+          "citations": [
+            {
+              "video_id": 60,
+              "title": "Rotation",
+              "start_time": "00:01:00",
+              "end_time": "00:02:00"
+            },
+            {
+              "video_id": 61,
+              "title": "Python",
+              "start_time": "00:03:00",
+              "end_time": "00:04:00"
+            }
+          ]
+        },
+        "firstVisibleTextMs": 2564.5,
+        "renderedCompletionMs": 6630.700000047684,
+        "mathErrors": 0
+      },
+      {
+        "id": "multiple-en",
+        "repeat": 2,
+        "course": true,
+        "firstTextMs": 2191.8400420000107,
+        "completionMs": 2192.7888340000063,
+        "calls": 2,
+        "repairCalls": 0,
+        "inputTokens": 3121,
+        "outputTokens": 199,
+        "content": "A rotation matrix in two dimensions is defined as \\( R(\\theta) = \\begin{bmatrix} \\cos(\\theta) & -\\sin(\\theta) \\\\ \\sin(\\theta) & \\cos(\\theta) \\end{bmatrix} \\). This matrix changes the direction of a vector while preserving its length. For example, when rotating the vector (1,0) by 90 degrees, it transforms to (0,1) [1].\n\nIn the Python example, a list is created as `a = [10, 20]`. The expression `a[1]` evaluates to 20, demonstrating that Python uses zero-based indexing. The command `print(a[1])` outputs 20 [2].",
+        "final": {
+          "queryText": "Briefly summarize both rotation matrices and the Python example in this course.",
+          "citations": [
+            {
+              "video_id": 60,
+              "title": "Rotation",
+              "start_time": "00:01:00",
+              "end_time": "00:02:00"
+            },
+            {
+              "video_id": 61,
+              "title": "Python",
+              "start_time": "00:03:00",
+              "end_time": "00:04:00"
+            }
+          ]
+        },
+        "firstVisibleTextMs": 2247.600000023842,
+        "renderedCompletionMs": 6314.399999976158,
+        "mathErrors": 0
+      },
+      {
+        "id": "metadata-ja",
+        "repeat": 0,
+        "course": true,
+        "firstTextMs": 1435.783209000001,
+        "completionMs": 1436.5148749999935,
+        "calls": 2,
+        "repairCalls": 0,
+        "inputTokens": 4096,
+        "outputTokens": 41,
+        "content": "この講座「Matrices and Python」には、合計で2本の動画があります。",
+        "final": {
+          "queryText": "この講座には何本の動画がありますか？",
+          "citations": null
+        },
+        "firstVisibleTextMs": 1498.2000000476837,
+        "renderedCompletionMs": 1814.3000000715256,
+        "mathErrors": 0
+      },
+      {
+        "id": "metadata-ja",
+        "repeat": 1,
+        "course": true,
+        "firstTextMs": 1362.950250000009,
+        "completionMs": 1364.2357920000068,
+        "calls": 2,
+        "repairCalls": 0,
+        "inputTokens": 4096,
+        "outputTokens": 41,
+        "content": "この講座「Matrices and Python」には、合計で2本の動画があります。",
+        "final": {
+          "queryText": "この講座には何本の動画がありますか？",
+          "citations": null
+        },
+        "firstVisibleTextMs": 1431.5,
+        "renderedCompletionMs": 1747.3999999761581,
+        "mathErrors": 0
+      },
+      {
+        "id": "metadata-ja",
+        "repeat": 2,
+        "course": true,
+        "firstTextMs": 1492.2700830000103,
+        "completionMs": 1492.752833000006,
+        "calls": 2,
+        "repairCalls": 0,
+        "inputTokens": 4096,
+        "outputTokens": 41,
+        "content": "この講座「Matrices and Python」には、合計で2本の動画があります。",
+        "final": {
+          "queryText": "この講座には何本の動画がありますか？",
+          "citations": null
+        },
+        "firstVisibleTextMs": 1557.2000000476837,
+        "renderedCompletionMs": 1856.3000000715256,
+        "mathErrors": 0
+      },
+      {
+        "id": "no-course-ja",
+        "repeat": 0,
+        "course": false,
+        "firstTextMs": 545.8173750000133,
+        "completionMs": 859.6425000000017,
+        "calls": 1,
+        "repairCalls": 0,
+        "inputTokens": 1096,
+        "outputTokens": 39,
+        "content": "この質問は動画教材の範囲外です。具体的な質問があれば、提供されたシーンに基づいてお答えしますので、ぜひお知らせください。",
+        "final": {
+          "queryText": "動画について質問するにはどうしたらよいですか？",
+          "citations": null
+        },
+        "firstVisibleTextMs": 609.6000000238419,
+        "renderedCompletionMs": 1058.7000000476837,
+        "mathErrors": 0
+      },
+      {
+        "id": "no-course-ja",
+        "repeat": 1,
+        "course": false,
+        "firstTextMs": 519.3839999999909,
+        "completionMs": 845.6068749999977,
+        "calls": 1,
+        "repairCalls": 0,
+        "inputTokens": 1096,
+        "outputTokens": 39,
+        "content": "この質問は動画教材の範囲外です。具体的な質問があれば、提供されたシーンに基づいてお答えしますので、ぜひお知らせください。",
+        "final": {
+          "queryText": "動画について質問するにはどうしたらよいですか？",
+          "citations": null
+        },
+        "firstVisibleTextMs": 580.8000000715256,
+        "renderedCompletionMs": 1063.4000000953674,
+        "mathErrors": 0
+      },
+      {
+        "id": "no-course-ja",
+        "repeat": 2,
+        "course": false,
+        "firstTextMs": 570.4647079999995,
+        "completionMs": 882.9420830000017,
+        "calls": 1,
+        "repairCalls": 0,
+        "inputTokens": 1096,
+        "outputTokens": 39,
+        "content": "この質問は動画教材の範囲外です。具体的な質問があれば、提供されたシーンに基づいてお答えしますので、ぜひお知らせください。",
+        "final": {
+          "queryText": "動画について質問するにはどうしたらよいですか？",
+          "citations": null
+        },
+        "firstVisibleTextMs": 628.8999999761581,
+        "renderedCompletionMs": 1129.3999999761581,
+        "mathErrors": 0
+      },
+      {
+        "id": "no-course-en",
+        "repeat": 0,
+        "course": false,
+        "firstTextMs": 516.7700000000041,
+        "completionMs": 927.8740830000024,
+        "calls": 1,
+        "repairCalls": 0,
+        "inputTokens": 693,
+        "outputTokens": 57,
+        "content": "Your question seems to be about how to inquire or seek clarification regarding the content of your videos. However, the provided scenes do not contain any information on how to ask questions about videos. Therefore, I cannot provide guidance on that topic as it is outside the scope of the video materials.",
+        "final": {
+          "queryText": "How can I ask questions about my videos?",
+          "citations": null
+        },
+        "firstVisibleTextMs": 564.3999999761581,
+        "renderedCompletionMs": 3014.100000023842,
+        "mathErrors": 0
+      },
+      {
+        "id": "no-course-en",
+        "repeat": 1,
+        "course": false,
+        "firstTextMs": 575.9942919999885,
+        "completionMs": 922.966042,
+        "calls": 1,
+        "repairCalls": 0,
+        "inputTokens": 693,
+        "outputTokens": 57,
+        "content": "Your question seems to be about how to inquire or seek clarification regarding the content of your videos. However, the provided scenes do not contain any information on how to ask questions about videos. Therefore, I cannot provide guidance on that topic as it is outside the scope of the video materials.",
+        "final": {
+          "queryText": "How can I ask questions about my videos?",
+          "citations": null
+        },
+        "firstVisibleTextMs": 627.8999999761581,
+        "renderedCompletionMs": 3061.8000000715256,
+        "mathErrors": 0
+      },
+      {
+        "id": "no-course-en",
+        "repeat": 2,
+        "course": false,
+        "firstTextMs": 612.9082909999997,
+        "completionMs": 915.663625000001,
+        "calls": 1,
+        "repairCalls": 0,
+        "inputTokens": 693,
+        "outputTokens": 57,
+        "content": "Your question seems to be about how to inquire or seek clarification regarding the content of your videos. However, the provided scenes do not contain any information on how to ask questions about videos. Therefore, I cannot provide guidance on that topic as it is outside the scope of the video materials.",
+        "final": {
+          "queryText": "How can I ask questions about my videos?",
+          "citations": null
+        },
+        "firstVisibleTextMs": 678.2999999523163,
+        "renderedCompletionMs": 3095.5999999046326,
+        "mathErrors": 0
+      }
+    ]
+  },
+  "structured": {
+    "model": "gpt-4o-mini",
+    "results": [
+      {
+        "id": "rotation-ja",
+        "repeat": 0,
+        "course": true,
+        "firstTextMs": 3109.968417,
+        "completionMs": 3110.208167,
+        "calls": 2,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 4759,
+        "outputTokens": 130,
+        "content": "回転行列はベクトルの方向を変え、長さを保ちます。例えば、2次元の回転行列は R(θ) = [[cos(θ), -sin(θ)], [sin(θ), cos(θ)]] で表され、90度回転させるとベクトル (1,0) は (0,1) になります。",
+        "final": {
+          "queryText": "回転行列はベクトルに何をしますか？簡潔に説明してください。",
+          "answer": {
+            "segments": [
+              {
+                "text": "回転行列はベクトルの方向を変え、長さを保ちます。例えば、2次元の回転行列は R(θ) = [[cos(θ), -sin(θ)], [sin(θ), cos(θ)]] で表され、90度回転させるとベクトル (1,0) は (0,1) になります。",
+                "sourceIds": [
+                  1
+                ]
+              }
+            ],
+            "sources": [
+              {
+                "id": 1,
+                "video_id": 60,
+                "title": "Rotation",
+                "start_time": "00:01:00",
+                "end_time": "00:02:00"
+              },
+              {
+                "id": 2,
+                "video_id": 61,
+                "title": "Python",
+                "start_time": "00:03:00",
+                "end_time": "00:04:00"
+              }
+            ]
+          }
+        },
+        "firstVisibleTextMs": 3173.2999999523163,
+        "renderedCompletionMs": 4133.600000023842,
+        "mathErrors": 0
+      },
+      {
+        "id": "rotation-ja",
+        "repeat": 1,
+        "course": true,
+        "firstTextMs": 2160.0652919999993,
+        "completionMs": 2160.164417,
+        "calls": 2,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 4759,
+        "outputTokens": 130,
+        "content": "回転行列はベクトルの方向を変え、長さを保ちます。例えば、2次元の回転行列は R(θ) = [[cos(θ), -sin(θ)], [sin(θ), cos(θ)]] で表され、90度回転させるとベクトル (1,0) は (0,1) になります。",
+        "final": {
+          "queryText": "回転行列はベクトルに何をしますか？簡潔に説明してください。",
+          "answer": {
+            "segments": [
+              {
+                "text": "回転行列はベクトルの方向を変え、長さを保ちます。例えば、2次元の回転行列は R(θ) = [[cos(θ), -sin(θ)], [sin(θ), cos(θ)]] で表され、90度回転させるとベクトル (1,0) は (0,1) になります。",
+                "sourceIds": [
+                  1
+                ]
+              }
+            ],
+            "sources": [
+              {
+                "id": 1,
+                "video_id": 60,
+                "title": "Rotation",
+                "start_time": "00:01:00",
+                "end_time": "00:02:00"
+              },
+              {
+                "id": 2,
+                "video_id": 61,
+                "title": "Python",
+                "start_time": "00:03:00",
+                "end_time": "00:04:00"
+              }
+            ]
+          }
+        },
+        "firstVisibleTextMs": 2215,
+        "renderedCompletionMs": 3181.4000000953674,
+        "mathErrors": 0
+      },
+      {
+        "id": "rotation-ja",
+        "repeat": 2,
+        "course": true,
+        "firstTextMs": 2746.4979999999996,
+        "completionMs": 2746.830582999999,
+        "calls": 2,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 4759,
+        "outputTokens": 130,
+        "content": "回転行列はベクトルの方向を変え、長さを保ちます。例えば、2次元の回転行列は R(θ) = [[cos(θ), -sin(θ)], [sin(θ), cos(θ)]] で表され、90度回転させるとベクトル (1,0) は (0,1) になります。",
+        "final": {
+          "queryText": "回転行列はベクトルに何をしますか？簡潔に説明してください。",
+          "answer": {
+            "segments": [
+              {
+                "text": "回転行列はベクトルの方向を変え、長さを保ちます。例えば、2次元の回転行列は R(θ) = [[cos(θ), -sin(θ)], [sin(θ), cos(θ)]] で表され、90度回転させるとベクトル (1,0) は (0,1) になります。",
+                "sourceIds": [
+                  1
+                ]
+              }
+            ],
+            "sources": [
+              {
+                "id": 1,
+                "video_id": 60,
+                "title": "Rotation",
+                "start_time": "00:01:00",
+                "end_time": "00:02:00"
+              },
+              {
+                "id": 2,
+                "video_id": 61,
+                "title": "Python",
+                "start_time": "00:03:00",
+                "end_time": "00:04:00"
+              }
+            ]
+          }
+        },
+        "firstVisibleTextMs": 2797.399999976158,
+        "renderedCompletionMs": 3763.7999999523163,
+        "mathErrors": 0
+      },
+      {
+        "id": "rotation-en",
+        "repeat": 0,
+        "course": true,
+        "firstTextMs": 1997.8032089999997,
+        "completionMs": 1998.2162499999995,
+        "calls": 2,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 3643,
+        "outputTokens": 124,
+        "content": "A rotation matrix transforms a vector by changing its direction while preserving its length. For example, a two-dimensional rotation matrix is defined as R(theta) = [[cos(theta), -sin(theta)], [sin(theta), cos(theta)]]. When a vector is multiplied by this matrix, it rotates the vector by an angle theta around the origin. At 90 degrees, the vector (1,0) becomes (0,1).",
+        "final": {
+          "queryText": "What does a rotation matrix do to a vector? Explain briefly.",
+          "answer": {
+            "segments": [
+              {
+                "text": "A rotation matrix transforms a vector by changing its direction while preserving its length. For example, a two-dimensional rotation matrix is defined as R(theta) = [[cos(theta), -sin(theta)], [sin(theta), cos(theta)]]. When a vector is multiplied by this matrix, it rotates the vector by an angle theta around the origin. At 90 degrees, the vector (1,0) becomes (0,1).",
+                "sourceIds": [
+                  1
+                ]
+              }
+            ],
+            "sources": [
+              {
+                "id": 1,
+                "video_id": 60,
+                "title": "Rotation",
+                "start_time": "00:01:00",
+                "end_time": "00:02:00"
+              },
+              {
+                "id": 2,
+                "video_id": 61,
+                "title": "Python",
+                "start_time": "00:03:00",
+                "end_time": "00:04:00"
+              }
+            ]
+          }
+        },
+        "firstVisibleTextMs": 2048,
+        "renderedCompletionMs": 4980.199999928474,
+        "mathErrors": 0
+      },
+      {
+        "id": "rotation-en",
+        "repeat": 1,
+        "course": true,
+        "firstTextMs": 2210.898000000001,
+        "completionMs": 2211.066125000001,
+        "calls": 2,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 3643,
+        "outputTokens": 124,
+        "content": "A rotation matrix transforms a vector by changing its direction while preserving its length. For example, a two-dimensional rotation matrix is defined as R(theta) = [[cos(theta), -sin(theta)], [sin(theta), cos(theta)]]. When a vector is multiplied by this matrix, it rotates the vector by an angle theta around the origin. At 90 degrees, the vector (1,0) becomes (0,1).",
+        "final": {
+          "queryText": "What does a rotation matrix do to a vector? Explain briefly.",
+          "answer": {
+            "segments": [
+              {
+                "text": "A rotation matrix transforms a vector by changing its direction while preserving its length. For example, a two-dimensional rotation matrix is defined as R(theta) = [[cos(theta), -sin(theta)], [sin(theta), cos(theta)]]. When a vector is multiplied by this matrix, it rotates the vector by an angle theta around the origin. At 90 degrees, the vector (1,0) becomes (0,1).",
+                "sourceIds": [
+                  1
+                ]
+              }
+            ],
+            "sources": [
+              {
+                "id": 1,
+                "video_id": 60,
+                "title": "Rotation",
+                "start_time": "00:01:00",
+                "end_time": "00:02:00"
+              },
+              {
+                "id": 2,
+                "video_id": 61,
+                "title": "Python",
+                "start_time": "00:03:00",
+                "end_time": "00:04:00"
+              }
+            ]
+          }
+        },
+        "firstVisibleTextMs": 2263.8000000715256,
+        "renderedCompletionMs": 5197.300000071526,
+        "mathErrors": 0
+      },
+      {
+        "id": "rotation-en",
+        "repeat": 2,
+        "course": true,
+        "firstTextMs": 1738.0874589999985,
+        "completionMs": 1738.351917,
+        "calls": 2,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 3643,
+        "outputTokens": 112,
+        "content": "A rotation matrix transforms a vector by changing its direction while preserving its length. For example, a two-dimensional rotation matrix is defined as R(theta) = [[cos(theta), -sin(theta)], [sin(theta), cos(theta)]]. When applied to a vector, such as (1,0) at a 90-degree rotation, it becomes (0,1).",
+        "final": {
+          "queryText": "What does a rotation matrix do to a vector? Explain briefly.",
+          "answer": {
+            "segments": [
+              {
+                "text": "A rotation matrix transforms a vector by changing its direction while preserving its length. For example, a two-dimensional rotation matrix is defined as R(theta) = [[cos(theta), -sin(theta)], [sin(theta), cos(theta)]]. When applied to a vector, such as (1,0) at a 90-degree rotation, it becomes (0,1).",
+                "sourceIds": [
+                  1
+                ]
+              }
+            ],
+            "sources": [
+              {
+                "id": 1,
+                "video_id": 60,
+                "title": "Rotation",
+                "start_time": "00:01:00",
+                "end_time": "00:02:00"
+              },
+              {
+                "id": 2,
+                "video_id": 61,
+                "title": "Python",
+                "start_time": "00:03:00",
+                "end_time": "00:04:00"
+              }
+            ]
+          }
+        },
+        "firstVisibleTextMs": 1792.3999999761581,
+        "renderedCompletionMs": 4208.399999976158,
+        "mathErrors": 0
+      },
+      {
+        "id": "math-ja",
+        "repeat": 0,
+        "course": true,
+        "firstTextMs": 2665.6092499999977,
+        "completionMs": 2665.855457999998,
+        "calls": 2,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 4973,
+        "outputTokens": 195,
+        "content": "2次元の回転行列は次のように表されます。\n\n\\[ R(\\theta) = \\begin{bmatrix} \\cos(\\theta) & -\\sin(\\theta) \\\\\\ \\sin(\\theta) & \\cos(\\theta) \\end{bmatrix} \\]\n\nこの行列は方向を変え、長さを保ちます。90度回転の場合、点 (1,0) は (0,1) に変わります。",
+        "final": {
+          "queryText": "2次元の回転行列の式をTeXで示し、90度回転の例を簡潔に説明してください。",
+          "answer": {
+            "segments": [
+              {
+                "text": "2次元の回転行列は次のように表されます。\n\n\\[ R(\\theta) = \\begin{bmatrix} \\cos(\\theta) & -\\sin(\\theta) \\\\\\ \\sin(\\theta) & \\cos(\\theta) \\end{bmatrix} \\]\n\nこの行列は方向を変え、長さを保ちます。90度回転の場合、点 (1,0) は (0,1) に変わります。",
+                "sourceIds": [
+                  1
+                ]
+              }
+            ],
+            "sources": [
+              {
+                "id": 1,
+                "video_id": 60,
+                "title": "Rotation",
+                "start_time": "00:01:00",
+                "end_time": "00:02:00"
+              },
+              {
+                "id": 2,
+                "video_id": 61,
+                "title": "Python",
+                "start_time": "00:03:00",
+                "end_time": "00:04:00"
+              }
+            ]
+          }
+        },
+        "firstVisibleTextMs": 2731.600000023842,
+        "renderedCompletionMs": 4213.800000071526,
+        "mathErrors": 0
+      },
+      {
+        "id": "math-ja",
+        "repeat": 1,
+        "course": true,
+        "firstTextMs": 2478.4715830000023,
+        "completionMs": 2478.6040410000023,
+        "calls": 2,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 4973,
+        "outputTokens": 195,
+        "content": "2次元の回転行列は次のように表されます。\n\n\\[ R(\\theta) = \\begin{bmatrix} \\cos(\\theta) & -\\sin(\\theta) \\\\\\ \\sin(\\theta) & \\cos(\\theta) \\end{bmatrix} \\]\n\nこの行列は方向を変え、長さを保ちます。90度回転の場合、点 (1,0) は (0,1) に変わります。",
+        "final": {
+          "queryText": "2次元の回転行列の式をTeXで示し、90度回転の例を簡潔に説明してください。",
+          "answer": {
+            "segments": [
+              {
+                "text": "2次元の回転行列は次のように表されます。\n\n\\[ R(\\theta) = \\begin{bmatrix} \\cos(\\theta) & -\\sin(\\theta) \\\\\\ \\sin(\\theta) & \\cos(\\theta) \\end{bmatrix} \\]\n\nこの行列は方向を変え、長さを保ちます。90度回転の場合、点 (1,0) は (0,1) に変わります。",
+                "sourceIds": [
+                  1
+                ]
+              }
+            ],
+            "sources": [
+              {
+                "id": 1,
+                "video_id": 60,
+                "title": "Rotation",
+                "start_time": "00:01:00",
+                "end_time": "00:02:00"
+              },
+              {
+                "id": 2,
+                "video_id": 61,
+                "title": "Python",
+                "start_time": "00:03:00",
+                "end_time": "00:04:00"
+              }
+            ]
+          }
+        },
+        "firstVisibleTextMs": 2530,
+        "renderedCompletionMs": 3979.7000000476837,
+        "mathErrors": 0
+      },
+      {
+        "id": "math-ja",
+        "repeat": 2,
+        "course": true,
+        "firstTextMs": 2400.998707999999,
+        "completionMs": 2401.152583000003,
+        "calls": 2,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 4973,
+        "outputTokens": 195,
+        "content": "2次元の回転行列は次のように表されます。\n\n\\[ R(\\theta) = \\begin{bmatrix} \\cos(\\theta) & -\\sin(\\theta) \\\\\\ \\sin(\\theta) & \\cos(\\theta) \\end{bmatrix} \\]\n\nこの行列は方向を変え、長さを保ちます。90度回転の場合、点 (1,0) は (0,1) に変わります。",
+        "final": {
+          "queryText": "2次元の回転行列の式をTeXで示し、90度回転の例を簡潔に説明してください。",
+          "answer": {
+            "segments": [
+              {
+                "text": "2次元の回転行列は次のように表されます。\n\n\\[ R(\\theta) = \\begin{bmatrix} \\cos(\\theta) & -\\sin(\\theta) \\\\\\ \\sin(\\theta) & \\cos(\\theta) \\end{bmatrix} \\]\n\nこの行列は方向を変え、長さを保ちます。90度回転の場合、点 (1,0) は (0,1) に変わります。",
+                "sourceIds": [
+                  1
+                ]
+              }
+            ],
+            "sources": [
+              {
+                "id": 1,
+                "video_id": 60,
+                "title": "Rotation",
+                "start_time": "00:01:00",
+                "end_time": "00:02:00"
+              },
+              {
+                "id": 2,
+                "video_id": 61,
+                "title": "Python",
+                "start_time": "00:03:00",
+                "end_time": "00:04:00"
+              }
+            ]
+          }
+        },
+        "firstVisibleTextMs": 2448.2000000476837,
+        "renderedCompletionMs": 3897.8000000715256,
+        "mathErrors": 0
+      },
+      {
+        "id": "code-en",
+        "repeat": 0,
+        "course": true,
+        "firstTextMs": 2320.1277499999997,
+        "completionMs": 2320.2546250000014,
+        "calls": 2,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 3661,
+        "outputTokens": 145,
+        "content": "Example:\n\n```python\n# Python indexing example\na = [10, 20]\nprint(a[1])\n```\n\nExplanation:\n\nIn this example, `a[1]` returns `20` because Python uses zero-based indexing. This means that the first element of the list `a` is at index `0`, and the second element is at index `1`. Therefore, `a[1]` accesses the second element of the list, which is `20`.",
+        "final": {
+          "queryText": "Show the Python indexing example from the course in a fenced code block and explain what a[1] returns.",
+          "answer": {
+            "segments": [
+              {
+                "text": "Example:\n\n```python\n# Python indexing example\na = [10, 20]\nprint(a[1])\n```\n\nExplanation:\n\nIn this example, `a[1]` returns `20` because Python uses zero-based indexing. This means that the first element of the list `a` is at index `0`, and the second element is at index `1`. Therefore, `a[1]` accesses the second element of the list, which is `20`.",
+                "sourceIds": [
+                  2
+                ]
+              }
+            ],
+            "sources": [
+              {
+                "id": 1,
+                "video_id": 60,
+                "title": "Rotation",
+                "start_time": "00:01:00",
+                "end_time": "00:02:00"
+              },
+              {
+                "id": 2,
+                "video_id": 61,
+                "title": "Python",
+                "start_time": "00:03:00",
+                "end_time": "00:04:00"
+              }
+            ]
+          }
+        },
+        "firstVisibleTextMs": 2364.600000023842,
+        "renderedCompletionMs": 5131.100000023842,
+        "mathErrors": 0
+      },
+      {
+        "id": "code-en",
+        "repeat": 1,
+        "course": true,
+        "firstTextMs": 1687.8057499999995,
+        "completionMs": 1687.9284170000028,
+        "calls": 2,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 3661,
+        "outputTokens": 118,
+        "content": "Example:\n\n```python\n# Python indexing example\na = [10, 20]\nprint(a[1])\n```\n\nExplanation:\n\na[1] returns 20 because indexing in Python starts at zero. Therefore, a[0] would return 10, and a[1] accesses the second element of the list, which is 20.",
+        "final": {
+          "queryText": "Show the Python indexing example from the course in a fenced code block and explain what a[1] returns.",
+          "answer": {
+            "segments": [
+              {
+                "text": "Example:\n\n```python\n# Python indexing example\na = [10, 20]\nprint(a[1])\n```\n\nExplanation:\n\na[1] returns 20 because indexing in Python starts at zero. Therefore, a[0] would return 10, and a[1] accesses the second element of the list, which is 20.",
+                "sourceIds": [
+                  2
+                ]
+              }
+            ],
+            "sources": [
+              {
+                "id": 1,
+                "video_id": 60,
+                "title": "Rotation",
+                "start_time": "00:01:00",
+                "end_time": "00:02:00"
+              },
+              {
+                "id": 2,
+                "video_id": 61,
+                "title": "Python",
+                "start_time": "00:03:00",
+                "end_time": "00:04:00"
+              }
+            ]
+          }
+        },
+        "firstVisibleTextMs": 1747.3999999761581,
+        "renderedCompletionMs": 3680.6999999284744,
+        "mathErrors": 0
+      },
+      {
+        "id": "code-en",
+        "repeat": 2,
+        "course": true,
+        "firstTextMs": 1859.3392500000045,
+        "completionMs": 1859.4775410000002,
+        "calls": 2,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 3661,
+        "outputTokens": 124,
+        "content": "Example:\n\n```python\n# Python indexing example\na = [10, 20]\nprint(a[1])\n```\n\nThe expression `a[1]` returns `20` because indexing in Python starts at zero. Therefore, `a[0]` would return `10`, and `a[1]` accesses the second element of the list, which is `20`.",
+        "final": {
+          "queryText": "Show the Python indexing example from the course in a fenced code block and explain what a[1] returns.",
+          "answer": {
+            "segments": [
+              {
+                "text": "Example:\n\n```python\n# Python indexing example\na = [10, 20]\nprint(a[1])\n```\n\nThe expression `a[1]` returns `20` because indexing in Python starts at zero. Therefore, `a[0]` would return `10`, and `a[1]` accesses the second element of the list, which is `20`.",
+                "sourceIds": [
+                  2
+                ]
+              }
+            ],
+            "sources": [
+              {
+                "id": 1,
+                "video_id": 60,
+                "title": "Rotation",
+                "start_time": "00:01:00",
+                "end_time": "00:02:00"
+              },
+              {
+                "id": 2,
+                "video_id": 61,
+                "title": "Python",
+                "start_time": "00:03:00",
+                "end_time": "00:04:00"
+              }
+            ]
+          }
+        },
+        "firstVisibleTextMs": 1914.3000000715256,
+        "renderedCompletionMs": 3947.7000000476837,
+        "mathErrors": 0
+      },
+      {
+        "id": "multiple-en",
+        "repeat": 0,
+        "course": true,
+        "firstTextMs": 2651.4526250000054,
+        "completionMs": 2651.5742089999985,
+        "calls": 2,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 3835,
+        "outputTokens": 210,
+        "content": "A two-dimensional rotation matrix is defined as R(theta) = [[cos(theta), -sin(theta)], [sin(theta), cos(theta)]]. This matrix changes the direction of a vector while preserving its length. For example, when the angle theta is 90 degrees, the vector (1,0) is transformed to (0,1).\n\nIn Python, an example shows that if you have a list defined as a = [10, 20], accessing the second element with a[1] evaluates to 20, since indexing in Python starts at zero. The command print(a[1]) will output 20.",
+        "final": {
+          "queryText": "Briefly summarize both rotation matrices and the Python example in this course.",
+          "answer": {
+            "segments": [
+              {
+                "text": "A two-dimensional rotation matrix is defined as R(theta) = [[cos(theta), -sin(theta)], [sin(theta), cos(theta)]]. This matrix changes the direction of a vector while preserving its length. For example, when the angle theta is 90 degrees, the vector (1,0) is transformed to (0,1).",
+                "sourceIds": [
+                  1
+                ]
+              },
+              {
+                "text": "\n\nIn Python, an example shows that if you have a list defined as a = [10, 20], accessing the second element with a[1] evaluates to 20, since indexing in Python starts at zero. The command print(a[1]) will output 20.",
+                "sourceIds": [
+                  2
+                ]
+              }
+            ],
+            "sources": [
+              {
+                "id": 1,
+                "video_id": 60,
+                "title": "Rotation",
+                "start_time": "00:01:00",
+                "end_time": "00:02:00"
+              },
+              {
+                "id": 2,
+                "video_id": 61,
+                "title": "Python",
+                "start_time": "00:03:00",
+                "end_time": "00:04:00"
+              }
+            ]
+          }
+        },
+        "firstVisibleTextMs": 2698.100000023842,
+        "renderedCompletionMs": 6647.199999928474,
+        "mathErrors": 0
+      },
+      {
+        "id": "multiple-en",
+        "repeat": 1,
+        "course": true,
+        "firstTextMs": 2465.7712079999983,
+        "completionMs": 2465.840624999997,
+        "calls": 2,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 3835,
+        "outputTokens": 209,
+        "content": "A two-dimensional rotation matrix is defined as R(theta) = [[cos(theta), -sin(theta)], [sin(theta), cos(theta)]]. This matrix changes the direction of a vector while preserving its length. For example, when the angle theta is 90 degrees, the vector (1,0) is transformed to (0,1).\n\nIn Python, an example demonstrates list indexing. For instance, if we have a list defined as a = [10, 20], accessing a[1] evaluates to 20 because Python uses zero-based indexing. The command print(a[1]) will output 20.",
+        "final": {
+          "queryText": "Briefly summarize both rotation matrices and the Python example in this course.",
+          "answer": {
+            "segments": [
+              {
+                "text": "A two-dimensional rotation matrix is defined as R(theta) = [[cos(theta), -sin(theta)], [sin(theta), cos(theta)]]. This matrix changes the direction of a vector while preserving its length. For example, when the angle theta is 90 degrees, the vector (1,0) is transformed to (0,1).",
+                "sourceIds": [
+                  1
+                ]
+              },
+              {
+                "text": "\n\nIn Python, an example demonstrates list indexing. For instance, if we have a list defined as a = [10, 20], accessing a[1] evaluates to 20 because Python uses zero-based indexing. The command print(a[1]) will output 20.",
+                "sourceIds": [
+                  2
+                ]
+              }
+            ],
+            "sources": [
+              {
+                "id": 1,
+                "video_id": 60,
+                "title": "Rotation",
+                "start_time": "00:01:00",
+                "end_time": "00:02:00"
+              },
+              {
+                "id": 2,
+                "video_id": 61,
+                "title": "Python",
+                "start_time": "00:03:00",
+                "end_time": "00:04:00"
+              }
+            ]
+          }
+        },
+        "firstVisibleTextMs": 2528.7999999523163,
+        "renderedCompletionMs": 6511.200000047684,
+        "mathErrors": 0
+      },
+      {
+        "id": "multiple-en",
+        "repeat": 2,
+        "course": true,
+        "firstTextMs": 2366.105374999999,
+        "completionMs": 2366.2288329999865,
+        "calls": 2,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 3835,
+        "outputTokens": 199,
+        "content": "A two-dimensional rotation matrix is defined as R(theta) = [[cos(theta), -sin(theta)], [sin(theta), cos(theta)]]. This matrix changes the direction of a vector while preserving its length. For example, when the angle theta is 90 degrees, the vector (1,0) is transformed to (0,1).\n\nIn Python, an example demonstrates list indexing: if a = [10, 20], then a[1] evaluates to 20 because Python uses zero-based indexing. The command print(a[1]) outputs 20.",
+        "final": {
+          "queryText": "Briefly summarize both rotation matrices and the Python example in this course.",
+          "answer": {
+            "segments": [
+              {
+                "text": "A two-dimensional rotation matrix is defined as R(theta) = [[cos(theta), -sin(theta)], [sin(theta), cos(theta)]]. This matrix changes the direction of a vector while preserving its length. For example, when the angle theta is 90 degrees, the vector (1,0) is transformed to (0,1).",
+                "sourceIds": [
+                  1
+                ]
+              },
+              {
+                "text": "\n\nIn Python, an example demonstrates list indexing: if a = [10, 20], then a[1] evaluates to 20 because Python uses zero-based indexing. The command print(a[1]) outputs 20.",
+                "sourceIds": [
+                  2
+                ]
+              }
+            ],
+            "sources": [
+              {
+                "id": 1,
+                "video_id": 60,
+                "title": "Rotation",
+                "start_time": "00:01:00",
+                "end_time": "00:02:00"
+              },
+              {
+                "id": 2,
+                "video_id": 61,
+                "title": "Python",
+                "start_time": "00:03:00",
+                "end_time": "00:04:00"
+              }
+            ]
+          }
+        },
+        "firstVisibleTextMs": 2414,
+        "renderedCompletionMs": 5998.100000023842,
+        "mathErrors": 0
+      },
+      {
+        "id": "metadata-ja",
+        "repeat": 0,
+        "course": true,
+        "firstTextMs": 1399.2090409999946,
+        "completionMs": 1399.3060830000031,
+        "calls": 2,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 4696,
+        "outputTokens": 47,
+        "content": "この講座には2本の動画があります。",
+        "final": {
+          "queryText": "この講座には何本の動画がありますか？",
+          "answer": {
+            "segments": [
+              {
+                "text": "この講座には2本の動画があります。",
+                "sourceIds": []
+              }
+            ],
+            "sources": []
+          }
+        },
+        "firstVisibleTextMs": 1444.8999999761581,
+        "renderedCompletionMs": 1577.6999999284744,
+        "mathErrors": 0
+      },
+      {
+        "id": "metadata-ja",
+        "repeat": 1,
+        "course": true,
+        "firstTextMs": 1492.234541999991,
+        "completionMs": 1492.5309999999881,
+        "calls": 2,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 4696,
+        "outputTokens": 47,
+        "content": "この講座には2本の動画があります。",
+        "final": {
+          "queryText": "この講座には何本の動画がありますか？",
+          "answer": {
+            "segments": [
+              {
+                "text": "この講座には2本の動画があります。",
+                "sourceIds": []
+              }
+            ],
+            "sources": []
+          }
+        },
+        "firstVisibleTextMs": 1544.3000000715256,
+        "renderedCompletionMs": 1661.1000000238419,
+        "mathErrors": 0
+      },
+      {
+        "id": "metadata-ja",
+        "repeat": 2,
+        "course": true,
+        "firstTextMs": 1402.8592500000086,
+        "completionMs": 1403.0239580000052,
+        "calls": 2,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 4696,
+        "outputTokens": 47,
+        "content": "この講座には2本の動画があります。",
+        "final": {
+          "queryText": "この講座には何本の動画がありますか？",
+          "answer": {
+            "segments": [
+              {
+                "text": "この講座には2本の動画があります。",
+                "sourceIds": []
+              }
+            ],
+            "sources": []
+          }
+        },
+        "firstVisibleTextMs": 1463.1000000238419,
+        "renderedCompletionMs": 1580.2000000476837,
+        "mathErrors": 0
+      },
+      {
+        "id": "no-course-ja",
+        "repeat": 0,
+        "course": false,
+        "firstTextMs": 591.1605409999902,
+        "completionMs": 796.3534999999974,
+        "calls": 1,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 1466,
+        "outputTokens": 35,
+        "content": "動画について質問するには、まず講座を選択してください。その後、具体的な質問をしてください。",
+        "final": {
+          "queryText": "動画について質問するにはどうしたらよいですか？",
+          "answer": {
+            "segments": [
+              {
+                "text": "動画について質問するには、まず講座を選択してください。その後、具体的な質問をしてください。",
+                "sourceIds": []
+              }
+            ],
+            "sources": []
+          }
+        },
+        "firstVisibleTextMs": 645.2999999523163,
+        "renderedCompletionMs": 977.5,
+        "mathErrors": 0
+      },
+      {
+        "id": "no-course-ja",
+        "repeat": 1,
+        "course": false,
+        "firstTextMs": 596.2076249999955,
+        "completionMs": 796.8502080000035,
+        "calls": 1,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 1466,
+        "outputTokens": 38,
+        "content": "動画について質問するには、まず講座を選択し、その講座に関連する具体的な質問をしてください。",
+        "final": {
+          "queryText": "動画について質問するにはどうしたらよいですか？",
+          "answer": {
+            "segments": [
+              {
+                "text": "動画について質問するには、まず講座を選択し、その講座に関連する具体的な質問をしてください。",
+                "sourceIds": []
+              }
+            ],
+            "sources": []
+          }
+        },
+        "firstVisibleTextMs": 648.3000000715256,
+        "renderedCompletionMs": 980.2000000476837,
+        "mathErrors": 0
+      },
+      {
+        "id": "no-course-ja",
+        "repeat": 2,
+        "course": false,
+        "firstTextMs": 582.2858339999948,
+        "completionMs": 792.3038339999912,
+        "calls": 1,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 1466,
+        "outputTokens": 38,
+        "content": "動画について質問するには、まず講座を選択し、その講座に関連する具体的な質問をしてください。",
+        "final": {
+          "queryText": "動画について質問するにはどうしたらよいですか？",
+          "answer": {
+            "segments": [
+              {
+                "text": "動画について質問するには、まず講座を選択し、その講座に関連する具体的な質問をしてください。",
+                "sourceIds": []
+              }
+            ],
+            "sources": []
+          }
+        },
+        "firstVisibleTextMs": 628.6999999284744,
+        "renderedCompletionMs": 962.1000000238419,
+        "mathErrors": 0
+      },
+      {
+        "id": "no-course-en",
+        "repeat": 0,
+        "course": false,
+        "firstTextMs": 644.018333,
+        "completionMs": 808.7114580000052,
+        "calls": 1,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 1057,
+        "outputTokens": 32,
+        "content": "Please select a course first, and then you can ask your questions related to the videos in that course.",
+        "final": {
+          "queryText": "How can I ask questions about my videos?",
+          "answer": {
+            "segments": [
+              {
+                "text": "Please select a course first, and then you can ask your questions related to the videos in that course.",
+                "sourceIds": []
+              }
+            ],
+            "sources": []
+          }
+        },
+        "firstVisibleTextMs": 696.5999999046326,
+        "renderedCompletionMs": 1513.5999999046326,
+        "mathErrors": 0
+      },
+      {
+        "id": "no-course-en",
+        "repeat": 1,
+        "course": false,
+        "firstTextMs": 537.1974590000027,
+        "completionMs": 814.3806250000052,
+        "calls": 1,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 1057,
+        "outputTokens": 44,
+        "content": "To ask questions about your videos, please select a specific course first. After selecting a course, you can then pose your question related to the content of that course.",
+        "final": {
+          "queryText": "How can I ask questions about my videos?",
+          "answer": {
+            "segments": [
+              {
+                "text": "To ask questions about your videos, please select a specific course first. After selecting a course, you can then pose your question related to the content of that course.",
+                "sourceIds": []
+              }
+            ],
+            "sources": []
+          }
+        },
+        "firstVisibleTextMs": 580.6000000238419,
+        "renderedCompletionMs": 1931.2000000476837,
+        "mathErrors": 0
+      },
+      {
+        "id": "no-course-en",
+        "repeat": 2,
+        "course": false,
+        "firstTextMs": 735.6269999999931,
+        "completionMs": 1022.628165999995,
+        "calls": 1,
+        "repairCalls": 0,
+        "rejectedIds": 0,
+        "inputTokens": 1057,
+        "outputTokens": 44,
+        "content": "To ask questions about your videos, please select a specific course first. After selecting a course, you can then pose your question related to the content of that course.",
+        "final": {
+          "queryText": "How can I ask questions about my videos?",
+          "answer": {
+            "segments": [
+              {
+                "text": "To ask questions about your videos, please select a specific course first. After selecting a course, you can then pose your question related to the content of that course.",
+                "sourceIds": []
+              }
+            ],
+            "sources": []
+          }
+        },
+        "firstVisibleTextMs": 781.1000000238419,
+        "renderedCompletionMs": 2131.1999999284744,
+        "mathErrors": 0
+      }
+    ]
+  }
+}

@@ -2,7 +2,7 @@
 
 from worker_python.db import db_connection
 from worker_python.pipeline.vector_index import index_video_transcript
-from worker_python.video_sql import VideoRow
+from worker_python.video_sql import get_video_for_task
 
 TRANSCRIPT = """1
 00:00:00,000 --> 00:00:06,000
@@ -25,10 +25,8 @@ with db_connection() as conn:
         VALUES (60, '', '水の状態変化', '', NOW(), %s, 'completed', '',
             'embedding-live', 'uploaded', '', '')
     """, (TRANSCRIPT,))
-    conn.commit()
+    row = get_video_for_task(conn, 60)
 
-row = VideoRow(id=60, user_id="embedding-live", title="水の状態変化", transcript=TRANSCRIPT,
-               status="completed", source_type="uploaded", file_key=None,
-               youtube_video_id=None, error_message="")
+assert row is not None
 assert index_video_transcript(row) > 0
 print("live_index_ok")

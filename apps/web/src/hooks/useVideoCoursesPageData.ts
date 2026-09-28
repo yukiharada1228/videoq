@@ -1,13 +1,12 @@
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { trpc } from '@/lib/trpc';
+import { refreshQuery } from '@/lib/cacheInvalidation';
 
 export function useCreateVideoCourseMutation() {
   const queryClient = useQueryClient();
 
   return useMutation(trpc.courses.create.mutationOptions({
-    onSuccess: async () => {
-      await queryClient.invalidateQueries(trpc.courses.list.pathFilter());
-    },
+    onSuccess: () => refreshQuery(queryClient, trpc.courses.list.pathFilter()),
   }));
 }
 
@@ -15,8 +14,6 @@ export function useReorderVideoCoursesMutation() {
   const queryClient = useQueryClient();
 
   return useMutation(trpc.courses.reorder.mutationOptions({
-    onSuccess: async () => {
-      await queryClient.invalidateQueries(trpc.courses.list.pathFilter());
-    },
+    onSuccess: () => refreshQuery(queryClient, trpc.courses.list.pathFilter()),
   }));
 }

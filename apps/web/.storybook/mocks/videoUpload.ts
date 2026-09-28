@@ -30,8 +30,8 @@ function useUploadFixture(scenario: UploadScenario): ReturnType<typeof useVideoU
     setTagIds([]); setIsUploading(false); setProgress(0); setError(null); setSuccess(false); setWarning(null);
   }, []);
   return {
-    sourceMode, file, youtubeUrl, title, description, tagIds, isUploading, progress, error, success, warning,
-    errorParams: error ? scenario.errorParams ?? {} : {}, warningParams: {},
+    sourceMode, youtubeUrl, title, description, tagIds, isUploading, progress, error, success, warning,
+    errorParams: error ? scenario.errorParams ?? {} : {},
     setSourceMode, setTitle, setDescription, setYoutubeUrl, setTagIds, reset,
     handleFileChange(event) {
       const selected = event.target.files?.[0];

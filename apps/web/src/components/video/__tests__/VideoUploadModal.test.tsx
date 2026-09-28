@@ -31,7 +31,6 @@ describe('VideoUploadModal', () => {
     error: null,
     errorParams: {},
     warning: null,
-    warningParams: {},
     success: false,
     setTitle: vi.fn(),
     setDescription: vi.fn(),

@@ -1,26 +1,25 @@
+import { createParser } from 'eventsource-parser';
 import { authClient } from './auth-client';
 import { API_URL } from './apiConfig';
 import { ApiError } from './api-error';
 import { createAppTrpcClient, TRPC_UNAUTHORIZED_EVENT } from './trpc';
 import { videoSchema } from '@videoq/trpc/schema';
-import { CHAT_STREAM_FORMAT, CHAT_STREAM_FORMAT_QUERY, chatStreamEventSchema } from '@videoq/trpc/chat';
+import { chatStreamEventSchema } from '@videoq/trpc/chat';
+import { videoUploadContentType } from '@videoq/trpc/video-upload';
+import i18n from '@/i18n/config';
 import type {
-  AuthorizedOAuthToken,
   ChatRequest,
   ChatStreamEvent,
   EmailChangeConfirmRequest,
   EmailChangeRequest,
-  IntegrationApiKey,
   IntegrationApiKeyCreateRequest,
   IntegrationApiKeyCreateResponse,
   LoginRequest,
   PasswordResetConfirmRequest,
   PasswordResetRequest,
   SignupRequest,
-  UploadRequestResponse,
   UsernameChangeRequest,
   VerifyEmailRequest,
-  VerifyEmailResponse,
   Video,
   VideoUploadRequest,
 } from './api-types';
@@ -97,12 +96,6 @@ export class ApiClient {
     return `${this.baseUrl}${apiPath(endpoint)}`;
   }
 
-  private jsonHeaders(): Record<string, string> {
-    return {
-      'Content-Type': 'application/json',
-    };
-  }
-
   private async handleError(response: Response): Promise<never> {
     const errorData = (await response.json().catch(() => ({
       detail: response.statusText,
@@ -149,10 +142,9 @@ export class ApiClient {
     if (error) throw new ApiError(error.message || 'Signup failed', error.code || 'SIGNUP_FAILED');
   }
 
-  async verifyEmail(data: VerifyEmailRequest): Promise<VerifyEmailResponse> {
+  async verifyEmail(data: VerifyEmailRequest): Promise<void> {
     const { error } = await authClient.verifyEmail({ query: { token: data.token } });
     if (error) throw new ApiError(error.message || 'Verification failed', error.code || 'VERIFY_FAILED');
-    return { detail: 'Email verified' };
   }
 
   async login(data: LoginRequest): Promise<void> {
@@ -229,26 +221,6 @@ export class ApiClient {
     return { requiresNewEmailVerification: !result || !('user' in result) || !result.user };
   }
 
-  async getIntegrationApiKeys(): Promise<IntegrationApiKey[]> {
-    const { data, error } = await authClient.apiKey.list();
-    if (error) throw new ApiError(error.message || 'Failed to list keys', error.code || 'API_KEY');
-    const keys = (data?.apiKeys ?? data ?? []) as Array<Record<string, unknown>>;
-    return keys.map((k) => {
-      const permissions = k.permissions as { videoq?: string[] } | null;
-      const accessLevel = permissions?.videoq?.includes('read') && permissions.videoq.includes('write')
-        ? 'all' : 'read_only';
-      return {
-        id: String(k.id),
-        config_id: String(k.configId ?? 'default'),
-        name: String(k.name ?? ''),
-        access_level: accessLevel,
-        prefix: String(k.start ?? k.prefix ?? 'vq_'),
-        last_used_at: (k.lastRequest as string | null) ?? null,
-        created_at: String(k.createdAt ?? ''),
-      };
-    });
-  }
-
   async createIntegrationApiKey(
     data: IntegrationApiKeyCreateRequest,
   ): Promise<IntegrationApiKeyCreateResponse> {
@@ -262,7 +234,7 @@ export class ApiClient {
     }
     return {
       id: String(created.id),
-      config_id: created.configId,
+      config_id: created.configId ?? 'default',
       name: String(created.name ?? data.name),
       access_level: data.access_level,
       prefix: String(created.start ?? created.prefix ?? 'vq_'),
@@ -277,48 +249,6 @@ export class ApiClient {
     if (error) throw new ApiError(error.message || 'Failed to revoke key', error.code || 'API_KEY');
   }
 
-  async getAuthorizedOAuthTokens(): Promise<AuthorizedOAuthToken[]> {
-    const { data, error } = await authClient.oauth2.getConsents();
-    if (error) {
-      throw new ApiError(error.message || 'Failed to list connected apps', error.code || 'OAUTH');
-    }
-    const consents = (Array.isArray(data) ? data : []) as Array<Record<string, unknown>>;
-    // Separate grants can share a client. Reuse its in-flight lookup for this load only.
-    const clientNames = new Map<string, Promise<string>>();
-    return Promise.all(
-      consents.map(async (consent) => {
-        const clientId = String(consent.clientId ?? '');
-        if (clientId && !clientNames.has(clientId)) {
-          clientNames.set(clientId, (async () => {
-            try {
-              const pub = await authClient.oauth2.publicClient({
-                query: { client_id: clientId },
-              });
-              return pub.data?.client_name || clientId;
-            } catch {
-              return clientId;
-            }
-          })());
-        }
-        const scopes = Array.isArray(consent.scopes)
-          ? (consent.scopes as string[]).join(' ')
-          : String(consent.scopes ?? '');
-        const createdAt = consent.createdAt;
-        return {
-          id: String(consent.id ?? ''),
-          client_id: clientId,
-          client_name: await (clientNames.get(clientId) ?? clientId),
-          scope: scopes,
-          issued_at:
-            createdAt instanceof Date
-              ? createdAt.toISOString()
-              : String(createdAt ?? new Date().toISOString()),
-          expires_at: null,
-        };
-      }),
-    );
-  }
-
   async revokeAuthorizedOAuthToken(id: number | string): Promise<void> {
     const { error } = await authClient.oauth2.deleteConsent({ id: String(id) });
     if (error) {
@@ -328,15 +258,15 @@ export class ApiClient {
 
   async *chatStream(data: ChatRequest, signal?: AbortSignal): AsyncGenerator<ChatStreamEvent> {
     const { share_slug, ...bodyData } = data;
-    const params = new URLSearchParams({ [CHAT_STREAM_FORMAT_QUERY]: CHAT_STREAM_FORMAT });
+    const params = new URLSearchParams();
     if (share_slug) params.set('share_slug', share_slug);
-    const endpoint = `/chat/messages/stream?${params}`;
+    const endpoint = `/chat/messages/stream${params.size ? `?${params}` : ''}`;
 
     const url = this.buildUrl(endpoint);
     const response = await this.fetchFn(url, {
       method: 'POST',
       credentials: 'include',
-      headers: this.jsonHeaders(),
+      headers: { 'Content-Type': 'application/json', 'Accept-Language': i18n.language },
       body: JSON.stringify(bodyData),
       signal,
     });
@@ -357,34 +287,45 @@ export class ApiClient {
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
-    let buffer = '';
+    const frames: string[] = [];
+    const parser = createParser({ onEvent: event => frames.push(event.data) });
+    let trailingCarriageReturn = false;
+    let lastSegmentIndex = -1;
+    const sourceIds = new Set<number>();
 
     try {
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed.startsWith('data: ')) {
-            const jsonStr = trimmed.slice(6).trim();
-            if (jsonStr) {
-              try {
-                const event = chatStreamEventSchema.safeParse(JSON.parse(jsonStr));
-                if (event.success) {
-                  yield event.data;
-                  if (event.data.type === 'done' || event.data.type === 'error') return;
-                }
-              } catch {
-                // ignore malformed JSON
+        const text = decoder.decode(value, { stream: !done });
+        if (text) trailingCarriageReturn = text.endsWith('\r');
+        parser.feed(text);
+        // The parser holds a trailing CR while waiting for a possible LF.
+        // Finish that terminator at EOF without inventing a new blank line.
+        if (done && trailingCarriageReturn) parser.feed('\n');
+        for (const data of frames) {
+          let event: ChatStreamEvent;
+          try {
+            event = chatStreamEventSchema.parse(JSON.parse(data));
+            if (event.type === 'source') sourceIds.add(event.source.id);
+            if (event.type === 'text_delta') {
+              if (event.segmentIndex < lastSegmentIndex || event.segmentIndex > lastSegmentIndex + 1) {
+                throw new Error('Non-sequential answer segment');
               }
+              lastSegmentIndex = event.segmentIndex;
             }
+            if (event.type === 'citation' && (event.segmentIndex !== lastSegmentIndex || !sourceIds.has(event.sourceId))) {
+              throw new Error('Unknown citation segment or source');
+            }
+          } catch {
+            // Skipping a bad delta can make a truncated answer look complete.
+            yield { type: 'error', code: 'STREAM_INVALID', message: '' };
+            return;
           }
+          yield event;
+          if (event.type === 'done' || event.type === 'error') return;
         }
+        frames.length = 0;
+        if (done) break;
       }
       // EOF without a terminal event must not look like a saved, complete answer.
       yield { type: 'error', code: 'STREAM_INTERRUPTED', message: '' };
@@ -401,7 +342,6 @@ export class ApiClient {
     const response = await this.fetchFn(url, {
       method: 'GET',
       credentials: 'include',
-      headers: this.jsonHeaders(),
     });
     if (response.status === 401) {
       await this.handleAuthError();
@@ -429,26 +369,6 @@ export class ApiClient {
       window.URL.revokeObjectURL(href);
     }
   }
-  private async requestUploadUrl(data: {
-    filename: string;
-    content_type: string;
-    file_size: number;
-    title: string;
-    description?: string;
-  }): Promise<UploadRequestResponse> {
-    return this.rpc.videos.requestUpload.mutate({
-      filename: data.filename,
-      contentType: data.content_type,
-      fileSize: data.file_size,
-      title: data.title,
-      description: data.description,
-    });
-  }
-
-  private async confirmUpload(videoId: number): Promise<Video> {
-    return this.rpc.videos.confirmUpload.mutate({ id: videoId });
-  }
-
   async uploadToPresignedUrl(
     url: string,
     file: File,
@@ -487,12 +407,14 @@ export class ApiClient {
     data: VideoUploadRequest,
     onProgress?: (percent: number) => void,
   ): Promise<Video> {
+    const contentType = videoUploadContentType(data.file);
+    if (!contentType) throw new ApiError('Invalid video file type', 'INVALID_FILE_TYPE');
     if (USE_S3_STORAGE) {
       // 1. Request presigned upload URL
-      const { video, upload_url } = await this.requestUploadUrl({
+      const { video, upload_url } = await this.rpc.videos.requestUpload.mutate({
         filename: data.file.name,
-        content_type: data.file.type || 'video/mp4',
-        file_size: data.file.size,
+        contentType,
+        fileSize: data.file.size,
         title: data.title,
         description: data.description,
       });
@@ -501,16 +423,16 @@ export class ApiClient {
       await this.uploadToPresignedUrl(
         upload_url,
         data.file,
-        data.file.type || 'video/mp4',
+        contentType,
         onProgress,
       );
 
       // 3. Confirm upload
-      return await this.confirmUpload(video.id);
+      return this.rpc.videos.confirmUpload.mutate({ id: video.id });
     }
 
     const formData = new FormData();
-    formData.append('file', data.file);
+    formData.append('file', data.file.slice(0, data.file.size, contentType), data.file.name);
     formData.append('title', data.title);
     formData.append('description', data.description ?? '');
 

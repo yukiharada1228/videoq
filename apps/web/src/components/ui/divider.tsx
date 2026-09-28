@@ -3,13 +3,13 @@ import { type VariantProps, cva } from "class-variance-authority"
 
 import { cn } from "@/lib/digital-agency/cn"
 
-export const dividerVariants = cva(
+const dividerVariants = cva(
   "data-[color=gray-420]:border-solid-gray-420 data-[color=gray-536]:border-solid-gray-536 data-[color=black]:border-black"
 )
 
-export type DividerColor = "gray-420" | "gray-536" | "black"
+type DividerColor = "gray-420" | "gray-536" | "black"
 
-export type DividerProps = React.ComponentPropsWithoutRef<"hr"> &
+type DividerProps = React.ComponentPropsWithoutRef<"hr"> &
   VariantProps<typeof dividerVariants> & {
     color?: DividerColor
   }

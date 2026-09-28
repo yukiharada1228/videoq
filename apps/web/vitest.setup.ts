@@ -344,32 +344,12 @@ vi.mock('@/lib/i18n', () => ({
     React.createElement('a', { href: href || (typeof to === 'string' ? to : ''), ...props }, children),
 }))
 
-// Helper function for getVideoUrl within the mock
-const mockGetVideoUrl = (videoFilePath: string | null): string => {
-  if (!videoFilePath) return '';
-  if (videoFilePath.startsWith('http://') || videoFilePath.startsWith('https://')) return videoFilePath;
-  // Prevent double /api/ when path already starts with /api/
-  if (videoFilePath.startsWith('/api/')) {
-    return `http://localhost:8000${videoFilePath}`;
-  }
-  return `http://localhost:8000/api/${videoFilePath}`;
-};
-
-// Helper function for getSharedVideoUrl within the mock
-const mockGetSharedVideoUrl = (videoFilePath: string | null, shareToken: string): string => {
-  if (!videoFilePath) return '';
-  const baseUrl = mockGetVideoUrl(videoFilePath); // Use the local helper
-  const separator = baseUrl.includes('?') ? '&' : '?';
-  return `${baseUrl}${separator}share_token=${shareToken}`;
-};
-
 // Mock the API client
 vi.mock('@/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api')>()
   return {
   ...actual,
   apiClient: {
-    isAuthenticated: vi.fn(() => Promise.resolve(true)),
     signup: vi.fn(() => Promise.resolve()),
     verifyEmail: vi.fn(() => Promise.resolve()),
     login: vi.fn(() => Promise.resolve()),
@@ -379,17 +359,15 @@ vi.mock('@/lib/api', async (importOriginal) => {
     requestEmailChange: vi.fn(() => Promise.resolve()),
     updateUsername: vi.fn(() => Promise.resolve()),
     confirmEmailChange: vi.fn(() => Promise.resolve()),
-    getIntegrationApiKeys: vi.fn(() => Promise.resolve([])),
     createIntegrationApiKey: vi.fn(),
     revokeIntegrationApiKey: vi.fn(() => Promise.resolve()),
-    getAuthorizedOAuthTokens: vi.fn(() => Promise.resolve([])),
     revokeAuthorizedOAuthToken: vi.fn(() => Promise.resolve()),
     chatStream: vi.fn(async function* () {}),
     exportChatHistoryCsv: vi.fn(() => Promise.resolve()),
     uploadToPresignedUrl: vi.fn(() => Promise.resolve()),
     uploadVideo: vi.fn(() => Promise.resolve()),
-    getVideoUrl: vi.fn(mockGetVideoUrl),
-    getSharedVideoUrl: vi.fn(mockGetSharedVideoUrl),
+    getVideoUrl: vi.fn(actual.apiClient.getVideoUrl.bind(actual.apiClient)),
+    getSharedVideoUrl: vi.fn(actual.apiClient.getSharedVideoUrl.bind(actual.apiClient)),
     logout: vi.fn(() => Promise.resolve()),
     setUnauthorizedHandler: vi.fn(),
   },

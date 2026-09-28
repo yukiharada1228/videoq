@@ -34,31 +34,41 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("LLM 呼び出し（ChatOpenAI 相当）", () => {
-  it.each(["local-codex-model", "gpt-5.4-pro"])(
-    "%s でも通常応答・ストリームを /chat/completions に送る", async (model) => {
-      const urls: string[] = [];
-      vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
-        urls.push(String(url));
-        const body = JSON.parse(String(init.body));
-        expect(body.model).toBe(model);
-        return body.stream
-          ? sseResponse([
-              'data: {"choices":[{"delta":{"role":"assistant","content":"answer"}}]}\n\n',
-              "data: [DONE]\n\n",
-            ])
-          : jsonResponse({ choices: [{ message: { role: "assistant", content: "answer" } }] });
-      });
-      const env = { ...ENV, LLM_MODEL: model };
-      expect(await generateReply(env, "SYS", "Q")).toBe("answer");
-      const parts: string[] = [];
-      for await (const text of streamReply(env, "SYS", "Q")) parts.push(text);
-      expect(parts.join("")).toBe("answer");
-      expect(urls).toEqual(Array(2).fill("https://openai.test/v1/chat/completions"));
-    },
-  );
+const modelAnswer = { segments: [{ text: "answer", sourceIds: [] }] };
+const completion = (content = JSON.stringify(modelAnswer), finish_reason = "stop", refusal?: string) => ({
+  choices: [{ finish_reason, message: { role: "assistant", content, ...(refusal ? { refusal } : {}) } }],
+});
+const frame = (content: string, finish_reason: string | null = null) => `data: ${JSON.stringify({ choices: [{ delta: { role: "assistant", content }, finish_reason }] })}\n\n`;
+const frames = () => [frame(JSON.stringify(modelAnswer)), frame("", "stop"), "data: [DONE]\n\n"];
 
-  it.each(["deadline", "client"])("本文受信中も %s による中断を上流へ伝播する", async (source) => {
+describe("native structured LLM output", () => {
+  it.each(["local-codex-model", "gpt-5.4-pro", "gpt-4o-mini"])("%s uses strict json_schema with no conversion call", async (model) => {
+    const calls: Record<string, unknown>[] = [];
+    vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
+      expect(String(url)).toBe("https://openai.test/v1/chat/completions");
+      const body = JSON.parse(String(init.body));
+      calls.push(body);
+      expect(body).toMatchObject({ model,
+        response_format: { type: "json_schema", json_schema: { strict: true } },
+
+      });
+      return body.stream ? sseResponse(frames()) : jsonResponse(completion());
+    });
+    expect(await generateReply({ ...ENV, LLM_MODEL: model }, "SYS", "Q")).toEqual(modelAnswer);
+    const chunks = [];
+    for await (const chunk of streamReply({ ...ENV, LLM_MODEL: model }, "SYS", "Q")) chunks.push(chunk);
+    expect(chunks).toEqual([{ segmentIndex: 0, text: "answer" }, { answer: modelAnswer }]);
+    expect(calls).toHaveLength(2);
+  });
+  it("joins split SSE frames and emits text before completion", async () => {
+    const first = frame('{"segments":[{"text":"Hel');
+    const second = frame('lo","sourceIds":[]}]}');
+    vi.stubGlobal("fetch", async () => sseResponse([first, second.slice(0, 10), second.slice(10), frame("", "stop"), "data: [DONE]\n\n"]));
+    const chunks = [];
+    for await (const chunk of streamReply(ENV, "S", "Q")) chunks.push(chunk);
+    expect(chunks).toEqual([{ segmentIndex: 0, text: "Hel" }, { segmentIndex: 0, text: "lo" }, { answer: { segments: [{ text: "Hello", sourceIds: [] }] } }]);
+  });
+  it.each(["deadline", "client"])("propagates %s cancellation while receiving the body", async (source) => {
     const deadline = new AbortController();
     const client = new AbortController();
     const timeout = vi.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
@@ -68,10 +78,7 @@ describe("LLM 呼び出し（ChatOpenAI 相当）", () => {
       upstream = init.signal!;
       return stalledChatResponse(upstream, reading.resolve);
     });
-    const parts: string[] = [];
-    const consume = (async () => {
-      for await (const text of streamReply(ENV, "SYS", "Q", client.signal)) parts.push(text);
-    })();
+    const consume = (async () => { for await (const chunk of streamReply(ENV, "S", "Q", client.signal)) void chunk; })();
     const rejected = expect(consume).rejects.toThrow();
     await reading.promise;
     if (source === "deadline") deadline.abort(new DOMException("deadline reached", "TimeoutError"));
@@ -80,93 +87,42 @@ describe("LLM 呼び出し（ChatOpenAI 相当）", () => {
     expect(upstream?.aborted).toBe(true);
     expect(timeout).toHaveBeenCalledWith(LLM_STREAM_TIMEOUT_MS);
   });
-
-  it("非ストリーミングは gpt-4o-mini / temperature 0 / max_tokens 1024 で system+user のみ送る", async () => {
-    const calls: { url: string; init: RequestInit }[] = [];
-    vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
-      calls.push({ url, init });
-      return jsonResponse({ choices: [{ message: { content: "answer" } }] });
-    });
-
-    const out = await generateReply(ENV, "SYS", "Q?");
-    expect(out).toBe("answer");
-    expect(calls[0].url).toBe("https://openai.test/v1/chat/completions");
-    const body = JSON.parse(calls[0].init.body as string);
-    expect(body).toEqual({
-      model: "gpt-4o-mini",
-      temperature: 0,
-      max_tokens: 1024,
-      stream: false,
-      messages: [
-        { role: "system", content: "SYS" },
-        { role: "user", content: "Q?" },
-      ],
-    });
+  it.each([
+    ["not JSON", "stop", undefined], [JSON.stringify(modelAnswer), "length", undefined],
+    [JSON.stringify(modelAnswer), "stop", "refused"], ["", "content_filter", undefined],
+  ])("rejects malformed, truncated or refused answers without retry", async (content, reason, refusal) => {
+    const fetch = vi.fn(async () => jsonResponse(completion(content, reason, refusal)));
+    vi.stubGlobal("fetch", fetch);
+    await expect(generateReply(ENV, "S", "Q")).rejects.toThrow(LlmProviderError);
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
-
-  it("ストリーミングはフレーム分割・空 delta・[DONE] を正しく扱う", async () => {
-    const chunk = (text: string) =>
-      `data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`;
-    // 2 番目のフレームは途中で切れた状態で届く（バッファ結合の確認）
-    const frames = [
-      chunk("Hel"),
-      `data: ${JSON.stringify({ choices: [{ delta: {} }] })}\n\n`,
-      chunk("lo").slice(0, 10),
-      chunk("lo").slice(10),
-      "data: [DONE]\n\n",
-    ];
-    vi.stubGlobal("fetch", async () => sseResponse(frames));
-
-    const parts: string[] = [];
-    for await (const t of streamReply(ENV, "SYS", "Q?")) parts.push(t);
-    expect(parts).toEqual(["Hel", "lo"]);
+  it("rejects a stream without an explicit successful finish", async () => {
+    vi.stubGlobal("fetch", async () => sseResponse([frame(JSON.stringify(modelAnswer)), "data: [DONE]\n\n"]));
+    const consume = async () => { for await (const chunk of streamReply(ENV, "S", "Q")) void chunk; };
+    await expect(consume()).rejects.toThrow(LlmProviderError);
   });
-
-  it("stream:true が送られる", async () => {
-    let sent: Record<string, unknown> = {};
-    vi.stubGlobal("fetch", async (_url: string, init: RequestInit) => {
-      sent = JSON.parse(init.body as string);
-      return sseResponse(["data: [DONE]\n\n"]);
-    });
-    for await (const _ of streamReply(ENV, "S", "Q")) void _;
-    expect(sent.stream).toBe(true);
+  it.each(["refusal", "length", "content_filter"])("rejects a %s stream after partial text without repairing it", async reason => {
+    const delta = reason === "refusal" ? { refusal: "refused" } : {};
+    const end = `data: ${JSON.stringify({ choices: [{ delta, finish_reason: reason === "refusal" ? "stop" : reason }] })}\n\n`;
+    const fetch = vi.fn(async () => sseResponse([frame(JSON.stringify(modelAnswer)), end, "data: [DONE]\n\n"]));
+    vi.stubGlobal("fetch", fetch);
+    const chunks = [];
+    const consume = async () => { for await (const chunk of streamReply(ENV, "S", "Q")) chunks.push(chunk); };
+    await expect(consume()).rejects.toThrow(LlmProviderError);
+    expect(chunks).toEqual([{ segmentIndex: 0, text: "answer" }]);
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
-
-  it("AbortSignal を上流 fetch へ伝播する（クライアント切断で課金を止める）", async () => {
-    let seen: AbortSignal | undefined;
-    vi.stubGlobal("fetch", async (_url: string, init: RequestInit) => {
-      seen = init.signal ?? undefined;
-      return sseResponse(["data: [DONE]\n\n"]);
-    });
-
-    const controller = new AbortController();
-    for await (const _ of streamReply(ENV, "S", "Q", controller.signal)) void _;
-    expect(seen).toBeDefined();
-    controller.abort();
-    expect(seen?.aborted).toBe(true);
-  });
-
-  it("401 は設定エラー、その他はプロバイダエラー", async () => {
+  it("reports unsupported providers and authentication errors without fallback", async () => {
+    vi.stubGlobal("fetch", async () => jsonResponse({ error: "json_schema unsupported" }, 400));
+    await expect(generateReply(ENV, "S", "Q")).rejects.toThrow(LlmConfigurationError);
     vi.stubGlobal("fetch", async () => jsonResponse({ error: "nope" }, 401));
     await expect(generateReply(ENV, "S", "Q")).rejects.toThrow(LlmConfigurationError);
-    await expect(generateReply(ENV, "S", "Q")).rejects.toThrow(
-      "Invalid OpenAI API key. Please check your API key in Settings.",
-    );
-
     vi.stubGlobal("fetch", async () => jsonResponse({ error: "boom" }, 500));
     await expect(generateReply(ENV, "S", "Q")).rejects.toThrow(LlmProviderError);
   });
-
-  it("APIキー未設定は設定エラー", async () => {
-    const noKey = {} as unknown as Bindings;
-    await expect(generateReply(noKey, "S", "Q")).rejects.toThrow(
-      "OpenAI API key is required when using OpenAI LLM. " +
-        "Please set OPENAI_API_KEY in the server environment.",
-    );
-    await expect(embedQuery(noKey, "q")).rejects.toThrow(
-      "OpenAI API key is required when using OpenAI embeddings. " +
-        "Please set OPENAI_API_KEY in the server environment.",
-    );
+  it("requires an API key", async () => {
+    await expect(generateReply({} as Bindings, "S", "Q")).rejects.toThrow(LlmConfigurationError);
+    await expect(embedQuery({} as Bindings, "q")).rejects.toThrow(LlmConfigurationError);
   });
 });
 

@@ -1,3 +1,4 @@
+import { chatAnswerText } from "@videoq/trpc/chat";
 import { describe, expect, it, vi } from "vitest";
 import type { SceneHit } from "../../src/repositories/vector-repository";
 import type { Bindings } from "../../src/types/bindings";
@@ -67,8 +68,8 @@ describe("RAG agent in the Workers runtime", () => {
       const metadataTurn = mode !== "search" && call === 1;
       const searchTurn = mode === "search" ? call === 1 : mode === "metadata-search" && call === 2;
       const toolName = metadataTurn ? "get_course_info" : "search_scenes";
-      const args = metadataTurn ? {} : { query: "pgvector", ...(mode === "metadata-search" ? { video_ids: [60] } : {}) };
-      const answer = mode === "metadata" ? "Course A has one video." : "Answer [1].";
+      const args = metadataTurn ? { video_limit: 20, video_offset: 0 } : { query: "pgvector", video_ids: mode === "metadata-search" ? [60] : null };
+      const answer = JSON.stringify({ segments: [{ text: mode === "metadata" ? "Course A has one video." : "Answer.", sourceIds: mode === "metadata" ? [] : [1] }] });
       if (metadataTurn || searchTurn) {
         return json({
           choices: [
@@ -110,25 +111,24 @@ describe("RAG agent in the Workers runtime", () => {
         ? await (async () => {
             for await (const chunk of streamRag(ENV, params)) chunks.push(chunk);
             const final = chunks.find((chunk) => "final" in chunk);
-            return {
-              ...final?.final,
-              content: chunks.filter((chunk) => "text" in chunk).map((chunk) => chunk.text).join(""),
-            };
+            if (!final) throw new Error("Missing final answer");
+            expect(chunks.filter(chunk => "part" in chunk && chunk.part.type === "text").map(chunk => "part" in chunk && chunk.part.type === "text" ? chunk.part.text : "").join("")).toBe(chatAnswerText(final.final.answer));
+            return final.final;
           })()
         : await runRag(ENV, params);
 
       if (mode === "metadata") {
         expect(searchCalls).toEqual([]);
         expect(opened).toBe(0);
-        expect(result.content).toBe("Course A has one video.");
-        expect(result.citations).toBeNull();
+        expect(chatAnswerText(result.answer)).toBe("Course A has one video.");
+        expect(result.answer.sources).toEqual([]);
         expect(result.retrievedContexts?.[0]).toContain("Course metadata");
         return;
       }
       expect(searchCalls).toEqual(["pgvector"]);
-      expect(result.content).toBe("Answer [1].");
-      expect(result.citations).toEqual([
-        { video_id: 60, title: "Video A", start_time: "00:00:10", end_time: "00:00:20" },
+      expect(chatAnswerText(result.answer)).toBe("Answer.");
+      expect(result.answer.sources).toEqual([
+        { id: 1, video_id: 60, title: "Video A", start_time: "00:00:10", end_time: "00:00:20" },
       ]);
       expect(result.retrievedContexts?.[0]).toBe("scene text A");
       if (mode === "metadata-search") {

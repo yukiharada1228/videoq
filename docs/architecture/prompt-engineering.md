@@ -18,11 +18,15 @@ Start with [How AI builds an answer](../concepts/how-ai-works.md) for a complete
 | After a tool call | The current answer's tool-call history and returned course metadata or numbered subtitle scenes |
 | Final response | The model writes using the evidence acquired during that answer |
 
-The prompt selects language-specific instructions from `prompts.json`. Course metadata includes names, descriptions, video counts, and a page of video IDs/titles/statuses. The tool explicitly omits share tokens, owner IDs, and file URLs. Descriptions can be truncated: course descriptions at 2,000 characters and video descriptions at 500, with flags indicating truncation. A missing page or truncated field must not be treated as proof that information does not exist.
+The prompt selects language-specific instructions from `prompts.json`. Each locale supplies a complete configuration whose structure is checked by TypeScript. Selection tries the full locale, its primary language, and then the default; configurations are not merged at request time.
+
+Course metadata includes names, descriptions, video counts, and a page of video IDs/titles/statuses. The tool explicitly omits share tokens, owner IDs, and file URLs. Descriptions can be truncated: course descriptions at 2,000 characters and video descriptions at 500, with flags indicating truncation. A missing page or truncated field must not be treated as proof that information does not exist.
 
 Showing older chat messages in the UI does not change this Q&A input contract. Follow-up questions need enough context in their latest message.
 
 ### Client and API contract
+
+The web client sends its selected UI language in `Accept-Language` for both SSE and tRPC requests. It reads the language for each request, so switching between Japanese and English also changes the answer instructions without reloading the page or relying on the browser's language preferences.
 
 Q&A deliberately remains a single-question feature so each request specifies its own subject and retrieves evidence without inheriting earlier answers. This applies to authenticated chats, shared-link chats, and Q&A without a course. The browser sends one `user` message. The streaming endpoint (`/api/chat/messages/stream`) and `chat.send` still accept a `messages` array for compatibility, but Q&A selects only its latest `user` entry; older entries do not provide context.
 
@@ -47,38 +51,36 @@ The model can make up to 8 tool-enabled turns, after which tools are removed and
 
 For course Q&A, the streaming API sends search progress immediately and sends the final answer once the agent finishes. Tool-call preambles are not sent as answers. Client cancellation or interrupted delivery cancels outstanding model and embedding requests.
 
-## Citations and permissions
+## Structured answers, citations and permissions
 
-The model is instructed to attach `[N]` to claims supported by retrieved scenes. The API assigns the scene numbers and returns each scene's video and timestamps to the UI. Metadata such as course names and video counts does not receive scene citation numbers or timestamps.
+The model returns native structured output: `{"segments":[{"text":"A claim.","sourceIds":[1]}]}`. It never supplies video destinations. The server adds `sources: [{id, video_id, title, start_time, end_time}]` from the current answer's scoped search. This `ChatAnswer` is the only answer representation in non-streaming responses, browser state, history and the `chat_logs.response` JSONB column. CSV and RAGAS derive plain text by concatenating segment texts without adding separators. Text includes its own spaces/newlines; the renderer adds timestamp links after each segment, in `sourceIds` order.
 
-The collector retains the retrieved scenes, not just those cited in the final prose. Citation data therefore describes the evidence made available; it is not an automatic proof of every sentence's correctness.
+The configured Chat Completions endpoint/model must support **strict native `json_schema` output and strict function tools**, including their use together. Course Q&A uses LangChain `providerStrategy`; no-course Q&A passes the same JSON schema directly. Tool arguments explicitly include nullable `video_ids` and required pagination fields. Unsupported schema capability is a configuration error. There is no free-text fallback, conversion-only model call, or automatic repair/retry. Refusal, missing/blank output, truncation and schema violations fail the request. Tool-call preambles are never displayed as answers.
 
-Search filters enforce the course access scope established by the API. Separately, prompt instructions tell the model to treat subtitles as reference material and ignore instructions embedded in them. The latter is model guidance, not a guarantee that prompt injection or unsupported claims are impossible.
+A request owns its source registry: positive safe integer IDs remain stable across repeated searches, even when the same scene is found again. Metadata-only answers use empty `sourceIds`. Retrieved candidates can include uncited sources; registration alone does not create a link. The model sees structured scene records with `sourceId`, text and server-provided metadata.
 
-### Citation validation and stream contract
+Unknown IDs and numeric IDs that are not positive safe integers are removed without changing text. Duplicate IDs in one segment are removed in first-occurrence order; the same ID in different segments stays at each position. IDs at a boundary inside code or TeX are removed, including expressions split across segments or left unclosed. Validation uses the concatenated text and shares delimiter rules with the renderer. Logs contain only `chat_citations_rejected` counts (`invalid_id`, `unknown_id`, `duplicate_id`, `unsafe_position`), never answer text or source metadata. Text such as `a[1]`, `[99]`, and Markdown brackets is ordinary text and is never interpreted as a citation.
 
-Each answer has its own source registry, populated only from that request's scoped scene search. Repeated searches retain existing IDs and append new scenes. A citation ID must be a positive safe integer present in this registry. Video IDs, titles, and timestamps come from retrieved metadata; the model cannot supply replacement destinations. This checks whether a source exists, not whether it supports a claim.
+Search enforces authorized course scope. ID validation proves that a source was retrieved for this answer; it does not prove that the source supports a claim. Prompt instructions also treat subtitles as reference data, but do not guarantee immunity from prompt injection or unsupported claims.
 
-The shared parser recognizes decimal `[N]` outside TeX, backtick/tilde code, escaped text, and numeric inline Markdown link labels such as `[1](url)`. Adjacent citations such as `[1][2]` are supported. Numeric-looking invalid IDs (`[0]`, `[-1]`, `[1.5]`, unsafe integers) and unknown IDs stay literal and never become links. Other brackets, such as `[example]` and `[1, 2]`, are ordinary text. Valid leading-zero IDs are normalized (`[01]` → `[1]`). Citation lookahead is limited to 64 characters; overlong numeric markers stay literal. Unclosed math/code keeps citation-looking text literal. Single-dollar math ends at a newline; a later `$$` block is parsed independently if it cannot close inline math.
+### Streaming contract
 
-Citation validation and rendering share delimiter rules in `chat-syntax.ts`. Inline math allows whitespace after `$`. Inline code closes with a run of the same length; fenced code closes at the start of a line (up to three leading spaces) with a run at least as long as the opening, followed only by whitespace. The entire closing run is consumed. Rendering retains line context across citation parts, so a citation cannot turn following text into a new code fence.
-
-The API applies this rule to both `chat.send` and SSE. It stores the normalized `content` and existing citation metadata without a database migration. History uses the same parser, so invalid markers remain literal there too. Logs contain only `chat_citations_rejected` counts grouped by `invalid_id` and `unknown_id`, without answer text, transcripts, or source metadata.
-
-New clients request `POST /api/chat/messages/stream?stream_format=parts-v1`. Each SSE `data` is a JSON event defined by `@videoq/trpc/chat`:
+`POST /api/chat/messages/stream` has one format. SSE `data` contains a JSON event defined in `@videoq/trpc/chat`; there is no format query or legacy event support.
 
 | Event | Payload and behavior |
 |---|---|
-| `source` | `source: { id, video_id, title, start_time, end_time }`; register a candidate before any reference to it; registration alone creates no visible link |
-| `text_delta` | `text: string`; append literal text, preserving TeX/code syntax |
-| `citation` | `sourceId: number`; append one indivisible timestamp link at this position |
-| `searching`, `search_completed` | Existing search progress events; do not append answer content |
-| `done` | `chat_log_id`, `feedback`, optional `citations`; persistence completed; feedback controls appear after the rendering queue drains |
-| `error` | `code`, `message`; terminate the answer and clear pending rendering |
+| `source` | `source: {id, video_id, title, start_time, end_time}`; register before referencing it |
+| `text_delta` | `segmentIndex: number`, `text: string`; append literal text to that zero-based segment |
+| `citation` | `segmentIndex: number`, `sourceId: number`; append one indivisible timestamp link after that segment |
+| `searching`, `search_completed` | Search progress, separate from answer text |
+| `done` | `chat_log_id`, `feedback`; persistence finished; feedback controls appear after the display queue drains |
+| `error` | `code`, `message`; terminate and discard pending display content |
 
-Sources and ordered content events precede `done`. Citation candidates can include scenes not used by the answer. The parser holds a split reference until it can classify it, emits an unfinished marker literally on normal completion, and discards pending text on error/abort. The client stops at `done`, even if the transport stays open; an unexpected disconnect follows the existing interrupted-answer behavior. Retry or course/share-link changes start with fresh citation state.
+Course Q&A emits search progress immediately, then sends validated segments when the final agent answer completes. No-course Q&A preserves generation-time streaming: the SDK partial JSON decoder exposes only monotonically growing text fields before the full JSON completes. It withholds incomplete escapes and Unicode surrogates and never emits JSON syntax. Completion still requires a strict, complete answer. No-course answers have no source registry and therefore no citation links.
 
-Requests with no recognized format keep the legacy `content_chunk` events, including early citation metadata and final `done`. An answer uses one content format, so text is never sent twice. New clients also accept legacy events when deployed against an older API and validate received events at runtime; unknown or malformed events are ignored. Legacy APIs that send citations only at `done` retain their previous timing. The agent still finishes generating its final answer before the API sends answer content; this protocol does not introduce model-token streaming.
+Sources and ordered content events precede `done`. The UI applies these events directly to `ChatAnswer`; streaming and history use the same renderer. TeX/code across segment boundaries is rendered together when no citation intervenes. Unexpected EOF is an error. Cancellation stops upstream work; retry and course/share changes create fresh state. Usage is released for generation failures before any answer text is produced, but retained after partial text or a persistence failure, matching the existing quota policy.
+
+See [structured answer cutover and verification](structured-answers.md) for the one-time history migration and deployment procedure.
 
 ## When evidence or services are unavailable
 
@@ -90,13 +92,13 @@ Requests with no recognized format keep the legacy `content_chunk` events, inclu
 | Retrieved scenes only partly answer the question | The prompt asks for a supported partial answer with an explanation of its limits |
 | Database or embedding execution fails | The exception propagates; it is not presented to the model as “no evidence,” and reserved answer usage is released by the chat flow |
 | The answer provider fails or times out | The request follows the error path; the chat-model wrapper does not automatically retry provider calls |
-| The final model response is blank or still contains tool calls | The request fails and releases reserved answer usage; an earlier preamble is never substituted as the answer |
+| The final model response is refused, invalid, incomplete, blank or still contains tool calls | The request fails; usage follows the policy above; an earlier preamble is never substituted as the answer |
 
 Weak search matches can still be returned because the application currently has no minimum similarity cutoff. See [scene search](transcription-and-search.md). Prompt wording alone cannot fix missing transcript content or a mismatched embedding index.
 
 ## Answer quality is evaluated separately
 
-For course chats, the API saves the question, answer, citations, and retrieved context. An asynchronous worker job evaluates the saved answer with RAGAS. The generation request does not wait for that evaluation to approve or rewrite the response.
+For course chats, the API saves the question, structured answer (including source metadata), and retrieved context. An asynchronous worker job evaluates the saved answer with RAGAS. The generation request does not wait for that evaluation to approve or rewrite the response.
 
 | Stored metric | What it examines |
 |---|---|

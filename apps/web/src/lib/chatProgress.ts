@@ -1,6 +1,6 @@
 import type { ChatStreamEvent } from '@/lib/api-types';
 
-export interface ChatSearchStep {
+interface ChatSearchStep {
   id: number;
   query: string;
   status: 'running' | 'complete' | 'interrupted';
@@ -17,7 +17,7 @@ export function updateChatProgress(progress: ChatProgress, event: ChatStreamEven
   if (progress.phase === 'error' || progress.phase === 'complete') return progress;
 
   if (event.type === 'searching') {
-    const id = event.search_id ?? progress.searches.length + 1;
+    const id = event.search_id;
     if (progress.searches.some((search) => search.id === id)) return progress;
     return {
       phase: 'searching',
@@ -38,12 +38,12 @@ export function updateChatProgress(progress: ChatProgress, event: ChatStreamEven
     };
   }
   if (event.type === 'done' || event.type === 'citation' ||
-      ((event.type === 'content_chunk' || event.type === 'text_delta') && event.text !== '')) {
+      (event.type === 'text_delta' && event.text !== '')) {
     const phase = event.type === 'done' ? 'complete' : 'answering';
     if (phase === progress.phase) return progress;
     return {
       phase,
-      // Older APIs only send searching; answer content also confirms those searches ended.
+      // Answer content confirms all searches ended.
       searches: progress.searches.map((search) => search.status === 'running'
         ? { ...search, status: 'complete' } : search),
     };

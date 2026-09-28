@@ -50,12 +50,6 @@ vi.mock('react-router-dom', async () => {
   }
 })
 
-vi.mock('@/lib/api', () => ({
-  apiClient: {
-    getVideoUrl: vi.fn((url) => url),
-  },
-}))
-
 vi.mock('@/hooks/useTags', () => ({
   useTags: () => ({
     tags: [],
@@ -103,6 +97,26 @@ describe('VideoCourseDetailPage', () => {
     await waitFor(() => {
       expect(screen.getAllByText('Test Course').length).toBeGreaterThan(0)
     })
+  })
+
+  it.each(['delete', 'leave'] as const)('finishes %s after leaving the page without redirecting or retaining deleted detail', async operation => {
+    let finish!: () => void
+    courseTrpcMocks[operation].mockImplementation(() => new Promise<void>(resolve => { finish = resolve }))
+    courseTrpcMocks.get.mockResolvedValue({ ...mockCourse, access_role: operation === 'leave' ? 'member' : 'owner' })
+    const navigate = useI18nNavigate() as ReturnType<typeof vi.fn>
+    const { result } = renderHook(() => useQueryClient())
+    const key = trpc.courses.get.queryKey({ id: 1 })
+    const { unmount } = render(<VideoCourseDetailPage />)
+    fireEvent.click(await screen.findByRole('button', { name: `videos.courseDetail.${operation}` }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', {
+      name: operation === 'leave' ? 'videos.courseDetail.leave' : 'common.actions.delete',
+    }))
+    await waitFor(() => expect(finish).toBeDefined())
+    unmount()
+    await act(async () => { finish() })
+    expect(navigate).not.toHaveBeenCalled()
+    await waitFor(() => expect(result.current.getQueryData(key)).toBeUndefined())
   })
 
   it('should render course description in edit form', async () => {
@@ -354,7 +368,7 @@ describe('VideoCourseDetailPage', () => {
 
     const removeButtons = await screen.findAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })
     await waitFor(() => {
-      expect(container.querySelector('video')?.getAttribute('src')).toBe('video1.mp4')
+      expect(new URL(container.querySelector('video')!.src).pathname).toBe('/api/video1.mp4')
     })
 
     fireEvent.click(removeButtons[0])
@@ -369,7 +383,7 @@ describe('VideoCourseDetailPage', () => {
     // swallowed by the wrapper instead of falling through to the row.
     fireEvent.click(screen.getAllByRole('button', { name: 'videos.courseDetail.removeFromCourse' })[1])
 
-    expect(container.querySelector('video')?.getAttribute('src')).toBe('video1.mp4')
+    expect(new URL(container.querySelector('video')!.src).pathname).toBe('/api/video1.mp4')
 
     await act(async () => { resolveRemove() })
     // Finish the mutation and its refetch before the next test replaces handlers.
@@ -404,7 +418,7 @@ describe('VideoCourseDetailPage', () => {
     expect(courseTrpcMocks.reorderVideos).toHaveBeenCalledTimes(1)
     // Watching a video is still allowed while order is being saved.
     fireEvent.click(screen.getByRole('button', { name: /Video 2/, pressed: false }))
-    expect(container.querySelector('video')?.getAttribute('src')).toBe('video2.mp4')
+    expect(new URL(container.querySelector('video')!.src).pathname).toBe('/api/video2.mp4')
     act(() => { finishSave() })
     await waitFor(() => { for (const button of editButtons()) expect(button).toBeEnabled() })
     expect(courseTrpcMocks.get).toHaveBeenCalledTimes(1)
@@ -712,7 +726,7 @@ describe('VideoCourseDetailPage - Loading state', () => {
 
   it('should show loading content', async () => {
     render(<VideoCourseDetailPage />)
-    expect(screen.getByText('Loading')).toBeInTheDocument()
+    expect(screen.getByText('common.messages.loading')).toBeInTheDocument()
   })
 })
 
@@ -889,7 +903,7 @@ describe('VideoCourseDetailPage - Delete', () => {
     //   Player must show video2.mp4, NOT video3.mp4
     await waitFor(() => {
       const videoEl = container.querySelector('video')
-      expect(videoEl?.getAttribute('src')).toBe('video2.mp4')
+      expect(new URL(videoEl!.src).pathname).toBe('/api/video2.mp4')
     })
   })
 })

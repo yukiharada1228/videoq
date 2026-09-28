@@ -1,5 +1,6 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import {
   Dialog,
@@ -15,8 +16,7 @@ import { cn } from '@/lib/digital-agency/cn';
 import { FeedbackContext, type ConfirmOptions, type FeedbackContextValue, type ToastOptions } from './feedback';
 
 interface ConfirmRequest {
-  options: Required<Pick<ConfirmOptions, 'title' | 'confirmLabel' | 'cancelLabel' | 'variant'>> &
-    Pick<ConfirmOptions, 'description'>;
+  options: ConfirmOptions;
   navigationKey: string;
   resolve: (confirmed: boolean) => void;
 }
@@ -25,27 +25,8 @@ interface ToastItem extends Required<Omit<ToastOptions, 'durationMs'>> {
   id: number;
 }
 
-function normalizeConfirmOptions(options: ConfirmOptions | string): ConfirmRequest['options'] {
-  if (typeof options === 'string') {
-    return {
-      title: options,
-      description: undefined,
-      confirmLabel: 'Confirm',
-      cancelLabel: 'Cancel',
-      variant: 'default',
-    };
-  }
-
-  return {
-    title: options.title,
-    description: options.description,
-    confirmLabel: options.confirmLabel ?? 'Confirm',
-    cancelLabel: options.cancelLabel ?? 'Cancel',
-    variant: options.variant ?? 'default',
-  };
-}
-
 export function FeedbackProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigationKey = `${location.pathname}${location.search}${location.hash}`;
   const previousNavigationKey = useRef(navigationKey);
@@ -91,12 +72,12 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     current.resolve(confirmed);
   }, [confirmDialogRef]);
 
-  const requestConfirmation = useCallback((options: ConfirmOptions | string) => {
+  const requestConfirmation = useCallback((options: ConfirmOptions) => {
     return new Promise<boolean>((resolve) => {
       activeConfirmRequest.current?.resolve(false);
 
       const nextRequest = {
-        options: normalizeConfirmOptions(options),
+        options,
         navigationKey,
         resolve,
       };
@@ -160,15 +141,13 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
                 {visibleConfirmRequest.options.title}
               </DialogHeading>
             </DialogHeader>
-            <DialogBody>
-              {visibleConfirmRequest.options.description ? (
+            {visibleConfirmRequest.options.description && (
+              <DialogBody>
                 <p className="text-std-16N-170 text-solid-gray-700">
                   {visibleConfirmRequest.options.description}
                 </p>
-              ) : (
-                <p className="sr-only">Confirm this action.</p>
-              )}
-            </DialogBody>
+              </DialogBody>
+            )}
             <DialogActions>
               <div className="flex justify-end gap-3">
                 <Button
@@ -176,7 +155,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
                   variant="outline"
                   onClick={() => resolveConfirm(false)}
                 >
-                  {visibleConfirmRequest.options.cancelLabel}
+                  {visibleConfirmRequest.options.cancelLabel ?? t('common.actions.cancel')}
                 </Button>
                 <Button
                   type="button"
@@ -188,7 +167,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
                   }
                   onClick={() => resolveConfirm(true)}
                 >
-                  {visibleConfirmRequest.options.confirmLabel}
+                  {visibleConfirmRequest.options.confirmLabel ?? t('common.actions.confirm')}
                 </Button>
               </div>
             </DialogActions>
@@ -212,7 +191,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
               <span className="flex-1 leading-5">{toastItem.message}</span>
               <button
                 type="button"
-                aria-label="Dismiss notification"
+                aria-label={t('common.actions.dismissNotification')}
                 className="rounded-full p-1 text-current opacity-70 transition-opacity hover:opacity-100"
                 onClick={() => dismissToast(toastItem.id)}
               >

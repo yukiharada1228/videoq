@@ -5,11 +5,11 @@ import {
   PLAN_CATALOG,
   planCodeFromLookupKey,
 } from "../src/features/billing/catalog";
-import { FREE_TIER_DEFAULTS } from "../src/shared/signup-quota";
+import { resolveSignupQuotaDefaults } from "../src/shared/signup-quota";
 
 describe("billing catalog", () => {
   it("keeps signup free defaults aligned with Free entitlements", () => {
-    expect(FREE_TIER_DEFAULTS).toEqual(PLAN_CATALOG.free.entitlements);
+    expect(resolveSignupQuotaDefaults({})).toEqual(PLAN_CATALOG.free.entitlements);
   });
 
   it("keeps the raised transcription and answer quotas", () => {

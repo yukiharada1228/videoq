@@ -1,3 +1,4 @@
+import { plainChatAnswer } from "@videoq/trpc/chat";
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { ChatMessageBubble } from '../ChatMessageBubble';
 import type { Message } from '@/hooks/useChatMessages';
@@ -6,7 +7,7 @@ describe('chat activity display', () => {
   it.each([false, true])('keeps the waiting label until queued answer text is visible (searched: %s)', (searched) => {
     const props = { isFeedbackUpdating: false, onFeedback: vi.fn(), onVideoNavigate: vi.fn() };
     const message: Message = {
-      role: 'assistant', content: '', progress: {
+      role: 'assistant', answer: { segments: [{ text: '', sourceIds: [] }], sources: [] }, progress: {
         phase: searched ? 'reviewing' : 'preparing',
         searches: searched ? [{ id: 1, query: 'ドモルガンの定理', status: 'complete' }] : [],
       },
@@ -19,7 +20,7 @@ describe('chat activity display', () => {
     rerender(<ChatMessageBubble {...props} message={receivedMessage} isAwaitingResponse />);
     expect(screen.getByRole('status').textContent).toBe(waitingLabel);
 
-    rerender(<ChatMessageBubble {...props} message={{ ...receivedMessage, content: '回答' }} isAwaitingResponse />);
+    rerender(<ChatMessageBubble {...props} message={{ ...receivedMessage, answer: plainChatAnswer('回答') }} isAwaitingResponse />);
     expect(screen.getByText('回答')).toBeVisible();
     if (searched) {
       expect(screen.getByRole('status')).toHaveTextContent('chat.progress.searched');
@@ -31,7 +32,7 @@ describe('chat activity display', () => {
   it('shows a compact status and reveals only the searched topics on demand', () => {
     const props = { isFeedbackUpdating: false, onFeedback: vi.fn(), onVideoNavigate: vi.fn() };
     const message: Message = {
-      role: 'assistant', content: '', progress: { phase: 'searching', searches: [
+      role: 'assistant', answer: { segments: [{ text: '', sourceIds: [] }], sources: [] }, progress: { phase: 'searching', searches: [
         { id: 1, query: '回路を簡単にする', status: 'complete' },
         { id: 2, query: 'ドモルガンの定理', status: 'running' },
       ] },
@@ -53,7 +54,7 @@ describe('chat activity display', () => {
     expect(screen.getByRole('status')).toHaveTextContent('chat.progress.checkingVideos');
 
     rerender(<ChatMessageBubble {...props} message={{
-      ...message, content: '定理を使って簡単にできます。', progress: {
+      ...message, answer: plainChatAnswer('定理を使って簡単にできます。'), progress: {
         phase: 'complete', searches: [
           ...message.progress!.searches.map((search) => ({ ...search, status: 'complete' as const })),
           { id: 3, query: 'ドモルガンの定理', status: 'complete' },

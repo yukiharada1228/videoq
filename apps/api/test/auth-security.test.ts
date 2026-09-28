@@ -447,6 +447,10 @@ describe("API key credential boundaries", () => {
     expect(await session.json()).toBeNull();
     const list = await auth.handler(new Request(`${BASE}/api/auth/api-key/list`, { headers }));
     expect(list.status).toBe(401);
+    for (const procedure of ["integrationApiKeys", "connectedApps"]) {
+      const response = await createApp().request(`${BASE}/api/trpc/account.${procedure}`, { headers }, env);
+      expect(response.status).toBe(401);
+    }
 
     for (const [path, body] of [
       ["/api-key/create", { name: "injected", userId: USER_ID, metadata: { accessLevel: "all" } }],

@@ -3,9 +3,6 @@ import {
   createPendingCourseInvitations,
   declineCourseInvitation,
   getCourseInvitationByTokenHash,
-  leaveCourseMembership,
-  listCourseParticipants,
-  removeCourseUserMember,
   revokePendingCourseInvitation,
   rotatePendingCourseInvitation,
 } from "../../repositories/course-invitation-repository";
@@ -20,7 +17,13 @@ import {
 } from "../../lib/course-invitations";
 import type { Bindings } from "../../types/bindings";
 
-export type InviteResultStatus =
+export {
+  listCourseParticipants as getCourseParticipants,
+  removeCourseUserMember as removeMember,
+  leaveCourseMembership as leaveCourse,
+} from "../../repositories/course-invitation-repository";
+
+type InviteResultStatus =
   | "queued"
   | "already_member"
   | "already_invited"
@@ -100,14 +103,6 @@ export async function inviteCourseMembers(
   return { results };
 }
 
-export function getCourseParticipants(
-  env: Bindings,
-  courseId: number,
-  ownerUserId: string,
-) {
-  return listCourseParticipants(env, courseId, ownerUserId);
-}
-
 export async function previewCourseInvitation(
   env: Bindings,
   token: string,
@@ -182,17 +177,4 @@ export function revokeInvitation(
     ownerUserId,
     now,
   );
-}
-
-export function removeMember(
-  env: Bindings,
-  courseId: number,
-  memberUserId: string,
-  ownerUserId: string,
-) {
-  return removeCourseUserMember(env, courseId, memberUserId, ownerUserId);
-}
-
-export function leaveCourse(env: Bindings, courseId: number, userId: string) {
-  return leaveCourseMembership(env, courseId, userId);
 }

@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 import pytest
 
 from worker_python.pipeline.srt import (
@@ -6,6 +9,17 @@ from worker_python.pipeline.srt import (
     parse_srt_scenes,
     parse_srt_timestamp,
 )
+
+SRT_CASES = json.loads(
+    (Path(__file__).resolve().parents[3] / "packages/trpc/test-fixtures/srt.json").read_text()
+)
+
+
+@pytest.mark.parametrize("case", SRT_CASES, ids=lambda case: case["name"])
+def test_cross_runtime_subtitle_contract(case):
+    scenes = parse_srt_scenes(case["srt"])
+    expected = [] if case["start"] is None else [(case["start"], case["end"])]
+    assert [(scene.start_sec, scene.end_sec) for scene in scenes] == expected
 
 
 def test_parse_srt_timestamp() -> None:

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api';
 import { trpc } from '@/lib/trpc';
+import { refreshQuery } from '@/lib/cacheInvalidation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,7 +46,7 @@ function AccountField({ field, currentValue }: { field: 'username' | 'email'; cu
       else await apiClient.requestEmailChange({ email: nextValue });
     },
     onSuccess: async () => {
-      if (field === 'username') await queryClient.invalidateQueries(trpc.account.me.pathFilter());
+      if (field === 'username') await refreshQuery(queryClient, trpc.account.me.pathFilter());
       setStatus({ tone: 'success', text: t(`${prefix}.success`) });
       setEditing(false);
       setValue('');

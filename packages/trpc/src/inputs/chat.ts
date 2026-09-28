@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { chatMessagesSchema } from "../schema";
+import { chatCourseIdSchema, chatMessagesSchema } from "../schema";
 
 const page = {
   limit: z.number().int().positive().max(500).default(100),
@@ -9,7 +9,7 @@ const page = {
 export const chatInputSchemas = {
   "chat.send": z.object({
     messages: chatMessagesSchema,
-    courseId: z.number().int().positive().nullable().optional(),
+    courseId: chatCourseIdSchema,
     shareSlug: z.string().min(1).optional(),
   }),
   "chat.feedback": z.object({

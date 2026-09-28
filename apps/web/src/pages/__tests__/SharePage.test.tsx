@@ -23,12 +23,6 @@ vi.mock('react-router-dom', async () => {
   }
 })
 
-vi.mock('@/lib/api', () => ({
-  apiClient: {
-    getSharedVideoUrl: vi.fn((url, token) => `${url}?token=${token}`),
-  },
-}))
-
 vi.mock('@/components/chat/ChatPanel', () => ({
   ChatPanel: ({ onVideoPlay }: { onVideoPlay: (id: number, time: string) => void }) => (
     <div data-testid="chat-panel"><button onClick={() => onVideoPlay(1, '00:02:00')}>Play citation</button></div>
@@ -57,10 +51,13 @@ describe('SharePage', () => {
   it('should render video list', async () => {
     render(<SharePage />)
 
-    await waitFor(() => {
-      expect(screen.getAllByText('Shared Video 1').length).toBeGreaterThan(0)
-      expect(screen.getAllByText('Shared Video 2').length).toBeGreaterThan(0)
-    })
+    const first = await screen.findByRole('button', { name: /Shared Video 1/ })
+    const second = screen.getByRole('button', { name: /Shared Video 2/ })
+    expect(first).toHaveAttribute('aria-pressed', 'true')
+    expect(second).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(second)
+    expect(first).toHaveAttribute('aria-pressed', 'false')
+    expect(second).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('keeps one chat panel mounted across responsive layouts and mobile tabs', async () => {
@@ -83,13 +80,15 @@ describe('SharePage', () => {
   })
 
   it('should select first video by default', async () => {
-    render(<SharePage />)
+    const { container } = render(<SharePage />)
 
     await waitFor(() => {
       // First video title should appear in player header
       const titles = screen.getAllByText('Shared Video 1')
       expect(titles.length).toBeGreaterThan(0)
     })
+    const player = container.querySelector('video')!
+    expect(new URL(player.src).searchParams.get('share_slug')).toBe('test-share-token')
   })
 
   it('keeps the player and chat mounted while the shared course refreshes', async () => {

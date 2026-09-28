@@ -1,6 +1,5 @@
-'use client';
-
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { ChipLabel } from '@/components/ui/chip-label';
 import { resolveTagChipColor } from '@/lib/tagColors';
 import { cn } from '@/lib/digital-agency/cn';
@@ -13,6 +12,7 @@ interface TagBadgeProps {
 }
 
 export function TagBadge({ tag, onRemove, size = 'md', className = '' }: TagBadgeProps) {
+  const { t } = useTranslation();
   return (
     <ChipLabel
       variant="outlined"
@@ -32,7 +32,7 @@ export function TagBadge({ tag, onRemove, size = 'md', className = '' }: TagBadg
             onRemove(tag.id);
           }}
           className="ml-1 transition-opacity hover:opacity-70"
-          aria-label={`Remove ${tag.name}`}
+          aria-label={t('tags.removeLabel', { name: tag.name })}
         >
           <X className="h-3 w-3" />
         </button>

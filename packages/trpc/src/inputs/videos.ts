@@ -29,6 +29,5 @@ export const videosInputSchemas = {
     description: z.string().optional(),
     transcript: z.string().optional(),
   }),
-  "videos.replace": z.object({ id, title, description: z.string().default("") }),
   "videos.delete": z.object({ id }),
 };

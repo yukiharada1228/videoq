@@ -1,5 +1,3 @@
-'use client';
-
 import { useTranslation } from 'react-i18next';
 import type { Tag } from '@/lib/api';
 import { Button } from '@/components/ui/button';

@@ -15,7 +15,7 @@ export interface ToastOptions {
 }
 
 export interface FeedbackContextValue {
-  requestConfirmation: (options: ConfirmOptions | string) => Promise<boolean>;
+  requestConfirmation: (options: ConfirmOptions) => Promise<boolean>;
   toast: (options: ToastOptions) => void;
 }
 

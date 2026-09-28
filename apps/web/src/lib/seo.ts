@@ -23,7 +23,7 @@ export function normalizePathname(pathname: string): string {
   return withSlash.replace(/\/+$/, '');
 }
 
-export function sharePathSlug(pathname: string): string | null {
+function sharePathSlug(pathname: string): string | null {
   const match = normalizePathname(pathname).match(/^\/share\/([^/]+)$/);
   return match?.[1] ?? null;
 }

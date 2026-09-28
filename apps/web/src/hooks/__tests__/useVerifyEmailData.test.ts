@@ -9,7 +9,7 @@ describe('email verification requests', () => {
   afterEach(() => onlineManager.setOnline(true));
 
   it('reuses a successful verification across reconnects and remounts', async () => {
-    const verify = vi.mocked(apiClient.verifyEmail).mockResolvedValue({ detail: 'Verified' });
+    const verify = vi.mocked(apiClient.verifyEmail).mockResolvedValue(undefined);
     const reconnectProbe = vi.fn(async () => 'connected');
     const { result: probe } = renderHook(() => {
       const client = useQueryClient();
@@ -29,7 +29,7 @@ describe('email verification requests', () => {
       initialProps: { token: 'one-time-token' },
     });
     await waitFor(() => expect(probe.current.isFetching()).toBe(0));
-    expect(remounted.result.current.verifyQuery.data?.detail).toBe('Verified');
+    expect(remounted.result.current.verifyQuery.isSuccess).toBe(true);
     expect(verify).toHaveBeenCalledTimes(1);
 
     remounted.rerender({ token: 'different-token' });

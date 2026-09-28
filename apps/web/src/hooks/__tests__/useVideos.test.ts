@@ -1,6 +1,5 @@
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useVideos, useVideo } from '../useVideos'
-import { useI18nNavigate } from '@/lib/i18n'
 
 const listVideos = vi.fn()
 const getVideo = vi.fn()
@@ -521,15 +520,11 @@ describe('useVideo', () => {
     })
   })
 
-  it('should redirect to login if not authenticated', async () => {
-    getAccount.mockResolvedValue(null)
-
-    renderHook(() => useVideo(1))
-
-    const navigate = useI18nNavigate()
-    await waitFor(() => {
-      expect(navigate).toHaveBeenCalledWith('/login')
-    })
+  it('does not fetch private video data without a session', () => {
+    globalThis.__setMockAuthSession(null)
+    const { result } = renderHook(() => useVideo(1))
+    expect(result.current).toEqual({ video: null, isLoading: false, error: null })
+    expect(getAccount).not.toHaveBeenCalled()
     expect(getVideo).not.toHaveBeenCalled()
   })
 

@@ -9,7 +9,7 @@ const input = { courseId: 7, limit: 100, offset: 0 };
 const historyKey = trpc.chat.history.queryKey(input);
 const evaluationKey = trpc.evaluation.logs.queryKey(input);
 const history: RpcOutputMap['chat.history'] = {
-  data: [{ id: 42, course: 7, question: 'Saved question', answer: 'Saved answer',
+  data: [{ id: 42, course: 7, question: 'Saved question', answer: { segments: [{ text: 'Saved answer', sourceIds: [] }], sources: [] },
     is_shared_origin: false, created_at: '2026-09-23T00:00:00Z', feedback: null }],
   meta: { total: 1, limit: 100, offset: 0 },
 };
@@ -196,7 +196,7 @@ describe('chat history loading and export', () => {
     await screen.findByText('Saved answer');
     await waitFor(() => expect(readEvaluations).toHaveBeenCalledTimes(1));
     readHistory.mockResolvedValue({
-      ...history, data: [{ ...history.data[0], id: 43, course: 8, question: 'Other question', answer: 'Other answer' }],
+      ...history, data: [{ ...history.data[0], id: 43, course: 8, question: 'Other question', answer: { segments: [{ text: 'Other answer', sourceIds: [] }], sources: [] } }],
     });
     try {
       rerender(<ChatPanel courseId={8} />);

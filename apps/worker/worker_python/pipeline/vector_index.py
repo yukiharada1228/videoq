@@ -31,22 +31,19 @@ def _table_name() -> str:
 
 
 def _delete_vectors(
-    metadata_key: str | None = None,
-    value: int | str | None = None,
+    metadata_key: str,
+    value: int | str,
     *,
     conn: psycopg.Connection[Any] | None = None,
 ) -> int:
     table = _table_name()
     with nullcontext(conn) if conn is not None else db_connection() as db:
-        if metadata_key is None:
-            result = db.execute(f'DELETE FROM "{table}"')
-        else:
-            if metadata_key not in {"video_id", "user_id"}:
-                raise ValueError(f"unsupported metadata key: {metadata_key}")
-            result = db.execute(
-                f'DELETE FROM "{table}" WHERE "{metadata_key}" = %s',
-                (value,),
-            )
+        if metadata_key not in {"video_id", "user_id"}:
+            raise ValueError(f"unsupported metadata key: {metadata_key}")
+        result = db.execute(
+            f'DELETE FROM "{table}" WHERE "{metadata_key}" = %s',
+            (value,),
+        )
         return result.rowcount
 
 
@@ -62,14 +59,8 @@ def delete_user_vectors(user_id: str, *, conn: psycopg.Connection[Any] | None = 
     return deleted
 
 
-def delete_all_vectors() -> int:
-    deleted = _delete_vectors()
-    logger.info("Deleted %d vector rows (all)", deleted)
-    return deleted
-
-
-def index_video_transcript(video: VideoRow, *, replace_existing: bool = True) -> int:
-    """Index SRT scenes; skip replacement only after a purge under the global lock."""
+def index_video_transcript(video: VideoRow) -> int:
+    """Generate SRT scene embeddings, then atomically replace this video's index."""
     if not video.transcript:
         raise ValueError(f"Video {video.id} has no transcript")
 
@@ -89,8 +80,24 @@ def index_video_transcript(video: VideoRow, *, replace_existing: bool = True) ->
     # Generate embeddings before opening the write transaction. Readers keep
     # the old scenes until every replacement row has been written successfully.
     with db_connection() as conn:
-        if replace_existing:
-            conn.execute(f'DELETE FROM "public"."{table}" WHERE video_id = %s', (video.id,))
+        # API edits/deletion use this same row lock, not the worker advisory
+        # lock. Recheck after provider I/O before replacing any existing scenes.
+        current = conn.execute(
+            """
+            SELECT title, transcript IS NOT DISTINCT FROM %s AS transcript_matches
+              FROM videos
+             WHERE id = %s AND user_id = %s
+             FOR UPDATE
+            """,
+            (video.transcript, video.id, video.user_id),
+        ).fetchone()
+        if current is None:
+            logger.info("Video %d was deleted during indexing; skipping", video.id)
+            return 0
+        if not current["transcript_matches"]:
+            raise ValueError(f"Video {video.id} transcript changed during indexing; retry")
+
+        conn.execute(f'DELETE FROM "public"."{table}" WHERE video_id = %s', (video.id,))
         with conn.cursor() as cursor:
             cursor.executemany(
                 f'''INSERT INTO "public"."{table}"
@@ -98,7 +105,7 @@ def index_video_transcript(video: VideoRow, *, replace_existing: bool = True) ->
                     VALUES (%s, %s, %s::vector, %s, %s, %s)''',
                 (
                     (uuid.uuid4(), scene.text, json.dumps(embedding), video.user_id, video.id, Json({
-                        "video_title": video.title,
+                        "video_title": current["title"],
                         "start_time": scene.start_time,
                         "end_time": scene.end_time,
                         "start_sec": scene.start_sec,

@@ -1,22 +1,22 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, waitFor, within } from 'storybook/test';
-import { http, HttpResponse } from 'msw';
 import i18n from '@/i18n/config';
 import SettingsPage from './SettingsPage';
 import { AppPageShell } from '@/components/layout/AppPageShell';
 import { authFixture, regularUser } from '../../.storybook/fixtures/auth';
-import { apiKeysResponse } from '../../.storybook/fixtures/api';
-import { consentListPath, consents, publicClientHandler } from '../../.storybook/fixtures/connectedApps';
-import { failure, restGet, restPost, success, trpcMutation, trpcQuery } from '../../.storybook/mocks/network';
+import { integrationApiKeys } from '../../.storybook/fixtures/api';
+import { consents } from '../../.storybook/fixtures/connectedApps';
+import { failure, restPost, success, trpcMutation, trpcQuery } from '../../.storybook/mocks/network';
 
 const keyListRequest = fn();
 const api = {
   auth: authFixture({ ...regularUser, username: 'yuki' }),
-  trpc: [trpcQuery('account.searchApiKeyStatus', success({ has_api_key: false }))],
+  trpc: [
+    trpcQuery('account.searchApiKeyStatus', success({ has_api_key: false })),
+    trpcQuery('account.integrationApiKeys', () => { keyListRequest(); return success(integrationApiKeys); }),
+    trpcQuery('account.connectedApps', success(consents)),
+  ],
   rest: [
-    http.get('/api/auth/api-key/list', () => { keyListRequest(); return HttpResponse.json(apiKeysResponse); }),
-    restGet(consentListPath, success(consents)),
-    publicClientHandler(),
     restPost('/api/auth/change-email', success({ status: true })),
   ],
 };
@@ -40,7 +40,7 @@ export const Default: Story = {};
 export const Mobile: Story = { globals: { viewport: { value: 'mobile', isRotated: false } } };
 export const EnglishMobile: Story = { globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
 export const Configured: Story = {
-  parameters: { api: { ...api, trpc: [trpcQuery('account.searchApiKeyStatus', success({ has_api_key: true }))] } },
+  parameters: { api: { ...api, trpc: [...api.trpc.slice(1), trpcQuery('account.searchApiKeyStatus', success({ has_api_key: true }))] } },
   async play({ canvasElement }) {
     const canvas = within(canvasElement);
     await expect(await canvas.findByText(/設定済み|Configured/)).toBeVisible();
@@ -48,7 +48,7 @@ export const Configured: Story = {
   },
 };
 export const LoadFailed: Story = {
-  parameters: { api: { ...api, trpc: [trpcQuery('account.searchApiKeyStatus', failure())] } },
+  parameters: { api: { ...api, trpc: [...api.trpc.slice(1), trpcQuery('account.searchApiKeyStatus', failure())] } },
   async play({ canvasElement }) {
     const canvas = within(canvasElement);
     await expect(await canvas.findByText(/設定状態を取得できませんでした|Unable to load SearchAPI settings/)).toBeVisible();
@@ -91,6 +91,7 @@ const saveSearchKey = fn();
 const deleteSearchKey = fn();
 export const SearchApiKeyChanges: Story = {
   parameters: { api: { ...api, trpc: [
+    ...api.trpc.slice(1),
     trpcQuery('account.searchApiKeyStatus', () => { searchStatusRequest(); return success({ has_api_key: false }); }),
     trpcMutation('account.saveSearchApiKey', input => { saveSearchKey(input); return success({ success: true }); }),
     trpcMutation('account.deleteSearchApiKey', () => { deleteSearchKey(); return success({ success: true }); }),
@@ -149,7 +150,7 @@ export const GeneratedKeyCopyRetry: Story = {
   },
   async play({ canvas, userEvent }) {
     const label = (key: string) => i18n.t(`settings.integrationApiKeys.${key}`);
-    await canvas.findByText(apiKeysResponse.apiKeys[0].name);
+    await canvas.findByText(integrationApiKeys[0].name);
     await userEvent.click(canvas.getByRole('button', { name: label('create') }));
     await userEvent.type(canvas.getByLabelText(label('nameLabel')), 'Notebook');
     await userEvent.click(canvas.getByRole('button', { name: label('createDialogCta') }));
@@ -164,7 +165,7 @@ export const GeneratedKeyCopyRetry: Story = {
     await expect(copyRequest).toHaveBeenLastCalledWith('fixture-only-generated-secret');
     await userEvent.click(canvas.getByRole('button', { name: label('generatedDoneCta') }));
     await expect(canvas.getByText('Notebook')).toBeVisible();
-    await expect(canvas.getByText(apiKeysResponse.apiKeys[0].name)).toBeVisible();
+    await expect(canvas.getByText(integrationApiKeys[0].name)).toBeVisible();
     await expect(canvas.queryByText('fixture-only-generated-secret')).not.toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: label('create') })).toBeEnabled();
     await expect(keyListRequest).toHaveBeenCalledTimes(1);

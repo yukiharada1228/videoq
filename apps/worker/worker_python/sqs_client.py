@@ -24,10 +24,14 @@ def sqs_endpoint_url() -> str | None:
     queue_url = os.environ.get("SQS_QUEUE_URL", "").strip()
     if not queue_url:
         return None
-    if "amazonaws.com" in queue_url:
-        return None
     parsed = urlparse(queue_url)
-    if not parsed.scheme or not parsed.netloc:
+    if not parsed.scheme or not parsed.hostname:
+        return None
+    hostname = parsed.hostname.rstrip(".")
+    if any(
+        hostname == domain or hostname.endswith(f".{domain}")
+        for domain in ("amazonaws.com", "amazonaws.com.cn")
+    ):
         return None
     return f"{parsed.scheme}://{parsed.netloc}"
 

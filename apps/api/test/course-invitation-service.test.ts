@@ -30,8 +30,8 @@ describe("inviteCourseMembers", () => {
   it("メール送信はリクエスト内で行わず、配送タスクに委譲する", async () => {
     repo.createPendingCourseInvitations.mockResolvedValue({
       created: [
-        { id: 10, email: "a@example.com", courseName: "Physics", inviterName: "Teacher" },
-        { id: 11, email: "b@example.com", courseName: "Physics", inviterName: "Teacher" },
+        { id: 10, email: "a@example.com" },
+        { id: 11, email: "b@example.com" },
       ],
       alreadyMemberEmails: [],
       alreadyPendingEmails: [],
@@ -165,12 +165,7 @@ describe("resendInvitation", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("古いトークンを即座に失効させ、配送はタスクに任せる", async () => {
-    repo.rotatePendingCourseInvitation.mockResolvedValue({
-      id: 10,
-      email: "a@example.com",
-      courseName: "Physics",
-      inviterName: "Teacher",
-    });
+    repo.rotatePendingCourseInvitation.mockResolvedValue({ ok: true });
 
     const result = await resendInvitation(ENV, 5, 10, "teacher-user");
 

@@ -49,16 +49,15 @@ flowchart TD
 3. **Retrieve scenes.** The API embeds the query and searches the course's indexed subtitle text. Each search returns up to 20 scenes by default. It does not send the whole video to the answer model.
 4. **Read the evidence.** A tool result might look like this:
 
-   ```text
-   [1] Dot product lesson 00:02:10,000 - 00:02:35,000
-   The dot product is the product of the two vector lengths and the cosine of their angle.
+   ```json
+   {"sourceId":1,"title":"Dot product lesson","startTime":"00:02:10,000","endTime":"00:02:35,000","text":"The dot product is the product of the two vector lengths and the cosine of their angle."}
    ```
 
 5. **Search again if needed.** The model may request another search, for example to find the explanation of perpendicular vectors. At most three scene searches are available per answer.
-6. **Write an answer.** With the example scene above, a possible answer is: “The dot product depends on the cosine of the angle as well as the lengths of the two vectors. [1]” The reference connects the sentence to the retrieved scene.
+6. **Write an answer.** With the example scene above, a possible answer is: the text “The dot product depends on the cosine of the angle as well as the lengths of the two vectors.” paired with `sourceIds: [1]`. The UI adds the timestamp link after that passage.
 7. **Check the source.** Selecting the citation opens the video's associated time. The timestamp comes from the stored subtitle scene; the answer wording comes from the model.
 
-The application assigns scene numbers, keeps them stable when a scene is found again, and provides citation data to the UI. The model chooses where to place those numbers in its prose. A citation helps you verify an answer; it does not prove that every statement is supported.
+The application assigns scene numbers, keeps them stable when a scene is found again, and provides citation data to the UI. The model pairs each passage with source IDs instead of embedding citation numbers in prose. A citation helps you verify an answer; it does not prove that every statement is supported.
 
 ## Why do some answers have no scene citation?
 

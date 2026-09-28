@@ -55,7 +55,7 @@ export function DashboardButton({ courseId, size = 'md' }: DashboardButtonProps)
               <DialogHeading {...dialog.headingProps}>
                 {t('dashboard.title')}
               </DialogHeading>
-              <DialogClose {...dialog.closeButtonProps} />
+              <DialogClose {...dialog.closeButtonProps}>{t('common.actions.close')}</DialogClose>
             </DialogHeader>
             <DialogScrollArea>
               <DialogBody>

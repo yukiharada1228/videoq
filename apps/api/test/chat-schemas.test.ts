@@ -15,6 +15,13 @@ describe("chatMessageBodySchema", () => {
     expect(r.course_id).toBe(3);
   });
 
+  it.each([undefined, null, Number.MAX_SAFE_INTEGER])("accepts optional/safe course ID %j", courseId => {
+    const parsed = chatMessageBodySchema.parse({
+      messages: [{ role: "user", content: "hi" }], course_id: courseId,
+    });
+    expect(parsed.course_id).toBe(courseId);
+  });
+
   it("rejects empty messages", () => {
     expect(chatMessageBodySchema.safeParse({ messages: [] }).success).toBe(false);
   });

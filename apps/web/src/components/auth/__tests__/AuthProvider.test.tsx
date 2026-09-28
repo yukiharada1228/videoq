@@ -7,6 +7,8 @@ import { useI18nNavigate } from '@/lib/i18n'
 import { TRPC_UNAUTHORIZED_EVENT } from '@/lib/trpc'
 import { AuthProvider as SessionAuthProvider } from '../AuthProvider'
 import { useAuthSession } from '@/lib/authSession'
+import * as authSession from '@/lib/authSession'
+import { useAuth } from '@/hooks/useAuth'
 
 const cachedProfileKey = ['test', 'account.me'] as const
 
@@ -50,6 +52,33 @@ describe('AuthProvider', () => {
     queryClient = null
     ;(globalThis as any).__setMockPathname?.('/videos')
     window.history.pushState({}, '', '/videos')
+  })
+
+  afterEach(() => vi.restoreAllMocks())
+
+  it('redirects once when several profile consumers mount without a session', () => {
+    globalThis.__setMockAuthSession(null)
+    function ProfileConsumer() {
+      useAuth()
+      return null
+    }
+    render(<AuthProvider><ProfileConsumer /><ProfileConsumer /></AuthProvider>)
+
+    expect(useI18nNavigate()).toHaveBeenCalledExactlyOnceWith('/login')
+  })
+
+  it('waits through a session outage and redirects after an anonymous response', async () => {
+    const state = useAuthSession()
+    const session = vi.spyOn(authSession, 'useAuthSession').mockReturnValue({
+      ...state, data: null, isPending: false,
+      error: { status: 503, statusText: 'Service Unavailable', message: 'Temporary failure' },
+    })
+    const { rerender } = render(<AuthProvider><span>Current page</span></AuthProvider>)
+    expect(useI18nNavigate()).not.toHaveBeenCalled()
+
+    session.mockReturnValue({ ...state, data: null, isPending: false, error: null })
+    rerender(<AuthProvider><span>Current page</span></AuthProvider>)
+    await waitFor(() => expect(useI18nNavigate()).toHaveBeenCalledExactlyOnceWith('/login'))
   })
 
   it('clears cached auth state and redirects after revalidation confirms session expiry', async () => {

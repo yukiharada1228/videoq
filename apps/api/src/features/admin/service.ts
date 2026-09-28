@@ -1,60 +1,28 @@
+import type { RpcInputMap } from "@videoq/trpc";
 import {
   enqueueReindexAllEmbeddings,
 } from "../../lib/jobs";
 import { processExternalTaskById } from "../../lib/external-tasks";
 import {
-  getAdminUser,
-  listAdminUsers,
   lockUserForHardDelete,
-  patchAdminUserQuota,
-  patchAdminUserUsage,
   updateAdminUser,
-  isSuperuser as repositoryIsSuperuser,
-  type FlagsPatch,
-  type QuotaPatch,
-  type UsagePatch,
 } from "../../repositories/admin-repository";
 import { createAuth } from "../../lib/auth";
 import type { Bindings } from "../../types/bindings";
 
-export function isSuperuser(env: Bindings, userId: string) {
-  return repositoryIsSuperuser(env, userId);
-}
-
-export async function listUsers(
-  env: Bindings,
-  q: string,
-  limit: number,
-  offset: number,
-) {
-  return listAdminUsers(env, q, limit, offset);
-}
-
-export async function getUser(env: Bindings, id: string) {
-  return getAdminUser(env, id);
-}
-
-export async function patchQuota(
-  env: Bindings,
-  id: string,
-  patch: QuotaPatch,
-) {
-  return patchAdminUserQuota(env, id, patch);
-}
-
-export async function patchUsage(
-  env: Bindings,
-  id: string,
-  patch: UsagePatch,
-) {
-  return patchAdminUserUsage(env, id, patch);
-}
+export {
+  isSuperuser,
+  listAdminUsers as listUsers,
+  getAdminUser as getUser,
+  patchAdminUserQuota as patchQuota,
+  patchAdminUserUsage as patchUsage,
+} from "../../repositories/admin-repository";
 
 export async function patchFlags(
   env: Bindings,
   actorUserId: string,
   targetUserId: string,
-  patch: FlagsPatch,
+  patch: Omit<RpcInputMap["admin.patchFlags"], "id">,
   headers: Headers,
 ) {
   if (

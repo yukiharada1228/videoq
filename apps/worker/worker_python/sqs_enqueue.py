@@ -9,6 +9,7 @@ import uuid
 from contextlib import closing
 from typing import Any
 
+from worker_python.contracts import validate_job_payload
 from worker_python.sqs_client import create_sqs_client
 
 logger = logging.getLogger(__name__)
@@ -20,10 +21,12 @@ def build_job_message(
     *,
     job_id: str | None = None,
 ) -> dict[str, Any]:
+    body = {} if payload is None else payload
+    validate_job_payload(job_type, body)
     return {
         "type": job_type,
         "job_id": job_id or str(uuid.uuid4()),
-        "payload": payload or {},
+        "payload": body,
     }
 
 

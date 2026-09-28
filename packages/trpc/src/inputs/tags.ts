@@ -15,6 +15,5 @@ export const tagsInputSchemas = {
     name: z.string().min(1).max(50).optional(),
     color: tagColorSchema.optional(),
   }),
-  "tags.replace": z.object({ id, name: z.string().min(1).max(50), color: tagColorSchema }),
   "tags.delete": z.object({ id }),
 };

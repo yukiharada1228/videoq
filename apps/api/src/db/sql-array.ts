@@ -8,13 +8,13 @@ export function sqlNumberArray(
   values: readonly number[],
   cast: "int" | "bigint" = "bigint",
 ): SQL {
-  const nums = values.map((v) => {
-    const n = Number(v);
-    if (!Number.isInteger(n)) {
-      throw new Error(`invalid integer for sql array: ${v}`);
+  for (const value of values) {
+    if (
+      !Number.isSafeInteger(value)
+      || (cast === "int" && (value < -2147483648 || value > 2147483647))
+    ) {
+      throw new Error(`invalid integer for sql array: ${value}`);
     }
-    return n;
-  });
-  if (nums.length === 0) return sql.raw(`ARRAY[]::${cast}[]`);
-  return sql.raw(`ARRAY[${nums.join(",")}]::${cast}[]`);
+  }
+  return sql.raw(`ARRAY[${values.join(",")}]::${cast}[]`);
 }

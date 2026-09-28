@@ -4,7 +4,7 @@ import { externalTasks, users } from "../db/schema";
 import type { JobMessage } from "../lib/job-message";
 import type { Bindings } from "../types/bindings";
 
-export type ExternalTaskKind =
+type ExternalTaskKind =
   | "sqs_job"
   | "storage_cleanup"
   | "invitation_email";
@@ -25,7 +25,7 @@ export type PersistedExternalTask = {
   created: boolean;
 };
 
-export const MAX_EXTERNAL_TASK_ATTEMPTS = 48;
+const MAX_EXTERNAL_TASK_ATTEMPTS = 48;
 
 /**
  * リース満了までの猶予。下の各クエリの `INTERVAL '5 minutes'` と同じ値であること。
@@ -33,14 +33,14 @@ export const MAX_EXTERNAL_TASK_ATTEMPTS = 48;
  */
 export const EXTERNAL_TASK_LEASE_MS = 5 * 60 * 1000;
 
-export class ExternalTaskLeaseLostError extends Error {
+class ExternalTaskLeaseLostError extends Error {
   constructor() {
     super("External task lease is no longer owned by this attempt.");
     this.name = "ExternalTaskLeaseLostError";
   }
 }
 
-export function externalTaskLeaseCondition(lease: ExternalTaskLease) {
+function externalTaskLeaseCondition(lease: ExternalTaskLease) {
   return and(
     eq(externalTasks.id, lease.id),
     eq(externalTasks.attempts, lease.attempt),

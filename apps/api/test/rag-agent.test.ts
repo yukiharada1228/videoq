@@ -1,3 +1,4 @@
+import { chatAnswerText, type ChatContentPart } from "@videoq/trpc/chat";
 import { embedding as testEmbedding } from "./helpers/embedding";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { CourseDetail } from "../src/repositories/course-repository";
@@ -84,7 +85,7 @@ beforeEach(() => {
 
 type Turn =
   | { toolCall: { name: string; args: Record<string, unknown> }; preamble?: string }
-  | { content: string }
+  | { content: string; sourceIds?: number[] }
   | { status: number };
 
 const jsonTurn = (turn: Exclude<Turn, { status: number }>) =>
@@ -102,7 +103,7 @@ const jsonTurn = (turn: Exclude<Turn, { status: number }>) =>
                   type: "function",
                   function: {
                     name: turn.toolCall.name,
-                    arguments: JSON.stringify(turn.toolCall.args),
+                    arguments: JSON.stringify({ ...(turn.toolCall.name === "search_scenes" ? { video_ids: null } : { video_limit: 20, video_offset: 0 }), ...turn.toolCall.args }),
                   },
                 },
               ],
@@ -111,14 +112,14 @@ const jsonTurn = (turn: Exclude<Turn, { status: number }>) =>
         ],
       }
     : {
-        choices: [{ finish_reason: "stop", message: { role: "assistant", content: turn.content } }],
+        choices: [{ finish_reason: "stop", message: { role: "assistant", content: JSON.stringify({ segments: [{ text: turn.content, sourceIds: turn.sourceIds ?? [] }] }) } }],
       };
 
 const sseFrames = (turn: Exclude<Turn, { status: number }>): string[] => {
   if ("toolCall" in turn) {
     throw new Error("ReAct tool turns must use non-streaming model responses.");
   }
-  const words = turn.content.match(/.{1,4}/g) ?? [];
+  const words = JSON.stringify({ segments: [{ text: turn.content, sourceIds: turn.sourceIds ?? [] }] }).match(/[\s\S]{1,4}/g) ?? [];
   return [
     // 実際の OpenAI と同じく、最初の delta にだけ role を載せる。
     ...words.map(
@@ -237,7 +238,7 @@ describe.each([false, true])("検索障害（stream=%s）", (stream) => {
         role: "assistant", content: null,
         tool_calls: ["fail", "pending"].map((query) => ({
           id: `call_${query}`, type: "function",
-          function: { name: "search_scenes", arguments: JSON.stringify({ query }) },
+          function: { name: "search_scenes", arguments: JSON.stringify({ query, video_ids: null }) },
         })),
       } }],
     }), { headers: { "content-type": "application/json" } }));
@@ -284,7 +285,7 @@ describe.each([false, true])("検索障害（stream=%s）", (stream) => {
     };
 
     await expect(execute()).rejects.toThrow(LlmProviderError);
-    expect(chunks.some((chunk) => "text" in chunk || "final" in chunk)).toBe(false);
+    expect(chunks.some((chunk) => "part" in chunk || "final" in chunk)).toBe(false);
     expect(closed).toBe(1);
   });
 
@@ -295,16 +296,16 @@ describe.each([false, true])("検索障害（stream=%s）", (stream) => {
         toolCall: { name: "search_scenes", args: { query: "scene", video_ids: [999] } },
       })),
       { toolCall: { name: "search_scenes", args: { query: "scene", video_ids: [60] } } },
-      { content: "回答 [1]" },
+      { content: "回答 ", sourceIds: [1] },
     ]);
 
     if (stream) {
       const chunks: RagStreamChunk[] = [];
       for await (const chunk of streamRag(ENV, PARAMS)) chunks.push(chunk);
-      expect(chunks.at(-1)).toMatchObject({ final: { citations: [{ video_id: 60 }] } });
+      expect(chunks.at(-1)).toMatchObject({ final: { answer: { sources: [{ video_id: 60 }] } } });
       expect(chunks).toContainEqual({ searching: "scene", searchId: 1 });
     } else {
-      expect((await runRag(ENV, PARAMS)).citations).toHaveLength(1);
+      expect((await runRag(ENV, PARAMS)).answer.sources).toHaveLength(1);
     }
     expect(searchCalls).toEqual(["scene"]);
     expect(videoSelections).toEqual([[60]]);
@@ -332,7 +333,7 @@ describe.each([false, true])("検索障害（stream=%s）", (stream) => {
     await expect(execute()).rejects.toThrow(
       error instanceof LlmConfigurationError ? LlmConfigurationError : LlmProviderError,
     );
-    expect(chunks.some((chunk) => "text" in chunk || "final" in chunk)).toBe(false);
+    expect(chunks.some((chunk) => "part" in chunk || "final" in chunk)).toBe(false);
     expect(searchCalls).toEqual(["scene"]);
     expect(bodies).toHaveLength(1);
     expect(closed).toBe(1);
@@ -365,17 +366,17 @@ describe.each([false, true])("検索障害（stream=%s）", (stream) => {
     const bodies = stubOpenAi([
       { toolCall: { name: "search_scenes", args: { query: "" } } },
       { toolCall: { name: "search_scenes", args: { query: "scene" } } },
-      { content: "回答 [1]" },
+      { content: "回答 ", sourceIds: [1] },
     ]);
 
     if (stream) {
       const chunks: RagStreamChunk[] = [];
       for await (const chunk of streamRag(ENV, PARAMS)) chunks.push(chunk);
-      expect(chunks.at(-1)).toMatchObject({ final: { citations: [{ video_id: 60 }] } });
+      expect(chunks.at(-1)).toMatchObject({ final: { answer: { sources: [{ video_id: 60 }] } } });
     } else {
       const result = await runRag(ENV, PARAMS);
-      expect(result.content).toBe("回答 [1]");
-      expect(result.citations).toHaveLength(1);
+      expect(chatAnswerText(result.answer)).toBe("回答 ");
+      expect(result.answer.sources).toHaveLength(1);
     }
 
     expect(searchCalls).toEqual(["scene"]);
@@ -389,7 +390,7 @@ describe.each([false, true])("Ollama 互換 API（stream=%s）", (stream) => {
     hitsByQuery = () => [scene(1)];
     const bodies = stubOpenAi([
       { toolCall: { name: "search_scenes", args: { query: "scene" } } },
-      { content: "回答 [1]" },
+      { content: "回答 ", sourceIds: [1] },
     ]);
     const fetchStub = vi.fn(fetch);
     vi.stubGlobal("fetch", fetchStub);
@@ -403,13 +404,13 @@ describe.each([false, true])("Ollama 互換 API（stream=%s）", (stream) => {
     if (stream) {
       const chunks: RagStreamChunk[] = [];
       for await (const chunk of streamRag(env, PARAMS)) chunks.push(chunk);
-      expect(chunks.filter((chunk) => "text" in chunk).map((chunk) => chunk.text).join(""))
-        .toBe("回答 [1]");
-      expect(chunks.at(-1)).toMatchObject({ final: { citations: [{ video_id: 60 }] } });
+      expect(chunks.filter((chunk) => "part" in chunk && chunk.part.type === "text").map((chunk) => "part" in chunk && chunk.part.type === "text" ? chunk.part.text : "").join(""))
+        .toBe("回答 ");
+      expect(chunks.at(-1)).toMatchObject({ final: { answer: { sources: [{ video_id: 60 }] } } });
     } else {
       const result = await runRag(env, PARAMS);
-      expect(result.content).toBe("回答 [1]");
-      expect(result.citations).toHaveLength(1);
+      expect(chatAnswerText(result.answer)).toBe("回答 ");
+      expect(result.answer.sources).toHaveLength(1);
     }
 
     expect(fetchStub).toHaveBeenCalledTimes(2);
@@ -429,20 +430,20 @@ describe.each([false, true])("Ollama 互換 API（stream=%s）", (stream) => {
 });
 
 describe("RAG エージェント（非ストリーミング）", () => {
-  it("search_scenes を呼んでから回答し、ヒットを citations に載せる", async () => {
+  it("search_scenes を呼んでから回答し、ヒットを sources に載せる", async () => {
     hitsByQuery = () => [scene(1), scene(2, 61)];
     const bodies = stubOpenAi([
       { toolCall: { name: "search_scenes", args: { query: "pgvector 定義" } } },
-      { content: "pgvector は [1] と [2] の通りです。" },
+      { content: "pgvector は  と  の通りです。", sourceIds: [1,2] },
     ]);
 
     const result = await runRag(ENV, PARAMS);
 
     expect(searchCalls).toEqual(["pgvector 定義"]);
-    expect(result.content).toBe("pgvector は [1] と [2] の通りです。");
-    expect(result.citations).toEqual([
-      { video_id: 60, title: "Video 60", start_time: "00:01:00", end_time: "00:01:30" },
-      { video_id: 61, title: "Video 61", start_time: "00:02:00", end_time: "00:02:30" },
+    expect(chatAnswerText(result.answer)).toBe("pgvector は  と  の通りです。");
+    expect(result.answer.sources).toEqual([
+      { id: 1, video_id: 60, title: "Video 60", start_time: "00:01:00", end_time: "00:01:30" },
+      { id: 2, video_id: 61, title: "Video 61", start_time: "00:02:00", end_time: "00:02:30" },
     ]);
     expect(result.retrievedContexts).toEqual(["scene 1", "scene 2"]);
     expect(closed).toBe(1);
@@ -455,20 +456,20 @@ describe("RAG エージェント（非ストリーミング）", () => {
     expect(JSON.stringify(tools[0].function.parameters)).toContain("video_ids");
   });
 
-  it("複数クエリのヒットは重複排除し、[N] は回答全体で通し番号になる", async () => {
+  it("複数クエリのヒットは重複排除し、sourceId は回答全体で通し番号になる", async () => {
     // 1 回目と 2 回目で scene(1) が重複する。
     hitsByQuery = (query) => (query === "A" ? [scene(1), scene(2)] : [scene(1), scene(3)]);
     stubOpenAi([
       { toolCall: { name: "search_scenes", args: { query: "A" } } },
       { toolCall: { name: "search_scenes", args: { query: "B" } } },
-      { content: "答え [1][2][3]" },
+      { content: "答え ", sourceIds: [1,2,3] },
     ]);
 
     const result = await runRag(ENV, PARAMS);
 
     expect(searchCalls).toEqual(["A", "B"]);
-    expect(result.citations).toHaveLength(3);
-    expect(result.citations?.map((c) => c.start_time)).toEqual([
+    expect(result.answer.sources).toHaveLength(3);
+    expect(result.answer.sources?.map((c) => c.start_time)).toEqual([
       "00:01:00",
       "00:02:00",
       "00:03:00",
@@ -483,13 +484,13 @@ describe("RAG エージェント（非ストリーミング）", () => {
       { toolCall: { name: "search_scenes", args: { query: "q2" } } },
       { toolCall: { name: "search_scenes", args: { query: "q3" } } },
       { toolCall: { name: "search_scenes", args: { query: "q4" } } },
-      { content: "打ち切り後の回答 [1]" },
+      { content: "打ち切り後の回答 ", sourceIds: [1] },
     ]);
 
     const result = await runRag(ENV, PARAMS);
 
     expect(searchCalls).toHaveLength(MAX_SCENE_SEARCHES);
-    expect(result.content).toBe("打ち切り後の回答 [1]");
+    expect(chatAnswerText(result.answer)).toBe("打ち切り後の回答 ");
     expect(closed).toBe(1);
   });
 
@@ -501,7 +502,7 @@ describe("RAG エージェント（非ストリーミング）", () => {
 
     expect(searchCalls).toEqual([]);
     expect(closed).toBe(0);
-    expect(result.citations).toBeNull();
+    expect(result.answer.sources).toEqual([]);
     expect(bodies[0].tools).toBeUndefined();
   });
 });
@@ -564,7 +565,7 @@ describe("RAG エージェント（ストリーミング）", () => {
     }
     expect(bodies).toHaveLength(1);
     expect(closed).toBe(1);
-    expect(chunks.some((chunk) => "text" in chunk || "final" in chunk)).toBe(false);
+    expect(chunks.some((chunk) => "part" in chunk || "final" in chunk)).toBe(false);
   });
 
   it.each(["deadline", "client"])("検索後の本文受信中も %s で中断し、本文・final を送らず接続を閉じる", async (source) => {
@@ -597,7 +598,7 @@ describe("RAG エージェント（ストリーミング）", () => {
     await rejected;
     expect(upstream?.aborted).toBe(true);
     expect(timeout).toHaveBeenCalledWith(LLM_STREAM_TIMEOUT_MS);
-    expect(chunks.some((chunk) => "text" in chunk || "final" in chunk)).toBe(false);
+    expect(chunks.some((chunk) => "part" in chunk || "final" in chunk)).toBe(false);
     expect(searchCalls).toEqual(["scene"]);
     expect(closed).toBe(1);
   });
@@ -607,15 +608,15 @@ describe("RAG エージェント（ストリーミング）", () => {
     stubOpenAi([
       { toolCall: { name: "search_scenes", args: { query: "A" } }, preamble: "調べますね。" },
       { toolCall: { name: "search_scenes", args: { query: "B" } }, preamble: "追加で調べます。" },
-      { content: "最終回答 [1]" },
+      { content: "最終回答 ", sourceIds: [1] },
     ]);
     const chunks: RagStreamChunk[] = [];
     for await (const chunk of streamRag(ENV, PARAMS)) chunks.push(chunk);
-    expect(chunks.filter((chunk) => "text" in chunk).map((chunk) => chunk.text).join(""))
-      .toBe("最終回答 [1]");
+    expect(chunks.filter((chunk) => "part" in chunk && chunk.part.type === "text").map((chunk) => "part" in chunk && chunk.part.type === "text" ? chunk.part.text : "").join(""))
+      .toBe("最終回答 ");
     expect(chunks.filter((chunk) => "searching" in chunk))
       .toEqual([{ searching: "A", searchId: 1 }, { searching: "B", searchId: 2 }]);
-    expect(chunks.at(-1)).toMatchObject({ final: { citations: [{ video_id: 60 }] } });
+    expect(chunks.at(-1)).toMatchObject({ final: { answer: { sources: [{ video_id: 60 }] } } });
     expect(closed).toBe(1);
   });
 
@@ -628,23 +629,18 @@ describe("RAG エージェント（ストリーミング）", () => {
       ],
     );
 
-    const chunks: unknown[] = [];
+    const chunks: RagStreamChunk[] = [];
     for await (const chunk of streamRag(ENV, PARAMS)) chunks.push(chunk);
 
     const searching = chunks.filter((c) => typeof c === "object" && c !== null && "searching" in c);
     expect(searching).toEqual([{ searching: "検索語", searchId: 1 }]);
     expect(chunks).toContainEqual({ searchCompleted: { id: 1, query: "検索語", count: 1 } });
 
-    const text = chunks
-      .filter((c): c is { text: string } => typeof c === "object" && c !== null && "text" in c)
-      .map((c) => c.text)
-      .join("");
-    expect(text).toBe("回答本文");
-
-    const last = chunks[chunks.length - 1] as { final: { citations: unknown[] } };
-    expect(last.final.citations).toHaveLength(1);
-    expect(chunks.find((c) => typeof c === "object" && c !== null && "text" in c))
-      .toEqual({ text: "回答本文", citations: last.final.citations });
+    const parts = chunks.filter((c) => "part" in c).map(c => c.part);
+    expect(parts).toEqual([{ type: "text", segmentIndex: 0, text: "回答本文" }]);
+    const last = chunks.at(-1)!;
+    expect(last).toMatchObject({ final: { answer: { sources: [{ id: 1, video_id: 60 }] } } });
+    expect(chunks.findIndex(c => "source" in c)).toBeLessThan(chunks.findIndex(c => "part" in c));
     expect(closed).toBe(1);
   });
 
@@ -653,7 +649,7 @@ describe("RAG エージェント（ストリーミング）", () => {
     hitsByQuery = () => new Promise<SceneHit[]>((resolve) => { finishSearch = resolve; });
     stubOpenAi([
       { toolCall: { name: "search_scenes", args: { query: "時間のかかる検索" } } },
-      { content: "回答 [1]" },
+      { content: "回答 ", sourceIds: [1] },
     ]);
     const stream = streamRag(ENV, PARAMS);
     try {
@@ -680,7 +676,7 @@ describe.each([false, true])("講座メタ情報（stream=%s）", (streaming) =>
     const final = chunks.find((chunk) => "final" in chunk);
     return {
       ...final!.final,
-      content: chunks.filter((chunk) => "text" in chunk).map((chunk) => chunk.text).join(""),
+      content: chunks.filter((chunk) => "part" in chunk && chunk.part.type === "text").map((chunk) => "part" in chunk && chunk.part.type === "text" ? chunk.part.text : "").join(""),
     };
   };
   const toolResults = (body: Record<string, unknown>) =>
@@ -693,8 +689,8 @@ describe.each([false, true])("講座メタ情報（stream=%s）", (streaming) =>
       { content: "デジタル回路は2本の動画で構成されています。" },
     ]);
     const result = await execute({ messages: [{ role: "user", content: "この講座の名前と動画数は？" }] });
-    expect(result.content).toBe("デジタル回路は2本の動画で構成されています。");
-    expect(result.citations).toBeNull();
+    expect(chatAnswerText(result.answer)).toBe("デジタル回路は2本の動画で構成されています。");
+    expect(result.answer.sources).toEqual([]);
     expect(opened).toBe(0);
     expect(closed).toBe(0);
     expect(searchCalls).toEqual([]);
@@ -726,7 +722,7 @@ describe.each([false, true])("講座メタ情報（stream=%s）", (streaming) =>
       { content: "説明文は登録されていません。" },
     ]);
     const result = await execute({ videoIds: state === "empty" ? [] : [60] });
-    expect(result.content).toBe("説明文は登録されていません。");
+    expect(chatAnswerText(result.answer)).toBe("説明文は登録されていません。");
     const metadata = JSON.parse(toolResults(bodies[1])[0]);
     expect(metadata.description).toBe("");
     expect(metadata.video_count).toBe(state === "empty" ? 0 : 1);
@@ -743,7 +739,7 @@ describe.each([false, true])("講座メタ情報（stream=%s）", (streaming) =>
       { toolCall: { name: "get_course_info", args: { video_limit: 1 } } },
       { toolCall: { name: "get_course_info", args: { video_limit: 1, video_offset: 1 } } },
       { toolCall: { name: "search_scenes", args: { query: "回路の説明", video_ids: [61] } } },
-      { content: "第8回の説明です [1]。" },
+      { content: "第8回の説明です 。", sourceIds: [1] },
     ]);
     const result = await execute();
     expect(JSON.parse(toolResults(bodies[1])[0])).toMatchObject({
@@ -753,7 +749,7 @@ describe.each([false, true])("講座メタ情報（stream=%s）", (streaming) =>
       videos: [{ id: 61, position: 2 }], videos_meta: { total: 2, has_more: false, next_offset: null },
     });
     expect(videoSelections).toEqual([[61]]);
-    expect(result.citations).toEqual([{ video_id: 61, title: "Video 61", start_time: "00:01:00", end_time: "00:01:30" }]);
+    expect(result.answer.sources).toEqual([{ id: 1, video_id: 61, title: "Video 61", start_time: "00:01:00", end_time: "00:01:30" }]);
     expect(result.retrievedContexts).toHaveLength(3);
     expect(opened).toBe(1);
     expect(closed).toBe(1);
@@ -766,7 +762,7 @@ describe.each([false, true])("講座メタ情報（stream=%s）", (streaming) =>
       { content: "指定された動画を検索できません。" },
     ]);
     const result = await execute();
-    expect(result.citations).toBeNull();
+    expect(result.answer.sources).toEqual([]);
     expect(opened).toBe(0);
     expect(searchCalls).toEqual([]);
   });
@@ -807,7 +803,7 @@ describe.each([false, true])("講座メタ情報（stream=%s）", (streaming) =>
     ]);
     const result = await execute();
     expect(getCourseInfo).toHaveBeenCalledTimes(MAX_COURSE_INFO_CALLS);
-    expect(result.content).toBe("取得済みの講座情報です。");
+    expect(chatAnswerText(result.answer)).toBe("取得済みの講座情報です。");
     expect(result.retrievedContexts).toHaveLength(1);
   });
 
@@ -819,7 +815,7 @@ describe.each([false, true])("講座メタ情報（stream=%s）", (streaming) =>
       { content: "講座情報を取得できませんでした。" },
     ]);
     const result = await execute();
-    expect(result.content).toBe("講座情報を取得できませんでした。");
+    expect(chatAnswerText(result.answer)).toBe("講座情報を取得できませんでした。");
     expect(bodies.at(-1)?.tools ?? []).toEqual([]);
     expect(getCourseInfo).not.toHaveBeenCalled();
     expect(opened).toBe(0);

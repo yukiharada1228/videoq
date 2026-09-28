@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
 
 from worker_python.contracts import (
     JOB_DELETE_ACCOUNT_DATA,
@@ -20,7 +19,7 @@ from worker_python.tasks.reindex_video_transcript import reindex_video_transcrip
 from worker_python.tasks.reindexing import reindex_all_videos_embeddings
 from worker_python.tasks.transcription import transcribe_video
 
-TaskFn = Callable[..., Any]
+TaskFn = Callable[..., None]
 
 TASK_REGISTRY: dict[str, TaskFn] = {
     JOB_TRANSCRIBE_VIDEO: transcribe_video,

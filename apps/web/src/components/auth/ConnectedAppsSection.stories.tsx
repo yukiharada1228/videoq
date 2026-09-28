@@ -2,8 +2,8 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, waitFor, within } from 'storybook/test';
 import { http, HttpResponse } from 'msw';
 import { authFixtures } from '../../../.storybook/fixtures/auth';
-import { consents, consentListPath, englishClientNames, longClientNames, longConsents, publicClientHandler, revokeConsentPath } from '../../../.storybook/fixtures/connectedApps';
-import { failure, pending, restGet, restPost } from '../../../.storybook/mocks/network';
+import { consents, englishClientNames, longClientNames, longConsents, revokeConsentPath } from '../../../.storybook/fixtures/connectedApps';
+import { failure, pending, restPost, success, trpcHandler, trpcQuery } from '../../../.storybook/mocks/network';
 import { ConnectedAppsSection } from './ConnectedAppsSection';
 
 interface AppFixture {
@@ -30,19 +30,16 @@ const meta = {
   decorators: [(Story) => <div className="mx-auto max-w-5xl p-2"><Story /></div>],
   beforeEach({ parameters, msw }) {
     const fixture: AppFixture = parameters.connectedApps ?? {};
-    let rows = structuredClone(fixture.consents ?? consents);
+    let rows = structuredClone(fixture.consents ?? consents).map(row => ({ ...row, client_name: fixture.names?.[row.client_id] ?? row.client_name }));
     let attempts = 0;
     revokeRequest.mockClear();
     listRequest.mockClear();
     msw.use(
-      fixture.load ? restGet(consentListPath, fixture.load === 'pending' ? pending() : failure())
-        : http.get(consentListPath, () => {
-          listRequest();
-          return attempts > 0 && fixture.failListAfterRevoke
-            ? HttpResponse.json({ message: 'List unavailable' }, { status: 500 })
-            : HttpResponse.json(rows);
-        }),
-      publicClientHandler(fixture.names),
+      trpcHandler([trpcQuery('account.connectedApps', () => {
+        listRequest();
+        if (fixture.load) return fixture.load === 'pending' ? pending() : failure();
+        return attempts > 0 && fixture.failListAfterRevoke ? failure('List unavailable') : success(rows);
+      })]),
       fixture.revoke === 'pending' ? restPost(revokeConsentPath, pending())
         : http.post(revokeConsentPath, async ({ request }) => {
           const body = await request.json() as { id: string };
@@ -51,7 +48,9 @@ const meta = {
           if (fixture.revoke === 'error' || (fixture.revoke === 'retry' && attempts === 1)) {
             return HttpResponse.json({ message: 'Fixture revoke failed', code: 'INTERNAL_SERVER_ERROR' }, { status: 500 });
           }
-          rows = rows.filter((row) => row.id !== body.id);
+          const grant = rows.find((row) => row.id === body.id);
+          if (!grant) return HttpResponse.json({ message: 'Authorization not found' }, { status: 404 });
+          rows = rows.filter((row) => row.client_id !== grant.client_id);
           return HttpResponse.json({ success: true });
         }),
     );
@@ -69,8 +68,7 @@ export const MultipleApps: Story = {
     const table = await canvas.findByRole('list');
     await expect(within(table).getAllByRole('listitem')).toHaveLength(2);
     await expect(canvas.getByText('授業サポート')).toBeVisible();
-    // Better Auth consents currently have no expiry; the adapter maps them to null.
-    await expect(within(table).getAllByText('—')).toHaveLength(2);
+    await expect(canvas.getByText('学習ノート')).toBeVisible();
   },
 };
 export const Empty: Story = {
@@ -136,11 +134,13 @@ export const RevokeWithoutListRefresh: Story = {
     const button = await firstRevokeButton(canvasElement);
     await userEvent.click(button);
     await userEvent.click(within(within(canvasElement).getByRole('dialog')).getByRole('button', { name: /連携を解除|Disconnect/ }));
+    await waitFor(() => expect(revokeRequest).toHaveBeenCalledTimes(1));
     await expect(await within(canvasElement).findByText(successMessage)).toBeVisible();
     await waitFor(() => expect(button).not.toBeInTheDocument());
     const list = within(canvasElement).getByRole('list');
     await expect(within(list).getAllByRole('listitem')).toHaveLength(1);
     await expect(within(list).getByRole('button')).toBeEnabled();
+    await expect(revokeRequest).toHaveBeenCalledTimes(1);
     await expect(listRequest).toHaveBeenCalledTimes(1);
   },
 };
@@ -165,6 +165,25 @@ export const RevokeSucceeded: Story = {
     await expect(canvas.getByText('学習ノート')).toBeVisible();
     await expect(revokeRequest).toHaveBeenCalledTimes(1);
     await expect(revokeRequest).toHaveBeenCalledWith({ id: consents[0].id });
+  },
+};
+export const RevokeMultipleGrants: Story = {
+  parameters: { connectedApps: {
+    consents: [consents[0], { ...consents[0], id: 'classroom-extra-grant', scope: 'videoq.write' }, consents[1]],
+  } satisfies AppFixture },
+  async play({ canvasElement, userEvent }) {
+    const canvas = within(canvasElement);
+    const list = await canvas.findByRole('list');
+    await expect(within(list).getAllByRole('listitem')).toHaveLength(3);
+    await userEvent.click(await firstRevokeButton(canvasElement));
+    await userEvent.click(within(canvas.getByRole('dialog')).getByRole('button', { name: /連携を解除|Disconnect/ }));
+    await expect(await canvas.findByText(successMessage)).toBeVisible();
+    await waitFor(() => expect(canvas.queryAllByText('授業サポート')).toHaveLength(0));
+    await expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+    await expect(canvas.getByText('学習ノート')).toBeVisible();
+    await expect(revokeRequest).toHaveBeenCalledTimes(1);
+    await expect(revokeRequest).toHaveBeenCalledWith({ id: consents[0].id });
+    await expect(listRequest).toHaveBeenCalledTimes(1);
   },
 };
 export const FailureThenRetry: Story = {

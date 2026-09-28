@@ -24,7 +24,7 @@ export const Typical: Story = {
 export const Loading: Story = {
   args: { isLoading: true },
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole('progressbar', { name: 'Loading' })).toBeVisible();
+    await expect(canvas.getByRole('progressbar', { name: i18n.t('common.messages.loading') })).toBeVisible();
     await expect(canvas.queryByText('94%')).not.toBeInTheDocument();
   },
 };

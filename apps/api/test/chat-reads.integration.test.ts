@@ -9,6 +9,14 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
   const schema = `chat_reads_${crypto.randomUUID().replaceAll("-", "")}`;
   let admin: pg.Client;
   let env: Bindings;
+  const storedAnswer = {
+    segments: [{ text: "Answer", sourceIds: [4, 9] }, { text: "\n\n`a[1]` = 20. ", sourceIds: [4] }],
+    // IDs deliberately differ from array positions, and from reference order.
+    sources: [
+      { id: 9, video_id: 43, title: "Next", start_time: null, end_time: "00:00:10" },
+      { id: 4, video_id: 42, title: "Source", start_time: "00:00:03", end_time: null },
+    ],
+  };
 
   beforeAll(async () => {
     admin = new pg.Client({ connectionString: databaseUrl });
@@ -21,8 +29,7 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
       CREATE TABLE video_course_memberships (course_id bigint NOT NULL, user_id text NOT NULL);
       CREATE TABLE chat_logs (
         id bigint PRIMARY KEY, course_id bigint NOT NULL REFERENCES video_courses,
-        user_id text, question text NOT NULL DEFAULT 'Question', answer text NOT NULL DEFAULT 'Answer',
-        citations jsonb NOT NULL DEFAULT '[]', is_shared_origin boolean NOT NULL DEFAULT false,
+        user_id text, question text NOT NULL DEFAULT 'Question', response jsonb NOT NULL DEFAULT '{"segments":[{"text":"Answer","sourceIds":[]}],"sources":[]}', is_shared_origin boolean NOT NULL DEFAULT false,
         feedback text, created_at timestamptz NOT NULL
       );
       CREATE INDEX ON chat_logs (course_id);
@@ -40,8 +47,8 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
         (5, 10, 'owner', '2026-09-22T01:00:00Z', '', false),
         (6, 10, 'owner', '2026-09-22T02:00:00Z', 'good', false),
         (7, 20, 'outsider', '2000-01-01T00:00:00Z', 'bad', false);
-      UPDATE chat_logs SET citations = '[{"video_id":42,"title":"Source","start_time":"00:00:03"},{"video_id":43,"title":"Next","end_time":"00:00:10"}]' WHERE id = 6;
     `);
+    await admin.query("UPDATE chat_logs SET response = $1::jsonb WHERE id = 6", [JSON.stringify(storedAnswer)]);
     const url = new URL(databaseUrl!);
     url.searchParams.set("options", `-c search_path=${schema} -c timezone=Asia/Tokyo`);
     env = { HYPERDRIVE: { connectionString: url.toString() } } as Bindings;
@@ -119,12 +126,9 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
     if ("notFound" in page) throw new Error("Expected authorized history");
     const byId = new Map(page.results.map(row => [row.id, row]));
     expect(byId.get(6)).toMatchObject({
-      course: 10, question: "Question", answer: "Answer", feedback: "good",
+      course: 10, question: "Question", feedback: "good",
       created_at: "2026-09-22T02:00:00.000Z",
-      citations: [
-        { id: 1, video_id: 42, title: "Source", start_time: "00:00:03", end_time: null },
-        { id: 2, video_id: 43, title: "Next", start_time: null, end_time: "00:00:10" },
-      ],
+      answer: storedAnswer,
     });
     expect(byId.get(1)?.asked_by).toEqual({ user_id: "owner", username: "Owner", email: "owner@example.com" });
     expect(byId.get(2)?.asked_by).toEqual({ user_id: "member", username: "Member", email: "member@example.com" });
@@ -136,6 +140,7 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
     expect(exported).toHaveLength(6);
     expect(exported[2].asked_by).toBeNull();
     expect(exported[3].asked_by).toBeNull();
-    expect(exported[5].citations).toEqual(byId.get(6)?.citations);
+    expect(exported[5].citations).toEqual(byId.get(6)?.answer.sources);
+    expect(exported[5].answer).toBe("Answer\n\n`a[1]` = 20. ");
   });
 });

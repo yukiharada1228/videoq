@@ -55,6 +55,19 @@ Authentication, MCP, Stripe webhooks, video binaries, multipart uploads, chat SS
 
 For ordinary list, fetch, or update operations, check the existing tRPC routers first.
 
+Chat SSE uses the shared `chatCourseIdSchema` for `course_id`, as tRPC does for
+`courseId`: a positive JSON integer, `null`, or an omitted field. Invalid values
+are rejected before answer generation and usage reservation.
+
+## MCP tool inputs
+
+`apps/api/src/lib/mcp-tools.ts` defines the strict input schemas shared by MCP
+registration and tool execution. IDs, byte sizes, and pagination values accept
+integers or decimal digit strings such as `42` and `"42"`, within each field's
+limits. Booleans, arrays, hexadecimal/exponent strings, and undeclared fields
+are rejected before resource access. Pagination defaults belong to the schemas;
+handlers consume validated, typed arguments without further coercion or clamping.
+
 ## Verify
 
 ```bash

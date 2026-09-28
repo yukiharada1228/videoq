@@ -34,11 +34,34 @@ This illustrates the format. Normally, API operations create jobs; you do not ne
 
 Processing follows `transcribe_video` → `index_video_transcript`. See [video states](../design/state-diagram.md).
 
+Each task checks its entry status, and conditional database updates recheck the
+stored status before changing it. Transcription starts for pending/error videos,
+resumes processing videos, hands indexing videos to the index task, and skips
+completed duplicates. Uploading or unknown statuses are rejected before writes
+or provider calls.
+
 ## Design for retries
 
 SQS may deliver the same message more than once. The worker uses execution records keyed by `job_id` and time-limited leases to avoid repeating completed work. Follow-up job IDs are also derived from the parent job.
 
 When adding processing, check whether retrying after a partial failure could duplicate data or downstream jobs. This property is called **idempotency**. Swallowing an exception can prevent retries and leave a job in an intermediate state.
+
+Tasks return no result payload. The dispatcher records successful execution after
+the task returns; exceptions trigger the existing retry handling. Full reindexing
+reports counts in its logs and raises if any video fails.
+
+## Database transaction boundaries
+
+Use `with db_connection() as conn` for a database unit of work. Normal exit commits,
+an exception rolls back, and the connection is closed even if committing fails.
+Keep AI provider calls outside this block so they do not hold a database connection
+or transaction open. Helpers receiving a connection execute SQL within the
+caller's transaction; the caller owns when it commits.
+
+Explicit intermediate commits remain necessary when a connection serves several
+transactions. Account deletion commits each completed step and uses a separate
+transaction per video, allowing retries after a storage failure without losing
+the remaining cleanup work.
 
 ## Trace processing locally
 

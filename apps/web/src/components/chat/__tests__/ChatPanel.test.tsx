@@ -25,12 +25,13 @@ function makeStreamMock(
   response: { content: string; chat_log_id?: number; feedback?: 'good' | 'bad' | null; citations?: any[] }
 ) {
   return async function* () {
-    yield { type: 'content_chunk' as const, text: response.content }
+    for (const source of response.citations ?? []) yield { type: 'source' as const, source };
+    yield { type: 'text_delta' as const, segmentIndex: 0, text: response.content };
+    for (const source of response.citations ?? []) yield { type: 'citation' as const, segmentIndex: 0, sourceId: source.id };
     yield {
       type: 'done' as const,
       chat_log_id: response.chat_log_id ?? null,
       feedback: response.feedback ?? null,
-      citations: response.citations,
     }
   }
 }
@@ -81,10 +82,10 @@ describe('ChatPanel', () => {
     vi.mocked(apiClient.chatStream).mockImplementationOnce(async function* (_request, signal) {
       oldSignal = signal
       yield { type: 'source', source: oldSource }
-      yield { type: 'text_delta', text: 'Old reply' }
-      yield { type: 'citation', sourceId: 1 }
+      yield { type: 'text_delta', segmentIndex: 0, text: 'Old reply' }
+      yield { type: 'citation', segmentIndex: 0, sourceId: 1 }
       await pending
-      yield { type: 'text_delta', text: 'Late response from old course' }
+      yield { type: 'text_delta', segmentIndex: 0, text: 'Late response from old course' }
       yield { type: 'done', chat_log_id: 71, feedback: null }
     })
     const { rerender } = render(<ChatPanel {...before} />)
@@ -104,7 +105,7 @@ describe('ChatPanel', () => {
     expect(screen.queryByText('Late response from old course')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Old source 00:01:00' })).not.toBeInTheDocument()
     vi.mocked(apiClient.chatStream).mockImplementationOnce(async function* () {
-      yield { type: 'text_delta', text: 'New scope [1]' }
+      yield { type: 'text_delta', segmentIndex: 0, text: 'New scope [1]' }
       yield { type: 'done', chat_log_id: 72, feedback: null }
     })
     await act(async () => { await sendMessage(screen.getByLabelText('chat.placeholder'), 'New course question') })
@@ -199,9 +200,9 @@ describe('ChatPanel', () => {
     const pending = new Promise<void>((resolve) => { finish = resolve })
     vi.mocked(apiClient.chatStream).mockImplementation(async function* () {
       yield { type: 'source', source: citations[0] }
-      yield { type: 'text_delta', text: 'AB' }
-      yield { type: 'citation', sourceId: 1 }
-      yield { type: 'text_delta', text: '続き' }
+      yield { type: 'text_delta', segmentIndex: 0, text: 'AB' }
+      yield { type: 'citation', segmentIndex: 0, sourceId: 1 }
+      yield { type: 'text_delta', segmentIndex: 0, text: '続き' }
       await pending
       yield { type: 'done', chat_log_id: 1, feedback: null }
     })
@@ -228,7 +229,7 @@ describe('ChatPanel', () => {
   it('should handle video navigation', async () => {
     const onVideoPlay = vi.fn()
     ;(apiClient.chatStream as any).mockImplementation(makeStreamMock({
-      content: 'This is grounded text[1].',
+      content: 'This is grounded text.',
       citations: [{ id: 1, video_id: 1, title: 'Test Video', start_time: '00:01:30', end_time: '00:15:30' }],
       chat_log_id: 1,
       feedback: null,
@@ -259,7 +260,7 @@ describe('ChatPanel', () => {
 
   it('should open video in new tab when onVideoPlay is not provided', async () => {
     ;(apiClient.chatStream as any).mockImplementation(makeStreamMock({
-      content: 'This is grounded text[1].',
+      content: 'This is grounded text.',
       citations: [{ id: 1, video_id: 1, title: 'Test Video', start_time: '00:01:30', end_time: '00:15:30' }],
       chat_log_id: 1,
       feedback: null,
@@ -464,7 +465,7 @@ describe('ChatPanel', () => {
           email: 'student@example.com',
         },
         question: 'Test question',
-        answer: 'Test answer',
+        answer: { segments: [{ text: 'Test answer', sourceIds: [] }], sources: [] },
         is_shared_origin: false,
         created_at: '2024-01-15T10:00:00Z',
         feedback: null,
@@ -474,7 +475,7 @@ describe('ChatPanel', () => {
         course: 1,
         asked_by: null,
         question: 'Shared question',
-        answer: 'Shared answer',
+        answer: { segments: [{ text: 'Shared answer', sourceIds: [] }], sources: [] },
         is_shared_origin: true,
         created_at: '2024-01-15T10:01:00Z',
         feedback: null,
@@ -507,7 +508,7 @@ describe('ChatPanel', () => {
         id: 1,
         course: 1,
         question: 'Test question',
-        answer: 'Test answer',
+        answer: { segments: [{ text: 'Test answer', sourceIds: [] }], sources: [] },
         is_shared_origin: false,
         created_at: '2024-01-15T10:00:00Z',
         feedback: null,
@@ -551,7 +552,7 @@ describe('ChatPanel', () => {
         id: 1,
         course: 1,
         question: 'Pending question',
-        answer: 'Pending answer',
+        answer: { segments: [{ text: 'Pending answer', sourceIds: [] }], sources: [] },
         is_shared_origin: false,
         created_at: '2024-01-15T10:00:00Z',
         feedback: null,
@@ -560,7 +561,7 @@ describe('ChatPanel', () => {
         id: 2,
         course: 1,
         question: 'Failed question',
-        answer: 'Failed answer',
+        answer: { segments: [{ text: 'Failed answer', sourceIds: [] }], sources: [] },
         is_shared_origin: false,
         created_at: '2024-01-15T10:01:00Z',
         feedback: null,
@@ -569,7 +570,7 @@ describe('ChatPanel', () => {
         id: 3,
         course: 1,
         question: 'No evaluation question',
-        answer: 'No evaluation answer',
+        answer: { segments: [{ text: 'No evaluation answer', sourceIds: [] }], sources: [] },
         is_shared_origin: false,
         created_at: '2024-01-15T10:02:00Z',
         feedback: null,
@@ -641,7 +642,7 @@ describe('ChatPanel', () => {
         id: 1,
         course: 1,
         question: 'Test question',
-        answer: 'Test answer',
+        answer: { segments: [{ text: 'Test answer', sourceIds: [] }], sources: [] },
         is_shared_origin: false,
         created_at: '2024-01-15T10:00:00Z',
         feedback: null,
@@ -689,7 +690,7 @@ describe('ChatPanel', () => {
     })
     ;(apiClient.chatStream as any).mockImplementation(async function* () {
       await firstChunkGate
-      yield { type: 'content_chunk' as const, text: 'Streamed answer' }
+      yield { type: 'text_delta' as const, segmentIndex: 0, text: 'Streamed answer' }
       yield { type: 'done' as const, chat_log_id: 1, feedback: null }
     })
 
@@ -808,7 +809,7 @@ describe('ChatPanel', () => {
         id: 1,
         course: 1,
         question: 'Test question',
-        answer: 'Test answer',
+        answer: { segments: [{ text: 'Test answer', sourceIds: [] }], sources: [] },
         is_shared_origin: false,
         created_at: '2024-01-15T10:00:00Z',
         feedback: null,
@@ -909,8 +910,7 @@ describe('ChatPanel', () => {
         id: 1,
         course: 1,
         question: 'Test question',
-        answer: 'Test answer[1]',
-        citations: [
+        answer: { segments: [{ text: "Test answer", sourceIds: [1] }], sources: [
           {
             id: 1,
             video_id: 1,
@@ -918,7 +918,8 @@ describe('ChatPanel', () => {
             start_time: '00:02:00',
             end_time: '00:10:00',
           },
-        ],
+        ] },
+
         is_shared_origin: false,
         created_at: '2024-01-15T10:00:00Z',
         feedback: null,
@@ -944,7 +945,7 @@ describe('ChatPanel', () => {
 
   it('should render multiple reference ids as separate buttons', async () => {
     ;(apiClient.chatStream as any).mockImplementation(makeStreamMock({
-      content: 'This is grounded text[1][2].',
+      content: 'This is grounded text.',
       citations: [
         { id: 1, video_id: 1, title: 'Video One', start_time: '00:01:30', end_time: '00:15:30' },
         { id: 2, video_id: 2, title: 'Video Two', start_time: '00:02:30', end_time: '00:08:30' },

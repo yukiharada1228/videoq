@@ -7,7 +7,7 @@ import { applyChatFeedback, getNextChatFeedback } from '@/lib/chatFeedback';
 import { Button } from '@/components/ui/button';
 import { ChatMessagesView } from './ChatMessagesView';
 import { citations, longAnswer, mathAnswer, searching } from '../../../.storybook/fixtures/chat';
-import { conversation, englishAnswer, englishCitations, englishQuestion, longConversation } from '../../../.storybook/fixtures/chatHistory';
+import { conversation, englishAnswerData, englishQuestion, longConversation } from '../../../.storybook/fixtures/chatHistory';
 
 type MessagesExampleProps = Omit<ComponentProps<typeof ChatMessagesView>, 'messagesContainerRef' | 'messagesEndRef'> & {
   height: number;
@@ -98,9 +98,9 @@ export const AwaitingLastResponse: Story = {
   args: {
     messages: [
       { role: 'user', content: '前の回答は空のまま終了しました。' },
-      { role: 'assistant', content: '' },
+      { role: 'assistant', answer: { segments: [{ text: '', sourceIds: [] }], sources: [] } },
       { role: 'user', content: 'もう一度、回転行列について教えてください。' },
-      { role: 'assistant', content: '' },
+      { role: 'assistant', answer: { segments: [{ text: '', sourceIds: [] }], sources: [] } },
     ],
     isLoading: true,
   },
@@ -115,7 +115,7 @@ export const AwaitingLastResponse: Story = {
 
 export const SearchingLastResponse: Story = {
   args: {
-    messages: [...conversation.slice(0, 2), { role: 'user', content: 'さらに詳しい例はありますか？' }, { role: 'assistant', content: '', progress: searching }],
+    messages: [...conversation.slice(0, 2), { role: 'user', content: 'さらに詳しい例はありますか？' }, { role: 'assistant', answer: { segments: [{ text: '', sourceIds: [] }], sources: [] }, progress: searching }],
     isLoading: true,
   },
   play: async ({ canvas, userEvent }) => {
@@ -130,12 +130,12 @@ export const SearchingLastResponse: Story = {
 
 export const StreamingLastResponse: Story = {
   args: {
-    messages: [...conversation.slice(0, 3), { role: 'assistant', content: '回転角を使って行列の各要素を', progress: { ...searching, phase: 'answering' } }],
+    messages: [...conversation.slice(0, 3), { role: 'assistant', answer: { segments: [{ text: '回転角を使って行列の各要素を', sourceIds: [] }], sources: [] }, progress: { ...searching, phase: 'answering' } }],
     isLoading: true,
   },
 };
 export const LongTextAndMath: Story = {
-  args: { messages: [...conversation.slice(0, 1), { role: 'assistant', content: `${longAnswer}\n\n${mathAnswer}`, citations, chatLogId: 101 }], showScrollControls: true },
+  args: { messages: [...conversation.slice(0, 1), { role: 'assistant', answer: { segments: [{ text: `${longAnswer}\n\n${mathAnswer}`, sourceIds: (citations).map(source => source.id) }], sources: citations }, chatLogId: 101 }], showScrollControls: true },
 };
 export const FeedbackUpdating: Story = {
   args: { feedbackUpdatingIds: new Set([102]) },
@@ -183,7 +183,7 @@ export const JapaneseMobile: Story = {
 };
 export const EnglishMobile: Story = {
   args: {
-    messages: [{ role: 'user', content: englishQuestion }, { role: 'assistant', content: englishAnswer, citations: englishCitations, chatLogId: 101 }],
+    messages: [{ role: 'user', content: englishQuestion }, { role: 'assistant', answer: englishAnswerData, chatLogId: 101 }],
     height: 640,
   },
   globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },

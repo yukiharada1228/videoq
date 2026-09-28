@@ -11,11 +11,11 @@ function frontendBaseUrl(env: Bindings): string {
   return (env.FRONTEND_URL?.trim() || "https://videoq.jp").replace(/\/+$/, "");
 }
 
-export function invitationUrl(env: Bindings, token: string): string {
+function invitationUrl(env: Bindings, token: string): string {
   return `${frontendBaseUrl(env)}/course-invitations/${encodeURIComponent(token)}`;
 }
 
-export function invitationMessage(
+function invitationMessage(
   courseName: string,
   inviterName: string,
   url: string,

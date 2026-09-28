@@ -1,4 +1,4 @@
-export const PLAN_CODES = ["free", "basic", "pro"] as const;
+const PLAN_CODES = ["free", "basic", "pro"] as const;
 export type PlanCode = (typeof PLAN_CODES)[number];
 
 export const PAID_LOOKUP_KEYS = [

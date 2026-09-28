@@ -3,13 +3,13 @@ import { Slot } from "@radix-ui/react-slot"
 
 import { cn } from "@/lib/digital-agency/cn"
 
-export const utilityLinkStyle = `!text-solid-gray-800 text-dns-16N-130 underline underline-offset-[calc(3/16*1rem)]
+const utilityLinkStyle = `!text-solid-gray-800 text-dns-16N-130 underline underline-offset-[calc(3/16*1rem)]
   hover:decoration-[calc(3/16*1rem)]
   focus-visible:rounded-4 focus-visible:outline focus-visible:outline-4 focus-visible:outline-black focus-visible:outline-offset-[calc(2/16*1rem)] focus-visible:bg-yellow-300 focus-visible:text-blue-1000 focus-visible:ring-[calc(2/16*1rem)] focus-visible:ring-yellow-300`
 
-export type UtilityLinkExternalLinkIconProps = React.ComponentProps<"svg">
+type UtilityLinkExternalLinkIconProps = React.ComponentProps<"svg">
 
-export const UtilityLinkExternalLinkIcon = ({
+const UtilityLinkExternalLinkIcon = ({
   className,
   ...rest
 }: UtilityLinkExternalLinkIconProps) => {
@@ -34,7 +34,7 @@ export const UtilityLinkExternalLinkIcon = ({
 }
 UtilityLinkExternalLinkIcon.displayName = "UtilityLinkExternalLinkIcon"
 
-export type UtilityLinkProps = React.ComponentPropsWithoutRef<"a"> & {
+type UtilityLinkProps = React.ComponentPropsWithoutRef<"a"> & {
   asChild?: boolean
   icon?: UtilityLinkExternalLinkIconProps
 }

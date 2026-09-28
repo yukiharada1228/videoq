@@ -14,7 +14,7 @@ const TOKEN_SEGMENT_PATTERNS: readonly RegExp[] = [
   /(\/verify-email\/)[^/]+/g,
 ];
 
-export const REDACTED_SEGMENT = "[redacted]";
+const REDACTED_SEGMENT = "[redacted]";
 
 /** パス内のトークンセグメントを伏せた、ログに残してよい形へ変換する。 */
 export function redactLogPath(pathname: string): string {

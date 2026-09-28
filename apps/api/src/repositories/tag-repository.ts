@@ -1,5 +1,5 @@
 import { and, asc, count, eq, sql } from "drizzle-orm";
-import { TAG_COLORS as TRPC_TAG_COLORS } from "@videoq/trpc";
+import { TAG_COLORS } from "@videoq/trpc";
 import { type Db, withDb } from "../db/pool";
 import { tags, videos, videoTags } from "../db/schema";
 import { toUtcIso } from "../shared/datetime";
@@ -9,9 +9,6 @@ import {
   type VideoListItem,
 } from "./video-repository";
 import type { Bindings } from "../types/bindings";
-
-// TagPolicy.ALLOWED_COLORS（ChipLabel palette）。hex は不可。
-export const TAG_COLORS = TRPC_TAG_COLORS;
 
 export const INVALID_COLOR_MESSAGE = `Invalid color. Use a ChipLabel palette name (${TAG_COLORS.join(", ")})`;
 export const EMPTY_NAME_MESSAGE = "Tag name cannot be empty";
@@ -147,7 +144,6 @@ export async function getTagDetail(
 /**
  * 所有者条件付きのUPDATE RETURNINGで、更新と応答取得を1文で行う。
  * 更新APIはタグ情報だけを返すため、関連動画の取得とURL署名は不要。
- * name×user 一意違反は現行同様に未処理（pg 23505 → 500）。
  */
 export async function updateTag(
   env: Bindings,
@@ -184,7 +180,6 @@ export async function updateTag(
 
 /**
  * タグ作成。名前正規化・色検証は呼び出し側で済ませる。
- * user×name の一意違反は未処理（PostgreSQL 23505 → 500）。
  */
 export async function createTag(
   env: Bindings,

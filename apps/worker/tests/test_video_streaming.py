@@ -13,7 +13,7 @@ from worker_python.tasks import reindexing
 from worker_python.video_sql import stream_completed_videos_with_transcript
 
 
-@pytest.mark.parametrize("failure", ["none", "schema", "embedding", "read"])
+@pytest.mark.parametrize("failure", ["none", "schema", "read"])
 def test_stream_is_lazy_and_closes_before_releasing_the_lock(monkeypatch, failure):
     events = []
     conn = MagicMock()
@@ -46,17 +46,13 @@ def test_stream_is_lazy_and_closes_before_releasing_the_lock(monkeypatch, failur
 
     monkeypatch.setattr(reindexing, "full_vector_write_lock", lock)
     monkeypatch.setattr(reindexing.vector_index, "check_embedding_storage", lambda: preflight("schema"))
-    monkeypatch.setattr(reindexing, "embed_texts", lambda _: preflight("embedding"))
-    delete = MagicMock()
-    monkeypatch.setattr(reindexing.vector_index, "delete_all_vectors", delete)
     monkeypatch.setattr(
         reindexing.vector_index, "index_video_transcript",
         lambda video, **_: events.append(("index", video.id)),
     )
 
     if failure == "none":
-        result = reindexing.reindex_all_videos_embeddings()
-        assert result["total_videos"] == 3
+        reindexing.reindex_all_videos_embeddings()
         assert events[1:-2] == [
             ("read", 1), ("index", 1), ("read", 2), ("index", 2),
             ("read", 3), ("index", 3),
@@ -66,7 +62,6 @@ def test_stream_is_lazy_and_closes_before_releasing_the_lock(monkeypatch, failur
             reindexing.reindex_all_videos_embeddings()
         assert events[1] == ("read", 1)
         if failure != "read":
-            delete.assert_not_called()
             assert events[1:-2] == [("read", 1)]
 
     assert events[0] == "lock"

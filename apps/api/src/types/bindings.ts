@@ -30,7 +30,7 @@ export type Bindings = Omit<CloudflareBindings, keyof SecretBindings> &
   };
 
 // ミドルウェアが c.set/c.get で受け渡す値
-export type Variables = {
+type Variables = {
   requestId: string;
   userId?: string;
   // 認証経路。share = 共有スラッグ経由の匿名アクセス。

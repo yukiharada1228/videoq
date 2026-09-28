@@ -39,7 +39,6 @@ describe('useVideoUpload', () => {
   it('should initialize with default values', () => {
     const { result } = renderHook(() => useVideoUpload())
 
-    expect(result.current.file).toBeNull()
     expect(result.current.title).toBe('')
     expect(result.current.description).toBe('')
     expect(result.current.isUploading).toBe(false)
@@ -99,7 +98,6 @@ describe('useVideoUpload', () => {
       } as unknown as React.ChangeEvent<HTMLInputElement>)
     })
 
-    expect(result.current.file).toBe(file)
     expect(result.current.title).toBe('test-video')
   })
 
@@ -113,7 +111,6 @@ describe('useVideoUpload', () => {
       } as unknown as React.ChangeEvent<HTMLInputElement>)
     })
 
-    expect(result.current.file).toBeNull()
     expect(result.current.error).toBe('videos.upload.validation.invalidFileType')
   })
 
@@ -128,7 +125,6 @@ describe('useVideoUpload', () => {
       } as unknown as React.ChangeEvent<HTMLInputElement>)
     })
 
-    expect(result.current.file).toBeNull()
     expect(result.current.error).toBe('videos.upload.validation.fileTooLarge')
   })
 
@@ -267,7 +263,6 @@ describe('useVideoUpload', () => {
       result.current.reset()
     })
 
-    expect(result.current.file).toBeNull()
     expect(result.current.title).toBe('')
     expect(result.current.description).toBe('')
     expect(result.current.error).toBeNull()

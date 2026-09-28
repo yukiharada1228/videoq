@@ -6,7 +6,7 @@ import {
   setRateLimitBackendForTests,
   THROTTLE_RATES,
 } from "../src/lib/rate-limit";
-import type { Bindings } from "../types/bindings";
+import type { Bindings } from "../src/types/bindings";
 
 const ENV = {
   ENVIRONMENT: "development",

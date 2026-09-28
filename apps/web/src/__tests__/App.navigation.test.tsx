@@ -94,7 +94,7 @@ it('keeps the same layout and intercepts navigation while the home module loads'
   expect(fireEvent.click(homeLink())).toBe(false);
   await waitFor(() => expect(homeModule.requested).toBe(true));
   expect(window.location.pathname).toBe('/');
-  expect(within(screen.getByRole('main')).getByText('Loading')).toBeInTheDocument();
+  expect(within(screen.getByRole('main')).getByText(i18n.t('common.messages.loading'))).toBeInTheDocument();
   expect(primaryNav()).toBe(nav);
   expect(homeLink()).toHaveAttribute('aria-current', 'page');
   const menuButton = within(header).getByRole('button', { name: i18n.t('navigation.menu') });
@@ -119,7 +119,7 @@ it.each(['account', 'videos', 'courses'] as const)(
     await waitFor(() => expect(handler).toHaveBeenCalled());
     const nav = primaryNav();
     const footer = screen.getByRole('contentinfo');
-    expect(within(screen.getByRole('main')).getByText('Loading')).toBeInTheDocument();
+    expect(within(screen.getByRole('main')).getByText(i18n.t('common.messages.loading'))).toBeInTheDocument();
     const trigger = within(nav.closest('header')!).getByRole('button', { name: i18n.t('navigation.menu') });
     fireEvent.click(trigger);
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
@@ -248,7 +248,7 @@ it.each([
   const main = screen.getByRole('main');
   expect(within(nav).getByRole('link', { name: i18n.t(activeLabel) })).toHaveAttribute('aria-current', 'page');
   expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
-  expect(within(main).getByText('Loading')).toBeInTheDocument();
+  expect(within(main).getByText(i18n.t('common.messages.loading'))).toBeInTheDocument();
   fireEvent.click(homeLink());
   await within(main).findByRole('heading', { name: i18n.t('home.welcome.greeting', { username: profile.username }), level: 1 });
   expect(primaryNav()).toBe(nav);
@@ -262,7 +262,7 @@ it('keeps the admin layout visible during the authentication check', async () =>
   await waitFor(() => expect(getAccount).toHaveBeenCalled());
   const nav = primaryNav();
   expect(screen.getByRole('contentinfo')).toBeInTheDocument();
-  expect(within(screen.getByRole('main')).getByText('Loading')).toBeInTheDocument();
+  expect(within(screen.getByRole('main')).getByText(i18n.t('common.messages.loading'))).toBeInTheDocument();
   fireEvent.click(homeLink());
   await waitFor(() => expect(window.location.pathname).toBe('/'));
   expect(primaryNav()).toBe(nav);

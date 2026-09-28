@@ -19,10 +19,10 @@ def _connection(monkeypatch, *rows):
     conn.execute.side_effect = [_cursor(row) for row in rows]
 
     @contextmanager
-    def transaction():
+    def connection():
         yield conn
 
-    monkeypatch.setattr(job_execution, "db_transaction", transaction)
+    monkeypatch.setattr(job_execution, "db_connection", connection)
     monkeypatch.setattr(job_execution.uuid, "uuid4", lambda: "lease-token")
     return conn
 

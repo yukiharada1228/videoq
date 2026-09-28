@@ -54,7 +54,7 @@ function parseMetadataColumn(rows: Array<Record<string, unknown>>): void {
 
 /**
  * pg は json 列を既定で自動パースするが、Hyperdrive 経由の Workers 環境では
- * 文字列のまま返ることがある（chat-repository.ts の mapCitations と同様の既知事象）。
+ * 文字列のまま返ることがある。
  * ライブラリの rowToDocument は metadata オブジェクトへ直接プロパティ代入するため、
  * 文字列のままだと TypeError で落ちる。ここでクエリ結果を正規化してから渡す。
  */

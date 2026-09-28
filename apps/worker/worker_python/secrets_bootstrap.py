@@ -12,6 +12,8 @@ import logging
 import os
 from contextlib import closing
 
+from worker_python.env import credential_pair
+
 logger = logging.getLogger(__name__)
 
 _LOADED = False
@@ -20,8 +22,6 @@ _LOADED = False
 _APP_ENV_MAP = {
     "OPENAI_API_KEY": "OPENAI_API_KEY",
     "USER_SECRET_ENCRYPTION_KEY": "USER_SECRET_ENCRYPTION_KEY",
-    "R2_ACCESS_KEY_ID": "R2_ACCESS_KEY_ID",
-    "R2_SECRET_ACCESS_KEY": "R2_SECRET_ACCESS_KEY",
     "R2_BUCKET_NAME": "R2_BUCKET_NAME",
     "R2_S3_ENDPOINT": "R2_S3_ENDPOINT",
     "R2_S3_REGION": "R2_S3_REGION",
@@ -29,8 +29,6 @@ _APP_ENV_MAP = {
     "AWS_STORAGE_BUCKET_NAME": "R2_BUCKET_NAME",
     "AWS_S3_ENDPOINT_URL": "R2_S3_ENDPOINT",
     "AWS_S3_REGION_NAME": "R2_S3_REGION",
-    "AWS_ACCESS_KEY_ID": "R2_ACCESS_KEY_ID",
-    "AWS_SECRET_ACCESS_KEY": "R2_SECRET_ACCESS_KEY",
 }
 
 
@@ -48,7 +46,7 @@ def ensure_secrets_loaded() -> None:
 
     db_param = (
         ""
-        if os.environ.get("DATABASE_URL")
+        if os.environ.get("DATABASE_URL", "").strip()
         else _param_ref("DB_PARAM_NAME", "DB_SECRET_ARN")
     )
     app_param = _param_ref("APP_PARAM_NAME", "APP_SECRET_ARN")
@@ -56,37 +54,42 @@ def ensure_secrets_loaded() -> None:
         _LOADED = True
         return
 
-    try:
-        import boto3
-    except ImportError:
-        logger.warning("boto3 unavailable; skipping secrets bootstrap")
-        _LOADED = True
-        return
+    import boto3
 
+    updates: dict[str, str] = {}
     with closing(boto3.client("ssm")) as client:
         if db_param:
             payload = _get_json_parameter(client, db_param)
-            url = (payload.get("DATABASE_URL") or "").strip()
-            if url:
-                os.environ["DATABASE_URL"] = url
-                logger.info("Loaded DATABASE_URL from DB_PARAM_NAME")
+            url = payload.get("DATABASE_URL")
+            if not isinstance(url, str) or not url.strip():
+                raise ValueError("DB_PARAM_NAME must contain a non-empty DATABASE_URL string")
+            updates["DATABASE_URL"] = url.strip()
 
         if app_param:
             payload = _get_json_parameter(client, app_param)
+            pair = (
+                credential_pair(os.environ, "R2")
+                or credential_pair(payload, "R2")
+                or credential_pair(payload, "AWS")
+            )
+            if pair:
+                updates["R2_ACCESS_KEY_ID"], updates["R2_SECRET_ACCESS_KEY"] = pair
             # Prefer canonical R2_* secret keys over legacy AWS_* aliases when both exist.
             for src, dest in _APP_ENV_MAP.items():
-                if os.environ.get(dest):
+                if os.environ.get(dest, "").strip() or dest in updates:
                     continue
                 value = payload.get(src)
-                if isinstance(value, str) and value.strip():
-                    os.environ[dest] = value.strip()
-            # Keep legacy env names some callers still read.
-            _mirror_if_missing("R2_BUCKET_NAME", "AWS_STORAGE_BUCKET_NAME")
-            _mirror_if_missing("R2_S3_ENDPOINT", "AWS_S3_ENDPOINT_URL")
-            _mirror_if_missing("R2_S3_REGION", "AWS_S3_REGION_NAME")
-            logger.info("Loaded app secrets from APP_PARAM_NAME")
+                if value is None:
+                    continue
+                if not isinstance(value, str):
+                    raise ValueError(f"{src} must be a string")
+                if value.strip():
+                    updates[dest] = value.strip()
 
+    # A failed load must leave the environment unchanged for the next invocation.
+    os.environ.update(updates)
     _LOADED = True
+    logger.info("Loaded configured SSM parameters")
 
 
 def _param_ref(*env_keys: str) -> str:
@@ -97,18 +100,12 @@ def _param_ref(*env_keys: str) -> str:
     return ""
 
 
-def _mirror_if_missing(src: str, dest: str) -> None:
-    if os.environ.get(dest):
-        return
-    value = os.environ.get(src, "").strip()
-    if value:
-        os.environ[dest] = value
-
-
 def _get_json_parameter(client: object, name: str) -> dict:
     response = client.get_parameter(Name=name, WithDecryption=True)  # type: ignore[attr-defined]
-    raw = (response.get("Parameter") or {}).get("Value") or ""
-    if not raw:
-        return {}
+    raw = (response.get("Parameter") or {}).get("Value")
+    if not isinstance(raw, str) or not raw.strip():
+        raise ValueError("SSM parameter must contain a JSON object")
     data = json.loads(raw)
-    return data if isinstance(data, dict) else {}
+    if not isinstance(data, dict):
+        raise ValueError("SSM parameter must contain a JSON object")
+    return data

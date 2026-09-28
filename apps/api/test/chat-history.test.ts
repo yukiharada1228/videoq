@@ -1,8 +1,9 @@
+import { plainChatAnswer } from "@videoq/trpc/chat";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { chatRoutes } from "../src/features/chat/routes";
 import { csvRow, streamChatHistoryCsv } from "../src/shared/csv";
 import type { ChatHistoryExportRow } from "../src/repositories/chat-repository";
-import { signAccessToken } from "./helpers/auth";
+import { TEST_USER_ID, testAuthHeaders } from "./helpers/auth";
 import { requestTrpc, trpcData, trpcError } from "./helpers/trpc";
 
 /**
@@ -35,10 +36,9 @@ vi.mock("pg", () => {
   return { default: { Client: FakeClient } };
 });
 
-const SECRET = "test-jwt-secret-history";
 const ENV = {
   ENVIRONMENT: "development",
-  AUTH_JWT_SECRET: SECRET,
+  BETTER_AUTH_SECRET: "test-history-auth-secret-01234567890123456789",
   HYPERDRIVE: { connectionString: "postgres://fake/db" },
 } as unknown as Record<string, unknown>;
 
@@ -49,12 +49,9 @@ const exportRows = [
     username: "student",
     email: "student@example.com",
     question: "pgvector とは？",
-    answer: 'これは "引用" と, カンマ\n改行を含む回答',
+    answer: { segments: [{ text: 'これは "引用" と, カンマ\n改行を含む回答', sourceIds: [1] }], sources: [{ id: 1, video_id: 60, title: "動画 A", start_time: "00:00:10", end_time: "00:00:20" }] },
     is_shared_origin: false,
     feedback: "good",
-    citations: JSON.stringify([
-      { video_id: 60, title: "動画 A", start_time: "00:00:10", end_time: "00:00:20" },
-    ]),
     id: 1,
   },
   {
@@ -63,10 +60,9 @@ const exportRows = [
     username: "owner",
     email: "owner@example.com",
     question: "second",
-    answer: "answer",
+    answer: plainChatAnswer("answer"),
     is_shared_origin: true,
     feedback: null,
-    citations: "[]",
     id: 2,
   },
 ];
@@ -90,14 +86,8 @@ beforeEach(() => {
   rowsFor = defaultRows;
 });
 
-async function accessToken(userId = "00000000-0000-4000-8000-000000000005") {
-  return signAccessToken(SECRET, userId);
-}
-
-const request = async (path: string, method: string, token?: string) => {
-  const headers = token
-    ? { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000005" }
-    : {};
+const request = async (path: string, method: string, userId?: string) => {
+  const headers = userId ? testAuthHeaders(userId) : {};
   if (path.endsWith(".csv")) {
     return chatRoutes.request(path, { method, headers }, ENV);
   }
@@ -114,11 +104,28 @@ const request = async (path: string, method: string, token?: string) => {
 };
 
 describe("GET /courses/:id/history.csv", () => {
+  it.each(["1suffix", "1.5", "-1", "0", "9007199254740993", "1e100", "1e2", "0x10"])(
+    "rejects invalid course ID %s before querying course data",
+    async (id) => {
+      const response = await request(`/courses/${id}/history.csv`, "GET", TEST_USER_ID);
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ error: { code: "VALIDATION_ERROR" } });
+      expect(calls.filter(call => call.sql.includes("video_courses") || call.sql.includes("chat_logs"))).toEqual([]);
+    },
+  );
+
+  it.each(["0003", "9007199254740991"])("accepts the decimal course ID %s without rounding", async id => {
+    const response = await request(`/courses/${id}/history.csv`, "GET", TEST_USER_ID);
+    expect(response.status).toBe(200);
+    expect(calls.find(call => call.sql.includes("video_courses"))?.args).toContain(Number(id));
+    await response.body?.cancel();
+  });
+
   it("CRLF・最小引用・compact JSON の CSV を返す", async () => {
     const res = await request(
       "/courses/3/history.csv",
       "GET",
-      await accessToken(),
+      TEST_USER_ID,
     );
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("text/csv; charset=utf-8");
@@ -147,10 +154,9 @@ describe("GET /courses/:id/history.csv", () => {
       username: "student",
       email: "student@example.com",
       question: `question-${id}`,
-      answer: `answer-${id}`,
+      answer: plainChatAnswer(`answer-${id}`),
       is_shared_origin: false,
       feedback: null,
-      citations: "[]",
       id,
     });
     rowsFor = (sql) => {
@@ -167,7 +173,7 @@ describe("GET /courses/:id/history.csv", () => {
     const response = await request(
       "/courses/3/history.csv",
       "GET",
-      await accessToken(),
+      TEST_USER_ID,
     );
     const csv = await response.text();
 
@@ -190,7 +196,7 @@ describe("GET /courses/:id/history.csv", () => {
     const res = await request(
       "/courses/3/history.csv",
       "GET",
-      await accessToken(),
+      TEST_USER_ID,
     );
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({
@@ -218,8 +224,7 @@ describe("GET /courses/:id/history", () => {
             username: "student",
             email: "student@example.com",
             question: "authenticated question",
-            answer: "answer",
-            citations: "[]",
+            answer: plainChatAnswer("answer"),
             is_shared_origin: false,
             feedback: null,
             created_at: "2026-05-01T12:34:56+00:00",
@@ -231,8 +236,7 @@ describe("GET /courses/:id/history", () => {
             username: "owner",
             email: "owner@example.com",
             question: "shared question",
-            answer: "answer",
-            citations: "[]",
+            answer: plainChatAnswer("answer"),
             is_shared_origin: true,
             feedback: null,
             created_at: "2026-05-01T12:35:56+00:00",
@@ -242,7 +246,7 @@ describe("GET /courses/:id/history", () => {
       return [];
     };
 
-    const res = await request("/courses/3/history?limit=10", "GET", await accessToken());
+    const res = await request("/courses/3/history?limit=10", "GET", TEST_USER_ID);
     expect(res.status).toBe(200);
     const body = await trpcData<{ data: Array<Record<string, unknown>> }>(res);
     expect(body.data[0].asked_by).toEqual({
@@ -329,7 +333,7 @@ describe("CSV の細部", () => {
 
 describe("chat.resetHistory", () => {
   it("chat log の連鎖削除で評価も削除して success を返す", async () => {
-    const res = await request("/courses/3/history", "DELETE", await accessToken());
+    const res = await request("/courses/3/history", "DELETE", TEST_USER_ID);
     expect(res.status).toBe(200);
     expect(await trpcData(res)).toEqual({ success: true });
 
@@ -344,7 +348,7 @@ describe("chat.resetHistory", () => {
 
   it("講座が無ければ ROLLBACK して 404", async () => {
     rowsFor = () => [];
-    const res = await request("/courses/3/history", "DELETE", await accessToken());
+    const res = await request("/courses/3/history", "DELETE", TEST_USER_ID);
     expect(res.status).toBe(404);
     expect(await trpcError(res)).toEqual({
       code: "NOT_FOUND",

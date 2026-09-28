@@ -1,14 +1,9 @@
 import {
-  clearShareSlug,
   courseOwnedBy,
   createCourse,
-  deleteCourse,
   getCourseDetail,
   getCourseDetailByShareSlug,
-  listCoursesPage,
-  reorderCourses,
   setShareSlug,
-  updateCourse,
 } from "../../repositories/course-repository";
 import {
   normalizeShareSlug,
@@ -17,14 +12,13 @@ import {
 import type { Bindings } from "../../types/bindings";
 import type { CreationIdempotency } from "../../repositories/mcp-idempotency-repository";
 
-export async function listCourses(
-  env: Bindings,
-  userId: string,
-  limit: number,
-  offset: number,
-) {
-  return listCoursesPage(env, userId, limit, offset);
-}
+export {
+  listCoursesPage as listCourses,
+  updateCourse as updateUserCourse,
+  deleteCourse as removeCourse,
+  reorderCourses as reorderUserCourses,
+  clearShareSlug as clearShareLink,
+} from "../../repositories/course-repository";
 
 export async function getCourse(env: Bindings, courseId: number, userId: string) {
   return getCourseDetail(env, courseId, userId, { includeTags: false });
@@ -69,27 +63,6 @@ export async function createUserCourseIdempotent(
   } as const;
 }
 
-export async function updateUserCourse(
-  env: Bindings,
-  courseId: number,
-  userId: string,
-  data: { name?: string; description?: string },
-) {
-  return updateCourse(env, courseId, userId, data);
-}
-
-export async function removeCourse(env: Bindings, courseId: number, userId: string) {
-  return deleteCourse(env, courseId, userId);
-}
-
-export async function reorderUserCourses(
-  env: Bindings,
-  userId: string,
-  courseIds: number[],
-) {
-  return reorderCourses(env, userId, courseIds);
-}
-
 export async function saveShareLink(
   env: Bindings,
   courseId: number,
@@ -107,12 +80,4 @@ export async function saveShareLink(
     return { conflict: SLUG_ALREADY_EXISTS_MESSAGE } as const;
   }
   return { share_slug: norm.slug } as const;
-}
-
-export async function clearShareLink(
-  env: Bindings,
-  courseId: number,
-  userId: string,
-) {
-  return clearShareSlug(env, courseId, userId);
 }

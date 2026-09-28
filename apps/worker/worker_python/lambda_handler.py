@@ -16,6 +16,7 @@ import base64
 import json
 import logging
 
+from worker_python.contracts import JOB_TRANSCRIBE_VIDEO, validate_job_payload
 from worker_python.job_execution import (
     claim_job_execution,
     complete_job_execution,
@@ -49,7 +50,9 @@ def _execute_task(raw_body: str) -> None:
     except (json.JSONDecodeError, ValueError):
         payload = json.loads(base64.b64decode(raw_body).decode("utf-8"))
 
-    job_type = payload["type"]
+    if not isinstance(payload, dict):
+        raise ValueError("Job message must be an object")
+    job_type = payload.get("type")
     job_id = payload.get("job_id")
     body = payload.get("payload", {})
     if not isinstance(job_type, str) or not job_type or len(job_type) > 64:
@@ -63,6 +66,8 @@ def _execute_task(raw_body: str) -> None:
     if job_type == "build_plog":
         logger.info("Discarding retired job: type=%s id=%s", job_type, job_id)
         return
+
+    validate_job_payload(job_type, body)
 
     logger.info(
         "Dispatching task: type=%s id=%s payload=%s",
@@ -78,7 +83,10 @@ def _execute_task(raw_body: str) -> None:
 
     try:
         task_fn = get_task(job_type)
-        _dispatch(task_fn, job_type, body, job_id)
+        if job_type == JOB_TRANSCRIBE_VIDEO:
+            task_fn(**body, job_id=job_id)
+        else:
+            task_fn(**body)
         complete_job_execution(job_id, lease_token)
     except Exception as exc:
         try:
@@ -86,23 +94,3 @@ def _execute_task(raw_body: str) -> None:
         except Exception:
             logger.exception("Failed to release execution lease: jobId=%s", job_id)
         raise
-
-
-def _dispatch(task_fn, job_type: str, body: dict, job_id: str) -> None:
-    """Map payload dict → positional args expected by existing task callables."""
-    if job_type == "reindex_all_videos_embeddings":
-        task_fn()
-        return
-    if job_type == "evaluate_chat_log":
-        task_fn(int(body["chat_log_id"]))
-        return
-    if job_type == "delete_account_data":
-        # users.id is a UUID text PK (migration 0006). int() would fail and
-        # leave the admin-locked (is_active=false) row undeleted.
-        task_fn(str(body["user_id"]))
-        return
-    if job_type in {"transcribe_video", "index_video_transcript"}:
-        task_fn(int(body["video_id"]), job_id=job_id)
-        return
-    # video_id jobs
-    task_fn(int(body["video_id"]))

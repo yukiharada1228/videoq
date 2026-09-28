@@ -3,7 +3,7 @@ import type { inputSchemas } from "./inputs";
 import * as models from "./model-schemas";
 import { videoListItemSchema, videoSchema } from "./schema";
 
-export const successSchema = z.object({ success: z.literal(true) });
+const successSchema = z.object({ success: z.literal(true) });
 const jobSchema = z.object({ job_id: z.string() });
 const urlSchema = z.object({ url: z.string() });
 const messageSchema = z.object({ message: z.string() });
@@ -12,6 +12,15 @@ const addedItemsSchema = messageSchema.extend({ added_count: z.number(), skipped
 /** Runtime output validation and handler output types share this definition. */
 export const outputSchemas = {
   "account.me": models.userSchema,
+  "account.integrationApiKeys": z.array(z.object({
+    id: z.string(), config_id: z.string(), name: z.string(),
+    access_level: z.enum(["all", "read_only"]), prefix: z.string(),
+    last_used_at: z.string().nullable(), created_at: z.string(),
+  })),
+  "account.connectedApps": z.array(z.object({
+    id: z.string(), client_id: z.string(), client_name: z.string(),
+    scope: z.string(), issued_at: z.string().nullable(),
+  })),
   "account.searchApiKeyStatus": z.object({ has_api_key: z.boolean() }),
   "account.saveSearchApiKey": successSchema,
   "account.deleteSearchApiKey": successSchema,
@@ -44,7 +53,6 @@ export const outputSchemas = {
   "videos.confirmUpload": videoSchema,
   "videos.createYoutube": videoSchema,
   "videos.update": videoSchema,
-  "videos.replace": videoSchema,
   "videos.delete": successSchema,
 
   "courses.list": models.pageSchema(models.courseListItemSchema),
@@ -52,7 +60,6 @@ export const outputSchemas = {
   "courses.shared": models.courseSchema,
   "courses.create": models.courseListItemSchema,
   "courses.update": models.courseSchema,
-  "courses.replace": models.courseSchema,
   "courses.delete": successSchema,
   "courses.reorder": z.object({ courseIds: z.array(z.number()) }),
   "courses.createShare": messageSchema.extend({ share_slug: z.string() }),
@@ -79,7 +86,6 @@ export const outputSchemas = {
   "tags.get": models.tagDetailSchema,
   "tags.create": models.tagSchema,
   "tags.update": models.tagSchema,
-  "tags.replace": models.tagSchema,
   "tags.delete": successSchema,
 
 } satisfies Record<keyof typeof inputSchemas, z.ZodType>;

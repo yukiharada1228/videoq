@@ -43,7 +43,7 @@ export default function VerifyEmailPage() {
     message = t('auth.verifyEmail.loading');
   } else if (verifyQuery.isSuccess) {
     state = 'success';
-    message = verifyQuery.data?.detail ?? t('auth.verifyEmail.success');
+    message = t('auth.verifyEmail.success');
   } else {
     state = 'error';
     message = verifyQuery.error instanceof Error ? verifyQuery.error.message : t('auth.verifyEmail.error');

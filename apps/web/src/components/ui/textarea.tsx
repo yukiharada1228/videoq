@@ -2,7 +2,7 @@ import * as React from "react"
 
 import { cn } from "@/lib/digital-agency/cn"
 
-export type TextareaProps = Omit<
+type TextareaProps = Omit<
   React.ComponentProps<"textarea">,
   "placeholder"
 > & {

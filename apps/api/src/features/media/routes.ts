@@ -23,9 +23,9 @@ mediaRoutes.get("/*", async (c) => {
   if (result.kind === "forbidden") {
     return c.json(toErrorBody("FORBIDDEN", result.message), 403);
   }
-  const shareSlug = result.kind === "ok"
-    ? undefined
-    : c.req.query("share_slug") || c.req.query("share_token");
+  // An explicit share link selects the course scope, including for signed-in
+  // visitors. Invalid/rejected credentials above still cannot fall back to it.
+  const shareSlug = c.req.query("share_slug") || c.req.query("share_token");
   if (result.kind !== "ok" && !shareSlug) {
     return c.json(
       toErrorBody("UNAUTHORIZED", "Authentication credentials were not provided."),

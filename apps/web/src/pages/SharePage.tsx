@@ -35,19 +35,21 @@ interface VideoItemProps {
 
 function VideoItem({ video, isSelected, onSelect }: VideoItemProps) {
   return (
-    <div
+    <button
+      type="button"
+      aria-pressed={isSelected}
       onClick={() => onSelect(video.id)}
-      className={`flex items-center gap-2 p-3 rounded-8 cursor-pointer group transition-colors ${
+      className={`flex w-full items-center gap-2 p-3 text-left rounded-8 transition-colors focus-visible:outline-4 focus-visible:outline-black ${
         isSelected ? 'border-l-4 border-key-900 bg-key-50' : 'hover:bg-solid-gray-50'
       }`}
     >
-      <div className="flex-1 min-w-0">
-        <p className={`text-std-16N-170 truncate leading-tight ${isSelected ? 'font-bold text-key-900' : 'font-medium text-solid-gray-800'}`}>
+      <span className="flex-1 min-w-0">
+        <span className={`block text-std-16N-170 truncate leading-tight ${isSelected ? 'font-bold text-key-900' : 'font-medium text-solid-gray-800'}`}>
           {video.title}
-        </p>
+        </span>
         <StatusBadge status={video.status} size="xs" className="mt-1 ml-0" />
-      </div>
-    </div>
+      </span>
+    </button>
   );
 }
 
@@ -191,9 +193,9 @@ export default function SharePage() {
           <section className={`lg:col-span-2 flex flex-col gap-3 lg:min-h-0 ${mobileTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
             <div className="flex flex-col overflow-hidden border border-solid-gray-420 bg-white lg:flex-1">
               <div className="p-4 border-b border-solid-gray-200 shrink-0 flex items-center justify-between gap-3 min-w-0">
-                <h1 className="font-bold text-solid-gray-800 text-std-18B-160 truncate flex-1 min-w-0">
+                <h2 className="font-bold text-solid-gray-800 text-std-18B-160 truncate flex-1 min-w-0">
                   {selectedVideo ? selectedVideo.title : t('videos.shared.playerPlaceholder')}
-                </h1>
+                </h2>
               </div>
               <div className="aspect-video lg:aspect-auto lg:flex-1 bg-solid-gray-800 flex items-center justify-center lg:min-h-0">
                 {selectedVideo ? (

@@ -1,3 +1,4 @@
+import { plainChatAnswer } from '@videoq/trpc/chat';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Pause, Play } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -81,7 +82,7 @@ export function LandingTryDemo() {
   const [playing, setPlaying] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>(() => [
-    { role: 'assistant', content: t('landing.demo.greeting') },
+    { role: 'assistant', answer: plainChatAnswer(t('landing.demo.greeting')) },
   ]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -156,8 +157,7 @@ export function LandingTryDemo() {
       { role: 'user', content: question },
       {
         role: 'assistant',
-        content: matched ? `${t(`landing.demo.answers.${matched}`)}[1]` : t('landing.demo.fallback'),
-        citations,
+        answer: { segments: [{ text: matched ? t(`landing.demo.answers.${matched}`) : t('landing.demo.fallback'), sourceIds: scene ? [1] : [] }], sources: citations ?? [] },
       },
     ]);
     setInput('');

@@ -71,35 +71,15 @@ export function formatDate(
  * Convert video time string (HH:MM:SS,mmm / MM:SS / SS) to seconds
  */
 export function timeStringToSeconds(timeStr: string): number {
-  if (!timeStr) {
+  const parts = timeStr.split(':').map(part => part.trim());
+  if (parts.length > 3 || parts.some((part, index) => !(
+    index === parts.length - 1 ? /^\d+(?:[,.]\d+)?$/ : /^\d+$/
+  ).test(part))) {
     return 0;
   }
 
-  const timeWithoutMs = timeStr.split(/[,.]/)[0];
-  const parts = timeWithoutMs.split(':').map((part) => part.trim());
-
-  if (parts.some((part) => part === '')) {
-    return 0;
-  }
-
-  const numbers = parts.map((part) => Number.parseInt(part, 10));
-  if (numbers.some(Number.isNaN)) {
-    return 0;
-  }
-
-  if (numbers.length === 3) {
-    const [hours, minutes, seconds] = numbers;
-    return hours * 3600 + minutes * 60 + seconds;
-  }
-
-  if (numbers.length === 2) {
-    const [minutes, seconds] = numbers;
-    return minutes * 60 + seconds;
-  }
-
-  if (numbers.length === 1) {
-    return numbers[0];
-  }
-
-  return 0;
+  const numbers = parts.map(part => Number(part.replace(',', '.')));
+  if (numbers.slice(1).some(part => part >= 60)) return 0;
+  const seconds = numbers.reduce((total, part) => total * 60 + part, 0);
+  return Number.isSafeInteger(Math.trunc(seconds)) ? seconds : 0;
 }

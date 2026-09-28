@@ -18,7 +18,8 @@
       "send": "送信",
       "disable": "無効化",
       "confirm": "確認",
-      "close": "閉じる"
+      "close": "閉じる",
+      "dismissNotification": "通知を閉じる"
     },
     "labels": {
       "required": "必須",
@@ -32,6 +33,7 @@
       "error": "エラー"
     },
     "messages": {
+      "loading": "読み込み中",
       "pageLoadFailed": "ページを読み込めませんでした。もう一度開くか、ナビゲーションから別のページへ移動してください。",
       "noDescription": "説明なし",
       "videoNotFound": "動画が見つかりません",
@@ -44,6 +46,7 @@
     }
   },
   "tags": {
+    "removeLabel": "{{name}}を外す",
     "filter": {
       "title": "タグで絞り込み",
       "clear": "クリア",
@@ -399,7 +402,6 @@
       "title": "メンバーと招待を管理",
       "open": "メンバー管理",
       "emailLabel": "招待するメールアドレス",
-      "emailPlaceholder": "student@example.com",
       "emailHelp": "複数のメールアドレスは改行、カンマ、またはセミコロンで区切って入力できます。招待の有効期限は7日間です。",
       "previewTitle": "送信前の確認",
       "previewSummary": "全{{total}}件のうち、{{count}}件に招待を送信します。",
@@ -565,7 +567,6 @@
       "title": "メールアドレス変更の確認",
       "description": "メールアドレス変更の手続きを確認します。",
       "loading": "メールアドレス変更リンクを確認しています...",
-      "invalidLink": "メールアドレス変更リンクが無効です。",
       "success": "メールアドレスを更新しました。",
       "error": "メールアドレス変更に失敗しました。リンクの有効期限が切れている可能性があります。",
       "backToLogin": "ログイン画面に戻る",
@@ -862,15 +863,12 @@
     },
     "usernameChange": {
       "title": "ユーザー名",
-      "description": "Googleログインではメールアドレスの一部がユーザー名になることがあります。あとから好きな名前に変更できます。",
-      "currentUsernameLabel": "現在のユーザー名",
       "newUsernameLabel": "新しいユーザー名",
       "help": "3〜150文字の英数字、アンダースコア、ピリオドが使えます。大文字は小文字として保存されます。ユーザー名はログインにも使われます。",
       "submit": "ユーザー名を変更",
       "submitting": "変更中...",
       "success": "ユーザー名を変更しました",
       "errorEmpty": "新しいユーザー名を入力してください",
-      "errorUnchanged": "現在と同じユーザー名です",
       "errorTaken": "このユーザー名はすでに使われています",
       "errorTooShort": "ユーザー名が短すぎます（3文字以上）",
       "errorTooLong": "ユーザー名が長すぎます（150文字以内）",
@@ -880,8 +878,6 @@
     },
     "emailChange": {
       "title": "メールアドレス",
-      "description": "現在のメールアドレスで変更を承認し、新しいメールアドレスを確認すると変更が完了します。",
-      "currentEmailLabel": "現在のメールアドレス",
       "newEmailLabel": "新しいメールアドレス",
       "help": "まず現在のメールアドレスへ承認リンクを送信します。承認後、新しいメールアドレスに届く確認リンクを開いてください。",
       "submit": "確認メールを送信",
@@ -913,11 +909,8 @@
       "permissionsHelp": "書き込みを含めて使うなら All、読み取りだけに制限したいなら Read only を選んでください。",
       "secretKeyLabel": "シークレットキー",
       "columns": {
-        "name": "名前",
-        "secret": "シークレット",
         "permissions": "権限",
-        "lastUsed": "最終使用",
-        "action": "操作"
+        "lastUsed": "最終使用"
       },
       "permissions": {
         "allTitle": "All",
@@ -946,13 +939,9 @@
       "description": "VideoQへのアクセスを許可したアプリを確認・管理できます。",
       "empty": "現在連携中のアプリはありません。",
       "columns": {
-        "app": "アプリ",
         "scope": "アクセス権限",
-        "issued": "連携日時",
-        "expires": "有効期限",
-        "action": "操作"
+        "issued": "連携日時"
       },
-      "expiresNever": "—",
       "revoke": "連携を解除",
       "errorLoading": "連携アプリの読み込みに失敗しました",
       "errorRevoking": "連携の解除に失敗しました",
@@ -974,7 +963,6 @@
       "saving": "保存中...",
       "delete": "キーを削除",
       "deleting": "削除中...",
-      "errorEmpty": "APIキーを入力してください",
       "errorSaving": "SearchAPI キーの保存に失敗しました",
       "errorDeleting": "SearchAPI キーの削除に失敗しました",
       "successSaved": "SearchAPI キーを保存しました",
@@ -1101,11 +1089,11 @@
         "isOverQuota": "クォータ超過として扱う"
       },
       "errors": {
-        "invalidUploadMb": "最大アップロードサイズは正の整数で指定してください。",
-        "invalidStorageGb": "ストレージ上限は数値または空欄にしてください。",
-        "invalidProcessingMinutes": "処理上限は数値または空欄にしてください。",
-        "invalidAiLimit": "AI回答上限は数値または空欄にしてください。",
-        "invalidUsage": "利用量は0以上の整数で指定してください。"
+        "invalidUploadMb": "最大アップロードサイズは1〜2,147,483,647の整数で指定してください。",
+        "invalidStorageGb": "ストレージ上限は0以上の数値または空欄にしてください。",
+        "invalidProcessingMinutes": "処理上限は0〜2,147,483,647の整数または空欄にしてください。",
+        "invalidAiLimit": "AI回答上限は0〜2,147,483,647の整数または空欄にしてください。",
+        "invalidUsage": "利用量は0以上の整数で指定してください。使用ストレージは9,007,199,254,740,991バイトまで、処理時間とAI回答数は2,147,483,647まで指定できます。"
       }
     },
     "reindex": {

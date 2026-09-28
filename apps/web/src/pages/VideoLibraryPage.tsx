@@ -1,6 +1,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { parseResourceId } from '@videoq/trpc/schema';
 import { useVideos, IN_PROGRESS_STATUSES, type VideosOrdering } from '@/hooks/useVideos';
 import { useVideoStatusCounts } from '@/hooks/useVideoStats';
 import { VideoUploadModal } from '@/components/video/VideoUploadModal';
@@ -45,8 +46,8 @@ function parseTagIds(value: string | null): number[] {
   if (!value) return [];
   const ids = value
     .split(',')
-    .map((raw) => Number(raw))
-    .filter((id) => Number.isInteger(id) && id > 0);
+    .map(parseResourceId)
+    .filter((id) => id !== null);
   return Array.from(new Set(ids)).sort((a, b) => a - b);
 }
 

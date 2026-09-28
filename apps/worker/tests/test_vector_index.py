@@ -43,7 +43,6 @@ def test_invalid_transcript_fails_before_embedding_or_replacing_existing_vectors
     [
         (vector_index.delete_video_vectors, (9,), 'DELETE FROM "scene_embeddings" WHERE "video_id" = %s', (9,)),
         (vector_index.delete_user_vectors, ("user-1",), 'DELETE FROM "scene_embeddings" WHERE "user_id" = %s', ("user-1",)),
-        (vector_index.delete_all_vectors, (), 'DELETE FROM "scene_embeddings"', None),
     ],
 )
 def test_deletion_returns_affected_rows_without_initializing_search(
@@ -59,7 +58,7 @@ def test_deletion_returns_affected_rows_without_initializing_search(
     monkeypatch.setattr(vector_index, "db_connection", connection)
     monkeypatch.setattr(vector_index, "embed_texts", lambda _: pytest.fail("Deletion must not call the provider"))
     assert delete(*args) == 2
-    conn.execute.assert_called_once_with(statement, *([] if params is None else [params]))
+    conn.execute.assert_called_once_with(statement, params)
 
 
 @pytest.mark.skipif(not os.environ.get("DATABASE_URL"), reason="DATABASE_URL is required")
@@ -78,8 +77,8 @@ def test_deletion_scopes_counts_and_commits_on_postgres(monkeypatch) -> None:
             assert vector_index.delete_user_vectors("a") == 1
             assert vector_index.delete_user_vectors("b' OR TRUE --") == 0
             assert admin.execute(f'SELECT id FROM "{schema}".scene_embeddings ORDER BY id').fetchall() == [(3,), (5,)]
-            assert vector_index.delete_all_vectors() == 2
-            assert vector_index.delete_all_vectors() == 0
+            assert vector_index.delete_user_vectors("b") == 2
+            assert vector_index.delete_user_vectors("b") == 0
             assert admin.execute(f'SELECT count(*) FROM "{schema}".scene_embeddings').fetchone() == (0,)
         finally:
             admin.execute(f'DROP SCHEMA "{schema}" CASCADE')

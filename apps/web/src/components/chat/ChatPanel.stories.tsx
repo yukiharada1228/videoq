@@ -7,7 +7,7 @@ import { trpc } from '@/lib/trpc';
 import { Button } from '@/components/ui/button';
 import { ChatPanel } from './ChatPanel';
 import { authFixtures } from '../../../.storybook/fixtures/auth';
-import { answer, citations, longAnswer } from '../../../.storybook/fixtures/chat';
+import { answer, answerData, citations, longAnswer } from '../../../.storybook/fixtures/chat';
 import { englishCitations, englishQuestion, mixedHistory } from '../../../.storybook/fixtures/chatHistory';
 import { answerEvents, contentEvents, courseId, courseHistory, englishHistory, firstTokens, question, reviewedEvents, searchingEvents, searchQuery, shareToken } from '../../../.storybook/fixtures/chatPanel';
 import { chatRequest, createChatPanelMock, csvRequest, evaluationRequest, feedbackRequest, historyError, historyRequest, type ChatPanelScenario } from '../../../.storybook/mocks/chatPanel';
@@ -121,7 +121,7 @@ export const Reviewing: Story = { parameters: { chat: { events: reviewedEvents, 
   await send(context);
   await expect(await context.canvas.findByRole('status')).toHaveTextContent(label('progress.checkingVideos'));
 } };
-export const Streaming: Story = { parameters: { chat: { events: [...reviewedEvents, { type: 'content_chunk', text: firstTokens }], keepOpen: true } satisfies ChatPanelScenario }, async play(context) {
+export const Streaming: Story = { parameters: { chat: { events: [...reviewedEvents, { type: 'text_delta', segmentIndex: 0, text: firstTokens }], keepOpen: true } satisfies ChatPanelScenario }, async play(context) {
   await send(context);
   await expect(await context.canvas.findByText(firstTokens)).toBeVisible();
   await assertBusy(context);
@@ -133,8 +133,8 @@ export const StreamingTimestamps: Story = {
     chat: {
       events: [
         ...reviewedEvents,
-        ...contentEvents(`${answer}\n\n${longAnswer}`, citations),
-        { type: 'done', chat_log_id: 101, feedback: null, citations },
+        ...contentEvents({ segments: [...answerData.segments, { text: `\n\n${longAnswer}`, sourceIds: [1] }], sources: citations }),
+        { type: 'done', chat_log_id: 101, feedback: null },
       ],
     } satisfies ChatPanelScenario,
     docs: { description: { story: '質問を送信すると、長いサンプル回答を本番と同じ速度で表示します。引用は最初から時刻で表示されます。回答は固定のモックで、LLMには接続しません。再送して繰り返し確認できます。' } },
@@ -148,7 +148,7 @@ export const CitationsBeforeCompletion: Story = {
     const name = `${source.title} ${source.start_time}`;
     network.emit([{ type: 'source', source }]);
     await expect(context.canvas.queryByRole('button', { name })).not.toBeInTheDocument();
-    network.emit([{ type: 'text_delta', text: english() ? 'Answer' : '回答' }, { type: 'citation', sourceId: source.id }]);
+    network.emit([{ type: 'text_delta', segmentIndex: 0, text: english() ? 'Answer' : '回答' }, { type: 'citation', segmentIndex: 0, sourceId: source.id }]);
     const citation = await context.canvas.findByRole('button', { name });
     await assertBusy(context);
     await expect(context.canvas.queryByRole('button', { name: label('feedbackGood') })).not.toBeInTheDocument();
@@ -156,7 +156,7 @@ export const CitationsBeforeCompletion: Story = {
     citation.focus();
     await context.userEvent.keyboard('{Enter}');
     await expect(context.args.onVideoPlay).toHaveBeenCalledWith(source.video_id, source.start_time);
-    network.emit([{ type: 'text_delta', text: english() ? ' continues.' : 'が続きます。' }, { type: 'done', chat_log_id: 101, feedback: null }]);
+    network.emit([{ type: 'text_delta', segmentIndex: 0, text: english() ? ' continues.' : 'が続きます。' }, { type: 'done', chat_log_id: 101, feedback: null }]);
     network.finish();
     await context.canvas.findByRole('button', { name: label('feedbackGood') });
     await expect(citation).toBeVisible();
@@ -168,9 +168,9 @@ export const ProgressToComplete: Story = { parameters: { chat: waiting }, async 
   await AwaitingResponse.play!(context);
   network.emit(searchingEvents);
   await waitFor(() => expect(context.canvas.getByRole('status')).toHaveTextContent(label('progress.checkingVideos')));
-  network.emit([{ type: 'content_chunk', text: firstTokens }]);
+  network.emit([{ type: 'text_delta', segmentIndex: 0, text: firstTokens }]);
   await expect(await context.canvas.findByText(firstTokens)).toBeVisible();
-  network.emit([{ type: 'content_chunk', text: answer.slice(firstTokens.length) }, { type: 'done', chat_log_id: 101, feedback: null, citations }]);
+  network.emit([...contentEvents({ segments: [{ text: answer.slice(firstTokens.length), sourceIds: [1, 2] }], sources: citations }), { type: 'done', chat_log_id: 101, feedback: null }]);
   network.finish();
   await context.canvas.findByRole('button', { name: label('feedbackGood') });
   await waitFor(() => expect(input(context)).toBeEnabled());
@@ -191,7 +191,7 @@ export const OverQuota: Story = { parameters: { chat: { events: [{ type: 'error'
 export const NetworkFailure: Story = { parameters: { chat: { httpError: true } satisfies ChatPanelScenario }, async play(context) {
   await StreamError.play!(context);
 } };
-export const InterruptedResponse: Story = { parameters: { chat: { events: [...searchingEvents, { type: 'content_chunk', text: firstTokens }], keepOpen: true } satisfies ChatPanelScenario }, async play(context) {
+export const InterruptedResponse: Story = { parameters: { chat: { events: [...searchingEvents, { type: 'text_delta', segmentIndex: 0, text: firstTokens }], keepOpen: true } satisfies ChatPanelScenario }, async play(context) {
   await send(context); await context.canvas.findByText(firstTokens);
   network.emit([{ type: 'error', code: 'STREAM_INTERRUPTED', message: '' }]);
   network.finish();
@@ -203,12 +203,12 @@ export const RetryAfterInterruption: Story = { parameters: InterruptedResponse.p
   await InterruptedResponse.play!(context);
   await send(context, 'もう一度お願いします');
   await waitFor(() => expect(chatRequest).toHaveBeenCalledTimes(2));
-  network.emit([{ type: 'content_chunk', text: answer.slice(firstTokens.length) }, { type: 'done', chat_log_id: 101, feedback: null, citations }]); network.finish();
+  network.emit([...contentEvents({ segments: [{ text: answer.slice(firstTokens.length), sourceIds: [1, 2] }], sources: citations }), { type: 'done', chat_log_id: 101, feedback: null }]); network.finish();
   await context.canvas.findByRole('button', { name: label('feedbackGood') });
   await waitFor(() => expect(input(context)).toBeEnabled());
 } };
 export const DisconnectedBeforeDone: Story = {
-  parameters: { chat: { events: [...reviewedEvents, ...contentEvents('Partial [1]', citations)], keepOpen: true } satisfies ChatPanelScenario },
+  parameters: { chat: { events: [...reviewedEvents, ...contentEvents({ segments: [{ text: 'Partial', sourceIds: [1] }], sources: citations })], keepOpen: true } satisfies ChatPanelScenario },
   async play(context) {
     await send(context);
     await context.canvas.findByRole('button', { name: `${citations[0].title} ${citations[0].start_time}` });
@@ -259,7 +259,7 @@ export const HistoryWhileEvaluationsLoad: Story = {
     await expect(context.canvas.queryByRole('progressbar')).not.toBeInTheDocument();
     await expect(context.canvas.queryByRole('alert')).not.toBeInTheDocument();
     await expect(context.canvas.getByRole('button', { name: 'CSV' })).toBeEnabled();
-    const citation = item.citations![0];
+    const citation = item.answer.sources[0];
     const button = context.canvas.getByRole('button', { name: `${citation.title} ${citation.start_time}` });
     button.focus();
     await context.userEvent.keyboard('{Enter}');
@@ -347,7 +347,7 @@ export const EnglishMobile: Story = { globals: { locale: 'en', viewport: { value
   const frame = context.canvas.getByTestId('chat-panel-frame');
   await expect(frame.scrollWidth).toBeLessThanOrEqual(frame.clientWidth);
 } };
-export const LongAnswerMobile: Story = { globals: { viewport: { value: 'mobile', isRotated: false } }, parameters: { chat: { events: [{ type: 'content_chunk', text: longAnswer }, { type: 'done', chat_log_id: 101, feedback: null, citations }] } satisfies ChatPanelScenario }, async play(context) {
+export const LongAnswerMobile: Story = { globals: { viewport: { value: 'mobile', isRotated: false } }, parameters: { chat: { events: [{ type: 'text_delta', segmentIndex: 0, text: longAnswer }, { type: 'done', chat_log_id: 101, feedback: null }] } satisfies ChatPanelScenario }, async play(context) {
   await complete(context);
   const scroller = context.canvasElement.querySelector('.overflow-y-auto')!;
   await expect(scroller.scrollTop).toBeGreaterThan(0);

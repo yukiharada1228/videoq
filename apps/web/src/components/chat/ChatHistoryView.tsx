@@ -119,8 +119,7 @@ function HistoryItem({
             AI {t('chat.teacher')}
           </div>
           <MessageBody
-            content={item.answer}
-            citations={item.citations}
+            answer={item.answer}
             onVideoNavigate={onVideoNavigate}
           />
           <HistoryEvaluation evaluation={item.evaluation} />

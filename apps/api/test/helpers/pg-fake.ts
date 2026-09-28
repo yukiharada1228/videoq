@@ -82,31 +82,3 @@ export function executeFakePgQuery(opts: {
     : rows.length;
   return { rows, rowCount };
 }
-
-/**
- * Build a FakeClient class that records calls and delegates rows via `rowsFor`.
- * Use inside `vi.mock("pg", ...)`.
- */
-export function createFakeClientClass(opts: {
-  calls: QueryCall[];
-  rowsFor: (sql: MatchableSql, args: unknown[]) => Record<string, unknown>[] | unknown[][];
-  rowCountFor?: (
-    sql: MatchableSql,
-    args: unknown[],
-    rows: Record<string, unknown>[],
-  ) => number;
-}) {
-  return class FakeClient {
-    async connect() {}
-    async end() {}
-    async query(sqlOrConfig: PgQueryInput, args: unknown[] = []) {
-      return executeFakePgQuery({
-        calls: opts.calls,
-        sqlOrConfig,
-        args,
-        rowsFor: opts.rowsFor,
-        rowCountFor: opts.rowCountFor,
-      });
-    }
-  };
-}

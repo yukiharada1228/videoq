@@ -166,6 +166,12 @@ describe('VideoLibraryPage', () => {
     })
   })
 
+  it('ignores malformed tag IDs without losing valid filters', () => {
+    globalThis.__setMockSearchParams('tags=2,1suffix,1.5,-1,0,9007199254740993,1e100,1e2,0x10,0003,2')
+    render(<VideoLibraryPage />)
+    expect(mockUseVideos).toHaveBeenCalledWith(expect.objectContaining({ tagIds: [2, 3] }))
+  })
+
   it('should map the processing URL filter to all in-progress API statuses', () => {
     globalThis.__setMockSearchParams('status=processing')
 

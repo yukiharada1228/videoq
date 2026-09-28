@@ -1,6 +1,6 @@
 /** Workerへ渡すジョブメッセージ。DB outboxにも同じ形で保存する。 */
 export const JOB_TRANSCRIBE_VIDEO = "transcribe_video" as const;
-export const JOB_INDEX_VIDEO_TRANSCRIPT = "index_video_transcript" as const;
+const JOB_INDEX_VIDEO_TRANSCRIPT = "index_video_transcript" as const;
 export const JOB_REINDEX_VIDEO_TRANSCRIPT = "reindex_video_transcript" as const;
 export const JOB_DELETE_ACCOUNT_DATA = "delete_account_data" as const;
 export const JOB_EVALUATE_CHAT_LOG = "evaluate_chat_log" as const;

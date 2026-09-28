@@ -3,7 +3,7 @@ import { expect, fn } from 'storybook/test';
 import i18n from '@/i18n/config';
 import { ChatHistoryView } from './ChatHistoryView';
 import { citations, longAnswer, mathAnswer } from '../../../.storybook/fixtures/chat';
-import { completedEvaluation, englishAnswer, englishCitations, englishQuestion, failedEvaluation, historyItem, mixedHistory, pendingEvaluation } from '../../../.storybook/fixtures/chatHistory';
+import { completedEvaluation, englishAnswerData, englishQuestion, failedEvaluation, historyItem, mixedHistory, pendingEvaluation } from '../../../.storybook/fixtures/chatHistory';
 
 const meta = {
   title: 'Chat/ChatHistoryView',
@@ -26,7 +26,7 @@ type Story = StoryObj<typeof meta>;
 export const Loading: Story = {
   args: { history: null, historyLoading: true },
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole('progressbar', { name: 'Loading' })).toBeVisible();
+    await expect(canvas.getByRole('progressbar', { name: i18n.t('common.messages.loading') })).toBeVisible();
     await expect(canvas.queryByRole('button', { name: 'CSV' })).not.toBeInTheDocument();
     await expect(canvas.queryByText(i18n.t('chat.historyEmpty'))).not.toBeInTheDocument();
   },
@@ -61,7 +61,7 @@ export const LongQuestionAndAnswer: Story = {
       ...historyItem,
       asked_by: { ...historyItem.asked_by!, email: 'hanako.yamada.linear-algebra.study-group@example.test' },
       question: '回転前後でベクトルの長さが変わらない理由を、講義の具体例と数式を使って説明してください。'.repeat(6),
-      answer: `${longAnswer}\n\n${mathAnswer}`,
+      answer: { segments: [{ text: `${longAnswer}\n\n${mathAnswer}`, sourceIds: [] }], sources: [] },
       evaluation: completedEvaluation,
     }],
   },
@@ -136,7 +136,7 @@ export const JapaneseMobile: Story = {
 };
 export const EnglishMobile: Story = {
   args: {
-    history: [{ ...historyItem, asked_by: null, is_shared_origin: true, question: englishQuestion, answer: englishAnswer, citations: englishCitations, evaluation: completedEvaluation }],
+    history: [{ ...historyItem, asked_by: null, is_shared_origin: true, question: englishQuestion, answer: englishAnswerData,  evaluation: completedEvaluation }],
   },
   globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
   play: async ({ canvas }) => {

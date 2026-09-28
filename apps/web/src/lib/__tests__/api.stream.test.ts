@@ -15,10 +15,11 @@ vi.mock('@/lib/auth-client', () => ({
 
 import { apiClient } from '../api'
 import { TRPC_UNAUTHORIZED_EVENT } from '../trpc'
+import i18n from '@/i18n/config'
 
-// Helper: build a fake SSE ReadableStream from an array of SSE lines
+// Helper: each entry is a complete SSE event.
 function makeSSEResponse(lines: string[], status = 200): Response {
-  const body = lines.join('\n') + '\n'
+  const body = lines.join('\n\n') + '\n\n'
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
     start(controller) {
@@ -48,11 +49,29 @@ describe('apiClient.chatStream', () => {
     ;(apiClient as any).baseUrl = 'http://localhost:8000/api'
   })
 
-  it('yields content_chunk events from SSE stream', async () => {
+  it('sends the current UI language on every stream request', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      makeSSEResponse(['data: {"type":"done","chat_log_id":null,"feedback":null}']),
+    )
+    const originalLanguage = i18n.language
+    try {
+      for (const language of ['en', 'ja']) {
+        await i18n.changeLanguage(language)
+        await collectStreamEvents({ messages: [{ role: 'user', content: 'hello' }] })
+        const request = fetchSpy.mock.calls.at(-1)?.[1]
+        expect(new Headers(request?.headers).get('Accept-Language')).toBe(language)
+        expect(new Headers(request?.headers).get('Content-Type')).toBe('application/json')
+      }
+    } finally {
+      await i18n.changeLanguage(originalLanguage)
+    }
+  })
+
+  it('yields text_delta events from SSE stream', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       makeSSEResponse([
-        'data: {"type":"content_chunk","text":"Hello "}',
-        'data: {"type":"content_chunk","text":"World"}',
+        'data: {"type":"text_delta","segmentIndex":0,"text":"Hello "}',
+        'data: {"type":"text_delta","segmentIndex":0,"text":"World"}',
         'data: {"type":"done","chat_log_id":null,"feedback":null}',
       ]),
     )
@@ -61,16 +80,16 @@ describe('apiClient.chatStream', () => {
       messages: [{ role: 'user', content: 'hi' }],
     })
 
-    const chunks = events.filter((e) => e.type === 'content_chunk')
+    const chunks = events.filter((e) => e.type === 'text_delta')
     expect(chunks).toHaveLength(2)
-    expect(chunks[0]).toEqual({ type: 'content_chunk', text: 'Hello ' })
-    expect(chunks[1]).toEqual({ type: 'content_chunk', text: 'World' })
+    expect(chunks[0]).toEqual({ type: 'text_delta', segmentIndex: 0, text: 'Hello ' })
+    expect(chunks[1]).toEqual({ type: 'text_delta', segmentIndex: 0, text: 'World' })
   })
 
   it('yields done event with metadata', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       makeSSEResponse([
-        'data: {"type":"content_chunk","text":"Hi"}',
+        'data: {"type":"text_delta","segmentIndex":0,"text":"Hi"}',
         'data: {"type":"done","chat_log_id":42,"feedback":null}',
       ]),
     )
@@ -149,7 +168,7 @@ describe('apiClient.chatStream', () => {
     })).rejects.toThrow('Authentication failed')
 
     expect(fetchSpy).toHaveBeenCalledTimes(1)
-    expect(fetchSpy.mock.calls[0][0]).toBe('http://localhost:8000/api/chat/messages/stream?stream_format=parts-v1')
+    expect(fetchSpy.mock.calls[0][0]).toBe('http://localhost:8000/api/chat/messages/stream')
     expect(unauthorized).toHaveBeenCalledTimes(1)
     expect(authClientMock.signOut).not.toHaveBeenCalled()
     window.removeEventListener(TRPC_UNAUTHORIZED_EVENT, unauthorized)
@@ -158,8 +177,8 @@ describe('apiClient.chatStream', () => {
   it('handles chunked SSE delivery across multiple reads', async () => {
     const encoder = new TextEncoder()
     // Split a single SSE line across two reads
-    const part1 = 'data: {"type":"content_chunk"'
-    const part2 = ',"text":"split"}\ndata: {"type":"done","chat_log_id":null,"feedback":null}\n'
+    const part1 = 'data: {"type":"text_delta","segmentIndex":0'
+    const part2 = ',"text":"split"}\n\ndata: {"type":"done","chat_log_id":null,"feedback":null}\n\n'
 
     let readCount = 0
     const stream = new ReadableStream({
@@ -184,25 +203,80 @@ describe('apiClient.chatStream', () => {
       messages: [{ role: 'user', content: 'hi' }],
     })
 
-    const chunks = events.filter((e) => e.type === 'content_chunk')
+    const chunks = events.filter((e) => e.type === 'text_delta')
     expect(chunks).toHaveLength(1)
-    expect(chunks[0]).toEqual({ type: 'content_chunk', text: 'split' })
+    expect(chunks[0]).toEqual({ type: 'text_delta', segmentIndex: 0, text: 'split' })
   })
 
-  it('requests parts-v1 and validates structured citation events', async () => {
+  it.each(['\n', '\r\n', '\r'])('decodes multiline SSE with %j line endings across UTF-8 byte boundaries', async (newline) => {
+    const expected = [
+      { type: 'text_delta', segmentIndex: 0, text: '日本語🙂' },
+      { type: 'done', chat_log_id: 42, feedback: null },
+    ];
+    const data = '\uFEFF' + [
+      ': heartbeat', '',
+      'data:{"type":"text_delta",',
+      'data: "segmentIndex":0,"text":"日本語🙂"}', '',
+      `data:${JSON.stringify(expected[1])}`, '', '',
+    ].join(newline);
+    const bytes = new TextEncoder().encode(data);
+    let index = 0;
+    const body = new ReadableStream({
+      pull(controller) {
+        if (index < bytes.length) controller.enqueue(bytes.slice(index, ++index));
+        else controller.close();
+      },
+    });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(body));
+    expect(await collectStreamEvents({ messages: [{ role: 'user', content: 'hi' }] })).toEqual(expected);
+  });
+
+  it.each(['', '\n', '\r', '\r\n'])('does not accept a done event cut off before its blank line: %j', async (ending) => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('data: {"type":"done","chat_log_id":42,"feedback":null}' + ending));
+    expect(await collectStreamEvents({ messages: [{ role: 'user', content: 'hi' }] })).toEqual([
+      { type: 'error', code: 'STREAM_INTERRUPTED', message: '' },
+    ]);
+  });
+
+  it('uses the sole structured stream protocol and validates citation events', async () => {
     const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(makeSSEResponse([
       'data: {"type":"source","source":{"id":1,"video_id":7,"title":"Video","start_time":"00:00:10","end_time":null}}',
-      'data: {"type":"text_delta","text":"Answer"}',
-      'data: {"type":"citation","sourceId":1}',
-      'data: {"type":"citation","sourceId":-1}',
-      'data: {"type":"future_event"}',
+      'data: {"type":"text_delta","segmentIndex":0,"text":"Answer"}',
+      'data: {"type":"citation","segmentIndex":0,"sourceId":1}',
       'data: {"type":"done","chat_log_id":1,"feedback":null}',
     ]))
     const events = await collectStreamEvents({ messages: [{ role: 'user', content: 'Hi' }], share_slug: 'a+b' })
     expect(events.map((event) => event.type)).toEqual(['source', 'text_delta', 'citation', 'done'])
     const url = new URL(String(fetch.mock.calls[0][0]))
-    expect(url.searchParams.get('stream_format')).toBe('parts-v1')
+    expect(url.searchParams.has('stream_format')).toBe(false)
     expect(url.searchParams.get('share_slug')).toBe('a+b')
+  })
+
+  it.each([
+    '{"type":"citation","segmentIndex":0,"sourceId":-1}',
+    '{"type":"text_delta","text":"missing segment"}',
+    '{"type":"future_event"}',
+    '{"type":"text_delta",',
+  ])('fails malformed stream data before a later done can mark it complete: %s', async (invalid) => {
+    const cancel = vi.fn()
+    const body = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode([
+          'data: {"type":"text_delta","segmentIndex":0,"text":"Partial"}',
+          `data: ${invalid}`,
+          'data: {"type":"done","chat_log_id":42,"feedback":null}',
+          '',
+        ].join('\n\n')))
+      },
+      cancel,
+    })
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(body))
+    expect(await collectStreamEvents({ messages: [{ role: 'user', content: 'hi' }] })).toEqual([
+      { type: 'text_delta', segmentIndex: 0, text: 'Partial' },
+      { type: 'error', code: 'STREAM_INVALID', message: '' },
+    ])
+    expect(cancel).toHaveBeenCalledOnce()
+    expect(body.locked).toBe(false)
   })
 
   it('cancels the response body when a consumer stops at a terminal event', async () => {
@@ -221,13 +295,45 @@ describe('apiClient.chatStream', () => {
     expect(body.locked).toBe(false)
   })
 
+  it.each([
+    [{ type: 'text_delta', segmentIndex: 1, text: 'Missing first segment' }],
+    [{ type: 'text_delta', segmentIndex: 0, text: 'First' }, { type: 'text_delta', segmentIndex: 2, text: 'Gap' }],
+    [{ type: 'text_delta', segmentIndex: 0, text: 'First' }, { type: 'text_delta', segmentIndex: 1, text: 'Second' }, { type: 'text_delta', segmentIndex: 0, text: 'Late' }],
+    [{ type: 'citation', segmentIndex: 0, sourceId: 1 }],
+    [{ type: 'text_delta', segmentIndex: 0, text: 'First' }, { type: 'citation', segmentIndex: 1, sourceId: 1 }],
+    [{ type: 'text_delta', segmentIndex: 0, text: 'First' }, { type: 'citation', segmentIndex: 0, sourceId: 999 }],
+  ])('rejects inconsistent segment or source references before rendering: %j', async (...parts) => {
+    const source = { type: 'source', source: { id: 1, video_id: 7, title: 'Video', start_time: '00:00:10', end_time: null } }
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(makeSSEResponse([
+      ...[source, ...parts, { type: 'done', chat_log_id: 42, feedback: null }].map(event => `data: ${JSON.stringify(event)}`),
+    ]))
+    const events = await collectStreamEvents({ messages: [{ role: 'user', content: 'hi' }] })
+    expect(events.at(-1)).toEqual({ type: 'error', code: 'STREAM_INVALID', message: '' })
+    expect(events).not.toContainEqual(parts.at(-1))
+    expect(events.some(event => event.type === 'done')).toBe(false)
+  })
+
+  it('accepts consecutive segments, empty segments and citations across progress events', async () => {
+    const events = [
+      { type: 'source', source: { id: 1, video_id: 7, title: 'Video', start_time: '00:00:10', end_time: null } },
+      { type: 'text_delta', segmentIndex: 0, text: '' },
+      { type: 'text_delta', segmentIndex: 1, text: 'First' },
+      { type: 'searching', search_id: 1, query: 'More' },
+      { type: 'citation', segmentIndex: 1, sourceId: 1 },
+      { type: 'text_delta', segmentIndex: 2, text: 'Second' },
+      { type: 'text_delta', segmentIndex: 2, text: ' sentence' },
+      { type: 'done', chat_log_id: 42, feedback: null },
+    ]
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(makeSSEResponse(events.map(event => `data: ${JSON.stringify(event)}`)))
+    expect(await collectStreamEvents({ messages: [{ role: 'user', content: 'hi' }] })).toEqual(events)
+  })
+
   it('reports an interrupted answer when the connection closes without done', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(makeSSEResponse([
-      'data: {"type":"text_delta","text":"Partial answer"}',
-      'data: {"type":"citation","sourceId":',
+      'data: {"type":"text_delta","segmentIndex":0,"text":"Partial answer"}',
     ]))
     expect(await collectStreamEvents({ messages: [{ role: 'user', content: 'hi' }] })).toEqual([
-      { type: 'text_delta', text: 'Partial answer' },
+      { type: 'text_delta', segmentIndex: 0, text: 'Partial answer' },
       { type: 'error', code: 'STREAM_INTERRUPTED', message: '' },
     ])
   })

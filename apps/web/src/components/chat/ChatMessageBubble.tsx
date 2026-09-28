@@ -1,3 +1,4 @@
+import { chatAnswerText } from '@videoq/trpc/chat';
 import { BookOpen, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Message } from '@/hooks/useChatMessages';
@@ -44,16 +45,14 @@ export function ChatMessageBubble({
         {message.progress && (
           <ChatProgressView
             progress={message.progress}
-            waitingForAnswer={isAwaitingResponse && message.content.trim() === ''}
+            waitingForAnswer={isAwaitingResponse && chatAnswerText(message.answer).trim() === ''}
           />
         )}
-        {isAwaitingResponse && message.content === '' && !message.progress ? (
+        {isAwaitingResponse && chatAnswerText(message.answer) === '' && !message.progress ? (
           <TypingIndicator />
         ) : (
           <MessageBody
-            content={message.content}
-            parts={message.parts}
-            citations={message.citations}
+            answer={message.answer}
             onVideoNavigate={onVideoNavigate}
           />
         )}

@@ -58,6 +58,10 @@ npm run db:generate:custom -- --name describe_the_data_change
 
 スキーマ変更は、型チェックに加えて検証専用DBでの統合テストを実行します。[テストの使い分け](testing.md)を参照してください。共有環境や本番では `drizzle-kit push` を使わず、レビュー済みmigrationをデプロイ手順に沿って適用します。
 
+migration-chain統合テストは空のDBと既存データ入りDBの両方に全履歴を適用し、現在のDrizzle定義にある全外部キーをPostgreSQLと照合します。列と削除・更新時の動作も比較するため、生成ファイルの検査だけでは分からない不一致を検出できます。
+
+動画・講座・タグ・チャットログ・講座評価スナップショットからユーザーへの参照は `NO ACTION` です。アカウント削除ではworkerがメディアと関連レコードを削除してからユーザーを削除します。この制約とworkerの削除順序を揃えてください。
+
 埋め込みはアプリ・DBとも1536次元固定で、`scene_embeddings.embedding` は `vector(1536)` です。環境変数では次元を変更できません。同じ次元のモデル変更でもシーンの再埋め込みが必要です。既存データの移行ツールは提供していません。[診断方法と今後の移行要件](embeddings.md)を参照してください。
 
 **関連:** [データ辞書](../database/data-dictionary.md)、[ER図の読み方](../database/er-diagram.md)。

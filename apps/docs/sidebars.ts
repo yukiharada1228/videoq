@@ -22,6 +22,7 @@ const sidebars: SidebarsConfig = {
         'concepts/how-ai-works',
         'architecture/transcription-and-search',
         'architecture/prompt-engineering',
+        'architecture/structured-answers',
       ],
     },
     {

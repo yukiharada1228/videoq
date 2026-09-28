@@ -86,3 +86,5 @@ RAG_SELECTION_LIVE=1 npm run test:unit --workspace @videoq/api -- test/rag-agent
 これはOpenAI互換APIへ実際に接続し、利用料金が発生します。`OPENAI_API_KEY`、`OPENAI_BASE_URL`、`LLM_MODEL` は環境変数またはAPIの `.dev.vars` から読みます。初回参加時の必須手順ではありません。
 
 **関連:** [最初の変更](../getting-started/first-change.md)、[困ったとき](troubleshooting.md)。
+
+構造化回答の有料比較テストとブラウザー測定は[切り替えと検証](../architecture/structured-answers.md)を参照してください。

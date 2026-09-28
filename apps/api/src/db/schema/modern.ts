@@ -259,6 +259,9 @@ export const mcpIdempotencyRecords = pgTable(
 // Videos, courses, tags
 // ---------------------------------------------------------------------------
 
+// Business records retain the NO ACTION user references established by 0006.
+// The deletion worker removes media and dependent records before the user row.
+
 export const videos = pgTable(
 	"videos",
 	{
@@ -297,7 +300,7 @@ export const videos = pgTable(
 			columns: [table.userId],
 			foreignColumns: [users.id],
 			name: "videos_user_id_fkey",
-		}).onDelete("cascade"),
+		}).onDelete("no action"),
 		check("videos_processing_seconds_check", sql`processing_seconds >= 0`),
 	],
 );
@@ -333,7 +336,7 @@ export const videoCourses = pgTable(
 			columns: [table.userId],
 			foreignColumns: [users.id],
 			name: "video_courses_user_id_fkey",
-		}).onDelete("cascade"),
+		}).onDelete("no action"),
 	],
 );
 
@@ -502,7 +505,7 @@ export const tags = pgTable(
 			columns: [table.userId],
 			foreignColumns: [users.id],
 			name: "tags_user_id_fkey",
-		}).onDelete("cascade"),
+		}).onDelete("no action"),
 		unique("tags_user_id_name_uniq").on(table.name, table.userId),
 	],
 );
@@ -555,8 +558,7 @@ export const chatLogs = pgTable(
 			cache: 1,
 		}),
 		question: text().notNull(),
-		answer: text().notNull(),
-		citations: jsonb().notNull(),
+		response: jsonb().$type<import("@videoq/trpc/chat").ChatAnswer>().notNull(),
 		isSharedOrigin: boolean("is_shared_origin").notNull(),
 		feedback: varchar({ length: 4 }),
 		createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
@@ -576,7 +578,7 @@ export const chatLogs = pgTable(
 			columns: [table.userId],
 			foreignColumns: [users.id],
 			name: "chat_logs_user_id_fkey",
-		}).onDelete("cascade"),
+		}).onDelete("no action"),
 		foreignKey({
 			columns: [table.courseId],
 			foreignColumns: [videoCourses.id],
@@ -648,7 +650,7 @@ export const courseEvaluationSnapshots = pgTable(
 			columns: [table.userId],
 			foreignColumns: [users.id],
 			name: "course_evaluation_snapshots_user_id_fkey",
-		}).onDelete("cascade"),
+		}).onDelete("no action"),
 		unique("course_evaluation_snapshots_course_id_key").on(table.courseId),
 	],
 );

@@ -2,7 +2,7 @@ import { useState, type ComponentProps } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, waitFor } from 'storybook/test';
 import i18n from '@/i18n/config';
-import { filterTranscriptSegments, isSrtFormat, parseSrtTranscript } from '@/lib/transcript/srt';
+import { filterTranscriptSegments, parseSrtTranscript } from '@/lib/transcript/srt';
 import { detailVideo, englishVideo, longText, segments, transcript } from '../../../../.storybook/fixtures/detail';
 import { TranscriptPanel } from './TranscriptPanel';
 
@@ -19,7 +19,7 @@ function Example(args: ComponentProps<typeof TranscriptPanel> & { outcome?: 'pen
   const parsed = parseSrtTranscript(video.transcript ?? '');
   return <div data-testid="transcript-frame" className="relative grid h-[640px] max-w-[640px]">
     <TranscriptPanel {...args} video={video} transcriptSearch={query} onTranscriptSearchChange={setQuery}
-      filteredSegments={filterTranscriptSegments(parsed, query)} isPlainTextTranscript={!!video.transcript && !isSrtFormat(video.transcript)}
+      filteredSegments={filterTranscriptSegments(parsed, query)} isPlainTextTranscript={!!video.transcript?.trim() && parsed.length === 0}
       isTranscriptEditing={editing} editedTranscript={value} isTranscriptSaving={saving} transcriptSaveError={error} activeSegmentIdx={active}
       onStartTranscriptEditing={() => { args.onStartTranscriptEditing(); setEditing(true); setValue(video.transcript ?? ''); setError(null); }}
       onCancelTranscriptEditing={() => { args.onCancelTranscriptEditing(); setEditing(false); setError(null); }}
@@ -38,7 +38,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const Default: Story = { async play({ canvas }) { await expect(canvas.getByRole('button', { name: /00:00:05/ })).toBeVisible(); } };
-export const NoTranscript: Story = { args: { video: { ...detailVideo, transcript: '' } }, async play({ canvas }) { await expect(canvas.getByText(label('transcriptStatus.unavailable'))).toBeVisible(); await expect(canvas.getByRole('button', { name: label('editTranscriptButton') })).toBeDisabled(); } };
+export const NoTranscript: Story = { args: { video: { ...detailVideo, transcript: '' } }, async play({ canvas, userEvent }) { await expect(canvas.getByText(label('transcriptStatus.unavailable'))).toBeVisible(); await userEvent.click(canvas.getByRole('button', { name: label('editTranscriptButton') })); await expect(canvas.getByRole('textbox')).toHaveValue(''); } };
 export const Processing: Story = { args: { video: { ...detailVideo, transcript: '', status: 'processing' } }, async play({ canvas }) { await expect(canvas.getByText(label('transcriptStatus.processing'))).toBeVisible(); } };
 export const PlainText: Story = { args: { video: { ...detailVideo, transcript: '時刻情報のない字幕です。\n複数行をそのまま表示します。' } }, async play({ canvas }) { await expect(canvas.getByText(/時刻情報のない字幕/)).toBeVisible(); } };
 export const ActiveSegment: Story = { args: { activeSegmentIdx: 1 }, async play({ canvas }) { await expect(canvas.getByRole('button', { name: /00:00:05/ })).toHaveAttribute('aria-current', 'true'); } };

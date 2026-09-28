@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TEST_USER_ID, testAuthHeaders } from "./helpers/auth";
 import { TAG_COLORS } from "@videoq/trpc/schema";
-import { apiServiceUnavailable } from "../src/shared/errors";
+import { apiConflict, apiServiceUnavailable } from "../src/shared/errors";
 import * as auth from "../src/middleware/auth";
 import * as messageService from "../src/features/chat/message-service";
 
@@ -77,7 +77,7 @@ describe("tRPC Hono adapter", () => {
   ])("preserves an explicit authentication refusal for shared chat: $code", async ({ outcome, status, code }) => {
     vi.spyOn(auth, "sessionMethod").mockResolvedValue(outcome);
     const send = vi.spyOn(messageService, "sendChatMessage").mockResolvedValue({
-      status: 200, body: { role: "assistant", content: "Shared answer" },
+      status: 200, body: { role: "assistant", answer: { segments: [{ text: "Shared answer", sourceIds: [] }], sources: [] } },
     });
     const response = await createApp().request("/api/trpc/chat.send", {
       method: "POST", headers: { "content-type": "application/json" },
@@ -91,7 +91,7 @@ describe("tRPC Hono adapter", () => {
   it("allows shared chat when credentials are absent", async () => {
     vi.spyOn(auth, "sessionMethod").mockResolvedValue({ kind: "absent" });
     const send = vi.spyOn(messageService, "sendChatMessage").mockResolvedValue({
-      status: 200, body: { role: "assistant", content: "Shared answer" },
+      status: 200, body: { role: "assistant", answer: { segments: [{ text: "Shared answer", sourceIds: [] }], sources: [] } },
     });
     const response = await createApp().request("/api/trpc/chat.send", {
       method: "POST", headers: { "content-type": "application/json" },
@@ -167,6 +167,22 @@ describe("tRPC Hono adapter", () => {
     expect(errorLog).not.toHaveBeenCalled();
   });
 
+  it.each(["tags.create", "tags.update"])("returns a name conflict without an internal error for %s", async procedure => {
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const service = procedure === "tags.create" ? tagService.createUserTag : tagService.updateUserTag;
+    service.mockRejectedValueOnce(apiConflict("A tag with this name already exists."));
+    const response = await createApp().request(`/api/trpc/${procedure}`, {
+      method: "POST", headers: { ...testAuthHeaders(), "content-type": "application/json" },
+      body: JSON.stringify({ id: 3, name: "Lecture", color: "blue" }),
+    }, ENV);
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ error: {
+      message: "A tag with this name already exists.",
+      data: { code: "CONFLICT", applicationCode: "CONFLICT" },
+    } });
+    expect(errorLog).not.toHaveBeenCalled();
+  });
+
   it("preserves explicit application codes when masking a service failure", async () => {
     tagService.listTags.mockRejectedValueOnce(apiServiceUnavailable("private upstream detail", "SERVICE_UNAVAILABLE"));
     vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -177,7 +193,7 @@ describe("tRPC Hono adapter", () => {
     expect(JSON.stringify(payload)).not.toContain("private upstream detail");
   });
 
-  it.each(["tags.create", "tags.update", "tags.replace"])(
+  it.each(["tags.create", "tags.update"])(
     "rejects colors outside the shared palette before calling the service: %s",
     async (procedure) => {
       for (const color of ["not-a-color", "#3b82f6", ""]) {
@@ -337,12 +353,12 @@ describe("tRPC Hono adapter", () => {
     );
   });
 
-  it.each(["tags.update", "tags.replace"])("routes %s through the shared procedure contract", async (procedure) => {
+  it("routes tag updates through the shared procedure contract", async () => {
     const updatedTag = { ...sampleTag, name: "Updated", color: "green" };
     tagService.updateUserTag.mockResolvedValue({ tag: updatedTag });
 
     const response = await createApp().request(
-      `/api/trpc/${procedure}`,
+      "/api/trpc/tags.update",
       {
         method: "POST",
         headers: {

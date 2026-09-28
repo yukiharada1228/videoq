@@ -26,6 +26,13 @@ API は次の native JSON を SQS へ送信します。
 | `evaluate_chat_log` | RAG 応答評価 |
 | `delete_account_data` | DB・vector・object storage の削除 |
 
+`payload` はジョブごとの引数だけを含むオブジェクトです。動画ジョブの `video_id` と
+評価ジョブの `chat_log_id` は、1以上かつJavaScriptの安全な整数の上限以下の整数を
+受け付けます。文字列・小数・真偽値からIDへの変換はしません。アカウント削除の
+`user_id` は空白だけでない文字列、全動画の再索引は空オブジェクトを指定します。
+worker内の送信処理と受信処理で同じ検証を行い、不正な入力は実行リースを取得する前に
+拒否します。SQSのバッチでは不正なメッセージだけを失敗として返し、他の処理は続けます。
+
 ## 構成
 
 ```text
@@ -65,6 +72,21 @@ SQSはat-least-once配送のため、workerは `job_executions.job_id` を15分�
 | `MEDIA_PROCESS_CPU_TIME_LIMIT_SECONDS` | メディア子プロセスのCPU時間上限（既定300秒） |
 | `MEDIA_PROCESS_MEMORY_LIMIT_MB` | Linux上のメディア子プロセスのアドレス空間上限（既定2,048 MiB） |
 | `MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB` | メディア子プロセスが書くファイルのサイズ上限（既定1,024 MiB） |
+
+ストレージ専用の認証情報は、`R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`、
+次に `AWS_S3_ACCESS_KEY_ID` / `AWS_S3_SECRET_ACCESS_KEY` の順で選びます。
+選択する組は両方の設定が必要で、別の組やLambda実行ロールのキーとは混ぜません。
+専用の設定がなければ、[Boto3標準の認証情報解決](https://docs.aws.amazon.com/boto3/latest/guide/credentials.html)
+を使い、`AWS_SESSION_TOKEN` を含む一時認証情報もそのまま利用します。
+通常のAmazon S3ではリージョンを明示しない限り、`AWS_DEFAULT_REGION` や
+AWS設定ファイルの値をSDKが解決します。カスタムエンドポイントの既定は `auto` です。
+
+SSMから読み込むR2認証情報も組で選びます。環境変数の `R2_*`、SSM内の `R2_*`、
+SSM内の旧 `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` の順に優先し、選択する組の
+片方だけが設定されている場合はエラーにします。Lambda実行ロールの認証情報は変更しません。
+全SSMパラメータの取得・検証に成功してから環境変数へ反映します。空・非オブジェクトのJSONや
+DBパラメータ内の `DATABASE_URL` 欠落は読込済みにせず、次の呼び出しで再試行します。
+旧設定名を入力として扱う場合も、読込先は正規の `R2_*` のみです。
 
 メディア処理の上限値は正の整数で指定します。アップロードは単体の動画ファイルとして
 解析し、プレイリストや外部URL参照は受け付けません。上限を超えた処理は失敗として

@@ -1,28 +1,17 @@
 import {
-  getCourseChatHistory,
-  deleteCourseChatLogs,
-  getCourseChatAnalytics,
   updateChatLogFeedback,
-  shareSlugExists as repositoryShareSlugExists,
   iterateCourseChatHistoryForExport,
 } from "../../repositories/chat-repository";
 import { courseOwnedBy } from "../../repositories/course-repository";
 import { streamChatHistoryCsv } from "../../shared/csv";
 import type { Bindings } from "../../types/bindings";
 
-export function shareSlugExists(env: Bindings, shareSlug: string) {
-  return repositoryShareSlugExists(env, shareSlug);
-}
-
-export async function historyForCourse(
-  env: Bindings,
-  courseId: number,
-  userId: string,
-  limit: number,
-  offset: number,
-) {
-  return getCourseChatHistory(env, courseId, userId, limit, offset);
-}
+export {
+  shareSlugExists,
+  getCourseChatHistory as historyForCourse,
+  deleteCourseChatLogs as resetHistory,
+  getCourseChatAnalytics as analyticsForCourse,
+} from "../../repositories/chat-repository";
 
 export async function exportHistoryCsv(
   env: Bindings,
@@ -38,22 +27,6 @@ export async function exportHistoryCsv(
     ),
     filename: `chat_history_course_${courseId}.csv`,
   } as const;
-}
-
-export async function resetHistory(
-  env: Bindings,
-  courseId: number,
-  userId: string,
-) {
-  return deleteCourseChatLogs(env, courseId, userId);
-}
-
-export async function analyticsForCourse(
-  env: Bindings,
-  courseId: number,
-  userId: string,
-) {
-  return getCourseChatAnalytics(env, courseId, userId);
 }
 
 export async function submitFeedback(

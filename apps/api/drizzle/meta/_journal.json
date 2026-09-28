@@ -169,6 +169,27 @@
       "when": 1790309670328,
       "tag": "0023_remove_study_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790525186583,
+      "tag": "0024_add_structured_chat_response",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1790525231045,
+      "tag": "0025_retire_plain_chat_answer",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1790583523846,
+      "tag": "0026_align_user_deletion_constraints",
+      "breakpoints": true
     }
   ]
 }

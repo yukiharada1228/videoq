@@ -75,7 +75,7 @@ export function TranscriptPanel({
                 variant="outline"
                 size="xs"
                 onClick={onStartTranscriptEditing}
-                disabled={!video.transcript}
+                disabled={!video.transcript && video.status !== 'completed'}
               >
                 <Pencil className="h-3.5 w-3.5 mr-1.5" />
                 {t('videos.detail.editTranscriptButton')}

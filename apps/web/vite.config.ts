@@ -43,7 +43,7 @@ export default defineConfig({
           'vendor-charts': ['recharts'],
           'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
           'vendor-query': ['@tanstack/react-query', '@trpc/client', '@trpc/tanstack-react-query'],
-          'vendor-radix': ['@radix-ui/react-checkbox', '@radix-ui/react-label', '@radix-ui/react-select', '@radix-ui/react-slot'],
+          'vendor-radix': ['@radix-ui/react-checkbox', '@radix-ui/react-select', '@radix-ui/react-slot'],
         },
       },
     },

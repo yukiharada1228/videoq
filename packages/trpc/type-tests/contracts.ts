@@ -13,7 +13,6 @@ type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends
 export type ContractAssertions = [
   Assert<Equal<Inputs["tags"]["create"]["color"], TagColor | undefined>>,
   Assert<Equal<Inputs["tags"]["update"]["color"], TagColor | undefined>>,
-  Assert<Equal<Inputs["tags"]["replace"]["color"], TagColor>>,
   Assert<Equal<RpcInputMap["tags.create"]["color"], TagColor>>,
   Assert<Equal<Outputs["tags"]["create"], Tag>>,
   Assert<Equal<Outputs["tags"]["list"], TagPage>>,

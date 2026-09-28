@@ -2,6 +2,7 @@ import { queryOptions, useQueryClient, useQuery, useMutation, type QueryClient }
 import { useCallback, useEffect } from 'react';
 import type { Tag } from '@videoq/trpc';
 import { appTrpcClient, trpc } from '@/lib/trpc';
+import { refreshQuery } from '@/lib/cacheInvalidation';
 import {
   DEFAULT_TAG_CHIP_COLOR,
   isTagChipColor,
@@ -57,8 +58,8 @@ export function useTags({ enabled = true }: { enabled?: boolean } = {}) {
     onSuccess: async (_result, { id }) => {
       await updateTagList(queryClient, (tags) => tags.filter((tag) => tag.id !== id));
       await Promise.all([
-        queryClient.invalidateQueries(trpc.videos.list.pathFilter()),
-        queryClient.invalidateQueries(trpc.videos.get.pathFilter()),
+        refreshQuery(queryClient, trpc.videos.list.pathFilter()),
+        refreshQuery(queryClient, trpc.videos.get.pathFilter()),
       ]);
     },
   }));

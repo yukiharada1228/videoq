@@ -6,7 +6,7 @@ import { appQueryClient } from './lib/queryClient';
 import { trpc } from './lib/trpc';
 import { authFixtures } from '../.storybook/fixtures/auth';
 import { emptyTagPage } from '../.storybook/fixtures/api';
-import { course, detailVideo } from '../.storybook/fixtures/detail';
+import { course, courseVideos, detailVideo } from '../.storybook/fixtures/detail';
 import { installUploadFixture } from '../.storybook/mocks/videoUpload';
 import { failure, pending, success, trpcMutation, trpcQuery } from '../.storybook/mocks/network';
 import { chatRequest, createChatPanelMock } from '../.storybook/mocks/chatPanel';
@@ -59,14 +59,27 @@ export const SharedCourseNotice: Story = {
     api: {
       auth: authFixtures.loggedOut,
       trpc: [trpcQuery('courses.shared', success({
-        ...course, updated_at: course.created_at, share_slug: 'linear-algebra', access_role: 'public',
+        ...course, videos: courseVideos, video_count: courseVideos.length,
+        updated_at: course.created_at, share_slug: 'linear-algebra', access_role: 'public',
       }))],
     },
   },
-  async play({ canvasElement }) {
+  async play({ canvasElement, userEvent }) {
     const canvas = within(canvasElement);
     await expect(await canvas.findByText(i18n.t('courseSharing.quotaAndHistory'))).toBeVisible();
     await expect(canvas.getByText(i18n.t('courseSharing.link'))).toBeVisible();
+    const mobile = window.innerWidth < 1024;
+    if (mobile) await userEvent.click(canvas.getByRole('button', { name: i18n.t('videos.shared.tabs.videos') }));
+    const second = canvas.getByRole('button', { name: new RegExp(courseVideos[1].title) });
+    second.focus();
+    await expect(second).toHaveFocus();
+    await userEvent.keyboard('{Enter}');
+    await expect(canvas.getByRole('heading', { name: courseVideos[1].title })).toBeVisible();
+    if (mobile) await userEvent.click(canvas.getByRole('button', { name: i18n.t('videos.shared.tabs.videos') }));
+    const first = canvas.getByRole('button', { name: new RegExp(courseVideos[0].title) });
+    first.focus();
+    await userEvent.keyboard(' ');
+    await expect(canvas.getByRole('heading', { name: courseVideos[0].title })).toBeVisible();
   },
 };
 export const SharedCourseNoticeEnglishMobile: Story = {
@@ -103,7 +116,7 @@ export const CourseChatContinuity: Story = {
     await expect(canvas.getAllByRole('textbox', { hidden: true })).toHaveLength(1);
     const finish = async () => {
       await waitFor(() => expect(courseChatNetwork.activeStreams).toBe(1));
-      courseChatNetwork.emit([{ type: 'content_chunk', text: reply }, {
+      courseChatNetwork.emit([{ type: 'text_delta', segmentIndex: 0, text: reply }, {
         type: 'done', chat_log_id: 101, feedback: null,
       }]);
       courseChatNetwork.finish();
@@ -175,10 +188,10 @@ function youtubeReplayStory(scope: 'video' | 'course' | 'share'): Story {
     },
     beforeEach({ msw }) {
       const mock = createChatPanelMock({ events: [
-        { type: 'content_chunk', text: '[1]' },
-        { type: 'done', chat_log_id: 101, feedback: null, citations: [{
-          id: 1, video_id: video.id, title: video.title, start_time: '00:00:05', end_time: '00:00:12',
-        }] },
+        { type: 'source', source: { id: 1, video_id: video.id, title: video.title, start_time: '00:00:05', end_time: null } },
+        { type: 'text_delta', segmentIndex: 0, text: 'Replay this scene.' },
+        { type: 'citation', segmentIndex: 0, sourceId: 1 },
+        { type: 'done', chat_log_id: 101, feedback: null },
       ] });
       msw.use(...mock.handlers.filter(({ info }) => info.path === '/api/chat/messages/stream'));
       return () => mock.dispose();
@@ -563,7 +576,7 @@ export const HomeDataPending: Story = {
     const header = canvas.getByRole('link', { name: 'VideoQ' }).closest('header')!;
     const footer = canvas.getByRole('contentinfo');
     await userEvent.click(within(header).getByRole('link', { name: i18n.t('navigation.home') }));
-    await within(canvas.getByRole('main')).findByText('Loading');
+    await within(canvas.getByRole('main')).findByText(i18n.t('common.messages.loading'));
     const trigger = within(header).getByRole('button', { name: i18n.t('navigation.menu') });
     await userEvent.click(trigger);
     await expect(trigger).toHaveAttribute('aria-expanded', 'true');
@@ -631,7 +644,7 @@ export const PendingVideo: Story = {
   async play({ canvasElement, userEvent }) {
     const canvas = within(canvasElement);
     const header = canvas.getByRole('link', { name: 'VideoQ' }).closest('header')!;
-    await within(canvas.getByRole('main')).findByText('Loading');
+    await within(canvas.getByRole('main')).findByText(i18n.t('common.messages.loading'));
     await expect(canvas.queryByRole('contentinfo')).not.toBeInTheDocument();
     await userEvent.click(within(header).getByRole('link', { name: i18n.t('navigation.home') }));
     await canvas.findByRole('heading', { level: 1, name: i18n.t('home.welcome.greeting', { username: api.auth.profile!.username }) });

@@ -13,7 +13,7 @@ import {
 } from "@better-auth/oauth-provider";
 import { z } from "zod";
 
-export type OAuthConsentGrant = {
+type OAuthConsentGrant = {
   id: string;
   userId: string | null;
   clientId: string;

@@ -16,6 +16,9 @@ const bob: AdminUser = {
 const alice = { ...bob, id: 'alice', username: 'Alice', email: 'alice@example.test' };
 const deleteRequest = fn();
 const listRequest = fn();
+const quotaRequest = fn();
+const flagsRequest = fn();
+let editedUser = bob;
 
 const meta = {
   title: 'Pages/Admin',
@@ -23,18 +26,62 @@ const meta = {
   parameters: { pathname: '/admin', api: { auth: authFixtures.admin, trpc: [
     trpcQuery('admin.listUsers', input => {
       listRequest(input);
-      return success({ data: input?.q === 'Alice' ? [alice] : [bob],
+      return success({ data: input?.q === 'Alice' ? [alice] : [editedUser],
         meta: { total: input?.q === 'Alice' ? 21 : 1, offset: input?.offset ?? 0, limit: 20 } });
     }),
     trpcMutation('admin.deleteUser', input => {
       deleteRequest(input);
       return success({ job_id: 'deletion-fixture' });
     }),
+    trpcMutation('admin.patchQuota', input => {
+      quotaRequest(input);
+      editedUser = { ...editedUser, ...input, quota_source: 'admin' };
+      return success(editedUser);
+    }),
+    trpcMutation('admin.patchFlags', input => {
+      flagsRequest(input);
+      editedUser = { ...editedUser, ...input };
+      return success(editedUser);
+    }),
   ] } },
-  beforeEach() { deleteRequest.mockClear(); listRequest.mockClear(); },
+  beforeEach() {
+    deleteRequest.mockClear(); listRequest.mockClear();
+    quotaRequest.mockClear(); flagsRequest.mockClear(); editedUser = bob;
+  },
 } satisfies Meta<typeof AdminPage>;
 export default meta;
 type Story = StoryObj<typeof meta>;
+
+export const InvalidQuotaThenSave: Story = {
+  async play({ canvas, userEvent }) {
+    await canvas.findByText('Bob');
+    await userEvent.click(canvas.getByRole('button', { name: i18n.t('admin.users.edit') }));
+    const body = within(document.body);
+    const dialog = within(await body.findByRole('dialog'));
+    await userEvent.click(dialog.getByLabelText(i18n.t('admin.users.fields.isStaff')));
+    const processing = dialog.getByLabelText(i18n.t('admin.users.fields.processingLimitMinutes'));
+    await userEvent.clear(processing);
+    await userEvent.type(processing, '1.5');
+    await userEvent.click(dialog.getByRole('button', { name: i18n.t('admin.users.save') }));
+    await expect(await dialog.findByText(i18n.t('admin.users.errors.invalidProcessingMinutes'))).toBeVisible();
+    await expect(processing).toHaveValue('1.5');
+    await expect(flagsRequest).not.toHaveBeenCalled();
+    await expect(quotaRequest).not.toHaveBeenCalled();
+
+    await userEvent.clear(processing);
+    await userEvent.type(processing, '0');
+    await userEvent.click(dialog.getByRole('button', { name: i18n.t('admin.users.save') }));
+    await waitFor(() => expect(body.queryByRole('dialog')).not.toBeInTheDocument());
+    await expect(await canvas.findByText(i18n.t('admin.users.saveSuccess'))).toBeVisible();
+    await expect(flagsRequest).toHaveBeenCalledTimes(1);
+    await expect(flagsRequest).toHaveBeenCalledWith({ id: 'bob', is_staff: true });
+    await expect(quotaRequest).toHaveBeenCalledTimes(1);
+    await expect(quotaRequest).toHaveBeenCalledWith({ id: 'bob', processing_limit_minutes: 0 });
+  },
+};
+export const InvalidQuotaThenSaveEnglishMobile: Story = {
+  ...InvalidQuotaThenSave, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
+};
 
 export const ConfirmDeletion: Story = {
   async play({ canvas, userEvent }) {

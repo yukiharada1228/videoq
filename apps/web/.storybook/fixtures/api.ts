@@ -4,13 +4,8 @@ import { tags } from './tags';
 export const tagPage: TagPage = { data: tags, meta: { total: tags.length, limit: 100, offset: 0 } };
 export const emptyTagPage: TagPage = { ...tagPage, data: [], meta: { ...tagPage.meta, total: 0 } };
 
-// Better Auth's REST shape, before apiClient maps it into IntegrationApiKey[].
-export const apiKeysResponse = { apiKeys: [{
-  id: 'storybook-key',
-  name: '授業資料の連携',
-  start: 'vq_demo',
-  configId: 'default',
-  permissions: { videoq: ['read'] },
-  lastRequest: null,
-  createdAt: '2026-09-01T00:00:00Z',
-}] };
+export const integrationApiKeys: import('@/lib/api').IntegrationApiKey[] = [{
+  id: 'storybook-key', name: '授業資料の連携', prefix: 'vq_demo',
+  config_id: 'default', access_level: 'read_only', last_used_at: null,
+  created_at: '2026-09-01T00:00:00.000Z',
+}];

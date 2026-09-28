@@ -21,26 +21,9 @@ const { authClientMock } = vi.hoisted(() => {
       changeEmail: vi.fn(() => ok()),
       updateUser: vi.fn(() => ok()),
       oauth2: {
-        getConsents: vi.fn(() => ok([{
-          id: 'consent-1',
-          clientId: 'mcp-client',
-          scopes: ['openid', 'profile'],
-          createdAt: new Date('2026-03-02T00:00:00Z'),
-        }])),
         deleteConsent: vi.fn(() => ok()),
-        publicClient: vi.fn(() => ok({ client_name: 'MCP Client' })),
       },
       apiKey: {
-        list: vi.fn(() => ok({
-          apiKeys: [{
-            id: '1',
-            name: 'integration',
-            start: 'vq_123',
-            lastRequest: null,
-            createdAt: '2026-03-02T00:00:00Z',
-            permissions: { videoq: ['read', 'write'] },
-          }],
-        })),
         create: vi.fn(() => ok({
           id: '1',
           name: 'integration',
@@ -101,6 +84,32 @@ function rawJson(data: unknown, init: ResponseInit = {}): Response {
     headers: { 'content-type': 'application/json', ...(init.headers ?? {}) },
   });
 }
+
+describe('presigned upload content types', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    ['recording.MKV', '', 'video/x-matroska'],
+    ['recording.webm', 'application/octet-stream', 'video/webm'],
+    ['recording.mov', 'video/quicktime', 'video/quicktime'],
+  ])('uses the same MIME type for signing and PUT: %s (%s)', async (name, type, contentType) => {
+    vi.stubEnv('VITE_USE_S3_STORAGE', 'true');
+    vi.resetModules();
+    const { createApiClient } = await import('../api');
+    const video = { id: 7, title: 'Video', file: null, source_type: 'uploaded', status: 'pending', uploaded_at: '2026-09-28T00:00:00Z' };
+    const fetchFn = vi.fn().mockResolvedValueOnce(trpcSuccess({ video, upload_url: 'https://objects.example.test/upload' })).mockResolvedValueOnce(trpcSuccess(video));
+    const client = createApiClient({ baseUrl: BASE_URL, fetchFn });
+    const put = vi.spyOn(client, 'uploadToPresignedUrl').mockResolvedValue();
+    const file = new File(['content'], name, { type });
+    await expect(client.uploadVideo({ file, title: 'Video' })).resolves.toMatchObject({ id: 7 });
+    expect(JSON.parse(fetchFn.mock.calls[0][1].body)['0']).toMatchObject({ filename: name, contentType, fileSize: file.size });
+    expect(put).toHaveBeenCalledExactlyOnceWith('https://objects.example.test/upload', file, contentType, undefined);
+    expect(fetchFn.mock.calls[1][0]).toContain('videos.confirmUpload');
+  });
+});
 
 describe('apiPath', () => {
   it('strips trailing slashes while preserving query strings', () => {
@@ -231,107 +240,39 @@ describe('ApiClient protocol adapters', () => {
     });
   });
 
-  it('maps integration API keys and OAuth consents', async () => {
-    expect(await client.getIntegrationApiKeys()).toEqual([{
-      id: '1',
-      name: 'integration',
-      access_level: 'all',
-      config_id: 'default',
-      prefix: 'vq_123',
-      last_used_at: null,
-      created_at: '2026-03-02T00:00:00Z',
-    }]);
+  it.each([
+    ['integrationApiKeys', {
+      id: 'key-105', config_id: 'read-write', name: 'Integration', access_level: 'all',
+      prefix: 'vq_preview', last_used_at: null, created_at: '2026-09-01T00:00:00.000Z',
+    }],
+    ['connectedApps', {
+      id: 'grant-105', client_id: 'app', client_name: 'Learning app', scope: 'videoq.read',
+      issued_at: null,
+    }],
+  ] as const)('loads complete %s metadata through one session-authenticated RPC request', async (procedure, row) => {
+    const expected = Array.from({ length: 105 }, (_, index) => ({ ...row, id: `${index}` }));
+    fetchMock.mockResolvedValueOnce(trpcSuccess(expected));
+    const rpc = createAppTrpcClient({ baseUrl: BASE_URL, fetchFn: fetchMock });
+    expect(await rpc.account[procedure].query()).toEqual(expected);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(String(url)).toContain(`/trpc/account.${procedure}?`);
+    expect(init.credentials).toBe('include');
+  });
+
+  it.each(['integrationApiKeys', 'connectedApps'] as const)('propagates %s failures instead of presenting an empty list', async (procedure) => {
+    fetchMock.mockResolvedValueOnce(trpcFailure({ status: 500, code: 'INTERNAL_SERVER_ERROR', message: 'List unavailable' }));
+    const rpc = createAppTrpcClient({ baseUrl: BASE_URL, fetchFn: fetchMock });
+    await expect(rpc.account[procedure].query()).rejects.toThrow('List unavailable');
+  });
+
+  it('uses Better Auth for key creation and integration revocation', async () => {
     expect(await client.createIntegrationApiKey({ name: 'integration', access_level: 'all' }))
       .toMatchObject({ id: '1', api_key: 'vq_secret' });
     await client.revokeIntegrationApiKey(1);
-
-    expect(await client.getAuthorizedOAuthTokens()).toEqual([{
-      id: 'consent-1',
-      client_id: 'mcp-client',
-      client_name: 'MCP Client',
-      scope: 'openid profile',
-      issued_at: '2026-03-02T00:00:00.000Z',
-      expires_at: null,
-    }]);
     await client.revokeAuthorizedOAuthToken('consent-1');
-  });
-
-  it('loads each OAuth client once while retaining its separate grants', async () => {
-    const grant = { scopes: ['openid'], createdAt: new Date('2026-03-02T00:00:00Z') };
-    authClientMock.oauth2.getConsents.mockResolvedValueOnce({ data: [
-      { ...grant, id: 'read', clientId: 'shared-client', scopes: ['read'] },
-      { ...grant, id: 'write', clientId: 'shared-client', scopes: ['write'] },
-      { ...grant, id: 'other', clientId: 'other-client' },
-      { ...grant, id: 'missing', clientId: '' },
-    ], error: null });
-    authClientMock.oauth2.publicClient
-      .mockResolvedValueOnce({ data: { client_name: 'Shared app' }, error: null })
-      .mockResolvedValueOnce({ data: { client_name: 'Other app' }, error: null });
-
-    const tokens = await client.getAuthorizedOAuthTokens();
-
-    expect(authClientMock.oauth2.publicClient.mock.calls).toEqual([
-      [{ query: { client_id: 'shared-client' } }],
-      [{ query: { client_id: 'other-client' } }],
-    ]);
-    expect(tokens.map(({ id, client_name, scope }) => ({ id, client_name, scope }))).toEqual([
-      { id: 'read', client_name: 'Shared app', scope: 'read' },
-      { id: 'write', client_name: 'Shared app', scope: 'write' },
-      { id: 'other', client_name: 'Other app', scope: 'openid' },
-      { id: 'missing', client_name: '', scope: 'openid' },
-    ]);
-  });
-
-  it('falls back on a failed OAuth client lookup and reloads its name on the next list request', async () => {
-    const response = { data: ['read', 'write'].map(id => ({
-      id, clientId: 'shared-client', scopes: [id], createdAt: new Date('2026-03-02T00:00:00Z'),
-    })), error: null };
-    authClientMock.oauth2.getConsents.mockResolvedValueOnce(response).mockResolvedValueOnce(response);
-    authClientMock.oauth2.publicClient.mockRejectedValueOnce(new Error('Temporary lookup failure'))
-      .mockResolvedValueOnce({ data: { client_name: 'Updated app name' }, error: null });
-
-    expect((await client.getAuthorizedOAuthTokens()).map(token => token.client_name))
-      .toEqual(['shared-client', 'shared-client']);
-    expect(authClientMock.oauth2.publicClient).toHaveBeenCalledTimes(1);
-
-    expect((await client.getAuthorizedOAuthTokens()).map(token => token.client_name))
-      .toEqual(['Updated app name', 'Updated app name']);
-    expect(authClientMock.oauth2.publicClient).toHaveBeenCalledTimes(2);
-  });
-
-  it('defaults unknown API key metadata to read-only', async () => {
-    authClientMock.apiKey.list.mockResolvedValueOnce({
-      data: {
-        apiKeys: [{
-          id: 'legacy',
-          name: 'legacy integration',
-          start: 'vq_legacy',
-          lastRequest: null,
-          createdAt: '2026-03-02T00:00:00Z',
-          metadata: { accessLevel: 'unexpected' },
-        }],
-      },
-      error: null,
-    });
-
-    expect(await client.getIntegrationApiKeys()).toEqual([
-      expect.objectContaining({ id: 'legacy', access_level: 'read_only' }),
-    ]);
-  });
-
-  it.each([
-    [{ videoq: ['read', 'write'] }, 'all'],
-    [{ videoq: ['read'] }, 'read_only'],
-    [{ videoq: ['write'] }, 'read_only'],
-    [null, 'read_only'],
-    [{}, 'read_only'],
-  ])('displays native API key permissions: %j', async (permissions, accessLevel) => {
-    authClientMock.apiKey.list.mockResolvedValueOnce({
-      data: { apiKeys: [{ id: 'native', configId: 'read-write', permissions, metadata: { accessLevel: 'all' } }] }, error: null,
-    });
-    expect(await client.getIntegrationApiKeys()).toEqual([
-      expect.objectContaining({ id: 'native', config_id: 'read-write', access_level: accessLevel }),
-    ]);
+    expect(authClientMock.apiKey.delete).toHaveBeenCalledWith({ keyId: '1', configId: 'default' });
+    expect(authClientMock.oauth2.deleteConsent).toHaveBeenCalledWith({ id: 'consent-1' });
   });
 
   it('uses the selected native profile for creation and revocation', async () => {
@@ -343,7 +284,11 @@ describe('ApiClient protocol adapters', () => {
     expect(authClientMock.apiKey.delete).toHaveBeenCalledWith({ keyId: 'native', configId: 'read-write' });
   });
 
-  it('uploads multipart data over the dedicated raw route', async () => {
+  it.each([
+    ['test.mp4', 'video/mp4', 'video/mp4'],
+    ['test.MKV', '', 'video/x-matroska'],
+    ['test.webm', 'application/octet-stream', 'video/webm'],
+  ])('uploads multipart data with the correct file type: %s (%s)', async (name, type, expectedType) => {
     fetchMock.mockResolvedValueOnce(rawJson({
       id: 1,
       file: '/api/media/test.mp4',
@@ -353,7 +298,7 @@ describe('ApiClient protocol adapters', () => {
       uploaded_at: '2026-09-06T00:00:00.000Z',
       status: 'pending',
     }, { status: 201 }));
-    const file = new File(['content'], 'test.mp4', { type: 'video/mp4' });
+    const file = new File(['content'], name, { type });
 
     await expect(client.uploadVideo({ file, title: 'Test Video', description: 'Desc' }))
       .resolves.toMatchObject({ id: 1 });
@@ -362,6 +307,10 @@ describe('ApiClient protocol adapters', () => {
     expect(init.method).toBe('POST');
     expect(init.body).toBeInstanceOf(FormData);
     expect((init.body as FormData).get('description')).toBe('Desc');
+    const uploadedFile = (init.body as FormData).get('file') as File;
+    expect(uploadedFile.name).toBe(name);
+    expect(uploadedFile.type).toBe(expectedType);
+    expect(uploadedFile.size).toBe(file.size);
   });
 
   it.each([false, true])('cleans up CSV download resources even if the click fails (%s)', async (clickFails) => {

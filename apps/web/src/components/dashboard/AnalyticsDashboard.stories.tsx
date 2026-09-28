@@ -27,7 +27,7 @@ export const Typical: Story = {
 export const Loading: Story = {
   args: { isLoading: true },
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole('progressbar', { name: 'Loading' })).toBeVisible();
+    await expect(canvas.getByRole('progressbar', { name: i18n.t('common.messages.loading') })).toBeVisible();
     await expect(canvas.queryByRole('application')).not.toBeInTheDocument();
   },
 };
@@ -43,7 +43,7 @@ export const MissingData: Story = { ...NoQuestions, args: { data: undefined } };
 export const EvaluationLoading: Story = {
   args: { isEvaluationLoading: true },
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole('progressbar', { name: 'Loading' })).toBeVisible();
+    await expect(canvas.getByRole('progressbar', { name: i18n.t('common.messages.loading') })).toBeVisible();
     await expect(await canvas.findAllByRole('application')).toHaveLength(2);
     await expect(canvas.queryByText('94%')).not.toBeInTheDocument();
   },

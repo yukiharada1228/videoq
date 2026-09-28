@@ -124,7 +124,7 @@ describeWithPostgres("course metadata and scene selection on PostgreSQL", () => 
 
   it("retrieves a course with no videos, description, embeddings", async () => {
     const tool = courseInfoTool(env, { courseId: 5, ownerUserId: "owner" }, () => {});
-    expect(JSON.parse(await tool.invoke({}))).toMatchObject({
+    expect(JSON.parse(await tool.invoke({ video_limit: 20, video_offset: 0 }))).toMatchObject({
       name: "Empty course", description: "", video_count: 0, videos: [],
       videos_meta: { total: 0, has_more: false, next_offset: null },
     });
@@ -150,7 +150,7 @@ describeWithPostgres("course metadata and scene selection on PostgreSQL", () => 
     try {
       const contexts: string[] = [];
       const tool = courseInfoTool(env, { courseId: 3, ownerUserId: "owner" }, s => contexts.push(s));
-      const result = JSON.parse(await tool.invoke({ video_limit: 1 }));
+      const result = JSON.parse(await tool.invoke({ video_limit: 1, video_offset: 0 }));
       expect(result).toMatchObject({
         description: courseDescription.slice(0, COURSE_DESCRIPTION_LIMIT),
         description_truncated: courseDescription.length > COURSE_DESCRIPTION_LIMIT,

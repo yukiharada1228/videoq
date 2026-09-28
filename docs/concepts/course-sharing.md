@@ -26,6 +26,8 @@ This table covers ordinary course access through the app and its API. “Partici
 
 Playback access applies to videos in the course. It does not grant access to the owner's whole video library or the source video's editing screen.
 
+Opening a share link while signed in still uses that link's course scope. An invalid link or a video outside that course does not fall back to your account's private video access.
+
 Participants and link users can see answers in their current chat panel, but cannot load saved course history or export even just their own past questions through the history API. The owner-only history includes Q&A exchanges. Visible messages and saved chat logs are different data.
 
 ## Example: teacher A and learner B {#usage-and-history}

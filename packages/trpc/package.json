@@ -4,6 +4,18 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./admin": {
+      "types": "./src/inputs/admin.ts",
+      "default": "./src/inputs/admin.ts"
+    },
+    "./transcript": {
+      "types": "./src/transcript.ts",
+      "default": "./src/transcript.ts"
+    },
+    "./video-upload": {
+      "types": "./src/video-upload.ts",
+      "default": "./src/video-upload.ts"
+    },
     "./chat": {
       "types": "./src/chat.ts",
       "default": "./src/chat.ts"

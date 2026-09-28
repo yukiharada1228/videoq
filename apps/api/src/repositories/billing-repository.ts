@@ -78,7 +78,7 @@ async function updateBillingState(
   db: Pick<Db, "update">,
   userId: string,
   patch: BillingPatch,
-  expectedRevision?: string,
+  expectedRevision: string,
 ): Promise<void> {
   const { entitlements, ...fields } = patch;
   const updated = await db.update(users).set({
@@ -93,9 +93,9 @@ async function updateBillingState(
     } : {}),
   }).where(and(
     eq(users.id, userId),
-    expectedRevision === undefined ? undefined : sql`${users.updatedAt} = ${expectedRevision}::timestamptz`,
+    sql`${users.updatedAt} = ${expectedRevision}::timestamptz`,
   )).returning({ id: users.id });
-  if (expectedRevision !== undefined && updated.length === 0) throw new BillingStateChangedError();
+  if (updated.length === 0) throw new BillingStateChangedError();
 }
 
 /** Concurrent first checkouts must use the same customer once one wins. */

@@ -4,7 +4,7 @@ import { mcpIdempotencyRecords } from "../db/schema";
 import type { Bindings } from "../types/bindings";
 import { withDb } from "../db/pool";
 
-export const MCP_IDEMPOTENCY_RETENTION_DAYS = 30;
+const MCP_IDEMPOTENCY_RETENTION_DAYS = 30;
 
 export type CreationIdempotency = {
   action: "request_video_upload" | "create_youtube_video" | "create_course";

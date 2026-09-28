@@ -4,7 +4,7 @@ import { getCourseInfo } from "../repositories/course-repository";
 import type { Bindings } from "../types/bindings";
 
 export const MAX_COURSE_INFO_CALLS = 5;
-export const COURSE_INFO_PAGE_SIZE = 20;
+const COURSE_INFO_PAGE_SIZE = 20;
 export const COURSE_DESCRIPTION_LIMIT = 2000;
 export const VIDEO_DESCRIPTION_LIMIT = 500;
 
@@ -69,8 +69,8 @@ export function courseInfoTool(
         "Follow videos_meta.next_offset for more videos. List position is not a lecture number. " +
         "Truncated descriptions and missing pages are incomplete evidence, not absent content.",
       schema: z.object({
-        video_limit: z.number().int().min(1).max(COURSE_INFO_PAGE_SIZE).default(COURSE_INFO_PAGE_SIZE),
-        video_offset: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER).default(0),
+        video_limit: z.number().int().min(1).max(COURSE_INFO_PAGE_SIZE),
+        video_offset: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
       }).strict(),
     },
   );

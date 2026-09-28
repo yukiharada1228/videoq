@@ -22,20 +22,20 @@ In development, disabling `ENABLE_HEAVY_PIPELINE` produces a one-second placehol
 
 An SRT cue contains a start time, an end time, and text. Whisper or YouTube may produce many short cues. VideoQ groups these into text scenes while keeping their position in the video.
 
+Transcript editing and playback use the same SRT parser. Each cue requires an integer index, a complete `HH:MM:SS,mmm --> HH:MM:SS,mmm` timing line, and nonempty text. Dot milliseconds are also accepted; minutes and seconds must be below 60, and the end cannot precede the start. Invalid cues are rejected when saving and skipped when reading existing subtitles. The Python indexing parser follows the same contract, verified with shared fixtures. An empty transcript clears the subtitles.
+
 ```mermaid
 flowchart TD
-    S[Timestamped subtitle cues] --> E[Embed each cue]
-    E --> N[Normalize the vectors]
-    N --> T{Within the token budget?}
+    S[Timestamped subtitle cues] --> T{Within the text token budget?}
     T -->|Yes| K[Keep as one scene]
-    T -->|No| B[Split at a semantic boundary]
+    T -->|No| B[Split into smaller ranges]
     B --> T
     K --> I[Embed and store the resulting scenes]
 ```
 
-The splitter uses a multidimensional Otsu criterion: it looks for a boundary that separates the before/after groups in embedding space. It recursively splits long ranges until each range fits the default budget of **512 tokens**. A short range can remain one scene even when its topic changes; this is a length-bounded segmentation algorithm, not an LLM identifying every topic.
+The splitter uses a multidimensional Otsu criterion: it looks for a boundary that separates the before/after groups in embedding space. It repeatedly splits long ranges until each range fits the default budget of **512 tokens**. Before merging cues, it counts the joined text, including spaces between cues. A short range can remain one scene even when its topic changes; this is a length-bounded segmentation algorithm, not an LLM identifying every topic.
 
-If a single cue itself exceeds the budget, the code splits its tokens and distributes its time interval proportionally. Those intermediate timestamps are estimates. If scene splitting raises an exception, the worker keeps the original SRT, so the 512-token scene size is not guaranteed on that fallback path.
+If a single cue itself exceeds the budget, the code splits its tokens and distributes its time interval proportionally. Each chunk is checked after the whitespace normalization used when reading SRT. Those intermediate timestamps are estimates. Two over-budget cues have only one possible boundary; embeddings are needed for semantic boundary selection only when a range has at least three cues. Embedding-contract errors fail the job. Other splitting errors keep the original SRT, so the 512-token scene size is not guaranteed on that fallback path.
 
 ## 3. Store searchable scene data
 
@@ -58,7 +58,7 @@ For example, a query about “perpendicular vectors” may find a scene describi
 
 The current application does not apply a minimum similarity cutoff or a second reranking model. It discards the returned numeric scores when preparing tool results. “20 scenes returned” therefore means candidate material was found, not that all 20 scenes answer the question. A nonempty index can return weak matches instead of returning no results.
 
-The model can revise its query and search again, up to three times per answer. The application's scene collector deduplicates results using video ID and start/end times, assigning stable `[1]`, `[2]`, and subsequent numbers within that answer. Those numbers are neither global scene IDs nor confidence scores.
+The model can revise its query and search again, up to three times per answer. The application's scene collector deduplicates results using video ID and start/end times, assigning stable numeric source IDs (1, 2, …) within that answer. Those numbers are neither global scene IDs nor confidence scores.
 
 ## 5. Send evidence to the answer model
 
@@ -70,6 +70,13 @@ This path does not perform a web search. The available tools read registered cou
 
 Initial processing follows **transcription → scene indexing**, then marks the video `completed`.
 
+Transcription completion compares the current subtitle content with its starting
+fingerprint under the video row lock. It preserves intervening subtitle edits or
+clears, including when the provider fails, and leaves their existing reindex job
+responsible for search updates. That manual correction completes the transcription
+attempt without another indexing job. Deleted videos and already completed work
+are not restored; an existing indexing handoff can still resume safely.
+
 | Operation | Updated data | How to verify completion |
 |---|---|---|
 | Initial upload / YouTube import | Obtain a transcript, group scenes, and create the search index | Check the video's `completed` status |
@@ -77,6 +84,16 @@ Initial processing follows **transcription → scene indexing**, then marks the 
 | Reindex embeddings from Admin | `reindex_all_videos_embeddings` rebuilds search data for completed videos with nonempty transcripts, leaving stored transcripts unchanged | Match the returned job ID to worker logs / `job_executions` |
 
 Saving identical transcript text or changing only a title or description does not enqueue a reindex. See [embedding configuration](../guides/embeddings.md) before changing models.
+
+Full reindexing replaces each video's index in a transaction after its new embeddings
+are ready. A failed video retains its previous search data, and the job fails for
+retry after processing the remaining videos. Previously completed replacements stay
+available; there is no initial deletion of the entire index.
+
+Before writing, the worker locks the video's current DB row. It skips deleted
+videos, uses the latest title, and retries if the transcript changed during
+embedding generation. API edits and deletion use the same row lock, so older
+generation results cannot restore deleted scenes or overwrite newer metadata.
 
 ### Verify a subtitle correction in Q&A {#verify-transcript-update}
 
@@ -86,6 +103,11 @@ Saving identical transcript text or changing only a title or description does no
 4. Send a new question naming the subject in the same course. Compare its citations and timestamps with the corrected transcript. Previously displayed or saved answers are not regenerated.
 
 See [updateVideo](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/video-repository.ts), [transcript reindexing](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/reindex_video_transcript.py), and [full reindexing](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/reindexing.py).
+
+If a queued transcription or indexing job starts after its video has been deleted,
+the worker acknowledges it without calling a provider or scheduling more work.
+A video still awaiting indexing with an invalid or missing transcript fails indexing;
+database and provider failures remain retryable.
 
 ## Diagnose a poor answer at the right step
 

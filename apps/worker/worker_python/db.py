@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Generator
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from typing import Any
 
 import psycopg
@@ -20,14 +20,7 @@ def get_database_url() -> str:
 
 @contextmanager
 def db_connection() -> Generator[psycopg.Connection[Any], None, None]:
-    """Yield a connection with autocommit disabled (explicit commit/rollback)."""
-    with psycopg.connect(get_database_url(), row_factory=dict_row) as conn:
+    """Commit on success, roll back on error, and always close the connection."""
+    # Connection.__exit__ can raise during commit before it closes the connection.
+    with closing(psycopg.connect(get_database_url(), row_factory=dict_row)) as conn, conn:
         yield conn
-
-
-@contextmanager
-def db_transaction() -> Generator[psycopg.Connection[Any], None, None]:
-    """Yield a connection wrapped in a transaction (commit on success)."""
-    with db_connection() as conn:
-        with conn.transaction():
-            yield conn

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 @dataclass
 class SrtScene:
-    index: int | None
+    index: int
     start_time: str
     end_time: str
     start_sec: float
@@ -18,20 +18,17 @@ class SrtScene:
 
 
 def parse_srt_timestamp(timestamp: str) -> float:
-    normalized = timestamp.replace(".", ",")
-    parts = normalized.split(",")
-    time_parts = [int(p) for p in parts[0].split(":")]
-    if len(time_parts) == 3:
-        hours, minutes, seconds_part = time_parts
-    elif len(time_parts) == 2:
-        hours = 0
-        minutes, seconds_part = time_parts
-    else:
+    match = re.fullmatch(
+        r"([0-9]{2,}):([0-5][0-9]):([0-5][0-9])[,.]([0-9]{3})", timestamp
+    )
+    if match is None:
         raise ValueError(f"Invalid timestamp: {timestamp}")
-    seconds = hours * 3600 + minutes * 60 + seconds_part
-    if len(parts) > 1:
-        seconds += int(parts[1]) / 1000.0
-    return float(seconds)
+    hours, minutes, seconds, millis = map(int, match.groups())
+    total_millis = ((hours * 60 + minutes) * 60 + seconds) * 1000 + millis
+    # Keep the same exact millisecond range as the TypeScript consumers.
+    if total_millis > 2**53 - 1:
+        raise ValueError(f"Timestamp out of range: {timestamp}")
+    return total_millis / 1000.0
 
 
 def format_srt_time(seconds: float) -> str:
@@ -62,7 +59,7 @@ def parse_srt_scenes(srt_string: str) -> list[SrtScene]:
 
 
 def _iter_srt_blocks(srt_string: str) -> Iterator[str]:
-    content = srt_string.replace("\r\n", "\n").replace("\r", "\n").strip()
+    content = srt_string.lstrip("\ufeff").replace("\r\n", "\n").replace("\r", "\n").strip()
     start = 0
     for separator in re.finditer(r"\n[ \t]*\n", content):
         yield content[start : separator.start()]
@@ -79,11 +76,12 @@ def iter_srt_scenes(srt_string: str) -> Iterator[SrtScene]:
         lines = block.split("\n")
         if len(lines) < 3:
             continue
-        index: int | None
+        if not re.fullmatch(r"[+-]?[0-9]+", lines[0].strip()):
+            continue
         try:
             index = int(lines[0].strip())
         except ValueError:
-            index = None
+            continue
         timing = lines[1].strip()
         if "-->" not in timing:
             continue
@@ -95,6 +93,8 @@ def iter_srt_scenes(srt_string: str) -> Iterator[SrtScene]:
             start_sec = parse_srt_timestamp(start_str)
             end_sec = parse_srt_timestamp(end_str)
         except ValueError:
+            continue
+        if end_sec < start_sec:
             continue
         yield SrtScene(
             index=index,

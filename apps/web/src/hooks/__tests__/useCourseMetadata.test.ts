@@ -24,7 +24,7 @@ function useEditor(onUpdateSuccess?: () => void) {
   }));
   return {
     query, client: useQueryClient(),
-    editor: useVideoCourseDetailMutations({ courseId: course.id, onDeleteSuccess: vi.fn(), onUpdateSuccess }),
+    editor: useVideoCourseDetailMutations({ courseId: course.id, onUpdateSuccess }),
   };
 }
 
@@ -117,7 +117,7 @@ describe('course metadata saves', () => {
     globalThis.__setTrpcHandler('courses.update', () => new Promise<Course>(resolve => { finishSave = resolve; }));
     const { result, rerender } = renderHook(({ courseId }) => ({
       client: useQueryClient(),
-      editor: useVideoCourseDetailMutations({ courseId, onDeleteSuccess: vi.fn() }),
+      editor: useVideoCourseDetailMutations({ courseId }),
     }), { initialProps: { courseId: 7 } });
     const otherKey = trpc.courses.get.queryKey({ id: 8 });
     const other = { ...course, id: 8, name: 'Other' };
@@ -139,7 +139,7 @@ describe('course metadata saves', () => {
     globalThis.__setTrpcHandler('courses.update', update);
     const { result } = renderHook(() => ({
       client: useQueryClient(),
-      editor: useVideoCourseDetailMutations({ courseId: 7, onDeleteSuccess: vi.fn() }),
+      editor: useVideoCourseDetailMutations({ courseId: 7 }),
     }));
     await act(() => result.current.editor.updateCourseMutation.mutateAsync({ name: saved.name, description: saved.description }));
     expect(update).toHaveBeenCalledTimes(1);

@@ -123,7 +123,7 @@ describe('FeedbackProvider', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Copy failed')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss notification' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.actions.dismissNotification' }))
 
     await waitFor(() => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
@@ -144,7 +144,7 @@ describe('FeedbackProvider', () => {
     const initialTimers = vi.getTimerCount()
     fireEvent.click(screen.getByText('Show toast'))
     expect(vi.getTimerCount()).toBe(initialTimers + 1)
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss notification' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.actions.dismissNotification' }))
     expect(vi.getTimerCount()).toBe(initialTimers)
     fireEvent.click(screen.getByText('Show toast'))
     unmount()

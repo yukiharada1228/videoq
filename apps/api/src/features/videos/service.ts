@@ -1,6 +1,5 @@
 import {
   listVideosPage,
-  countVideosByStatus,
   getVideoDetail,
   mapVideoDetailRow,
   updateVideo,
@@ -38,6 +37,11 @@ import { processExternalTaskById } from "../../lib/external-tasks";
 import { armMaintenance } from "../../lib/task-scheduler";
 import { ABANDONED_UPLOAD_MS } from "../../lib/upload-reconcile";
 import type { CreationIdempotency } from "../../repositories/mcp-idempotency-repository";
+
+export {
+  countVideosByStatus as getUserVideoStats,
+  getVideoDetail as getUserVideo,
+} from "../../repositories/video-repository";
 
 type UploadRequest = {
   filename: string;
@@ -111,18 +115,6 @@ export async function listUserVideos(
     limit,
     offset,
   );
-}
-
-export async function getUserVideoStats(env: Bindings, userId: string) {
-  return countVideosByStatus(env, userId);
-}
-
-export async function getUserVideo(
-  env: Bindings,
-  videoId: number,
-  userId: string,
-) {
-  return getVideoDetail(env, videoId, userId);
 }
 
 export async function requestPresignedUpload(
@@ -232,24 +224,12 @@ export async function requestPresignedUpload(
   }
 }
 
-function isValidUrlFormat(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return ["http:", "https:", "ftp:", "ftps:"].includes(url.protocol);
-  } catch {
-    return false;
-  }
-}
-
 export async function createUserYoutubeVideo(
   env: Bindings,
   userId: string,
   body: YoutubeCreateRequest,
   idempotency?: CreationIdempotency,
 ) {
-  if (!isValidUrlFormat(body.youtube_url)) {
-    return { fieldError: { youtube_url: ["Enter a valid URL."] } } as const;
-  }
   const youtubeVideoId = extractYoutubeVideoId(body.youtube_url);
   if (youtubeVideoId === null) {
     return {
@@ -355,17 +335,6 @@ export async function patchUserVideo(
   if (res.reindexTaskId !== null) {
     await processExternalTaskById(env, res.reindexTaskId);
   }
-  return { video: await mapVideoDetailRow(env, res.row) } as const;
-}
-
-export async function putUserVideo(
-  env: Bindings,
-  videoId: number,
-  userId: string,
-  fields: { title: string; description: string },
-) {
-  const res = await updateVideo(env, videoId, userId, fields);
-  if ("notFound" in res) return { notFound: true } as const;
   return { video: await mapVideoDetailRow(env, res.row) } as const;
 }
 
