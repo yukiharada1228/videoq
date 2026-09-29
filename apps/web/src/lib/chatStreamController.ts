@@ -1,11 +1,6 @@
 import type { ChatStreamEvent } from '@/lib/api';
 import { appendChatPart, type ChatContentPart } from '@videoq/trpc/chat';
 
-const CHAT_STREAM_RENDER_TICK_MS = 24;
-// Batch updates for rendering, but never manufacture a typing delay for text
-// already received from the server.
-const CHAT_STREAM_RENDER_CHARS_PER_TICK = Number.POSITIVE_INFINITY;
-
 export type ChatStreamDoneEvent = Extract<ChatStreamEvent, { type: 'done' }>;
 export type ChatStreamErrorEvent = Extract<ChatStreamEvent, { type: 'error' }>;
 
@@ -23,11 +18,7 @@ export type ChatStreamAction =
   | { type: 'done_applied' }
   | { type: 'stream_aborted' };
 
-type TimerId = ReturnType<typeof setInterval>;
-
 interface ChatStreamControllerOptions {
-  charsPerTick?: number;
-  tickMs?: number;
   flush?: (callback: () => void) => void;
   onAppendParts: (parts: ChatContentPart[]) => void;
   onDone: (event: ChatStreamDoneEvent) => void;
@@ -101,25 +92,22 @@ export function chatStreamReducer(
 
 export class ChatStreamController {
   private state = createInitialChatStreamState();
-  private drainTimer: TimerId | null = null;
-  private readonly charsPerTick: number;
-  private readonly tickMs: number;
+  private drainFrame: number | null = null;
   private readonly flush: (callback: () => void) => void;
   private readonly onAppendParts: (parts: ChatContentPart[]) => void;
   private readonly onDone: (event: ChatStreamDoneEvent) => void;
   private readonly onError: (event: ChatStreamErrorEvent) => void;
   private waiters: Array<() => void> = [];
+  private readonly handleVisibilityChange = () => {
+    if (document.hidden) this.tryFinalizeDrain();
+  };
 
   constructor({
-    charsPerTick = CHAT_STREAM_RENDER_CHARS_PER_TICK,
-    tickMs = CHAT_STREAM_RENDER_TICK_MS,
     flush = (callback) => callback(),
     onAppendParts,
     onDone,
     onError,
   }: ChatStreamControllerOptions) {
-    this.charsPerTick = charsPerTick;
-    this.tickMs = tickMs;
     this.flush = flush;
     this.onAppendParts = onAppendParts;
     this.onDone = onDone;
@@ -127,7 +115,7 @@ export class ChatStreamController {
   }
 
   start() {
-    this.stopDrainTimer();
+    this.cancelDrainFrame();
     this.flushDrainWaiters();
     this.state = chatStreamReducer(this.state, { type: 'stream_started' });
   }
@@ -137,7 +125,7 @@ export class ChatStreamController {
     this.state = chatStreamReducer(this.state, { type: 'stream_event', event });
 
     if (event.type === 'text_delta' || event.type === 'citation') {
-      this.ensureDrainTimer();
+      this.ensureDrainFrame();
       return;
     }
 
@@ -148,13 +136,14 @@ export class ChatStreamController {
 
     if (event.type !== 'error') return; // searching など進行状況のみのイベント
 
-    this.stopDrainTimer();
+    this.cancelDrainFrame();
     this.flushDrainWaiters();
     this.onError(event);
   }
 
   async complete() {
     this.state = chatStreamReducer(this.state, { type: 'stream_finished' });
+    this.tryFinalizeDrain();
     await this.waitForDrainCompletion();
   }
 
@@ -170,7 +159,7 @@ export class ChatStreamController {
   }
 
   abort() {
-    this.stopDrainTimer();
+    this.cancelDrainFrame();
     this.state = chatStreamReducer(this.state, { type: 'stream_aborted' });
     this.flushDrainWaiters();
   }
@@ -183,58 +172,40 @@ export class ChatStreamController {
   getSnapshot() {
     return {
       ...this.state,
-      timerActive: this.drainTimer !== null,
+      framePending: this.drainFrame !== null,
     };
   }
 
-  private drainNextSlice() {
-    if (this.state.queuedParts.length > 0) {
-      const remaining = this.state.queuedParts.slice();
-      const ready: ChatContentPart[] = [];
-      let budget = this.charsPerTick;
-      while (remaining.length > 0) {
-        const part = remaining[0];
-        if (part.type === 'citation') {
-          ready.push(part);
-          remaining.shift();
-        } else {
-          if (budget <= 0) break;
-          let end = 0;
-          for (const character of part.text) {
-            if (budget <= 0) break;
-            end += character.length;
-            budget--;
-          }
-          const text = part.text.slice(0, end);
-          ready.push({ ...part, text });
-          if (text.length === part.text.length) remaining.shift();
-          else remaining[0] = { ...part, text: part.text.slice(text.length) };
-        }
-      }
-      this.state = chatStreamReducer(this.state, { type: 'parts_drained', remaining });
+  private drainQueuedParts() {
+    this.cancelDrainFrame();
+    const ready = this.state.queuedParts;
+    if (ready.length > 0) {
+      this.state = chatStreamReducer(this.state, { type: 'parts_drained', remaining: [] });
       this.flush(() => this.onAppendParts(ready));
-      this.tryFinalizeDrain();
-      return;
     }
     this.tryFinalizeDrain();
   }
 
-  private ensureDrainTimer() {
-    if (this.drainTimer !== null) {
+  private ensureDrainFrame() {
+    if (this.drainFrame !== null) {
       return;
     }
 
-    this.drainTimer = setInterval(() => {
-      this.drainNextSlice();
-    }, this.tickMs);
+    // Coalesce all received parts into the browser's next paint, without a
+    // fixed delay or a recurring callback when there is nothing to render.
+    this.drainFrame = requestAnimationFrame(() => this.drainQueuedParts());
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
   }
 
   private tryFinalizeDrain() {
     if (this.state.queuedParts.length > 0) {
+      // Hidden tabs can pause animation frames. Finish without waiting for a
+      // paint, including when the tab is hidden after the terminal event.
+      if (this.state.streamFinished && document.hidden) this.drainQueuedParts();
       return;
     }
 
-    this.stopDrainTimer();
+    this.cancelDrainFrame();
 
     if (!this.state.streamFinished) {
       return;
@@ -253,13 +224,14 @@ export class ChatStreamController {
     return this.state.queuedParts.length === 0 && this.state.streamFinished;
   }
 
-  private stopDrainTimer() {
-    if (this.drainTimer === null) {
+  private cancelDrainFrame() {
+    if (this.drainFrame === null) {
       return;
     }
 
-    clearInterval(this.drainTimer);
-    this.drainTimer = null;
+    cancelAnimationFrame(this.drainFrame);
+    this.drainFrame = null;
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
   }
 
   private flushDrainWaiters() {
