@@ -204,7 +204,7 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
           return;
         }
         if (event.type === 'done') {
-          // Persistence is complete now, even while queued text is animating.
+          // Persistence is complete now, even while text awaits the next paint.
           // Shared answers use the owner's quota, not the visitor's account.
           if (!shareToken) void invalidateAfterChatAnswer(queryClient, courseId);
           break;

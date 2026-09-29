@@ -55,7 +55,7 @@ async function send(context: Context, text = english() ? englishQuestion : quest
 }
 async function complete(context: Context) {
   await send(context);
-  // The real hook renders three characters per 24ms tick, including long answers.
+  // Completion metadata follows the final batch of text in the render queue.
   await context.canvas.findByRole('button', { name: label('feedbackGood') }, { timeout: 10000 });
   await waitFor(() => expect(input(context)).toBeEnabled());
 }

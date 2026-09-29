@@ -136,9 +136,9 @@ Tabでリンクを移動し、Escapeで閉じて起点へフォーカスを戻�
 保留中の通信は共通MSW helperで終了時に解放します。メールの配送や参加者の変更は実サーバーへ送信しません。
 
 `Chat/ChatPanel`は実際の`useChatMessages`／`useChatHistory`とMSWを使います。SSEは`ReadableStream`へ型付きイベントを書き込み、初期待機・検索・検索完了・本文途中・完了・HTTP失敗・SSEエラーを固定します。
-`ProgressToComplete`はplay関数からイベントを順に送り、`InterruptedResponse`／`RetryAfterInterruption`では回答途中の中断と再送を確認します。本文の文字送りは本番と同じ24msごとに3文字で、長文のStoryは描画完了を待ちます。
+`ProgressToComplete`はplay関数からイベントを順に送り、`InterruptedResponse`／`RetryAfterInterruption`では回答途中の中断と再送を確認します。本文は本番と同じく`requestAnimationFrame`で受信済みの差分を次の描画時にまとめて反映し、Storyは本文の反映と完了通知を待ちます。非表示タブでは描画を待たずに回答の完了処理を行います。
 `CompleteWithOpenConnection`はdone後に接続が開いたままでも回答が完了すること、`UnmountDuringResponse`は画面を外すと通信が中止され、再表示に古い回答が混ざらないことを確認します。
-Story終了時にストリーム・保留したCSV要求・abortリスナーを解放し、React側もfetchと描画timerを終了します。
+Story終了時にストリーム・保留したCSV要求・abortリスナーを解放し、React側もfetchと描画予約をキャンセルします。
 通常チャット、共有リンク、履歴取得・評価の反映、キーボード送信・引用、長文、日英のスマホ表示を用意しています。履歴取得失敗は空一覧と区別してエラーを表示します。
 `ExportCsv`は固定の`storybook-chat.csv`を生成します。CSV／フィードバック失敗は現行hookと同じくconsoleへ記録し、再操作できます。外部AI・実APIには接続しません。
 

@@ -326,7 +326,7 @@ describe('useChatMessages streaming', () => {
     })
   })
 
-  it('updates message content after each token (intermediate state visible between tokens)', async () => {
+  it.each([false, true])('shows intermediate text without duplication or mutating earlier state (StrictMode=%s)', async reactStrictMode => {
     const resolvers: Array<() => void> = []
 
     ;(apiClient.chatStream as any).mockImplementation(async function* () {
@@ -337,7 +337,7 @@ describe('useChatMessages streaming', () => {
       yield { type: 'done' as const, chat_log_id: null, feedback: null }
     })
 
-    const { result } = renderHook(() => useChatMessages({}))
+    const { result } = renderHook(() => useChatMessages({}), { reactStrictMode })
     act(() => { result.current.setInput('Hi') })
 
     // Start streaming without awaiting
@@ -347,6 +347,7 @@ describe('useChatMessages streaming', () => {
     await waitFor(() => {
       expect(messageText(result.current.messages.at(-1))).toBe('A')
     })
+    const firstPartialMessage = result.current.messages.at(-1)
 
     // Release second token
     act(() => { resolvers[0]?.() })
@@ -355,27 +356,68 @@ describe('useChatMessages streaming', () => {
     await waitFor(() => {
       expect(messageText(result.current.messages.at(-1))).toBe('AB')
     })
+    expect(messageText(firstPartialMessage)).toBe('A')
+    expect(apiClient.chatStream).toHaveBeenCalledTimes(1)
   })
 
-  it('renders all received text in the next tick without a typing delay', async () => {
+  it('renders all received text in the next animation frame without a typing delay', async () => {
     vi.useFakeTimers()
-    ;(apiClient.chatStream as any).mockImplementation(async function* () {
-      yield { type: 'text_delta' as const, segmentIndex: 0, text: 'ABCDEF' }
-      yield { type: 'done' as const, chat_log_id: null, feedback: null }
-    })
+    try {
+      vi.mocked(apiClient.chatStream).mockImplementation(makeStreamMock(['ABCDEF']))
 
-    const { result } = renderHook(() => useChatMessages({}))
+      const { result } = renderHook(() => useChatMessages({}))
 
-    act(() => { result.current.setInput('Hi') })
+      act(() => { result.current.setInput('Hi') })
 
-    act(() => { void result.current.handleSend() })
+      act(() => { void result.current.handleSend() })
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(24)
-    })
-    expect(messageText(result.current.messages.at(-1))).toBe('ABCDEF')
+      // Let the async generator deliver its events without advancing a frame.
+      await act(async () => {})
+      expect(messageText(result.current.messages.at(-1))).toBe('')
+      expect(result.current.isLoading).toBe(true)
+      await act(async () => {
+        vi.advanceTimersToNextFrame()
+      })
+      expect(messageText(result.current.messages.at(-1))).toBe('ABCDEF')
+      expect(result.current.isLoading).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 
-    vi.useRealTimers()
+  it.each(['before request', 'after done'])('allows another question without a frame when hidden %s', async hiddenAt => {
+    vi.useFakeTimers()
+    const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(hiddenAt === 'before request')
+    try {
+      vi.mocked(apiClient.chatStream)
+        .mockImplementationOnce(makeStreamMock(['First'], { chat_log_id: 41 }))
+        .mockImplementationOnce(makeStreamMock(['Second'], { chat_log_id: 42 }))
+      const { result } = renderHook(() => useChatMessages({}))
+      act(() => result.current.setInput('First question'))
+      let sending!: Promise<void>
+      await act(async () => { sending = result.current.handleSend() })
+      if (hiddenAt === 'after done') {
+        expect(result.current.isLoading).toBe(true)
+        expect(messageText(result.current.messages.at(-1))).toBe('')
+        hidden.mockReturnValue(true)
+        await act(async () => { document.dispatchEvent(new Event('visibilitychange')) })
+      }
+      await act(async () => { await sending })
+      expect(messageText(result.current.messages.at(-1))).toBe('First')
+      expect(result.current.messages.at(-1)?.chatLogId).toBe(41)
+      expect(result.current.isLoading).toBe(false)
+
+      act(() => result.current.setInput('Second question'))
+      await act(async () => { await result.current.handleSend() })
+      expect(apiClient.chatStream).toHaveBeenCalledTimes(2)
+      expect(messageText(result.current.messages.at(-3))).toBe('First')
+      expect(messageText(result.current.messages.at(-1))).toBe('Second')
+      expect(result.current.messages.at(-1)?.chatLogId).toBe(42)
+      expect(result.current.isLoading).toBe(false)
+    } finally {
+      hidden.mockRestore()
+      vi.useRealTimers()
+    }
   })
 
   it('calls chatStream with courseId when provided', async () => {
@@ -503,12 +545,12 @@ describe('useChatMessages streaming', () => {
     const lastMessage = result.current.messages.at(-1)
     unmount()
     expect(signal.aborted).toBe(true)
-    const createTimer = vi.spyOn(globalThis, 'setInterval')
+    const requestFrame = vi.spyOn(globalThis, 'requestAnimationFrame')
     await act(async () => { resume(); await sending })
     expect(closed).toHaveBeenCalledTimes(1)
     expect(messageText(lastMessage)).toBe('')
-    expect(createTimer).not.toHaveBeenCalled()
-    createTimer.mockRestore()
+    expect(requestFrame).not.toHaveBeenCalled()
+    requestFrame.mockRestore()
   })
 
   it('finishes and closes the stream on done without waiting for more network events', async () => {
