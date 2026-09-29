@@ -276,3 +276,8 @@ npm run ui:sync  # 同期
 ```
 
 対象は `scripts/sync-digital-agency-ui.mjs` で管理します。
+
+VideoQのテーマカラーは `src/styles/videoq-theme.css` で管理します。
+ベースは学習サービスらしいバイオレット `#7c3aed`（`key-900`）で、ボタン・リンク・選択状態に共通の濃淡を使います。
+`index.css` で同期テーマの後に読み込み、生成ファイル `digital-agency.css` は直接編集しません。
+ベースカラーを変更するときは `index.html` の `theme-color`、`public/manifest.json`、ドキュメントの `../docs/src/css/custom.css` も揃えてください。
