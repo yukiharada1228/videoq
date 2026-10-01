@@ -63,6 +63,8 @@ The documentation site uses a dedicated Worker at [docs.videoq.jp](https://docs.
 
 ## Deploying the learning feature removal
 
+This is a historical upgrade procedure for installations that still have the former Study/PLOG feature. The current application no longer provides that feature; ordinary Q&A and scene search remain. Do not treat these steps as work required for every deployment.
+
 Deploy the removal in two releases. First, remove the learning UI, API and worker task while retaining the database schema. The API's Durable Object migration deletes saved study sessions, and the updated worker acknowledges legacy `build_plog` messages without executing them. Wait for API, web and worker deployments to succeed before releasing the database cleanup.
 
 Before dropping storage, allow old invocations to finish: wait at least the worker's configured Lambda timeout after its update completes (currently 900 seconds), and confirm that no old API or worker deployment remains active. The second release removes learning-only tables and their embedded vectors, legacy learning tables and retired job records. The shared `scene_embeddings` table serves normal video search and Q&A and is retained. This sequence lets the application continue serving during cleanup and requires no maintenance environment variable.

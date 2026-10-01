@@ -57,16 +57,38 @@ sequenceDiagram
     participant API as チャット処理
     participant DB as PostgreSQL
     participant AI as AIサービス
-    User->>API: 質問と講座を送る
-    API->>DB: 講座へのアクセスを確認
-    API->>AI: 質問に応じた情報取得を判断
-    AI-->>API: 登録情報・シーン検索を要求
-    API->>DB: 許可された範囲の情報を取得
-    API->>AI: 情報を渡して回答を生成
-    API-->>User: 回答を順次送信
-    API->>DB: 質問・回答・引用などを保存
+    participant Queue as SQS / outbox
+    participant Worker as Python評価処理
+    User->>API: 最新の質問・講座・画面の言語
+    API->>DB: 権限を確認し、所有者の回答利用枠を予約
+    API->>AI: 指示・最新の質問・ツール・回答スキーマ
+    loop ツールの上限内で根拠を取得
+        AI-->>API: 講座情報取得またはシーン検索を要求
+        opt シーン検索の場合
+            API-->>User: searching
+            API->>AI: 検索文を埋め込みに変換
+            AI-->>API: 検索ベクトル
+        end
+        API->>DB: 許可された範囲の登録情報またはシーンを取得
+        opt シーン検索の場合
+            API-->>User: search_completed
+        end
+        API->>AI: 登録情報または番号付きシーンをツール結果として渡す
+    end
+    loop 構造化回答の生成中
+        AI-->>API: 構造化回答の差分
+        API-->>User: source・text_delta・検証済みcitation
+    end
+    API->>API: 回答全体と正常終了を検証
+    API->>DB: response・取得資料・評価の配送予定を同時に保存
+    API->>Queue: evaluate_chat_logを配送
+    API-->>User: 保存したチャットID付きのdone
+    Queue->>Worker: 評価ジョブ
+    Worker->>DB: 保存済みの質問・response・取得資料を読む
+    Worker->>AI: RAGASの採点リクエスト
+    Worker->>DB: 評価状態と指標を保存
 ```
 
-情報取得は必要に応じて繰り返されます。図はQ&Aの概略で、登録情報だけで回答する経路や非ストリーミングの応答もあります。
+本文と引用は生成完了前から届きます。`done` は回答保存後であり、RAGAS評価の完了を待ちません。ブラウザーは描画フレームで待機中の内容を反映し、完了後にフィードバック操作を有効にします。登録情報だけの回答はシーンの埋め込みを使わず、場面の引用もありません。非ストリーミングの `chat.send` は保存後に同じ構造化回答を返します。講座未選択の応答にはツール・講座の履歴保存・評価ジョブがありません。
 
 **関連:** [認証とアクセス権](../concepts/auth.md)、[プロンプト設計](../architecture/prompt-engineering.md)。

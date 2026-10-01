@@ -39,7 +39,7 @@ If a single cue itself exceeds the budget, the code splits its tokens and distri
 
 ## 3. Store searchable scene data
 
-The indexing job parses the scene SRT, embeds each scene's text, and writes rows to `scene_embeddings`. Embedding requests are batched in groups of 64. Each row contains text plus its vector and metadata: owner, video ID/title, scene index, and start/end times.
+Scene splitting runs during initial transcription, and its resulting SRT is saved in `videos.transcript`. The indexing job parses that saved SRT, embeds each scene's text, and writes rows to `scene_embeddings`; it does not run Otsu splitting again. A manually edited transcript is therefore indexed using its saved cue boundaries. Embedding requests are batched in groups of 64. Each row contains text plus its vector and metadata: owner, video ID/title, scene index, and start/end times.
 
 Indexing replaces that video's existing vector rows. API search and worker indexing must use compatible embedding models and dimensions. The current database column has **1536 dimensions**; changing a model setting alone does not migrate the column or rebuild old vectors. A changed embedding model requires reindexing the material that will be searched with it.
 
@@ -63,6 +63,8 @@ The model can revise its query and search again, up to three times per answer. T
 ## 5. Send evidence to the answer model
 
 A scene tool result contains the citation number, video title, timestamps, and subtitle text. Course metadata comes from a separate tool. The answer model sees these results during the current tool loop and writes a response under the configured instructions.
+
+The model returns `segments` containing text and source IDs. The API adds the corresponding source metadata, streams text and validated citations during generation, and saves the complete `ChatAnswer` after final validation. See [the answer and streaming contract](prompt-engineering.md#structured-answers-citations-and-permissions).
 
 This path does not perform a web search. The available tools read registered course information and indexed scenes. A long-video summary is limited by the scenes actually retrieved; there is no automatic traversal of every scene to ensure full coverage.
 

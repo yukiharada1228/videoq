@@ -49,7 +49,26 @@ Two tools are available:
 
 The model can make up to 8 tool-enabled turns, after which tools are removed and it generates a final answer. The API validates arguments and access scope rather than executing model requests unchecked.
 
-For course Q&A, the streaming API sends search progress immediately and sends the final answer once the agent finishes. Tool-call preambles are not sent as answers. Client cancellation or interrupted delivery cancels outstanding model and embedding requests.
+For course Q&A, the streaming API sends search progress immediately, then streams answer text and validated citations while the model generates them. The API validates the complete answer before saving it and emitting `done`. Tool-call preambles are not sent as answers. Client cancellation or interrupted delivery cancels outstanding model and embedding requests.
+
+Scene search opens its DB connection and embedding adapter only when `search_scenes` is called. A metadata-only answer therefore does not depend on scene embeddings; it still needs course access checks, metadata reads, and answer persistence.
+
+## Model settings and limits
+
+These are application defaults, not measurements of production settings or provider limits.
+
+| Setting | Current implementation |
+|---|---|
+| Answer model | `LLM_MODEL`, default `gpt-4o-mini` |
+| Answer endpoint | Chat Completions at `OPENAI_BASE_URL`, default `https://api.openai.com/v1` |
+| Sampling and output budget | Temperature `0`; at most 1,024 output tokens per model call, including structured output |
+| Request deadline | Course RAG: 2 minutes for non-streaming requests; 5 minutes for streaming requests |
+| Automatic provider retries | Disabled in the API chat-model wrapper |
+| Search budget | At most 3 scene searches, 20 results per search by default |
+| Metadata budget | At most 5 calls, up to 20 videos per page |
+| Tool-enabled model turns | At most 8, followed by a final turn without tools |
+
+Configure API and worker environments separately. `LLM_MODEL` also selects the worker's evaluation model, but RAGAS uses its own output budget (`RAGAS_MAX_TOKENS`, default 4,096). Changing an API binding alone does not configure the Python worker. See [embeddings](../guides/embeddings.md) for the separate search-model configuration.
 
 ## Structured answers, citations and permissions
 
@@ -63,7 +82,7 @@ Unknown IDs and numeric IDs that are not positive safe integers are removed with
 
 Search enforces authorized course scope. ID validation proves that a source was retrieved for this answer; it does not prove that the source supports a claim. Prompt instructions also treat subtitles as reference data, but do not guarantee immunity from prompt injection or unsupported claims.
 
-### Streaming contract
+### Streaming contract {#streaming-contract}
 
 `POST /api/chat/messages/stream` has one format. SSE `data` contains a JSON event defined in `@videoq/trpc/chat`; there is no format query or legacy event support.
 
@@ -78,7 +97,9 @@ Search enforces authorized course scope. ID validation proves that a source was 
 
 Both course and no-course Q&A stream text during generation. Course Q&A uses LangGraph messages mode alongside search progress, without an extra model call. The SDK partial JSON decoder exposes monotonically growing text fields, withholding incomplete escapes and Unicode surrogates; JSON syntax and tool arguments are never displayed. Natural-language tool preambles are not answer segments. A provider that emits structured answer text and then calls a tool fails the stream instead of saving the provisional text. Completion still requires the terminal stop status and a strict, complete answer. No-course answers have no source registry and therefore no citation links.
 
-Course citations can arrive before the answer finishes: a segment object must actually close on the wire, its IDs must belong to the retrieved sources, and its boundary must be outside code/TeX. Potentially incomplete delimiters wait for lookahead or final validation. Only that lookahead briefly buffers the next segment; the existing text → citations → next segment order is preserved. Source metadata is sent before any citation uses it. The UI batches received content every 24 ms without a per-character typing delay.
+Course citations can arrive before the answer finishes: a segment object must actually close on the wire, its IDs must belong to the retrieved sources, and its boundary must be outside code/TeX. Potentially incomplete delimiters wait for lookahead or final validation. Only that lookahead briefly buffers the next segment; the existing text → citations → next segment order is preserved. Source metadata is sent before any citation uses it.
+
+The UI batches all queued content with `requestAnimationFrame`, scheduling work only when new text or citations arrive. It adds neither a fixed timer delay nor a per-character typing delay. `done` takes effect after queued content is applied. If the tab is hidden when the stream finishes, the queue is drained without waiting for a paused animation frame.
 
 Sources and ordered content events precede `done`. The UI applies these events directly to `ChatAnswer`; streaming and history use the same renderer. TeX/code across segment boundaries is rendered together when no citation intervenes. Unexpected EOF is an error. Cancellation stops upstream work; retry and course/share changes create fresh state. Usage is released for generation failures before any answer text is produced, but retained after partial text or a persistence failure, matching the existing quota policy.
 
@@ -100,7 +121,9 @@ Weak search matches can still be returned because the application currently has 
 
 ## Answer quality is evaluated separately
 
-For course chats, the API saves the question, structured answer (including source metadata), and retrieved context. An asynchronous worker job evaluates the saved answer with RAGAS. The generation request does not wait for that evaluation to approve or rewrite the response.
+For course chats, the API saves the question, structured answer (including source metadata), retrieved context, and evaluation delivery intent in one DB transaction. It then dispatches `evaluate_chat_log` through the outbox and SQS. The job reads the saved answer and evaluates it with RAGAS; the generation request does not wait for evaluation to approve or rewrite the response. No-course responses are neither saved as course chat logs nor evaluated.
+
+Evaluation text is the concatenation of `response.segments[].text`. Its context includes the deduplicated retrieved scenes and any course metadata returned by the tool, including material the final answer did not cite. RAGAS does not validate each displayed timestamp link or the correspondence between a segment and its `sourceIds`.
 
 | Stored metric | What it examines |
 |---|---|
@@ -110,6 +133,14 @@ For course chats, the API saves the question, structured answer (including sourc
 
 These are automated estimates, not verified grades or probabilities of correctness. The implementation uses reference-free metrics; it does not compare every response with a human-written correct answer. Context precision is skipped when no retrieved context exists. Individual metric failures can leave a value unset, while failure of the evaluation job is recorded as `failed`.
 
+### Evaluation execution and failures
+
+- The three metrics run in sequence. Within context precision, up to **4 contexts per job** are checked concurrently. Every context is evaluated, and their original order and RAGAS aggregation are preserved.
+- `RAGAS_MAX_TOKENS` defaults to **4,096 per LLM call**, allowing room for intermediate claim and verdict JSON. It must be a positive integer supported by the configured model.
+- The worker Docker image sets `RAGAS_DO_NOT_TRACK=true`, disabling RAGAS's synchronous usage telemetry. This avoids waiting for that telemetry service during scoring; model-service calls still occur. Set it before importing RAGAS when running the worker directly outside that image.
+- An individual metric exception or non-finite score normally leaves that metric unset. An embedding-contract violation propagates and marks the evaluation `failed`. A job can be `completed` with missing metrics, so inspect the values as well as status.
+- Scoring failures are recorded as `failed` and are not re-raised for automatic SQS retries. DB read/write failures still propagate through job retry handling. If history was deleted before the job starts, it is skipped; deletion during scoring does not recreate the chat or evaluation.
+
 ## Where to make changes
 
 | Location | Role |
@@ -117,6 +148,10 @@ These are automated estimates, not verified grades or probabilities of correctne
 | [prompts/](https://github.com/yukiharada1228/videoq/tree/main/apps/api/src/lib/prompts) | Instructions and settings |
 | [rag.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag.ts) | Q&A tool calls and answer generation |
 | [rag-course-info.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag-course-info.ts) | Registered course and video metadata |
+| [answer-content-stream.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/answer-content-stream.ts) / [chat-citations.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/chat-citations.ts) | Incremental answer decoding and citation validation |
+| [message-service.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/features/chat/message-service.ts) | Access, quota, SSE events, and persistence |
+| [chatStreamController.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/web/src/lib/chatStreamController.ts) | Browser rendering queue and completion |
+| [evaluation.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/evaluation.py) / [context_precision.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/context_precision.py) | RAGAS metrics and bounded context verification |
 
 ## What to check after a change
 

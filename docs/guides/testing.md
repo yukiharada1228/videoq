@@ -77,6 +77,16 @@ Worker tests that use the database need a test `DATABASE_URL`. Check each test's
 
 ## Tests using real models
 
+For answer-pipeline changes, start with deterministic tests before opting into model calls:
+
+| Behavior | Focused tests |
+|---|---|
+| Tool selection, scope, and independent questions | `apps/api/test/rag-agent.test.ts` |
+| Structured output, incremental text, and citation boundaries | `apps/api/test/structured-answer.test.ts`, `apps/api/test/answer-content-stream.test.ts` |
+| Animation-frame rendering, hidden tabs, completion, and cancellation | `apps/web/src/lib/__tests__/chatStreamController.test.ts` |
+| RAGAS metric behavior and bounded context concurrency | `apps/worker/tests/test_evaluation.py`, `apps/worker/tests/test_context_precision.py` |
+| Evaluation persistence and history deletion | `apps/worker/tests/test_evaluation_persistence.py` (test database required) |
+
 Separate from normal CI, a test verifies that a model chooses search tools appropriately:
 
 ```bash
