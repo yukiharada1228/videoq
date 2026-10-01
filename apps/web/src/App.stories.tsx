@@ -706,7 +706,9 @@ export const LoggedOutHome: Story = {
   parameters: { pathname: '/', api: { ...api, auth: authFixtures.loggedOut } },
   async play({ canvasElement }) {
     const canvas = within(canvasElement);
-    await canvas.findByRole('heading', { level: 1, name: i18n.t('landing.title') });
+    const heading = await canvas.findByRole('heading', { level: 1 });
+    await expect(heading).toHaveTextContent(i18n.t('landing.title'));
+    await expect(heading).toHaveTextContent(i18n.t('landing.titleAccent'));
     await expect(canvas.getAllByRole('main')).toHaveLength(1);
     await expect(canvas.getAllByRole('contentinfo')).toHaveLength(1);
   },

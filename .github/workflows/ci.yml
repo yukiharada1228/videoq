@@ -271,8 +271,10 @@ jobs:
         run: npm run typecheck --workspace @videoq/demo-video
       - name: Verify published demo videos
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg
+          if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends ffmpeg
+          fi
           python3 apps/demo-video/scripts/verify-video.py apps/web/public/demo/student-demo-ja.mp4
           python3 apps/demo-video/scripts/verify-video.py apps/web/public/demo/student-demo-en.mp4
       - name: Check Worker binding types
