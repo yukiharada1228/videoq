@@ -168,6 +168,11 @@ jobs:
       - name: Install and test
         working-directory: apps/worker
         run: |
+          # The runner's preferred Azure HTTP mirror can stall each download.
+          # Use the signed Ubuntu archive already present in its fallback list.
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
+          fi
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ffmpeg
           pip install -e ".[dev]"
@@ -272,6 +277,9 @@ jobs:
       - name: Verify published demo videos
         run: |
           if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
+            if [ -f /etc/apt/apt-mirrors.txt ]; then
+              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
+            fi
             sudo apt-get update
             sudo apt-get install -y --no-install-recommends ffmpeg
           fi
