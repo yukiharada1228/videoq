@@ -14,7 +14,7 @@ VideoQ は、**動画の内容に質問し、根拠となる場面へすぐに�
 
 [AIが回答を作るまで](concepts/how-ai-works.md)では、一つの質問から検索・根拠の取得・回答・引用元の再生までを追えます。AIが何を読み、過去の会話をどこまで受け取るかも説明しています。
 
-詳しく知りたい場合は、[文字起こしとシーン検索](architecture/transcription-and-search.md)、[Q&Aのプロンプトと回答評価](architecture/prompt-engineering.md)へ進んでください。これらの解説は、メニューの「AIの仕組み」にまとめています。
+詳しく知りたい場合は、[文字起こしとシーン検索](architecture/transcription-and-search.md)、[Q&Aのプロンプトと回答の保存](architecture/prompt-engineering.md)へ進んでください。これらの解説は、メニューの「AIの仕組み」にまとめています。
 
 現在は、**質問ごとに独立したQ&A・ツールによる情報取得・構造化回答**を使います。本文と引用を生成中から配信し、完成した講座の回答を保存して非同期評価します。以前のStudyモードとPLOG学習グラフは廃止されています。[AIの全体像](concepts/how-ai-works.md)は、2026-10-01時点の実装と照合した内容です。
 

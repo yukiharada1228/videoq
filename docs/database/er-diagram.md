@@ -46,7 +46,7 @@ erDiagram
     CHAT_LOGS ||--o| CHAT_LOG_EVALUATIONS : evaluated
 ```
 
-Questions, answers, and citations live in chat logs; quality evaluations are separate records. Evaluation may not be complete when the answer is returned.
+Questions, answers, and citations live in chat logs. Evaluation tables retain historical records; new answers are not scored.
 
 ## Video search data
 

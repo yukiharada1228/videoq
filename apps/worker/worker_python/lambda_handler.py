@@ -4,9 +4,9 @@ AWS Lambda / local poller handler for SQS background jobs.
 Native message shape (apps/api lib/jobs.ts):
 
 {
-  "type": "evaluate_chat_log",
+  "type": "index_video_transcript",
   "job_id": "<uuid>",
-  "payload": { "chat_log_id": 123 }
+  "payload": { "video_id": 123 }
 }
 """
 
@@ -63,7 +63,7 @@ def _execute_task(raw_body: str) -> None:
         raise ValueError("payload must be an object")
 
     # Retired jobs may still be delivered from SQS or an old outbox.
-    if job_type == "build_plog":
+    if job_type in {"build_plog", "evaluate_chat_log"}:
         logger.info("Discarding retired job: type=%s id=%s", job_type, job_id)
         return
 

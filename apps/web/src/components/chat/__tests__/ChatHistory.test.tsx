@@ -7,18 +7,11 @@ import { ChatPanel } from '../ChatPanel';
 
 const input = { courseId: 7, limit: 100, offset: 0 };
 const historyKey = trpc.chat.history.queryKey(input);
-const evaluationKey = trpc.evaluation.logs.queryKey(input);
 const history: RpcOutputMap['chat.history'] = {
   data: [{ id: 42, course: 7, question: 'Saved question', answer: { segments: [{ text: 'Saved answer', sourceIds: [] }], sources: [] },
     is_shared_origin: false, created_at: '2026-09-23T00:00:00Z', feedback: null }],
   meta: { total: 1, limit: 100, offset: 0 },
 };
-const evaluations: RpcOutputMap['evaluation.logs'] = {
-  data: [{ chat_log_id: 42, status: 'completed', faithfulness: 0.94,
-    answer_relevancy: 0.88, context_precision: 1, error_message: null, evaluated_at: null }],
-  meta: { total: 1, limit: 100, offset: 0 },
-};
-
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (reason: Error) => void;
@@ -39,76 +32,56 @@ function expectHistory() {
 
 describe('chat history loading and export', () => {
   const readHistory = vi.fn();
-  const readEvaluations = vi.fn();
 
   beforeEach(() => {
     readHistory.mockReset().mockResolvedValue(history);
-    readEvaluations.mockReset().mockResolvedValue(evaluations);
     globalThis.__setTrpcHandler('chat.history', readHistory);
-    globalThis.__setTrpcHandler('evaluation.logs', readEvaluations);
   });
 
-  it('loads history before requesting optional evaluations and displays it while they load', async () => {
+  it('loads history when opened and enables export after it arrives', async () => {
     const pendingHistory = deferred<typeof history>();
-    const pendingEvaluations = deferred<typeof evaluations>();
     readHistory.mockReturnValue(pendingHistory.promise);
-    readEvaluations.mockReturnValue(pendingEvaluations.promise);
     render(<ChatPanel courseId={7} />);
     expect(readHistory).not.toHaveBeenCalled();
-    expect(readEvaluations).not.toHaveBeenCalled();
     openHistory();
     try {
       await waitFor(() => expect(readHistory).toHaveBeenCalledTimes(1));
       expect(screen.getByRole('progressbar')).toBeInTheDocument();
-      expect(readEvaluations).not.toHaveBeenCalled();
       await act(async () => { pendingHistory.resolve(history); });
       await screen.findByText('Saved answer');
-      await waitFor(() => expect(readEvaluations).toHaveBeenCalledExactlyOnceWith(input));
       expectHistory();
     } finally {
       await act(async () => {
         pendingHistory.resolve(history);
-        pendingEvaluations.resolve(evaluations);
       });
     }
-    await screen.findByText('94%');
+    await screen.findByText('Saved answer');
     expect(readHistory).toHaveBeenCalledExactlyOnceWith(input);
     expectHistory();
   });
 
-  it('does not request evaluations for an empty history', async () => {
+  it('displays an empty history', async () => {
     readHistory.mockResolvedValue({ data: [], meta: { ...history.meta, total: 0 } });
     render(<ChatPanel courseId={7} />);
     openHistory();
     await screen.findByText('chat.historyEmpty');
-    expect(readEvaluations).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: 'chat.exportCsvShort' })).not.toBeInTheDocument();
   });
 
-  it('shows an initial history error without requesting evaluations', async () => {
+  it('shows an initial history error', async () => {
     readHistory.mockRejectedValue(new Error('History failed'));
     render(<ChatPanel courseId={7} />);
     openHistory();
     expect(await screen.findByRole('alert')).toHaveTextContent('History failed');
-    expect(readEvaluations).not.toHaveBeenCalled();
     expect(screen.queryByText('chat.historyEmpty')).not.toBeInTheDocument();
   });
 
-  it('keeps history usable when evaluation loading fails', async () => {
-    readEvaluations.mockRejectedValue(new Error('Evaluation failed'));
-    const { result } = renderHook(() => useQueryClient());
-    render(<ChatPanel courseId={7} />);
-    openHistory();
-    await waitFor(() => expect(result.current.getQueryState(evaluationKey)?.status).toBe('error'));
-    expectHistory();
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  });
 
   it.each(['success', 'error'] as const)('keeps cached history mounted during a background refresh ending in %s', async (outcome) => {
     const { result } = renderHook(() => useQueryClient());
     render(<ChatPanel courseId={7} />);
     openHistory();
-    await screen.findByText('94%');
+    await screen.findByText('Saved answer');
     const answer = screen.getByText('Saved answer');
     const pending = deferred<typeof history>();
     readHistory.mockReturnValueOnce(pending.promise);
@@ -136,29 +109,8 @@ describe('chat history loading and export', () => {
       expect(screen.queryByText('Saved question')).not.toBeInTheDocument();
     }
     expect(screen.getByText('Saved answer')).toBe(answer);
-    expect(readEvaluations).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps cached history and scores visible while evaluations refresh', async () => {
-    const { result } = renderHook(() => useQueryClient());
-    render(<ChatPanel courseId={7} />);
-    openHistory();
-    await screen.findByText('94%');
-    const pending = deferred<typeof evaluations>();
-    readEvaluations.mockReturnValueOnce(pending.promise);
-    let refreshing!: Promise<void>;
-    act(() => { refreshing = result.current.refetchQueries({ queryKey: evaluationKey, exact: true }); });
-    try {
-      await waitFor(() => expect(readEvaluations).toHaveBeenCalledTimes(2));
-      expectHistory();
-      expect(screen.getByText('94%')).toBeInTheDocument();
-    } finally {
-      await act(async () => { pending.resolve({ ...evaluations, data: [] }); await refreshing; });
-    }
-    await waitFor(() => expect(screen.queryByText('94%')).not.toBeInTheDocument());
-    expectHistory();
-    expect(readHistory).toHaveBeenCalledTimes(1);
-  });
 
   it('keeps export disabled until failure and allows retry with one error report', async () => {
     const pending = deferred<void>();
@@ -186,31 +138,4 @@ describe('chat history loading and export', () => {
     }
   });
 
-  it('keeps a late evaluation response within its original course', async () => {
-    const pending = deferred<typeof evaluations>();
-    readEvaluations.mockReturnValueOnce(pending.promise)
-      .mockResolvedValue({ ...evaluations, data: [] });
-    const { result } = renderHook(() => useQueryClient());
-    const { rerender } = render(<ChatPanel courseId={7} />);
-    openHistory();
-    await screen.findByText('Saved answer');
-    await waitFor(() => expect(readEvaluations).toHaveBeenCalledTimes(1));
-    readHistory.mockResolvedValue({
-      ...history, data: [{ ...history.data[0], id: 43, course: 8, question: 'Other question', answer: { segments: [{ text: 'Other answer', sourceIds: [] }], sources: [] } }],
-    });
-    try {
-      rerender(<ChatPanel courseId={8} />);
-      expect(screen.queryByText('Saved answer')).not.toBeInTheDocument();
-      openHistory();
-      await screen.findByText('Other answer');
-      await waitFor(() => expect(readEvaluations).toHaveBeenCalledTimes(2));
-    } finally {
-      await act(async () => { pending.resolve(evaluations); });
-    }
-    await waitFor(() => expect(result.current.isFetching()).toBe(0));
-    expect(screen.getByText('Other answer')).toBeInTheDocument();
-    expect(screen.queryByText('Saved answer')).not.toBeInTheDocument();
-    expect(screen.queryByText('94%')).not.toBeInTheDocument();
-    expect(result.current.getQueryData(evaluationKey)).toEqual(evaluations);
-  });
 });

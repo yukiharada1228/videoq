@@ -32,15 +32,11 @@ flowchart LR
     Answer --> Browser[本文と検証済み引用を逐次配信]
     Answer --> Validate[完成した回答を検証]
     Validate --> Logs[(chat_logs.response)]
-    Validate --> Outbox[(external_tasks)]
-    Outbox --> Evaluation[RAGASで非同期評価]
-    Logs --> Evaluation
-    Evaluation --> Scores[(chat_log_evaluations)]
 ```
 
-`chat_logs.response` は `segments` とサーバーが管理する `sources` をまとめて保存します。`retrieved_contexts` には、評価に使う重複除去済みのシーン本文と、取得した講座情報を保存します。質問・回答・取得資料・評価ジョブの配送予定は同じトランザクションで保存し、workerは後から完成済みの記録を読みます。途中のストリームイベントを別々のチャット記録として保存することはありません。
+`chat_logs.response` は `segments` とサーバーが管理する `sources` を保存します。`retrieved_contexts` には重複除去済みのシーン本文と取得した講座情報を保存します。途中のストリームイベントを別のチャット記録として保存することはありません。
 
-チャットの記録と、その回答の評価結果は別のテーブルです。ストリームの `done` は保存後に送信し、RAGASの採点完了を待ちません。講座未選択の応答は保存・評価しません。
+ストリームの `done` は回答保存後に送信します。講座未選択の応答は履歴に保存しません。廃止前の評価テーブルは過去データとして残り、新しい評価は作成しません。
 
 ## その他の保存先
 

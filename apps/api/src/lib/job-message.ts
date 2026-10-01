@@ -3,7 +3,6 @@ export const JOB_TRANSCRIBE_VIDEO = "transcribe_video" as const;
 const JOB_INDEX_VIDEO_TRANSCRIPT = "index_video_transcript" as const;
 export const JOB_REINDEX_VIDEO_TRANSCRIPT = "reindex_video_transcript" as const;
 export const JOB_DELETE_ACCOUNT_DATA = "delete_account_data" as const;
-export const JOB_EVALUATE_CHAT_LOG = "evaluate_chat_log" as const;
 export const JOB_REINDEX_ALL_VIDEOS_EMBEDDINGS =
   "reindex_all_videos_embeddings" as const;
 
@@ -12,7 +11,6 @@ export type JobType =
   | typeof JOB_INDEX_VIDEO_TRANSCRIPT
   | typeof JOB_REINDEX_VIDEO_TRANSCRIPT
   | typeof JOB_DELETE_ACCOUNT_DATA
-  | typeof JOB_EVALUATE_CHAT_LOG
   | typeof JOB_REINDEX_ALL_VIDEOS_EMBEDDINGS;
 
 export type JobMessage = {

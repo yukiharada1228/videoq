@@ -10,11 +10,6 @@ import {
 } from "../db/schema";
 import { toUtcIso } from "../shared/datetime";
 import type { Bindings } from "../types/bindings";
-import { insertJobTask } from "./external-task-repository";
-import {
-  buildJobMessage,
-  JOB_EVALUATE_CHAT_LOG,
-} from "../lib/job-message";
 
 type ChatQuestionAuthor = {
   user_id: string;
@@ -114,7 +109,7 @@ export async function getCourseWithMembers(
   });
 }
 
-/** Persist the validated answer unchanged and enqueue its evaluation atomically. */
+/** Persist the validated answer; AI quality evaluation has been retired. */
 export async function createChatLog(
   env: Bindings,
   params: {
@@ -125,7 +120,7 @@ export async function createChatLog(
     isShared: boolean;
     retrievedContexts: readonly string[];
   },
-): Promise<{ id: number; feedback: string | null; taskId: number }> {
+): Promise<{ id: number; feedback: string | null }> {
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
       const rows = await tx
@@ -143,17 +138,9 @@ export async function createChatLog(
         .returning({ id: chatLogs.id, feedback: chatLogs.feedback });
       const r = rows[0];
       const chatLogId = Number(r.id);
-      const message = buildJobMessage(JOB_EVALUATE_CHAT_LOG, {
-        chat_log_id: chatLogId,
-      });
-      const task = await insertJobTask(tx, {
-        message,
-        dedupeKey: `chat-evaluation:${chatLogId}`,
-      });
       return {
         id: chatLogId,
         feedback: chatFeedback(r.feedback),
-        taskId: task.id,
       };
     }),
   );

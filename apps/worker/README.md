@@ -23,11 +23,9 @@ API は次の native JSON を SQS へ送信します。
 | `index_video_transcript` | embedding生成と検索用シーンの一括更新（削除・保存を同一トランザクションで実行） |
 | `reindex_video_transcript` | 動画単位の再索引 |
 | `reindex_all_videos_embeddings` | 全動画の再索引 |
-| `evaluate_chat_log` | RAG 応答評価 |
 | `delete_account_data` | DB・vector・object storage の削除 |
 
-`payload` はジョブごとの引数だけを含むオブジェクトです。動画ジョブの `video_id` と
-評価ジョブの `chat_log_id` は、1以上かつJavaScriptの安全な整数の上限以下の整数を
+`payload` はジョブごとの引数だけを含むオブジェクトです。動画ジョブの `video_id` は、1以上かつJavaScriptの安全な整数の上限以下の整数を
 受け付けます。文字列・小数・真偽値からIDへの変換はしません。アカウント削除の
 `user_id` は空白だけでない文字列、全動画の再索引は空オブジェクトを指定します。
 worker内の送信処理と受信処理で同じ検証を行い、不正な入力は実行リースを取得する前に
@@ -57,9 +55,7 @@ SQSはat-least-once配送のため、workerは `job_executions.job_id` を15分�
 |---|---|
 | `DATABASE_URL` | PostgreSQL |
 | `SQS_QUEUE_URL` | Amazon SQS / ElasticMQ |
-| `OPENAI_API_KEY` | Whisper、LLM、評価 |
-| `RAGAS_MAX_TOKENS` | RAGAS評価の1回のLLM呼び出しあたりの出力上限（既定4,096、正の整数。利用モデルの上限以下） |
-| `RAGAS_DO_NOT_TRACK` | Docker/Lambdaでは`true`。評価ごとの同期的な利用統計送信を無効にし、統計サーバーへの接続待ちで採点が停止するのを防ぐ |
+| `OPENAI_API_KEY` | Whisperと埋め込み |
 | `EMBEDDING_PROVIDER` | `openai`（既定）または `ollama` |
 | `EMBEDDING_MODEL` | OpenAIは `text-embedding-3-small` が既定。Ollamaでは明示必須（検証構成: `qwen3-embedding:4b`） |
 | `USE_S3_STORAGE` | S3 互換 object storage の利用 |
@@ -92,11 +88,7 @@ DBパラメータ内の `DATABASE_URL` 欠落は読込済みにせず、次の�
 解析し、プレイリストや外部URL参照は受け付けません。上限を超えた処理は失敗として
 扱い、既存のジョブ再試行の対象になります。
 
-RAGASの参照文章の精度評価は、1ジョブあたり最大4件を同時に検証します。
-参照文章を切り捨てず、検索時の順序とRAGASの採点方法を維持します。
-これにより、参照文章が多い会話で逐次LLM呼び出しが積み重なり、Lambdaの
-15分制限に達する問題を抑えます。いずれかの検証が失敗した場合は、残りの
-処理をキャンセルしてからHTTPクライアントを閉じます。
+RAGAS評価は廃止しました。キューに残った `evaluate_chat_log` はAI・DB処理を実行せず終了します。
 
 ## ローカル実行
 

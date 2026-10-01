@@ -43,9 +43,6 @@ export const outputSchemas = {
   "chat.resetHistory": successSchema,
   "chat.analytics": models.chatAnalyticsSchema,
 
-  "evaluation.summary": models.evaluationSummarySchema,
-  "evaluation.logs": models.pageSchema(models.chatLogEvaluationSchema),
-
   "videos.list": models.pageSchema(videoListItemSchema),
   "videos.statusCounts": models.videoStatusCountsSchema,
   "videos.get": videoSchema,

@@ -47,7 +47,7 @@ Package READMEs: [`apps/`](apps/README.md) · [`apps/api/`](apps/api/README.md) 
 - **Ask questions with sources** - Chat across course videos and jump to the cited scenes
 - **Organize with tags** - Manage videos with custom tags and colors
 - **Share courses** - Group videos into courses, create share links, and invite members by email
-- **Review learning activity** - View chat history, feedback, analytics, CSV exports, and RAGAS answer evaluations
+- **Review learning activity** - View chat history, feedback, analytics, and CSV exports
 - **Manage usage and plans** - Administer users, storage and monthly quotas, reindex jobs, and optional Stripe subscriptions
 - **Multilingual UI** - Switch between Japanese and English interfaces
 - **MCP integration** - Manage videos and courses and analyze chat history from Claude Code
@@ -70,7 +70,7 @@ Package READMEs: [`apps/`](apps/README.md) · [`apps/api/`](apps/api/README.md) 
 3. Click "Create new secret key"
 4. Copy the key, which starts with `sk-...`
 
-The setup below uses OpenAI for transcription, embeddings, chat, and answer evaluation. Optional local AI configuration is described [below](#optional-reduce-costs-with-local-ai).
+The setup below uses OpenAI for transcription, embeddings, and chat. Optional local AI configuration is described [below](#optional-reduce-costs-with-local-ai).
 
 ### Step 2: Set up VideoQ
 
@@ -457,10 +457,8 @@ that split, including each tool's input/output schema and safety annotations.
 | `list_tags` | List tags |
 | `get_chat_history` | Chat history for a course (with feedback) |
 | `get_chat_analytics` | Question counts, period, daily time series, feedback aggregates |
-| `get_evaluation_summary` | RAGAS average scores (faithfulness / answer_relevancy / context_precision) |
-| `list_evaluation_logs` | Per-log RAGAS scores |
 
-List tools support `limit` / `offset` pagination. General lists default to 20 and allow at most 100 items; chat history and evaluation logs default to 10 and allow at most 25. `get_course` paginates member videos separately with `video_limit` / `video_offset`. `get_video` omits the transcript by default; request bounded chunks with `include_transcript`, `transcript_offset`, and `transcript_limit`.
+List tools support `limit` / `offset` pagination. General lists default to 20 and allow at most 100 items; chat history defaults to 10 and allows at most 25. `get_course` paginates member videos separately with `video_limit` / `video_offset`. `get_video` omits the transcript by default; request bounded chunks with `include_transcript`, `transcript_offset`, and `transcript_limit`.
 
 The three create/reserve tools (`request_video_upload`, `create_youtube_video`, and `create_course`) require an `idempotency_key`. Generate one stable value per logical operation and reuse it only when retrying the same arguments. Upload confirmation and course membership addition are also safe to retry.
 

@@ -298,8 +298,6 @@ describe("MCP JSON-RPC", () => {
         "list_tags",
         "get_chat_history",
         "get_chat_analytics",
-        "get_evaluation_summary",
-        "list_evaluation_logs",
       ].sort(),
     );
     for (const tool of tools) {
@@ -334,7 +332,7 @@ describe("MCP JSON-RPC", () => {
         (tool) =>
           (tool.annotations as { readOnlyHint?: boolean }).readOnlyHint === true,
       ),
-    ).toHaveLength(9);
+    ).toHaveLength(7);
     expect(
       tools.filter(
         (tool) =>
@@ -375,8 +373,6 @@ describe("MCP JSON-RPC", () => {
       ["list_tags", ["properties", "tags", "items", "properties"], "video_count"],
       ["get_chat_history", ["properties", "history", "items", "properties"], "question"],
       ["get_chat_analytics", ["properties", "analytics", "properties"], "summary"],
-      ["get_evaluation_summary", ["properties", "summary", "properties"], "evaluated_count"],
-      ["list_evaluation_logs", ["properties", "logs", "items", "properties"], "status"],
     ] as const;
     for (const [name, path, field] of concreteOutputFields) {
       const tool = tools.find((candidate) => candidate.name === name);

@@ -295,13 +295,7 @@ DLQ到達をSNS emailで通知します。apply後にAWSから届くsubscription
 開始時刻をタイムスタンプとして処理終了後に送信されるため、`duration`は実行中の即時通知では
 ありません。長い処理の遅れて届く指標も評価できるよう、15分の集計区間を使います。
 
-RAGAS評価の出力上限は`worker_ragas_max_tokens`（既定4,096）で設定し、Lambdaへ
-`RAGAS_MAX_TOKENS`として渡します。ローカルでは`.env`に同じ環境変数を設定します。
-これは評価の中間JSONを含むLLM呼び出しごとの上限です。切り詰め警告が続く場合は、
-利用モデルの出力上限内で調整してください（既定の
-[`gpt-4o-mini`](https://developers.openai.com/api/docs/models/gpt-4o-mini)は最大16,384）。
-上限の増加により、長い評価の生成時間と使用トークン数が増える場合があります。
-この環境変数を読むworker imageとTerraform設定の両方をリリースしてください。
+RAGAS評価は廃止しました。APIとworkerを両方リリースすると、新規ジョブの作成・配送が止まり、キューに残った評価ジョブもAIを呼ばずに終了します。旧評価テーブルは保持します。稼働中の旧workerによる評価は切替前に完了させてください。
 
 **arm64 cutover:** Lambda の `architectures = ["arm64"]` とイメージ arch は一致が必須です。
 

@@ -14,7 +14,7 @@ This site helps new contributors run the app and make their first small change. 
 
 Start with [How AI builds an answer](concepts/how-ai-works.md) to follow one question through search, evidence, an answer, and a playable citation. It also explains what the AI reads and how much conversation context it receives.
 
-Then explore [transcription and scene search](architecture/transcription-and-search.md) and [Q&A prompts and answer evaluation](architecture/prompt-engineering.md). The **AI behavior** menu groups these explanations together.
+Then explore [transcription and scene search](architecture/transcription-and-search.md) and [Q&A prompts and answer persistence](architecture/prompt-engineering.md). The **AI behavior** menu groups these explanations together.
 
 The current pipeline uses **independent questions, tool-based retrieval, and structured answers**. Answer text and citations stream during generation; completed course answers are saved and evaluated asynchronously. The former Study mode and PLOG learning graph have been removed. The [AI overview](concepts/how-ai-works.md) reflects the implementation checked on 2026-10-01.
 

@@ -33,6 +33,17 @@ beforeEach(() => {
 });
 
 describe("external task processor", () => {
+  it("acknowledges retired evaluation jobs without sending them to SQS", async () => {
+    const task = { id: 1, attempt: 1, kind: "sqs_job", payload: {
+      message: { type: "evaluate_chat_log", job_id: "retired", payload: { chat_log_id: 42 } },
+    } };
+    repository.claimExternalTasks.mockResolvedValueOnce([task]);
+    await expect(processExternalTaskById(env, 1)).resolves.toBe(true);
+    expect(repository.completeExternalTask).toHaveBeenCalledWith(env, task);
+    expect(sqs.sendSqsMessage).not.toHaveBeenCalled();
+    expect(repository.failExternalTask).not.toHaveBeenCalled();
+  });
+
   it("leaves a persisted task for recovery if immediate claiming fails", async () => {
     repository.claimExternalTasks.mockRejectedValueOnce(new Error("Database unavailable"));
 
@@ -200,7 +211,7 @@ describe("external task processor", () => {
         kind: "sqs_job",
         payload: {
           message: {
-            type: "evaluate_chat_log",
+            type: "index_video_transcript",
             job_id: "job-dead",
             payload: { chat_log_id: 9 },
           },

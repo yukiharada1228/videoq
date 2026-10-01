@@ -10,7 +10,7 @@ import { authFixtures } from '../../../.storybook/fixtures/auth';
 import { answer, answerData, citations, longAnswer } from '../../../.storybook/fixtures/chat';
 import { englishCitations, englishQuestion, mixedHistory } from '../../../.storybook/fixtures/chatHistory';
 import { answerEvents, contentEvents, courseId, courseHistory, englishHistory, firstTokens, question, reviewedEvents, searchingEvents, searchQuery, shareToken } from '../../../.storybook/fixtures/chatPanel';
-import { chatRequest, createChatPanelMock, csvRequest, evaluationRequest, feedbackRequest, historyError, historyRequest, type ChatPanelScenario } from '../../../.storybook/mocks/chatPanel';
+import { chatRequest, createChatPanelMock, csvRequest, feedbackRequest, historyError, historyRequest, type ChatPanelScenario } from '../../../.storybook/mocks/chatPanel';
 
 let network: ReturnType<typeof createChatPanelMock>;
 const label = (key: string) => i18n.t(`chat.${key}`);
@@ -233,48 +233,24 @@ export const HistoryLoading: Story = { parameters: { chat: { historyState: 'pend
   await openHistory(context); await expect(context.canvas.getByRole('progressbar')).toBeVisible();
   await expect(context.canvas.queryByText(label('historyEmpty'))).not.toBeInTheDocument();
 } };
-export const HistoryEmpty: Story = { parameters: { chat: { history: [], evaluations: [] } satisfies ChatPanelScenario }, async play(context) {
+export const HistoryEmpty: Story = { parameters: { chat: { history: [] } satisfies ChatPanelScenario }, async play(context) {
   await openHistory(context); await expect(await context.canvas.findByText(label('historyEmpty'))).toBeVisible();
-  await expect(evaluationRequest).not.toHaveBeenCalled();
 } };
-export const HistoryLoaded: Story = { parameters: { chat: { history: mixedHistory.map(item => ({ ...item, course: courseId })), evaluations: mixedHistory.flatMap(item => item.evaluation ? [item.evaluation] : []) } satisfies ChatPanelScenario }, async play(context) {
+export const HistoryLoaded: Story = { parameters: { chat: { history: mixedHistory.map(item => ({ ...item, course: courseId })) } satisfies ChatPanelScenario }, async play(context) {
   await openHistory(context);
-  await expect(await context.canvas.findByText(label('evaluation.status.completed'))).toBeVisible();
-  await expect(context.canvas.getByText('94%')).toBeVisible();
   await expect(historyRequest).toHaveBeenCalledWith({ courseId, limit: 100, offset: 0 });
-  await expect(evaluationRequest).toHaveBeenCalledWith({ courseId, limit: 100, offset: 0 });
 } };
 export const HistoryFailed: Story = { parameters: { chat: { historyState: 'error' } satisfies ChatPanelScenario }, async play(context) {
   await openHistory(context); await expect(await context.canvas.findByRole('alert')).toHaveTextContent(historyError);
   await expect(context.canvas.queryByText(label('historyEmpty'))).not.toBeInTheDocument();
-  await expect(evaluationRequest).not.toHaveBeenCalled();
 } };
-export const HistoryWhileEvaluationsLoad: Story = {
-  parameters: { chat: { evaluationState: 'pending' } satisfies ChatPanelScenario },
-  async play(context) {
-    await openHistory(context);
-    const item = english() ? englishHistory[0] : courseHistory[0];
-    await expect(await context.canvas.findByText(item.question)).toBeVisible();
-    await waitFor(() => expect(evaluationRequest).toHaveBeenCalledTimes(1));
-    await expect(context.canvas.queryByRole('progressbar')).not.toBeInTheDocument();
-    await expect(context.canvas.queryByRole('alert')).not.toBeInTheDocument();
-    await expect(context.canvas.getByRole('button', { name: 'CSV' })).toBeEnabled();
-    const citation = item.answer.sources[0];
-    const button = context.canvas.getByRole('button', { name: `${citation.title} ${citation.start_time}` });
-    button.focus();
-    await context.userEvent.keyboard('{Enter}');
-    await expect(context.args.onVideoPlay).toHaveBeenCalledWith(citation.video_id, citation.start_time);
-  },
-};
-export const HistoryWhileEvaluationsLoadEnglishMobile: Story = { ...HistoryWhileEvaluationsLoad, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
-export const HistoryEvaluationFailure: Story = { ...HistoryWhileEvaluationsLoad, parameters: { chat: { evaluationState: 'error' } satisfies ChatPanelScenario } };
 
 function historyRefreshStory(state: 'pending' | 'error'): Story {
   return {
     parameters: { chat: { historyRefetch: state } satisfies ChatPanelScenario },
     async play(context) {
       await openHistory(context);
-      await context.canvas.findByText('94%');
+      await context.canvas.findByText((english() ? englishHistory[0] : courseHistory[0]).question);
       const item = english() ? englishHistory[0] : courseHistory[0];
       const question = context.canvas.getByText(item.question);
       const csv = context.canvas.getByRole('button', { name: 'CSV' });
@@ -285,11 +261,9 @@ function historyRefreshStory(state: 'pending' | 'error'): Story {
       if (state === 'error') await expect(await context.canvas.findByRole('alert')).toHaveTextContent(historyError);
       await expect(context.canvas.getByText(item.question)).toBe(question);
       await expect(question).toBeVisible();
-      await expect(context.canvas.getByText('94%')).toBeVisible();
       await expect(csv).toHaveFocus();
       await expect(csv).toBeEnabled();
       await expect(context.canvas.queryByRole('progressbar')).not.toBeInTheDocument();
-      await expect(evaluationRequest).toHaveBeenCalledTimes(1);
     },
   };
 }
@@ -298,7 +272,7 @@ export const HistoryBackgroundRefreshEnglishMobile: Story = { ...HistoryBackgrou
 export const HistoryBackgroundFailure = historyRefreshStory('error');
 export const HistoryBackgroundFailureEnglishMobile: Story = { ...HistoryBackgroundFailure, globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
 export const FeedbackToggleAndHistory: Story = { async play(context) {
-  await openHistory(context); await context.canvas.findByText('94%');
+  await openHistory(context); await context.canvas.findByText((english() ? englishHistory[0] : courseHistory[0]).question);
   await context.userEvent.click(chatButton(context)); await complete(context);
   const good = context.canvas.getByRole('button', { name: label('feedbackGood') });
   const bad = context.canvas.getByRole('button', { name: label('feedbackBad') });
@@ -308,7 +282,7 @@ export const FeedbackToggleAndHistory: Story = { async play(context) {
     await waitFor(() => expect(button).toBeEnabled());
   }
   await expect(bad).toHaveAttribute('aria-pressed', 'true');
-  await openHistory(context); await context.canvas.findByText('94%');
+  await openHistory(context); await context.canvas.findByText((english() ? englishHistory[0] : courseHistory[0]).question);
   await expect(context.canvasElement.querySelector('.lucide-thumbs-down')).toBeInTheDocument();
 } };
 export const FeedbackPending: Story = { parameters: { chat: { feedback: 'pending' } satisfies ChatPanelScenario }, async play(context) {

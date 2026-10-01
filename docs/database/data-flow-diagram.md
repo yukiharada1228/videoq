@@ -32,15 +32,11 @@ flowchart LR
     Answer --> Browser[Stream text and validated citations]
     Answer --> Validate[Validate completed answer]
     Validate --> Logs[(chat_logs.response)]
-    Validate --> Outbox[(external_tasks)]
-    Outbox --> Evaluation[Asynchronous RAGAS evaluation]
-    Logs --> Evaluation
-    Evaluation --> Scores[(chat_log_evaluations)]
 ```
 
-`chat_logs.response` stores `segments` and server-owned `sources` together. `retrieved_contexts` stores the deduplicated scene texts and returned course metadata for evaluation. The question, response, contexts, and evaluation delivery intent are saved in one transaction; the worker reads the completed record later. Partial stream events are not stored as separate chat records.
+`chat_logs.response` stores `segments` and server-owned `sources`. `retrieved_contexts` retains deduplicated scene text and course metadata. Partial stream events are not stored as separate chat records.
 
-Chat records and answer evaluations use separate tables. The stream's `done` follows saving; it does not wait for RAGAS scoring. Responses without a course are not saved or evaluated.
+The stream's `done` follows answer persistence. Responses without a course are not saved. Retired evaluation tables retain historical data; no new scores are written.
 
 ## Other storage locations
 

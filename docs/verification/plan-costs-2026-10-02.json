@@ -1,0 +1,310 @@
+{
+  "status": "historical_pre_ragas_removal_estimate_do_not_use_for_current_quotas",
+  "superseded_by": "docs/verification/plan-costs-without-evaluation-2026-10-02.json",
+  "date": "2026-10-02",
+  "sources": {
+    "openai": "https://developers.openai.com/api/docs/pricing",
+    "stripe": "https://stripe.com/jp/billing/pricing",
+    "r2": "https://developers.cloudflare.com/r2/pricing/",
+    "lambda": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSLambda/current/ap-northeast-1/index.json"
+  },
+  "prices": {
+    "llm_input_usd_per_million": 0.15,
+    "llm_output_usd_per_million": 0.6,
+    "embedding_usd_per_million": 0.02,
+    "transcription_usd_per_minute": 0.006,
+    "storage_usd_per_gb_month": 0.015,
+    "lambda_arm_tokyo_usd_per_gb_second": 1.33334e-05,
+    "lambda_ephemeral_tokyo_usd_per_gb_second": 3.7e-08,
+    "lambda_usd_per_request": 2e-07,
+    "stripe_payments_fraction": 0.036,
+    "stripe_billing_fraction": 0.007
+  },
+  "assumptions": {
+    "usd_jpy": 160,
+    "lambda_seconds": 30,
+    "lambda_memory_mb": 5120,
+    "operating_reserve_yen": 0,
+    "exchange_rate_is_a_planning_assumption_not_a_spot_quote": true,
+    "evaluation_fraction": 1,
+    "tax_reserve_fraction": 0.1,
+    "transcription_and_storage_utilization": 1,
+    "discounts_and_provider_free_tiers_applied": false,
+    "context_tokens_o200k": 271,
+    "context_tokens_cl100k": 504,
+    "evaluation_answer_tokens_o200k": 181
+  },
+  "evidence": {
+    "fixture_generation_yen": 0.114852,
+    "fixture_source": "docs/verification/issue-996-comparison.json",
+    "fixture_caveat": "Short answers and fixed retrieval; excludes evaluation and production overhead.",
+    "production_worker_sample": {
+      "from_utc": "2026-09-28T00:00:00Z",
+      "queried_on": "2026-10-02",
+      "invocations": 27,
+      "average_billed_seconds": 26.425963,
+      "p95_billed_seconds": 40.426,
+      "configured_memory_mb": 5120,
+      "max_memory_bytes": 430000000,
+      "caveat": "All worker jobs, not isolated evaluation jobs; does not validate lower-memory performance."
+    }
+  },
+  "limitations": [
+    "Synthetic offline prompt counts are not production token usage or an average/p95 cost.",
+    "Outputs, generation inputs and evaluation Lambda duration are assumed; API framing, retries and failures can add cost.",
+    "No prompt-cache discounts assumed. Actual cache hits could lower LLM input costs.",
+    "Excludes transcription/indexing compute and embeddings, Neon, Workers, SQS, logs, R2 operations, SearchAPI, support and free-user subsidies.",
+    "Storage backing objects and API/worker model overrides may differ from repository defaults.",
+    "Break-even counts are optimistic upper bounds for each scenario, not recommended plan limits or profit forecasts."
+  ],
+  "scenarios": [
+    {
+      "contexts": 2,
+      "evaluation_input_tokens_offline": 5149,
+      "evaluation_output_tokens_assumed": 1160,
+      "generation_input_tokens_assumed": 5342,
+      "generation_output_tokens_assumed": 600,
+      "evaluation_yen": 0.234936,
+      "generation_yen": 0.18580799999999997,
+      "embeddings_yen": 0.0032,
+      "lambda_yen": 0.32083280000000003,
+      "answer_and_evaluation_yen": 0.7447768
+    },
+    {
+      "contexts": 5,
+      "evaluation_input_tokens_offline": 9934,
+      "evaluation_output_tokens_assumed": 1400,
+      "generation_input_tokens_assumed": 6155,
+      "generation_output_tokens_assumed": 600,
+      "evaluation_yen": 0.372816,
+      "generation_yen": 0.20532,
+      "embeddings_yen": 0.0032,
+      "lambda_yen": 0.32083280000000003,
+      "answer_and_evaluation_yen": 0.9021688
+    },
+    {
+      "contexts": 20,
+      "evaluation_input_tokens_offline": 33859,
+      "evaluation_output_tokens_assumed": 2600,
+      "generation_input_tokens_assumed": 10220,
+      "generation_output_tokens_assumed": 600,
+      "evaluation_yen": 1.0622159999999998,
+      "generation_yen": 0.30288,
+      "embeddings_yen": 0.0032,
+      "lambda_yen": 0.32083280000000003,
+      "answer_and_evaluation_yen": 1.6891288
+    },
+    {
+      "contexts": 60,
+      "evaluation_input_tokens_offline": 97659,
+      "evaluation_output_tokens_assumed": 5800,
+      "generation_input_tokens_assumed": 37320,
+      "generation_output_tokens_assumed": 600,
+      "evaluation_yen": 2.900616,
+      "generation_yen": 0.9532799999999999,
+      "embeddings_yen": 0.0032,
+      "lambda_yen": 0.32083280000000003,
+      "answer_and_evaluation_yen": 4.1779288
+    }
+  ],
+  "plans": [
+    {
+      "plan": "free",
+      "interval": "monthly",
+      "current_monthly_answers": 30,
+      "gross_monthly_yen": 0.0,
+      "after_tax_reserve_and_stripe_yen": 0.0,
+      "full_transcription_yen": 43.2,
+      "full_storage_yen": 2.5769803776,
+      "answer_budget_before_unmodeled_costs_yen": -45.776980377600005,
+      "max_unit_cost_at_current_limit_yen": 0.0,
+      "scenarios": [
+        {
+          "contexts": 2,
+          "break_even_answers_before_unmodeled_costs": 0,
+          "balance_at_current_limit_before_unmodeled_costs_yen": -68.1202843776
+        },
+        {
+          "contexts": 5,
+          "break_even_answers_before_unmodeled_costs": 0,
+          "balance_at_current_limit_before_unmodeled_costs_yen": -72.8420443776
+        },
+        {
+          "contexts": 20,
+          "break_even_answers_before_unmodeled_costs": 0,
+          "balance_at_current_limit_before_unmodeled_costs_yen": -96.4508443776
+        },
+        {
+          "contexts": 60,
+          "break_even_answers_before_unmodeled_costs": 0,
+          "balance_at_current_limit_before_unmodeled_costs_yen": -171.1148443776
+        }
+      ]
+    },
+    {
+      "plan": "free",
+      "interval": "yearly",
+      "current_monthly_answers": 30,
+      "gross_monthly_yen": 0.0,
+      "after_tax_reserve_and_stripe_yen": 0.0,
+      "full_transcription_yen": 43.2,
+      "full_storage_yen": 2.5769803776,
+      "answer_budget_before_unmodeled_costs_yen": -45.776980377600005,
+      "max_unit_cost_at_current_limit_yen": 0.0,
+      "scenarios": [
+        {
+          "contexts": 2,
+          "break_even_answers_before_unmodeled_costs": 0,
+          "balance_at_current_limit_before_unmodeled_costs_yen": -68.1202843776
+        },
+        {
+          "contexts": 5,
+          "break_even_answers_before_unmodeled_costs": 0,
+          "balance_at_current_limit_before_unmodeled_costs_yen": -72.8420443776
+        },
+        {
+          "contexts": 20,
+          "break_even_answers_before_unmodeled_costs": 0,
+          "balance_at_current_limit_before_unmodeled_costs_yen": -96.4508443776
+        },
+        {
+          "contexts": 60,
+          "break_even_answers_before_unmodeled_costs": 0,
+          "balance_at_current_limit_before_unmodeled_costs_yen": -171.1148443776
+        }
+      ]
+    },
+    {
+      "plan": "basic",
+      "interval": "monthly",
+      "current_monthly_answers": 500,
+      "gross_monthly_yen": 1480.0,
+      "after_tax_reserve_and_stripe_yen": 1281.8145454545452,
+      "full_transcription_yen": 288.0,
+      "full_storage_yen": 51.539607552,
+      "answer_budget_before_unmodeled_costs_yen": 942.2749379025452,
+      "max_unit_cost_at_current_limit_yen": 1.8845498758050903,
+      "scenarios": [
+        {
+          "contexts": 2,
+          "break_even_answers_before_unmodeled_costs": 1265,
+          "balance_at_current_limit_before_unmodeled_costs_yen": 569.8865379025451
+        },
+        {
+          "contexts": 5,
+          "break_even_answers_before_unmodeled_costs": 1044,
+          "balance_at_current_limit_before_unmodeled_costs_yen": 491.19053790254515
+        },
+        {
+          "contexts": 20,
+          "break_even_answers_before_unmodeled_costs": 557,
+          "balance_at_current_limit_before_unmodeled_costs_yen": 97.71053790254518
+        },
+        {
+          "contexts": 60,
+          "break_even_answers_before_unmodeled_costs": 225,
+          "balance_at_current_limit_before_unmodeled_costs_yen": -1146.6894620974547
+        }
+      ]
+    },
+    {
+      "plan": "basic",
+      "interval": "yearly",
+      "current_monthly_answers": 500,
+      "gross_monthly_yen": 1233.3333333333333,
+      "after_tax_reserve_and_stripe_yen": 1068.1787878787877,
+      "full_transcription_yen": 288.0,
+      "full_storage_yen": 51.539607552,
+      "answer_budget_before_unmodeled_costs_yen": 728.6391803267877,
+      "max_unit_cost_at_current_limit_yen": 1.4572783606535755,
+      "scenarios": [
+        {
+          "contexts": 2,
+          "break_even_answers_before_unmodeled_costs": 978,
+          "balance_at_current_limit_before_unmodeled_costs_yen": 356.2507803267877
+        },
+        {
+          "contexts": 5,
+          "break_even_answers_before_unmodeled_costs": 807,
+          "balance_at_current_limit_before_unmodeled_costs_yen": 277.5547803267877
+        },
+        {
+          "contexts": 20,
+          "break_even_answers_before_unmodeled_costs": 431,
+          "balance_at_current_limit_before_unmodeled_costs_yen": -115.92521967321227
+        },
+        {
+          "contexts": 60,
+          "break_even_answers_before_unmodeled_costs": 174,
+          "balance_at_current_limit_before_unmodeled_costs_yen": -1360.3252196732121
+        }
+      ]
+    },
+    {
+      "plan": "pro",
+      "interval": "monthly",
+      "current_monthly_answers": 2500,
+      "gross_monthly_yen": 3980.0,
+      "after_tax_reserve_and_stripe_yen": 3447.041818181818,
+      "full_transcription_yen": 1440.0,
+      "full_storage_yen": 257.69803776,
+      "answer_budget_before_unmodeled_costs_yen": 1749.343780421818,
+      "max_unit_cost_at_current_limit_yen": 0.6997375121687273,
+      "scenarios": [
+        {
+          "contexts": 2,
+          "break_even_answers_before_unmodeled_costs": 2348,
+          "balance_at_current_limit_before_unmodeled_costs_yen": -112.5982195781819
+        },
+        {
+          "contexts": 5,
+          "break_even_answers_before_unmodeled_costs": 1939,
+          "balance_at_current_limit_before_unmodeled_costs_yen": -506.0782195781819
+        },
+        {
+          "contexts": 20,
+          "break_even_answers_before_unmodeled_costs": 1035,
+          "balance_at_current_limit_before_unmodeled_costs_yen": -2473.478219578182
+        },
+        {
+          "contexts": 60,
+          "break_even_answers_before_unmodeled_costs": 418,
+          "balance_at_current_limit_before_unmodeled_costs_yen": -8695.478219578183
+        }
+      ]
+    },
+    {
+      "plan": "pro",
+      "interval": "yearly",
+      "current_monthly_answers": 2500,
+      "gross_monthly_yen": 3316.6666666666665,
+      "after_tax_reserve_and_stripe_yen": 2872.5348484848478,
+      "full_transcription_yen": 1440.0,
+      "full_storage_yen": 257.69803776,
+      "answer_budget_before_unmodeled_costs_yen": 1174.8368107248477,
+      "max_unit_cost_at_current_limit_yen": 0.4699347242899391,
+      "scenarios": [
+        {
+          "contexts": 2,
+          "break_even_answers_before_unmodeled_costs": 1577,
+          "balance_at_current_limit_before_unmodeled_costs_yen": -687.1051892751523
+        },
+        {
+          "contexts": 5,
+          "break_even_answers_before_unmodeled_costs": 1302,
+          "balance_at_current_limit_before_unmodeled_costs_yen": -1080.5851892751523
+        },
+        {
+          "contexts": 20,
+          "break_even_answers_before_unmodeled_costs": 695,
+          "balance_at_current_limit_before_unmodeled_costs_yen": -3047.985189275152
+        },
+        {
+          "contexts": 60,
+          "break_even_answers_before_unmodeled_costs": 281,
+          "balance_at_current_limit_before_unmodeled_costs_yen": -9269.985189275152
+        }
+      ]
+    }
+  ]
+}

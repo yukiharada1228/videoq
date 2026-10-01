@@ -8,7 +8,6 @@ import {
   reserveAiAnswerUsage,
   type AiAnswerReservation,
 } from "../../repositories/quota-repository";
-import { processExternalTaskById } from "../../lib/external-tasks";
 import { LlmConfigurationError } from "../../lib/openai";
 import { runRag, streamRag, type RagResult } from "../../lib/rag";
 import { type ChatAnswer, type ChatStreamEvent } from "@videoq/trpc/chat";
@@ -186,7 +185,6 @@ async function persistTurn(
     isShared: setup.isShared,
     retrievedContexts: turn.retrievedContexts,
   });
-  await processExternalTaskById(env, log.taskId);
   return { chatLogId: log.id, feedback: log.feedback };
 }
 

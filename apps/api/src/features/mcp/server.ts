@@ -130,8 +130,6 @@ const MCP_TOOL_ANNOTATIONS: Record<McpToolName, ToolAnnotations> = {
   list_tags: readOnly,
   get_chat_history: readOnly,
   get_chat_analytics: readOnly,
-  get_evaluation_summary: readOnly,
-  list_evaluation_logs: readOnly,
 };
 
 function toolConfig(name: McpToolName) {

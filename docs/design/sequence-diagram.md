@@ -57,8 +57,6 @@ sequenceDiagram
     participant API as Chat handler
     participant DB as PostgreSQL
     participant AI as AI service
-    participant Queue as SQS / outbox
-    participant Worker as Python evaluator
     User->>API: Latest question, course, and UI language
     API->>DB: Check access and reserve owner's answer quota
     API->>AI: System prompt, latest question, tools, answer schema
@@ -80,15 +78,10 @@ sequenceDiagram
         API-->>User: source, text_delta, validated citation
     end
     API->>API: Validate complete answer and terminal status
-    API->>DB: Save response, contexts, and evaluation outbox atomically
-    API->>Queue: Dispatch evaluate_chat_log
+    API->>DB: Save response and retrieved contexts
     API-->>User: done with saved chat ID
-    Queue->>Worker: Evaluation job
-    Worker->>DB: Read saved question, response, and contexts
-    Worker->>AI: RAGAS scoring calls
-    Worker->>DB: Save evaluation status and metrics
 ```
 
-Text and citations can arrive before generation finishes; `done` follows answer persistence, not RAGAS completion. The browser applies queued content on animation frames and enables feedback after completion. Metadata-only answers skip scene embeddings and have no scene citations. Non-streaming `chat.send` returns the same structured answer after saving. Without a course, the response has no tools, course history record, or evaluation job.
+Text and citations can arrive before generation finishes; `done` follows answer persistence. The browser applies queued content on animation frames and enables feedback after completion. Metadata-only answers skip scene embeddings and have no scene citations. Non-streaming `chat.send` returns the same structured answer after saving. Without a course, the response has no tools or course history record.
 
 **Related:** [Authentication and access control](../concepts/auth.md), [Prompt design](../architecture/prompt-engineering.md).

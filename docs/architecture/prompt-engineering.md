@@ -1,9 +1,9 @@
 ---
-title: Q&A prompts and answer evaluation
-description: The model's inputs, tool decisions, citations, failure behavior, and evaluation after answering.
+title: Q&A prompts and answer persistence
+description: The model's inputs, tool decisions, citations, failure behavior, and answer persistence.
 ---
 
-# Q&A prompts and answer evaluation
+# Q&A prompts and answer persistence
 
 Prompts contain instructions and reference material for AI. VideoQ answers using the user's question together with accessible course information and subtitles.
 
@@ -68,11 +68,11 @@ These are application defaults, not measurements of production settings or provi
 | Metadata budget | At most 5 calls, up to 20 videos per page |
 | Tool-enabled model turns | At most 8, followed by a final turn without tools |
 
-Configure API and worker environments separately. `LLM_MODEL` also selects the worker's evaluation model, but RAGAS uses its own output budget (`RAGAS_MAX_TOKENS`, default 4,096). Changing an API binding alone does not configure the Python worker. See [embeddings](../guides/embeddings.md) for the separate search-model configuration.
+Configure the answer model with the API's `LLM_MODEL`. See [embeddings](../guides/embeddings.md) for the search-model configuration shared by the API and worker.
 
 ## Structured answers, citations and permissions
 
-The model returns native structured output: `{"segments":[{"text":"A claim.","sourceIds":[1]}]}`. It never supplies video destinations. The server adds `sources: [{id, video_id, title, start_time, end_time}]` from the current answer's scoped search. This `ChatAnswer` is the only answer representation in non-streaming responses, browser state, history and the `chat_logs.response` JSONB column. CSV and RAGAS derive plain text by concatenating segment texts without adding separators. Text includes its own spaces/newlines; the renderer adds timestamp links after each segment, in `sourceIds` order.
+The model returns native structured output: `{"segments":[{"text":"A claim.","sourceIds":[1]}]}`. It never supplies video destinations. The server adds `sources: [{id, video_id, title, start_time, end_time}]` from the current answer's scoped search. This `ChatAnswer` is the only answer representation in non-streaming responses, browser state, history and the `chat_logs.response` JSONB column. CSV exports derive plain text by concatenating segment texts without adding separators. Text includes its own spaces/newlines; the renderer adds timestamp links after each segment, in `sourceIds` order.
 
 The configured Chat Completions endpoint/model must support **strict native `json_schema` output and strict function tools**, including their use together. Course Q&A uses LangChain `providerStrategy`; no-course Q&A passes the same JSON schema directly. Tool arguments explicitly include nullable `video_ids` and required pagination fields. Unsupported schema capability is a configuration error. There is no free-text fallback, conversion-only model call, or automatic repair/retry. Refusal, missing/blank output, truncation and schema violations fail the request. Tool-call preambles are never displayed as answers.
 
@@ -119,27 +119,9 @@ See [structured answer cutover and verification](structured-answers.md) for the 
 
 Weak search matches can still be returned because the application currently has no minimum similarity cutoff. See [scene search](transcription-and-search.md). Prompt wording alone cannot fix missing transcript content or a mismatched embedding index.
 
-## Answer quality is evaluated separately
+## Answer persistence
 
-For course chats, the API saves the question, structured answer (including source metadata), retrieved context, and evaluation delivery intent in one DB transaction. It then dispatches `evaluate_chat_log` through the outbox and SQS. The job reads the saved answer and evaluates it with RAGAS; the generation request does not wait for evaluation to approve or rewrite the response. No-course responses are neither saved as course chat logs nor evaluated.
-
-Evaluation text is the concatenation of `response.segments[].text`. Its context includes the deduplicated retrieved scenes and any course metadata returned by the tool, including material the final answer did not cite. RAGAS does not validate each displayed timestamp link or the correspondence between a segment and its `sourceIds`.
-
-| Stored metric | What it examines |
-|---|---|
-| `faithfulness` | Whether the answer's claims are supported by the retrieved material |
-| `answer_relevancy` | Whether the answer addresses the question |
-| `context_precision` | Whether the retrieved material is useful for the answer |
-
-These are automated estimates, not verified grades or probabilities of correctness. The implementation uses reference-free metrics; it does not compare every response with a human-written correct answer. Context precision is skipped when no retrieved context exists. Individual metric failures can leave a value unset, while failure of the evaluation job is recorded as `failed`.
-
-### Evaluation execution and failures
-
-- The three metrics run in sequence. Within context precision, up to **4 contexts per job** are checked concurrently. Every context is evaluated, and their original order and RAGAS aggregation are preserved.
-- `RAGAS_MAX_TOKENS` defaults to **4,096 per LLM call**, allowing room for intermediate claim and verdict JSON. It must be a positive integer supported by the configured model.
-- The worker Docker image sets `RAGAS_DO_NOT_TRACK=true`, disabling RAGAS's synchronous usage telemetry. This avoids waiting for that telemetry service during scoring; model-service calls still occur. Set it before importing RAGAS when running the worker directly outside that image.
-- An individual metric exception or non-finite score normally leaves that metric unset. An embedding-contract violation propagates and marks the evaluation `failed`. A job can be `completed` with missing metrics, so inspect the values as well as status.
-- Scoring failures are recorded as `failed` and are not re-raised for automatic SQS retries. DB read/write failures still propagate through job retry handling. If history was deleted before the job starts, it is skipped; deletion during scoring does not recreate the chat or evaluation.
+The API saves the completed question, structured answer and retrieved context before emitting `done`. RAGAS scoring, evaluation APIs and score displays have been retired. Citation validation, chat history and user feedback remain. Previously queued `evaluate_chat_log` jobs are acknowledged without AI calls.
 
 ## Where to make changes
 
@@ -151,7 +133,6 @@ These are automated estimates, not verified grades or probabilities of correctne
 | [answer-content-stream.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/answer-content-stream.ts) / [chat-citations.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/chat-citations.ts) | Incremental answer decoding and citation validation |
 | [message-service.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/features/chat/message-service.ts) | Access, quota, SSE events, and persistence |
 | [chatStreamController.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/web/src/lib/chatStreamController.ts) | Browser rendering queue and completion |
-| [evaluation.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/evaluation.py) / [context_precision.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/context_precision.py) | RAGAS metrics and bounded context verification |
 
 ## What to check after a change
 

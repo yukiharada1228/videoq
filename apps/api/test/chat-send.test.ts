@@ -383,13 +383,13 @@ const sseEvents = (text: string) =>
     .filter((f) => f.startsWith("data: "))
     .map((f) => JSON.parse(f.slice(6)));
 
-describe.each([false, true])("回答保存後の評価ジョブ配送障害（stream=%s）", (stream) => {
-  it("保存済みの回答と履歴IDを返し、評価はoutboxからの再試行に任せる", async () => {
+describe.each([false, true])("評価ジョブなしの回答保存（stream=%s）", (stream) => {
+  it("outboxを使わず保存済みの回答と履歴IDを返す", async () => {
     rowsFor = (sql, args) => {
       if (sql.includes("WITH candidates")) throw new Error("Outbox claim unavailable");
       return defaultRows(sql, args);
     };
-    stubOpenAi({ content: "Saved answer." });
+    const requests = stubOpenAi({ content: "Saved answer." });
     const response = await post(stream ? "/messages/stream" : "/messages", {
       messages: [{ role: "user", content: "Question" }],
       course_id: 3,
@@ -403,7 +403,8 @@ describe.each([false, true])("回答保存後の評価ジョブ配送障害（st
     } else {
       expect(await trpcData(response)).toMatchObject({ answer: { segments: [{ text: "Saved answer.", sourceIds: [] }] }, chat_log_id: 99 });
     }
-    expect(lastExternalPayload).toMatchObject({ message: { type: "evaluate_chat_log" } });
+    expect(lastExternalPayload).toBeNull();
+    expect(requests.some((r) => r.url.includes("sqs"))).toBe(false);
     expect(calls.some(({ sql }) => sql.includes("used_ai_answers") && sql.includes("GREATEST"))).toBe(false);
   });
 });
@@ -573,19 +574,13 @@ describe("POST /messages（非ストリーミング）", () => {
     ) as string;
     expect(JSON.parse(contextsArg)).toEqual(["scene text A"]);
     expect(insert.args).toContain(false);
+    expect(lastExternalPayload).toBeNull();
+    expect(requests.some((r) => r.url.includes("sqs"))).toBe(false);
 
     expect(calls.some(
       (c) => c.sql.includes("RETURNING usage_period_start") && c.sql.includes("+ 1"),
     )).toBe(true);
 
-    // ChatLog保存後にRAGAS評価タスクをSQSへ投入。
-    const sqs = requests.find((r) => r.url.includes("sqs"))!;
-    const message = JSON.parse(
-      decodeURIComponent(sqs.raw.split("MessageBody=")[1].replace(/\+/g, " ")),
-    );
-    expect(message.type).toBe("evaluate_chat_log");
-    expect(message.payload).toEqual({ chat_log_id: 99 });
-    expect(typeof message.job_id).toBe("string");
   });
 
   it("参加メンバーは講座所有者の割当でチャットし、履歴は本人名義で保存する", async () => {

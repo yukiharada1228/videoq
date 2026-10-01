@@ -76,16 +76,6 @@ export const chatMessageSchema = z.object({
   feedback: chatFeedbackSchema.optional(),
 });
 
-export const chatLogEvaluationSchema = z.object({
-  chat_log_id: z.number(),
-  status: z.enum(["pending", "completed", "failed"]),
-  faithfulness: z.number().nullable(),
-  answer_relevancy: z.number().nullable(),
-  context_precision: z.number().nullable(),
-  error_message: z.string().nullable(),
-  evaluated_at: z.string().nullable(),
-});
-
 export const chatHistoryItemSchema = z.object({
   id: z.number(),
   course: z.number(),
@@ -95,7 +85,6 @@ export const chatHistoryItemSchema = z.object({
   is_shared_origin: z.boolean(),
   feedback: chatFeedbackSchema.optional(),
   created_at: z.string(),
-  evaluation: chatLogEvaluationSchema.optional(),
 });
 
 export const chatAnalyticsSchema = z.object({
@@ -108,14 +97,6 @@ export const chatAnalyticsSchema = z.object({
   }),
   time_series: z.array(z.object({ date: z.string(), count: z.number() })),
   feedback: z.object({ good: z.number(), bad: z.number(), none: z.number() }),
-});
-
-export const evaluationSummarySchema = z.object({
-  course_id: z.number(),
-  evaluated_count: z.number(),
-  avg_faithfulness: z.number().nullable(),
-  avg_answer_relevancy: z.number().nullable(),
-  avg_context_precision: z.number().nullable(),
 });
 
 export const videoStatusCountsSchema = z.object({

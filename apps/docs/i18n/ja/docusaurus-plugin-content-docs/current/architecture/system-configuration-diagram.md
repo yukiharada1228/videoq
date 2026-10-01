@@ -24,7 +24,7 @@ flowchart LR
 |---|---|---|
 | Web | 表示、フォーム、質問の入力、結果の再生 | `apps/web/src/` |
 | API | 認証・アクセス権、業務処理、ジョブの依頼 | `apps/api/src/` |
-| Python worker | 文字起こし、索引、回答評価 | `apps/worker/worker_python/` |
+| Python worker | 文字起こし、索引 | `apps/worker/worker_python/` |
 
 WebとAPIは `packages/trpc` で操作名・入力・出力の型を共有します。Pythonとの境界はSQSのJSONメッセージとDBです。
 

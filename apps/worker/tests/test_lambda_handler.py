@@ -162,9 +162,10 @@ def test_execute_task_validates_job_envelope(message: dict, expected: str) -> No
         _execute_task(json.dumps(message))
 
 
+@pytest.mark.parametrize("job_type", ["build_plog", "evaluate_chat_log"])
 @pytest.mark.parametrize("encoded", [False, True])
-def test_retired_job_is_acknowledged_without_accessing_storage(encoded: bool) -> None:
-    body = json.dumps({"type": "build_plog", "job_id": "retired-1", "payload": {"video_id": 42}})
+def test_retired_job_is_acknowledged_without_accessing_storage(encoded: bool, job_type: str) -> None:
+    body = json.dumps({"type": job_type, "job_id": "retired-1", "payload": {"video_id": 42}})
     if encoded:
         body = base64.b64encode(body.encode()).decode()
     with (

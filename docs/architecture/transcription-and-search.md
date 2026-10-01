@@ -131,4 +131,4 @@ database and provider failures remain retryable.
 | [vector-repository.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/vector-repository.ts) | Search scope and result count |
 | [rag.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag.ts) | Tool loop, scene deduplication, and citation numbering |
 
-**Read next:** [Q&A prompts and answer evaluation](prompt-engineering.md).
+**Read next:** [Q&A prompts and answer persistence](prompt-engineering.md).

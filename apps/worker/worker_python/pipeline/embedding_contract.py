@@ -1,4 +1,4 @@
-"""The fixed embedding contract used by indexing and evaluation."""
+"""The fixed embedding contract used by indexing and scene splitting."""
 
 from __future__ import annotations
 

@@ -12,10 +12,10 @@ const plans: BillingPlan[] = [
   ...(['month', 'year'] as const).flatMap(interval => ([
     { code: 'basic' as const, interval, lookup_key: interval === 'month' ? 'basic_monthly' : 'basic_yearly',
       amount_yen: interval === 'month' ? 1480 : 14800, currency: 'jpy' as const,
-      entitlements: { max_video_upload_size_mb: 1024, storage_limit_gb: 20, processing_limit_minutes: 300, ai_answers_limit: 500 } },
+      entitlements: { max_video_upload_size_mb: 1024, storage_limit_gb: 20, processing_limit_minutes: 300, ai_answers_limit: 1800 } },
     { code: 'pro' as const, interval, lookup_key: interval === 'month' ? 'pro_monthly' : 'pro_yearly',
       amount_yen: interval === 'month' ? 3980 : 39800, currency: 'jpy' as const,
-      entitlements: { max_video_upload_size_mb: 2048, storage_limit_gb: 100, processing_limit_minutes: 1500, ai_answers_limit: 2500 } },
+      entitlements: { max_video_upload_size_mb: 2048, storage_limit_gb: 100, processing_limit_minutes: 1500, ai_answers_limit: 2800 } },
   ])),
 ];
 const portalRequest = fn();

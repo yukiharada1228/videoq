@@ -84,8 +84,6 @@ DBを使うworkerテストには、テスト用の `DATABASE_URL` が必要で�
 | ツールの選択・アクセス範囲・独立した質問 | `apps/api/test/rag-agent.test.ts` |
 | 構造化出力・逐次配信・引用の境界 | `apps/api/test/structured-answer.test.ts`、`apps/api/test/answer-content-stream.test.ts` |
 | 描画フレーム・非表示タブ・完了・中断 | `apps/web/src/lib/__tests__/chatStreamController.test.ts` |
-| RAGAS指標と資料検証の同時実行上限 | `apps/worker/tests/test_evaluation.py`、`apps/worker/tests/test_context_precision.py` |
-| 評価の保存・履歴削除との整合性 | `apps/worker/tests/test_evaluation_persistence.py`（テストDBが必要） |
 
 通常のCIとは別に、モデルが検索ツールを適切に選ぶかを確認するテストがあります。
 

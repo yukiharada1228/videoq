@@ -19,11 +19,11 @@ describe("billing catalog", () => {
     });
     expect(PLAN_CATALOG.basic.entitlements).toMatchObject({
       processingLimitMinutes: 300,
-      aiAnswersLimit: 500,
+      aiAnswersLimit: 1800,
     });
     expect(PLAN_CATALOG.pro.entitlements).toMatchObject({
       processingLimitMinutes: 1500,
-      aiAnswersLimit: 2500,
+      aiAnswersLimit: 2800,
     });
   });
 

@@ -73,7 +73,7 @@ def _embed_ollama(texts: list[str], config: EmbeddingConfig) -> list[list[float]
 def _provider_http_error(config: EmbeddingConfig, status: int) -> RuntimeError:
     provider = "OpenAI" if config.provider == "openai" else "Ollama"
     # Permanent request rejection (e.g. unsupported model/dimensions) must not
-    # become a successful scene fallback or a missing RAGAS score. Preserve the
+    # become a successful scene fallback. Preserve the
     # existing best-effort behavior for timeouts, rate limits and server failures.
     if 400 <= status < 500 and status not in {408, 429}:
         return EmbeddingContractError(

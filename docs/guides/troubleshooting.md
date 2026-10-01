@@ -75,13 +75,8 @@ Questions about course names or video counts may be answered from metadata witho
 | Text appears, then the request fails | Provider refusal, output-token truncation, invalid final JSON, a tool call after answer text, or an interrupted stream; partial display is not a saved answer |
 | No saved history or feedback after text finishes | Check final validation and persistence; SSE must receive `done`, then drain the rendering queue |
 
-The browser uses animation frames rather than a fixed typing timer. `done` is independent of RAGAS completion. See [the streaming contract](../architecture/prompt-engineering.md#streaming-contract) for event order and quota handling.
+The browser uses animation frames rather than a fixed typing timer. `done` marks answer persistence. See [the streaming contract](../architecture/prompt-engineering.md#streaming-contract) for event order and quota handling.
 
-## Answer evaluation is missing or failed
-
-Check the course chat's `chat_log_evaluations` record separately from its answer and `job_executions`. No-course responses do not create evaluation jobs. A completed delivery or worker execution does not guarantee that every metric has a value: scoring errors are stored as `failed`, and individual unavailable metrics can remain unset even when evaluation is `completed`.
-
-Verify the worker's model/key and embedding configuration, `RAGAS_MAX_TOKENS` (default 4,096), and `RAGAS_DO_NOT_TRACK=true` when running outside the supplied Docker image. Context precision checks at most four contexts concurrently per job; it still processes all contexts. See [answer evaluation](../architecture/prompt-engineering.md#answer-quality-is-evaluated-separately) for failure and retry behavior.
 
 ## A corrected transcript still gives old answers
 

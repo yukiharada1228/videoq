@@ -30,7 +30,6 @@ You do not need to memorize everything. Use this page to connect unfamiliar term
 | LLM | A language model used to generate answers |
 | Agent / tool call | The answer model chooses a registered operation, such as course metadata or scene search; the API validates and executes it within the authorized scope |
 | Structured answer / `ChatAnswer` | The shared answer format: `segments` pair text with source IDs, while `sources` contains server-owned video and timestamp metadata |
-| RAGAS | Asynchronously scores saved answers and retrieved material; it does not approve answers before display or rewrite them |
 | Outbox | Records jobs awaiting delivery in the same DB as business data, enabling recovery from missed dispatches |
 | Idempotency | The property of avoiding unintended duplicates or other effects when repeating an operation |
 | Lease | A time-limited right to execute work, allowing retries after a process stops |

@@ -7,7 +7,6 @@ import pytest
 from worker_python import lambda_handler, sqs_enqueue
 from worker_python.contracts import (
     JOB_DELETE_ACCOUNT_DATA,
-    JOB_EVALUATE_CHAT_LOG,
     JOB_INDEX_VIDEO_TRANSCRIPT,
     JOB_REINDEX_ALL_VIDEOS_EMBEDDINGS,
     JOB_REINDEX_VIDEO_TRANSCRIPT,
@@ -37,7 +36,6 @@ def message(job_type, payload):
     (JOB_TRANSCRIBE_VIDEO, {"video_id": 1}),
     (JOB_INDEX_VIDEO_TRANSCRIPT, {"video_id": 2**53 - 1}),
     (JOB_REINDEX_VIDEO_TRANSCRIPT, {"video_id": 42}),
-    (JOB_EVALUATE_CHAT_LOG, {"chat_log_id": 42}),
     (JOB_DELETE_ACCOUNT_DATA, {"user_id": "user-42"}),
     (JOB_REINDEX_ALL_VIDEOS_EMBEDDINGS, {}),
 ])
@@ -57,7 +55,6 @@ def test_all_job_types_preserve_arguments_from_producer_to_task(execution, job_t
     (JOB_TRANSCRIBE_VIDEO, "video_id"),
     (JOB_INDEX_VIDEO_TRANSCRIPT, "video_id"),
     (JOB_REINDEX_VIDEO_TRANSCRIPT, "video_id"),
-    (JOB_EVALUATE_CHAT_LOG, "chat_log_id"),
 ])
 @pytest.mark.parametrize("value", [True, False, 1.9, "1", 0, -1, 2**53, None])
 def test_invalid_resource_ids_never_claim_or_run_a_job(execution, job_type, field, value):
@@ -81,7 +78,6 @@ def test_account_deletion_never_coerces_a_user_id(execution, value):
 
 @pytest.mark.parametrize("job_type, payload", [
     (JOB_TRANSCRIBE_VIDEO, {}),
-    (JOB_EVALUATE_CHAT_LOG, {"video_id": 1}),
     (JOB_INDEX_VIDEO_TRANSCRIPT, {"video_id": 1, "unexpected": True}),
     (JOB_REINDEX_ALL_VIDEOS_EMBEDDINGS, {"video_id": 1}),
     ("unknown_job", {}),

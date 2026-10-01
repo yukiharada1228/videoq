@@ -1,7 +1,6 @@
 import type { Context } from "hono";
 import * as chatService from "../../features/chat/service";
 import * as messageService from "../../features/chat/message-service";
-import * as evaluationService from "../../features/evaluation/service";
 import { clientIp, enforceThrottles } from "../../lib/rate-limit";
 import type { AppEnv } from "../../types/bindings";
 import { apiStatusToTrpcCode, requireUserId, rpcError, type HandlersFor } from "./shared";
@@ -27,7 +26,7 @@ async function enforceChatThrottle(
 export function chatHandlers(
   c: Context<AppEnv>,
   authenticatedUserId: string | null,
-): HandlersFor<"chat"> & HandlersFor<"evaluation"> {
+): HandlersFor<"chat"> {
   const userId = () => requireUserId(authenticatedUserId);
   return {
     "chat.send": async ({ messages, courseId, shareSlug }) => {
@@ -80,19 +79,6 @@ export function chatHandlers(
       const result = await chatService.analyticsForCourse(c.env, courseId, userId());
       if ("notFound" in result) return rpcError("NOT_FOUND", "Course not found.");
       return result;
-    },
-    "evaluation.summary": async ({ courseId }) => {
-      const result = await evaluationService.summaryForCourse(c.env, courseId, userId());
-      if ("notFound" in result) return rpcError("NOT_FOUND", "Course not found");
-      return result;
-    },
-    "evaluation.logs": async ({ courseId, limit, offset }) => {
-      const result = await evaluationService.logsForCourse(c.env, courseId, userId(), limit, offset);
-      if ("notFound" in result) return rpcError("NOT_FOUND", "Course not found");
-      return {
-        data: result.results,
-        meta: { total: result.count, limit, offset },
-      };
     },
   };
 }
