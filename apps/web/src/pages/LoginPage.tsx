@@ -61,6 +61,16 @@ export default function LoginPage() {
         </div>
       )}
 
+      <GoogleSignInButton callbackURL={afterLogin || '/'} />
+
+      <div className="my-8 flex items-center gap-4">
+        <Divider className="flex-1" aria-hidden="true" />
+        <span className="shrink-0 text-dns-14N-130 text-solid-gray-420">
+          {t('auth.login.orDivider')}
+        </span>
+        <Divider className="flex-1" aria-hidden="true" />
+      </div>
+
       <form onSubmit={handleSubmit} className="space-y-5">
         <FormField
           id="username"
@@ -117,15 +127,6 @@ export default function LoginPage() {
           )}
         </Button>
       </form>
-
-      <div className="relative my-10 text-center">
-        <Divider />
-        <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-4 bg-white text-dns-14N-130 text-solid-gray-420">
-          {t('auth.login.orDivider')}
-        </span>
-      </div>
-
-      <GoogleSignInButton callbackURL={afterLogin || '/'} />
 
       <div className="mt-8 text-center">
         <AuthFormFooter
