@@ -35,10 +35,10 @@ description: 目的からテーブルを探し、実際の列定義へ進むた�
 | テーブル | 保存するもの |
 |---|---|
 | `chat_logs` | 質問、`response` JSONB内の構造化回答（`segments` と `sources`）、取得資料、利用者のフィードバック |
-| `chat_log_evaluations` | 回答ごとの評価結果 |
-| `course_evaluation_snapshots` | 講座単位の評価集計 |
+| `chat_log_evaluations` | 廃止前の回答評価。新規の書き込みなし |
+| `course_evaluation_snapshots` | 廃止前の講座単位の評価集計 |
 
-回答の正本は `chat_logs.response` です。旧形式の独立した `answer` 列と `citations` 列は削除されています。履歴も同じ構造を返し、CSV出力とRAGAS用の本文はsegmentのtextを連結して導出します。[回答の契約](../architecture/prompt-engineering.md#構造化回答引用と権限)と[既存データの変換](../architecture/structured-answers.md)を参照してください。
+回答の正本は `chat_logs.response` です。旧形式の独立した `answer` 列と `citations` 列は削除されています。履歴も同じ構造を返し、CSV出力用の本文はsegmentのtextを連結して導出します。[回答の契約](../architecture/prompt-engineering.md#構造化回答引用と権限)と[既存データの変換](../architecture/structured-answers.md)を参照してください。
 
 ## 検索
 

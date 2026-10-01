@@ -2,7 +2,7 @@ import { t } from "./init";
 import { accountRouter } from "./routers/account";
 import { adminRouter } from "./routers/admin";
 import { billingRouter } from "./routers/billing";
-import { chatRouter, evaluationRouter } from "./routers/chat";
+import { chatRouter } from "./routers/chat";
 import {
   courseMembershipsRouter,
   coursesRouter,
@@ -16,7 +16,6 @@ export const appRouter = t.router({
   admin: adminRouter,
   billing: billingRouter,
   chat: chatRouter,
-  evaluation: evaluationRouter,
   courses: coursesRouter,
   courseMemberships: courseMembershipsRouter,
   memberships: membershipsRouter,

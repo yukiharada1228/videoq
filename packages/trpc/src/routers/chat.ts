@@ -24,14 +24,3 @@ export const chatRouter = t.router({
     .output(outputSchemas["chat.analytics"])
     .query(({ ctx, input }) => ctx.call("chat.analytics", input)),
 });
-
-export const evaluationRouter = t.router({
-  summary: protectedProcedure
-    .input(chatInputSchemas["evaluation.summary"])
-    .output(outputSchemas["evaluation.summary"])
-    .query(({ ctx, input }) => ctx.call("evaluation.summary", input)),
-  logs: protectedProcedure
-    .input(chatInputSchemas["evaluation.logs"])
-    .output(outputSchemas["evaluation.logs"])
-    .query(({ ctx, input }) => ctx.call("evaluation.logs", input)),
-});

@@ -1,20 +1,4 @@
-import type { ChatAnalytics, EvaluationSummary } from '../../src/lib/api';
-
-export const evaluationSummary: EvaluationSummary = {
-  course_id: 1,
-  evaluated_count: 24,
-  avg_faithfulness: 0.94,
-  avg_answer_relevancy: 0.875,
-  avg_context_precision: 0.72,
-};
-
-export const emptyEvaluation: EvaluationSummary = {
-  ...evaluationSummary,
-  evaluated_count: 0,
-  avg_faithfulness: null,
-  avg_answer_relevancy: null,
-  avg_context_precision: null,
-};
+import type { ChatAnalytics } from '../../src/lib/api';
 
 export const timeSeries: ChatAnalytics['time_series'] = [
   { date: '2026-09-01', count: 4 },

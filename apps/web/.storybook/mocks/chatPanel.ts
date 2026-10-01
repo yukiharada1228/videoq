@@ -1,8 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import { fn } from 'storybook/test';
-import type { ChatHistoryItem, ChatLogEvaluation, ChatRequest, ChatStreamEvent } from '../../src/lib/api';
+import type { ChatHistoryItem, ChatRequest, ChatStreamEvent } from '../../src/lib/api';
 import { answerEvents, courseHistory } from '../fixtures/chatPanel';
-import { completedEvaluation } from '../fixtures/chatHistory';
 import { failure, pending, success, trpcHandler, trpcMutation, trpcQuery } from './network';
 
 export interface ChatPanelScenario {
@@ -12,14 +11,11 @@ export interface ChatPanelScenario {
   history?: ChatHistoryItem[];
   historyState?: 'pending' | 'error';
   historyRefetch?: 'pending' | 'error';
-  evaluations?: ChatLogEvaluation[];
-  evaluationState?: 'pending' | 'error';
   feedback?: 'pending' | 'error' | 'retry';
   csv?: 'pending' | 'error';
 }
 export const chatRequest = fn();
 export const historyRequest = fn();
-export const evaluationRequest = fn();
 export const feedbackRequest = fn();
 export const csvRequest = fn();
 export const historyError = '会話履歴を読み込めませんでした / Could not load conversation history';
@@ -29,7 +25,7 @@ export function createChatPanelMock(scenario: ChatPanelScenario = {}) {
   const streams = new Set<{ send: (events: ChatStreamEvent[]) => void; close: () => void }>();
   const history = structuredClone(scenario.history ?? courseHistory);
   let feedbackAttempts = 0;
-  for (const request of [chatRequest, historyRequest, evaluationRequest, feedbackRequest, csvRequest]) request.mockClear();
+  for (const request of [chatRequest, historyRequest, feedbackRequest, csvRequest]) request.mockClear();
   const handlers = [
     http.post('/api/chat/messages/stream', async ({ request }) => {
       const body = await request.json() as ChatRequest;
@@ -74,13 +70,6 @@ export function createChatPanelMock(scenario: ChatPanelScenario = {}) {
         if (state === 'pending') return pending();
         if (state === 'error') return failure(historyError);
         return success({ data: history, meta: { total: history.length, limit: input.limit ?? 100, offset: input.offset ?? 0 } });
-      }),
-      trpcQuery('evaluation.logs', input => {
-        evaluationRequest(input);
-        if (scenario.evaluationState === 'pending') return pending();
-        if (scenario.evaluationState === 'error') return failure('Evaluation failed (fixture)');
-        const data = scenario.evaluations ?? [completedEvaluation];
-        return success({ data, meta: { total: data.length, limit: input.limit ?? 200, offset: input.offset ?? 0 } });
       }),
       trpcMutation('chat.feedback', input => {
         feedbackRequest(input);

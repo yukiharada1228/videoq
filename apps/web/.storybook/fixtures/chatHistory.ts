@@ -1,6 +1,6 @@
 import { type ChatAnswer } from "@videoq/trpc/chat";
 import type { Message } from '../../src/hooks/useChatMessages';
-import type { ChatHistoryItem, ChatLogEvaluation } from '../../src/lib/api';
+import type { ChatHistoryItem } from '../../src/lib/api';
 import { answer, answerData, citations, mathAnswerData } from './chat';
 
 export const conversation: Message[] = [
@@ -37,31 +37,8 @@ export const historyItem: ChatHistoryItem = {
   created_at: '2026-09-01T03:15:00.000Z',
 };
 
-export const completedEvaluation: ChatLogEvaluation = {
-  chat_log_id: historyItem.id,
-  status: 'completed',
-  faithfulness: 0.94,
-  answer_relevancy: 0.875,
-  context_precision: 1,
-  error_message: null,
-  evaluated_at: '2026-09-01T03:16:00.000Z',
-};
-export const pendingEvaluation: ChatLogEvaluation = {
-  ...completedEvaluation,
-  status: 'pending',
-  faithfulness: null,
-  answer_relevancy: null,
-  context_precision: null,
-  evaluated_at: null,
-};
-export const failedEvaluation: ChatLogEvaluation = {
-  ...pendingEvaluation,
-  status: 'failed',
-  error_message: 'Evaluation service timed out (fixture).',
-};
-
 export const mixedHistory: ChatHistoryItem[] = [
-  { ...historyItem, evaluation: completedEvaluation, feedback: 'good' },
+  { ...historyItem, feedback: 'good' },
   {
     ...historyItem,
     id: 102,
@@ -69,7 +46,6 @@ export const mixedHistory: ChatHistoryItem[] = [
     is_shared_origin: true,
     question: '行列の式も確認したいです。',
     answer: mathAnswerData,
-    evaluation: { ...pendingEvaluation, chat_log_id: 102 },
     created_at: '2026-09-01T03:20:00.000Z',
   },
   {
@@ -77,7 +53,6 @@ export const mixedHistory: ChatHistoryItem[] = [
     id: 103,
     question: '逆回転はどのように計算しますか？',
     answer: { segments: [{ text: "回転角の符号を反転すると、逆向きの回転になります。", sourceIds: [1] }], sources: [] },
-    evaluation: { ...failedEvaluation, chat_log_id: 103 },
     feedback: 'bad',
     created_at: '2026-09-02T05:30:00.000Z',
   },

@@ -80,7 +80,7 @@ Controlsでpropsを変更でき、Actionsで送信・評価・動画引用・確
 `MissingMetrics`は未取得の指標と0%を区別し、`KeyboardExportAndCitation`はCSVと引用をキーボードで操作します。
 CSV出力はモックコールバックの記録のみで、ファイルはダウンロードしません。
 
-`Dashboard/`はAPI接続なしで固定日付・集計値を切り替えます。`EvaluationLoading`ではグラフを表示したまま評価のみ読み込み中にします。
+`Dashboard/`はAPI接続なしで固定日付・集計値を切り替えます。質問の推移と利用者のフィードバックを表示します。
 グラフの親に幅を設定し、実際の`ResponsiveContainer`で高さ220pxのSVGを描画します。
 `NarrowContainer`と`EnglishNarrow`は親幅280px、`NinetyDays`は90日分のデータを使用します。
 `KeyboardTooltip`はフォーカス後の矢印キー操作、時系列グラフではEnterでの開閉も検証します。

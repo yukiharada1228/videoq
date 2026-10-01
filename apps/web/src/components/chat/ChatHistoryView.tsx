@@ -1,6 +1,6 @@
 import { BookOpen, Download, ThumbsDown, ThumbsUp, UserRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { ChatHistoryItem, ChatLogEvaluation } from '@/lib/api';
+import type { ChatHistoryItem } from '@/lib/api';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
@@ -16,70 +16,6 @@ interface ChatHistoryViewProps {
   isExportingHistoryCsv: boolean;
   onExportHistoryCsv: () => void;
   onVideoNavigate: (videoId: number, startTime: string) => void;
-}
-
-function formatEvaluationPercent(value: number | null | undefined) {
-  if (value == null) return '-';
-  return `${Math.round(value * 100)}%`;
-}
-
-function EvaluationMetric({
-  label,
-  value,
-}: {
-  label: string;
-  value: number | null | undefined;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-solid-gray-600">{label}</span>
-      <span className="font-semibold text-solid-gray-800">{formatEvaluationPercent(value)}</span>
-    </div>
-  );
-}
-
-function HistoryEvaluation({ evaluation }: { evaluation?: ChatLogEvaluation }) {
-  const { t } = useTranslation();
-
-  if (!evaluation) return null;
-
-  if (evaluation.status === 'pending') {
-    return (
-      <div className="border border-solid-gray-420 bg-solid-gray-50 px-3 py-2 text-dns-14N-130 font-medium text-solid-gray-600">
-        {t('chat.evaluation.status.pending')}
-      </div>
-    );
-  }
-
-  if (evaluation.status === 'failed') {
-    return (
-      <div className="border border-solid-gray-420 bg-solid-gray-50 px-3 py-2 text-dns-14N-130 font-medium text-solid-gray-600">
-        {t('chat.evaluation.status.failed')}
-      </div>
-    );
-  }
-
-  return (
-    <div className="border border-solid-gray-420 bg-solid-gray-50 px-3 py-2">
-      <div className="mb-2 text-dns-14B-120 text-key-900">
-        {t('chat.evaluation.status.completed')}
-      </div>
-      <div className="space-y-1.5 text-dns-14N-130">
-        <EvaluationMetric
-          label={t('chat.evaluation.metrics.faithfulness')}
-          value={evaluation.faithfulness}
-        />
-        <EvaluationMetric
-          label={t('chat.evaluation.metrics.answerRelevancy')}
-          value={evaluation.answer_relevancy}
-        />
-        <EvaluationMetric
-          label={t('chat.evaluation.metrics.contextPrecision')}
-          value={evaluation.context_precision}
-        />
-      </div>
-    </div>
-  );
 }
 
 function HistoryItem({
@@ -122,7 +58,6 @@ function HistoryItem({
             answer={item.answer}
             onVideoNavigate={onVideoNavigate}
           />
-          <HistoryEvaluation evaluation={item.evaluation} />
           {item.feedback && (
             <div className={`flex items-center gap-1 pt-1 text-dns-14B-120 ${item.feedback === 'good' ? 'text-key-900' : 'text-error-1'}`}>
               {item.feedback === 'good' ? <ThumbsUp className="w-3 h-3" /> : <ThumbsDown className="w-3 h-3" />}

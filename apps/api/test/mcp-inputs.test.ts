@@ -4,7 +4,6 @@ import { getVideoMetadata, listVideosPage } from "../src/repositories/video-repo
 import { getCourseDetail, listCoursesPage } from "../src/repositories/course-repository";
 import { listTagsPage } from "../src/repositories/tag-repository";
 import { getCourseChatHistory } from "../src/repositories/chat-repository";
-import { listEvaluationLogs } from "../src/repositories/evaluation-repository";
 import { addVideoToCourseOne } from "../src/features/membership/service";
 import { requestPresignedUpload } from "../src/features/videos/service";
 
@@ -12,7 +11,6 @@ vi.mock("../src/repositories/video-repository", () => ({ getVideoMetadata: vi.fn
 vi.mock("../src/repositories/course-repository", () => ({ getCourseDetail: vi.fn(), listCoursesPage: vi.fn() }));
 vi.mock("../src/repositories/tag-repository", () => ({ listTagsPage: vi.fn() }));
 vi.mock("../src/repositories/chat-repository", () => ({ getCourseChatHistory: vi.fn() }));
-vi.mock("../src/repositories/evaluation-repository", () => ({ listEvaluationLogs: vi.fn() }));
 vi.mock("../src/features/membership/service", () => ({ addVideoToCourseOne: vi.fn() }));
 vi.mock("../src/features/videos/service", () => ({ requestPresignedUpload: vi.fn() }));
 
@@ -27,7 +25,7 @@ beforeEach(() => {
   vi.mocked(getVideoMetadata).mockResolvedValue(null);
   vi.mocked(addVideoToCourseOne).mockResolvedValue({ notFound: "Video not found" });
   vi.mocked(requestPresignedUpload).mockResolvedValue({ badRequest: "No upload" } as never);
-  for (const read of [listVideosPage, listCoursesPage, listTagsPage, getCourseChatHistory, listEvaluationLogs]) {
+  for (const read of [listVideosPage, listCoursesPage, listTagsPage, getCourseChatHistory]) {
     vi.mocked(read).mockResolvedValue({ results: [], count: 0 });
   }
 });
@@ -77,7 +75,7 @@ describe("MCP numeric input boundaries", () => {
 
   it.each([
     ["list_videos", {}, 20], ["list_courses", {}, 20], ["list_tags", {}, 20],
-    ["get_chat_history", { course_id: 7 }, 10], ["list_evaluation_logs", { course_id: 7 }, 10],
+    ["get_chat_history", { course_id: 7 }, 10],
   ] as const)("uses schema pagination defaults for %s", async (name, args, limit) => {
     expect(await callMcpTool(name, args, context)).toMatchObject({ meta: { limit, offset: 0 } });
   });

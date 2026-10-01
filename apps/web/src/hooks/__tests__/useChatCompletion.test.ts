@@ -24,8 +24,6 @@ const analytics = (total: number): RpcOutputMap['chat.analytics'] => ({
 const keysFor = (courseId: number) => [
   trpc.chat.history.queryKey({ courseId, limit: 100, offset: 0 }),
   trpc.chat.analytics.queryKey({ courseId }),
-  trpc.evaluation.logs.queryKey({ courseId, limit: 100, offset: 0 }),
-  trpc.evaluation.summary.queryKey({ courseId }),
 ];
 
 function deferred<T>() {
@@ -42,7 +40,6 @@ describe('chat completion refreshes', () => {
     const readAnalytics = vi.fn().mockResolvedValueOnce(analytics(0)).mockResolvedValue(analytics(1));
     globalThis.__setTrpcHandler('chat.history', readHistory);
     globalThis.__setTrpcHandler('chat.analytics', readAnalytics);
-    globalThis.__setTrpcHandler('evaluation.logs', () => emptyHistory);
     vi.spyOn(apiClient, 'chatStream').mockImplementation(async function* () {
       yield { type: 'text_delta', segmentIndex: 0, text: 'Answer' };
       yield { type: 'done', chat_log_id: 42, feedback: null };
@@ -66,7 +63,6 @@ describe('chat completion refreshes', () => {
     const pending = deferred<typeof emptyHistory>();
     const read = vi.fn().mockReturnValueOnce(pending.promise).mockResolvedValue(savedHistory);
     globalThis.__setTrpcHandler('chat.history', read);
-    globalThis.__setTrpcHandler('evaluation.logs', () => emptyHistory);
     vi.spyOn(apiClient, 'chatStream').mockImplementation(async function* () {
       yield { type: 'done', chat_log_id: 42, feedback: null };
     });

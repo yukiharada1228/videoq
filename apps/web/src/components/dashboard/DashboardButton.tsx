@@ -13,7 +13,6 @@ import {
   useDialog,
 } from '@/components/ui/dialog';
 import { useChatAnalytics } from '@/hooks/useChatAnalytics';
-import { useEvaluationSummary } from '@/hooks/useEvaluationSummary';
 import { AnalyticsDashboard } from './AnalyticsDashboard';
 
 interface DashboardButtonProps {
@@ -25,10 +24,6 @@ export function DashboardButton({ courseId, size = 'md' }: DashboardButtonProps)
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const { data, isLoading } = useChatAnalytics(courseId, isOpen);
-  const {
-    data: evaluationSummary,
-    isLoading: isEvaluationLoading,
-  } = useEvaluationSummary(courseId, isOpen);
 
   const dialog = useDialog({
     open: isOpen,
@@ -61,9 +56,7 @@ export function DashboardButton({ courseId, size = 'md' }: DashboardButtonProps)
               <DialogBody>
                 <AnalyticsDashboard
                   data={data}
-                  evaluationSummary={evaluationSummary}
                   isLoading={isLoading}
-                  isEvaluationLoading={isEvaluationLoading}
                 />
               </DialogBody>
             </DialogScrollArea>

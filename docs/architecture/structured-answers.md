@@ -7,7 +7,7 @@ description: Canonical answer storage, one-time history conversion, deployment o
 
 Issue [#996](https://github.com/yukiharada1228/videoq/issues/996) replaces citations embedded in prose with `segments: [{text, sourceIds}]` plus server-owned `sources`. See [the answer and SSE contract](prompt-engineering.md#structured-answers-citations-and-permissions). There is no compatibility mode or dual-write period.
 
-The current application already uses this contract. This page preserves the upgrade procedure for older databases and the measurements from that cutover. For current generation-time streaming, animation-frame rendering, and evaluation behavior, use [Q&A prompts and answer evaluation](prompt-engineering.md). These historical timings do not benchmark the current UI.
+The current application already uses this contract. This page preserves the upgrade procedure for older databases and the measurements from that cutover. For current generation-time streaming, animation-frame rendering, and answer-persistence behavior, use [Q&A prompts and answer persistence](prompt-engineering.md). These historical timings do not benchmark the current UI.
 
 ## One-time history migration
 

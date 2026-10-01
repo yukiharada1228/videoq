@@ -1,0 +1,91 @@
+{
+  "checked_at": "2026-10-02",
+  "method": "Read-only AWS APIs, aggregate SQL with transaction READ ONLY, Neon account Billing UI, official provider pricing. No raw transcripts, questions, keys, resource identifiers or customer identities are retained.",
+  "current_contracts": {
+    "neon": {
+      "plan": "Free",
+      "verification": "Billing UI: Current plan Free $0/month; 100 CU-hours, 1GB storage per project."
+    },
+    "mailgun": {
+      "plan": "Free",
+      "verification": "User confirmed Free; official limit 100 messages/day, one custom sending domain. Account UI required login, so actual account contract was not independently verified."
+    },
+    "cloudflare": {
+      "verification": "Wrangler configuration and production architecture inspected. Billing API authentication unavailable; Workers Paid $5/month is a planning provision, not a confirmed invoice."
+    }
+  },
+  "aws_lambda": {
+    "MemorySize": 5120,
+    "Timeout": 900,
+    "Architectures": [
+      "arm64"
+    ],
+    "EphemeralStorage": {
+      "Size": 5120
+    }
+  },
+  "aws_auxiliary": {
+    "ecr_images": 2,
+    "ecr_sum_image_bytes_upper_bound_shared_layers": 932082994,
+    "alarms": 6,
+    "metric_math_underlying_metrics": 0,
+    "log_groups": [
+      {
+        "storedBytes": 80107,
+        "retentionInDays": 30
+      }
+    ]
+  },
+  "database": {
+    "provider": "Neon",
+    "sql_database_bytes": 61939712,
+    "console_project_storage_mb": 85.43,
+    "uploaded_embeddings": {
+      "scene_count": 423,
+      "transcript_minutes": 485.93333333333334,
+      "tokens": 125120
+    },
+    "observed_chat_relation_bytes_per_answer": 10922.666666666666,
+    "observed_scene_relation_bytes_per_scene": 10632.728604118993,
+    "budgeted_free_accounts": 13
+  },
+  "job_timing_sample": {
+    "transcription": {
+      "completed_first_attempt_jobs": 14,
+      "mean_elapsed_seconds": 22.970938,
+      "p95_elapsed_seconds": 79.7399943
+    },
+    "indexing": {
+      "completed_first_attempt_jobs": 8,
+      "mean_elapsed_seconds": 5.3213305,
+      "p95_elapsed_seconds": 6.90059025
+    },
+    "limitation": "Elapsed from first job claim to completion excludes Lambda initialization. No timing sample could be joined to a surviving video duration; these are NOT seconds-per-video-minute estimates. Mixed CloudWatch REPORT durations were excluded because most retained jobs are legacy evaluations."
+  },
+  "planning_basis": {
+    "fixed_allocation": "50 paid contracts, independent of Basic/Pro mix; same fixed allocation per contract.",
+    "neon": "Reserve Launch compute 0.25 CU * 730h * $0.106 = $19.345/month even though current subscription is Free. Launch bills its entire compute/storage usage, without subtracting the Free plan allowance. No upgrade performed.",
+    "database": "Existing 0.1GB + 16KiB per monthly video-minute and per monthly answer, accumulated for 12 months at $0.35/GB-month. Observed table/index storage: ~10.9KB/answer; uploaded scenes ~0.87/minute and ~10.6KB/scene. No automatic chat-history deletion exists; month 24 is modeled separately.",
+    "lambda": "5120MiB ARM64, 5120MiB ephemeral (first 512MiB free), Tokyo list prices verified from AWS offer publication 2026-09-19. Reserve 60 billed seconds total for transcription+indexing per 10-minute video; duration is unmeasured. Includes network waits/cold starts. Jobs assumed two per upload. Slower-case sensitivity triples duration.",
+    "embeddings": "125120 tokens / 485.933 video minutes = ~257.5 tokens/minute observed. Budget 600 tokens/minute * two passes (scene splitting + indexing).",
+    "ingestion_retries": "Additional 3% of Whisper, Lambda, ingestion embeddings and Lambda outbound transfer, assumed rather than measured. Retries can incur cost without consuming more user quota.",
+    "monitoring_logs": "$4/month account reserve: repository has seven alarms (currently six in production), capacity for up to seven opt-in metrics, plus logs retained 30 days. Planning split $0.70 alarms + $2.10 metrics + $0.80 logs + $0.40 rounding/headroom. Actual current stored logs only ~80KB. Not a measured invoice.",
+    "ecr": "Two current images total 932082994 bytes before shared-layer deduplication; reserve 1GB at $0.10/GB-month.",
+    "sqs": "5 long-pollers at 20 seconds over 730h, plus 3 operations/job; no account free tier deduction. Max concurrency configured, so do not assume 2-poller idle optimization.",
+    "domain_and_misc": "300 JPY/month service-wide provisional allowance; no registrar invoice supplied. Human labor explicitly zero, not claimed to be covered.",
+    "free_accounts": "13 current plan-managed Free accounts, all charged at full 45min/1GiB/30-answer quota. Approx 60 JPY each reserved, rather than estimating growth from the present low utilization. 50/100 free-account sensitivities included.",
+    "r2": "Full storage quotas interpreted as GiB, converted to decimal billing GB. No storage free-tier credit assumed; add one shared GB rounding reserve. Operation cost zero only while the whole account stays below 1M Class A / 10M Class B per month. No video egress charge.",
+    "ai": "Planning 8000 total input and 600 total output tokens per answer + query embeddings + 15% failed-attempt allowance rounded to 0.30 JPY. This remains unmeasured; retirement of RAGAS does not change generation quality or impose a token cap.",
+    "tax_fx": "10% consumption-tax-equivalent revenue reserve and 4.3% Stripe fees on gross receipts; not a tax return calculation. FX160 planning rate, not spot. Refunds and chargebacks excluded.",
+    "aws_transfer": "64kbps audio = 480000 bytes/video-minute, plus 65536 bytes/video-minute reserved for DB/index/API outbound data. Tokyo public Internet egress $0.114/GB, verified AWSDataTransfer offer publication 2026-09-16. Shared AWS 100GB free allowance not deducted. R2 download ingress to Lambda is free; Lambda outbound traffic is separate."
+  },
+  "september_aws_invoice_note": "Account-level Cost Explorer totals were inspected but not used as recurring VideoQ overhead: shared services, free tiers and legacy evaluation jobs make them unsuitable for 50-contract forecasting.",
+  "verification": {
+    "cost_model_tests": 14,
+    "billing_catalog_webhook_migration_tests": 45,
+    "pricing_ui_tests": 9,
+    "docs_build": "English and Japanese successful; public content checks passed",
+    "migration_provenance": "28 entries verified",
+    "production_deployment_performed": false
+  }
+}

@@ -1,0 +1,505 @@
+{
+  "date": "2026-10-02",
+  "sources": {
+    "openai": "https://developers.openai.com/api/docs/pricing",
+    "whisper": "https://developers.openai.com/api/docs/models/whisper-1",
+    "stripe": "https://stripe.com/jp/pricing",
+    "r2": "https://developers.cloudflare.com/r2/pricing/",
+    "workers": "https://developers.cloudflare.com/workers/platform/pricing/",
+    "hyperdrive": "https://developers.cloudflare.com/hyperdrive/platform/pricing/",
+    "neon": "https://neon.com/pricing",
+    "mailgun": "https://www.mailgun.com/pricing/",
+    "lambda_tokyo": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSLambda/current/ap-northeast-1/index.json",
+    "aws_transfer_tokyo": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSDataTransfer/current/ap-northeast-1/index.json",
+    "sqs": "https://aws.amazon.com/sqs/pricing/",
+    "ecr": "https://aws.amazon.com/ecr/pricing/",
+    "cloudwatch": "https://aws.amazon.com/cloudwatch/pricing/"
+  },
+  "prices": {
+    "llm_input_usd_per_million": 0.15,
+    "llm_output_usd_per_million": 0.6,
+    "embedding_usd_per_million": 0.02,
+    "whisper_usd_per_minute": 0.006,
+    "r2_usd_per_gb_month": 0.015,
+    "workers_account_usd_per_month": 5,
+    "neon_launch_usd_per_cu_hour": 0.106,
+    "neon_storage_usd_per_gb_month": 0.35,
+    "lambda_arm_tokyo_usd_per_gb_second": 1.33334e-05,
+    "lambda_ephemeral_tokyo_usd_per_gb_second": 3.7e-08,
+    "lambda_usd_per_request": 2e-07,
+    "aws_tokyo_egress_usd_per_gb": 0.114,
+    "sqs_usd_per_million_requests": 0.4,
+    "ecr_usd_per_gb_month": 0.1,
+    "stripe_payments_fraction": 0.036,
+    "stripe_billing_fraction": 0.007
+  },
+  "evidence": "docs/verification/operating-cost-evidence-2026-10-02.json",
+  "assumptions": {
+    "paid_contracts": 50,
+    "usd_jpy": 160,
+    "free_accounts": 13,
+    "neon_cu": 0.25,
+    "neon_active_hours": 730,
+    "mailgun_monthly_usd": 0,
+    "lambda_seconds_per_video_minute": 6,
+    "video_minutes_per_upload": 10,
+    "lambda_outbound_bytes_per_video_minute": 545536,
+    "ingestion_retry_fraction": 0.03,
+    "transcript_tokens_per_minute": 600,
+    "embedding_passes": 2,
+    "database_horizon_months": 12,
+    "database_bytes_per_answer": 16384,
+    "database_bytes_per_video_minute": 16384,
+    "domain_and_misc_monthly_yen": 300,
+    "human_operations_monthly_yen": 0,
+    "monitoring_and_logs_monthly_usd": 4,
+    "other_cloud_monthly_usd": 0.1,
+    "tax_reserve_fraction": 0.1
+  },
+  "fixed_monthly_yen": {
+    "workers_including_hyperdrive": 800,
+    "neon_compute_reserve": 3095.2,
+    "neon_existing_database_0_1gb": 5.6,
+    "mailgun": 0,
+    "ecr_1gb": 16.0,
+    "r2_account_storage_rounding": 2.4,
+    "monitoring_and_logs_reserve": 640,
+    "sqs_idle_polling": 42.048,
+    "sns_kms_state_reserve": 16.0,
+    "domain_and_misc_reserve": 300,
+    "human_operations": 0
+  },
+  "fixed_monthly_total_yen": 4917.248,
+  "free_account_full_variable_cost_yen": 60.513775260864,
+  "free_account_subsidy_monthly_yen": 786.679078391232,
+  "database_chat_cost_per_monthly_answer_yen": 0.011010047999999998,
+  "answer_scenarios": [
+    {
+      "name": "short_answer_fixture",
+      "total_input_tokens": 4265.5,
+      "total_output_tokens": 130.0,
+      "query_embedding_tokens": 1000,
+      "failure_cost_allowance_fraction": 0.15,
+      "answer_cost_yen": 0.13575979999999999,
+      "evaluation_cost_yen": 0
+    },
+    {
+      "name": "planning",
+      "total_input_tokens": 8000,
+      "total_output_tokens": 600,
+      "query_embedding_tokens": 1000,
+      "failure_cost_allowance_fraction": 0.15,
+      "answer_cost_yen": 0.29072,
+      "evaluation_cost_yen": 0
+    },
+    {
+      "name": "large_single_search",
+      "total_input_tokens": 15000,
+      "total_output_tokens": 1200,
+      "query_embedding_tokens": 1000,
+      "failure_cost_allowance_fraction": 0.15,
+      "answer_cost_yen": 0.55016,
+      "evaluation_cost_yen": 0
+    },
+    {
+      "name": "multiple_searches",
+      "total_input_tokens": 60000,
+      "total_output_tokens": 3000,
+      "query_embedding_tokens": 1000,
+      "failure_cost_allowance_fraction": 0.15,
+      "answer_cost_yen": 1.9908799999999998,
+      "evaluation_cost_yen": 0
+    }
+  ],
+  "plans": [
+    {
+      "plan": "basic",
+      "interval": "monthly",
+      "monthly_answers": 1800,
+      "gross_monthly_yen": 1480.0,
+      "stripe_fees_yen": 63.63999999999999,
+      "after_tax_reserve_and_stripe_yen": 1281.8145454545452,
+      "variable_non_answer_yen": {
+        "whisper": 288.0,
+        "r2_storage": 51.539607552,
+        "transcription_and_indexing_lambda": 19.249968000000003,
+        "ingestion_embeddings": 1.152,
+        "lambda_outbound_transfer": 2.985172992,
+        "ingestion_retry_reserve": 9.34161422976,
+        "database_video_growth": 3.3030143999999995,
+        "sqs_job_operations": 0.01152
+      },
+      "shared_fixed_cost_per_contract_yen": 98.34495999999999,
+      "free_account_subsidy_per_contract_yen": 15.73358156782464,
+      "database_chat_growth_yen": 19.818086399999995,
+      "answer_budget_yen": 772.3350203129606,
+      "planning_answer_cost_yen": 0.3,
+      "planning_max_answers": 2547,
+      "recommended_answers_rounded_to_100": 2500,
+      "recommended_answer_budget_yen": 764.6279867129606,
+      "planning_balance_yen": 232.33502031296064,
+      "max_average_answer_cost_yen": 0.42907501128497816,
+      "scenario_balances_yen": {
+        "short_answer_fixture": 527.9673803129607,
+        "planning": 249.0390203129607,
+        "large_single_search": -217.95297968703937,
+        "multiple_searches": -2811.2489796870386
+      }
+    },
+    {
+      "plan": "basic",
+      "interval": "yearly",
+      "monthly_answers": 1800,
+      "gross_monthly_yen": 1233.3333333333333,
+      "stripe_fees_yen": 53.033333333333324,
+      "after_tax_reserve_and_stripe_yen": 1068.1787878787877,
+      "variable_non_answer_yen": {
+        "whisper": 288.0,
+        "r2_storage": 51.539607552,
+        "transcription_and_indexing_lambda": 19.249968000000003,
+        "ingestion_embeddings": 1.152,
+        "lambda_outbound_transfer": 2.985172992,
+        "ingestion_retry_reserve": 9.34161422976,
+        "database_video_growth": 3.3030143999999995,
+        "sqs_job_operations": 0.01152
+      },
+      "shared_fixed_cost_per_contract_yen": 98.34495999999999,
+      "free_account_subsidy_per_contract_yen": 15.73358156782464,
+      "database_chat_growth_yen": 19.818086399999995,
+      "answer_budget_yen": 558.6992627372032,
+      "planning_answer_cost_yen": 0.3,
+      "planning_max_answers": 1860,
+      "recommended_answers_rounded_to_100": 1800,
+      "recommended_answer_budget_yen": 558.6992627372032,
+      "planning_balance_yen": 18.699262737203185,
+      "max_average_answer_cost_yen": 0.3103884792984462,
+      "scenario_balances_yen": {
+        "short_answer_fixture": 314.33162273720325,
+        "planning": 35.40326273720325,
+        "large_single_search": -431.5887372627968,
+        "multiple_searches": -3024.884737262796
+      }
+    },
+    {
+      "plan": "pro",
+      "interval": "monthly",
+      "monthly_answers": 2800,
+      "gross_monthly_yen": 3980.0,
+      "stripe_fees_yen": 171.14,
+      "after_tax_reserve_and_stripe_yen": 3447.041818181818,
+      "variable_non_answer_yen": {
+        "whisper": 1440.0,
+        "r2_storage": 257.69803776,
+        "transcription_and_indexing_lambda": 96.24984,
+        "ingestion_embeddings": 5.760000000000001,
+        "lambda_outbound_transfer": 14.925864960000002,
+        "ingestion_retry_reserve": 46.708071148799995,
+        "database_video_growth": 16.515072,
+        "sqs_job_operations": 0.057600000000000005
+      },
+      "shared_fixed_cost_per_contract_yen": 98.34495999999999,
+      "free_account_subsidy_per_contract_yen": 15.73358156782464,
+      "database_chat_growth_yen": 30.828134399999993,
+      "answer_budget_yen": 1424.2206563451934,
+      "planning_answer_cost_yen": 0.3,
+      "planning_max_answers": 4678,
+      "recommended_answers_rounded_to_100": 4600,
+      "recommended_answer_budget_yen": 1404.4025699451934,
+      "planning_balance_yen": 584.2206563451934,
+      "max_average_answer_cost_yen": 0.5086502344089977,
+      "scenario_balances_yen": {
+        "short_answer_fixture": 1044.0932163451935,
+        "planning": 610.2046563451935,
+        "large_single_search": -116.22734365480642,
+        "multiple_searches": -4150.243343654805
+      }
+    },
+    {
+      "plan": "pro",
+      "interval": "yearly",
+      "monthly_answers": 2800,
+      "gross_monthly_yen": 3316.6666666666665,
+      "stripe_fees_yen": 142.61666666666665,
+      "after_tax_reserve_and_stripe_yen": 2872.5348484848478,
+      "variable_non_answer_yen": {
+        "whisper": 1440.0,
+        "r2_storage": 257.69803776,
+        "transcription_and_indexing_lambda": 96.24984,
+        "ingestion_embeddings": 5.760000000000001,
+        "lambda_outbound_transfer": 14.925864960000002,
+        "ingestion_retry_reserve": 46.708071148799995,
+        "database_video_growth": 16.515072,
+        "sqs_job_operations": 0.057600000000000005
+      },
+      "shared_fixed_cost_per_contract_yen": 98.34495999999999,
+      "free_account_subsidy_per_contract_yen": 15.73358156782464,
+      "database_chat_growth_yen": 30.828134399999993,
+      "answer_budget_yen": 849.7136866482231,
+      "planning_answer_cost_yen": 0.3,
+      "planning_max_answers": 2831,
+      "recommended_answers_rounded_to_100": 2800,
+      "recommended_answer_budget_yen": 849.7136866482231,
+      "planning_balance_yen": 9.713686648223074,
+      "max_average_answer_cost_yen": 0.3034691738029368,
+      "scenario_balances_yen": {
+        "short_answer_fixture": 469.5862466482231,
+        "planning": 35.69768664822311,
+        "large_single_search": -690.7343133517768,
+        "multiple_searches": -4724.750313351776
+      }
+    }
+  ],
+  "included_usage_conditions": {
+    "r2": "Class A <= 1M/month and Class B <= 10M/month for the entire account; operations then $0. Storage modeled at full rate without the shared 10GB credit. Overage rounds up to million-operation units: $4.50/$0.36, allocated once per account.",
+    "workers": "Entire account <= 10M requests and 30M CPU-ms/month. Static asset requests and network waiting are not CPU time. Paid-plan included logs/DO usage must also remain within limits.",
+    "durable_objects": "Entire account <= 1M requests, 400k GB-s, 5GB SQLite storage, 25B row reads and 50M row writes/month.",
+    "mailgun": "Free <= 100 emails/day and 1 sending domain. Not 3,000 emails usable at any time. Basic scenario reserves $15/month.",
+    "neon": "Current plan Free: 100 CU-hours, 1GB storage and 5GB egress/project. Default budget reserves Launch at 0.25 CU continuously; no Free credits subtracted from paid Launch. Launch egress <= 500GB/project/month; restore-history/snapshots not included."
+  },
+  "limitations": [
+    "All prices unchanged. Annual subscriptions determine the common answer quota; no monthly-plan cross-subsidy is required.",
+    "This is a conditional cash operating budget, not a measured invoice or guaranteed company profit. Owner labor is zero unless supplied; ads, payroll, refunds, chargebacks and tax treatment are not audited.",
+    "50 paid contracts is the target allocation base, not the currently observed subscriber count. Free subsidy covers 13 existing plan-managed accounts at full quota; change this count as acquisition grows. Admin overrides/developer experiments are outside these plan budgets.",
+    "Lambda minutes could not be joined to surviving videos, so 6 billed seconds/video-minute is a planning assumption, including transcription, indexing, cold starts and waiting. Three-percent ingestion retry reserve is also assumed.",
+    "AI cost assumes gpt-4o-mini, 8,000 total input + 600 total output tokens across all calls, query embedding and 15% failed-attempt allowance. These are not enforced limits or measured production averages.",
+    "DB footprint is reserved at month 12 with no deletions; this does not add a retention policy. Actual growth, compute autoscaling and retained history require periodic recalculation.",
+    "RAGAS and its evaluation Lambda jobs contribute zero after deployment. The observed production job sample still includes the old implementation.",
+    "AWS free credits are not deducted; unrelated account-wide bills are not allocated to VideoQ. FX 160 is a budgeting rate, not a verified spot exchange rate."
+  ],
+  "sensitivity": [
+    {
+      "name": "paid_10",
+      "fixed_cost_per_contract_yen": 491.72479999999996,
+      "annual_plans": [
+        {
+          "plan": "basic",
+          "answer_budget_yen": 102.38509646590452,
+          "planning_max_answers": 392,
+          "planning_balance_yen": -437.61490353409545
+        },
+        {
+          "plan": "pro",
+          "answer_budget_yen": 393.3995203769245,
+          "planning_max_answers": 1364,
+          "planning_balance_yen": -446.6004796230755
+        }
+      ]
+    },
+    {
+      "name": "paid_30",
+      "fixed_cost_per_contract_yen": 163.90826666666666,
+      "annual_plans": [
+        {
+          "plan": "basic",
+          "answer_budget_yen": 482.6469016919867,
+          "planning_max_answers": 1615,
+          "planning_balance_yen": -57.35309830801327
+        },
+        {
+          "plan": "pro",
+          "answer_budget_yen": 773.6613256030067,
+          "planning_max_answers": 2586,
+          "planning_balance_yen": -66.33867439699327
+        }
+      ]
+    },
+    {
+      "name": "paid_50",
+      "fixed_cost_per_contract_yen": 98.34495999999999,
+      "annual_plans": [
+        {
+          "plan": "basic",
+          "answer_budget_yen": 558.6992627372032,
+          "planning_max_answers": 1860,
+          "planning_balance_yen": 18.699262737203185
+        },
+        {
+          "plan": "pro",
+          "answer_budget_yen": 849.7136866482231,
+          "planning_max_answers": 2831,
+          "planning_balance_yen": 9.713686648223074
+        }
+      ]
+    },
+    {
+      "name": "paid_100",
+      "fixed_cost_per_contract_yen": 49.17247999999999,
+      "annual_plans": [
+        {
+          "plan": "basic",
+          "answer_budget_yen": 615.7385335211154,
+          "planning_max_answers": 2043,
+          "planning_balance_yen": 75.73853352111541
+        },
+        {
+          "plan": "pro",
+          "answer_budget_yen": 906.7529574321354,
+          "planning_max_answers": 3014,
+          "planning_balance_yen": 66.75295743213542
+        }
+      ]
+    },
+    {
+      "name": "neon_compute_reserve_unspent",
+      "fixed_cost_per_contract_yen": 36.44096,
+      "annual_plans": [
+        {
+          "plan": "basic",
+          "answer_budget_yen": 620.6032627372032,
+          "planning_max_answers": 2059,
+          "planning_balance_yen": 80.60326273720318
+        },
+        {
+          "plan": "pro",
+          "answer_budget_yen": 911.6176866482231,
+          "planning_max_answers": 3030,
+          "planning_balance_yen": 71.61768664822307
+        }
+      ]
+    },
+    {
+      "name": "neon_0_5cu_always_on",
+      "fixed_cost_per_contract_yen": 160.24895999999998,
+      "annual_plans": [
+        {
+          "plan": "basic",
+          "answer_budget_yen": 496.7952627372032,
+          "planning_max_answers": 1661,
+          "planning_balance_yen": -43.20473726279681
+        },
+        {
+          "plan": "pro",
+          "answer_budget_yen": 787.8096866482231,
+          "planning_max_answers": 2632,
+          "planning_balance_yen": -52.19031335177692
+        }
+      ]
+    },
+    {
+      "name": "mailgun_basic",
+      "fixed_cost_per_contract_yen": 146.34496,
+      "annual_plans": [
+        {
+          "plan": "basic",
+          "answer_budget_yen": 510.6992627372032,
+          "planning_max_answers": 1705,
+          "planning_balance_yen": -29.300737262796815
+        },
+        {
+          "plan": "pro",
+          "answer_budget_yen": 801.7136866482231,
+          "planning_max_answers": 2676,
+          "planning_balance_yen": -38.286313351776926
+        }
+      ]
+    },
+    {
+      "name": "lambda_3x_slower",
+      "fixed_cost_per_contract_yen": 98.34495999999999,
+      "annual_plans": [
+        {
+          "plan": "basic",
+          "answer_budget_yen": 517.5018956808831,
+          "planning_max_answers": 1727,
+          "planning_balance_yen": -22.49810431911692
+        },
+        {
+          "plan": "pro",
+          "answer_budget_yen": 649.9124040719031,
+          "planning_max_answers": 2188,
+          "planning_balance_yen": -190.0875959280969
+        }
+      ]
+    },
+    {
+      "name": "free_accounts_50",
+      "fixed_cost_per_contract_yen": 98.34495999999999,
+      "annual_plans": [
+        {
+          "plan": "basic",
+          "answer_budget_yen": 513.9190690441637,
+          "planning_max_answers": 1716,
+          "planning_balance_yen": -26.080930955836266
+        },
+        {
+          "plan": "pro",
+          "answer_budget_yen": 804.9334929551837,
+          "planning_max_answers": 2687,
+          "planning_balance_yen": -35.06650704481626
+        }
+      ]
+    },
+    {
+      "name": "free_accounts_100",
+      "fixed_cost_per_contract_yen": 98.34495999999999,
+      "annual_plans": [
+        {
+          "plan": "basic",
+          "answer_budget_yen": 453.4052937832997,
+          "planning_max_answers": 1521,
+          "planning_balance_yen": -86.59470621670027
+        },
+        {
+          "plan": "pro",
+          "answer_budget_yen": 744.4197176943197,
+          "planning_max_answers": 2492,
+          "planning_balance_yen": -95.58028230568027
+        }
+      ]
+    },
+    {
+      "name": "database_24_months",
+      "fixed_cost_per_contract_yen": 98.34495999999999,
+      "annual_plans": [
+        {
+          "plan": "basic",
+          "answer_budget_yen": 535.363466001203,
+          "planning_max_answers": 1785,
+          "planning_balance_yen": -4.636533998796949
+        },
+        {
+          "plan": "pro",
+          "answer_budget_yen": 802.1557843122231,
+          "planning_max_answers": 2682,
+          "planning_balance_yen": -37.84421568777691
+        }
+      ]
+    },
+    {
+      "name": "usd_jpy_170",
+      "fixed_cost_per_contract_yen": 104.11652,
+      "annual_plans": [
+        {
+          "plan": "basic",
+          "answer_budget_yen": 527.300042415854,
+          "planning_max_answers": 1704,
+          "planning_balance_yen": -30.699957584145977
+        },
+        {
+          "plan": "pro",
+          "answer_budget_yen": 723.7306140334341,
+          "planning_max_answers": 2351,
+          "planning_balance_yen": -144.2693859665659
+        }
+      ]
+    },
+    {
+      "name": "human_operations_10000_yen",
+      "fixed_cost_per_contract_yen": 298.34496,
+      "annual_plans": [
+        {
+          "plan": "basic",
+          "answer_budget_yen": 358.6992627372031,
+          "planning_max_answers": 1217,
+          "planning_balance_yen": -181.30073726279687
+        },
+        {
+          "plan": "pro",
+          "answer_budget_yen": 649.7136866482231,
+          "planning_max_answers": 2188,
+          "planning_balance_yen": -190.28631335177693
+        }
+      ]
+    }
+  ]
+}

@@ -29,7 +29,7 @@ The same person can register materials and learn from them. These roles do not r
 | Organize materials | Add or reorder course videos and assign tags | Videos are easy to find and the question scope is clear |
 | Explore content | Ask questions in course chat | Review an answer and its supporting scenes |
 | Work with others | Use share links and course invitations | Others can access permitted courses |
-| Review answer quality | Inspect history, feedback, analytics, and evaluations | Identify answers or materials to improve |
+| Review answer quality | Inspect history, feedback, and analytics | Identify answers or materials to improve |
 | Manage usage | Manage users, quotas, and reindexing | Operate limits and processing state |
 | Connect external tools | Connect to MCP with an API key or OAuth | Run permitted operations from a client |
 

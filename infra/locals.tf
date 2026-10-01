@@ -17,7 +17,6 @@ locals {
     EMBEDDING_PROVIDER    = "openai"
     EMBEDDING_MODEL       = "text-embedding-3-small"
     ENABLE_HEAVY_PIPELINE = "true"
-    RAGAS_DO_NOT_TRACK    = "true"
   }
 
   ecr_lifecycle_policy = jsonencode({

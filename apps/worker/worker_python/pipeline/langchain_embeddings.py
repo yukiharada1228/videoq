@@ -1,4 +1,4 @@
-"""Validated provider adapter for RAGAS and storage compatibility tests."""
+"""Validated provider adapter for optional LangChain storage compatibility tests."""
 
 from langchain_core.embeddings import Embeddings
 

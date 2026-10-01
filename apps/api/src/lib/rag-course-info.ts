@@ -54,7 +54,7 @@ export function courseInfoTool(
         },
       };
       const context = JSON.stringify(result);
-      // Keep metadata evidence for answer evaluation, without assigning scene citations.
+      // Keep metadata evidence for the saved chat context, without assigning scene citations.
       collectContext(`Course metadata (not subtitle scenes): ${context}`);
       return context;
     },

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 from dataclasses import asdict
 from io import BytesIO
@@ -9,12 +8,11 @@ from urllib.error import HTTPError
 
 import pytest
 
-from worker_python.pipeline import embeddings, evaluation
+from worker_python.pipeline import embeddings
 from worker_python.pipeline.embedding_contract import (
     EMBEDDING_DIMENSIONS, EmbeddingContractError, resolve_embedding_config, validate_embedding,
 )
 from worker_python.pipeline.embedding_schema import assert_embedding_schema
-from worker_python.pipeline.langchain_embeddings import VideoQEmbeddings
 from worker_python.pipeline.scene_otsu import apply_scene_splitting
 from worker_python.pipeline.scene_otsu import embedders as scene_embedders
 from worker_python.tasks import reindexing
@@ -120,28 +118,13 @@ def test_declared_schema_rejects_incompatible_empty_tables(row):
     assert caught.value.reason == "EMBEDDING_SCHEMA_MISMATCH"
 
 
-def test_ragas_uses_the_validated_adapter(monkeypatch):
-    monkeypatch.setenv("EMBEDDING_PROVIDER", "ollama")
-    monkeypatch.setenv("EMBEDDING_MODEL", "qwen3-embedding:4b")
-    http = response(monkeypatch, {"embeddings": [VECTOR]})
-    assert isinstance(evaluation._langchain_embeddings(), VideoQEmbeddings)
-    assert evaluation._langchain_embeddings().embed_query("question") == VECTOR
-    assert json.loads(http.call_args.args[0].data)["dimensions"] == 1536
-
-
-def test_config_errors_are_not_hidden_by_scene_or_evaluation_fallback(monkeypatch):
+def test_config_errors_are_not_hidden_by_scene_fallback(monkeypatch):
     error = EmbeddingContractError("EMBEDDING_CONFIG_INVALID", "bad config")
     splitter = MagicMock()
     splitter.process.side_effect = error
     monkeypatch.setattr("worker_python.pipeline.scene_otsu.SceneSplitter", MagicMock(return_value=splitter))
     with pytest.raises(EmbeddingContractError):
         apply_scene_splitting("subtitle")
-    metric = MagicMock()
-    async def fail(_sample):
-        raise error
-    metric.single_turn_ascore = fail
-    with pytest.raises(EmbeddingContractError):
-        asyncio.run(evaluation._run_metric(metric, object()))
 
 
 def test_reindex_schema_failure_stops_before_indexing(monkeypatch):
@@ -156,7 +139,7 @@ def test_reindex_schema_failure_stops_before_indexing(monkeypatch):
 
 @pytest.mark.parametrize("provider", ["openai", "ollama"])
 @pytest.mark.parametrize("status", [400, 401, 403, 404, 422])
-def test_provider_request_rejection_propagates_through_scene_and_metric(monkeypatch, caplog, provider, status):
+def test_provider_request_rejection_propagates_through_scene(monkeypatch, caplog, provider, status):
     monkeypatch.setenv("EMBEDDING_PROVIDER", provider)
     monkeypatch.setenv("EMBEDDING_MODEL", "model")
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
@@ -175,18 +158,12 @@ def test_provider_request_rejection_propagates_through_scene_and_metric(monkeypa
     encoding.encode_ordinary.return_value = list(range(300))
     monkeypatch.setattr(scene_embedders, "_resolve_encoding", lambda: encoding)
 
-    class Metric:
-        async def single_turn_ascore(self, _sample):
-            VideoQEmbeddings().embed_query("synthetic input")
-            return 1.0
-
     operations = [
         lambda: apply_scene_splitting(
             "1\n00:00:00,000 --> 00:00:01,000\nWater evaporates.\n\n"
             "2\n00:00:01,000 --> 00:00:02,000\nSteam condenses.\n\n"
             "3\n00:00:02,000 --> 00:00:03,000\nWater freezes.\n"
         ),
-        lambda: asyncio.run(evaluation._run_metric(Metric(), object())),
     ]
     for operation in operations:
         with pytest.raises(EmbeddingContractError) as caught:
@@ -197,23 +174,3 @@ def test_provider_request_rejection_propagates_through_scene_and_metric(monkeypa
         assert responses[-1].closed
     assert body not in caplog.text
     assert http.call_count == len(operations)  # No retries without dimensions.
-
-
-@pytest.mark.parametrize("provider", ["openai", "ollama"])
-@pytest.mark.parametrize("status", [408, 429, 500, 503])
-def test_transient_provider_errors_keep_existing_metric_fallback(monkeypatch, provider, status):
-    monkeypatch.setenv("EMBEDDING_PROVIDER", provider)
-    monkeypatch.setenv("EMBEDDING_MODEL", "model")
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-    response = BytesIO()
-    http = MagicMock(side_effect=HTTPError("http://example.invalid", status, "unavailable", {}, response))
-    monkeypatch.setattr(embeddings.urllib.request, "urlopen", http)
-
-    class Metric:
-        async def single_turn_ascore(self, _sample):
-            VideoQEmbeddings().embed_query("synthetic input")
-            return 1.0
-
-    assert asyncio.run(evaluation._run_metric(Metric(), object())) is None
-    http.assert_called_once()
-    assert response.closed

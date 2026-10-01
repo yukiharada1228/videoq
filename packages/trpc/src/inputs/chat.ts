@@ -20,6 +20,4 @@ export const chatInputSchemas = {
   "chat.history": z.object({ courseId: z.number().int().positive(), ...page }),
   "chat.resetHistory": z.object({ courseId: z.number().int().positive() }),
   "chat.analytics": z.object({ courseId: z.number().int().positive() }),
-  "evaluation.summary": z.object({ courseId: z.number().int().positive() }),
-  "evaluation.logs": z.object({ courseId: z.number().int().positive(), ...page }),
 };

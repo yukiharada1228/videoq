@@ -17,7 +17,7 @@ Checked against the implementation on **2026-10-01**.
 | Find evidence | A LangChain agent chooses course metadata or scene search within the authorized course |
 | Generate an answer | The model produces text segments with source IDs; the API owns the video titles and timestamps |
 | Display the answer | Stream text and validated citations during generation; batch UI updates on the next animation frame |
-| Save and evaluate | Save the completed structured answer and retrieved context, then evaluate it asynchronously with RAGAS |
+| Save | Persist the completed structured answer and retrieved context |
 
 The former Study mode and PLOG learning graph have been removed. Current Q&A uses independent questions; it does not create learning sessions, generate exercises, or track mastery. Historical removal instructions remain in the [deployment reference](../design/deployment-diagram.md).
 
@@ -34,7 +34,6 @@ The system has several distinct AI jobs:
 | Transcription for uploads | Extracted audio | Timestamped text |
 | Embedding | Subtitle text or a search query | Numbers used to compare meaning |
 | Q&A | Latest question, instructions, and tool results | Structured text segments and source IDs |
-| Answer-quality evaluation | Saved question, answer, and retrieved material | Quality metrics recorded after the answer |
 
 An embedding does not write an answer. It helps find text for the language model to read. [See transcription and scene search](../architecture/transcription-and-search.md) for the preparation steps.
 
@@ -59,7 +58,6 @@ flowchart TD
     D -->|Yes or limit reached| F[Stream answer text and citations]
     F --> C[Reader opens a cited scene]
     F --> V[Validate and save completed answer]
-    V --> E[Evaluate asynchronously]
 ```
 
 1. **Fix the accessible scope.** The API establishes the course and its allowed video IDs. The model cannot expand that scope by asking for another course's videos.
@@ -74,7 +72,7 @@ flowchart TD
 5. **Search again if needed.** The model may request another search, for example to find the explanation of perpendicular vectors. At most three scene searches are available per answer.
 6. **Write and stream an answer.** With the example scene above, a possible answer is: the text “The dot product depends on the cosine of the angle as well as the lengths of the two vectors.” paired with `sourceIds: [1]`. Text appears during generation. Once the segment closes and its citation passes validation, the UI adds the timestamp link after that passage, without waiting for the whole answer.
 7. **Check the source.** Selecting the citation opens the video's associated time. The timestamp comes from the stored subtitle scene; the answer wording comes from the model.
-8. **Save and evaluate separately.** After validating the complete answer, the API saves the course chat and schedules evaluation. The stream's `done` event marks completion of saving, not completion of RAGAS scoring. Evaluation does not rewrite the answer.
+8. **Save the completed answer.** After validation, the API saves the question, structured answer and retrieved context, then emits `done`. No post-answer AI scoring runs.
 
 The application assigns scene numbers, keeps them stable when a scene is found again, and provides citation data to the UI. The model pairs each passage with source IDs instead of embedding citation numbers in prose. A citation helps you verify an answer; it does not prove that every statement is supported.
 
@@ -88,7 +86,7 @@ Partial text is not a saved answer. An interrupted stream or invalid final respo
 
 “How many videos are in this course?” can be answered using `get_course_info`, which reads registered course and video information. That tool does not need subtitle search. Metadata is not assigned scene citation numbers.
 
-Without a selected course, the model has no retrieval tools or scene sources and is instructed to ask the user to select a course. This response is streamed but is not saved as a course chat or sent for RAGAS evaluation.
+Without a selected course, the model has no retrieval tools or scene sources and is instructed to ask the user to select a course. This response is streamed but is not saved as a course chat.
 
 For a question about a **specific lesson**, the model is instructed to identify it using course information, then restrict scene searches to the matching video IDs. A video's position in the list is not automatically its lecture number. A saved description can answer “What is the description?”, but it is not a substitute for searching the lesson when explaining its content.
 
@@ -115,13 +113,13 @@ Instructions ask the model to stay within the retrieved evidence and acknowledge
 
 ## Where the data goes
 
-Audio transcription, embeddings, answer generation, and evaluation call their configured model services. These services receive the audio or text needed for their respective step. Choosing local transcription or local embeddings alone does not make all AI processing local; Q&A and evaluation have their own calls.
+Audio transcription, embeddings, and answer generation call their configured model services. These services receive the audio or text needed for their respective step. Choosing local transcription or local embeddings alone does not make all AI processing local; Q&A has its own calls.
 
 This describes the application's data flow. It does not establish a provider's retention or training policy. No production credentials or account identifiers are needed to understand or configure the flow.
 
 ## Explore the implementation
 
 - [Transcription and scene search](../architecture/transcription-and-search.md): subtitles, scene boundaries, embeddings, and search limits.
-- [Q&A prompts and answer evaluation](../architecture/prompt-engineering.md): model inputs, tool decisions, failure behavior, and quality checks.
+- [Q&A prompts and answer persistence](../architecture/prompt-engineering.md): model inputs, tool decisions, failure behavior, and quality checks.
 
 The Q&A implementation is [rag.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag.ts). Its tools read [course information](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag-course-info.ts) and [scene search results](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/vector-repository.ts). These are the source of truth when behavior changes.

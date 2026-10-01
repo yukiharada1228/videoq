@@ -1,24 +1,19 @@
 import { useTranslation } from 'react-i18next';
-import type { ChatAnalytics, EvaluationSummary } from '@/lib/api';
+import type { ChatAnalytics } from '@/lib/api';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { DashboardEmptyState } from './DashboardEmptyState';
 import { DashboardPanel } from './DashboardPanel';
 import { QuestionTimeSeriesChart } from './QuestionTimeSeriesChart';
 import { FeedbackDonutChart } from './FeedbackDonutChart';
-import { EvaluationSummaryCard } from './EvaluationSummaryCard';
 
 interface AnalyticsDashboardProps {
   data: ChatAnalytics | undefined;
-  evaluationSummary?: EvaluationSummary;
   isLoading: boolean;
-  isEvaluationLoading?: boolean;
 }
 
 export function AnalyticsDashboard({
   data,
-  evaluationSummary,
   isLoading,
-  isEvaluationLoading = false,
 }: AnalyticsDashboardProps) {
   const { t } = useTranslation();
 
@@ -59,13 +54,6 @@ export function AnalyticsDashboard({
 
         <DashboardPanel>
           <FeedbackDonutChart data={data.feedback} />
-        </DashboardPanel>
-
-        <DashboardPanel>
-          <EvaluationSummaryCard
-            summary={evaluationSummary}
-            isLoading={isEvaluationLoading}
-          />
         </DashboardPanel>
       </div>
     </div>

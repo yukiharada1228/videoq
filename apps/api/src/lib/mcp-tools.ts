@@ -9,10 +9,6 @@ import {
   getCourseChatHistory,
   getCourseChatAnalytics,
 } from "../repositories/chat-repository";
-import {
-  getEvaluationSummary,
-  listEvaluationLogs,
-} from "../repositories/evaluation-repository";
 import * as courseService from "../features/courses/service";
 import * as membershipService from "../features/membership/service";
 import * as videoService from "../features/videos/service";
@@ -164,13 +160,6 @@ export const mcpToolSchemas = {
   get_chat_analytics: z.strictObject({
     course_id: intId,
   }),
-  get_evaluation_summary: z.strictObject({
-    course_id: intId,
-  }),
-  list_evaluation_logs: z.strictObject({
-    course_id: intId,
-    ...chatPaginationShape,
-  }),
 } as const;
 
 export type McpToolName = keyof typeof mcpToolSchemas;
@@ -293,24 +282,6 @@ const chatAnalytics = z.object({
   }),
 });
 
-const evaluationSummary = z.object({
-  course_id: z.number().int().positive(),
-  evaluated_count: z.number().int().nonnegative(),
-  avg_faithfulness: z.number().finite().nullable(),
-  avg_answer_relevancy: z.number().finite().nullable(),
-  avg_context_precision: z.number().finite().nullable(),
-});
-
-const evaluationLog = z.object({
-  chat_log_id: z.number().int().positive(),
-  status: z.enum(["pending", "completed", "failed"]),
-  faithfulness: z.number().finite().nullable(),
-  answer_relevancy: z.number().finite().nullable(),
-  context_precision: z.number().finite().nullable(),
-  error_message: z.string(),
-  evaluated_at: z.string().nullable(),
-});
-
 /** Successful structuredContent contracts. Tool errors use their own error envelope. */
 export const mcpToolOutputSchemas = {
   list_videos: { meta: pageMeta, videos: z.array(compactVideoOutput) },
@@ -346,8 +317,6 @@ export const mcpToolOutputSchemas = {
   list_tags: { meta: pageMeta, tags: z.array(tagListItem) },
   get_chat_history: { meta: pageMeta, history: z.array(chatHistoryItem) },
   get_chat_analytics: { analytics: chatAnalytics },
-  get_evaluation_summary: { summary: evaluationSummary },
-  list_evaluation_logs: { meta: pageMeta, logs: z.array(evaluationLog) },
 } as const;
 
 export const MCP_WRITE_TOOLS = new Set<McpToolName>([
@@ -371,8 +340,6 @@ export const MCP_TOOL_TITLES: Record<McpToolName, string> = {
   list_tags: "List tags",
   get_chat_history: "Get chat history",
   get_chat_analytics: "Get chat analytics",
-  get_evaluation_summary: "Get evaluation summary",
-  list_evaluation_logs: "List evaluation logs",
 };
 
 export const MCP_TOOL_DESCRIPTIONS = {
@@ -405,14 +372,6 @@ export const MCP_TOOL_DESCRIPTIONS = {
   get_chat_analytics:
     "Get aggregated chat analytics for a course: total question count, " +
     "date range, daily time series, and feedback breakdown (good/bad/none).",
-  get_evaluation_summary:
-    "Get averaged RAGAS evaluation scores for a course: evaluated_count, " +
-    "avg_faithfulness, avg_answer_relevancy, avg_context_precision.",
-  list_evaluation_logs:
-    "List per-ChatLog RAGAS evaluation results for a course. Each entry " +
-    "has chat_log_id, status, faithfulness, answer_relevancy, " +
-    "context_precision, error_message, evaluated_at. " +
-    "Supports limit/offset pagination.",
 } as const;
 
 function requireWrite(ctx: McpToolCallContext): void {
@@ -822,39 +781,6 @@ export async function callMcpTool(
         });
       }
       return { analytics: res };
-    }
-    case "get_evaluation_summary": {
-      const args = tool.args;
-      const res = await getEvaluationSummary(
-        ctx.env,
-        args.course_id,
-        ctx.userId,
-      );
-      if ("notFound" in res) {
-        throw new McpToolError("Course not found", {
-          status: 404,
-          code: "NOT_FOUND",
-        });
-      }
-      return { summary: res };
-    }
-    case "list_evaluation_logs": {
-      const args = tool.args;
-      const { limit, offset } = args;
-      const res = await listEvaluationLogs(
-        ctx.env,
-        args.course_id,
-        ctx.userId,
-        limit,
-        offset,
-      );
-      if ("notFound" in res) {
-        throw new McpToolError("Course not found", {
-          status: 404,
-          code: "NOT_FOUND",
-        });
-      }
-      return envelope(res.results, res.count, "logs", limit, offset);
     }
   }
 }

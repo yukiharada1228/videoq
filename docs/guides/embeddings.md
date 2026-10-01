@@ -46,7 +46,7 @@ Before scene search or indexing, the relevant path verifies the declared DB colu
 
 Every generated vector must contain exactly 1536 finite numeric values, fit pgvector's float32 representation, and remain nonzero. Strings and booleans are rejected. Batch counts and OpenAI response indices must match the inputs.
 
-Scene splitting and RAGAS share output validation without requiring a DB for standalone calculations. Contract errors propagate instead of silently producing fallback scenes or missing scores. Pure data deletion requires no model call or credentials.
+Scene splitting uses output validation without requiring a DB for standalone calculations. Contract errors propagate instead of silently producing fallback scenes. Pure data deletion requires no model call or credentials.
 
 Full reindexing checks the DB embedding contract when there are eligible videos, then generates and validates **all replacement embeddings for one video before changing that video's rows**. It locks the current video row, rechecks the transcript, and replaces the rows in a single transaction. A failed video retains its old index while other videos can finish; the job reports failure for retry if any video failed. There is no initial deletion of the entire index and no separate short probe in this job. Use the explicit `--probe` diagnostics below when needed. The operation is atomic per video, not across the full collection.
 
@@ -86,7 +86,7 @@ The probe additionally reports `actual_dimensions`. Compare `provider`, `model`,
 
 Q&A keeps its existing public errors: configuration/schema errors use HTTP 400 `VALIDATION_ERROR` or SSE `LLM_CONFIGURATION_ERROR`; output errors use HTTP 500 `INTERNAL_ERROR` or SSE `LLM_PROVIDER_ERROR`. Failed answers release reserved quota. Worker jobs use the existing failure/retry handling.
 
-The worker propagates permanent provider rejections, including unsupported models or dimensions, through scene splitting and RAGAS; evaluations are recorded as failed. It does not log the provider's response body. Timeouts, rate limits, and server failures retain the existing best-effort fallback in those two paths.
+The worker propagates permanent provider rejections, including unsupported models or dimensions, through scene splitting. It does not log the provider's response body. Timeouts, rate limits, and server failures retain the existing best-effort fallback in scene splitting.
 
 ## Existing data and future model changes
 

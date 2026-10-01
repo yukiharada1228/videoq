@@ -543,7 +543,7 @@ export const videoTags = pgTable(
 );
 
 // ---------------------------------------------------------------------------
-// Chat & evaluation
+// Chat and archived evaluation records
 // ---------------------------------------------------------------------------
 
 export const chatLogs = pgTable(
@@ -587,6 +587,7 @@ export const chatLogs = pgTable(
 	],
 );
 
+// Retained for historical data only; automated evaluation was retired.
 export const chatLogEvaluations = pgTable(
 	"chat_log_evaluations",
 	{

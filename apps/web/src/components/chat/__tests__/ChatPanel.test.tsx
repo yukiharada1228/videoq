@@ -4,7 +4,6 @@ import { apiClient } from '@/lib/api'
 
 const chatTrpcMocks = vi.hoisted(() => ({
   history: vi.fn(),
-  evaluations: vi.fn(),
   feedback: vi.fn(),
 }))
 
@@ -53,15 +52,10 @@ describe('ChatPanel', () => {
       const data = await chatTrpcMocks.history(input)
       return { data, meta: { total: data.length, limit: 100, offset: 0 } }
     })
-    globalThis.__setTrpcHandler('evaluation.logs', async (input) => {
-      const data = await chatTrpcMocks.evaluations(input)
-      return { data, meta: { total: data.length, limit: 100, offset: 0 } }
-    })
     globalThis.__setTrpcHandler('chat.feedback', chatTrpcMocks.feedback)
     ;(apiClient.chatStream as any).mockImplementation(
       makeStreamMock({ content: 'Test response', chat_log_id: 1, feedback: null }),
     )
-    chatTrpcMocks.evaluations.mockResolvedValue([])
   })
 
   it('should render greeting message', () => {
@@ -499,120 +493,6 @@ describe('ChatPanel', () => {
       expect(screen.getByText('chat.sharedLinkUser')).toBeInTheDocument()
     })
     expect(chatTrpcMocks.history).toHaveBeenCalledExactlyOnceWith({ courseId: 1, limit: 100, offset: 0 })
-    expect(chatTrpcMocks.evaluations).toHaveBeenCalledExactlyOnceWith({ courseId: 1, limit: 100, offset: 0 })
-  })
-
-  it('should display RAGAS evaluation scores for history answers', async () => {
-    const mockHistory = [
-      {
-        id: 1,
-        course: 1,
-        question: 'Test question',
-        answer: { segments: [{ text: 'Test answer', sourceIds: [] }], sources: [] },
-        is_shared_origin: false,
-        created_at: '2024-01-15T10:00:00Z',
-        feedback: null,
-      },
-    ]
-    chatTrpcMocks.history.mockResolvedValue(mockHistory)
-    chatTrpcMocks.evaluations.mockResolvedValue([
-      {
-        chat_log_id: 1,
-        status: 'completed',
-        faithfulness: 0.86,
-        answer_relevancy: 0.81,
-        context_precision: 0.78,
-        error_message: '',
-        evaluated_at: '2024-01-15T10:01:00Z',
-      },
-    ])
-
-    render(<ChatPanel courseId={1} />)
-
-    const historyButton = screen.getByText(/chat.history/)
-
-    await act(async () => {
-      fireEvent.click(historyButton)
-    })
-
-    await waitFor(() => {
-      expect(screen.getByText('chat.evaluation.status.completed')).toBeInTheDocument()
-      expect(screen.getByText('chat.evaluation.metrics.faithfulness')).toBeInTheDocument()
-      expect(screen.getByText('86%')).toBeInTheDocument()
-      expect(screen.getByText('chat.evaluation.metrics.answerRelevancy')).toBeInTheDocument()
-      expect(screen.getByText('81%')).toBeInTheDocument()
-      expect(screen.getByText('chat.evaluation.metrics.contextPrecision')).toBeInTheDocument()
-      expect(screen.getByText('78%')).toBeInTheDocument()
-    })
-  })
-
-  it('should display pending and failed evaluation states without showing missing evaluations', async () => {
-    const mockHistory = [
-      {
-        id: 1,
-        course: 1,
-        question: 'Pending question',
-        answer: { segments: [{ text: 'Pending answer', sourceIds: [] }], sources: [] },
-        is_shared_origin: false,
-        created_at: '2024-01-15T10:00:00Z',
-        feedback: null,
-      },
-      {
-        id: 2,
-        course: 1,
-        question: 'Failed question',
-        answer: { segments: [{ text: 'Failed answer', sourceIds: [] }], sources: [] },
-        is_shared_origin: false,
-        created_at: '2024-01-15T10:01:00Z',
-        feedback: null,
-      },
-      {
-        id: 3,
-        course: 1,
-        question: 'No evaluation question',
-        answer: { segments: [{ text: 'No evaluation answer', sourceIds: [] }], sources: [] },
-        is_shared_origin: false,
-        created_at: '2024-01-15T10:02:00Z',
-        feedback: null,
-      },
-    ]
-    chatTrpcMocks.history.mockResolvedValue(mockHistory)
-    chatTrpcMocks.evaluations.mockResolvedValue([
-      {
-        chat_log_id: 1,
-        status: 'pending',
-        faithfulness: null,
-        answer_relevancy: null,
-        context_precision: null,
-        error_message: '',
-        evaluated_at: null,
-      },
-      {
-        chat_log_id: 2,
-        status: 'failed',
-        faithfulness: null,
-        answer_relevancy: null,
-        context_precision: null,
-        error_message: 'ragas error',
-        evaluated_at: null,
-      },
-    ])
-
-    render(<ChatPanel courseId={1} />)
-
-    const historyButton = screen.getByText(/chat.history/)
-
-    await act(async () => {
-      fireEvent.click(historyButton)
-    })
-
-    await waitFor(() => {
-      expect(screen.getByText('chat.evaluation.status.pending')).toBeInTheDocument()
-      expect(screen.getByText('chat.evaluation.status.failed')).toBeInTheDocument()
-      expect(screen.getByText('No evaluation answer')).toBeInTheDocument()
-    })
-
-    expect(screen.queryByText('chat.evaluation.status.completed')).not.toBeInTheDocument()
   })
 
   it('should switch back to chat tab from history', async () => {

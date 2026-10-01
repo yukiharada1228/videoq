@@ -1,9 +1,9 @@
 ---
-title: Q&Aのプロンプトと回答評価
-description: モデルへの入力、ツールの判断、引用、失敗時の挙動、回答後の品質評価。
+title: Q&Aのプロンプトと回答の保存
+description: モデルへの入力、ツールの判断、引用、失敗時の挙動、回答の保存。
 ---
 
-# Q&Aのプロンプトと回答評価
+# Q&Aのプロンプトと回答の保存
 
 プロンプトは、AIへ渡す指示と参照情報です。VideoQでは、利用者の質問だけでなく、アクセスできる講座の情報や字幕を使って回答します。
 
@@ -68,11 +68,11 @@ Q&Aは、必要に応じてツールで情報を取得し、回答を組み立�
 | 登録情報の取得 | 最大5回。1ページ最大20動画 |
 | ツールを使えるモデルターン | 最大8回。その後はツールなしで最終回答を生成 |
 
-APIとworkerはそれぞれの環境で設定します。`LLM_MODEL` はworkerの評価モデルにも使いますが、RAGASの出力上限は別設定の `RAGAS_MAX_TOKENS`（既定4,096）です。APIのbindingだけを変更してもPython workerの設定は変わりません。検索モデルの設定は[埋め込み](../guides/embeddings.md)を参照してください。
+回答モデルはAPIの `LLM_MODEL` で設定します。APIとworkerで共用する検索モデルの設定は[埋め込み](../guides/embeddings.md)を参照してください。
 
 ## 構造化回答・引用と権限
 
-モデルはネイティブの構造化出力で `{"segments":[{"text":"説明です。","sourceIds":[1]}]}` を返します。動画の移動先は生成しません。サーバーが今回のアクセス範囲内の検索結果から `sources: [{id, video_id, title, start_time, end_time}]` を付けます。この `ChatAnswer` を非ストリーミング応答・画面の状態・履歴・DBの `chat_logs.response`（JSONB）で共用します。CSVとRAGAS用の本文はsegmentのtextを区切り文字なしで連結して導出します。必要な空白・改行はtext自身に含め、各segment直後にsourceIds順の時刻リンクを表示します。
+モデルはネイティブの構造化出力で `{"segments":[{"text":"説明です。","sourceIds":[1]}]}` を返します。動画の移動先は生成しません。サーバーが今回のアクセス範囲内の検索結果から `sources: [{id, video_id, title, start_time, end_time}]` を付けます。この `ChatAnswer` を非ストリーミング応答・画面の状態・履歴・DBの `chat_logs.response`（JSONB）で共用します。CSV用の本文はsegmentのtextを区切り文字なしで連結して導出します。必要な空白・改行はtext自身に含め、各segment直後にsourceIds順の時刻リンクを表示します。
 
 Chat Completionsのモデルとエンドポイントには、**strictなネイティブjson_schema出力、strictな関数ツール、および両者の同時利用**が必要です。講座Q&AはLangChainの `providerStrategy` を使い、講座未選択も同じJSONスキーマを指定します。ツールの `video_ids` は省略ではなくnullを許可し、ページ指定も必須です。スキーマ機能の非対応は設定エラーになります。自由文へのフォールバック、構造化だけの追加推論、自動修復・再試行は行いません。拒否・空回答・途中終了・スキーマ違反は失敗とし、ツール呼び出し前の前置きを回答として表示しません。
 
@@ -119,27 +119,9 @@ Chat Completionsのモデルとエンドポイントには、**strictなネイ�
 
 現在は最低類似度による除外がないため、関連が弱い検索結果も返ることがあります。[シーン検索](transcription-and-search.md)を参照してください。字幕に必要な説明がない場合や、索引と検索の埋め込みが一致しない場合は、プロンプトの表現だけを変えても解決しません。
 
-## 回答品質は別の処理で評価する
+## 回答の保存
 
-講座のチャットでは、APIが質問・構造化回答（引用元を含む）・取得した資料・評価ジョブの配送予定を同じDBトランザクションで保存します。その後、outboxとSQSを通じて `evaluate_chat_log` を配送します。ジョブは保存済みの回答を読み、RAGASで評価します。回答生成が、この評価による承認や書き直しを待つ仕組みではありません。講座未選択の応答は講座のチャット履歴に保存せず、評価も行いません。
-
-評価用の本文は `response.segments[].text` を連結したものです。取得資料には、重複を除いた検索シーンとツールが返した講座情報が入り、最終回答で引用しなかった資料も含みます。RAGASは画面の時刻リンクや、segmentと `sourceIds` の対応を1件ずつ検証する処理ではありません。
-
-| 保存する指標 | 調べること |
-|---|---|
-| `faithfulness` | 回答の主張が取得した資料に裏付けられているか |
-| `answer_relevancy` | 質問に沿った回答になっているか |
-| `context_precision` | 取得した資料が回答に役立つか |
-
-これらは自動評価の推定値であり、検証済みの成績や正解の確率ではありません。現行実装は参照正解を使わない指標を選んでおり、すべての回答を人が用意した正解と比較する処理ではありません。取得資料がない場合はcontext precisionを省略します。個別指標の計算に失敗すると値が未設定になる場合があり、評価ジョブ全体の失敗は `failed` として記録します。
-
-### 評価の実行方法と失敗時の扱い
-
-- 3つの指標は順番に計算します。context precision内では、**1ジョブあたり最大4件**の資料を同時に検証します。資料は切り捨てず、元の順序とRAGASの集計方法を維持します。
-- `RAGAS_MAX_TOKENS` は、途中の主張・判定JSONを生成できるよう、**LLM呼び出し1回あたり既定4,096**です。利用モデルが対応する正の整数を指定します。
-- workerのDockerイメージは `RAGAS_DO_NOT_TRACK=true` を設定し、RAGASによる同期的な利用統計送信を無効にします。統計サーバーへの接続待ちを避ける設定であり、モデルサービスへの通信は行います。イメージを使わず直接実行する場合は、RAGASのimport前に設定します。
-- 個別指標の例外や有限でないスコアは通常、その指標を未設定にします。埋め込みの契約違反は上位へ伝え、評価を `failed` にします。値が欠けたまま `completed` になる場合もあるため、状態と各指標の両方を確認します。
-- 採点の失敗は `failed` として記録し、SQSの自動再試行へ渡しません。DB読み書きの障害はジョブの再試行処理へ伝わります。開始前に履歴が削除されていれば評価を省略し、採点中に削除されてもチャットや評価を再作成しません。
+完成した質問・構造化回答・取得資料を保存してから `done` を返します。RAGASによる自動採点と評価API・スコア表示は廃止しました。引用の検証、質問履歴、利用者のフィードバックは継続します。残っている `evaluate_chat_log` は追加のAI呼び出しをせず終了します。
 
 ## 変更する場所
 
@@ -151,7 +133,6 @@ Chat Completionsのモデルとエンドポイントには、**strictなネイ�
 | [answer-content-stream.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/answer-content-stream.ts) / [chat-citations.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/chat-citations.ts) | 回答の逐次読み取りと引用の検証 |
 | [message-service.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/features/chat/message-service.ts) | 権限・利用枠・SSEイベント・保存 |
 | [chatStreamController.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/web/src/lib/chatStreamController.ts) | ブラウザーの描画キューと完了処理 |
-| [evaluation.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/evaluation.py) / [context_precision.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/context_precision.py) | RAGAS指標と同時実行数を制限した資料の検証 |
 
 ## 変更後に見ること
 

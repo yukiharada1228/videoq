@@ -57,8 +57,6 @@ sequenceDiagram
     participant API as チャット処理
     participant DB as PostgreSQL
     participant AI as AIサービス
-    participant Queue as SQS / outbox
-    participant Worker as Python評価処理
     User->>API: 最新の質問・講座・画面の言語
     API->>DB: 権限を確認し、所有者の回答利用枠を予約
     API->>AI: 指示・最新の質問・ツール・回答スキーマ
@@ -80,15 +78,10 @@ sequenceDiagram
         API-->>User: source・text_delta・検証済みcitation
     end
     API->>API: 回答全体と正常終了を検証
-    API->>DB: response・取得資料・評価の配送予定を同時に保存
-    API->>Queue: evaluate_chat_logを配送
+    API->>DB: response・取得資料を保存
     API-->>User: 保存したチャットID付きのdone
-    Queue->>Worker: 評価ジョブ
-    Worker->>DB: 保存済みの質問・response・取得資料を読む
-    Worker->>AI: RAGASの採点リクエスト
-    Worker->>DB: 評価状態と指標を保存
 ```
 
-本文と引用は生成完了前から届きます。`done` は回答保存後であり、RAGAS評価の完了を待ちません。ブラウザーは描画フレームで待機中の内容を反映し、完了後にフィードバック操作を有効にします。登録情報だけの回答はシーンの埋め込みを使わず、場面の引用もありません。非ストリーミングの `chat.send` は保存後に同じ構造化回答を返します。講座未選択の応答にはツール・講座の履歴保存・評価ジョブがありません。
+本文と引用は生成完了前から届きます。`done` は回答保存後です。ブラウザーは描画フレームで待機中の内容を反映し、完了後にフィードバック操作を有効にします。登録情報だけの回答はシーンの埋め込みを使わず、場面の引用もありません。非ストリーミングの `chat.send` は保存後に同じ構造化回答を返します。講座未選択の応答にはツール・講座の履歴保存がありません。
 
 **関連:** [認証とアクセス権](../concepts/auth.md)、[プロンプト設計](../architecture/prompt-engineering.md)。

@@ -35,10 +35,10 @@ Use this list to find the table containing the data you need. For complete colum
 | Table | Stores |
 |---|---|
 | `chat_logs` | Questions, structured answers in `response` JSONB (`segments` and `sources`), retrieved contexts, and user feedback |
-| `chat_log_evaluations` | Evaluation results for each answer |
-| `course_evaluation_snapshots` | Course-level evaluation aggregates |
+| `chat_log_evaluations` | Historical evaluation results (retired; no new writes) |
+| `course_evaluation_snapshots` | Historical evaluation aggregates (retired) |
 
-`chat_logs.response` is the canonical answer. The old separate `answer` and `citations` columns were removed. History returns this same structure; CSV export and RAGAS derive plain text by concatenating segment texts. See [the answer contract](../architecture/prompt-engineering.md#structured-answers-citations-and-permissions) and [historical data conversion](../architecture/structured-answers.md).
+`chat_logs.response` is the canonical answer. The old separate `answer` and `citations` columns were removed. History returns this same structure; CSV exports derive plain text by concatenating segment texts. See [the answer contract](../architecture/prompt-engineering.md#structured-answers-citations-and-permissions) and [historical data conversion](../architecture/structured-answers.md).
 
 ## Search
 

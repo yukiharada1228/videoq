@@ -30,6 +30,11 @@ function objectPayload(value: unknown): Record<string, unknown> {
 async function runTask(env: Bindings, task: ClaimedExternalTask): Promise<void> {
   if (task.kind === "sqs_job") {
     const message = objectPayload(task.payload.message);
+    // Retire already-persisted evaluation deliveries without contacting SQS.
+    if (message.type === "evaluate_chat_log") {
+      await completeExternalTask(env, task);
+      return;
+    }
     if (message.type === JOB_DELETE_ACCOUNT_DATA) {
       const { user_id: userId } = objectPayload(message.payload);
       if (typeof userId !== "string" || !userId) throw new Error("Account deletion user_id is invalid.");

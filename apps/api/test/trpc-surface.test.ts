@@ -42,8 +42,6 @@ const EXPECTED_PROCEDURES = [
   "courses.reorder",
   "courses.shared",
   "courses.update",
-  "evaluation.logs",
-  "evaluation.summary",
   "memberships.addTags",
   "memberships.addVideo",
   "memberships.addVideos",

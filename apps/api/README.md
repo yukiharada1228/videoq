@@ -92,7 +92,7 @@ Q&AはReActで、アクセス確認済みの現在の講座を対象に次のツ
 - `get_course_info`: 講座名・登録説明・動画総数と、動画ID・タイトル・説明・掲載位置・処理状態を取得。1ページ最大20動画、1回答最大5回。説明文は講座2000文字・動画500文字で省略を明示し、続きの動画は `videos_meta.next_offset` で取得します。
 - `search_scenes`: 字幕の意味検索。任意の `video_ids` で講座内の動画に絞り込めます。省略時は講座全体、講座外IDや空の指定は不正として扱います。1回答最大3回。
 
-講座名・本数などはメタ情報だけで回答でき、この場合はベクトル検索の接続や埋め込みAPIを使いません。授業内容の説明では字幕を検索して `[N]` で引用します。メタ情報も回答評価用の `retrieved_contexts` に保存しますが、シーンの引用番号や時刻は付けません。
+講座名・本数などはメタ情報だけで回答でき、この場合はベクトル検索の接続や埋め込みAPIを使いません。授業内容の説明では字幕を検索して `[N]` で引用します。メタ情報も回答時の取得資料として `retrieved_contexts` に保存しますが、シーンの引用番号や時刻は付けません。
 
 定義・比較・具体例・計算・要約や「何を学べる？」は内容の質問として検索を指示します。用語だけの質問も同様です。講座全体の検索では `get_course_info` を経由せず `video_ids` を省略できます。「登録されている説明文を見せて」はメタ情報の取得依頼ですが、「講座の内容を要約して」では説明文の有無にかかわらず字幕を検索します。
 
@@ -114,7 +114,7 @@ Drizzle の modern schema を runtime の唯一のモデルとして使用しま
 
 - auth (Better Auth): `users` (text UUID PK), `session`, `account`, `verification`, `apikey`, `jwks`, `oauth_*`
 - video: `videos`, `video_courses`, `video_course_members`, `tags`, `video_tags`
-- chat/evaluation: `chat_logs`, `chat_log_evaluations`, `course_evaluation_snapshots`
+- chat: `chat_logs`。`chat_log_evaluations` と `course_evaluation_snapshots` は廃止前のデータを保持するテーブルで、新規評価は行いません。
 - vector: `scene_embeddings`（worker・HonoともPGVectorStore。Hono検索は所有者・講座内動画のスコープを固定）
 
 管理 procedure（superuser）: `admin.listUsers`、`admin.patch*`、`admin.reindexAll`。

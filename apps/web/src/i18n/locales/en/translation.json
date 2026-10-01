@@ -658,19 +658,7 @@
     "suggestedQuestions": "Suggested questions",
     "assistantGreeting": "Hello! Ask me anything about your videos.",
     "error": "An error occurred in the chat.",
-    "errorOverQuota": "AI chat is unavailable because your storage is over the configured limit. Please delete videos to free up space.",
-    "evaluation": {
-      "status": {
-        "pending": "Evaluating",
-        "completed": "Evaluated",
-        "failed": "Could not evaluate"
-      },
-      "metrics": {
-        "faithfulness": "Faithfulness",
-        "answerRelevancy": "Answer relevancy",
-        "contextPrecision": "Context precision"
-      }
-    }
+    "errorOverQuota": "AI chat is unavailable because your storage is over the configured limit. Please delete videos to free up space."
   },
   "validation": {
     "required": "This field is required"
@@ -1050,16 +1038,6 @@
       "good": "Good",
       "bad": "Bad",
       "none": "Not rated"
-    },
-    "evaluation": {
-      "title": "RAGAS Metrics",
-      "evaluatedCount": "{{count}} evaluated answers",
-      "empty": "No answers have been evaluated yet",
-      "metrics": {
-        "faithfulness": "Faithfulness",
-        "answerRelevancy": "Answer relevancy",
-        "contextPrecision": "Context precision"
-      }
     }
   },
   "quota": {

@@ -10,8 +10,6 @@ type ChatMessage = RouterOutputs['chat']['send'];
 export type Citation = ChatMessage['answer']['sources'][number];
 export type ChatHistoryItem = RouterOutputs['chat']['history']['data'][number];
 export type ChatAnalytics = RouterOutputs['chat']['analytics'];
-export type EvaluationSummary = RouterOutputs['evaluation']['summary'];
-export type ChatLogEvaluation = RouterOutputs['evaluation']['logs']['data'][number];
 
 export type Video = RouterOutputs['videos']['get'];
 export type VideoList = RouterOutputs['videos']['list']['data'][number];

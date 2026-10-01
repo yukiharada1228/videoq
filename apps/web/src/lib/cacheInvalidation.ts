@@ -26,8 +26,6 @@ export async function invalidateAfterChatAnswer(queryClient: QueryClient, course
     ...(courseId === undefined ? [] : [
       trpc.chat.history.queryFilter({ courseId }),
       trpc.chat.analytics.queryFilter({ courseId }),
-      trpc.evaluation.logs.queryFilter({ courseId }),
-      trpc.evaluation.summary.queryFilter({ courseId }),
     ].map(filter => refreshQuery(queryClient, filter))),
   ])
 }

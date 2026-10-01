@@ -24,7 +24,7 @@ The frontend fetches state from the API. Once the worker saves transcripts and i
 |---|---|---|
 | Web | Display, forms, question input, and playback | `apps/web/src/` |
 | API | Authentication, access control, business logic, and job requests | `apps/api/src/` |
-| Python worker | Transcription, indexing, and answer evaluation | `apps/worker/worker_python/` |
+| Python worker | Transcription and indexing | `apps/worker/worker_python/` |
 
 Web and API share operation names and input/output types through `packages/trpc`. SQS JSON messages and the database form the boundary with Python.
 

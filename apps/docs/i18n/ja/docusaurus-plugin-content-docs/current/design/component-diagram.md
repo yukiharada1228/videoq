@@ -20,7 +20,7 @@ flowchart LR
     Services --> R2[(R2)]
     Services --> SQS[SQS]
     SQS --> Tasks[Python workerのタスク]
-    Tasks --> Pipelines[文字起こし・索引・評価]
+    Tasks --> Pipelines[文字起こし・索引]
     Pipelines --> DB
     Pipelines --> R2
 ```
@@ -44,7 +44,7 @@ flowchart TD
 
 - auth
 - videos / courses / tags
-- chat / evaluation
+- chat
 - oauth / mcp
 - membership / media
 - health
@@ -60,7 +60,6 @@ flowchart TD
     Decode --> Registry[Task registry]
     Registry --> Transcription
     Registry --> Indexing
-    Registry --> Evaluation
     Registry --> AccountDeletion
 ```
 

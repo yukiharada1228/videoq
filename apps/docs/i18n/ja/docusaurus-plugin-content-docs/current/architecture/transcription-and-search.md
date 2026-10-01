@@ -127,4 +127,4 @@ APIの編集・削除も同じ行ロックを使うため、古い生成結果�
 | [vector-repository.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/vector-repository.ts) | 検索範囲と取得件数 |
 | [rag.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag.ts) | ツール実行、場面の重複除去、引用番号 |
 
-**次に読む:** [Q&Aのプロンプトと回答評価](prompt-engineering.md)。
+**次に読む:** [Q&Aのプロンプトと回答の保存](prompt-engineering.md)。
