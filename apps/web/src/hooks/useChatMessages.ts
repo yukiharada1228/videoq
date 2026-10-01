@@ -4,6 +4,7 @@ import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { applyChatPart, plainChatAnswer, chatAnswerText, type ChatAnswer, type ChatContentPart } from '@videoq/trpc/chat';
 import { apiClient, ApiError } from '@/lib/api';
+import { trackLandingEvent } from '@/lib/landingAnalytics';
 import { trpc } from '@/lib/trpc';
 import { invalidateAfterChatAnswer, updateAfterChatFeedback } from '@/lib/cacheInvalidation';
 import { createChatProgress, updateChatProgress, type ChatProgress } from '@/lib/chatProgress';
@@ -41,7 +42,7 @@ interface UseChatMessagesReturn {
   feedbackUpdatingIds: ReadonlySet<number>;
   messagesContainerRef: React.RefObject<HTMLDivElement | null>;
   handleMessagesScroll: () => void;
-  handleSend: () => Promise<void>;
+  handleSend: (question?: string) => Promise<void>;
   handleKeyPress: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   handleFeedback: (chatLogId: number, value: 'good' | 'bad') => Promise<void>;
 }
@@ -165,10 +166,11 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
 
   const feedbackMutation = useMutation(trpc.chat.feedback.mutationOptions());
 
-  const handleSend = useCallback(async () => {
-    if (!input.trim() || sendInFlightRef.current) return;
+  const handleSend = useCallback(async (question?: string) => {
+    const content = question ?? input;
+    if (!content.trim() || sendInFlightRef.current) return;
 
-    const userMessage: Message = { role: 'user', content: input };
+    const userMessage: Message = { role: 'user', content };
     // Each question is answered independently.
     const historyForApi = [userMessage];
 
@@ -206,7 +208,10 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
         if (event.type === 'done') {
           // Persistence is complete now, even while text awaits the next paint.
           // Shared answers use the owner's quota, not the visitor's account.
-          if (!shareToken) void invalidateAfterChatAnswer(queryClient, courseId);
+          if (!shareToken) {
+            void invalidateAfterChatAnswer(queryClient, courseId);
+            trackLandingEvent('first_answer');
+          }
           break;
         }
       }

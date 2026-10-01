@@ -1,0 +1,107 @@
+[
+  {
+    "key": "japanese",
+    "duration": 60,
+    "chapters": [
+      {
+        "title": "主張と根拠を分ける",
+        "start": 0,
+        "end": 20
+      },
+      {
+        "title": "事実から、結論へ",
+        "start": 20,
+        "end": 40
+      },
+      {
+        "title": "引用と、自分の考え",
+        "start": 40,
+        "end": 60
+      }
+    ]
+  },
+  {
+    "key": "math",
+    "duration": 60,
+    "chapters": [
+      {
+        "title": "微分は、瞬間の変化率",
+        "start": 0,
+        "end": 20
+      },
+      {
+        "title": "例：y = x² を微分する",
+        "start": 20,
+        "end": 40
+      },
+      {
+        "title": "x = 3 のとき、傾きは 6",
+        "start": 40,
+        "end": 60
+      }
+    ]
+  },
+  {
+    "key": "science",
+    "duration": 60,
+    "chapters": [
+      {
+        "title": "DNAは、遺伝情報をもつ",
+        "start": 0,
+        "end": 20
+      },
+      {
+        "title": "転写：DNA → RNA",
+        "start": 20,
+        "end": 40
+      },
+      {
+        "title": "翻訳：RNA → タンパク質",
+        "start": 40,
+        "end": 60
+      }
+    ]
+  },
+  {
+    "key": "social",
+    "duration": 60,
+    "chapters": [
+      {
+        "title": "需要と供給を考える",
+        "start": 0,
+        "end": 20
+      },
+      {
+        "title": "均衡価格：需要量 = 供給量",
+        "start": 20,
+        "end": 40
+      },
+      {
+        "title": "需要が増えたら？",
+        "start": 40,
+        "end": 60
+      }
+    ]
+  },
+  {
+    "key": "english",
+    "duration": 60,
+    "chapters": [
+      {
+        "title": "最初に、主張をつかむ",
+        "start": 0,
+        "end": 20
+      },
+      {
+        "title": "because のあとに注目",
+        "start": 20,
+        "end": 40
+      },
+      {
+        "title": "however は、対比のサイン",
+        "start": 40,
+        "end": 60
+      }
+    ]
+  }
+]

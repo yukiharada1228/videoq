@@ -5,7 +5,7 @@ describe('LandingPage', () => {
   it('renders the product heading, not a login heading', () => {
     render(<LandingPage />)
 
-    expect(screen.getByRole('heading', { level: 1, name: 'landing.title' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: /landing\.title.*landing\.titleAccent/ })).toBeInTheDocument()
     expect(screen.queryByText('auth.login.title')).not.toBeInTheDocument()
   })
 
@@ -20,11 +20,13 @@ describe('LandingPage', () => {
     )
   })
 
-  it('lets visitors try an owned demo lecture', () => {
+  it('offers a five-subject product video without an interactive sample chat', () => {
     const { container } = render(<LandingPage />)
 
-    expect(screen.getByRole('heading', { level: 2, name: 'landing.demo.title' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'landing.demo.questions.jump' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'landing.film.title' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'landing.film.play' })).toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'landing.film.subjectsLabel' }).children).toHaveLength(5)
     expect(screen.getAllByRole('link', { name: 'landing.tryOwn' })[0]).toHaveAttribute('href', '/signup')
     expect(container.innerHTML).not.toContain('/share/')
     expect(container.textContent).not.toMatch(/yobinori|aicia|ヨビノリ/i)

@@ -1,0 +1,63 @@
+{
+  "chapterSeconds": 20,
+  "ja": {
+    "voice": "Kyoko",
+    "rate": 230,
+    "title": "伝わる説明のつくり方",
+    "steps": [
+      "最初に",
+      "説明の順番",
+      "最後に"
+    ],
+    "chapters": [
+      {
+        "title": "最初に、結論をひとこと。",
+        "line1": "資料は、金曜日までに提出してください。",
+        "line2": "何をすればよいかを、最初に伝える。",
+        "narration": "説明を始めるときは、結論を一文で伝えます。例えば、資料は金曜日までに提出してください。相手が何をすればよいか、最初にわかるようにしましょう。"
+      },
+      {
+        "title": "結論 → 理由 → 具体例",
+        "line1": "金曜に提出。月曜の会議で使うため。",
+        "line2": "例えば、15時までに共有フォルダーへ。",
+        "narration": "説明の順番は、結論、理由、具体例です。提出日は金曜日です。月曜日の会議で使うためです。例えば、金曜の午後三時までに共有フォルダーへ保存してください。行動と背景を、この順番で伝えます。"
+      },
+      {
+        "title": "最後に、次の行動を確認。",
+        "line1": "「いつまでに、どこへ提出しますか？」",
+        "line2": "相手の言葉で、理解を確かめる。",
+        "narration": "説明の最後は、相手に次の行動を言葉にしてもらいます。例えば、いつまでに、どこへ提出しますか、と聞きます。はい、わかりました、だけでは見えない理解のずれを確認できます。"
+      }
+    ]
+  },
+  "en": {
+    "voice": "Samantha",
+    "rate": 170,
+    "title": "How to explain clearly",
+    "steps": [
+      "Start",
+      "Order",
+      "Check"
+    ],
+    "chapters": [
+      {
+        "title": "Start with the main point.",
+        "line1": "Please submit the document by Friday.",
+        "line2": "Make the next action clear from the start.",
+        "narration": "Start your explanation with the main point in one sentence. For example, please submit the document by Friday. Tell your listener what they need to do before you explain the background."
+      },
+      {
+        "title": "Point. Reason. Example.",
+        "line1": "Submit on Friday. We need it on Monday.",
+        "line2": "For example, save it to the shared folder by 3 pm.",
+        "narration": "Use this order: point, reason, example. The document is due on Friday. We need it for Monday's meeting. For example, save it to the shared folder by three pm on Friday. Connect the action to its purpose."
+      },
+      {
+        "title": "Check the next action.",
+        "line1": "When and where will you submit it?",
+        "line2": "Ask the listener to explain in their own words.",
+        "narration": "At the end, ask the listener to describe their next action. For example, when and where will you submit it? Hearing the answer in their own words can reveal misunderstandings that a simple yes would miss."
+      }
+    ]
+  }
+}

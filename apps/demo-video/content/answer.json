@@ -1,0 +1,309 @@
+{
+  "capturedAt": "2026-10-01T14:23:36.483Z",
+  "course": {
+    "id": 3,
+    "name": "大学生のための5教科・基礎教養",
+    "slug": "videoq-campus-basics-v1",
+    "videos": [
+      {
+        "id": 3,
+        "title": "国語｜レポートの主張と根拠"
+      },
+      {
+        "id": 4,
+        "title": "数学｜微分は何を表すのか"
+      },
+      {
+        "id": 5,
+        "title": "理科｜DNAからタンパク質へ"
+      },
+      {
+        "id": 6,
+        "title": "社会｜需要・供給と価格のしくみ"
+      },
+      {
+        "id": 7,
+        "title": "英語｜英文の主張と理由をつかむ"
+      }
+    ]
+  },
+  "question": "微分って、結局何を表すの？2文で簡潔に教えて。",
+  "events": [
+    {
+      "type": "searching",
+      "query": "微分 何を表す",
+      "search_id": 1
+    },
+    {
+      "type": "search_completed",
+      "search_id": 1,
+      "query": "微分 何を表す",
+      "result_count": 5
+    },
+    {
+      "type": "source",
+      "source": {
+        "id": 1,
+        "video_id": 4,
+        "title": "数学｜微分は何を表すのか",
+        "start_time": "00:00:00,000",
+        "end_time": "00:00:54,480"
+      }
+    },
+    {
+      "type": "source",
+      "source": {
+        "id": 2,
+        "video_id": 6,
+        "title": "社会｜需要・供給と価格のしくみ",
+        "start_time": "00:00:00,000",
+        "end_time": "00:00:54,440"
+      }
+    },
+    {
+      "type": "source",
+      "source": {
+        "id": 3,
+        "video_id": 5,
+        "title": "理科｜DNAからタンパク質へ",
+        "start_time": "00:00:00,000",
+        "end_time": "00:01:09,800"
+      }
+    },
+    {
+      "type": "source",
+      "source": {
+        "id": 4,
+        "video_id": 7,
+        "title": "英語｜英文の主張と理由をつかむ",
+        "start_time": "00:00:00,000",
+        "end_time": "00:00:54,500"
+      }
+    },
+    {
+      "type": "source",
+      "source": {
+        "id": 5,
+        "video_id": 3,
+        "title": "国語｜レポートの主張と根拠",
+        "start_time": "00:00:00,000",
+        "end_time": "00:00:54,040"
+      }
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": ""
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "微"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "分"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "は"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "、"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "ある"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "瞬"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "間"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "に"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "ど"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "れ"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "くら"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "い"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "変"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "化"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "して"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "いる"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "か"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "を"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "表"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "します"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "。"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "グ"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "ラ"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "フ"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "で"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "考"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "える"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "と"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "、その"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "点"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "に"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "引"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "いた"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "接"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "線"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "の"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "傾"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "き"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "です"
+    },
+    {
+      "type": "text_delta",
+      "segmentIndex": 0,
+      "text": "。"
+    },
+    {
+      "type": "citation",
+      "segmentIndex": 0,
+      "sourceId": 1
+    },
+    {
+      "type": "done",
+      "chat_log_id": null,
+      "feedback": null
+    }
+  ]
+}

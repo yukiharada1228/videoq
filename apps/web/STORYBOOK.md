@@ -103,13 +103,14 @@ python3 -m http.server 6007 --bind 127.0.0.1
 
 ## アクセシビリティ検査
 
-次の6部品はStoryのmetaで`parameters.a11y.test: 'error'`を指定しています。既存の`test:storybook`とCIの`Frontend Storybook`で自動検査が実行され、違反があれば失敗します。同じファイルに追加したStoryにも適用されます。
+次の部品・ページはStoryのmetaで`parameters.a11y.test: 'error'`を指定しています。既存の`test:storybook`とCIの`Frontend Storybook`で自動検査が実行され、違反があれば失敗します。同じファイルに追加したStoryにも適用されます。
 
 | 対象 | Story |
 |---|---|
 | 通知・確認ダイアログ | [FeedbackProvider](src/components/common/FeedbackProvider.stories.tsx)、[MessageAlert](src/components/common/MessageAlert.stories.tsx) |
 | 読み込み・処理状態 | [LoadingSpinner](src/components/common/LoadingSpinner.stories.tsx)、[StatusBadge](src/components/common/StatusBadge.stories.tsx) |
 | フォーム・認証エラー | [FormField](src/components/auth/FormField.stories.tsx)、[ErrorMessage](src/components/auth/ErrorMessage.stories.tsx) |
+| LP・共通カラーテーマ | [LandingPage](src/pages/LandingPage.stories.tsx)、[VideoQTheme](src/styles/VideoQTheme.stories.tsx) |
 
 この範囲だけを検証する場合は次を実行します。
 

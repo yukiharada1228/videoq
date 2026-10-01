@@ -1,16 +1,14 @@
 import { normalizePathname, type SiteLocale } from './seo';
 
 export const DEFAULT_COPY: Record<SiteLocale, { title: string; description: string }> = {
-  ja: {
-    title: '講義動画の検索・文字起こし | VideoQ',
-    description:
-      '講義動画・授業録画を文字起こしして検索。YouTubeの講義も登録できます。動画に質問すると、見たいところから再生。反転授業・オンデマンド授業の復習に。',
+  "ja": {
+    "title": "大学の講義動画を、あなたの復習パートナーに | VideoQ",
+    "description": "大学生の講義の復習・試験勉強に。動画に自分の言葉で質問すると、AIが回答と根拠の場面を案内。国語・数学・理科・社会・英語の操作デモを公開。無料プラン・カード不要。"
   },
-  en: {
-    title: 'Search and transcribe lecture videos | VideoQ',
-    description:
-      'Search and transcribe lecture videos and class recordings. YouTube lectures work too. Ask the video a question and play from the moment you need. For flipped classroom and on-demand review.',
-  },
+  "en": {
+    "title": "Turn lecture videos into your study partner | VideoQ",
+    "description": "Review university lectures and prepare for exams. Ask questions in your own words and get AI answers with source timestamps. Watch our five-subject product demo. Free plan, no credit card required."
+  }
 };
 
 const PAGE_COPY: Record<SiteLocale, Record<string, { title: string; description: string }>> = {

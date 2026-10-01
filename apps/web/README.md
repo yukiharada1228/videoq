@@ -276,3 +276,72 @@ npm run ui:sync  # 同期
 ```
 
 対象は `scripts/sync-digital-agency-ui.mjs` で管理します。
+
+### VideoQのカラーテーマ
+
+`src/styles/videoq-theme.css` を、生成済みの `digital-agency.css` の後に読み込みます。
+LPと共通UIの色を変更するときは、このファイルを編集してください。
+`digital-agency.css` と `digital-agency.tokens.json` は配布元のデータとして保持します。
+
+- `brand` はLP・主要ボタンの青、`ink` / `ink-muted` は本文・補足文の色です。
+- `page` / `surface` / `sage` はページ・入力欄やカード・淡い背景に使います。
+- `key-*` と `blue-*` を共通化し、ボタン・リンク・選択状態・見出しに反映します。
+- `solid-gray-*` は濃紺寄りの文字色と、淡い緑を含む中間色です。
+- `line` / `border-border` は装飾的な区切り線用です。入力欄の境界は既存の `solid-gray-600` を使い、識別に必要なコントラストを保ちます。
+- ライムのアクセントは `lime-accent` と `on-lime-accent` を組み合わせます。エラー・警告・成功色やキーボードのフォーカス表示は、元の意味を維持します。
+
+`Design system/VideoQ theme` のStoryでボタン・フォーム・選択状態をまとめて確認できます。
+配布元の同期後も、`index.css` で `videoq-theme.css` が最後に読み込まれていることを確認してください。
+
+## 大学生向けLP
+
+`/` と `/en` は、大学生の講義の復習・試験勉強を案内します。
+旧広告の `?audience=school` / `training` が付いていても見出しは学生向けです。
+無料枠は料金ページと同じ `billing.plans` から取得し、取得できなければ料金ページへ案内します。
+
+LPのチャット体験は、30秒・60 fpsのRemotion動画に置き換えました。
+`LandingDemoVideo` は `public/demo/student-demo-{ja,en}.mp4`、WebPポスター、VTT字幕を使います。
+`preload="none"` で自動再生せず、明示的な再生後は標準の動画操作を表示します。
+再生失敗時は再読み込みを案内し、登録導線は引き続き使えます。
+LPの閲覧・動画再生では講座APIやAIを呼び出しません。
+
+映像は**実データを使った操作の再現**です。画面録画ではありません。
+オリジナルの5教科講座を通常のVideoQへアップロードし、文字起こし・シーン分割・
+埋め込み・RAGを実行した回答と引用を `apps/demo-video/content/answer.json` に保存しています。
+回答本文と参照時刻は改変せず、カーソル・ズーム・待ち時間だけを編集しています。
+英語版は動画内の案内文を英訳しており、講座とAI回答は日本語です。
+
+制作手順と教材の登録方法は [demo-video/README.md](../demo-video/README.md) を参照してください。
+デモ動画の配信は静的ファイルだけで成立します。公開先への講座登録はLP配信の必須条件ではありません。
+`worker/landing-media.ts` がMP4のRangeリクエストに対応し、読み込みを1本16 MiB以下に制限します。
+旧 `explain-{ja,en}.mp4` のURLは互換性のため残しています。
+
+### 効果の確認
+
+本番の `videoq.jp` でのみ、`POST /__events/landing` から既存のWorkers Logsに
+`kind=landing_funnel`、`version=student-v1` の構造化イベントを記録します。
+新しい外部分析サービスやDBは不要です。
+
+| イベント | 意味 |
+| --- | --- |
+| `landing_view` | LPの閲覧 |
+| `demo_open` | デモへのページ内リンクのクリック |
+| `demo_engaged` | デモ動画の再生開始 |
+| `demo_complete` | デモ動画の再生終了 |
+| `signup_click` / `signup_view` | 登録導線のクリック / 登録画面への到達 |
+| `email_signup_created` | メール登録APIの成功（メール確認前） |
+| `email_verified` | メール確認の成功 |
+| `first_answer` | 本サービスで回答が正常に完了（公開共有画面は除外） |
+
+`demo_engaged / landing_view`、`demo_complete / demo_engaged`、
+`email_signup_created / signup_view`、`first_answer / landing_view` を目安にします。
+終了位置へのシークでも `demo_complete` は発生し得るため、全編視聴の保証ではありません。
+旧 `demo_question` / `demo_source` / `sample_download` は受信互換性のみ維持しています。
+同じタブ内で各段階を一度だけ記録し、最終記録から30分で計測の紐付けを終了します。
+氏名・メール・質問文・動画ID・ユーザーID・セッションID・UTM文字列は送信せず、
+言語、audience（通常 `student`、旧広告パラメータは維持）、登録ボタンの位置のみを付けます。
+
+これは改善のための簡易集計です。別タブでのメール確認・別端末・Google登録完了は
+追跡せず、DNT/GPC有効時、ストレージ拒否、通信失敗、ログの保存上限などで欠測します。
+登録ボタンクリックを登録完了として扱わず、Googleを含む全体の登録率や広告別の
+厳密なCVRとして解釈しないでください。

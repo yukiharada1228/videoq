@@ -12,6 +12,7 @@ import {
 } from '@/lib/i18n';
 import { type Locale, locales } from '@/i18n/config';
 import { apiClient } from '@/lib/api';
+import { trackLandingEvent } from '@/lib/landingAnalytics';
 import { useAuthSession } from '@/lib/authSession';
 import { trpc } from '@/lib/trpc';
 import { useToast } from '@/components/common/feedback';
@@ -210,7 +211,7 @@ export function AppNav({ activePage }: AppNavProps) {
     <>
       <header
         ref={headerRef}
-        className="fixed top-0 z-50 w-full border-b border-solid-gray-420 bg-white"
+        className="fixed top-0 z-50 w-full border-b border-border bg-white"
       >
         <div
           className={`mx-auto flex w-full items-center justify-between gap-8 py-4 ${APP_CONTAINER_CLASS}`}
@@ -304,6 +305,12 @@ export function AppNav({ activePage }: AppNavProps) {
                 onClick={() => void handleLogout()}
               >
                 {t('navigation.logout')}
+              </Button>
+            )}
+
+            {!isAuthenticated && activePage === 'home' && (
+              <Button variant="solid" size="sm" className="hidden sm:inline-flex" asChild>
+                <Link href="/signup" onClick={() => trackLandingEvent('signup_click', 'header')}>{t('landing.start')}</Link>
               </Button>
             )}
 

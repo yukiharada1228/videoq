@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
+import { readFile, stat } from 'node:fs/promises';
 import { unstable_dev } from 'wrangler';
 
 let worker;
@@ -95,6 +96,60 @@ test('API routes cannot be served as frontend HTML', async () => {
     assert.equal(await response.text(), 'Not Found');
     securityHeaders(response);
   }
+});
+
+test('landing events reach the collector instead of the SPA', async () => {
+  const response = await worker.fetch('/__events/landing', {
+    method: 'POST',
+    headers: { Origin: 'http://videoq.jp', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event: 'demo_source', audience: 'school', locale: 'ja', placement: 'none' }),
+  });
+  assert.equal(response.status, 204);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  securityHeaders(response);
+  assert.equal((await worker.fetch('/__events/landing')).status, 405);
+});
+
+test('lesson and student demos support byte-range seeking and captions', async () => {
+  for (const name of ['explain-ja', 'explain-en', 'student-demo-ja', 'student-demo-en']) {
+    const bytes = await readFile(`dist/demo/${name}.mp4`);
+    assert.ok(bytes.length <= 16 * 1024 * 1024);
+    const response = await worker.fetch(`/demo/${name}.mp4?v=2`, { headers: { Range: 'bytes=0-99' } });
+    assert.equal(response.status, 206);
+    assert.match(response.headers.get('content-type'), /video\/mp4/);
+    assert.equal(response.headers.get('content-range'), `bytes 0-99/${bytes.length}`);
+    assert.deepEqual(Buffer.from(await response.arrayBuffer()), bytes.subarray(0, 100));
+    securityHeaders(response);
+    const middle = await worker.fetch(`/demo/${name}.mp4?v=2`, { headers: { Range: 'bytes=2048-4095' } });
+    assert.equal(middle.status, 206);
+    assert.deepEqual(Buffer.from(await middle.arrayBuffer()), bytes.subarray(2048, 4096));
+    const captions = await worker.fetch(`/demo/${name}.vtt`);
+    assert.equal(captions.status, 200);
+    assert.match(captions.headers.get('content-type'), /text\/vtt/);
+    assert.match(await captions.text(), /^WEBVTT/);
+    const poster = await worker.fetch(`/demo/${name}-poster.webp?v=2`);
+    assert.equal(poster.status, 200);
+    assert.match(poster.headers.get('content-type'), /image\/webp/);
+    assert.deepEqual(Buffer.from(await poster.arrayBuffer()), await readFile(`dist/demo/${name}-poster.webp`));
+  }
+});
+
+test('student demo suffix ranges and invalid seeks follow HTTP range semantics', async () => {
+  const path = '/demo/student-demo-ja.mp4';
+  const head = await worker.fetch(path, { method: 'HEAD' });
+  const size = (await stat('dist/demo/student-demo-ja.mp4')).size;
+  assert.equal(head.status, 200);
+  assert.equal(head.headers.get('accept-ranges'), 'bytes');
+  assert.match(head.headers.get('content-type'), /video\/mp4/);
+  assert.ok(size > 100 && size <= 16 * 1024 * 1024);
+  assert.equal((await head.arrayBuffer()).byteLength, 0);
+  const suffix = await worker.fetch(path, { headers: { Range: 'bytes=-100' } });
+  assert.equal(suffix.status, 206);
+  assert.equal(suffix.headers.get('content-range'), `bytes ${size - 100}-${size - 1}/${size}`);
+  assert.equal((await suffix.arrayBuffer()).byteLength, 100);
+  const invalid = await worker.fetch(path, { headers: { Range: `bytes=${size}-` } });
+  assert.equal(invalid.status, 416);
+  assert.equal(invalid.headers.get('content-range'), `bytes */${size}`);
 });
 
 test('static files and hashed JavaScript retain content types and security headers', async () => {

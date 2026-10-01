@@ -7,7 +7,7 @@ const packagePath = (name: string) => dirname(fileURLToPath(import.meta.resolve(
 
 const config: StorybookConfig = {
   stories: ['../src/**/*.stories.@(ts|tsx)'],
-  staticDirs: ['./public'],
+  staticDirs: ['./public', { from: '../public/demo', to: '/demo' }],
   addons: [
     ...['@storybook/addon-docs', '@storybook/addon-a11y', '@storybook/addon-vitest'].map(packagePath),
     'msw-storybook-addon',

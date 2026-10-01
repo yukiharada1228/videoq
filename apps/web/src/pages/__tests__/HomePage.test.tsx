@@ -285,7 +285,7 @@ describe('HomePage - unauthenticated', () => {
     render(<HomePage />)
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { level: 1, name: 'landing.title' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { level: 1, name: /landing\.title.*landing\.titleAccent/ })).toBeInTheDocument()
     })
   })
 

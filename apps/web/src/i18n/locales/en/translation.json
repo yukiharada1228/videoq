@@ -1,7 +1,7 @@
 {
   "site": {
-    "title": "Search and transcribe lecture videos | VideoQ",
-    "description": "Search and transcribe lecture videos and class recordings. YouTube lectures work too. Ask the video a question and play from the moment you need. For flipped classroom and on-demand review."
+    "title": "Turn lecture videos into your study partner | VideoQ",
+    "description": "Review university lectures and prepare for exams. Ask questions in your own words and get AI answers with source timestamps. Watch our five-subject product demo. Free plan, no credit card required."
   },
   "common": {
     "notProvided": "Not provided",
@@ -127,102 +127,148 @@
     }
   },
   "landing": {
-    "badge": "Transcribe and search class recordings",
-    "title": "Search lecture videos. Play from the part you need.",
-    "lead": "Ask a lecture video or class recording a question, then play from the part you need. YouTube lecture URLs work the same way.",
-    "start": "Start free",
-    "tryOwn": "Try it with your lecture",
-    "login": "Log in",
-    "startNote": "Free to start. No credit card required.",
-    "demo": {
-      "title": "Ask a question, then play from that scene",
-      "intro": "This is a demo lecture made by VideoQ. Ask a question without creating an account, then press a timestamp in the answer to play from that scene.",
-      "greeting": "This is a demo lecture created by VideoQ. Press a question below, or type the same wording.",
-      "fallback": "This demo answers the prepared questions. After you register your own lecture, you can ask about its content freely.",
-      "play": "Play",
-      "pause": "Pause",
-      "timeline": "Playback position",
-      "lectureTitle": "How to review a class recording",
-      "scenes": {
-        "hard": {
-          "title": "Reviewing takes time",
-          "body": "Even if you keep a class recording, you often have to watch from the beginning to find the explanation you need."
-        },
-        "jump": {
-          "title": "Ask, then jump to that scene",
-          "body": "Ask the lecture a question and play from the matching moment. You do not have to hunt on the timeline by hand."
-        },
-        "own": {
-          "title": "The same with your lecture",
-          "body": "Register your own class recording and you can ask questions the same way, then play from the part you need."
-        }
-      },
-      "questions": {
-        "hard": "What makes reviewing a class recording hard?",
-        "jump": "What happens when I ask a question?",
-        "own": "Can I use this with my own lecture?"
-      },
-      "answers": {
-        "hard": "Even if you keep a class recording, finding the explanation you need takes time.",
-        "jump": "Ask the lecture a question and you can play from the matching scene.",
-        "own": "Register your own class recording and you can ask questions the same way."
-      }
+    "badge": "For university lectures, revision, and exams",
+    "title": "Stuck on a lecture?",
+    "titleAccent": "Ask your video.",
+    "lead": "Ask in your own words.\nFollow the answer back to the explanation.",
+    "start": "Get started for free",
+    "tryOwn": "Start with your lecture video",
+    "login": "Already have an account? Log in",
+    "watchDemo": "See how it works in 30 sec",
+    "startNote": "Free plan · No credit card required",
+    "capabilities": {
+      "title": "What you can do with VideoQ",
+      "transcribe": "Automatic lecture transcripts",
+      "ask": "Ask what you don’t understand",
+      "jump": "Revisit the source moment",
+      "share": "Organize by subject"
     },
     "features": {
-      "title": "Search lecture videos and ask questions",
-      "intro": "VideoQ is a learning tool for searching lecture videos and class recordings after class. It is not a meeting transcript tool. Ask the video a question and replay from the matching moment.",
+      "eyebrow": "Spend more time understanding",
+      "title": "Make progress, one question at a time.",
+      "intro": "Before searching through a whole lecture, ask about the part that lost you.",
       "ask": {
-        "title": "Ask the video and go to the part you need",
-        "body": "Ask things like “What is linear algebra?” or “How do you find eigenvalues?” Instead of hunting on the timeline, you move from the question to the playback position."
+        "title": "Your question. Your own words.",
+        "body": "“What does a derivative actually mean?” You don’t need the right search terms. Ask naturally, and AI answers using the videos you added.",
+        "example": "What does a derivative actually mean?",
+        "result": "An answer grounded in your lecture"
       },
-      "transcribe": {
-        "title": "Automatic transcription of class recordings",
-        "body": "Register a lecture or training video and it is transcribed automatically. That transcript powers search and questions. Your own class recordings work, and so do lecture videos on YouTube."
+      "source": {
+        "title": "Read the answer. Check the lecture.",
+        "body": "Select a timestamp to revisit the source moment. Review the formula or explanation with the surrounding context."
       },
       "share": {
-        "title": "Share lecture videos with a class",
-        "body": "Collect class recordings into a course and share them with a class or training team. Learners can ask questions against the same lecture video, and instructors keep assigned material in one place."
-      },
-      "analytics": {
-        "title": "See unclear parts from student questions",
-        "body": "Review what students asked about a lecture video. Use that record to decide what to cover next time, and which explanations did not land."
-      }
-    },
-    "steps": {
-      "title": "Start with a class recording transcript",
-      "intro": "After you create an account, lecture video transcription takes three steps. No credit card is required.",
-      "upload": {
-        "title": "Add a lecture video",
-        "body": "Upload a class recording, or paste a YouTube lecture URL. Putting it in a course makes it easier to share with a class later."
-      },
-      "index": {
-        "title": "Wait for transcription",
-        "body": "When processing finishes, you can search the lecture video and ask it questions. Watch progress in the library."
-      },
-      "ask": {
-        "title": "Ask the video and play",
-        "body": "Ask for the moment you want in your own words. The answer includes a jump to the matching scene, so you can review only that part of a long class recording."
+        "title": "Keep your revision organized.",
+        "body": "Group lecture videos into courses. Search across a course when you remember the topic but not which session covered it.",
+        "example": "Calculus revision",
+        "exampleDetail": "From the first lecture to exam week"
       }
     },
     "uses": {
-      "title": "Lecture review and flipped classroom",
-      "intro": "VideoQ fits schools and training teams who want class recordings to become searchable teaching material. It is not aimed at personal note-taking.",
+      "eyebrow": "Made for your study routine",
+      "title": "After class. Before exams.",
+      "intro": "A way back to the lecture when you get stuck studying on your own.",
+      "select": "Choose a study moment",
+      "exampleNote": "Illustrative study scenarios and questions",
       "lectures": {
-        "title": "Search lecture recordings to review",
-        "body": "When a university or vocational course uploads class recordings, students can search the lecture video and ask “What is linear algebra?” Review starts from the unclear part, not from the beginning."
+        "label": "After a lecture",
+        "tag": "Revisit today’s questions",
+        "title": "Catch the explanation you missed.",
+        "body": "Ask about a formula or term you couldn’t follow in class. Return to the recording and work through it at your own pace.",
+        "video": "Math: What does a derivative mean?",
+        "question": "How does the value of a function differ from its slope?"
       },
-      "flipped": {
-        "title": "Flipped classroom and on-demand review",
-        "body": "Share prep videos first, then see which questions students asked before the next in-person session. For on-demand lessons too, you can tell which explanations did not land before class starts."
+      "exams": {
+        "label": "Before an exam",
+        "tag": "Start with what feels unclear",
+        "title": "Ask before watching it all again.",
+        "body": "Compare concepts you keep mixing up. Read the answer, then revisit the source explanation to check your understanding.",
+        "video": "Science: From DNA to proteins",
+        "question": "What is the difference between transcription and translation?"
       }
     },
+    "steps": {
+      "eyebrow": "Start with your own material",
+      "title": "Three steps to your next question.",
+      "intro": "Create a free account and add your first lecture.",
+      "upload": {
+        "title": "Upload a lecture video",
+        "body": "Add a recording or study video you are allowed to use. MP4, MOV, WebM, and other formats are supported."
+      },
+      "index": {
+        "title": "Wait for the transcript",
+        "body": "AI transcribes the audio and prepares the video for questions. Check the progress in your library."
+      },
+      "ask": {
+        "title": "Add it to a course. Ask away.",
+        "body": "Group your videos, then type a question. Move between the answer and the source explanation as you study."
+      },
+      "note": "Only upload videos you have the right to use."
+    },
+    "faq": {
+      "eyebrow": "BEFORE YOU START",
+      "title": "A few good questions.",
+      "free": {
+        "question": "Can I really start for free?",
+        "answer": "Yes. Try video transcription and AI questions within the free plan’s allowance, with no credit card required. See the pricing page for usage limits and paid plans."
+      },
+      "videos": {
+        "question": "What videos can I use?",
+        "answer": "MP4, MOV, AVI, MKV, and WebM are supported. Add narrated study videos you are allowed to use. YouTube imports require a separately configured SearchAPI key."
+      },
+      "answers": {
+        "question": "Can I check where an answer comes from?",
+        "answer": "Answers show the source video and timestamp, so you can jump to the original explanation. AI answers and transcripts can contain mistakes; replaying the source lets you check them in context."
+      },
+      "sharing": {
+        "question": "Can I use it to study on my own?",
+        "answer": "Yes. Upload your videos and organize them into courses to ask questions. Sharing is optional. You can also use course links or member invitations if you want to share."
+      },
+      "pricing": "Check plans and limits"
+    },
     "next": {
-      "title": "Pricing",
-      "intro": "Try lecture video transcription and search for free, then choose a plan that fits your usage.",
+      "eyebrow": "Try it in your next study session",
+      "title": "Don’t leave that question behind.",
+      "intro": "Start with one lecture video. Let your questions lead the way.",
       "pricing": {
-        "title": "Pricing",
-        "body": "Check the free allowance and paid plans for regular or heavier use."
+        "title": "See free limits and pricing"
       }
+    },
+    "free": {
+      "eyebrow": "For your studies. Start free.",
+      "title": "One video is all it takes.",
+      "intro": "Try transcription and AI questions\nwith a lecture of your own.",
+      "processing": "Video transcription",
+      "minutes": "{{minutes}} min / month",
+      "answers": "AI answers",
+      "answerCount": "{{count}} / month",
+      "answerCount_one": "{{count}} / month",
+      "answerCount_other": "{{count}} / month",
+      "storage": "Video storage",
+      "gb": "{{gb}} GB",
+      "upload": "Per-file upload limit",
+      "mb": "{{mb}} MB",
+      "loading": "Checking the free plan limits…",
+      "unavailable": "We couldn't load the limits. Check the pricing page for the latest details.",
+      "sampleNote": "Use the included free allowance. If you need more, explore the available plans."
+    },
+    "film": {
+      "title": "Ask a question. Find the explanation.",
+      "duration": "30 sec / Product demo",
+      "play": "Play the demo",
+      "course": "Demo course: Five subjects for university study",
+      "subjectsLabel": "Five subjects in the demo",
+      "subjects": {
+        "japanese": "Japanese",
+        "math": "Math",
+        "science": "Science",
+        "social": "Social studies",
+        "english": "English"
+      },
+      "note": "A reconstructed walkthrough using a real course and AI answer. Waiting time has been shortened. The sample lessons are in Japanese.",
+      "error": "The video could not load.",
+      "blocked": "Use the video’s play button to start.",
+      "retry": "Reload video"
     }
   },
   "videos": {

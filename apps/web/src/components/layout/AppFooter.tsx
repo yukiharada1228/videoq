@@ -8,7 +8,7 @@ export function AppFooter() {
   const { t } = useTranslation();
 
   return (
-    <footer className="mt-auto w-full border-t border-solid-gray-420 bg-white">
+    <footer className="mt-auto w-full border-t border-border bg-white">
       <div className={`mx-auto w-full py-10 ${APP_CONTAINER_CLASS}`}>
         <div className="mb-6">
           <p className="text-std-18B-160 text-solid-gray-800">VideoQ</p>

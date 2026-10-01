@@ -1,5 +1,7 @@
 import { resolveFirstByteCopy } from '../src/lib/pageCopy';
 import headerRules from '../public/_headers';
+import { collectLandingEvent } from './landing-events';
+import { serveLandingVideo } from './landing-media';
 import {
   absoluteUrl,
   hreflangEntries,
@@ -28,6 +30,13 @@ async function serve(request: Request, env: WebEnv): Promise<Response> {
     url.hostname = 'videoq.jp';
     url.port = '';
     return Response.redirect(url.href, 301);
+  }
+
+  if (pathname === '/__events/landing') {
+    return collectLandingEvent(request, env.ENVIRONMENT);
+  }
+  if (/^\/demo\/(explain|student-demo)-(ja|en)\.mp4$/.test(pathname)) {
+    return serveLandingVideo(request, env.ASSETS);
   }
 
   if (pathname === '/ja' || pathname === '/ja/' || pathname.startsWith('/ja/')) {
