@@ -339,7 +339,21 @@ LPの閲覧・動画再生では講座APIやAIを呼び出しません。
 旧 `demo_question` / `demo_source` / `sample_download` は受信互換性のみ維持しています。
 同じタブ内で各段階を一度だけ記録し、最終記録から30分で計測の紐付けを終了します。
 氏名・メール・質問文・動画ID・ユーザーID・セッションID・UTM文字列は送信せず、
-言語、audience（通常 `student`、旧広告パラメータは維持）、登録ボタンの位置のみを付けます。
+言語、audience（通常 `student`、旧広告パラメータは維持）、登録ボタンの位置、
+次の固定値の `acquisition` を付けます。生のUTM・URL・クリックIDは保存・送信しません。
+
+| `acquisition` | 初回LP流入の条件 |
+| --- | --- |
+| `x_paid_demo15_search` | `utm_source=x`、`utm_medium=paid_social`、`utm_campaign=student_demo_test`、`utm_content=demo15_search` のすべてが一致 |
+| `x_organic_launch` | `utm_source=x`、`utm_medium=organic_social`、`utm_campaign=launch`、`utm_content` が `intro` / `howto` / `usecase` |
+| `unattributed` | その他。旧クライアントの `acquisition` なしのイベントも受け付け、集計時はこちらに含める |
+
+同じタブの訪問中は初回の分類を保持し、登録画面へ移動してURLのパラメータが消えても
+`email_signup_created` などを流入元別に集計できます。30分間イベントがなければ紐付けは切れます。
+Workers Logsで `kind=landing_funnel` と `acquisition=x_paid_demo15_search` を絞り込み、
+イベント別の件数を比較します。ログの保存期間内に日別集計を控えてください。
+X管理画面の消化額を `email_signup_created` の件数で割った値は、同じタブ内のメール登録に
+限定した参考単価です。Google登録や別タブでの確認を含む全登録の獲得単価ではありません。
 
 これは改善のための簡易集計です。別タブでのメール確認・別端末・Google登録完了は
 追跡せず、DNT/GPC有効時、ストレージ拒否、通信失敗、ログの保存上限などで欠測します。

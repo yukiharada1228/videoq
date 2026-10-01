@@ -1,4 +1,4 @@
-import { getLandingAudience, startLandingVisit, trackLandingEvent } from '../landingAnalytics';
+import { getLandingAcquisition, getLandingAudience, startLandingVisit, trackLandingEvent } from '../landingAnalytics';
 
 const originalLocation = window.location;
 
@@ -29,10 +29,49 @@ describe('landing funnel measurement', () => {
     expect(send).toHaveBeenCalledTimes(3);
     const [path, init] = send.mock.calls[2];
     expect(path).toBe('/__events/landing');
-    expect(JSON.parse(init.body)).toEqual({ event: 'signup_click', placement: 'hero', audience: 'training', locale: 'ja' });
+    expect(JSON.parse(init.body)).toEqual({ event: 'signup_click', placement: 'hero', audience: 'training', locale: 'ja', acquisition: 'unattributed' });
     expect(init.credentials).toBe('omit');
     expect(init.referrerPolicy).toBe('no-referrer');
     expect(JSON.stringify(send.mock.calls)).not.toContain('private-value');
+    expect(JSON.stringify(sessionStorage)).not.toContain('private-value');
+  });
+
+  it('keeps the fixed ad cohort through same-tab signup without sending URL data', () => {
+    Object.defineProperty(window, 'location', { configurable: true, value: new URL(
+      'https://videoq.jp/?utm_source=x&utm_medium=paid_social&utm_campaign=student_demo_test&utm_content=demo15_search&twclid=private-click-id',
+    ) });
+    startLandingVisit();
+    Object.defineProperty(window, 'location', { configurable: true, value: new URL('https://videoq.jp/signup') });
+    trackLandingEvent('signup_view');
+    trackLandingEvent('email_signup_created');
+    expect(send.mock.calls.map(([, init]) => JSON.parse(init.body).acquisition))
+      .toEqual(['x_paid_demo15_search', 'x_paid_demo15_search', 'x_paid_demo15_search']);
+    for (const data of [JSON.stringify(send.mock.calls), JSON.stringify(sessionStorage)]) {
+      expect(data).not.toContain('private-click-id');
+      expect(data).not.toContain('utm_');
+    }
+  });
+
+  it.each([
+    ['?utm_source=x&utm_medium=organic_social&utm_campaign=launch&utm_content=intro', 'x_organic_launch'],
+    ['?utm_source=x&utm_medium=organic_social&utm_campaign=launch&utm_content=howto', 'x_organic_launch'],
+    ['?utm_source=x&utm_medium=organic_social&utm_campaign=launch&utm_content=usecase', 'x_organic_launch'],
+    ['?utm_source=x&utm_medium=paid_social&utm_campaign=private-value&utm_content=demo15_search', 'unattributed'],
+    ['?utm_source=other&utm_medium=paid_social&utm_campaign=student_demo_test&utm_content=demo15_search', 'unattributed'],
+    ['?utm_source=x', 'unattributed'],
+    ['', 'unattributed'],
+  ])('classifies only known campaign links: %s', (search, expected) => {
+    expect(getLandingAcquisition(search)).toBe(expected);
+  });
+
+  it.each([undefined, 'private-value'])('keeps old or unknown stored cohorts anonymous: %s', acquisition => {
+    sessionStorage.setItem('videoq.landing.student-v1', JSON.stringify({
+      audience: 'student', seen: ['landing_view'], updated: Date.now(), acquisition,
+    }));
+    trackLandingEvent('email_signup_created');
+    expect(JSON.parse(send.mock.calls[0][1].body).acquisition).toBe('unattributed');
+    expect(JSON.stringify(send.mock.calls)).not.toContain('private-value');
+    expect(JSON.stringify(sessionStorage)).not.toContain('private-value');
   });
 
   it('does not attribute unrelated account activity to the LP', () => {
@@ -60,7 +99,10 @@ describe('landing funnel measurement', () => {
     Object.defineProperty(window, 'location', { configurable: true, value: new URL('https://videoq.jp/') });
     vi.stubGlobal('navigator', { doNotTrack: '1' });
     startLandingVisit();
+    vi.stubGlobal('navigator', { globalPrivacyControl: true });
+    startLandingVisit();
     expect(send).not.toHaveBeenCalled();
+    expect(sessionStorage.length).toBe(0);
   });
 
   it('leaves the product usable when storage or the network is unavailable', () => {
