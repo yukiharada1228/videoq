@@ -16,10 +16,18 @@ describe('landing collector', () => {
     expect(console.log).toHaveBeenCalledWith({ kind: 'landing_funnel', version: 'student-v1', ...payload });
   });
 
+  it.each(['unattributed', 'x_paid_demo15_search', 'x_organic_launch'])('accepts the fixed cohort %s', async acquisition => {
+    const attributed = { ...payload, acquisition };
+    expect((await collectLandingEvent(request(JSON.stringify(attributed)), 'production')).status).toBe(204);
+    expect(console.log).toHaveBeenCalledWith({ kind: 'landing_funnel', version: 'student-v1', ...attributed });
+  });
+
   it.each([
     ['unknown event', { ...payload, event: 'anything' }],
     ['extra field', { ...payload, email: 'private@example.test' }],
     ['unknown audience', { ...payload, audience: 'arbitrary' }],
+    ['unknown acquisition', { ...payload, acquisition: 'private@example.test' }],
+    ['extra field with acquisition', { ...payload, acquisition: 'x_paid_demo15_search', email: 'private@example.test' }],
     ['array', [payload]],
     ['null', null],
   ])('rejects %s without logging the input', async (_label, body) => {
