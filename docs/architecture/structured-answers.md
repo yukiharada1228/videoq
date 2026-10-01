@@ -7,6 +7,8 @@ description: Canonical answer storage, one-time history conversion, deployment o
 
 Issue [#996](https://github.com/yukiharada1228/videoq/issues/996) replaces citations embedded in prose with `segments: [{text, sourceIds}]` plus server-owned `sources`. See [the answer and SSE contract](prompt-engineering.md#structured-answers-citations-and-permissions). There is no compatibility mode or dual-write period.
 
+The current application already uses this contract. This page preserves the upgrade procedure for older databases and the measurements from that cutover. For current generation-time streaming, animation-frame rendering, and evaluation behavior, use [Q&A prompts and answer evaluation](prompt-engineering.md). These historical timings do not benchmark the current UI.
+
 ## One-time history migration
 
 Run the repository's `npm run db:migrate` entrypoint, which invokes `apps/api/scripts/migrate-database.ts` using `node --import tsx`. Node and development dependencies must be installed in the migration job. Do not run `drizzle-kit migrate` directly for this cutover: it cannot perform the intervening data conversion.

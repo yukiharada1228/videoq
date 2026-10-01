@@ -57,16 +57,38 @@ sequenceDiagram
     participant API as Chat handler
     participant DB as PostgreSQL
     participant AI as AI service
-    User->>API: Submit question and course
-    API->>DB: Check course access
-    API->>AI: Decide which information the question needs
-    AI-->>API: Request metadata or scene search
-    API->>DB: Fetch information within permitted scope
-    API->>AI: Provide information and generate answer
-    API-->>User: Stream answer
-    API->>DB: Save question, answer, and citations
+    participant Queue as SQS / outbox
+    participant Worker as Python evaluator
+    User->>API: Latest question, course, and UI language
+    API->>DB: Check access and reserve owner's answer quota
+    API->>AI: System prompt, latest question, tools, answer schema
+    loop Retrieve evidence within tool limits
+        AI-->>API: Request course metadata or scene search
+        opt Scene search
+            API-->>User: searching
+            API->>AI: Embed search query
+            AI-->>API: Query vector
+        end
+        API->>DB: Fetch metadata or scenes within permitted scope
+        opt Scene search
+            API-->>User: search_completed
+        end
+        API->>AI: Tool result with metadata or numbered scenes
+    end
+    loop During structured answer generation
+        AI-->>API: Partial structured answer
+        API-->>User: source, text_delta, validated citation
+    end
+    API->>API: Validate complete answer and terminal status
+    API->>DB: Save response, contexts, and evaluation outbox atomically
+    API->>Queue: Dispatch evaluate_chat_log
+    API-->>User: done with saved chat ID
+    Queue->>Worker: Evaluation job
+    Worker->>DB: Read saved question, response, and contexts
+    Worker->>AI: RAGAS scoring calls
+    Worker->>DB: Save evaluation status and metrics
 ```
 
-Information retrieval repeats as needed. This is a Q&A overview; there are also metadata-only paths and non-streaming responses.
+Text and citations can arrive before generation finishes; `done` follows answer persistence, not RAGAS completion. The browser applies queued content on animation frames and enables feedback after completion. Metadata-only answers skip scene embeddings and have no scene citations. Non-streaming `chat.send` returns the same structured answer after saving. Without a course, the response has no tools, course history record, or evaluation job.
 
 **Related:** [Authentication and access control](../concepts/auth.md), [Prompt design](../architecture/prompt-engineering.md).

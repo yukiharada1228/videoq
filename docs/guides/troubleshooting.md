@@ -61,9 +61,27 @@ See [video state transitions](../design/state-diagram.md) for the meaning of eac
 1. Check that the course you are asking about contains the video.
 2. Check that the video is `completed` and has a transcript.
 3. Compare API and worker `EMBEDDING_PROVIDER` / `EMBEDDING_MODEL` using the [embedding diagnostic commands](embeddings.md). Dimensions are fixed at 1536. Check the logged reason for configuration, schema, or output errors.
-4. Reindex after changing models. Configuration alone cannot change the dimensions of existing data.
+4. If the embedding model changed, follow the [existing-data migration constraints](embeddings.md#existing-data-and-future-model-changes). Matching dimensions alone do not make old vectors compatible; a full reindex replaces videos individually and can leave mixed models after partial failure.
 
 Questions about course names or video counts may be answered from metadata without scene citations. Even content questions may not produce the expected answer if the video contains no supporting evidence.
+
+## Answer streaming fails or citations arrive later
+
+| Symptom | What to check |
+|---|---|
+| `LLM_CONFIGURATION_ERROR` | The API's server key and whether the configured endpoint/model supports strict `json_schema` output together with strict function tools |
+| Search progress appears before text | Retrieval precedes answer generation; tool-call preambles are intentionally omitted |
+| A citation arrives after its passage | The segment must close and its source IDs and math/code boundary must be validated |
+| Text appears, then the request fails | Provider refusal, output-token truncation, invalid final JSON, a tool call after answer text, or an interrupted stream; partial display is not a saved answer |
+| No saved history or feedback after text finishes | Check final validation and persistence; SSE must receive `done`, then drain the rendering queue |
+
+The browser uses animation frames rather than a fixed typing timer. `done` is independent of RAGAS completion. See [the streaming contract](../architecture/prompt-engineering.md#streaming-contract) for event order and quota handling.
+
+## Answer evaluation is missing or failed
+
+Check the course chat's `chat_log_evaluations` record separately from its answer and `job_executions`. No-course responses do not create evaluation jobs. A completed delivery or worker execution does not guarantee that every metric has a value: scoring errors are stored as `failed`, and individual unavailable metrics can remain unset even when evaluation is `completed`.
+
+Verify the worker's model/key and embedding configuration, `RAGAS_MAX_TOKENS` (default 4,096), and `RAGAS_DO_NOT_TRACK=true` when running outside the supplied Docker image. Context precision checks at most four contexts concurrently per job; it still processes all contexts. See [answer evaluation](../architecture/prompt-engineering.md#answer-quality-is-evaluated-separately) for failure and retry behavior.
 
 ## A corrected transcript still gives old answers
 

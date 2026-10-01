@@ -46,7 +46,9 @@ Before scene search or indexing, the relevant path verifies the declared DB colu
 
 Every generated vector must contain exactly 1536 finite numeric values, fit pgvector's float32 representation, and remain nonzero. Strings and booleans are rejected. Batch counts and OpenAI response indices must match the inputs.
 
-Scene splitting and RAGAS share output validation without requiring a DB for standalone calculations. Contract errors propagate instead of silently producing fallback scenes or missing scores. Pure data deletion requires no model call or credentials. Full reindexing checks the configuration, DB, and a short real embedding **before deleting existing vectors**; failures later in the job still do not provide atomic rollback.
+Scene splitting and RAGAS share output validation without requiring a DB for standalone calculations. Contract errors propagate instead of silently producing fallback scenes or missing scores. Pure data deletion requires no model call or credentials.
+
+Full reindexing checks the DB embedding contract when there are eligible videos, then generates and validates **all replacement embeddings for one video before changing that video's rows**. It locks the current video row, rechecks the transcript, and replaces the rows in a single transaction. A failed video retains its old index while other videos can finish; the job reports failure for retry if any video failed. There is no initial deletion of the entire index and no separate short probe in this job. Use the explicit `--probe` diagnostics below when needed. The operation is atomic per video, not across the full collection.
 
 ## Compare API and worker diagnostics
 
