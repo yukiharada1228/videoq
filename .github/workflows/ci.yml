@@ -317,7 +317,11 @@ jobs:
       - name: Build Storybook
         run: npm run build:storybook
       - name: Install Chromium
-        run: npm exec --workspace @videoq/web -- playwright install --with-deps chromium
+        run: |
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
+          fi
+          npm exec --workspace @videoq/web -- playwright install --with-deps chromium
       - name: Test stories in Chromium
         run: npm run test:storybook
       - name: Upload Storybook
