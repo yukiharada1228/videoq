@@ -51,6 +51,19 @@ export default function SignupPage() {
 
       {error && <div className="mb-4"><ErrorMessage message={error} /></div>}
 
+      <GoogleSignInButton
+        callbackURL={nextPath || '/'}
+        labelKey="auth.signup.continueWithGoogle"
+      />
+
+      <div className="my-8 flex items-center gap-4">
+        <Divider className="flex-1" aria-hidden="true" />
+        <span className="shrink-0 text-dns-14N-130 text-solid-gray-420">
+          {t('auth.signup.orDivider')}
+        </span>
+        <Divider className="flex-1" aria-hidden="true" />
+      </div>
+
       <form onSubmit={handleSubmit} className="space-y-5">
         <FormField
           id="username"
@@ -144,18 +157,6 @@ export default function SignupPage() {
           )}
         </Button>
       </form>
-
-      <div className="relative my-10 text-center">
-        <Divider />
-        <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-4 bg-white text-dns-14N-130 text-solid-gray-420">
-          {t('auth.signup.orDivider')}
-        </span>
-      </div>
-
-      <GoogleSignInButton
-        callbackURL={nextPath || '/'}
-        labelKey="auth.signup.continueWithGoogle"
-      />
 
       <div className="mt-8 text-center">
         <AuthFormFooter
