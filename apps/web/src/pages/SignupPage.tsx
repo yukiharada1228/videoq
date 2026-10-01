@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useI18nNavigate } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +15,7 @@ import { AuthFormFooter } from '@/components/auth/AuthFormFooter';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { Button } from '@/components/ui/button';
 import { Divider } from '@/components/ui/divider';
+import { trackLandingEvent } from '@/lib/landingAnalytics';
 
 export default function SignupPage() {
   const navigate = useI18nNavigate();
@@ -23,6 +24,7 @@ export default function SignupPage() {
   const nextPath = getSafeNextPath(searchParams.get('next'));
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  useEffect(() => { trackLandingEvent('signup_view'); }, []);
 
   const { formData, error, isLoading, handleChange, handleSubmit } = useAuthForm({
     onSubmit: async (data: { username: string; email: string; password: string; confirmPassword: string }) => {
@@ -35,6 +37,7 @@ export default function SignupPage() {
         password: data.password,
         ...(nextPath ? { callbackURL: nextPath } : {}),
       });
+      trackLandingEvent('email_signup_created');
     },
     initialData: { username: '', email: '', password: '', confirmPassword: '' },
     onSuccessRedirect: () => navigate(

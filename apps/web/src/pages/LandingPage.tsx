@@ -1,141 +1,165 @@
+import { useEffect, useState } from 'react';
+import { ArrowDown, ArrowRight, BookOpen, Check, ChevronDown, FileText, GraduationCap, MessageCircle, Play, Search, Sparkles, Upload, NotebookPen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from '@/lib/i18n';
-import { AppPageHeader } from '@/components/layout/AppPageHeader';
-import { Button } from '@/components/ui/button';
-import { Heading, HeadingTitle } from '@/components/ui/heading';
-import {
-  MenuList,
-  MenuListItem,
-  menuListItemVariants,
-} from '@/components/ui/menu-list';
-import { LandingTryDemo } from '@/components/landing/LandingTryDemo';
-import { cn } from '@/lib/digital-agency/cn';
+import { LandingDemoVideo } from '@/components/landing/LandingDemoVideo';
+import { LandingFreePlan } from '@/components/landing/LandingFreePlan';
+import { startLandingVisit, trackLandingEvent } from '@/lib/landingAnalytics';
+import '@/styles/landing.css';
 
-const FEATURE_KEYS = ['ask', 'transcribe', 'share', 'analytics'] as const;
-const STEP_KEYS = ['upload', 'index', 'ask'] as const;
-const USE_KEYS = ['lectures', 'flipped'] as const;
+const BENEFITS = [
+  { key: 'ask', icon: MessageCircle },
+  { key: 'source', icon: Play },
+  { key: 'share', icon: BookOpen },
+] as const;
+const USES = [
+  { key: 'lectures', icon: GraduationCap },
+  { key: 'exams', icon: NotebookPen },
+] as const;
+const STEPS = [
+  { key: 'upload', icon: Upload },
+  { key: 'index', icon: FileText },
+  { key: 'ask', icon: MessageCircle },
+] as const;
+const FAQ_KEYS = ['free', 'sharing', 'videos', 'answers'] as const;
 
 export default function LandingPage() {
   const { t } = useTranslation();
+  const [activeUse, setActiveUse] = useState<(typeof USES)[number]['key']>('lectures');
+  useEffect(() => { startLandingVisit(); }, []);
 
   return (
-    <>
-      <AppPageHeader
-        badge={t('landing.badge')}
-        title={t('landing.title')}
-        description={t('landing.lead')}
-        action={(
-          <div className="flex flex-col items-start gap-2">
-            <div className="flex flex-wrap gap-3">
-              <Button variant="solid" size="lg" asChild>
-                <Link href="/signup">{t('landing.start')}</Link>
-              </Button>
-              <Button variant="outline" size="lg" asChild>
-                <Link href="/login">{t('landing.login')}</Link>
-              </Button>
-            </div>
-            <p className="text-std-16N-170 text-solid-gray-700">{t('landing.startNote')}</p>
+    <div className="landing">
+      <section className="lp-hero" aria-labelledby="landing-title">
+        <div className="lp-hero-copy">
+          <p className="lp-eyebrow"><span className="lp-status-dot" />{t('landing.badge')}</p>
+          <h1 id="landing-title">
+            {t('landing.title')}<br />
+            <span>{t('landing.titleAccent')}</span>
+          </h1>
+          <p className="lp-lead">{t('landing.lead')}</p>
+          <div className="lp-hero-actions">
+            <Link href="/signup" className="lp-button lp-button-primary" onClick={() => trackLandingEvent('signup_click', 'hero')}>
+              {t('landing.start')}<ArrowRight size={18} aria-hidden="true" />
+            </Link>
+            <a href="#landing-demo" className="lp-button lp-button-secondary" onClick={() => trackLandingEvent('demo_open')}>
+              <Play size={16} aria-hidden="true" />{t('landing.watchDemo')}
+            </a>
           </div>
-        )}
-      />
-
-      <LandingTryDemo />
-
-      <section className="mb-12">
-        <Heading size="18" hasChip className="mb-4">
-          <HeadingTitle level="h2">{t('landing.features.title')}</HeadingTitle>
-        </Heading>
-        <p className="mb-4 text-std-16N-170 text-solid-gray-700">{t('landing.features.intro')}</p>
-        <MenuList className="border-t border-solid-gray-420">
-          {FEATURE_KEYS.map((key) => (
-            <MenuListItem key={key} className="border-b border-solid-gray-200">
-              <div className="flex w-full flex-col items-start gap-1 py-4">
-                <span className="text-std-16B-170 text-solid-gray-800">
-                  {t(`landing.features.${key}.title`)}
-                </span>
-                <span className="text-std-16N-170 text-solid-gray-700">
-                  {t(`landing.features.${key}.body`)}
-                </span>
-              </div>
-            </MenuListItem>
-          ))}
-        </MenuList>
+          <p className="lp-reassurance"><Check size={15} aria-hidden="true" />{t('landing.startNote')}</p>
+        </div>
+        <div className="lp-demo-wrap">
+          <LandingDemoVideo />
+        </div>
       </section>
 
-      <section className="mb-12">
-        <Heading size="18" hasChip className="mb-4">
-          <HeadingTitle level="h2">{t('landing.steps.title')}</HeadingTitle>
-        </Heading>
-        <p className="mb-4 text-std-16N-170 text-solid-gray-700">{t('landing.steps.intro')}</p>
-        <ol className="border-t border-solid-gray-420">
-          {STEP_KEYS.map((key, index) => (
-            <li
-              key={key}
-              className="flex flex-col gap-1 border-b border-solid-gray-200 py-4 sm:flex-row sm:gap-6"
-            >
-              <span className="text-std-16B-170 text-solid-gray-800 sm:w-40">
-                {index + 1}. {t(`landing.steps.${key}.title`)}
-              </span>
-              <span className="text-std-16N-170 text-solid-gray-700">
-                {t(`landing.steps.${key}.body`)}
-              </span>
+      <div className="lp-capabilities" aria-label={t('landing.capabilities.title')}>
+        <span><FileText size={18} aria-hidden="true" />{t('landing.capabilities.transcribe')}</span>
+        <span><MessageCircle size={18} aria-hidden="true" />{t('landing.capabilities.ask')}</span>
+        <span><Play size={18} aria-hidden="true" />{t('landing.capabilities.jump')}</span>
+        <span><BookOpen size={18} aria-hidden="true" />{t('landing.capabilities.share')}</span>
+      </div>
+
+      <section className="lp-section lp-benefits" aria-labelledby="landing-benefits-title">
+        <div className="lp-section-heading">
+          <p className="lp-eyebrow">{t('landing.features.eyebrow')}</p>
+          <h2 id="landing-benefits-title">{t('landing.features.title')}</h2>
+          <p>{t('landing.features.intro')}</p>
+        </div>
+        <div className="lp-benefit-grid">
+          {BENEFITS.map(({ key, icon: Icon }, index) => (
+            <article className={`lp-benefit lp-benefit-${key}`} key={key}>
+              <div className="lp-benefit-top"><Icon size={23} aria-hidden="true" /><span>0{index + 1}</span></div>
+              <div className="lp-benefit-visual" aria-hidden="true">
+                {key === 'ask' && <><span className="lp-mini-question"><Search size={15} />{t('landing.features.ask.example')}</span><span className="lp-mini-answer"><Sparkles size={15} />{t('landing.features.ask.result')}</span></>}
+                {key === 'source' && <><span className="lp-mini-timestamp"><Play size={14} fill="currentColor" />12:48</span><div className="lp-mini-timeline"><span /></div></>}
+                {key === 'share' && <><div className="lp-mini-course"><BookOpen size={20} /><span>{t('landing.features.share.example')}</span></div><div className="lp-mini-course"><FileText size={20} /><span>{t('landing.features.share.exampleDetail')}</span></div></>}
+              </div>
+              <h3>{t(`landing.features.${key}.title`)}</h3>
+              <p>{t(`landing.features.${key}.body`)}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="lp-section lp-uses" aria-labelledby="landing-uses-title">
+        <div className="lp-uses-copy">
+          <p className="lp-eyebrow">{t('landing.uses.eyebrow')}</p>
+          <h2 id="landing-uses-title">{t('landing.uses.title')}</h2>
+          <p>{t('landing.uses.intro')}</p>
+          <div className="lp-use-options" role="group" aria-label={t('landing.uses.select')}>
+            {USES.map(({ key, icon: Icon }) => (
+              <button key={key} type="button" aria-pressed={activeUse === key} aria-controls="landing-use-detail" onClick={() => setActiveUse(key)}>
+                <Icon size={20} aria-hidden="true" /><span>{t(`landing.uses.${key}.label`)}</span><ArrowRight size={17} aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="lp-use-detail" id="landing-use-detail" aria-live="polite" aria-atomic="true">
+          <span className="lp-use-tag">{t(`landing.uses.${activeUse}.tag`)}</span>
+          <h3>{t(`landing.uses.${activeUse}.title`)}</h3>
+          <p>{t(`landing.uses.${activeUse}.body`)}</p>
+          <div className="lp-use-example">
+            <div className="lp-use-file"><Play size={20} aria-hidden="true" /><span>{t(`landing.uses.${activeUse}.video`)}</span><span>MP4</span></div>
+            <ArrowDown size={18} aria-hidden="true" />
+            <p><MessageCircle size={18} aria-hidden="true" />{t(`landing.uses.${activeUse}.question`)}</p>
+          </div>
+          <span className="lp-use-caption">{t('landing.uses.exampleNote')}</span>
+        </div>
+      </section>
+
+      <section className="lp-section lp-steps" aria-labelledby="landing-steps-title">
+        <div className="lp-section-heading">
+          <p className="lp-eyebrow">{t('landing.steps.eyebrow')}</p>
+          <h2 id="landing-steps-title">{t('landing.steps.title')}</h2>
+          <p>{t('landing.steps.intro')}</p>
+        </div>
+        <ol className="lp-step-grid">
+          {STEPS.map(({ key, icon: Icon }, index) => (
+            <li key={key}>
+              <div className="lp-step-top"><span>0{index + 1}</span><Icon size={24} aria-hidden="true" />{index < 2 && <ArrowRight className="lp-step-arrow" size={22} aria-hidden="true" />}</div>
+              <h3>{t(`landing.steps.${key}.title`)}</h3>
+              <p>{t(`landing.steps.${key}.body`)}</p>
             </li>
           ))}
         </ol>
+        <p className="lp-step-note">{t('landing.steps.note')}</p>
       </section>
 
-      <section className="mb-12">
-        <Heading size="18" hasChip className="mb-4">
-          <HeadingTitle level="h2">{t('landing.uses.title')}</HeadingTitle>
-        </Heading>
-        <p className="mb-4 text-std-16N-170 text-solid-gray-700">{t('landing.uses.intro')}</p>
-        <MenuList className="border-t border-solid-gray-420">
-          {USE_KEYS.map((key) => (
-            <MenuListItem key={key} className="border-b border-solid-gray-200">
-              <div className="flex w-full flex-col items-start gap-1 py-4">
-                <span className="text-std-16B-170 text-solid-gray-800">
-                  {t(`landing.uses.${key}.title`)}
-                </span>
-                <span className="text-std-16N-170 text-solid-gray-700">
-                  {t(`landing.uses.${key}.body`)}
-                </span>
-              </div>
-            </MenuListItem>
+      <LandingFreePlan />
+
+      <section className="lp-section lp-faq" aria-labelledby="landing-faq-title">
+        <div>
+          <p className="lp-eyebrow">{t('landing.faq.eyebrow')}</p>
+          <h2 id="landing-faq-title">{t('landing.faq.title')}</h2>
+          <Link href="/pricing" className="lp-text-link">{t('landing.faq.pricing')}<ArrowRight size={16} aria-hidden="true" /></Link>
+        </div>
+        <div className="lp-faq-items">
+          {FAQ_KEYS.map(key => (
+            <details key={key}>
+              <summary>{t(`landing.faq.${key}.question`)}<ChevronDown size={19} aria-hidden="true" /></summary>
+              <p>{t(`landing.faq.${key}.answer`)}</p>
+            </details>
           ))}
-        </MenuList>
-      </section>
-
-      <section className="mb-8">
-        <Heading size="18" hasChip className="mb-4">
-          <HeadingTitle level="h2">{t('landing.next.title')}</HeadingTitle>
-        </Heading>
-        <p className="mb-4 text-std-16N-170 text-solid-gray-700">{t('landing.next.intro')}</p>
-        <ul className="border-t border-solid-gray-420">
-          <li className="border-b border-solid-gray-200">
-            <Link
-              href="/pricing"
-              className={cn(menuListItemVariants(), 'w-full justify-between gap-4 py-4 no-underline')}
-              data-type="box"
-              data-size="regular"
-            >
-              <span>
-                <span className="block text-std-16B-170 text-solid-gray-800">
-                  {t('landing.next.pricing.title')}
-                </span>
-                <span className="mt-1 block text-std-16N-170 text-solid-gray-700">
-                  {t('landing.next.pricing.body')}
-                </span>
-              </span>
-            </Link>
-          </li>
-        </ul>
-        <div className="mt-6 flex flex-col items-start gap-2">
-          <Button variant="solid" size="lg" asChild>
-            <Link href="/signup">{t('landing.tryOwn')}</Link>
-          </Button>
-          <p className="text-std-16N-170 text-solid-gray-700">{t('landing.startNote')}</p>
         </div>
       </section>
-    </>
+
+      <section className="lp-final" aria-labelledby="landing-next-title">
+        <div className="lp-final-decoration" aria-hidden="true">Q</div>
+        <div className="lp-final-content">
+          <p className="lp-eyebrow">{t('landing.next.eyebrow')}</p>
+          <h2 id="landing-next-title">{t('landing.next.title')}</h2>
+          <p>{t('landing.next.intro')}</p>
+          <Link href="/signup" className="lp-button lp-button-lime" onClick={() => trackLandingEvent('signup_click', 'footer')}>{t('landing.tryOwn')}<ArrowRight size={18} aria-hidden="true" /></Link>
+          <p className="lp-final-note"><Check size={15} aria-hidden="true" />{t('landing.startNote')}</p>
+          <Link href="/login" className="lp-final-login">{t('landing.login')}</Link>
+        </div>
+      </section>
+
+      <div className="lp-mobile-cta">
+        <a href="#landing-demo" onClick={() => trackLandingEvent('demo_open')}>{t('landing.watchDemo')}<ArrowRight size={16} aria-hidden="true" /></a>
+        <Link href="/signup" className="lp-button lp-button-primary" onClick={() => trackLandingEvent('signup_click', 'mobile')}>{t('landing.start')}<ArrowRight size={17} aria-hidden="true" /></Link>
+      </div>
+    </div>
   );
 }

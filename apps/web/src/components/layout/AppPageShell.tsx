@@ -22,7 +22,7 @@ export function AppPageShell({
 
   return (
     <div
-      className={`flex min-h-screen flex-col text-solid-gray-800 ${variant === 'standard' ? 'bg-white' : 'bg-solid-gray-50'}`}
+      className={`flex min-h-screen flex-col text-solid-gray-800 ${variant === 'standard' ? 'bg-background' : 'bg-solid-gray-50'}`}
       style={{ scrollbarGutter: 'stable' }}
     >
       <AppNav activePage={activePage} />

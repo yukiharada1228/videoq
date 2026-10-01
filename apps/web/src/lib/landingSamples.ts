@@ -1,41 +1,20 @@
-export const LANDING_DEMO_VIDEO_ID = 1;
-export const LANDING_DEMO_DURATION_SECONDS = 60;
-
-export const LANDING_DEMO_QUESTION_KEYS = ['hard', 'jump', 'own'] as const;
-
+export const LANDING_DEMO_QUESTION_KEYS = ['start', 'order', 'check'] as const;
 export type LandingDemoQuestionKey = (typeof LANDING_DEMO_QUESTION_KEYS)[number];
-
 export const LANDING_DEMO_SCENES = [
-  { key: 'hard', startSeconds: 0, startTime: '00:00:00', endTime: '00:00:20' },
-  { key: 'jump', startSeconds: 20, startTime: '00:00:20', endTime: '00:00:40' },
-  { key: 'own', startSeconds: 40, startTime: '00:00:40', endTime: '00:01:00' },
+  { key: 'start', startSeconds: 0 },
+  { key: 'order', startSeconds: 20 },
+  { key: 'check', startSeconds: 40 },
 ] as const;
 
-export type LandingDemoScene = (typeof LANDING_DEMO_SCENES)[number];
-
-function normalizeQuestion(value: string) {
-  return value.trim().replace(/\s+/g, ' ');
-}
-
-export function landingDemoSceneAt(seconds: number): LandingDemoScene {
-  const clamped = Math.min(Math.max(seconds, 0), LANDING_DEMO_DURATION_SECONDS);
-  for (let index = LANDING_DEMO_SCENES.length - 1; index >= 0; index -= 1) {
-    const scene = LANDING_DEMO_SCENES[index];
-    if (clamped >= scene.startSeconds) return scene;
-  }
-  return LANDING_DEMO_SCENES[0];
-}
-
-export function matchLandingDemoQuestion(
-  question: string,
-  labels: Readonly<Record<LandingDemoQuestionKey, string>>,
-): LandingDemoQuestionKey | null {
-  const normalized = normalizeQuestion(question);
-  if (!normalized) return null;
-  for (const key of LANDING_DEMO_QUESTION_KEYS) {
-    if (normalizeQuestion(labels[key]) === normalized) return key;
-  }
-  return null;
+export function landingDemoMedia(language?: string) {
+  const locale = language?.startsWith('en') ? 'en' : 'ja';
+  return {
+    locale,
+    shareSlug: `videoq-demo-${locale}-v1`,
+    video: `/demo/explain-${locale}.mp4`,
+    poster: `/demo/explain-${locale}-poster.webp`,
+    captions: `/demo/explain-${locale}.vtt`,
+  };
 }
 
 export function formatPlayerClock(seconds: number): string {

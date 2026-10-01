@@ -8,6 +8,7 @@ import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { MessageAlert } from '@/components/common/MessageAlert';
 import { UtilityLink } from '@/components/ui/utility-link';
 import { useVerifyEmailQuery } from '@/hooks/useVerifyEmailData';
+import { trackLandingEvent } from '@/lib/landingAnalytics';
 
 type VerificationState = 'loading' | 'success' | 'error';
 
@@ -23,6 +24,7 @@ export default function VerifyEmailPage() {
       return;
     }
 
+    trackLandingEvent('email_verified');
     const timer = setTimeout(() => {
       navigate('/login', { replace: true });
     }, 2000);

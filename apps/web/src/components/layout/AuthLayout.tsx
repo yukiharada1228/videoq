@@ -9,8 +9,8 @@ interface AuthLayoutProps {
 
 export function AuthLayout({ children }: AuthLayoutProps) {
   return (
-    <div className="flex min-h-screen flex-col bg-white">
-      <header className="border-b border-solid-gray-420 bg-white">
+    <div className="flex min-h-screen flex-col bg-background">
+      <header className="border-b border-border bg-white">
         <div className={`mx-auto flex w-full items-center py-4 ${APP_CONTAINER_CLASS}`}>
           <Link
             href="/"

@@ -33,7 +33,9 @@
     "user:password:local": "node scripts/reset-local-password.mjs",
     "user:superuser": "node scripts/create-superuser.mjs",
     "rate-limit:reset": "sh scripts/reset-rate-limit.sh",
-    "embeddings:check": "tsx scripts/check-embeddings.ts"
+    "embeddings:check": "tsx scripts/check-embeddings.ts",
+    "demo:prepare": "tsx scripts/prepare-landing-demo.ts",
+    "demo:students": "tsx scripts/prepare-student-demo.ts"
   },
   "dependencies": {
     "@better-auth/api-key": "^1.7.2",

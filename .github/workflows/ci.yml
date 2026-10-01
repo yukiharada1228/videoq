@@ -82,6 +82,7 @@ jobs:
               - '.github/workflows/ci.yml'
             frontend:
               - 'apps/web/**'
+              - 'apps/demo-video/**'
               - 'packages/trpc/**'
               - 'package.json'
               - 'package-lock.json'
@@ -266,6 +267,14 @@ jobs:
         run: npm ci
       - name: Build
         run: npm run build --workspace @videoq/web
+      - name: Check demo composition types
+        run: npm run typecheck --workspace @videoq/demo-video
+      - name: Verify published demo videos
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          python3 apps/demo-video/scripts/verify-video.py apps/web/public/demo/student-demo-ja.mp4
+          python3 apps/demo-video/scripts/verify-video.py apps/web/public/demo/student-demo-en.mp4
       - name: Check Worker binding types
         run: |
           npm run cf-typegen --workspace @videoq/web
