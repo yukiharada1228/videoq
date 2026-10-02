@@ -82,13 +82,145 @@ describe('AdminPage', () => {
     expect(listUsers).toHaveBeenCalled()
   })
 
-  it('keeps the users table in a horizontal scroll container on narrow viewports', async () => {
-    const { container } = render(<AdminPage />)
+  it('groups user identity, status, quota units and actions in the same row', async () => {
+    render(<AdminPage />)
+    const username = await screen.findByText('bob')
+    const row = within(username.closest('tr')!)
+    const identity = row.getByRole('rowheader', { name: /bob@example.com/ })
+    expect(identity).toHaveTextContent('bob')
+    expect(identity).toHaveTextContent('admin.users.columns.id: 9')
+    expect(row.getByText('admin.users.flags.active')).toBeInTheDocument()
+    expect(row.getByText('500 MB')).toBeInTheDocument()
+    expect(row.getByText('10 GB')).toBeInTheDocument()
+    expect(row.getByRole('button', { name: 'admin.users.edit' })).toBeEnabled()
+    expect(row.getByRole('button', { name: 'admin.users.delete' })).toBeEnabled()
+    expect(row.getByRole('button', { name: 'admin.users.edit' })).toHaveAccessibleDescription('bob bob@example.com')
+    expect(row.getByRole('button', { name: 'admin.users.delete' })).toHaveAccessibleDescription('bob bob@example.com')
+  })
+
+  it('announces loading and empty search results through the same status region', async () => {
+    let finishLoading!: (value: { data: typeof sampleUser[]; meta: { total: number; limit: number; offset: number } }) => void
+    listUsers.mockImplementation(() => new Promise(resolve => { finishLoading = resolve }))
+    render(<AdminPage />)
+    const status = screen.getByRole('status')
+    expect(status).toHaveTextContent('common.messages.loading')
+    await waitFor(() => expect(finishLoading).toBeDefined())
+    await act(async () => finishLoading({ data: [], meta: { total: 0, limit: 20, offset: 0 } }))
+    expect(screen.getByRole('status')).toBe(status)
+    await waitFor(() => expect(status).toHaveTextContent('admin.users.empty'))
+    expect(screen.getByRole('button', { name: 'admin.users.prev' })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('button', { name: 'admin.users.next' })).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'admin.users.next' }))
+    expect(listUsers).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries a failed list request when the same search is submitted again', async () => {
+    listUsers.mockRejectedValueOnce(new Error('Temporarily unavailable'))
+    render(<AdminPage />)
+    await screen.findByText('admin.users.loadError')
+    fireEvent.click(screen.getByRole('button', { name: 'admin.users.search' }))
     expect(await screen.findByText('bob')).toBeInTheDocument()
-    const table = container.querySelector('table')
-    expect(table).not.toBeNull()
-    expect(table?.parentElement).toHaveClass('overflow-x-auto')
-    expect(table).toHaveClass('min-w-[560px]')
+    expect(listUsers).toHaveBeenCalledTimes(2)
+    expect(listUsers).toHaveBeenLastCalledWith({ limit: 20, offset: 0 })
+  })
+
+  it('announces a background refresh without hiding the cached user list', async () => {
+    render(<AdminPage />)
+    await screen.findByText('bob')
+    let finishReload!: (value: { data: typeof sampleUser[]; meta: { total: number; limit: number; offset: number } }) => void
+    listUsers.mockImplementation(() => new Promise(resolve => { finishReload = resolve }))
+    const status = screen.getByRole('status')
+    fireEvent.click(screen.getByRole('button', { name: 'admin.users.search' }))
+    await waitFor(() => expect(finishReload).toBeDefined())
+    try {
+      expect(status).toHaveTextContent('common.messages.loading')
+      expect(screen.getByText('bob')).toBeInTheDocument()
+    } finally {
+      await act(async () => finishReload({ data: [sampleUser], meta: { total: 1, limit: 20, offset: 0 } }))
+    }
+    await waitFor(() => expect(status).toHaveTextContent('admin.users.pageRange {"from":1,"to":1,"total":1}'))
+  })
+
+  it('keeps the latest search visible when an earlier search responds later', async () => {
+    const alice = { ...sampleUser, id: 10, username: 'alice', email: 'alice@example.com' }
+    let finishEarlierSearch!: (value: { data: typeof sampleUser[]; meta: { total: number; limit: number; offset: number } }) => void
+    listUsers.mockImplementation(({ q }) => q === 'bob'
+      ? new Promise(resolve => { finishEarlierSearch = resolve })
+      : Promise.resolve({ data: q === 'alice' ? [alice] : [sampleUser], meta: { total: 1, limit: 20, offset: 0 } }))
+    render(<AdminPage />)
+    await screen.findByText('bob')
+    const searchInput = screen.getByLabelText('admin.users.searchLabel')
+    const searchButton = screen.getByRole('button', { name: 'admin.users.search' })
+    fireEvent.change(searchInput, { target: { value: 'bob' } })
+    fireEvent.click(searchButton)
+    await waitFor(() => expect(finishEarlierSearch).toBeDefined())
+    try {
+      fireEvent.change(searchInput, { target: { value: 'alice' } })
+      fireEvent.click(searchButton)
+      expect(await screen.findByText('alice')).toBeInTheDocument()
+    } finally {
+      await act(async () => finishEarlierSearch({ data: [sampleUser], meta: { total: 41, limit: 20, offset: 0 } }))
+    }
+    expect(screen.getByText('alice')).toBeInTheDocument()
+    expect(screen.queryByText('bob')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('admin.users.pageRange {"from":1,"to":1,"total":1}')
+    expect(screen.getByRole('button', { name: 'admin.users.next' })).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('keeps saved flags visible when a pre-save list refresh responds later', async () => {
+    render(<AdminPage />)
+    await screen.findByText('bob')
+    let finishEarlierRefresh!: (value: { data: typeof sampleUser[]; meta: { total: number; limit: number; offset: number } }) => void
+    listUsers.mockImplementationOnce(() => new Promise(resolve => { finishEarlierRefresh = resolve }))
+    fireEvent.click(screen.getByRole('button', { name: 'admin.users.search' }))
+    await waitFor(() => expect(finishEarlierRefresh).toBeDefined())
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'admin.users.edit' }))
+      fireEvent.click(screen.getByLabelText('admin.users.fields.isStaff'))
+      listUsers.mockResolvedValue({ data: [{ ...sampleUser, is_staff: true }], meta: { total: 1, limit: 20, offset: 0 } })
+      fireEvent.click(screen.getByRole('button', { name: 'admin.users.save' }))
+      await screen.findByText('admin.users.saveSuccess')
+      expect(screen.getByText('admin.users.flags.staff')).toBeInTheDocument()
+    } finally {
+      await act(async () => finishEarlierRefresh({ data: [sampleUser], meta: { total: 1, limit: 20, offset: 0 } }))
+    }
+    expect(screen.getByText('admin.users.flags.staff')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(patchFlags).toHaveBeenCalledExactlyOnceWith({ id: 9, is_staff: true })
+    expect(listUsers).toHaveBeenCalledTimes(3)
+  })
+
+  it('preserves pagination controls while loading and lets users return after a page fails', async () => {
+    let failPage!: (reason: Error) => void
+    listUsers.mockImplementation(({ offset }) => offset === 0
+      ? Promise.resolve({ data: [sampleUser], meta: { total: 41, limit: 20, offset } })
+      : new Promise((_, reject) => { failPage = reject }))
+    render(<AdminPage />)
+    await screen.findByText('bob')
+    const next = screen.getByRole('button', { name: 'admin.users.next' })
+    next.focus()
+    fireEvent.click(next)
+    await waitFor(() => expect(failPage).toBeDefined())
+    try {
+      expect(screen.getByRole('button', { name: 'admin.users.next' })).toBe(next)
+      expect(next).toHaveFocus()
+      expect(next).toHaveAttribute('aria-disabled', 'true')
+      fireEvent.click(next)
+      expect(listUsers).toHaveBeenCalledTimes(2)
+    } finally {
+      await act(async () => failPage(new Error('Temporarily unavailable')))
+    }
+    await screen.findByText('admin.users.loadError')
+    expect(next).toHaveFocus()
+    const previous = screen.getByRole('button', { name: 'admin.users.prev' })
+    expect(previous).toHaveAttribute('aria-disabled', 'false')
+    previous.focus()
+    fireEvent.click(previous)
+    expect(await screen.findByText('bob')).toBeInTheDocument()
+    expect(previous).toHaveFocus()
+    expect(previous).toHaveAttribute('aria-disabled', 'true')
+    expect(await screen.findByText('admin.users.pageRange {"from":1,"to":20,"total":41}')).toBeInTheDocument()
+    await waitFor(() => expect(listUsers).toHaveBeenLastCalledWith({ limit: 20, offset: 0 }))
   })
 
   it('redirects non-superusers home', async () => {
@@ -250,10 +382,44 @@ describe('AdminPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'admin.users.save' }))
 
     expect(await screen.findByText(`admin.users.errors.${error}`)).toBeInTheDocument()
+    const invalidInput = screen.getByLabelText(`admin.users.fields.${field}`)
+    expect(invalidInput).toHaveAttribute('aria-invalid', 'true')
+    expect(invalidInput).toHaveAccessibleDescription(`admin.users.errors.${error}`)
+    expect(invalidInput).toHaveFocus()
     expect(patchFlags).not.toHaveBeenCalled()
     expect(patchQuota).not.toHaveBeenCalled()
     expect(patchUsage).not.toHaveBeenCalled()
     expect(listUsers).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows all invalid fields, advances focus after a correction and clears errors on reopening', async () => {
+    render(<AdminPage />)
+    fireEvent.click(await screen.findByRole('button', { name: 'admin.users.edit' }))
+    const upload = screen.getByLabelText('admin.users.fields.maxUploadMb')
+    const storage = screen.getByLabelText('admin.users.fields.storageLimitGb')
+    const usedAi = screen.getByLabelText('admin.users.fields.usedAiAnswers')
+    fireEvent.change(upload, { target: { value: '0' } })
+    fireEvent.change(storage, { target: { value: '-1' } })
+    fireEvent.change(usedAi, { target: { value: '1.5' } })
+    fireEvent.click(screen.getByRole('button', { name: 'admin.users.save' }))
+    expect(upload).toHaveFocus()
+    for (const [input, error] of [[upload, 'invalidUploadMb'], [storage, 'invalidStorageGb'], [usedAi, 'invalidUsage']] as const) {
+      expect(input).toHaveAttribute('aria-invalid', 'true')
+      expect(input).toHaveAccessibleDescription(`admin.users.errors.${error}`)
+    }
+    fireEvent.change(upload, { target: { value: '500' } })
+    fireEvent.change(storage, { target: { value: '10' } })
+    fireEvent.click(screen.getByRole('button', { name: 'admin.users.save' }))
+    expect(usedAi).toHaveFocus()
+    expect(upload).not.toHaveAttribute('aria-invalid')
+    expect(storage).toHaveAccessibleDescription('admin.users.nullableHint')
+    expect(patchQuota).not.toHaveBeenCalled()
+    expect(patchUsage).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'admin.users.cancel' }))
+    fireEvent.click(screen.getByRole('button', { name: 'admin.users.edit' }))
+    expect(screen.getByLabelText('admin.users.fields.usedAiAnswers')).toHaveValue('2')
+    expect(screen.getByLabelText('admin.users.fields.usedAiAnswers')).not.toHaveAttribute('aria-invalid')
+    expect(screen.queryByText('admin.users.errors.invalidUsage')).not.toBeInTheDocument()
   })
 
   it('allows fractional storage quotas, zero limits and large safe byte counts', async () => {
@@ -291,6 +457,10 @@ describe('AdminPage', () => {
       expect(screen.getByLabelText('admin.users.fields.isStaff')).toBeDisabled()
       expect(screen.getByLabelText('admin.users.fields.maxUploadMb')).toBeDisabled()
       expect(screen.getByRole('button', { name: 'admin.users.cancel' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'admin.users.save' })).toHaveAttribute('aria-disabled', 'true')
+      expect(screen.getByRole('button', { name: 'admin.users.save' })).toHaveAttribute('aria-busy', 'true')
+      fireEvent.click(screen.getByRole('button', { name: 'admin.users.save' }))
+      expect(patchFlags).toHaveBeenCalledTimes(1)
       listUsers.mockImplementation(() => new Promise(resolve => { finishReload = resolve }))
       await act(async () => finishSave({ ...sampleUser, is_staff: true }))
       await waitFor(() => expect(finishReload).toBeDefined())
@@ -303,6 +473,21 @@ describe('AdminPage', () => {
       })
     }
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('returns focus to the list heading when a saved edit is followed by a list failure', async () => {
+    render(<AdminPage />)
+    fireEvent.click(await screen.findByRole('button', { name: 'admin.users.edit' }))
+    fireEvent.click(screen.getByLabelText('admin.users.fields.isStaff'))
+    listUsers.mockRejectedValueOnce(new Error('Temporarily unavailable'))
+    fireEvent.click(screen.getByRole('button', { name: 'admin.users.save' }))
+    await screen.findByText('admin.users.saveSuccess')
+    expect(screen.getByText('admin.users.loadError')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'admin.users.edit' })).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'admin.users.title' })).toHaveFocus())
+    expect(patchFlags).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: 'admin.users.search' }))
+    expect(await screen.findByText('bob')).toBeInTheDocument()
   })
 
   it('enqueues a full embedding reindex', async () => {
@@ -320,6 +505,30 @@ describe('AdminPage', () => {
     expect(
       await screen.findByText((content) => content.includes('admin.reindex.success')),
     ).toBeInTheDocument()
+  })
+
+  it.each([
+    ['delete', 'admin.users.delete', 'admin.users.deleteConfirm'],
+    ['reindex', 'admin.reindex.button', 'admin.reindex.confirm'],
+  ])('keeps the %s action named and prevents closing while it is pending', async (action, openLabel, confirmLabel) => {
+    let finishAction!: (value: { job_id: string }) => void
+    const mutation = action === 'delete' ? deleteUser : reindexAll
+    mutation.mockImplementation(() => new Promise(resolve => { finishAction = resolve }))
+    render(<AdminPage />)
+    fireEvent.click(await screen.findByRole('button', { name: openLabel }))
+    fireEvent.click(screen.getByRole('button', { name: confirmLabel }))
+    await waitFor(() => expect(finishAction).toBeDefined())
+    try {
+      const dialog = within(screen.getByRole('dialog'))
+      expect(dialog.getByRole('button', { name: confirmLabel })).toHaveAttribute('aria-disabled', 'true')
+      expect(dialog.getByRole('button', { name: confirmLabel })).toHaveAttribute('aria-busy', 'true')
+      expect(dialog.getByRole('button', { name: 'admin.users.cancel' })).toBeDisabled()
+      fireEvent.click(dialog.getByRole('button', { name: confirmLabel }))
+      expect(mutation).toHaveBeenCalledTimes(1)
+    } finally {
+      await act(async () => finishAction({ job_id: 'pending-job' }))
+    }
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
   it('shows the server message from a failed tRPC mutation', async () => {
@@ -349,11 +558,39 @@ describe('AdminPage', () => {
       await screen.findByText((content) => content.includes('admin.users.deleteSuccess')),
     ).toBeInTheDocument()
     expect(await screen.findByText('admin.users.deletionPending')).toBeInTheDocument()
+    expect(screen.queryByText('admin.users.flags.active')).not.toBeInTheDocument()
     expect(screen.getByText('bob')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'admin.users.edit' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'admin.users.delete' })).toBeDisabled()
     expect(screen.getByText('admin.users.pageRange {"from":1,"to":1,"total":1}')).toBeInTheDocument()
     await waitFor(() => expect(listUsers).toHaveBeenCalledTimes(2))
+  })
+
+  it('prevents opening another deletion until the previous deletion finishes refreshing the list', async () => {
+    const otherUser = { ...sampleUser, id: 10, username: 'alice' }
+    const response = { data: [sampleUser, otherUser], meta: { total: 2, limit: 20, offset: 0 } }
+    let finishReload!: (value: typeof response) => void
+    listUsers.mockResolvedValueOnce(response)
+      .mockImplementation(() => new Promise(resolve => { finishReload = resolve }))
+    deleteUser.mockResolvedValue({ job_id: 'job-del' })
+    render(<AdminPage />)
+    const bobRow = within((await screen.findByText('bob')).closest('tr')!)
+    fireEvent.click(bobRow.getByRole('button', { name: 'admin.users.delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'admin.users.deleteConfirm' }))
+    await waitFor(() => expect(finishReload).toBeDefined())
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    const aliceDelete = within(screen.getByText('alice').closest('tr')!).getByRole('button', { name: 'admin.users.delete' })
+    try {
+      expect(aliceDelete).toBeDisabled()
+      fireEvent.click(aliceDelete)
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    } finally {
+      await act(async () => finishReload(response))
+    }
+    await waitFor(() => expect(aliceDelete).toBeEnabled())
+    fireEvent.click(aliceDelete)
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('admin.users.deleteTitle {"username":"alice"}')
+    expect(screen.getByRole('button', { name: 'admin.users.cancel' })).toBeEnabled()
   })
 
   it('does not subtract queued deletions from another search and keeps the next page reachable', async () => {
@@ -394,6 +631,7 @@ describe('AdminPage', () => {
     await waitFor(() => expect(screen.queryByText('bob')).not.toBeInTheDocument())
     expect(screen.getByText('alice')).toBeInTheDocument()
     expect(screen.getByText('admin.users.pageRange {"from":1,"to":1,"total":1}')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'admin.users.title' })).toHaveFocus()
   })
 
   it('returns to the last available page when deletion empties the current page', async () => {
@@ -414,6 +652,49 @@ describe('AdminPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'admin.users.deleteConfirm' }))
     expect(await screen.findByText('admin.users.pageRange {"from":1,"to":20,"total":20}')).toBeInTheDocument()
     expect(listUsers).toHaveBeenLastCalledWith({ limit: 20, offset: 0 })
+  })
+
+  it('can revisit a cached empty page after the user count grows again', async () => {
+    const firstUser = { ...sampleUser, id: 10, username: 'alice' }
+    let total = 21
+    let lastUser = sampleUser
+    let delayLastPage = false
+    let finishLastPage!: (value: { data: typeof sampleUser[]; meta: { total: number; limit: number; offset: number } }) => void
+    listUsers.mockImplementation(async ({ offset }) => {
+      if (offset === 20 && delayLastPage) return new Promise(resolve => { finishLastPage = resolve })
+      return {
+        data: offset === 0 ? [firstUser] : total > 20 ? [lastUser] : [],
+        meta: { total, limit: 20, offset },
+      }
+    })
+    deleteUser.mockImplementation(async () => {
+      total = 20
+      return { job_id: 'job-del' }
+    })
+    render(<AdminPage />)
+    await screen.findByText('alice')
+    fireEvent.click(screen.getByRole('button', { name: 'admin.users.next' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'admin.users.delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'admin.users.deleteConfirm' }))
+    await screen.findByText('admin.users.pageRange {"from":1,"to":20,"total":20}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    total = 21
+    lastUser = { ...sampleUser, id: 11, username: 'charlie' }
+    fireEvent.click(screen.getByRole('button', { name: 'admin.users.search' }))
+    await screen.findByText('admin.users.pageRange {"from":1,"to":20,"total":21}')
+    delayLastPage = true
+    fireEvent.click(screen.getByRole('button', { name: 'admin.users.next' }))
+    await waitFor(() => expect(finishLastPage).toBeDefined())
+    try {
+      expect(screen.getByRole('status')).toHaveTextContent('common.messages.loading')
+      expect(screen.queryByText('admin.users.pageRange {"from":21,"to":20,"total":20}')).not.toBeInTheDocument()
+    } finally {
+      await act(async () => finishLastPage({ data: [lastUser], meta: { total, limit: 20, offset: 20 } }))
+    }
+    expect(await screen.findByText('charlie')).toBeInTheDocument()
+    expect(screen.getByText('admin.users.pageRange {"from":21,"to":21,"total":21}')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'admin.users.prev' })).toHaveAttribute('aria-disabled', 'false')
   })
 
   it('keeps the user actionable and the count unchanged after a deletion error', async () => {

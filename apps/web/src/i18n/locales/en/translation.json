@@ -1084,15 +1084,21 @@
       "nullableHint": "Leave blank for unlimited.",
       "selfFlagsHint": "You cannot change your own active or superuser flags.",
       "quotaSummary": "Upload {{uploadMb}} MB · Storage {{storageGb}}",
+      "quota": {
+        "upload": "Upload",
+        "storage": "Storage"
+      },
       "columns": {
+        "user": "User",
         "id": "ID",
         "username": "Username",
         "email": "Email",
-        "flags": "Flags",
+        "flags": "Status & roles",
         "quota": "Quota",
         "actions": "Actions"
       },
       "flags": {
+        "active": "Active",
         "superuser": "Superuser",
         "staff": "Staff",
         "inactive": "Inactive",
