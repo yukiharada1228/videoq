@@ -23,8 +23,7 @@ export type AdminUser = {
   username: string;
   email: string;
   is_active: boolean;
-  is_staff: boolean;
-  is_superuser: boolean;
+  is_admin: boolean;
   max_video_upload_size_mb: number;
   storage_limit_gb: number | null;
   processing_limit_minutes: number | null;
@@ -47,8 +46,7 @@ const adminUserSelect = {
   username: users.username,
   email: users.email,
   is_active: sql<boolean>`NOT (COALESCE(${users.banned}, false) AND (${users.banExpires} IS NULL OR ${users.banExpires} >= now()))`.as("is_active"),
-  is_staff: users.isStaff,
-  is_superuser: sql<boolean>`COALESCE('admin' = ANY(string_to_array(${users.role}, ',')), false)`.as("is_superuser"),
+  is_admin: sql<boolean>`COALESCE('admin' = ANY(string_to_array(${users.role}, ',')), false)`.as("is_admin"),
   max_video_upload_size_mb: users.maxVideoUploadSizeMb,
   storage_limit_gb: users.storageLimitGb,
   processing_limit_minutes: users.processingLimitMinutes,
@@ -67,8 +65,7 @@ function mapUser(r: {
   username: string;
   email: string;
   is_active: boolean;
-  is_staff: boolean;
-  is_superuser: boolean;
+  is_admin: boolean;
   max_video_upload_size_mb: number;
   storage_limit_gb: number | null;
   processing_limit_minutes: number | null;
@@ -86,8 +83,7 @@ function mapUser(r: {
     username: r.username,
     email: r.email,
     is_active: Boolean(r.is_active),
-    is_staff: Boolean(r.is_staff),
-    is_superuser: Boolean(r.is_superuser),
+    is_admin: Boolean(r.is_admin),
     max_video_upload_size_mb: Number(r.max_video_upload_size_mb),
     storage_limit_gb: r.storage_limit_gb === null ? null : Number(r.storage_limit_gb),
     processing_limit_minutes:
@@ -103,7 +99,7 @@ function mapUser(r: {
   };
 }
 
-export async function isSuperuser(env: Bindings, userId: string): Promise<boolean> {
+export async function isAdmin(env: Bindings, userId: string): Promise<boolean> {
   return withDb(env, async (db) => {
     const rows = await db
       .select({ role: users.role })
@@ -239,17 +235,17 @@ export async function patchAdminUserQuota(
 export async function lockUserForHardDelete(
   env: Bindings,
   userId: string,
-): Promise<{ notFound: true } | { forbiddenSuperuser: true } | { taskId: number; jobId: string }> {
+): Promise<{ notFound: true } | { forbiddenAdmin: true } | { taskId: number; jobId: string }> {
   return withDb(env, async (db) => {
     return db.transaction(async (tx) => {
       const [target] = await tx
-        .select({ is_superuser: adminUserSelect.is_superuser })
+        .select({ is_admin: adminUserSelect.is_admin })
         .from(users)
         .where(eq(users.id, userId))
         .for("update")
         .limit(1);
       if (!target) return { notFound: true };
-      if (target.is_superuser) return { forbiddenSuperuser: true };
+      if (target.is_admin) return { forbiddenAdmin: true };
 
       await tx
         .update(users)

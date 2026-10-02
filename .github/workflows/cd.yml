@@ -252,6 +252,8 @@ jobs:
       - name: Migrate database
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # Keep legacy role columns available to the currently deployed API.
+          MIGRATION_PHASE: before-deploy
           # One-time operator acknowledgement after draining/stopping old writers.
           STRUCTURED_ANSWER_WRITERS_STOPPED: ${{ vars.STRUCTURED_ANSWER_WRITERS_STOPPED }}
         run: |
@@ -292,6 +294,41 @@ jobs:
             exit 1
           fi
           npm run deploy --workspace @videoq/api
+
+  db-finalize:
+    name: Finalize DB After API Deployment
+    runs-on: ubuntu-latest
+    environment: production-app
+    timeout-minutes: 15
+    needs: [changes, db-migrate, api-deploy, web-deploy]
+    if: |
+      always() &&
+      needs.changes.result == 'success' &&
+      needs.changes.outputs.migrate == 'true' &&
+      needs.db-migrate.result == 'success' &&
+      needs.api-deploy.result == 'success' &&
+      (needs.changes.outputs.web != 'true' || needs.web-deploy.result == 'success')
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.changes.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+      - name: Install dependencies
+        run: npm ci
+      - name: Apply deferred database cleanup
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          MIGRATION_PHASE: all
+          STRUCTURED_ANSWER_WRITERS_STOPPED: ${{ vars.STRUCTURED_ANSWER_WRITERS_STOPPED }}
+        run: |
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "::error::DATABASE_URL secret is required for database migrations"
+            exit 1
+          fi
+          npm run db:migrate --workspace @videoq/api
 
   worker-deploy:
     name: Deploy Worker Lambda

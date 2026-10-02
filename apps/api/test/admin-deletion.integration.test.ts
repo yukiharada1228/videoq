@@ -20,7 +20,7 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
       SET search_path TO "${schema}";
       CREATE TABLE users (
         id text PRIMARY KEY, role text, banned boolean DEFAULT false, ban_expires timestamptz,
-        username text DEFAULT 'User', email text DEFAULT 'user@example.test', is_staff boolean DEFAULT false,
+        username text DEFAULT 'User', email text DEFAULT 'user@example.test',
         max_video_upload_size_mb integer DEFAULT 500, storage_limit_gb integer DEFAULT 10,
         processing_limit_minutes integer DEFAULT 60, ai_answers_limit integer DEFAULT 100,
         used_storage_bytes bigint DEFAULT 0, used_processing_seconds integer DEFAULT 0,
@@ -92,7 +92,7 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
   it.each(["admin", "user,admin"])("does not change an account with role %s", async role => {
     await admin.query("UPDATE users SET role = $1 WHERE id = 'target'", [role]);
     const before = await snapshot();
-    expect(await deleteUser(env, "actor", "target")).toEqual({ forbiddenSuperuser: true });
+    expect(await deleteUser(env, "actor", "target")).toEqual({ forbiddenAdmin: true });
     expect(await snapshot()).toEqual(before);
     expect(processExternalTaskById).not.toHaveBeenCalled();
   });
@@ -133,7 +133,7 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
         ? "UPDATE users SET role = 'user,admin' WHERE id = 'target'"
         : "DELETE FROM users WHERE id = 'target'");
       await writer.query("COMMIT");
-      expect(await pending).toEqual(change === "promotion" ? { forbiddenSuperuser: true } : { notFound: true });
+      expect(await pending).toEqual(change === "promotion" ? { forbiddenAdmin: true } : { notFound: true });
       expect((await admin.query("SELECT * FROM external_tasks")).rows).toEqual([]);
       expect(processExternalTaskById).not.toHaveBeenCalled();
       if (change === "promotion") {

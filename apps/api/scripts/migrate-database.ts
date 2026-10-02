@@ -9,7 +9,10 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { convertHistoricalAnswer } from "./migrations/structured-answer/convert";
 
 const migrationsFolder = resolve(dirname(fileURLToPath(import.meta.url)), "../drizzle");
-export async function migrateDatabase(client: pg.Client | pg.PoolClient, options: { writersStopped?: boolean } = {}) {
+export async function migrateDatabase(client: pg.Client | pg.PoolClient, options: {
+  writersStopped?: boolean;
+  phase?: "before-deploy" | "all";
+} = {}) {
   // Serialize concurrent deployment jobs, including the data conversion between DDL stages.
   await client.query("SELECT pg_advisory_lock(996, 1)");
   let stage: string | undefined;
@@ -55,8 +58,25 @@ export async function migrateDatabase(client: pg.Client | pg.PoolClient, options
         throw error;
       }
     }
+    // The old API still selects these columns until the new version is deployed.
+    // Once cleanup was applied, future pre-deploy runs must not be capped at 0027.
+    let finalMigrationsFolder = migrationsFolder;
+    if (options.phase === "before-deploy") {
+      const cleanup = journal.entries.find((entry: { tag: string }) => entry.tag === "0028_remove_legacy_user_roles");
+      if (!cleanup) throw new Error("Legacy role cleanup migration is missing from the journal.");
+      const applied = await client.query("SELECT 1 FROM drizzle.__drizzle_migrations WHERE created_at >= $1 LIMIT 1", [cleanup.when]);
+      if (!applied.rowCount) {
+        if (journal.entries.some((entry: { idx: number }) => entry.idx > cleanup.idx)) {
+          throw new Error("Complete the previous release's post-deploy role cleanup before applying later migrations.");
+        }
+        const entries = journal.entries.filter((entry: { idx: number }) => entry.idx < cleanup.idx);
+        writeFileSync(join(stage, "meta/_journal.json"), JSON.stringify({ ...journal, entries }));
+        for (const entry of entries) copyFileSync(join(migrationsFolder, `${entry.tag}.sql`), join(stage, `${entry.tag}.sql`));
+        finalMigrationsFolder = stage;
+      }
+    }
     // NOT NULL is applied before retiring the old fields: incomplete backfills fail closed.
-    await migrate(drizzle(client), { migrationsFolder });
+    await migrate(drizzle(client), { migrationsFolder: finalMigrationsFolder });
   } finally {
     try {
       if (stage) rmSync(stage, { recursive: true, force: true });
@@ -67,8 +87,10 @@ export async function migrateDatabase(client: pg.Client | pg.PoolClient, options
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  const phase = process.env.MIGRATION_PHASE || "all";
+  if (phase !== "before-deploy" && phase !== "all") throw new Error("MIGRATION_PHASE must be before-deploy or all.");
   const client = new pg.Client({ connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@127.0.0.1:55432/postgres" });
   await client.connect();
-  try { await migrateDatabase(client, { writersStopped: process.env.STRUCTURED_ANSWER_WRITERS_STOPPED === "1" }); }
+  try { await migrateDatabase(client, { writersStopped: process.env.STRUCTURED_ANSWER_WRITERS_STOPPED === "1", phase }); }
   finally { await client.end(); }
 }

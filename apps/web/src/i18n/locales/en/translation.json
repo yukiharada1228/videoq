@@ -1055,7 +1055,7 @@
   },
   "admin": {
     "title": "Admin",
-    "description": "Superuser admin tools for user quotas and embedding maintenance.",
+    "description": "Administrator tools for user quotas and embedding maintenance.",
     "users": {
       "title": "Users",
       "description": "Search users and adjust quota or usage counters.",
@@ -1082,7 +1082,7 @@
       "loadError": "Failed to load users.",
       "unlimited": "Unlimited",
       "nullableHint": "Leave blank for unlimited.",
-      "selfFlagsHint": "You cannot change your own active or superuser flags.",
+      "selfFlagsHint": "You cannot deactivate your own account or remove your administrator role.",
       "quotaSummary": "Upload {{uploadMb}} MB · Storage {{storageGb}}",
       "quota": {
         "upload": "Upload",
@@ -1099,15 +1099,14 @@
       },
       "flags": {
         "active": "Active",
-        "superuser": "Superuser",
-        "staff": "Staff",
+        "admin": "Administrator",
+        "user": "User",
         "inactive": "Inactive",
         "overQuota": "Over quota"
       },
       "fields": {
         "isActive": "Active",
-        "isStaff": "Staff",
-        "isSuperuser": "Superuser",
+        "isAdmin": "Administrator",
         "maxUploadMb": "Max upload size (MB)",
         "storageLimitGb": "Storage limit (GB)",
         "processingLimitMinutes": "Processing limit (minutes)",

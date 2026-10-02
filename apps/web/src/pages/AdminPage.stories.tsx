@@ -9,7 +9,7 @@ import { failure, pending, success, trpcMutation, trpcQuery } from '../../.story
 
 const bob: AdminUser = {
   id: 'bob', username: 'Bob', email: 'bob@example.test', is_active: true,
-  is_staff: false, is_superuser: false, max_video_upload_size_mb: 200,
+  is_admin: false, max_video_upload_size_mb: 200,
   storage_limit_gb: 1, processing_limit_minutes: 45, ai_answers_limit: 30,
   used_storage_bytes: 0, used_processing_seconds: 0, used_ai_answers: 0,
   usage_period_start: null, is_over_quota: false, plan_code: 'free', quota_source: 'plan',
@@ -57,7 +57,7 @@ type Story = StoryObj<typeof meta>;
 const directoryUsers: AdminUser[] = [
   {
     ...bob, id: '82c71a50-692a-47ad-b4cb-fc60259db781', username: '山田 太郎',
-    email: 'taro.yamada@example.test', is_staff: true, is_superuser: true,
+    email: 'taro.yamada@example.test', is_admin: true,
     max_video_upload_size_mb: 2000, storage_limit_gb: null,
   },
   {
@@ -68,7 +68,7 @@ const directoryUsers: AdminUser[] = [
     ...bob, id: 'f9ea708c-2930-4272-a479-96ea528d1ed7',
     username: 'international.education.content.operations',
     email: 'international.education.content.operations@learning.example.test',
-    is_staff: true, is_active: false, is_over_quota: true,
+    is_active: false, is_over_quota: true,
   },
   {
     ...bob, id: '4d7cdf95-6f25-45ee-a4ce-a08d318dea11', is_over_quota: true,
@@ -213,7 +213,7 @@ export const SavingUser: Story = {
     await userEvent.click(await canvas.findByRole('button', { name: i18n.t('admin.users.edit') }));
     const body = within(document.body);
     const dialog = within(await body.findByRole('dialog'));
-    await userEvent.click(dialog.getByLabelText(i18n.t('admin.users.fields.isStaff')));
+    await userEvent.click(dialog.getByLabelText(i18n.t('admin.users.fields.isAdmin')));
     await userEvent.click(dialog.getByRole('button', { name: i18n.t('admin.users.save') }));
     await expect(dialog.getByRole('button', { name: i18n.t('admin.users.save') })).toHaveAttribute('aria-disabled', 'true');
     await expect(dialog.getByRole('button', { name: i18n.t('admin.users.save') })).toHaveAttribute('aria-busy', 'true');
@@ -236,12 +236,12 @@ export const FailedSaveEnglishMobile: Story = {
   async play({ canvas, userEvent }) {
     await userEvent.click(await canvas.findByRole('button', { name: i18n.t('admin.users.edit') }));
     const dialog = within(await within(document.body).findByRole('dialog'));
-    await userEvent.click(dialog.getByLabelText(i18n.t('admin.users.fields.isStaff')));
+    await userEvent.click(dialog.getByLabelText(i18n.t('admin.users.fields.isAdmin')));
     await userEvent.click(dialog.getByRole('button', { name: i18n.t('admin.users.save') }));
     const error = await dialog.findByRole('alert');
     await expect(error).toHaveTextContent('Permissions could not be updated.');
     await expect(error.parentElement).toHaveFocus();
-    await expect(dialog.getByLabelText(i18n.t('admin.users.fields.isStaff'))).toBeChecked();
+    await expect(dialog.getByLabelText(i18n.t('admin.users.fields.isAdmin'))).toBeChecked();
     await expect(dialog.getByRole('button', { name: i18n.t('admin.users.cancel') })).toBeEnabled();
   },
 };
@@ -252,7 +252,7 @@ export const InvalidQuotaThenSave: Story = {
     await userEvent.click(canvas.getByRole('button', { name: i18n.t('admin.users.edit') }));
     const body = within(document.body);
     const dialog = within(await body.findByRole('dialog'));
-    await userEvent.click(dialog.getByLabelText(i18n.t('admin.users.fields.isStaff')));
+    await userEvent.click(dialog.getByLabelText(i18n.t('admin.users.fields.isAdmin')));
     const processing = dialog.getByLabelText(i18n.t('admin.users.fields.processingLimitMinutes'));
     await userEvent.clear(processing);
     await userEvent.type(processing, '1.5');
@@ -272,7 +272,7 @@ export const InvalidQuotaThenSave: Story = {
     await expect(await canvas.findByText(i18n.t('admin.users.saveSuccess'))).toBeVisible();
     await expect(canvas.getByRole('button', { name: i18n.t('admin.users.edit') })).toHaveFocus();
     await expect(flagsRequest).toHaveBeenCalledTimes(1);
-    await expect(flagsRequest).toHaveBeenCalledWith({ id: 'bob', is_staff: true });
+    await expect(flagsRequest).toHaveBeenCalledWith({ id: 'bob', is_admin: true });
     await expect(quotaRequest).toHaveBeenCalledTimes(1);
     await expect(quotaRequest).toHaveBeenCalledWith({ id: 'bob', processing_limit_minutes: 0 });
   },

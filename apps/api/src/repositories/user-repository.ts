@@ -10,7 +10,7 @@ export type CurrentUser = {
   id: string;
   username: string;
   email: string;
-  is_superuser: boolean;
+  is_admin: boolean;
   video_count: number;
   max_video_upload_size_mb: number;
   used_storage_bytes: number;
@@ -69,7 +69,7 @@ export async function getCurrentUser(
       id: String(r.id),
       username: r.username,
       email: r.email,
-      is_superuser: r.role?.split(",").includes("admin") ?? false,
+      is_admin: r.role?.split(",").includes("admin") ?? false,
       video_count: r.video_count,
       max_video_upload_size_mb: r.max_video_upload_size_mb,
       used_storage_bytes: Number(r.used_storage_bytes),

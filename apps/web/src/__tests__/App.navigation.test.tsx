@@ -34,7 +34,7 @@ vi.mock('@/pages/LegalPage', async (importOriginal) => {
   };
 });
 
-const profile = { id: '1', username: 'testuser', is_superuser: false };
+const profile = { id: '1', username: 'testuser', is_admin: false };
 const emptyPage = { data: [], meta: { total: 0, limit: 24, offset: 0 } };
 const getAccount = vi.fn();
 const listVideos = vi.fn();

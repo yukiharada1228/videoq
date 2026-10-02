@@ -94,7 +94,7 @@ Infinite scrolling uses `infiniteQueryOptions()` with `initialCursor: 0`.
 
 - `publicProcedure`: Public information, or operations whose handler validates a share token.
 - `protectedProcedure`: Requires a Better Auth browser session.
-- `adminProcedure`: Lazily verifies superuser status.
+- `adminProcedure`: Lazily verifies admin status.
 
 Integration API keys and OAuth Bearer tokens are for MCP transport only. They do not authenticate
 regular tRPC, SSE, CSV, multipart upload, or media routes.

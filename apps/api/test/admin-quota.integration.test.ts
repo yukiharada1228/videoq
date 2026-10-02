@@ -19,7 +19,7 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
       SET search_path TO "${schema}";
       CREATE TABLE users (
         id text PRIMARY KEY, role text DEFAULT 'user', banned boolean DEFAULT false, ban_expires timestamptz,
-        username text DEFAULT 'User', email text DEFAULT 'user@example.test', is_staff boolean DEFAULT true,
+        username text DEFAULT 'User', email text DEFAULT 'user@example.test',
         max_video_upload_size_mb integer DEFAULT 999, storage_limit_gb double precision DEFAULT 12.5,
         processing_limit_minutes integer DEFAULT 123, ai_answers_limit integer DEFAULT 456,
         used_storage_bytes bigint DEFAULT 1024, used_processing_seconds integer DEFAULT 60,
@@ -76,7 +76,7 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
     const result = await patchQuota(env, "target", { quota_source: "plan" });
     expect(connect).toHaveBeenCalledTimes(1);
     expect(result).toMatchObject({ id: "target", quota_source: "plan", plan_code: plan, ...limits(expectedPlan),
-      is_staff: true, is_active: true, is_superuser: false, used_storage_bytes: 1024,
+      is_active: true, is_admin: false, used_storage_bytes: 1024,
       used_processing_seconds: 60, used_ai_answers: 7, is_over_quota: true });
     const after = await state();
     expect(after.updates).toHaveLength(1);

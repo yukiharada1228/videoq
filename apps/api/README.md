@@ -117,14 +117,29 @@ Drizzle の modern schema を runtime の唯一のモデルとして使用しま
 - chat: `chat_logs`。`chat_log_evaluations` と `course_evaluation_snapshots` は廃止前のデータを保持するテーブルで、新規評価は行いません。
 - vector: `scene_embeddings`（worker・HonoともPGVectorStore。Hono検索は所有者・講座内動画のスコープを固定）
 
-管理 procedure（superuser）: `admin.listUsers`、`admin.patch*`、`admin.reindexAll`。
+管理 procedure（admin）: `admin.listUsers`、`admin.patch*`、`admin.reindexAll`。
 フロントの `/admin` 画面から利用します。
 
-最初のスーパーユーザーは既存アカウントを昇格させます（ユーザー名・メールどちらでも可）:
+最初の管理者は既存アカウントを昇格させます（ユーザー名・メールどちらでも可）:
 
 ```bash
-npm run user:superuser -- alice
+npm run user:admin -- alice
 ```
+
+権限は一般ユーザー（`role = user`）と管理者（`role = admin`）の2種類です。
+既存の管理者は `/admin` で他のユーザーの「管理者」を切り替えられます。
+自分の管理者権限の解除・アカウント停止はできません。
+
+`0028_remove_legacy_user_roles` は不要になった `is_staff` / `is_superuser` 列のみを削除し、
+既存の `role` は維持します。APIの管理者フラグは `is_admin` に改名したため、
+APIとWebは同じリリースとして更新し、旧APIが停止してからこのDB移行を適用してください。
+CDでは `MIGRATION_PHASE=before-deploy` で列削除を保留し、API・Webのデプロイ成功後に
+`db-finalize` ジョブで完了します。手動でも先に同じ準備段階を実行し、新APIに切り替えてから
+`MIGRATION_PHASE=all npm run db:migrate` を実行します。後続のmigrationを追加する前に、
+このリリースの列削除まで完了させてください。
+
+昇格コマンドで複数アカウントが一致した場合は、変更せず終了します。
+対象を一意に指定するには `npm run user:admin -- --id <user-id>` を使用します。
 
 ローカルでログイン／登録のレート制限に当たったときは、RateLimiter DO 状態を消して API を再起動します:
 

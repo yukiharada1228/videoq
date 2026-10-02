@@ -137,7 +137,7 @@ docker compose --profile dev up -d web-dev
 
 ```bash
 npm ci
-npm run user:superuser --workspace @videoq/api -- your-username-or-email
+npm run user:admin --workspace @videoq/api -- your-username-or-email
 ```
 
 If a migrated local account reports `Password not found`, restore a local-only

@@ -152,13 +152,13 @@ describe('AppNav - authenticated user (cache populated)', () => {
     expect(within(getPrimaryNav()).getByText('navigation.settings')).toBeInTheDocument()
   })
 
-  it('hides admin nav link for non-superusers', () => {
+  it('hides admin nav link for non-admins', () => {
     renderWithUser(<AppNav />)
     expect(screen.queryByText('navigation.admin')).not.toBeInTheDocument()
   })
 
-  it('shows admin nav link for superusers', () => {
-    getAccount.mockResolvedValue({ id: 1, username: 'admin', is_superuser: true })
+  it('shows admin nav link for admins', () => {
+    getAccount.mockResolvedValue({ id: 1, username: 'admin', is_admin: true })
     render(<AppNav />)
     return waitFor(() => {
       expect(within(getPrimaryNav()).getByText('navigation.admin')).toBeInTheDocument()

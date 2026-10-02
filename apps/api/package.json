@@ -31,7 +31,7 @@
     "db:legacy:rename": "sh scripts/maintain.sh rename",
     "db:legacy:drop": "sh scripts/maintain.sh drop",
     "user:password:local": "node scripts/reset-local-password.mjs",
-    "user:superuser": "node scripts/create-superuser.mjs",
+    "user:admin": "node scripts/create-admin.mjs",
     "rate-limit:reset": "sh scripts/reset-rate-limit.sh",
     "embeddings:check": "tsx scripts/check-embeddings.ts",
     "demo:prepare": "tsx scripts/prepare-landing-demo.ts",

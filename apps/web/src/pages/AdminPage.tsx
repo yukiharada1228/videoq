@@ -116,16 +116,15 @@ export default function AdminPage() {
   const [usedAiAnswers, setUsedAiAnswers] = useState('');
   const [isOverQuota, setIsOverQuota] = useState(false);
   const [isActive, setIsActive] = useState(true);
-  const [isStaff, setIsStaff] = useState(false);
-  const [isSuperuserFlag, setIsSuperuserFlag] = useState(false);
+  const [isAdminFlag, setIsAdminFlag] = useState(false);
 
-  const isSuperuser = !!user?.is_superuser;
+  const isAdmin = !!user?.is_admin;
 
   useEffect(() => {
     if (authLoading) return;
     if (!user) return;
-    if (!isSuperuser) navigate('/');
-  }, [authLoading, user, isSuperuser, navigate]);
+    if (!isAdmin) navigate('/');
+  }, [authLoading, user, isAdmin, navigate]);
 
   const restoreUserListFocus = () => {
     const trigger = userActionTriggerRef.current;
@@ -148,8 +147,7 @@ export default function AdminPage() {
     setUsedAiAnswers(String(row.used_ai_answers));
     setIsOverQuota(row.is_over_quota);
     setIsActive(row.is_active);
-    setIsStaff(row.is_staff);
-    setIsSuperuserFlag(row.is_superuser);
+    setIsAdminFlag(row.is_admin);
     setFormError(null);
     setFieldErrors({});
     setIsEditOpen(true);
@@ -160,7 +158,7 @@ export default function AdminPage() {
     limit: PAGE_SIZE,
     offset,
   }, {
-    enabled: isSuperuser,
+    enabled: isAdmin,
   }));
 
   const saveMutation = useMutation({
@@ -172,8 +170,7 @@ export default function AdminPage() {
       const usage = changedFields(selectedUser, input.usage);
       const flags = changedFields(selectedUser, {
         is_active: isActive,
-        is_staff: isStaff,
-        is_superuser: isSuperuserFlag,
+        is_admin: isAdminFlag,
       });
 
       const id = selectedUser.id;
@@ -345,7 +342,7 @@ export default function AdminPage() {
         });
 
   if (authLoading && !user) return <LoadingSpinner fullScreen />;
-  if (!user || !isSuperuser) return <LoadingSpinner fullScreen />;
+  if (!user || !isAdmin) return <LoadingSpinner fullScreen />;
 
   return (
     <>
@@ -439,10 +436,9 @@ export default function AdminPage() {
                             {row.is_active && !isDeleting && (
                               <ChipLabel variant="filled-1" color="green">{t('admin.users.flags.active')}</ChipLabel>
                             )}
-                            {row.is_superuser && (
-                              <ChipLabel variant="filled-1" color="blue">{t('admin.users.flags.superuser')}</ChipLabel>
-                            )}
-                            {row.is_staff && <ChipLabel variant="filled-1">{t('admin.users.flags.staff')}</ChipLabel>}
+                            <ChipLabel variant="filled-1" color={row.is_admin ? 'blue' : undefined}>
+                              {t(row.is_admin ? 'admin.users.flags.admin' : 'admin.users.flags.user')}
+                            </ChipLabel>
                             {!row.is_active && !isDeleting && (
                               <ChipLabel variant="filled-1" color="red">{t('admin.users.flags.inactive')}</ChipLabel>
                             )}
@@ -488,7 +484,7 @@ export default function AdminPage() {
                               size="sm"
                               className="min-w-0 shrink-0 text-red-900 hover:bg-red-50 hover:text-red-1000"
                               aria-describedby={`${identityId}-name ${identityId}-email`}
-                              disabled={row.is_superuser || row.id === user.id || isDeleting || deleteMutation.isPending}
+                              disabled={row.is_admin || row.id === user.id || isDeleting || deleteMutation.isPending}
                               onClick={(event) => {
                                 userActionTriggerRef.current = event.currentTarget;
                                 setUserToDelete(row);
@@ -570,19 +566,11 @@ export default function AdminPage() {
                 <label className="flex items-center gap-2 text-std-16N-170 text-solid-gray-800">
                   <input
                     type="checkbox"
-                    checked={isStaff}
-                    onChange={(event) => setIsStaff(event.target.checked)}
-                  />
-                  {t('admin.users.fields.isStaff')}
-                </label>
-                <label className="flex items-center gap-2 text-std-16N-170 text-solid-gray-800">
-                  <input
-                    type="checkbox"
-                    checked={isSuperuserFlag}
+                    checked={isAdminFlag}
                     disabled={selectedUser?.id === user.id}
-                    onChange={(event) => setIsSuperuserFlag(event.target.checked)}
+                    onChange={(event) => setIsAdminFlag(event.target.checked)}
                   />
-                  {t('admin.users.fields.isSuperuser')}
+                  {t('admin.users.fields.isAdmin')}
                 </label>
                 {selectedUser?.id === user.id && (
                   <SupportText>{t('admin.users.selfFlagsHint')}</SupportText>

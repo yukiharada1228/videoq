@@ -25,9 +25,11 @@ MCP is a protocol that lets external clients, such as AI assistants, call tools.
 
 React uses `useSession` to check login status and `account.me` to fetch the profile. Regular browser APIs do not need custom access-token refresh logic.
 
-Session reads use the database, without a cookie cache. Better Auth's Admin plugin owns `banned`, temporary-ban expiry, and session revocation. Banned users cannot create sessions or use surviving sessions at Better Auth endpoints. Signing out remains available. Administrator privileges come only from the native `role`; historical `is_active` and `is_superuser` columns are not authorization inputs.
+Session reads use the database, without a cookie cache. Better Auth's Admin plugin owns `banned`, temporary-ban expiry, and session revocation. Banned users cannot create sessions or use surviving sessions at Better Auth endpoints. Signing out remains available. Accounts have two roles: `user` and `admin`. Administrator privileges come only from the native `role`; the API exposes them as `is_admin`. The historical `is_staff` and `is_superuser` columns are removed by migration `0028`; `is_active` remains a historical column and is not an authorization input.
 
 ## Implementation boundary
+
+The native Admin endpoints also enforce the two-role policy and prevent administrators from removing their own administrator role, including through `set-role` and `update-user`.
 
 Prefer Better Auth's documented options, plugins and server/client APIs. It owns password hashing, session cookies, email verification, Google token verification, OAuth protocol validation and provider-token encryption. Use its inferred API types. Session lookup failures caused by an outage must not be treated as logout; server-side authentication refusals must be translated into the application's normal unauthorized response.
 
@@ -77,7 +79,7 @@ The official [MCP](https://better-auth.com/docs/plugins/mcp) plugin was also rev
 
 ### Migrating existing installations
 
-Before deploying the native permission/account-state implementation, apply `0021_better_auth_permissions_and_account_state.sql` through the normal Drizzle migration command. Pause legacy authentication/admin writes for the migration and deployment so the old application cannot create metadata-only keys or change legacy flags after backfill. The migration copies the previously enforced API-key access levels into `permissions`, inactive accounts into `banned`, and legacy administrator flags into `role`. Existing key hashes remain unchanged; no key reissue is needed. Historical columns remain for legacy import tooling, but runtime authorization does not read them.
+Before deploying the native permission/account-state implementation, apply `0021_better_auth_permissions_and_account_state.sql` through the normal Drizzle migration command. Pause legacy authentication/admin writes for the migration and deployment so the old application cannot create metadata-only keys or change legacy flags after backfill. The migration copies the previously enforced API-key access levels into `permissions`, inactive accounts into `banned`, and legacy administrator flags into `role`. Existing key hashes remain unchanged; no key reissue is needed. Runtime authorization does not read historical columns. Migration `0028_remove_legacy_user_roles` later removes `is_staff` and `is_superuser` while preserving the native `role`. Production CD defers this cleanup with `MIGRATION_PHASE=before-deploy` and applies it only after the API and frontend deployments succeed; manual rollouts must follow the same order.
 
 Also apply `0022_standard_password_reset_identifiers.sql` before deploying native reset-token hashing. It converts the previous prefixed hex SHA-256 identifiers into Better Auth's base64url SHA-256 encoding, preserving outstanding reset links and their original expiry. Unrelated verification records and plaintext legacy links are unchanged. Pause authentication writes through migration and deployment so old code cannot create identifiers in the retired format afterwards. Newly requested links expire after 15 minutes; previously issued links retain their original lifetime.
 

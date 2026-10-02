@@ -19,7 +19,7 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
       CREATE TABLE users (
         id text PRIMARY KEY, username text NOT NULL, email text NOT NULL,
         role text DEFAULT 'user', banned boolean DEFAULT false, ban_expires timestamptz,
-        is_staff boolean DEFAULT false, max_video_upload_size_mb integer DEFAULT 200,
+        max_video_upload_size_mb integer DEFAULT 200,
         storage_limit_gb double precision DEFAULT 1, processing_limit_minutes integer DEFAULT 45,
         ai_answers_limit integer DEFAULT 30, used_storage_bytes bigint DEFAULT 0,
         used_processing_seconds integer DEFAULT 0, used_ai_answers integer DEFAULT 0,

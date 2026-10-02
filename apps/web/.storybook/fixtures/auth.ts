@@ -11,7 +11,7 @@ export const regularUser: User = {
   id: 'storybook-user',
   username: '山田 太郎',
   email: 'learner@example.test',
-  is_superuser: false,
+  is_admin: false,
   video_count: 3,
   max_video_upload_size_mb: 100,
   plan_code: 'free',
@@ -51,7 +51,7 @@ export function authFixture(profile: User | null): AuthFixture {
 export const authFixtures = {
   loggedOut: authFixture(null),
   user: authFixture(regularUser),
-  admin: authFixture({ ...regularUser, id: 'storybook-admin', username: '管理者', is_superuser: true }),
+  admin: authFixture({ ...regularUser, id: 'storybook-admin', username: '管理者', is_admin: true }),
   english: authFixture({ ...regularUser, username: 'Alex Morgan' }),
   longName: authFixture({ ...regularUser, username: '教材制作と授業運営を担当する共同学習プロジェクトの管理者' }),
 };

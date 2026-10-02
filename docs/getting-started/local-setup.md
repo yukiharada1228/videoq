@@ -87,7 +87,7 @@ curl -fsS http://localhost/ready
 2. In a local environment without email configured, activate the account and grant administrator access with the following command. Replace `your-username` with the username or email address you registered.
 
 ```bash
-npm run user:superuser --workspace @videoq/api -- your-username
+npm run user:admin --workspace @videoq/api -- your-username
 ```
 
 3. Log in on the [login screen](http://localhost/login).
