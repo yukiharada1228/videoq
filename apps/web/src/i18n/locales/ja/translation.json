@@ -1082,15 +1082,21 @@
       "nullableHint": "空欄で無制限になります。",
       "selfFlagsHint": "自分の有効状態とスーパーユーザー権限は変更できません。",
       "quotaSummary": "アップロード {{uploadMb}} MB · ストレージ {{storageGb}}",
+      "quota": {
+        "upload": "アップロード",
+        "storage": "ストレージ"
+      },
       "columns": {
+        "user": "ユーザー",
         "id": "ID",
         "username": "ユーザー名",
         "email": "メール",
-        "flags": "フラグ",
+        "flags": "状態・権限",
         "quota": "クォータ",
         "actions": "操作"
       },
       "flags": {
+        "active": "有効",
         "superuser": "スーパーユーザー",
         "staff": "スタッフ",
         "inactive": "無効",
