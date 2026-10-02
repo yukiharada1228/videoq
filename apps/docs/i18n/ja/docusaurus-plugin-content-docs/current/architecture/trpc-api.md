@@ -93,7 +93,7 @@ Vite SPA の client と QueryClient は共有し、`QueryClientProvider` でキ�
 
 - `publicProcedure`: 公開情報、または share token を handler で検証する操作
 - `protectedProcedure`: Better Auth の browser session が必要
-- `adminProcedure`: superuser を遅延検証
+- `adminProcedure`: admin を遅延検証
 
 Integration API key と OAuth Bearer は MCP transport 専用です。通常のtRPC、SSE、
 CSV、multipart upload、media routeの認証には利用しません。

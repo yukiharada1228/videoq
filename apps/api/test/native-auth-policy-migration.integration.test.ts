@@ -4,8 +4,27 @@ import { describe, expect, it } from "vitest";
 
 const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
 const migration = readFileSync(new URL("../drizzle/0021_better_auth_permissions_and_account_state.sql", import.meta.url), "utf8");
+const removeLegacyRoles = readFileSync(new URL("../drizzle/0028_remove_legacy_user_roles.sql", import.meta.url), "utf8");
 
 (databaseUrl ? describe : describe.skip)("native authentication policy migration", () => {
+  it("removes obsolete role columns while preserving native roles, including previously demoted admins", async () => {
+    const client = new pg.Client({ connectionString: databaseUrl });
+    await client.connect();
+    try {
+      await client.query(`CREATE TEMP TABLE users (id text PRIMARY KEY, role text NOT NULL,
+        is_staff boolean, is_superuser boolean);
+        INSERT INTO users VALUES ('admin', 'admin', false, false), ('staff', 'user', true, false),
+          ('demoted', 'user', true, true), ('user', 'user', false, false);`);
+      await client.query(removeLegacyRoles);
+      expect((await client.query("SELECT * FROM users ORDER BY id")).rows).toEqual([
+        { id: "admin", role: "admin" }, { id: "demoted", role: "user" },
+        { id: "staff", role: "user" }, { id: "user", role: "user" },
+      ]);
+    } finally {
+      await client.end();
+    }
+  });
+
   it("preserves legacy permissions, key secrets and suspended/admin accounts", async () => {
     const client = new pg.Client({ connectionString: databaseUrl });
     await client.connect();

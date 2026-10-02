@@ -29,8 +29,7 @@ const sampleUser = {
   username: 'bob',
   email: 'bob@example.com',
   is_active: true,
-  is_staff: false,
-  is_superuser: false,
+  is_admin: false,
   max_video_upload_size_mb: 500,
   storage_limit_gb: 10,
   processing_limit_minutes: 60,
@@ -58,7 +57,7 @@ describe('AdminPage', () => {
         id: 1,
         username: 'admin',
         email: 'admin@example.com',
-        is_superuser: true,
+        is_admin: true,
         video_count: 0,
         max_video_upload_size_mb: 500,
       },
@@ -74,7 +73,7 @@ describe('AdminPage', () => {
     patchUsage.mockImplementation(async patch => ({ ...sampleUser, ...patch }))
   })
 
-  it('lists admin users for superusers', async () => {
+  it('lists admin users for admins', async () => {
     render(<AdminPage />)
 
     expect(await screen.findByText('admin.title')).toBeInTheDocument()
@@ -90,12 +89,23 @@ describe('AdminPage', () => {
     expect(identity).toHaveTextContent('bob')
     expect(identity).toHaveTextContent('admin.users.columns.id: 9')
     expect(row.getByText('admin.users.flags.active')).toBeInTheDocument()
+    expect(row.getByText('admin.users.flags.user')).toBeInTheDocument()
     expect(row.getByText('500 MB')).toBeInTheDocument()
     expect(row.getByText('10 GB')).toBeInTheDocument()
     expect(row.getByRole('button', { name: 'admin.users.edit' })).toBeEnabled()
     expect(row.getByRole('button', { name: 'admin.users.delete' })).toBeEnabled()
     expect(row.getByRole('button', { name: 'admin.users.edit' })).toHaveAccessibleDescription('bob bob@example.com')
     expect(row.getByRole('button', { name: 'admin.users.delete' })).toHaveAccessibleDescription('bob bob@example.com')
+  })
+
+  it('keeps self-protection with the single administrator control', async () => {
+    listUsers.mockResolvedValue({ data: [{ ...sampleUser, id: 1, is_admin: true }], meta: { total: 1, limit: 20, offset: 0 } })
+    render(<AdminPage />)
+    fireEvent.click(await screen.findByRole('button', { name: 'admin.users.edit' }))
+    expect(screen.getByLabelText('admin.users.fields.isAdmin')).toBeChecked()
+    expect(screen.getByLabelText('admin.users.fields.isAdmin')).toBeDisabled()
+    expect(screen.getByLabelText('admin.users.fields.isActive')).toBeDisabled()
+    expect(screen.queryByLabelText('admin.users.fields.isStaff')).not.toBeInTheDocument()
   })
 
   it('announces loading and empty search results through the same status region', async () => {
@@ -176,17 +186,17 @@ describe('AdminPage', () => {
     await waitFor(() => expect(finishEarlierRefresh).toBeDefined())
     try {
       fireEvent.click(screen.getByRole('button', { name: 'admin.users.edit' }))
-      fireEvent.click(screen.getByLabelText('admin.users.fields.isStaff'))
-      listUsers.mockResolvedValue({ data: [{ ...sampleUser, is_staff: true }], meta: { total: 1, limit: 20, offset: 0 } })
+      fireEvent.click(screen.getByLabelText('admin.users.fields.isAdmin'))
+      listUsers.mockResolvedValue({ data: [{ ...sampleUser, is_admin: true }], meta: { total: 1, limit: 20, offset: 0 } })
       fireEvent.click(screen.getByRole('button', { name: 'admin.users.save' }))
       await screen.findByText('admin.users.saveSuccess')
-      expect(screen.getByText('admin.users.flags.staff')).toBeInTheDocument()
+      expect(screen.getByText('admin.users.flags.admin')).toBeInTheDocument()
     } finally {
       await act(async () => finishEarlierRefresh({ data: [sampleUser], meta: { total: 1, limit: 20, offset: 0 } }))
     }
-    expect(screen.getByText('admin.users.flags.staff')).toBeInTheDocument()
+    expect(screen.getByText('admin.users.flags.admin')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(patchFlags).toHaveBeenCalledExactlyOnceWith({ id: 9, is_staff: true })
+    expect(patchFlags).toHaveBeenCalledExactlyOnceWith({ id: 9, is_admin: true })
     expect(listUsers).toHaveBeenCalledTimes(3)
   })
 
@@ -223,13 +233,13 @@ describe('AdminPage', () => {
     await waitFor(() => expect(listUsers).toHaveBeenLastCalledWith({ limit: 20, offset: 0 }))
   })
 
-  it('redirects non-superusers home', async () => {
+  it('redirects non-admins home', async () => {
     ;(useAuth as ReturnType<typeof vi.fn>).mockReturnValue({
       user: {
         id: 2,
         username: 'alice',
         email: 'alice@example.com',
-        is_superuser: false,
+        is_admin: false,
         video_count: 0,
         max_video_upload_size_mb: 500,
       },
@@ -249,11 +259,11 @@ describe('AdminPage', () => {
     render(<AdminPage />)
     fireEvent.click(await screen.findByRole('button', { name: 'admin.users.edit' }))
 
-    const staffCheckbox = await screen.findByLabelText('admin.users.fields.isStaff')
+    const adminCheckbox = await screen.findByLabelText('admin.users.fields.isAdmin')
     await waitFor(() => {
-      expect(staffCheckbox).not.toBeChecked()
+      expect(adminCheckbox).not.toBeChecked()
     })
-    fireEvent.click(staffCheckbox)
+    fireEvent.click(adminCheckbox)
 
     const uploadInput = await screen.findByLabelText('admin.users.fields.maxUploadMb')
     await waitFor(() => {
@@ -266,7 +276,7 @@ describe('AdminPage', () => {
     await waitFor(() => {
       expect(patchFlags).toHaveBeenCalledWith({
         id: 9,
-        is_staff: true,
+        is_admin: true,
       })
       expect(patchQuota).toHaveBeenCalledWith({
         id: 9,
@@ -300,14 +310,14 @@ describe('AdminPage', () => {
   it.each(['flags', 'usage'])('preserves plan quotas and unrelated values when editing only %s', async section => {
     render(<AdminPage />)
     fireEvent.click(await screen.findByRole('button', { name: 'admin.users.edit' }))
-    if (section === 'flags') fireEvent.click(screen.getByLabelText('admin.users.fields.isStaff'))
+    if (section === 'flags') fireEvent.click(screen.getByLabelText('admin.users.fields.isAdmin'))
     else fireEvent.change(screen.getByLabelText('admin.users.fields.usedAiAnswers'), { target: { value: '0' } })
     fireEvent.click(screen.getByRole('button', { name: 'admin.users.save' }))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(patchQuota).not.toHaveBeenCalled()
     if (section === 'flags') {
-      expect(patchFlags).toHaveBeenCalledExactlyOnceWith({ id: 9, is_staff: true })
+      expect(patchFlags).toHaveBeenCalledExactlyOnceWith({ id: 9, is_admin: true })
       expect(patchUsage).not.toHaveBeenCalled()
     } else {
       expect(patchUsage).toHaveBeenCalledExactlyOnceWith({ id: 9, used_ai_answers: 0 })
@@ -340,19 +350,19 @@ describe('AdminPage', () => {
 
     render(<AdminPage />)
     fireEvent.click(await screen.findByRole('button', { name: 'admin.users.edit' }))
-    fireEvent.click(screen.getByLabelText('admin.users.fields.isStaff'))
+    fireEvent.click(screen.getByLabelText('admin.users.fields.isAdmin'))
     fireEvent.change(screen.getByLabelText('admin.users.fields.maxUploadMb'), { target: { value: '750' } })
     fireEvent.click(screen.getByRole('button', { name: 'admin.users.save' }))
 
     expect(await screen.findByText('Quota update failed')).toBeInTheDocument()
     expect(listUsers).toHaveBeenCalledTimes(2)
-    expect(screen.getByText('admin.users.flags.staff')).toBeInTheDocument()
+    expect(screen.getByText('admin.users.flags.admin')).toBeInTheDocument()
     expect(screen.getByLabelText('admin.users.fields.maxUploadMb')).toHaveValue('750')
     expect(patchUsage).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'admin.users.save' }))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    expect(patchFlags).toHaveBeenCalledExactlyOnceWith({ id: 9, is_staff: true })
+    expect(patchFlags).toHaveBeenCalledExactlyOnceWith({ id: 9, is_admin: true })
     expect(patchQuota).toHaveBeenCalledTimes(2)
     expect(patchQuota).toHaveBeenLastCalledWith({ id: 9, max_video_upload_size_mb: 750 })
     expect(patchUsage).not.toHaveBeenCalled()
@@ -377,7 +387,7 @@ describe('AdminPage', () => {
   ])('rejects %s=%s before changing any user fields', async (field, value, error) => {
     render(<AdminPage />)
     fireEvent.click(await screen.findByRole('button', { name: 'admin.users.edit' }))
-    fireEvent.click(screen.getByLabelText('admin.users.fields.isStaff'))
+    fireEvent.click(screen.getByLabelText('admin.users.fields.isAdmin'))
     fireEvent.change(screen.getByLabelText(`admin.users.fields.${field}`), { target: { value } })
     fireEvent.click(screen.getByRole('button', { name: 'admin.users.save' }))
 
@@ -450,11 +460,11 @@ describe('AdminPage', () => {
     patchFlags.mockImplementation(() => new Promise(resolve => { finishSave = resolve }))
     render(<AdminPage />)
     fireEvent.click(await screen.findByRole('button', { name: 'admin.users.edit' }))
-    fireEvent.click(screen.getByLabelText('admin.users.fields.isStaff'))
+    fireEvent.click(screen.getByLabelText('admin.users.fields.isAdmin'))
     fireEvent.click(screen.getByRole('button', { name: 'admin.users.save' }))
     await waitFor(() => expect(finishSave).toBeDefined())
     try {
-      expect(screen.getByLabelText('admin.users.fields.isStaff')).toBeDisabled()
+      expect(screen.getByLabelText('admin.users.fields.isAdmin')).toBeDisabled()
       expect(screen.getByLabelText('admin.users.fields.maxUploadMb')).toBeDisabled()
       expect(screen.getByRole('button', { name: 'admin.users.cancel' })).toBeDisabled()
       expect(screen.getByRole('button', { name: 'admin.users.save' })).toHaveAttribute('aria-disabled', 'true')
@@ -462,13 +472,13 @@ describe('AdminPage', () => {
       fireEvent.click(screen.getByRole('button', { name: 'admin.users.save' }))
       expect(patchFlags).toHaveBeenCalledTimes(1)
       listUsers.mockImplementation(() => new Promise(resolve => { finishReload = resolve }))
-      await act(async () => finishSave({ ...sampleUser, is_staff: true }))
+      await act(async () => finishSave({ ...sampleUser, is_admin: true }))
       await waitFor(() => expect(finishReload).toBeDefined())
       expect(screen.getByLabelText('admin.users.fields.usedAiAnswers')).toBeDisabled()
       expect(screen.getByRole('button', { name: 'admin.users.cancel' })).toBeDisabled()
     } finally {
       await act(async () => {
-        finishSave({ ...sampleUser, is_staff: true })
+        finishSave({ ...sampleUser, is_admin: true })
         finishReload?.({ data: [sampleUser], meta: { total: 1, limit: 20, offset: 0 } })
       })
     }
@@ -478,7 +488,7 @@ describe('AdminPage', () => {
   it('returns focus to the list heading when a saved edit is followed by a list failure', async () => {
     render(<AdminPage />)
     fireEvent.click(await screen.findByRole('button', { name: 'admin.users.edit' }))
-    fireEvent.click(screen.getByLabelText('admin.users.fields.isStaff'))
+    fireEvent.click(screen.getByLabelText('admin.users.fields.isAdmin'))
     listUsers.mockRejectedValueOnce(new Error('Temporarily unavailable'))
     fireEvent.click(screen.getByRole('button', { name: 'admin.users.save' }))
     await screen.findByText('admin.users.saveSuccess')

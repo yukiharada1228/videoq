@@ -11,7 +11,7 @@ import { createAuth } from "../../lib/auth";
 import type { Bindings } from "../../types/bindings";
 
 export {
-  isSuperuser,
+  isAdmin,
   listAdminUsers as listUsers,
   getAdminUser as getUser,
   patchAdminUserQuota as patchQuota,
@@ -27,7 +27,7 @@ export async function patchFlags(
 ) {
   if (
     actorUserId === targetUserId &&
-    (patch.is_active === false || patch.is_superuser === false)
+    (patch.is_active === false || patch.is_admin === false)
   ) {
     return { selfLockout: true as const };
   }
@@ -39,14 +39,9 @@ export async function patchFlags(
       if (patch.is_active) await auth.api.unbanUser(input);
       else await auth.api.banUser(input);
     }
-    if (patch.is_superuser !== undefined) {
+    if (patch.is_admin !== undefined) {
       await auth.api.setRole({
-        body: { userId: targetUserId, role: patch.is_superuser ? "admin" : "user" }, headers,
-      });
-    }
-    if (patch.is_staff !== undefined) {
-      await auth.api.adminUpdateUser({
-        body: { userId: targetUserId, data: { isStaff: patch.is_staff } }, headers,
+        body: { userId: targetUserId, role: patch.is_admin ? "admin" : "user" }, headers,
       });
     }
   });

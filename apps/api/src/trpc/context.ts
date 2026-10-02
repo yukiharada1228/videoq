@@ -35,8 +35,8 @@ export async function createTrpcContext(c: Context<AppEnv>): Promise<TrpcContext
 
   return {
     userId,
-    assertSuperuser: async () => {
-      if (userId === null || !(await adminService.isSuperuser(c.env, userId))) {
+    assertAdmin: async () => {
+      if (userId === null || !(await adminService.isAdmin(c.env, userId))) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You do not have permission to perform this action.",

@@ -54,7 +54,7 @@ beforeEach(async () => {
   store.data.user.push({
     id: USER_ID, email: "security@example.test", emailVerified: true,
     name: "Test user", username: "testuser", displayUsername: "testuser",
-    role: "admin", isSuperuser: true, isActive: true, banned: false,
+    role: "admin", isActive: true, banned: false,
     createdAt: now, updatedAt: now,
   });
   store.data.account.push({
@@ -250,6 +250,52 @@ describe("MCP OAuth permission negotiation", () => {
 });
 
 describe("account suspension across Better Auth endpoints", () => {
+  it.each(["/admin/set-role", "/admin/update-user"].flatMap(path => [
+    { path, userId: USER_ID }, { path, userId: [USER_ID] },
+  ]))("prevents self-demotion through $path with userId=$userId", async ({ path, userId }) => {
+    const auth = makeAuth();
+    const cookie = await login(auth);
+    const body = path === "/admin/set-role"
+      ? { userId, role: "user" }
+      : { userId, data: { role: "user" } };
+    expect((await post(auth, path, body, cookie)).status).toBe(400);
+    expect(store.data.user[0].role).toBe("admin");
+  });
+
+  it("enforces the role policy for server-only administrator creation", async () => {
+    await expect(makeAuth().api.createUser({ body: {
+      name: "Other", email: "other@example.test", role: "staff", data: { username: "other" },
+    } })).rejects.toMatchObject({ statusCode: 400 });
+    expect(store.data.user).toHaveLength(1);
+  });
+
+  it.each(["/admin/set-role", "/admin/update-user"])("allows promotion and demotion of another user through %s", async (path) => {
+    const auth = makeAuth();
+    const cookie = await login(auth);
+    const other = { ...store.data.user[0], id: "other", username: "other", email: "other@example.test", role: "user" };
+    store.data.user.push(other);
+    for (const role of ["admin", "user"]) {
+      const body = path === "/admin/set-role" ? { userId: other.id, role } : { userId: other.id, data: { role } };
+      expect((await post(auth, path, body, cookie)).status).toBe(200);
+      expect(store.data.user.find(user => user.id === other.id)?.role).toBe(role);
+    }
+  });
+
+  it.each(["staff", "unknown", "user,admin", ["user", "admin"], []].map(role => ({ role })))("rejects roles outside the two account types (%j)", async ({ role }) => {
+    const auth = makeAuth();
+    const cookie = await login(auth);
+    for (const [path, body] of [
+      ["/admin/set-role", { userId: USER_ID, role }],
+      ["/admin/update-user", { userId: USER_ID, data: { role } }],
+      ["/admin/create-user", { name: "Other", email: "other@example.test", role }],
+      ["/admin/create-user", { name: "Other", email: "other@example.test", data: { role } }],
+    ] as const) {
+      expect((await post(auth, path, body, cookie)).status).toBe(400);
+    }
+    expect(store.data.user).toHaveLength(1);
+    expect(store.data.user[0].role).toBe("admin");
+  });
+
   it("uses native signup field protection and the Admin plugin's default role", async () => {
     const auth = makeAuth();
     const body = {

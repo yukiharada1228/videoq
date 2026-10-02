@@ -149,6 +149,29 @@ export function videoqAuthSecurity(options: OAuthOptions<string[]>): BetterAuthP
           }
         }),
       }, {
+        matcher: ({ path }) => path === "/admin/set-role" || path === "/admin/update-user" || path === "/admin/create-user",
+        handler: createAuthMiddleware(async (ctx) => {
+          const session = await getSessionFromCtx(ctx, { disableCookieCache: true });
+          const isAdmin = session && "role" in session.user && typeof session.user.role === "string" &&
+            session.user.role.split(",").includes("admin");
+          // Leave authentication/permission errors to the native Admin plugin.
+          // A server-only createUser call is also allowed, with the same two roles.
+          if (session ? !isAdmin : ctx.request || ctx.headers) return;
+          const role = ctx.path === "/admin/update-user"
+            ? ctx.body?.data?.role
+            : ctx.body?.role ?? ctx.body?.data?.role;
+          if (role === undefined) return;
+          if (role !== "user" && role !== "admin") {
+            throw new APIError("BAD_REQUEST", { message: "Role must be user or admin." });
+          }
+          // Match the native endpoint's coercion (e.g. [id] also becomes id).
+          const targetId = z.coerce.string().safeParse(ctx.body?.userId);
+          if (ctx.path !== "/admin/create-user" && targetId.success &&
+            session?.user.id === targetId.data && role !== "admin") {
+            throw new APIError("BAD_REQUEST", { message: "Cannot remove your own administrator role." });
+          }
+        }),
+      }, {
         matcher: ({ path }) => path === "/oauth2/token",
         handler: createAuthMiddleware(async (ctx) => { await checkRefreshConsent(ctx, options); }),
       }, {

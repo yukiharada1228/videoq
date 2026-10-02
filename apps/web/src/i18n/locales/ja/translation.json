@@ -1053,7 +1053,7 @@
   },
   "admin": {
     "title": "管理",
-    "description": "ユーザーのクォータ調整と埋め込み再索引のためのスーパーユーザー向け管理画面です。",
+    "description": "ユーザーのクォータ調整と埋め込み再索引のための管理者向け管理画面です。",
     "users": {
       "title": "ユーザー",
       "description": "ユーザーを検索し、クォータや利用量を調整します。",
@@ -1080,7 +1080,7 @@
       "loadError": "ユーザー一覧の取得に失敗しました。",
       "unlimited": "無制限",
       "nullableHint": "空欄で無制限になります。",
-      "selfFlagsHint": "自分の有効状態とスーパーユーザー権限は変更できません。",
+      "selfFlagsHint": "自分の有効状態と管理者権限は変更できません。",
       "quotaSummary": "アップロード {{uploadMb}} MB · ストレージ {{storageGb}}",
       "quota": {
         "upload": "アップロード",
@@ -1097,15 +1097,14 @@
       },
       "flags": {
         "active": "有効",
-        "superuser": "スーパーユーザー",
-        "staff": "スタッフ",
+        "admin": "管理者",
+        "user": "一般ユーザー",
         "inactive": "無効",
         "overQuota": "超過"
       },
       "fields": {
         "isActive": "有効",
-        "isStaff": "スタッフ",
-        "isSuperuser": "スーパーユーザー",
+        "isAdmin": "管理者",
         "maxUploadMb": "最大アップロードサイズ (MB)",
         "storageLimitGb": "ストレージ上限 (GB)",
         "processingLimitMinutes": "処理上限 (分)",

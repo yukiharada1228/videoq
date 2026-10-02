@@ -10,7 +10,7 @@ import {
 } from "./helpers/pg-fake";
 
 const nativeAdmin = vi.hoisted(() => ({
-  banUser: vi.fn(), unbanUser: vi.fn(), setRole: vi.fn(), adminUpdateUser: vi.fn(),
+  banUser: vi.fn(), unbanUser: vi.fn(), setRole: vi.fn(),
 }));
 vi.mock("../src/lib/auth", async (importOriginal) => ({
   ...await importOriginal<typeof import("../src/lib/auth")>(),
@@ -60,7 +60,7 @@ beforeEach(() => {
   processExternalTask.mockReset().mockResolvedValue(true);
   rowsFor = (sql) => {
     if (sql.includes("SELECT role FROM users")) return [{ role: "admin" }];
-    if (sql.includes("FROM users") && sql.includes("FOR UPDATE")) return [{ is_superuser: false }];
+    if (sql.includes("FROM users") && sql.includes("FOR UPDATE")) return [{ is_admin: false }];
     if (sql.includes("count(*)")) return [{ c: 1 }];
     if (sql.includes("external_tasks") && sql.includes("RETURNING")) {
       return [{ id: 73 }];
@@ -72,8 +72,7 @@ beforeEach(() => {
           username: "alice",
           email: "a@example.com",
           is_active: true,
-          is_staff: true,
-          is_superuser: false,
+          is_admin: false,
           max_video_upload_size_mb: 500,
           storage_limit_gb: 10,
           processing_limit_minutes: 60,
@@ -120,9 +119,9 @@ const req = (path: string, init: RequestInit = {}) => {
 };
 
 describe("admin API", () => {
-  it("非 superuser は 403", async () => {
+  it("非 admin は 403", async () => {
     rowsFor = (sql) => {
-      if (sql.includes("SELECT is_superuser")) return [{ is_superuser: false }];
+      if (sql.includes("SELECT role FROM users")) return [{ role: "user" }];
       return [];
     };
     const res = await req("/users", {
@@ -206,19 +205,26 @@ describe("admin API", () => {
         "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001",
         "content-type": "application/json",
       },
-      body: JSON.stringify({ is_staff: true, is_superuser: true }),
+      body: JSON.stringify({ is_admin: true }),
     });
     expect(res.status).toBe(200);
     expect(nativeAdmin.setRole).toHaveBeenCalledWith(expect.objectContaining({
       body: { userId: "00000000-0000-4000-8000-000000000009", role: "admin" },
       headers: expect.any(Headers),
     }));
-    expect(nativeAdmin.adminUpdateUser).toHaveBeenCalledWith(expect.objectContaining({
-      body: { userId: "00000000-0000-4000-8000-000000000009", data: { isStaff: true } },
-    }));
   });
 
-  it("自分の superuser フラグは外せない", async () => {
+  it.each(["is_staff", "is_superuser"])("rejects the retired %s flag", async (flag) => {
+    const res = await req("/users/00000000-0000-4000-8000-000000000009/flags", {
+      method: "PATCH",
+      headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001" },
+      body: JSON.stringify({ [flag]: true }),
+    });
+    expect(res.status).toBe(400);
+    expect(nativeAdmin.setRole).not.toHaveBeenCalled();
+  });
+
+  it("自分の admin フラグは外せない", async () => {
     rowsFor = (sql) => {
       if (sql.includes("SELECT role FROM users")) return [{ role: "admin" }];
       if (sql.includes("FROM users")) {
@@ -228,8 +234,7 @@ describe("admin API", () => {
             username: "admin",
             email: "admin@example.com",
             is_active: true,
-            is_staff: true,
-            is_superuser: true,
+            is_admin: true,
             max_video_upload_size_mb: 500,
             storage_limit_gb: null,
             processing_limit_minutes: null,
@@ -250,7 +255,7 @@ describe("admin API", () => {
         "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001",
         "content-type": "application/json",
       },
-      body: JSON.stringify({ is_superuser: false }),
+      body: JSON.stringify({ is_admin: false }),
     });
     expect(res.status).toBe(400);
   });
@@ -310,7 +315,7 @@ describe("admin API", () => {
     expect(method.mock.calls[0][0].headers.get("cookie")).toBe("forwarded-session-cookie");
   });
 
-  it("does not fall back to a legacy superuser flag after native role removal", async () => {
+  it("denies administration after native role removal", async () => {
     rowsFor = (sql) => sql.includes("SELECT role FROM users") ? [{ role: "user" }] : [];
     expect((await req("/users", { headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001" } })).status).toBe(403);
   });
@@ -319,7 +324,7 @@ describe("admin API", () => {
     nativeAdmin.banUser.mockRejectedValueOnce(new APIError("FORBIDDEN", { message: "Permission denied" }));
     const response = await req("/users/00000000-0000-4000-8000-000000000009/flags", {
       method: "PATCH", headers: { "X-VideoQ-Test-User-Id": "00000000-0000-4000-8000-000000000001" },
-      body: JSON.stringify({ is_active: false, is_superuser: true }),
+      body: JSON.stringify({ is_active: false, is_admin: true }),
     });
     expect(response.status).toBe(403);
     expect(nativeAdmin.setRole).not.toHaveBeenCalled();
@@ -354,8 +359,7 @@ describe("admin API", () => {
             username: "admin",
             email: "admin@example.com",
             is_active: true,
-            is_staff: true,
-            is_superuser: true,
+            is_admin: true,
             max_video_upload_size_mb: 500,
             storage_limit_gb: null,
             processing_limit_minutes: null,
@@ -378,10 +382,10 @@ describe("admin API", () => {
     expect(processExternalTask).not.toHaveBeenCalled();
   });
 
-  it("他 superuser は削除できない", async () => {
+  it("他 admin は削除できない", async () => {
     rowsFor = (sql) => {
       if (sql.includes("SELECT role FROM users")) return [{ role: "admin" }];
-      if (sql.includes("FROM users") && sql.includes("FOR UPDATE")) return [{ is_superuser: true }];
+      if (sql.includes("FROM users") && sql.includes("FOR UPDATE")) return [{ is_admin: true }];
       if (sql.includes("FROM users")) {
         return [
           {
@@ -389,8 +393,7 @@ describe("admin API", () => {
             username: "other-admin",
             email: "other@example.com",
             is_active: true,
-            is_staff: true,
-            is_superuser: true,
+            is_admin: true,
             max_video_upload_size_mb: 500,
             storage_limit_gb: null,
             processing_limit_minutes: null,

@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
- * Promote an existing user to superuser (and staff).
+ * Promote an existing user to administrator.
  *
- *   npm run user:superuser -- <username-or-email>
- *   DATABASE_URL=... npm run user:superuser -- alice
+ *   npm run user:admin -- <username-or-email>
+ *   npm run user:admin -- --id <user-id>
+ *   DATABASE_URL=... npm run user:admin -- alice
  */
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -34,9 +35,11 @@ function loadDatabaseUrl() {
   return "postgresql://postgres:postgres@127.0.0.1:55432/postgres";
 }
 
-const ident = process.argv.slice(2).find((a) => !a.startsWith("-"));
-if (!ident) {
-  console.error("Usage: npm run user:superuser -- <username-or-email>");
+const args = process.argv.slice(2);
+const byId = args[0] === "--id";
+const ident = (byId ? args[1] : args[0])?.trim();
+if (!ident || args.length !== (byId ? 2 : 1) || (!byId && ident.startsWith("-"))) {
+  console.error("Usage: npm run user:admin -- <username-or-email> | --id <user-id>");
   process.exit(1);
 }
 
@@ -50,30 +53,39 @@ const client = new pg.Client({ connectionString: databaseUrl });
 await client.connect();
 
 try {
+  await client.query("BEGIN");
+  const matches = await client.query(
+    `SELECT id FROM users WHERE ${byId ? "id = $1" : "lower(username) = lower($1) OR lower(email) = lower($1)"} FOR UPDATE`,
+    [ident],
+  );
+  if (matches.rows.length === 0) {
+    throw new Error(`User not found: ${ident}. Sign up first, then re-run this command.`);
+  }
+  if (matches.rows.length !== 1) {
+    throw new Error("Multiple users match. No accounts were changed. Specify --id <user-id>.");
+  }
   const { rows } = await client.query(
     `UPDATE users
-        SET is_staff = true,
-            role = 'admin',
+        SET role = 'admin',
             banned = false,
             ban_expires = NULL,
             ban_reason = NULL,
-            email_verified = true
-      WHERE lower(username) = lower($1)
-         OR lower(email) = lower($1)
-      RETURNING id, username, email, is_staff, banned, role`,
-    [ident],
+            email_verified = true,
+            updated_at = now()
+      WHERE id = $1
+      RETURNING id, username, email, banned, role`,
+    [matches.rows[0].id],
   );
 
-  if (rows.length === 0) {
-    console.error(`User not found: ${ident}`);
-    console.error("Sign up first, then re-run this command.");
-    process.exit(1);
-  }
-
+  await client.query("COMMIT");
   const user = rows[0];
   console.log(
-    `Superuser ready: id=${user.id} username=${user.username} email=${user.email}`,
+    `Admin ready: id=${user.id} username=${user.username} email=${user.email}`,
   );
+} catch (error) {
+  await client.query("ROLLBACK");
+  console.error(error instanceof Error ? error.message : "Administrator promotion failed.");
+  process.exitCode = 1;
 } finally {
   await client.end();
 }

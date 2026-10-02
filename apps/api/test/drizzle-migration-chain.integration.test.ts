@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest";
 import { hashPassword } from "better-auth/crypto";
 import { createAuth } from "../src/lib/auth";
 import { patchFlags } from "../src/features/admin/service";
-import { getAdminUser, isSuperuser } from "../src/repositories/admin-repository";
+import { getAdminUser, isAdmin } from "../src/repositories/admin-repository";
 import { getCurrentUser } from "../src/repositories/user-repository";
 import { schema, users, account } from "../src/db/schema";
 import type { Bindings } from "../src/types/bindings";
@@ -83,6 +83,13 @@ migrationDescribe("Drizzle migration chain", () => {
         for (const table of preservedTables) {
           preservedRows[table] = (await targetClient.query(`SELECT to_jsonb(t) AS row FROM ${table} t`)).rows;
           expect(preservedRows[table]).toHaveLength(1);
+          if (table === "users") {
+            // Only obsolete role columns are removed; native roles and all other data survive.
+            for (const { row } of preservedRows[table] as { row: Record<string, unknown> }[]) {
+              delete row.is_staff;
+              delete row.is_superuser;
+            }
+          }
         }
         preservedRows.external_tasks = (await targetClient.query("SELECT to_jsonb(t) AS row FROM external_tasks t WHERE dedupe_key LIKE 'keep-%' ORDER BY dedupe_key")).rows;
         preservedRows.job_executions = (await targetClient.query("SELECT to_jsonb(t) AS row FROM job_executions t WHERE job_id LIKE 'keep-%' ORDER BY job_id")).rows;
@@ -96,7 +103,7 @@ migrationDescribe("Drizzle migration chain", () => {
         await targetClient.query("UPDATE chat_logs SET citations = $1::jsonb", [JSON.stringify(oldChat.citations)]);
         const { answer, citations, ...unchanged } = oldChat;
         preservedRows.chat_logs = [{ row: { ...unchanged, response: convertHistoricalAnswer(answer as string, citations) } }];
-        await migrateDatabase(targetClient, { writersStopped: true });
+        await migrateDatabase(targetClient, { writersStopped: true, phase: "before-deploy" });
         // A failure after DROP and outbox deletion must restore both. It can be
         // retried after the fault is resolved, even with 0023 already applied.
         await targetClient.query(`
@@ -115,19 +122,27 @@ migrationDescribe("Drizzle migration chain", () => {
       }
       // Exercise the real production entrypoint, including legacy cleanup, for
       // both fresh installs and already populated databases, then retry it.
-      const runMigration = () => spawnSync("sh", [
+      const runMigration = (phase = "all") => spawnSync("sh", [
         fileURLToPath(new URL("../scripts/db-migrate.sh", import.meta.url)),
       ], {
         encoding: "utf8",
         // Fresh installs and already converted databases need no acknowledgement.
-        env: { ...process.env, DATABASE_URL: targetUrl.toString(), STRUCTURED_ANSWER_WRITERS_STOPPED: "" },
+        env: { ...process.env, DATABASE_URL: targetUrl.toString(), STRUCTURED_ANSWER_WRITERS_STOPPED: "", MIGRATION_PHASE: phase },
         timeout: 20_000,
       });
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const prepared = runMigration("before-deploy");
+        expect(prepared.status, prepared.stdout + prepared.stderr).toBe(0);
+        // An old API must remain able to select its mapped columns during rollout.
+        await targetClient.query("SELECT is_staff, is_superuser FROM users");
+      }
       for (let attempt = 0; attempt < 2; attempt++) {
         const migrated = runMigration();
         expect(migrated.error).toBeUndefined();
         expect(migrated.status, migrated.stdout + migrated.stderr).toBe(0);
       }
+      const afterCleanup = runMigration("before-deploy");
+      expect(afterCleanup.status, afterCleanup.stdout + afterCleanup.stderr).toBe(0);
       if (initialState === "populated") {
         for (const table of preservedTables) {
           expect((await targetClient.query(`SELECT to_jsonb(t) AS row FROM ${table} t`)).rows)
@@ -156,6 +171,10 @@ migrationDescribe("Drizzle migration chain", () => {
         mcp_table: "mcp_idempotency_records",
         oauth_resource_table: "oauth_resource",
       });
+
+      expect((await targetClient.query(`SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'users'
+          AND column_name IN ('is_staff', 'is_superuser')`)).rows).toEqual([]);
 
       const retiredTables = await db.execute(sql.raw(`
         SELECT tablename FROM pg_tables
@@ -225,7 +244,7 @@ migrationDescribe("Drizzle migration chain", () => {
       await db.insert(users).values([
         { ...quota, id: adminId, username: "admin", email: "admin@example.test", emailVerified: true, role: "admin" },
         // Stale legacy values must have no effect after the migration.
-        { ...quota, id: targetId, username: "target", email: "target@example.test", emailVerified: true, role: "user", isSuperuser: true, isActive: false },
+        { ...quota, id: targetId, username: "target", email: "target@example.test", emailVerified: true, role: "user", isActive: false },
       ]);
       await db.insert(account).values({
         id: crypto.randomUUID(), accountId: adminId, userId: adminId,
@@ -239,20 +258,32 @@ migrationDescribe("Drizzle migration chain", () => {
       const signedIn = await auth.api.signInEmail({ body: { email: "admin@example.test", password }, asResponse: true });
       expect(signedIn.status).toBe(200);
       const headers = new Headers({ cookie: signedIn.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ") });
-      expect(await isSuperuser(env, targetId)).toBe(false);
-      expect(await getCurrentUser(env, targetId)).toMatchObject({ is_superuser: false });
-      expect(await getAdminUser(env, targetId)).toMatchObject({ is_active: true, is_superuser: false });
+      expect(await isAdmin(env, targetId)).toBe(false);
+      expect(await getCurrentUser(env, targetId)).toMatchObject({ is_admin: false });
+      expect(await getAdminUser(env, targetId)).toMatchObject({ is_active: true, is_admin: false });
 
-      expect(await patchFlags(env, adminId, targetId, { is_active: false, is_superuser: true }, headers))
-        .toMatchObject({ user: { is_active: false, is_superuser: true } });
-      expect(await patchFlags(env, adminId, targetId, { is_active: true, is_superuser: false, is_staff: true }, headers))
-        .toMatchObject({ user: { is_active: true, is_superuser: false, is_staff: true } });
-      expect(await isSuperuser(env, targetId)).toBe(false);
-      expect(await getCurrentUser(env, targetId)).toMatchObject({ is_superuser: false });
+      expect(await patchFlags(env, adminId, targetId, { is_active: false, is_admin: true }, headers))
+        .toMatchObject({ user: { is_active: false, is_admin: true } });
+      expect(await patchFlags(env, adminId, targetId, { is_active: true, is_admin: false }, headers))
+        .toMatchObject({ user: { is_active: true, is_admin: false } });
+      expect(await isAdmin(env, targetId)).toBe(false);
+      expect(await getCurrentUser(env, targetId)).toMatchObject({ is_admin: false });
 
       await expect(patchFlags(env, adminId, targetId, { is_active: false }, new Headers()))
         .rejects.toMatchObject({ statusCode: 401 });
       expect(await getAdminUser(env, targetId)).toMatchObject({ is_active: true });
+
+      // The bootstrap command must also work after the obsolete columns are gone.
+      await targetClient.query("UPDATE users SET email_verified = false, banned = true WHERE id = $1", [targetId]);
+      const promoted = spawnSync(process.execPath, [
+        fileURLToPath(new URL("../scripts/create-admin.mjs", import.meta.url)), "target@example.test",
+      ], {
+        encoding: "utf8", env: { ...process.env, DATABASE_URL: targetUrl.toString() }, timeout: 10_000,
+      });
+      expect(promoted.status, promoted.stdout + promoted.stderr).toBe(0);
+      expect((await targetClient.query("SELECT role, banned, email_verified FROM users WHERE id = $1", [targetId])).rows[0])
+        .toEqual({ role: "admin", banned: false, email_verified: true });
+      expect(await isAdmin(env, targetId)).toBe(true);
     } finally {
       targetClient?.release();
       await targetPool?.end();

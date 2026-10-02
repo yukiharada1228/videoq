@@ -54,8 +54,6 @@ export const users = pgTable(
 		firstName: varchar("first_name", { length: 150 }).notNull().default(""),
 		lastName: varchar("last_name", { length: 150 }).notNull().default(""),
 		/** Historical migration columns; runtime authorization uses `role` + `banned`. */
-		isSuperuser: boolean("is_superuser").notNull().default(false),
-		isStaff: boolean("is_staff").notNull().default(false),
 		isActive: boolean("is_active").notNull().default(true),
 		dateJoined: timestamp("date_joined", { withTimezone: true, mode: "string" })
 			.notNull()

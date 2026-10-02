@@ -69,6 +69,6 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
 });
 
 export const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
-  await ctx.assertSuperuser();
+  await ctx.assertAdmin();
   return next();
 });

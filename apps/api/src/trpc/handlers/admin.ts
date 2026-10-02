@@ -39,7 +39,7 @@ export function adminHandlers(
       if ("selfLockout" in result) {
         return rpcError(
           "BAD_REQUEST",
-          "Cannot deactivate yourself or remove your own superuser flag.",
+          "Cannot deactivate yourself or remove your own administrator role.",
         );
       }
       return result.user;
@@ -48,7 +48,7 @@ export function adminHandlers(
       const result = await adminService.deleteUser(c.env, actorId(), id);
       if ("self" in result) return rpcError("BAD_REQUEST", "Cannot delete your own account via Admin.");
       if ("notFound" in result) return rpcError("NOT_FOUND", "User not found");
-      if ("forbiddenSuperuser" in result) return rpcError("FORBIDDEN", "Cannot delete another superuser.");
+      if ("forbiddenAdmin" in result) return rpcError("FORBIDDEN", "Cannot delete another administrator.");
       return { job_id: result.job_id };
     },
     "admin.reindexAll": async () => {

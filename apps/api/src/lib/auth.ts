@@ -347,12 +347,6 @@ export function createAuth(env: Bindings, db: Db) {
           defaultValue: 0,
           input: false,
         },
-        isStaff: {
-          type: "boolean",
-          required: true,
-          defaultValue: false,
-          input: false,
-        },
         firstName: {
           type: "string",
           required: true,
@@ -461,7 +455,6 @@ export function createAuth(env: Bindings, db: Db) {
                 usedAiAnswers: 0,
                 usedProcessingSeconds: 0,
                 usedStorageBytes: 0,
-                isStaff: false,
                 firstName: "",
                 lastName: "",
                 passwordResetRequired: false,

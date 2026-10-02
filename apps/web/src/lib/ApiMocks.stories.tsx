@@ -38,7 +38,7 @@ function ApiExample() {
       <h1 className="text-xl font-bold">{en ? 'Learning workspace' : '学習ワークスペース'}</h1>
       <section aria-label={en ? 'Account' : 'アカウント'} className="break-words">
         {isLoading ? <p role="status">{en ? 'Checking account…' : 'アカウントを確認中…'}</p>
-          : user ? <p>{user.username} · {user.is_superuser ? (en ? 'Administrator' : '管理者') : (en ? 'Member' : '一般ユーザー')}</p>
+          : user ? <p>{user.username} · {user.is_admin ? (en ? 'Administrator' : '管理者') : (en ? 'Member' : '一般ユーザー')}</p>
             : <p>{en ? 'Signed out' : '未ログイン'}</p>}
       </section>
       <section aria-label={en ? 'Tags' : 'タグ'} className="space-y-2">

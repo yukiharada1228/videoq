@@ -95,7 +95,7 @@ describe("tRPC public surface", () => {
   it("requires a browser session for protected writes", async () => {
     const caller = appRouter.createCaller({
       userId: null,
-      assertSuperuser: async () => undefined,
+      assertAdmin: async () => undefined,
       call: async () => ({ deleted: 0 }),
     } as TrpcContext);
 
@@ -105,7 +105,7 @@ describe("tRPC public surface", () => {
   });
   it.each(["integrationApiKeys", "connectedApps"] as const)("requires a browser session before reading account.%s", async (procedure) => {
     const call = vi.fn();
-    const caller = appRouter.createCaller({ userId: null, assertSuperuser: async () => undefined, call });
+    const caller = appRouter.createCaller({ userId: null, assertAdmin: async () => undefined, call });
     await expect(caller.account[procedure]()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     expect(call).not.toHaveBeenCalled();
   });

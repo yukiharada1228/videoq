@@ -87,7 +87,7 @@ curl -fsS http://localhost/ready
 2. メールを設定していないローカル環境では、次のコマンドでそのアカウントを有効化・管理者化します。`your-username` を登録したユーザー名またはメールアドレスに置き換えます。
 
 ```bash
-npm run user:superuser --workspace @videoq/api -- your-username
+npm run user:admin --workspace @videoq/api -- your-username
 ```
 
 3. [ログイン画面](http://localhost/login)でログインします。

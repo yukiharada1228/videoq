@@ -184,7 +184,7 @@ export function AppNav({ activePage }: AppNavProps) {
     label: string;
     key: ActivePage;
     authRequired?: boolean;
-    superuserRequired?: boolean;
+    adminRequired?: boolean;
   }[] = [
     { href: '/', label: t('navigation.home'), key: 'home' },
     { href: '/videos', label: t('navigation.videoLibrary'), key: 'videoLibrary', authRequired: true },
@@ -196,14 +196,14 @@ export function AppNav({ activePage }: AppNavProps) {
       label: t('navigation.admin'),
       key: 'admin',
       authRequired: true,
-      superuserRequired: true,
+      adminRequired: true,
     },
   ];
 
-  const isSuperuser = !!authQuery.data?.is_superuser;
+  const isAdmin = !!authQuery.data?.is_admin;
   const navLinks = allNavLinks.filter((link) => {
     if (link.authRequired && !isAuthenticated) return false;
-    if (link.superuserRequired && !isSuperuser) return false;
+    if (link.adminRequired && !isAdmin) return false;
     return true;
   });
 

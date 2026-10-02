@@ -27,9 +27,8 @@ export const adminInputSchemas = {
   }),
   "admin.patchFlags": userId.extend({
     is_active: z.boolean().optional(),
-    is_staff: z.boolean().optional(),
-    is_superuser: z.boolean().optional(),
-  }),
+    is_admin: z.boolean().optional(),
+  }).strict(),
   "admin.deleteUser": userId,
   "admin.reindexAll": z.undefined(),
 };

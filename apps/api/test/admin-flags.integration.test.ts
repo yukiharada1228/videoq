@@ -81,8 +81,8 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
 
   it("updates all flags and returns the updated user using one connection", async () => {
     const connect = vi.spyOn(pg.Client.prototype, "connect");
-    expect(await patchFlags(env, adminId, targetId, { is_active: false, is_superuser: true, is_staff: true }, headers))
-      .toMatchObject({ user: { id: targetId, is_active: false, is_superuser: true, is_staff: true } });
+    expect(await patchFlags(env, adminId, targetId, { is_active: false, is_admin: true }, headers))
+      .toMatchObject({ user: { id: targetId, is_active: false, is_admin: true } });
     expect(connect).toHaveBeenCalledTimes(1);
     expect(await db.select().from(session).where(eq(session.userId, targetId))).toEqual([]);
     expect(await db.select().from(session).where(eq(session.userId, adminId))).toHaveLength(1);
@@ -105,11 +105,11 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
 
   it("returns notFound for a missing target without changing other accounts", async () => {
     const before = await snapshot();
-    expect(await patchFlags(env, adminId, crypto.randomUUID(), { is_staff: true }, headers)).toEqual({ notFound: true });
+    expect(await patchFlags(env, adminId, crypto.randomUUID(), { is_admin: true }, headers)).toEqual({ notFound: true });
     expect(await snapshot()).toEqual(before);
   });
 
-  it.each([{ is_active: false }, { is_superuser: false }])("rejects self lockout before connecting (%j)", async patch => {
+  it.each([{ is_active: false }, { is_admin: false }])("rejects self lockout before connecting (%j)", async patch => {
     const connect = vi.spyOn(pg.Client.prototype, "connect");
     expect(await patchFlags(env, adminId, adminId, patch, headers)).toEqual({ selfLockout: true });
     expect(connect).not.toHaveBeenCalled();
@@ -117,27 +117,27 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
 
   it("preserves native authentication failures and leaves flags and sessions unchanged", async () => {
     const before = await snapshot();
-    await expect(patchFlags(env, adminId, targetId, { is_active: false, is_superuser: true }, new Headers()))
+    await expect(patchFlags(env, adminId, targetId, { is_active: false, is_admin: true }, new Headers()))
       .rejects.toMatchObject({ statusCode: 401 });
     expect(await snapshot()).toEqual(before);
   });
 
   it("rolls back earlier flag changes and session revocation if a later update fails", async () => {
     await client.query(`
-      CREATE FUNCTION reject_staff_update() RETURNS trigger LANGUAGE plpgsql AS $$
+      CREATE FUNCTION reject_admin_update() RETURNS trigger LANGUAGE plpgsql AS $$
         BEGIN
-          IF NEW.is_staff THEN RAISE EXCEPTION 'staff update failed'; END IF;
+          IF NEW.role = 'admin' THEN RAISE EXCEPTION 'role update failed'; END IF;
           RETURN NEW;
         END;
       $$;
-      CREATE TRIGGER reject_staff_update BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION reject_staff_update();
+      CREATE TRIGGER reject_admin_update BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION reject_admin_update();
     `);
     try {
       const before = await snapshot();
-      await expect(patchFlags(env, adminId, targetId, { is_active: false, is_superuser: true, is_staff: true }, headers)).rejects.toThrow();
+      await expect(patchFlags(env, adminId, targetId, { is_active: false, is_admin: true }, headers)).rejects.toThrow();
       expect(await snapshot()).toEqual(before);
     } finally {
-      await client.query("DROP TRIGGER reject_staff_update ON users; DROP FUNCTION reject_staff_update()");
+      await client.query("DROP TRIGGER reject_admin_update ON users; DROP FUNCTION reject_admin_update()");
     }
   });
 
@@ -148,7 +148,7 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
     try {
       await writer.query("BEGIN");
       await writer.query("SELECT id FROM users WHERE id = $1 FOR UPDATE", [targetId]);
-      pending = patchFlags(env, adminId, targetId, { is_staff: true }, headers).catch(error => error);
+      pending = patchFlags(env, adminId, targetId, { is_admin: true }, headers).catch(error => error);
       await vi.waitFor(async () => {
         const blocked = await client.query("SELECT 1 FROM pg_stat_activity WHERE application_name = $1 AND cardinality(pg_blocking_pids(pid)) > 0", [databaseName]);
         expect(blocked.rowCount).toBe(1);
