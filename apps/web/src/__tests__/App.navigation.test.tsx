@@ -11,16 +11,16 @@ vi.unmock('react-i18next');
 vi.unmock('@/lib/i18n');
 vi.unmock('@/components/layout/AppNav');
 
-const homeModule = vi.hoisted(() => {
+const dashboardModule = vi.hoisted(() => {
   let finish!: () => void;
   const ready = new Promise<void>((resolve) => { finish = resolve; });
   return { ready, finish, requested: false, imported: undefined as Promise<unknown> | undefined };
 });
-vi.mock('@/pages/HomePage', async (importOriginal) => {
-  homeModule.requested = true;
-  homeModule.imported = importOriginal();
-  await homeModule.ready;
-  return homeModule.imported;
+vi.mock('@/pages/HomeDashboard', async (importOriginal) => {
+  dashboardModule.requested = true;
+  dashboardModule.imported = importOriginal();
+  await dashboardModule.ready;
+  return dashboardModule.imported;
 });
 
 const renderFailure = vi.hoisted(() => ({ enabled: false }));
@@ -41,7 +41,7 @@ const listVideos = vi.fn();
 const listCourses = vi.fn();
 
 beforeAll(async () => {
-  // Only HomePage's module delay is under test. Prepare other modules before
+  // Only HomeDashboard's module delay is under test. Prepare other modules before
   // testing API delays so cold transforms cannot consume assertion timeouts.
   await Promise.all([
     import('@/pages/PricingPage'), import('@/pages/VideoLibraryPage'),
@@ -51,7 +51,7 @@ beforeAll(async () => {
   ]);
 });
 
-afterEach(() => { homeModule.finish(); });
+afterEach(() => { if (dashboardModule.requested) dashboardModule.finish(); });
 
 beforeEach(async () => {
   localStorage.removeItem('videoq.locale');
@@ -83,7 +83,24 @@ function homeLink() {
   return within(primaryNav()).getByRole('link', { name: i18n.t('navigation.home') });
 }
 
-it('keeps the same layout and intercepts navigation while the home module loads', async () => {
+it.each(['/', '/en/'])('renders the landing page immediately while the session is pending at %s', (path) => {
+  globalThis.__setMockAuthSession(null, true);
+  const view = renderApp(path);
+  const heading = screen.getByRole('heading', { level: 1 });
+
+  expect(heading).toHaveTextContent(i18n.t('landing.title'));
+  expect(screen.queryByText(i18n.t('common.messages.loading'))).not.toBeInTheDocument();
+  expect(dashboardModule.requested).toBe(false);
+  expect(getAccount).not.toHaveBeenCalled();
+  expect(listVideos).not.toHaveBeenCalled();
+  expect(listCourses).not.toHaveBeenCalled();
+
+  globalThis.__setMockAuthSession(null);
+  view.rerender(<BrowserRouter><App /></BrowserRouter>);
+  expect(screen.getByRole('heading', { level: 1 })).toBe(heading);
+});
+
+it('keeps the same layout and intercepts navigation while the dashboard module loads', async () => {
   renderApp();
   await screen.findByRole('heading', { name: i18n.t('pricing.title'), level: 1 });
   const nav = primaryNav();
@@ -92,7 +109,7 @@ it('keeps the same layout and intercepts navigation while the home module loads'
 
   // A cancelled anchor default proves the router handled this instead of a document navigation.
   expect(fireEvent.click(homeLink())).toBe(false);
-  await waitFor(() => expect(homeModule.requested).toBe(true));
+  await waitFor(() => expect(dashboardModule.requested).toBe(true));
   expect(window.location.pathname).toBe('/');
   expect(within(screen.getByRole('main')).getByText(i18n.t('common.messages.loading'))).toBeInTheDocument();
   expect(primaryNav()).toBe(nav);
@@ -102,7 +119,7 @@ it('keeps the same layout and intercepts navigation while the home module loads'
 
   // Cold module transforms can take longer than the DOM assertion timeout when
   // the full suite runs. Await that work separately from the deliberate delay.
-  await act(async () => { await homeModule.imported; homeModule.finish(); });
+  await act(async () => { await dashboardModule.imported; dashboardModule.finish(); });
   await screen.findByRole('heading', { name: i18n.t('home.welcome.greeting', { username: profile.username }), level: 1 });
   expect(primaryNav()).toBe(nav);
   expect(screen.getByRole('contentinfo')).toBe(footer);

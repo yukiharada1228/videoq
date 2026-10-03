@@ -1,9 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, waitFor, within } from 'storybook/test';
+import { expect, fn, mocked, waitFor, within } from 'storybook/test';
 import App from './App';
 import i18n from './i18n/config';
 import { appQueryClient } from './lib/queryClient';
 import { trpc } from './lib/trpc';
+import { useAuthSession } from './lib/authSession';
 import { authFixtures } from '../.storybook/fixtures/auth';
 import { emptyTagPage } from '../.storybook/fixtures/api';
 import { course, courseVideos, detailVideo } from '../.storybook/fixtures/detail';
@@ -34,7 +35,7 @@ const meta = {
     // Browser stories verify layout and interactions. The navigation unit test
     // controls lazy-module delays explicitly; await cold Vite imports here.
     await Promise.all([
-      import('./pages/HomePage'), import('./pages/PricingPage'),
+      import('./pages/HomeDashboard'), import('./pages/PricingPage'),
       import('./pages/LoginPage'), import('./pages/SignupPage'),
       import('./pages/VideoLibraryPage'), import('./pages/VideoDetailPage'),
       import('./pages/VideoCoursesPage'), import('./pages/VideoCourseDetailPage'),
@@ -712,4 +713,25 @@ export const LoggedOutHome: Story = {
     await expect(canvas.getAllByRole('main')).toHaveLength(1);
     await expect(canvas.getAllByRole('contentinfo')).toHaveLength(1);
   },
+};
+
+export const LandingWhileSessionPending: Story = {
+  ...LoggedOutHome,
+  beforeEach() {
+    mocked(useAuthSession).mockReturnValue({
+      data: null, error: null, isPending: true, isRefetching: false,
+      refetch: fn(async () => undefined),
+    });
+  },
+  async play(context) {
+    const canvas = within(context.canvasElement);
+    await expect(canvas.getByRole('heading', { level: 1 })).toHaveTextContent(i18n.t('landing.title'));
+    await expect(canvas.queryByText(i18n.t('common.messages.loading'))).not.toBeInTheDocument();
+    await LoggedOutHome.play!(context);
+  },
+};
+
+export const LandingWhileSessionPendingEnglishMobile: Story = {
+  ...LandingWhileSessionPending,
+  globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
 };
