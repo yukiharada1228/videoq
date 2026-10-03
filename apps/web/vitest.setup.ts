@@ -148,7 +148,7 @@ vi.mock('@testing-library/react', async () => {
 
 declare global {
   interface GlobalThis {
-    __setMockAuthSession: (data: { user: MockAuthUser } | null) => void
+    __setMockAuthSession: (data: { user: MockAuthUser } | null, isPending?: boolean) => void
     __setMockPathname: (pathname: string) => void
     __setMockSearchParams: (search: string) => void
     __getMockSetSearchParams: () => ReturnType<typeof vi.fn>
@@ -158,8 +158,9 @@ declare global {
   }
 }
 
-globalThis.__setMockAuthSession = (data) => {
+globalThis.__setMockAuthSession = (data, isPending = false) => {
   authSessionState.data = data
+  authSessionState.isPending = isPending
 }
 globalThis.__setTrpcHandler = (procedure, handler) => {
   trpcTestHandlers.set(procedure, handler)

@@ -5,8 +5,8 @@ import { defaultLocale, locales, type Locale } from '@/i18n/config';
 import { withQueryAndHash } from '@/lib/seo';
 import { AppRouteLayout, AuthRouteLayout, type AppPageRoute } from '@/components/layout/AppRouteLayout';
 import { RouteContent } from '@/components/layout/RouteContent';
+import HomePage from '@/pages/HomePage';
 
-const HomePage = lazy(() => import('@/pages/HomePage'));
 const LoginPage = lazy(() => import('@/pages/LoginPage'));
 const SignupPage = lazy(() => import('@/pages/SignupPage'));
 const SignupCheckEmailPage = lazy(() => import('@/pages/SignupCheckEmailPage'));

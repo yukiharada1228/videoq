@@ -244,6 +244,18 @@ describe('HomePage - Data Loading', () => {
     })
   })
 
+  it('shows the dashboard when the pending session resolves to a signed-in user', async () => {
+    globalThis.__setMockAuthSession(null, true)
+    const view = render(<HomePage />)
+    expect(screen.getByRole('heading', { level: 1, name: /landing\.title.*landing\.titleAccent/ })).toBeInTheDocument()
+    expect(screen.queryByText('common.messages.loading')).not.toBeInTheDocument()
+
+    globalThis.__setMockAuthSession({ user: { id: '1', name: 'testuser' } })
+    view.rerender(<HomePage />)
+    await screen.findByText('home.welcome.greeting {"username":"testuser"}')
+    expect(screen.queryByText('landing.title')).not.toBeInTheDocument()
+  })
+
   it('should handle API errors gracefully', async () => {
     listVideos.mockRejectedValue(new Error('Network error'))
     listCourses.mockRejectedValue(new Error('Network error'))
