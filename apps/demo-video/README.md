@@ -1,9 +1,8 @@
-# 先生・研修担当者向けVideoQデモ
+# 大学生向けVideoQデモ
 
-Remotion製の38秒・1920×1080・60 fpsの操作紹介です。Screen Studioのように
+Remotion製の30秒・1920×1080・60 fpsの操作紹介です。Screen Studioのように
 操作箇所へ滑らかにズームし、カーソル・クリック・入力・回答・参照箇所の再生を見せます。
-実画面の録画ではなく、VideoQの登録・共有操作と共有講座UIを再現した映像です。
-最初の8秒で担当者の準備・共有を示し、その後に受講者が質問・引用先を再生する流れを見せます。
+実画面の録画ではなく、VideoQの共有講座UIを再現した映像です。
 
 ## 教材と実際の回答
 
@@ -58,15 +57,14 @@ Cookieは権限600のファイルに保存し、ソース・CLI引数・ログ�
 回答取得先は `VIDEOQ_DEMO_ORIGIN` で変更できます。
 回答・参照先を更新したら、映像の選択教科と引用先が一致していることも確認してください。
 
-書き出し先は `apps/web/public/demo/provider-demo-{ja,en}.mp4` と対応するWebP/VTTです。
+書き出し先は `apps/web/public/demo/student-demo-{ja,en}.mp4` と対応するWebP/VTTです。
 英語版は案内字幕が英語で、講座画面・教材・AI回答は日本語のままです。
 MP4が配信上限の16 MiBを超えると書き出しスクリプトは失敗します。
 `review/` に確認用の静止画を生成します（Git対象外）。`-- --stills` で静止画のみ作成できます。
 
 ## 編集の範囲
 
-`content/provider-timeline.json` が全体の尺・字幕時刻を、`content/provider-copy.json` が日英の案内文を管理します。
-`src/ProviderDemo.tsx` が担当者の導入画面を定義し、受講者パートでは既存の `content/timeline.json` を使います。
+`content/timeline.json` が秒数・fps・操作時刻・字幕を共通管理します。
 `src/StudentDemo.tsx` がUI、ズーム、カーソルを定義します。カメラ移動は約0.4〜0.6秒です。
 実回答はJSONから読んでおり、ハードコードした模範解答ではありません。
 表示の待ち時間を短縮しており、回答速度の測定動画ではありません。
@@ -85,7 +83,7 @@ LPにも実データに基づく操作再現であることを表示します。
 CIのFrontend Buildでも配信対象の日英MP4を全フレーム検査します。Remotion自体の再レンダリングは行いません。
 
 ```bash
-python3 apps/demo-video/scripts/verify-video.py apps/web/public/demo/provider-demo-ja.mp4 apps/demo-video/content/provider-timeline.json
+python3 apps/demo-video/scripts/verify-video.py apps/web/public/demo/student-demo-ja.mp4
 ```
 
 表示デザインを変更するときは固定ヘッダーの検査領域も見直してください。

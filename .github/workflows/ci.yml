@@ -287,8 +287,8 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y --no-install-recommends ffmpeg
           fi
-          python3 apps/demo-video/scripts/verify-video.py apps/web/public/demo/provider-demo-ja.mp4 apps/demo-video/content/provider-timeline.json
-          python3 apps/demo-video/scripts/verify-video.py apps/web/public/demo/provider-demo-en.mp4 apps/demo-video/content/provider-timeline.json
+          python3 apps/demo-video/scripts/verify-video.py apps/web/public/demo/student-demo-ja.mp4 apps/demo-video/content/timeline.json
+          python3 apps/demo-video/scripts/verify-video.py apps/web/public/demo/student-demo-en.mp4 apps/demo-video/content/timeline.json
       - name: Check Worker binding types
         run: |
           npm run cf-typegen --workspace @videoq/web
