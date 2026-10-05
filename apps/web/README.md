@@ -373,6 +373,7 @@ LPの変更のみで広告の配信再開・新規予算・外部への連絡は
 | `acquisition` | 初回LP流入の条件 |
 | --- | --- |
 | `x_paid_demo15_search` | `utm_source=x`、`utm_medium=paid_social`、`utm_campaign=student_demo_test`、`utm_content=demo15_search` のすべてが一致 |
+| `x_paid_teacher_qa` | `utm_source=x`、`utm_medium=paid_social`、`utm_campaign=teacher_qa_test`、`utm_content=lecture_qa` のすべてが一致 |
 | `x_organic_launch` | `utm_source=x`、`utm_medium=organic_social`、`utm_campaign=launch`、`utm_content` が `intro` / `howto` / `usecase` |
 | `internal_test` | LPのURLに `measurement=test` を指定した動作確認。広告成果から除外する |
 | `unattributed` | その他。旧クライアントの `acquisition` なしのイベントも受け付け、集計時はこちらに含める |
@@ -381,6 +382,13 @@ LPの変更のみで広告の配信再開・新規予算・外部への連絡は
 `email_signup_created` などを流入元別に集計できます。30分間イベントがなければ紐付けは切れます。
 Workers Logsで `kind=landing_funnel` と `acquisition=x_paid_demo15_search` を絞り込み、
 イベント別の件数を比較します。ログの保存期間内に日別集計を控えてください。
+先生向け広告は `acquisition=x_paid_teacher_qa` を使い、学生向け広告とは別に集計します。
+配信URLは `https://videoq.jp/?audience=school&utm_source=x&utm_medium=paid_social&utm_campaign=teacher_qa_test&utm_content=lecture_qa`。
+動作確認では必ず `&measurement=test` を付けます。
+広告のクリック数、LP閲覧、登録、動画登録受付を分けて確認します。
+`audience=school` は流入の分類であり、訪問者が教員であることの証明ではありません。
+この計測は購入・翌日以降の継続利用・別端末の行動を紐付けません。
+有料利用は管理画面の新規契約と、本人への流入確認を併用し、広告に由来するか不明な契約を成果に含めません。
 Google認証にはBetter Authの `newUserCallbackURL` を使用します。新規ユーザーだけが
 `/signup/complete` に戻り、認証済みセッションと同じタブの認証開始イベントを確認して
 `google_signup_created` を記録します。既存ユーザーのGoogleログインは新規登録に数えません。

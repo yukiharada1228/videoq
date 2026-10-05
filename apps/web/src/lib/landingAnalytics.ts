@@ -9,7 +9,9 @@ export function getLandingAudience(search = window.location.search): LandingAudi
   const value = params.get('audience');
   if (value === 'school' || value === 'training' || value === 'student') return value;
   // Preserve the historic paid cohort while new untagged visits are general.
-  return getLandingAcquisition(search) === 'x_paid_demo15_search' ? 'student' : 'general';
+  const acquisition = getLandingAcquisition(search);
+  if (acquisition === 'x_paid_demo15_search') return 'student';
+  return acquisition === 'x_paid_teacher_qa' ? 'school' : 'general';
 }
 
 export function getLandingAcquisition(search = window.location.search): LandingAcquisition {
@@ -19,6 +21,9 @@ export function getLandingAcquisition(search = window.location.search): LandingA
   if (params.get('utm_medium') === 'paid_social'
     && params.get('utm_campaign') === 'student_demo_test'
     && params.get('utm_content') === 'demo15_search') return 'x_paid_demo15_search';
+  if (params.get('utm_medium') === 'paid_social'
+    && params.get('utm_campaign') === 'teacher_qa_test'
+    && params.get('utm_content') === 'lecture_qa') return 'x_paid_teacher_qa';
   if (params.get('utm_medium') === 'organic_social'
     && params.get('utm_campaign') === 'launch'
     && ['intro', 'howto', 'usecase'].includes(params.get('utm_content') ?? '')) return 'x_organic_launch';
