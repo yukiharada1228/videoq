@@ -302,8 +302,8 @@ LPと共通UIの色を変更するときは、このファイルを編集して�
 利用例の切り替えは流入時の計測分類を変更しません。
 無料枠は料金ページと同じ `billing.plans` から取得し、取得できなければ料金ページへ案内します。
 
-LPのチャット体験は、38秒・60 fpsのRemotion動画に置き換えました。
-`LandingDemoVideo` は `public/demo/provider-demo-{ja,en}.mp4`、WebPポスター、VTT字幕を使います。
+LPには元の30秒・60 fpsのRemotionデモ動画を使用します。
+`LandingDemoVideo` は `public/demo/student-demo-{ja,en}.mp4`、WebPポスター、VTT字幕を使います。
 `preload="none"` で自動再生せず、明示的な再生後は標準の動画操作を表示します。
 再生失敗時は再読み込みを案内し、登録導線は引き続き使えます。
 LPの閲覧・動画再生では講座APIやAIを呼び出しません。
@@ -311,14 +311,14 @@ LPの閲覧・動画再生では講座APIやAIを呼び出しません。
 映像は**実データを使った操作の再現**です。画面録画ではありません。
 オリジナルの5教科講座を通常のVideoQへアップロードし、文字起こし・シーン分割・
 埋め込み・RAGを実行した回答と引用を `apps/demo-video/content/answer.json` に保存しています。
-担当者の登録・共有画面を再現し、その後に受講者の操作を示します。
+受講者が講義に質問し、回答の根拠となる場面を再生する操作を示します。
 回答本文と参照時刻は改変せず、カーソル・ズーム・待ち時間を編集しています。
 英語版は動画内の案内文を英訳しており、講座とAI回答は日本語です。
 
 制作手順と教材の登録方法は [demo-video/README.md](../demo-video/README.md) を参照してください。
 デモ動画の配信は静的ファイルだけで成立します。公開先への講座登録はLP配信の必須条件ではありません。
 `worker/landing-media.ts` がMP4のRangeリクエストに対応し、読み込みを1本16 MiB以下に制限します。
-旧 `explain-{ja,en}.mp4` / `student-demo-{ja,en}.mp4` のURLは互換性のため残しています。
+旧 `explain-{ja,en}.mp4` / `provider-demo-{ja,en}.mp4` のURLは互換性のため残しています。
 
 ### 対象読者を変えた後の試用
 

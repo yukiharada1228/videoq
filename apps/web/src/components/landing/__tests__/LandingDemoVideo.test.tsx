@@ -11,7 +11,7 @@ describe('LandingDemoVideo',()=>{
   it('waits for an explicit play and then exposes native controls',()=>{
     const {container}=render(<LandingDemoVideo/>);
     const video=container.querySelector('video')!;
-    expect(video).toHaveAttribute('src','/demo/provider-demo-ja.mp4?v=1');
+    expect(video).toHaveAttribute('src','/demo/student-demo-ja.mp4?v=2');
     expect(video).toHaveAttribute('preload','none');
     expect(video.autoplay).toBe(false);
     expect(video.play).not.toHaveBeenCalled();
@@ -34,8 +34,8 @@ describe('LandingDemoVideo',()=>{
     const {container,rerender}=render(<LandingDemoVideo/>);
     fireEvent.play(container.querySelector('video')!);
     globalThis.__setMockLanguage('en');rerender(<LandingDemoVideo/>);
-    expect(container.querySelector('video')).toHaveAttribute('src','/demo/provider-demo-en.mp4?v=1');
-    expect(container.querySelector('track')).toHaveAttribute('src','/demo/provider-demo-en.vtt?v=1');
+    expect(container.querySelector('video')).toHaveAttribute('src','/demo/student-demo-en.mp4?v=2');
+    expect(container.querySelector('track')).toHaveAttribute('src','/demo/student-demo-en.vtt?v=2');
     expect(screen.getByRole('button',{name:'landing.film.play'})).toBeInTheDocument();
   });
 });

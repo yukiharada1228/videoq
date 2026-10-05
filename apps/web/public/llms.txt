@@ -50,9 +50,9 @@ Invite employees to courses built from onboarding or process videos. They can fi
 
 ## Product demo
 
-日英のLPで、登録・共有から受講者の質問までを38秒の動画で紹介しています。実データを使った操作の再現です。
+日英のLPで、講義への質問から根拠の場面の再生までを30秒の動画で紹介しています。実データを使った操作の再現です。
 
-The Japanese and English landing pages offer a 38-second reconstructed walkthrough of owner setup, sharing and learner questions, using real course data and AI answers.
+The Japanese and English landing pages offer a 30-second reconstructed walkthrough of asking questions and replaying cited lecture scenes, using real course data and AI answers.
 
 - [先生・講師向けの利用例](https://videoq.jp/?audience=school)
 - [社内研修向けの利用例](https://videoq.jp/?audience=training)
