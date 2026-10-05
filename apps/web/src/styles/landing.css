@@ -47,11 +47,9 @@
 .lp-film-caption p { font-size: 12px; font-weight: 500; color: var(--lp-muted); }
 .lp-film-caption ul { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0; padding: 0; }
 .lp-film-caption li { border-radius: 5px; padding: 4px 10px; font-size: 11px; color: #334753; }
-.lp-subject-japanese { background: #d9e7df; }
-.lp-subject-math { background: #dfe7ff; }
-.lp-subject-science { background: #d8eee7; }
-.lp-subject-social { background: #f2e4d0; }
-.lp-subject-english { background: #e9e0f4; }
+.lp-subject-prepare { background: #d9e7df; }
+.lp-subject-share { background: #dfe7ff; }
+.lp-subject-answer { background: #d8eee7; }
 .lp-film-note { margin-top: 10px; color: var(--lp-muted); font-size: 11px; line-height: 1.7; }
 .lp-film-error { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 12px; font-size: 13px; }
 .lp-film-error button { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--lp-blue); text-decoration: underline; }
@@ -74,6 +72,7 @@
 .lp-capabilities svg { color: #68817e; flex-shrink: 0; }
 .lp-section { padding: 84px 48px; }
 .lp-section-heading { text-align: center; margin-bottom: 38px; }
+.lp-section-heading h2 { white-space: pre-line; }
 .lp-section-heading .lp-eyebrow { justify-content: center; margin-bottom: 12px; }
 .lp-section-heading > p:last-child { color: var(--lp-muted); font-size: 14px; line-height: 1.9; margin-top: 13px; }
 .lp-benefit-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }

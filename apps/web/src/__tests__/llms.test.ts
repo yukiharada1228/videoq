@@ -47,11 +47,12 @@ describe('llms.txt', () => {
     expect(section.toLowerCase()).toMatch(/educat/)
   })
 
-  it('Use Cases section mentions flipped and online classrooms', () => {
+  it('Use Cases section covers educators and workplace training', () => {
     const idx = content.indexOf('## Use Cases')
     const nextSection = content.indexOf('\n## ', idx + 1)
     const section = content.slice(idx, nextSection === -1 ? undefined : nextSection)
-    expect(section.toLowerCase()).toMatch(/flipped|online classroom|反転授業/)
+    expect(section.toLowerCase()).toMatch(/educators|大学の先生/)
+    expect(section.toLowerCase()).toMatch(/workplace training|社内研修/)
   })
 
   // ── Integrations section ─────────────────────────────────────────────────────

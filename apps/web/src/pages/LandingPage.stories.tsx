@@ -24,7 +24,7 @@ const meta = {
     await expect(canvasElement.scrollWidth).toBeLessThanOrEqual(canvasElement.clientWidth);
     await expect(await canvas.findByText(i18n.t('landing.free.minutes', { minutes: 45 }))).toBeVisible();
     await expect(canvas.queryByRole('textbox')).not.toBeInTheDocument();
-    await expect(canvas.getByRole('list', { name: i18n.t('landing.film.subjectsLabel') }).children).toHaveLength(5);
+    await expect(canvas.getByRole('list', { name: i18n.t('landing.film.subjectsLabel') }).children).toHaveLength(3);
     await expect(canvasElement.querySelector('video')).toHaveAttribute('preload', 'none');
   },
 } satisfies Meta<typeof LandingPage>;
@@ -34,7 +34,13 @@ export const Japanese: Story = {};
 export const Mobile: Story = { globals: { viewport: { value: 'mobile', isRotated: false } } };
 export const English: Story = { globals: { locale: 'en' } };
 export const EnglishMobile: Story = { globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
-export const LegacyAdShowsStudentCopy: Story = { parameters: { pathname: '/?audience=training' } };
+export const TrainingAudience: Story = {
+  parameters: { pathname: '/?audience=training' },
+  async play({ canvas }) {
+    await expect(canvas.getByRole('button', { name: i18n.t('landing.uses.training.label') })).toHaveAttribute('aria-pressed', 'true');
+    await expect(canvas.getByRole('heading', { name: i18n.t('landing.uses.training.title') })).toBeVisible();
+  },
+};
 export const WatchDemo: Story = {
   async play({ canvas, canvasElement, userEvent }) {
     const video = canvasElement.querySelector('video')!;
@@ -43,7 +49,7 @@ export const WatchDemo: Story = {
     button.focus(); await userEvent.keyboard('{Enter}');
     await waitFor(()=>expect(video.currentTime).toBeGreaterThan(0),{timeout:10000});
     await expect(video.controls).toBe(true);
-    await expect(video.duration).toBeCloseTo(30,0);
+    await expect(video.duration).toBeCloseTo(38,0);
     await expect(canvas.queryByRole('button', {name:i18n.t('landing.film.play')})).not.toBeInTheDocument();
     video.currentTime=20;
     await waitFor(()=>{expect(video.currentTime).toBeGreaterThanOrEqual(20);expect(video.seeking).toBe(false);expect(video.readyState).toBeGreaterThanOrEqual(2);},{timeout:10000});
@@ -51,13 +57,14 @@ export const WatchDemo: Story = {
   },
 };
 export const WatchDemoMobile: Story = { ...WatchDemo, globals:{viewport:{value:'mobile',isRotated:false}} };
+export const WatchDemoEnglish: Story = { ...WatchDemo, globals:{locale:'en'} };
 export const VideoUnavailable: Story = {
-  parameters:{api:{rest:[http.get('/demo/student-demo-ja.mp4',()=>new HttpResponse(null,{status:503}))]}},
+  parameters:{api:{rest:[http.get('/demo/provider-demo-ja.mp4',()=>new HttpResponse(null,{status:503}))]}},
   async play({canvas,canvasElement,userEvent}) {
     const video=canvasElement.querySelector('video')!;
     video.muted = true;
     // Isolate this request from the browser's media cache populated by playback stories.
-    video.src='/demo/student-demo-ja.mp4?scenario=unavailable';
+    video.src='/demo/provider-demo-ja.mp4?scenario=unavailable';
     await userEvent.click(canvas.getByRole('button',{name:i18n.t('landing.film.play')}));
     await expect(await canvas.findByText(i18n.t('landing.film.error'), {}, {timeout:5000})).toBeVisible();
     await expect(canvas.getByRole('button',{name:i18n.t('landing.film.retry')})).toBeEnabled();
@@ -71,12 +78,12 @@ export const CatalogUnavailable: Story = {
     await expect(canvas.getByRole('button',{name:i18n.t('landing.film.play')})).toBeEnabled();
   },
 };
-export const StudyAndFaq: Story = {
+export const AudienceAndFaq: Story = {
   async play({canvas,userEvent}) {
-    const exams=canvas.getByRole('button',{name:i18n.t('landing.uses.exams.label')});
-    exams.focus();await userEvent.keyboard(' ');
-    await expect(exams).toHaveAttribute('aria-pressed','true');
-    await expect(canvas.getByRole('heading',{name:i18n.t('landing.uses.exams.title')})).toBeVisible();
+    const training=canvas.getByRole('button',{name:i18n.t('landing.uses.training.label')});
+    training.focus();await userEvent.keyboard(' ');
+    await expect(training).toHaveAttribute('aria-pressed','true');
+    await expect(canvas.getByRole('heading',{name:i18n.t('landing.uses.training.title')})).toBeVisible();
     await userEvent.click(canvas.getByText(i18n.t('landing.faq.sharing.question')));
     await expect(canvas.getByText(i18n.t('landing.faq.sharing.answer'))).toBeVisible();
   },

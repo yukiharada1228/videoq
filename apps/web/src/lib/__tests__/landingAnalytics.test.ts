@@ -152,8 +152,18 @@ describe('landing funnel measurement', () => {
     expect(() => trackLandingEvent('demo_question')).not.toThrow();
   });
 
+  it.each([
+    ['', 'general'],
+    ['?audience=school', 'school'],
+    ['?audience=training', 'training'],
+    ['?audience=student', 'student'],
+    ['?utm_source=x&utm_medium=paid_social&utm_campaign=student_demo_test&utm_content=demo15_search', 'student'],
+  ])('classifies provider and historic visits: %s', (search, expected) => {
+    expect(getLandingAudience(search)).toBe(expected);
+  });
+
   it('ignores unknown audience parameters', () => {
     Object.defineProperty(window, 'location', { configurable: true, value: new URL('https://videoq.jp/?audience=arbitrary') });
-    expect(getLandingAudience()).toBe('student');
+    expect(getLandingAudience()).toBe('general');
   });
 });

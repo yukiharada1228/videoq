@@ -5,8 +5,11 @@ const VISIT_TTL = 30 * 60_000;
 type Visit = { audience: LandingAudience; acquisition: LandingAcquisition; seen: LandingEvent[]; updated: number };
 
 export function getLandingAudience(search = window.location.search): LandingAudience {
-  const value = new URLSearchParams(search).get('audience');
-  return value === 'school' || value === 'training' ? value : 'student';
+  const params = new URLSearchParams(search);
+  const value = params.get('audience');
+  if (value === 'school' || value === 'training' || value === 'student') return value;
+  // Preserve the historic paid cohort while new untagged visits are general.
+  return getLandingAcquisition(search) === 'x_paid_demo15_search' ? 'student' : 'general';
 }
 
 export function getLandingAcquisition(search = window.location.search): LandingAcquisition {
