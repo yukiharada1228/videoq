@@ -4,6 +4,9 @@ import { useTags } from '../useTags'
 import { apiClient } from '@/lib/api'
 import { QueryObserver, useQueryClient } from '@tanstack/react-query'
 import { trpc } from '@/lib/trpc'
+import { trackLandingEvent } from '@/lib/landingAnalytics'
+
+vi.mock('@/lib/landingAnalytics', () => ({ trackLandingEvent: vi.fn() }))
 
 const createYoutubeVideo = vi.fn()
 const addTagsToVideo = vi.fn()
@@ -176,6 +179,22 @@ describe('useVideoUpload', () => {
       )
       expect(result.current.success).toBe(true)
     })
+    expect(vi.mocked(trackLandingEvent).mock.calls.map(([event]) => event))
+      .toEqual(['video_upload_started', 'video_upload_accepted'])
+  })
+
+  it('records a failed upload without treating it as accepted', async () => {
+    vi.mocked(apiClient.uploadVideo).mockRejectedValue(new Error('Upload failed'))
+    const { result } = renderHook(() => useVideoUpload())
+    act(() => result.current.handleFileChange({ target: { files: [
+      new File(['video'], 'lecture.mp4', { type: 'video/mp4' }),
+    ] } } as unknown as React.ChangeEvent<HTMLInputElement>))
+    await act(async () => {
+      await expect(result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent))
+        .rejects.toThrow('Upload failed')
+    })
+    expect(vi.mocked(trackLandingEvent).mock.calls.map(([event]) => event))
+      .toEqual(['video_upload_started', 'video_upload_failed'])
   })
 
   it('should show error if file is not selected', async () => {
@@ -190,6 +209,7 @@ describe('useVideoUpload', () => {
     await waitFor(() => {
       expect(result.current.error).toBeDefined()
     })
+    expect(trackLandingEvent).not.toHaveBeenCalled()
   })
 
   it('should use filename as title if title is empty', async () => {

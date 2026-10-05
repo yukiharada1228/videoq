@@ -1,0 +1,39 @@
+import { useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { ErrorMessage } from '@/components/auth/ErrorMessage';
+import { Link, useLocale } from '@/lib/i18n';
+import { useAuthSession } from '@/lib/authSession';
+import { getSafeNextPath } from '@/lib/authRedirect';
+import { completeSignupTracking } from '@/lib/landingAnalytics';
+
+export default function SignupCompletePage({ method }: { method: 'google' | 'email' }) {
+  const session = useAuthSession();
+  const navigate = useNavigate();
+  const locale = useLocale();
+  const { t } = useTranslation();
+  const [params] = useSearchParams();
+  const fallback = locale === 'en' ? '/en/' : '/';
+  const requestedNext = getSafeNextPath(params.get('next'));
+  const next = requestedNext && !/^\/(?:en\/)?signup\/(?:complete|verified)(?:[/?#]|$)/.test(requestedNext)
+    ? requestedNext : fallback;
+  const userId = session.data?.user.id;
+  const verificationReady = method === 'google' || session.data?.user.emailVerified === true;
+
+  useEffect(() => {
+    if (session.isPending || session.error || !userId || !verificationReady) return;
+    completeSignupTracking(method);
+    navigate(next, { replace: true });
+  }, [session.isPending, session.error, userId, verificationReady, method, navigate, next]);
+
+  if (!session.isPending && (session.error || !userId || !verificationReady)) {
+    return (
+      <div className="space-y-4">
+        <ErrorMessage message={t(method === 'google' ? 'auth.login.oauthCallbackFailed' : 'auth.verifyEmail.error')} />
+        <Link href="/login">{t('auth.verifyEmail.backToLogin')}</Link>
+      </div>
+    );
+  }
+  return <LoadingSpinner />;
+}

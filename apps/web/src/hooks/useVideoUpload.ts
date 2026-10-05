@@ -5,6 +5,7 @@ import { getApiError } from '@/lib/api-error';
 import { invalidateAfterVideoUpload } from '@/lib/cacheInvalidation';
 import { useAuth } from '@/hooks/useAuth';
 import { appTrpcClient } from '@/lib/trpc';
+import { trackLandingEvent } from '@/lib/landingAnalytics';
 import {
   prepareVideoUpload,
   runUploadWorkflow,
@@ -66,6 +67,8 @@ export function useVideoUpload(): UseVideoUploadReturn {
         addTagsToVideo: appTrpcClient.memberships.addTags.mutate,
       }, setProgress),
     onSuccess: async (warning, { tagIds }) => {
+      // Acceptance is distinct from completion of transcription/indexing.
+      trackLandingEvent('video_upload_accepted');
       setSuccess(true);
       setError(null);
       setErrorParams({});
@@ -74,6 +77,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
       await invalidateAfterVideoUpload(queryClient, { tagsChanged: tagIds.length > 0 });
     },
     onError: (err) => {
+      trackLandingEvent('video_upload_failed');
       const apiError = getApiError(err);
       if (apiError?.code === 'FILE_TOO_LARGE') {
         setError('videos.upload.validation.fileTooLarge');
@@ -159,6 +163,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
     setSuccess(false);
     // Guard before React renders the pending state, including cache refreshes.
     uploadInFlight.current = true;
+    trackLandingEvent('video_upload_started');
     try {
       await uploadMutation.mutateAsync({ upload: validation.upload, tagIds });
     } finally {

@@ -11,6 +11,7 @@ export function getLandingAudience(search = window.location.search): LandingAudi
 
 export function getLandingAcquisition(search = window.location.search): LandingAcquisition {
   const params = new URLSearchParams(search);
+  if (params.get('measurement') === 'test') return 'internal_test';
   if (params.get('utm_source') !== 'x') return 'unattributed';
   if (params.get('utm_medium') === 'paid_social'
     && params.get('utm_campaign') === 'student_demo_test'
@@ -41,13 +42,26 @@ function readVisit(): Visit | null {
 export function startLandingVisit() {
   if (!enabled()) return;
   try {
-    if (!readVisit()) {
+    const visit = readVisit();
+    const acquisition = getLandingAcquisition();
+    if (!visit || (acquisition === 'internal_test' && visit.acquisition !== 'internal_test')) {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
-        audience: getLandingAudience(), acquisition: getLandingAcquisition(), seen: [], updated: Date.now(),
+        audience: getLandingAudience(), acquisition, seen: [], updated: Date.now(),
       }));
     }
     trackLandingEvent('landing_view');
   } catch { /* Storage may be blocked; the product remains usable. */ }
+}
+
+/** Called from a signup callback after confirming the relevant auth session. */
+export function completeSignupTracking(method: 'google' | 'email') {
+  if (!enabled()) return;
+  try {
+    // An ordinary login or a direct visit to the completion page is not a signup.
+    const started = method === 'google' ? 'google_auth_started' : 'email_signup_created';
+    if (!readVisit()?.seen.includes(started)) return;
+    trackLandingEvent(method === 'google' ? 'google_signup_created' : 'email_verified');
+  } catch { /* Analytics must not prevent the post-signup redirect. */ }
 }
 
 export function trackLandingEvent(event: LandingEvent, placement: LandingPlacement = 'none') {
