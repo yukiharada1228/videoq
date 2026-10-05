@@ -69,7 +69,7 @@ export default function VerifyEmailPage() {
 
         {state === 'loading' && (
           <div className="flex items-center gap-3 rounded-8 border border-solid-gray-300 bg-solid-gray-50 p-4">
-            <InlineSpinner />
+            <InlineSpinner color="blue" />
             <span className="text-sm text-solid-gray-700">{message}</span>
           </div>
         )}

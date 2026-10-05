@@ -26,6 +26,7 @@ export function QuestionTimeSeriesChart({ data }: QuestionTimeSeriesChartProps) 
             tick={{ fontSize: 11, fill: 'var(--color-solid-gray-700)' }}
           />
           <Tooltip
+            contentStyle={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-line)', color: 'var(--color-ink)' }}
             formatter={(value) => [value, t('dashboard.timeSeries.count')]}
           />
           <Line

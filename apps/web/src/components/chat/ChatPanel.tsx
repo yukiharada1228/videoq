@@ -95,7 +95,7 @@ function ChatPanelSession({
               className={`text-dns-14B-120 pb-1 transition-colors ${
                 tab === 'chat'
                   ? 'text-key-900 border-b-2 border-key-900'
-                  : 'text-solid-gray-420 hover:text-solid-gray-700'
+                  : 'text-solid-gray-600 hover:text-solid-gray-700'
               }`}
             >
               {t('chat.newConsultation')}
@@ -107,7 +107,7 @@ function ChatPanelSession({
               className={`text-dns-14B-120 pb-1 transition-colors ${
                 tab === 'history'
                   ? 'text-key-900 border-b-2 border-key-900'
-                  : 'text-solid-gray-420 hover:text-solid-gray-700'
+                  : 'text-solid-gray-600 hover:text-solid-gray-700'
               }`}
             >
               {t('chat.history')}

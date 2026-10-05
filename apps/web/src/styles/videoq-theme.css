@@ -69,6 +69,15 @@
   --color-error-1: var(--color-red-800);
 }
 
+@layer components {
+  /* Upstream progress indicators use the darkest key shade. Match the brand
+   * blue here without changing pressed button colors or forced-color styles. */
+  [data-slot="progress-indicator-spinner"],
+  [data-slot="progress-indicator-linear"] {
+    --color-key-1200: var(--color-brand);
+  }
+}
+
 /* The base bridge lives in digital-agency.css. Override its light theme
  * without changing the existing .dark behavior or semantic status colors. */
 :root:not(.dark) {

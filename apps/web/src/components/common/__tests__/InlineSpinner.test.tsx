@@ -2,11 +2,12 @@ import { render } from '@testing-library/react'
 import { InlineSpinner } from '../InlineSpinner'
 
 describe('InlineSpinner', () => {
-  it('should render spinner with default blue color', () => {
+  it('should inherit the surrounding text color by default', () => {
     const { container } = render(<InlineSpinner />)
     
-    const spinner = container.querySelector('.border-solid-gray-300.border-t-blue-900')
+    const spinner = container.firstElementChild
     expect(spinner).toBeInTheDocument()
+    expect(spinner).toHaveClass('border-current/25', 'border-t-current')
     expect(spinner).toHaveClass('animate-spin')
   })
 
@@ -23,4 +24,3 @@ describe('InlineSpinner', () => {
     expect(spinner).toBeInTheDocument()
   })
 })
-

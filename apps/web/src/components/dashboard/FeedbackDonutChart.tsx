@@ -43,8 +43,11 @@ export function FeedbackDonutChart({ data }: FeedbackDonutChartProps) {
               <Cell key={index} fill={entry.color} />
             ))}
           </Pie>
-          <Tooltip />
-          <Legend />
+          <Tooltip
+            contentStyle={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-line)', color: 'var(--color-ink)' }}
+            itemStyle={{ color: 'var(--color-ink)' }}
+          />
+          <Legend formatter={(value) => <span className="text-solid-gray-800">{value}</span>} />
         </PieChart>
       </ResponsiveContainer>
     </div>

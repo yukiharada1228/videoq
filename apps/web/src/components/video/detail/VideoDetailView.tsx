@@ -158,8 +158,8 @@ function VideoPlayerPanel({
           {t('common.messages.browserNoVideoSupport')}
         </video>
       ) : (
-        <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-solid-gray-420">
-          <VideoIcon className="w-16 h-16 text-solid-gray-536" />
+        <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-solid-gray-200">
+          <VideoIcon className="w-16 h-16 text-solid-gray-300" />
           <p className="text-std-16N-170">{t('common.messages.videoFileMissing')}</p>
         </div>
       )}
@@ -232,7 +232,7 @@ function VideoMetaPanel({
                     <div className="w-1.5 h-1.5 rounded-full bg-solid-gray-420" />
                   )}
                 </div>
-                <span className={`text-dns-14B-120 ${done ? 'text-solid-gray-800' : 'text-solid-gray-420'}`}>
+                <span className={`text-dns-14B-120 ${done ? 'text-solid-gray-800' : 'text-solid-gray-600'}`}>
                   {label}
                 </span>
               </div>

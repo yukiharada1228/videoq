@@ -102,7 +102,7 @@ export function ChatHistoryView({
         )}
         {!historyLoading && historyError && <ErrorMessage message={historyError.message} />}
         {!historyLoading && !historyError && historyCount === 0 && (
-          <p className="text-std-16N-170 text-solid-gray-420 text-center py-8">{t('chat.historyEmpty')}</p>
+          <p className="text-std-16N-170 text-solid-gray-600 text-center py-8">{t('chat.historyEmpty')}</p>
         )}
         {history?.map((item, i) => (
           <div key={item.id}>
