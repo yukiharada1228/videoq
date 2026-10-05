@@ -53,6 +53,10 @@ describe('landing funnel measurement', () => {
   });
 
   it.each([
+    ['?utm_source=x&utm_medium=paid_social&utm_campaign=teacher_qa_test&utm_content=lecture_qa', 'x_paid_teacher_qa'],
+    ['?utm_source=x&utm_medium=organic_social&utm_campaign=teacher_qa_test&utm_content=lecture_qa', 'unattributed'],
+    ['?utm_source=x&utm_medium=paid_social&utm_campaign=teacher_qa_test&utm_content=private-value', 'unattributed'],
+    ['?utm_source=x&utm_medium=paid_social&utm_campaign=student_demo_test&utm_content=lecture_qa', 'unattributed'],
     ['?utm_source=x&utm_medium=organic_social&utm_campaign=launch&utm_content=intro', 'x_organic_launch'],
     ['?utm_source=x&utm_medium=organic_social&utm_campaign=launch&utm_content=howto', 'x_organic_launch'],
     ['?utm_source=x&utm_medium=organic_social&utm_campaign=launch&utm_content=usecase', 'x_organic_launch'],
@@ -78,6 +82,28 @@ describe('landing funnel measurement', () => {
     trackLandingEvent('email_signup_created');
     trackLandingEvent('first_answer');
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it('attributes teacher signup and upload to the ad without logging click identifiers', () => {
+    Object.defineProperty(window, 'location', { configurable: true, value: new URL(
+      'https://videoq.jp/?audience=school&utm_source=x&utm_medium=paid_social&utm_campaign=teacher_qa_test&utm_content=lecture_qa&twclid=private-click-id',
+    ) });
+    startLandingVisit();
+    Object.defineProperty(window, 'location', { configurable: true, value: new URL('https://videoq.jp/signup') });
+    trackLandingEvent('email_signup_created');
+    completeSignupTracking('email');
+    Object.defineProperty(window, 'location', { configurable: true, value: new URL('https://videoq.jp/videos') });
+    trackLandingEvent('video_upload_started');
+    trackLandingEvent('video_upload_accepted');
+    const events = send.mock.calls.map(([, init]) => JSON.parse(init.body));
+    expect(events.map(event => event.event)).toEqual([
+      'landing_view', 'email_signup_created', 'email_verified', 'video_upload_started', 'video_upload_accepted',
+    ]);
+    expect(events.every(event => event.audience === 'school' && event.acquisition === 'x_paid_teacher_qa')).toBe(true);
+    for (const data of [JSON.stringify(send.mock.calls), JSON.stringify(sessionStorage)]) {
+      expect(data).not.toContain('private-click-id');
+      expect(data).not.toContain('utm_');
+    }
   });
 
   it('counts email verification only after a same-tab email signup and deduplicates the callback', () => {
@@ -157,6 +183,7 @@ describe('landing funnel measurement', () => {
     ['?audience=school', 'school'],
     ['?audience=training', 'training'],
     ['?audience=student', 'student'],
+    ['?utm_source=x&utm_medium=paid_social&utm_campaign=teacher_qa_test&utm_content=lecture_qa', 'school'],
     ['?utm_source=x&utm_medium=paid_social&utm_campaign=student_demo_test&utm_content=demo15_search', 'student'],
   ])('classifies provider and historic visits: %s', (search, expected) => {
     expect(getLandingAudience(search)).toBe(expected);

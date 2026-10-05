@@ -16,7 +16,7 @@ describe('landing collector', () => {
     expect(console.log).toHaveBeenCalledWith({ kind: 'landing_funnel', version: 'student-v1', ...payload });
   });
 
-  it.each(['unattributed', 'x_paid_demo15_search', 'x_organic_launch', 'internal_test'])('accepts the fixed cohort %s', async acquisition => {
+  it.each(['unattributed', 'x_paid_demo15_search', 'x_paid_teacher_qa', 'x_organic_launch', 'internal_test'])('accepts the fixed cohort %s', async acquisition => {
     const attributed = { ...payload, acquisition };
     expect((await collectLandingEvent(request(JSON.stringify(attributed)), 'production')).status).toBe(204);
     expect(console.log).toHaveBeenCalledWith({ kind: 'landing_funnel', version: 'student-v1', ...attributed });
