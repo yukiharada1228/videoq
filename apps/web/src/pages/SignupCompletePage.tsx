@@ -14,6 +14,7 @@ export default function SignupCompletePage({ method }: { method: 'google' | 'ema
   const locale = useLocale();
   const { t } = useTranslation();
   const [params] = useSearchParams();
+  const callbackFailed = params.has('error');
   const fallback = locale === 'en' ? '/en/' : '/';
   const requestedNext = getSafeNextPath(params.get('next'));
   const next = requestedNext && !/^\/(?:en\/)?signup\/(?:complete|verified)(?:[/?#]|$)/.test(requestedNext)
@@ -22,12 +23,12 @@ export default function SignupCompletePage({ method }: { method: 'google' | 'ema
   const verificationReady = method === 'google' || session.data?.user.emailVerified === true;
 
   useEffect(() => {
-    if (session.isPending || session.error || !userId || !verificationReady) return;
+    if (callbackFailed || session.isPending || session.error || !userId || !verificationReady) return;
     completeSignupTracking(method);
     navigate(next, { replace: true });
-  }, [session.isPending, session.error, userId, verificationReady, method, navigate, next]);
+  }, [callbackFailed, session.isPending, session.error, userId, verificationReady, method, navigate, next]);
 
-  if (!session.isPending && (session.error || !userId || !verificationReady)) {
+  if (callbackFailed || (!session.isPending && (session.error || !userId || !verificationReady))) {
     return (
       <div className="space-y-4">
         <ErrorMessage message={t(method === 'google' ? 'auth.login.oauthCallbackFailed' : 'auth.verifyEmail.error')} />

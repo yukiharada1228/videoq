@@ -55,6 +55,15 @@ describe('Google signup completion', () => {
     expect(useNavigate()).not.toHaveBeenCalled();
   });
 
+  it.each(['email', 'google'] as const)('does not count a rejected %s callback even with a verified session', method => {
+    globalThis.__setMockAuthSession({ user: { id: 'signed-in-user', emailVerified: true } });
+    globalThis.__setMockSearchParams('next=%2Fvideos&error=TOKEN_EXPIRED');
+    render(<SignupCompletePage method={method} />);
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(completeSignupTracking).not.toHaveBeenCalled();
+    expect(useNavigate()).not.toHaveBeenCalled();
+  });
+
   it.each(['https://other.example', '//other.example', '/signup/complete', '/en/signup/complete?next=/', '/signup/verified']) (
     'rejects unsafe or recursive next paths: %s', next => {
       globalThis.__setMockLanguage('en');
