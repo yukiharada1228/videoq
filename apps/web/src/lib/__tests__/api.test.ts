@@ -208,12 +208,16 @@ describe('ApiClient protocol adapters', () => {
     await client.updateUsername({ username: ' new_name ' });
 
     expect(authClientMock.signIn.username).toHaveBeenCalledWith({ username: 'user', password: 'pw' });
-    expect(authClientMock.signIn.social).toHaveBeenCalledWith({ provider: 'google', callbackURL: '/videos' });
+    expect(authClientMock.signIn.social).toHaveBeenCalledWith({
+      provider: 'google', callbackURL: '/videos',
+      newUserCallbackURL: '/signup/complete?next=%2Fvideos',
+    });
     expect(authClientMock.signUp.email).toHaveBeenCalledWith({
       username: 'u',
       name: 'u',
       email: 'e@example.com',
       password: 'p',
+      callbackURL: '/signup/verified?next=%2F',
     });
     expect(authClientMock.requestPasswordReset).toHaveBeenCalledWith({
       email: 'e@example.com',

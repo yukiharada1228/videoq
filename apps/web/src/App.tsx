@@ -10,6 +10,7 @@ import HomePage from '@/pages/HomePage';
 const LoginPage = lazy(() => import('@/pages/LoginPage'));
 const SignupPage = lazy(() => import('@/pages/SignupPage'));
 const SignupCheckEmailPage = lazy(() => import('@/pages/SignupCheckEmailPage'));
+const SignupCompletePage = lazy(() => import('@/pages/SignupCompletePage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('@/pages/ResetPasswordPage'));
 const VerifyEmailPage = lazy(() => import('@/pages/VerifyEmailPage'));
@@ -91,6 +92,8 @@ const routeChildren = (
       <Route path="login" element={<LoginPage />} />
       <Route path="signup" element={<SignupPage />} />
       <Route path="signup/check-email" element={<SignupCheckEmailPage />} />
+      <Route path="signup/complete" element={<SignupCompletePage method="google" />} />
+      <Route path="signup/verified" element={<SignupCompletePage method="email" />} />
       <Route path="forgot-password" element={<ForgotPasswordPage />} />
       <Route path="reset-password" element={<ResetPasswordPage />} />
       <Route path="verify-email" element={<VerifyEmailPage />} />

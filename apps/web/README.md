@@ -333,6 +333,11 @@ LPの閲覧・動画再生では講座APIやAIを呼び出しません。
 | `signup_click` / `signup_view` | 登録導線のクリック / 登録画面への到達 |
 | `email_signup_created` | メール登録APIの成功（メール確認前） |
 | `email_verified` | メール確認の成功 |
+| `google_auth_started` | Google認証を開始（既存アカウントのログインも含む） |
+| `google_signup_created` | Googleで新規ユーザーが作成され、同じタブで認証済みの戻り先に到達 |
+| `video_upload_started` | 入力検証を通過し、動画ファイル送信またはYouTube取り込みを開始 |
+| `video_upload_accepted` | 動画登録の受付成功。文字起こし・索引処理の完了ではない |
+| `video_upload_failed` | 動画登録リクエストの失敗。エラー本文・動画情報は送信しない |
 | `first_answer` | 本サービスで回答が正常に完了（公開共有画面は除外） |
 
 `demo_engaged / landing_view`、`demo_complete / demo_engaged`、
@@ -348,16 +353,33 @@ LPの閲覧・動画再生では講座APIやAIを呼び出しません。
 | --- | --- |
 | `x_paid_demo15_search` | `utm_source=x`、`utm_medium=paid_social`、`utm_campaign=student_demo_test`、`utm_content=demo15_search` のすべてが一致 |
 | `x_organic_launch` | `utm_source=x`、`utm_medium=organic_social`、`utm_campaign=launch`、`utm_content` が `intro` / `howto` / `usecase` |
+| `internal_test` | LPのURLに `measurement=test` を指定した動作確認。広告成果から除外する |
 | `unattributed` | その他。旧クライアントの `acquisition` なしのイベントも受け付け、集計時はこちらに含める |
 
 同じタブの訪問中は初回の分類を保持し、登録画面へ移動してURLのパラメータが消えても
 `email_signup_created` などを流入元別に集計できます。30分間イベントがなければ紐付けは切れます。
 Workers Logsで `kind=landing_funnel` と `acquisition=x_paid_demo15_search` を絞り込み、
 イベント別の件数を比較します。ログの保存期間内に日別集計を控えてください。
-X管理画面の消化額を `email_signup_created` の件数で割った値は、同じタブ内のメール登録に
-限定した参考単価です。Google登録や別タブでの確認を含む全登録の獲得単価ではありません。
+Google認証にはBetter Authの `newUserCallbackURL` を使用します。新規ユーザーだけが
+`/signup/complete` に戻り、認証済みセッションと同じタブの認証開始イベントを確認して
+`google_signup_created` を記録します。既存ユーザーのGoogleログインは新規登録に数えません。
+メール登録では、Better Authがメールを確認して自動ログインした後の戻り先を
+`/signup/verified` にします。確認済みセッションと同じタブの登録成功イベントが揃う場合に
+`email_verified` を記録し、元の目的ページへ移動します。
+X管理画面の消化額を `email_signup_created + google_signup_created` の件数で割った値は、
+同じタブで観測できた登録に限定した参考単価です。メール確認前の登録を含み、全登録のCPAではありません。
 
-これは改善のための簡易集計です。別タブでのメール確認・別端末・Google登録完了は
+これは改善のための簡易集計です。別タブでのメール確認・別端末は
 追跡せず、DNT/GPC有効時、ストレージ拒否、通信失敗、ログの保存上限などで欠測します。
-登録ボタンクリックを登録完了として扱わず、Googleを含む全体の登録率や広告別の
+動画処理などで30分間イベントがなければ、後のAI回答も紐付きません。
+各段階はタブ訪問内で一度の記録なので、ユニーク人数・全アップロード件数ではありません。
+登録ボタンクリックを登録完了として扱わず、全体の登録率や広告別の
 厳密なCVRとして解釈しないでください。
+
+#### 本番の動作確認
+
+広告URLに `&measurement=test` を付けてLPから開始します。この指定だけは既存の
+タブ内の流入分類も `internal_test` に切り替えます。以後URLからパラメータが消えても
+同じタブの登録・動画登録・回答イベントは動作確認として集計されます。
+Googleの新規登録と既存アカウントのログインは別々に確認してください。
+通常の広告URLを使った自分の操作は実ユーザーと区別できないため、検証に使わないでください。

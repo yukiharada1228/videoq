@@ -16,11 +16,19 @@ describe('landing collector', () => {
     expect(console.log).toHaveBeenCalledWith({ kind: 'landing_funnel', version: 'student-v1', ...payload });
   });
 
-  it.each(['unattributed', 'x_paid_demo15_search', 'x_organic_launch'])('accepts the fixed cohort %s', async acquisition => {
+  it.each(['unattributed', 'x_paid_demo15_search', 'x_organic_launch', 'internal_test'])('accepts the fixed cohort %s', async acquisition => {
     const attributed = { ...payload, acquisition };
     expect((await collectLandingEvent(request(JSON.stringify(attributed)), 'production')).status).toBe(204);
     expect(console.log).toHaveBeenCalledWith({ kind: 'landing_funnel', version: 'student-v1', ...attributed });
   });
+
+  it.each(['google_auth_started', 'google_signup_created', 'video_upload_started', 'video_upload_accepted', 'video_upload_failed'])(
+    'accepts the funnel stage %s', async event => {
+      const body = { ...payload, event };
+      expect((await collectLandingEvent(request(JSON.stringify(body)), 'production')).status).toBe(204);
+      expect(console.log).toHaveBeenCalledWith({ kind: 'landing_funnel', version: 'student-v1', ...body });
+    },
+  );
 
   it.each([
     ['unknown event', { ...payload, event: 'anything' }],

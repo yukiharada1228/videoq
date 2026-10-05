@@ -1,4 +1,4 @@
-import { getLandingAcquisition, getLandingAudience, startLandingVisit, trackLandingEvent } from '../landingAnalytics';
+import { completeSignupTracking, getLandingAcquisition, getLandingAudience, startLandingVisit, trackLandingEvent } from '../landingAnalytics';
 
 const originalLocation = window.location;
 
@@ -78,6 +78,46 @@ describe('landing funnel measurement', () => {
     trackLandingEvent('email_signup_created');
     trackLandingEvent('first_answer');
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it('counts email verification only after a same-tab email signup and deduplicates the callback', () => {
+    startLandingVisit();
+    completeSignupTracking('email');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    trackLandingEvent('email_signup_created');
+    completeSignupTracking('email');
+    completeSignupTracking('email');
+    expect(vi.mocked(fetch).mock.calls.map(([, init]) => JSON.parse(init!.body as string).event))
+      .toEqual(['landing_view', 'email_signup_created', 'email_verified']);
+  });
+
+  it('counts a Google signup only after a same-tab OAuth attempt and deduplicates the callback', () => {
+    startLandingVisit();
+    completeSignupTracking('google');
+    expect(send).toHaveBeenCalledTimes(1);
+    trackLandingEvent('google_auth_started');
+    completeSignupTracking('google');
+    completeSignupTracking('google');
+    expect(send.mock.calls.map(([, init]) => JSON.parse(init.body).event))
+      .toEqual(['landing_view', 'google_auth_started', 'google_signup_created']);
+  });
+
+  it('keeps diagnostic traffic out of the paid cohort throughout the funnel', () => {
+    Object.defineProperty(window, 'location', { configurable: true, value: new URL(
+      'https://videoq.jp/?utm_source=x&utm_medium=paid_social&utm_campaign=student_demo_test&utm_content=demo15_search',
+    ) });
+    startLandingVisit();
+    Object.defineProperty(window, 'location', { configurable: true, value: new URL(
+      `${window.location.href}&measurement=test`,
+    ) });
+    startLandingVisit();
+    Object.defineProperty(window, 'location', { configurable: true, value: new URL('https://videoq.jp/signup') });
+    for (const event of ['signup_view', 'google_auth_started', 'video_upload_started', 'video_upload_accepted', 'first_answer'] as const) {
+      trackLandingEvent(event);
+    }
+    completeSignupTracking('google');
+    expect(send.mock.calls.slice(1).map(([, init]) => JSON.parse(init.body).acquisition))
+      .toEqual(Array(7).fill('internal_test'));
   });
 
   it('records a new visit after the attribution window expires', () => {

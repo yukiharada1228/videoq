@@ -1,5 +1,7 @@
 import { createParser } from 'eventsource-parser';
 import { authClient } from './auth-client';
+import { getSafeNextPath } from './authRedirect';
+import { trackLandingEvent } from './landingAnalytics';
 import { API_URL } from './apiConfig';
 import { ApiError } from './api-error';
 import { createAppTrpcClient, TRPC_UNAUTHORIZED_EVENT } from './trpc';
@@ -132,12 +134,14 @@ export class ApiClient {
   }
 
   async signup(data: SignupRequest): Promise<void> {
+    const localePrefix = /^\/en(?:\/|$)/.test(window.location.pathname) ? '/en' : '';
+    const nextPath = getSafeNextPath(data.callbackURL ?? null) ?? `${localePrefix}/`;
     const { error } = await authClient.signUp.email({
       email: data.email,
       password: data.password,
       name: data.username,
       username: data.username,
-      ...(data.callbackURL ? { callbackURL: data.callbackURL } : {}),
+      callbackURL: `${localePrefix}/signup/verified?next=${encodeURIComponent(nextPath)}`,
     });
     if (error) throw new ApiError(error.message || 'Signup failed', error.code || 'SIGNUP_FAILED');
   }
@@ -157,9 +161,15 @@ export class ApiClient {
 
   /** Redirects to Google OAuth via Better Auth (`signIn.social`). */
   async loginWithGoogle(callbackURL = '/'): Promise<void> {
+    const localePrefix = /^\/en(?:\/|$)/.test(window.location.pathname) ? '/en' : '';
+    const nextPath = getSafeNextPath(callbackURL) ?? '/';
+    trackLandingEvent('google_auth_started');
     const { error } = await authClient.signIn.social({
       provider: 'google',
       callbackURL,
+      // Better Auth selects this URL only when it creates a new user. Existing
+      // Google users keep the normal callback and never emit a signup event.
+      newUserCallbackURL: `${localePrefix}/signup/complete?next=${encodeURIComponent(nextPath)}`,
     });
     if (error) {
       throw new ApiError(error.message || 'Google sign-in failed', error.code || 'GOOGLE_SIGN_IN_FAILED');
