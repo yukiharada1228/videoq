@@ -780,7 +780,7 @@ export default function SettingsPage() {
                 >
                   {revokeApiKeyMutation.isPending ? (
                     <span className="flex items-center gap-2">
-                      <InlineSpinner className="w-4 h-4" color="red" />
+                      <InlineSpinner className="w-4 h-4" />
                       {t('settings.integrationApiKeys.revoking')}
                     </span>
                   ) : t('settings.integrationApiKeys.revokeConfirmCta')}

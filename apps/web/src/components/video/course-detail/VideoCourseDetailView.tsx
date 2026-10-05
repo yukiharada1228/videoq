@@ -377,10 +377,10 @@ function GroupPlayerPanel({
                 {t('common.messages.browserNoVideoSupport')}
               </video>
             ) : (
-              <p className="text-solid-gray-420 text-std-16N-170">{t('videos.courseDetail.videoNoFile')}</p>
+              <p className="text-solid-gray-200 text-std-16N-170">{t('videos.courseDetail.videoNoFile')}</p>
             )
           ) : (
-            <p className="text-solid-gray-420 text-std-16N-170 text-center px-4">{t('videos.courseDetail.playerPlaceholder')}</p>
+            <p className="text-solid-gray-200 text-std-16N-170 text-center px-4">{t('videos.courseDetail.playerPlaceholder')}</p>
           )}
         </div>
       </div>
@@ -415,7 +415,7 @@ function GroupMobileNav({
             className={`flex flex-col items-center justify-center gap-1 px-4 py-1 transition-colors ${
               isActive
                 ? 'border-b-2 border-key-900 text-key-900'
-                : 'text-solid-gray-420 hover:text-key-900'
+                : 'text-solid-gray-600 hover:text-key-900'
             }`}
           >
             <Icon className="w-5 h-5" />

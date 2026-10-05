@@ -119,7 +119,7 @@ export function TagManagementModal({ isOpen, onClose }: TagManagementModalProps)
                           aria-busy={deletingTagId === tag.id}
                           data-testid={`confirm-delete-${tag.id}`}
                         >
-                          {deletingTagId === tag.id ? <InlineSpinner className="h-4 w-4" color="red" /> : null}
+                          {deletingTagId === tag.id ? <InlineSpinner className="h-4 w-4" /> : null}
                           {t('common.actions.delete', 'Delete')}
                         </Button>
                         <Button

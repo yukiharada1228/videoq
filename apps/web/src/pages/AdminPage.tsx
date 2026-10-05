@@ -396,7 +396,7 @@ export default function AdminPage() {
         <div role="status" aria-atomic="true" className="mb-3 text-std-16N-170 text-solid-gray-700">
           {usersQuery.isFetching ? (
             <div className="flex items-center gap-2">
-              <InlineSpinner />
+              <InlineSpinner color="blue" />
               {t('common.messages.loading')}
             </div>
           ) : !usersQuery.isError ? pageLabel : null}

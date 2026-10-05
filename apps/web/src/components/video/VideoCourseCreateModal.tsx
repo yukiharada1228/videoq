@@ -101,14 +101,14 @@ export function VideoCourseCreateModal({ isOpen, onClose, onCreate }: VideoCours
                 placeholder={t('videos.courses.namePlaceholder')}
                 disabled={isCreating}
                 autoFocus
-                className="w-full rounded-8 border border-solid-gray-300 bg-white px-4 py-3 text-sm text-solid-gray-800 placeholder:text-solid-gray-420 focus:outline focus:outline-4 focus:outline-black focus:outline-offset-[calc(2/16*1rem)] focus:ring-[calc(2/16*1rem)] focus:ring-yellow-300"
+                className="w-full rounded-8 border border-solid-gray-600 bg-white px-4 py-3 text-sm text-solid-gray-800 placeholder:text-solid-gray-600 focus:outline focus:outline-4 focus:outline-black focus:outline-offset-[calc(2/16*1rem)] focus:ring-[calc(2/16*1rem)] focus:ring-yellow-300 disabled:border-solid-gray-300 disabled:bg-solid-gray-50 disabled:text-solid-gray-420 disabled:placeholder:text-solid-gray-420 disabled:forced-colors:border-[GrayText] disabled:forced-colors:text-[GrayText]"
               />
             </div>
 
             <div className="space-y-1.5">
               <label htmlFor={descriptionId} className="text-xs font-bold uppercase tracking-wider text-solid-gray-700">
                 {t('videos.courses.descriptionLabel')}
-                <span className="ml-1 normal-case font-normal text-solid-gray-420">
+                <span className="ml-1 normal-case font-normal text-solid-gray-600">
                   {t('videos.courses.optional')}
                 </span>
               </label>
@@ -119,7 +119,7 @@ export function VideoCourseCreateModal({ isOpen, onClose, onCreate }: VideoCours
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder={t('videos.courses.descriptionPlaceholder')}
                 disabled={isCreating}
-                className="w-full rounded-8 border border-solid-gray-300 bg-white px-4 py-3 text-sm text-solid-gray-800 placeholder:text-solid-gray-420 focus:outline focus:outline-4 focus:outline-black focus:outline-offset-[calc(2/16*1rem)] focus:ring-[calc(2/16*1rem)] focus:ring-yellow-300"
+                className="w-full rounded-8 border border-solid-gray-600 bg-white px-4 py-3 text-sm text-solid-gray-800 placeholder:text-solid-gray-600 focus:outline focus:outline-4 focus:outline-black focus:outline-offset-[calc(2/16*1rem)] focus:ring-[calc(2/16*1rem)] focus:ring-yellow-300 disabled:border-solid-gray-300 disabled:bg-solid-gray-50 disabled:text-solid-gray-420 disabled:placeholder:text-solid-gray-420 disabled:forced-colors:border-[GrayText] disabled:forced-colors:text-[GrayText]"
               />
             </div>
           </div>

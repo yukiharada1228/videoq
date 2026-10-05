@@ -65,7 +65,7 @@ export default function LoginPage() {
 
       <div className="my-8 flex items-center gap-4">
         <Divider className="flex-1" aria-hidden="true" />
-        <span className="shrink-0 text-dns-14N-130 text-solid-gray-420">
+        <span className="shrink-0 text-dns-14N-130 text-solid-gray-600">
           {t('auth.login.orDivider')}
         </span>
         <Divider className="flex-1" aria-hidden="true" />
