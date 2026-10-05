@@ -20,13 +20,13 @@ describe('LandingPage', () => {
     )
   })
 
-  it('offers a five-subject product video without an interactive sample chat', () => {
+  it('offers a provider workflow video without an interactive sample chat', () => {
     const { container } = render(<LandingPage />)
 
     expect(screen.getByRole('heading', { level: 2, name: 'landing.film.title' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'landing.film.play' })).toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-    expect(screen.getByRole('list', { name: 'landing.film.subjectsLabel' }).children).toHaveLength(5)
+    expect(screen.getByRole('list', { name: 'landing.film.subjectsLabel' }).children).toHaveLength(3)
     expect(screen.getAllByRole('link', { name: 'landing.tryOwn' })[0]).toHaveAttribute('href', '/signup')
     expect(container.innerHTML).not.toContain('/share/')
     expect(container.textContent).not.toMatch(/yobinori|aicia|ヨビノリ/i)

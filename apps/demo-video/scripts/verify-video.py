@@ -13,7 +13,7 @@ from fractions import Fraction
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-TIMELINE = json.loads((ROOT / 'content/timeline.json').read_text())
+TIMELINE = json.loads((Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / 'content/timeline.json').read_text())
 video = Path(sys.argv[1])
 info = json.loads(subprocess.check_output([
     'ffprobe', '-v', 'error', '-show_streams', '-show_format', '-of', 'json', str(video),

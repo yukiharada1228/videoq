@@ -1,7 +1,7 @@
 {
   "site": {
-    "title": "Turn lecture videos into your study partner | VideoQ",
-    "description": "Review university lectures and prepare for exams. Ask questions in your own words and get AI answers with source timestamps. Watch our five-subject product demo. Free plan, no credit card required."
+    "title": "Turn teaching and training videos into a place for answers | VideoQ",
+    "description": "For educators and training teams. Share a course built from your videos so learners can ask questions and get AI answers with source timestamps. Review their questions. Free plan, no credit card required."
   },
   "common": {
     "notProvided": "Not provided",
@@ -84,7 +84,7 @@
   },
   "layout": {
     "authBranding": {
-      "tagline": "Search and transcribe lecture videos"
+      "tagline": "Video search and Q&A for teaching and training"
     },
     "authFooter": "© {{year}} VideoQ"
   },
@@ -127,83 +127,83 @@
     }
   },
   "landing": {
-    "badge": "For university lectures, revision, and exams",
-    "title": "Stuck on a lecture?",
-    "titleAccent": "Ask your video.",
-    "lead": "Ask in your own words.\nFollow the answer back to the explanation.",
-    "start": "Get started for free",
-    "tryOwn": "Start with your lecture video",
+    "badge": "For educators, course creators and training teams",
+    "title": "Your teaching videos.",
+    "titleAccent": "A place for answers.",
+    "lead": "You add the videos. Your learners ask the questions.\nAI answers from your course and points to the source explanation.",
+    "start": "Try one video for free",
+    "tryOwn": "Start with your own video",
     "login": "Already have an account? Log in",
-    "watchDemo": "See how it works in 30 sec",
+    "watchDemo": "Watch the 38-second demo",
     "startNote": "Free plan · No credit card required",
     "capabilities": {
-      "title": "What you can do with VideoQ",
-      "transcribe": "Automatic lecture transcripts",
-      "ask": "Ask what you don’t understand",
-      "jump": "Revisit the source moment",
-      "share": "Organize by subject"
+      "title": "What VideoQ can do",
+      "transcribe": "Automatic transcription",
+      "ask": "AI answers for learners",
+      "jump": "Source timestamps",
+      "share": "Course sharing and invites"
     },
     "features": {
-      "eyebrow": "Spend more time understanding",
-      "title": "Make progress, one question at a time.",
-      "intro": "Before searching through a whole lecture, ask about the part that lost you.",
+      "eyebrow": "Go beyond sending a video",
+      "title": "Give learners a place\nto look for answers.",
+      "intro": "Connect their questions to the explanations in your materials.",
       "ask": {
-        "title": "Your question. Your own words.",
-        "body": "“What does a derivative actually mean?” You don’t need the right search terms. Ask naturally, and AI answers using the videos you added.",
-        "example": "What does a derivative actually mean?",
-        "result": "An answer grounded in your lecture"
+        "title": "Questions grounded in your course.",
+        "body": "“What does this term mean?” Learners ask in their own words. AI searches the course videos and answers using their content.",
+        "example": "What does this term mean?",
+        "result": "An answer based on your video"
       },
       "source": {
-        "title": "Read the answer. Check the lecture.",
-        "body": "Select a timestamp to revisit the source moment. Review the formula or explanation with the surrounding context."
+        "title": "Check the answer against the video.",
+        "body": "Click a timestamp to jump to the source. Learners can revisit the explanation and its context."
       },
       "share": {
-        "title": "Keep your revision organized.",
-        "body": "Group lecture videos into courses. Search across a course when you remember the topic but not which session covered it.",
-        "example": "Calculus revision",
-        "exampleDetail": "From the first lecture to exam week"
+        "title": "Review the questions people ask.",
+        "body": "As the course owner, you can review and export shared-course questions and answers. Use them to decide what to explain further in the next class or training session.",
+        "example": "Course question history",
+        "exampleDetail": "Review learner questions and AI answers"
       }
     },
     "uses": {
-      "eyebrow": "Made for your study routine",
-      "title": "After class. Before exams.",
-      "intro": "A way back to the lecture when you get stuck studying on your own.",
-      "select": "Choose a study moment",
-      "exampleNote": "Illustrative study scenarios and questions",
-      "lectures": {
-        "label": "After a lecture",
-        "tag": "Revisit today’s questions",
-        "title": "Catch the explanation you missed.",
-        "body": "Ask about a formula or term you couldn’t follow in class. Return to the recording and work through it at your own pace.",
-        "video": "Math: What does a derivative mean?",
-        "question": "How does the value of a function differ from its slope?"
+      "eyebrow": "Two ways to use the videos you own",
+      "title": "For classes and workplace training.",
+      "intro": "Add a place for questions to the materials you already share.",
+      "select": "Choose a use case",
+      "exampleNote": "Example use case and question",
+      "school": {
+        "label": "Educators and instructors",
+        "tag": "Questions about lecture content",
+        "title": "Connect after-class questions to your lecture.",
+        "body": "Organize recorded lectures into a course and share it with students. They can look for answers in the videos, while you review their questions to plan follow-up explanations.",
+        "video": "Mathematics | What does a derivative tell us?",
+        "question": "How is the function value different from the tangent slope?"
       },
-      "exams": {
-        "label": "Before an exam",
-        "tag": "Start with what feels unclear",
-        "title": "Ask before watching it all again.",
-        "body": "Compare concepts you keep mixing up. Read the answer, then revisit the source explanation to check your understanding.",
-        "video": "Science: From DNA to proteins",
-        "question": "What is the difference between transcription and translation?"
+      "training": {
+        "label": "Workplace training teams",
+        "tag": "Help employees revisit training",
+        "title": "Make the explanation easier to find later.",
+        "body": "Create a course from onboarding or process videos and invite participants. Employees can find explanations and ask questions, while you review what they asked.",
+        "video": "Onboarding | Expense reimbursement basics",
+        "question": "What should I do if I lose a receipt?"
       }
     },
     "steps": {
-      "eyebrow": "Start with your own material",
-      "title": "Three steps to your next question.",
-      "intro": "Create a free account and add your first lecture.",
+      "eyebrow": "From your materials to their questions",
+      "title": "One video. Three steps.",
+      "intro": "You set up the course. Learners get a place to ask.",
       "upload": {
-        "title": "Upload a lecture video",
-        "body": "Add a recording or study video you are allowed to use. MP4, MOV, WebM, and other formats are supported."
+        "title": "Add your video",
+        "body": "Upload a lecture or training video. After transcription completes, create a course and add the video."
       },
       "index": {
-        "title": "Wait for the transcript",
-        "body": "AI transcribes the audio and prepares the video for questions. Check the progress in your library."
+        "title": "Share the course",
+        "body": "Invite members or create a sharing link. Anyone with the sharing link can access the course without logging in."
       },
       "ask": {
-        "title": "Add it to a course. Ask away.",
-        "body": "Group your videos, then type a question. Move between the answer and the source explanation as you study."
+        "title": "Let learners ask",
+        "body": "AI answers from the videos and points to source timestamps. You can review the questions and answers."
       },
-      "note": "Only upload videos you have the right to use."
+      "note": "Use videos you have the right to upload and share. AI answers use the course owner’s allowance."
     },
     "faq": {
       "eyebrow": "BEFORE YOU START",
@@ -214,30 +214,30 @@
       },
       "videos": {
         "question": "What videos can I use?",
-        "answer": "MP4, MOV, AVI, MKV, and WebM are supported. Add narrated study videos you are allowed to use. YouTube imports require a separately configured SearchAPI key."
+        "answer": "VideoQ supports MP4, MOV, AVI, MKV, WebM and other formats. Use teaching or training videos you have the right to upload and share. Answers are based on spoken explanations. Importing from YouTube requires your own SearchAPI key."
       },
       "answers": {
         "question": "Can I check where an answer comes from?",
         "answer": "Answers show the source video and timestamp, so you can jump to the original explanation. AI answers and transcripts can contain mistakes; replaying the source lets you check them in context."
       },
       "sharing": {
-        "question": "Can I use it to study on my own?",
-        "answer": "Yes. Upload your videos and organize them into courses to ask questions. Sharing is optional. You can also use course links or member invitations if you want to share."
+        "question": "How do I share a course with learners?",
+        "answer": "Invite members or create a sharing link. Anyone with the link can view the course and ask questions without logging in. The course owner can review questions and answers, and AI answers use the owner’s allowance. Consider who can access the link before sharing internal training materials."
       },
       "pricing": "Check plans and limits"
     },
     "next": {
-      "eyebrow": "Try it in your next study session",
-      "title": "Don’t leave that question behind.",
-      "intro": "Start with one lecture video. Let your questions lead the way.",
+      "eyebrow": "Start with a single class or training session",
+      "title": "Give your materials a place for questions.",
+      "intro": "Add one video and check the answers to questions you are often asked.",
       "pricing": {
-        "title": "See free limits and pricing"
+        "title": "Explore the free allowance and pricing"
       }
     },
     "free": {
-      "eyebrow": "For your studies. Start free.",
+      "eyebrow": "Try it with your own course",
       "title": "One video is all it takes.",
-      "intro": "Try transcription and AI questions\nwith a lecture of your own.",
+      "intro": "Check transcription and AI answers with your own video.\nTry familiar questions before sharing it with learners.",
       "processing": "Video transcription",
       "minutes": "{{minutes}} min / month",
       "answers": "AI answers",
@@ -250,22 +250,20 @@
       "mb": "{{mb}} MB",
       "loading": "Checking the free plan limits…",
       "unavailable": "We couldn't load the limits. Check the pricing page for the latest details.",
-      "sampleNote": "Use the included free allowance. If you need more, explore the available plans."
+      "sampleNote": "AI answers for people using your shared course also count toward your allowance. Check pricing for your expected audience and question volume."
     },
     "film": {
-      "title": "Ask a question. Find the explanation.",
-      "duration": "30 sec / Product demo",
+      "title": "From adding a video to answering a learner.",
+      "duration": "38 seconds / Product demo",
       "play": "Play the demo",
-      "course": "Demo course: Five subjects for university study",
-      "subjectsLabel": "Five subjects in the demo",
+      "course": "See the owner setup and learner experience",
+      "subjectsLabel": "Steps shown in the demo",
       "subjects": {
-        "japanese": "Japanese",
-        "math": "Math",
-        "science": "Science",
-        "social": "Social studies",
-        "english": "English"
+        "prepare": "Add videos",
+        "share": "Share a course",
+        "answer": "Learners ask"
       },
-      "note": "A reconstructed walkthrough using a real course and AI answer. Waiting time has been shortened. The sample lessons are in Japanese.",
+      "note": "A reconstructed walkthrough of setup and sharing, using real course data, AI answers and citations. Waits are shortened. Course content and answers are in Japanese.",
       "error": "The video could not load.",
       "blocked": "Use the video’s play button to start.",
       "retry": "Reload video"

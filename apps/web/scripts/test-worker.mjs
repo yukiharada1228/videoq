@@ -110,8 +110,8 @@ test('landing events reach the collector instead of the SPA', async () => {
   assert.equal((await worker.fetch('/__events/landing')).status, 405);
 });
 
-test('lesson and student demos support byte-range seeking and captions', async () => {
-  for (const name of ['explain-ja', 'explain-en', 'student-demo-ja', 'student-demo-en']) {
+test('landing demos support byte-range seeking and captions', async () => {
+  for (const name of ['explain-ja', 'explain-en', 'student-demo-ja', 'student-demo-en', 'provider-demo-ja', 'provider-demo-en']) {
     const bytes = await readFile(`dist/demo/${name}.mp4`);
     assert.ok(bytes.length <= 16 * 1024 * 1024);
     const response = await worker.fetch(`/demo/${name}.mp4?v=2`, { headers: { Range: 'bytes=0-99' } });
@@ -134,10 +134,10 @@ test('lesson and student demos support byte-range seeking and captions', async (
   }
 });
 
-test('student demo suffix ranges and invalid seeks follow HTTP range semantics', async () => {
-  const path = '/demo/student-demo-ja.mp4';
+test('provider demo suffix ranges and invalid seeks follow HTTP range semantics', async () => {
+  const path = '/demo/provider-demo-ja.mp4';
   const head = await worker.fetch(path, { method: 'HEAD' });
-  const size = (await stat('dist/demo/student-demo-ja.mp4')).size;
+  const size = (await stat('dist/demo/provider-demo-ja.mp4')).size;
   assert.equal(head.status, 200);
   assert.equal(head.headers.get('accept-ranges'), 'bytes');
   assert.match(head.headers.get('content-type'), /video\/mp4/);

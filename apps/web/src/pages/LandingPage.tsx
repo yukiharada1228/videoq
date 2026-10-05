@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ArrowDown, ArrowRight, BookOpen, Check, ChevronDown, FileText, GraduationCap, MessageCircle, Play, Search, Sparkles, Upload, NotebookPen } from 'lucide-react';
+import { ArrowDown, ArrowRight, BookOpen, BriefcaseBusiness, Check, ChevronDown, FileText, GraduationCap, MessageCircle, Play, Search, Sparkles, Upload, Users } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Link } from '@/lib/i18n';
 import { LandingDemoVideo } from '@/components/landing/LandingDemoVideo';
@@ -13,19 +14,21 @@ const BENEFITS = [
   { key: 'share', icon: BookOpen },
 ] as const;
 const USES = [
-  { key: 'lectures', icon: GraduationCap },
-  { key: 'exams', icon: NotebookPen },
+  { key: 'school', icon: GraduationCap },
+  { key: 'training', icon: BriefcaseBusiness },
 ] as const;
 const STEPS = [
   { key: 'upload', icon: Upload },
-  { key: 'index', icon: FileText },
+  { key: 'index', icon: Users },
   { key: 'ask', icon: MessageCircle },
 ] as const;
 const FAQ_KEYS = ['free', 'sharing', 'videos', 'answers'] as const;
 
 export default function LandingPage() {
   const { t } = useTranslation();
-  const [activeUse, setActiveUse] = useState<(typeof USES)[number]['key']>('lectures');
+  const { search } = useLocation();
+  const [activeUse, setActiveUse] = useState<(typeof USES)[number]['key']>(() =>
+    new URLSearchParams(search).get('audience') === 'training' ? 'training' : 'school');
   useEffect(() => { startLandingVisit(); }, []);
 
   return (

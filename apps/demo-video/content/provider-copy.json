@@ -1,0 +1,10 @@
+{
+  "ja": {
+    "tag": "先生・研修担当者から、受講者へ。",
+    "captions": ["担当者が動画を登録し、講座にまとめる。", "講座の共有リンクを、受講者に届ける。", "ここからは、受講者の画面。", "受講者が、確認したい動画を開く。", "疑問を、自分の言葉で質問。", "登録した動画をもとに、AIが回答。", "答えのそばに、根拠の時間。", "クリックして、元の説明へ。", "担当者は、寄せられた質問を履歴で確認できます。", "講義・研修動画を、質問に答える窓口へ。動画1本で無料で試す。"]
+  },
+  "en": {
+    "tag": "From your materials to their questions.",
+    "captions": ["Add your videos and organize them into a course.", "Give learners a link to the course.", "Now, see the learner’s view.", "The learner opens a video to revisit.", "They ask a question in their own words.", "AI answers using the course videos.", "A source timestamp beside the answer.", "Click to revisit the explanation.", "As the owner, you can review their question history.", "Your teaching videos. A place for answers. Try one video for free."]
+  }
+}

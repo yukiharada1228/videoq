@@ -2,12 +2,12 @@ import { normalizePathname, type SiteLocale } from './seo';
 
 export const DEFAULT_COPY: Record<SiteLocale, { title: string; description: string }> = {
   "ja": {
-    "title": "大学の講義動画を、あなたの復習パートナーに | VideoQ",
-    "description": "大学生の講義の復習・試験勉強に。動画に自分の言葉で質問すると、AIが回答と根拠の場面を案内。国語・数学・理科・社会・英語の操作デモを公開。無料プラン・カード不要。"
+    "title": "講義・研修動画を、質問に答える窓口へ | VideoQ",
+    "description": "大学の先生・講師・社内研修担当者向け。動画を講座にまとめて共有すると、受講者が質問でき、AIが動画をもとに根拠の時間付きで回答します。質問履歴も確認できます。無料プラン・カード不要。"
   },
   "en": {
-    "title": "Turn lecture videos into your study partner | VideoQ",
-    "description": "Review university lectures and prepare for exams. Ask questions in your own words and get AI answers with source timestamps. Watch our five-subject product demo. Free plan, no credit card required."
+    "title": "Turn teaching and training videos into a place for answers | VideoQ",
+    "description": "For educators and training teams. Share a course built from your videos so learners can ask questions and get AI answers with source timestamps. Review their questions. Free plan, no credit card required."
   }
 };
 

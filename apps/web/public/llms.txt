@@ -1,21 +1,25 @@
 # VideoQ
 
-> VideoQは、講義動画・授業録画を文字起こしして検索する学習サービスです。動画に質問すると、見たいところから再生できます。YouTubeの講義URLでも使えます。会議の文字起こしではなく、授業を見返すためのツールです。
+> VideoQは、動画を持つ大学の先生・講師・社内研修担当者向けの動画検索・AI質問対応サービスです。担当者が動画を講座にまとめて共有し、受講者が質問すると、AIが動画の音声による説明をもとに回答し、根拠の場面を案内します。
 
-VideoQ transcribes and searches lecture videos and class recordings. Ask the video a question and play from the moment you need. YouTube lecture URLs work too. It is a learning tool for reviewing class, not a meeting transcript product.
+VideoQ helps educators and workplace training teams share video courses that learners can ask questions about. AI answers from spoken explanations in the videos and links to source timestamps. Course owners can review and export questions and answers.
 
 ## Key Features
 
-- 講義動画・授業録画の自動文字起こし
-- Automatic transcription of lecture videos and class recordings
-- 動画に質問して、見たいところから再生
-- Ask a lecture a question and play from that scene
-- YouTubeの講義URLの登録
-- Register YouTube lecture URLs
-- クラスや研修チームへの講義共有
-- Share lecture courses with a class or training team
-- 学生の質問傾向の確認
-- Review what students asked about a lecture
+- 講義・教材・研修動画の自動文字起こし
+- Automatic video transcription
+- 講座の動画をもとにしたAI回答と引用時刻
+- AI answers with source timestamps
+- 講座へのメンバー招待・共有リンク
+- Course invitations and sharing links
+- 共有リンクはリンクを知っている人がログインなしで利用可能
+- Anyone with a sharing link can access it without logging in
+- 担当者による質問・回答履歴の確認と出力
+- Owner review and export of question history
+- AI回答は講座所有者の利用枠を消費
+- AI answers use the course owner's allowance
+- YouTubeの登録には利用者のSearchAPIキーが必要
+- YouTube imports require the user's SearchAPI key
 - 日本語・英語のインターフェース
 - Japanese and English interfaces
 
@@ -32,26 +36,27 @@ VideoQ is free to start. No credit card is required. Plans are Free, Basic, and 
 
 ## Use Cases
 
-### 教育機関 / Education
+### 大学の先生・講師 / Educators and instructors
 
-大学や専門学校の授業録画を登録すると、学生は講義動画を検索して「線形代数とは？」と聞けます。通し視聴ではなく、分からない点からの復習が中心になります。
+講義録画を講座にまとめて学生に共有。学生は動画に質問し、先生は質問履歴を見て次の授業で補足する内容を考えられます。
 
-When a university or vocational course registers class recordings, students can search the lecture video and ask what they did not understand. Review starts from that part, not from the beginning.
+Share recorded lectures with students. Learners ask questions about the course, and instructors review the history to plan follow-up explanations.
 
-### 反転授業・オンライン授業 / Flipped and Online Classrooms
+### 社内研修担当者 / Workplace training teams
 
-予習用の講義動画を配布し、学生がつまずいた箇所を質問した記録を教員が確認できます。
+新人研修や業務説明の動画を講座にまとめ、対象者を招待。社員は研修内容を後から探して質問でき、担当者は寄せられた疑問を確認できます。
 
-Distribute lecture videos before class and review what students asked. Teachers can see which explanations did not land before the next session.
+Invite employees to courses built from onboarding or process videos. They can find explanations and ask questions, while the owner reviews what they asked.
 
-## Public samples
+## Product demo
 
-登録なしで、公開中の講義に質問できます。
+日英のLPで、登録・共有から受講者の質問までを38秒の動画で紹介しています。実データを使った操作の再現です。
 
-Ask a public lecture without creating an account.
+The Japanese and English landing pages offer a 38-second reconstructed walkthrough of owner setup, sharing and learner questions, using real course data and AI answers.
 
-- [【ヨビノリ】線形代数](https://videoq.jp/share/yobinori-linearalgebra)
-- [Deep Learning の世界](https://videoq.jp/share/aicia-deeplearning)
+- [先生・講師向けの利用例](https://videoq.jp/?audience=school)
+- [社内研修向けの利用例](https://videoq.jp/?audience=training)
+- [English demo](https://videoq.jp/en/#landing-demo)
 
 ## Integrations
 

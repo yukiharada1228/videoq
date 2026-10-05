@@ -35,7 +35,7 @@ async function serve(request: Request, env: WebEnv): Promise<Response> {
   if (pathname === '/__events/landing') {
     return collectLandingEvent(request, env.ENVIRONMENT);
   }
-  if (/^\/demo\/(explain|student-demo)-(ja|en)\.mp4$/.test(pathname)) {
+  if (/^\/demo\/(explain|student-demo|provider-demo)-(ja|en)\.mp4$/.test(pathname)) {
     return serveLandingVideo(request, env.ASSETS);
   }
 
