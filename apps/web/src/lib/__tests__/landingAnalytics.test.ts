@@ -53,6 +53,10 @@ describe('landing funnel measurement', () => {
   });
 
   it.each([
+    ['?utm_source=x&utm_medium=paid_social&utm_campaign=student_return_202610&utm_content=demo15_search_ja', 'x_paid_student_ja'],
+    ['?utm_source=x&utm_medium=paid_social&utm_campaign=student_return_202610&utm_content=demo15_search_en', 'x_paid_student_en'],
+    ['?utm_source=x&utm_medium=organic_social&utm_campaign=student_return_202610&utm_content=demo15_search_en', 'unattributed'],
+    ['?utm_source=x&utm_medium=paid_social&utm_campaign=student_return_202610&utm_content=unknown', 'unattributed'],
     ['?utm_source=x&utm_medium=paid_social&utm_campaign=teacher_qa_test&utm_content=lecture_qa', 'x_paid_teacher_qa'],
     ['?utm_source=x&utm_medium=organic_social&utm_campaign=teacher_qa_test&utm_content=lecture_qa', 'unattributed'],
     ['?utm_source=x&utm_medium=paid_social&utm_campaign=teacher_qa_test&utm_content=private-value', 'unattributed'],
@@ -82,6 +86,28 @@ describe('landing funnel measurement', () => {
     trackLandingEvent('email_signup_created');
     trackLandingEvent('first_answer');
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it.each(['ja', 'en'] as const)('preserves the new %s student cohort through signup, upload and first answer', locale => {
+    const base = `https://videoq.jp/${locale === 'en' ? 'en/' : ''}`;
+    Object.defineProperty(window, 'location', { configurable: true, value: new URL(
+      `${base}?utm_source=x&utm_medium=paid_social&utm_campaign=student_return_202610&utm_content=demo15_search_${locale}&twclid=private-click-id`,
+    ) });
+    expect(getLandingAudience()).toBe('student');
+    startLandingVisit();
+    Object.defineProperty(window, 'location', { configurable: true, value: new URL(`${base}signup`) });
+    trackLandingEvent('google_auth_started');
+    completeSignupTracking('google');
+    Object.defineProperty(window, 'location', { configurable: true, value: new URL(`${base}videos`) });
+    trackLandingEvent('video_upload_accepted');
+    trackLandingEvent('first_answer');
+    const events = send.mock.calls.map(([, init]) => JSON.parse(init.body));
+    expect(events.map(event => event.event)).toEqual([
+      'landing_view', 'google_auth_started', 'google_signup_created', 'video_upload_accepted', 'first_answer',
+    ]);
+    expect(events.every(event => event.audience === 'student' && event.locale === locale
+      && event.acquisition === `x_paid_student_${locale}`)).toBe(true);
+    expect(JSON.stringify(events)).not.toMatch(/private-click-id|utm_/);
   });
 
   it('attributes teacher signup and upload to the ad without logging click identifiers', () => {

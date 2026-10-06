@@ -1,8 +1,8 @@
 # VideoQ
 
-> VideoQは、動画を持つ大学の先生・講師・社内研修担当者向けの動画検索・AI質問対応サービスです。担当者が動画を講座にまとめて共有し、受講者が質問すると、AIが動画の音声による説明をもとに回答し、根拠の場面を案内します。
+> VideoQは、大学生の講義の復習・試験勉強を助ける動画検索・質問サービスです。講義動画に自分の言葉で質問し、答えと根拠の場面を確認できます。
 
-VideoQ helps educators and workplace training teams share video courses that learners can ask questions about. AI answers from spoken explanations in the videos and links to source timestamps. Course owners can review and export questions and answers.
+VideoQ helps university students review lectures and prepare for exams. Ask questions about your lecture videos and revisit the source explanation. Upload videos you have the right to use.
 
 ## Key Features
 
@@ -36,17 +36,17 @@ VideoQ is free to start. No credit card is required. Plans are Free, Basic, and 
 
 ## Use Cases
 
-### 大学の先生・講師 / Educators and instructors
+### 講義の復習 / Lecture revision
 
-講義録画を講座にまとめて学生に共有。学生は動画に質問し、先生は質問履歴を見て次の授業で補足する内容を考えられます。
+授業で聞き逃した用語や式を、自分の言葉で質問。説明の場面に戻り、自分のペースで復習できます。
 
-Share recorded lectures with students. Learners ask questions about the course, and instructors review the history to plan follow-up explanations.
+For university education: ask about a term or formula you missed, then return to the explanation and review at your own pace.
 
-### 社内研修担当者 / Workplace training teams
+### 試験勉強 / Exam preparation
 
-新人研修や業務説明の動画を講座にまとめ、対象者を招待。社員は研修内容を後から探して質問でき、担当者は寄せられた疑問を確認できます。
+科目ごとに講義動画をまとめ、混同しやすい概念を質問。回答と元の説明を見比べて理解を確かめられます。
 
-Invite employees to courses built from onboarding or process videos. They can find explanations and ask questions, while the owner reviews what they asked.
+Organize lectures by subject, compare confusing concepts, and check answers against the original explanation as you prepare for exams.
 
 ## Product demo
 
@@ -54,8 +54,7 @@ Invite employees to courses built from onboarding or process videos. They can fi
 
 The Japanese and English landing pages share the same 30-second widescreen walkthrough, including scene order, layout and animation. Both demonstrate asking questions and replaying cited lecture scenes using real course data and an AI answer; the English version translates the original course, lesson and recorded answer.
 
-- [先生・講師向けの利用例](https://videoq.jp/?audience=school)
-- [社内研修向けの利用例](https://videoq.jp/?audience=training)
+- [学生向けの利用例](https://videoq.jp/?audience=student)
 - [English demo](https://videoq.jp/en/#landing-demo)
 
 ## Integrations
