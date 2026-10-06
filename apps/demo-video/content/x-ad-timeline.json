@@ -1,0 +1,19 @@
+{
+  "fps": 60,
+  "duration": 15,
+  "select": 0,
+  "focus": 1.6,
+  "typingStart": 1.85,
+  "typingEnd": 3.1,
+  "send": 3.35,
+  "answerStart": 4.3,
+  "answerEnd": 5.25,
+  "citation": 5.25,
+  "sourceClick": 8.6,
+  "playback": 8.8,
+  "outro": 12,
+  "outroEnd": 12.4,
+  "captions": [0, 1.6, 4.3, 8.6, 12, 15],
+  "reviewSeconds": [0.7, 2.8, 5.8, 8.6, 10.5, 13.5],
+  "poster": 5.8
+}

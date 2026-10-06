@@ -3,6 +3,7 @@ import course from '../content/course.json';
 import recording from '../content/answer.json';
 import timeline from '../content/timeline.json';
 import providerCopy from '../content/provider-copy.json';
+import englishAd from '../content/x-ad-en.json';
 import './style.css';
 
 // These are the actual course and unedited answer/citation produced by VideoQ.
@@ -57,42 +58,47 @@ function Icon({type,size=22}:{type:'play'|'send'|'book'|'pause'|'check';size?:nu
   </svg>;
 }
 
-function ProductScreen({frame}:{frame:number}) {
+export function ProductScreen({frame, timing=timeline, locale='ja'}:{frame:number; timing?:typeof timeline; locale?:'ja'|'en'}) {
+  const timeline = timing;
+  const english = locale === 'en';
+  const question = english ? englishAd.question : recording.question;
+  const response = english ? englishAd.answer : answer;
+  const lessonTitle = (index:number) => english ? englishAd.titles[index] : course.lessons[index].title;
   const selected=frame<timeline.select?0:1;
   const lesson=course.lessons[selected];
-  const typed=recording.question.slice(0,Math.floor(interpolate(frame,[timeline.typingStart,timeline.typingEnd],[0,recording.question.length],{extrapolateLeft:'clamp',extrapolateRight:'clamp'})));
+  const typed=question.slice(0,Math.floor(interpolate(frame,[timeline.typingStart,timeline.typingEnd],[0,question.length],{extrapolateLeft:'clamp',extrapolateRight:'clamp'})));
   const sent=frame>=timeline.send;
-  const answerLength=Math.floor(interpolate(frame,[timeline.answerStart,timeline.answerEnd],[0,answer.length],{extrapolateLeft:'clamp',extrapolateRight:'clamp'}));
+  const answerLength=Math.floor(interpolate(frame,[timeline.answerStart,timeline.answerEnd],[0,response.length],{extrapolateLeft:'clamp',extrapolateRight:'clamp'}));
   const playing=frame>=timeline.playback;
   const activeTime=playing?sourceStart+frame-timeline.playback:0;
   return <div className="product">
-    <header className="product-header"><b>VideoQ</b><span>講座 <i>/</i> {course.name}</span><em>公開共有リンク</em></header>
+    <header className="product-header"><b>VideoQ</b><span>{english?'Course':'講座'} <i>/</i> {english?englishAd.courseName:course.name}</span><em>{english?'Public sharing link':'公開共有リンク'}</em></header>
     <div className="product-columns">
       <aside className="course-list">
-        <div className="panel-title"><b>動画一覧</b><span>全5本</span></div>
+        <div className="panel-title"><b>{english?'Videos':'動画一覧'}</b><span>{english?'5 videos':'全5本'}</span></div>
         {course.lessons.map((lesson,i)=><div key={lesson.key} className={`lesson-row ${selected===i?'selected':''}`}>
-          <strong>{lesson.title}</strong><small><Icon type="check" size={12}/>完了</small>
+          <strong>{lessonTitle(i)}</strong><small><Icon type="check" size={12}/>{english?'Ready':'完了'}</small>
         </div>)}
-        <div className="course-count"><span>国語</span><span>数学</span><span>理科</span><span>社会</span><span>英語</span></div>
+        <div className="course-count">{(english?englishAd.subjects:['国語','数学','理科','社会','英語']).map(subject=><span key={subject}>{subject}</span>)}</div>
       </aside>
       <section className="lesson-player">
-        <div className="panel-title"><b>{lesson.title}</b></div>
+        <div className="panel-title"><b>{lessonTitle(selected)}</b></div>
         <div className="lesson-media">
-          {playing ? <Sequence from={Math.round(timeline.playback*timeline.fps)} layout="none"><OffthreadVideo src={staticFile('lessons/math.mp4')} startFrom={Math.round(sourceStart*timeline.fps)} muted style={{width:'100%',height:'100%',objectFit:'contain'}} /></Sequence>
+          {english ? <Img src={staticFile('brand/math-en-poster.webp')} style={{width:'100%',height:'100%',objectFit:'contain'}}/> : playing ? <Sequence from={Math.round(timeline.playback*timeline.fps)} layout="none"><OffthreadVideo src={staticFile('lessons/math.mp4')} startFrom={Math.round(sourceStart*timeline.fps)} muted style={{width:'100%',height:'100%',objectFit:'contain'}} /></Sequence>
             : <Img src={staticFile(`lessons/${lesson.key}-poster.webp`)} style={{width:'100%',height:'100%',objectFit:'contain'}}/>}
           <div className="player-controls"><Icon type={playing?'pause':'play'} size={17}/><span>{clock(activeTime)} / 1:00</span><span className="player-fullscreen">⛶</span></div>
           <div className="player-progress"><div style={{width:`${activeTime/60*100}%`}}/></div>
         </div>
       </section>
       <aside className="chat-panel">
-        <div className="panel-title"><b>チャット</b></div>
+        <div className="panel-title"><b>{english?'Chat':'チャット'}</b></div>
         <div className="chat-body">
-          {!sent?<div className="assistant"><div className="assistant-name"><Icon type="book" size={15}/> AI 教師</div><p>こんにちは！動画に関する質問にお答えします。何か質問はありますか？</p></div>:<>
-            <div className="question-bubble">{recording.question}</div>
-            <div className="assistant" style={{marginTop:22}}><div className="assistant-name"><Icon type="book" size={15}/> AI 教師</div>
-              <div className="search-status"><Icon type="check" size={13}/>{frame<timeline.answerStart?'講義動画を検索しています':'講義動画を検索しました'}</div>
+          {!sent?<div className="assistant"><div className="assistant-name"><Icon type="book" size={15}/> {english?'AI Tutor':'AI 教師'}</div><p>{english?englishAd.greeting:'こんにちは！動画に関する質問にお答えします。何か質問はありますか？'}</p></div>:<>
+            <div className="question-bubble">{question}</div>
+            <div className="assistant" style={{marginTop:22}}><div className="assistant-name"><Icon type="book" size={15}/> {english?'AI Tutor':'AI 教師'}</div>
+              <div className="search-status"><Icon type="check" size={13}/>{english?(frame<timeline.answerStart?'Searching lecture videos':'Lecture videos searched'):(frame<timeline.answerStart?'講義動画を検索しています':'講義動画を検索しました')}</div>
               <div style={{position:'relative'}}>
-                <p>{Array.from(answer).map((letter,index)=><span key={index} style={{opacity:index<answerLength?1:0}}>{letter}</span>)}<span className="citation" style={{opacity:frame>=timeline.citation?1:0}}> {citation}</span></p>
+                <p>{Array.from(response).map((letter,index)=><span key={index} style={{opacity:index<answerLength?1:0}}>{letter}</span>)}<span className="citation" style={{opacity:frame>=timeline.citation?1:0}}> {citation}</span></p>
                 {!answerLength&&<div className="typing-dots" style={{position:'absolute',top:0}}>•••</div>}
               </div>
               <div className="feedback" style={{opacity:frame>=timeline.citation?1:0}}>{[false,true].map(down=><svg key={String(down)} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{transform:down?'rotate(180deg)':undefined,marginRight:16}}><path d="M7 10v12H3V10zM7 10l5-8c2 0 3 1 2 4l-1 4h6a2 2 0 0 1 2 2l-2 8a2 2 0 0 1-2 2H7"/></svg>)}</div>

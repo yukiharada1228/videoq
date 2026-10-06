@@ -134,7 +134,7 @@
     "start": "Try one video for free",
     "tryOwn": "Start with your own video",
     "login": "Already have an account? Log in",
-    "watchDemo": "Watch the 30-second demo",
+    "watchDemo": "Watch the 15-second demo",
     "startNote": "Free plan · No credit card required",
     "capabilities": {
       "title": "What VideoQ can do",
@@ -254,18 +254,18 @@
     },
     "film": {
       "title": "Ask a question. Find the explanation.",
-      "duration": "30 sec / Product demo",
+      "duration": "15 sec / Product demo",
       "play": "Play the demo",
       "course": "Demo course: Five subjects for university study",
       "subjectsLabel": "Five subjects in the demo",
       "subjects": {
-        "japanese": "Japanese",
+        "japanese": "Writing",
         "math": "Math",
         "science": "Science",
-        "social": "Social studies",
+        "social": "Economics",
         "english": "English"
       },
-      "note": "A reconstructed walkthrough using a real course and AI answer. Waiting time has been shortened. The sample lessons are in Japanese.",
+      "note": "An English translation of a walkthrough using real course data and an AI answer. Waiting times have been shortened.",
       "error": "The video could not load.",
       "blocked": "Use the video’s play button to start.",
       "retry": "Reload video"

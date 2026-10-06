@@ -1,0 +1,27 @@
+{
+  "provenance": "English translation of the original Japanese demo's course, question, recorded answer and lesson. Citation range is preserved. This is not a new English API response.",
+  "courseName": "Five subjects · University foundations",
+  "titles": ["Writing | Claims and evidence", "Math | What a derivative means", "Science | From DNA to protein", "Economics | Supply and demand", "English | Claims and reasons"],
+  "subjects": ["Writing", "Math", "Science", "Economics", "English"],
+  "question": "What does a derivative mean? Explain in 2 sentences.",
+  "answer": "A derivative measures the rate of change at an instant. On a graph, it is the slope of the tangent.",
+  "greeting": "Hello! I can answer questions about your videos. What would you like to know?",
+  "mathSlide": {
+    "subject": "Math",
+    "title": "A derivative: the rate of change at an instant",
+    "lines": ["Average rate of change → Instantaneous rate", "On a graph: the slope of the tangent at that point"]
+  },
+  "brand": "Ask your lecture videos.",
+  "browserLabel": "LECTURE VIDEO × AI",
+  "beats": [
+    {"title": ["That explanation...", "where was it?"], "sub": "Review your lectures with VideoQ."},
+    {"title": ["Ask your question,", "in your own words."], "sub": "“What does a derivative mean?”"},
+    {"title": ["From your lecture,", "AI gives answers."], "sub": "With a link to the source."},
+    {"title": ["Click to revisit", "the explanation."], "sub": "Rewatch the lecture to check."}
+  ],
+  "steps": ["Ask a video", "Read answer", "Rewatch"],
+  "endSub": "Your lecture video. Your study partner.",
+  "endTitle": ["Ask your", "lecture video."],
+  "cta": "Try for free",
+  "disclosure": "Translated real-data demo · Waiting times shortened"
+}
