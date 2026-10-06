@@ -6,6 +6,7 @@
   "scripts": {
     "studio": "remotion studio src/index.tsx",
     "render": "node scripts/render.mjs",
+    "render:x-ad": "node scripts/render-x-ad.mjs",
     "lessons": "python3 scripts/build-lessons.py",
     "typecheck": "tsc --noEmit"
   },

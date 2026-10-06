@@ -50,9 +50,9 @@ Invite employees to courses built from onboarding or process videos. They can fi
 
 ## Product demo
 
-日英のLPで、講義への質問から根拠の場面の再生までを30秒の動画で紹介しています。実データを使った操作の再現です。
+日本語LPは30秒の動画、英語LPはX広告と同じ15秒の英語動画で、講義への質問から根拠の場面の再生までを紹介しています。実データを使った操作の再現で、英語版は講座・教材・取得済みのAI回答の英訳です。
 
-The Japanese and English landing pages offer a 30-second reconstructed walkthrough of asking questions and replaying cited lecture scenes, using real course data and AI answers.
+The Japanese landing page offers a 30-second walkthrough. The English landing page uses the same 15-second English video as the X ad. Both demonstrate asking questions and replaying cited lecture scenes using real course data and an AI answer; the English version translates the original course, lesson and recorded answer.
 
 - [先生・講師向けの利用例](https://videoq.jp/?audience=school)
 - [社内研修向けの利用例](https://videoq.jp/?audience=training)

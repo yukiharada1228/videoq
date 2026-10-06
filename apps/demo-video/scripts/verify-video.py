@@ -4,6 +4,7 @@ The wordmark/tag above the app stay still until the outro. Tiled Chrome
 screenshots change this region and cause large isolated frame differences.
 Decode every frame, inspect that invariant, and detect flashes in the full frame.
 """
+import argparse
 import json
 import statistics
 import struct
@@ -13,8 +14,14 @@ from fractions import Fraction
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-TIMELINE = json.loads((Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / 'content/timeline.json').read_text())
-video = Path(sys.argv[1])
+parser = argparse.ArgumentParser()
+parser.add_argument('video', type=Path)
+parser.add_argument('timeline', type=Path, nargs='?')
+parser.add_argument('--profile', choices=['student','x-ad'], default='student')
+args = parser.parse_args()
+is_x_ad = args.profile == 'x-ad'
+TIMELINE = json.loads((args.timeline or ROOT / 'content' / ('x-ad-timeline.json' if is_x_ad else 'timeline.json')).read_text())
+video = args.video
 info = json.loads(subprocess.check_output([
     'ffprobe', '-v', 'error', '-show_streams', '-show_format', '-of', 'json', str(video),
 ]))
@@ -44,7 +51,7 @@ for i in range(1, len(decoded) - 1):
         if surrounding < min(incoming, outgoing) * .4:
             flashes.append(i)
 
-header = frames('crop=1672:48:124:50,scale=334:10', 334, 10)
+header = frames(('crop=972:54:54:45' if is_x_ad else 'crop=1672:48:124:50')+',scale=334:10', 334, 10)
 reference = header[round(fps)]
 header_diffs = [difference(reference, f) for f in header[:round(TIMELINE['outro'] * fps)]]
 corrupt_header = [i for i, value in enumerate(header_diffs) if value > 2.5]
@@ -65,7 +72,7 @@ checks = {
     'duration': abs(float(info['format']['duration']) - TIMELINE['duration']) < .1,
     'frame_count': len(decoded) == TIMELINE['duration'] * TIMELINE['fps'],
     'fps': fps == TIMELINE['fps'],
-    'dimensions': (stream['width'], stream['height']) == (1920, 1080),
+    'dimensions': (stream['width'], stream['height']) == ((1080, 1080) if is_x_ad else (1920, 1080)),
     'fast_start': boxes.index('moov') < boxes.index('mdat'),
     'size_limit': video.stat().st_size <= 16 * 1024 * 1024,
     'no_flashes': not flashes,

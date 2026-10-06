@@ -1,5 +1,35 @@
 # 大学生向けVideoQデモ
 
+## X広告動画（日英共通・2026-10-06）
+
+`XAd` は日本語の配信中動画と同じ15秒・1080×1080・60fpsのコンポジションです。
+日英で `XAd.tsx`、`x-ad.css`、`content/x-ad-timeline.json`、`ProductScreen` を共用し、
+背景・ロゴ・レイアウト・ズーム・カーソル・クリック・BGM・場面切替をそろえています。
+日本語で再描画した6つの確認フレームは、元の保存画像と4枚が完全一致し、残る2枚も
+RGB合計で1および3階調の差だけでした。
+
+英訳は `content/x-ad-en.json` に集約しています。元の教材・質問・取得済み回答を翻訳し、
+引用範囲0:00–0:54を維持します。英語APIの新規回答や速度測定ではなく、
+映像内に `Translated real-data demo · Waiting times shortened` と明記します。
+教材の最初の場面も、元の描画座標・フォントを使って英語化しています。
+日本語の既存LP動画と配信中広告は変更しません。
+
+```bash
+npm run typecheck --workspace @videoq/demo-video
+node apps/demo-video/scripts/render-x-ad.mjs --locale en
+# 英語LPのMP4・ポスター・字幕にも反映
+node apps/demo-video/scripts/render-x-ad.mjs --locale en --publish-lp
+# 日本語の比較フレーム（元の保存フレームは上書きしない）
+node apps/demo-video/scripts/render-x-ad.mjs --locale ja --stills
+```
+
+完成MP4とVTTは `output/x-demo/`、確認画像は `review/x-ad/` に出力します。
+書き出し時に全900フレーム、フラッシュ、固定ヘッダー、エンディング、尺、fps、
+解像度、fast start、ファイルサイズを検査し、合格した動画だけを出力します。
+英語LPはこの15秒版を `student-demo-en.mp4` として配信します。
+
+## 既存の大学生向けデモ
+
 Remotion製の30秒・1920×1080・60 fpsの操作紹介です。Screen Studioのように
 操作箇所へ滑らかにズームし、カーソル・クリック・入力・回答・参照箇所の再生を見せます。
 実画面の録画ではなく、VideoQの共有講座UIを再現した映像です。
@@ -57,8 +87,9 @@ Cookieは権限600のファイルに保存し、ソース・CLI引数・ログ�
 回答取得先は `VIDEOQ_DEMO_ORIGIN` で変更できます。
 回答・参照先を更新したら、映像の選択教科と引用先が一致していることも確認してください。
 
-書き出し先は `apps/web/public/demo/student-demo-{ja,en}.mp4` と対応するWebP/VTTです。
-英語版は案内字幕が英語で、講座画面・教材・AI回答は日本語のままです。
+30秒版の書き出し先は `apps/web/public/demo/student-demo-ja.mp4` と対応するWebP/VTTです。
+英語LPは上記の `render-x-ad.mjs --locale en --publish-lp` で更新します。
+30秒版の書き出し処理は英語LPを上書きしません。
 MP4が配信上限の16 MiBを超えると書き出しスクリプトは失敗します。
 `review/` に確認用の静止画を生成します（Git対象外）。`-- --stills` で静止画のみ作成できます。
 
@@ -84,6 +115,7 @@ CIのFrontend Buildでも配信対象の日英MP4を全フレーム検査しま�
 
 ```bash
 python3 apps/demo-video/scripts/verify-video.py apps/web/public/demo/student-demo-ja.mp4
+python3 apps/demo-video/scripts/verify-video.py apps/web/public/demo/student-demo-en.mp4 --profile x-ad
 ```
 
 表示デザインを変更するときは固定ヘッダーの検査領域も見直してください。

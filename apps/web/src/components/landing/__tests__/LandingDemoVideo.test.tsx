@@ -12,6 +12,7 @@ describe('LandingDemoVideo',()=>{
     const {container}=render(<LandingDemoVideo/>);
     const video=container.querySelector('video')!;
     expect(video).toHaveAttribute('src','/demo/student-demo-ja.mp4?v=2');
+    expect(video.parentElement).toHaveStyle({aspectRatio:'16 / 9'});
     expect(video).toHaveAttribute('preload','none');
     expect(video.autoplay).toBe(false);
     expect(video.play).not.toHaveBeenCalled();
@@ -34,8 +35,12 @@ describe('LandingDemoVideo',()=>{
     const {container,rerender}=render(<LandingDemoVideo/>);
     fireEvent.play(container.querySelector('video')!);
     globalThis.__setMockLanguage('en');rerender(<LandingDemoVideo/>);
-    expect(container.querySelector('video')).toHaveAttribute('src','/demo/student-demo-en.mp4?v=2');
-    expect(container.querySelector('track')).toHaveAttribute('src','/demo/student-demo-en.vtt?v=2');
+    const video=container.querySelector('video')!;
+    expect(video).toHaveAttribute('src','/demo/student-demo-en.mp4?v=3');
+    expect(video).toHaveAttribute('poster','/demo/student-demo-en-poster.webp?v=3');
+    expect(video.parentElement).toHaveStyle({aspectRatio:'1 / 1'});
+    expect(container.querySelector('track')).toHaveAttribute('src','/demo/student-demo-en.vtt?v=3');
+    expect(container.querySelector('track')).toHaveAttribute('srcLang','en');
     expect(screen.getByRole('button',{name:'landing.film.play'})).toBeInTheDocument();
   });
 });

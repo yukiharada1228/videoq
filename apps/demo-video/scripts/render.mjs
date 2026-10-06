@@ -20,9 +20,9 @@ const captions={
 const timings=timeline.captions;
 const time=n=>`00:${Math.floor(n/60).toString().padStart(2,'0')}:${(n%60).toFixed(3).padStart(6,'0')}`;
 const {values}=parseArgs({options:{stills:{type:'boolean'},'assets-only':{type:'boolean'},locale:{type:'string'}}});
-if(values.locale && !['ja','en'].includes(values.locale)) throw new Error('Locale must be ja or en.');
+if(values.locale && values.locale !== 'ja') throw new Error('For the English LP, use render-x-ad.mjs --locale en --publish-lp.');
 const stillsOnly=values.stills;
-for(const locale of (values.locale?[values.locale]:stillsOnly?['ja']:['ja','en'])) {
+for(const locale of ['ja']) {
  const inputProps={locale};
  const composition=await selectComposition({serveUrl,id:'StudentDemo',inputProps,...browserOptions});
  if(locale==='ja'&&!values['assets-only']) for(const second of timeline.reviewSeconds) {
