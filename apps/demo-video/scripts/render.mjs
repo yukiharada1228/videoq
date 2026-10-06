@@ -7,6 +7,10 @@ import { parseArgs } from 'node:util';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const output=fileURLToPath(new URL('../../web/public/demo/',import.meta.url));
 const review=fileURLToPath(new URL('../review/',import.meta.url));
+const {values}=parseArgs({options:{stills:{type:'boolean'},'assets-only':{type:'boolean'},locale:{type:'string'}}});
+if(values.locale && !['ja','en'].includes(values.locale)) throw new Error('Locale must be ja or en.');
+const locales=values.locale?[values.locale]:['ja','en'];
+if(locales.includes('en')) execFileSync('python3',[root+'scripts/build-x-ad-english-slide.py'],{stdio:'inherit'});
 await mkdir(output,{recursive:true}); await mkdir(review,{recursive:true});
 const serveUrl=await bundle({entryPoint:root+'src/index.tsx',publicDir:root+'public'});
 const timeline=JSON.parse(await readFile(root+'content/timeline.json','utf8'));
@@ -19,15 +23,13 @@ const captions={
 };
 const timings=timeline.captions;
 const time=n=>`00:${Math.floor(n/60).toString().padStart(2,'0')}:${(n%60).toFixed(3).padStart(6,'0')}`;
-const {values}=parseArgs({options:{stills:{type:'boolean'},'assets-only':{type:'boolean'},locale:{type:'string'}}});
-if(values.locale && values.locale !== 'ja') throw new Error('For the English LP, use render-x-ad.mjs --locale en --publish-lp.');
 const stillsOnly=values.stills;
-for(const locale of ['ja']) {
+for(const locale of locales) {
  const inputProps={locale};
  const composition=await selectComposition({serveUrl,id:'StudentDemo',inputProps,...browserOptions});
- if(locale==='ja'&&!values['assets-only']) for(const second of timeline.reviewSeconds) {
+ if(!values['assets-only']) for(const second of timeline.reviewSeconds) {
   const frame=Math.round(second*timeline.fps);
-  await renderStill({serveUrl,composition,inputProps,...browserOptions,frame,output:review+`frame-${frame}.png`,imageFormat:'png'});
+  await renderStill({serveUrl,composition,inputProps,...browserOptions,frame,output:review+`student-${locale}-frame-${frame}.png`,imageFormat:'png'});
  }
  if(stillsOnly) continue;
  let last=-1;

@@ -33,7 +33,6 @@
 .lp-reassurance svg { color: #4b7058; flex-shrink: 0; }
 .lp-demo-wrap { min-width: 0; width: 100%; max-width: 1040px; position: relative; }
 .lp-film { scroll-margin-top: calc(var(--app-header-offset, 5rem) + 20px); }
-.lp-film-square { width: 100%; max-width: 640px; margin-inline: auto; }
 .lp-film-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
 .lp-film-heading h2 { font-size: 14px; line-height: 1.7; letter-spacing: 0; text-wrap: initial; }
 .lp-film-heading > span { flex-shrink: 0; font-size: 11px; color: var(--lp-muted); }

@@ -20,7 +20,7 @@ function DemoPlayer({ media, t }: { media: ReturnType<typeof studentDemoMedia>; 
     void videoRef.current?.play().catch(() => setBlocked(true));
   }
   return (
-    <section className={`lp-film${media.locale === 'en' ? ' lp-film-square' : ''}`} id="landing-demo" aria-labelledby="landing-demo-title">
+    <section className="lp-film" id="landing-demo" aria-labelledby="landing-demo-title">
       <div className="lp-film-heading">
         <h2 id="landing-demo-title">{t('landing.film.title')}</h2>
         <span>{t('landing.film.duration')}</span>

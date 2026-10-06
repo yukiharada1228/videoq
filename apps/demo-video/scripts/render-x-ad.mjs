@@ -1,6 +1,6 @@
 import { bundle } from '@remotion/bundler';
 import { renderMedia, renderStill, selectComposition } from '@remotion/renderer';
-import { copyFile, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
@@ -8,10 +8,9 @@ import { parseArgs } from 'node:util';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const output = fileURLToPath(new URL('../../../output/x-demo/', import.meta.url));
 const review = root + 'review/x-ad/';
-const { values } = parseArgs({ options: { stills: { type: 'boolean' }, 'publish-lp': { type: 'boolean' }, hook: { type: 'string', default: 'search' }, locale: { type: 'string', default: 'en' } } });
+const { values } = parseArgs({ options: { stills: { type: 'boolean' }, hook: { type: 'string', default: 'search' }, locale: { type: 'string', default: 'en' } } });
 if (!['search', 'question'].includes(values.hook)) throw new Error('Hook must be search or question.');
 if (!['ja', 'en'].includes(values.locale)) throw new Error('Locale must be ja or en.');
-if (values['publish-lp'] && (values.locale !== 'en' || values.stills)) throw new Error('--publish-lp requires a full English render.');
 if (values.locale === 'en') execFileSync('python3',[root+'scripts/build-x-ad-english-slide.py'],{stdio:'inherit'});
 await mkdir(output, { recursive: true });
 await mkdir(review, { recursive: true });
@@ -41,11 +40,5 @@ if (!values.stills) {
   }
   const stamp = n => `00:00:${n.toFixed(3).padStart(6, '0')}`;
   await writeFile(output + name + '.vtt', 'WEBVTT\n\n' + labels.map((label, i) => `${stamp(timeline.captions[i])} --> ${stamp(timeline.captions[i + 1])}\n${label}\n`).join('\n'));
-  if (values['publish-lp']) {
-    const lp = fileURLToPath(new URL('../../web/public/demo/', import.meta.url));
-    await copyFile(output + name + '.mp4', lp + 'student-demo-en.mp4');
-    await copyFile(output + name + '.vtt', lp + 'student-demo-en.vtt');
-    execFileSync('python3', ['-c', 'from PIL import Image; import sys; Image.open(sys.argv[1]).convert("RGB").save(sys.argv[2], "WEBP", quality=88)', review + `${values.hook}-en-0.7.png`, lp + 'student-demo-en-poster.webp']);
-  }
   console.log('Ready: ' + output + name + '.mp4');
 } else console.log('Review frames ready: ' + review);
