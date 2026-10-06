@@ -84,7 +84,7 @@ export function ProductScreen({frame, timing=timeline, locale='ja'}:{frame:numbe
       <section className="lesson-player">
         <div className="panel-title"><b>{lessonTitle(selected)}</b></div>
         <div className="lesson-media">
-          {english ? <Img src={staticFile('brand/math-en-poster.webp')} style={{width:'100%',height:'100%',objectFit:'contain'}}/> : playing ? <Sequence from={Math.round(timeline.playback*timeline.fps)} layout="none"><OffthreadVideo src={staticFile('lessons/math.mp4')} startFrom={Math.round(sourceStart*timeline.fps)} muted style={{width:'100%',height:'100%',objectFit:'contain'}} /></Sequence>
+          {english ? <Img src={staticFile(`brand/${selected===0?'writing':'math'}-en-poster.webp`)} style={{width:'100%',height:'100%',objectFit:'contain'}}/> : playing ? <Sequence from={Math.round(timeline.playback*timeline.fps)} layout="none"><OffthreadVideo src={staticFile('lessons/math.mp4')} startFrom={Math.round(sourceStart*timeline.fps)} muted style={{width:'100%',height:'100%',objectFit:'contain'}} /></Sequence>
             : <Img src={staticFile(`lessons/${lesson.key}-poster.webp`)} style={{width:'100%',height:'100%',objectFit:'contain'}}/>}
           <div className="player-controls"><Icon type={playing?'pause':'play'} size={17}/><span>{clock(activeTime)} / 1:00</span><span className="player-fullscreen">⛶</span></div>
           <div className="player-progress"><div style={{width:`${activeTime/60*100}%`}}/></div>
@@ -128,7 +128,7 @@ export function StudentDemo({locale='ja', provider=false}:{locale?:'ja'|'en'; pr
     <Audio src={staticFile('audio/ambient.mp3')} volume={frame=>.30*interpolate(frame/timeline.fps,[0,.4,28.5,30],[0,1,1,0],{extrapolateLeft:'clamp',extrapolateRight:'clamp'})}/>
     {provider ? <ProviderHeader locale={locale}/> : <div className="film-top"><span className="wordmark">VideoQ<span> / STUDY WITH YOUR VIDEOS</span></span><span className="film-tag">{locale==='ja'?'大学生のための、動画の復習。':'Your lectures. Your study partner.'}</span></div>}
     <div className="screen-window" style={{opacity:stage,transform:`translateY(${ramp(f,0,.3,10,0)}px)`}}>
-      <div className="screen-camera" style={{transform:`translate(${tx}px,${ty}px) scale(${c.z*fit})`}}><ProductScreen frame={f}/></div>
+      <div className="screen-camera" style={{transform:`translate(${tx}px,${ty}px) scale(${c.z*fit})`}}><ProductScreen frame={f} locale={locale}/></div>
       {f<timeline.outro&&<div className="cursor" style={{left:p.x*fit*c.z+tx,top:p.y*fit*c.z+ty,opacity:f>timeline.typingStart&&f<timeline.typingEnd?.15:1}}>
         {click&&<div className="click-ring" style={{transform:`translate(-50%,-50%) scale(${.45+click.age/.24})`,opacity:1-click.age/.28}}/>}
         <svg width="36" height="44" viewBox="0 0 30 40"><path d="M3 2v29l7-8 7 15 6-3-7-14h11z" fill="#172f3c" stroke="white" strokeWidth="2.4" strokeLinejoin="round"/></svg>
@@ -138,7 +138,7 @@ export function StudentDemo({locale='ja', provider=false}:{locale?:'ja'|'en'; pr
     {f>=timeline.outro&&<AbsoluteFill className="outro" style={{opacity:outro,pointerEvents:'none'}}>
       <div className="outro-mark">Q</div><p>{provider ? (locale==='ja'?'いつもの教材に、質問できる場所を。':'Give your materials a place for questions.') : (locale==='ja'?'「わからない」を、置いていかない。':'Don’t leave that question behind.')}</p>
       <h1>{provider ? (locale==='ja'?<>講義・研修動画を、<br/>質問に答える窓口へ。</>:<>Your teaching videos.<br/>A place for answers.</>) : (locale==='ja'?<>講義動画が、<br/>あなたの復習パートナーに。</>:<>Your lecture.<br/>Your study partner.</>)}</h1>
-      <div className="outro-cta">{provider ? (locale==='ja'?'動画1本で無料で試す':'Try one video for free') : (locale==='ja'?'無料で使ってみる':'Get started for free')} <span>→</span></div><small>videoq.jp</small>
+      <div className="outro-cta">{provider ? (locale==='ja'?'動画1本で無料で試す':'Try one video for free') : (locale==='ja'?'無料で使ってみる':'Get started for free')} <span>→</span></div><small>{locale==='en'?'videoq.jp/en':'videoq.jp'}</small>
     </AbsoluteFill>}
   </AbsoluteFill>;
 }

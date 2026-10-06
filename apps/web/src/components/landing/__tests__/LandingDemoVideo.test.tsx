@@ -36,10 +36,10 @@ describe('LandingDemoVideo',()=>{
     fireEvent.play(container.querySelector('video')!);
     globalThis.__setMockLanguage('en');rerender(<LandingDemoVideo/>);
     const video=container.querySelector('video')!;
-    expect(video).toHaveAttribute('src','/demo/student-demo-en.mp4?v=3');
-    expect(video).toHaveAttribute('poster','/demo/student-demo-en-poster.webp?v=3');
-    expect(video.parentElement).toHaveStyle({aspectRatio:'1 / 1'});
-    expect(container.querySelector('track')).toHaveAttribute('src','/demo/student-demo-en.vtt?v=3');
+    expect(video).toHaveAttribute('src','/demo/student-demo-en.mp4?v=4');
+    expect(video).toHaveAttribute('poster','/demo/student-demo-en-poster.webp?v=4');
+    expect(video.parentElement).toHaveStyle({aspectRatio:'16 / 9'});
+    expect(container.querySelector('track')).toHaveAttribute('src','/demo/student-demo-en.vtt?v=4');
     expect(container.querySelector('track')).toHaveAttribute('srcLang','en');
     expect(screen.getByRole('button',{name:'landing.film.play'})).toBeInTheDocument();
   });

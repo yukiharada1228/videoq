@@ -17,8 +17,6 @@ RGB合計で1および3階調の差だけでした。
 ```bash
 npm run typecheck --workspace @videoq/demo-video
 node apps/demo-video/scripts/render-x-ad.mjs --locale en
-# 英語LPのMP4・ポスター・字幕にも反映
-node apps/demo-video/scripts/render-x-ad.mjs --locale en --publish-lp
 # 日本語の比較フレーム（元の保存フレームは上書きしない）
 node apps/demo-video/scripts/render-x-ad.mjs --locale ja --stills
 ```
@@ -26,13 +24,16 @@ node apps/demo-video/scripts/render-x-ad.mjs --locale ja --stills
 完成MP4とVTTは `output/x-demo/`、確認画像は `review/x-ad/` に出力します。
 書き出し時に全900フレーム、フラッシュ、固定ヘッダー、エンディング、尺、fps、
 解像度、fast start、ファイルサイズを検査し、合格した動画だけを出力します。
-英語LPはこの15秒版を `student-demo-en.mp4` として配信します。
+X広告は15秒の正方形版を使用します。LPは以下の30秒の横長版を使用します。
 
-## 既存の大学生向けデモ
+## 日英LPの大学生向けデモ
 
 Remotion製の30秒・1920×1080・60 fpsの操作紹介です。Screen Studioのように
 操作箇所へ滑らかにズームし、カーソル・クリック・入力・回答・参照箇所の再生を見せます。
 実画面の録画ではなく、VideoQの共有講座UIを再現した映像です。
+日英で `StudentDemo`・`style.css`・`content/timeline.json`・カメラ・カーソル・BGMを共用します。
+英語版は見えている講座画面・教材・質問・取得済み回答を英訳し、元の引用範囲を保ちます。
+冒頭はWriting教材、2.2秒で数学を選択します。再生部分は元の数学教材と同じ静止スライドです。
 
 ## 教材と実際の回答
 
@@ -75,6 +76,8 @@ node apps/demo-video/scripts/capture-answer.mjs
 npm run typecheck --workspace @videoq/demo-video
 npm run studio --workspace @videoq/demo-video
 npm run render --workspace @videoq/demo-video
+# 英語LPだけを更新
+npm run render --workspace @videoq/demo-video -- --locale en
 ```
 
 登録CLIはファイルのSHA-256と講座固有マーカーで再利用を判断します。
@@ -87,9 +90,9 @@ Cookieは権限600のファイルに保存し、ソース・CLI引数・ログ�
 回答取得先は `VIDEOQ_DEMO_ORIGIN` で変更できます。
 回答・参照先を更新したら、映像の選択教科と引用先が一致していることも確認してください。
 
-30秒版の書き出し先は `apps/web/public/demo/student-demo-ja.mp4` と対応するWebP/VTTです。
-英語LPは上記の `render-x-ad.mjs --locale en --publish-lp` で更新します。
-30秒版の書き出し処理は英語LPを上書きしません。
+30秒版の書き出し先は `apps/web/public/demo/student-demo-{ja,en}.mp4` と対応するWebP/VTTです。
+`--locale en` / `--locale ja` で片方だけを再生成できます。
+15秒の広告書き出し処理はLPの配信ファイルを上書きしません。
 MP4が配信上限の16 MiBを超えると書き出しスクリプトは失敗します。
 `review/` に確認用の静止画を生成します（Git対象外）。`-- --stills` で静止画のみ作成できます。
 
@@ -115,7 +118,7 @@ CIのFrontend Buildでも配信対象の日英MP4を全フレーム検査しま�
 
 ```bash
 python3 apps/demo-video/scripts/verify-video.py apps/web/public/demo/student-demo-ja.mp4
-python3 apps/demo-video/scripts/verify-video.py apps/web/public/demo/student-demo-en.mp4 --profile x-ad
+python3 apps/demo-video/scripts/verify-video.py apps/web/public/demo/student-demo-en.mp4
 ```
 
 表示デザインを変更するときは固定ヘッダーの検査領域も見直してください。

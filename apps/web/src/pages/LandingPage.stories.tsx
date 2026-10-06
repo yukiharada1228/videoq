@@ -49,11 +49,10 @@ export const WatchDemo: Story = {
     button.focus(); await userEvent.keyboard('{Enter}');
     await waitFor(()=>expect(video.currentTime).toBeGreaterThan(0),{timeout:10000});
     await expect(video.controls).toBe(true);
-    const english = i18n.language.startsWith('en');
-    await expect(video.duration).toBeCloseTo(english ? 15 : 30,0);
-    await expect(video.videoWidth / video.videoHeight).toBeCloseTo(english ? 1 : 16 / 9,2);
+    await expect(video.duration).toBeCloseTo(30,0);
+    await expect(video.videoWidth / video.videoHeight).toBeCloseTo(16 / 9,2);
     await expect(canvas.queryByRole('button', {name:i18n.t('landing.film.play')})).not.toBeInTheDocument();
-    const seekTime = english ? 10 : 20;
+    const seekTime = 20;
     video.currentTime=seekTime;
     await waitFor(()=>{expect(video.currentTime).toBeGreaterThanOrEqual(seekTime);expect(video.seeking).toBe(false);expect(video.readyState).toBeGreaterThanOrEqual(2);},{timeout:10000});
     video.pause();

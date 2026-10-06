@@ -134,7 +134,7 @@
     "start": "Try one video for free",
     "tryOwn": "Start with your own video",
     "login": "Already have an account? Log in",
-    "watchDemo": "Watch the 15-second demo",
+    "watchDemo": "Watch the 30-second demo",
     "startNote": "Free plan · No credit card required",
     "capabilities": {
       "title": "What VideoQ can do",
@@ -254,7 +254,7 @@
     },
     "film": {
       "title": "Ask a question. Find the explanation.",
-      "duration": "15 sec / Product demo",
+      "duration": "30 sec / Product demo",
       "play": "Play the demo",
       "course": "Demo course: Five subjects for university study",
       "subjectsLabel": "Five subjects in the demo",

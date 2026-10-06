@@ -4,8 +4,13 @@
   "titles": ["Writing | Claims and evidence", "Math | What a derivative means", "Science | From DNA to protein", "Economics | Supply and demand", "English | Claims and reasons"],
   "subjects": ["Writing", "Math", "Science", "Economics", "English"],
   "question": "What does a derivative mean? Explain in 2 sentences.",
-  "answer": "A derivative measures the rate of change at an instant. On a graph, it is the slope of the tangent.",
+  "answer": "A derivative measures the rate of change at an instant. On a graph, it is the slope of the tangent line.",
   "greeting": "Hello! I can answer questions about your videos. What would you like to know?",
+  "writingSlide": {
+    "subject": "Writing",
+    "title": "Separate claims from evidence",
+    "lines": ["Claim = the conclusion the writer wants to convey", "Evidence = reasons or facts that support the claim"]
+  },
   "mathSlide": {
     "subject": "Math",
     "title": "A derivative: the rate of change at an instant",
