@@ -8,6 +8,11 @@ export const PAID_LOOKUP_KEYS = [
   "pro_yearly",
 ] as const;
 export type PaidLookupKey = (typeof PAID_LOOKUP_KEYS)[number];
+export type BillingCurrency = "jpy" | "usd";
+
+export function currencyForLocale(locale?: string): BillingCurrency {
+  return locale === "en" ? "usd" : "jpy";
+}
 
 export type PlanEntitlements = {
   maxVideoUploadSizeMb: number;
@@ -20,6 +25,7 @@ export type PlanDefinition = {
   code: PlanCode;
   lookupKeys: { monthly?: PaidLookupKey; yearly?: PaidLookupKey };
   displayAmountYen: { monthly: number; yearly: number };
+  displayAmountUsdCents: { monthly: number; yearly: number };
   entitlements: PlanEntitlements;
 };
 
@@ -28,6 +34,7 @@ export const PLAN_CATALOG: Record<PlanCode, PlanDefinition> = {
     code: "free",
     lookupKeys: {},
     displayAmountYen: { monthly: 0, yearly: 0 },
+    displayAmountUsdCents: { monthly: 0, yearly: 0 },
     entitlements: {
       maxVideoUploadSizeMb: 200,
       storageLimitGb: 1,
@@ -39,6 +46,7 @@ export const PLAN_CATALOG: Record<PlanCode, PlanDefinition> = {
     code: "basic",
     lookupKeys: { monthly: "basic_monthly", yearly: "basic_yearly" },
     displayAmountYen: { monthly: 1480, yearly: 14800 },
+    displayAmountUsdCents: { monthly: 999, yearly: 9990 },
     entitlements: {
       maxVideoUploadSizeMb: 1024,
       storageLimitGb: 20,
@@ -50,6 +58,7 @@ export const PLAN_CATALOG: Record<PlanCode, PlanDefinition> = {
     code: "pro",
     lookupKeys: { monthly: "pro_monthly", yearly: "pro_yearly" },
     displayAmountYen: { monthly: 3980, yearly: 39800 },
+    displayAmountUsdCents: { monthly: 2699, yearly: 26990 },
     entitlements: {
       maxVideoUploadSizeMb: 2048,
       storageLimitGb: 100,

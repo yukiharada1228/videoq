@@ -14,12 +14,12 @@ import { cn } from '@/lib/digital-agency/cn';
 
 type Interval = 'month' | 'year';
 
-function formatYen(amount: number, locale: string): string {
+function formatPrice(amount: number, currency: 'jpy' | 'usd', locale: string): string {
   return new Intl.NumberFormat(locale === 'ja' ? 'ja-JP' : 'en-US', {
     style: 'currency',
-    currency: 'JPY',
-    maximumFractionDigits: 0,
-  }).format(amount);
+    currency: currency.toUpperCase(),
+    currencyDisplay: currency === 'usd' ? 'code' : 'symbol',
+  }).format(currency === 'usd' ? amount / 100 : amount);
 }
 
 export default function PricingPage() {
@@ -34,7 +34,7 @@ export default function PricingPage() {
     retry: false,
     staleTime: 60_000,
   }));
-  const catalog = useQuery(trpc.billing.plans.queryOptions());
+  const catalog = useQuery(trpc.billing.plans.queryOptions({ locale }));
 
   const canceled = searchParams.get('billing') === 'cancel';
   const currentPlan = hasSession ? account.data?.plan_code : undefined;
@@ -131,7 +131,7 @@ export default function PricingPage() {
                 <p className="mb-6 text-std-20B-150 text-solid-gray-800">
                   {plan.code === 'free'
                     ? t('pricing.freePrice')
-                    : `${formatYen(plan.amount_yen, locale)}${interval === 'year' ? t('pricing.perYear') : t('pricing.perMonth')}`}
+                    : `${formatPrice(plan.unit_amount, plan.currency, locale)}${interval === 'year' ? t('pricing.perYear') : t('pricing.perMonth')}`}
                 </p>
                 <ul className="mb-6 flex-1 space-y-2 text-std-16N-170 text-solid-gray-700">
                   <li>

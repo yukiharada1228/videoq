@@ -29,6 +29,23 @@ Use a restricted API key (`rk_`) where possible. Allow Checkout / Customer / Sub
 | VideoQ Pro | Monthly | `pro_monthly` | 3980 | month |
 | VideoQ Pro | Yearly | `pro_yearly` | 39800 | year |
 
+### English-site USD prices
+
+Keep the four existing Price IDs and lookup keys. Add USD using each Price's `currency_options.usd` (do not replace prices or move lookup keys used by existing subscriptions):
+
+| Lookup key | USD price | `unit_amount` (cents) |
+|---|---:|---:|
+| `basic_monthly` | $9.99/month | 999 |
+| `basic_yearly` | $99.90/year | 9990 |
+| `pro_monthly` | $26.99/month | 2699 |
+| `pro_yearly` | $269.90/year | 26990 |
+
+Set `currency_options.usd.tax_behavior` to `inclusive`, matching the existing tax-inclusive pricing policy. If Dashboard disables adding currency options to a used price, use the official [Update Price API](https://docs.stripe.com/api/prices/update) to add the USD option without modifying JPY. Configure both sandbox and live environments separately.
+
+`billing.plans({ locale: "en" })` expands `data.currency_options` and returns USD cents in `unit_amount`; Japanese or omitted locale returns JPY. `amount_yen` remains on JPY responses for old clients. Without a Stripe key, development uses the reference catalog. With a key configured, missing prices/currencies or invalid recurring intervals fail rather than displaying a price Checkout cannot charge.
+
+Checkout explicitly sets `currency=usd` for English and `currency=jpy` otherwise, plus the matching UI locale. Adaptive Pricing is disabled for the session to keep the displayed currency and charge consistent. Existing subscriptions retain their currency. Portal sessions only change language and return URL; they do not convert a subscription. Keep the original four multi-currency Prices in the portal's allowed products.
+
 JPY is a zero-decimal currency. Set `tax_behavior` to inclusive, or use Automatic in Tax settings (inclusive for JPY).
 
 Assign a tax code to each Product after legal review. Candidates:

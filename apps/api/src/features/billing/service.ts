@@ -1,12 +1,14 @@
 import type Stripe from "stripe";
 import {
   isPaidLookupKey,
+  currencyForLocale,
   isPaidPlan,
   isUsableSubscriptionStatus,
   PAID_LOOKUP_KEYS,
   PLAN_CATALOG,
   planCodeFromLookupKey,
   type PaidLookupKey,
+  type BillingCurrency,
   type PlanCode,
 } from "./catalog";
 import {
@@ -39,8 +41,9 @@ export type PublicPlan = {
   code: PlanCode;
   interval: "month" | "year" | null;
   lookup_key: string | null;
-  amount_yen: number;
-  currency: "jpy";
+  unit_amount: number;
+  amount_yen?: number;
+  currency: BillingCurrency;
   entitlements: {
     max_video_upload_size_mb: number;
     storage_limit_gb: number;
@@ -59,34 +62,36 @@ function entitlementsJson(planCode: PlanCode) {
   };
 }
 
-function catalogPlans(): PublicPlan[] {
+function money(amount: number, currency: BillingCurrency) {
+  return { unit_amount: amount, currency, ...(currency === "jpy" ? { amount_yen: amount } : {}) };
+}
+
+function catalogPlans(currency: BillingCurrency): PublicPlan[] {
   const plans: PublicPlan[] = [
     {
       code: "free",
       interval: null,
       lookup_key: null,
-      amount_yen: 0,
-      currency: "jpy",
+      ...money(0, currency),
       entitlements: entitlementsJson("free"),
     },
   ];
   for (const code of ["basic", "pro"] as const) {
     const def = PLAN_CATALOG[code];
+    const amounts = currency === "usd" ? def.displayAmountUsdCents : def.displayAmountYen;
     plans.push(
       {
         code,
         interval: "month",
         lookup_key: def.lookupKeys.monthly ?? null,
-        amount_yen: def.displayAmountYen.monthly,
-        currency: "jpy",
+        ...money(amounts.monthly, currency),
         entitlements: entitlementsJson(code),
       },
       {
         code,
         interval: "year",
         lookup_key: def.lookupKeys.yearly ?? null,
-        amount_yen: def.displayAmountYen.yearly,
-        currency: "jpy",
+        ...money(amounts.yearly, currency),
         entitlements: entitlementsJson(code),
       },
     );
@@ -94,8 +99,25 @@ function catalogPlans(): PublicPlan[] {
   return plans;
 }
 
-export async function listPlans(env: Bindings): Promise<PublicPlan[]> {
-  const plans = catalogPlans();
+function priceAmount(price: Stripe.Price, lookupKey: string, currency: BillingCurrency): number {
+  const amount = price.currency === currency
+    ? price.unit_amount
+    : price.currency_options?.[currency]?.unit_amount;
+  const interval = lookupKey.endsWith("_yearly") ? "year" : "month";
+  if (!price.active || price.type !== "recurring" || price.recurring?.interval !== interval ||
+      price.recurring.interval_count !== 1 || price.billing_scheme !== "per_unit" ||
+      amount == null || !Number.isSafeInteger(amount) || amount <= 0) {
+    throw apiServiceUnavailable(
+      `Stripe price '${lookupKey}' is not configured for ${currency.toUpperCase()}.`,
+      "STRIPE_PRICE_UNAVAILABLE",
+    );
+  }
+  return amount;
+}
+
+export async function listPlans(env: Bindings, locale?: string): Promise<PublicPlan[]> {
+  const currency = currencyForLocale(locale);
+  const plans = catalogPlans(currency);
   const key = stripeSecretKey(env);
   if (!key) return plans;
 
@@ -103,6 +125,7 @@ export async function listPlans(env: Bindings): Promise<PublicPlan[]> {
   const prices = await stripe.prices.list({
     lookup_keys: [...PAID_LOOKUP_KEYS],
     active: true,
+    expand: ["data.currency_options"],
   });
   const byLookup = new Map<string, Stripe.Price>();
   for (const price of prices.data) {
@@ -111,19 +134,23 @@ export async function listPlans(env: Bindings): Promise<PublicPlan[]> {
   return plans.map((plan) => {
     if (!plan.lookup_key) return plan;
     const live = byLookup.get(plan.lookup_key);
-    if (!live || live.unit_amount == null) return plan;
-    return { ...plan, amount_yen: live.unit_amount, currency: "jpy" };
+    if (!live) {
+      throw apiServiceUnavailable(`Stripe price '${plan.lookup_key}' is not configured.`, "STRIPE_PRICE_MISSING");
+    }
+    return { ...plan, ...money(priceAmount(live, plan.lookup_key, currency), currency) };
   });
 }
 
 async function priceIdForLookupKey(
   stripe: Stripe,
   lookupKey: PaidLookupKey,
+  currency: BillingCurrency,
 ): Promise<string> {
   const prices = await stripe.prices.list({
     lookup_keys: [lookupKey],
     active: true,
     limit: 1,
+    expand: ["data.currency_options"],
   });
   const price = prices.data[0];
   if (!price) {
@@ -132,6 +159,7 @@ async function priceIdForLookupKey(
       "STRIPE_PRICE_MISSING",
     );
   }
+  priceAmount(price, lookupKey, currency);
   return price.id;
 }
 
@@ -154,7 +182,8 @@ export async function createCheckoutSession(
   }
 
   const stripe = requireStripeClient(env);
-  const priceId = await priceIdForLookupKey(stripe, lookupKey);
+  const currency = currencyForLocale(locale);
+  const priceId = await priceIdForLookupKey(stripe, lookupKey, currency);
   let customerId = user.stripeCustomerId;
   if (!customerId) {
     const customer = await stripe.customers.create({
@@ -170,6 +199,9 @@ export async function createCheckoutSession(
   const tax = automaticTaxEnabled(env);
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
+    currency,
+    locale: locale === "en" ? "en" : "ja",
+    adaptive_pricing: { enabled: false },
     customer: customerId,
     client_reference_id: user.id,
     line_items: [{ price: priceId, quantity: 1 }],
@@ -206,6 +238,7 @@ export async function createPortalSession(
   const prefix = localePrefix(locale);
   const session = await stripe.billingPortal.sessions.create({
     customer: user.stripeCustomerId,
+    locale: locale === "en" ? "en" : "ja",
     return_url: `${origin}${prefix}/settings`,
   });
   return { url: session.url };

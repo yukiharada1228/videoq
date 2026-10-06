@@ -68,7 +68,14 @@ beforeEach(() => {
   constructEventAsync.mockReset();
   checkoutCreate.mockReset();
   portalCreate.mockReset();
-  pricesList.mockReset().mockResolvedValue({ data: [] });
+  pricesList.mockReset().mockResolvedValue({ data: [
+    ["basic_monthly", 1480, 999], ["basic_yearly", 14800, 9990],
+    ["pro_monthly", 3980, 2699], ["pro_yearly", 39800, 26990],
+  ].map(([key, yen, cents]) => ({
+    id: `price_${key}`, lookup_key: key, active: true, type: "recurring", billing_scheme: "per_unit",
+    recurring: { interval: String(key).endsWith("yearly") ? "year" : "month", interval_count: 1 },
+    currency: "jpy", unit_amount: yen, currency_options: { usd: { unit_amount: cents } },
+  })) });
   customersCreate.mockReset();
   subscriptionsRetrieve.mockReset();
   rowsFor = () => [];
@@ -108,6 +115,34 @@ describe("billing API", () => {
       body: JSON.stringify({ lookup_key: "basic_monthly" }),
     });
     expect(res.status).toBe(401);
+  });
+
+  it("English catalog returns USD cents from Stripe for monthly and annual prices", async () => {
+    const input = encodeURIComponent(JSON.stringify({ locale: "en" }));
+    const res = await createApp().request(`/api/trpc/billing.plans?input=${input}`, {}, ENV as never);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { result: { data: { code: string; interval: string; currency: string; unit_amount: number; amount_yen?: number }[] } };
+    expect(body.result.data.map(p => [p.code, p.interval, p.currency, p.unit_amount])).toEqual([
+      ["free", null, "usd", 0], ["basic", "month", "usd", 999],
+      ["basic", "year", "usd", 9990], ["pro", "month", "usd", 2699], ["pro", "year", "usd", 26990],
+    ]);
+    expect(body.result.data.every(p => p.amount_yen === undefined)).toBe(true);
+    expect(pricesList).toHaveBeenCalledWith(expect.objectContaining({ expand: ["data.currency_options"] }));
+  });
+
+  it.each([
+    { currency_options: {} },
+    { currency_options: { usd: { unit_amount: null } } },
+    { currency_options: { usd: { unit_amount: 0 } } },
+    { recurring: { interval: "year", interval_count: 1 } },
+  ])("does not advertise an unavailable or incorrectly configured USD price: %j", async badPrice => {
+    const configured = await pricesList();
+    configured.data[0] = { ...configured.data[0], ...badPrice };
+    pricesList.mockResolvedValue(configured);
+    const input = encodeURIComponent(JSON.stringify({ locale: "en" }));
+    const res = await createApp().request(`/api/trpc/billing.plans?input=${input}`, {}, ENV as never);
+    expect(res.status).toBe(500); // The tRPC transport maps service-unavailable errors to 500.
+    expect(await res.json()).toHaveProperty("error");
   });
 
   it("webhook は署名ヘッダなしで 400", async () => {

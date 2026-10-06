@@ -15,7 +15,11 @@ vi.mock("stripe", () => ({
     webhooks = { constructEventAsync };
     subscriptions = { retrieve: subscriptionsRetrieve };
     customers = { create: customersCreate, del: customersDelete };
-    prices = { list: async () => ({ data: [{ id: "price_basic" }] }) };
+    prices = { list: async () => ({ data: [{
+      id: "price_basic", lookup_key: "basic_monthly", active: true, type: "recurring",
+      billing_scheme: "per_unit", recurring: { interval: "month", interval_count: 1 },
+      currency: "jpy", unit_amount: 1480, currency_options: { usd: { unit_amount: 999 } },
+    }] }) };
     checkout = { sessions: { create: checkoutCreate } };
   },
 }));
@@ -97,7 +101,8 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
     finally { await admin.end(); }
   });
 
-  it("verifies the untouched body and persists the subscription with the event", async () => {
+  it.each(["jpy", "usd"])("verifies the untouched body and grants the same entitlements for %s", async currency => {
+    subscriptionsRetrieve.mockResolvedValue({ ...subscription(), currency });
     expect((await deliver()).status).toBe(200);
     expect(constructEventAsync).toHaveBeenCalledExactlyOnceWith('{ "untouched": true }', "t=1,v1=test", "whsec_test");
     expect(await state()).toMatchObject({ user: { plan_code: "pro", subscription_status: "active",

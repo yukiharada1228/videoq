@@ -11,6 +11,7 @@ const checkout = vi.fn()
 describe('PricingPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    globalThis.__setMockLanguage('ja')
     globalThis.__setTrpcHandler('account.me', getAccount)
     globalThis.__setTrpcHandler('billing.plans', getPlans)
     globalThis.__setTrpcHandler('billing.portal', portal)
@@ -23,7 +24,7 @@ describe('PricingPage', () => {
         code: 'free',
         interval: null,
         lookup_key: null,
-        amount_yen: 0,
+        unit_amount: 0,
         currency: 'jpy',
         entitlements: {
           max_video_upload_size_mb: 200,
@@ -36,7 +37,7 @@ describe('PricingPage', () => {
         code: 'basic',
         interval: 'month',
         lookup_key: 'basic_monthly',
-        amount_yen: 1480,
+        unit_amount: 1480,
         currency: 'jpy',
         entitlements: {
           max_video_upload_size_mb: 1024,
@@ -52,6 +53,40 @@ describe('PricingPage', () => {
     render(<PricingPage />)
     expect(await screen.findByText('pricing.plans.free.name')).toBeInTheDocument()
     expect(screen.getByText('pricing.plans.basic.name')).toBeInTheDocument()
+  })
+
+  it('requests USD prices for English and keeps cents in the displayed amount', async () => {
+    globalThis.__setMockLanguage('en')
+    const plans = await getPlans()
+    getPlans.mockResolvedValue(plans.map((plan: { code: string }) => ({
+      ...plan, currency: 'usd', unit_amount: plan.code === 'free' ? 0 : 999,
+    })))
+    getPlans.mockClear()
+    render(<PricingPage />)
+    expect(await screen.findByText(/USD\s*9\.99/)).toBeInTheDocument()
+    expect(getPlans).toHaveBeenCalledWith({ locale: 'en' })
+    fireEvent.click(screen.getByRole('button', { name: 'pricing.subscribe' }))
+    await waitFor(() => expect(checkout).toHaveBeenCalledWith({ lookupKey: 'basic_monthly', locale: 'en' }))
+  })
+
+  it('displays Japanese prices in whole yen', async () => {
+    render(<PricingPage />)
+    expect(await screen.findByText(/￥1,480/)).toBeInTheDocument()
+    expect(getPlans).toHaveBeenCalledWith({ locale: 'ja' })
+  })
+
+  it('does not reuse a yen catalog after switching to English', async () => {
+    const plans = await getPlans()
+    getPlans.mockImplementation(({ locale }: { locale: string }) => plans.map((plan: { code: string; unit_amount: number }) => ({
+      ...plan, currency: locale === 'en' ? 'usd' : 'jpy',
+      unit_amount: locale === 'en' && plan.code === 'basic' ? 999 : plan.unit_amount,
+    })))
+    const view = render(<PricingPage />)
+    expect(await screen.findByText(/￥1,480/)).toBeInTheDocument()
+    globalThis.__setMockLanguage('en')
+    view.rerender(<PricingPage />)
+    expect(await screen.findByText(/USD\s*9\.99/)).toBeInTheDocument()
+    expect(screen.queryByText(/￥1,480/)).not.toBeInTheDocument()
   })
 
   it('keeps the page chrome visible while plans are loading', async () => {
@@ -79,7 +114,7 @@ describe('PricingPage', () => {
 
   it('does not offer checkout until the account plan is known, even with cached prices', async () => {
     const { result } = renderHook(() => useQueryClient())
-    result.current.setQueryData(trpc.billing.plans.queryKey(), await getPlans())
+    result.current.setQueryData(trpc.billing.plans.queryKey({ locale: 'ja' }), await getPlans())
     let resolveAccount!: (account: unknown) => void
     getAccount.mockImplementation(() => new Promise(resolve => { resolveAccount = resolve }))
     render(<PricingPage />)
@@ -114,7 +149,7 @@ describe('PricingPage', () => {
 
   it.each(['catalog', 'account'])('shows a failed %s query and recovers after retry', async failure => {
     const { result } = renderHook(() => useQueryClient())
-    result.current.setQueryData(trpc.billing.plans.queryKey(), await getPlans())
+    result.current.setQueryData(trpc.billing.plans.queryKey({ locale: 'ja' }), await getPlans())
     const failing = failure === 'catalog' ? getPlans : getAccount
     failing.mockRejectedValueOnce(new Error('Could not load billing data'))
     render(<PricingPage />)

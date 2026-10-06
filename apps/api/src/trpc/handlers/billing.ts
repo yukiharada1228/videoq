@@ -9,7 +9,7 @@ export function billingHandlers(
 ): HandlersFor<"billing"> {
   const userId = () => requireUserId(authenticatedUserId);
   return {
-    "billing.plans": () => billingService.listPlans(c.env),
+    "billing.plans": ({ locale }) => billingService.listPlans(c.env, locale),
     "billing.checkout": ({ lookupKey, locale }) =>
       billingService.createCheckoutSession(c.env, userId(), lookupKey, locale),
     "billing.portal": ({ locale }) =>
