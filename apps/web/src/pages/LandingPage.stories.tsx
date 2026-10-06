@@ -34,11 +34,11 @@ export const Japanese: Story = {};
 export const Mobile: Story = { globals: { viewport: { value: 'mobile', isRotated: false } } };
 export const English: Story = { globals: { locale: 'en' } };
 export const EnglishMobile: Story = { globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
-export const TrainingAudience: Story = {
+export const LegacyAdShowsStudentCopy: Story = {
   parameters: { pathname: '/?audience=training' },
   async play({ canvas }) {
-    await expect(canvas.getByRole('button', { name: i18n.t('landing.uses.training.label') })).toHaveAttribute('aria-pressed', 'true');
-    await expect(canvas.getByRole('heading', { name: i18n.t('landing.uses.training.title') })).toBeVisible();
+    await expect(canvas.getByRole('button', { name: i18n.t('landing.uses.lectures.label') })).toHaveAttribute('aria-pressed', 'true');
+    await expect(canvas.getByRole('heading', { name: i18n.t('landing.uses.lectures.title') })).toBeVisible();
   },
 };
 export const WatchDemo: Story = {
@@ -80,12 +80,12 @@ export const CatalogUnavailable: Story = {
     await expect(canvas.getByRole('button',{name:i18n.t('landing.film.play')})).toBeEnabled();
   },
 };
-export const AudienceAndFaq: Story = {
+export const StudyAndFaq: Story = {
   async play({canvas,userEvent}) {
-    const training=canvas.getByRole('button',{name:i18n.t('landing.uses.training.label')});
-    training.focus();await userEvent.keyboard(' ');
-    await expect(training).toHaveAttribute('aria-pressed','true');
-    await expect(canvas.getByRole('heading',{name:i18n.t('landing.uses.training.title')})).toBeVisible();
+    const exams=canvas.getByRole('button',{name:i18n.t('landing.uses.exams.label')});
+    exams.focus();await userEvent.keyboard(' ');
+    await expect(exams).toHaveAttribute('aria-pressed','true');
+    await expect(canvas.getByRole('heading',{name:i18n.t('landing.uses.exams.title')})).toBeVisible();
     await userEvent.click(canvas.getByText(i18n.t('landing.faq.sharing.question')));
     await expect(canvas.getByText(i18n.t('landing.faq.sharing.answer'))).toBeVisible();
   },

@@ -295,11 +295,10 @@ LPと共通UIの色を変更するときは、このファイルを編集して�
 `Design system/VideoQ theme` のStoryでボタン・フォーム・選択状態をまとめて確認できます。
 配布元の同期後も、`index.css` で `videoq-theme.css` が最後に読み込まれていることを確認してください。
 
-## 先生・研修担当者向けLP
+## 学生向けLP
 
-`/` と `/en` は、動画を持つ先生・講師・社内研修担当者に、講座の共有と受講者からの質問対応を案内します。
-`?audience=training` では社内研修の利用例、`?audience=school` または指定なしでは先生向けの利用例を最初に表示します。
-利用例の切り替えは流入時の計測分類を変更しません。
+`/` と `/en` は、大学生の講義の復習・試験勉強向けのLPです。
+講義の復習と試験前の利用例を切り替えられます。旧 `audience=school` / `training` のURLも同じ学生向けLPを表示し、過去の流入分類だけを維持します。
 無料枠は料金ページと同じ `billing.plans` から取得し、取得できなければ料金ページへ案内します。
 
 日英のLPには同じ30秒・1920×1080・16:9・60 fpsのRemotionデモ動画を使用します。
@@ -322,23 +321,14 @@ LPの閲覧・動画再生では講座APIやAIを呼び出しません。
 `worker/landing-media.ts` がMP4のRangeリクエストに対応し、読み込みを1本16 MiB以下に制限します。
 旧 `explain-{ja,en}.mp4` / `provider-demo-{ja,en}.mp4` のURLは互換性のため残しています。
 
-### 対象読者を変えた後の試用
+### 学生向け広告の再検証
 
-まず、動画を所有し、同じ内容の質問を繰り返し受けている先生・講師に、1講座での小規模な試用を依頼します。
-社内研修は別の利用例として扱い、両者の反応をまとめて評価しません。
-以下は検証案であり、負担軽減・導入実績・有料利用の証拠ではありません。
-
-1. 担当者が共有できる動画1本と、実際によく聞かれる質問5〜10件を用意する。
-2. 担当者自身が回答と引用先を確認し、受講者に渡せる内容かを判断する。
-3. 少人数の受講者に試してもらい、解決した質問・担当者の補足が必要だった質問を記録する。
-4. 質問対応に使った時間、回答の誤り、再び使いたいか、利用枠と料金が合うかを聞く。
-
-先生への説明文案：「講義録画を共有すると、学生が動画の内容について質問でき、AIが根拠の時間付きで回答するサービスです。先生は質問履歴を確認できます。お手元の動画1本と、よく聞かれる質問で、回答が役立つか一緒に確かめたいと考えています。」
-
-案内先は先生向け `https://videoq.jp/?audience=school`、社内研修向け `https://videoq.jp/?audience=training`。
-自分たちの確認には `&measurement=test` を付けます。
-既存の学生向け広告の結果は別の仮説の検証であり、新しい対象への需要を示すものではありません。
-LPの変更のみで広告の配信再開・新規予算・外部への連絡は実行しません。
+2026年10月6日の再検証では、日英の広告を学生向けLPへ案内します。
+広告は共通の15秒・正方形フォーマット、LPの動画は共通の30秒・横長フォーマットです。
+以前の学生向け広告と今回の再検証、先生向け広告を別の流入として集計します。
+クリックだけでなく、登録、動画登録受付、最初の回答まで確認します。
+学生が利用できる動画を用意できるかは、継続して検証する仮説です。
+広告の予算・地域・配信状態はX広告管理画面で管理します。
 
 ### 効果の確認
 
@@ -369,12 +359,13 @@ LPの変更のみで広告の配信再開・新規予算・外部への連絡は
 旧 `demo_question` / `demo_source` / `sample_download` は受信互換性のみ維持しています。
 同じタブ内で各段階を一度だけ記録し、最終記録から30分で計測の紐付けを終了します。
 氏名・メール・質問文・動画ID・ユーザーID・セッションID・UTM文字列は送信せず、
-言語、audience（通常 `general`、`school` / `training` は流入パラメータに従う。旧学生広告は `student`）、登録ボタンの位置、
+言語、audience（通常 `general`、`school` / `training` は流入パラメータに従う。学生広告は `student`）、登録ボタンの位置、
 次の固定値の `acquisition` を付けます。生のUTM・URL・クリックIDは保存・送信しません。
 
 | `acquisition` | 初回LP流入の条件 |
 | --- | --- |
 | `x_paid_demo15_search` | `utm_source=x`、`utm_medium=paid_social`、`utm_campaign=student_demo_test`、`utm_content=demo15_search` のすべてが一致 |
+| `x_paid_student_ja` / `x_paid_student_en` | `utm_source=x`、`utm_medium=paid_social`、`utm_campaign=student_return_202610`、`utm_content=demo15_search_ja` / `demo15_search_en` |
 | `x_paid_teacher_qa` | `utm_source=x`、`utm_medium=paid_social`、`utm_campaign=teacher_qa_test`、`utm_content=lecture_qa` のすべてが一致 |
 | `x_organic_launch` | `utm_source=x`、`utm_medium=organic_social`、`utm_campaign=launch`、`utm_content` が `intro` / `howto` / `usecase` |
 | `internal_test` | LPのURLに `measurement=test` を指定した動作確認。広告成果から除外する |
@@ -384,8 +375,10 @@ LPの変更のみで広告の配信再開・新規予算・外部への連絡は
 `email_signup_created` などを流入元別に集計できます。30分間イベントがなければ紐付けは切れます。
 Workers Logsで `kind=landing_funnel` と `acquisition=x_paid_demo15_search` を絞り込み、
 イベント別の件数を比較します。ログの保存期間内に日別集計を控えてください。
-先生向け広告は `acquisition=x_paid_teacher_qa` を使い、学生向け広告とは別に集計します。
-配信URLは `https://videoq.jp/?audience=school&utm_source=x&utm_medium=paid_social&utm_campaign=teacher_qa_test&utm_content=lecture_qa`。
+再検証の日本語URLは `https://videoq.jp/?audience=student&utm_source=x&utm_medium=paid_social&utm_campaign=student_return_202610&utm_content=demo15_search_ja`。
+英語URLは `https://videoq.jp/en/?audience=student&utm_source=x&utm_medium=paid_social&utm_campaign=student_return_202610&utm_content=demo15_search_en`。
+旧学生広告は `x_paid_demo15_search`、旧日本語の先生向け広告は `x_paid_teacher_qa` として別に集計します。
+旧英語の先生向けURL (`teacher_qa_en_test`) は当時の分類に含まれず、`unattributed` です。過去のログからその流入を復元することはできません。
 動作確認では必ず `&measurement=test` を付けます。
 広告のクリック数、LP閲覧、登録、動画登録受付を分けて確認します。
 `audience=school` は流入の分類であり、訪問者が教員であることの証明ではありません。

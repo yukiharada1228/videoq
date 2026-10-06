@@ -47,12 +47,12 @@ describe('llms.txt', () => {
     expect(section.toLowerCase()).toMatch(/educat/)
   })
 
-  it('Use Cases section covers educators and workplace training', () => {
+  it('Use Cases section covers lecture revision and exam preparation', () => {
     const idx = content.indexOf('## Use Cases')
     const nextSection = content.indexOf('\n## ', idx + 1)
     const section = content.slice(idx, nextSection === -1 ? undefined : nextSection)
-    expect(section.toLowerCase()).toMatch(/educators|大学の先生/)
-    expect(section.toLowerCase()).toMatch(/workplace training|社内研修/)
+    expect(section.toLowerCase()).toMatch(/lecture revision|講義の復習/)
+    expect(section.toLowerCase()).toMatch(/exam preparation|試験勉強/)
   })
 
   // ── Integrations section ─────────────────────────────────────────────────────
