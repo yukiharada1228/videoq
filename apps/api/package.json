@@ -38,9 +38,9 @@
     "demo:students": "tsx scripts/prepare-student-demo.ts"
   },
   "dependencies": {
-    "@better-auth/api-key": "^1.7.2",
-    "@better-auth/drizzle-adapter": "^1.7.2",
-    "@better-auth/oauth-provider": "^1.7.2",
+    "@better-auth/api-key": "^1.7.7",
+    "@better-auth/drizzle-adapter": "^1.7.7",
+    "@better-auth/oauth-provider": "^1.7.7",
     "@hono/mcp": "^0.3.1",
     "@hono/trpc-server": "^0.4.2",
     "@langchain/core": "^1.2.11",
