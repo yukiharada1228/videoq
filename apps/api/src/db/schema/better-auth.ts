@@ -48,7 +48,9 @@ export const account = pgTable(
 		id: text("id").primaryKey(),
 		accountId: text("account_id").notNull(),
 		providerId: text("provider_id").notNull(),
-		issuer: text("issuer").notNull(),
+		// Retain historical 1.7.0-1.7.2 values; newer Better Auth versions
+		// identify accounts by providerId/accountId and no longer write issuer.
+		issuer: text("issuer"),
 		userId: text("user_id").notNull(),
 		accessToken: text("access_token"),
 		refreshToken: text("refresh_token"),
@@ -62,8 +64,8 @@ export const account = pgTable(
 	},
 	(table) => [
 		index("account_user_id_idx").on(table.userId),
-		uniqueIndex("account_issuer_account_id_uidx").on(
-			table.issuer,
+		index("account_provider_account_id_idx").on(
+			table.providerId,
 			table.accountId,
 		),
 		foreignKey({
@@ -124,6 +126,8 @@ export const jwks = pgTable("jwks", {
 	privateKey: text("private_key").notNull(),
 	createdAt: baTimestamp("created_at").notNull().defaultNow(),
 	expiresAt: baTimestamp("expires_at"),
+	alg: text("alg"),
+	crv: text("crv"),
 });
 
 /** Device authorization (RFC 8628). */

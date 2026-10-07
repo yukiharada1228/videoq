@@ -204,6 +204,13 @@
       "when": 1790949319234,
       "tag": "0028_remove_legacy_user_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1791407084220,
+      "tag": "0029_better_auth_1_7_7_schema",
+      "breakpoints": true
     }
   ]
 }

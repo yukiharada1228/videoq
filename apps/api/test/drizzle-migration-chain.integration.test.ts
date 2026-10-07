@@ -103,7 +103,14 @@ migrationDescribe("Drizzle migration chain", () => {
         await targetClient.query("UPDATE chat_logs SET citations = $1::jsonb", [JSON.stringify(oldChat.citations)]);
         const { answer, citations, ...unchanged } = oldChat;
         preservedRows.chat_logs = [{ row: { ...unchanged, response: convertHistoricalAnswer(answer as string, citations) } }];
-        await migrateDatabase(targetClient, { writersStopped: true, phase: "before-deploy" });
+        await expect(migrateDatabase(targetClient, { writersStopped: true, phase: "before-deploy" }))
+          .rejects.toThrow("Complete the previous release's post-deploy role cleanup");
+        // Reproduce the previous release's pre-deploy boundary before testing
+        // its cleanup. The current release correctly refuses to skip 0028.
+        writeFileSync(join(stagedMigrations, "meta/_journal.json"), JSON.stringify({
+          ...journal, entries: journal.entries.filter((entry) => entry.idx <= 27),
+        }));
+        await migrate(db, { migrationsFolder: stagedMigrations });
         // A failure after DROP and outbox deletion must restore both. It can be
         // retried after the fault is resolved, even with 0023 already applied.
         await targetClient.query(`
@@ -130,11 +137,24 @@ migrationDescribe("Drizzle migration chain", () => {
         env: { ...process.env, DATABASE_URL: targetUrl.toString(), STRUCTURED_ANSWER_WRITERS_STOPPED: "", MIGRATION_PHASE: phase },
         timeout: 20_000,
       });
+      const blocked = runMigration("before-deploy");
+      expect(blocked.status).not.toBe(0);
+      expect(blocked.stdout + blocked.stderr).toContain("Complete the previous release's post-deploy role cleanup");
+      await targetClient.query("SELECT is_staff, is_superuser FROM users");
+      // Finish the previous release first, then verify that the current
+      // pre-deploy phase applies 0029 instead of remaining capped at 0027.
+      if (!stagedMigrations) {
+        stagedMigrations = mkdtempSync(join(tmpdir(), "videoq-previous-release-"));
+        cpSync(migrationDirectory, stagedMigrations, { recursive: true });
+      }
+      writeFileSync(join(stagedMigrations, "meta/_journal.json"), JSON.stringify({
+        ...journal, entries: journal.entries.filter((entry) => entry.idx <= 28),
+      }));
+      await migrate(db, { migrationsFolder: stagedMigrations });
       for (let attempt = 0; attempt < 2; attempt++) {
         const prepared = runMigration("before-deploy");
         expect(prepared.status, prepared.stdout + prepared.stderr).toBe(0);
-        // An old API must remain able to select its mapped columns during rollout.
-        await targetClient.query("SELECT is_staff, is_superuser FROM users");
+        await targetClient.query("SELECT alg, crv FROM jwks");
       }
       for (let attempt = 0; attempt < 2; attempt++) {
         const migrated = runMigration();
