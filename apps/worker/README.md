@@ -130,3 +130,10 @@ handler は `handler.handler` です。機密は SSM SecureString
 workerの環境変数を設定したPython環境で `python -m worker_python.check_embeddings` を実行すると、設定とDBの宣言型を検証します。`--probe` を付けた場合だけモデル出力も確認します。実モデルへの通信・料金が発生する場合があります。
 
 APIと同じprovider・modelを使ってください。同次元でも異なるモデルのベクトルは混在できません。既存データの移行ツールは未提供です。[設定・診断・移行の制約](../../docs/guides/embeddings.md)を参照してください。
+
+## 任意の映像キャッシュ
+
+アップロード動画の文字起こし時に、既定で粗い代表画像と約1 FPSの高密度画像を保存します。
+`VIDEO_VISUAL_ENABLED=false` で無効にできます。APIの `focus_clip` が高密度画像の必要な区間だけを読みます。
+既存動画は `python scripts/prepare_visual_frames.py --video-id 42` で準備できます。
+設定・保存容量・削除・精度比較は[映像確認ガイド](../../docs/guides/visual-evidence.md)を参照してください。

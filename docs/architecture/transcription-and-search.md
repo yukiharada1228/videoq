@@ -16,7 +16,7 @@ This page follows the data prepared before Q&A and the search performed after a 
 
 The YouTube path does not fall back to downloading the video and transcribing its audio. The upload path supports OpenAI Whisper or a local compatible endpoint according to `WHISPER_BACKEND`. For larger audio files, the implementation splits audio exceeding 24 MiB into 600-second chunks and restores the time offsets in the returned segments. These are implementation choices, not a statement of a provider's current limits.
 
-In development, disabling `ENABLE_HEAVY_PIPELINE` produces a one-second placeholder transcript. This can exercise state transitions but cannot test transcription accuracy or meaningful search. No video-frame analysis or slide OCR runs in this pipeline.
+In development, disabling `ENABLE_HEAVY_PIPELINE` produces a one-second placeholder transcript. This can exercise state transitions but cannot test transcription accuracy or meaningful search. Uploaded-video transcription prepares bounded coarse and approximately 1 FPS dense frame caches by default (`VIDEO_VISUAL_ENABLED=false` opts out); image-model calls happen only when Q&A invokes visual inspection. See [visual evidence](../guides/visual-evidence.md).
 
 ## 2. Group subtitles into scenes
 

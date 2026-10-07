@@ -4,6 +4,7 @@ import { getCourseWithMembers } from "../src/repositories/chat-repository";
 import { getCourseInfo } from "../src/repositories/course-repository";
 import { courseInfoTool, COURSE_DESCRIPTION_LIMIT, VIDEO_DESCRIPTION_LIMIT } from "../src/lib/rag-course-info";
 import { openSceneSearch } from "../src/repositories/vector-repository";
+import { getVideoEvidence } from "../src/repositories/video-evidence-repository";
 import { embedding as testEmbedding } from "./helpers/embedding";
 import type { Bindings } from "../src/types/bindings";
 
@@ -38,7 +39,7 @@ describeWithPostgres("course metadata and scene selection on PostgreSQL", () => 
       );
       CREATE TABLE videos (
         id integer PRIMARY KEY, user_id text NOT NULL, file text NOT NULL DEFAULT 'private.mp4',
-        title text NOT NULL, description text NOT NULL DEFAULT '',
+        title text NOT NULL, description text NOT NULL DEFAULT '', transcript text NOT NULL DEFAULT '',
         uploaded_at timestamptz NOT NULL DEFAULT now(), status text NOT NULL DEFAULT 'completed',
         source_type text NOT NULL DEFAULT 'uploaded', source_url text NOT NULL DEFAULT '',
         youtube_video_id text NOT NULL DEFAULT ''
@@ -80,6 +81,25 @@ describeWithPostgres("course metadata and scene selection on PostgreSQL", () => 
     await databaseClient?.end();
     try { if (databaseCreated) await admin.query(`DROP DATABASE ${quotedDatabase} WITH (FORCE)`); }
     finally { await admin?.end(); }
+  });
+
+  it("reads evidence only from completed videos within the authorized owner and course scope", async () => {
+    const scope = { ownerUserId: "owner", videoIds: [60, 61] };
+    expect(await getVideoEvidence(env, scope, 60)).toMatchObject({ id: 60, title: "Lecture 7", transcript: "", transcriptTooLarge: false });
+    expect(await getVideoEvidence(env, scope, 61)).toBeNull();
+    expect(await getVideoEvidence(env, scope, 62)).toBeNull();
+    expect(await getVideoEvidence(env, scope, 99)).toBeNull();
+    expect(await getVideoEvidence(env, { ownerUserId: "outsider", videoIds: [60] }, 60)).toBeNull();
+  });
+
+  it("does not transfer oversized transcripts from the database", async () => {
+    await databaseClient.query("UPDATE videos SET transcript = repeat('x', 2097153) WHERE id = 60");
+    try {
+      expect(await getVideoEvidence(env, { ownerUserId: "owner", videoIds: [60] }, 60))
+        .toMatchObject({ transcript: null, transcriptTooLarge: true });
+    } finally {
+      await databaseClient.query("UPDATE videos SET transcript = '' WHERE id = 60");
+    }
   });
 
   it.each([{ userId: "owner" }, { userId: "member" }, { shareToken: "public-course" }])

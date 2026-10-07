@@ -9,7 +9,19 @@ export { advanceChatTextContext, parseChatText, protectedTextRanges } from "./ch
 export type { ChatTextNode } from "./chat-syntax";
 
 const segmentIndex = z.number().int().nonnegative().safe();
+export const chatToolNameSchema = z.enum([
+  "get_course_info", "search_scenes", "overview_video", "skim_video",
+  "read_video_window", "inspect_clip", "focus_clip",
+]);
+export const chatToolProgressEventSchema = z.object({
+  type: z.literal("tool_progress"),
+  call_id: sourceIdSchema,
+  tool: chatToolNameSchema,
+  status: z.enum(["running", "complete", "error"]),
+});
+export type ChatToolProgressEvent = z.infer<typeof chatToolProgressEventSchema>;
 export const chatStreamEventSchema = z.discriminatedUnion("type", [
+  chatToolProgressEventSchema,
   z.object({ type: z.literal("source"), source: chatSourceSchema }),
   z.object({ type: z.literal("text_delta"), segmentIndex, text: z.string() }),
   z.object({ type: z.literal("citation"), segmentIndex, sourceId: sourceIdSchema }),

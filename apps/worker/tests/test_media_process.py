@@ -44,6 +44,16 @@ def test_output_file_size_limit(monkeypatch, tmp_path):
     assert dest.stat().st_size <= 1024**2
 
 
+def test_per_call_output_limit_is_enforced_without_changing_parent(tmp_path):
+    dest = tmp_path / "bounded"
+    before = resource.getrlimit(resource.RLIMIT_FSIZE)
+    result = run_media_process([sys.executable, "-c",
+        "import pathlib, sys; pathlib.Path(sys.argv[1]).write_bytes(b'x'*10000)", str(dest)], max_output_bytes=1024)
+    assert result.returncode != 0
+    assert dest.stat().st_size <= 1024
+    assert resource.getrlimit(resource.RLIMIT_FSIZE) == before
+
+
 def test_diagnostics_are_bounded():
     result = run_media_process([sys.executable, "-c", "import sys; sys.stderr.write('x'*10000)"])
     assert result.returncode == 0

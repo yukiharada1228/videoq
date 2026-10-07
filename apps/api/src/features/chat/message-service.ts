@@ -346,6 +346,8 @@ export async function streamChatMessage(
               : part);
           } else if ("source" in chunk) {
             await send({ type: "source", source: chunk.source });
+          } else if ("toolProgress" in chunk) {
+            await send(chunk.toolProgress);
           } else if ("searching" in chunk) {
             // 検索ラウンドの間はトークンが流れないので、進行中であることだけ伝える。
             await send({ type: "searching", query: chunk.searching, search_id: chunk.searchId });

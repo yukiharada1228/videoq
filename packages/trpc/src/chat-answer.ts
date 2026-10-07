@@ -7,14 +7,15 @@ export const chatSourceSchema = z.object({
   title: z.string(),
   start_time: z.string().nullable(),
   end_time: z.string().nullable(),
+  evidence_type: z.enum(["transcript", "visual"]).optional(),
 }).strict();
 
 /** The model chooses prose and references, never source metadata or destinations. */
 export const modelAnswerSchema = z.object({
   segments: z.array(z.object({
-    text: z.string().describe("Literal passage. Texts are concatenated with NO separator. For each segment after the first, include a leading space or two newlines when separating sentences or paragraphs. Preserve TeX, code and whitespace."),
-    sourceIds: z.array(z.number()).describe("Retrieved scene IDs supporting this passage; empty for metadata-only or unsupported statements."),
-  }).strict()).min(1),
+    text: z.string().describe("One claim or scene description sharing the same evidence. Start a new segment when the scene, topic or supporting sources change; never combine a multi-scene overview into one text. Texts are concatenated with NO separator. Include leading whitespace for later passages. Preserve complete TeX expressions and code blocks."),
+    sourceIds: z.array(z.number()).describe("Only the smallest set of retrieved evidence IDs directly supporting THIS passage, usually 1 or 2; not every source inspected. Visual descriptions cite the matching visual observations. Empty for metadata-only or unsupported statements."),
+  }).strict()).min(1).describe("Separate claims or scenes with their own supporting citations. A multi-scene answer must have multiple segments rather than collecting all citations at the end."),
 }).strict();
 export type ModelAnswer = z.infer<typeof modelAnswerSchema>;
 

@@ -8,6 +8,8 @@ from worker_python.advisory_locks import video_vector_write_lock
 from worker_python.db import db_connection
 from worker_python.pipeline import vector_index
 from worker_python.pipeline.storage import delete_object
+from worker_python.pipeline.visual_frames import frame_cache_key
+from worker_python.pipeline.focus_frames import focus_cache_key
 from worker_python.video_sql import delete_video_cascade
 
 logger = logging.getLogger(__name__)
@@ -37,6 +39,8 @@ def _delete_all_videos_for_user(conn, user_id: str) -> None:
             if file_key:
                 # On storage failure, preserve this video's DB rows for retry.
                 delete_object(str(file_key))
+                delete_object(frame_cache_key(str(file_key)))
+                delete_object(focus_cache_key(str(file_key)))
 
 
 def _delete_chat_history_for_user(conn, user_id: str) -> None:

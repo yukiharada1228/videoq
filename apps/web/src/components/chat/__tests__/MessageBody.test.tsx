@@ -6,6 +6,54 @@ const source = { id: 1, video_id: 7, title: 'Video', start_time: '00:00:10', end
 
 describe('MessageBody', () => {
   afterEach(() => vi.restoreAllMocks())
+  it.each(['history', 'stream'])('collapses a long citation group from %s without losing any seek targets', mode => {
+    const sources = Array.from({ length: 12 }, (_, i) => ({
+      ...source, id: i + 1, start_time: `00:00:${String(i * 5).padStart(2, '0')},125`,
+      end_time: `00:00:${String(i * 5).padStart(2, '0')},125`, evidence_type: 'visual' as const,
+    }))
+    const saved: ChatAnswer = { segments: [{ text: 'Several scenes.', sourceIds: sources.map(s => s.id) }], sources }
+    const streamed: ChatAnswer = { segments: [], sources }
+    for (const part of answerParts(saved)) applyChatPart(streamed, part)
+    const navigate = vi.fn()
+    render(<MessageBody answer={mode === 'history' ? saved : streamed} onVideoNavigate={navigate} />)
+
+    const toggle = screen.getByRole('button', { expanded: false })
+    expect(toggle).toHaveTextContent('12')
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    const panel = document.getElementById(toggle.getAttribute('aria-controls')!)!
+    expect(panel).not.toBeVisible()
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(panel).toBeVisible()
+    expect(screen.getAllByRole('button')).toHaveLength(13)
+    for (const s of sources) {
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(`Video ${s.start_time}$`) }))
+      expect(navigate).toHaveBeenLastCalledWith(s.video_id, s.start_time)
+    }
+    fireEvent.click(toggle)
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(panel).not.toBeVisible()
+  })
+  it('keeps small citation groups next to their own passages and counts only usable sources', () => {
+    const sources = [source, { ...source, id: 2, start_time: '00:00:55' }, { ...source, id: 3, start_time: null }]
+    const { container } = render(<MessageBody answer={{ segments: [
+      { text: 'Meeting.', sourceIds: [1, 1, 3, 99] },
+      { text: '\n\nEarth.', sourceIds: [2] },
+    ], sources }} onVideoNavigate={vi.fn()} />)
+    const buttons = screen.getAllByRole('button')
+    expect(buttons).toHaveLength(2)
+    expect(buttons[0]).not.toHaveAttribute('aria-expanded')
+    expect(container.textContent).toBe('Meeting. (0:10)\n\nEarth. (0:55)')
+  })
+  it('shows only the timestamp for visual evidence and seeks to the actual sampled frame', () => {
+    const navigate = vi.fn()
+    render(<MessageBody answer={{ segments: [{ text: 'The graph rises.', sourceIds: [1] }], sources: [{ ...source, evidence_type: 'visual', start_time: '00:00:10,125', end_time: '00:00:10,125' }] }} onVideoNavigate={navigate} />)
+    const button = screen.getByRole('button')
+    expect(button).toHaveTextContent(/^\(0:10\)$/)
+    expect(button).toHaveAttribute('aria-label', 'Video 00:00:10,125')
+    fireEvent.click(button)
+    expect(navigate).toHaveBeenCalledExactlyOnceWith(7, '00:00:10,125')
+  })
   it.each(['history', 'stream'])('renders the same math, code and citation positions from %s', mode => {
     const saved: ChatAnswer = { segments: [
       { text: '$ x[01] $', sourceIds: [1] },

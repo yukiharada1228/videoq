@@ -1,4 +1,5 @@
 import { deleteR2Object } from "../integrations/media";
+import { frameCacheKey, focusCacheKey } from "./video-evidence";
 import {
   claimExternalTasks,
   completeExternalTask,
@@ -59,7 +60,11 @@ async function runTask(env: Bindings, task: ClaimedExternalTask): Promise<void> 
     if (bytes !== null && (typeof bytes !== "number" || !Number.isSafeInteger(bytes))) {
       throw new Error("Storage cleanup bytes is invalid.");
     }
-    if (fileKey) await deleteR2Object(env, fileKey);
+    if (fileKey) {
+      await deleteR2Object(env, fileKey);
+      await deleteR2Object(env, frameCacheKey(fileKey));
+      await deleteR2Object(env, focusCacheKey(fileKey));
+    }
     await completeStorageCleanupTask(env, {
       lease: task,
       userId,

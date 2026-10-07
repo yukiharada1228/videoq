@@ -95,3 +95,9 @@ variable "openai_spend_threshold_usd" {
   type        = number
   default     = 50
 }
+
+variable "worker_visual_enabled" {
+  description = "Prepare coarse and dense frame caches for uploaded-video visual Q&A; enabled by default."
+  type        = bool
+  default     = true
+}

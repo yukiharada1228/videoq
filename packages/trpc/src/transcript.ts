@@ -1,6 +1,8 @@
 interface SrtCue {
   startTime: string;
   startSeconds: number;
+  endTime: string;
+  endSeconds: number;
   text: string;
 }
 
@@ -24,7 +26,7 @@ function parseCue(block: string): SrtCue | null {
   const text = lines.slice(2).join("\n").trim();
   if (!Number.isFinite(startSeconds) || !Number.isFinite(endSeconds)
     || endSeconds < startSeconds || !text) return null;
-  return { startTime: timing[1], startSeconds, text };
+  return { startTime: timing[1], startSeconds, endTime: timing[2], endSeconds, text };
 }
 
 /** Null marks an invalid cue: writes reject it; readers can skip it. */

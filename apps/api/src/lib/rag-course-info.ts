@@ -64,8 +64,8 @@ export function courseInfoTool(
         "Read the current course's registered name, description, total video count and a page of " +
         "videos with IDs, titles, descriptions, list positions and processing status. " +
         "Use for requests for these registered fields or to identify videos before search_scenes. " +
-        "This is not subtitle content: definitions, explanations and content summaries require " +
-        "search_scenes even if descriptions are present or empty. " +
+        "This is registered metadata, not evidence of lecture content: continue with search_scenes " +
+        "or overview_video/skim_video for definitions, explanations or content summaries. " +
         "Follow videos_meta.next_offset for more videos. List position is not a lecture number. " +
         "Truncated descriptions and missing pages are incomplete evidence, not absent content.",
       schema: z.object({

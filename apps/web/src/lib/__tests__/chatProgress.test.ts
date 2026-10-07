@@ -1,6 +1,27 @@
 import { createChatProgress, updateChatProgress } from '../chatProgress';
 
 describe('chat progress', () => {
+  it('tracks concurrent and repeated tools through legacy search events and ignores duplicate starts', () => {
+    let progress = createChatProgress();
+    const start = { type: 'tool_progress', call_id: 1, tool: 'focus_clip', status: 'running' } as const;
+    progress = updateChatProgress(progress, start);
+    expect(updateChatProgress(progress, start)).toBe(progress);
+    progress = updateChatProgress(progress, { ...start, call_id: 2 });
+    progress = updateChatProgress(progress, { type: 'searching', search_id: 1, query: '回路' });
+    progress = updateChatProgress(progress, { type: 'search_completed', search_id: 1, query: '回路', result_count: 1 });
+    expect(progress.phase).toBe('searching');
+    progress = updateChatProgress(progress, { ...start, call_id: 2, status: 'complete' });
+    expect(progress.phase).toBe('searching');
+    progress = updateChatProgress(progress, { ...start, status: 'error' });
+    expect(progress.phase).toBe('reviewing');
+    expect(progress.tools?.map(tool => tool.status)).toEqual(['error', 'complete']);
+    expect(updateChatProgress(progress, start)).toBe(progress);
+    progress = updateChatProgress(progress, { ...start, call_id: 3 });
+    progress = updateChatProgress(progress, { type: 'error', code: 'STREAM_ERROR', message: 'Disconnected' });
+    expect(progress.tools?.map(tool => tool.status)).toEqual(['error', 'complete', 'interrupted']);
+    expect(updateChatProgress(progress, { ...start, call_id: 3, status: 'complete' })).toBe(progress);
+  });
+
   it('keeps searching while another parallel search is still running', () => {
     let progress = createChatProgress();
     progress = updateChatProgress(progress, { type: 'searching', search_id: 1, query: '回路' });

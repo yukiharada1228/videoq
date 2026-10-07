@@ -85,7 +85,7 @@ def test_transcription_parses_captions_once_and_retains_scene_counts(
     )
     monkeypatch.setattr(transcription, "heavy_pipeline_enabled", lambda: True)
     monkeypatch.setattr(transcription, "_transcribe_youtube", lambda *_: (source, 2))
-    monkeypatch.setattr(transcription, "_transcribe_uploaded", lambda *_: source)
+    monkeypatch.setattr(transcription, "_transcribe_uploaded", lambda *_, **__: source)
     monkeypatch.setattr(
         "worker_python.pipeline.scene_otsu.splitter.SceneEmbedder",
         lambda **_: literal_embedder,

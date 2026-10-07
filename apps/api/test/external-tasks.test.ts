@@ -183,6 +183,12 @@ describe("external task processor", () => {
       env,
       "videos/u/video_1_abc123abc123_4096.mp4",
     );
+    expect(media.deleteR2Object).toHaveBeenCalledWith(
+      env, "videos/u/video_1_abc123abc123_4096.mp4.frames-v1.json",
+    );
+    expect(media.deleteR2Object).toHaveBeenCalledWith(
+      env, "videos/u/video_1_abc123abc123_4096.mp4.focus-v1.bin",
+    );
     expect(repository.completeStorageCleanupTask).toHaveBeenCalledWith(env, {
       lease: expect.objectContaining({ id: 3, attempt: 2 }),
       userId: "user-1",

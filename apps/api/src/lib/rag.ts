@@ -7,8 +7,10 @@ import { assertCompletedAnswer } from "./structured-answer";
 import { AnswerContentStream } from "./answer-content-stream";
 import { LlmProviderError } from "./openai";
 import { validateChatAnswer } from "./chat-citations";
-import { modelAnswerSchema, type ChatAnswer, type ChatSource, type ChatContentPart } from "@videoq/trpc/chat";
+import { modelAnswerSchema, chatToolNameSchema, chatToolProgressEventSchema, type ChatToolProgressEvent, type ChatAnswer, type ChatSource, type ChatContentPart } from "@videoq/trpc/chat";
 import { courseInfoTool, MAX_COURSE_INFO_CALLS } from "./rag-course-info";
+import { videoEvidenceTools } from "./rag-video-evidence";
+import { MAX_WINDOW_READS, MAX_CLIP_INSPECTIONS, MAX_OVERVIEWS, MAX_SKIMS, MAX_FOCUS_CALLS } from "./video-evidence";
 import {
   LLM_REQUEST_TIMEOUT_MS,
   LLM_STREAM_TIMEOUT_MS,
@@ -50,7 +52,7 @@ const SEARCH_LIMIT_REACHED =
  * 暴走時の保険。1 検索あたり model → tools の 2 ステップ進むので、
  * 上限まで検索しても足りる余白を持たせた値にする。
  */
-export const MAX_TOOL_ROUNDS = MAX_SCENE_SEARCHES + MAX_COURSE_INFO_CALLS;
+export const MAX_TOOL_ROUNDS = MAX_SCENE_SEARCHES + MAX_COURSE_INFO_CALLS + MAX_WINDOW_READS + MAX_CLIP_INSPECTIONS + MAX_OVERVIEWS + MAX_SKIMS + MAX_FOCUS_CALLS;
 const RECURSION_LIMIT = 2 * MAX_TOOL_ROUNDS + 4;
 
 /** 最新の user メッセージ本文を抽出する。 */
@@ -72,7 +74,7 @@ export type RagParams = {
   courseId?: number | null;
 };
 
-const sceneKey = (hit: SceneHit) => `${hit.videoId}|${hit.startTime}|${hit.endTime}`;
+const sceneKey = (hit: SceneHit) => `${hit.evidenceType ?? "transcript"}|${hit.videoId}|${hit.startTime}|${hit.endTime}`;
 
 /** Assign stable source IDs across all searches in one answer. */
 class SceneCollector {
@@ -84,7 +86,15 @@ class SceneCollector {
   add(hit: SceneHit): number {
     const key = sceneKey(hit);
     const known = this.seen.get(key);
-    if (known !== undefined) return known;
+    if (known !== undefined) {
+      // A new frame observation or a freshly edited subtitle window can carry
+      // additional evidence at an existing timestamp. Preserve it in history.
+      const prior = this.order[known - 1];
+      if (!prior.content.includes(hit.content)) {
+        prior.content += `\n${hit.content}`;
+      }
+      return known;
+    }
     this.order.push(hit);
     const index = this.order.length;
     this.seen.set(key, index);
@@ -99,12 +109,13 @@ class SceneCollector {
     return this.order.map((hit, index) => ({
       id: index + 1, video_id: hit.videoId, title: hit.videoTitle,
       start_time: hit.startTime, end_time: hit.endTime,
+      ...(hit.evidenceType ? { evidence_type: hit.evidenceType } : {}),
     }));
   }
 }
 
 const formatHit = (hit: SceneHit, index: number) =>
-  JSON.stringify({ sourceId: index, title: hit.videoTitle, startTime: hit.startTime, endTime: hit.endTime, text: hit.content });
+  JSON.stringify({ sourceId: index, videoId: hit.videoId, title: hit.videoTitle, startTime: hit.startTime, endTime: hit.endTime, text: hit.content });
 
 function sceneSearchTool(
   search: SceneSearch,
@@ -136,8 +147,9 @@ function sceneSearchTool(
       name: "search_scenes",
       description:
         "Search the scenes of the user's video course by meaning and return the closest ones. " +
-        "Required before answering definitions, explanations, comparisons, examples, calculations " +
-        "or summaries, including short terms and questions that do not explicitly mention the course. " +
+        "The default way to ground definitions, explanations, comparisons, examples and calculations, " +
+        "including short terms and questions that do not explicitly mention the course. " +
+        "For broad video navigation or visual topics without subtitle clues, overview_video/skim_video can retrieve evidence instead. " +
         "For course-wide content, call directly with video_ids set to null. For a specific video or lecture, " +
         "first identify it with get_course_info and include its ID in video_ids on every search. " +
         "Pass a natural-language query describing what you need; it does not have to be the " +
@@ -165,6 +177,7 @@ function prepareAgent(
     queryText: string;
     timeoutMs: number;
     scope: RagParams;
+    signal: AbortSignal;
   },
 ) {
   const collector = new SceneCollector();
@@ -174,6 +187,7 @@ function prepareAgent(
     MAX_COURSE_INFO_CALLS,
   );
   let modelCalls = 0;
+  let toolCalls = 0;
   // system は createAgent の systemPrompt ではなく messages で渡す。
   // systemPrompt はコンテンツブロック配列（[{type:"text"}]）で送信されるため、
   // 素の文字列しか受け付けない OpenAI 互換ゲートウェイでも動くようにする。
@@ -182,6 +196,9 @@ function prepareAgent(
     responseFormat: providerStrategy(modelAnswerSchema),
     tools: [
       sceneSearchTool(params.search, collector, params.scope.videoIds ?? []),
+      ...videoEvidenceTools(env, {
+        ownerUserId: params.scope.ownerUserId, videoIds: params.scope.videoIds ?? [],
+      }, hit => collector.add(hit), params.signal),
       ...(params.scope.courseId != null ? [courseInfoTool(env, {
         courseId: params.scope.courseId,
         ownerUserId: params.scope.ownerUserId,
@@ -193,7 +210,25 @@ function prepareAgent(
         // wrapToolCall 経由の実行例外は、そのまま呼び出し元へ伝播する。
         // DB / 埋め込み障害で次の LLM 呼び出しを始めず、利用枠を返却する。
         // ツール引数の検証エラーは LangChain が従来どおりモデルへ返す。
-        wrapToolCall: (request, handler) => handler(request),
+        wrapToolCall: async (request, handler) => {
+          const name = chatToolNameSchema.safeParse(request.toolCall.name);
+          if (!name.success) return handler(request);
+          // Request-local IDs also distinguish repeated and concurrent calls.
+          // Only public tool names/statuses are streamed, never arguments or results.
+          const callId = ++toolCalls;
+          const emit = (status: ChatToolProgressEvent["status"]) => request.runtime.writer?.({
+            toolProgress: { type: "tool_progress", call_id: callId, tool: name.data, status },
+          } satisfies RagToolProgress);
+          emit("running");
+          try {
+            const result = await handler(request);
+            emit("status" in result && result.status === "error" ? "error" : "complete");
+            return result;
+          } catch (error) {
+            emit("error");
+            throw error;
+          }
+        },
         // 引数不備の繰り返しも含め、最終ターンはツールなしで回答させる。
         wrapModelCall: (request, handler) => handler({
           ...request,
@@ -220,7 +255,8 @@ function toResult(
     queryText,
     answer: validateChatAnswer(answer, collector.sources),
     retrievedContexts: [
-      ...hits.map((hit) => hit.content).filter((text) => text !== ""),
+      ...hits.map((hit) => hit.evidenceType === "visual"
+        ? `Visual observation at ${hit.startTime}: ${hit.content}` : hit.content).filter((text) => text !== ""),
       ...collector.courseContexts,
     ],
   };
@@ -278,6 +314,7 @@ export async function runRag(
       queryText,
       timeoutMs: LLM_REQUEST_TIMEOUT_MS,
       scope: params,
+      signal: requestSignal,
     });
     const result = await prepared.agent.invoke(prepared.input, {
       recursionLimit: RECURSION_LIMIT,
@@ -301,11 +338,14 @@ const searchProgressSchema = z.union([
   }) }),
 ]);
 type RagSearchProgress = z.infer<typeof searchProgressSchema>;
+const toolProgressSchema = z.object({ toolProgress: chatToolProgressEventSchema });
+type RagToolProgress = z.infer<typeof toolProgressSchema>;
 
 export type RagStreamChunk =
   | { part: ChatContentPart }
   | { source: ChatSource }
   | RagSearchProgress
+  | RagToolProgress
   | { final: RagResult };
 
 /** `signal` はクライアント切断時に上流 LLM も止めるためのもの（コスト保護）。 */
@@ -338,6 +378,7 @@ export async function* streamRag(
       queryText,
       timeoutMs: LLM_STREAM_TIMEOUT_MS,
       scope: params,
+      signal: requestSignal,
     });
 
     const stream = await prepared.agent.stream(prepared.input, {
@@ -360,6 +401,10 @@ export async function* streamRag(
       if (mode === "custom") {
         const progress = searchProgressSchema.safeParse(chunk);
         if (progress.success) yield progress.data;
+        else {
+          const toolProgress = toolProgressSchema.safeParse(chunk);
+          if (toolProgress.success) yield toolProgress.data;
+        }
       } else if (mode === "messages") {
         const [message] = chunk;
         if (!isAIMessage(message)) continue;

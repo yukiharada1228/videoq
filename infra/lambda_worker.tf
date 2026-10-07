@@ -76,6 +76,7 @@ resource "aws_lambda_function" "worker" {
       MEDIA_PROCESS_CPU_TIME_LIMIT_SECONDS    = "300"
       FFMPEG_PROCESS_TIMEOUT_SECONDS          = "600"
       MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB = "1024"
+      VIDEO_VISUAL_ENABLED                    = tostring(var.worker_visual_enabled)
     })
   }
 }

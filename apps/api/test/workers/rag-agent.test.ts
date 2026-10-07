@@ -45,6 +45,10 @@ vi.mock("../../src/repositories/course-repository", () => ({
   }),
 }));
 
+vi.mock("../../src/repositories/video-evidence-repository", () => ({
+  getVideoEvidence: async () => null,
+}));
+
 const { runRag, streamRag } = await import("../../src/lib/rag");
 
 const ENV = {

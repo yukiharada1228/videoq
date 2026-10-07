@@ -52,3 +52,7 @@ AWS_SECRET_ACCESS_KEY="local"
 
 # OAuth / OIDC（任意）
 # OAUTH_ISSUER_URL="http://localhost:8787"
+
+# Uploaded-video visual evidence is on by default. Set false on API and worker to opt out.
+VIDEO_VISUAL_ENABLED="true"
+VISION_MODEL=""
