@@ -30,8 +30,17 @@ describe('structured text and math rendering', () => {
     expect(parseMessageContent([
       { text: 'Before', sourceIds: [1] }, { text: '~~~ $x$ ', sourceIds: [2] },
     ])).toEqual([
-      { type: 'text', value: 'Before' }, { type: 'ref', id: 1 }, { type: 'text', value: '~~~ ' },
-      { type: 'math', value: 'x', display: false }, { type: 'text', value: ' ' }, { type: 'ref', id: 2 },
+      { type: 'text', value: 'Before' }, { type: 'refs', ids: [1] }, { type: 'text', value: '~~~ ' },
+      { type: 'math', value: 'x', display: false }, { type: 'text', value: ' ' }, { type: 'refs', ids: [2] },
+    ])
+  })
+  it('keeps deduplicated citation groups attached to their original passage', () => {
+    expect(parseMessageContent([
+      { text: 'Meeting.', sourceIds: [2, 3, 2] },
+      { text: '\n\nEarth.', sourceIds: [4] },
+    ])).toEqual([
+      { type: 'text', value: 'Meeting.' }, { type: 'refs', ids: [2, 3] },
+      { type: 'text', value: '\n\nEarth.' }, { type: 'refs', ids: [4] },
     ])
   })
   it('merges adjacent text segments before parsing expressions split between them', () => {

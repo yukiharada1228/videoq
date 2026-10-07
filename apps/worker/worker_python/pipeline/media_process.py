@@ -29,10 +29,13 @@ def _positive_setting(name: str, default: int) -> int:
     return value
 
 
-def _apply_limits() -> None:
+def _apply_limits(output_limit: int | None = None) -> None:
+    file_limit = _positive_setting("MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB", 1024) * 1024**2
+    if output_limit is not None:
+        file_limit = min(file_limit, output_limit)
     limits = [
         (resource.RLIMIT_CPU, _positive_setting("MEDIA_PROCESS_CPU_TIME_LIMIT_SECONDS", 300)),
-        (resource.RLIMIT_FSIZE, _positive_setting("MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB", 1024) * 1024**2),
+        (resource.RLIMIT_FSIZE, file_limit),
         (resource.RLIMIT_CORE, 0),
     ]
     memory = _positive_setting("MEDIA_PROCESS_MEMORY_LIMIT_MB", 2048) * 1024**2
@@ -45,14 +48,19 @@ def _apply_limits() -> None:
         resource.setrlimit(kind, (effective, effective))
 
 
-def run_media_process(command: list[str]) -> subprocess.CompletedProcess[str]:
+def run_media_process(command: list[str], *, max_output_bytes: int | None = None) -> subprocess.CompletedProcess[str]:
+    if max_output_bytes is not None and max_output_bytes <= 0:
+        raise ValueError("max_output_bytes must be positive")
     timeout = _positive_setting("FFMPEG_PROCESS_TIMEOUT_SECONDS", 600)
     # exec replaces this small launcher, so timeout kills FFmpeg itself. File
     # output avoids buffering attacker-controlled diagnostics in worker memory.
     with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
         try:
+            launcher = [sys.executable, str(Path(__file__).resolve())]
+            if max_output_bytes is not None:
+                launcher += ["--output-limit", str(max_output_bytes)]
             result = subprocess.run(
-                [sys.executable, str(Path(__file__).resolve()), *command],
+                [*launcher, *command],
                 stdin=subprocess.DEVNULL, stdout=stdout, stderr=stderr,
                 timeout=timeout, check=False,
             )
@@ -71,5 +79,12 @@ def run_media_process(command: list[str]) -> subprocess.CompletedProcess[str]:
 
 
 if __name__ == "__main__":
-    _apply_limits()
-    os.execvp(sys.argv[1], sys.argv[1:])
+    args = sys.argv[1:]
+    output_limit = None
+    if args[0] == "--output-limit":
+        output_limit = int(args[1])
+        if output_limit <= 0:
+            raise ValueError("output limit must be positive")
+        args = args[2:]
+    _apply_limits(output_limit)
+    os.execvp(args[0], args)

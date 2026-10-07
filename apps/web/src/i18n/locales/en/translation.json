@@ -643,7 +643,45 @@
       "checkingVideos": "Checking lecture videos",
       "searched": "Searched lecture videos",
       "interrupted": "Response interrupted",
-      "details": "Search activity"
+      "details": "Tool activity",
+      "answering": "Preparing the answer",
+      "usedTools": "Tools used ({{count}})",
+      "toolStatus": {
+        "running": "Running",
+        "complete": "Completed",
+        "error": "Error",
+        "interrupted": "Interrupted"
+      },
+      "tools": {
+        "get_course_info": {
+          "name": "Course information",
+          "running": "Checking the course video list"
+        },
+        "search_scenes": {
+          "name": "Scene search",
+          "running": "Searching for relevant scenes"
+        },
+        "overview_video": {
+          "name": "Video overview",
+          "running": "Reviewing the whole video"
+        },
+        "skim_video": {
+          "name": "Interval overview",
+          "running": "Reviewing the selected interval"
+        },
+        "read_video_window": {
+          "name": "Subtitle reading",
+          "running": "Reading subtitles in the selected interval"
+        },
+        "inspect_clip": {
+          "name": "Visual inspection",
+          "running": "Inspecting the video content"
+        },
+        "focus_clip": {
+          "name": "Detailed visual inspection",
+          "running": "Inspecting a short clip in detail"
+        }
+      }
     },
     "title": "Chat",
     "teacher": "Teacher",
@@ -658,7 +696,8 @@
     "suggestedQuestions": "Suggested questions",
     "assistantGreeting": "Hello! Ask me anything about your videos.",
     "error": "An error occurred in the chat.",
-    "errorOverQuota": "AI chat is unavailable because your storage is over the configured limit. Please delete videos to free up space."
+    "errorOverQuota": "AI chat is unavailable because your storage is over the configured limit. Please delete videos to free up space.",
+    "citationGroup": "Sources ({{count}})"
   },
   "validation": {
     "required": "This field is required"

@@ -2,8 +2,31 @@ import { plainChatAnswer } from "@videoq/trpc/chat";
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { ChatMessageBubble } from '../ChatMessageBubble';
 import type { Message } from '@/hooks/useChatMessages';
+import { ChatProgressView } from '../ChatProgressView';
 
 describe('chat activity display', () => {
+  it('shows the active visual tool without opening details and retains its status after the answer', () => {
+    const progress = { phase: 'searching', searches: [], tools: [
+      { id: 1, tool: 'get_course_info', status: 'complete' },
+      { id: 2, tool: 'focus_clip', status: 'running' },
+    ] } as const;
+    const { rerender } = render(<ChatProgressView progress={{ ...progress, searches: [], tools: [...progress.tools] }} waitingForAnswer />);
+    expect(screen.getByRole('status')).toHaveTextContent('chat.progress.tools.focus_clip.running (focus_clip)');
+    expect(screen.getByText('chat.progress.tools.focus_clip.running (focus_clip)', { selector: 'span' })).toBeVisible();
+    expect(screen.getByRole('status')).not.toHaveTextContent('chat.progress.preparing');
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    expect(screen.getByText('focus_clip', { selector: 'code' })).toBeVisible();
+    expect(screen.getByText('chat.progress.toolStatus.running')).toBeVisible();
+
+    const finished = { ...progress, searches: [], tools: progress.tools.map(tool => ({ ...tool, status: 'complete' as const })) };
+    rerender(<ChatProgressView progress={{ ...finished, phase: 'reviewing' }} waitingForAnswer />);
+    expect(screen.getByRole('status')).toHaveTextContent('chat.progress.answering');
+    rerender(<ChatProgressView progress={{ ...finished, phase: 'complete' }} waitingForAnswer={false} />);
+    expect(screen.getByRole('status')).toHaveTextContent('chat.progress.usedTools');
+    expect(screen.getAllByText('chat.progress.toolStatus.complete')).toHaveLength(2);
+  });
+
   it.each([false, true])('keeps the waiting label until queued answer text is visible (searched: %s)', (searched) => {
     const props = { isFeedbackUpdating: false, onFeedback: vi.fn(), onVideoNavigate: vi.fn() };
     const message: Message = {

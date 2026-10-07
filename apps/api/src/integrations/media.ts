@@ -212,6 +212,114 @@ export async function deleteR2Object(env: Bindings, fileKey: string): Promise<vo
   await env.VIDEO_BUCKET.delete(r2ObjectKey(fileKey));
 }
 
+/** Server-only bounded reads. Never forward object URLs/credentials to a model. */
+export async function readMediaBytes(
+  env: Bindings, fileKey: string, maxBytes: number, signal?: AbortSignal,
+): Promise<Uint8Array | null> {
+  signal?.throwIfAborted();
+  let body: ReadableStream<Uint8Array>;
+  let size: number;
+  if (env.ENVIRONMENT === "production" || !isS3Storage(env)) {
+    const object = await env.VIDEO_BUCKET.get(r2ObjectKey(fileKey));
+    if (!object) return null;
+    body = object.body;
+    size = object.size;
+  } else {
+    const { aws, endpoint, bucket } = s3Client(env, { public: false });
+    const signed = await aws.sign(new Request(objectUrl(endpoint, bucket, fileKey)));
+    const response = await fetch(signed, { signal: deadlineSignal(S3_OPERATION_TIMEOUT_MS, signal) });
+    if (response.status === 404) { await response.body?.cancel(); return null; }
+    if (!response.ok || !response.body) {
+      await response.body?.cancel();
+      throw new Error(`S3 GetObject failed: ${response.status}`);
+    }
+    body = response.body;
+    size = Number(response.headers.get("content-length") ?? 0);
+  }
+  if (size > maxBytes) {
+    await body.cancel();
+    throw new Error("Media object exceeds the read limit");
+  }
+  return readBoundedBody(body, maxBytes, signal);
+}
+
+/** Exact, version-pinned ranges for dense frame packs. Never fetch the full pack. */
+export async function readMediaRange(
+  env: Bindings, fileKey: string, offset: number, length: number,
+  signal?: AbortSignal, etag?: string,
+): Promise<{ bytes: Uint8Array; etag: string; size: number } | null> {
+  if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(length)
+    || length <= 0 || length > 4 * 1024 * 1024 || !Number.isSafeInteger(offset + length)) {
+    throw new Error("Invalid media range");
+  }
+  const requestSignal = deadlineSignal(S3_OPERATION_TIMEOUT_MS, signal);
+  requestSignal.throwIfAborted();
+  let body: ReadableStream<Uint8Array>;
+  let size: number;
+  let currentEtag: string;
+  let validRange: boolean;
+  if (env.ENVIRONMENT === "production" || !isS3Storage(env)) {
+    const onlyIf = new Headers(etag ? { "if-match": etag } : {});
+    const object = await env.VIDEO_BUCKET.get(r2ObjectKey(fileKey), { range: { offset, length }, onlyIf });
+    if (!object || !("body" in object)) return null;
+    body = object.body;
+    size = object.size;
+    currentEtag = object.httpEtag;
+    validRange = !!object.range && "offset" in object.range
+      && object.range.offset === offset && object.range.length === length;
+  } else {
+    const { aws, endpoint, bucket } = s3Client(env, { public: false });
+    const headers = new Headers({ Range: `bytes=${offset}-${offset + length - 1}` });
+    if (etag) headers.set("If-Match", etag);
+    const signed = await aws.sign(new Request(objectUrl(endpoint, bucket, fileKey), { headers }));
+    const response = await fetch(signed, { signal: requestSignal });
+    if (response.status === 404 || response.status === 412) { await response.body?.cancel(); return null; }
+    if (response.status !== 206 || !response.body) {
+      await response.body?.cancel();
+      throw new Error(`S3 ranged GetObject failed: ${response.status}`);
+    }
+    body = response.body;
+    currentEtag = response.headers.get("etag") ?? "";
+    const match = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(response.headers.get("content-range") ?? "");
+    size = match ? Number(match[3]) : NaN;
+    validRange = !!match && Number(match[1]) === offset && Number(match[2]) === offset + length - 1;
+  }
+  if (!validRange || !Number.isSafeInteger(size) || size < offset + length || !currentEtag || (etag && etag !== currentEtag)) {
+    await body.cancel();
+    throw new Error("Invalid or changed media range");
+  }
+  const bytes = await readBoundedBody(body, length, requestSignal);
+  if (bytes.length !== length) throw new Error("Incomplete media range");
+  return { bytes, etag: currentEtag, size };
+}
+
+async function readBoundedBody(body: ReadableStream<Uint8Array>, maxBytes: number, signal?: AbortSignal) {
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  const abort = () => { void reader.cancel().catch(() => undefined); };
+  signal?.addEventListener("abort", abort, { once: true });
+  try {
+    for (;;) {
+      signal?.throwIfAborted();
+      const { done, value } = await reader.read();
+      signal?.throwIfAborted();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) throw new Error("Media object exceeds the read limit");
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    return bytes;
+  } finally {
+    signal?.removeEventListener("abort", abort);
+    await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
+}
+
 /** ローカル VIDEO_BUCKET へ保存（multipart / USE_S3=false 用）。 */
 export async function putMediaObject(
   env: Bindings,

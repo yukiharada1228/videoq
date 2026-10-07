@@ -14,6 +14,13 @@ type Story = StoryObj<typeof meta>;
 
 export const Preparing: Story = {};
 export const Searching: Story = { args: { progress: searching } };
+export const InspectingVideo: Story = {
+  args: { progress: { phase: 'searching', searches: [], tools: [
+    { id: 1, tool: 'get_course_info', status: 'complete' },
+    { id: 2, tool: 'overview_video', status: 'complete' },
+    { id: 3, tool: 'focus_clip', status: 'running' },
+  ] }, waitingForAnswer: true },
+};
 export const Completed: Story = { args: { progress: searched, waitingForAnswer: false } };
 export const Interrupted: Story = { args: { progress: interrupted, waitingForAnswer: false } };
 export const WaitingForFirstText: Story = { args: { progress: searched, waitingForAnswer: true } };

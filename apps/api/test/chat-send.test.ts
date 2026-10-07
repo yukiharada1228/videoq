@@ -355,6 +355,10 @@ describe.each([false, true])("講座メタ情報のチャット経路（stream=%
       expect(events.at(-1)).toMatchObject({ type: "done" });
       expect(events.at(-1)).not.toHaveProperty("citations");
       expect(events.some((event) => event.type === "searching")).toBe(false);
+      expect(events.filter(event => event.type === "tool_progress")).toEqual([
+        { type: "tool_progress", call_id: 1, tool: "get_course_info", status: "running" },
+        { type: "tool_progress", call_id: 1, tool: "get_course_info", status: "complete" },
+      ]);
     } else {
       const data = await trpcData(res);
       expect(data).toMatchObject({ answer: plainChatAnswer(answer) });
@@ -554,7 +558,7 @@ describe("POST /messages（非ストリーミング）", () => {
       (chatRequests[0].body.tools as { function: { name: string } }[]).map(
         (t) => t.function.name,
       ),
-    ).toEqual(["search_scenes", "get_course_info"]);
+    ).toEqual(["search_scenes", "read_video_window", "inspect_clip", "overview_video", "skim_video", "focus_clip", "get_course_info"]);
 
     // 参照シーンは構造化したツール結果として渡す。
     const second = chatRequests[1].body.messages as { role: string; content: string }[];
@@ -1031,8 +1035,10 @@ describe("POST /messages/stream（SSE）", () => {
     expect(response.headers.get("cache-control")).toBe("no-cache");
     expect(response.headers.get("x-accel-buffering")).toBe("no");
     expect(sseEvents(await response.text())).toEqual([
+      { type: "tool_progress", call_id: 1, tool: "search_scenes", status: "running" },
       { type: "searching", query: "scene", search_id: 1 },
       { type: "search_completed", query: "scene", search_id: 1, result_count: 1 },
+      { type: "tool_progress", call_id: 1, tool: "search_scenes", status: "complete" },
       { type: "source", source: { id: 1, video_id: 60, title: "Video A", start_time: "00:00:10", end_time: "00:00:20" } },
       { type: "text_delta", segmentIndex: 0, text: "Hel" },
       { type: "text_delta", segmentIndex: 0, text: "lo!" },

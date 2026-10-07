@@ -641,7 +641,45 @@
       "checkingVideos": "講義動画を確認しています",
       "searched": "講義動画を検索しました",
       "interrupted": "回答の生成を中断しました",
-      "details": "検索の履歴"
+      "details": "ツールの使用履歴",
+      "answering": "回答をまとめています",
+      "usedTools": "使用したツール（{{count}}件）",
+      "toolStatus": {
+        "running": "実行中",
+        "complete": "完了",
+        "error": "エラー",
+        "interrupted": "中断"
+      },
+      "tools": {
+        "get_course_info": {
+          "name": "講座情報の取得",
+          "running": "講座の動画一覧を確認しています"
+        },
+        "search_scenes": {
+          "name": "シーン検索",
+          "running": "関連するシーンを検索しています"
+        },
+        "overview_video": {
+          "name": "動画全体の確認",
+          "running": "動画全体を確認しています"
+        },
+        "skim_video": {
+          "name": "区間の確認",
+          "running": "指定した区間を確認しています"
+        },
+        "read_video_window": {
+          "name": "字幕の読み取り",
+          "running": "指定した区間の字幕を読んでいます"
+        },
+        "inspect_clip": {
+          "name": "映像の確認",
+          "running": "映像の内容を確認しています"
+        },
+        "focus_clip": {
+          "name": "映像の詳細確認",
+          "running": "短い区間の映像を詳しく確認しています"
+        }
+      }
     },
     "title": "チャット",
     "teacher": "教師",
@@ -656,7 +694,8 @@
     "suggestedQuestions": "よくある質問",
     "assistantGreeting": "こんにちは！動画に関する質問にお答えします。何か質問はありますか？",
     "error": "チャットでエラーが発生しました。",
-    "errorOverQuota": "ストレージ超過のためAIチャットを利用できません。動画を削除してストレージを空けてください。"
+    "errorOverQuota": "ストレージ超過のためAIチャットを利用できません。動画を削除してストレージを空けてください。",
+    "citationGroup": "参照シーン（{{count}}件）"
   },
   "validation": {
     "required": "この項目は必須です"

@@ -65,3 +65,6 @@ lambda_log_retention_days = 30
 # openai_spend_threshold_usd = 50
 # openai_allowed_models = ["text-embedding-3-small", "gpt-4o-mini", "whisper-1"]
 # manage_openai_project = false  # Use only to disable management temporarily.
+
+# Visual Q&A caches are enabled by default (set false to opt out; match the API flag).
+worker_visual_enabled = true

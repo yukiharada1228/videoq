@@ -22,6 +22,7 @@ export type SceneHit = {
   videoTitle: string;
   startTime: string;
   endTime: string;
+  evidenceType?: "transcript" | "visual";
 };
 
 const RETRIEVER_K = 20;

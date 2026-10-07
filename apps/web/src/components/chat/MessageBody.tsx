@@ -1,7 +1,8 @@
-import { Fragment, memo, useMemo } from 'react';
+import { Fragment, memo, useId, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import katex from 'katex';
 import { parseMessageContent } from '@/lib/chat/parseMessageContent';
-import type { ChatAnswer } from '@videoq/trpc/chat';
+import type { ChatAnswer, ChatSource } from '@videoq/trpc/chat';
 import { linkVariants } from '@/components/ui/link';
 import { cn } from '@/lib/digital-agency/cn';
 import 'katex/dist/katex.min.css';
@@ -20,7 +21,7 @@ function formatInlineTime(time: string | null | undefined) {
 function formatTimeRange(startTime: string | null | undefined, endTime: string | null | undefined) {
   const start = formatInlineTime(startTime);
   const end = formatInlineTime(endTime);
-  if (start && end) return `${start}-${end}`;
+  if (start && end && start !== end) return `${start}-${end}`;
   return start || end;
 }
 
@@ -37,6 +38,50 @@ const MathExpression = memo(function MathExpression({ tex, display }: { tex: str
     />
   );
 });
+
+function CitationGroup({ sources, onVideoNavigate }: {
+  sources: ChatSource[];
+  onVideoNavigate: MessageBodyProps['onVideoNavigate'];
+}) {
+  const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(false);
+  const panelId = useId();
+  const collapsible = sources.length > 3;
+  const links = sources.map(source => (
+    <button
+      key={source.id}
+      type="button"
+      onClick={() => onVideoNavigate(source.video_id, source.start_time ?? '')}
+      className={cn(linkVariants(), 'inline text-left')}
+      title={`${source.title} ${source.start_time}`}
+      aria-label={`${source.title} ${source.start_time}`}
+    >
+      {` (${formatTimeRange(source.start_time, source.end_time)})`}
+    </button>
+  ));
+  if (!collapsible) return <>{links}</>;
+  return (
+    <span>
+      {' '}
+      <button
+        type="button"
+        className={cn(linkVariants(), 'inline text-left')}
+        aria-expanded={expanded}
+        aria-controls={panelId}
+        onClick={() => setExpanded(value => !value)}
+      >
+        {t('chat.citationGroup', { count: sources.length })}
+      </button>
+      <span
+        id={panelId}
+        hidden={!expanded}
+        className={expanded ? 'my-2 flex flex-wrap gap-x-3 gap-y-1 rounded border border-solid-gray-200 p-2' : undefined}
+      >
+        {links}
+      </span>
+    </span>
+  );
+}
 
 export function MessageBody({ answer, onVideoNavigate }: MessageBodyProps) {
   const { segments, sources } = answer;
@@ -60,27 +105,10 @@ export function MessageBody({ answer, onVideoNavigate }: MessageBodyProps) {
           );
         }
 
-        const video = citationMap.get(node.id);
-        if (!video) {
-          return null;
-        }
-
-        const primaryRange = formatTimeRange(video.start_time, video.end_time);
-
+        const citations = node.ids.map(id => citationMap.get(id))
+          .filter((source): source is ChatSource => Boolean(source && formatTimeRange(source.start_time, source.end_time)));
         return (
-          <Fragment key={`${video.video_id}-${video.start_time}-${i}`}>
-            {primaryRange && (
-              <button
-                type="button"
-                onClick={() => onVideoNavigate(video.video_id, video.start_time ?? '')}
-                className={cn(linkVariants(), 'inline text-left')}
-                title={`${video.title} ${video.start_time}`}
-                aria-label={`${video.title} ${video.start_time}`}
-              >
-                {` (${primaryRange})`}
-              </button>
-            )}
-          </Fragment>
+          <CitationGroup key={`refs-${i}`} sources={citations} onVideoNavigate={onVideoNavigate} />
         );
       })}
     </div>

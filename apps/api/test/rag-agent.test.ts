@@ -406,7 +406,7 @@ describe("RAG エージェント（非ストリーミング）", () => {
 
     // 1 通目に search_scenes がツールとして渡っている。
     const tools = bodies[0].tools as { function: { name: string; parameters: unknown } }[];
-    expect(tools.map((t) => t.function.name)).toEqual(["search_scenes"]);
+    expect(tools.map((t) => t.function.name)).toEqual(["search_scenes", "read_video_window", "inspect_clip", "overview_video", "skim_video", "focus_clip"]);
     // 所有者スコープは非公開。動画IDは講座内でのみ指定できる。
     expect(JSON.stringify(tools[0].function.parameters)).not.toContain("user_id");
     expect(JSON.stringify(tools[0].function.parameters)).toContain("video_ids");
@@ -569,6 +569,7 @@ describe("RAG エージェント（ストリーミング）", () => {
     ]);
     const stream = streamRag(ENV, PARAMS);
     try {
+      expect((await stream.next()).value).toEqual({ toolProgress: { type: "tool_progress", call_id: 1, tool: "search_scenes", status: "running" } });
       expect((await stream.next()).value).toEqual({ searching: "scene", searchId: 1 });
       await started.promise;
       await stream.return();
@@ -701,16 +702,33 @@ describe("RAG エージェント（ストリーミング）", () => {
     const stream = streamRag(ENV, PARAMS);
     try {
       const first = await stream.next();
-      expect(first.value).toEqual({ searching: "時間のかかる検索", searchId: 1 });
+      expect(first.value).toEqual({ toolProgress: { type: "tool_progress", call_id: 1, tool: "search_scenes", status: "running" } });
+      expect((await stream.next()).value).toEqual({ searching: "時間のかかる検索", searchId: 1 });
       finishSearch([scene(1)]);
       const remaining: RagStreamChunk[] = [];
       for await (const chunk of stream) remaining.push(chunk);
       expect(remaining[0]).toEqual({ searchCompleted: { id: 1, query: "時間のかかる検索", count: 1 } });
+      expect(remaining[1]).toEqual({ toolProgress: { type: "tool_progress", call_id: 1, tool: "search_scenes", status: "complete" } });
       expect(remaining.at(-1)).toHaveProperty("final");
     } finally {
       finishSearch?.([]);
       await stream.return();
     }
+  });
+
+  it("reports a failed tool without exposing its exception or generating a final answer", async () => {
+    hitsByQuery = () => { throw new Error("private database error"); };
+    stubOpenAi([{ toolCall: { name: "search_scenes", args: { query: "scene" } } }]);
+    const chunks: RagStreamChunk[] = [];
+    await expect((async () => {
+      for await (const chunk of streamRag(ENV, PARAMS)) chunks.push(chunk);
+    })()).rejects.toThrow();
+    expect(chunks.filter(chunk => "toolProgress" in chunk)).toEqual([
+      { toolProgress: { type: "tool_progress", call_id: 1, tool: "search_scenes", status: "running" } },
+      { toolProgress: { type: "tool_progress", call_id: 1, tool: "search_scenes", status: "error" } },
+    ]);
+    expect(JSON.stringify(chunks)).not.toContain("private database error");
+    expect(chunks.some(chunk => "final" in chunk)).toBe(false);
   });
 });
 

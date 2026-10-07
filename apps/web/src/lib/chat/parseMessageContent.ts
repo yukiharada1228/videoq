@@ -1,6 +1,6 @@
 import { advanceChatTextContext, parseChatText, type ChatAnswer, type ChatTextNode } from '@videoq/trpc/chat';
 
-export type MessageContentNode = ChatTextNode | { type: 'ref'; id: number };
+export type MessageContentNode = ChatTextNode | { type: 'refs'; ids: number[] };
 
 export function parseMessageContent(segments: ChatAnswer['segments']): MessageContentNode[] {
   const nodes: MessageContentNode[] = [];
@@ -20,7 +20,7 @@ export function parseMessageContent(segments: ChatAnswer['segments']): MessageCo
     // Adjacent segments without citations can split a TeX/code delimiter.
     if (!segment.sourceIds.length) continue;
     flushText();
-    for (const id of segment.sourceIds) nodes.push({ type: 'ref', id });
+    nodes.push({ type: 'refs', ids: [...new Set(segment.sourceIds)] });
   }
   flushText();
   return nodes;

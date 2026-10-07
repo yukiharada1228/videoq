@@ -12,8 +12,9 @@ install_stamp="$workspace_modules/.videoq-package-lock"
 needs_npm_ci=0
 if [ ! -x "$workspace_modules/.bin/wrangler" ]; then
   needs_npm_ci=1
-elif [ ! -d "$workspace_modules/@hono/trpc-server" ] \
-  || [ ! -d "$workspace_modules/@videoq/trpc" ]; then
+elif ! node -e 'for (const name of ["@hono/trpc-server", "@videoq/trpc"]) require.resolve(name, { paths: [process.argv[1]] })' "$api_dir" >/dev/null 2>&1; then
+  # npm may install a dependency under apps/api/node_modules instead of
+  # hoisting it. Resolve from the API to avoid reinstalling on every restart.
   needs_npm_ci=1
 elif [ ! -f "$install_stamp" ] \
   || ! cmp -s "$workspace_lock" "$install_stamp" 2>/dev/null; then
@@ -31,6 +32,8 @@ USER_SECRET_ENCRYPTION_KEY=${USER_SECRET_ENCRYPTION_KEY:-AAAAAAAAAAAAAAAAAAAAAAA
 OPENAI_API_KEY=${OPENAI_API_KEY:-}
 OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
 LLM_MODEL=${LLM_MODEL:-gpt-4o-mini}
+VIDEO_VISUAL_ENABLED=${VIDEO_VISUAL_ENABLED:-true}
+VISION_MODEL=${VISION_MODEL:-}
 EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-openai}
 EMBEDDING_MODEL=${EMBEDDING_MODEL:-}
 DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@videoq.local}

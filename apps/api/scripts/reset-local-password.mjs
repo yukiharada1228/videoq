@@ -77,9 +77,13 @@ try {
   }
 
   const user = userResult.rows[0];
+  // Better Auth looks up credentials by both issuer and account_id = user.id.
+  // Older local databases can retain the pre-UUID account_id after user remapping.
   const updatedAccount = await client.query(
     `UPDATE account
         SET password = $2,
+            account_id = $1,
+            issuer = 'local:credential',
             updated_at = now()
       WHERE user_id = $1
         AND provider_id = 'credential'`,
@@ -88,8 +92,8 @@ try {
   if (updatedAccount.rowCount === 0) {
     await client.query(
       `INSERT INTO account
-        (id, account_id, provider_id, user_id, password, created_at, updated_at)
-       VALUES ($1, $2, 'credential', $2, $3, now(), now())`,
+        (id, account_id, provider_id, issuer, user_id, password, created_at, updated_at)
+       VALUES ($1, $2, 'credential', 'local:credential', $2, $3, now(), now())`,
       [randomUUID(), user.id, passwordHash],
     );
   }

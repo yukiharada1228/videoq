@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+import tempfile
 from contextlib import closing
 from pathlib import Path
 
@@ -88,6 +89,49 @@ def download_to_path(file_key: str, dest: Path) -> Path:
     if src.resolve() != dest.resolve():
         shutil.copyfile(src, dest)
     return dest
+
+
+def upload_bytes(file_key: str, payload: bytes, content_type: str) -> None:
+    """Atomic publication of a bounded derived object."""
+    if _use_object_storage():
+        with closing(_s3_client()) as client:
+            client.put_object(
+                Bucket=_bucket(), Key=object_storage_key(file_key),
+                Body=payload, ContentType=content_type,
+            )
+        return
+    path = Path(env_str("MEDIA_ROOT", "/tmp/videoq-media")) / file_key.lstrip("/")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as tmp:
+        temporary = Path(tmp.name)
+        try:
+            tmp.write(payload)
+            tmp.flush()
+            os.replace(temporary, path)
+        finally:
+            temporary.unlink(missing_ok=True)
+
+
+def upload_file(file_key: str, source: Path, content_type: str) -> None:
+    """Stream a derived file through one atomic PUT, without loading it into RAM."""
+    if _use_object_storage():
+        with closing(_s3_client()) as client, source.open("rb") as body:
+            client.put_object(
+                Bucket=_bucket(), Key=object_storage_key(file_key), Body=body,
+                ContentLength=source.stat().st_size, ContentType=content_type,
+            )
+        return
+    path = Path(env_str("MEDIA_ROOT", "/tmp/videoq-media")) / file_key.lstrip("/")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as tmp:
+        temporary = Path(tmp.name)
+        try:
+            with source.open("rb") as body:
+                shutil.copyfileobj(body, tmp, length=1024 * 1024)
+            tmp.flush()
+            os.replace(temporary, path)
+        finally:
+            temporary.unlink(missing_ok=True)
 
 
 def delete_object(file_key: str) -> None:

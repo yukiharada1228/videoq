@@ -14,7 +14,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from worker_python.env import env_str, heavy_pipeline_enabled
+from worker_python.env import env_flag, env_str, heavy_pipeline_enabled
 from worker_python.pipeline.scene_otsu import apply_scene_splitting
 from worker_python.pipeline.srt import create_srt_from_whisper_segments, format_srt_time
 from worker_python.pipeline.storage import download_to_path
@@ -57,7 +57,7 @@ def run_transcription(
     elif not video.file_key:
         raise RuntimeError(f"Video {video.id} has no file key for uploaded transcription.")
     else:
-        raw_srt = _transcribe_uploaded(video.file_key, reserve_processing)
+        raw_srt = _transcribe_uploaded(video.file_key, reserve_processing, video_id=video.id)
 
     logger.info("Applying Otsu scene splitting for video %d", video.id)
     return apply_scene_splitting(raw_srt)
@@ -66,6 +66,7 @@ def run_transcription(
 def _transcribe_uploaded(
     file_key: str,
     reserve_processing: Callable[[int], None] | None = None,
+    *, video_id: int | None = None,
 ) -> str:
     with tempfile.TemporaryDirectory(prefix="videoq-tx-") as tmp:
         tmp_dir = Path(tmp)
@@ -79,6 +80,22 @@ def _transcribe_uploaded(
         srt = create_srt_from_whisper_segments(segments)
         if not srt.strip():
             raise RuntimeError("Whisper returned an empty transcript")
+        if video_id is not None and env_flag("VIDEO_VISUAL_ENABLED", True):
+            from worker_python.pipeline.visual_frames import build_frame_cache, publish_frame_cache
+            from worker_python.pipeline.focus_frames import build_focus_cache, publish_focus_cache
+
+            try:
+                payload = build_frame_cache(video_path, video_id, _ffprobe_duration(video_path))
+                publish_frame_cache(video_id, file_key, payload)
+            except Exception as exc:
+                # Optional visuals must not break a usable transcript. A backfill
+                # command can retry cache creation without paying for Whisper.
+                logger.warning("Frame cache unavailable for video %d (%s)", video_id, type(exc).__name__)
+            try:
+                with build_focus_cache(video_path, video_id, _ffprobe_duration(video_path)) as pack:
+                    publish_focus_cache(video_id, file_key, pack)
+            except Exception as exc:
+                logger.warning("Focus cache unavailable for video %d (%s)", video_id, type(exc).__name__)
         return srt
 
 

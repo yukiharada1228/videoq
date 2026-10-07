@@ -623,6 +623,28 @@ describe('ChatPanel', () => {
     })
   })
 
+  it('replaces preparation with the actual tool before any answer text arrives', async () => {
+    let finishTool!: () => void
+    const toolGate = new Promise<void>(resolve => { finishTool = resolve })
+    vi.mocked(apiClient.chatStream).mockImplementation(async function* () {
+      yield { type: 'tool_progress', call_id: 1, tool: 'focus_clip', status: 'running' }
+      await toolGate
+      yield { type: 'tool_progress', call_id: 1, tool: 'focus_clip', status: 'complete' }
+      yield { type: 'text_delta', segmentIndex: 0, text: '映像の回答' }
+      yield { type: 'done', chat_log_id: 1, feedback: null }
+    })
+    render(<ChatPanel />)
+    await act(async () => { await sendMessage(screen.getByLabelText(/chat.placeholder/), '映像を確認して') })
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('focus_clip'))
+    expect(screen.getByRole('status')).not.toHaveTextContent('chat.progress.preparing')
+    expect(screen.queryByText('映像の回答')).not.toBeInTheDocument()
+    await act(async () => { finishTool() })
+    await waitFor(() => expect(screen.getByText('映像の回答')).toBeVisible())
+    fireEvent.click(screen.getByRole('button', { name: /chat.progress.details/ }))
+    expect(screen.getByText('focus_clip', { selector: 'code' })).toBeVisible()
+    expect(screen.getByText('chat.progress.toolStatus.complete')).toBeVisible()
+  })
+
   it('should display error message when chat fails', async () => {
     ;(apiClient.chatStream as any).mockImplementation(async function* () {
       throw new Error('Chat failed')

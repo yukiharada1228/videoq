@@ -43,6 +43,7 @@ const sidebars: SidebarsConfig = {
         'guides/api',
         'guides/database',
         'guides/embeddings',
+        'guides/visual-evidence',
         'guides/worker',
         'guides/testing',
         'guides/troubleshooting',
