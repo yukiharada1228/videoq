@@ -150,7 +150,7 @@ describe.each(["full", "browser"] as const)("Google account ownership (%s)", (pr
     expect(response.status, await response.clone().text()).toBe(200);
     expect((await response.json()).user.id).toBe(USER_ID);
     expect(store.data.account).toEqual([expect.objectContaining({
-      userId: USER_ID, issuer: ISSUER, accountId: "google-subject",
+      userId: USER_ID, providerId: "google", accountId: "google-subject",
     })]);
   });
 

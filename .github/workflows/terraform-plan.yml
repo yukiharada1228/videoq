@@ -44,6 +44,12 @@ jobs:
       - name: Terraform tests (mock providers)
         run: terraform test -no-color
 
+      - name: Validate state backend bootstrap
+        working-directory: infra/bootstrap
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate -no-color
+
   terraform-plan:
     name: Terraform Plan (AWS)
     runs-on: ubuntu-latest

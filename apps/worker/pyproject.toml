@@ -17,7 +17,7 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     # Verify that Python writes remain compatible with both search clients.
-    "langchain-postgres==0.0.17",
+    "langchain-postgres==0.0.18",
 ]
 
 [build-system]

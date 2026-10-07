@@ -35,6 +35,7 @@ function migrationFixture(): string {
     "0018_better_auth_1_7_and_mcp_idempotency",
     "0019_backfill_better_auth_issuer",
     "0020_finalize_better_auth_issuer",
+    "0029_better_auth_1_7_7_schema",
   ];
   for (const tag of tags) {
     cpSync(join(migrationDirectory, `${tag}.sql`), join(directory, `${tag}.sql`));
@@ -80,7 +81,7 @@ migrationDescribe("Better Auth 1.7 Drizzle migration", () => {
       targetPool.on("error", () => {});
       const db = drizzle(targetPool);
 
-      // Minimal Better Auth 1.6 schema touched by migrations 0017-0020.
+      // Minimal Better Auth 1.6 schema touched by the 1.7 upgrade migrations.
       await db.execute(sql.raw(`
         CREATE TABLE "users" ("id" text PRIMARY KEY);
         CREATE TABLE "session" ("id" text PRIMARY KEY);
@@ -135,6 +136,16 @@ migrationDescribe("Better Auth 1.7 Drizzle migration", () => {
           "refresh_id" text
         );
         CREATE TABLE "oauth_consent" ("id" text PRIMARY KEY);
+        CREATE TABLE "jwks" (
+          "id" text PRIMARY KEY,
+          "public_key" text NOT NULL,
+          "private_key" text NOT NULL,
+          "created_at" timestamp with time zone NOT NULL DEFAULT now(),
+          "expires_at" timestamp with time zone
+        );
+
+        INSERT INTO "jwks" ("id", "public_key", "private_key")
+        VALUES ('existing-key', 'existing-public-key', 'existing-private-key');
 
         INSERT INTO "session" ("id") VALUES ('session-old');
         INSERT INTO "account" ("id", "account_id", "provider_id") VALUES
@@ -170,6 +181,29 @@ migrationDescribe("Better Auth 1.7 Drizzle migration", () => {
         access_token_count: 0,
         refresh_token_count: 0,
       });
+
+      // Better Auth >=1.7.3 no longer writes issuer. Keep existing accounts
+      // and signing keys readable while accepting the new persistence shape.
+      await db.execute(sql`
+        INSERT INTO account (id, account_id, provider_id)
+        VALUES ('new-google', 'new-subject', 'google')
+      `);
+      expect((await db.execute(sql`
+        SELECT issuer FROM account WHERE id = 'new-google'
+      `)).rows[0]).toEqual({ issuer: null });
+      expect((await db.execute(sql`
+        SELECT public_key, private_key, alg, crv FROM jwks WHERE id = 'existing-key'
+      `)).rows[0]).toEqual({
+        public_key: "existing-public-key", private_key: "existing-private-key",
+        alg: null, crv: null,
+      });
+      await db.execute(sql`
+        INSERT INTO jwks (id, public_key, private_key, alg, crv)
+        VALUES ('new-key', 'new-public-key', 'new-private-key', 'EdDSA', 'Ed25519')
+      `);
+      expect((await db.execute(sql`
+        SELECT alg, crv FROM jwks WHERE id = 'new-key'
+      `)).rows[0]).toEqual({ alg: "EdDSA", crv: "Ed25519" });
 
       setRateLimitBackendForTests(createMemoryRateLimitBackend());
       const auth = createAuth(

@@ -20,6 +20,13 @@ updates:
       time: "09:00"
       timezone: Asia/Tokyo
     open-pull-requests-limit: 5
+    # Cloudflare's Vitest plugin currently requires Vitest 4.
+    # Revisit this exception when @cloudflare/vitest-plugin supports Vitest 5.
+    ignore:
+      - dependency-name: vitest
+        versions: [">=5.0.0 <6.0.0"]
+      - dependency-name: "@vitest/*"
+        versions: [">=5.0.0 <6.0.0"]
     groups:
       # Keep packages with shared versions / peer requirements together,
       # including major upgrades. Other major upgrades get individual PRs.
@@ -72,6 +79,10 @@ updates:
       time: "09:00"
       timezone: Asia/Tokyo
     open-pull-requests-limit: 5
+    # Node 25 is EOL; retain supported Node 22/24 LTS images.
+    ignore:
+      - dependency-name: node
+        versions: [">=25.0.0 <26.0.0"]
     groups:
       docker-minor-patch:
         patterns: ["*"]
