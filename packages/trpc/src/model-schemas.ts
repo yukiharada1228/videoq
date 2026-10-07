@@ -54,8 +54,11 @@ export const billingPlanSchema = z.object({
   code: z.enum(["free", "basic", "pro"]),
   interval: z.enum(["month", "year"]).nullable(),
   lookup_key: z.string().nullable(),
-  amount_yen: z.number(),
-  currency: z.literal("jpy"),
+  // Stripe minor units: yen for JPY, cents for USD.
+  unit_amount: z.number().int().nonnegative(),
+  // Retained for older clients requesting the default JPY catalog.
+  amount_yen: z.number().optional(),
+  currency: z.enum(["jpy", "usd"]),
   entitlements: z.object({
     max_video_upload_size_mb: z.number(),
     storage_limit_gb: z.number(),

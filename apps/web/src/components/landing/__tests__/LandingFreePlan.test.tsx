@@ -4,7 +4,7 @@ import { LandingFreePlan } from '../LandingFreePlan'
 describe('LandingFreePlan', () => {
   it('shows the limits returned by the pricing catalog, including changed limits', async () => {
     globalThis.__setTrpcHandler('billing.plans', () => [{
-      code: 'free', interval: null, lookup_key: null, amount_yen: 0, currency: 'jpy',
+      code: 'free', interval: null, lookup_key: null, unit_amount: 0, currency: 'jpy',
       entitlements: { max_video_upload_size_mb: 150, storage_limit_gb: 2, processing_limit_minutes: 60, ai_answers_limit: 40 },
     }])
     render(<LandingFreePlan />)

@@ -27,6 +27,23 @@ Restricted API key（`rk_`）を推奨する。Checkout / Customer / Subscriptio
 | VideoQ Pro | 月額 | `pro_monthly` | 3980 | month |
 | VideoQ Pro | 年額 | `pro_yearly` | 39800 | year |
 
+### 英語サイトの米ドル料金
+
+既存の4つのPrice IDと検索キーを維持し、各Priceの `currency_options.usd` に追加します。既存契約が参照する価格や検索キーは置き換えません。
+
+| lookup_key | USD料金 | `unit_amount`（セント） |
+|---|---:|---:|
+| `basic_monthly` | 月$9.99 | 999 |
+| `basic_yearly` | 年$99.90 | 9990 |
+| `pro_monthly` | 月$26.99 | 2699 |
+| `pro_yearly` | 年$269.90 | 26990 |
+
+`currency_options.usd.tax_behavior` は既存の税込表示に合わせて `inclusive` とします。利用済み価格の通貨追加がDashboardで無効な場合、公式の[Price更新API](https://docs.stripe.com/api/prices/update)でUSDオプションのみ追加します。本番とサンドボックスは個別に設定します。
+
+`billing.plans({ locale: "en" })` は `data.currency_options` を展開し、`unit_amount` にUSDのセント額を返します。日本語・言語省略時はJPYです。旧クライアントとの互換性のため、JPYレスポンスには `amount_yen` も残します。Stripeキーなしの開発環境では参照カタログを使用し、キーが設定済みなら価格・通貨・課金間隔が不正な場合はエラーにします。
+
+Checkoutは英語で `currency=usd`、日本語で `currency=jpy` を明示し、決済画面の言語も合わせます。セッションのAdaptive Pricingを無効にして表示通貨と請求通貨を一致させます。既存契約の通貨は変更しません。Portalは表示言語と戻り先だけを変更します。Portalの変更可能な商品には、既存の4つの多通貨Priceを登録したままにします。
+
 JPY はゼロ小数。`tax_behavior` は inclusive（内税）か、Tax settings の Automatic（JPY は inclusive）。
 
 税コードは法務確認のうえ Product に付ける。候補:

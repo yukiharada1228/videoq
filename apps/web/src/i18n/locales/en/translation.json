@@ -677,7 +677,7 @@
     "subtitle": "Start with a small Free trial, then Basic for everyday use or Pro for heavier workloads. Annual billing saves two months.",
     "monthly": "Monthly",
     "yearly": "Yearly",
-    "freePrice": "¥0",
+    "freePrice": "USD 0",
     "perMonth": "/mo",
     "perYear": "/yr",
     "currentPlan": "Current plan",
@@ -730,7 +730,7 @@
         },
         "payment": {
           "title": "4. Fees and payment",
-          "body": "Paid plan prices are shown in Japanese yen, tax included. Stripe processes payments. VideoQ does not store card numbers. Monthly plans renew every month and yearly plans every year on the saved payment method. Mid-cycle plan changes follow the Customer Portal proration setting (immediate invoice)."
+          "body": "New subscriptions from the English site are billed in US dollars; the Japanese site uses Japanese yen. Prices include applicable tax. Existing subscriptions keep their billing currency. Stripe processes payments. VideoQ does not store card numbers. Monthly plans renew every month and yearly plans every year on the saved payment method. Mid-cycle plan changes follow the Customer Portal proration setting (immediate invoice)."
         },
         "cancel": {
           "title": "5. Cancellation",
@@ -861,7 +861,7 @@
         },
         "price": {
           "label": "Prices",
-          "value": "The amounts shown on https://videoq.jp/pricing, in JPY, tax included. Free ¥0; Basic ¥1,480/month or ¥14,800/year; Pro ¥3,980/month or ¥39,800/year."
+          "value": "The amounts shown on https://videoq.jp/en/pricing, in USD, tax included. Free $0; Basic $9.99/month or $99.90/year; Pro $26.99/month or $269.90/year. The Japanese site offers JPY pricing. Existing subscriptions keep their billing currency."
         },
         "fees": {
           "label": "Charges besides the listed price",

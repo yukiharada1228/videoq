@@ -7,22 +7,29 @@ import { authFixture, authFixtures, regularUser } from '../../.storybook/fixture
 import { failure, success, trpcMutation, trpcQuery } from '../../.storybook/mocks/network';
 
 const plans: BillingPlan[] = [
-  { code: 'free', interval: null, lookup_key: null, amount_yen: 0, currency: 'jpy',
+  { code: 'free', interval: null, lookup_key: null, unit_amount: 0, currency: 'jpy',
     entitlements: { max_video_upload_size_mb: 200, storage_limit_gb: 1, processing_limit_minutes: 45, ai_answers_limit: 30 } },
   ...(['month', 'year'] as const).flatMap(interval => ([
     { code: 'basic' as const, interval, lookup_key: interval === 'month' ? 'basic_monthly' : 'basic_yearly',
-      amount_yen: interval === 'month' ? 1480 : 14800, currency: 'jpy' as const,
+      unit_amount: interval === 'month' ? 1480 : 14800, currency: 'jpy' as const,
       entitlements: { max_video_upload_size_mb: 1024, storage_limit_gb: 20, processing_limit_minutes: 300, ai_answers_limit: 1800 } },
     { code: 'pro' as const, interval, lookup_key: interval === 'month' ? 'pro_monthly' : 'pro_yearly',
-      amount_yen: interval === 'month' ? 3980 : 39800, currency: 'jpy' as const,
+      unit_amount: interval === 'month' ? 3980 : 39800, currency: 'jpy' as const,
       entitlements: { max_video_upload_size_mb: 2048, storage_limit_gb: 100, processing_limit_minutes: 1500, ai_answers_limit: 2800 } },
   ])),
 ];
+const usdPlans: BillingPlan[] = plans.map(plan => ({
+  ...plan, currency: 'usd',
+  unit_amount: plan.code === 'free' ? 0 : plan.code === 'basic'
+    ? (plan.interval === 'month' ? 999 : 9990)
+    : (plan.interval === 'month' ? 2699 : 26990),
+}));
+const localizedPlans = (input: { locale?: string } | void) => success(input?.locale === 'en' ? usdPlans : plans);
 const portalRequest = fn();
 const catalogRequest = fn();
 const portalError = 'Billing portal unavailable (fixture)';
 const catalogError = 'Price catalog unavailable (fixture)';
-const api = { auth: authFixtures.loggedOut, trpc: [trpcQuery('billing.plans', success(plans))] };
+const api = { auth: authFixtures.loggedOut, trpc: [trpcQuery('billing.plans', localizedPlans)] };
 
 const meta = {
   title: 'Pages/Pricing',
@@ -38,8 +45,8 @@ export const Anonymous: Story = {
     await expect(canvas.getAllByRole('link', { name: i18n.t('pricing.signUpToSubscribe') })).toHaveLength(2);
     await expect(canvas.queryByText(i18n.t('pricing.currentPlan'))).not.toBeInTheDocument();
     await userEvent.click(canvas.getByRole('button', { name: i18n.t('pricing.yearly') }));
-    await expect(canvas.getByText(/14,800/)).toBeVisible();
-    await expect(canvas.getByText(/39,800/)).toBeVisible();
+    await expect(canvas.getByText(i18n.language === 'en' ? /USD\s*99\.90/ : /14,800/)).toBeVisible();
+    await expect(canvas.getByText(i18n.language === 'en' ? /USD\s*269\.90/ : /39,800/)).toBeVisible();
     await expect(canvasElement.scrollWidth).toBeLessThanOrEqual(canvasElement.clientWidth);
   },
 };
@@ -49,7 +56,7 @@ export const AnonymousEnglishMobile: Story = {
 
 export const PortalErrorRetry: Story = {
   parameters: { api: { auth: authFixture({ ...regularUser, plan_code: 'basic' }), trpc: [
-    trpcQuery('billing.plans', success(plans)),
+    trpcQuery('billing.plans', localizedPlans),
     trpcMutation('billing.portal', input => { portalRequest(input); return failure(portalError); }),
   ] } },
   beforeEach() { portalRequest.mockClear(); },
@@ -72,9 +79,9 @@ export const PortalErrorRetryEnglishMobile: Story = {
 
 export const CatalogRetry: Story = {
   parameters: { api: { auth: authFixtures.user, trpc: [
-    trpcQuery('billing.plans', () => {
+    trpcQuery('billing.plans', input => {
       catalogRequest();
-      return catalogRequest.mock.calls.length === 1 ? failure(catalogError) : success(plans);
+      return catalogRequest.mock.calls.length === 1 ? failure(catalogError) : localizedPlans(input);
     }),
   ] } },
   beforeEach() { catalogRequest.mockClear(); },
