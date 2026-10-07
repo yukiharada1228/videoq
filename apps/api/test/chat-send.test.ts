@@ -340,7 +340,7 @@ describe.each([false, true])("講座メタ情報のチャット経路（stream=%
     const requests = stubOpenAi({ content: answer, toolCall: {
       id: "call_course", type: "function", function: { name: "get_course_info", arguments: JSON.stringify({ video_limit: 20, video_offset: 0 }) },
     } });
-    const path = (stream ? "/messages/stream" : "/messages") + (access === "public" ? "?share_slug=abc123" : "");
+    const path = (stream ? "/messages/stream?tool_progress=1" : "/messages") + (access === "public" ? `${stream ? "&" : "?"}share_slug=abc123` : "");
     const res = await post(path, {
       messages: [{ role: "user", content: "講座名と動画数は？" }], course_id: 3,
     }, {
@@ -1025,9 +1025,12 @@ describe("POST /messages/stream（SSE）", () => {
     });
   });
 
-  it.each(["owner", "public"])("%s: sends source metadata before prose", async access => {
+  it.each(["owner", "public"].flatMap(access => [false, true].map(toolProgress => ({ access, toolProgress }))))("$access (tool progress: $toolProgress): sends source metadata before prose", async ({ access, toolProgress }) => {
     stubOpenAi({ content: "Hello!", preamble: "調べますね。" });
-    const response = await post("/messages/stream" + (access === "public" ? "?share_slug=abc123" : ""), {
+    const params = new URLSearchParams();
+    if (toolProgress) params.set("tool_progress", "1");
+    if (access === "public") params.set("share_slug", "abc123");
+    const response = await post("/messages/stream?" + params, {
       messages: [{ role: "user", content: "hi" }], course_id: 3,
     }, { userId: access === "public" ? undefined : TEST_USER_ID, env: OPENAI_ENV });
     expect(response.status).toBe(200);
@@ -1035,10 +1038,10 @@ describe("POST /messages/stream（SSE）", () => {
     expect(response.headers.get("cache-control")).toBe("no-cache");
     expect(response.headers.get("x-accel-buffering")).toBe("no");
     expect(sseEvents(await response.text())).toEqual([
-      { type: "tool_progress", call_id: 1, tool: "search_scenes", status: "running" },
+      ...(toolProgress ? [{ type: "tool_progress", call_id: 1, tool: "search_scenes", status: "running" }] : []),
       { type: "searching", query: "scene", search_id: 1 },
       { type: "search_completed", query: "scene", search_id: 1, result_count: 1 },
-      { type: "tool_progress", call_id: 1, tool: "search_scenes", status: "complete" },
+      ...(toolProgress ? [{ type: "tool_progress", call_id: 1, tool: "search_scenes", status: "complete" }] : []),
       { type: "source", source: { id: 1, video_id: 60, title: "Video A", start_time: "00:00:10", end_time: "00:00:20" } },
       { type: "text_delta", segmentIndex: 0, text: "Hel" },
       { type: "text_delta", segmentIndex: 0, text: "lo!" },

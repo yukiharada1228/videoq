@@ -86,6 +86,19 @@ describe('apiClient.chatStream', () => {
     expect(chunks[1]).toEqual({ type: 'text_delta', segmentIndex: 0, text: 'World' })
   })
 
+  it('opts in to tool progress and decodes its events for shared chats', async () => {
+    const start = { type: 'tool_progress', call_id: 1, tool: 'focus_clip', status: 'running' }
+    const done = { type: 'done', chat_log_id: null, feedback: null }
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      makeSSEResponse([start, done].map(event => `data: ${JSON.stringify(event)}`)),
+    )
+    const events = await collectStreamEvents({ messages: [{ role: 'user', content: 'hi' }], share_slug: 'public-course' })
+    expect(events).toEqual([start, done])
+    const url = new URL(String(fetchSpy.mock.calls[0][0]))
+    expect(url.searchParams.get('tool_progress')).toBe('1')
+    expect(url.searchParams.get('share_slug')).toBe('public-course')
+  })
+
   it('yields done event with metadata', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       makeSSEResponse([
@@ -168,7 +181,7 @@ describe('apiClient.chatStream', () => {
     })).rejects.toThrow('Authentication failed')
 
     expect(fetchSpy).toHaveBeenCalledTimes(1)
-    expect(fetchSpy.mock.calls[0][0]).toBe('http://localhost:8000/api/chat/messages/stream')
+    expect(fetchSpy.mock.calls[0][0]).toBe('http://localhost:8000/api/chat/messages/stream?tool_progress=1')
     expect(unauthorized).toHaveBeenCalledTimes(1)
     expect(authClientMock.signOut).not.toHaveBeenCalled()
     window.removeEventListener(TRPC_UNAUTHORIZED_EVENT, unauthorized)
