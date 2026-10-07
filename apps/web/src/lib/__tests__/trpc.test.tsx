@@ -106,6 +106,28 @@ describe('tRPC error handling', () => {
     expect(onUnauthorized).not.toHaveBeenCalled();
   });
 
+  it('recovers a course read after a transient HTML response', async () => {
+    const onUnauthorized = vi.fn();
+    const fetchFn = vi.fn()
+      .mockResolvedValueOnce(new Response('<!DOCTYPE html>', { status: 502, headers: { 'content-type': 'text/html' } }))
+      .mockResolvedValueOnce(batchResponse([{ result: { data: { id: 9, name: 'Course' } } }], 200));
+    const client = createAppTrpcClient({ baseUrl: 'https://example.test/api', fetchFn, onUnauthorized });
+    await expect(client.courses.get.query({ id: 9 })).resolves.toEqual({ id: 9, name: 'Course' });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it('shows a useful error for an HTML mutation failure without replay or logout', async () => {
+    const onUnauthorized = vi.fn();
+    const fetchFn = vi.fn(async () => new Response('<!DOCTYPE html>', { status: 502, headers: { 'content-type': 'text/html' } }));
+    const client = createAppTrpcClient({ baseUrl: 'https://example.test/api', fetchFn, onUnauthorized });
+    await expect(client.tags.create.mutate({ name: 'Lecture' })).rejects.toMatchObject({
+      message: i18n.t('common.messages.connectionFailed'),
+    });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
   it('preserves native query and mutation errors and reads their application details', async () => {
     const client = createAppTrpcClient({
       baseUrl: 'https://example.test/api',

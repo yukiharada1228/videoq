@@ -6,6 +6,7 @@ import { TRPC_MAX_BATCH_SIZE } from '@videoq/trpc/schema'
 import { API_URL } from '@/lib/apiConfig'
 import i18n from '@/i18n/config'
 import { appQueryClient } from './queryClient'
+import { ApiResponseError, fetchJsonResponse } from './jsonFetch'
 
 export const TRPC_UNAUTHORIZED_EVENT = 'videoq:trpc-unauthorized'
 
@@ -61,7 +62,13 @@ export function createAppTrpcClient(settings: AppTrpcClientOptions = {}) {
         maxItems: TRPC_MAX_BATCH_SIZE,
         headers: () => ({ 'Accept-Language': i18n.language }),
         async fetch(url, requestInit) {
-          const response = await fetchFn(url, { ...requestInit, credentials: 'include' })
+          let response: Response
+          try {
+            response = await fetchJsonResponse(url, { ...requestInit, credentials: 'include' }, fetchFn)
+          } catch (error) {
+            if (error instanceof ApiResponseError && error.status === 401) await notifyUnauthorized(undefined)
+            throw error
+          }
           // A proxy may return a 401 without a valid tRPC JSON body.
           if (response.status === 401) await notifyUnauthorized(response)
           return response
