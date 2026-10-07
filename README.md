@@ -422,6 +422,24 @@ python -m pytest tests/ -q
 
 PostgreSQL integration tests additionally use `DATABASE_URL`. Running transcription outside Docker requires FFmpeg and the database, storage, queue, and AI environment settings described in the [worker README](apps/worker/README.md).
 
+### Dependency updates
+
+[Dependabot](.github/dependabot.yml) checks for version updates every Monday at
+09:00 Asia/Tokyo. It covers the root npm workspaces, the Python worker's
+`pyproject.toml` / `uv.lock`, GitHub Actions, Dockerfiles, Docker Compose,
+Terraform (including `infra/bootstrap`), and the optional `whisper.cpp` submodule.
+Related npm packages are updated together; remaining minor and patch updates are
+grouped by ecosystem, while major updates are reviewed separately. GitHub Actions
+updates share one group. Version-update PRs are limited to five per ecosystem
+(one for the submodule).
+
+The configuration takes effect on GitHub's default branch (`main`). Dependabot
+alerts and security updates are separate repository settings under
+**Settings → Advanced Security**; keep both enabled. npm and Python security fixes
+are grouped separately from scheduled version updates. Review the diff and CI
+results before merging. The worker's current CI and Docker builds install with
+`pip` from `pyproject.toml`; they do not enforce the versions in `uv.lock`.
+
 ## Deployment
 
 The production topology is Cloudflare Workers (separate frontend, API, and docs) + Hyperdrive, Neon PostgreSQL, Cloudflare R2, and an ARM64 Python Lambda consuming SQS. Follow [`infra/DEPLOY.md`](infra/DEPLOY.md) for provisioning, secrets, migrations, CORS, and deployment checks.
