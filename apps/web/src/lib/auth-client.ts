@@ -2,6 +2,7 @@ import { createAuthClient } from 'better-auth/react';
 import { usernameClient } from 'better-auth/client/plugins';
 import { apiKeyClient } from '@better-auth/api-key/client';
 import { oauthProviderClient } from '@better-auth/oauth-provider/client';
+import { fetchJsonResponse } from './jsonFetch';
 
 const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8787/api';
 
@@ -16,6 +17,7 @@ export const authClient = createAuthClient({
   basePath: '/api/auth',
   fetchOptions: {
     credentials: 'include',
+    customFetchImpl: fetchJsonResponse,
   },
   plugins: [usernameClient(), apiKeyClient(), oauthProviderClient()],
 });

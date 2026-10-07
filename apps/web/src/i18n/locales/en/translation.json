@@ -34,6 +34,7 @@
     },
     "messages": {
       "loading": "Loading",
+      "connectionFailed": "We couldn't get a valid response from the server. Please wait a moment and try again.",
       "pageLoadFailed": "This page could not be loaded. Try again or use the navigation to open another page.",
       "noDescription": "No description",
       "videoNotFound": "Video not found",
