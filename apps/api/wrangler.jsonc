@@ -74,14 +74,16 @@
   "durable_objects": {
     "bindings": [
       { "name": "RATE_LIMITER", "class_name": "RateLimiter" },
-      { "name": "TASK_SCHEDULER", "class_name": "TaskScheduler" }
+      { "name": "TASK_SCHEDULER", "class_name": "TaskScheduler" },
+      { "name": "CHAT_EXECUTION", "class_name": "ChatExecution" }
     ]
   },
   "migrations": [
     { "tag": "v1-rate-limiter", "new_sqlite_classes": ["RateLimiter"] },
     { "tag": "v2-study-session", "new_sqlite_classes": ["StudySession"] },
     { "tag": "v3-task-scheduler", "new_sqlite_classes": ["TaskScheduler"] },
-    { "tag": "v4-remove-study-session", "deleted_classes": ["StudySession"] }
+    { "tag": "v4-remove-study-session", "deleted_classes": ["StudySession"] },
+    { "tag": "v5-chat-execution", "new_sqlite_classes": ["ChatExecution"] }
   ],
 
   // 回復処理のポーリング cron は TASK_SCHEDULER（DO アラーム）へ移した。
@@ -151,7 +153,8 @@
       "durable_objects": {
         "bindings": [
           { "name": "RATE_LIMITER", "class_name": "RateLimiter" },
-          { "name": "TASK_SCHEDULER", "class_name": "TaskScheduler" }
+          { "name": "TASK_SCHEDULER", "class_name": "TaskScheduler" },
+          { "name": "CHAT_EXECUTION", "class_name": "ChatExecution" }
         ]
       },
       "triggers": {

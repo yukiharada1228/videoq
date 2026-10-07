@@ -69,7 +69,7 @@ export const sessionMethod: AuthMethod = async (c) => {
   }
 
   return withDb<AuthOutcome>(c.env, async (db) => {
-    const auth = createAuth(c.env, db);
+    const auth = createAuth(c.env, db, "browser");
     // Authorization decisions must observe session revocation and account changes
     // immediately. Better Auth's signed cookie cache is suitable for display-only
     // session reads, but would otherwise keep a revoked session usable until expiry.

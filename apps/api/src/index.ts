@@ -1,6 +1,7 @@
 import { createApp, type AppType } from "./app";
 import { runScheduledMaintenance } from "./lib/scheduled-maintenance";
 import type { Bindings } from "./types/bindings";
+import { dispatchChatExecution, isChatExecutionRequest } from "./lib/chat-execution";
 
 export type { AppType };
 
@@ -8,7 +9,10 @@ export type { AppType };
 const app = createApp();
 
 export default {
-  fetch: app.fetch,
+  fetch(request, env, ctx) {
+    if (isChatExecutionRequest(request)) return dispatchChatExecution(request, env);
+    return app.fetch(request, env, ctx);
+  },
   async scheduled(
     controller: ScheduledController,
     env: Bindings,
@@ -21,3 +25,4 @@ export default {
 // Durable Objects（wrangler `durable_objects.bindings` の class_name と一致させる）
 export { RateLimiter } from "./durable-objects/rate-limiter";
 export { TaskScheduler } from "./durable-objects/task-scheduler";
+export { ChatExecution } from "./durable-objects/chat-execution";

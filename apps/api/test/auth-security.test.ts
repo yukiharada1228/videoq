@@ -381,6 +381,20 @@ describe("account suspension across Better Auth endpoints", () => {
     expect(store.data.session).toHaveLength(0);
   });
 
+  it.each(["active", "banned", "revoked"])("reads a %s browser session without reseeding OAuth resources", async (state) => {
+    const cookie = await login(makeAuth());
+    store.data.oauthResource = [];
+    if (state === "banned") store.data.user[0].banned = true;
+    if (state === "revoked") store.data.session = [];
+    const response = await createApp().request(`${BASE}/api/auth/get-session`, { headers: { cookie } }, env);
+    expect(response.status).toBe(state === "banned" ? 403 : 200);
+    const body = await response.json();
+    if (state === "active") expect(body).toMatchObject({ user: { id: USER_ID } });
+    if (state === "revoked") expect(body).toBeNull();
+    if (state === "banned") expect(body).toMatchObject({ code: "USER_INACTIVE" });
+    expect(store.data.oauthResource).toEqual([]);
+  });
+
   it("blocks self-reactivation and key creation even if a session survived suspension", async () => {
     const auth = makeAuth();
     const cookie = await login(auth);

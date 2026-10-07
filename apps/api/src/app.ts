@@ -47,7 +47,12 @@ export function createApp() {
   // Better Auth handler (sessions, email/password, API keys, OAuth AS).
   app.on(["POST", "GET"], "/api/auth/*", async (c) => {
     return withDb(c.env, async (db) => {
-      const auth = createAuth(c.env, db);
+      const browserOnly = [
+        "/api/auth/get-session",
+        "/api/auth/sign-in/social",
+        "/api/auth/callback/google",
+      ].includes(new URL(c.req.url).pathname);
+      const auth = createAuth(c.env, db, browserOnly ? "browser" : "full");
       return auth.handler(c.req.raw);
     });
   });

@@ -67,6 +67,12 @@ npm run user:password:local --workspace @videoq/api -- your-username
 
 ## 回答の配信が失敗する・引用が後から表示される
 
+ReActチャットは、回答ごとに作られる `CHAT_EXECUTION` Durable Objectで実行します。入口のWorkerは元の要求と応答ストリームを解析せず転送します。認証・講座のアクセス確認・利用枠の予約・ツール実行・最終回答の保存は、従来と同じAPIハンドラで処理します。SSEとtRPCの `chat.send` が対象で、`chat.send` を含むバッチも同じ経路を使います。
+
+Workers Freeの通常リクエストは **CPU上限10ms**、SQLite版Durable Objectsは既定で **CPU上限30秒** です。モデルの応答待ちではなく、実際の計算時間を数えます。ツールを繰り返す処理を通常の無料Workerで安定して実行することは難しいため、実行環境を分けています。この経路に有料契約やDB migrationは不要で、デプロイ時にWranglerがSQLite版の新しいクラスを作成します。Cloudflareの [Worker上限](https://developers.cloudflare.com/workers/platform/limits/#cpu-time)、[Durable Object上限](https://developers.cloudflare.com/durable-objects/platform/limits/)、[1日ごとの無料枠](https://developers.cloudflare.com/durable-objects/platform/pricing/)を参照してください。無料枠を超えるとリセットまで処理が停止し、無料プランでは超過料金は発生しません。
+
+応答がHTMLになったり途中で途切れたりした場合は、Cloudflareの **Workers & Pages → API Worker → Observability → Events** で失敗した呼び出しを確認します。`Worker exceeded CPU time limit` / `exceededCpu` は、アプリのエラーハンドラが動く前も含め、実行基盤が強制終了したことを示します。入口のWorkerと `ChatExecution` の両方を確認してください。実際にツールを使う質問を送り、`done` と履歴保存まで確認します。`/health` だけでは検証できません。ほかのAPIは通常のWorkerで動くため、CPU上限に達する場合は別途原因を調べます。
+
 | 症状 | 確認すること |
 |---|---|
 | `LLM_CONFIGURATION_ERROR` | APIのサーバーキーと、設定した接続先・モデルがstrictな `json_schema` 出力とstrictな関数ツールの同時利用に対応しているか |

@@ -67,6 +67,12 @@ Questions about course names or video counts may be answered from metadata witho
 
 ## Answer streaming fails or citations arrive later
 
+ReAct chat runs in a separate `CHAT_EXECUTION` Durable Object for each answer. The edge Worker forwards the original request and streams the response without parsing it. Authentication, course access, quota reservation, tools, and final answer persistence still run through the same API handlers. Both SSE and the `chat.send` tRPC procedure use this execution path, including batches containing `chat.send`.
+
+Workers Free has a **10 ms CPU limit** for ordinary requests; SQLite-backed Durable Objects have a **30 second CPU limit** by default. These measure active processing, not time waiting for the model. A long tool loop cannot reliably run in the ordinary Free Worker. No paid subscription or database migration is required for this path; Wrangler creates the new SQLite-backed class during deployment. See Cloudflare's [Worker limits](https://developers.cloudflare.com/workers/platform/limits/#cpu-time), [Durable Object limits](https://developers.cloudflare.com/durable-objects/platform/limits/), and [free daily quotas](https://developers.cloudflare.com/durable-objects/platform/pricing/). Exceeding a free daily quota stops operations until it resets; the free plan does not charge overages.
+
+If a response is HTML or stops abruptly, inspect the failing invocation in Cloudflare **Workers & Pages → API Worker → Observability → Events**. `Worker exceeded CPU time limit` / `exceededCpu` means the runtime terminated it, possibly before the application's error handler ran. Check both the edge invocation and the `ChatExecution` invocation. Verify an actual tool-using answer reaches `done` and appears in history; `/health` does not test this path. Other API routes still run in the ordinary Worker and must be diagnosed separately if they exceed its CPU limit.
+
 | Symptom | What to check |
 |---|---|
 | `LLM_CONFIGURATION_ERROR` | The API's server key and whether the configured endpoint/model supports strict `json_schema` output together with strict function tools |
