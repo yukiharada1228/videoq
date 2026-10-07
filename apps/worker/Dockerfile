@@ -1,5 +1,5 @@
 # SQS worker Lambda container image (linux/arm64).
-FROM public.ecr.aws/lambda/python:3.12
+FROM public.ecr.aws/lambda/python:3.14
 
 # Architecture for johnvansickle static ffmpeg (buildx sets TARGETARCH).
 ARG TARGETARCH=arm64
