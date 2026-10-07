@@ -171,8 +171,10 @@ export function durableRateLimitStorage(env: Bindings): AuthRateLimitStorage {
 /**
  * Per-request Better Auth instance bound to the Hyperdrive-backed Drizzle client.
  * Do not reuse across requests — the DB client is request-scoped.
+ * The browser profile serves only session reads and native Google sign-in;
+ * MCP/OAuth/API-key callers must use the default full profile.
  */
-export function createAuth(env: Bindings, db: Db) {
+export function createAuth(env: Bindings, db: Db, profile: "full" | "browser" = "full") {
   const quota = resolveSignupQuotaDefaults(env);
   const baseURL = authBaseURL(env);
   const googleClientId = env.GOOGLE_CLIENT_ID?.trim();
@@ -180,7 +182,6 @@ export function createAuth(env: Bindings, db: Db) {
   const googleEnabled = Boolean(googleClientId && googleClientSecret);
   const oauthConfig = oauthProviderConfig(env);
   const security = videoqAuthSecurity(oauthConfig);
-  const oauth = oauthProvider({ ...oauthConfig, customTokenResponseFields: security.tokenResponseFields });
 
   return betterAuth({
     database: drizzleAdapter(db, {
@@ -473,22 +474,28 @@ export function createAuth(env: Bindings, db: Db) {
         defaultRole: "user",
         adminRoles: ["admin"],
       }),
-      apiKey(["default", "read-write"].map((configId) => ({
-        configId,
-        defaultPrefix: "vq_",
-        apiKeyHeaders: ["x-api-key"],
-        permissions: {
-          defaultPermissions: { videoq: configId === "read-write" ? ["read", "write"] : ["read"] },
-        },
-        startingCharactersConfig: {
-          shouldStore: true,
-          charactersLength: 8,
-        },
-      }))),
-      jwt(),
-      oauth,
+      // Session reads and Google sign-in do not serve MCP/OAuth-provider/API-key
+      // endpoints. Avoid rebuilding those plugins (including OAuth resource
+      // seeding) on every browser request under the Free Worker's CPU budget.
+      // Keep username/admin/security and the same account policy in both profiles.
+      ...(profile === "full" ? [
+        apiKey(["default", "read-write"].map((configId) => ({
+          configId,
+          defaultPrefix: "vq_",
+          apiKeyHeaders: ["x-api-key"],
+          permissions: {
+            defaultPermissions: { videoq: configId === "read-write" ? ["read", "write"] : ["read"] },
+          },
+          startingCharactersConfig: {
+            shouldStore: true,
+            charactersLength: 8,
+          },
+        }))),
+        jwt(),
+        oauthProvider({ ...oauthConfig, customTokenResponseFields: security.tokenResponseFields }),
+      ] : []),
       security,
-      videoqResourceAccess(env, oauthResourceAudience(env)),
+      ...(profile === "full" ? [videoqResourceAccess(env, oauthResourceAudience(env))] : []),
     ],
   });
 }

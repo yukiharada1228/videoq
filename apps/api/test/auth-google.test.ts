@@ -124,7 +124,8 @@ function expectEncrypted(value: unknown, plaintext: string) {
   expect(value).not.toContain(plaintext);
 }
 
-describe("Google account ownership", () => {
+describe.each(["full", "browser"] as const)("Google account ownership (%s)", (profile) => {
+  const makeAuth = () => createAuth(env, db, profile);
   it.each([false, undefined, "false"])("does not link an email whose verification claim is %j", async (email_verified) => {
     const response = await signIn(makeAuth(), await idToken({ email_verified }));
     expect(response.status).toBe(401);
@@ -208,7 +209,8 @@ describe("Google account ownership", () => {
   });
 });
 
-describe("Google provider token storage", () => {
+describe.each(["full", "browser"] as const)("Google provider token storage (%s)", (profile) => {
+  const makeAuth = () => createAuth(env, db, profile);
   it("encrypts access and refresh tokens from the browser callback without exposing them in session/account listings", async () => {
     const auth = makeAuth();
     const cookie = await browserSignIn(auth);
