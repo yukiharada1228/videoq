@@ -1,6 +1,6 @@
-"""Adaptive stills in one atomic, range-readable object for short-clip focus.
+"""Dense stills in one atomic, range-readable object for short-clip focus.
 
-Format: b'VQFOC002', uint32 LE JSON length, JSON index, concatenated JPEGs.
+Format: b'VQFOC001', uint32 LE JSON length, JSON index, concatenated JPEGs.
 Index frame tuples are [actual PTS milliseconds, offset in JPEG data, length].
 Keep this format and limits in sync with the API's focus-frames.ts.
 """
@@ -20,27 +20,20 @@ from worker_python.pipeline.media_process import MEDIA_INPUT_OPTIONS, run_media_
 from worker_python.pipeline.storage import upload_file
 from worker_python.pipeline.visual_frames import MAX_IMAGE_BYTES
 
-MAGIC = b"VQFOC002"
+MAGIC = b"VQFOC001"
 HEADER_BYTES = 12
-MAX_INDEX_BYTES = 4 * 1024 * 1024
+MAX_INDEX_BYTES = 2 * 1024 * 1024
 MAX_PACK_BYTES = 512 * 1024 * 1024
-MAX_DURATION_SECONDS = 36_000
-MAX_FRAMES = 144_000
-CANDIDATE_INTERVAL_SECONDS = 0.25
-SCENE_THRESHOLD = 0.015
+MAX_FRAMES = 36_000
 
 
 def focus_cache_key(file_key: str) -> str:
-    return f"{file_key}.focus-v2.bin"
-
-
-def legacy_focus_cache_key(file_key: str) -> str:
     return f"{file_key}.focus-v1.bin"
 
 
 @contextmanager
 def build_focus_cache(video_path: Path, video_id: int, duration: float):
-    if not math.isfinite(duration) or not 0 < duration <= MAX_DURATION_SECONDS:
+    if not math.isfinite(duration) or not 0 < duration <= MAX_FRAMES:
         raise ValueError("Focus cache requires a finite duration of at most 10 hours")
     with tempfile.TemporaryDirectory(prefix="videoq-focus-") as tmp:
         root = Path(tmp)
@@ -48,15 +41,7 @@ def build_focus_cache(video_path: Path, video_id: int, duration: float):
         # tee encodes once; framecrc records the *same* JPEG packet's PTS/size.
         # Do not use fps/setpts: duplicating or retiming frames would invent evidence.
         filters = (
-            # First consider real source frames at up to 4 FPS, then retain a
-            # one-second baseline plus significant changes between candidates.
-            # This catches brief appearances between integer seconds without
-            # storing four identical images per second of a static lecture.
-            "select='isnan(prev_selected_t)+gt(floor(t*4+0.000001),floor(prev_selected_t*4+0.000001))',"
-            # RGB detects color-only changes that equal-luma YUV scene scores
-            # can miss (for example a brief colored mark on a colored slide).
-            "format=rgb24,"
-            f"select='isnan(prev_selected_t)+gt(floor(t+0.000001),floor(prev_selected_t+0.000001))+gt(scene,{SCENE_THRESHOLD})',"
+            "select='isnan(prev_selected_t)+gte(t-prev_selected_t,1)',"
             "scale=1024:1024:force_original_aspect_ratio=decrease:force_divisible_by=2,"
             "settb=1/1000"
         )
@@ -83,7 +68,7 @@ def build_focus_cache(video_path: Path, video_id: int, duration: float):
                 if not time_base_valid or len(fields) < 6 or int(fields[0]) != 0:
                     raise ValueError("Invalid focus frame timing stream")
                 timestamp, size = int(fields[2]), int(fields[4])
-                if not 0 <= timestamp <= duration * 1000 or (frames and timestamp // 250 <= frames[-1][0] // 250):
+                if not 0 <= timestamp <= duration * 1000 or (frames and timestamp - frames[-1][0] < 999):
                     raise ValueError("Invalid focus frame timestamp")
                 if not 0 < size <= MAX_IMAGE_BYTES or len(frames) >= MAX_FRAMES:
                     raise ValueError("Focus frame exceeds limits")
@@ -95,9 +80,8 @@ def build_focus_cache(video_path: Path, video_id: int, duration: float):
             if not frames or data.read(1):
                 raise ValueError("Focus timing does not cover the image data")
         manifest = json.dumps({
-            "version": 2, "video_id": video_id, "duration_seconds": duration,
-            "sampling_interval_seconds": 1, "candidate_interval_seconds": CANDIDATE_INTERVAL_SECONDS,
-            "selection": "interval_and_scene_change", "frames": frames,
+            "version": 1, "video_id": video_id, "duration_seconds": duration,
+            "sampling_interval_seconds": 1, "frames": frames,
         }, separators=(",", ":")).encode()
         if len(manifest) > MAX_INDEX_BYTES or HEADER_BYTES + len(manifest) + offset > MAX_PACK_BYTES:
             raise ValueError("Focus cache exceeds size limit")

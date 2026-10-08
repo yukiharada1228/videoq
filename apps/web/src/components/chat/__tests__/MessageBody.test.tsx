@@ -49,30 +49,10 @@ describe('MessageBody', () => {
     const navigate = vi.fn()
     render(<MessageBody answer={{ segments: [{ text: 'The graph rises.', sourceIds: [1] }], sources: [{ ...source, evidence_type: 'visual', start_time: '00:00:10,125', end_time: '00:00:10,125' }] }} onVideoNavigate={navigate} />)
     const button = screen.getByRole('button')
-    expect(button).toHaveTextContent(/^\(0:10\.125\)$/)
+    expect(button).toHaveTextContent(/^\(0:10\)$/)
     expect(button).toHaveAttribute('aria-label', 'Video 00:00:10,125')
     fireEvent.click(button)
     expect(navigate).toHaveBeenCalledExactlyOnceWith(7, '00:00:10,125')
-  })
-  it.each(['history', 'stream'])('distinguishes subsecond appearance and disappearance citations in %s', mode => {
-    const sources = ['27,250', '27,750', '28,000'].map((time, i) => ({
-      ...source, id: i + 1, evidence_type: 'visual' as const,
-      start_time: `00:00:${time}`, end_time: `00:00:${time}`,
-    }))
-    const saved: ChatAnswer = { segments: [
-      { text: 'The shape is visible.', sourceIds: [1] },
-      { text: '\n\nOnly the background is visible in these samples.', sourceIds: [2, 3] },
-    ], sources }
-    const streamed: ChatAnswer = { segments: [], sources }
-    for (const part of answerParts(saved)) applyChatPart(streamed, part)
-    const navigate = vi.fn()
-    render(<MessageBody answer={mode === 'history' ? saved : streamed} onVideoNavigate={navigate} />)
-    const buttons = screen.getAllByRole('button')
-    expect(buttons.map(button => button.textContent?.trim())).toEqual(['(0:27.25)', '(0:27.75)', '(0:28)'])
-    buttons.forEach((button, i) => {
-      fireEvent.click(button)
-      expect(navigate).toHaveBeenLastCalledWith(7, sources[i].start_time)
-    })
   })
   it.each(['history', 'stream'])('renders the same math, code and citation positions from %s', mode => {
     const saved: ChatAnswer = { segments: [

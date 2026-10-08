@@ -1,5 +1,5 @@
 import { deleteR2Object } from "../integrations/media";
-import { frameCacheKey, focusCacheKey, legacyFocusCacheKey } from "./video-evidence";
+import { frameCacheKey, focusCacheKey } from "./video-evidence";
 import {
   claimExternalTasks,
   completeExternalTask,
@@ -64,7 +64,6 @@ async function runTask(env: Bindings, task: ClaimedExternalTask): Promise<void> 
       await deleteR2Object(env, fileKey);
       await deleteR2Object(env, frameCacheKey(fileKey));
       await deleteR2Object(env, focusCacheKey(fileKey));
-      await deleteR2Object(env, legacyFocusCacheKey(fileKey));
     }
     await completeStorageCleanupTask(env, {
       lease: task,

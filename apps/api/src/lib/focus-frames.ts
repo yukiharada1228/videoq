@@ -1,39 +1,29 @@
 import { z } from "zod";
 import { readMediaRange } from "../integrations/media";
 import type { Bindings } from "../types/bindings";
-import { focusCacheKey, legacyFocusCacheKey, MAX_FOCUS_FRAMES } from "./video-evidence";
+import { focusCacheKey, MAX_FOCUS_FRAMES } from "./video-evidence";
 
 // Wire format written atomically by worker_python/pipeline/focus_frames.py.
 const HEADER_BYTES = 12;
-const MAX_INDEX_BYTES = 4 * 1024 * 1024;
+const MAX_INDEX_BYTES = 2 * 1024 * 1024;
 const MAX_PACK_BYTES = 512 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 256 * 1024;
-const indexFields = {
-  video_id: z.number().int().positive().safe(),
+const indexSchema = z.object({
+  version: z.literal(1), video_id: z.number().int().positive().safe(),
   duration_seconds: z.number().finite().positive().max(36_000),
   sampling_interval_seconds: z.literal(1),
   frames: z.array(z.tuple([
     z.number().int().nonnegative().max(36_000_000),
     z.number().int().nonnegative().max(MAX_PACK_BYTES),
     z.number().int().positive().max(MAX_IMAGE_BYTES),
-  ])).min(1).max(144_000),
-};
-const indexSchema = z.discriminatedUnion("version", [
-  z.object({ ...indexFields, version: z.literal(1), frames: indexFields.frames.max(36_000) }).strict(),
-  z.object({ ...indexFields, version: z.literal(2), candidate_interval_seconds: z.literal(0.25),
-    selection: z.literal("interval_and_scene_change") }).strict(),
-]);
+  ])).min(1).max(36_000),
+}).strict();
 
 export type FrameSelection = {
   frames: { timestamp_seconds: number; jpeg_base64: string }[];
   duration_seconds: number;
   sampling_interval_seconds: number;
-  candidate_interval_seconds?: number;
-  sampling_strategy?: "interval" | "interval_and_scene_change";
-} | {
-  unavailable: string; sampling_interval_seconds?: number;
-  reason?: "frame_budget"; required_frames?: number; available_frames?: number; suggested_end_seconds?: number;
-};
+} | { unavailable: string; sampling_interval_seconds?: number };
 
 function base64(bytes: Uint8Array): string {
   let binary = "";
@@ -51,17 +41,10 @@ export async function readFocusFrames(
     throw new Error("Focus requires a positive interval of at most 16 seconds");
   }
   const unavailable = { unavailable: "Dense focus frames are not available for this video yet. Do not substitute sparse frames as dense evidence." } as const;
-  let key = focusCacheKey(video.fileKey);
-  let header = await readMediaRange(env, key, 0, HEADER_BYTES, signal);
-  // Existing uploads remain usable until their adaptive cache is backfilled.
-  // A malformed or replaced v2 pack must not silently fall back to stale data.
-  if (!header) {
-    key = legacyFocusCacheKey(video.fileKey);
-    header = await readMediaRange(env, key, 0, HEADER_BYTES, signal);
-  }
+  const key = focusCacheKey(video.fileKey);
+  const header = await readMediaRange(env, key, 0, HEADER_BYTES, signal);
   if (!header) return unavailable;
-  const version = key === focusCacheKey(video.fileKey) ? 2 : 1;
-  if (new TextDecoder().decode(header.bytes.subarray(0, 8)) !== `VQFOC00${version}` || header.size > MAX_PACK_BYTES) {
+  if (new TextDecoder().decode(header.bytes.subarray(0, 8)) !== "VQFOC001" || header.size > MAX_PACK_BYTES) {
     throw new Error("Invalid focus cache header");
   }
   const length = new DataView(header.bytes.buffer, header.bytes.byteOffset, header.bytes.byteLength).getUint32(8, true);
@@ -72,10 +55,9 @@ export async function readFocusFrames(
   const dataStart = HEADER_BYTES + length;
   let nextOffset = 0;
   let previousTime = -1000;
-  if (index.video_id !== video.id || index.version !== version || manifest.size !== header.size) throw new Error("Invalid focus cache identity");
-  const candidateInterval = index.version === 2 ? index.candidate_interval_seconds : 1;
+  if (index.video_id !== video.id || manifest.size !== header.size) throw new Error("Invalid focus cache identity");
   for (const [time, offset, size] of index.frames) {
-    if ((index.version === 2 ? Math.floor(time / 250) <= Math.floor(previousTime / 250) : time - previousTime < 999) || time > index.duration_seconds * 1000 || offset !== nextOffset) {
+    if (time - previousTime < 999 || time > index.duration_seconds * 1000 || offset !== nextOffset) {
       throw new Error("Invalid focus frame index");
     }
     previousTime = time;
@@ -86,10 +68,7 @@ export async function readFocusFrames(
   const selected = index.frames.filter(([time]) => time >= start * 1000 && time < end * 1000);
   if (!selected.length) return { unavailable: "No dense frames fall in this interval; the source may have a gap or the interval may be outside the video.", sampling_interval_seconds: 1 } as const;
   if (selected.length > Math.min(MAX_FOCUS_FRAMES, maxFrames)) return {
-    unavailable: `Image budget (${Math.min(MAX_FOCUS_FRAMES, maxFrames)} frames) cannot cover all ${selected.length} adaptive samples in this interval. No images were inspected. Split at suggested_end_seconds and inspect both resulting intervals within the remaining shared budget. Do not treat this as evidence of absence.`,
-    reason: "frame_budget" as const,
-    required_frames: selected.length, available_frames: Math.min(MAX_FOCUS_FRAMES, maxFrames),
-    ...(maxFrames > 0 ? { suggested_end_seconds: selected[Math.min(MAX_FOCUS_FRAMES, maxFrames)][0] / 1000 } : {}),
+    unavailable: "Remaining image budget cannot cover this dense interval. Choose a shorter focus interval or answer from collected evidence.",
   } as const;
   const offset = selected[0][1];
   const last = selected[selected.length - 1];
@@ -103,6 +82,5 @@ export async function readFocusFrames(
     }
     return { timestamp_seconds: time / 1000, jpeg_base64: base64(bytes) };
   });
-  return { frames, duration_seconds: index.duration_seconds, sampling_interval_seconds: 1,
-    candidate_interval_seconds: candidateInterval, sampling_strategy: index.version === 2 ? index.selection : "interval" };
+  return { frames, duration_seconds: index.duration_seconds, sampling_interval_seconds: 1 };
 }

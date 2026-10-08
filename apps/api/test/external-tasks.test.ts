@@ -187,9 +187,6 @@ describe("external task processor", () => {
       env, "videos/u/video_1_abc123abc123_4096.mp4.frames-v1.json",
     );
     expect(media.deleteR2Object).toHaveBeenCalledWith(
-      env, "videos/u/video_1_abc123abc123_4096.mp4.focus-v2.bin",
-    );
-    expect(media.deleteR2Object).toHaveBeenCalledWith(
       env, "videos/u/video_1_abc123abc123_4096.mp4.focus-v1.bin",
     );
     expect(repository.completeStorageCleanupTask).toHaveBeenCalledWith(env, {

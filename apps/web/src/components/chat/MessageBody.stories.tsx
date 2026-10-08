@@ -22,30 +22,6 @@ export const WithCitations: Story = {
     await expect(args.onVideoNavigate).toHaveBeenCalledWith(12, '00:03:10');
   },
 };
-export const SubsecondVisualEvidence: Story = {
-  args: {
-    answer: {
-      segments: [
-        { text: '赤い四角形を確認できます。', sourceIds: [1] },
-        { text: '\n\n次に確認した画像では、青い背景だけが映っています。', sourceIds: [2] },
-      ],
-      sources: ['27,250', '27,750'].map((time, i) => ({
-        id: i + 1, video_id: 42, title: '映像確認', evidence_type: 'visual' as const,
-        start_time: `00:00:${time}`, end_time: `00:00:${time}`,
-      })),
-    },
-  },
-  play: async ({ canvas, userEvent, args }) => {
-    const appearance = canvas.getByRole('button', { name: '映像確認 00:00:27,250' });
-    const disappearance = canvas.getByRole('button', { name: '映像確認 00:00:27,750' });
-    await expect(appearance).toHaveTextContent('(0:27.25)');
-    await expect(disappearance).toHaveTextContent('(0:27.75)');
-    await userEvent.click(appearance);
-    await expect(args.onVideoNavigate).toHaveBeenLastCalledWith(42, '00:00:27,250');
-    await userEvent.click(disappearance);
-    await expect(args.onVideoNavigate).toHaveBeenLastCalledWith(42, '00:00:27,750');
-  },
-};
 export const MissingCitation: Story = { args: { answer: { segments: [{ text: "この説明に対応する引用データが届いていません。", sourceIds: [9] }], sources: [] } } };
 export const InlineMath: Story = { args: { answer: { segments: [{ text: String.raw`直角三角形では \(a^2 + b^2 = c^2\) が成り立ちます。`, sourceIds: [] }], sources: [] } } };
 export const DisplayMath: Story = { args: { answer: mathAnswerData } };

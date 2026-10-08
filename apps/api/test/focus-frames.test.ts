@@ -26,8 +26,8 @@ it("reads only header, index and consecutive one-second frames in a half-open in
   expect(result.frames.map(f => f.timestamp_seconds)).toEqual(Array.from({ length: 16 }, (_, i) => i + 10));
   expect(result.sampling_interval_seconds).toBe(1);
   expect(readMediaRange).toHaveBeenCalledTimes(3);
-  expect(vi.mocked(readMediaRange).mock.calls.every(([, key]) => key === "private/42.mp4.focus-v2.bin")).toBe(true);
-  expect(vi.mocked(readMediaRange).mock.calls[2][3]).toBe(16 * 7);
+  expect(vi.mocked(readMediaRange).mock.calls.every(([, key]) => key === "private/42.mp4.focus-v1.bin")).toBe(true);
+  expect(vi.mocked(readMediaRange).mock.calls[2][3]).toBe(16 * 6);
   expect(readMediaBytes).not.toHaveBeenCalled();
 });
 it("preserves fractional real PTS and source gaps", async () => {
@@ -35,33 +35,6 @@ it("preserves fractional real PTS and source gaps", async () => {
   expect(await read(2, 10)).toMatchObject({ frames: [
     { timestamp_seconds: 2.345 }, { timestamp_seconds: 3.346 }, { timestamp_seconds: 8 }, { timestamp_seconds: 9.001 },
   ] });
-});
-it("preserves sub-second change frames and excludes the interval boundary", async () => {
-  pack = focusCacheFixture([25000, 26000, 27000, 27250, 27750, 28750, 29750, 30000]);
-  const result = await read(25, 30);
-  expect(result).toMatchObject({ sampling_strategy: "interval_and_scene_change", candidate_interval_seconds: 0.25 });
-  if (!("frames" in result)) throw new Error("Expected adaptive frames");
-  expect(result.frames.map(f => f.timestamp_seconds)).toEqual([25, 26, 27, 27.25, 27.75, 28.75, 29.75]);
-});
-it("reads legacy caches only when the adaptive object is absent", async () => {
-  pack = focusCacheFixture(undefined, undefined, 1);
-  vi.mocked(readMediaRange).mockImplementation(async (_env, key, offset, length) =>
-    key.endsWith(".focus-v2.bin") ? null : { bytes: pack.slice(offset, offset + length), etag: '"legacy"', size: pack.length });
-  expect(await read()).toMatchObject({ sampling_strategy: "interval", candidate_interval_seconds: 1 });
-  expect(readMediaRange).toHaveBeenCalledTimes(4);
-});
-it("does not silently discard adaptive samples to fit the image budget", async () => {
-  pack = focusCacheFixture(Array.from({ length: 20 }, (_, i) => 5000 + i * 250));
-  expect(await read(5, 10)).toMatchObject({
-    unavailable: expect.stringContaining("20 adaptive samples"), reason: "frame_budget",
-    required_frames: 20, available_frames: 16, suggested_end_seconds: 9,
-  });
-  expect(readMediaRange).toHaveBeenCalledTimes(2);
-  const first = await read(5, 9);
-  const second = await read(9, 10);
-  if (!("frames" in first) || !("frames" in second)) throw new Error("Expected both split intervals");
-  expect([...first.frames, ...second.frames].map(frame => frame.timestamp_seconds))
-    .toEqual(Array.from({ length: 20 }, (_, i) => 5 + i / 4));
 });
 it("does not silently downsample when the remaining image budget is insufficient", async () => {
   expect(await read(10, 26, 8)).toHaveProperty("unavailable", expect.stringContaining("budget"));
@@ -77,7 +50,7 @@ it("returns unavailable for an interval with no frames", async () => {
 });
 it.each([0, 1, 2])("handles missing or concurrently replaced cache at read %s without sparse fallback", async missing => {
   let count = 0;
-  vi.mocked(readMediaRange).mockImplementation(async (_env, key, offset, length) => key.endsWith(".focus-v1.bin") || count++ === missing ? null
+  vi.mocked(readMediaRange).mockImplementation(async (_env, _key, offset, length) => count++ === missing ? null
     : { bytes: pack.slice(offset, offset + length), etag: '"v1"', size: pack.length });
   expect(await read()).toHaveProperty("unavailable");
   expect(readMediaBytes).not.toHaveBeenCalled();
@@ -94,10 +67,10 @@ it.each(["identity", "offset", "timestamp", "duration", "density", "jpeg", "head
   if (kind === "header") pack[0] = 0;
   if (kind === "index-size") new DataView(pack.buffer).setUint32(8, 0xffffffff, true);
   const fetch = vi.fn(); vi.stubGlobal("fetch", fetch);
-  await expect(inspectVideoClip(env, video, 15, 30, "Read the equations", new AbortController().signal, { mode: "focus", maxFrames: 16 })).rejects.toThrow();
+  await expect(inspectVideoClip(env, video, 15, 30, "What changes?", new AbortController().signal, { mode: "focus", maxFrames: 16 })).rejects.toThrow();
   expect(fetch).not.toHaveBeenCalled();
 });
-it.each([undefined, "gpt-4o-mini-2024-07-18"])("sends all sixteen high-detail images within 4o-mini request limits (%s)", async model => {
+it.each(["gpt-4o-mini", "gpt-4o-mini-2024-07-18"])("sends all sixteen high-detail images within 4o-mini request limits (%s)", async model => {
   const sent: number[] = [];
   let requests = 0;
   vi.stubGlobal("fetch", async (_url: unknown, init: RequestInit) => {
@@ -105,29 +78,28 @@ it.each([undefined, "gpt-4o-mini-2024-07-18"])("sends all sixteen high-detail im
     const request = JSON.parse(String(init.body));
     const parts = request.messages[1].content as { type: string; text?: string; image_url?: { detail: string } }[];
     const images = parts.filter(p => p.type === "image_url");
-    expect(images).toHaveLength(1);
+    expect(images).toHaveLength(4);
     expect(images.every(p => p.image_url!.detail === "high")).toBe(true);
     expect(JSON.stringify(request)).not.toContain(video.fileKey);
     const indices = parts.flatMap(p => p.text?.startsWith("frame_index=") ? [Number(p.text.match(/frame_index=(\d+)/)![1])] : []);
-    expect(indices).toHaveLength(1);
     sent.push(...indices);
     return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({
       observations: indices.filter(i => i === 4 || i === 16).map(i => ({ frame_index: i,
         observation: i === 4 ? "The equation changes." : "The final result appears." })),
     }) } }] });
   });
-  expect(await inspectVideoClip({ ...env, VISION_MODEL: model }, video, 10, 26, "Read the equations", new AbortController().signal, { mode: "focus", maxFrames: 16 }))
+  expect(await inspectVideoClip({ ...env, VISION_MODEL: model }, video, 10, 26, "What changes?", new AbortController().signal, { mode: "focus", maxFrames: 16 }))
     .toMatchObject({ observations: [{ timestamp: 13, text: "The equation changes." }, { timestamp: 25, text: "The final result appears." }], sampling_interval_seconds: 1 });
-  expect(requests).toBe(16);
+  expect(requests).toBe(4);
   expect(sent).toEqual(Array.from({ length: 16 }, (_, i) => i + 1));
 });
 
 it("rejects observations for a real frame that was not sent in the current batch", async () => {
   const fetch = vi.fn(async () => Response.json({ choices: [{ finish_reason: "stop", message: {
-    content: JSON.stringify({ observations: [{ frame_index: 4, observation: "Not in this batch" }] }),
+    content: JSON.stringify({ observations: [{ frame_index: 5, observation: "Not in this batch" }] }),
   } }] }));
   vi.stubGlobal("fetch", fetch);
-  await expect(inspectVideoClip(env, video, 10, 26, "Details", new AbortController().signal, { mode: "focus", maxFrames: 16 }))
+  await expect(inspectVideoClip({ ...env, VISION_MODEL: "gpt-4o-mini" }, video, 10, 26, "Details", new AbortController().signal, { mode: "focus", maxFrames: 16 }))
     .rejects.toThrow("Invalid visual observation frame index");
   expect(fetch).toHaveBeenCalledTimes(1);
 });
@@ -141,6 +113,6 @@ it("stops later batches on cancellation without returning partial observations",
       content: JSON.stringify({ observations: [{ frame_index: 1, observation: "First batch" }] }),
     } }] });
   });
-  await expect(inspectVideoClip(env, video, 10, 26, "Details", controller.signal, { mode: "focus", maxFrames: 16 })).rejects.toThrow();
+  await expect(inspectVideoClip({ ...env, VISION_MODEL: "gpt-4o-mini" }, video, 10, 26, "Details", controller.signal, { mode: "focus", maxFrames: 16 })).rejects.toThrow();
   expect(requests).toBe(2);
 });

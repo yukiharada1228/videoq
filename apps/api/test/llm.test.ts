@@ -42,7 +42,7 @@ const frame = (content: string, finish_reason: string | null = null) => `data: $
 const frames = () => [frame(JSON.stringify(modelAnswer)), frame("", "stop"), "data: [DONE]\n\n"];
 
 describe("native structured LLM output", () => {
-  it.each(["local-codex-model", "gpt-5.4-pro", "gpt-4o-mini"])("%s uses strict json_schema with no conversion call", async (model) => {
+  it.each(["local-codex-model", "gpt-5.4-pro", "gpt-4o-mini", "gpt-6-luna"])("%s uses strict json_schema with no conversion call", async (model) => {
     const calls: Record<string, unknown>[] = [];
     vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
       expect(String(url)).toBe("https://openai.test/v1/chat/completions");
@@ -52,6 +52,12 @@ describe("native structured LLM output", () => {
         response_format: { type: "json_schema", json_schema: { strict: true } },
 
       });
+      if (model === "gpt-6-luna") {
+        expect(body).toMatchObject({ reasoning_effort: "none", max_completion_tokens: 1024 });
+        expect(body).not.toHaveProperty("max_tokens");
+      } else {
+        expect(body).not.toHaveProperty("reasoning_effort");
+      }
       return body.stream ? sseResponse(frames()) : jsonResponse(completion());
     });
     expect(await generateReply({ ...ENV, LLM_MODEL: model }, "SYS", "Q")).toEqual(modelAnswer);
