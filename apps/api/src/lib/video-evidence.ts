@@ -13,7 +13,8 @@ export const MAX_VISUAL_CALLS = 4;
 export const MAX_VISUAL_FRAMES = 48;
 export const MAX_FRAME_CACHE_BYTES = 16 * 1024 * 1024;
 export const frameCacheKey = (fileKey: string) => `${fileKey}.frames-v1.json`;
-export const focusCacheKey = (fileKey: string) => `${fileKey}.focus-v1.bin`;
+export const focusCacheKey = (fileKey: string) => `${fileKey}.focus-v2.bin`;
+export const legacyFocusCacheKey = (fileKey: string) => `${fileKey}.focus-v1.bin`;
 
 /** Uploaded-video viewing is on by default; explicit false opts out. */
 export const videoVisualEnabled = (value: string | undefined) =>

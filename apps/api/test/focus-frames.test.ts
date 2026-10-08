@@ -26,8 +26,8 @@ it("reads only header, index and consecutive one-second frames in a half-open in
   expect(result.frames.map(f => f.timestamp_seconds)).toEqual(Array.from({ length: 16 }, (_, i) => i + 10));
   expect(result.sampling_interval_seconds).toBe(1);
   expect(readMediaRange).toHaveBeenCalledTimes(3);
-  expect(vi.mocked(readMediaRange).mock.calls.every(([, key]) => key === "private/42.mp4.focus-v1.bin")).toBe(true);
-  expect(vi.mocked(readMediaRange).mock.calls[2][3]).toBe(16 * 6);
+  expect(vi.mocked(readMediaRange).mock.calls.every(([, key]) => key === "private/42.mp4.focus-v2.bin")).toBe(true);
+  expect(vi.mocked(readMediaRange).mock.calls[2][3]).toBe(16 * 7);
   expect(readMediaBytes).not.toHaveBeenCalled();
 });
 it("preserves fractional real PTS and source gaps", async () => {
@@ -35,6 +35,25 @@ it("preserves fractional real PTS and source gaps", async () => {
   expect(await read(2, 10)).toMatchObject({ frames: [
     { timestamp_seconds: 2.345 }, { timestamp_seconds: 3.346 }, { timestamp_seconds: 8 }, { timestamp_seconds: 9.001 },
   ] });
+});
+it("preserves sub-second change frames and excludes the interval boundary", async () => {
+  pack = focusCacheFixture([25000, 26000, 27000, 27250, 27750, 28750, 29750, 30000]);
+  const result = await read(25, 30);
+  expect(result).toMatchObject({ sampling_strategy: "interval_and_scene_change", candidate_interval_seconds: 0.25 });
+  if (!("frames" in result)) throw new Error("Expected adaptive frames");
+  expect(result.frames.map(f => f.timestamp_seconds)).toEqual([25, 26, 27, 27.25, 27.75, 28.75, 29.75]);
+});
+it("reads legacy caches only when the adaptive object is absent", async () => {
+  pack = focusCacheFixture(undefined, undefined, 1);
+  vi.mocked(readMediaRange).mockImplementation(async (_env, key, offset, length) =>
+    key.endsWith(".focus-v2.bin") ? null : { bytes: pack.slice(offset, offset + length), etag: '"legacy"', size: pack.length });
+  expect(await read()).toMatchObject({ sampling_strategy: "interval", candidate_interval_seconds: 1 });
+  expect(readMediaRange).toHaveBeenCalledTimes(4);
+});
+it("does not silently discard adaptive samples to fit the image budget", async () => {
+  pack = focusCacheFixture(Array.from({ length: 20 }, (_, i) => 5000 + i * 250));
+  expect(await read(5, 10)).toHaveProperty("unavailable", expect.stringContaining("20 adaptive samples"));
+  expect(readMediaRange).toHaveBeenCalledTimes(2);
 });
 it("does not silently downsample when the remaining image budget is insufficient", async () => {
   expect(await read(10, 26, 8)).toHaveProperty("unavailable", expect.stringContaining("budget"));
@@ -50,7 +69,7 @@ it("returns unavailable for an interval with no frames", async () => {
 });
 it.each([0, 1, 2])("handles missing or concurrently replaced cache at read %s without sparse fallback", async missing => {
   let count = 0;
-  vi.mocked(readMediaRange).mockImplementation(async (_env, _key, offset, length) => count++ === missing ? null
+  vi.mocked(readMediaRange).mockImplementation(async (_env, key, offset, length) => key.endsWith(".focus-v1.bin") || count++ === missing ? null
     : { bytes: pack.slice(offset, offset + length), etag: '"v1"', size: pack.length });
   expect(await read()).toHaveProperty("unavailable");
   expect(readMediaBytes).not.toHaveBeenCalled();
@@ -78,10 +97,11 @@ it.each([undefined, "gpt-4o-mini-2024-07-18"])("sends all sixteen high-detail im
     const request = JSON.parse(String(init.body));
     const parts = request.messages[1].content as { type: string; text?: string; image_url?: { detail: string } }[];
     const images = parts.filter(p => p.type === "image_url");
-    expect(images).toHaveLength(4);
+    expect(images).toHaveLength(1);
     expect(images.every(p => p.image_url!.detail === "high")).toBe(true);
     expect(JSON.stringify(request)).not.toContain(video.fileKey);
     const indices = parts.flatMap(p => p.text?.startsWith("frame_index=") ? [Number(p.text.match(/frame_index=(\d+)/)![1])] : []);
+    expect(indices).toHaveLength(1);
     sent.push(...indices);
     return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({
       observations: indices.filter(i => i === 3 || i === 15).map(i => ({ frame_index: i,
@@ -90,7 +110,7 @@ it.each([undefined, "gpt-4o-mini-2024-07-18"])("sends all sixteen high-detail im
   });
   expect(await inspectVideoClip({ ...env, VISION_MODEL: model }, video, 10, 26, "What changes?", new AbortController().signal, { mode: "focus", maxFrames: 16 }))
     .toMatchObject({ observations: [{ timestamp: 13, text: "The equation changes." }, { timestamp: 25, text: "The final result appears." }], sampling_interval_seconds: 1 });
-  expect(requests).toBe(4);
+  expect(requests).toBe(16);
   expect(sent).toEqual(Array.from({ length: 16 }, (_, i) => i));
 });
 

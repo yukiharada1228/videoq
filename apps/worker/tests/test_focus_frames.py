@@ -34,8 +34,10 @@ def test_real_dense_cache_preserves_pts_and_contains_brief_event(tmp_path, delay
         index, images = unpack(pack)
         assert index["sampling_interval_seconds"] == 1
         times = [f[0] for f in index["frames"]]
-        assert times == list(range(2000, 10000, 1000) if delayed else range(0, 8000, 1000))
-        red_time = 5000 if delayed else 3000
+        assert times[0] == (2000 if delayed else 0)
+        assert all(249 <= b - a <= 1300 for a, b in zip(times, times[1:]))
+        assert times[-1] == (9000 if delayed else 7000)
+        red_time = next(t for t in times if (5000 if delayed else 3000) <= t < (6000 if delayed else 4000))
         for time, offset, size in index["frames"]:
             image = images[offset:offset + size]
             assert image.startswith(b"\xff\xd8\xff") and image.endswith(b"\xff\xd9")
@@ -45,6 +47,28 @@ def test_real_dense_cache_preserves_pts_and_contains_brief_event(tmp_path, delay
                 assert rgb[0] > 200 and rgb[2] < 30
         assert index["frames"][-1][1] + index["frames"][-1][2] == len(images)
     assert not pack.exists()
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="FFmpeg is required")
+@pytest.mark.parametrize("fps", [20, 30])
+def test_adaptive_cache_captures_color_change_between_whole_seconds(tmp_path, fps):
+    video = tmp_path / "flash.mp4"
+    subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-f", "lavfi", "-i",
+        f"color=c=0x2467e8:size=320x180:rate={fps}:duration=8", "-vf",
+        "drawbox=x=110:y=50:w=100:h=80:color=0xe52f35:t=fill:enable='gte(t,3.2)*lt(t,3.6)'",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", str(video)], check=True)
+    with focus_frames.build_focus_cache(video, 42, 8) as pack:
+        index, images = unpack(pack)
+        assert index["version"] == 2
+        assert index["selection"] == "interval_and_scene_change"
+        assert len(index["frames"]) < 16  # static background does not store all 4 FPS candidates
+        red = [row for row in index["frames"] if 3200 <= row[0] < 3600]
+        assert red, "The 400 ms change must survive scene selection"
+        for time, offset, size in red:
+            rgb = subprocess.check_output(["ffmpeg", "-v", "error", "-i", "pipe:0", "-vf",
+                "crop=1:1:iw/2:ih/2,scale=1:1", "-frames:v", "1", "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"],
+                input=images[offset:offset + size])
+            assert rgb[0] > 180 and rgb[2] < 100
 
 
 @pytest.mark.parametrize("case", ["failure", "empty", "bad_time", "bad_base", "bad_jpeg", "oversized_image", "extra_bytes", "index_limit", "pack_limit"])
@@ -99,7 +123,7 @@ def test_focus_publication_rechecks_current_video_under_lock(tmp_path, monkeypat
     assert "FOR UPDATE" in conn.execute.call_args.args[0]
     assert put.call_count == int(publishes)
     if publishes:
-        put.assert_called_once_with("video.mp4.focus-v1.bin", pack, "application/octet-stream")
+        put.assert_called_once_with("video.mp4.focus-v2.bin", pack, "application/octet-stream")
 
 
 def test_focus_file_publication_streams_and_replaces_atomically(tmp_path, monkeypatch):

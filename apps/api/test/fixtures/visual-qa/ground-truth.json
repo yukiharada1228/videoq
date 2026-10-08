@@ -1,0 +1,70 @@
+{
+  "duration_seconds": 30,
+  "fps": 20,
+  "narration": "これは映像の確認用の動画です。画面をよく観察してください。音声では、画面に見えている内容を説明していません。引き続き、画面を観察してください。最後まで映像を見てから、質問に答えてください。",
+  "subtitle_streams": 0,
+  "segments": [
+    {
+      "time": [
+        0,
+        5
+      ],
+      "answer": "左から赤い三角形、青い円、黄色い正方形"
+    },
+    {
+      "time": [
+        5,
+        10
+      ],
+      "answer": "緑の円が5個。上段3個・下段2個"
+    },
+    {
+      "time": [
+        10,
+        15
+      ],
+      "answer": "紫の円が画面左から右へ移動"
+    },
+    {
+      "time": [
+        15,
+        17
+      ],
+      "answer": "オレンジの正方形"
+    },
+    {
+      "time": [
+        17,
+        18.5
+      ],
+      "answer": "水色（シアン）の三角形"
+    },
+    {
+      "time": [
+        18.5,
+        20
+      ],
+      "answer": "紫の星"
+    },
+    {
+      "time": [
+        20,
+        25
+      ],
+      "answer": "R8K2"
+    },
+    {
+      "time": [
+        25,
+        30
+      ],
+      "answer": "青い背景。27.20秒以上27.60秒未満だけ中央に赤い長方形"
+    }
+  ],
+  "absent_objects": [
+    "猫",
+    "犬",
+    "人"
+  ],
+  "note": "Truth and contact sheet are local only; upload only the MP4. Questions must not include answer choices or correct answers."
+}

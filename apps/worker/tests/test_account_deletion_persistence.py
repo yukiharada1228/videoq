@@ -104,11 +104,11 @@ def test_deletion_commits_before_unlocking_each_video(deletion_db, storage_delet
             sql.SQL("SELECT id FROM {}").format(sql.Identifier(table)),
         ).fetchall() == [(2,)]
     assert storage_delete.call_args_list == [
-        call("videos/owner/10.mp4"), call("videos/owner/10.mp4.frames-v1.json"), call("videos/owner/10.mp4.focus-v1.bin"),
-        call("videos/owner/11.mp4"), call("videos/owner/11.mp4.frames-v1.json"), call("videos/owner/11.mp4.focus-v1.bin"),
+        call("videos/owner/10.mp4"), call("videos/owner/10.mp4.frames-v1.json"), call("videos/owner/10.mp4.focus-v2.bin"), call("videos/owner/10.mp4.focus-v1.bin"),
+        call("videos/owner/11.mp4"), call("videos/owner/11.mp4.frames-v1.json"), call("videos/owner/11.mp4.focus-v2.bin"), call("videos/owner/11.mp4.focus-v1.bin"),
     ]
     account_deletion.delete_account_data("owner")
-    assert storage_delete.call_count == 6
+    assert storage_delete.call_count == 8
 
 
 def test_reuses_the_write_connection_for_all_vector_deletes(deletion_db, storage_delete, monkeypatch):
@@ -157,7 +157,7 @@ def test_storage_failure_preserves_failed_video_and_vectors_for_retry(
     account_deletion.delete_account_data("owner")
     assert storage_delete.call_args_list == [
         call(f"videos/owner/{video_id}.mp4{suffix}")
-        for video_id in remaining if video_id != 20 for suffix in ("", ".frames-v1.json", ".focus-v1.bin")
+        for video_id in remaining if video_id != 20 for suffix in ("", ".frames-v1.json", ".focus-v2.bin", ".focus-v1.bin")
     ]
     assert_remaining(deletion_db, [20], [20], ["other"])
 
@@ -183,7 +183,7 @@ def test_database_failure_rolls_back_video_and_vector_deletion(
     remaining = [10, 11, 20] if failed_video == 10 else [11, 20]
     assert_remaining(deletion_db, remaining, [*remaining, 99], ["other", "owner"])
     assert storage_delete.call_args_list == (
-        [] if failed_video == 10 else [call("videos/owner/10.mp4"), call("videos/owner/10.mp4.frames-v1.json"), call("videos/owner/10.mp4.focus-v1.bin")]
+        [] if failed_video == 10 else [call("videos/owner/10.mp4"), call("videos/owner/10.mp4.frames-v1.json"), call("videos/owner/10.mp4.focus-v2.bin"), call("videos/owner/10.mp4.focus-v1.bin")]
     )
     deletion_db.execute(sql.SQL("DROP TRIGGER reject_delete ON {}").format(sql.Identifier(table)))
     storage_delete.reset_mock()
@@ -214,9 +214,9 @@ def test_rechecks_owner_and_file_after_acquiring_lock(
     account_deletion.delete_account_data("owner")
     remaining = [10, 20] if change == "transfer" else [20]
     assert_remaining(deletion_db, remaining, remaining, ["other"])
-    expected = [call("videos/owner/11.mp4"), call("videos/owner/11.mp4.frames-v1.json"), call("videos/owner/11.mp4.focus-v1.bin")]
+    expected = [call("videos/owner/11.mp4"), call("videos/owner/11.mp4.frames-v1.json"), call("videos/owner/11.mp4.focus-v2.bin"), call("videos/owner/11.mp4.focus-v1.bin")]
     if change == "file":
-        expected[0:0] = [call("videos/owner/current.mp4"), call("videos/owner/current.mp4.frames-v1.json"), call("videos/owner/current.mp4.focus-v1.bin")]
+        expected[0:0] = [call("videos/owner/current.mp4"), call("videos/owner/current.mp4.frames-v1.json"), call("videos/owner/current.mp4.focus-v2.bin"), call("videos/owner/current.mp4.focus-v1.bin")]
     assert storage_delete.call_args_list == expected
 
 
@@ -261,13 +261,13 @@ def test_commit_failure_rolls_back_before_unlocking_and_allows_retry(
         account_deletion.delete_account_data("owner")
     assert checked == [10]
     assert storage_delete.call_args_list == [
-        call("videos/owner/10.mp4"), call("videos/owner/10.mp4.frames-v1.json"), call("videos/owner/10.mp4.focus-v1.bin"),
+        call("videos/owner/10.mp4"), call("videos/owner/10.mp4.frames-v1.json"), call("videos/owner/10.mp4.focus-v2.bin"), call("videos/owner/10.mp4.focus-v1.bin"),
     ]
     deletion_db.execute("DROP TRIGGER reject_commit ON videos")
     account_deletion.delete_account_data("owner")
     assert_remaining(deletion_db, [20], [20], ["other"])
     assert storage_delete.call_args_list == [
-        call("videos/owner/10.mp4"), call("videos/owner/10.mp4.frames-v1.json"), call("videos/owner/10.mp4.focus-v1.bin"),
-        call("videos/owner/10.mp4"), call("videos/owner/10.mp4.frames-v1.json"), call("videos/owner/10.mp4.focus-v1.bin"),
-        call("videos/owner/11.mp4"), call("videos/owner/11.mp4.frames-v1.json"), call("videos/owner/11.mp4.focus-v1.bin"),
+        call("videos/owner/10.mp4"), call("videos/owner/10.mp4.frames-v1.json"), call("videos/owner/10.mp4.focus-v2.bin"), call("videos/owner/10.mp4.focus-v1.bin"),
+        call("videos/owner/10.mp4"), call("videos/owner/10.mp4.frames-v1.json"), call("videos/owner/10.mp4.focus-v2.bin"), call("videos/owner/10.mp4.focus-v1.bin"),
+        call("videos/owner/11.mp4"), call("videos/owner/11.mp4.frames-v1.json"), call("videos/owner/11.mp4.focus-v2.bin"), call("videos/owner/11.mp4.focus-v1.bin"),
     ]

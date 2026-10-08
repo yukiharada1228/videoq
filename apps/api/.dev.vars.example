@@ -58,3 +58,6 @@ AWS_SECRET_ACCESS_KEY="local"
 # Uploaded-video visual evidence is on by default. Set false on API and worker to opt out.
 VIDEO_VISUAL_ENABLED="true"
 VISION_MODEL=""
+# Optional model for planning/synthesis when images are required or inspected.
+# Empty uses LLM_MODEL; subtitle-only questions keep LLM_MODEL.
+VISUAL_REASONING_MODEL=""

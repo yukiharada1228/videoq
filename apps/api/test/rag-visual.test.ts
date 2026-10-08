@@ -36,10 +36,10 @@ describe.each([false, true])("visual RAG integration (stream=%s)", streaming => 
         expect(request.stream).toBeUndefined();
         if (navigation === "focus" && visualCalls === 3) {
           expect(JSON.stringify(request)).toContain("Viewing mode: focus");
-          expect(JSON.stringify(request).match(/data:image\/jpeg/g)).toHaveLength(8);
+          expect(JSON.stringify(request).match(/data:image\/jpeg/g)).toHaveLength(1);
         }
         return Response.json({ choices: [{ finish_reason: "stop", message: {
-          content: JSON.stringify({ observations: [{ frame_index: 0, observation: "OBSERVATION_ONLY: the red curve rises." }] }),
+          content: JSON.stringify({ observations: [{ frame_index: Number(JSON.stringify(request).match(/frame_index=(\d+)/)![1]), observation: "OBSERVATION_ONLY: the red curve rises." }] }),
         } }] });
       }
       const turn = agentTurns++;
@@ -85,7 +85,7 @@ describe.each([false, true])("visual RAG integration (stream=%s)", streaming => 
     expect(result?.answer.sources[1]).toMatchObject({ evidence_type: "visual", video_id: 42, start_time: "00:00:12,345", end_time: "00:00:12,345" });
     expect(result?.retrievedContexts[1]).toContain("Visual observation at 00:00:12,345");
     expect(result?.retrievedContexts[0]).toContain("Updated prerequisite.");
-    expect(visualCalls).toBe(navigation ? 3 : 1);
+    expect(visualCalls).toBe(navigation === "focus" ? 10 : navigation ? 3 : 1);
     expect(openSceneSearch).toHaveBeenCalledTimes(navigation ? 0 : 1);
     expect(agentTurns).toBe(4);
   });

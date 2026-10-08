@@ -48,7 +48,7 @@ with build_focus_cache(video, 42, 8) as pack:
     if (!("frames" in selected)) throw new Error("Expected dense frames");
     expect(selected.frames.map(f => f.timestamp_seconds)).toEqual([2, 3, 4]);
     // Decode the exact API-returned JPEG. The one-second red event is absent
-    // from the coarse cache but present in the dense selection at 3 seconds.
+    // from the coarse cache but present in the dense selection at its actual 3-second PTS.
     const rgb = execFileSync("ffmpeg", ["-v", "error", "-i", "pipe:0", "-vf", "scale=1:1", "-frames:v", "1",
       "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"], { input: Buffer.from(selected.frames[1].jpeg_base64, "base64"), timeout: 10_000 });
     expect(rgb[0]).toBeGreaterThan(200);
@@ -56,9 +56,9 @@ with build_focus_cache(video, 42, 8) as pack:
     vi.stubGlobal("fetch", async (_url: unknown, init: RequestInit) => {
       const request = JSON.parse(String(init.body));
       expect(JSON.stringify(request).match(/data:image\/jpeg/g)).toHaveLength(3);
-      expect(JSON.stringify(request)).toContain("timestamp_seconds=3");
+      const isRed = JSON.stringify(request).includes("frame_index=1");
       return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({
-        observations: [{ frame_index: 1, observation: "Red is displayed." }],
+        observations: isRed ? [{ frame_index: 1, observation: "Red is displayed." }] : [],
       }) } }] });
     });
     const result = await inspectVideoClip(bindings, { id: 42, fileKey: "upload" }, 2, 5, "Which color appears briefly?",

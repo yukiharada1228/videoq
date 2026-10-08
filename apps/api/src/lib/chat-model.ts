@@ -55,13 +55,13 @@ class AnswerChatModel extends ChatOpenAICompletions {
 
 export function createChatModel(
   env: Bindings,
-  opts: { maxTokens: number; timeoutMs: number },
+  opts: { maxTokens: number; timeoutMs: number; model?: string },
 ): ChatOpenAICompletions {
   const apiKey = resolveOpenAiKey(env, "OpenAI LLM");
   // useResponsesApi: false でも ChatOpenAI はモデル名で /responses を選ぶ。
   // 互換サーバーでも /chat/completions を使うため、専用クラスで固定する。
   return new AnswerChatModel({
-    model: env.LLM_MODEL || DEFAULT_LLM_MODEL,
+    model: opts.model || env.LLM_MODEL || DEFAULT_LLM_MODEL,
     apiKey,
     configuration: { baseURL: openAiBaseUrl(env) },
     temperature: 0,

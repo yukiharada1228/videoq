@@ -47,6 +47,7 @@
     "LLM_MODEL": "gpt-4o-mini",
     "VIDEO_VISUAL_ENABLED": "true",
     "VISION_MODEL": "",
+    "VISUAL_REASONING_MODEL": "",
     "PGVECTOR_COLLECTION_NAME": "scene_embeddings",
     "OAUTH_ISSUER_URL": "http://localhost",
     "BETTER_AUTH_URL": "http://localhost"
@@ -124,7 +125,8 @@
         "OLLAMA_BASE_URL": "",
         "LLM_MODEL": "gpt-4o-mini",
         "VIDEO_VISUAL_ENABLED": "true",
-        "VISION_MODEL": "",
+        "VISION_MODEL": "gpt-4.1-mini",
+        "VISUAL_REASONING_MODEL": "gpt-4.1-mini",
         "PGVECTOR_COLLECTION_NAME": "scene_embeddings",
         "OAUTH_ISSUER_URL": "https://videoq.jp",
         "BETTER_AUTH_URL": "https://videoq.jp",

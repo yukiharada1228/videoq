@@ -10,7 +10,8 @@ import { validateChatAnswer } from "./chat-citations";
 import { modelAnswerSchema, chatToolNameSchema, chatToolProgressEventSchema, type ChatToolProgressEvent, type ChatAnswer, type ChatSource, type ChatContentPart } from "@videoq/trpc/chat";
 import { courseInfoTool, MAX_COURSE_INFO_CALLS } from "./rag-course-info";
 import { videoEvidenceTools } from "./rag-video-evidence";
-import { MAX_WINDOW_READS, MAX_CLIP_INSPECTIONS, MAX_OVERVIEWS, MAX_SKIMS, MAX_FOCUS_CALLS } from "./video-evidence";
+import { visualEvidenceIntent } from "./evidence-intent";
+import { MAX_WINDOW_READS, MAX_CLIP_INSPECTIONS, MAX_OVERVIEWS, MAX_SKIMS, MAX_FOCUS_CALLS, videoVisualEnabled } from "./video-evidence";
 import {
   LLM_REQUEST_TIMEOUT_MS,
   LLM_STREAM_TIMEOUT_MS,
@@ -40,7 +41,7 @@ export type RagResult = {
 export const MAX_SCENE_SEARCHES = 3;
 
 /** ヒット 0 件でも「検索したが無かった」と伝える。空文字だとモデルが再検索を繰り返す。 */
-const NO_HITS = "No scenes matched this query.";
+const NO_HITS = "No subtitle scenes matched this query. This search does not inspect images and cannot establish that visible content is absent. For text, objects, colors, positions or changes visible on screen, use the video viewing tools.";
 
 /** 上限超過はツール結果として返す。エラーで打ち切ると回答本文が無いまま終わるため。 */
 const SEARCH_LIMIT_REACHED =
@@ -115,7 +116,7 @@ class SceneCollector {
 }
 
 const formatHit = (hit: SceneHit, index: number) =>
-  JSON.stringify({ sourceId: index, videoId: hit.videoId, title: hit.videoTitle, startTime: hit.startTime, endTime: hit.endTime, text: hit.content });
+  JSON.stringify({ sourceId: index, videoId: hit.videoId, title: hit.videoTitle, startTime: hit.startTime, endTime: hit.endTime, evidenceType: "transcript", text: hit.content });
 
 function sceneSearchTool(
   search: SceneSearch,
@@ -146,9 +147,9 @@ function sceneSearchTool(
     {
       name: "search_scenes",
       description:
-        "Search the scenes of the user's video course by meaning and return the closest ones. " +
+        "Search spoken SUBTITLES by meaning, not images, and return the closest excerpts (which may be irrelevant). " +
         "The default way to ground definitions, explanations, comparisons, examples and calculations, " +
-        "including short terms and questions that do not explicitly mention the course. " +
+        "including conceptual terms and questions that do not explicitly mention the course. Never use subtitle-only results to assert that a visual code/object/color/change is absent. " +
         "For broad video navigation or visual topics without subtitle clues, overview_video/skim_video can retrieve evidence instead. " +
         "For course-wide content, call directly with video_ids set to null. For a specific video or lecture, " +
         "first identify it with get_course_info and include its ID in video_ids on every search. " +
@@ -181,13 +182,26 @@ function prepareAgent(
   },
 ) {
   const collector = new SceneCollector();
-  const systemPrompt = buildAgentSystemPrompt(
+  let systemPrompt = buildAgentSystemPrompt(
     params.scope.locale,
     MAX_SCENE_SEARCHES,
     MAX_COURSE_INFO_CALLS,
   );
+  if (params.scope.videoIds?.length && params.scope.videoIds.length <= 20) {
+    systemPrompt += `\nAuthorized current-course video IDs: ${params.scope.videoIds.join(", ")}. ` +
+      (params.scope.videoIds.length === 1
+        ? "There is exactly one video in scope: use this ID directly for a question about this video; never guess another ID."
+        : "Use get_course_info to identify titles/order when selecting among these videos; never guess an ID.");
+  }
   let modelCalls = 0;
   let toolCalls = 0;
+  const visualIntent = visualEvidenceIntent(params.queryText);
+  const requireVisuals = visualIntent.required && videoVisualEnabled(env.VIDEO_VISUAL_ENABLED)
+    && !!params.scope.videoIds?.length;
+  let visualAttempted = false;
+  const visualAnswerModel = env.VISUAL_REASONING_MODEL ? createChatModel(env, {
+    model: env.VISUAL_REASONING_MODEL, maxTokens: MAX_TOKENS, timeoutMs: params.timeoutMs,
+  }) : undefined;
   // system は createAgent の systemPrompt ではなく messages で渡す。
   // systemPrompt はコンテンツブロック配列（[{type:"text"}]）で送信されるため、
   // 素の文字列しか受け付けない OpenAI 互換ゲートウェイでも動くようにする。
@@ -198,7 +212,9 @@ function prepareAgent(
       sceneSearchTool(params.search, collector, params.scope.videoIds ?? []),
       ...videoEvidenceTools(env, {
         ownerUserId: params.scope.ownerUserId, videoIds: params.scope.videoIds ?? [],
-      }, hit => collector.add(hit), params.signal),
+      }, hit => collector.add(hit), params.signal, params.queryText, {
+        requireVisuals, inclusiveEnd: visualIntent.inclusiveEnd, onVisualAttempt: () => { visualAttempted = true; },
+      }),
       ...(params.scope.courseId != null ? [courseInfoTool(env, {
         courseId: params.scope.courseId,
         ownerUserId: params.scope.ownerUserId,
@@ -230,10 +246,23 @@ function prepareAgent(
           }
         },
         // 引数不備の繰り返しも含め、最終ターンはツールなしで回答させる。
-        wrapModelCall: (request, handler) => handler({
-          ...request,
-          tools: ++modelCalls > MAX_TOOL_ROUNDS ? [] : request.tools,
-        }),
+        wrapModelCall: (request, handler) => {
+          const round = ++modelCalls;
+          const needsImages = requireVisuals && !visualAttempted && round <= 3;
+          // Positive visual intent is an evidence requirement, not a hint that
+          // can be ignored after an unrelated subtitle hit. Let the model choose
+          // the video and query, but require a viewing attempt before answering.
+          const viewingTools = new Set(visualIntent.shortInterval
+            ? ["focus_clip", "get_course_info"]
+            : ["overview_video", "get_course_info"]);
+          return handler({
+            ...request,
+            ...((requireVisuals || visualAttempted) && visualAnswerModel ? { model: visualAnswerModel } : {}),
+            tools: round > MAX_TOOL_ROUNDS ? [] : needsImages
+              ? request.tools.filter(t => "name" in t && typeof t.name === "string" && viewingTools.has(t.name)) : request.tools,
+            ...(needsImages ? { toolChoice: "required" as const } : {}),
+          });
+        },
       }),
     ],
   });

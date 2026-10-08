@@ -13,11 +13,14 @@ import {
 const interval = {
   video_id: z.number().int().positive().safe(),
   start_seconds: z.number().finite().min(0).max(3_600_000),
-  end_seconds: z.number().finite().min(0).max(3_600_000),
+  end_seconds: z.number().finite().min(0).max(3_600_000)
+    .describe("Exclusive end for images: [start_seconds, end_seconds). To include the frame at 4 seconds use an end later than 4. Never include an explicitly excluded boundary."),
 };
 
 export function videoEvidenceTools(
   env: Bindings, scope: EvidenceScope, addSource: (hit: SceneHit) => number, signal: AbortSignal,
+  originalQuestion?: string,
+  policy?: { requireVisuals: boolean; inclusiveEnd?: number; onVisualAttempt: () => void },
 ) {
   let windowReads = 0;
   let inspections = 0;
@@ -31,7 +34,7 @@ export function videoEvidenceTools(
   const allowed = new Set(scope.videoIds);
   const check = (id: number, start = 0, end = 1, maxInterval = 180) => {
     signal.throwIfAborted();
-    if (!allowed.has(id)) return "Invalid video_id: only the current course's videos may be read.";
+    if (!allowed.has(id)) return `Invalid video_id: only the current course's videos may be read. ${scope.videoIds.length <= 20 ? `Allowed IDs: ${scope.videoIds.join(", ")}.` : "Use get_course_info to obtain valid IDs."}`;
     if (end <= start || end - start > maxInterval) return `Specify a positive interval of at most ${maxInterval} seconds.`;
     return null;
   };
@@ -45,6 +48,7 @@ export function videoEvidenceTools(
     video: NonNullable<Awaited<ReturnType<typeof getVideoEvidence>>>,
     start: number, end: number, query: string, mode: VisualMode,
   ) => {
+    policy?.onVisualAttempt();
     if (!visualEnabled) return { unavailable: "Visual inspection is disabled. Only subtitles were checked." };
     if (video.sourceType !== "uploaded" || !video.fileKey) return { unavailable: "Visual inspection is available only for uploaded videos, not YouTube imports." };
     // Reserve before awaiting: parallel calls share both count and image budgets.
@@ -61,19 +65,22 @@ export function videoEvidenceTools(
     await previous;
     try {
       signal.throwIfAborted();
-      const result = await inspectVideoClip(env, { id: video.id, fileKey: video.fileKey }, start, end, query, signal, { mode, maxFrames });
+      // The agent's search phrase can omit counting, placement or time-order
+      // requirements. Keep the user's complete question with the visual task.
+      const visualQuery = originalQuestion ? `Original user question: ${originalQuestion}\nSpecific inspection task: ${query}` : query;
+      const result = await inspectVideoClip(env, { id: video.id, fileKey: video.fileKey }, start, end, visualQuery, signal, { mode, maxFrames });
       const actualFrames = "unavailable" in result ? 0 : result.sampled_timestamps.length;
       visualFrames -= maxFrames - actualFrames;
       if ("unavailable" in result) return result;
       return {
         ...result,
-        observations: result.observations.map(observation => describe({
+        observations: result.observations.map(observation => ({ timestamp_seconds: observation.timestamp, ...describe({
           videoId: video.id, videoTitle: video.title,
           startTime: formatEvidenceTime(observation.timestamp), endTime: formatEvidenceTime(observation.timestamp),
           content: observation.text, evidenceType: "visual",
-        })),
+        }) })),
         note: mode === "focus"
-          ? "Dense stills at approximately one-second intervals, with actual presentation timestamps. Source gaps and sub-second events may be missed. These frames establish only visible states; do not invent unseen motion or intermediate steps."
+          ? "Actual sampled timestamps, with an approximately one-second baseline and additional scene-change samples when the adaptive cache is available. Check sampling_strategy and candidate_interval_seconds. Samples do not provide continuous coverage; very brief or subtle changes and source gaps may be missed. These frames establish only visible states; do not invent unseen motion or intermediate steps."
           : visualNote,
       };
     } finally { release(); }
@@ -102,7 +109,7 @@ export function videoEvidenceTools(
     if (!video) return "This video is unavailable or not ready.";
     return JSON.stringify({
       videoId: video.id, title: video.title, subtitles: timeline(video),
-      visuals: include_visuals ? await inspect(video, 0, Infinity, query, "overview") : { skipped: "Visuals were not requested." },
+      visuals: include_visuals || policy?.requireVisuals ? await inspect(video, 0, Infinity, query, "overview") : { skipped: "Visuals were not requested." },
     });
   }, {
     name: "overview_video",
@@ -123,7 +130,7 @@ export function videoEvidenceTools(
     return JSON.stringify({
       videoId: video.id, title: video.title, start_seconds, end_seconds,
       subtitles: timeline(video, start_seconds, end_seconds),
-      visuals: include_visuals ? await inspect(video, start_seconds, end_seconds, query, "skim") : { skipped: "Visuals were not requested." },
+      visuals: include_visuals || policy?.requireVisuals ? await inspect(video, start_seconds, end_seconds, query, "skim") : { skipped: "Visuals were not requested." },
     });
   }, {
     name: "skim_video",
@@ -163,10 +170,13 @@ export function videoEvidenceTools(
     return JSON.stringify(await inspect(video, start_seconds, end_seconds, query, "inspect"));
   }, {
     name: "inspect_clip",
-    description: "Read visible diagrams, equations, labels or screen contents in up to 8 cached stills at high image detail inside a known interval of an uploaded video. Locate it from overview_video, skim_video, search_scenes or a user-specified time. Use when subtitles or coarse observations cannot establish the needed details. This does not decode denser frames: brief actions may be missed. Maximum 2 calls, 180 seconds per interval; shares a 4-call / 48-frame visual budget with overview_video, skim_video and focus_clip. May be unavailable for older videos or YouTube imports.",
+    description: "Read stable diagrams, equations or labels over a long known interval, using up to 8 high-detail stills at least 5 seconds apart. NOT suitable for ordering, changes, motion, brief appearances or exhaustive counts across time: use focus_clip for those, and prefer focus_clip for any known interval of at most 16 seconds. Image intervals are end-exclusive. Maximum 2 calls, 180 seconds; shared 4-call / 48-frame budget. Uploaded videos only.",
     schema: z.object({ ...interval, query: z.string().trim().min(1).max(2000) }).strict(),
   });
   const focus = tool(async ({ video_id, start_seconds, end_seconds, query }) => {
+    // Preserve an explicitly inclusive user endpoint when the planner copies
+    // it into the tool's exclusive-end field. Other narrowed ranges stay intact.
+    if (end_seconds === policy?.inclusiveEnd && end_seconds - start_seconds < 16) end_seconds += 0.001;
     const error = check(video_id, start_seconds, end_seconds, 16);
     if (error) return error;
     if (focuses >= MAX_FOCUS_CALLS) return "Focus limit reached. Answer from collected evidence and state any gaps.";
@@ -180,10 +190,10 @@ export function videoEvidenceTools(
     return JSON.stringify(await inspect(video, start_seconds, end_seconds, query, "focus"));
   }, {
     name: "focus_clip",
-    description: "Densely inspect a short uploaded-video interval of at most 16 seconds using up to 16 high-detail images selected approximately once per second, preserving actual timestamps. Use for brief visible steps, changing equations or details missed by sparse overview/skim/inspect images. Go directly to a user-specified time or narrow a candidate from other tools. Dense cache is required; never pretend sparse stills are dense evidence. Source gaps and sub-second events may still be missed. Maximum 2 calls; all viewing tools share 4 visual calls / 48 images per answer. YouTube imports have no image inspection.",
+    description: "Densely inspect a short uploaded-video interval of at most 16 seconds using up to 16 high-detail images, preserving actual timestamps. Counts/OCR inspect stills individually; temporal questions compare ordered images together. The adaptive cache adds significant changes at up to 4 FPS to a roughly one-second baseline; legacy caches are one-second only. If the sample budget is exceeded, split the interval; never silently discard frames. Use for brief visible steps, changing equations or details missed by sparse overview/skim/inspect images. Go directly to a user-specified time or narrow a candidate from other tools. Dense cache is required; never pretend sparse stills are dense evidence. Source gaps and sub-second events may still be missed. Maximum 2 calls; all viewing tools share 4 visual calls / 48 images per answer. YouTube imports have no image inspection.",
     schema: z.object({
       ...interval,
-      end_seconds: interval.end_seconds.describe("Exclusive end time. To inspect the frame at 4 seconds, end at 5 seconds or later. The interval must still be at most 16 seconds."),
+      end_seconds: interval.end_seconds.describe("Exclusive end time. To inspect the frame at 4 seconds, end after 4 seconds (for example 4.5 or 5). The interval must still be at most 16 seconds."),
       query: z.string().trim().min(1).max(2000),
     }).strict(),
   });
