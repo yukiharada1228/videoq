@@ -56,9 +56,9 @@ with build_focus_cache(video, 42, 8) as pack:
     vi.stubGlobal("fetch", async (_url: unknown, init: RequestInit) => {
       const request = JSON.parse(String(init.body));
       expect(JSON.stringify(request).match(/data:image\/jpeg/g)).toHaveLength(3);
-      const isRed = JSON.stringify(request).includes("frame_index=1");
+      const isRed = JSON.stringify(request).includes("frame_index=2");
       return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({
-        observations: isRed ? [{ frame_index: 1, observation: "Red is displayed." }] : [],
+        observations: isRed ? [{ frame_index: 2, observation: "Red is displayed." }] : [],
       }) } }] });
     });
     const result = await inspectVideoClip(bindings, { id: 42, fileKey: "upload" }, 2, 5, "Which color appears briefly?",

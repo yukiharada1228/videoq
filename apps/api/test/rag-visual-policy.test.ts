@@ -31,7 +31,7 @@ it.each([
       visionCalls++;
       expect(JSON.stringify(request.messages)).toContain(question);
       return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({
-        observations: [{ frame_index: 0, observation: "Visible answer" }],
+        observations: [{ frame_index: 1, observation: "Visible answer" }],
       }) } }] });
     }
     expect(request.model).toBe("visual-reasoner-test");

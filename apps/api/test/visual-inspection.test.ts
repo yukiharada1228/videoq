@@ -25,7 +25,7 @@ it("sends only selected images, resolves citations by server frame index, and re
   const requests: Record<string, unknown>[] = [];
   vi.stubGlobal("fetch", vi.fn(async (_url, init) => {
     requests.push(JSON.parse(init.body));
-    return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ observations: requests.length === 1 ? [{ frame_index: 0, observation: "x = 2" }] : [] }) } }], usage: { prompt_tokens: 20, completion_tokens: 5 } });
+    return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ observations: requests.length === 1 ? [{ frame_index: 1, observation: "x = 2" }] : [] }) } }], usage: { prompt_tokens: 20, completion_tokens: 5 } });
   }));
   const result = await inspect();
   expect(result).toMatchObject({ observations: [{ timestamp: 10, text: "x = 2" }] });
@@ -46,7 +46,7 @@ it("reuses exact duplicate still observations while preserving every actual cita
     expect(JSON.stringify(request.messages)).not.toContain("timestamp_seconds");
     expect(request.response_format.json_schema.schema.properties.observations.items.properties.frame_index.enum).toEqual([index]);
     return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({
-      observations: [{ frame_index: index, observation: index === 0 ? "Cyan triangle" : "Purple star" }],
+      observations: [{ frame_index: index, observation: index === 1 ? "Cyan triangle" : "Purple star" }],
     }) } }] });
   });
   vi.stubGlobal("fetch", fetch);
@@ -60,10 +60,10 @@ it("compares temporal images together and merges attributes at their actual fram
   const fetch = vi.fn(async (_url: unknown, init: RequestInit) => {
     const request = JSON.parse(String(init.body));
     expect(JSON.stringify(request).match(/data:image\/jpeg/g)).toHaveLength(2);
-    expect(request.response_format.json_schema.schema.properties.observations.items.properties.frame_index.enum).toEqual([0, 1]);
+    expect(request.response_format.json_schema.schema.properties.observations.items.properties.frame_index.enum).toEqual([1, 2]);
     return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({
-      observations: [{ frame_index: 1, observation: "Right" },
-        { frame_index: 0, observation: "Left" }, { frame_index: 1, observation: "Purple circle" }],
+      observations: [{ frame_index: 2, observation: "Right" },
+        { frame_index: 1, observation: "Left" }, { frame_index: 2, observation: "Purple circle" }],
     }) } }] });
   });
   vi.stubGlobal("fetch", fetch);
@@ -79,7 +79,7 @@ it.each(["overview", "skim", "inspect"] as const)("uses bounded frames and image
   vi.stubGlobal("fetch", async (_url: unknown, init: RequestInit) => {
     request = JSON.parse(String(init.body));
     return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({
-      observations: mode === "inspect" && !JSON.stringify(request).includes("frame_index=7") ? [] : [{ frame_index: mode === "overview" ? 15 : 7, observation: "Late diagram" }],
+      observations: mode === "inspect" && !JSON.stringify(request).includes("frame_index=8") ? [] : [{ frame_index: mode === "overview" ? 16 : 8, observation: "Late diagram" }],
     }) } }] });
   });
   const result = await inspectVideoClip(env, { id: 42, fileKey: "private/video.mp4" }, 0, Infinity, "Locate diagram", new AbortController().signal, { mode, maxFrames: 16 });
@@ -103,7 +103,7 @@ it.each(["index", "length", "refusal"])("rejects invalid vision output: %s", asy
   vi.stubGlobal("fetch", async () => Response.json({ choices: [{
     finish_reason: kind === "length" ? "length" : "stop",
     message: { refusal: kind === "refusal" ? "refused" : null, content: JSON.stringify({ observations:
-      [{ frame_index: kind === "index" ? 8 : 0, observation: "a" }],
+      [{ frame_index: kind === "index" ? 9 : 1, observation: "a" }],
     }) },
   }] }));
   await expect(inspect()).rejects.toThrow();

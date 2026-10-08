@@ -86,7 +86,7 @@ it.each(["identity", "offset", "timestamp", "duration", "density", "jpeg", "head
   if (kind === "header") pack[0] = 0;
   if (kind === "index-size") new DataView(pack.buffer).setUint32(8, 0xffffffff, true);
   const fetch = vi.fn(); vi.stubGlobal("fetch", fetch);
-  await expect(inspectVideoClip(env, video, 15, 30, "What changes?", new AbortController().signal, { mode: "focus", maxFrames: 16 })).rejects.toThrow();
+  await expect(inspectVideoClip(env, video, 15, 30, "Read the equations", new AbortController().signal, { mode: "focus", maxFrames: 16 })).rejects.toThrow();
   expect(fetch).not.toHaveBeenCalled();
 });
 it.each([undefined, "gpt-4o-mini-2024-07-18"])("sends all sixteen high-detail images within 4o-mini request limits (%s)", async model => {
@@ -104,14 +104,14 @@ it.each([undefined, "gpt-4o-mini-2024-07-18"])("sends all sixteen high-detail im
     expect(indices).toHaveLength(1);
     sent.push(...indices);
     return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({
-      observations: indices.filter(i => i === 3 || i === 15).map(i => ({ frame_index: i,
-        observation: i === 3 ? "The equation changes." : "The final result appears." })),
+      observations: indices.filter(i => i === 4 || i === 16).map(i => ({ frame_index: i,
+        observation: i === 4 ? "The equation changes." : "The final result appears." })),
     }) } }] });
   });
-  expect(await inspectVideoClip({ ...env, VISION_MODEL: model }, video, 10, 26, "What changes?", new AbortController().signal, { mode: "focus", maxFrames: 16 }))
+  expect(await inspectVideoClip({ ...env, VISION_MODEL: model }, video, 10, 26, "Read the equations", new AbortController().signal, { mode: "focus", maxFrames: 16 }))
     .toMatchObject({ observations: [{ timestamp: 13, text: "The equation changes." }, { timestamp: 25, text: "The final result appears." }], sampling_interval_seconds: 1 });
   expect(requests).toBe(16);
-  expect(sent).toEqual(Array.from({ length: 16 }, (_, i) => i));
+  expect(sent).toEqual(Array.from({ length: 16 }, (_, i) => i + 1));
 });
 
 it("rejects observations for a real frame that was not sent in the current batch", async () => {
@@ -130,7 +130,7 @@ it("stops later batches on cancellation without returning partial observations",
   vi.stubGlobal("fetch", async () => {
     if (++requests === 2) controller.abort();
     return Response.json({ choices: [{ finish_reason: "stop", message: {
-      content: JSON.stringify({ observations: [{ frame_index: 0, observation: "First batch" }] }),
+      content: JSON.stringify({ observations: [{ frame_index: 1, observation: "First batch" }] }),
     } }] });
   });
   await expect(inspectVideoClip(env, video, 10, 26, "Details", controller.signal, { mode: "focus", maxFrames: 16 })).rejects.toThrow();
