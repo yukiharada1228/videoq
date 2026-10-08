@@ -1,53 +1,53 @@
 ---
 slug: /
-sidebar_label: Introduction
-description: Setup, core concepts, and development guides for new VideoQ contributors.
+sidebar_label: はじめに
+description: VideoQ に初めて参加する人のための、セットアップ・基本概念・開発ガイド。
 ---
 
-# VideoQ developer documentation
+# VideoQ 開発ドキュメント
 
-VideoQ is a **learning app that lets you ask questions about videos and jump straight to the scenes that support the answers**. Organize videos into courses, share them, and learn through Q&A.
+VideoQ は、**動画の内容に質問し、根拠となる場面へすぐに戻れる学習アプリ**です。動画を講座にまとめて共有し、Q&Aに利用できます。
 
-This site helps new contributors run the app and make their first small change. You do not need to read every design diagram before getting started.
+このサイトは、初めて開発に参加する人が、アプリを動かし、小さな変更を進められるようにするための案内です。すべての設計図を先に読む必要はありません。
 
-## Understand the AI
+## AIの仕組みを知る
 
-Start with [How AI builds an answer](concepts/how-ai-works.md) to follow one question through search, evidence, an answer, and a playable citation. It also explains what the AI reads and how much conversation context it receives.
+[AIが回答を作るまで](concepts/how-ai-works.md)では、一つの質問から検索・根拠の取得・回答・引用元の再生までを追えます。AIが何を読み、過去の会話をどこまで受け取るかも説明しています。
 
-Then explore [transcription and scene search](architecture/transcription-and-search.md) and [Q&A prompts and answer persistence](architecture/prompt-engineering.md). The **AI behavior** menu groups these explanations together.
+詳しく知りたい場合は、[文字起こしとシーン検索](architecture/transcription-and-search.md)、[Q&Aのプロンプトと回答の保存](architecture/prompt-engineering.md)へ進んでください。これらの解説は、メニューの「AIの仕組み」にまとめています。
 
-The current pipeline uses **independent questions, tool-based retrieval, and structured answers**. Answer text and citations stream during generation; completed course answers are saved and evaluated asynchronously. The former Study mode and PLOG learning graph have been removed. The [AI overview](concepts/how-ai-works.md) reflects the implementation checked on 2026-10-01.
+現在は、**質問ごとに独立したQ&A・ツールによる情報取得・構造化回答**を使います。本文と引用を生成中から配信し、完成した講座の回答を保存して非同期評価します。以前のStudyモードとPLOG学習グラフは廃止されています。[AIの全体像](concepts/how-ai-works.md)は、2026-10-01時点の実装と照合した内容です。
 
-## New to the project?
+## 初めて参加したら
 
-Follow these steps to connect the user experience with the implementation.
+次の順に進めると、使い方と実装が結び付きます。
 
-| Step | Page | Ready to move on when… |
+| 順番 | 読むページ | ここまでできれば次へ |
 |---|---|---|
-| 1 | [Run the development environment](getting-started/local-setup.md) | You can log in locally |
-| 2 | [Add a video and ask questions](getting-started/first-walkthrough.md) | You can follow an answer's citation to a scene in the video |
-| 3 | [Find your way around the code](getting-started/codebase.md) | You know where the UI, API, and video processing live |
-| 4 | [Make your first change](getting-started/first-change.md) | You can submit a small change with verification results for review |
+| 1 | [開発環境を動かす](getting-started/local-setup.md) | ローカルにログインできる |
+| 2 | [動画を登録して質問する](getting-started/first-walkthrough.md) | 回答の引用から動画の場面へ戻れる |
+| 3 | [コードの場所を知る](getting-started/codebase.md) | 画面・API・動画処理の担当場所が分かる |
+| 4 | [最初の変更を進める](getting-started/first-change.md) | 小さな変更と、その確認結果をレビューに出せる |
 
-For documentation-only changes, start with [Update the documentation](guides/documentation.md).
+文書だけの変更なら、[ドキュメントを更新する](guides/documentation.md)から始められます。
 
-## What to know first
+## まず知っておくこと
 
-- A **video** is one learning resource; a **course** groups videos for questions and sharing. [See the data model](concepts/domain-model.md)
-- React handles the UI, Hono handles the API, and Python handles time-consuming video processing. [See the architecture](architecture/system-configuration-diagram.md)
-- Transcription and search preparation happen in sequence. Not every feature is ready immediately after upload. [Understand the states](design/state-diagram.md)
+- **動画**は1本の教材、**講座**は質問・共有の対象となる動画のまとまりです。[データの関係を見る](concepts/domain-model.md)
+- 画面はReact、APIはHono、時間のかかる動画処理はPythonが担当します。[全体像を見る](architecture/system-configuration-diagram.md)
+- 動画の文字起こし・検索準備は順に進みます。登録直後にすべて使えるわけではありません。[状態の意味を見る](design/state-diagram.md)
 
-## Find the guide for your task
+## 作業に合わせて読む
 
-| What you want to do | Guide |
+| やりたいこと | ガイド |
 |---|---|
-| Change screens, copy, or forms | [Change the frontend](guides/frontend.md) |
-| Add data or operations to the API | [Change the API](guides/api.md) |
-| Change tables or columns | [Change the database](guides/database.md) |
-| Change transcription or indexing | [Change asynchronous video processing](guides/worker.md) |
-| Verify a change | [Tests and verification commands](guides/testing.md) |
-| Troubleshoot startup or video processing | [Troubleshooting](guides/troubleshooting.md) |
+| 画面・文言・フォームを変える | [画面を変更する](guides/frontend.md) |
+| 取得・更新するデータや操作を増やす | [APIを変更する](guides/api.md) |
+| テーブルや列を変更する | [DBを変更する](guides/database.md) |
+| 文字起こし・索引を変える | [動画の非同期処理を変更する](guides/worker.md) |
+| 変更が正しいか確かめる | [テストと確認コマンド](guides/testing.md) |
+| 起動や動画処理で困っている | [困ったとき](guides/troubleshooting.md) |
 
-## Explore the details
+## 詳しく調べる
 
-Use **Design reference** in the sidebar when you need a diagram or specification. Look up database names in the [data dictionary](database/data-dictionary.md) and abbreviations in the [glossary](reference/glossary.md).
+必要になったときに、左の「設計リファレンス」から各図や仕様を参照してください。DBの名前は[データ辞書](database/data-dictionary.md)、略語は[用語集](reference/glossary.md)で確認できます。
