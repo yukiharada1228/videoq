@@ -8,6 +8,8 @@ dependencies = [
     "psycopg[binary]>=3.2",
     "openai>=1.40",
     "boto3>=1.34",
+    # Security floor for boto3/requests, also enforced by the Lambda pip build.
+    "urllib3>=2.8.0,<3",
     "cryptography>=42.0",
     "numpy>=1.26",
     "tiktoken>=0.7",
