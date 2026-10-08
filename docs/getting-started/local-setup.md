@@ -67,7 +67,7 @@ docker compose ps -a
 The first start takes time to download and build images.
 
 - Continue when services such as `postgres`, `api`, `worker`, `web`, and `gateway` are running.
-- `migrate` and `minio-init` stop after initialization. Exit code `0` means they completed successfully.
+- `migrate` and `garage-init` stop after initialization. Exit code `0` means they completed successfully.
 - If a service fails, inspect it with `docker compose logs --tail=100 migrate api worker`.
 
 ```bash

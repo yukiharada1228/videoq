@@ -4,6 +4,12 @@
 #
 # Frontend HMR (Vite): docker compose --profile dev up --build -d
 
+x-worker-image: &worker-image
+  image: videoq-worker:local
+  build:
+    context: ./apps/worker
+    dockerfile: Dockerfile.local
+
 services:
   postgres:
     image: pgvector/pgvector:pg17
@@ -22,39 +28,65 @@ services:
       timeout: 5s
       retries: 10
 
-  # Local S3-compatible storage (browser → 127.0.0.1:9000, containers → minio:9000).
-  minio:
-    image: minio/minio:latest
-    container_name: videoq-minio
-    command: server /data --console-address ":9001"
+  # Local-only S3 storage. The published endpoint stays on port 9000.
+  garage:
+    image: dxflrs/garage:v2.4.1@sha256:9c96caa2612d3411acc5b0e6701fb238dbfba33e533a6d7d3d811a4b12d0d020
+    container_name: videoq-garage
+    command: ["/garage", "server", "--single-node", "--default-bucket"]
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
-      MINIO_API_CORS_ALLOW_ORIGIN: ${MINIO_API_CORS_ALLOW_ORIGIN:-http://localhost,http://127.0.0.1,http://127.0.0.1:3000,http://localhost:3000}
+      # Development credentials only; production continues to use R2.
+      GARAGE_DEFAULT_ACCESS_KEY: ${GARAGE_ACCESS_KEY_ID:-GK00000000000000000000000000000000}
+      GARAGE_DEFAULT_SECRET_KEY: ${GARAGE_SECRET_ACCESS_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+      GARAGE_DEFAULT_BUCKET: ${GARAGE_BUCKET:-videoq-media}
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:-1111111111111111111111111111111111111111111111111111111111111111}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:${GARAGE_S3_PORT:-9000}:3900"
     volumes:
-      - minio_data:/data
+      - ./infra/garage/garage.toml:/etc/garage.toml:ro
+      - garage_data:/var/lib/garage
     networks:
       - videoq-network
+    healthcheck:
+      test: ["CMD", "/garage", "status"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
 
-  minio-init:
-    image: minio/mc:latest
-    container_name: videoq-minio-init
+  # Reuse the worker's boto3 installation; no separate client image or runtime download.
+  garage-init:
+    <<: *worker-image
+    container_name: videoq-garage-init
+    command: ["python", "/garage-init.py"]
     depends_on:
-      - minio
-    entrypoint: >
-      /bin/sh -c "
-      until mc alias set local http://minio:9000 $${MINIO_ROOT_USER:-minioadmin} $${MINIO_ROOT_PASSWORD:-minioadmin}; do sleep 1; done;
-      mc mb --ignore-existing local/$${MINIO_BUCKET:-videoq-media};
-      mc anonymous set none local/$${MINIO_BUCKET:-videoq-media};
-      echo 'MinIO bucket ready:' $${MINIO_BUCKET:-videoq-media};
-      "
+      garage:
+        condition: service_healthy
+    environment: &garage-client
+      GARAGE_ACCESS_KEY_ID: ${GARAGE_ACCESS_KEY_ID:-GK00000000000000000000000000000000}
+      GARAGE_SECRET_ACCESS_KEY: ${GARAGE_SECRET_ACCESS_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+      GARAGE_BUCKET: ${GARAGE_BUCKET:-videoq-media}
+      GARAGE_CORS_ORIGINS: ${GARAGE_CORS_ORIGINS:-http://localhost,http://127.0.0.1,http://127.0.0.1:3000,http://localhost:3000}
+    volumes:
+      - ./infra/garage/init.py:/garage-init.py:ro
+    networks:
+      - videoq-network
+    restart: "no"
+
+  # Opt-in, non-destructive copy from an existing MinIO container on this network.
+  garage-migrate:
+    <<: *worker-image
+    profiles: ["migration"]
+    command: ["python", "/garage-migrate.py"]
     environment:
+      <<: *garage-client
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_BUCKET: ${MINIO_BUCKET:-videoq-media}
+    volumes:
+      - ./infra/garage/migrate.py:/garage-migrate.py:ro
+    depends_on:
+      garage-init:
+        condition: service_completed_successfully
     networks:
       - videoq-network
     restart: "no"
@@ -107,12 +139,13 @@ services:
       USER_SECRET_ENCRYPTION_KEY: ${USER_SECRET_ENCRYPTION_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-postgres}
-      R2_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
-      R2_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
-      R2_S3_ENDPOINT: http://127.0.0.1:9000
-      R2_S3_INTERNAL_ENDPOINT: http://minio:9000
-      R2_BUCKET_NAME: ${MINIO_BUCKET:-videoq-media}
-      R2_S3_REGION: us-east-1
+      USE_S3_STORAGE: "true"
+      R2_ACCESS_KEY_ID: ${GARAGE_ACCESS_KEY_ID:-GK00000000000000000000000000000000}
+      R2_SECRET_ACCESS_KEY: ${GARAGE_SECRET_ACCESS_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+      R2_S3_ENDPOINT: http://127.0.0.1:${GARAGE_S3_PORT:-9000}
+      R2_S3_INTERNAL_ENDPOINT: http://garage:3900
+      R2_BUCKET_NAME: ${GARAGE_BUCKET:-videoq-media}
+      R2_S3_REGION: garage
       SQS_QUEUE_URL: http://elasticmq:9324/000000000000/videoq-jobs
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: local
@@ -132,7 +165,7 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
-      minio-init:
+      garage-init:
         condition: service_completed_successfully
       elasticmq:
         condition: service_started
@@ -142,9 +175,7 @@ services:
 
   # Async job worker (SQS long-poll)
   worker:
-    build:
-      context: ./apps/worker
-      dockerfile: Dockerfile.local
+    <<: *worker-image
     container_name: videoq-worker
     env_file:
       - .env
@@ -152,12 +183,14 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-postgres}
       SQS_QUEUE_URL: http://elasticmq:9324/000000000000/videoq-jobs
       AWS_REGION: us-east-1
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
       USE_S3_STORAGE: "true"
-      AWS_STORAGE_BUCKET_NAME: ${MINIO_BUCKET:-videoq-media}
-      AWS_S3_ENDPOINT_URL: http://minio:9000
-      AWS_S3_REGION_NAME: us-east-1
+      R2_ACCESS_KEY_ID: ${GARAGE_ACCESS_KEY_ID:-GK00000000000000000000000000000000}
+      R2_SECRET_ACCESS_KEY: ${GARAGE_SECRET_ACCESS_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+      R2_BUCKET_NAME: ${GARAGE_BUCKET:-videoq-media}
+      R2_S3_ENDPOINT: http://garage:3900
+      R2_S3_REGION: garage
       OLLAMA_BASE_URL: ${WORKER_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-openai}
       # The adapter defaults OpenAI's model and requires an explicit Ollama model.
@@ -175,7 +208,7 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
-      minio-init:
+      garage-init:
         condition: service_completed_successfully
       elasticmq:
         condition: service_started
@@ -248,7 +281,7 @@ services:
 
 volumes:
   postgres_data:
-  minio_data:
+  garage_data:
   caddy_data:
   caddy_config:
   api_node_modules:

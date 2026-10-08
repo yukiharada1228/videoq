@@ -1,4 +1,4 @@
-"""Download / delete media objects (local MEDIA_ROOT or S3/R2/MinIO)."""
+"""Download / delete media objects (local MEDIA_ROOT or S3/R2/Garage)."""
 
 from __future__ import annotations
 

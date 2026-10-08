@@ -109,7 +109,7 @@ python -m pytest tests/ -q
 Recommended setup:
 
 ```bash
-docker compose up -d postgres minio minio-init elasticmq worker
+docker compose up -d postgres garage garage-init elasticmq worker
 docker compose logs -f worker
 ```
 

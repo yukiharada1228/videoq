@@ -15,7 +15,7 @@ docker compose logs --tail=100 migrate api worker
 curl -i http://localhost/ready
 ```
 
-`migrate` と `minio-init` の終了コード `0` は正常です。`/health` は成功して `/ready` が失敗するなら、API自体は応答しており、DB接続やmigrationを確認する段階です。
+`migrate` と `garage-init` の終了コード `0` は正常です。`/health` は成功して `/ready` が失敗するなら、API自体は応答しており、DB接続やmigrationを確認する段階です。
 
 ## 画面が開かない・変更が反映されない
 
@@ -47,7 +47,7 @@ npm run user:password:local --workspace @videoq/api -- your-username
 
 | 状態・症状 | 確認先 |
 |---|---|
-| `uploading` のまま | ブラウザからMinIOへの送信、ポート9000、アップロード完了通知 |
+| `uploading` のまま | ブラウザからGarageへの送信、ポート9000、アップロード完了通知 |
 | `pending` のまま | `worker` と `elasticmq` の起動、APIのジョブ配送ログ |
 | `processing` で失敗 | 音声の有無、FFmpeg・Whisperのログ、AIキー |
 | `indexing` で失敗 | 埋め込みモデル・次元、DB接続、workerの例外 |

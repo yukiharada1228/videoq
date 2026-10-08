@@ -20,7 +20,7 @@ You do not need to memorize everything. Use this page to connect unfamiliar term
 | Cloudflare Workers | The production runtime for the Hono API |
 | Python worker | The asynchronous processing program in `apps/worker`, handling transcription and other jobs |
 | SQS / ElasticMQ | The job queue / an SQS-compatible local queue |
-| R2 / MinIO | Storage for video files and other objects / compatible local storage |
+| R2 / Garage | Storage for video files and other objects / compatible local storage |
 | Neon / PostgreSQL | The production database service / its underlying database |
 | Hyperdrive | Connects Cloudflare Workers to PostgreSQL |
 | Durable Object (DO) | A stateful Cloudflare execution unit, used for rate limits and job recovery scheduling |

@@ -40,17 +40,17 @@ The demo follows a learner through a five-subject course: open a lecture, ask wh
 | Authentication | Better Auth cookie sessions, API keys, OAuth provider; optional Google sign-in |
 | Async jobs | Python worker → Amazon SQS / AWS Lambda |
 | Database | Neon PostgreSQL + pgvector through Hyperdrive (local: PostgreSQL 17 + pgvector) |
-| Object storage | Cloudflare R2 (local: MinIO) |
+| Object storage | Cloudflare R2 (local: Garage) |
 | Edge state | Durable Objects (rate limits and task recovery scheduling) |
 | External services | OpenAI / optional local AI, SearchAPI for YouTube transcripts, Mailgun email, Stripe billing |
 
-Locally, `docker compose` runs Postgres, MinIO, ElasticMQ, the Hono API (`wrangler dev`), the Python worker, a static frontend build, and a Caddy gateway on port 80.
+Locally, `docker compose` runs Postgres, Garage, ElasticMQ, the Hono API (`wrangler dev`), the Python worker, a static frontend build, and a Caddy gateway on port 80.
 
 ```text
 Browser → Caddy → React (nginx)
                → Hono API → PostgreSQL / ElasticMQ (SQS)
-Browser → MinIO (signed uploads)          ↓
-                              Python worker → PostgreSQL / MinIO
+Browser → Garage (signed uploads)          ↓
+                              Python worker → PostgreSQL / Garage
 ```
 
 The SPA shares the typed `/api/trpc` contract in `packages/trpc`. Hono also serves Better Auth, MCP, chat streaming, media, CSV exports, and the Stripe webhook. Browser authentication uses cookies; MCP uses API keys or OAuth access tokens.
@@ -125,7 +125,7 @@ docker compose ps -a
 docker compose logs --tail=100 migrate api worker
 ```
 
-`migrate` and `minio-init` are one-shot services; exiting with code 0 is expected. The API provides `/health` for liveness and `/ready` for database readiness, both accessible through `http://localhost`.
+`migrate` and `garage-init` are one-shot services; exiting with code 0 is expected. The API provides `/health` for liveness and `/ready` for database readiness, both accessible through `http://localhost`.
 
 Optional Vite HMR for frontend work:
 
@@ -162,7 +162,7 @@ Open [http://localhost](http://localhost) in your browser.
 **Useful links:**
 
 - **Admin UI:** [http://localhost/admin](http://localhost/admin) for users, quotas, and reindex jobs
-- **MinIO console:** [http://localhost:9001](http://localhost:9001) (default `minioadmin` / `minioadmin`)
+- **Garage S3 API:** `http://127.0.0.1:9000` (bucket status: `docker compose exec garage /garage bucket info videoq-media`)
 - **API:** [http://localhost:8787/health](http://localhost:8787/health)
 - **PostgreSQL:** `127.0.0.1:55432`
 - **ElasticMQ:** `http://127.0.0.1:9324` (SQS endpoint), [statistics UI](http://localhost:9325)
@@ -190,9 +190,9 @@ The `DEFAULT_*` quota variables accept `null` or `unlimited` for no cap; `0` is 
 For Docker development, use Admin to change user quotas. API runtime variables come from `wrangler.jsonc` and the subset written by `docker-dev.sh`; adding an arbitrary API variable to the root `.env` does not automatically expose it to Hono. In particular, signup quota overrides are not currently forwarded by that script.
 
 <details>
-<summary><strong>Optional: object storage notes (MinIO / R2 / S3)</strong></summary>
+<summary><strong>Optional: object storage notes (Garage / R2 / S3)</strong></summary>
 
-**Local default:** Docker Compose starts MinIO and configures the API + worker to use it. Browser uploads go to `http://127.0.0.1:9000`.
+**Local default:** Docker Compose starts a single-node Garage instance and configures the API + worker to use it. Browser uploads go to `http://127.0.0.1:9000`; containers use `http://garage:3900`, with region `garage`. `garage-init` applies bucket CORS before the API and worker start. Data and metadata persist in the `garage_data` volume. See the [local storage guide](infra/garage/README.md) for credentials, inspection, verification, and migration from an existing MinIO stack.
 
 **Production:** Use Cloudflare R2 (or another S3-compatible store). Set the API secrets / vars described in [`infra/DEPLOY.md`](infra/DEPLOY.md), including `R2_*` credentials and `USE_S3_STORAGE=true` for the worker / frontend as needed. Browser uploads also require the versioned R2 CORS policy in `apps/api/r2-cors.production.json`.
 
@@ -209,7 +209,7 @@ R2_S3_REGION=auto
 
 The deployed API uses the `VIDEO_BUCKET` binding for object metadata and deletion. The R2 S3 credentials are used to sign browser URLs and by the Python worker. In Lambda, store R2 credentials under `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`; AWS credential variables belong to the execution role.
 
-The checked-in Compose stack explicitly configures MinIO endpoints and credentials. Switching it to external storage requires updating those service settings as well as browser CORS and the publicly reachable storage URL.
+The checked-in Compose stack explicitly configures Garage endpoints and credentials. Switching it to external storage requires updating those service settings as well as browser CORS and the publicly reachable storage URL.
 
 After editing runtime values in the root `.env`, recreate affected containers to load them:
 
@@ -397,7 +397,7 @@ EMBEDDING_PROVIDER=openai
 EMBEDDING_MODEL=text-embedding-3-small
 ```
 
-Keep the MinIO / ElasticMQ settings from `.dev.vars.example`, use the same user-secret encryption key as the Python worker, then run `npm run dev:api` in another terminal. Wrangler's local Hyperdrive connection targets `localhost:55432`; override it if you changed the database credentials. The Compose dependencies and Python worker continue running.
+Keep the Garage / ElasticMQ settings from `.dev.vars.example`, use the same user-secret encryption key as the Python worker, then run `npm run dev:api` in another terminal. Wrangler's local Hyperdrive connection targets `localhost:55432`; override it if you changed the database credentials. The Compose dependencies and Python worker continue running.
 
 Restarting the Compose API regenerates `.dev.vars`, so keep host-only configuration separately if you switch between these workflows. MCP OAuth discovery additionally needs `/.well-known/*` forwarding, as shown in [`Caddyfile.dev`](Caddyfile.dev); Vite currently proxies `/api`, `/health`, and `/ready` only.
 
