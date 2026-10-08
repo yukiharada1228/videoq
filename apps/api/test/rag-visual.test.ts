@@ -31,7 +31,10 @@ describe.each([false, true])("visual RAG integration (stream=%s)", streaming => 
     let visualCalls = 0;
     vi.stubGlobal("fetch", async (_url: unknown, init: RequestInit) => {
       const request = JSON.parse(String(init.body));
-      if (request.model === "vision-test") {
+      expect(request).toMatchObject({ model: "gpt-6-luna", reasoning_effort: "none" });
+      expect(request).not.toHaveProperty("max_tokens");
+      if (request.messages.some((m: { content: unknown }) => Array.isArray(m.content)
+        && m.content.some(p => p.type === "image_url"))) {
         visualCalls++;
         expect(request.stream).toBeUndefined();
         if (navigation === "focus" && visualCalls === 3) {
@@ -62,7 +65,7 @@ describe.each([false, true])("visual RAG integration (stream=%s)", streaming => 
       } }] }, request.stream, "agent-final");
     });
     // No visual flag: image tools must be available for uploads by default.
-    const env = { OPENAI_API_KEY: "test", OPENAI_BASE_URL: "https://models.test/v1", VISION_MODEL: "vision-test" } as Bindings;
+    const env = { OPENAI_API_KEY: "test", OPENAI_BASE_URL: "https://models.test/v1" } as Bindings;
     const params = { ownerUserId: "owner", videoIds: [42], messages: [{ role: "user", content: "What is the red curve?" }], locale: "en" };
     let result;
     if (streaming) {
