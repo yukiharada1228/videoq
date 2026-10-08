@@ -9,6 +9,8 @@ VideoQはシーンの埋め込みを `scene_embeddings.embedding vector(1536)` �
 
 ## 新規環境のproviderを選ぶ
 
+モデルの引用には[OpenAIの埋め込みの公式資料](../reference/ai-references.md#openai-embeddings)、任意のローカル構成を使う場合には[Qwen3 Embeddingの技術報告](../reference/ai-references.md#qwen3-embedding)を参照してください。
+
 設定テンプレート・Compose・Wranglerの標準値は次のとおりです。
 
 ```dotenv

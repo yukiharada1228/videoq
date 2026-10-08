@@ -5,9 +5,10 @@ description: Use ReAct tools to survey a lecture, narrow an interval and check v
 
 # Video navigation and visual evidence
 
-VideoQ's ReAct agent chooses tools according to the evidence a question needs.
-The navigation tools are inspired by [VideoSeek](https://github.com/jylins/videoseek),
+VideoQ's [ReAct-style agent (Yao et al., 2023)](../reference/ai-references.md#react) chooses tools according to the evidence a question needs.
+The navigation tools are inspired by [VideoSeek (Lin et al., 2026)](https://arxiv.org/abs/2603.20185),
 implemented within VideoQ's existing course access scope and citation registry.
+See [the reference and scope of this adaptation](../reference/ai-references.md#videoseek), including the authors' implementation and reusable citation.
 They are not a fixed pipeline: a precise timestamp can go directly to a window
 or detail inspection, and sufficient subtitle evidence needs no vision call.
 

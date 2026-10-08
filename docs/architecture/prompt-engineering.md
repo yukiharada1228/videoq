@@ -34,7 +34,7 @@ For “What is the dot product?” → “Give me an example”, the second requ
 
 ## Selecting information for Q&A
 
-Q&A retrieves information through tools as needed, then composes an answer. Different questions do not necessarily use the same search.
+Q&A retrieves information through tools as needed, then composes an answer. This is a [ReAct-style tool loop (Yao et al., 2023)](../reference/ai-references.md#react), implemented with LangChain's `createAgent`. Different questions do not necessarily use the same search.
 
 | Example question | Primary information source |
 |---|---|
@@ -42,12 +42,14 @@ Q&A retrieves information through tools as needed, then composes an answer. Diff
 | “Summarize this lesson.” | Relevant subtitle scenes |
 | “Show me this video's description.” | The saved description |
 
-Two tools are available:
+The core retrieval tools are:
 
 - `get_course_info`: Course name, description, video list, and related metadata. Up to 20 videos per page and 5 calls per answer.
 - `search_scenes`: Semantic subtitle search across a course or a specified video within it. Up to 3 calls per answer.
 
-The model can make up to 8 tool-enabled turns, after which tools are removed and it generates a final answer. The API validates arguments and access scope rather than executing model requests unchecked.
+The agent can also use `read_video_window`, `overview_video`, and `skim_video`; when visuals are enabled, `inspect_clip` and `focus_clip` are available too. See [video navigation and visual evidence](../guides/visual-evidence.md) for their individual and shared budgets and [VideoSeek's role in their design](../reference/ai-references.md#videoseek).
+
+The model can make up to `MAX_TOOL_ROUNDS = 19` tool-enabled turns, after which tools are removed and it generates a final answer. Individual tool limits can be reached sooner. The API validates arguments and access scope rather than executing model requests unchecked.
 
 For course Q&A, the streaming API sends search progress immediately, then streams answer text and validated citations while the model generates them. The API validates the complete answer before saving it and emitting `done`. Tool-call preambles are not sent as answers. Client cancellation or interrupted delivery cancels outstanding model and embedding requests.
 
@@ -66,11 +68,15 @@ These are application defaults, not measurements of production settings or provi
 | Automatic provider retries | Disabled in the API chat-model wrapper |
 | Search budget | At most 3 scene searches, 20 results per search by default |
 | Metadata budget | At most 5 calls, up to 20 videos per page |
-| Tool-enabled model turns | At most 8, followed by a final turn without tools |
+| Tool-enabled model turns | At most 19, followed by a final turn without tools; individual tool budgets still apply |
 
 Configure the answer model with the API's `LLM_MODEL`. See [embeddings](../guides/embeddings.md) for the search-model configuration shared by the API and worker.
 
+Model attribution: [GPT-4o mini's official release](../reference/ai-references.md#gpt-4o-mini), or the source for the model actually configured.
+
 ## Structured answers, citations and permissions
+
+The provider capability is documented in [OpenAI's Structured Outputs release](../reference/ai-references.md#structured-outputs). The source registry and citation validation described below are VideoQ's implementation.
 
 The model returns native structured output: `{"segments":[{"text":"A claim.","sourceIds":[1]}]}`. It never supplies video destinations. The server adds `sources: [{id, video_id, title, start_time, end_time}]` from the current answer's scoped search. This `ChatAnswer` is the only answer representation in non-streaming responses, browser state, history and the `chat_logs.response` JSONB column. CSV exports derive plain text by concatenating segment texts without adding separators. Text includes its own spaces/newlines; the renderer adds timestamp links after each segment, in `sourceIds` order.
 
