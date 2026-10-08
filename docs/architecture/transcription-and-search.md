@@ -9,6 +9,8 @@ This page follows the data prepared before Q&A and the search performed after a 
 
 ## 1. Obtain timestamped text
 
+Whisper's model-family reference is [Radford et al. (ICML 2023)](../reference/ai-references.md#whisper). Record the selected API model or local checkpoint when describing an experiment.
+
 | Source | Current processing | When it cannot proceed |
 |---|---|---|
 | Uploaded video | Download the stored file, extract mono audio with FFmpeg, transcribe through the selected Whisper backend, and convert the segments to SRT | Missing file/audio, transcription failure, or an empty transcript |
@@ -33,7 +35,7 @@ flowchart TD
     K --> I[Embed and store the resulting scenes]
 ```
 
-The splitter uses a multidimensional Otsu criterion: it looks for a boundary that separates the before/after groups in embedding space. It repeatedly splits long ranges until each range fits the default budget of **512 tokens**. Before merging cues, it counts the joined text, including spaces between cues. A short range can remain one scene even when its topic changes; this is a length-bounded segmentation algorithm, not an LLM identifying every topic.
+The splitter adapts [Otsu's between-class variance criterion (1979)](../reference/ai-references.md#otsu) to time-ordered subtitle embeddings: it looks for a boundary that separates the before/after groups in embedding space. This is VideoQ's application of the criterion; the original paper concerns gray-level image thresholds. It repeatedly splits long ranges until each range fits the default budget of **512 tokens**. Before merging cues, it counts the joined text, including spaces between cues. A short range can remain one scene even when its topic changes; this is a length-bounded segmentation algorithm, not an LLM identifying every topic.
 
 If a single cue itself exceeds the budget, the code splits its tokens and distributes its time interval proportionally. Each chunk is checked after the whitespace normalization used when reading SRT. Those intermediate timestamps are estimates. Two over-budget cues have only one possible boundary; embeddings are needed for semantic boundary selection only when a range has at least three cues. Embedding-contract errors fail the job. Other splitting errors keep the original SRT, so the 512-token scene size is not guaranteed on that fallback path.
 

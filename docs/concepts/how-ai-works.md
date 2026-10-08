@@ -5,7 +5,7 @@ description: Follow a question from video preparation through scene search, an A
 
 # How AI builds an answer
 
-VideoQ prepares text from videos, retrieves material relevant to a question, and asks a language model to write an answer using that material. This is **RAG** (retrieval-augmented generation). The steps below describe the current implementation; they are not a claim that every answer is correct.
+VideoQ prepares text from videos, retrieves material relevant to a question, and asks a language model to write an answer using that material. This is **RAG** (retrieval-augmented generation; [Lewis et al., 2020](../reference/ai-references.md#rag)). The steps below describe the current implementation; they are not a claim that every answer is correct. [AI methods and references](../reference/ai-references.md) connects each method to its original paper or official model documentation and explains VideoQ's adaptations.
 
 ## Current behavior at a glance
 

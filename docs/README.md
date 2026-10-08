@@ -16,7 +16,9 @@ Start with [How AI builds an answer](concepts/how-ai-works.md) to follow one que
 
 Then explore [transcription and scene search](architecture/transcription-and-search.md) and [Q&A prompts and answer persistence](architecture/prompt-engineering.md). The **AI behavior** menu groups these explanations together.
 
-The current pipeline uses **independent questions, tool-based retrieval, and structured answers**. Answer text and citations stream during generation; completed course answers are saved and evaluated asynchronously. The former Study mode and PLOG learning graph have been removed. The [AI overview](concepts/how-ai-works.md) reflects the implementation checked on 2026-10-01.
+[AI methods and references](reference/ai-references.md) lists original papers, official model sources, implementation mappings, and reusable BibTeX citations.
+
+The current pipeline uses **independent questions, tool-based retrieval, and structured answers**. Answer text and citations stream during generation; completed course answers are saved after validation. No post-answer AI scoring runs. The former Study mode and PLOG learning graph have been removed. The [AI overview](concepts/how-ai-works.md) reflects the implementation checked on 2026-10-01.
 
 ## New to the project?
 

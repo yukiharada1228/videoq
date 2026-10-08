@@ -5,9 +5,10 @@ description: ReActツールで講義の全体を把握し、区間を絞り、�
 
 # 動画の段階的な探索と映像確認
 
-VideoQのReActエージェントは、質問に必要な根拠に応じてツールを選びます。
-[VideoSeek](https://github.com/jylins/videoseek)の段階的な探索を参考に、
+VideoQの[ReAct型エージェント（Yao et al., 2023）](../reference/ai-references.md#react)は、質問に必要な根拠に応じてツールを選びます。
+[VideoSeek（Lin et al., 2026）](https://arxiv.org/abs/2603.20185)の段階的な探索を参考に、
 既存の講座へのアクセス制御と引用番号の管理に組み込んだ独自の実装です。
+[出典と応用範囲](../reference/ai-references.md#videoseek)に、著者の実装と再利用できる引用情報を示しています。
 決まった順序はなく、時刻が分かればその区間を直接確認し、字幕で答えられれば画像確認を省きます。
 
 | ツール | 用途 | 1回答の上限 |

@@ -23,6 +23,7 @@ const sidebars: SidebarsConfig = {
         'architecture/transcription-and-search',
         'architecture/prompt-engineering',
         'architecture/structured-answers',
+        'reference/ai-references',
       ],
     },
     {

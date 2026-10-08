@@ -9,6 +9,8 @@ VideoQ stores scene embeddings in `scene_embeddings.embedding vector(1536)`. The
 
 ## Choose a provider for a new environment
 
+For attribution, see the [OpenAI embedding-model source](../reference/ai-references.md#openai-embeddings) and, when using the optional local example, the [Qwen3 Embedding report](../reference/ai-references.md#qwen3-embedding).
+
 The templates, Compose, and Wrangler default to:
 
 ```dotenv
