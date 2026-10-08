@@ -1,11 +1,11 @@
-## 変更内容
+## Changes
 
-<!-- 具体的な問題と変更後の挙動を記載してください。関連Issueがあればリンクします。 -->
+<!-- Describe the specific problem and the resulting behavior. Link related issues, if any. -->
 
-## 確認
+## Validation
 
-<!-- 実行したコマンド・確認内容と結果を記載してください。未確認の事項があれば理由も記載します。 -->
-<!-- UI変更がある場合は対象のStory名・ファイル、表示／操作の確認結果を追記してください。
-Storyの追加・更新が不要なら、既存の確認対象またはUIに影響しない理由を記載します。
-手順: apps/web/STORYBOOK.md
-UI変更がないPRではStorybookの記載は不要です。 -->
+<!-- List the commands or checks you ran and their results. Explain any checks you did not run. -->
+<!-- For UI changes, include the story names/files and the results of visual and interaction checks.
+If no story needs to be added or updated, identify the existing coverage or explain why the UI is unaffected.
+Workflow: apps/web/STORYBOOK.md
+PRs without UI changes do not need a Storybook section. -->

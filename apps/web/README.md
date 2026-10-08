@@ -226,7 +226,7 @@ For incremental SSE responses and interruptions, see the [ChatPanel stories](src
 Storybook runs as a separate browser project and does not reuse the API mocks in `vitest.setup.ts`.
 `typecheck` checks the app and Storybook separately.
 CI runs a static build and verifies stories in Chromium.
-Accessibility checks are required for six components, including shared notifications, loading indicators, and forms; violations fail CI. Other components report findings only. See the [workflow guide](STORYBOOK.md#アクセシビリティ検査) for the covered components and how to add more.
+Accessibility checks are required for six components, including shared notifications, loading indicators, and forms; violations fail CI. Other components report findings only. See the [workflow guide](STORYBOOK.md#accessibility-checks) for the covered components and how to add more.
 
 ## API client
 

@@ -7,6 +7,8 @@ description: 読者が手順を実行できる文書の書き方と、ローカ�
 
 このサイトは英語がデフォルトです。英語の本文はリポジトリ直下の `docs/`、日本語訳は `apps/docs/i18n/ja/docusaurus-plugin-content-docs/current/` にあります。Docusaurusは `apps/docs/public-content.json` に明示されたページだけを公開します。
 
+リポジトリの標準のMarkdownは英語で書きます。README、開発参加者向けガイド、運用手順、PRテンプレートも対象です。日本語版サイトの翻訳は `apps/docs/i18n/ja/` に置きます。著作権・ライセンスの原文表記は維持し、引用した識別子や多言語対応の例で必要な日本語も残します。その周囲の標準ドキュメントの説明は英語で書いてください。
+
 ## 起動と確認
 
 ```bash

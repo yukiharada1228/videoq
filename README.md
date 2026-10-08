@@ -33,7 +33,7 @@ The demo follows a learner through a five-subject course: open a lecture, ask wh
 
 ## Architecture
 
-For the research behind the AI pipeline, see [AI methods and references](docs/reference/ai-references.md) ([日本語](apps/docs/i18n/ja/docusaurus-plugin-content-docs/current/reference/ai-references.md)) and the reusable [BibTeX bibliography](docs/reference/ai-references.bib). It maps RAG, ReAct, Whisper, Otsu-inspired subtitle splitting, VideoSeek-inspired navigation, and the configured models to their original papers or official sources.
+For the research behind the AI pipeline, see [AI methods and references](docs/reference/ai-references.md) ([Japanese translation](apps/docs/i18n/ja/docusaurus-plugin-content-docs/current/reference/ai-references.md)) and the reusable [BibTeX bibliography](docs/reference/ai-references.bib). It maps RAG, ReAct, Whisper, Otsu-inspired subtitle splitting, VideoSeek-inspired navigation, and the configured models to their original papers or official sources.
 
 | Layer | Stack |
 |---|---|

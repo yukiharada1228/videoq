@@ -1,58 +1,66 @@
-# Cloudflareトークンの更新と期限通知
+# Cloudflare token rotation and expiry notifications
 
-有効期限の正本は [`.github/cloudflare-token-expiry.json`](../.github/cloudflare-token-expiry.json)
-です。トークンの値は保存せず、名前、期限日、登録先、通知担当者だけを管理します。
-2026-09-18に発行したdeploy用・resource同期用の2本は、どちらも **2026-12-17** が期限です。
-失効時刻より先に切り替えるため、遅くとも前日までに更新してください。
+[`.github/cloudflare-token-expiry.json`](../.github/cloudflare-token-expiry.json)
+is the source of truth for expiry dates. It stores token names, expiry dates,
+secret locations, and notification owners, without storing token values.
+The deployment and resource-sync tokens issued on 2026-09-18 both expire on
+**2026-12-17**. Rotate them no later than the preceding day to switch before expiry.
 
-## 自動通知
+## Automated notifications
 
-[`Cloudflare Token Expiry`](../.github/workflows/cloudflare-token-expiry.yml) が
-毎日09:17 JSTに期限を確認します。mainへの監視設定変更と手動実行でも確認できます。
+The [`Cloudflare Token Expiry`](../.github/workflows/cloudflare-token-expiry.yml)
+workflow checks expiry dates daily at 09:17 JST. It also runs when monitoring
+configuration changes on main and can be run manually.
 
-- 30日前: 同じ期限のトークンを1件のIssueにまとめ、`yukiharada1228`に割り当て・メンション。
-- 14日前、7日前、前日、期限当日: 同じIssueで再メンション。実行が遅れた場合は該当段階に追いつきます。
-- 7日前から更新まで: 監視workflowを失敗扱いにし、Actionsの失敗通知にも表示。
-- 同じ段階のIssue／コメントは重複作成しません。Issueだけ閉じても再オープンします。
-- 更新後の期限をmainへmergeすると、対象がなくなった旧期限のIssueを自動で閉じます。
+- 30 days before expiry: Group tokens with the same expiry date into one issue, assign it to `yukiharada1228`, and mention that user.
+- 14 days, 7 days, and 1 day before expiry, and on the expiry date: Mention the owner again in the same issue. A delayed run catches up to the applicable stage.
+- From 7 days before expiry until rotation: Fail the monitoring workflow so it also appears in Actions failure notifications.
+- Do not create duplicate issues or comments for the same stage. Closing the issue alone causes it to be reopened.
+- After the updated dates are merged into main, automatically close issues for old dates that no longer have any tokens assigned to them.
 
-監視jobの権限は`contents: read`と`issues: write`だけです。Cloudflare／AWS／DBのsecrets、
-production environments、外部メールサービスのキーは使いません。
-実際のCloudflareトークンを照会する監視ではないので、更新時の期限記録も必須です。
+The monitoring job has only `contents: read` and `issues: write` permissions. It
+does not use Cloudflare, AWS, or database secrets, production environments, or
+external email-service keys. It does not query the actual Cloudflare tokens, so
+updating the recorded expiry date is a required part of rotation.
 
-[GitHubの通知設定](https://github.com/settings/notifications)で次を有効にしてください。
-2026-09-18時点ではどちらも有効なことを確認しています。
+Enable the following in [GitHub notification settings](https://github.com/settings/notifications).
+Both were confirmed enabled on 2026-09-18.
 
 - Participating, @mentions and custom: On GitHub + Email
 - Actions: On GitHub + Email + Failed workflows only
 
-メール送信・配信の成否は、このworkflowからは確認できません。
-[Actionsの通知設定](https://docs.github.com/en/subscriptions-and-notifications/how-tos/managing-github-actions-notifications)と
-[scheduleの通知先](https://docs.github.com/en/actions/concepts/workflows-and-actions/notifications-for-workflow-runs)を参照してください。
+This workflow cannot verify whether email was sent or delivered. See
+[Actions notification settings](https://docs.github.com/en/subscriptions-and-notifications/how-tos/managing-github-actions-notifications)
+and [notification recipients for scheduled runs](https://docs.github.com/en/actions/concepts/workflows-and-actions/notifications-for-workflow-runs).
 
-公開repositoryのscheduleは[60日間活動がないと自動停止](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)
-します。また指定時刻より遅れる場合があります。予備としてカレンダーにも期限前の通知を登録し、
-トークン更新時にそちらの日付も更新してください。カレンダーはこのworkflowから自動更新しません。
+Scheduled workflows in public repositories are
+[automatically disabled after 60 days of inactivity](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)
+and can run later than their scheduled time. Add backup calendar reminders before
+expiry and update their dates when rotating tokens. This workflow does not update
+the calendar automatically.
 
-## 更新手順
+## Rotation procedure
 
-1. Cloudflareで新しいトークンを発行する。必要な権限は[DEPLOY.md](DEPLOY.md)を参照。
-2. GitHub Environment secretsを更新する。
-   - deploy用: `production-app.CLOUDFLARE_API_TOKEN` と `production-infra.CLOUDFLARE_API_TOKEN`
-   - resource同期用: `production-infra.CLOUDFLARE_INFRA_TOKEN`
-3. 新しいトークンでCD／resource同期が成功することを確認する。
-4. 使用先を確認した旧トークンを失効させる。
-5. `.github/cloudflare-token-expiry.json`の該当する`name`と`expiresOn`を実際の新トークンに合わせ、
-   PRでmainへmergeする。期限日だけ先延ばしにしないこと。
-6. 予備のカレンダー通知を新しい期限に合わせる。
-7. `Cloudflare Token Expiry`が成功し、旧期限のIssueが閉じたことを確認する。
+1. Issue new Cloudflare tokens. See [DEPLOY.md](DEPLOY.md) for the required permissions.
+2. Update the GitHub Environment secrets.
+   - Deployment: `production-app.CLOUDFLARE_API_TOKEN` and `production-infra.CLOUDFLARE_API_TOKEN`
+   - Resource sync: `production-infra.CLOUDFLARE_INFRA_TOKEN`
+3. Confirm that CD and resource sync succeed with the new tokens.
+4. Verify where the old tokens are used, then revoke them.
+5. Update the relevant `name` and `expiresOn` entries in `.github/cloudflare-token-expiry.json`
+   to match the actual new tokens, and merge the change into main through a PR.
+   Do not merely postpone the recorded expiry date.
+6. Update the backup calendar reminders to the new expiry dates.
+7. Confirm that `Cloudflare Token Expiry` passes and the issues for old expiry dates close.
 
-新しい期限がまだ30日より先なら、Issueは30日前まで作成されません。
-一方だけ更新した場合、もう一方の旧期限のIssueは開いたままになります。
+If the new expiry date is more than 30 days away, no issue is created until the
+30-day threshold. If only one token is rotated, the issue for the other token's
+old expiry date remains open.
 
-## 通知を送らずにテストする
+## Test without sending notifications
 
-Actions → Cloudflare Token Expiry → Run workflowで、`dry_run`をオンにし、
-`preview_date`に`2026-11-17`（30日前）または`2026-12-10`（7日前）を指定します。
-日付の指定はdry-run時だけ許可します。Issueやコメントを作成せず、結果をJob summaryへ出します。
-通常の監視でGitHub APIエラーや期限設定の欠落が起きた場合もworkflowは失敗します。
+Under Actions → Cloudflare Token Expiry → Run workflow, enable `dry_run` and set
+`preview_date` to `2026-11-17` (30 days before expiry) or `2026-12-10` (7 days before
+expiry). A custom date is allowed only in dry-run mode. The workflow writes the
+result to the job summary without creating issues or comments. Normal monitoring
+also fails on GitHub API errors or missing expiry configuration.

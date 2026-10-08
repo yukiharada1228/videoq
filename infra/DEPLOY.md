@@ -1,25 +1,27 @@
-# VideoQ デプロイ
+# Deploy VideoQ
 
-## 本番構成
+## Production architecture
 
-- frontend: Cloudflare Worker + Static Assets `videoq-web`（`apps/web`、公開URL: `https://videoq.jp`）
-- docs: Cloudflare Workers Static Assets `videoq-docs`（公開URL: `https://docs.videoq.jp`、日本語: `/ja/`）
-- Web API: Cloudflare Workers `videoq-api`（`apps/api`、Hono）
+- Frontend: Cloudflare Worker + Static Assets `videoq-web` (`apps/web`, public URL: `https://videoq.jp`)
+- Docs: Cloudflare Workers Static Assets `videoq-docs` (public URL: `https://docs.videoq.jp`, Japanese: `/ja/`)
+- Web API: Cloudflare Workers `videoq-api` (`apps/api`, Hono)
 - DB: Neon PostgreSQL + Hyperdrive
-- object storage: Cloudflare R2
-- async queue: Amazon SQS
-- async compute: Python worker on AWS Lambda
+- Object storage: Cloudflare R2
+- Async queue: Amazon SQS
+- Async compute: Python worker on AWS Lambda
 
-## 1. DB と R2
+## 1. Database and R2
 
-1. Neon project と pooler connection を作成
-2. Cloudflare Hyperdrive を Neon に接続（**query caching は無効**にする。有効だと認証・権限・課金を含む read-after-write が古くなる）
-3. R2 bucket と、`videoq-media-prod` の Object Read & Write のみに制限した S3 API token を作成
-4. `apps/api/wrangler.jsonc` の binding ID / bucket を本番値に設定
+1. Create a Neon project and pooler connection.
+2. Connect Cloudflare Hyperdrive to Neon with **query caching disabled**. Caching
+   can make reads after writes stale, including authentication, permissions, and billing.
+3. Create an R2 bucket and an S3 API token restricted to Object Read & Write on `videoq-media-prod`.
+4. Set the production binding IDs and bucket in `apps/api/wrangler.jsonc`.
 
-既存の本番 Hyperdrive と R2 CORS は、`production-infra` environment の承認後に手動workflow
-[`cloudflare-resources.yml`](../.github/workflows/cloudflare-resources.yml)を実行して同期します。
-同じ処理をローカルから行う場合:
+Sync the existing production Hyperdrive configuration and R2 CORS by running the
+manual [`cloudflare-resources.yml`](../.github/workflows/cloudflare-resources.yml)
+workflow after approval for the `production-infra` environment. To run the same
+operations locally:
 
 ```bash
 cd apps/api
@@ -29,11 +31,12 @@ npm run cf:hyperdrive:show
 npm run cf:r2-cors:list
 ```
 
-R2 CORS の正本は `apps/api/r2-cors.production.json` です。`https://videoq.jp` からの
-署名付き `GET` / `HEAD` / `PUT` と、動画range requestに必要なheaderだけを許可します。
-これを設定しないと、署名URLが正しくてもブラウザからのupload・再生は失敗します。
+The source of truth for R2 CORS is `apps/api/r2-cors.production.json`. It allows
+signed `GET` / `HEAD` / `PUT` requests from `https://videoq.jp` and only the headers
+needed for video range requests. Without this configuration, browser uploads and
+playback fail even when the signed URL is valid.
 
-DB schema:
+Database schema:
 
 ```bash
 cd apps/api
@@ -42,16 +45,16 @@ npm run db:verify
 DATABASE_URL="<Neon pooler URL>" npm run db:migrate
 ```
 
-DBを参照するAPI／Lambdaの更新より先にmigrationを完了させます。CDも
-`db-migrate → API/worker deploy` の順序を強制し、`DATABASE_URL` 未設定時は停止します。
+Complete migrations before updating the API or Lambda that uses the database. CD
+also enforces `db-migrate → API/worker deploy` and stops if `DATABASE_URL` is missing.
 
-本番はアプリ用・migration用・管理用のDB roleを分離しています。
-保存先、権限、ローテーション手順は[DB_SECURITY.md](DB_SECURITY.md)を参照してください。
-アプリ用の接続文字列をmigrationに流用しないでください。
+Production uses separate application, migration, and administration database roles.
+See [DB_SECURITY.md](DB_SECURITY.md) for credential locations, permissions, and
+rotation procedures. Do not reuse the application connection string for migrations.
 
 ## 2. API secrets
 
-機密値は `wrangler secret put` で設定します。
+Set sensitive values with `wrangler secret put`.
 
 ```bash
 cd apps/api
@@ -67,116 +70,136 @@ npx wrangler secret put AWS_SECRET_ACCESS_KEY --env production
 # Google sign-in (optional; both required)
 npx wrangler secret put GOOGLE_CLIENT_ID --env production
 npx wrangler secret put GOOGLE_CLIENT_SECRET --env production
-# Stripe Billing（restricted key rk_ を推奨。未設定なら Checkout / Portal / webhook は 503）
+# Stripe Billing (prefer a restricted rk_ key; Checkout / Portal / webhook return 503 if unconfigured)
 npx wrangler secret put STRIPE_SECRET_KEY --env production
 npx wrangler secret put STRIPE_WEBHOOK_SECRET --env production
 npx wrangler secret list --env production
 ```
 
-`MAILGUN_API_KEY` は本番必須です。`mg.videoq.jp` をMailgunで検証し、SPF・DKIMを設定します。
-Cloudflare Email Sendingはaccountで検証済みの宛先に限定され、product emailには適さないため
-bindingを持ちません。
+`MAILGUN_API_KEY` is required in production. Verify `mg.videoq.jp` in Mailgun and
+configure SPF and DKIM. In the documented account configuration, Cloudflare Email
+Sending is limited to verified recipients and is unsuitable for product email, so
+no binding is configured for it.
 
-Google Cloud Console の OAuth Web クライアントに Authorized redirect URI を登録:
+Register authorized redirect URIs for the OAuth Web client in Google Cloud Console:
 
-- 本番: `https://videoq.jp/api/auth/callback/google`
-- ローカル: `{BETTER_AUTH_URL}/api/auth/callback/google`（例: `http://localhost:8787/api/auth/callback/google`）
+- Production: `https://videoq.jp/api/auth/callback/google`
+- Local: `{BETTER_AUTH_URL}/api/auth/callback/google` (for example, `http://localhost:8787/api/auth/callback/google`)
 
-`BETTER_AUTH_SECRET` と `USER_SECRET_ENCRYPTION_KEY` は別々に生成します
-（例: `openssl rand -base64 48`）。
-`USER_SECRET_ENCRYPTION_KEY` は base64url encoded 32 bytes を使用し、API と worker に
-同じ値を設定してください。
+Generate `BETTER_AUTH_SECRET` and `USER_SECRET_ENCRYPTION_KEY` independently
+(for example, `openssl rand -base64 48` for the auth secret).
+`USER_SECRET_ENCRYPTION_KEY` must contain 32 bytes encoded as base64url. Use the
+same value in the API and worker.
 
-非機密設定（`wrangler.jsonc` `env.production.vars`）:
+Non-sensitive settings (`wrangler.jsonc`, `env.production.vars`):
 
 - `ENVIRONMENT=production`
-- `BETTER_AUTH_URL`（公開 API origin。例: `https://videoq.jp`。cookie / OAuth issuer の基準）
+- `BETTER_AUTH_URL` (public API origin, such as `https://videoq.jp`; the basis for cookies and the OAuth issuer)
 - `FRONTEND_URL` / `CORS_ALLOW_ORIGIN`
-- `R2_BUCKET_NAME` / `R2_S3_ENDPOINT` / `R2_S3_REGION`（`USE_S3_STORAGE=true` 時必須。未設定だと `/api/videos` が 500）
-- embedding / LLM model
-- Hyperdrive、R2、Durable Object binding（KVは使用しない）
+- `R2_BUCKET_NAME` / `R2_S3_ENDPOINT` / `R2_S3_REGION` (required when `USE_S3_STORAGE=true`; missing values cause `/api/videos` to return 500)
+- Embedding / LLM model
+- Hyperdrive, R2, and Durable Object bindings (KV is not used)
 
-Cookie session は `sameSite=lax` です。frontend と API を同一サイト（例: `videoq.jp` + `/api`）で配信してください。オリジン分離する場合は cookie 属性の見直しが必要です。
+Cookie sessions use `sameSite=lax`. Serve the frontend and API on the same site
+(for example, `videoq.jp` + `/api`). Revisit cookie attributes if you separate their origins.
 
-## 3. API deploy
+## 3. API deployment
 
-本番Worker名は `videoq-api`、開発用は `videoq-api-dev` です。
-既存Workerを改名するときは、Cloudflare dashboardで既存サービスの名前を変更してから
-`wrangler.jsonc` を更新します。設定の名前だけを変えてdeployすると別Workerを作成するため、
-Durable Objectの保存データを引き継げません。改名後はrouteとbindingの維持を確認してください。
+The production Worker is `videoq-api`; development uses `videoq-api-dev`.
+To rename an existing Worker, rename the service in the Cloudflare dashboard before
+updating `wrangler.jsonc`. Changing only the configured name and deploying creates
+a separate Worker, which does not inherit the Durable Object data. Check that
+routes and bindings are preserved after the rename.
 
-本体repositoryの`main`へのpushで起動したCIが成功した後、CDが変更を検知すると
-`wrangler deploy --minify --env production` を実行します
-（[`.github/workflows/cd.yml`](../.github/workflows/cd.yml)）。
-CDはGitHub APIでCIのworkflow ID、起動event、repository、branch、commit、最新attemptの成功を
-再検証します。fork／PRからのCI、古いcommitの再実行、`main`以外の手動実行はdeployしません。
-手動CDも現在の`main`と同じSHAのpush CI成功が必要です。rollbackは修正／revertをPR経由で
-`main`へ反映してCIを通します。
+After CI succeeds for a push to main in the upstream repository, CD detects changes
+and runs `wrangler deploy --minify --env production`
+([`.github/workflows/cd.yml`](../.github/workflows/cd.yml)).
+CD uses the GitHub API to revalidate the CI workflow ID, triggering event,
+repository, branch, commit, and success of the latest attempt. It does not deploy
+from fork/PR CI, reruns of old commits, or manual runs outside main. Manual CD also
+requires successful push CI for the current main SHA. To roll back, merge a fix or
+revert into main through a PR and pass CI.
 
-### GitHubの保護設定
+### GitHub protection settings
 
-GitHub Environmentは、同じ本番へのアプリ更新とインフラ更新を承認ルールで分けます。
-`production-app`／`production-infra`はGitHub上の名前です。Wranglerの
-`--env production`やAWS・DBの本番リソース名は変更しません。Lambda deployは
-Environmentを指定せず、検証済みmainのOIDC認証で実行します。
+GitHub Environments separate application and infrastructure updates to the same
+production system through approval rules. `production-app` and `production-infra`
+are GitHub names; they do not change Wrangler's `--env production` or production
+resource names in AWS and the database. Lambda deployment does not select an
+Environment and uses OIDC authentication for validated main commits.
 
-- `main`: PR必須、`CI Success`成功必須、最新mainとの同期必須、force push／削除禁止。
-  管理者にも適用します。現在は管理者1名のため必須の他者承認数は0です。
-  複数のmaintainerで運用する場合は1以上にし、workflow変更のCODEOWNERSも設定してください。
-- `production-app`: フロントエンド・API・docs deploy／DB migration用。deploy可能なbranchは`main`だけ
-  （同名tagは許可しない）。手動承認は不要で、上記CI検証後に自動deployします。
-- `production-infra`: インフラ／Cloudflare resource同期用。既存の手動承認を維持し、
-  deploy可能なbranchを`main`だけにします。
-- forkのActionsはすべての外部contributorについて承認を要求します。
-- Actionsは完全なcommit SHAに固定し、Dependabotで更新します。
+- `main`: Require PRs, successful `CI Success`, and an up-to-date branch. Prohibit
+  force pushes and deletion. Apply these rules to administrators too. The required
+  number of approvals from other reviewers is currently zero because there is one
+  maintainer. With multiple maintainers, require at least one approval and add
+  CODEOWNERS for workflow changes.
+- `production-app`: Frontend, API, and docs deployment and database migrations.
+  Only the main branch can deploy; a tag with the same name is not allowed. Manual
+  approval is not required; deployment follows the CI validation above.
+- `production-infra`: Infrastructure and Cloudflare resource sync. Preserve manual
+  approval and restrict deployments to the main branch.
+- Require approval for Actions from all external contributors' forks.
+- Pin Actions to full commit SHAs and update them through Dependabot.
 
-環境のbranch制限は`GITHUB_REF`を判定するため、`workflow_run`の起動元検証の代用には
-なりません。CDの検証jobは本番secretもOIDC権限も持たず、信頼されたworkflow revisionの
-検証コードを実行します。AWS用OIDC権限はLambda deploy jobだけに付与します。
+Environment branch restrictions evaluate `GITHUB_REF` and do not replace validation
+of the event that triggered `workflow_run`. CD's validation job has neither
+production secrets nor OIDC permissions and executes validation code from a
+trusted workflow revision. Only the Lambda deployment job receives AWS OIDC permissions.
 
-### GitHub Actions secretsの保存先
+### GitHub Actions secret locations
 
-| Secret | 保存先 | 用途 |
+| Secret | Location | Purpose |
 |---|---|---|
-| `CLOUDFLARE_API_TOKEN` | `production-app`と`production-infra`のEnvironment secrets | Workers deploy／resource同期時のsecret名確認 |
-| `DATABASE_URL` | `production-app`のEnvironment secrets | 本番DB migration専用。依存インストール時は渡さない |
-| `CLOUDFLARE_INFRA_TOKEN` | `production-infra`のEnvironment secrets | 対象accountのHyperdrive更新とR2 CORS更新 |
-| `CLOUDFLARE_ACCOUNT_ID` | Repository secrets（非機密ID） | Cloudflare account ID |
+| `CLOUDFLARE_API_TOKEN` | Environment secrets in `production-app` and `production-infra` | Workers deployment / checking secret names during resource sync |
+| `DATABASE_URL` | Environment secrets in `production-app` | Production database migrations only; not passed during dependency installation |
+| `CLOUDFLARE_INFRA_TOKEN` | Environment secrets in `production-infra` | Hyperdrive and R2 CORS updates in the target account |
+| `CLOUDFLARE_ACCOUNT_ID` | Repository secrets (non-sensitive ID) | Cloudflare account ID |
 
-Workers deploy tokenは、対象accountの`Workers Scripts Write`（画面ではWorkers Scriptsの
-Edit／レガシー）と、`videoq.jp` zoneの`Workers Routes Write`を許可します。
-同じaccountの他のWorkerの作成・更新・削除にも使えるため、Environment secretsの隔離を
-維持してください。2026-09-18の実デプロイでは、`videoq-api`単体の`Editor`は
-サービス情報取得とversion uploadで認証エラーになりました。productの`Metadata Read-Only`を
-追加すると前者のみ解消し、productの`Editor`はtoken保存時に`Scope not found`となったため、
-現状は対応済みの`Workers Scripts Write`を使用します。Cloudflare側の対応を確認できたら、
-個別Workerの権限でdeployを再検証して範囲を縮小してください。
-R2／Hyperdrive bindingのあるWorkerのdeployに、
-それらのリソース自体への編集権限は不要です。
-resource同期tokenは対象accountの`Hyperdrive Write`と`Workers R2 Storage Write`に限定します。
-Global API Keyは使用しません。tokenの有効期限は90日とし、期限前に同じ権限で更新します。
-期限は[監視用JSON](../.github/cloudflare-token-expiry.json)に記録し、GitHub Actionsで
-30日前から通知します。[更新・通知の運用手順](CLOUDFLARE_TOKEN_ROTATION.md)に従って、
-secret更新と同時に期限記録・予備のカレンダー通知も更新してください。
-権限の詳細は[Workers roles and permissions](https://developers.cloudflare.com/workers/authorization/workers/)と
-[Bindingsの権限](https://developers.cloudflare.com/workers/authorization/#bindings)を参照してください。
+The Workers deployment token grants `Workers Scripts Write` for the target account
+(shown as Workers Scripts Edit / legacy in the UI) and `Workers Routes Write` for
+the `videoq.jp` zone. It can also create, update, and delete other Workers in that
+account, so preserve its isolation in Environment secrets.
 
-既存Repository secretsから移行する場合、GitHubは保存済みsecret値を返さないため、
-元の値をEnvironment secretsへ再登録します。値をログやPRへ出力しないでください。
-上表の4件を登録したことを確認してから、repository側の`CLOUDFLARE_API_TOKEN`、
-`DATABASE_URL`、`CLOUDFLARE_INFRA_TOKEN`を削除します。同名Repository secretsを残すと、
-environmentを指定しないworkflowでも利用できるため、隔離は完了しません。
-元のmigration用DB接続文字列が手元にない場合は、管理者権限でSSM SecureStringの
-`/videoq/security/prod/db-migration`から再登録できます。Lambdaの`DB_PARAM_NAME`が指す
-`/videoq/prod/db`はアプリ専用で、migrationには使えません。
-DBパスワードをresetして稼働中の接続を切らないでください。
-旧CDはenvironmentを指定していないため、移行とこのworkflow変更のmergeを同じ作業時間帯で
-行い、他のdeployを開始しないでください。登録完了前に旧secretを削除しないでください。
+In the deployment checked on 2026-09-18, the `Editor` role for `videoq-api` alone
+failed authorization when fetching service information and uploading a version.
+Adding the product's `Metadata Read-Only` role fixed only the first error; saving a
+token with the product's `Editor` role failed with `Scope not found`. The
+configuration therefore uses the supported `Workers Scripts Write` permission.
+Once Cloudflare support is confirmed, retest deployment with permissions for the
+individual Worker and narrow the scope. Deploying a Worker with R2 or Hyperdrive
+bindings does not require permission to edit those resources themselves.
 
-手動resource同期workflowは、上記tokenに加えて必須Worker secretの「名前」がproductionに
-揃っていることも検証します。値は取得・出力しません。
+Restrict the resource-sync token to `Hyperdrive Write` and `Workers R2 Storage Write`
+in the target account. Do not use the Global API Key. Set a 90-day lifetime and
+rotate tokens with the same permissions before expiry. Record expiry dates in the
+[monitoring JSON](../.github/cloudflare-token-expiry.json); GitHub Actions begins
+notifications 30 days before expiry. Follow the
+[rotation and notification procedure](CLOUDFLARE_TOKEN_ROTATION.md), updating the
+expiry records and backup calendar reminders along with the secrets. See
+[Workers roles and permissions](https://developers.cloudflare.com/workers/authorization/workers/)
+and [binding permissions](https://developers.cloudflare.com/workers/authorization/#bindings)
+for permission details.
 
-手動デプロイ:
+When migrating from Repository secrets, re-enter the original values in Environment
+secrets because GitHub does not return stored secret values. Keep values out of logs
+and PRs. Confirm that all four entries in the table are registered before deleting
+`CLOUDFLARE_API_TOKEN`, `DATABASE_URL`, and `CLOUDFLARE_INFRA_TOKEN` from Repository
+secrets. Leaving identically named Repository secrets makes them available to
+workflows without an environment, so isolation is incomplete.
+
+If the original migration connection string is unavailable locally, an administrator
+can retrieve it from the SSM SecureString `/videoq/security/prod/db-migration` and
+register it again. `/videoq/prod/db`, referenced by Lambda's `DB_PARAM_NAME`, is for
+the application only and cannot be used for migrations. Do not reset the database
+password and interrupt active connections. The old CD workflow does not select an
+environment, so perform this secret migration and merge the workflow change in the
+same maintenance period without starting another deployment. Do not delete the old
+secrets before the new registrations are complete.
+
+The manual resource-sync workflow also checks that the names of all required Worker
+secrets exist in production. It does not retrieve or print their values.
+
+Manual deployment:
 
 ```bash
 npm ci
@@ -185,30 +208,32 @@ npm test --workspace @videoq/api
 npm run deploy --workspace @videoq/api
 ```
 
-確認:
+Verification:
 
 ```bash
 curl https://videoq.jp/health
 curl https://videoq.jp/ready
 ```
 
-`wrangler.jsonc` はproduction logsを100%、tracesを5%で保存します。デプロイ後はWorkers
-Observabilityでexception・CPU超過と `external_task_backlog_warning` の通知を設定してください。
+`wrangler.jsonc` retains 100% of production logs and samples 5% of traces. After
+deployment, configure Workers Observability alerts for exceptions, CPU limit
+exceeded events, and `external_task_backlog_warning`.
 
 ## 4. Worker infrastructure
 
-Terraform は SQS、worker Lambda（**arm64**）、ECR、IAM、SSM Parameter Store
-など AWS 側の非同期基盤を管理します。
+Terraform manages the AWS asynchronous infrastructure, including SQS, the worker
+Lambda (**arm64**), ECR, IAM, and SSM Parameter Store.
 
-### Secrets Manager → SSM への移行（既存環境）
+### Migrate from Secrets Manager to SSM (existing environments)
 
-worker 機密は **SSM SecureString**（`/videoq/<env>/db`, `/videoq/<env>/app`）に置きます。
-`terraform apply` で旧 Secrets Manager リソースが削除される前に、値をコピーしてください。
+Store worker secrets as **SSM SecureString** parameters
+(`/videoq/<env>/db`, `/videoq/<env>/app`). Copy the values before `terraform apply`
+deletes the old Secrets Manager resources.
 
 ```bash
 REGION=ap-northeast-1
 
-# 1) 現行 Secrets Manager から読む
+# 1) Read the current Secrets Manager values
 DB_JSON=$(aws secretsmanager get-secret-value \
   --secret-id videoq/prod/db --region "$REGION" \
   --query SecretString --output text)
@@ -216,7 +241,7 @@ APP_JSON=$(aws secretsmanager get-secret-value \
   --secret-id videoq/prod/app --region "$REGION" \
   --query SecretString --output text)
 
-# 2) SSM へ書き込み（未作成なら作成、既存なら上書き）
+# 2) Write to SSM (create missing parameters or overwrite existing ones)
 aws ssm put-parameter --region "$REGION" \
   --name /videoq/prod/db --type SecureString \
   --value "$DB_JSON" --overwrite
@@ -224,25 +249,25 @@ aws ssm put-parameter --region "$REGION" \
   --name /videoq/prod/app --type SecureString \
   --value "$APP_JSON" --overwrite
 
-# 3) すでに手動作成済みなら Terraform state へ取り込む
+# 3) Import parameters into Terraform state if they were created manually
 cd infra
 terraform import aws_ssm_parameter.db /videoq/prod/db
 terraform import aws_ssm_parameter.app /videoq/prod/app
 
-# 4) 旧 Secrets Manager は prevent_destroy のため、state から外して apply する
+# 4) Remove old Secrets Manager resources from state before applying, because they use prevent_destroy
 terraform state rm aws_secretsmanager_secret.db
 terraform state rm aws_secretsmanager_secret.app
 
-# 5) 旧シークレットを手動削除（課金停止。必要なら recovery window 付きでも可）
+# 5) Delete old secrets manually to stop billing (use a recovery window if needed)
 aws secretsmanager delete-secret --region "$REGION" \
   --secret-id videoq/prod/db --force-delete-without-recovery
 aws secretsmanager delete-secret --region "$REGION" \
   --secret-id videoq/prod/app --force-delete-without-recovery
 ```
 
-新規環境では `terraform apply` がプレースホルダ値で SSM を作ります。直後に上記
-`put-parameter --overwrite` で実値を入れてください（`value` は Terraform が
-ignore するため apply で上書きされません）。
+In a new environment, `terraform apply` creates SSM parameters with placeholder
+values. Immediately set the real values with `put-parameter --overwrite` as above.
+Terraform ignores `value`, so subsequent applies do not overwrite them.
 
 ```bash
 cd infra
@@ -253,62 +278,74 @@ terraform plan
 terraform apply
 ```
 
-IAM ポリシー JSON を更新した場合は `infra/iam/README.md` の更新手順で
-`videoq-terraform-deploy` を差し替えてから apply してください。
+If you changed the IAM policy JSON, replace `videoq-terraform-deploy` following
+`infra/iam/README.md` before applying.
 
-GitHub Actionsは固定AWS access keyではなく、plan / deployを分離したOIDC roleを使います。
-初回作成とrepository secrets（`AWS_GITHUB_ACTIONS_PLAN_ROLE_ARN`、
-`AWS_GITHUB_ACTIONS_DEPLOY_ROLE_ARN`）は[`iam/README.md`](iam/README.md)を参照してください。
+GitHub Actions uses separate OIDC roles for plan and deployment instead of static
+AWS access keys. See [`iam/README.md`](iam/README.md) for initial setup and the
+Repository secrets `AWS_GITHUB_ACTIONS_PLAN_ROLE_ARN` and
+`AWS_GITHUB_ACTIONS_DEPLOY_ROLE_ARN`.
 
-既存Lambdaが一度でも動作済みなら、CloudWatch Logs groupはAWSが先に作成しています。
-`monitoring.tf`の宣言的な`import`ブロックが最初のapplyで既存groupをstateへ取り込み、
-以後は通常のTerraformリソースとして管理します。
+If the existing Lambda has run before, AWS has already created its CloudWatch Logs
+group. The declarative `import` block in `monitoring.tf` imports that group into
+state on the first apply; Terraform then manages it as a normal resource.
 
-`operations_alert_email`を設定すると、Lambda error / ジョブ失敗 / throttle / 長時間実行、SQS滞留、
-DLQ到達をSNS emailで通知します。apply後にAWSから届くsubscription確認メールを承認して
-ください。ログ保持期間は`lambda_log_retention_days`（既定30日）です。
+Set `operations_alert_email` to receive SNS email alerts for Lambda errors, failed
+jobs, throttling, long executions, SQS backlog, and DLQ arrivals. After applying,
+confirm the subscription through the email AWS sends. `lambda_log_retention_days`
+controls log retention (30 days by default).
 
-待ち行列と実行時間は別々のアラームで監視します。すべてのアラームは警告（ALARM）と
-復旧（OK）の両方を通知します。OKメールは新しい障害の通知ではありません。
+Separate alarms monitor queue backlog and execution duration. All alarms notify
+on both ALARM and recovery to OK. An OK email does not report a new failure.
 
-| アラーム末尾 | 条件 |
+| Alarm suffix | Condition |
 |---|---|
-| `job-failures` | SQSイベントの失敗数が5分間の合計で1件以上。`batchItemFailures`で返された失敗も対象 |
-| `queue-waiting` | 取得可能な処理待ちが1件以上の状態を、1分ごとの最小値で5回連続観測 |
-| `queue-depth` | 処理待ち10件以上を5分ごとの最大値で2回連続観測 |
-| `duration` | 15分区間の最大実行時間がLambdaタイムアウトの80%以上（既定12分）。1件でも検知 |
+| `job-failures` | At least one failed SQS event in a five-minute sum, including failures returned through `batchItemFailures` |
+| `queue-waiting` | At least one visible waiting message in the one-minute minimum for five consecutive periods |
+| `queue-depth` | At least 10 waiting messages in the five-minute maximum for two consecutive periods |
+| `duration` | Maximum execution time in a 15-minute period reaches 80% of the Lambda timeout (12 minutes by default); a single execution can trigger it |
 
-`queue-waiting`はキュー全体の処理待ちが続く状態を検知し、個々のジョブの待ち時間は
-計測しません。[SQSの可視メッセージ数](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-available-cloudwatch-metrics.html)を
-使うため、処理待ち0件で8〜9分かかる実行中ジョブだけでは警告しません。
-旧`queue-age`はapply時に`queue-waiting`へ置き換えます。
+`queue-waiting` detects a persistent backlog across the queue; it does not measure
+individual jobs' waiting times. It uses
+[SQS visible message counts](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-available-cloudwatch-metrics.html),
+so an in-flight job taking eight or nine minutes with no waiting messages does not
+trigger this alarm. Applying replaces the old `queue-age` alarm with `queue-waiting`.
 
-`job-failures`はイベントソースで`EventCount`を有効にし、`EventSourceMappingUUID`単位の
-[`FailedInvokeEventCount`](https://docs.aws.amazon.com/lambda/latest/dg/monitoring-metrics-types.html#event-source-mapping-metrics)を
-監視します。ハンドラーが例外を捕捉して`batchItemFailures`を返す場合、Lambdaの`Errors`では
-検知できません。この指標は処理終了時刻で記録されるため、失敗したジョブが再試行まで
-非表示になる間も、処理待ち件数や実行時間に依存せず失敗を通知できます。
-`job-failures`のOK通知は直近の集計から失敗の検知がなくなったことを示し、対象ジョブの
-再試行成功を保証しません。再試行の結果は`job_executions`とworker logsで確認してください。
+`job-failures` enables `EventCount` on the event source and monitors
+[`FailedInvokeEventCount`](https://docs.aws.amazon.com/lambda/latest/dg/monitoring-metrics-types.html#event-source-mapping-metrics)
+by `EventSourceMappingUUID`. Lambda's `Errors` metric cannot detect a failure when
+the handler catches an exception and returns `batchItemFailures`. This metric is
+recorded at completion, so failures can be reported independently of backlog or
+execution duration while failed jobs are invisible until retry. An OK notification
+from `job-failures` means no failures were detected in the latest evaluation; it
+does not prove that the affected job's retry succeeded. Check `job_executions` and
+worker logs for retry outcomes.
 
-[Lambdaの実行時間指標](https://docs.aws.amazon.com/lambda/latest/dg/monitoring-metrics-view.html)は
-開始時刻をタイムスタンプとして処理終了後に送信されるため、`duration`は実行中の即時通知では
-ありません。長い処理の遅れて届く指標も評価できるよう、15分の集計区間を使います。
+[Lambda duration metrics](https://docs.aws.amazon.com/lambda/latest/dg/monitoring-metrics-view.html)
+are sent after execution completes, with the start time as their timestamp.
+Consequently, `duration` is not an immediate alert during execution. A 15-minute
+aggregation period allows evaluation of late-arriving metrics from long executions.
 
-RAGAS評価は廃止しました。APIとworkerを両方リリースすると、新規ジョブの作成・配送が止まり、キューに残った評価ジョブもAIを呼ばずに終了します。旧評価テーブルは保持します。稼働中の旧workerによる評価は切替前に完了させてください。
+RAGAS evaluation has been removed. Releasing both the API and worker stops new
+evaluation jobs from being created or delivered, and queued evaluation jobs finish
+without calling AI. Historical evaluation tables remain. Let evaluations running
+on the old worker finish before switching.
 
-**arm64 cutover:** Lambda の `architectures = ["arm64"]` とイメージ arch は一致が必須です。
+**arm64 cutover:** Lambda's `architectures = ["arm64"]` must match the image architecture.
 
-SQS の `sqs_visibility_timeout_seconds` は Lambda のタイムアウトの6倍以上にします
-（既定900秒に対して5400秒）。`sqs_max_receive_count` は5回以上です。
-[AWS の推奨](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-configure.html)に合わせ、
-throttle 時の再試行猶予を確保します。失敗したメッセージの再配送まで最大90分待つため、
-滞留監視とDLQの確認も行ってください。既存の `terraform.tfvars` に960秒／3回を
-指定している環境では、値を更新してからplanします。Terraformの入力検証が旧設定を拒否します。
-`terraform apply` の前に、下の手順で **arm64 イメージを ECR に push** してください
-（amd64 のまま arch だけ変えると更新が失敗します）。
+Set SQS `sqs_visibility_timeout_seconds` to at least six times the Lambda timeout
+(5400 seconds for the default 900-second timeout). Set `sqs_max_receive_count` to at
+least five. These values follow
+[AWS recommendations](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-configure.html)
+to allow retries during throttling. Failed messages may take up to 90 minutes to
+become available again, so monitor backlog and check the DLQ too. If an existing
+`terraform.tfvars` uses 960 seconds / three receives, update the values before
+planning; Terraform input validation rejects those settings.
 
-worker image（**linux/arm64**）:
+**Push an arm64 image to ECR** using the procedure below before `terraform apply`.
+Changing only the architecture while keeping an amd64 image causes the update to fail.
+
+Worker image (**linux/arm64**):
 
 ```bash
 REGION=ap-northeast-1
@@ -328,8 +365,8 @@ aws lambda update-function-code \
 
 ### App parameter (`/videoq/<env>/app`) JSON schema
 
-SSM SecureString の app パラメータは **R2 用キー名を `R2_*` にする**
-（Terraform はパラメータ器のみ管理。値は CLI で設定）。
+Use **`R2_*` key names for R2 credentials** in the app SSM SecureString parameter.
+Terraform manages only the parameter resource; set its value through the CLI.
 
 ```json
 {
@@ -343,27 +380,30 @@ SSM SecureString の app パラメータは **R2 用キー名を `R2_*` にす�
 }
 ```
 
-`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` をここに入れないこと。
-Lambda 実行ロールが同名を予約しており、R2 キーが無視されて文字起こしが 400 になります。
+Do not put `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` here. Lambda's execution
+role reserves those names, so the R2 keys are ignored and transcription returns 400.
 
-API Worker（Cloudflare）の SQS 送信用クレデンシャルは別 IAM ユーザー
-（例: `videoq-workers-api`）を `wrangler secret` の `AWS_ACCESS_KEY_ID` /
-`AWS_SECRET_ACCESS_KEY` / `AWS_REGION` / `SQS_QUEUE_URL` に設定します。
+For the API Worker (Cloudflare), configure SQS credentials for a separate IAM user
+(for example, `videoq-workers-api`) through the Wrangler secrets `AWS_ACCESS_KEY_ID`,
+`AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, and `SQS_QUEUE_URL`.
 
 ## 5. Frontend
 
-フロントは専用Worker `videoq-web` + Static Assetsです。`apps/web/wrangler.jsonc` を
-正本とし、`videoq.jp` と `www.videoq.jp` のCustom Domainを管理します。
-wwwは `https://videoq.jp` の同じパスへ転送します。
+The frontend uses the dedicated Worker `videoq-web` with Static Assets.
+`apps/web/wrangler.jsonc` is the source of truth and manages the Custom Domains
+`videoq.jp` and `www.videoq.jp`. The www domain redirects to the same path on
+`https://videoq.jp`.
 
-`main`のpush CI成功後、CDの`web-deploy`が検証済みSHAをビルドして公開します。
-変更検知は `apps/web/**`、`packages/trpc/**`、ルートのpackage/lock、CI/CD workflow、
-`.github/scripts/**`。APIも変更した場合はAPIの公開成功後にフロントを公開します。
-フロントのみの変更ではAPIのデプロイは不要です。
+After push CI succeeds on main, CD's `web-deploy` builds and publishes the validated
+SHA. Change detection covers `apps/web/**`, `packages/trpc/**`, the root package
+manifest and lockfile, CI/CD workflows, and `.github/scripts/**`. When the API also
+changes, frontend deployment waits for the API deployment to succeed. Frontend-only
+changes do not require an API deployment.
 
-公開stepにだけ `production-app` の `CLOUDFLARE_API_TOKEN` と
-`CLOUDFLARE_ACCOUNT_ID` を渡します。Worker Scripts編集と対象zoneのWorker Routes編集、
-Custom Domainを管理できる権限が必要です。公開はGitHub ActionsのCDで管理します。
+Only the publishing step receives `CLOUDFLARE_API_TOKEN` from `production-app` and
+`CLOUDFLARE_ACCOUNT_ID`. It needs permission to edit Worker Scripts, edit Worker
+Routes for the target zone, and manage Custom Domains. GitHub Actions CD manages
+publishing.
 
 ```bash
 # repository root
@@ -373,42 +413,48 @@ npm run test:worker --workspace @videoq/web
 npm run deploy --workspace @videoq/web
 ```
 
-Viteの公開変数は `apps/web/.env.production` で管理します。
-`VITE_API_URL=/api`、`VITE_USE_S3_STORAGE=true`、`VITE_MAX_VIDEO_UPLOAD_SIZE_MB=500` を
-使用します（API側の制限は別途適用されます）。
-`worker/index.ts` が言語別SEO情報をHTMLへ反映し、静的ファイルと共通のセキュリティ
-ヘッダーを付けます。`/assets/*` はWorker処理を省いてStatic Assetsから配信します。
+Vite's public variables live in `apps/web/.env.production`:
+`VITE_API_URL=/api`, `VITE_USE_S3_STORAGE=true`, and
+`VITE_MAX_VIDEO_UPLOAD_SIZE_MB=500`. API limits apply separately.
+`worker/index.ts` adds language-specific SEO information to HTML and sets shared
+security headers for HTML and static files. `/assets/*` is served directly by
+Static Assets without running the Worker.
 
-API Workerは独立したままです。`apps/api/wrangler.jsonc` の `videoq.jp/api/*`、
-`videoq.jp/.well-known/*`、`videoq.jp/health`、`videoq.jp/ready` が
-Custom Domainより先に適用されるため、フロントからAPIへのproxyやService Bindingは不要です。
+The API Worker remains independent. The routes `videoq.jp/api/*`,
+`videoq.jp/.well-known/*`, `videoq.jp/health`, and `videoq.jp/ready` in
+`apps/api/wrangler.jsonc` take precedence over the Custom Domain, so the frontend
+needs neither an API proxy nor a Service Binding.
 
-### ローカル確認と切り戻し
+### Local verification and rollback
 
-`npm run preview:worker --workspace @videoq/web` はビルド済みフロントのローカル確認です。
-noindexを返し、本番APIへは接続しません。
+`npm run preview:worker --workspace @videoq/web` previews the built frontend locally.
+It returns noindex and does not connect to the production API.
 
-通常の切り戻しは `apps/web` で `npx wrangler rollback --env production` を使用します。
-Workersのデプロイ履歴から切り戻し、本番ドメインとAPIの4つのrouteは維持します。
+For a normal rollback, run `npx wrangler rollback --env production` from `apps/web`.
+This restores a deployment from Workers history while preserving the production
+domain and the four API routes.
 
-## 5.1 ドキュメント
+## 5.1 Documentation
 
-ドキュメントは専用のCloudflare Worker `videoq-docs` から静的ファイルとして公開します。
-英語は `https://docs.videoq.jp/`、日本語は `https://docs.videoq.jp/ja/` です。
-アプリの `videoq-web` とは独立した公開先です。
+Documentation is published as static files by the dedicated Cloudflare Worker
+`videoq-docs`. English is at `https://docs.videoq.jp/` and Japanese at
+`https://docs.videoq.jp/ja/`. This deployment is independent of the `videoq-web` app.
 
-`main`へのpush CIが成功すると、CDの`docs-deploy`が変更を検知して両言語を自動公開します。
-対象は`docs/**`、`apps/docs/**`（日本語翻訳を含む）、ルートの`package.json`・`package-lock.json`、
-CI/CD workflow、`.github/scripts/**`です。前回成功したCDとの差分で判定するため、
-途中でCIがキャンセルされたcommitの文書変更も含みます。
+After push CI succeeds on main, CD's `docs-deploy` detects changes and automatically
+publishes both languages. It watches `docs/**`, `apps/docs/**` (including Japanese
+translations), the root `package.json` and `package-lock.json`, CI/CD workflows,
+and `.github/scripts/**`. Detection compares against the last successful CD run,
+so it includes document changes in commits whose CI was canceled along the way.
 
-検証済みの`main`のSHAをcheckoutして型チェック・ビルドを行い、公開stepだけに
-`production-app`の`CLOUDFLARE_API_TOKEN`とRepository secretの`CLOUDFLARE_ACCOUNT_ID`を渡します。
-docs jobはAPI・Lambda・DBのjobとは独立しており、docsだけの変更ではそれらを更新しません。
-PRやfeature branchへのpushは公開対象外です。`main`からCDを手動実行した場合は、
-同じSHAのpush CI成功を確認したうえで、他のデプロイ対象とともにdocsも再公開します。
+The job checks out the validated main SHA, type-checks, and builds. Only the
+publishing step receives `CLOUDFLARE_API_TOKEN` from `production-app` and
+`CLOUDFLARE_ACCOUNT_ID` from Repository secrets. The docs job is independent of the
+API, Lambda, and database jobs; docs-only changes do not update those services.
+PRs and pushes to feature branches do not publish. A manual CD run from main first
+confirms successful push CI for the same SHA, then republishes docs along with the
+other deployment targets.
 
-ローカルから手動で公開する場合は、リポジトリルートで実行します:
+To publish manually from a local checkout, run from the repository root:
 
 ```bash
 npm ci
@@ -416,84 +462,88 @@ npx wrangler login
 npm run deploy:docs
 ```
 
-このコマンドは現在の作業ツリーから両言語をビルドし、`apps/docs/build` をWorkerの静的アセットとして
-アップロードします。この手動コマンドでは未コミットの文書変更も含まれます。
-公開先の正本は `apps/docs/wrangler.jsonc` です。
+This command builds both languages from the current working tree and uploads
+`apps/docs/build` as the Worker's static assets. It includes uncommitted document
+changes. `apps/docs/wrangler.jsonc` is the source of truth for the publishing target.
 
-独自ドメイン `docs.videoq.jp` はWranglerの `routes` で `custom_domain: true` として宣言します。
-デプロイ時にCloudflareがDNSレコードとHTTPS証明書を設定します。`workers.dev` とpreview URLは無効です。
-末尾スラッシュを維持し、存在しないパスにはDocusaurusの404ページを返します。
+The Custom Domain `docs.videoq.jp` is declared in Wrangler's `routes` with
+`custom_domain: true`. Cloudflare configures the DNS record and HTTPS certificate
+during deployment. `workers.dev` and preview URLs are disabled. Trailing slashes
+are preserved; missing paths return the Docusaurus 404 page.
 
-詳しくは [apps/docs/README.md](../apps/docs/README.md) を参照してください。
+See [apps/docs/README.md](../apps/docs/README.md) for details.
 
-## 6. 既存環境の破壊的cutover
+## 6. Destructive cutover for existing environments
 
-この手順はdomain dataを新tableへコピーしますが、既存password、browser session、
-OAuth client/grant/token、配信済みメールリンク、保存済みSearchAPI keyを意図的に失効します。
-実行前にDB backupを取得し、利用者へpassword resetと資格情報の再登録が必要なことを告知してください。
+This procedure copies domain data to new tables and intentionally invalidates
+existing passwords, browser sessions, OAuth clients/grants/tokens, delivered email
+links, and stored SearchAPI keys. Before running it, back up the database and tell
+users that they will need to reset passwords and register credentials again.
 
 ```bash
 cd apps/api
 export DATABASE_URL="<Neon direct connection URL>"
 
-# maintenance window前に件数だけ確認
+# Check counts before the maintenance window
 npm run db:maintain -- dry-run
 
-# API write停止、SQS drain、DB backup後に実行
+# Run after stopping API writes, draining SQS, and backing up the database
 npm run db:maintain -- prepare
 npm run db:maintain -- cutover
 npm run db:maintain -- verify
 ```
 
-`cutover`はdomain tableをID維持で再コピーし、credential失効とorphan/count検証を同一処理で行います。
-成功後にAPI・frontend・workerを同時deployし、trafficを再開します。失敗時はwriteを再開せず、
-取得済みbackupから復元してください。旧tableは即時削除しません。
+`cutover` recopies domain tables while preserving IDs, invalidates credentials, and
+checks for orphans and count mismatches in the same operation. After success,
+deploy the API, frontend, and worker together and resume traffic. On failure, keep
+writes stopped and restore the backup. Do not delete the old tables immediately.
 
-7〜14日のsoak後:
+After a 7–14 day observation period:
 
 ```bash
 npm run db:maintain -- rename --dry-run
 npm run db:maintain -- rename --confirm
 
-# backup保持期間の終了後のみ
+# Only after the backup retention period has ended
 npm run db:maintain -- drop --dry-run
 npm run db:maintain -- drop --confirm
 ```
 
-## 7. Better Auth 初回cutover（破壊的・旧0005）
+## 7. Initial Better Auth cutover (destructive, legacy 0005)
 
-`0005_better_auth` 適用後:
+After applying `0005_better_auth`:
 
-- 旧 password / browser session / API key / OAuth client・token は無効
-- 既存ユーザーは **パスワード再設定必須**（credential `account` 行は空パスワードで作成される）
-- SearchAPI key はクリアされるので再入力が必要
-- MCP / 第三者 OAuth クライアントは再登録が必要
+- Old passwords, browser sessions, API keys, OAuth clients, and tokens are invalid.
+- Existing users **must reset their passwords**; credential `account` rows are created with empty passwords.
+- SearchAPI keys are cleared and must be entered again.
+- MCP / third-party OAuth clients must be registered again.
 
-運用手順:
+Operational procedure:
 
-1. DB backup
-2. maintenance window（API write 停止）
-3. `DATABASE_URL=... npm run db:migrate`（`0005_better_auth` 含む）
-4. secrets / vars（`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`）を確認
-5. API と frontend を同時デプロイ
-6. 利用者へ password reset・API key / OAuth / SearchAPI 再発行を告知
+1. Back up the database.
+2. Enter a maintenance window and stop API writes.
+3. Run `DATABASE_URL=... npm run db:migrate`, including `0005_better_auth`.
+4. Check secrets and variables (`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`).
+5. Deploy the API and frontend together.
+6. Notify users to reset passwords and reissue API keys, OAuth registrations, and SearchAPI keys.
 
-この節は旧認証から`0005_better_auth`へ初めて移る環境だけが対象です。すでにBetter Authを
-運用している環境で、1.7へ上げるために再実行しないでください。
+This section applies only to the first migration from legacy authentication to
+`0005_better_auth`. Do not repeat it to upgrade an existing Better Auth deployment to 1.7.
 
-## 8. Better Auth 1.7 migration（Claude client再登録）
+## 8. Better Auth 1.7 migration (Claude client re-registration)
 
-`0017_invalidate_legacy_oauth_grants`〜`0020_finalize_better_auth_issuer`は、Better Auth 1.7のresource-bound tokenへ
-安全に切り替えるため、既存の外部OAuth client・consent・access token・refresh tokenを
-削除します。ブラウザsession、API key、Googleログイン等の`account`は維持し、account issuerを
-旧provider単位でbackfillします。MCP protected resourceはmigration SQLへ本番URLを埋め込まず、
-API起動時に`BETTER_AUTH_URL`から環境別にseedします。
+Migrations `0017_invalidate_legacy_oauth_grants` through `0020_finalize_better_auth_issuer`
+delete existing external OAuth clients, consents, access tokens, and refresh tokens
+to switch safely to Better Auth 1.7 resource-bound tokens. They preserve browser
+sessions, API keys, and `account` records such as Google sign-in, and backfill account
+issuers by legacy provider. The MCP protected resource is seeded per environment
+from `BETTER_AUTH_URL` at API startup, without embedding production URLs in migration SQL.
 
-構造変更の`0018`と`0020`は`drizzle-kit generate`の未編集出力です。データ変更の`0017`と
-`0019`だけを`drizzle-kit generate --custom`で作成しています。
+Schema migrations `0018` and `0020` are unedited output from `drizzle-kit generate`.
+Only data migrations `0017` and `0019` use `drizzle-kit generate --custom`.
 
-適用前にbackupを取得し、account重複がないことを確認します。1行でも返った場合は
-migrationを止め、原因を解消してください。
+Back up the database and check for duplicate accounts before applying. If this query
+returns any rows, stop the migration and resolve the cause.
 
 ```sql
 SELECT provider_id, account_id, count(*)
@@ -507,27 +557,27 @@ cd apps/api
 DATABASE_URL="<Neon direct connection URL>" npm run db:migrate
 ```
 
-適用後はClaude Code側の旧VideoQ接続を削除し、`claude mcp add`で再登録します。
-`tools/list`とread toolを確認し、write scopeを承認した接続では冪等キー付きwrite toolも
-1件確認します。
+After applying, remove the old VideoQ connection from Claude Code and register it
+again with `claude mcp add`. Verify `tools/list` and a read tool. For a connection
+with approved write scope, also verify one write tool call with an idempotency key.
 
-## 9. リリース確認
+## 9. Release verification
 
-- `/health` と `/ready`
-- signup / login / logout（cookie session）
-- password reset 後に既存利用者が login でき、旧 password では login できないこと
-- API key 再発行と `Authorization: Bearer` / `X-API-Key` でのMCP tool呼び出し
-- 旧0005 cutover時のみOAuth client再登録・SearchAPI key再入力
-- R2 署名 upload と動画確定
+- `/health` and `/ready`
+- Signup / login / logout with cookie sessions
+- Existing users can log in after resetting their passwords, and their old passwords are rejected
+- API key reissuance and MCP tool calls using `Authorization: Bearer` / `X-API-Key`
+- OAuth client re-registration and SearchAPI key re-entry only for the legacy 0005 cutover
+- R2 signed uploads and video finalization
 - R2 CORS (`npm run cf:r2-cors:list --workspace @videoq/api`)
 - Hyperdrive query cache disabled (`npm run cf:hyperdrive:show --workspace @videoq/api`)
 - Mailgun signup verification / password reset / course invitation
-- SQS enqueue と worker completion
-- chat / SSE（`credentials: include`）
+- SQS enqueue and worker completion
+- Chat / SSE with `credentials: include`
 - tRPC query/mutation from the SPA
 - OAuth discovery / DCR / PKCE
-- MCP initialize / tools list / read tool / 冪等なwrite tool
-- Better Auth 1.7 migration後、旧Claude Code tokenが拒否され、再登録した接続が使えること
-- CloudWatch alarmの状態とSNS subscription確認
+- MCP initialize / tools list / read tool / idempotent write tool
+- After the Better Auth 1.7 migration, old Claude Code tokens are rejected and re-registered connections work
+- CloudWatch alarm states and SNS subscription confirmation
 
-Cloudflare Workers logs と Lambda CloudWatch logs の両方を確認してください。
+Check both Cloudflare Workers logs and Lambda CloudWatch logs.
