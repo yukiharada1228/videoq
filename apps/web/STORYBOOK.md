@@ -1,72 +1,72 @@
-# Storybookの変更・レビュー手順
+# Storybook contribution and review workflow
 
-UIの表示状態や操作を変更するときは、対象部品のStoryも同じPRで更新します。起動方法と各カタログのモック仕様は[Frontend README](README.md#storybook)を参照してください。
+When changing a UI state or interaction, update the affected component's stories in the same PR. See the [Frontend README](README.md#storybook) for startup instructions and the mocks used by each catalog.
 
-## 1. 対象のStoryを探す
+## 1. Find the relevant story
 
-コマンドはリポジトリのルートで実行します。
+Run commands from the repository root.
 
 ```bash
 rg --files apps/web/src -g '*.stories.ts' -g '*.stories.tsx'
 npm run storybook
 ```
 
-Storybookの検索から部品を選び、変更前の状態・操作を確認します。Storyは対象部品と同じディレクトリにあります。
+Find the component through Storybook search and check its current appearance and interactions. Stories live in the same directory as their components.
 
-| 変更内容 | Storyで扱う内容 |
+| Change | What to cover in stories |
 |---|---|
-| 見た目・文言・レイアウト | 影響する既存Storyを更新し、長文・狭い幅も確認する。 |
-| 入力・選択・ダイアログ | 操作前後の状態、キーボード操作、フォーカス、無効状態を確認する。 |
-| 取得・保存・非同期処理 | 通常・空・保留・失敗と、必要な再試行／完了後の状態を用意する。 |
-| 不具合修正 | 修正前の問題を再現するStoryを選ぶか追加し、利用者から見える結果を検証する。 |
-| APIや内部ロジックのみ | 関連する既存テストで検証する。UIの状態・操作に影響する場合はStoryも更新する。 |
+| Appearance, copy, or layout | Update affected stories and check long text and narrow viewports. |
+| Input, selection, or dialogs | Check states before and after interactions, keyboard navigation, focus, and disabled states. |
+| Fetching, saving, or asynchronous work | Provide normal, empty, pending, and failure states, plus retry and completion states where needed. |
+| Bug fix | Select or add a story that reproduces the original problem and verifies the result visible to the user. |
+| API or internal logic only | Use relevant existing tests. Update stories as well if UI states or interactions are affected. |
 
-既存Storyで確認できる状態は再利用します。すべてのpropsの組み合わせを機械的に追加する必要はありません。
+Reuse states already covered by existing stories. You do not need to add every possible combination of props.
 
-## 2. 既存の部品とモックを使う
+## 2. Use existing components and mocks
 
-実際のアプリと同じ部品をimportします。Story専用に画面を複製せず、propsで表現できる状態は固定データとモックcallbackで作ります。
+Import the same components as the application. Use fixed data and mock callbacks for states that props can express, without duplicating a screen for a story.
 
-| 実装の参考 | ファイル |
+| Implementation example | File |
 |---|---|
-| props・入力・callback | [ChatComposer](src/components/chat/ChatComposer.stories.tsx) |
-| ダイアログ・キーボード・フォーカス復帰 | [TagCreateDialog](src/components/video/TagCreateDialog.stories.tsx) |
-| 認証・Query・tRPC・RESTの基本 | [ApiMocks](src/lib/ApiMocks.stories.tsx) |
-| SSEの進捗・完了・中断 | [ChatPanel](src/components/chat/ChatPanel.stories.tsx)、[SSEモック](.storybook/mocks/chatPanel.ts) |
-| 実際のDnD context・並べ替え | [SortableVideoItem](src/components/video/course-detail/SortableVideoItem.stories.tsx) |
+| Props, input, and callbacks | [ChatComposer](src/components/chat/ChatComposer.stories.tsx) |
+| Dialogs, keyboard navigation, and focus restoration | [TagCreateDialog](src/components/video/TagCreateDialog.stories.tsx) |
+| Authentication, Query, tRPC, and REST basics | [ApiMocks](src/lib/ApiMocks.stories.tsx) |
+| SSE progress, completion, and interruption | [ChatPanel](src/components/chat/ChatPanel.stories.tsx), [SSE mock](.storybook/mocks/chatPanel.ts) |
+| Real drag-and-drop context and reordering | [SortableVideoItem](src/components/video/course-detail/SortableVideoItem.stories.tsx) |
 
-- 共有データは[fixtures](.storybook/fixtures/)に置き、API由来の型は`import type`で参照します。日時・ID・入力文は固定します。
-- QueryやAPIに依存する部品は[共通モック](.storybook/mocks/network.ts)を利用します。`success`・`pending`・`failure`で状態を作り、必要なprocedureを登録します。
-- `parameters.api.auth`で認証状態を指定します。共通decoratorが提供するRouter・Query・認証・通知Providerの使い方は[READMEのAPIモック手順](README.md#stories-that-depend-on-authentication-or-apis)を参照してください。
-- 共有Query cacheを使うAPI依存のDocsは`parameters.docs.story.inline: false`にします。
-- モックの一覧・試行回数は`beforeEach`で初期化します。独自のtimer・listener・ストリームは終了時に解除し、再実行や別Storyへの切り替えでも同じ結果にします。
+- Put shared data in [fixtures](.storybook/fixtures/) and use `import type` for API-derived types. Keep dates, IDs, and input text fixed.
+- Use the [shared mocks](.storybook/mocks/network.ts) for components that depend on Query or APIs. Set up states with `success`, `pending`, and `failure`, and register the required procedures.
+- Set the authentication state with `parameters.api.auth`. See the [README's API mock instructions](README.md#stories-that-depend-on-authentication-or-apis) for the Router, Query, authentication, and notification providers supplied by the shared decorator.
+- Set `parameters.docs.story.inline: false` for API-dependent Docs that use the shared Query cache.
+- Reset mock registrations and attempt counts in `beforeEach`. Clean up custom timers, listeners, and streams so rerunning a story or switching stories produces the same result.
 
-実API・外部メディアへの未登録リクエストは共通MSWが遮断します。通信エラーが出たら必要なモックを追加します。認証情報や実データはfixtureに入れません。
+The shared MSW setup blocks unregistered requests to real APIs and external media. Add the required mock when a network error occurs. Keep credentials and real user data out of fixtures.
 
-`play`では`canvas.getByRole`などで利用者が操作する要素を選び、`userEvent`で操作して結果を確認します。非同期の画面反映は`findByRole`や`waitFor`で待ちます。固定時間の待機はポーリング間隔など、時間自体を検証する場合に使います。
+In `play`, select the elements users interact with through queries such as `canvas.getByRole`, perform actions with `userEvent`, and check the result. Wait for asynchronous UI updates with `findByRole` or `waitFor`. Use fixed delays only when testing time itself, such as a polling interval.
 
-Rechartsの扇形はアニメーション中にDOM要素が置き換わるため、要素数だけを待っても操作対象が安定したとは限りません。[FeedbackDonutChartのホバーStory](src/components/dashboard/FeedbackDonutChart.stories.tsx)では、そのStory内だけ`prefers-reduced-motion`を再現し、ライブラリが対応している「動きを減らす」表示で操作を検証します。他のメディアクエリーは元のブラウザーへ渡し、終了時に設定を戻します。ブラウザー全体の設定を変えるStoryは`parameters.docs.story.inline: false`でDocs内でも分離します。通常のアニメーションは別のStoryで維持し、固定sleepや待機時間の延長だけで不安定さを隠さないでください。
+Recharts replaces sector DOM elements during animation, so waiting for an element count does not necessarily make the interaction target stable. The [FeedbackDonutChart hover story](src/components/dashboard/FeedbackDonutChart.stories.tsx) emulates `prefers-reduced-motion` within that story and tests interactions using the library's reduced-motion behavior. Forward other media queries to the browser and restore the setting during cleanup. Isolate stories that change browser-wide settings in Docs with `parameters.docs.story.inline: false`. Keep the normal animation in a separate story; do not hide instability with fixed sleeps or longer timeouts alone.
 
-## 3. 変更した範囲を検証する
+## 3. Verify the changed behavior
 
-初回はREADMEの手順で依存関係とChromiumを準備します。まず対象ファイルを指定して、変更したStoryの失敗を確認しやすくします。
+For the first run, prepare dependencies and Chromium using the README instructions. Start with the affected file to make failures in the changed stories easier to identify.
 
 ```bash
 npm run test:storybook -- src/components/chat/ChatComposer.stories.tsx
 ```
 
-ファイルの引数は`apps/web`からの相対パスです。対象ファイルの各Storyと`play`が実際のChromiumで実行されます。
+The file argument is relative to `apps/web`. Each story and its `play` function run in real Chromium.
 
-表示・操作に関係する変更では、Canvasでも次の点を確認します。
+For changes to appearance or interactions, also check the following in Canvas:
 
-- 日本語と英語、DesktopとMobile、長い文言・空データなど影響する状態。
-- Tabでの移動、Enter／Spaceでの操作、ダイアログの開閉、処理中と失敗後のフォーカス。
-- 保存中の二重操作・キャンセル制御と、失敗後に入力が保持されるか。
-- Storyの再実行・切り替え後に、前のモックや通信・選択状態が混ざらないか。
+- Japanese and English, Desktop and Mobile, and affected states such as long text and empty data.
+- Tab navigation, Enter/Space activation, opening and closing dialogs, and focus during processing and after a failure.
+- Prevention of duplicate actions while saving, cancellation controls, and preservation of input after a failure.
+- Isolation of mocks, network activity, and selection state when rerunning or switching stories.
 
-翻訳辞書とCSSはアプリと共通です。fixtureの文章は言語切り替えだけでは翻訳されないため、内容も確認する場合は英語fixtureを使います。
+Stories share the application's translation dictionaries and CSS. Switching languages does not translate fixture text, so use English fixtures when checking English content.
 
-共通のCSS・Provider・モック・依存関係など、他のStoryへ影響する変更では全Storyを実行します。アプリやhookのロジックを変えた場合は関連ユニットテストも実行します。
+Run all stories for changes to shared CSS, providers, mocks, or dependencies that can affect other stories. Run relevant unit tests when changing application or hook logic.
 
 ```bash
 npm run test:storybook
@@ -75,49 +75,49 @@ npm run lint --workspace @videoq/web
 npm run build:storybook
 ```
 
-ユニットテストは`npm test --workspace @videoq/web`、アプリのビルドは`npm run build --workspace @videoq/web`です。既存テストとStoryで同じ内部実装を重複して検証せず、それぞれの変更に必要な確認を行います。
+Run unit tests with `npm test --workspace @videoq/web` and build the application with `npm run build --workspace @videoq/web`. Use the checks appropriate to each change without duplicating tests of the same internal implementation in both unit tests and stories.
 
-## 4. PRで確認結果を共有する
+## 4. Report validation in the PR
 
-PRには具体的な変更前後の挙動と実行した検証結果を書きます。UI変更では対象のStory名・ファイルを記載し、見た目の確認に役立つ場合はスクリーンショットも添えます。追加・更新が不要なら、既存のどのStoryで確認できるか、またはUIに影響しない理由を記載します。
+Describe the specific behavior before and after the change and report the checks you ran. For UI changes, list the relevant story names and files, and include screenshots when they help a reviewer assess the appearance. If no story needs to be added or updated, identify the existing story that covers the change or explain why the UI is unaffected.
 
-レビュアーは[CI](../../.github/workflows/ci.yml)の`Frontend Storybook`で静的ビルドとChromiumテストの結果を確認できます。同じPRの`Frontend Lint & Type Check`・`Frontend Tests`・`Frontend Build`も確認します。対象外の変更ではパス条件によりjobがスキップされます。
+Reviewers can check the static build and Chromium test results in the [CI](../../.github/workflows/ci.yml) job named `Frontend Storybook`. Also check `Frontend Lint & Type Check`, `Frontend Tests`, and `Frontend Build` on the same PR. Path filters skip these jobs for unrelated changes.
 
-静的版は成功したCI runのArtifactsにある`frontend-storybook`から取得できます。保持期間は7日です。ダウンロードして展開したディレクトリで次を実行し、表示されたローカルURLを開きます。
+The static site is available in the successful CI run's `frontend-storybook` artifact, retained for seven days. Download and extract it, run the following command in the extracted directory, and open the displayed local URL.
 
 ```bash
 python3 -m http.server 6007 --bind 127.0.0.1
 ```
 
-`index.html`の直接オープンではなく、HTTPで配信してください。確認後はCtrl+Cでサーバーを停止します。
+Serve the files over HTTP instead of opening `index.html` directly. Stop the server with Ctrl+C when finished.
 
-## 失敗したとき
+## Troubleshooting
 
-| 症状 | 確認すること |
+| Symptom | What to check |
 |---|---|
-| Chromiumが見つからない | READMEの`playwright install chromium`を実行したか。 |
-| 未登録のAPI／外部URLのエラー | 必要なhandlerがあるか、認証fixtureとprocedureが一致しているか。意図的な失敗Storyのエラーは、そのStoryの仕様と照合する。 |
-| モジュールの読み込みに失敗する | テストのログに依存の再最適化が出ていないか。新しい依存が原因なら、[Vitest設定](vitest.storybook.config.ts)の`optimizeDeps.include`を確認する。 |
-| 操作直後のassertionが不安定 | 通信開始・完了や画面更新を待っているか。固定sleepやタイムアウトの延長だけで回避しない。 |
-| 次のStoryだけ失敗する | Query・モック・timer・listenerの初期化とcleanupが揃っているか。 |
+| Chromium is missing | Run `playwright install chromium` as described in the README. |
+| An unregistered API or external URL causes an error | Check the required handlers and that the authentication fixture matches the procedure. Compare errors in intentional failure stories against their expected behavior. |
+| A module fails to load | Check the test logs for dependency re-optimization. If a new dependency causes it, inspect `optimizeDeps.include` in the [Vitest configuration](vitest.storybook.config.ts). |
+| An assertion is unstable immediately after an interaction | Wait for network requests to start or finish and for the UI to update. Do not work around the problem with fixed sleeps or longer timeouts alone. |
+| Only the next story fails | Check initialization and cleanup of Query state, mocks, timers, and listeners. |
 
-## アクセシビリティ検査
+## Accessibility checks
 
-次の部品・ページはStoryのmetaで`parameters.a11y.test: 'error'`を指定しています。既存の`test:storybook`とCIの`Frontend Storybook`で自動検査が実行され、違反があれば失敗します。同じファイルに追加したStoryにも適用されます。
+The following components and pages set `parameters.a11y.test: 'error'` in their story metadata. Automated checks run in `test:storybook` and the CI job `Frontend Storybook`; violations fail the run. This setting also applies to stories added to the same files.
 
-| 対象 | Story |
+| Coverage | Stories |
 |---|---|
-| 通知・確認ダイアログ | [FeedbackProvider](src/components/common/FeedbackProvider.stories.tsx)、[MessageAlert](src/components/common/MessageAlert.stories.tsx) |
-| 読み込み・処理状態 | [LoadingSpinner](src/components/common/LoadingSpinner.stories.tsx)、[StatusBadge](src/components/common/StatusBadge.stories.tsx) |
-| フォーム・認証エラー | [FormField](src/components/auth/FormField.stories.tsx)、[ErrorMessage](src/components/auth/ErrorMessage.stories.tsx) |
-| LP・共通カラーテーマ | [LandingPage](src/pages/LandingPage.stories.tsx)、[VideoQTheme](src/styles/VideoQTheme.stories.tsx) |
+| Notifications and confirmation dialogs | [FeedbackProvider](src/components/common/FeedbackProvider.stories.tsx), [MessageAlert](src/components/common/MessageAlert.stories.tsx) |
+| Loading and processing states | [LoadingSpinner](src/components/common/LoadingSpinner.stories.tsx), [StatusBadge](src/components/common/StatusBadge.stories.tsx) |
+| Forms and authentication errors | [FormField](src/components/auth/FormField.stories.tsx), [ErrorMessage](src/components/auth/ErrorMessage.stories.tsx) |
+| Landing page and shared color theme | [LandingPage](src/pages/LandingPage.stories.tsx), [VideoQTheme](src/styles/VideoQTheme.stories.tsx) |
 
-この範囲だけを検証する場合は次を実行します。
+To check only the shared components and form/authentication stories, run:
 
 ```bash
 npm run test:storybook -- src/components/common src/components/auth/FormField.stories.tsx src/components/auth/ErrorMessage.stories.tsx
 ```
 
-それ以外は[共通設定](.storybook/preview.tsx)の`test: 'todo'`を継承し、違反を報告する段階です。対象を広げるときは、その部品のmetaに`parameters: { a11y: { test: 'error' } }`を追加し、各Storyの表示・操作後の状態を検証して問題を修正します。検査を通すためだけにルールを無効化したり、`todo`へ戻したりせず、必要な例外は理由・再現Story・対応Issueを記録してください。設定の詳細は[Storybook公式ドキュメント](https://storybook.js.org/docs/writing-tests/accessibility-testing)を参照してください。
+Other stories inherit `test: 'todo'` from the [shared configuration](.storybook/preview.tsx) and report violations without failing. To expand coverage, add `parameters: { a11y: { test: 'error' } }` to the component's metadata, check each story's rendered and post-interaction states, and fix any problems. Do not disable rules or revert to `todo` merely to make the checks pass. Record the reason, a reproducing story, and a tracking issue for any necessary exception. See the [Storybook accessibility documentation](https://storybook.js.org/docs/writing-tests/accessibility-testing) for configuration details.
 
-自動検査の成功だけではアクセシビリティの確認完了にはなりません。Accessibilityパネルの手動確認が必要な項目（Incomplete）と、キーボード操作・フォーカス・読み上げを確認してください。操作途中の状態も、検証したい状態で終了するStoryを用意して確認します。
+Passing automated checks does not complete an accessibility review. Check the Accessibility panel's items that require manual review (Incomplete), keyboard navigation, focus, and screen reader behavior. To check intermediate interaction states, add stories that end in the state you need to inspect.
