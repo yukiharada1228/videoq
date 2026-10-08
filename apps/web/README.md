@@ -1,8 +1,8 @@
 # VideoQ Frontend
 
-React、TypeScript、Viteで構築したVideoQのフロントエンドです。
+The VideoQ frontend, built with React, TypeScript, and Vite.
 
-## 開発
+## Development
 
 ```bash
 cd ../..
@@ -10,7 +10,7 @@ npm ci
 npm run dev:web
 ```
 
-主な確認コマンド：
+Key verification commands:
 
 ```bash
 npm run typecheck --workspace @videoq/web
@@ -19,169 +19,169 @@ npm test --workspace @videoq/web
 npm run build --workspace @videoq/web
 ```
 
-## ルーティングとレイアウト
+## Routing and layouts
 
-共通レイアウトは `src/App.tsx` の親ルートで管理します。新しいページは用途に応じた親ルートの子に追加してください。
+Shared layouts are managed by parent routes in `src/App.tsx`. Add new pages as children of the appropriate parent route.
 
-- `AppRouteLayout`: ホーム・一覧・設定・管理・料金・規約と、動画／講座の詳細。ヘッダーはルート間で維持し、詳細画面ではフッターを省きます。本文の幅・タブ配置は各Viewが管理します。
-- `AuthRouteLayout`: ログイン・登録・メール確認・講座への招待など。認証用ヘッダーと本文の幅を共通化します。
-- 公開共有ページは専用の画面構成を持ちます。
+- `AppRouteLayout`: Home, lists, settings, administration, pricing, terms, and video/course details. The header persists across routes; detail pages omit the footer. Each View manages its content width and tab layout.
+- `AuthRouteLayout`: Sign-in, sign-up, email verification, course invitations, and related pages. Shares the authentication header and content width.
+- Public shared pages have their own layouts.
 
-ページと動画のViewは本文のみを返します。`AppPageShell`・`AppNav`・`AppFooter`・`AuthLayout` などの直接importはLintで禁止しています。通常画面は `App.tsx` の `appPageRoutes` に追加し、`handle` にナビゲーションの選択状態と必要なレイアウト種別を指定します。`AppRouteLayout` は同じ定義を `matchRoutes` で照合するため、パスの優先順位・大文字小文字・URLエンコードの扱いがルーターと一致します。
+Page and video Views return only their main content. Lint rules prohibit direct imports of `AppPageShell`, `AppNav`, `AppFooter`, `AuthLayout`, and similar layout components. Add regular pages to `appPageRoutes` in `App.tsx`, and use `handle` to specify the selected navigation item and required layout variant. `AppRouteLayout` matches the same definitions through `matchRoutes`, keeping path precedence, case sensitivity, and URL encoding behavior consistent with the router.
 
-`LocaleGate` はルーターが解釈した言語パラメーターから、ページ表示前に言語プレフィックスを正規化します（`/%65n/...` → `/en/...`、`/ja/...` → `/...`）。プレフィックス以外のエンコード・クエリ文字列・ハッシュは保持し、履歴を追加せず置き換えます。
+`LocaleGate` normalizes the language prefix before rendering, using the locale parameter parsed by the router (`/%65n/...` → `/en/...`, `/ja/...` → `/...`). It preserves encoding outside the prefix, query strings, and hashes, and replaces the history entry rather than adding one.
 
-`RouteContent` の `Suspense` とエラー境界は本文の内側に置き、コードの初回読み込みや描画エラーでレイアウトが消えないようにします。APIの読み込み・失敗・空状態は本文内で扱います。検索条件の変更では入力のフォーカスや編集中の状態を保持するため、本文をURLのクエリ文字列で再マウントしません。
+`RouteContent` places `Suspense` and its error boundary inside the main content so the layout remains visible during initial code loading or rendering errors. API loading, failure, and empty states are handled within the content. The content is not remounted based on the URL query string, preserving input focus and edits when search filters change.
 
-トップページのLPは初期バンドルに含め、セッション確認を待たずに表示します。ログインが確認された場合だけ `HomeDashboard` を遅延読み込みし、アカウント・動画・講座のデータを取得します。
+The home landing page is included in the initial bundle and displays without waiting for a session check. Only after sign-in is confirmed does the app lazy-load `HomeDashboard` and fetch account, video, and course data.
 
-`src/__tests__/App.navigation.test.tsx` は実際のルーター・翻訳・ナビゲーションで遷移、読み込み待ち、エラー時の操作を検証します。ページ単体のテストとは別に、この統合テストで親レイアウトを確認してください。ブラウザーでの表示・操作は `Application/Navigation`（`src/App.stories.tsx`）で確認できます。
+`src/__tests__/App.navigation.test.tsx` verifies navigation, loading states, and interactions during errors using the real router, translations, and navigation. Use this integration test to check parent layouts in addition to individual page tests. Check browser rendering and interactions in `Application/Navigation` (`src/App.stories.tsx`).
 
-## 動画登録
+## Video registration
 
-`src/lib/videoUpload.ts` の `prepareVideoUpload` はフォーム入力を検証し、ファイル送信またはYouTube登録に使う型付きデータを返します。`useVideoUpload` は送信時の検証結果をそのまま `runUploadWorkflow` に渡します。YouTube登録とタグ付けの入力型はtRPCクライアントから取得します。
+`prepareVideoUpload` in `src/lib/videoUpload.ts` validates form input and returns typed data for file uploads or YouTube registration. `useVideoUpload` passes the submission-time validation result directly to `runUploadWorkflow`. Input types for YouTube registration and tagging come from the tRPC client.
 
-ファイル選択時の検証は、その場で形式・サイズのエラーを表示するために行います。送信時は編集後の入力と現在のファイルサイズ上限で再検証します。動画の登録後にタグ付けだけが失敗した場合は警告を返し、動画の再登録を避けます。
+Validation on file selection displays format and size errors immediately. Submission validates the edited input again against the current file size limit. If only tagging fails after video registration succeeds, the workflow returns a warning to avoid registering the video again.
 
 ## Storybook
 
-UI変更時のStory追加・更新とレビューは[Storybookの変更・レビュー手順](STORYBOOK.md)を参照してください。
+See the [Storybook change and review workflow](STORYBOOK.md) for adding, updating, and reviewing stories when changing the UI.
 
-Node.js 22.12以降を推奨します。repository rootで実行します。
+Node.js 22.12 or later is recommended. Run these commands at the repository root:
 
 ```bash
 npm ci
 npm run storybook          # http://127.0.0.1:6006
 npm run build:storybook    # apps/web/storybook-static
 npm exec --workspace @videoq/web -- playwright install chromium
-npm run test:storybook     # Chromiumで全ストーリーとplayの操作を検証
+npm run test:storybook     # Verify all stories and play interactions in Chromium
 ```
 
-ツールバーで日本語／英語とMobile（390px）／Tablet（1024px）／Desktop（1280px）を切り替えられます。
-カタログにはチャットの回答・本文・検索進捗・入力欄、動画アップロードのフォーム・ボタン、
-認証フォーム・入力欄、エラー・通知バナー、読み込み状態、確認ダイアログ・トーストを収録しています。
-動画カード・一覧、タグバッジ・選択・絞り込み、処理状態バッジも、件数やタグの量を固定して確認できます。
-チャット一覧・履歴は、長い会話、末尾だけの回答待ち、投稿者、評価の各状態、CSV出力中を収録しています。
-分析ダッシュボード・評価サマリー・時系列グラフ・フィードバック円グラフも、空データや値の偏りを再現できます。
-タグ作成・講座作成ダイアログでは、入力・プレビュー・作成中・失敗後の再試行を確認できます。
-ページヘッダー、ログイン状態別のナビゲーション、OAuth接続アプリの一覧・解除も収録しています。
-アップロードモーダルとタグ管理モーダルでは、入れ子のタグ作成、送信中、削除確認、失敗後の再試行を確認できます。
-Controlsでpropsを変更でき、Actionsで送信・評価・動画引用・確認結果などのコールバックを確認できます。
-フォームの入力はストーリー内の状態に反映し、送信しても認証・アップロード・AIへの通信は発生しません。
+The toolbar switches between Japanese/English and Mobile (390px), Tablet (1024px), and Desktop (1280px).
+The catalog covers chat answers, message bodies, search progress, and input fields; video upload forms and buttons;
+authentication forms and fields; error and notification banners; loading states; confirmation dialogs; and toasts.
+Video cards and lists, tag badges, selection and filtering, and processing status badges can be checked with fixed counts and tag volumes.
+Chat lists and history cover long conversations, waiting for only the final answer, authors, feedback states, and CSV export in progress.
+Analytics dashboards, evaluation summaries, time-series charts, and feedback pie charts include empty data and skewed values.
+Tag and course creation dialogs cover input, previews, creation in progress, and retry after failure.
+The catalog also includes page headers, navigation for different sign-in states, and listing/revoking OAuth-connected apps.
+Upload and tag management modals cover nested tag creation, submission in progress, deletion confirmation, and retry after failure.
+Use Controls to change props and Actions to inspect callbacks for submission, feedback, video citations, and confirmation results.
+Form input updates story-local state; submitting forms does not send authentication, upload, or AI requests.
 
-`Common/FeedbackProvider`は実際のProviderを使い、Canvasで確認ダイアログや通知を開きます。
-ボタンで再表示でき、Controlsで確認文言や通知の配列を変更すると状態をリセットします。
-通知は通常`durationMs: 0`で表示を保持し、`AutoDismiss`で1秒後の自動消去を確認します。
-`ConfirmWithKeyboard`、`CancelConfirmation`、`DismissWithKeyboard`は操作後の状態を表示します。
-フォームでは`KeyboardSubmit`と`KeyboardInput`で入力・フォーカス・送信を検証します。
+`Common/FeedbackProvider` uses the real Provider to open confirmation dialogs and notifications in Canvas.
+Buttons reopen them; changing confirmation text or notification arrays in Controls resets the state.
+Notifications normally use `durationMs: 0` to stay visible; `AutoDismiss` verifies automatic dismissal after one second.
+`ConfirmWithKeyboard`, `CancelConfirmation`, and `DismissWithKeyboard` show the state after interaction.
+For forms, `KeyboardSubmit` and `KeyboardInput` verify typing, focus, and submission.
 
-`Chat/ChatMessagesView`はストーリーごとにスクロール用refとフィードバック状態を作成します。
-`LongConversation`の先頭・末尾ボタンで固定高の会話欄をスクロールでき、Controlsの`height`で高さを変更できます。
-`AwaitingLastResponse`は以前の空の回答に待機表示が出ないこと、`FeedbackUpdating`は更新対象だけの操作無効化を検証します。
-`Chat/ChatHistoryView`の日時は固定ISO文字列を閲覧環境のタイムゾーン・アプリの選択言語で表示します。
-`MissingMetrics`は未取得の指標と0%を区別し、`KeyboardExportAndCitation`はCSVと引用をキーボードで操作します。
-CSV出力はモックコールバックの記録のみで、ファイルはダウンロードしません。
+`Chat/ChatMessagesView` creates a scroll ref and feedback state for each story.
+The start/end buttons in `LongConversation` scroll the fixed-height conversation area; the `height` Control changes its height.
+`AwaitingLastResponse` verifies that earlier empty answers do not show a waiting indicator, and `FeedbackUpdating` verifies that only the item being updated is disabled.
+`Chat/ChatHistoryView` displays fixed ISO timestamps in the viewer's time zone and the app's selected language.
+`MissingMetrics` distinguishes unavailable metrics from 0%; `KeyboardExportAndCitation` operates CSV export and citations by keyboard.
+CSV export only records a mock callback; no file is downloaded.
 
-`Dashboard/`はAPI接続なしで固定日付・集計値を切り替えます。質問の推移と利用者のフィードバックを表示します。
-グラフの親に幅を設定し、実際の`ResponsiveContainer`で高さ220pxのSVGを描画します。
-`NarrowContainer`と`EnglishNarrow`は親幅280px、`NinetyDays`は90日分のデータを使用します。
-`KeyboardTooltip`はフォーカス後の矢印キー操作、時系列グラフではEnterでの開閉も検証します。
-円グラフのキーボード操作には[Recharts 3.8.1の修正](https://github.com/recharts/recharts/pull/7140)を使用します。
-`HoverTooltip`は円グラフのマウス操作、`AllZeroHidden`は全件0で非表示になることを確認します。
-初回のブラウザテスト中に依存の最適化で再読み込みされないよう、`vitest.storybook.config.ts`でRechartsを事前に最適化します。VitestはAPIと同じ4系を使用し、Chromiumの同時起動を2ページまでに制限しています。
+`Dashboard/` switches between fixed dates and aggregates without an API connection, showing question trends and user feedback.
+Charts have a parent with a defined width and render a 220px-high SVG through the real `ResponsiveContainer`.
+`NarrowContainer` and `EnglishNarrow` use a 280px parent width; `NinetyDays` uses 90 days of data.
+`KeyboardTooltip` verifies arrow-key interaction after focus and, for time-series charts, opening/closing with Enter.
+Pie chart keyboard interaction uses the [Recharts 3.8.1 fix](https://github.com/recharts/recharts/pull/7140).
+`HoverTooltip` checks mouse interaction with pie charts; `AllZeroHidden` checks that charts are hidden when all values are zero.
+Recharts is pre-optimized in `vitest.storybook.config.ts` to prevent dependency optimization from reloading the first browser test. Vitest uses version 4, matching the API, and limits concurrent Chromium pages to two.
 
-`Video/TagCreateDialog`と`Video/VideoCourseCreateModal`はボタンから実際のダイアログを開きます。
-`KeyboardCreate`では入力・タグの色選択・送信・起点へのフォーカス復帰、`CancelAndReopen`では入力の初期化を検証します。
-`Creating`は`onCreate`を保留して入力と閉じる操作の無効状態を維持します。ストーリーを再実行すると初期化できます。
-`CreateFailed`は講座作成のエラーを表示し、`FailureThenRetry`は初回失敗・再試行成功を実行ごとに設定します。
-タグ作成の失敗は現仕様どおりconsole出力のみで、フォームの値を保って再試行できます。
-`EscapeRequest`のplayはネイティブの`cancel`イベントを使って閉じる要求を検証します。CanvasではEscapeキーも操作できます。
-API通信は行わず、作成内容と閉じるコールバックをActionsで確認できます。
+`Video/TagCreateDialog` and `Video/VideoCourseCreateModal` open the real dialogs from buttons.
+`KeyboardCreate` checks typing, tag color selection, submission, and focus returning to the trigger; `CancelAndReopen` checks input reset.
+`Creating` holds `onCreate` pending so inputs and closing stay disabled. Rerun the story to reset it.
+`CreateFailed` displays a course creation error; `FailureThenRetry` sets up an initial failure and successful retry on each run.
+Tag creation failures are logged only to the console, matching current behavior; form values remain available for retry.
+The `EscapeRequest` play function uses the native `cancel` event to verify a close request. The Escape key also works in Canvas.
+No API requests are made; inspect creation data and close callbacks in Actions.
 
-`Layout/AppPageHeader`はタイトル・説明・バッジ・アクションの有無、長文、日本語／英語のスマホ表示を確認します。
-`Layout/AppNav`は未ログイン・一般ユーザー・管理者、各ページの選択状態、メニュー・言語切替を再現します。
-幅1280px未満ではメニュー内にリンクとログアウトをまとめ、`EnglishAdministratorTablet`で1024pxの操作ボタンが画面内に収まることを検証します。
-開閉には[W3Cのdisclosure navigationパターン](https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/examples/disclosure-navigation/)を使い、
-Tabでリンクを移動し、Escapeで閉じて起点へフォーカスを戻します。言語選択後も起点へ戻ります。
-`Logout`はMSWで成功を返してログイン画面の代替表示へ遷移し、`LogoutPending`は保留中の無効化を確認します。
-認証fixture自体は固定です。ストーリー終了時には言語のlocalStorage設定を復元します。
+`Layout/AppPageHeader` covers titles, descriptions, badges, optional actions, long text, and Japanese/English mobile views.
+`Layout/AppNav` covers signed-out, regular user, and administrator states, selected pages, menus, and language switching.
+Below 1280px, links and sign-out are grouped in the menu. `EnglishAdministratorTablet` verifies that action buttons fit within a 1024px screen.
+Opening and closing use the [W3C disclosure navigation pattern](https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/examples/disclosure-navigation/):
+Tab moves through links; Escape closes the menu and returns focus to the trigger. Language selection also returns focus to the trigger.
+`Logout` receives a successful MSW response and navigates to a sign-in page placeholder; `LogoutPending` checks disabled controls while pending.
+The authentication fixture itself is fixed. The language setting in localStorage is restored after each story.
 
-`Auth/ConnectedAppsSection`は実際のBetter Auth clientを使い、同意一覧・公開クライアント名・解除のREST応答をMSWで返します。
-日付は固定ISO値を選択言語・閲覧環境のタイムゾーンで表示します。現在のadapterは有効期限を常にnullへ変換するため、期限なしの「—」を収録しています。
-`LongContentMobile`は長いアプリ名・scopeの表を横スクロールし、`EnglishMobile`は英語の表示を確認します。
-`RevokePending`と`RefetchPending`では解除開始から一覧の再取得完了まで全解除ボタンを無効化します。
-`RevokeSucceeded`で対象だけの削除、`FailureThenRetry`で失敗後の再試行、`KeyboardRevokeLastApp`で最後の1件を削除した後の結果へのフォーカスを検証します。
-再実行時は`beforeEach`で同意一覧と試行回数を作り直します。実際の接続解除は発生しません。
+`Auth/ConnectedAppsSection` uses the real Better Auth client, with MSW returning REST responses for consent lists, public client names, and revocation.
+Fixed ISO dates are displayed in the selected language and viewer's time zone. The current adapter always converts expiration to null, so the stories include the no-expiration "—" display.
+`LongContentMobile` horizontally scrolls a table with long app names and scopes; `EnglishMobile` checks English rendering.
+`RevokePending` and `RefetchPending` disable all revoke buttons from the start of revocation until the refreshed list has loaded.
+`RevokeSucceeded` verifies that only the selected entry is removed; `FailureThenRetry` covers retry after failure; `KeyboardRevokeLastApp` checks focus on the result after removing the last entry.
+On rerun, `beforeEach` recreates the consent list and attempt count. No real connections are revoked.
 
-`Video/VideoUploadModal`は`useVideoUpload`だけを状態付きfixtureへ置き換え、入力・タグ選択・進捗46%・成功・警告・失敗を再現します。
-実際のアップロード、YouTube取得、アップロード検証処理は実行せず、検証と通信は既存hookのユニットテストで確認します。
-タグ一覧と作成は実際の`useTags`とtRPC clientを通し、MSWで応答します。`TagCreating`は入れ子のダイアログを保留します。
-`TagFailureThenRetry`ではタグ作成を初回だけ失敗させます。現仕様ではconsoleにエラーを記録して入力を保持し、再試行できます。
-ファイル選択は小さなダミーFileをDataTransferでネイティブFileListへ設定します。
-`userEvent.upload`だけではChromiumのrequired検証にファイルが反映されないため、フォームの検証を残したまま選択を再現しています。
-通常のストーリーは`autoCloseDelayMs: null`で成功表示を保持し、`AutoClose`はアプリ既定の2000msで閉じる動作・フォーカス復帰・再表示時の初期化を検証します。
-タイマーは非表示・unmount・条件変更で解除します。`FilePickerCancelled`はOSのファイル選択を取り消してもモーダルが閉じないことを確認します。
+`Video/VideoUploadModal` replaces only `useVideoUpload` with a stateful fixture, reproducing input, tag selection, 46% progress, success, warnings, and failure.
+It does not perform real uploads, YouTube retrieval, or upload validation; existing hook unit tests cover validation and network requests.
+Tag listing and creation use the real `useTags` and tRPC client with MSW responses. `TagCreating` keeps the nested dialog pending.
+`TagFailureThenRetry` fails tag creation only on the first attempt. Current behavior logs the error to the console and preserves input for retry.
+File selection uses DataTransfer to place a small dummy File in a native FileList.
+Because `userEvent.upload` alone does not satisfy Chromium's required-file validation, this reproduces selection while retaining form validation.
+Regular stories use `autoCloseDelayMs: null` to preserve the success state. `AutoClose` uses the app's default 2000ms delay to check closing, focus restoration, and reset when reopened.
+Timers are cleared when hidden, unmounted, or conditions change. `FilePickerCancelled` verifies that cancelling the OS file picker does not close the modal.
 
-`Video/TagManagementModal`は実際の`useTags`とMSWで、一覧・空・長文・多数のタグ・削除中・削除失敗と再試行を表示します。
-確認を開くとキャンセルへ、取り消すと元の削除ボタンへ、削除後は見出しへフォーカスを移します。長文の行では確認ボタンを折り返します。
-`ErrorOutsideScrollArea`では一覧末尾のタグを削除して失敗させ、一覧外のエラーがスマホ画面内に収まることを検証します。
-`KeyboardDeleteLastTag`はTab・Enterで最後の1件を削除します。削除中は閉じる操作とすべての削除操作を無効にします。
-モックの試行回数・タグ一覧はストーリーごとに初期化し、upload hookのmockは終了時に解除します。
-保留したタグ操作はストーリー終了時に解放するため、次のストーリーへの切り替え時に旧リクエストのエラーがconsoleへ出ることがあります。
+`Video/TagManagementModal` uses the real `useTags` and MSW to show lists, empty states, long text, many tags, deletion in progress, and deletion failure/retry.
+Focus moves to Cancel when confirmation opens, back to the original delete button on cancellation, and to the heading after deletion. Confirmation buttons wrap in rows with long text.
+`ErrorOutsideScrollArea` fails deletion of the last tag and verifies that the error outside the list fits on a mobile screen.
+`KeyboardDeleteLastTag` deletes the last entry with Tab and Enter. Closing and all delete actions are disabled during deletion.
+Mock attempt counts and tag lists reset for each story; the upload hook mock is removed afterward.
+Pending tag operations are released at story completion, so an error from an old request may appear in the console when switching stories.
 
-`Video/CourseParticipantsDialog`は実際のtRPC clientと確認ダイアログを使用し、MSWで参加者・招待一覧と招待／再送／取り消し／メンバー削除を再現します。
-`MixedRecipientPreview`と`MixedInviteResults`で有効・無効・重複・参加済み・招待済みの宛先を確認できます。
-読み込み中・空・取得失敗・操作中・操作失敗・再試行・削除確認のほか、日本語／英語、スマホ、長いメールアドレス、多数の行を用意しています。
-招待中は閉じる操作を無効にし、送信結果・操作エラー・行の削除後の見出しへフォーカスを移します。閉じると元のボタンへ戻ります。
-`DeliveryPolling`と`DeliveryFailed`は本番の3000ms間隔でqueuedからsent／failedへ遷移し、`PollingStopsWhenClosed`は閉じた後の取得停止を確認します。
-配送状態の30秒の追跡上限と非表示／unmount時の停止はユニットテストでも検証します。Story切り替え時にはquery・timer・モックの一覧と試行回数を初期化します。
-保留中の通信は共通MSW helperで終了時に解放します。メールの配送や参加者の変更は実サーバーへ送信しません。
+`Video/CourseParticipantsDialog` uses the real tRPC client and confirmation dialog. MSW simulates participant/invitation lists and invitation, resend, cancellation, and member removal operations.
+`MixedRecipientPreview` and `MixedInviteResults` cover valid, invalid, duplicate, already-participating, and already-invited recipients.
+Stories include loading, empty, fetch failure, pending operations, operation failure, retry, deletion confirmation, Japanese/English, mobile, long email addresses, and many rows.
+Closing is disabled while invitations are sent. Focus moves to send results, operation errors, and the heading after row removal, then returns to the original button on close.
+`DeliveryPolling` and `DeliveryFailed` transition from queued to sent/failed at the production interval of 3000ms; `PollingStopsWhenClosed` verifies polling stops after closing.
+Unit tests also verify the 30-second delivery tracking limit and stopping when hidden/unmounted. Queries, timers, mock lists, and attempt counts reset when switching stories.
+Shared MSW helpers release pending requests at completion. No email delivery or participant changes are sent to a real server.
 
-`Chat/ChatPanel`は実際の`useChatMessages`／`useChatHistory`とMSWを使います。SSEは`ReadableStream`へ型付きイベントを書き込み、初期待機・検索・検索完了・本文途中・完了・HTTP失敗・SSEエラーを固定します。
-`ProgressToComplete`はplay関数からイベントを順に送り、`InterruptedResponse`／`RetryAfterInterruption`では回答途中の中断と再送を確認します。本文は本番と同じく`requestAnimationFrame`で受信済みの差分を次の描画時にまとめて反映し、Storyは本文の反映と完了通知を待ちます。非表示タブでは描画を待たずに回答の完了処理を行います。
-`CompleteWithOpenConnection`はdone後に接続が開いたままでも回答が完了すること、`UnmountDuringResponse`は画面を外すと通信が中止され、再表示に古い回答が混ざらないことを確認します。
-Story終了時にストリーム・保留したCSV要求・abortリスナーを解放し、React側もfetchと描画予約をキャンセルします。
-通常チャット、共有リンク、履歴取得・評価の反映、キーボード送信・引用、長文、日英のスマホ表示を用意しています。履歴取得失敗は空一覧と区別してエラーを表示します。
-`ExportCsv`は固定の`storybook-chat.csv`を生成します。CSV／フィードバック失敗は現行hookと同じくconsoleへ記録し、再操作できます。外部AI・実APIには接続しません。
+`Chat/ChatPanel` uses the real `useChatMessages` / `useChatHistory` with MSW. Typed SSE events are written to a `ReadableStream` to hold initial waiting, searching, search complete, partial answer, complete, HTTP failure, and SSE error states.
+`ProgressToComplete` sends events sequentially from its play function; `InterruptedResponse` / `RetryAfterInterruption` check interruption during an answer and resubmission. As in production, received answer deltas are batched with `requestAnimationFrame` for the next render, and stories wait for the text update and completion notification. Hidden tabs finalize the answer without waiting for a render.
+`CompleteWithOpenConnection` verifies completion even when the connection stays open after done; `UnmountDuringResponse` verifies that removing the view aborts the request and that old answers do not appear when it is shown again.
+Stories release streams, pending CSV requests, and abort listeners on completion; React also cancels fetches and scheduled renders.
+Stories cover regular chat, shared links, history retrieval, feedback updates, keyboard submission/citations, long text, and Japanese/English mobile views. History retrieval failures display an error distinct from an empty list.
+`ExportCsv` generates a fixed `storybook-chat.csv`. CSV/feedback failures are logged to the console, matching the current hooks, and can be retried. No external AI or real API is contacted.
 
-`Video/TranscriptPanel`・`Video/VideoDetailEditDialog`・`Video/SortableVideoItem`・`Video/PickFromLibraryDialog`・`Video/ShareLinkDialog`は、動画・講座詳細の内部から切り出した実際の部品です。既存の詳細画面も同じ部品を使用します。
-字幕の検索・アクティブ行・編集・保存、動画情報とタグの編集、動画行の選択・削除制限、共有リンクの状態は、固定データと制御propsで再現します。保存・削除・コピーのcallbackはStory内で記録し、実データ更新・クリップボード書き込みは行いません。
-`SortableVideoItem`は実際のDnD contextとsensorを使い、`Dragging`でドラッグ中、`KeyboardReorder`でSpace→矢印→Spaceの並べ替え、`CancelDrag`で取り消しを確認できます。スマホ／メンバー／削除中の並べ替え制限も含みます。
-`PickFromLibraryDialog`は実際のQuery／tRPCとMSWを使い、既存動画の除外、300msの検索、タグ・状態・並び順、複数選択、追加中・失敗・再試行・一部追加済みを再現します。失敗時は選択を保持してエラーへフォーカスし、追加と再取得が終わるまで選択・フィルタ・閉じる操作を無効にします。
-各部品に日英・スマホ・長文Storyがあります。字幕と動画行はキーボードで選択でき、編集ダイアログと動画追加は閉じたときに起点へフォーカスを戻します。APIの保留要求と検索timerは既存のStory／コンポーネントのcleanupで終了します。
+`Video/TranscriptPanel`, `Video/VideoDetailEditDialog`, `Video/SortableVideoItem`, `Video/PickFromLibraryDialog`, and `Video/ShareLinkDialog` are real components extracted from the video/course detail pages. The existing detail pages use these same components.
+Transcript search, active rows, editing/saving, video information and tag editing, video row selection/deletion restrictions, and share link states are reproduced with fixed data and controlled props. Save, delete, and copy callbacks are recorded within the story; no real data is updated and nothing is written to the clipboard.
+`SortableVideoItem` uses the real DnD context and sensors. `Dragging` shows dragging in progress, `KeyboardReorder` checks reordering with Space → arrow keys → Space, and `CancelDrag` checks cancellation. Stories also cover reordering restrictions on mobile, for members, and during deletion.
+`PickFromLibraryDialog` uses real Query/tRPC with MSW to reproduce exclusion of existing videos, 300ms search, tags, status, sort order, multiple selection, adding, failure, retry, and partially added selections. On failure, it preserves selection and focuses the error. Selection, filters, and closing stay disabled until adding and refetching finish.
+Each component has Japanese/English, mobile, and long-text stories. Transcript and video rows support keyboard selection; editing and add-video dialogs return focus to the trigger when closed. Existing story/component cleanup ends pending API requests and search timers.
 
-ストーリーは対象コンポーネントと同じディレクトリの`*.stories.tsx`に追加します。
-共有データは`.storybook/fixtures/`に置き、API由来の型には`import type`を使います。
-画像・動画が必要な場合も小さな固定のローカルfixtureを使い、外部メディアに依存させません。
-動画カードは`.storybook/fixtures/media/`の2秒のWebMを使用し、YouTubeの固定IDのサムネイル要求を
-MSWで捕捉してローカルのSVGを返します。`HoverPreview`で動画の再生・停止、`YouTube`で画像の読み込みを検証します。
-MSWはStorybook専用の`.storybook/public/mockServiceWorker.js`を使用します。MSW更新時は
-`npm exec --workspace @videoq/web -- msw init .storybook/public --save`でworkerも更新してください。
-メディアモックの設定は[Storybookのネットワークモック手順](https://storybook.js.org/docs/writing-stories/mocking-data-and-modules/mocking-network-requests)に従います。
-翻訳は実際のアプリの辞書・CSSを使用します。入力する文やサンプル回答は固定データなので、言語切替で自動翻訳されません。
+Add stories in `*.stories.tsx` files alongside the target components.
+Put shared data in `.storybook/fixtures/` and use `import type` for API-derived types.
+Use small, fixed local fixtures for images and videos so stories do not depend on external media.
+Video cards use the two-second WebM in `.storybook/fixtures/media/`. MSW intercepts thumbnail requests for a fixed YouTube ID
+and returns a local SVG. `HoverPreview` verifies video playback/stopping; `YouTube` verifies image loading.
+MSW uses the Storybook-specific `.storybook/public/mockServiceWorker.js`. When updating MSW,
+regenerate the worker with `npm exec --workspace @videoq/web -- msw init .storybook/public --save`.
+Media mocks follow the [Storybook network mocking guide](https://storybook.js.org/docs/writing-stories/mocking-data-and-modules/mocking-network-requests).
+Translations use the app's actual dictionaries and CSS. Input text and sample answers are fixed fixtures and are not automatically translated when switching languages.
 
-共通decoratorはMemoryRouter・I18nextProviderと、アプリのtRPC options proxyが参照する
-`appQueryClient`を渡したQueryClientProviderを用意します。
-ルート依存の部品には`parameters: { pathname: '/videos/7' }`を指定できます。
-英語では`/en`のprefixと`:locale`を付け、日本語では実アプリ同様にprefixを付けません。
-`parameters.api`を指定したストーリーにはAuthProvider・FeedbackProviderも追加します。
+The shared decorator provides MemoryRouter, I18nextProvider, and a QueryClientProvider
+using the `appQueryClient` referenced by the app's tRPC options proxy.
+Route-dependent components can specify `parameters: { pathname: '/videos/7' }`.
+English uses the `/en` prefix and `:locale`; Japanese has no prefix, matching the app.
+Stories with `parameters.api` also receive AuthProvider and FeedbackProvider.
 
-### 認証・API依存のストーリー
+### Stories that depend on authentication or APIs
 
-`Foundation/ApiMocks`は実際の`useAuth`・TanStack Query・tRPC transport・`apiClient`を使う最小の利用例です。
-成功、空、保留、失敗、一般ユーザー／管理者／未ログイン、更新操作と再試行、日本語／英語・スマホ幅・長文を収録しています。
-`MixedBatchAndInputs`はGETとPOSTの複数procedure、入力の対応、成功・失敗の混在（HTTP 207）を検証します。
-`KeyboardMutation`はTab・Enterでの更新と共有キャッシュの反映、`MutationPending`は更新中の無効状態を確認します。
-`RestMutation`ではBetter AuthのRESTを通したAPIキー作成を固定値で再現します。
-`UnmockedRequestsBlocked`は未登録のAPI GET/POST・外部画像・tRPCが遮断されることを確認し、意図的にMSWエラーをconsoleへ出します。
+`Foundation/ApiMocks` is a minimal example using the real `useAuth`, TanStack Query, tRPC transport, and `apiClient`.
+It covers success, empty, pending, failure, regular user/administrator/signed-out states, mutations and retries, Japanese/English, mobile widths, and long text.
+`MixedBatchAndInputs` verifies multiple GET and POST procedures, input mapping, and mixed success/failure responses (HTTP 207).
+`KeyboardMutation` checks updates through Tab/Enter and changes to the shared cache; `MutationPending` checks disabled controls during updates.
+`RestMutation` simulates API key creation through Better Auth REST with fixed values.
+`UnmockedRequestsBlocked` verifies that unregistered API GET/POST, external image, and tRPC requests are blocked, intentionally logging MSW errors to the console.
 
-モック境界は[Storybookのmodule mock](https://storybook.js.org/docs/writing-stories/mocking-data-and-modules/mocking-modules)とMSWです。
-`authSession.ts`の2つの読み取り関数だけを`sb.mock`で置き換え、Better Authのセッション購読・cookieに依存しない表示を作ります。
-sessionと`account.me`は`.storybook/fixtures/auth.ts`の同じfixtureから設定します。
-`account.me`を個別に上書きせず、`authFixtures.loggedOut / user / admin`または`authFixture(profile)`を指定してください。
-未ログインではsessionがnull、`account.me`を直接呼ぶと401になります。ログイン・ログアウトの状態遷移自体はこのfixtureの対象外です。
-RESTのAPIキー処理などは本物のBetter Auth clientを通し、応答だけをMSWで返します。
-tRPCは[公式HTTP仕様](https://trpc.io/docs/rpc)に沿ってbatchの入出力とエラーを再現します。
+Mocking uses [Storybook module mocks](https://storybook.js.org/docs/writing-stories/mocking-data-and-modules/mocking-modules) and MSW.
+Only the two read functions in `authSession.ts` are replaced with `sb.mock`, producing views independent of Better Auth session subscriptions and cookies.
+The session and `account.me` are configured from the same fixture in `.storybook/fixtures/auth.ts`.
+Specify `authFixtures.loggedOut / user / admin` or `authFixture(profile)` instead of overriding `account.me` separately.
+When signed out, the session is null and direct calls to `account.me` return 401. Sign-in/sign-out state transitions themselves are outside this fixture's scope.
+REST operations such as API key management use the real Better Auth client, with only responses supplied by MSW.
+tRPC reproduces batch inputs, outputs, and errors according to the [official HTTP specification](https://trpc.io/docs/rpc).
 
 ```tsx
 import { authFixtures } from '../../../.storybook/fixtures/auth';
@@ -201,48 +201,48 @@ export const Loaded = {
     docs: { story: { inline: false, height: '520px' } },
   },
 };
-// 読み込み中: trpcQuery('tags.list', pending())
-// エラー:     trpcQuery('tags.list', failure('取得できませんでした', 500))
-// 空:         success({ data: [], meta: { total: 0, limit: 100, offset: 0 } })
+// Loading: trpcQuery('tags.list', pending())
+// Error:   trpcQuery('tags.list', failure('Failed to fetch', 500))
+// Empty:   success({ data: [], meta: { total: 0, limit: 100, offset: 0 } })
 ```
 
-`trpcQuery` / `trpcMutation`はprocedure名と入出力をAppRouterの型で検査します。
-固定応答のほか、`trpcMutation('tags.create', input => success({ ...tagFixture, ...input }))`のように入力を使えます。
-RESTは`restPost`と通常のMSW `http.get` / `http.post`等を`api.rest`または`beforeEach({ msw })`で登録できます。
-`restPost('/api/auth/sign-out', pending())`のように更新リクエストも終了時に解放される保留応答を使えます。
-回数によって応答を変える場合は`IntegrationFailureThenRetry`のようにカウンターとhandlerを`beforeEach`内で作り直してください。
-既存の画像用`parameters.msw`とも併用できます。
+`trpcQuery` / `trpcMutation` check procedure names, inputs, and outputs against AppRouter types.
+In addition to fixed responses, they can use input values, as in `trpcMutation('tags.create', input => success({ ...tagFixture, ...input }))`.
+Register REST handlers through `restPost` or standard MSW `http.get` / `http.post` calls in `api.rest` or `beforeEach({ msw })`.
+Mutation requests can also use pending responses released at completion, such as `restPost('/api/auth/sign-out', pending())`.
+For responses that change by attempt count, recreate the counter and handler inside `beforeEach`, as in `IntegrationFailureThenRetry`.
+These can be combined with existing image mocks in `parameters.msw`.
 
-Storybookとbrowser projectでは`VITE_API_URL`を`/api`、S3直接送信を無効に固定し、実環境の設定を継承しません。
-未定義のAPI・書き込み・外部URLへのリクエストはMSWがエラーにして遮断します。ローカルの表示用assetは読み込めます。
-未登録tRPC procedureもエラーになるため、必要な操作は明示的にモックしてください。
-各ストーリーの開始・終了時にqueryのキャンセルとcacheのclear、認証mock・handlerのリセットを行います。
-保留応答は長時間timerを作らず、リクエストabortまたはストーリー終了で解放します。
-コンポーネントのpolling・購読はunmountで解除されます。ストーリー独自のtimer・listenerは`beforeEach`の戻り値で必ず解除してください。
-アプリと同じsingleton cacheを使うため、API依存のDocsは上記の`inline: false`でiframeごとに分離します。
-SSEの段階的応答・中断は[ChatPanelのStory](src/components/chat/ChatPanel.stories.tsx)と[専用モック](.storybook/mocks/chatPanel.ts)を参照してください。
+Storybook and the browser project fix `VITE_API_URL` to `/api` and disable direct S3 uploads; they do not inherit real environment settings.
+MSW rejects and blocks undefined API, write, and external URL requests. Local display assets remain accessible.
+Unregistered tRPC procedures also fail, so explicitly mock every required operation.
+At the start and end of each story, queries are cancelled, caches cleared, and authentication mocks and handlers reset.
+Pending responses do not create long-running timers; they are released on request abort or story completion.
+Component polling and subscriptions stop on unmount. Always clean up story-specific timers and listeners through the return value of `beforeEach`.
+Because stories use the same singleton cache as the app, isolate API-dependent Docs in separate iframes with `inline: false`, as shown above.
+For incremental SSE responses and interruptions, see the [ChatPanel stories](src/components/chat/ChatPanel.stories.tsx) and [dedicated mock](.storybook/mocks/chatPanel.ts).
 
-`npm test`と`test:coverage`は既存のjsdomテスト（unit project）を実行します。
-Storybookは独立したbrowser projectとして実行し、`vitest.setup.ts`のAPIモックを流用しません。
-`typecheck`はアプリとStorybookをそれぞれ検査します。
-CIでは静的ビルドとChromiumでのストーリー検証を実行します。
-Accessibility検査は共通の通知・読み込み表示・フォームなど6部品で必須にしており、違反するとCIが失敗します。それ以外は報告のみです。対象部品と追加手順は[運用ガイド](STORYBOOK.md#アクセシビリティ検査)を参照してください。
+`npm test` and `test:coverage` run the existing jsdom tests (the unit project).
+Storybook runs as a separate browser project and does not reuse the API mocks in `vitest.setup.ts`.
+`typecheck` checks the app and Storybook separately.
+CI runs a static build and verifies stories in Chromium.
+Accessibility checks are required for six components, including shared notifications, loading indicators, and forms; violations fail CI. Other components report findings only. See the [workflow guide](STORYBOOK.md#アクセシビリティ検査) for the covered components and how to add more.
 
 ## API client
 
-SPA 内部の型付き API は `@videoq/trpc` の `AppRouter` を共有し、
-`/api/trpc` へ接続します。`src/main.tsx` の `QueryClientProvider` でキャッシュを共有し、
-`src/lib/trpc.ts` に client と `@trpc/tanstack-react-query` の options proxy を定義します。
-画面とhookは `useQuery(trpc.*.queryOptions(input))` /
-`useMutation(trpc.*.mutationOptions())` を使います。`src/lib/api.ts` は
-SSE、multipart / direct upload、CSV、media URL、Better Authのように
-tRPCでは表現しないprotocol専用adapterだけを持ちます。
+The SPA's typed API shares `AppRouter` from `@videoq/trpc` and connects to
+`/api/trpc`. `QueryClientProvider` in `src/main.tsx` shares the cache;
+`src/lib/trpc.ts` defines the client and `@trpc/tanstack-react-query` options proxy.
+Views and hooks use `useQuery(trpc.*.queryOptions(input))` /
+`useMutation(trpc.*.mutationOptions())`. `src/lib/api.ts` contains only
+protocol-specific adapters for operations outside tRPC, such as SSE,
+multipart/direct uploads, CSV, media URLs, and Better Auth.
 
 ## Cloudflare Workers
 
-フロントは `videoq-web` Worker + Static Assets で公開します。設定は
-`wrangler.jsonc`、HTMLの言語・SEO書き換えは `worker/index.ts` にあります。
-`videoq-api` と `videoq-docs` は独立したWorkerです。
+The frontend is published through the `videoq-web` Worker with Static Assets.
+Configuration lives in `wrangler.jsonc`; HTML language and SEO rewriting lives in
+`worker/index.ts`. `videoq-api` and `videoq-docs` are separate Workers.
 
 ```bash
 # repository root
@@ -252,158 +252,161 @@ npm run preview:worker --workspace @videoq/web
 npm run deploy:web
 ```
 
-`main` のpush CI成功後にGitHub ActionsのCDがフロントを自動更新します。
-対象は `apps/web/**`、`packages/trpc/**`、ルートのpackage/lock、CI/CD設定です。
-本番のVite公開変数は `.env.production` にあり、APIは同一originの `/api`、
-アップロードはR2署名付きURLを使います。`VITE_*` に秘密情報は置けません。
+GitHub Actions CD automatically updates the frontend after push CI succeeds on `main`.
+It watches `apps/web/**`, `packages/trpc/**`, the root package/lock files, and CI/CD configuration.
+Production Vite public variables live in `.env.production`. The API uses `/api` on
+the same origin; uploads use signed R2 URLs. Never put secrets in `VITE_*` variables.
 
-`videoq.jp` と `www.videoq.jp` をCustom Domainに設定し、wwwはapexへ転送します。
-`/api/*`・`/.well-known/*`・`/health`・`/ready` は既存のAPI Worker routeが先に処理します。
-それ以外はStatic AssetsとSPA fallbackで配信し、HTMLは配信前にSEO情報を更新します。
-`public/_headers` は静的配信とWorker生成レスポンスで共用する単一の `/*` ルールです。
+`videoq.jp` and `www.videoq.jp` are configured as Custom Domains, with www redirected to the apex.
+Existing API Worker routes handle `/api/*`, `/.well-known/*`, `/health`, and `/ready` first.
+Other requests use Static Assets and the SPA fallback, with HTML SEO information updated before serving.
+`public/_headers` defines a single `/*` rule shared by static assets and Worker-generated responses.
 
-`npm run preview:worker --workspace @videoq/web` でローカルの配信を確認できます。
-ローカル環境はnoindexで、本番APIへは接続しません。
+Use `npm run preview:worker --workspace @videoq/web` to check local serving.
+The local environment uses noindex and does not connect to the production API.
 
-Worker bindingを変えたら `npm run cf-typegen --workspace @videoq/web` を実行し、
-生成された `worker/env.d.ts` もコミットしてください。
+After changing Worker bindings, run `npm run cf-typegen --workspace @videoq/web`
+and commit the generated `worker/env.d.ts` as well.
 
 ## Digital Agency UI
 
-使用中のコンポーネントだけを同期します。
+Only components in use are synchronized.
 
 ```bash
 npm run ui:check # dry-run
-npm run ui:sync  # 同期
+npm run ui:sync  # synchronize
 ```
 
-対象は `scripts/sync-digital-agency-ui.mjs` で管理します。
+The component list is managed in `scripts/sync-digital-agency-ui.mjs`.
 
-### VideoQのカラーテーマ
+### VideoQ color theme
 
-`src/styles/videoq-theme.css` を、生成済みの `digital-agency.css` の後に読み込みます。
-LPと共通UIの色を変更するときは、このファイルを編集してください。
-`digital-agency.css` と `digital-agency.tokens.json` は配布元のデータとして保持します。
+Load `src/styles/videoq-theme.css` after the generated `digital-agency.css`.
+Edit this file when changing landing page and shared UI colors.
+Keep `digital-agency.css` and `digital-agency.tokens.json` as upstream data.
 
-- `brand` はLP・主要ボタンの青、`ink` / `ink-muted` は本文・補足文の色です。
-- `page` / `surface` / `sage` はページ・入力欄やカード・淡い背景に使います。
-- `key-*` と `blue-*` を共通化し、ボタン・リンク・選択状態・見出しに反映します。
-- `solid-gray-*` は濃紺寄りの文字色と、淡い緑を含む中間色です。
-- `line` / `border-border` は装飾的な区切り線用です。入力欄の境界は既存の `solid-gray-600` を使い、識別に必要なコントラストを保ちます。
-- ライムのアクセントは `lime-accent` と `on-lime-accent` を組み合わせます。エラー・警告・成功色やキーボードのフォーカス表示は、元の意味を維持します。
+- `brand` is the blue used on the landing page and primary buttons; `ink` / `ink-muted` are main and secondary text colors.
+- `page` / `surface` / `sage` are used for pages, inputs/cards, and subtle backgrounds.
+- `key-*` and `blue-*` are aligned across buttons, links, selected states, and headings.
+- `solid-gray-*` provides navy-toned text colors and neutral colors with pale green tones.
+- `line` / `border-border` are for decorative separators. Input borders use the existing `solid-gray-600` to maintain the contrast needed to identify them.
+- Pair `lime-accent` with `on-lime-accent`. Preserve the meanings of error, warning, success, and keyboard focus colors.
 
-`Design system/VideoQ theme` のStoryでボタン・フォーム・選択状態をまとめて確認できます。
-配布元の同期後も、`index.css` で `videoq-theme.css` が最後に読み込まれていることを確認してください。
+Use the `Design system/VideoQ theme` story to review buttons, forms, and selected states together.
+After synchronizing upstream files, verify that `index.css` still loads `videoq-theme.css` last.
 
-## 学生向けLP
+## Student landing page
 
-`/` と `/en` は、大学生の講義の復習・試験勉強向けのLPです。
-講義の復習と試験前の利用例を切り替えられます。旧 `audience=school` / `training` のURLも同じ学生向けLPを表示し、過去の流入分類だけを維持します。
-無料枠は料金ページと同じ `billing.plans` から取得し、取得できなければ料金ページへ案内します。
+`/` and `/en` are landing pages for university students reviewing lectures and preparing for exams.
+Visitors can switch between lecture review and exam preparation examples. Legacy `audience=school` / `training` URLs also show the student landing page, preserving only their historical acquisition classification.
+Free-tier information comes from the same `billing.plans` source as the pricing page; if it cannot be loaded, visitors are directed to the pricing page.
 
-日英のLPには同じ30秒・1920×1080・16:9・60 fpsのRemotionデモ動画を使用します。
-構成・配置・ズーム・カーソル・BGM・シーン切り替えを共通化し、英語版では文言と教材だけを英訳します。
-`LandingDemoVideo` は `public/demo/student-demo-{ja,en}.mp4`、WebPポスター、VTT字幕を使います。
-`preload="none"` で自動再生せず、明示的な再生後は標準の動画操作を表示します。
-再生失敗時は再読み込みを案内し、登録導線は引き続き使えます。
-LPの閲覧・動画再生では講座APIやAIを呼び出しません。
+The Japanese and English landing pages use matching 30-second, 1920×1080, 16:9, 60 fps Remotion demo videos.
+Composition, layout, zoom, cursor, music, and scene transitions are shared; the English version translates only the text and course material.
+`LandingDemoVideo` uses `public/demo/student-demo-{ja,en}.mp4`, WebP posters, and VTT captions.
+It uses `preload="none"`, does not autoplay, and displays standard video controls after explicit playback.
+If playback fails, it prompts the visitor to reload; the sign-up path remains available.
+Viewing the landing page or playing the video does not call course APIs or AI services.
 
-映像は**実データを使った操作の再現**です。画面録画ではありません。
-オリジナルの5教科講座を通常のVideoQへアップロードし、文字起こし・シーン分割・
-埋め込み・RAGを実行した回答と引用を `apps/demo-video/content/answer.json` に保存しています。
-受講者が講義に質問し、回答の根拠となる場面を再生する操作を示します。
-日本語の回答本文と参照時刻は改変せず、カーソル・ズーム・待ち時間を編集しています。
-英語版は案内文・講座画面・教材・質問・取得済みのAI回答を英訳し、元の引用範囲を維持します。
-新たに英語APIから取得した回答ではなく、実データの英訳であることを映像とLPに表示します。
+The video is a **recreated walkthrough using real data**, not a screen recording.
+An original five-subject course was uploaded through the regular VideoQ flow, then processed with transcription, scene segmentation,
+embeddings, and RAG. The resulting answer and citations are saved in `apps/demo-video/content/answer.json`.
+The walkthrough shows a learner asking a question about a lecture and playing the scene that supports the answer.
+The Japanese answer text and citation timestamps are unchanged; cursor movement, zoom, and waiting times are edited.
+The English version translates the guidance, course UI, material, question, and captured AI answer while preserving the original citation range.
+Both the video and landing page disclose that this is a translation of real data, rather than a newly generated answer from the English API.
 
-制作手順と教材の登録方法は [demo-video/README.md](../demo-video/README.md) を参照してください。
-デモ動画の配信は静的ファイルだけで成立します。公開先への講座登録はLP配信の必須条件ではありません。
-`worker/landing-media.ts` がMP4のRangeリクエストに対応し、読み込みを1本16 MiB以下に制限します。
-旧 `explain-{ja,en}.mp4` / `provider-demo-{ja,en}.mp4` のURLは互換性のため残しています。
+See [demo-video/README.md](../demo-video/README.md) for production steps and course registration.
+The demo can be served entirely as static files. Registering the course in the public environment is not required to publish the landing page.
+`worker/landing-media.ts` handles MP4 Range requests and limits reads to 16 MiB per video.
+Legacy `explain-{ja,en}.mp4` / `provider-demo-{ja,en}.mp4` URLs remain for compatibility.
 
-### 学生向け広告の再検証
+### Student ad retest
 
-2026年10月6日の再検証では、日英の広告を学生向けLPへ案内します。
-広告は共通の15秒・正方形フォーマット、LPの動画は共通の30秒・横長フォーマットです。
-以前の学生向け広告と今回の再検証、先生向け広告を別の流入として集計します。
-クリックだけでなく、登録、動画登録受付、最初の回答まで確認します。
-学生が利用できる動画を用意できるかは、継続して検証する仮説です。
-広告の予算・地域・配信状態はX広告管理画面で管理します。
+The October 6, 2026 retest directs Japanese and English ads to the student landing page.
+Ads share a 15-second square format; landing page videos share a 30-second landscape format.
+Previous student ads, this retest, and teacher ads are tracked as separate acquisition sources.
+Checks cover sign-up, video registration acceptance, and the first answer in addition to clicks.
+Whether students can obtain videos they are able to use remains a hypothesis to test.
+Ad budgets, regions, and delivery status are managed in the X Ads dashboard.
 
-### 効果の確認
+### Measuring results
 
-本番の `videoq.jp` でのみ、`POST /__events/landing` から既存のWorkers Logsに
-`kind=landing_funnel`、`version=student-v1` の構造化イベントを記録します。
-ログの `version` は既存のイベント形式との互換性を示し、LPの対象読者を意味しません。
-新しい外部分析サービスやDBは不要です。
+Only in production on `videoq.jp`, `POST /__events/landing` records structured events
+with `kind=landing_funnel` and `version=student-v1` in the existing Workers Logs.
+The log `version` indicates compatibility with the existing event format, not the landing page's target audience.
+No new external analytics service or database is required.
 
-| イベント | 意味 |
+| Event | Meaning |
 | --- | --- |
-| `landing_view` | LPの閲覧 |
-| `demo_open` | デモへのページ内リンクのクリック |
-| `demo_engaged` | デモ動画の再生開始 |
-| `demo_complete` | デモ動画の再生終了 |
-| `signup_click` / `signup_view` | 登録導線のクリック / 登録画面への到達 |
-| `email_signup_created` | メール登録APIの成功（メール確認前） |
-| `email_verified` | メール確認の成功 |
-| `google_auth_started` | Google認証を開始（既存アカウントのログインも含む） |
-| `google_signup_created` | Googleで新規ユーザーが作成され、同じタブで認証済みの戻り先に到達 |
-| `video_upload_started` | 入力検証を通過し、動画ファイル送信またはYouTube取り込みを開始 |
-| `video_upload_accepted` | 動画登録の受付成功。文字起こし・索引処理の完了ではない |
-| `video_upload_failed` | 動画登録リクエストの失敗。エラー本文・動画情報は送信しない |
-| `first_answer` | 本サービスで回答が正常に完了（公開共有画面は除外） |
+| `landing_view` | Landing page viewed |
+| `demo_open` | In-page link to the demo clicked |
+| `demo_engaged` | Demo video playback started |
+| `demo_complete` | Demo video playback ended |
+| `signup_click` / `signup_view` | Sign-up link clicked / sign-up page reached |
+| `email_signup_created` | Email sign-up API succeeded (before email verification) |
+| `email_verified` | Email verification succeeded |
+| `google_auth_started` | Google authentication started (includes sign-in to existing accounts) |
+| `google_signup_created` | A new user was created through Google and reached the authenticated return page in the same tab |
+| `video_upload_started` | Input validation passed and a video file upload or YouTube import started |
+| `video_upload_accepted` | Video registration was accepted; transcription and indexing have not necessarily finished |
+| `video_upload_failed` | Video registration request failed; error text and video information are not sent |
+| `first_answer` | An answer completed successfully in the service (excluding public shared pages) |
 
-`demo_engaged / landing_view`、`demo_complete / demo_engaged`、
-`email_signup_created / signup_view`、`first_answer / landing_view` を目安にします。
-終了位置へのシークでも `demo_complete` は発生し得るため、全編視聴の保証ではありません。
-旧 `demo_question` / `demo_source` / `sample_download` は受信互換性のみ維持しています。
-同じタブ内で各段階を一度だけ記録し、最終記録から30分で計測の紐付けを終了します。
-氏名・メール・質問文・動画ID・ユーザーID・セッションID・UTM文字列は送信せず、
-言語、audience（通常 `general`、`school` / `training` は流入パラメータに従う。学生広告は `student`）、登録ボタンの位置、
-次の固定値の `acquisition` を付けます。生のUTM・URL・クリックIDは保存・送信しません。
+Use `demo_engaged / landing_view`, `demo_complete / demo_engaged`,
+`email_signup_created / signup_view`, and `first_answer / landing_view` as indicators.
+Seeking to the end can also trigger `demo_complete`, so it does not guarantee a full viewing.
+Legacy `demo_question` / `demo_source` / `sample_download` events are accepted only for compatibility.
+Each stage is recorded once per tab, and attribution ends 30 minutes after the last recorded event.
+Names, emails, question text, video IDs, user IDs, session IDs, and UTM strings are not sent.
+Events include language, audience (normally `general`; `school` / `training` follow acquisition parameters; student ads use `student`), sign-up button location,
+and one of the fixed `acquisition` values below. Raw UTM values, URLs, and click IDs are neither stored nor sent.
 
-| `acquisition` | 初回LP流入の条件 |
+| `acquisition` | Conditions on the initial landing page visit |
 | --- | --- |
-| `x_paid_demo15_search` | `utm_source=x`、`utm_medium=paid_social`、`utm_campaign=student_demo_test`、`utm_content=demo15_search` のすべてが一致 |
-| `x_paid_student_ja` / `x_paid_student_en` | `utm_source=x`、`utm_medium=paid_social`、`utm_campaign=student_return_202610`、`utm_content=demo15_search_ja` / `demo15_search_en` |
-| `x_paid_teacher_qa` | `utm_source=x`、`utm_medium=paid_social`、`utm_campaign=teacher_qa_test`、`utm_content=lecture_qa` のすべてが一致 |
-| `x_organic_launch` | `utm_source=x`、`utm_medium=organic_social`、`utm_campaign=launch`、`utm_content` が `intro` / `howto` / `usecase` |
-| `internal_test` | LPのURLに `measurement=test` を指定した動作確認。広告成果から除外する |
-| `unattributed` | その他。旧クライアントの `acquisition` なしのイベントも受け付け、集計時はこちらに含める |
+| `x_paid_demo15_search` | All of `utm_source=x`, `utm_medium=paid_social`, `utm_campaign=student_demo_test`, and `utm_content=demo15_search` match |
+| `x_paid_student_ja` / `x_paid_student_en` | `utm_source=x`, `utm_medium=paid_social`, `utm_campaign=student_return_202610`, and `utm_content=demo15_search_ja` / `demo15_search_en` |
+| `x_paid_teacher_qa` | All of `utm_source=x`, `utm_medium=paid_social`, `utm_campaign=teacher_qa_test`, and `utm_content=lecture_qa` match |
+| `x_organic_launch` | `utm_source=x`, `utm_medium=organic_social`, `utm_campaign=launch`, and `utm_content` is `intro` / `howto` / `usecase` |
+| `internal_test` | A verification visit with `measurement=test` in the landing page URL; exclude from ad results |
+| `unattributed` | All other visits. Events from older clients without `acquisition` are also accepted and counted here |
 
-同じタブの訪問中は初回の分類を保持し、登録画面へ移動してURLのパラメータが消えても
-`email_signup_created` などを流入元別に集計できます。30分間イベントがなければ紐付けは切れます。
-Workers Logsで `kind=landing_funnel` と `acquisition=x_paid_demo15_search` を絞り込み、
-イベント別の件数を比較します。ログの保存期間内に日別集計を控えてください。
-再検証の日本語URLは `https://videoq.jp/?audience=student&utm_source=x&utm_medium=paid_social&utm_campaign=student_return_202610&utm_content=demo15_search_ja`。
-英語URLは `https://videoq.jp/en/?audience=student&utm_source=x&utm_medium=paid_social&utm_campaign=student_return_202610&utm_content=demo15_search_en`。
-旧学生広告は `x_paid_demo15_search`、旧日本語の先生向け広告は `x_paid_teacher_qa` として別に集計します。
-旧英語の先生向けURL (`teacher_qa_en_test`) は当時の分類に含まれず、`unattributed` です。過去のログからその流入を復元することはできません。
-動作確認では必ず `&measurement=test` を付けます。
-広告のクリック数、LP閲覧、登録、動画登録受付を分けて確認します。
-`audience=school` は流入の分類であり、訪問者が教員であることの証明ではありません。
-この計測は購入・翌日以降の継続利用・別端末の行動を紐付けません。
-有料利用は管理画面の新規契約と、本人への流入確認を併用し、広告に由来するか不明な契約を成果に含めません。
-Google認証にはBetter Authの `newUserCallbackURL` を使用します。新規ユーザーだけが
-`/signup/complete` に戻り、認証済みセッションと同じタブの認証開始イベントを確認して
-`google_signup_created` を記録します。既存ユーザーのGoogleログインは新規登録に数えません。
-メール登録では、Better Authがメールを確認して自動ログインした後の戻り先を
-`/signup/verified` にします。確認済みセッションと同じタブの登録成功イベントが揃う場合に
-`email_verified` を記録し、元の目的ページへ移動します。
-X管理画面の消化額を `email_signup_created + google_signup_created` の件数で割った値は、
-同じタブで観測できた登録に限定した参考単価です。メール確認前の登録を含み、全登録のCPAではありません。
+The initial classification persists during the visit in the same tab, allowing events such as
+`email_signup_created` to be grouped by source even after navigation to sign-up removes the URL parameters.
+Attribution ends after 30 minutes without events.
+Filter Workers Logs by `kind=landing_funnel` and `acquisition=x_paid_demo15_search`, then compare counts by event.
+Record daily aggregates before logs expire.
+The Japanese retest URL is `https://videoq.jp/?audience=student&utm_source=x&utm_medium=paid_social&utm_campaign=student_return_202610&utm_content=demo15_search_ja`.
+The English URL is `https://videoq.jp/en/?audience=student&utm_source=x&utm_medium=paid_social&utm_campaign=student_return_202610&utm_content=demo15_search_en`.
+Count legacy student ads under `x_paid_demo15_search` and legacy Japanese teacher ads under `x_paid_teacher_qa` separately.
+The legacy English teacher URL (`teacher_qa_en_test`) was not part of the classification at the time and is `unattributed`. That source cannot be reconstructed from historical logs.
+Always append `&measurement=test` when verifying behavior.
+Review ad clicks, landing page views, sign-ups, and video registration acceptance separately.
+`audience=school` is an acquisition classification, not evidence that a visitor is a teacher.
+This measurement does not link purchases, continued use on later days, or activity on other devices.
+For paid usage, combine new subscriptions in the admin dashboard with asking the user how they found the service. Do not count subscriptions as ad results when their source is unknown.
+Google authentication uses Better Auth's `newUserCallbackURL`. Only new users return to
+`/signup/complete`; `google_signup_created` is recorded after checking for an authenticated session
+and an authentication-start event in the same tab. Google sign-in by existing users is not counted as a new sign-up.
+Email sign-up uses `/signup/verified` as the return page after Better Auth verifies the email and signs the user in automatically.
+When both a verified session and a successful sign-up event in the same tab are present,
+`email_verified` is recorded and the user is redirected to the original destination.
+Dividing spend in the X Ads dashboard by the count of `email_signup_created + google_signup_created`
+gives an indicative cost limited to sign-ups observed in the same tab. It includes sign-ups before
+email verification and is not the CPA for all sign-ups.
 
-これは改善のための簡易集計です。別タブでのメール確認・別端末は
-追跡せず、DNT/GPC有効時、ストレージ拒否、通信失敗、ログの保存上限などで欠測します。
-動画処理などで30分間イベントがなければ、後のAI回答も紐付きません。
-各段階はタブ訪問内で一度の記録なので、ユニーク人数・全アップロード件数ではありません。
-登録ボタンクリックを登録完了として扱わず、全体の登録率や広告別の
-厳密なCVRとして解釈しないでください。
+This is lightweight measurement for improvement. It does not track email verification in a different tab or activity on another device.
+Data may be missing because of DNT/GPC, denied storage access, network failures, log retention limits, and similar causes.
+If no event occurs for 30 minutes during video processing or another wait, a later AI answer will not be attributed either.
+Each stage is recorded once per tab visit, so counts do not represent unique people or all uploads.
+Do not treat a sign-up button click as completed registration or interpret these figures as the overall
+sign-up rate or a precise per-ad conversion rate.
 
-#### 本番の動作確認
+#### Production verification
 
-広告URLに `&measurement=test` を付けてLPから開始します。この指定だけは既存の
-タブ内の流入分類も `internal_test` に切り替えます。以後URLからパラメータが消えても
-同じタブの登録・動画登録・回答イベントは動作確認として集計されます。
-Googleの新規登録と既存アカウントのログインは別々に確認してください。
-通常の広告URLを使った自分の操作は実ユーザーと区別できないため、検証に使わないでください。
+Start from the landing page with `&measurement=test` appended to the ad URL. This parameter also
+switches an existing acquisition classification in the tab to `internal_test`. Even after the parameter
+disappears from the URL, subsequent sign-up, video registration, and answer events in the same tab
+are counted as verification activity.
+Verify new Google sign-ups and existing-account sign-ins separately.
+Do not test with a regular ad URL, because your actions cannot be distinguished from real users.

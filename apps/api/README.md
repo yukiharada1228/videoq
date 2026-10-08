@@ -1,147 +1,172 @@
 # apps/api
 
-VideoQ の Web API。Hono / TypeScript を Cloudflare Workers で実行します。
+VideoQ's Web API, built with Hono / TypeScript and running on Cloudflare Workers.
 
-初めて参加した人は[開発環境のセットアップ](../../docs/getting-started/local-setup.md)から、
-APIを変更する人は[API変更ガイド](../../docs/guides/api.md)から読み始めてください。
-以下はAPIパッケージ固有の詳細資料です。
+New contributors should start with [development environment setup](../../docs/getting-started/local-setup.md).
+For API changes, start with the [API development guide](../../docs/guides/api.md).
+The following reference covers details specific to the API package.
 
-## 構成
+## Structure
 
-通常の JSON API は `packages/trpc` の router を正本とし、API workspace は
-request context と service adapter を実装します。
+The router in `packages/trpc` is the source of truth for the regular JSON API.
+The API workspace implements request context and service adapters.
 
 ```text
 src/
-├── app.ts                 # Hono、tRPC、raw transport の組み立て
+├── app.ts                 # Assemble Hono, tRPC, and raw transports
 ├── index.ts               # fetch / scheduled entrypoint
 ├── trpc/
 │   ├── context.ts         # request-scoped auth / procedure adapter
-│   └── handlers/          # domain service と procedure の接続
+│   └── handlers/          # Connect domain services to procedures
 ├── features/
 │   └── <domain>/
-│       ├── routes.ts      # protocol 固有 HTTP endpoint のみ
-│       ├── schemas.ts     # raw transport 用 Zod schema
+│       ├── routes.ts      # Protocol-specific HTTP endpoints only
+│       ├── schemas.ts     # Zod schemas for raw transports
 │       └── service.ts     # use case orchestration
-├── repositories/          # Drizzle / SQL による永続化
-├── db/schema/modern.ts    # runtime schema の正本
-├── middleware/            # auth、CORS、error handling
-├── shared/                # error、pagination、日時等
-└── lib/                   # JWT、password、OAuth、SQS、暗号等
+├── repositories/          # Persistence with Drizzle / SQL
+├── db/schema/modern.ts    # Source of truth for the runtime schema
+├── middleware/            # auth, CORS, error handling
+├── shared/                # Errors, pagination, dates, etc.
+└── lib/                   # JWT, passwords, OAuth, SQS, encryption, etc.
 ```
 
-依存方向は `tRPC router → Hono handler → service → repository` です。
-input validation と procedure 名は `packages/trpc/src/routers` に集約します。
+Dependencies flow from `tRPC router → Hono handler → service → repository`.
+Input validation and procedure names are centralized in `packages/trpc/src/routers`.
 
-## API 契約
+## API contract
 
-- endpoint: `/api/trpc`
-- 一覧: `{ data: T[], meta: { total, limit, offset } }`
-- error data: tRPC code、HTTP status、`applicationCode?`、`details?`
-- 日時: UTC ISO-8601
+- Endpoint: `/api/trpc`
+- Lists: `{ data: T[], meta: { total, limit, offset } }`
+- Error data: tRPC code, HTTP status, `applicationCode?`, `details?`
+- Dates and times: UTC ISO-8601
 
-Hono の raw route は Better Auth / OAuth discovery、Stripe webhook、MCP、health、
-media binary、multipart upload、chat SSE、CSV export に限定します。
+Hono's raw routes are limited to Better Auth / OAuth discovery, the Stripe webhook,
+MCP, health checks, media binaries, multipart uploads, chat SSE, and CSV exports.
 
-tRPC router の正本は [`packages/trpc`](../../packages/trpc/) にあり、
-Hono は既存 service を procedure context に接続します。REST/OpenAPI の JSON API と
-API reference UI は提供しません。
+The canonical tRPC router lives in [`packages/trpc`](../../packages/trpc/).
+Hono connects existing services to the procedure context. A REST/OpenAPI JSON API
+and API reference UI are not provided.
 
-## 認証
+## Authentication
 
-Better Auth（`/api/auth/*`）が正本です。
+Better Auth (`/api/auth/*`) is the source of truth.
 
-### ブラウザセッション
+### Browser sessions
 
-- Cookie session（Better Auth）。SPA は `credentials: "include"` + `better-auth/react`
-- メール確認・パスワード再設定・メール変更は Better Auth verification フロー
-- 秘密鍵: `BETTER_AUTH_SECRET` / 公開 URL: `BETTER_AUTH_URL`
-- Google ログイン（任意）: `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`  
+- Cookie sessions through Better Auth. The SPA uses `credentials: "include"` + `better-auth/react`
+- Email verification, password resets, and email changes use Better Auth verification flows
+- Secret: `BETTER_AUTH_SECRET` / public URL: `BETTER_AUTH_URL`
+- Google sign-in (optional): `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`
   Redirect URI: `{BETTER_AUTH_URL}/api/auth/callback/google`
 
-### API key / OAuth
+### API keys / OAuth
 
-- API key: `@better-auth/api-key`（prefix `vq_`、access level は metadata）
-- MCP / 第三者: `@better-auth/oauth-provider`
-  （MCP 向けに unauthenticated DCR を許可。register は rate limit、confidential client の secret は 30 日で失効）
-- Better Auth 1.7のprotected resourceを`/api/mcp`に固定する。1.7移行時は旧DCR clientと
-  tokenを失効させて再登録する。access tokenは15分、Bearer / DPoPの両方を検証する
-- tRPC とブラウザ向け raw route は Cookie session、MCP は API key / OAuth Bearer を使用
-- MCP OAuth は `videoq.read` / `videoq.write` を検証し、API key metadata 欠落時は read-only とする
-- MCP 作成系は `mcp_idempotency_records` で30日間冪等化し、tool単位の出力schema・安全性annotation・user単位rate limitを持つ
-- SPA の「ログイン済み」判定は Better Auth `useSession`。プロフィールは `account.me`
-- ユーザー ID は Better Auth 標準の text UUID（既存行も `0006_user_id_uuid` で UUID に付け替え。セッション / OAuth トークンは無効化）
-  - スキーマ差分は `drizzle-kit generate`（`meta/0005_snapshot.json` → `0006_snapshot.json`）
-  - データ remap は履歴上のDrizzle custom migration。適用済みのため再生成・編集しない
+- API keys: `@better-auth/api-key` (prefix `vq_`; access level stored in metadata)
+- MCP / third parties: `@better-auth/oauth-provider`
+  (unauthenticated DCR is allowed for MCP; registration is rate-limited, and confidential client secrets expire after 30 days)
+- Better Auth 1.7's protected resource is fixed at `/api/mcp`. When migrating to 1.7,
+  revoke legacy DCR clients and tokens and register again. Access tokens last 15 minutes;
+  both Bearer and DPoP are validated
+- tRPC and browser-facing raw routes use cookie sessions; MCP uses API keys / OAuth Bearer tokens
+- MCP OAuth validates `videoq.read` / `videoq.write`; API keys without metadata default to read-only
+- MCP creation operations use `mcp_idempotency_records` for 30-day idempotency, with per-tool output schemas, safety annotations, and per-user rate limits
+- The SPA determines sign-in status with Better Auth's `useSession`; profiles come from `account.me`
+- User IDs are Better Auth's standard text UUIDs (existing rows were remapped to UUIDs by `0006_user_id_uuid`, invalidating sessions / OAuth tokens)
+  - Schema changes use `drizzle-kit generate` (`meta/0005_snapshot.json` → `0006_snapshot.json`)
+  - Data remapping is a historical Drizzle custom migration. It has already been applied; do not regenerate or edit it
 
-## 秘密情報の暗号化
+## Secret encryption
 
-ユーザー固有の外部 API key は AES-256-GCM で暗号化します。
+User-specific external API keys are encrypted with AES-256-GCM.
 
-- key: `USER_SECRET_ENCRYPTION_KEY`（base64url 32 bytes）
-- envelope: `v1.<nonce>.<ciphertext+tag>`
-- nonce: 暗号化ごとに生成する 12 bytes
+- Key: `USER_SECRET_ENCRYPTION_KEY` (32 bytes, base64url-encoded)
+- Envelope: `v1.<nonce>.<ciphertext+tag>`
+- Nonce: 12 bytes generated for each encryption operation
 
-`BETTER_AUTH_SECRET`、OpenAI key、S3/SQS credential は `wrangler secret` または
-ローカルの `.dev.vars` で管理します。
+Manage `BETTER_AUTH_SECRET`, the OpenAI key, and S3/SQS credentials through
+`wrangler secret` or a local `.dev.vars` file.
 
-## QAエージェント
+## Q&A agent
 
-Q&AはReActで、アクセス確認済みの現在の講座を対象に次のツールを使います。
+Q&A uses ReAct with the following tools, scoped to the current course after access
+has been verified:
 
-- `get_course_info`: 講座名・登録説明・動画総数と、動画ID・タイトル・説明・掲載位置・処理状態を取得。1ページ最大20動画、1回答最大5回。説明文は講座2000文字・動画500文字で省略を明示し、続きの動画は `videos_meta.next_offset` で取得します。
-- `search_scenes`: 字幕の意味検索。任意の `video_ids` で講座内の動画に絞り込めます。省略時は講座全体、講座外IDや空の指定は不正として扱います。1回答最大3回。
+- `get_course_info`: Retrieves the course name, registered description, and total video count, plus each video's ID, title, description, position, and processing state. Up to 20 videos per page and 5 calls per answer. Course descriptions are limited to 2,000 characters and video descriptions to 500, with truncation indicated. Fetch subsequent videos using `videos_meta.next_offset`.
+- `search_scenes`: Semantic search over transcripts. Optional `video_ids` narrow the search to specific videos in the course. Omitting them searches the entire course; IDs outside the course or an empty selection are invalid. Up to 3 calls per answer.
 
-講座名・本数などはメタ情報だけで回答でき、この場合はベクトル検索の接続や埋め込みAPIを使いません。授業内容の説明では字幕を検索して `[N]` で引用します。メタ情報も回答時の取得資料として `retrieved_contexts` に保存しますが、シーンの引用番号や時刻は付けません。
+Course names, video counts, and similar questions can be answered from metadata
+alone, without a vector search connection or embedding API calls. Explanations of
+lesson content search transcripts and cite sources with `[N]`. Metadata is also
+saved in `retrieved_contexts` as material retrieved for the answer, but is not given
+scene citation numbers or timestamps.
 
-定義・比較・具体例・計算・要約や「何を学べる？」は内容の質問として検索を指示します。用語だけの質問も同様です。講座全体の検索では `get_course_info` を経由せず `video_ids` を省略できます。「登録されている説明文を見せて」はメタ情報の取得依頼ですが、「講座の内容を要約して」では説明文の有無にかかわらず字幕を検索します。
+Definitions, comparisons, examples, calculations, summaries, and "What can I learn?"
+are treated as content questions and instructed to use search. The same applies
+to questions consisting only of a term. Course-wide searches can omit `video_ids`
+without first calling `get_course_info`. "Show me the registered description" is a
+metadata request, while "Summarize the course content" searches transcripts whether
+or not a description exists.
 
-動画の `position` は1始まりの掲載位置、`order` は登録された並べ替え用の値です。タイトル中の「第7回」などの講義番号とは区別します。ツールを使うモデルターンは最大8回で、その後はツールを外して最終回答を生成します。ストリーム・非ストリームの両経路に対応します。
+A video's `position` is its one-based display position; `order` is its stored sort
+value. These are distinct from lecture numbers such as "Lecture 7" in a title.
+The model can use tools for up to 8 turns, after which tools are removed and a final
+answer is generated. Both streaming and non-streaming paths are supported.
 
-検証: `test/rag-agent.test.ts`、`test/chat-send.test.ts`、`test/workers/rag-agent.test.ts`。実PostgreSQLでのページング・権限・動画絞り込みは `QUOTA_TEST_DATABASE_URL` を指定して `test/rag-course-info.integration.test.ts` を実行します。
+Verification: `test/rag-agent.test.ts`, `test/chat-send.test.ts`, and
+`test/workers/rag-agent.test.ts`. To verify pagination, permissions, and video
+filtering against real PostgreSQL, set `QUOTA_TEST_DATABASE_URL` and run
+`test/rag-course-info.integration.test.ts`.
 
-実モデルのツール選択は次の任意テストで検証します。`OPENAI_API_KEY`・`OPENAI_BASE_URL`・`LLM_MODEL` は環境変数、または `apps/api/.dev.vars` から読みます。LLM APIの利用料金が発生します。DBと検索結果は固定データを使い、説明文の有無、メタ情報のみ・内容・混合質問、日英、ストリーム・非ストリームを確認します。通常のCIでは実行しません。
+The optional test below verifies tool selection with a real model. It reads
+`OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `LLM_MODEL` from environment variables or
+`apps/api/.dev.vars` and incurs LLM API charges. Database and search results use
+fixed fixtures. It covers descriptions present/absent, metadata-only, content, and
+mixed questions, Japanese/English, and streaming/non-streaming responses. It does
+not run in regular CI.
 
 ```bash
 RAG_SELECTION_LIVE=1 npm run test:unit --workspace @videoq/api -- test/rag-agent-selection.live.test.ts
 ```
 
-## データベース
+## Database
 
-Drizzle の modern schema を runtime の唯一のモデルとして使用します。
+Drizzle's modern schema is the only runtime model.
 
-主なテーブル群:
+Main table groups:
 
-- auth (Better Auth): `users` (text UUID PK), `session`, `account`, `verification`, `apikey`, `jwks`, `oauth_*`
-- video: `videos`, `video_courses`, `video_course_members`, `tags`, `video_tags`
-- chat: `chat_logs`。`chat_log_evaluations` と `course_evaluation_snapshots` は廃止前のデータを保持するテーブルで、新規評価は行いません。
-- vector: `scene_embeddings`（worker・HonoともPGVectorStore。Hono検索は所有者・講座内動画のスコープを固定）
+- Auth (Better Auth): `users` (text UUID PK), `session`, `account`, `verification`, `apikey`, `jwks`, `oauth_*`
+- Video: `videos`, `video_courses`, `video_course_members`, `tags`, `video_tags`
+- Chat: `chat_logs`. `chat_log_evaluations` and `course_evaluation_snapshots` retain data from before evaluation was removed; no new evaluations are performed.
+- Vector: `scene_embeddings` (both the worker and Hono use PGVectorStore; Hono searches are scoped to the owner and videos in the course)
 
-管理 procedure（admin）: `admin.listUsers`、`admin.patch*`、`admin.reindexAll`。
-フロントの `/admin` 画面から利用します。
+Admin procedures: `admin.listUsers`, `admin.patch*`, and `admin.reindexAll`.
+They are used by the frontend's `/admin` page.
 
-最初の管理者は既存アカウントを昇格させます（ユーザー名・メールどちらでも可）:
+Create the first administrator by promoting an existing account, using either its
+username or email address:
 
 ```bash
 npm run user:admin -- alice
 ```
 
-権限は一般ユーザー（`role = user`）と管理者（`role = admin`）の2種類です。
-既存の管理者は `/admin` で他のユーザーの「管理者」を切り替えられます。
-自分の管理者権限の解除・アカウント停止はできません。
+There are two roles: regular user (`role = user`) and administrator (`role = admin`).
+Existing administrators can toggle other users' administrator status in `/admin`.
+They cannot remove their own administrator privileges or suspend their own account.
 
-`0028_remove_legacy_user_roles` は不要になった `is_staff` / `is_superuser` 列のみを削除し、
-既存の `role` は維持します。APIの管理者フラグは `is_admin` に改名したため、
-APIとWebは同じリリースとして更新し、旧APIが停止してからこのDB移行を適用してください。
-CDでは `MIGRATION_PHASE=before-deploy` で列削除を保留し、API・Webのデプロイ成功後に
-`db-finalize` ジョブで完了します。手動でも先に同じ準備段階を実行し、新APIに切り替えてから
-`MIGRATION_PHASE=all npm run db:migrate` を実行します。後続のmigrationを追加する前に、
-このリリースの列削除まで完了させてください。
+`0028_remove_legacy_user_roles` drops only the obsolete `is_staff` / `is_superuser`
+columns, preserving existing `role` values. The API administrator flag was renamed
+to `is_admin`, so update the API and Web in the same release and apply this database
+migration after the old API has stopped. CD defers column removal with
+`MIGRATION_PHASE=before-deploy`, then completes it in the `db-finalize` job after the
+API and Web deploy successfully. For manual deployment, run the same preparation
+phase first, switch to the new API, then run `MIGRATION_PHASE=all npm run db:migrate`.
+Finish this release's column removal before adding subsequent migrations.
 
-昇格コマンドで複数アカウントが一致した場合は、変更せず終了します。
-対象を一意に指定するには `npm run user:admin -- --id <user-id>` を使用します。
+If the promotion command matches multiple accounts, it exits without changes.
+Use `npm run user:admin -- --id <user-id>` to identify a single account.
 
-ローカルでログイン／登録のレート制限に当たったときは、RateLimiter DO 状態を消して API を再起動します:
+If you hit sign-in/sign-up rate limits locally, clear the RateLimiter DO state and
+restart the API:
 
 ```bash
 npm run rate-limit:reset
@@ -155,21 +180,24 @@ npm run db:migrate
 npm run db:studio
 ```
 
-`src/db/schema/`をスキーマの正本とし、DDL migrationは必ず
-`drizzle-kit generate`（上記`db:generate`）で作成します。生成されたSQL、snapshot、journalは
-手で編集しません。データbackfillなどDrizzle KitがDDLとして表現できない処理だけは、
-`npm run db:generate:custom -- --name describe_the_data_change`でDrizzle管理下のcustom migrationを
-作成し、先頭を`-- drizzle-kit:custom`にします。custom migrationへDDLを書かず、
-`drizzle-kit push`は共有環境・本番では使用しません。`db:verify`はjournalとの一対一、
-生成DDLとsnapshot差分の完全一致、custom migrationにDDLがないことを検査します。
+`src/db/schema/` is the schema's source of truth. Always create DDL migrations with
+`drizzle-kit generate` (`db:generate` above). Do not manually edit generated SQL,
+snapshots, or the journal. Only operations that Drizzle Kit cannot express as DDL,
+such as data backfills, should use a Drizzle-managed custom migration created with
+`npm run db:generate:custom -- --name describe_the_data_change`, starting with
+`-- drizzle-kit:custom`. Do not put DDL in custom migrations or use `drizzle-kit push`
+in shared or production environments. `db:verify` checks one-to-one correspondence
+with the journal, exact agreement between generated DDL and snapshot differences,
+and the absence of DDL in custom migrations.
 
-学習機能の廃止に伴う `0023` は既存テーブルを削除するため、既存環境では
-通信・ジョブを止めてから `STUDY_REMOVAL_MAINTENANCE=true` を設定して移行します。
-未設定なら `db:migrate` は変更前に停止します。[適用手順](../../docs/design/deployment-diagram.md#deploying-the-learning-feature-removal)を参照してください。
+Migration `0023` removes existing tables as part of retiring the learning features.
+For existing environments, stop traffic and jobs before setting
+`STUDY_REMOVAL_MAINTENANCE=true` and migrating. Without it, `db:migrate` stops before
+making changes. See the [deployment procedure](../../docs/design/deployment-diagram.md#deploying-the-learning-feature-removal).
 
-## 非同期ジョブ
+## Asynchronous jobs
 
-SQS message は native JSON です。
+SQS messages use native JSON:
 
 ```json
 {
@@ -179,35 +207,41 @@ SQS message は native JSON です。
 }
 ```
 
-consumer は [`apps/worker/`](../worker/) です。ローカルでは ElasticMQ、本番では Amazon SQS を使います。
+The consumer is [`apps/worker/`](../worker/). Local development uses ElasticMQ;
+production uses Amazon SQS.
 
-ジョブ投入と業務データ更新は `external_tasks` outbox に同一transactionで保存し、通常はその場で
-SQSへ配送します。`TASK_SCHEDULER` Durable Objectのアラームが、DB commit直後のプロセス停止や
-SQS障害で残った行、放棄uploadの回復を予約します。5分ごとのcronは現在使用しません。
-日次の保守処理でも回復を行います。48回失敗した行は `dead_at` を設定して停止し、構造化ログで通知します。
+Job submissions are stored in the `external_tasks` outbox in the same transaction
+as business data updates and are usually delivered to SQS immediately. Alarms in
+the `TASK_SCHEDULER` Durable Object schedule recovery for rows left after a process
+stops just after database commit or after an SQS failure, as well as abandoned
+uploads. The five-minute cron is no longer used. Daily maintenance also performs
+recovery. Rows that fail 48 times are stopped by setting `dead_at` and reported in
+structured logs.
 
-`17 3 * * *`（UTC）では、SQSの最大保持期間より長い30日を過ぎた完了済みoutbox／実行台帳を
-小分けで削除します。未完了outboxが参照中の実行台帳は削除しません。
+At `17 3 * * *` (UTC), completed outbox and execution ledger records older than
+30 days—longer than SQS's maximum retention period—are deleted in small batches.
+Execution records still referenced by incomplete outbox entries are retained.
 
 ## Cloudflare bindings
 
-本番Workerは`.github/workflows/cd.yml`から、`apps/api`をWranglerの
-working directoryとして`wrangler.jsonc`をdeployします。Pagesとは異なり、
-Cloudflare Dashboard側にrepositoryのルートディレクトリ設定はありません。
+The production Worker is deployed from `.github/workflows/cd.yml` using
+`wrangler.jsonc`, with `apps/api` as Wrangler's working directory. Unlike Pages,
+there is no repository root directory setting in the Cloudflare Dashboard.
 
-| binding | 用途 |
+| Binding | Purpose |
 |---|---|
 | `HYPERDRIVE` | Neon PostgreSQL |
-| `VIDEO_BUCKET` | 動画・字幕・サムネイル |
-| `RATE_LIMITER` | 分散 rate limit |
-| `TASK_SCHEDULER` | 未配送ジョブ・放棄uploadなどの回復予約（Durable Object） |
+| `VIDEO_BUCKET` | Videos, transcripts, and thumbnails |
+| `RATE_LIMITER` | Distributed rate limiting |
+| `TASK_SCHEDULER` | Scheduled recovery for undelivered jobs, abandoned uploads, etc. (Durable Object) |
 
-R2 の S3 互換 endpoint、SQS、LLM/embedding、OAuth issuer などは
-`wrangler.jsonc` と `.dev.vars.example` を参照してください。
-本番の認証・招待メールは `MAILGUN_API_KEY` を必須とします。Cloudflare Email Sendingと
-KVは使用しません。ローカルでメールを設定しない場合はREADMEの手順でaccountを昇格します。
+See `wrangler.jsonc` and `.dev.vars.example` for R2's S3-compatible endpoint, SQS,
+LLM/embedding settings, the OAuth issuer, and related configuration.
+Production authentication and invitation emails require `MAILGUN_API_KEY`.
+Cloudflare Email Sending and KV are not used. If email is not configured locally,
+promote the account using the README instructions.
 
-本番resourceの設定を同期・確認するコマンド:
+Commands to synchronize and inspect production resource settings:
 
 ```bash
 npm run cf:hyperdrive:disable-cache
@@ -216,10 +250,11 @@ npm run cf:r2-cors:apply
 npm run cf:r2-cors:list
 ```
 
-R2 CORSの正本は `r2-cors.production.json` です。更新操作には通常のWorker deploy tokenとは
-分離した、Hyperdriveと対象R2 bucketだけを管理できるtokenを使います。
+`r2-cors.production.json` is the source of truth for R2 CORS. For updates, use a
+token that can manage only Hyperdrive and the target R2 bucket, separate from the
+regular Worker deployment token.
 
-## 開発
+## Development
 
 ```bash
 npm install
@@ -229,7 +264,7 @@ npm test
 npm run cf-typegen
 ```
 
-ローカル依存サービスをまとめて起動する場合:
+To start the local dependencies together:
 
 ```bash
 docker compose up -d postgres minio minio-init elasticmq worker

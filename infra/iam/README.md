@@ -1,34 +1,36 @@
 # GitHub Actions OIDC roles
 
-GitHub Actions は固定アクセスキーを保存せず、GitHub OIDCから短期AWS
-credentialsを取得する。pull requestから本番を変更できないよう、planとdeployは別のIAM
-roleに分ける。
+GitHub Actions obtains temporary AWS credentials through GitHub OIDC without storing
+static access keys. Planning and deployment use separate IAM roles so pull requests
+cannot change production.
 
-- `videoq-github-actions-plan`: pull requestだけが引き受け可能。AWS managed
-  `ReadOnlyAccess`と、stateの読み取り・lock操作だけを許可する。
-- `videoq-github-actions-deploy`: mainまたは`production-infra` environmentだけが引き受け
-  可能。本番のapplyとLambda deployに使う。
+- `videoq-github-actions-plan`: Can be assumed only by pull requests. Grants AWS-managed
+  `ReadOnlyAccess` plus state read access and lock operations only.
+- `videoq-github-actions-deploy`: Can be assumed only from main or the `production-infra`
+  environment. Used for production applies and Lambda deployments.
 
-役割ごとのカスタマーマネージドポリシーは4分割している。`<ACCOUNT_ID>` は実アカウント
-ID（public repositoryに含めないためプレースホルダ）に置換して適用する。
+Permissions are split across four customer-managed policies assigned to the roles.
+Replace `<ACCOUNT_ID>` with the actual account ID before applying them; the placeholder
+keeps the real ID out of the public repository.
 
-| ポリシー | 役割 | 使うワークフロー |
+| Policy | Purpose | Workflow |
 |---|---|---|
-| `videoq-tfstate-plan` | Terraform stateの読み取り + lock objectだけの更新 | terraform-plan |
-| `ReadOnlyAccess` (AWS managed) | planのrefreshに必要なAWSリソースの読み取り | terraform-plan |
-| `videoq-tfstate-access` | Terraform state (S3 バケット) + `sts:GetCallerIdentity` | terraform-apply |
-| `videoq-backend-cd` | ECR へイメージ push + Lambda コード更新 | cd.yml |
-| `videoq-terraform-deploy` | インフラの CRUD | terraform-apply |
+| `videoq-tfstate-plan` | Read Terraform state and update only the lock object | terraform-plan |
+| `ReadOnlyAccess` (AWS managed) | Read AWS resources needed to refresh the plan | terraform-plan |
+| `videoq-tfstate-access` | Terraform state (S3 bucket) + `sts:GetCallerIdentity` | terraform-apply |
+| `videoq-backend-cd` | Push images to ECR and update Lambda code | cd.yml |
+| `videoq-terraform-deploy` | Infrastructure CRUD operations | terraform-apply |
 
-スコープ方針: `iam`/`PassRole` は `videoq-*` ロール限定、SSM は
-`parameter/videoq/prod/*`、SQS/Lambda/ECR は該当リソース限定。旧 Secrets Manager
-削除用の限定権限も `videoq-terraform-deploy` に含む。
+Scope policy: `iam`/`PassRole` is limited to `videoq-*` roles; SSM is limited to
+`parameter/videoq/prod/*`; SQS/Lambda/ECR permissions are limited to the relevant
+resources. `videoq-terraform-deploy` also includes narrowly scoped permissions to
+delete legacy Secrets Manager resources.
 
-## 初回適用手順
+## Initial setup
 
-AWS IAMでGitHub OIDC providerを作成していない場合は、provider URLに
-`https://token.actions.githubusercontent.com`、audienceに`sts.amazonaws.com`を指定して
-作成する。その後、次を一度だけ実行する。
+If a GitHub OIDC provider does not yet exist in AWS IAM, create one with
+`https://token.actions.githubusercontent.com` as the provider URL and
+`sts.amazonaws.com` as the audience. Then run the following once:
 
 ```bash
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -61,27 +63,27 @@ for p in videoq-tfstate-access videoq-backend-cd videoq-terraform-deploy; do
 done
 ```
 
-GitHub repository secretに次を設定する。
+Set the following GitHub repository secrets:
 
 - `AWS_GITHUB_ACTIONS_PLAN_ROLE_ARN`:
   `arn:aws:iam::<ACCOUNT_ID>:role/videoq-github-actions-plan`
 - `AWS_GITHUB_ACTIONS_DEPLOY_ROLE_ARN`:
   `arn:aws:iam::<ACCOUNT_ID>:role/videoq-github-actions-deploy`
 
-ワークフローの動作確認後、旧`AWS_GITHUB_ACTIONS_ROLE_ARN`、
-`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` secretsとIAM userのaccess keyを削除する。
+After verifying the workflows, delete the legacy `AWS_GITHUB_ACTIONS_ROLE_ARN`,
+`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` secrets and the IAM user's access key.
 
-## 更新手順 (ポリシー変更時)
+## Updating policies
 
 ```bash
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-p=videoq-terraform-deploy   # 変更したポリシー名
+p=videoq-terraform-deploy   # Name of the policy you changed
 sed "s/<ACCOUNT_ID>/${ACCOUNT_ID}/g" "infra/iam/${p}.json" > "/tmp/${p}.json"
 aws iam create-policy-version \
   --policy-arn "arn:aws:iam::${ACCOUNT_ID}:policy/${p}" \
   --policy-document "file:///tmp/${p}.json" --set-as-default
-# 版が 5 個に達したら古い版を delete-policy-version で削除
+# Once there are 5 versions, remove an old version with delete-policy-version
 ```
 
-> リージョンは `ap-northeast-1` を前提にハードコードしている。別リージョンで使う
-> 場合は各 JSON の ARN を書き換えること。
+> The region is hardcoded as `ap-northeast-1`. To use another region, update the
+> ARNs in each JSON file.

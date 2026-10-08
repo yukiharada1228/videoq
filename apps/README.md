@@ -1,15 +1,15 @@
 # apps/
 
-VideoQ の実行パッケージです。
+Runnable packages for VideoQ.
 
-| ディレクトリ | 役割 | ランタイム |
+| Directory | Role | Runtime |
 |---|---|---|
-| [`api/`](api/) | tRPC API と protocol transport | Hono / Cloudflare Workers |
-| [`docs/`](docs/) | `../docs/` の設計文書を表示・検索するサイト | Docusaurus |
-| [`web/`](web/) | ブラウザアプリ | React / Vite |
-| [`worker/`](worker/) | 文字起こし・索引・評価などの非同期処理 | Python / SQS Lambda |
+| [`api/`](api/) | tRPC API and protocol transports | Hono / Cloudflare Workers |
+| [`docs/`](docs/) | Site for browsing and searching the design documentation in `../docs/` | Docusaurus |
+| [`web/`](web/) | Browser application | React / Vite |
+| [`worker/`](worker/) | Asynchronous processing, including transcription, indexing, and evaluation | Python / SQS Lambda |
 
-Node.js パッケージはリポジトリルートの npm workspace で管理します。
+Node.js packages are managed through npm workspaces at the repository root.
 
 ```bash
 npm ci
@@ -18,13 +18,13 @@ npm run dev:web
 npm run dev:docs
 ```
 
-ローカル全体起動:
+Start the full local stack:
 
 ```bash
 docker compose up --build -d
 ```
 
-フロントエンドの HMR が必要な場合:
+To enable frontend HMR:
 
 ```bash
 docker compose --profile dev up -d web-dev

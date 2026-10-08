@@ -1,125 +1,144 @@
-# 大学生向けVideoQデモ
+# VideoQ demo for university students
 
-## X広告動画（日英共通・2026-10-06）
+## X ad video (shared Japanese/English format, 2026-10-06)
 
-`XAd` は日本語の配信中動画と同じ15秒・1080×1080・60fpsのコンポジションです。
-日英で `XAd.tsx`、`x-ad.css`、`content/x-ad-timeline.json`、`ProductScreen` を共用し、
-背景・ロゴ・レイアウト・ズーム・カーソル・クリック・BGM・場面切替をそろえています。
-日本語で再描画した6つの確認フレームは、元の保存画像と4枚が完全一致し、残る2枚も
-RGB合計で1および3階調の差だけでした。
+`XAd` uses the same 15-second, 1080×1080, 60 fps composition as the live Japanese ad.
+Both languages share `XAd.tsx`, `x-ad.css`, `content/x-ad-timeline.json`, and
+`ProductScreen`, keeping the background, logo, layout, zoom, cursor, clicks, music,
+and scene transitions consistent. Of six Japanese frames rendered for comparison,
+four matched the original saved images exactly; the other two differed by only
+1 and 3 intensity levels, respectively, summed across RGB.
 
-英訳は `content/x-ad-en.json` に集約しています。元の教材・質問・取得済み回答を翻訳し、
-引用範囲0:00–0:54を維持します。英語APIの新規回答や速度測定ではなく、
-映像内に `Translated real-data demo · Waiting times shortened` と明記します。
-教材の最初の場面も、元の描画座標・フォントを使って英語化しています。
-日本語の既存LP動画と配信中広告は変更しません。
+English translations are collected in `content/x-ad-en.json`. The original course
+material, question, and captured answer are translated while preserving the
+0:00–0:54 citation range. This is neither a new answer from the English API nor a
+speed measurement; the video explicitly states `Translated real-data demo · Waiting times shortened`.
+The first scene of the course material is also translated using the original
+rendering coordinates and fonts. The existing Japanese landing page video and live
+ad remain unchanged.
 
 ```bash
 npm run typecheck --workspace @videoq/demo-video
 node apps/demo-video/scripts/render-x-ad.mjs --locale en
-# 日本語の比較フレーム（元の保存フレームは上書きしない）
+# Japanese comparison frames (does not overwrite the original saved frames)
 node apps/demo-video/scripts/render-x-ad.mjs --locale ja --stills
 ```
 
-完成MP4とVTTは `output/x-demo/`、確認画像は `review/x-ad/` に出力します。
-書き出し時に全900フレーム、フラッシュ、固定ヘッダー、エンディング、尺、fps、
-解像度、fast start、ファイルサイズを検査し、合格した動画だけを出力します。
-X広告は15秒の正方形版を使用します。LPは以下の30秒の横長版を使用します。
+Finished MP4 and VTT files go to `output/x-demo/`; review images go to `review/x-ad/`.
+Rendering checks all 900 frames, flashes, the fixed header, ending, duration, frame
+rate, resolution, fast start, and file size. Only videos that pass are exported.
+X ads use the 15-second square version. Landing pages use the 30-second landscape
+version described below.
 
-## 日英LPの大学生向けデモ
+## Student demo for Japanese and English landing pages
 
-Remotion製の30秒・1920×1080・60 fpsの操作紹介です。Screen Studioのように
-操作箇所へ滑らかにズームし、カーソル・クリック・入力・回答・参照箇所の再生を見せます。
-実画面の録画ではなく、VideoQの共有講座UIを再現した映像です。
-日英で `StudentDemo`・`style.css`・`content/timeline.json`・カメラ・カーソル・BGMを共用します。
-英語版は見えている講座画面・教材・質問・取得済み回答を英訳し、元の引用範囲を保ちます。
-冒頭はWriting教材、2.2秒で数学を選択します。再生部分は元の数学教材と同じ静止スライドです。
+A 30-second, 1920×1080, 60 fps walkthrough built with Remotion. It smoothly zooms to
+interactions in the style of Screen Studio, showing the cursor, clicks, typing,
+answers, and playback of cited scenes. It recreates VideoQ's shared course UI rather
+than recording the live screen. Both languages share `StudentDemo`, `style.css`,
+`content/timeline.json`, camera movement, cursor, and music. The English version
+translates the visible course UI, material, question, and captured answer while
+preserving the original citation range. It opens on Writing material and selects
+mathematics at 2.2 seconds. Playback uses the same static slide as the original
+mathematics lesson.
 
-## 教材と実際の回答
+## Course material and the real answer
 
-`content/course.json` に5教科のオリジナル教材を収録しています。
-国語（主張と根拠）、数学（微分）、理科（DNA）、社会（需要と供給）、英語（主張と理由）。
-各教科3章、約1分の音声付き動画を `public/lessons/` に生成します。
+`content/course.json` contains original material for five subjects: Japanese
+(argument and evidence), mathematics (derivatives), science (DNA), social studies
+(supply and demand), and English (claims and reasons). Each subject has three
+chapters, generated as an approximately one-minute narrated video in `public/lessons/`.
 
-実際のAPIに通常のアップロード手順で登録し、通常の処理ワーカーでWhisper文字起こし・
-Otsuシーン分割・埋め込みを実行します。台本から文字起こしや検索インデックスを直接挿入しません。
-`content/answer.json` は公開講座の通常RAGエンドポイントが返した回答・引用の記録です。
-数学の引用は実データどおり `0:00–0:54`。短い教材が1シーンになった結果をそのまま使用します。
-映像用に狭い時刻を作り直すことはしません。
+Videos are registered through the real API's normal upload flow and processed by
+the regular worker for Whisper transcription, Otsu scene segmentation, and
+embeddings. Transcripts and search indexes are not inserted directly from scripts.
+`content/answer.json` records the answer and citations returned by the public
+course's regular RAG endpoint. The mathematics citation is `0:00–0:54`, matching the
+real data. The short lesson was processed as one scene, and that result is used
+as-is without inventing a narrower timestamp range for the video.
 
-この版は専用のローカル環境で講座を登録・処理しています。本番環境の講座は変更していません。
-共有スラッグは `videoq-campus-basics-v1`。LP再生には、この講座やAIへの通信は不要です。
+This version registers and processes the course in a dedicated local environment.
+Production courses are unchanged. The share slug is `videoq-campus-basics-v1`.
+Landing page playback does not require requests to this course or an AI service.
 
-## 再制作
+## Reproduction
 
-ルートで `npm ci` を実行し、macOSの日本語音声 `Kyoko`、ffmpeg/ffprobe、PythonのPillowを用意します。
-Remotionが管理するChrome Headless Shellを使用し、PNGフレームで書き出します。初回はブラウザーを自動取得します。
-別の実行ファイルを使う場合だけ `REMOTION_BROWSER_EXECUTABLE` を指定してください。
+Run `npm ci` at the repository root and install the macOS Japanese voice `Kyoko`,
+ffmpeg/ffprobe, and Python's Pillow. Rendering uses Remotion's managed Chrome
+Headless Shell and PNG frames. The browser is downloaded automatically on first
+use. Set `REMOTION_BROWSER_EXECUTABLE` only when using a different executable.
 
 ```bash
-# 教材・オリジナルBGMを生成（既存の素材だけ使う場合は不要）
+# Generate course material and original music (skip when using existing assets)
 npm run lessons --workspace @videoq/demo-video
 python3 apps/demo-video/scripts/build-audio.py
 
-# 通常のAPIと処理ワーカーを起動した環境で専用所有者に登録
+# Register under a dedicated owner with the regular API and processing worker running
 npm run demo:students --workspace @videoq/api -- \
   --origin http://127.0.0.1:8787 --local-user <demo-owner-id>
 
-# 登録内容を匿名で確認
+# Verify the registered content anonymously
 npm run demo:students --workspace @videoq/api -- \
   --origin http://127.0.0.1:8787 --check
 
-# 実際のAI回答を更新（所有者のAI利用枠を消費するため、意図した更新時だけ実行）
+# Refresh the real AI answer (run only for an intended update; consumes the owner's AI quota)
 node apps/demo-video/scripts/capture-answer.mjs
 
-# 型検査・編集プレビュー・書き出し
+# Type checking, editing preview, and rendering
 npm run typecheck --workspace @videoq/demo-video
 npm run studio --workspace @videoq/demo-video
 npm run render --workspace @videoq/demo-video
-# 英語LPだけを更新
+# Update only the English landing page video
 npm run render --workspace @videoq/demo-video -- --locale en
 ```
 
-登録CLIはファイルのSHA-256と講座固有マーカーで再利用を判断します。
-`--upload-only` では処理を待たず、後から同じコマンドで公開まで再開できます。
-公開環境へ登録する際はHTTPSの `--origin` と `VIDEOQ_DEMO_COOKIE_FILE` を使います。
-Cookieは権限600のファイルに保存し、ソース・CLI引数・ログへ記録しないでください。
-既存の別教材入り講座や異なる共有スラッグは上書きしません。
-教材内容を変える場合は新しいスラッグに切り替えて再登録してください。
+The registration CLI uses file SHA-256 hashes and a course-specific marker to
+determine reuse. `--upload-only` skips waiting for processing; rerun the same command
+later to resume through publication. To register in a public environment, use an
+HTTPS `--origin` and `VIDEOQ_DEMO_COOKIE_FILE`. Store the cookie in a file with mode
+600, and keep it out of source code, CLI arguments, and logs. Existing courses with
+different material or share slugs are not overwritten. When changing course
+material, switch to a new slug and register again.
 
-回答取得先は `VIDEOQ_DEMO_ORIGIN` で変更できます。
-回答・参照先を更新したら、映像の選択教科と引用先が一致していることも確認してください。
+Use `VIDEOQ_DEMO_ORIGIN` to change the origin used to retrieve answers. After updating
+an answer or its references, verify that the subject selected in the video matches
+the cited material.
 
-30秒版の書き出し先は `apps/web/public/demo/student-demo-{ja,en}.mp4` と対応するWebP/VTTです。
-`--locale en` / `--locale ja` で片方だけを再生成できます。
-15秒の広告書き出し処理はLPの配信ファイルを上書きしません。
-MP4が配信上限の16 MiBを超えると書き出しスクリプトは失敗します。
-`review/` に確認用の静止画を生成します（Git対象外）。`-- --stills` で静止画のみ作成できます。
+The 30-second version is exported to `apps/web/public/demo/student-demo-{ja,en}.mp4`
+and the corresponding WebP/VTT files. Use `--locale en` / `--locale ja` to regenerate
+only one language. The 15-second ad renderer does not overwrite the landing page's
+served files. Rendering fails if the MP4 exceeds the 16 MiB serving limit.
+Review stills are generated in `review/` (excluded from Git). Use `-- --stills` to
+generate only still images.
 
-## 編集の範囲
+## Editing scope
 
-`content/timeline.json` が秒数・fps・操作時刻・字幕を共通管理します。
-`src/StudentDemo.tsx` がUI、ズーム、カーソルを定義します。カメラ移動は約0.4〜0.6秒です。
-実回答はJSONから読んでおり、ハードコードした模範解答ではありません。
-表示の待ち時間を短縮しており、回答速度の測定動画ではありません。
-LPにも実データに基づく操作再現であることを表示します。
-教材・BGMはこのデモ用のオリジナル制作で、外部の授業映像や楽曲は使用していません。
+`content/timeline.json` centrally defines duration, frame rate, interaction timing,
+and captions. `src/StudentDemo.tsx` defines the UI, zoom, and cursor. Camera movements
+last approximately 0.4–0.6 seconds. The real answer is loaded from JSON rather than
+hardcoded as a model answer. Waiting times are shortened, so the video does not
+measure answer speed. The landing page also identifies it as a recreated walkthrough
+based on real data. Course material and music were created specifically for this
+demo; no external lesson footage or music is used.
 
-## フレームの検証
+## Frame verification
 
-以前のデスクトップChrome/JPEGによる書き出しでは、画面がタイル状に重複するフレームが混ざりました。
-現在は専用のHeadless Shell・ANGLE・PNGを使用し、完成したMP4を全フレーム検査します。
-`scripts/verify-video.py` は固定ヘッダーの変化、前後から大きく外れる単発フレーム、
-尺・fps・解像度・fast start・ファイルサイズを確認します。
-既知の壊れた旧動画でも異常を検出することを確認しています。
-検査に失敗した動画は `review/` に残し、LPの既存ファイルを置き換えません。
-結果は `review/*-quality.json` に保存します。手動確認は次のコマンドで行えます。
-CIのFrontend Buildでも配信対象の日英MP4を全フレーム検査します。Remotion自体の再レンダリングは行いません。
+Earlier renders using desktop Chrome/JPEG included frames with duplicated screen
+tiles. Rendering now uses a dedicated Headless Shell, ANGLE, and PNG, and checks
+every frame in the finished MP4. `scripts/verify-video.py` checks changes in the
+fixed header, isolated frames that differ sharply from their neighbors, duration,
+frame rate, resolution, fast start, and file size. It has also been verified to
+detect anomalies in known broken older videos. Videos that fail remain in `review/`
+and do not replace existing landing page files. Results are saved in
+`review/*-quality.json`. Run the following commands for manual checks.
+CI's Frontend Build also checks every frame in the Japanese and English MP4 files
+to be served; it does not rerender them with Remotion.
 
 ```bash
 python3 apps/demo-video/scripts/verify-video.py apps/web/public/demo/student-demo-ja.mp4
 python3 apps/demo-video/scripts/verify-video.py apps/web/public/demo/student-demo-en.mp4
 ```
 
-表示デザインを変更するときは固定ヘッダーの検査領域も見直してください。
-尺を変更した場合はLPの翻訳・Storybookの再生時間も更新し、配信用URLの `v` を進めます。
+When changing the visual design, review the fixed-header inspection region as well.
+If the duration changes, update the landing page translations and Storybook playback
+duration, and increment `v` in the serving URL.

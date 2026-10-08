@@ -37,7 +37,7 @@ Storybookの検索から部品を選び、変更前の状態・操作を確認�
 
 - 共有データは[fixtures](.storybook/fixtures/)に置き、API由来の型は`import type`で参照します。日時・ID・入力文は固定します。
 - QueryやAPIに依存する部品は[共通モック](.storybook/mocks/network.ts)を利用します。`success`・`pending`・`failure`で状態を作り、必要なprocedureを登録します。
-- `parameters.api.auth`で認証状態を指定します。共通decoratorが提供するRouter・Query・認証・通知Providerの使い方は[READMEのAPIモック手順](README.md#認証api依存のストーリー)を参照してください。
+- `parameters.api.auth`で認証状態を指定します。共通decoratorが提供するRouter・Query・認証・通知Providerの使い方は[READMEのAPIモック手順](README.md#stories-that-depend-on-authentication-or-apis)を参照してください。
 - 共有Query cacheを使うAPI依存のDocsは`parameters.docs.story.inline: false`にします。
 - モックの一覧・試行回数は`beforeEach`で初期化します。独自のtimer・listener・ストリームは終了時に解除し、再実行や別Storyへの切り替えでも同じ結果にします。
 
