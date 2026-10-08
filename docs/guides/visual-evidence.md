@@ -123,7 +123,9 @@ agent; it must acknowledge the unverified visuals rather than invent evidence.
   share a 60-second deadline and have no automatic retries.
 - The model returns observations by frame index. The server assigns video IDs,
   titles, timestamps and `evidence_type: "visual"`. The UI displays just the
-  timestamp, which links to the sampled frame. Existing citations without this
+  timestamp, including nonzero fractional seconds for visual evidence (for example,
+  `0:27.25`), which links to the sampled frame. This keeps distinct frames within
+  the same second distinguishable. Existing citations without this
   optional field remain valid.
 - During a streamed answer, the progress row identifies the running tool and its
   activity. Expand it to see each invocation and its completion, error or

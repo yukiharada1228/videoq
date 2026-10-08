@@ -12,15 +12,16 @@ interface MessageBodyProps {
   onVideoNavigate: (videoId: number, startTime: string) => void;
 }
 
-function formatInlineTime(time: string | null | undefined) {
+function formatInlineTime(time: string | null | undefined, precise: boolean) {
   if (!time) return '';
-  const main = time.split(',')[0];
-  return main.replace(/^00:/, '').replace(/^0(\d:)/, '$1');
+  const [main, fraction] = time.split(/[,.]/, 2);
+  const subsecond = precise && /^\d+$/.test(fraction ?? '') ? fraction.replace(/0+$/, '') : '';
+  return main.replace(/^00:/, '').replace(/^0(\d:)/, '$1') + (subsecond ? `.${subsecond}` : '');
 }
 
-function formatTimeRange(startTime: string | null | undefined, endTime: string | null | undefined) {
-  const start = formatInlineTime(startTime);
-  const end = formatInlineTime(endTime);
+function formatTimeRange(startTime: string | null | undefined, endTime: string | null | undefined, precise = false) {
+  const start = formatInlineTime(startTime, precise);
+  const end = formatInlineTime(endTime, precise);
   if (start && end && start !== end) return `${start}-${end}`;
   return start || end;
 }
@@ -56,7 +57,7 @@ function CitationGroup({ sources, onVideoNavigate }: {
       title={`${source.title} ${source.start_time}`}
       aria-label={`${source.title} ${source.start_time}`}
     >
-      {` (${formatTimeRange(source.start_time, source.end_time)})`}
+      {` (${formatTimeRange(source.start_time, source.end_time, source.evidence_type === 'visual')})`}
     </button>
   ));
   if (!collapsible) return <>{links}</>;
