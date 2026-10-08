@@ -126,7 +126,7 @@
         "LLM_MODEL": "gpt-4o-mini",
         "VIDEO_VISUAL_ENABLED": "true",
         "VISION_MODEL": "gpt-4.1-mini",
-        "VISUAL_REASONING_MODEL": "gpt-4.1-mini",
+        "VISUAL_REASONING_MODEL": "",
         "PGVECTOR_COLLECTION_NAME": "scene_embeddings",
         "OAUTH_ISSUER_URL": "https://videoq.jp",
         "BETTER_AUTH_URL": "https://videoq.jp",

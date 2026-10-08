@@ -1,0 +1,1030 @@
+{
+  "fixture": "primary",
+  "llm_model": "gpt-4o-mini",
+  "vision_model": "gpt-4o-mini",
+  "visual_reasoning_model": "gpt-4o-mini",
+  "note": "Real model and real FFmpeg frames; repositories/storage are fixture adapters. Manual semantic review required.",
+  "results": [
+    {
+      "id": "Q1",
+      "category": "autonomous_visual_search_ocr",
+      "question": "この動画の画面に表示される4文字の英数字コードを、表示される時刻と一緒に教えてください。音声ではなく映像を確認し、確認できなければその旨を答えてください。",
+      "expected": "R8K2 at 20 <= t < 25 seconds",
+      "elapsed_seconds": 4.208,
+      "tools": [
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "overview_video",
+          "status": "running"
+        },
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "overview_video",
+          "status": "complete"
+        }
+      ],
+      "visual_usage": [
+        {
+          "event": "visual_inspection",
+          "mode": "overview",
+          "frames": 6,
+          "durationMs": 1296,
+          "model": "gpt-4o-mini",
+          "requests": 1,
+          "promptTokens": 17319,
+          "cachedPromptTokens": 0,
+          "completionTokens": 26
+        }
+      ],
+      "api_usage": [
+        {
+          "model": "gpt-4o-mini",
+          "vision": false,
+          "prompt_tokens": 3975,
+          "cached_tokens": 0,
+          "completion_tokens": 31,
+          "estimated_usd": 0.00061485
+        },
+        {
+          "model": "gpt-4o-mini",
+          "vision": true,
+          "prompt_tokens": 17319,
+          "cached_tokens": 0,
+          "completion_tokens": 26,
+          "estimated_usd": 0.00261345
+        },
+        {
+          "model": "gpt-4o-mini",
+          "vision": false,
+          "prompt_tokens": 5599,
+          "cached_tokens": 2816,
+          "completion_tokens": 50,
+          "estimated_usd": 0.00065865
+        }
+      ],
+      "estimated_usd": 0.00388695,
+      "queryText": "この動画の画面に表示される4文字の英数字コードを、表示される時刻と一緒に教えてください。音声ではなく映像を確認し、確認できなければその旨を答えてください。",
+      "answer": {
+        "segments": [
+          {
+            "text": "映像の確認により、表示される4文字の英数字コードは「R8K2」です。表示された時刻は20秒です。",
+            "sourceIds": [
+              2
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": 1,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:00,000",
+            "end_time": "00:00:18,000"
+          },
+          {
+            "id": 2,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:20,000",
+            "end_time": "00:00:20,000",
+            "evidence_type": "visual"
+          }
+        ]
+      },
+      "retrievedContexts": [
+        "これは映像の確認用の動画です。画面をよく観察してください。音声では画面に見えている内容を説明していません。",
+        "Visual observation at 00:00:20,000: 4文字の英数字コード: R8K2"
+      ]
+    },
+    {
+      "id": "Q2",
+      "category": "color_shape_position",
+      "question": "動画の0〜4秒に並ぶ図形を、左から順に、色と形の組で教えてください。映像の根拠時刻も付けてください。",
+      "expected": "赤い三角形、青い円、黄色い正方形",
+      "elapsed_seconds": 8.092,
+      "tools": [
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "focus_clip",
+          "status": "running"
+        },
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "focus_clip",
+          "status": "complete"
+        }
+      ],
+      "visual_usage": [
+        {
+          "event": "visual_inspection",
+          "mode": "focus",
+          "frames": 5,
+          "durationMs": 3322,
+          "model": "gpt-4o-mini",
+          "requests": 3,
+          "promptTokens": 77469,
+          "cachedPromptTokens": 0,
+          "completionTokens": 123
+        }
+      ],
+      "api_usage": [
+        {
+          "model": "gpt-4o-mini",
+          "vision": false,
+          "prompt_tokens": 4074,
+          "cached_tokens": 2816,
+          "completion_tokens": 38,
+          "estimated_usd": 0.0004227
+        },
+        {
+          "model": "gpt-4o-mini",
+          "vision": true,
+          "prompt_tokens": 25823,
+          "cached_tokens": 0,
+          "completion_tokens": 41,
+          "estimated_usd": 0.0038980499999999997
+        },
+        {
+          "model": "gpt-4o-mini",
+          "vision": true,
+          "prompt_tokens": 25823,
+          "cached_tokens": 0,
+          "completion_tokens": 41,
+          "estimated_usd": 0.0038980499999999997
+        },
+        {
+          "model": "gpt-4o-mini",
+          "vision": true,
+          "prompt_tokens": 25823,
+          "cached_tokens": 0,
+          "completion_tokens": 41,
+          "estimated_usd": 0.0038980499999999997
+        },
+        {
+          "model": "gpt-4o-mini",
+          "vision": false,
+          "prompt_tokens": 5783,
+          "cached_tokens": 0,
+          "completion_tokens": 51,
+          "estimated_usd": 0.00089805
+        }
+      ],
+      "estimated_usd": 0.0130149,
+      "queryText": "動画の0〜4秒に並ぶ図形を、左から順に、色と形の組で教えてください。映像の根拠時刻も付けてください。",
+      "answer": {
+        "segments": [
+          {
+            "text": "左から順に、赤い三角形、青い円、黄色い四角形が並んでいます。",
+            "sourceIds": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": 1,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:00,000",
+            "end_time": "00:00:00,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 2,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:01,000",
+            "end_time": "00:00:01,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 3,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:02,000",
+            "end_time": "00:00:02,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 4,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:03,000",
+            "end_time": "00:00:03,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 5,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:04,000",
+            "end_time": "00:00:04,000",
+            "evidence_type": "visual"
+          }
+        ]
+      },
+      "retrievedContexts": [
+        "Visual observation at 00:00:00,000: 左から順に、赤い三角形、青い円、黄色い四角形が並んでいる。",
+        "Visual observation at 00:00:01,000: 左から順に、赤い三角形、青い円、黄色い四角形が並んでいます。",
+        "Visual observation at 00:00:02,000: 左から順に、赤い三角形、青い円、黄色い四角形が並んでいます。",
+        "Visual observation at 00:00:03,000: 左から順に、赤い三角形、青い円、黄色い四角形が並んでいます。",
+        "Visual observation at 00:00:04,000: 左から順に、赤い三角形、青い円、黄色い四角形が並んでいます。"
+      ]
+    },
+    {
+      "id": "Q3",
+      "category": "count_spatial_layout",
+      "question": "動画の5〜9秒に見える図形は何色で、全部で何個ですか。上段と下段それぞれの個数も、映像を確認して答えてください。",
+      "expected": "緑の円5個。上段3個、下段2個",
+      "elapsed_seconds": 4.741,
+      "tools": [
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "focus_clip",
+          "status": "running"
+        },
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "focus_clip",
+          "status": "complete"
+        }
+      ],
+      "visual_usage": [
+        {
+          "event": "visual_inspection",
+          "mode": "focus",
+          "frames": 5,
+          "durationMs": 2344,
+          "model": "gpt-4o-mini",
+          "requests": 2,
+          "promptTokens": 51648,
+          "cachedPromptTokens": 0,
+          "completionTokens": 70
+        }
+      ],
+      "api_usage": [
+        {
+          "model": "gpt-4o-mini",
+          "vision": false,
+          "prompt_tokens": 4077,
+          "cached_tokens": 2816,
+          "completion_tokens": 35,
+          "estimated_usd": 0.00042135
+        },
+        {
+          "model": "gpt-4o-mini",
+          "vision": true,
+          "prompt_tokens": 25824,
+          "cached_tokens": 0,
+          "completion_tokens": 35,
+          "estimated_usd": 0.0038946
+        },
+        {
+          "model": "gpt-4o-mini",
+          "vision": true,
+          "prompt_tokens": 25824,
+          "cached_tokens": 0,
+          "completion_tokens": 35,
+          "estimated_usd": 0.0038946
+        },
+        {
+          "model": "gpt-4o-mini",
+          "vision": false,
+          "prompt_tokens": 5753,
+          "cached_tokens": 4864,
+          "completion_tokens": 59,
+          "estimated_usd": 0.0005335499999999999
+        }
+      ],
+      "estimated_usd": 0.008744100000000001,
+      "queryText": "動画の5〜9秒に見える図形は何色で、全部で何個ですか。上段と下段それぞれの個数も、映像を確認して答えてください。",
+      "answer": {
+        "segments": [
+          {
+            "text": "映像では、図形は緑色の円で、合計5個あります。すべての円は1段に並んでいます。",
+            "sourceIds": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": 1,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:05,000",
+            "end_time": "00:00:05,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 2,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:06,000",
+            "end_time": "00:00:06,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 3,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:07,000",
+            "end_time": "00:00:07,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 4,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:08,000",
+            "end_time": "00:00:08,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 5,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:09,000",
+            "end_time": "00:00:09,000",
+            "evidence_type": "visual"
+          }
+        ]
+      },
+      "retrievedContexts": [
+        "Visual observation at 00:00:05,000: The shapes are green circles. There are a total of 5 circles, arranged in one row.",
+        "Visual observation at 00:00:06,000: The shapes are green circles. There are a total of 5 circles, arranged in one row.",
+        "Visual observation at 00:00:07,000: The shapes are green circles. There are a total of 5 circles, arranged in one row.",
+        "Visual observation at 00:00:08,000: The shapes are green circles. There are a total of 5 circles, arranged in one row.",
+        "Visual observation at 00:00:09,000: The shapes are green circles. There are a total of 5 circles, arranged in one row."
+      ]
+    },
+    {
+      "id": "Q4",
+      "category": "motion_direction",
+      "question": "動画の10〜14秒にある図形について、色と形、画面のどちらからどちらへ動くかを教えてください。時間順に映像を確認してください。",
+      "expected": "紫の円、左から右へ",
+      "elapsed_seconds": 7.689,
+      "tools": [
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "focus_clip",
+          "status": "running"
+        },
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "focus_clip",
+          "status": "complete"
+        }
+      ],
+      "visual_usage": [
+        {
+          "event": "visual_inspection",
+          "mode": "focus",
+          "frames": 6,
+          "durationMs": 4017,
+          "model": "gpt-4o-mini",
+          "requests": 1,
+          "promptTokens": 153370,
+          "cachedPromptTokens": 0,
+          "completionTokens": 156
+        }
+      ],
+      "api_usage": [
+        {
+          "model": "gpt-4o-mini",
+          "vision": false,
+          "prompt_tokens": 4074,
+          "cached_tokens": 3968,
+          "completion_tokens": 39,
+          "estimated_usd": 0.0003368999999999999
+        },
+        {
+          "model": "gpt-4o-mini",
+          "vision": true,
+          "prompt_tokens": 153370,
+          "cached_tokens": 0,
+          "completion_tokens": 156,
+          "estimated_usd": 0.023099099999999997
+        },
+        {
+          "model": "gpt-4o-mini",
+          "vision": false,
+          "prompt_tokens": 5807,
+          "cached_tokens": 4864,
+          "completion_tokens": 149,
+          "estimated_usd": 0.00059565
+        }
+      ],
+      "estimated_usd": 0.024031649999999998,
+      "queryText": "動画の10〜14秒にある図形について、色と形、画面のどちらからどちらへ動くかを教えてください。時間順に映像を確認してください。",
+      "answer": {
+        "segments": [
+          {
+            "text": "動画の10秒から14秒の間に、紫色の円形の図形が映っています。",
+            "sourceIds": [
+              1
+            ]
+          },
+          {
+            "text": "\n\n最初の10秒から11秒の間、図形は画面の左側に位置しています。",
+            "sourceIds": [
+              1,
+              2,
+              3
+            ]
+          },
+          {
+            "text": "\n\n12秒になると、図形は少し中央に移動し、13秒にはさらに中央に近づきます。",
+            "sourceIds": [
+              4,
+              5
+            ]
+          },
+          {
+            "text": "\n\n14秒には、図形は画面の右側に移動しています。",
+            "sourceIds": [
+              6
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": 1,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:10,000",
+            "end_time": "00:00:10,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 2,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:11,000",
+            "end_time": "00:00:11,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 3,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:11,250",
+            "end_time": "00:00:11,250",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 4,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:12,000",
+            "end_time": "00:00:12,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 5,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:13,000",
+            "end_time": "00:00:13,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 6,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:14,000",
+            "end_time": "00:00:14,000",
+            "evidence_type": "visual"
+          }
+        ]
+      },
+      "retrievedContexts": [
+        "Visual observation at 00:00:10,000: The shape is a purple circle, positioned on the left side of the screen.",
+        "Visual observation at 00:00:11,000: The shape remains a purple circle, still on the left side of the screen.",
+        "Visual observation at 00:00:11,250: The shape is a purple circle, still located on the left side of the screen.",
+        "Visual observation at 00:00:12,000: The shape is a purple circle, now slightly more centered on the screen.",
+        "Visual observation at 00:00:13,000: The shape is a purple circle, positioned more towards the center of the screen.",
+        "Visual observation at 00:00:14,000: The shape is a purple circle, now on the right side of the screen."
+      ]
+    },
+    {
+      "id": "Q5",
+      "category": "temporal_sequence",
+      "question": "動画の15秒以上20秒未満で、中央の図形はどのような順番で切り替わりますか。すべての図形の色と形を、現れる順に答えてください。",
+      "expected": "オレンジの正方形→水色（シアン）の三角形→紫の星",
+      "elapsed_seconds": 5.093,
+      "tools": [
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "focus_clip",
+          "status": "running"
+        },
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "focus_clip",
+          "status": "complete"
+        }
+      ],
+      "visual_usage": [
+        {
+          "event": "visual_inspection",
+          "mode": "focus",
+          "frames": 6,
+          "durationMs": 2871,
+          "model": "gpt-4o-mini",
+          "requests": 1,
+          "promptTokens": 153377,
+          "cachedPromptTokens": 0,
+          "completionTokens": 146
+        }
+      ],
+      "api_usage": [
+        {
+          "model": "gpt-4o-mini",
+          "vision": false,
+          "prompt_tokens": 4082,
+          "cached_tokens": 3968,
+          "completion_tokens": 38,
+          "estimated_usd": 0.0003375
+        },
+        {
+          "model": "gpt-4o-mini",
+          "vision": true,
+          "prompt_tokens": 153377,
+          "cached_tokens": 0,
+          "completion_tokens": 146,
+          "estimated_usd": 0.023094149999999997
+        },
+        {
+          "model": "gpt-4o-mini",
+          "vision": false,
+          "prompt_tokens": 5804,
+          "cached_tokens": 4864,
+          "completion_tokens": 78,
+          "estimated_usd": 0.0005526
+        }
+      ],
+      "estimated_usd": 0.02398425,
+      "queryText": "動画の15秒以上20秒未満で、中央の図形はどのような順番で切り替わりますか。すべての図形の色と形を、現れる順に答えてください。",
+      "answer": {
+        "segments": [
+          {
+            "text": "中央の図形は、最初にオレンジ色の四角形が表示され、その後、ティール色の三角形に切り替わります。\n\nさらに、紫色の星形が現れます。",
+            "sourceIds": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": 1,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:15,000",
+            "end_time": "00:00:15,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 2,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:16,000",
+            "end_time": "00:00:16,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 3,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:17,000",
+            "end_time": "00:00:17,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 4,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:18,000",
+            "end_time": "00:00:18,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 5,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:18,500",
+            "end_time": "00:00:18,500",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 6,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:19,000",
+            "end_time": "00:00:19,000",
+            "evidence_type": "visual"
+          }
+        ]
+      },
+      "retrievedContexts": [
+        "Visual observation at 00:00:15,000: The shape is a quadrilateral, colored orange, positioned in the center.",
+        "Visual observation at 00:00:16,000: The shape is a quadrilateral, colored orange, positioned in the center.",
+        "Visual observation at 00:00:17,000: The shape is a triangle, colored teal, positioned in the center.",
+        "Visual observation at 00:00:18,000: The shape is a triangle, colored teal, positioned in the center.",
+        "Visual observation at 00:00:18,500: The shape is a star, colored purple, positioned in the center.",
+        "Visual observation at 00:00:19,000: The shape is a star, colored purple, positioned in the center."
+      ]
+    },
+    {
+      "id": "Q6",
+      "category": "false_premise",
+      "question": "動画の0〜4秒に映っている猫は何色ですか。映像で確認できた内容だけを答えてください。",
+      "expected": "猫は見当たらない、猫の色は答えられない。存在を捏造しない",
+      "elapsed_seconds": 6.038,
+      "tools": [
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "focus_clip",
+          "status": "running"
+        },
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "focus_clip",
+          "status": "complete"
+        }
+      ],
+      "visual_usage": [
+        {
+          "event": "visual_inspection",
+          "mode": "focus",
+          "frames": 5,
+          "durationMs": 3927,
+          "model": "gpt-4o-mini",
+          "requests": 3,
+          "promptTokens": 77415,
+          "cachedPromptTokens": 0,
+          "completionTokens": 153
+        }
+      ],
+      "api_usage": [
+        {
+          "model": "gpt-4o-mini",
+          "vision": false,
+          "prompt_tokens": 4062,
+          "cached_tokens": 3968,
+          "completion_tokens": 31,
+          "estimated_usd": 0.0003303
+        },
+        {
+          "model": "gpt-4o-mini",
+          "vision": true,
+          "prompt_tokens": 25805,
+          "cached_tokens": 0,
+          "completion_tokens": 51,
+          "estimated_usd": 0.00390135
+        },
+        {
+          "model": "gpt-4o-mini",
+          "vision": true,
+          "prompt_tokens": 25805,
+          "cached_tokens": 0,
+          "completion_tokens": 51,
+          "estimated_usd": 0.00390135
+        },
+        {
+          "model": "gpt-4o-mini",
+          "vision": true,
+          "prompt_tokens": 25805,
+          "cached_tokens": 0,
+          "completion_tokens": 51,
+          "estimated_usd": 0.00390135
+        },
+        {
+          "model": "gpt-4o-mini",
+          "vision": false,
+          "prompt_tokens": 5814,
+          "cached_tokens": 4864,
+          "completion_tokens": 55,
+          "estimated_usd": 0.0005403
+        }
+      ],
+      "estimated_usd": 0.01257465,
+      "queryText": "動画の0〜4秒に映っている猫は何色ですか。映像で確認できた内容だけを答えてください。",
+      "answer": {
+        "segments": [
+          {
+            "text": "動画の0〜4秒には猫は映っていません。映像には赤い三角形、青い円、黄色い四角形が含まれています。",
+            "sourceIds": [
+              1
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": 1,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:00,000",
+            "end_time": "00:00:00,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 2,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:01,000",
+            "end_time": "00:00:01,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 3,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:02,000",
+            "end_time": "00:00:02,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 4,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:03,000",
+            "end_time": "00:00:03,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 5,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:04,000",
+            "end_time": "00:00:04,000",
+            "evidence_type": "visual"
+          }
+        ]
+      },
+      "retrievedContexts": [
+        "Visual observation at 00:00:00,000: The image contains three shapes: a red triangle on the left, a blue circle in the center, and a yellow quadrilateral on the right. The background is a light color.",
+        "Visual observation at 00:00:01,000: The image contains three shapes: a red triangle on the left, a blue circle in the center, and a yellow quadrilateral on the right. The background is a light color.",
+        "Visual observation at 00:00:02,000: The image contains three shapes: a red triangle on the left, a blue circle in the center, and a yellow quadrilateral on the right. The background is a light color.",
+        "Visual observation at 00:00:03,000: The image contains three shapes: a red triangle on the left, a blue circle in the center, and a yellow quadrilateral on the right. The background is a light color.",
+        "Visual observation at 00:00:04,000: The image contains three shapes: a red triangle on the left, a blue circle in the center, and a yellow quadrilateral on the right. The background is a light color."
+      ]
+    },
+    {
+      "id": "Q7",
+      "category": "subsecond_event_limit",
+      "question": "動画の25秒以上30秒未満で、画面に一瞬だけ別の図形が現れますか。現れるなら色・形・時刻を教えてください。確認できない場合は、見ていないフレームについて断定しないでください。",
+      "expected": "27.20 <= t < 27.60 に中央に赤い長方形。約1fpsのサンプリングでは取り逃す可能性あり",
+      "elapsed_seconds": 5.903,
+      "tools": [
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "focus_clip",
+          "status": "running"
+        },
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "focus_clip",
+          "status": "complete"
+        }
+      ],
+      "visual_usage": [
+        {
+          "event": "visual_inspection",
+          "mode": "focus",
+          "frames": 7,
+          "durationMs": 3272,
+          "model": "gpt-4o-mini",
+          "requests": 1,
+          "promptTokens": 178893,
+          "cachedPromptTokens": 0,
+          "completionTokens": 161
+        }
+      ],
+      "api_usage": [
+        {
+          "model": "gpt-4o-mini",
+          "vision": false,
+          "prompt_tokens": 4094,
+          "cached_tokens": 3968,
+          "completion_tokens": 35,
+          "estimated_usd": 0.00033749999999999996
+        },
+        {
+          "model": "gpt-4o-mini",
+          "vision": true,
+          "prompt_tokens": 178893,
+          "cached_tokens": 0,
+          "completion_tokens": 161,
+          "estimated_usd": 0.026930549999999998
+        },
+        {
+          "model": "gpt-4o-mini",
+          "vision": false,
+          "prompt_tokens": 5876,
+          "cached_tokens": 4864,
+          "completion_tokens": 72,
+          "estimated_usd": 0.0005598000000000001
+        }
+      ],
+      "estimated_usd": 0.027827849999999998,
+      "queryText": "動画の25秒以上30秒未満で、画面に一瞬だけ別の図形が現れますか。現れるなら色・形・時刻を教えてください。確認できない場合は、見ていないフレームについて断定しないでください。",
+      "answer": {
+        "segments": [
+          {
+            "text": "25秒から30秒の間に、一瞬だけ赤い四角形が右側に現れます（27.25秒）。それ以外の時刻では、背景は青色の単色で、他の図形は確認できません。",
+            "sourceIds": [
+              4
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": 1,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:25,000",
+            "end_time": "00:00:25,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 2,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:26,000",
+            "end_time": "00:00:26,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 3,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:27,000",
+            "end_time": "00:00:27,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 4,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:27,250",
+            "end_time": "00:00:27,250",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 5,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:27,750",
+            "end_time": "00:00:27,750",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 6,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:28,000",
+            "end_time": "00:00:28,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 7,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:29,000",
+            "end_time": "00:00:29,000",
+            "evidence_type": "visual"
+          }
+        ]
+      },
+      "retrievedContexts": [
+        "Visual observation at 00:00:25,000: No shapes are visible; the background is a solid blue.",
+        "Visual observation at 00:00:26,000: No shapes are visible; the background is a solid blue.",
+        "Visual observation at 00:00:27,000: No shapes are visible; the background is a solid blue.",
+        "Visual observation at 00:00:27,250: A red quadrilateral is present, positioned towards the right side of the frame against a blue background.",
+        "Visual observation at 00:00:27,750: No shapes are visible; the background is a solid blue.",
+        "Visual observation at 00:00:28,000: No shapes are visible; the background is a solid blue.",
+        "Visual observation at 00:00:29,000: No shapes are visible; the background is a solid blue."
+      ]
+    },
+    {
+      "id": "Q8",
+      "question": "4文字の英数字コードを、表示される時刻と一緒に教えてください。",
+      "expected": "R8K2 at 20 seconds; must inspect images even without an explicit visual instruction",
+      "elapsed_seconds": 3.494,
+      "tools": [
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "overview_video",
+          "status": "running"
+        },
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "overview_video",
+          "status": "complete"
+        }
+      ],
+      "visual_usage": [
+        {
+          "event": "visual_inspection",
+          "mode": "overview",
+          "frames": 6,
+          "durationMs": 1497,
+          "model": "gpt-4o-mini",
+          "requests": 1,
+          "promptTokens": 17289,
+          "cachedPromptTokens": 0,
+          "completionTokens": 26
+        }
+      ],
+      "api_usage": [
+        {
+          "model": "gpt-4o-mini",
+          "vision": false,
+          "prompt_tokens": 3944,
+          "cached_tokens": 3840,
+          "completion_tokens": 31,
+          "estimated_usd": 0.0003222
+        },
+        {
+          "model": "gpt-4o-mini",
+          "vision": true,
+          "prompt_tokens": 17289,
+          "cached_tokens": 0,
+          "completion_tokens": 26,
+          "estimated_usd": 0.0026089499999999996
+        },
+        {
+          "model": "gpt-4o-mini",
+          "vision": false,
+          "prompt_tokens": 5568,
+          "cached_tokens": 4864,
+          "completion_tokens": 41,
+          "estimated_usd": 0.000495
+        }
+      ],
+      "estimated_usd": 0.0034261499999999993,
+      "queryText": "4文字の英数字コードを、表示される時刻と一緒に教えてください。",
+      "answer": {
+        "segments": [
+          {
+            "text": "4文字の英数字コードは R8K2 です。表示された時刻は 20秒です。",
+            "sourceIds": [
+              2
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": 1,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:00,000",
+            "end_time": "00:00:18,000"
+          },
+          {
+            "id": 2,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:20,000",
+            "end_time": "00:00:20,000",
+            "evidence_type": "visual"
+          }
+        ]
+      },
+      "retrievedContexts": [
+        "これは映像の確認用の動画です。画面をよく観察してください。音声では画面に見えている内容を説明していません。",
+        "Visual observation at 00:00:20,000: 4文字の英数字コード: R8K2"
+      ]
+    }
+  ]
+}

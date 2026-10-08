@@ -1,0 +1,365 @@
+{
+  "fixture": "variation",
+  "llm_model": "gpt-4o-mini",
+  "vision_model": "gpt-4.1-mini",
+  "visual_reasoning_model": "gpt-4.1-mini",
+  "note": "Real model and real FFmpeg frames; repositories/storage are fixture adapters. Manual semantic review required.",
+  "results": [
+    {
+      "id": "Q3",
+      "category": "count_spatial_layout",
+      "question": "動画の5〜9秒に見える図形は何色で、全部で何個ですか。上段と下段それぞれの個数も、映像を確認して答えてください。",
+      "expected": "緑の円7個。上段4個、下段3個",
+      "elapsed_seconds": 5.083,
+      "tools": [
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "focus_clip",
+          "status": "running"
+        },
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "focus_clip",
+          "status": "complete"
+        }
+      ],
+      "visual_usage": [
+        {
+          "event": "visual_inspection",
+          "mode": "focus",
+          "frames": 5,
+          "durationMs": 2702,
+          "model": "gpt-4.1-mini",
+          "requests": 2,
+          "promptTokens": 2548,
+          "cachedPromptTokens": 0,
+          "completionTokens": 99
+        }
+      ],
+      "api_usage": [
+        {
+          "model": "gpt-4.1-mini",
+          "vision": false,
+          "prompt_tokens": 4077,
+          "cached_tokens": 3968,
+          "completion_tokens": 53,
+          "estimated_usd": 0.0005252000000000001
+        },
+        {
+          "model": "gpt-4.1-mini",
+          "vision": true,
+          "prompt_tokens": 1274,
+          "cached_tokens": 0,
+          "completion_tokens": 45,
+          "estimated_usd": 0.0005816
+        },
+        {
+          "model": "gpt-4.1-mini",
+          "vision": true,
+          "prompt_tokens": 1274,
+          "cached_tokens": 0,
+          "completion_tokens": 54,
+          "estimated_usd": 0.000596
+        },
+        {
+          "model": "gpt-4.1-mini",
+          "vision": false,
+          "prompt_tokens": 5857,
+          "cached_tokens": 4864,
+          "completion_tokens": 57,
+          "estimated_usd": 0.0009748000000000002
+        }
+      ],
+      "estimated_usd": 0.0026776000000000005,
+      "queryText": "動画の5〜9秒に見える図形は何色で、全部で何個ですか。上段と下段それぞれの個数も、映像を確認して答えてください。",
+      "answer": {
+        "segments": [
+          {
+            "text": "動画の5〜9秒に見える図形は緑色の円形で、全部で7個あります。上段に4個、下段に3個配置されています。",
+            "sourceIds": [
+              1
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": 1,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:05,000",
+            "end_time": "00:00:05,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 2,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:06,000",
+            "end_time": "00:00:06,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 3,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:07,000",
+            "end_time": "00:00:07,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 4,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:08,000",
+            "end_time": "00:00:08,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 5,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:09,000",
+            "end_time": "00:00:09,000",
+            "evidence_type": "visual"
+          }
+        ]
+      },
+      "retrievedContexts": [
+        "Visual observation at 00:00:05,000: 緑色の円形の図形が全部で7個あります。上段に4個、下段に3個配置されています。",
+        "Visual observation at 00:00:06,000: 画面には緑色の円形が全部で7個あります。上段に4個、下段に3個配置されています。背景は薄いクリーム色です。",
+        "Visual observation at 00:00:07,000: 画面には緑色の円形が全部で7個あります。上段に4個、下段に3個配置されています。背景は薄いクリーム色です。",
+        "Visual observation at 00:00:08,000: 画面には緑色の円形が全部で7個あります。上段に4個、下段に3個配置されています。背景は薄いクリーム色です。",
+        "Visual observation at 00:00:09,000: 画面には緑色の円形が全部で7個あります。上段に4個、下段に3個配置されています。背景は薄いクリーム色です。"
+      ]
+    },
+    {
+      "id": "Q4",
+      "category": "motion_direction",
+      "question": "動画の10〜14秒にある図形について、色と形、画面のどちらからどちらへ動くかを教えてください。時間順に映像を確認してください。",
+      "expected": "紫の円、右から左へ",
+      "elapsed_seconds": 5.033,
+      "tools": [
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "focus_clip",
+          "status": "running"
+        },
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "focus_clip",
+          "status": "complete"
+        }
+      ],
+      "visual_usage": [
+        {
+          "event": "visual_inspection",
+          "mode": "focus",
+          "frames": 6,
+          "durationMs": 2317,
+          "model": "gpt-4.1-mini",
+          "requests": 1,
+          "promptTokens": 5970,
+          "cachedPromptTokens": 0,
+          "completionTokens": 187
+        }
+      ],
+      "api_usage": [
+        {
+          "model": "gpt-4.1-mini",
+          "vision": false,
+          "prompt_tokens": 4074,
+          "cached_tokens": 3968,
+          "completion_tokens": 47,
+          "estimated_usd": 0.0005144000000000001
+        },
+        {
+          "model": "gpt-4.1-mini",
+          "vision": true,
+          "prompt_tokens": 5970,
+          "cached_tokens": 0,
+          "completion_tokens": 187,
+          "estimated_usd": 0.0026872
+        },
+        {
+          "model": "gpt-4.1-mini",
+          "vision": false,
+          "prompt_tokens": 5846,
+          "cached_tokens": 4864,
+          "completion_tokens": 139,
+          "estimated_usd": 0.0011016
+        }
+      ],
+      "estimated_usd": 0.0043032,
+      "queryText": "動画の10〜14秒にある図形について、色と形、画面のどちらからどちらへ動くかを教えてください。時間順に映像を確認してください。",
+      "answer": {
+        "segments": [
+          {
+            "text": "動画の10秒から14秒にかけて、紫色の円形の図形が画面に表示されています。形は円形で色は紫色です。位置は最初10秒時点で画面の右上にあり、12秒には画面の中央やや右に移動し、13秒には中央やや左に移動、14秒には画面の左上に移動しています。つまり、画面の右上から左上へ横方向に動いています。",
+            "sourceIds": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": 1,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:10,000",
+            "end_time": "00:00:10,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 2,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:11,000",
+            "end_time": "00:00:11,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 3,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:11,250",
+            "end_time": "00:00:11,250",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 4,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:12,000",
+            "end_time": "00:00:12,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 5,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:13,000",
+            "end_time": "00:00:13,000",
+            "evidence_type": "visual"
+          },
+          {
+            "id": 6,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:14,000",
+            "end_time": "00:00:14,000",
+            "evidence_type": "visual"
+          }
+        ]
+      },
+      "retrievedContexts": [
+        "Visual observation at 00:00:10,000: 紫色の円形が画面の右上に位置している。",
+        "Visual observation at 00:00:11,000: 紫色の円形が画面の右上に位置している。位置はframe_index=1とほぼ同じ。",
+        "Visual observation at 00:00:11,250: 紫色の円形が画面の右上に位置している。位置はframe_index=2とほぼ同じ。",
+        "Visual observation at 00:00:12,000: 紫色の円形が画面の中央やや右に移動している。",
+        "Visual observation at 00:00:13,000: 紫色の円形が画面の中央やや左に移動している。",
+        "Visual observation at 00:00:14,000: 紫色の円形が画面の左上に移動している。"
+      ]
+    },
+    {
+      "id": "Q8",
+      "question": "4文字の英数字コードを、表示される時刻と一緒に教えてください。",
+      "expected": "G6T9 at 20 seconds",
+      "elapsed_seconds": 2.854,
+      "tools": [
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "overview_video",
+          "status": "running"
+        },
+        {
+          "type": "tool_progress",
+          "call_id": 1,
+          "tool": "overview_video",
+          "status": "complete"
+        }
+      ],
+      "visual_usage": [
+        {
+          "event": "visual_inspection",
+          "mode": "overview",
+          "frames": 6,
+          "durationMs": 1015,
+          "model": "gpt-4.1-mini",
+          "requests": 1,
+          "promptTokens": 5889,
+          "cachedPromptTokens": 0,
+          "completionTokens": 36
+        }
+      ],
+      "api_usage": [
+        {
+          "model": "gpt-4.1-mini",
+          "vision": false,
+          "prompt_tokens": 3944,
+          "cached_tokens": 3840,
+          "completion_tokens": 31,
+          "estimated_usd": 0.00047520000000000006
+        },
+        {
+          "model": "gpt-4.1-mini",
+          "vision": true,
+          "prompt_tokens": 5889,
+          "cached_tokens": 0,
+          "completion_tokens": 36,
+          "estimated_usd": 0.0024132
+        },
+        {
+          "model": "gpt-4.1-mini",
+          "vision": false,
+          "prompt_tokens": 5578,
+          "cached_tokens": 5120,
+          "completion_tokens": 38,
+          "estimated_usd": 0.000756
+        }
+      ],
+      "estimated_usd": 0.0036444000000000003,
+      "queryText": "4文字の英数字コードを、表示される時刻と一緒に教えてください。",
+      "answer": {
+        "segments": [
+          {
+            "text": "4文字の英数字コードは「G6T9」です。時刻の表示はありません。",
+            "sourceIds": [
+              2
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": 1,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:00,000",
+            "end_time": "00:00:18,000"
+          },
+          {
+            "id": 2,
+            "video_id": 42,
+            "title": "Visual fixture",
+            "start_time": "00:00:20,000",
+            "end_time": "00:00:20,000",
+            "evidence_type": "visual"
+          }
+        ]
+      },
+      "retrievedContexts": [
+        "これは映像の確認用の動画です。画面をよく観察してください。音声では画面に見えている内容を説明していません。",
+        "Visual observation at 00:00:20,000: 4文字の英数字コードは「G6T9」です。時刻の表示はありません。"
+      ]
+    }
+  ]
+}

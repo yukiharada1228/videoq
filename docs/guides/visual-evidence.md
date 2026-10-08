@@ -59,7 +59,7 @@ video image tools and cache preparation. Production uses the following model set
 VIDEO_VISUAL_ENABLED=true
 LLM_MODEL=gpt-4o-mini
 VISION_MODEL=gpt-4.1-mini
-VISUAL_REASONING_MODEL=gpt-4.1-mini
+VISUAL_REASONING_MODEL=
 ```
 
 Recreate the API and worker to load them:

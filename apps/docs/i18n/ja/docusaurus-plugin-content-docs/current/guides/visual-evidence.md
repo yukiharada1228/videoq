@@ -50,7 +50,7 @@ API・Python worker・Docker・Terraformの既定値で、アップロード動�
 VIDEO_VISUAL_ENABLED=true
 LLM_MODEL=gpt-4o-mini
 VISION_MODEL=gpt-4.1-mini
-VISUAL_REASONING_MODEL=gpt-4.1-mini
+VISUAL_REASONING_MODEL=
 ```
 
 ```bash
