@@ -349,7 +349,7 @@ npm run build
 
 ### Documentation site
 
-Read the published docs in [English](https://docs.videoq.jp/) or [日本語](https://docs.videoq.jp/ja/).
+Read the published docs in [English](https://docs.videoq.jp/) or [Japanese](https://docs.videoq.jp/ja/).
 
 The Docusaurus site reads English Markdown from [`docs/`](docs/README.md) and Japanese
 translations from `apps/docs/i18n/ja/docusaurus-plugin-content-docs/current/`.
@@ -594,7 +594,7 @@ For frontend UI changes, follow the [Storybook change and review workflow](apps/
 
 ## Citation
 
-- 藤吉 弘亘. "AIと共に生きる時代における教育への生成 AI 活用：「藤吉 AI先生」". 情報処理学会 会誌「情報処理」 Vol.66, No.11 (2025).
+- Hironobu Fujiyoshi. "Using Generative AI in Education in an Era of Living with AI: 'Fujiyoshi AI Teacher'" (title translated from Japanese). Information Processing Society of Japan, *Information Processing*, Vol.66, No.11 (2025).
   - [https://ipsj.ixsq.nii.ac.jp/records/2004788](https://ipsj.ixsq.nii.ac.jp/records/2004788)
 
 ## License
