@@ -32,3 +32,5 @@ tooling dependency tree. Keep this alert open and recheck when upstream ships
 a fix; it is not an audit exemption or a claim that exploitation is impossible.
 Dependabot's security update job can continue reporting
 `security_update_not_found` for this package until a fix is available.
+Track [upstream PR #82](https://github.com/micromatch/braces/pull/82), which is
+still under review and unpublished at the review date, for a maintained fix.
