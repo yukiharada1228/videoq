@@ -81,7 +81,7 @@ variable "manage_openai_project" {
 variable "openai_allowed_models" {
   description = "OpenAI プロジェクトで許可するモデル ID の一覧 (videoq が実際に使うモデルのみ)"
   type        = list(string)
-  default     = ["text-embedding-3-small", "gpt-4o-mini", "gpt-4.1-mini", "whisper-1"]
+  default     = ["text-embedding-3-small", "gpt-4o-mini", "gpt-4.1-mini", "gpt-6-luna", "whisper-1"]
 }
 
 variable "openai_spend_alert_email" {
