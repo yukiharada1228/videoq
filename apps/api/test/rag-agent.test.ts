@@ -168,7 +168,7 @@ describe.each([false, true])("Q&A single-question contract (stream=%s)", (stream
     }
     expect(bodies).toHaveLength(1);
     expect(bodies[0].messages).toEqual([
-      expect.objectContaining({ role: "system" }),
+      expect.objectContaining({ role: "developer" }),
       expect.objectContaining({ role: "user", content: "具体例を教えて" }),
     ]);
   });

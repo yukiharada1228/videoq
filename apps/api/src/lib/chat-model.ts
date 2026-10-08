@@ -29,12 +29,6 @@ class AnswerChatModel extends ChatOpenAICompletions {
   override completionWithRetry(request: OpenAI.Chat.ChatCompletionCreateParamsStreaming, options?: OpenAI.RequestOptions): Promise<AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>>;
   override completionWithRetry(request: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming, options?: OpenAI.RequestOptions): Promise<OpenAI.Chat.Completions.ChatCompletion>;
   override async completionWithRetry(request: OpenAI.Chat.ChatCompletionCreateParams, options?: OpenAI.RequestOptions): Promise<OpenAI.Chat.Completions.ChatCompletion | AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>> {
-    // Luna supports Chat Completions tools with reasoning disabled. The current
-    // LangChain adapter does not recognize GPT-6, so normalize its legacy limit.
-    if (request.model === "gpt-6-luna") {
-      const { max_tokens, ...params } = request;
-      request = { ...params, reasoning_effort: "none", max_completion_tokens: params.max_completion_tokens ?? max_tokens };
-    }
     // The SDK's .parse() tries to parse nonempty tool preambles as final JSON.
     // Keep native schema enforcement on the request, and let providerStrategy
     // validate terminal responses after the agent has processed tool calls.
@@ -64,13 +58,15 @@ export function createChatModel(
   opts: { maxTokens: number; timeoutMs: number },
 ): ChatOpenAICompletions {
   const apiKey = resolveOpenAiKey(env, "OpenAI LLM");
+  const model = env.LLM_MODEL || DEFAULT_LLM_MODEL;
   // useResponsesApi: false でも ChatOpenAI はモデル名で /responses を選ぶ。
   // 互換サーバーでも /chat/completions を使うため、専用クラスで固定する。
   return new AnswerChatModel({
-    model: env.LLM_MODEL || DEFAULT_LLM_MODEL,
+    model,
     apiKey,
     configuration: { baseURL: openAiBaseUrl(env) },
     temperature: 0,
+    reasoning: model === "gpt-6-luna" ? { effort: "none" } : undefined,
     maxTokens: opts.maxTokens,
     timeout: opts.timeoutMs,
     maxRetries: MAX_RETRIES,
