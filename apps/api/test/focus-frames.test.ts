@@ -70,7 +70,7 @@ it.each(["identity", "offset", "timestamp", "duration", "density", "jpeg", "head
   await expect(inspectVideoClip(env, video, 15, 30, "What changes?", new AbortController().signal, { mode: "focus", maxFrames: 16 })).rejects.toThrow();
   expect(fetch).not.toHaveBeenCalled();
 });
-it.each([undefined, "gpt-4o-mini-2024-07-18"])("sends all sixteen high-detail images within 4o-mini request limits (%s)", async model => {
+it.each(["gpt-4o-mini", "gpt-4o-mini-2024-07-18"])("sends all sixteen high-detail images within 4o-mini request limits (%s)", async model => {
   const sent: number[] = [];
   let requests = 0;
   vi.stubGlobal("fetch", async (_url: unknown, init: RequestInit) => {
@@ -84,22 +84,22 @@ it.each([undefined, "gpt-4o-mini-2024-07-18"])("sends all sixteen high-detail im
     const indices = parts.flatMap(p => p.text?.startsWith("frame_index=") ? [Number(p.text.match(/frame_index=(\d+)/)![1])] : []);
     sent.push(...indices);
     return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({
-      observations: indices.filter(i => i === 3 || i === 15).map(i => ({ frame_index: i,
-        observation: i === 3 ? "The equation changes." : "The final result appears." })),
+      observations: indices.filter(i => i === 4 || i === 16).map(i => ({ frame_index: i,
+        observation: i === 4 ? "The equation changes." : "The final result appears." })),
     }) } }] });
   });
   expect(await inspectVideoClip({ ...env, VISION_MODEL: model }, video, 10, 26, "What changes?", new AbortController().signal, { mode: "focus", maxFrames: 16 }))
     .toMatchObject({ observations: [{ timestamp: 13, text: "The equation changes." }, { timestamp: 25, text: "The final result appears." }], sampling_interval_seconds: 1 });
   expect(requests).toBe(4);
-  expect(sent).toEqual(Array.from({ length: 16 }, (_, i) => i));
+  expect(sent).toEqual(Array.from({ length: 16 }, (_, i) => i + 1));
 });
 
 it("rejects observations for a real frame that was not sent in the current batch", async () => {
   const fetch = vi.fn(async () => Response.json({ choices: [{ finish_reason: "stop", message: {
-    content: JSON.stringify({ observations: [{ frame_index: 4, observation: "Not in this batch" }] }),
+    content: JSON.stringify({ observations: [{ frame_index: 5, observation: "Not in this batch" }] }),
   } }] }));
   vi.stubGlobal("fetch", fetch);
-  await expect(inspectVideoClip(env, video, 10, 26, "Details", new AbortController().signal, { mode: "focus", maxFrames: 16 }))
+  await expect(inspectVideoClip({ ...env, VISION_MODEL: "gpt-4o-mini" }, video, 10, 26, "Details", new AbortController().signal, { mode: "focus", maxFrames: 16 }))
     .rejects.toThrow("Invalid visual observation frame index");
   expect(fetch).toHaveBeenCalledTimes(1);
 });
@@ -110,9 +110,9 @@ it("stops later batches on cancellation without returning partial observations",
   vi.stubGlobal("fetch", async () => {
     if (++requests === 2) controller.abort();
     return Response.json({ choices: [{ finish_reason: "stop", message: {
-      content: JSON.stringify({ observations: [{ frame_index: 0, observation: "First batch" }] }),
+      content: JSON.stringify({ observations: [{ frame_index: 1, observation: "First batch" }] }),
     } }] });
   });
-  await expect(inspectVideoClip(env, video, 10, 26, "Details", controller.signal, { mode: "focus", maxFrames: 16 })).rejects.toThrow();
+  await expect(inspectVideoClip({ ...env, VISION_MODEL: "gpt-4o-mini" }, video, 10, 26, "Details", controller.signal, { mode: "focus", maxFrames: 16 })).rejects.toThrow();
   expect(requests).toBe(2);
 });

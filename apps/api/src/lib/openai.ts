@@ -16,7 +16,7 @@ export class LlmProviderError extends Error {
 }
 
 export const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
-export const DEFAULT_LLM_MODEL = "gpt-4o-mini";
+export const DEFAULT_LLM_MODEL = "gpt-6-luna";
 
 const DEFAULT_BASE_URL = "https://api.openai.com/v1";
 

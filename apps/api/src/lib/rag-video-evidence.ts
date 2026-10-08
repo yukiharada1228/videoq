@@ -18,6 +18,7 @@ const interval = {
 
 export function videoEvidenceTools(
   env: Bindings, scope: EvidenceScope, addSource: (hit: SceneHit) => number, signal: AbortSignal,
+  originalQuestion?: string,
 ) {
   let windowReads = 0;
   let inspections = 0;
@@ -61,17 +62,18 @@ export function videoEvidenceTools(
     await previous;
     try {
       signal.throwIfAborted();
-      const result = await inspectVideoClip(env, { id: video.id, fileKey: video.fileKey }, start, end, query, signal, { mode, maxFrames });
+      const visualQuery = originalQuestion ? `Original user question: ${originalQuestion}\nSpecific inspection task: ${query}` : query;
+      const result = await inspectVideoClip(env, { id: video.id, fileKey: video.fileKey }, start, end, visualQuery, signal, { mode, maxFrames });
       const actualFrames = "unavailable" in result ? 0 : result.sampled_timestamps.length;
       visualFrames -= maxFrames - actualFrames;
       if ("unavailable" in result) return result;
       return {
         ...result,
-        observations: result.observations.map(observation => describe({
+        observations: result.observations.map(observation => ({ timestamp_seconds: observation.timestamp, ...describe({
           videoId: video.id, videoTitle: video.title,
           startTime: formatEvidenceTime(observation.timestamp), endTime: formatEvidenceTime(observation.timestamp),
           content: observation.text, evidenceType: "visual",
-        })),
+        }) })),
         note: mode === "focus"
           ? "Dense stills at approximately one-second intervals, with actual presentation timestamps. Source gaps and sub-second events may be missed. These frames establish only visible states; do not invent unseen motion or intermediate steps."
           : visualNote,
@@ -163,7 +165,7 @@ export function videoEvidenceTools(
     return JSON.stringify(await inspect(video, start_seconds, end_seconds, query, "inspect"));
   }, {
     name: "inspect_clip",
-    description: "Read visible diagrams, equations, labels or screen contents in up to 8 cached stills at high image detail inside a known interval of an uploaded video. Locate it from overview_video, skim_video, search_scenes or a user-specified time. Use when subtitles or coarse observations cannot establish the needed details. This does not decode denser frames: brief actions may be missed. Maximum 2 calls, 180 seconds per interval; shares a 4-call / 48-frame visual budget with overview_video, skim_video and focus_clip. May be unavailable for older videos or YouTube imports.",
+    description: "Read stable diagrams, equations, labels or screen contents over a known interval using up to 8 high-detail stills at least 5 seconds apart. For a known interval of at most 16 seconds, especially counts, motion, ordering or brief appearances, prefer focus_clip. Maximum 2 calls, 180 seconds; shares a 4-call / 48-frame visual budget. Uploaded videos with a frame cache only.",
     schema: z.object({ ...interval, query: z.string().trim().min(1).max(2000) }).strict(),
   });
   const focus = tool(async ({ video_id, start_seconds, end_seconds, query }) => {

@@ -40,7 +40,7 @@ export type RagResult = {
 export const MAX_SCENE_SEARCHES = 3;
 
 /** ヒット 0 件でも「検索したが無かった」と伝える。空文字だとモデルが再検索を繰り返す。 */
-const NO_HITS = "No scenes matched this query.";
+const NO_HITS = "No subtitle scenes matched this query. Subtitle search does not inspect images and cannot establish that visible content is absent. Use video viewing tools for on-screen text, objects or changes.";
 
 /** 上限超過はツール結果として返す。エラーで打ち切ると回答本文が無いまま終わるため。 */
 const SEARCH_LIMIT_REACHED =
@@ -146,7 +146,7 @@ function sceneSearchTool(
     {
       name: "search_scenes",
       description:
-        "Search the scenes of the user's video course by meaning and return the closest ones. " +
+        "Search spoken subtitles of the user's video course by meaning, not images, and return the closest excerpts. " +
         "The default way to ground definitions, explanations, comparisons, examples and calculations, " +
         "including short terms and questions that do not explicitly mention the course. " +
         "For broad video navigation or visual topics without subtitle clues, overview_video/skim_video can retrieve evidence instead. " +
@@ -198,7 +198,7 @@ function prepareAgent(
       sceneSearchTool(params.search, collector, params.scope.videoIds ?? []),
       ...videoEvidenceTools(env, {
         ownerUserId: params.scope.ownerUserId, videoIds: params.scope.videoIds ?? [],
-      }, hit => collector.add(hit), params.signal),
+      }, hit => collector.add(hit), params.signal, params.queryText),
       ...(params.scope.courseId != null ? [courseInfoTool(env, {
         courseId: params.scope.courseId,
         ownerUserId: params.scope.ownerUserId,

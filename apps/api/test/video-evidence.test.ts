@@ -48,6 +48,14 @@ describe("subtitle windows", () => {
 });
 
 describe("authorized evidence tools", () => {
+  it("preserves the original question and returns actual numeric observation times", async () => {
+    const question = "How many circles are in each row?";
+    const tools = videoEvidenceTools(env, scope, () => 1, new AbortController().signal, question);
+    const result = JSON.parse(String(await tools.find(t => t.name === "inspect_clip")!.invoke(clipArgs)));
+    expect(inspectVideoClip).toHaveBeenCalledWith(env, { id: 42, fileKey: video.fileKey }, 100, 110,
+      `Original user question: ${question}\nSpecific inspection task: ${clipArgs.query}`, expect.any(AbortSignal), { mode: "inspect", maxFrames: 8 });
+    expect(result.observations[0]).toMatchObject({ timestamp_seconds: 104.125, startTime: "00:01:44,125" });
+  });
   it("exposes visuals only when configured", () => {
     const tools = videoEvidenceTools({ ...env, VIDEO_VISUAL_ENABLED: "false" }, scope, () => 1, new AbortController().signal);
     expect(tools.map(t => t.name)).toEqual(["read_video_window", "overview_video", "skim_video"]);

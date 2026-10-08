@@ -12,7 +12,7 @@ import type { Bindings } from "../types/bindings";
 /**
  * LLM 呼び出しの土台（ChatOpenAI）。
  * strict json_schema と tool calling に対応する Chat Completions が必要:
- *   - temperature=0 / model は LLM_MODEL（既定 gpt-4o-mini）
+ *   - temperature=0 / model は LLM_MODEL（既定 gpt-6-luna）
  *   - OPENAI_BASE_URL で OpenAI 互換エンドポイントへ差し替え可能
  *   - 失敗は LlmConfigurationError / LlmProviderError のどちらかに正規化する
  */
@@ -29,6 +29,12 @@ class AnswerChatModel extends ChatOpenAICompletions {
   override completionWithRetry(request: OpenAI.Chat.ChatCompletionCreateParamsStreaming, options?: OpenAI.RequestOptions): Promise<AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>>;
   override completionWithRetry(request: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming, options?: OpenAI.RequestOptions): Promise<OpenAI.Chat.Completions.ChatCompletion>;
   override async completionWithRetry(request: OpenAI.Chat.ChatCompletionCreateParams, options?: OpenAI.RequestOptions): Promise<OpenAI.Chat.Completions.ChatCompletion | AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>> {
+    // Luna supports Chat Completions tools with reasoning disabled. The current
+    // LangChain adapter does not recognize GPT-6, so normalize its legacy limit.
+    if (request.model === "gpt-6-luna") {
+      const { max_tokens, ...params } = request;
+      request = { ...params, reasoning_effort: "none", max_completion_tokens: params.max_completion_tokens ?? max_tokens };
+    }
     // The SDK's .parse() tries to parse nonempty tool preambles as final JSON.
     // Keep native schema enforcement on the request, and let providerStrategy
     // validate terminal responses after the agent has processed tool calls.

@@ -24,7 +24,7 @@ it("sends only selected images, resolves citations by server frame index, and re
   const requests: Record<string, unknown>[] = [];
   vi.stubGlobal("fetch", vi.fn(async (_url, init) => {
     requests.push(JSON.parse(init.body));
-    return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ observations: [{ frame_index: 0, observation: "x = 2" }] }) } }], usage: { prompt_tokens: 20, completion_tokens: 5 } });
+    return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ observations: [{ frame_index: 1, observation: "x = 2" }] }) } }], usage: { prompt_tokens: 20, completion_tokens: 5 } });
   }));
   const result = await inspect();
   expect(result).toMatchObject({ observations: [{ timestamp: 10, text: "x = 2" }] });
@@ -33,12 +33,28 @@ it("sends only selected images, resolves citations by server frame index, and re
   expect(requests[0].model).toBe("vision-model");
   expect(requests[0].stream).toBeUndefined();
 });
+it.each([{}, { LLM_MODEL: "gpt-6-luna" }, { VISION_MODEL: "gpt-6-luna" }])("uses Luna without reasoning and keeps images in one request: %j", async models => {
+  const fetch = vi.fn(async (_url: unknown, init: RequestInit) => {
+    const body = JSON.parse(String(init.body));
+    expect(body).toMatchObject({ model: "gpt-6-luna", reasoning_effort: "none", max_completion_tokens: 2048 });
+    expect(body).not.toHaveProperty("max_tokens");
+    expect(body.response_format.json_schema.schema.properties.observations.items.properties.frame_index.enum).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(JSON.stringify(body.messages)).not.toContain("timestamp_seconds");
+    expect(JSON.stringify(body).match(/data:image\/jpeg/g)).toHaveLength(8);
+    return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ observations: [{ frame_index: 8, observation: "Final frame" }] }) } }] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  const result = await inspectVideoClip({ OPENAI_API_KEY: "test", ...models } as Bindings,
+    { id: 42, fileKey: "private/video.mp4" }, 10, 70, "Read the equation", new AbortController().signal);
+  expect(result).toMatchObject({ observations: [{ timestamp: 70, text: "Final frame" }] });
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
 it.each(["overview", "skim", "inspect"] as const)("uses bounded frames and image detail appropriate to %s", async mode => {
   let request: { messages: { content: unknown }[] } | undefined;
   vi.stubGlobal("fetch", async (_url: unknown, init: RequestInit) => {
     request = JSON.parse(String(init.body));
     return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({
-      observations: [{ frame_index: mode === "overview" ? 15 : 7, observation: "Late diagram" }],
+      observations: [{ frame_index: mode === "overview" ? 16 : 8, observation: "Late diagram" }],
     }) } }] });
   });
   const result = await inspectVideoClip(env, { id: 42, fileKey: "private/video.mp4" }, 0, Infinity, "Locate diagram", new AbortController().signal, { mode, maxFrames: 16 });
@@ -62,8 +78,8 @@ it.each(["index", "duplicate", "length", "refusal"])("rejects invalid vision out
   vi.stubGlobal("fetch", async () => Response.json({ choices: [{
     finish_reason: kind === "length" ? "length" : "stop",
     message: { refusal: kind === "refusal" ? "refused" : null, content: JSON.stringify({ observations:
-      kind === "duplicate" ? [{ frame_index: 0, observation: "a" }, { frame_index: 0, observation: "b" }]
-        : [{ frame_index: kind === "index" ? 8 : 0, observation: "a" }],
+      kind === "duplicate" ? [{ frame_index: 1, observation: "a" }, { frame_index: 1, observation: "b" }]
+        : [{ frame_index: kind === "index" ? 9 : 1, observation: "a" }],
     }) },
   }] }));
   await expect(inspect()).rejects.toThrow();

@@ -44,7 +44,7 @@
     // Resolve the OpenAI default in the adapter; Ollama requires an explicit model.
     "EMBEDDING_MODEL": "",
     "OLLAMA_BASE_URL": "http://127.0.0.1:11434",
-    "LLM_MODEL": "gpt-4o-mini",
+    "LLM_MODEL": "gpt-6-luna",
     "VIDEO_VISUAL_ENABLED": "true",
     "VISION_MODEL": "",
     "PGVECTOR_COLLECTION_NAME": "scene_embeddings",
@@ -122,7 +122,7 @@
         // Keep provider-specific defaults in the application, as in local dev.
         "EMBEDDING_MODEL": "",
         "OLLAMA_BASE_URL": "",
-        "LLM_MODEL": "gpt-4o-mini",
+        "LLM_MODEL": "gpt-6-luna",
         "VIDEO_VISUAL_ENABLED": "true",
         "VISION_MODEL": "",
         "PGVECTOR_COLLECTION_NAME": "scene_embeddings",
