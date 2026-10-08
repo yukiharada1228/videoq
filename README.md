@@ -1,15 +1,34 @@
 # VideoQ
 
-**Jump instantly to the scenes you want by asking AI questions**
+**Ask your videos. Find the explanation.**
 
-VideoQ is a video learning platform that turns uploaded videos and YouTube lectures into searchable transcripts and timestamped Q&A. Organize videos into courses, share them with learners, and review questions and answer quality.
+VideoQ helps you study with your own lecture videos. Ask a question in your own words, read an answer grounded in your course material, and select a source timestamp to rewatch the relevant explanation.
 
-**[https://videoq.jp/](https://videoq.jp/)**
+Upload recordings or import YouTube lectures, organize them into courses, and share them with learners. Course owners can review question history and feedback to see where learners need help.
 
-![VideoQ Application Screenshot](assets/screenshot.png)
+**[Try VideoQ](https://videoq.jp/en/) · [Developer docs](https://docs.videoq.jp/) · [Quick start](#quick-start)**
 
-> **MCP integration supported** - Connect Claude Code and other MCP clients through OAuth or API keys.
->
+## Watch the demo
+
+[![Play the 30-second English demo: ask a question, read a source-backed answer, and jump to the lecture scene](apps/web/public/demo/student-demo-en-poster.webp)](https://videoq.jp/demo/student-demo-en.mp4?v=4)
+
+**[▶ Play the English demo (30 seconds)](https://videoq.jp/demo/student-demo-en.mp4?v=4)** · [Watch on the website with captions](https://videoq.jp/en/#landing-demo)
+
+The demo follows a learner through a five-subject course: open a lecture, ask what a derivative means, read the AI answer, and click its timestamp to revisit the explanation.
+
+*English adaptation of a walkthrough using real course data and an AI answer. Waiting times have been shortened.*
+
+## Features
+
+- **Ask across a course** — Find explanations across your lecture videos using questions in your own words.
+- **Check the source** — Follow timestamps from an answer to the relevant video scenes and review them in context.
+- **Bring your own material** — Upload MP4, MOV, WebM, and other supported formats, or import YouTube transcripts using your SearchAPI key.
+- **Organize and share** — Group videos into courses, label them with tags, and give learners access through share links or email invitations.
+- **Review learning activity** — Explore question history, answer feedback, analytics, and CSV exports.
+- **Use Japanese or English** — Switch between Japanese and English interfaces.
+- **Connect MCP clients** — Use Claude Code and other compatible tools to manage videos and courses or inspect question history through OAuth or API keys.
+- **Manage usage** — Configure user quotas, storage limits, reindex jobs, and optional Stripe subscriptions.
+
 > **New to the team?** Start with the [developer documentation](docs/README.md): [local setup](docs/getting-started/local-setup.md), [first walkthrough](docs/getting-started/first-walkthrough.md), and [codebase tour](docs/getting-started/codebase.md). Architecture and design references are also available there.
 
 ## Architecture
@@ -39,19 +58,6 @@ The SPA shares the typed `/api/trpc` contract in `packages/trpc`. Hono also serv
 Async processing runs transcription → scene indexing. Jobs are recorded in a database outbox and delivered to SQS, and the worker tracks job IDs to handle retries. The `TASK_SCHEDULER` Durable Object schedules recovery for pending deliveries and abandoned uploads. A daily `17 3 * * *` UTC cron performs retention cleanup and recovery; there is no five-minute polling cron.
 
 Package READMEs: [`apps/`](apps/README.md) · [`apps/api/`](apps/api/README.md) · [`apps/web/`](apps/web/README.md) · [`apps/worker/`](apps/worker/README.md)
-
-## Features
-
-- **Upload supported video formats** - MP4, MOV, AVI, MKV, WebM, M4V, MPEG, 3GP, and more
-- **Import YouTube lectures** - Retrieve transcripts using a SearchAPI key saved in your settings
-- **Ask questions with sources** - Chat across course videos and jump to the cited scenes
-- **Organize with tags** - Manage videos with custom tags and colors
-- **Share courses** - Group videos into courses, create share links, and invite members by email
-- **Review learning activity** - View chat history, feedback, analytics, and CSV exports
-- **Manage usage and plans** - Administer users, storage and monthly quotas, reindex jobs, and optional Stripe subscriptions
-- **Multilingual UI** - Switch between Japanese and English interfaces
-- **MCP integration** - Manage videos and courses and analyze chat history from Claude Code
-
 
 ## Quick Start
 
