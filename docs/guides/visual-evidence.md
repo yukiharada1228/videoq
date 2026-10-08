@@ -111,7 +111,7 @@ agent; it must acknowledge the unverified visuals rather than invent evidence.
   most 16 seconds and up to 16 dense images. The API reads only the header, index
   and selected images, using three bounded range reads and a matching object
   ETag (plus a missing-v2 probe when using legacy data). It never downloads the whole dense pack. Insufficient remaining image
-  budget is reported instead of silently reducing temporal density; the agent must split a dense interval. Image intervals are end-exclusive. An inclusive user endpoint copied into the exclusive-end field is adjusted to include that exact millisecond.
+  budget is reported instead of silently reducing temporal density; the result provides a split timestamp. A frame-budget refusal leaves both focus inspection slots available for the two halves, while still consuming one of the four shared visual attempts. Image intervals are end-exclusive. An inclusive user endpoint copied into the exclusive-end field is adjusted to include that exact millisecond.
 - All four viewing tools share at most 4 visual calls / 48 images per answer.
   Overview and focus use up to 16 images; skim and inspection use up to 8 each.
   These limits are enforced in code even for parallel requests. Image reads and

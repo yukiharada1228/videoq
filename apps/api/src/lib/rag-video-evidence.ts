@@ -187,10 +187,14 @@ export function videoEvidenceTools(
     const video = await getVideoEvidence(env, scope, video_id);
     signal.throwIfAborted();
     if (!video) return "This video is unavailable or not ready.";
-    return JSON.stringify(await inspect(video, start_seconds, end_seconds, query, "focus"));
+    const result = await inspect(video, start_seconds, end_seconds, query, "focus");
+    // A rejected oversized window inspected no images. Leave both focus slots
+    // available for its two halves; the shared four-attempt cap still applies.
+    if ("reason" in result && result.reason === "frame_budget") focuses--;
+    return JSON.stringify(result);
   }, {
     name: "focus_clip",
-    description: "Densely inspect a short uploaded-video interval of at most 16 seconds using up to 16 high-detail images, preserving actual timestamps. Counts/OCR inspect stills individually; temporal questions compare ordered images together. The adaptive cache adds significant changes at up to 4 FPS to a roughly one-second baseline; legacy caches are one-second only. If the sample budget is exceeded, split the interval; never silently discard frames. Use for brief visible steps, changing equations or details missed by sparse overview/skim/inspect images. Go directly to a user-specified time or narrow a candidate from other tools. Dense cache is required; never pretend sparse stills are dense evidence. Source gaps and sub-second events may still be missed. Maximum 2 calls; all viewing tools share 4 visual calls / 48 images per answer. YouTube imports have no image inspection.",
+    description: "Densely inspect a short uploaded-video interval of at most 16 seconds using up to 16 high-detail images, preserving actual timestamps. Counts/OCR inspect stills individually; temporal questions compare ordered images together. The adaptive cache adds significant changes at up to 4 FPS to a roughly one-second baseline; legacy caches are one-second only. If the sample budget is exceeded, split at suggested_end_seconds and inspect both halves; never silently discard frames. Such a refusal leaves the 2 focus inspection slots available, but still counts toward the shared 4-attempt limit. Use for brief visible steps, changing equations or details missed by sparse overview/skim/inspect images. Go directly to a user-specified time or narrow a candidate from other tools. Dense cache is required; never pretend sparse stills are dense evidence. Source gaps and sub-second events may still be missed. Maximum 2 focus inspections; all viewing tools share 4 visual attempts / 48 images per answer. YouTube imports have no image inspection.",
     schema: z.object({
       ...interval,
       end_seconds: interval.end_seconds.describe("Exclusive end time. To inspect the frame at 4 seconds, end after 4 seconds (for example 4.5 or 5). The interval must still be at most 16 seconds."),

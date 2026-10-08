@@ -45,6 +45,7 @@ No overall "11/11 accurate" claim is made. The automatic live test checks comple
 - Individual stills are used for counts/OCR; ordered images are compared together for motion and sequence. Exact duplicate individual images reuse observations.
 - One-based image indices are mapped to server-owned timestamps, with bounded enums and validation. Multiple attributes for the same frame merge under its real timestamp. Inclusive user endpoints and explicitly excluded bounds are distinguished.
 - The UI retains nonzero fractional seconds on visual citations: the 27.25-second appearance and 27.75-second background sample are distinguishable in both streamed and saved answers. Transcript ranges keep their existing whole-second display.
+- An oversized adaptive window returns a concrete split timestamp without consuming a focus inspection slot; both halves can be checked while the shared four-attempt and 48-frame caps remain enforced.
 - Legacy caches stay readable; call/frame/size/time limits and deletion cleanup cover both formats. Shorter/subtle events and source gaps can still be missed.
 
 ## Artifacts and rollout

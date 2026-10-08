@@ -52,8 +52,16 @@ it("reads legacy caches only when the adaptive object is absent", async () => {
 });
 it("does not silently discard adaptive samples to fit the image budget", async () => {
   pack = focusCacheFixture(Array.from({ length: 20 }, (_, i) => 5000 + i * 250));
-  expect(await read(5, 10)).toHaveProperty("unavailable", expect.stringContaining("20 adaptive samples"));
+  expect(await read(5, 10)).toMatchObject({
+    unavailable: expect.stringContaining("20 adaptive samples"), reason: "frame_budget",
+    required_frames: 20, available_frames: 16, suggested_end_seconds: 9,
+  });
   expect(readMediaRange).toHaveBeenCalledTimes(2);
+  const first = await read(5, 9);
+  const second = await read(9, 10);
+  if (!("frames" in first) || !("frames" in second)) throw new Error("Expected both split intervals");
+  expect([...first.frames, ...second.frames].map(frame => frame.timestamp_seconds))
+    .toEqual(Array.from({ length: 20 }, (_, i) => 5 + i / 4));
 });
 it("does not silently downsample when the remaining image budget is insufficient", async () => {
   expect(await read(10, 26, 8)).toHaveProperty("unavailable", expect.stringContaining("budget"));

@@ -30,7 +30,10 @@ export type FrameSelection = {
   sampling_interval_seconds: number;
   candidate_interval_seconds?: number;
   sampling_strategy?: "interval" | "interval_and_scene_change";
-} | { unavailable: string; sampling_interval_seconds?: number };
+} | {
+  unavailable: string; sampling_interval_seconds?: number;
+  reason?: "frame_budget"; required_frames?: number; available_frames?: number; suggested_end_seconds?: number;
+};
 
 function base64(bytes: Uint8Array): string {
   let binary = "";
@@ -83,7 +86,10 @@ export async function readFocusFrames(
   const selected = index.frames.filter(([time]) => time >= start * 1000 && time < end * 1000);
   if (!selected.length) return { unavailable: "No dense frames fall in this interval; the source may have a gap or the interval may be outside the video.", sampling_interval_seconds: 1 } as const;
   if (selected.length > Math.min(MAX_FOCUS_FRAMES, maxFrames)) return {
-    unavailable: `Image budget (${Math.min(MAX_FOCUS_FRAMES, maxFrames)} frames) cannot cover all ${selected.length} adaptive samples in this interval. Split it into shorter intervals; use intervals of at most three seconds to fit 16 frames. Do not treat this as evidence of absence.`,
+    unavailable: `Image budget (${Math.min(MAX_FOCUS_FRAMES, maxFrames)} frames) cannot cover all ${selected.length} adaptive samples in this interval. No images were inspected. Split at suggested_end_seconds and inspect both resulting intervals within the remaining shared budget. Do not treat this as evidence of absence.`,
+    reason: "frame_budget" as const,
+    required_frames: selected.length, available_frames: Math.min(MAX_FOCUS_FRAMES, maxFrames),
+    ...(maxFrames > 0 ? { suggested_end_seconds: selected[Math.min(MAX_FOCUS_FRAMES, maxFrames)][0] / 1000 } : {}),
   } as const;
   const offset = selected[0][1];
   const last = selected[selected.length - 1];

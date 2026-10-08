@@ -233,6 +233,32 @@ describe("adaptive video navigation", () => {
     expect(inspectVideoClip).toHaveBeenCalledTimes(1);
     expect(await focus.invoke({ ...clipArgs, query: "Third" })).toContain("limit reached");
   });
+  it("can inspect both halves after refusing an oversized adaptive window", async () => {
+    const focus = get(makeTools(), "focus_clip");
+    vi.mocked(inspectVideoClip).mockResolvedValueOnce({
+      unavailable: "Split this interval", reason: "frame_budget",
+      required_frames: 20, available_frames: 16, suggested_end_seconds: 9,
+    });
+    const args = { ...clipArgs, start_seconds: 5, end_seconds: 10 };
+    const refusal = JSON.parse(String(await focus.invoke(args)));
+    expect(refusal.suggested_end_seconds).toBe(9);
+    for (const [start, end] of [[5, 9], [9, 10]]) {
+      const result = JSON.parse(String(await focus.invoke({ ...args, start_seconds: start, end_seconds: end })));
+      expect(result.observations).toHaveLength(1);
+    }
+    expect(inspectVideoClip).toHaveBeenCalledTimes(3);
+    expect(await focus.invoke({ ...args, query: "Another detail" })).toContain("Focus limit reached");
+  });
+  it("still bounds rejected split attempts by the shared visual-call limit", async () => {
+    const focus = get(makeTools(), "focus_clip");
+    vi.mocked(inspectVideoClip).mockResolvedValue({ unavailable: "Split this interval", reason: "frame_budget" });
+    for (let i = 0; i < 4; i++) {
+      expect(JSON.parse(String(await focus.invoke({ ...clipArgs, query: `Attempt ${i}` })))).toHaveProperty("reason", "frame_budget");
+    }
+    const limited = JSON.parse(String(await focus.invoke({ ...clipArgs, query: "Attempt 5" })));
+    expect(limited.unavailable).toContain("Visual inspection limit reached");
+    expect(inspectVideoClip).toHaveBeenCalledTimes(4);
+  });
   it("cancels navigation before accessing evidence", async () => {
     const controller = new AbortController();
     const tools = videoEvidenceTools(env, scope, () => 1, controller.signal);
