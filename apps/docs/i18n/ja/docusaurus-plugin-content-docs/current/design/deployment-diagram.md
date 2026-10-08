@@ -12,7 +12,7 @@ flowchart TB
     Gateway --> Web[web<br/>nginx static SPA]
     Gateway --> API[api<br/>wrangler dev :8787]
     API --> DB[(postgres :5432)]
-    API --> Object[(minio :9000)]
+    API --> Object[(garage :3900)]
     API --> Queue[elasticmq :9324]
     Queue --> Worker[worker<br/>SQS long poll]
     Worker --> DB

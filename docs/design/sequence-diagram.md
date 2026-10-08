@@ -14,7 +14,7 @@ sequenceDiagram
     participant User as Browser
     participant API as Hono API
     participant DB as PostgreSQL
-    participant Store as R2 / MinIO
+    participant Store as R2 / Garage
     participant Queue as SQS / ElasticMQ
     participant Worker as Python worker
     User->>API: videos.requestUpload

@@ -36,7 +36,7 @@ WebとAPIは `packages/trpc` で操作名・入力・出力の型を共有しま
 | API | Wranglerの開発サーバー | Cloudflare Workers |
 | DB | PostgreSQL + pgvector | Neon PostgreSQL + pgvector |
 | APIからDBへの接続 | ローカル接続文字列 | Hyperdrive |
-| 動画・字幕などの保管 | MinIO | Cloudflare R2 |
+| 動画・字幕などの保管 | Garage | Cloudflare R2 |
 | ジョブキュー | ElasticMQ | Amazon SQS |
 | Python worker | キューを継続的に取得するコンテナ | SQSを契機に動くAWS Lambda |
 | APIが持つ一時状態 | ローカルのDurable Objects | Cloudflare Durable Objects |

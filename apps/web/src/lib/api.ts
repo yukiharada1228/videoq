@@ -29,7 +29,7 @@ import type {
 export { API_URL } from './apiConfig';
 export { ApiError } from './api-error';
 export type * from './api-types';
-// VITE_USE_S3_STORAGE=true: 署名 URL 直 PUT（ローカル MinIO / 本番 R2）。false: multipart → VIDEO_BUCKET。
+// VITE_USE_S3_STORAGE=true: 署名 URL 直 PUT（ローカル Garage / 本番 R2）。false: multipart → VIDEO_BUCKET。
 const USE_S3_STORAGE = import.meta.env.VITE_USE_S3_STORAGE === 'true';
 
 type ApiFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;

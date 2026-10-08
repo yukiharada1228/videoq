@@ -20,7 +20,7 @@ description: VideoQ のコードや文書に出てくる略語を、このプロ
 | Cloudflare Workers | Hono APIが動く本番の実行基盤 |
 | Python worker | `apps/worker` にある、文字起こしなどの非同期処理プログラム |
 | SQS / ElasticMQ | ジョブを受け渡すキュー / ローカルで使うSQS互換のキュー |
-| R2 / MinIO | 動画ファイルなどの保管先 / ローカルで使う互換ストレージ |
+| R2 / Garage | 動画ファイルなどの保管先 / ローカルで使う互換ストレージ |
 | Neon / PostgreSQL | 本番で使うDBサービス / その基盤となるデータベース |
 | Hyperdrive | Cloudflare WorkersからPostgreSQLへ接続するための仕組み |
 | Durable Object（DO） | 状態を持つCloudflareの実行単位。利用制限、ジョブ回復の予約に使用 |

@@ -6,7 +6,7 @@ const S3_OPERATION_TIMEOUT_MS = 10_000;
 
 /**
  * メディア共通基盤。
- * - USE_S3_STORAGE=true: S3 互換（本番 R2 / ローカル MinIO）の presigned GET/PUT + Head/Delete
+ * - USE_S3_STORAGE=true: S3 互換（本番 R2 / ローカル Garage）の presigned GET/PUT + Head/Delete
  * - USE_S3_STORAGE=false: VIDEO_BUCKET + `/api/media/`（multipart）
  *
  * オブジェクトキーは `media/<file_key>`。
@@ -27,7 +27,7 @@ function encodeRfc3986Segment(value: string): string {
 
 function requireS3Config(
   env: Bindings,
-  opts: { /** false → Head/Delete 用（compose 内は minio:9000 など） */ public?: boolean } = {},
+  opts: { /** false → Head/Delete 用（compose 内は garage:3900 など） */ public?: boolean } = {},
 ): {
   accessKeyId: string;
   secretAccessKey: string;
@@ -40,7 +40,7 @@ function requireS3Config(
   const publicEndpoint = env.R2_S3_ENDPOINT;
   const bucket = env.R2_BUCKET_NAME;
   if (!accessKeyId || !secretAccessKey || !publicEndpoint || !bucket) {
-    throw new Error("S3/R2 credentials are not configured (R2_* / MinIO)");
+    throw new Error("S3/R2 credentials are not configured (R2_* / Garage)");
   }
   // 署名 URL はブラウザ到達可能な公開 endpoint。サーバー側 ops は INTERNAL があればそちら。
   const usePublic = opts.public !== false;
@@ -49,7 +49,7 @@ function requireS3Config(
       ? publicEndpoint
       : env.R2_S3_INTERNAL_ENDPOINT || publicEndpoint
   ).replace(/\/+$/, "");
-  // R2 は "auto"。MinIO / AWS S3 は実リージョン（ローカル MinIO は us-east-1）。
+  // R2 は "auto"、ローカル Garage は "garage"、AWS S3 はバケットのリージョン。
   const region = (env.R2_S3_REGION || env.AWS_REGION || "auto").trim() || "auto";
   return {
     accessKeyId,
@@ -126,7 +126,7 @@ export async function resolveFileUrl(
   }
 }
 
-/** R2 / MinIO の `media/` 配下に置くオブジェクトキー。 */
+/** R2 / Garage の `media/` 配下に置くオブジェクトキー。 */
 function r2ObjectKey(fileKey: string): string {
   const normalized = fileKey.replace(/\\/g, "/").replace(/^\/+/, "");
   return `media/${normalized}`;
@@ -167,7 +167,7 @@ export async function getR2ObjectSize(
   fileKey: string,
 ): Promise<number | null> {
   // Production Workers can reach R2 directly through the binding. Keep the
-  // signed HTTP path only for local MinIO, where the binding is not the source
+  // signed HTTP path only for local Garage, where the binding is not the source
   // of truth used by presigned browser uploads.
   if (env.ENVIRONMENT === "production") {
     const obj = await env.VIDEO_BUCKET.head(r2ObjectKey(fileKey));

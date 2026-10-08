@@ -5,15 +5,17 @@ Local SQS/ElasticMQ poller — Lambda substitute for apps/worker.
 Long-polls SQS_QUEUE_URL, feeds each message to lambda_handler.handler,
 and deletes successful messages (failed ones become visible again / DLQ).
 
-  docker compose up -d postgres minio minio-init elasticmq
+  docker compose up -d postgres garage garage-init elasticmq
   export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:55432/postgres
   export SQS_QUEUE_URL=http://127.0.0.1:9324/000000000000/videoq-jobs
   export AWS_REGION=us-east-1
-  # ElasticMQ accepts any keys — reuse MinIO credentials for S3 + SQS locally.
+  # ElasticMQ uses dummy AWS keys; Garage uses separate R2_* credentials.
+  export AWS_ACCESS_KEY_ID=local AWS_SECRET_ACCESS_KEY=local
   export USE_S3_STORAGE=true
-  export R2_ACCESS_KEY_ID=minioadmin R2_SECRET_ACCESS_KEY=minioadmin
+  export R2_ACCESS_KEY_ID=GK00000000000000000000000000000000
+  export R2_SECRET_ACCESS_KEY=0000000000000000000000000000000000000000000000000000000000000000
   export R2_BUCKET_NAME=videoq-media
-  export R2_S3_ENDPOINT=http://127.0.0.1:9000 R2_S3_REGION=us-east-1
+  export R2_S3_ENDPOINT=http://127.0.0.1:9000 R2_S3_REGION=garage
   python scripts/run_worker.py
 """
 

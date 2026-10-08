@@ -267,5 +267,5 @@ npm run cf-typegen
 To start the local dependencies together:
 
 ```bash
-docker compose up -d postgres minio minio-init elasticmq worker
+docker compose up -d postgres garage garage-init elasticmq worker
 ```

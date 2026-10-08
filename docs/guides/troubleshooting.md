@@ -15,7 +15,7 @@ docker compose logs --tail=100 migrate api worker
 curl -i http://localhost/ready
 ```
 
-Exit code `0` for `migrate` and `minio-init` is normal. If `/health` succeeds but `/ready` fails, the API is responding; check DB connectivity and migrations next.
+Exit code `0` for `migrate` and `garage-init` is normal. If `/health` succeeds but `/ready` fails, the API is responding; check DB connectivity and migrations next.
 
 ## The UI does not open or reflect changes
 
@@ -47,7 +47,7 @@ Record the video ID and status, then inspect the `worker` logs.
 
 | State or symptom | What to check |
 |---|---|
-| Stuck in `uploading` | Browser-to-MinIO upload, port 9000, and the upload completion notification |
+| Stuck in `uploading` | Browser-to-Garage upload, port 9000, and the upload completion notification |
 | Stuck in `pending` | Whether `worker` and `elasticmq` are running, and API job delivery logs |
 | Failure during `processing` | Audio availability, FFmpeg/Whisper logs, and AI keys |
 | Failure during `indexing` | Embedding model and dimensions, DB connectivity, and worker exceptions |

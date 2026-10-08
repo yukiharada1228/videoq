@@ -67,7 +67,7 @@ docker compose ps -a
 初回はイメージの取得・ビルドがあるため、起動まで時間がかかります。
 
 - `postgres`、`api`、`worker`、`web`、`gateway` などが起動していれば次へ進めます。
-- `migrate` と `minio-init` は準備が終わると停止します。終了コードが `0` なら正常です。
+- `migrate` と `garage-init` は準備が終わると停止します。終了コードが `0` なら正常です。
 - 失敗したサービスがある場合は `docker compose logs --tail=100 migrate api worker` で原因を確認します。
 
 ```bash

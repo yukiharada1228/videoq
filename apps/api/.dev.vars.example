@@ -32,19 +32,21 @@ USER_SECRET_ENCRYPTION_KEY=""
 # Transactional email. Required in production; optional for local development.
 # MAILGUN_API_KEY=""
 
-# --- Local MinIO (docker compose up -d postgres minio minio-init) ---
-# Console: http://127.0.0.1:9001  API: http://127.0.0.1:9000
-R2_ACCESS_KEY_ID="minioadmin"
-R2_SECRET_ACCESS_KEY="minioadmin"
+# --- Local Garage (docker compose up -d garage garage-init) ---
+# S3 API: http://127.0.0.1:9000 (development credentials only)
+# Match GARAGE_* overrides in .env if you customize the Compose defaults.
+USE_S3_STORAGE="true"
+R2_ACCESS_KEY_ID="GK00000000000000000000000000000000"
+R2_SECRET_ACCESS_KEY="0000000000000000000000000000000000000000000000000000000000000000"
 R2_S3_ENDPOINT="http://127.0.0.1:9000"
 # compose 内 API のみ: Head/Delete 用（ブラウザ署名は上の公開 URL）
-# R2_S3_INTERNAL_ENDPOINT="http://minio:9000"
+# R2_S3_INTERNAL_ENDPOINT="http://garage:3900"
 R2_BUCKET_NAME="videoq-media"
-R2_S3_REGION="us-east-1"
+R2_S3_REGION="garage"
 
 # --- Local ElasticMQ (docker compose up -d elasticmq) ---
 # Queue: http://127.0.0.1:9324/000000000000/videoq-jobs  Stats UI: :9325
-# Dummy keys（ElasticMQ は署名を緩く受理）。MinIO の R2_* とは別。
+# Dummy keys（ElasticMQ は署名を緩く受理）。Garage の R2_* とは別。
 SQS_QUEUE_URL="http://127.0.0.1:9324/000000000000/videoq-jobs"
 AWS_REGION="us-east-1"
 AWS_ACCESS_KEY_ID="local"

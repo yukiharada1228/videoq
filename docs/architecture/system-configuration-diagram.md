@@ -36,7 +36,7 @@ Web and API share operation names and input/output types through `packages/trpc`
 | API | Wrangler development server | Cloudflare Workers |
 | Database | PostgreSQL + pgvector | Neon PostgreSQL + pgvector |
 | API-to-DB connection | Local connection string | Hyperdrive |
-| Video, subtitle, and other storage | MinIO | Cloudflare R2 |
+| Video, subtitle, and other storage | Garage | Cloudflare R2 |
 | Job queue | ElasticMQ | Amazon SQS |
 | Python worker | Container continuously polling the queue | AWS Lambda triggered by SQS |
 | Temporary API state | Local Durable Objects | Cloudflare Durable Objects |

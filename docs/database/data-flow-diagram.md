@@ -11,7 +11,7 @@ Video files and information about those videos are stored separately. When inves
 
 ```mermaid
 flowchart LR
-    File[Video file] --> Store[(R2 / MinIO)]
+    File[Video file] --> Store[(R2 / Garage)]
     Store --> Worker[Python worker]
     Worker --> Transcript[(Transcript in videos)]
     Transcript --> Index[Generate embeddings]

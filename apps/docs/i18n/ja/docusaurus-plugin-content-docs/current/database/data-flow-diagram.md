@@ -11,7 +11,7 @@ description: 動画ファイル、検索データ、質問と回答、認証情�
 
 ```mermaid
 flowchart LR
-    File[動画ファイル] --> Store[(R2 / MinIO)]
+    File[動画ファイル] --> Store[(R2 / Garage)]
     Store --> Worker[Python worker]
     Worker --> Transcript[(videosの文字起こし)]
     Transcript --> Index[埋め込みの生成]
