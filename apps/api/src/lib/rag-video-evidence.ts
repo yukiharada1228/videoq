@@ -4,6 +4,7 @@ import { getVideoEvidence, type EvidenceScope } from "../repositories/video-evid
 import type { SceneHit } from "../repositories/vector-repository";
 import type { Bindings } from "../types/bindings";
 import { inspectVideoClip, type VisualMode } from "./visual-inspection";
+import { transcriptQuality } from "./transcript-quality";
 import {
   formatEvidenceTime, MAX_CLIP_INSPECTIONS, MAX_WINDOW_READS, MAX_OVERVIEWS, MAX_SKIMS,
   MAX_VISUAL_CALLS, MAX_VISUAL_FRAMES, MAX_OVERVIEW_FRAMES, MAX_CLIP_FRAMES,
@@ -30,6 +31,15 @@ export function videoEvidenceTools(
   let inspectionTail = Promise.resolve();
   const seen = new Set<string>();
   const allowed = new Set(scope.videoIds);
+  const respond = (result: object) => JSON.stringify({
+    ...result,
+    budget: {
+      remaining_visual_calls: Math.max(0, MAX_VISUAL_CALLS - visualCalls),
+      remaining_images: Math.max(0, MAX_VISUAL_FRAMES - visualFrames),
+      remaining_focus_calls: Math.max(0, MAX_FOCUS_CALLS - focuses),
+      note: "Shared per answer; includes reservations for concurrent calls. An overview uses up to 16 images; a focus uses up to 16. Reserve images for comparing candidate intervals. Tool completion alone does not mean useful evidence was found.",
+    },
+  });
   const check = (id: number, start = 0, end = 1, maxInterval = 180) => {
     signal.throwIfAborted();
     if (!allowed.has(id)) return "Invalid video_id: only the current course's videos may be read.";
@@ -39,6 +49,7 @@ export function videoEvidenceTools(
   const describe = (hit: SceneHit) => ({
     sourceId: addSource(hit), videoId: hit.videoId, title: hit.videoTitle,
     startTime: hit.startTime, endTime: hit.endTime, evidenceType: hit.evidenceType ?? "transcript", text: hit.content,
+    ...(hit.evidenceType === "visual" ? {} : { transcript_quality: transcriptQuality(hit) }),
   });
   const visualEnabled = videoVisualEnabled(env.VIDEO_VISUAL_ENABLED);
   const visualNote = "Sparse still-frame observations only. Unseen moments, motion, fine details and missing steps are not established. Empty observations do not prove content is absent. Narrow an interval only if useful; stop when sufficient evidence is collected.";
@@ -46,11 +57,11 @@ export function videoEvidenceTools(
     video: NonNullable<Awaited<ReturnType<typeof getVideoEvidence>>>,
     start: number, end: number, query: string, mode: VisualMode,
   ) => {
-    if (!visualEnabled) return { unavailable: "Visual inspection is disabled. Only subtitles were checked." };
-    if (video.sourceType !== "uploaded" || !video.fileKey) return { unavailable: "Visual inspection is available only for uploaded videos, not YouTube imports." };
+    if (!visualEnabled) return { status: "unavailable", unavailable: "Visual inspection is disabled. Only subtitles were checked." };
+    if (video.sourceType !== "uploaded" || !video.fileKey) return { status: "unavailable", unavailable: "Visual inspection is available only for uploaded videos, not YouTube imports." };
     // Reserve before awaiting: parallel calls share both count and image budgets.
     if (visualCalls >= MAX_VISUAL_CALLS || visualFrames >= MAX_VISUAL_FRAMES) {
-      return { unavailable: "Visual inspection limit reached (4 calls / 48 frames shared across all viewing tools). Use collected evidence." };
+      return { status: "unavailable", unavailable: "Visual inspection limit reached (4 calls / 48 frames shared across all viewing tools). Use collected evidence." };
     }
     const maxFrames = Math.min(mode === "focus" ? MAX_FOCUS_FRAMES : mode === "overview" ? MAX_OVERVIEW_FRAMES : MAX_CLIP_FRAMES, MAX_VISUAL_FRAMES - visualFrames);
     visualCalls++;
@@ -66,9 +77,10 @@ export function videoEvidenceTools(
       const result = await inspectVideoClip(env, { id: video.id, fileKey: video.fileKey }, start, end, visualQuery, signal, { mode, maxFrames });
       const actualFrames = "unavailable" in result ? 0 : result.sampled_timestamps.length;
       visualFrames -= maxFrames - actualFrames;
-      if ("unavailable" in result) return result;
+      if ("unavailable" in result) return { ...result, status: "unavailable" };
       return {
         ...result,
+        status: result.observations.length ? "observed" : "no_observations",
         observations: result.observations.map(observation => ({ timestamp_seconds: observation.timestamp, ...describe({
           videoId: video.id, videoTitle: video.title,
           startTime: formatEvidenceTime(observation.timestamp), endTime: formatEvidenceTime(observation.timestamp),
@@ -102,9 +114,9 @@ export function videoEvidenceTools(
     const video = await getVideoEvidence(env, scope, video_id);
     signal.throwIfAborted();
     if (!video) return "This video is unavailable or not ready.";
-    return JSON.stringify({
+    return respond({
       videoId: video.id, title: video.title, subtitles: timeline(video),
-      visuals: include_visuals ? await inspect(video, 0, Infinity, query, "overview") : { skipped: "Visuals were not requested." },
+      visuals: include_visuals ? await inspect(video, 0, Infinity, query, "overview") : { status: "skipped", skipped: "Visuals were not requested." },
     });
   }, {
     name: "overview_video",
@@ -122,10 +134,10 @@ export function videoEvidenceTools(
     const video = await getVideoEvidence(env, scope, video_id);
     signal.throwIfAborted();
     if (!video) return "This video is unavailable or not ready.";
-    return JSON.stringify({
+    return respond({
       videoId: video.id, title: video.title, start_seconds, end_seconds,
       subtitles: timeline(video, start_seconds, end_seconds),
-      visuals: include_visuals ? await inspect(video, start_seconds, end_seconds, query, "skim") : { skipped: "Visuals were not requested." },
+      visuals: include_visuals ? await inspect(video, start_seconds, end_seconds, query, "skim") : { status: "skipped", skipped: "Visuals were not requested." },
     });
   }, {
     name: "skim_video",
@@ -141,7 +153,7 @@ export function videoEvidenceTools(
     if (!video) return "This video is unavailable or not ready.";
     if (video.transcriptTooLarge) return "Transcript is too large for window reading; use search_scenes.";
     const result = transcriptWindow(video, start_seconds, end_seconds, context_seconds);
-    return JSON.stringify({
+    return respond({
       start_seconds: result.start, end_seconds: result.end, truncated: result.truncated,
       scenes: result.scenes.map(describe),
       note: result.scenes.length ? "Subtitle cue timestamps are preserved; overlapping cues can extend outside the requested window." : "No subtitles overlap this window. This says nothing about visible content.",
@@ -162,7 +174,7 @@ export function videoEvidenceTools(
     const video = await getVideoEvidence(env, scope, video_id);
     signal.throwIfAborted();
     if (!video) return "This video is unavailable or not ready.";
-    return JSON.stringify(await inspect(video, start_seconds, end_seconds, query, "inspect"));
+    return respond(await inspect(video, start_seconds, end_seconds, query, "inspect"));
   }, {
     name: "inspect_clip",
     description: "Read stable diagrams, equations, labels or screen contents over a known interval using up to 8 high-detail stills at least 5 seconds apart. For a known interval of at most 16 seconds, especially counts, motion, ordering or brief appearances, prefer focus_clip. Maximum 2 calls, 180 seconds; shares a 4-call / 48-frame visual budget. Uploaded videos with a frame cache only.",
@@ -179,10 +191,10 @@ export function videoEvidenceTools(
     const video = await getVideoEvidence(env, scope, video_id);
     signal.throwIfAborted();
     if (!video) return "This video is unavailable or not ready.";
-    return JSON.stringify(await inspect(video, start_seconds, end_seconds, query, "focus"));
+    return respond(await inspect(video, start_seconds, end_seconds, query, "focus"));
   }, {
     name: "focus_clip",
-    description: "Densely inspect a short uploaded-video interval of at most 16 seconds using up to 16 high-detail images selected approximately once per second, preserving actual timestamps. Use for brief visible steps, changing equations or details missed by sparse overview/skim/inspect images. Go directly to a user-specified time or narrow a candidate from other tools. Dense cache is required; never pretend sparse stills are dense evidence. Source gaps and sub-second events may still be missed. Maximum 2 calls; all viewing tools share 4 visual calls / 48 images per answer. YouTube imports have no image inspection.",
+    description: "Densely inspect a short uploaded-video interval of at most 16 seconds using up to 16 high-detail images selected approximately once per second, preserving actual timestamps. Use for brief visible steps, changing equations or details missed by sparse overview/skim/inspect images. For visual highlights, check the candidate's lead-in, action and outcome; a lone notification is not a complete event. Go directly to a user-specified time or narrow a candidate from other tools. Dense cache is required; never pretend sparse stills are dense evidence. Source gaps and sub-second events may still be missed. Maximum 2 calls; all viewing tools share 4 visual calls / 48 images per answer. Check returned budget before planning another interval. YouTube imports have no image inspection.",
     schema: z.object({
       ...interval,
       end_seconds: interval.end_seconds.describe("Exclusive end time. To inspect the frame at 4 seconds, end at 5 seconds or later. The interval must still be at most 16 seconds."),

@@ -122,6 +122,45 @@ describe("adaptive video navigation", () => {
   const skimArgs = { ...clipArgs, include_visuals: true };
   const get = (tools: ReturnType<typeof makeTools>, name: string) => tools.find(t => t.name === name)!;
 
+  it("leaves and reports enough budget after an overview to compare two dense candidates", async () => {
+    vi.mocked(inspectVideoClip).mockImplementation(async (_env, _video, start, _end, _query, _signal, options) => ({
+      observations: [{ timestamp: start, text: "Visible state" }],
+      sampled_timestamps: Array.from({ length: options!.maxFrames }, (_, i) => start + i),
+      sampling_interval_seconds: 1, duration_seconds: 300,
+    }));
+    const tools = makeTools();
+    const overview = JSON.parse(String(await get(tools, "overview_video").invoke(overviewArgs)));
+    expect(overview.visuals.status).toBe("observed");
+    expect(overview.budget).toMatchObject({ remaining_images: 32, remaining_visual_calls: 3, remaining_focus_calls: 2 });
+    const first = JSON.parse(String(await get(tools, "focus_clip").invoke({ ...clipArgs, start_seconds: 60, end_seconds: 76 })));
+    expect(first.budget).toMatchObject({ remaining_images: 16, remaining_focus_calls: 1 });
+    const second = JSON.parse(String(await get(tools, "focus_clip").invoke({ ...clipArgs, start_seconds: 180, end_seconds: 196 })));
+    expect(second.status).toBe("observed");
+    expect(second.budget).toMatchObject({ remaining_images: 0, remaining_focus_calls: 0 });
+    expect(inspectVideoClip).toHaveBeenCalledTimes(3);
+  });
+
+  it("distinguishes missing caches, empty observations and skipped visuals, refunding unused images", async () => {
+    const tools = makeTools();
+    vi.mocked(inspectVideoClip).mockResolvedValueOnce({ unavailable: "Dense cache missing" });
+    const missing = JSON.parse(String(await get(tools, "focus_clip").invoke(clipArgs)));
+    expect(missing).toMatchObject({ status: "unavailable", budget: { remaining_images: 48, remaining_visual_calls: 3, remaining_focus_calls: 1 } });
+    vi.mocked(inspectVideoClip).mockResolvedValueOnce({ observations: [], sampled_timestamps: [104], sampling_interval_seconds: 5, duration_seconds: 210 });
+    const empty = JSON.parse(String(await get(tools, "overview_video").invoke(overviewArgs)));
+    expect(empty.visuals.status).toBe("no_observations");
+    expect(empty.budget.remaining_images).toBe(47);
+    const skipped = JSON.parse(String(await get(tools, "skim_video").invoke({ ...skimArgs, include_visuals: false })));
+    expect(skipped.visuals.status).toBe("skipped");
+    expect(skipped.budget).toEqual(empty.budget);
+  });
+
+  it("exposes coarse transcript timing without inventing more precise cue boundaries", async () => {
+    vi.mocked(getVideoEvidence).mockResolvedValue({ ...video, transcript: "1\n00:00:00,000 --> 00:04:56,000\nLong legacy scene" });
+    const tools = makeTools();
+    const result = JSON.parse(String(await get(tools, "read_video_window").invoke(windowArgs)));
+    expect(result.scenes[0]).toMatchObject({ startTime: "00:00:00,000", endTime: "00:04:56,000", transcript_quality: { flags: ["coarse_timing"] } });
+  });
+
   it("samples the whole subtitle timeline, preserving late evidence and bounding excerpts", () => {
     const cues = Array.from({ length: 50 }, (_, i) => `${i + 1}\n${formatEvidenceTime(i * 100)} --> ${formatEvidenceTime(i * 100 + 10)}\n${i === 49 ? "z".repeat(1500) : `Topic ${i}`}`);
     const result = transcriptTimeline({ ...video, transcript: cues.reverse().join("\n\n") });

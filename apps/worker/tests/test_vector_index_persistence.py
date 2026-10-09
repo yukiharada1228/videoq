@@ -49,6 +49,9 @@ def database(monkeypatch):
             monkeypatch.setenv("EMBEDDING_MODEL", "text-embedding-3-small")
             monkeypatch.setenv("PGVECTOR_COLLECTION_NAME", "scene_embeddings")
             monkeypatch.setattr(vector_index, "embed_texts", lambda texts: [VECTOR for _ in texts])
+            # Transaction/race tests need multiple rows independent of grouping.
+            # Real grouping and original-cue preservation are exercised separately.
+            monkeypatch.setattr(vector_index, "apply_scene_splitting", lambda srt: srt)
             with psycopg.connect(test_url, autocommit=True, row_factory=dict_row) as conn:
                 conn.execute("""
                     CREATE EXTENSION vector;

@@ -16,6 +16,7 @@ from worker_python.env import env_str
 from worker_python.pipeline.embeddings import embed_texts
 from worker_python.pipeline.embedding_schema import check_embedding_storage
 from worker_python.pipeline.srt import parse_srt_scenes
+from worker_python.pipeline.scene_otsu import apply_scene_splitting
 from worker_python.video_sql import VideoRow
 
 logger = logging.getLogger(__name__)
@@ -60,7 +61,7 @@ def delete_user_vectors(user_id: str, *, conn: psycopg.Connection[Any] | None = 
 
 
 def index_video_transcript(video: VideoRow) -> int:
-    """Generate SRT scene embeddings, then atomically replace this video's index."""
+    """Group original cues for search without changing the saved transcript."""
     if not video.transcript:
         raise ValueError(f"Video {video.id} has no transcript")
 
@@ -70,6 +71,11 @@ def index_video_transcript(video: VideoRow) -> int:
 
     table = _table_name()
     check_embedding_storage()
+    # The saved SRT retains original cue boundaries for playback and window reads.
+    # Only searchable scenes are grouped; the race check below uses the original.
+    scenes = parse_srt_scenes(apply_scene_splitting(video.transcript))
+    if not scenes:
+        raise ValueError(f"Video {video.id} scene splitting produced no valid SRT scenes")
     texts = [s.text for s in scenes]
     # Batch embeddings in chunks to avoid provider limits.
     embeddings: list[list[float]] = []
