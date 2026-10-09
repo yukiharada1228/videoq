@@ -154,6 +154,23 @@ describe("billing API", () => {
     expect(res.status).toBe(400);
   });
 
+  it.each([false, true])("preserves webhook bytes at the body limit (Content-Length: %s)", async withLength => {
+    const rawBody = '{ "id": "evt_1", "description": "日本語" }\n'.padEnd(4 * 1024 * 1024 - 6);
+    const bytes = new TextEncoder().encode(rawBody);
+    expect(bytes.byteLength).toBe(4 * 1024 * 1024);
+    constructEventAsync.mockResolvedValue({ id: "evt_1", type: "invoice.paid" });
+    rowsFor = sql => sql.includes("stripe_events") ? [{ id: "evt_1" }] : [];
+    const headers: Record<string, string> = {
+      "content-type": "application/json", "stripe-signature": "t=1,v1=abc",
+    };
+    if (withLength) headers["content-length"] = String(bytes.byteLength);
+    const res = await createApp().request("/api/billing/webhook", {
+      method: "POST", headers, body: bytes,
+    }, ENV as never);
+    expect(res.status).toBe(200);
+    expect(constructEventAsync).toHaveBeenCalledWith(rawBody, "t=1,v1=abc", ENV.STRIPE_WEBHOOK_SECRET);
+  });
+
   it("重複 event は再処理しない", async () => {
     constructEventAsync.mockResolvedValue({
       id: "evt_1",

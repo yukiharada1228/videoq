@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { trpcServer } from "@hono/trpc-server";
 import { TRPC_MAX_BATCH_SIZE } from "@videoq/trpc/schema";
 import type { AppEnv } from "./types/bindings";
@@ -39,6 +40,16 @@ export function createApp() {
   app.use("*", accessLogger);
   app.use("*", securityHeaders);
   app.use("*", corsMiddleware);
+
+  // Bound protocol bodies before auth, JSON parsing or webhook signature checks.
+  // Binary uploads use their separate upload route; chat keeps its stricter cap.
+  const limitProtocolBody = bodyLimit({
+    maxSize: 4 * 1024 * 1024,
+    onError: (c) => c.json(toErrorBody("PAYLOAD_TOO_LARGE", "Request body must not exceed 4 MiB."), 413),
+  });
+  for (const path of ["/api/auth/*", "/api/trpc/*", "/api/mcp/*", "/api/billing/*"]) {
+    app.use(path, limitProtocolBody);
+  }
 
   app.onError(onError);
 

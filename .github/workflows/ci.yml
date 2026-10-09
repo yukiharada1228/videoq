@@ -141,7 +141,7 @@ jobs:
 
   worker-test:
     name: Worker Python (django-free)
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.python-version == '3.14' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     needs: changes
     if: needs.changes.outputs.worker == 'true'
     strategy:
@@ -185,6 +185,14 @@ jobs:
           sudo apt-get install -y --no-install-recommends ffmpeg
           pip install -e ".[dev]"
           python -m pytest tests/ -q
+
+      - name: Verify the production ARM64 media image
+        if: matrix.python-version == '3.14'
+        run: |
+          docker build --platform linux/arm64 -t videoq-worker-test apps/worker
+          docker run --rm --entrypoint /bin/sh \
+            -v "$PWD:/workspace:ro" -w /workspace/apps/worker videoq-worker-test \
+            -c 'pip install --no-cache-dir pytest && python -m pytest -p no:cacheprovider tests/test_media_process.py tests/test_visual_frames.py tests/test_focus_frames.py -q'
 
   frontend-lint:
     name: Frontend Lint & Type Check
