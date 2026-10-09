@@ -1,5 +1,5 @@
-import cProfile
 from unittest.mock import MagicMock, call
+from contextlib import nullcontext
 
 import numpy as np
 import pytest
@@ -13,7 +13,7 @@ from worker_python.pipeline.scene_otsu import (
 )
 from worker_python.pipeline.scene_otsu.splitter import SceneSplitter as SplitterCls
 from worker_python.pipeline.srt import format_srt_time, parse_srt_scenes
-from worker_python.pipeline import transcription
+from worker_python.pipeline import transcription, vector_index
 from worker_python.pipeline.embedding_contract import EMBEDDING_DIMENSIONS
 from worker_python.pipeline.scene_otsu import embedders
 from worker_python.video_sql import VideoRow
@@ -76,37 +76,28 @@ def literal_embedder(monkeypatch):
 
 
 @pytest.mark.parametrize("source_type", ["youtube", "uploaded"])
-def test_transcription_parses_captions_once_and_retains_scene_counts(
-    monkeypatch, literal_embedder, caplog, source_type
+def test_transcription_preserves_original_cues_for_playback_and_window_reads(
+    monkeypatch, source_type
 ) -> None:
     source = (
         "1\n00:00:00,000 --> 00:00:01,000\n2026\n\n"
-        "2\n00:00:01,000 --> 00:00:02,000\nThe answer is\n42\n"
+        "2\n00:04:20,125 --> 00:04:21,250\nThe answer is\n42\n"
     )
     monkeypatch.setattr(transcription, "heavy_pipeline_enabled", lambda: True)
-    monkeypatch.setattr(transcription, "_transcribe_youtube", lambda *_: (source, 2))
+    monkeypatch.setattr(transcription, "_transcribe_youtube", lambda *_: (source, 262))
     monkeypatch.setattr(transcription, "_transcribe_uploaded", lambda *_, **__: source)
     monkeypatch.setattr(
         "worker_python.pipeline.scene_otsu.splitter.SceneEmbedder",
-        lambda **_: literal_embedder,
+        lambda **_: pytest.fail("Transcription must not group or embed original cues"),
     )
     video = VideoRow(
         id=1, user_id="owner", title="Title", transcript=None, status="processing",
         source_type=source_type, file_key="videos/owner/1.mp4", youtube_video_id="video",
     )
-    caplog.set_level("INFO", logger="worker_python.pipeline.scene_otsu")
-    # Count the real parser across import aliases without mocking the pipeline.
-    with cProfile.Profile() as profile:
-        result = transcription.run_transcription(video)
-
-    assert result == "1\n00:00:00,000 --> 00:00:02,000\n2026 The answer is 42\n"
-    assert "Original: 2 segments, Scenes: 1" in caplog.text
-    parse_calls = sum(
-        entry.callcount for entry in profile.getstats()
-        if entry.code is parse_srt_scenes.__code__
-    )
-    assert parse_calls == 1
-    literal_embedder.get_embeddings.assert_not_called()
+    reserve = MagicMock()
+    assert transcription.run_transcription(video, reserve_processing=reserve) == source
+    if source_type == "youtube":
+        reserve.assert_called_once_with(262)
 
 
 def test_scene_count_excludes_whitespace_only_chunks(monkeypatch, literal_embedder, caplog) -> None:
@@ -387,4 +378,37 @@ def test_apply_scene_splitting_with_no_valid_cues(monkeypatch, literal_embedder,
     )
     assert apply_scene_splitting(source) == ""
     literal_embedder.encoding.encode_ordinary.assert_not_called()
+    literal_embedder.get_embeddings.assert_not_called()
+
+
+def test_indexing_groups_search_scenes_but_retains_original_timestamps_and_race_check(
+    monkeypatch, literal_embedder,
+) -> None:
+    source = (
+        "1\n00:00:00,000 --> 00:00:01,000\nFirst\n\n"
+        "2\n00:04:20,125 --> 00:04:21,250\nSecond\n"
+    )
+    video = VideoRow(
+        id=1, user_id="owner", title="Title", transcript=source, status="indexing",
+        source_type="uploaded", file_key=None, youtube_video_id=None,
+    )
+    monkeypatch.setattr("worker_python.pipeline.scene_otsu.splitter.SceneEmbedder", lambda **_: literal_embedder)
+    monkeypatch.setattr(vector_index, "check_embedding_storage", lambda: None)
+    embed = MagicMock(return_value=[[1.0]])
+    monkeypatch.setattr(vector_index, "embed_texts", embed)
+    conn = MagicMock()
+    conn.execute.return_value.fetchone.return_value = {"title": "Title", "transcript_matches": True}
+    monkeypatch.setattr(vector_index, "db_connection", lambda: nullcontext(conn))
+    inserted = []
+    conn.cursor.return_value.__enter__.return_value.executemany.side_effect = lambda _sql, rows: inserted.extend(rows)
+
+    assert vector_index.index_video_transcript(video) == 1
+    embed.assert_called_once_with(["First Second"])
+    assert inserted[0][1] == "First Second"
+    assert inserted[0][5].obj["end_time"] == "00:04:21,250"
+    assert conn.execute.call_args_list[0].args[1] == (source, 1, "owner")
+    assert video.transcript == source
+    assert [(cue.start_time, cue.end_time) for cue in parse_srt_scenes(video.transcript)] == [
+        ("00:00:00,000", "00:00:01,000"), ("00:04:20,125", "00:04:21,250"),
+    ]
     literal_embedder.get_embeddings.assert_not_called()

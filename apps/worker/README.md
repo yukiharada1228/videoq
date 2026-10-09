@@ -19,8 +19,8 @@ Supported operations:
 
 | type | Operation |
 |---|---|
-| `transcribe_video` | FFmpeg / Whisper / YouTube transcription and scene segmentation |
-| `index_video_transcript` | Generate embeddings and replace searchable scenes in bulk (deletion and insertion run in the same transaction) |
+| `transcribe_video` | FFmpeg / Whisper / YouTube transcription, preserving original subtitle cues |
+| `index_video_transcript` | Group cues into search scenes, generate embeddings and atomically replace searchable scenes |
 | `reindex_video_transcript` | Reindex a single video |
 | `reindex_all_videos_embeddings` | Reindex all videos |
 | `delete_account_data` | Delete database records, vectors, and objects in storage |
@@ -32,6 +32,14 @@ nonblank string for `user_id`; reindexing all videos requires an empty object.
 The worker applies the same validation when sending and receiving jobs, rejecting
 invalid input before acquiring an execution lease. For SQS batches, only invalid
 messages are returned as failures; processing continues for the others.
+
+`videos.transcript` stores the original SRT cue timestamps returned by transcription
+or a manual edit. Otsu grouping runs during indexing and writes only to
+`scene_embeddings`; playback and subtitle-window tools keep the original cues.
+Indexing still checks the original saved transcript under the video row lock before
+replacing vectors. No database migration is required. Existing grouped transcripts
+remain readable, but reindexing cannot recover their lost cue boundaries. Recover
+those only from a preserved source transcript or an explicit re-transcription.
 
 ## Structure
 

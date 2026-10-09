@@ -10,6 +10,7 @@ import { validateChatAnswer } from "./chat-citations";
 import { modelAnswerSchema, chatToolNameSchema, chatToolProgressEventSchema, type ChatToolProgressEvent, type ChatAnswer, type ChatSource, type ChatContentPart } from "@videoq/trpc/chat";
 import { courseInfoTool, MAX_COURSE_INFO_CALLS } from "./rag-course-info";
 import { videoEvidenceTools } from "./rag-video-evidence";
+import { transcriptQuality } from "./transcript-quality";
 import { MAX_WINDOW_READS, MAX_CLIP_INSPECTIONS, MAX_OVERVIEWS, MAX_SKIMS, MAX_FOCUS_CALLS } from "./video-evidence";
 import {
   LLM_REQUEST_TIMEOUT_MS,
@@ -115,7 +116,7 @@ class SceneCollector {
 }
 
 const formatHit = (hit: SceneHit, index: number) =>
-  JSON.stringify({ sourceId: index, videoId: hit.videoId, title: hit.videoTitle, startTime: hit.startTime, endTime: hit.endTime, text: hit.content });
+  JSON.stringify({ sourceId: index, videoId: hit.videoId, title: hit.videoTitle, startTime: hit.startTime, endTime: hit.endTime, text: hit.content, transcript_quality: transcriptQuality(hit) });
 
 function sceneSearchTool(
   search: SceneSearch,
@@ -149,6 +150,7 @@ function sceneSearchTool(
         "Search spoken subtitles of the user's video course by meaning, not images, and return the closest excerpts. " +
         "The default way to ground definitions, explanations, comparisons, examples and calculations, " +
         "including short terms and questions that do not explicitly mention the course. " +
+        "For highlights, first identify the video's genre; visual highlights need viewing tools and candidate before/after evidence, not only matching subtitles. " +
         "For broad video navigation or visual topics without subtitle clues, overview_video/skim_video can retrieve evidence instead. " +
         "For course-wide content, call directly with video_ids set to null. For a specific video or lecture, " +
         "first identify it with get_course_info and include its ID in video_ids on every search. " +

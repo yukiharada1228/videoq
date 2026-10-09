@@ -28,6 +28,18 @@ clip. Every step is optional when the answer already has supporting evidence.
 The viewing tools return observations and original timestamps; the main agent
 produces the answer with citations.
 
+Highlight requests use the video's genre and evidence to select worthwhile moments.
+For visual events, the agent is instructed to compare distinct candidates and check
+their lead-in, action and outcome with dense frames when available. It recommends
+1–3 supported intervals with a reason to watch, distinguishing actors from spectator
+views and persistent notifications. This does not guarantee finding every highlight.
+
+Viewing results report the remaining shared image/call budget and a visual status:
+`observed`, `no_observations`, `unavailable` or `skipped`. Completion of a tool call
+does not establish that an event was observed. One 16-image overview leaves enough
+of the 48-image allowance for two 16-image focus calls; additional surveys consume
+that allowance. Concurrent reservations count toward the reported remaining budget.
+
 `overview_video` and `skim_video` work with subtitles even when visuals are
 disabled, including for YouTube imports. `include_visuals=false` performs no
 vision call. Their subtitle samples span time instead of taking only the first
@@ -42,6 +54,15 @@ allows three reads: a requested interval of at most 180 seconds, up to 30 second
 of context on either side, and at most 40 cues / 12,000 text characters per read.
 The result explicitly reports truncation. It reads the latest saved transcript;
 semantic search may still use older data until reindexing finishes.
+
+New transcription preserves original cues in the saved SRT. Semantic grouping is
+performed separately when building the search index. Legacy grouped transcripts
+remain readable, but reindexing alone cannot restore their original timing.
+Transcript excerpts also include advisory `transcript_quality` signals for long
+intervals (60 seconds or more) and highly repeated text. These are bounded text
+heuristics, not ASR confidence or proof of an error. Legitimate repetition is kept;
+the agent should corroborate uncertain names/counts and avoid assigning a brief
+event the timestamp of an entire grouped excerpt.
 
 Image tools are enabled by default for uploaded videos. They check diagrams,
 equations and screen contents that subtitles do not establish. Overview and skim

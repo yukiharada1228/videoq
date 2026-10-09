@@ -15,7 +15,6 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from worker_python.env import env_flag, env_str, heavy_pipeline_enabled
-from worker_python.pipeline.scene_otsu import apply_scene_splitting
 from worker_python.pipeline.srt import create_srt_from_whisper_segments, format_srt_time
 from worker_python.pipeline.storage import download_to_path
 from worker_python.pipeline.media_process import MEDIA_INPUT_OPTIONS, run_media_process
@@ -31,7 +30,7 @@ def run_transcription(
     reserve_processing: Callable[[int], None] | None = None,
 ) -> str:
     """
-    Produce SRT for a video, then apply VideoQ's Otsu scene splitting.
+    Produce SRT preserving source cue timestamps. Search scenes are built at indexing.
 
     When ENABLE_HEAVY_PIPELINE is off, returns a placeholder SRT so status
     transitions can be tested without FFmpeg/Whisper (no Otsu).
@@ -59,8 +58,7 @@ def run_transcription(
     else:
         raw_srt = _transcribe_uploaded(video.file_key, reserve_processing, video_id=video.id)
 
-    logger.info("Applying Otsu scene splitting for video %d", video.id)
-    return apply_scene_splitting(raw_srt)
+    return raw_srt
 
 
 def _transcribe_uploaded(
