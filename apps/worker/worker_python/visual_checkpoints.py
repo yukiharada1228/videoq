@@ -7,8 +7,6 @@ from uuid import uuid4
 from worker_python.db import db_connection
 from worker_python.pipeline.visual_chunks import CHUNK_SECONDS, MAX_DURATION_SECONDS
 
-LANES = 4
-
 
 @dataclass(frozen=True)
 class VisualRun:
@@ -64,15 +62,12 @@ def lock_current(conn, run: VisualRun) -> bool:
     return bool(row and str(row['run_id']) == run.run_id and row['file'] == row['file_key'] == run.file_key)
 
 
-def pending_heads(run: VisualRun, after_index: int | None = None) -> list[int]:
+def pending_chunks(run: VisualRun) -> list[int]:
     with db_connection() as conn:
         rows = conn.execute("""
-            SELECT DISTINCT ON (chunk_index %% %(lanes)s) chunk_index
-              FROM video_visual_chunks WHERE run_id = %(run)s AND frame_count IS NULL
-               AND (%(after)s::int IS NULL OR (chunk_index > %(after)s
-                 AND chunk_index %% %(lanes)s = %(after)s %% %(lanes)s))
-             ORDER BY chunk_index %% %(lanes)s, chunk_index
-        """, {'lanes': LANES, 'run': run.run_id, 'after': after_index}).fetchall()
+            SELECT chunk_index FROM video_visual_chunks
+             WHERE run_id = %s AND frame_count IS NULL ORDER BY chunk_index
+        """, (run.run_id,)).fetchall()
         return [row['chunk_index'] for row in rows]
 
 

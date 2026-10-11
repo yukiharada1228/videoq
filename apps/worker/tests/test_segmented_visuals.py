@@ -50,18 +50,20 @@ def visual_db(monkeypatch, tmp_path):
             admin.execute(sql.SQL('DROP SCHEMA {} CASCADE').format(sql.Identifier(schema)))
 
 
-def test_same_source_initializes_once_and_long_video_uses_four_lanes(visual_db):
+def test_same_source_initializes_once_and_fans_out_all_long_video_chunks(visual_db):
     with ThreadPoolExecutor(max_workers=4) as pool:
         runs = list(pool.map(lambda _: checkpoints.initialize(42, 'video.mkv', 9289.617), range(4)))
     assert len({run.run_id for run in runs}) == 1
     assert runs[0].chunk_count == 155
-    assert checkpoints.pending_heads(runs[0]) == [0, 1, 2, 3]
+    assert checkpoints.pending_chunks(runs[0]) == list(range(155))
     tasks.dispatch(runs[0])
-    assert [call.args[1]['chunk_index'] for call in tasks.enqueue_job.call_args_list] == [0, 1, 2, 3]
+    calls = tasks.enqueue_job.call_args_list
+    assert [call.args[1]['chunk_index'] for call in calls] == list(range(155))
+    assert len({call.kwargs['job_id'] for call in calls}) == 155
 
 
 def test_saved_chunk_survives_queue_failure_without_decoding_again(visual_db):
-    run = checkpoints.initialize(42, 'video.mkv', 301)
+    run = checkpoints.initialize(42, 'video.mkv', 5)
     tasks.enqueue_job.side_effect = RuntimeError('Queue unavailable')
     with pytest.raises(RuntimeError, match='Queue unavailable'):
         tasks.build_video_visual_chunk(42, run.run_id, 0)
@@ -69,7 +71,23 @@ def test_saved_chunk_survives_queue_failure_without_decoding_again(visual_db):
     tasks.enqueue_job.side_effect = None
     tasks.build_video_visual_chunk(42, run.run_id, 0)
     tasks.build_visual_chunk.assert_called_once()
-    assert tasks.enqueue_job.call_args.args[1]['chunk_index'] == 4
+    assert tasks.enqueue_job.call_args.args[0] == tasks.JOB_FINISH_VIDEO_VISUALS
+
+
+def test_fanout_retry_only_schedules_unsaved_chunks_with_stable_ids(visual_db):
+    run = checkpoints.initialize(42, 'video.mkv', 181)
+    tasks.build_video_visual_chunk(42, run.run_id, 0)
+    tasks.enqueue_job.assert_not_called()
+    tasks.enqueue_job.side_effect = ['message', RuntimeError('Queue unavailable')]
+    with pytest.raises(RuntimeError, match='Queue unavailable'):
+        tasks.start_visuals(42, 'video.mkv', 181)
+    first_job_id = tasks.enqueue_job.call_args_list[0].kwargs['job_id']
+    tasks.enqueue_job.reset_mock(side_effect=True)
+    tasks.start_visuals(42, 'video.mkv', 181)
+    calls = tasks.enqueue_job.call_args_list
+    assert [call.args[1]['chunk_index'] for call in calls] == [1, 2, 3]
+    assert calls[0].kwargs['job_id'] == first_job_id
+    tasks.build_visual_chunk.assert_called_once()
 
 
 def test_out_of_order_completion_publishes_both_caches_only_after_every_chunk(visual_db):
@@ -78,8 +96,12 @@ def test_out_of_order_completion_publishes_both_caches_only_after_every_chunk(vi
     with pytest.raises(RuntimeError, match='incomplete'):
         tasks.finish_video_visuals(42, run.run_id)
     assert not (root / manifest_key('video.mkv')).exists()
-    for index in [2, 0, 1]:
+    for index in [2, 0]:
         tasks.build_video_visual_chunk(42, run.run_id, index)
+        tasks.enqueue_job.assert_not_called()
+    tasks.build_video_visual_chunk(42, run.run_id, 1)
+    assert tasks.enqueue_job.call_count == 1
+    assert tasks.enqueue_job.call_args.args[0] == tasks.JOB_FINISH_VIDEO_VISUALS
     tasks.finish_video_visuals(42, run.run_id)
     tasks.finish_video_visuals(42, run.run_id)
     assert checkpoints.load_run(42).status == 'ready'

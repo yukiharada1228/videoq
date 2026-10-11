@@ -21,12 +21,16 @@ def _send(run, kind, **extra):
         raise RuntimeError('SQS delivery is required for visual processing')
 
 
-def dispatch(run, after_index=None):
+def dispatch(run):
     if run.status == 'ready':
         return
-    for index in checkpoints.pending_heads(run, after_index):
+    # Fan out once: a chunk must never invoke the next chunk. Lambda rejects
+    # SQS chains after about 16 invocations, even when each job is finite.
+    # The existing event source mapping bounds concurrent executions.
+    pending = checkpoints.pending_chunks(run)
+    for index in pending:
         _send(run, JOB_BUILD_VIDEO_VISUAL_CHUNK, chunk_index=index)
-    if not checkpoints.pending_heads(run):
+    if not pending:
         _send(run, JOB_FINISH_VIDEO_VISUALS)
 
 
@@ -63,8 +67,8 @@ def build_video_visual_chunk(video_id: int, run_id: str, chunk_index: int, *, di
                                     AND NOT EXISTS (SELECT 1 FROM video_visual_chunks WHERE run_id = %s AND last_error <> '')""",
                                  (run_id, run_id))
             logger.info('Visual checkpoint saved: video=%d chunk=%d/%d frames=%d', video_id, chunk_index + 1, run.chunk_count, count)
-        if dispatch_next:
-            dispatch(run, chunk_index)
+        if dispatch_next and not checkpoints.pending_chunks(run):
+            _send(run, JOB_FINISH_VIDEO_VISUALS)
     except Exception as exc:
         checkpoints.record_failure(run, _redact_urls(str(exc)), chunk_index)
         raise
