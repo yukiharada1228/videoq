@@ -85,6 +85,12 @@ export const videoTagSchema = z.object({
   color: z.string(),
 });
 
+export const visualProcessingSchema = z.object({
+  status: z.enum(["processing", "ready", "error"]),
+  completed_chunks: z.number().int().nonnegative(),
+  total_chunks: z.number().int().positive(),
+});
+
 export const videoListItemSchema = z.object({
   id: z.number(),
   file: z.string().nullable(),
@@ -96,6 +102,7 @@ export const videoListItemSchema = z.object({
   description: z.string(),
   uploaded_at: z.string(),
   status: videoStatusSchema,
+  visual_processing: visualProcessingSchema.nullable().optional(),
   tags: z.array(videoTagSchema).optional(),
 });
 

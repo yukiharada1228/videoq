@@ -16,7 +16,7 @@ import struct
 import tempfile
 
 from worker_python.db import db_connection
-from worker_python.pipeline.media_process import media_input_args, run_media_process
+from worker_python.pipeline.media_process import media_input_args, run_media_process, media_failure
 from worker_python.pipeline.storage import ObjectMediaSource, upload_file
 from worker_python.pipeline.visual_frames import MAX_IMAGE_BYTES
 
@@ -54,7 +54,7 @@ def build_focus_cache(video_path: Path | ObjectMediaSource, video_id: int, durat
             f"[f=image2pipe]{images}|[f=framecrc]{timing}",
         ], max_output_bytes=MAX_PACK_BYTES - MAX_INDEX_BYTES - HEADER_BYTES)
         if result.returncode:
-            raise RuntimeError(f"Focus extraction failed: {result.stderr[-500:]}")
+            raise RuntimeError(media_failure("Focus extraction", result))
         frames = []
         offset = 0
         time_base_valid = False

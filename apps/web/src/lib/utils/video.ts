@@ -2,12 +2,14 @@
  * Utility functions related to video status
  */
 
-import type { VideoStatus } from '@videoq/trpc';
+import type { VideoStatus, VideoListItem } from '@videoq/trpc';
 
 /** Subset of ChipLabel colors used for video status */
 export type StatusChipColor = 'gray' | 'green' | 'orange' | 'red';
 
-const STATUS_CHIP_COLORS: Record<VideoStatus | 'default', StatusChipColor> = {
+const STATUS_CHIP_COLORS: Record<VideoStatus | 'visual_processing' | 'visual_error' | 'default', StatusChipColor> = {
+  visual_processing: 'orange',
+  visual_error: 'red',
   uploading: 'orange',
   pending: 'gray',
   processing: 'orange',
@@ -17,11 +19,18 @@ const STATUS_CHIP_COLORS: Record<VideoStatus | 'default', StatusChipColor> = {
   default: 'gray',
 };
 
+export function getVideoDisplayStatus(video: Pick<VideoListItem, 'status' | 'visual_processing'>): string {
+  if (video.status === 'completed' && video.visual_processing && video.visual_processing.status !== 'ready') {
+    return video.visual_processing.status === 'error' ? 'visual_error' : 'visual_processing';
+  }
+  return video.status;
+}
+
 /**
  * Map video status to Digital Agency ChipLabel color
  */
 export function getStatusChipColor(status: string): StatusChipColor {
-  return STATUS_CHIP_COLORS[status as VideoStatus] ?? STATUS_CHIP_COLORS.default;
+  return STATUS_CHIP_COLORS[status as keyof typeof STATUS_CHIP_COLORS] ?? STATUS_CHIP_COLORS.default;
 }
 
 /**

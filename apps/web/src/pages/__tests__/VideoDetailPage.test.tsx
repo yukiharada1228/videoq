@@ -24,6 +24,7 @@ const mockVideo = {
   transcript: '1\n00:00:00,000 --> 00:00:05,000\nHello world',
   tags: [{ id: 1, name: 'Tag1', color: 'red' }],
   error_message: '',
+  visual_processing: null as { status: 'processing' | 'ready' | 'error'; completed_chunks: number; total_chunks: number } | null,
 }
 
 let mockUseVideoReturn = {
@@ -70,6 +71,24 @@ describe('VideoDetailPage', () => {
 
   afterEach(() => {
     globalThis.__setMockLanguage('en')
+  })
+
+  it.each(['processing', 'ready', 'error'] as const)('shows visual %s independently of completed transcription', status => {
+    mockUseVideoReturn.video = { ...mockVideo, visual_processing: { status, completed_chunks: status === 'ready' ? 155 : 24, total_chunks: 155 } }
+    render(<VideoDetailPage />)
+    if (status === 'processing') {
+      expect(screen.getByText('common.status.visual_processing')).toBeInTheDocument()
+      expect(screen.getByText(/videos.detail.visual.progress.*24.*155/)).toBeInTheDocument()
+      expect(screen.queryByText('common.status.completed')).not.toBeInTheDocument()
+    } else if (status === 'error') {
+      expect(screen.getByText('common.status.visual_error')).toBeInTheDocument()
+      expect(screen.getByText('videos.detail.visual.error')).toBeInTheDocument()
+      expect(screen.queryByText('common.status.completed')).not.toBeInTheDocument()
+    } else {
+      expect(screen.getByText('common.status.completed')).toBeInTheDocument()
+      expect(screen.getByText('videos.detail.visual.ready')).toBeInTheDocument()
+    }
+    expect(screen.getByText('Hello world')).toBeInTheDocument()
   })
 
   it('should render video title', () => {

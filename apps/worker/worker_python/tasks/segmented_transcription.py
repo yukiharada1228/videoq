@@ -8,7 +8,7 @@ import os
 from worker_python import transcription_checkpoints as checkpoints
 from worker_python.contracts import (
     JOB_TRANSCRIBE_VIDEO_CHUNK, JOB_FINISH_VIDEO_TRANSCRIPTION,
-    JOB_INDEX_VIDEO_TRANSCRIPT, JOB_BUILD_VIDEO_VISUALS,
+    JOB_INDEX_VIDEO_TRANSCRIPT,
 )
 from worker_python.db import db_connection
 from worker_python.env import env_flag
@@ -110,25 +110,18 @@ def finish_video_transcription(video_id: int, run_id: str) -> None:
         return
     _send(run, JOB_INDEX_VIDEO_TRANSCRIPT)
     if env_flag("VIDEO_VISUAL_ENABLED", True):
-        _send(run, JOB_BUILD_VIDEO_VISUALS, cache_kind="coarse")
-        _send(run, JOB_BUILD_VIDEO_VISUALS, cache_kind="focus")
+        from worker_python.tasks.segmented_visuals import start_visuals
+        start_visuals(video_id, run.file_key, run.duration_ms / 1000)
 
 
 def build_video_visuals(video_id: int, run_id: str, cache_kind: str) -> None:
-    """Visual work has its own delivery/time budget and cannot lose a transcript."""
+    """Upgrade old queued whole-video jobs to the durable chunk pipeline."""
     if not env_flag("VIDEO_VISUAL_ENABLED", True):
         return
     run = checkpoints.load_run(video_id, run_id)
     if not run or not run.completed:
         return
-    source = resolve_media_input(run.file_key)
-    duration = run.duration_ms / 1000
-    if cache_kind == "coarse":
-        from worker_python.pipeline.visual_frames import build_frame_cache, publish_frame_cache
-        publish_frame_cache(video_id, run.file_key, build_frame_cache(source, video_id, duration))
-    elif cache_kind == "focus":
-        from worker_python.pipeline.focus_frames import build_focus_cache, publish_focus_cache
-        with build_focus_cache(source, video_id, duration) as pack:
-            publish_focus_cache(video_id, run.file_key, pack)
-    else:
+    if cache_kind not in {"coarse", "focus"}:
         raise ValueError("Unknown visual cache kind")
+    from worker_python.tasks.segmented_visuals import start_visuals
+    start_visuals(video_id, run.file_key, run.duration_ms / 1000)

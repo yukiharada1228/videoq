@@ -7,7 +7,7 @@ const repository = vi.hoisted(() => ({
   failExternalTask: vi.fn(),
 }));
 const sqs = vi.hoisted(() => ({ sendSqsMessage: vi.fn() }));
-const media = vi.hoisted(() => ({ deleteR2Object: vi.fn(), abortR2MultipartUpload: vi.fn() }));
+const media = vi.hoisted(() => ({ deleteR2Object: vi.fn(), abortR2MultipartUpload: vi.fn(), deleteVisualChunks: vi.fn() }));
 const billing = vi.hoisted(() => ({ deleteAccountBilling: vi.fn() }));
 
 vi.mock("../src/repositories/external-task-repository", () => repository);

@@ -339,6 +339,37 @@ export const videoTranscriptionChunks = pgTable("video_transcription_chunks", {
 	check("video_transcription_chunks_failures_check", sql`${table.failures} >= 0`),
 ]);
 
+export const videoVisualRuns = pgTable("video_visual_runs", {
+	videoId: bigint("video_id", { mode: "number" }).primaryKey().references(() => videos.id, { onDelete: "cascade" }),
+	runId: uuid("run_id").notNull().unique(),
+	fileKey: varchar("file_key", { length: 100 }).notNull(),
+	durationMs: bigint("duration_ms", { mode: "number" }).notNull(),
+	chunkCount: integer("chunk_count").notNull(),
+	status: varchar({ length: 16 }).notNull().default("processing"),
+	lastError: text("last_error").notNull().default(""),
+	completedAt: timestamp("completed_at", { withTimezone: true, mode: "string" }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+}, (table) => [
+	check("video_visual_runs_duration_check", sql`${table.durationMs} > 0 AND ${table.durationMs} <= 36000000`),
+	check("video_visual_runs_chunks_check", sql`${table.chunkCount} BETWEEN 1 AND 600`),
+	check("video_visual_runs_status_check", sql`${table.status} IN ('processing', 'ready', 'error')`),
+]);
+
+export const videoVisualChunks = pgTable("video_visual_chunks", {
+	runId: uuid("run_id").notNull(),
+	chunkIndex: integer("chunk_index").notNull(),
+	frameCount: integer("frame_count"),
+	failures: integer().notNull().default(0),
+	lastError: text("last_error").notNull().default(""),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+}, (table) => [
+	primaryKey({ columns: [table.runId, table.chunkIndex] }),
+	foreignKey({ columns: [table.runId], foreignColumns: [videoVisualRuns.runId], name: "video_visual_chunks_run_id_fkey" }).onDelete("cascade"),
+	check("video_visual_chunks_index_check", sql`${table.chunkIndex} BETWEEN 0 AND 599`),
+	check("video_visual_chunks_frames_check", sql`${table.frameCount} IS NULL OR ${table.frameCount} BETWEEN 0 AND 60`),
+	check("video_visual_chunks_failures_check", sql`${table.failures} >= 0`),
+]);
+
 export const videoCourses = pgTable(
 	"video_courses",
 	{

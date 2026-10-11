@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { videoSourceTypeSchema, videoStatusSchema } from "@videoq/trpc";
+import { visualProcessingSchema } from "@videoq/trpc/schema";
 import type { Bindings } from "../types/bindings";
 import { sha256Hex } from "../shared/crypto";
 import { listVideosPage, getVideoDetail, getVideoMetadata } from "../repositories/video-repository";
@@ -197,6 +198,7 @@ const compactVideoOutput = z.object({
   description: z.string(),
   uploaded_at: z.string(),
   status: videoStatusSchema,
+  visual_processing: visualProcessingSchema.nullable().optional(),
   source_type: videoSourceTypeSchema,
   source_url: z.string().nullable(),
   youtube_video_id: z.string().nullable(),

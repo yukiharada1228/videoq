@@ -4,6 +4,10 @@ import { readMediaBytes } from "../src/integrations/media";
 import type { Bindings } from "../src/types/bindings";
 
 vi.mock("../src/integrations/media", () => ({ readMediaBytes: vi.fn() }));
+vi.mock("../src/lib/visual-manifest", async importOriginal => ({
+  ...await importOriginal<typeof import("../src/lib/visual-manifest")>(),
+  readVisualManifest: vi.fn(async () => null),
+}));
 const env = { OPENAI_API_KEY: "test", OPENAI_BASE_URL: "https://vision.test/v1", VISION_MODEL: "vision-model" } as Bindings;
 const frames = Array.from({ length: 20 }, (_, i) => ({ timestamp_seconds: i * 5, jpeg_base64: "/9j/2Q==" }));
 const cache = { version: 1, video_id: 42, duration_seconds: 100, sampling_interval_seconds: 5, frames };

@@ -12,6 +12,7 @@ let pack: Uint8Array;
 const read = (start = 10, end = 26, maxFrames = 16) => readFocusFrames(env, video, start, end, new AbortController().signal, maxFrames);
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(readMediaBytes).mockResolvedValue(null);
   pack = focusCacheFixture();
   vi.mocked(readMediaRange).mockImplementation(async (_env, _key, offset, length, _signal, etag) => {
     if (etag) expect(etag).toBe('"v1"');
@@ -28,7 +29,7 @@ it("reads only header, index and consecutive one-second frames in a half-open in
   expect(readMediaRange).toHaveBeenCalledTimes(3);
   expect(vi.mocked(readMediaRange).mock.calls.every(([, key]) => key === "private/42.mp4.focus-v1.bin")).toBe(true);
   expect(vi.mocked(readMediaRange).mock.calls[2][3]).toBe(16 * 6);
-  expect(readMediaBytes).not.toHaveBeenCalled();
+  expect(readMediaBytes).toHaveBeenCalledWith(env, "private/42.mp4.focus-v2.json", 32768, expect.any(AbortSignal));
 });
 it("preserves fractional real PTS and source gaps", async () => {
   pack = focusCacheFixture([2345, 3346, 8000, 9001]);
@@ -53,7 +54,7 @@ it.each([0, 1, 2])("handles missing or concurrently replaced cache at read %s wi
   vi.mocked(readMediaRange).mockImplementation(async (_env, _key, offset, length) => count++ === missing ? null
     : { bytes: pack.slice(offset, offset + length), etag: '"v1"', size: pack.length });
   expect(await read()).toHaveProperty("unavailable");
-  expect(readMediaBytes).not.toHaveBeenCalled();
+  expect(vi.mocked(readMediaBytes).mock.calls.every(([, key]) => key.endsWith(".focus-v2.json"))).toBe(true);
 });
 it.each(["identity", "offset", "timestamp", "duration", "density", "jpeg", "header", "index-size"])("rejects malformed %s without a model call", async kind => {
   pack = focusCacheFixture(undefined, index => {

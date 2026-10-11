@@ -17,9 +17,9 @@ it.skipIf(!available)("reads a real Python/FFmpeg pack through the API and submi
   const tmp = mkdtempSync(join(tmpdir(), "videoq-focus-contract-"));
   try {
     execFileSync(python, ["-c", `
-import shutil, subprocess, sys
+import json, shutil, subprocess, sys
 from pathlib import Path
-from worker_python.pipeline.focus_frames import build_focus_cache
+from worker_python.pipeline.visual_chunks import build_visual_chunk
 from worker_python.pipeline.visual_frames import build_frame_cache
 root = Path(sys.argv[1])
 video = root / "clip.mp4"
@@ -27,16 +27,23 @@ subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-f", "lavfi", "-i",
     "color=c=blue:size=160x90:rate=30:duration=8", "-vf",
     "drawbox=color=red:t=fill:enable='gte(t,3)*lt(t,4)'", "-c:v", "mpeg4", str(video)], check=True)
 (root / "coarse.json").write_bytes(build_frame_cache(video, 42, 8))
-with build_focus_cache(video, 42, 8) as pack:
+with build_visual_chunk(video, 42, 8, 0) as (pack, sparse, count):
     shutil.copyfile(pack, root / "pack.bin")
+    (root / "manifest.json").write_text(json.dumps({"version": 2, "video_id": 42,
+        "run_id": "64972424-b2c6-49b3-b9d3-cb0399ad45fa", "duration_seconds": 8,
+        "chunk_seconds": 60, "chunk_count": 1,
+        "overview": [[round(frame["timestamp_seconds"] * 1000), 0, frame["offset"], frame["length"]] for frame in json.loads(sparse)]}))
 `, tmp], { cwd: workerRoot, timeout: 30_000, stdio: "pipe" });
     const pack = new Uint8Array(readFileSync(join(tmp, "pack.bin")));
+    const manifest = new Uint8Array(readFileSync(join(tmp, "manifest.json")));
     const coarse = JSON.parse(readFileSync(join(tmp, "coarse.json"), "utf8"));
     expect(coarse.frames.map((f: { timestamp_seconds: number }) => f.timestamp_seconds)).toEqual([0, 5]);
     const reads: { offset: number; length: number }[] = [];
     const bindings = {
       ENVIRONMENT: "production", OPENAI_API_KEY: "test", OPENAI_BASE_URL: "https://vision.test/v1",
-      VIDEO_BUCKET: { get: async (_key: string, options: { range: { offset: number; length: number }; onlyIf: Headers }) => {
+      VIDEO_BUCKET: { get: async (key: string, options: { range: { offset: number; length: number }; onlyIf: Headers }) => {
+        if (key.endsWith('.focus-v2.json')) return { body: new Blob([manifest]).stream(), size: manifest.length };
+        expect(key).toBe('media/upload.visual-v2/64972424-b2c6-49b3-b9d3-cb0399ad45fa/0.bin');
         const { offset, length } = options.range;
         reads.push(options.range);
         expect(options.onlyIf.get("if-match")).toBe(offset ? '"pack-v1"' : null);

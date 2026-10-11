@@ -316,6 +316,38 @@ export async function deleteR2Object(env: Bindings, fileKey: string): Promise<vo
 }
 
 /** Server-only bounded reads. Never forward object URLs/credentials to a model. */
+export async function deleteVisualChunks(env: Bindings, fileKey: string): Promise<void> {
+  const prefix = r2ObjectKey(`${fileKey}.visual-v2/`);
+  // Delete from the beginning each time: partial failures remain retryable and
+  // no cursor can skip objects when the preceding page has just been removed.
+  if (env.ENVIRONMENT === "production" || !isS3Storage(env)) {
+    for (;;) {
+      const page = await env.VIDEO_BUCKET.list({ prefix, limit: 100 });
+      if (!page.objects.length) return;
+      await env.VIDEO_BUCKET.delete(page.objects.map(object => object.key));
+    }
+  }
+  const { aws, endpoint, bucket } = s3Client(env, { public: false });
+  for (;;) {
+    const url = new URL(`${endpoint}/${encodeURIComponent(bucket)}`);
+    url.searchParams.set("list-type", "2");
+    url.searchParams.set("prefix", prefix);
+    url.searchParams.set("max-keys", "100");
+    url.searchParams.set("encoding-type", "url");
+    const request = await aws.sign(new Request(url));
+    const response = await fetch(request, { signal: deadlineSignal(S3_OPERATION_TIMEOUT_MS) });
+    if (!response.ok) { await response.body?.cancel(); throw new Error(`S3 ListObjects failed: ${response.status}`); }
+    const xml = await multipartXml(response);
+    const keys = [...xml.matchAll(/<Key>([^<]*)<\/Key>/g)].map(match => decodeURIComponent(match[1]));
+    if (!keys.length) return;
+    for (const key of keys) {
+      if (!key.startsWith(prefix)) throw new Error("Invalid visual cleanup key");
+      await deleteR2Object(env, key.slice("media/".length));
+    }
+  }
+}
+
+/** Server-only bounded reads. Never forward object URLs/credentials to a model. */
 export async function readMediaBytes(
   env: Bindings, fileKey: string, maxBytes: number, signal?: AbortSignal,
 ): Promise<Uint8Array | null> {

@@ -31,6 +31,8 @@
       "processing": "Processing",
       "indexing": "Indexing",
       "completed": "Completed",
+      "visual_processing": "Preparing visuals",
+      "visual_error": "Visual preparation failed",
       "error": "Error"
     },
     "messages": {
@@ -345,10 +347,16 @@
       "transcriptSearchPlaceholder": "Search...",
       "statusSection": "Status",
       "transcriptNotFound": "No results found",
+      "visual": {
+        "processing": "Preparing images for AI viewing. The transcript is available.",
+        "ready": "Visuals are ready. AI can use images and the transcript to answer.",
+        "error": "Visual preparation failed. The transcript is available, but answers cannot use images yet.",
+        "progress": "Images saved for {{completed}} / {{total}} segments"
+      },
       "pipeline": {
         "upload": "Upload",
         "transcript": "Transcription",
-        "aiAnalysis": "AI Analysis"
+        "aiAnalysis": "Search indexing"
       },
       "transcriptStatus": {
         "pending": "Waiting for transcription...",

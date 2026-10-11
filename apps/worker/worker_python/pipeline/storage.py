@@ -174,6 +174,41 @@ def delete_object(file_key: str) -> None:
     logger.info("Deleted local media %s", path)
 
 
+def read_bytes(file_key: str, limit: int) -> bytes:
+    """Read only a bounded derived object, never the source video."""
+    if _use_object_storage():
+        with closing(_s3_client()) as client:
+            response = client.get_object(Bucket=_bucket(), Key=object_storage_key(file_key))
+            with closing(response['Body']) as body:
+                if response['ContentLength'] > limit:
+                    raise ValueError("Derived object exceeds read limit")
+                value = body.read(limit + 1)
+    else:
+        with resolve_local_media_path(file_key).open('rb') as body:
+            value = body.read(limit + 1)
+    if len(value) > limit:
+        raise ValueError("Derived object exceeds read limit")
+    return value
+
+
+def delete_visual_chunks(file_key: str) -> None:
+    """Remove every generation, including unpublished or interrupted chunks."""
+    from worker_python.pipeline.visual_chunks import visual_prefix
+    prefix = visual_prefix(file_key)
+    if _use_object_storage():
+        with closing(_s3_client()) as client:
+            for page in client.get_paginator('list_objects_v2').paginate(Bucket=_bucket(), Prefix=object_storage_key(prefix)):
+                objects = [{'Key': item['Key']} for item in page.get('Contents', [])]
+                if objects:
+                    result = client.delete_objects(Bucket=_bucket(), Delete={'Objects': objects, 'Quiet': True})
+                    if result.get('Errors'):
+                        raise RuntimeError("Visual chunk cleanup failed")
+    else:
+        path = Path(env_str('MEDIA_ROOT', '/tmp/videoq-media')) / prefix.lstrip('/')
+        if path.exists():
+            shutil.rmtree(path)
+
+
 def abort_multipart_upload(file_key: str, upload_id: str) -> None:
     """Discard partial data during account deletion; retries are idempotent."""
     if not _use_object_storage():

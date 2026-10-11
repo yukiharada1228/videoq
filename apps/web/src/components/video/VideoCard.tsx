@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { VideoInCourse, VideoList as VideoListType } from '@/lib/api';
 import { apiClient } from '@/lib/api';
-import { formatDate, getStatusChipColor, getStatusLabel } from '@/lib/utils/video';
+import { formatDate, getStatusChipColor, getStatusLabel, getVideoDisplayStatus } from '@/lib/utils/video';
 import { Link } from '@/lib/i18n';
 import { TagBadge } from './TagBadge';
 import { ChipLabel } from '@/components/ui/chip-label';
@@ -202,7 +202,7 @@ export function VideoCard({ video, showLink = true, className = '', onClick }: V
       </div>
 
       <div className="shrink-0">
-        <StatusBadgeWithIcon status={video.status} label={t(getStatusLabel(video.status))} />
+        <StatusBadgeWithIcon status={getVideoDisplayStatus(video)} label={t(getStatusLabel(getVideoDisplayStatus(video)))} />
       </div>
     </div>
   );

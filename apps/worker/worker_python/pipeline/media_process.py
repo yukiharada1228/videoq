@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import re
 import resource
+import signal
 import ssl
 import subprocess
 import sys
@@ -62,6 +63,17 @@ def media_input_args(source: Path | ObjectMediaSource) -> list[str]:
 
 def _redact_urls(text: str) -> str:
     return re.sub(r"https?://[^\s]+", "[media URL]", text)
+
+
+def media_failure(operation: str, result: subprocess.CompletedProcess) -> str:
+    code = result.returncode
+    reason = f"exit code {code}"
+    if code < 0:
+        try:
+            reason = f"signal {signal.Signals(-code).name}"
+        except ValueError:
+            reason = f"signal {-code}"
+    return f"{operation} failed ({reason}): {_redact_urls(result.stderr)[-500:]}"
 
 
 def _positive_setting(name: str, default: int) -> int:
