@@ -133,7 +133,7 @@ export const SelectedTags: Story = { async play(context) {
   await context.userEvent.click(dialog.getByRole('button', { name: tags[0].name }));
   await context.userEvent.click(dialog.getByRole('button', { name: tags[1].name }));
   await expect(dialog.getByRole('button', { name: tags[1].name })).toHaveAttribute('aria-pressed', 'true');
-  await context.userEvent.click(dialog.getByRole('button', { name: i18n.t('videos.upload.upload') }));
+  await context.userEvent.click(dialog.getByRole('button', { name: i18n.t('videos.upload.compression.submit') }));
   await expect(uploadRequest).toHaveBeenCalledWith(expect.objectContaining({ fileName, tagIds: [tags[0].id, tags[1].id] }));
 } };
 export const CreateTag: Story = { async play(context) {
@@ -174,7 +174,7 @@ export const Uploading: Story = {
   parameters: { uploadModal: { result: 'pending', progress: 46 } satisfies ModalScenario },
   async play(context) {
     const dialog = await fillFile(context);
-    await context.userEvent.click(dialog.getByRole('button', { name: i18n.t('videos.upload.upload') }));
+    await context.userEvent.click(dialog.getByRole('button', { name: i18n.t('videos.upload.compression.submit') }));
     await assertBusy(context);
     await expect(dialog.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '46');
   },
@@ -190,7 +190,7 @@ export const YoutubeImporting: Story = {
 };
 export const Success: Story = { async play(context) {
   const dialog = await fillFile(context);
-  await context.userEvent.click(dialog.getByRole('button', { name: i18n.t('videos.upload.upload') }));
+  await context.userEvent.click(dialog.getByRole('button', { name: i18n.t('videos.upload.compression.submit') }));
   await expect(await dialog.findByText(i18n.t('videos.upload.success'))).toBeVisible();
   await expect(context.args.onClose).not.toHaveBeenCalled();
 } };
@@ -216,9 +216,9 @@ export const UploadFailed: Story = {
   parameters: { uploadModal: { result: 'error' } satisfies ModalScenario },
   async play(context) {
     const dialog = await fillFile(context);
-    await context.userEvent.click(dialog.getByRole('button', { name: i18n.t('videos.upload.upload') }));
+    await context.userEvent.click(dialog.getByRole('button', { name: i18n.t('videos.upload.compression.submit') }));
     await expect(await dialog.findByText(uploadError)).toBeVisible();
-    await expect(dialog.getByRole('button', { name: i18n.t('videos.upload.upload') })).toBeEnabled();
+    await expect(dialog.getByRole('button', { name: i18n.t('videos.upload.compression.submit') })).toBeEnabled();
     await expect(dialog.queryByText(i18n.t('videos.upload.success'))).not.toBeInTheDocument();
   },
 };
@@ -227,27 +227,27 @@ export const FailureThenRetry: Story = {
   async play(context) {
     await UploadFailed.play!(context);
     const dialog = within(context.canvas.getByRole('dialog'));
-    await context.userEvent.click(dialog.getByRole('button', { name: i18n.t('videos.upload.upload') }));
+    await context.userEvent.click(dialog.getByRole('button', { name: i18n.t('videos.upload.compression.submit') }));
     await expect(await dialog.findByText(i18n.t('videos.upload.success'))).toBeVisible();
     await expect(dialog.queryByText(uploadError)).not.toBeInTheDocument();
     await expect(uploadRequest).toHaveBeenCalledTimes(2);
   },
 };
-export const FileSizeLimit: Story = {
+export const MonthlyUploadLimit: Story = {
   parameters: { uploadModal: {
-    result: 'error', error: 'videos.upload.validation.fileTooLarge', errorParams: { max_size_mb: 50 },
+    result: 'error', error: 'videos.upload.validation.monthlyUploadLimitExceeded',
   } satisfies ModalScenario },
   async play(context) {
     const dialog = await fillFile(context);
-    await context.userEvent.click(dialog.getByRole('button', { name: i18n.t('videos.upload.upload') }));
-    await expect(await dialog.findByText(i18n.t('videos.upload.validation.fileTooLarge', { max_size_mb: 50 }))).toBeVisible();
+    await context.userEvent.click(dialog.getByRole('button', { name: i18n.t('videos.upload.compression.submit') }));
+    await expect(await dialog.findByText(i18n.t('videos.upload.validation.monthlyUploadLimitExceeded'))).toBeVisible();
     await expect(dialog.getByLabelText(i18n.t('videos.upload.titleLabel'), { exact: false })).toHaveValue('線形代数の講義');
-    await expect(dialog.getByRole('button', { name: i18n.t('videos.upload.upload') })).toBeEnabled();
+    await expect(dialog.getByRole('button', { name: i18n.t('videos.upload.compression.submit') })).toBeEnabled();
     await expect(context.args.onClose).not.toHaveBeenCalled();
   },
 };
-export const FileSizeLimitEnglishMobile: Story = {
-  ...FileSizeLimit,
+export const MonthlyUploadLimitEnglishMobile: Story = {
+  ...MonthlyUploadLimit,
   globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } },
 };
 export const LongContentMobile: Story = {

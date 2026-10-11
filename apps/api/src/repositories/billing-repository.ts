@@ -87,6 +87,7 @@ async function updateBillingState(
     // Evaluate the current quota source while updating, not before Stripe I/O.
     ...(entitlements ? {
       maxVideoUploadSizeMb: sql`CASE WHEN ${users.quotaSource} = 'plan' THEN ${entitlements.maxVideoUploadSizeMb} ELSE ${users.maxVideoUploadSizeMb} END`,
+      monthlyUploadLimitGb: sql`CASE WHEN ${users.quotaSource} = 'plan' THEN ${entitlements.monthlyUploadLimitGb} ELSE ${users.monthlyUploadLimitGb} END`,
       storageLimitGb: sql`CASE WHEN ${users.quotaSource} = 'plan' THEN ${entitlements.storageLimitGb} ELSE ${users.storageLimitGb} END`,
       processingLimitMinutes: sql`CASE WHEN ${users.quotaSource} = 'plan' THEN ${entitlements.processingLimitMinutes} ELSE ${users.processingLimitMinutes} END`,
       aiAnswersLimit: sql`CASE WHEN ${users.quotaSource} = 'plan' THEN ${entitlements.aiAnswersLimit} ELSE ${users.aiAnswersLimit} END`,

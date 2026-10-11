@@ -1,3 +1,4 @@
+import { MAX_VIDEO_UPLOAD_BYTES } from '@videoq/trpc/video-upload';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
@@ -42,8 +43,6 @@ interface UseVideoUploadReturn {
   reset: () => void;
 }
 
-const DEFAULT_MAX_VIDEO_UPLOAD_SIZE_MB = Number(import.meta.env.VITE_MAX_VIDEO_UPLOAD_SIZE_MB || 200);
-
 interface RunUploadMutationVariables {
   upload: PreparedUpload;
   tagIds: number[];
@@ -51,7 +50,6 @@ interface RunUploadMutationVariables {
 
 export function useVideoUpload(): UseVideoUploadReturn {
   const { user } = useAuth();
-  const maxUploadSizeMb = user?.max_video_upload_size_mb ?? DEFAULT_MAX_VIDEO_UPLOAD_SIZE_MB;
   const [sourceMode, setSourceMode] = useState<UploadSourceMode>('file');
   const [file, setFile] = useState<File | null>(null);
   const [youtubeUrl, setYoutubeUrl] = useState('');
@@ -63,7 +61,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
   const [errorParams, setErrorParams] = useState<Record<string, unknown>>({});
   const [warning, setWarning] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const [compressionPreset, setPreset] = useState<CompressionPreset>('original');
+  const [compressionPreset, setPreset] = useState<CompressionPreset>('1080p');
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressedSizes, setCompressedSizes] = useState<{ before: number; after: number } | null>(null);
   const compressionAbort = useRef<AbortController | null>(null);
@@ -94,6 +92,9 @@ export function useVideoUpload(): UseVideoUploadReturn {
       if (apiError?.code === 'FILE_TOO_LARGE') {
         setError('videos.upload.validation.fileTooLarge');
         setErrorParams(apiError.params ?? {});
+      } else if (apiError?.code === 'MONTHLY_UPLOAD_LIMIT_EXCEEDED') {
+        setError('videos.upload.validation.monthlyUploadLimitExceeded');
+        setErrorParams({});
       } else if (apiError?.code === 'STORAGE_LIMIT_EXCEEDED') {
         setError('videos.upload.validation.storageLimitExceeded');
         setErrorParams({});
@@ -133,23 +134,18 @@ export function useVideoUpload(): UseVideoUploadReturn {
       setWarning(null);
       setFile(selectedFile);
       setCompressedSizes(null);
-      if (compressionPreset === 'original' && selectedFile.size > maxUploadSizeMb * 1024 * 1024) {
-        setError('videos.upload.validation.fileTooLarge');
-        setErrorParams({ max_size_mb: maxUploadSizeMb });
-      }
       // Automatically set filename (without extension) as title
       setTitle(validation.upload.data.title);
     }
-  }, [maxUploadSizeMb, sourceMode, compressionPreset]);
+  }, [sourceMode]);
 
   const setCompressionPreset = useCallback((preset: CompressionPreset) => {
     if (uploadInFlight.current) return;
     setPreset(preset);
     setCompressedSizes(null);
-    setError(preset === 'original' && file && file.size > maxUploadSizeMb * 1024 * 1024
-      ? 'videos.upload.validation.fileTooLarge' : null);
-    setErrorParams({ max_size_mb: maxUploadSizeMb });
-  }, [file, maxUploadSizeMb]);
+    setError(null);
+    setErrorParams({});
+  }, []);
 
   const reset = useCallback(() => {
     setSourceMode('file');
@@ -163,7 +159,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
     setErrorParams({});
     setWarning(null);
     setProgress(0);
-    setPreset('original');
+    setPreset('1080p');
     setCompressedSizes(null);
   }, []);
 
@@ -177,7 +173,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
 
     const validation = prepareVideoUpload(sourceMode === 'youtube'
       ? { source: 'youtube', youtubeUrl, title, description }
-      : { source: 'file', file, title, description, maxSizeMb: compressionPreset === 'original' ? maxUploadSizeMb : Infinity });
+      : { source: 'file', file, title, description, maxSizeMb: Infinity });
     if (!validation.isValid) {
       setError(validation.error);
       setErrorParams(validation.errorParams ?? {});
@@ -193,18 +189,30 @@ export function useVideoUpload(): UseVideoUploadReturn {
     uploadInFlight.current = true;
     let compressed: Awaited<ReturnType<typeof compressVideo>> | undefined;
     try {
-      if (validation.upload.source === 'file' && compressionPreset !== 'original') {
+      if (validation.upload.source === 'file') {
+        const storageRemaining = user?.storage_limit_bytes == null ? Infinity
+          : Math.max(0, user.storage_limit_bytes - (user.used_storage_bytes ?? 0));
+        // Do not let a cached account response from the previous month block a new one.
+        const uploadUsed = user?.upload_resets_at && Date.parse(user.upload_resets_at) <= Date.now()
+          ? 0 : user?.used_upload_bytes ?? 0;
+        const monthlyRemaining = user?.monthly_upload_limit_bytes == null ? Infinity
+          : Math.max(0, user.monthly_upload_limit_bytes - uploadUsed);
+        const maxCompressedBytes = Math.min(MAX_VIDEO_UPLOAD_BYTES, storageRemaining, monthlyRemaining);
+        if (maxCompressedBytes <= 0) {
+          setError(storageRemaining <= 0 ? 'videos.upload.validation.storageLimitExceeded' : 'videos.upload.validation.monthlyUploadLimitExceeded');
+          return;
+        }
         const controller = new AbortController();
         compressionAbort.current = controller;
         setIsCompressing(true);
         setCompressedSizes(null);
         try {
           compressed = await compressVideo(validation.upload.data.file, compressionPreset, {
-            signal: controller.signal, onProgress: setProgress, maxBytes: maxUploadSizeMb * 1024 * 1024,
+            signal: controller.signal, onProgress: setProgress, maxBytes: maxCompressedBytes,
           });
           controller.signal.throwIfAborted();
-          // The server independently applies file/storage quotas to these actual bytes.
-          if (compressed.file.size > maxUploadSizeMb * 1024 * 1024) throw new Error('videos.upload.compression.tooLarge');
+          // The server atomically reserves storage and monthly usage for these actual bytes.
+          if (compressed.file.size > maxCompressedBytes) throw new Error('videos.upload.compression.tooLarge');
           setCompressedSizes({ before: validation.upload.data.file.size, after: compressed.file.size });
           validation.upload.data.file = compressed.file;
         } catch (error) {
@@ -225,7 +233,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
       await compressed?.dispose();
       uploadInFlight.current = false;
     }
-  }, [sourceMode, youtubeUrl, title, description, file, maxUploadSizeMb, tagIds, uploadMutation, compressionPreset]);
+  }, [sourceMode, youtubeUrl, title, description, file, user, tagIds, uploadMutation, compressionPreset]);
 
   return {
     sourceMode,

@@ -232,6 +232,20 @@
       "when": 1791725670098,
       "tag": "0032_segmented_visuals",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1791744318084,
+      "tag": "0033_monthly_upload_allowance",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1791744441427,
+      "tag": "0034_initialize_upload_allowances",
+      "breakpoints": true
     }
   ]
 }

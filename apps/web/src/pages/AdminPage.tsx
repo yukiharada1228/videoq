@@ -46,13 +46,13 @@ const quotaFormSchema = adminInputSchemas['admin.patchQuota']
 const usageFormSchema = adminInputSchemas['admin.patchUsage']
   .omit({ id: true, usage_period_start: true }).required();
 const QUOTA_ERRORS = {
-  max_video_upload_size_mb: 'admin.users.errors.invalidUploadMb',
+  monthly_upload_limit_gb: 'admin.users.errors.invalidMonthlyUploadGb',
   storage_limit_gb: 'admin.users.errors.invalidStorageGb',
   processing_limit_minutes: 'admin.users.errors.invalidProcessingMinutes',
   ai_answers_limit: 'admin.users.errors.invalidAiLimit',
 } as const;
 const FIELD_IDS = {
-  max_video_upload_size_mb: 'admin-max-upload',
+  monthly_upload_limit_gb: 'admin-monthly-upload',
   storage_limit_gb: 'admin-storage-gb',
   processing_limit_minutes: 'admin-processing-min',
   ai_answers_limit: 'admin-ai-limit',
@@ -107,7 +107,7 @@ export default function AdminPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
-  const [maxUploadMb, setMaxUploadMb] = useState('');
+  const [monthlyUploadGb, setMonthlyUploadGb] = useState('');
   const [storageLimitGb, setStorageLimitGb] = useState('');
   const [processingLimitMinutes, setProcessingLimitMinutes] = useState('');
   const [aiAnswersLimit, setAiAnswersLimit] = useState('');
@@ -136,7 +136,7 @@ export default function AdminPage() {
   const openEditUser = (row: AdminUser, trigger: HTMLButtonElement) => {
     userActionTriggerRef.current = trigger;
     setSelectedUser(row);
-    setMaxUploadMb(String(row.max_video_upload_size_mb));
+    setMonthlyUploadGb(row.monthly_upload_limit_gb === null ? '' : String(row.monthly_upload_limit_gb));
     setStorageLimitGb(row.storage_limit_gb == null ? '' : String(row.storage_limit_gb));
     setProcessingLimitMinutes(
       row.processing_limit_minutes == null ? '' : String(row.processing_limit_minutes),
@@ -206,7 +206,7 @@ export default function AdminPage() {
 
   const saveUser = () => {
     const quotaInput = quotaFormSchema.safeParse({
-      max_video_upload_size_mb: numberInput(maxUploadMb),
+      monthly_upload_limit_gb: numberInput(monthlyUploadGb),
       storage_limit_gb: numberInput(storageLimitGb),
       processing_limit_minutes: numberInput(processingLimitMinutes),
       ai_answers_limit: numberInput(aiAnswersLimit),
@@ -455,7 +455,7 @@ export default function AdminPage() {
                           <dl className="space-y-2">
                             <div className="flex flex-wrap items-baseline justify-between gap-x-3">
                               <dt className="text-solid-gray-700">{t('admin.users.quota.upload')}</dt>
-                              <dd className="min-w-0 max-w-full text-end font-bold tabular-nums [overflow-wrap:anywhere]">{row.max_video_upload_size_mb} MB</dd>
+                              <dd className="min-w-0 max-w-full text-end font-bold tabular-nums [overflow-wrap:anywhere]">{row.monthly_upload_limit_gb === null ? t('quota.usage.unlimited') : `${row.monthly_upload_limit_gb} GB`}</dd>
                             </div>
                             <div className="flex flex-wrap items-baseline justify-between gap-x-3">
                               <dt className="text-solid-gray-700">{t('admin.users.quota.storage')}</dt>
@@ -578,15 +578,16 @@ export default function AdminPage() {
               </fieldset>
               <div className="grid grid-cols-1 gap-4 @min-[32rem]:grid-cols-2">
                 <FormField
-                  id={FIELD_IDS.max_video_upload_size_mb}
-                  name="max_video_upload_size_mb"
-                  label={t('admin.users.fields.maxUploadMb')}
+                  id={FIELD_IDS.monthly_upload_limit_gb}
+                  name="monthly_upload_limit_gb"
+                  label={t('admin.users.fields.monthlyUploadGb')}
                   type="text"
                   blockSize="md"
                   className="min-w-0"
-                  value={maxUploadMb}
-                  error={fieldErrors.max_video_upload_size_mb}
-                  onChange={(event) => setMaxUploadMb(event.target.value)}
+                  value={monthlyUploadGb}
+                  error={fieldErrors.monthly_upload_limit_gb}
+                  onChange={(event) => setMonthlyUploadGb(event.target.value)}
+                  supportText={t('admin.users.nullableHint')}
                 />
                 <FormField
                   id={FIELD_IDS.storage_limit_gb}

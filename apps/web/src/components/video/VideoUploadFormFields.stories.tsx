@@ -7,7 +7,7 @@ import { VideoUploadFormFields } from './VideoUploadFormFields';
 function UploadFormExample(args: ComponentProps<typeof VideoUploadFormFields>) {
   const [title, setTitle] = useState(args.title);
   const [description, setDescription] = useState(args.description);
-  const [compressionPreset, setCompressionPreset] = useState(args.compressionPreset ?? 'original');
+  const [compressionPreset, setCompressionPreset] = useState<'1080p' | '720p'>(args.compressionPreset ?? '1080p');
   return (
     <form className="space-y-4" style={{ maxWidth: 560 }} onSubmit={(event) => event.preventDefault()}>
       <VideoUploadFormFields
@@ -54,7 +54,8 @@ export const Empty: Story = {};
 export const Filled: Story = { args: { title: '線形代数 第3回：回転行列', description: '座標変換の基本と回転行列の具体例を解説する講義です。' } };
 export const CompressionUnavailable: Story = { args: { compressionSupported: false }, async play({ canvas }) {
   await expect(canvas.getByRole('radio', { name: i18n.t('videos.upload.compression.presets.1080p') })).toBeDisabled();
-  await expect(canvas.getByRole('radio', { name: i18n.t('videos.upload.compression.presets.original') })).toBeChecked();
+  await expect(canvas.getByRole('radio', { name: i18n.t('videos.upload.compression.presets.1080p') })).toBeChecked();
+  await expect(canvas.getByRole('button', { name: i18n.t('videos.upload.compression.submit') })).toBeDisabled();
 } };
 export const SelectCompression: Story = { async play({ canvas, userEvent }) {
   const standard = canvas.getByRole('radio', { name: i18n.t('videos.upload.compression.presets.1080p') });
@@ -71,7 +72,7 @@ export const Disabled: Story = { args: { ...Filled.args, disabled: true } };
 export const StartingUpload: Story = { args: { ...Filled.args, isUploading: true, progress: 0 } };
 export const Uploading: Story = { args: { ...Filled.args, isUploading: true, progress: 46 } };
 export const UploadComplete: Story = { args: { ...Filled.args, isUploading: true, progress: 100 } };
-export const Error: Story = { args: { ...Filled.args, error: 'videos.upload.validation.fileTooLarge', errorParams: { max_size_mb: 500 } } };
+export const Error: Story = { args: { ...Filled.args, error: 'videos.upload.validation.monthlyUploadLimitExceeded' } };
 export const StorageLimitError: Story = { args: { error: 'videos.upload.validation.storageLimitExceeded' } };
 export const Warning: Story = { args: { ...Filled.args, warning: 'videos.upload.warning.tagsFailed', success: true } };
 export const Success: Story = { args: { ...Filled.args, success: true } };

@@ -10,7 +10,7 @@ import { landingMedia } from '../../.storybook/mocks/landingMedia';
 
 const freePlan = {
   code: 'free', interval: null, lookup_key: null, unit_amount: 0, currency: 'jpy',
-  entitlements: { max_video_upload_size_mb: 200, storage_limit_gb: 1, processing_limit_minutes: 45, ai_answers_limit: 30 },
+  entitlements: { max_video_upload_size_mb: 200, storage_limit_gb: 1, monthly_upload_limit_gb: 2, processing_limit_minutes: 45, ai_answers_limit: 30 },
 } satisfies BillingPlan;
 const meta = {
   title: 'Pages/Landing', component: LandingPage,

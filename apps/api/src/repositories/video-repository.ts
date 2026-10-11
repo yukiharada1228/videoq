@@ -35,7 +35,7 @@ import {
   JOB_TRANSCRIBE_VIDEO,
 } from "../lib/job-message";
 import { parseReservedBytesFromFileKey } from "../lib/upload";
-import { reserveStorageInTransaction } from "./quota-repository";
+import { reserveUploadInTransaction, refundUnconfirmedUpload } from "./quota-repository";
 import {
   findIdempotentResource,
   recordIdempotentResource,
@@ -84,7 +84,7 @@ export type OutboxedVideoJob = {
 export type PendingVideoReservation =
   | { ok: true; videoId: number; fileKey: string; reused: boolean }
   | { idempotencyConflict: true }
-  | { fileTooLarge: true; maxMb: number }
+  | { monthlyUploadExceeded: true; limit: number }
   | { overQuota: true }
   | { exceeded: true; limit: number };
 
@@ -505,15 +505,11 @@ export async function reserveAndCreatePendingVideo(
   return withDb(env, async (db) =>
     db.transaction(async (tx) => {
       const [owner] = await tx
-        .select({ maxMb: users.maxVideoUploadSizeMb })
+        .select({ id: users.id })
         .from(users)
         .where(eq(users.id, userId))
         .for("update");
       if (!owner) throw new Error("Quota owner not found.");
-      // Check under the reservation lock so concurrent limit changes take effect.
-      if (storageBytes > owner.maxMb * 1024 * 1024) {
-        return { fileTooLarge: true, maxMb: owner.maxMb } as const;
-      }
       const existing = await findIdempotentResource(tx, userId, idempotency);
       if (existing.found) {
         if (existing.conflict) return { idempotencyConflict: true } as const;
@@ -531,7 +527,7 @@ export async function reserveAndCreatePendingVideo(
           reused: true,
         };
       }
-      const reservation = await reserveStorageInTransaction(
+      const reservation = await reserveUploadInTransaction(
         tx,
         userId,
         storageBytes,
@@ -545,6 +541,7 @@ export async function reserveAndCreatePendingVideo(
           title,
           description,
           status: "uploading",
+          uploadUsagePeriodStart: reservation.periodStart,
           sourceType: "uploaded",
           sourceUrl: "",
           youtubeVideoId: "",
@@ -607,7 +604,7 @@ export async function deleteVideoCascade(
     return db.transaction(async (tx) => {
       const locked = await tx
         .select({ status: videos.status, file: videos.file, multipart: videos.multipartUpload,
-          heartbeat: videos.uploadHeartbeatAt })
+          heartbeat: videos.uploadHeartbeatAt, uploadPeriod: videos.uploadUsagePeriodStart })
         .from(videos)
         .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
         .for("update")
@@ -639,6 +636,13 @@ export async function deleteVideoCascade(
             ...(locked[0].multipart ? { multipartUploadId: locked[0].multipart.uploadId } : {}),
           })
         : null;
+
+      // A completed upload consumes its month's allowance even after deletion.
+      // Row locking + the delete make abort refunds idempotent. A previous
+      // month's reservation cannot subtract from a new month's usage.
+      if (locked[0].status === "uploading" && locked[0].uploadPeriod && cleanupBytes) {
+        await refundUnconfirmedUpload(tx, userId, cleanupBytes, locked[0].uploadPeriod);
+      }
 
       await tx
         .delete(mcpIdempotencyRecords)

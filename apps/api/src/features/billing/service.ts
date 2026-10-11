@@ -47,6 +47,7 @@ export type PublicPlan = {
   entitlements: {
     max_video_upload_size_mb: number;
     storage_limit_gb: number;
+    monthly_upload_limit_gb: number;
     processing_limit_minutes: number;
     ai_answers_limit: number;
   };
@@ -57,6 +58,7 @@ function entitlementsJson(planCode: PlanCode) {
   return {
     max_video_upload_size_mb: e.maxVideoUploadSizeMb,
     storage_limit_gb: e.storageLimitGb,
+    monthly_upload_limit_gb: e.monthlyUploadLimitGb,
     processing_limit_minutes: e.processingLimitMinutes,
     ai_answers_limit: e.aiAnswersLimit,
   };

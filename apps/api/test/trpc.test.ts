@@ -102,8 +102,8 @@ describe("tRPC Hono adapter", () => {
   });
 
   it.each([
-    { result: { fileTooLarge: true, maxMb: 50 }, status: 413,
-      data: { applicationCode: "FILE_TOO_LARGE", params: { max_size_mb: 50 } } },
+    { result: { badRequest: "Monthly upload allowance exceeded", code: "MONTHLY_UPLOAD_LIMIT_EXCEEDED" }, status: 400,
+      data: { applicationCode: "MONTHLY_UPLOAD_LIMIT_EXCEEDED" } },
     { result: { badRequest: "Storage limit exceeded", code: "STORAGE_LIMIT_EXCEEDED" }, status: 400,
       data: { applicationCode: "STORAGE_LIMIT_EXCEEDED" } },
     { result: { fieldError: { filename: ["Unsupported file type"] } }, status: 400,

@@ -4,6 +4,11 @@ import { useAuthSession } from '@/lib/authSession'
 import VideoLibraryPage from '../VideoLibraryPage'
 import HomePage from '../HomePage'
 
+vi.mock('@/lib/videoCompression', () => ({
+  supportsVideoCompression: () => true,
+  compressVideo: async (file: File) => ({ file, dispose: async () => {} }),
+}))
+
 describe('video library uploads', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -67,7 +72,7 @@ describe('video library uploads', () => {
           target: { value: video.title },
         })
       }
-      const submit = within(dialog).getByRole('button', { name: 'videos.upload.upload' })
+      const submit = within(dialog).getByRole('button', { name: source === 'file' ? 'videos.upload.compression.submit' : 'videos.upload.upload' })
       fireEvent.submit(submit.closest('form')!)
       await screen.findByText('videos.upload.success')
       await screen.findByText(video.title)

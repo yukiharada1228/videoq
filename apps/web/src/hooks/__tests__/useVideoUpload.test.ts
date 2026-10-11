@@ -11,6 +11,12 @@ vi.mock('@/lib/videoCompression', () => ({ compressVideo: vi.fn(), supportsVideo
 
 vi.mock('@/lib/landingAnalytics', () => ({ trackLandingEvent: vi.fn() }))
 
+const quotaUser = vi.hoisted(() => ({
+  id: 1, username: 'testuser', max_video_upload_size_mb: 500,
+  storage_limit_bytes: 20 * 1024 ** 3, used_storage_bytes: 0,
+  monthly_upload_limit_bytes: 200 * 1024 ** 3, used_upload_bytes: 0,
+  upload_resets_at: undefined as string | undefined,
+}))
 const createYoutubeVideo = vi.fn()
 const addTagsToVideo = vi.fn()
 
@@ -27,7 +33,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    user: { id: 1, username: 'testuser', max_video_upload_size_mb: 500 },
+    user: quotaUser,
     isLoading: false,
   }),
 }))
@@ -35,8 +41,10 @@ vi.mock('@/hooks/useAuth', () => ({
 describe('useVideoUpload', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    quotaUser.used_upload_bytes = 0
+    quotaUser.upload_resets_at = undefined
     vi.mocked(apiClient.uploadVideo).mockReset()
-    vi.mocked(compressVideo).mockReset()
+    vi.mocked(compressVideo).mockReset().mockImplementation(async (file) => ({ file, dispose: vi.fn(async () => {}) }))
     createYoutubeVideo.mockReset()
     addTagsToVideo.mockReset()
     globalThis.__setTrpcHandler('videos.createYoutube', createYoutubeVideo)
@@ -63,15 +71,45 @@ describe('useVideoUpload', () => {
     vi.mocked(apiClient.uploadVideo).mockResolvedValue({ id: 1 } as never)
     const { result } = renderHook(() => useVideoUpload())
     act(() => result.current.handleFileChange({ target: { files: [source] } } as unknown as React.ChangeEvent<HTMLInputElement>))
-    expect(result.current.error).toBe('videos.upload.validation.fileTooLarge')
+    expect(result.current.error).toBeNull()
     act(() => result.current.setCompressionPreset('1080p'))
     expect(result.current.error).toBeNull()
     await act(() => result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent))
-    expect(compressVideo).toHaveBeenCalledWith(source, '1080p', expect.objectContaining({ maxBytes: 500 * 1024 ** 2 }))
+    expect(compressVideo).toHaveBeenCalledWith(source, '1080p', expect.objectContaining({ maxBytes: 20 * 1024 ** 3 }))
     expect(apiClient.uploadVideo).toHaveBeenCalledWith({ file: compressed, title: 'game', description: undefined }, expect.any(Function))
     expect(dispose).toHaveBeenCalledTimes(1)
     expect(result.current.compressedSizes).toEqual({ before: source.size, after: compressed.size })
     expect(result.current.success).toBe(true)
+  })
+
+  it('limits compression by the remaining monthly allowance', async () => {
+    quotaUser.used_upload_bytes = quotaUser.monthly_upload_limit_bytes - 100
+    const source = new File(['clip'], 'clip.mp4', { type: 'video/mp4' })
+    vi.mocked(apiClient.uploadVideo).mockResolvedValue({ id: 1 } as never)
+    const { result } = renderHook(() => useVideoUpload())
+    act(() => result.current.handleFileChange({ target: { files: [source] } } as unknown as React.ChangeEvent<HTMLInputElement>))
+    await act(() => result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent))
+    expect(compressVideo).toHaveBeenCalledWith(source, '1080p', expect.objectContaining({ maxBytes: 100 }))
+  })
+
+  it('refreshes the monthly allowance at submit even when the form stayed open over midnight UTC', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      vi.setSystemTime(new Date('2026-10-31T23:59:59Z'))
+      quotaUser.used_upload_bytes = quotaUser.monthly_upload_limit_bytes
+      quotaUser.upload_resets_at = '2026-11-01T00:00:00Z'
+      const source = new File(['clip'], 'clip.mp4', { type: 'video/mp4' })
+      vi.mocked(apiClient.uploadVideo).mockResolvedValue({ id: 1 } as never)
+      const { result } = renderHook(() => useVideoUpload())
+      act(() => result.current.handleFileChange({ target: { files: [source] } } as unknown as React.ChangeEvent<HTMLInputElement>))
+      await act(() => result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent))
+      expect(result.current.error).toBe('videos.upload.validation.monthlyUploadLimitExceeded')
+      expect(compressVideo).not.toHaveBeenCalled()
+      vi.setSystemTime(new Date('2026-11-01T00:00:01Z'))
+      await act(() => result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent))
+      expect(compressVideo).toHaveBeenCalledWith(source, '1080p', expect.objectContaining({ maxBytes: 20 * 1024 ** 3 }))
+      expect(result.current.success).toBe(true)
+    } finally { vi.useRealTimers() }
   })
 
   it.each(['canceled', 'unsupported'])('does not send the original or reserve an upload when compression is %s', async reason => {
@@ -115,11 +153,11 @@ describe('useVideoUpload', () => {
       await expect(result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent)).rejects.toThrow('network failed')
     })
     expect(dispose).toHaveBeenCalledTimes(1)
-    act(() => result.current.setCompressionPreset('original'))
+    act(() => result.current.setCompressionPreset('720p'))
     vi.mocked(apiClient.uploadVideo).mockResolvedValue({ id: 1 } as never)
     await act(() => result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent))
-    expect(apiClient.uploadVideo).toHaveBeenLastCalledWith(expect.objectContaining({ file: source }), expect.any(Function))
-    expect(compressVideo).toHaveBeenCalledTimes(1)
+    expect(apiClient.uploadVideo).toHaveBeenLastCalledWith(expect.objectContaining({ file: expect.objectContaining({ name: 'game.mp4' }) }), expect.any(Function))
+    expect(compressVideo).toHaveBeenCalledTimes(2)
   })
 
   it.each(['file', 'youtube'] as const)('does not create duplicate %s videos during one upload', async mode => {
@@ -194,7 +232,7 @@ describe('useVideoUpload', () => {
     expect(result.current.error).toBe('videos.upload.validation.invalidFileType')
   })
 
-  it('should reject oversized files on file change', () => {
+  it('accepts large source files for compression without a per-file plan cap', () => {
     const { result } = renderHook(() => useVideoUpload())
     const file = new File(['content'], 'large-video.mp4', { type: 'video/mp4' })
     Object.defineProperty(file, 'size', { value: 501 * 1024 * 1024 })
@@ -205,7 +243,7 @@ describe('useVideoUpload', () => {
       } as unknown as React.ChangeEvent<HTMLInputElement>)
     })
 
-    expect(result.current.error).toBe('videos.upload.validation.fileTooLarge')
+    expect(result.current.error).toBeNull()
   })
 
   it('should update title', () => {

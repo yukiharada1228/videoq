@@ -18,6 +18,7 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
       CREATE SCHEMA "${schema}";
       SET search_path TO "${schema}";
       CREATE TABLE users (
+        monthly_upload_limit_gb double precision DEFAULT 2,
         id text PRIMARY KEY, role text DEFAULT 'user', banned boolean DEFAULT false, ban_expires timestamptz,
         username text DEFAULT 'User', email text DEFAULT 'user@example.test',
         max_video_upload_size_mb integer DEFAULT 999, storage_limit_gb double precision DEFAULT 12.5,
@@ -60,7 +61,7 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
 
   function limits(plan: "free" | "basic" | "pro") {
     const e = PLAN_CATALOG[plan].entitlements;
-    return { max_video_upload_size_mb: e.maxVideoUploadSizeMb, storage_limit_gb: e.storageLimitGb,
+    return { max_video_upload_size_mb: e.maxVideoUploadSizeMb, storage_limit_gb: e.storageLimitGb, monthly_upload_limit_gb: e.monthlyUploadLimitGb,
       processing_limit_minutes: e.processingLimitMinutes, ai_answers_limit: e.aiAnswersLimit };
   }
 
@@ -99,7 +100,7 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
     await admin.query(`
       CREATE OR REPLACE FUNCTION reject_plan_quota() RETURNS trigger LANGUAGE plpgsql AS $$
         BEGIN
-          IF NEW.max_video_upload_size_mb = 1024 THEN RAISE EXCEPTION 'quota reset rejected'; END IF;
+          IF NEW.monthly_upload_limit_gb = 200 THEN RAISE EXCEPTION 'quota reset rejected'; END IF;
           RETURN NEW;
         END;
       $$;

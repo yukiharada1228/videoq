@@ -30,7 +30,7 @@ const sampleUser = {
   email: 'bob@example.com',
   is_active: true,
   is_admin: false,
-  max_video_upload_size_mb: 500,
+  monthly_upload_limit_gb: 500,
   storage_limit_gb: 10,
   processing_limit_minutes: 60,
   ai_answers_limit: 100,
@@ -59,7 +59,7 @@ describe('AdminPage', () => {
         email: 'admin@example.com',
         is_admin: true,
         video_count: 0,
-        max_video_upload_size_mb: 500,
+        monthly_upload_limit_gb: 500,
       },
       isLoading: false,
       refetch: vi.fn(),
@@ -90,7 +90,7 @@ describe('AdminPage', () => {
     expect(identity).toHaveTextContent('admin.users.columns.id: 9')
     expect(row.getByText('admin.users.flags.active')).toBeInTheDocument()
     expect(row.getByText('admin.users.flags.user')).toBeInTheDocument()
-    expect(row.getByText('500 MB')).toBeInTheDocument()
+    expect(row.getByText('500 GB')).toBeInTheDocument()
     expect(row.getByText('10 GB')).toBeInTheDocument()
     expect(row.getByRole('button', { name: 'admin.users.edit' })).toBeEnabled()
     expect(row.getByRole('button', { name: 'admin.users.delete' })).toBeEnabled()
@@ -241,7 +241,7 @@ describe('AdminPage', () => {
         email: 'alice@example.com',
         is_admin: false,
         video_count: 0,
-        max_video_upload_size_mb: 500,
+        monthly_upload_limit_gb: 500,
       },
       isLoading: false,
       refetch: vi.fn(),
@@ -265,7 +265,7 @@ describe('AdminPage', () => {
     })
     fireEvent.click(adminCheckbox)
 
-    const uploadInput = await screen.findByLabelText('admin.users.fields.maxUploadMb')
+    const uploadInput = await screen.findByLabelText('admin.users.fields.monthlyUploadGb')
     await waitFor(() => {
       expect(uploadInput).toHaveValue('500')
     })
@@ -280,7 +280,7 @@ describe('AdminPage', () => {
       })
       expect(patchQuota).toHaveBeenCalledWith({
         id: 9,
-        max_video_upload_size_mb: 750,
+        monthly_upload_limit_gb: 750,
       })
       expect(patchUsage).toHaveBeenCalledWith({
         id: 9,
@@ -297,7 +297,7 @@ describe('AdminPage', () => {
     render(<AdminPage />)
     fireEvent.click(await screen.findByRole('button', { name: 'admin.users.edit' }))
     // Equivalent numeric input must also remain a no-op.
-    fireEvent.change(screen.getByLabelText('admin.users.fields.maxUploadMb'), { target: { value: ' 0500 ' } })
+    fireEvent.change(screen.getByLabelText('admin.users.fields.monthlyUploadGb'), { target: { value: ' 0500 ' } })
     fireEvent.click(screen.getByRole('button', { name: 'admin.users.save' }))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -351,20 +351,20 @@ describe('AdminPage', () => {
     render(<AdminPage />)
     fireEvent.click(await screen.findByRole('button', { name: 'admin.users.edit' }))
     fireEvent.click(screen.getByLabelText('admin.users.fields.isAdmin'))
-    fireEvent.change(screen.getByLabelText('admin.users.fields.maxUploadMb'), { target: { value: '750' } })
+    fireEvent.change(screen.getByLabelText('admin.users.fields.monthlyUploadGb'), { target: { value: '750' } })
     fireEvent.click(screen.getByRole('button', { name: 'admin.users.save' }))
 
     expect(await screen.findByText('Quota update failed')).toBeInTheDocument()
     expect(listUsers).toHaveBeenCalledTimes(2)
     expect(screen.getByText('admin.users.flags.admin')).toBeInTheDocument()
-    expect(screen.getByLabelText('admin.users.fields.maxUploadMb')).toHaveValue('750')
+    expect(screen.getByLabelText('admin.users.fields.monthlyUploadGb')).toHaveValue('750')
     expect(patchUsage).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'admin.users.save' }))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(patchFlags).toHaveBeenCalledExactlyOnceWith({ id: 9, is_admin: true })
     expect(patchQuota).toHaveBeenCalledTimes(2)
-    expect(patchQuota).toHaveBeenLastCalledWith({ id: 9, max_video_upload_size_mb: 750 })
+    expect(patchQuota).toHaveBeenLastCalledWith({ id: 9, monthly_upload_limit_gb: 750 })
     expect(patchUsage).not.toHaveBeenCalled()
     expect(currentUser.used_ai_answers).toBe(3)
     expect(listUsers).toHaveBeenCalledTimes(3)
@@ -376,7 +376,7 @@ describe('AdminPage', () => {
     ['usedStorageBytes', '', 'invalidUsage'],
     ['usedProcessingSeconds', '2147483648', 'invalidUsage'],
     ['usedAiAnswers', '2147483648', 'invalidUsage'],
-    ['maxUploadMb', '2147483648', 'invalidUploadMb'],
+    ['monthlyUploadGb', '-1', 'invalidMonthlyUploadGb'],
     ['storageLimitGb', '-0.5', 'invalidStorageGb'],
     ['processingLimitMinutes', '-1', 'invalidProcessingMinutes'],
     ['processingLimitMinutes', '1.5', 'invalidProcessingMinutes'],
@@ -405,15 +405,15 @@ describe('AdminPage', () => {
   it('shows all invalid fields, advances focus after a correction and clears errors on reopening', async () => {
     render(<AdminPage />)
     fireEvent.click(await screen.findByRole('button', { name: 'admin.users.edit' }))
-    const upload = screen.getByLabelText('admin.users.fields.maxUploadMb')
+    const upload = screen.getByLabelText('admin.users.fields.monthlyUploadGb')
     const storage = screen.getByLabelText('admin.users.fields.storageLimitGb')
     const usedAi = screen.getByLabelText('admin.users.fields.usedAiAnswers')
-    fireEvent.change(upload, { target: { value: '0' } })
+    fireEvent.change(upload, { target: { value: '-1' } })
     fireEvent.change(storage, { target: { value: '-1' } })
     fireEvent.change(usedAi, { target: { value: '1.5' } })
     fireEvent.click(screen.getByRole('button', { name: 'admin.users.save' }))
     expect(upload).toHaveFocus()
-    for (const [input, error] of [[upload, 'invalidUploadMb'], [storage, 'invalidStorageGb'], [usedAi, 'invalidUsage']] as const) {
+    for (const [input, error] of [[upload, 'invalidMonthlyUploadGb'], [storage, 'invalidStorageGb'], [usedAi, 'invalidUsage']] as const) {
       expect(input).toHaveAttribute('aria-invalid', 'true')
       expect(input).toHaveAccessibleDescription(`admin.users.errors.${error}`)
     }
@@ -436,7 +436,7 @@ describe('AdminPage', () => {
     render(<AdminPage />)
     fireEvent.click(await screen.findByRole('button', { name: 'admin.users.edit' }))
     for (const [field, value] of Object.entries({
-      maxUploadMb: '2147483647', storageLimitGb: '0.5', processingLimitMinutes: '0',
+      monthlyUploadGb: '2147483647', storageLimitGb: '0.5', processingLimitMinutes: '0',
       aiAnswersLimit: '', usedStorageBytes: '9007199254740991',
       usedProcessingSeconds: '2147483647', usedAiAnswers: '0',
     })) {
@@ -446,7 +446,7 @@ describe('AdminPage', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(patchQuota).toHaveBeenCalledExactlyOnceWith({ id: 9,
-      max_video_upload_size_mb: 2147483647, storage_limit_gb: 0.5,
+      monthly_upload_limit_gb: 2147483647, storage_limit_gb: 0.5,
       processing_limit_minutes: 0, ai_answers_limit: null,
     })
     expect(patchUsage).toHaveBeenCalledExactlyOnceWith({ id: 9,
@@ -465,7 +465,7 @@ describe('AdminPage', () => {
     await waitFor(() => expect(finishSave).toBeDefined())
     try {
       expect(screen.getByLabelText('admin.users.fields.isAdmin')).toBeDisabled()
-      expect(screen.getByLabelText('admin.users.fields.maxUploadMb')).toBeDisabled()
+      expect(screen.getByLabelText('admin.users.fields.monthlyUploadGb')).toBeDisabled()
       expect(screen.getByRole('button', { name: 'admin.users.cancel' })).toBeDisabled()
       expect(screen.getByRole('button', { name: 'admin.users.save' })).toHaveAttribute('aria-disabled', 'true')
       expect(screen.getByRole('button', { name: 'admin.users.save' })).toHaveAttribute('aria-busy', 'true')

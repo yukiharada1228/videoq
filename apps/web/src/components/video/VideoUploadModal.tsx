@@ -251,7 +251,7 @@ export function VideoUploadModal({ isOpen, onClose, autoCloseDelayMs = 2000 }: V
                   {t(isCompressing ? 'videos.upload.compression.cancel' : 'common.actions.cancel')}
                 </Button>
                 <VideoUploadButton isUploading={isUploading} isCompressing={isCompressing}
-                  compressionSelected={sourceMode === 'file' && compressionPreset !== 'original' && compressionPreset !== undefined} progress={progress} />
+                  disabled={sourceMode === 'file' && !compressionSupported} compressionSelected={sourceMode === 'file'} progress={progress} />
               </div>
             </DialogActions>
           </form>

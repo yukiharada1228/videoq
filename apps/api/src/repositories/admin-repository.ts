@@ -26,6 +26,7 @@ export type AdminUser = {
   is_admin: boolean;
   max_video_upload_size_mb: number;
   storage_limit_gb: number | null;
+  monthly_upload_limit_gb: number | null;
   processing_limit_minutes: number | null;
   ai_answers_limit: number | null;
   used_storage_bytes: number;
@@ -49,6 +50,7 @@ const adminUserSelect = {
   is_admin: sql<boolean>`COALESCE('admin' = ANY(string_to_array(${users.role}, ',')), false)`.as("is_admin"),
   max_video_upload_size_mb: users.maxVideoUploadSizeMb,
   storage_limit_gb: users.storageLimitGb,
+  monthly_upload_limit_gb: users.monthlyUploadLimitGb,
   processing_limit_minutes: users.processingLimitMinutes,
   ai_answers_limit: users.aiAnswersLimit,
   used_storage_bytes: users.usedStorageBytes,
@@ -68,6 +70,7 @@ function mapUser(r: {
   is_admin: boolean;
   max_video_upload_size_mb: number;
   storage_limit_gb: number | null;
+  monthly_upload_limit_gb: number | null;
   processing_limit_minutes: number | null;
   ai_answers_limit: number | null;
   used_storage_bytes: number;
@@ -85,6 +88,7 @@ function mapUser(r: {
     is_active: Boolean(r.is_active),
     is_admin: Boolean(r.is_admin),
     max_video_upload_size_mb: Number(r.max_video_upload_size_mb),
+    monthly_upload_limit_gb: r.monthly_upload_limit_gb === null ? null : Number(r.monthly_upload_limit_gb),
     storage_limit_gb: r.storage_limit_gb === null ? null : Number(r.storage_limit_gb),
     processing_limit_minutes:
       r.processing_limit_minutes === null ? null : Number(r.processing_limit_minutes),
@@ -204,14 +208,14 @@ export async function patchAdminUserQuota(
   }
 
   const set: Partial<{
-    maxVideoUploadSizeMb: number;
+    monthlyUploadLimitGb: number | null;
     storageLimitGb: number | null;
     processingLimitMinutes: number | null;
     aiAnswersLimit: number | null;
     quotaSource: "plan" | "admin";
   }> = {};
-  if (patch.max_video_upload_size_mb !== undefined) {
-    set.maxVideoUploadSizeMb = patch.max_video_upload_size_mb;
+  if (patch.monthly_upload_limit_gb !== undefined) {
+    set.monthlyUploadLimitGb = patch.monthly_upload_limit_gb;
   }
   if (patch.storage_limit_gb !== undefined) set.storageLimitGb = patch.storage_limit_gb;
   if (patch.processing_limit_minutes !== undefined) {

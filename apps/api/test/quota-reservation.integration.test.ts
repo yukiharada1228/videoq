@@ -38,12 +38,13 @@ describeWithPostgres("AI回答枠の実PostgreSQL並列制御", () => {
         used_processing_seconds integer NOT NULL DEFAULT 0,
         usage_period_start timestamptz,
         storage_limit_gb double precision,
-        used_storage_bytes bigint NOT NULL DEFAULT 0
+        used_storage_bytes bigint NOT NULL DEFAULT 0,
+        monthly_upload_limit_gb double precision, used_upload_bytes bigint NOT NULL DEFAULT 0, upload_usage_period_start timestamptz
       )
     `);
     await admin.query(`
       CREATE TABLE ${quotedSchema}.videos (
-        multipart_upload jsonb, upload_heartbeat_at timestamptz,
+        multipart_upload jsonb, upload_heartbeat_at timestamptz, upload_usage_period_start timestamptz,
         id bigserial PRIMARY KEY,
         user_id text NOT NULL,
         file varchar(255) NOT NULL UNIQUE,

@@ -57,6 +57,15 @@ const baseEnv = {
 beforeEach(() => {
   putMock.mockReset().mockResolvedValue(undefined);
   queryMock.mockReset().mockImplementation((sql: MatchableSql) => {
+    if (sql.includes("clock_timestamp()")) {
+      return { rows: [{ periodStart: "2026-10-01T00:00:00Z" }], rowCount: 1 };
+    }
+    if (sql.includes("upload_usage_period_start") && sql.includes("update")) {
+      return { rows: [{ periodStart: "2026-10-01T00:00:00Z" }], rowCount: 1 };
+    }
+    if (sql.includes("for update") && sql.includes("users")) {
+      return { rows: [{ id: "owner" }], rowCount: 1 };
+    }
     if (sql.includes("max_video_upload_size_mb")) {
       return { rows: [{ max_video_upload_size_mb: 500 }], rowCount: 1 };
     }

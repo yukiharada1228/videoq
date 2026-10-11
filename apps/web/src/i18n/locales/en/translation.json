@@ -250,11 +250,11 @@
       "answerCount_other": "{{count}} / month",
       "storage": "Video storage",
       "gb": "{{gb}} GB",
-      "upload": "Per-file upload limit",
       "mb": "{{mb}} MB",
       "loading": "Checking the free plan limits…",
       "unavailable": "We couldn't load the limits. Check the pricing page for the latest details.",
-      "sampleNote": "Use the included free allowance. If you need more, explore the available plans."
+      "sampleNote": "Use the included free allowance. If you need more, explore the available plans.",
+      "monthlyUpload": "Monthly uploads"
     },
     "film": {
       "title": "Ask a question. Find the explanation.",
@@ -327,30 +327,30 @@
         "noTitle": "Please enter a title",
         "invalidFileType": "Please select a supported video file",
         "fileTooLarge": "The selected file exceeds the upload size limit ({{max_size_mb}} MB)",
-        "storageLimitExceeded": "Upload is unavailable because your storage is over the configured limit. Please delete videos to free up space."
+        "storageLimitExceeded": "Upload is unavailable because your storage is over the configured limit. Please delete videos to free up space.",
+        "monthlyUploadLimitExceeded": "The video exceeds your remaining monthly upload allowance."
       },
       "warning": {
         "tagsFailed": "The video was uploaded, but tags could not be added. You can add tags later from the video details."
       },
       "compression": {
-        "label": "Compress before uploading",
+        "label": "Upload quality",
         "presets": {
-          "original": "Original quality",
           "1080p": "Standard: up to 1080p / 60fps",
           "720p": "Smaller file: up to 720p / 30fps"
         },
-        "unsupported": "Compression is unavailable in this browser. Try a supported browser such as Chrome, or upload the original.",
-        "unsupportedFile": "This video cannot be compressed in this browser while preserving its audio and video. Upload the original or convert it to another format.",
-        "failed": "Compression failed. Your original is unchanged. Try again or upload the original.",
-        "noSpace": "There is not enough temporary storage for compression. Free up space on your device or upload the original.",
-        "notSmaller": "This setting did not produce a smaller video. Choose the smaller-file option or upload the original.",
-        "tooLarge": "The compressed video still exceeds the per-file limit. Choose the smaller-file option or split the video.",
+        "unsupported": "This browser does not support video compression. Use a supported browser such as Chrome.",
+        "unsupportedFile": "This video cannot be compressed in this browser. Convert it to another format such as MP4 and try again.",
+        "failed": "Video compression failed. Please try again.",
+        "noSpace": "There is not enough temporary storage for compression. Free up space on your device or choose 720p.",
+        "tooLarge": "The compressed video exceeds your remaining storage or monthly upload allowance.",
         "compressing": "Compressing on this device",
         "compressingWithProgress": "Compressing {{percent}}%",
         "submit": "Compress and upload",
         "cancel": "Stop compression",
         "canceled": "Compression stopped. No video was uploaded.",
-        "saved": "Compressed: {{before}} GB → {{after}} GB ({{percent}}% smaller)"
+        "saved": "Compressed: {{before}} GB → {{after}} GB ({{percent}}% smaller)",
+        "sizes": "{{before}} GB → {{after}} GB"
       }
     },
     "detail": {
@@ -763,7 +763,8 @@
       "storage": "{{gb}} GB storage",
       "processing": "{{minutes}} transcription minutes / month",
       "answers": "{{count}} AI answers / month",
-      "upload": "{{mb}} MB per video"
+      "monthlyUpload": "{{gb}} GB uploads / month",
+      "perFile": "No per-file plan limit (within storage and monthly allowances)"
     },
     "plans": {
       "free": {
@@ -795,7 +796,7 @@
         },
         "plans": {
           "title": "3. Plans and quotas",
-          "body": "VideoQ offers Free, Basic, and Pro plans. Storage, transcription minutes, AI answers, and per-video upload limits on the pricing page are authoritative. Free is a trial allowance. After a downgrade we do not delete existing videos or chats, but new uploads, transcription, or AI answers are blocked if you are over the new limits."
+          "body": "VideoQ offers Free, Basic, and Pro plans. Storage, transcription minutes, AI answers, and monthly upload allowances on the pricing page are authoritative. Free is a trial allowance. After a downgrade we do not delete existing videos or chats, but new uploads, transcription, or AI answers are blocked if you are over the new limits."
         },
         "payment": {
           "title": "4. Fees and payment",
@@ -1116,7 +1117,8 @@
       "aiAnswers": "AI Answers",
       "unlimited": "Unlimited",
       "min": "min",
-      "gb": "GB"
+      "gb": "GB",
+      "monthlyUpload": "Uploads this month"
     },
     "errors": {
       "overQuota": "Your storage usage exceeds its configured limit. New uploads and AI chat are disabled. Delete videos to restore access."
@@ -1154,7 +1156,7 @@
       "selfFlagsHint": "You cannot deactivate your own account or remove your administrator role.",
       "quotaSummary": "Upload {{uploadMb}} MB · Storage {{storageGb}}",
       "quota": {
-        "upload": "Upload",
+        "upload": "Monthly uploads",
         "storage": "Storage"
       },
       "columns": {
@@ -1176,21 +1178,21 @@
       "fields": {
         "isActive": "Active",
         "isAdmin": "Administrator",
-        "maxUploadMb": "Max upload size (MB)",
         "storageLimitGb": "Storage limit (GB)",
         "processingLimitMinutes": "Processing limit (minutes)",
         "aiAnswersLimit": "AI answers limit",
         "usedStorageBytes": "Used storage (bytes)",
         "usedProcessingSeconds": "Used processing (seconds)",
         "usedAiAnswers": "Used AI answers",
-        "isOverQuota": "Mark as over quota"
+        "isOverQuota": "Mark as over quota",
+        "monthlyUploadGb": "Monthly upload limit (GB)"
       },
       "errors": {
-        "invalidUploadMb": "Max upload size must be an integer from 1 to 2,147,483,647.",
         "invalidStorageGb": "Storage limit must be a non-negative number or blank.",
         "invalidProcessingMinutes": "Processing limit must be an integer from 0 to 2,147,483,647 or blank.",
         "invalidAiLimit": "AI answers limit must be an integer from 0 to 2,147,483,647 or blank.",
-        "invalidUsage": "Enter non-negative integers: up to 9,007,199,254,740,991 bytes of storage and 2,147,483,647 for processing seconds and AI answers."
+        "invalidUsage": "Enter non-negative integers: up to 9,007,199,254,740,991 bytes of storage and 2,147,483,647 for processing seconds and AI answers.",
+        "invalidMonthlyUploadGb": "Enter a non-negative monthly upload limit, or leave it blank."
       }
     },
     "reindex": {

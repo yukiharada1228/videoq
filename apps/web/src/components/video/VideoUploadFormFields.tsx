@@ -42,7 +42,7 @@ export function VideoUploadFormFields({
   description,
   isUploading,
   isCompressing = false,
-  compressionPreset = 'original',
+  compressionPreset = '1080p',
   compressionSupported = false,
   setCompressionPreset,
   compressedSizes,
@@ -84,11 +84,11 @@ export function VideoUploadFormFields({
       {setCompressionPreset && (
         <fieldset className="space-y-2" disabled={isUploading || disabled}>
           <legend className="font-bold">{t('videos.upload.compression.label')}</legend>
-          {(['original', '1080p', '720p'] as const).map(preset => (
+          {(['1080p', '720p'] as const).map(preset => (
             <label key={preset} className="flex items-start gap-2 text-std-16N-170">
               <input type="radio" name="upload-compression" value={preset}
                 checked={compressionPreset === preset}
-                disabled={preset !== 'original' && !compressionSupported}
+                disabled={!compressionSupported}
                 onChange={() => setCompressionPreset(preset)} className="mt-1.5 accent-key-900" />
               <span>{t(`videos.upload.compression.presets.${preset}`)}</span>
             </label>
@@ -134,7 +134,7 @@ export function VideoUploadFormFields({
       {warning && <MessageAlert type="warning" message={t(warning, { defaultValue: warning })} />}
       {success && <MessageAlert type="success" message={t('videos.upload.success')} />}
       {compressedSizes && <p role="status" className="text-std-14N-170 text-solid-gray-700">
-        {t('videos.upload.compression.saved', {
+        {t(compressedSizes.after < compressedSizes.before ? 'videos.upload.compression.saved' : 'videos.upload.compression.sizes', {
           before: (compressedSizes.before / 1024 ** 3).toFixed(2),
           after: (compressedSizes.after / 1024 ** 3).toFixed(2),
           percent: Math.round((1 - compressedSizes.after / compressedSizes.before) * 100),
@@ -162,10 +162,10 @@ export function VideoUploadFormFields({
             >
               {t('common.actions.cancel')}
             </Button>
-            <VideoUploadButton isUploading={isUploading} isCompressing={isCompressing} compressionSelected={compressionPreset !== 'original'} progress={progress} disabled={disabled} fullWidth className="flex-1" />
+            <VideoUploadButton isUploading={isUploading} isCompressing={isCompressing} compressionSelected progress={progress} disabled={disabled || (Boolean(setCompressionPreset) && !compressionSupported)} fullWidth className="flex-1" />
           </div>
         ) : (
-          <VideoUploadButton isUploading={isUploading} isCompressing={isCompressing} compressionSelected={compressionPreset !== 'original'} progress={progress} disabled={disabled} fullWidth />
+          <VideoUploadButton isUploading={isUploading} isCompressing={isCompressing} compressionSelected progress={progress} disabled={disabled || (Boolean(setCompressionPreset) && !compressionSupported)} fullWidth />
         )
       )}
     </>
