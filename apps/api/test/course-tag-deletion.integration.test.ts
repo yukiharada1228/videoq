@@ -1,4 +1,5 @@
 import pg from "pg";
+import { visualSchema } from "./helpers/visual-schema";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { deleteCourseChatLogs } from "../src/repositories/chat-repository";
 import { deleteCourse, updateCourse } from "../src/repositories/course-repository";
@@ -67,6 +68,7 @@ const operations = [
       INSERT INTO chat_log_evaluations VALUES (1, 1), (2, 2);
       INSERT INTO mcp_idempotency_records VALUES (1, 'owner', 'create_course', 1), (2, 'outsider', 'create_course', 2), (3, 'owner', 'request_video_upload', 1);
     `);
+    await admin.query(visualSchema);
   });
   afterEach(() => vi.restoreAllMocks());
   afterAll(async () => {
