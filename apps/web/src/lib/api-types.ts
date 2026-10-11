@@ -82,5 +82,4 @@ export interface VideoUploadRequest {
   file: File;
   title: string;
   description?: string;
-  resumeVideoId?: number;
 }
