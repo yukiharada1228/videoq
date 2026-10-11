@@ -138,6 +138,39 @@ describe('presigned upload content types', () => {
     expect(fetchFn.mock.calls[2][0]).toContain('videos.completeMultipartUpload');
     expect(put).not.toHaveBeenCalled();
   });
+
+  it('cleans up a failed upload and starts a fresh reservation when the same file is submitted again', async () => {
+    vi.stubEnv('VITE_USE_S3_STORAGE', 'true');
+    vi.resetModules();
+    const { createApiClient } = await import('../api');
+    const transfer = await import('../multipartUpload');
+    const video = { id: 7, title: 'Video', file: null, source_type: 'uploaded', status: 'pending', uploaded_at: '2026-09-28T00:00:00Z' };
+    const fresh = { ...video, id: 8 };
+    const session = { part_size: 64 * 1024 ** 2, part_count: 673 };
+    const fetchFn = vi.fn()
+      .mockResolvedValueOnce(trpcSuccess({ video, upload_url: null, multipart: session }))
+      .mockResolvedValueOnce(trpcSuccess({ message: 'Upload aborted' }))
+      .mockResolvedValueOnce(trpcSuccess({ video: fresh, upload_url: null, multipart: session }))
+      .mockResolvedValueOnce(trpcSuccess(fresh));
+    vi.spyOn(transfer, 'uploadMultipartFile')
+      .mockImplementationOnce(async (_file, _type, _session, operations) => {
+        await operations.abort();
+        throw new Error('Permanent storage failure');
+      })
+      .mockImplementationOnce(async (_file, _type, _session, operations) =>
+        operations.complete([{ partNumber: 1, etag: 'a'.repeat(32) }]));
+    const client = createApiClient({ baseUrl: BASE_URL, fetchFn });
+    const file = new File([], 'recording.mkv', { type: 'video/matroska' });
+    Object.defineProperty(file, 'size', { value: 45_160_000_000 });
+    await expect(client.uploadVideo({ file, title: 'Video' })).rejects.toThrow('Permanent storage failure');
+    await expect(client.uploadVideo({ file, title: 'Video' })).resolves.toMatchObject({ id: 8 });
+    expect(fetchFn.mock.calls.map(([url]) => new URL(url).pathname)).toEqual([
+      '/api/trpc/videos.requestUpload', '/api/trpc/videos.abortUpload',
+      '/api/trpc/videos.requestUpload', '/api/trpc/videos.completeMultipartUpload',
+    ]);
+    expect(JSON.parse(fetchFn.mock.calls[1][1].body)['0']).toEqual({ id: 7 });
+    expect(JSON.parse(fetchFn.mock.calls[3][1].body)['0']).toMatchObject({ id: 8 });
+  });
 });
 
 describe('apiPath', () => {
