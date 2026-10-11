@@ -40,7 +40,7 @@ import type { CreationIdempotency } from "../../repositories/mcp-idempotency-rep
 import { MAX_SINGLE_UPLOAD_BYTES, MAX_VIDEO_UPLOAD_BYTES } from "@videoq/trpc/video-upload";
 import { initializeMultipartUpload, completeMultipartVideoUpload } from "../../repositories/multipart-upload-repository";
 
-export { getMultipartUploadPartUrl, UploadSessionError } from "../../repositories/multipart-upload-repository";
+export { getMultipartUploadPartUrl, resumeMultipartUpload, listResumableUploads, UploadSessionError } from "../../repositories/multipart-upload-repository";
 
 export {
   countVideosByStatus as getUserVideoStats,

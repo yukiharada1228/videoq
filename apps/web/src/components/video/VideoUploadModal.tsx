@@ -21,6 +21,7 @@ import { VideoUploadButton } from './VideoUploadButton';
 import { useTags } from '@/hooks/useTags';
 import { TagSelector } from './TagSelector';
 import { TagCreateDialog } from './TagCreateDialog';
+import { UploadResumeSelector } from './UploadResumeSelector';
 
 interface VideoUploadModalProps {
   isOpen: boolean;
@@ -37,6 +38,7 @@ interface VideoUploadModalProps {
  * after a successful upload. The upload hook handles refreshing affected queries.
  */
 export function VideoUploadModal({ isOpen, onClose, autoCloseDelayMs = 2000 }: VideoUploadModalProps) {
+  const [resumeVideoId, setResumeVideoId] = useState<number>();
   const {
     sourceMode,
     youtubeUrl,
@@ -57,7 +59,7 @@ export function VideoUploadModal({ isOpen, onClose, autoCloseDelayMs = 2000 }: V
     handleFileChange,
     handleSubmit,
     reset,
-  } = useVideoUpload();
+  } = useVideoUpload(resumeVideoId);
   const { t } = useTranslation();
   const { tags, createTag } = useTags({ enabled: isOpen });
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -86,6 +88,7 @@ export function VideoUploadModal({ isOpen, onClose, autoCloseDelayMs = 2000 }: V
     if (!isUploading) {
       dialog.dialogProps.ref.current?.close();
       reset();
+      setResumeVideoId(undefined);
       setIsCreateDialogOpen(false);
       onClose();
     }
@@ -144,6 +147,8 @@ export function VideoUploadModal({ isOpen, onClose, autoCloseDelayMs = 2000 }: V
                 </div>
 
                 {sourceMode === 'file' ? (
+                  <>
+                  <UploadResumeSelector value={resumeVideoId} onChange={setResumeVideoId} disabled={isUploading} />
                   <VideoUploadFormFields
                     title={title}
                     description={description}
@@ -158,6 +163,7 @@ export function VideoUploadModal({ isOpen, onClose, autoCloseDelayMs = 2000 }: V
                     handleFileChange={handleFileChange}
                     hideButtons={true}
                   />
+                  </>
                 ) : (
                   <div className="space-y-4">
                     <div className="flex flex-col gap-2">

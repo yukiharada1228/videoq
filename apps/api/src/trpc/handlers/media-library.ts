@@ -97,6 +97,9 @@ export function mediaLibraryHandlers(
     },
     "videos.uploadPartUrl": ({ id, partNumber }) => uploadOperation(() =>
       videoService.getMultipartUploadPartUrl(c.env, id, userId(), partNumber)),
+    "videos.resumeUpload": ({ id, marker }) => uploadOperation(() =>
+      videoService.resumeMultipartUpload(c.env, id, userId(), marker)),
+    "videos.listResumableUploads": () => videoService.listResumableUploads(c.env, userId()),
     "videos.completeMultipartUpload": ({ id, parts }) => uploadOperation(async () => {
       const video = await videoService.finishMultipartVideoUpload(c.env, id, userId(), parts);
       if (!video) return rpcError("NOT_FOUND", "Video not found");

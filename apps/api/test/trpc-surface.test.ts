@@ -60,7 +60,9 @@ const EXPECTED_PROCEDURES = [
   "videos.delete",
   "videos.get",
   "videos.list",
+  "videos.listResumableUploads",
   "videos.requestUpload",
+  "videos.resumeUpload",
   "videos.statusCounts",
   "videos.update",
   "videos.uploadPartUrl",
@@ -112,6 +114,8 @@ describe("tRPC public surface", () => {
     await expect(caller.videos.uploadPartUrl({ id: 1, partNumber: 1 })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     await expect(caller.videos.completeMultipartUpload({ id: 1, parts: [{ partNumber: 1, etag: "a".repeat(32) }] })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     await expect(caller.videos.abortUpload({ id: 1 })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller.videos.resumeUpload({ id: 1 })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller.videos.listResumableUploads()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     expect(call).not.toHaveBeenCalled();
   });
   it.each(["integrationApiKeys", "connectedApps"] as const)("requires a browser session before reading account.%s", async (procedure) => {

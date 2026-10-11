@@ -91,6 +91,68 @@ describe('presigned upload content types', () => {
     vi.restoreAllMocks();
   });
 
+  it('reuses an interrupted reservation and paginates saved parts without requesting a second video', async () => {
+    vi.stubEnv('VITE_USE_S3_STORAGE', 'true');
+    vi.resetModules();
+    const { createApiClient } = await import('../api');
+    const transfer = await import('../multipartUpload');
+    const video = { id: 7, title: 'Video', file: null, source_type: 'uploaded', status: 'pending', uploaded_at: '2026-09-28T00:00:00Z' };
+    const session = { part_size: 64 * 1024 ** 2, part_count: 673 };
+    const size = 45_160_000_000;
+    const parts = [1, 2].map(partNumber => ({ partNumber, size: session.part_size, etag: 'a'.repeat(32) }));
+    const fetchFn = vi.fn()
+      .mockResolvedValueOnce(trpcSuccess({ video, upload_url: null, multipart: session }))
+      .mockResolvedValueOnce(trpcSuccess({ ...session, confirmed: false, stored: false, file_size: size, content_type: 'video/matroska', parts: [parts[0]], next_marker: 1 }))
+      .mockResolvedValueOnce(trpcSuccess({ ...session, confirmed: false, stored: false, file_size: size, content_type: 'video/matroska', parts: [parts[1]], next_marker: null }));
+    const multipart = vi.spyOn(transfer, 'uploadMultipartFile').mockRejectedValueOnce(new Error('Temporary failure')).mockResolvedValueOnce(video);
+    const client = createApiClient({ baseUrl: BASE_URL, fetchFn });
+    const file = new File([], 'recording.mkv', { type: 'video/matroska' });
+    Object.defineProperty(file, 'size', { value: size });
+    await expect(client.uploadVideo({ file, title: 'Video' })).rejects.toThrow('Temporary failure');
+    await expect(client.uploadVideo({ file, title: 'Video' })).resolves.toEqual(video);
+    expect(fetchFn.mock.calls.map(([url]) => String(url).split('/').at(-1)?.split('?')[0])).toEqual([
+      'videos.requestUpload', 'videos.resumeUpload', 'videos.resumeUpload',
+    ]);
+    expect(JSON.parse(fetchFn.mock.calls[2][1].body)['0']).toMatchObject({ id: 7, marker: 1 });
+    expect(multipart.mock.calls[1][2]).toMatchObject({ ...session, parts });
+  });
+
+  it('recovers a completed R2 object after reload without another PUT', async () => {
+    vi.stubEnv('VITE_USE_S3_STORAGE', 'true');
+    vi.resetModules();
+    const { createApiClient } = await import('../api');
+    const video = { id: 161, title: 'Video', file: null, source_type: 'uploaded', status: 'pending', uploaded_at: '2026-09-28T00:00:00Z' };
+    const fetchFn = vi.fn()
+      .mockResolvedValueOnce(trpcSuccess({ confirmed: false, stored: true, part_size: 64, part_count: 1,
+        file_size: 5, content_type: 'video/mp4', parts: [], next_marker: null }))
+      .mockResolvedValueOnce(trpcSuccess(video));
+    const client = createApiClient({ baseUrl: BASE_URL, fetchFn });
+    await expect(client.uploadVideo({ file: new File(['video'], 'clip.mp4'), title: 'Video', resumeVideoId: 161 })).resolves.toEqual(video);
+    expect(fetchFn.mock.calls[1][0]).toContain('videos.completeMultipartUpload');
+    expect(JSON.parse(fetchFn.mock.calls[1][1].body)['0']).toEqual({ id: 161, parts: [] });
+  });
+
+  it.each([true, false])('handles an already confirmed upload or a different-size file (%s)', async confirmed => {
+    vi.stubEnv('VITE_USE_S3_STORAGE', 'true');
+    vi.resetModules();
+    const { createApiClient } = await import('../api');
+    const video = { id: 161, title: 'Video', file: null, source_type: 'uploaded', status: 'pending', uploaded_at: '2026-09-28T00:00:00Z' };
+    const fetchFn = vi.fn().mockResolvedValueOnce(trpcSuccess(confirmed ? { confirmed: true } : {
+      confirmed: false, stored: false, part_size: 64, part_count: 1, file_size: 12, content_type: 'video/mp4', parts: [], next_marker: null,
+    })).mockResolvedValueOnce(trpcSuccess(video));
+    const client = createApiClient({ baseUrl: BASE_URL, fetchFn });
+    const progress = vi.fn();
+    const result = client.uploadVideo({ file: new File(['video'], 'clip.mp4'), title: 'Video', resumeVideoId: 161 }, progress);
+    if (confirmed) {
+      await expect(result).resolves.toEqual(video);
+      expect(fetchFn.mock.calls[1][0]).toContain('videos.get');
+      expect(progress).toHaveBeenCalledWith(100);
+    } else {
+      await expect(result).rejects.toThrow();
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+    }
+  });
+
   it.each([
     ['recording.MKV', '', 'video/x-matroska'],
     ['recording.mkv', 'video/matroska', 'video/matroska'],
