@@ -90,6 +90,13 @@ migrationDescribe("Drizzle migration chain", () => {
               delete row.is_superuser;
             }
           }
+          if (table === "videos") {
+            // Existing videos gain nullable session fields without changing media or state.
+            for (const { row } of preservedRows[table] as { row: Record<string, unknown> }[]) {
+              row.multipart_upload = null;
+              row.upload_heartbeat_at = null;
+            }
+          }
         }
         preservedRows.external_tasks = (await targetClient.query("SELECT to_jsonb(t) AS row FROM external_tasks t WHERE dedupe_key LIKE 'keep-%' ORDER BY dedupe_key")).rows;
         preservedRows.job_executions = (await targetClient.query("SELECT to_jsonb(t) AS row FROM job_executions t WHERE job_id LIKE 'keep-%' ORDER BY job_id")).rows;

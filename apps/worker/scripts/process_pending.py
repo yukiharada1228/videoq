@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Drain local pending/indexing videos without SQS.
+Trigger local pending/indexing videos. Uploaded transcription requires SQS.
 
 Usage (from apps/worker/):
   export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:55432/postgres
   export EMBEDDING_PROVIDER=ollama EMBEDDING_MODEL=qwen3-embedding:4b
   # optional real transcription:
-  # export ENABLE_HEAVY_PIPELINE=1 OPENAI_API_KEY=... USER_SECRET_ENCRYPTION_KEY=...
+  # export ENABLE_HEAVY_PIPELINE=1 OPENAI_API_KEY=... SQS_QUEUE_URL=...
   python scripts/process_pending.py
   python scripts/process_pending.py --video-id 83
 """

@@ -37,6 +37,10 @@ import { processExternalTaskById } from "../../lib/external-tasks";
 import { armMaintenance } from "../../lib/task-scheduler";
 import { ABANDONED_UPLOAD_MS } from "../../lib/upload-reconcile";
 import type { CreationIdempotency } from "../../repositories/mcp-idempotency-repository";
+import { MAX_SINGLE_UPLOAD_BYTES, MAX_VIDEO_UPLOAD_BYTES } from "@videoq/trpc/video-upload";
+import { initializeMultipartUpload, completeMultipartVideoUpload } from "../../repositories/multipart-upload-repository";
+
+export { getMultipartUploadPartUrl, UploadSessionError } from "../../repositories/multipart-upload-repository";
 
 export {
   countVideosByStatus as getUserVideoStats,
@@ -44,6 +48,7 @@ export {
 } from "../../repositories/video-repository";
 
 type UploadRequest = {
+  multipart?: boolean;
   filename: string;
   content_type: string;
   file_size: number;
@@ -131,6 +136,11 @@ export async function requestPresignedUpload(
   }
 
   const fieldError: Record<string, string[]> = {};
+  if (!Number.isSafeInteger(body.file_size) || body.file_size <= 0 || body.file_size > MAX_VIDEO_UPLOAD_BYTES) {
+    fieldError.file_size = ["Invalid file size (maximum 5 TiB)."];
+  } else if (!body.multipart && body.file_size > MAX_SINGLE_UPLOAD_BYTES) {
+    fieldError.file_size = ["Files larger than 5 GiB require multipart upload."];
+  }
   const ext = fileExtension(body.filename);
   if (!isAllowedExtension(ext)) {
     fieldError.filename = [unsupportedTypeMessage(ext)];
@@ -196,6 +206,10 @@ export async function requestPresignedUpload(
         already_confirmed: true,
       } as const;
     }
+    if (body.multipart) {
+      const multipart = await initializeMultipartUpload(env, videoId, userId, body.content_type);
+      return { video, upload_url: null, multipart, reused: pending.reused, already_confirmed: false } as const;
+    }
     const uploadUrl = await presignR2Put(
       env,
       pending.fileKey,
@@ -222,6 +236,20 @@ export async function requestPresignedUpload(
     }
     throw error;
   }
+}
+
+export async function finishMultipartVideoUpload(
+  env: Bindings, videoId: number, userId: string, parts: { partNumber: number; etag: string }[],
+) {
+  const taskId = await completeMultipartVideoUpload(env, videoId, userId, parts);
+  if (taskId !== null) await processExternalTaskById(env, taskId);
+  return getVideoDetail(env, videoId, userId);
+}
+
+export async function abortVideoUpload(env: Bindings, videoId: number, userId: string) {
+  const deleted = await deleteVideoCascade(env, videoId, userId, { expectedStatus: "uploading" });
+  await dispatchCleanupTask(env, deleted.cleanupTaskId);
+  return { success: true };
 }
 
 export async function createUserYoutubeVideo(

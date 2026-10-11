@@ -7,6 +7,7 @@ import os
 import shutil
 import tempfile
 from contextlib import closing
+from dataclasses import dataclass
 from pathlib import Path
 
 from worker_python.env import credential_pair, env_flag, env_str
@@ -72,6 +73,28 @@ def resolve_local_media_path(file_key: str) -> Path:
     if not path.is_file():
         raise FileNotFoundError(f"Media file not found: {path}")
     return path
+
+
+@dataclass(frozen=True)
+class ObjectMediaSource:
+    """A storage key, not a caller-supplied URL; sign separately for each reader."""
+
+    file_key: str
+
+    def presigned_url(self, expires_in: int) -> str:
+        with closing(_s3_client()) as client:
+            return client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": _bucket(), "Key": object_storage_key(self.file_key)},
+                ExpiresIn=expires_in,
+            )
+
+
+def resolve_media_input(file_key: str) -> Path | ObjectMediaSource:
+    """Read remote media with HTTP ranges; never copy the whole source to /tmp."""
+    if _use_object_storage():
+        return ObjectMediaSource(file_key)
+    return resolve_local_media_path(file_key)
 
 
 def download_to_path(file_key: str, dest: Path) -> Path:
@@ -149,3 +172,19 @@ def delete_object(file_key: str) -> None:
     path = Path(env_str("MEDIA_ROOT", "/tmp/videoq-media")) / file_key.lstrip("/")
     path.unlink(missing_ok=True)
     logger.info("Deleted local media %s", path)
+
+
+def abort_multipart_upload(file_key: str, upload_id: str) -> None:
+    """Discard partial data during account deletion; retries are idempotent."""
+    if not _use_object_storage():
+        return
+    from botocore.exceptions import ClientError
+
+    with closing(_s3_client()) as client:
+        try:
+            client.abort_multipart_upload(
+                Bucket=_bucket(), Key=object_storage_key(file_key), UploadId=upload_id,
+            )
+        except ClientError as error:
+            if error.response.get("Error", {}).get("Code") != "NoSuchUpload":
+                raise

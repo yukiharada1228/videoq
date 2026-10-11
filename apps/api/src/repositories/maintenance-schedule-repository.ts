@@ -50,7 +50,7 @@ export async function getNextMaintenanceWakeup(
            WHERE task.completed_at IS NULL
              AND task.dead_at IS NULL
           UNION ALL
-          SELECT video.uploaded_at + make_interval(secs => $2::double precision)
+          SELECT COALESCE(video.upload_heartbeat_at, video.uploaded_at) + make_interval(secs => $2::double precision)
             FROM videos AS video
            WHERE video.status = 'uploading'
           UNION ALL

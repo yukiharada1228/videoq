@@ -55,11 +55,34 @@ def test_per_call_output_limit_is_enforced_without_changing_parent(tmp_path):
 
 
 def test_diagnostics_are_bounded():
-    result = run_media_process([sys.executable, "-c", "import sys; sys.stderr.write('x'*10000)"])
+    result = run_media_process([sys.executable, "-c", "import sys; sys.stderr.write('x\\n'*5000)"])
     assert result.returncode == 0
     assert len(result.stderr) == 2000
     with pytest.raises(RuntimeError, match="too much output"):
         run_media_process([sys.executable, "-c", "print('x'*5000)"])
+
+
+@pytest.mark.parametrize("padding", [0, 10000])
+def test_signed_media_urls_are_redacted_even_when_diagnostics_are_truncated(padding):
+    url = "https://storage.invalid/media/clip?X-Amz-Signature=" + "secret" * 1000
+    result = run_media_process([
+        sys.executable, "-c", "import sys; sys.stderr.write('x'*int(sys.argv[1]) + sys.argv[2] + '\\nrequest failed\\n')",
+        str(padding), url,
+    ])
+    assert "secret" not in result.stderr
+    assert "X-Amz" not in result.stderr
+    assert result.stderr.endswith("request failed\n")
+    assert "secret" not in repr(result)
+
+
+def test_short_signed_media_urls_are_redacted():
+    url = "https://storage.invalid/media/clip?X-Amz-Signature=secret"
+    result = run_media_process([
+        sys.executable, "-c", "import sys; print(sys.argv[1]); print(sys.argv[1], file=sys.stderr)", url,
+    ])
+    assert result.stdout == "[media URL]\n"
+    assert result.stderr == "[media URL]\n"
+    assert "secret" not in repr(result)
 
 
 @pytest.mark.parametrize("duration", ["nan", "inf", "0", "-1"])

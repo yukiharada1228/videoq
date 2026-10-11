@@ -113,7 +113,8 @@ export const videoStatusCountsSchema = z.object({
 
 export const uploadRequestResponseSchema = z.object({
   video: videoSchema,
-  upload_url: z.string(),
+  upload_url: z.string().nullable(),
+  multipart: z.object({ part_size: z.number().int().positive(), part_count: z.number().int().positive() }).optional(),
 });
 
 export const videoInCourseSchema = videoListItemSchema.omit({ tags: true }).extend({ order: z.number() });

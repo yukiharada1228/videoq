@@ -1,4 +1,4 @@
-import { deleteR2Object } from "../integrations/media";
+import { abortR2MultipartUpload, deleteR2Object } from "../integrations/media";
 import { frameCacheKey, focusCacheKey } from "./video-evidence";
 import {
   claimExternalTasks,
@@ -61,6 +61,11 @@ async function runTask(env: Bindings, task: ClaimedExternalTask): Promise<void> 
       throw new Error("Storage cleanup bytes is invalid.");
     }
     if (fileKey) {
+      const uploadId = task.payload.multipart_upload_id;
+      if (uploadId !== undefined) {
+        if (typeof uploadId !== "string" || !uploadId) throw new Error("Storage cleanup multipart upload ID is invalid.");
+        await abortR2MultipartUpload(env, fileKey, uploadId);
+      }
       await deleteR2Object(env, fileKey);
       await deleteR2Object(env, frameCacheKey(fileKey));
       await deleteR2Object(env, focusCacheKey(fileKey));

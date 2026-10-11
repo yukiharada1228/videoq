@@ -71,7 +71,7 @@ describe("reconcileAbandonedUploads", () => {
       ENV,
       10,
       "00000000-0000-4000-8000-000000000005",
-      { expectedStatus: "uploading", fallbackStorageBytes: 4096 },
+      { expectedStatus: "uploading", fallbackStorageBytes: 4096, inactiveBefore: expect.any(Date) },
     );
     expect(processTask).toHaveBeenCalledWith(ENV, 91);
     expect(getSize).not.toHaveBeenCalled();

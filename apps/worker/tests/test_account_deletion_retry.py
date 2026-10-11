@@ -37,3 +37,22 @@ def test_storage_delete_failure_propagates_for_sqs_retry(monkeypatch) -> None:
         account_deletion._delete_all_videos_for_user(conn, "u1")
 
     delete_video.assert_called_once_with(conn, 42, "u1")
+
+
+def test_account_deletion_aborts_partial_video_before_deleting_objects(monkeypatch) -> None:
+    conn = MagicMock()
+    conn.execute.return_value.fetchall.return_value = [{"id": 42}]
+    conn.execute.return_value.fetchone.return_value = {
+        "file": "videos/u1/42.mkv", "multipart_upload": {"uploadId": "upload-id"},
+    }
+    monkeypatch.setattr(account_deletion, "video_vector_write_lock", lambda _: nullcontext())
+    monkeypatch.setattr(account_deletion.vector_index, "delete_video_vectors", MagicMock())
+    monkeypatch.setattr(account_deletion, "delete_video_cascade", MagicMock())
+    abort = MagicMock(side_effect=RuntimeError("Abort failed"))
+    remove = MagicMock()
+    monkeypatch.setattr(account_deletion, "abort_multipart_upload", abort)
+    monkeypatch.setattr(account_deletion, "delete_object", remove)
+    with pytest.raises(RuntimeError, match="Abort failed"):
+        account_deletion._delete_all_videos_for_user(conn, "u1")
+    abort.assert_called_once_with("videos/u1/42.mkv", "upload-id")
+    remove.assert_not_called()

@@ -7,7 +7,7 @@ import type { Bindings } from "../types/bindings";
 import { parseReservedBytesFromFileKey } from "./upload";
 import { processExternalTaskById } from "./external-tasks";
 
-/** 署名 URL 有効期限(1h) + 余裕。これより古い uploading を放棄とみなす。 */
+/** 最後の活動から署名 URL 有効期限(1h) + 余裕が過ぎた uploading を回収する。 */
 const DEFAULT_ABANDON_HOURS = 2;
 
 /** TASK_SCHEDULER が放棄アップロードの回収時刻を決めるのに使う。 */
@@ -44,6 +44,7 @@ export async function reconcileAbandonedUploads(
       const deleted = await deleteVideoCascade(env, row.id, row.userId, {
         expectedStatus: "uploading",
         fallbackStorageBytes: bytes,
+        inactiveBefore: new Date(Date.now() - olderThanHours * 60 * 60 * 1000),
       });
       if (!deleted.deleted) continue;
 

@@ -7,7 +7,7 @@ const repository = vi.hoisted(() => ({
   failExternalTask: vi.fn(),
 }));
 const sqs = vi.hoisted(() => ({ sendSqsMessage: vi.fn() }));
-const media = vi.hoisted(() => ({ deleteR2Object: vi.fn() }));
+const media = vi.hoisted(() => ({ deleteR2Object: vi.fn(), abortR2MultipartUpload: vi.fn() }));
 const billing = vi.hoisted(() => ({ deleteAccountBilling: vi.fn() }));
 
 vi.mock("../src/repositories/external-task-repository", () => repository);
@@ -207,6 +207,28 @@ describe("external task processor", () => {
     });
     expect(sqs.sendSqsMessage).not.toHaveBeenCalled();
     expect(media.deleteR2Object).not.toHaveBeenCalled();
+  });
+
+  it("aborts multipart data before deleting objects and releasing reserved capacity", async () => {
+    const task = { id: 9, attempt: 1, kind: "storage_cleanup", payload: {
+      file_key: "videos/u/large.mkv", multipart_upload_id: "upload-id", user_id: "u", bytes: 45_160_000_000,
+    } };
+    repository.claimExternalTasks.mockResolvedValueOnce([task]);
+    await expect(processExternalTaskById(env, 9)).resolves.toBe(true);
+    expect(media.abortR2MultipartUpload).toHaveBeenCalledExactlyOnceWith(env, "videos/u/large.mkv", "upload-id");
+    expect(media.abortR2MultipartUpload.mock.invocationCallOrder[0]).toBeLessThan(media.deleteR2Object.mock.invocationCallOrder[0]);
+    expect(repository.completeStorageCleanupTask).toHaveBeenCalledWith(env, { lease: task, userId: "u", bytes: 45_160_000_000 });
+  });
+
+  it("keeps cleanup retryable and capacity reserved when multipart abort fails", async () => {
+    repository.claimExternalTasks.mockResolvedValueOnce([{ id: 9, attempt: 1, kind: "storage_cleanup", payload: {
+      file_key: "videos/u/large.mkv", multipart_upload_id: "upload-id", user_id: "u", bytes: 45_160_000_000,
+    } }]);
+    media.abortR2MultipartUpload.mockRejectedValueOnce(new Error("R2 unavailable"));
+    await expect(processExternalTaskById(env, 9)).resolves.toBe(false);
+    expect(media.deleteR2Object).not.toHaveBeenCalled();
+    expect(repository.completeStorageCleanupTask).not.toHaveBeenCalled();
+    expect(repository.failExternalTask).toHaveBeenCalled();
   });
 
   it("最大試行回数に達したタスクをdeadとして報告する", async () => {

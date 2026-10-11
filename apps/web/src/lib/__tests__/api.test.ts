@@ -111,6 +111,33 @@ describe('presigned upload content types', () => {
     expect(put).toHaveBeenCalledExactlyOnceWith('https://objects.example.test/upload', file, contentType, undefined);
     expect(fetchFn.mock.calls[1][0]).toContain('videos.confirmUpload');
   });
+
+  it('requests multipart for a 45.16 GB video and routes part signing and completion through tRPC', async () => {
+    vi.stubEnv('VITE_USE_S3_STORAGE', 'true');
+    vi.resetModules();
+    const { createApiClient } = await import('../api');
+    const transfer = await import('../multipartUpload');
+    const video = { id: 7, title: 'Video', file: null, source_type: 'uploaded', status: 'pending', uploaded_at: '2026-09-28T00:00:00Z' };
+    const session = { part_size: 64 * 1024 ** 2, part_count: 673 };
+    const fetchFn = vi.fn()
+      .mockResolvedValueOnce(trpcSuccess({ video, upload_url: null, multipart: session }))
+      .mockResolvedValueOnce(trpcSuccess({ upload_url: 'https://storage.test/part' }))
+      .mockResolvedValueOnce(trpcSuccess(video));
+    const multipart = vi.spyOn(transfer, 'uploadMultipartFile').mockImplementation(async (_file, _type, _session, operations) => {
+      expect(await operations.partUrl(1)).toEqual({ upload_url: 'https://storage.test/part' });
+      return operations.complete([{ partNumber: 1, etag: 'a'.repeat(32) }]);
+    });
+    const client = createApiClient({ baseUrl: BASE_URL, fetchFn });
+    const put = vi.spyOn(client, 'uploadToPresignedUrl');
+    const file = new File([], 'recording.mkv', { type: 'video/matroska' });
+    Object.defineProperty(file, 'size', { value: 45_160_000_000 });
+    await expect(client.uploadVideo({ file, title: 'Video' })).resolves.toMatchObject({ id: 7 });
+    expect(JSON.parse(fetchFn.mock.calls[0][1].body)['0']).toMatchObject({ multipart: true, fileSize: file.size });
+    expect(multipart).toHaveBeenCalledWith(file, 'video/matroska', session, expect.any(Object), undefined);
+    expect(fetchFn.mock.calls[1][0]).toContain('videos.uploadPartUrl');
+    expect(fetchFn.mock.calls[2][0]).toContain('videos.completeMultipartUpload');
+    expect(put).not.toHaveBeenCalled();
+  });
 });
 
 describe('apiPath', () => {

@@ -3,7 +3,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createVideoFromMultipart, requestPresignedUpload } from "../src/features/videos/service";
 import * as media from "../src/integrations/media";
 import * as externalTasks from "../src/lib/external-tasks";
-import { reserveAndCreatePendingVideo } from "../src/repositories/video-repository";
+import { reserveAndCreatePendingVideo, deleteVideoCascade, listStaleUploadingVideos } from "../src/repositories/video-repository";
+import { completeMultipartVideoUpload, getMultipartUploadPartUrl } from "../src/repositories/multipart-upload-repository";
+import { multipartPartSize } from "@videoq/trpc/video-upload";
 import type { CreationIdempotency } from "../src/repositories/mcp-idempotency-repository";
 import type { Bindings } from "../src/types/bindings";
 
@@ -34,8 +36,10 @@ const modes: UploadMode[] = ["presigned", "multipart"];
         file text NOT NULL UNIQUE, title text NOT NULL, description text NOT NULL,
         status text NOT NULL, source_type text NOT NULL, source_url text NOT NULL,
         youtube_video_id text NOT NULL, transcript text NOT NULL, error_message text NOT NULL,
-        processing_seconds integer NOT NULL DEFAULT 0, uploaded_at timestamptz NOT NULL
+        processing_seconds integer NOT NULL DEFAULT 0, uploaded_at timestamptz NOT NULL,
+        multipart_upload jsonb, upload_heartbeat_at timestamptz
       );
+      CREATE TABLE scene_embeddings (video_id integer);
       CREATE TABLE tags (id integer PRIMARY KEY, name text, color text);
       CREATE TABLE video_tags (id integer PRIMARY KEY, video_id integer REFERENCES videos, tag_id integer REFERENCES tags);
       CREATE TABLE mcp_idempotency_records (
@@ -68,6 +72,10 @@ const modes: UploadMode[] = ["presigned", "multipart"];
     vi.spyOn(media, "putMediaObject").mockResolvedValue(undefined);
     vi.spyOn(media, "resolveFileUrl").mockImplementation(async (_env, key) => key ? `/api/media/${key}` : null);
     vi.spyOn(externalTasks, "processExternalTaskById").mockResolvedValue(true);
+    vi.spyOn(media, "createR2MultipartUpload").mockResolvedValue("upload-session");
+    vi.spyOn(media, "abortR2MultipartUpload").mockResolvedValue();
+    vi.spyOn(media, "completeR2MultipartUpload").mockResolvedValue();
+    vi.spyOn(media, "presignR2UploadPart").mockResolvedValue("https://uploads.example.test/part");
   });
   afterEach(() => vi.restoreAllMocks());
   afterAll(async () => {
@@ -144,7 +152,7 @@ const modes: UploadMode[] = ["presigned", "multipart"];
         await vi.waitFor(async () => {
           const blocked = await admin.query("SELECT 1 FROM pg_stat_activity WHERE application_name = $1 AND cardinality(pg_blocking_pids(pid)) > 0", [schema]);
           expect(blocked.rowCount).toBe(1);
-        });
+        }, { timeout: 5_000 });
         await writer.query("UPDATE users SET max_video_upload_size_mb = $1 WHERE id = 'owner'", [change === "decrease" ? 1 : 2]);
         await writer.query("COMMIT");
         const result = await pending;
@@ -161,6 +169,7 @@ const modes: UploadMode[] = ["presigned", "multipart"];
         await writer.end();
       }
     },
+    15_000,
   );
 
   it("keeps concurrent idempotent retries to one reservation and video", async () => {
@@ -192,5 +201,135 @@ const modes: UploadMode[] = ["presigned", "multipart"];
     await expect(reserveAndCreatePendingVideo(env, "owner", 1, "videos/owner/clip.mp4", "Clip", ""))
       .rejects.toThrow("Quota owner not found");
     expect((await admin.query("SELECT * FROM videos")).rows).toEqual([]);
+  });
+
+  async function startMultipart(bytes = 130 * MIB) {
+    await admin.query("UPDATE users SET max_video_upload_size_mb = 100000, storage_limit_gb = 100");
+    const result = await requestPresignedUpload(env, "owner", {
+      filename: "clip.mkv", content_type: "video/matroska", file_size: bytes,
+      title: "Large video", description: "", multipart: true,
+    });
+    expect(result).toMatchObject({ video: { id: 1, status: "uploading" }, upload_url: null });
+    return result;
+  }
+
+  function parts(count = 3) {
+    return Array.from({ length: count }, (_, index) => ({ partNumber: index + 1, etag: String(index + 1).repeat(32) }));
+  }
+
+  it("reserves 45.16 GB and signs only the exact bytes of each authorized part", async () => {
+    const size = 45_160_000_000;
+    const partSize = multipartPartSize(size);
+    const count = Math.ceil(size / partSize);
+    expect(await startMultipart(size)).toMatchObject({ multipart: { part_size: partSize, part_count: count } });
+    expect(media.presignR2Put).not.toHaveBeenCalled();
+    expect((await admin.query("SELECT used_storage_bytes FROM users")).rows[0].used_storage_bytes).toBe(String(size));
+    await getMultipartUploadPartUrl(env, 1, "owner", 1);
+    await getMultipartUploadPartUrl(env, 1, "owner", count);
+    expect(media.presignR2UploadPart).toHaveBeenNthCalledWith(1, env, expect.any(String), "upload-session", 1, "video/matroska", partSize);
+    expect(media.presignR2UploadPart).toHaveBeenNthCalledWith(2, env, expect.any(String), "upload-session", count, "video/matroska", size - (count - 1) * partSize);
+    await expect(getMultipartUploadPartUrl(env, 1, "owner", count + 1)).rejects.toThrow("Invalid upload part");
+    await expect(getMultipartUploadPartUrl(env, 1, "outsider", 1)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(completeMultipartVideoUpload(env, 1, "outsider", parts(count))).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(media.presignR2UploadPart).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects oversized single PUTs and multipart quota violations before R2 creation", async () => {
+    expect(await upload("presigned", 6 * 1024 ** 3)).toHaveProperty("fieldError.file_size");
+    expect(await requestPresignedUpload(env, "owner", {
+      filename: "clip.mkv", content_type: "video/matroska", file_size: 130 * MIB,
+      title: "Video", description: "", multipart: true,
+    })).toEqual({ fileTooLarge: true, maxMb: 1 });
+    expect(media.createR2MultipartUpload).not.toHaveBeenCalled();
+    await expectNoReservation();
+  });
+
+  it("keeps a long-running upload alive and rechecks a heartbeat before stale cleanup", async () => {
+    await startMultipart();
+    await admin.query("UPDATE videos SET uploaded_at = now() - interval '4 hours', upload_heartbeat_at = now() - interval '3 hours'");
+    expect(await listStaleUploadingVideos(env, 2)).toHaveLength(1);
+    await getMultipartUploadPartUrl(env, 1, "owner", 1);
+    expect(await listStaleUploadingVideos(env, 2)).toEqual([]);
+    expect(await deleteVideoCascade(env, 1, "owner", { expectedStatus: "uploading", inactiveBefore: new Date(Date.now() - 2 * 3600000) }))
+      .toEqual({ deleted: false, cleanupTaskId: null });
+  });
+
+  it.each([[], parts(2), [parts()[0], parts()[0], parts()[2]], [...parts().slice(0, 2), { partNumber: 4, etag: "a".repeat(32) }]].map(manifest => [manifest]))(
+    "rejects incomplete or duplicate manifests before storage completion (%j)", async manifest => {
+      await startMultipart();
+      await expect(completeMultipartVideoUpload(env, 1, "owner", manifest)).rejects.toThrow("missing or invalid");
+      expect(media.completeR2MultipartUpload).not.toHaveBeenCalled();
+    },
+  );
+
+  it("completes once under concurrent requests, validates size, and enqueues once", async () => {
+    await startMultipart();
+    vi.spyOn(media, "getR2ObjectSize").mockResolvedValueOnce(null).mockResolvedValue(130 * MIB);
+    const results = await Promise.all(Array.from({ length: 5 }, () => completeMultipartVideoUpload(env, 1, "owner", parts().reverse())));
+    expect(results.filter(value => value !== null)).toHaveLength(1);
+    expect(media.completeR2MultipartUpload).toHaveBeenCalledExactlyOnceWith(env, expect.any(String), "upload-session", parts());
+    expect((await admin.query("SELECT status, multipart_upload FROM videos")).rows).toEqual([{ status: "pending", multipart_upload: null }]);
+    expect((await admin.query("SELECT kind FROM external_tasks")).rows).toEqual([{ kind: "sqs_job" }]);
+    await expect(getMultipartUploadPartUrl(env, 1, "owner", 1)).rejects.toThrow("not active");
+    expect(await deleteVideoCascade(env, 1, "owner", { expectedStatus: "uploading" })).toMatchObject({ deleted: false });
+  });
+
+  it("recovers when R2 completion succeeds but its response is lost", async () => {
+    await startMultipart();
+    vi.spyOn(media, "getR2ObjectSize").mockResolvedValueOnce(null).mockResolvedValue(130 * MIB);
+    vi.mocked(media.completeR2MultipartUpload).mockRejectedValueOnce(new Error("Connection lost"));
+    await expect(completeMultipartVideoUpload(env, 1, "owner", parts())).rejects.toThrow("Connection lost");
+    await completeMultipartVideoUpload(env, 1, "owner", parts());
+    expect(media.completeR2MultipartUpload).toHaveBeenCalledTimes(1);
+    expect((await admin.query("SELECT kind FROM external_tasks")).rows).toEqual([{ kind: "sqs_job" }]);
+  });
+
+  it("does not queue a mismatched object and durably records abort plus capacity cleanup", async () => {
+    await startMultipart();
+    vi.spyOn(media, "getR2ObjectSize").mockResolvedValue(1);
+    await expect(completeMultipartVideoUpload(env, 1, "owner", parts())).rejects.toThrow("size does not match");
+    await deleteVideoCascade(env, 1, "owner", { expectedStatus: "uploading" });
+    expect(await deleteVideoCascade(env, 1, "owner", { expectedStatus: "uploading" })).toMatchObject({ deleted: false });
+    expect((await admin.query("SELECT kind, payload FROM external_tasks")).rows).toEqual([{
+      kind: "storage_cleanup", payload: expect.objectContaining({ multipart_upload_id: "upload-session", bytes: 130 * MIB, user_id: "owner" }),
+    }]);
+  });
+
+  it("recovers a completed R2 object after the queue transaction fails", async () => {
+    await startMultipart();
+    vi.spyOn(media, "getR2ObjectSize").mockResolvedValueOnce(null).mockResolvedValue(130 * MIB);
+    await admin.query(`
+      CREATE FUNCTION reject_multipart_job() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN RAISE EXCEPTION 'job insert failed'; END $$;
+      CREATE TRIGGER reject_multipart_job BEFORE INSERT ON external_tasks FOR EACH ROW EXECUTE FUNCTION reject_multipart_job();
+    `);
+    try {
+      await expect(completeMultipartVideoUpload(env, 1, "owner", parts())).rejects.toThrow();
+      expect((await admin.query("SELECT status, multipart_upload FROM videos")).rows).toEqual([{
+        status: "uploading", multipart_upload: expect.objectContaining({ uploadId: "upload-session" }),
+      }]);
+    } finally {
+      await admin.query("DROP TRIGGER reject_multipart_job ON external_tasks; DROP FUNCTION reject_multipart_job()");
+    }
+    await completeMultipartVideoUpload(env, 1, "owner", parts());
+    expect(media.completeR2MultipartUpload).toHaveBeenCalledTimes(1);
+    expect((await admin.query("SELECT kind FROM external_tasks")).rows).toEqual([{ kind: "sqs_job" }]);
+  });
+
+  it("serializes completion and abort so a completed upload cannot be cancelled", async () => {
+    await startMultipart();
+    let release!: () => void;
+    const storage = new Promise<void>(resolve => { release = resolve; });
+    let entered!: () => void;
+    const completing = new Promise<void>(resolve => { entered = resolve; });
+    vi.spyOn(media, "getR2ObjectSize").mockResolvedValueOnce(null).mockResolvedValue(130 * MIB);
+    vi.mocked(media.completeR2MultipartUpload).mockImplementationOnce(async () => { entered(); await storage; });
+    const completion = completeMultipartVideoUpload(env, 1, "owner", parts());
+    await completing;
+    const abort = deleteVideoCascade(env, 1, "owner", { expectedStatus: "uploading" });
+    release();
+    await completion;
+    expect(await abort).toMatchObject({ deleted: false });
+    expect((await admin.query("SELECT kind FROM external_tasks")).rows).toEqual([{ kind: "sqs_job" }]);
   });
 });

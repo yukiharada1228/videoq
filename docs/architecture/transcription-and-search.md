@@ -13,12 +13,12 @@ Whisper's model-family reference is [Radford et al. (ICML 2023)](../reference/ai
 
 | Source | Current processing | When it cannot proceed |
 |---|---|---|
-| Uploaded video | Download the stored file, extract mono audio with FFmpeg, transcribe through the selected Whisper backend, and convert the segments to SRT | Missing file/audio, transcription failure, or an empty transcript |
+| Uploaded video | Read the stored file with HTTP range requests (local media is read in place), extract mono audio with FFmpeg, transcribe through the selected Whisper backend, and convert the segments to SRT | Missing file/audio, transcription failure, or an empty transcript |
 | YouTube | Request subtitles through SearchAPI, trying manual subtitles first and automatic subtitles next, then convert them to SRT | Missing SearchAPI configuration or no usable subtitles |
 
-The YouTube path does not fall back to downloading the video and transcribing its audio. The upload path supports OpenAI Whisper or a local compatible endpoint according to `WHISPER_BACKEND`. For larger audio files, the implementation splits audio exceeding 24 MiB into 600-second chunks and restores the time offsets in the returned segments. These are implementation choices, not a statement of a provider's current limits.
+The YouTube path does not fall back to downloading the video and transcribing its audio. The upload path supports OpenAI Whisper or a local compatible endpoint according to `WHISPER_BACKEND`. Uploaded videos are processed as 300-second intervals in four SQS lanes. Each job seeks directly into the stored source, extracts only its interval, and saves the returned segments in PostgreSQL with source-relative timestamps. Completed intervals are reused on retry; the finalizer joins them into SRT only after every interval is saved. These are implementation choices, not a statement of a provider's current limits.
 
-In development, disabling `ENABLE_HEAVY_PIPELINE` produces a one-second placeholder transcript. This can exercise state transitions but cannot test transcription accuracy or meaningful search. Uploaded-video transcription prepares bounded coarse and approximately 1 FPS dense frame caches by default (`VIDEO_VISUAL_ENABLED=false` opts out); image-model calls happen only when Q&A invokes visual inspection. See [visual evidence](../guides/visual-evidence.md).
+In development, disabling `ENABLE_HEAVY_PIPELINE` produces a one-second placeholder transcript. This can exercise state transitions but cannot test transcription accuracy or meaningful search. After saving uploaded-video transcription, separate jobs prepare bounded coarse and approximately 1 FPS dense frame caches by default (`VIDEO_VISUAL_ENABLED=false` opts out). A visual job failure does not discard the transcript; image-model calls happen only when Q&A invokes visual inspection. See [visual evidence](../guides/visual-evidence.md).
 
 ## 2. Group subtitles into scenes
 
@@ -41,7 +41,7 @@ If a single cue itself exceeds the budget, the code splits its tokens and distri
 
 ## 3. Store searchable scene data
 
-Scene splitting runs during initial transcription, and its resulting SRT is saved in `videos.transcript`. The indexing job parses that saved SRT, embeds each scene's text, and writes rows to `scene_embeddings`; it does not run Otsu splitting again. A manually edited transcript is therefore indexed using its saved cue boundaries. Embedding requests are batched in groups of 64. Each row contains text plus its vector and metadata: owner, video ID/title, scene index, and start/end times.
+The original SRT cues are saved in `videos.transcript`. The indexing job groups those cues into search scenes, embeds each scene's text, and writes rows to `scene_embeddings`, preserving the saved playback subtitles. Embedding requests are batched in groups of 64. Each row contains text plus its vector and metadata: owner, video ID/title, scene index, and start/end times.
 
 Indexing replaces that video's existing vector rows. API search and worker indexing must use compatible embedding models and dimensions. The current database column has **1536 dimensions**; changing a model setting alone does not migrate the column or rebuild old vectors. A changed embedding model requires reindexing the material that will be searched with it.
 

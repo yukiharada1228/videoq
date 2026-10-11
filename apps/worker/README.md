@@ -20,6 +20,9 @@ Supported operations:
 | type | Operation |
 |---|---|
 | `transcribe_video` | FFmpeg / Whisper / YouTube transcription, preserving original subtitle cues |
+| `transcribe_video_chunk` | Transcribe a 300-second interval and save its result in PostgreSQL |
+| `finish_video_transcription` | Join completed intervals and enqueue indexing and visual caches |
+| `build_video_visuals` | Build one optional visual cache independently of transcription |
 | `index_video_transcript` | Group cues into search scenes, generate embeddings and atomically replace searchable scenes |
 | `reindex_video_transcript` | Reindex a single video |
 | `reindex_all_videos_embeddings` | Reindex all videos |
@@ -59,6 +62,15 @@ with a 15-minute lease. Completed duplicates are skipped, and interrupted jobs c
 resume after the lease expires. Follow-up job IDs are derived deterministically
 from the parent job, so retrying a parent does not create extra follow-up jobs.
 Apply `0011_job_delivery_guards.sql` before updating the worker.
+
+Uploaded-video processing also requires `0031_resumable_transcription.sql`.
+The parent reserves processing quota once and creates a persisted plan with
+300-second intervals. Four SQS lanes process the intervals; each saved checkpoint
+enqueues the next interval in its lane. Results and follow-up IDs survive retries,
+so delivery failures after saving do not call Whisper again for that interval.
+All intervals must be saved before the finalizer joins source-relative timestamps
+into SRT. Video deletion, source replacement, and transcript edits fence out stale
+results. Checkpoints are deleted by foreign-key cascade when the video is deleted.
 
 ## Key environment variables
 
@@ -103,6 +115,26 @@ Media processing limits must be positive integers. Uploads are parsed as individ
 video files; playlists and external URL references are rejected. Processing that
 exceeds a limit fails and is subject to the existing job retry mechanism.
 
+Uploaded sources in object storage are read directly by FFmpeg/ffprobe with HTTP
+range requests. The worker does not download the original video to Lambda's 5 GiB
+temporary disk. Audio extraction, both visual caches, and visual backfills share
+this path; local `MEDIA_ROOT` files are read in place. A fresh signed GET URL is
+created for each subprocess, with an expiry longer than its process time limit.
+HTTPS verifies the server certificate, network inputs cannot read local files,
+and signed URLs are removed from subprocess diagnostics and command logging.
+
+Each uploaded transcription job extracts at most 300 seconds of 64 kbps mono MP3
+with an 8 MiB file cap and a 300-second subprocess deadline. Provider calls have
+a 120-second timeout and at most two retries. Only one interval's audio is stored
+locally, and the next interval runs in a new invocation. Indexing and the two
+optional visual caches have separate jobs; failed visual work cannot lose the
+saved transcript. Each invocation still has Lambda's 900-second ceiling, so
+unreadable media or unusually expensive intervals can fail and require retry.
+`tests/test_remote_media.py` exercises real FFmpeg audio and frame extraction over
+HTTP ranges, including a sparse 45.16 GB MP4 with its metadata beyond 5 GiB. This
+checks large offsets without transferring or allocating 45 GB during the test;
+it is not a benchmark of a real 45 GB recording.
+
 RAGAS evaluation has been removed. Any remaining `evaluate_chat_log` messages exit
 without running AI or database operations.
 
@@ -121,7 +153,8 @@ docker compose up -d postgres garage garage-init elasticmq worker
 docker compose logs -f worker
 ```
 
-To process pending rows without SQS:
+To trigger processing of pending rows (real uploaded transcription requires SQS;
+YouTube, development placeholders, and indexing can run inline):
 
 ```bash
 python scripts/process_pending.py

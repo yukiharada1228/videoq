@@ -3,8 +3,31 @@ from urllib.parse import parse_qs, urlsplit
 
 import boto3
 import pytest
+from unittest.mock import MagicMock
+from botocore.exceptions import ClientError
 
 from worker_python.pipeline import storage
+
+
+@pytest.mark.parametrize("error_code", [None, "NoSuchUpload", "AccessDenied"])
+def test_abort_multipart_retries_only_ignore_missing_sessions(monkeypatch, error_code):
+    monkeypatch.setenv("USE_S3_STORAGE", "true")
+    monkeypatch.setenv("R2_BUCKET_NAME", "test-media")
+    client = MagicMock()
+    if error_code:
+        client.abort_multipart_upload.side_effect = ClientError(
+            {"Error": {"Code": error_code}}, "AbortMultipartUpload",
+        )
+    monkeypatch.setattr(storage, "_s3_client", lambda: client)
+    if error_code == "AccessDenied":
+        with pytest.raises(ClientError):
+            storage.abort_multipart_upload("videos/u/clip.mkv", "upload-id")
+    else:
+        storage.abort_multipart_upload("videos/u/clip.mkv", "upload-id")
+    client.abort_multipart_upload.assert_called_once_with(
+        Bucket="test-media", Key="media/videos/u/clip.mkv", UploadId="upload-id",
+    )
+    client.close.assert_called_once()
 
 
 @pytest.fixture(autouse=True)

@@ -466,7 +466,7 @@ export async function listStaleUploadingVideos(
       .where(
         and(
           eq(videos.status, "uploading"),
-          sql`${videos.uploadedAt} < NOW() - (${olderThanHours}::double precision * INTERVAL '1 hour')`,
+          sql`COALESCE(${videos.uploadHeartbeatAt}, ${videos.uploadedAt}) < NOW() - (${olderThanHours}::double precision * INTERVAL '1 hour')`,
         ),
       )
       .orderBy(asc(videos.uploadedAt))
@@ -587,6 +587,8 @@ export async function deleteVideoCascade(
     expectedStatus?: string;
     expectedFileKey?: string;
     fallbackStorageBytes?: number | null;
+    /** Recheck abandonment under the row lock, after a concurrent part request. */
+    inactiveBefore?: Date;
   } = {},
 ): Promise<
   | { deleted: false; cleanupTaskId: null }
@@ -595,7 +597,8 @@ export async function deleteVideoCascade(
   return withDb(env, async (db) => {
     return db.transaction(async (tx) => {
       const locked = await tx
-        .select({ status: videos.status, file: videos.file })
+        .select({ status: videos.status, file: videos.file, multipart: videos.multipartUpload,
+          heartbeat: videos.uploadHeartbeatAt })
         .from(videos)
         .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
         .for("update")
@@ -606,6 +609,8 @@ export async function deleteVideoCascade(
           locked[0].status !== options.expectedStatus) ||
         (options.expectedFileKey !== undefined &&
           locked[0].file !== options.expectedFileKey)
+        || (options.inactiveBefore !== undefined && locked[0].heartbeat !== null &&
+          new Date(locked[0].heartbeat) >= options.inactiveBefore)
       ) {
         return { deleted: false, cleanupTaskId: null } as const;
       }
@@ -622,6 +627,7 @@ export async function deleteVideoCascade(
             userId,
             fileKey,
             bytes: cleanupBytes,
+            ...(locked[0].multipart ? { multipartUploadId: locked[0].multipart.uploadId } : {}),
           })
         : null;
 

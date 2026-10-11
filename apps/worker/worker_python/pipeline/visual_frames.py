@@ -13,8 +13,8 @@ import tempfile
 from pathlib import Path
 
 from worker_python.db import db_connection
-from worker_python.pipeline.media_process import MEDIA_INPUT_OPTIONS, run_media_process
-from worker_python.pipeline.storage import upload_bytes
+from worker_python.pipeline.media_process import media_input_args, run_media_process
+from worker_python.pipeline.storage import ObjectMediaSource, upload_bytes
 
 MAX_FRAMES = 240
 MAX_IMAGE_BYTES = 256 * 1024
@@ -25,7 +25,7 @@ def frame_cache_key(file_key: str) -> str:
     return f"{file_key}.frames-v1.json"
 
 
-def build_frame_cache(video_path: Path, video_id: int, duration: float) -> bytes:
+def build_frame_cache(video_path: Path | ObjectMediaSource, video_id: int, duration: float) -> bytes:
     if not math.isfinite(duration) or duration <= 0:
         raise ValueError("Frame cache requires a finite positive duration")
     interval = max(5.0, duration / MAX_FRAMES)
@@ -39,8 +39,8 @@ def build_frame_cache(video_path: Path, video_id: int, duration: float) -> bytes
             "settb=1/1000"
         )
         result = run_media_process([
-            "ffmpeg", "-nostdin", "-v", "error", "-y", *MEDIA_INPUT_OPTIONS,
-            "-i", str(video_path), "-map", "0:v:0", "-an", "-vf", filters,
+            "ffmpeg", "-nostdin", "-v", "error", "-y", *media_input_args(video_path),
+            "-map", "0:v:0", "-an", "-vf", filters,
             "-fps_mode", "vfr", "-enc_time_base", "1:1000", "-frame_pts", "1",
             # Auto frame threading can exceed RLIMIT_AS on high-core Docker
             # hosts before the MJPEG encoder emits its first image.

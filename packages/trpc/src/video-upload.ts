@@ -41,3 +41,14 @@ export function videoUploadContentType(file: { name: string; type: string }): st
   if (!file.type || file.type === 'application/octet-stream') return VIDEO_UPLOAD_TYPES[ext];
   return isAllowedContentType(file.type) ? file.type : null;
 }
+
+// R2: 5 TiB per object, at most 10,000 equal-sized parts (except the last).
+export const MULTIPART_UPLOAD_THRESHOLD = 100 * 1024 * 1024;
+export const MAX_VIDEO_UPLOAD_BYTES = 5 * 1024 ** 4;
+export const MAX_SINGLE_UPLOAD_BYTES = 5 * 1024 ** 3;
+export const MAX_UPLOAD_PARTS = 10_000;
+
+export function multipartPartSize(fileSize: number): number {
+  const mib = 1024 * 1024;
+  return Math.max(64 * mib, Math.ceil(fileSize / MAX_UPLOAD_PARTS / mib) * mib);
+}

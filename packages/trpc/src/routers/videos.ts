@@ -22,6 +22,18 @@ export const videosRouter = t.router({
     .input(videosInputSchemas["videos.confirmUpload"])
     .output(outputSchemas["videos.confirmUpload"])
     .mutation(({ ctx, input }) => ctx.call("videos.confirmUpload", input)),
+  uploadPartUrl: protectedProcedure
+    .input(videosInputSchemas["videos.uploadPartUrl"])
+    .output(outputSchemas["videos.uploadPartUrl"])
+    .mutation(({ ctx, input }) => ctx.call("videos.uploadPartUrl", input)),
+  completeMultipartUpload: protectedProcedure
+    .input(videosInputSchemas["videos.completeMultipartUpload"])
+    .output(outputSchemas["videos.completeMultipartUpload"])
+    .mutation(({ ctx, input }) => ctx.call("videos.completeMultipartUpload", input)),
+  abortUpload: protectedProcedure
+    .input(videosInputSchemas["videos.abortUpload"])
+    .output(outputSchemas["videos.abortUpload"])
+    .mutation(({ ctx, input }) => ctx.call("videos.abortUpload", input)),
   createYoutube: protectedProcedure
     .input(videosInputSchemas["videos.createYoutube"])
     .output(outputSchemas["videos.createYoutube"])
