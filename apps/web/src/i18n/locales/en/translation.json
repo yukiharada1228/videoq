@@ -333,7 +333,8 @@
         "hint": "You can retry an interrupted upload. After reopening this screen, select the interrupted video and the same file. Saved parts are verified before resuming. Uploads expire after 2 hours of inactivity.",
         "label": "Resume an interrupted upload",
         "newUpload": "Upload a new video",
-        "fileMismatch": "This file does not match the interrupted video. Select the same file."
+        "fileMismatch": "This file does not match the interrupted video. Select the same file.",
+        "readError": "The video file could not be verified. Select the file again and retry."
       }
     },
     "detail": {

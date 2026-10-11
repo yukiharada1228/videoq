@@ -132,6 +132,27 @@ describe('presigned upload content types', () => {
     expect(JSON.parse(fetchFn.mock.calls[1][1].body)['0']).toEqual({ id: 161, parts: [] });
   });
 
+  it.each([true, false])('handles an already confirmed upload or a different-size file (%s)', async confirmed => {
+    vi.stubEnv('VITE_USE_S3_STORAGE', 'true');
+    vi.resetModules();
+    const { createApiClient } = await import('../api');
+    const video = { id: 161, title: 'Video', file: null, source_type: 'uploaded', status: 'pending', uploaded_at: '2026-09-28T00:00:00Z' };
+    const fetchFn = vi.fn().mockResolvedValueOnce(trpcSuccess(confirmed ? { confirmed: true } : {
+      confirmed: false, stored: false, part_size: 64, part_count: 1, file_size: 12, content_type: 'video/mp4', parts: [], next_marker: null,
+    })).mockResolvedValueOnce(trpcSuccess(video));
+    const client = createApiClient({ baseUrl: BASE_URL, fetchFn });
+    const progress = vi.fn();
+    const result = client.uploadVideo({ file: new File(['video'], 'clip.mp4'), title: 'Video', resumeVideoId: 161 }, progress);
+    if (confirmed) {
+      await expect(result).resolves.toEqual(video);
+      expect(fetchFn.mock.calls[1][0]).toContain('videos.get');
+      expect(progress).toHaveBeenCalledWith(100);
+    } else {
+      await expect(result).rejects.toThrow();
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+    }
+  });
+
   it.each([
     ['recording.MKV', '', 'video/x-matroska'],
     ['recording.mkv', 'video/matroska', 'video/matroska'],

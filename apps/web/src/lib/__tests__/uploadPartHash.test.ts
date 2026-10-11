@@ -9,5 +9,9 @@ it('streams the part and returns the S3-compatible content checksum', async () =
     const bytes = new Uint8Array(1024 * 1024 + 13).map((_, i) => i % 251);
     await scope.onmessage!({ data: new Blob([bytes]) });
     expect(scope.postMessage).toHaveBeenCalledExactlyOnceWith({ etag: createHash('md5').update(bytes).digest('hex') });
+    const broken = new Blob();
+    vi.spyOn(broken, 'stream').mockImplementation(() => { throw new Error('unreadable file'); });
+    await scope.onmessage!({ data: broken });
+    expect(scope.postMessage).toHaveBeenLastCalledWith({ error: true });
   } finally { vi.unstubAllGlobals(); }
 });

@@ -430,7 +430,12 @@ export class ApiClient {
         let session;
         do {
           session = await this.rpc.videos.resumeUpload.mutate({ id: resumeId, marker });
-          if (session.confirmed) return this.rpc.videos.get.query({ id: resumeId });
+          if (session.confirmed) {
+            const video = await this.rpc.videos.get.query({ id: resumeId });
+            this.multipartSessions.delete(data.file);
+            onProgress?.(100);
+            return video;
+          }
           if (session.file_size !== data.file.size) {
             throw new Error(i18n.t('videos.upload.resume.fileMismatch'));
           }

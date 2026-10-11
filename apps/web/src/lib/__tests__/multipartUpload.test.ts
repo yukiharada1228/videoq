@@ -67,6 +67,15 @@ function operations() {
 }
 
 describe('multipart video transfer', () => {
+  it.each([{ parts: [{ partNumber: 0, etag }] }, { parts: [{ partNumber: 1, etag }, { partNumber: 1, etag }] }])('rejects invalid saved part manifests before uploading', async ({ parts }) => {
+    const api = operations();
+    await expect(uploadMultipartFile(new File(['video'], 'clip.mp4'), 'video/mp4', {
+      part_size: 5, part_count: 1, parts,
+    }, api)).rejects.toThrow('Invalid saved upload parts');
+    expect(api.partUrl).not.toHaveBeenCalled();
+    expect(api.complete).not.toHaveBeenCalled();
+    expect(verifier.close).toHaveBeenCalledTimes(1);
+  });
   it('verifies saved parts and sends only missing parts when resuming', async () => {
     const api = operations();
     await uploadMultipartFile(new File(['12345678901'], 'clip.mp4'), 'video/mp4', {
