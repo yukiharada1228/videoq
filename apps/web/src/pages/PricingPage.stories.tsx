@@ -46,7 +46,6 @@ export const Anonymous: Story = {
     await expect(canvas.queryByText(i18n.t('pricing.currentPlan'))).not.toBeInTheDocument();
     await expect(canvas.getByText(i18n.t('pricing.limits.monthlyUpload', { gb: 200 }))).toBeVisible();
     await expect(canvas.getByText(i18n.t('pricing.limits.monthlyUpload', { gb: 1000 }))).toBeVisible();
-    await expect(canvas.getAllByText(i18n.t('pricing.limits.perFile'))).toHaveLength(3);
     await userEvent.click(canvas.getByRole('button', { name: i18n.t('pricing.yearly') }));
     await expect(canvas.getByText(i18n.language === 'en' ? /USD\s*99\.90/ : /14,800/)).toBeVisible();
     await expect(canvas.getByText(i18n.language === 'en' ? /USD\s*269\.90/ : /39,800/)).toBeVisible();

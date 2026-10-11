@@ -761,8 +761,7 @@
       "storage": "ストレージ {{gb}} GB",
       "processing": "文字起こし {{minutes}} 分/月",
       "answers": "AI回答 {{count}} 回/月",
-      "monthlyUpload": "月間アップロード {{gb}} GB",
-      "perFile": "1本あたりのプラン上限なし（保存・月間枠の範囲内）"
+      "monthlyUpload": "月間アップロード {{gb}} GB"
     },
     "plans": {
       "free": {

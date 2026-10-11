@@ -152,7 +152,6 @@ export default function PricingPage() {
                       gb: plan.entitlements.monthly_upload_limit_gb,
                     })}
                   </li>
-                  <li>{t('pricing.limits.perFile')}</li>
                 </ul>
                 {!hasSession && !session.isPending ? (
                   <Button asChild variant={plan.code === 'free' ? 'outline' : 'solid-fill'}>
