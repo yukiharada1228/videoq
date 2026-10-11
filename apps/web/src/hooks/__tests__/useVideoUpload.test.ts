@@ -5,6 +5,9 @@ import { apiClient } from '@/lib/api'
 import { QueryObserver, useQueryClient } from '@tanstack/react-query'
 import { trpc } from '@/lib/trpc'
 import { trackLandingEvent } from '@/lib/landingAnalytics'
+import { compressVideo } from '@/lib/videoCompression'
+
+vi.mock('@/lib/videoCompression', () => ({ compressVideo: vi.fn(), supportsVideoCompression: () => true }))
 
 vi.mock('@/lib/landingAnalytics', () => ({ trackLandingEvent: vi.fn() }))
 
@@ -33,6 +36,7 @@ describe('useVideoUpload', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(apiClient.uploadVideo).mockReset()
+    vi.mocked(compressVideo).mockReset()
     createYoutubeVideo.mockReset()
     addTagsToVideo.mockReset()
     globalThis.__setTrpcHandler('videos.createYoutube', createYoutubeVideo)
@@ -48,6 +52,74 @@ describe('useVideoUpload', () => {
     expect(result.current.error).toBeNull()
     expect(result.current.warning).toBeNull()
     expect(result.current.success).toBe(false)
+  })
+
+  it('compresses an oversized source before reservation and uploads only the smaller file', async () => {
+    const source = new File(['original'], 'game.mkv', { type: 'video/matroska' })
+    Object.defineProperty(source, 'size', { value: 45_159_504_400 })
+    const compressed = new File(['compressed'], 'game-1080p.mp4', { type: 'video/mp4' })
+    const dispose = vi.fn(async () => {})
+    vi.mocked(compressVideo).mockResolvedValue({ file: compressed, dispose })
+    vi.mocked(apiClient.uploadVideo).mockResolvedValue({ id: 1 } as never)
+    const { result } = renderHook(() => useVideoUpload())
+    act(() => result.current.handleFileChange({ target: { files: [source] } } as unknown as React.ChangeEvent<HTMLInputElement>))
+    expect(result.current.error).toBe('videos.upload.validation.fileTooLarge')
+    act(() => result.current.setCompressionPreset('1080p'))
+    expect(result.current.error).toBeNull()
+    await act(() => result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent))
+    expect(compressVideo).toHaveBeenCalledWith(source, '1080p', expect.objectContaining({ maxBytes: 500 * 1024 ** 2 }))
+    expect(apiClient.uploadVideo).toHaveBeenCalledWith({ file: compressed, title: 'game', description: undefined }, expect.any(Function))
+    expect(dispose).toHaveBeenCalledTimes(1)
+    expect(result.current.compressedSizes).toEqual({ before: source.size, after: compressed.size })
+    expect(result.current.success).toBe(true)
+  })
+
+  it.each(['canceled', 'unsupported'])('does not send the original or reserve an upload when compression is %s', async reason => {
+    const source = new File(['original'], 'game.mkv', { type: 'video/matroska' })
+    vi.mocked(compressVideo).mockImplementation((_file, _preset, { signal }) => new Promise((_resolve, reject) => {
+      if (reason === 'unsupported') reject(new Error('videos.upload.compression.unsupportedFile'))
+      else signal.addEventListener('abort', () => reject(new DOMException('Canceled', 'AbortError')), { once: true })
+    }))
+    const { result } = renderHook(() => useVideoUpload())
+    act(() => {
+      result.current.handleFileChange({ target: { files: [source] } } as unknown as React.ChangeEvent<HTMLInputElement>)
+      result.current.setCompressionPreset('720p')
+    })
+    let pending: Promise<void>
+    act(() => { pending = result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent) })
+    if (reason === 'canceled') {
+      expect(result.current.isCompressing).toBe(true)
+      await act(() => result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent))
+      expect(compressVideo).toHaveBeenCalledTimes(1)
+      act(() => result.current.cancelCompression())
+    }
+    await act(() => pending!)
+    expect(apiClient.uploadVideo).not.toHaveBeenCalled()
+    expect(result.current.isUploading).toBe(false)
+    expect(result.current.success).toBe(false)
+    expect(result.current.title).toBe('game')
+    expect(result.current.error).toBe(`videos.upload.compression.${reason === 'canceled' ? 'canceled' : 'unsupportedFile'}`)
+  })
+
+  it('disposes compressed output on transport failure, retaining the original for a new attempt', async () => {
+    const source = new File(['original'], 'game.mkv', { type: 'video/matroska' })
+    const dispose = vi.fn(async () => {})
+    vi.mocked(compressVideo).mockResolvedValue({ file: new File(['small'], 'game.mp4', { type: 'video/mp4' }), dispose })
+    vi.mocked(apiClient.uploadVideo).mockRejectedValue(new Error('network failed'))
+    const { result } = renderHook(() => useVideoUpload())
+    act(() => {
+      result.current.handleFileChange({ target: { files: [source] } } as unknown as React.ChangeEvent<HTMLInputElement>)
+      result.current.setCompressionPreset('1080p')
+    })
+    await act(async () => {
+      await expect(result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent)).rejects.toThrow('network failed')
+    })
+    expect(dispose).toHaveBeenCalledTimes(1)
+    act(() => result.current.setCompressionPreset('original'))
+    vi.mocked(apiClient.uploadVideo).mockResolvedValue({ id: 1 } as never)
+    await act(() => result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent))
+    expect(apiClient.uploadVideo).toHaveBeenLastCalledWith(expect.objectContaining({ file: source }), expect.any(Function))
+    expect(compressVideo).toHaveBeenCalledTimes(1)
   })
 
   it.each(['file', 'youtube'] as const)('does not create duplicate %s videos during one upload', async mode => {

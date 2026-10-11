@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 
 interface VideoUploadButtonProps {
   isUploading: boolean;
+  isCompressing?: boolean;
+  compressionSelected?: boolean;
   progress?: number;
   disabled?: boolean;
   className?: string;
@@ -13,6 +15,8 @@ interface VideoUploadButtonProps {
 
 export function VideoUploadButton({
   isUploading,
+  isCompressing = false,
+  compressionSelected = false,
   progress = 0,
   disabled = false,
   className,
@@ -31,12 +35,12 @@ export function VideoUploadButton({
       {isUploading ? (
         <span className={fullWidth ? "flex items-center" : "flex items-center justify-center"}>
           <InlineSpinner className="mr-2" />
-          {progress > 0
+          {isCompressing ? t('videos.upload.compression.compressingWithProgress', { percent: Math.round(progress) }) : progress > 0
             ? t('videos.upload.uploadingWithProgress', { percent: Math.round(progress) })
             : t('videos.upload.uploading')}
         </span>
       ) : (
-        t('videos.upload.upload')
+        t(compressionSelected ? 'videos.upload.compression.submit' : 'videos.upload.upload')
       )}
     </Button>
   );

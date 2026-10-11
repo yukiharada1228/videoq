@@ -1,12 +1,15 @@
 import { useCallback, useRef, useState } from 'react';
 import { fn, mocked } from 'storybook/test';
 import { useVideoUpload } from '@/hooks/useVideoUpload';
+import type { CompressionPreset } from '@/lib/videoCompression';
 
 export interface UploadScenario {
   result?: 'success' | 'pending' | 'error' | 'retry' | 'warning';
   progress?: number;
   error?: string;
   errorParams?: Record<string, string | number>;
+  compressing?: boolean;
+  compressionSupported?: boolean;
 }
 export const uploadRequest = fn();
 export const uploadError = 'アップロードを完了できませんでした / Upload failed';
@@ -24,13 +27,20 @@ function useUploadFixture(scenario: UploadScenario): ReturnType<typeof useVideoU
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
+  const [compressionPreset, setCompressionPreset] = useState<CompressionPreset>('original');
+  const [isCompressing, setIsCompressing] = useState(false);
   const attempts = useRef(0);
   const reset = useCallback(() => {
     setSourceMode('file'); setFile(null); setYoutubeUrl(''); setTitle(''); setDescription('');
     setTagIds([]); setIsUploading(false); setProgress(0); setError(null); setSuccess(false); setWarning(null);
+    setCompressionPreset('original'); setIsCompressing(false);
   }, []);
   return {
     sourceMode, youtubeUrl, title, description, tagIds, isUploading, progress, error, success, warning,
+    compressionPreset, setCompressionPreset, isCompressing,
+    compressionSupported: scenario.compressionSupported ?? true,
+    compressedSizes: null,
+    cancelCompression() { setIsCompressing(false); setIsUploading(false); setProgress(0); setError('videos.upload.compression.canceled'); },
     errorParams: error ? scenario.errorParams ?? {} : {},
     setSourceMode, setTitle, setDescription, setYoutubeUrl, setTagIds, reset,
     handleFileChange(event) {
@@ -42,6 +52,10 @@ function useUploadFixture(scenario: UploadScenario): ReturnType<typeof useVideoU
       uploadRequest({ sourceMode, fileName: file?.name ?? null, youtubeUrl, title, description, tagIds });
       setError(null); setWarning(null); setSuccess(false);
       attempts.current++;
+      if (scenario.compressing && compressionPreset !== 'original') {
+        setIsCompressing(true); setIsUploading(true); setProgress(scenario.progress ?? 36);
+        return;
+      }
       if (scenario.result === 'pending') {
         setIsUploading(true); setProgress(scenario.progress ?? (sourceMode === 'file' ? 46 : 0));
         return;

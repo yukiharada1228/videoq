@@ -8,6 +8,7 @@ import { ProgressIndicator, ProgressIndicatorLinear } from '@/components/ui/prog
 import { VideoUploadButton } from './VideoUploadButton';
 import { useTranslation } from 'react-i18next';
 import { VIDEO_UPLOAD_TYPES } from '@videoq/trpc/video-upload';
+import type { CompressionPreset } from '@/lib/videoCompression';
 
 const acceptedVideoTypes = Object.keys(VIDEO_UPLOAD_TYPES).join(',');
 
@@ -15,6 +16,11 @@ interface VideoUploadFormFieldsProps {
   title: string;
   description: string;
   isUploading: boolean;
+  isCompressing?: boolean;
+  compressionPreset?: CompressionPreset;
+  compressionSupported?: boolean;
+  setCompressionPreset?: (preset: CompressionPreset) => void;
+  compressedSizes?: { before: number; after: number } | null;
   progress?: number;
   disabled?: boolean;
   error: string | null;
@@ -35,6 +41,11 @@ export function VideoUploadFormFields({
   title,
   description,
   isUploading,
+  isCompressing = false,
+  compressionPreset = 'original',
+  compressionSupported = false,
+  setCompressionPreset,
+  compressedSizes,
   progress = 0,
   disabled = false,
   error,
@@ -70,6 +81,25 @@ export function VideoUploadFormFields({
         />
       </div>
 
+      {setCompressionPreset && (
+        <fieldset className="space-y-2" disabled={isUploading || disabled}>
+          <legend className="font-bold">{t('videos.upload.compression.label')}</legend>
+          {(['original', '1080p', '720p'] as const).map(preset => (
+            <label key={preset} className="flex items-start gap-2 text-std-16N-170">
+              <input type="radio" name="upload-compression" value={preset}
+                checked={compressionPreset === preset}
+                disabled={preset !== 'original' && !compressionSupported}
+                onChange={() => setCompressionPreset(preset)} className="mt-1.5 accent-key-900" />
+              <span>{t(`videos.upload.compression.presets.${preset}`)}</span>
+            </label>
+          ))}
+          <p className="text-std-14N-170 text-solid-gray-700">
+            {t(compressionSupported ? 'videos.upload.compression.help' : 'videos.upload.compression.unsupported')}
+          </p>
+          {compressionPreset !== 'original' && <p className="text-std-14N-170 text-solid-gray-700">{t('videos.upload.compression.qualityNote')}</p>}
+        </fieldset>
+      )}
+
       <div className="flex flex-col gap-2">
         <Label htmlFor="title">
           {t('videos.upload.titleLabel')}
@@ -99,14 +129,23 @@ export function VideoUploadFormFields({
         />
       </div>
 
-      {error && <MessageAlert type="error" message={t(error, { defaultValue: error, ...errorParams })} />}
+      {error === 'videos.upload.compression.canceled'
+        ? <p role="status" className="text-std-14N-170 text-solid-gray-700">{t(error)}</p>
+        : error && <MessageAlert type="error" message={t(error, { defaultValue: error, ...errorParams })} />}
       {warning && <MessageAlert type="warning" message={t(warning, { defaultValue: warning })} />}
       {success && <MessageAlert type="success" message={t('videos.upload.success')} />}
+      {compressedSizes && <p role="status" className="text-std-14N-170 text-solid-gray-700">
+        {t('videos.upload.compression.saved', {
+          before: (compressedSizes.before / 1024 ** 3).toFixed(2),
+          after: (compressedSizes.after / 1024 ** 3).toFixed(2),
+          percent: Math.round((1 - compressedSizes.after / compressedSizes.before) * 100),
+        })}
+      </p>}
 
-      {isUploading && percent > 0 && (
-        <ProgressIndicator type="stacked" value={percent} aria-label={t('videos.upload.uploading')}>
+      {isUploading && (percent > 0 || isCompressing) && (
+        <ProgressIndicator type="stacked" value={percent} aria-label={t(isCompressing ? 'videos.upload.compression.compressing' : 'videos.upload.uploading')}>
           <ProgressIndicatorLinear />
-          <span className="text-std-14N-170 text-solid-gray-700">{percent}%</span>
+          <span className="text-std-14N-170 text-solid-gray-700">{isCompressing ? `${t('videos.upload.compression.compressing')} ${percent}%` : `${percent}%`}</span>
         </ProgressIndicator>
       )}
 
@@ -124,10 +163,10 @@ export function VideoUploadFormFields({
             >
               {t('common.actions.cancel')}
             </Button>
-            <VideoUploadButton isUploading={isUploading} progress={progress} disabled={disabled} fullWidth className="flex-1" />
+            <VideoUploadButton isUploading={isUploading} isCompressing={isCompressing} compressionSelected={compressionPreset !== 'original'} progress={progress} disabled={disabled} fullWidth className="flex-1" />
           </div>
         ) : (
-          <VideoUploadButton isUploading={isUploading} progress={progress} disabled={disabled} fullWidth />
+          <VideoUploadButton isUploading={isUploading} isCompressing={isCompressing} compressionSelected={compressionPreset !== 'original'} progress={progress} disabled={disabled} fullWidth />
         )
       )}
     </>

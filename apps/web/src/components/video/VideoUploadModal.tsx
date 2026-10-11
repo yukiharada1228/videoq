@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogHeading,
+  DialogScrollArea,
   useDialog,
 } from '@/components/ui/dialog';
 import { MessageAlert } from '@/components/common/MessageAlert';
@@ -44,6 +45,12 @@ export function VideoUploadModal({ isOpen, onClose, autoCloseDelayMs = 2000 }: V
     description,
     tagIds,
     isUploading,
+    isCompressing,
+    compressionPreset,
+    compressionSupported,
+    compressedSizes,
+    setCompressionPreset,
+    cancelCompression,
     progress,
     error,
     errorParams,
@@ -104,7 +111,7 @@ export function VideoUploadModal({ isOpen, onClose, autoCloseDelayMs = 2000 }: V
 
   return (
     <>
-      <Dialog {...dialog.dialogProps} width="min(36rem, 92vw)">
+      <Dialog {...dialog.dialogProps} scroll="inner" width="min(36rem, 92vw)">
         <DialogContent>
           <DialogHeader>
             <DialogHeading {...dialog.headingProps}>
@@ -113,129 +120,138 @@ export function VideoUploadModal({ isOpen, onClose, autoCloseDelayMs = 2000 }: V
           </DialogHeader>
 
           <form
+            className="flex min-h-0 flex-col gap-4"
             onSubmit={(e) => {
               // The hook has already exposed mutation errors through `error`.
               void handleSubmit(e).catch(() => undefined);
             }}
           >
-            <DialogBody>
-              <p className="mb-4 text-std-16N-170 text-solid-gray-700">
-                {t('videos.upload.description')}
-              </p>
+            <DialogScrollArea>
+              <DialogBody>
+                <p className="mb-4 text-std-16N-170 text-solid-gray-700">
+                  {t('videos.upload.description')}
+                </p>
 
-              <div className="space-y-4">
-                <div className="flex border-b border-solid-gray-420">
-                  {(['file', 'youtube'] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      disabled={isUploading}
-                      aria-pressed={sourceMode === mode}
-                      onClick={() => setSourceMode(mode)}
-                      className={`flex-1 px-3 py-2 text-sm font-semibold transition-colors ${
-                        sourceMode === mode
-                          ? 'border-b-2 border-key-900 text-key-900'
-                          : 'text-solid-gray-700 hover:text-solid-gray-800'
-                      }`}
-                    >
-                      {mode === 'file' ? t('videos.upload.modes.file') : t('videos.upload.modes.youtube')}
-                    </button>
-                  ))}
-                </div>
-
-                {sourceMode === 'file' ? (
-                  <VideoUploadFormFields
-                    title={title}
-                    description={description}
-                    isUploading={isUploading}
-                    progress={progress}
-                    error={error}
-                    errorParams={errorParams}
-                    warning={warning}
-                    success={success}
-                    setTitle={setTitle}
-                    setDescription={setDescription}
-                    handleFileChange={handleFileChange}
-                    hideButtons={true}
-                  />
-                ) : (
-                  <div className="space-y-4">
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="youtube_url">
-                        {t('videos.upload.youtubeUrlLabel')}
-                        <RequirementBadge>{t('common.labels.required')}</RequirementBadge>
-                      </Label>
-                      <Input
-                        id="youtube_url"
-                        type="url"
-                        value={youtubeUrl}
-                        onChange={(e) => setYoutubeUrl(e.target.value)}
+                <div className="space-y-4">
+                  <div className="flex border-b border-solid-gray-420">
+                    {(['file', 'youtube'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
                         disabled={isUploading}
-                        blockSize="md"
-                        required
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="youtube-title">
-                        {t('videos.upload.titleLabel')}
-                        <RequirementBadge>{t('common.labels.required')}</RequirementBadge>
-                      </Label>
-                      <Input
-                        id="youtube-title"
-                        type="text"
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        disabled={isUploading}
-                        blockSize="md"
-                        required
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="youtube-description">
-                        {t('videos.upload.descriptionLabel')}
-                        <RequirementBadge isOptional>{t('common.labels.optional')}</RequirementBadge>
-                      </Label>
-                      <Textarea
-                        id="youtube-description"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        disabled={isUploading}
-                        rows={4}
-                        className="resize-none"
-                      />
-                    </div>
-                    {error && (
-                      <MessageAlert
-                        type="error"
-                        message={t(error, { defaultValue: error, ...errorParams })}
-                      />
-                    )}
-                    {warning && (
-                      <MessageAlert
-                        type="warning"
-                        message={t(warning, { defaultValue: warning })}
-                      />
-                    )}
-                    {success && <MessageAlert type="success" message={t('videos.upload.success')} />}
+                        aria-pressed={sourceMode === mode}
+                        onClick={() => setSourceMode(mode)}
+                        className={`flex-1 px-3 py-2 text-sm font-semibold transition-colors ${
+                          sourceMode === mode
+                            ? 'border-b-2 border-key-900 text-key-900'
+                            : 'text-solid-gray-700 hover:text-solid-gray-800'
+                        }`}
+                      >
+                        {mode === 'file' ? t('videos.upload.modes.file') : t('videos.upload.modes.youtube')}
+                      </button>
+                    ))}
                   </div>
-                )}
 
-                <TagSelector
-                  tags={tags}
-                  selectedTagIds={tagIds}
-                  onToggle={handleTagToggle}
-                  onCreateNew={() => setIsCreateDialogOpen(true)}
-                  disabled={isUploading}
-                />
-              </div>
-            </DialogBody>
+                  {sourceMode === 'file' ? (
+                    <VideoUploadFormFields
+                      title={title}
+                      description={description}
+                      isUploading={isUploading}
+                      isCompressing={isCompressing}
+                      compressionPreset={compressionPreset}
+                      compressionSupported={compressionSupported}
+                      compressedSizes={compressedSizes}
+                      setCompressionPreset={setCompressionPreset}
+                      progress={progress}
+                      error={error}
+                      errorParams={errorParams}
+                      warning={warning}
+                      success={success}
+                      setTitle={setTitle}
+                      setDescription={setDescription}
+                      handleFileChange={handleFileChange}
+                      hideButtons={true}
+                    />
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor="youtube_url">
+                          {t('videos.upload.youtubeUrlLabel')}
+                          <RequirementBadge>{t('common.labels.required')}</RequirementBadge>
+                        </Label>
+                        <Input
+                          id="youtube_url"
+                          type="url"
+                          value={youtubeUrl}
+                          onChange={(e) => setYoutubeUrl(e.target.value)}
+                          disabled={isUploading}
+                          blockSize="md"
+                          required
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor="youtube-title">
+                          {t('videos.upload.titleLabel')}
+                          <RequirementBadge>{t('common.labels.required')}</RequirementBadge>
+                        </Label>
+                        <Input
+                          id="youtube-title"
+                          type="text"
+                          value={title}
+                          onChange={(e) => setTitle(e.target.value)}
+                          disabled={isUploading}
+                          blockSize="md"
+                          required
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor="youtube-description">
+                          {t('videos.upload.descriptionLabel')}
+                          <RequirementBadge isOptional>{t('common.labels.optional')}</RequirementBadge>
+                        </Label>
+                        <Textarea
+                          id="youtube-description"
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                          disabled={isUploading}
+                          rows={4}
+                          className="resize-none"
+                        />
+                      </div>
+                      {error && (
+                        <MessageAlert
+                          type="error"
+                          message={t(error, { defaultValue: error, ...errorParams })}
+                        />
+                      )}
+                      {warning && (
+                        <MessageAlert
+                          type="warning"
+                          message={t(warning, { defaultValue: warning })}
+                        />
+                      )}
+                      {success && <MessageAlert type="success" message={t('videos.upload.success')} />}
+                    </div>
+                  )}
+
+                  <TagSelector
+                    tags={tags}
+                    selectedTagIds={tagIds}
+                    onToggle={handleTagToggle}
+                    onCreateNew={() => setIsCreateDialogOpen(true)}
+                    disabled={isUploading}
+                  />
+                </div>
+              </DialogBody>
+            </DialogScrollArea>
 
             <DialogActions>
-              <div className="flex justify-end gap-3">
-                <Button type="button" variant="outline" onClick={handleClose} disabled={isUploading}>
-                  {t('common.actions.cancel')}
+              <div className="flex flex-wrap justify-end gap-3">
+                <Button type="button" variant="outline" onClick={isCompressing ? cancelCompression : handleClose} disabled={isUploading && !isCompressing}>
+                  {t(isCompressing ? 'videos.upload.compression.cancel' : 'common.actions.cancel')}
                 </Button>
-                <VideoUploadButton isUploading={isUploading} progress={progress} />
+                <VideoUploadButton isUploading={isUploading} isCompressing={isCompressing}
+                  compressionSelected={sourceMode === 'file' && compressionPreset !== 'original' && compressionPreset !== undefined} progress={progress} />
               </div>
             </DialogActions>
           </form>
