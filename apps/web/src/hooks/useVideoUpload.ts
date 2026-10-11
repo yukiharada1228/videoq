@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { getApiError } from '@/lib/api-error';
@@ -6,6 +6,7 @@ import { invalidateAfterVideoUpload } from '@/lib/cacheInvalidation';
 import { useAuth } from '@/hooks/useAuth';
 import { appTrpcClient } from '@/lib/trpc';
 import { trackLandingEvent } from '@/lib/landingAnalytics';
+import { compressVideo, supportsVideoCompression, type CompressionPreset } from '@/lib/videoCompression';
 import {
   prepareVideoUpload,
   runUploadWorkflow,
@@ -20,6 +21,12 @@ interface UseVideoUploadReturn {
   description: string;
   tagIds: number[];
   isUploading: boolean;
+  isCompressing: boolean;
+  compressionPreset: CompressionPreset;
+  compressionSupported: boolean;
+  compressedSizes: { before: number; after: number } | null;
+  setCompressionPreset: (preset: CompressionPreset) => void;
+  cancelCompression: () => void;
   progress: number;
   error: string | null;
   errorParams: Record<string, unknown>;
@@ -56,6 +63,11 @@ export function useVideoUpload(): UseVideoUploadReturn {
   const [errorParams, setErrorParams] = useState<Record<string, unknown>>({});
   const [warning, setWarning] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [compressionPreset, setPreset] = useState<CompressionPreset>('original');
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressedSizes, setCompressedSizes] = useState<{ before: number; after: number } | null>(null);
+  const compressionAbort = useRef<AbortController | null>(null);
+  useEffect(() => () => compressionAbort.current?.abort(), []);
   const uploadInFlight = useRef(false);
   const queryClient = useQueryClient();
 
@@ -105,7 +117,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
         file: selectedFile,
         title: '',
         description: '',
-        maxSizeMb: maxUploadSizeMb,
+        maxSizeMb: Infinity,
       });
       if (!validation.isValid) {
         setFile(null);
@@ -120,10 +132,24 @@ export function useVideoUpload(): UseVideoUploadReturn {
       setErrorParams({});
       setWarning(null);
       setFile(selectedFile);
+      setCompressedSizes(null);
+      if (compressionPreset === 'original' && selectedFile.size > maxUploadSizeMb * 1024 * 1024) {
+        setError('videos.upload.validation.fileTooLarge');
+        setErrorParams({ max_size_mb: maxUploadSizeMb });
+      }
       // Automatically set filename (without extension) as title
       setTitle(validation.upload.data.title);
     }
-  }, [maxUploadSizeMb, sourceMode]);
+  }, [maxUploadSizeMb, sourceMode, compressionPreset]);
+
+  const setCompressionPreset = useCallback((preset: CompressionPreset) => {
+    if (uploadInFlight.current) return;
+    setPreset(preset);
+    setCompressedSizes(null);
+    setError(preset === 'original' && file && file.size > maxUploadSizeMb * 1024 * 1024
+      ? 'videos.upload.validation.fileTooLarge' : null);
+    setErrorParams({ max_size_mb: maxUploadSizeMb });
+  }, [file, maxUploadSizeMb]);
 
   const reset = useCallback(() => {
     setSourceMode('file');
@@ -137,6 +163,8 @@ export function useVideoUpload(): UseVideoUploadReturn {
     setErrorParams({});
     setWarning(null);
     setProgress(0);
+    setPreset('original');
+    setCompressedSizes(null);
   }, []);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -149,7 +177,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
 
     const validation = prepareVideoUpload(sourceMode === 'youtube'
       ? { source: 'youtube', youtubeUrl, title, description }
-      : { source: 'file', file, title, description, maxSizeMb: maxUploadSizeMb });
+      : { source: 'file', file, title, description, maxSizeMb: compressionPreset === 'original' ? maxUploadSizeMb : Infinity });
     if (!validation.isValid) {
       setError(validation.error);
       setErrorParams(validation.errorParams ?? {});
@@ -163,13 +191,41 @@ export function useVideoUpload(): UseVideoUploadReturn {
     setSuccess(false);
     // Guard before React renders the pending state, including cache refreshes.
     uploadInFlight.current = true;
-    trackLandingEvent('video_upload_started');
+    let compressed: Awaited<ReturnType<typeof compressVideo>> | undefined;
     try {
+      if (validation.upload.source === 'file' && compressionPreset !== 'original') {
+        const controller = new AbortController();
+        compressionAbort.current = controller;
+        setIsCompressing(true);
+        setCompressedSizes(null);
+        try {
+          compressed = await compressVideo(validation.upload.data.file, compressionPreset, {
+            signal: controller.signal, onProgress: setProgress, maxBytes: maxUploadSizeMb * 1024 * 1024,
+          });
+          controller.signal.throwIfAborted();
+          // The server independently applies file/storage quotas to these actual bytes.
+          if (compressed.file.size > maxUploadSizeMb * 1024 * 1024) throw new Error('videos.upload.compression.tooLarge');
+          setCompressedSizes({ before: validation.upload.data.file.size, after: compressed.file.size });
+          validation.upload.data.file = compressed.file;
+        } catch (error) {
+          setError(error instanceof DOMException && error.name === 'AbortError'
+            ? 'videos.upload.compression.canceled'
+            : error instanceof Error ? error.message : 'videos.upload.compression.failed');
+          setProgress(0);
+          return;
+        } finally {
+          compressionAbort.current = null;
+          setIsCompressing(false);
+        }
+        setProgress(0);
+      }
+      trackLandingEvent('video_upload_started');
       await uploadMutation.mutateAsync({ upload: validation.upload, tagIds });
     } finally {
+      await compressed?.dispose();
       uploadInFlight.current = false;
     }
-  }, [sourceMode, youtubeUrl, title, description, file, maxUploadSizeMb, tagIds, uploadMutation]);
+  }, [sourceMode, youtubeUrl, title, description, file, maxUploadSizeMb, tagIds, uploadMutation, compressionPreset]);
 
   return {
     sourceMode,
@@ -177,7 +233,13 @@ export function useVideoUpload(): UseVideoUploadReturn {
     title,
     description,
     tagIds,
-    isUploading: uploadMutation.isPending,
+    isUploading: uploadMutation.isPending || isCompressing,
+    isCompressing,
+    compressionPreset,
+    compressionSupported: supportsVideoCompression(),
+    compressedSizes,
+    setCompressionPreset,
+    cancelCompression: () => compressionAbort.current?.abort(),
     progress,
     error,
     errorParams,

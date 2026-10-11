@@ -43,6 +43,7 @@
     "i18next": "^24.2.0",
     "katex": "^0.18.10",
     "lucide-react": "^0.560.0",
+    "mediabunny": "^1.61.3",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-i18next": "^15.2.2",

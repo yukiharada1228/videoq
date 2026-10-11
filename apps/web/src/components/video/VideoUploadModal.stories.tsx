@@ -61,7 +61,7 @@ type Context = Parameters<NonNullable<Story['play']>>[0];
 async function fillFile(context: Context) {
   await meta.play(context);
   const dialog = within(context.canvas.getByRole('dialog'));
-  const input = dialog.getByLabelText(i18n.t('videos.upload.fileLabel'), { exact: false }) as HTMLInputElement;
+  const input = dialog.getByLabelText(i18n.t('videos.upload.fileLabel'), { exact: false, selector: 'input[type="file"]' }) as HTMLInputElement;
   // userEvent.upload only shadows files; Chromium's native `required` validation
   // still sees an empty FileList. Assign the browser's FileList before change.
   const transfer = new DataTransfer();
@@ -106,6 +106,19 @@ export const FileSelected: Story = { async play(context) {
   const dialog = await fillFile(context);
   await expect(dialog.getByLabelText(i18n.t('videos.upload.titleLabel'), { exact: false })).toHaveValue('線形代数の講義');
 } };
+export const CancelCompression: Story = {
+  parameters: { uploadModal: { compressing: true } satisfies ModalScenario },
+  async play(context) {
+    const dialog = await fillFile(context);
+    await context.userEvent.click(dialog.getByRole('radio', { name: i18n.t('videos.upload.compression.presets.1080p') }));
+    await context.userEvent.click(dialog.getByRole('button', { name: i18n.t('videos.upload.compression.submit') }));
+    await expect(dialog.getByRole('progressbar')).toHaveAccessibleName(i18n.t('videos.upload.compression.compressing'));
+    await context.userEvent.click(dialog.getByRole('button', { name: i18n.t('videos.upload.compression.cancel') }));
+    await expect(dialog.getByText(i18n.t('videos.upload.compression.canceled'))).toBeVisible();
+    await expect(dialog.getByLabelText(i18n.t('videos.upload.titleLabel'), { exact: false })).toHaveValue('線形代数の講義');
+    await expect(context.args.onClose).not.toHaveBeenCalled();
+  },
+};
 export const YoutubeInput: Story = { async play(context) { await fillYoutube(context); } };
 export const SwitchSource: Story = { async play(context) {
   const dialog = await fillFile(context);
@@ -283,7 +296,7 @@ export const EscapeRequest: Story = { async play(context) {
 export const FilePickerCancelled: Story = { async play(context) {
   await meta.play(context);
   const dialog = within(context.canvas.getByRole('dialog'));
-  dialog.getByLabelText(i18n.t('videos.upload.fileLabel'), { exact: false }).dispatchEvent(new Event('cancel', { bubbles: true }));
+  dialog.getByLabelText(i18n.t('videos.upload.fileLabel'), { exact: false, selector: 'input[type="file"]' }).dispatchEvent(new Event('cancel', { bubbles: true }));
   await expect(context.canvas.getByRole('dialog')).toBeVisible();
   await expect(context.args.onClose).not.toHaveBeenCalled();
 } };
