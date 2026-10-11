@@ -1,3 +1,4 @@
+import { visualSchema } from "./helpers/visual-schema";
 import pg from "pg";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getVideoDetail, updateVideo } from "../src/repositories/video-repository";
@@ -42,12 +43,13 @@ const originalTranscript = "Original transcript";
         created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
       );
     `);
+    await admin.query(visualSchema);
     const url = new URL(databaseUrl!);
     url.searchParams.set("options", `-c search_path=${schema}`);
     env = { HYPERDRIVE: { connectionString: url.toString() } } as Bindings;
   });
   beforeEach(async () => {
-    await admin.query("TRUNCATE videos, tags, video_tags, scene_embeddings, external_tasks");
+    await admin.query("TRUNCATE videos, tags, video_tags, scene_embeddings, external_tasks, video_visual_chunks, video_visual_runs");
     await admin.query(`
       INSERT INTO videos (id, user_id, title, description, transcript) VALUES (10, 'owner', 'Original', 'Description', $1),
                                 (20, 'outsider', 'Private', 'Private description', 'Private transcript');

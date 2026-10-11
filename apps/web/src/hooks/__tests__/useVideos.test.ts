@@ -1,5 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useVideos, useVideo } from '../useVideos'
+import { useVideoCourseDetailQuery } from '../useVideoCourseDetailData'
 
 const listVideos = vi.fn()
 const getVideo = vi.fn()
@@ -27,7 +28,7 @@ const mockPaginatedResponse = (
   },
 })
 
-describe.each(['list', 'detail'] as const)('visual preparation polling in %s', surface => {
+describe.each(['list', 'detail', 'course'] as const)('visual preparation polling in %s', surface => {
   beforeEach(() => {
     globalThis.__setMockPathname('/videos/1')
     window.history.pushState({}, '', '/videos/1')
@@ -43,12 +44,15 @@ describe.each(['list', 'detail'] as const)('visual preparation polling in %s', s
     const ready = { ...pending, visual_processing: { status: 'ready', completed_chunks: 155, total_chunks: 155 } }
     listVideos.mockResolvedValueOnce(mockPaginatedResponse([pending])).mockResolvedValue(mockPaginatedResponse([ready]))
     getVideo.mockResolvedValueOnce(pending).mockResolvedValue(ready)
+    const getCourse = vi.fn().mockResolvedValueOnce({ id: 1, videos: [pending] }).mockResolvedValue({ id: 1, videos: [ready] })
+    globalThis.__setTrpcHandler('courses.get', getCourse)
     function useSubject() {
       useVideos({ enabled: surface === 'list' })
       useVideo(surface === 'detail' ? 1 : null)
+      useVideoCourseDetailQuery(surface === 'course' ? 1 : null)
     }
     renderHook(useSubject)
-    const request = surface === 'list' ? listVideos : getVideo
+    const request = surface === 'list' ? listVideos : surface === 'course' ? getCourse : getVideo
     await act(async () => { await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(1)) })
     await act(async () => { await vi.advanceTimersByTimeAsync(status === 'error' ? 30_000 : 3000) })
     await act(async () => { await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(2)) })

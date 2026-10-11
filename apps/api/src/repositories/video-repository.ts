@@ -174,7 +174,7 @@ export async function mapVideoListRow(
   };
 }
 
-const visualProcessing = sql`(SELECT jsonb_build_object('status', r.status, 'total_chunks', r.chunk_count,
+export const visualProcessing = sql`(SELECT jsonb_build_object('status', r.status, 'total_chunks', r.chunk_count,
   'completed_chunks', (SELECT count(*)::int FROM video_visual_chunks c WHERE c.run_id = r.run_id AND c.frame_count IS NOT NULL))
   FROM video_visual_runs r WHERE r.video_id = ${videos.id} AND r.file_key = ${videos.file})`;
 

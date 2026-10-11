@@ -1,3 +1,4 @@
+import { visualSchema } from "./helpers/visual-schema";
 import pg from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { listVideosPage, type VideoListCriteria } from "../src/repositories/video-repository";
@@ -39,6 +40,7 @@ const criteria: VideoListCriteria = { keyword: "", statusFilter: "", sortKey: ""
       INSERT INTO tags VALUES (1, 'Tag', 'blue');
       INSERT INTO video_tags VALUES (1, 1), (2, 1), (5, 1), (20, 1);
     `);
+    await admin.query(visualSchema);
     const url = new URL(databaseUrl!);
     url.searchParams.set("options", `-c search_path=${schema}`);
     env = { HYPERDRIVE: { connectionString: url.toString() } } as Bindings;

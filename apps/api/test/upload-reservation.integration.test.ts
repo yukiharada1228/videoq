@@ -1,3 +1,4 @@
+import { visualSchema } from "./helpers/visual-schema";
 import pg from "pg";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createVideoFromMultipart, requestPresignedUpload } from "../src/features/videos/service";
@@ -56,6 +57,7 @@ const modes: UploadMode[] = ["presigned", "multipart"];
         created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
       );
     `);
+    await admin.query(visualSchema);
     const url = new URL(databaseUrl!);
     url.searchParams.set("options", `-c search_path=${schema}`);
     url.searchParams.set("application_name", schema);
@@ -65,7 +67,7 @@ const modes: UploadMode[] = ["presigned", "multipart"];
     } as unknown as Bindings;
   });
   beforeEach(async () => {
-    await admin.query("TRUNCATE users, videos, video_tags, mcp_idempotency_records, external_tasks RESTART IDENTITY");
+    await admin.query("TRUNCATE users, videos, video_tags, mcp_idempotency_records, external_tasks, video_visual_chunks, video_visual_runs RESTART IDENTITY");
     await admin.query("INSERT INTO users (id) VALUES ('owner')");
     armAt.mockClear();
     vi.spyOn(media, "presignR2Put").mockResolvedValue("https://uploads.example.test/video");

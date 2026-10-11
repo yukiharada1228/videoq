@@ -11,7 +11,7 @@ import {
   videoCourseMemberships,
 } from "../db/schema";
 import { toUtcIso } from "../shared/datetime";
-import { mapVideoListRow, videoTagsJson, type VideoListItem } from "./video-repository";
+import { mapVideoListRow, videoTagsJson, visualProcessing, type VideoListItem } from "./video-repository";
 import type { Bindings } from "../types/bindings";
 import {
   findIdempotentResource,
@@ -151,6 +151,7 @@ async function readCourseMembers(
       source_url: videos.sourceUrl,
       youtube_video_id: videos.youtubeVideoId,
       tags: options.includeTags === false ? sql<string>`'[]'`.as("tags") : videoTagsJson,
+      visual_processing: visualProcessing,
     })
     .from(videoCourseMembers)
     .innerJoin(videos, eq(videos.id, videoCourseMembers.videoId))
