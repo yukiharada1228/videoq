@@ -1,0 +1,116 @@
+"""Bounded visual decoding with durable checkpoints and atomic readiness."""
+
+import json
+import logging
+
+from worker_python import visual_checkpoints as checkpoints
+from worker_python.contracts import JOB_BUILD_VIDEO_VISUAL_CHUNK, JOB_FINISH_VIDEO_VISUALS
+from worker_python.db import db_connection
+from worker_python.pipeline.media_process import _redact_urls
+from worker_python.pipeline.storage import resolve_media_input, upload_file, upload_bytes, read_bytes
+from worker_python.pipeline.visual_chunks import build_visual_chunk, chunk_key, manifest_key, CHUNK_SECONDS
+from worker_python.pipeline.visual_frames import MAX_CACHE_BYTES, frame_cache_key
+from worker_python.sqs_enqueue import child_job_id, enqueue_job
+
+logger = logging.getLogger(__name__)
+
+
+def _send(run, kind, **extra):
+    payload = {'video_id': run.video_id, 'run_id': run.run_id, **extra}
+    if not enqueue_job(kind, payload, job_id=child_job_id(run.run_id, kind, payload)):
+        raise RuntimeError('SQS delivery is required for visual processing')
+
+
+def dispatch(run, after_index=None):
+    if run.status == 'ready':
+        return
+    for index in checkpoints.pending_heads(run, after_index):
+        _send(run, JOB_BUILD_VIDEO_VISUAL_CHUNK, chunk_index=index)
+    if not checkpoints.pending_heads(run):
+        _send(run, JOB_FINISH_VIDEO_VISUALS)
+
+
+def start_visuals(video_id: int, file_key: str, duration: float):
+    run = checkpoints.initialize(video_id, file_key, duration)
+    if run:
+        try:
+            dispatch(run)
+        except Exception as exc:
+            checkpoints.record_failure(run, _redact_urls(str(exc)))
+            raise
+
+
+def build_video_visual_chunk(video_id: int, run_id: str, chunk_index: int, *, dispatch_next: bool = True):
+    run = checkpoints.load_run(video_id, run_id)
+    if not run or run.status == 'ready':
+        return
+    if not 0 <= chunk_index < run.chunk_count:
+        raise ValueError('Invalid visual chunk index')
+    try:
+        if not checkpoints.chunk_complete(run, chunk_index):
+            source = resolve_media_input(run.file_key)
+            with build_visual_chunk(source, video_id, run.duration_ms / 1000, chunk_index) as (pack, sparse, count):
+                # Publication and checkpoint share the video deletion lock.
+                # A retry after a failed PUT overwrites the same bounded objects.
+                with db_connection() as conn:
+                    if not checkpoints.lock_current(conn, run):
+                        return
+                    upload_file(chunk_key(run.file_key, run.run_id, chunk_index), pack, 'application/octet-stream')
+                    upload_bytes(chunk_key(run.file_key, run.run_id, chunk_index, 'json'), sparse, 'application/json')
+                    conn.execute("""UPDATE video_visual_chunks SET frame_count = %s, last_error = '', updated_at = now()
+                                    WHERE run_id = %s AND chunk_index = %s""", (count, run_id, chunk_index))
+                    conn.execute("""UPDATE video_visual_runs SET status = 'processing', last_error = '' WHERE run_id = %s
+                                    AND NOT EXISTS (SELECT 1 FROM video_visual_chunks WHERE run_id = %s AND last_error <> '')""",
+                                 (run_id, run_id))
+            logger.info('Visual checkpoint saved: video=%d chunk=%d/%d frames=%d', video_id, chunk_index + 1, run.chunk_count, count)
+        if dispatch_next:
+            dispatch(run, chunk_index)
+    except Exception as exc:
+        checkpoints.record_failure(run, _redact_urls(str(exc)), chunk_index)
+        raise
+
+
+def finish_video_visuals(video_id: int, run_id: str):
+    run = checkpoints.load_run(video_id, run_id)
+    if not run or run.status == 'ready':
+        return
+    try:
+        with db_connection() as conn:
+            rows = conn.execute('SELECT chunk_index, frame_count FROM video_visual_chunks WHERE run_id = %s ORDER BY chunk_index',
+                                (run_id,)).fetchall()
+        if len(rows) != run.chunk_count or any(row['frame_count'] is None for row in rows):
+            raise RuntimeError('Visual chunks are incomplete')
+        if not sum(row['frame_count'] for row in rows):
+            raise ValueError('No video frames are available')
+        frames, overview = [], []
+        for row in rows:
+            samples = json.loads(read_bytes(chunk_key(run.file_key, run_id, row['chunk_index'], 'json'), MAX_CACHE_BYTES))
+            for frame in samples:
+                overview.append([round(frame['timestamp_seconds'] * 1000), row['chunk_index'], frame['offset'], frame['length']])
+                frames.append({key: frame[key] for key in ('timestamp_seconds', 'jpeg_base64')})
+        if not frames:
+            raise ValueError('No overview frames are available')
+        duration = run.duration_ms / 1000
+        def overview_payload():
+            return json.dumps({'version': 1, 'video_id': video_id, 'duration_seconds': duration,
+                               'sampling_interval_seconds': max(5, duration / len(frames)), 'frames': frames},
+                              separators=(',', ':')).encode()
+        payload = overview_payload()
+        # Keep the original dense images. An unusually complex video can use
+        # fewer evenly distributed overview stills to respect the API RAM bound.
+        while len(payload) > MAX_CACHE_BYTES:
+            frames = frames[::2]
+            payload = overview_payload()
+        manifest = json.dumps({'version': 2, 'video_id': video_id, 'run_id': run_id,
+                               'duration_seconds': duration, 'chunk_seconds': CHUNK_SECONDS,
+                               'chunk_count': run.chunk_count, 'overview': overview}, separators=(',', ':')).encode()
+        with db_connection() as conn:
+            if not checkpoints.lock_current(conn, run):
+                return
+            upload_bytes(frame_cache_key(run.file_key), payload, 'application/json')
+            upload_bytes(manifest_key(run.file_key), manifest, 'application/json')
+            conn.execute("UPDATE video_visual_runs SET status = 'ready', completed_at = now(), last_error = '' WHERE run_id = %s", (run_id,))
+        logger.info('Visual preparation completed: video=%d chunks=%d frames=%d', video_id, run.chunk_count, sum(row['frame_count'] for row in rows))
+    except Exception as exc:
+        checkpoints.record_failure(run, _redact_urls(str(exc)))
+        raise

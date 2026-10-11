@@ -6,6 +6,7 @@ import type { VideoInCourse } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { StatusBadge } from '@/components/common/StatusBadge';
+import { getVideoDisplayStatus } from '@/lib/utils/video';
 
 interface SortableVideoItemProps {
   video: VideoInCourse;
@@ -70,7 +71,7 @@ export function SortableVideoItem({
         <span className={`block truncate text-std-16N-170 ${isSelected ? 'font-bold text-key-900' : 'text-solid-gray-800'}`}>
           {video.title}
         </span>
-        <StatusBadge status={video.status} size="xs" className="mt-1 ml-0" />
+        <StatusBadge status={getVideoDisplayStatus(video)} size="xs" className="mt-1 ml-0" />
       </button>
       {canManage ? (
         // The wrapper keeps swallowing row-level events even while the button

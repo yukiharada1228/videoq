@@ -31,6 +31,8 @@
       "processing": "処理中",
       "indexing": "インデックス中",
       "completed": "完了",
+      "visual_processing": "映像を準備中",
+      "visual_error": "映像の準備に失敗",
       "error": "エラー"
     },
     "messages": {
@@ -343,10 +345,16 @@
       "transcriptSearchPlaceholder": "検索...",
       "statusSection": "ステータス",
       "transcriptNotFound": "検索結果が見つかりませんでした",
+      "visual": {
+        "processing": "AIが映像を確認するための準備中です。字幕は利用できます。",
+        "ready": "映像の準備が完了しました。AIが画像と字幕を使って回答できます。",
+        "error": "映像の準備に失敗しました。字幕は利用できますが、映像を使った回答はまだできません。",
+        "progress": "{{completed}} / {{total}} 区間の画像を保存済み"
+      },
       "pipeline": {
         "upload": "アップロード",
         "transcript": "文字起こし",
-        "aiAnalysis": "AI分析"
+        "aiAnalysis": "検索用処理"
       },
       "transcriptStatus": {
         "pending": "文字起こし待機中...",

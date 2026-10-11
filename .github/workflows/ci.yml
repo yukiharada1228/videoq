@@ -192,7 +192,7 @@ jobs:
           docker build --platform linux/arm64 -t videoq-worker-test apps/worker
           docker run --rm --entrypoint /bin/sh \
             -v "$PWD:/workspace:ro" -w /workspace/apps/worker videoq-worker-test \
-            -c 'pip install --no-cache-dir pytest && python -m pytest -p no:cacheprovider tests/test_media_process.py tests/test_remote_media.py tests/test_visual_frames.py tests/test_focus_frames.py -q'
+            -c 'pip install --no-cache-dir pytest && python -m pytest -p no:cacheprovider tests/test_media_process.py tests/test_remote_media.py tests/test_visual_frames.py tests/test_focus_frames.py tests/test_visual_chunks.py -q'
 
   frontend-lint:
     name: Frontend Lint & Type Check

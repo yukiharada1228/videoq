@@ -1,5 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useVideos, useVideo } from '../useVideos'
+import { useVideoCourseDetailQuery } from '../useVideoCourseDetailData'
 
 const listVideos = vi.fn()
 const getVideo = vi.fn()
@@ -25,6 +26,39 @@ const mockPaginatedResponse = (
     limit: 24,
     offset,
   },
+})
+
+describe.each(['list', 'detail', 'course'] as const)('visual preparation polling in %s', surface => {
+  beforeEach(() => {
+    globalThis.__setMockPathname('/videos/1')
+    window.history.pushState({}, '', '/videos/1')
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    listVideos.mockReset()
+    getVideo.mockReset()
+  })
+  it.each(['processing', 'error'] as const)('keeps checking %s visuals after transcription completes, then stops at ready', async status => {
+    vi.useFakeTimers()
+    const pending = { id: 1, title: 'Video', status: 'completed', visual_processing: { status, completed_chunks: 24, total_chunks: 155 } }
+    const ready = { ...pending, visual_processing: { status: 'ready', completed_chunks: 155, total_chunks: 155 } }
+    listVideos.mockResolvedValueOnce(mockPaginatedResponse([pending])).mockResolvedValue(mockPaginatedResponse([ready]))
+    getVideo.mockResolvedValueOnce(pending).mockResolvedValue(ready)
+    const getCourse = vi.fn().mockResolvedValueOnce({ id: 1, videos: [pending] }).mockResolvedValue({ id: 1, videos: [ready] })
+    globalThis.__setTrpcHandler('courses.get', getCourse)
+    function useSubject() {
+      useVideos({ enabled: surface === 'list' })
+      useVideo(surface === 'detail' ? 1 : null)
+      useVideoCourseDetailQuery(surface === 'course' ? 1 : null)
+    }
+    renderHook(useSubject)
+    const request = surface === 'list' ? listVideos : surface === 'course' ? getCourse : getVideo
+    await act(async () => { await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(1)) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(status === 'error' ? 30_000 : 3000) })
+    await act(async () => { await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(2)) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+    expect(request).toHaveBeenCalledTimes(2)
+  })
 })
 
 describe('useVideos', () => {

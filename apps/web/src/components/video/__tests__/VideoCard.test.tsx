@@ -19,7 +19,8 @@ Object.defineProperty(window, 'IntersectionObserver', {
   value: mockIntersectionObserver,
 })
 
-vi.mock('@/lib/utils/video', () => ({
+vi.mock('@/lib/utils/video', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/utils/video')>(),
   getStatusChipColor: vi.fn(() => 'green'),
   getStatusLabel: vi.fn(() => 'Status Label'),
   formatDate: vi.fn(() => '2024-01-15'),

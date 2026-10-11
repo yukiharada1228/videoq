@@ -1,11 +1,12 @@
 import OpenAI from "openai";
 import { z } from "zod";
-import { readMediaBytes } from "../integrations/media";
+import { readMediaBytes, readMediaRange } from "../integrations/media";
 import type { Bindings } from "../types/bindings";
 import { DEFAULT_LLM_MODEL, openAiBaseUrl, resolveOpenAiKey, LlmProviderError } from "./openai";
 import { deadlineSignal } from "./request-timeout";
 import { frameCacheKey, MAX_CLIP_FRAMES, MAX_OVERVIEW_FRAMES, MAX_FRAME_CACHE_BYTES, sampleByTime } from "./video-evidence";
 import { readFocusFrames, type FrameSelection } from "./focus-frames";
+import { readVisualManifest, visualChunkKey, jpegBase64 } from "./visual-manifest";
 
 const frameSchema = z.object({
   timestamp_seconds: z.number().finite().nonnegative(),
@@ -36,6 +37,19 @@ async function readSparseFrames(
   env: Bindings, video: { id: number; fileKey: string },
   start: number, end: number, signal: AbortSignal, limit: number,
 ): Promise<FrameSelection> {
+  const plan = await readVisualManifest(env, video, signal);
+  if (plan) {
+    const selected = sampleByTime(plan.overview.filter(([time]) => time / 1000 >= start && time / 1000 <= end), item => item[0], limit);
+    if (!selected.length) return { unavailable: "No sampled frames fall in this interval; this does not prove the scene is absent." };
+    const frames: Frame[] = [];
+    for (const [time, index, offset, length] of selected) {
+      const image = await readMediaRange(env, visualChunkKey(video.fileKey, plan.run_id, index), offset, length, signal);
+      if (!image) return { unavailable: "Visual evidence is not available for this video yet." };
+      if (image.size > 60 * 256 * 1024 + 64 * 1024) throw new Error("Visual chunk exceeds size limit");
+      frames.push({ timestamp_seconds: time / 1000, jpeg_base64: jpegBase64(image.bytes) });
+    }
+    return { frames, duration_seconds: plan.duration_seconds, sampling_interval_seconds: Math.max(5, plan.duration_seconds / plan.overview.length) };
+  }
   const bytes = await readMediaBytes(env, frameCacheKey(video.fileKey), MAX_FRAME_CACHE_BYTES, signal);
   if (!bytes) return { unavailable: "Visual evidence is not available for this video yet." } as const;
   const cache = cacheSchema.parse(JSON.parse(new TextDecoder().decode(bytes)));

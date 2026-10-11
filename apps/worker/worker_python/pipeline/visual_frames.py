@@ -13,7 +13,7 @@ import tempfile
 from pathlib import Path
 
 from worker_python.db import db_connection
-from worker_python.pipeline.media_process import media_input_args, run_media_process
+from worker_python.pipeline.media_process import media_input_args, run_media_process, media_failure
 from worker_python.pipeline.storage import ObjectMediaSource, upload_bytes
 
 MAX_FRAMES = 240
@@ -47,7 +47,7 @@ def build_frame_cache(video_path: Path | ObjectMediaSource, video_id: int, durat
             "-threads:v", "1", "-frames:v", str(MAX_FRAMES), "-q:v", "8", str(Path(tmp) / "%012d.jpg"),
         ])
         if result.returncode:
-            raise RuntimeError(f"Frame extraction failed: {result.stderr[-500:]}")
+            raise RuntimeError(media_failure("Frame extraction", result))
         frames = []
         encoded_size = 0
         for path in sorted(Path(tmp).glob("*.jpg"), key=lambda p: int(p.stem)):

@@ -10,6 +10,8 @@ JOB_REINDEX_VIDEO_TRANSCRIPT = "reindex_video_transcript"
 JOB_TRANSCRIBE_VIDEO_CHUNK = "transcribe_video_chunk"
 JOB_FINISH_VIDEO_TRANSCRIPTION = "finish_video_transcription"
 JOB_BUILD_VIDEO_VISUALS = "build_video_visuals"
+JOB_BUILD_VIDEO_VISUAL_CHUNK = "build_video_visual_chunk"
+JOB_FINISH_VIDEO_VISUALS = "finish_video_visuals"
 
 _PAYLOAD_FIELDS = {
     JOB_TRANSCRIBE_VIDEO: "video_id",
@@ -20,6 +22,8 @@ _PAYLOAD_FIELDS = {
     JOB_TRANSCRIBE_VIDEO_CHUNK: "video_id",
     JOB_FINISH_VIDEO_TRANSCRIPTION: "video_id",
     JOB_BUILD_VIDEO_VISUALS: "video_id",
+    JOB_BUILD_VIDEO_VISUAL_CHUNK: "video_id",
+    JOB_FINISH_VIDEO_VISUALS: "video_id",
 }
 
 
@@ -29,9 +33,9 @@ def validate_job_payload(job_type: str, payload: dict) -> None:
         raise ValueError(f"Unsupported job type: {job_type}")
     field = _PAYLOAD_FIELDS[job_type]
     expected = {field} if field else set()
-    if job_type in {JOB_TRANSCRIBE_VIDEO_CHUNK, JOB_FINISH_VIDEO_TRANSCRIPTION, JOB_BUILD_VIDEO_VISUALS}:
+    if job_type in {JOB_TRANSCRIBE_VIDEO_CHUNK, JOB_FINISH_VIDEO_TRANSCRIPTION, JOB_BUILD_VIDEO_VISUALS, JOB_BUILD_VIDEO_VISUAL_CHUNK, JOB_FINISH_VIDEO_VISUALS}:
         expected.add("run_id")
-    if job_type == JOB_TRANSCRIBE_VIDEO_CHUNK:
+    if job_type in {JOB_TRANSCRIBE_VIDEO_CHUNK, JOB_BUILD_VIDEO_VISUAL_CHUNK}:
         expected.add("chunk_index")
     if job_type == JOB_BUILD_VIDEO_VISUALS:
         expected.add("cache_kind")

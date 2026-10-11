@@ -529,6 +529,7 @@ describe("MCP JSON-RPC", () => {
           id: 42, file: null, title: "Lecture", description: "",
           uploaded_at: "2026-09-01T00:00:00.000Z", status: "completed",
           source_type: "uploaded", source_url: "", youtube_video_id: "", tags: "[]",
+          visual_processing: null,
           error_message: "", transcript_total_chars: 100_000,
         }];
       }

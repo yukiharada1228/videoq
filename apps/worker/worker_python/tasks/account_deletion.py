@@ -7,7 +7,8 @@ import logging
 from worker_python.advisory_locks import video_vector_write_lock
 from worker_python.db import db_connection
 from worker_python.pipeline import vector_index
-from worker_python.pipeline.storage import abort_multipart_upload, delete_object
+from worker_python.pipeline.storage import abort_multipart_upload, delete_object, delete_visual_chunks
+from worker_python.pipeline.visual_chunks import manifest_key
 from worker_python.pipeline.visual_frames import frame_cache_key
 from worker_python.pipeline.focus_frames import focus_cache_key
 from worker_python.video_sql import delete_video_cascade
@@ -44,6 +45,8 @@ def _delete_all_videos_for_user(conn, user_id: str) -> None:
                 delete_object(str(file_key))
                 delete_object(frame_cache_key(str(file_key)))
                 delete_object(focus_cache_key(str(file_key)))
+                delete_object(manifest_key(str(file_key)))
+                delete_visual_chunks(str(file_key))
 
 
 def _delete_chat_history_for_user(conn, user_id: str) -> None:

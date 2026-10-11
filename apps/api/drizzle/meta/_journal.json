@@ -225,6 +225,13 @@
       "when": 1791714622016,
       "tag": "0031_resumable_transcription",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1791725670098,
+      "tag": "0032_segmented_visuals",
+      "breakpoints": true
     }
   ]
 }

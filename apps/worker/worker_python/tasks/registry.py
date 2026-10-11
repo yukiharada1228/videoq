@@ -13,6 +13,8 @@ from worker_python.contracts import (
     JOB_TRANSCRIBE_VIDEO_CHUNK,
     JOB_FINISH_VIDEO_TRANSCRIPTION,
     JOB_BUILD_VIDEO_VISUALS,
+    JOB_BUILD_VIDEO_VISUAL_CHUNK,
+    JOB_FINISH_VIDEO_VISUALS,
 )
 from worker_python.tasks.account_deletion import delete_account_data
 from worker_python.tasks.indexing import index_video_transcript
@@ -22,6 +24,7 @@ from worker_python.tasks.transcription import transcribe_video
 from worker_python.tasks.segmented_transcription import (
     transcribe_video_chunk, finish_video_transcription, build_video_visuals,
 )
+from worker_python.tasks.segmented_visuals import build_video_visual_chunk, finish_video_visuals
 
 TaskFn = Callable[..., None]
 
@@ -30,6 +33,8 @@ TASK_REGISTRY: dict[str, TaskFn] = {
     JOB_TRANSCRIBE_VIDEO_CHUNK: transcribe_video_chunk,
     JOB_FINISH_VIDEO_TRANSCRIPTION: finish_video_transcription,
     JOB_BUILD_VIDEO_VISUALS: build_video_visuals,
+    JOB_BUILD_VIDEO_VISUAL_CHUNK: build_video_visual_chunk,
+    JOB_FINISH_VIDEO_VISUALS: finish_video_visuals,
     JOB_DELETE_ACCOUNT_DATA: delete_account_data,
     JOB_REINDEX_ALL_VIDEOS_EMBEDDINGS: reindex_all_videos_embeddings,
     JOB_INDEX_VIDEO_TRANSCRIPT: index_video_transcript,

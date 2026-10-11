@@ -15,6 +15,7 @@ import {
   type VideoSourceType,
   type VideoStatus,
 } from "@videoq/trpc";
+import { visualProcessingSchema } from "@videoq/trpc/schema";
 import { type Db, withDb } from "../db/pool";
 import { sqlNumberArray } from "../db/sql-array";
 import { literalContainsPattern } from "../db/sql-like";
@@ -51,6 +52,7 @@ export type VideoListItem = {
   description: string;
   uploaded_at: string;
   status: VideoStatus;
+  visual_processing?: { status: "processing" | "ready" | "error"; completed_chunks: number; total_chunks: number } | null;
   source_type: VideoSourceType;
   source_url: string | null;
   youtube_video_id: string | null;
@@ -161,6 +163,7 @@ export async function mapVideoListRow(
     description: r.description as string,
     uploaded_at: toUtcIso(r.uploaded_at as string)!,
     status: videoStatus(r.status),
+    ...(r.visual_processing !== undefined ? { visual_processing: r.visual_processing ? visualProcessingSchema.parse(r.visual_processing) : null } : {}),
     source_type: videoSourceType(r.source_type),
     source_url: (r.source_url as string) || null,
     youtube_video_id: youtubeId,
@@ -170,6 +173,10 @@ export async function mapVideoListRow(
     tags: JSON.parse(r.tags as string),
   };
 }
+
+export const visualProcessing = sql`(SELECT jsonb_build_object('status', r.status, 'total_chunks', r.chunk_count,
+  'completed_chunks', (SELECT count(*)::int FROM video_visual_chunks c WHERE c.run_id = r.run_id AND c.frame_count IS NOT NULL))
+  FROM video_visual_runs r WHERE r.video_id = ${videos.id} AND r.file_key = ${videos.file})`;
 
 const videoListSelect = {
   id: videos.id,
@@ -182,6 +189,7 @@ const videoListSelect = {
   source_url: videos.sourceUrl,
   youtube_video_id: videos.youtubeVideoId,
   tags: videoTagsJson,
+  visual_processing: visualProcessing,
 };
 
 const videoDetailSelect = {
@@ -198,6 +206,7 @@ const videoDetailSelect = {
   youtube_video_id: videos.youtubeVideoId,
   error_message: videos.errorMessage,
   tags: videoTagsJson,
+  visual_processing: visualProcessing,
 };
 
 async function readVideoDetail(db: Db, videoId: number, userId: string) {

@@ -15,7 +15,7 @@ vi.mock("../src/repositories/video-evidence-repository", () => ({ getVideoEviden
   id: 42, title: "Lecture", fileKey: "private/42.mp4", sourceType: "uploaded",
   transcript: "1\n00:00:10,000 --> 00:00:15,000\nUpdated prerequisite.", transcriptTooLarge: false,
 }) }));
-vi.mock("../src/integrations/media", () => ({ readMediaBytes: async () => new TextEncoder().encode(JSON.stringify({
+vi.mock("../src/integrations/media", () => ({ readMediaBytes: async (_env: Bindings, key: string) => key.endsWith('.focus-v2.json') ? null : new TextEncoder().encode(JSON.stringify({
   version: 1, video_id: 42, duration_seconds: 30, sampling_interval_seconds: 5,
   frames: [{ timestamp_seconds: 12.345, jpeg_base64: "/9j/2Q==" }],
 })), readMediaRange: async (_env: Bindings, _key: string, offset: number, length: number) => {

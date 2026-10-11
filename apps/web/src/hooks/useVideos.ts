@@ -63,9 +63,10 @@ export function useVideos(params?: UseVideosParams): UseVideosReturn {
     refetchInterval: (query) => {
       const pages = query.state.data?.pages ?? [];
       const hasInProgress = pages.some((page) =>
-        page.data.some((video) => isInProgressStatus(video.status)),
+        page.data.some((video) => isInProgressStatus(video.status) || video.visual_processing?.status === 'processing'),
       );
-      return hasInProgress ? 3000 : false;
+      if (hasInProgress) return 3000;
+      return pages.some(page => page.data.some(video => video.visual_processing?.status === 'error')) ? 30_000 : false;
     },
   }));
 
@@ -107,7 +108,11 @@ export function useVideo(videoId: number | null): UseVideoReturn {
 
   const videoQuery = useQuery(trpc.videos.get.queryOptions({ id: videoId! }, {
     enabled: !!videoId && !!user,
-    refetchInterval: (query) => (isInProgressStatus(query.state.data?.status) ? 3000 : false),
+    refetchInterval: (query) => {
+      const video = query.state.data;
+      if (isInProgressStatus(video?.status) || video?.visual_processing?.status === 'processing') return 3000;
+      return video?.visual_processing?.status === 'error' ? 30_000 : false;
+    },
   }));
 
   return {

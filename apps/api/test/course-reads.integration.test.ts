@@ -1,3 +1,4 @@
+import { visualSchema } from "./helpers/visual-schema";
 import pg from "pg";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import * as courses from "../src/features/courses/service";
@@ -67,6 +68,7 @@ describeWithPostgres("course reads on PostgreSQL", () => {
         (3, 'outsider', 'Private tag', 'green'), (4, 'creator', 'Created tag', 'blue');
       INSERT INTO video_tags VALUES (1, 1, 1), (2, 1, 2), (3, 2, 1), (4, 3, 3), (5, 4, 4);
     `);
+    await admin.query(visualSchema);
     const url = new URL(databaseUrl!);
     url.searchParams.set("options", `-c search_path=${schema}`);
     url.searchParams.set("application_name", schema);
@@ -81,6 +83,24 @@ describeWithPostgres("course reads on PostgreSQL", () => {
   function statements(calls: unknown[][]) {
     return calls.map(([config]) => typeof config === "string" ? config : (config as pg.QueryConfig).text).join("\n");
   }
+
+  it("shows durable visual progress for a course video whose subtitles are complete", async () => {
+    const runId = crypto.randomUUID();
+    await admin.query(`INSERT INTO video_visual_runs (video_id, run_id, file_key, duration_ms, chunk_count)
+      VALUES (1, $1, 'videos/example.mp4', 120000, 2)`, [runId]);
+    await admin.query(`INSERT INTO video_visual_chunks (run_id, chunk_index, frame_count)
+      VALUES ($1, 0, 60), ($1, 1, NULL)`, [runId]);
+    try {
+      const course = await courses.getCourse(env, 10, "owner");
+      expect(course?.videos.find(video => video.id === 1)).toMatchObject({
+        status: "completed",
+        visual_processing: { status: "processing", completed_chunks: 1, total_chunks: 2 },
+      });
+      expect(course?.videos.find(video => video.id === 2)?.visual_processing).toBeNull();
+    } finally {
+      await admin.query("DELETE FROM video_visual_runs WHERE run_id = $1", [runId]);
+    }
+  });
 
   describe("course update responses", () => {
     beforeEach(async () => {

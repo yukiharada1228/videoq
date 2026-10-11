@@ -1,3 +1,4 @@
+import { visualSchema } from "./helpers/visual-schema";
 import { readFileSync } from "node:fs";
 import pg from "pg";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -30,6 +31,7 @@ const originalTranscript = "1\n00:00:00,000 --> 00:00:01,000\nOriginal";
     await admin.query(`CREATE SCHEMA "${schema}"`);
     await admin.query(`SET search_path TO "${schema}"`);
     await admin.query(fixture);
+    await admin.query(visualSchema);
     await admin.query(`
       ALTER TABLE videos
         ADD COLUMN title text NOT NULL DEFAULT 'Original',

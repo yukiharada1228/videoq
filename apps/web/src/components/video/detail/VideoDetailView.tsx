@@ -13,7 +13,7 @@ import {
 import { Link, useLocale } from '@/lib/i18n';
 import { apiClient, type Tag, type Video } from '@/lib/api';
 import { buildYoutubeEmbedSrc } from '@/lib/video/embed';
-import { formatDate } from '@/lib/utils/video';
+import { formatDate, getVideoDisplayStatus } from '@/lib/utils/video';
 import type { TranscriptSegment } from '@/lib/transcript/srt';
 import { InlineSpinner } from '@/components/common/InlineSpinner';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -200,7 +200,7 @@ function VideoMetaPanel({
             <span>{formatDate(video.uploaded_at, 'full', locale)}</span>
           </div>
         </div>
-        <StatusBadge status={video.status} size="sm" className="ml-0 shrink-0" />
+        <StatusBadge status={getVideoDisplayStatus(video)} size="sm" className="ml-0 shrink-0" />
       </div>
 
       {video.tags && video.tags.length > 0 && (
@@ -242,6 +242,14 @@ function VideoMetaPanel({
       </div>
 
       {video.error_message && <ErrorMessage message={video.error_message} />}
+      {video.visual_processing && (
+        <div role="status" className="border-t border-solid-gray-200 pt-4 text-std-16N-170">
+          <p>{t(`videos.detail.visual.${video.visual_processing.status}`)}</p>
+          {video.visual_processing.status !== 'ready' && (
+            <p>{t('videos.detail.visual.progress', { completed: video.visual_processing.completed_chunks, total: video.visual_processing.total_chunks })}</p>
+          )}
+        </div>
+      )}
 
       {video.description && (
         <div className="border-t border-solid-gray-200 pt-4">
