@@ -108,7 +108,7 @@ def test_upload_transcription_prepares_optional_frames_without_losing_subtitles(
         monkeypatch.delenv("VIDEO_VISUAL_ENABLED", raising=False)
     else:
         monkeypatch.setenv("VIDEO_VISUAL_ENABLED", str(enabled).lower())
-    monkeypatch.setattr(transcription, "download_to_path", lambda *_: None)
+    monkeypatch.setattr(transcription, "resolve_media_input", lambda _: Path("video.mp4"))
     monkeypatch.setattr(transcription, "_ffmpeg_extract_mp3", lambda *_: None)
     monkeypatch.setattr(transcription, "_ffprobe_duration", lambda _: 10)
     monkeypatch.setattr(transcription, "_whisper_transcribe", lambda _: [{"start": 0, "end": 1, "text": "A useful subtitle"}])
@@ -139,7 +139,7 @@ def test_upload_transcription_prepares_optional_frames_without_losing_subtitles(
 
 def test_dense_cache_failure_does_not_lose_transcript_or_coarse_cache(monkeypatch):
     monkeypatch.delenv("VIDEO_VISUAL_ENABLED", raising=False)
-    monkeypatch.setattr(transcription, "download_to_path", lambda *_: None)
+    monkeypatch.setattr(transcription, "resolve_media_input", lambda _: Path("video.mp4"))
     monkeypatch.setattr(transcription, "_ffmpeg_extract_mp3", lambda *_: None)
     monkeypatch.setattr(transcription, "_ffprobe_duration", lambda _: 10)
     monkeypatch.setattr(transcription, "_whisper_transcribe", lambda _: [{"start": 0, "end": 1, "text": "Useful"}])

@@ -6,6 +6,7 @@ import logging
 
 from worker_python.contracts import JOB_INDEX_VIDEO_TRANSCRIPT
 from worker_python.db import db_connection
+from worker_python.env import heavy_pipeline_enabled
 from worker_python.pipeline.transcription import run_transcription
 from worker_python.pipeline.user_secret_envelope import try_decrypt
 from worker_python.sqs_enqueue import child_job_id, enqueue_job
@@ -84,6 +85,17 @@ def transcribe_video(video_id: int, *, job_id: str | None = None) -> None:
         raise TranscriptionExecutionFailedError(
             f"Video {video_id} is not ready for transcription (status={video.status})"
         )
+
+    if video.source_type == "uploaded" and heavy_pipeline_enabled():
+        from worker_python.tasks.segmented_transcription import start_uploaded_transcription
+        from worker_python.transcription_checkpoints import TranscriptionQuotaError
+        try:
+            start_uploaded_transcription(video)
+        except TranscriptionQuotaError as exc:
+            with db_connection() as conn:
+                if transition_video_status(conn, video.id, video.status, VideoStatus.PROCESSING):
+                    finish_transcription(conn, video, transcript=None, error_message=str(exc))
+        return
 
     transcript: str | None = None
     failure: Exception | None = None

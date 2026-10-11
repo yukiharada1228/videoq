@@ -211,6 +211,20 @@
       "when": 1791407084220,
       "tag": "0029_better_auth_1_7_7_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1791709448360,
+      "tag": "0030_multipart_upload_sessions",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1791714622016,
+      "tag": "0031_resumable_transcription",
+      "breakpoints": true
     }
   ]
 }

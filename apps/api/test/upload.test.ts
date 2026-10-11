@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { MAX_VIDEO_UPLOAD_BYTES, multipartPartSize } from "@videoq/trpc/video-upload";
 import {
   buildPendingUploadFileKey,
   fileExtension,
@@ -12,6 +13,7 @@ import {
   getR2ObjectSize,
   isS3Storage,
   presignR2Put,
+  presignR2UploadPart,
   resolveFileUrl,
 } from "../src/integrations/media";
 // os.path.splitext(x)[1].lower() 相当（/tmp/drf_probe5.py で実 Python と一致確認）。
@@ -86,6 +88,24 @@ describe("USE_S3_STORAGE / resolveFileUrl", () => {
 });
 
 describe("pending upload file key（FR-Q3 予約埋め込み）", () => {
+  it.each([1, 100 * 1024 ** 2, 45_160_000_000, MAX_VIDEO_UPLOAD_BYTES])("keeps %i bytes within R2's part limits", size => {
+    const partSize = multipartPartSize(size);
+    expect(Math.ceil(size / partSize)).toBeLessThanOrEqual(10_000);
+    expect(partSize).toBeGreaterThanOrEqual(5 * 1024 ** 2);
+    expect(partSize).toBeLessThanOrEqual(5 * 1024 ** 3);
+  });
+  it("signs a multipart ID, number, exact length and MIME type for the public endpoint", async () => {
+    const signed = await presignR2UploadPart({
+      R2_ACCESS_KEY_ID: "test", R2_SECRET_ACCESS_KEY: "test",
+      R2_S3_ENDPOINT: "https://public.example.test", R2_S3_INTERNAL_ENDPOINT: "http://garage:3900",
+      R2_BUCKET_NAME: "test", R2_S3_REGION: "garage",
+    } as never, "videos/owner/test.mkv", "session+/=", 42, "video/matroska", 1024);
+    const url = new URL(signed);
+    expect(url.origin).toBe("https://public.example.test");
+    expect(url.searchParams.get("uploadId")).toBe("session+/=");
+    expect(url.searchParams.get("partNumber")).toBe("42");
+    expect(url.searchParams.get("X-Amz-SignedHeaders")).toBe("content-length;content-type;host");
+  });
   it("presigned PUT は申告サイズを署名対象にする", async () => {
     const signed = await presignR2Put(
       {

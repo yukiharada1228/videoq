@@ -159,6 +159,109 @@ export async function presignR2Put(
   return signed.url;
 }
 
+export async function presignR2UploadPart(
+  env: Bindings, fileKey: string, uploadId: string, partNumber: number,
+  contentType: string, contentLength: number,
+): Promise<string> {
+  const { aws, endpoint, bucket } = s3Client(env, { public: true });
+  const url = objectUrl(endpoint, bucket, fileKey);
+  url.searchParams.set("uploadId", uploadId);
+  url.searchParams.set("partNumber", String(partNumber));
+  url.searchParams.set("X-Amz-Expires", "3600");
+  const signed = await aws.sign(new Request(url, {
+    method: "PUT",
+    headers: { "content-type": contentType, "content-length": String(contentLength) },
+  }), { aws: { signQuery: true, allHeaders: true } });
+  return signed.url;
+}
+
+// Only used for local S3/Garage. Production control operations use the R2 binding.
+async function multipartS3Request(
+  env: Bindings, fileKey: string, query: Record<string, string>,
+  init: RequestInit,
+): Promise<Response> {
+  const { aws, endpoint, bucket } = s3Client(env, { public: false });
+  const url = objectUrl(endpoint, bucket, fileKey);
+  for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value);
+  const signed = await aws.sign(new Request(url, init));
+  const response = await fetch(signed, { signal: deadlineSignal(S3_OPERATION_TIMEOUT_MS) });
+  if (!response.ok && !(init.method === "DELETE" && response.status === 404)) {
+    await response.body?.cancel();
+    throw new Error(`S3 multipart ${init.method} failed: ${response.status}`);
+  }
+  return response;
+}
+
+async function multipartXml(response: Response): Promise<string> {
+  // Control responses are small; never buffer an unbounded storage response.
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error("Empty S3 multipart response");
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      length += value.byteLength;
+      if (length > 64 * 1024) throw new Error("S3 multipart response is too large");
+      chunks.push(value);
+    }
+  } finally {
+    await reader.cancel();
+  }
+  const body = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) { body.set(chunk, offset); offset += chunk.length; }
+  return new TextDecoder().decode(body);
+}
+
+export async function createR2MultipartUpload(
+  env: Bindings, fileKey: string, contentType: string,
+): Promise<string> {
+  if (env.ENVIRONMENT === "production" || !isS3Storage(env)) {
+    const upload = await env.VIDEO_BUCKET.createMultipartUpload(r2ObjectKey(fileKey), {
+      httpMetadata: { contentType },
+    });
+    return upload.uploadId;
+  }
+  const response = await multipartS3Request(env, fileKey, { uploads: "" }, {
+    method: "POST", headers: { "content-type": contentType },
+  });
+  const xml = await multipartXml(response);
+  const uploadId = xml.match(/<UploadId>([^<]+)<\/UploadId>/)?.[1];
+  if (!uploadId) throw new Error("S3 multipart upload ID is missing");
+  return uploadId.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+}
+
+export async function completeR2MultipartUpload(
+  env: Bindings, fileKey: string, uploadId: string, parts: { partNumber: number; etag: string }[],
+): Promise<void> {
+  if (env.ENVIRONMENT === "production" || !isS3Storage(env)) {
+    await env.VIDEO_BUCKET.resumeMultipartUpload(r2ObjectKey(fileKey), uploadId).complete(parts);
+    return;
+  }
+  // ETags are validated as hexadecimal before reaching this integration.
+  const xml = `<CompleteMultipartUpload>${parts.map(part => `<Part><PartNumber>${part.partNumber}</PartNumber><ETag>"${part.etag}"</ETag></Part>`).join("")}</CompleteMultipartUpload>`;
+  const response = await multipartS3Request(env, fileKey, { uploadId }, {
+    method: "POST", headers: { "content-type": "application/xml" }, body: xml,
+  });
+  const result = await multipartXml(response);
+  // S3 can return an embedded error even with HTTP 200.
+  if (!result.includes("<CompleteMultipartUploadResult") || result.includes("<Error>")) {
+    throw new Error("S3 multipart completion failed");
+  }
+}
+
+export async function abortR2MultipartUpload(env: Bindings, fileKey: string, uploadId: string): Promise<void> {
+  if (env.ENVIRONMENT === "production" || !isS3Storage(env)) {
+    // R2 abort is idempotent, including after completion or a prior abort.
+    await env.VIDEO_BUCKET.resumeMultipartUpload(r2ObjectKey(fileKey), uploadId).abort();
+    return;
+  }
+  const response = await multipartS3Request(env, fileKey, { uploadId }, { method: "DELETE" });
+  await response.body?.cancel();
+}
+
 /**
  * オブジェクトサイズ（bytes）。USE_S3 時は S3 HeadObject、それ以外は VIDEO_BUCKET.head。
  */

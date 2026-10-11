@@ -272,6 +272,12 @@ export const videos = pgTable(
 			cache: 1,
 		}),
 		file: varchar({ length: 100 }).notNull(),
+		multipartUpload: jsonb("multipart_upload").$type<{
+			uploadId: string;
+			partSize: number;
+			contentType: string;
+		}>(),
+		uploadHeartbeatAt: timestamp("upload_heartbeat_at", { withTimezone: true, mode: "string" }),
 		title: varchar({ length: 255 }).notNull(),
 		description: text().notNull(),
 		uploadedAt: timestamp("uploaded_at", { withTimezone: true, mode: "string" }).notNull(),
@@ -302,6 +308,36 @@ export const videos = pgTable(
 		check("videos_processing_seconds_check", sql`processing_seconds >= 0`),
 	],
 );
+
+/** Durable per-video plan and checkpoints for bounded transcription jobs. */
+export const videoTranscriptionRuns = pgTable("video_transcription_runs", {
+	videoId: bigint("video_id", { mode: "number" }).primaryKey().references(() => videos.id, { onDelete: "cascade" }),
+	runId: uuid("run_id").notNull().unique(),
+	fileKey: varchar("file_key", { length: 100 }).notNull(),
+	transcriptHash: varchar("transcript_hash", { length: 32 }).notNull(),
+	durationMs: bigint("duration_ms", { mode: "number" }).notNull(),
+	chunkSeconds: integer("chunk_seconds").notNull(),
+	chunkCount: integer("chunk_count").notNull(),
+	completedAt: timestamp("completed_at", { withTimezone: true, mode: "string" }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+}, (table) => [
+	check("video_transcription_runs_duration_check", sql`${table.durationMs} > 0`),
+	check("video_transcription_runs_chunks_check", sql`${table.chunkSeconds} > 0 AND ${table.chunkCount} BETWEEN 1 AND 10000`),
+]);
+
+export const videoTranscriptionChunks = pgTable("video_transcription_chunks", {
+	runId: uuid("run_id").notNull(),
+	chunkIndex: integer("chunk_index").notNull(),
+	segments: jsonb().$type<{ start: number; end: number; text: string }[]>(),
+	failures: integer().notNull().default(0),
+	lastError: text("last_error").notNull().default(""),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+}, (table) => [
+	primaryKey({ columns: [table.runId, table.chunkIndex] }),
+	foreignKey({ columns: [table.runId], foreignColumns: [videoTranscriptionRuns.runId], name: "video_transcription_chunks_run_id_fkey" }).onDelete("cascade"),
+	check("video_transcription_chunks_index_check", sql`${table.chunkIndex} >= 0`),
+	check("video_transcription_chunks_failures_check", sql`${table.failures} >= 0`),
+]);
 
 export const videoCourses = pgTable(
 	"video_courses",

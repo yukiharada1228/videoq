@@ -59,6 +59,43 @@ Chat SSE uses the shared `chatCourseIdSchema` for `course_id`, as tRPC does for
 `courseId`: a positive JSON integer, `null`, or an omitted field. Invalid values
 are rejected before answer generation and usage reservation.
 
+## Large video uploads
+
+With S3 storage enabled, the web client requests multipart upload for files at
+least 100 MiB. Smaller files retain the single PUT path. Account upload and
+storage quotas apply before either path reserves a video.
+
+1. `videos.requestUpload` accepts `multipart: true` and returns the video plus
+   `multipart.part_size` and `multipart.part_count` (and a null `upload_url`).
+2. `videos.uploadPartUrl` accepts the video ID and part number. It checks ownership
+   and upload state, signs the exact expected length, and refreshes upload activity.
+3. The browser sends at most three parts concurrently, using `File.slice`. Parts
+   normally contain 64 MiB; larger objects use larger parts to stay below 10,000.
+   Each retry obtains a fresh URL. R2 CORS must expose `ETag` to the browser.
+4. `videos.completeMultipartUpload` accepts the numbered ETags, assembles the
+   object, verifies its size, and queues transcription once. Completion retries
+   recover from a lost storage response or a failed database transaction.
+5. `videos.abortUpload` deletes only an unconfirmed upload. Durable cleanup aborts
+   its multipart session, deletes stored data, and returns reserved capacity.
+
+The single PUT ceiling is 5 GiB; multipart supports up to 5 TiB subject to the
+account quota. See [R2 upload limits](https://developers.cloudflare.com/r2/objects/upload-objects/).
+Part URLs expire after one hour and are issued just before each transfer. An
+upload becomes abandoned after two hours without a part URL request; active
+transfers can run longer than two hours. Failed parts are retried up to three
+times. Closing or reloading the page requires starting a new upload; abandoned
+data is recovered by the maintenance task.
+
+Deploy migration `0030_multipart_upload_sessions` before the API/worker, followed
+by the web client. The existing production CORS configuration exposes `ETag`.
+Production uses the R2 binding for create/complete/abort; local Garage uses its
+S3 API. No video payload passes through the API Worker.
+
+The Python worker reads uploaded media directly from object storage using HTTP
+ranges for audio extraction and visual caches, so it does not need temporary
+disk space equal to the source file size. Existing media processing and Lambda
+time limits still apply; the storage limit is not a processing-duration guarantee.
+
 ## MCP tool inputs
 
 `apps/api/src/lib/mcp-tools.ts` defines the strict input schemas shared by MCP

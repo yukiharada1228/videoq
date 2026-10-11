@@ -11,6 +11,9 @@ from worker_python.contracts import (
     JOB_REINDEX_ALL_VIDEOS_EMBEDDINGS,
     JOB_REINDEX_VIDEO_TRANSCRIPT,
     JOB_TRANSCRIBE_VIDEO,
+    JOB_TRANSCRIBE_VIDEO_CHUNK,
+    JOB_FINISH_VIDEO_TRANSCRIPTION,
+    JOB_BUILD_VIDEO_VISUALS,
 )
 from worker_python.tasks.registry import get_task
 
@@ -38,6 +41,9 @@ def message(job_type, payload):
     (JOB_REINDEX_VIDEO_TRANSCRIPT, {"video_id": 42}),
     (JOB_DELETE_ACCOUNT_DATA, {"user_id": "user-42"}),
     (JOB_REINDEX_ALL_VIDEOS_EMBEDDINGS, {}),
+    (JOB_TRANSCRIBE_VIDEO_CHUNK, {"video_id": 42, "run_id": "12345678-1234-4234-8234-123456789abc", "chunk_index": 30}),
+    (JOB_FINISH_VIDEO_TRANSCRIPTION, {"video_id": 42, "run_id": "12345678-1234-4234-8234-123456789abc"}),
+    (JOB_BUILD_VIDEO_VISUALS, {"video_id": 42, "run_id": "12345678-1234-4234-8234-123456789abc", "cache_kind": "coarse"}),
 ])
 def test_all_job_types_preserve_arguments_from_producer_to_task(execution, job_type, payload):
     claim, task, complete = execution
@@ -110,6 +116,21 @@ def test_invalid_batch_item_does_not_stop_a_valid_job(execution):
     claim.assert_called_once_with("job", JOB_INDEX_VIDEO_TRANSCRIPT, {"video_id": 42})
     assert task.call_count == 1
     complete.assert_called_once_with("job", "lease")
+
+
+@pytest.mark.parametrize("field,value", [
+    ("run_id", None), ("run_id", "not-a-run"), ("run_id", "12345678123442348234123456789abc"),
+    ("chunk_index", -1), ("chunk_index", 10000), ("chunk_index", True), ("chunk_index", "0"),
+    ("video_id", True),
+])
+def test_invalid_checkpoint_payload_does_not_claim_work(execution, field, value):
+    claim, task, _ = execution
+    payload = {"video_id": 42, "run_id": "12345678-1234-4234-8234-123456789abc", "chunk_index": 0}
+    payload[field] = value
+    with pytest.raises((TypeError, ValueError)):
+        lambda_handler._execute_task(message(JOB_TRANSCRIBE_VIDEO_CHUNK, payload))
+    claim.assert_not_called()
+    task.assert_not_called()
 
 
 @pytest.mark.parametrize("job_type, payload", [

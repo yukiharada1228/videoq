@@ -7,7 +7,7 @@ import logging
 from worker_python.advisory_locks import video_vector_write_lock
 from worker_python.db import db_connection
 from worker_python.pipeline import vector_index
-from worker_python.pipeline.storage import delete_object
+from worker_python.pipeline.storage import abort_multipart_upload, delete_object
 from worker_python.pipeline.visual_frames import frame_cache_key
 from worker_python.pipeline.focus_frames import focus_cache_key
 from worker_python.video_sql import delete_video_cascade
@@ -28,7 +28,7 @@ def _delete_all_videos_for_user(conn, user_id: str) -> None:
         # Finish the transaction before admitting another vector writer.
         with video_vector_write_lock(video_id), conn.transaction():
             video = conn.execute(
-                "SELECT file FROM videos WHERE id = %s AND user_id = %s FOR UPDATE",
+                "SELECT file, multipart_upload FROM videos WHERE id = %s AND user_id = %s FOR UPDATE",
                 (video_id, user_id),
             ).fetchone()
             if video is None:
@@ -38,6 +38,9 @@ def _delete_all_videos_for_user(conn, user_id: str) -> None:
             file_key = video.get("file")
             if file_key:
                 # On storage failure, preserve this video's DB rows for retry.
+                multipart = video.get("multipart_upload")
+                if multipart:
+                    abort_multipart_upload(str(file_key), multipart["uploadId"])
                 delete_object(str(file_key))
                 delete_object(frame_cache_key(str(file_key)))
                 delete_object(focus_cache_key(str(file_key)))

@@ -16,8 +16,8 @@ from urllib.request import Request, urlopen
 
 from worker_python.env import env_flag, env_str, heavy_pipeline_enabled
 from worker_python.pipeline.srt import create_srt_from_whisper_segments, format_srt_time
-from worker_python.pipeline.storage import download_to_path
-from worker_python.pipeline.media_process import MEDIA_INPUT_OPTIONS, run_media_process
+from worker_python.pipeline.storage import ObjectMediaSource, resolve_media_input
+from worker_python.pipeline.media_process import MEDIA_INPUT_OPTIONS, media_input_args, run_media_process
 from worker_python.video_sql import VideoRow
 
 logger = logging.getLogger(__name__)
@@ -68,10 +68,10 @@ def _transcribe_uploaded(
 ) -> str:
     with tempfile.TemporaryDirectory(prefix="videoq-tx-") as tmp:
         tmp_dir = Path(tmp)
-        video_path = tmp_dir / Path(file_key).name
-        download_to_path(file_key, video_path)
+        video_path = resolve_media_input(file_key)
+        duration = _ffprobe_duration(video_path)
         if reserve_processing:
-            reserve_processing(max(1, math.ceil(_ffprobe_duration(video_path))))
+            reserve_processing(max(1, math.ceil(duration)))
         audio_path = tmp_dir / "audio.mp3"
         _ffmpeg_extract_mp3(video_path, audio_path)
         segments = _whisper_transcribe(audio_path)
@@ -83,29 +83,29 @@ def _transcribe_uploaded(
             from worker_python.pipeline.focus_frames import build_focus_cache, publish_focus_cache
 
             try:
-                payload = build_frame_cache(video_path, video_id, _ffprobe_duration(video_path))
+                payload = build_frame_cache(video_path, video_id, duration)
                 publish_frame_cache(video_id, file_key, payload)
             except Exception as exc:
                 # Optional visuals must not break a usable transcript. A backfill
                 # command can retry cache creation without paying for Whisper.
                 logger.warning("Frame cache unavailable for video %d (%s)", video_id, type(exc).__name__)
             try:
-                with build_focus_cache(video_path, video_id, _ffprobe_duration(video_path)) as pack:
+                with build_focus_cache(video_path, video_id, duration) as pack:
                     publish_focus_cache(video_id, file_key, pack)
             except Exception as exc:
                 logger.warning("Focus cache unavailable for video %d (%s)", video_id, type(exc).__name__)
         return srt
 
 
-def _ffmpeg_extract_mp3(video_path: Path, audio_path: Path) -> None:
+def _ffmpeg_extract_mp3(video_path: Path | ObjectMediaSource, audio_path: Path) -> None:
     cmd = [
         "ffmpeg",
         "-nostdin",
+        "-xerror",
+        "-abort_on", "empty_output",
         "-v", "error",
         "-y",
-        *MEDIA_INPUT_OPTIONS,
-        "-i",
-        str(video_path),
+        *media_input_args(video_path),
         "-vn",
         "-acodec",
         "mp3",
@@ -117,17 +117,56 @@ def _ffmpeg_extract_mp3(video_path: Path, audio_path: Path) -> None:
         "1",
         str(audio_path),
     ]
-    logger.info("Running ffmpeg extract: %s", " ".join(cmd))
+    logger.info("Extracting audio with ffmpeg")
     proc = run_media_process(cmd)
+    _check_extracted_audio(proc, audio_path)
+
+
+def _check_extracted_audio(proc, audio_path: Path) -> None:
+    # Matroska can report truncated input but return success, even with -xerror.
+    # A recovered HTTP read also logs "Stream ends prematurely"; that transport
+    # message alone is not fatal. The demuxer's EOF error is unrecoverable.
     if proc.returncode != 0:
         raise RuntimeError(
             f"ffmpeg failed ({proc.returncode}): {proc.stderr[-1000:]}"
         )
+    if "File ended prematurely" in proc.stderr:
+        raise RuntimeError(f"ffmpeg failed: incomplete media input: {proc.stderr[-1000:]}")
     if not audio_path.is_file() or audio_path.stat().st_size == 0:
         raise RuntimeError("ffmpeg produced empty audio")
 
 
-def _whisper_transcribe(audio_path: Path) -> list[dict[str, Any]]:
+def transcribe_audio_interval(
+    source: Path | ObjectMediaSource, start_seconds: float, duration_seconds: float,
+) -> list[dict[str, Any]]:
+    """A bounded input range and one Whisper call; timestamps remain source-relative."""
+    if not math.isfinite(start_seconds) or start_seconds < 0 or not 0 < duration_seconds <= 300:
+        raise ValueError("Invalid transcription interval")
+    with tempfile.TemporaryDirectory(prefix="videoq-chunk-") as tmp:
+        audio = Path(tmp) / "audio.mp3"
+        result = run_media_process([
+            "ffmpeg", "-nostdin", "-xerror", "-abort_on", "empty_output", "-v", "error", "-y",
+            "-ss", str(start_seconds), *media_input_args(source), "-t", str(duration_seconds),
+            "-map", "0:a:0", "-vn", "-af", "aresample=async=1:first_pts=0",
+            "-acodec", "mp3", "-ab", "64k", "-ar", "16000", "-ac", "1", str(audio),
+        ], max_output_bytes=8 * 1024 * 1024, timeout_seconds=300)
+        _check_extracted_audio(result, audio)
+        client, model = _whisper_client()
+        with client:
+            segments = _whisper_file(client, audio, model, offset=start_seconds)
+    end_seconds = start_seconds + duration_seconds
+    result = []
+    for segment in segments:
+        start, end = float(segment["start"]), float(segment["end"])
+        if not math.isfinite(start) or not math.isfinite(end):
+            raise RuntimeError("Whisper returned non-finite timestamps")
+        start, end = max(start_seconds, start), min(end_seconds, end)
+        if start < end and segment["text"].strip():
+            result.append({"start": start, "end": end, "text": segment["text"]})
+    return result
+
+
+def _whisper_client():
     from openai import OpenAI
 
     backend = env_str("WHISPER_BACKEND", "openai").lower()
@@ -135,15 +174,20 @@ def _whisper_transcribe(audio_path: Path) -> list[dict[str, Any]]:
         client = OpenAI(
             api_key=env_str("OPENAI_API_KEY") or "dummy-key-for-local",
             base_url=env_str("WHISPER_LOCAL_URL", "http://127.0.0.1:8080"),
+            timeout=120.0, max_retries=2,
         )
         model = "whisper-local"
     else:
         api_key = env_str("OPENAI_API_KEY")
         if not api_key:
             raise RuntimeError("OPENAI_API_KEY is required for OpenAI Whisper")
-        client = OpenAI(api_key=api_key)
+        client = OpenAI(api_key=api_key, timeout=120.0, max_retries=2)
         model = "whisper-1"
+    return client, model
 
+
+def _whisper_transcribe(audio_path: Path) -> list[dict[str, Any]]:
+    client, model = _whisper_client()
     with client:
         # Whisper API soft limit ~25MB; split longer audio into ~10min chunks if needed.
         size_mb = audio_path.stat().st_size / (1024 * 1024)
@@ -223,17 +267,16 @@ def _split_audio_chunks(
         idx += 1
 
 
-def _ffprobe_duration(path: Path) -> float:
+def _ffprobe_duration(path: Path | ObjectMediaSource) -> float:
     cmd = [
         "ffprobe",
         "-v",
         "error",
-        *MEDIA_INPUT_OPTIONS,
         "-show_entries",
         "format=duration",
         "-of",
         "default=noprint_wrappers=1:nokey=1",
-        str(path),
+        *media_input_args(path),
     ]
     proc = run_media_process(cmd)
     if proc.returncode != 0:

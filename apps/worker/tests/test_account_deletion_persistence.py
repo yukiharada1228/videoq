@@ -25,7 +25,8 @@ def deletion_db(monkeypatch):
                 CREATE TABLE videos (
                     id integer PRIMARY KEY,
                     user_id text REFERENCES users(id),
-                    file text
+                    file text,
+                    multipart_upload jsonb
                 );
                 CREATE TABLE scene_embeddings (
                     video_id integer PRIMARY KEY, user_id text NOT NULL
@@ -40,7 +41,7 @@ def deletion_db(monkeypatch):
                     id integer PRIMARY KEY, user_id text REFERENCES users(id)
                 );
                 INSERT INTO users VALUES ('owner'), ('other');
-                INSERT INTO videos VALUES
+                INSERT INTO videos (id, user_id, file) VALUES
                     (10, 'owner', 'videos/owner/10.mp4'),
                     (11, 'owner', 'videos/owner/11.mp4'),
                     (20, 'other', 'videos/other/20.mp4');

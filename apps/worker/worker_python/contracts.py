@@ -1,10 +1,15 @@
 """VideoQ API と worker が共有する SQS job type contracts."""
 
+from uuid import UUID
+
 JOB_TRANSCRIBE_VIDEO = "transcribe_video"
 JOB_DELETE_ACCOUNT_DATA = "delete_account_data"
 JOB_REINDEX_ALL_VIDEOS_EMBEDDINGS = "reindex_all_videos_embeddings"
 JOB_INDEX_VIDEO_TRANSCRIPT = "index_video_transcript"
 JOB_REINDEX_VIDEO_TRANSCRIPT = "reindex_video_transcript"
+JOB_TRANSCRIBE_VIDEO_CHUNK = "transcribe_video_chunk"
+JOB_FINISH_VIDEO_TRANSCRIPTION = "finish_video_transcription"
+JOB_BUILD_VIDEO_VISUALS = "build_video_visuals"
 
 _PAYLOAD_FIELDS = {
     JOB_TRANSCRIBE_VIDEO: "video_id",
@@ -12,6 +17,9 @@ _PAYLOAD_FIELDS = {
     JOB_REINDEX_VIDEO_TRANSCRIPT: "video_id",
     JOB_DELETE_ACCOUNT_DATA: "user_id",
     JOB_REINDEX_ALL_VIDEOS_EMBEDDINGS: None,
+    JOB_TRANSCRIBE_VIDEO_CHUNK: "video_id",
+    JOB_FINISH_VIDEO_TRANSCRIPTION: "video_id",
+    JOB_BUILD_VIDEO_VISUALS: "video_id",
 }
 
 
@@ -21,6 +29,12 @@ def validate_job_payload(job_type: str, payload: dict) -> None:
         raise ValueError(f"Unsupported job type: {job_type}")
     field = _PAYLOAD_FIELDS[job_type]
     expected = {field} if field else set()
+    if job_type in {JOB_TRANSCRIBE_VIDEO_CHUNK, JOB_FINISH_VIDEO_TRANSCRIPTION, JOB_BUILD_VIDEO_VISUALS}:
+        expected.add("run_id")
+    if job_type == JOB_TRANSCRIBE_VIDEO_CHUNK:
+        expected.add("chunk_index")
+    if job_type == JOB_BUILD_VIDEO_VISUALS:
+        expected.add("cache_kind")
     if not isinstance(payload, dict) or set(payload) != expected:
         raise TypeError(f"{job_type} payload must contain exactly {sorted(expected)}")
     if field is None:
@@ -33,3 +47,18 @@ def validate_job_payload(job_type: str, payload: dict) -> None:
         # Match the API's positive safe integer IDs. bool is an int subclass;
         # int(float/string/bool) would silently change the queued operation.
         raise ValueError(f"{field} must be a positive safe integer")
+    if "run_id" in expected:
+        run_id = payload["run_id"]
+        if not isinstance(run_id, str):
+            raise ValueError("run_id must be a UUID")
+        try:
+            if str(UUID(run_id)) != run_id:
+                raise ValueError()
+        except ValueError:
+            raise ValueError("run_id must be a canonical UUID") from None
+    if "chunk_index" in expected:
+        index = payload["chunk_index"]
+        if type(index) is not int or not 0 <= index < 10000:
+            raise ValueError("chunk_index must be an integer between 0 and 9999")
+    if "cache_kind" in expected and payload["cache_kind"] not in {"coarse", "focus"}:
+        raise ValueError("cache_kind must be coarse or focus")

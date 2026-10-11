@@ -9,6 +9,13 @@ export function mediaLibraryHandlers(
   authenticatedUserId: string | null,
 ): HandlersFor<"tags"> & HandlersFor<"videos"> {
   const userId = () => requireUserId(authenticatedUserId);
+  const uploadOperation = async <T>(operation: () => Promise<T>): Promise<T> => {
+    try { return await operation(); }
+    catch (error) {
+      if (error instanceof videoService.UploadSessionError) return rpcError(error.code, error.message);
+      throw error;
+    }
+  };
   return {
     "tags.list": async ({ limit, offset }) => {
       const { count, results } = await tagService.listTags(c.env, userId(), limit, offset);
@@ -60,6 +67,7 @@ export function mediaLibraryHandlers(
         file_size: fileSize,
         title: input.title,
         description: input.description ?? "",
+        multipart: input.multipart,
       });
       if ("fieldError" in result && result.fieldError) {
         return rpcError("BAD_REQUEST", Object.values(result.fieldError)[0]?.[0] ?? "Invalid input", {
@@ -77,8 +85,8 @@ export function mediaLibraryHandlers(
         });
       }
       if (!result.video) return rpcError("INTERNAL_SERVER_ERROR", "Created video could not be loaded");
-      if (!result.upload_url) return rpcError("INTERNAL_SERVER_ERROR", "Upload URL could not be created");
-      return { video: result.video, upload_url: result.upload_url };
+      if (!result.upload_url && !("multipart" in result)) return rpcError("INTERNAL_SERVER_ERROR", "Upload URL could not be created");
+      return { video: result.video, upload_url: result.upload_url, ...("multipart" in result ? { multipart: result.multipart } : {}) };
     },
     "videos.confirmUpload": async ({ id }) => {
       const result = await videoService.confirmVideoUpload(c.env, id, userId());
@@ -87,6 +95,14 @@ export function mediaLibraryHandlers(
       if (!result.video) return rpcError("INTERNAL_SERVER_ERROR", "Video could not be loaded");
       return result.video;
     },
+    "videos.uploadPartUrl": ({ id, partNumber }) => uploadOperation(() =>
+      videoService.getMultipartUploadPartUrl(c.env, id, userId(), partNumber)),
+    "videos.completeMultipartUpload": ({ id, parts }) => uploadOperation(async () => {
+      const video = await videoService.finishMultipartVideoUpload(c.env, id, userId(), parts);
+      if (!video) return rpcError("NOT_FOUND", "Video not found");
+      return video;
+    }),
+    "videos.abortUpload": ({ id }) => videoService.abortVideoUpload(c.env, id, userId()),
     "videos.createYoutube": async ({ youtubeUrl, title, description }) => {
       const result = await videoService.createUserYoutubeVideo(c.env, userId(), {
         youtube_url: youtubeUrl,

@@ -327,6 +327,7 @@ export async function insertStorageCleanupTask(
     userId: string;
     fileKey: string;
     bytes: number | null;
+    multipartUploadId?: string;
   },
 ): Promise<number> {
   const rows = await db
@@ -337,6 +338,7 @@ export async function insertStorageCleanupTask(
         user_id: params.userId,
         file_key: params.fileKey,
         bytes: params.bytes,
+        ...(params.multipartUploadId ? { multipart_upload_id: params.multipartUploadId } : {}),
       },
       dedupeKey: params.dedupeKey,
     })

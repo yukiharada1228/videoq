@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   deleteR2Object, getR2ObjectSize, presignR2Put, readMediaBytes,
   readMediaRange, resolveFileUrl,
+  createR2MultipartUpload, presignR2UploadPart, completeR2MultipartUpload, abortR2MultipartUpload,
 } from "../src/integrations/media";
 
 // Explicitly opt in: this creates and deletes isolated objects in local Garage.
@@ -86,7 +87,7 @@ describe.skipIf(process.env.GARAGE_INTEGRATION !== "1")("local Garage storage", 
     const env = localConfig();
     const key = `garage-smoke/${crypto.randomUUID()}/browser.webm`;
     const fixture = readFileSync(new URL("../../web/.storybook/fixtures/media/preview.webm", import.meta.url));
-    const browser = await chromium.launch({ headless: true });
+    const browser = await chromium.launch({ headless: true, channel: process.env.PLAYWRIGHT_CHANNEL });
     try {
       const page = await browser.newPage();
       page.on("console", message => {
@@ -129,4 +130,46 @@ describe.skipIf(process.env.GARAGE_INTEGRATION !== "1")("local Garage storage", 
       await deleteR2Object(env, key);
     }
   }, 30_000);
+
+  it("uploads multipart from Chrome with signed lengths and exposed ETags", async () => {
+    const env = localConfig();
+    const key = `garage-smoke/${crypto.randomUUID()}/multipart.mkv`;
+    const type = "video/matroska";
+    const partSize = 5 * 1024 * 1024;
+    const lengths = [partSize, partSize, 17];
+    const uploadId = await createR2MultipartUpload(env, key, type);
+    const browser = await chromium.launch({ headless: true, channel: process.env.PLAYWRIGHT_CHANNEL });
+    try {
+      const urls = await Promise.all(lengths.map((length, index) => presignR2UploadPart(env, key, uploadId, index + 1, type, length)));
+      const wrongLength = await fetch(urls[2], { method: "PUT", headers: { "Content-Type": type }, body: new Uint8Array(18) });
+      expect(wrongLength.status).toBe(403);
+      await wrongLength.body?.cancel();
+      const page = await browser.newPage();
+      await page.goto("http://localhost");
+      const parts = await page.evaluate(async ({ urls, lengths, type }) => Promise.all(urls.map((url, index) =>
+        new Promise<{ partNumber: number; etag: string }>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("PUT", url);
+          xhr.setRequestHeader("Content-Type", type);
+          xhr.addEventListener("load", () => {
+            const etag = xhr.getResponseHeader("ETag")?.replace(/^"|"$/g, "");
+            if (xhr.status !== 200 || !etag) reject(new Error(`Part upload failed: ${xhr.status}`));
+            else resolve({ partNumber: index + 1, etag });
+          });
+          xhr.addEventListener("error", () => reject(new Error("Part upload network error")));
+          xhr.send(new Blob([new Uint8Array(lengths[index]).fill(index + 1)], { type }));
+        }),
+      )), { urls, lengths, type });
+      expect(await getR2ObjectSize(env, key)).toBeNull();
+      await completeR2MultipartUpload(env, key, uploadId, parts);
+      expect(await getR2ObjectSize(env, key)).toBe(2 * partSize + 17);
+      const boundary = await readMediaRange(env, key, partSize - 2, 4);
+      expect([...boundary!.bytes]).toEqual([1, 1, 2, 2]);
+    } finally {
+      await browser.close();
+      await abortR2MultipartUpload(env, key, uploadId);
+      await abortR2MultipartUpload(env, key, uploadId);
+      await deleteR2Object(env, key);
+    }
+  }, 60_000);
 });

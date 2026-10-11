@@ -16,8 +16,8 @@ import struct
 import tempfile
 
 from worker_python.db import db_connection
-from worker_python.pipeline.media_process import MEDIA_INPUT_OPTIONS, run_media_process
-from worker_python.pipeline.storage import upload_file
+from worker_python.pipeline.media_process import media_input_args, run_media_process
+from worker_python.pipeline.storage import ObjectMediaSource, upload_file
 from worker_python.pipeline.visual_frames import MAX_IMAGE_BYTES
 
 MAGIC = b"VQFOC001"
@@ -32,7 +32,7 @@ def focus_cache_key(file_key: str) -> str:
 
 
 @contextmanager
-def build_focus_cache(video_path: Path, video_id: int, duration: float):
+def build_focus_cache(video_path: Path | ObjectMediaSource, video_id: int, duration: float):
     if not math.isfinite(duration) or not 0 < duration <= MAX_FRAMES:
         raise ValueError("Focus cache requires a finite duration of at most 10 hours")
     with tempfile.TemporaryDirectory(prefix="videoq-focus-") as tmp:
@@ -46,8 +46,8 @@ def build_focus_cache(video_path: Path, video_id: int, duration: float):
             "settb=1/1000"
         )
         result = run_media_process([
-            "ffmpeg", "-nostdin", "-v", "error", "-y", *MEDIA_INPUT_OPTIONS,
-            "-i", str(video_path), "-map", "0:v:0", "-an", "-vf", filters,
+            "ffmpeg", "-nostdin", "-v", "error", "-y", *media_input_args(video_path),
+            "-map", "0:v:0", "-an", "-vf", filters,
             "-fps_mode", "vfr", "-enc_time_base", "1:1000", "-c:v", "mjpeg",
             # Bound MJPEG frame threads under the subprocess memory limit.
             "-threads:v", "1", "-q:v", "8", "-frames:v", str(MAX_FRAMES + 1), "-f", "tee",

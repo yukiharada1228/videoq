@@ -7,7 +7,8 @@ import { ApiError } from './api-error';
 import { createAppTrpcClient, TRPC_UNAUTHORIZED_EVENT } from './trpc';
 import { videoSchema } from '@videoq/trpc/schema';
 import { chatStreamEventSchema } from '@videoq/trpc/chat';
-import { videoUploadContentType } from '@videoq/trpc/video-upload';
+import { MULTIPART_UPLOAD_THRESHOLD, videoUploadContentType } from '@videoq/trpc/video-upload';
+import { uploadMultipartFile } from './multipartUpload';
 import i18n from '@/i18n/config';
 import type {
   ChatRequest,
@@ -422,13 +423,23 @@ export class ApiClient {
     if (!contentType) throw new ApiError('Invalid video file type', 'INVALID_FILE_TYPE');
     if (USE_S3_STORAGE) {
       // 1. Request presigned upload URL
-      const { video, upload_url } = await this.rpc.videos.requestUpload.mutate({
+      const { video, upload_url, multipart } = await this.rpc.videos.requestUpload.mutate({
         filename: data.file.name,
         contentType,
         fileSize: data.file.size,
         title: data.title,
         description: data.description,
+        ...(data.file.size >= MULTIPART_UPLOAD_THRESHOLD ? { multipart: true } : {}),
       });
+
+      if (multipart) {
+        return uploadMultipartFile(data.file, contentType, multipart, {
+          partUrl: partNumber => this.rpc.videos.uploadPartUrl.mutate({ id: video.id, partNumber }),
+          complete: parts => this.rpc.videos.completeMultipartUpload.mutate({ id: video.id, parts }),
+          abort: () => this.rpc.videos.abortUpload.mutate({ id: video.id }),
+        }, onProgress);
+      }
+      if (!upload_url) throw new Error('Upload URL is missing');
 
       // 2. Upload file directly to R2/S3
       await this.uploadToPresignedUrl(

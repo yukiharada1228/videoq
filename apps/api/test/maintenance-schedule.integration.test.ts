@@ -55,6 +55,7 @@ describeWithPostgres("next maintenance wakeup on PostgreSQL", () => {
         updated_at timestamptz NOT NULL DEFAULT now()
       );
       CREATE TABLE ${quotedSchema}.videos (
+        upload_heartbeat_at timestamptz,
         id bigserial PRIMARY KEY,
         status varchar(20) NOT NULL,
         uploaded_at timestamptz NOT NULL DEFAULT now()
@@ -176,6 +177,14 @@ describeWithPostgres("next maintenance wakeup on PostgreSQL", () => {
       await getNextMaintenanceWakeup(env, WINDOWS),
       Date.now() + WINDOWS.staleInvitationMs - 5 * 60_000,
     );
+  });
+
+  it("schedules multipart abandonment from its latest activity, not its creation", async () => {
+    await admin.query(`
+      INSERT INTO ${quotedSchema}.videos (status, uploaded_at, upload_heartbeat_at)
+      VALUES ('uploading', now() - interval '4 hours', now() - interval '10 minutes')
+    `);
+    expectFutureWakeup(await getNextMaintenanceWakeup(env, WINDOWS), Date.now() + 110 * 60_000);
   });
 
   it("生きた配送タスクがある招待では起床しない（空振りループを作らない）", async () => {

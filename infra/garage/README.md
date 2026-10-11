@@ -68,6 +68,10 @@ GARAGE_INTEGRATION=1 npm run test:unit --workspace @videoq/api -- test/garage-st
 docker compose exec worker python scripts/check_local_storage.py
 ```
 
+To use an installed Chrome instead of Playwright's bundled Chromium, add
+`PLAYWRIGHT_CHANNEL=chrome`. The suite also verifies multipart uploads, exact
+signed part lengths, exposed ETags, and assembled object bytes.
+
 The API integration tests use the real storage adapter and Garage. They check
 signed PUT/GET, CORS, private objects, HEAD, ranges, ETag conditions, encoded object
 keys, and deletion. Chromium uploads a video from the local website's origin,
