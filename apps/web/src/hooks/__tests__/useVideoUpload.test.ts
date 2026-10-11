@@ -91,9 +91,13 @@ describe('useVideoUpload', () => {
     expect(transport).toHaveBeenCalledTimes(2)
   })
 
-  it('should handle file change', () => {
+  it.each([
+    ['test-video.mp4', 'video/mp4'],
+    ['test-video.mkv', 'video/matroska'],
+    ['test-video.MKV', 'video/x-matroska'],
+  ])('should accept file selection: %s (%s)', (name, type) => {
     const { result } = renderHook(() => useVideoUpload())
-    const file = new File(['content'], 'test-video.mp4', { type: 'video/mp4' })
+    const file = new File(['content'], name, { type })
 
     act(() => {
       result.current.handleFileChange({
@@ -102,6 +106,7 @@ describe('useVideoUpload', () => {
     })
 
     expect(result.current.title).toBe('test-video')
+    expect(result.current.error).toBeNull()
   })
 
   it('should reject non-video files on file change', () => {

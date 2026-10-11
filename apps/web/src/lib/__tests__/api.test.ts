@@ -93,6 +93,8 @@ describe('presigned upload content types', () => {
 
   it.each([
     ['recording.MKV', '', 'video/x-matroska'],
+    ['recording.mkv', 'video/matroska', 'video/matroska'],
+    ['recording.mkv', 'video/x-matroska', 'video/x-matroska'],
     ['recording.webm', 'application/octet-stream', 'video/webm'],
     ['recording.mov', 'video/quicktime', 'video/quicktime'],
   ])('uses the same MIME type for signing and PUT: %s (%s)', async (name, type, contentType) => {
@@ -291,6 +293,8 @@ describe('ApiClient protocol adapters', () => {
   it.each([
     ['test.mp4', 'video/mp4', 'video/mp4'],
     ['test.MKV', '', 'video/x-matroska'],
+    ['test.mkv', 'video/matroska', 'video/matroska'],
+    ['test.mkv', 'video/x-matroska', 'video/x-matroska'],
     ['test.webm', 'application/octet-stream', 'video/webm'],
   ])('uploads multipart data with the correct file type: %s (%s)', async (name, type, expectedType) => {
     fetchMock.mockResolvedValueOnce(rawJson({

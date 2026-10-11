@@ -44,6 +44,10 @@ describe("upload allow-lists + message", () => {
     expect(isAllowedContentType("video/mp4")).toBe(true);
     expect(isAllowedContentType("application/pdf")).toBe(false);
   });
+  it.each(["video/matroska", "video/x-matroska"])("accepts MKV uploads with %s", contentType => {
+    expect(isAllowedExtension(fileExtension("recording.MKV"))).toBe(true);
+    expect(isAllowedContentType(contentType)).toBe(true);
+  });
   it("unsupported message uses sorted list", () => {
     expect(unsupportedTypeMessage(".pdf")).toBe(
       "Unsupported file type: '.pdf'. Allowed types: .3gp, .avi, .m4v, .mkv, .mov, .mp4, .mpeg, .mpg, .webm",
