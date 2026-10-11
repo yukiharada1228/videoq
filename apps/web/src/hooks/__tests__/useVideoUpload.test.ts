@@ -27,7 +27,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    user: { id: 1, username: 'testuser', max_video_upload_size_mb: 500 },
+    user: { id: 1, username: 'testuser', max_video_upload_size_mb: 500, storage_limit_bytes: 20 * 1024 ** 3, used_storage_bytes: 0, monthly_upload_limit_bytes: 200 * 1024 ** 3, used_upload_bytes: 0 },
     isLoading: false,
   }),
 }))
@@ -36,7 +36,7 @@ describe('useVideoUpload', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(apiClient.uploadVideo).mockReset()
-    vi.mocked(compressVideo).mockReset()
+    vi.mocked(compressVideo).mockReset().mockImplementation(async (file) => ({ file, dispose: vi.fn(async () => {}) }))
     createYoutubeVideo.mockReset()
     addTagsToVideo.mockReset()
     globalThis.__setTrpcHandler('videos.createYoutube', createYoutubeVideo)
@@ -63,11 +63,11 @@ describe('useVideoUpload', () => {
     vi.mocked(apiClient.uploadVideo).mockResolvedValue({ id: 1 } as never)
     const { result } = renderHook(() => useVideoUpload())
     act(() => result.current.handleFileChange({ target: { files: [source] } } as unknown as React.ChangeEvent<HTMLInputElement>))
-    expect(result.current.error).toBe('videos.upload.validation.fileTooLarge')
+    expect(result.current.error).toBeNull()
     act(() => result.current.setCompressionPreset('1080p'))
     expect(result.current.error).toBeNull()
     await act(() => result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent))
-    expect(compressVideo).toHaveBeenCalledWith(source, '1080p', expect.objectContaining({ maxBytes: 500 * 1024 ** 2 }))
+    expect(compressVideo).toHaveBeenCalledWith(source, '1080p', expect.objectContaining({ maxBytes: 20 * 1024 ** 3 }))
     expect(apiClient.uploadVideo).toHaveBeenCalledWith({ file: compressed, title: 'game', description: undefined }, expect.any(Function))
     expect(dispose).toHaveBeenCalledTimes(1)
     expect(result.current.compressedSizes).toEqual({ before: source.size, after: compressed.size })
@@ -115,11 +115,11 @@ describe('useVideoUpload', () => {
       await expect(result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent)).rejects.toThrow('network failed')
     })
     expect(dispose).toHaveBeenCalledTimes(1)
-    act(() => result.current.setCompressionPreset('original'))
+    act(() => result.current.setCompressionPreset('720p'))
     vi.mocked(apiClient.uploadVideo).mockResolvedValue({ id: 1 } as never)
     await act(() => result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent))
-    expect(apiClient.uploadVideo).toHaveBeenLastCalledWith(expect.objectContaining({ file: source }), expect.any(Function))
-    expect(compressVideo).toHaveBeenCalledTimes(1)
+    expect(apiClient.uploadVideo).toHaveBeenLastCalledWith(expect.objectContaining({ file: expect.objectContaining({ name: 'game.mp4' }) }), expect.any(Function))
+    expect(compressVideo).toHaveBeenCalledTimes(2)
   })
 
   it.each(['file', 'youtube'] as const)('does not create duplicate %s videos during one upload', async mode => {
@@ -194,7 +194,7 @@ describe('useVideoUpload', () => {
     expect(result.current.error).toBe('videos.upload.validation.invalidFileType')
   })
 
-  it('should reject oversized files on file change', () => {
+  it('accepts large source files for compression without a per-file plan cap', () => {
     const { result } = renderHook(() => useVideoUpload())
     const file = new File(['content'], 'large-video.mp4', { type: 'video/mp4' })
     Object.defineProperty(file, 'size', { value: 501 * 1024 * 1024 })
@@ -205,7 +205,7 @@ describe('useVideoUpload', () => {
       } as unknown as React.ChangeEvent<HTMLInputElement>)
     })
 
-    expect(result.current.error).toBe('videos.upload.validation.fileTooLarge')
+    expect(result.current.error).toBeNull()
   })
 
   it('should update title', () => {

@@ -39,7 +39,7 @@ describe("resolveSignupQuotaDefaults", () => {
         MAX_VIDEO_UPLOAD_SIZE_MB: raw,
         DEFAULT_AI_ANSWERS_LIMIT: raw,
         DEFAULT_PROCESSING_LIMIT_MINUTES: raw,
-      })).toEqual({ maxVideoUploadSizeMb: 200, aiAnswersLimit: 30, processingLimitMinutes: 45, storageLimitGb: 1 });
+      })).toEqual({ monthlyUploadLimitGb: 2, maxVideoUploadSizeMb: 5237760, aiAnswersLimit: 30, processingLimitMinutes: 45, storageLimitGb: 1 });
     },
   );
 
@@ -49,12 +49,12 @@ describe("resolveSignupQuotaDefaults", () => {
       DEFAULT_AI_ANSWERS_LIMIT: '0',
       DEFAULT_PROCESSING_LIMIT_MINUTES: '0',
       DEFAULT_STORAGE_LIMIT_GB: '0.5',
-    })).toEqual({ maxVideoUploadSizeMb: 200, aiAnswersLimit: 0, processingLimitMinutes: 0, storageLimitGb: 0.5 });
+    })).toEqual({ monthlyUploadLimitGb: 2, maxVideoUploadSizeMb: 5237760, aiAnswersLimit: 0, processingLimitMinutes: 0, storageLimitGb: 0.5 });
   });
 
   it("uses free-tier defaults when env is empty", () => {
     expect(resolveSignupQuotaDefaults({})).toEqual({
-      maxVideoUploadSizeMb: 200,
+      monthlyUploadLimitGb: 2, maxVideoUploadSizeMb: 5237760,
       storageLimitGb: 1,
       processingLimitMinutes: 45,
       aiAnswersLimit: 30,
@@ -70,7 +70,7 @@ describe("resolveSignupQuotaDefaults", () => {
         DEFAULT_AI_ANSWERS_LIMIT: "50",
       }),
     ).toEqual({
-      maxVideoUploadSizeMb: 250,
+      monthlyUploadLimitGb: 2, maxVideoUploadSizeMb: 5237760,
       storageLimitGb: 5,
       processingLimitMinutes: 180,
       aiAnswersLimit: 50,
@@ -85,7 +85,7 @@ describe("resolveSignupQuotaDefaults", () => {
         DEFAULT_AI_ANSWERS_LIMIT: "unlimited",
       }),
     ).toEqual({
-      maxVideoUploadSizeMb: 200,
+      monthlyUploadLimitGb: 2, maxVideoUploadSizeMb: 5237760,
       storageLimitGb: null,
       processingLimitMinutes: null,
       aiAnswersLimit: null,

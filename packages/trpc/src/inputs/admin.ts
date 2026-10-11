@@ -12,7 +12,7 @@ export const adminInputSchemas = {
   }).default({ limit: 100, offset: 0 }),
   "admin.getUser": userId,
   "admin.patchQuota": userId.extend({
-    max_video_upload_size_mb: nonNegativeInt32.positive().optional(),
+    monthly_upload_limit_gb: z.number().nonnegative().nullable().optional(),
     storage_limit_gb: z.number().nonnegative().nullable().optional(),
     processing_limit_minutes: nonNegativeInt32.nullable().optional(),
     ai_answers_limit: nonNegativeInt32.nullable().optional(),

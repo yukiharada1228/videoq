@@ -1,4 +1,4 @@
-export type CompressionPreset = 'original' | '1080p' | '720p';
+export type CompressionPreset = '1080p' | '720p';
 export type CompressedVideo = { file: File; dispose: () => Promise<void> };
 export type CompressionMessage =
   | { type: 'progress'; percent: number }
@@ -8,7 +8,7 @@ export type CompressionMessage =
 export const COMPRESSION_DIRECTORY = 'videoq-upload-compression';
 
 /** Small, even dimensions; never upscale or crop portrait/landscape inputs. */
-export function compressionDimensions(width: number, height: number, preset: Exclude<CompressionPreset, 'original'>) {
+export function compressionDimensions(width: number, height: number, preset: CompressionPreset) {
   const long = preset === '1080p' ? 1920 : 1280;
   const short = preset === '1080p' ? 1080 : 720;
   const scale = Math.min(1, long / Math.max(width, height), short / Math.min(width, height));

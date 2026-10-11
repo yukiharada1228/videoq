@@ -148,10 +148,11 @@ export default function PricingPage() {
                     })}
                   </li>
                   <li>
-                    {t('pricing.limits.upload', {
-                      mb: plan.entitlements.max_video_upload_size_mb,
+                    {t('pricing.limits.monthlyUpload', {
+                      gb: plan.entitlements.monthly_upload_limit_gb,
                     })}
                   </li>
+                  <li>{t('pricing.limits.perFile')}</li>
                 </ul>
                 {!hasSession && !session.isPending ? (
                   <Button asChild variant={plan.code === 'free' ? 'outline' : 'solid-fill'}>

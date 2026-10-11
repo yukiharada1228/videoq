@@ -10,7 +10,7 @@ export function supportsVideoCompression(): boolean {
 /** The worker reads File slices and writes OPFS. Neither full file enters JS memory. */
 export async function compressVideo(
   file: File,
-  preset: Exclude<CompressionPreset, 'original'>,
+  preset: CompressionPreset,
   options: { signal: AbortSignal; onProgress: (percent: number) => void; maxBytes: number },
 ): Promise<CompressedVideo> {
   options.signal.throwIfAborted();

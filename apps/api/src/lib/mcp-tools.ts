@@ -540,13 +540,6 @@ export async function callMcpTool(
           details: result.fieldError,
         });
       }
-      if ("fileTooLarge" in result) {
-        throw new McpToolError(`File size exceeds the limit of ${result.maxMb} MB.`, {
-          status: 413,
-          code: "FILE_TOO_LARGE",
-          max_size_mb: result.maxMb,
-        });
-      }
       if ("badRequest" in result) {
         throw new McpToolError(result.badRequest ?? "Invalid upload request.", {
           status: 400,

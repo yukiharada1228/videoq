@@ -1,3 +1,5 @@
+import { MAX_VIDEO_UPLOAD_BYTES } from "@videoq/trpc/video-upload";
+
 const PLAN_CODES = ["free", "basic", "pro"] as const;
 export type PlanCode = (typeof PLAN_CODES)[number];
 
@@ -15,8 +17,10 @@ export function currencyForLocale(locale?: string): BillingCurrency {
 }
 
 export type PlanEntitlements = {
+  /** Compatibility field: the provider ceiling, identical for every plan. */
   maxVideoUploadSizeMb: number;
   storageLimitGb: number;
+  monthlyUploadLimitGb: number;
   processingLimitMinutes: number;
   aiAnswersLimit: number;
 };
@@ -36,8 +40,9 @@ export const PLAN_CATALOG: Record<PlanCode, PlanDefinition> = {
     displayAmountYen: { monthly: 0, yearly: 0 },
     displayAmountUsdCents: { monthly: 0, yearly: 0 },
     entitlements: {
-      maxVideoUploadSizeMb: 200,
+      maxVideoUploadSizeMb: MAX_VIDEO_UPLOAD_BYTES / 1024 ** 2,
       storageLimitGb: 1,
+      monthlyUploadLimitGb: 2,
       processingLimitMinutes: 45,
       aiAnswersLimit: 30,
     },
@@ -48,8 +53,9 @@ export const PLAN_CATALOG: Record<PlanCode, PlanDefinition> = {
     displayAmountYen: { monthly: 1480, yearly: 14800 },
     displayAmountUsdCents: { monthly: 999, yearly: 9990 },
     entitlements: {
-      maxVideoUploadSizeMb: 1024,
+      maxVideoUploadSizeMb: MAX_VIDEO_UPLOAD_BYTES / 1024 ** 2,
       storageLimitGb: 20,
+      monthlyUploadLimitGb: 200,
       processingLimitMinutes: 300,
       aiAnswersLimit: 1800,
     },
@@ -60,8 +66,9 @@ export const PLAN_CATALOG: Record<PlanCode, PlanDefinition> = {
     displayAmountYen: { monthly: 3980, yearly: 39800 },
     displayAmountUsdCents: { monthly: 2699, yearly: 26990 },
     entitlements: {
-      maxVideoUploadSizeMb: 2048,
+      maxVideoUploadSizeMb: MAX_VIDEO_UPLOAD_BYTES / 1024 ** 2,
       storageLimitGb: 100,
+      monthlyUploadLimitGb: 1000,
       processingLimitMinutes: 1500,
       aiAnswersLimit: 2800,
     },

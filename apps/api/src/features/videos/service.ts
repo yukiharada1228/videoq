@@ -137,7 +137,7 @@ export async function requestPresignedUpload(
 
   const fieldError: Record<string, string[]> = {};
   if (!Number.isSafeInteger(body.file_size) || body.file_size <= 0 || body.file_size > MAX_VIDEO_UPLOAD_BYTES) {
-    fieldError.file_size = ["Invalid file size (maximum 5 TiB)."];
+    fieldError.file_size = ["Invalid file size (exceeds the storage provider object limit)."];
   } else if (!body.multipart && body.file_size > MAX_SINGLE_UPLOAD_BYTES) {
     fieldError.file_size = ["Files larger than 5 GiB require multipart upload."];
   }
@@ -168,7 +168,9 @@ export async function requestPresignedUpload(
     body.description,
     idempotency,
   );
-  if ("fileTooLarge" in pending) return pending;
+  if ("monthlyUploadExceeded" in pending) {
+    return { badRequest: "Monthly upload allowance exceeded.", code: "MONTHLY_UPLOAD_LIMIT_EXCEEDED" } as const;
+  }
   if ("idempotencyConflict" in pending) {
     return { idempotencyConflict: true } as const;
   }
@@ -494,18 +496,10 @@ export async function createVideoFromMultipart(
     title,
     description,
   );
-  if ("fileTooLarge" in pending) {
-    return {
-      ok: false,
-      status: 400,
-      body: {
-        error: {
-          code: "FILE_TOO_LARGE",
-          message: `File size exceeds the limit of ${pending.maxMb} MB.`,
-          params: { max_size_mb: pending.maxMb },
-        },
-      },
-    };
+  if ("monthlyUploadExceeded" in pending) {
+    return { ok: false, status: 400, body: { error: {
+      code: "MONTHLY_UPLOAD_LIMIT_EXCEEDED", message: "Monthly upload allowance exceeded.",
+    } } };
   }
   if ("idempotencyConflict" in pending) {
     throw new Error("Unexpected idempotency conflict without an idempotency key.");

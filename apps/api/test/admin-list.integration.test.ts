@@ -16,7 +16,7 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
     await admin.query(`
       CREATE SCHEMA "${schema}";
       SET search_path TO "${schema}";
-      CREATE TABLE users (
+      CREATE TABLE users (monthly_upload_limit_gb double precision DEFAULT 2,
         id text PRIMARY KEY, username text NOT NULL, email text NOT NULL,
         role text DEFAULT 'user', banned boolean DEFAULT false, ban_expires timestamptz,
         max_video_upload_size_mb integer DEFAULT 200,

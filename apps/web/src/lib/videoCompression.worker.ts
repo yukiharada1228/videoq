@@ -4,7 +4,7 @@ import {
 } from 'mediabunny';
 import { COMPRESSION_DIRECTORY, compressionDimensions, type CompressionMessage, type CompressionPreset } from './videoCompressionSettings';
 
-type Start = { type: 'start'; file: File; preset: Exclude<CompressionPreset, 'original'>; name: string; maxBytes: number };
+type Start = { type: 'start'; file: File; preset: CompressionPreset; name: string; maxBytes: number };
 let conversion: Conversion | undefined;
 let canceled = false;
 let started = false;
@@ -39,7 +39,11 @@ async function convert({ file, preset, name, maxBytes }: Start) {
     const targetRate = Math.min(preset === '1080p' ? 60 : 30, stats.averagePacketRate);
     if (!Number.isFinite(targetRate) || targetRate <= 0) throw new Error('videos.upload.compression.unsupportedFile');
     // Keep the source cadence at <= 60fps in standard mode, rather than doubling low-fps footage.
-    const bitrate = preset === '1080p' ? (targetRate > 30 ? 8_000_000 : 5_000_000) : 2_500_000;
+    const presetBitrate = preset === '1080p' ? (targetRate > 30 ? 8_000_000 : 5_000_000) : 2_500_000;
+    // Re-encode low-bitrate inputs without inflating them to the preset ceiling.
+    const bitrate = Number.isFinite(stats.averageBitrate) && stats.averageBitrate > 0
+      ? Math.min(presetBitrate, Math.max(64_000, Math.floor(stats.averageBitrate * 0.9)))
+      : presetBitrate;
     const duration = await input.computeDuration();
     if (!Number.isFinite(duration) || duration <= 0) throw new Error('videos.upload.compression.unsupportedFile');
     const audioTracks = await input.getAudioTracks();
@@ -66,7 +70,6 @@ async function convert({ file, preset, name, maxBytes }: Start) {
         async write(chunk) {
           checkCanceled();
           const end = chunk.position + chunk.data.byteLength;
-          if (end >= file.size) throw new Error('videos.upload.compression.notSmaller');
           if (end > maxBytes) throw new Error('videos.upload.compression.tooLarge');
           await writable.write(chunk);
         },

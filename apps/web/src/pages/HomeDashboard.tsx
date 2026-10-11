@@ -66,6 +66,12 @@ export default function HomeDashboard() {
         unit: t('quota.usage.gb'),
       },
       {
+        label: t('quota.usage.monthlyUpload'),
+        value: formatBytesToGb(usageSource.used_upload_bytes),
+        limit: usageSource.monthly_upload_limit_bytes == null ? null : formatBytesToGb(usageSource.monthly_upload_limit_bytes),
+        unit: t('quota.usage.gb'),
+      },
+      {
         label: t('quota.usage.transcription'),
         value: String(formatSecondsToMinutes(usageSource.used_processing_seconds)),
         limit:
@@ -89,6 +95,8 @@ export default function HomeDashboard() {
     usageSource.used_ai_answers,
     usageSource.used_processing_seconds,
     usageSource.used_storage_bytes,
+    usageSource.used_upload_bytes,
+    usageSource.monthly_upload_limit_bytes,
     usageSource.processing_limit_seconds,
     t,
   ]);

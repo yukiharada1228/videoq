@@ -59,12 +59,16 @@ export const users = pgTable(
 			.notNull()
 			.defaultNow(),
 		deactivatedAt: timestamp("deactivated_at", { withTimezone: true, mode: "string" }),
-		maxVideoUploadSizeMb: integer("max_video_upload_size_mb").notNull(),
+		/** Legacy column retained for rolling deploys; no longer an admission limit. */
+		maxVideoUploadSizeMb: integer("max_video_upload_size_mb").notNull().default(0),
 		searchapiApiKeyEncrypted: text("searchapi_api_key_encrypted"),
 		aiAnswersLimit: integer("ai_answers_limit"),
 		isOverQuota: boolean("is_over_quota").notNull(),
 		processingLimitMinutes: integer("processing_limit_minutes"),
 		storageLimitGb: doublePrecision("storage_limit_gb"),
+		monthlyUploadLimitGb: doublePrecision("monthly_upload_limit_gb").default(2),
+		usedUploadBytes: bigint("used_upload_bytes", { mode: "number" }).notNull().default(0),
+		uploadUsagePeriodStart: timestamp("upload_usage_period_start", { withTimezone: true, mode: "string" }),
 		usagePeriodStart: timestamp("usage_period_start", { withTimezone: true, mode: "string" }),
 		usedAiAnswers: integer("used_ai_answers").notNull(),
 		usedProcessingSeconds: integer("used_processing_seconds").notNull(),
@@ -93,6 +97,8 @@ export const users = pgTable(
 		unique("users_stripe_customer_id_key").on(table.stripeCustomerId),
 		unique("users_stripe_subscription_id_key").on(table.stripeSubscriptionId),
 		check("users_max_video_upload_size_mb_check", sql`max_video_upload_size_mb >= 0`),
+		check("users_monthly_upload_limit_check", sql`monthly_upload_limit_gb >= 0`),
+		check("users_used_upload_bytes_check", sql`used_upload_bytes >= 0`),
 		check("users_plan_code_check", sql`plan_code IN ('free', 'basic', 'pro')`),
 		check("users_quota_source_check", sql`quota_source IN ('plan', 'admin')`),
 	],
@@ -278,6 +284,8 @@ export const videos = pgTable(
 			contentType: string;
 		}>(),
 		uploadHeartbeatAt: timestamp("upload_heartbeat_at", { withTimezone: true, mode: "string" }),
+		/** Month of admission, also used to refund an unconfirmed upload exactly once. */
+		uploadUsagePeriodStart: timestamp("upload_usage_period_start", { withTimezone: true, mode: "string" }),
 		title: varchar({ length: 255 }).notNull(),
 		description: text().notNull(),
 		uploadedAt: timestamp("uploaded_at", { withTimezone: true, mode: "string" }).notNull(),

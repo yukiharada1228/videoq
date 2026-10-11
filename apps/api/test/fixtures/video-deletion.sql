@@ -1,7 +1,7 @@
 -- Minimal columns with the deletion relationships from 0001_new_schema.sql
 -- and the subsequent group-to-course rename. Shared by API and Python tests.
 CREATE TABLE videos (id integer PRIMARY KEY, user_id text NOT NULL, status text NOT NULL DEFAULT 'completed', file text NOT NULL DEFAULT '');
-ALTER TABLE videos ADD COLUMN multipart_upload jsonb, ADD COLUMN upload_heartbeat_at timestamptz;
+ALTER TABLE videos ADD COLUMN multipart_upload jsonb, ADD COLUMN upload_heartbeat_at timestamptz, ADD COLUMN upload_usage_period_start timestamptz;
 CREATE TABLE video_tags (id integer PRIMARY KEY, video_id integer REFERENCES videos ON DELETE CASCADE);
 CREATE TABLE video_course_members (id integer PRIMARY KEY, video_id integer REFERENCES videos ON DELETE CASCADE);
 -- These two tables deliberately have no FK to videos and require explicit cleanup.

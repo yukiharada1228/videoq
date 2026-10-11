@@ -53,7 +53,7 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
   }
   function limits(plan: "free" | "basic" | "pro") {
     const e = PLAN_CATALOG[plan].entitlements;
-    return { max_video_upload_size_mb: e.maxVideoUploadSizeMb, storage_limit_gb: e.storageLimitGb,
+    return { max_video_upload_size_mb: e.maxVideoUploadSizeMb, storage_limit_gb: e.storageLimitGb, monthly_upload_limit_gb: e.monthlyUploadLimitGb,
       processing_limit_minutes: e.processingLimitMinutes, ai_answers_limit: e.aiAnswersLimit };
   }
 
@@ -64,6 +64,7 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
       CREATE SCHEMA "${schema}";
       SET search_path TO "${schema}";
       CREATE TABLE users (
+        monthly_upload_limit_gb double precision DEFAULT 2,
         id text PRIMARY KEY, email text DEFAULT 'user@example.test',
         banned boolean DEFAULT false, ban_expires timestamptz,
         stripe_customer_id text UNIQUE, stripe_subscription_id text UNIQUE,

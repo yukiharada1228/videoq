@@ -42,9 +42,10 @@ export function videoUploadContentType(file: { name: string; type: string }): st
   return isAllowedContentType(file.type) ? file.type : null;
 }
 
-// R2: 5 TiB per object, at most 10,000 equal-sized parts (except the last).
+// R2 physical ceiling (not an account/plan cap): 5 TiB minus 5 GiB.
+// https://developers.cloudflare.com/r2/platform/limits/
 export const MULTIPART_UPLOAD_THRESHOLD = 100 * 1024 * 1024;
-export const MAX_VIDEO_UPLOAD_BYTES = 5 * 1024 ** 4;
+export const MAX_VIDEO_UPLOAD_BYTES = 5 * 1024 ** 4 - 5 * 1024 ** 3;
 export const MAX_SINGLE_UPLOAD_BYTES = 5 * 1024 ** 3;
 export const MAX_UPLOAD_PARTS = 10_000;
 

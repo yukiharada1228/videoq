@@ -31,7 +31,7 @@ export function LandingFreePlan() {
             <div><dt>{t('landing.free.processing')}</dt><dd>{t('landing.free.minutes', { minutes: plan.entitlements.processing_limit_minutes })}</dd></div>
             <div><dt>{t('landing.free.answers')}</dt><dd>{t('landing.free.answerCount', { count: plan.entitlements.ai_answers_limit })}</dd></div>
             <div><dt>{t('landing.free.storage')}</dt><dd>{t('landing.free.gb', { gb: plan.entitlements.storage_limit_gb })}</dd></div>
-            <div><dt>{t('landing.free.upload')}</dt><dd>{t('landing.free.mb', { mb: plan.entitlements.max_video_upload_size_mb })}</dd></div>
+            <div><dt>{t('landing.free.monthlyUpload')}</dt><dd>{t('landing.free.gb', { gb: plan.entitlements.monthly_upload_limit_gb })}</dd></div>
           </dl>
         ) : (
           <p className="lp-free-unavailable" role="status">{t(catalog.isPending ? 'landing.free.loading' : 'landing.free.unavailable')}</p>

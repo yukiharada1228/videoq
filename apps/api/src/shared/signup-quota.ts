@@ -2,7 +2,8 @@ import { PLAN_CATALOG } from "../features/billing/catalog";
 
 /**
  * Free-tier quotas applied when a new account is created via signup.
- * Override with DEFAULT_* / MAX_VIDEO_UPLOAD_SIZE_MB env vars.
+ * Override processing/storage/AI quotas with DEFAULT_* env vars.
+ * MAX_VIDEO_UPLOAD_SIZE_MB is deprecated and ignored.
  * The plan catalog is the single source of free-tier defaults.
  *
  * Semantics for nullable limits:
@@ -14,6 +15,7 @@ import { PLAN_CATALOG } from "../features/billing/catalog";
 export type SignupQuotaDefaults = {
   maxVideoUploadSizeMb: number;
   storageLimitGb: number | null;
+  monthlyUploadLimitGb: number | null;
   processingLimitMinutes: number | null;
   aiAnswersLimit: number | null;
 };
@@ -46,9 +48,9 @@ export function resolveSignupQuotaDefaults(env: {
   DEFAULT_AI_ANSWERS_LIMIT?: string;
 }): SignupQuotaDefaults {
   const defaults = PLAN_CATALOG.free.entitlements;
-  const maxMb = parseNullableLimit(env.MAX_VIDEO_UPLOAD_SIZE_MB, defaults.maxVideoUploadSizeMb, { integer: true });
   return {
-    maxVideoUploadSizeMb: maxMb || defaults.maxVideoUploadSizeMb,
+    maxVideoUploadSizeMb: defaults.maxVideoUploadSizeMb,
+    monthlyUploadLimitGb: defaults.monthlyUploadLimitGb,
     storageLimitGb: parseNullableLimit(
       env.DEFAULT_STORAGE_LIMIT_GB,
       defaults.storageLimitGb,

@@ -1,5 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { withDb } from "../db/pool";
+import { MAX_VIDEO_UPLOAD_BYTES } from "@videoq/trpc/video-upload";
+import { currentUploadBytes } from "./quota-repository";
 import { users } from "../db/schema";
 import type { Bindings } from "../types/bindings";
 
@@ -13,6 +15,9 @@ export type CurrentUser = {
   is_admin: boolean;
   video_count: number;
   max_video_upload_size_mb: number;
+  used_upload_bytes: number;
+  monthly_upload_limit_bytes: number | null;
+  upload_resets_at: string;
   used_storage_bytes: number;
   storage_limit_bytes: number | null;
   used_processing_seconds: number;
@@ -38,7 +43,9 @@ export async function getCurrentUser(
         username: users.username,
         email: users.email,
         role: users.role,
-        max_video_upload_size_mb: users.maxVideoUploadSizeMb,
+        used_upload_bytes: currentUploadBytes,
+        monthly_upload_limit_gb: users.monthlyUploadLimitGb,
+        upload_resets_at: sql<string>`(date_trunc('month', CURRENT_TIMESTAMP AT TIME ZONE 'UTC') + interval '1 month') AT TIME ZONE 'UTC'`,
         used_storage_bytes: users.usedStorageBytes,
         storage_limit_gb: users.storageLimitGb,
         used_processing_seconds: users.usedProcessingSeconds,
@@ -71,7 +78,11 @@ export async function getCurrentUser(
       email: r.email,
       is_admin: r.role?.split(",").includes("admin") ?? false,
       video_count: r.video_count,
-      max_video_upload_size_mb: r.max_video_upload_size_mb,
+      // Compatibility for old clients; account-specific per-file caps are gone.
+      max_video_upload_size_mb: MAX_VIDEO_UPLOAD_BYTES / 1024 ** 2,
+      used_upload_bytes: Number(r.used_upload_bytes),
+      monthly_upload_limit_bytes: r.monthly_upload_limit_gb === null ? null : Math.floor(r.monthly_upload_limit_gb * GIB),
+      upload_resets_at: new Date(r.upload_resets_at).toISOString(),
       used_storage_bytes: Number(r.used_storage_bytes),
       storage_limit_bytes:
         storageLimitGb === null ? null : Math.trunc(storageLimitGb * GIB),

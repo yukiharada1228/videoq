@@ -74,11 +74,6 @@ export function mediaLibraryHandlers(
           appCode: "VALIDATION_ERROR", details: result.fieldError,
         });
       }
-      if ("fileTooLarge" in result) {
-        return rpcError("PAYLOAD_TOO_LARGE", `File size exceeds the limit of ${result.maxMb} MB.`, {
-          appCode: "FILE_TOO_LARGE", params: { max_size_mb: result.maxMb },
-        });
-      }
       if ("badRequest" in result && result.badRequest) {
         return rpcError("BAD_REQUEST", result.badRequest, {
           appCode: "code" in result ? result.code : "VALIDATION_ERROR",

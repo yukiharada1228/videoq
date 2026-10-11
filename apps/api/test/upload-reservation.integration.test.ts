@@ -30,7 +30,8 @@ const modes: UploadMode[] = ["presigned", "multipart"];
       CREATE TABLE users (
         id text PRIMARY KEY, max_video_upload_size_mb integer NOT NULL DEFAULT 1,
         is_over_quota boolean NOT NULL DEFAULT false, storage_limit_gb numeric DEFAULT 10,
-        used_storage_bytes bigint NOT NULL DEFAULT 0
+        used_storage_bytes bigint NOT NULL DEFAULT 0, monthly_upload_limit_gb numeric DEFAULT (1.0 / 1024),
+        used_upload_bytes bigint NOT NULL DEFAULT 0, upload_usage_period_start timestamptz
       );
       CREATE TABLE videos (
         id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY, user_id text REFERENCES users,
@@ -38,7 +39,7 @@ const modes: UploadMode[] = ["presigned", "multipart"];
         status text NOT NULL, source_type text NOT NULL, source_url text NOT NULL,
         youtube_video_id text NOT NULL, transcript text NOT NULL, error_message text NOT NULL,
         processing_seconds integer NOT NULL DEFAULT 0, uploaded_at timestamptz NOT NULL,
-        multipart_upload jsonb, upload_heartbeat_at timestamptz
+        multipart_upload jsonb, upload_heartbeat_at timestamptz, upload_usage_period_start timestamptz
       );
       CREATE TABLE scene_embeddings (video_id integer);
       CREATE TABLE tags (id integer PRIMARY KEY, name text, color text);
@@ -95,12 +96,12 @@ const modes: UploadMode[] = ["presigned", "multipart"];
       });
   }
 
-  function expectTooLarge(result: unknown, mode: UploadMode, maxMb = 1) {
-    expect(result).toEqual(mode === "presigned" ? { fileTooLarge: true, maxMb } : {
-      ok: false, status: 400, body: { error: {
-        code: "FILE_TOO_LARGE", message: `File size exceeds the limit of ${maxMb} MB.`, params: { max_size_mb: maxMb },
-      } },
-    });
+  function expectMonthlyLimit(result: unknown, mode: UploadMode) {
+    expect(result).toEqual(mode === "presigned"
+      ? { badRequest: "Monthly upload allowance exceeded.", code: "MONTHLY_UPLOAD_LIMIT_EXCEEDED" }
+      : { ok: false, status: 400, body: { error: {
+        code: "MONTHLY_UPLOAD_LIMIT_EXCEEDED", message: "Monthly upload allowance exceeded.",
+      } } });
   }
 
   async function expectNoReservation() {
@@ -115,7 +116,7 @@ const modes: UploadMode[] = ["presigned", "multipart"];
     expect(armAt).not.toHaveBeenCalled();
   }
 
-  it.each(modes)("accepts the exact file-size limit without a separate limit connection (%s)", async mode => {
+  it.each(modes)("accepts the exact monthly upload limit without a separate limit connection (%s)", async mode => {
     const connect = vi.spyOn(pg.Client.prototype, "connect");
     const result = await upload(mode);
     expect(result).toMatchObject({ video: { id: 1, status: mode === "presigned" ? "uploading" : "pending" } });
@@ -123,21 +124,20 @@ const modes: UploadMode[] = ["presigned", "multipart"];
     expect((await admin.query("SELECT used_storage_bytes FROM users")).rows).toEqual([{ used_storage_bytes: String(MIB) }]);
   });
 
-  it.each(modes)("rejects one byte over the limit before any reservation or media write (%s)", async mode => {
-    expectTooLarge(await upload(mode, MIB + 1), mode);
+  it.each(modes)("rejects one byte over the monthly limit before any reservation or media write (%s)", async mode => {
+    expectMonthlyLimit(await upload(mode, MIB + 1), mode);
     await expectNoReservation();
   });
 
   it.each(modes)("honors a zero-byte upload allowance (%s)", async mode => {
-    await admin.query("UPDATE users SET max_video_upload_size_mb = 0");
-    expectTooLarge(await upload(mode, 1), mode, 0);
+    await admin.query("UPDATE users SET monthly_upload_limit_gb = 0");
+    expectMonthlyLimit(await upload(mode, 1), mode);
     await expectNoReservation();
   });
 
-  it.each(modes)("keeps size errors ahead of storage quota errors (%s)", async mode => {
-    await admin.query("UPDATE users SET is_over_quota = true, storage_limit_gb = 0");
-    expectTooLarge(await upload(mode, MIB + 1), mode);
-    await expectNoReservation();
+  it.each(modes)("does not enforce the retired account per-file limit (%s)", async mode => {
+    await admin.query("UPDATE users SET max_video_upload_size_mb = 0, monthly_upload_limit_gb = 1");
+    expect(await upload(mode, 2 * MIB)).toMatchObject({ video: { id: 1 } });
   });
 
   it.each(modes.flatMap(mode => ["decrease", "increase"].map(change => ({ mode, change }))))(
@@ -147,7 +147,7 @@ const modes: UploadMode[] = ["presigned", "multipart"];
       await writer.connect();
       let pending: Promise<unknown> | undefined;
       try {
-        if (change === "decrease") await admin.query("UPDATE users SET max_video_upload_size_mb = 2");
+        if (change === "decrease") await admin.query("UPDATE users SET monthly_upload_limit_gb = 2.0 / 1024");
         await writer.query("BEGIN");
         await writer.query("SELECT id FROM users WHERE id = 'owner' FOR UPDATE");
         pending = upload(mode, 2 * MIB).catch(error => error);
@@ -155,11 +155,11 @@ const modes: UploadMode[] = ["presigned", "multipart"];
           const blocked = await admin.query("SELECT 1 FROM pg_stat_activity WHERE application_name = $1 AND cardinality(pg_blocking_pids(pid)) > 0", [schema]);
           expect(blocked.rowCount).toBe(1);
         }, { timeout: 5_000 });
-        await writer.query("UPDATE users SET max_video_upload_size_mb = $1 WHERE id = 'owner'", [change === "decrease" ? 1 : 2]);
+        await writer.query("UPDATE users SET monthly_upload_limit_gb = $1 / 1024.0 WHERE id = 'owner'", [change === "decrease" ? 1 : 2]);
         await writer.query("COMMIT");
         const result = await pending;
         if (change === "decrease") {
-          expectTooLarge(result, mode);
+          expectMonthlyLimit(result, mode);
           await expectNoReservation();
         } else {
           expect(result).toMatchObject({ video: { id: 1 } });
@@ -186,15 +186,15 @@ const modes: UploadMode[] = ["presigned", "multipart"];
     vi.mocked(media.presignR2Put).mockClear();
     expect(await upload("presigned", MIB, { ...idempotency, requestHash: "b".repeat(64) }))
       .toEqual({ idempotencyConflict: true });
-    await admin.query("UPDATE users SET max_video_upload_size_mb = 0");
-    expectTooLarge(await upload("presigned", MIB, idempotency), "presigned", 0);
-    expect(media.presignR2Put).not.toHaveBeenCalled();
+    await admin.query("UPDATE users SET monthly_upload_limit_gb = 0");
+    expect(await upload("presigned", MIB, idempotency)).toMatchObject({ reused: true });
+    expect(media.presignR2Put).toHaveBeenCalledTimes(1);
     expect((await admin.query("SELECT used_storage_bytes FROM users")).rows).toEqual([{ used_storage_bytes: String(MIB) }]);
   });
 
   it("enforces the limit for direct repository callers", async () => {
     expect(await reserveAndCreatePendingVideo(env, "owner", MIB + 1, "videos/owner/clip.mp4", "Clip", ""))
-      .toEqual({ fileTooLarge: true, maxMb: 1 });
+      .toEqual({ monthlyUploadExceeded: true, limit: MIB });
     await expectNoReservation();
   });
 
@@ -205,8 +205,63 @@ const modes: UploadMode[] = ["presigned", "multipart"];
     expect((await admin.query("SELECT * FROM videos")).rows).toEqual([]);
   });
 
+  it("reserves both limits atomically under twenty concurrent uploads", async () => {
+    await admin.query("UPDATE users SET monthly_upload_limit_gb = 3.0 / 1024");
+    const results = await Promise.all(Array.from({ length: 20 }, () => upload("presigned")));
+    expect(results.filter(r => "video" in r)).toHaveLength(3);
+    expect(results.filter(r => "code" in r && r.code === "MONTHLY_UPLOAD_LIMIT_EXCEEDED")).toHaveLength(17);
+    expect((await admin.query("SELECT used_storage_bytes, used_upload_bytes FROM users")).rows)
+      .toEqual([{ used_storage_bytes: String(3 * MIB), used_upload_bytes: String(3 * MIB) }]);
+  });
+
+  it("does not consume the monthly allowance when storage admission fails", async () => {
+    await admin.query("UPDATE users SET storage_limit_gb = 0");
+    expect(await upload("presigned")).toMatchObject({ code: "STORAGE_LIMIT_EXCEEDED" });
+    expect((await admin.query("SELECT used_upload_bytes FROM users")).rows).toEqual([{ used_upload_bytes: "0" }]);
+    await expectNoReservation();
+  });
+
+  it("refunds an aborted reservation only once", async () => {
+    await upload("presigned");
+    const results = await Promise.all(Array.from({ length: 4 }, () => deleteVideoCascade(env, 1, "owner", { expectedStatus: "uploading" })));
+    expect(results.filter(r => r.deleted)).toHaveLength(1);
+    expect((await admin.query("SELECT used_upload_bytes FROM users")).rows).toEqual([{ used_upload_bytes: "0" }]);
+    // Physical storage is held until the durable R2 cleanup actually succeeds.
+    expect((await admin.query("SELECT used_storage_bytes FROM users")).rows).toEqual([{ used_storage_bytes: String(MIB) }]);
+  });
+
+  it("does not refund a confirmed upload when the video is deleted", async () => {
+    await upload("multipart");
+    await deleteVideoCascade(env, 1, "owner");
+    expect((await admin.query("SELECT used_upload_bytes FROM users")).rows).toEqual([{ used_upload_bytes: String(MIB) }]);
+    expectMonthlyLimit(await upload("presigned", 1), "presigned");
+  });
+
+  it("starts a new UTC month without deleting videos or resetting retained storage", async () => {
+    await upload("presigned");
+    await admin.query("UPDATE users SET upload_usage_period_start = date_trunc('month', now(), 'UTC') - interval '1 month'");
+    await admin.query("UPDATE videos SET upload_usage_period_start = date_trunc('month', now(), 'UTC') - interval '1 month'");
+    expect(await upload("presigned")).toMatchObject({ video: { id: 2 } });
+    expect((await admin.query("SELECT count(*) FROM videos")).rows).toEqual([{ count: "2" }]);
+    expect((await admin.query("SELECT used_storage_bytes, used_upload_bytes FROM users")).rows)
+      .toEqual([{ used_storage_bytes: String(2 * MIB), used_upload_bytes: String(MIB) }]);
+    await deleteVideoCascade(env, 1, "owner", { expectedStatus: "uploading" });
+    expect((await admin.query("SELECT used_upload_bytes FROM users")).rows).toEqual([{ used_upload_bytes: String(MIB) }]);
+  });
+
+  it("rolls back both reservations if video creation fails", async () => {
+    await admin.query(`CREATE FUNCTION reject_upload() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN RAISE EXCEPTION 'video insert failed'; END $$;
+      CREATE TRIGGER reject_upload BEFORE INSERT ON videos FOR EACH ROW EXECUTE FUNCTION reject_upload();`);
+    try {
+      await expect(upload("presigned")).rejects.toThrow();
+      await expectNoReservation();
+      expect((await admin.query("SELECT used_upload_bytes FROM users")).rows).toEqual([{ used_upload_bytes: "0" }]);
+    } finally { await admin.query("DROP TRIGGER reject_upload ON videos; DROP FUNCTION reject_upload()"); }
+  });
+
   async function startMultipart(bytes = 130 * MIB) {
-    await admin.query("UPDATE users SET max_video_upload_size_mb = 100000, storage_limit_gb = 100");
+    await admin.query("UPDATE users SET max_video_upload_size_mb = 0, storage_limit_gb = 100, monthly_upload_limit_gb = 200");
     const result = await requestPresignedUpload(env, "owner", {
       filename: "clip.mkv", content_type: "video/matroska", file_size: bytes,
       title: "Large video", description: "", multipart: true,
@@ -241,7 +296,7 @@ const modes: UploadMode[] = ["presigned", "multipart"];
     expect(await requestPresignedUpload(env, "owner", {
       filename: "clip.mkv", content_type: "video/matroska", file_size: 130 * MIB,
       title: "Video", description: "", multipart: true,
-    })).toEqual({ fileTooLarge: true, maxMb: 1 });
+    })).toEqual({ badRequest: "Monthly upload allowance exceeded.", code: "MONTHLY_UPLOAD_LIMIT_EXCEEDED" });
     expect(media.createR2MultipartUpload).not.toHaveBeenCalled();
     await expectNoReservation();
   });

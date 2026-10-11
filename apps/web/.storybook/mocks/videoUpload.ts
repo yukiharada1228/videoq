@@ -27,13 +27,13 @@ function useUploadFixture(scenario: UploadScenario): ReturnType<typeof useVideoU
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
-  const [compressionPreset, setCompressionPreset] = useState<CompressionPreset>('original');
+  const [compressionPreset, setCompressionPreset] = useState<CompressionPreset>('1080p');
   const [isCompressing, setIsCompressing] = useState(false);
   const attempts = useRef(0);
   const reset = useCallback(() => {
     setSourceMode('file'); setFile(null); setYoutubeUrl(''); setTitle(''); setDescription('');
     setTagIds([]); setIsUploading(false); setProgress(0); setError(null); setSuccess(false); setWarning(null);
-    setCompressionPreset('original'); setIsCompressing(false);
+    setCompressionPreset('1080p'); setIsCompressing(false);
   }, []);
   return {
     sourceMode, youtubeUrl, title, description, tagIds, isUploading, progress, error, success, warning,
@@ -52,7 +52,7 @@ function useUploadFixture(scenario: UploadScenario): ReturnType<typeof useVideoU
       uploadRequest({ sourceMode, fileName: file?.name ?? null, youtubeUrl, title, description, tagIds });
       setError(null); setWarning(null); setSuccess(false);
       attempts.current++;
-      if (scenario.compressing && compressionPreset !== 'original') {
+      if (scenario.compressing && sourceMode === 'file') {
         setIsCompressing(true); setIsUploading(true); setProgress(scenario.progress ?? 36);
         return;
       }

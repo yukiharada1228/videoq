@@ -88,6 +88,10 @@ migrationDescribe("Drizzle migration chain", () => {
             for (const { row } of preservedRows[table] as { row: Record<string, unknown> }[]) {
               delete row.is_staff;
               delete row.is_superuser;
+              row.max_video_upload_size_mb = 5237760;
+              row.monthly_upload_limit_gb = row.quota_source === 'admin' ? null : 2;
+              row.used_upload_bytes = 0;
+              row.upload_usage_period_start = null;
             }
           }
           if (table === "videos") {
@@ -95,6 +99,7 @@ migrationDescribe("Drizzle migration chain", () => {
             for (const { row } of preservedRows[table] as { row: Record<string, unknown> }[]) {
               row.multipart_upload = null;
               row.upload_heartbeat_at = null;
+              row.upload_usage_period_start = null;
             }
           }
         }

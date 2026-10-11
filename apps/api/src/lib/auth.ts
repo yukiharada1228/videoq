@@ -324,6 +324,9 @@ export function createAuth(env: Bindings, db: Db, profile: "full" | "browser" = 
           defaultValue: quota.processingLimitMinutes,
           input: false,
         },
+        monthlyUploadLimitGb: {
+          type: "number", required: false, defaultValue: quota.monthlyUploadLimitGb, input: false,
+        },
         storageLimitGb: {
           type: "number",
           required: false,
@@ -452,6 +455,7 @@ export function createAuth(env: Bindings, db: Db, profile: "full" | "browser" = 
                 aiAnswersLimit: q.aiAnswersLimit,
                 processingLimitMinutes: q.processingLimitMinutes,
                 storageLimitGb: q.storageLimitGb,
+                monthlyUploadLimitGb: q.monthlyUploadLimitGb,
                 isOverQuota: false,
                 usedAiAnswers: 0,
                 usedProcessingSeconds: 0,
