@@ -13,8 +13,6 @@ vi.mock('@/hooks/useVideoUpload', () => ({
   useVideoUpload: vi.fn(),
 }))
 
-vi.mock('../UploadResumeSelector', () => ({ UploadResumeSelector: () => null }))
-
 vi.mock('../VideoUploadFormFields', () => ({
   VideoUploadFormFields: (props: any) => (
     <div data-testid="file-fields" data-progress={props.progress}>file fields</div>

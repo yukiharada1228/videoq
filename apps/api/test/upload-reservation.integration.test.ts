@@ -4,7 +4,7 @@ import { createVideoFromMultipart, requestPresignedUpload } from "../src/feature
 import * as media from "../src/integrations/media";
 import * as externalTasks from "../src/lib/external-tasks";
 import { reserveAndCreatePendingVideo, deleteVideoCascade, listStaleUploadingVideos } from "../src/repositories/video-repository";
-import { completeMultipartVideoUpload, getMultipartUploadPartUrl, resumeMultipartUpload, listResumableUploads } from "../src/repositories/multipart-upload-repository";
+import { completeMultipartVideoUpload, getMultipartUploadPartUrl } from "../src/repositories/multipart-upload-repository";
 import { multipartPartSize } from "@videoq/trpc/video-upload";
 import type { CreationIdempotency } from "../src/repositories/mcp-idempotency-repository";
 import type { Bindings } from "../src/types/bindings";
@@ -76,7 +76,6 @@ const modes: UploadMode[] = ["presigned", "multipart"];
     vi.spyOn(media, "abortR2MultipartUpload").mockResolvedValue();
     vi.spyOn(media, "completeR2MultipartUpload").mockResolvedValue();
     vi.spyOn(media, "presignR2UploadPart").mockResolvedValue("https://uploads.example.test/part");
-    vi.spyOn(media, "getR2ObjectSize").mockResolvedValue(null);
   });
   afterEach(() => vi.restoreAllMocks());
   afterAll(async () => {
@@ -233,37 +232,6 @@ const modes: UploadMode[] = ["presigned", "multipart"];
     await expect(getMultipartUploadPartUrl(env, 1, "outsider", 1)).rejects.toMatchObject({ code: "NOT_FOUND" });
     await expect(completeMultipartVideoUpload(env, 1, "outsider", parts(count))).rejects.toMatchObject({ code: "NOT_FOUND" });
     expect(media.presignR2UploadPart).toHaveBeenCalledTimes(2);
-  });
-
-  it("resumes only owned active uploads, validates stored lengths and refreshes the lease", async () => {
-    await startMultipart();
-    await admin.query("UPDATE videos SET upload_heartbeat_at = now() - interval '90 minutes'");
-    const listed = vi.spyOn(media, "listR2MultipartParts").mockResolvedValue({
-      parts: [{ partNumber: 2, size: 64 * MIB, etag: "a".repeat(32) }], next_marker: 2,
-    });
-    expect(await listResumableUploads(env, "owner")).toEqual([{ id: 1, title: "Large video" }]);
-    expect(await listResumableUploads(env, "outsider")).toEqual([]);
-    await expect(resumeMultipartUpload(env, 1, "outsider", 0)).rejects.toMatchObject({ code: "NOT_FOUND" });
-    expect(listed).not.toHaveBeenCalled();
-    expect(await resumeMultipartUpload(env, 1, "owner", 0)).toMatchObject({
-      confirmed: false, stored: false, file_size: 130 * MIB, part_count: 3, next_marker: 2,
-    });
-    expect((await admin.query("SELECT upload_heartbeat_at > now() - interval '1 minute' AS fresh FROM videos")).rows[0].fresh).toBe(true);
-    listed.mockResolvedValue({ parts: [{ partNumber: 3, size: 64 * MIB, etag: "a".repeat(32) }], next_marker: null });
-    await expect(resumeMultipartUpload(env, 1, "owner", 2)).rejects.toThrow("part size");
-  });
-
-  it("recovers a completed storage object after reload without a part manifest", async () => {
-    await startMultipart();
-    vi.spyOn(media, "getR2ObjectSize").mockResolvedValue(130 * MIB);
-    const listed = vi.spyOn(media, "listR2MultipartParts");
-    expect(await resumeMultipartUpload(env, 1, "owner", 0)).toMatchObject({ confirmed: false, stored: true, parts: [] });
-    expect(listed).not.toHaveBeenCalled();
-    await completeMultipartVideoUpload(env, 1, "owner", []);
-    expect(await resumeMultipartUpload(env, 1, "owner", 0)).toEqual({ confirmed: true });
-    expect(await listResumableUploads(env, "owner")).toEqual([]);
-    expect(media.completeR2MultipartUpload).not.toHaveBeenCalled();
-    expect((await admin.query("SELECT count(*) AS n FROM external_tasks")).rows[0].n).toBe("1");
   });
 
   it("rejects oversized single PUTs and multipart quota violations before R2 creation", async () => {

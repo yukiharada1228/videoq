@@ -175,8 +175,7 @@ export async function presignR2UploadPart(
   return signed.url;
 }
 
-// Creation/completion use the production R2 binding. ListParts is only exposed
-// through S3; it also uses this bounded, signed request path.
+// Only used for local S3/Garage. Production control operations use the R2 binding.
 async function multipartS3Request(
   env: Bindings, fileKey: string, query: Record<string, string>,
   init: RequestInit,
@@ -214,32 +213,6 @@ async function multipartXml(response: Response): Promise<string> {
   let offset = 0;
   for (const chunk of chunks) { body.set(chunk, offset); offset += chunk.length; }
   return new TextDecoder().decode(body);
-}
-
-export async function listR2MultipartParts(env: Bindings, fileKey: string, uploadId: string, marker: number) {
-  const response = await multipartS3Request(env, fileKey, {
-    uploadId, "part-number-marker": String(marker), "max-parts": "100",
-  }, { method: "GET" });
-  const xml = await multipartXml(response);
-  if (!xml.includes("<ListPartsResult") || xml.includes("<Error>")) throw new Error("Invalid S3 parts response");
-  const parts = [...xml.matchAll(/<Part>([\s\S]*?)<\/Part>/g)].map(([, part]) => {
-    const partNumber = Number(part.match(/<PartNumber>(\d+)<\/PartNumber>/)?.[1]);
-    const size = Number(part.match(/<Size>(\d+)<\/Size>/)?.[1]);
-    const etag = part.match(/<ETag>(?:&quot;|")?([a-fA-F0-9]{32})(?:&quot;|")?<\/ETag>/)?.[1];
-    if (!etag || !Number.isSafeInteger(size) || size < 1 || !Number.isInteger(partNumber) || partNumber <= marker || partNumber > 10000) {
-      throw new Error("Invalid S3 part");
-    }
-    return { partNumber, size, etag: etag.toLowerCase() };
-  });
-  if (parts.length > 100 || parts.some((p, i) => i > 0 && p.partNumber <= parts[i - 1].partNumber)) {
-    throw new Error("Invalid S3 part ordering");
-  }
-  const truncated = /<IsTruncated>true<\/IsTruncated>/.test(xml);
-  const nextMarker = truncated ? Number(xml.match(/<NextPartNumberMarker>(\d+)<\/NextPartNumberMarker>/)?.[1]) : null;
-  if (nextMarker !== null && (!parts.length || nextMarker !== parts.at(-1)?.partNumber)) {
-    throw new Error("Invalid S3 parts cursor");
-  }
-  return { parts, next_marker: nextMarker };
 }
 
 export async function createR2MultipartUpload(

@@ -42,7 +42,7 @@ interface RunUploadMutationVariables {
   tagIds: number[];
 }
 
-export function useVideoUpload(resumeVideoId?: number): UseVideoUploadReturn {
+export function useVideoUpload(): UseVideoUploadReturn {
   const { user } = useAuth();
   const maxUploadSizeMb = user?.max_video_upload_size_mb ?? DEFAULT_MAX_VIDEO_UPLOAD_SIZE_MB;
   const [sourceMode, setSourceMode] = useState<UploadSourceMode>('file');
@@ -62,7 +62,7 @@ export function useVideoUpload(resumeVideoId?: number): UseVideoUploadReturn {
   const uploadMutation = useMutation({
     mutationFn: ({ upload, tagIds }: RunUploadMutationVariables) =>
       runUploadWorkflow(upload, tagIds, {
-        uploadVideo: (data, onProgress) => apiClient.uploadVideo(resumeVideoId === undefined ? data : { ...data, resumeVideoId }, onProgress),
+        uploadVideo: (data, onProgress) => apiClient.uploadVideo(data, onProgress),
         createYoutubeVideo: appTrpcClient.videos.createYoutube.mutate,
         addTagsToVideo: appTrpcClient.memberships.addTags.mutate,
       }, setProgress),

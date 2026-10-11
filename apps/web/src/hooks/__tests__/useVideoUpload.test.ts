@@ -39,16 +39,6 @@ describe('useVideoUpload', () => {
     globalThis.__setTrpcHandler('memberships.addTags', addTagsToVideo)
   })
 
-  it('passes the selected interrupted video to the upload transport', async () => {
-    vi.mocked(apiClient.uploadVideo).mockResolvedValue({ id: 161 } as Awaited<ReturnType<typeof apiClient.uploadVideo>>)
-    const { result } = renderHook(() => useVideoUpload(161))
-    const file = new File(['video'], 'lecture.mkv', { type: 'video/matroska' })
-    act(() => result.current.handleFileChange({ target: { files: [file] } } as unknown as React.ChangeEvent<HTMLInputElement>))
-    await act(() => result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent))
-    expect(apiClient.uploadVideo).toHaveBeenCalledWith(expect.objectContaining({ file, resumeVideoId: 161 }), expect.any(Function))
-    expect(result.current.success).toBe(true)
-  })
-
   it('should initialize with default values', () => {
     const { result } = renderHook(() => useVideoUpload())
 

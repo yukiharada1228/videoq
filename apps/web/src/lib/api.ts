@@ -8,7 +8,7 @@ import { createAppTrpcClient, TRPC_UNAUTHORIZED_EVENT } from './trpc';
 import { videoSchema } from '@videoq/trpc/schema';
 import { chatStreamEventSchema } from '@videoq/trpc/chat';
 import { MULTIPART_UPLOAD_THRESHOLD, videoUploadContentType } from '@videoq/trpc/video-upload';
-import { uploadMultipartFile, type UploadedPart } from './multipartUpload';
+import { uploadMultipartFile } from './multipartUpload';
 import i18n from '@/i18n/config';
 import type {
   ChatRequest,
@@ -60,7 +60,6 @@ export function apiPath(path: string): string {
  * protocol-specific transports such as multipart uploads, CSV, and SSE stay explicit.
  */
 export class ApiClient {
-  private multipartSessions = new WeakMap<File, number>();
   private baseUrl: string;
   private fetchFn: ApiFetch;
   private onUnauthorized?: () => void | Promise<void>;
@@ -423,37 +422,6 @@ export class ApiClient {
     const contentType = videoUploadContentType(data.file);
     if (!contentType) throw new ApiError('Invalid video file type', 'INVALID_FILE_TYPE');
     if (USE_S3_STORAGE) {
-      const resumeId = data.resumeVideoId ?? this.multipartSessions.get(data.file);
-      if (resumeId !== undefined) {
-        const parts: UploadedPart[] = [];
-        let marker = 0;
-        let session;
-        do {
-          session = await this.rpc.videos.resumeUpload.mutate({ id: resumeId, marker });
-          if (session.confirmed) {
-            const video = await this.rpc.videos.get.query({ id: resumeId });
-            this.multipartSessions.delete(data.file);
-            onProgress?.(100);
-            return video;
-          }
-          if (session.file_size !== data.file.size) {
-            throw new Error(i18n.t('videos.upload.resume.fileMismatch'));
-          }
-          if (session.stored) {
-            const video = await this.rpc.videos.completeMultipartUpload.mutate({ id: resumeId, parts: [] });
-            this.multipartSessions.delete(data.file);
-            onProgress?.(100);
-            return video;
-          }
-          parts.push(...session.parts);
-          marker = session.next_marker ?? 0;
-        } while (marker > 0);
-        this.multipartSessions.set(data.file, resumeId);
-        // Browser MIME aliases can differ after reselecting the same MKV.
-        // Keep the original signed content type; saved bytes are hash-verified.
-        const result = await this.transferMultipart(data.file, session.content_type, resumeId, { ...session, parts }, onProgress);
-        return result;
-      }
       // 1. Request presigned upload URL
       const { video, upload_url, multipart } = await this.rpc.videos.requestUpload.mutate({
         filename: data.file.name,
@@ -465,8 +433,11 @@ export class ApiClient {
       });
 
       if (multipart) {
-        this.multipartSessions.set(data.file, video.id);
-        return this.transferMultipart(data.file, contentType, video.id, multipart, onProgress);
+        return uploadMultipartFile(data.file, contentType, multipart, {
+          partUrl: partNumber => this.rpc.videos.uploadPartUrl.mutate({ id: video.id, partNumber }),
+          complete: parts => this.rpc.videos.completeMultipartUpload.mutate({ id: video.id, parts }),
+          abort: () => this.rpc.videos.abortUpload.mutate({ id: video.id }),
+        }, onProgress);
       }
       if (!upload_url) throw new Error('Upload URL is missing');
 
@@ -495,17 +466,6 @@ export class ApiClient {
     if (response.status === 401) await this.handleAuthError();
     if (!response.ok) await this.handleError(response);
     return videoSchema.parse(await response.json());
-  }
-
-  private async transferMultipart(file: File, contentType: string, id: number,
-    session: { part_size: number; part_count: number; parts?: UploadedPart[] },
-    onProgress?: (percent: number) => void): Promise<Video> {
-    const result = await uploadMultipartFile(file, contentType, session, {
-      partUrl: partNumber => this.rpc.videos.uploadPartUrl.mutate({ id, partNumber }),
-      complete: parts => this.rpc.videos.completeMultipartUpload.mutate({ id, parts }),
-    }, onProgress);
-    this.multipartSessions.delete(file);
-    return result;
   }
 
   // Get video URL (convert relative URLs to absolute URLs using backend origin)

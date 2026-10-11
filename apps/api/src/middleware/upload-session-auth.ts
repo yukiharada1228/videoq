@@ -33,7 +33,7 @@ export const uploadSessionMethod: AuthMethod = async c => {
 };
 
 const uploadProcedures = new Set([
-  "videos.uploadPartUrl", "videos.resumeUpload", "videos.listResumableUploads", "videos.completeMultipartUpload", "videos.abortUpload",
+  "videos.uploadPartUrl", "videos.completeMultipartUpload", "videos.abortUpload",
 ]);
 export function isUploadControlRequest(path: string): boolean {
   const prefix = "/api/trpc/";
