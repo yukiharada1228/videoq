@@ -339,8 +339,6 @@
           "1080p": "Standard: up to 1080p / 60fps",
           "720p": "Smaller file: up to 720p / 30fps"
         },
-        "help": "Compression runs on this device before upload. Your original file stays unchanged. Keep this page open. Long videos require processing time and free space on your device.",
-        "qualityNote": "Only the compressed size counts toward storage. Small text and fast motion may be less clear. Video duration and transcription usage stay the same.",
         "unsupported": "Compression is unavailable in this browser. Try a supported browser such as Chrome, or upload the original.",
         "unsupportedFile": "This video cannot be compressed in this browser while preserving its audio and video. Upload the original or convert it to another format.",
         "failed": "Compression failed. Your original is unchanged. Try again or upload the original.",

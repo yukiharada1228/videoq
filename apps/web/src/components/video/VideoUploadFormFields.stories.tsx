@@ -26,6 +26,9 @@ function UploadFormExample(args: ComponentProps<typeof VideoUploadFormFields>) {
 const meta = {
   title: 'Video/VideoUploadFormFields',
   component: VideoUploadFormFields,
+  parameters: {
+    docs: { description: { component: 'Compact compression choices without persistent guidance paragraphs. Browser support and processing errors appear when relevant.' } },
+  },
   args: {
     title: '',
     description: '',

@@ -93,10 +93,9 @@ export function VideoUploadFormFields({
               <span>{t(`videos.upload.compression.presets.${preset}`)}</span>
             </label>
           ))}
-          <p className="text-std-14N-170 text-solid-gray-700">
-            {t(compressionSupported ? 'videos.upload.compression.help' : 'videos.upload.compression.unsupported')}
-          </p>
-          {compressionPreset !== 'original' && <p className="text-std-14N-170 text-solid-gray-700">{t('videos.upload.compression.qualityNote')}</p>}
+          {!compressionSupported && <p className="text-std-14N-170 text-solid-gray-700">
+            {t('videos.upload.compression.unsupported')}
+          </p>}
         </fieldset>
       )}
 
