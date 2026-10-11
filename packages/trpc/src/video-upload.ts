@@ -11,7 +11,11 @@ export const VIDEO_UPLOAD_TYPES = {
   '.webm': 'video/webm',
 } as const;
 
-const contentTypes = new Set<string>(Object.values(VIDEO_UPLOAD_TYPES));
+const contentTypes = new Set<string>([
+  ...Object.values(VIDEO_UPLOAD_TYPES),
+  // Modern browsers use the registered type alongside the legacy video/x-matroska.
+  'video/matroska',
+]);
 
 /** A leading dot alone is not an extension; directory names are ignored. */
 export function fileExtension(filename: string): string {

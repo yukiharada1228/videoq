@@ -28,13 +28,15 @@ describe('prepareVideoUpload', () => {
     ['not-video.txt', 'video/mp4'],
     ['unsupported.ogv', 'video/ogg'],
     ['video.mp4', 'text/plain'],
+    ['video.mkv', 'text/plain'],
+    ['not-video.txt', 'video/matroska'],
     ['.mp4', 'video/mp4'],
   ])('rejects files the upload API cannot accept: %s (%s)', (name, type) => {
     expect(prepareVideoUpload({ ...fileInput, file: new File(['content'], name, { type }) }))
       .toEqual({ isValid: false, error: 'videos.upload.validation.invalidFileType' })
   })
 
-  it.each(['', 'application/octet-stream'])('accepts a supported extension when the browser reports %s', type => {
+  it.each(['video/matroska', 'video/x-matroska', '', 'application/octet-stream'])('accepts MKV when the browser reports %s', type => {
     const file = new File(['content'], 'video.MKV', { type })
     expect(prepared({ ...fileInput, file })).toEqual({
       source: 'file', data: { file, title: 'Video', description: undefined },
