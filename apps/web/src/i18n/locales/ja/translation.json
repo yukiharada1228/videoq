@@ -326,7 +326,7 @@
         "invalidFileType": "対応している動画ファイルを選択してください",
         "fileTooLarge": "選択したファイルはアップロード上限（{{max_size_mb}} MB）を超えています",
         "storageLimitExceeded": "ストレージ超過のためアップロードできません。動画を削除してストレージを空けてください。",
-        "monthlyUploadLimitExceeded": "今月のアップロード容量を使い切りました。翌月に再度お試しください。"
+        "monthlyUploadLimitExceeded": "今月のアップロード容量の上限を超えるため、追加できません。"
       },
       "warning": {
         "tagsFailed": "動画はアップロードされましたが、タグを追加できませんでした。タグは後から動画詳細で追加できます。"

@@ -50,14 +50,6 @@ interface RunUploadMutationVariables {
 
 export function useVideoUpload(): UseVideoUploadReturn {
   const { user } = useAuth();
-  const storageRemaining = user?.storage_limit_bytes == null ? Infinity
-    : Math.max(0, user.storage_limit_bytes - (user.used_storage_bytes ?? 0));
-  // Do not let a cached account response from the previous month block a new one.
-  const uploadUsed = user?.upload_resets_at && Date.parse(user.upload_resets_at) <= Date.now()
-    ? 0 : user?.used_upload_bytes ?? 0;
-  const monthlyRemaining = user?.monthly_upload_limit_bytes == null ? Infinity
-    : Math.max(0, user.monthly_upload_limit_bytes - uploadUsed);
-  const maxCompressedBytes = Math.min(MAX_VIDEO_UPLOAD_BYTES, storageRemaining, monthlyRemaining);
   const [sourceMode, setSourceMode] = useState<UploadSourceMode>('file');
   const [file, setFile] = useState<File | null>(null);
   const [youtubeUrl, setYoutubeUrl] = useState('');
@@ -198,6 +190,14 @@ export function useVideoUpload(): UseVideoUploadReturn {
     let compressed: Awaited<ReturnType<typeof compressVideo>> | undefined;
     try {
       if (validation.upload.source === 'file') {
+        const storageRemaining = user?.storage_limit_bytes == null ? Infinity
+          : Math.max(0, user.storage_limit_bytes - (user.used_storage_bytes ?? 0));
+        // Do not let a cached account response from the previous month block a new one.
+        const uploadUsed = user?.upload_resets_at && Date.parse(user.upload_resets_at) <= Date.now()
+          ? 0 : user?.used_upload_bytes ?? 0;
+        const monthlyRemaining = user?.monthly_upload_limit_bytes == null ? Infinity
+          : Math.max(0, user.monthly_upload_limit_bytes - uploadUsed);
+        const maxCompressedBytes = Math.min(MAX_VIDEO_UPLOAD_BYTES, storageRemaining, monthlyRemaining);
         if (maxCompressedBytes <= 0) {
           setError(storageRemaining <= 0 ? 'videos.upload.validation.storageLimitExceeded' : 'videos.upload.validation.monthlyUploadLimitExceeded');
           return;
@@ -233,7 +233,7 @@ export function useVideoUpload(): UseVideoUploadReturn {
       await compressed?.dispose();
       uploadInFlight.current = false;
     }
-  }, [sourceMode, youtubeUrl, title, description, file, maxCompressedBytes, storageRemaining, tagIds, uploadMutation, compressionPreset]);
+  }, [sourceMode, youtubeUrl, title, description, file, user, tagIds, uploadMutation, compressionPreset]);
 
   return {
     sourceMode,

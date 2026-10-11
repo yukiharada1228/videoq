@@ -328,7 +328,7 @@
         "invalidFileType": "Please select a supported video file",
         "fileTooLarge": "The selected file exceeds the upload size limit ({{max_size_mb}} MB)",
         "storageLimitExceeded": "Upload is unavailable because your storage is over the configured limit. Please delete videos to free up space.",
-        "monthlyUploadLimitExceeded": "Your monthly upload allowance has been used. Try again next month."
+        "monthlyUploadLimitExceeded": "The video exceeds your remaining monthly upload allowance."
       },
       "warning": {
         "tagsFailed": "The video was uploaded, but tags could not be added. You can add tags later from the video details."
