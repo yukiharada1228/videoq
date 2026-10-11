@@ -1,9 +1,8 @@
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import type { Bindings } from "../types/bindings";
-import { schema } from "./schema";
 
-export type Db = NodePgDatabase<typeof schema>;
+export type Db = NodePgDatabase;
 
 /**
  * Neon への接続（Hyperdrive 経由）。
@@ -33,7 +32,10 @@ export async function withDb<T>(
   fn: (db: Db, client: pg.Client) => Promise<T>,
 ): Promise<T> {
   return withClient(env, async (client) => {
-    const db = drizzle(client, { schema });
+    // Repositories use the SQL query builder and Better Auth supplies its own
+    // adapter schema. Building the unused relational API walks every table on
+    // every connection, consuming the Worker's small per-request CPU budget.
+    const db = drizzle(client);
     return fn(db, client);
   });
 }

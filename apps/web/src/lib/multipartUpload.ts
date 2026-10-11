@@ -1,4 +1,7 @@
-type UploadedPart = { partNumber: number; etag: string };
+import { createUploadPartVerifier } from './uploadPartVerifier';
+import i18n from '@/i18n/config';
+
+export type UploadedPart = { partNumber: number; etag: string };
 
 class PartUploadError extends Error {
   readonly retryable: boolean;
@@ -51,10 +54,10 @@ async function retry<T>(operation: () => Promise<T>, signal: AbortSignal): Promi
     signal.throwIfAborted();
     try { return await operation(); }
     catch (error) {
-      if (signal.aborted || attempt >= 3 || !canRetry(error)) throw error;
+      if (signal.aborted || attempt >= 6 || !canRetry(error)) throw error;
       await new Promise<void>((resolve, reject) => {
         const abort = () => { clearTimeout(timer); reject(signal.reason); };
-        const timer = setTimeout(() => { signal.removeEventListener('abort', abort); resolve(); }, 1000 * 2 ** attempt);
+        const timer = setTimeout(() => { signal.removeEventListener('abort', abort); resolve(); }, Math.min(30000, 1000 * 2 ** attempt));
         signal.addEventListener('abort', abort, { once: true });
       });
     }
@@ -62,11 +65,10 @@ async function retry<T>(operation: () => Promise<T>, signal: AbortSignal): Promi
 }
 
 export async function uploadMultipartFile<T>(
-  file: File, contentType: string, session: { part_size: number; part_count: number },
+  file: File, contentType: string, session: { part_size: number; part_count: number; parts?: UploadedPart[] },
   operations: {
     partUrl: (partNumber: number) => Promise<{ upload_url: string }>;
     complete: (parts: UploadedPart[]) => Promise<T>;
-    abort: () => Promise<unknown>;
   },
   onProgress?: (percent: number) => void,
 ): Promise<T> {
@@ -90,6 +92,7 @@ export async function uploadMultipartFile<T>(
       while (next < partCount) {
         signal.throwIfAborted();
         const index = next++;
+        if (parts[index]) continue;
         // Blob.slice doesn't load the entire video into JavaScript memory.
         const body = file.slice(index * partSize, Math.min((index + 1) * partSize, file.size), contentType);
         const etag = await retry(async () => {
@@ -109,6 +112,21 @@ export async function uploadMultipartFile<T>(
     }
   };
   try {
+    if (session.parts?.length) {
+      const verifier = createUploadPartVerifier();
+      try {
+        // Compare every saved part before accepting it; selecting a different
+        // file with the same name/size must never silently mix two videos.
+        for (const part of session.parts) {
+          const index = part.partNumber - 1;
+          if (index < 0 || index >= partCount || parts[index]) throw new Error('Invalid saved upload parts');
+          const body = file.slice(index * partSize, Math.min((index + 1) * partSize, file.size));
+          if (!await verifier.verify(body, part.etag)) throw new Error(i18n.t('videos.upload.resume.fileMismatch'));
+          parts[index] = part;
+          progress(index, body.size);
+        }
+      } finally { verifier.close(); }
+    }
     const results = await Promise.allSettled(Array.from({ length: Math.min(3, partCount) }, worker));
     const failed = results.find(result => result.status === 'rejected');
     if (failed?.status === 'rejected') throw failed.reason;
@@ -117,10 +135,8 @@ export async function uploadMultipartFile<T>(
     return result;
   } catch (error) {
     controller.abort(error);
-    // All PUTs have settled before aborting the storage session. The API only
-    // deletes an unconfirmed upload, including if a completion response was lost.
-    try { await operations.abort(); }
-    catch { /* Server abandonment reconciliation retries durable cleanup. */ }
+    // Preserve acknowledged parts for retry/reload. Explicit video deletion or
+    // the server's inactivity cleanup owns disposal, never a transport error.
     throw error;
   }
 }

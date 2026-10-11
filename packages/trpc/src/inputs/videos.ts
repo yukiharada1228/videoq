@@ -25,12 +25,14 @@ export const videosInputSchemas = {
   }),
   "videos.confirmUpload": z.object({ id }),
   "videos.uploadPartUrl": z.object({ id, partNumber: z.number().int().min(1).max(MAX_UPLOAD_PARTS) }),
+  "videos.resumeUpload": z.object({ id, marker: z.number().int().min(0).max(MAX_UPLOAD_PARTS).default(0) }),
+  "videos.listResumableUploads": z.undefined(),
   "videos.completeMultipartUpload": z.object({
     id,
     parts: z.array(z.object({
       partNumber: z.number().int().min(1).max(MAX_UPLOAD_PARTS),
       etag: z.string().regex(/^[a-fA-F0-9]{32}$/),
-    })).min(1).max(MAX_UPLOAD_PARTS),
+    })).max(MAX_UPLOAD_PARTS),
   }),
   "videos.abortUpload": z.object({ id }),
   "videos.createYoutube": z.object({ youtubeUrl: z.string().trim().min(1), title, description: z.string().default("") }),

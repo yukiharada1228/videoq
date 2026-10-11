@@ -49,6 +49,13 @@ export const outputSchemas = {
   "videos.requestUpload": models.uploadRequestResponseSchema,
   "videos.confirmUpload": videoSchema,
   "videos.uploadPartUrl": z.object({ upload_url: z.string() }),
+  "videos.listResumableUploads": z.array(z.object({ id: z.number(), title: z.string() })),
+  "videos.resumeUpload": z.discriminatedUnion("confirmed", [
+    z.object({ confirmed: z.literal(true) }),
+    z.object({ confirmed: z.literal(false), stored: z.boolean(), part_size: z.number(), part_count: z.number(),
+      file_size: z.number(), content_type: z.string(), next_marker: z.number().nullable(),
+      parts: z.array(z.object({ partNumber: z.number(), size: z.number(), etag: z.string() })) }),
+  ]),
   "videos.completeMultipartUpload": videoSchema,
   "videos.abortUpload": z.object({ success: z.boolean() }),
   "videos.createYoutube": videoSchema,

@@ -26,6 +26,13 @@ export const videosRouter = t.router({
     .input(videosInputSchemas["videos.uploadPartUrl"])
     .output(outputSchemas["videos.uploadPartUrl"])
     .mutation(({ ctx, input }) => ctx.call("videos.uploadPartUrl", input)),
+  resumeUpload: protectedProcedure
+    .input(videosInputSchemas["videos.resumeUpload"])
+    .output(outputSchemas["videos.resumeUpload"])
+    .mutation(({ ctx, input }) => ctx.call("videos.resumeUpload", input)),
+  listResumableUploads: protectedProcedure
+    .output(outputSchemas["videos.listResumableUploads"])
+    .query(({ ctx }) => ctx.call("videos.listResumableUploads", undefined)),
   completeMultipartUpload: protectedProcedure
     .input(videosInputSchemas["videos.completeMultipartUpload"])
     .output(outputSchemas["videos.completeMultipartUpload"])

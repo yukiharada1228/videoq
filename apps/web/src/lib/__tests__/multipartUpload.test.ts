@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { multipartPartSize } from '@videoq/trpc/video-upload';
 import { uploadMultipartFile } from '../multipartUpload';
+const verifier = vi.hoisted(() => ({ verify: vi.fn(), close: vi.fn() }));
+vi.mock('../uploadPartVerifier', () => ({ createUploadPartVerifier: () => verifier }));
 
 const etag = 'a'.repeat(32);
 class TestXhr extends EventTarget {
@@ -46,6 +48,8 @@ class TestXhr extends EventTarget {
 }
 
 beforeEach(() => {
+  verifier.verify.mockReset().mockResolvedValue(true);
+  verifier.close.mockReset();
   TestXhr.requests = [];
   TestXhr.active = 0;
   TestXhr.maximumActive = 0;
@@ -63,6 +67,40 @@ function operations() {
 }
 
 describe('multipart video transfer', () => {
+  it('verifies saved parts and sends only missing parts when resuming', async () => {
+    const api = operations();
+    await uploadMultipartFile(new File(['12345678901'], 'clip.mp4'), 'video/mp4', {
+      part_size: 5, part_count: 3, parts: [{ partNumber: 2, etag }],
+    }, api);
+    expect(verifier.verify).toHaveBeenCalledExactlyOnceWith(expect.any(Blob), etag);
+    expect(verifier.close).toHaveBeenCalledTimes(1);
+    expect(api.partUrl.mock.calls.map(([part]) => part).sort()).toEqual([1, 3]);
+    expect(api.complete).toHaveBeenCalledExactlyOnceWith([1, 2, 3].map(partNumber => ({ partNumber, etag })));
+  });
+
+  it('keeps the saved upload if a different same-size file is selected', async () => {
+    verifier.verify.mockResolvedValue(false);
+    const api = operations();
+    await expect(uploadMultipartFile(new File(['other'], 'clip.mp4'), 'video/mp4', {
+      part_size: 5, part_count: 1, parts: [{ partNumber: 1, etag }],
+    }, api)).rejects.toThrow();
+    expect(api.partUrl).not.toHaveBeenCalled();
+    expect(api.complete).not.toHaveBeenCalled();
+    expect(api.abort).not.toHaveBeenCalled();
+    expect(verifier.close).toHaveBeenCalledTimes(1);
+  });
+
+  it('retains saved parts after all API retries fail', async () => {
+    vi.useFakeTimers();
+    const api = operations();
+    api.partUrl.mockRejectedValue(new Error('API temporarily unavailable'));
+    const promise = uploadMultipartFile(new File(['video'], 'clip.mp4'), 'video/mp4', { part_size: 5, part_count: 1 }, api);
+    const rejected = expect(promise).rejects.toThrow('API temporarily unavailable');
+    await vi.runAllTimersAsync();
+    await rejected;
+    expect(api.partUrl).toHaveBeenCalledTimes(7);
+    expect(api.abort).not.toHaveBeenCalled();
+  });
   it('uploads 45.16 GB using bounded slices and at most three concurrent requests', async () => {
     const size = 45_160_000_000;
     const partSize = multipartPartSize(size);
@@ -103,7 +141,7 @@ describe('multipart video transfer', () => {
     expect(api.complete).toHaveBeenCalledTimes(1);
   });
 
-  it('aborts the remaining PUTs and cleans up after a permanent storage error', async () => {
+  it('aborts the remaining PUTs and preserves saved parts after a permanent storage error', async () => {
     const api = operations();
     TestXhr.reply = xhr => { if (xhr.url.endsWith('=1')) { xhr.responseText = '<Error><Code>EntityTooLarge</Code></Error>'; xhr.finish(400); } };
     await expect(uploadMultipartFile(new File(['12345678901234567890'], 'clip.mp4'), 'video/mp4', { part_size: 5, part_count: 4 }, api)).rejects.toThrow('400 (EntityTooLarge)');
@@ -111,7 +149,7 @@ describe('multipart video transfer', () => {
     expect(TestXhr.requests.slice(1).every(xhr => xhr.aborted)).toBe(true);
     expect(TestXhr.active).toBe(0);
     expect(api.complete).not.toHaveBeenCalled();
-    expect(api.abort).toHaveBeenCalledTimes(1);
+    expect(api.abort).not.toHaveBeenCalled();
   });
 
   it('reports missing CORS ETag without completing an unverifiable upload', async () => {
@@ -119,7 +157,7 @@ describe('multipart video transfer', () => {
     const api = operations();
     await expect(uploadMultipartFile(new File(['123'], 'clip.mp4'), 'video/mp4', { part_size: 5, part_count: 1 }, api)).rejects.toThrow('ETag');
     expect(api.complete).not.toHaveBeenCalled();
-    expect(api.abort).toHaveBeenCalledTimes(1);
+    expect(api.abort).not.toHaveBeenCalled();
   });
 
   it('retries a lost completion response without sending video parts again', async () => {
