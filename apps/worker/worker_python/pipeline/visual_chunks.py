@@ -37,6 +37,25 @@ def build_visual_chunk(source: Path | ObjectMediaSource, video_id: int, duration
     if type(index) is not int or not 0 <= index < math.ceil(duration / CHUNK_SECONDS):
         raise ValueError("Invalid visual chunk index")
     start, end = index * CHUNK_SECONDS, min((index + 1) * CHUNK_SECONDS, duration)
+    # A 60fps recording only needs one image per second. Decoding its discarded
+    # non-reference frames wastes CPU; reference frames retain their real PTS.
+    # Low-frame-rate sources and source gaps may lose occupied seconds with
+    # this optimization. Retry with full decoding unless every second is covered.
+    expected_seconds = math.ceil(end) - start
+    for skip_nonreference in (True, False):
+        with _extract_visual_chunk(source, video_id, duration, start, end,
+                                   skip_nonreference=skip_nonreference) as result:
+            if skip_nonreference and result[2] < expected_seconds:
+                continue
+            yield result
+            return
+
+
+@contextmanager
+def _extract_visual_chunk(
+    source: Path | ObjectMediaSource, video_id: int, duration: float,
+    start: int, end: float, *, skip_nonreference: bool,
+):
     with tempfile.TemporaryDirectory(prefix="videoq-visual-chunk-") as tmp:
         root = Path(tmp)
         images, timing, pack = root / "frames.mjpg", root / "frames.crc", root / "focus.bin"
@@ -50,7 +69,9 @@ def build_visual_chunk(source: Path | ObjectMediaSource, video_id: int, duration
         )
         result = run_media_process([
             "ffmpeg", "-nostdin", "-v", "error", "-y", "-copyts", "-start_at_zero",
-            "-ss", str(start), "-threads", "2", *media_input_args(source), "-to", f"{end:.6f}",
+            "-ss", str(start), "-threads", "2",
+            *(["-skip_frame", "noref"] if skip_nonreference else []),
+            *media_input_args(source), "-to", f"{end:.6f}",
             "-map", "0:v:0", "-an", "-vf", filters, "-filter_threads", "1",
             "-fps_mode", "vfr", "-enc_time_base", "1:1000", "-c:v", "mjpeg",
             "-threads:v", "1", "-q:v", "8", "-frames:v", str(CHUNK_SECONDS + 1), "-f", "tee",

@@ -38,6 +38,39 @@ def test_real_chunks_keep_global_pts_offsets_tail_and_valid_image_ranges(tmp_pat
     assert times == list(range(2, 126))
 
 
+@pytest.mark.skipif(not shutil.which('ffmpeg'), reason='FFmpeg required')
+@pytest.mark.parametrize('rate', [1, 30])
+def test_reference_frame_optimization_preserves_each_second_and_a_brief_event(tmp_path, monkeypatch, rate):
+    source = tmp_path / 'b-frames.mp4'
+    subprocess.run([
+        'ffmpeg', '-nostdin', '-v', 'error', '-f', 'lavfi', '-i',
+        f'color=c=blue:size=160x90:rate={rate}:duration=8',
+        '-vf', "drawbox=color=red:t=fill:enable='gte(t,3)*lt(t,4)'",
+        '-c:v', 'mpeg4', '-bf', '2', '-g', '120', '-q:v', '2', str(source),
+    ], check=True)
+    calls = []
+    run = chunks.run_media_process
+    def record(command, **kwargs):
+        calls.append('-skip_frame' in command)
+        return run(command, **kwargs)
+    monkeypatch.setattr(chunks, 'run_media_process', record)
+    with chunks.build_visual_chunk(source, 42, 8, 0) as (pack, _, count):
+        manifest, raw = unpack(pack)
+        length = struct.unpack('<I', raw[8:12])[0]
+        assert count == 8
+        assert [time // 1000 for time, _, _ in manifest['frames']] == list(range(8))
+        time, offset, size = manifest['frames'][3]
+        jpeg = raw[12 + length + offset:12 + length + offset + size]
+        rgb = subprocess.check_output([
+            'ffmpeg', '-v', 'error', '-i', 'pipe:0', '-vf', 'scale=1:1',
+            '-frames:v', '1', '-pix_fmt', 'rgb24', '-f', 'rawvideo', 'pipe:1',
+        ], input=jpeg)
+        assert 3000 <= time < 4000
+        assert rgb[0] > 200 and rgb[2] < 30
+    # A 1fps B-frame source needs its non-reference frames to preserve coverage.
+    assert calls == ([True, False] if rate == 1 else [True])
+
+
 def test_seeks_at_input_and_stops_output_without_filtering_away_the_stop_frame(monkeypatch, tmp_path):
     def run(command, **kwargs):
         assert command.index('-ss') < command.index('-i')
