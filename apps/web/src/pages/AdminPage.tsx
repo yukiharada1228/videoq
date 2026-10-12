@@ -289,7 +289,7 @@ export default function AdminPage() {
     },
   });
 
-  const editDialogRef = editDialog.dialogProps.ref;
+  const { ref: editDialogRef } = editDialog.dialogProps;
   useEffect(() => {
     if (!isEditOpen) return;
     if (formError) {

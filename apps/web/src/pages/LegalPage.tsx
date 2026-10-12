@@ -4,8 +4,7 @@ import { AppPageHeader } from '@/components/layout/AppPageHeader';
 import { Heading, HeadingTitle } from '@/components/ui/heading';
 import { UtilityLink } from '@/components/ui/utility-link';
 
-export const LEGAL_PAGES = ['terms', 'privacy', 'refund', 'scta'] as const;
-export type LegalPageId = (typeof LEGAL_PAGES)[number];
+export type LegalPageId = 'terms' | 'privacy' | 'refund' | 'scta';
 
 const ARTICLE_SECTIONS: Record<Exclude<LegalPageId, 'scta'>, readonly string[]> = {
   terms: [
