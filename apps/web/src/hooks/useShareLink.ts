@@ -45,15 +45,15 @@ export function useShareLink(course: VideoCourse | null): UseShareLinkReturn {
     },
   });
 
+  if (copiedLink && copiedLink.url !== shareLink) {
+    setCopiedLink(null);
+  }
+
   useEffect(() => {
     if (!copiedLink) return;
-    if (copiedLink.url !== shareLink) {
-      setCopiedLink(null);
-      return;
-    }
     const timer = window.setTimeout(() => setCopiedLink(null), 2000);
     return () => window.clearTimeout(timer);
-  }, [copiedLink, shareLink]);
+  }, [copiedLink]);
 
   const generateShareLink = useCallback(async (shareSlug: string) => {
     if (!course || updating.current) return;

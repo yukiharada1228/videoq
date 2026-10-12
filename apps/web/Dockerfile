@@ -1,4 +1,4 @@
-FROM node:24.13.0-alpine3.23 AS build
+FROM node:26.10.0-alpine3.23 AS build
 
 WORKDIR /workspace
 

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { applyChatPart, plainChatAnswer, chatAnswerText, type ChatAnswer, type ChatContentPart } from '@videoq/trpc/chat';
@@ -126,16 +126,21 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
     replaceLastAssistantMessage(errorMessage);
   }, [replaceLastAssistantMessage]);
 
-  const streamController = useMemo(
-    () =>
-      new ChatStreamController({
-        flush: flushSync,
-        onAppendParts: appendAssistantParts,
-        onDone: applyDoneMetadata,
-        onError: handleStreamError,
-      }),
-    [appendAssistantParts, applyDoneMetadata, handleStreamError],
-  );
+  const streamControllerRef = useRef<ChatStreamController | null>(null);
+  useEffect(() => {
+    const controller = new ChatStreamController({
+      flush: flushSync,
+      onAppendParts: appendAssistantParts,
+      onDone: applyDoneMetadata,
+      onError: handleStreamError,
+    });
+    streamControllerRef.current = controller;
+    return () => {
+      streamAbortRef.current?.abort();
+      controller.dispose();
+      streamControllerRef.current = null;
+    };
+  }, [appendAssistantParts, applyDoneMetadata, handleStreamError]);
 
   const handleMessagesScroll = useCallback(() => {
     const container = messagesContainerRef.current;
@@ -157,18 +162,12 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
     }
   }, [messages.length, lastMessageText, lastMessageCitationCount, lastMessage?.chatLogId, isLoading]);
 
-  useEffect(() => {
-    return () => {
-      streamAbortRef.current?.abort();
-      streamController.dispose();
-    };
-  }, [streamController]);
-
   const feedbackMutation = useMutation(trpc.chat.feedback.mutationOptions());
 
   const handleSend = useCallback(async (question?: string) => {
     const content = question ?? input;
-    if (!content.trim() || sendInFlightRef.current) return;
+    const streamController = streamControllerRef.current;
+    if (!content.trim() || sendInFlightRef.current || !streamController) return;
 
     const userMessage: Message = { role: 'user', content };
     // Each question is answered independently.
@@ -238,7 +237,6 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
     queryClient,
     replaceLastAssistantMessage,
     shareToken,
-    streamController,
   ]);
 
   const handleKeyPress = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {

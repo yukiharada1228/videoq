@@ -33,10 +33,10 @@
     "typecheck": "npm run typecheck --workspace @videoq/trpc && npm run typecheck --workspace @videoq/api && npm run typecheck --workspace @videoq/web && npm run typecheck --workspace @videoq/docs && npm run typecheck --workspace @videoq/demo-video"
   },
   "overrides": {
-    "vitest": "^4.1.11",
-    "@vitest/browser": "^4.1.11",
-    "@vitest/coverage-v8": "^4.1.11",
-    "@vitest/ui": "^4.1.11",
+    "vitest": "^5.0.3",
+    "@vitest/browser": "^5.0.3",
+    "@vitest/coverage-v8": "^5.0.3",
+    "@vitest/ui": "^5.0.3",
     "@esbuild-kit/core-utils": {
       "esbuild": "^0.25.0"
     },
@@ -55,6 +55,10 @@
     },
     "postcss-selector-parser": "^7.1.6",
     "fast-uri": "3.1.8",
-    "qs": "6.16.0"
+    "qs": "6.16.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
   }
 }

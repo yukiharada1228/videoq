@@ -289,6 +289,37 @@ describe('useShareLink', () => {
     expect(result.current.isCopied).toBe(false)
   })
 
+  it.each(['replacement-link', null])('clears the copied indication when the share slug becomes %s', async (shareSlug) => {
+    const { result, rerender } = renderHook(({ currentCourse }) => useShareLink(currentCourse), {
+      initialProps: { currentCourse: course },
+    })
+    await act(() => result.current.copyShareLink())
+    expect(result.current.isCopied).toBe(true)
+
+    rerender({ currentCourse: { ...course, share_slug: shareSlug } })
+    expect(result.current.isCopied).toBe(false)
+    rerender({ currentCourse: course })
+    expect(result.current.isCopied).toBe(false)
+  })
+
+  it('ignores a completed copy after the share URL changes', async () => {
+    let finishCopy!: () => void
+    vi.mocked(navigator.clipboard.writeText).mockImplementation(() => new Promise(resolve => { finishCopy = resolve }))
+    const { result, rerender } = renderHook(({ currentCourse }) => useShareLink(currentCourse), {
+      initialProps: { currentCourse: course },
+    })
+    let copying!: Promise<void>
+    act(() => { copying = result.current.copyShareLink() })
+    rerender({ currentCourse: { ...course, share_slug: 'replacement-link' } })
+    await act(async () => {
+      finishCopy()
+      await copying
+    })
+    expect(result.current.isCopied).toBe(false)
+    rerender({ currentCourse: course })
+    expect(result.current.isCopied).toBe(false)
+  })
+
   it('releases the copy timer on unmount', async () => {
     vi.useFakeTimers()
     const { result, unmount } = renderHook(() => useShareLink(course))
