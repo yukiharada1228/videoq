@@ -3,6 +3,15 @@ import react from '@vitejs/plugin-react-swc'
 import path from 'path'
 
 const apiProxyTarget = process.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:8787'
+const vendorChunks: Record<string, string[]> = {
+  'vendor-router': ['react-router-dom'],
+  'vendor-i18n': ['i18next', 'react-i18next'],
+  'vendor-ui': ['lucide-react'],
+  'vendor-charts': ['recharts'],
+  'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
+  'vendor-query': ['@tanstack/react-query', '@trpc/client', '@trpc/tanstack-react-query'],
+  'vendor-radix': ['@radix-ui/react-checkbox', '@radix-ui/react-select', '@radix-ui/react-slot'],
+}
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -34,16 +43,12 @@ export default defineConfig({
     },
   },
   build: {
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          'vendor-router': ['react-router-dom'],
-          'vendor-i18n': ['i18next', 'react-i18next'],
-          'vendor-ui': ['lucide-react'],
-          'vendor-charts': ['recharts'],
-          'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
-          'vendor-query': ['@tanstack/react-query', '@trpc/client', '@trpc/tanstack-react-query'],
-          'vendor-radix': ['@radix-ui/react-checkbox', '@radix-ui/react-select', '@radix-ui/react-slot'],
+        manualChunks(id) {
+          return Object.entries(vendorChunks).find(([, packages]) =>
+            packages.some((dependency) => id.includes(`/node_modules/${dependency}/`)),
+          )?.[0]
         },
       },
     },
