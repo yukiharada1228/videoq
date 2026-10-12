@@ -77,30 +77,30 @@ wheels = [
 
 [[package]]
 name = "boto3"
-version = "1.43.108"
+version = "1.43.110"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "botocore" },
     { name = "jmespath" },
     { name = "s3transfer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/48/59/fb93b6ebd9ad43eb9a58c7a6da51a0fe24ab0c04bc4d534a0bfc5eba7f59/boto3-1.43.108.tar.gz", hash = "sha256:03341f089158368acf83e921aca98b706095322ca52bc4c039a616940aa5ad41", size = 112682, upload-time = "2026-10-02T19:32:25.211Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a9/6e/fe973c8ce8fe4f59d6df6128600b9cc7c4ed75788bed5f5f615f88379529/boto3-1.43.110.tar.gz", hash = "sha256:0251b67d99cc0e7b958db48e7dd149094d453377fcd03299fde7329f975db2e6", size = 112658, upload-time = "2026-10-08T19:30:47.85Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/74/e4/7e88c40e9f61888e12dac0de41a5fddc2bcd1c3992d9b28e17d915cce0df/boto3-1.43.108-py3-none-any.whl", hash = "sha256:19e9da95ef0c494e27052049a42137550e66730509bb613e76eaa30ddf9a7170", size = 140045, upload-time = "2026-10-02T19:32:23.826Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/97/3295f3f87138c3647be183e08b4f585ae26e794e7ae9f3c44c24880483bd/boto3-1.43.110-py3-none-any.whl", hash = "sha256:74b811e6def4b30d685d4539a9ead3796f0e03a2112f00134e0f5e583ad8b098", size = 140042, upload-time = "2026-10-08T19:30:46.512Z" },
 ]
 
 [[package]]
 name = "botocore"
-version = "1.43.109"
+version = "1.43.111"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jmespath" },
     { name = "python-dateutil" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3c/da/424aaef4727876f4095bd2c10e683bb8531ac3bea56b0b6efd29eeb57f91/botocore-1.43.109.tar.gz", hash = "sha256:46b15bea4d942aaea6d7ab7c4b8a3a7290305064a3b41a6cb271cde9da3ba371", size = 16301678, upload-time = "2026-10-07T15:24:46.458Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6c/43/257e97270ddd6833fd54b11e544a09b441b02f8c731bdeb29b90479be565/botocore-1.43.111.tar.gz", hash = "sha256:44d5e80962ac6cb9e85af72667b77c9586451e3328ab0ce33195380767e213d8", size = 16321685, upload-time = "2026-10-09T19:27:44.19Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7c/d7/bf9e5988baf1245f3ac373e09f3204f641e7a2db170f512f236aa90961d6/botocore-1.43.109-py3-none-any.whl", hash = "sha256:cd00edff465264fb448e36acc9ee29a828f738fff3746270b3f685a19194a5a6", size = 15998671, upload-time = "2026-10-07T15:24:43.76Z" },
+    { url = "https://files.pythonhosted.org/packages/ad/5b/c3ce1b227954eb0313e76e6e7c0b5b24d4c553f0e8a03e5828ff5a5918dc/botocore-1.43.111-py3-none-any.whl", hash = "sha256:f1f4c28cb2a096bf246d0bb24cbb1a01c5cb696ef499fa71b155adda7b94c90b", size = 16018923, upload-time = "2026-10-09T19:27:40.066Z" },
 ]
 
 [[package]]
@@ -433,8 +433,8 @@ name = "httpcore2"
 version = "2.13.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "h11", marker = "sys_platform != 'emscripten'" },
-    { name = "truststore", marker = "sys_platform != 'emscripten'" },
+    { name = "h11" },
+    { name = "truststore" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/cb/f3/1db7aa2bc2524062192bb0e0323969492d1883152a232fe36eea65f4e35c/httpcore2-2.13.1.tar.gz", hash = "sha256:e0aa977abe17e69a3b820a24542a6fa88702676d83880b8d194dcd18408e5103", size = 68071, upload-time = "2026-09-23T07:47:22.372Z" }
 wheels = [
@@ -647,7 +647,7 @@ wheels = [
 
 [[package]]
 name = "langchain-postgres"
-version = "0.0.18"
+version = "0.0.19"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "asyncpg" },
@@ -658,9 +658,9 @@ dependencies = [
     { name = "psycopg-pool" },
     { name = "sqlalchemy", extra = ["asyncio"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/33/8c/bd0c107b1360f038f6d1b97487812cb0ce28217f08795cb62e16eaed43b7/langchain_postgres-0.0.18.tar.gz", hash = "sha256:7d330ad31ad71895726859d74f25bc8e40879f459f985383ecea8c1fc852464d", size = 254069, upload-time = "2026-09-15T18:59:48.441Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c7/d0/a5d604bfdfdd61d9418f6d99b27c11ede928df728e52e3f3b1419c31160e/langchain_postgres-0.0.19.tar.gz", hash = "sha256:3e6f862dfa202df7f671edb987650901786d6e1458a019fcc8d0d9c08fdee8f1", size = 253789, upload-time = "2026-10-06T14:34:30.464Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1f/1c/ef17c30c0a900778de819fb9d7b6b8f5efc9dea992b197f2b7a37407bb73/langchain_postgres-0.0.18-py3-none-any.whl", hash = "sha256:63e472fdf03cf47dd7117b817d3f16185d6a5e0832cabfb56e8ec87447c72a55", size = 48699, upload-time = "2026-09-15T18:59:47.557Z" },
+    { url = "https://files.pythonhosted.org/packages/72/ba/a3209684c3e647969a9653e4940de9a7881ccf3822204770d2de57bdfa78/langchain_postgres-0.0.19-py3-none-any.whl", hash = "sha256:e23e7949bd9b6d210393665c20162e3330ceca0a238d2a50f12d4aedb8ecbfe0", size = 48714, upload-time = "2026-10-06T14:34:29.339Z" },
 ]
 
 [[package]]
@@ -775,7 +775,7 @@ wheels = [
 
 [[package]]
 name = "openai"
-version = "3.24.0"
+version = "3.26.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -785,9 +785,9 @@ dependencies = [
     { name = "sniffio" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/73/4f/e57670227cb7b61362d8f9bfba54d4e9f7bde799798c342782788bc12d6c/openai-3.24.0.tar.gz", hash = "sha256:1e7463f7d78773ab2ce4fe85710481aa5bd5ffefd54c8de4b067506cd2d42895", size = 1797218, upload-time = "2026-10-02T15:55:18.851Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/36/f5/c9accd2d4077b0e56ffb63e9a943a656797c715bbd7c80f13f401865a350/openai-3.26.1.tar.gz", hash = "sha256:4b64060155596aece83aa81d270f326ee081b83da70a0d4b50091a0c60e9151c", size = 1820349, upload-time = "2026-10-08T08:54:23.757Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f2/01/32baec3bdb83d36da27281d7eeac2647241345cf8ff538bc21d1013ddeec/openai-3.24.0-py3-none-any.whl", hash = "sha256:b59703a3e3b5df78b269e90049d383a1dda58c90104cc4be59db21078db4b7a4", size = 2127166, upload-time = "2026-10-02T15:55:16.228Z" },
+    { url = "https://files.pythonhosted.org/packages/1a/ee/f6042342ff42116ff8018849ef24a950ef367730ab0f9912c08c2f9b8aa0/openai-3.26.1-py3-none-any.whl", hash = "sha256:6a05a4615c678922aa16a1a560cfbe059cb20d5b7ab9753d0bf38b41fce1c67a", size = 2163859, upload-time = "2026-10-08T08:54:21.963Z" },
 ]
 
 [[package]]
@@ -1517,7 +1517,7 @@ dev = [
 requires-dist = [
     { name = "boto3", specifier = ">=1.34" },
     { name = "cryptography", specifier = ">=42.0" },
-    { name = "langchain-postgres", marker = "extra == 'dev'", specifier = "==0.0.18" },
+    { name = "langchain-postgres", marker = "extra == 'dev'", specifier = "==0.0.19" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "openai", specifier = ">=1.40" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
