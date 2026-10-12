@@ -10,5 +10,7 @@ export default defineConfig({
   ],
   test: {
     include: ["test/workers/**/*.test.ts"],
+    // workerd cannot read Vitest's transformed modules from the host filesystem.
+    fsModuleCache: false,
   },
 });
