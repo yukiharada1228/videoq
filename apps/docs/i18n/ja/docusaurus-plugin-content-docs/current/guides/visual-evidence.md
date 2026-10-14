@@ -66,7 +66,7 @@ API・Python worker・Docker・Terraformの既定値で、アップロード動�
 
 ```dotenv
 VIDEO_VISUAL_ENABLED=true
-VISION_MODEL=gpt-4o-mini
+LLM_MODEL=gpt-6-luna
 ```
 
 ```bash
@@ -75,8 +75,9 @@ docker compose up -d --force-recreate api worker
 
 ホスト上のAPIでは `apps/api/.dev.vars` に同じ値を設定します。Python workerには
 実際の動画処理には `ENABLE_HEAVY_PIPELINE=1` が必要です。
-画像モデルはAPIの `OPENAI_API_KEY` / `OPENAI_BASE_URL` を使い、`VISION_MODEL` が空なら
-`LLM_MODEL` を使います。画像入力と厳密なJSON Schema出力を扱えるモデルが必要です。
+画像確認と回答生成はAPIの `LLM_MODEL`・`OPENAI_API_KEY`・`OPENAI_BASE_URL` を共用します。
+モデルの既定値は `gpt-6-luna` です。GPT-6 Lunaへのリクエストでは
+`reasoning_effort=none` を指定します。画像入力と厳密なJSON Schema出力を扱えるモデルが必要です。
 通常の回答モデルには引き続きツール呼び出しへの対応が必要です。無効にする場合はAPIとworkerの
 両方で `VIDEO_VISUAL_ENABLED=false` にしてください。以前の設定に明示的な false がある場合は、
 変更してプロセスを再起動するまで無効のままです。
@@ -140,7 +141,7 @@ SQS設定がある場合、このコマンドは区間処理をキューに登�
 
 開発・本番のAPI設定とworkerは画像確認を既定で有効にしています。実装をデプロイすると、
 明示的な上書き設定がない限り新規アップロードで使えます。Terraformも `worker_visual_enabled=true` が既定値です。
-通常の回答モデルが画像を扱えない場合はAPIの `VISION_MODEL` を設定します。DBの変更や新しいクラウドサービスは不要です。
+APIの `LLM_MODEL` には、画像入力・ツール呼び出し・厳密なJSON出力に対応したモデルを設定します。DBの変更や新しいクラウドサービスは不要です。
 workerのフラグはSSMの秘密JSONではなくLambda環境変数へ設定してください。
 現在のSSMローダーは指定された秘密情報のキーのみを受け付けます。
 

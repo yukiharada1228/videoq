@@ -96,7 +96,7 @@ Open `.env` and set at least:
 ```bash
 OPENAI_API_KEY=sk-proj-...
 OPENAI_BASE_URL=https://api.openai.com/v1
-LLM_MODEL=gpt-4o-mini
+LLM_MODEL=gpt-6-luna
 WHISPER_BACKEND=openai
 EMBEDDING_PROVIDER=openai
 EMBEDDING_MODEL=text-embedding-3-small
@@ -107,6 +107,8 @@ EMBEDDING_MODEL=text-embedding-3-small
 AUTH_JWT_SECRET=
 USER_SECRET_ENCRYPTION_KEY=
 ```
+
+Answer generation and image inspection share `LLM_MODEL`, which defaults to GPT-6 Luna (`gpt-6-luna`). With visual Q&A enabled, the model must support image input as well as tool calling and strict JSON output. See [model settings](docs/architecture/prompt-engineering.md#model-settings-and-limits) and [model references](docs/reference/ai-references.md#gpt-6-luna).
 
 Embedding dimensions are fixed at 1536 in the API, worker, and DB. The templates use OpenAI / `text-embedding-3-small`; no dimension setting is needed. Configure the same provider and model for both runtimes. See [embedding configuration and diagnostics](docs/guides/embeddings.md).
 

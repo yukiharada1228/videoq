@@ -7,6 +7,8 @@ description: Original papers, model documentation, and their relationship to Vid
 
 This page credits the research and model services used in VideoQ, with links to the corresponding implementation. It describes the checked-in code and configuration examples, verified on **2026-10-08**; deployed models can differ. The references here concern the system's methods, while timestamps in Q&A cite the user's video material.
 
+The answer/image model settings and their reference were updated on **2026-10-14** to match the current GPT-6 Luna default.
+
 ## Which reference belongs to which part? {#method-map}
 
 | Part of VideoQ | Method or model | Relationship to the source |
@@ -17,7 +19,7 @@ This page credits the research and model services used in VideoQ, with links to 
 | Split long subtitle ranges | [Otsu, 1979](#otsu) | Adapts the between-class variance criterion to ordered text embeddings |
 | Explore a video at different time scales | [VideoSeek: Lin et al., 2026](#videoseek) | Adapts the overview / skim / focus tool design |
 | Embed subtitle scenes and queries | [OpenAI embeddings](#openai-embeddings); optionally [Qwen3 Embedding](#qwen3-embedding) | Calls the configured pretrained embedding model |
-| Generate answers and inspect images | [GPT-4o mini](#gpt-4o-mini); optionally [Qwen3-VL](#qwen3-vl) | Calls the configured pretrained model; local examples are optional |
+| Generate answers and inspect images | [GPT-6 Luna](#gpt-6-luna); optionally [Qwen3-VL](#qwen3-vl) | Calls the configured pretrained model; local examples are optional |
 | Return answer text with source IDs | [Structured Outputs](#structured-outputs) | Uses the provider's schema-constrained output capability and VideoQ's own citation validation |
 
 ## Research behind the implemented methods
@@ -74,13 +76,19 @@ The checked-in default is `text-embedding-3-small`, with 1536-dimensional output
 
 Implementation: [API embeddings](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/embeddings.ts), [worker embeddings](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/embeddings.py). See [embedding configuration](../guides/embeddings.md).
 
-### GPT-4o mini — default answer and image model {#gpt-4o-mini}
+### GPT-6 Luna — default answer and image model {#gpt-6-luna}
+
+OpenAI. **“GPT-6 Luna.”** [Official model documentation](https://developers.openai.com/api/docs/models/gpt-6-luna), accessed October 14, 2026; no publication date is specified. BibTeX key: `openaiGpt6Luna`.
+
+Answer generation and image inspection share `LLM_MODEL`, which defaults to `gpt-6-luna` and is also set in the development and production Wrangler configuration. When visual Q&A is enabled, the model must support image input, tool calling, and strict JSON output. VideoQ sets `reasoning_effort=none` for GPT-6 Luna answer and image calls; the official documentation requires this setting for tool calling through Chat Completions. Record any model override or snapshot separately; the repository default does not prove which model a deployed service used.
+
+Implementation: [openai.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/openai.ts), [chat-model.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/chat-model.ts), [visual-inspection.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/visual-inspection.ts), [wrangler.jsonc](https://github.com/yukiharada1228/videoq/blob/main/apps/api/wrangler.jsonc).
+
+### GPT-4o mini — historical evaluations {#gpt-4o-mini}
 
 OpenAI. **“GPT-4o mini: advancing cost-efficient intelligence.”** July 18, 2024. [Official release](https://openai.com/index/gpt-4o-mini-advancing-cost-efficient-intelligence/). BibTeX key: `openai2024gpt4omini`.
 
-`LLM_MODEL` defaults to `gpt-4o-mini`. Image inspection uses `VISION_MODEL`, falling back to `LLM_MODEL` and then the same default. Cite the model-specific official release as a product source. Record any model override or dated snapshot separately; the repository default does not prove which model a deployed service used.
-
-Implementation: [openai.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/openai.ts), [chat-model.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/chat-model.ts), [visual-inspection.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/visual-inspection.ts).
+Earlier evaluations, including the [structured-answer comparison](../architecture/structured-answers.md), used `gpt-4o-mini`. Keep that model attribution when citing those results; they do not measure the current GPT-6 Luna default.
 
 ### Structured Outputs — schema-constrained responses {#structured-outputs}
 
@@ -104,10 +112,10 @@ The [repository README](https://github.com/yukiharada1228/videoq#optional-reduce
 
 ## Reuse the citations {#reuse}
 
-All ten entries above are available in [ai-references.bib](https://github.com/yukiharada1228/videoq/blob/main/docs/reference/ai-references.bib). The BibTeX file distinguishes conference/journal papers, technical-report preprints, and official web publications. Select the entries for the methods and models actually used in your experiment.
+All eleven entries above are available in [ai-references.bib](https://github.com/yukiharada1228/videoq/blob/main/docs/reference/ai-references.bib). The BibTeX file distinguishes conference/journal papers, technical-report preprints, and official web publications. Select the entries for the methods and models actually used in your experiment.
 
 For a methods section using the defaults, a suitable starting point is:
 
-> VideoQ transcribes uploaded audio with Whisper (Radford et al., 2023), applies an Otsu-inspired variance criterion to segment subtitle embeddings (Otsu, 1979), and retrieves course evidence for answer generation using the RAG pattern (Lewis et al., 2020). A ReAct-style tool loop (Yao et al., 2023) can navigate video evidence using tools inspired by VideoSeek (Lin et al., 2026). Embeddings and answer/image generation use OpenAI's text-embedding-3-small and GPT-4o mini, respectively (OpenAI, 2024).
+> VideoQ transcribes uploaded audio with Whisper (Radford et al., 2023), applies an Otsu-inspired variance criterion to segment subtitle embeddings (Otsu, 1979), and retrieves course evidence for answer generation using the RAG pattern (Lewis et al., 2020). A ReAct-style tool loop (Yao et al., 2023) can navigate video evidence using tools inspired by VideoSeek (Lin et al., 2026). Embeddings use OpenAI's text-embedding-3-small (OpenAI, 2024), and answer/image generation uses GPT-6 Luna (OpenAI, n.d.).
 
-Adjust that description for subtitle imports, disabled visuals, or model overrides. For reproducibility, record the VideoQ commit, model identifiers and provider, local weight digests/quantization if applicable, embedding dimensions, tool/frame budgets, prompts, and evaluation date. Cite the exact OpenAI entries for embeddings and GPT-4o mini so a citation manager can disambiguate their year suffixes. Research citations credit the methods; they do not substitute for an evaluation of VideoQ.
+Adjust that description for subtitle imports, disabled visuals, or model overrides. For reproducibility, record the VideoQ commit, model identifiers and provider, local weight digests/quantization if applicable, embedding dimensions, tool/frame budgets, prompts, and evaluation date. Cite the separate OpenAI entries for embeddings and GPT-6 Luna, including the access date for the undated model documentation. Research citations credit the methods; they do not substitute for an evaluation of VideoQ.

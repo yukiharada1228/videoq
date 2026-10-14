@@ -25,14 +25,19 @@ vi.mock("../src/integrations/media", () => ({ readMediaBytes: async (_env: Bindi
 beforeEach(() => vi.clearAllMocks());
 afterEach(() => vi.unstubAllGlobals());
 
-describe.each([false, true])("visual RAG integration (stream=%s)", streaming => {
+describe.each([false, true].flatMap(streaming =>
+  [undefined, "shared-model"].map(model => ({ streaming, model })),
+))("visual RAG integration (stream=$streaming, model=$model)", ({ streaming, model }) => {
   it.each([false, true, "focus"])("keeps observations private and citations stable (navigation=%s)", async navigation => {
     let agentTurns = 0;
     let visualCalls = 0;
     vi.stubGlobal("fetch", async (_url: unknown, init: RequestInit) => {
       const request = JSON.parse(String(init.body));
-      expect(request).toMatchObject({ model: "gpt-6-luna", reasoning_effort: "none" });
-      expect(request).not.toHaveProperty("max_tokens");
+      expect(request.model).toBe(model ?? "gpt-6-luna");
+      if (!model) {
+        expect(request.reasoning_effort).toBe("none");
+        expect(request).not.toHaveProperty("max_tokens");
+      } else expect(request).not.toHaveProperty("reasoning_effort");
       if (request.messages.some((m: { content: unknown }) => Array.isArray(m.content)
         && m.content.some(p => p.type === "image_url"))) {
         visualCalls++;
@@ -65,7 +70,7 @@ describe.each([false, true])("visual RAG integration (stream=%s)", streaming => 
       } }] }, request.stream, "agent-final");
     });
     // No visual flag: image tools must be available for uploads by default.
-    const env = { OPENAI_API_KEY: "test", OPENAI_BASE_URL: "https://models.test/v1" } as Bindings;
+    const env = { OPENAI_API_KEY: "test", OPENAI_BASE_URL: "https://models.test/v1", ...(model ? { LLM_MODEL: model } : {}) } as Bindings;
     const params = { ownerUserId: "owner", videoIds: [42], messages: [{ role: "user", content: "What is the red curve?" }], locale: "en" };
     let result;
     if (streaming) {

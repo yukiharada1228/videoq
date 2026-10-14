@@ -79,7 +79,7 @@ export async function inspectVideoClip(
   if ("unavailable" in cache) return cache;
   const frames = cache.frames;
   const detailed = options.mode === "inspect" || options.mode === "focus";
-  const model = env.VISION_MODEL || env.LLM_MODEL || DEFAULT_LLM_MODEL;
+  const model = env.LLM_MODEL || DEFAULT_LLM_MODEL;
   // A 1024px high-detail image can use 25,501 tokens on 4o-mini.
   // Keep every selected frame, but split requests to fit its 128K context.
   const batchSize = detailed && /^gpt-4o-mini(?:-\d{4}-\d{2}-\d{2})?$/.test(model) ? 4 : frames.length;

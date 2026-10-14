@@ -56,5 +56,5 @@ AWS_SECRET_ACCESS_KEY="local"
 # OAUTH_ISSUER_URL="http://localhost:8787"
 
 # Uploaded-video visual evidence is on by default. Set false on API and worker to opt out.
+# Image inspection uses LLM_MODEL and requires image input and strict JSON output.
 VIDEO_VISUAL_ENABLED="true"
-VISION_MODEL=""
