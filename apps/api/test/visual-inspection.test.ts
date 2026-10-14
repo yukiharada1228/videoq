@@ -8,7 +8,7 @@ vi.mock("../src/lib/visual-manifest", async importOriginal => ({
   ...await importOriginal<typeof import("../src/lib/visual-manifest")>(),
   readVisualManifest: vi.fn(async () => null),
 }));
-const env = { OPENAI_API_KEY: "test", OPENAI_BASE_URL: "https://vision.test/v1", VISION_MODEL: "vision-model" } as Bindings;
+const env = { OPENAI_API_KEY: "test", OPENAI_BASE_URL: "https://vision.test/v1", LLM_MODEL: "shared-model" } as Bindings;
 const frames = Array.from({ length: 20 }, (_, i) => ({ timestamp_seconds: i * 5, jpeg_base64: "/9j/2Q==" }));
 const cache = { version: 1, video_id: 42, duration_seconds: 100, sampling_interval_seconds: 5, frames };
 const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
@@ -34,10 +34,10 @@ it("sends only selected images, resolves citations by server frame index, and re
   expect(result).toMatchObject({ observations: [{ timestamp: 10, text: "x = 2" }] });
   expect(JSON.stringify(requests[0])).not.toContain("private/video.mp4");
   expect(JSON.stringify(requests[0]).match(/data:image\/jpeg/g)).toHaveLength(8);
-  expect(requests[0].model).toBe("vision-model");
+  expect(requests[0].model).toBe(env.LLM_MODEL);
   expect(requests[0].stream).toBeUndefined();
 });
-it.each([{}, { LLM_MODEL: "gpt-6-luna" }, { VISION_MODEL: "gpt-6-luna" }])("uses Luna without reasoning and keeps images in one request: %j", async models => {
+it.each([{}, { LLM_MODEL: "" }, { LLM_MODEL: "gpt-6-luna" }])("uses Luna without reasoning and keeps images in one request: %j", async models => {
   const fetch = vi.fn(async (_url: unknown, init: RequestInit) => {
     const body = JSON.parse(String(init.body));
     expect(body).toMatchObject({ model: "gpt-6-luna", reasoning_effort: "none", max_completion_tokens: 2048 });

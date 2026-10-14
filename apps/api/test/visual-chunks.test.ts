@@ -7,7 +7,7 @@ import { focusCacheFixture } from "./helpers/focus-cache";
 import type { Bindings } from "../src/types/bindings";
 
 vi.mock("../src/integrations/media", () => ({ readMediaBytes: vi.fn(), readMediaRange: vi.fn() }));
-const env = { OPENAI_API_KEY: "test", VISION_MODEL: "vision-model" } as Bindings;
+const env = { OPENAI_API_KEY: "test", LLM_MODEL: "shared-model" } as Bindings;
 const video = { id: 42, fileKey: "video.mkv" };
 const run = "64972424-b2c6-49b3-b9d3-cb0399ad45fa";
 let plan: { version: number; video_id: number; run_id: string; duration_seconds: number; chunk_seconds: number; chunk_count: number; overview: number[][] };

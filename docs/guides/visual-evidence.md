@@ -78,7 +78,7 @@ video image tools and cache preparation. These are the Docker `.env` defaults:
 
 ```dotenv
 VIDEO_VISUAL_ENABLED=true
-VISION_MODEL=gpt-4o-mini
+LLM_MODEL=gpt-6-luna
 ```
 
 Recreate the API and worker to load them:
@@ -89,8 +89,9 @@ docker compose up -d --force-recreate api worker
 
 For host-run API development, set the same values in `apps/api/.dev.vars`. The
 Python worker needs `ENABLE_HEAVY_PIPELINE=1` for real video processing.
-`VISION_MODEL` uses the API's `OPENAI_API_KEY` and `OPENAI_BASE_URL`; empty falls
-back to `LLM_MODEL`. The endpoint/model must support image inputs and strict
+Image inspection and answer generation share the API's `LLM_MODEL`,
+`OPENAI_API_KEY`, and `OPENAI_BASE_URL`. The default model is `gpt-6-luna`. GPT-6 Luna requests use
+`reasoning_effort=none`. The endpoint/model must support image inputs and strict
 JSON-schema output. The normal answer model still needs tool calling. To opt out,
 set `VIDEO_VISUAL_ENABLED=false` on both API and worker. Existing explicit false
 overrides remain effective until changed and the processes restarted.
@@ -162,8 +163,8 @@ the feature has since been disabled, and failed cleanup remains retryable.
 
 Both checked-in API environments and the worker default to image inspection on.
 Deploying the implementation enables it for new uploads unless explicitly
-overridden. `worker_visual_enabled=true` is the Terraform default; configure
-`VISION_MODEL` on the API if its normal answer model cannot handle images.
+overridden. `worker_visual_enabled=true` is the Terraform default. Set the API's
+`LLM_MODEL` to a model that supports image input, tool calling, and strict JSON output.
 No database migration or new cloud service is required. Do not put the
 worker flag in SSM's app-secret JSON: the current loader only accepts its listed
 secret keys. Use Lambda's environment configuration.

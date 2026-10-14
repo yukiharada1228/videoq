@@ -61,8 +61,9 @@ These are application defaults, not measurements of production settings or provi
 
 | Setting | Current implementation |
 |---|---|
-| Answer model | `LLM_MODEL`, default `gpt-4o-mini` |
+| Answer and image model | `LLM_MODEL`, default `gpt-6-luna` |
 | Answer endpoint | Chat Completions at `OPENAI_BASE_URL`, default `https://api.openai.com/v1` |
+| Reasoning effort | `none` when the model is `gpt-6-luna`, for Chat Completions tool calling |
 | Sampling and output budget | Temperature `0`; at most 1,024 output tokens per model call, including structured output |
 | Request deadline | Course RAG: 2 minutes for non-streaming requests; 5 minutes for streaming requests |
 | Automatic provider retries | Disabled in the API chat-model wrapper |
@@ -70,9 +71,9 @@ These are application defaults, not measurements of production settings or provi
 | Metadata budget | At most 5 calls, up to 20 videos per page |
 | Tool-enabled model turns | At most 19, followed by a final turn without tools; individual tool budgets still apply |
 
-Configure the answer model with the API's `LLM_MODEL`. See [embeddings](../guides/embeddings.md) for the search-model configuration shared by the API and worker.
+Configure the shared answer and image model with the API's `LLM_MODEL`. It must support tool calling and strict JSON output, plus image input when visual Q&A is enabled. See [embeddings](../guides/embeddings.md) for the search-model configuration shared by the API and worker.
 
-Model attribution: [GPT-4o mini's official release](../reference/ai-references.md#gpt-4o-mini), or the source for the model actually configured.
+Model attribution: [GPT-6 Luna's official model documentation](../reference/ai-references.md#gpt-6-luna), or the source for the model actually configured.
 
 ## Structured answers, citations and permissions
 

@@ -7,6 +7,8 @@ description: VideoQで使う手法の原論文、モデルの公式資料、実�
 
 VideoQで使う研究手法とモデルサービスの出典を、対応する実装とともに示します。**2026-10-08**にリポジトリのコードと設定例を確認しました。実際の稼働環境ではモデルを変更できます。このページはシステムの手法に関する参考文献です。Q&Aの時刻リンクは、利用者の動画内の根拠を引用します。
 
+回答・画像モデルの設定と出典は、**2026-10-14**に現在の既定値であるGPT-6 Lunaへ更新しました。
+
 ## どの処理にどの文献を引用するか {#method-map}
 
 | VideoQの処理 | 手法・モデル | 出典との関係 |
@@ -17,7 +19,7 @@ VideoQで使う研究手法とモデルサービスの出典を、対応する�
 | 長い字幕区間を分割する | [大津法: Otsu, 1979](#otsu) | クラス間分散の基準を時系列の文章埋め込みへ応用 |
 | 動画を異なる時間範囲で調べる | [VideoSeek: Lin et al., 2026](#videoseek) | overview / skim / focusのツール設計を参考に実装 |
 | 字幕と検索文を埋め込みにする | [OpenAIの埋め込み](#openai-embeddings)、任意で[Qwen3 Embedding](#qwen3-embedding) | 設定された学習済み埋め込みモデルを呼び出す |
-| 回答を生成し、画像を確認する | [GPT-4o mini](#gpt-4o-mini)、任意で[Qwen3-VL](#qwen3-vl) | 設定された学習済みモデルを呼び出す。ローカル構成は任意 |
+| 回答を生成し、画像を確認する | [GPT-6 Luna](#gpt-6-luna)、任意で[Qwen3-VL](#qwen3-vl) | 設定された学習済みモデルを呼び出す。ローカル構成は任意 |
 | 回答本文と出典IDを構造化して返す | [Structured Outputs](#structured-outputs) | 提供元のスキーマ制約付き出力と、VideoQ独自の引用検証を利用 |
 
 ## 実装した手法の研究上の出典
@@ -74,13 +76,19 @@ OpenAI. **“New embedding models and API updates.”** 2024年1月25日。[公�
 
 対応実装: [APIの埋め込み](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/embeddings.ts)、[workerの埋め込み](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/embeddings.py)。[埋め込みの設定](../guides/embeddings.md)も参照してください。
 
-### GPT-4o mini — 既定の回答・画像モデル {#gpt-4o-mini}
+### GPT-6 Luna — 既定の回答・画像モデル {#gpt-6-luna}
+
+OpenAI. **“GPT-6 Luna.”** [公式モデル資料](https://developers.openai.com/api/docs/models/gpt-6-luna)、2026年10月14日参照。公開日は記載されていません。BibTeXキー: `openaiGpt6Luna`。
+
+回答生成と画像確認は共通の `LLM_MODEL` を使います。既定値は `gpt-6-luna` で、開発・本番向けのWrangler設定にも指定しています。映像確認を有効にする場合は、画像入力・ツール呼び出し・厳密なJSON出力に対応したモデルが必要です。VideoQはGPT-6 Lunaの回答・画像リクエストに `reasoning_effort=none` を指定します。公式資料では、Chat Completionsでツールを呼び出す際にこの設定が必要です。モデルの変更やスナップショットの指定は別途記録してください。リポジトリの既定値だけでは、本番で使ったモデルは特定できません。
+
+対応実装: [openai.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/openai.ts)、[chat-model.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/chat-model.ts)、[visual-inspection.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/visual-inspection.ts)、[wrangler.jsonc](https://github.com/yukiharada1228/videoq/blob/main/apps/api/wrangler.jsonc)。
+
+### GPT-4o mini — 過去の検証で使用したモデル {#gpt-4o-mini}
 
 OpenAI. **“GPT-4o mini: advancing cost-efficient intelligence.”** 2024年7月18日。[公式発表](https://openai.com/index/gpt-4o-mini-advancing-cost-efficient-intelligence/)。BibTeXキー: `openai2024gpt4omini`。
 
-`LLM_MODEL` の既定値は `gpt-4o-mini` です。画像確認は `VISION_MODEL` を使い、未設定なら `LLM_MODEL`、さらに同じ既定値へフォールバックします。モデル固有の公式発表を製品資料として引用します。モデルの変更や日付付きスナップショットの指定は別途記録してください。リポジトリの既定値だけでは、本番で使ったモデルは特定できません。
-
-対応実装: [openai.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/openai.ts)、[chat-model.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/chat-model.ts)、[visual-inspection.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/visual-inspection.ts)。
+[構造化回答の比較](../architecture/structured-answers.md)など、過去の検証では `gpt-4o-mini` を使用しました。これらの結果を引用する際は、実際に使ったモデル名を残してください。現在の既定値であるGPT-6 Lunaの測定結果ではありません。
 
 ### Structured Outputs — スキーマに従う出力 {#structured-outputs}
 
@@ -104,10 +112,10 @@ Shuai Bai et al. **“Qwen3-VL Technical Report.”** 2025, arXiv:2511.21631。[
 
 ## 引用を再利用する {#reuse}
 
-上記10件を [ai-references.bib](https://github.com/yukiharada1228/videoq/blob/main/docs/reference/ai-references.bib) にまとめています。学会・学術誌の論文、技術報告のプレプリント、公式Web資料を区別して登録しています。実験で実際に使った手法・モデルの項目を選んでください。
+上記11件を [ai-references.bib](https://github.com/yukiharada1228/videoq/blob/main/docs/reference/ai-references.bib) にまとめています。学会・学術誌の論文、技術報告のプレプリント、公式Web資料を区別して登録しています。実験で実際に使った手法・モデルの項目を選んでください。
 
 既定の構成を方法節で説明する場合の例です。
 
-> VideoQは、アップロード音声をWhisper（Radford et al., 2023）で文字起こしし、大津法の分散基準を応用して字幕埋め込みを分割する（Otsu, 1979）。講座の根拠を検索して回答を生成するRAG構成（Lewis et al., 2020）と、ReAct型のツールループ（Yao et al., 2023）を用いる。動画の根拠探索にはVideoSeek（Lin et al., 2026）を参考にしたツールを利用する。埋め込みと回答・画像の推論には、それぞれOpenAIのtext-embedding-3-smallとGPT-4o miniを用いる（OpenAI, 2024）。
+> VideoQは、アップロード音声をWhisper（Radford et al., 2023）で文字起こしし、大津法の分散基準を応用して字幕埋め込みを分割する（Otsu, 1979）。講座の根拠を検索して回答を生成するRAG構成（Lewis et al., 2020）と、ReAct型のツールループ（Yao et al., 2023）を用いる。動画の根拠探索にはVideoSeek（Lin et al., 2026）を参考にしたツールを利用する。埋め込みにはOpenAIのtext-embedding-3-small（OpenAI, 2024）、回答・画像の推論にはGPT-6 Luna（OpenAI, n.d.）を用いる。
 
-字幕の取り込み、映像確認の無効化、モデル変更などに合わせて記述を調整してください。再現性のため、VideoQのコミット、モデル識別子と提供元、該当する場合はローカル重みのダイジェスト・量子化、埋め込み次元、ツール・画像数の上限、プロンプト、評価日を記録します。OpenAIの埋め込みとGPT-4o miniはそれぞれの項目を引用し、同著者・同年の区別は文献管理ツールの年の接尾辞に合わせてください。研究の引用による出典表示と、VideoQ自体の評価結果は別のものです。
+字幕の取り込み、映像確認の無効化、モデル変更などに合わせて記述を調整してください。再現性のため、VideoQのコミット、モデル識別子と提供元、該当する場合はローカル重みのダイジェスト・量子化、埋め込み次元、ツール・画像数の上限、プロンプト、評価日を記録します。OpenAIの埋め込みとGPT-6 Lunaはそれぞれの項目を引用し、公開日が記載されていないモデル資料には参照日も付けてください（n.d.は日付不明を表します）。研究の引用による出典表示と、VideoQ自体の評価結果は別のものです。

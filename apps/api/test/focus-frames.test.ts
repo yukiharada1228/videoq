@@ -89,7 +89,7 @@ it.each(["gpt-4o-mini", "gpt-4o-mini-2024-07-18"])("sends all sixteen high-detai
         observation: i === 4 ? "The equation changes." : "The final result appears." })),
     }) } }] });
   });
-  expect(await inspectVideoClip({ ...env, VISION_MODEL: model }, video, 10, 26, "What changes?", new AbortController().signal, { mode: "focus", maxFrames: 16 }))
+  expect(await inspectVideoClip({ ...env, LLM_MODEL: model }, video, 10, 26, "What changes?", new AbortController().signal, { mode: "focus", maxFrames: 16 }))
     .toMatchObject({ observations: [{ timestamp: 13, text: "The equation changes." }, { timestamp: 25, text: "The final result appears." }], sampling_interval_seconds: 1 });
   expect(requests).toBe(4);
   expect(sent).toEqual(Array.from({ length: 16 }, (_, i) => i + 1));
@@ -100,7 +100,7 @@ it("rejects observations for a real frame that was not sent in the current batch
     content: JSON.stringify({ observations: [{ frame_index: 5, observation: "Not in this batch" }] }),
   } }] }));
   vi.stubGlobal("fetch", fetch);
-  await expect(inspectVideoClip({ ...env, VISION_MODEL: "gpt-4o-mini" }, video, 10, 26, "Details", new AbortController().signal, { mode: "focus", maxFrames: 16 }))
+  await expect(inspectVideoClip({ ...env, LLM_MODEL: "gpt-4o-mini" }, video, 10, 26, "Details", new AbortController().signal, { mode: "focus", maxFrames: 16 }))
     .rejects.toThrow("Invalid visual observation frame index");
   expect(fetch).toHaveBeenCalledTimes(1);
 });
@@ -114,6 +114,6 @@ it("stops later batches on cancellation without returning partial observations",
       content: JSON.stringify({ observations: [{ frame_index: 1, observation: "First batch" }] }),
     } }] });
   });
-  await expect(inspectVideoClip({ ...env, VISION_MODEL: "gpt-4o-mini" }, video, 10, 26, "Details", controller.signal, { mode: "focus", maxFrames: 16 })).rejects.toThrow();
+  await expect(inspectVideoClip({ ...env, LLM_MODEL: "gpt-4o-mini" }, video, 10, 26, "Details", controller.signal, { mode: "focus", maxFrames: 16 })).rejects.toThrow();
   expect(requests).toBe(2);
 });

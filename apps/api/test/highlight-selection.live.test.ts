@@ -51,7 +51,7 @@ beforeAll(() => {
   });
   const varsPath = new URL("../.dev.vars", import.meta.url);
   const configured = existsSync(varsPath) ? parse(readFileSync(varsPath)) : {};
-  env = Object.fromEntries(["OPENAI_API_KEY", "OPENAI_BASE_URL", "LLM_MODEL", "VISION_MODEL"].map(key => [key, process.env[key] ?? configured[key]])) as unknown as Bindings;
+  env = Object.fromEntries(["OPENAI_API_KEY", "OPENAI_BASE_URL", "LLM_MODEL"].map(key => [key, process.env[key] ?? configured[key]])) as unknown as Bindings;
   if (!env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is required");
   output = process.env.VIDEOQ_HIGHLIGHT_OUTPUT ?? root;
   mkdirSync(output, { recursive: true });
