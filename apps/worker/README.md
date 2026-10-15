@@ -79,6 +79,8 @@ results. Checkpoints are deleted by foreign-key cascade when the video is delete
 | `DATABASE_URL` | PostgreSQL |
 | `SQS_QUEUE_URL` | Amazon SQS / ElasticMQ |
 | `OPENAI_API_KEY` | Whisper and embeddings |
+| `WHISPER_BACKEND` | `openai` (default), `modal`, or `local` |
+| `WHISPER_MODAL_URL` / `WHISPER_MODAL_TOKEN` | Root URL and bearer token for the authenticated Modal batch transcription API; required when `WHISPER_BACKEND=modal` |
 | `EMBEDDING_PROVIDER` | `openai` (default) or `ollama` |
 | `EMBEDDING_MODEL` | Defaults to `text-embedding-3-small` for OpenAI. Required explicitly for Ollama (validated configuration: `qwen3-embedding:4b`) |
 | `USE_S3_STORAGE` | Enable S3-compatible object storage |

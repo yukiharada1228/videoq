@@ -170,7 +170,17 @@ def _whisper_client():
     from openai import OpenAI
 
     backend = env_str("WHISPER_BACKEND", "openai").lower()
-    if backend in {"whisper.cpp", "local"}:
+    if backend == "modal":
+        endpoint = env_str("WHISPER_MODAL_URL").rstrip("/")
+        token = env_str("WHISPER_MODAL_TOKEN")
+        if not endpoint.startswith("https://") or not token:
+            raise RuntimeError("WHISPER_MODAL_URL and WHISPER_MODAL_TOKEN are required")
+        client = OpenAI(
+            api_key=token, base_url=f"{endpoint}/v1",
+            timeout=180.0, max_retries=2,
+        )
+        model = "large-v3"
+    elif backend in {"whisper.cpp", "local"}:
         client = OpenAI(
             api_key=env_str("OPENAI_API_KEY") or "dummy-key-for-local",
             base_url=env_str("WHISPER_LOCAL_URL", "http://127.0.0.1:8080"),
