@@ -6,6 +6,7 @@ import {
 } from "./openai";
 import { deadlineSignal } from "./request-timeout";
 import { EMBEDDING_DIMENSIONS, EmbeddingValidationError, resolveEmbeddingConfig, validateEmbedding, type EmbeddingConfig } from "./embedding-contract";
+import type { AnswerCostLedger } from "./answer-cost-ledger";
 
 /**
  * 検索クエリの埋め込みベクトルを生成する。
@@ -23,42 +24,50 @@ export type EmbeddingEnv = {
   OLLAMA_BASE_URL?: string;
 };
 
-async function embedWithOpenAi(env: EmbeddingEnv, text: string, config: EmbeddingConfig, signal?: AbortSignal): Promise<number[]> {
+async function embedWithOpenAi(env: EmbeddingEnv, text: string, config: EmbeddingConfig, signal?: AbortSignal, costLedger?: AnswerCostLedger): Promise<number[]> {
   const apiKey = resolveOpenAiKey(env, "OpenAI embeddings");
-  const body: Record<string, unknown> = {
-    model: config.model,
-    input: text,
-    encoding_format: "float",
-    dimensions: EMBEDDING_DIMENSIONS,
-  };
-
-  let res: Response;
+  const call = costLedger?.begin("query_embedding", config.model);
   try {
-    res = await fetch(`${openAiBaseUrl(env)}/embeddings`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(body),
-      signal: deadlineSignal(EMBEDDING_TIMEOUT_MS, signal),
-    });
-  } catch {
-    signal?.throwIfAborted();
-    throw new LlmProviderError("OpenAI embeddings request failed. Check the server connection.");
-  }
-  if (!res.ok) {
-    await res.body?.cancel();
-    if (res.status === 401) throw new LlmConfigurationError("Invalid OpenAI API key. Check the server configuration.");
-    throw new LlmProviderError(`OpenAI embeddings failed (HTTP ${res.status}).`);
-  }
+    const body: Record<string, unknown> = {
+      model: config.model,
+      input: text,
+      encoding_format: "float",
+      dimensions: EMBEDDING_DIMENSIONS,
+    };
 
-  const json: unknown = await embeddingJson(res, config, signal);
-  if (!isRecord(json) || !Array.isArray(json.data) || json.data.length !== 1 ||
-      !isRecord(json.data[0]) || json.data[0].index !== 0) {
-    throw new EmbeddingValidationError("EMBEDDING_OUTPUT_INVALID", config);
+    let res: Response;
+    try {
+      res = await fetch(`${openAiBaseUrl(env)}/embeddings`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(body),
+        signal: deadlineSignal(EMBEDDING_TIMEOUT_MS, signal),
+      });
+    } catch {
+      signal?.throwIfAborted();
+      throw new LlmProviderError("OpenAI embeddings request failed. Check the server connection.");
+    }
+    if (!res.ok) {
+      await res.body?.cancel();
+      if (res.status === 401) throw new LlmConfigurationError("Invalid OpenAI API key. Check the server configuration.");
+      throw new LlmProviderError(`OpenAI embeddings failed (HTTP ${res.status}).`);
+    }
+
+    const json: unknown = await embeddingJson(res, config, signal);
+    if (isRecord(json)) call?.complete(json.usage);
+    if (!isRecord(json) || !Array.isArray(json.data) || json.data.length !== 1 ||
+        !isRecord(json.data[0]) || json.data[0].index !== 0) {
+      throw new EmbeddingValidationError("EMBEDDING_OUTPUT_INVALID", config);
+    }
+    return validateEmbedding(json.data[0].embedding, "EMBEDDING_OUTPUT_INVALID", config);
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") call?.interrupt();
+    else call?.fail();
+    throw error;
   }
-  return validateEmbedding(json.data[0].embedding, "EMBEDDING_OUTPUT_INVALID", config);
 }
 
 async function embedWithOllama(env: EmbeddingEnv, text: string, config: EmbeddingConfig, signal?: AbortSignal): Promise<number[]> {
@@ -86,12 +95,12 @@ async function embedWithOllama(env: EmbeddingEnv, text: string, config: Embeddin
   return validateEmbedding(json.embeddings[0], "EMBEDDING_OUTPUT_INVALID", config);
 }
 
-export async function embedQuery(env: EmbeddingEnv, text: string, signal?: AbortSignal): Promise<number[]> {
+export async function embedQuery(env: EmbeddingEnv, text: string, signal?: AbortSignal, costLedger?: AnswerCostLedger): Promise<number[]> {
   signal?.throwIfAborted();
   const config = resolveEmbeddingConfig(env);
   const result = await (config.provider === "ollama"
     ? embedWithOllama(env, text, config, signal)
-    : embedWithOpenAi(env, text, config, signal));
+    : embedWithOpenAi(env, text, config, signal, costLedger));
   signal?.throwIfAborted();
   return result;
 }

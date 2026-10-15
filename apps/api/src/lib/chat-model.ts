@@ -1,5 +1,6 @@
 import { ChatOpenAICompletions } from "@langchain/openai";
 import type OpenAI from "openai";
+import type { AnswerCostLedger } from "./answer-cost-ledger";
 import {
   DEFAULT_LLM_MODEL,
   LlmConfigurationError,
@@ -26,6 +27,7 @@ const MAX_RETRIES = 0;
 
 /** Preserve refusal metadata omitted by LangChain's completions converter. */
 class AnswerChatModel extends ChatOpenAICompletions {
+  costLedger?: AnswerCostLedger;
   override completionWithRetry(request: OpenAI.Chat.ChatCompletionCreateParamsStreaming, options?: OpenAI.RequestOptions): Promise<AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>>;
   override completionWithRetry(request: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming, options?: OpenAI.RequestOptions): Promise<OpenAI.Chat.Completions.ChatCompletion>;
   override async completionWithRetry(request: OpenAI.Chat.ChatCompletionCreateParams, options?: OpenAI.RequestOptions): Promise<OpenAI.Chat.Completions.ChatCompletion | AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>> {
@@ -33,8 +35,37 @@ class AnswerChatModel extends ChatOpenAICompletions {
     // Keep native schema enforcement on the request, and let providerStrategy
     // validate terminal responses after the agent has processed tool calls.
     const clientOptions = this._getClientOptions(options);
-    return this.caller.callWithOptions({ maxRetries: MAX_RETRIES }, () =>
-      this.client.chat.completions.create(request, { ...clientOptions, maxRetries: MAX_RETRIES }));
+    const call = this.costLedger?.begin("answer_model", request.model);
+    const trackedRequest = request.stream
+      ? { ...request, stream_options: { ...(request.stream_options ?? {}), include_usage: true } }
+      : request;
+    try {
+      const response = await this.caller.callWithOptions({ maxRetries: MAX_RETRIES }, () =>
+        this.client.chat.completions.create(trackedRequest, { ...clientOptions, maxRetries: MAX_RETRIES }));
+      if (request.stream) {
+        const chunks = response as AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>;
+        return (async function* () {
+          let usage: unknown;
+          try {
+            for await (const chunk of chunks) {
+              if (chunk.usage) usage = chunk.usage;
+              yield chunk;
+            }
+            call?.complete(usage);
+          } catch (error) {
+            if (error instanceof Error && error.name === "AbortError") call?.interrupt(usage);
+            else call?.fail(usage);
+            throw error;
+          }
+        })();
+      }
+      call?.complete((response as OpenAI.Chat.Completions.ChatCompletion).usage);
+      return response;
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") call?.interrupt();
+      else call?.fail();
+      throw error;
+    }
   }
   protected override _convertCompletionsMessageToBaseMessage(message: OpenAI.ChatCompletionMessage, raw: OpenAI.ChatCompletion) {
     const converted = super._convertCompletionsMessageToBaseMessage(message, raw);
@@ -55,13 +86,13 @@ class AnswerChatModel extends ChatOpenAICompletions {
 
 export function createChatModel(
   env: Bindings,
-  opts: { maxTokens: number; timeoutMs: number },
+  opts: { maxTokens: number; timeoutMs: number; costLedger?: AnswerCostLedger },
 ): ChatOpenAICompletions {
   const apiKey = resolveOpenAiKey(env, "OpenAI LLM");
   const model = env.LLM_MODEL || DEFAULT_LLM_MODEL;
   // useResponsesApi: false でも ChatOpenAI はモデル名で /responses を選ぶ。
   // 互換サーバーでも /chat/completions を使うため、専用クラスで固定する。
-  return new AnswerChatModel({
+  const chatModel = new AnswerChatModel({
     model,
     apiKey,
     configuration: { baseURL: openAiBaseUrl(env) },
@@ -71,6 +102,8 @@ export function createChatModel(
     timeout: opts.timeoutMs,
     maxRetries: MAX_RETRIES,
   });
+  chatModel.costLedger = opts.costLedger;
+  return chatModel;
 }
 
 /** OpenAI SDK / LangChain が投げた例外から HTTP ステータスを拾う。 */

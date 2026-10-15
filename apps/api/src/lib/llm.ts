@@ -4,6 +4,7 @@ import { answerResponseFormat, AnswerTextStream, assertCompletedAnswer, parseMod
 import type { ModelAnswer } from "@videoq/trpc/chat";
 import { deadlineSignal } from "./request-timeout";
 import type { Bindings } from "../types/bindings";
+import type { AnswerCostLedger } from "./answer-cost-ledger";
 
 /**
  * QA RAG の LLM 呼び出し。temperature=0.0、max_tokens=1024 を使う。
@@ -24,10 +25,12 @@ export async function generateReply(
   env: Bindings,
   systemPrompt: string,
   queryText: string,
+  costLedger?: AnswerCostLedger,
 ): Promise<ModelAnswer> {
   const model = createChatModel(env, {
     maxTokens: MAX_TOKENS,
     timeoutMs: LLM_REQUEST_TIMEOUT_MS,
+    costLedger,
   });
   try {
     const message = await model.invoke(promptMessages(systemPrompt, queryText), { response_format: answerResponseFormat });
@@ -49,10 +52,12 @@ export async function* streamReply(
   systemPrompt: string,
   queryText: string,
   signal?: AbortSignal,
+  costLedger?: AnswerCostLedger,
 ): AsyncGenerator<{ segmentIndex: number; text: string } | { answer: ModelAnswer }> {
   const model = createChatModel(env, {
     maxTokens: MAX_TOKENS,
     timeoutMs: LLM_STREAM_TIMEOUT_MS,
+    costLedger,
   });
   // SDK の timeout は SSE 本文の受信を保護しないため、受信完了まで期限を保つ。
   const lifecycle = new AbortController();
