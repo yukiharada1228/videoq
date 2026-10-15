@@ -17,6 +17,7 @@ SELECT plan_code, quota_source, answer_status,
        COUNT(*) FILTER (WHERE call->'usage' IS NULL OR call->'usage' = 'null'::jsonb) AS calls_without_usage,
        SUM(COALESCE((call->'usage'->>'prompt_tokens')::bigint, 0)) AS input_tokens,
        SUM(COALESCE((call->'usage'->'prompt_tokens_details'->>'cached_tokens')::bigint, 0)) AS cached_input_tokens,
+       SUM(COALESCE((call->'usage'->'prompt_tokens_details'->>'cache_write_tokens')::bigint, 0)) AS cache_write_tokens,
        SUM(COALESCE((call->'usage'->>'completion_tokens')::bigint, 0)) AS output_tokens,
        SUM(COALESCE((call->'usage'->>'total_tokens')::bigint, 0)) AS total_tokens
 FROM calls
