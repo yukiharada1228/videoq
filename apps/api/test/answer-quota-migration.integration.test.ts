@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import pg from "pg";
 import { describe, expect, it } from "vitest";
-import { PLAN_CATALOG } from "../src/features/billing/catalog";
 
 const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
 (databaseUrl ? describe : describe.skip)("answer quota migration", () => {
@@ -35,9 +34,8 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
       const after = (await client.query("SELECT * FROM users ORDER BY id")).rows;
       for (let i = 0; i < before.length; i++) {
         if (["basic", "pro", "past_due"].includes(before[i].id)) {
-          const code = before[i].plan_code as "basic" | "pro";
           expect(after[i]).toEqual({ ...before[i],
-            ai_answers_limit: PLAN_CATALOG[code].entitlements.aiAnswersLimit,
+            ai_answers_limit: before[i].plan_code === "basic" ? 1800 : 2800,
             updated_at: expect.any(Date),
           });
           expect(after[i].updated_at.getTime()).toBeGreaterThan(before[i].updated_at.getTime());
