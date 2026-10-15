@@ -153,14 +153,11 @@ There are two roles: regular user (`role = user`) and administrator (`role = adm
 Existing administrators can toggle other users' administrator status in `/admin`.
 They cannot remove their own administrator privileges or suspend their own account.
 
-`0028_remove_legacy_user_roles` drops only the obsolete `is_staff` / `is_superuser`
-columns, preserving existing `role` values. The API administrator flag was renamed
-to `is_admin`, so update the API and Web in the same release and apply this database
-migration after the old API has stopped. CD defers column removal with
-`MIGRATION_PHASE=before-deploy`, then completes it in the `db-finalize` job after the
-API and Web deploy successfully. For manual deployment, run the same preparation
-phase first, switch to the new API, then run `MIGRATION_PHASE=all npm run db:migrate`.
-Finish this release's column removal before adding subsequent migrations.
+`0028_remove_legacy_user_roles` dropped the obsolete `is_staff` / `is_superuser`
+columns while preserving existing `role` values. Production has completed this
+migration. CD now runs pending database migrations once before deploying the API.
+For an older installation that has not applied `0028`, deploy the updated API
+before running the full migration because the old API reads those columns.
 
 If the promotion command matches multiple accounts, it exits without changes.
 Use `npm run user:admin -- --id <user-id>` to identify a single account.
