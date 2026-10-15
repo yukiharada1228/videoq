@@ -33,24 +33,11 @@ function canDeploy(jobName, outputs, results = {}) {
 
 const workerCanDeploy = (outputs, results) => canDeploy('worker-deploy', outputs, results);
 
-test('role-column cleanup waits for the new API and frontend and uses the full migration phase', () => {
-  for (const dependency of ['changes', 'db-migrate', 'api-deploy', 'web-deploy']) {
-    assert.ok(job('db-finalize').dependencies.includes(dependency));
-  }
-  assert.match(job('db-migrate').body, /MIGRATION_PHASE: before-deploy/);
-  assert.match(job('db-finalize').body, /MIGRATION_PHASE: all/);
-  assert.equal(canDeploy('db-finalize', {}), true);
-  assert.equal(canDeploy('db-finalize', { migrate: 'false' }), false);
-  assert.equal(canDeploy('db-finalize', { web: 'false' }, { 'web-deploy': 'skipped' }), true);
+test('database migrations run once before API deployment', () => {
+  assert.equal(workflow.includes('db-finalize:'), false);
+  assert.equal(workflow.includes('MIGRATION_PHASE:'), false);
+  assert.ok(job('api-deploy').dependencies.includes('db-migrate'));
 });
-
-for (const dependency of ['changes', 'db-migrate', 'api-deploy', 'web-deploy']) {
-  for (const result of ['failure', 'cancelled', 'skipped']) {
-    test(`preserves legacy role columns when ${dependency} reports ${result}`, () => {
-      assert.equal(canDeploy('db-finalize', {}, { [dependency]: result }), false);
-    });
-  }
-}
 
 test('the deployment graph schedules shared-data readers before the worker', () => {
   assert.ok(job('api-deploy').dependencies.includes('db-migrate'));
