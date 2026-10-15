@@ -29,6 +29,7 @@ jobs:
       sha: ${{ steps.validate.outputs.sha }}
       api: ${{ steps.resolve.outputs.api }}
       worker: ${{ steps.resolve.outputs.worker }}
+      modal: ${{ steps.resolve.outputs.modal }}
       migrate: ${{ steps.resolve.outputs.migrate }}
       docs: ${{ steps.resolve.outputs.docs }}
       web: ${{ steps.resolve.outputs.web }}
@@ -128,6 +129,10 @@ jobs:
               - 'apps/api/scripts/stamp-baseline.mjs'
               - '.github/workflows/cd.yml'
               - '.github/scripts/**'
+            modal:
+              - 'apps/worker/modal_batched_whisper.py'
+              - '.github/workflows/cd.yml'
+              - '.github/scripts/**'
             migrate:
               - 'apps/api/drizzle/**'
               - 'apps/api/src/db/**'
@@ -153,12 +158,14 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "api=true" >> "$GITHUB_OUTPUT"
             echo "worker=true" >> "$GITHUB_OUTPUT"
+            echo "modal=true" >> "$GITHUB_OUTPUT"
             echo "migrate=true" >> "$GITHUB_OUTPUT"
             echo "docs=true" >> "$GITHUB_OUTPUT"
             echo "web=true" >> "$GITHUB_OUTPUT"
           else
             echo "api=${{ steps.filter.outputs.api }}" >> "$GITHUB_OUTPUT"
             echo "worker=${{ steps.filter.outputs.worker }}" >> "$GITHUB_OUTPUT"
+            echo "modal=${{ steps.filter.outputs.modal }}" >> "$GITHUB_OUTPUT"
             echo "migrate=${{ steps.filter.outputs.migrate }}" >> "$GITHUB_OUTPUT"
             echo "docs=${{ steps.filter.outputs.docs }}" >> "$GITHUB_OUTPUT"
             echo "web=${{ steps.filter.outputs.web }}" >> "$GITHUB_OUTPUT"
@@ -330,6 +337,34 @@ jobs:
           fi
           npm run db:migrate --workspace @videoq/api
 
+  modal-deploy:
+    name: Deploy Whisper (Modal)
+    runs-on: ubuntu-latest
+    environment: production-app
+    timeout-minutes: 45
+    needs: [changes]
+    if: needs.changes.outputs.modal == 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.changes.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - name: Install Modal CLI
+        run: python -m pip install --disable-pip-version-check modal==1.6.1 fastapi==0.115.12
+      - name: Deploy batched Whisper to Modal main
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: |
+          if [ -z "${MODAL_TOKEN_ID:-}" ] || [ -z "${MODAL_TOKEN_SECRET:-}" ]; then
+            echo "::error::Modal deployment credentials are required"
+            exit 1
+          fi
+          modal deploy --env main apps/worker/modal_batched_whisper.py
+
   worker-deploy:
     name: Deploy Worker Lambda
     runs-on: ubuntu-latest
@@ -338,11 +373,12 @@ jobs:
       contents: read
       id-token: write
     # Deploy readers before the worker can write a new shared data format
-    needs: [changes, db-migrate, api-deploy, web-deploy]
+    needs: [changes, db-migrate, api-deploy, web-deploy, modal-deploy]
     if: |
       always() &&
       needs.changes.result == 'success' &&
       needs.changes.outputs.worker == 'true' &&
+      (needs.changes.outputs.modal != 'true' || needs.modal-deploy.result == 'success') &&
       (needs.db-migrate.result == 'success' || needs.db-migrate.result == 'skipped') &&
       (needs.changes.outputs.api != 'true' || needs.api-deploy.result == 'success') &&
       (needs.changes.outputs.web != 'true' || needs.web-deploy.result == 'success')
