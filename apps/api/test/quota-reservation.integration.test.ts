@@ -35,6 +35,8 @@ describeWithPostgres("AI回答枠の実PostgreSQL並列制御", () => {
         max_video_upload_size_mb integer NOT NULL DEFAULT 500,
         ai_answers_limit integer,
         used_ai_answers integer NOT NULL DEFAULT 0,
+        plan_code text NOT NULL DEFAULT 'free',
+        quota_source text NOT NULL DEFAULT 'plan',
         used_processing_seconds integer NOT NULL DEFAULT 0,
         usage_period_start timestamptz,
         storage_limit_gb double precision,
@@ -92,6 +94,7 @@ describeWithPostgres("AI回答枠の実PostgreSQL並列制御", () => {
     );
 
     expect(reservations).toHaveLength(3);
+    expect(reservations.every((reservation) => reservation.planCode === "free" && reservation.quotaSource === "plan")).toBe(true);
     expect(results.filter((result) => "exceeded" in result)).toHaveLength(17);
 
     const state = await admin.query<{ used_ai_answers: number }>(
