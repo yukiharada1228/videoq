@@ -246,6 +246,13 @@
       "when": 1791744441427,
       "tag": "0034_initialize_upload_allowances",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1792052330110,
+      "tag": "0035_tighten_paid_plan_quotas",
+      "breakpoints": true
     }
   ]
 }

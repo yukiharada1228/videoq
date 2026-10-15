@@ -303,7 +303,7 @@ const databaseUrl = process.env.QUOTA_TEST_DATABASE_URL;
       });
       await writer.query("COMMIT");
       expect((await pending).status).toBe(200);
-      expect((await state()).user).toMatchObject({ plan_code: "pro", quota_source: source, ai_answers_limit: source === "plan" ? 2800 : 987 });
+      expect((await state()).user).toMatchObject({ plan_code: "pro", quota_source: source, ai_answers_limit: source === "plan" ? 2000 : 987 });
     } finally {
       await writer.query("ROLLBACK");
       await pending;

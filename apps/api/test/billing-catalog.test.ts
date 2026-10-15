@@ -12,18 +12,18 @@ describe("billing catalog", () => {
     expect(resolveSignupQuotaDefaults({})).toEqual(PLAN_CATALOG.free.entitlements);
   });
 
-  it("keeps the raised transcription and answer quotas", () => {
+  it("keeps the cost-controlled transcription and answer quotas", () => {
     expect(PLAN_CATALOG.free.entitlements).toMatchObject({
       processingLimitMinutes: 45,
       aiAnswersLimit: 30,
     });
     expect(PLAN_CATALOG.basic.entitlements).toMatchObject({
-      processingLimitMinutes: 300,
-      aiAnswersLimit: 1800,
+      processingLimitMinutes: 200,
+      aiAnswersLimit: 500,
     });
     expect(PLAN_CATALOG.pro.entitlements).toMatchObject({
-      processingLimitMinutes: 1500,
-      aiAnswersLimit: 2800,
+      processingLimitMinutes: 1000,
+      aiAnswersLimit: 2000,
     });
   });
 

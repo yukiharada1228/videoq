@@ -42,8 +42,8 @@ describe('PricingPage', () => {
         entitlements: {
           max_video_upload_size_mb: 1024,
           storage_limit_gb: 20,
-          processing_limit_minutes: 300,
-          ai_answers_limit: 1800,
+          processing_limit_minutes: 200,
+          ai_answers_limit: 500,
         },
       },
     ])
