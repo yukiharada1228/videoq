@@ -131,8 +131,15 @@ Tax registration and tax-code choices cannot be determined from this system conf
 4. Confirm that quotas return to Free after cancellation takes effect.
 5. Manually editing quotas in Admin sets `quota_source=admin`; subsequent webhooks do not overwrite those limits. Setting it back to `quota_source=plan` reapplies the catalog.
 6. `0027_raise_ai_answers_without_evaluation` raises usable plan-managed subscriptions to Basic 1,800 / Pro 2,800 answers. Free remains at 30; transcription remains 45 / 300 / 1,500 minutes. Admin overrides and used counters are preserved.
+7. `0035_tighten_paid_plan_quotas` immediately changes usable plan-managed subscriptions to Basic 200 minutes / 500 answers and Pro 1,000 minutes / 2,000 answers. Admin overrides and used counters remain intact.
 
 ## 8. Answer allowance and operating budget
+
+### Current limits (2026-10-15)
+
+At the existing prices, the paid plans now allow **Basic: 200 transcription minutes and 500 AI answers/month** and **Pro: 1,000 transcription minutes and 2,000 AI answers/month**. Storage remains 20/100 GiB and monthly upload allowances remain 200/1,000 GiB. The price catalog and Free plan are unchanged. The quotas are enforced by the existing atomic AI-answer reservation and transcription-minute reservation; reducing a limit does not erase usage already recorded in the current month.
+
+The budget below records the **2026-10-02 historical catalog** and must not be used as the current allowance. Re-running `estimate_plan_costs.py` with the current catalog and its original assumptions gives monthly balances of about **¥531 Basic / ¥799 Pro** per annual subscription at 50 paid contracts, or **¥75 / ¥342** at 10. These are conditional planning margins, not invoices or guaranteed profit. The ¥0.30-per-answer assumption and unmeasured Lambda runtime still need production validation.
 
 The 2026-10-02 catalog removes RAGAS scoring and keeps prices unchanged: Basic ¥1,480/month or ¥14,800/year; Pro ¥3,980/month or ¥39,800/year. Monthly answer allowances rise from the original 500 to **1,800** and from 2,500 to **2,800**, including annual subscriptions. The generation model and retrieval behavior are unchanged. These replace the provisional 1,700/3,000 estimates after a more detailed operating-cost audit.
 

@@ -56,8 +56,8 @@ export const PLAN_CATALOG: Record<PlanCode, PlanDefinition> = {
       maxVideoUploadSizeMb: MAX_VIDEO_UPLOAD_BYTES / 1024 ** 2,
       storageLimitGb: 20,
       monthlyUploadLimitGb: 200,
-      processingLimitMinutes: 300,
-      aiAnswersLimit: 1800,
+      processingLimitMinutes: 200,
+      aiAnswersLimit: 500,
     },
   },
   pro: {
@@ -69,8 +69,8 @@ export const PLAN_CATALOG: Record<PlanCode, PlanDefinition> = {
       maxVideoUploadSizeMb: MAX_VIDEO_UPLOAD_BYTES / 1024 ** 2,
       storageLimitGb: 100,
       monthlyUploadLimitGb: 1000,
-      processingLimitMinutes: 1500,
-      aiAnswersLimit: 2800,
+      processingLimitMinutes: 1000,
+      aiAnswersLimit: 2000,
     },
   },
 };

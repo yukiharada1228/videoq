@@ -9,8 +9,8 @@ const basic = {
   ...regularUser, plan_code: 'basic' as const,
   used_storage_bytes: 10 * 1024 ** 3, storage_limit_bytes: 20 * 1024 ** 3,
   used_upload_bytes: 200 * 1024 ** 3, monthly_upload_limit_bytes: 200 * 1024 ** 3,
-  used_processing_seconds: 120 * 60, processing_limit_seconds: 300 * 60,
-  used_ai_answers: 100, ai_answers_limit: 1800,
+  used_processing_seconds: 120 * 60, processing_limit_seconds: 200 * 60,
+  used_ai_answers: 100, ai_answers_limit: 500,
 };
 const meta = {
   title: 'Pages/HomeDashboard', component: HomeDashboard,

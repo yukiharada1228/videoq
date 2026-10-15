@@ -19,13 +19,13 @@ def annual(result):
     return {p["plan"]: p for p in result["plans"] if p["interval"] == "yearly"}
 
 
-def test_catalog_affordable_at_50_contracts_but_next_hundred_is_not(catalog):
-    result = calculate(catalog, Assumptions())
-    for row in annual(result).values():
-        assert row["monthly_answers"] == row["recommended_answers_rounded_to_100"]
-        assert 0 <= row["planning_balance_yen"] < 100 * (
-            row["planning_answer_cost_yen"] + result["database_chat_cost_per_monthly_answer_yen"]
-        )
+def test_restricted_catalog_has_headroom_at_ten_paid_contracts(catalog):
+    result = calculate(catalog, Assumptions(paid_contracts=10))
+    rows = annual(result)
+    assert rows["basic"]["monthly_answers"] == 500
+    assert rows["pro"]["monthly_answers"] == 2000
+    assert rows["basic"]["planning_balance_yen"] >= 50
+    assert rows["pro"]["planning_balance_yen"] >= 300
 
 
 def test_shared_costs_allocated_once_independent_of_plan_mix(catalog):
@@ -58,7 +58,7 @@ def test_video_costs_scale_with_entitlements(catalog):
         assert pro[key] == pytest.approx(value * 5)
     assert basic["r2_storage"] == pytest.approx(20 * 1024**3 / 1e9 * .015 * 160)
     assert basic["transcription_and_indexing_lambda"] == pytest.approx(
-        (1800 * (5 * .0000133334 + 4.5 * .000000037) + 60 * .0000002) * 160
+        (1200 * (5 * .0000133334 + 4.5 * .000000037) + 40 * .0000002) * 160
     )
 
 
