@@ -363,6 +363,24 @@ aws lambda update-function-code \
   --region "$REGION"
 ```
 
+### Modal Whisper deployment
+
+The `videoq-batched-whisper` source is `apps/worker/modal_batched_whisper.py`.
+After CI succeeds on the current `main` commit, CD deploys changes to that file
+to Modal's `main` environment. A coordinated Lambda deployment waits for Modal
+to succeed. Manual CD dispatch also deploys Modal. The `production-app` GitHub
+Environment only permits deployments from `main`.
+
+Set `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` as GitHub Environment secrets in
+`production-app`. These authenticate the Modal CLI; the endpoint bearer token
+stays in Modal's `videoq-whisper-auth` Secret and the worker's SSM app parameter.
+The Modal token must be able to deploy to the `main` Modal environment. CI pins
+`modal==1.6.1` and runs `modal deploy --env main` on the verified commit.
+
+Changing only the Modal source deploys Modal without rebuilding Lambda. Changes
+to both Modal and Lambda deploy Modal first. Check the `Deploy Whisper (Modal)`
+CD job and the Modal app's deployment history after a main-branch push.
+
 ### App parameter (`/videoq/<env>/app`) JSON schema
 
 Use **`R2_*` key names for R2 credentials** in the app SSM SecureString parameter.
