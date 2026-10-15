@@ -9,6 +9,29 @@ from worker_python.pipeline import transcription
 from worker_python.pipeline.transcription import _whisper_file
 
 
+def test_modal_whisper_client_uses_its_own_token_and_endpoint(monkeypatch) -> None:
+    monkeypatch.setenv("WHISPER_BACKEND", "modal")
+    monkeypatch.setenv("WHISPER_MODAL_URL", "https://videoq-example.modal.run")
+    monkeypatch.setenv("WHISPER_MODAL_TOKEN", "modal-test-token")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    client, model = transcription._whisper_client()
+    try:
+        assert model == "large-v3"
+        assert str(client.base_url) == "https://videoq-example.modal.run/v1/"
+        assert client.api_key == "modal-test-token"
+    finally:
+        client.close()
+
+
+def test_modal_whisper_requires_url_and_token(monkeypatch) -> None:
+    monkeypatch.setenv("WHISPER_BACKEND", "modal")
+    monkeypatch.delenv("WHISPER_MODAL_TOKEN", raising=False)
+    monkeypatch.setenv("WHISPER_MODAL_URL", "https://videoq-example.modal.run")
+    with pytest.raises(RuntimeError, match="WHISPER_MODAL_URL and WHISPER_MODAL_TOKEN"):
+        transcription._whisper_client()
+
+
 @pytest.mark.parametrize("as_object", [False, True])
 @pytest.mark.parametrize("has_end", [False, True])
 def test_chunk_offsets_are_applied_once_even_without_segment_end(
