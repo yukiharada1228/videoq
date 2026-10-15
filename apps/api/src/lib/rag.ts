@@ -22,6 +22,7 @@ import {
 import { buildAgentSystemPrompt, buildNoCourseSystemPrompt } from "./prompts";
 import { openSceneSearch, type SceneHit, type SceneSearch } from "../repositories/vector-repository";
 import type { Bindings } from "../types/bindings";
+import type { AnswerCostLedger } from "./answer-cost-ledger";
 
 /**
  * QA モードの RAG 本体（ReAct）。
@@ -73,6 +74,7 @@ export type RagParams = {
   locale: string | null;
   /** setupChat でアクセス確認済みの講座ID。クライアントやモデルから直接渡さない。 */
   courseId?: number | null;
+  costLedger?: AnswerCostLedger;
 };
 
 const sceneKey = (hit: SceneHit) => `${hit.evidenceType ?? "transcript"}|${hit.videoId}|${hit.startTime}|${hit.endTime}`;
@@ -194,13 +196,13 @@ function prepareAgent(
   // systemPrompt はコンテンツブロック配列（[{type:"text"}]）で送信されるため、
   // 素の文字列しか受け付けない OpenAI 互換ゲートウェイでも動くようにする。
   const agent = createAgent({
-    model: createChatModel(env, { maxTokens: MAX_TOKENS, timeoutMs: params.timeoutMs }),
+    model: createChatModel(env, { maxTokens: MAX_TOKENS, timeoutMs: params.timeoutMs, costLedger: params.scope.costLedger }),
     responseFormat: providerStrategy(modelAnswerSchema),
     tools: [
       sceneSearchTool(params.search, collector, params.scope.videoIds ?? []),
       ...videoEvidenceTools(env, {
         ownerUserId: params.scope.ownerUserId, videoIds: params.scope.videoIds ?? [],
-      }, hit => collector.add(hit), params.signal, params.queryText),
+      }, hit => collector.add(hit), params.signal, params.queryText, params.scope.costLedger),
       ...(params.scope.courseId != null ? [courseInfoTool(env, {
         courseId: params.scope.courseId,
         ownerUserId: params.scope.ownerUserId,
@@ -277,7 +279,7 @@ function lazySceneSearch(env: Bindings, params: RagParams, signal: AbortSignal):
       pending ??= openSceneSearch(env, {
         userId: params.ownerUserId,
         videoIds: params.videoIds,
-      }, signal);
+      }, signal, params.costLedger);
       return (await pending).search(query, videoIds);
     },
     async close() {
@@ -304,7 +306,7 @@ export async function runRag(
 
   if (!hasAgentContext(params)) {
     const systemPrompt = buildNoCourseSystemPrompt(params.locale);
-    return { queryText, retrievedContexts: [], answer: validateChatAnswer(await generateReply(env, systemPrompt, queryText), []) };
+    return { queryText, retrievedContexts: [], answer: validateChatAnswer(await generateReply(env, systemPrompt, queryText, params.costLedger), []) };
   }
 
   const lifecycle = new AbortController();
@@ -360,7 +362,7 @@ export async function* streamRag(
 
   if (!hasAgentContext(params)) {
     const systemPrompt = buildNoCourseSystemPrompt(params.locale);
-    for await (const chunk of streamReply(env, systemPrompt, queryText, signal)) {
+    for await (const chunk of streamReply(env, systemPrompt, queryText, signal, params.costLedger)) {
       if ("answer" in chunk) {
         yield { final: { queryText, retrievedContexts: [], answer: validateChatAnswer(chunk.answer, []) } };
       } else yield { part: { type: "text", ...chunk } };

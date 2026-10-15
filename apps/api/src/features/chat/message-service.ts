@@ -9,6 +9,12 @@ import {
   type AiAnswerReservation,
 } from "../../repositories/quota-repository";
 import { LlmConfigurationError } from "../../lib/openai";
+import {
+  AnswerCostLedger,
+  startAnswerCostLedger,
+  finishAnswerCostLedger,
+  type AnswerAttemptStatus,
+} from "../../lib/answer-cost-ledger";
 import { runRag, streamRag, type RagResult } from "../../lib/rag";
 import { type ChatAnswer, type ChatStreamEvent } from "@videoq/trpc/chat";
 import type { Bindings } from "../../types/bindings";
@@ -203,6 +209,37 @@ async function releaseReservedUsage(env: Bindings, setup: ChatSetup): Promise<vo
   }
 }
 
+async function finishCostLedger(
+  env: Bindings, ledger: AnswerCostLedger, status: AnswerAttemptStatus, quotaConsumed: boolean,
+): Promise<void> {
+  try {
+    await finishAnswerCostLedger(env, ledger, { status, quotaConsumed });
+  } catch (error) {
+    console.error(JSON.stringify({
+      level: "error", event: "ai_answer_cost_ledger_finish_failed", attemptId: ledger.id,
+      errorType: error instanceof Error ? error.name : "unknown",
+    }));
+  }
+}
+
+async function startCostLedger(env: Bindings, setup: ChatSetup, hasCourse: boolean, streamed: boolean) {
+  const ledger = new AnswerCostLedger();
+  try {
+    await startAnswerCostLedger(env, ledger, {
+      planCode: setup.quotaReservation.planCode,
+      quotaSource: setup.quotaReservation.quotaSource,
+      hasCourse,
+      streamed,
+    });
+  } catch (error) {
+    console.error(JSON.stringify({
+      level: "error", event: "ai_answer_cost_ledger_start_failed", attemptId: ledger.id,
+      errorType: error instanceof Error ? error.name : "unknown",
+    }));
+  }
+  return ledger;
+}
+
 export function requestLocaleFromHeader(
   acceptLanguage: string | undefined,
 ): string | null {
@@ -240,6 +277,8 @@ export async function sendChatMessage(
   const setup = prepared.setup;
   const videoIds = setup.course ? setup.course.memberVideoIds : null;
 
+  const costLedger = await startCostLedger(env, setup, setup.course !== null, false);
+
   let result: RagResult;
   try {
     result = await runRag(env, {
@@ -248,9 +287,11 @@ export async function sendChatMessage(
       videoIds,
       locale: setup.locale,
       courseId: setup.course?.id ?? null,
+      costLedger,
     });
   } catch (e) {
     await releaseReservedUsage(env, setup);
+    await finishCostLedger(env, costLedger, "failed", false);
     const f = toFailure(e);
     return {
       status: f.status,
@@ -274,8 +315,11 @@ export async function sendChatMessage(
       body.feedback = feedback === "good" || feedback === "bad" ? feedback : null;
     }
 
+    await finishCostLedger(env, costLedger, "completed", true);
+
     return { status: 200, body };
   } catch (e) {
+    await finishCostLedger(env, costLedger, "failed", true);
     const f = toFailure(e);
     return {
       status: f.status,
@@ -324,6 +368,8 @@ export async function streamChatMessage(
       const setup = prepared.setup;
       const videoIds = setup.course ? setup.course.memberVideoIds : null;
 
+      const costLedger = await startCostLedger(env, setup, setup.course !== null, true);
+
       let generatedContent = false;
       let final: RagResult | undefined;
 
@@ -336,6 +382,7 @@ export async function streamChatMessage(
             videoIds,
             locale: setup.locale,
             courseId: setup.course?.id ?? null,
+            costLedger,
           },
           clientSignal,
         )) {
@@ -369,6 +416,7 @@ export async function streamChatMessage(
       } catch (error) {
         // 一部でも回答を生成済みなら、上流LLMの実コストも消費済みなので返却しない。
         if (!generatedContent) await releaseReservedUsage(env, setup);
+        await finishCostLedger(env, costLedger, clientSignal?.aborted ? "interrupted" : "failed", generatedContent);
         const failure = toFailure(error);
         await send({
           type: "error",
@@ -387,6 +435,7 @@ export async function streamChatMessage(
           retrievedContexts: final.retrievedContexts,
         }));
       } catch (error) {
+        await finishCostLedger(env, costLedger, "failed", true);
         const failure = toFailure(error);
         await send({
           type: "error",
@@ -401,6 +450,7 @@ export async function streamChatMessage(
         chat_log_id: chatLogId,
         feedback: feedback === "good" || feedback === "bad" ? feedback : null,
       };
+      await finishCostLedger(env, costLedger, "completed", true);
       await send(done);
     },
   };

@@ -7,6 +7,7 @@ import { deadlineSignal } from "./request-timeout";
 import { frameCacheKey, MAX_CLIP_FRAMES, MAX_OVERVIEW_FRAMES, MAX_FRAME_CACHE_BYTES, sampleByTime } from "./video-evidence";
 import { readFocusFrames, type FrameSelection } from "./focus-frames";
 import { readVisualManifest, visualChunkKey, jpegBase64 } from "./visual-manifest";
+import type { AnswerCostLedger } from "./answer-cost-ledger";
 
 const frameSchema = z.object({
   timestamp_seconds: z.number().finite().nonnegative(),
@@ -71,6 +72,7 @@ export async function inspectVideoClip(
   video: { id: number; fileKey: string },
   start: number, end: number, query: string, signal: AbortSignal,
   options: { mode: VisualMode; maxFrames: number } = { mode: "inspect", maxFrames: MAX_CLIP_FRAMES },
+  costLedger?: AnswerCostLedger,
 ) {
   const cache = options.mode === "focus"
     ? await readFocusFrames(env, video, start, end, signal, options.maxFrames)
@@ -104,7 +106,10 @@ export async function inspectVideoClip(
     ));
     // Use the SDK directly: nested LangChain model messages must never leak into
     // the parent agent's answer stream. No images/URLs are saved in chat context.
-    const response = await client.chat.completions.create({
+    const call = costLedger?.begin("visual_inspection", model);
+    let response: OpenAI.Chat.Completions.ChatCompletion;
+    try {
+      response = await client.chat.completions.create({
       model, max_completion_tokens: 2048,
       ...(model === "gpt-6-luna" ? { reasoning_effort: "none" as const } : {}),
       messages: [
@@ -121,7 +126,13 @@ export async function inspectVideoClip(
           } } },
         },
       } },
-    }, { signal: inspectionSignal });
+      }, { signal: inspectionSignal });
+      call?.complete(response.usage);
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") call?.interrupt();
+      else call?.fail();
+      throw error;
+    }
     inspectionSignal.throwIfAborted();
     const choice = response.choices[0];
     if (!choice || choice.finish_reason !== "stop" || choice.message.refusal || !choice.message.content) {

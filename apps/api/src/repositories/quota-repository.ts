@@ -7,6 +7,8 @@ export type AiAnswerReservation = {
   userId: string;
   /** DB の精度を失わず返却条件に使うため、PostgreSQL の timestamptz 文字列表現を保持する。 */
   usagePeriodStart: string;
+  planCode: string;
+  quotaSource: string;
 };
 
 export type AiAnswerReservationResult =
@@ -119,7 +121,8 @@ const RESERVE_AI_ANSWER_SQL = `UPDATE users
           ELSE used_ai_answers
         END < ai_answers_limit
    )
- RETURNING usage_period_start::text AS usage_period_start`;
+ RETURNING usage_period_start::text AS usage_period_start,
+           plan_code, quota_source`;
 
 /**
  * LLM 呼び出し前に AI 回答枠を予約する。
@@ -132,7 +135,7 @@ export async function reserveAiAnswerUsage(
   userId: string,
 ): Promise<AiAnswerReservationResult> {
   return withClient(env, async (client) => {
-    const reserved = await client.query<{ usage_period_start: string }>(
+    const reserved = await client.query<{ usage_period_start: string; plan_code: string; quota_source: string }>(
       RESERVE_AI_ANSWER_SQL,
       [userId],
     );
@@ -143,6 +146,8 @@ export async function reserveAiAnswerUsage(
         reservation: {
           userId,
           usagePeriodStart: reservation.usage_period_start,
+          planCode: reservation.plan_code,
+          quotaSource: reservation.quota_source,
         },
       };
     }

@@ -71,6 +71,7 @@ class Assumptions:
     monitoring_and_logs_monthly_usd: float = 4  # Itemized reserve described in evidence file.
     other_cloud_monthly_usd: float = 0.10  # SNS/KMS/state storage reserve.
     tax_reserve_fraction: float = 0.10
+    planning_answer_cost_yen: float = 1.0  # Provisional until attempt-level usage and invoice totals reconcile.
 
     def validate(self) -> None:
         for name, value in asdict(self).items():
@@ -157,7 +158,7 @@ def non_answer_variable_costs(plan: dict, a: Assumptions) -> dict[str, float]:
 def calculate(catalog: dict, a: Assumptions) -> dict:
     a.validate()
     scenarios = answer_scenarios(a)
-    answer_cost = math.ceil(scenarios[1]["answer_cost_yen"] * 100) / 100
+    answer_cost = a.planning_answer_cost_yen
     db_per_answer = chat_storage_per_answer(a)
     fixed = fixed_costs(a)
     free_variable = non_answer_variable_costs(catalog["free"], a)
@@ -213,7 +214,7 @@ def report(catalog: dict, a: Assumptions) -> dict:
         sensitivity.append({"name": name, "fixed_cost_per_contract_yen": result["fixed_monthly_total_yen"] / assumptions.paid_contracts,
                             "annual_plans": [{k: p[k] for k in ("plan", "answer_budget_yen", "planning_max_answers", "planning_balance_yen")}
                                              for p in result["plans"] if p["interval"] == "yearly"]})
-    return {"date": "2026-10-02", "sources": SOURCES, "prices": PRICES,
+    return {"date": "2026-10-15", "sources": SOURCES, "prices": PRICES,
             "evidence": "docs/verification/operating-cost-evidence-2026-10-02.json", **base,
             "included_usage_conditions": {
                 "r2": "Class A <= 1M/month and Class B <= 10M/month for the entire account; operations then $0. Storage modeled at full rate without the shared 10GB credit. Overage rounds up to million-operation units: $4.50/$0.36, allocated once per account.",
@@ -227,7 +228,7 @@ def report(catalog: dict, a: Assumptions) -> dict:
                 "This is a conditional cash operating budget, not a measured invoice or guaranteed company profit. Owner labor is zero unless supplied; ads, payroll, refunds, chargebacks and tax treatment are not audited.",
                 "50 paid contracts is the target allocation base, not the currently observed subscriber count. Free subsidy covers 13 existing plan-managed accounts at full quota; change this count as acquisition grows. Admin overrides/developer experiments are outside these plan budgets.",
                 "Lambda minutes could not be joined to surviving videos, so 6 billed seconds/video-minute is a planning assumption, including transcription, indexing, cold starts and waiting. Three-percent ingestion retry reserve is also assumed.",
-                "AI cost assumes gpt-4o-mini, 8,000 total input + 600 total output tokens across all calls, query embedding and 15% failed-attempt allowance. These are not enforced limits or measured production averages.",
+                "The planning answer cost is a provisional per-answer reserve, not a measured production average. Historical token scenarios use gpt-4o-mini rates and are illustrative only; actual model calls, retries, cache usage and invoice reconciliation must be measured separately.",
                 "DB footprint is reserved at month 12 with no deletions; this does not add a retention policy. Actual growth, compute autoscaling and retained history require periodic recalculation.",
                 "RAGAS and its evaluation Lambda jobs contribute zero after deployment. The observed production job sample still includes the old implementation.",
                 "AWS free credits are not deducted; unrelated account-wide bills are not allocated to VideoQ. FX 160 is a budgeting rate, not a verified spot exchange rate.",

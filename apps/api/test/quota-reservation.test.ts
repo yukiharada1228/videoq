@@ -19,7 +19,7 @@ const rowsFor = (sql: MatchableSql): Record<string, unknown>[] => {
   if (sql.includes("UPDATE users") && sql.includes("RETURNING usage_period_start")) {
     if (remaining === 0) return [];
     remaining -= 1;
-    return [{ usage_period_start: PERIOD_START }];
+    return [{ usage_period_start: PERIOD_START, plan_code: "basic", quota_source: "admin" }];
   }
   if (sql.includes("SELECT is_over_quota")) {
     return [{
@@ -70,6 +70,10 @@ describe("AI回答枠の原子的な予約", () => {
     expect(reservationUpdates).toHaveLength(2);
     expect(reservationUpdates.every((call) => call.args[0] === USER_ID)).toBe(true);
     expect(reservationUpdates[0].sql.includes("CASE")).toBe(true);
+    const reservation = results.find((result) => "reservation" in result);
+    if (reservation && "reservation" in reservation) {
+      expect(reservation.reservation).toMatchObject({ planCode: "basic", quotaSource: "admin" });
+    }
   });
 
   it("失敗時は同じ利用期間の予約を返却する", async () => {

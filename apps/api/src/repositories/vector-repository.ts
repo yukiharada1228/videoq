@@ -5,6 +5,7 @@ import { embedQuery } from "../lib/embeddings";
 import { resolveEmbeddingConfig } from "../lib/embedding-contract";
 import { assertEmbeddingSchema } from "../lib/embedding-schema";
 import type { Bindings } from "../types/bindings";
+import type { AnswerCostLedger } from "../lib/answer-cost-ledger";
 
 const ALLOWED_TABLES = new Set(["scene_embeddings"]);
 
@@ -32,11 +33,11 @@ const RETRIEVER_K = 20;
  * lib/embeddings.ts に一本化する。インデックス作成は worker 側の責務なので、
  * embedDocuments は API からは呼ばれない。
  */
-function sceneEmbeddings(env: Bindings, signal?: AbortSignal): EmbeddingsInterface {
+function sceneEmbeddings(env: Bindings, signal?: AbortSignal, costLedger?: AnswerCostLedger): EmbeddingsInterface {
   return {
-    embedQuery: (text: string) => embedQuery(env, text, signal),
+    embedQuery: (text: string) => embedQuery(env, text, signal, costLedger),
     embedDocuments: (texts: string[]) =>
-      Promise.all(texts.map((text) => embedQuery(env, text, signal))),
+      Promise.all(texts.map((text) => embedQuery(env, text, signal, costLedger))),
   };
 }
 
@@ -108,6 +109,7 @@ export async function openSceneSearch(
   env: Bindings,
   params: { userId: string; videoIds: readonly number[] },
   signal?: AbortSignal,
+  costLedger?: AnswerCostLedger,
 ): Promise<SceneSearch> {
   signal?.throwIfAborted();
   const table = resolveVectorTable(env);
@@ -127,7 +129,7 @@ export async function openSceneSearch(
   try {
     await assertEmbeddingSchema(pool, config);
     signal?.throwIfAborted();
-    store = await PGVectorStore.initialize(engine, sceneEmbeddings(env, signal), table, {
+    store = await PGVectorStore.initialize(engine, sceneEmbeddings(env, signal, costLedger), table, {
       metadataColumns: ["user_id", "video_id"],
     });
     signal?.throwIfAborted();

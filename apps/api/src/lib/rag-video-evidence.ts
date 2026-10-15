@@ -4,6 +4,7 @@ import { getVideoEvidence, type EvidenceScope } from "../repositories/video-evid
 import type { SceneHit } from "../repositories/vector-repository";
 import type { Bindings } from "../types/bindings";
 import { inspectVideoClip, type VisualMode } from "./visual-inspection";
+import type { AnswerCostLedger } from "./answer-cost-ledger";
 import { transcriptQuality } from "./transcript-quality";
 import {
   formatEvidenceTime, MAX_CLIP_INSPECTIONS, MAX_WINDOW_READS, MAX_OVERVIEWS, MAX_SKIMS,
@@ -20,6 +21,7 @@ const interval = {
 export function videoEvidenceTools(
   env: Bindings, scope: EvidenceScope, addSource: (hit: SceneHit) => number, signal: AbortSignal,
   originalQuestion?: string,
+  costLedger?: AnswerCostLedger,
 ) {
   let windowReads = 0;
   let inspections = 0;
@@ -74,7 +76,7 @@ export function videoEvidenceTools(
     try {
       signal.throwIfAborted();
       const visualQuery = originalQuestion ? `Original user question: ${originalQuestion}\nSpecific inspection task: ${query}` : query;
-      const result = await inspectVideoClip(env, { id: video.id, fileKey: video.fileKey }, start, end, visualQuery, signal, { mode, maxFrames });
+      const result = await inspectVideoClip(env, { id: video.id, fileKey: video.fileKey }, start, end, visualQuery, signal, { mode, maxFrames }, ...(costLedger ? [costLedger] : []));
       const actualFrames = "unavailable" in result ? 0 : result.sampled_timestamps.length;
       visualFrames -= maxFrames - actualFrames;
       if ("unavailable" in result) return { ...result, status: "unavailable" };

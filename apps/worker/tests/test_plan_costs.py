@@ -19,13 +19,14 @@ def annual(result):
     return {p["plan"]: p for p in result["plans"] if p["interval"] == "yearly"}
 
 
-def test_restricted_catalog_has_headroom_at_ten_paid_contracts(catalog):
+def test_provisional_answer_reserve_exposes_risk_at_ten_paid_contracts(catalog):
     result = calculate(catalog, Assumptions(paid_contracts=10))
     rows = annual(result)
     assert rows["basic"]["monthly_answers"] == 500
     assert rows["pro"]["monthly_answers"] == 2000
-    assert rows["basic"]["planning_balance_yen"] >= 50
-    assert rows["pro"]["planning_balance_yen"] >= 300
+    assert rows["basic"]["planning_answer_cost_yen"] == 1.0
+    assert rows["basic"]["planning_balance_yen"] < 0
+    assert rows["pro"]["planning_balance_yen"] < 0
 
 
 def test_shared_costs_allocated_once_independent_of_plan_mix(catalog):
@@ -65,7 +66,7 @@ def test_video_costs_scale_with_entitlements(catalog):
 def test_free_subsidy_includes_answers_storage_and_full_video_quota(catalog):
     a = Assumptions()
     result = calculate(catalog, a)
-    expected = sum(non_answer_variable_costs(catalog["free"], a).values()) + 30 * (.30 + chat_storage_per_answer(a))
+    expected = sum(non_answer_variable_costs(catalog["free"], a).values()) + 30 * (a.planning_answer_cost_yen + chat_storage_per_answer(a))
     assert result["free_account_subsidy_monthly_yen"] == pytest.approx(13 * expected)
     unsubsidized = annual(calculate(catalog, replace(a, free_accounts=0)))
     for code, row in annual(result).items():

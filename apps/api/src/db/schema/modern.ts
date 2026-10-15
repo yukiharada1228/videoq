@@ -660,6 +660,27 @@ export const chatLogs = pgTable(
 	],
 );
 
+/** Anonymous cost ledger: no user ID, prompt, response, or provider credential. */
+export const aiAnswerAttempts = pgTable(
+	"ai_answer_attempts",
+	{
+		id: uuid().primaryKey(),
+		startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+		finishedAt: timestamp("finished_at", { withTimezone: true }),
+		planCode: text("plan_code").notNull(),
+		quotaSource: text("quota_source").notNull(),
+		hasCourse: boolean("has_course").notNull(),
+		streamed: boolean().notNull(),
+		status: text().notNull(),
+		quotaConsumed: boolean("quota_consumed"),
+		providerCalls: jsonb("provider_calls").$type<Record<string, unknown>[]>().notNull().default([]),
+	},
+	(table) => [
+		index("ai_answer_attempts_started_idx").on(table.startedAt),
+		check("ai_answer_attempts_status_check", sql`status IN ('started', 'completed', 'failed', 'interrupted')`),
+	],
+);
+
 // Retained for historical data only; automated evaluation was retired.
 export const chatLogEvaluations = pgTable(
 	"chat_log_evaluations",
