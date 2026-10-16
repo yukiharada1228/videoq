@@ -8,6 +8,23 @@ import {
   isNoindexPath,
 } from '../src/lib/seo';
 
+// 本番の正規公開ホスト（apex）。www は直下のブロックが https + apex へ 1 ホップで畳む。
+const CANONICAL_HOST = 'videoq.jp';
+
+// クライアントが実際に使ったスキーム。Cloudflare が全リクエストに付与する
+// CF-Visitor（例: {"scheme":"http"}）で判定する。request.url は TLS 終端後の
+// 値になり得るため、平文 HTTP 判定にはこのヘッダが確実。unstable_dev / ローカルは
+// このヘッダを付けないので、テストや開発では HTTPS 強制が発火しない。
+function clientUsedPlaintextHttp(request: Request): boolean {
+  const header = request.headers.get('CF-Visitor');
+  if (!header) return false;
+  try {
+    return (JSON.parse(header) as { scheme?: unknown }).scheme === 'http';
+  } catch {
+    return false;
+  }
+}
+
 function splitLocale(pathname: string): { locale: 'en' | 'ja'; path: string } {
   if (pathname === '/en' || pathname.startsWith('/en/')) {
     const rest = pathname.slice(3) || '/';
@@ -24,6 +41,15 @@ const securityHeaders = [...headerRules.matchAll(/^[ \t]+([^:\r\n]+):[ \t]*(.+)$
 async function serve(request: Request, env: WebEnv): Promise<Response> {
   const url = new URL(request.url);
   const { pathname } = url;
+
+  // 平文 HTTP は HTTPS へ 301。Cloudflare "Always Use HTTPS" に依存せず、
+  // Worker 単体で SSL ストリッピングを塞ぐ。HSTS は HTTPS 応答でのみ有効なため
+  // 併せて default fetch で付与する（下記）。www は直下のブロックが https+apex へ
+  // 畳むため、ここは apex の平文 HTTP だけを 1 ホップで upgrade する。
+  if (url.hostname === CANONICAL_HOST && clientUsedPlaintextHttp(request)) {
+    url.protocol = 'https:';
+    return Response.redirect(url.href, 301);
+  }
 
   if (url.hostname === 'www.videoq.jp') {
     url.protocol = 'https:';
@@ -132,7 +158,14 @@ export default {
     const original = await serve(request, env);
     const response = new Response(original.body, original);
     for (const [name, value] of securityHeaders) response.headers.set(name, value);
-    if (env.ENVIRONMENT !== 'production') {
+    // HSTS は本番(videoq.jp)のみ。preview の *.workers.dev に includeSubDomains を
+    // 送ると共有ドメイン配下の他 Worker まで HTTPS 固定してしまうため付与しない。
+    if (env.ENVIRONMENT === 'production') {
+      response.headers.set(
+        'Strict-Transport-Security',
+        'max-age=31536000; includeSubDomains',
+      );
+    } else {
       response.headers.set('X-Robots-Tag', 'noindex, nofollow');
     }
     return response;

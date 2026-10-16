@@ -89,6 +89,26 @@ test('www redirects to the canonical production host', async () => {
   }
 });
 
+test('plaintext HTTP (CF-Visitor http) is 301-redirected, HTTPS carries HSTS', async () => {
+  // unstable_dev resolves the default host to the first route (videoq.jp) and
+  // rewrites the Location host back to its local origin, so assert the redirect
+  // happened, not the (mangled) target. The exact https target is covered by the
+  // API unit test, which drives the equivalent middleware through Hono directly.
+  const insecure = await worker.fetch('/pricing', {
+    redirect: 'manual',
+    headers: { 'CF-Visitor': JSON.stringify({ scheme: 'http' }) },
+  });
+  assert.equal(insecure.status, 301);
+
+  // No CF-Visitor header (edge already HTTPS / local): no redirect, HSTS present.
+  const secure = await worker.fetch('/pricing');
+  assert.equal(secure.status, 200);
+  assert.equal(
+    secure.headers.get('strict-transport-security'),
+    'max-age=31536000; includeSubDomains',
+  );
+});
+
 test('API routes cannot be served as frontend HTML', async () => {
   for (const path of ['/api', '/api/auth/get-session', '/.well-known/openid-configuration', '/health', '/ready']) {
     const response = await worker.fetch(path);
