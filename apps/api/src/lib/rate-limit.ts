@@ -164,14 +164,25 @@ export function rateLimitBackend(env: Bindings): RateLimitBackend {
   };
 }
 
-/** Cloudflare / プロキシの転送ヘッダーからクライアント IP を解決する。 */
+/**
+ * クライアント IP を解決する（レート制限のキー用）。
+ *
+ * 本番は Cloudflare のゾーンルート経由でしか到達せず、エッジが `CF-Connecting-IP`
+ * を必ず上書きして付与する（クライアント詐称不可）。このため本番ではこのヘッダだけを
+ * 信頼する。`True-Client-IP` は Enterprise 専用で、非 Enterprise では任意に送られ得る
+ * ため採用しない。`X-Forwarded-For` もクライアントが自由に付けられるので、Cloudflare を
+ * 介さないローカル開発でのみ最終フォールバックとして使う。
+ */
 export function clientIp(c: Context<AppEnv>): string {
-  return (
-    c.req.header("CF-Connecting-IP")?.trim() ||
-    c.req.header("True-Client-IP")?.trim() ||
-    c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ||
-    "unknown"
-  );
+  const cfConnectingIp = c.req.header("CF-Connecting-IP")?.trim();
+  if (cfConnectingIp) return cfConnectingIp;
+  // 本番で CF-Connecting-IP が無いことはない。ここから先に来るのは Cloudflare を
+  // 介さない経路（ローカル/テスト）だけなので、そこでのみ XFF を信用する。
+  if (c.env.ENVIRONMENT !== "production") {
+    const forwarded = c.req.header("X-Forwarded-For")?.split(",")[0]?.trim();
+    if (forwarded) return forwarded;
+  }
+  return "unknown";
 }
 
 /**
