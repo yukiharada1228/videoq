@@ -63,7 +63,7 @@ const megaMenuLinkClassName = cn(
 );
 
 export function AppNav({ activePage }: AppNavProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useI18nNavigate();
   const routerNavigate = useNavigate();
   const location = useLocation();
@@ -113,7 +113,6 @@ export function AppNav({ activePage }: AppNavProps) {
 
   const switchLocale = (next: Locale) => {
     setPreferredLocale(next);
-    void i18n.changeLanguage(next);
     const pathWithoutLocale = removeLocalePrefix(location.pathname);
     routerNavigate(`${addLocalePrefix(pathWithoutLocale, next)}${location.search}${location.hash}`);
     setIsLangOpen(false);

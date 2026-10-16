@@ -589,6 +589,9 @@
       "submitting": "Creating...",
       "orDivider": "or",
       "continueWithGoogle": "Sign up with Google",
+      "legalBefore": "Before registering, please review the ",
+      "legalAnd": " and ",
+      "legalAfter": ". By registering, you agree to the Terms of Service.",
       "footerQuestion": "Already have an account?",
       "footerLink": "Sign in here",
       "passwordMismatch": "Passwords do not match"
@@ -781,9 +784,13 @@
     }
   },
   "legal": {
+    "notice": {
+      "title": "Notice of 17 October 2026",
+      "body": "We updated our Terms and Privacy Policy to explain transcription with Modal and other external services, how data is handled, and the permission needed to process videos."
+    },
     "terms": {
       "title": "Terms of Service",
-      "updated": "Last updated: 22 August 2026",
+      "updated": "Last updated: 17 October 2026",
       "sections": {
         "scope": {
           "title": "1. Scope",
@@ -811,7 +818,7 @@
         },
         "data": {
           "title": "7. Data",
-          "body": "How we handle videos, transcripts, and chat history is described in the Privacy Policy. Payment data is handled under Stripe’s privacy policy at https://stripe.com/privacy."
+          "body": "Rights in videos and text you submit remain with you or their original owners. You must have the rights needed to submit them. You grant us a non-exclusive permission, limited to providing the service, to store, convert, transcribe, index, use them to generate AI answers, and display them to people you authorize. This processing includes the service providers described in our Privacy Policy. That policy explains how we handle videos, transcripts, chat history, and other personal data. Stripe also processes payment data."
         },
         "liability": {
           "title": "8. Liability",
@@ -829,15 +836,15 @@
     },
     "privacy": {
       "title": "Privacy Policy",
-      "updated": "Last updated: 22 August 2026",
+      "updated": "Last updated: 17 October 2026",
       "sections": {
         "controller": {
           "title": "1. Controller",
-          "body": "VideoQ (https://videoq.jp) handles personal data collected through the service under this policy. Contact: yukiharada1228@gmail.com."
+          "body": "Yuki Harada, the operator of VideoQ (https://videoq.jp), handles personal data collected through the service under this policy. Contact: yukiharada1228@gmail.com."
         },
         "collect": {
           "title": "2. Data we collect",
-          "body": "We collect account details (email, display name), authentication data, uploaded videos and metadata, transcripts, chat content, usage totals, technical data about your browser or device, and billing address information needed for payment. Card numbers are processed by Stripe and are not stored on VideoQ servers."
+          "body": "We collect account details (email, display name, username), authentication and connected-service information, uploaded videos and metadata, YouTube video IDs, transcripts, questions, answers and chat history, usage totals, technical data about your browser or device, and billing details needed for payment. We also store SearchAPI API keys you choose to provide in encrypted form. Card numbers are processed by Stripe and are not stored on VideoQ servers."
         },
         "stripe": {
           "title": "3. Sharing with Stripe",
@@ -845,15 +852,15 @@
         },
         "purpose": {
           "title": "4. Purpose",
-          "body": "We use this data to provide the service, run transcription and AI answers, bill you, prevent abuse, provide support, comply with law, and improve the product. We do not use it for unrelated purposes without consent."
+          "body": "We use this data for account authentication, video storage and delivery, caption retrieval and transcription, search indexing and AI answers, quota management, billing, invitation and verification emails, fraud prevention, support, usage measurement, service improvement, and legal compliance. We do not use it for unrelated purposes without consent."
         },
         "share": {
-          "title": "5. Sharing",
-          "body": "We do not sell personal data. We share it only when required by law or with processors needed to run the service (cloud, payments, email). Processors receive only what they need and must protect it."
+          "title": "5. External services and sharing",
+          "body": "We do not sell personal data. We use the following external services as needed to provide VideoQ.\n• Cloudflare: app delivery, API execution, and storage of videos and images. Neon: database storage of accounts, transcripts, chat history, and other records. AWS: processing queues and video processing.\n• Modal Labs, Inc.: we send segments of audio extracted from uploaded videos and receive transcripts. We do not send the complete video file, account email address, or chat history to Modal for this transcription. Depending on configuration, we may use OpenAI's transcription API or local processing instead.\n• OpenAI: embeddings of captions and search queries; answers based on questions, relevant captions, and course information; and, when needed, analysis of still frames extracted from videos. Our answer generation does not send the entire chat history.\n• SearchAPI: YouTube video IDs and related parameters for caption retrieval. Google: authentication if you choose Google sign-in. Mailgun: recipient address, subject, and body for verification, invitation, and other service emails. Stripe's handling of payment data is described in section 3.\nThese providers may process or route data outside Japan, including in the United States. Apart from disclosures required by law, we limit what we share to the data needed for each operation."
         },
         "retention": {
           "title": "6. Retention",
-          "body": "We keep data while your account is active and as needed to provide the service. After deletion we remove or anonymize it within a reasonable time, except where law requires retention. Payment records that remain at Stripe follow Stripe’s retention rules."
+          "body": "While your account is active, we keep videos, transcripts, chat history, and other data as needed to provide the service. After account deletion, we remove or anonymize data we control within a reasonable time, except where law requires retention. Data sent to external providers is subject to their retention policies. Under Modal's published policy, audio sent to its Web Function and the returned transcription may be retained as inputs and outputs for up to seven days. VideoQ does not configure persistent storage of audio or transcripts on Modal. Payment records that remain at Stripe follow Stripe’s retention rules."
         },
         "rights": {
           "title": "7. Your rights",
@@ -861,7 +868,7 @@
         },
         "cookies": {
           "title": "8. Cookies",
-          "body": "We use cookies and similar technologies to keep you signed in, protect the service, and understand usage. You can block them in your browser, but some features may stop working."
+          "body": "We use cookies to keep you signed in and protect the service, and browser local storage to remember your display language. To measure landing-page actions and referral sources, we use browser session storage and send limited event data to Cloudflare logs. These events do not contain questions, videos, or email addresses. This measurement is disabled when Do Not Track or Global Privacy Control is enabled in your browser. Blocking cookies may stop some features from working."
         },
         "contact": {
           "title": "9. Contact",
@@ -906,19 +913,19 @@
       "fields": {
         "seller": {
           "label": "Seller",
-          "value": "VideoQ"
+          "value": "Yuki Harada (service name: VideoQ)"
         },
         "operator": {
           "label": "Person in charge",
-          "value": "Disclosed without delay upon request."
+          "value": "Yuki Harada"
         },
         "address": {
           "label": "Address",
-          "value": "Japan. Full address disclosed without delay upon request."
+          "value": "Disclosed without delay by email or another electronic means upon request to the email address below."
         },
         "phone": {
           "label": "Phone",
-          "value": "Disclosed without delay upon request. Day-to-day contact is by email."
+          "value": "Disclosed without delay by email or another electronic means upon request to the email address below. Day-to-day contact is by email."
         },
         "email": {
           "label": "Email",
@@ -934,7 +941,7 @@
         },
         "fees": {
           "label": "Charges besides the listed price",
-          "value": "Internet access and similar costs are paid by the customer. Payment processing fees are included in the listed price."
+          "value": "You pay for internet access and similar costs. Importing YouTube captions requires your own SearchAPI subscription, which may charge you separately. Payment processing fees for VideoQ are included in the listed price."
         },
         "payment": {
           "label": "Payment method and timing",
