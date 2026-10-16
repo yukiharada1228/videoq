@@ -53,13 +53,14 @@ export function chatHandlers(
       }
       return result.body;
     },
-    "chat.feedback": async ({ chatLogId, feedback, shareSlug }) => {
+    "chat.feedback": async ({ chatLogId, feedback, shareSlug, feedbackToken }) => {
       if (authenticatedUserId === null && !shareSlug) {
         return rpcError("UNAUTHORIZED", "Authentication credentials were not provided.");
       }
       const result = await chatService.submitFeedback(c.env, chatLogId, feedback, {
         userId: authenticatedUserId ?? undefined,
         shareSlug,
+        feedbackToken,
       });
       if ("notFound" in result) return rpcError("NOT_FOUND", result.notFound ?? "Not found");
       if ("forbidden" in result) return rpcError("FORBIDDEN", result.forbidden ?? "Forbidden");

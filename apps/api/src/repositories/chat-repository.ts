@@ -297,7 +297,7 @@ export async function updateChatLogFeedback(
   opts: { userId?: string; shareSlug?: string | null },
 ) {
   const permission = opts.shareSlug
-    ? sql`course.share_slug = ${opts.shareSlug}`
+    ? sql`course.share_slug = ${opts.shareSlug} AND log.is_shared_origin = true`
     : sql`course.user_id = ${opts.userId ?? null} OR log.user_id = ${opts.userId ?? null}`;
   return withDb(env, async (db) => {
     const result = await db.execute<{ allowed: boolean; id: string | null; feedback: string | null }>(sql`

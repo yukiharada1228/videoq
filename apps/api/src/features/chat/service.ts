@@ -2,6 +2,7 @@ import {
   updateChatLogFeedback,
   iterateCourseChatHistoryForExport,
 } from "../../repositories/chat-repository";
+import { verifyChatFeedbackToken } from "../../lib/chat-feedback-token";
 import { courseOwnedBy } from "../../repositories/course-repository";
 import { streamChatHistoryCsv } from "../../shared/csv";
 import type { Bindings } from "../../types/bindings";
@@ -33,8 +34,11 @@ export async function submitFeedback(
   env: Bindings,
   logId: number,
   feedback: "good" | "bad" | null,
-  opts: { userId?: string; shareSlug?: string | null },
+  opts: { userId?: string; shareSlug?: string | null; feedbackToken?: string },
 ) {
+  if (opts.shareSlug && !await verifyChatFeedbackToken(env, logId, opts.shareSlug, opts.feedbackToken)) {
+    return { forbidden: "Invalid feedback token" } as const;
+  }
   const updated = await updateChatLogFeedback(env, logId, feedback, opts);
   if ("notFound" in updated) return { notFound: "Specified chat history not found" } as const;
   if ("forbidden" in updated) {

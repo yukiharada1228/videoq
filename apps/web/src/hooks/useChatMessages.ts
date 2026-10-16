@@ -25,6 +25,7 @@ export type Message = (
 ) & {
   chatLogId?: number;
   feedback?: ChatFeedbackValue;
+  feedbackToken?: string;
   progress?: ChatProgress;
 };
 
@@ -77,6 +78,7 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
         ...updated[updated.length - 1],
         chatLogId: event.chat_log_id ?? undefined,
         feedback: event.feedback ?? null,
+        feedbackToken: event.feedback_token,
       };
       return updated;
     });
@@ -251,6 +253,7 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
     if (feedbackInFlightRef.current.has(chatLogId)) return;
     const targetMessage = messages.find((message) => message.chatLogId === chatLogId);
     if (!targetMessage) return;
+    if (shareToken && !targetMessage.feedbackToken) return;
 
     const nextFeedback = getNextChatFeedback(targetMessage.feedback, value);
 
@@ -261,6 +264,7 @@ export function useChatMessages({ courseId, shareToken }: UseChatMessagesOptions
         chatLogId,
         feedback: nextFeedback,
         shareSlug: shareToken,
+        feedbackToken: shareToken ? targetMessage.feedbackToken : undefined,
       });
       setMessages((prev) => applyChatFeedback(prev, chatLogId, result.feedback));
       if (courseId && !shareToken) {

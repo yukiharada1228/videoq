@@ -16,6 +16,7 @@ export const chatInputSchemas = {
     chatLogId: z.number().int().positive(),
     feedback: z.enum(["good", "bad"]).nullable(),
     shareSlug: z.string().min(1).optional(),
+    feedbackToken: z.string().optional(),
   }),
   "chat.history": z.object({ courseId: z.number().int().positive(), ...page }),
   "chat.resetHistory": z.object({ courseId: z.number().int().positive() }),

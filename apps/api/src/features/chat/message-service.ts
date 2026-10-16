@@ -16,6 +16,7 @@ import {
   type AnswerAttemptStatus,
 } from "../../lib/answer-cost-ledger";
 import { runRag, streamRag, type RagResult } from "../../lib/rag";
+import { createChatFeedbackToken } from "../../lib/chat-feedback-token";
 import { type ChatAnswer, type ChatStreamEvent } from "@videoq/trpc/chat";
 import type { Bindings } from "../../types/bindings";
 import type { ChatMessageBody } from "./schemas";
@@ -313,6 +314,7 @@ export async function sendChatMessage(
     if (chatLogId !== null) {
       body.chat_log_id = chatLogId;
       body.feedback = feedback === "good" || feedback === "bad" ? feedback : null;
+      if (opts.shareSlug) body.feedback_token = await createChatFeedbackToken(env, chatLogId, opts.shareSlug);
     }
 
     await finishCostLedger(env, costLedger, "completed", true);
@@ -449,6 +451,9 @@ export async function streamChatMessage(
         type: "done",
         chat_log_id: chatLogId,
         feedback: feedback === "good" || feedback === "bad" ? feedback : null,
+        ...(opts.shareSlug && chatLogId !== null
+          ? { feedback_token: await createChatFeedbackToken(env, chatLogId, opts.shareSlug) }
+          : {}),
       };
       await finishCostLedger(env, costLedger, "completed", true);
       await send(done);
