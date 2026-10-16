@@ -140,7 +140,9 @@ def transcribe_audio_interval(
     source: Path | ObjectMediaSource, start_seconds: float, duration_seconds: float,
 ) -> list[dict[str, Any]]:
     """A bounded input range and one Whisper call; timestamps remain source-relative."""
-    if not math.isfinite(start_seconds) or start_seconds < 0 or not 0 < duration_seconds <= 300:
+    backend = env_str("WHISPER_BACKEND", "openai").lower()
+    max_duration = 1800 if backend == "modal" else 300
+    if not math.isfinite(start_seconds) or start_seconds < 0 or not 0 < duration_seconds <= max_duration:
         raise ValueError("Invalid transcription interval")
     with tempfile.TemporaryDirectory(prefix="videoq-chunk-") as tmp:
         audio = Path(tmp) / "audio.mp3"
@@ -149,7 +151,7 @@ def transcribe_audio_interval(
             "-ss", str(start_seconds), *media_input_args(source), "-t", str(duration_seconds),
             "-map", "0:a:0", "-vn", "-af", "aresample=async=1:first_pts=0",
             "-acodec", "mp3", "-ab", "64k", "-ar", "16000", "-ac", "1", str(audio),
-        ], max_output_bytes=8 * 1024 * 1024, timeout_seconds=300)
+        ], max_output_bytes=16 * 1024 * 1024, timeout_seconds=300)
         _check_extracted_audio(result, audio)
         client, model = _whisper_client()
         with client:
@@ -177,7 +179,7 @@ def _whisper_client():
             raise RuntimeError("WHISPER_MODAL_URL and WHISPER_MODAL_TOKEN are required")
         client = OpenAI(
             api_key=token, base_url=f"{endpoint}/v1",
-            timeout=180.0, max_retries=2,
+            timeout=360.0, max_retries=0,
         )
         model = "large-v3"
     elif backend in {"whisper.cpp", "local"}:

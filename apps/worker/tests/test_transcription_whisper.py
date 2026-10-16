@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock
+from pathlib import Path
 
 import httpx
 import openai
@@ -30,6 +31,32 @@ def test_modal_whisper_requires_url_and_token(monkeypatch) -> None:
     monkeypatch.setenv("WHISPER_MODAL_URL", "https://videoq-example.modal.run")
     with pytest.raises(RuntimeError, match="WHISPER_MODAL_URL and WHISPER_MODAL_TOKEN"):
         transcription._whisper_client()
+
+
+def test_modal_accepts_thirty_minute_audio_interval(monkeypatch) -> None:
+    monkeypatch.setenv("WHISPER_BACKEND", "modal")
+    client = MagicMock()
+    monkeypatch.setattr(transcription, "_whisper_client", lambda: (client, "large-v3"))
+    monkeypatch.setattr(transcription, "_whisper_file", lambda *args, **kwargs: [
+        {"start": 601, "end": 602, "text": "caption"},
+    ])
+
+    def extract(command, **kwargs):
+        assert command[command.index("-t") + 1] == "1800"
+        assert kwargs["max_output_bytes"] == 16 * 1024 * 1024
+        Path(command[-1]).write_bytes(b"audio")
+        return SimpleNamespace(returncode=0, stderr="")
+
+    monkeypatch.setattr(transcription, "run_media_process", extract)
+    assert transcription.transcribe_audio_interval("video.mkv", 600, 1800) == [
+        {"start": 601.0, "end": 602.0, "text": "caption"},
+    ]
+
+
+def test_openai_rejects_thirty_minute_audio_interval(monkeypatch) -> None:
+    monkeypatch.setenv("WHISPER_BACKEND", "openai")
+    with pytest.raises(ValueError, match="Invalid transcription interval"):
+        transcription.transcribe_audio_interval("video.mkv", 0, 1800)
 
 
 @pytest.mark.parametrize("as_object", [False, True])
