@@ -8,14 +8,14 @@ import { failure, success, trpcMutation, trpcQuery } from '../../.storybook/mock
 
 const plans: BillingPlan[] = [
   { code: 'free', interval: null, lookup_key: null, unit_amount: 0, currency: 'jpy',
-    entitlements: { max_video_upload_size_mb: 200, storage_limit_gb: 1, monthly_upload_limit_gb: 2, processing_limit_minutes: 45, ai_answers_limit: 30 } },
+    entitlements: { max_video_upload_size_mb: 200, storage_limit_gb: 1, monthly_upload_limit_gb: 2, processing_limit_minutes: 120, ai_answers_limit: 30 } },
   ...(['month', 'year'] as const).flatMap(interval => ([
     { code: 'basic' as const, interval, lookup_key: interval === 'month' ? 'basic_monthly' : 'basic_yearly',
       unit_amount: interval === 'month' ? 1480 : 14800, currency: 'jpy' as const,
-      entitlements: { max_video_upload_size_mb: 1024, storage_limit_gb: 20, monthly_upload_limit_gb: 200, processing_limit_minutes: 200, ai_answers_limit: 500 } },
+      entitlements: { max_video_upload_size_mb: 1024, storage_limit_gb: 20, monthly_upload_limit_gb: 200, processing_limit_minutes: 500, ai_answers_limit: 500 } },
     { code: 'pro' as const, interval, lookup_key: interval === 'month' ? 'pro_monthly' : 'pro_yearly',
       unit_amount: interval === 'month' ? 3980 : 39800, currency: 'jpy' as const,
-      entitlements: { max_video_upload_size_mb: 2048, storage_limit_gb: 100, monthly_upload_limit_gb: 1000, processing_limit_minutes: 1000, ai_answers_limit: 2000 } },
+      entitlements: { max_video_upload_size_mb: 2048, storage_limit_gb: 100, monthly_upload_limit_gb: 1000, processing_limit_minutes: 1500, ai_answers_limit: 2000 } },
   ])),
 ];
 const usdPlans: BillingPlan[] = plans.map(plan => ({
