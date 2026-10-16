@@ -15,6 +15,7 @@ import { chatRequest, createChatPanelMock, csvRequest, feedbackRequest, historyE
 let network: ReturnType<typeof createChatPanelMock>;
 const label = (key: string) => i18n.t(`chat.${key}`);
 const english = () => i18n.language.startsWith('en');
+const sharedFeedbackToken = 'storybook-issued-token';
 
 function PanelExample({ lifecycleControl, ...args }: ComponentProps<typeof ChatPanel> & { lifecycleControl: boolean }) {
   const [visible, setVisible] = useState(true);
@@ -30,9 +31,9 @@ const meta = {
   args: { courseId, onVideoPlay: fn(), className: 'h-[min(720px,calc(100dvh-32px))]' },
   render: (args, { parameters }) => <PanelExample {...args} lifecycleControl={parameters.lifecycleControl === true} />,
   parameters: { api: { auth: authFixtures.user }, docs: { story: { inline: false, height: '800px' } } },
-  beforeEach({ parameters, msw }) {
+  beforeEach({ parameters, msw, args }) {
     const mock = createChatPanelMock({
-      events: answerEvents(english()), history: english() ? englishHistory : courseHistory,
+      events: answerEvents(english(), args.shareToken ? sharedFeedbackToken : undefined), history: english() ? englishHistory : courseHistory,
       ...parameters.chat as ChatPanelScenario | undefined,
     });
     network = mock;
@@ -103,7 +104,7 @@ export const SharedLink: Story = { args: { shareToken }, parameters: { api: { au
   await expect(chatRequest).toHaveBeenCalledWith(expect.objectContaining({ share_slug: shareToken }));
   await expect(historyRequest).not.toHaveBeenCalled();
   await context.userEvent.click(context.canvas.getByRole('button', { name: label('feedbackGood') }));
-  await waitFor(() => expect(feedbackRequest).toHaveBeenCalledWith({ chatLogId: 101, feedback: 'good', shareSlug: shareToken }));
+  await waitFor(() => expect(feedbackRequest).toHaveBeenCalledWith({ chatLogId: 101, feedback: 'good', shareSlug: shareToken, feedbackToken: sharedFeedbackToken }));
 } };
 export const AwaitingResponse: Story = { parameters: { chat: waiting }, async play(context) {
   await send(context); await assertBusy(context);
