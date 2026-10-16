@@ -92,6 +92,10 @@ migrationDescribe("Drizzle migration chain", () => {
               row.monthly_upload_limit_gb = row.quota_source === 'admin' ? null : 2;
               row.used_upload_bytes = 0;
               row.upload_usage_period_start = null;
+              if (row.quota_source === 'plan' && row.plan_code === 'free') {
+                row.processing_limit_minutes = 120;
+                row.updated_at = expect.any(String);
+              }
             }
           }
           if (table === "videos") {

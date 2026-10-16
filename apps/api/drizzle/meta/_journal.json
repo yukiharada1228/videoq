@@ -267,6 +267,13 @@
       "when": 1792186236575,
       "tag": "0037_resumable_transcription_fallback",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1792188688316,
+      "tag": "0038_raise_transcription_allowances",
+      "breakpoints": true
     }
   ]
 }
