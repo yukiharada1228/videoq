@@ -83,6 +83,18 @@ function homeLink() {
   return within(primaryNav()).getByRole('link', { name: i18n.t('navigation.home') });
 }
 
+it('switches from English to Japanese and keeps the Japanese preference', async () => {
+  renderApp('/en/privacy');
+  await screen.findByRole('heading', { name: 'Privacy Policy', level: 1 });
+
+  fireEvent.click(screen.getByRole('button', { name: i18n.t('navigation.menu') }));
+  fireEvent.click(screen.getByRole('button', { name: '日本語' }));
+
+  await screen.findByRole('heading', { name: 'プライバシーポリシー', level: 1 });
+  expect(window.location.pathname).toBe('/privacy');
+  expect(localStorage.getItem('videoq.locale')).toBe('ja');
+});
+
 it.each(['/', '/en/'])('renders the landing page immediately while the session is pending at %s', (path) => {
   globalThis.__setMockAuthSession(null, true);
   const view = renderApp(path);

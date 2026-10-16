@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useI18nNavigate } from '@/lib/i18n';
+import { Link, useI18nNavigate } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
 import { useAuthForm } from '@/hooks/useAuthForm';
 import { apiClient } from '@/lib/api';
@@ -15,6 +15,7 @@ import { AuthFormFooter } from '@/components/auth/AuthFormFooter';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { Button } from '@/components/ui/button';
 import { Divider } from '@/components/ui/divider';
+import { UtilityLink } from '@/components/ui/utility-link';
 import { trackLandingEvent } from '@/lib/landingAnalytics';
 
 export default function SignupPage() {
@@ -50,6 +51,14 @@ export default function SignupPage() {
       <AuthPageIntro badge={t('auth.signup.badge')} title={t('auth.signup.title')} />
 
       {error && <div className="mb-4"><ErrorMessage message={error} /></div>}
+
+      <p className="mb-6 text-std-14N-170 text-solid-gray-700">
+        {t('auth.signup.legalBefore')}
+        <UtilityLink asChild><Link href="/terms">{t('legal.terms.title')}</Link></UtilityLink>
+        {t('auth.signup.legalAnd')}
+        <UtilityLink asChild><Link href="/privacy">{t('legal.privacy.title')}</Link></UtilityLink>
+        {t('auth.signup.legalAfter')}
+      </p>
 
       <GoogleSignInButton
         callbackURL={nextPath || '/'}
