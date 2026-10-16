@@ -67,7 +67,7 @@ export function AppPageShell({
       style={{ scrollbarGutter: 'stable' }}
     >
       <AppNav activePage={activePage} />
-      {!noticeDismissed && noticeActive && (
+      {variant === 'standard' && !noticeDismissed && noticeActive && (
         <aside className="border-b border-solid-gray-420 bg-solid-gray-50" aria-label={t('legal.notice.title')}>
           <div className={`mx-auto flex w-full flex-wrap items-center gap-x-4 gap-y-1 py-3 ${APP_CONTAINER_CLASS}`}>
             <p className="min-w-0 flex-1 text-std-14N-170 text-solid-gray-800">
