@@ -22,7 +22,7 @@ const meta = {
     await expect(canvas.getByRole('heading', { level: 1 })).toHaveTextContent(i18n.t('landing.title'));
     await expect(canvas.getByRole('link', { name: i18n.t('landing.tryOwn') })).toHaveAttribute('href', i18n.language === 'en' ? '/en/signup' : '/signup');
     await expect(canvasElement.scrollWidth).toBeLessThanOrEqual(canvasElement.clientWidth);
-    await expect(await canvas.findByText(i18n.t('landing.free.minutes', { minutes: 45 }))).toBeVisible();
+    await expect(await canvas.findByText(i18n.t('landing.free.minutes', { minutes: 120 }))).toBeVisible();
     await expect(canvas.queryByRole('textbox')).not.toBeInTheDocument();
     await expect(canvas.getByRole('list', { name: i18n.t('landing.film.subjectsLabel') }).children).toHaveLength(5);
     await expect(canvasElement.querySelector('video')).toHaveAttribute('preload', 'none');
