@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
+
+import openai
 
 from worker_python import transcription_checkpoints as checkpoints
 from worker_python.contracts import (
@@ -19,6 +22,44 @@ from worker_python.sqs_enqueue import child_job_id, enqueue_job
 from worker_python.video_sql import VideoRow, get_video_for_task, finish_transcription
 
 logger = logging.getLogger(__name__)
+FALLBACK_CHUNK_SECONDS = 300
+
+
+def _transcribe_interval(source, start: float, duration: float, *,
+                         run: checkpoints.TranscriptionRun | None = None,
+                         index: int | None = None) -> list[dict] | None:
+    """Keep saved plans usable across backend changes and oversized Modal calls."""
+    if duration <= FALLBACK_CHUNK_SECONDS:
+        return transcribe_audio_interval(source, start, duration)
+    saved_parts = checkpoints.fallback_parts(run, index) if run is not None and index is not None else {}
+    if saved_parts is None:
+        return None
+    modal_backend = os.environ.get("WHISPER_BACKEND", "openai").lower() == "modal"
+    if modal_backend and not saved_parts:
+        try:
+            return transcribe_audio_interval(source, start, duration)
+        except openai.APITimeoutError:
+            logger.warning("Long Modal transcription failed; retrying as five-minute intervals")
+        except openai.APIStatusError as exc:
+            if exc.status_code not in (400, 408, 413) and exc.status_code < 500:
+                raise
+            logger.warning("Long Modal transcription rejected; retrying as five-minute intervals")
+    if run is not None and index is not None and not saved_parts:
+        if not checkpoints.mark_fallback_started(run, index):
+            return None
+    segments = []
+    for part_index in range(math.ceil(duration / FALLBACK_CHUNK_SECONDS)):
+        offset = part_index * FALLBACK_CHUNK_SECONDS
+        key = str(part_index)
+        if key in saved_parts:
+            segments.extend(saved_parts[key])
+            continue
+        part_segments = transcribe_audio_interval(source, start + offset,
+                                                  min(FALLBACK_CHUNK_SECONDS, duration - offset))
+        if run is not None and not checkpoints.save_fallback_part(run, index, part_index, part_segments):
+            return None
+        segments.extend(part_segments)
+    return segments
 
 
 def _send(run: checkpoints.TranscriptionRun, kind: str, **extra) -> None:
@@ -67,7 +108,10 @@ def transcribe_video_chunk(video_id: int, run_id: str, chunk_index: int) -> None
         if not completed:
             start = chunk_index * run.chunk_seconds
             duration = min(run.chunk_seconds, run.duration_ms / 1000 - start)
-            segments = transcribe_audio_interval(resolve_media_input(run.file_key), start, duration)
+            segments = _transcribe_interval(resolve_media_input(run.file_key), start, duration,
+                                            run=run, index=chunk_index)
+            if segments is None:
+                return
             if not checkpoints.save_chunk(run, chunk_index, segments):
                 return
             logger.info("Transcription checkpoint saved: video=%d chunk=%d/%d", video_id, chunk_index + 1, run.chunk_count)

@@ -1,4 +1,4 @@
-"""Authenticated Modal Whisper API for VideoQ's 300-second transcription jobs.
+"""Authenticated Modal Whisper API for VideoQ's 30-minute transcription jobs.
 
 Deploy with ``modal deploy apps/worker/modal_batched_whisper.py`` after creating
 the ``videoq-whisper-auth`` Modal Secret with ``VIDEOQ_WHISPER_TOKEN``.
@@ -17,8 +17,8 @@ from fastapi import Request
 MODEL_REPO = "Systran/faster-whisper-large-v3"
 MODEL_REVISION = "edaa852ec7e145841d8ffdb056a99866b5f0a478"
 MODEL_PATH = "/models/large-v3"
-MAX_AUDIO_BYTES = 8 * 1024 * 1024
-MAX_DURATION_SECONDS = 301
+MAX_AUDIO_BYTES = 16 * 1024 * 1024
+MAX_DURATION_SECONDS = 1801
 
 image = (
     modal.Image.from_registry(
@@ -50,7 +50,7 @@ def transcribe_with_repair(model, audio_bytes: bytes) -> dict:
     audio = decode_audio(io.BytesIO(audio_bytes))
     duration = len(audio) / 16000
     if not 0 < duration <= MAX_DURATION_SECONDS:
-        raise ValueError("audio duration must be between 0 and 301 seconds")
+        raise ValueError("audio duration must be between 0 and 1801 seconds")
 
     speech = get_speech_timestamps(
         audio,
@@ -155,7 +155,7 @@ def transcribe_with_repair(model, audio_bytes: bytes) -> dict:
 
 
 @app.cls(
-    image=image, gpu="T4", cpu=1, memory=8192, timeout=300,
+    image=image, gpu="T4", cpu=1, memory=4096, timeout=300,
     scaledown_window=2, min_containers=0, max_containers=4,
     secrets=[modal.Secret.from_name("videoq-whisper-auth")],
 )
@@ -183,7 +183,7 @@ class WhisperService:
                 raise HTTPException(status_code=401, detail="Unauthorized")
             content_length = request.headers.get("content-length")
             if content_length and int(content_length) > MAX_AUDIO_BYTES + 65536:
-                raise HTTPException(status_code=413, detail="Audio exceeds 8 MiB")
+                raise HTTPException(status_code=413, detail="Audio exceeds 16 MiB")
             form = await request.form(max_files=1, max_fields=8)
             file = form.get("file")
             model = form.get("model")
@@ -194,7 +194,7 @@ class WhisperService:
                 raise HTTPException(status_code=400, detail="Audio file is required")
             audio = await file.read(MAX_AUDIO_BYTES + 1)
             if not audio or len(audio) > MAX_AUDIO_BYTES:
-                raise HTTPException(status_code=413, detail="Audio exceeds 8 MiB")
+                raise HTTPException(status_code=413, detail="Audio exceeds 16 MiB")
             try:
                 return transcribe_with_repair(self.model, audio)
             except ValueError as exc:

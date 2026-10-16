@@ -6,6 +6,8 @@ from pathlib import Path
 from unittest.mock import MagicMock
 from uuid import uuid4
 
+import httpx
+import openai
 import psycopg
 from psycopg import sql
 from psycopg.rows import dict_row
@@ -22,6 +24,7 @@ def checkpoint_db(monkeypatch):
     url = os.environ.get("DATABASE_URL")
     if not url:
         pytest.skip("DATABASE_URL is required for PostgreSQL integration tests")
+    monkeypatch.delenv("WHISPER_BACKEND", raising=False)
     schema = f"checkpoints_{uuid4().hex}"
     with psycopg.connect(url, autocommit=True) as admin:
         admin.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)))
@@ -49,6 +52,8 @@ def checkpoint_db(monkeypatch):
                 migration = Path(__file__).parents[2] / "api/drizzle/0031_resumable_transcription.sql"
                 # Execute the generated production DDL in this isolated test schema.
                 conn.execute(migration.read_text().replace('"public".', ''))
+                fallback_migration = Path(__file__).parents[2] / "api/drizzle/0037_resumable_transcription_fallback.sql"
+                conn.execute(fallback_migration.read_text())
             for module in (checkpoints, tasks, transcription):
                 monkeypatch.setattr(module, "db_connection", connect)
             monkeypatch.setenv("SQS_QUEUE_URL", "https://example.invalid/jobs")
@@ -74,6 +79,115 @@ def test_concurrent_initialization_resumes_one_plan_and_reserves_quota_once(chec
     with checkpoint_db() as conn:
         assert conn.execute("SELECT used_processing_seconds FROM users").fetchone()["used_processing_seconds"] == 9290
         assert conn.execute("SELECT count(*) AS n FROM video_transcription_chunks").fetchone()["n"] == 31
+
+
+def test_modal_plan_uses_thirty_minute_checkpoints_and_keeps_them_on_resume(checkpoint_db, monkeypatch):
+    monkeypatch.setenv("WHISPER_BACKEND", "modal")
+    run = checkpoints.initialize_run(video(checkpoint_db), 9289.617)
+    assert run.chunk_seconds == 1800
+    assert run.chunk_count == 6
+    assert checkpoints.pending_heads(run) == [0, 1, 2, 3]
+    monkeypatch.setenv("WHISPER_BACKEND", "openai")
+    resumed = checkpoints.initialize_run(video(checkpoint_db), 9289.617)
+    assert resumed.run_id == run.run_id
+    assert resumed.chunk_seconds == 1800
+    assert resumed.chunk_count == 6
+
+
+def test_long_modal_interval_calls_provider_once(monkeypatch):
+    monkeypatch.setenv("WHISPER_BACKEND", "modal")
+    provider = MagicMock(return_value=[{"start": 1, "end": 2, "text": "caption"}])
+    monkeypatch.setattr(tasks, "transcribe_audio_interval", provider)
+    assert tasks._transcribe_interval("video.mkv", 600, 1800) == provider.return_value
+    provider.assert_called_once_with("video.mkv", 600, 1800)
+
+
+def test_long_interval_uses_five_minute_parts_after_backend_change(monkeypatch):
+    monkeypatch.setenv("WHISPER_BACKEND", "openai")
+    provider = MagicMock(side_effect=lambda _, start, duration: [
+        {"start": start, "end": start + duration, "text": "caption"},
+    ])
+    monkeypatch.setattr(tasks, "transcribe_audio_interval", provider)
+    segments = tasks._transcribe_interval("video.mkv", 600, 601)
+    assert [call.args[1:] for call in provider.call_args_list] == [
+        (600, 300), (900, 300), (1200, 1),
+    ]
+    assert [segment["start"] for segment in segments] == [600, 900, 1200]
+
+
+@pytest.mark.parametrize("status", [400, 500])
+def test_modal_rejection_falls_back_to_five_minute_parts(monkeypatch, status):
+    monkeypatch.setenv("WHISPER_BACKEND", "modal")
+    request = httpx.Request("POST", "https://example.modal.run/v1/audio/transcriptions")
+    rejected = openai.APIStatusError(
+        "long request failed", response=httpx.Response(status, request=request), body=None,
+    )
+    provider = MagicMock(side_effect=[rejected, [], []])
+    monkeypatch.setattr(tasks, "transcribe_audio_interval", provider)
+    assert tasks._transcribe_interval("video.mkv", 0, 600) == []
+    assert [call.args[1:] for call in provider.call_args_list] == [
+        (0, 600), (0, 300), (300, 300),
+    ]
+
+
+def test_fallback_reuses_paid_parts_after_job_retry(checkpoint_db, monkeypatch):
+    monkeypatch.setenv("WHISPER_BACKEND", "modal")
+    run = checkpoints.initialize_run(video(checkpoint_db), 1200)
+    request = httpx.Request("POST", "https://example.modal.run/v1/audio/transcriptions")
+    rejected = openai.APIStatusError(
+        "long request failed", response=httpx.Response(500, request=request), body=None,
+    )
+    first = [{"start": 0, "end": 1, "text": "first"}]
+    remaining = [
+        [{"start": start, "end": start + 1, "text": f"part {start}"}]
+        for start in (300, 600, 900)
+    ]
+    provider = MagicMock(side_effect=[rejected, first, RuntimeError("temporary failure"), *remaining])
+    monkeypatch.setattr(tasks, "transcribe_audio_interval", provider)
+    monkeypatch.setattr(tasks, "resolve_media_input", lambda key: key)
+    monkeypatch.setattr(tasks, "enqueue_job", lambda *args, **kwargs: "message")
+
+    with pytest.raises(RuntimeError, match="temporary failure"):
+        tasks.transcribe_video_chunk(42, run.run_id, 0)
+    with checkpoint_db() as conn:
+        row = conn.execute("SELECT segments, fallback_segments FROM video_transcription_chunks").fetchone()
+        assert row["segments"] is None
+        assert row["fallback_segments"] == {"_split": [], "0": first}
+
+    tasks.transcribe_video_chunk(42, run.run_id, 0)
+    assert [call.args[1:] for call in provider.call_args_list] == [
+        (0, 1200), (0, 300), (300, 300), (300, 300), (600, 300), (900, 300),
+    ]
+    with checkpoint_db() as conn:
+        row = conn.execute("SELECT segments, fallback_segments FROM video_transcription_chunks").fetchone()
+        assert [segment["text"] for segment in row["segments"]] == [
+            "first", "part 300", "part 600", "part 900",
+        ]
+        assert row["fallback_segments"] == {}
+
+
+def test_fallback_does_not_repeat_long_request_when_first_part_fails(checkpoint_db, monkeypatch):
+    monkeypatch.setenv("WHISPER_BACKEND", "modal")
+    run = checkpoints.initialize_run(video(checkpoint_db), 1200)
+    request = httpx.Request("POST", "https://example.modal.run/v1/audio/transcriptions")
+    rejected = openai.APIStatusError(
+        "long request failed", response=httpx.Response(500, request=request), body=None,
+    )
+    provider = MagicMock(side_effect=[rejected, RuntimeError("temporary failure"), [], [], [], []])
+    monkeypatch.setattr(tasks, "transcribe_audio_interval", provider)
+    monkeypatch.setattr(tasks, "resolve_media_input", lambda key: key)
+    monkeypatch.setattr(tasks, "enqueue_job", lambda *args, **kwargs: "message")
+
+    with pytest.raises(RuntimeError, match="temporary failure"):
+        tasks.transcribe_video_chunk(42, run.run_id, 0)
+    with checkpoint_db() as conn:
+        row = conn.execute("SELECT fallback_segments FROM video_transcription_chunks").fetchone()
+        assert row["fallback_segments"] == {"_split": []}
+
+    tasks.transcribe_video_chunk(42, run.run_id, 0)
+    assert [call.args[1:] for call in provider.call_args_list] == [
+        (0, 1200), (0, 300), (0, 300), (300, 300), (600, 300), (900, 300),
+    ]
 
 
 def test_production_entry_initializes_lanes_without_transcribing_inline(checkpoint_db, monkeypatch):

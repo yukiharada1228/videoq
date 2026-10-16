@@ -337,6 +337,7 @@ export const videoTranscriptionChunks = pgTable("video_transcription_chunks", {
 	runId: uuid("run_id").notNull(),
 	chunkIndex: integer("chunk_index").notNull(),
 	segments: jsonb().$type<{ start: number; end: number; text: string }[]>(),
+	fallbackSegments: jsonb("fallback_segments").$type<Record<string, { start: number; end: number; text: string }[]>>().notNull().default({}),
 	failures: integer().notNull().default(0),
 	lastError: text("last_error").notNull().default(""),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),

@@ -1,0 +1,1 @@
+ALTER TABLE "video_transcription_chunks" ADD COLUMN "fallback_segments" jsonb DEFAULT '{}'::jsonb NOT NULL;

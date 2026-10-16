@@ -20,7 +20,7 @@ Supported operations:
 | type | Operation |
 |---|---|
 | `transcribe_video` | FFmpeg / Whisper / YouTube transcription, preserving original subtitle cues |
-| `transcribe_video_chunk` | Transcribe a 300-second interval and save its result in PostgreSQL |
+| `transcribe_video_chunk` | Transcribe a bounded interval and save its result in PostgreSQL |
 | `finish_video_transcription` | Join completed intervals and enqueue indexing and visual caches |
 | `build_video_visuals` | Build one optional visual cache independently of transcription |
 | `index_video_transcript` | Group cues into search scenes, generate embeddings and atomically replace searchable scenes |
@@ -63,9 +63,12 @@ resume after the lease expires. Follow-up job IDs are derived deterministically
 from the parent job, so retrying a parent does not create extra follow-up jobs.
 Apply `0011_job_delivery_guards.sql` before updating the worker.
 
-Uploaded-video processing also requires `0031_resumable_transcription.sql`.
+Uploaded-video processing also requires `0031_resumable_transcription.sql` and
+`0037_resumable_transcription_fallback.sql`.
 The parent reserves processing quota once and creates a persisted plan with
-300-second intervals. Four SQS lanes process the intervals; each saved checkpoint
+1,800-second intervals for Modal or 300-second intervals for OpenAI. Existing
+plans keep their recorded interval size when resumed, even after a backend change.
+Four SQS lanes process the intervals; each saved checkpoint
 enqueues the next interval in its lane. Results and follow-up IDs survive retries,
 so delivery failures after saving do not call Whisper again for that interval.
 All intervals must be saved before the finalizer joins source-relative timestamps
@@ -125,9 +128,14 @@ created for each subprocess, with an expiry longer than its process time limit.
 HTTPS verifies the server certificate, network inputs cannot read local files,
 and signed URLs are removed from subprocess diagnostics and command logging.
 
-Each uploaded transcription job extracts at most 300 seconds of 64 kbps mono MP3
-with an 8 MiB file cap and a 300-second subprocess deadline. Provider calls have
-a 120-second timeout and at most two retries. Only one interval's audio is stored
+Each uploaded transcription job extracts at most 1,800 seconds of 64 kbps mono MP3
+with a 16 MiB file cap and a 300-second subprocess deadline. Modal calls have a
+360-second client timeout without automatic retry; other provider calls have a
+120-second timeout and at most two retries. If Modal rejects or times out on a long
+interval, the worker retries it in 300-second parts. Server errors on long Modal
+requests also use that fallback. Completed fallback parts are checkpointed in
+PostgreSQL so an SQS retry does not pay to transcribe those parts again. Only
+one interval's audio is stored
 locally, and the next interval runs in a new invocation. Indexing and the two
 optional visual caches have separate jobs; failed visual work cannot lose the
 saved transcript. Each invocation still has Lambda's 900-second ceiling, so
