@@ -20,7 +20,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
 // Helper: create an async generator mock for chatStream
 function makeStreamMock(
   chunks: string[],
-  done?: { chat_log_id?: number | null; feedback?: 'good' | 'bad' | null; citations?: unknown[] },
+  done?: { chat_log_id?: number | null; feedback?: 'good' | 'bad' | null; feedback_token?: string; citations?: unknown[] },
 ) {
   return async function* () {
     for (const source of done?.citations ?? []) yield { type: 'source' as const, source };
@@ -31,6 +31,7 @@ function makeStreamMock(
       type: 'done' as const,
       chat_log_id: done?.chat_log_id ?? null,
       feedback: done?.feedback ?? null,
+      feedback_token: done?.feedback_token,
     }
   }
 }
@@ -174,6 +175,21 @@ describe('useChatMessages streaming', () => {
       const last = result.current.messages.at(-1)
       expect(last?.chatLogId).toBe(99)
       expect(last?.feedback).toBeNull()
+    })
+  })
+
+  it('uses the issued shared-answer token for feedback', async () => {
+    vi.mocked(apiClient.chatStream).mockImplementation(
+      makeStreamMock(['Shared answer'], { chat_log_id: 42, feedback_token: 'issued-answer-token' }),
+    )
+    setFeedback.mockResolvedValue({ chat_log_id: 42, feedback: 'good' })
+    const { result } = renderHook(() => useChatMessages({ courseId: 3, shareToken: 'shared' }))
+    act(() => result.current.setInput('Hi'))
+    await act(async () => { await result.current.handleSend() })
+    expect(result.current.messages.at(-1)?.feedbackToken).toBe('issued-answer-token')
+    await act(async () => { await result.current.handleFeedback(42, 'good') })
+    expect(setFeedback).toHaveBeenCalledWith({
+      chatLogId: 42, feedback: 'good', shareSlug: 'shared', feedbackToken: 'issued-answer-token',
     })
   })
 
@@ -507,7 +523,7 @@ describe('useChatMessages streaming', () => {
 
     act(() => {
       result.current.setMessages([
-        { role: 'assistant', answer: { segments: [{ text: 'Answer', sourceIds: [] }], sources: [] }, chatLogId: 42, feedback: 'good' },
+        { role: 'assistant', answer: { segments: [{ text: 'Answer', sourceIds: [] }], sources: [] }, chatLogId: 42, feedback: 'good', feedbackToken: 'issued-answer-token' },
       ])
     })
 
@@ -519,6 +535,7 @@ describe('useChatMessages streaming', () => {
       chatLogId: 42,
       feedback: null,
       shareSlug: 'shared',
+      feedbackToken: 'issued-answer-token',
     })
     expect(result.current.messages[0].feedback).toBeNull()
     expect(result.current.feedbackUpdatingIds.size).toBe(0)

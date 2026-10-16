@@ -17,9 +17,9 @@ export const contentEvents = (answer: ChatAnswer): ChatStreamEvent[] => [
   ...answer.sources.map((source): ChatStreamEvent => ({ type: 'source', source })),
   ...answerParts(answer).map((part): ChatStreamEvent => part.type === 'text' ? { ...part, type: 'text_delta' } : part),
 ];
-export const answerEvents = (english = false): ChatStreamEvent[] => [
+export const answerEvents = (english = false, feedbackToken?: string): ChatStreamEvent[] => [
   ...contentEvents(english ? englishAnswerData : answerData),
-  { type: 'done', chat_log_id: 101, feedback: null },
+  { type: 'done', chat_log_id: 101, feedback: null, ...(feedbackToken ? { feedback_token: feedbackToken } : {}) },
 ];
 export const courseHistory = [{ ...historyItem, course: courseId }];
 export const englishHistory = [{ ...courseHistory[0], question: englishQuestion, answer: englishAnswerData, asked_by: null, is_shared_origin: true }];

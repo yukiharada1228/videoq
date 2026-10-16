@@ -154,9 +154,9 @@ describe('chat feedback saves', () => {
     result.current.client.setQueryData(key, history);
     const analyticsKey = trpc.chat.analytics.queryKey({ courseId: 7 });
     result.current.client.setQueryData(analyticsKey, { cached: true });
-    act(() => result.current.chat.setMessages([{ role: 'assistant', answer: { segments: [{ text: 'Answer', sourceIds: [] }], sources: [] }, chatLogId: 42 }]));
+    act(() => result.current.chat.setMessages([{ role: 'assistant', answer: { segments: [{ text: 'Answer', sourceIds: [] }], sources: [] }, chatLogId: 42, feedbackToken: 'issued-answer-token' }]));
     await act(() => result.current.chat.handleFeedback(42, 'bad'));
-    expect(update).toHaveBeenCalledExactlyOnceWith({ chatLogId: 42, feedback: 'bad', shareSlug: 'shared' });
+    expect(update).toHaveBeenCalledExactlyOnceWith({ chatLogId: 42, feedback: 'bad', shareSlug: 'shared', feedbackToken: 'issued-answer-token' });
     expect(result.current.chat.messages[0].feedback).toBe('bad');
     expect(result.current.client.getQueryData(key)).toEqual(history);
     expect(result.current.client.getQueryState(analyticsKey)?.isInvalidated).toBe(false);

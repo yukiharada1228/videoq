@@ -27,7 +27,7 @@ export const chatStreamEventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("citation"), segmentIndex, sourceId: sourceIdSchema }),
   z.object({ type: z.literal("searching"), query: z.string(), search_id: sourceIdSchema }),
   z.object({ type: z.literal("search_completed"), query: z.string(), search_id: sourceIdSchema, result_count: z.number().int().nonnegative() }),
-  z.object({ type: z.literal("done"), chat_log_id: sourceIdSchema.nullable(), feedback: chatFeedbackSchema }),
+  z.object({ type: z.literal("done"), chat_log_id: sourceIdSchema.nullable(), feedback: chatFeedbackSchema, feedback_token: z.string().optional() }),
   z.object({ type: z.literal("error"), code: z.string(), message: z.string() }),
 ]);
 export type ChatStreamEvent = z.infer<typeof chatStreamEventSchema>;

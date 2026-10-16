@@ -11,6 +11,7 @@ import { TEST_USER_ID, testAuthHeaders } from "./helpers/auth";
 import { createApp } from "../src/app";
 import * as auth from "../src/middleware/auth";
 import * as messageService from "../src/features/chat/message-service";
+import { createChatFeedbackToken } from "../src/lib/chat-feedback-token";
 
 /**
  * ルート全体（認証 → 検証 → course/quota → RAG → ChatLog → 応答）の結線テスト。
@@ -959,7 +960,13 @@ describe("POST /messages/stream（SSE）", () => {
       const insert = calls.find(call => call.sql.includes("chat_logs") && call.sql.includes("returning"))!;
       expect(insert.args).toContain(JSON.stringify(streamed));
       stubOpenAi({ answer });
-      expect(await trpcData(await post("/messages" + query, body, options))).toMatchObject({ answer: streamed });
+      const saved = await trpcData(await post("/messages" + query, body, options));
+      expect(saved).toMatchObject({ answer: streamed });
+      if (access === "public") {
+        const token = await createChatFeedbackToken(ENV as never, 99, "abc123");
+        expect(events.at(-1)).toMatchObject({ feedback_token: token });
+        expect(saved).toMatchObject({ feedback_token: token });
+      }
       expect(log).toHaveBeenCalledTimes(2);
     } finally { log.mockRestore(); }
   });
@@ -1045,7 +1052,8 @@ describe("POST /messages/stream（SSE）", () => {
       { type: "source", source: { id: 1, video_id: 60, title: "Video A", start_time: "00:00:10", end_time: "00:00:20" } },
       { type: "text_delta", segmentIndex: 0, text: "Hel" },
       { type: "text_delta", segmentIndex: 0, text: "lo!" },
-      { type: "done", chat_log_id: 99, feedback: null },
+      { type: "done", chat_log_id: 99, feedback: null,
+        ...(access === "public" ? { feedback_token: await createChatFeedbackToken(ENV as never, 99, "abc123") } : {}) },
     ]);
   });
 

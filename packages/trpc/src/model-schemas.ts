@@ -81,6 +81,7 @@ export const chatMessageSchema = z.object({
   answer: chatAnswerSchema,
   chat_log_id: z.number().optional(),
   feedback: chatFeedbackSchema.optional(),
+  feedback_token: z.string().optional(),
 });
 
 export const chatHistoryItemSchema = z.object({
