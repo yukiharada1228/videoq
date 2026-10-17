@@ -101,11 +101,12 @@ def ffmpeg():
 
 @pytest.mark.parametrize("suffix,codec", [("mp4", "aac"), ("mkv", "pcm_s16le"), ("webm", "libopus")])
 def test_regular_media_still_probes_extracts_and_splits(ffmpeg, tmp_path, suffix, codec):
-    from worker_python.pipeline.transcription import _split_audio_chunks
+    from worker_python.pipeline.transcription import _split_audio_chunks, ensure_audio_stream
     video = tmp_path / f"clip.{suffix}"
     subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=duration=0.2",
         "-c:a", codec, str(video)], check=True, timeout=15)
     assert _ffprobe_duration(video) > 0
+    ensure_audio_stream(video)
     audio = tmp_path / "audio.mp3"
     _ffmpeg_extract_mp3(video, audio)
     assert audio.stat().st_size > 0
@@ -115,6 +116,21 @@ def test_regular_media_still_probes_extracts_and_splits(ffmpeg, tmp_path, suffix
     assert path.stat().st_size > 0
     chunks.close()
     assert not path.exists()
+
+
+def test_video_without_audio_is_rejected_before_transcription(ffmpeg, tmp_path):
+    from worker_python.pipeline.transcription import (
+        NoAudioStreamError, ensure_audio_stream, transcribe_audio_interval,
+    )
+    video = tmp_path / "silent.mp4"
+    subprocess.run([
+        "ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=black:s=32x32:r=1:d=1",
+        "-an", "-c:v", "mpeg4", str(video),
+    ], check=True, timeout=15)
+    with pytest.raises(NoAudioStreamError, match="音声トラック"):
+        ensure_audio_stream(video)
+    with pytest.raises(NoAudioStreamError, match="音声トラック"):
+        transcribe_audio_interval(video, 0, 1)
 
 
 @pytest.mark.parametrize("playlist", [

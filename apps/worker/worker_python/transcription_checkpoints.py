@@ -116,13 +116,49 @@ def pending_heads(run: TranscriptionRun, *, after_index: int | None = None) -> l
 
 def _lock_current(conn, run: TranscriptionRun) -> bool:
     row = conn.execute("""
-        SELECT v.status, v.file, md5(COALESCE(v.transcript, '')) AS transcript_hash, r.run_id
+        SELECT v.status, v.file, md5(COALESCE(v.transcript, '')) AS transcript_hash,
+               r.run_id, r.completed_at
           FROM videos v JOIN video_transcription_runs r ON r.video_id = v.id
          WHERE v.id = %s FOR UPDATE OF v
     """, (run.video_id,)).fetchone()
-    return bool(row and str(row["run_id"]) == run.run_id and row["file"] == run.file_key
+    return bool(row and row["completed_at"] is None and str(row["run_id"]) == run.run_id
+                and row["file"] == run.file_key
                 and row["transcript_hash"] == run.transcript_hash
                 and row["status"] in {"pending", "processing", "error"})
+
+
+def reject_no_audio(video_id: int, file_key: str, transcript_hash: str,
+                    message: str, *, run_id: str | None = None,
+                    chunk_index: int | None = None) -> bool:
+    """Fence a terminal media error by source and run, then stop queued lanes."""
+    with db_connection() as conn:
+        row = conn.execute("""
+            SELECT v.status, v.file, md5(COALESCE(v.transcript, '')) AS transcript_hash,
+                   r.run_id, r.completed_at
+              FROM videos v LEFT JOIN video_transcription_runs r ON r.video_id = v.id
+             WHERE v.id = %s FOR UPDATE OF v
+        """, (video_id,)).fetchone()
+        if not row or row["file"] != file_key or row["transcript_hash"] != transcript_hash:
+            return False
+        if row["status"] not in {"pending", "processing", "error"}:
+            return False
+        if run_id is not None and (row["run_id"] is None or str(row["run_id"]) != run_id):
+            return False
+        if run_id is not None and row["completed_at"] is not None:
+            return False
+        if row["run_id"] is not None and row["completed_at"] is None:
+            conn.execute("""
+                UPDATE video_transcription_runs SET completed_at = now()
+                 WHERE video_id = %s AND completed_at IS NULL
+            """, (video_id,))
+        if chunk_index is not None and row["run_id"] is not None:
+            conn.execute("""
+                UPDATE video_transcription_chunks SET last_error = %s, updated_at = now()
+                 WHERE run_id = %s AND chunk_index = %s
+            """, (message, row["run_id"], chunk_index))
+        conn.execute("UPDATE videos SET status = 'error', error_message = %s WHERE id = %s",
+                     (message, video_id))
+        return True
 
 
 def chunk_state(run: TranscriptionRun, index: int) -> tuple[bool, bool]:
