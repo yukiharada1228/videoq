@@ -34,3 +34,16 @@ intentionally invalid model).
 Modal [may retain Web Function and remote Function payloads for up to seven
 days](https://modal.com/docs/guide/security).
 This deployment does not pin processing or routing to a particular region.
+
+## Direct GPU Web Function follow-up
+
+The CPU `secure_api` layer has been removed. `WhisperService.api` now has
+`requires_proxy_auth=True` directly, so Modal rejects unauthenticated requests
+before starting its GPU container. The same protected URL label and proxy token
+are retained. Authorized malformed requests can start the GPU container before
+the ASGI app rejects them.
+
+A temporary, separately named Modal app was deployed to verify the class-based
+ASGI function. It exposed one authenticated T4 function, returned 401 without a
+token, and returned 200 with the production proxy token and a two-second
+synthetic MP3. The temporary app was stopped after verification.

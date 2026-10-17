@@ -2,7 +2,7 @@
 
 Deploy with ``modal deploy apps/worker/modal_batched_whisper.py`` after creating
 a Modal proxy token for the worker. The proxy rejects unauthenticated requests
-before the CPU Web Function starts; only validated audio invokes the GPU.
+before the GPU Web Function starts.
 """
 
 from time import perf_counter
@@ -23,6 +23,7 @@ image = (
     .entrypoint([])
     .uv_pip_install(
         "faster-whisper==1.2.1", "huggingface-hub==0.36.0",
+        "fastapi==0.115.12", "python-multipart==0.0.20",
     )
     .run_commands(
         "python -c 'from huggingface_hub import snapshot_download; "
@@ -30,10 +31,6 @@ image = (
         f'local_dir="{MODEL_PATH}")' + "'"
     )
 )
-web_image = modal.Image.debian_slim(python_version="3.11").pip_install(
-    "fastapi==0.115.12", "python-multipart==0.0.20",
-)
-
 app = modal.App("videoq-batched-whisper")
 
 
@@ -163,20 +160,18 @@ class WhisperService:
 
         self.model = WhisperModel(MODEL_PATH, device="cuda", compute_type="float16")
 
-    @modal.method()
-    def transcribe(self, audio: bytes) -> dict:
-        try:
-            return {"ok": True, "result": transcribe_with_repair(self.model, audio)}
-        except ValueError as exc:
-            return {"ok": False, "error": str(exc)}
+    @modal.asgi_app(
+        label="videoq-batched-whisper-secure-api", requires_proxy_auth=True,
+    )
+    def api(self):
+        return create_web_app(self.model)
 
 
-def create_web_app(service=None):
-    """Bound proxy-authenticated requests before starting GPU inference."""
+def create_web_app(model):
+    """Serve transcription from the proxy-authenticated GPU container."""
     from fastapi import FastAPI, HTTPException, Request
     from starlette.datastructures import UploadFile
 
-    service = service or WhisperService()
     web = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     max_request_bytes = MAX_AUDIO_BYTES + 65536
 
@@ -213,9 +208,9 @@ def create_web_app(service=None):
         form = await bounded_request.form(max_files=1, max_fields=8)
         try:
             file = form.get("file")
-            model = form.get("model")
+            requested_model = form.get("model")
             response_format = form.get("response_format", "verbose_json")
-            if model != "large-v3" or response_format != "verbose_json":
+            if requested_model != "large-v3" or response_format != "verbose_json":
                 raise HTTPException(status_code=400, detail="Unsupported transcription settings")
             if not isinstance(file, UploadFile):
                 raise HTTPException(status_code=400, detail="Audio file is required")
@@ -225,21 +220,9 @@ def create_web_app(service=None):
         finally:
             await form.close()
 
-        result = await service.transcribe.remote.aio(audio)
-        if not result["ok"]:
-            raise HTTPException(status_code=400, detail=result["error"])
-        return result["result"]
+        try:
+            return transcribe_with_repair(model, audio)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return web
-
-
-@app.function(
-    image=web_image, cpu=0.25, memory=512, timeout=300,
-    scaledown_window=2, min_containers=0, max_containers=4,
-)
-@modal.asgi_app(
-    label="videoq-batched-whisper-secure-api", requires_proxy_auth=True,
-)
-def secure_api():
-    # Modal rejects unauthenticated traffic before starting this container.
-    return create_web_app()

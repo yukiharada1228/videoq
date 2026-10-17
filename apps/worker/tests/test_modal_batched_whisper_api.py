@@ -1,10 +1,8 @@
-"""The proxy-authenticated endpoint validates requests before invoking the GPU."""
+"""The GPU Web Function requires proxy auth and validates requests."""
 
 import importlib.util
 import ast
 from pathlib import Path
-from types import SimpleNamespace
-
 from fastapi.testclient import TestClient
 import pytest
 
@@ -21,7 +19,7 @@ def test_every_modal_web_function_requires_proxy_auth():
         and isinstance(decorator.func, ast.Attribute)
         and decorator.func.attr == "asgi_app"
     ]
-    assert web_decorators
+    assert len(web_decorators) == 1
     assert all(
         any(
             keyword.arg == "requires_proxy_auth"
@@ -34,26 +32,25 @@ def test_every_modal_web_function_requires_proxy_auth():
 
 
 @pytest.fixture
-def modal_api():
+def modal_api(monkeypatch):
     path = Path(__file__).resolve().parents[1] / "modal_batched_whisper.py"
     spec = importlib.util.spec_from_file_location("videoq_modal_batched_whisper_test", path)
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)
     calls = []
+    model = object()
 
-    async def invoke(audio):
-        calls.append(audio)
-        return {"ok": True, "result": {"text": "認識結果", "segments": []}}
+    def transcribe(model_arg, audio):
+        calls.append((model_arg, audio))
+        return {"text": "認識結果", "segments": []}
 
-    service = SimpleNamespace(transcribe=SimpleNamespace(
-        remote=SimpleNamespace(aio=invoke),
-    ))
-    return module, TestClient(module.create_web_app(service)), calls
+    monkeypatch.setattr(module, "transcribe_with_repair", transcribe)
+    return module, TestClient(module.create_web_app(model)), model, calls
 
 
 def test_valid_request_forwards_only_audio(modal_api):
-    _, client, calls = modal_api
+    _, client, model, calls = modal_api
     response = client.post(
         "/v1/audio/transcriptions",
         data={"model": "large-v3", "response_format": "verbose_json"},
@@ -61,11 +58,11 @@ def test_valid_request_forwards_only_audio(modal_api):
     )
     assert response.status_code == 200
     assert response.json()["text"] == "認識結果"
-    assert calls == [b"audio"]
+    assert calls == [(model, b"audio")]
 
 
-def test_invalid_settings_never_invoke_gpu(modal_api):
-    _, client, calls = modal_api
+def test_invalid_settings_never_invoke_transcription(modal_api):
+    _, client, _, calls = modal_api
     response = client.post(
         "/v1/audio/transcriptions",
         data={"model": "other-model"},
@@ -75,14 +72,13 @@ def test_invalid_settings_never_invoke_gpu(modal_api):
     assert calls == []
 
 
-def test_invalid_audio_is_reported_as_client_error(modal_api):
-    module, _, _ = modal_api
+def test_invalid_audio_is_reported_as_client_error(modal_api, monkeypatch):
+    module, client, _, _ = modal_api
 
-    async def reject(_audio):
-        return {"ok": False, "error": "audio duration must be between 0 and 1801 seconds"}
+    def reject(_model, _audio):
+        raise ValueError("audio duration must be between 0 and 1801 seconds")
 
-    service = SimpleNamespace(transcribe=SimpleNamespace(remote=SimpleNamespace(aio=reject)))
-    client = TestClient(module.create_web_app(service))
+    monkeypatch.setattr(module, "transcribe_with_repair", reject)
     response = client.post(
         "/v1/audio/transcriptions",
         data={"model": "large-v3"},
@@ -93,7 +89,7 @@ def test_invalid_audio_is_reported_as_client_error(modal_api):
 
 @pytest.mark.parametrize("declared_length", [None, "1"])
 def test_body_limit_applies_without_trust_in_content_length(modal_api, declared_length):
-    module, client, calls = modal_api
+    module, client, _, calls = modal_api
     headers = {"content-type": "application/octet-stream"}
     if declared_length is not None:
         headers["content-length"] = declared_length
