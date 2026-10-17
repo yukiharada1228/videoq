@@ -229,6 +229,7 @@ def test_ffmpeg_remote_probe_audio_and_visuals_use_ranges(ffmpeg, monkeypatch, t
         monkeypatch.setattr(storage.ObjectMediaSource, "presigned_url", lambda *_args, **_kwargs: url)
         source = storage.ObjectMediaSource(f"videos/original.{suffix}")
         duration = transcription._ffprobe_duration(source)
+        transcription.ensure_audio_stream(source)
         assert 1.9 <= duration <= 2.1
         transcription._ffmpeg_extract_mp3(source, output)
         assert output.stat().st_size > 0

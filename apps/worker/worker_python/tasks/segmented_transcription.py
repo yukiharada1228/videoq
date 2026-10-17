@@ -17,7 +17,9 @@ from worker_python.db import db_connection
 from worker_python.env import env_flag
 from worker_python.pipeline.srt import create_srt_from_whisper_segments
 from worker_python.pipeline.storage import resolve_media_input
-from worker_python.pipeline.transcription import _ffprobe_duration, transcribe_audio_interval
+from worker_python.pipeline.transcription import (
+    NoAudioStreamError, _ffprobe_duration, ensure_audio_stream, transcribe_audio_interval,
+)
 from worker_python.sqs_enqueue import child_job_id, enqueue_job
 from worker_python.video_sql import VideoRow, get_video_for_task, finish_transcription
 
@@ -84,11 +86,18 @@ def _dispatch_pending(run: checkpoints.TranscriptionRun, *, after_index: int | N
 def start_uploaded_transcription(video: VideoRow) -> None:
     if not os.environ.get("SQS_QUEUE_URL", "").strip():
         raise RuntimeError("SQS_QUEUE_URL is required for uploaded transcription jobs")
+    source = resolve_media_input(video.file_key)
+    try:
+        ensure_audio_stream(source)
+    except NoAudioStreamError as error:
+        checkpoints.reject_no_audio(video.id, video.file_key, video.transcript_hash, str(error))
+        logger.info("Skipping video without audio: video=%d", video.id)
+        return
     existing = checkpoints.load_run(video.id)
     if existing and existing.transcript_hash == video.transcript_hash:
         duration = existing.duration_ms / 1000
     else:
-        duration = _ffprobe_duration(resolve_media_input(video.file_key))
+        duration = _ffprobe_duration(source)
     run = checkpoints.initialize_run(video, duration)
     if run:
         logger.info("Transcription plan ready: video=%d chunks=%d", run.video_id, run.chunk_count)
@@ -104,11 +113,12 @@ def transcribe_video_chunk(video_id: int, run_id: str, chunk_index: int) -> None
     active, completed = checkpoints.chunk_state(run, chunk_index)
     if not active:
         return
+    source = resolve_media_input(run.file_key)
     try:
         if not completed:
             start = chunk_index * run.chunk_seconds
             duration = min(run.chunk_seconds, run.duration_ms / 1000 - start)
-            segments = _transcribe_interval(resolve_media_input(run.file_key), start, duration,
+            segments = _transcribe_interval(source, start, duration,
                                             run=run, index=chunk_index)
             if segments is None:
                 return
@@ -116,6 +126,16 @@ def transcribe_video_chunk(video_id: int, run_id: str, chunk_index: int) -> None
                 return
             logger.info("Transcription checkpoint saved: video=%d chunk=%d/%d", video_id, chunk_index + 1, run.chunk_count)
         _dispatch_pending(run, after_index=chunk_index)
+    except NoAudioStreamError as error:
+        try:
+            ensure_audio_stream(source)
+        except NoAudioStreamError:
+            checkpoints.reject_no_audio(video_id, run.file_key, run.transcript_hash,
+                                        str(error), run_id=run.run_id, chunk_index=chunk_index)
+            logger.info("Stopped transcription without audio: video=%d", video_id)
+        else:
+            checkpoints.record_chunk_failure(run, chunk_index, str(error))
+            raise
     except Exception as error:
         try:
             checkpoints.record_chunk_failure(run, chunk_index, str(error))

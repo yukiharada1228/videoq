@@ -23,6 +23,13 @@ from worker_python.video_sql import VideoRow
 logger = logging.getLogger(__name__)
 
 
+class NoAudioStreamError(RuntimeError):
+    """The source has no audio track, so retrying transcription cannot help."""
+
+
+NO_AUDIO_MESSAGE = "動画に音声トラックがありません。音声付きの動画をアップロードしてください。"
+
+
 def run_transcription(
     video: VideoRow,
     *,
@@ -127,6 +134,8 @@ def _check_extracted_audio(proc, audio_path: Path) -> None:
     # A recovered HTTP read also logs "Stream ends prematurely"; that transport
     # message alone is not fatal. The demuxer's EOF error is unrecoverable.
     if proc.returncode != 0:
+        if "Stream map '" in proc.stderr and "matches no streams" in proc.stderr:
+            raise NoAudioStreamError(NO_AUDIO_MESSAGE)
         raise RuntimeError(
             f"ffmpeg failed ({proc.returncode}): {proc.stderr[-1000:]}"
         )
@@ -297,6 +306,19 @@ def _ffprobe_duration(path: Path | ObjectMediaSource) -> float:
     if not math.isfinite(duration) or duration <= 0:
         raise RuntimeError("ffprobe returned an invalid media duration")
     return duration
+
+
+def ensure_audio_stream(path: Path | ObjectMediaSource) -> None:
+    """Reject video-only uploads before reserving quota or sending chunk jobs."""
+    proc = run_media_process([
+        "ffprobe", "-v", "error", "-select_streams", "a",
+        "-show_entries", "stream=index", "-of", "csv=p=0",
+        *media_input_args(path),
+    ])
+    if proc.returncode != 0:
+        raise RuntimeError(f"ffprobe failed: {proc.stderr[-500:]}")
+    if not proc.stdout.strip():
+        raise NoAudioStreamError(NO_AUDIO_MESSAGE)
 
 
 def _transcribe_youtube(

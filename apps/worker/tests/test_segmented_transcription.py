@@ -16,6 +16,7 @@ import pytest
 from worker_python import transcription_checkpoints as checkpoints
 from worker_python.tasks import segmented_transcription as tasks
 from worker_python.tasks import transcription
+from worker_python.pipeline.transcription import NoAudioStreamError, NO_AUDIO_MESSAGE
 from worker_python.video_sql import get_video_for_task
 
 
@@ -194,6 +195,7 @@ def test_production_entry_initializes_lanes_without_transcribing_inline(checkpoi
     monkeypatch.setattr(transcription, "heavy_pipeline_enabled", lambda: True)
     monkeypatch.setattr(tasks, "_ffprobe_duration", lambda _: 9289.617)
     monkeypatch.setattr(tasks, "resolve_media_input", lambda key: key)
+    monkeypatch.setattr(tasks, "ensure_audio_stream", lambda _: None)
     inline = MagicMock()
     monkeypatch.setattr(transcription, "run_transcription", inline)
     enqueue = MagicMock(return_value="message")
@@ -205,6 +207,60 @@ def test_production_entry_initializes_lanes_without_transcribing_inline(checkpoi
     assert [call.kwargs["job_id"] for call in enqueue.call_args_list[:4]] == [
         call.kwargs["job_id"] for call in enqueue.call_args_list[4:]
     ]
+
+
+def test_video_without_audio_never_reserves_quota_or_enqueues(checkpoint_db, monkeypatch):
+    monkeypatch.setattr(transcription, "heavy_pipeline_enabled", lambda: True)
+    monkeypatch.setattr(tasks, "resolve_media_input", lambda key: key)
+    monkeypatch.setattr(tasks, "ensure_audio_stream",
+                        MagicMock(side_effect=NoAudioStreamError(NO_AUDIO_MESSAGE)))
+    probe = MagicMock()
+    enqueue = MagicMock()
+    monkeypatch.setattr(tasks, "_ffprobe_duration", probe)
+    monkeypatch.setattr(tasks, "enqueue_job", enqueue)
+    transcription.transcribe_video(42, job_id="silent-parent")
+    assert video(checkpoint_db).status == "error"
+    with checkpoint_db() as conn:
+        row = conn.execute("SELECT error_message FROM videos WHERE id = 42").fetchone()
+        assert row["error_message"] == NO_AUDIO_MESSAGE
+        assert conn.execute("SELECT used_processing_seconds FROM users").fetchone()["used_processing_seconds"] == 0
+    assert checkpoints.load_run(42) is None
+    probe.assert_not_called()
+    enqueue.assert_not_called()
+
+
+def test_existing_silent_plan_stops_all_lanes_without_sqs_retry(checkpoint_db, monkeypatch):
+    run = checkpoints.initialize_run(video(checkpoint_db), 301)
+    monkeypatch.setattr(tasks, "resolve_media_input", lambda key: key)
+    monkeypatch.setattr(tasks, "ensure_audio_stream",
+                        MagicMock(side_effect=NoAudioStreamError(NO_AUDIO_MESSAGE)))
+    provider = MagicMock(side_effect=NoAudioStreamError(NO_AUDIO_MESSAGE))
+    monkeypatch.setattr(tasks, "transcribe_audio_interval", provider)
+    enqueue = MagicMock()
+    monkeypatch.setattr(tasks, "enqueue_job", enqueue)
+    tasks.transcribe_video_chunk(42, run.run_id, 0)
+    tasks.transcribe_video_chunk(42, run.run_id, 1)
+    assert provider.call_count == 1
+    assert video(checkpoint_db).status == "error"
+    assert checkpoints.load_run(42).completed
+    with checkpoint_db() as conn:
+        row = conn.execute("SELECT error_message FROM videos WHERE id = 42").fetchone()
+        assert row["error_message"] == NO_AUDIO_MESSAGE
+    enqueue.assert_not_called()
+
+
+def test_missing_audio_in_one_interval_does_not_discard_valid_source(checkpoint_db, monkeypatch):
+    run = checkpoints.initialize_run(video(checkpoint_db), 301)
+    monkeypatch.setattr(tasks, "resolve_media_input", lambda key: key)
+    monkeypatch.setattr(tasks, "ensure_audio_stream", lambda _: None)
+    monkeypatch.setattr(tasks, "transcribe_audio_interval",
+                        MagicMock(side_effect=NoAudioStreamError(NO_AUDIO_MESSAGE)))
+    with pytest.raises(NoAudioStreamError):
+        tasks.transcribe_video_chunk(42, run.run_id, 0)
+    assert not checkpoints.load_run(42).completed
+    with checkpoint_db() as conn:
+        row = conn.execute("SELECT failures FROM video_transcription_chunks WHERE chunk_index = 0").fetchone()
+        assert row["failures"] == 1
 
 
 def test_completed_checkpoint_survives_failed_queue_handoff(checkpoint_db, monkeypatch):
@@ -320,6 +376,7 @@ def test_quota_failure_never_enqueues_or_creates_a_plan(checkpoint_db, monkeypat
     monkeypatch.setattr(transcription, "heavy_pipeline_enabled", lambda: True)
     monkeypatch.setattr(tasks, "_ffprobe_duration", lambda _: 9289.617)
     monkeypatch.setattr(tasks, "resolve_media_input", lambda key: key)
+    monkeypatch.setattr(tasks, "ensure_audio_stream", lambda _: None)
     enqueue = MagicMock()
     monkeypatch.setattr(tasks, "enqueue_job", enqueue)
     transcription.transcribe_video(42)
