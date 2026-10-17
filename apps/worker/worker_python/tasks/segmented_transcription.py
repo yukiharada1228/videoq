@@ -113,11 +113,12 @@ def transcribe_video_chunk(video_id: int, run_id: str, chunk_index: int) -> None
     active, completed = checkpoints.chunk_state(run, chunk_index)
     if not active:
         return
+    source = resolve_media_input(run.file_key)
     try:
         if not completed:
             start = chunk_index * run.chunk_seconds
             duration = min(run.chunk_seconds, run.duration_ms / 1000 - start)
-            segments = _transcribe_interval(resolve_media_input(run.file_key), start, duration,
+            segments = _transcribe_interval(source, start, duration,
                                             run=run, index=chunk_index)
             if segments is None:
                 return
@@ -126,9 +127,15 @@ def transcribe_video_chunk(video_id: int, run_id: str, chunk_index: int) -> None
             logger.info("Transcription checkpoint saved: video=%d chunk=%d/%d", video_id, chunk_index + 1, run.chunk_count)
         _dispatch_pending(run, after_index=chunk_index)
     except NoAudioStreamError as error:
-        checkpoints.reject_no_audio(video_id, run.file_key, run.transcript_hash,
-                                    str(error), run_id=run.run_id, chunk_index=chunk_index)
-        logger.info("Stopped transcription without audio: video=%d", video_id)
+        try:
+            ensure_audio_stream(source)
+        except NoAudioStreamError:
+            checkpoints.reject_no_audio(video_id, run.file_key, run.transcript_hash,
+                                        str(error), run_id=run.run_id, chunk_index=chunk_index)
+            logger.info("Stopped transcription without audio: video=%d", video_id)
+        else:
+            checkpoints.record_chunk_failure(run, chunk_index, str(error))
+            raise
     except Exception as error:
         try:
             checkpoints.record_chunk_failure(run, chunk_index, str(error))

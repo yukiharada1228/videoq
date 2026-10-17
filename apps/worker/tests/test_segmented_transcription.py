@@ -232,6 +232,8 @@ def test_video_without_audio_never_reserves_quota_or_enqueues(checkpoint_db, mon
 def test_existing_silent_plan_stops_all_lanes_without_sqs_retry(checkpoint_db, monkeypatch):
     run = checkpoints.initialize_run(video(checkpoint_db), 301)
     monkeypatch.setattr(tasks, "resolve_media_input", lambda key: key)
+    monkeypatch.setattr(tasks, "ensure_audio_stream",
+                        MagicMock(side_effect=NoAudioStreamError(NO_AUDIO_MESSAGE)))
     provider = MagicMock(side_effect=NoAudioStreamError(NO_AUDIO_MESSAGE))
     monkeypatch.setattr(tasks, "transcribe_audio_interval", provider)
     enqueue = MagicMock()
@@ -245,6 +247,20 @@ def test_existing_silent_plan_stops_all_lanes_without_sqs_retry(checkpoint_db, m
         row = conn.execute("SELECT error_message FROM videos WHERE id = 42").fetchone()
         assert row["error_message"] == NO_AUDIO_MESSAGE
     enqueue.assert_not_called()
+
+
+def test_missing_audio_in_one_interval_does_not_discard_valid_source(checkpoint_db, monkeypatch):
+    run = checkpoints.initialize_run(video(checkpoint_db), 301)
+    monkeypatch.setattr(tasks, "resolve_media_input", lambda key: key)
+    monkeypatch.setattr(tasks, "ensure_audio_stream", lambda _: None)
+    monkeypatch.setattr(tasks, "transcribe_audio_interval",
+                        MagicMock(side_effect=NoAudioStreamError(NO_AUDIO_MESSAGE)))
+    with pytest.raises(NoAudioStreamError):
+        tasks.transcribe_video_chunk(42, run.run_id, 0)
+    assert not checkpoints.load_run(42).completed
+    with checkpoint_db() as conn:
+        row = conn.execute("SELECT failures FROM video_transcription_chunks WHERE chunk_index = 0").fetchone()
+        assert row["failures"] == 1
 
 
 def test_completed_checkpoint_survives_failed_queue_handoff(checkpoint_db, monkeypatch):
