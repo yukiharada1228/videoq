@@ -371,9 +371,18 @@ to Modal's `main` environment. A coordinated Lambda deployment waits for Modal
 to succeed. Manual CD dispatch also deploys Modal. The `production-app` GitHub
 Environment only permits deployments from `main`.
 
+The Web Function uses `requires_proxy_auth=True`. Modal rejects unauthorized
+requests before starting its CPU container; the CPU function bounds the complete
+multipart body before invoking the private GPU method. The worker's SSM app
+parameter must contain the protected URL and a combined Modal proxy token in
+`WHISPER_MODAL_URL` and `WHISPER_MODAL_TOKEN`. The old public URL is removed.
+Verify that a request without a proxy token returns 401, that the old URL returns
+404, and that an authorized transcription succeeds.
+
 Set `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` as GitHub Environment secrets in
-`production-app`. These authenticate the Modal CLI; the endpoint bearer token
-stays in Modal's `videoq-whisper-auth` Secret and the worker's SSM app parameter.
+`production-app`. These authenticate the Modal CLI. The distinct endpoint proxy
+token is stored in the worker's SSM app parameter; it is not a Modal API token.
+The former `videoq-whisper-auth` Secret has been deleted.
 The Modal token must be able to deploy to the `main` Modal environment. CI pins
 `modal==1.6.1` and runs `modal deploy --env main` on the verified commit.
 

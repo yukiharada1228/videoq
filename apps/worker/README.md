@@ -83,7 +83,7 @@ results. Checkpoints are deleted by foreign-key cascade when the video is delete
 | `SQS_QUEUE_URL` | Amazon SQS / ElasticMQ |
 | `OPENAI_API_KEY` | Whisper and embeddings |
 | `WHISPER_BACKEND` | `openai` (default), `modal`, or `local` |
-| `WHISPER_MODAL_URL` / `WHISPER_MODAL_TOKEN` | Root URL and bearer token for the authenticated Modal batch transcription API; required when `WHISPER_BACKEND=modal` |
+| `WHISPER_MODAL_URL` / `WHISPER_MODAL_TOKEN` | Protected Modal API root URL and combined proxy token (`wk-….ws-…`); required when `WHISPER_BACKEND=modal` |
 | `EMBEDDING_PROVIDER` | `openai` (default) or `ollama` |
 | `EMBEDDING_MODEL` | Defaults to `text-embedding-3-small` for OpenAI. Required explicitly for Ollama (validated configuration: `qwen3-embedding:4b`) |
 | `USE_S3_STORAGE` | Enable S3-compatible object storage |
@@ -96,6 +96,14 @@ results. Checkpoints are deleted by foreign-key cascade when the video is delete
 | `MEDIA_PROCESS_CPU_TIME_LIMIT_SECONDS` | CPU time limit for media subprocesses (default: 300 seconds) |
 | `MEDIA_PROCESS_MEMORY_LIMIT_MB` | Address space limit for media subprocesses on Linux (default: 2,048 MiB) |
 | `MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB` | File size limit for files written by media subprocesses (default: 1,024 MiB) |
+
+Modal's proxy checks the token before starting a container. The CPU web function
+then checks the model, response format, and a 16 MiB audio / 16 MiB + 64 KiB
+total request limit before invoking the private GPU method. The former public
+`WhisperService.api` URL has been removed. Modal may retain Web Function and
+remote Function inputs and outputs for up to seven days; do not treat deletion
+from VideoQ as immediate deletion from Modal. No processing region is pinned by
+this configuration.
 
 Dedicated storage credentials are selected from `R2_ACCESS_KEY_ID` /
 `R2_SECRET_ACCESS_KEY` first, then `AWS_S3_ACCESS_KEY_ID` / `AWS_S3_SECRET_ACCESS_KEY`.

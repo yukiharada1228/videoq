@@ -1,17 +1,13 @@
 """Authenticated Modal Whisper API for VideoQ's 30-minute transcription jobs.
 
 Deploy with ``modal deploy apps/worker/modal_batched_whisper.py`` after creating
-the ``videoq-whisper-auth`` Modal Secret with ``VIDEOQ_WHISPER_TOKEN``.
+a Modal proxy token for the worker. The proxy rejects unauthenticated requests
+before the CPU Web Function starts; only validated audio invokes the GPU.
 """
 
-from __future__ import annotations
-
-import hmac
-import os
 from time import perf_counter
 
 import modal
-from fastapi import Request
 
 
 MODEL_REPO = "Systran/faster-whisper-large-v3"
@@ -27,13 +23,15 @@ image = (
     .entrypoint([])
     .uv_pip_install(
         "faster-whisper==1.2.1", "huggingface-hub==0.36.0",
-        "fastapi==0.115.12", "python-multipart==0.0.20",
     )
     .run_commands(
         "python -c 'from huggingface_hub import snapshot_download; "
         f'snapshot_download("{MODEL_REPO}", revision="{MODEL_REVISION}", '
         f'local_dir="{MODEL_PATH}")' + "'"
     )
+)
+web_image = modal.Image.debian_slim(python_version="3.11").pip_install(
+    "fastapi==0.115.12", "python-multipart==0.0.20",
 )
 
 app = modal.App("videoq-batched-whisper")
@@ -157,7 +155,6 @@ def transcribe_with_repair(model, audio_bytes: bytes) -> dict:
 @app.cls(
     image=image, gpu="T4", cpu=1, memory=4096, timeout=300,
     scaledown_window=2, min_containers=0, max_containers=4,
-    secrets=[modal.Secret.from_name("videoq-whisper-auth")],
 )
 class WhisperService:
     @modal.enter()
@@ -166,25 +163,55 @@ class WhisperService:
 
         self.model = WhisperModel(MODEL_PATH, device="cuda", compute_type="float16")
 
-    @modal.asgi_app()
-    def api(self):
-        from fastapi import FastAPI, HTTPException
-        from starlette.datastructures import UploadFile
+    @modal.method()
+    def transcribe(self, audio: bytes) -> dict:
+        try:
+            return {"ok": True, "result": transcribe_with_repair(self.model, audio)}
+        except ValueError as exc:
+            return {"ok": False, "error": str(exc)}
 
-        web = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
-        @web.post("/v1/audio/transcriptions")
-        async def transcribe(request: Request):
-            expected = os.environ["VIDEOQ_WHISPER_TOKEN"]
-            authorization = request.headers.get("authorization", "")
-            if not authorization.startswith("Bearer ") or not hmac.compare_digest(
-                authorization[7:], expected
-            ):
-                raise HTTPException(status_code=401, detail="Unauthorized")
-            content_length = request.headers.get("content-length")
-            if content_length and int(content_length) > MAX_AUDIO_BYTES + 65536:
-                raise HTTPException(status_code=413, detail="Audio exceeds 16 MiB")
-            form = await request.form(max_files=1, max_fields=8)
+def create_web_app(service=None):
+    """Bound proxy-authenticated requests before starting GPU inference."""
+    from fastapi import FastAPI, HTTPException, Request
+    from starlette.datastructures import UploadFile
+
+    service = service or WhisperService()
+    web = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    max_request_bytes = MAX_AUDIO_BYTES + 65536
+
+    @web.post("/v1/audio/transcriptions")
+    async def transcribe(request: Request):
+        content_length = request.headers.get("content-length")
+        if content_length is not None:
+            try:
+                declared_length = int(content_length)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid Content-Length")
+            if declared_length < 0:
+                raise HTTPException(status_code=400, detail="Invalid Content-Length")
+            if declared_length > max_request_bytes:
+                raise HTTPException(status_code=413, detail="Request exceeds 16 MiB")
+
+        # Limit the complete multipart body even when Content-Length is absent or false.
+        body = bytearray()
+        async for chunk in request.stream():
+            if len(body) + len(chunk) > max_request_bytes:
+                raise HTTPException(status_code=413, detail="Request exceeds 16 MiB")
+            body.extend(chunk)
+
+        delivered = False
+
+        async def receive():
+            nonlocal delivered
+            if delivered:
+                return {"type": "http.request", "body": b"", "more_body": False}
+            delivered = True
+            return {"type": "http.request", "body": bytes(body), "more_body": False}
+
+        bounded_request = Request(request.scope, receive)
+        form = await bounded_request.form(max_files=1, max_fields=8)
+        try:
             file = form.get("file")
             model = form.get("model")
             response_format = form.get("response_format", "verbose_json")
@@ -195,9 +222,24 @@ class WhisperService:
             audio = await file.read(MAX_AUDIO_BYTES + 1)
             if not audio or len(audio) > MAX_AUDIO_BYTES:
                 raise HTTPException(status_code=413, detail="Audio exceeds 16 MiB")
-            try:
-                return transcribe_with_repair(self.model, audio)
-            except ValueError as exc:
-                raise HTTPException(status_code=400, detail=str(exc)) from exc
+        finally:
+            await form.close()
 
-        return web
+        result = await service.transcribe.remote.aio(audio)
+        if not result["ok"]:
+            raise HTTPException(status_code=400, detail=result["error"])
+        return result["result"]
+
+    return web
+
+
+@app.function(
+    image=web_image, cpu=0.25, memory=512, timeout=300,
+    scaledown_window=2, min_containers=0, max_containers=4,
+)
+@modal.asgi_app(
+    label="videoq-batched-whisper-secure-api", requires_proxy_auth=True,
+)
+def secure_api():
+    # Modal rejects unauthenticated traffic before starting this container.
+    return create_web_app()
