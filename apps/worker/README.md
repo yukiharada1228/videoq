@@ -97,13 +97,14 @@ results. Checkpoints are deleted by foreign-key cascade when the video is delete
 | `MEDIA_PROCESS_MEMORY_LIMIT_MB` | Address space limit for media subprocesses on Linux (default: 2,048 MiB) |
 | `MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB` | File size limit for files written by media subprocesses (default: 1,024 MiB) |
 
-Modal's proxy checks the token before starting a container. The CPU web function
-then checks the model, response format, and a 16 MiB audio / 16 MiB + 64 KiB
-total request limit before invoking the private GPU method. The former public
-`WhisperService.api` URL has been removed. Modal may retain Web Function and
-remote Function inputs and outputs for up to seven days; do not treat deletion
-from VideoQ as immediate deletion from Modal. No processing region is pinned by
-this configuration.
+Modal's proxy checks the token before starting the GPU container. The
+proxy-authenticated `WhisperService.api` checks the model, response format, and
+a 16 MiB audio / 16 MiB + 64 KiB total request limit before transcription.
+Authenticated invalid requests can start the GPU container. The former public
+URL and separate CPU `secure_api` function are removed. Modal may retain Web
+Function inputs and outputs for up to seven days; do not treat deletion from
+VideoQ as immediate deletion from Modal. No processing region is pinned by this
+configuration.
 
 Dedicated storage credentials are selected from `R2_ACCESS_KEY_ID` /
 `R2_SECRET_ACCESS_KEY` first, then `AWS_S3_ACCESS_KEY_ID` / `AWS_S3_SECRET_ACCESS_KEY`.

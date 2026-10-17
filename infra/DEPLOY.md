@@ -371,11 +371,13 @@ to Modal's `main` environment. A coordinated Lambda deployment waits for Modal
 to succeed. Manual CD dispatch also deploys Modal. The `production-app` GitHub
 Environment only permits deployments from `main`.
 
-The Web Function uses `requires_proxy_auth=True`. Modal rejects unauthorized
-requests before starting its CPU container; the CPU function bounds the complete
-multipart body before invoking the private GPU method. The worker's SSM app
-parameter must contain the protected URL and a combined Modal proxy token in
-`WHISPER_MODAL_URL` and `WHISPER_MODAL_TOKEN`. The old public URL is removed.
+The GPU Web Function uses `requires_proxy_auth=True`. Modal rejects unauthorized
+requests before starting the GPU container; the function bounds the complete
+multipart body before transcription. Authorized invalid requests may start the
+GPU container. The worker's SSM app parameter must contain the protected URL
+and a combined Modal proxy token in `WHISPER_MODAL_URL` and
+`WHISPER_MODAL_TOKEN`. The old public URL and separate CPU `secure_api` function
+are removed.
 Verify that a request without a proxy token returns 401, that the old URL returns
 404, and that an authorized transcription succeeds.
 
