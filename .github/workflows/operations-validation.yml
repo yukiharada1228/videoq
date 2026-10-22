@@ -1,0 +1,30 @@
+name: Operations Validation
+on:
+  pull_request:
+    paths:
+      - '.github/operations-tools/**'
+      - '.github/scripts/backup-restore*'
+      - '.github/workflows/operations-validation.yml'
+  push:
+    branches: [main]
+    paths:
+      - '.github/operations-tools/**'
+      - '.github/scripts/backup-restore*'
+      - '.github/workflows/operations-validation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  restore-fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --prefix .github/operations-tools
+      - name: Restore synthetic vector data and foreign keys without production access
+        run: node .github/scripts/backup-restore-fixture.mjs
