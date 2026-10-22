@@ -2,10 +2,9 @@
 /**
  * Restore a credential password for an existing user in a local database.
  *
- *   npm run user:password:local -- <username-or-email>
  *   VIDEOQ_LOCAL_PASSWORD='at-least-12-characters' npm run user:password:local -- <username-or-email>
  */
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -52,9 +51,8 @@ if (!new Set(["127.0.0.1", "localhost", "::1"]).has(databaseHost)) {
   throw new Error(`Refusing to reset a password on non-local database host: ${databaseHost}`);
 }
 
-const configuredPassword = process.env.VIDEOQ_LOCAL_PASSWORD;
-const password = configuredPassword || `Local-${randomBytes(15).toString("base64url")}`;
-if (password.length < 12 || password.length > 128) {
+const password = process.env.VIDEOQ_LOCAL_PASSWORD;
+if (!password || password.length < 12 || password.length > 128) {
   throw new Error("VIDEOQ_LOCAL_PASSWORD must be between 12 and 128 characters");
 }
 const passwordHash = await hashPassword(password);
@@ -113,7 +111,6 @@ try {
   await client.query("COMMIT");
 
   console.log(`Local password restored: username=${user.username} email=${user.email}`);
-  if (!configuredPassword) console.log(`Temporary password: ${password}`);
   console.log("All existing sessions for this user were revoked.");
 } catch (error) {
   await client.query("ROLLBACK");

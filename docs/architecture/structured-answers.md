@@ -44,6 +44,9 @@ The paid opt-in fixture test uses two fixed subtitle scenes (rotation and Python
 STRUCTURED_ANSWER_LIVE=1 STRUCTURED_ANSWER_BROWSER=1 STRUCTURED_ANSWER_REPORT=/tmp/videoq-answer-structured.json npm run test:unit --workspace @videoq/api -- test/structured-answer.live.test.ts
 ```
 
+The report path must not already exist. Omit `STRUCTURED_ANSWER_REPORT` to create
+a private report directory automatically; the test prints its path.
+
 The test reads API configuration from environment variables or `apps/api/.dev.vars`, without writing credentials into reports. Chromium must be installed. `STRUCTURED_ANSWER_CASE` optionally selects one fixture during investigation. Normal CI skips these calls.
 
 Acceptance criteria fixed before comparison: no request or shape failures; all fixture facts correct; no missing or incorrect source links; no broken math/code or unnatural segment joins; per-mode median first visible text and completed rendering at most baseline × 1.25 + 250 ms. Record individual repeats, provider calls, repair calls, input/output tokens and source IDs. ID validity and whether a passage is actually supported are reviewed separately.
