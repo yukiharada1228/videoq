@@ -36,6 +36,9 @@ async function cleanup(user) {
   const { rows } = await db.query('SELECT id, status FROM videos WHERE user_id = $1', [user.id]);
   // Do not race a running worker or orphan its uploads. A later run retries terminal videos.
   if (rows.some(video => !['ready', 'error', 'uploading'].includes(video.status))) return false;
+  const visual = await db.query(`SELECT count(*) FROM video_visual_runs r JOIN videos v ON v.id = r.video_id
+    WHERE v.user_id = $1 AND r.status = 'processing'`, [user.id]);
+  if (Number(visual.rows[0].count)) return false;
   for (const video of rows) await rpc('videos.delete', { id: Number(video.id) }, true);
   const pending = await db.query(`SELECT count(*) FROM external_tasks WHERE kind = 'storage_cleanup'
     AND payload->>'user_id' = $1 AND completed_at IS NULL`, [user.id]);
@@ -95,11 +98,13 @@ try {
   let video;
   for (let attempt = 0; attempt < 40; attempt++) {
     video = await rpc('videos.get', { id: upload.video.id });
-    if (video.status === 'ready') break;
+    if (video.visual_processing?.status === 'error') throw new Error('Visual processing failed');
+    if (video.status === 'ready' && video.visual_processing?.status !== 'processing') break;
     if (video.status === 'error') throw new Error('Processing failed');
     await delay(20_000);
   }
-  if (video.status !== 'ready' || !video.transcript?.trim()) throw new Error('No completed transcript');
+  if (video.status !== 'ready' || video.visual_processing?.status === 'processing' ||
+      !video.transcript?.trim()) throw new Error('Video processing did not finish');
   const embedded = await db.query('SELECT count(*) FROM scene_embeddings WHERE user_id = $1 AND video_id = $2', [id, video.id]);
   if (Number(embedded.rows[0].count) < 1) throw new Error('No scene embeddings');
   stage = 'browser';
