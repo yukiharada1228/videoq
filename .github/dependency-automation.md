@@ -83,7 +83,7 @@ Docker／Composeは `Container Validation`、Terraformは `Terraform Plan` の�
 1. この変更をmainへマージする。
 2. リポジトリ専用GitHub Appを作成・インストールする。Webhookは不要。
    Repository permissions: **Contents: Read and write**、**Pull requests: Read and write**、
-   **Administration: Read-only**（ブランチ保護の確認用）、標準のMetadata Read-only。
+   **Administration: Read-only**（ブランチ保護の確認用）、**Workflows: Read and write**（GitHub Actions更新のマージ用）、標準のMetadata Read-only。
    mainの保護をバイパスする権限は付けない。
 3. [Actions secrets / variables](https://github.com/yukiharada1228/videoq/settings/secrets/actions)に以下を登録する。
 

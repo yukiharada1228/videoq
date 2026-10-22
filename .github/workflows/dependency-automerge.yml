@@ -37,6 +37,7 @@ jobs:
           permission-contents: write
           permission-pull-requests: write
           permission-administration: read
+          permission-workflows: ${{ startsWith(github.event.pull_request.head.ref, 'dependabot/github_actions/') && 'write' || '' }}
       - name: Clear any previous auto-merge request before re-evaluating
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
