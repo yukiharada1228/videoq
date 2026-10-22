@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, ftruncateSync, mkdtempSync, openSync, readFileSync, writeSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parse } from "dotenv";
@@ -50,9 +50,17 @@ describe.skipIf(!enabled)("structured answer comparison (paid, opt-in)", () => {
         rejectedIds += counts.invalid_id + counts.unknown_id;
       } else warn(entry, ...args);
     });
-    const browser = process.env.STRUCTURED_ANSWER_BROWSER === "1"
-      ? await (await import("./support/answer-browser")).answerBrowser() : undefined;
+    // A private, randomly created directory prevents shared-tmp symlink attacks.
+    // Explicit report paths must also be new files; hold the exclusive fd for
+    // the entire run so progress updates never follow a replaced path.
+    const reportPath = process.env.STRUCTURED_ANSWER_REPORT
+      ?? join(mkdtempSync(join(tmpdir(), "videoq-answer-")), "structured.json");
+    const report = openSync(reportPath, "wx", 0o600);
+    console.log(`Structured answer report: ${reportPath}`);
+    let browser: Awaited<ReturnType<typeof import("./support/answer-browser").answerBrowser>> | undefined;
     try {
+      browser = process.env.STRUCTURED_ANSWER_BROWSER === "1"
+        ? await (await import("./support/answer-browser")).answerBrowser() : undefined;
       for (const scenario of cases.filter(s => !process.env.STRUCTURED_ANSWER_CASE || s.id === process.env.STRUCTURED_ANSWER_CASE)) for (let repeat = 0; repeat < 3; repeat++) {
         let calls = 0;
         rejectedIds = 0;
@@ -117,10 +125,12 @@ describe.skipIf(!enabled)("structured answer comparison (paid, opt-in)", () => {
         if (visible) expect.soft(visible.mathErrors).toBe(0);
         results.push({ id: scenario.id, repeat, course: scenario.course, firstTextMs, firstCitationMs,
           completionMs, calls, repairCalls: 0, rejectedIds, inputTokens, outputTokens, content, final, ...visible });
-        writeFileSync(process.env.STRUCTURED_ANSWER_REPORT ?? join(tmpdir(), "videoq-answer-structured.json"), JSON.stringify({
+        const reportJson = JSON.stringify({
           model: env.LLM_MODEL, results,
-        }, null, 2));
+        }, null, 2);
+        writeSync(report, reportJson, 0, "utf8");
+        ftruncateSync(report, Buffer.byteLength(reportJson));
       }
-    } finally { globalThis.fetch = originalFetch; log.mockRestore(); await browser?.close(); }
+    } finally { closeSync(report); globalThis.fetch = originalFetch; log.mockRestore(); await browser?.close(); }
   }, 900_000);
 });

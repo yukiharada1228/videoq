@@ -1,6 +1,7 @@
 import { AwsClient } from "aws4fetch";
 import type { Bindings } from "../types/bindings";
 import { deadlineSignal } from "../lib/request-timeout";
+import { stripTrailingSlashes } from "../lib/url";
 
 const S3_OPERATION_TIMEOUT_MS = 10_000;
 
@@ -44,11 +45,11 @@ function requireS3Config(
   }
   // 署名 URL はブラウザ到達可能な公開 endpoint。サーバー側 ops は INTERNAL があればそちら。
   const usePublic = opts.public !== false;
-  const endpoint = (
+  const endpoint = stripTrailingSlashes(
     usePublic
       ? publicEndpoint
       : env.R2_S3_INTERNAL_ENDPOINT || publicEndpoint
-  ).replace(/\/+$/, "");
+  );
   // R2 は "auto"、ローカル Garage は "garage"、AWS S3 はバケットのリージョン。
   const region = (env.R2_S3_REGION || env.AWS_REGION || "auto").trim() || "auto";
   return {
@@ -230,7 +231,9 @@ export async function createR2MultipartUpload(
   const xml = await multipartXml(response);
   const uploadId = xml.match(/<UploadId>([^<]+)<\/UploadId>/)?.[1];
   if (!uploadId) throw new Error("S3 multipart upload ID is missing");
-  return uploadId.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+  // Decode only the entities present in the original XML, exactly once.
+  const entities: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
+  return uploadId.replace(/&(amp|lt|gt|quot|apos);/g, (_, entity: string) => entities[entity]);
 }
 
 export async function completeR2MultipartUpload(
