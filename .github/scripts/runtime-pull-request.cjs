@@ -1,4 +1,4 @@
-const fs = require('node:fs');
+const { Buffer } = require('node:buffer');
 
 const FILES = new Set([
   '.github/runtime-versions.json', '.node-version', '.nvmrc', '.python-version',
