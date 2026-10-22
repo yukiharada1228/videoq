@@ -1,0 +1,101 @@
+name: Dependency Patch Auto-merge
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled, edited, converted_to_draft]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: dependency-automation-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  enable:
+    if: >-
+      github.repository == 'yukiharada1228/videoq' &&
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      vars.DEPENDENCY_AUTOMERGE_ENABLED == 'true' && vars.PATCH_BOT_APP_ID != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Only trusted policy is checked out. Never install or execute PR code here.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - name: Create repository-scoped bot token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        id: app
+        with:
+          app-id: ${{ vars.PATCH_BOT_APP_ID }}
+          private-key: ${{ secrets.PATCH_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-administration: read
+      - name: Clear any previous auto-merge request before re-evaluating
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: context.issue.number });
+            if (pr.auto_merge) {
+              await github.graphql('mutation($id: ID!) { disablePullRequestAutoMerge(input: {pullRequestId: $id}) { clientMutationId } }', { id: pr.node_id });
+            }
+      - name: Scope the update
+        id: scope
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const policy = require('./.github/scripts/dependency-automation.cjs');
+            const { pr, files, comments } = await policy.getPull({ github, context, number: context.issue.number });
+            core.setOutput('eligible', pr.head.sha === context.payload.pull_request.head.sha && policy.eligiblePull(pr, files, 'no-automerge', comments));
+            core.setOutput('sha', pr.head.sha);
+      - name: Read verified Dependabot metadata
+        if: steps.scope.outputs.eligible == 'true'
+        id: metadata
+        uses: dependabot/fetch-metadata@21025c705c08248db411dc16f3619e6b5f9ea21a # v2
+      - name: Verify patch policy and branch protection
+        id: policy
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          ELIGIBLE: ${{ steps.scope.outputs.eligible }}
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+          ECOSYSTEM: ${{ steps.metadata.outputs.package-ecosystem }}
+          MAINTAINER_CHANGES: ${{ steps.metadata.outputs.maintainer-changes }}
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const policy = require('./.github/scripts/dependency-automation.cjs');
+            const eligible = process.env.ELIGIBLE === 'true' && policy.patchMetadata({
+              updateType: process.env.UPDATE_TYPE, ecosystem: process.env.ECOSYSTEM,
+              maintainerChanges: process.env.MAINTAINER_CHANGES,
+            });
+            if (eligible) {
+              const { data } = await github.rest.repos.getBranchProtection({ ...context.repo, branch: 'main' });
+              policy.requireProtection(data);
+            }
+            core.setOutput('eligible', eligible);
+      - name: Recheck current PR
+        id: current
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          EXPECTED_SHA: ${{ steps.scope.outputs.sha }}
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const policy = require('./.github/scripts/dependency-automation.cjs');
+            const { pr, files, comments } = await policy.getPull({ github, context, number: context.issue.number });
+            core.setOutput('eligible', pr.head.sha === process.env.EXPECTED_SHA && policy.eligiblePull(pr, files, 'no-automerge', comments));
+      - name: Queue patch merge after required checks pass
+        if: steps.policy.outputs.eligible == 'true' && steps.current.outputs.eligible == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EXPECTED_SHA: ${{ steps.scope.outputs.sha }}
+        run: gh pr merge "$PR_NUMBER" --auto --squash --match-head-commit "$EXPECTED_SHA"
