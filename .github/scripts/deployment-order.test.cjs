@@ -35,6 +35,14 @@ function canDeploy(jobName, outputs, results = {}) {
 
 const workerCanDeploy = (outputs, results) => canDeploy('worker-deploy', outputs, results);
 
+test('every CD checkout uses a GitHub-provided immutable SHA', () => {
+  const refs = [...workflow.matchAll(/^\s+ref: (.+)$/gm)].map(match => match[1]);
+  assert.ok(refs.length >= 8);
+  for (const ref of refs) {
+    assert.ok(['${{ github.sha }}', '${{ github.workflow_sha }}'].includes(ref), ref);
+  }
+});
+
 test('database migrations run once before API deployment', () => {
   assert.equal(workflow.includes('db-finalize:'), false);
   assert.equal(workflow.includes('MIGRATION_PHASE:'), false);
@@ -53,7 +61,7 @@ test('Modal deploy uses verified main code and environment-scoped credentials', 
   const modal = job('modal-deploy');
   assert.ok(modal.dependencies.includes('changes'));
   assert.match(modal.body, /environment: production-app/);
-  assert.match(modal.body, /ref: \$\{\{ needs\.changes\.outputs\.sha \}\}/);
+  assert.match(modal.body, /ref: \$\{\{ github\.sha \}\}/);
   assert.match(modal.body, /modal deploy --env main apps\/worker\/modal_batched_whisper\.py/);
   assert.match(modal.body, /secrets\.MODAL_TOKEN_ID/);
   assert.match(modal.body, /secrets\.MODAL_TOKEN_SECRET/);

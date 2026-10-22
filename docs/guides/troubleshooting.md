@@ -34,10 +34,14 @@ In a local environment without email configured, check the [account promotion st
 For migrated local accounts showing `Password not found`, use this recovery command:
 
 ```bash
+read -rsp 'New local password (12–128 characters): ' VIDEOQ_LOCAL_PASSWORD
+echo
+export VIDEOQ_LOCAL_PASSWORD
 npm run user:password:local --workspace @videoq/api -- your-username
+unset VIDEOQ_LOCAL_PASSWORD
 ```
 
-It displays a temporary local password. Do not apply this procedure directly to shared or production login issues.
+Run these commands in Bash. The password is read without echo and is never logged. Do not apply this procedure directly to shared or production login issues.
 
 If login attempts hit the local rate limit, stop the API, reset the RateLimiter's local state, and restart the API. See [reset-rate-limit.sh](https://github.com/yukiharada1228/videoq/blob/main/apps/api/scripts/reset-rate-limit.sh) for its requirements.
 

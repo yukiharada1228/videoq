@@ -11,6 +11,9 @@ let started = false;
 const send = (message: CompressionMessage) => self.postMessage(message);
 const checkCanceled = () => { if (canceled) throw new DOMException('Canceled', 'AbortError'); };
 
+// This is a DedicatedWorkerGlobalScope, created only by videoCompression.ts.
+// Its messages come through the creator's private Worker channel; it is not a
+// Window message listener and worker MessageEvent.origin is the empty string.
 self.onmessage = ({ data }: MessageEvent<Start | { type: 'cancel' }>) => {
   if (data.type === 'cancel') {
     canceled = true;

@@ -38,6 +38,7 @@ for (const [name, mutation] of [
   ['non-main CI branch', f => { f.context.payload.workflow_run.head_branch = 'feature'; }],
   ['failed triggering CI', f => { f.context.payload.workflow_run.conclusion = 'failure'; }],
   ['stale deployment after main advances', f => { f.context.payload.workflow_run.head_sha = 'b'.repeat(40); }],
+  ['workflow context SHA differs from current main', f => { f.context.sha = 'b'.repeat(40); }],
   ['a different workflow named CI', f => { f.run.workflow_id = 5; }],
   ['API reports a different source SHA', f => { f.run.head_sha = 'b'.repeat(40); }],
   ['API reports fork source', f => { f.run.head_repository = { full_name: 'attacker/videoq' }; }],
