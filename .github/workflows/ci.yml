@@ -253,9 +253,12 @@ jobs:
         run: |
           docker build --platform linux/arm64 -t videoq-worker-test apps/worker
           uv export --quiet --project apps/worker --locked --extra dev --no-emit-project --format requirements-txt --output-file apps/worker/ci-requirements.txt
+          # Production has no package installer. Mount the checksum-verified CI
+          # uv binary only for installing the locked test dependencies here.
           docker run --rm --entrypoint /bin/sh \
+            -v "$(command -v uv):/ci-uv:ro" \
             -v "$PWD:/workspace:ro" -w /workspace/apps/worker videoq-worker-test \
-            -c 'pip install --require-hashes --only-binary=:all: -r ci-requirements.txt && python -m pytest -p no:cacheprovider tests/test_media_process.py tests/test_remote_media.py tests/test_visual_frames.py tests/test_focus_frames.py tests/test_visual_chunks.py -q'
+            -c '/ci-uv pip install --system --python /var/lang/bin/python --require-hashes --only-binary=:all: -r ci-requirements.txt && python -m pytest -p no:cacheprovider tests/test_media_process.py tests/test_remote_media.py tests/test_visual_frames.py tests/test_focus_frames.py tests/test_visual_chunks.py -q'
 
   frontend-lint:
     name: Frontend Lint & Type Check
