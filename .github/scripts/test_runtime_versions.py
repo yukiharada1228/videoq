@@ -47,6 +47,13 @@ class RuntimeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             runtime.standalone("3.15.1", [{"assets": []}])
 
+    def test_unknown_image_repositories_are_rejected_before_network_access(self):
+        with patch.object(runtime, "request") as request:
+            for name in ["evil.example/ghcr.io/astral-sh/uv", "ghcr.io/evil", "node/../../other"]:
+                with self.assertRaises(ValueError):
+                    runtime.image_digest(name, "26.12.1")
+            request.assert_not_called()
+
     def test_image_manifest_must_cover_both_production_architectures(self):
         def response(url, headers=None, raw=False):
             return b'{"manifests":[{"platform":{"architecture":"amd64"}}]}' if raw else {"token": "not-a-secret"}

@@ -9,7 +9,7 @@ RUN apt-get update \
     && curl --fail --location --retry 3 --proto '=https' --tlsv1.2 "$PYTHON_STANDALONE_URL" -o /tmp/python.tar.gz \
     && echo "$PYTHON_STANDALONE_SHA256  /tmp/python.tar.gz" | sha256sum --check --strict \
     && tar -xzf /tmp/python.tar.gz -C /opt \
-    && ln -s python3 /opt/python/bin/python \
+    && ln -sf python3 /opt/python/bin/python \
     && rm /tmp/python.tar.gz \
     && rm -rf /var/lib/apt/lists/*
 ENV PATH="/opt/python/bin:${PATH}"

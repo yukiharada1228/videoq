@@ -11,8 +11,11 @@ RUN python -c 'import hashlib,os,pathlib,sys,urllib.request; b=urllib.request.ur
     && rm "/tmp/pip-${PIP_VERSION}-py3-none-any.whl" \
     && python -c 'import os,pip,sys; sys.exit(0 if pip.__version__==os.environ["PIP_VERSION"] else 1)'
 # END managed pip
+# AWS publishes the patch level of its managed runtime on its own schedule.
+# Pin the reviewed image digest and verify the supported release line; CI also
+# runs native media tests in this exact image and reports its actual patch level.
 ARG PYTHON_VERSION=3.14.9
-RUN python -c "import sys; assert '.'.join(map(str, sys.version_info[:3])) == '${PYTHON_VERSION}'"
+RUN python -c "import sys; print('AWS Lambda Python:', sys.version); assert sys.version_info[:2] == tuple(map(int, '${PYTHON_VERSION}'.split('.')[:2]))"
 COPY --from=uv /uv /usr/local/bin/uv
 
 # buildx sets TARGETARCH; both binaries target glibc >= 2.28 (Lambda uses 2.34).

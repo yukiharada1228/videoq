@@ -17,4 +17,8 @@ python3 .github/scripts/runtime-versions.py plan --runtime python --upgrade --ou
 
 `plan`は読み取り専用で、変更案をJSONへ出力します。Node.jsの配布情報はnodejs.org、Pythonはpython.org、npmはnpm registry、pipはPyPI、uvとstandalone Pythonは公式GitHub Releasesを参照します。npm/pip/uvのインストール前に、レビュー済みmanifestのハッシュを検証します。uvはLinux/macOSのamd64/arm64に対応します。npmのインストールスクリプト、uvのsource build、未検証のpip bootstrapスクリプトは実行しません。
 
-VideoQではLambdaとModalのPythonも合わせます。Modal SDKの `add_python` はパッチ版を指定できないため、standalone Pythonの公式アーカイブをSHA-256で確認してGPUイメージへ配置します。CIではNodeコンテナを実際にbuildし、LambdaのARM64イメージでPython処理を検証します。Modal用イメージでもネイティブ依存のimport、音声デコード、ASGI境界テストを実行します。GPU推論と本番への反映は通常のModalデプロイ工程で確認します。
+VideoQではLambdaのPythonマイナー系列と、ModalのPython完全版も連動して更新します。Modal SDKの `add_python` はパッチ版を指定できないため、standalone Pythonの公式アーカイブをSHA-256で確認してGPUイメージへ配置します。CIではNodeコンテナを実際にbuildし、LambdaのARM64イメージでPython処理を検証します。Modal用イメージでもネイティブ依存のimport、音声デコード、ASGI境界テストを実行します。GPU推論と本番への反映は通常のModalデプロイ工程で確認します。
+
+## Lambda の Python パッチ版
+
+CI・ローカル・Modal は manifest の Python 完全版を使用します。Lambda は AWS が配布する同じマイナー系列のイメージを digest で固定し、日次で新しい digest を追跡します。AWS イメージ内のパッチ版は AWS の公開時期に依存し、公式 Python と同時には更新されない場合があります（2026-10-22 の確認では公式 3.14.9 に対し AWS は 3.14.8）。Docker ビルドは実際の版を表示し、マイナー系列を検証します。ARM64 の本番イメージでネイティブメディア処理と脆弱性検査を実行するため、CI の Python だけを上げて検証を済ませることはありません。

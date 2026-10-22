@@ -1,4 +1,4 @@
-const { Buffer } = require('node:buffer');
+const { Buffer: NodeBuffer } = require('node:buffer');
 
 const FILES = new Set([
   '.github/runtime-versions.json', '.node-version', '.nvmrc', '.python-version',
@@ -13,7 +13,7 @@ function validate(plan) {
       !/^\d+\.\d+\.\d+$/.test(plan.version) ||
       !plan.files || typeof plan.files !== 'object' || Array.isArray(plan.files) ||
       Object.entries(plan.files).some(([name, content]) => !FILES.has(name) ||
-        typeof content !== 'string' || Buffer.byteLength(content) > 200_000) ||
+        typeof content !== 'string' || NodeBuffer.byteLength(content) > 200_000) ||
       plan.changed !== (Object.keys(plan.files).length > 0)) {
     throw new Error('Invalid interpreter update plan');
   }
@@ -55,7 +55,7 @@ async function publish({ github, context, core, plan, bot }) {
     const same = await Promise.all(Object.entries(plan.files).map(async ([path, content]) => {
       try {
         const { data } = await github.rest.repos.getContent({ ...context.repo, path, ref: old });
-        return Buffer.from(data.content, 'base64').toString('utf8') === content;
+        return NodeBuffer.from(data.content, 'base64').toString('utf8') === content;
       } catch (error) { if (error.status === 404) return false; throw error; }
     }));
     if (existing && diff.ahead_by === 0 && same.every(Boolean)) return;

@@ -47,15 +47,23 @@ def request(url, headers=None, raw=False):
 
 
 def image_digest(name, tag):
-    if name == "public.ecr.aws/lambda/python":
-        registry, repository = "public.ecr.aws", "lambda/python"
-        token = request("https://public.ecr.aws/token/?service=public.ecr.aws&scope=repository:lambda/python:pull")["token"]
-    elif name.startswith("ghcr.io/"):
-        registry, repository = "ghcr.io", name.removeprefix("ghcr.io/")
-        token = request("https://ghcr.io/token?service=ghcr.io&scope=repository:" + repository + ":pull")["token"]
+    # Fixed registry/repository pairs prevent URL substrings from selecting a host.
+    locations = {
+        "node": ("registry-1.docker.io", "library/node"),
+        "python": ("registry-1.docker.io", "library/python"),
+        "public.ecr.aws/lambda/python": ("public.ecr.aws", "lambda/python"),
+        "ghcr.io/astral-sh/uv": ("ghcr.io", "astral-sh/uv"),
+    }
+    if name not in locations:
+        raise ValueError("Unsupported runtime image repository")
+    registry, repository = locations[name]
+    if registry == "public.ecr.aws":
+        token_url = "https://public.ecr.aws/token/?service=public.ecr.aws&scope=repository:lambda/python:pull"
+    elif registry == "ghcr.io":
+        token_url = "https://ghcr.io/token?service=ghcr.io&scope=repository:astral-sh/uv:pull"
     else:
-        registry, repository = "registry-1.docker.io", "library/" + name
-        token = request("https://auth.docker.io/token?service=registry.docker.io&scope=repository:" + repository + ":pull")["token"]
+        token_url = "https://auth.docker.io/token?service=registry.docker.io&scope=repository:" + repository + ":pull"
+    token = request(token_url)["token"]
     body = request(f"https://{registry}/v2/{repository}/manifests/{tag}", {
         "Authorization": "Bearer " + token,
         "Accept": "application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json",
