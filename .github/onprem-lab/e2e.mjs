@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
+import { resourceId, stateIds, uploadUrl, fixtureVideo } from './constraints.mjs';
 const origin = 'http://127.0.0.1:18787';
 const password = 'Local-validation-only-2026!';
 let cookie;
@@ -31,10 +32,10 @@ const mode=process.argv[2]; const statePath=process.argv[3];
 await auth(mode==='register'?'sign-up':'sign-in');
 if (mode === 'register') process.exit(0);
 if(mode==='upload') {
-  const bytes=readFileSync(process.argv[4]);
+  const bytes=fixtureVideo(readFileSync(process.argv[4]));
   const created=await rpc('videos.requestUpload',{filename:'lab.mp4',contentType:'video/mp4',fileSize:bytes.length,title:'Onprem Lab'});
-  const id=created.video.id;
-  const put=await fetch(created.upload_url,{method:'PUT',headers:{'Content-Type':'video/mp4'},body:bytes});assert(put.ok);
+  const id=resourceId(created.video.id);
+  const put=await fetch(uploadUrl(created.upload_url),{method:'PUT',headers:{'Content-Type':'video/mp4'},body:bytes});assert(put.ok);
   await rpc('videos.confirmUpload',{id});
   let video;
   for(let i=0;i<120;i++) {
@@ -45,12 +46,12 @@ if(mode==='upload') {
   }
   assert.equal(video.status,'completed',JSON.stringify(video));assert(video.transcript.includes('VideoQ runs on Kubernetes.'));
   const course=await rpc('courses.create',{name:'Onprem Lab'});
-  await rpc('memberships.addVideo',{courseId:course.id,videoId:id});
-  writeFileSync(statePath,JSON.stringify({videoId:id,courseId:course.id}));
-  await answer(course.id);
+  await rpc('memberships.addVideo',{courseId:resourceId(course.id),videoId:id});
+  writeFileSync(statePath,JSON.stringify(stateIds({videoId:id,courseId:course.id})));
+  await answer(resourceId(course.id));
   console.log('Upload, real FFmpeg audio extraction, fixture transcription, pgvector indexing, cited Q&A and SSE passed');
 } else {
-  const state=JSON.parse(readFileSync(statePath,'utf8'));
+  const state=stateIds(JSON.parse(readFileSync(statePath,'utf8')));
   const video=await rpc('videos.get',{id:state.videoId},true);assert.equal(video.status,'completed');
   await answer(state.courseId);
   console.log('Persisted user, video, vector search and cited Q&A passed after '+mode);
