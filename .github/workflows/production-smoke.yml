@@ -44,7 +44,7 @@ jobs:
     needs: source
     if: needs.source.outputs.allowed == 'true'
     environment: production-app
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     permissions:
       contents: read
@@ -62,17 +62,13 @@ jobs:
       - name: Verify operations tool registry signatures
         working-directory: .github/operations-tools
         run: npm audit signatures
-      - name: Install browser and generate a bounded synthetic video
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg espeak-ng
-          node .github/operations-tools/node_modules/playwright/cli.js install --with-deps chromium
-          espeak-ng -s 130 -w "$RUNNER_TEMP/smoke.wav" 'Video Q operations check. The golden lighthouse is beside the blue river.'
-          ffmpeg -hide_banner -loglevel error -f lavfi -i color=c=blue:s=320x240:r=10 -i "$RUNNER_TEMP/smoke.wav" -t 12 -c:v libx264 -preset ultrafast -c:a aac -shortest -y "$RUNNER_TEMP/smoke.mp4"
+      # The hosted runner includes Chrome and its system libraries. Avoid an
+      # apt/browser download on every monitor run; the fixture is SHA-verified.
+      - name: Verify the hosted runner browser
+        run: google-chrome --version
       - name: Check production with a temporary low-quota user
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          SMOKE_VIDEO_PATH: ${{ runner.temp }}/smoke.mp4
         run: node .github/scripts/production-smoke.mjs
       - name: Publish or resolve the managed issue
         if: always()

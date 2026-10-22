@@ -6,7 +6,7 @@ const require = createRequire(new URL('../operations-tools/package.json', import
 const { Client } = require('pg');
 const { chromium } = require('playwright');
 const { hashPassword } = await import(require.resolve('better-auth/crypto'));
-const { ORIGIN, synthetic, uploadAllowed, completed, deletable } = createRequire(import.meta.url)('./production-smoke-policy.cjs');
+const { ORIGIN, synthetic, uploadAllowed, completed, deletable, fixtureValid } = createRequire(import.meta.url)('./production-smoke-policy.cjs');
 const db = new Client({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 15_000,
   statement_timeout: 30_000, application_name: 'videoq-operations-smoke' });
 let browser, currentUser, cookie = '', stage = 'public-health';
@@ -87,8 +87,8 @@ try {
   progress('synthetic-sign-in');
   await login(currentUser, password);
   progress('upload');
-  const bytes = await fs.readFile(process.env.SMOKE_VIDEO_PATH);
-  if (bytes.length > 2_000_000 || bytes.length < 1000) throw new Error('Invalid fixture size');
+  const bytes = await fs.readFile(new URL('../operations-tools/fixtures/smoke.mp4', import.meta.url));
+  if (!fixtureValid(bytes)) throw new Error('Unreviewed fixture');
   const title = 'Operations smoke ' + id;
   const upload = await rpc('videos.requestUpload', { filename: 'operations-smoke.mp4', title,
     description: 'Automated short-lived operations check', contentType: 'video/mp4', fileSize: bytes.length }, true);
@@ -111,7 +111,7 @@ try {
   const embedded = await db.query('SELECT count(*) FROM scene_embeddings WHERE user_id = $1 AND video_id = $2', [id, video.id]);
   if (Number(embedded.rows[0].count) < 1) throw new Error('No scene embeddings');
   progress('browser');
-  browser = await chromium.launch();
+  browser = await chromium.launch({ channel: 'chrome' });
   const context = await browser.newContext();
   const page = await context.newPage();
   const errors = [];

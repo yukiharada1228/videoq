@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { synthetic, uploadAllowed, completed, deletable } = require('./production-smoke-policy.cjs');
+const { synthetic, uploadAllowed, completed, deletable, fixtureValid } = require('./production-smoke-policy.cjs');
 test('cleanup requires every synthetic marker and never targets ordinary users', () => {
   const id = 'a9d90493-2339-48c6-ad27-93469e9be70a';
   const user = { id, username: 'ops_smoke_' + id, email: id + '@example.invalid',
@@ -28,4 +28,12 @@ test('terminal status follows the application contract and visual work must fini
   assert.equal(completed({ status: 'completed', visual_processing: { status: 'processing' } }), false);
   assert.equal(completed({ status: 'completed', visual_processing: { status: 'error' } }), false);
   assert.equal(completed({ status: 'completed', visual_processing: { status: 'ready' } }), true);
+});
+test('only the reviewed synthetic fixture may be uploaded', () => {
+  const bytes = require('node:fs').readFileSync('.github/operations-tools/fixtures/smoke.mp4');
+  assert.equal(fixtureValid(bytes), true);
+  const changed = Buffer.from(bytes);
+  changed[100] ^= 1;
+  assert.equal(fixtureValid(changed), false);
+  assert.equal(fixtureValid(Buffer.from('another local file')), false);
 });
