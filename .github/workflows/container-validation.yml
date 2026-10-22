@@ -13,6 +13,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       containers: ${{ steps.filter.outputs.containers }}
+      worker: ${{ steps.filter.outputs.worker }}
     steps:
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
@@ -23,6 +24,9 @@ jobs:
               - 'apps/web/Dockerfile*'
               - 'apps/worker/Dockerfile*'
               - 'docker-compose.yml'
+              - '.github/workflows/container-validation.yml'
+            worker:
+              - 'apps/worker/**'
               - '.github/workflows/container-validation.yml'
 
   validate:
@@ -48,9 +52,37 @@ jobs:
           docker build --check --platform linux/arm64 -f apps/worker/Dockerfile apps/worker
           docker build --check -f apps/worker/Dockerfile.local apps/worker
 
+  worker-image:
+    name: Worker image security (ARM64)
+    needs: changes
+    if: needs.changes.outputs.worker == 'true'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # No AWS credentials or production secrets are available while building
+      # and scanning PR code. The Dockerfile also validates runtime imports.
+      - name: Build the production target
+        run: docker build --platform linux/arm64 --target production -t videoq-worker:ci apps/worker
+      - name: Require no HIGH or CRITICAL vulnerabilities in the production filesystem
+        uses: aquasecurity/trivy-action@8f28faec26515256b6d22074d1d2a8986f4cbd87 # v0.35.0
+        with:
+          version: v0.76.1
+          scan-type: image
+          image-ref: videoq-worker:ci
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: 'false'
+          exit-code: '1'
+          timeout: 15m
+
   result:
     name: Container Validation
-    needs: [changes, validate]
+    needs: [changes, validate, worker-image]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -59,8 +91,13 @@ jobs:
           CHANGES_RESULT: ${{ needs.changes.result }}
           CONTAINERS_CHANGED: ${{ needs.changes.outputs.containers }}
           VALIDATE_RESULT: ${{ needs.validate.result }}
+          WORKER_CHANGED: ${{ needs.changes.outputs.worker }}
+          WORKER_RESULT: ${{ needs.worker-image.result }}
         run: |
           test "$CHANGES_RESULT" = success
           if [ "$CONTAINERS_CHANGED" = true ]; then
             test "$VALIDATE_RESULT" = success
+          fi
+          if [ "$WORKER_CHANGED" = true ]; then
+            test "$WORKER_RESULT" = success
           fi

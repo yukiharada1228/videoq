@@ -191,6 +191,12 @@ docker buildx build --platform linux/arm64 -f Dockerfile -t videoq-worker .
 The handler is `handler.handler`. Secrets are loaded from SSM SecureString
 parameters (`DB_PARAM_NAME` / `APP_PARAM_NAME`).
 
+The default `production` target excludes pip (including its vendored libraries),
+uv and the local Runtime Interface Emulator. Lambda provides the Runtime API,
+and the locked application dependencies and Runtime Interface Client remain.
+For local Lambda emulation, build `--target lambda-local`; the development poller
+does not require the emulator. Do not deploy the local target to production.
+
 ## Embedding diagnostics
 
 Dimensions are fixed by the constant `EMBEDDING_DIMENSIONS = 1536`, and both providers

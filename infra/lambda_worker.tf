@@ -66,6 +66,12 @@ resource "aws_lambda_function" "worker" {
 
   depends_on = [aws_cloudwatch_log_group.worker]
 
+  # Terraform bootstraps the image; CD owns subsequent immutable image releases.
+  # An infrastructure plan/apply must not revert the deployed SHA to :latest.
+  lifecycle {
+    ignore_changes = [image_uri]
+  }
+
   ephemeral_storage {
     size = 5120
   }
