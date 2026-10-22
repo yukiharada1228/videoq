@@ -1,0 +1,87 @@
+name: Production Smoke
+on:
+  workflow_run:
+    workflows: [CD]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: '7 4 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: production-smoke
+  cancel-in-progress: false
+jobs:
+  source:
+    if: >-
+      github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main' &&
+      (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      allowed: ${{ steps.source.outputs.allowed }}
+    steps:
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        id: source
+        with:
+          script: |
+            if (context.eventName !== 'workflow_run') { core.setOutput('allowed', true); return; }
+            const run = context.payload.workflow_run;
+            const { data: workflow } = await github.rest.actions.getWorkflow({ ...context.repo, workflow_id: 'cd.yml' });
+            if (run.repository?.full_name !== context.repo.owner + '/' + context.repo.repo ||
+                run.head_repository?.full_name !== context.repo.owner + '/' + context.repo.repo ||
+                run.head_branch !== 'main' || run.workflow_id !== workflow.id || run.conclusion !== 'success') {
+              throw new Error('Untrusted CD event');
+            }
+            const { data } = await github.rest.actions.listWorkflowRuns({ ...context.repo,
+              workflow_id: workflow.id, branch: 'main', status: 'success', per_page: 1 });
+            core.setOutput('allowed', data.workflow_runs[0]?.id === run.id);
+  smoke:
+    needs: source
+    if: needs.source.outputs.allowed == 'true'
+    environment: production-app
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+      - name: Install separately locked operations tools without lifecycle scripts
+        run: npm ci --ignore-scripts --prefix .github/operations-tools
+      - name: Verify operations tool registry signatures
+        working-directory: .github/operations-tools
+        run: npm audit signatures
+      - name: Install browser and generate a bounded synthetic video
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg espeak-ng
+          node .github/operations-tools/node_modules/playwright/cli.js install --with-deps chromium
+          espeak-ng -s 130 -w "$RUNNER_TEMP/smoke.wav" 'Video Q operations check. The golden lighthouse is beside the blue river.'
+          ffmpeg -hide_banner -loglevel error -f lavfi -i color=c=blue:s=320x240:r=10 -i "$RUNNER_TEMP/smoke.wav" -t 12 -c:v libx264 -preset ultrafast -c:a aac -shortest -y "$RUNNER_TEMP/smoke.mp4"
+      - name: Check production with a temporary low-quota user
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SMOKE_VIDEO_PATH: ${{ runner.temp }}/smoke.mp4
+        run: node .github/scripts/production-smoke.mjs
+      - name: Publish or resolve the managed issue
+        if: always()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('node:fs');
+            const { notify } = require('./.github/scripts/operations-notify.cjs');
+            let report = { status: 'error', summary: '本番の定期検査を完了できませんでした。', details: [] };
+            if (fs.existsSync('operations-report.json')) report = JSON.parse(fs.readFileSync('operations-report.json', 'utf8'));
+            await notify({ github, context, core, kind: 'production-smoke', title: '本番の動作確認', report });
+            if (report.status !== 'ok') core.setFailed(report.summary);
