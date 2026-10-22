@@ -11,4 +11,11 @@ function uploadAllowed(value) {
     url.host === '12daec56fdba43f677f2766ee26a5a39.r2.cloudflarestorage.com' &&
     url.pathname.startsWith('/videoq-media-prod/');
 }
-module.exports = { ORIGIN, synthetic, uploadAllowed };
+function completed(video) {
+  return video.status === 'completed' &&
+    !['processing', 'error'].includes(video.visual_processing?.status);
+}
+function deletable(status) {
+  return ['completed', 'error', 'uploading'].includes(status);
+}
+module.exports = { ORIGIN, synthetic, uploadAllowed, completed, deletable };
