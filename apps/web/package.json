@@ -54,10 +54,10 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261008.1",
     "@eslint/js": "^9.39.1",
-    "@storybook/addon-a11y": "^10.6.1",
-    "@storybook/addon-docs": "^10.6.1",
+    "@storybook/addon-a11y": "^10.6.2",
+    "@storybook/addon-docs": "^10.6.2",
     "@storybook/addon-vitest": "^10.6.3",
-    "@storybook/react-vite": "^10.6.1",
+    "@storybook/react-vite": "^10.6.2",
     "@tailwindcss/postcss": "^4.3.3",
     "@tanstack/react-query-devtools": "^5.104.1",
     "@testing-library/jest-dom": "^6.6.3",
