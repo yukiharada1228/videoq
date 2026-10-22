@@ -90,9 +90,10 @@ updates:
       timezone: Asia/Tokyo
     open-pull-requests-limit: 5
     # Node 25 is EOL; retain supported Node 22/24 LTS images.
+    # Docker version ranges use Bundler syntax with comma-separated bounds.
     ignore:
       - dependency-name: node
-        versions: [">=25.0.0 <26.0.0"]
+        versions: [">=25.0.0, <26.0.0"]
     groups:
       docker-minor-patch:
         patterns: ["*"]
