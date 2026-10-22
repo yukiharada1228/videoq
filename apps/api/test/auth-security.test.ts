@@ -34,7 +34,7 @@ const VERIFIER = "isolated-test-pkce-verifier-with-at-least-43-characters";
 const SCOPES = ["offline_access", "videoq.read", "videoq.write"];
 const OIDC_SCOPES = ["openid", "profile", "email", ...SCOPES];
 type OAuthTestOptions = { includeResource?: boolean; scopes?: string[]; confidential?: boolean; registrationScope?: string };
-const env = {
+let env = {
   ENVIRONMENT: "production",
   BETTER_AUTH_SECRET: "isolated-test-secret-012345678901234567890123456789",
   BETTER_AUTH_URL: BASE,
@@ -45,6 +45,9 @@ const env = {
 afterEach(() => vi.useRealTimers());
 
 beforeEach(async () => {
+  // createAuth uses the environment identity as the JWKS cache key. Reset it
+  // along with the database so each test sees its own newly generated keys.
+  env = { ...env };
   store.data = Object.fromEntries([
     "user", "account", "session", "verification", "apikey", "jwks",
     "oauthClient", "oauthResource", "oauthClientResource", "oauthRefreshToken",
@@ -552,9 +555,11 @@ describe("OAuth grant revocation", () => {
     const jwt = (await auth.$context).getPlugin("jwt")!;
     const unavailable = new ErrorType("JWKS database unavailable");
     vi.spyOn(jwt.endpoints, "getJwks").mockRejectedValueOnce(unavailable);
+    // Better Auth normalizes source TypeErrors to avoid exposing runtime
+    // details, but the outage must still reject rather than deny credentials.
     await expect(auth.api.verifyVideoqOAuth({ body: {
       authorizationHeader: `Bearer ${linked.access_token}`, method: "POST", url: RESOURCE,
-    } })).rejects.toBe(unavailable);
+    } })).rejects.toThrow(ErrorType === TypeError ? "JWKS fetch failed" : unavailable);
   });
 
   it("issues standard five-minute JWTs and refresh tokens without private consent identifiers", async () => {
@@ -896,7 +901,8 @@ describe("provider protocol checks remain authoritative", () => {
       grant_type: "authorization_code", code,
       code_verifier: "incorrect-pkce-verifier-with-at-least-43-characters",
     }, false);
-    expect(response.status).toBe(401);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "invalid_grant" });
     expect(store.data.oauthAccessToken).toHaveLength(0);
     expect(store.data.oauthRefreshToken).toHaveLength(0);
   });
