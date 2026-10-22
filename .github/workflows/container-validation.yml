@@ -1,0 +1,66 @@
+name: Container Validation
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      containers: ${{ steps.filter.outputs.containers }}
+    steps:
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        with:
+          filters: |
+            containers:
+              - 'apps/api/Dockerfile*'
+              - 'apps/web/Dockerfile*'
+              - 'apps/worker/Dockerfile*'
+              - 'docker-compose.yml'
+              - '.github/workflows/container-validation.yml'
+
+  validate:
+    needs: changes
+    if: needs.changes.outputs.containers == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Validate Compose configuration
+        run: |
+          cp .env.example .env
+          docker compose --env-file .env.example config --quiet
+      - name: Check Dockerfile instructions and base images
+        run: |
+          docker build --check -f apps/api/Dockerfile.local .
+          docker build --check -f apps/web/Dockerfile .
+          docker build --check -f apps/web/Dockerfile.dev .
+          docker build --check --platform linux/arm64 -f apps/worker/Dockerfile apps/worker
+          docker build --check -f apps/worker/Dockerfile.local apps/worker
+
+  result:
+    name: Container Validation
+    needs: [changes, validate]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          CONTAINERS_CHANGED: ${{ needs.changes.outputs.containers }}
+          VALIDATE_RESULT: ${{ needs.validate.result }}
+        run: |
+          test "$CHANGES_RESULT" = success
+          if [ "$CONTAINERS_CHANGED" = true ]; then
+            test "$VALIDATE_RESULT" = success
+          fi

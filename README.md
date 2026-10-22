@@ -446,9 +446,13 @@ updates share one group. Version-update PRs are limited to five per ecosystem
 The configuration takes effect on GitHub's default branch (`main`). Dependabot
 alerts and security updates are separate repository settings under
 **Settings → Advanced Security**; keep both enabled. npm and Python security fixes
-are grouped separately from scheduled version updates. Review the diff and CI
-results before merging. The worker's current CI and Docker builds install with
-`pip` from `pyproject.toml`; they do not enforce the versions in `uv.lock`.
+are grouped separately from scheduled version updates. Verified minor and patch
+updates for npm, Python, Docker, Compose, Terraform providers, and SHA-pinned
+GitHub Actions are automatically merged after required checks pass. Major updates,
+submodules, deployment tools, and source changes require review. Terraform provider
+minor/patch updates also apply automatically after merge; ordinary infrastructure
+changes retain production approval. See [dependency automation](.github/dependency-automation.md).
+CI and production worker builds install hash-verified binary dependencies from `uv.lock`.
 
 ## Deployment
 

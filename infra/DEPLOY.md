@@ -20,7 +20,10 @@
 
 Sync the existing production Hyperdrive configuration and R2 CORS by running the
 manual [`cloudflare-resources.yml`](../.github/workflows/cloudflare-resources.yml)
-workflow after approval for the `production-infra` environment. To run the same
+workflow after approval for the `production-infra` environment. Verified Dependabot
+Terraform provider minor/patch updates use a separate automatic apply job when
+`TERRAFORM_DEPENDENCY_AUTOAPPLY_ENABLED=true`; resource changes, major updates,
+and manual runs still require the existing approval. To run the same
 operations locally:
 
 ```bash
