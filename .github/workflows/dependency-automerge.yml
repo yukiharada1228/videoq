@@ -73,6 +73,7 @@ jobs:
           script: |
             const policy = require('./.github/scripts/dependency-automation.cjs');
             const { pr, files, comments } = await policy.getPull({ github, context, number: context.issue.number });
+            const commits = await github.paginate(github.rest.pulls.listCommits, { ...context.repo, pull_number: pr.number, per_page: 100 });
             const metadata = {
               updateType: process.env.UPDATE_TYPE, ecosystem: process.env.ECOSYSTEM,
               maintainerChanges: process.env.MAINTAINER_CHANGES,
@@ -80,7 +81,8 @@ jobs:
             const eligible = process.env.ELIGIBLE === 'true' &&
               pr.head.sha === process.env.EXPECTED_SHA &&
               policy.eligiblePull(pr, files, 'no-automerge', comments) &&
-              policy.autoMergeMetadata(metadata, files);
+              policy.autoMergeMetadata(metadata, files) &&
+              policy.verifiedDependencyCommits(commits, pr.head.sha);
             if (eligible) {
               const { data } = await github.rest.repos.getBranchProtection({ ...context.repo, branch: 'main' });
               policy.requireProtection(data, metadata.ecosystem);

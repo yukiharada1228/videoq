@@ -87,6 +87,11 @@ function autoMergeMetadata(metadata, files) {
     (metadata.ecosystem !== 'terraform' || terraformVersionsOnly(files));
 }
 
+function verifiedDependencyCommits(commits, sha) {
+  return commits.length > 0 && commits.at(-1).sha === sha &&
+    commits.every(commit => commit.author?.login === BOT && commit.commit?.verification?.verified === true);
+}
+
 async function getPull({ github, context, number }) {
   if (`${context.repo.owner}/${context.repo.repo}` !== REPOSITORY) throw new Error('Unexpected repository.');
   const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: number });
@@ -167,4 +172,4 @@ async function requestRepair({ github, context, runId }) {
   return candidate;
 }
 
-module.exports = { eligiblePull, getPull, autoMergeMetadata, requireProtection, repairCandidate, isRepairRequest, repairRequestBody, requestRepair };
+module.exports = { verifiedDependencyCommits, eligiblePull, getPull, autoMergeMetadata, requireProtection, repairCandidate, isRepairRequest, repairRequestBody, requestRepair };

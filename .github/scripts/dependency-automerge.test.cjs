@@ -87,3 +87,15 @@ test('container auto-merge additionally requires container validation', () => {
   }
 });
 
+
+test('human follow-ups and unsigned commits cannot inherit the original bot approval', () => {
+  const sha = 'a'.repeat(40);
+  const bot = () => ({ sha, author: { login: 'dependabot[bot]' }, commit: { verification: { verified: true } } });
+  assert.equal(policy.verifiedDependencyCommits([bot()], sha), true);
+  assert.equal(policy.verifiedDependencyCommits([], sha), false);
+  assert.equal(policy.verifiedDependencyCommits([bot()], 'b'.repeat(40)), false);
+  const unsigned = bot(); unsigned.commit.verification.verified = false;
+  assert.equal(policy.verifiedDependencyCommits([unsigned], sha), false);
+  const human = bot(); human.author.login = 'owner';
+  assert.equal(policy.verifiedDependencyCommits([bot(), human], sha), false);
+});

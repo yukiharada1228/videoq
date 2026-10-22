@@ -37,7 +37,9 @@ jobs:
         with:
           persist-credentials: false
       - name: Validate Compose configuration
-        run: docker compose --env-file .env.example config --quiet
+        run: |
+          cp .env.example .env
+          docker compose --env-file .env.example config --quiet
       - name: Check Dockerfile instructions and base images
         run: |
           docker build --check -f apps/api/Dockerfile.local .

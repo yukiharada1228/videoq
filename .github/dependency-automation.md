@@ -69,7 +69,7 @@ Run workflowでbranchを `main` にし、`run_id` に失敗したCI runの数値
 - 同一リポジトリ内のDependabot作成・`dependabot/` ブランチ・main向けPR。
 - npm・Python・Docker・Docker Compose・Terraform・GitHub Actionsのminor／patch更新。グループにmajorが混ざれば対象外。
 - 更新種別に対応する既存の依存ファイルだけを変更し、最大50ファイル。Terraformはproviderのversion制約とlockfile、GitHub Actionsは同じActionの完全SHA参照の更新だけを許可する。
-- Dependabot公式Actionのコミット検証と更新種別確認を通過し、maintainer変更表示がない。
+- Dependabot公式Actionの更新種別確認を通過し、maintainer変更表示がない。全PRコミットが署名検証済みDependabotコミットで、手動追記やmainの手動マージを含まない。
 - `no-automerge` ラベルも、信頼済みBotのCodex修正依頼案内もない。
 - mainの必須チェックがGitHub Actionsの `CI Success` で、strict（最新mainへの追従必須）が有効。
 
