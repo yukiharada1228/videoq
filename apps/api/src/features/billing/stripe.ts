@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import type { Bindings } from "../../types/bindings";
 import { apiServiceUnavailable } from "../../shared/errors";
+import { stripTrailingSlashes } from "../../lib/url";
 
 const STRIPE_API_VERSION = "2026-09-30.endive" as const;
 
@@ -30,7 +31,7 @@ export function automaticTaxEnabled(env: Bindings): boolean {
 }
 
 export function frontendOrigin(env: Bindings): string {
-  return (env.FRONTEND_URL ?? "http://localhost").replace(/\/+$/, "");
+  return stripTrailingSlashes(env.FRONTEND_URL ?? "http://localhost");
 }
 
 export function localePrefix(locale: string | undefined): string {
@@ -38,8 +39,17 @@ export function localePrefix(locale: string | undefined): string {
 }
 
 export function checkoutIntegrationIdentifier(): string {
-  const suffix = Array.from(crypto.getRandomValues(new Uint8Array(8)))
-    .map((b) => (b % 26 + 10).toString(36))
-    .join("");
+  let suffix = "";
+  const bytes = new Uint8Array(16);
+  while (suffix.length < 8) {
+    crypto.getRandomValues(bytes);
+    for (const byte of bytes) {
+      // Five unbiased bits cover 0..31; reject the values outside a..z.
+      const letter = byte & 31;
+      if (letter >= 26) continue;
+      suffix += String.fromCharCode(97 + letter);
+      if (suffix.length === 8) break;
+    }
+  }
   return `videoq-checkout-${suffix}`;
 }

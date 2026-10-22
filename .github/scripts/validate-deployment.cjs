@@ -39,7 +39,7 @@ module.exports = async function validateDeployment({ github, context }) {
   const { data: branch } = await github.rest.repos.getBranch({ ...context.repo, branch: 'main' });
   const sha = branch.commit.sha;
   const requestedSha = trigger?.head_sha ?? context.sha;
-  if (!/^[a-f0-9]{40}$/.test(sha) || requestedSha !== sha) {
+  if (!/^[a-f0-9]{40}$/.test(sha) || requestedSha !== sha || context.sha !== sha) {
     throw new Error('Refusing a stale deployment: the requested commit is not the current main commit.');
   }
 
@@ -60,5 +60,7 @@ module.exports = async function validateDeployment({ github, context }) {
   if (trigger && run.run_attempt !== trigger.run_attempt) {
     throw new Error('The triggering CI attempt has been superseded; wait for the latest attempt.');
   }
-  return sha;
+  // Check out only GitHub's immutable workflow context SHA. The event payload
+  // and API validation above must agree with it before any downstream job runs.
+  return context.sha;
 };
