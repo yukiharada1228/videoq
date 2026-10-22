@@ -21,6 +21,8 @@ dev = [
     # Exercise the deployed Modal ASGI boundary in worker CI.
     "modal==1.6.2",
     "fastapi==0.146.0",
+    # Reject the Starlette versions covered by the open security advisories.
+    "starlette>=1.3.1",
     "python-multipart==0.0.32",
     "httpx>=0.27",
     # Verify that Python writes remain compatible with both search clients.

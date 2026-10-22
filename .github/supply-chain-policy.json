@@ -1,0 +1,18 @@
+{
+  "npm_lockfiles": [
+    "package-lock.json",
+    ".github/deploy-tools/package-lock.json"
+  ],
+  "reviewed_install_script_packages": [
+    "@swc/core",
+    "core-js",
+    "esbuild",
+    "fsevents",
+    "msw",
+    "workerd"
+  ],
+  "uv_lockfiles": [
+    "apps/worker/uv.lock",
+    ".github/deploy-tools/uv.lock"
+  ]
+}

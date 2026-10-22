@@ -28,3 +28,9 @@ change, or the failure is an outage or missing secret, explain the blocker inste
 
 The owner reviews repairs. The standard GitHub CI remains the final check; do
 not report full CI success based only on a subset of local tests.
+
+
+Supply-chain failures require investigation. Do not disable Dependency Review, OSV,
+registry signatures, integrity checks, ignore-scripts, or required branch checks.
+Do not add policy exceptions merely to make CI green. Report suspicious packages
+and unavailable verification services for human review; never merge such a PR.

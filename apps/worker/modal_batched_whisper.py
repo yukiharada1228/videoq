@@ -23,7 +23,7 @@ image = (
     .entrypoint([])
     .uv_pip_install(
         "faster-whisper==1.2.1", "huggingface-hub==0.36.0",
-        "fastapi==0.115.12", "python-multipart==0.0.20",
+        "fastapi==0.146.0", "python-multipart==0.0.32", "starlette==1.9.0",
     )
     .run_commands(
         "python -c 'from huggingface_hub import snapshot_download; "

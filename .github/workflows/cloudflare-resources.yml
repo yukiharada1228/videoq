@@ -24,8 +24,11 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "22"
-      - name: Install API dependencies
-        run: npm ci
+      - name: Install separately locked deployment tools
+        run: npm ci --ignore-scripts --prefix .github/deploy-tools
+      - name: Verify deployment tool signatures
+        working-directory: .github/deploy-tools
+        run: npm audit signatures
       - name: Verify production Worker secrets
         working-directory: apps/api
         env:
@@ -36,7 +39,7 @@ jobs:
             echo "::error::CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are required"
             exit 1
           fi
-          secret_json="$(npx wrangler secret list --env production --format json)"
+          secret_json="$(node "$GITHUB_WORKSPACE/.github/deploy-tools/node_modules/wrangler/bin/wrangler.js" secret list --env production --format json)"
           for secret_name in \
             BETTER_AUTH_SECRET \
             USER_SECRET_ENCRYPTION_KEY \
@@ -65,7 +68,7 @@ jobs:
             echo "::error::CLOUDFLARE_INFRA_TOKEN and CLOUDFLARE_ACCOUNT_ID are required"
             exit 1
           fi
-          npm run cf:hyperdrive:disable-cache
-          npm run cf:r2-cors:apply
-          npm run cf:hyperdrive:show
-          npm run cf:r2-cors:list
+          node "$GITHUB_WORKSPACE/.github/deploy-tools/node_modules/wrangler/bin/wrangler.js" hyperdrive update d69ecb01a493415197e52552db2990f8 --caching-disabled
+          node "$GITHUB_WORKSPACE/.github/deploy-tools/node_modules/wrangler/bin/wrangler.js" r2 bucket cors set videoq-media-prod --file r2-cors.production.json --force
+          node "$GITHUB_WORKSPACE/.github/deploy-tools/node_modules/wrangler/bin/wrangler.js" hyperdrive get d69ecb01a493415197e52552db2990f8
+          node "$GITHUB_WORKSPACE/.github/deploy-tools/node_modules/wrangler/bin/wrangler.js" r2 bucket cors list videoq-media-prod
