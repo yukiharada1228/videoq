@@ -56,7 +56,8 @@ try {
   const expected = await inventory(source);
   if (Object.keys(expected).length < 3) throw new Error('Incomplete source inventory');
   stage = 'logical-backup';
-  await docker(['run', '--rm', '--network', 'host', '-e', 'PGDATABASE', '-e', 'PGOPTIONS',
+  await docker(['run', '--rm', '--network', 'host', '--user', process.getuid() + ':' + process.getgid(),
+    '-e', 'PGDATABASE', '-e', 'PGOPTIONS',
     '-e', 'PGHOST', '-e', 'PGPORT', '-e', 'PGUSER', '-e', 'PGPASSWORD', '-e', 'PGSSLMODE', '-e', 'PGCHANNELBINDING',
     '-v', temporary + ':/backup', IMAGE, 'pg_dump', '--format=custom', '--no-owner', '--no-acl', '--no-comments',
     '--schema=public', '--schema=drizzle', '--snapshot=' + snapshot, '--file=/backup/database.dump'], {
@@ -95,7 +96,11 @@ try {
   report = { status: 'ok', summary: `${Object.keys(expected).length}テーブルの論理バックアップを隔離DBへ復元し、全テーブルの件数と制約を確認しました。`,
     details: ['- 本番DBへの書き込み、バックアップファイルやレコード内容の公開は行っていません。',
       '- この検査はPostgreSQLの論理復元を対象とし、NeonのPITRやR2の復元は対象に含みません。'] };
-} catch {
+} catch (error) {
+  // This exact public fixture URL contains no production data or credentials.
+  if (process.env.DATABASE_URL === 'postgresql://postgres:fixture-only@127.0.0.1:54320/postgres') {
+    console.error(error.stderr || error.message);
+  }
   report.details = ['- 失敗した段階: `' + stage + '`。DB接続情報・レコード・バックアップは出力していません。'];
 } finally {
   await restored?.end().catch(() => {});
