@@ -1,5 +1,6 @@
 import { http, HttpResponse, type HttpHandler, type JsonBodyType } from 'msw';
 import { setupWorker } from 'msw/browser';
+import { HttpNetworkFrame } from 'msw/experimental';
 import type { inferRouterInputs, inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@videoq/trpc';
 import type { AuthFixture } from '../fixtures/auth';
@@ -121,7 +122,7 @@ export async function setupMockWorker() {
       || !['GET', 'HEAD'].includes(request.method) || url.origin !== window.location.origin;
   };
   // An initial handler survives resetHandlers and runs after explicit story handlers.
-  // onUnhandledRequest reports errors but is not a reliable browser network boundary.
+  // onUnhandledFrame reports errors but is not a reliable browser network boundary.
   const worker = setupWorker(http.all('*', ({ request }) => {
     if (!mustBlock(request)) return;
     console.error(`[Storybook MSW] Blocked undefined request: ${request.method} ${request.url}`);
@@ -129,8 +130,8 @@ export async function setupMockWorker() {
   }));
   await worker.start({
     quiet: true,
-    onUnhandledRequest(request, print) {
-      if (mustBlock(request)) print.error();
+    onUnhandledFrame({ frame, defaults }) {
+      if (frame instanceof HttpNetworkFrame && mustBlock(frame.data.request)) defaults.error();
     },
   });
   return worker;
