@@ -113,10 +113,18 @@ jobs:
               - 'package.json'
               - 'package-lock.json'
               - '.github/workflows/ci.yml'
+              - '.github/workflows/cd.yml'
+              - '.github/scripts/deployment-config*'
+              - '.github/scripts/verify-prebuilt-deployment.sh'
+              - '.github/deploy-tools/**'
             worker:
               - 'apps/worker/**'
               - 'packages/trpc/test-fixtures/**'
               - '.github/workflows/ci.yml'
+              - '.github/workflows/cd.yml'
+              - '.github/scripts/deployment-config*'
+              - '.github/scripts/verify-prebuilt-deployment.sh'
+              - '.github/deploy-tools/**'
             frontend:
               - 'apps/web/**'
               - 'apps/demo-video/**'
@@ -124,6 +132,10 @@ jobs:
               - 'package.json'
               - 'package-lock.json'
               - '.github/workflows/ci.yml'
+              - '.github/workflows/cd.yml'
+              - '.github/scripts/deployment-config*'
+              - '.github/scripts/verify-prebuilt-deployment.sh'
+              - '.github/deploy-tools/**'
             docs:
               - 'apps/docs/**'
               - 'docs/**'
@@ -131,6 +143,9 @@ jobs:
               - 'package-lock.json'
               - '.github/workflows/ci.yml'
               - '.github/workflows/cd.yml'
+              - '.github/scripts/deployment-config*'
+              - '.github/scripts/verify-prebuilt-deployment.sh'
+              - '.github/deploy-tools/**'
 
   hono-test:
     name: Hono (apps/api)
@@ -179,6 +194,7 @@ jobs:
           npm run db:check --workspace @videoq/api
           npm run db:verify --workspace @videoq/api
           npm test --workspace @videoq/api
+          bash .github/scripts/verify-prebuilt-deployment.sh api
 
   worker-test:
     name: Worker Python (django-free)
@@ -354,6 +370,8 @@ jobs:
           git diff --exit-code -- apps/web/worker/env.d.ts
       - name: Test frontend Worker and static assets
         run: npm run test:worker --workspace @videoq/web
+      - name: Verify upload-only web deployment
+        run: bash .github/scripts/verify-prebuilt-deployment.sh web
       - name: Upload build artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -414,6 +432,8 @@ jobs:
         run: npm run typecheck --workspace @videoq/docs
       - name: Build documentation and check links
         run: npm run build:docs
+      - name: Verify upload-only documentation deployment
+        run: bash .github/scripts/verify-prebuilt-deployment.sh docs
       - name: Upload documentation
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
