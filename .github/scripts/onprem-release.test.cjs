@@ -52,3 +52,11 @@ test('staging verifies signed artifacts before loading or exercising them',()=>{
   assert.match(staging,/docker logout ghcr.io/);
   assert.match(staging,/rm -rf "\$DOCKER_CONFIG"/);
 });
+
+test('release retries cannot mix artifacts from different attempts',()=>{
+  for (const match of workflow.matchAll(/uses: actions\/(?:upload|download)-artifact@[^\n]+\n        with:\n([\s\S]*?)(?=^      -|^  [a-z-]+:|$(?![\s\S]))/gm)) {
+    const identity = match[1].match(/^          (?:name|pattern): (.+)$/m)?.[1];
+    assert(identity?.includes('${{ github.run_attempt }}'), identity);
+  }
+  assert.doesNotMatch(workflow,/overwrite: true/);
+});

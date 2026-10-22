@@ -64,7 +64,7 @@ jobs:
           ARCH: ${{ matrix.arch }}
           DOCKERFILE: ${{ matrix.dockerfile }}
           BUILD_CONTEXT: ${{ matrix.context }}
-        run: docker build --platform "linux/$ARCH" -t "videoq-$COMPONENT:release" -f "$DOCKERFILE" "$BUILD_CONTEXT"
+        run: docker build --platform "linux/$ARCH" --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" --label "org.opencontainers.image.revision=$GITHUB_SHA" -t "videoq-$COMPONENT:release" -f "$DOCKERFILE" "$BUILD_CONTEXT"
       - name: Block vulnerable images, including unfixed HIGH and CRITICAL findings
         uses: aquasecurity/trivy-action@8f28faec26515256b6d22074d1d2a8986f4cbd87 # v0.35.0
         with:
@@ -84,7 +84,7 @@ jobs:
           docker save "videoq-$COMPONENT:release" | zstd -T0 -o artifact/image.tar.zst
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: build-${{ matrix.component }}-${{ matrix.arch }}-${{ github.sha }}
+          name: build-${{ matrix.component }}-${{ matrix.arch }}-${{ github.sha }}-attempt-${{ github.run_attempt }}
           path: artifact
           compression-level: 0
           if-no-files-found: error
@@ -104,7 +104,7 @@ jobs:
           "$RUNNER_TEMP/helm/helm" package charts/videoq --version "0.1.0-sha.$GITHUB_SHA" --app-version "$GITHUB_SHA" --destination release
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: chart-${{ github.sha }}
+          name: chart-${{ github.sha }}-attempt-${{ github.run_attempt }}
           path: release/*.tgz
           if-no-files-found: error
           retention-days: 1
@@ -126,7 +126,7 @@ jobs:
       # Fresh runner: never build or execute the application's code here.
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: build-${{ matrix.component }}-${{ matrix.arch }}-${{ github.sha }}
+          name: build-${{ matrix.component }}-${{ matrix.arch }}-${{ github.sha }}-attempt-${{ github.run_attempt }}
       - name: Load and publish the scanned image without executing it
         id: image
         env:
@@ -163,7 +163,7 @@ jobs:
           create-storage-record: false
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: published-${{ matrix.component }}-${{ matrix.arch }}
+          name: published-${{ matrix.component }}-${{ matrix.arch }}-attempt-${{ github.run_attempt }}
           path: published/*.digest
           if-no-files-found: error
           retention-days: 1
@@ -182,7 +182,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: published-${{ matrix.component }}-*
+          pattern: published-${{ matrix.component }}-*-attempt-${{ github.run_attempt }}
           merge-multiple: true
       - id: image
         env:
@@ -206,7 +206,7 @@ jobs:
           create-storage-record: false
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: index-${{ matrix.component }}
+          name: index-${{ matrix.component }}-attempt-${{ github.run_attempt }}
           path: release/*.digest
           if-no-files-found: error
           retention-days: 1
@@ -226,12 +226,12 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: index-*
+          pattern: index-*-attempt-${{ github.run_attempt }}
           path: release
           merge-multiple: true
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: chart-${{ github.sha }}
+          name: chart-${{ github.sha }}-attempt-${{ github.run_attempt }}
           path: release
       - run: python3 .github/scripts/onprem-release.py assemble "$GITHUB_SHA" release
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
@@ -241,7 +241,7 @@ jobs:
             release/*.tgz
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: onprem-release-${{ github.sha }}
+          name: onprem-release-${{ github.sha }}-attempt-${{ github.run_attempt }}
           path: |
             release/release.json
             release/*.tgz
@@ -266,7 +266,7 @@ jobs:
           node-version-file: .node-version
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: onprem-release-${{ github.sha }}
+          name: onprem-release-${{ github.sha }}-attempt-${{ github.run_attempt }}
           path: release
       - name: Verify provenance before loading release images
         env:
@@ -300,7 +300,7 @@ jobs:
       - name: Record staging evidence for promotion review
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: onprem-staging-${{ github.sha }}
+          name: onprem-staging-${{ github.sha }}-attempt-${{ github.run_attempt }}
           path: |
             release/verified-images.json
             ${{ runner.temp }}/lab-result/result.json

@@ -33,7 +33,10 @@ interpreter, the canonical runtime updater refreshes these pins and the verified
 npm/pip/uv build tools. A distribution change must pass the image tests: native
 Python wheels, PostgreSQL, FFmpeg, auth and the Kubernetes lifecycle. OS package
 versions are captured in the SBOM; a rebuild is a new artifact even at the same
-source commit. Release runs and attempts use distinct registry tags. Installation
+source commit. Release runs and attempts use distinct registry tags and artifact
+names. On a failed release, rerun **all jobs** so every artifact belongs to the
+same attempt; partial retries fail closed when their inputs are from an older
+attempt. Installation
 always uses digests.
 
 `On-prem Validation` runs on selected changes and daily against current main,
@@ -57,9 +60,10 @@ manifest being checked.
 ```sh
 SOURCE_SHA=REPLACE_WITH_REVIEWED_40_CHARACTER_COMMIT
 RUN_ID=REPLACE_WITH_SUCCESSFUL_RELEASE_RUN
+RUN_ATTEMPT=$(gh run view "$RUN_ID" --repo yukiharada1228/videoq --json attempt --jq .attempt)
 mkdir -p /secure/videoq-release
 gh run download "$RUN_ID" --repo yukiharada1228/videoq \
-  --name "onprem-release-$SOURCE_SHA" --dir /secure/videoq-release
+  --name "onprem-release-$SOURCE_SHA-attempt-$RUN_ATTEMPT" --dir /secure/videoq-release
 python3 .github/scripts/onprem-release.py verify "$SOURCE_SHA" \
   /secure/videoq-release/release.json /secure/videoq-release/verified-images.json
 ```
