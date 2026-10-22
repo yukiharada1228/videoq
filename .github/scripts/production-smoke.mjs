@@ -6,10 +6,11 @@ const require = createRequire(new URL('../operations-tools/package.json', import
 const { Client } = require('pg');
 const { chromium } = require('playwright');
 const { hashPassword } = await import(require.resolve('better-auth/crypto'));
-const { ORIGIN, synthetic, uploadAllowed } = createRequire(import.meta.url)('./production-smoke-policy.cjs');
+const { ORIGIN, synthetic, uploadAllowed, completed, deletable, fixtureValid } = createRequire(import.meta.url)('./production-smoke-policy.cjs');
 const db = new Client({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 15_000,
   statement_timeout: 30_000, application_name: 'videoq-operations-smoke' });
 let browser, currentUser, cookie = '', stage = 'public-health';
+function progress(value) { stage = value; console.log('Production smoke stage: ' + value); }
 const request = (path, options = {}) => fetch(ORIGIN + path, { ...options, redirect: 'error', signal: AbortSignal.timeout(30_000) });
 async function rpc(procedure, input, mutation = false) {
   const response = await request('/api/trpc/' + procedure + (mutation ? '' : '?input=' + encodeURIComponent(JSON.stringify(input))), {
@@ -35,7 +36,7 @@ async function cleanup(user) {
   if (!synthetic(user)) throw new Error('Unsafe cleanup target');
   const { rows } = await db.query('SELECT id, status FROM videos WHERE user_id = $1', [user.id]);
   // Do not race a running worker or orphan its uploads. A later run retries terminal videos.
-  if (rows.some(video => !['ready', 'error', 'uploading'].includes(video.status))) return false;
+  if (rows.some(video => !deletable(video.status))) return false;
   const visual = await db.query(`SELECT count(*) FROM video_visual_runs r JOIN videos v ON v.id = r.video_id
     WHERE v.user_id = $1 AND r.status = 'processing'`, [user.id]);
   if (Number(visual.rows[0].count)) return false;
@@ -56,10 +57,12 @@ try {
     const body = await response.json();
     if (!response.ok || !['ok', 'ready'].includes(body.data?.status) || (path === '/ready' && body.data.db !== 'ok')) throw new Error('Health failed');
   }
-  stage = 'database-and-cleanup';
+  progress('database-and-cleanup');
   await db.connect();
   const old = await db.query(`SELECT id, username, email, name, role, quota_source FROM users
-    WHERE username LIKE 'ops_smoke_%' AND created_at < now() - interval '1 hour' LIMIT 10`);
+    WHERE username = 'ops_smoke_' || id AND email = id || '@example.invalid'
+      AND name = 'VideoQ automated smoke check' AND role = 'user' AND quota_source = 'admin'
+    ORDER BY created_at LIMIT 10`);
   for (const user of old.rows) {
     if (!synthetic(user)) continue;
     const password = randomBytes(32).toString('base64url');
@@ -81,11 +84,11 @@ try {
   [id, currentUser.username, currentUser.email, currentUser.name]);
   await db.query("INSERT INTO account (id, account_id, provider_id, user_id, password) VALUES ($1,$2,'credential',$2,$3)", [randomUUID(), id, hash]);
   await db.query('COMMIT');
-  stage = 'synthetic-sign-in';
+  progress('synthetic-sign-in');
   await login(currentUser, password);
-  stage = 'upload';
-  const bytes = await fs.readFile(process.env.SMOKE_VIDEO_PATH);
-  if (bytes.length > 2_000_000 || bytes.length < 1000) throw new Error('Invalid fixture size');
+  progress('upload');
+  const bytes = await fs.readFile(new URL('../operations-tools/fixtures/smoke.mp4', import.meta.url));
+  if (!fixtureValid(bytes)) throw new Error('Unreviewed fixture');
   const title = 'Operations smoke ' + id;
   const upload = await rpc('videos.requestUpload', { filename: 'operations-smoke.mp4', title,
     description: 'Automated short-lived operations check', contentType: 'video/mp4', fileSize: bytes.length }, true);
@@ -94,21 +97,21 @@ try {
     redirect: 'error', signal: AbortSignal.timeout(60_000) });
   if (!put.ok) throw new Error('Upload failed');
   await rpc('videos.confirmUpload', { id: upload.video.id }, true);
-  stage = 'video-processing';
+  progress('video-processing');
   let video;
-  for (let attempt = 0; attempt < 40; attempt++) {
+  const deadline = Date.now() + 12 * 60_000;
+  while (Date.now() < deadline) {
     video = await rpc('videos.get', { id: upload.video.id });
     if (video.visual_processing?.status === 'error') throw new Error('Visual processing failed');
-    if (video.status === 'ready' && video.visual_processing?.status !== 'processing') break;
+    if (completed(video)) break;
     if (video.status === 'error') throw new Error('Processing failed');
-    await delay(20_000);
+    await delay(Math.min(20_000, Math.max(0, deadline - Date.now())));
   }
-  if (video.status !== 'ready' || video.visual_processing?.status === 'processing' ||
-      !video.transcript?.trim()) throw new Error('Video processing did not finish');
+  if (!video || !completed(video) || !video.transcript?.trim()) throw new Error('Video processing did not finish');
   const embedded = await db.query('SELECT count(*) FROM scene_embeddings WHERE user_id = $1 AND video_id = $2', [id, video.id]);
   if (Number(embedded.rows[0].count) < 1) throw new Error('No scene embeddings');
-  stage = 'browser';
-  browser = await chromium.launch();
+  progress('browser');
+  browser = await chromium.launch({ channel: 'chrome' });
   const context = await browser.newContext();
   const page = await context.newPage();
   const errors = [];

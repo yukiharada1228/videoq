@@ -16,7 +16,7 @@ permissions:
   contents: read
 jobs:
   restore-fixture:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -26,5 +26,14 @@ jobs:
         with:
           node-version: '22'
       - run: npm ci --ignore-scripts --prefix .github/operations-tools
+      - name: Verify the hosted Chrome channel without production access
+        run: |
+          node --input-type=module <<'JS'
+          import { createRequire } from 'node:module';
+          const require = createRequire(process.cwd() + '/.github/operations-tools/package.json');
+          const { chromium } = require('playwright');
+          const browser = await chromium.launch({ channel: 'chrome' });
+          await browser.close();
+          JS
       - name: Restore synthetic vector data and foreign keys without production access
         run: node .github/scripts/backup-restore-fixture.mjs
