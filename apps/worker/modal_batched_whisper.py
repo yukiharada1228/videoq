@@ -21,7 +21,9 @@ image = (
     modal.Image.from_dockerfile(str(Path(__file__).with_name("Dockerfile.modal")))
     .entrypoint([])
     .uv_pip_install(
-        "faster-whisper==1.2.1", "huggingface-hub==0.36.0",
+        # faster-whisper 1.2.1 passes metadata_errors, removed in PyAV 19.
+        # https://github.com/SYSTRAN/faster-whisper/issues/1589
+        "faster-whisper==1.2.1", "av==18.1.0", "huggingface-hub==0.36.0",
         "fastapi==0.146.0", "python-multipart==0.0.32", "starlette==1.9.0",
     )
     .run_commands(
