@@ -27,6 +27,7 @@ jobs:
             terraform:
               - 'infra/**'
               - '.github/workflows/terraform-plan.yml'
+              - '.github/workflows/terraform-apply.yml'
 
   terraform-validate:
     name: Terraform Validate
@@ -56,6 +57,13 @@ jobs:
 
       - name: Terraform validate
         run: terraform validate -no-color
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version-file: .python-version
+
+      - name: Test Terraform approval and no-change behavior
+        run: python -m unittest discover -s scripts -p 'test_*.py'
 
       - name: Terraform tests (mock providers)
         run: terraform test -no-color
