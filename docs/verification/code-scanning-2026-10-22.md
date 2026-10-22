@@ -17,7 +17,8 @@ Scope: all 21 open CodeQL alerts on `main`, inspected against
 
 Regression coverage includes rejected random samples and refills, nested XML
 entities, long URL inputs, mismatched workflow-context commits and immutable
-checkout references.
+checkout references. Report tests verify private permissions, refusal of
+existing files and symlinks, and writes after a path has been replaced.
 
 ## Reviewed intentional data flows
 

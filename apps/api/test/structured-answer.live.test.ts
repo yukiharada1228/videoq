@@ -1,10 +1,9 @@
-import { closeSync, existsSync, ftruncateSync, mkdtempSync, openSync, readFileSync, writeSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 import { parse } from "dotenv";
 import { describe, expect, it, vi } from "vitest";
 import type { Bindings } from "../src/types/bindings";
 import { chatAnswerSchema, type ChatStreamEvent } from "@videoq/trpc/chat";
+import { privateJsonReport } from "./support/private-report";
 
 const enabled = process.env.STRUCTURED_ANSWER_LIVE === "1";
 const varsPath = new URL("../.dev.vars", import.meta.url);
@@ -40,6 +39,8 @@ const cases = [
 // Usage and request counts are reported, not hidden by aggregate timings.
 describe.skipIf(!enabled)("structured answer comparison (paid, opt-in)", () => {
   it("records identical fixtures and transport usage", async () => {
+    const report = privateJsonReport(process.env.STRUCTURED_ANSWER_REPORT);
+    console.log(`Structured answer report: ${report.path}`);
     const originalFetch = globalThis.fetch;
     const results: unknown[] = [];
     let rejectedIds = 0;
@@ -50,13 +51,6 @@ describe.skipIf(!enabled)("structured answer comparison (paid, opt-in)", () => {
         rejectedIds += counts.invalid_id + counts.unknown_id;
       } else warn(entry, ...args);
     });
-    // A private, randomly created directory prevents shared-tmp symlink attacks.
-    // Explicit report paths must also be new files; hold the exclusive fd for
-    // the entire run so progress updates never follow a replaced path.
-    const reportPath = process.env.STRUCTURED_ANSWER_REPORT
-      ?? join(mkdtempSync(join(tmpdir(), "videoq-answer-")), "structured.json");
-    const report = openSync(reportPath, "wx", 0o600);
-    console.log(`Structured answer report: ${reportPath}`);
     let browser: Awaited<ReturnType<typeof import("./support/answer-browser").answerBrowser>> | undefined;
     try {
       browser = process.env.STRUCTURED_ANSWER_BROWSER === "1"
@@ -125,12 +119,10 @@ describe.skipIf(!enabled)("structured answer comparison (paid, opt-in)", () => {
         if (visible) expect.soft(visible.mathErrors).toBe(0);
         results.push({ id: scenario.id, repeat, course: scenario.course, firstTextMs, firstCitationMs,
           completionMs, calls, repairCalls: 0, rejectedIds, inputTokens, outputTokens, content, final, ...visible });
-        const reportJson = JSON.stringify({
+        report.write({
           model: env.LLM_MODEL, results,
-        }, null, 2);
-        writeSync(report, reportJson, 0, "utf8");
-        ftruncateSync(report, Buffer.byteLength(reportJson));
+        });
       }
-    } finally { closeSync(report); globalThis.fetch = originalFetch; log.mockRestore(); await browser?.close(); }
+    } finally { report.close(); globalThis.fetch = originalFetch; log.mockRestore(); await browser?.close(); }
   }, 900_000);
 });
