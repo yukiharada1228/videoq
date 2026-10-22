@@ -107,6 +107,12 @@ jobs:
               - '.github/workflows/cd.yml'
               - '.github/scripts/**'
               - '.github/deploy-tools/**'
+              - ".github/runtime-versions.json"
+              - ".node-version"
+              - ".python-version"
+              - ".github/actions/**"
+              - ".github/scripts/runtime-versions.py"
+              - ".github/scripts/package-managers.py"
             api:
               - 'apps/api/**'
               - 'packages/trpc/**'
@@ -115,6 +121,12 @@ jobs:
               - '.github/workflows/cd.yml'
               - '.github/scripts/**'
               - '.github/deploy-tools/**'
+              - ".github/runtime-versions.json"
+              - ".node-version"
+              - ".python-version"
+              - ".github/actions/**"
+              - ".github/scripts/runtime-versions.py"
+              - ".github/scripts/package-managers.py"
             worker:
               - 'apps/worker/**'
               # A migration can rename objects used by the Python worker. If a
@@ -132,11 +144,24 @@ jobs:
               - '.github/workflows/cd.yml'
               - '.github/scripts/**'
               - '.github/deploy-tools/**'
+              - ".github/runtime-versions.json"
+              - ".node-version"
+              - ".python-version"
+              - ".github/actions/**"
+              - ".github/scripts/runtime-versions.py"
+              - ".github/scripts/package-managers.py"
             modal:
               - 'apps/worker/modal_batched_whisper.py'
+              - 'apps/worker/Dockerfile.modal'
               - '.github/workflows/cd.yml'
               - '.github/scripts/**'
               - '.github/deploy-tools/**'
+              - ".github/runtime-versions.json"
+              - ".node-version"
+              - ".python-version"
+              - ".github/actions/**"
+              - ".github/scripts/runtime-versions.py"
+              - ".github/scripts/package-managers.py"
             migrate:
               - 'apps/api/drizzle/**'
               - 'apps/api/src/db/**'
@@ -149,6 +174,12 @@ jobs:
               - '.github/workflows/cd.yml'
               - '.github/scripts/**'
               - '.github/deploy-tools/**'
+              - ".github/runtime-versions.json"
+              - ".node-version"
+              - ".python-version"
+              - ".github/actions/**"
+              - ".github/scripts/runtime-versions.py"
+              - ".github/scripts/package-managers.py"
             docs:
               - 'apps/docs/**'
               - 'docs/**'
@@ -158,6 +189,12 @@ jobs:
               - '.github/workflows/cd.yml'
               - '.github/scripts/**'
               - '.github/deploy-tools/**'
+              - ".github/runtime-versions.json"
+              - ".node-version"
+              - ".python-version"
+              - ".github/actions/**"
+              - ".github/scripts/runtime-versions.py"
+              - ".github/scripts/package-managers.py"
       - name: Resolve deploy flags
         id: resolve
         run: |
@@ -192,7 +229,10 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22'
+          node-version-file: .node-version
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: npm
       - run: npm ci --ignore-scripts
       - run: npm audit signatures
       - name: Build API Worker
@@ -242,7 +282,10 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22'
+          node-version-file: .node-version
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: npm
       - name: Install separately locked deployment tools without lifecycle scripts
         run: npm ci --ignore-scripts --prefix .github/deploy-tools
       - name: Verify deployment tool signatures
@@ -281,7 +324,10 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22'
+          node-version-file: .node-version
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: npm
       - name: Install separately locked deployment tools without lifecycle scripts
         run: npm ci --ignore-scripts --prefix .github/deploy-tools
       - name: Verify deployment tool signatures
@@ -321,7 +367,10 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22'
+          node-version-file: .node-version
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: npm
       - name: Install separately locked deployment tools without lifecycle scripts
         run: npm ci --ignore-scripts --prefix .github/deploy-tools
       - name: Verify deployment tool signatures
@@ -356,7 +405,10 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22'
+          node-version-file: .node-version
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: npm
       - name: Install separately locked deployment tools without lifecycle scripts
         run: npm ci --ignore-scripts --prefix .github/deploy-tools
       - name: Verify deployment tool signatures
@@ -386,7 +438,10 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: '3.12'
+          python-version-file: .python-version
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: pip
       - name: Install checksum-pinned uv
         run: bash .github/scripts/install-uv.sh
       - name: Install separately locked Modal CLI from hash-verified wheels

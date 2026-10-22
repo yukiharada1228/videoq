@@ -37,10 +37,16 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version-file: .node-version
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: npm
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: '3.12'
+          python-version-file: .python-version
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: pip
       - name: Check lockfile sources, integrity and vulnerability delta
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
@@ -61,10 +67,15 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "22"
+          node-version-file: .node-version
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: npm
       - name: Test production deployment policy
         run: node --test .github/scripts/*.test.cjs
       - run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+      - name: Require consistent interpreter and package manager pins
+        run: python3 .github/scripts/runtime-versions.py check
 
   ci-success:
     name: CI Success
@@ -98,6 +109,7 @@ jobs:
       worker: ${{ steps.filter.outputs.worker }}
       frontend: ${{ steps.filter.outputs.frontend }}
       docs: ${{ steps.filter.outputs.docs }}
+      worker_matrix: ${{ steps.runtimes.outputs.matrix }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -117,6 +129,12 @@ jobs:
               - '.github/scripts/deployment-config*'
               - '.github/scripts/verify-prebuilt-deployment.sh'
               - '.github/deploy-tools/**'
+              - ".github/runtime-versions.json"
+              - ".node-version"
+              - ".python-version"
+              - ".github/actions/**"
+              - ".github/scripts/runtime-versions.py"
+              - ".github/scripts/package-managers.py"
             worker:
               - 'apps/worker/**'
               - 'packages/trpc/test-fixtures/**'
@@ -125,6 +143,12 @@ jobs:
               - '.github/scripts/deployment-config*'
               - '.github/scripts/verify-prebuilt-deployment.sh'
               - '.github/deploy-tools/**'
+              - ".github/runtime-versions.json"
+              - ".node-version"
+              - ".python-version"
+              - ".github/actions/**"
+              - ".github/scripts/runtime-versions.py"
+              - ".github/scripts/package-managers.py"
             frontend:
               - 'apps/web/**'
               - 'apps/demo-video/**'
@@ -136,6 +160,12 @@ jobs:
               - '.github/scripts/deployment-config*'
               - '.github/scripts/verify-prebuilt-deployment.sh'
               - '.github/deploy-tools/**'
+              - ".github/runtime-versions.json"
+              - ".node-version"
+              - ".python-version"
+              - ".github/actions/**"
+              - ".github/scripts/runtime-versions.py"
+              - ".github/scripts/package-managers.py"
             docs:
               - 'apps/docs/**'
               - 'docs/**'
@@ -146,6 +176,16 @@ jobs:
               - '.github/scripts/deployment-config*'
               - '.github/scripts/verify-prebuilt-deployment.sh'
               - '.github/deploy-tools/**'
+              - ".github/runtime-versions.json"
+              - ".node-version"
+              - ".python-version"
+              - ".github/actions/**"
+              - ".github/scripts/runtime-versions.py"
+              - ".github/scripts/package-managers.py"
+
+      - name: Read the supported and production Python versions
+        id: runtimes
+        run: python3 .github/scripts/runtime-versions.py matrix >> "$GITHUB_OUTPUT"
 
   hono-test:
     name: Hono (apps/api)
@@ -173,12 +213,18 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "22"
+          node-version-file: .node-version
           cache: npm
           cache-dependency-path: package-lock.json
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: npm
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.12"
+          python-version-file: .python-version
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: pip
       - name: Install checksum-pinned uv
         run: bash .github/scripts/install-uv.sh
       - name: Install worker for cross-language embedding tests
@@ -198,13 +244,12 @@ jobs:
 
   worker-test:
     name: Worker Python (django-free)
-    runs-on: ${{ matrix.python-version == '3.14' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.runner }}
     needs: changes
     if: needs.changes.outputs.worker == 'true'
     strategy:
       fail-fast: false
-      matrix:
-        python-version: ["3.12", "3.14"]
+      matrix: ${{ fromJSON(needs.changes.outputs.worker_matrix) }}
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
     services:
@@ -225,11 +270,17 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ matrix.python }}
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: pip
       # Cost-model tests read the TypeScript plan catalog with native type stripping.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "22"
+          node-version-file: .node-version
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: npm
       - name: Install shared contracts for cost-model tests
         run: npm ci --ignore-scripts --workspace @videoq/trpc
       - name: Install checksum-pinned uv
@@ -249,7 +300,7 @@ jobs:
           python -m pytest tests/ -q
 
       - name: Verify the production ARM64 media image
-        if: matrix.python-version == '3.14'
+        if: matrix.production
         run: |
           docker build --platform linux/arm64 -t videoq-worker-test apps/worker
           uv export --quiet --project apps/worker --locked --extra dev --no-emit-project --format requirements-txt --output-file apps/worker/ci-requirements.txt
@@ -268,9 +319,12 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "22"
+          node-version-file: .node-version
           cache: npm
           cache-dependency-path: package-lock.json
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: npm
       - name: Install dependencies
         run: npm ci --ignore-scripts
       - name: Lint
@@ -289,9 +343,12 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "22"
+          node-version-file: .node-version
           cache: npm
           cache-dependency-path: package-lock.json
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: npm
       - name: Install dependencies
         run: npm ci --ignore-scripts
       - name: Run tests with coverage
@@ -344,9 +401,12 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "22"
+          node-version-file: .node-version
           cache: npm
           cache-dependency-path: package-lock.json
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: npm
       - name: Install dependencies
         run: npm ci --ignore-scripts
       - name: Build
@@ -390,9 +450,12 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "22"
+          node-version-file: .node-version
           cache: npm
           cache-dependency-path: package-lock.json
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: npm
       - name: Install dependencies
         run: npm ci --ignore-scripts
       - name: Build Storybook
@@ -423,9 +486,12 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "22"
+          node-version-file: .node-version
           cache: npm
           cache-dependency-path: package-lock.json
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: npm
       - name: Install dependencies
         run: npm ci --ignore-scripts --workspace @videoq/docs
       - name: Type check

@@ -24,6 +24,13 @@ jobs:
               - 'apps/worker/Dockerfile*'
               - 'docker-compose.yml'
               - '.github/workflows/container-validation.yml'
+              - '.github/runtime-versions.json'
+              - '.node-version'
+              - '.python-version'
+              - '.github/actions/**'
+              - '.github/scripts/runtime-*'
+              - '.github/scripts/package-managers.py'
+              - 'apps/worker/modal_batched_whisper.py'
 
   validate:
     needs: changes
@@ -47,10 +54,86 @@ jobs:
           docker build --check -f apps/web/Dockerfile.dev .
           docker build --check --platform linux/arm64 -f apps/worker/Dockerfile apps/worker
           docker build --check -f apps/worker/Dockerfile.local apps/worker
+          docker build --check -f apps/worker/Dockerfile.modal apps/worker
+
+  node-runtime:
+    name: Node container (${{ matrix.name }})
+    needs: changes
+    if: needs.changes.outputs.containers == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: api
+            dockerfile: apps/api/Dockerfile.local
+            target: ''
+          - name: web
+            dockerfile: apps/web/Dockerfile
+            target: build
+          - name: web-dev
+            dockerfile: apps/web/Dockerfile.dev
+            target: ''
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the actual application image
+        env:
+          DOCKERFILE: ${{ matrix.dockerfile }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          args=()
+          if [ -n "$TARGET" ]; then args+=(--target "$TARGET"); fi
+          docker build --pull "${args[@]}" -t videoq-node-runtime -f "$DOCKERFILE" .
+      - name: Require the reviewed Node and npm versions inside the image
+        run: |
+          test "$(docker run --rm --entrypoint node videoq-node-runtime -p process.versions.node)" = "$(cat .node-version)"
+          expected=$(python3 -c 'import json; print(json.load(open(".github/runtime-versions.json"))["npm"])')
+          test "$(docker run --rm --entrypoint npm videoq-node-runtime --version)" = "$expected"
+      - name: Test application types and native Worker runtime
+        if: matrix.name == 'api'
+        run: |
+          docker run --rm --entrypoint npm videoq-node-runtime run typecheck
+          docker run --rm --entrypoint npm videoq-node-runtime run test:workers
+
+  modal-runtime:
+    name: Modal Python runtime
+    needs: changes
+    if: needs.changes.outputs.containers == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version-file: .python-version
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: pip
+      - name: Install checksum-pinned uv
+        run: bash .github/scripts/install-uv.sh
+      - name: Prepare the same dependency declarations that Modal deploys
+        run: |
+          python .github/scripts/modal-requirements.py > apps/worker/modal-runtime-requirements.txt
+          uv export --quiet --project apps/worker --locked --extra dev --no-emit-project --format requirements-txt --output-file apps/worker/modal-test-requirements.txt
+      - name: Build the exact GPU base and Python interpreter
+        run: docker build --pull -t videoq-modal-runtime -f apps/worker/Dockerfile.modal apps/worker
+      - name: Test Whisper native dependencies and the application boundary on the actual interpreter
+        run: |
+          docker run --rm --entrypoint /bin/bash -v "$PWD:/workspace:ro" -w /workspace/apps/worker videoq-modal-runtime -euc '
+            python -m pip install --require-hashes --only-binary=:all: -r modal-test-requirements.txt
+            python -m pip install --only-binary=:all: -r modal-runtime-requirements.txt
+            python /workspace/.github/scripts/modal-runtime-smoke.py
+            python -m pytest -p no:cacheprovider tests/test_modal_batched_whisper_api.py tests/test_modal_runtime_dependencies.py -q
+          '
 
   result:
     name: Container Validation
-    needs: [changes, validate]
+    needs: [changes, validate, node-runtime, modal-runtime]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -59,8 +142,12 @@ jobs:
           CHANGES_RESULT: ${{ needs.changes.result }}
           CONTAINERS_CHANGED: ${{ needs.changes.outputs.containers }}
           VALIDATE_RESULT: ${{ needs.validate.result }}
+          NODE_RESULT: ${{ needs.node-runtime.result }}
+          MODAL_RESULT: ${{ needs.modal-runtime.result }}
         run: |
           test "$CHANGES_RESULT" = success
           if [ "$CONTAINERS_CHANGED" = true ]; then
             test "$VALIDATE_RESULT" = success
+            test "$NODE_RESULT" = success
+            test "$MODAL_RESULT" = success
           fi

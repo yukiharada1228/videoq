@@ -6,6 +6,7 @@ before the GPU Web Function starts.
 """
 
 from time import perf_counter
+from pathlib import Path
 
 import modal
 
@@ -17,9 +18,7 @@ MAX_AUDIO_BYTES = 16 * 1024 * 1024
 MAX_DURATION_SECONDS = 1801
 
 image = (
-    modal.Image.from_registry(
-        "nvidia/cuda:12.3.2-cudnn9-runtime-ubuntu22.04", add_python="3.11"
-    )
+    modal.Image.from_dockerfile(str(Path(__file__).with_name("Dockerfile.modal")))
     .entrypoint([])
     .uv_pip_install(
         "faster-whisper==1.2.1", "huggingface-hub==0.36.0",

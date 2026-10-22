@@ -60,5 +60,6 @@
   },
   "devDependencies": {
     "typescript": "~5.9.3"
-  }
+  },
+  "packageManager": "npm@12.2.1"
 }
