@@ -1,4 +1,4 @@
-name: Dependency Patch Auto-merge
+name: Dependency Auto-merge
 
 on:
   pull_request_target:
@@ -29,7 +29,7 @@ jobs:
           persist-credentials: false
           sparse-checkout: .github/scripts
       - name: Create repository-scoped bot token
-        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         id: app
         with:
           app-id: ${{ vars.PATCH_BOT_APP_ID }}
@@ -58,12 +58,13 @@ jobs:
       - name: Read verified Dependabot metadata
         if: steps.scope.outputs.eligible == 'true'
         id: metadata
-        uses: dependabot/fetch-metadata@21025c705c08248db411dc16f3619e6b5f9ea21a # v2
-      - name: Verify patch policy and branch protection
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+      - name: Verify dependency policy and branch protection
         id: policy
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           ELIGIBLE: ${{ steps.scope.outputs.eligible }}
+          EXPECTED_SHA: ${{ steps.scope.outputs.sha }}
           UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
           ECOSYSTEM: ${{ steps.metadata.outputs.package-ecosystem }}
           MAINTAINER_CHANGES: ${{ steps.metadata.outputs.maintainer-changes }}
@@ -71,13 +72,20 @@ jobs:
           github-token: ${{ steps.app.outputs.token }}
           script: |
             const policy = require('./.github/scripts/dependency-automation.cjs');
-            const eligible = process.env.ELIGIBLE === 'true' && policy.patchMetadata({
+            const { pr, files, comments } = await policy.getPull({ github, context, number: context.issue.number });
+            const commits = await github.paginate(github.rest.pulls.listCommits, { ...context.repo, pull_number: pr.number, per_page: 100 });
+            const metadata = {
               updateType: process.env.UPDATE_TYPE, ecosystem: process.env.ECOSYSTEM,
               maintainerChanges: process.env.MAINTAINER_CHANGES,
-            });
+            };
+            const eligible = process.env.ELIGIBLE === 'true' &&
+              pr.head.sha === process.env.EXPECTED_SHA &&
+              policy.eligiblePull(pr, files, 'no-automerge', comments) &&
+              policy.autoMergeMetadata(metadata, files) &&
+              policy.verifiedDependencyCommits(commits, pr.head.sha);
             if (eligible) {
               const { data } = await github.rest.repos.getBranchProtection({ ...context.repo, branch: 'main' });
-              policy.requireProtection(data);
+              policy.requireProtection(data, metadata.ecosystem);
             }
             core.setOutput('eligible', eligible);
       - name: Recheck current PR
@@ -91,7 +99,7 @@ jobs:
             const policy = require('./.github/scripts/dependency-automation.cjs');
             const { pr, files, comments } = await policy.getPull({ github, context, number: context.issue.number });
             core.setOutput('eligible', pr.head.sha === process.env.EXPECTED_SHA && policy.eligiblePull(pr, files, 'no-automerge', comments));
-      - name: Queue patch merge after required checks pass
+      - name: Queue dependency merge after required checks pass
         if: steps.policy.outputs.eligible == 'true' && steps.current.outputs.eligible == 'true'
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}

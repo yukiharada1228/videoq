@@ -1,17 +1,17 @@
 # 依存関係の自動更新・修正
 
-patch更新はGitHubで自動マージし、CIが失敗した場合はGitHub連携のCodexへ修正を依頼する。
+minor／patch更新はGitHubで自動マージし、CIが失敗した場合はGitHub連携のCodexへ修正を依頼する。
 修正にはChatGPTログインのCodex利用枠を使う。OpenAI APIキーの登録、認証ファイルの転送、
 PCの常時起動、ローカルの定期タスクは不要。
 
-**自動化するのはpatch更新のマージと修正依頼の案内まで。Codexによる修正の開始には、
+**自動化するのはminor／patch更新のマージと修正依頼の案内まで。Codexによる修正の開始には、
 GitHub連携を設定した本人がPRにコメントを投稿する。** Botのコメントが本人のサブスク枠で
 Codexを自動起動できるとは仮定しない。
 
 ```mermaid
 flowchart TD
   A[Dependabotが更新PRを作成] --> B[既存CI]
-  B -->|成功・patchのみ| C[GitHub Appで自動マージ]
+  B -->|成功・minor／patchのみ| C[GitHub Appで自動マージ]
   C --> D[mainのCI → 既存CD]
   B -->|失敗| E[PRへ失敗情報と修正依頼案内を投稿]
   E --> F[本人がPRでCodexへ修正を依頼]
@@ -62,20 +62,21 @@ mainの信頼済みスクリプトだけを読み込み、PRのコードやモ�
 Run workflowでbranchを `main` にし、`run_id` に失敗したCI runの数値IDを指定する。
 この操作もCodex本体を実行するものではない。
 
-## patch更新の自動マージ
+## minor／patch更新の自動マージ
 
 自動マージは初期状態では無効。対象条件は以下。
 
 - 同一リポジトリ内のDependabot作成・`dependabot/` ブランチ・main向けPR。
-- npmまたはPythonのpatch更新のみ。グループにminor/majorが混ざれば対象外。
-- 既存の `package.json`、`package-lock.json`、workerの `pyproject.toml` / `uv.lock` だけを変更し、最大10ファイル。
-- Dependabot公式Actionのコミット検証と更新種別確認を通過し、maintainer変更表示がない。
+- npm・Python・Docker・Docker Compose・Terraform・GitHub Actionsのminor／patch更新。グループにmajorが混ざれば対象外。
+- 更新種別に対応する既存の依存ファイルだけを変更し、最大50ファイル。Terraformはproviderのversion制約とlockfile、GitHub Actionsは同じActionの完全SHA参照の更新だけを許可する。
+- Dependabot公式Actionの更新種別確認を通過し、maintainer変更表示がない。全PRコミットが署名検証済みDependabotコミットで、手動追記やmainの手動マージを含まない。
 - `no-automerge` ラベルも、信頼済みBotのCodex修正依頼案内もない。
 - mainの必須チェックがGitHub Actionsの `CI Success` で、strict（最新mainへの追従必須）が有効。
 
 `gh pr merge --auto --squash --match-head-commit` で予約し、GitHubが必須チェックと
 ブランチ保護を満たした時点でマージする。最新mainを取り込めていなければ待機する。
-Docker、Terraform、GitHub Actions、submodule、ソース変更、Codex修正はレビュー対象。
+major更新、配備ツール（`.github/deploy-tools`）、submodule、ソース変更、Codex修正はレビュー対象。
+Docker／Composeは `Container Validation`、Terraformは `Terraform Plan` の成功も必要。DockerfileとCompose設定、provider更新の検証とmockテストを本番資格情報なしで実行する。
 
 有効化手順：
 
@@ -131,7 +132,7 @@ GitHubへの実反映・Codex連携は別途設定後に確認する。
 - lockfile の配布元を npm / PyPI の公式レジストリに限定し、整合性ハッシュと同一バージョンの改変を確認します。新しい npm バージョンには SHA-512 を要求します。
 - `npm ci --ignore-scripts` の後に `npm audit signatures` で署名・提供されている provenance を検証します。署名は配布元と完全性を確認するもので、パッケージに悪意がないことの証明ではありません。
 - 新しくインストールスクリプトを持つパッケージを追加する場合は `.github/supply-chain-policy.json` のレビューが必要です。このポリシー変更は自動マージ対象になりません。掲載済みパッケージのインストールスクリプトも実行しません。
-- 通常の npm / uv 更新は公開後 7 日の cooldown を設けます。Dependabot のセキュリティ更新は cooldown の対象外です。修正リリースと GitHub の脆弱性情報が利用可能になった後に PR が作られ、必須検査が成功したパッチのみ自動マージされます。公開直後の適用時刻は保証しません。
+- 通常の npm / uv 更新は公開後 7 日の cooldown を設けます。Dependabot のセキュリティ更新は cooldown の対象外です。修正リリースと GitHub の脆弱性情報が利用可能になった後に PR が作られ、必須検査が成功したminor／patch更新のみ自動マージされます。公開直後の適用時刻は保証しません。
 - Action は完全なコミット SHA に固定し、checkout の資格情報を残しません。依存コードの実行に書き込み権限や本番資格情報を渡さない構成を維持します。
 
 未知の悪意ある更新・正規アカウントの乗っ取り・実行時の不正動作を完全に検出できるものではありません。疑わしい PR には `no-automerge` を付け、`DEPENDENCY_AUTOMERGE_ENABLED=false` で全体を止めてください。すでに予約済みの auto-merge は別途解除してください。
@@ -154,3 +155,15 @@ Python worker は CI と Docker ビルドの両方で `uv.lock` から依存を�
 worker のロックに残っていた Starlette の既知の脆弱性は 1.9.0 へ更新しました。Modal の HTTP 依存もテスト済みの FastAPI / Starlette / python-multipart に合わせ、以後は配備版とテスト版の一致を CI で確認します。
 
 既存のドキュメント・開発ツール依存に `braces <=3.0.3` の [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) が含まれます。深くネストしたパターンによる DoS で、現在の npm 情報には互換性を保った修正版がありません。`npm audit fix --force` が提案する大幅なダウングレードは適用しません。ビルドを資格情報のないジョブに隔離し、時間制限を付けた上で、Dependabot の通知と修正版を監視します。今回の変更は既存問題を解消済みとは扱いません。
+
+## マージ後のブランチ整理
+
+GitHubの `Automatically delete head branches` を有効にする。マージ済みPRのブランチを自動削除し、未マージPRとmainは保持する。
+
+## Terraform provider更新の本番自動適用
+
+`TERRAFORM_DEPENDENCY_AUTOAPPLY_ENABLED=true` の場合、mainへマージされたDependabotのTerraform minor／patch更新を本番へ自動適用する。
+マージコミットに対応するPR、全コミットのDependabot署名、各依存の更新種別、変更ファイルを読み取り専用ジョブで再検証する。
+対象は既存providerのversion制約とlockfileだけ。手動追記、major、通常のリソース変更、手動実行は `production-infra` の承認を必要とする。
+古いmainの実行はスキップする。AWSの既存main用OIDC信頼を使い、判定ジョブにはAWS資格情報を渡さない。
+停止する場合はこのVariableを `false` にする。通常変更の承認設定は変更しない。

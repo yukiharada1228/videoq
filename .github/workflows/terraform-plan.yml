@@ -2,9 +2,6 @@ name: Terraform Plan
 
 on:
   pull_request:
-    paths:
-      - 'infra/**'
-      - '.github/workflows/terraform-plan.yml'
 
 permissions:
   contents: read
@@ -14,8 +11,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      terraform: ${{ steps.filter.outputs.terraform }}
+    steps:
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        with:
+          filters: |
+            terraform:
+              - 'infra/**'
+              - '.github/workflows/terraform-plan.yml'
+
   terraform-validate:
     name: Terraform Validate
+    needs: changes
+    if: needs.changes.outputs.terraform == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -149,13 +165,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: always()
-    needs: [terraform-validate, terraform-plan]
+    needs: [changes, terraform-validate, terraform-plan]
     steps:
       - name: Require Terraform checks to pass
         env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          TERRAFORM_CHANGED: ${{ needs.changes.outputs.terraform }}
           VALIDATE_RESULT: ${{ needs.terraform-validate.result }}
           PLAN_RESULT: ${{ needs.terraform-plan.result }}
         run: |
+          test "$CHANGES_RESULT" = success
+          if [ "$TERRAFORM_CHANGED" != true ]; then
+            echo 'No Terraform changes.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           test "$VALIDATE_RESULT" = success
           case "$PLAN_RESULT" in
             success) echo 'Terraform validation and AWS plan passed.' >> "$GITHUB_STEP_SUMMARY" ;;
