@@ -1,0 +1,68 @@
+name: Production Container Security
+on:
+  schedule:
+    - cron: '23 2 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: container-security
+  cancel-in-progress: false
+jobs:
+  inspect:
+    if: github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_PLAN_ROLE_ARN }}
+          role-session-name: videoq-container-readonly
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Resolve the immutable image actually running in production
+        id: image
+        env:
+          FUNCTION_NAME: ${{ secrets.LAMBDA_WORKER_FUNCTION_NAME }}
+          EXPECTED_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+          EXPECTED_REPOSITORY: ${{ secrets.ECR_REPOSITORY_WORKER }}
+        run: |
+          image=$(aws lambda get-function --function-name "$FUNCTION_NAME" --query Code.ResolvedImageUri --output text)
+          prefix="$EXPECTED_REGISTRY/$EXPECTED_REPOSITORY@sha256:"
+          test "${image#"$prefix"}" != "$image"
+          digest="${image#"$prefix"}"
+          [[ "$digest" =~ ^[a-f0-9]{64}$ ]]
+          echo "ref=$image" >> "$GITHUB_OUTPUT"
+      - name: Scan OS and application packages including unfixed vulnerabilities
+        id: scan
+        uses: aquasecurity/trivy-action@8f28faec26515256b6d22074d1d2a8986f4cbd87 # v0.35.0
+        with:
+          version: v0.76.1
+          scan-type: image
+          image-ref: ${{ steps.image.outputs.ref }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: 'false'
+          format: json
+          output: trivy.json
+          exit-code: '0'
+          timeout: 15m
+      - name: Summarize vulnerability identifiers only
+        run: python .github/scripts/container-security.py
+      - name: Publish or resolve the managed issue
+        if: always()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('node:fs');
+            const { notify } = require('./.github/scripts/operations-notify.cjs');
+            let report = { status: 'error', summary: '定期検査を完了できませんでした。', details: [] };
+            if (fs.existsSync('operations-report.json')) report = JSON.parse(fs.readFileSync('operations-report.json', 'utf8'));
+            await notify({ github, context, core, kind: 'container-security', title: '本番コンテナの脆弱性', report });
+            if (report.status !== 'ok') core.setFailed(report.summary);
