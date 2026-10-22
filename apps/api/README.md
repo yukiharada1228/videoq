@@ -2,6 +2,12 @@
 
 VideoQ's Web API, built with Hono / TypeScript and running on Cloudflare Workers.
 
+The production on-prem entrypoint runs the same Hono app on Node.js, without
+Wrangler or Durable Objects. Build with `npm run build:node`, then run
+`npm run start:node` with the required settings from the
+[Helm chart README](../../charts/videoq/README.md). The same image provides
+`node dist/node.mjs maintenance` and `node dist/node.mjs retention` for CronJobs.
+
 New contributors should start with [development environment setup](../../docs/getting-started/local-setup.md).
 For API changes, start with the [API development guide](../../docs/guides/api.md).
 The following reference covers details specific to the API package.

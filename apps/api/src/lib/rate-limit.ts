@@ -141,10 +141,11 @@ const unavailableBackend: RateLimitBackend = {
 };
 
 /**
- * このリクエストのレート制限バックエンド。RATE_LIMITER DO が唯一の永続先で、
- * バインディングが無いときはテスト注入か fail-closed にフォールバックする。
+ * Workers は RATE_LIMITER DO、Node は注入された PostgreSQL バックエンドを使う。
+ * どちらも無いときはテスト注入か fail-closed にフォールバックする。
  */
 export function rateLimitBackend(env: Bindings): RateLimitBackend {
+  if (env.RATE_LIMIT_BACKEND) return env.RATE_LIMIT_BACKEND;
   const ns = env.RATE_LIMITER;
   if (!ns) return injectedTestBackend ?? unavailableBackend;
   const stubFor = (key: string) => ns.get(ns.idFromName(key));
@@ -166,6 +167,7 @@ export function rateLimitBackend(env: Bindings): RateLimitBackend {
 
 /** Cloudflare / プロキシの転送ヘッダーからクライアント IP を解決する。 */
 export function clientIp(c: Context<AppEnv>): string {
+  if (c.env.RUNTIME === "node") return c.req.header("X-VideoQ-Client-IP") || "unknown";
   return (
     c.req.header("CF-Connecting-IP")?.trim() ||
     c.req.header("True-Client-IP")?.trim() ||

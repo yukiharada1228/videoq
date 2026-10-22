@@ -16,6 +16,7 @@ export function isChatExecutionRequest(request: Request): boolean {
 
 /** One execution per answer; independent answers never share a bottleneck. */
 export function dispatchChatExecution(request: Request, env: Bindings): Promise<Response> {
+  if (!env.CHAT_EXECUTION) throw new Error("Chat execution binding is not configured");
   const execution = env.CHAT_EXECUTION.get(env.CHAT_EXECUTION.newUniqueId());
   // Pass the response body through untouched: draining SSE here would move
   // per-token work back into the Free Worker's 10 ms CPU budget.

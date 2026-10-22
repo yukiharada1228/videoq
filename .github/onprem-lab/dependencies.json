@@ -1,0 +1,278 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "Namespace",
+      "metadata": {
+        "name": "videoq-validation"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "ConfigMap",
+      "metadata": {
+        "name": "garage-config",
+        "namespace": "videoq-validation"
+      },
+      "data": {
+        "garage.toml": "# Single-node local development only. Disposable Kubernetes validation only.\nmetadata_dir = \"/var/lib/garage/meta\"\ndata_dir = \"/var/lib/garage/data\"\ndb_engine = \"sqlite\"\nreplication_factor = 1\n\nrpc_bind_addr = \"127.0.0.1:3901\"\nrpc_public_addr = \"127.0.0.1:3901\"\n# GARAGE_RPC_SECRET is supplied by Docker Compose. RPC is not published.\n\n[s3_api]\ns3_region = \"garage\"\napi_bind_addr = \"0.0.0.0:3900\"\n"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "ConfigMap",
+      "metadata": {
+        "name": "queue-config",
+        "namespace": "videoq-validation"
+      },
+      "data": {
+        "elasticmq.conf": "include classpath(\"application.conf\")\n\nnode-address {\n  protocol = http\n  host = \"*\"\n  port = 9324\n  context-path = \"\"\n}\n\nrest-sqs {\n  enabled = true\n  bind-port = 9324\n  bind-hostname = \"0.0.0.0\"\n  sqs-limits = strict\n}\n\nrest-stats {\n  enabled = true\n  bind-port = 9325\n  bind-hostname = \"0.0.0.0\"\n}\n\nqueues {\n  videoq-jobs {\n    defaultVisibilityTimeout = 15 minutes\n    delay = 0 seconds\n    receiveMessageWait = 20 seconds\n    deadLettersQueue {\n      name = \"videoq-jobs-dlq\"\n      maxReceiveCount = 5\n    }\n  }\n\n  videoq-jobs-dlq {\n    defaultVisibilityTimeout = 1 minute\n    delay = 0 seconds\n    receiveMessageWait = 0 seconds\n  }\n}\n"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "postgres",
+        "namespace": "videoq-validation"
+      },
+      "spec": {
+        "selector": {
+          "app": "postgres"
+        },
+        "ports": [
+          {
+            "port": 5432,
+            "targetPort": 5432
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "postgres",
+        "namespace": "videoq-validation"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "postgres"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "postgres"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "postgres",
+                "image": "pgvector/pgvector:pg17@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d",
+                "ports": [
+                  {
+                    "containerPort": 5432
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "POSTGRES_PASSWORD",
+                    "value": "onprem-validation-only"
+                  }
+                ],
+                "readinessProbe": {
+                  "exec": {
+                    "command": [
+                      "pg_isready",
+                      "-U",
+                      "postgres"
+                    ]
+                  },
+                  "periodSeconds": 2
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "garage",
+        "namespace": "videoq-validation"
+      },
+      "spec": {
+        "selector": {
+          "app": "garage"
+        },
+        "ports": [
+          {
+            "port": 3900,
+            "targetPort": 3900
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "garage",
+        "namespace": "videoq-validation"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "garage"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "garage"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "garage",
+                "image": "dxflrs/garage:v2.4.1@sha256:9c96caa2612d3411acc5b0e6701fb238dbfba33e533a6d7d3d811a4b12d0d020",
+                "ports": [
+                  {
+                    "containerPort": 3900
+                  }
+                ],
+                "command": [
+                  "/garage",
+                  "server",
+                  "--single-node",
+                  "--default-bucket"
+                ],
+                "env": [
+                  {
+                    "name": "GARAGE_DEFAULT_ACCESS_KEY",
+                    "value": "GK00000000000000000000000000000000"
+                  },
+                  {
+                    "name": "GARAGE_DEFAULT_SECRET_KEY",
+                    "value": "0000000000000000000000000000000000000000000000000000000000000000"
+                  },
+                  {
+                    "name": "GARAGE_DEFAULT_BUCKET",
+                    "value": "videoq-media"
+                  },
+                  {
+                    "name": "GARAGE_RPC_SECRET",
+                    "value": "1111111111111111111111111111111111111111111111111111111111111111"
+                  }
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "config",
+                    "mountPath": "/etc/garage.toml",
+                    "subPath": "garage.toml"
+                  },
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/garage"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "config",
+                "configMap": {
+                  "name": "garage-config"
+                }
+              },
+              {
+                "name": "data",
+                "emptyDir": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "queue",
+        "namespace": "videoq-validation"
+      },
+      "spec": {
+        "selector": {
+          "app": "queue"
+        },
+        "ports": [
+          {
+            "port": 9324,
+            "targetPort": 9324
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "queue",
+        "namespace": "videoq-validation"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "queue"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "queue"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "queue",
+                "image": "softwaremill/elasticmq:latest@sha256:f1de391a9b8c18fd3f2ce37b4f7d1b8989857e8a8e18bb01284fff899e69da82",
+                "ports": [
+                  {
+                    "containerPort": 9324
+                  }
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "config",
+                    "mountPath": "/opt/elasticmq.conf",
+                    "subPath": "elasticmq.conf"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "config",
+                "configMap": {
+                  "name": "queue-config"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

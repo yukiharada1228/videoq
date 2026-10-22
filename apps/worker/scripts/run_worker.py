@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Local SQS/ElasticMQ poller — Lambda substitute for apps/worker.
+Local and on-prem SQS poller — Lambda substitute for apps/worker.
 
 Long-polls SQS_QUEUE_URL, feeds each message to lambda_handler.handler,
 and deletes successful messages (failed ones become visible again / DLQ).
@@ -23,7 +23,9 @@ from __future__ import annotations
 
 import logging
 import os
+import signal
 import sys
+import threading
 import time
 from contextlib import closing
 from pathlib import Path
@@ -43,7 +45,15 @@ logging.basicConfig(
 logger = logging.getLogger("run_worker")
 
 
-def main() -> int:
+class JobDeadlineExceeded(BaseException):
+    """Match Lambda's hard deadline without letting a handler swallow it."""
+
+
+def _deadline(_signum, _frame):
+    raise JobDeadlineExceeded("Job exceeded the on-prem execution deadline")
+
+
+def _poll(stop: threading.Event) -> int:
     queue_url = os.environ.get("SQS_QUEUE_URL", "").strip()
     if not queue_url:
         logger.error("SQS_QUEUE_URL is required")
@@ -52,6 +62,9 @@ def main() -> int:
     wait = int(os.environ.get("SQS_WAIT_TIME_SECONDS", "20"))
     visibility = int(os.environ.get("SQS_VISIBILITY_TIMEOUT", "900"))
     max_messages = int(os.environ.get("SQS_MAX_MESSAGES", "1"))
+    deadline = int(os.environ.get("SQS_JOB_TIMEOUT_SECONDS", "840"))
+    if not 1 <= deadline < min(visibility, 900):
+        raise ValueError("SQS_JOB_TIMEOUT_SECONDS must be positive and below visibility and the 900s DB lease")
 
     with closing(create_sqs_client()) as client:
         logger.info(
@@ -61,7 +74,7 @@ def main() -> int:
             visibility,
         )
 
-        while True:
+        while not stop.is_set():
             try:
                 resp = client.receive_message(
                     QueueUrl=queue_url,
@@ -78,6 +91,8 @@ def main() -> int:
                 continue
 
             messages = resp.get("Messages") or []
+            if stop.is_set():
+                break
             if not messages:
                 continue
 
@@ -88,12 +103,18 @@ def main() -> int:
             }
 
             try:
+                signal.setitimer(signal.ITIMER_REAL, deadline)
                 result = handler(event, None)
+            except JobDeadlineExceeded:
+                logger.error("Job deadline exceeded; leaving messages for retry after lease expiry")
+                continue
             except Exception:
                 logger.exception(
                     "handler crashed; messages will reappear after visibility timeout"
                 )
                 continue
+            finally:
+                signal.setitimer(signal.ITIMER_REAL, 0)
 
             failed = {
                 item["itemIdentifier"]
@@ -112,6 +133,20 @@ def main() -> int:
                     logger.info("Deleted message %s", mid)
                 except Exception:
                     logger.exception("DeleteMessage failed for %s", mid)
+    return 0
+
+
+def main() -> int:
+    stop = threading.Event()
+    # Stop receiving new work, then finish and acknowledge the active job.
+    previous_term = signal.signal(signal.SIGTERM, lambda *_: stop.set())
+    previous_alarm = signal.signal(signal.SIGALRM, _deadline)
+    try:
+        return _poll(stop)
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGTERM, previous_term)
+        signal.signal(signal.SIGALRM, previous_alarm)
 
 
 if __name__ == "__main__":

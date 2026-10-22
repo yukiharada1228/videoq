@@ -406,7 +406,9 @@ export function createAuth(env: Bindings, db: Db, profile: "full" | "browser" = 
       // X-Forwarded-For keeps the local Caddy reverse proxy usable; Better Auth
       // rejects multi-hop values unless trusted proxies are configured.
       ipAddress: {
-        ipAddressHeaders: ["cf-connecting-ip", "x-forwarded-for"],
+        ipAddressHeaders: env.RUNTIME === "node"
+          ? ["x-videoq-client-ip"]
+          : ["cf-connecting-ip", "x-forwarded-for"],
       },
       useSecureCookies: env.ENVIRONMENT === "production",
       defaultCookieAttributes: {

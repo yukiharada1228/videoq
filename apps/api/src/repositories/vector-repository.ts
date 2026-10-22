@@ -1,6 +1,7 @@
 import { PGEngine, PGVectorStore } from "@yukiharada1228/langchain-postgres";
 import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 import pg from "pg";
+import { databaseConnectionString } from "../db/pool";
 import { embedQuery } from "../lib/embeddings";
 import { resolveEmbeddingConfig } from "../lib/embedding-contract";
 import { assertEmbeddingSchema } from "../lib/embedding-schema";
@@ -120,7 +121,8 @@ export async function openSceneSearch(
   // リクエストをまたいで使い回さない（max: 1 で実質 pg.Client 相当）。
   const pool = withMetadataParsing(
     new pg.Pool({
-      connectionString: env.HYPERDRIVE.connectionString,
+      connectionString: databaseConnectionString(env),
+      connectionTimeoutMillis: 10_000,
       max: 1,
     }),
   );

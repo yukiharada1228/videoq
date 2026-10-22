@@ -88,6 +88,7 @@ export function chooseWakeup(params: {
 }
 
 function scheduler(env: Bindings) {
+  if (!env.TASK_SCHEDULER) throw new Error("Maintenance scheduler is not configured");
   return env.TASK_SCHEDULER.getByName(SCHEDULER_NAME);
 }
 
@@ -100,6 +101,9 @@ function scheduler(env: Bindings) {
  * 業務処理を巻き戻してはならない。
  */
 export async function armMaintenance(env: Bindings, atMs: number): Promise<void> {
+  // On-prem recovery is driven by a Kubernetes CronJob reading the same durable
+  // DB outbox; it survives API restarts without process-local timers.
+  if (env.RUNTIME === "node") return;
   try {
     await scheduler(env).armAt(atMs);
   } catch (error) {
@@ -121,6 +125,7 @@ export async function refreshMaintenanceSchedule(
   env: Bindings,
   progressed: boolean,
 ): Promise<void> {
+  if (env.RUNTIME === "node") return;
   try {
     await scheduler(env).reschedule(progressed);
   } catch (error) {

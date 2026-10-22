@@ -1,5 +1,7 @@
 .git
 .env*
+**/.env*
+**/.dev.vars*
 .cutover-secrets
 **/node_modules
 **/dist

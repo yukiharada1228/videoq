@@ -93,6 +93,28 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(files[".node-version"].strip(), self.data["node"])
         self.assertEqual(files[".python-version"].strip(), self.data["python"])
 
+    def test_onprem_images_follow_canonical_runtime_and_package_managers(self):
+        files = runtime.rendered(runtime.ROOT, self.data)
+        for path, image, manager in [
+            ("apps/api/Dockerfile", "node_onprem", "npm"),
+            ("apps/worker/Dockerfile.onprem", "python_onprem", "pip"),
+        ]:
+            self.assertIn("FROM " + self.data["images"][image], files[path])
+            self.assertIn("# BEGIN managed " + manager, files[path])
+        self.assertIn("FROM " + self.data["images"]["uv"], files["apps/worker/Dockerfile.onprem"])
+
+    def test_node_discovery_refreshes_the_onprem_image_too(self):
+        with patch.object(runtime, "request", return_value=[]), patch.object(runtime, "image_digest", side_effect=lambda repo, tag: repo + ":" + tag + "@sha256:" + "1" * 64) as digest:
+            changed = runtime.discover(runtime.ROOT, self.data, "node", False)
+        self.assertNotEqual(changed["images"]["node_onprem"], self.data["images"]["node_onprem"])
+        self.assertEqual(digest.call_count, 3)
+
+    def test_python_discovery_refreshes_the_onprem_image_too(self):
+        with patch.object(runtime, "request", return_value=[]), patch.object(runtime, "standalone", return_value=self.data["modal_python"]), patch.object(runtime, "image_digest", side_effect=lambda repo, tag: repo + ":" + tag + "@sha256:" + "1" * 64) as digest:
+            changed = runtime.discover(runtime.ROOT, self.data, "python", False)
+        self.assertNotEqual(changed["images"]["python_onprem"], self.data["images"]["python_onprem"])
+        self.assertEqual(digest.call_count, 3)
+
 
 if __name__ == "__main__":
     unittest.main()

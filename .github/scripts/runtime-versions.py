@@ -24,6 +24,7 @@ _spec = importlib.util.spec_from_file_location("package_managers", Path(__file__
 managers = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(managers)
 NODE_FILES = {
+    "apps/api/Dockerfile": "node_onprem",
     "apps/api/Dockerfile.local": "node_bookworm",
     "apps/web/Dockerfile.dev": "node_bookworm",
     "apps/web/Dockerfile": "node_alpine",
@@ -130,7 +131,9 @@ def validate(data):
         expected = {
             "node_bookworm": "node:" + data["node"] + "-bookworm-slim@",
             "node_alpine": "node:" + data["node"] + "-alpine@",
+            "node_onprem": "node:" + data["node"] + "-alpine@",
             "python_local": "python:" + data["python"] + "-slim-bookworm@",
+            "python_onprem": "python:" + data["python"] + "-alpine@",
             "python_lambda": "public.ecr.aws/lambda/python:" + ".".join(data["python"].split(".")[:2]) + "@",
             "uv": "ghcr.io/astral-sh/uv:" + data["uv"] + "@",
         }
@@ -167,7 +170,7 @@ def rendered(root, data):
             if count != 1:
                 raise ValueError(f"Expected one Node image in {path}")
             files[path] = managed_block(files[path], managers.docker_block(data, "npm"), "npm", r"(?m)^FROM node:[^\n]+\n")
-    for path, key in [("apps/worker/Dockerfile", "python_lambda"), ("apps/worker/Dockerfile.local", "python_local")]:
+    for path, key in [("apps/worker/Dockerfile", "python_lambda"), ("apps/worker/Dockerfile.local", "python_local"), ("apps/worker/Dockerfile.onprem", "python_onprem")]:
         if (root / path).exists():
             text = (root / path).read_text()
             files[path], count = re.subn(r"(?m)^FROM (?:public\.ecr\.aws/lambda/python|python):\S+", "FROM " + images[key], text)
@@ -175,7 +178,7 @@ def rendered(root, data):
                 raise ValueError(f"Expected one Python image in {path}")
             files[path] = re.sub(r"(?m)^ARG PYTHON_VERSION=\S+", "ARG PYTHON_VERSION=" + data["python"], files[path])
             files[path] = managed_block(files[path], managers.docker_block(data, "pip"), "pip", r"(?m)^FROM (?:public\.ecr\.aws/lambda/python|python):[^\n]+\n")
-            if key == "python_lambda":
+            if path in {"apps/worker/Dockerfile", "apps/worker/Dockerfile.onprem"}:
                 files[path] = re.sub(r"(?m)^FROM ghcr.io/astral-sh/uv:\S+", "FROM " + images["uv"], files[path])
     if "modal_python" in data:
         pin = data["modal_python"]
@@ -203,8 +206,10 @@ def discover(root, data, runtime, upgrade):
         if runtime == "node":
             images["node_bookworm"] = image_digest("node", data["node"] + "-bookworm-slim")
             images["node_alpine"] = image_digest("node", data["node"] + "-alpine")
+            images["node_onprem"] = image_digest("node", data["node"] + "-alpine")
         elif runtime == "python":
             images["python_local"] = image_digest("python", data["python"] + "-slim-bookworm")
+            images["python_onprem"] = image_digest("python", data["python"] + "-alpine")
             images["python_lambda"] = image_digest("public.ecr.aws/lambda/python", ".".join(data["python"].split(".")[:2]))
         elif runtime == "uv":
             images["uv"] = image_digest("ghcr.io/astral-sh/uv", data["uv"])

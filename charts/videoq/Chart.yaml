@@ -1,0 +1,7 @@
+apiVersion: v2
+name: videoq
+description: VideoQ web, Node API and asynchronous worker for on-prem Kubernetes
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.29.0-0"

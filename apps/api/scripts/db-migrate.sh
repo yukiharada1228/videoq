@@ -5,7 +5,11 @@ cd "$(dirname "$0")/.."
 node scripts/stamp-baseline.mjs
 # Keep complete migration output visible in deployment logs.
 set +e
-migrate_output=$(node --import tsx scripts/migrate-database.ts 2>&1)
+if [ -f dist/migrate-database.mjs ]; then
+  migrate_output=$(node dist/migrate-database.mjs 2>&1)
+else
+  migrate_output=$(node --import tsx scripts/migrate-database.ts 2>&1)
+fi
 migrate_status=$?
 set -e
 printf '%s\n' "$migrate_output" | sed 's/\x1B\[[0-9;]*[A-Za-z]//g'

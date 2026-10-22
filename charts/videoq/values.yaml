@@ -1,0 +1,82 @@
+# Infrastructure is supplied by the operator; no DB/storage/inference subcharts.
+nameOverride: ""
+fullnameOverride: ""
+imagePullSecrets: []
+# Enable for production after recording reviewed registry digests for all images.
+requireImageDigests: false
+publicUrl: ""
+# Create this Secret before installing. See README for the required keys.
+existingSecret: "videoq-runtime"
+
+api:
+  image: { repository: videoq-api, tag: "0.1.0", digest: "", pullPolicy: IfNotPresent }
+  replicas: 1
+  databasePoolMax: 10
+  rateLimitPoolMax: 2
+  # Set to the exact number of trusted HTTP proxies. Zero uses the TCP peer.
+  trustedProxyHops: 0
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 1Gi }
+  extraEnv: []
+  nodeSelector: {}
+  tolerations: []
+
+web:
+  image: { repository: videoq-web, tag: "0.1.0", digest: "", pullPolicy: IfNotPresent }
+  replicas: 1
+  resources:
+    requests: { cpu: 50m, memory: 32Mi }
+    limits: { memory: 128Mi }
+
+worker:
+  image: { repository: videoq-worker-onprem, tag: "0.1.0", digest: "", pullPolicy: IfNotPresent }
+  replicas: 1
+  terminationGracePeriodSeconds: 960
+  resources:
+    requests: { cpu: "1", memory: 1Gi }
+    limits: { cpu: "2", memory: 4Gi }
+  extraEnv: []
+  nodeSelector: {}
+  tolerations: []
+
+storage:
+  bucket: videoq-media
+  # Browser-reachable S3 endpoint. Configure bucket CORS for publicUrl.
+  endpoint: ""
+  internalEndpoint: ""
+  region: garage
+
+queue:
+  # Existing persistent SQS-compatible queue, with retries and a dead-letter queue.
+  url: ""
+  region: us-east-1
+
+ai:
+  openaiBaseUrl: https://api.openai.com/v1
+  llmModel: gpt-6-luna
+  embeddingProvider: openai
+  embeddingModel: text-embedding-3-small
+  ollamaBaseUrl: ""
+  whisperBackend: openai
+  whisperLocalUrl: ""
+
+config:
+  maxVideoUploadSizeMb: 200
+  videoVisualEnabled: true
+  defaultFromEmail: noreply@videoq.local
+
+migration:
+  enabled: true
+  activeDeadlineSeconds: 900
+
+maintenance:
+  recoverySchedule: "* * * * *"
+  retentionSchedule: "17 3 * * *"
+  activeDeadlineSeconds: 600
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  tls: []

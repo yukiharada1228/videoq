@@ -1,0 +1,11 @@
+VideoQ {{ .Chart.AppVersion }} application resources were installed.
+
+Public URL: {{ .Values.publicUrl }}
+Runtime Secret: {{ .Values.existingSecret }} (managed outside this release)
+
+Configure your ingress controller to stream SSE without buffering, allow a
+long response timeout, and sanitize forwarded IP headers before enabling
+api.trustedProxyHops. See charts/videoq/README.md for installation and upgrades.
+
+Database, S3 storage, persistent SQS queue, and inference services are supplied
+by the operator. Their backups and schema rollback are managed separately.

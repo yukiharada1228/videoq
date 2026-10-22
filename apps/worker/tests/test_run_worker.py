@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock
+import signal
 
 import pytest
 
@@ -49,3 +50,35 @@ def test_poller_reuses_one_client_and_closes_it_on_shutdown(
             ReceiptHandle="receipt-2",
         )
     client.close.assert_called_once()
+
+
+def test_sigterm_drains_and_acknowledges_active_job(monkeypatch):
+    monkeypatch.setenv("SQS_QUEUE_URL", "http://queue/test")
+    client = MagicMock()
+    client.receive_message.return_value = {"Messages": [
+        {"MessageId": "one", "Body": "{}", "ReceiptHandle": "receipt"}
+    ]}
+    monkeypatch.setattr(run_worker, "create_sqs_client", lambda: client)
+
+    def handler(_event, _context):
+        signal.raise_signal(signal.SIGTERM)
+        return {}
+
+    monkeypatch.setattr(run_worker, "handler", handler)
+    assert run_worker.main() == 0
+    client.receive_message.assert_called_once()
+    client.delete_message.assert_called_once_with(QueueUrl="http://queue/test", ReceiptHandle="receipt")
+    client.close.assert_called_once()
+
+
+def test_deadline_does_not_acknowledge_unfinished_work(monkeypatch):
+    monkeypatch.setenv("SQS_QUEUE_URL", "http://queue/test")
+    client = MagicMock()
+    client.receive_message.side_effect = [{"Messages": [
+        {"MessageId": "one", "Body": "{}", "ReceiptHandle": "receipt"}
+    ]}, KeyboardInterrupt()]
+    monkeypatch.setattr(run_worker, "create_sqs_client", lambda: client)
+    monkeypatch.setattr(run_worker, "handler", MagicMock(side_effect=run_worker.JobDeadlineExceeded()))
+    assert run_worker.main() == 0
+    client.delete_message.assert_not_called()
+    assert signal.getitimer(signal.ITIMER_REAL)[0] == 0

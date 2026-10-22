@@ -1,0 +1,42 @@
+{{- range $command, $schedule := dict "maintenance" .Values.maintenance.recoverySchedule "retention" .Values.maintenance.retentionSchedule }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "videoq.fullname" $ }}-{{ $command }}
+  labels:
+    {{- include "videoq.labels" $ | nindent 4 }}
+spec:
+  schedule: {{ $schedule | quote }}
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      activeDeadlineSeconds: {{ $.Values.maintenance.activeDeadlineSeconds }}
+      template:
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            {{- include "videoq.nodeSecurity" $ | nindent 12 }}
+          {{- with $.Values.imagePullSecrets }}
+          imagePullSecrets: {{ toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: {{ $command }}
+              image: {{ include "videoq.apiImage" $ | quote }}
+              imagePullPolicy: {{ $.Values.api.image.pullPolicy }}
+              command: [node, dist/node.mjs, {{ $command }}]
+              securityContext:
+                {{- include "videoq.containerSecurity" $ | nindent 16 }}
+              envFrom:
+                {{- include "videoq.envFrom" $ | nindent 16 }}
+              {{- with $.Values.api.extraEnv }}
+              env: {{ toYaml . | nindent 16 }}
+              {{- end }}
+              resources: {{ toYaml $.Values.api.resources | nindent 16 }}
+{{- end }}

@@ -31,6 +31,8 @@
     "guides/embeddings.md",
     "guides/visual-evidence.md",
     "guides/frontend.md",
+    "guides/on-premises.md",
+    "guides/on-premises-releases.md",
     "guides/testing.md",
     "guides/troubleshooting.md",
     "guides/worker.md",

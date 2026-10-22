@@ -82,7 +82,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: always()
-    needs: [changes, supply-chain, workflow-security, hono-test, worker-test, frontend-lint, frontend-test, frontend-coverage, frontend-build, frontend-storybook, docs-build]
+    needs: [changes, supply-chain, workflow-security, onprem-validation, hono-test, worker-test, frontend-lint, frontend-test, frontend-coverage, frontend-build, frontend-storybook, docs-build]
     steps:
       - name: Require every selected CI job to pass
         env:
@@ -91,7 +91,8 @@ jobs:
           node <<'NODE'
           const jobs = JSON.parse(process.env.JOB_RESULTS);
           const failed = Object.entries(jobs).filter(([name, job]) =>
-            ['changes', 'supply-chain', 'workflow-security'].includes(name)
+            (['changes', 'supply-chain', 'workflow-security'].includes(name) ||
+              (name === 'onprem-validation' && jobs.changes.outputs.onprem === 'true'))
               ? job.result !== 'success'
               : !['success', 'skipped'].includes(job.result)
           );
@@ -110,6 +111,7 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       docs: ${{ steps.filter.outputs.docs }}
       worker_matrix: ${{ steps.runtimes.outputs.matrix }}
+      onprem: ${{ steps.filter.outputs.onprem }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -118,6 +120,28 @@ jobs:
         id: filter
         with:
           filters: |
+            onprem:
+              - '.dockerignore'
+              - 'charts/**'
+              - 'apps/api/**'
+              - 'apps/worker/**'
+              - 'apps/web/**'
+              - 'packages/trpc/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/onprem-validation.yml'
+              - '.github/scripts/install-helm.sh'
+              - '.github/scripts/install-kind.sh'
+              - '.github/scripts/onprem-*'
+              - '.github/onprem-lab/**'
+              - '.github/workflows/onprem-release.yml'
+              - '.github/runtime-versions.json'
+              - '.node-version'
+              - '.python-version'
+              - '.github/actions/**'
+              - '.github/scripts/runtime-versions.py'
+              - '.github/scripts/package-managers.py'
             hono:
               - 'apps/api/**'
               - 'apps/worker/**'
@@ -186,6 +210,14 @@ jobs:
       - name: Read the supported and production Python versions
         id: runtimes
         run: python3 .github/scripts/runtime-versions.py matrix >> "$GITHUB_OUTPUT"
+
+  onprem-validation:
+    name: On-prem Validation
+    needs: changes
+    if: needs.changes.outputs.onprem == 'true'
+    uses: ./.github/workflows/onprem-validation.yml
+    permissions:
+      contents: read
 
   hono-test:
     name: Hono (apps/api)

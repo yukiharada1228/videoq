@@ -49,6 +49,7 @@ For documentation-only changes, start with [Update the documentation](guides/doc
 | Change transcription or indexing | [Change asynchronous video processing](guides/worker.md) |
 | Verify a change | [Tests and verification commands](guides/testing.md) |
 | Troubleshoot startup or video processing | [Troubleshooting](guides/troubleshooting.md) |
+| Deploy to on-prem Kubernetes | [On-prem installation](guides/on-premises.md) |
 
 ## Explore the details
 

@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "videoq.fullname" . }}-test
+  labels:
+    {{- include "videoq.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  activeDeadlineSeconds: 60
+  securityContext:
+    {{- include "videoq.nodeSecurity" . | nindent 4 }}
+  {{- with .Values.imagePullSecrets }}
+  imagePullSecrets: {{ toYaml . | nindent 4 }}
+  {{- end }}
+  containers:
+    - name: connection
+      # Reuse the API image: offline installs need no additional test image.
+      image: {{ include "videoq.apiImage" . | quote }}
+      imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+      securityContext:
+        {{- include "videoq.containerSecurity" . | nindent 8 }}
+      command:
+        - node
+        - --input-type=module
+        - -e
+        - |
+          for (const url of ["http://{{ include "videoq.fullname" . }}-api:8787/ready", "http://{{ include "videoq.fullname" . }}-web/"]) {
+            const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+            if (!response.ok) throw new Error(`${url}: ${response.status}`);
+            await response.body?.cancel();
+          }
+          console.log("VideoQ API readiness and Web connectivity passed");
+      resources:
+        requests: { cpu: 10m, memory: 32Mi }
+        limits: { memory: 128Mi }

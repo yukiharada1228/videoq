@@ -156,6 +156,21 @@ worker のロックに残っていた Starlette の既知の脆弱性は 1.9.0 �
 
 既存のドキュメント・開発ツール依存に `braces <=3.0.3` の [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) が含まれます。深くネストしたパターンによる DoS で、現在の npm 情報には互換性を保った修正版がありません。`npm audit fix --force` が提案する大幅なダウングレードは適用しません。ビルドを資格情報のないジョブに隔離し、時間制限を付けた上で、Dependabot の通知と修正版を監視します。今回の変更は既存問題を解消済みとは扱いません。
 
+## オンプレ配布の検証
+
+オンプレ用の API・Web・ワーカーのビルド、HTTP 検証、Trivy 検査を CI の
+`CI Success` に接続します。HIGH/CRITICAL は修正版未提供でも検査を失敗させます。
+CycloneDX の構成部品一覧を30日間保存し、PR のビルドには本番資格情報を渡しません。
+Helm は `requireImageDigests=true` で全イメージの digest 指定を必須にできます。
+
+依存 PR のマージからオンプレ本番への適用には、導入先のイメージ配布・検証・GitOps 等の
+経路が必要です。`On-prem Release` は CI 成功後に GHCR へ署名付きイメージを配布し、
+署名検証後に使い捨て Kubernetes で更新・復元を検証します。`On-prem Validation` は毎日も実行します。
+本番サイトへの接続先は未定のため、本番への反映は運用担当者の承認と設定を必要とします。
+Codex による CI 修正も、上記の本人による依頼方式を維持しています。
+導入時の署名確認と更新手順は [配布ガイド](../docs/guides/on-premises-releases.md)、
+実行済みの検証は [追加検証の記録](../docs/verification/onprem-hardening-2026-10-23.md)を参照してください。
+
 ## マージ後のブランチ整理
 
 GitHubの `Automatically delete head branches` を有効にする。マージ済みPRのブランチを自動削除し、未マージPRとmainは保持する。

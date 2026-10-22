@@ -3,7 +3,7 @@
 | 対象 | 実行タイミング（JST、GitHub側の遅延あり） | 結果 |
 | --- | --- | --- |
 | CodeQL | PR・main更新、毎週月曜11:11 | Security > Code scanning |
-| 全依存関係のOSV検査 | 毎週月曜10:19 | Actions / 脆弱性Issue |
+| 全依存関係のOSV検査 | 毎日10:19 | Actions / 脆弱性Issue |
 | Dependabot PRの滞留 | 毎日09:43 | 48時間以上進まないPRをIssueへ集約 |
 
 定期ワークフローはmainからのみ実行します。ActionsのRun workflowでも確認できます。

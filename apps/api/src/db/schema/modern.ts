@@ -25,6 +25,14 @@ import { sql } from "drizzle-orm";
 // Users & auth
 // ---------------------------------------------------------------------------
 
+/** Shared sliding windows for the on-prem Node runtime. Workers keep using DOs. */
+export const runtimeRateLimits = pgTable("runtime_rate_limits", {
+	key: text("key").primaryKey(),
+	history: jsonb("history").$type<number[]>().notNull().default([]),
+	windowSec: integer("window_sec").notNull(),
+	expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+}, (table) => [index("runtime_rate_limits_expiry_idx").on(table.expiresAt)]);
+
 export const users = pgTable(
 	"users",
 	{

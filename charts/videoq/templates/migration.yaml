@@ -1,0 +1,39 @@
+{{- if .Values.migration.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "videoq.fullname" . }}-migrate
+  labels:
+    {{- include "videoq.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: {{ .Values.migration.activeDeadlineSeconds }}
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "videoq.nodeSecurity" . | nindent 8 }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: migrate
+          image: {{ include "videoq.apiImage" . | quote }}
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          command: [sh, scripts/db-migrate.sh]
+          securityContext:
+            {{- include "videoq.containerSecurity" . | nindent 12 }}
+          # Hooks run before the release ConfigMap exists, including on upgrade.
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "existingSecret is required" .Values.existingSecret }}
+                  key: DATABASE_URL
+          resources: {{ toYaml .Values.api.resources | nindent 12 }}
+{{- end }}
