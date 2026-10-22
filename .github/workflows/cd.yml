@@ -387,10 +387,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
-      - uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
-        with:
-          version: '0.13.5'
-          enable-cache: false
+      - name: Install checksum-pinned uv
+        run: bash .github/scripts/install-uv.sh
       - name: Install separately locked Modal CLI from hash-verified wheels
         run: |
           uv export --quiet --project .github/deploy-tools --locked --no-dev --no-emit-project --format requirements-txt --output-file "$RUNNER_TEMP/modal-requirements.txt"

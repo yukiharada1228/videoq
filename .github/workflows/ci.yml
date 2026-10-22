@@ -164,10 +164,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
-      - uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
-        with:
-          version: '0.13.5'
-          enable-cache: false
+      - name: Install checksum-pinned uv
+        run: bash .github/scripts/install-uv.sh
       - name: Install worker for cross-language embedding tests
         run: |
           uv export --quiet --project apps/worker --locked --extra dev --no-emit-project --format requirements-txt --output-file "$RUNNER_TEMP/worker-requirements.txt"
@@ -218,10 +216,8 @@ jobs:
           node-version: "22"
       - name: Install shared contracts for cost-model tests
         run: npm ci --ignore-scripts --workspace @videoq/trpc
-      - uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
-        with:
-          version: '0.13.5'
-          enable-cache: false
+      - name: Install checksum-pinned uv
+        run: bash .github/scripts/install-uv.sh
       - name: Install and test
         working-directory: apps/worker
         run: |
