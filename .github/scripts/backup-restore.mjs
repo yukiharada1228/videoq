@@ -15,6 +15,18 @@ const source = new Client({ connectionString: process.env.DATABASE_URL, connecti
   statement_timeout: 300_000, application_name: 'videoq-restore-test-readonly' });
 const name = 'videoq-restore-' + randomBytes(12).toString('hex');
 const password = randomBytes(32).toString('hex');
+// libpq does not expand a URI stored in the PGDATABASE environment variable.
+// Pass individual connection parameters so credentials never enter argv/logs.
+const sourceUrl = new URL(process.env.DATABASE_URL);
+if (!['postgres:', 'postgresql:'].includes(sourceUrl.protocol)) throw new Error('Expected PostgreSQL');
+const dumpEnvironment = { ...process.env,
+  PGHOST: sourceUrl.hostname, PGPORT: sourceUrl.port || '5432',
+  PGDATABASE: decodeURIComponent(sourceUrl.pathname.slice(1)),
+  PGUSER: decodeURIComponent(sourceUrl.username), PGPASSWORD: decodeURIComponent(sourceUrl.password),
+  PGSSLMODE: sourceUrl.searchParams.get('sslmode') || 'prefer',
+  PGCHANNELBINDING: sourceUrl.searchParams.get('channel_binding') || 'prefer',
+  PGOPTIONS: '-c default_transaction_read_only=on',
+};
 let temporary, restored, started = false, stage = 'database-connect';
 const docker = (args, options = {}) => exec('docker', args, { maxBuffer: 4_000_000, timeout: 900_000, ...options });
 const identifier = value => '"' + value.replaceAll('"', '""') + '"';
@@ -45,9 +57,10 @@ try {
   if (Object.keys(expected).length < 3) throw new Error('Incomplete source inventory');
   stage = 'logical-backup';
   await docker(['run', '--rm', '--network', 'host', '-e', 'PGDATABASE', '-e', 'PGOPTIONS',
+    '-e', 'PGHOST', '-e', 'PGPORT', '-e', 'PGUSER', '-e', 'PGPASSWORD', '-e', 'PGSSLMODE', '-e', 'PGCHANNELBINDING',
     '-v', temporary + ':/backup', IMAGE, 'pg_dump', '--format=custom', '--no-owner', '--no-acl', '--no-comments',
     '--schema=public', '--schema=drizzle', '--snapshot=' + snapshot, '--file=/backup/database.dump'], {
-    env: { ...process.env, PGDATABASE: process.env.DATABASE_URL, PGOPTIONS: '-c default_transaction_read_only=on' },
+    env: dumpEnvironment,
   });
   await source.query('COMMIT');
   await fs.chmod(path.join(temporary, 'database.dump'), 0o600);
