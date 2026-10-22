@@ -1,5 +1,8 @@
 # Security dependency updates
 
+For patch auto-merge and Codex CI repair setup, see
+[Dependency automation](dependency-automation.md).
+
 The root `package.json` contains temporary overrides for security fixes that
 upstream packages do not yet allow in their dependency ranges. Reviewed on
 2026-10-08 after [Dependabot update 1616384278](https://github.com/yukiharada1228/videoq/actions/runs/37714524219)

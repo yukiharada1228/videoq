@@ -44,9 +44,12 @@ updates:
         patterns: ["@docusaurus/*"]
       remotion:
         patterns: ["remotion", "@remotion/*"]
-      npm-minor-patch:
+      npm-patch:
         patterns: ["*"]
-        update-types: [minor, patch]
+        update-types: [patch]
+      npm-minor:
+        patterns: ["*"]
+        update-types: [minor]
       npm-security:
         applies-to: security-updates
         patterns: ["*"]
@@ -61,9 +64,12 @@ updates:
       timezone: Asia/Tokyo
     open-pull-requests-limit: 5
     groups:
-      python-minor-patch:
+      python-patch:
         patterns: ["*"]
-        update-types: [minor, patch]
+        update-types: [patch]
+      python-minor:
+        patterns: ["*"]
+        update-types: [minor]
       python-security:
         applies-to: security-updates
         patterns: ["*"]
