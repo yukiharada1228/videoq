@@ -1,6 +1,6 @@
 # SQS worker Lambda container image (linux/arm64).
 FROM ghcr.io/astral-sh/uv:0.13.5@sha256:32a7bb39b496babbd997b0a39a4d66c126bdaf5661b302bf6f06abda8deca6ff AS uv
-FROM public.ecr.aws/lambda/python:3.14@sha256:fc4e15a5e09e2c9b6184810ea0fdc87afe1c1c734c98cbe27d739a35c3f15e7e
+FROM public.ecr.aws/lambda/python:3.14@sha256:fc4e15a5e09e2c9b6184810ea0fdc87afe1c1c734c98cbe27d739a35c3f15e7e AS lambda-local
 
 # BEGIN managed pip
 ARG PIP_VERSION=26.2.2
@@ -57,3 +57,12 @@ RUN uv export --quiet --locked --no-dev --no-emit-project --format requirements-
 
 # Lambda handler: handler.handler
 CMD ["handler.handler"]
+
+# Lambda supplies its Runtime API. Keep the emulator and installation tools in
+# the explicit local target, but remove their unused vendored packages/binaries
+# from the deployed filesystem. In particular, pip carries a separate, older
+# certifi/urllib3/msgpack/setuptools vendor tree despite the application lockfile.
+FROM lambda-local AS production
+RUN python -m pip uninstall --yes pip \
+    && rm -f /usr/local/bin/uv /usr/local/bin/aws-lambda-rie \
+    && python -c 'import handler, awslambdaric, importlib.util; assert importlib.util.find_spec("pip") is None'
