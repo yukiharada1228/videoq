@@ -5,10 +5,11 @@ import {
 import type { Bindings } from "../types/bindings";
 import { createInvitationToken, hashInvitationToken } from "./course-invitations";
 import { sendMail } from "./mail";
+import { stripTrailingSlashes } from "./url";
 import type { ExternalTaskLease } from "../repositories/external-task-repository";
 
 function frontendBaseUrl(env: Bindings): string {
-  return (env.FRONTEND_URL?.trim() || "https://videoq.jp").replace(/\/+$/, "");
+  return stripTrailingSlashes(env.FRONTEND_URL?.trim() || "https://videoq.jp");
 }
 
 function invitationUrl(env: Bindings, token: string): string {
