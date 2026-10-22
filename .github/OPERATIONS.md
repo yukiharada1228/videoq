@@ -40,5 +40,7 @@ PostgreSQLのメジャーバージョンが変わった場合は復元クライ�
 TerraformとECRの監視は既存の読み取り専用AWS plan roleを利用します。
 信頼条件は既存のpull_requestに加えて、このリポジトリのmain refのみを許可します。
 `infra/iam/videoq-github-actions-plan-trust.json` にAWSアカウントIDを置換して適用してください。
-Terraformの状態・planファイル・属性値は公開しません。既存applyと直列化し、ロックを取得しないplanを使います。
+Terraformの状態・planファイル・属性値は公開しません。標準のバックエンドロックで実行中のapplyと調整します。
+承認待ちのapplyが日次検査を止めないよう、Actionsの同時実行グループは分離しています。
+監視はインフラを変更せず、状態ファイルの排他制御に必要な一時ロックだけを取得・解除します。
 通常のインフラ変更に対する `production-infra` の承認と、検証済みDependabot minor/patch自動適用の条件はそのままです。
