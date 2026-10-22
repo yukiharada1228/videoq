@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: terraform-apply
+  group: terraform-drift
   cancel-in-progress: false
 jobs:
   inspect:
@@ -34,7 +34,7 @@ jobs:
         env:
           TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
         run: terraform init -lockfile=readonly -input=false -backend-config="bucket=$TF_STATE_BUCKET" > /dev/null 2>&1
-      - name: Read-only plan without state locking or attribute output
+      - name: Read-only plan with the backend mutex and no attribute output
         working-directory: infra
         env:
           OPENAI_ADMIN_KEY: ${{ secrets.OPENAI_ADMIN_KEY }}
