@@ -287,6 +287,7 @@ def test_https_media_requires_a_trusted_certificate(ffmpeg, monkeypatch, tmp_pat
     cert_path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
     key_path.write_bytes(key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.load_cert_chain(cert_path, key_path)
     original = tmp_path / "original.mkv"
     create_video(original)
