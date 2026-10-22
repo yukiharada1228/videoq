@@ -109,7 +109,8 @@ try {
   const errors = [];
   page.on('pageerror', () => errors.push(true));
   const publicPage = await page.goto(ORIGIN + '/login', { waitUntil: 'networkidle', timeout: 60_000 });
-  if (!publicPage.ok() || await page.locator('input[type="email"]').count() !== 1) throw new Error('Login UI failed');
+  if (!publicPage.ok() || await page.locator('input[name="username"]').count() !== 1 ||
+      await page.locator('input[name="password"]').count() !== 1) throw new Error('Login UI failed');
   await context.addCookies(cookie.split('; ').map(value => {
     const at = value.indexOf('=');
     return { name: value.slice(0, at), value: value.slice(at + 1), url: ORIGIN, httpOnly: true, secure: true, sameSite: 'Lax' };
