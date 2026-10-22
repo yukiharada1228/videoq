@@ -151,4 +151,6 @@ Python worker は CI と Docker ビルドの両方で `uv.lock` から依存を�
 
 ### 現在把握している残存リスク（2026-10-22）
 
+worker のロックに残っていた Starlette の既知の脆弱性は 1.9.0 へ更新しました。Modal の HTTP 依存もテスト済みの FastAPI / Starlette / python-multipart に合わせ、以後は配備版とテスト版の一致を CI で確認します。
+
 既存のドキュメント・開発ツール依存に `braces <=3.0.3` の [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) が含まれます。深くネストしたパターンによる DoS で、現在の npm 情報には互換性を保った修正版がありません。`npm audit fix --force` が提案する大幅なダウングレードは適用しません。ビルドを資格情報のないジョブに隔離し、時間制限を付けた上で、Dependabot の通知と修正版を監視します。今回の変更は既存問題を解消済みとは扱いません。
