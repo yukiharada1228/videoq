@@ -47,4 +47,6 @@ Terraformの状態・planファイル・属性値は公開しません。標準�
 PRのTerraform検証もロックファイルを読み取り専用にして、CI内の暗黙更新で問題が隠れないようにしています。
 通常のインフラ変更に対する `production-infra` の承認と、検証済みDependabot minor/patch自動適用の条件はそのままです。
 
+Terraform Apply は承認要求の前に、読み取り専用のplan roleで差分を確認します。差分なしなら承認・適用ジョブをスキップして正常終了し、production-infraのデプロイ記録を作りません。差分がある場合だけ既存の承認または依存更新の自動適用へ進みます。plan失敗時は適用を止め、値や状態ファイルはログ・artifactに公開しません。
+
 Runtime Updates は毎日09:13 JSTにNode.js・Python・npm・pip・uvの更新PRを準備します。配布物のハッシュ確認、系列別PR、実行環境での検証は [RUNTIME-UPDATES.md](RUNTIME-UPDATES.md) を参照してください。
