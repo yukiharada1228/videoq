@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { closeSync, fstatSync, mkdtempSync, openSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, expect, it } from "vitest";
@@ -10,13 +10,14 @@ afterEach(() => { for (const path of cleanup.splice(0)) rmSync(path, { recursive
 it("creates private reports and replaces longer progress snapshots without trailing data", () => {
   const report = privateJsonReport();
   cleanup.push(dirname(report.path));
+  const reader = openSync(report.path, "r"), directory = openSync(dirname(report.path), "r");
   try {
-    expect(statSync(dirname(report.path)).mode & 0o777).toBe(0o700);
-    expect(statSync(report.path).mode & 0o777).toBe(0o600);
+    expect(fstatSync(directory).mode & 0o777).toBe(0o700);
+    expect(fstatSync(reader).mode & 0o777).toBe(0o600);
     report.write({ text: "long snapshot" });
     report.write({ text: "日本語" });
-    expect(JSON.parse(readFileSync(report.path, "utf8"))).toEqual({ text: "日本語" });
-  } finally { report.close(); }
+    expect(JSON.parse(readFileSync(reader, "utf8"))).toEqual({ text: "日本語" });
+  } finally { closeSync(reader); closeSync(directory); report.close(); }
 });
 
 it("refuses existing report paths, including symlinks, without changing their target", () => {
