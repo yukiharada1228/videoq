@@ -1,5 +1,7 @@
 # SQS worker Lambda container image (linux/arm64).
-FROM public.ecr.aws/lambda/python:3.14
+FROM ghcr.io/astral-sh/uv:0.13.5@sha256:32a7bb39b496babbd997b0a39a4d66c126bdaf5661b302bf6f06abda8deca6ff AS uv
+FROM public.ecr.aws/lambda/python:3.14@sha256:fc4e15a5e09e2c9b6184810ea0fdc87afe1c1c734c98cbe27d739a35c3f15e7e
+COPY --from=uv /uv /usr/local/bin/uv
 
 # buildx sets TARGETARCH; both binaries target glibc >= 2.28 (Lambda uses 2.34).
 ARG TARGETARCH=arm64
@@ -31,11 +33,15 @@ RUN set -eux; \
 # Lambda base images can lag Amazon Linux security advisories.
 RUN dnf upgrade -y --releasever=latest && dnf clean all
 
-COPY pyproject.toml README.md ./
+COPY pyproject.toml uv.lock README.md ./
 COPY worker_python ./worker_python
 COPY handler.py ./
 
-RUN pip install --no-cache-dir .
+# Resolve nothing at deploy time. Hash checking covers all transitive wheels;
+# source distributions and their build/install hooks are never executed.
+RUN uv export --quiet --locked --no-dev --no-emit-project --format requirements-txt --output-file /tmp/requirements.txt \
+    && pip install --no-cache-dir --require-hashes --only-binary=:all: -r /tmp/requirements.txt \
+    && rm /tmp/requirements.txt
 
 # Lambda handler: handler.handler
 CMD ["handler.handler"]

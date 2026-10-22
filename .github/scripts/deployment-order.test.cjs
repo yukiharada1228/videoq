@@ -19,6 +19,8 @@ function canDeploy(jobName, outputs, results = {}) {
   const needs = {
     changes: { result: 'success', outputs: { api: 'true', web: 'true', worker: 'true', modal: 'true', migrate: 'true', ...outputs } },
     'db-migrate': { result: 'success' },
+    'worker-build': { result: 'success' },
+    'application-build': { result: 'success' },
     'api-deploy': { result: 'success' },
     'web-deploy': { result: 'success' },
     'modal-deploy': { result: 'success' },
@@ -59,10 +61,11 @@ test('Modal deploy uses verified main code and environment-scoped credentials', 
 
 test('coordinated deployment proceeds after migration and both readers succeed', () => {
   assert.equal(workerCanDeploy({}), true);
-  assert.equal(workerCanDeploy({}, { 'db-migrate': 'skipped' }), true);
+  assert.equal(workerCanDeploy({}, { 'db-migrate': 'skipped' }), false);
+  assert.equal(workerCanDeploy({ migrate: 'false' }, { 'db-migrate': 'skipped' }), true);
 });
 
-for (const dependency of ['changes', 'db-migrate', 'api-deploy', 'web-deploy', 'modal-deploy']) {
+for (const dependency of ['changes', 'worker-build', 'db-migrate', 'api-deploy', 'web-deploy', 'modal-deploy']) {
   for (const result of ['failure', 'cancelled']) {
     test(`blocks the worker when ${dependency} reports ${result}`, () => {
       assert.equal(workerCanDeploy({}, { [dependency]: result }), false);
@@ -75,7 +78,7 @@ for (const dependency of ['api-deploy', 'web-deploy']) {
   });
 }
 test('worker-only changes allow unchanged readers to be skipped', () => {
-  assert.equal(workerCanDeploy({ api: 'false', web: 'false', modal: 'false' }, {
+  assert.equal(workerCanDeploy({ api: 'false', web: 'false', modal: 'false', migrate: 'false' }, {
     'db-migrate': 'skipped', 'api-deploy': 'skipped', 'web-deploy': 'skipped', 'modal-deploy': 'skipped',
   }), true);
 });
@@ -89,4 +92,28 @@ test('a deployment waits for whichever reader changed', () => {
 });
 test('does not deploy the worker when its files did not change', () => {
   assert.equal(workerCanDeploy({ worker: 'false' }), false);
+});
+
+
+test('application builds cannot access production secrets or an OIDC token', () => {
+  for (const name of ['application-build', 'worker-build']) {
+    const body = job(name).body;
+    assert.doesNotMatch(body, /environment:|secrets\.|id-token: write|contents: write/);
+  }
+});
+test('Cloudflare uploads never install application dependencies or build application code', () => {
+  for (const name of ['api-deploy', 'web-deploy', 'docs-deploy']) {
+    const body = job(name).body;
+    assert.match(body, /needs: \[changes, application-build/);
+    assert.match(body, /--no-bundle --no-autoconfig --env-file \/dev\/null/);
+    assert.match(body, /deployment-config\.cjs/);
+    assert.doesNotMatch(body, /npm run|npm ci(?! --ignore-scripts --prefix \.github\/deploy-tools)|docker build/);
+  }
+});
+test('AWS upload job does not execute the built image or project code', () => {
+  const body = job('worker-deploy').body;
+  assert.match(body, /docker load/);
+  assert.match(body, /docker push/);
+  assert.doesNotMatch(body, /actions\/checkout|docker (?:build|run)|npm |pip install/);
+  assert.equal(workerCanDeploy({}, { 'worker-build': 'skipped' }), false);
 });

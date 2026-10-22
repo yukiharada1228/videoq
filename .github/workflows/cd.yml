@@ -106,6 +106,7 @@ jobs:
               - '.github/workflows/ci.yml'
               - '.github/workflows/cd.yml'
               - '.github/scripts/**'
+              - '.github/deploy-tools/**'
             api:
               - 'apps/api/**'
               - 'packages/trpc/**'
@@ -113,6 +114,7 @@ jobs:
               - 'package-lock.json'
               - '.github/workflows/cd.yml'
               - '.github/scripts/**'
+              - '.github/deploy-tools/**'
             worker:
               - 'apps/worker/**'
               # A migration can rename objects used by the Python worker. If a
@@ -129,10 +131,12 @@ jobs:
               - 'apps/api/scripts/stamp-baseline.mjs'
               - '.github/workflows/cd.yml'
               - '.github/scripts/**'
+              - '.github/deploy-tools/**'
             modal:
               - 'apps/worker/modal_batched_whisper.py'
               - '.github/workflows/cd.yml'
               - '.github/scripts/**'
+              - '.github/deploy-tools/**'
             migrate:
               - 'apps/api/drizzle/**'
               - 'apps/api/src/db/**'
@@ -144,6 +148,7 @@ jobs:
               - 'apps/api/scripts/stamp-baseline.mjs'
               - '.github/workflows/cd.yml'
               - '.github/scripts/**'
+              - '.github/deploy-tools/**'
             docs:
               - 'apps/docs/**'
               - 'docs/**'
@@ -152,6 +157,7 @@ jobs:
               - '.github/workflows/ci.yml'
               - '.github/workflows/cd.yml'
               - '.github/scripts/**'
+              - '.github/deploy-tools/**'
       - name: Resolve deploy flags
         id: resolve
         run: |
@@ -171,15 +177,62 @@ jobs:
             echo "web=${{ steps.filter.outputs.web }}" >> "$GITHUB_OUTPUT"
           fi
 
+  application-build:
+    name: Build application without production credentials
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [changes]
+    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true' || needs.changes.outputs.docs == 'true'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.changes.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts
+      - run: npm audit signatures
+      - name: Build API Worker
+        if: needs.changes.outputs.api == 'true'
+        run: |
+          mkdir -p deploy-artifacts/api/worker
+          node node_modules/wrangler/bin/wrangler.js deploy --config apps/api/wrangler.jsonc --env production --minify --dry-run --outdir "$GITHUB_WORKSPACE/deploy-artifacts/api/worker"
+      - name: Build web application and Worker
+        if: needs.changes.outputs.web == 'true'
+        run: |
+          npm run build --workspace @videoq/web
+          mkdir -p deploy-artifacts/web/worker
+          cp -R apps/web/dist deploy-artifacts/web/assets
+          node node_modules/wrangler/bin/wrangler.js deploy --config apps/web/wrangler.jsonc --env production --dry-run --outdir "$GITHUB_WORKSPACE/deploy-artifacts/web/worker"
+      - name: Build and validate documentation
+        if: needs.changes.outputs.docs == 'true'
+        run: |
+          npm run typecheck --workspace @videoq/docs
+          npm run build:docs
+          mkdir -p deploy-artifacts/docs
+          cp -R apps/docs/build deploy-artifacts/docs/assets
+      - name: Upload prebuilt application
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-${{ needs.changes.outputs.sha }}
+          path: deploy-artifacts
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 1
+
   web-deploy:
-    name: Deploy Frontend (Cloudflare Workers)
+    name: Deploy web (prebuilt Cloudflare artifact)
     runs-on: ubuntu-latest
     environment: production-app
     timeout-minutes: 15
-    needs: [changes, api-deploy]
+    needs: [changes, application-build, api-deploy]
     if: |
       always() &&
       needs.changes.result == 'success' &&
+      needs.application-build.result == 'success' &&
       needs.changes.outputs.web == 'true' &&
       (needs.changes.outputs.api != 'true' || needs.api-deploy.result == 'success')
     steps:
@@ -189,29 +242,38 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "22"
-      - name: Install dependencies
-        run: npm ci
-      - name: Build frontend
-        run: npm run build --workspace @videoq/web
-      - name: Deploy frontend
+          node-version: '22'
+      - name: Install separately locked deployment tools without lifecycle scripts
+        run: npm ci --ignore-scripts --prefix .github/deploy-tools
+      - name: Verify deployment tool signatures
+        working-directory: .github/deploy-tools
+        run: npm audit signatures
+      - name: Download this run's immutable application artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: application-${{ needs.changes.outputs.sha }}
+          path: deploy-artifacts
+      - name: Generate upload-only config from trusted main
+        run: node .github/scripts/deployment-config.cjs web deploy-artifacts deployment.json
+      - name: Upload prebuilt Worker and assets
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
-            echo "::error::Cloudflare deployment credentials are required"
-            exit 1
-          fi
-          npm run deploy --workspace @videoq/web
+          test -n "$CLOUDFLARE_API_TOKEN" && test -n "$CLOUDFLARE_ACCOUNT_ID"
+          node .github/deploy-tools/node_modules/wrangler/bin/wrangler.js deploy --config deployment.json --no-bundle --no-autoconfig --env-file /dev/null
 
   docs-deploy:
-    name: Deploy Documentation (Cloudflare Workers)
+    name: Deploy docs (prebuilt Cloudflare artifact)
     runs-on: ubuntu-latest
     environment: production-app
     timeout-minutes: 15
-    needs: changes
-    if: needs.changes.outputs.docs == 'true'
+    needs: [changes, application-build]
+    if: |
+      always() &&
+      needs.changes.result == 'success' &&
+      needs.application-build.result == 'success' &&
+      needs.changes.outputs.docs == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -219,32 +281,73 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "22"
-      - name: Install documentation dependencies
-        run: npm ci --workspace @videoq/docs
-      - name: Type check documentation
-        run: npm run typecheck --workspace @videoq/docs
-      # Rebuild the verified SHA, including changes from cancelled CI runs.
-      - name: Build documentation and check links
-        run: npm run build:docs
-      - name: Deploy documentation
+          node-version: '22'
+      - name: Install separately locked deployment tools without lifecycle scripts
+        run: npm ci --ignore-scripts --prefix .github/deploy-tools
+      - name: Verify deployment tool signatures
+        working-directory: .github/deploy-tools
+        run: npm audit signatures
+      - name: Download this run's immutable application artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: application-${{ needs.changes.outputs.sha }}
+          path: deploy-artifacts
+      - name: Generate upload-only config from trusted main
+        run: node .github/scripts/deployment-config.cjs docs deploy-artifacts deployment.json
+      - name: Upload prebuilt Worker and assets
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
-            echo "::error::Cloudflare deployment credentials are required"
-            exit 1
-          fi
-          npm run deploy --workspace @videoq/docs
+          test -n "$CLOUDFLARE_API_TOKEN" && test -n "$CLOUDFLARE_ACCOUNT_ID"
+          node .github/deploy-tools/node_modules/wrangler/bin/wrangler.js deploy --config deployment.json --no-bundle --no-autoconfig --env-file /dev/null
 
-  # DB スキーマは Drizzle（stamp + migrate）。manage.py migrate は廃止。
+  api-deploy:
+    name: Deploy api (prebuilt Cloudflare artifact)
+    runs-on: ubuntu-latest
+    environment: production-app
+    timeout-minutes: 15
+    needs: [changes, application-build, db-migrate]
+    if: |
+      always() &&
+      needs.changes.result == 'success' &&
+      needs.application-build.result == 'success' &&
+      needs.changes.outputs.api == 'true' &&
+      (needs.changes.outputs.migrate != 'true' || needs.db-migrate.result == 'success')
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.changes.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+      - name: Install separately locked deployment tools without lifecycle scripts
+        run: npm ci --ignore-scripts --prefix .github/deploy-tools
+      - name: Verify deployment tool signatures
+        working-directory: .github/deploy-tools
+        run: npm audit signatures
+      - name: Download this run's immutable application artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: application-${{ needs.changes.outputs.sha }}
+          path: deploy-artifacts
+      - name: Generate upload-only config from trusted main
+        run: node .github/scripts/deployment-config.cjs api deploy-artifacts deployment.json
+      - name: Upload prebuilt Worker and assets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" && test -n "$CLOUDFLARE_ACCOUNT_ID"
+          node .github/deploy-tools/node_modules/wrangler/bin/wrangler.js deploy --config deployment.json --no-bundle --no-autoconfig --env-file /dev/null
+
   db-migrate:
     name: Drizzle DB Migrate
     runs-on: ubuntu-latest
     environment: production-app
     timeout-minutes: 15
-    needs: changes
+    needs: [changes]
     if: needs.changes.outputs.migrate == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -253,52 +356,21 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "22"
-      - name: Install dependencies
-        run: npm ci
-      - name: Migrate database
+          node-version: '22'
+      - name: Install separately locked deployment tools without lifecycle scripts
+        run: npm ci --ignore-scripts --prefix .github/deploy-tools
+      - name: Verify deployment tool signatures
+        working-directory: .github/deploy-tools
+        run: npm audit signatures
+      - name: Expose only the reviewed migration dependencies
+        run: ln -s .github/deploy-tools/node_modules node_modules
+      - name: Run trusted migration scripts
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          # One-time operator acknowledgement after draining/stopping old writers.
           STRUCTURED_ANSWER_WRITERS_STOPPED: ${{ vars.STRUCTURED_ANSWER_WRITERS_STOPPED }}
         run: |
-          if [ -z "${DATABASE_URL:-}" ]; then
-            echo "::error::DATABASE_URL secret is required for database migrations"
-            exit 1
-          fi
-          npm run db:migrate --workspace @videoq/api
-
-  api-deploy:
-    name: Deploy API (Cloudflare Workers)
-    runs-on: ubuntu-latest
-    environment: production-app
-    timeout-minutes: 15
-    needs: [changes, db-migrate]
-    if: |
-      always() &&
-      needs.changes.result == 'success' &&
-      needs.changes.outputs.api == 'true' &&
-      (needs.db-migrate.result == 'success' || needs.db-migrate.result == 'skipped')
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ needs.changes.outputs.sha }}
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: "22"
-      - name: Install API dependencies
-        run: npm ci
-      - name: Deploy Worker
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
-            echo "::error::Cloudflare deployment credentials are required"
-            exit 1
-          fi
-          npm run deploy --workspace @videoq/api
+          test -n "$DATABASE_URL"
+          sh apps/api/scripts/db-migrate.sh
 
   modal-deploy:
     name: Deploy Whisper (Modal)
@@ -314,82 +386,91 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: '3.11'
-      - name: Install Modal CLI
-        run: python -m pip install --disable-pip-version-check modal==1.6.1 fastapi==0.115.12
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
+        with:
+          version: '0.13.5'
+          enable-cache: false
+      - name: Install separately locked Modal CLI from hash-verified wheels
+        run: |
+          uv export --quiet --project .github/deploy-tools --locked --no-dev --no-emit-project --format requirements-txt --output-file "$RUNNER_TEMP/modal-requirements.txt"
+          python -m pip install --require-hashes --only-binary=:all: -r "$RUNNER_TEMP/modal-requirements.txt"
       - name: Deploy batched Whisper to Modal main
         env:
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
         run: |
-          if [ -z "${MODAL_TOKEN_ID:-}" ] || [ -z "${MODAL_TOKEN_SECRET:-}" ]; then
-            echo "::error::Modal deployment credentials are required"
-            exit 1
-          fi
+          test -n "$MODAL_TOKEN_ID" && test -n "$MODAL_TOKEN_SECRET"
           modal deploy --env main apps/worker/modal_batched_whisper.py
 
-  worker-deploy:
-    name: Deploy Worker Lambda
-    runs-on: ubuntu-latest
+  worker-build:
+    name: Build Lambda image without AWS credentials
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
+    needs: [changes]
+    if: needs.changes.outputs.worker == 'true'
     permissions:
       contents: read
-      id-token: write
-    # Deploy readers before the worker can write a new shared data format
-    needs: [changes, db-migrate, api-deploy, web-deploy, modal-deploy]
-    if: |
-      always() &&
-      needs.changes.result == 'success' &&
-      needs.changes.outputs.worker == 'true' &&
-      (needs.changes.outputs.modal != 'true' || needs.modal-deploy.result == 'success') &&
-      (needs.db-migrate.result == 'success' || needs.db-migrate.result == 'skipped') &&
-      (needs.changes.outputs.api != 'true' || needs.api-deploy.result == 'success') &&
-      (needs.changes.outputs.web != 'true' || needs.web-deploy.result == 'success')
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.changes.outputs.sha }}
           persist-credentials: false
+      - name: Build local ARM64 image
+        env:
+          SOURCE_SHA: ${{ needs.changes.outputs.sha }}
+        run: |
+          docker build --platform linux/arm64 -t "videoq-worker:$SOURCE_SHA" apps/worker
+          docker save "videoq-worker:$SOURCE_SHA" | zstd -T0 -o worker-image.tar.zst
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: worker-${{ needs.changes.outputs.sha }}
+          path: worker-image.tar.zst
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 1
 
+  worker-deploy:
+    name: Deploy prebuilt Worker Lambda image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    # Deploy readers before the worker can write a new shared data format.
+    needs: [changes, worker-build, db-migrate, api-deploy, web-deploy, modal-deploy]
+    if: |
+      always() &&
+      needs.changes.result == 'success' &&
+      needs.worker-build.result == 'success' &&
+      needs.changes.outputs.worker == 'true' &&
+      (needs.changes.outputs.modal != 'true' || needs.modal-deploy.result == 'success') &&
+      (needs.changes.outputs.migrate != 'true' || needs.db-migrate.result == 'success') &&
+      (needs.changes.outputs.api != 'true' || needs.api-deploy.result == 'success') &&
+      (needs.changes.outputs.web != 'true' || needs.web-deploy.result == 'success')
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: worker-${{ needs.changes.outputs.sha }}
+      - name: Load image without executing it
+        run: zstd -d worker-image.tar.zst --stdout | docker load
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_DEPLOY_ROLE_ARN }}
           role-session-name: videoq-worker-deploy
           aws-region: ${{ secrets.AWS_REGION }}
-
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-
-      - name: Build and push worker image (linux/arm64)
-        id: build-worker
-        working-directory: apps/worker
+      - name: Push prebuilt image and update Lambda
         env:
-          IMAGE_URI: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_WORKER }}:${{ needs.changes.outputs.sha }}
-          IMAGE_URI_LATEST: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_WORKER }}:latest
+          SOURCE_SHA: ${{ needs.changes.outputs.sha }}
+          IMAGE_REPOSITORY: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_WORKER }}
+          FUNCTION_NAME: ${{ secrets.LAMBDA_WORKER_FUNCTION_NAME }}
         run: |
-          docker buildx build \
-            --platform linux/arm64 \
-            --provenance=false \
-            -f Dockerfile \
-            -t "$IMAGE_URI" \
-            -t "$IMAGE_URI_LATEST" \
-            --push \
-            .
-          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
-
-      - name: Update Lambda function code
-        env:
-          IMAGE_URI: ${{ steps.build-worker.outputs.image_uri }}
-        run: |
-          aws lambda update-function-code \
-            --function-name "${{ secrets.LAMBDA_WORKER_FUNCTION_NAME }}" \
-            --image-uri "$IMAGE_URI"
-
-      - name: Wait for Lambda update
-        run: |
-          aws lambda wait function-updated \
-            --function-name "${{ secrets.LAMBDA_WORKER_FUNCTION_NAME }}"
+          docker tag "videoq-worker:$SOURCE_SHA" "$IMAGE_REPOSITORY:$SOURCE_SHA"
+          docker tag "videoq-worker:$SOURCE_SHA" "$IMAGE_REPOSITORY:latest"
+          docker push "$IMAGE_REPOSITORY:$SOURCE_SHA"
+          docker push "$IMAGE_REPOSITORY:latest"
+          aws lambda update-function-code --function-name "$FUNCTION_NAME" --image-uri "$IMAGE_REPOSITORY:$SOURCE_SHA"
+          aws lambda wait function-updated --function-name "$FUNCTION_NAME"

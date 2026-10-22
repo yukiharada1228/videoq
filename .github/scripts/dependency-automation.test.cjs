@@ -51,7 +51,7 @@ test('only verified patch metadata in supported ecosystems qualifies', () => {
 });
 
 test('auto-merge fails closed if required CI or strict protection disappears', () => {
-  const protection = { required_status_checks: { strict: true, checks: [{ context: 'CI Success', app_id: 15368 }] } };
+  const protection = { required_status_checks: { strict: true, checks: [{ context: 'CI Success', app_id: 15368 }, { context: 'Supply Chain Security', app_id: 15368 }] } };
   policy.requireProtection(protection);
   for (const value of [{}, { required_status_checks: { strict: false, checks: protection.required_status_checks.checks } },
     { required_status_checks: { strict: true, checks: [{ context: 'CI Success', app_id: 999 }] } }]) {

@@ -15,6 +15,42 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  supply-chain:
+    name: Supply Chain Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Review newly introduced vulnerabilities
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: low
+          fail-on-scopes: runtime,development,unknown
+          license-check: false
+          comment-summary-in-pr: never
+          retry-on-snapshot-warnings: true
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Check lockfile sources, integrity and vulnerability delta
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: python .github/scripts/supply-chain.py --base "$BASE_SHA"
+      # Verify registry signatures before any package code executes in this job.
+      - run: npm ci --ignore-scripts
+      - run: npm audit signatures
+      - run: npm ci --ignore-scripts --prefix .github/deploy-tools
+      - run: npm audit signatures --prefix .github/deploy-tools
+
   workflow-security:
     name: Deployment Security Tests
     runs-on: ubuntu-latest
@@ -28,13 +64,14 @@ jobs:
           node-version: "22"
       - name: Test production deployment policy
         run: node --test .github/scripts/*.test.cjs
+      - run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: always()
-    needs: [changes, workflow-security, hono-test, worker-test, frontend-lint, frontend-test, frontend-coverage, frontend-build, frontend-storybook, docs-build]
+    needs: [changes, supply-chain, workflow-security, hono-test, worker-test, frontend-lint, frontend-test, frontend-coverage, frontend-build, frontend-storybook, docs-build]
     steps:
       - name: Require every selected CI job to pass
         env:
@@ -43,7 +80,7 @@ jobs:
           node <<'NODE'
           const jobs = JSON.parse(process.env.JOB_RESULTS);
           const failed = Object.entries(jobs).filter(([name, job]) =>
-            ['changes', 'workflow-security'].includes(name)
+            ['changes', 'supply-chain', 'workflow-security'].includes(name)
               ? job.result !== 'success'
               : !['success', 'skipped'].includes(job.result)
           );
@@ -127,11 +164,17 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+      - uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
+        with:
+          version: '0.13.5'
+          enable-cache: false
       - name: Install worker for cross-language embedding tests
-        run: pip install -e "./apps/worker[dev]"
+        run: |
+          uv export --quiet --project apps/worker --locked --extra dev --no-emit-project --format requirements-txt --output-file "$RUNNER_TEMP/worker-requirements.txt"
+          python -m pip install --require-hashes --only-binary=:all: -r "$RUNNER_TEMP/worker-requirements.txt"
       - name: Install / typecheck / test
         run: |
-          npm ci
+          npm ci --ignore-scripts
           npm run cf-typegen:check --workspace @videoq/api
           npm run typecheck --workspace @videoq/trpc
           npm run typecheck --workspace @videoq/api
@@ -174,7 +217,11 @@ jobs:
         with:
           node-version: "22"
       - name: Install shared contracts for cost-model tests
-        run: npm ci --workspace @videoq/trpc --ignore-scripts
+        run: npm ci --ignore-scripts --workspace @videoq/trpc
+      - uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
+        with:
+          version: '0.13.5'
+          enable-cache: false
       - name: Install and test
         working-directory: apps/worker
         run: |
@@ -185,16 +232,18 @@ jobs:
           fi
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ffmpeg
-          pip install -e ".[dev]"
+          uv export --quiet --locked --extra dev --no-emit-project --format requirements-txt --output-file "$RUNNER_TEMP/worker-requirements.txt"
+          python -m pip install --require-hashes --only-binary=:all: -r "$RUNNER_TEMP/worker-requirements.txt"
           python -m pytest tests/ -q
 
       - name: Verify the production ARM64 media image
         if: matrix.python-version == '3.14'
         run: |
           docker build --platform linux/arm64 -t videoq-worker-test apps/worker
+          uv export --quiet --project apps/worker --locked --extra dev --no-emit-project --format requirements-txt --output-file apps/worker/ci-requirements.txt
           docker run --rm --entrypoint /bin/sh \
             -v "$PWD:/workspace:ro" -w /workspace/apps/worker videoq-worker-test \
-            -c 'pip install --no-cache-dir pytest && python -m pytest -p no:cacheprovider tests/test_media_process.py tests/test_remote_media.py tests/test_visual_frames.py tests/test_focus_frames.py tests/test_visual_chunks.py -q'
+            -c 'pip install --require-hashes --only-binary=:all: -r ci-requirements.txt && python -m pytest -p no:cacheprovider tests/test_media_process.py tests/test_remote_media.py tests/test_visual_frames.py tests/test_focus_frames.py tests/test_visual_chunks.py -q'
 
   frontend-lint:
     name: Frontend Lint & Type Check
@@ -211,7 +260,7 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
       - name: Lint
         run: npm run lint --workspace @videoq/web
       - name: Type check
@@ -232,7 +281,7 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
       - name: Run tests with coverage
         run: npm run test:coverage --workspace @videoq/web
       - name: Save frontend coverage
@@ -287,7 +336,7 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
       - name: Build
         run: npm run build --workspace @videoq/web
       - name: Check demo composition types
@@ -331,7 +380,7 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
       - name: Build Storybook
         run: npm run build:storybook
       - name: Install Chromium
@@ -364,7 +413,7 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
-        run: npm ci --workspace @videoq/docs
+        run: npm ci --ignore-scripts --workspace @videoq/docs
       - name: Type check
         run: npm run typecheck --workspace @videoq/docs
       - name: Build documentation and check links

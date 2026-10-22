@@ -13,6 +13,8 @@ updates:
 
   # The root lockfile covers every npm workspace in apps/ and packages/.
   - package-ecosystem: npm
+    cooldown:
+      default-days: 7
     directory: /
     schedule:
       interval: weekly
@@ -56,6 +58,8 @@ updates:
 
   # Use uv so that pyproject.toml and the checked-in uv.lock stay in sync.
   - package-ecosystem: uv
+    cooldown:
+      default-days: 7
     directory: /apps/worker
     schedule:
       interval: weekly
@@ -131,3 +135,25 @@ updates:
       time: "09:00"
       timezone: Asia/Tokyo
     open-pull-requests-limit: 1
+
+  # Deployment tools have their own lockfiles and always require human review.
+  - package-ecosystem: "npm"
+    directory: "/.github/deploy-tools"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Tokyo"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 3
+  - package-ecosystem: "uv"
+    directory: "/.github/deploy-tools"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Tokyo"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 3

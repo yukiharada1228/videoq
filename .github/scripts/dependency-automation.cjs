@@ -40,8 +40,9 @@ function patchMetadata(metadata) {
 
 function requireProtection(protection) {
   const checks = protection.required_status_checks;
-  if (!checks?.strict || !checks.checks?.some(check => check.context === 'CI Success' && check.app_id === 15368)) {
-    throw new Error('Auto-merge requires strict branch protection with GitHub Actions CI Success.');
+  const required = ['CI Success', 'Supply Chain Security'];
+  if (!checks?.strict || required.some(name => !checks.checks?.some(check => check.context === name && check.app_id === 15368))) {
+    throw new Error('Auto-merge requires strict branch protection with GitHub Actions CI Success and Supply Chain Security.');
   }
 }
 
