@@ -1,6 +1,21 @@
 # SQS worker Lambda container image (linux/arm64).
 FROM ghcr.io/astral-sh/uv:0.13.5@sha256:32a7bb39b496babbd997b0a39a4d66c126bdaf5661b302bf6f06abda8deca6ff AS uv
 FROM public.ecr.aws/lambda/python:3.14@sha256:fc4e15a5e09e2c9b6184810ea0fdc87afe1c1c734c98cbe27d739a35c3f15e7e AS lambda-local
+
+# BEGIN managed pip
+ARG PIP_VERSION=26.2.2
+ARG PIP_URL=https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl
+ARG PIP_SHA256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70
+RUN python -c 'import hashlib,os,pathlib,sys,urllib.request; b=urllib.request.urlopen(os.environ["PIP_URL"],timeout=60).read(); sys.exit("pip integrity mismatch") if hashlib.sha256(b).hexdigest()!=os.environ["PIP_SHA256"] else None; pathlib.Path("/tmp/pip-"+os.environ["PIP_VERSION"]+"-py3-none-any.whl").write_bytes(b)' \
+    && PYTHONPATH="/tmp/pip-${PIP_VERSION}-py3-none-any.whl" python -m pip install --no-deps --no-index "/tmp/pip-${PIP_VERSION}-py3-none-any.whl" \
+    && rm "/tmp/pip-${PIP_VERSION}-py3-none-any.whl" \
+    && python -c 'import os,pip,sys; sys.exit(0 if pip.__version__==os.environ["PIP_VERSION"] else 1)'
+# END managed pip
+# AWS publishes the patch level of its managed runtime on its own schedule.
+# Pin the reviewed image digest and verify the supported release line; CI also
+# runs native media tests in this exact image and reports its actual patch level.
+ARG PYTHON_VERSION=3.14.9
+RUN python -c "import sys; print('AWS Lambda Python:', sys.version); assert sys.version_info[:2] == tuple(map(int, '${PYTHON_VERSION}'.split('.')[:2]))"
 COPY --from=uv /uv /usr/local/bin/uv
 
 # buildx sets TARGETARCH; both binaries target glibc >= 2.28 (Lambda uses 2.34).

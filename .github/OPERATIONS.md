@@ -46,3 +46,5 @@ Terraformの状態・planファイル・属性値は公開しません。標準�
 プロバイダー更新時は `terraform providers lock -platform=linux_amd64` でCI用の展開済みハッシュも記録します。
 PRのTerraform検証もロックファイルを読み取り専用にして、CI内の暗黙更新で問題が隠れないようにしています。
 通常のインフラ変更に対する `production-infra` の承認と、検証済みDependabot minor/patch自動適用の条件はそのままです。
+
+Runtime Updates は毎日09:13 JSTにNode.js・Python・npm・pip・uvの更新PRを準備します。配布物のハッシュ確認、系列別PR、実行環境での検証は [RUNTIME-UPDATES.md](RUNTIME-UPDATES.md) を参照してください。

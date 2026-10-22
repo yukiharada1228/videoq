@@ -89,11 +89,13 @@ updates:
       time: "09:00"
       timezone: Asia/Tokyo
     open-pull-requests-limit: 5
-    # Node 25 is EOL; retain supported Node 22/24 LTS images.
-    # Docker version ranges use Bundler syntax with comma-separated bounds.
+    # Runtime Updates coordinates these images with CI, Modal and tool hashes.
+    # Keep one owner for interpreter pins; other images stay on Dependabot.
     ignore:
       - dependency-name: node
-        versions: [">=25.0.0, <26.0.0"]
+      - dependency-name: python
+      - dependency-name: public.ecr.aws/lambda/python
+      - dependency-name: ghcr.io/astral-sh/uv
     groups:
       docker-minor-patch:
         patterns: ["*"]

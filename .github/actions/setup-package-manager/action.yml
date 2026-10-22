@@ -1,0 +1,14 @@
+name: Set up a reviewed package manager
+description: Install the hash-pinned npm, pip or uv distribution from the runtime manifest
+inputs:
+  manager:
+    description: Package manager to install
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        PACKAGE_MANAGER: ${{ inputs.manager }}
+      run: python3 .github/scripts/package-managers.py "$PACKAGE_MANAGER"

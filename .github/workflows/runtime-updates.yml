@@ -1,0 +1,76 @@
+name: Runtime Updates
+on:
+  schedule:
+    - cron: '13 0 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Discover updates without creating or changing PRs
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: runtime-updates
+  cancel-in-progress: false
+jobs:
+  propose:
+    if: github.repository_owner == 'yukiharada1228' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: [node, python, npm, pip, uv]
+        channel: [current, next]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version-file: .python-version
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: pip
+      - name: Discover official interpreter releases and immutable images
+        id: plan
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RUNTIME: ${{ matrix.runtime }}
+          CHANNEL: ${{ matrix.channel }}
+        run: |
+          args=()
+          if [ "$CHANNEL" = next ]; then args+=(--upgrade); fi
+          python .github/scripts/runtime-versions.py plan --runtime "$RUNTIME" "${args[@]}" --output runtime-plan.json
+      - name: Describe the proposed update
+        run: |
+          python - <<'PY'
+          import json, os
+          plan = json.load(open('runtime-plan.json'))
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
+              output.write(f"{plan['runtime']} ({plan['channel']}): {plan['version']} — {len(plan['files'])} changed files\n")
+          PY
+      - name: Create repository-scoped runtime update token
+        if: steps.plan.outputs.changed == 'true' && (github.event_name == 'schedule' || !inputs.dry_run)
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ vars.PATCH_BOT_APP_ID }}
+          private-key: ${{ secrets.PATCH_BOT_PRIVATE_KEY }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Open a reviewable runtime PR with normal CI
+        if: steps.plan.outputs.changed == 'true' && (github.event_name == 'schedule' || !inputs.dry_run)
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          RUNTIME_BOT: ${{ steps.app.outputs.app-slug }}[bot]
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const fs = require('node:fs');
+            const { publish } = require('./.github/scripts/runtime-pull-request.cjs');
+            await publish({ github, context, core, bot: process.env.RUNTIME_BOT,
+              plan: JSON.parse(fs.readFileSync('runtime-plan.json', 'utf8')) });

@@ -23,7 +23,10 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "22"
+          node-version-file: .node-version
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: npm
       - name: Install separately locked deployment tools
         run: npm ci --ignore-scripts --prefix .github/deploy-tools
       - name: Verify deployment tool signatures
