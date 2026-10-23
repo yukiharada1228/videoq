@@ -16,21 +16,28 @@ withHelm("private local inference deployment", () => {
   }
   it("keeps models persistent and serves only private APIs with cloud inference disabled", () => {
     const resources = render();
-    expect(resources.filter(r => r.kind === "Service")).toHaveLength(2);
+    expect(resources.filter(r => r.kind === "Service")).toHaveLength(3);
     expect(resources.filter(r => r.kind === "Service").every(r => r.spec.type === "ClusterIP")).toBe(true);
-    expect(resources.filter(r => r.kind === "PersistentVolumeClaim")).toHaveLength(2);
+    expect(resources.filter(r => r.kind === "PersistentVolumeClaim")).toHaveLength(3);
     const pods = resources.filter(r => r.kind === "Deployment").map(r => r.spec.template.spec);
     for (const pod of pods) {
       expect(pod.automountServiceAccountToken).toBe(false);
       expect(pod.initContainers).toHaveLength(1);
       expect(pod.securityContext.runAsNonRoot).toBe(true);
     }
-    expect(pods.find(p => p.containers[0].name === "ollama").containers[0].env).toContainEqual({ name: "OLLAMA_NO_CLOUD", value: "1" });
-    expect(pods.find(p => p.containers[0].name === "ollama").containers[0].readinessProbe.exec.command[2]).toContain('ollama show "$CHAT_MODEL"');
+    expect(resources.some(r => r.metadata.name.includes("ollama"))).toBe(false);
+    for (const pod of pods) {
+      const server = pod.containers[0];
+      expect(server.resources.limits["nvidia.com/gpu"]).toBeUndefined();
+      expect(server.env).toContainEqual({ name: "HF_HUB_OFFLINE", value: "1" });
+    }
+    expect(resources.find(r => r.metadata.name === "videoq-inference-chat" && r.kind === "Deployment")
+      .spec.template.spec.containers[0].args).toContain("--offline");
     const whisper = pods.find(p => p.containers[0].name === "whisper");
     expect(whisper.containers[0].env).toContainEqual({ name: "HF_HUB_OFFLINE", value: "1" });
     expect(whisper.containers[0].volumeMounts[0].readOnly).toBe(true);
     const policy = resources.find(r => r.kind === "NetworkPolicy");
+    expect(policy.spec.ingress[0].ports.map((port: { port: number }) => port.port).sort()).toEqual([8000, 8080]);
     expect(policy.spec.ingress[0].from[0]).toMatchObject({
       namespaceSelector: { matchLabels: { "kubernetes.io/metadata.name": "videoq" } },
       podSelector: { matchLabels: { "app.kubernetes.io/instance": "videoq" } },
@@ -45,11 +52,12 @@ withHelm("private local inference deployment", () => {
     expect(command("--set", "networkPolicy.denyEgress=true").status).not.toBe(0);
   });
   it("requests NVIDIA GPUs only when explicitly enabled", () => {
-    const resources = render("-f", `${chart}/examples/nvidia.yaml`);
+    const resources = render("-f", `${chart}/examples/whisper-nvidia.yaml`);
     for (const deployment of resources.filter(r => r.kind === "Deployment")) {
       const container = deployment.spec.template.spec.containers[0];
-      expect(container.resources.limits["nvidia.com/gpu"]).toBe(1);
-      expect(deployment.spec.template.spec.nodeSelector["kubernetes.io/arch"]).toBe("amd64");
+      const whisper = deployment.metadata.name.endsWith("-whisper");
+      expect(container.resources.limits["nvidia.com/gpu"]).toBe(whisper ? 1 : undefined);
+      if (whisper) expect(deployment.spec.template.spec.nodeSelector["kubernetes.io/arch"]).toBe("amd64");
     }
   });
   it.each(["llamacpp-cpu", "vllm-nvidia"])("provisions independent private model services for %s", (profile) => {
@@ -77,11 +85,11 @@ withHelm("private local inference deployment", () => {
     expect(offline.find(r => r.kind === "NetworkPolicy").spec.egress).toEqual([]);
   });
   it("rejects invalid engines, mutable model revisions, and incompatible weight formats", () => {
-    for (const setting of ["backend=unknown", "backend=vllm", "servers.chat.modelRevision=main", "servers.chat.modelFile=../model.gguf", "backend=llamacpp,servers.chat.modelSha256="]) {
+    for (const setting of ["backend=unknown", "backend=ollama", "backend=vllm", "servers.chat.modelRevision=main", "servers.chat.modelFile=../model.gguf", "backend=llamacpp,servers.chat.modelSha256="]) {
       expect(command("--set", setting).status).not.toBe(0);
     }
   });
-  it("rejects mutable Whisper revisions, cloud model names and unpinned production images", () => {
+  it("rejects mutable Whisper revisions, removed settings and unpinned production images", () => {
     for (const setting of ["whisper.modelRevision=main", "whisper.device=auto", "ollama.chatModel=gemma4:cloud", "requireImageDigests=true"]) {
       expect(command("--set", setting).status).not.toBe(0);
     }

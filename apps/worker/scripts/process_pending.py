@@ -4,7 +4,8 @@ Trigger local pending/indexing videos. Uploaded transcription requires SQS.
 
 Usage (from apps/worker/):
   export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:55432/postgres
-  export EMBEDDING_PROVIDER=ollama EMBEDDING_MODEL=qwen3-embedding:4b
+  export EMBEDDING_PROVIDER=openai EMBEDDING_MODEL=gte-qwen2-1.5b-q4km-124fbdad
+  export EMBEDDING_BASE_URL=http://127.0.0.1:8001/v1 EMBEDDING_API_KEY=local-inference
   # optional real transcription:
   # export ENABLE_HEAVY_PIPELINE=1 OPENAI_API_KEY=... SQS_QUEUE_URL=...
   python scripts/process_pending.py

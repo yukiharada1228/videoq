@@ -7,40 +7,50 @@ description: The fixed 1536-dimensional contract, provider settings, diagnostics
 
 VideoQ stores scene embeddings in `scene_embeddings.embedding vector(1536)`. The API and Python worker use a fixed `EMBEDDING_DIMENSIONS = 1536` constant. `EMBEDDING_VECTOR_SIZE` has been removed: a leftover variable is ignored, regardless of its value. No database migration is needed for this change.
 
-## Choose a provider for a new environment
+## Choose a hosted or private endpoint
 
-For attribution, see the [OpenAI embedding-model source](../reference/ai-references.md#openai-embeddings) and, when using the optional local example, the [Qwen3 Embedding report](../reference/ai-references.md#qwen3-embedding).
-
-The templates, Compose, and Wrangler default to:
+VideoQ uses the OpenAI-compatible embeddings protocol. Templates, Compose and
+Wrangler default to:
 
 ```dotenv
 EMBEDDING_PROVIDER=openai
 EMBEDDING_MODEL=text-embedding-3-small
 ```
 
-Set `OPENAI_API_KEY` in the relevant environment. Both query and document requests send `dimensions: 1536`. Other models must accept that parameter and produce 1536-dimensional vectors; the application never retries without it.
-
-Provider names are trimmed and lowercased. Empty provider values select OpenAI; an empty model selects `text-embedding-3-small` for OpenAI. Model names are trimmed but retain their case. An unknown provider or a missing Ollama model is a configuration error.
-
-Wrangler keeps `EMBEDDING_MODEL` empty in both development and production so the adapter resolves this default. Overriding only the provider to Ollama therefore fails validation instead of inheriting an OpenAI model name.
-
-For a **new, disposable development database**, Ollama is another option:
-
-```bash
-ollama pull qwen3-embedding:4b
-```
+Set `OPENAI_API_KEY` in the environment. A private llama.cpp or vLLM service uses
+the same protocol, its own model alias and an explicit endpoint, for example:
 
 ```dotenv
-EMBEDDING_PROVIDER=ollama
-EMBEDDING_MODEL=qwen3-embedding:4b
-OLLAMA_BASE_URL=http://127.0.0.1:11434
+EMBEDDING_PROVIDER=openai
+EMBEDDING_BASE_URL=http://embedding.intranet:8000/v1
+EMBEDDING_API_KEY=local-inference
+EMBEDDING_MODEL=gte-qwen2-1.5b-q4km-124fbdad
 ```
 
-When using Docker Compose with Ollama running on the host, set both `OLLAMA_BASE_URL` and `WORKER_OLLAMA_BASE_URL` to `http://host.docker.internal:11434`. Configure the same provider and model for the API and worker. Ollama replaces embedding generation only; transcription and answer generation have their own settings and may still require OpenAI credentials.
+`EMBEDDING_API_KEY` falls back to `OPENAI_API_KEY`; use a placeholder only when
+the private server has no authentication. `EMBEDDING_BASE_URL` falls back to
+`OPENAI_BASE_URL` when empty, so set it explicitly for a separate embedding
+service. The API and worker must use the same model/endpoint. With Compose and a
+host-side server, use `http://host.docker.internal:8001/v1` if that server listens
+on port 8001. Chat and Whisper have independent settings; see [local AI inference](local-inference.md).
 
-Both adapters call `POST /api/embed` with `model`, `input`, and `dimensions: 1536`, and read the `embeddings` array. This requests the model's supported reduced representation. The app does not truncate or pad vectors and does not fall back to the old `/api/embeddings` endpoint.
+Requests use `POST /v1/embeddings` with `dimensions: 1536`, `encoding_format: float`,
+model and input. The llama.cpp profile uses native 1536-dimensional gte-Qwen2;
+vLLM uses Qwen3-Embedding-4B with reduced output explicitly enabled. The
+application rejects incompatible output without truncating, padding, retrying
+without dimensions or choosing a hosted fallback.
 
-`qwen3-embedding:4b` has a native size of 2560 and supports dimension reduction. The 1024-dimensional `qwen3-embedding:0.6b` is unsuitable for this contract. The 4096-dimensional `8b` model is a candidate requiring separate validation. See the [Qwen model table](https://github.com/QwenLM/Qwen3-Embedding#qwen3-embedding-series-model-list) and [Ollama embed API](https://docs.ollama.com/api/embed). The 4b setup was tested with Ollama 0.34.2; validate the actual output when updating your server or model.
+Provider names are trimmed and lowercased. Empty or `openai` selects this
+protocol; any other value, including the removed `ollama`, is a configuration
+error before network access. Empty models default to `text-embedding-3-small`;
+private installations must set their actual served alias. Remove obsolete
+`OLLAMA_BASE_URL` / `WORKER_OLLAMA_BASE_URL` variables. Existing vectors require
+regeneration when changing models, even at the same dimensions; follow the
+maintenance and recovery constraints below.
+
+For attribution, see [OpenAI embeddings](../reference/ai-references.md#openai-embeddings)
+and [Qwen3 Embedding](../reference/ai-references.md#qwen3-embedding) when that family
+is used. Record the actual weight revision, quantization and serving image.
 
 ## What gets checked
 
@@ -82,7 +92,7 @@ The probe additionally reports `actual_dimensions`. Compare `provider`, `model`,
 
 | Internal reason | Meaning |
 |---|---|
-| `EMBEDDING_CONFIG_INVALID` | Unsupported provider, missing required model, or a worker embedding request rejected with HTTP 4xx (except 408/429) |
+| `EMBEDDING_CONFIG_INVALID` | Unsupported provider or a worker embedding request rejected with HTTP 4xx (except 408/429) |
 | `EMBEDDING_SCHEMA_MISMATCH` | DB declaration differs from `vector(1536)` |
 | `EMBEDDING_OUTPUT_INVALID` | Invalid model output, count, or indices |
 

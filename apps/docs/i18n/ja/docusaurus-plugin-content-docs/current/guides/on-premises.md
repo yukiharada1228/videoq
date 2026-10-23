@@ -61,7 +61,7 @@ Node.js の起動処理は Durable Objects を読み込まず、本番用の認�
 
 `registry.example.edu` のイメージは、導入先で作成するイメージの例です。このリポジトリがそのアドレスで配布しているわけではありません。閉域環境ではイメージとパッケージ化した Chart を先に搬入し、チャット・埋め込み・文字起こしの全接続先をローカルサービスに設定します。オンプレ版では Stripe・Google ログイン・YouTube/SearchAPI・Mailgun を無効にします。
 
-チャットの接続処理は、認証不要の OpenAI 互換サーバーでも空でない `OPENAI_API_KEY` を必要とします。その場合は `local-inference` などのダミー値を Secret に設定します。Ollama の埋め込みにはこの鍵は不要です。
+チャットの接続処理は、認証不要の OpenAI 互換サーバーでも空でない `OPENAI_API_KEY` を必要とします。その場合は `local-inference` などのダミー値を Secret に設定します。埋め込みもこのキーを使い、`EMBEDDING_API_KEY` で分けることもできます。
 
 ## 運用で決めること
 

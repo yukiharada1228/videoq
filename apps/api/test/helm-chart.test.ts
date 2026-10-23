@@ -35,8 +35,8 @@ withHelm("on-prem Helm distribution", () => {
   it("keeps discovery and streaming routes on the API and applies site-specific settings", () => {
     const resources = render("--set", "ingress.enabled=true", "--set", "api.replicas=3", "--set", "worker.replicas=4",
       "--set", "existingSecret=customer-secret", "--set", "imagePullSecrets[0].name=registry-secret",
-      "--set", "ai.embeddingProvider=ollama", "--set", "ai.embeddingModel=qwen3-embedding:4b",
-      "--set", "ai.ollamaBaseUrl=http://ollama:11434", "--set", "migration.enabled=false");
+      "--set", "ai.embeddingProvider=openai", "--set", "ai.embeddingModel=gte-qwen2-1.5b-q4km-124fbdad",
+      "--set", "ai.embeddingBaseUrl=http://embedding:8000/v1", "--set", "migration.enabled=false");
     expect(resources.some(resource => resource.kind === "Job")).toBe(false);
     const ingress = resources.find(resource => resource.kind === "Ingress");
     expect(ingress.spec.rules[0].host).toBe("videoq.example.edu");
@@ -56,15 +56,15 @@ withHelm("on-prem Helm distribution", () => {
   it("rejects incomplete configuration and invalid proxy/pool settings", () => {
     const missing = spawnSync(helm!, ["template", "test", chart], { encoding: "utf8" });
     expect(missing.status).not.toBe(0);
-    for (const setting of ["api.trustedProxyHops=-1", "api.databasePoolMax=1", "existingSecret=", "publicUrl=https://example.edu/prefix"]) {
+    for (const setting of ["ai.embeddingProvider=ollama", "ai.ollamaBaseUrl=http://obsolete:11434", "api.trustedProxyHops=-1", "api.databasePoolMax=1", "existingSecret=", "publicUrl=https://example.edu/prefix"]) {
       expect(spawnSync(helm!, ["template", "test", chart, ...settings, "--set", setting], { encoding: "utf8" }).status).not.toBe(0);
     }
   });
   it("routes local AI inside the site and restricts application egress", () => {
-    const resources = render("-f", `${chart}/examples/local-ai.yaml`);
+    const resources = render("-f", `${chart}/examples/local-ai-llamacpp.yaml`);
     const config = resources.find(resource => resource.kind === "ConfigMap").data;
     expect(config.WHISPER_BACKEND).toBe("local");
-    expect(config.EMBEDDING_PROVIDER).toBe("ollama");
+    expect(config.EMBEDDING_PROVIDER).toBe("openai");
     expect(config.OPENAI_BASE_URL).toContain(".svc.cluster.local");
     expect(config.LLM_REASONING_EFFORT).toBe("none");
     expect(config.VIDEO_VISUAL_ENABLED).toBe("false");
@@ -81,7 +81,7 @@ withHelm("on-prem Helm distribution", () => {
     expect(config.EMBEDDING_PROVIDER).toBe("openai");
     expect(config.LLM_SEPARATE_TOOL_SCHEMA).toBe("true");
     expect(config.WHISPER_BACKEND).toBe("local");
-    expect(config.OLLAMA_BASE_URL).toBe("");
+    expect(Object.keys(config).some(key => key.startsWith("OLLAMA"))).toBe(false);
   });
   it("pins every workload and hook to the reviewed image digests", () => {
     const digest = "sha256:" + "a".repeat(64);

@@ -15,15 +15,16 @@ USER_SECRET_ENCRYPTION_KEY=""
 # RAG チャット用。未設定だと LLM 設定エラー。
 # OPENAI_API_KEY=""
 
-# ローカル Ollama でチャットする場合（ツール呼び出し対応モデルが必要）。
-# OPENAI_API_KEY="ollama"
-# OPENAI_BASE_URL="http://127.0.0.1:11434/v1"
-# LLM_MODEL="qwen3-vl:8b-instruct"
-# 埋め込みは別設定。モデルが空ならOpenAIはtext-embedding-3-smallを使用。
-# OllamaではEMBEDDING_MODELの明示指定が必須。
+# ローカル llama.cpp / vLLM（ツール呼び出し・JSON Schema 対応モデルが必要）。
+# OPENAI_API_KEY="local-inference"
+# OPENAI_BASE_URL="http://127.0.0.1:8000/v1"
+# LLM_MODEL="videoq-chat"
+# VIDEO_VISUAL_ENABLED="false"
+# 埋め込みは専用の OpenAI 互換 API。API・worker のモデル名を揃える。
 # EMBEDDING_PROVIDER="openai"
-# EMBEDDING_MODEL=""
-# OLLAMA_BASE_URL="http://127.0.0.1:11434"
+# EMBEDDING_BASE_URL="http://127.0.0.1:8001/v1"
+# EMBEDDING_API_KEY="local-inference"
+# EMBEDDING_MODEL="gte-qwen2-1.5b-q4km-124fbdad"
 
 # Stripe Billing（restricted key rk_ を推奨）。未設定なら /api/billing/plans はカタログ金額を返す。
 # STRIPE_SECRET_KEY=""

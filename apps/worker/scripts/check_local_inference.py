@@ -25,10 +25,9 @@ def main():
     if os.environ.get("WHISPER_BACKEND") not in {"local", "whisper.cpp"}:
         parser.error("WHISPER_BACKEND must be local or whisper.cpp")
     provider = os.environ.get("EMBEDDING_PROVIDER")
-    if provider not in {"ollama", "openai"}:
-        parser.error("EMBEDDING_PROVIDER must be ollama or openai (the API protocol)")
-    endpoint = "OLLAMA_BASE_URL" if provider == "ollama" else "EMBEDDING_BASE_URL"
-    for key in ("WHISPER_LOCAL_URL", endpoint, "EMBEDDING_MODEL"):
+    if provider != "openai":
+        parser.error("EMBEDDING_PROVIDER must be openai (the API protocol)")
+    for key in ("WHISPER_LOCAL_URL", "EMBEDDING_BASE_URL", "EMBEDDING_MODEL"):
         if not os.environ.get(key):
             parser.error(f"{key} is required; implicit provider defaults are not used")
     segments = transcribe_audio_interval(str(args.video.resolve()), 0, args.seconds)

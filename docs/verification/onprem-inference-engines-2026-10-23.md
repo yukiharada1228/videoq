@@ -1,5 +1,11 @@
 # Selectable on-prem inference engines — 2026-10-23
 
+> Historical verification of an earlier implementation. Ollama support has since
+> been removed; current deployment instructions use llama.cpp or vLLM in
+> [the inference chart](../../charts/videoq-inference/README.md). These results
+> are retained as historical evidence, not as a current installation recipe.
+
+
 Scope: remove the shared chat/embedding endpoint constraint, add llama.cpp CPU
 and vLLM NVIDIA deployment recipes, and provide common acceptance checks.
 Initial downloads are allowed. GPU hardware and the production site are undecided.

@@ -1,5 +1,5 @@
-# Requires NVIDIA drivers + device plugin. Use two allocatable GPUs, or put the
-# workloads on separate GPU nodes. No GPU sharing is implicitly configured.
+# Optional Whisper CUDA overlay for either backend. Requires one additional
+# allocatable NVIDIA GPU, drivers and the device plugin. No GPU sharing.
 whisper:
   # Build with --build-arg INFERENCE_DEVICE=cuda on linux/amd64.
   image:
@@ -11,10 +11,4 @@ whisper:
   resources:
     requests: { cpu: "1", memory: 1Gi, nvidia.com/gpu: 1 }
     limits: { cpu: "4", memory: 4Gi, nvidia.com/gpu: 1 }
-  nodeSelector: { kubernetes.io/arch: amd64 }
-
-ollama:
-  resources:
-    requests: { cpu: "2", memory: 4Gi, nvidia.com/gpu: 1 }
-    limits: { cpu: "8", memory: 12Gi, nvidia.com/gpu: 1 }
   nodeSelector: { kubernetes.io/arch: amd64 }

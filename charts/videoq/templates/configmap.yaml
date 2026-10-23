@@ -35,7 +35,6 @@ data:
   EMBEDDING_BASE_URL: {{ .Values.ai.embeddingBaseUrl | quote }}
   EMBEDDING_PROVIDER: {{ .Values.ai.embeddingProvider | quote }}
   EMBEDDING_MODEL: {{ .Values.ai.embeddingModel | quote }}
-  OLLAMA_BASE_URL: {{ .Values.ai.ollamaBaseUrl | quote }}
   WHISPER_BACKEND: {{ .Values.ai.whisperBackend | quote }}
   WHISPER_LOCAL_URL: {{ .Values.ai.whisperLocalUrl | quote }}
   MAX_VIDEO_UPLOAD_SIZE_MB: {{ .Values.config.maxVideoUploadSizeMb | quote }}

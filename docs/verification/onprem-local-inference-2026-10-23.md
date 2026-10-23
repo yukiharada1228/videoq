@@ -1,5 +1,11 @@
 # Local AI inference acceptance — 2026-10-23
 
+> Historical verification of an earlier implementation. Ollama support has since
+> been removed; current deployment instructions use llama.cpp or vLLM in
+> [the inference chart](../../charts/videoq-inference/README.md). These results
+> are retained as historical evidence, not as a current installation recipe.
+
+
 Scope: implement optional on-prem chat, embeddings and Whisper deployment.
 Initial image/model downloads are allowed. Video, audio and inference requests
 should stay on the site. Hardware is undecided; CPU acceptance and NVIDIA

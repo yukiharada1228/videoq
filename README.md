@@ -281,62 +281,24 @@ docker compose up -d --force-recreate worker
 </details>
 
 <details>
-<summary><strong>Local chat with Ollama</strong></summary>
+<summary><strong>Local chat, embeddings and Whisper</strong></summary>
 
-**Install Ollama:**
+Use llama.cpp for the default CPU recipe or vLLM for NVIDIA GPU inference.
+Chat and embeddings use separate private OpenAI-compatible APIs; transcription
+uses the local faster-whisper service. See the [local inference guide](docs/guides/local-inference.md)
+and the [inference chart](charts/videoq-inference/README.md) for matching
+application overlays, model provisioning and acceptance commands.
 
-1. Download it from [ollama.com](https://ollama.com)
-2. Install and run it
+Set `EMBEDDING_PROVIDER=openai` for this protocol, an explicit
+`EMBEDDING_BASE_URL` and the matching served model alias in both API and worker.
+`OPENAI_BASE_URL` selects chat independently. Private servers without
+API authentication use `local-inference` as a placeholder key. Text-only models
+require `VIDEO_VISUAL_ENABLED=false`; hosted credentials are unnecessary when
+chat, embeddings and Whisper all use validated private services.
 
-**Pull a model:**
-
-```bash
-ollama pull qwen3-vl:8b-instruct
-```
-
-**Configure VideoQ:**
-
-Edit `.env`:
-
-```bash
-OPENAI_API_KEY=ollama
-OPENAI_BASE_URL=http://host.docker.internal:11434/v1
-LLM_MODEL=qwen3-vl:8b-instruct
-```
-
-Chat uses Ollama's [OpenAI-compatible API](https://docs.ollama.com/api/openai-compatibility)
-through ChatOpenAI. Course QA requires a model with tool calling support.
-`OPENAI_API_KEY=ollama` is a placeholder for local Ollama and cannot authenticate to OpenAI. `OPENAI_BASE_URL` is also used by OpenAI-provider embeddings and the Python OpenAI client, so changing it in the shared `.env` affects more than chat. A shared local configuration also needs local Whisper and compatible embeddings. For a mixed setup, configure the API and worker environments separately.
-
-For `npm run dev:api` outside Docker, put these values in `apps/api/.dev.vars`
-and use `OPENAI_BASE_URL=http://127.0.0.1:11434/v1`.
-
-Recreate the affected containers after updating the shared `.env`:
-
-```bash
-docker compose up -d --force-recreate api worker
-```
-
-</details>
-
-<details>
-<summary><strong>Local embeddings with Ollama</strong></summary>
-
-For a new disposable development DB, run `ollama pull qwen3-embedding:4b`, then set `EMBEDDING_PROVIDER=ollama` and `EMBEDDING_MODEL=qwen3-embedding:4b`. For Docker, use `OLLAMA_BASE_URL=http://host.docker.internal:11434` and `WORKER_OLLAMA_BASE_URL=http://host.docker.internal:11434`.
-
-The adapters use `/api/embed` with `dimensions: 1536` and validate every output against the fixed `vector(1536)` contract. The 1024-dimensional `qwen3-embedding:0.6b` is incompatible. Equal dimensions do not make models interchangeable: existing scene vectors need regeneration, and this change does not provide a model migration tool. See [diagnostics and migration constraints](docs/guides/embeddings.md).
-
-For `npm run dev:api` outside Docker, set the embedding values in
-`apps/api/.dev.vars` and use `OLLAMA_BASE_URL=http://127.0.0.1:11434`.
-The API and indexing worker must use the same embedding model and dimensions.
-
-Recreate the API and worker containers to load the updated `.env`:
-
-```bash
-docker compose up -d --force-recreate api worker
-```
-
-After switching models or providers, reindex existing videos from Admin. A dimension change also needs a database migration; reindexing alone does not change the column type.
+Changing embedding models requires maintenance, backups and complete vector
+regeneration before resuming search, even when dimensions remain 1536.
+See [diagnostics and migration constraints](docs/guides/embeddings.md).
 
 </details>
 

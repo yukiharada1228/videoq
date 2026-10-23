@@ -102,7 +102,7 @@ Implementation: [structured-answer.ts](https://github.com/yukiharada1228/videoq/
 
 Yanzhao Zhang et al. **“Qwen3 Embedding: Advancing Text Embedding and Reranking Through Foundation Models.”** 2025, arXiv:2506.05176. [Technical report](https://arxiv.org/abs/2506.05176). BibTeX key: `zhang2025qwen3embedding`.
 
-The [embedding guide](../guides/embeddings.md) gives `qwen3-embedding:4b` through Ollama as an optional example. Cite this report only when that model family is used, and record the actual model tag and digest. The report covers rerankers too; VideoQ currently uses embeddings without a second reranking model.
+The [local inference guide](../guides/local-inference.md) uses Qwen3-Embedding-4B through a private vLLM endpoint. Cite this report only when that model family is used, and record the actual model tag and digest. The report covers rerankers too; VideoQ currently uses embeddings without a second reranking model.
 
 ### Qwen3-VL — optional local configuration {#qwen3-vl}
 

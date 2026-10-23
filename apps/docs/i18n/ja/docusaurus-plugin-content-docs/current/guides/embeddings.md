@@ -7,40 +7,45 @@ description: 1536次元固定の仕様、providerの設定、診断方法、モ�
 
 VideoQはシーンの埋め込みを `scene_embeddings.embedding vector(1536)` に保存します。API・Python workerの次元数は定数 `EMBEDDING_DIMENSIONS = 1536` で固定です。`EMBEDDING_VECTOR_SIZE` は廃止しました。環境に残っていても値によらず参照しません。この変更にDB migrationは不要です。
 
-## 新規環境のproviderを選ぶ
+## 外部または社内の接続先を選ぶ
 
-モデルの引用には[OpenAIの埋め込みの公式資料](../reference/ai-references.md#openai-embeddings)、任意のローカル構成を使う場合には[Qwen3 Embeddingの技術報告](../reference/ai-references.md#qwen3-embedding)を参照してください。
-
-設定テンプレート・Compose・Wranglerの標準値は次のとおりです。
+埋め込みは OpenAI 互換 API に統一しています。標準設定は次のとおりです。
 
 ```dotenv
 EMBEDDING_PROVIDER=openai
 EMBEDDING_MODEL=text-embedding-3-small
 ```
 
-各環境に `OPENAI_API_KEY` を設定します。質問・字幕のどちらも `dimensions: 1536` を送信します。別のモデルを使う場合も、このパラメーターを受け付けて1536次元を生成できる必要があります。指定を外して再試行する処理はありません。
-
-providerは前後空白を除去して小文字化し、空ならOpenAIを選びます。OpenAIでmodelが空なら `text-embedding-3-small` を使います。modelは前後空白を除去しますが大小文字は保持します。不明なproviderやOllamaのmodel未指定は設定エラーです。
-
-Wranglerは開発・本番とも `EMBEDDING_MODEL` を空にし、この既定値をアダプターで解決します。providerだけをOllamaに変更してもOpenAIのモデル名が補完されず、モデル未指定として検証で拒否されます。
-
-**破棄可能な新しい開発DB**ではOllamaも選べます。
-
-```bash
-ollama pull qwen3-embedding:4b
-```
+社内の llama.cpp／vLLM も同じ形式を使い、接続先とモデル名を明示します。
 
 ```dotenv
-EMBEDDING_PROVIDER=ollama
-EMBEDDING_MODEL=qwen3-embedding:4b
-OLLAMA_BASE_URL=http://127.0.0.1:11434
+EMBEDDING_PROVIDER=openai
+EMBEDDING_BASE_URL=http://embedding.intranet:8000/v1
+EMBEDDING_API_KEY=local-inference
+EMBEDDING_MODEL=gte-qwen2-1.5b-q4km-124fbdad
 ```
 
-Docker ComposeからホストのOllamaを使う場合は、`OLLAMA_BASE_URL` と `WORKER_OLLAMA_BASE_URL` の両方を `http://host.docker.internal:11434` にします。API・workerのproviderとmodelを揃えてください。Ollamaが置き換えるのは埋め込み生成です。文字起こしや回答生成の設定は独立しており、OpenAIの認証情報が必要な場合があります。
+認証不要の社内サーバーでは仮のキーを使います。`EMBEDDING_API_KEY` が空なら
+`OPENAI_API_KEY`、`EMBEDDING_BASE_URL` が空なら `OPENAI_BASE_URL` を使用するため、
+埋め込みを別サービスに配置する場合は専用 URL を必ず設定してください。
+Compose からホストの 8001 番ポートに接続する例は `http://host.docker.internal:8001/v1` です。
+API・worker のモデル名と接続先を揃えます。LLM と Whisper の設定は独立しています。
+[ローカル AI 推論](local-inference.md)も参照してください。
 
-両アダプターは `POST /api/embed` に `model`・`input`・`dimensions: 1536` を渡し、`embeddings` 配列を読み取ります。モデルが対応する次元削減をAPIへ要求する方式です。アプリによる切り詰め・ゼロ埋めや旧 `/api/embeddings` へのフォールバックは行いません。
+`POST /v1/embeddings` に `dimensions: 1536`、`encoding_format: float`、model、input を送ります。
+llama.cpp 構成は元の出力が 1536 次元の gte-Qwen2、vLLM 構成は次元削減を明示した
+Qwen3-Embedding-4B を使います。不正な出力を切り詰めたり、ゼロ埋めしたり、次元指定を
+外して再試行したり、外部サービスへ自動的に切り替えたりしません。
 
-`qwen3-embedding:4b` は元の次元数が2560で、次元削減に対応します。1024次元の `qwen3-embedding:0.6b` は対象外です。4096次元の `8b` は候補ですが別途検証が必要です。[Qwenのモデル表](https://github.com/QwenLM/Qwen3-Embedding#qwen3-embedding-series-model-list)と[OllamaのAPI仕様](https://docs.ollama.com/api/embed)を参照してください。4b構成はOllama 0.34.2で確認しました。サーバーやモデルの更新時は実際の出力も診断してください。
+provider は前後空白を除去して小文字化します。空または `openai` のみ対応し、
+削除済みの `ollama` を含む他の値は通信前に設定エラーとなります。model が空なら
+`text-embedding-3-small` を使うため、社内のモデル名を明示します。
+旧 `OLLAMA_BASE_URL`／`WORKER_OLLAMA_BASE_URL` は削除してください。
+同じ次元数でもモデルを変えると既存の埋め込み再生成が必要です。後述の保守・復旧手順に従います。
+
+出典は [OpenAI の埋め込み](../reference/ai-references.md#openai-embeddings)、Qwen3 を使う場合は
+[Qwen3 Embedding](../reference/ai-references.md#qwen3-embedding)を参照し、重みの revision、量子化、
+配備したイメージを記録してください。
 
 ## 何を検証するか
 

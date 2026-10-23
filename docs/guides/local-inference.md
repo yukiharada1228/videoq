@@ -15,7 +15,6 @@ the local overlay explicitly switches all three AI functions.
 |---|---|---|
 | CPU | llama.cpp, separate chat / embedding APIs | `local-ai-llamacpp.yaml` |
 | NVIDIA GPU | vLLM, separate chat / embedding APIs | `local-ai-vllm.yaml` |
-| Existing CPU baseline | Ollama | `local-ai.yaml` |
 
 Whisper uses the independent private faster-whisper service in every recipe.
 The application uses the OpenAI-compatible protocol with private endpoints;
@@ -30,7 +29,7 @@ Select the matching overlay from `charts/videoq/examples/`; retain it on upgrade
 The CPU baseline disables visual inspection because its chat model accepts text
 only. Local visual inspection requires a validated vision model with tool calls
 and strict JSON Schema support. The vLLM profile requests one GPU for chat and one for embeddings, with Whisper
-on CPU. The existing Ollama NVIDIA profile assigns GPUs to Ollama and Whisper.
+on CPU. The optional `whisper-nvidia.yaml` overlay adds one GPU for Whisper.
 vLLM GPU execution remains subject to actual hardware acceptance. Hardware sizing and Japanese
 recognition/answer quality require acceptance on the actual site.
 
@@ -46,6 +45,5 @@ Changing embedding weights, quantization, pooling or preprocessing requires
 rebuilding existing scene embeddings, even when both models output 1536 dimensions.
 The llama.cpp CPU recipe uses native 1536-dimensional gte-Qwen2 embeddings;
 vLLM uses Qwen3-Embedding-4B with Matryoshka output set to 1536 dimensions.
-Optional email, Google OAuth, Stripe and YouTube/SearchAPI remain separate
-external integrations; this local recipe covers uploaded videos and local
-email/password sign-in.
+The on-prem edition disables external mail, Google login, Stripe and
+YouTube/SearchAPI; administrators issue local accounts and private setup links.

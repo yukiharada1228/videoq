@@ -1,4 +1,4 @@
-"""VideoQ embedding providers shared with the API (OpenAI / Ollama)."""
+"""Hosted/private OpenAI-compatible embeddings shared with the API."""
 
 from __future__ import annotations
 
@@ -21,8 +21,6 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
     if not texts:
         return []
     config = resolve_embedding_config()
-    if config.provider == "ollama":
-        return _embed_ollama(texts, config)
     return _embed_openai_batch(texts, config)
 
 
@@ -55,34 +53,18 @@ def _embed_openai_batch(texts: list[str], config: EmbeddingConfig) -> list[list[
     return [validate_embedding(item.get("embedding"), config) for item in ordered]
 
 
-def _embed_ollama(texts: list[str], config: EmbeddingConfig) -> list[list[float]]:
-    base = env_str("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
-    req = urllib.request.Request(
-        f"{base}/api/embed",
-        data=json.dumps({"model": config.model, "input": texts, "dimensions": EMBEDDING_DIMENSIONS}).encode("utf-8"),
-        headers={"content-type": "application/json"},
-        method="POST",
-    )
-    payload = _request_payload(req, config)
-    vectors = payload.get("embeddings") if isinstance(payload, dict) else None
-    if not isinstance(vectors, list) or len(vectors) != len(texts):
-        raise invalid_output(config)
-    return [validate_embedding(vector, config) for vector in vectors]
-
-
 def _provider_http_error(config: EmbeddingConfig, status: int) -> RuntimeError:
-    provider = "OpenAI" if config.provider == "openai" else "Ollama"
     # Permanent request rejection (e.g. unsupported model/dimensions) must not
     # become a successful scene fallback. Preserve the
     # existing best-effort behavior for timeouts, rate limits and server failures.
     if 400 <= status < 500 and status not in {408, 429}:
         return EmbeddingContractError(
             "EMBEDDING_CONFIG_INVALID",
-            f"{provider} embeddings request rejected (HTTP {status}). "
+            f"OpenAI embeddings request rejected (HTTP {status}). "
             "Check the model, requested dimensions and provider configuration.",
             config,
         )
-    return RuntimeError(f"{provider} embeddings failed (HTTP {status}).")
+    return RuntimeError(f"OpenAI embeddings failed (HTTP {status}).")
 
 
 def _request_payload(request: urllib.request.Request, config: EmbeddingConfig):
@@ -93,7 +75,6 @@ def _request_payload(request: urllib.request.Request, config: EmbeddingConfig):
         with exc:
             raise _provider_http_error(config, exc.code) from None
     except urllib.error.URLError:
-        provider = "OpenAI" if config.provider == "openai" else "Ollama"
-        raise RuntimeError(f"{provider} embeddings request failed. Check the server connection.") from None
+        raise RuntimeError("OpenAI embeddings request failed. Check the server connection.") from None
     except (ValueError, UnicodeError):
         raise invalid_output(config) from None

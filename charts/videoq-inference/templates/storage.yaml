@@ -1,4 +1,4 @@
-{{- range $name := (concat (list "whisper") (ternary (list "ollama") (list "chat" "embedding") (eq $.Values.backend "ollama"))) }}
+{{- range $name := (list "whisper" "chat" "embedding") }}
 {{- $component := index $.Values $name }}
 {{- if has $name (list "chat" "embedding") }}
 {{- $component = index $.Values.servers $name }}

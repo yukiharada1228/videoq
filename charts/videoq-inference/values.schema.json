@@ -13,82 +13,6 @@
       "pattern": "^([a-z0-9]([a-z0-9-]*[a-z0-9])?)?$",
       "maxLength": 48
     },
-    "ollama": {
-      "type": "object",
-      "required": [
-        "image",
-        "persistence",
-        "resources"
-      ],
-      "properties": {
-        "image": {
-          "type": "object",
-          "required": [
-            "repository",
-            "tag",
-            "pullPolicy"
-          ],
-          "properties": {
-            "repository": {
-              "type": "string",
-              "minLength": 1
-            },
-            "tag": {
-              "type": "string",
-              "minLength": 1
-            },
-            "digest": {
-              "type": "string",
-              "pattern": "^(sha256:[a-f0-9]{64})?$"
-            },
-            "pullPolicy": {
-              "enum": [
-                "IfNotPresent",
-                "Always",
-                "Never"
-              ]
-            }
-          }
-        },
-        "persistence": {
-          "type": "object",
-          "properties": {
-            "size": {
-              "type": "string",
-              "minLength": 1
-            },
-            "existingClaim": {
-              "type": "string"
-            },
-            "storageClass": {
-              "type": "string"
-            }
-          }
-        },
-        "chatModel": {
-          "type": "string",
-          "minLength": 1,
-          "not": {
-            "pattern": ":cloud($|-)"
-          }
-        },
-        "embeddingModel": {
-          "type": "string",
-          "minLength": 1,
-          "not": {
-            "pattern": ":cloud($|-)"
-          }
-        },
-        "contextLength": {
-          "type": "integer",
-          "minimum": 4096
-        },
-        "keepAlive": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
-    },
     "whisper": {
       "type": "object",
       "required": [
@@ -212,7 +136,6 @@
     },
     "backend": {
       "enum": [
-        "ollama",
         "llamacpp",
         "vllm"
       ]
@@ -423,6 +346,7 @@
           }
         }
       }
-    }
+    },
+    "ollama": false
   }
 }

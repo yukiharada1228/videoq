@@ -63,7 +63,6 @@ ai:
   embeddingBaseUrl: ""
   embeddingProvider: openai
   embeddingModel: text-embedding-3-small
-  ollamaBaseUrl: ""
   whisperBackend: openai
   whisperLocalUrl: ""
 

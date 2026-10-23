@@ -269,7 +269,7 @@ describe.each([false, true])("検索障害（stream=%s）", (stream) => {
   });
 
   it.each([
-    new LlmProviderError("Ollama embeddings unreachable"),
+    new LlmProviderError("Private embeddings unreachable"),
     new LlmConfigurationError("EMBEDDING_MODEL is required"),
     new Error("database unavailable"),
   ])("検索例外を通常回答にせず送出し、接続を閉じる: %s", async (error) => {
@@ -341,7 +341,7 @@ describe.each([false, true])("検索障害（stream=%s）", (stream) => {
   });
 });
 
-describe.each([false, true])("Ollama 互換 API（stream=%s）", (stream) => {
+describe.each([false, true])("プライベート OpenAI 互換 API（stream=%s）", (stream) => {
   it("/v1/chat/completions でツール検索から引用付き回答まで実行する", async () => {
     hitsByQuery = () => [scene(1)];
     const bodies = stubOpenAi([
@@ -352,7 +352,7 @@ describe.each([false, true])("Ollama 互換 API（stream=%s）", (stream) => {
     vi.stubGlobal("fetch", fetchStub);
     const env = {
       ...ENV,
-      OPENAI_API_KEY: "ollama",
+      OPENAI_API_KEY: "local-inference",
       OPENAI_BASE_URL: "http://127.0.0.1:11434/v1/",
       LLM_MODEL: "qwen3-vl:8b-instruct",
     };
@@ -372,7 +372,7 @@ describe.each([false, true])("Ollama 互換 API（stream=%s）", (stream) => {
     expect(fetchStub).toHaveBeenCalledTimes(2);
     for (const [url, init] of fetchStub.mock.calls) {
       expect(url).toBe("http://127.0.0.1:11434/v1/chat/completions");
-      expect(new Headers(init?.headers).get("authorization")).toBe("Bearer ollama");
+      expect(new Headers(init?.headers).get("authorization")).toBe("Bearer local-inference");
     }
     for (const body of bodies) {
       expect(body.model).toBe(env.LLM_MODEL);

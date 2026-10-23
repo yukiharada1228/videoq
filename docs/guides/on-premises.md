@@ -83,7 +83,7 @@ Google sign-in, YouTube/SearchAPI and Mailgun.
 
 The chat adapter requires a nonempty `OPENAI_API_KEY` for local OpenAI-compatible
 servers too. Use a placeholder such as `local-inference` if that server has no
-authentication. Ollama embeddings do not require this key.
+authentication. Embeddings reuse it unless `EMBEDDING_API_KEY` is set.
 
 For internet-connected sites, see [signed releases and updates](on-premises-releases.md)
 for artifact verification, automatic staging rehearsals and promotion.

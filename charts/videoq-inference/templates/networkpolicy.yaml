@@ -27,7 +27,6 @@ spec:
             matchExpressions:
               - { key: app.kubernetes.io/component, operator: In, values: [api, worker] }
       ports:
-        - { protocol: TCP, port: 11434 }
         - { protocol: TCP, port: 8000 }
         - { protocol: TCP, port: 8080 }
   {{- if .Values.networkPolicy.denyEgress }}

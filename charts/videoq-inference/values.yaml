@@ -1,32 +1,11 @@
-# Select ollama, llamacpp or vllm; application endpoints use a matching overlay.
-backend: ollama
+# Select llamacpp or vllm; application endpoints use a matching overlay.
+backend: llamacpp
 fullnameOverride: videoq-inference
 imagePullSecrets: []
 requireImageDigests: false
 # First installation downloads model weights. Cached restarts do not pull again.
 # Set false after provisioning, or when using pre-populated existing claims.
 downloadModels: true
-
-ollama:
-  image:
-    repository: ollama/ollama
-    tag: "0.40.9"
-    digest: sha256:5c6707fcf2e1a30cffe2ecb7e315584fc87747c389327e4bc711c4959aa1eecc
-    pullPolicy: IfNotPresent
-  chatModel: qwen3:4b
-  embeddingModel: qwen3-embedding:4b
-  contextLength: 16384
-  # One loaded model bounds RAM use; chat and embedding requests queue.
-  keepAlive: 30s
-  persistence:
-    existingClaim: ""
-    storageClass: ""
-    size: 20Gi
-  resources:
-    requests: { cpu: "2", memory: 4Gi }
-    limits: { cpu: "4", memory: 8Gi }
-  nodeSelector: {}
-  tolerations: []
 
 whisper:
   # Build apps/inference/whisper; publish to the site's private registry.

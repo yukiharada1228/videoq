@@ -30,7 +30,7 @@ export type SceneHit = {
 const RETRIEVER_K = 20;
 
 /**
- * 検索クエリの埋め込みは EMBEDDING_PROVIDER（openai / ollama）の切り替えを持つ
+ * 検索クエリの埋め込みは hosted / private の OpenAI 互換 API を使う
  * lib/embeddings.ts に一本化する。インデックス作成は worker 側の責務なので、
  * embedDocuments は API からは呼ばれない。
  */

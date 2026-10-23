@@ -80,7 +80,6 @@ export function nodeBindings(source: Environment): Bindings {
     EMBEDDING_BASE_URL: source.EMBEDDING_BASE_URL, EMBEDDING_API_KEY: source.EMBEDDING_API_KEY,
     EMBEDDING_PROVIDER: source.EMBEDDING_PROVIDER || "openai",
     EMBEDDING_MODEL: source.EMBEDDING_MODEL || "",
-    OLLAMA_BASE_URL: source.OLLAMA_BASE_URL || "",
     PGVECTOR_COLLECTION_NAME: source.PGVECTOR_COLLECTION_NAME || "scene_embeddings",
     VIDEO_VISUAL_ENABLED: source.VIDEO_VISUAL_ENABLED || "true",
     USE_S3_STORAGE: "true",

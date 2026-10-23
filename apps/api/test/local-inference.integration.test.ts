@@ -19,18 +19,17 @@ vi.mock("../src/repositories/vector-repository", () => ({ openSceneSearch: vi.fn
 })) }));
 
 // Explicit opt-in. Unit CI never downloads models or calls hosted inference.
-const local = process.env.LOCAL_AI_TEST_URL; // Legacy Ollama shortcut.
-const chatBase = process.env.LOCAL_AI_TEST_CHAT_BASE_URL || (local ? `${local}/v1` : undefined);
+const chatBase = process.env.LOCAL_AI_TEST_CHAT_BASE_URL;
 const embeddingBase = process.env.LOCAL_AI_TEST_EMBEDDING_BASE_URL;
-const provider = process.env.LOCAL_AI_TEST_EMBEDDING_PROVIDER || (local ? "ollama" : "openai");
+const provider = "openai";
 const env = {
   OPENAI_API_KEY: process.env.LOCAL_AI_TEST_API_KEY || "local-inference", OPENAI_BASE_URL: chatBase,
-  LLM_MODEL: process.env.LOCAL_AI_TEST_MODEL || (local ? "qwen3:4b" : "videoq-chat"), LLM_REASONING_EFFORT: "none",
-  LLM_SEPARATE_TOOL_SCHEMA: process.env.LOCAL_AI_TEST_SEPARATE_TOOL_SCHEMA || (local ? "true" : "false"),
-  EMBEDDING_PROVIDER: provider, EMBEDDING_BASE_URL: embeddingBase, EMBEDDING_API_KEY: process.env.LOCAL_AI_TEST_EMBEDDING_API_KEY, EMBEDDING_MODEL: process.env.LOCAL_AI_TEST_EMBEDDING_MODEL || (local ? "qwen3-embedding:4b" : "videoq-embedding"), OLLAMA_BASE_URL: local,
+  LLM_MODEL: process.env.LOCAL_AI_TEST_MODEL || "videoq-chat", LLM_REASONING_EFFORT: "none",
+  LLM_SEPARATE_TOOL_SCHEMA: process.env.LOCAL_AI_TEST_SEPARATE_TOOL_SCHEMA || "true",
+  EMBEDDING_PROVIDER: provider, EMBEDDING_BASE_URL: embeddingBase, EMBEDDING_API_KEY: process.env.LOCAL_AI_TEST_EMBEDDING_API_KEY, EMBEDDING_MODEL: process.env.LOCAL_AI_TEST_EMBEDDING_MODEL || "gte-qwen2-1.5b-q4km-124fbdad",
   VIDEO_VISUAL_ENABLED: "false", LLM_REQUEST_TIMEOUT_MS: "600000", LLM_STREAM_TIMEOUT_MS: "600000",
 } as Bindings;
-if (chatBase && provider === "openai" && !embeddingBase) throw new Error("Explicit LOCAL_AI_TEST_EMBEDDING_BASE_URL is required; hosted defaults are forbidden");
+if (chatBase && !embeddingBase) throw new Error("Explicit LOCAL_AI_TEST_EMBEDDING_BASE_URL is required; hosted defaults are forbidden");
 const withModels = chatBase ? describe : describe.skip;
 
 withModels("real local inference compatibility", () => {
@@ -70,7 +69,7 @@ withModels("real local inference compatibility", () => {
       env: { PATH: process.env.PATH, OPENAI_API_KEY: env.OPENAI_API_KEY,
         OPENAI_BASE_URL: "http://chat-must-not-receive-embeddings.invalid/v1", EMBEDDING_BASE_URL: env.EMBEDDING_BASE_URL,
         EMBEDDING_API_KEY: env.EMBEDDING_API_KEY, EMBEDDING_PROVIDER: env.EMBEDDING_PROVIDER,
-        EMBEDDING_MODEL: env.EMBEDDING_MODEL, OLLAMA_BASE_URL: env.OLLAMA_BASE_URL },
+        EMBEDDING_MODEL: env.EMBEDDING_MODEL },
     });
     const batch = JSON.parse(stdout) as number[][];
     expect(batch).toHaveLength(2);

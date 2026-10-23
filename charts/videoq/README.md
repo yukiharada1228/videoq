@@ -9,7 +9,7 @@ Helm 4.3.1 is used by CI.
 
 To keep chat, embeddings and uploaded-audio transcription on the site too, use
 the optional [local inference chart](../videoq-inference/README.md) and this
-chart's `examples/local-ai.yaml` overlay. It includes CPU and NVIDIA GPU
+chart's `examples/local-ai-llamacpp.yaml` or `examples/local-ai-vllm.yaml` overlay. It includes CPU and NVIDIA GPU
 provisioning instructions, model caches, acceptance checks and egress controls.
 The default application values continue to select hosted OpenAI inference.
 
@@ -110,7 +110,7 @@ keys include `MAILGUN_API_KEY`, `MAILGUN_SENDER_DOMAIN`, `GOOGLE_CLIENT_ID`,
 
 Chat requires a nonempty `OPENAI_API_KEY` even for an OpenAI-compatible local
 server without authentication; use a local placeholder such as `local-inference`
-in that case. Ollama embeddings do not require this key.
+in that case. Embeddings reuse it unless `EMBEDDING_API_KEY` is set.
 
 ```sh
 kubectl create namespace videoq
@@ -158,7 +158,7 @@ your configured inference services and may incur costs.
 
 ## Local inference and scaling
 
-Layer `examples/local-ai.yaml` over your site file after replacing the model and
+Layer `examples/local-ai-llamacpp.yaml` (CPU) or `examples/local-ai-vllm.yaml` (GPU) over your site file after replacing the model and
 endpoints. Both runtimes receive the same embedding provider/model. Dimensions
 remain fixed at 1536; changing models for existing data requires a planned full
 reindex, even if dimensions match. See [embedding guidance](../../docs/guides/embeddings.md).

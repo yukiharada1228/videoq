@@ -73,10 +73,10 @@
         "reasoningEffort": {
           "enum": ["", "none", "minimal", "low", "medium", "high"]
         },
+        "ollamaBaseUrl": false,
         "embeddingProvider": {
           "enum": [
-            "openai",
-            "ollama"
+            "openai"
           ]
         },
         "whisperBackend": {

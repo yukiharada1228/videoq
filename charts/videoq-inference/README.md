@@ -1,10 +1,11 @@
 # Local inference for VideoQ
 
 This optional chart installs selectable private LLM / embedding servers and
-faster-whisper services. Ollama remains the default for existing installations. Install it separately from the application chart so
+faster-whisper services. llama.cpp is the CPU default; vLLM is the NVIDIA GPU
+option. Install it separately from the application chart so
 model caches, GPU scheduling and application upgrades have separate lifecycles.
 The application chart's default still uses hosted OpenAI; explicitly apply its
-`examples/local-ai.yaml` overlay to select these services.
+`examples/local-ai-llamacpp.yaml` or `examples/local-ai-vllm.yaml` overlay to select these services.
 
 ## Placement and capabilities
 
@@ -23,7 +24,8 @@ flowchart LR
     end
 ```
 
-CPU defaults use `qwen3:4b`, `qwen3-embedding:4b` (1536 output dimensions) and
+CPU defaults use Qwen3-4B Q4_K_M chat, gte-Qwen2-1.5B Q4_K_M embeddings
+(native 1536 dimensions) and
 `Systran/faster-whisper-base`. These are starting points for a small acceptance
 test. Measure production model quality, throughput, RAM and GPU VRAM with the
 site's Japanese videos. The CPU overlay disables visual inspection because its
@@ -42,8 +44,7 @@ configured site services.
 
 | Recipe | Inference values | Application values | Model placement |
 |---|---|---|---|
-| Existing Ollama CPU recipe | defaults | `charts/videoq/examples/local-ai.yaml` | One Ollama Pod for both models; Whisper CPU |
-| llama.cpp CPU | `examples/llamacpp-cpu.yaml` | `charts/videoq/examples/local-ai-llamacpp.yaml` | Separate CPU chat and embedding Pods; Whisper CPU |
+| llama.cpp CPU | defaults or `examples/llamacpp-cpu.yaml` | `charts/videoq/examples/local-ai-llamacpp.yaml` | Separate CPU chat and embedding Pods; Whisper CPU |
 | vLLM NVIDIA | `examples/vllm-nvidia.yaml` | `charts/videoq/examples/local-ai-vllm.yaml` | Two GPUs, one for each model; Whisper CPU |
 
 The application connects to OpenAI-compatible Chat Completions and embeddings.
@@ -61,8 +62,8 @@ The same app configuration can point to separately operated compatible servers,
 including different chat and embedding runtimes. This chart's `backend` selects
 one runtime for both model Pods. Model templates, tool parsers and JSON Schema
 behavior must pass the common acceptance suite; API compatibility alone does not
-establish VideoQ compatibility. Ollama's `separateToolSchema` workaround is opt-in;
-the tested Qwen3/llama.cpp recipe also requires it. The vLLM recipe starts with
+establish VideoQ compatibility. The tested Qwen3/llama.cpp recipe requires
+`separateToolSchema=true`. The vLLM recipe starts with
 native tools plus schema enforcement and requires GPU acceptance.
 
 The llama.cpp recipe uses pinned Qwen3-4B Q4_K_M chat weights and a pinned
@@ -120,12 +121,13 @@ These profiles serve `videoq-inference-chat:8000`,
 Use `downloadModels=false` and `networkPolicy.denyEgress=true` after provisioning,
 retaining the selected engine profile on every Helm upgrade. Changing `backend`
 replaces Deployments; it does not convert PVC contents. Back up old caches and
-adopt existing compatible claims explicitly. Existing Ollama claims are retained.
+adopt existing compatible claims explicitly. PVCs use a keep policy.
 
-## Build and install on CPU
+## Build the private Whisper image
 
-Build and push Whisper to a private registry readable by the Kubernetes nodes.
-Select the nodes' platform; the CPU image supports amd64 and arm64.
+The CPU image supports amd64 and arm64. Build for the Kubernetes nodes, push it
+into a private registry, then record its immutable digest. Chat and embedding
+init containers also use its locked `provision.py` downloader.
 
 ```sh
 docker build --platform linux/amd64 \
@@ -134,10 +136,8 @@ docker push registry.intranet/videoq-whisper:0.1.0-cpu
 docker buildx imagetools inspect registry.intranet/videoq-whisper:0.1.0-cpu
 ```
 
-Record the immutable digest. This site-built Whisper image is **not** part of
-the existing three-image signed GHCR release. Base images and Python
-dependencies are pinned; `uv.lock` also locks CUDA extras. Weights live on PVCs.
-Create an operator-owned values file outside the repository:
+This image is built by the site and is not in the existing signed three-image
+GHCR release. Keep an operator-owned values file outside the repository:
 
 ```yaml
 requireImageDigests: true
@@ -150,47 +150,22 @@ networkPolicy:
   clientRelease: videoq
 ```
 
-```sh
-helm lint charts/videoq-inference --strict -f /secure/inference-site.yaml
-helm upgrade --install inference charts/videoq-inference \
-  --namespace videoq --create-namespace -f /secure/inference-site.yaml \
-  --wait --timeout 30m
-```
-
-Services are `videoq-inference-ollama:11434` and
-`videoq-inference-whisper:8080`, both ClusterIP only. Init containers download
-weights before requests can reach inference. Cached restarts skip downloads.
-Whisper uses an exact Hugging Face commit in a revision-specific directory.
-Ollama tags are cached without automatic refresh: record full digests from
-`/api/tags` at acceptance and back up both claims. Change to a reviewed new tag
-or explicitly provision a new cache before acceptance and reindexing.
-
-Set `OPENAI_API_KEY=local-inference` in the application's runtime Secret. This
-is a nonsecret SDK placeholder; no hosted OpenAI key is needed. Keep database,
-storage, queue and encryption credentials from the application guide. Put only
-documented credentials in the Secret: its environment variables can override
-the ConfigMap's inference endpoints.
-
-```sh
-helm upgrade --install videoq charts/videoq --namespace videoq \
-  -f /secure/site.yaml -f /secure/verified-images.json \
-  -f charts/videoq/examples/local-ai.yaml --wait --timeout 15m
-```
-
-The overlay assumes namespace `videoq`. If changing namespace, service names or
-cluster DNS suffix, update all three inference URLs. If changing the application
-release name, update the inference chart's client release selector too.
+Use that file with the selected inference/application pair above. The overlay
+assumes namespace `videoq`; update the service URLs if changing namespace,
+service names or cluster DNS suffix. Match `networkPolicy.clientRelease` to the
+application Helm release. Set `OPENAI_API_KEY=local-inference` in its Secret
+(and optionally `EMBEDDING_API_KEY`); keep the other runtime credentials from the
+application guide. Secret environment variables can override ConfigMap endpoints.
 
 ## Restrict processing to the site
 
-Ollama sets `OLLAMA_NO_CLOUD=1`; see its
-[local-only configuration](https://docs.ollama.com/faq#how-do-i-disable-ollamas-cloud-features).
 Whisper always loads local files, sets `HF_HUB_OFFLINE=1`, and mounts runtime
 weights read-only. Its API accepts only `whisper-local` and exposes no model
 management. Failures stay local; there is no automatic hosted fallback.
 
-The app overlay sets `ai.reasoningEffort: none` and `ai.separateToolSchema: true`.
-The latter lets Ollama decide tool calls without the final-answer grammar. When
+The llama.cpp app overlay sets `ai.reasoningEffort: none` and
+`ai.separateToolSchema: true`. The latter separates tool decisions from the
+final-answer grammar. When
 no more tools are requested, the adapter makes a native JSON Schema call from
 the original messages and retrieved evidence. An intermediate draft is discarded
 and never streamed or used as conversion input. This adds one final model call;
@@ -227,12 +202,12 @@ helm upgrade inference charts/videoq-inference --namespace videoq \
 ```
 
 Persist these settings in the operator values for future upgrades. Missing
-weights fail Whisper startup or keep Ollama unready. Nodes can still pull container images before Pod
-startup. External email, Google OAuth, Stripe and YouTube/SearchAPI need
-separate site decisions; this recipe covers uploaded videos and email/password
-sign-in. Omit hosted credentials for features that must remain disconnected.
+weights fail startup or keep inference Pods unready. Nodes can still pull container images before Pod
+startup. The on-prem application edition disables external mail, Google OAuth, Stripe
+and YouTube/SearchAPI. This recipe handles uploaded videos and administrator-issued
+local accounts; it does not change an explicitly selected inference endpoint.
 
-## NVIDIA GPU option
+## Optional NVIDIA Whisper acceleration
 
 Install NVIDIA drivers, container runtime integration and the Kubernetes device
 plugin. Build on linux/amd64 with the locked CUDA extra:
@@ -242,53 +217,50 @@ docker build --platform linux/amd64 --build-arg INFERENCE_DEVICE=cuda \
   -t registry.intranet/videoq-whisper:0.1.0-cuda apps/inference/whisper
 docker push registry.intranet/videoq-whisper:0.1.0-cuda
 helm upgrade --install inference charts/videoq-inference --namespace videoq \
-  -f charts/videoq-inference/examples/nvidia.yaml \
+  -f charts/videoq-inference/examples/llamacpp-cpu.yaml \
+  -f charts/videoq-inference/examples/whisper-nvidia.yaml \
   -f /secure/inference-gpu-site.yaml --wait --timeout 30m
 ```
 
-The GPU site file must select the CUDA image's digest. This profile uses Whisper
-large-v3 and requests one GPU per Deployment: **two allocatable GPUs** in total,
-possibly on separate nodes. It configures no GPU sharing. A single-GPU site can
-keep Ollama on CPU and apply only the Whisper portion, or the reverse. GPU
-drivers, VRAM, scheduling, concurrent throughput and large-v3 inference require
-acceptance on actual hardware; CPU results do not establish GPU readiness.
+The GPU site file must select the CUDA Whisper image's digest. This overlay
+requests **one additional GPU** for Whisper large-v3. It leaves the selected
+chat/embedding backend unchanged: llama.cpp remains on CPU, while vLLM's two
+model GPUs plus Whisper require **three GPUs**. No sharing is configured.
+Drivers, VRAM, scheduling, throughput and large-v3 inference require hardware
+acceptance; the CPU test does not establish GPU readiness.
+
+## Upgrade from removed support
+
+Ollama is no longer a supported backend. The dedicated `/api/embed` adapter,
+image, Helm workload, values and application overlay have been removed.
+`backend=ollama`, legacy `ollama` values, `ai.embeddingProvider=ollama` and
+`ai.ollamaBaseUrl` fail validation. `EMBEDDING_PROVIDER=ollama` fails before any
+inference request; it never falls back to hosted OpenAI. Remove obsolete
+`OLLAMA_BASE_URL` / `WORKER_OLLAMA_BASE_URL` environment variables.
+
+For an existing installation, back up the application DB, model caches and
+operator values. Stop Q&A/indexing while switching both API and worker to the
+same new embedding model/endpoint, and rebuild existing scene vectors before
+resuming search. Matching dimensions alone do not preserve the old vector space.
+Do not reuse old cache files as GGUF/safetensors weights. Retained legacy PVCs
+are not converted or deleted automatically. Replace `local-ai.yaml` with the
+chosen current application overlay; replace `nvidia.yaml` with the optional
+`whisper-nvidia.yaml` overlay only when Whisper GPU acceleration is intended.
+See the [embedding migration constraints](../../docs/guides/embeddings.md).
 
 ## Acceptance checks
 
-From a reviewed checkout with npm dependencies, uv and FFmpeg installed, expose
-the services temporarily via two local port-forwards. Never expose them publicly.
+From a reviewed checkout with npm dependencies, uv and FFmpeg installed,
+port-forward the private services in separate terminals:
 
 ```sh
-kubectl -n videoq port-forward service/videoq-inference-ollama 11435:11434
+kubectl -n videoq port-forward service/videoq-inference-chat 11436:8000
+kubectl -n videoq port-forward service/videoq-inference-embedding 11437:8000
 kubectl -n videoq port-forward service/videoq-inference-whisper 18085:8080
 ```
 
-In another terminal, use a short, nonsensitive video with audible speech:
-
-```sh
-LOCAL_AI_TEST_URL=http://127.0.0.1:11435 \
-  npm run test:unit --workspace @videoq/api -- test/local-inference.integration.test.ts
-WHISPER_BACKEND=local WHISPER_LOCAL_URL=http://127.0.0.1:18085/v1 \
-  EMBEDDING_PROVIDER=ollama EMBEDDING_MODEL=qwen3-embedding:4b \
-  OLLAMA_BASE_URL=http://127.0.0.1:11435 \
-  uv run --project apps/worker --locked python \
-  apps/worker/scripts/check_local_inference.py /secure/test.mp4 --seconds 30
-```
-
-The API suite tests real structured answers with numeric citations, SSE, tool
-calls and query vectors. The worker checks extraction, timestamped transcription
-and indexing vectors without database writes. Then test upload → transcript →
-indexing → cited Q&A → timestamp playback through the UI with public egress
-blocked. Record model/image digests and acceptance results. API and worker must
-use the same embedding model and 1536 dimensions. Changing from OpenAI to Qwen
-requires rebuilding existing scene embeddings before searching those videos.
-
-Uninstall this release separately from the application. PVCs have a `keep`
-policy: adopt retained claims through `persistence.existingClaim` on reinstall.
-
-### Common llama.cpp / vLLM acceptance
-
-Port-forward chat to 11436, embeddings to 11437 and Whisper to 18085. Set the
+Never expose these ports publicly. Use a short, nonsensitive speech video.
+ Set the
 embedding alias for the chosen recipe (`qwen3-embedding-4b-5cf2132a` for vLLM).
 For vLLM start with `LOCAL_AI_TEST_SEPARATE_TOOL_SCHEMA=false`, matching its app profile:
 
@@ -314,4 +286,8 @@ fixed retrieval evidence, not a live database or browser. Optional protected
 services use `LOCAL_AI_TEST_API_KEY` / `LOCAL_AI_TEST_EMBEDDING_API_KEY`.
 `LOCAL_AI_TEST_SEPARATE_TOOL_SCHEMA=true` is available when a particular
 model/server needs the two-call workaround; record that choice in app values.
-Finish with the real upload-to-playback site check described above.
+Finish with upload → transcription → indexing → cited Q&A → timestamp playback
+through the UI with public egress blocked. Record model/image digests and site
+quality/throughput results. The worker check does not write to the DB.
+Uninstall inference separately from the app; PVCs are retained. Adopt compatible
+claims through `persistence.existingClaim` on reinstall.

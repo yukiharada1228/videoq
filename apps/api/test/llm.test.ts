@@ -164,24 +164,18 @@ describe("native structured LLM output", () => {
 });
 
 describe("埋め込み生成", () => {
-  it("Ollama は専用エンドポイントとモデルを使い、OpenAI キーを必要としない", async () => {
+  it("プライベート埋め込み API は専用エンドポイント・モデル・認証を使う", async () => {
     vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
-      expect(url).toBe("http://127.0.0.1:11434/api/embed");
+      expect(url).toBe("http://embedding.test:8000/v1/embeddings");
       expect(JSON.parse(String(init.body))).toEqual({
-        model: "qwen3-embedding:4b",
-        input: "hello",
-        dimensions: 1536,
+        model: "gte-qwen2-1.5b-q4km-124fbdad", input: "hello", dimensions: 1536, encoding_format: "float",
       });
-      expect(new Headers(init.headers).has("authorization")).toBe(false);
-      return jsonResponse({ embeddings: [testEmbedding(0.5, -0.25, 0)] });
+      expect(new Headers(init.headers).get("authorization")).toBe("Bearer local-inference");
+      return jsonResponse({ data: [{ index: 0, embedding: testEmbedding(0.5, -0.25, 0) }] });
     });
-
     await expect(embedQuery({
-      ...ENV,
-      OPENAI_API_KEY: "",
-      EMBEDDING_PROVIDER: "ollama",
-      EMBEDDING_MODEL: "qwen3-embedding:4b",
-      OLLAMA_BASE_URL: "http://127.0.0.1:11434/",
+      ...ENV, EMBEDDING_PROVIDER: "openai", EMBEDDING_MODEL: "gte-qwen2-1.5b-q4km-124fbdad",
+      EMBEDDING_BASE_URL: "http://embedding.test:8000/v1/", EMBEDDING_API_KEY: "local-inference",
     }, "hello")).resolves.toEqual(testEmbedding(0.5, -0.25, 0));
   });
 

@@ -14,7 +14,6 @@ Web・API・ワーカーに加えて、LLM・埋め込み生成・Whisper も社
 |---|---|---|
 | CPU | llama.cpp。回答用・埋め込み用を別サービスに配置 | `local-ai-llamacpp.yaml` |
 | NVIDIA GPU | vLLM。回答用・埋め込み用を別サービスに配置 | `local-ai-vllm.yaml` |
-| 既存の CPU 検証構成 | Ollama | `local-ai.yaml` |
 
 文字起こしは、どの構成でも独立した社内の faster-whisper サービスで処理します。
 `EMBEDDING_PROVIDER=openai` は API の形式を表します。外部 OpenAI を使う指定ではなく、
@@ -30,8 +29,8 @@ CPU の基本構成では、テキスト専用モデルを使うため映像の�
 文字起こし・字幕検索・引用付き回答・タイムスタンプ再生は利用できます。
 視覚解析も社内で使うには、画像入力・ツール呼び出し・JSON Schema 出力に対応した
 ローカルモデルを別途検証します。vLLM の設定例は、LLM と埋め込み用に 1 GPU ずつ、合計 2 GPU を
-要求し、Whisper は CPU で動かします。既存の Ollama NVIDIA 構成は Ollama と Whisper に
-GPU を割り当てます。vLLM の GPU 実行・ドライバー互換性は実機での検証が必要です。
+要求し、Whisper は CPU で動かします。`whisper-nvidia.yaml` を重ねると、
+Whisper 用に追加の 1 GPU を割り当てます。vLLM の GPU 実行・ドライバー互換性は実機での検証が必要です。
 日本語の認識・回答品質と処理能力も導入先で確認します。
 
 ローカル Whisper のイメージは導入先でビルドします。既存の署名付き GHCR 配布の 3 イメージには
@@ -44,5 +43,5 @@ GPU を割り当てます。vLLM の GPU 実行・ドライバー互換性は実
 実際に適用する CNI が必要です。埋め込みのモデル・量子化・pooling・前処理を切り替えると、同じ 1536 次元でも既存動画の
 埋め込み再生成が必要です。llama.cpp の CPU 構成は元の出力が 1536 次元の gte-Qwen2、
 vLLM は Qwen3-Embedding-4B の Matryoshka 出力を 1536 次元に指定します。
-メール・Google OAuth・Stripe・YouTube/SearchAPI の外部連携は別途判断します。
-この手順の対象は、アップロード動画とメール・パスワードによるローカル認証です。
+オンプレ版では外部メール・Google ログイン・Stripe・YouTube/SearchAPI を無効にし、
+管理者がローカルアカウントと初期設定リンクを発行します。

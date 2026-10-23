@@ -45,7 +45,7 @@ jobs:
           HELM_BIN="$RUNNER_TEMP/helm/helm" npm run test:unit --workspace @videoq/api -- test/node-runtime.test.ts test/node-runtime.integration.test.ts test/onprem-edition.integration.test.ts test/node-storage.test.ts test/helm-chart.test.ts test/inference-chart.test.ts test/local-chat-model.test.ts
           "$RUNNER_TEMP/helm/helm" lint charts/videoq --strict -f charts/videoq/examples/site.yaml
           "$RUNNER_TEMP/helm/helm" lint charts/videoq-inference --strict
-          "$RUNNER_TEMP/helm/helm" lint charts/videoq-inference --strict -f charts/videoq-inference/examples/nvidia.yaml
+          "$RUNNER_TEMP/helm/helm" lint charts/videoq-inference --strict -f charts/videoq-inference/examples/whisper-nvidia.yaml
           "$RUNNER_TEMP/helm/helm" lint charts/videoq-inference --strict -f charts/videoq-inference/examples/llamacpp-cpu.yaml
           "$RUNNER_TEMP/helm/helm" lint charts/videoq-inference --strict -f charts/videoq-inference/examples/vllm-nvidia.yaml
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -121,28 +121,6 @@ jobs:
           ignore-unfixed: 'false'
           exit-code: '1'
           timeout: 10m
-      - name: Resolve the pinned local Ollama image
-        run: |
-          node --input-type=module <<'JS'
-          import { readFileSync, appendFileSync } from 'node:fs';
-          import { parse } from 'yaml';
-          const image = parse(readFileSync('charts/videoq-inference/values.yaml', 'utf8')).ollama.image;
-          const reference = `${image.repository}@${image.digest}`;
-          if (!/^[a-z0-9./_-]+@sha256:[a-f0-9]{64}$/.test(reference)) throw new Error('An exact Ollama image digest is required');
-          appendFileSync(process.env.GITHUB_ENV, `OLLAMA_IMAGE=${reference}\n`);
-          JS
-      - name: Scan the local Ollama image including unfixed vulnerabilities
-        if: ${{ !cancelled() && steps.images.outcome == 'success' }}
-        uses: aquasecurity/trivy-action@8f28faec26515256b6d22074d1d2a8986f4cbd87 # v0.35.0
-        with:
-          version: v0.76.1
-          scan-type: image
-          image-ref: ${{ env.OLLAMA_IMAGE }}
-          scanners: vuln
-          severity: HIGH,CRITICAL
-          ignore-unfixed: 'false'
-          exit-code: '1'
-          timeout: 10m
       - name: Resolve the pinned llama.cpp image
         run: |
           node --input-type=module <<'JS'
@@ -172,7 +150,6 @@ jobs:
           for component in api worker web local-whisper; do
             trivy image --image-src docker --format cyclonedx --output "sbom/${component}.cdx.json" "videoq-${component}:onprem-ci"
           done
-          trivy image --format cyclonedx --output sbom/ollama.cdx.json "$OLLAMA_IMAGE"
           trivy image --format cyclonedx --output sbom/llamacpp.cdx.json "$LLAMACPP_IMAGE"
       - name: Retain the image inventories
         if: ${{ !cancelled() && steps.images.outcome == 'success' }}
