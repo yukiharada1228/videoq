@@ -17,18 +17,17 @@ class PrivateRegistryTests(unittest.TestCase):
     def test_public_internal_and_missing_visibility_are_rejected(self):
         for body in ['{"visibility":"public"}', '{"visibility":"internal"}', '{}']:
             with self.subTest(body=body), self.response(body), self.assertRaises(RuntimeError):
-                check_private("worker", allow_missing=True)
+                check_private("worker")
 
-    def test_only_prepublication_can_accept_404(self):
+    def test_missing_packages_are_rejected_before_publication(self):
         with self.response('{"status":"404"}', 1):
-            check_private("web", allow_missing=True)
             with self.assertRaises(RuntimeError):
                 check_private("web")
 
     def test_auth_and_transport_errors_are_never_missing_packages(self):
         for body in ['{"status":"403"}', '{"status":"401"}', '', 'not JSON', '[]']:
             with self.subTest(body=body), self.response(body, 1), self.assertRaises(RuntimeError):
-                check_private("api", allow_missing=True)
+                check_private("api")
 
     def test_unknown_component_cannot_construct_a_package_path(self):
         with patch("onprem_registry.subprocess.run") as request, self.assertRaises(ValueError):
