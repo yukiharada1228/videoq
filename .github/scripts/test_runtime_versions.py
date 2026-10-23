@@ -37,16 +37,6 @@ class RuntimeTests(unittest.TestCase):
         for value in ["26", "26.12.1;echo bad", "26.12.1-rc.1", "$(touch file)"]:
             with self.assertRaises(ValueError):
                 runtime.version(value)
-        if "modal_python" in self.data:
-            bad = copy.deepcopy(self.data)
-            bad["modal_python"]["url"] = "https://example.invalid/python.tar.gz"
-            with self.assertRaises(ValueError):
-                runtime.validate(bad)
-
-    def test_missing_standalone_build_is_an_error_not_an_old_python_fallback(self):
-        with self.assertRaises(ValueError):
-            runtime.standalone("3.15.1", [{"assets": []}])
-
     def test_unknown_image_repositories_are_rejected_before_network_access(self):
         with patch.object(runtime, "request") as request:
             for name in ["evil.example/ghcr.io/astral-sh/uv", "ghcr.io/evil", "node/../../other"]:
@@ -110,7 +100,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(digest.call_count, 3)
 
     def test_python_discovery_refreshes_the_onprem_image_too(self):
-        with patch.object(runtime, "request", return_value=[]), patch.object(runtime, "standalone", return_value=self.data["modal_python"]), patch.object(runtime, "image_digest", side_effect=lambda repo, tag: repo + ":" + tag + "@sha256:" + "1" * 64) as digest:
+        with patch.object(runtime, "request", return_value=[]), patch.object(runtime, "image_digest", side_effect=lambda repo, tag: repo + ":" + tag + "@sha256:" + "1" * 64) as digest:
             changed = runtime.discover(runtime.ROOT, self.data, "python", False)
         self.assertNotEqual(changed["images"]["python_onprem"], self.data["images"]["python_onprem"])
         self.assertEqual(digest.call_count, 3)

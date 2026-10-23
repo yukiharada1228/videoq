@@ -1,5 +1,0 @@
-[project]
-name = "videoq-modal-deploy-tools"
-version = "1.0.0"
-requires-python = ">=3.12"
-dependencies = ["modal==1.6.2", "fastapi==0.146.0"]

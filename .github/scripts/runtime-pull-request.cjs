@@ -4,7 +4,7 @@ const FILES = new Set([
   '.github/runtime-versions.json', '.node-version', '.nvmrc', '.python-version',
   'package.json',
   'apps/api/Dockerfile.local', 'apps/web/Dockerfile', 'apps/web/Dockerfile.dev',
-  'apps/worker/Dockerfile', 'apps/worker/Dockerfile.local', 'apps/worker/Dockerfile.modal',
+  'apps/worker/Dockerfile', 'apps/worker/Dockerfile.local',
 ]);
 
 function validate(plan) {

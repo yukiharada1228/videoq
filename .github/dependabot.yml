@@ -89,7 +89,7 @@ updates:
       time: "09:00"
       timezone: Asia/Tokyo
     open-pull-requests-limit: 5
-    # Runtime Updates coordinates these images with CI, Modal and tool hashes.
+    # Runtime Updates coordinates these images with CI and tool hashes.
     # Keep one owner for interpreter pins; other images stay on Dependabot.
     ignore:
       - dependency-name: node
@@ -150,18 +150,6 @@ updates:
     cooldown:
       default-days: 7
     open-pull-requests-limit: 3
-  - package-ecosystem: "uv"
-    directory: "/.github/deploy-tools"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "Asia/Tokyo"
-    cooldown:
-      default-days: 7
-    open-pull-requests-limit: 3
-
-  # Operations tools execute with production access and require human review.
   - package-ecosystem: npm
     directory: /.github/operations-tools
     schedule:

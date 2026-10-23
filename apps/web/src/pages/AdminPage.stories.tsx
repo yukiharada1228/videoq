@@ -10,7 +10,7 @@ import { failure, pending, success, trpcMutation, trpcQuery } from '../../.story
 const bob: AdminUser = {
   id: 'bob', username: 'Bob', email: 'bob@example.test', is_active: true,
   is_admin: false, max_video_upload_size_mb: 200,
-  storage_limit_gb: 1, monthly_upload_limit_gb: 2, processing_limit_minutes: 120, ai_answers_limit: 30,
+  storage_limit_gb: 1, monthly_upload_limit_gb: 2, processing_limit_minutes: 45, ai_answers_limit: 30,
   used_storage_bytes: 0, used_processing_seconds: 0, used_ai_answers: 0,
   usage_period_start: null, is_over_quota: false, plan_code: 'free', quota_source: 'plan',
 };

@@ -76,9 +76,7 @@
         "whisperBackend": {
           "enum": [
             "openai",
-            "local",
-            "whisper.cpp",
-            "modal"
+            "local"
           ]
         }
       }
