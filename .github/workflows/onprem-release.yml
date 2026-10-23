@@ -140,7 +140,7 @@ jobs:
           ARCH: ${{ matrix.arch }}
         run: |
           zstd -d image.tar.zst --stdout | docker load
-          python3 .github/scripts/onprem_registry.py "$COMPONENT" --allow-missing
+          python3 .github/scripts/onprem_registry.py "$COMPONENT"
           repository="ghcr.io/yukiharada1228/videoq-onprem-$COMPONENT"
           tag="$repository:$GITHUB_SHA-$ARCH-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin

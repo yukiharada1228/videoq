@@ -16,9 +16,13 @@ local unit test is not evidence that an image has been published or signed.
 Until the first successful release run exists, build and review your own images
 using the chart README. Distribution uses the dedicated private packages
 `ghcr.io/yukiharada1228/videoq-onprem-api`, `videoq-onprem-worker` and
-`videoq-onprem-web`. Publication checks visibility before and after the first
-push, and before assembling indexes; staging also requires private packages.
-An existing public package stops the release. GHCR cannot make a public package
+`videoq-onprem-web`. Provision these private packages before the first release,
+then grant `yukiharada1228/videoq` the **Write** role under **Package settings →
+Manage Actions access**. Confirm that anonymous pulls are denied. The release
+workflow does not create packages: a missing package stops publication before
+any application bytes are uploaded. Publication checks visibility before and
+after every push, and before assembling indexes; staging also requires private
+packages. An existing public package stops the release. GHCR cannot make a public package
 private again, so changing an existing package to public requires a new private
 package name and a reviewed verifier update to resume private distribution.
 Operators need registry access and `imagePullSecrets`.
