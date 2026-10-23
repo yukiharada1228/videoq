@@ -7,6 +7,12 @@ issuer, or cluster. Use an existing Kubernetes cluster, or a single-node K3s
 installation for an initial deployment. This chart targets Kubernetes 1.29+.
 Helm 4.3.1 is used by CI.
 
+To keep chat, embeddings and uploaded-audio transcription on the site too, use
+the optional [local inference chart](../videoq-inference/README.md) and this
+chart's `examples/local-ai.yaml` overlay. It includes CPU and NVIDIA GPU
+provisioning instructions, model caches, acceptance checks and egress controls.
+The default application values continue to select hosted OpenAI inference.
+
 The default Cloudflare Workers/Lambda deployment remains available. The on-prem
 API uses Hono directly on Node, PostgreSQL row locks for shared rate limits,
 and scheduled DB outbox sweeps in place of Durable Object alarms. Chat executes

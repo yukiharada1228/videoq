@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "inference.fullname" . }}-whisper
+  labels:
+    {{- include "inference.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: whisper }
+  template:
+    metadata:
+      annotations:
+        videoq.io/model-revision: {{ .Values.whisper.modelRevision | quote }}
+      labels:
+        {{- include "inference.labels" . | nindent 8 }}
+        app.kubernetes.io/component: whisper
+    spec:
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, fsGroup: 10001, seccompProfile: { type: RuntimeDefault } }
+      {{- with .Values.whisper.nodeSelector }}
+      nodeSelector: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.whisper.tolerations }}
+      tolerations: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.downloadModels }}
+      initContainers:
+        - name: provision-model
+          image: {{ include "inference.image" (dict "root" . "image" .Values.whisper.image "component" "whisper") | quote }}
+          imagePullPolicy: {{ .Values.whisper.image.pullPolicy }}
+          command: [python, server.py, download]
+          env:
+            - { name: WHISPER_MODEL_REPO, value: {{ .Values.whisper.modelRepo | quote }} }
+            - { name: WHISPER_MODEL_REVISION, value: {{ .Values.whisper.modelRevision | quote }} }
+            - { name: WHISPER_MODEL_PATH, value: "/models/{{ .Values.whisper.modelRevision }}" }
+            - { name: HF_HUB_OFFLINE, value: "0" }
+          securityContext: {{ include "inference.security" . | nindent 12 }}
+          resources: { requests: { cpu: 100m, memory: 128Mi }, limits: { memory: 512Mi } }
+          volumeMounts: [{ name: models, mountPath: /models }]
+      {{- end }}
+      containers:
+        - name: whisper
+          image: {{ include "inference.image" (dict "root" . "image" .Values.whisper.image "component" "whisper") | quote }}
+          imagePullPolicy: {{ .Values.whisper.image.pullPolicy }}
+          ports: [{ name: http, containerPort: 8080 }]
+          env:
+            - { name: WHISPER_MODEL_PATH, value: "/models/{{ .Values.whisper.modelRevision }}" }
+            - { name: WHISPER_DEVICE, value: {{ .Values.whisper.device | quote }} }
+            - { name: WHISPER_COMPUTE_TYPE, value: {{ .Values.whisper.computeType | quote }} }
+            - { name: WHISPER_CPU_THREADS, value: {{ .Values.whisper.cpuThreads | quote }} }
+            - { name: HF_HUB_OFFLINE, value: "1" }
+            - { name: HF_HUB_DISABLE_TELEMETRY, value: "1" }
+          startupProbe: { httpGet: { path: /health, port: http }, periodSeconds: 5, failureThreshold: 120 }
+          readinessProbe: { httpGet: { path: /health, port: http }, periodSeconds: 10 }
+          livenessProbe: { httpGet: { path: /health, port: http }, periodSeconds: 30 }
+          securityContext: {{ include "inference.security" . | nindent 12 }}
+          resources: {{ toYaml .Values.whisper.resources | nindent 12 }}
+          volumeMounts: [{ name: models, mountPath: /models, readOnly: true }]
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: {{ default (printf "%s-whisper" (include "inference.fullname" .)) .Values.whisper.persistence.existingClaim }}

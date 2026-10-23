@@ -1,0 +1,7 @@
+apiVersion: v2
+name: videoq-inference
+description: Optional private Ollama and faster-whisper services for VideoQ
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.29.0-0"

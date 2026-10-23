@@ -28,9 +28,40 @@ const MAX_RETRIES = 0;
 /** Preserve refusal metadata omitted by LangChain's completions converter. */
 class AnswerChatModel extends ChatOpenAICompletions {
   costLedger?: AnswerCostLedger;
+  separateToolSchema = false;
   override completionWithRetry(request: OpenAI.Chat.ChatCompletionCreateParamsStreaming, options?: OpenAI.RequestOptions): Promise<AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>>;
   override completionWithRetry(request: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming, options?: OpenAI.RequestOptions): Promise<OpenAI.Chat.Completions.ChatCompletion>;
+  override completionWithRetry(request: OpenAI.Chat.ChatCompletionCreateParams, options?: OpenAI.RequestOptions): Promise<OpenAI.Chat.Completions.ChatCompletion | AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>>;
   override async completionWithRetry(request: OpenAI.Chat.ChatCompletionCreateParams, options?: OpenAI.RequestOptions): Promise<OpenAI.Chat.Completions.ChatCompletion | AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>> {
+    if (this.separateToolSchema && request.tools?.length && request.response_format?.type === "json_schema") {
+      // Some compatible servers apply the final-answer grammar to tool calls
+      // too, preventing retrieval. Decide tools without that grammar, then
+      // generate the terminal answer with native schema enforcement. A draft
+      // answer is discarded, never streamed or used as conversion input.
+      const { response_format: _format, stream_options: _streamOptions, ...decisionRequest } = request;
+      const decision = await this.completionWithRetry({ ...decisionRequest, stream: false }, options);
+      const completed = decision as OpenAI.Chat.Completions.ChatCompletion;
+      const choice = completed.choices[0];
+      if (!choice || choice.message.refusal || !["stop", "tool_calls"].includes(choice.finish_reason)) {
+        throw new LlmProviderError("Local tool decision refused or incomplete.");
+      }
+      const calls = choice.message.tool_calls;
+      if (calls?.length) {
+        const normalized = { ...completed, choices: [{ ...choice, message: { ...choice.message, content: null } }] };
+        if (!request.stream) return normalized;
+        const toolCalls = calls.map((call, index) => {
+          if (call.type !== "function") throw new LlmConfigurationError("Local inference requires function tool calls.");
+          return { index, id: call.id, type: "function" as const, function: call.function };
+        });
+        return (async function* (): AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk> {
+          const base = { id: completed.id, object: "chat.completion.chunk" as const,
+            created: completed.created, model: completed.model };
+          yield { ...base, choices: [{ index: 0, delta: { role: "assistant", tool_calls: toolCalls }, finish_reason: null }] };
+          yield { ...base, choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }], usage: completed.usage };
+        })();
+      }
+      return this.completionWithRetry({ ...request, tools: undefined, tool_choice: undefined, parallel_tool_calls: undefined }, options);
+    }
     // The SDK's .parse() tries to parse nonempty tool preambles as final JSON.
     // Keep native schema enforcement on the request, and let providerStrategy
     // validate terminal responses after the agent has processed tool calls.
@@ -97,12 +128,17 @@ export function createChatModel(
     apiKey,
     configuration: { baseURL: openAiBaseUrl(env) },
     temperature: 0,
-    reasoning: model === "gpt-6-luna" ? { effort: "none" } : undefined,
+    reasoning: env.LLM_REASONING_EFFORT ? { effort: env.LLM_REASONING_EFFORT }
+      : model === "gpt-6-luna" ? { effort: "none" } : undefined,
+    // LangChain filters its reasoning option by known OpenAI model names.
+    // Compatible local models need the wire field even with a custom name.
+    modelKwargs: env.LLM_REASONING_EFFORT ? { reasoning_effort: env.LLM_REASONING_EFFORT } : undefined,
     maxTokens: opts.maxTokens,
     timeout: opts.timeoutMs,
     maxRetries: MAX_RETRIES,
   });
   chatModel.costLedger = opts.costLedger;
+  chatModel.separateToolSchema = env.LLM_SEPARATE_TOOL_SCHEMA === "true";
   return chatModel;
 }
 

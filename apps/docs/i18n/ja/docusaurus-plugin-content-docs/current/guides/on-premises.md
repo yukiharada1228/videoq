@@ -5,6 +5,10 @@ description: 既存の Kubernetes または K3s に Helm で VideoQ を導入す
 
 # VideoQ をオンプレで動かす
 
+LLM・埋め込み生成・Whisper も社内で動かす場合は、[ローカル推論](local-inference.md)
+の手順を使います。アプリ用 Chart の標準設定は外部 OpenAI API です。
+ローカル構成では、推論用 Chart と接続先を切り替える設定を明示的に適用します。
+
 VideoQ の Web・Node.js API・Python ワーカーを、既存の Kubernetes に配置できます。
 小規模な導入では、単一ノードの K3s から始められます。配布にはリポジトリの
 [Helm Chart](https://github.com/yukiharada1228/videoq/tree/main/charts/videoq)

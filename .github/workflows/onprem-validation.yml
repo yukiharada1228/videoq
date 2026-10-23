@@ -42,8 +42,22 @@ jobs:
           npm run typecheck --workspace @videoq/api
           npm run build:node --workspace @videoq/api
           npm run db:migrate --workspace @videoq/api
-          HELM_BIN="$RUNNER_TEMP/helm/helm" npm run test:unit --workspace @videoq/api -- test/node-runtime.test.ts test/node-runtime.integration.test.ts test/node-storage.test.ts test/helm-chart.test.ts
+          HELM_BIN="$RUNNER_TEMP/helm/helm" npm run test:unit --workspace @videoq/api -- test/node-runtime.test.ts test/node-runtime.integration.test.ts test/node-storage.test.ts test/helm-chart.test.ts test/inference-chart.test.ts test/local-chat-model.test.ts
           "$RUNNER_TEMP/helm/helm" lint charts/videoq --strict -f charts/videoq/examples/site.yaml
+          "$RUNNER_TEMP/helm/helm" lint charts/videoq-inference --strict
+          "$RUNNER_TEMP/helm/helm" lint charts/videoq-inference --strict -f charts/videoq-inference/examples/nvidia.yaml
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Install checksum-pinned uv
+        run: bash .github/scripts/install-uv.sh
+      - name: Validate the private Whisper API with locked dependencies
+        working-directory: apps/inference/whisper
+        run: |
+          uv sync --locked
+          uv run --locked pytest -q
+          docker build -t videoq-local-whisper:onprem-ci .
+          docker run --rm --entrypoint python videoq-local-whisper:onprem-ci -c 'import server; import faster_whisper; assert server.MODEL_ALIAS == "whisper-local"'
       - name: Build production on-prem images
         id: images
         run: |
@@ -93,11 +107,23 @@ jobs:
           ignore-unfixed: 'false'
           exit-code: '1'
           timeout: 10m
+      - name: Scan the local Whisper image including unfixed vulnerabilities
+        if: ${{ !cancelled() && steps.images.outcome == 'success' }}
+        uses: aquasecurity/trivy-action@8f28faec26515256b6d22074d1d2a8986f4cbd87 # v0.35.0
+        with:
+          version: v0.76.1
+          scan-type: image
+          image-ref: videoq-local-whisper:onprem-ci
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: 'false'
+          exit-code: '1'
+          timeout: 10m
       - name: Record package inventories for incident response
         if: ${{ !cancelled() && steps.images.outcome == 'success' }}
         run: |
           mkdir -p sbom
-          for component in api worker web; do
+          for component in api worker web local-whisper; do
             trivy image --image-src docker --format cyclonedx --output "sbom/${component}.cdx.json" "videoq-${component}:onprem-ci"
           done
       - name: Retain the image inventories

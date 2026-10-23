@@ -1,0 +1,22 @@
+{{- range $name := list "ollama" "whisper" }}
+{{- $component := index $.Values $name }}
+{{- if not $component.persistence.existingClaim }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "inference.fullname" $ }}-{{ $name }}
+  labels:
+    {{- include "inference.labels" $ | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with $component.persistence.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $component.persistence.size }}
+{{- end }}
+{{- end }}

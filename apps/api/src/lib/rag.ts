@@ -13,8 +13,7 @@ import { videoEvidenceTools } from "./rag-video-evidence";
 import { transcriptQuality } from "./transcript-quality";
 import { MAX_WINDOW_READS, MAX_CLIP_INSPECTIONS, MAX_OVERVIEWS, MAX_SKIMS, MAX_FOCUS_CALLS } from "./video-evidence";
 import {
-  LLM_REQUEST_TIMEOUT_MS,
-  LLM_STREAM_TIMEOUT_MS,
+  llmTimeoutMs,
   MAX_TOKENS,
   generateReply,
   streamReply,
@@ -310,13 +309,13 @@ export async function runRag(
   }
 
   const lifecycle = new AbortController();
-  const requestSignal = deadlineSignal(LLM_REQUEST_TIMEOUT_MS, lifecycle.signal);
+  const requestSignal = deadlineSignal(llmTimeoutMs(env), lifecycle.signal);
   const search = lazySceneSearch(env, params, requestSignal);
   try {
     const prepared = prepareAgent(env, {
       search,
       queryText,
-      timeoutMs: LLM_REQUEST_TIMEOUT_MS,
+      timeoutMs: llmTimeoutMs(env),
       scope: params,
       signal: requestSignal,
     });
@@ -372,7 +371,7 @@ export async function* streamRag(
 
   const lifecycle = new AbortController();
   const requestSignal = AbortSignal.any([
-    deadlineSignal(LLM_STREAM_TIMEOUT_MS, signal),
+    deadlineSignal(llmTimeoutMs(env, true), signal),
     lifecycle.signal,
   ]);
   const search = lazySceneSearch(env, params, requestSignal);
@@ -380,7 +379,7 @@ export async function* streamRag(
     const prepared = prepareAgent(env, {
       search,
       queryText,
-      timeoutMs: LLM_STREAM_TIMEOUT_MS,
+      timeoutMs: llmTimeoutMs(env, true),
       scope: params,
       signal: requestSignal,
     });

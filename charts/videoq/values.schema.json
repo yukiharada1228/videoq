@@ -67,6 +67,12 @@
     "ai": {
       "type": "object",
       "properties": {
+        "separateToolSchema": { "type": "boolean" },
+        "requestTimeoutMs": { "type": "integer", "minimum": 1000, "maximum": 900000 },
+        "streamTimeoutMs": { "type": "integer", "minimum": 1000, "maximum": 900000 },
+        "reasoningEffort": {
+          "enum": ["", "none", "minimal", "low", "medium", "high"]
+        },
         "embeddingProvider": {
           "enum": [
             "openai",

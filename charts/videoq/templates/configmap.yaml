@@ -27,6 +27,10 @@ data:
   ENABLE_HEAVY_PIPELINE: "1"
   OPENAI_BASE_URL: {{ .Values.ai.openaiBaseUrl | quote }}
   LLM_MODEL: {{ .Values.ai.llmModel | quote }}
+  LLM_REASONING_EFFORT: {{ .Values.ai.reasoningEffort | quote }}
+  LLM_SEPARATE_TOOL_SCHEMA: {{ .Values.ai.separateToolSchema | quote }}
+  LLM_REQUEST_TIMEOUT_MS: {{ .Values.ai.requestTimeoutMs | quote }}
+  LLM_STREAM_TIMEOUT_MS: {{ .Values.ai.streamTimeoutMs | quote }}
   EMBEDDING_PROVIDER: {{ .Values.ai.embeddingProvider | quote }}
   EMBEDDING_MODEL: {{ .Values.ai.embeddingModel | quote }}
   OLLAMA_BASE_URL: {{ .Values.ai.ollamaBaseUrl | quote }}

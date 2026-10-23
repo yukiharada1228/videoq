@@ -125,6 +125,7 @@ jobs:
               - 'charts/**'
               - 'apps/api/**'
               - 'apps/worker/**'
+              - 'apps/inference/**'
               - 'apps/web/**'
               - 'packages/trpc/**'
               - 'package.json'

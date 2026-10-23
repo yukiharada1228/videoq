@@ -60,6 +60,19 @@ withHelm("on-prem Helm distribution", () => {
       expect(spawnSync(helm!, ["template", "test", chart, ...settings, "--set", setting], { encoding: "utf8" }).status).not.toBe(0);
     }
   });
+  it("routes local AI inside the site and restricts application egress", () => {
+    const resources = render("-f", `${chart}/examples/local-ai.yaml`);
+    const config = resources.find(resource => resource.kind === "ConfigMap").data;
+    expect(config.WHISPER_BACKEND).toBe("local");
+    expect(config.EMBEDDING_PROVIDER).toBe("ollama");
+    expect(config.OPENAI_BASE_URL).toContain(".svc.cluster.local");
+    expect(config.LLM_REASONING_EFFORT).toBe("none");
+    expect(config.VIDEO_VISUAL_ENABLED).toBe("false");
+    const policy = resources.find(resource => resource.kind === "NetworkPolicy");
+    expect(policy.spec.policyTypes).toEqual(["Egress"]);
+    expect(policy.spec.egress[0].to).toEqual([{ namespaceSelector: { matchLabels: { "kubernetes.io/metadata.name": "default" } } }]);
+    expect(policy.spec.egress[1].ports.every((port: { port: number }) => port.port === 53)).toBe(true);
+  });
   it("pins every workload and hook to the reviewed image digests", () => {
     const digest = "sha256:" + "a".repeat(64);
     const resources = render("--set", "requireImageDigests=true",

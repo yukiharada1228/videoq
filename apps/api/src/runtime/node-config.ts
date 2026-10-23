@@ -46,6 +46,10 @@ export function nodeBindings(source: Environment): Bindings {
     throw new Error("The Node runtime requires USE_S3_STORAGE=true");
   }
   const publicURL = httpURL(required(source, "BETTER_AUTH_URL"), "BETTER_AUTH_URL");
+  const reasoningEffort = source.LLM_REASONING_EFFORT || undefined;
+  if (reasoningEffort && !["none", "minimal", "low", "medium", "high"].includes(reasoningEffort)) {
+    throw new Error("LLM_REASONING_EFFORT must be none, minimal, low, medium or high");
+  }
   const authURL = new URL(publicURL);
   if (authURL.pathname !== "/" || authURL.search || authURL.hash) throw new Error("BETTER_AUTH_URL must be an origin without a path, query or fragment");
   return {
@@ -67,6 +71,10 @@ export function nodeBindings(source: Environment): Bindings {
     DEFAULT_AI_ANSWERS_LIMIT: source.DEFAULT_AI_ANSWERS_LIMIT || "30",
     OPENAI_API_KEY: source.OPENAI_API_KEY, OPENAI_BASE_URL: source.OPENAI_BASE_URL,
     LLM_MODEL: source.LLM_MODEL || "gpt-6-luna",
+    LLM_REASONING_EFFORT: reasoningEffort as Bindings["LLM_REASONING_EFFORT"],
+    LLM_SEPARATE_TOOL_SCHEMA: source.LLM_SEPARATE_TOOL_SCHEMA || "false",
+    LLM_REQUEST_TIMEOUT_MS: String(integerSetting(source, "LLM_REQUEST_TIMEOUT_MS", 120_000, 1000, 900_000)),
+    LLM_STREAM_TIMEOUT_MS: String(integerSetting(source, "LLM_STREAM_TIMEOUT_MS", 300_000, 1000, 900_000)),
     EMBEDDING_PROVIDER: source.EMBEDDING_PROVIDER || "openai",
     EMBEDDING_MODEL: source.EMBEDDING_MODEL || "",
     OLLAMA_BASE_URL: source.OLLAMA_BASE_URL || "",

@@ -10,6 +10,13 @@ from worker_python.pipeline import transcription
 from worker_python.pipeline.transcription import _whisper_file
 
 
+def test_unknown_backend_never_falls_back_to_openai(monkeypatch):
+    monkeypatch.setenv("WHISPER_BACKEND", "locla")
+    monkeypatch.setenv("OPENAI_API_KEY", "must-not-be-used")
+    with pytest.raises(RuntimeError, match="Unsupported WHISPER_BACKEND"):
+        transcription._whisper_client()
+
+
 def test_modal_whisper_client_uses_its_own_token_and_endpoint(monkeypatch) -> None:
     monkeypatch.setenv("WHISPER_BACKEND", "modal")
     monkeypatch.setenv("WHISPER_MODAL_URL", "https://videoq-example.modal.run")

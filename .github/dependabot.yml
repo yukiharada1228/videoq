@@ -60,7 +60,9 @@ updates:
   - package-ecosystem: uv
     cooldown:
       default-days: 7
-    directory: /apps/worker
+    directories:
+      - /apps/worker
+      - /apps/inference/whisper
     schedule:
       interval: weekly
       day: monday
@@ -100,6 +102,23 @@ updates:
       docker-minor-patch:
         patterns: ["*"]
         update-types: [minor, patch]
+
+  # This service deliberately keeps Python 3.12 for the native inference wheels;
+  # it is independent of the app runtime's coordinated interpreter upgrades.
+  - package-ecosystem: docker
+    directory: /apps/inference/whisper
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    ignore:
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+    groups:
+      inference-runtime-patch:
+        patterns: ["*"]
+        update-types: [patch]
 
   - package-ecosystem: docker-compose
     directory: /
