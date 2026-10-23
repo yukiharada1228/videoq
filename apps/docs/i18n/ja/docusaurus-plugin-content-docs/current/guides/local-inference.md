@@ -7,8 +7,8 @@ description: LLM・埋め込み生成・Whisper をオンプレのネットワ�
 
 Web・API・ワーカーに加えて、LLM・埋め込み生成・Whisper も社内に配置できます。
 導入時はコンテナイメージとモデルをダウンロードし、運用中の動画・音声・AI リクエストは
-社内のサービスで処理します。アプリ用 Helm Chart の標準設定は外部 OpenAI API のため、
-ローカル用の設定を明示的に適用します。
+社内のサービスで処理します。基本の Helm values には以前の外部 API 接続値が残るため、
+完全オンプレではローカル用の overlay を適用してください。ローカル推論モードは公式の外部 AI 接続先を拒否します。
 
 | 構成 | LLM・埋め込み生成 | アプリ側の設定 |
 |---|---|---|
@@ -18,7 +18,7 @@ Web・API・ワーカーに加えて、LLM・埋め込み生成・Whisper も社
 文字起こしは **CPU で whisper.cpp、NVIDIA GPU で vLLM** を使います。
 どちらも社内の共通 API を経由し、VAD と音量補正の後に認識し、字幕時刻を元の動画へ戻します。
 Mac の手元開発では、Metal を使うネイティブの whisper.cpp も利用できます。
-アプリの設定名は `WHISPER_BACKEND=local` に統一し、`WHISPER_LOCAL_URL` で接続先を指定します。
+標準設定名は `TRANSCRIPTION_PROVIDER=local` とし、旧 `WHISPER_BACKEND=local` は標準変数が未設定の場合に使えます。`WHISPER_LOCAL_URL` で接続先を指定します。SaaS の `.env` を変更する場合は `TRANSCRIPTION_MODEL=whisper-local` も設定してください。
 
 NVIDIA の API は音声2件までを受け付け、各音声から最大4区間を並行して vLLM に送信します。
 vLLM は最大8区間を動的にまとめて推論します。動画が8件たまるのを待つ方式ではありません。

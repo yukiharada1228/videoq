@@ -44,7 +44,7 @@ export class ChatTransport {
     if (wire.tools?.length) {
       wire.parallel_tool_calls = false;
       // Keep original application prompts intact; scope this wire-only turn.
-      wire.messages = [...wire.messages, { role: "system", content:
+      if (wire.tools.some(tool => tool.type === "function" && tool.function.name === "json")) wire.messages = [...wire.messages, { role: "system", content:
         "This request only selects retrieval tools. Call only exact function names listed in tools. " +
         "When the evidence is sufficient, return plain assistant text or call json to finish retrieval; " +
         "the application requests the final structured answer separately. Do not put the final answer in a function call." }];

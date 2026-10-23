@@ -26,7 +26,7 @@ On-premises CPU remains llama.cpp + whisper.cpp; NVIDIA remains vLLM.
 
 ## Functional verification
 
-- API unit/integration: **1,705 passed, 40 skipped** with an isolated local
+- API unit/integration: **1,706 passed, 40 skipped** with an isolated local
   PostgreSQL/pgvector instance; skips are opt-in external/hardware scenarios.
 - Workers isolate: **32 passed**. Frontend: **1,298 passed**.
 - Worker: **594 passed, one opt-in skip**, including minimum-billing and
@@ -40,7 +40,8 @@ On-premises CPU remains llama.cpp + whisper.cpp; NVIDIA remains vLLM.
   Rate-aware spacing was used, so these are functional results, not latency
   benchmarks. A follow-up Japanese stream verified single JSON encoding of
   paragraph newlines/TeX after a formatting issue was found and corrected.
-- Explicit OpenAI and Groq-to-OpenAI fallback worked with real APIs. HTTP 429
+- Groq nonstreaming native strict JSON Schema also passed with the real API.
+  Explicit OpenAI and Groq-to-OpenAI fallback worked with real APIs. HTTP 429
   fallback was observed under the key's actual quota; timeout/temporary 5xx,
   auth/TLS rejection, caller cancellation, early stream failure and no replay
   after partial output were exercised with deterministic offline tests.

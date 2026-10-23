@@ -50,7 +50,7 @@ describe("Groq provider boundary",()=>{
   const calls:{url:string;auth:string|null;body:Record<string,unknown>}[]=[];
   vi.stubGlobal("fetch",async(url:unknown,init:RequestInit)=>{
    calls.push({url:String(url),auth:new Headers(init.headers).get("authorization"),body:JSON.parse(String(init.body))});
-   return String(url).includes("api.groq.com")?Response.json({error:{message:"temporarily unavailable"}},{status}):json();
+   return new URL(String(url)).hostname==="api.groq.com"?Response.json({error:{message:"temporarily unavailable"}},{status}):json();
   });
   const ledger=new AnswerCostLedger();expect(await generateReply(env,"S","Q",ledger)).toEqual(answer);
   expect(calls).toHaveLength(3);expect(calls[2]).toMatchObject({url:"https://api.openai.com/v1/chat/completions",auth:"Bearer sk-private-test",body:{model:"gpt-4o-mini"}});
@@ -96,7 +96,7 @@ describe("Groq provider boundary",()=>{
  });
  it("retries transport failures before the first stream frame, then uses OpenAI",async()=>{
   const fetch=vi.fn(async(url:unknown)=>{
-   if(String(url).includes("api.groq.com")) return new Response(new ReadableStream({start(c){c.error(Object.assign(new Error("connection reset"),{code:"ECONNRESET"}));}}),{headers:{"content-type":"text/event-stream"}});
+   if(new URL(String(url)).hostname==="api.groq.com") return new Response(new ReadableStream({start(c){c.error(Object.assign(new Error("connection reset"),{code:"ECONNRESET"}));}}),{headers:{"content-type":"text/event-stream"}});
    return new Response(sse(JSON.stringify(answer))+end,{headers:{"content-type":"text/event-stream"}});
   });
   vi.stubGlobal("fetch",fetch);const chunks=[];for await(const c of streamReply(env,"S","Q"))chunks.push(c);
@@ -120,5 +120,14 @@ describe("Groq provider boundary",()=>{
  it("rejects hosted URLs in the local configuration",()=>{
   for(const url of ["https://api.openai.com/v1","https://api.groq.com/openai/v1","not-a-url"])
    expect(()=>resolveLlmRoute({...env,LLM_PROVIDER:"local",LLM_MODEL:"local-chat",OPENAI_BASE_URL:url})).toThrow();
+ });
+ it("keeps ordinary tool requests free of structured-answer routing instructions",async()=>{
+  vi.stubGlobal("fetch",async(_url:unknown,init:RequestInit)=>{
+   const body=JSON.parse(String(init.body));expect(body.tools.map((t:{function:{name:string}})=>t.function.name)).toEqual(["search_scenes"]);
+   expect(body.messages).toEqual([{role:"user",content:"Find evidence"}]);
+   return json("",[{id:"search",type:"function",function:{name:"search_scenes",arguments:'{}'}}]);
+  });
+  const message=await createChatModel(env,{maxTokens:1024,timeoutMs:1000}).invoke([new HumanMessage("Find evidence")],{tools:[{type:"function",function:{name:"search_scenes",parameters:{type:"object",properties:{}}}}]});
+  expect(message.tool_calls?.[0].name).toBe("search_scenes");
  });
 });

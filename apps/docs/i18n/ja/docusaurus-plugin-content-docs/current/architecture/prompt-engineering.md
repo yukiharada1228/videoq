@@ -61,17 +61,18 @@ Q&Aは、必要に応じてツールで情報を取得し、回答を組み立�
 
 | 項目 | 現在の実装 |
 |---|---|
-| 回答・画像モデル | `LLM_MODEL`。既定は `gpt-6-luna` |
-| 回答の接続先 | `OPENAI_BASE_URL` のChat Completions。既定は `https://api.openai.com/v1` |
-| 推論の設定 | `gpt-6-luna` では `none`。Chat Completionsでのツール呼び出しに対応するため |
-| 生成設定と出力上限 | temperatureは `0`。構造化出力を含め、モデル呼び出し1回あたり最大1,024出力トークン |
+| 回答モデル | SaaS は `LLM_PROVIDER=groq`、`LLM_MODEL=openai/gpt-oss-120b`。代替は OpenAI `gpt-4o-mini` |
+| 画像確認 | `VISUAL_MODEL`。SaaS は OpenAI `gpt-6-luna`、ローカルは社内の画像対応モデル |
+| 回答の接続先 | Groq／OpenAI の公式 Chat Completions。ローカルは `OPENAI_BASE_URL` |
+| 推論の設定 | Groq は既定で `low`。推論本文は回答に含めません。OpenAI の画像確認は `none` を維持 |
+| 生成設定と出力上限 | temperature は `0`。アプリは1,024トークンを指定し、Groq は推論を含む4,096 completion tokens を確保 |
 | リクエストの期限 | 講座RAGは非ストリーミングが2分、ストリーミングが5分 |
-| プロバイダーの自動再試行 | APIのチャットモデルでは無効 |
+| プロバイダーの自動再試行 | SDK の再試行は無効。Provider 内で回数を制限した再試行と OpenAI への代替を実施 |
 | シーン検索 | 最大3回。1回あたり既定で最大20件 |
 | 登録情報の取得 | 最大5回。1ページ最大20動画 |
 | ツールを使えるモデルターン | 最大19回。その後はツールなしで最終回答を生成。個々のツールの上限も適用 |
 
-回答生成と画像確認に共通のモデルをAPIの `LLM_MODEL` で設定します。ツール呼び出しと厳密なJSON出力に加え、映像確認を有効にする場合は画像入力への対応が必要です。APIとworkerで共用する検索モデルの設定は[埋め込み](../guides/embeddings.md)を参照してください。
+回答生成は `LLM_PROVIDER`／`LLM_MODEL`、画像確認は `VISUAL_MODEL` で設定します。GPT-OSS はテキスト専用のため、SaaS の画像確認は OpenAI を継続します。ローカルの画像確認には社内の画像対応モデルが必要です。APIとworkerで共用する検索モデルの設定は[埋め込み](../guides/embeddings.md)を参照してください。
 
 モデルの出典には[GPT-6 Lunaの公式モデル資料](../reference/ai-references.md#gpt-6-luna)、または実際に設定したモデルの資料を引用します。
 
@@ -81,7 +82,7 @@ Q&Aは、必要に応じてツールで情報を取得し、回答を組み立�
 
 モデルはネイティブの構造化出力で `{"segments":[{"text":"説明です。","sourceIds":[1]}]}` を返します。動画の移動先は生成しません。サーバーが今回のアクセス範囲内の検索結果から `sources: [{id, video_id, title, start_time, end_time}]` を付けます。この `ChatAnswer` を非ストリーミング応答・画面の状態・履歴・DBの `chat_logs.response`（JSONB）で共用します。CSV用の本文はsegmentのtextを区切り文字なしで連結して導出します。必要な空白・改行はtext自身に含め、各segment直後にsourceIds順の時刻リンクを表示します。
 
-Chat Completionsのモデルとエンドポイントには、**strictなネイティブjson_schema出力、strictな関数ツール、および両者の同時利用**が必要です。講座Q&AはLangChainの `providerStrategy` を使い、講座未選択も同じJSONスキーマを指定します。ツールの `video_ids` は省略ではなくnullを許可し、ページ指定も必須です。スキーマ機能の非対応は設定エラーになります。自由文へのフォールバック、構造化だけの追加推論、自動修復・再試行は行いません。拒否・空回答・途中終了・スキーマ違反は失敗とし、ツール呼び出し前の前置きを回答として表示しません。
+講座Q&Aは LangChain の `providerStrategy` を使い、講座未選択も同じ回答スキーマを指定します。OpenAI はネイティブの strict JSON Schema とツールを同時利用します。Groq はツール選択と最終回答を分け、非ストリーミングはネイティブの strict JSON Schema、ストリーミングは JSON モードと既存の逐次パーサー・最終検証を使います。ローカル互換サービスも必要に応じてツールとスキーマを分離できます。ツールの `video_ids` の null 許可と必須ページ指定は維持します。自由文の回答への代替や、変換・修復用の追加推論は行いません。拒否・空回答・途中終了・スキーマ違反は失敗とし、ツール選択時の回答案は破棄します。一時障害への再試行と代替は Provider 内で処理し、出力済みストリームを再生しません。
 
 引用元レジストリは回答単位です。正の安全な整数IDを割り当て、追加・重複検索でも維持します。メタ情報だけの回答はsourceIdsを空にします。候補には引用されない場面も含まれ、登録だけではリンクを作りません。モデルにはsourceId・字幕・サーバー由来のメタデータを持つ構造で検索結果を渡します。
 
