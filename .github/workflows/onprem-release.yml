@@ -124,6 +124,11 @@ jobs:
       attestations: write
     steps:
       # Fresh runner: never build or execute the application's code here.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          sparse-checkout: .github/scripts
+          persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: build-${{ matrix.component }}-${{ matrix.arch }}-${{ github.sha }}-attempt-${{ github.run_attempt }}
@@ -135,11 +140,13 @@ jobs:
           ARCH: ${{ matrix.arch }}
         run: |
           zstd -d image.tar.zst --stdout | docker load
-          repository="ghcr.io/yukiharada1228/videoq-$COMPONENT"
+          python3 .github/scripts/onprem_registry.py "$COMPONENT" --allow-missing
+          repository="ghcr.io/yukiharada1228/videoq-onprem-$COMPONENT"
           tag="$repository:$GITHUB_SHA-$ARCH-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           docker tag "videoq-$COMPONENT:release" "$tag"
           docker push "$tag"
+          python3 .github/scripts/onprem_registry.py "$COMPONENT"
           digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$tag")
           digest="${digest##*@}"
           echo "repository=$repository" >> "$GITHUB_OUTPUT"
@@ -180,6 +187,11 @@ jobs:
       id-token: write
       attestations: write
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          sparse-checkout: .github/scripts
+          persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: published-${{ matrix.component }}-*-attempt-${{ github.run_attempt }}
@@ -189,7 +201,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           COMPONENT: ${{ matrix.component }}
         run: |
-          repository="ghcr.io/yukiharada1228/videoq-$COMPONENT"
+          python3 .github/scripts/onprem_registry.py "$COMPONENT"
+          repository="ghcr.io/yukiharada1228/videoq-onprem-$COMPONENT"
           tag="$repository:$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           docker buildx imagetools create --tag "$tag" "$repository@$(cat "$COMPONENT-amd64.digest")" "$repository@$(cat "$COMPONENT-arm64.digest")"
@@ -274,6 +287,9 @@ jobs:
           DOCKER_CONFIG: ${{ runner.temp }}/registry-read
         run: |
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          for component in api worker web; do
+            python3 .github/scripts/onprem_registry.py "$component"
+          done
           python3 .github/scripts/onprem-release.py verify "$GITHUB_SHA" release/release.json release/verified-images.json
           python3 - <<'PY'
           import json, subprocess

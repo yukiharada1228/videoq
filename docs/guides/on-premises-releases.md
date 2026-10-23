@@ -14,9 +14,14 @@ that commit, for example to rebuild after distribution package fixes.
 This workflow becomes available after it is merged into main. A workflow file or
 local unit test is not evidence that an image has been published or signed.
 Until the first successful release run exists, build and review your own images
-using the chart README. No public package availability is assumed: GHCR packages
-initially may be private. Operators need registry access and `imagePullSecrets`
-or an administrator must explicitly make the packages public.
+using the chart README. Distribution uses the dedicated private packages
+`ghcr.io/yukiharada1228/videoq-onprem-api`, `videoq-onprem-worker` and
+`videoq-onprem-web`. Publication checks visibility before and after the first
+push, and before assembling indexes; staging also requires private packages.
+An existing public package stops the release. GHCR cannot make a public package
+private again, so changing an existing package to public requires a new private
+package name and a reviewed verifier update to resume private distribution.
+Operators need registry access and `imagePullSecrets`.
 
 ## What the release verifies
 
@@ -68,8 +73,8 @@ python3 .github/scripts/onprem-release.py verify "$SOURCE_SHA" \
   /secure/videoq-release/release.json /secure/videoq-release/verified-images.json
 ```
 
-For private GHCR packages, authenticate to GHCR first using an appropriately
-scoped operator credential. The verifier checks GitHub's signature and artifact
+Authenticate to GHCR first using an operator credential with `read:packages`.
+The verifier checks GitHub's signature and artifact
 subject, the exact repository and release workflow, `refs/heads/main`, the source
 commit and hosted-runner identity. It verifies the manifest, chart checksum and
 signature, and all image index signatures before atomically writing any values.

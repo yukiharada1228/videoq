@@ -60,3 +60,16 @@ test('release retries cannot mix artifacts from different attempts',()=>{
   }
   assert.doesNotMatch(workflow,/overwrite: true/);
 });
+
+test('private distribution checks visibility around publication and before staging',()=>{
+  const publish=job('publish');
+  const before=publish.indexOf('onprem_registry.py "$COMPONENT" --allow-missing');
+  const push=publish.indexOf('docker push "$tag"');
+  const after=publish.indexOf('onprem_registry.py "$COMPONENT"\n');
+  assert(before>=0 && push>before && after>push);
+  assert.match(publish,/repository="ghcr.io\/yukiharada1228\/videoq-onprem-\$COMPONENT"/);
+  const indexes=job('indexes');
+  assert(indexes.indexOf('onprem_registry.py "$COMPONENT"')<indexes.indexOf('docker buildx imagetools create'));
+  const staging=job('staging');
+  assert(staging.indexOf('onprem_registry.py "$component"')<staging.indexOf('onprem-release.py verify'));
+});
