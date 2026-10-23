@@ -15,7 +15,7 @@ import tempfile
 REPOSITORY = "yukiharada1228/videoq"
 WORKFLOW = REPOSITORY + "/.github/workflows/onprem-release.yml"
 COMPONENTS = ("api", "worker", "web")
-PREFIX = "ghcr.io/" + REPOSITORY + "-"
+PREFIX = "ghcr.io/" + REPOSITORY + "-onprem-"
 
 
 def sha(value):
