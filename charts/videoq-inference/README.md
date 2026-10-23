@@ -246,7 +246,7 @@ Both profiles expose the same private gateway on port 8080 and the app uses
 `WHISPER_BACKEND=local`, `whisper-local`, `verbose_json`, and segment timestamps.
 The engine listens only on loopback port 8081, including its model-management
 routes. Only the gateway has a Service. It normalizes audio levels, uses bundled
-Silero ONNX VAD, keeps speech spans within 30 seconds, and restores original
+Silero ONNX VAD, merges only overlapping VAD padding, keeps spans within 30 seconds, and restores original
 source offsets after recognition. Silent input returns no captions. Text without
 real timestamps is rejected rather than converted into a fabricated subtitle.
 Requests cannot change weights, command arguments, or inference URLs.
@@ -258,11 +258,14 @@ NVIDIA 2); excess traffic receives retryable 503 responses. NVIDIA's
 requests. It does not wait for eight videos to arrive. The previous faster-whisper
 batch-size/device/compute-type fields are removed and rejected by the schema.
 
-The CPU application profile uses 60-second durable checkpoints; NVIDIA and cloud
+The CPU application profile uses 30-second durable checkpoints; NVIDIA and cloud
 use 300 seconds. `ai.whisperChunkSeconds` / `WHISPER_CHUNK_SECONDS` accepts 30–300
 seconds. Short CPU checkpoints keep individual calls within the worker's
 120-second inference deadline without extending queue leases. Completed results
 are reused after retries and their offsets remain relative to the source video.
+Existing plans keep their recorded interval size. Drain incomplete plans on
+the previous release before changing runtimes or CPU/GPU profiles; a retry
+does not resize an existing plan. No retired-provider fallback is retained.
 The serial on-prem poller defaults to one message at a time. Measure service
 capacity before increasing worker replicas or admission limits.
 

@@ -15,14 +15,17 @@ Web・API・ワーカーに加えて、LLM・埋め込み生成・Whisper も社
 | CPU | llama.cpp。回答用・埋め込み用を別サービスに配置 | `local-ai-llamacpp.yaml` |
 | NVIDIA GPU | vLLM。回答用・埋め込み用を別サービスに配置 | `local-ai-vllm.yaml` |
 
-Kubernetes の文字起こしは、どの構成でも独立した社内の faster-whisper サービスで処理します。
-Mac での開発・手元実行には、Metal を使えるネイティブの whisper.cpp を使います。
-どちらも `WHISPER_BACKEND=local` とし、接続先を `WHISPER_LOCAL_URL` で指定します。
-NVIDIA 用の Whisper 設定は `whisper.batchSize: 8` としてバッチ推論を有効にします。
-CPU の標準値は `1`（逐次処理）です。1 件の音声内の発話チャンクをまとめて推論するため、
-動画が 8 件たまるのを待つ仕組みではありません。セグメント時刻を有効にし、
-VAD による無音除去後の時刻を元音声の位置へ戻します。VRAM が不足する場合は値を下げ、
-認識品質と処理速度を導入先の GPU で確認します。この設定はネイティブの whisper.cpp には適用しません。
+文字起こしは **CPU で whisper.cpp、NVIDIA GPU で vLLM** を使います。
+どちらも社内の共通 API を経由し、VAD と音量補正の後に認識し、字幕時刻を元の動画へ戻します。
+Mac の手元開発では、Metal を使うネイティブの whisper.cpp も利用できます。
+アプリの設定名は `WHISPER_BACKEND=local` に統一し、`WHISPER_LOCAL_URL` で接続先を指定します。
+
+NVIDIA の API は音声2件までを受け付け、各音声から最大4区間を並行して vLLM に送信します。
+vLLM は最大8区間を動的にまとめて推論します。動画が8件たまるのを待つ方式ではありません。
+CPU は音声1件ずつ処理し、ワーカーの永続チェックポイントは30秒、NVIDIA は300秒です。
+`ai.whisperChunkSeconds` で30〜300秒に調整できます。CPU の標準モデルは多言語の
+量子化 small モデルです。速度と日本語の認識品質は、導入先の機器・録画で確認してください。
+
 API の形式は OpenAI 互換に統一し、`EMBEDDING_BASE_URL` で社内の埋め込み API を指定します。LLM の `OPENAI_BASE_URL` とは
 独立して設定します。認証も分ける場合は Secret に `EMBEDDING_API_KEY` を設定します。
 
@@ -34,9 +37,9 @@ API の形式は OpenAI 互換に統一し、`EMBEDDING_BASE_URL` で社内の�
 CPU の基本構成では、テキスト専用モデルを使うため映像の視覚解析を無効にします。
 文字起こし・字幕検索・引用付き回答・タイムスタンプ再生は利用できます。
 視覚解析も社内で使うには、画像入力・ツール呼び出し・JSON Schema 出力に対応した
-ローカルモデルを別途検証します。vLLM の設定例は、LLM と埋め込み用に 1 GPU ずつ、合計 2 GPU を
-要求し、Whisper は CPU で動かします。`whisper-nvidia.yaml` を重ねると、
-Whisper 用に追加の 1 GPU を割り当てます。vLLM の GPU 実行・ドライバー互換性は実機での検証が必要です。
+ローカルモデルを別途検証します。vLLM の基本設定例は、LLM・埋め込み・Whisper に
+1 GPU ずつ、合計3 GPU を割り当てます。LLM・埋め込みを CPU のまま使う場合は、
+`whisper-nvidia.yaml` を重ねて文字起こしだけに GPU を割り当てられます。vLLM の GPU 実行・ドライバー互換性は実機での検証が必要です。
 日本語の認識・回答品質と処理能力も導入先で確認します。
 
 ローカル Whisper のイメージは導入先でビルドします。既存の署名付き GHCR 配布の 3 イメージには
@@ -55,8 +58,7 @@ vLLM は Qwen3-Embedding-4B の Matryoshka 出力を 1536 次元に指定しま�
 ## Mac で whisper.cpp を使う
 
 Apple Silicon の Metal を使うため、whisper.cpp は macOS 上で直接起動します。
-Kubernetes の共通サービスは CPU または NVIDIA GPU の faster-whisper を使います。
-whisper.cpp 自体は Mac 以外でも動きますが、VideoQ ではこの配置を基本にします。
+Kubernetes では CPU に whisper.cpp、NVIDIA に vLLM を配置し、共通 API を経由します。
 
 Mac に CMake・C++ のビルド環境・FFmpeg を用意し、VideoQ のルートで実行します。
 
@@ -84,10 +86,10 @@ whisper.cpp が実際に使う重みは `-m` で指定したファイルです�
 |---|---|---|
 | Mac の whisper.cpp、ワーカーも Mac 上で直接実行 | `local` | `http://127.0.0.1:8080` |
 | Mac の whisper.cpp、ワーカーは Docker Desktop | `local` | `http://host.docker.internal:8080` |
-| Kubernetes の faster-whisper | `local` | `http://videoq-inference-whisper:8080/v1` |
+| Kubernetes の whisper.cpp / vLLM | `local` | `http://videoq-inference-whisper:8080/v1` |
 
 SDK がベース URL に `/audio/transcriptions` を付けます。上記の whisper.cpp は
-`/audio/transcriptions`、faster-whisper は `/v1/audio/transcriptions` で受け付けます。
+`/audio/transcriptions`、Kubernetes の共通 API は `/v1/audio/transcriptions` で受け付けます。
 Compose の `.env` を変更した後は、ワーカーを再作成します。
 
 ```sh
@@ -107,6 +109,6 @@ LOCAL_AI_TEST_WHISPER_VIDEO=/absolute/path/to/speech.mp4 \
 
 この明示実行のテストは、本番のワーカー処理で MP3 を抽出し、指定したサービスを呼び出します。
 API が実際に返したセグメント時刻、元動画への時刻補正、字幕生成を確認します。
-ストレージへのアップロードや DB 書き込みは行いません。faster-whisper も `/v1` を含む
+ストレージへのアップロードや DB 書き込みは行いません。Kubernetes の共通 API も `/v1` を含む
 ベース URL で同じテストを使えます。通常の CI ではスキップし、音声モデルは取得しません。
 オプションの詳細は [whisper.cpp のサーバー説明](https://github.com/ggml-org/whisper.cpp/blob/v1.9.5/examples/server/README.md)を参照してください。

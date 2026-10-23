@@ -161,6 +161,7 @@ def test_readiness_tracks_the_engine_but_liveness_does_not(client):
 
 def test_long_pauses_are_not_packed_into_the_same_decoder_input():
     rate = server.RATE
-    regions = [{"start": 0, "end": rate}, {"start": 3 * rate, "end": 4 * rate},
+    regions = [{"start": 0, "end": rate}, {"start": int(1.5 * rate), "end": 2 * rate},
+               {"start": 3 * rate, "end": 4 * rate},
                {"start": 4 * rate, "end": 5 * rate}]
-    assert server.merge_speech_spans(regions) == [(0, rate), (3 * rate, 5 * rate)]
+    assert server.merge_speech_spans(regions) == [(0, rate), (int(1.5 * rate), 2 * rate), (3 * rate, 5 * rate)]

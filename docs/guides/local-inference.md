@@ -24,7 +24,7 @@ whisper.cpp natively with Metal. The app uses `WHISPER_BACKEND=local` and
 
 The NVIDIA recipe dynamically batches speech spans: the gateway submits up to
 four concurrently per audio request, accepts two audio requests, and vLLM allows
-eight active sequences. CPU defaults to one request and uses 60-second worker
+eight active sequences. CPU defaults to one request and uses 30-second worker
 checkpoints; NVIDIA uses 300-second checkpoints. These are deployment settings,
 not guarantees of recognition accuracy or real-time performance.
 

@@ -122,8 +122,9 @@ def merge_speech_spans(regions):
     spans = []
     for region in regions:
         start, end = int(region["start"]), int(region["end"])
-        # Preserve long pauses in source time; do not concatenate distant phrases.
-        if spans and start - spans[-1][1] <= RATE and end - spans[-1][0] <= 30 * RATE:
+        # Merge overlapping padding only. Retaining detected pauses avoids a
+        # decoder finishing after one utterance and silently dropping the next.
+        if spans and start <= spans[-1][1] and end - spans[-1][0] <= 30 * RATE:
             spans[-1] = (spans[-1][0], end)
         else:
             spans.append((start, end))

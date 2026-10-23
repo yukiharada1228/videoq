@@ -1,0 +1,118 @@
+{
+  "date": "2026-10-23",
+  "dataset": "Google FLEURS ja_jp test, CC BY 4.0",
+  "dataset_revision": "168de341b3db6859a9bac1c50a2ef5e3b47647e0",
+  "scope": "12 distinct natural recordings; CPU includes each once, GPU repeats them into 50 regions. Preprocessing tuned on these same clips.",
+  "source_sha256": {
+    "apps/inference/whisper/server.py": "8895ffaf7c1949236d470e682c5882cba88275fbaca8b4e468b84af5613f3dad",
+    "apps/inference/whisper/Dockerfile": "a52228686dc925a8f2e3427be74e57875914f46c58b9ba4359c5597fc3979c9d",
+    "apps/inference/whisper/Dockerfile.vllm": "05ae3f66c90987d3b91f146aeb6c7e347f6eb8c06d78bb848c7e5a51726608a9",
+    "apps/inference/whisper/uv.lock": "2b8b72425a0beb93ba9683af53c285bb9e8e005e231ae2f7f2b7538a4e6db957"
+  },
+  "profiles": [
+    {
+      "profile": "cpu",
+      "engine": "whisper.cpp 1.9.5",
+      "source_seconds": 150.02,
+      "reference_characters": 558,
+      "character_edits": 86,
+      "cer": 0.15412186379928317,
+      "speech_regions": 12,
+      "covered_regions": 12,
+      "region_semantic_gate_passed": 12,
+      "worker_intervals": [
+        {
+          "offset": 0.0,
+          "duration": 30.0,
+          "elapsed_seconds": 45.336532833985984,
+          "segments": 2
+        },
+        {
+          "offset": 30.0,
+          "duration": 30.0,
+          "elapsed_seconds": 46.91115991701372,
+          "segments": 6
+        },
+        {
+          "offset": 60.0,
+          "duration": 30.0,
+          "elapsed_seconds": 82.23411875008605,
+          "segments": 4
+        },
+        {
+          "offset": 90.0,
+          "duration": 30.0,
+          "elapsed_seconds": 47.639107541996054,
+          "segments": 3
+        },
+        {
+          "offset": 120.0,
+          "duration": 30.0,
+          "elapsed_seconds": 33.58313825004734,
+          "segments": 3
+        },
+        {
+          "offset": 150.0,
+          "duration": 0.020000000000010232,
+          "elapsed_seconds": 0.34646758309099823,
+          "segments": 0
+        }
+      ],
+      "srt_roundtrip_cues": 18,
+      "protocol_coverage_failures": [],
+      "cpu_limit": 2,
+      "memory_limit": "4GiB",
+      "model": "ggml-small-q5_1.bin",
+      "source_sha256": "9e54173135e027ca3e8367ccd4fd97f153958d0ff4d32e2c16156f5420e3f9b1",
+      "chunk_seconds": 30
+    },
+    {
+      "profile": "nvidia",
+      "engine": "vllm",
+      "source_seconds": 618.74,
+      "reference_characters": 2323,
+      "character_edits": 154,
+      "cer": 0.06629358588032716,
+      "speech_regions": 50,
+      "covered_regions": 50,
+      "region_semantic_gate_passed": 50,
+      "worker_intervals": [
+        {
+          "offset": 0.0,
+          "duration": 300.0,
+          "elapsed_seconds": 9.711818792000003,
+          "segments": 29
+        },
+        {
+          "offset": 300.0,
+          "duration": 300.0,
+          "elapsed_seconds": 9.220603850999993,
+          "segments": 28
+        },
+        {
+          "offset": 600.0,
+          "duration": 18.74000000000001,
+          "elapsed_seconds": 0.9110066359999962,
+          "segments": 2
+        }
+      ],
+      "srt_roundtrip_cues": 59,
+      "protocol_coverage_failures": [],
+      "gpu": "NVIDIA L4, 610.57.04, 23034 MiB",
+      "engine_uid": 10001,
+      "model_revision": "41f01f3fe87f28c78e2fbf8b568835947dd65ed9",
+      "ffmpeg": "ffmpeg version n9.0.2-17-g2a571b6068-20260930 Copyright (c) 2000-2026 the FFmpeg developers",
+      "external_network_blocked": true,
+      "startup_seconds": 109.17175946399999,
+      "single_clip_median_seconds": 0.40612161299998206,
+      "concurrent_requests": 2,
+      "audio_seconds_per_wall_second": 41.21443986039793,
+      "gpu_after": "15922 MiB, 0 %"
+    }
+  ],
+  "security": {
+    "cpu_image_high_critical_findings": 0,
+    "gpu_image_gate": "Required CI image scan, including unfixed HIGH/CRITICAL findings; verify the PR head before rollout."
+  },
+  "artifacts": "/tmp/videoq-whisper-runtime-implementation"
+}

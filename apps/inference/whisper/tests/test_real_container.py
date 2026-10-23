@@ -20,7 +20,10 @@ DIGEST = "ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb"
 @pytest.mark.skipif(not IMAGE, reason="LOCAL_WHISPER_CONTAINER_IMAGE enables the actual Docker/runtime test")
 def test_cpu_image_transcribes_public_speech_and_silence_offline(record_property):
     def docker(*args, timeout=180):
-        return subprocess.check_output(["docker", *args], text=True, stderr=subprocess.STDOUT, timeout=timeout).strip()
+        try:
+            return subprocess.check_output(["docker", *args], text=True, stderr=subprocess.STDOUT, timeout=timeout).strip()
+        except subprocess.CalledProcessError as error:
+            raise AssertionError(f"Docker {args[0]} failed: {error.output[-6000:]}") from error
 
     name = "videoq-whisper-test-" + uuid4().hex
     started = network_created = False
@@ -32,6 +35,9 @@ def test_cpu_image_transcribes_public_speech_and_silence_offline(record_property
     metrics = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(metrics)
     with tempfile.TemporaryDirectory(prefix="videoq-whisper-weights-") as directory:
+        # Linux enforces the host UID, unlike Docker Desktop file sharing.
+        # The fixture/cache contain only public data; the serving UID needs read access.
+        os.chmod(directory, 0o755)
         mount = f"type=bind,src={directory},dst=/models"
         try:
             # Provision first; no model downloads are permitted in the serving network.
@@ -45,9 +51,11 @@ def test_cpu_image_transcribes_public_speech_and_silence_offline(record_property
             docker("run", "--detach", "--name", name, "--network", name, "--cpus", "2", "--memory", "4g",
                    "--mount", mount + ",readonly", IMAGE)
             started = True
-            docker("exec", "--detach", name, "whisper-server", "--model", f"/models/{REVISION}/{MODEL}",
-                   "--host", "127.0.0.1", "--port", "8081", "--inference-path", "/v1/audio/transcriptions",
-                   "--language", "auto", "--threads", "2", "--beam-size", "5", "--no-gpu")
+            engine_args = ["whisper-server", "--model", f"/models/{REVISION}/{MODEL}",
+                           "--host", "127.0.0.1", "--port", "8081", "--inference-path", "/v1/audio/transcriptions",
+                           "--language", "auto", "--threads", "2", "--beam-size", "5", "--no-gpu"]
+            launch = "import os; f=open('/tmp/whisper-engine.log','wb'); os.dup2(f.fileno(),1); os.dup2(f.fileno(),2); os.execvp('whisper-server'," + repr(engine_args) + ")"
+            docker("exec", "--detach", name, "python", "-c", launch)
             # Client stays in the same isolated network namespace. No host ports.
             probe = r'''import httpx, io, json, socket, time, wave
 base = "http://127.0.0.1:8080"
@@ -58,7 +66,10 @@ with httpx.Client(timeout=2, trust_env=False) as client:
             if client.get(base + "/health").status_code == 200: break
         except httpx.HTTPError: pass
         time.sleep(.25)
-    else: raise RuntimeError("Gateway/engine failed readiness")
+    else:
+        from pathlib import Path
+        path = Path("/tmp/whisper-engine.log")
+        raise RuntimeError("Gateway/engine failed readiness: " + (path.read_text()[-4000:] if path.exists() else "No engine log"))
 try: socket.create_connection(("1.1.1.1", 443), timeout=2)
 except OSError: pass
 else: raise RuntimeError("External serving egress was allowed")

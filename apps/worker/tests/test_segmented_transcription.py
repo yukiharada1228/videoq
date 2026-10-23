@@ -289,13 +289,13 @@ def test_all_silent_plan_ends_in_error_and_user_retry_can_start_again(checkpoint
 
 
 def test_cpu_profile_uses_shorter_checkpoints_and_still_reserves_usage_once(checkpoint_db, monkeypatch):
-    monkeypatch.setenv("WHISPER_CHUNK_SECONDS", "60")
+    monkeypatch.setenv("WHISPER_CHUNK_SECONDS", "30")
     run = checkpoints.initialize_run(video(checkpoint_db), 618.74)
-    assert (run.chunk_seconds, run.chunk_count) == (60, 11)
+    assert (run.chunk_seconds, run.chunk_count) == (30, 21)
     monkeypatch.setenv("WHISPER_CHUNK_SECONDS", "300")
     resumed = checkpoints.initialize_run(video(checkpoint_db), 618.74)
     assert resumed.run_id == run.run_id
-    assert (resumed.chunk_seconds, resumed.chunk_count) == (60, 11)
+    assert (resumed.chunk_seconds, resumed.chunk_count) == (30, 21)
     with checkpoint_db() as conn:
         assert conn.execute("SELECT used_processing_seconds FROM users").fetchone()["used_processing_seconds"] == 619
 
@@ -305,3 +305,13 @@ def test_invalid_interval_config_fails_before_reserving_quota(monkeypatch, value
     monkeypatch.setenv("WHISPER_CHUNK_SECONDS", value)
     with pytest.raises(ValueError, match="WHISPER_CHUNK_SECONDS"):
         checkpoints.configured_chunk_seconds()
+
+
+def test_short_cpu_intervals_cannot_exceed_the_queue_checkpoint_contract(monkeypatch):
+    monkeypatch.setenv("WHISPER_CHUNK_SECONDS", "30")
+    def connect():
+        pytest.fail("An oversized plan must fail before database access or quota reservation")
+    monkeypatch.setattr(checkpoints, "db_connection", connect)
+    source = MagicMock(file_key="video.mp4", transcript_hash="fingerprint")
+    with pytest.raises(ValueError, match="10,000-checkpoint"):
+        checkpoints.initialize_run(source, 300001)

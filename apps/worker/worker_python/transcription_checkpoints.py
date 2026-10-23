@@ -71,6 +71,8 @@ def initialize_run(video: VideoRow, duration: float) -> TranscriptionRun | None:
     duration_ms = math.ceil(duration * 1000)
     chunk_seconds = configured_chunk_seconds()
     count = math.ceil(duration_ms / (chunk_seconds * 1000))
+    if count > 10000:
+        raise ValueError("Transcription plan exceeds the 10,000-checkpoint limit")
     with db_connection() as conn:
         # Always lock video before run/chunks, also matching deletion/finalization.
         current = conn.execute("""

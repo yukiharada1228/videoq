@@ -111,7 +111,7 @@ The native Mac launch command exposes `/audio/transcriptions` without `/v1`.
 See [local inference](../../docs/guides/local-inference.md).
 
 `WHISPER_CHUNK_SECONDS` controls durable worker intervals (30–300 seconds,
-default 300). The CPU profile uses 60 seconds. GPU dynamic batching is separate:
+default 300). The CPU profile uses 30 seconds. GPU dynamic batching is separate:
 the gateway forwards speech spans concurrently to vLLM, without waiting for a
 batch of uploaded videos. The dated comparison report records the experiments
 before adoption; its retired Modal-only commands are historical.
