@@ -93,7 +93,7 @@ migrationDescribe("Drizzle migration chain", () => {
               row.used_upload_bytes = 0;
               row.upload_usage_period_start = null;
               if (row.quota_source === 'plan' && row.plan_code === 'free') {
-                row.processing_limit_minutes = 120;
+                row.processing_limit_minutes = 45;
                 row.updated_at = expect.any(String);
               }
             }
