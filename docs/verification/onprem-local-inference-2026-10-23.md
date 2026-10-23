@@ -24,7 +24,7 @@ deployment settings were requested.
 
 ## Actual CPU results
 
-Host: Apple silicon, 16 GiB RAM. Ollama 0.40.5 ran in a dedicated process and
+Host: Apple silicon, 16 GiB RAM. Ollama 0.40.9 ran in a dedicated process and
 cache. CPU aliases explicitly set `num_gpu 0`; logs show `offloaded 0/37 layers`
 and `/api/ps` reported zero VRAM. No hosted inference credentials were used.
 
@@ -37,7 +37,7 @@ and `/api/ps` reported zero VRAM. No hosted inference credentials were used.
 - Five real-model API checks passed: cited structured answer, SSE parsing,
   function tools, 1536-dimensional query embeddings, and the production
   streaming RAG agent returning timestamp citations from fixed retrieval evidence.
-  That suite took 317 seconds in this CPU environment. Retrieval was a test
+  That suite took 325 seconds in this CPU environment. Retrieval was a test
   fixture; this was not a fresh database/UI end-to-end test.
 - The actual worker extracted audio from a synthetic 15.93-second MP4, received
   three timestamped Whisper segments and generated two 1536-dimensional indexing
@@ -47,6 +47,9 @@ and `/api/ps` reported zero VRAM. No hosted inference credentials were used.
   CPUs. The expected seven-day statement was recognized.
 - The pinned Linux arm64 Ollama image started as UID 10001 with a read-only
   model cache and `--network none`; both configured models were discoverable.
+  Its pinned image is
+  `sha256:5c6707fcf2e1a30cffe2ecb7e315584fc87747c389327e4bc711c4959aa1eecc`.
+  Trivy HIGH/CRITICAL including unfixed: **0 findings** for its OS and Go binary.
 - The final image provisioned the pinned model using a temporary writable cache.
   Provisioning against the cached read-only model also succeeded with network
   disabled, demonstrating that cached restarts require no model download.
@@ -60,6 +63,7 @@ and `/api/ps` reported zero VRAM. No hosted inference credentials were used.
 - API unit suite: 1127 passed, 599 skipped (DB/Workers/explicit real-model suites
   are independently gated); the five real-model checks above ran separately.
 - Workflow/dependency policy: 168 passed.
+- Python deployment/security policy: 38 passed; canonical runtime checks passed.
 - Whisper ASGI/SDK tests: 5 passed. Worker transcription tests: 15 passed.
 - API typecheck and Node build passed.
 - Application local overlay and inference CPU/NVIDIA Helm variants passed lint
