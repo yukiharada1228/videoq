@@ -31,7 +31,7 @@
     "@docusaurus/plugin-content-docs": "3.10.2",
     "@docusaurus/tsconfig": "3.10.2",
     "@docusaurus/types": "3.10.2",
-    "@types/node": "^25.0.1",
+    "@types/node": "^26.6.5",
     "typescript": "~5.9.3",
     "wrangler": "^4.151.0"
   },
