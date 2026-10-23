@@ -54,6 +54,10 @@ fixtures. It exposed no production endpoint, retained no deployed application,
 and does not introduce a Modal dependency into the on-premises product. The
 production recipe uses separate gateway and engine containers in one Pod.
 
+The NVIDIA timing table above records the original engine layer before the OS /
+Python security refresh described below. Model weights, vLLM, Torch and the
+frontend stay fixed; a separate GPU regression run checks the refreshed layer.
+
 ## Rejected configurations
 
 - CPU base FP16 with 300-second application intervals exceeded the upstream
@@ -73,7 +77,22 @@ public-content checks cover the adopted contract. The real CPU smoke test also
 runs in CI; Linux model-cache permissions are explicitly tested with the serving
 UID. CI builds the NVIDIA image, checks its actual audio extras (`av`, `soxr`,
 `soundfile`) and scans both images for HIGH/CRITICAL vulnerabilities including
-unfixed findings. Require successful checks on the exact PR head before rollout.
+unfixed findings. The pinned NVIDIA base initially reported 14 OS and 7 Python
+findings plus 386 kernel implementation CVEs mapped to `linux-libc-dev`. The
+runtime updates OS packages, certifi/msgpack/urllib3 and removes pip/uv, including
+pip's vulnerable vendored copies. Triton needs the UAPI headers for JIT compilation.
+
+The [OpenVEX assessment](../../apps/inference/whisper/security/kernel-headers.openvex.json)
+covers only the 386 explicitly listed kernel CVEs on the Ubuntu 24.04 amd64
+`linux-libc-dev` header package at version `6.8.0-147.147`. Its vulnerable kernel implementation is absent
+from this container. A build-time inventory check fails if that package gains
+an executable or if kernel binaries/modules appear in the image. Other packages
+and new CVEs remain subject to the failing gate. CI retains suppressed findings
+and their assessment in the JSON scan artifact; a passing assessed scan is not
+an assertion of zero raw findings. The host kernel remains a separate site
+patching responsibility. See the [Trivy maintainers' header-package explanation](https://github.com/aquasecurity/trivy/discussions/6562)
+and [Ubuntu's kernel advisory](https://ubuntu.com/security/CVE-2026-63825).
+Require successful checks on the exact PR head before rollout.
 
 These clips were also used to tune preprocessing. They are a functional pilot,
 not an independent quality benchmark or a comparison of equal models. CPU

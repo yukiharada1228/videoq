@@ -112,7 +112,9 @@
   ],
   "security": {
     "cpu_image_high_critical_findings": 0,
-    "gpu_image_gate": "Required CI image scan, including unfixed HIGH/CRITICAL findings; verify the PR head before rollout."
+    "gpu_image_gate": "Required CI assessed scan, including unfixed HIGH/CRITICAL findings and retained suppressed findings. Only the 386 explicit kernel CVEs on Ubuntu 24.04 amd64 linux-libc-dev 6.8.0-147.147 have a header-only OpenVEX assessment; other packages, versions and new CVEs still fail.",
+    "gpu_security_dockerfile_sha256": "4cd7ff73581612aabf9c7f9f26cce9d6d6420e35c85881b49fb048ff6fe60d9a"
   },
-  "artifacts": "/tmp/videoq-whisper-runtime-implementation"
+  "artifacts": "/tmp/videoq-whisper-runtime-implementation",
+  "source_sha256_scope": "Full-corpus benchmark source before the separately described OS/Python security refresh."
 }

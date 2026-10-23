@@ -324,3 +324,5 @@ through the UI with public egress blocked. Record model/image digests and site
 quality/throughput results. The worker check does not write to the DB.
 Uninstall inference separately from the app; PVCs are retained. Adopt compatible
 claims through `persistence.existingClaim` on reinstall.
+
+The NVIDIA speech image includes a narrowly scoped kernel-header [OpenVEX assessment](../../apps/inference/whisper/security/README.md). Preserve the JSON scan report, including suppressed findings, with the reviewed image digest. Its passing assessed gate does not establish the site host kernel's patch status.

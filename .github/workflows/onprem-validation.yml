@@ -215,8 +215,21 @@ jobs:
           version: v0.76.1
           scan-type: image
           image-ref: videoq-whisper-vllm:onprem-ci
+          trivy-config: apps/inference/whisper/security/trivy.yaml
+          format: json
+          output: whisper-vllm-security.json
           scanners: vuln
           severity: HIGH,CRITICAL
           ignore-unfixed: 'false'
           exit-code: '1'
           timeout: 15m
+      - name: Retain NVIDIA scan findings and the scoped header assessment
+        if: ${{ !cancelled() && steps.gpu_image.outcome == 'success' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.1
+        with:
+          name: whisper-vllm-security
+          path: |
+            whisper-vllm-security.json
+            apps/inference/whisper/security/
+          retention-days: 14
+          if-no-files-found: error
