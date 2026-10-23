@@ -8,8 +8,8 @@ downloadModels: true
 ollama:
   image:
     repository: ollama/ollama
-    tag: "0.40.5"
-    digest: sha256:5d3a2f25f9825628daba94dc0b1d421c7d57d6c03ae5faa9ba050e058bab8241
+    tag: "0.40.9"
+    digest: sha256:5c6707fcf2e1a30cffe2ecb7e315584fc87747c389327e4bc711c4959aa1eecc
     pullPolicy: IfNotPresent
   chatModel: qwen3:4b
   embeddingModel: qwen3-embedding:4b

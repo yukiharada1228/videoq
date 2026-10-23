@@ -48,7 +48,7 @@ jobs:
           "$RUNNER_TEMP/helm/helm" lint charts/videoq-inference --strict -f charts/videoq-inference/examples/nvidia.yaml
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: '3.12'
+          python-version-file: apps/inference/whisper/.python-version
       - name: Install checksum-pinned uv
         run: bash .github/scripts/install-uv.sh
       - name: Validate the private Whisper API with locked dependencies
