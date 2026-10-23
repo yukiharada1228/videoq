@@ -6,6 +6,7 @@ or download arbitrary models. Runtime always opens local files, including VAD.
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import math
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -32,11 +33,25 @@ def load_model():
     )
 
 
+def configured_batch_size():
+    try:
+        size = int(os.environ.get("WHISPER_BATCH_SIZE", "1"))
+    except ValueError as error:
+        raise ValueError("WHISPER_BATCH_SIZE must be an integer between 1 and 64") from error
+    if not 1 <= size <= 64:
+        raise ValueError("WHISPER_BATCH_SIZE must be an integer between 1 and 64")
+    return size
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    app.state.batch_size = configured_batch_size()
     app.state.model = load_model()
-    yield
-    del app.state.model
+    try:
+        yield
+    finally:
+        del app.state.model
+        del app.state.batch_size
 
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None)
@@ -73,20 +88,45 @@ def transcribe(
             if size == 0:
                 raise HTTPException(400, "Audio is empty")
             try:
-                iterator, info = app.state.model.transcribe(
+                transcriber = app.state.model
+                options = {}
+                if app.state.batch_size > 1:
+                    from faster_whisper import BatchedInferencePipeline
+
+                    # Reuse the loaded weights, but keep mutable pipeline state
+                    # within this request, including when iteration fails.
+                    transcriber = BatchedInferencePipeline(model=app.state.model)
+                    options["batch_size"] = app.state.batch_size
+                iterator, info = transcriber.transcribe(
                     str(audio), beam_size=5, vad_filter=True,
                     condition_on_previous_text=False,
+                    # The batched API defaults to text-only decoding. VideoQ
+                    # needs subtitle cues, not one timestamp per VAD chunk.
+                    without_timestamps=False,
+                    **options,
                 )
-                segments = [
-                    {"id": index, "start": segment.start, "end": segment.end, "text": segment.text}
-                    for index, segment in enumerate(iterator)
-                ]
+                duration = float(info.duration)
+                if not math.isfinite(duration) or duration < 0:
+                    raise ValueError("Invalid audio duration")
+                segments = []
+                for segment in iterator:
+                    start, end = float(segment.start), float(segment.end)
+                    if not math.isfinite(start) or not math.isfinite(end):
+                        raise ValueError("Invalid segment timestamps")
+                    # Decoder padding can extend past EOF. Preserve source time
+                    # and never publish a subtitle outside this input interval.
+                    start, end = max(0.0, start), min(duration, end)
+                    if start < end and segment.text.strip():
+                        segments.append({
+                            "id": len(segments), "start": start,
+                            "end": end, "text": segment.text,
+                        })
             except (ValueError, RuntimeError) as error:
                 # Keep audio contents, paths and inference details out of responses.
                 raise HTTPException(422, "Audio could not be transcribed") from error
             return {
                 "task": "transcribe", "language": info.language,
-                "duration": info.duration,
+                "duration": duration,
                 "text": " ".join(segment["text"].strip() for segment in segments),
                 "segments": segments,
             }

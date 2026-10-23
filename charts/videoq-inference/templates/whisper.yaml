@@ -53,6 +53,7 @@ spec:
             - { name: WHISPER_DEVICE, value: {{ .Values.whisper.device | quote }} }
             - { name: WHISPER_COMPUTE_TYPE, value: {{ .Values.whisper.computeType | quote }} }
             - { name: WHISPER_CPU_THREADS, value: {{ .Values.whisper.cpuThreads | quote }} }
+            - { name: WHISPER_BATCH_SIZE, value: {{ .Values.whisper.batchSize | quote }} }
             - { name: HF_HUB_OFFLINE, value: "1" }
             - { name: HF_HUB_DISABLE_TELEMETRY, value: "1" }
           startupProbe: { httpGet: { path: /health, port: http }, periodSeconds: 5, failureThreshold: 120 }

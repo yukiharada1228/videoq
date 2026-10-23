@@ -232,6 +232,51 @@ model GPUs plus Whisper require **three GPUs**. No sharing is configured.
 Drivers, VRAM, scheduling, throughput and large-v3 inference require hardware
 acceptance; the CPU test does not establish GPU readiness.
 
+### Speech batching
+
+The NVIDIA overlay sets `whisper.batchSize: 8`, enabling faster-whisper's
+`BatchedInferencePipeline`. The CPU default is `1`, which uses sequential
+inference. Set an integer from 1 through 64 in the operator values file:
+
+```yaml
+whisper:
+  batchSize: 8
+```
+
+The chart passes this as `WHISPER_BATCH_SIZE` to the speech server. It batches
+VAD-detected speech chunks **within one audio request**. It does not wait for
+eight videos or combine requests from different users. The API still handles
+one request at a time and returns 503 with `Retry-After` when busy. Larger batches
+use more VRAM; lower the value if the site's model/GPU cannot fit the batch.
+Batch size 1 uses the sequential path. There is no automatic hosted fallback.
+
+Batch decoding explicitly enables segment timestamp tokens. The standard VAD
+pipeline restores times to the original input, and the API bounds subtitle cues
+to the input duration. Worker interval offsets are applied once as before.
+`WHISPER_BACKEND=local` and the transcription API contract are unchanged.
+This setting belongs to the faster-whisper server; native Mac whisper.cpp has
+its own inference implementation and does not consume it.
+
+After building the updated site-owned Whisper image, record its new digest and
+upgrade the inference release with the selected engine profile, NVIDIA overlay
+and operator values. Enabling batching does not establish a particular speedup:
+measure the site's Japanese videos for recognition, timestamp quality, latency,
+throughput and peak VRAM on its actual NVIDIA GPU.
+
+An opt-in CPU check uses a cached model and repeats a short, nonsensitive speech
+clip with long silent gaps. It verifies actual multi-chunk inference through the
+API/SDK boundary and source-relative timestamps, with no downloads or DB writes:
+
+```sh
+cd apps/inference/whisper
+LOCAL_WHISPER_TEST_MODEL=/absolute/path/to/faster-whisper-model \
+LOCAL_WHISPER_TEST_SPEECH=/absolute/path/to/short-speech.mp4 \
+  uv run --locked pytest tests/test_real_batching.py -v
+```
+
+Use an 8–20 second speech clip. Ordinary CI skips this real-model check and tests
+both sequential and batched API paths with deterministic fixtures.
+
 ## Configuration contract
 
 Install using the selected engine profile and a current operator values file.

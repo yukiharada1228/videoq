@@ -19,6 +19,8 @@ whisper:
   device: cpu
   computeType: int8
   cpuThreads: 2
+  # 1 uses sequential inference; >1 batches VAD speech chunks within one request.
+  batchSize: 1
   persistence:
     existingClaim: ""
     storageClass: ""

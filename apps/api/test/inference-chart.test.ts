@@ -34,6 +34,7 @@ withHelm("private local inference deployment", () => {
       .spec.template.spec.containers[0].args).toContain("--offline");
     const whisper = pods.find(p => p.containers[0].name === "whisper");
     expect(whisper.containers[0].env).toContainEqual({ name: "HF_HUB_OFFLINE", value: "1" });
+    expect(whisper.containers[0].env).toContainEqual({ name: "WHISPER_BATCH_SIZE", value: "1" });
     expect(whisper.containers[0].volumeMounts[0].readOnly).toBe(true);
     const policy = resources.find(r => r.kind === "NetworkPolicy");
     expect(policy.spec.ingress[0].ports.map((port: { port: number }) => port.port).sort()).toEqual([8000, 8080]);
@@ -56,7 +57,19 @@ withHelm("private local inference deployment", () => {
       const container = deployment.spec.template.spec.containers[0];
       const whisper = deployment.metadata.name.endsWith("-whisper");
       expect(container.resources.limits["nvidia.com/gpu"]).toBe(whisper ? 1 : undefined);
-      if (whisper) expect(deployment.spec.template.spec.nodeSelector["kubernetes.io/arch"]).toBe("amd64");
+      if (whisper) {
+        expect(deployment.spec.template.spec.nodeSelector["kubernetes.io/arch"]).toBe("amd64");
+        expect(container.env).toContainEqual({ name: "WHISPER_BATCH_SIZE", value: "8" });
+      }
+    }
+  });
+  it("configures per-request speech batching and rejects invalid batch sizes", () => {
+    const whisper = render("--set", "whisper.batchSize=4")
+      .find(r => r.kind === "Deployment" && r.metadata.name.endsWith("-whisper"));
+    expect(whisper.spec.template.spec.containers[0].env)
+      .toContainEqual({ name: "WHISPER_BATCH_SIZE", value: "4" });
+    for (const setting of ["whisper.batchSize=0", "whisper.batchSize=65", "whisper.batchSize=1.5", "whisper.batchSize=eight"]) {
+      expect(command("--set", setting).status).not.toBe(0);
     }
   });
   it.each(["llamacpp-cpu", "vllm-nvidia"])("provisions independent private model services for %s", (profile) => {

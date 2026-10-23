@@ -112,6 +112,11 @@ whisper.cpp must start with `--convert` and `/audio/transcriptions` as its
 inference path. See the [local inference guide](../../docs/guides/local-inference.md#mac-development-with-whispercpp)
 for startup and real-audio acceptance commands.
 
+The faster-whisper server's `WHISPER_BATCH_SIZE` (Helm `whisper.batchSize`)
+batches speech chunks inside one request; the NVIDIA overlay sets 8 and the CPU
+default is 1 (sequential). It is a server setting, independent of SQS job lanes
+and worker interval sizes. The worker keeps the same `local` client and offsets.
+
 Modal's proxy checks the token before starting the GPU container. The
 proxy-authenticated `WhisperService.api` checks the model, response format, and
 a 16 MiB audio / 16 MiB + 64 KiB total request limit before transcription.

@@ -94,6 +94,11 @@
           "minimum": 1,
           "maximum": 128
         },
+        "batchSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
         "resources": {
           "type": "object"
         },

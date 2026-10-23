@@ -20,6 +20,12 @@ Whisper uses the independent private faster-whisper service in these Kubernetes 
 Mac development runs whisper.cpp natively with Metal. Both use
 `WHISPER_BACKEND=local`; `WHISPER_LOCAL_URL` selects the service, without an
 engine-specific backend name.
+The NVIDIA Whisper overlay enables per-audio batching with
+`whisper.batchSize: 8`; CPU defaults to `1` (sequential inference). This groups
+speech chunks within the current request, without waiting for more videos.
+The server keeps segment timestamps and restores times across VAD silence
+removal. Set a smaller batch for limited VRAM and measure quality and throughput
+on the site's actual GPU. The setting does not apply to native whisper.cpp.
 The application uses the OpenAI-compatible protocol with private endpoints;
 `EMBEDDING_BASE_URL` separates query/indexing embeddings from `OPENAI_BASE_URL`
 for chat. Optional `EMBEDDING_API_KEY` selects a separate credential.

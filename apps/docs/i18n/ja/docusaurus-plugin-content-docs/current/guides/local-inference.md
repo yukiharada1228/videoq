@@ -18,6 +18,11 @@ Web・API・ワーカーに加えて、LLM・埋め込み生成・Whisper も社
 Kubernetes の文字起こしは、どの構成でも独立した社内の faster-whisper サービスで処理します。
 Mac での開発・手元実行には、Metal を使えるネイティブの whisper.cpp を使います。
 どちらも `WHISPER_BACKEND=local` とし、接続先を `WHISPER_LOCAL_URL` で指定します。
+NVIDIA 用の Whisper 設定は `whisper.batchSize: 8` としてバッチ推論を有効にします。
+CPU の標準値は `1`（逐次処理）です。1 件の音声内の発話チャンクをまとめて推論するため、
+動画が 8 件たまるのを待つ仕組みではありません。セグメント時刻を有効にし、
+VAD による無音除去後の時刻を元音声の位置へ戻します。VRAM が不足する場合は値を下げ、
+認識品質と処理速度を導入先の GPU で確認します。この設定はネイティブの whisper.cpp には適用しません。
 API の形式は OpenAI 互換に統一し、`EMBEDDING_BASE_URL` で社内の埋め込み API を指定します。LLM の `OPENAI_BASE_URL` とは
 独立して設定します。認証も分ける場合は Secret に `EMBEDDING_API_KEY` を設定します。
 

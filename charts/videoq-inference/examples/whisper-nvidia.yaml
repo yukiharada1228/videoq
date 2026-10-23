@@ -8,6 +8,8 @@ whisper:
   modelRevision: edaa852ec7e145841d8ffdb056a99866b5f0a478
   device: cuda
   computeType: float16
+  # Tune for the site's VRAM and recognition quality; 1 disables batching.
+  batchSize: 8
   resources:
     requests: { cpu: "1", memory: 1Gi, nvidia.com/gpu: 1 }
     limits: { cpu: "4", memory: 4Gi, nvidia.com/gpu: 1 }
