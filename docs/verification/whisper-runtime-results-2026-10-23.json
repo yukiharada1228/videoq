@@ -1,0 +1,408 @@
+{
+  "source": "google/fleurs, ja_jp test, CC-BY-4.0",
+  "source_url": "https://huggingface.co/datasets/google/fleurs",
+  "parquet_sha256": "e954b67e934b9a31d7a74a070a75225379660d50c8d1aacdb755852c57f23e6b",
+  "dataset_ids": [
+    1828,
+    1834,
+    1813,
+    1869,
+    1744,
+    1731,
+    1910,
+    1771,
+    1764,
+    2003,
+    1980,
+    1822
+  ],
+  "reference_characters": 558,
+  "long_seconds": 618.74,
+  "long_speech_regions": 50,
+  "profiles": {
+    "cpp-l4-greedy": {
+      "artifact_sha256": "c4d5781c878b4cab2abe9806c0d72ccea13df19c402656ab1650821ab32de7ec",
+      "single_clip_median_seconds": 0.48,
+      "concurrent_audio_seconds_per_wall_second": 24.195,
+      "concurrent_request_errors": 0,
+      "natural_character_edits": 29,
+      "natural_reference_characters": 558,
+      "natural_CER": 0.051971,
+      "long_CER": 0.086526,
+      "speech_regions_with_captions": 48,
+      "speech_regions_CER_below_0_5": 30,
+      "worker_intervals": [
+        {
+          "offset": 0.0,
+          "duration": 300.0,
+          "elapsed_seconds": 7.429,
+          "segments": 49
+        },
+        {
+          "offset": 300.0,
+          "duration": 300.0,
+          "elapsed_seconds": 7.534,
+          "segments": 29
+        },
+        {
+          "offset": 600.0,
+          "duration": 18.74,
+          "elapsed_seconds": 0.823,
+          "segments": 2
+        }
+      ],
+      "silence_hallucinated_characters": 14,
+      "protocol_coverage_failures": [
+        "japanese-pauses:timestamp_outside_source",
+        "long_region_text_or_timing_mismatch",
+        "long_uncovered_speech_region",
+        "silence:silence_hallucination",
+        "silence:timestamp_outside_source"
+      ]
+    },
+    "cpp-l4": {
+      "artifact_sha256": "d8f2cafad97fc9e34a13a2e879e625fbdbaa48f843f02af0f86a6dbdc606bf3b",
+      "single_clip_median_seconds": 0.604,
+      "concurrent_audio_seconds_per_wall_second": 16.945,
+      "concurrent_request_errors": 0,
+      "natural_character_edits": 25,
+      "natural_reference_characters": 558,
+      "natural_CER": 0.044803,
+      "long_CER": 0.086526,
+      "speech_regions_with_captions": 48,
+      "speech_regions_CER_below_0_5": 34,
+      "worker_intervals": [
+        {
+          "offset": 0.0,
+          "duration": 300.0,
+          "elapsed_seconds": 11.123,
+          "segments": 56
+        },
+        {
+          "offset": 300.0,
+          "duration": 300.0,
+          "elapsed_seconds": 11.354,
+          "segments": 31
+        },
+        {
+          "offset": 600.0,
+          "duration": 18.74,
+          "elapsed_seconds": 0.958,
+          "segments": 1
+        }
+      ],
+      "silence_hallucinated_characters": 14,
+      "protocol_coverage_failures": [
+        "long_region_text_or_timing_mismatch",
+        "long_uncovered_speech_region",
+        "silence:silence_hallucination",
+        "silence:timestamp_outside_source"
+      ]
+    },
+    "cpp-l4-vad": {
+      "artifact_sha256": "a7e048f9dfbaac1594cceb47d1195ca333c188b21d65c6d5b3da40d8f1277826",
+      "single_clip_median_seconds": 1.168,
+      "concurrent_audio_seconds_per_wall_second": 9.254,
+      "concurrent_request_errors": 0,
+      "natural_character_edits": 44,
+      "natural_reference_characters": 558,
+      "natural_CER": 0.078853,
+      "long_CER": 0.110202,
+      "speech_regions_with_captions": 50,
+      "speech_regions_CER_below_0_5": 35,
+      "worker_intervals": [
+        {
+          "offset": 0.0,
+          "duration": 300.0,
+          "elapsed_seconds": 25.235,
+          "segments": 31
+        },
+        {
+          "offset": 300.0,
+          "duration": 300.0,
+          "elapsed_seconds": 25.316,
+          "segments": 31
+        },
+        {
+          "offset": 600.0,
+          "duration": 18.74,
+          "elapsed_seconds": 1.942,
+          "segments": 1
+        }
+      ],
+      "silence_hallucinated_characters": 0,
+      "protocol_coverage_failures": [
+        "long_region_text_or_timing_mismatch"
+      ]
+    },
+    "cpp-metal": {
+      "artifact_sha256": "9d369cab2e4ae0f72ce6a15dc61d5240c27d51aa9c4a91d05cbb24111826c715",
+      "single_clip_median_seconds": 2.089,
+      "concurrent_audio_seconds_per_wall_second": 5.827,
+      "concurrent_request_errors": 0,
+      "natural_character_edits": 25,
+      "natural_reference_characters": 558,
+      "natural_CER": 0.044803,
+      "long_CER": 0.092983,
+      "speech_regions_with_captions": 48,
+      "speech_regions_CER_below_0_5": 34,
+      "worker_intervals": [
+        {
+          "offset": 0.0,
+          "duration": 300.0,
+          "elapsed_seconds": 22.008,
+          "segments": 56
+        },
+        {
+          "offset": 300.0,
+          "duration": 300.0,
+          "elapsed_seconds": 21.466,
+          "segments": 30
+        },
+        {
+          "offset": 600.0,
+          "duration": 18.74,
+          "elapsed_seconds": 2.246,
+          "segments": 1
+        }
+      ],
+      "silence_hallucinated_characters": 14,
+      "protocol_coverage_failures": [
+        "long_region_text_or_timing_mismatch",
+        "long_uncovered_speech_region",
+        "silence:silence_hallucination",
+        "silence:timestamp_outside_source"
+      ]
+    },
+    "cpp-metal-vad": {
+      "artifact_sha256": "fa8c9d4724e7ec8a78275202eae231fec34e1a1cf723afdc17c63052b5aaa544",
+      "single_clip_median_seconds": 2.119,
+      "concurrent_audio_seconds_per_wall_second": 5.717,
+      "concurrent_request_errors": 0,
+      "natural_character_edits": 41,
+      "natural_reference_characters": 558,
+      "natural_CER": 0.073477,
+      "long_CER": 0.110633,
+      "speech_regions_with_captions": 50,
+      "speech_regions_CER_below_0_5": 35,
+      "worker_intervals": [
+        {
+          "offset": 0.0,
+          "duration": 300.0,
+          "elapsed_seconds": 16.67,
+          "segments": 31
+        },
+        {
+          "offset": 300.0,
+          "duration": 300.0,
+          "elapsed_seconds": 17.583,
+          "segments": 31
+        },
+        {
+          "offset": 600.0,
+          "duration": 18.74,
+          "elapsed_seconds": 2.409,
+          "segments": 1
+        }
+      ],
+      "silence_hallucinated_characters": 0,
+      "protocol_coverage_failures": [
+        "long_region_text_or_timing_mismatch"
+      ]
+    },
+    "cpp-cpu-vad": {
+      "artifact_sha256": "c107ed05a055963786cab6e295c3255f8ab7dee25dcfc0e0ac0b815ad2c821ef",
+      "single_clip_median_seconds": 23.553,
+      "concurrent_audio_seconds_per_wall_second": 0.312,
+      "concurrent_request_errors": 1,
+      "natural_character_edits": 41,
+      "natural_reference_characters": 558,
+      "natural_CER": 0.073477,
+      "long_CER": null,
+      "speech_regions_with_captions": 27,
+      "speech_regions_CER_below_0_5": 19,
+      "worker_intervals": [
+        {
+          "offset": 0.0,
+          "duration": 300.0,
+          "elapsed_seconds": 242.519,
+          "segments": 31
+        },
+        {
+          "offset": 300.0,
+          "duration": 300.0,
+          "error": "APITimeoutError"
+        },
+        {
+          "offset": 600.0,
+          "duration": 18.74,
+          "elapsed_seconds": 51.701,
+          "segments": 1
+        }
+      ],
+      "silence_hallucinated_characters": 0,
+      "protocol_coverage_failures": [
+        "concurrent_request_failed",
+        "long_region_text_or_timing_mismatch",
+        "long_uncovered_speech_region",
+        "long_worker_intervals_failed_or_missing"
+      ]
+    },
+    "vllm-l4": {
+      "artifact_sha256": "bb4f3ef52151e36e50fb64201bfa3942293549268cc9c5846be22dde2b1f79b8",
+      "single_clip_median_seconds": 0.274,
+      "concurrent_audio_seconds_per_wall_second": 75.845,
+      "concurrent_request_errors": 0,
+      "natural_character_edits": 29,
+      "natural_reference_characters": 558,
+      "natural_CER": 0.051971,
+      "long_CER": 0.123547,
+      "speech_regions_with_captions": 46,
+      "speech_regions_CER_below_0_5": 36,
+      "worker_intervals": [
+        {
+          "offset": 0.0,
+          "duration": 300.0,
+          "elapsed_seconds": 4.152,
+          "segments": 35
+        },
+        {
+          "offset": 300.0,
+          "duration": 300.0,
+          "elapsed_seconds": 4.109,
+          "segments": 33
+        },
+        {
+          "offset": 600.0,
+          "duration": 18.74,
+          "elapsed_seconds": 0.68,
+          "segments": 2
+        }
+      ],
+      "silence_hallucinated_characters": 14,
+      "protocol_coverage_failures": [
+        "long_region_text_or_timing_mismatch",
+        "long_uncovered_speech_region",
+        "silence:silence_hallucination",
+        "silence:timestamp_outside_source"
+      ],
+      "beam5": {
+        "warmup_error": {
+          "name": "fleurs-ja-00",
+          "source_seconds": 10.44,
+          "elapsed_seconds": 120.03492893800001,
+          "error": "APITimeoutError",
+          "detail": "Request timed out."
+        }
+      }
+    },
+    "vllm-l4-vad": {
+      "artifact_sha256": "95ae6f3623e9cc7840af48892346c1ff63386f26e2dbec4ff382757c65bbc448",
+      "single_clip_median_seconds": 0.576,
+      "concurrent_audio_seconds_per_wall_second": 39.613,
+      "concurrent_request_errors": 0,
+      "natural_character_edits": 29,
+      "natural_reference_characters": 558,
+      "natural_CER": 0.051971,
+      "long_CER": 0.095997,
+      "speech_regions_with_captions": 46,
+      "speech_regions_CER_below_0_5": 43,
+      "worker_intervals": [
+        {
+          "offset": 0.0,
+          "duration": 300.0,
+          "elapsed_seconds": 8.446,
+          "segments": 25
+        },
+        {
+          "offset": 300.0,
+          "duration": 300.0,
+          "elapsed_seconds": 8.289,
+          "segments": 28
+        },
+        {
+          "offset": 600.0,
+          "duration": 18.74,
+          "elapsed_seconds": 1.024,
+          "segments": 2
+        }
+      ],
+      "silence_hallucinated_characters": 0,
+      "protocol_coverage_failures": [
+        "long_region_text_or_timing_mismatch",
+        "long_uncovered_speech_region"
+      ]
+    },
+    "vllm-l4-vad-gaps": {
+      "artifact_sha256": "461ef87d714b5b81bd786d853ffbda1953402f3ea1dffc4b7a21dde213565c5e",
+      "single_clip_median_seconds": 0.557,
+      "concurrent_audio_seconds_per_wall_second": 42.911,
+      "concurrent_request_errors": 0,
+      "natural_character_edits": 29,
+      "natural_reference_characters": 558,
+      "natural_CER": 0.051971,
+      "long_CER": 0.092553,
+      "speech_regions_with_captions": 46,
+      "speech_regions_CER_below_0_5": 46,
+      "worker_intervals": [
+        {
+          "offset": 0.0,
+          "duration": 300.0,
+          "elapsed_seconds": 9.027,
+          "segments": 26
+        },
+        {
+          "offset": 300.0,
+          "duration": 300.0,
+          "elapsed_seconds": 8.862,
+          "segments": 26
+        },
+        {
+          "offset": 600.0,
+          "duration": 18.74,
+          "elapsed_seconds": 1.03,
+          "segments": 2
+        }
+      ],
+      "silence_hallucinated_characters": 0,
+      "protocol_coverage_failures": [
+        "long_region_text_or_timing_mismatch",
+        "long_uncovered_speech_region"
+      ]
+    },
+    "vllm-l4-vad-normalized": {
+      "artifact_sha256": "3d8621eba59bd26153e505ca9c893a273adf24ceefd717d703391a605afdf9a4",
+      "single_clip_median_seconds": 0.586,
+      "concurrent_audio_seconds_per_wall_second": 37.865,
+      "concurrent_request_errors": 0,
+      "natural_character_edits": 29,
+      "natural_reference_characters": 558,
+      "natural_CER": 0.051971,
+      "long_CER": 0.058115,
+      "speech_regions_with_captions": 50,
+      "speech_regions_CER_below_0_5": 50,
+      "worker_intervals": [
+        {
+          "offset": 0.0,
+          "duration": 300.0,
+          "elapsed_seconds": 9.036,
+          "segments": 26
+        },
+        {
+          "offset": 300.0,
+          "duration": 300.0,
+          "elapsed_seconds": 8.901,
+          "segments": 28
+        },
+        {
+          "offset": 600.0,
+          "duration": 18.74,
+          "elapsed_seconds": 1.073,
+          "segments": 2
+        }
+      ],
+      "silence_hallucinated_characters": 0,
+      "protocol_coverage_failures": []
+    }
+  }
+}

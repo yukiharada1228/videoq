@@ -117,6 +117,11 @@ batches speech chunks inside one request; the NVIDIA overlay sets 8 and the CPU
 default is 1 (sequential). It is a server setting, independent of SQS job lanes
 and worker interval sizes. The worker keeps the same `local` client and offsets.
 
+Experimental whisper.cpp/vLLM acceptance tools and the NVIDIA/Mac/CPU results are
+documented in the [runtime verification report](../../docs/verification/whisper-cpp-vllm-2026-10-23.md).
+Those scripts use explicit public fixtures and private ephemeral services;
+the VAD frontend there is a validation experiment, not a worker entrypoint.
+
 Modal's proxy checks the token before starting the GPU container. The
 proxy-authenticated `WhisperService.api` checks the model, response format, and
 a 16 MiB audio / 16 MiB + 64 KiB total request limit before transcription.
