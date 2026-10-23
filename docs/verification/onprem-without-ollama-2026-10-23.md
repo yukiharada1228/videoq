@@ -30,6 +30,9 @@ the on-prem application-edition change in PR #1144.
 ## Actual verification
 
 - API unit suite with Helm: 1130 passed, 600 independently gated tests skipped.
+  With PostgreSQL/cross-language checks enabled: 1692 passed, 38 skipped.
+  Test DB teardown handles its expected forced-disconnection event and asserts
+  that no unexpected idle-pool errors occurred.
 - Native Cloudflare Workers tests: 32 passed. Node API production bundle built;
   API typecheck and regenerated-binding check passed.
 - Worker suite: 463 passed, 105 independently gated tests skipped. Both languages

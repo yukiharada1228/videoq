@@ -20,6 +20,8 @@ withPostgres("on-prem account lifecycle without SaaS services", () => {
   const app = createApp();
   let env: Bindings;
   let pool: pg.Pool;
+  let tearingDown = false;
+  const idleErrors: Error[] = [];
   beforeAll(async () => {
     // Other API suites intentionally create partial schemas in the control DB.
     // Run this full account lifecycle against its own migrated database.
@@ -29,6 +31,12 @@ withPostgres("on-prem account lifecycle without SaaS services", () => {
     const url = new URL(databaseURL!);
     url.pathname = `/${databaseName}`;
     pool = new pg.Pool({ connectionString: url.toString(), max: 6 });
+    pool.on("error", (error) => {
+      // pg's pool.end() can resolve before an idle socket fully closes. The
+      // forced test-DB drop can then report its expected termination event.
+      if (tearingDown && "code" in error && error.code === "57P01") return;
+      idleErrors.push(error);
+    });
     await migrate(drizzle(pool), { migrationsFolder: fileURLToPath(new URL("../drizzle", import.meta.url)) });
     env = nodeBindings({ DATABASE_URL: url.toString(), BETTER_AUTH_URL: origin,
       BETTER_AUTH_SECRET: "a".repeat(48), USER_SECRET_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString("base64url"),
@@ -42,8 +50,10 @@ withPostgres("on-prem account lifecycle without SaaS services", () => {
   }, 30_000);
   afterAll(async () => {
     try {
+      tearingDown = true;
       await pool?.end();
       await control?.query(`DROP DATABASE IF EXISTS "${databaseName}" WITH (FORCE)`);
+      expect(idleErrors).toEqual([]);
     } finally { await control?.end(); vi.restoreAllMocks(); }
   });
   const post = (path: string, body: unknown, cookie?: string) => app.request(`${origin}${path}`, {
