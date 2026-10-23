@@ -89,7 +89,7 @@ updates:
       time: "09:00"
       timezone: Asia/Tokyo
     open-pull-requests-limit: 5
-    # Runtime Updates coordinates these images with CI, Modal and tool hashes.
+    # Runtime Updates coordinates these images with CI and tool hashes.
     # Keep one owner for interpreter pins; other images stay on Dependabot.
     ignore:
       - dependency-name: node

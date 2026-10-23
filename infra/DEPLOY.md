@@ -366,58 +366,13 @@ aws lambda update-function-code \
   --region "$REGION"
 ```
 
-### Modal Whisper deployment
+### Cloud transcription (OpenAI)
 
-The `videoq-batched-whisper` source is `apps/worker/modal_batched_whisper.py`.
-After CI succeeds on the current `main` commit, CD deploys changes to that file
-to Modal's `main` environment. A coordinated Lambda deployment waits for Modal
-to succeed. Manual CD dispatch also deploys Modal. The `production-app` GitHub
-Environment only permits deployments from `main`.
-
-The GPU Web Function uses `requires_proxy_auth=True`. Modal rejects unauthorized
-requests before starting the GPU container; the function bounds the complete
-multipart body before transcription. Authorized invalid requests may start the
-GPU container. The worker's SSM app parameter must contain the protected URL
-and a combined Modal proxy token in `WHISPER_MODAL_URL` and
-`WHISPER_MODAL_TOKEN`. The old public URL and separate CPU `secure_api` function
-are removed.
-Verify that a request without a proxy token returns 401, that the old URL returns
-404, and that an authorized transcription succeeds.
-
-Set `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` as GitHub Environment secrets in
-`production-app`. These authenticate the Modal CLI. The distinct endpoint proxy
-token is stored in the worker's SSM app parameter; it is not a Modal API token.
-The former `videoq-whisper-auth` Secret has been deleted.
-The Modal token must be able to deploy to the `main` Modal environment. CI pins
-`modal==1.6.1` and runs `modal deploy --env main` on the verified commit.
-
-Changing only the Modal source deploys Modal without rebuilding Lambda. Changes
-to both Modal and Lambda deploy Modal first. Check the `Deploy Whisper (Modal)`
-CD job and the Modal app's deployment history after a main-branch push.
-
-### App parameter (`/videoq/<env>/app`) JSON schema
-
-Use **`R2_*` key names for R2 credentials** in the app SSM SecureString parameter.
-Terraform manages only the parameter resource; set its value through the CLI.
-
-```json
-{
-  "OPENAI_API_KEY": "...",
-  "USER_SECRET_ENCRYPTION_KEY": "...",
-  "R2_ACCESS_KEY_ID": "...",
-  "R2_SECRET_ACCESS_KEY": "...",
-  "R2_BUCKET_NAME": "videoq-media-prod",
-  "R2_S3_ENDPOINT": "https://<accountid>.r2.cloudflarestorage.com",
-  "R2_S3_REGION": "auto"
-}
-```
-
-Do not put `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` here. Lambda's execution
-role reserves those names, so the R2 keys are ignored and transcription returns 400.
-
-For the API Worker (Cloudflare), configure SQS credentials for a separate IAM user
-(for example, `videoq-workers-api`) through the Wrangler secrets `AWS_ACCESS_KEY_ID`,
-`AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, and `SQS_QUEUE_URL`.
+The cloud worker uses `WHISPER_BACKEND=openai` and `OPENAI_API_KEY` in the
+`/videoq/prod/app` SecureString parameter. Modal is retired; no Modal CLI or
+GitHub credentials are required. See
+[the switch runbook](../docs/operations/openai-transcription.md) for the
+in-flight job check, config refresh and retirement order.
 
 ## 5. Frontend
 

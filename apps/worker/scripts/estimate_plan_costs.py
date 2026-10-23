@@ -19,7 +19,6 @@ PRICES = {
     "llm_output_usd_per_million": 0.60,
     "embedding_usd_per_million": 0.02,
     "whisper_usd_per_minute": 0.006,
-    "modal_whisper_budget_usd_per_minute": 0.000687259,
     "r2_usd_per_gb_month": 0.015,
     "workers_account_usd_per_month": 5,
     "neon_launch_usd_per_cu_hour": 0.106,
@@ -36,7 +35,6 @@ PRICES = {
 SOURCES = {
     "openai": "https://developers.openai.com/api/docs/pricing",
     "whisper": "https://developers.openai.com/api/docs/models/whisper-1",
-    "modal": "https://modal.com/pricing",
     "stripe": "https://stripe.com/jp/pricing",
     "r2": "https://developers.cloudflare.com/r2/pricing/",
     "workers": "https://developers.cloudflare.com/workers/platform/pricing/",
@@ -59,8 +57,7 @@ class Assumptions:
     neon_cu: float = 0.25
     neon_active_hours: float = 730
     mailgun_monthly_usd: float = 0
-    # One measured 30-minute T4 job at 8 GiB; production reserves 4 GiB.
-    transcription_usd_per_minute: float = PRICES["modal_whisper_budget_usd_per_minute"]
+    transcription_usd_per_minute: float = PRICES["whisper_usd_per_minute"]
     lambda_seconds_per_video_minute: float = 6  # 60 seconds / 10-minute upload; NOT measured.
     video_minutes_per_upload: float = 10
     lambda_outbound_bytes_per_video_minute: int = 480000 + 65536  # 64kbps audio + DB/index allowance.
@@ -205,7 +202,6 @@ def report(catalog: dict, a: Assumptions) -> dict:
     sensitivity = []
     cases = [(f"paid_{n}", replace(a, paid_contracts=n)) for n in (10, 30, 50, 100)]
     cases += [("neon_compute_reserve_unspent", replace(a, neon_cu=0)),
-              ("openai_whisper_fallback", replace(a, transcription_usd_per_minute=PRICES["whisper_usd_per_minute"])),
               ("neon_0_5cu_always_on", replace(a, neon_cu=0.5)),
               ("mailgun_basic", replace(a, mailgun_monthly_usd=15)),
               ("lambda_3x_slower", replace(a, lambda_seconds_per_video_minute=a.lambda_seconds_per_video_minute * 3)),
@@ -219,7 +215,7 @@ def report(catalog: dict, a: Assumptions) -> dict:
         sensitivity.append({"name": name, "fixed_cost_per_contract_yen": result["fixed_monthly_total_yen"] / assumptions.paid_contracts,
                             "annual_plans": [{k: p[k] for k in ("plan", "answer_budget_yen", "planning_max_answers", "planning_balance_yen")}
                                              for p in result["plans"] if p["interval"] == "yearly"]})
-    return {"date": "2026-10-17", "sources": SOURCES, "prices": PRICES,
+    return {"date": "2026-10-23", "sources": SOURCES, "prices": PRICES,
             "evidence": "docs/verification/operating-cost-evidence-2026-10-02.json", **base,
             "included_usage_conditions": {
                 "r2": "Class A <= 1M/month and Class B <= 10M/month for the entire account; operations then $0. Storage modeled at full rate without the shared 10GB credit. Overage rounds up to million-operation units: $4.50/$0.36, allocated once per account.",
@@ -234,7 +230,6 @@ def report(catalog: dict, a: Assumptions) -> dict:
                 "50 paid contracts is the target allocation base, not the currently observed subscriber count. Free subsidy covers 13 existing plan-managed accounts at full quota; change this count as acquisition grows. Admin overrides/developer experiments are outside these plan budgets.",
                 "Lambda minutes could not be joined to surviving videos, so 6 billed seconds/video-minute is a planning assumption, including transcription, indexing, cold starts and waiting. Three-percent ingestion retry reserve is also assumed.",
                 "The planning answer cost is a provisional per-answer reserve, not a measured production average. Historical token scenarios use gpt-4o-mini rates and are illustrative only; actual model calls, retries, cache usage and invoice reconciliation must be measured separately.",
-                "Modal transcription budgets use $0.02026314 for one 1,769.04-second lecture at 8 GiB, divided by audio minutes. Production uses 4 GiB, but one lecture does not establish an average across workloads. See docs/verification/modal-interval-cost-optimization-2026-10-17.md.",
                 "DB footprint is reserved at month 12 with no deletions; this does not add a retention policy. Actual growth, compute autoscaling and retained history require periodic recalculation.",
                 "RAGAS and its evaluation Lambda jobs contribute zero after deployment. The observed production job sample still includes the old implementation.",
                 "AWS free credits are not deducted; unrelated account-wide bills are not allocated to VideoQ. FX 160 is a budgeting rate, not a verified spot exchange rate.",

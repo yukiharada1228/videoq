@@ -23,9 +23,7 @@ resource "aws_ssm_parameter" "db" {
 # Expected JSON keys (set via CLI / Console — not Terraform-managed values):
 #
 #   OPENAI_API_KEY
-#   WHISPER_BACKEND           # optional: "openai" (default) or "modal"
-#   WHISPER_MODAL_URL         # Modal API root URL, when backend is modal
-#   WHISPER_MODAL_TOKEN       # combined Modal proxy token (wk-....ws-....)
+#   WHISPER_BACKEND           # "openai" for the cloud service
 #   USER_SECRET_ENCRYPTION_KEY
 #   R2_ACCESS_KEY_ID          # Cloudflare R2 S3 API token (NOT Lambda role keys)
 #   R2_SECRET_ACCESS_KEY

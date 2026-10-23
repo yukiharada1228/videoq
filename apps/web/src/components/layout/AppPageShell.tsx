@@ -6,7 +6,7 @@ import { AppNav, type ActivePage } from '@/components/layout/AppNav';
 import { APP_CONTAINER_CLASS } from '@/components/layout/layoutTokens';
 import { Button } from '@/components/ui/button';
 
-const LEGAL_NOTICE_DISMISSED_KEY = 'videoq.legal-notice.2026-10-17.dismissed';
+const LEGAL_NOTICE_DISMISSED_KEY = 'videoq.legal-notice.2026-10-23.dismissed';
 const LEGAL_NOTICE_EXPIRES_AT = Date.UTC(2026, 10, 17);
 
 function wasLegalNoticeDismissed(): boolean {

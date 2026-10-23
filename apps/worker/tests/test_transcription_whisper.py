@@ -10,49 +10,6 @@ from worker_python.pipeline import transcription
 from worker_python.pipeline.transcription import _whisper_file
 
 
-def test_modal_whisper_client_uses_its_own_token_and_endpoint(monkeypatch) -> None:
-    monkeypatch.setenv("WHISPER_BACKEND", "modal")
-    monkeypatch.setenv("WHISPER_MODAL_URL", "https://videoq-example.modal.run")
-    monkeypatch.setenv("WHISPER_MODAL_TOKEN", "modal-test-token")
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-
-    client, model = transcription._whisper_client()
-    try:
-        assert model == "large-v3"
-        assert str(client.base_url) == "https://videoq-example.modal.run/v1/"
-        assert client.api_key == "modal-test-token"
-    finally:
-        client.close()
-
-
-def test_modal_whisper_requires_url_and_token(monkeypatch) -> None:
-    monkeypatch.setenv("WHISPER_BACKEND", "modal")
-    monkeypatch.delenv("WHISPER_MODAL_TOKEN", raising=False)
-    monkeypatch.setenv("WHISPER_MODAL_URL", "https://videoq-example.modal.run")
-    with pytest.raises(RuntimeError, match="WHISPER_MODAL_URL and WHISPER_MODAL_TOKEN"):
-        transcription._whisper_client()
-
-
-def test_modal_accepts_thirty_minute_audio_interval(monkeypatch) -> None:
-    monkeypatch.setenv("WHISPER_BACKEND", "modal")
-    client = MagicMock()
-    monkeypatch.setattr(transcription, "_whisper_client", lambda: (client, "large-v3"))
-    monkeypatch.setattr(transcription, "_whisper_file", lambda *args, **kwargs: [
-        {"start": 601, "end": 602, "text": "caption"},
-    ])
-
-    def extract(command, **kwargs):
-        assert command[command.index("-t") + 1] == "1800"
-        assert kwargs["max_output_bytes"] == 16 * 1024 * 1024
-        Path(command[-1]).write_bytes(b"audio")
-        return SimpleNamespace(returncode=0, stderr="")
-
-    monkeypatch.setattr(transcription, "run_media_process", extract)
-    assert transcription.transcribe_audio_interval("video.mkv", 600, 1800) == [
-        {"start": 601.0, "end": 602.0, "text": "caption"},
-    ]
-
-
 def test_openai_rejects_thirty_minute_audio_interval(monkeypatch) -> None:
     monkeypatch.setenv("WHISPER_BACKEND", "openai")
     with pytest.raises(ValueError, match="Invalid transcription interval"):
@@ -150,3 +107,38 @@ def test_large_audio_processes_and_removes_one_chunk_at_a_time(
     if failure is None:
         expected.extend([("split", 2), ("transcribe", 2)])
     assert events == expected
+
+
+def test_cloud_uses_hosted_whisper_1_by_default(monkeypatch):
+    monkeypatch.delenv("WHISPER_BACKEND", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    client, model = transcription._whisper_client()
+    with client:
+        assert model == "whisper-1"
+        assert str(client.base_url) == "https://api.openai.com/v1/"
+        assert client.timeout == 120
+        assert client.max_retries == 2
+
+
+@pytest.mark.parametrize("backend", ["modal", "whisper.cpp", "typo"])
+def test_retired_or_unknown_backend_is_rejected(monkeypatch, backend):
+    monkeypatch.setenv("WHISPER_BACKEND", backend)
+    with pytest.raises(RuntimeError, match="configure openai or local"):
+        transcription._whisper_client()
+
+
+def test_text_without_real_timestamps_is_rejected(tmp_path):
+    audio = tmp_path / "clip.mp3"
+    audio.write_bytes(b"audio")
+    client = MagicMock()
+    client.audio.transcriptions.create.return_value = SimpleNamespace(segments=[], text="caption")
+    with pytest.raises(RuntimeError, match="real segment timestamps"):
+        _whisper_file(client, audio, "whisper-1", offset=600)
+
+
+def test_silent_audio_can_return_no_segments(tmp_path):
+    audio = tmp_path / "clip.mp3"
+    audio.write_bytes(b"audio")
+    client = MagicMock()
+    client.audio.transcriptions.create.return_value = SimpleNamespace(segments=[], text="")
+    assert _whisper_file(client, audio, "whisper-1", offset=600) == []
