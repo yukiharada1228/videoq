@@ -134,15 +134,17 @@ Tax registration and tax-code choices cannot be determined from this system conf
 7. `0035_tighten_paid_plan_quotas` immediately changes usable plan-managed subscriptions to Basic 200 minutes / 500 answers and Pro 1,000 minutes / 2,000 answers. Admin overrides and used counters remain intact.
 8. `0038_raise_transcription_allowances` raises plan-managed transcription limits to Free 120, Basic 500, and Pro 1,500 minutes/month. Admin overrides and used counters remain intact.
 
+9. `0040_restore_openai_transcription_allowances` restores pre-Modal limits to Free 45, Basic 200 and Pro 1,000 minutes/month, preserving usage and administrator overrides.
+
 ## 8. Answer allowance and operating budget
 
-### Current limits (2026-10-17)
+### Current limits (2026-10-23)
 
-At the existing prices, transcription limits are **Free 120, Basic 500, and Pro 1,500 minutes/month**. AI answer limits remain 30/500/2,000. Storage remains 1/20/100 GiB and monthly upload allowances remain 2/200/1,000 GiB. The quotas are enforced by the existing atomic AI-answer reservation and transcription-minute reservation; the migration preserves usage already recorded in the current month. See [the current allowance and cost estimate](https://github.com/yukiharada1228/videoq/blob/main/docs/verification/transcription-allowance-expansion-2026-10-17.md).
+At the existing prices, transcription limits are **Free 45, Basic 200, and Pro 1,000 minutes/month**. AI answer limits remain 30/500/2,000. Storage remains 1/20/100 GiB and monthly upload allowances remain 2/200/1,000 GiB. The quotas are enforced by the existing atomic AI-answer reservation and transcription-minute reservation; the migration preserves usage already recorded in the current month. See [the current transcription runbook](https://github.com/yukiharada1228/videoq/blob/main/docs/operations/openai-transcription.md).
 
 For current planning, `estimate_plan_costs.py` now reserves **¥1.00 per AI answer** until production attempt-level usage can be reconciled with OpenAI billing. This is a conservative assumption, not a measured unit cost. The API records successful and failed provider calls by anonymous answer attempt after migration `0036`; compare the resulting token usage and incomplete-call count with the same period's OpenAI Costs before changing the catalog again. The administrator's `quota_source=admin` limits remain independent of this planning assumption.
 
-The budget below records the **2026-10-02 historical catalog** and must not be used as the current allowance or cost estimate. It assumed OpenAI Whisper pricing and ¥0.30 per AI answer. Current planning uses Modal and reserves ¥1.00 per AI answer; see the linked estimate above.
+The budget below records the **2026-10-02 historical catalog** and must not be used as the current allowance or cost estimate. It assumed OpenAI Whisper pricing and ¥0.30 per AI answer. Current planning uses OpenAI Whisper and reserves ¥1.00 per AI answer; see the linked estimate above.
 
 The 2026-10-02 catalog removes RAGAS scoring and keeps prices unchanged: Basic ¥1,480/month or ¥14,800/year; Pro ¥3,980/month or ¥39,800/year. Monthly answer allowances rise from the original 500 to **1,800** and from 2,500 to **2,800**, including annual subscriptions. The generation model and retrieval behavior are unchanged. These replace the provisional 1,700/3,000 estimates after a more detailed operating-cost audit.
 

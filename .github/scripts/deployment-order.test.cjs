@@ -17,13 +17,12 @@ function job(name) {
 
 function canDeploy(jobName, outputs, results = {}) {
   const needs = {
-    changes: { result: 'success', outputs: { api: 'true', web: 'true', worker: 'true', modal: 'true', migrate: 'true', ...outputs } },
+    changes: { result: 'success', outputs: { api: 'true', web: 'true', worker: 'true', migrate: 'true', ...outputs } },
     'db-migrate': { result: 'success' },
     'worker-build': { result: 'success' },
     'application-build': { result: 'success' },
     'api-deploy': { result: 'success' },
     'web-deploy': { result: 'success' },
-    'modal-deploy': { result: 'success' },
   };
   for (const [name, result] of Object.entries(results)) needs[name].result = result;
   const expression = job(jobName).condition.replace(
@@ -37,7 +36,7 @@ const workerCanDeploy = (outputs, results) => canDeploy('worker-deploy', outputs
 
 test('every CD checkout uses a GitHub-provided immutable SHA', () => {
   const refs = [...workflow.matchAll(/^\s+ref: (.+)$/gm)].map(match => match[1]);
-  assert.ok(refs.length >= 8);
+  assert.ok(refs.length >= 7);
   for (const ref of refs) {
     assert.ok(['${{ github.sha }}', '${{ github.workflow_sha }}'].includes(ref), ref);
   }
@@ -52,20 +51,11 @@ test('database migrations run once before API deployment', () => {
 test('the deployment graph schedules shared-data readers before the worker', () => {
   assert.ok(job('api-deploy').dependencies.includes('db-migrate'));
   assert.ok(job('web-deploy').dependencies.includes('api-deploy'));
-  for (const dependency of ['changes', 'db-migrate', 'api-deploy', 'web-deploy', 'modal-deploy']) {
+  for (const dependency of ['changes', 'db-migrate', 'api-deploy', 'web-deploy']) {
     assert.ok(job('worker-deploy').dependencies.includes(dependency), `Worker must wait for ${dependency}`);
   }
 });
 
-test('Modal deploy uses verified main code and environment-scoped credentials', () => {
-  const modal = job('modal-deploy');
-  assert.ok(modal.dependencies.includes('changes'));
-  assert.match(modal.body, /environment: production-app/);
-  assert.match(modal.body, /ref: \$\{\{ github\.sha \}\}/);
-  assert.match(modal.body, /modal deploy --env main apps\/worker\/modal_batched_whisper\.py/);
-  assert.match(modal.body, /secrets\.MODAL_TOKEN_ID/);
-  assert.match(modal.body, /secrets\.MODAL_TOKEN_SECRET/);
-});
 
 test('coordinated deployment proceeds after migration and both readers succeed', () => {
   assert.equal(workerCanDeploy({}), true);
@@ -73,7 +63,7 @@ test('coordinated deployment proceeds after migration and both readers succeed',
   assert.equal(workerCanDeploy({ migrate: 'false' }, { 'db-migrate': 'skipped' }), true);
 });
 
-for (const dependency of ['changes', 'worker-build', 'db-migrate', 'api-deploy', 'web-deploy', 'modal-deploy']) {
+for (const dependency of ['changes', 'worker-build', 'db-migrate', 'api-deploy', 'web-deploy']) {
   for (const result of ['failure', 'cancelled']) {
     test(`blocks the worker when ${dependency} reports ${result}`, () => {
       assert.equal(workerCanDeploy({}, { [dependency]: result }), false);
@@ -86,13 +76,9 @@ for (const dependency of ['api-deploy', 'web-deploy']) {
   });
 }
 test('worker-only changes allow unchanged readers to be skipped', () => {
-  assert.equal(workerCanDeploy({ api: 'false', web: 'false', modal: 'false', migrate: 'false' }, {
-    'db-migrate': 'skipped', 'api-deploy': 'skipped', 'web-deploy': 'skipped', 'modal-deploy': 'skipped',
+  assert.equal(workerCanDeploy({ api: 'false', web: 'false', migrate: 'false' }, {
+    'db-migrate': 'skipped', 'api-deploy': 'skipped', 'web-deploy': 'skipped',
   }), true);
-});
-test('Modal failure blocks a coordinated Lambda deploy', () => {
-  assert.equal(workerCanDeploy({}, { 'modal-deploy': 'failure' }), false);
-  assert.equal(workerCanDeploy({}, { 'modal-deploy': 'skipped' }), false);
 });
 test('a deployment waits for whichever reader changed', () => {
   assert.equal(workerCanDeploy({ web: 'false' }, { 'web-deploy': 'skipped' }), true);

@@ -56,21 +56,16 @@ def test_video_costs_scale_with_entitlements(catalog):
     basic = non_answer_variable_costs(catalog["basic"], a)
     pro = non_answer_variable_costs(catalog["pro"], a)
     for key, value in basic.items():
-        assert pro[key] == pytest.approx(value * (5 if key == "r2_storage" else 3))
+        assert pro[key] == pytest.approx(value * 5)
     assert basic["r2_storage"] == pytest.approx(20 * 1024**3 / 1e9 * .015 * 160)
     assert basic["transcription_and_indexing_lambda"] == pytest.approx(
-        (3000 * (5 * .0000133334 + 4.5 * .000000037) + 100 * .0000002) * 160
+        (1200 * (5 * .0000133334 + 4.5 * .000000037) + 40 * .0000002) * 160
     )
 
 
-def test_modal_budget_and_openai_fallback(catalog):
-    modal = non_answer_variable_costs(catalog["basic"], Assumptions())
-    openai = non_answer_variable_costs(
-        catalog["basic"], replace(Assumptions(), transcription_usd_per_minute=.006),
-    )
-    assert modal["whisper"] == pytest.approx(500 * .000687259 * 160)
-    assert openai["whisper"] == pytest.approx(500 * .006 * 160)
-    assert modal["ingestion_retry_reserve"] < openai["ingestion_retry_reserve"]
+def test_hosted_whisper_budget(catalog):
+    costs = non_answer_variable_costs(catalog["basic"], Assumptions())
+    assert costs["whisper"] == pytest.approx(200 * .006 * 160)
 
 
 def test_free_subsidy_includes_answers_storage_and_full_video_quota(catalog):

@@ -14,15 +14,15 @@ describe("billing catalog", () => {
 
   it("keeps the cost-controlled transcription and answer quotas", () => {
     expect(PLAN_CATALOG.free.entitlements).toMatchObject({
-      processingLimitMinutes: 120,
+      processingLimitMinutes: 45,
       aiAnswersLimit: 30,
     });
     expect(PLAN_CATALOG.basic.entitlements).toMatchObject({
-      processingLimitMinutes: 500,
+      processingLimitMinutes: 200,
       aiAnswersLimit: 500,
     });
     expect(PLAN_CATALOG.pro.entitlements).toMatchObject({
-      processingLimitMinutes: 1500,
+      processingLimitMinutes: 1000,
       aiAnswersLimit: 2000,
     });
   });

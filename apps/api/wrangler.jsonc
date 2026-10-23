@@ -37,7 +37,7 @@
     "COURSE_INVITATION_BATCH_LIMIT": "50",
     "MAX_VIDEO_UPLOAD_SIZE_MB": "200",
     "DEFAULT_STORAGE_LIMIT_GB": "1",
-    "DEFAULT_PROCESSING_LIMIT_MINUTES": "120",
+    "DEFAULT_PROCESSING_LIMIT_MINUTES": "45",
     "DEFAULT_AI_ANSWERS_LIMIT": "30",
     "STRIPE_AUTOMATIC_TAX": "false",
     // Resolve the hosted default in the adapter; private endpoints set their own model.
@@ -112,7 +112,7 @@
         "COURSE_INVITATION_BATCH_LIMIT": "50",
         "MAX_VIDEO_UPLOAD_SIZE_MB": "200",
         "DEFAULT_STORAGE_LIMIT_GB": "1",
-        "DEFAULT_PROCESSING_LIMIT_MINUTES": "120",
+        "DEFAULT_PROCESSING_LIMIT_MINUTES": "45",
         "DEFAULT_AI_ANSWERS_LIMIT": "30",
         "STRIPE_AUTOMATIC_TAX": "false",
         // Keep provider-specific defaults in the application, as in local dev.

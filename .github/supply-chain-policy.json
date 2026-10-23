@@ -13,7 +13,6 @@
     "workerd"
   ],
   "uv_lockfiles": [
-    "apps/worker/uv.lock",
-    ".github/deploy-tools/uv.lock"
+    "apps/worker/uv.lock"
   ]
 }

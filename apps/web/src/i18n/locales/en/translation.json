@@ -785,12 +785,12 @@
   },
   "legal": {
     "notice": {
-      "title": "Notice of 17 October 2026",
-      "body": "We updated our Terms and Privacy Policy to explain transcription with Modal and other external services, how data is handled, and the permission needed to process videos."
+      "title": "Notice — October 23, 2026",
+      "body": "Transcription now uses the OpenAI API (whisper-1). Monthly transcription allowances return to 45 minutes for Free, 200 for Basic and 1,000 for Pro. The Terms and Privacy Policy reflect the processing provider and data handling. Existing content and recorded usage are preserved."
     },
     "terms": {
       "title": "Terms of Service",
-      "updated": "Last updated: 17 October 2026",
+      "updated": "Last updated: October 23, 2026",
       "sections": {
         "scope": {
           "title": "1. Scope",
@@ -802,7 +802,7 @@
         },
         "plans": {
           "title": "3. Plans and quotas",
-          "body": "VideoQ offers Free, Basic, and Pro plans. Storage, transcription minutes, AI answers, and monthly upload allowances on the pricing page are authoritative. Free is a trial allowance. After a downgrade we do not delete existing videos or chats, but new uploads, transcription, or AI answers are blocked if you are over the new limits."
+          "body": "The Service offers Free, Basic and Pro plans. Monthly transcription allowances are 45 minutes for Free, 200 for Basic and 1,000 for Pro. Storage, AI answers, monthly uploads and other entitlements are shown on the pricing page. Free is a no-cost trial allowance. Changes to allowances or downgrades do not delete existing videos, chats or recorded usage. Additional uploads, transcription or AI answers may be restricted when usage exceeds the new limit. Monthly usage resets on the first day of each month in UTC."
         },
         "payment": {
           "title": "4. Fees and payment",
@@ -836,7 +836,7 @@
     },
     "privacy": {
       "title": "Privacy Policy",
-      "updated": "Last updated: 17 October 2026",
+      "updated": "Last updated: October 23, 2026",
       "sections": {
         "controller": {
           "title": "1. Controller",
@@ -856,11 +856,11 @@
         },
         "share": {
           "title": "5. External services and sharing",
-          "body": "We do not sell personal data. We use the following external services as needed to provide VideoQ.\n• Cloudflare: app delivery, API execution, and storage of videos and images. Neon: database storage of accounts, transcripts, chat history, and other records. AWS: processing queues and video processing.\n• Modal Labs, Inc.: we send segments of audio extracted from uploaded videos and receive transcripts. We do not send the complete video file, account email address, or chat history to Modal for this transcription. Depending on configuration, we may use OpenAI's transcription API or local processing instead.\n• OpenAI: embeddings of captions and search queries; answers based on questions, relevant captions, and course information; and, when needed, analysis of still frames extracted from videos. Our answer generation does not send the entire chat history.\n• SearchAPI: YouTube video IDs and related parameters for caption retrieval. Google: authentication if you choose Google sign-in. Mailgun: recipient address, subject, and body for verification, invitation, and other service emails. Stripe's handling of payment data is described in section 3.\nThese providers may process or route data outside Japan, including in the United States. Apart from disclosures required by law, we limit what we share to the data needed for each operation."
+          "body": "We do not sell personal data. We use the following external services as needed to provide VideoQ.\n• Cloudflare: app delivery, API execution, and storage of videos and images. Neon: database storage of accounts, transcripts, chat history, and other records. AWS: processing queues and video processing.\n• OpenAI: Segmented audio extracted from uploaded videos is sent to the transcription API (whisper-1), which returns a transcript. The complete video, account email address and chat history are not sent for this transcription. OpenAI also provides embeddings of captions and search queries; answers based on questions, relevant captions, and course information; and, when needed, analysis of still frames extracted from videos. Our answer generation does not send the entire chat history.\n• SearchAPI: YouTube video IDs and related parameters for caption retrieval. Google: authentication if you choose Google sign-in. Mailgun: recipient address, subject, and body for verification, invitation, and other service emails. Stripe's handling of payment data is described in section 3.\nThese providers may process or route data outside Japan, including in the United States. Apart from disclosures required by law, we limit what we share to the data needed for each operation."
         },
         "retention": {
           "title": "6. Retention",
-          "body": "While your account is active, we keep videos, transcripts, chat history, and other data as needed to provide the service. After account deletion, we remove or anonymize data we control within a reasonable time, except where law requires retention. Data sent to external providers is subject to their retention policies. Under Modal's published policy, audio sent to its Web Function and the returned transcription may be retained as inputs and outputs for up to seven days. VideoQ does not configure persistent storage of audio or transcripts on Modal. Payment records that remain at Stripe follow Stripe’s retention rules."
+          "body": "We retain videos, transcripts and chat history while an account is active for as long as needed to provide the Service. After account deletion, data controlled by VideoQ is deleted or anonymized within a reasonable period, except where retention is required by law. Data sent to external services is subject to each provider’s retention policy. OpenAI states that API data is not used for training unless explicitly shared, and lists no abuse-monitoring or application-state retention for /v1/audio/transcriptions. Other endpoints, including answer generation, may retain abuse-monitoring logs for up to 30 days by default. See https://developers.openai.com/api/docs/guides/your-data for details and exceptions. Audio and transcripts processed by Modal before the October 23, 2026 switch may remain subject to its previous input/output retention policy of up to seven days. Payment records held by Stripe follow Stripe’s retention policy."
         },
         "rights": {
           "title": "7. Your rights",

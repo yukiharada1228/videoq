@@ -19,7 +19,6 @@ ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ".github/runtime-versions.json"
 NODE_INDEX = "https://nodejs.org/dist/index.json"
 PYTHON_INDEX = "https://www.python.org/api/v2/downloads/release/?is_published=true"
-STANDALONE_INDEX = "https://api.github.com/repos/astral-sh/python-build-standalone/releases?per_page=5"
 _spec = importlib.util.spec_from_file_location("package_managers", Path(__file__).with_name("package-managers.py"))
 managers = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(managers)
@@ -75,20 +74,6 @@ def image_digest(name, tag):
     return f"{name}:{tag}@sha256:{hashlib.sha256(body).hexdigest()}"
 
 
-def standalone(python, releases):
-    pattern = re.compile(r"cpython-" + re.escape(python) + r"\+\d+-x86_64-unknown-linux-gnu-install_only\.tar\.gz")
-    for release in releases:
-        if release.get("draft") or release.get("prerelease"):
-            continue
-        for asset in release.get("assets", []):
-            if pattern.fullmatch(asset["name"]):
-                url, digest = asset["browser_download_url"], asset.get("digest", "")
-                if not url.startswith("https://github.com/astral-sh/python-build-standalone/releases/download/") or not re.fullmatch(r"sha256:[a-f0-9]{64}", digest):
-                    raise ValueError("A verified standalone Python release is required")
-                return {"url": url, "sha256": digest.removeprefix("sha256:")}
-    raise ValueError(f"Standalone Python {python} is not published yet; do not silently reuse an older interpreter")
-
-
 def latest(current, runtime, upgrade, releases):
     current_version = version(current)
     candidates = []
@@ -118,7 +103,7 @@ def latest(current, runtime, upgrade, releases):
 def validate(data):
     version(data["node"])
     version(data["python"])
-    if set(data) - {"node", "python", "python_minimum", "images", "modal_python", "npm", "pip", "uv", "tool_downloads"}:
+    if set(data) - {"node", "python", "python_minimum", "images", "npm", "pip", "uv", "tool_downloads"}:
         raise ValueError("Unknown runtime manifest field")
     if not re.fullmatch(r"3\.\d+", data["python_minimum"]):
         raise ValueError("Invalid minimum Python series")
@@ -139,11 +124,6 @@ def validate(data):
         }
         if set(data["images"]) != set(expected) or any(not data["images"][key].startswith(prefix) for key, prefix in expected.items()):
             raise ValueError("Container interpreters and tools must match the canonical version pins")
-    if "modal_python" in data:
-        pin = data["modal_python"]
-        expected = rf"https://github\.com/astral-sh/python-build-standalone/releases/download/\d+/cpython-{re.escape(data['python'])}(?:%2B|\+)\d+-x86_64-unknown-linux-gnu-install_only\.tar\.gz"
-        if not re.fullmatch(expected, pin["url"]) or not re.fullmatch(r"[a-f0-9]{64}", pin["sha256"]):
-            raise ValueError("Standalone archive must match the exact Python version and have a SHA-256")
     managers.validate(data)
 
 
@@ -180,15 +160,6 @@ def rendered(root, data):
             files[path] = managed_block(files[path], managers.docker_block(data, "pip"), "pip", r"(?m)^FROM (?:public\.ecr\.aws/lambda/python|python):[^\n]+\n")
             if path in {"apps/worker/Dockerfile", "apps/worker/Dockerfile.onprem"}:
                 files[path] = re.sub(r"(?m)^FROM ghcr.io/astral-sh/uv:\S+", "FROM " + images["uv"], files[path])
-    if "modal_python" in data:
-        pin = data["modal_python"]
-        path = "apps/worker/Dockerfile.modal"
-        text = (root / path).read_text()
-        for name, value in [("PYTHON_VERSION", data["python"]), ("PYTHON_STANDALONE_URL", pin["url"]), ("PYTHON_STANDALONE_SHA256", pin["sha256"])]:
-            text, count = re.subn(r"(?m)^ARG " + name + r"=\S+", "ARG " + name + "=" + value, text)
-            if count != 1:
-                raise ValueError(f"Missing {name} in the Modal Dockerfile")
-        files[path] = managed_block(text, managers.docker_block(data, "pip"), "pip")
     return files
 
 
@@ -213,8 +184,6 @@ def discover(root, data, runtime, upgrade):
             images["python_lambda"] = image_digest("public.ecr.aws/lambda/python", ".".join(data["python"].split(".")[:2]))
         elif runtime == "uv":
             images["uv"] = image_digest("ghcr.io/astral-sh/uv", data["uv"])
-    if runtime == "python" and "modal_python" in data:
-        data["modal_python"] = standalone(data["python"], request(STANDALONE_INDEX))
     validate(data)
     return data
 

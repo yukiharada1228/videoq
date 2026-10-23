@@ -29,7 +29,6 @@ jobs:
       sha: ${{ steps.validate.outputs.sha }}
       api: ${{ steps.resolve.outputs.api }}
       worker: ${{ steps.resolve.outputs.worker }}
-      modal: ${{ steps.resolve.outputs.modal }}
       migrate: ${{ steps.resolve.outputs.migrate }}
       docs: ${{ steps.resolve.outputs.docs }}
       web: ${{ steps.resolve.outputs.web }}
@@ -150,18 +149,6 @@ jobs:
               - ".github/actions/**"
               - ".github/scripts/runtime-versions.py"
               - ".github/scripts/package-managers.py"
-            modal:
-              - 'apps/worker/modal_batched_whisper.py'
-              - 'apps/worker/Dockerfile.modal'
-              - '.github/workflows/cd.yml'
-              - '.github/scripts/**'
-              - '.github/deploy-tools/**'
-              - ".github/runtime-versions.json"
-              - ".node-version"
-              - ".python-version"
-              - ".github/actions/**"
-              - ".github/scripts/runtime-versions.py"
-              - ".github/scripts/package-managers.py"
             migrate:
               - 'apps/api/drizzle/**'
               - 'apps/api/src/db/**'
@@ -201,14 +188,12 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "api=true" >> "$GITHUB_OUTPUT"
             echo "worker=true" >> "$GITHUB_OUTPUT"
-            echo "modal=true" >> "$GITHUB_OUTPUT"
             echo "migrate=true" >> "$GITHUB_OUTPUT"
             echo "docs=true" >> "$GITHUB_OUTPUT"
             echo "web=true" >> "$GITHUB_OUTPUT"
           else
             echo "api=${{ steps.filter.outputs.api }}" >> "$GITHUB_OUTPUT"
             echo "worker=${{ steps.filter.outputs.worker }}" >> "$GITHUB_OUTPUT"
-            echo "modal=${{ steps.filter.outputs.modal }}" >> "$GITHUB_OUTPUT"
             echo "migrate=${{ steps.filter.outputs.migrate }}" >> "$GITHUB_OUTPUT"
             echo "docs=${{ steps.filter.outputs.docs }}" >> "$GITHUB_OUTPUT"
             echo "web=${{ steps.filter.outputs.web }}" >> "$GITHUB_OUTPUT"
@@ -424,38 +409,6 @@ jobs:
           test -n "$DATABASE_URL"
           sh apps/api/scripts/db-migrate.sh
 
-  modal-deploy:
-    name: Deploy Whisper (Modal)
-    runs-on: ubuntu-latest
-    environment: production-app
-    timeout-minutes: 45
-    needs: [changes]
-    if: needs.changes.outputs.modal == 'true'
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version-file: .python-version
-      - uses: ./.github/actions/setup-package-manager
-        with:
-          manager: pip
-      - name: Install checksum-pinned uv
-        run: bash .github/scripts/install-uv.sh
-      - name: Install separately locked Modal CLI from hash-verified wheels
-        run: |
-          uv export --quiet --project .github/deploy-tools --locked --no-dev --no-emit-project --format requirements-txt --output-file "$RUNNER_TEMP/modal-requirements.txt"
-          python -m pip install --require-hashes --only-binary=:all: -r "$RUNNER_TEMP/modal-requirements.txt"
-      - name: Deploy batched Whisper to Modal main
-        env:
-          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
-          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
-        run: |
-          test -n "$MODAL_TOKEN_ID" && test -n "$MODAL_TOKEN_SECRET"
-          modal deploy --env main apps/worker/modal_batched_whisper.py
-
   worker-build:
     name: Build Lambda image without AWS credentials
     runs-on: ubuntu-24.04-arm
@@ -491,13 +444,12 @@ jobs:
       contents: read
       id-token: write
     # Deploy readers before the worker can write a new shared data format.
-    needs: [changes, worker-build, db-migrate, api-deploy, web-deploy, modal-deploy]
+    needs: [changes, worker-build, db-migrate, api-deploy, web-deploy]
     if: |
       always() &&
       needs.changes.result == 'success' &&
       needs.worker-build.result == 'success' &&
       needs.changes.outputs.worker == 'true' &&
-      (needs.changes.outputs.modal != 'true' || needs.modal-deploy.result == 'success') &&
       (needs.changes.outputs.migrate != 'true' || needs.db-migrate.result == 'success') &&
       (needs.changes.outputs.api != 'true' || needs.api-deploy.result == 'success') &&
       (needs.changes.outputs.web != 'true' || needs.web-deploy.result == 'success')

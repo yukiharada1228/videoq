@@ -152,8 +152,7 @@ def transcribe_audio_interval(
     source: Path | ObjectMediaSource, start_seconds: float, duration_seconds: float,
 ) -> list[dict[str, Any]]:
     """A bounded input range and one Whisper call; timestamps remain source-relative."""
-    backend = env_str("WHISPER_BACKEND", "openai").lower()
-    max_duration = 1800 if backend == "modal" else 300
+    max_duration = 300
     if not math.isfinite(start_seconds) or start_seconds < 0 or not 0 < duration_seconds <= max_duration:
         raise ValueError("Invalid transcription interval")
     with tempfile.TemporaryDirectory(prefix="videoq-chunk-") as tmp:
@@ -184,17 +183,7 @@ def _whisper_client():
     from openai import OpenAI
 
     backend = env_str("WHISPER_BACKEND", "openai").lower()
-    if backend == "modal":
-        endpoint = env_str("WHISPER_MODAL_URL").rstrip("/")
-        token = env_str("WHISPER_MODAL_TOKEN")
-        if not endpoint.startswith("https://") or not token:
-            raise RuntimeError("WHISPER_MODAL_URL and WHISPER_MODAL_TOKEN are required")
-        client = OpenAI(
-            api_key=token, base_url=f"{endpoint}/v1",
-            timeout=360.0, max_retries=0,
-        )
-        model = "large-v3"
-    elif backend == "local":
+    if backend == "local":
         client = OpenAI(
             api_key=env_str("OPENAI_API_KEY") or "dummy-key-for-local",
             base_url=env_str("WHISPER_LOCAL_URL", "http://127.0.0.1:8080"),
@@ -208,7 +197,7 @@ def _whisper_client():
         client = OpenAI(api_key=api_key, timeout=120.0, max_retries=2)
         model = "whisper-1"
     else:
-        raise RuntimeError("Unsupported WHISPER_BACKEND; configure openai, modal or local")
+        raise RuntimeError("Unsupported WHISPER_BACKEND; configure openai or local")
     return client, model
 
 
@@ -252,8 +241,7 @@ def _whisper_file(
             text = str(getattr(seg, "text", ""))
         out.append({"start": start + offset, "end": end + offset, "text": text})
     if not out and getattr(result, "text", None):
-        # Fallback when backend returns text only.
-        out.append({"start": offset, "end": offset + 1.0, "text": str(result.text)})
+        raise RuntimeError("Whisper must return real segment timestamps")
     return out
 
 

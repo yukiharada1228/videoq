@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
-import os
 from uuid import uuid4
 
 from psycopg.types.json import Jsonb
@@ -13,7 +12,6 @@ from worker_python.db import db_connection
 from worker_python.video_sql import VideoRow, reserve_processing_seconds
 
 CHUNK_SECONDS = 300
-MODAL_CHUNK_SECONDS = 1800
 MAX_VIDEO_DURATION_SECONDS = 3_000_000
 TRANSCRIPTION_LANES = 4
 
@@ -60,9 +58,7 @@ def initialize_run(video: VideoRow, duration: float) -> TranscriptionRun | None:
     if not video.file_key or not video.transcript_hash:
         raise ValueError("Transcription needs a source and transcript fingerprint")
     duration_ms = math.ceil(duration * 1000)
-    # Existing runs retain their recorded interval size when resumed. Modal can
-    # amortize container startup over a longer request; OpenAI keeps its limit.
-    chunk_seconds = MODAL_CHUNK_SECONDS if os.environ.get("WHISPER_BACKEND", "openai").lower() == "modal" else CHUNK_SECONDS
+    chunk_seconds = CHUNK_SECONDS
     count = math.ceil(duration_ms / (chunk_seconds * 1000))
     with db_connection() as conn:
         # Always lock video before run/chunks, also matching deletion/finalization.
@@ -186,53 +182,6 @@ def save_chunk(run: TranscriptionRun, index: int, segments: list[dict]) -> bool:
              WHERE run_id = %s AND chunk_index = %s AND segments IS NULL
         """, (Jsonb(segments), run.run_id, index))
         return True
-
-
-def fallback_parts(run: TranscriptionRun, index: int) -> dict[str, list[dict]] | None:
-    """Read completed fallback parts only while this run still owns the video."""
-    with db_connection() as conn:
-        if not _lock_current(conn, run):
-            return None
-        row = conn.execute("""
-            SELECT fallback_segments, segments IS NOT NULL AS completed
-              FROM video_transcription_chunks
-             WHERE run_id = %s AND chunk_index = %s
-        """, (run.run_id, index)).fetchone()
-        if not row or row["completed"]:
-            return None
-        return row["fallback_segments"]
-
-
-def mark_fallback_started(run: TranscriptionRun, index: int) -> bool:
-    """Remember the split decision before another paid provider request."""
-    with db_connection() as conn:
-        if not _lock_current(conn, run):
-            return False
-        row = conn.execute("""
-            UPDATE video_transcription_chunks
-               SET fallback_segments = jsonb_set(fallback_segments, '{_split}', '[]'::jsonb, true),
-                   updated_at = now()
-             WHERE run_id = %s AND chunk_index = %s AND segments IS NULL
-         RETURNING chunk_index
-        """, (run.run_id, index)).fetchone()
-        return row is not None
-
-
-def save_fallback_part(run: TranscriptionRun, index: int, part: int,
-                       segments: list[dict]) -> bool:
-    """Commit one paid provider result before attempting the next part."""
-    with db_connection() as conn:
-        if not _lock_current(conn, run):
-            return False
-        row = conn.execute("""
-            UPDATE video_transcription_chunks
-               SET fallback_segments = jsonb_set(fallback_segments, ARRAY[%s]::text[],
-                                                 %s::jsonb, true),
-                   updated_at = now()
-             WHERE run_id = %s AND chunk_index = %s AND segments IS NULL
-         RETURNING chunk_index
-        """, (str(part), Jsonb(segments), run.run_id, index)).fetchone()
-        return row is not None
 
 
 def record_chunk_failure(run: TranscriptionRun, index: int, error: str) -> None:

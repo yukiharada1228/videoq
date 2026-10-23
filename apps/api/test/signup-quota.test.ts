@@ -45,7 +45,7 @@ describe("resolveSignupQuotaDefaults", () => {
         MAX_VIDEO_UPLOAD_SIZE_MB: raw,
         DEFAULT_AI_ANSWERS_LIMIT: raw,
         DEFAULT_PROCESSING_LIMIT_MINUTES: raw,
-      })).toEqual({ monthlyUploadLimitGb: 2, maxVideoUploadSizeMb: 5237760, aiAnswersLimit: 30, processingLimitMinutes: 120, storageLimitGb: 1 });
+      })).toEqual({ monthlyUploadLimitGb: 2, maxVideoUploadSizeMb: 5237760, aiAnswersLimit: 30, processingLimitMinutes: 45, storageLimitGb: 1 });
     },
   );
 
@@ -62,7 +62,7 @@ describe("resolveSignupQuotaDefaults", () => {
     expect(resolveSignupQuotaDefaults({})).toEqual({
       monthlyUploadLimitGb: 2, maxVideoUploadSizeMb: 5237760,
       storageLimitGb: 1,
-      processingLimitMinutes: 120,
+      processingLimitMinutes: 45,
       aiAnswersLimit: 30,
     });
   });
