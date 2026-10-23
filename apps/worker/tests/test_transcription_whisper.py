@@ -110,6 +110,7 @@ def test_large_audio_processes_and_removes_one_chunk_at_a_time(
 
 
 def test_cloud_uses_hosted_whisper_1_by_default(monkeypatch):
+    monkeypatch.setenv("OPENAI_BASE_URL", "http://private-chat.invalid:8000/v1")
     monkeypatch.delenv("WHISPER_BACKEND", raising=False)
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     client, model = transcription._whisper_client()

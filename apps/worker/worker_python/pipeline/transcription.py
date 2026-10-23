@@ -191,7 +191,7 @@ def _whisper_client():
         api_key = env_str("OPENAI_API_KEY")
         if not api_key:
             raise RuntimeError("OPENAI_API_KEY is required for OpenAI Whisper")
-        client = OpenAI(api_key=api_key, timeout=120.0, max_retries=2)
+        client = OpenAI(api_key=api_key, base_url="https://api.openai.com/v1", timeout=120.0, max_retries=2)
         model = "whisper-1"
     else:
         raise RuntimeError("Unsupported WHISPER_BACKEND; configure openai or local")
