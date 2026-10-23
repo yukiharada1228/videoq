@@ -46,6 +46,8 @@ jobs:
           "$RUNNER_TEMP/helm/helm" lint charts/videoq --strict -f charts/videoq/examples/site.yaml
           "$RUNNER_TEMP/helm/helm" lint charts/videoq-inference --strict
           "$RUNNER_TEMP/helm/helm" lint charts/videoq-inference --strict -f charts/videoq-inference/examples/nvidia.yaml
+          "$RUNNER_TEMP/helm/helm" lint charts/videoq-inference --strict -f charts/videoq-inference/examples/llamacpp-cpu.yaml
+          "$RUNNER_TEMP/helm/helm" lint charts/videoq-inference --strict -f charts/videoq-inference/examples/vllm-nvidia.yaml
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version-file: apps/inference/whisper/.python-version
@@ -57,7 +59,7 @@ jobs:
           uv sync --locked
           uv run --locked pytest -q
           docker build -t videoq-local-whisper:onprem-ci .
-          docker run --rm --entrypoint python videoq-local-whisper:onprem-ci -c 'import server; import faster_whisper; assert server.MODEL_ALIAS == "whisper-local"'
+          docker run --rm --entrypoint python videoq-local-whisper:onprem-ci -c 'import server; import provision; import faster_whisper; assert server.MODEL_ALIAS == "whisper-local"'
       - name: Build production on-prem images
         id: images
         run: |
@@ -141,6 +143,28 @@ jobs:
           ignore-unfixed: 'false'
           exit-code: '1'
           timeout: 10m
+      - name: Resolve the pinned llama.cpp image
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          import { parse } from 'yaml';
+          const image = parse(readFileSync('charts/videoq-inference/values.yaml', 'utf8')).llamacpp.image;
+          const reference = `${image.repository}@${image.digest}`;
+          if (!/^[a-z0-9./_-]+@sha256:[a-f0-9]{64}$/.test(reference)) throw new Error('An exact llama.cpp image digest is required');
+          appendFileSync(process.env.GITHUB_ENV, `LLAMACPP_IMAGE=${reference}\n`);
+          JS
+      - name: Scan the llama.cpp CPU image including unfixed vulnerabilities
+        if: ${{ !cancelled() && steps.images.outcome == 'success' }}
+        uses: aquasecurity/trivy-action@8f28faec26515256b6d22074d1d2a8986f4cbd87 # v0.35.0
+        with:
+          version: v0.76.1
+          scan-type: image
+          image-ref: ${{ env.LLAMACPP_IMAGE }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: 'false'
+          exit-code: '1'
+          timeout: 10m
       - name: Record package inventories for incident response
         if: ${{ !cancelled() && steps.images.outcome == 'success' }}
         run: |
@@ -149,6 +173,7 @@ jobs:
             trivy image --image-src docker --format cyclonedx --output "sbom/${component}.cdx.json" "videoq-${component}:onprem-ci"
           done
           trivy image --format cyclonedx --output sbom/ollama.cdx.json "$OLLAMA_IMAGE"
+          trivy image --format cyclonedx --output sbom/llamacpp.cdx.json "$LLAMACPP_IMAGE"
       - name: Retain the image inventories
         if: ${{ !cancelled() && steps.images.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

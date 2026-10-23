@@ -227,3 +227,8 @@ this. The API's `focus_clip` reads dense images only for the requested interval.
 Prepare existing videos with `python scripts/prepare_visual_frames.py --video-id 42`.
 See the [visual evidence guide](../../docs/guides/visual-evidence.md) for settings,
 storage usage, deletion, and accuracy comparisons.
+
+OpenAI-compatible embeddings can use `EMBEDDING_BASE_URL` and a separate
+`EMBEDDING_API_KEY`. Unset values retain the shared OpenAI base URL/key. Use the
+same model and embedding endpoint in the API and worker. Local llama.cpp/vLLM
+recipes and their common acceptance commands are in `charts/videoq-inference/README.md`.

@@ -1,7 +1,7 @@
 """Check local transcription + indexing embeddings without DB writes or uploads.
 
 Run against a short, nonsensitive video with WHISPER_BACKEND=local,
-WHISPER_LOCAL_URL, EMBEDDING_PROVIDER=ollama, EMBEDDING_MODEL and OLLAMA_BASE_URL.
+WHISPER_LOCAL_URL, EMBEDDING_PROVIDER, EMBEDDING_MODEL and an explicit embedding URL.
 """
 import argparse
 import json
@@ -24,9 +24,11 @@ def main():
         parser.error("Provide a local video and --seconds between 1 and 300")
     if os.environ.get("WHISPER_BACKEND") not in {"local", "whisper.cpp"}:
         parser.error("WHISPER_BACKEND must be local or whisper.cpp")
-    if os.environ.get("EMBEDDING_PROVIDER") != "ollama":
-        parser.error("EMBEDDING_PROVIDER must be ollama")
-    for key in ("WHISPER_LOCAL_URL", "OLLAMA_BASE_URL", "EMBEDDING_MODEL"):
+    provider = os.environ.get("EMBEDDING_PROVIDER")
+    if provider not in {"ollama", "openai"}:
+        parser.error("EMBEDDING_PROVIDER must be ollama or openai (the API protocol)")
+    endpoint = "OLLAMA_BASE_URL" if provider == "ollama" else "EMBEDDING_BASE_URL"
+    for key in ("WHISPER_LOCAL_URL", endpoint, "EMBEDDING_MODEL"):
         if not os.environ.get(key):
             parser.error(f"{key} is required; implicit provider defaults are not used")
     segments = transcribe_audio_interval(str(args.video.resolve()), 0, args.seconds)
@@ -35,7 +37,7 @@ def main():
     vectors = embed_texts([segment["text"] for segment in segments[:2]])
     print(json.dumps({
         "whisperBackend": "local", "segments": len(segments),
-        "embeddingProvider": "ollama", "embeddingModel": os.environ["EMBEDDING_MODEL"],
+        "embeddingProvider": provider, "embeddingModel": os.environ["EMBEDDING_MODEL"],
         "embeddingRows": len(vectors), "dimensions": len(vectors[0]),
     }))
 

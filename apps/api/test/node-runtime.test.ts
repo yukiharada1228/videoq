@@ -16,10 +16,10 @@ describe("Node runtime configuration and proxy boundary", () => {
   it("uses production auth protections and configurable local inference without CF resources", () => {
     const env = nodeBindings({ ...runtimeEnvironment, EMBEDDING_PROVIDER: "ollama",
       EMBEDDING_MODEL: "qwen3-embedding:4b", OLLAMA_BASE_URL: "http://ollama:11434",
-      OPENAI_BASE_URL: "http://llm:8000/v1", LLM_REASONING_EFFORT: "none" });
+      OPENAI_BASE_URL: "http://llm:8000/v1", EMBEDDING_BASE_URL: "http://embedding:8000/v1", EMBEDDING_API_KEY: "embedding-key", LLM_REASONING_EFFORT: "none" });
     expect(env).toMatchObject({ RUNTIME: "node", ENVIRONMENT: "production", USE_S3_STORAGE: "true",
       CORS_ALLOW_ORIGIN: runtimeEnvironment.BETTER_AUTH_URL, EMBEDDING_PROVIDER: "ollama",
-      OPENAI_BASE_URL: "http://llm:8000/v1", LLM_REASONING_EFFORT: "none" });
+      OPENAI_BASE_URL: "http://llm:8000/v1", EMBEDDING_BASE_URL: "http://embedding:8000/v1", EMBEDDING_API_KEY: "embedding-key", LLM_REASONING_EFFORT: "none" });
     expect(env.HYPERDRIVE).toBeUndefined();
     expect(env.VIDEO_BUCKET).toBeUndefined();
   });

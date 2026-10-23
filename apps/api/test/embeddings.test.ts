@@ -30,6 +30,17 @@ describe("embedding contract", () => {
 });
 
 describe("embedQuery", () => {
+  it("routes embeddings to their own endpoint and credential without changing chat settings", async () => {
+    const fetch = vi.fn(async () => Response.json({ data: [{ index: 0, embedding: embedding(1) }] }));
+    vi.stubGlobal("fetch", fetch);
+    const env = { ...baseEnv, OPENAI_BASE_URL: "http://chat.test/v1", EMBEDDING_BASE_URL: "http://embed.test/v1/", EMBEDDING_API_KEY: "embedding-key" };
+    await embedQuery(env, "private query");
+    expect(fetch).toHaveBeenCalledWith("http://embed.test/v1/embeddings", expect.objectContaining({
+      headers: expect.objectContaining({ authorization: "Bearer embedding-key" }),
+    }));
+    expect(env.OPENAI_BASE_URL).toBe("http://chat.test/v1");
+  });
+
   it.each(["openai", "ollama"].flatMap(provider => ["headers", "body"].map(stage => ({ provider, stage }))))
     ("stops $provider embedding requests during $stage when the caller aborts", async ({ provider, stage }) => {
     const controller = new AbortController();

@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
 import { HumanMessage } from "@langchain/core/messages";
 import { generateReply, streamReply } from "../src/lib/llm";
 import { embedQuery } from "../src/lib/embeddings";
@@ -16,15 +19,19 @@ vi.mock("../src/repositories/vector-repository", () => ({ openSceneSearch: vi.fn
 })) }));
 
 // Explicit opt-in. Unit CI never downloads models or calls hosted inference.
-const local = process.env.LOCAL_AI_TEST_URL;
+const local = process.env.LOCAL_AI_TEST_URL; // Legacy Ollama shortcut.
+const chatBase = process.env.LOCAL_AI_TEST_CHAT_BASE_URL || (local ? `${local}/v1` : undefined);
+const embeddingBase = process.env.LOCAL_AI_TEST_EMBEDDING_BASE_URL;
+const provider = process.env.LOCAL_AI_TEST_EMBEDDING_PROVIDER || (local ? "ollama" : "openai");
 const env = {
-  OPENAI_API_KEY: "local-inference", OPENAI_BASE_URL: `${local}/v1`,
-  LLM_MODEL: process.env.LOCAL_AI_TEST_MODEL || "qwen3:4b", LLM_REASONING_EFFORT: "none",
-  LLM_SEPARATE_TOOL_SCHEMA: "true",
-  EMBEDDING_PROVIDER: "ollama", EMBEDDING_MODEL: process.env.LOCAL_AI_TEST_EMBEDDING_MODEL || "qwen3-embedding:4b", OLLAMA_BASE_URL: local,
-  VIDEO_VISUAL_ENABLED: "false",
+  OPENAI_API_KEY: process.env.LOCAL_AI_TEST_API_KEY || "local-inference", OPENAI_BASE_URL: chatBase,
+  LLM_MODEL: process.env.LOCAL_AI_TEST_MODEL || (local ? "qwen3:4b" : "videoq-chat"), LLM_REASONING_EFFORT: "none",
+  LLM_SEPARATE_TOOL_SCHEMA: process.env.LOCAL_AI_TEST_SEPARATE_TOOL_SCHEMA || (local ? "true" : "false"),
+  EMBEDDING_PROVIDER: provider, EMBEDDING_BASE_URL: embeddingBase, EMBEDDING_API_KEY: process.env.LOCAL_AI_TEST_EMBEDDING_API_KEY, EMBEDDING_MODEL: process.env.LOCAL_AI_TEST_EMBEDDING_MODEL || (local ? "qwen3-embedding:4b" : "videoq-embedding"), OLLAMA_BASE_URL: local,
+  VIDEO_VISUAL_ENABLED: "false", LLM_REQUEST_TIMEOUT_MS: "600000", LLM_STREAM_TIMEOUT_MS: "600000",
 } as Bindings;
-const withModels = local ? describe : describe.skip;
+if (chatBase && provider === "openai" && !embeddingBase) throw new Error("Explicit LOCAL_AI_TEST_EMBEDDING_BASE_URL is required; hosted defaults are forbidden");
+const withModels = chatBase ? describe : describe.skip;
 
 withModels("real local inference compatibility", () => {
   const system = 'Source ID 1: Database backups are retained for seven days. Answer using only this source; cite numeric source ID 1 in sourceIds.';
@@ -54,6 +61,25 @@ withModels("real local inference compatibility", () => {
     expect(vector.every(Number.isFinite)).toBe(true);
     expect(vector.some(value => value !== 0)).toBe(true);
   }, 120_000);
+  it.skipIf(!process.env.LOCAL_AI_TEST_WORKER_PYTHON)("uses identical query and indexing embedding spaces across TypeScript and Python", async () => {
+    const text = "database backups are retained for seven days";
+    const query = await embedQuery(env, text);
+    const { stdout } = await promisify(execFile)(process.env.LOCAL_AI_TEST_WORKER_PYTHON!, ["-c",
+      "import json; from worker_python.pipeline.embeddings import embed_texts; print(json.dumps(embed_texts(['database backups are retained for seven days', 'unrelated cooking lesson'])))"], {
+      cwd: fileURLToPath(new URL("../../worker", import.meta.url)), timeout: 120_000, maxBuffer: 1024 * 1024,
+      env: { PATH: process.env.PATH, OPENAI_API_KEY: env.OPENAI_API_KEY,
+        OPENAI_BASE_URL: "http://chat-must-not-receive-embeddings.invalid/v1", EMBEDDING_BASE_URL: env.EMBEDDING_BASE_URL,
+        EMBEDDING_API_KEY: env.EMBEDDING_API_KEY, EMBEDDING_PROVIDER: env.EMBEDDING_PROVIDER,
+        EMBEDDING_MODEL: env.EMBEDDING_MODEL, OLLAMA_BASE_URL: env.OLLAMA_BASE_URL },
+    });
+    const batch = JSON.parse(stdout) as number[][];
+    expect(batch).toHaveLength(2);
+    expect(batch.every(vector => vector.length === 1536 && vector.every(Number.isFinite))).toBe(true);
+    const cosine = (a: number[], b: number[]) => a.reduce((sum, value, index) => sum + value * b[index], 0)
+      / Math.sqrt(a.reduce((sum, value) => sum + value ** 2, 0) * b.reduce((sum, value) => sum + value ** 2, 0));
+    expect(cosine(query, batch[0])).toBeGreaterThan(0.999);
+    expect(cosine(query, batch[0])).toBeGreaterThan(cosine(query, batch[1]));
+  }, 150_000);
   it("searches and emits timestamp citations through the production streaming RAG agent", async () => {
     let final;
     for await (const event of streamRag(env, { ownerUserId: "local-acceptance", videoIds: [42], locale: "en",
@@ -65,5 +91,5 @@ withModels("real local inference compatibility", () => {
     expect(final?.answer.segments.map(segment => segment.text).join(" ")).toMatch(/seven|7/i);
     expect(final?.answer.sources).toContainEqual(expect.objectContaining({ video_id: 42, start_time: "00:00:01,000" }));
     expect(final?.answer.segments.flatMap(segment => segment.sourceIds)).toContain(1);
-  }, 300_000);
+  }, 600_000);
 });

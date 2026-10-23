@@ -256,3 +256,11 @@ The existing daily container monitor covers production Lambda, not site clusters
 The initial Debian on-prem images have outstanding scanner findings; a passing
 functional test is not a clean vulnerability report. See the
 [security review](../../docs/verification/onprem-security-automation-2026-10-23.md).
+
+The local inference chart also provides llama.cpp CPU and vLLM NVIDIA recipes.
+Use the matching `examples/local-ai-llamacpp.yaml` or `examples/local-ai-vllm.yaml`.
+`ai.embeddingBaseUrl` maps to `EMBEDDING_BASE_URL` independently of the chat
+endpoint. `embeddingProvider: openai` denotes the compatible protocol for these
+private services. Optional `EMBEDDING_API_KEY` belongs in the runtime Secret;
+when absent it reuses `OPENAI_API_KEY`. Keep the API and worker embedding settings
+identical and reindex scenes when changing the embedding model or processing.

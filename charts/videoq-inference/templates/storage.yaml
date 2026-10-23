@@ -1,5 +1,8 @@
-{{- range $name := list "ollama" "whisper" }}
+{{- range $name := (concat (list "whisper") (ternary (list "ollama") (list "chat" "embedding") (eq $.Values.backend "ollama"))) }}
 {{- $component := index $.Values $name }}
+{{- if has $name (list "chat" "embedding") }}
+{{- $component = index $.Values.servers $name }}
+{{- end }}
 {{- if not $component.persistence.existingClaim }}
 ---
 apiVersion: v1

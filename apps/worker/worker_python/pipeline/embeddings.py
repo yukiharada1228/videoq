@@ -27,10 +27,10 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
 
 
 def _embed_openai_batch(texts: list[str], config: EmbeddingConfig) -> list[list[float]]:
-    api_key = env_str("OPENAI_API_KEY")
+    api_key = env_str("EMBEDDING_API_KEY") or env_str("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is required for OpenAI embeddings")
-    base = env_str("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+    base = (env_str("EMBEDDING_BASE_URL") or env_str("OPENAI_BASE_URL", "https://api.openai.com/v1")).rstrip("/")
     body: dict = {"model": config.model, "input": texts, "encoding_format": "float", "dimensions": EMBEDDING_DIMENSIONS}
 
     req = urllib.request.Request(

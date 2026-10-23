@@ -73,6 +73,16 @@ withHelm("on-prem Helm distribution", () => {
     expect(policy.spec.egress[0].to).toEqual([{ namespaceSelector: { matchLabels: { "kubernetes.io/metadata.name": "default" } } }]);
     expect(policy.spec.egress[1].ports.every((port: { port: number }) => port.port === 53)).toBe(true);
   });
+  it("routes compatible chat and embedding services independently", () => {
+    const resources = render("-f", `${chart}/examples/local-ai-llamacpp.yaml`);
+    const config = resources.find(resource => resource.kind === "ConfigMap").data;
+    expect(config.OPENAI_BASE_URL).toBe("http://videoq-inference-chat.videoq.svc.cluster.local:8000/v1");
+    expect(config.EMBEDDING_BASE_URL).toBe("http://videoq-inference-embedding.videoq.svc.cluster.local:8000/v1");
+    expect(config.EMBEDDING_PROVIDER).toBe("openai");
+    expect(config.LLM_SEPARATE_TOOL_SCHEMA).toBe("true");
+    expect(config.WHISPER_BACKEND).toBe("local");
+    expect(config.OLLAMA_BASE_URL).toBe("");
+  });
   it("pins every workload and hook to the reviewed image digests", () => {
     const digest = "sha256:" + "a".repeat(64);
     const resources = render("--set", "requireImageDigests=true",

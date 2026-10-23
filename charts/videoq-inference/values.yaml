@@ -1,3 +1,5 @@
+# Select ollama, llamacpp or vllm; application endpoints use a matching overlay.
+backend: ollama
 fullnameOverride: videoq-inference
 imagePullSecrets: []
 requireImageDigests: false
@@ -56,3 +58,50 @@ networkPolicy:
   clientRelease: videoq
   # Requires downloadModels=false and a CNI that enforces NetworkPolicy.
   denyEgress: false
+
+# OpenAI-compatible servers use separate chat / embedding Pods and caches.
+# Model provisioning reuses the site-built whisper.image (provision.py).
+llamacpp:
+  image:
+    repository: ghcr.io/ggml-org/llama.cpp
+    tag: server-b11669
+    digest: sha256:8ffe0d28ff5261cc2f78ca1f67db1515bc2529b904a3c25f5b24f4cedfc3411d
+    pullPolicy: IfNotPresent
+vllm:
+  image:
+    repository: vllm/vllm-openai
+    tag: v0.32.0
+    digest: sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34
+    pullPolicy: IfNotPresent
+servers:
+  chat:
+    servedModel: videoq-chat
+    modelRepo: Qwen/Qwen3-4B-GGUF
+    modelRevision: bc640142c66e1fdd12af0bd68f40445458f3869b
+    modelFile: Qwen3-4B-Q4_K_M.gguf
+    modelSha256: 7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5
+    contextLength: 8192
+    cpuThreads: 4
+    extraArgs: []
+    persistence: { existingClaim: "", storageClass: "", size: 10Gi }
+    resources:
+      requests: { cpu: "2", memory: 4Gi }
+      limits: { cpu: "4", memory: 8Gi }
+    nodeSelector: {}
+    tolerations: []
+  embedding:
+    # Native 1536 dimensions. llama.cpp does not implement dimensions reduction.
+    servedModel: gte-qwen2-1.5b-q4km-124fbdad
+    modelRepo: second-state/gte-Qwen2-1.5B-instruct-GGUF
+    modelRevision: 124fbdad7d80e987f3a4d8cd201f721ca37fe9b8
+    modelFile: gte-Qwen2-1.5B-instruct-Q4_K_M.gguf
+    modelSha256: a40df5cabb8c70f2fa144bc6a8674c2c987bfe3b4571134c767832aae1d246b9
+    contextLength: 8192
+    cpuThreads: 2
+    extraArgs: []
+    persistence: { existingClaim: "", storageClass: "", size: 5Gi }
+    resources:
+      requests: { cpu: "1", memory: 2Gi }
+      limits: { cpu: "2", memory: 4Gi }
+    nodeSelector: {}
+    tolerations: []

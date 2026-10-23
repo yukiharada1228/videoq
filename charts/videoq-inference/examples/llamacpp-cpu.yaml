@@ -1,0 +1,2 @@
+# CPU recipe. Chat and embeddings have separate local model caches.
+backend: llamacpp

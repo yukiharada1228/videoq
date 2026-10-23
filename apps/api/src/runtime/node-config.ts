@@ -75,6 +75,7 @@ export function nodeBindings(source: Environment): Bindings {
     LLM_SEPARATE_TOOL_SCHEMA: source.LLM_SEPARATE_TOOL_SCHEMA || "false",
     LLM_REQUEST_TIMEOUT_MS: String(integerSetting(source, "LLM_REQUEST_TIMEOUT_MS", 120_000, 1000, 900_000)),
     LLM_STREAM_TIMEOUT_MS: String(integerSetting(source, "LLM_STREAM_TIMEOUT_MS", 300_000, 1000, 900_000)),
+    EMBEDDING_BASE_URL: source.EMBEDDING_BASE_URL, EMBEDDING_API_KEY: source.EMBEDDING_API_KEY,
     EMBEDDING_PROVIDER: source.EMBEDDING_PROVIDER || "openai",
     EMBEDDING_MODEL: source.EMBEDDING_MODEL || "",
     OLLAMA_BASE_URL: source.OLLAMA_BASE_URL || "",

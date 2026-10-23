@@ -1,3 +1,4 @@
+{{- if eq .Values.backend "ollama" }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -99,3 +100,5 @@ spec:
   type: ClusterIP
   selector: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: ollama }
   ports: [{ name: http, port: 11434, targetPort: http }]
+
+{{- end }}

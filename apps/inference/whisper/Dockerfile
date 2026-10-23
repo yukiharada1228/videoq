@@ -41,7 +41,7 @@ COPY --from=dependencies /extra/status.d/ /var/lib/dpkg/status.d/
 COPY --from=dependencies /extra/licenses/ /usr/share/doc/videoq-native/
 COPY --from=dependencies /app/.venv /app/.venv
 WORKDIR /app
-COPY server.py ./
+COPY server.py provision.py ./
 USER 10001:10001
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
     HOME=/tmp NVIDIA_DRIVER_CAPABILITIES=compute,utility \

@@ -60,6 +60,8 @@ def response(monkeypatch, payload):
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
     monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+    monkeypatch.delenv("EMBEDDING_BASE_URL", raising=False)
+    monkeypatch.delenv("EMBEDDING_API_KEY", raising=False)
     return urlopen
 
 
@@ -174,3 +176,15 @@ def test_provider_request_rejection_propagates_through_scene(monkeypatch, caplog
         assert responses[-1].closed
     assert body not in caplog.text
     assert http.call_count == len(operations)  # No retries without dimensions.
+
+
+def test_separate_embedding_endpoint_and_credential(monkeypatch):
+    monkeypatch.setenv("EMBEDDING_PROVIDER", "openai")
+    http = response(monkeypatch, {"data": [{"index": 0, "embedding": VECTOR}]})
+    monkeypatch.setenv("OPENAI_BASE_URL", "http://chat.test/v1")
+    monkeypatch.setenv("EMBEDDING_BASE_URL", "http://embed.test/v1/")
+    monkeypatch.setenv("EMBEDDING_API_KEY", "embedding-key")
+    assert embeddings.embed_texts(["private text"]) == [VECTOR]
+    request = http.call_args.args[0]
+    assert request.full_url == "http://embed.test/v1/embeddings"
+    assert request.get_header("Authorization") == "Bearer embedding-key"

@@ -11,21 +11,27 @@ uploaded video, audio and AI requests use private services during processing.
 The application's default Helm values still select hosted OpenAI. Applying
 the local overlay explicitly switches all three AI functions.
 
-| Function | Local service | CPU acceptance model |
+| Recipe | LLM / embedding runtime | Application overlay |
 |---|---|---|
-| Chat and tools | Ollama, OpenAI-compatible Chat Completions | qwen3:4b |
-| Query and indexing embeddings | Ollama /api/embed, 1536 dimensions | qwen3-embedding:4b |
-| Uploaded-audio transcription | Private faster-whisper API | Whisper base |
+| CPU | llama.cpp, separate chat / embedding APIs | `local-ai-llamacpp.yaml` |
+| NVIDIA GPU | vLLM, separate chat / embedding APIs | `local-ai-vllm.yaml` |
+| Existing CPU baseline | Ollama | `local-ai.yaml` |
+
+Whisper uses the independent private faster-whisper service in every recipe.
+The application uses the OpenAI-compatible protocol with private endpoints;
+`EMBEDDING_BASE_URL` separates query/indexing embeddings from `OPENAI_BASE_URL`
+for chat. Optional `EMBEDDING_API_KEY` selects a separate credential.
 
 Use the [inference chart's installation guide](https://github.com/yukiharada1228/videoq/blob/main/charts/videoq-inference/README.md).
 It covers building the private Whisper image, CPU/GPU Helm settings, persistent
 weights, disabling runtime downloads, egress restrictions and real-model checks.
-The app overlay is `charts/videoq/examples/local-ai.yaml`.
+Select the matching overlay from `charts/videoq/examples/`; retain it on upgrades.
 
 The CPU baseline disables visual inspection because its chat model accepts text
 only. Local visual inspection requires a validated vision model with tool calls
-and strict JSON Schema support. The NVIDIA profile requests two GPUs unless
-the site customizes one service to stay on CPU. Hardware sizing and Japanese
+and strict JSON Schema support. The vLLM profile requests one GPU for chat and one for embeddings, with Whisper
+on CPU. The existing Ollama NVIDIA profile assigns GPUs to Ollama and Whisper.
+vLLM GPU execution remains subject to actual hardware acceptance. Hardware sizing and Japanese
 recognition/answer quality require acceptance on the actual site.
 
 The local Whisper image is site-built and is not currently included in the
@@ -36,7 +42,10 @@ Secret values from the [application installation](on-premises.md).
 Before accepting the site, test a real upload through transcription, indexing,
 cited streaming Q&A and timestamp playback with public egress blocked. A CNI
 that enforces NetworkPolicy is required for the provided network restrictions.
-Changing the embedding model requires rebuilding existing scene embeddings.
+Changing embedding weights, quantization, pooling or preprocessing requires
+rebuilding existing scene embeddings, even when both models output 1536 dimensions.
+The llama.cpp CPU recipe uses native 1536-dimensional gte-Qwen2 embeddings;
+vLLM uses Qwen3-Embedding-4B with Matryoshka output set to 1536 dimensions.
 Optional email, Google OAuth, Stripe and YouTube/SearchAPI remain separate
 external integrations; this local recipe covers uploaded videos and local
 email/password sign-in.

@@ -1,7 +1,7 @@
 # Local inference for VideoQ
 
-This optional chart installs private Ollama (chat and embeddings) and
-faster-whisper services. Install it separately from the application chart so
+This optional chart installs selectable private LLM / embedding servers and
+faster-whisper services. Ollama remains the default for existing installations. Install it separately from the application chart so
 model caches, GPU scheduling and application upgrades have separate lifecycles.
 The application chart's default still uses hosted OpenAI; explicitly apply its
 `examples/local-ai.yaml` overlay to select these services.
@@ -17,8 +17,9 @@ flowchart LR
       Queue[SQS-compatible queue] --> Worker[VideoQ worker]
       Worker --> Store
       Worker --> Whisper[Local faster-whisper]
-      Worker --> Ollama[Local Ollama]
-      Web --> Ollama
+      Worker --> Embedding[Local embedding API]
+      Web --> Embedding
+      Web --> LLM[Local chat API]
     end
 ```
 
@@ -36,6 +37,90 @@ as described in the application chart. No Cloudflare, Modal or OpenAI account
 is required for this local configuration. Initial image/model downloads use the
 internet. During processing, video, audio, prompts and embeddings stay on the
 configured site services.
+
+## Choose an inference engine
+
+| Recipe | Inference values | Application values | Model placement |
+|---|---|---|---|
+| Existing Ollama CPU recipe | defaults | `charts/videoq/examples/local-ai.yaml` | One Ollama Pod for both models; Whisper CPU |
+| llama.cpp CPU | `examples/llamacpp-cpu.yaml` | `charts/videoq/examples/local-ai-llamacpp.yaml` | Separate CPU chat and embedding Pods; Whisper CPU |
+| vLLM NVIDIA | `examples/vllm-nvidia.yaml` | `charts/videoq/examples/local-ai-vllm.yaml` | Two GPUs, one for each model; Whisper CPU |
+
+The application connects to OpenAI-compatible Chat Completions and embeddings.
+`EMBEDDING_PROVIDER=openai` identifies the protocol, including private llama.cpp
+and vLLM servers; it does not select a hosted endpoint when `EMBEDDING_BASE_URL`
+is set. `ai.embeddingBaseUrl` / `EMBEDDING_BASE_URL` is independent of
+`ai.openaiBaseUrl` / `OPENAI_BASE_URL`. Empty embedding URL preserves the existing
+fallback to the chat base URL. Optional `EMBEDDING_API_KEY` in the runtime Secret
+selects a separate embedding credential; otherwise `OPENAI_API_KEY` is reused.
+For the private unauthenticated recipes, use `local-inference` placeholders.
+Authentication for existing protected inference services is configured by the
+site; these recipe services rely on private ClusterIP and NetworkPolicy.
+
+The same app configuration can point to separately operated compatible servers,
+including different chat and embedding runtimes. This chart's `backend` selects
+one runtime for both model Pods. Model templates, tool parsers and JSON Schema
+behavior must pass the common acceptance suite; API compatibility alone does not
+establish VideoQ compatibility. Ollama's `separateToolSchema` workaround is opt-in;
+the tested Qwen3/llama.cpp recipe also requires it. The vLLM recipe starts with
+native tools plus schema enforcement and requires GPU acceptance.
+
+The llama.cpp recipe uses pinned Qwen3-4B Q4_K_M chat weights and a pinned
+`second-state/gte-Qwen2-1.5B-instruct-GGUF` Q4_K_M embedding conversion. Review the
+conversion publisher and SHA256 before site acceptance. That embedding model
+natively returns 1536 dimensions. The pinned llama.cpp server does not reduce
+Qwen3-Embedding-4B's 2560 dimensions through the request's `dimensions` field;
+VideoQ rejects that mismatch, without truncation or padding. vLLM uses Qwen3-4B
+and Qwen3-Embedding-4B safetensors, explicitly permitting the latter's trained
+Matryoshka output at 1536 dimensions. See [llama.cpp server](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md)
+and [vLLM embedding configuration](https://docs.vllm.ai/en/latest/models/pooling_models/embed/#matryoshka-embeddings).
+
+**Rebuild all scene embeddings before searching when changing embedding weights,
+quantization, pooling or preprocessing**, even if both configurations return
+1536 dimensions. Each profile uses a distinct embedding model alias. API and
+worker must receive the same alias and endpoint. When replacing weights, change
+both `servers.embedding.servedModel` and `ai.embeddingModel` rather than reusing
+an old alias. The existing database does not automatically migrate vector spaces.
+
+## Install llama.cpp or vLLM
+
+First build the Whisper image as below, including the new `provision.py` helper,
+and record its private registry digest in `/secure/inference-site.yaml`. Chat and
+embedding init containers reuse that image's locked Hugging Face downloader.
+GGUF downloads use exact revisions and SHA256; safetensors snapshots use exact
+revisions and exclude pickle weights and Python code. Serving Pods mount weights
+read-only and run offline. Cached complete models skip network downloads.
+
+Choose one inference/application pair from the table, for example:
+
+```sh
+helm upgrade --install inference charts/videoq-inference --namespace videoq --create-namespace \
+  -f charts/videoq-inference/examples/llamacpp-cpu.yaml \
+  -f /secure/inference-site.yaml --wait --timeout 30m
+helm upgrade --install videoq charts/videoq --namespace videoq \
+  -f /secure/site.yaml -f /secure/verified-images.json \
+  -f charts/videoq/examples/local-ai-llamacpp.yaml --wait --timeout 15m
+```
+
+For vLLM replace both profile filenames with `vllm-nvidia.yaml` and
+`local-ai-vllm.yaml`. Install the NVIDIA device plugin and review GPU VRAM first.
+The profile reserves **two allocatable GPUs** without sharing; Whisper stays on
+CPU. Resource limits are starting values, not measured production sizing.
+vLLM GPU inference and driver compatibility require actual site acceptance;
+the CPU llama.cpp test does not validate them. Before deploying vLLM, scan the
+pinned image on the target architecture, including unfixed HIGH/CRITICAL findings:
+
+```sh
+trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed=false --exit-code 1 \
+  vllm/vllm-openai@sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34
+```
+
+These profiles serve `videoq-inference-chat:8000`,
+`videoq-inference-embedding:8000` and `videoq-inference-whisper:8080`.
+Use `downloadModels=false` and `networkPolicy.denyEgress=true` after provisioning,
+retaining the selected engine profile on every Helm upgrade. Changing `backend`
+replaces Deployments; it does not convert PVC contents. Back up old caches and
+adopt existing compatible claims explicitly. Existing Ollama claims are retained.
 
 ## Build and install on CPU
 
@@ -200,3 +285,33 @@ requires rebuilding existing scene embeddings before searching those videos.
 
 Uninstall this release separately from the application. PVCs have a `keep`
 policy: adopt retained claims through `persistence.existingClaim` on reinstall.
+
+### Common llama.cpp / vLLM acceptance
+
+Port-forward chat to 11436, embeddings to 11437 and Whisper to 18085. Set the
+embedding alias for the chosen recipe (`qwen3-embedding-4b-5cf2132a` for vLLM).
+For vLLM start with `LOCAL_AI_TEST_SEPARATE_TOOL_SCHEMA=false`, matching its app profile:
+
+```sh
+LOCAL_AI_TEST_CHAT_BASE_URL=http://127.0.0.1:11436/v1 \
+LOCAL_AI_TEST_EMBEDDING_BASE_URL=http://127.0.0.1:11437/v1 \
+LOCAL_AI_TEST_MODEL=videoq-chat \
+LOCAL_AI_TEST_SEPARATE_TOOL_SCHEMA=true \
+LOCAL_AI_TEST_EMBEDDING_MODEL=gte-qwen2-1.5b-q4km-124fbdad \
+LOCAL_AI_TEST_WORKER_PYTHON="$PWD/apps/worker/.venv/bin/python" \
+  npm run test:unit --workspace @videoq/api -- test/local-inference.integration.test.ts
+WHISPER_BACKEND=local WHISPER_LOCAL_URL=http://127.0.0.1:18085/v1 \
+EMBEDDING_PROVIDER=openai EMBEDDING_BASE_URL=http://127.0.0.1:11437/v1 \
+EMBEDDING_MODEL=gte-qwen2-1.5b-q4km-124fbdad EMBEDDING_API_KEY=local-inference \
+  uv run --project apps/worker --locked python \
+  apps/worker/scripts/check_local_inference.py /secure/test.mp4 --seconds 30
+```
+
+The same suite checks native structured answers, tools, streaming, cited RAG and
+1536-dimensional embeddings. With `LOCAL_AI_TEST_WORKER_PYTHON` it also compares
+TypeScript query embeddings to a real Python indexing batch. The RAG test uses
+fixed retrieval evidence, not a live database or browser. Optional protected
+services use `LOCAL_AI_TEST_API_KEY` / `LOCAL_AI_TEST_EMBEDDING_API_KEY`.
+`LOCAL_AI_TEST_SEPARATE_TOOL_SCHEMA=true` is available when a particular
+model/server needs the two-call workaround; record that choice in app values.
+Finish with the real upload-to-playback site check described above.

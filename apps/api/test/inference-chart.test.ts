@@ -52,6 +52,35 @@ withHelm("private local inference deployment", () => {
       expect(deployment.spec.template.spec.nodeSelector["kubernetes.io/arch"]).toBe("amd64");
     }
   });
+  it.each(["llamacpp-cpu", "vllm-nvidia"])("provisions independent private model services for %s", (profile) => {
+    const resources = render("-f", `${chart}/examples/${profile}.yaml`);
+    expect(resources.filter(r => r.kind === "Service").map(r => r.metadata.name).sort()).toEqual([
+      "videoq-inference-chat", "videoq-inference-embedding", "videoq-inference-whisper",
+    ]);
+    expect(resources.filter(r => r.kind === "PersistentVolumeClaim")).toHaveLength(3);
+    for (const resource of resources.filter(r => r.kind === "Deployment" && !r.metadata.name.endsWith("-whisper"))) {
+      const pod = resource.spec.template.spec;
+      const server = pod.containers[0];
+      expect(pod.automountServiceAccountToken).toBe(false);
+      expect(pod.securityContext.runAsNonRoot).toBe(true);
+      expect(pod.initContainers[0].command).toEqual(["python", "provision.py"]);
+      expect(server.volumeMounts[0].readOnly).toBe(true);
+      expect(server.env).toContainEqual({ name: "HF_HUB_OFFLINE", value: "1" });
+      expect(server.args.some((arg: string) => arg.startsWith("/models/"))).toBe(true);
+      expect(server.args).not.toContain("--trust-remote-code");
+      expect(server.resources.limits["nvidia.com/gpu"]).toBe(profile === "vllm-nvidia" ? 1 : undefined);
+      if (profile === "llamacpp-cpu") expect(server.args).toContain("--offline");
+      else expect(pod.volumes).toContainEqual({ name: "shm", emptyDir: { medium: "Memory", sizeLimit: "2Gi" } });
+    }
+    const offline = render("-f", `${chart}/examples/${profile}.yaml`, "--set", "downloadModels=false", "--set", "networkPolicy.denyEgress=true");
+    expect(offline.filter(r => r.kind === "Deployment").every(r => !r.spec.template.spec.initContainers)).toBe(true);
+    expect(offline.find(r => r.kind === "NetworkPolicy").spec.egress).toEqual([]);
+  });
+  it("rejects invalid engines, mutable model revisions, and incompatible weight formats", () => {
+    for (const setting of ["backend=unknown", "backend=vllm", "servers.chat.modelRevision=main", "servers.chat.modelFile=../model.gguf", "backend=llamacpp,servers.chat.modelSha256="]) {
+      expect(command("--set", setting).status).not.toBe(0);
+    }
+  });
   it("rejects mutable Whisper revisions, cloud model names and unpinned production images", () => {
     for (const setting of ["whisper.modelRevision=main", "whisper.device=auto", "ollama.chatModel=gemma4:cloud", "requireImageDigests=true"]) {
       expect(command("--set", setting).status).not.toBe(0);

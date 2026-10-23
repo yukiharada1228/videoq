@@ -209,6 +209,220 @@
           }
         }
       ]
+    },
+    "backend": {
+      "enum": [
+        "ollama",
+        "llamacpp",
+        "vllm"
+      ]
+    },
+    "llamacpp": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "object",
+          "required": [
+            "repository",
+            "tag",
+            "pullPolicy"
+          ],
+          "properties": {
+            "repository": {
+              "type": "string",
+              "minLength": 1
+            },
+            "tag": {
+              "type": "string",
+              "minLength": 1
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^(sha256:[a-f0-9]{64})?$"
+            },
+            "pullPolicy": {
+              "enum": [
+                "IfNotPresent",
+                "Always",
+                "Never"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "vllm": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "object",
+          "required": [
+            "repository",
+            "tag",
+            "pullPolicy"
+          ],
+          "properties": {
+            "repository": {
+              "type": "string",
+              "minLength": 1
+            },
+            "tag": {
+              "type": "string",
+              "minLength": 1
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^(sha256:[a-f0-9]{64})?$"
+            },
+            "pullPolicy": {
+              "enum": [
+                "IfNotPresent",
+                "Always",
+                "Never"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "servers": {
+      "type": "object",
+      "properties": {
+        "chat": {
+          "type": "object",
+          "required": [
+            "servedModel",
+            "modelRepo",
+            "modelRevision",
+            "contextLength",
+            "resources",
+            "persistence",
+            "cpuThreads"
+          ],
+          "properties": {
+            "servedModel": {
+              "type": "string",
+              "minLength": 1
+            },
+            "modelRepo": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+            },
+            "modelRevision": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40}$"
+            },
+            "modelFile": {
+              "type": "string",
+              "pattern": "^([A-Za-z0-9_.-]+\\.gguf)?$"
+            },
+            "modelSha256": {
+              "type": "string",
+              "pattern": "^([a-f0-9]{64})?$"
+            },
+            "contextLength": {
+              "type": "integer",
+              "minimum": 4096
+            },
+            "extraArgs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "resources": {
+              "type": "object"
+            },
+            "persistence": {
+              "type": "object",
+              "properties": {
+                "size": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "existingClaim": {
+                  "type": "string"
+                },
+                "storageClass": {
+                  "type": "string"
+                }
+              }
+            },
+            "cpuThreads": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 128
+            }
+          }
+        },
+        "embedding": {
+          "type": "object",
+          "required": [
+            "servedModel",
+            "modelRepo",
+            "modelRevision",
+            "contextLength",
+            "resources",
+            "persistence",
+            "cpuThreads"
+          ],
+          "properties": {
+            "servedModel": {
+              "type": "string",
+              "minLength": 1
+            },
+            "modelRepo": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+            },
+            "modelRevision": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40}$"
+            },
+            "modelFile": {
+              "type": "string",
+              "pattern": "^([A-Za-z0-9_.-]+\\.gguf)?$"
+            },
+            "modelSha256": {
+              "type": "string",
+              "pattern": "^([a-f0-9]{64})?$"
+            },
+            "contextLength": {
+              "type": "integer",
+              "minimum": 4096
+            },
+            "extraArgs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "resources": {
+              "type": "object"
+            },
+            "persistence": {
+              "type": "object",
+              "properties": {
+                "size": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "existingClaim": {
+                  "type": "string"
+                },
+                "storageClass": {
+                  "type": "string"
+                }
+              }
+            },
+            "cpuThreads": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 128
+            }
+          }
+        }
+      }
     }
   }
 }

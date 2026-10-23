@@ -21,11 +21,13 @@ export type EmbeddingEnv = {
   EMBEDDING_MODEL?: string;
   OPENAI_API_KEY?: string;
   OPENAI_BASE_URL?: string;
+  EMBEDDING_BASE_URL?: string;
+  EMBEDDING_API_KEY?: string;
   OLLAMA_BASE_URL?: string;
 };
 
 async function embedWithOpenAi(env: EmbeddingEnv, text: string, config: EmbeddingConfig, signal?: AbortSignal, costLedger?: AnswerCostLedger): Promise<number[]> {
-  const apiKey = resolveOpenAiKey(env, "OpenAI embeddings");
+  const apiKey = resolveOpenAiKey({ OPENAI_API_KEY: env.EMBEDDING_API_KEY || env.OPENAI_API_KEY }, "OpenAI-compatible embeddings");
   const call = costLedger?.begin("query_embedding", config.model);
   try {
     const body: Record<string, unknown> = {
@@ -37,7 +39,7 @@ async function embedWithOpenAi(env: EmbeddingEnv, text: string, config: Embeddin
 
     let res: Response;
     try {
-      res = await fetch(`${openAiBaseUrl(env)}/embeddings`, {
+      res = await fetch(`${openAiBaseUrl({ OPENAI_BASE_URL: env.EMBEDDING_BASE_URL || env.OPENAI_BASE_URL })}/embeddings`, {
         method: "POST",
         headers: {
           "content-type": "application/json",

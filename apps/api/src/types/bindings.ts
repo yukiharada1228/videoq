@@ -40,6 +40,8 @@ export type Bindings = Omit<RuntimeStrings, keyof SecretBindings> & PlatformReso
     RATE_LIMIT_BACKEND?: RateLimitBackend;
     // 互換用の任意設定。
     OPENAI_BASE_URL?: string;
+    EMBEDDING_BASE_URL?: string;
+    EMBEDDING_API_KEY?: string;
     LLM_REASONING_EFFORT?: "none" | "minimal" | "low" | "medium" | "high";
     LLM_SEPARATE_TOOL_SCHEMA?: string;
     LLM_REQUEST_TIMEOUT_MS?: string;
