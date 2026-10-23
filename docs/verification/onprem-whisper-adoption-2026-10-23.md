@@ -86,7 +86,8 @@ plans before changing the application interval profile.
 Reproduction uses the current image recipes and pinned chart models, the
 opt-in `apps/inference/whisper/tests/test_real_container.py` smoke test, and
 `apps/worker/scripts/whisper_runtime_validation.py` with the fixture manifest.
-The portable verifier supports admission-matched concurrency (CPU 1, NVIDIA 2)
-and `--run-worker-intervals`; set `WHISPER_CHUNK_SECONDS=30` for CPU. Raw local
+The portable verifier supports admission-matched `--concurrency` (CPU 1, NVIDIA
+2) and automatically exercises production-worker intervals when the fixture
+manifest includes `long_case`; set `WHISPER_CHUNK_SECONDS=30` for CPU. Raw local
 artifacts are in `/tmp/videoq-whisper-runtime-implementation` and are not needed
 by the serving image.
