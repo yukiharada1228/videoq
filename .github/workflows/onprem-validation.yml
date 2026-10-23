@@ -119,6 +119,28 @@ jobs:
           ignore-unfixed: 'false'
           exit-code: '1'
           timeout: 10m
+      - name: Resolve the pinned local Ollama image
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          import { parse } from 'yaml';
+          const image = parse(readFileSync('charts/videoq-inference/values.yaml', 'utf8')).ollama.image;
+          const reference = `${image.repository}@${image.digest}`;
+          if (!/^[a-z0-9./_-]+@sha256:[a-f0-9]{64}$/.test(reference)) throw new Error('An exact Ollama image digest is required');
+          appendFileSync(process.env.GITHUB_ENV, `OLLAMA_IMAGE=${reference}\n`);
+          JS
+      - name: Scan the local Ollama image including unfixed vulnerabilities
+        if: ${{ !cancelled() && steps.images.outcome == 'success' }}
+        uses: aquasecurity/trivy-action@8f28faec26515256b6d22074d1d2a8986f4cbd87 # v0.35.0
+        with:
+          version: v0.76.1
+          scan-type: image
+          image-ref: ${{ env.OLLAMA_IMAGE }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: 'false'
+          exit-code: '1'
+          timeout: 10m
       - name: Record package inventories for incident response
         if: ${{ !cancelled() && steps.images.outcome == 'success' }}
         run: |
@@ -126,6 +148,7 @@ jobs:
           for component in api worker web local-whisper; do
             trivy image --image-src docker --format cyclonedx --output "sbom/${component}.cdx.json" "videoq-${component}:onprem-ci"
           done
+          trivy image --format cyclonedx --output sbom/ollama.cdx.json "$OLLAMA_IMAGE"
       - name: Retain the image inventories
         if: ${{ !cancelled() && steps.images.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
