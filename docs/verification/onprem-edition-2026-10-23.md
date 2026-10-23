@@ -68,8 +68,10 @@ The production web Docker build runs this verifier automatically.
 - PostgreSQL-enabled API suite: 1681 passed, 53 independently gated tests skipped.
   The account/course acceptance creates and migrates an isolated database so it
   also runs with the other API suites, which use intentionally partial schemas.
-- Web unit suite: 1294 passed, including the on-prem login-remount regression.
-  Web lint and typecheck passed.
+- Web unit suite: 1298 passed, including login-remount, link copy/dismiss,
+  course-invitation reissue and private metadata regressions. Web lint and
+  typecheck passed. Whole-web line coverage: 93.91%; all 49 changed instrumented
+  statement lines were covered locally.
 - Worker transcription tests: 16 passed, including rejecting YouTube before the
   external provider. Workflow policy tests: 168 passed.
 - English/Japanese documentation production builds and public-content checks passed.
