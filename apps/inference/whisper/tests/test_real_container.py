@@ -6,7 +6,6 @@ import math
 import os
 from pathlib import Path
 import subprocess
-import tempfile
 from uuid import uuid4
 
 import pytest
@@ -26,7 +25,7 @@ def test_cpu_image_transcribes_public_speech_and_silence_offline(record_property
             raise AssertionError(f"Docker {args[0]} failed: {error.output[-6000:]}") from error
 
     name = "videoq-whisper-test-" + uuid4().hex
-    started = network_created = False
+    started = network_created = volume_created = False
     fixtures = Path(__file__).with_name("fixtures")
     case = json.loads((fixtures / "fleurs-ja-00.json").read_text())
     audio = (fixtures / case["file"]).read_bytes()
@@ -34,31 +33,33 @@ def test_cpu_image_transcribes_public_speech_and_silence_offline(record_property
     spec = importlib.util.spec_from_file_location("whisper_metrics", Path(__file__).parents[3] / "worker/scripts/whisper_runtime_validation.py")
     metrics = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(metrics)
-    with tempfile.TemporaryDirectory(prefix="videoq-whisper-weights-") as directory:
-        # Linux enforces the host UID, unlike Docker Desktop file sharing.
-        # Grant only the host cache group to the serving UID, without world access.
-        os.chmod(directory, 0o750)
-        mount = f"type=bind,src={directory},dst=/models"
-        try:
-            # Provision first; no model downloads are permitted in the serving network.
-            docker("run", "--rm", "--user", f"{os.getuid()}:{os.getgid()}", "--entrypoint", "python",
-                   "--mount", mount, "-e", "HF_HUB_OFFLINE=0", "-e", "MODEL_REPO=ggerganov/whisper.cpp",
-                   "-e", "MODEL_REVISION=" + REVISION, "-e", "MODEL_FILE=" + MODEL,
-                   "-e", "MODEL_SHA256=" + DIGEST, IMAGE, "provision.py", timeout=600)
-            docker("network", "create", "--internal", name)
-            network_created = True
-            (Path(directory) / "speech.mp3").write_bytes(audio)
-            docker("run", "--detach", "--name", name, "--network", name, "--cpus", "2", "--memory", "4g",
-                   "--group-add", str(os.getgid()),
-                   "--mount", mount + ",readonly", IMAGE)
-            started = True
-            engine_args = ["whisper-server", "--model", f"/models/{REVISION}/{MODEL}",
-                           "--host", "127.0.0.1", "--port", "8081", "--inference-path", "/v1/audio/transcriptions",
-                           "--language", "auto", "--threads", "2", "--beam-size", "5", "--no-gpu"]
-            launch = "import os; f=open('/tmp/whisper-engine.log','wb'); os.dup2(f.fileno(),1); os.dup2(f.fileno(),2); os.execvp('whisper-server'," + repr(engine_args) + ")"
-            docker("exec", "--detach", name, "python", "-c", launch)
-            # Client stays in the same isolated network namespace. No host ports.
-            probe = r'''import httpx, io, json, socket, time, wave
+    mount = f"type=volume,src={name},dst=/models"
+    try:
+        docker("volume", "create", name)
+        volume_created = True
+        docker("run", "--rm", "--user", "0:0", "--entrypoint", "python", "--mount", mount, IMAGE,
+               "-c", "import os; os.chown('/models',10001,10001); os.chmod('/models',0o700)")
+        # Provision and serve with the same UID; the cache is owner-only.
+        # No model downloads are permitted in the serving network.
+        docker("run", "--rm", "--entrypoint", "python",
+               "--mount", mount, "-e", "HF_HUB_OFFLINE=0", "-e", "MODEL_REPO=ggerganov/whisper.cpp",
+               "-e", "MODEL_REVISION=" + REVISION, "-e", "MODEL_FILE=" + MODEL,
+               "-e", "MODEL_SHA256=" + DIGEST, IMAGE, "provision.py", timeout=600)
+        docker("network", "create", "--internal", name)
+        network_created = True
+        docker("run", "--detach", "--name", name, "--network", name, "--cpus", "2", "--memory", "4g",
+               "--mount", mount + ",readonly", IMAGE)
+        started = True
+        docker("cp", str(fixtures / case["file"]), f"{name}:/tmp/public-speech.mp3")
+        engine_args = ["whisper-server", "--model", f"/models/{REVISION}/{MODEL}",
+                       "--host", "127.0.0.1", "--port", "8081", "--inference-path", "/v1/audio/transcriptions",
+                       "--language", "auto", "--threads", "2", "--beam-size", "5", "--no-gpu"]
+        launch = "import os; f=open('/tmp/whisper-engine.log','wb'); os.dup2(f.fileno(),1); os.dup2(f.fileno(),2); os.execvp('whisper-server'," + repr(engine_args) + ")"
+        docker("exec", "--detach", name, "python", "-c", launch)
+        # Client stays in the same isolated network namespace. No host ports.
+        probe = r'''import httpx, io, json, os, socket, time, wave
+assert os.geteuid() == 10001
+assert os.stat("/models").st_mode & 0o077 == 0
 base = "http://127.0.0.1:8080"
 with httpx.Client(timeout=2, trust_env=False) as client:
     deadline = time.monotonic() + 90
@@ -77,7 +78,7 @@ else: raise RuntimeError("External serving egress was allowed")
 data = {"model":"whisper-local", "response_format":"verbose_json", "timestamp_granularities[]":"segment"}
 with httpx.Client(timeout=120, trust_env=False) as client:
     started = time.monotonic()
-    with open("/models/speech.mp3", "rb") as audio:
+    with open("/tmp/public-speech.mp3", "rb") as audio:
         speech = client.post(base + "/v1/audio/transcriptions", data=data, files={"file":("speech.mp3", audio)})
     speech.raise_for_status()
     elapsed = time.monotonic() - started
@@ -89,17 +90,19 @@ with httpx.Client(timeout=120, trust_env=False) as client:
     empty.raise_for_status()
 print(json.dumps({"speech":speech.json(), "silence":empty.json(), "elapsed_seconds":elapsed}))
 '''
-            observed = json.loads(docker("exec", name, "python", "-c", probe, timeout=240))
-            result = observed["speech"]
-            assessment = metrics.assess_response(result, case)
-            record_property("japanese_clip_cer", assessment["cer"])
-            record_property("speech_elapsed_seconds", observed["elapsed_seconds"])
-            assert not assessment["errors"] and assessment["cer"] < .5
-            assert result["segments"]
-            assert all(math.isfinite(row["start"]) and 0 <= row["start"] < row["end"] <= result["duration"] for row in result["segments"])
-            assert observed["silence"]["segments"] == [] and observed["silence"]["text"] == ""
-        finally:
-            if started:
-                docker("rm", "--force", name)
-            if network_created:
-                docker("network", "rm", name)
+        observed = json.loads(docker("exec", name, "python", "-c", probe, timeout=240))
+        result = observed["speech"]
+        assessment = metrics.assess_response(result, case)
+        record_property("japanese_clip_cer", assessment["cer"])
+        record_property("speech_elapsed_seconds", observed["elapsed_seconds"])
+        assert not assessment["errors"] and assessment["cer"] < .5
+        assert result["segments"]
+        assert all(math.isfinite(row["start"]) and 0 <= row["start"] < row["end"] <= result["duration"] for row in result["segments"])
+        assert observed["silence"]["segments"] == [] and observed["silence"]["text"] == ""
+    finally:
+        if started:
+            docker("rm", "--force", name)
+        if network_created:
+            docker("network", "rm", name)
+        if volume_created:
+            docker("volume", "rm", name)
