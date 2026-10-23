@@ -1,4 +1,7 @@
+import { fileURLToPath } from "node:url";
 import pg from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/app";
 import { nodeBindings } from "../src/runtime/node-config";
@@ -12,30 +15,36 @@ const withPostgres = databaseURL ? describe : describe.skip;
 withPostgres("on-prem account lifecycle without SaaS services", () => {
   const origin = "https://edition.example.test";
   const suffix = crypto.randomUUID().replaceAll("-", "").slice(0, 12);
-  const ids: string[] = [];
+  const databaseName = `onprem_edition_${suffix}`;
+  let control: pg.Client;
   const app = createApp();
   let env: Bindings;
   let pool: pg.Pool;
-  beforeAll(() => {
-    env = nodeBindings({ DATABASE_URL: databaseURL, BETTER_AUTH_URL: origin,
+  beforeAll(async () => {
+    // Other API suites intentionally create partial schemas in the control DB.
+    // Run this full account lifecycle against its own migrated database.
+    control = new pg.Client({ connectionString: databaseURL });
+    await control.connect();
+    await control.query(`CREATE DATABASE "${databaseName}"`);
+    const url = new URL(databaseURL!);
+    url.pathname = `/${databaseName}`;
+    pool = new pg.Pool({ connectionString: url.toString(), max: 6 });
+    await migrate(drizzle(pool), { migrationsFolder: fileURLToPath(new URL("../drizzle", import.meta.url)) });
+    env = nodeBindings({ DATABASE_URL: url.toString(), BETTER_AUTH_URL: origin,
       BETTER_AUTH_SECRET: "a".repeat(48), USER_SECRET_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString("base64url"),
       R2_ACCESS_KEY_ID: "test", R2_SECRET_ACCESS_KEY: "test", R2_S3_ENDPOINT: "https://storage.example.test",
       R2_BUCKET_NAME: "test", SQS_QUEUE_URL: "http://queue.example.test/test", AWS_ACCESS_KEY_ID: "test", AWS_SECRET_ACCESS_KEY: "test",
       // Accidentally retained SaaS keys must never re-enable the on-prem features.
       STRIPE_SECRET_KEY: "sk_test_stale", STRIPE_WEBHOOK_SECRET: "stale", GOOGLE_CLIENT_ID: "stale", GOOGLE_CLIENT_SECRET: "stale", MAILGUN_API_KEY: "stale",
     });
-    pool = new pg.Pool({ connectionString: databaseURL, max: 6 });
     env.DATABASE_POOL = pool;
     env.RATE_LIMIT_BACKEND = postgresRateLimitBackend(pool);
-  });
+  }, 30_000);
   afterAll(async () => {
     try {
-    if (ids.length) {
-      await pool.query("DELETE FROM verification WHERE value = ANY($1::text[])", [ids]);
-      await pool.query("DELETE FROM video_courses WHERE user_id = ANY($1::text[])", [ids]);
-      await pool.query("DELETE FROM users WHERE id = ANY($1::text[])", [ids]);
-    }
-    } finally { await pool.end(); vi.restoreAllMocks(); }
+      await pool?.end();
+      await control?.query(`DROP DATABASE IF EXISTS "${databaseName}" WITH (FORCE)`);
+    } finally { await control?.end(); vi.restoreAllMocks(); }
   });
   const post = (path: string, body: unknown, cookie?: string) => app.request(`${origin}${path}`, {
     method: "POST", headers: { "content-type": "application/json", Origin: origin, ...(cookie ? { Cookie: cookie } : {}) },
@@ -47,7 +56,6 @@ withPostgres("on-prem account lifecycle without SaaS services", () => {
   it("supports operator bootstrap, admin-issued accounts and single-use activation while rejecting SaaS APIs", async () => {
     const outbound = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("external HTTP is disabled in acceptance"));
     const bootstrap = await provisionOnpremUser(env, { email: `admin-${suffix}@example.invalid`, username: `admin_${suffix}`, admin: true });
-    ids.push(bootstrap.id);
     const password = "Onprem-test-password-2026!";
     expect((await post("/api/auth/reset-password", { token: token(bootstrap.activation_url), newPassword: password })).status).toBe(200);
     expect((await post("/api/auth/reset-password", { token: token(bootstrap.activation_url), newPassword: password })).status).toBe(400);
@@ -60,7 +68,6 @@ withPostgres("on-prem account lifecycle without SaaS services", () => {
     const created = await post("/api/trpc/admin.createUser", createInput, adminCookie);
     expect(created.status, await created.clone().text()).toBe(200);
     const user = (await created.json()).result.data;
-    ids.push(user.id);
     expect((await pool.query("SELECT role, quota_source, ai_answers_limit, processing_limit_minutes, storage_limit_gb, monthly_upload_limit_gb FROM users WHERE id=$1", [user.id])).rows[0]).toEqual({
       role: "user", quota_source: "admin", ai_answers_limit: null, processing_limit_minutes: null, storage_limit_gb: null, monthly_upload_limit_gb: null,
     });
