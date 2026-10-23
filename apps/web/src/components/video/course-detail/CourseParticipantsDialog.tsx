@@ -1,3 +1,5 @@
+import { Input } from "@/components/ui/input";
+import { features } from "@/lib/deployment";
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -99,6 +101,7 @@ export function CourseParticipantsDialog({
     ...trpc.courseMemberships.participants.queryOptions({ courseId }),
     enabled: isOpen,
     refetchInterval: (query) => {
+      if (!features.emailDelivery) return false;
       if (Date.now() >= trackDeliveryUntil) return false;
       const queued = query.state.data?.invitations.some(
         (invitation) => invitation.status === 'pending' && invitation.delivery_status === 'queued',
@@ -112,8 +115,7 @@ export function CourseParticipantsDialog({
         case 'invite':
           return { kind: action.kind, courseId, ...await appTrpcClient.courseMemberships.invite.mutate({ courseId, emails: action.emails }) };
         case 'resend':
-          await appTrpcClient.courseMemberships.resend.mutate({ courseId, invitationId: action.invitationId });
-          return { ...action, courseId };
+          return { ...action, courseId, ...await appTrpcClient.courseMemberships.resend.mutate({ courseId, invitationId: action.invitationId }) };
         case 'revoke':
           await appTrpcClient.courseMemberships.revoke.mutate({ courseId, invitationId: action.invitationId });
           return { ...action, courseId };
@@ -125,6 +127,10 @@ export function CourseParticipantsDialog({
     onSuccess: async (result) => {
       const filter = trpc.courseMemberships.participants.queryFilter({ courseId: result.courseId });
       if (result.kind === 'invite' || result.kind === 'resend') {
+        if (result.kind === 'resend' && 'invitation_url' in result && result.invitation_url) {
+          const email = participantsQuery.data?.invitations.find(invitation => invitation.id === result.invitationId)?.email || '';
+          setInviteResults([{ email, status: 'queued', invitation_url: result.invitation_url }]);
+        }
         if (result.kind === 'invite') {
           setInviteResults(result.results);
           setEmailInput('');
@@ -251,9 +257,9 @@ export function CourseParticipantsDialog({
                 </div>
                 {recipientPreview.length > 0 ? (
                   <div className="space-y-2">
-                    <h3 className="text-std-16B-170">{t('videos.courseMembers.previewTitle')}</h3>
+                    <h3 className="text-std-16B-170">{t(features.emailDelivery ? 'videos.courseMembers.previewTitle' : 'onprem.invitePreview')}</h3>
                     <p className="text-dns-14N-130 text-solid-gray-600">
-                      {t('videos.courseMembers.previewSummary', {
+                      {t(features.emailDelivery ? 'videos.courseMembers.previewSummary' : 'onprem.invitePreviewSummary', {
                         count: readyRecipientCount,
                         total: recipientPreview.length,
                       })}
@@ -282,14 +288,15 @@ export function CourseParticipantsDialog({
                   aria-busy={isInviting}
                 >
                   {isInviting ? <InlineSpinner className="h-4 w-4" /> : null}
-                  {t('videos.courseMembers.invite')}
+                  {t(features.emailDelivery ? 'videos.courseMembers.invite' : 'onprem.issueCourseLinks')}
                 </Button>
                 {inviteResults.length > 0 ? (
                   <ul ref={resultsRef} tabIndex={-1} className="divide-y divide-solid-gray-200 border border-solid-gray-300 focus-visible:outline-4 focus-visible:outline-black focus-visible:outline-offset-2">
                     {inviteResults.map((result, index) => (
                       <li key={`${result.email}-${index}`} className="flex flex-wrap justify-between gap-x-4 gap-y-1 px-4 py-3">
                         <span className="min-w-0 max-w-full break-all">{result.email}</span>
-                        <span className="shrink-0">{t(`videos.courseMembers.result.${result.status}`)}</span>
+                        <span className="shrink-0">{t(!features.emailDelivery && result.status === 'queued' ? 'onprem.courseLinkReady' : `videos.courseMembers.result.${result.status}`)}</span>
+                        {result.invitation_url && <Input className="w-full" aria-label={`${t('onprem.courseInvitationLink')}: ${result.email}`} value={result.invitation_url} readOnly onFocus={event => event.currentTarget.select()} />}
                       </li>
                     ))}
                   </ul>
@@ -338,7 +345,7 @@ export function CourseParticipantsDialog({
                             <div>
                               <p className="break-all font-bold">{invitation.email}</p>
                               <p className="text-dns-14N-130 text-solid-gray-600">
-                                {t(`videos.courseMembers.status.${invitation.status}`)} / {t(`videos.courseMembers.delivery.${invitation.delivery_status}`)}
+                                {t(`videos.courseMembers.status.${invitation.status}`)}{features.emailDelivery && <> / {t(`videos.courseMembers.delivery.${invitation.delivery_status}`)}</>}
                               </p>
                             </div>
                             {invitation.status === 'pending' ? (
@@ -352,7 +359,7 @@ export function CourseParticipantsDialog({
                                   aria-busy={resendingInvitationId === invitation.id}
                                 >
                                   {resendingInvitationId === invitation.id ? <InlineSpinner className="h-4 w-4" /> : null}
-                                  {t('videos.courseMembers.resend')}
+                                  {t(features.emailDelivery ? 'videos.courseMembers.resend' : 'onprem.reissueCourseLink')}
                                 </Button>
                                 <Button
                                   type="button"

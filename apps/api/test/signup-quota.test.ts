@@ -33,6 +33,12 @@ describe("parseNullableLimit", () => {
 });
 
 describe("resolveSignupQuotaDefaults", () => {
+  it("uses operator-managed unlimited defaults on-prem and accepts explicit operational limits", () => {
+    const defaults = resolveSignupQuotaDefaults({ DEPLOYMENT_EDITION: "onprem" });
+    expect(defaults).toMatchObject({ storageLimitGb: null, monthlyUploadLimitGb: null, processingLimitMinutes: null, aiAnswersLimit: null });
+    expect(resolveSignupQuotaDefaults({ DEPLOYMENT_EDITION: "onprem", DEFAULT_MONTHLY_UPLOAD_LIMIT_GB: "20", DEFAULT_AI_ANSWERS_LIMIT: "100" }))
+      .toMatchObject({ monthlyUploadLimitGb: 20, aiAnswersLimit: 100, storageLimitGb: null });
+  });
   it.each(['-1', '1.5', '2147483648', 'Infinity', '1e309'])(
     "falls back when integer-column overrides cannot be stored (%s)", raw => {
       expect(resolveSignupQuotaDefaults({

@@ -1,3 +1,4 @@
+import { features } from "./deployment";
 import { LANDING_ACQUISITIONS, LANDING_EVENTS, type LandingAcquisition, type LandingAudience, type LandingEvent, type LandingEventPayload, type LandingPlacement } from './landingEvents';
 
 const STORAGE_KEY = 'videoq.landing.student-v1';
@@ -36,6 +37,7 @@ export function getLandingAcquisition(search = window.location.search): LandingA
 }
 
 function enabled() {
+  if (!features.marketing) return false;
   const privacy = navigator as Navigator & { globalPrivacyControl?: boolean };
   return import.meta.env.PROD && window.location.hostname === 'videoq.jp'
     && navigator.doNotTrack !== '1' && privacy.globalPrivacyControl !== true;
@@ -78,6 +80,7 @@ export function completeSignupTracking(method: 'google' | 'email') {
 }
 
 export function trackLandingEvent(event: LandingEvent, placement: LandingPlacement = 'none') {
+  if (!features.marketing) return;
   if (!enabled()) return;
   try {
     const visit = readVisit();

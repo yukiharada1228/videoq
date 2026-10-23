@@ -1,3 +1,4 @@
+import { features } from "@/lib/deployment";
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { Link, useI18nNavigate, useLocale } from '@/lib/i18n';
@@ -224,7 +225,7 @@ export default function HomeDashboard() {
             <MessageAlert type="error" message={t('quota.errors.overQuota')} />
           </div>
         )}
-        {(currentUser.plan_code ?? 'free') === 'free' && (
+        {features.billing && (currentUser.plan_code ?? 'free') === 'free' && (
           <div className="mt-4">
             <Button asChild variant="outline">
               <Link href="/pricing">{t('home.usage.upgrade')}</Link>

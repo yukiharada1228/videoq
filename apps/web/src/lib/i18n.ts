@@ -1,3 +1,4 @@
+import { isOnprem } from "@/lib/deployment";
 import { createElement } from 'react';
 import { useNavigate, useLocation, useParams, Link as RouterLink, type LinkProps as RouterLinkProps } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -159,6 +160,13 @@ function applyDocumentMeta(
   pathname: string,
   i18n: ReturnType<typeof useTranslation>['i18n'],
 ) {
+  if (isOnprem) {
+    document.documentElement.lang = locale;
+    document.title = 'VideoQ';
+    document.querySelector('meta[name="robots"]')?.setAttribute('content', 'noindex, nofollow');
+    for (const node of document.querySelectorAll('link[rel="canonical"], link[rel="alternate"][hreflang], meta[property^="og:"], meta[name^="twitter:"], script[type="application/ld+json"]')) node.remove();
+    return;
+  }
   document.documentElement.lang = locale;
   const t = i18n.getFixedT(locale);
   const { title, description } = resolvePageCopy(pathname, t);

@@ -1,3 +1,4 @@
+import { requireFeature } from "../lib/deployment";
 import type { Context } from "hono";
 import { TRPCError } from "@trpc/server";
 import type { ProcedureHandlers, TrpcContext } from "@videoq/trpc";
@@ -44,6 +45,9 @@ export async function createTrpcContext(c: Context<AppEnv>): Promise<TrpcContext
         });
       }
     },
-    call: createRpcCaller(handlers),
+    call: createRpcCaller(handlers, (name) => {
+      if (name.startsWith("billing.")) requireFeature(c.env, "billing");
+      if (["videos.createYoutube", "account.searchApiKeyStatus", "account.saveSearchApiKey", "account.deleteSearchApiKey"].includes(name)) requireFeature(c.env, "youtube");
+    }),
   };
 }

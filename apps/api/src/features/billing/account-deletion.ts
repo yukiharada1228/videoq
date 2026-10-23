@@ -1,3 +1,4 @@
+import { features } from "../../lib/deployment";
 import Stripe from "stripe";
 import { findBillingUser } from "../../repositories/billing-repository";
 import type { Bindings } from "../../types/bindings";
@@ -5,6 +6,7 @@ import { requireStripeClient } from "./stripe";
 
 /** Called by the durable outbox after the account is banned, before data deletion. */
 export async function deleteAccountBilling(env: Bindings, userId: string): Promise<void> {
+  if (!features(env).billing) return;
   // Include banned users: deletion must retain their billing identity until this
   // succeeds. Missing rows are possible after a successful SQS delivery is retried.
   const user = await findBillingUser(env, { userId });

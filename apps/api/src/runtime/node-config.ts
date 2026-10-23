@@ -1,3 +1,4 @@
+import { deploymentEdition } from "@videoq/trpc/deployment";
 import type { Bindings } from "../types/bindings";
 
 type Environment = Record<string, string | undefined>;
@@ -53,7 +54,7 @@ export function nodeBindings(source: Environment): Bindings {
   const authURL = new URL(publicURL);
   if (authURL.pathname !== "/" || authURL.search || authURL.hash) throw new Error("BETTER_AUTH_URL must be an origin without a path, query or fragment");
   return {
-    RUNTIME: "node", ENVIRONMENT: "production", DATABASE_URL: databaseURL,
+    RUNTIME: "node", DEPLOYMENT_EDITION: deploymentEdition(source.DEPLOYMENT_EDITION || "onprem"), ENVIRONMENT: "production", DATABASE_URL: databaseURL,
     BETTER_AUTH_SECRET: authSecret, BETTER_AUTH_URL: publicURL,
     USER_SECRET_ENCRYPTION_KEY: encryptionKey,
     FRONTEND_URL: source.FRONTEND_URL || publicURL,
@@ -66,9 +67,10 @@ export function nodeBindings(source: Environment): Bindings {
     STRIPE_AUTOMATIC_TAX: source.STRIPE_AUTOMATIC_TAX || "false",
     COURSE_INVITATION_BATCH_LIMIT: source.COURSE_INVITATION_BATCH_LIMIT || "50",
     MAX_VIDEO_UPLOAD_SIZE_MB: source.MAX_VIDEO_UPLOAD_SIZE_MB || "200",
-    DEFAULT_STORAGE_LIMIT_GB: source.DEFAULT_STORAGE_LIMIT_GB || "1",
-    DEFAULT_PROCESSING_LIMIT_MINUTES: source.DEFAULT_PROCESSING_LIMIT_MINUTES || "120",
-    DEFAULT_AI_ANSWERS_LIMIT: source.DEFAULT_AI_ANSWERS_LIMIT || "30",
+    DEFAULT_STORAGE_LIMIT_GB: source.DEFAULT_STORAGE_LIMIT_GB || "",
+    DEFAULT_PROCESSING_LIMIT_MINUTES: source.DEFAULT_PROCESSING_LIMIT_MINUTES || "",
+    DEFAULT_MONTHLY_UPLOAD_LIMIT_GB: source.DEFAULT_MONTHLY_UPLOAD_LIMIT_GB,
+    DEFAULT_AI_ANSWERS_LIMIT: source.DEFAULT_AI_ANSWERS_LIMIT || "",
     OPENAI_API_KEY: source.OPENAI_API_KEY, OPENAI_BASE_URL: source.OPENAI_BASE_URL,
     LLM_MODEL: source.LLM_MODEL || "gpt-6-luna",
     LLM_REASONING_EFFORT: reasoningEffort as Bindings["LLM_REASONING_EFFORT"],

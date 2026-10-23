@@ -5,6 +5,10 @@ const userId = z.object({ id: z.string().min(1) });
 const nonNegativeInt32 = z.number().int().nonnegative().max(2_147_483_647);
 
 export const adminInputSchemas = {
+  "admin.createUser": z.object({
+    email: z.email().max(254), username: z.string().trim().min(3).max(150).regex(/^[a-zA-Z0-9_.]+$/),
+  }).strict(),
+  "admin.resetAccess": userId,
   "admin.listUsers": z.object({
     q: z.string().optional(),
     limit: z.number().int().positive().max(100).default(100),

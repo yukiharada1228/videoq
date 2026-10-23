@@ -42,7 +42,7 @@ jobs:
           npm run typecheck --workspace @videoq/api
           npm run build:node --workspace @videoq/api
           npm run db:migrate --workspace @videoq/api
-          HELM_BIN="$RUNNER_TEMP/helm/helm" npm run test:unit --workspace @videoq/api -- test/node-runtime.test.ts test/node-runtime.integration.test.ts test/node-storage.test.ts test/helm-chart.test.ts test/inference-chart.test.ts test/local-chat-model.test.ts
+          HELM_BIN="$RUNNER_TEMP/helm/helm" npm run test:unit --workspace @videoq/api -- test/node-runtime.test.ts test/node-runtime.integration.test.ts test/onprem-edition.integration.test.ts test/node-storage.test.ts test/helm-chart.test.ts test/inference-chart.test.ts test/local-chat-model.test.ts
           "$RUNNER_TEMP/helm/helm" lint charts/videoq --strict -f charts/videoq/examples/site.yaml
           "$RUNNER_TEMP/helm/helm" lint charts/videoq-inference --strict
           "$RUNNER_TEMP/helm/helm" lint charts/videoq-inference --strict -f charts/videoq-inference/examples/nvidia.yaml
@@ -72,7 +72,7 @@ jobs:
       - name: Exercise migration command and worker imports in production images
         run: |
           docker run --rm --network host --env DATABASE_URL videoq-api:onprem-ci sh scripts/db-migrate.sh
-          docker run --rm --entrypoint python videoq-worker:onprem-ci -c 'import worker_python.lambda_handler; import runpy; runpy.run_path("scripts/run_worker.py", run_name="import_check")'
+          docker run --rm --entrypoint python videoq-worker:onprem-ci -c 'import os; assert os.environ["DEPLOYMENT_EDITION"] == "onprem"; import worker_python.lambda_handler; import runpy; runpy.run_path("scripts/run_worker.py", run_name="import_check")'
       - name: Scan the API image including unfixed vulnerabilities
         if: ${{ !cancelled() && steps.images.outcome == 'success' }}
         uses: aquasecurity/trivy-action@8f28faec26515256b6d22074d1d2a8986f4cbd87 # v0.35.0

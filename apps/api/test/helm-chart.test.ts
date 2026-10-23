@@ -21,7 +21,7 @@ withHelm("on-prem Helm distribution", () => {
       "ConfigMap", "CronJob", "CronJob", "Deployment", "Deployment", "Deployment", "Job", "Pod", "Service", "Service",
     ].sort());
     const config = resources.find(resource => resource.kind === "ConfigMap");
-    expect(config.data).toMatchObject({ USE_S3_STORAGE: "true", BETTER_AUTH_URL: "https://videoq.example.edu" });
+    expect(config.data).toMatchObject({ DEPLOYMENT_EDITION: "onprem", USE_S3_STORAGE: "true", BETTER_AUTH_URL: "https://videoq.example.edu" });
     expect(Object.values(config.data).every(value => typeof value === "string")).toBe(true);
     expect(config.data.DATABASE_URL).toBeUndefined();
     const api = resources.find(resource => resource.kind === "Deployment" && resource.metadata.name.endsWith("-api"));

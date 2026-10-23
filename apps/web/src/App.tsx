@@ -1,3 +1,4 @@
+import { isOnprem } from "@/lib/deployment";
 import { lazy } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { addLocalePrefix, getSavedLocale, useLocaleSync } from '@/lib/i18n';
@@ -8,13 +9,13 @@ import { RouteContent } from '@/components/layout/RouteContent';
 import HomePage from '@/pages/HomePage';
 
 const LoginPage = lazy(() => import('@/pages/LoginPage'));
-const SignupPage = lazy(() => import('@/pages/SignupPage'));
-const SignupCheckEmailPage = lazy(() => import('@/pages/SignupCheckEmailPage'));
-const SignupCompletePage = lazy(() => import('@/pages/SignupCompletePage'));
-const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'));
+const SignupPage = isOnprem ? null : lazy(() => import('@/pages/SignupPage'));
+const SignupCheckEmailPage = isOnprem ? null : lazy(() => import('@/pages/SignupCheckEmailPage'));
+const SignupCompletePage = isOnprem ? null : lazy(() => import('@/pages/SignupCompletePage'));
+const ForgotPasswordPage = isOnprem ? null : lazy(() => import('@/pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('@/pages/ResetPasswordPage'));
-const VerifyEmailPage = lazy(() => import('@/pages/VerifyEmailPage'));
-const EmailChangeConfirmPage = lazy(() => import('@/pages/EmailChangeConfirmPage'));
+const VerifyEmailPage = isOnprem ? null : lazy(() => import('@/pages/VerifyEmailPage'));
+const EmailChangeConfirmPage = isOnprem ? null : lazy(() => import('@/pages/EmailChangeConfirmPage'));
 const ConsentPage = lazy(() => import('@/pages/ConsentPage'));
 const VideoLibraryPage = lazy(() => import('@/pages/VideoLibraryPage'));
 const VideoDetailPage = lazy(() => import('@/pages/VideoDetailPage'));
@@ -23,8 +24,8 @@ const VideoCourseDetailPage = lazy(() => import('@/pages/VideoCourseDetailPage')
 const SharePage = lazy(() => import('@/pages/SharePage'));
 const CourseInvitationPage = lazy(() => import('@/pages/CourseInvitationPage'));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
-const PricingPage = lazy(() => import('@/pages/PricingPage'));
-const LegalPage = lazy(() => import('@/pages/LegalPage'));
+const PricingPage = isOnprem ? null : lazy(() => import('@/pages/PricingPage'));
+const LegalPage = isOnprem ? null : lazy(() => import('@/pages/LegalPage'));
 const AdminPage = lazy(() => import('@/pages/AdminPage'));
 
 function LocaleGate() {
@@ -74,11 +75,13 @@ const appPageRoutes: AppPageRoute[] = [
   { path: 'videos/courses', element: <VideoCoursesPage />, handle: { activePage: 'courses' } },
   { path: 'videos/courses/:id', element: <VideoCourseDetailPage />, handle: { activePage: 'courses', variant: 'workspace' } },
   { path: 'settings', element: <SettingsPage />, handle: { activePage: 'settings' } },
+  ...(!isOnprem && PricingPage && LegalPage ? [
   { path: 'pricing', element: <PricingPage />, handle: { activePage: 'pricing' } },
   { path: 'terms', element: <LegalPage page="terms" />, handle: {} },
   { path: 'privacy', element: <LegalPage page="privacy" />, handle: {} },
   { path: 'refund', element: <LegalPage page="refund" />, handle: {} },
   { path: 'legal', element: <LegalPage page="scta" />, handle: {} },
+  ] as AppPageRoute[] : []),
   { path: 'admin', element: <AdminPage />, handle: { activePage: 'admin' } },
 ];
 
@@ -90,14 +93,14 @@ const routeChildren = (
 
     <Route element={<AuthRouteLayout />}>
       <Route path="login" element={<LoginPage />} />
-      <Route path="signup" element={<SignupPage />} />
-      <Route path="signup/check-email" element={<SignupCheckEmailPage />} />
-      <Route path="signup/complete" element={<SignupCompletePage method="google" />} />
-      <Route path="signup/verified" element={<SignupCompletePage method="email" />} />
-      <Route path="forgot-password" element={<ForgotPasswordPage />} />
+      {SignupPage && <Route path="signup" element={<SignupPage />} />}
+      {SignupCheckEmailPage && <Route path="signup/check-email" element={<SignupCheckEmailPage />} />}
+      {SignupCompletePage && <Route path="signup/complete" element={<SignupCompletePage method="google" />} />}
+      {SignupCompletePage && <Route path="signup/verified" element={<SignupCompletePage method="email" />} />}
+      {ForgotPasswordPage && <Route path="forgot-password" element={<ForgotPasswordPage />} />}
       <Route path="reset-password" element={<ResetPasswordPage />} />
-      <Route path="verify-email" element={<VerifyEmailPage />} />
-      <Route path="change-email" element={<EmailChangeConfirmPage />} />
+      {VerifyEmailPage && <Route path="verify-email" element={<VerifyEmailPage />} />}
+      {EmailChangeConfirmPage && <Route path="change-email" element={<EmailChangeConfirmPage />} />}
       <Route path="consent" element={<ConsentPage />} />
       <Route path="course-invitations/:token" element={<CourseInvitationPage />} />
     </Route>

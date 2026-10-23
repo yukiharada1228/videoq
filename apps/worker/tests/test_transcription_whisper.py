@@ -157,3 +157,12 @@ def test_large_audio_processes_and_removes_one_chunk_at_a_time(
     if failure is None:
         expected.extend([("split", 2), ("transcribe", 2)])
     assert events == expected
+
+
+def test_onprem_rejects_youtube_before_any_external_provider(monkeypatch):
+    from types import SimpleNamespace
+    from worker_python.pipeline import transcription
+    monkeypatch.setenv("DEPLOYMENT_EDITION", "onprem")
+    monkeypatch.setattr(transcription, "_transcribe_youtube", lambda *_: pytest.fail("external YouTube request"))
+    with pytest.raises(RuntimeError, match="disabled"):
+        transcription.run_transcription(SimpleNamespace(id=1, source_type="youtube", youtube_video_id="test"), searchapi_key="stale")

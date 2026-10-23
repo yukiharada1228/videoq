@@ -1,3 +1,4 @@
+import { isOnprem } from "./deployment";
 /**
  * Must stay in sync with the backend rule
  * (`emailAndPassword.minPasswordLength` in apps/api/src/lib/auth.ts).
@@ -24,6 +25,7 @@ const PUBLIC_AUTH_PATHS = [
 ] as const;
 
 export function isPublicAuthPath(pathname: string): boolean {
+  if (isOnprem) return ['/login', '/reset-password', '/consent', '/share', '/course-invitations'].some(path => pathname === path || pathname.startsWith(`${path}/`));
   if (pathname === '/') return true;
   return PUBLIC_AUTH_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }

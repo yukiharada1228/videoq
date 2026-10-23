@@ -1,3 +1,4 @@
+import { provisionOnpremUser, resetOnpremUserAccess } from "../../features/admin/onprem-users";
 import type { Context } from "hono";
 import * as adminService from "../../features/admin/service";
 import type { AppEnv } from "../../types/bindings";
@@ -9,6 +10,8 @@ export function adminHandlers(
 ): HandlersFor<"admin"> {
   const actorId = () => requireUserId(authenticatedUserId);
   return {
+    "admin.createUser": async (input) => provisionOnpremUser(c.env, input, c.req.raw.headers),
+    "admin.resetAccess": async ({ id }) => resetOnpremUserAccess(c.env, id),
     "admin.listUsers": async ({ q, limit, offset }) => {
       const { count, results } = await adminService.listUsers(
         c.env,

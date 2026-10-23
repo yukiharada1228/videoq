@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import logging
 
 from worker_python.contracts import JOB_INDEX_VIDEO_TRANSCRIPT
@@ -109,6 +110,8 @@ def transcribe_video(video_id: int, *, job_id: str | None = None) -> None:
                     )
 
         logger.info("Transcription started for video %d (%s)", video.id, video.title)
+        if video.source_type == "youtube" and os.environ.get("DEPLOYMENT_EDITION") == "onprem":
+            raise RuntimeError("YouTube integration is disabled in the on-prem edition")
         searchapi_key = (
             _load_searchapi_key(video.user_id) if video.source_type == "youtube" else None
         )

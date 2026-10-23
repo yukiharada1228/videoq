@@ -1,3 +1,4 @@
+import { features } from "./lib/deployment";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -57,6 +58,12 @@ export function createApp() {
 
   // Better Auth handler (sessions, email/password, API keys, OAuth AS).
   app.on(["POST", "GET"], "/api/auth/*", async (c) => {
+    const path = new URL(c.req.url).pathname.replace(/\/+$/, "");
+    if (!features(c.env).publicSignup && [
+      "/api/auth/sign-up/email", "/api/auth/sign-in/social", "/api/auth/callback/google",
+      "/api/auth/request-password-reset", "/api/auth/send-verification-email", "/api/auth/verify-email",
+      "/api/auth/change-email", "/api/auth/update-user/email",
+    ].includes(path)) return c.json(toErrorBody("FEATURE_DISABLED", "This feature is unavailable in this deployment."), 404);
     return withDb(c.env, async (db) => {
       const browserOnly = [
         "/api/auth/get-session",

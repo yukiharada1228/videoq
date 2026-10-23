@@ -1,3 +1,4 @@
+import { features } from "@/lib/deployment";
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useVideoUpload } from '@/hooks/useVideoUpload';
@@ -134,7 +135,7 @@ export function VideoUploadModal({ isOpen, onClose, autoCloseDelayMs = 2000 }: V
 
                 <div className="space-y-4">
                   <div className="flex border-b border-solid-gray-420">
-                    {(['file', 'youtube'] as const).map((mode) => (
+                    {(['file', ...(features.youtube ? ['youtube'] as const : [])] as const).map((mode) => (
                       <button
                         key={mode}
                         type="button"

@@ -1,3 +1,4 @@
+import { features } from "@/lib/deployment";
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -99,7 +100,7 @@ export default function SettingsPage() {
 
   const apiKeysQuery = useQuery(trpc.account.integrationApiKeys.queryOptions());
 
-  const searchApiKeyStatusQuery = useQuery(trpc.account.searchApiKeyStatus.queryOptions());
+  const searchApiKeyStatusQuery = useQuery({ ...trpc.account.searchApiKeyStatus.queryOptions(), enabled: features.youtube });
 
   const createApiKeyMutation = useMutation({
     mutationFn: () => apiClient.createIntegrationApiKey({
@@ -282,18 +283,19 @@ export default function SettingsPage() {
     <div>
       <AppPageHeader
         title={t('settings.title')}
-        description={t('settings.subtitle')}
+        description={t(features.billing ? 'settings.subtitle' : 'onprem.settingsSubtitle')}
       />
 
       <nav aria-label={t('settings.navigation')} className="mb-6 flex flex-wrap gap-x-6 gap-y-2 border-b border-solid-gray-200 pb-4">
         <DaLink href="#account">{t('settings.account.title')}</DaLink>
-        <DaLink href="#billing">{t('settings.billing.title')}</DaLink>
-        <DaLink href="#youtube">{t('settings.searchApiKey.title')}</DaLink>
-        <DaLink href="#integrations">{t('settings.integrations.title')}</DaLink>
+        {features.billing && <DaLink href="#billing">{t('settings.billing.title')}</DaLink>}
+        {features.youtube && <DaLink href="#youtube">{t('settings.searchApiKey.title')}</DaLink>}
+        <DaLink href="#integrations">{t(features.emailDelivery ? 'settings.integrations.title' : 'onprem.localIntegrations')}</DaLink>
       </nav>
 
       <div className="flex flex-col gap-6">
           <AccountSettingsSection />
+          {features.billing && <>
           <section id="billing" aria-labelledby="billing-heading" className={SETTINGS_SECTION_CLASS}>
             <div className="mb-4">
               <Heading size="20" hasChip className="mb-2">
@@ -329,6 +331,8 @@ export default function SettingsPage() {
             </div>
           </section>
 
+          </>}
+          {features.youtube && <>
           <section id="youtube" aria-labelledby="youtube-heading" className={SETTINGS_SECTION_CLASS}>
             <div className="mb-4">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -445,11 +449,12 @@ export default function SettingsPage() {
               </form>}
             </div>}
           </section>
+          </>}
 
           {/* ── Integration API Keys ─────────────────────────────────── */}
           <section id="integrations" aria-labelledby="integrations-heading" className={SETTINGS_SECTION_CLASS}>
             <Heading size="20" hasChip className="mb-4">
-              <HeadingTitle id="integrations-heading" level="h2">{t('settings.integrations.title')}</HeadingTitle>
+              <HeadingTitle id="integrations-heading" level="h2">{t(features.emailDelivery ? 'settings.integrations.title' : 'onprem.localIntegrations')}</HeadingTitle>
             </Heading>
             <ConnectedAppsSection headingLevel="h3" />
             <section className="mt-6 border-t border-solid-gray-200 pt-6" aria-labelledby="api-keys-heading">

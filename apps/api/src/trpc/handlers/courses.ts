@@ -197,7 +197,7 @@ export function courseHandlers(
       if ("notFound" in result) return rpcError("NOT_FOUND", "Invitation not found");
       if ("invalidState" in result) return invitationDecisionError(result);
       await flushInvitationEmails(c, 1);
-      return { delivery_status: result.delivery_status };
+      return { delivery_status: result.delivery_status, ...(result.invitation_url ? { invitation_url: result.invitation_url } : {}) };
     },
     "courseMemberships.revoke": async ({ courseId, invitationId }) => {
       const result = await courseMembershipService.revokeInvitation(c.env, courseId, invitationId, userId());

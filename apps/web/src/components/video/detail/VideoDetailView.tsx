@@ -1,3 +1,4 @@
+import { features } from "@/lib/deployment";
 import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -138,7 +139,7 @@ function VideoPlayerPanel({
 
   return (
     <div className="w-full aspect-video overflow-hidden border border-solid-gray-420 bg-solid-gray-800">
-      {video.source_type === 'youtube' && video.youtube_embed_url ? (
+      {features.youtube && video.source_type === 'youtube' && video.youtube_embed_url ? (
         <iframe
           key={`${video.id}-${youtubeStartSeconds ?? 0}-${youtubeSeekId}`}
           className="w-full h-full"

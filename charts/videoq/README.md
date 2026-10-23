@@ -42,9 +42,9 @@ through the same authentication, permissions, quota and streaming routes.
   and `/ready` to API port 8787, and the remaining paths to web port 80. The
   optional Ingress does this routing, preserving paths without rewriting.
 - OpenAI access or separately deployed compatible inference services. For a
-  closed network, configure all three: chat, embeddings and Whisper. Email,
-  Google sign-in, YouTube import and billing have their own optional external
-  dependencies. Chat models must support the existing tool/JSON contract and,
+  closed network, configure all three: chat, embeddings and Whisper.
+  The on-prem edition disables Google sign-in, YouTube/SearchAPI, Mailgun and
+  Stripe. Chat models must support the existing tool/JSON contract and,
   when visual Q&A is enabled, image input. Validate these before rollout.
 
 Set the ingress response timeout to at least the application's answer budget
@@ -144,10 +144,11 @@ With the example release/name defaults, resource names start with `videoq-videoq
 Inspect `kubectl -n videoq logs deployment/videoq-videoq-api` and
 `kubectl -n videoq logs deployment/videoq-videoq-worker`. The migration must
 succeed before Helm creates/updates application workloads. After installation,
-sign up on the site and promote the account with the production API image:
+create the first administrator with the production API image (public signup is disabled):
 
 ```sh
-kubectl -n videoq exec deployment/videoq-videoq-api -- node scripts/create-admin.mjs you@example.edu
+kubectl -n videoq exec deployment/videoq-videoq-api -- node dist/provision-user.mjs \
+  --admin --username site_admin --email you@example.edu
 ```
 
 Upload a short video, wait for transcription/indexing, ask a question and verify
@@ -264,3 +265,49 @@ endpoint. `embeddingProvider: openai` denotes the compatible protocol for these
 private services. Optional `EMBEDDING_API_KEY` belongs in the runtime Secret;
 when absent it reuses `OPENAI_API_KEY`. Keep the API and worker embedding settings
 identical and reindex scenes when changing the embedding model or processing.
+
+## On-prem application edition
+
+The web Docker build defaults to `VITE_DEPLOYMENT_EDITION=onprem`; the Node API
+and application Helm ConfigMap select `DEPLOYMENT_EDITION=onprem`. The two must
+match. Cloud web builds keep the default cloud edition and existing behavior.
+The edition is operator configuration, not a browser preference.
+
+On-prem builds exclude the LP, pricing, SaaS legal/refund pages, public signup,
+email-verification/forgot-password pages, demo media, sitemap and remote Google
+Fonts. `/` leads signed-out users to login and signed-in users to their dashboard.
+Billing and upgrade controls, Google sign-in, YouTube import/player/thumbnail
+requests and SearchAPI settings are removed. The API rejects their operations
+with `FEATURE_DISABLED`, even if old provider credentials remain in the Secret.
+Do not add Stripe, Google, SearchAPI or Mailgun credentials to the on-prem Secret.
+Mail-dependent self-service email changes and public password recovery are disabled.
+
+The bootstrap command prints an account setup URL. Send it privately to the
+administrator; it expires after 15 minutes and is single-use. It uses the native
+Better Auth password reset flow and sends no email. The admin page can add users
+and issue password recovery links. New UI-created users always start with the
+ordinary user role. To recover access as a local operator:
+
+```sh
+kubectl -n videoq exec deployment/videoq-videoq-api -- \
+  node dist/provision-user.mjs --reset USER_ID
+```
+
+Course owners can issue/reissue course invitation links and share them privately.
+Recipients first need an account issued by the administrator. Course invitations
+keep the existing seven-day validity and email-identity check; reissuing revokes
+the previous link. Neither invitation hashes nor user setup tokens are emailed
+or sent to third-party services.
+
+New on-prem accounts have no SaaS free-tier storage, monthly upload, processing
+or AI-answer caps. Administrators can set operational limits in the admin page,
+or set `DEFAULT_STORAGE_LIMIT_GB`, `DEFAULT_MONTHLY_UPLOAD_LIMIT_GB`,
+`DEFAULT_PROCESSING_LIMIT_MINUTES` and `DEFAULT_AI_ANSWERS_LIMIT` for future users.
+`unlimited` means no cap. Per-file transport limits and rate limits still apply.
+Existing user limits are preserved; review migrated users in the admin page.
+
+Core video/course management, uploaded-media transcription, search, cited chat,
+usage reporting, local API keys/MCP and intranet sharing remain available.
+AI endpoints are configured separately: apply the chosen local-inference overlay
+for fully on-site processing. The application edition does not change a
+site-selected inference endpoint or migrate existing embeddings.

@@ -1,6 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import path from 'path'
+import { readFileSync, copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
+import { deploymentEdition } from '../../packages/trpc/src/deployment'
+
+const onprem = deploymentEdition(process.env.VITE_DEPLOYMENT_EDITION) === 'onprem'
 
 const apiProxyTarget = process.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:8787'
 const vendorChunks: Record<string, string[]> = {
@@ -15,11 +19,32 @@ const vendorChunks: Record<string, string[]> = {
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
+  publicDir: onprem ? false : 'public',
+  plugins: [react(), ...(onprem ? [{
+    name: 'videoq-onprem-assets',
+    transformIndexHtml: {
+      order: 'pre' as const,
+      handler: () => readFileSync(path.resolve(__dirname, 'index.onprem.html'), 'utf8'),
     },
+    writeBundle(options: { dir?: string }) {
+      const output = options.dir || path.resolve(__dirname, 'dist')
+      mkdirSync(path.join(output, 'licenses'), { recursive: true })
+      for (const file of ['favicon.ico', 'apple-touch-icon.png', 'logo192.png', 'logo512.png', 'licenses/mediabunny.txt']) {
+        copyFileSync(path.resolve(__dirname, 'public', file), path.join(output, file))
+      }
+      writeFileSync(path.join(output, 'robots.txt'), 'User-agent: *\nDisallow: /\n')
+      writeFileSync(path.join(output, 'manifest.json'), JSON.stringify({ name: 'VideoQ', short_name: 'VideoQ',
+        start_url: '/', display: 'standalone', icons: [{ src: '/logo192.png', sizes: '192x192', type: 'image/png' }] }))
+    },
+  }] : [])],
+  resolve: {
+    alias: [
+      ...(onprem ? ['LandingPage', 'PricingPage', 'LegalPage', 'SignupPage', 'SignupCheckEmailPage',
+        'SignupCompletePage', 'ForgotPasswordPage', 'VerifyEmailPage', 'EmailChangeConfirmPage'].map(page => ({
+        find: new RegExp(`^@/pages/${page}$`), replacement: path.resolve(__dirname, 'src/pages/UnavailablePage.tsx'),
+      })) : []),
+      { find: '@', replacement: path.resolve(__dirname, './src') },
+    ],
   },
   server: {
     // CLI `--host 0.0.0.0` (compose) overrides; default stays loopback for host-only Vite.

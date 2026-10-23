@@ -34,6 +34,8 @@ type PlatformResources = {
 export type Bindings = Omit<RuntimeStrings, keyof SecretBindings> & PlatformResources &
   SecretBindings & {
     RUNTIME?: "node";
+    DEFAULT_MONTHLY_UPLOAD_LIMIT_GB?: string;
+    DEPLOYMENT_EDITION?: "cloud" | "onprem";
     DATABASE_URL?: string;
     /** Only the long-lived Node runtime supplies a shared pool. */
     DATABASE_POOL?: pg.Pool;

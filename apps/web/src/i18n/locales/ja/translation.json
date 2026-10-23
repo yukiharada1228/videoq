@@ -1209,5 +1209,25 @@
       "success": "再索引ジョブを投入しました（{{jobId}}）。",
       "error": "再索引ジョブの投入に失敗しました。"
     }
+  },
+  "onprem": {
+    "loginHelp": "アカウント作成やパスワードの再設定は管理者にお問い合わせください。",
+    "addUser": "利用者を追加",
+    "createLink": "アカウント設定リンクを発行",
+    "activationHelp": "このリンクを対象の利用者へ個別に渡してください。有効期限は15分で、一度だけ使用できます。メールは送信しません。",
+    "activationLink": "アカウント設定リンク",
+    "copyLink": "リンクをコピー",
+    "copied": "コピーしました",
+    "resetAccess": "再設定リンクを発行",
+    "resetUserAccess": "{{username}} のパスワード再設定リンクを発行",
+    "courseLinkReady": "招待リンクを発行しました",
+    "courseInvitationLink": "コース招待リンク",
+    "reissueCourseLink": "招待リンクを再発行",
+    "issueCourseLinks": "招待リンクを発行",
+    "invitePreview": "招待内容の確認",
+    "invitePreviewSummary": "全{{total}}件のうち、{{count}}件の招待リンクを発行します。",
+    "invitationAuthRequired": "招待先のアカウントでログインしてください。アカウントがない場合は管理者へお問い合わせください。",
+    "settingsSubtitle": "アカウントと社内システムからの接続を管理します。",
+    "localIntegrations": "システム連携"
   }
 }

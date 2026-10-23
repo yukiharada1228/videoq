@@ -1,3 +1,4 @@
+import { features } from "@/lib/deployment";
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -71,7 +72,7 @@ function AccountField({ field, currentValue }: { field: 'username' | 'email'; cu
             {currentValue || t('common.notProvided')}
           </p>
         </div>
-        <Button
+        {(field === "username" || features.emailDelivery) && <Button
           ref={editButton}
           type="button"
           variant="text"
@@ -88,7 +89,7 @@ function AccountField({ field, currentValue }: { field: 'username' | 'email'; cu
           }}
         >
           {editing ? t('settings.cancel') : t('settings.edit')}
-        </Button>
+        </Button>}
       </div>
       {status && <div className="mt-4"><MessageAlert type={status.tone} message={status.text} /></div>}
       <div id={`${id}-editor`}>

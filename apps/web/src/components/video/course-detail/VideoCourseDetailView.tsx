@@ -1,3 +1,4 @@
+import { features } from "@/lib/deployment";
 import { useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -356,7 +357,7 @@ function GroupPlayerPanel({
         </div>
         <div className="aspect-video lg:aspect-auto lg:flex-1 bg-solid-gray-800 flex items-center justify-center lg:min-h-0">
           {selectedVideo ? (
-            selectedVideo.source_type === 'youtube' && selectedVideo.youtube_embed_url ? (
+            features.youtube && selectedVideo.source_type === 'youtube' && selectedVideo.youtube_embed_url ? (
               <iframe
                 key={`${selectedVideo.id}-${youtubeSeekId}`}
                 className="w-full h-full"

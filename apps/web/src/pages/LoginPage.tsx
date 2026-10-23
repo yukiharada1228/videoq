@@ -1,5 +1,7 @@
+import { features } from "@/lib/deployment";
 import { authClient } from '@/lib/auth-client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useAuthSession } from '@/lib/authSession';
 import { useSearchParams } from 'react-router-dom';
 import { Link, useI18nNavigate } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
@@ -32,6 +34,16 @@ export default function LoginPage() {
       ? t('auth.login.oauthAccountNotLinked')
       : t('auth.login.oauthCallbackFailed');
   const [showPassword, setShowPassword] = useState(false);
+  const session = useAuthSession();
+
+  // AuthProvider replaces the query cache on identity changes and may unmount
+  // the login mutation before its success redirect runs. Resume from the
+  // authoritative session after remounting the on-prem login page.
+  useEffect(() => {
+    if (features.publicSignup || session.isPending || !session.data?.user) return;
+    if (afterLogin) window.location.href = afterLogin;
+    else navigate('/');
+  }, [afterLogin, navigate, session.data?.user, session.isPending]);
 
   const { formData, error, isLoading, handleChange, handleSubmit } = useAuthForm({
     onSubmit: async (data) => {
@@ -61,6 +73,7 @@ export default function LoginPage() {
         </div>
       )}
 
+      {features.googleLogin && <>
       <GoogleSignInButton callbackURL={afterLogin || '/'} />
 
       <div className="my-8 flex items-center gap-4">
@@ -71,6 +84,7 @@ export default function LoginPage() {
         <Divider className="flex-1" aria-hidden="true" />
       </div>
 
+      </>}
       <form onSubmit={handleSubmit} className="space-y-5">
         <FormField
           id="username"
@@ -110,11 +124,11 @@ export default function LoginPage() {
           </Button>
         </div>
 
-        <div className="flex justify-end py-1">
+        {features.emailDelivery && <div className="flex justify-end py-1">
           <UtilityLink asChild>
             <Link href="/forgot-password">{t('auth.login.forgotPassword')}</Link>
           </UtilityLink>
-        </div>
+        </div>}
 
         <Button type="submit" variant="solid" size="lg" className="w-full" disabled={isLoading}>
           {isLoading ? (
@@ -128,13 +142,14 @@ export default function LoginPage() {
         </Button>
       </form>
 
-      <div className="mt-8 text-center">
+      {features.publicSignup && <div className="mt-8 text-center">
         <AuthFormFooter
           questionText={t('auth.login.footerQuestion')}
           linkText={t('auth.login.footerLink')}
           href={nextPath ? `/signup?next=${encodeURIComponent(nextPath)}` : '/signup'}
         />
-      </div>
+      </div>}
+      {!features.publicSignup && <p className="mt-6 text-std-16N-170">{t("onprem.loginHelp")}</p>}
     </>
   );
 }
