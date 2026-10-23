@@ -174,7 +174,7 @@ describe("埋め込み生成", () => {
       return jsonResponse({ data: [{ index: 0, embedding: testEmbedding(0.5, -0.25, 0) }] });
     });
     await expect(embedQuery({
-      ...ENV, EMBEDDING_PROVIDER: "openai", EMBEDDING_MODEL: "gte-qwen2-1.5b-q4km-124fbdad",
+      ...ENV, EMBEDDING_MODEL: "gte-qwen2-1.5b-q4km-124fbdad",
       EMBEDDING_BASE_URL: "http://embedding.test:8000/v1/", EMBEDDING_API_KEY: "local-inference",
     }, "hello")).resolves.toEqual(testEmbedding(0.5, -0.25, 0));
   });

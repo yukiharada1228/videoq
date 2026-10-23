@@ -72,7 +72,8 @@ def test_deletion_scopes_counts_and_commits_on_postgres(monkeypatch) -> None:
             monkeypatch.setenv("DATABASE_URL", psycopg.conninfo.make_conninfo(
                 os.environ["DATABASE_URL"], options=f"-c search_path={schema}",
             ))
-            monkeypatch.setenv("EMBEDDING_PROVIDER", "invalid")
+            monkeypatch.delenv("EMBEDDING_API_KEY", raising=False)
+            monkeypatch.delenv("OPENAI_API_KEY", raising=False)
             assert vector_index.delete_video_vectors(1) == 2
             assert vector_index.delete_user_vectors("a") == 1
             assert vector_index.delete_user_vectors("b' OR TRUE --") == 0

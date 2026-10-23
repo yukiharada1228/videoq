@@ -101,7 +101,6 @@ def main():
             state_path.write_text(json.dumps(account))
             state_path.chmod(0o600)
             e2e("register")
-        k("exec","deployment/videoq-api","--","node","scripts/create-admin.mjs","onprem-lab@example.com")
         e2e("upload")
         # Test object backup, deletion and restoration through the real S3 API.
         storage_test = '''import hashlib

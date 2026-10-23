@@ -40,7 +40,6 @@
     "DEFAULT_PROCESSING_LIMIT_MINUTES": "120",
     "DEFAULT_AI_ANSWERS_LIMIT": "30",
     "STRIPE_AUTOMATIC_TAX": "false",
-    "EMBEDDING_PROVIDER": "openai",
     // Resolve the hosted default in the adapter; private endpoints set their own model.
     "EMBEDDING_MODEL": "",
     "LLM_MODEL": "gpt-6-luna",
@@ -116,7 +115,6 @@
         "DEFAULT_PROCESSING_LIMIT_MINUTES": "120",
         "DEFAULT_AI_ANSWERS_LIMIT": "30",
         "STRIPE_AUTOMATIC_TAX": "false",
-        "EMBEDDING_PROVIDER": "openai",
         // Keep provider-specific defaults in the application, as in local dev.
         "EMBEDDING_MODEL": "",
         "LLM_MODEL": "gpt-6-luna",

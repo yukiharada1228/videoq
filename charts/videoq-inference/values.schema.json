@@ -48,7 +48,8 @@
                 "Never"
               ]
             }
-          }
+          },
+          "additionalProperties": false
         },
         "persistence": {
           "type": "object",
@@ -63,7 +64,8 @@
             "storageClass": {
               "type": "string"
             }
-          }
+          },
+          "additionalProperties": false
         },
         "modelRepo": {
           "type": "string",
@@ -91,8 +93,18 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 128
+        },
+        "resources": {
+          "type": "object"
+        },
+        "nodeSelector": {
+          "type": "object"
+        },
+        "tolerations": {
+          "type": "array"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "networkPolicy": {
       "type": "object",
@@ -132,7 +144,8 @@
             }
           }
         }
-      ]
+      ],
+      "additionalProperties": false
     },
     "backend": {
       "enum": [
@@ -170,9 +183,11 @@
                 "Never"
               ]
             }
-          }
+          },
+          "additionalProperties": false
         }
-      }
+      },
+      "additionalProperties": false
     },
     "vllm": {
       "type": "object",
@@ -204,9 +219,11 @@
                 "Never"
               ]
             }
-          }
+          },
+          "additionalProperties": false
         }
-      }
+      },
+      "additionalProperties": false
     },
     "servers": {
       "type": "object",
@@ -269,14 +286,22 @@
                 "storageClass": {
                   "type": "string"
                 }
-              }
+              },
+              "additionalProperties": false
             },
             "cpuThreads": {
               "type": "integer",
               "minimum": 1,
               "maximum": 128
+            },
+            "nodeSelector": {
+              "type": "object"
+            },
+            "tolerations": {
+              "type": "array"
             }
-          }
+          },
+          "additionalProperties": false
         },
         "embedding": {
           "type": "object",
@@ -336,17 +361,42 @@
                 "storageClass": {
                   "type": "string"
                 }
-              }
+              },
+              "additionalProperties": false
             },
             "cpuThreads": {
               "type": "integer",
               "minimum": 1,
               "maximum": 128
+            },
+            "nodeSelector": {
+              "type": "object"
+            },
+            "tolerations": {
+              "type": "array"
             }
-          }
+          },
+          "additionalProperties": false
         }
-      }
+      },
+      "additionalProperties": false
     },
-    "ollama": false
-  }
+    "imagePullSecrets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
 }

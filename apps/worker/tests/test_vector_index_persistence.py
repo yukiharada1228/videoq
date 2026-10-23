@@ -45,7 +45,6 @@ def database(monkeypatch):
         try:
             test_url = urlunsplit(urlsplit(url)._replace(path=f"/{name}"))
             monkeypatch.setenv("DATABASE_URL", test_url)
-            monkeypatch.setenv("EMBEDDING_PROVIDER", "openai")
             monkeypatch.setenv("EMBEDDING_MODEL", "text-embedding-3-small")
             monkeypatch.setenv("PGVECTOR_COLLECTION_NAME", "scene_embeddings")
             monkeypatch.setattr(vector_index, "embed_texts", lambda texts: [VECTOR for _ in texts])

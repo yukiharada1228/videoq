@@ -67,16 +67,27 @@
     "ai": {
       "type": "object",
       "properties": {
-        "separateToolSchema": { "type": "boolean" },
-        "requestTimeoutMs": { "type": "integer", "minimum": 1000, "maximum": 900000 },
-        "streamTimeoutMs": { "type": "integer", "minimum": 1000, "maximum": 900000 },
-        "reasoningEffort": {
-          "enum": ["", "none", "minimal", "low", "medium", "high"]
+        "separateToolSchema": {
+          "type": "boolean"
         },
-        "ollamaBaseUrl": false,
-        "embeddingProvider": {
+        "requestTimeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 900000
+        },
+        "streamTimeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 900000
+        },
+        "reasoningEffort": {
           "enum": [
-            "openai"
+            "",
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high"
           ]
         },
         "whisperBackend": {
@@ -86,8 +97,24 @@
             "whisper.cpp",
             "modal"
           ]
+        },
+        "openaiBaseUrl": {
+          "type": "string"
+        },
+        "llmModel": {
+          "type": "string"
+        },
+        "embeddingBaseUrl": {
+          "type": "string"
+        },
+        "embeddingModel": {
+          "type": "string"
+        },
+        "whisperLocalUrl": {
+          "type": "string"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "api": {
       "type": "object",

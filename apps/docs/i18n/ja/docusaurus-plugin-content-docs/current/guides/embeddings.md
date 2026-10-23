@@ -1,25 +1,23 @@
 ---
 title: 埋め込みの設定と検証
-description: 1536次元固定の仕様、providerの設定、診断方法、モデル変更時の制約。
+description: 1536次元固定の仕様、モデル・接続先の設定、診断方法、モデルの整合性。
 ---
 
 # 埋め込みの設定と検証
 
-VideoQはシーンの埋め込みを `scene_embeddings.embedding vector(1536)` に保存します。API・Python workerの次元数は定数 `EMBEDDING_DIMENSIONS = 1536` で固定です。`EMBEDDING_VECTOR_SIZE` は廃止しました。環境に残っていても値によらず参照しません。この変更にDB migrationは不要です。
+VideoQはシーンの埋め込みを `scene_embeddings.embedding vector(1536)` に保存します。API・Python workerの次元数は定数 `EMBEDDING_DIMENSIONS = 1536` で固定です。API・worker は同じ固定の保存形式と出力条件を検証します。
 
 ## 外部または社内の接続先を選ぶ
 
 埋め込みは OpenAI 互換 API に統一しています。標準設定は次のとおりです。
 
 ```dotenv
-EMBEDDING_PROVIDER=openai
 EMBEDDING_MODEL=text-embedding-3-small
 ```
 
 社内の llama.cpp／vLLM も同じ形式を使い、接続先とモデル名を明示します。
 
 ```dotenv
-EMBEDDING_PROVIDER=openai
 EMBEDDING_BASE_URL=http://embedding.intranet:8000/v1
 EMBEDDING_API_KEY=local-inference
 EMBEDDING_MODEL=gte-qwen2-1.5b-q4km-124fbdad
@@ -37,11 +35,8 @@ llama.cpp 構成は元の出力が 1536 次元の gte-Qwen2、vLLM 構成は次�
 Qwen3-Embedding-4B を使います。不正な出力を切り詰めたり、ゼロ埋めしたり、次元指定を
 外して再試行したり、外部サービスへ自動的に切り替えたりしません。
 
-provider は前後空白を除去して小文字化します。空または `openai` のみ対応し、
-削除済みの `ollama` を含む他の値は通信前に設定エラーとなります。model が空なら
-`text-embedding-3-small` を使うため、社内のモデル名を明示します。
-旧 `OLLAMA_BASE_URL`／`WORKER_OLLAMA_BASE_URL` は削除してください。
-同じ次元数でもモデルを変えると既存の埋め込み再生成が必要です。後述の保守・復旧手順に従います。
+API の形式は固定です。モデル名は前後空白を除去し、大小文字は保持します。空なら
+`text-embedding-3-small` を使うため、社内の実際のモデル名と接続先を明示してください。
 
 出典は [OpenAI の埋め込み](../reference/ai-references.md#openai-embeddings)、Qwen3 を使う場合は
 [Qwen3 Embedding](../reference/ai-references.md#qwen3-embedding)を参照し、重みの revision、量子化、
@@ -59,7 +54,7 @@ provider は前後空白を除去して小文字化します。空または `ope
 
 ## APIとworkerの診断結果を比較する
 
-各実行環境で有効なprovider・modelと、そのDBを指す `DATABASE_URL` を設定します。以下はAPI・workerそれぞれのディレクトリで実行します。APIは `DOTENV_CONFIG_PATH` でdotenvファイルを指定できます。Pythonはexport済み環境変数を読みます。
+各実行環境で有効なモデル・接続先と、そのDBを指す `DATABASE_URL` を設定します。以下はAPI・workerそれぞれのディレクトリで実行します。APIは `DOTENV_CONFIG_PATH` でdotenvファイルを指定できます。Pythonはexport済み環境変数を読みます。
 
 ```bash
 # apps/api: 設定とDBの宣言型のみ
@@ -87,7 +82,7 @@ DB検証の成功時は次のようなJSONが出力されます。
 
 | 内部理由 | 意味 |
 |---|---|
-| `EMBEDDING_CONFIG_INVALID` | 未対応provider・必須modelの未指定・workerの埋め込み要求に対するHTTP 4xxの拒否（408/429を除く） |
+| `EMBEDDING_CONFIG_INVALID` | workerの埋め込み要求に対するHTTP 4xxの拒否（408/429を除く） |
 | `EMBEDDING_SCHEMA_MISMATCH` | DBの宣言型が `vector(1536)` と異なる |
 | `EMBEDDING_OUTPUT_INVALID` | モデル出力・件数・indexが不正 |
 
@@ -95,19 +90,12 @@ Q&Aの公開エラーは既存の分類を維持します。設定・スキー�
 
 workerは、非対応モデル・次元指定などに対する恒久的な拒否をシーン分割の上位へ伝えます。providerのエラー本文はログに出しません。タイムアウト・利用制限・サーバー障害は、シーン分割の既存フォールバックを維持します。
 
-## 既存データと今後のモデル変更
+## モデルの整合性
 
-**同じ次元でも、異なるモデルのベクトルは比較可能とは限りません。** 保存データには生成モデルやrevisionの履歴がありません。DB検証だけでAPI・workerのモデル不一致、旧モデルのデータ、同じタグの実体変更を検出することはできません。診断結果を比較し、生成構成は運用記録にも残してください。
+保存済みベクトルと検索用ベクトルは、同じ重み・revision・量子化・pooling・前処理を
+使う必要があります。同じ次元数でも異なるモデルのベクトルは混在できません。
+保存行にモデルの来歴は記録されないため、採用した設定を記録し、API・worker の診断を照合します。
 
-既存データのモデル移行ツールは提供していません。1536次元のままモデルを変える場合も、シーンの埋め込みを再生成する必要があります。全体再索引はシーンを更新しますが、途中失敗時の復旧を含めた移行手順が必要です。
-
-今後の移行設計には、次の条件がすべて必要です。
-
-1. 元データを変更せず対象モデル・要求次元を検証し、旧データの生成構成を記録から確認する。
-2. 次元を変更する場合はアプリの契約とDrizzleスキーマを更新し、固定次元 `vector(N)` への新しいmigrationを生成する。過去のSQL・snapshotは書き換えず、起動時の自動DDLも追加しない。
-3. 保守時間を確保し、Q&A・workerの書き込み・実行中処理・キュー内の旧ジョブを止める。
-4. 字幕・ベクトル・スキーマ・アプリ版・設定を復元できるバックアップを確保する。次元の異なる旧ベクトルを `ALTER TYPE` だけで保持できるとは扱わない。
-5. 字幕を維持し、シーンのベクトルを同じ構成で再生成する。
-6. 件数・欠落・次元・Q&A検索を確認し、API・workerの設定を揃えて再開する。途中失敗時は保守を維持し、旧データ・スキーマ・アプリ・設定を一式で復元する。
-
-データ保持と復旧の仕組みが揃うまで、既存DBのモデル・次元変更は標準の運用手順として提供しません。破棄可能な開発DBの作り直しとは区別してください。
+初期導入時は、選んだモデル設定でデータベースを初期化します。運用中にモデルを変える場合は、
+Q&A とインデックス更新を止めてシーンの埋め込みを再生成し、その後に検索を再開してください。
+現在のアプリケーションとデータベースは、出力を 1536 次元に固定しています。

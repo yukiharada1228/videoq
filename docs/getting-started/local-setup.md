@@ -40,7 +40,7 @@ OPENAI_API_KEY=your-development-key
 OPENAI_BASE_URL=https://api.openai.com/v1
 LLM_MODEL=gpt-6-luna
 WHISPER_BACKEND=openai
-EMBEDDING_PROVIDER=openai
+
 EMBEDDING_MODEL=text-embedding-3-small
 ```
 

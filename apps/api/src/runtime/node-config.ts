@@ -78,7 +78,6 @@ export function nodeBindings(source: Environment): Bindings {
     LLM_REQUEST_TIMEOUT_MS: String(integerSetting(source, "LLM_REQUEST_TIMEOUT_MS", 120_000, 1000, 900_000)),
     LLM_STREAM_TIMEOUT_MS: String(integerSetting(source, "LLM_STREAM_TIMEOUT_MS", 300_000, 1000, 900_000)),
     EMBEDDING_BASE_URL: source.EMBEDDING_BASE_URL, EMBEDDING_API_KEY: source.EMBEDDING_API_KEY,
-    EMBEDDING_PROVIDER: source.EMBEDDING_PROVIDER || "openai",
     EMBEDDING_MODEL: source.EMBEDDING_MODEL || "",
     PGVECTOR_COLLECTION_NAME: source.PGVECTOR_COLLECTION_NAME || "scene_embeddings",
     VIDEO_VISUAL_ENABLED: source.VIDEO_VISUAL_ENABLED || "true",

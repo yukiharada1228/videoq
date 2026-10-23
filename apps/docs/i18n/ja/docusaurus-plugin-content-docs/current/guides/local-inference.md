@@ -16,8 +16,7 @@ Web・API・ワーカーに加えて、LLM・埋め込み生成・Whisper も社
 | NVIDIA GPU | vLLM。回答用・埋め込み用を別サービスに配置 | `local-ai-vllm.yaml` |
 
 文字起こしは、どの構成でも独立した社内の faster-whisper サービスで処理します。
-`EMBEDDING_PROVIDER=openai` は API の形式を表します。外部 OpenAI を使う指定ではなく、
-`EMBEDDING_BASE_URL` で社内の埋め込み API を指定できます。LLM の `OPENAI_BASE_URL` とは
+API の形式は OpenAI 互換に統一し、`EMBEDDING_BASE_URL` で社内の埋め込み API を指定します。LLM の `OPENAI_BASE_URL` とは
 独立して設定します。認証も分ける場合は Secret に `EMBEDDING_API_KEY` を設定します。
 
 具体的なコマンドは、[推論用 Chart の導入手順](https://github.com/yukiharada1228/videoq/blob/main/charts/videoq-inference/README.md)

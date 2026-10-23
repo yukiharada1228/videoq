@@ -807,7 +807,6 @@ describe.each([false, true])("ReAct 障害の利用枠返却（stream=%s）", (s
         userId: TEST_USER_ID,
         env: {
           ...OPENAI_ENV,
-          EMBEDDING_PROVIDER: "openai",
           EMBEDDING_MODEL: "gte-qwen2-1.5b-q4km-124fbdad",
           EMBEDDING_BASE_URL: "http://embedding.test:8000/v1",
         },

@@ -14,11 +14,7 @@ describe("embedding contract", () => {
     expect(EMBEDDING_DIMENSIONS).toBe(1536);
   });
   it.each(embeddingConfigCases)("resolves $env", (testCase) => {
-    if (testCase.error) {
-      expect(() => resolveEmbeddingConfig(testCase.env)).toThrowError(expect.objectContaining({ reason: testCase.error }));
-    } else {
-      expect(resolveEmbeddingConfig(testCase.env)).toEqual(testCase.expected);
-    }
+    expect(resolveEmbeddingConfig(testCase.env)).toEqual(testCase.expected);
   });
   it.each([
     [], [1, 2], Array(2560).fill(1), Array(1536).fill(0),
@@ -41,8 +37,7 @@ describe("embedQuery", () => {
     expect(env.OPENAI_BASE_URL).toBe("http://chat.test/v1");
   });
 
-  it.each(["openai"].flatMap(provider => ["headers", "body"].map(stage => ({ provider, stage }))))
-    ("stops $provider embedding requests during $stage when the caller aborts", async ({ provider, stage }) => {
+  it.each(["headers", "body"])("stops embedding requests during %s when the caller aborts", async (stage) => {
     const controller = new AbortController();
     const reason = new DOMException("client disconnected", "AbortError");
     const started = Promise.withResolvers<void>();
@@ -60,7 +55,7 @@ describe("embedQuery", () => {
         },
       }), { headers: { "content-type": "application/json" } });
     });
-    const pending = embedQuery({ ...baseEnv, EMBEDDING_PROVIDER: provider, EMBEDDING_MODEL: "model" }, "input", controller.signal);
+    const pending = embedQuery({ ...baseEnv, EMBEDDING_MODEL: "model" }, "input", controller.signal);
     const rejected = expect(pending).rejects.toBe(reason);
     await started.promise;
     controller.abort(reason);
@@ -68,10 +63,10 @@ describe("embedQuery", () => {
     await rejected;
   });
 
-  it.each(["openai"])("requests and validates 1536 dimensions via %s", async (provider) => {
+  it("requests and validates 1536 dimensions", async () => {
     const fetch = vi.fn(async () => Response.json({ data: [{ index: 0, embedding: embedding(1) }] }));
     vi.stubGlobal("fetch", fetch);
-    const env = { ...baseEnv, EMBEDDING_PROVIDER: provider, EMBEDDING_MODEL: "text-embedding-3-small" } as Bindings;
+    const env = { ...baseEnv, EMBEDDING_MODEL: "text-embedding-3-small" } as Bindings;
     expect(await embedQuery(env, "hello")).toEqual(embedding(1));
     const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://api.openai.com/v1/embeddings");
@@ -86,13 +81,6 @@ describe("embedQuery", () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json(payload)));
     await expect(embedQuery(baseEnv, "hello")).rejects.toMatchObject({ reason: "EMBEDDING_OUTPUT_INVALID" });
   });
-  it("rejects the removed provider before any request instead of using a hosted fallback", async () => {
-    const fetch = vi.fn();
-    vi.stubGlobal("fetch", fetch);
-    await expect(embedQuery({ ...baseEnv, EMBEDDING_PROVIDER: "ollama", EMBEDDING_MODEL: "old-model" }, "private input"))
-      .rejects.toMatchObject({ reason: "EMBEDDING_CONFIG_INVALID" });
-    expect(fetch).not.toHaveBeenCalled();
-  });
   it("does not retry without dimensions or accept an incompatible private model's native size", async () => {
     const fetch = vi.fn(async () => Response.json({ data: [{ index: 0, embedding: Array(2560).fill(0.1) }] }));
     vi.stubGlobal("fetch", fetch);
@@ -100,10 +88,10 @@ describe("embedQuery", () => {
       .rejects.toMatchObject({ reason: "EMBEDDING_OUTPUT_INVALID" });
     expect(fetch).toHaveBeenCalledOnce();
   });
-  it.each(["openai"])("does not expose provider response bodies or retry on %s errors", async (provider) => {
+  it("does not expose provider response bodies or retry on errors", async () => {
     const fetch = vi.fn(async () => new Response("private input / token", { status: 400 }));
     vi.stubGlobal("fetch", fetch);
-    await expect(embedQuery({ ...baseEnv, EMBEDDING_PROVIDER: provider, EMBEDDING_MODEL: "model" } as Bindings, "input"))
+    await expect(embedQuery({ ...baseEnv, EMBEDDING_MODEL: "model" } as Bindings, "input"))
       .rejects.toThrow(`OpenAI embeddings failed (HTTP 400).`);
     expect(fetch).toHaveBeenCalledOnce();
   });

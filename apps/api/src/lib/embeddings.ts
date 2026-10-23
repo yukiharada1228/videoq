@@ -16,7 +16,6 @@ import type { AnswerCostLedger } from "./answer-cost-ledger";
 const EMBEDDING_TIMEOUT_MS = 30_000;
 
 export type EmbeddingEnv = {
-  EMBEDDING_PROVIDER?: string;
   EMBEDDING_MODEL?: string;
   OPENAI_API_KEY?: string;
   OPENAI_BASE_URL?: string;

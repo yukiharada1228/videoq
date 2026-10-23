@@ -1,11 +1,11 @@
 ---
 title: Configure and verify embeddings
-description: The fixed 1536-dimensional contract, provider settings, diagnostics, and model-change limitations.
+description: The fixed 1536-dimensional contract, model/endpoint settings, diagnostics, and model consistency.
 ---
 
 # Configure and verify embeddings
 
-VideoQ stores scene embeddings in `scene_embeddings.embedding vector(1536)`. The API and Python worker use a fixed `EMBEDDING_DIMENSIONS = 1536` constant. `EMBEDDING_VECTOR_SIZE` has been removed: a leftover variable is ignored, regardless of its value. No database migration is needed for this change.
+VideoQ stores scene embeddings in `scene_embeddings.embedding vector(1536)`. The API and Python worker use a fixed `EMBEDDING_DIMENSIONS = 1536` constant. Both runtimes validate the same fixed storage and output contract.
 
 ## Choose a hosted or private endpoint
 
@@ -13,7 +13,6 @@ VideoQ uses the OpenAI-compatible embeddings protocol. Templates, Compose and
 Wrangler default to:
 
 ```dotenv
-EMBEDDING_PROVIDER=openai
 EMBEDDING_MODEL=text-embedding-3-small
 ```
 
@@ -21,7 +20,6 @@ Set `OPENAI_API_KEY` in the environment. A private llama.cpp or vLLM service use
 the same protocol, its own model alias and an explicit endpoint, for example:
 
 ```dotenv
-EMBEDDING_PROVIDER=openai
 EMBEDDING_BASE_URL=http://embedding.intranet:8000/v1
 EMBEDDING_API_KEY=local-inference
 EMBEDDING_MODEL=gte-qwen2-1.5b-q4km-124fbdad
@@ -40,13 +38,9 @@ vLLM uses Qwen3-Embedding-4B with reduced output explicitly enabled. The
 application rejects incompatible output without truncating, padding, retrying
 without dimensions or choosing a hosted fallback.
 
-Provider names are trimmed and lowercased. Empty or `openai` selects this
-protocol; any other value, including the removed `ollama`, is a configuration
-error before network access. Empty models default to `text-embedding-3-small`;
-private installations must set their actual served alias. Remove obsolete
-`OLLAMA_BASE_URL` / `WORKER_OLLAMA_BASE_URL` variables. Existing vectors require
-regeneration when changing models, even at the same dimensions; follow the
-maintenance and recovery constraints below.
+The protocol is fixed. Model names are trimmed but retain their case; an empty
+model uses `text-embedding-3-small`. Private installations set their actual served
+alias and endpoint in both API and worker.
 
 For attribution, see [OpenAI embeddings](../reference/ai-references.md#openai-embeddings)
 and [Qwen3 Embedding](../reference/ai-references.md#qwen3-embedding) when that family
@@ -64,7 +58,7 @@ Full reindexing checks the DB embedding contract when there are eligible videos,
 
 ## Compare API and worker diagnostics
 
-Use the effective provider/model settings for each runtime and a `DATABASE_URL` pointing to its database. The commands below run from the API and worker directories respectively. The API command can load a dotenv file through `DOTENV_CONFIG_PATH`; the Python command reads exported environment variables.
+Use the effective model/endpoint settings for each runtime and a `DATABASE_URL` pointing to its database. The commands below run from the API and worker directories respectively. The API command can load a dotenv file through `DOTENV_CONFIG_PATH`; the Python command reads exported environment variables.
 
 ```bash
 # apps/api: settings and declared DB type only
@@ -92,7 +86,7 @@ The probe additionally reports `actual_dimensions`. Compare `provider`, `model`,
 
 | Internal reason | Meaning |
 |---|---|
-| `EMBEDDING_CONFIG_INVALID` | Unsupported provider or a worker embedding request rejected with HTTP 4xx (except 408/429) |
+| `EMBEDDING_CONFIG_INVALID` | A worker embedding request rejected with HTTP 4xx (except 408/429) |
 | `EMBEDDING_SCHEMA_MISMATCH` | DB declaration differs from `vector(1536)` |
 | `EMBEDDING_OUTPUT_INVALID` | Invalid model output, count, or indices |
 
@@ -100,19 +94,14 @@ Q&A keeps its existing public errors: configuration/schema errors use HTTP 400 `
 
 The worker propagates permanent provider rejections, including unsupported models or dimensions, through scene splitting. It does not log the provider's response body. Timeouts, rate limits, and server failures retain the existing best-effort fallback in scene splitting.
 
-## Existing data and future model changes
+## Model consistency
 
-**Equal dimensions do not make different models compatible.** Saved embeddings do not record their generating model or revision. The DB check cannot detect an API/worker model disagreement, an old model's data, or a changed model behind the same tag. Compare diagnostics and keep operational records of the generating configuration.
+All stored vectors and query vectors must use the same weights, revision,
+quantization, pooling and preprocessing. Equal dimensions do not establish a
+shared vector space. Saved rows do not record this provenance, so record the
+chosen configuration and verify API/worker diagnostics together.
 
-No existing-data model migration tool is provided. Changing models requires regenerating scene embeddings, even at 1536 dimensions. Full reindexing updates scenes, but a migration procedure must also account for recovery after partial failures.
-
-A future migration must include all of the following:
-
-1. Verify the target model and dimensions without altering source data; determine the old generating configuration from records.
-2. For different dimensions, change the application contract and Drizzle schema and generate a new migration to a fixed `vector(N)`. Do not rewrite historical SQL/snapshots or run automatic startup DDL.
-3. Reserve maintenance time and stop Q&A and worker writes, in-flight work, and old queued jobs.
-4. Back up transcripts, vectors, schema, application version, and configuration. `ALTER TYPE` alone cannot preserve incompatible old vectors.
-5. Regenerate scene vectors with the same configuration while preserving transcripts.
-6. Verify counts, missing data, dimensions, and Q&A retrieval before resuming with matching API/worker settings. On failure, maintain downtime and restore the complete old data/schema/application/configuration set.
-
-Until preservation and recovery tooling exists, changing an existing database's model or dimensions is not a supported routine operation. Recreating a disposable development database is a separate choice.
+For a new deployment, initialize the database with the chosen model settings.
+When changing models later, stop Q&A/indexing and rebuild the scene vectors
+before resuming searches. Do not mix vectors from different model versions.
+The current application and database require exactly 1536 dimensions.

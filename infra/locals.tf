@@ -14,7 +14,6 @@ locals {
     SQS_QUEUE_NAME        = aws_sqs_queue.main.name
     SQS_QUEUE_URL         = aws_sqs_queue.main.id
     FRONTEND_URL          = "https://videoq.jp"
-    EMBEDDING_PROVIDER    = "openai"
     EMBEDDING_MODEL       = "text-embedding-3-small"
     ENABLE_HEAVY_PIPELINE = "true"
   }

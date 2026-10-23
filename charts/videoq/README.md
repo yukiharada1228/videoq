@@ -261,8 +261,8 @@ functional test is not a clean vulnerability report. See the
 The local inference chart also provides llama.cpp CPU and vLLM NVIDIA recipes.
 Use the matching `examples/local-ai-llamacpp.yaml` or `examples/local-ai-vllm.yaml`.
 `ai.embeddingBaseUrl` maps to `EMBEDDING_BASE_URL` independently of the chat
-endpoint. `embeddingProvider: openai` denotes the compatible protocol for these
-private services. Optional `EMBEDDING_API_KEY` belongs in the runtime Secret;
+endpoint. These services use the OpenAI-compatible protocol. Optional
+`EMBEDDING_API_KEY` belongs in the runtime Secret;
 when absent it reuses `OPENAI_API_KEY`. Keep the API and worker embedding settings
 identical and reindex scenes when changing the embedding model or processing.
 

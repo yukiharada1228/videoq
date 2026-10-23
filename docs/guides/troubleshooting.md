@@ -64,8 +64,8 @@ See [video state transitions](../design/state-diagram.md) for the meaning of eac
 
 1. Check that the course you are asking about contains the video.
 2. Check that the video is `completed` and has a transcript.
-3. Compare API and worker `EMBEDDING_PROVIDER` / `EMBEDDING_MODEL` using the [embedding diagnostic commands](embeddings.md). Dimensions are fixed at 1536. Check the logged reason for configuration, schema, or output errors.
-4. If the embedding model changed, follow the [existing-data migration constraints](embeddings.md#existing-data-and-future-model-changes). Matching dimensions alone do not make old vectors compatible; a full reindex replaces videos individually and can leave mixed models after partial failure.
+3. Compare API and worker `EMBEDDING_BASE_URL` / `EMBEDDING_MODEL` using the [embedding diagnostic commands](embeddings.md). Dimensions are fixed at 1536. Check the logged reason for configuration, schema, or output errors.
+4. If the embedding model changed, follow the [existing-data migration constraints](embeddings.md#model-consistency). Matching dimensions alone do not make old vectors compatible; a full reindex replaces videos individually and can leave mixed models after partial failure.
 
 Questions about course names or video counts may be answered from metadata without scene citations. Even content questions may not produce the expected answer if the video contains no supporting evidence.
 

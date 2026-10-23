@@ -51,7 +51,7 @@ try:
 finally:
     asyncio.run(engine.close())
 # Pure cleanup must remain available without any usable model configuration.
-os.environ["EMBEDDING_PROVIDER"] = "invalid"
+os.environ.pop("EMBEDDING_API_KEY", None)
 os.environ.pop("OPENAI_API_KEY", None)
 assert vector_index.delete_video_vectors(61) == 1
 print("python_save_search_hnsw_ok")

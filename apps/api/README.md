@@ -275,5 +275,5 @@ docker compose up -d postgres garage garage-init elasticmq worker
 
 For separately hosted OpenAI-compatible embeddings, set `EMBEDDING_BASE_URL` and
 optionally `EMBEDDING_API_KEY`; unset values reuse `OPENAI_BASE_URL` and
-`OPENAI_API_KEY`. `EMBEDDING_PROVIDER=openai` describes the protocol, including
-private llama.cpp/vLLM services. The worker must use the same embedding settings.
+`OPENAI_API_KEY`. Embeddings always use the OpenAI-compatible protocol, including
+private llama.cpp/vLLM services. The worker must use the same model and endpoint.

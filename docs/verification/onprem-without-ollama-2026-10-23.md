@@ -1,72 +1,58 @@
-# Retire Ollama support — 2026-10-23
+# Current local inference contract — 2026-10-23
 
-The user chose to simplify local inference support. This change removes the
-Ollama-specific runtime/deployment path across the application, with llama.cpp
-as the CPU default and vLLM retained as the NVIDIA GPU recipe. It is stacked on
-the on-prem application-edition change in PR #1144.
+This change retires the dedicated Ollama support and follows the user's decision
+that backward compatibility is unnecessary. Current setup uses llama.cpp on CPU
+or the vLLM NVIDIA recipe, plus the independent private faster-whisper service.
+It is stacked on the on-prem application edition in PR #1144.
 
-## Delivered behavior
+## Current configuration
 
-- TypeScript query embeddings and Python indexing use one OpenAI-compatible
-  protocol. `EMBEDDING_BASE_URL` / `EMBEDDING_API_KEY` remain independent of chat.
-  The dedicated `/api/embed` adapter and its environment bindings are removed.
-  An old `EMBEDDING_PROVIDER=ollama` fails before HTTP without a hosted fallback.
-- The inference chart defaults to `llamacpp`. It provisions private chat,
-  embedding and Whisper APIs with three independent persistent caches. CPU model
-  revisions, SHA256 checks, image digests, non-root/offline serving and read-only
-  model mounts are retained. vLLM remains optional with pinned model snapshots.
-- The Ollama image, deployment, service, PVC template, port 11434, values and
-  application overlay are removed. Helm schemas reject retired backend/options.
-  The old NVIDIA overlay is replaced with `whisper-nvidia.yaml`: one extra GPU
-  for Whisper, leaving the selected chat/embedding backend unchanged.
-- On-prem CI scans and inventories the remaining five images (API, worker, web,
-  local Whisper and llama.cpp), without changing unfixed HIGH/CRITICAL gates.
-- Compose, Wrangler/generated bindings, Node configuration, developer templates,
-  diagnostics and English/Japanese guides use the same protocol. The Docker API
-  startup script now forwards the separate embedding URL/credential.
-- Application chart version is 0.2.0; inference chart version is 0.3.0. Historical
-  reports are retained and explicitly marked as earlier implementation evidence.
+Embeddings always use the OpenAI-compatible protocol. Configure the model,
+endpoint and optional separate key with `EMBEDDING_MODEL`, `EMBEDDING_BASE_URL`
+and `EMBEDDING_API_KEY`. Shared chat/embedding services may use `OPENAI_BASE_URL`
+and `OPENAI_API_KEY` for both. There is no provider selector, adapter branch or
+backward-compatibility alias. API, worker, Node, Workers, Compose, Terraform,
+Helm and the current English/Japanese guides use this same configuration.
 
-## Actual verification
+Helm validates the current application AI keys and inference settings through
+strict schemas, rather than special cases for retired options. Unknown fixed
+fields are rejected, while Kubernetes resource and node-selector maps keep their
+variable keys. llama.cpp remains the inference-chart default; vLLM and the
+optional Whisper CUDA overlay remain available. Model revisions/digests,
+read-only offline serving and private network policy remain enforced.
 
-- API unit suite with Helm: 1130 passed, 600 independently gated tests skipped.
-  With PostgreSQL/cross-language checks enabled: 1692 passed, 38 skipped.
-  Test DB teardown handles its expected forced-disconnection event and asserts
-  that no unexpected idle-pool errors occurred.
-- Native Cloudflare Workers tests: 32 passed. Node API production bundle built;
-  API typecheck and regenerated-binding check passed.
-- Worker suite: 463 passed, 105 independently gated tests skipped. Both languages
-  cover rejecting the removed provider before network access, fixed dimensions,
-  invalid output, errors and private endpoint/credential selection.
-- Workflow policy: 168 passed; on-prem release/registry policy: 10 passed.
-- Default, vLLM and Whisper-CUDA chart profiles passed Helm validation. Their
-  emitted manifests contain no retired workload, image, environment or port.
-- English/Japanese documentation production builds and public-content checks passed.
+Current installation instructions focus on initializing a new deployment. The
+Kubernetes lab creates its administrator through the provisioning command and
+does not run a second promotion command. No migration bridge or retired-provider
+validation cases are included. Historical reports remain marked as historical.
 
-Real inference ran on Apple silicon using llama.cpp build 11669 (commit
-620d2225c), matching the pinned server build, with GPU layers disabled. Existing
-reviewed GGUF files were used offline: Qwen3-4B Q4_K_M chat and native
-1536-dimensional gte-Qwen2-1.5B Q4_K_M embeddings. Two dedicated loopback servers
-were used; no hosted inference or existing application DB was contacted.
-All six acceptance tests passed in 260.12 seconds: native structured/cited
-answers, SSE, tool calls, query vectors, TypeScript/Python embedding-space
-agreement and production streaming RAG with fixed retrieval evidence. This is
-an interface/contract check, not a model-quality evaluation or a full browser
-upload test. Dedicated processes were stopped after validation.
+The 1536-dimensional storage/output contract, finite/nonzero vector validation,
+per-video atomic reindexing and API/worker model consistency are current
+correctness requirements. Choosing a different model during later operation
+requires rebuilding vectors before resuming Q&A; matching dimensions alone do
+not establish a shared vector space.
 
-Local logs are at `/tmp/videoq-remove-ollama-validation`. Final PR-head CI and
-Kubernetes lifecycle evidence are recorded on the pull request.
+## Verification
 
-## Upgrade boundaries
+- API with PostgreSQL, cross-language checks and Helm: 1679 passed, 38 independently
+  gated tests skipped. API typecheck, Node production bundle and generated Worker
+  binding checks passed. Native Workers: 32 passed.
+- Worker: 458 passed, 105 independently gated tests skipped. Workflow policy:
+  168 passed; on-prem release/registry policy: 10 passed; Terraform format passed.
+- Current CPU, vLLM and Whisper CUDA settings render successfully and reject
+  unknown configuration fields. English/Japanese documentation production builds
+  and public-content checks passed.
+- After removing the selector, two real llama.cpp embedding tests passed in
+  6.17 seconds: the 1536-dimensional query output and TypeScript/Python embedding
+  agreement. GPU layers were disabled and reviewed local GGUF weights were used.
+  The temporary server and DB were removed afterward.
+- The earlier six real CPU-model tests passed in 260.12 seconds for structured
+  answers, SSE, tools, query vectors, cross-language agreement and streaming RAG
+  with fixed retrieval evidence. Chat inference code is unchanged by the
+  subsequent configuration simplification.
 
-Existing installations need a planned switch of both API and worker to matching
-private model aliases/endpoints, with backups and complete scene-vector
-regeneration before resuming Q&A. Equal dimensions do not preserve vector spaces.
-Legacy caches are not converted to GGUF/safetensors and retained PVCs are not
-automatically deleted. Follow the current inference/embedding guides rather than
-reusing removed overlays or `--reuse-values` containing retired settings.
-
-No installed site, original dirty workspace, user Ollama service, or pre-existing
-Docker/Kubernetes workload was changed. This source change does not publish
-release images or merge earlier PRs. vLLM/Whisper GPU hardware execution remains
-subject to acceptance on the actual site; CPU evidence does not prove it.
+Local logs: `/tmp/videoq-current-config-validation`; the earlier full CPU-model
+logs remain at `/tmp/videoq-remove-ollama-validation`. Final-head CI and Kubernetes
+lifecycle evidence are linked from the pull request. Lifecycle inference uses
+private deterministic fixtures; model-quality and GPU-hardware acceptance remain
+site-specific. This change does not merge PRs or publish/deploy release images.

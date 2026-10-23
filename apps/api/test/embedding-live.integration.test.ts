@@ -24,9 +24,8 @@ const exec = promisify(execFile);
 const workerPath = fileURLToPath(new URL("../../worker", import.meta.url));
 
 describe.skipIf(!enabled)("real embedding providers", () => {
-  it.each([
-    { provider: "openai", model: settings.EMBEDDING_MODEL || "text-embedding-3-small" },
-  ])("$provider: indexes a short transcript and answers Q&A", async ({ provider, model }) => {
+  it("indexes a short transcript and answers Q&A", async () => {
+    const model = settings.EMBEDDING_MODEL || "text-embedding-3-small";
     const databaseUrl = process.env.EMBEDDING_TEST_DATABASE_URL;
     if (!databaseUrl || !settings.OPENAI_API_KEY) throw new Error("Live tests require EMBEDDING_TEST_DATABASE_URL and OPENAI_API_KEY.");
     const name = `videoq_live_${crypto.randomUUID().replaceAll("-", "")}`;
@@ -35,7 +34,7 @@ describe.skipIf(!enabled)("real embedding providers", () => {
     const url = new URL(databaseUrl);
     url.pathname = `/${name}`;
     let pool: Pool | undefined;
-    const providerSettings = { ...settings, EMBEDDING_PROVIDER: provider, EMBEDDING_MODEL: model };
+    const providerSettings = { ...settings, EMBEDDING_MODEL: model };
     try {
       await admin.query(`CREATE DATABASE "${name}"`);
       pool = new Pool({ connectionString: url.toString(), max: 1 });

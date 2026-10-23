@@ -25,7 +25,6 @@ withHelm("private local inference deployment", () => {
       expect(pod.initContainers).toHaveLength(1);
       expect(pod.securityContext.runAsNonRoot).toBe(true);
     }
-    expect(resources.some(r => r.metadata.name.includes("ollama"))).toBe(false);
     for (const pod of pods) {
       const server = pod.containers[0];
       expect(server.resources.limits["nvidia.com/gpu"]).toBeUndefined();
@@ -85,12 +84,12 @@ withHelm("private local inference deployment", () => {
     expect(offline.find(r => r.kind === "NetworkPolicy").spec.egress).toEqual([]);
   });
   it("rejects invalid engines, mutable model revisions, and incompatible weight formats", () => {
-    for (const setting of ["backend=unknown", "backend=ollama", "backend=vllm", "servers.chat.modelRevision=main", "servers.chat.modelFile=../model.gguf", "backend=llamacpp,servers.chat.modelSha256="]) {
+    for (const setting of ["backend=unknown", "unknownSetting=true", "servers.chat.unknownSetting=true", "backend=vllm", "servers.chat.modelRevision=main", "servers.chat.modelFile=../model.gguf", "backend=llamacpp,servers.chat.modelSha256="]) {
       expect(command("--set", setting).status).not.toBe(0);
     }
   });
-  it("rejects mutable Whisper revisions, removed settings and unpinned production images", () => {
-    for (const setting of ["whisper.modelRevision=main", "whisper.device=auto", "ollama.chatModel=gemma4:cloud", "requireImageDigests=true"]) {
+  it("rejects mutable Whisper revisions and unpinned production images", () => {
+    for (const setting of ["whisper.modelRevision=main", "whisper.device=auto", "requireImageDigests=true"]) {
       expect(command("--set", setting).status).not.toBe(0);
     }
     const resources = render("--set", "requireImageDigests=true", "--set", `whisper.image.digest=sha256:${"b".repeat(64)}`);

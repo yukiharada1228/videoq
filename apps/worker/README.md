@@ -91,7 +91,6 @@ results. Checkpoints are deleted by foreign-key cascade when the video is delete
 | `OPENAI_API_KEY` | Whisper and embeddings |
 | `WHISPER_BACKEND` | `openai` (default), `modal`, or `local` |
 | `WHISPER_MODAL_URL` / `WHISPER_MODAL_TOKEN` | Protected Modal API root URL and combined proxy token (`wk-….ws-…`); required when `WHISPER_BACKEND=modal` |
-| `EMBEDDING_PROVIDER` | `openai`: hosted/private OpenAI-compatible protocol |
 | `EMBEDDING_MODEL` | Defaults to `text-embedding-3-small`; set the actual served alias for a private model |
 | `USE_S3_STORAGE` | Enable S3-compatible object storage |
 | `R2_BUCKET_NAME` / `R2_S3_ENDPOINT` / `R2_S3_REGION` | R2 bucket / endpoint / region |
@@ -207,8 +206,7 @@ does not require the emulator. Do not deploy the local target to production.
 ## Embedding diagnostics
 
 Dimensions are fixed by `EMBEDDING_DIMENSIONS = 1536`. Hosted/private servers
-receive `dimensions: 1536` through `/v1/embeddings`. `EMBEDDING_VECTOR_SIZE` has
-been removed and is ignored if still set.
+receive `dimensions: 1536` through `/v1/embeddings`.
 
 Run `python -m worker_python.check_embeddings` in a Python environment configured
 with the worker's environment variables to validate settings and the database's

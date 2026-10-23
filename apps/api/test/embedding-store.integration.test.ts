@@ -36,7 +36,7 @@ afterEach(() => vi.unstubAllGlobals());
       await assertEmbeddingSchema(pool, resolveEmbeddingConfig({}));
       const { stdout } = await exec(process.env.VIDEOQ_TEST_PYTHON || "python3", [pythonHelper], {
         cwd: workerPath,
-        env: { ...process.env, DATABASE_URL: url.toString(), EMBEDDING_PROVIDER: "openai", EMBEDDING_MODEL: "text-embedding-3-small", PYTHONPATH: workerPath },
+        env: { ...process.env, DATABASE_URL: url.toString(), EMBEDDING_MODEL: "text-embedding-3-small", PYTHONPATH: workerPath },
       });
       expect(stdout).toContain("python_save_search_hnsw_ok");
       const env = { HYPERDRIVE: { connectionString: url.toString() }, OPENAI_API_KEY: "test-key" } as Bindings;

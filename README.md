@@ -103,7 +103,7 @@ OPENAI_API_KEY=sk-proj-...
 OPENAI_BASE_URL=https://api.openai.com/v1
 LLM_MODEL=gpt-6-luna
 WHISPER_BACKEND=openai
-EMBEDDING_PROVIDER=openai
+
 EMBEDDING_MODEL=text-embedding-3-small
 
 # Docker API startup currently forwards AUTH_JWT_SECRET as the auth fallback.
@@ -289,8 +289,7 @@ uses the local faster-whisper service. See the [local inference guide](docs/guid
 and the [inference chart](charts/videoq-inference/README.md) for matching
 application overlays, model provisioning and acceptance commands.
 
-Set `EMBEDDING_PROVIDER=openai` for this protocol, an explicit
-`EMBEDDING_BASE_URL` and the matching served model alias in both API and worker.
+Set `EMBEDDING_BASE_URL` and the matching served model alias in both API and worker.
 `OPENAI_BASE_URL` selects chat independently. Private servers without
 API authentication use `local-inference` as a placeholder key. Text-only models
 require `VIDEO_VISUAL_ENABLED=false`; hosted credentials are unnecessary when
@@ -364,7 +363,7 @@ BETTER_AUTH_URL=http://localhost:3000
 FRONTEND_URL=http://localhost:3000
 OAUTH_ISSUER_URL=http://localhost:3000
 OPENAI_BASE_URL=https://api.openai.com/v1
-EMBEDDING_PROVIDER=openai
+
 EMBEDDING_MODEL=text-embedding-3-small
 ```
 

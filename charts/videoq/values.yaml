@@ -61,7 +61,6 @@ ai:
   streamTimeoutMs: 300000
   # OpenAI-compatible embedding service; empty reuses openaiBaseUrl.
   embeddingBaseUrl: ""
-  embeddingProvider: openai
   embeddingModel: text-embedding-3-small
   whisperBackend: openai
   whisperLocalUrl: ""

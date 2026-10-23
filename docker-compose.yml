@@ -191,7 +191,6 @@ services:
       R2_BUCKET_NAME: ${GARAGE_BUCKET:-videoq-media}
       R2_S3_ENDPOINT: http://garage:3900
       R2_S3_REGION: garage
-      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-openai}
       # Set an explicit model alias for private OpenAI-compatible endpoints.
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
       ENABLE_HEAVY_PIPELINE: ${ENABLE_HEAVY_PIPELINE:-1}

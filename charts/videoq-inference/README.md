@@ -48,11 +48,10 @@ configured site services.
 | vLLM NVIDIA | `examples/vllm-nvidia.yaml` | `charts/videoq/examples/local-ai-vllm.yaml` | Two GPUs, one for each model; Whisper CPU |
 
 The application connects to OpenAI-compatible Chat Completions and embeddings.
-`EMBEDDING_PROVIDER=openai` identifies the protocol, including private llama.cpp
-and vLLM servers; it does not select a hosted endpoint when `EMBEDDING_BASE_URL`
-is set. `ai.embeddingBaseUrl` / `EMBEDDING_BASE_URL` is independent of
-`ai.openaiBaseUrl` / `OPENAI_BASE_URL`. Empty embedding URL preserves the existing
-fallback to the chat base URL. Optional `EMBEDDING_API_KEY` in the runtime Secret
+Private llama.cpp and vLLM servers use the same protocol as hosted OpenAI.
+`EMBEDDING_BASE_URL` selects the embedding endpoint. `ai.embeddingBaseUrl` / `EMBEDDING_BASE_URL` is independent of
+`ai.openaiBaseUrl` / `OPENAI_BASE_URL`. An empty embedding URL uses the configured
+chat base URL. Optional `EMBEDDING_API_KEY` in the runtime Secret
 selects a separate embedding credential; otherwise `OPENAI_API_KEY` is reused.
 For the private unauthenticated recipes, use `local-inference` placeholders.
 Authentication for existing protected inference services is configured by the
@@ -229,24 +228,12 @@ model GPUs plus Whisper require **three GPUs**. No sharing is configured.
 Drivers, VRAM, scheduling, throughput and large-v3 inference require hardware
 acceptance; the CPU test does not establish GPU readiness.
 
-## Upgrade from removed support
+## Configuration contract
 
-Ollama is no longer a supported backend. The dedicated `/api/embed` adapter,
-image, Helm workload, values and application overlay have been removed.
-`backend=ollama`, legacy `ollama` values, `ai.embeddingProvider=ollama` and
-`ai.ollamaBaseUrl` fail validation. `EMBEDDING_PROVIDER=ollama` fails before any
-inference request; it never falls back to hosted OpenAI. Remove obsolete
-`OLLAMA_BASE_URL` / `WORKER_OLLAMA_BASE_URL` environment variables.
-
-For an existing installation, back up the application DB, model caches and
-operator values. Stop Q&A/indexing while switching both API and worker to the
-same new embedding model/endpoint, and rebuild existing scene vectors before
-resuming search. Matching dimensions alone do not preserve the old vector space.
-Do not reuse old cache files as GGUF/safetensors weights. Retained legacy PVCs
-are not converted or deleted automatically. Replace `local-ai.yaml` with the
-chosen current application overlay; replace `nvidia.yaml` with the optional
-`whisper-nvidia.yaml` overlay only when Whisper GPU acceleration is intended.
-See the [embedding migration constraints](../../docs/guides/embeddings.md).
+Install using the selected engine profile and a current operator values file.
+Only the documented fields are accepted; unknown chart options fail validation.
+Chat and embedding endpoints/models must match the application profile. There
+is no provider selector: the embeddings protocol is OpenAI-compatible.
 
 ## Acceptance checks
 
@@ -273,7 +260,7 @@ LOCAL_AI_TEST_EMBEDDING_MODEL=gte-qwen2-1.5b-q4km-124fbdad \
 LOCAL_AI_TEST_WORKER_PYTHON="$PWD/apps/worker/.venv/bin/python" \
   npm run test:unit --workspace @videoq/api -- test/local-inference.integration.test.ts
 WHISPER_BACKEND=local WHISPER_LOCAL_URL=http://127.0.0.1:18085/v1 \
-EMBEDDING_PROVIDER=openai EMBEDDING_BASE_URL=http://127.0.0.1:11437/v1 \
+EMBEDDING_BASE_URL=http://127.0.0.1:11437/v1 \
 EMBEDDING_MODEL=gte-qwen2-1.5b-q4km-124fbdad EMBEDDING_API_KEY=local-inference \
   uv run --project apps/worker --locked python \
   apps/worker/scripts/check_local_inference.py /secure/test.mp4 --seconds 30

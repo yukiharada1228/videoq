@@ -4,7 +4,7 @@ import { EMBEDDING_DIMENSIONS } from "./embedding-dimensions";
 export { EMBEDDING_DIMENSIONS };
 
 export type EmbeddingConfig = { provider: "openai"; model: string };
-export type EmbeddingSettings = { EMBEDDING_PROVIDER?: string; EMBEDDING_MODEL?: string };
+export type EmbeddingSettings = { EMBEDDING_MODEL?: string };
 export type EmbeddingReason =
   | "EMBEDDING_CONFIG_INVALID"
   | "EMBEDDING_SCHEMA_MISMATCH"
@@ -41,12 +41,8 @@ export class EmbeddingValidationError extends LlmProviderError {
 }
 
 export function resolveEmbeddingConfig(env: EmbeddingSettings): EmbeddingConfig {
-  const provider = env.EMBEDDING_PROVIDER?.trim().toLowerCase() || "openai";
-  if (provider !== "openai") {
-    throw new EmbeddingConfigurationError("EMBEDDING_CONFIG_INVALID", "Unsupported embedding provider. Configure openai with a hosted or private OpenAI-compatible endpoint.");
-  }
   const model = env.EMBEDDING_MODEL?.trim() || DEFAULT_EMBEDDING_MODEL;
-  return { provider, model };
+  return { provider: "openai", model };
 }
 
 export function validateEmbedding(

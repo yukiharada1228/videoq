@@ -24,22 +24,13 @@ def test_fixed_dimension():
     assert EMBEDDING_DIMENSIONS == 1536
 
 
-@pytest.mark.parametrize("case", [
-    {"env": {}, "expected": {"provider": "openai", "model": "text-embedding-3-small"}},
-    {"env": {"EMBEDDING_PROVIDER": "  ", "EMBEDDING_MODEL": "  "}, "expected": {"provider": "openai", "model": "text-embedding-3-small"}},
-    {"env": {"EMBEDDING_PROVIDER": " OPENAI ", "EMBEDDING_MODEL": " CustomModel "}, "expected": {"provider": "openai", "model": "CustomModel"}},
-    {"env": {"EMBEDDING_PROVIDER": " Ollama ", "EMBEDDING_MODEL": " qwen3-embedding:4b "}, "error": "EMBEDDING_CONFIG_INVALID"},
-    {"env": {"EMBEDDING_PROVIDER": "ollama"}, "error": "EMBEDDING_CONFIG_INVALID"},
-    {"env": {"EMBEDDING_PROVIDER": "ollama", "EMBEDDING_MODEL": "  "}, "error": "EMBEDDING_CONFIG_INVALID"},
-    {"env": {"EMBEDDING_PROVIDER": "unknown"}, "error": "EMBEDDING_CONFIG_INVALID"},
+@pytest.mark.parametrize("environ, model", [
+    ({}, "text-embedding-3-small"),
+    ({"EMBEDDING_MODEL": "  "}, "text-embedding-3-small"),
+    ({"EMBEDDING_MODEL": " CustomModel "}, "CustomModel"),
 ])
-def test_settings(case):
-    if "error" in case:
-        with pytest.raises(EmbeddingContractError) as caught:
-            resolve_embedding_config(case["env"])
-        assert caught.value.reason == case["error"]
-    else:
-        assert asdict(resolve_embedding_config(case["env"])) == case["expected"]
+def test_settings(environ, model):
+    assert asdict(resolve_embedding_config(environ)) == {"provider": "openai", "model": model}
 
 
 @pytest.mark.parametrize("vector", [
@@ -64,9 +55,7 @@ def response(monkeypatch, payload):
     return urlopen
 
 
-@pytest.mark.parametrize("provider", ["openai"])
-def test_provider_uses_fixed_dimension_and_validates_batch(monkeypatch, provider):
-    monkeypatch.setenv("EMBEDDING_PROVIDER", provider)
+def test_provider_uses_fixed_dimension_and_validates_batch(monkeypatch):
     monkeypatch.setenv("EMBEDDING_MODEL", "model")
     first_vector = [0.0, 1.0] + [0.0] * (EMBEDDING_DIMENSIONS - 2)
     payload = {"data": [{"index": 1, "embedding": VECTOR}, {"index": 0, "embedding": first_vector}]}
@@ -79,25 +68,13 @@ def test_provider_uses_fixed_dimension_and_validates_batch(monkeypatch, provider
 
 @pytest.mark.parametrize("indices", [[0, 0], [1, 2], [0], [0, True], [0, "1"]])
 def test_openai_batch_rejects_missing_duplicate_and_invalid_indices(monkeypatch, indices):
-    monkeypatch.setenv("EMBEDDING_PROVIDER", "openai")
     response(monkeypatch, {"data": [{"index": i, "embedding": VECTOR} for i in indices]})
     with pytest.raises(EmbeddingContractError):
         embeddings.embed_texts(["first", "second"])
 
 
-def test_removed_provider_stops_before_http_without_hosted_fallback(monkeypatch):
-    monkeypatch.setenv("EMBEDDING_PROVIDER", "ollama")
-    monkeypatch.setenv("EMBEDDING_MODEL", "old-model")
-    http = response(monkeypatch, {})
-    with pytest.raises(EmbeddingContractError) as caught:
-        embeddings.embed_texts(["private input"])
-    assert caught.value.reason == "EMBEDDING_CONFIG_INVALID"
-    http.assert_not_called()
-
-
 @pytest.mark.parametrize("payload", [{"data": [{"index": 0, "embedding": [1] * 2560}]}, {"embedding": VECTOR}, None])
 def test_private_invalid_response_never_falls_back(monkeypatch, payload):
-    monkeypatch.setenv("EMBEDDING_PROVIDER", "openai")
     monkeypatch.setenv("EMBEDDING_MODEL", "wrong-size")
     http = response(monkeypatch, payload)
     with pytest.raises(EmbeddingContractError):
@@ -105,10 +82,8 @@ def test_private_invalid_response_never_falls_back(monkeypatch, payload):
     http.assert_called_once()
 
 
-@pytest.mark.parametrize("provider", ["openai"])
 @pytest.mark.parametrize("payload", [b"not json", b"\xff"])
-def test_invalid_provider_payload_closes_response(monkeypatch, provider, payload):
-    monkeypatch.setenv("EMBEDDING_PROVIDER", provider)
+def test_invalid_provider_payload_closes_response(monkeypatch, payload):
     monkeypatch.setenv("EMBEDDING_MODEL", "model")
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     response = BytesIO(payload)
@@ -148,10 +123,8 @@ def test_reindex_schema_failure_stops_before_indexing(monkeypatch):
     index.assert_not_called()
 
 
-@pytest.mark.parametrize("provider", ["openai"])
 @pytest.mark.parametrize("status", [400, 401, 403, 404, 422])
-def test_provider_request_rejection_propagates_through_scene(monkeypatch, caplog, provider, status):
-    monkeypatch.setenv("EMBEDDING_PROVIDER", provider)
+def test_provider_request_rejection_propagates_through_scene(monkeypatch, caplog, status):
     monkeypatch.setenv("EMBEDDING_MODEL", "model")
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     body = "private input / credentials"
@@ -188,7 +161,6 @@ def test_provider_request_rejection_propagates_through_scene(monkeypatch, caplog
 
 
 def test_separate_embedding_endpoint_and_credential(monkeypatch):
-    monkeypatch.setenv("EMBEDDING_PROVIDER", "openai")
     http = response(monkeypatch, {"data": [{"index": 0, "embedding": VECTOR}]})
     monkeypatch.setenv("OPENAI_BASE_URL", "http://chat.test/v1")
     monkeypatch.setenv("EMBEDDING_BASE_URL", "http://embed.test/v1/")

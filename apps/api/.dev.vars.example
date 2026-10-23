@@ -21,7 +21,6 @@ USER_SECRET_ENCRYPTION_KEY=""
 # LLM_MODEL="videoq-chat"
 # VIDEO_VISUAL_ENABLED="false"
 # 埋め込みは専用の OpenAI 互換 API。API・worker のモデル名を揃える。
-# EMBEDDING_PROVIDER="openai"
 # EMBEDDING_BASE_URL="http://127.0.0.1:8001/v1"
 # EMBEDDING_API_KEY="local-inference"
 # EMBEDDING_MODEL="gte-qwen2-1.5b-q4km-124fbdad"
