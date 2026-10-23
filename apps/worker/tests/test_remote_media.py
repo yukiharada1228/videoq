@@ -195,6 +195,7 @@ def test_large_mkv_duration_probe_does_not_read_the_whole_object(ffmpeg, monkeyp
 
 @pytest.mark.parametrize("start,duration", [(0, 5), (5, 5), (10, 2)])
 def test_remote_audio_interval_seeks_and_keeps_source_timestamps(ffmpeg, monkeypatch, tmp_path, start, duration):
+    monkeypatch.setenv("TRANSCRIPTION_PROVIDER", "openai")
     original = tmp_path / "interval.mkv"
     create_video(original, duration=12)
     client = MagicMock()
@@ -216,6 +217,22 @@ def test_remote_audio_interval_seeks_and_keeps_source_timestamps(ffmpeg, monkeyp
         ]
         assert any(value is not None for _, value in requests)
     client.__exit__.assert_called_once()
+
+
+@pytest.mark.parametrize("start,duration,request_start,request_duration", [(0,5,0,6),(5,5,4,7),(10,2,9,3)])
+def test_groq_interval_includes_context_and_applies_offset_once(ffmpeg, monkeypatch, tmp_path, start, duration, request_start, request_duration):
+    monkeypatch.setenv("TRANSCRIPTION_PROVIDER", "groq")
+    source = tmp_path / "groq.mkv"
+    create_video(source, duration=12)
+    client = MagicMock()
+    monkeypatch.setattr(transcription, "_whisper_client", lambda: (client, "test"))
+    def decode(_client, audio, _model, *, offset):
+        assert offset == request_start
+        assert abs(transcription._ffprobe_duration(audio) - request_duration) < .2
+        return [{"start": offset + .25, "end": offset + 1.25, "text": "境界の発話"}]
+    monkeypatch.setattr(transcription, "_whisper_file", decode)
+    assert transcription.transcribe_audio_interval(source, start, duration) == [
+        {"start": request_start + .25, "end": request_start + 1.25, "text": "境界の発話"}]
 
 
 @pytest.mark.parametrize("suffix,large", [("mp4", True), ("mkv", False)])

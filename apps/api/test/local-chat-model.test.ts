@@ -4,7 +4,7 @@ import { createChatModel } from "../src/lib/chat-model";
 import { answerResponseFormat } from "../src/lib/structured-answer";
 import type { Bindings } from "../src/types/bindings";
 
-const env = { OPENAI_API_KEY: "local", OPENAI_BASE_URL: "http://local.test/v1", LLM_MODEL: "local-model",
+const env = { LLM_PROVIDER: "local", OPENAI_API_KEY: "local", OPENAI_BASE_URL: "http://local.test/v1", LLM_MODEL: "local-model",
   LLM_SEPARATE_TOOL_SCHEMA: "true" } as Bindings;
 const messages = [new HumanMessage("Find evidence, then answer.")];
 const tools = [{ type: "function" as const, function: { name: "search_scenes", description: "Search evidence",

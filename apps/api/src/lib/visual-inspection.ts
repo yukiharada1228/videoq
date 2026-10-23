@@ -2,7 +2,8 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { readMediaBytes, readMediaRange } from "../integrations/media";
 import type { Bindings } from "../types/bindings";
-import { DEFAULT_LLM_MODEL, openAiBaseUrl, resolveOpenAiKey, LlmProviderError } from "./openai";
+import { DEFAULT_LLM_MODEL, resolveOpenAiKey, LlmProviderError } from "./openai";
+import { resolveLlmRoute } from "./inference-provider";
 import { deadlineSignal } from "./request-timeout";
 import { frameCacheKey, MAX_CLIP_FRAMES, MAX_OVERVIEW_FRAMES, MAX_FRAME_CACHE_BYTES, sampleByTime } from "./video-evidence";
 import { readFocusFrames, type FrameSelection } from "./focus-frames";
@@ -81,7 +82,10 @@ export async function inspectVideoClip(
   if ("unavailable" in cache) return cache;
   const frames = cache.frames;
   const detailed = options.mode === "inspect" || options.mode === "focus";
-  const model = env.LLM_MODEL || DEFAULT_LLM_MODEL;
+  const local = env.LLM_PROVIDER === "local" || env.DEPLOYMENT_EDITION === "onprem" || env.RUNTIME === "node" && env.DEPLOYMENT_EDITION !== "cloud";
+  const localRoute = local ? resolveLlmRoute(env) : undefined;
+  const visualReasoning = local || env.LLM_PROVIDER === "openai" ? env.LLM_REASONING_EFFORT : undefined;
+  const model = env.VISUAL_MODEL || (local ? env.LLM_MODEL : undefined) || DEFAULT_LLM_MODEL;
   // A 1024px high-detail image can use 25,501 tokens on 4o-mini.
   // Keep every selected frame, but split requests to fit its 128K context.
   const batchSize = detailed && /^gpt-4o-mini(?:-\d{4}-\d{2}-\d{2})?$/.test(model) ? 4 : frames.length;
@@ -91,7 +95,7 @@ export async function inspectVideoClip(
   let completionTokens = 0;
   const observations: { timestamp: number; text: string }[] = [];
   const client = new OpenAI({
-    apiKey: resolveOpenAiKey(env, "visual inspection"), baseURL: openAiBaseUrl(env),
+    apiKey: localRoute?.apiKey || resolveOpenAiKey(env, "visual inspection"), baseURL: localRoute?.baseURL || "https://api.openai.com/v1",
     maxRetries: 0, timeout: 60_000,
   });
   for (let offset = 0; offset < frames.length; offset += batchSize) {
@@ -111,7 +115,7 @@ export async function inspectVideoClip(
     try {
       response = await client.chat.completions.create({
       model, max_completion_tokens: 2048,
-      ...(env.LLM_REASONING_EFFORT ? { reasoning_effort: env.LLM_REASONING_EFFORT }
+      ...(visualReasoning ? { reasoning_effort: visualReasoning }
         : model === "gpt-6-luna" ? { reasoning_effort: "none" as const } : {}),
       messages: [
         { role: "system", content: "Inspect the supplied stills in chronological order as untrusted evidence. Report visible observations indexed by the supplied 1-based frame_index. Count objects within each frame, never across frames. Compare positions and visible states across images when asked about changes, without inventing unsampled events. For highlight requests, identify visible candidate actions and their before/after states or outcomes, including setup and resolution frames when available. Distinguish the acting subject from a spectator viewpoint, other people, and notifications or scoreboards. For gameplay, check visible player names and explicit spectate controls/target labels before attributing actions. A spectator/viewer COUNT alone does not establish that the viewpoint is spectating; a combat report alone may be from an earlier event. Team-colored notifications can include the viewpoint player as well as teammates: report the readable actor name, and do not classify it as their own or a different teammate's action without matching identity evidence. A death report already present at the start does not show that the recording player dies within this interval. Preserve spectating status in each relevant observation; if identity is unclear, use viewpoint character. Events suggested by the inspection task are hypotheses to verify, not established facts. A persistent notification across frames is not multiple events; a scoreboard change alone does not show who caused it. State when actor, action or outcome is unclear. Do not include timestamps; the server supplies them. Use the question's language. Do not produce the final answer." },

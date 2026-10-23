@@ -11,7 +11,7 @@ WITH attempts AS (
   LEFT JOIN LATERAL jsonb_array_elements(a.provider_calls) c(value) ON true
 )
 SELECT plan_code, quota_source, answer_status,
-       call->>'kind' AS call_kind, call->>'model' AS model,
+       call->>'provider' AS provider, call->>'kind' AS call_kind, call->>'model' AS model,
        call->>'status' AS call_status,
        COUNT(*) AS provider_calls,
        COUNT(*) FILTER (WHERE call->'usage' IS NULL OR call->'usage' = 'null'::jsonb) AS calls_without_usage,
@@ -22,8 +22,8 @@ SELECT plan_code, quota_source, answer_status,
        SUM(COALESCE((call->'usage'->>'total_tokens')::bigint, 0)) AS total_tokens
 FROM calls
 WHERE call IS NOT NULL
-GROUP BY plan_code, quota_source, answer_status, call_kind, model, call_status
-ORDER BY plan_code, quota_source, answer_status, call_kind, model, call_status;
+GROUP BY plan_code, quota_source, answer_status, provider, call_kind, model, call_status
+ORDER BY plan_code, quota_source, answer_status, provider, call_kind, model, call_status;
 
 -- Reconcile these answer outcomes separately; one answer can have several model calls.
 SELECT plan_code, quota_source, status,

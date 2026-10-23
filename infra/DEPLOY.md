@@ -63,6 +63,7 @@ Set sensitive values with `wrangler secret put`.
 cd apps/api
 npx wrangler secret put BETTER_AUTH_SECRET --env production
 npx wrangler secret put USER_SECRET_ENCRYPTION_KEY --env production
+npx wrangler secret put GROQ_API_KEY --env production
 npx wrangler secret put OPENAI_API_KEY --env production
 npx wrangler secret put MAILGUN_API_KEY --env production
 npx wrangler secret put R2_ACCESS_KEY_ID --env production
@@ -366,13 +367,14 @@ aws lambda update-function-code \
   --region "$REGION"
 ```
 
-### Cloud transcription (OpenAI)
+### Cloud transcription
 
-The cloud worker uses `WHISPER_BACKEND=openai` and `OPENAI_API_KEY` in the
-`/videoq/prod/app` SecureString parameter. Modal is retired; no Modal CLI or
-GitHub credentials are required. See
-[the switch runbook](../docs/operations/openai-transcription.md) for the
-in-flight job check, config refresh and retirement order.
+The new SaaS release selects `TRANSCRIPTION_PROVIDER=groq` and
+`TRANSCRIPTION_MODEL=whisper-large-v3-turbo`, with both `GROQ_API_KEY` and
+`OPENAI_API_KEY` in `/videoq/prod/app`. The preceding OpenAI-only release uses
+`WHISPER_BACKEND=openai`; canonical provider settings take precedence. Modal
+is retired. Follow the [Groq rollout runbook](../docs/operations/groq-inference.md)
+for in-flight job checks, SSM refresh and rollback.
 
 ## 5. Frontend
 
@@ -568,3 +570,7 @@ with approved write scope, also verify one write tool call with an idempotency k
 - CloudWatch alarm states and SNS subscription confirmation
 
 Check both Cloudflare Workers logs and Lambda CloudWatch logs.
+
+### Groq inference migration
+
+The new SaaS release requires `GROQ_API_KEY` in the production Worker and `/videoq/prod/app` SecureString, with OpenAI retained for fallback/embeddings/vision. Set the canonical `TRANSCRIPTION_PROVIDER=groq` and `TRANSCRIPTION_MODEL=whisper-large-v3-turbo` in that JSON; canonical settings override the previous `WHISPER_BACKEND=openai`. Preserve all other keys and existing jobs. Follow [the provider rollout and rollback runbook](../docs/operations/groq-inference.md) before deploying; Terraform does not rotate existing secret values.

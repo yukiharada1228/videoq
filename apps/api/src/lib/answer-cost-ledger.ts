@@ -1,3 +1,4 @@
+import { tokenCost } from "./inference-cost";
 import { withClient } from "../db/pool";
 import type { Bindings } from "../types/bindings";
 
@@ -8,6 +9,10 @@ export type AnswerAttemptStatus = "completed" | "failed" | "interrupted";
 export type ProviderCallRecord = {
   kind: ProviderCallKind;
   model: string;
+  provider?: string;
+  ttftMs?: number;
+  durationMs?: number;
+  estimatedCostUsd?: number | null;
   startedAt: string;
   finishedAt: string | null;
   status: ProviderCallStatus | "started";
@@ -34,9 +39,9 @@ export class AnswerCostLedger {
   readonly id = crypto.randomUUID();
   readonly calls: ProviderCallRecord[] = [];
 
-  begin(kind: ProviderCallKind, model: string) {
+  begin(kind: ProviderCallKind, model: string, provider?: string) {
     const call: ProviderCallRecord = {
-      kind, model, startedAt: new Date().toISOString(), finishedAt: null,
+      kind, model, ...(provider ? { provider } : {}), startedAt: new Date().toISOString(), finishedAt: null,
       status: "started", usage: null,
     };
     this.calls.push(call);
@@ -45,10 +50,13 @@ export class AnswerCostLedger {
       if (finished) return;
       finished = true;
       call.status = status;
+      if (provider) call.durationMs = Date.now() - Date.parse(call.startedAt);
       call.finishedAt = new Date().toISOString();
       call.usage = numericUsage(usage);
+      if (provider) call.estimatedCostUsd = tokenCost(provider, model, call.usage);
     };
     return {
+      firstToken: () => { call.ttftMs ??= Date.now() - Date.parse(call.startedAt); },
       complete: (usage?: unknown) => finish("completed", usage),
       fail: (usage?: unknown) => finish("failed", usage),
       interrupt: (usage?: unknown) => finish("interrupted", usage),

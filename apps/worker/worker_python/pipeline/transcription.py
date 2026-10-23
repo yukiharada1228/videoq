@@ -21,6 +21,8 @@ from worker_python.pipeline.storage import ObjectMediaSource, resolve_media_inpu
 from worker_python.pipeline.media_process import MEDIA_INPUT_OPTIONS, media_input_args, run_media_process
 from worker_python.video_sql import VideoRow
 
+from worker_python.pipeline.transcription_provider import _whisper_client, _whisper_file, MAX_AUDIO_BYTES, configured_provider
+
 logger = logging.getLogger(__name__)
 
 
@@ -155,98 +157,58 @@ def transcribe_audio_interval(
     max_duration = 300
     if not math.isfinite(start_seconds) or start_seconds < 0 or not 0 < duration_seconds <= max_duration:
         raise ValueError("Invalid transcription interval")
+    overlap = 1.0 if configured_provider() == "groq" else 0.0
+    request_start = max(0.0, start_seconds - overlap)
+    request_duration = duration_seconds + start_seconds - request_start + overlap
     with tempfile.TemporaryDirectory(prefix="videoq-chunk-") as tmp:
         audio = Path(tmp) / "audio.mp3"
         result = run_media_process([
             "ffmpeg", "-nostdin", "-xerror", "-abort_on", "empty_output", "-v", "error", "-y",
-            "-ss", str(start_seconds), *media_input_args(source), "-t", str(duration_seconds),
+            "-ss", str(request_start if overlap else start_seconds), *media_input_args(source), "-t", str(request_duration if overlap else duration_seconds),
             "-map", "0:a:0", "-vn", "-af", "aresample=async=1:first_pts=0",
             "-acodec", "mp3", "-ab", "64k", "-ar", "16000", "-ac", "1", str(audio),
         ], max_output_bytes=16 * 1024 * 1024, timeout_seconds=300)
         _check_extracted_audio(result, audio)
         client, model = _whisper_client()
         with client:
-            segments = _whisper_file(client, audio, model, offset=start_seconds)
-    end_seconds = start_seconds + duration_seconds
+            segments = _whisper_file(client, audio, model, offset=request_start)
+    end_seconds = request_start + request_duration
     result = []
     for segment in segments:
         start, end = float(segment["start"]), float(segment["end"])
         if not math.isfinite(start) or not math.isfinite(end):
             raise RuntimeError("Whisper returned non-finite timestamps")
-        start, end = max(start_seconds, start), min(end_seconds, end)
+        start, end = max(request_start, start), min(end_seconds, end)
         if start < end and segment["text"].strip():
             result.append({"start": start, "end": end, "text": segment["text"]})
     return result
-
-
-def _whisper_client():
-    from openai import OpenAI
-
-    backend = env_str("WHISPER_BACKEND", "openai").lower()
-    if backend == "local":
-        client = OpenAI(
-            api_key=env_str("OPENAI_API_KEY") or "dummy-key-for-local",
-            base_url=env_str("WHISPER_LOCAL_URL", "http://127.0.0.1:8080"),
-            timeout=120.0, max_retries=2,
-        )
-        model = "whisper-local"
-    elif backend == "openai":
-        api_key = env_str("OPENAI_API_KEY")
-        if not api_key:
-            raise RuntimeError("OPENAI_API_KEY is required for OpenAI Whisper")
-        client = OpenAI(api_key=api_key, base_url="https://api.openai.com/v1", timeout=120.0, max_retries=2)
-        model = "whisper-1"
-    else:
-        raise RuntimeError("Unsupported WHISPER_BACKEND; configure openai or local")
-    return client, model
 
 
 def _whisper_transcribe(audio_path: Path) -> list[dict[str, Any]]:
     client, model = _whisper_client()
     with client:
         # Whisper API soft limit ~25MB; split longer audio into ~10min chunks if needed.
-        size_mb = audio_path.stat().st_size / (1024 * 1024)
-        if size_mb <= 24:
+        size_bytes = audio_path.stat().st_size
+        if size_bytes <= MAX_AUDIO_BYTES:
             return _whisper_file(client, audio_path, model, offset=0.0)
 
         all_segments: list[dict[str, Any]] = []
-        with closing(_split_audio_chunks(audio_path, chunk_seconds=600)) as chunks:
+        overlap = configured_provider() == "groq"
+        windows = []
+        generator = _split_audio_chunks(audio_path, chunk_seconds=600, overlap_seconds=1) if overlap else _split_audio_chunks(audio_path, chunk_seconds=600)
+        with closing(generator) as chunks:
             for offset, chunk_path in chunks:
-                all_segments.extend(
-                    _whisper_file(client, chunk_path, model, offset=offset)
-                )
+                segments = _whisper_file(client, chunk_path, model, offset=offset)
+                windows.append(segments)
+                all_segments.extend(segments)
+        if overlap:
+            from worker_python.pipeline.transcription_stitching import stitch_chunks
+            return stitch_chunks(windows, interval=600, duration=_ffprobe_duration(audio_path))
         return all_segments
 
 
-def _whisper_file(
-    client: Any, audio_path: Path, model: str, *, offset: float
-) -> list[dict[str, Any]]:
-    with audio_path.open("rb") as fh:
-        result = client.audio.transcriptions.create(
-            model=model,
-            file=fh,
-            response_format="verbose_json",
-            timestamp_granularities=["segment"],
-        )
-    segments = getattr(result, "segments", None) or []
-    out: list[dict[str, Any]] = []
-    for seg in segments:
-        if isinstance(seg, dict):
-            start = float(seg.get("start", 0))
-            end = float(seg.get("end", start))
-            text = str(seg.get("text", ""))
-        else:
-            start = float(getattr(seg, "start", 0))
-            end = float(getattr(seg, "end", start))
-            text = str(getattr(seg, "text", ""))
-        out.append({"start": start + offset, "end": end + offset, "text": text})
-    if not out and getattr(result, "text", None):
-        raise RuntimeError("Whisper must return real segment timestamps")
-    return out
-
-
 def _split_audio_chunks(
-    audio_path: Path, chunk_seconds: int
+    audio_path: Path, chunk_seconds: int, *, overlap_seconds: float = 0
 ) -> Generator[tuple[float, Path], None, None]:
     """Keep one temporary chunk until it is consumed or transcription fails."""
     duration = _ffprobe_duration(audio_path)
@@ -260,9 +222,9 @@ def _split_audio_chunks(
             "-v", "error",
             "-y",
             "-ss",
-            str(start),
+            str(max(0.0, start - overlap_seconds) if overlap_seconds else start),
             "-t",
-            str(chunk_seconds),
+            str(min(duration, start + chunk_seconds + overlap_seconds) - max(0.0, start - overlap_seconds)) if overlap_seconds else str(chunk_seconds),
             *MEDIA_INPUT_OPTIONS,
             "-i",
             str(audio_path),
@@ -274,7 +236,7 @@ def _split_audio_chunks(
             proc = run_media_process(cmd)
             if proc.returncode != 0:
                 raise RuntimeError(f"ffmpeg chunk split failed: {proc.stderr[-500:]}")
-            yield start, out
+            yield max(0.0, start - overlap_seconds) if overlap_seconds else start, out
         finally:
             out.unlink(missing_ok=True)
         start += chunk_seconds

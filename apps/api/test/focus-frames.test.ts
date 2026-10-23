@@ -6,7 +6,7 @@ import type { Bindings } from "../src/types/bindings";
 import { focusCacheFixture } from "./helpers/focus-cache";
 
 vi.mock("../src/integrations/media", () => ({ readMediaRange: vi.fn(), readMediaBytes: vi.fn() }));
-const env = { OPENAI_API_KEY: "test", OPENAI_BASE_URL: "https://focus.test/v1" } as Bindings;
+const env = { LLM_PROVIDER: "local", OPENAI_API_KEY: "test", OPENAI_BASE_URL: "https://focus.test/v1" } as Bindings;
 const video = { id: 42, fileKey: "private/42.mp4" };
 let pack: Uint8Array;
 const read = (start = 10, end = 26, maxFrames = 16) => readFocusFrames(env, video, start, end, new AbortController().signal, maxFrames);

@@ -5,6 +5,7 @@ import openai
 import pytest
 
 from worker_python.pipeline import transcription
+from worker_python.pipeline.transcription_provider import TranscriptionProviderError
 
 
 @pytest.mark.parametrize("pipeline", ["whisper", "whisper-local"])
@@ -44,7 +45,7 @@ def test_pipeline_closes_http_client_after_success_or_failure(
             return transcription._whisper_transcribe(audio)
 
         if fails:
-            with pytest.raises(openai.InternalServerError):
+            with pytest.raises(TranscriptionProviderError):
                 run()
         else:
             result = run()

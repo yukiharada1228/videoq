@@ -52,7 +52,7 @@ vi.mock("../../src/repositories/video-evidence-repository", () => ({
 const { runRag, streamRag } = await import("../../src/lib/rag");
 
 const ENV = {
-  OPENAI_API_KEY: "sk-test",
+  LLM_PROVIDER: "local", OPENAI_API_KEY: "sk-test",
   OPENAI_BASE_URL: "https://openai.test/v1",
   LLM_MODEL: "local-codex-model",
 } as unknown as Bindings;

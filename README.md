@@ -44,7 +44,7 @@ For the research behind the AI pipeline, see [AI methods and references](docs/re
 | Database | Neon PostgreSQL + pgvector through Hyperdrive (local: PostgreSQL 17 + pgvector) |
 | Object storage | Cloudflare R2 (local: Garage) |
 | Edge state | Durable Objects (rate limits and task recovery scheduling) |
-| External services | OpenAI / optional local AI, SearchAPI for YouTube transcripts, Mailgun email, Stripe billing |
+| External services | Groq chat/transcription, OpenAI fallback/embeddings/vision, optional local AI, SearchAPI for YouTube transcripts, Mailgun email, Stripe billing |
 
 Locally, `docker compose` runs Postgres, Garage, ElasticMQ, the Hono API (`wrangler dev`), the Python worker, a static frontend build, and a Caddy gateway on port 80.
 
@@ -71,19 +71,19 @@ Package READMEs: [`apps/`](apps/README.md) · [`apps/api/`](apps/api/README.md) 
 ### Requirements
 
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) installed
-- An [OpenAI API key](https://platform.openai.com/api-keys) for the default AI configuration
+- A [Groq API key](https://console.groq.com/keys) and an [OpenAI API key](https://platform.openai.com/api-keys) for the default SaaS configuration
 - A [SearchAPI API key](https://www.searchapi.io/) if you want to import YouTube videos (configured per user in Settings)
 - Node.js 22.12+ and npm for the account promotion command below and development outside Docker
 - Python 3.12+ only if you run or test the Python worker outside Docker
 
-### Step 1: Get an OpenAI API key for the default setup
+### Step 1: Prepare the inference API keys
 
 1. Go to [OpenAI Platform](https://platform.openai.com/api-keys)
 2. Sign up or log in
 3. Click "Create new secret key"
 4. Copy the key, which starts with `sk-...`
 
-The setup below uses OpenAI for transcription, embeddings, and chat. Optional local AI configuration is described [below](#optional-reduce-costs-with-local-ai).
+Create a Groq key at https://console.groq.com/keys as well. SaaS uses Groq GPT-OSS 120B for chat and Whisper Large V3 Turbo for transcription, with OpenAI fallback. Embeddings and image inspection continue on OpenAI. See the [configuration and rollout runbook](docs/operations/groq-inference.md). Optional local AI configuration is described [below](#optional-reduce-costs-with-local-ai).
 
 ### Step 2: Set up VideoQ
 
@@ -101,8 +101,12 @@ Open `.env` and set at least:
 ```bash
 OPENAI_API_KEY=sk-proj-...
 OPENAI_BASE_URL=https://api.openai.com/v1
-LLM_MODEL=gpt-6-luna
-WHISPER_BACKEND=openai
+GROQ_API_KEY=your-private-groq-key
+LLM_PROVIDER=groq
+LLM_MODEL=openai/gpt-oss-120b
+VISUAL_MODEL=gpt-6-luna
+TRANSCRIPTION_PROVIDER=groq
+TRANSCRIPTION_MODEL=whisper-large-v3-turbo
 
 EMBEDDING_MODEL=text-embedding-3-small
 
@@ -113,7 +117,7 @@ AUTH_JWT_SECRET=
 USER_SECRET_ENCRYPTION_KEY=
 ```
 
-Answer generation and image inspection share `LLM_MODEL`, which defaults to GPT-6 Luna (`gpt-6-luna`). With visual Q&A enabled, the model must support image input as well as tool calling and strict JSON output. See [model settings](docs/architecture/prompt-engineering.md#model-settings-and-limits) and [model references](docs/reference/ai-references.md#gpt-6-luna).
+Answer generation uses `LLM_MODEL`; image inspection uses `VISUAL_MODEL` (OpenAI `gpt-6-luna` by default). GPT-OSS is text-only. Local deployments may use one vision-capable private model for both tasks, or disable image inspection. See [model settings](docs/architecture/prompt-engineering.md#model-settings-and-limits) and [model references](docs/reference/ai-references.md#gpt-6-luna).
 
 Embedding dimensions are fixed at 1536 in the API, worker, and DB. The templates use OpenAI / `text-embedding-3-small`; no dimension setting is needed. Configure the same provider and model for both runtimes. See [embedding configuration and diagnostics](docs/guides/embeddings.md).
 
@@ -243,7 +247,7 @@ Transcription, chat, and embeddings can use local services. Configure each compo
 <summary><strong>Mac transcription with whisper.cpp</strong></summary>
 
 Run whisper.cpp natively on macOS to use Apple Silicon's Metal backend.
-The on-prem Kubernetes recipes use faster-whisper as the shared server instead.
+On-premises Kubernetes uses whisper.cpp on CPU and vLLM on NVIDIA.
 Both connect through `WHISPER_BACKEND=local`. Build the pinned submodule with
 CMake and a C++ toolchain; install FFmpeg on the Mac for MP3 conversion.
 
@@ -276,7 +280,8 @@ the selected local model at startup; it does not download a model per request.
 In another terminal at the VideoQ root, edit `.env`:
 
 ```bash
-WHISPER_BACKEND=local
+TRANSCRIPTION_PROVIDER=local
+TRANSCRIPTION_MODEL=whisper-local
 WHISPER_LOCAL_URL=http://host.docker.internal:8080
 ```
 
@@ -299,7 +304,7 @@ for endpoint differences and the real-audio acceptance check.
 
 Use llama.cpp for the default CPU recipe or vLLM for NVIDIA GPU inference.
 Chat and embeddings use separate private OpenAI-compatible APIs; transcription
-uses the local faster-whisper service. See the [local inference guide](docs/guides/local-inference.md)
+uses the local whisper.cpp / vLLM gateway. See the [local inference guide](docs/guides/local-inference.md)
 and the [inference chart](charts/videoq-inference/README.md) for matching
 application overlays, model provisioning and acceptance commands.
 
@@ -370,7 +375,7 @@ docker compose stop api
 cp apps/api/.dev.vars.example apps/api/.dev.vars
 ```
 
-Set `BETTER_AUTH_SECRET`, `USER_SECRET_ENCRYPTION_KEY`, and `OPENAI_API_KEY` in `apps/api/.dev.vars`. For the OpenAI setup above, also set:
+Set `BETTER_AUTH_SECRET`, `USER_SECRET_ENCRYPTION_KEY`, `GROQ_API_KEY`, and `OPENAI_API_KEY` in `apps/api/.dev.vars`. For the OpenAI setup above, also set:
 
 ```dotenv
 BETTER_AUTH_URL=http://localhost:3000

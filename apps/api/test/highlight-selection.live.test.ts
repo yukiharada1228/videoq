@@ -52,6 +52,7 @@ beforeAll(() => {
   const varsPath = new URL("../.dev.vars", import.meta.url);
   const configured = existsSync(varsPath) ? parse(readFileSync(varsPath)) : {};
   env = Object.fromEntries(["OPENAI_API_KEY", "OPENAI_BASE_URL", "LLM_MODEL"].map(key => [key, process.env[key] ?? configured[key]])) as unknown as Bindings;
+  Object.assign(env, { LLM_PROVIDER: "openai", LLM_MODEL: env.LLM_MODEL || "gpt-6-luna" });
   if (!env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is required");
   output = process.env.VIDEOQ_HIGHLIGHT_OUTPUT ?? root;
   mkdirSync(output, { recursive: true });

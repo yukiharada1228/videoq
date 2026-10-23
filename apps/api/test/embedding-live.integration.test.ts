@@ -17,7 +17,7 @@ const enabled = process.env.EMBEDDING_LIVE === "1";
 const varsPath = new URL("../.dev.vars", import.meta.url);
 const configured = enabled && existsSync(varsPath) ? parse(readFileSync(varsPath)) : {};
 const settings = Object.fromEntries(
-  ["OPENAI_API_KEY", "OPENAI_BASE_URL", "LLM_MODEL", "EMBEDDING_BASE_URL", "EMBEDDING_API_KEY", "EMBEDDING_MODEL"].map((key) =>
+  ["LLM_PROVIDER", "GROQ_API_KEY", "OPENAI_API_KEY", "OPENAI_BASE_URL", "LLM_MODEL", "EMBEDDING_BASE_URL", "EMBEDDING_API_KEY", "EMBEDDING_MODEL"].map((key) =>
     [key, process.env[key] ?? configured[key]]),
 );
 const exec = promisify(execFile);
@@ -34,7 +34,7 @@ describe.skipIf(!enabled)("real embedding providers", () => {
     const url = new URL(databaseUrl);
     url.pathname = `/${name}`;
     let pool: Pool | undefined;
-    const providerSettings = { ...settings, EMBEDDING_MODEL: model };
+    const providerSettings = { ...settings, LLM_PROVIDER: settings.LLM_PROVIDER || "openai", LLM_MODEL: settings.LLM_MODEL || "gpt-6-luna", EMBEDDING_MODEL: model };
     try {
       await admin.query(`CREATE DATABASE "${name}"`);
       pool = new Pool({ connectionString: url.toString(), max: 1 });

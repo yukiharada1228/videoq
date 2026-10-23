@@ -198,7 +198,7 @@ async function trpcError(response: Response): Promise<{
   };
 }
 
-const OPENAI_ENV = { OPENAI_API_KEY: "sk-test", OPENAI_BASE_URL: "https://openai.test/v1" };
+const OPENAI_ENV = { LLM_PROVIDER: "local", OPENAI_API_KEY: "sk-test", OPENAI_BASE_URL: "https://openai.test/v1" };
 const SQS_ENV = {
   SQS_QUEUE_URL: "https://sqs.ap-northeast-1.amazonaws.com/1/videoq",
   AWS_ACCESS_KEY_ID: "AKIA",
@@ -1090,8 +1090,7 @@ describe("POST /messages/stream（SSE）", () => {
         type: "error",
         code: "LLM_CONFIGURATION_ERROR",
         message:
-          "OpenAI API key is required when using OpenAI LLM. " +
-          "Please set OPENAI_API_KEY in the server environment.",
+          "GROQ_API_KEY is required for the selected LLM_PROVIDER.",
       },
     ]);
   });

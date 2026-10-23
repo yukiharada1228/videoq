@@ -89,7 +89,7 @@ User-specific external API keys are encrypted with AES-256-GCM.
 - Envelope: `v1.<nonce>.<ciphertext+tag>`
 - Nonce: 12 bytes generated for each encryption operation
 
-Manage `BETTER_AUTH_SECRET`, the OpenAI key, and S3/SQS credentials through
+Manage `BETTER_AUTH_SECRET`, the Groq/OpenAI keys, and S3/SQS credentials through
 `wrangler secret` or a local `.dev.vars` file.
 
 ## Q&A agent
@@ -277,3 +277,7 @@ For separately hosted OpenAI-compatible embeddings, set `EMBEDDING_BASE_URL` and
 optionally `EMBEDDING_API_KEY`; unset values reuse `OPENAI_BASE_URL` and
 `OPENAI_API_KEY`. Embeddings always use the OpenAI-compatible protocol, including
 private llama.cpp/vLLM services. The worker must use the same model and endpoint.
+
+## SaaS inference providers
+
+SaaS defaults to `LLM_PROVIDER=groq`, `LLM_MODEL=openai/gpt-oss-120b`; set both `GROQ_API_KEY` and `OPENAI_API_KEY`. Explicit OpenAI uses `LLM_PROVIDER=openai` and `LLM_MODEL=gpt-4o-mini`. Image inspection uses `VISUAL_MODEL=gpt-6-luna` on OpenAI; embeddings remain `text-embedding-3-small` with 1536 dimensions. On-premises defaults to `local`, requires a private `OPENAI_BASE_URL`, and never selects hosted fallback. See [provider configuration, metrics and rollout](../../docs/operations/groq-inference.md).

@@ -61,17 +61,18 @@ These are application defaults, not measurements of production settings or provi
 
 | Setting | Current implementation |
 |---|---|
-| Answer and image model | `LLM_MODEL`, default `gpt-6-luna` |
-| Answer endpoint | Chat Completions at `OPENAI_BASE_URL`, default `https://api.openai.com/v1` |
-| Reasoning effort | `none` when the model is `gpt-6-luna`, for Chat Completions tool calling |
-| Sampling and output budget | Temperature `0`; at most 1,024 output tokens per model call, including structured output |
+| Answer model | SaaS `LLM_PROVIDER=groq`, `LLM_MODEL=openai/gpt-oss-120b`; OpenAI fallback `gpt-4o-mini` |
+| Image inspection | `VISUAL_MODEL`, OpenAI `gpt-6-luna` by default; private model for local deployments |
+| Answer endpoint | Groq/OpenAI official Chat Completions; `OPENAI_BASE_URL` for explicit local chat |
+| Reasoning effort | Groq defaults to `low`, with reasoning text excluded. OpenAI `gpt-6-luna` image inspection retains `none`. |
+| Sampling and output budget | Temperature `0`; application requests 1,024 tokens; Groq allows 4,096 completion tokens to include reasoning |
 | Request deadline | Course RAG: 2 minutes for non-streaming requests; 5 minutes for streaming requests |
-| Automatic provider retries | Disabled in the API chat-model wrapper |
+| Automatic provider retries | SDK retries disabled; bounded Groq availability retries and OpenAI fallback in the provider adapter |
 | Search budget | At most 3 scene searches, 20 results per search by default |
 | Metadata budget | At most 5 calls, up to 20 videos per page |
 | Tool-enabled model turns | At most 19, followed by a final turn without tools; individual tool budgets still apply |
 
-Configure the shared answer and image model with the API's `LLM_MODEL`. It must support tool calling and strict JSON output, plus image input when visual Q&A is enabled. See [embeddings](../guides/embeddings.md) for the search-model configuration shared by the API and worker.
+Configure chat with `LLM_PROVIDER` / `LLM_MODEL` and image inspection with `VISUAL_MODEL`. GPT-OSS is text-only; SaaS vision remains on OpenAI. Local image inspection requires a private vision-capable endpoint. See [embeddings](../guides/embeddings.md) for the search-model configuration shared by the API and worker.
 
 Model attribution: [GPT-6 Luna's official model documentation](../reference/ai-references.md#gpt-6-luna), or the source for the model actually configured.
 
@@ -148,3 +149,5 @@ Test metadata-only questions, lesson-content questions, and questions requiring 
 `LLM_MODEL` is used for answers and generation; `EMBEDDING_MODEL` is used for search. Embeddings are fixed at 1536 dimensions, and the API and worker must also use the same model. Changing models requires regenerating existing vectors. See [embedding configuration and limitations](../guides/embeddings.md).
 
 See [tests and verification commands](../guides/testing.md) for live-model tests and when they incur charges.
+
+Provider wire-format differences, bounded fallback, metrics and deployment settings are described in the [SaaS inference runbook](../operations/groq-inference.md). The original application prompts and retrieval logic remain shared across providers.

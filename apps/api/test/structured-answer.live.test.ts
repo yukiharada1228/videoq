@@ -10,6 +10,7 @@ const varsPath = new URL("../.dev.vars", import.meta.url);
 const vars = enabled && existsSync(varsPath) ? parse(readFileSync(varsPath)) : {};
 const env = Object.fromEntries(["OPENAI_API_KEY", "OPENAI_BASE_URL", "LLM_MODEL"].map(key =>
   [key, process.env[key] ?? vars[key]])) as unknown as Bindings;
+Object.assign(env, { LLM_PROVIDER: "openai", LLM_MODEL: env.LLM_MODEL || "gpt-6-luna" });
 const scenes = [
   { videoId: 60, videoTitle: "Rotation", startTime: "00:01:00", endTime: "00:02:00", content: "A two-dimensional rotation matrix is R(theta) = [[cos(theta), -sin(theta)], [sin(theta), cos(theta)]]. It changes direction and preserves length. At 90 degrees, (1,0) becomes (0,1)." },
   { videoId: 61, videoTitle: "Python", startTime: "00:03:00", endTime: "00:04:00", content: "In Python, a = [10, 20]; a[1] evaluates to 20 because indexing starts at zero. print(a[1]) prints 20." },

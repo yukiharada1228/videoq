@@ -22,8 +22,11 @@ resource "aws_ssm_parameter" "db" {
 #
 # Expected JSON keys (set via CLI / Console — not Terraform-managed values):
 #
+#   GROQ_API_KEY              # Groq chat and transcription
+#   TRANSCRIPTION_PROVIDER    # groq (default), openai, or local
+#   TRANSCRIPTION_MODEL       # whisper-large-v3-turbo for Groq
 #   OPENAI_API_KEY
-#   WHISPER_BACKEND           # "openai" for the cloud service
+#   WHISPER_BACKEND           # legacy alias; canonical TRANSCRIPTION_PROVIDER wins
 #   USER_SECRET_ENCRYPTION_KEY
 #   R2_ACCESS_KEY_ID          # Cloudflare R2 S3 API token (NOT Lambda role keys)
 #   R2_SECRET_ACCESS_KEY
@@ -39,6 +42,9 @@ resource "aws_ssm_parameter" "app" {
   description = "App secrets + R2 credentials (use R2_* key names, never AWS_ACCESS_KEY_ID)"
   type        = "SecureString"
   value = jsonencode({
+    GROQ_API_KEY               = "REPLACE_ME"
+    TRANSCRIPTION_PROVIDER     = "groq"
+    TRANSCRIPTION_MODEL        = "whisper-large-v3-turbo"
     OPENAI_API_KEY             = "REPLACE_ME"
     USER_SECRET_ENCRYPTION_KEY = "REPLACE_ME"
     R2_ACCESS_KEY_ID           = "REPLACE_ME"

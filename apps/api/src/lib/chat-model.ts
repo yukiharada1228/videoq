@@ -1,34 +1,30 @@
+import { ChatTransport } from "./chat-transport";
+import { resolveLlmRoute, providerStatus } from "./inference-provider";
 import { ChatOpenAICompletions } from "@langchain/openai";
 import type OpenAI from "openai";
 import type { AnswerCostLedger } from "./answer-cost-ledger";
 import {
-  DEFAULT_LLM_MODEL,
   LlmConfigurationError,
   LlmProviderError,
-  openAiBaseUrl,
-  resolveOpenAiKey,
 } from "./openai";
 import type { Bindings } from "../types/bindings";
 
 /**
  * LLM 呼び出しの土台（ChatOpenAI）。
  * strict json_schema と tool calling に対応する Chat Completions が必要:
- *   - temperature=0 / model は LLM_MODEL（既定 gpt-6-luna）
- *   - OPENAI_BASE_URL で OpenAI 互換エンドポイントへ差し替え可能
+ *   - temperature=0 / model は検証済みの Provider 設定から解決
+ *   - local Provider は OPENAI_BASE_URL で互換エンドポイントを指定
  *   - 失敗は LlmConfigurationError / LlmProviderError のどちらかに正規化する
  */
 
-/**
- * リトライは行わない（直 fetch 実装と同じ挙動）。
- * 429/5xx の自動リトライはレイテンシとクォータ予約の保持時間を伸ばすだけで、
- * ストリーミング中の切断はどのみち復旧できない。
- */
+/** SDK retries are disabled; the provider adapter owns the bounded policy. */
 const MAX_RETRIES = 0;
 
 /** Preserve refusal metadata omitted by LangChain's completions converter. */
 class AnswerChatModel extends ChatOpenAICompletions {
   costLedger?: AnswerCostLedger;
   separateToolSchema = false;
+  transport?: ChatTransport;
   override completionWithRetry(request: OpenAI.Chat.ChatCompletionCreateParamsStreaming, options?: OpenAI.RequestOptions): Promise<AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>>;
   override completionWithRetry(request: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming, options?: OpenAI.RequestOptions): Promise<OpenAI.Chat.Completions.ChatCompletion>;
   override completionWithRetry(request: OpenAI.Chat.ChatCompletionCreateParams, options?: OpenAI.RequestOptions): Promise<OpenAI.Chat.Completions.ChatCompletion | AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>>;
@@ -38,16 +34,16 @@ class AnswerChatModel extends ChatOpenAICompletions {
       // too, preventing retrieval. Decide tools without that grammar, then
       // generate the terminal answer with native schema enforcement. A draft
       // answer is discarded, never streamed or used as conversion input.
-      const { response_format: _format, stream_options: _streamOptions, ...decisionRequest } = request;
+      const { response_format: _format, stream_options: _streamOptions, ...decisionRequest } = this.transport!.toolDecision(request);
       const decision = await this.completionWithRetry({ ...decisionRequest, stream: false }, options);
       const completed = decision as OpenAI.Chat.Completions.ChatCompletion;
       const choice = completed.choices[0];
       if (!choice || choice.message.refusal || !["stop", "tool_calls"].includes(choice.finish_reason)) {
         throw new LlmProviderError("Local tool decision refused or incomplete.");
       }
-      const calls = choice.message.tool_calls;
+      const calls = choice.message.tool_calls?.filter(call => call.type !== "function" || !this.transport!.isTerminalTool(call.function.name));
       if (calls?.length) {
-        const normalized = { ...completed, choices: [{ ...choice, message: { ...choice.message, content: null } }] };
+        const normalized = { ...completed, choices: [{ ...choice, message: { ...choice.message, tool_calls: calls, content: null } }] };
         if (!request.stream) return normalized;
         const toolCalls = calls.map((call, index) => {
           if (call.type !== "function") throw new LlmConfigurationError("Local inference requires function tool calls.");
@@ -62,42 +58,13 @@ class AnswerChatModel extends ChatOpenAICompletions {
       }
       return this.completionWithRetry({ ...request, tools: undefined, tool_choice: undefined, parallel_tool_calls: undefined }, options);
     }
-    // The SDK's .parse() tries to parse nonempty tool preambles as final JSON.
-    // Keep native schema enforcement on the request, and let providerStrategy
-    // validate terminal responses after the agent has processed tool calls.
     const clientOptions = this._getClientOptions(options);
-    const call = this.costLedger?.begin("answer_model", request.model);
-    const trackedRequest = request.stream
+    const tracked = request.stream
       ? { ...request, stream_options: { ...(request.stream_options ?? {}), include_usage: true } }
       : request;
-    try {
-      const response = await this.caller.callWithOptions({ maxRetries: MAX_RETRIES }, () =>
-        this.client.chat.completions.create(trackedRequest, { ...clientOptions, maxRetries: MAX_RETRIES }));
-      if (request.stream) {
-        const chunks = response as AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>;
-        return (async function* () {
-          let usage: unknown;
-          try {
-            for await (const chunk of chunks) {
-              if (chunk.usage) usage = chunk.usage;
-              yield chunk;
-            }
-            call?.complete(usage);
-          } catch (error) {
-            if (error instanceof Error && error.name === "AbortError") call?.interrupt(usage);
-            else call?.fail(usage);
-            throw error;
-          }
-        })();
-      }
-      call?.complete((response as OpenAI.Chat.Completions.ChatCompletion).usage);
-      return response;
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") call?.interrupt();
-      else call?.fail();
-      throw error;
-    }
+    return this.transport!.create(tracked, clientOptions);
   }
+
   protected override _convertCompletionsMessageToBaseMessage(message: OpenAI.ChatCompletionMessage, raw: OpenAI.ChatCompletion) {
     const converted = super._convertCompletionsMessageToBaseMessage(message, raw);
     if (message.refusal) converted.additional_kwargs.refusal = message.refusal;
@@ -119,14 +86,14 @@ export function createChatModel(
   env: Bindings,
   opts: { maxTokens: number; timeoutMs: number; costLedger?: AnswerCostLedger },
 ): ChatOpenAICompletions {
-  const apiKey = resolveOpenAiKey(env, "OpenAI LLM");
-  const model = env.LLM_MODEL || DEFAULT_LLM_MODEL;
+  const route = resolveLlmRoute(env);
+  const { apiKey, model } = route;
   // useResponsesApi: false でも ChatOpenAI はモデル名で /responses を選ぶ。
   // 互換サーバーでも /chat/completions を使うため、専用クラスで固定する。
   const chatModel = new AnswerChatModel({
     model,
     apiKey,
-    configuration: { baseURL: openAiBaseUrl(env) },
+    configuration: { baseURL: route.baseURL },
     temperature: 0,
     reasoning: env.LLM_REASONING_EFFORT ? { effort: env.LLM_REASONING_EFFORT }
       : model === "gpt-6-luna" ? { effort: "none" } : undefined,
@@ -138,17 +105,9 @@ export function createChatModel(
     maxRetries: MAX_RETRIES,
   });
   chatModel.costLedger = opts.costLedger;
-  chatModel.separateToolSchema = env.LLM_SEPARATE_TOOL_SCHEMA === "true";
+  chatModel.transport = new ChatTransport(route, env.OPENAI_API_KEY, opts.costLedger);
+  chatModel.separateToolSchema = route.provider === "groq" || env.LLM_SEPARATE_TOOL_SCHEMA === "true";
   return chatModel;
-}
-
-/** OpenAI SDK / LangChain が投げた例外から HTTP ステータスを拾う。 */
-function statusOf(error: unknown): number | null {
-  if (typeof error !== "object" || error === null) return null;
-  const e = error as { status?: unknown; response?: { status?: unknown } };
-  if (typeof e.status === "number") return e.status;
-  if (typeof e.response?.status === "number") return e.response.status;
-  return null;
 }
 
 /**
@@ -163,19 +122,9 @@ export function toLlmError(error: unknown): unknown {
   }
   if (error instanceof Error && error.name === "AbortError") return error;
 
-  const status = statusOf(error);
-  if (status === 401) {
-    return new LlmConfigurationError(
-      "Invalid OpenAI API key. Please check your API key in Settings.",
-    );
+  const status = providerStatus(error);
+  if ([400, 401, 403, 404, 422].includes(status ?? 0)) {
+    return new LlmConfigurationError("The LLM provider rejected its credentials, model or request configuration.");
   }
-  const message = error instanceof Error ? error.message : String(error);
-  if ((status === 400 || status === 422) && /response_format|json_schema|structured.output|strict|tool.*(?:unsupported|not.support)/i.test(message)) {
-    return new LlmConfigurationError("The configured LLM endpoint/model must support strict json_schema output and tool calling.");
-  }
-  return new LlmProviderError(
-    status === null
-      ? `OpenAI request failed: ${message.slice(0, 500)}`
-      : `OpenAI request failed (${status}): ${message.slice(0, 500)}`,
-  );
+  return new LlmProviderError(status ? `LLM request failed (${status}).` : "LLM request failed.");
 }

@@ -12,10 +12,15 @@ BETTER_AUTH_URL="http://localhost:8787"
 # Base64url-encoded 32-byte AES-GCM key.
 USER_SECRET_ENCRYPTION_KEY=""
 
-# RAG チャット用。未設定だと LLM 設定エラー。
+# SaaS: Groq chat; OpenAI fallback / embeddings / image inspection.
+# GROQ_API_KEY=""
 # OPENAI_API_KEY=""
+# LLM_PROVIDER="groq"
+# LLM_MODEL="openai/gpt-oss-120b"
+# VISUAL_MODEL="gpt-6-luna"
 
 # ローカル llama.cpp / vLLM（ツール呼び出し・JSON Schema 対応モデルが必要）。
+# LLM_PROVIDER="local"
 # OPENAI_API_KEY="local-inference"
 # OPENAI_BASE_URL="http://127.0.0.1:8000/v1"
 # LLM_MODEL="videoq-chat"

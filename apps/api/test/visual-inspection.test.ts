@@ -8,7 +8,7 @@ vi.mock("../src/lib/visual-manifest", async importOriginal => ({
   ...await importOriginal<typeof import("../src/lib/visual-manifest")>(),
   readVisualManifest: vi.fn(async () => null),
 }));
-const env = { OPENAI_API_KEY: "test", OPENAI_BASE_URL: "https://vision.test/v1", LLM_MODEL: "shared-model" } as Bindings;
+const env = { LLM_PROVIDER: "local", OPENAI_API_KEY: "test", OPENAI_BASE_URL: "https://vision.test/v1", LLM_MODEL: "shared-model" } as Bindings;
 const frames = Array.from({ length: 20 }, (_, i) => ({ timestamp_seconds: i * 5, jpeg_base64: "/9j/2Q==" }));
 const cache = { version: 1, video_id: 42, duration_seconds: 100, sampling_interval_seconds: 5, frames };
 const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
@@ -48,7 +48,7 @@ it.each([{}, { LLM_MODEL: "" }, { LLM_MODEL: "gpt-6-luna" }])("uses Luna without
     return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ observations: [{ frame_index: 8, observation: "Final frame" }] }) } }] });
   });
   vi.stubGlobal("fetch", fetch);
-  const result = await inspectVideoClip({ OPENAI_API_KEY: "test", ...models } as Bindings,
+  const result = await inspectVideoClip({ LLM_PROVIDER: "openai", OPENAI_API_KEY: "test", ...models } as Bindings,
     { id: 42, fileKey: "private/video.mp4" }, 10, 70, "Read the equation", new AbortController().signal);
   expect(result).toMatchObject({ observations: [{ timestamp: 70, text: "Final frame" }] });
   expect(fetch).toHaveBeenCalledTimes(1);

@@ -17,6 +17,7 @@ const env = Object.fromEntries(
     key, process.env[key] ?? configured[key],
   ]),
 ) as unknown as Bindings;
+Object.assign(env, { LLM_PROVIDER: "openai", LLM_MODEL: env.LLM_MODEL || "gpt-6-luna" });
 
 const search = vi.fn(async (_query: string, videoIds?: readonly number[]) =>
   SCENES.filter((scene) => !videoIds || videoIds.includes(scene.videoId)),

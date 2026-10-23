@@ -73,7 +73,7 @@ Apply `0011_job_delivery_guards.sql` before updating the worker.
 Uploaded-video processing also requires `0031_resumable_transcription.sql` and
 `0037_resumable_transcription_fallback.sql`.
 The parent reserves processing quota once and creates a persisted plan with
-configured intervals for cloud OpenAI and local inference.
+configured intervals for hosted and local inference.
 Finish incomplete plans of any other interval size before upgrading.
 Four SQS lanes process the intervals; each saved checkpoint
 enqueues the next interval in its lane. Results and follow-up IDs survive retries,
@@ -88,8 +88,11 @@ results. Checkpoints are deleted by foreign-key cascade when the video is delete
 |---|---|
 | `DATABASE_URL` | PostgreSQL |
 | `SQS_QUEUE_URL` | Amazon SQS / ElasticMQ |
-| `OPENAI_API_KEY` | Whisper and embeddings |
-| `WHISPER_BACKEND` | `openai` (cloud default) or `local` (on-premises) |
+| `GROQ_API_KEY` | SaaS transcription |
+| `OPENAI_API_KEY` | OpenAI fallback and unchanged embeddings |
+| `TRANSCRIPTION_PROVIDER` | SaaS default `groq`; explicit `openai` or on-premises `local` |
+| `TRANSCRIPTION_MODEL` | `whisper-large-v3-turbo` / `whisper-1` / `whisper-local`, matching the provider |
+| `WHISPER_BACKEND` | Legacy provider alias; `TRANSCRIPTION_PROVIDER` takes precedence |
 | `WHISPER_LOCAL_URL` | Private API base for `local`: native Mac whisper.cpp has no `/v1` suffix with the documented launch command; the Kubernetes gateway includes `/v1` |
 | `EMBEDDING_MODEL` | Defaults to `text-embedding-3-small`; set the actual served alias for a private model |
 | `USE_S3_STORAGE` | Enable S3-compatible object storage |
@@ -116,8 +119,7 @@ the gateway forwards speech spans concurrently to vLLM, without waiting for a
 batch of uploaded videos. The dated comparison report records the experiments
 before adoption; its retired Modal-only commands are historical.
 
-Cloud transcription uses the OpenAI API's `whisper-1` model. See
-[the switch runbook](../../docs/operations/openai-transcription.md).
+Cloud transcription defaults to Groq `whisper-large-v3-turbo`, with bounded transient-error fallback to OpenAI `whisper-1`. Groq intervals include one second of context on each side; source-relative timestamps are joined only at overlapping seams. Local and explicit OpenAI interval behavior is preserved. See the [provider runbook](../../docs/operations/groq-inference.md).
 
 Dedicated storage credentials are selected from `R2_ACCESS_KEY_ID` /
 `R2_SECRET_ACCESS_KEY` first, then `AWS_S3_ACCESS_KEY_ID` / `AWS_S3_SECRET_ACCESS_KEY`.
@@ -150,10 +152,12 @@ created for each subprocess, with an expiry longer than its process time limit.
 HTTPS verifies the server certificate, network inputs cannot read local files,
 and signed URLs are removed from subprocess diagnostics and command logging.
 
-Each uploaded transcription job extracts at most 300 seconds of 64 kbps mono MP3
-with a 16 MiB file cap and a 300-second subprocess deadline. OpenAI/local calls use a 120-second timeout and at most two retries. Only
-one interval's audio is stored
-locally, and the next interval runs in a new invocation. Indexing and the two
+Each uploaded transcription job extracts a core interval of at most 300 seconds
+of 64 kbps mono MP3 (up to two extra seconds of context for Groq), with a 16 MiB
+file cap and a 300-second subprocess deadline. Hosted calls use 35-second attempts
+(Groq: two attempts then one OpenAI fallback; explicit OpenAI: two attempts).
+Local calls retain a 120-second timeout and at most two SDK retries. Only one
+interval's audio is stored locally, and the next interval runs in a new invocation. Indexing and the two
 optional visual caches have separate jobs; failed visual work cannot lose the
 saved transcript. Each invocation still has Lambda's 900-second ceiling, so
 unreadable media or unusually expensive intervals can fail and require retry.

@@ -372,6 +372,8 @@ export async function streamChatMessage(
 
       const costLedger = await startCostLedger(env, setup, setup.course !== null, true);
 
+      const answerStarted = Date.now();
+      let firstTextAt: number | null = null;
       let generatedContent = false;
       let final: RagResult | undefined;
 
@@ -390,6 +392,7 @@ export async function streamChatMessage(
         )) {
           if ("part" in chunk) {
             const part = chunk.part;
+            if (part.type === "text" && part.text.trim() && firstTextAt === null) firstTextAt = Date.now();
             generatedContent ||= part.type === "text" && part.text.length > 0;
             await send(part.type === "text"
               ? { ...part, type: "text_delta" }
@@ -456,6 +459,7 @@ export async function streamChatMessage(
           : {}),
       };
       await finishCostLedger(env, costLedger, "completed", true);
+      console.info(JSON.stringify({ event: "answer_latency", ttftMs: firstTextAt === null ? null : firstTextAt - answerStarted, completionMs: Date.now() - answerStarted }));
       await send(done);
     },
   };

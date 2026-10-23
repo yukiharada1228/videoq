@@ -48,7 +48,7 @@ vi.mock("../src/repositories/course-repository", () => ({ getCourseInfo: vi.fn()
 const { runRag, streamRag, MAX_SCENE_SEARCHES, MAX_TOOL_ROUNDS } = await import("../src/lib/rag");
 
 const ENV = {
-  OPENAI_API_KEY: "sk-test",
+  LLM_PROVIDER: "local", OPENAI_API_KEY: "sk-test",
   OPENAI_BASE_URL: "https://openai.test/v1",
   HYPERDRIVE: { connectionString: "postgres://fake/db" },
 } as unknown as Bindings;
@@ -352,7 +352,7 @@ describe.each([false, true])("プライベート OpenAI 互換 API（stream=%s�
     vi.stubGlobal("fetch", fetchStub);
     const env = {
       ...ENV,
-      OPENAI_API_KEY: "local-inference",
+      LLM_PROVIDER: "local", OPENAI_API_KEY: "local-inference",
       OPENAI_BASE_URL: "http://127.0.0.1:11434/v1/",
       LLM_MODEL: "qwen3-vl:8b-instruct",
     };

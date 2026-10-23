@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
+import os
 from uuid import uuid4
 
 from psycopg.types.json import Jsonb
@@ -217,4 +218,10 @@ def assembled_segments(conn, run: TranscriptionRun) -> list[dict] | None:
     """, (run.run_id,)).fetchall()
     if len(rows) != run.chunk_count or any(row["segments"] is None for row in rows):
         return None
-    return [segment for row in rows for segment in row["segments"]]
+    chunks = [row["segments"] for row in rows]
+    if not any(segment["start"] < index * run.chunk_seconds or segment["end"] > (index + 1) * run.chunk_seconds
+               for index, chunk in enumerate(chunks) for segment in chunk):
+        return [segment for chunk in chunks for segment in chunk]
+    from worker_python.pipeline.transcription_stitching import stitch_chunks
+    return stitch_chunks([row["segments"] for row in rows], interval=run.chunk_seconds,
+                         duration=run.duration_ms / 1000)

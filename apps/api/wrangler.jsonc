@@ -42,7 +42,9 @@
     "STRIPE_AUTOMATIC_TAX": "false",
     // Resolve the hosted default in the adapter; private endpoints set their own model.
     "EMBEDDING_MODEL": "",
-    "LLM_MODEL": "gpt-6-luna",
+    "LLM_PROVIDER": "groq",
+    "LLM_MODEL": "openai/gpt-oss-120b",
+    "VISUAL_MODEL": "gpt-6-luna",
     "VIDEO_VISUAL_ENABLED": "true",
     "PGVECTOR_COLLECTION_NAME": "scene_embeddings",
     "OAUTH_ISSUER_URL": "http://localhost",
@@ -117,7 +119,9 @@
         "STRIPE_AUTOMATIC_TAX": "false",
         // Keep provider-specific defaults in the application, as in local dev.
         "EMBEDDING_MODEL": "",
-        "LLM_MODEL": "gpt-6-luna",
+        "LLM_PROVIDER": "groq",
+    "LLM_MODEL": "openai/gpt-oss-120b",
+    "VISUAL_MODEL": "gpt-6-luna",
         "VIDEO_VISUAL_ENABLED": "true",
         "PGVECTOR_COLLECTION_NAME": "scene_embeddings",
         "OAUTH_ISSUER_URL": "https://videoq.jp",

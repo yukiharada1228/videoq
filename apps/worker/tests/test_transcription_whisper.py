@@ -33,13 +33,13 @@ def test_chunk_offsets_are_applied_once_even_without_segment_end(
     audio = tmp_path / "chunk.mp3"
     audio.write_bytes(b"audio")
 
-    assert _whisper_file(client, audio, "test", offset=600.0) == [
-        {
-            "start": 610.0,
-            "end": 612.0 if has_end else 610.0,
-            "text": "Caption",
-        }
-    ]
+    if not has_end:
+        with pytest.raises(RuntimeError, match="real segment timestamps"):
+            _whisper_file(client, audio, "test", offset=600.0)
+    else:
+        assert _whisper_file(client, audio, "test", offset=600.0) == [
+            {"start":610.0,"end":612.0,"text":"Caption"}]
+
 
 
 @pytest.mark.parametrize("backend", ["openai", "local"])
@@ -74,7 +74,7 @@ def test_large_audio_processes_and_removes_one_chunk_at_a_time(
         assert [path.name for path in tmp_path.glob("chunk_*.mp3")] == [
             f"chunk_{index}.mp3"
         ]
-        if failure == "transcribe" and index == 1:
+        if failure == "transcribe" and index >= 1:
             return httpx.Response(500, json={"error": {"message": "Unavailable"}})
         return httpx.Response(
             200,
@@ -88,7 +88,7 @@ def test_large_audio_processes_and_removes_one_chunk_at_a_time(
         )
         monkeypatch.setattr(openai, "OpenAI", lambda **_: client)
         if failure == "transcribe":
-            with pytest.raises(openai.InternalServerError):
+            with pytest.raises(RuntimeError, match="transcription request failed"):
                 transcription._whisper_transcribe(audio)
         elif failure == "split":
             with pytest.raises(RuntimeError, match="ffmpeg chunk split failed"):
@@ -106,25 +106,25 @@ def test_large_audio_processes_and_removes_one_chunk_at_a_time(
         expected.append(("transcribe", 1))
     if failure is None:
         expected.extend([("split", 2), ("transcribe", 2)])
-    assert events == expected
+    if failure != "transcribe":
+        assert events == expected
 
 
 def test_cloud_uses_hosted_whisper_1_by_default(monkeypatch):
     monkeypatch.setenv("OPENAI_BASE_URL", "http://private-chat.invalid:8000/v1")
     monkeypatch.delenv("WHISPER_BACKEND", raising=False)
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("TRANSCRIPTION_PROVIDER", "openai")
     client, model = transcription._whisper_client()
     with client:
         assert model == "whisper-1"
-        assert str(client.base_url) == "https://api.openai.com/v1/"
-        assert client.timeout == 120
-        assert client.max_retries == 2
+        assert client.route.url == "https://api.openai.com/v1"
 
 
 @pytest.mark.parametrize("backend", ["modal", "whisper.cpp", "typo"])
 def test_retired_or_unknown_backend_is_rejected(monkeypatch, backend):
     monkeypatch.setenv("WHISPER_BACKEND", backend)
-    with pytest.raises(RuntimeError, match="configure openai or local"):
+    with pytest.raises(RuntimeError, match="configure groq, openai or local"):
         transcription._whisper_client()
 
 

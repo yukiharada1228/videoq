@@ -8,8 +8,10 @@ description: Run VideoQ chat, embeddings and Whisper inside the on-premises netw
 VideoQ can run chat, embeddings and Whisper on site alongside its web, API and
 worker workloads. Initial container/model downloads can use the internet;
 uploaded video, audio and AI requests use private services during processing.
-The application's default Helm values still select hosted OpenAI. Applying
-the local overlay explicitly switches all three AI functions.
+The base Helm values retain legacy hosted endpoint placeholders. Apply a local
+overlay for a fully on-premises install; it configures all three private AI
+services. The on-premises runtime rejects official hosted inference endpoints
+in local mode rather than sending requests to them.
 
 | Recipe | LLM / embedding runtime | Application overlay |
 |---|---|---|
@@ -19,7 +21,7 @@ the local overlay explicitly switches all three AI functions.
 Whisper uses **whisper.cpp on CPU** and **vLLM on NVIDIA GPUs**. Both are
 accessed through a private gateway that performs VAD and audio normalization,
 then restores source-relative segment timestamps. Mac development can also run
-whisper.cpp natively with Metal. The app uses `WHISPER_BACKEND=local` and
+whisper.cpp natively with Metal. The app uses `TRANSCRIPTION_PROVIDER=local` (or legacy `WHISPER_BACKEND=local` when the canonical variable is unset) and
 `WHISPER_LOCAL_URL`, without engine-specific backend aliases.
 
 The NVIDIA recipe dynamically batches speech spans: the gateway submits up to
@@ -119,3 +121,5 @@ and checks subtitle generation. It does not upload to storage or write to the
 database. The same test accepts the Kubernetes gateway base URL, including `/v1`.
 Ordinary CI skips this test and does not download speech models.
 See the [upstream server options](https://github.com/ggml-org/whisper.cpp/blob/v1.9.5/examples/server/README.md).
+
+When changing a SaaS `.env` to local inference, explicitly set `LLM_PROVIDER=local`, `TRANSCRIPTION_PROVIDER=local`, and `TRANSCRIPTION_MODEL=whisper-local`, along with the private URLs and served chat/embedding aliases above. A canonical transcription provider overrides `WHISPER_BACKEND`; remove conflicting SaaS model values. On-premises Helm profiles already select local inference and require no hosted keys.

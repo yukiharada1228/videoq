@@ -1,6 +1,8 @@
 # Cloud transcription: OpenAI whisper-1
 
-The cloud service uses OpenAI's hosted `/v1/audio/transcriptions` endpoint with
+**Historical release runbook (PR #1146).** The Groq migration is documented in [the current provider runbook](groq-inference.md); this page describes the preceding OpenAI-only release and its rollback context.
+
+That release used OpenAI's hosted `/v1/audio/transcriptions` endpoint with
 `model=whisper-1`. On-premises inference uses the separate `local` configuration.
 There is no Modal backend or automatic provider fallback.
 

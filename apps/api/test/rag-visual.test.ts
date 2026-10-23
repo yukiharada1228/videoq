@@ -70,7 +70,7 @@ describe.each([false, true].flatMap(streaming =>
       } }] }, request.stream, "agent-final");
     });
     // No visual flag: image tools must be available for uploads by default.
-    const env = { OPENAI_API_KEY: "test", OPENAI_BASE_URL: "https://models.test/v1", ...(model ? { LLM_MODEL: model } : {}) } as Bindings;
+    const env = { LLM_PROVIDER: "local", OPENAI_API_KEY: "test", OPENAI_BASE_URL: "https://models.test/v1", ...(model ? { LLM_MODEL: model } : {}) } as Bindings;
     const params = { ownerUserId: "owner", videoIds: [42], messages: [{ role: "user", content: "What is the red curve?" }], locale: "en" };
     let result;
     if (streaming) {
