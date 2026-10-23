@@ -11,16 +11,28 @@ whisper:
   # Build apps/inference/whisper; publish to the site's private registry.
   image:
     repository: videoq-local-whisper
-    tag: "0.1.0-cpu"
+    tag: "0.2.0-cpu"
     digest: ""
     pullPolicy: IfNotPresent
-  modelRepo: Systran/faster-whisper-base
-  modelRevision: ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66
-  device: cpu
-  computeType: int8
+  # CPU transcription engine. NVIDIA overlay selects vllm, without aliases.
+  backend: whispercpp
+  modelRepo: ggerganov/whisper.cpp
+  modelRevision: 5359861c739e955e79d9a303bcbc70fb988958b1
+  modelFile: ggml-small-q5_1.bin
+  modelSha256: ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb
   cpuThreads: 2
-  # 1 uses sequential inference; >1 batches VAD speech chunks within one request.
-  batchSize: 1
+  maxConcurrentRequests: 1
+  upstreamParallelism: 1
+  maxSequences: 8
+  vllmImage:
+    # Build apps/inference/whisper/Dockerfile.vllm and pin its private digest.
+    repository: videoq-whisper-vllm
+    tag: "0.2.0"
+    digest: ""
+    pullPolicy: IfNotPresent
+  gatewayResources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: "1", memory: 2Gi }
   persistence:
     existingClaim: ""
     storageClass: ""

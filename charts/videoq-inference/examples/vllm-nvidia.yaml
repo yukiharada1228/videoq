@@ -1,4 +1,4 @@
-# Two allocatable NVIDIA GPUs: one per model; Whisper stays on CPU.
+# Three allocatable NVIDIA GPUs: independent chat, embedding and Whisper.
 # Requires NVIDIA drivers, device plugin, and site hardware acceptance.
 backend: vllm
 servers:
@@ -26,3 +26,20 @@ servers:
     resources:
       requests: { cpu: "2", memory: 8Gi, nvidia.com/gpu: 1 }
       limits: { cpu: "4", memory: 16Gi, nvidia.com/gpu: 1 }
+
+# One additional dedicated NVIDIA GPU for speech. No GPU sharing.
+# The CPU gateway performs VAD/normalization; vLLM dynamically batches speech.
+whisper:
+  backend: vllm
+  modelRepo: openai/whisper-large-v3-turbo
+  modelRevision: 41f01f3fe87f28c78e2fbf8b568835947dd65ed9
+  modelFile: ""
+  modelSha256: ""
+  maxConcurrentRequests: 2
+  upstreamParallelism: 4
+  maxSequences: 8
+  persistence: { size: 10Gi }
+  resources:
+    requests: { cpu: "2", memory: 8Gi, nvidia.com/gpu: 1 }
+    limits: { cpu: "4", memory: 16Gi, nvidia.com/gpu: 1 }
+  nodeSelector: { kubernetes.io/arch: amd64 }

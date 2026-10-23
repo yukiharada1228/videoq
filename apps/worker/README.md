@@ -73,7 +73,7 @@ Apply `0011_job_delivery_guards.sql` before updating the worker.
 Uploaded-video processing also requires `0031_resumable_transcription.sql` and
 `0037_resumable_transcription_fallback.sql`.
 The parent reserves processing quota once and creates a persisted plan with
-300-second intervals for cloud OpenAI and local inference.
+configured intervals for cloud OpenAI and local inference.
 Finish incomplete plans of any other interval size before upgrading.
 Four SQS lanes process the intervals; each saved checkpoint
 enqueues the next interval in its lane. Results and follow-up IDs survive retries,
@@ -90,7 +90,7 @@ results. Checkpoints are deleted by foreign-key cascade when the video is delete
 | `SQS_QUEUE_URL` | Amazon SQS / ElasticMQ |
 | `OPENAI_API_KEY` | Whisper and embeddings |
 | `WHISPER_BACKEND` | `openai` (cloud default) or `local` (on-premises) |
-| `WHISPER_LOCAL_URL` | Private API base for `local`: native Mac whisper.cpp has no `/v1` suffix with the documented launch command; the shared faster-whisper server includes `/v1` |
+| `WHISPER_LOCAL_URL` | Private API base for `local`: native Mac whisper.cpp has no `/v1` suffix with the documented launch command; the Kubernetes gateway includes `/v1` |
 | `EMBEDDING_MODEL` | Defaults to `text-embedding-3-small`; set the actual served alias for a private model |
 | `USE_S3_STORAGE` | Enable S3-compatible object storage |
 | `R2_BUCKET_NAME` / `R2_S3_ENDPOINT` / `R2_S3_REGION` | R2 bucket / endpoint / region |
@@ -103,23 +103,18 @@ results. Checkpoints are deleted by foreign-key cascade when the video is delete
 | `MEDIA_PROCESS_MEMORY_LIMIT_MB` | Address space limit for media subprocesses on Linux (default: 2,048 MiB) |
 | `MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB` | File size limit for files written by media subprocesses (default: 1,024 MiB) |
 
-Mac development uses native whisper.cpp with Metal; on-prem Kubernetes uses the
-shared faster-whisper service on CPU or NVIDIA GPU. Both use the same `local`
-client and `whisper-local` request model. The server selects the actual weights.
-The worker sends MP3 and requests `verbose_json` with segment timestamps;
-whisper.cpp must start with `--convert` and `/audio/transcriptions` as its
-inference path. See the [local inference guide](../../docs/guides/local-inference.md#mac-development-with-whispercpp)
-for startup and real-audio acceptance commands.
+On-premises Kubernetes uses whisper.cpp on CPU and vLLM on NVIDIA, behind a
+private VAD/normalization gateway. Mac development can use native whisper.cpp
+with Metal. All use `WHISPER_BACKEND=local` and real segment timestamps; the
+operator selects weights before serving. Kubernetes gateway URLs include `/v1`.
+The native Mac launch command exposes `/audio/transcriptions` without `/v1`.
+See [local inference](../../docs/guides/local-inference.md).
 
-The faster-whisper server's `WHISPER_BATCH_SIZE` (Helm `whisper.batchSize`)
-batches speech chunks inside one request; the NVIDIA overlay sets 8 and the CPU
-default is 1 (sequential). It is a server setting, independent of SQS job lanes
-and worker interval sizes. The worker keeps the same `local` client and offsets.
-
-Experimental whisper.cpp/vLLM acceptance tools and the NVIDIA/Mac/CPU results are
-documented in the [runtime verification report](../../docs/verification/whisper-cpp-vllm-2026-10-23.md).
-Those scripts use explicit public fixtures and private ephemeral services;
-the VAD frontend there is a validation experiment, not a worker entrypoint.
+`WHISPER_CHUNK_SECONDS` controls durable worker intervals (30–300 seconds,
+default 300). The CPU profile uses 60 seconds. GPU dynamic batching is separate:
+the gateway forwards speech spans concurrently to vLLM, without waiting for a
+batch of uploaded videos. The dated comparison report records the experiments
+before adoption; its retired Modal-only commands are historical.
 
 Cloud transcription uses the OpenAI API's `whisper-1` model. See
 [the switch runbook](../../docs/operations/openai-transcription.md).

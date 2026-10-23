@@ -74,39 +74,3 @@ def test_temporal_overlap_without_matching_words_is_not_quality_evidence():
     })
     assert result["speech_regions"][0]["has_caption"] is True
     assert result["speech_regions"][0]["cer"] >= 1
-
-
-vad_spec = importlib.util.spec_from_file_location(
-    "whisper_vad_validation_gateway",
-    Path(__file__).parents[1] / "scripts" / "whisper_vad_validation_gateway.py",
-)
-vad = importlib.util.module_from_spec(vad_spec)
-vad_spec.loader.exec_module(vad)
-
-
-def test_vad_spans_keep_silence_offsets_and_do_not_exceed_decoder_window():
-    rate = vad.RATE
-    spans = vad.merge_speech_spans([
-        {"start": 2 * rate, "end": 10 * rate},
-        {"start": int(10.5 * rate), "end": 25 * rate},
-        {"start": 40 * rate, "end": 50 * rate},
-    ])
-    assert spans == [(2 * rate, 25 * rate), (40 * rate, 50 * rate)]
-    assert vad.merge_speech_spans([]) == []
-
-
-def test_vad_restores_each_original_offset_once_and_clamps_padding():
-    parts = [(2 * vad.RATE, 10 * vad.RATE, {
-        "segments": [{"start": 1, "end": 9, "text": "前半"}],
-    }), (40 * vad.RATE, 50 * vad.RATE, {
-        "segments": [{"start": 2, "end": 6, "text": "後半"}],
-    })]
-    assert vad.restore_segments(parts, 50) == [
-        {"id": 0, "start": 3, "end": 10, "text": "前半"},
-        {"id": 1, "start": 42, "end": 46, "text": "後半"},
-    ]
-
-
-def test_vad_frontend_rejects_text_without_timestamps():
-    with pytest.raises(ValueError, match="real timestamps"):
-        vad.restore_segments([(0, vad.RATE, {"text": "本文"})], 1)

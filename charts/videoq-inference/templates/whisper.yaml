@@ -1,3 +1,12 @@
+{{- $whisper := .Values.whisper }}
+{{- $gpu := eq $whisper.backend "vllm" }}
+{{- $gpuCount := int (default 0 (index $whisper.resources.limits "nvidia.com/gpu")) }}
+{{- if and $gpu (ne $gpuCount 1) }}
+{{- fail "NVIDIA Whisper requires exactly one GPU in whisper.resources.limits" }}
+{{- end }}
+{{- if and (not $gpu) (ne $gpuCount 0) }}
+{{- fail "CPU Whisper must not reserve an NVIDIA GPU; select whisper.backend=vllm" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -12,7 +21,7 @@ spec:
   template:
     metadata:
       annotations:
-        videoq.io/model-revision: {{ .Values.whisper.modelRevision | quote }}
+        videoq.io/model-revision: {{ $whisper.modelRevision | quote }}
       labels:
         {{- include "inference.labels" . | nindent 8 }}
         app.kubernetes.io/component: whisper
@@ -22,47 +31,103 @@ spec:
       imagePullSecrets: {{ toYaml . | nindent 8 }}
       {{- end }}
       securityContext: { runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, fsGroup: 10001, seccompProfile: { type: RuntimeDefault } }
-      {{- with .Values.whisper.nodeSelector }}
+      {{- with $whisper.nodeSelector }}
       nodeSelector: {{ toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.whisper.tolerations }}
+      {{- with $whisper.tolerations }}
       tolerations: {{ toYaml . | nindent 8 }}
       {{- end }}
       {{- if .Values.downloadModels }}
       initContainers:
         - name: provision-model
-          image: {{ include "inference.image" (dict "root" . "image" .Values.whisper.image "component" "whisper") | quote }}
-          imagePullPolicy: {{ .Values.whisper.image.pullPolicy }}
-          command: [python, server.py, download]
+          image: {{ include "inference.image" (dict "root" . "image" $whisper.image "component" "whisper") | quote }}
+          imagePullPolicy: {{ $whisper.image.pullPolicy }}
+          command: [python, provision.py]
           env:
-            - { name: WHISPER_MODEL_REPO, value: {{ .Values.whisper.modelRepo | quote }} }
-            - { name: WHISPER_MODEL_REVISION, value: {{ .Values.whisper.modelRevision | quote }} }
-            - { name: WHISPER_MODEL_PATH, value: "/models/{{ .Values.whisper.modelRevision }}" }
+            - { name: MODEL_REPO, value: {{ $whisper.modelRepo | quote }} }
+            - { name: MODEL_REVISION, value: {{ $whisper.modelRevision | quote }} }
+            - { name: MODEL_FILE, value: {{ $whisper.modelFile | quote }} }
+            - { name: MODEL_SHA256, value: {{ $whisper.modelSha256 | quote }} }
             - { name: HF_HUB_OFFLINE, value: "0" }
           securityContext: {{ include "inference.security" . | nindent 12 }}
-          resources: { requests: { cpu: 100m, memory: 128Mi }, limits: { memory: 512Mi } }
+          resources: { requests: { cpu: 100m, memory: 128Mi }, limits: { memory: 1Gi } }
           volumeMounts: [{ name: models, mountPath: /models }]
       {{- end }}
       containers:
         - name: whisper
-          image: {{ include "inference.image" (dict "root" . "image" .Values.whisper.image "component" "whisper") | quote }}
-          imagePullPolicy: {{ .Values.whisper.image.pullPolicy }}
+          # The gateway alone is reachable through the Service and NetworkPolicy.
+          image: {{ include "inference.image" (dict "root" . "image" $whisper.image "component" "whisper") | quote }}
+          imagePullPolicy: {{ $whisper.image.pullPolicy }}
           ports: [{ name: http, containerPort: 8080 }]
           env:
-            - { name: WHISPER_MODEL_PATH, value: "/models/{{ .Values.whisper.modelRevision }}" }
-            - { name: WHISPER_DEVICE, value: {{ .Values.whisper.device | quote }} }
-            - { name: WHISPER_COMPUTE_TYPE, value: {{ .Values.whisper.computeType | quote }} }
-            - { name: WHISPER_CPU_THREADS, value: {{ .Values.whisper.cpuThreads | quote }} }
-            - { name: WHISPER_BATCH_SIZE, value: {{ .Values.whisper.batchSize | quote }} }
+            - { name: WHISPER_MAX_CONCURRENT_REQUESTS, value: {{ $whisper.maxConcurrentRequests | quote }} }
+            - { name: WHISPER_UPSTREAM_PARALLELISM, value: {{ $whisper.upstreamParallelism | quote }} }
             - { name: HF_HUB_OFFLINE, value: "1" }
             - { name: HF_HUB_DISABLE_TELEMETRY, value: "1" }
           startupProbe: { httpGet: { path: /health, port: http }, periodSeconds: 5, failureThreshold: 120 }
           readinessProbe: { httpGet: { path: /health, port: http }, periodSeconds: 10 }
-          livenessProbe: { httpGet: { path: /health, port: http }, periodSeconds: 30 }
+          livenessProbe: { httpGet: { path: /live, port: http }, periodSeconds: 30 }
           securityContext: {{ include "inference.security" . | nindent 12 }}
-          resources: {{ toYaml .Values.whisper.resources | nindent 12 }}
+          resources: {{ toYaml $whisper.gatewayResources | nindent 12 }}
           volumeMounts: [{ name: models, mountPath: /models, readOnly: true }]
+        - name: engine
+          {{- if $gpu }}
+          image: {{ include "inference.image" (dict "root" . "image" $whisper.vllmImage "component" "whisper.vllmImage") | quote }}
+          imagePullPolicy: {{ $whisper.vllmImage.pullPolicy }}
+          command: [vllm, serve]
+          args:
+            - /models/{{ $whisper.modelRevision }}
+            - --served-model-name
+            - whisper-local
+            - --host
+            - "127.0.0.1"
+            - --port
+            - "8081"
+            - --dtype
+            - float16
+            - --gpu-memory-utilization
+            - "0.70"
+            - --max-num-seqs
+            - {{ $whisper.maxSequences | quote }}
+          {{- else }}
+          image: {{ include "inference.image" (dict "root" . "image" $whisper.image "component" "whisper") | quote }}
+          imagePullPolicy: {{ $whisper.image.pullPolicy }}
+          command: [whisper-server]
+          args:
+            - --model
+            - /models/{{ $whisper.modelRevision }}/{{ $whisper.modelFile }}
+            - --host
+            - "127.0.0.1"
+            - --port
+            - "8081"
+            - --inference-path
+            - /v1/audio/transcriptions
+            - --language
+            - auto
+            - --threads
+            - {{ $whisper.cpuThreads | quote }}
+            - --beam-size
+            - "5"
+            - --no-gpu
+          {{- end }}
+          env:
+            - { name: HF_HUB_OFFLINE, value: "1" }
+            - { name: HF_HUB_DISABLE_TELEMETRY, value: "1" }
+            - { name: VLLM_NO_USAGE_STATS, value: "1" }
+            - { name: DO_NOT_TRACK, value: "1" }
+            - { name: HOME, value: /tmp }
+          securityContext: {{ include "inference.security" . | nindent 12 }}
+          resources: {{ toYaml $whisper.resources | nindent 12 }}
+          volumeMounts:
+            - { name: models, mountPath: /models, readOnly: true }
+            {{- if $gpu }}
+            - { name: shm, mountPath: /dev/shm }
+            {{- end }}
       volumes:
         - name: models
           persistentVolumeClaim:
-            claimName: {{ default (printf "%s-whisper" (include "inference.fullname" .)) .Values.whisper.persistence.existingClaim }}
+            claimName: {{ default (printf "%s-whisper" (include "inference.fullname" .)) $whisper.persistence.existingClaim }}
+        {{- if $gpu }}
+        - name: shm
+          emptyDir: { medium: Memory, sizeLimit: 2Gi }
+        {{- end }}

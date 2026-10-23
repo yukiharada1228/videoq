@@ -24,6 +24,7 @@ def checkpoint_db(monkeypatch):
     if not url:
         pytest.skip("DATABASE_URL is required for PostgreSQL integration tests")
     monkeypatch.delenv("WHISPER_BACKEND", raising=False)
+    monkeypatch.delenv("WHISPER_CHUNK_SECONDS", raising=False)
     schema = f"checkpoints_{uuid4().hex}"
     with psycopg.connect(url, autocommit=True) as admin:
         admin.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)))
@@ -285,3 +286,22 @@ def test_all_silent_plan_ends_in_error_and_user_retry_can_start_again(checkpoint
     assert checkpoints.load_run(42).completed
     enqueue.assert_not_called()
     assert checkpoints.initialize_run(video(checkpoint_db), 10).run_id != run.run_id
+
+
+def test_cpu_profile_uses_shorter_checkpoints_and_still_reserves_usage_once(checkpoint_db, monkeypatch):
+    monkeypatch.setenv("WHISPER_CHUNK_SECONDS", "60")
+    run = checkpoints.initialize_run(video(checkpoint_db), 618.74)
+    assert (run.chunk_seconds, run.chunk_count) == (60, 11)
+    monkeypatch.setenv("WHISPER_CHUNK_SECONDS", "300")
+    resumed = checkpoints.initialize_run(video(checkpoint_db), 618.74)
+    assert resumed.run_id == run.run_id
+    assert (resumed.chunk_seconds, resumed.chunk_count) == (60, 11)
+    with checkpoint_db() as conn:
+        assert conn.execute("SELECT used_processing_seconds FROM users").fetchone()["used_processing_seconds"] == 619
+
+
+@pytest.mark.parametrize("value", ["0", "29", "301", "1.5", "typo"])
+def test_invalid_interval_config_fails_before_reserving_quota(monkeypatch, value):
+    monkeypatch.setenv("WHISPER_CHUNK_SECONDS", value)
+    with pytest.raises(ValueError, match="WHISPER_CHUNK_SECONDS"):
+        checkpoints.configured_chunk_seconds()

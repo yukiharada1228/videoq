@@ -34,6 +34,7 @@ data:
   LLM_STREAM_TIMEOUT_MS: {{ .Values.ai.streamTimeoutMs | quote }}
   EMBEDDING_BASE_URL: {{ .Values.ai.embeddingBaseUrl | quote }}
   EMBEDDING_MODEL: {{ .Values.ai.embeddingModel | quote }}
+  WHISPER_CHUNK_SECONDS: {{ .Values.ai.whisperChunkSeconds | quote }}
   WHISPER_BACKEND: {{ .Values.ai.whisperBackend | quote }}
   WHISPER_LOCAL_URL: {{ .Values.ai.whisperLocalUrl | quote }}
   MAX_VIDEO_UPLOAD_SIZE_MB: {{ .Values.config.maxVideoUploadSizeMb | quote }}

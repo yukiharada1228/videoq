@@ -68,3 +68,16 @@ def test_snapshot_downloads_only_serving_data_and_detects_missing_cached_weights
     provision.provision(env)
     assert len(calls) == 2
     assert json.loads((directory / ".videoq-model.json").read_text())["identity"]["revision"] == env["MODEL_REVISION"]
+
+
+def test_ggml_speech_weights_are_pinned_and_checksum_checked(tmp_path, monkeypatch):
+    env = {**settings(tmp_path), "MODEL_FILE": "ggml-small-q5_1.bin"}
+    def download(repo, filename, *, revision, local_dir):
+        assert filename == "ggml-small-q5_1.bin"
+        target = local_dir / filename
+        target.write_bytes(b"weights")
+        return str(target)
+    monkeypatch.setattr(provision, "hf_hub_download", download)
+    assert (provision.provision(env) / "ggml-small-q5_1.bin").is_file()
+    with pytest.raises(ValueError):
+        provision.provision({**env, "MODEL_FILE": "arbitrary-pickle.bin"})

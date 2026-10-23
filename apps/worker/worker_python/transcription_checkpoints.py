@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
+import os
 from uuid import uuid4
 
 from psycopg.types.json import Jsonb
@@ -52,13 +53,23 @@ def load_run(video_id: int, run_id: str | None = None) -> TranscriptionRun | Non
         """, (video_id, run_id, run_id)).fetchone())
 
 
+def configured_chunk_seconds() -> int:
+    try:
+        seconds = int(os.environ.get("WHISPER_CHUNK_SECONDS", str(CHUNK_SECONDS)))
+    except ValueError as error:
+        raise ValueError("WHISPER_CHUNK_SECONDS must be an integer from 30 to 300") from error
+    if not 30 <= seconds <= CHUNK_SECONDS:
+        raise ValueError("WHISPER_CHUNK_SECONDS must be an integer from 30 to 300")
+    return seconds
+
+
 def initialize_run(video: VideoRow, duration: float) -> TranscriptionRun | None:
     if not math.isfinite(duration) or not 0 < duration <= MAX_VIDEO_DURATION_SECONDS:
         raise ValueError("Video duration exceeds the supported transcription range")
     if not video.file_key or not video.transcript_hash:
         raise ValueError("Transcription needs a source and transcript fingerprint")
     duration_ms = math.ceil(duration * 1000)
-    chunk_seconds = CHUNK_SECONDS
+    chunk_seconds = configured_chunk_seconds()
     count = math.ceil(duration_ms / (chunk_seconds * 1000))
     with db_connection() as conn:
         # Always lock video before run/chunks, also matching deletion/finalization.

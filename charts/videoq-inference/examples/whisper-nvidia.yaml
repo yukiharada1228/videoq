@@ -1,16 +1,16 @@
-# Optional Whisper CUDA overlay for either backend. Requires one additional
-# allocatable NVIDIA GPU, drivers and the device plugin. No GPU sharing.
+# One additional dedicated NVIDIA GPU for speech. No GPU sharing.
+# The CPU gateway performs VAD/normalization; vLLM dynamically batches speech.
 whisper:
-  # Build with --build-arg INFERENCE_DEVICE=cuda on linux/amd64.
-  image:
-    tag: "0.1.0-cuda"
-  modelRepo: Systran/faster-whisper-large-v3
-  modelRevision: edaa852ec7e145841d8ffdb056a99866b5f0a478
-  device: cuda
-  computeType: float16
-  # Tune for the site's VRAM and recognition quality; 1 disables batching.
-  batchSize: 8
+  backend: vllm
+  modelRepo: openai/whisper-large-v3-turbo
+  modelRevision: 41f01f3fe87f28c78e2fbf8b568835947dd65ed9
+  modelFile: ""
+  modelSha256: ""
+  maxConcurrentRequests: 2
+  upstreamParallelism: 4
+  maxSequences: 8
+  persistence: { size: 10Gi }
   resources:
-    requests: { cpu: "1", memory: 1Gi, nvidia.com/gpu: 1 }
-    limits: { cpu: "4", memory: 4Gi, nvidia.com/gpu: 1 }
+    requests: { cpu: "2", memory: 8Gi, nvidia.com/gpu: 1 }
+    limits: { cpu: "4", memory: 16Gi, nvidia.com/gpu: 1 }
   nodeSelector: { kubernetes.io/arch: amd64 }

@@ -93,8 +93,7 @@
         "whisperBackend": {
           "enum": [
             "openai",
-            "local",
-            "modal"
+            "local"
           ]
         },
         "openaiBaseUrl": {
@@ -111,6 +110,11 @@
         },
         "whisperLocalUrl": {
           "type": "string"
+        },
+        "whisperChunkSeconds": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 300
         }
       },
       "additionalProperties": false
@@ -118,7 +122,9 @@
     "api": {
       "type": "object",
       "properties": {
-        "image": { "$ref": "#/definitions/image" },
+        "image": {
+          "$ref": "#/definitions/image"
+        },
         "replicas": {
           "type": "integer",
           "minimum": 1
@@ -143,7 +149,9 @@
     "web": {
       "type": "object",
       "properties": {
-        "image": { "$ref": "#/definitions/image" },
+        "image": {
+          "$ref": "#/definitions/image"
+        },
         "replicas": {
           "type": "integer",
           "minimum": 1
@@ -153,7 +161,9 @@
     "worker": {
       "type": "object",
       "properties": {
-        "image": { "$ref": "#/definitions/image" },
+        "image": {
+          "$ref": "#/definitions/image"
+        },
         "replicas": {
           "type": "integer",
           "minimum": 1
@@ -168,12 +178,29 @@
   "definitions": {
     "image": {
       "type": "object",
-      "required": ["repository", "pullPolicy"],
+      "required": [
+        "repository",
+        "pullPolicy"
+      ],
       "properties": {
-        "repository": { "type": "string", "minLength": 1 },
-        "tag": { "type": "string" },
-        "digest": { "type": "string", "pattern": "^(sha256:[a-f0-9]{64})?$" },
-        "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] }
+        "repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tag": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^(sha256:[a-f0-9]{64})?$"
+        },
+        "pullPolicy": {
+          "enum": [
+            "Always",
+            "IfNotPresent",
+            "Never"
+          ]
+        }
       }
     }
   }

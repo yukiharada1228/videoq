@@ -1,7 +1,7 @@
-"""Provision pinned local LLM weights; never run in a serving container.
+"""Provision pinned local LLM and speech weights; never run in a serving container.
 
 Uses the Whisper image's locked huggingface-hub dependency for both GGUF files
-and safetensors snapshots. Runtime servers receive a read-only revision folder.
+and safetensors snapshots, including GGML speech weights. Runtime servers receive a read-only revision folder.
 """
 import hashlib
 import json
@@ -17,8 +17,8 @@ def provision(env=os.environ):
     filename, digest = env.get("MODEL_FILE", ""), env.get("MODEL_SHA256", "")
     if not re.fullmatch(r"[\w.-]+/[\w.-]+", repo) or not re.fullmatch(r"[a-f0-9]{40}", revision):
         raise ValueError("Model repository and immutable 40-character revision are required")
-    if filename and (Path(filename).name != filename or not filename.endswith(".gguf") or not re.fullmatch(r"[a-f0-9]{64}", digest)):
-        raise ValueError("GGUF requires a basename and reviewed SHA256")
+    if filename and (Path(filename).name != filename or not (filename.endswith(".gguf") or re.fullmatch(r"ggml-[a-z0-9_.-]+\.bin", filename)) or not re.fullmatch(r"[a-f0-9]{64}", digest)):
+        raise ValueError("GGUF/GGML requires a basename and reviewed SHA256")
     directory = Path(env.get("MODEL_ROOT", "/models")) / revision
     directory.mkdir(parents=True, exist_ok=True)
     marker = directory / ".videoq-model.json"
@@ -37,7 +37,7 @@ def provision(env=os.environ):
         path = hf_hub_download(repo, filename, revision=revision, local_dir=directory)
         with open(path, "rb") as stream:
             if hashlib.file_digest(stream, "sha256").hexdigest() != digest:
-                raise ValueError("GGUF checksum mismatch")
+                raise ValueError("Model checksum mismatch")
         files = {filename: Path(path).stat().st_size}
     else:
         # No pickle weights or downloaded Python code; trust_remote_code stays off.

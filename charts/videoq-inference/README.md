@@ -1,7 +1,7 @@
 # Local inference for VideoQ
 
 This optional chart installs selectable private LLM / embedding servers and
-faster-whisper services. llama.cpp is the CPU default; vLLM is the NVIDIA GPU
+whisper.cpp (CPU) / vLLM (NVIDIA) speech services. llama.cpp is the CPU default; vLLM is the NVIDIA GPU
 option. Install it separately from the application chart so
 model caches, GPU scheduling and application upgrades have separate lifecycles.
 The application chart's default still uses hosted OpenAI; explicitly apply its
@@ -21,7 +21,7 @@ flowchart LR
       Web --> Store[(Private S3)]
       Queue[SQS-compatible queue] --> Worker[VideoQ worker]
       Worker --> Store
-      Worker --> Whisper[Local faster-whisper]
+      Worker --> Whisper[Local Whisper API]
       Worker --> Embedding[Local embedding API]
       Web --> Embedding
       Web --> LLM[Local chat API]
@@ -30,7 +30,7 @@ flowchart LR
 
 CPU defaults use Qwen3-4B Q4_K_M chat, gte-Qwen2-1.5B Q4_K_M embeddings
 (native 1536 dimensions) and
-`Systran/faster-whisper-base`. These are starting points for a small acceptance
+whisper.cpp with multilingual quantized `ggml-small-q5_1.bin`. These are starting points for a small acceptance
 test. Measure production model quality, throughput, RAM and GPU VRAM with the
 site's Japanese videos. The CPU overlay disables visual inspection because its
 chat model accepts text only. Transcription, subtitle search, cited Q&A and
@@ -49,7 +49,7 @@ configured site services.
 | Recipe | Inference values | Application values | Model placement |
 |---|---|---|---|
 | llama.cpp CPU | defaults or `examples/llamacpp-cpu.yaml` | `charts/videoq/examples/local-ai-llamacpp.yaml` | Separate CPU chat and embedding Pods; Whisper CPU |
-| vLLM NVIDIA | `examples/vllm-nvidia.yaml` | `charts/videoq/examples/local-ai-vllm.yaml` | Two GPUs, one for each model; Whisper CPU |
+| vLLM NVIDIA | `examples/vllm-nvidia.yaml` | `charts/videoq/examples/local-ai-vllm.yaml` | Three GPUs, one each for chat, embedding and Whisper |
 
 The application connects to OpenAI-compatible Chat Completions and embeddings.
 Private llama.cpp and vLLM servers use the same protocol as hosted OpenAI.
@@ -108,8 +108,7 @@ helm upgrade --install videoq charts/videoq --namespace videoq \
 
 For vLLM replace both profile filenames with `vllm-nvidia.yaml` and
 `local-ai-vllm.yaml`. Install the NVIDIA device plugin and review GPU VRAM first.
-The profile reserves **two allocatable GPUs** without sharing; Whisper stays on
-CPU. Resource limits are starting values, not measured production sizing.
+The profile reserves **three allocatable GPUs** without sharing: chat, embedding and Whisper. Resource limits are starting values, not measured production sizing.
 vLLM GPU inference and driver compatibility require actual site acceptance;
 the CPU llama.cpp test does not validate them. Before deploying vLLM, scan the
 pinned image on the target architecture, including unfixed HIGH/CRITICAL findings:
@@ -134,9 +133,9 @@ init containers also use its locked `provision.py` downloader.
 
 ```sh
 docker build --platform linux/amd64 \
-  -t registry.intranet/videoq-whisper:0.1.0-cpu apps/inference/whisper
-docker push registry.intranet/videoq-whisper:0.1.0-cpu
-docker buildx imagetools inspect registry.intranet/videoq-whisper:0.1.0-cpu
+  -t registry.intranet/videoq-whisper:0.2.0-cpu apps/inference/whisper
+docker push registry.intranet/videoq-whisper:0.2.0-cpu
+docker buildx imagetools inspect registry.intranet/videoq-whisper:0.2.0-cpu
 ```
 
 This image is built by the site and is not in the existing signed three-image
@@ -210,72 +209,67 @@ startup. The on-prem application edition disables external mail, Google OAuth, S
 and YouTube/SearchAPI. This recipe handles uploaded videos and administrator-issued
 local accounts; it does not change an explicitly selected inference endpoint.
 
-## Optional NVIDIA Whisper acceleration
+## NVIDIA Whisper engine
 
-Install NVIDIA drivers, container runtime integration and the Kubernetes device
-plugin. Build on linux/amd64 with the locked CUDA extra:
+The complete `vllm-nvidia.yaml` profile selects vLLM for speech as well as chat
+and embeddings. To add only a speech GPU to a CPU chat/embedding installation,
+apply `examples/whisper-nvidia.yaml` and set the application's
+`ai.whisperChunkSeconds: 300`. Each model has its own process and dedicated GPU.
+
+Build the audio-capable NVIDIA engine from its separate Dockerfile, scan the
+result, push it privately and record its digest alongside the gateway digest:
 
 ```sh
-docker build --platform linux/amd64 --build-arg INFERENCE_DEVICE=cuda \
-  -t registry.intranet/videoq-whisper:0.1.0-cuda apps/inference/whisper
-docker push registry.intranet/videoq-whisper:0.1.0-cuda
-helm upgrade --install inference charts/videoq-inference --namespace videoq \
-  -f charts/videoq-inference/examples/llamacpp-cpu.yaml \
-  -f charts/videoq-inference/examples/whisper-nvidia.yaml \
-  -f /secure/inference-gpu-site.yaml --wait --timeout 30m
+docker build --platform linux/amd64 -f apps/inference/whisper/Dockerfile.vllm \
+  -t registry.intranet/videoq-whisper-vllm:0.2.0 apps/inference/whisper
+trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed=false --exit-code 1 \
+  registry.intranet/videoq-whisper-vllm:0.2.0
+docker push registry.intranet/videoq-whisper-vllm:0.2.0
 ```
-
-The GPU site file must select the CUDA Whisper image's digest. This overlay
-requests **one additional GPU** for Whisper large-v3. It leaves the selected
-chat/embedding backend unchanged: llama.cpp remains on CPU, while vLLM's two
-model GPUs plus Whisper require **three GPUs**. No sharing is configured.
-Drivers, VRAM, scheduling, throughput and large-v3 inference require hardware
-acceptance; the CPU test does not establish GPU readiness.
-
-### Speech batching
-
-The NVIDIA overlay sets `whisper.batchSize: 8`, enabling faster-whisper's
-`BatchedInferencePipeline`. The CPU default is `1`, which uses sequential
-inference. Set an integer from 1 through 64 in the operator values file:
 
 ```yaml
 whisper:
-  batchSize: 8
+  vllmImage:
+    repository: registry.intranet/videoq-whisper-vllm
+    digest: sha256:REPLACE_WITH_REVIEWED_DIGEST
 ```
 
-The chart passes this as `WHISPER_BATCH_SIZE` to the speech server. It batches
-VAD-detected speech chunks **within one audio request**. It does not wait for
-eight videos or combine requests from different users. The API still handles
-one request at a time and returns 503 with `Retry-After` when busy. Larger batches
-use more VRAM; lower the value if the site's model/GPU cannot fit the batch.
-Batch size 1 uses the sequential path. There is no automatic hosted fallback.
+The pinned vLLM 0.32.0 base needs its `vllm[audio]` extras. The profile provisions
+`openai/whisper-large-v3-turbo` at an immutable revision before serving; runtime
+uses that local directory. Initial L4 validation used 70% GPU-memory reservation
+and eight active sequences. This is not a measured minimum VRAM requirement.
+Validate the site's driver, GPU capacity and recognition quality before rollout.
 
-Batch decoding explicitly enables segment timestamp tokens. The standard VAD
-pipeline restores times to the original input, and the API bounds subtitle cues
-to the input duration. Worker interval offsets are applied once as before.
-`WHISPER_BACKEND=local` and the transcription API contract are unchanged.
-This setting belongs to the faster-whisper server; native Mac whisper.cpp has
-its own inference implementation and does not consume it.
+## Speech preprocessing and batching
 
-After building the updated site-owned Whisper image, record its new digest and
-upgrade the inference release with the selected engine profile, NVIDIA overlay
-and operator values. Enabling batching does not establish a particular speedup:
-measure the site's Japanese videos for recognition, timestamp quality, latency,
-throughput and peak VRAM on its actual NVIDIA GPU.
+Both profiles expose the same private gateway on port 8080 and the app uses
+`WHISPER_BACKEND=local`, `whisper-local`, `verbose_json`, and segment timestamps.
+The engine listens only on loopback port 8081, including its model-management
+routes. Only the gateway has a Service. It normalizes audio levels, uses bundled
+Silero ONNX VAD, keeps speech spans within 30 seconds, and restores original
+source offsets after recognition. Silent input returns no captions. Text without
+real timestamps is rejected rather than converted into a fabricated subtitle.
+Requests cannot change weights, command arguments, or inference URLs.
 
-An opt-in CPU check uses a cached model and repeats a short, nonsensitive speech
-clip with long silent gaps. It verifies actual multi-chunk inference through the
-API/SDK boundary and source-relative timestamps, with no downloads or DB writes:
+`whisper.upstreamParallelism` is 1 for CPU and 4 for NVIDIA.
+`whisper.maxConcurrentRequests` bounds uploads and active video requests (CPU 1,
+NVIDIA 2); excess traffic receives retryable 503 responses. NVIDIA's
+`whisper.maxSequences: 8` configures vLLM's dynamic batching across those speech
+requests. It does not wait for eight videos to arrive. The previous faster-whisper
+batch-size/device/compute-type fields are removed and rejected by the schema.
 
-```sh
-cd apps/inference/whisper
-LOCAL_WHISPER_TEST_MODEL=/absolute/path/to/faster-whisper-model \
-LOCAL_WHISPER_TEST_SPEECH=/absolute/path/to/short-speech.mp4 \
-  uv run --locked pytest tests/test_real_batching.py -v
-```
+The CPU application profile uses 60-second durable checkpoints; NVIDIA and cloud
+use 300 seconds. `ai.whisperChunkSeconds` / `WHISPER_CHUNK_SECONDS` accepts 30–300
+seconds. Short CPU checkpoints keep individual calls within the worker's
+120-second inference deadline without extending queue leases. Completed results
+are reused after retries and their offsets remain relative to the source video.
+The serial on-prem poller defaults to one message at a time. Measure service
+capacity before increasing worker replicas or admission limits.
 
-Use an 8–20 second speech clip. Ordinary CI skips this real-model check and tests
-both sequential and batched API paths with deterministic fixtures.
+CPU's quantized multilingual small model is a small acceptance baseline, not a promise of
+Japanese recognition accuracy. Larger checkpoints need more CPU/RAM and may need
+shorter worker intervals. Review weights, checksums, source coverage, silence,
+Japanese accuracy and throughput with representative site recordings.
 
 ## Configuration contract
 

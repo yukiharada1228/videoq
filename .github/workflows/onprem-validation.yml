@@ -1,7 +1,15 @@
 name: On-prem Validation
 on:
   workflow_call:
+    inputs:
+      validate_whisper_gpu:
+        type: boolean
+        default: false
   workflow_dispatch:
+    inputs:
+      validate_whisper_gpu:
+        type: boolean
+        default: true
   schedule:
     - cron: '43 1 * * *'
 permissions:
@@ -59,7 +67,8 @@ jobs:
           uv sync --locked
           uv run --locked pytest -q
           docker build -t videoq-local-whisper:onprem-ci .
-          docker run --rm --entrypoint python videoq-local-whisper:onprem-ci -c 'import server; import provision; import faster_whisper; assert server.MODEL_ALIAS == "whisper-local"'
+          docker run --rm --entrypoint python videoq-local-whisper:onprem-ci -c 'import server; import provision; import silero_vad; import torch; assert server.MODEL_ALIAS == "whisper-local"'
+          LOCAL_WHISPER_CONTAINER_IMAGE=videoq-local-whisper:onprem-ci uv run --locked pytest -q tests/test_real_container.py
       - name: Build production on-prem images
         id: images
         run: |
@@ -182,3 +191,30 @@ jobs:
           if [ -x "$RUNNER_TEMP/kind" ]; then
             "$RUNNER_TEMP/kind" delete cluster --name videoq-onprem-lab --kubeconfig "$RUNNER_TEMP/lab-kubeconfig"
           fi
+
+  whisper-nvidia-image:
+    name: NVIDIA Whisper image
+    if: inputs.validate_whisper_gpu || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Reserve disk for the CUDA image on the disposable runner
+        run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+      - name: Build the pinned audio-capable vLLM engine without credentials
+        run: docker build -f apps/inference/whisper/Dockerfile.vllm -t videoq-whisper-vllm:onprem-ci apps/inference/whisper
+      - name: Verify audio extras without a GPU
+        run: docker run --rm --entrypoint python3 videoq-whisper-vllm:onprem-ci -c 'import av, librosa, soundfile; import importlib.metadata as m; assert m.version("vllm") == "0.32.0"'
+      - name: Scan NVIDIA Whisper including unfixed vulnerabilities
+        uses: aquasecurity/trivy-action@8f28faec26515256b6d22074d1d2a8986f4cbd87 # v0.35.0
+        with:
+          version: v0.76.1
+          scan-type: image
+          image-ref: videoq-whisper-vllm:onprem-ci
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: 'false'
+          exit-code: '1'
+          timeout: 15m

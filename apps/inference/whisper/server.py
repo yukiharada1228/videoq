@@ -1,67 +1,212 @@
-"""Only the OpenAI-compatible transcription subset that VideoQ consumes.
+"""Private subtitle gateway for CPU whisper.cpp and NVIDIA vLLM.
 
-The operator selects one checkpoint at deployment time. Requests cannot select
-or download arbitrary models. Runtime always opens local files, including VAD.
+Weights are provisioned before serving. Only loopback inference is contacted;
+clients cannot choose models, URLs, decoding commands or downloaded code.
 """
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
+import io
+import json
 import math
 import os
 from pathlib import Path
+import re
+import subprocess
 from tempfile import TemporaryDirectory
-from threading import Lock
+from threading import BoundedSemaphore, Lock
+import time
 from typing import Annotated
+import wave
 
 from fastapi import FastAPI, Form, HTTPException, UploadFile
+import httpx
+import numpy as np
+from starlette.responses import JSONResponse
 
-MAX_AUDIO_BYTES = 24 * 1024 * 1024
+RATE = 16000
 MODEL_ALIAS = "whisper-local"
-model_lock = Lock()
+MAX_AUDIO_BYTES = 24 * 1024 * 1024
+MAX_BODY_BYTES = MAX_AUDIO_BYTES + 64 * 1024
+MAX_RESPONSE_BYTES = 1024 * 1024
+UPSTREAM = "http://127.0.0.1:8081"
+vad_lock = Lock()
 
 
-def load_model():
-    from faster_whisper import WhisperModel
-
-    return WhisperModel(
-        os.environ.get("WHISPER_MODEL_PATH", "/models/whisper"),
-        device=os.environ.get("WHISPER_DEVICE", "cpu"),
-        compute_type=os.environ.get("WHISPER_COMPUTE_TYPE", "int8"),
-        cpu_threads=int(os.environ.get("WHISPER_CPU_THREADS", "4")),
-        num_workers=1,
-        local_files_only=True,
-    )
-
-
-def configured_batch_size():
+def setting(name, default, maximum):
     try:
-        size = int(os.environ.get("WHISPER_BATCH_SIZE", "1"))
+        value = int(os.environ.get(name, str(default)))
     except ValueError as error:
-        raise ValueError("WHISPER_BATCH_SIZE must be an integer between 1 and 64") from error
-    if not 1 <= size <= 64:
-        raise ValueError("WHISPER_BATCH_SIZE must be an integer between 1 and 64")
-    return size
+        raise ValueError(f"{name} must be an integer from 1 to {maximum}") from error
+    if not 1 <= value <= maximum:
+        raise ValueError(f"{name} must be an integer from 1 to {maximum}")
+    return value
+
+
+class RequestLimits:
+    """Bound concurrent uploads and multipart bytes before FastAPI spools files."""
+    def __init__(self, app):
+        self.app = app
+        self.slots = BoundedSemaphore(setting("WHISPER_MAX_CONCURRENT_REQUESTS", 1, 4))
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or scope["path"] != "/v1/audio/transcriptions":
+            return await self.app(scope, receive, send)
+        headers = dict(scope["headers"])
+        try:
+            length = int(headers.get(b"content-length", b"0"))
+        except ValueError:
+            return await JSONResponse({"detail": "Invalid content length"}, 400)(scope, receive, send)
+        if length < 0 or length > MAX_BODY_BYTES:
+            return await JSONResponse({"detail": "Request exceeds upload limit"}, 413)(scope, receive, send)
+        if not self.slots.acquire(blocking=False):
+            return await JSONResponse({"detail": "Transcription server is busy"}, 503,
+                                      headers={"Retry-After": "5"})(scope, receive, send)
+        received = 0
+
+        async def limited_receive():
+            nonlocal received
+            message = await receive()
+            received += len(message.get("body", b""))
+            if received > MAX_BODY_BYTES:
+                raise HTTPException(413, "Request exceeds upload limit")
+            return message
+
+        try:
+            return await self.app(scope, limited_receive, send)
+        finally:
+            self.slots.release()
+
+
+def load_vad():
+    import torch
+    from silero_vad import load_silero_vad
+    torch.set_num_threads(1)
+    # The pinned package bundles its ONNX weights; this never downloads models.
+    return load_silero_vad(onnx=True)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    app.state.batch_size = configured_batch_size()
-    app.state.model = load_model()
-    try:
+async def lifespan(app):
+    app.state.parallelism = setting("WHISPER_UPSTREAM_PARALLELISM", 1, 8)
+    app.state.vad = load_vad()
+    with httpx.Client(base_url=UPSTREAM, timeout=5, trust_env=False,
+                      limits=httpx.Limits(max_connections=32, max_keepalive_connections=16)) as client:
+        app.state.upstream = client
         yield
-    finally:
-        del app.state.model
-        del app.state.batch_size
+    del app.state.upstream
+    del app.state.vad
 
 
-app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None)
+app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+app.add_middleware(RequestLimits)
+
+
+@app.get("/live")
+def live():
+    return {"status": "ok"}
 
 
 @app.get("/health")
 def health():
-    if not hasattr(app.state, "model"):
-        raise HTTPException(503, "Model is not loaded")
+    try:
+        if not hasattr(app.state, "vad") or app.state.upstream.get("/health").status_code != 200:
+            raise HTTPException(503, "Inference engine is not ready")
+    except httpx.HTTPError as error:
+        raise HTTPException(503, "Inference engine is not ready") from error
     return {"status": "ok"}
+
+
+def merge_speech_spans(regions):
+    spans = []
+    for region in regions:
+        start, end = int(region["start"]), int(region["end"])
+        # Preserve long pauses in source time; do not concatenate distant phrases.
+        if spans and start - spans[-1][1] <= RATE and end - spans[-1][0] <= 30 * RATE:
+            spans[-1] = (spans[-1][0], end)
+        else:
+            spans.append((start, end))
+    return spans
+
+
+def decode_audio(path, directory):
+    output = directory / "decoded.f32"
+    subprocess.run([
+        "ffmpeg", "-nostdin", "-v", "error", "-y", "-threads", "1", "-filter_threads", "1",
+        "-protocol_whitelist", "file", "-format_whitelist", "mp3,wav,flac",
+        "-i", str(path), "-map", "0:a:0", "-vn", "-t", "301.1", "-af", "dynaudnorm=f=250:g=5:m=100",
+        "-ar", str(RATE), "-ac", "1", "-f", "f32le", "-fs", str(RATE * 4 * 302), str(output),
+    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60, check=True)
+    audio = np.fromfile(output, dtype="<f4")
+    if not 0 < len(audio) <= RATE * 301 or not np.isfinite(audio).all():
+        raise ValueError("Audio must fit one 300-second worker interval")
+    return audio
+
+
+def speech_spans(audio):
+    from silero_vad import get_speech_timestamps
+    with vad_lock:
+        regions = get_speech_timestamps(
+            audio, app.state.vad, sampling_rate=RATE, min_speech_duration_ms=0,
+            min_silence_duration_ms=300, speech_pad_ms=400, max_speech_duration_s=28,
+        )
+    return merge_speech_spans(regions)
+
+
+def restore_segments(parts, duration):
+    result = []
+    for start, end, payload in parts:
+        if not isinstance(payload, dict) or not isinstance(payload.get("segments"), list):
+            raise ValueError("Invalid upstream response")
+        rows = payload.get("segments") or []
+        if not rows and str(payload.get("text", "")).strip():
+            raise ValueError("Upstream did not return real timestamps")
+        previous = 0.0
+        for row in rows:
+            if not isinstance(row, dict) or type(row.get("start")) not in (int, float) or type(row.get("end")) not in (int, float):
+                raise ValueError("Invalid upstream timestamps")
+            left, right = float(row["start"]), float(row["end"])
+            if not math.isfinite(left) or not math.isfinite(right) or left < previous or right < left:
+                raise ValueError("Invalid upstream timestamps")
+            previous = left
+            text = row.get("text")
+            if not isinstance(text, str):
+                raise ValueError("Invalid upstream text")
+            left = start / RATE + max(0, left)
+            right = min(duration, end / RATE, start / RATE + right)
+            if left < right and text.strip():
+                result.append({"id": len(result), "start": left, "end": right, "text": text})
+    return result
+
+
+def recognize(audio, span, language, deadline):
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise TimeoutError("Transcription deadline exceeded")
+    start, end = span
+    output = io.BytesIO()
+    with wave.open(output, "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(RATE)
+        wav.writeframes((np.clip(audio[start:end], -1, 1) * 32767).astype("<i2").tobytes())
+    data = {"model": MODEL_ALIAS, "response_format": "verbose_json", "timestamp_granularities[]": "segment"}
+    if language:
+        data["language"] = language
+    # Fixed loopback endpoint; never use HTTP proxy settings or provider fallback.
+    with app.state.upstream.stream(
+        "POST", "/v1/audio/transcriptions", data=data, files={"file": ("speech.wav", output.getvalue(), "audio/wav")},
+        timeout=httpx.Timeout(min(90, remaining), connect=min(5, remaining)),
+    ) as response:
+        response.raise_for_status()
+        body = bytearray()
+        for chunk in response.iter_bytes():
+            body.extend(chunk)
+            if len(body) > MAX_RESPONSE_BYTES:
+                raise ValueError("Upstream response exceeds limit")
+        payload = json.loads(body)
+    return start, end, payload
 
 
 @app.post("/v1/audio/transcriptions")
@@ -70,91 +215,39 @@ def transcribe(
     model: Annotated[str, Form()],
     response_format: Annotated[str, Form()] = "verbose_json",
     timestamp_granularities: Annotated[list[str], Form(alias="timestamp_granularities[]")] = ["segment"],
+    language: Annotated[str | None, Form()] = None,
 ):
-    if model != MODEL_ALIAS or response_format != "verbose_json" or timestamp_granularities != ["segment"]:
-        raise HTTPException(400, "Use whisper-local, verbose_json and segment timestamps")
-    if not model_lock.acquire(blocking=False):
-        raise HTTPException(503, "Transcription server is busy", headers={"Retry-After": "5"})
+    deadline = time.monotonic() + 110
     try:
-        with TemporaryDirectory(prefix="videoq-whisper-") as directory:
-            audio = Path(directory) / "audio"
-            size = 0
-            with audio.open("wb") as output:
+        if model != MODEL_ALIAS or response_format != "verbose_json" or timestamp_granularities != ["segment"]:
+            raise HTTPException(400, "Use whisper-local, verbose_json and segment timestamps")
+        if language and not re.fullmatch(r"[a-z]{2,3}", language):
+            raise HTTPException(400, "Invalid language code")
+        with TemporaryDirectory(prefix="videoq-whisper-") as name:
+            directory = Path(name)
+            path, size = directory / "audio", 0
+            with path.open("wb") as output:
                 while chunk := file.file.read(1024 * 1024):
                     size += len(chunk)
                     if size > MAX_AUDIO_BYTES:
                         raise HTTPException(413, "Audio exceeds 24 MiB")
                     output.write(chunk)
-            if size == 0:
+            if not size:
                 raise HTTPException(400, "Audio is empty")
-            try:
-                transcriber = app.state.model
-                options = {}
-                if app.state.batch_size > 1:
-                    from faster_whisper import BatchedInferencePipeline
-
-                    # Reuse the loaded weights, but keep mutable pipeline state
-                    # within this request, including when iteration fails.
-                    transcriber = BatchedInferencePipeline(model=app.state.model)
-                    options["batch_size"] = app.state.batch_size
-                iterator, info = transcriber.transcribe(
-                    str(audio), beam_size=5, vad_filter=True,
-                    condition_on_previous_text=False,
-                    # The batched API defaults to text-only decoding. VideoQ
-                    # needs subtitle cues, not one timestamp per VAD chunk.
-                    without_timestamps=False,
-                    **options,
-                )
-                duration = float(info.duration)
-                if not math.isfinite(duration) or duration < 0:
-                    raise ValueError("Invalid audio duration")
-                segments = []
-                for segment in iterator:
-                    start, end = float(segment.start), float(segment.end)
-                    if not math.isfinite(start) or not math.isfinite(end):
-                        raise ValueError("Invalid segment timestamps")
-                    # Decoder padding can extend past EOF. Preserve source time
-                    # and never publish a subtitle outside this input interval.
-                    start, end = max(0.0, start), min(duration, end)
-                    if start < end and segment.text.strip():
-                        segments.append({
-                            "id": len(segments), "start": start,
-                            "end": end, "text": segment.text,
-                        })
-            except (ValueError, RuntimeError) as error:
-                # Keep audio contents, paths and inference details out of responses.
-                raise HTTPException(422, "Audio could not be transcribed") from error
-            return {
-                "task": "transcribe", "language": info.language,
-                "duration": duration,
-                "text": " ".join(segment["text"].strip() for segment in segments),
-                "segments": segments,
-            }
+            audio = decode_audio(path, directory)
+            duration = len(audio) / RATE
+            spans = speech_spans(audio)
+            with ThreadPoolExecutor(max_workers=app.state.parallelism) as pool:
+                parts = list(pool.map(lambda span: recognize(audio, span, language, deadline), spans))
+            segments = restore_segments(parts, duration)
+            detected = next((part[2].get("language") for part in parts if isinstance(part[2].get("language"), str)), "unknown")
+            return {"task": "transcribe", "language": language or detected, "duration": duration,
+                    "text": " ".join(row["text"].strip() for row in segments), "segments": segments}
+    except (subprocess.SubprocessError, ValueError, RuntimeError) as error:
+        raise HTTPException(422, "Audio or subtitle response could not be processed") from error
+    except (httpx.TimeoutException, TimeoutError) as error:
+        raise HTTPException(504, "Inference engine timed out") from error
+    except httpx.HTTPError as error:
+        raise HTTPException(502, "Inference engine request failed") from error
     finally:
         file.file.close()
-        model_lock.release()
-
-
-def download_model():
-    """Run explicitly during provisioning; never called by the API."""
-    from huggingface_hub import snapshot_download
-
-    path = Path(os.environ.get("WHISPER_MODEL_PATH", "/models/whisper"))
-    revision = os.environ["WHISPER_MODEL_REVISION"]
-    marker = path / ".videoq-revision"
-    if marker.exists() and marker.read_text() == revision and (path / "model.bin").is_file():
-        return
-    snapshot_download(
-        repo_id=os.environ["WHISPER_MODEL_REPO"],
-        revision=revision,
-        local_dir=str(path),
-        allow_patterns=["model.bin", "config.json", "tokenizer.json", "vocabulary.*", "preprocessor_config.json"],
-    )
-    marker.write_text(revision)
-
-
-if __name__ == "__main__":
-    import sys
-    if sys.argv[1:] != ["download"]:
-        raise SystemExit("Usage: python server.py download")
-    download_model()

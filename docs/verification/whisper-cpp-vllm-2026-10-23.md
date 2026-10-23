@@ -1,5 +1,10 @@
 # whisper.cpp / vLLM runtime validation — 2026-10-23
 
+Historical comparison at commit `58a2df6f`. Modal-only test drivers and the
+validation gateway were retired when the production whisper.cpp/vLLM gateway
+was adopted. Use the current inference chart and portable URL-based verifier
+for new deployments; commands below record the earlier experiment.
+
 The NVIDIA vLLM candidate is fast, but its raw Whisper endpoint is insufficient
 for the tested subtitle requirements. A private validation frontend with VAD,
 bounded utterance grouping, level normalization and timestamp restoration passed

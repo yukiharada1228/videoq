@@ -99,16 +99,18 @@ def safe_request_case(base_url: str, case: dict, extra_body: dict | None = None)
 
 
 def run_suite(base_url: str, cases: list[dict], *, extra_body: dict | None = None,
-              long_case: dict | None = None) -> dict:
+              long_case: dict | None = None, concurrency: int = 4) -> dict:
+    if not 1 <= concurrency <= 8:
+        raise ValueError("Concurrency must be from 1 to 8")
     # A completed, untimed warmup separates model/startup costs from warm inference.
     warmup = safe_request_case(base_url, cases[0], extra_body)
     if "error" in warmup:
         return {"warmup_error": warmup, "protocol_coverage_failures": ["warmup_request_failed"]}
     rows = [safe_request_case(base_url, case, extra_body) for case in cases]
     repeats = [safe_request_case(base_url, cases[0], extra_body) for _ in range(3)]
-    concurrent_cases = cases[:min(4, len(cases))]
+    concurrent_cases = cases[:min(concurrency, len(cases))]
     started = time.perf_counter()
-    with ThreadPoolExecutor(max_workers=4) as pool:
+    with ThreadPoolExecutor(max_workers=concurrency) as pool:
         concurrent = list(pool.map(lambda c: safe_request_case(base_url, c, extra_body), concurrent_cases))
     elapsed = time.perf_counter() - started
     result = {
@@ -168,6 +170,7 @@ def run_worker_intervals(base_url: str, case: dict) -> dict:
     import tempfile
     from worker_python.pipeline.transcription import transcribe_audio_interval
     from worker_python.pipeline.srt import create_srt_from_whisper_segments
+    from worker_python.transcription_checkpoints import configured_chunk_seconds
 
     os.environ.update(WHISPER_BACKEND="local", WHISPER_LOCAL_URL=base_url,
                       OPENAI_API_KEY="local-validation")
@@ -177,7 +180,7 @@ def run_worker_intervals(base_url: str, case: dict) -> dict:
         source.write_bytes(case["audio"])
         offset = 0.0
         while offset < case["duration"]:
-            duration = min(300.0, case["duration"] - offset)
+            duration = min(float(configured_chunk_seconds()), case["duration"] - offset)
             started = time.perf_counter()
             try:
                 segments = transcribe_audio_interval(source, offset, duration)
@@ -210,8 +213,9 @@ if __name__ == "__main__":
     parser.add_argument("--base-url", required=True)
     parser.add_argument("--fixtures", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--concurrency", type=int, default=4, help="Match the deployed request capacity")
     args = parser.parse_args()
     cases, long_case = load_cases(args.fixtures)
-    args.output.write_text(json.dumps(run_suite(args.base_url, cases, long_case=long_case), ensure_ascii=False, indent=2))
+    args.output.write_text(json.dumps(run_suite(args.base_url, cases, long_case=long_case, concurrency=args.concurrency), ensure_ascii=False, indent=2))
     if json.loads(args.output.read_text())["protocol_coverage_failures"]:
         raise SystemExit("Protocol/source-coverage gate failed; inspect the saved result")

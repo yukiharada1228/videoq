@@ -16,16 +16,18 @@ the local overlay explicitly switches all three AI functions.
 | CPU | llama.cpp, separate chat / embedding APIs | `local-ai-llamacpp.yaml` |
 | NVIDIA GPU | vLLM, separate chat / embedding APIs | `local-ai-vllm.yaml` |
 
-Whisper uses the independent private faster-whisper service in these Kubernetes recipes.
-Mac development runs whisper.cpp natively with Metal. Both use
-`WHISPER_BACKEND=local`; `WHISPER_LOCAL_URL` selects the service, without an
-engine-specific backend name.
-The NVIDIA Whisper overlay enables per-audio batching with
-`whisper.batchSize: 8`; CPU defaults to `1` (sequential inference). This groups
-speech chunks within the current request, without waiting for more videos.
-The server keeps segment timestamps and restores times across VAD silence
-removal. Set a smaller batch for limited VRAM and measure quality and throughput
-on the site's actual GPU. The setting does not apply to native whisper.cpp.
+Whisper uses **whisper.cpp on CPU** and **vLLM on NVIDIA GPUs**. Both are
+accessed through a private gateway that performs VAD and audio normalization,
+then restores source-relative segment timestamps. Mac development can also run
+whisper.cpp natively with Metal. The app uses `WHISPER_BACKEND=local` and
+`WHISPER_LOCAL_URL`, without engine-specific backend aliases.
+
+The NVIDIA recipe dynamically batches speech spans: the gateway submits up to
+four concurrently per audio request, accepts two audio requests, and vLLM allows
+eight active sequences. CPU defaults to one request and uses 60-second worker
+checkpoints; NVIDIA uses 300-second checkpoints. These are deployment settings,
+not guarantees of recognition accuracy or real-time performance.
+
 The application uses the OpenAI-compatible protocol with private endpoints;
 `EMBEDDING_BASE_URL` separates query/indexing embeddings from `OPENAI_BASE_URL`
 for chat. Optional `EMBEDDING_API_KEY` selects a separate credential.
@@ -37,8 +39,9 @@ Select the matching overlay from `charts/videoq/examples/`; retain it on upgrade
 
 The CPU baseline disables visual inspection because its chat model accepts text
 only. Local visual inspection requires a validated vision model with tool calls
-and strict JSON Schema support. The vLLM profile requests one GPU for chat and one for embeddings, with Whisper
-on CPU. The optional `whisper-nvidia.yaml` overlay adds one GPU for Whisper.
+and strict JSON Schema support. The complete vLLM profile requests three dedicated GPUs: chat, embeddings and
+Whisper. The `whisper-nvidia.yaml` overlay can add only a speech GPU to a CPU
+chat/embedding deployment.
 vLLM GPU execution remains subject to actual hardware acceptance. Hardware sizing and Japanese
 recognition/answer quality require acceptance on the actual site.
 
@@ -60,7 +63,7 @@ YouTube/SearchAPI; administrators issue local accounts and private setup links.
 ## Mac development with whisper.cpp
 
 Run whisper.cpp directly on macOS so it can use Apple Silicon's Metal backend.
-The Kubernetes speech service remains faster-whisper on CPU or NVIDIA GPU.
+Kubernetes uses whisper.cpp on CPU or vLLM on NVIDIA behind the shared gateway.
 whisper.cpp also supports other platforms; this is VideoQ's intended placement.
 
 Install CMake, a C++ toolchain and FFmpeg on the Mac, then run from the VideoQ root:
@@ -89,10 +92,10 @@ Configure the worker with the API **base URL**, not the full transcription path:
 |---|---|---|
 | Native whisper.cpp, worker on the same Mac | `local` | `http://127.0.0.1:8080` |
 | Native whisper.cpp, worker in Docker Desktop | `local` | `http://host.docker.internal:8080` |
-| Kubernetes faster-whisper | `local` | `http://videoq-inference-whisper:8080/v1` |
+| Kubernetes whisper.cpp / vLLM gateway | `local` | `http://videoq-inference-whisper:8080/v1` |
 
 The SDK appends `/audio/transcriptions` to each base URL. The documented
-whisper.cpp command exposes that path without `/v1`; faster-whisper exposes
+whisper.cpp command exposes that path without `/v1`; the Kubernetes gateway exposes
 `/v1/audio/transcriptions`. Recreate the Compose worker after editing `.env`:
 
 ```sh
@@ -113,6 +116,6 @@ LOCAL_AI_TEST_WHISPER_VIDEO=/absolute/path/to/speech.mp4 \
 The opt-in test extracts MP3 through the production worker, calls the configured
 service, verifies real API segment timestamps and their source-relative offset,
 and checks subtitle generation. It does not upload to storage or write to the
-database. The same test accepts the faster-whisper base URL, including `/v1`.
+database. The same test accepts the Kubernetes gateway base URL, including `/v1`.
 Ordinary CI skips this test and does not download speech models.
 See the [upstream server options](https://github.com/ggml-org/whisper.cpp/blob/v1.9.5/examples/server/README.md).

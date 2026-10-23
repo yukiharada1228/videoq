@@ -34,7 +34,7 @@ withHelm("private local inference deployment", () => {
       .spec.template.spec.containers[0].args).toContain("--offline");
     const whisper = pods.find(p => p.containers[0].name === "whisper");
     expect(whisper.containers[0].env).toContainEqual({ name: "HF_HUB_OFFLINE", value: "1" });
-    expect(whisper.containers[0].env).toContainEqual({ name: "WHISPER_BATCH_SIZE", value: "1" });
+    expect(whisper.containers[0].env).toContainEqual({ name: "WHISPER_UPSTREAM_PARALLELISM", value: "1" });
     expect(whisper.containers[0].volumeMounts[0].readOnly).toBe(true);
     const policy = resources.find(r => r.kind === "NetworkPolicy");
     expect(policy.spec.ingress[0].ports.map((port: { port: number }) => port.port).sort()).toEqual([8000, 8080]);
@@ -56,19 +56,24 @@ withHelm("private local inference deployment", () => {
     for (const deployment of resources.filter(r => r.kind === "Deployment")) {
       const container = deployment.spec.template.spec.containers[0];
       const whisper = deployment.metadata.name.endsWith("-whisper");
-      expect(container.resources.limits["nvidia.com/gpu"]).toBe(whisper ? 1 : undefined);
+      expect(container.resources.limits["nvidia.com/gpu"]).toBeUndefined();
+      if (whisper) expect(deployment.spec.template.spec.containers[1].resources.limits["nvidia.com/gpu"]).toBe(1);
       if (whisper) {
         expect(deployment.spec.template.spec.nodeSelector["kubernetes.io/arch"]).toBe("amd64");
-        expect(container.env).toContainEqual({ name: "WHISPER_BATCH_SIZE", value: "8" });
+        expect(container.env).toContainEqual({ name: "WHISPER_UPSTREAM_PARALLELISM", value: "4" });
+        const engine = deployment.spec.template.spec.containers[1];
+        expect(engine.command).toEqual(["vllm", "serve"]);
+        expect(engine.args).toContain("127.0.0.1");
+        expect(engine.args).toContain("--max-num-seqs");
       }
     }
   });
-  it("configures per-request speech batching and rejects invalid batch sizes", () => {
-    const whisper = render("--set", "whisper.batchSize=4")
+  it("bounds speech concurrency and rejects retired or invalid settings", () => {
+    const whisper = render("--set", "whisper.upstreamParallelism=4")
       .find(r => r.kind === "Deployment" && r.metadata.name.endsWith("-whisper"));
     expect(whisper.spec.template.spec.containers[0].env)
-      .toContainEqual({ name: "WHISPER_BATCH_SIZE", value: "4" });
-    for (const setting of ["whisper.batchSize=0", "whisper.batchSize=65", "whisper.batchSize=1.5", "whisper.batchSize=eight"]) {
+      .toContainEqual({ name: "WHISPER_UPSTREAM_PARALLELISM", value: "4" });
+    for (const setting of ["whisper.upstreamParallelism=0", "whisper.upstreamParallelism=9", "whisper.maxConcurrentRequests=5", "whisper.batchSize=8", "whisper.backend=faster-whisper"]) {
       expect(command("--set", setting).status).not.toBe(0);
     }
   });
@@ -100,6 +105,14 @@ withHelm("private local inference deployment", () => {
     for (const setting of ["backend=unknown", "unknownSetting=true", "servers.chat.unknownSetting=true", "backend=vllm", "servers.chat.modelRevision=main", "servers.chat.modelFile=../model.gguf", "backend=llamacpp,servers.chat.modelSha256="]) {
       expect(command("--set", setting).status).not.toBe(0);
     }
+  });
+  it("keeps the inference engine on loopback and requires a GPU for the NVIDIA profile", () => {
+    const whisper = render().find(r => r.kind === "Deployment" && r.metadata.name.endsWith("-whisper"));
+    const engine = whisper.spec.template.spec.containers[1];
+    expect(engine.command).toEqual(["whisper-server"]);
+    expect(engine.args).toContain("127.0.0.1");
+    expect(engine.args).toContain("/v1/audio/transcriptions");
+    expect(command("-f", `${chart}/examples/whisper-nvidia.yaml`, "--set-json", 'whisper.resources.limits={"cpu":"2","memory":"4Gi"}').status).not.toBe(0);
   });
   it("rejects mutable Whisper revisions and unpinned production images", () => {
     for (const setting of ["whisper.modelRevision=main", "whisper.device=auto", "requireImageDigests=true"]) {

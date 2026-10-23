@@ -18,7 +18,17 @@
       "required": [
         "image",
         "persistence",
-        "resources"
+        "resources",
+        "backend",
+        "modelRepo",
+        "modelRevision",
+        "modelFile",
+        "modelSha256",
+        "maxConcurrentRequests",
+        "upstreamParallelism",
+        "gatewayResources",
+        "vllmImage",
+        "maxSequences"
       ],
       "properties": {
         "image": {
@@ -75,29 +85,10 @@
           "type": "string",
           "pattern": "^[a-f0-9]{40}$"
         },
-        "device": {
-          "enum": [
-            "cpu",
-            "cuda"
-          ]
-        },
-        "computeType": {
-          "enum": [
-            "int8",
-            "float16",
-            "float32",
-            "int8_float16"
-          ]
-        },
         "cpuThreads": {
           "type": "integer",
           "minimum": 1,
           "maximum": 128
-        },
-        "batchSize": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 64
         },
         "resources": {
           "type": "object"
@@ -107,9 +98,111 @@
         },
         "tolerations": {
           "type": "array"
+        },
+        "backend": {
+          "enum": [
+            "whispercpp",
+            "vllm"
+          ]
+        },
+        "modelFile": {
+          "type": "string",
+          "pattern": "^(ggml-[a-z0-9_.-]+\\.bin)?$"
+        },
+        "modelSha256": {
+          "type": "string",
+          "pattern": "^([a-f0-9]{64})?$"
+        },
+        "vllmImage": {
+          "type": "object",
+          "required": [
+            "repository",
+            "tag",
+            "pullPolicy"
+          ],
+          "properties": {
+            "repository": {
+              "type": "string",
+              "minLength": 1
+            },
+            "tag": {
+              "type": "string",
+              "minLength": 1
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^(sha256:[a-f0-9]{64})?$"
+            },
+            "pullPolicy": {
+              "enum": [
+                "IfNotPresent",
+                "Always",
+                "Never"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "maxConcurrentRequests": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "upstreamParallelism": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8
+        },
+        "maxSequences": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "gatewayResources": {
+          "type": "object"
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "backend": {
+                "const": "whispercpp"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "modelFile": {
+                "minLength": 1
+              },
+              "modelSha256": {
+                "minLength": 64
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "backend": {
+                "const": "vllm"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "modelFile": {
+                "const": ""
+              },
+              "modelSha256": {
+                "const": ""
+              }
+            }
+          }
+        }
+      ]
     },
     "networkPolicy": {
       "type": "object",

@@ -1,154 +1,166 @@
-from types import SimpleNamespace
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from threading import Event
 
 from fastapi.testclient import TestClient
+import httpx
+import numpy as np
 from openai import OpenAI
 import pytest
 
 import server
 
 
-@pytest.fixture(params=[1, 8])
-def client(monkeypatch, request):
-    import faster_whisper
+@pytest.fixture
+def client(monkeypatch):
+    monkeypatch.setattr(server, "load_vad", lambda: object())
+    calls, paths = [], []
 
-    monkeypatch.setenv("WHISPER_BATCH_SIZE", str(request.param))
-    calls = []
-    def transcribe(path, **kwargs):
-        calls.append((path, kwargs))
-        return iter([SimpleNamespace(start=1.25, end=2.5, text=" Caption")]), SimpleNamespace(language="en", duration=3)
-    model = SimpleNamespace(transcribe=transcribe)
-    monkeypatch.setattr(server, "load_model", lambda: model)
+    def decode(path, directory):
+        paths.append(path)
+        assert path.read_bytes()
+        return np.zeros(4 * server.RATE, dtype=np.float32)
 
-    def batch_pipeline(*, model):
-        assert model is server.app.state.model
-        return SimpleNamespace(transcribe=lambda *args, **kwargs: model.transcribe(*args, **kwargs))
+    monkeypatch.setattr(server, "decode_audio", decode)
+    monkeypatch.setattr(server, "speech_spans", lambda _: [(0, server.RATE), (3 * server.RATE, 4 * server.RATE)])
 
-    monkeypatch.setattr(faster_whisper, "BatchedInferencePipeline", batch_pipeline)
-    with TestClient(server.app) as client:
-        yield client, calls
+    def upstream(request):
+        assert request.url.host == "127.0.0.1" and request.url.port == 8081
+        if request.url.path == "/health":
+            return httpx.Response(200, json={"status": "ok"})
+        assert request.url.path == "/v1/audio/transcriptions"
+        calls.append(request)
+        return httpx.Response(200, json={"language": "en", "text": " Caption",
+            "segments": [{"start": .1, "end": 1.5, "text": " Caption"}]})
+
+    with TestClient(server.app) as transport, httpx.Client(
+        base_url=server.UPSTREAM, transport=httpx.MockTransport(upstream), trust_env=False,
+    ) as engine:
+        original = server.app.state.upstream
+        server.app.state.upstream = engine
+        try:
+            yield transport, calls, paths
+        finally:
+            server.app.state.upstream = original
 
 
-def test_sdk_receives_segments_and_temporary_audio_is_deleted(client):
-    from pathlib import Path
-    transport, calls = client
-    # Exercise the real SDK multipart encoding against the ASGI application.
+def post(client, **data):
+    return client.post("/v1/audio/transcriptions", data={"model": "whisper-local", **data},
+                       files={"file": ("clip.mp3", b"audio", "audio/mpeg")})
+
+
+def test_real_sdk_multipart_restores_source_gaps_and_clamps_decoder_padding(client):
+    transport, calls, paths = client
     with OpenAI(api_key="local", base_url="http://testserver/v1", http_client=transport) as sdk:
-        result = sdk.audio.transcriptions.create(
-            model="whisper-local", file=("clip.mp3", b"audio"),
-            response_format="verbose_json", timestamp_granularities=["segment"],
-        )
-        assert result.segments[0].start == 1.25
-        assert result.segments[0].text == " Caption"
-    assert not Path(calls[0][0]).exists()
-    assert calls[0][1]["vad_filter"] is True
-    assert calls[0][1]["without_timestamps"] is False
-    assert calls[0][1].get("batch_size", 1) == transport.app.state.batch_size
-
-
-def test_subtitles_are_bounded_by_the_original_audio_duration(client, monkeypatch):
-    transport, _ = client
-    rows = [
-        SimpleNamespace(start=-0.25, end=1, text=" First"),
-        SimpleNamespace(start=2, end=3.64, text=" Last"),
-        SimpleNamespace(start=4, end=5, text=" Outside audio"),
-    ]
-    monkeypatch.setattr(transport.app.state.model, "transcribe", lambda *args, **kwargs: (
-        iter(rows), SimpleNamespace(language="en", duration=3),
-    ))
-    response = transport.post("/v1/audio/transcriptions", data={"model": "whisper-local"}, files={"file": ("a.mp3", b"audio")})
-    assert response.status_code == 200
-    assert response.json()["segments"] == [
-        {"id": 0, "start": 0, "end": 1, "text": " First"},
-        {"id": 1, "start": 2, "end": 3, "text": " Last"},
-    ]
-
-
-@pytest.mark.parametrize("start,end", [(float("nan"), 2), (1, float("inf"))])
-def test_nonfinite_timestamps_are_rejected(client, monkeypatch, start, end):
-    transport, _ = client
-    monkeypatch.setattr(transport.app.state.model, "transcribe", lambda *args, **kwargs: (
-        iter([SimpleNamespace(start=start, end=end, text=" Invalid")]),
-        SimpleNamespace(language="en", duration=3),
-    ))
-    response = transport.post("/v1/audio/transcriptions", data={"model": "whisper-local"}, files={"file": ("a.mp3", b"audio")})
-    assert response.status_code == 422
-    assert server.model_lock.acquire(blocking=False)
-    server.model_lock.release()
-
-
-@pytest.mark.parametrize("value", ["0", "-1", "65", "1.5", "eight", ""])
-def test_invalid_batch_size_fails_startup_before_loading_weights(monkeypatch, value):
-    monkeypatch.setenv("WHISPER_BATCH_SIZE", value)
-
-    def load():
-        pytest.fail("Invalid configuration must fail before loading weights")
-
-    monkeypatch.setattr(server, "load_model", load)
-    with pytest.raises(ValueError, match="WHISPER_BATCH_SIZE"):
-        with TestClient(server.app):
-            pass
-
-
-def test_failed_batch_iteration_cleans_up_and_next_request_uses_fresh_pipeline(monkeypatch):
-    from pathlib import Path
-    import faster_whisper
-
-    monkeypatch.setenv("WHISPER_BATCH_SIZE", "8")
-    model = object()
-    monkeypatch.setattr(server, "load_model", lambda: model)
-    paths = []
-    pipelines = []
-
-    class Pipeline:
-        def __init__(self, *, model):
-            assert model is server.app.state.model
-            pipelines.append(self)
-
-        def transcribe(self, path, **kwargs):
-            paths.append(Path(path))
-
-            def segments():
-                if len(pipelines) == 1:
-                    raise RuntimeError("private inference details")
-                yield SimpleNamespace(start=1, end=2, text=" recovered")
-
-            return segments(), SimpleNamespace(language="en", duration=3)
-
-    monkeypatch.setattr(faster_whisper, "BatchedInferencePipeline", Pipeline)
-    with TestClient(server.app) as transport:
-        request = {"model": "whisper-local"}
-        first = transport.post("/v1/audio/transcriptions", data=request, files={"file": ("a.mp3", b"audio")})
-        assert first.status_code == 422
-        assert "private" not in first.text
-        assert not paths[0].exists()
-        second = transport.post("/v1/audio/transcriptions", data=request, files={"file": ("a.mp3", b"audio")})
-        assert second.status_code == 200
-        assert second.json()["segments"][0]["text"] == " recovered"
-    assert len(pipelines) == 2
+        response = sdk.audio.transcriptions.create(model="whisper-local", file=("clip.mp3", b"audio"),
+            response_format="verbose_json", timestamp_granularities=["segment"])
+    assert [(row.start, row.end) for row in response.segments] == [(.1, 1), (3.1, 4)]
+    assert len(calls) == 2
+    assert all(b'name="language"' not in request.content for request in calls)
     assert all(not path.exists() for path in paths)
 
 
-@pytest.mark.parametrize("model,content,status", [("remote/model", b"a", 400), ("whisper-local", b"", 400)])
-def test_bad_requests_never_run_inference(client, model, content, status):
-    transport, calls = client
-    response = transport.post("/v1/audio/transcriptions", data={"model": model}, files={"file": ("a.mp3", content)})
-    assert response.status_code == status
+def test_language_hint_is_optional_and_forwarded_without_fixing_japanese(client):
+    transport, calls, _ = client
+    assert post(transport, language="de").status_code == 200
+    assert all(b'name="language"' in request.content and b"\r\n\r\nde\r\n" in request.content for request in calls)
+
+
+def test_silence_returns_empty_without_contacting_the_engine(client, monkeypatch):
+    transport, calls, _ = client
+    monkeypatch.setattr(server, "speech_spans", lambda _: [])
+    response = post(transport)
+    assert response.status_code == 200
+    assert response.json()["segments"] == []
+    assert response.json()["text"] == ""
     assert calls == []
 
 
-def test_oversized_audio_is_rejected_and_lock_is_released(client, monkeypatch):
-    transport, calls = client
-    monkeypatch.setattr(server, "MAX_AUDIO_BYTES", 3)
-    response = transport.post("/v1/audio/transcriptions", data={"model": "whisper-local"}, files={"file": ("a", b"1234")})
+@pytest.mark.parametrize("fields", [{"model": "remote/model"}, {"response_format": "text"},
+                                     {"language": "../ja"}, {"timestamp_granularities[]": "word"}])
+def test_unsupported_request_cannot_select_weights_or_change_subtitle_protocol(client, fields):
+    transport, calls, paths = client
+    assert post(transport, **fields).status_code == 400
+    assert calls == paths == []
+
+
+def test_both_announced_and_chunked_body_limits_apply_before_spooling(client, monkeypatch):
+    transport, calls, _ = client
+    monkeypatch.setattr(server, "MAX_BODY_BYTES", 64)
+    assert post(transport).status_code == 413
+    response = transport.post("/v1/audio/transcriptions", content=iter([b"x" * 65]),
+        headers={"Content-Type": "multipart/form-data; boundary=test"})
     assert response.status_code == 413
     assert calls == []
-    assert server.model_lock.acquire(blocking=False)
-    server.model_lock.release()
 
 
-def test_model_loading_never_downloads(monkeypatch):
-    import faster_whisper
-    calls = []
-    monkeypatch.setattr(faster_whisper, "WhisperModel", lambda *args, **kwargs: calls.append((args, kwargs)))
-    server.load_model()
-    assert calls[0][1]["local_files_only"] is True
+def test_file_limit_does_not_leave_temp_audio_or_poison_the_next_request(client, monkeypatch):
+    transport, calls, paths = client
+    monkeypatch.setattr(server, "MAX_AUDIO_BYTES", 3)
+    assert post(transport).status_code == 413
+    assert calls == paths == []
+    monkeypatch.setattr(server, "MAX_AUDIO_BYTES", 100)
+    assert post(transport).status_code == 200
+    assert all(not path.exists() for path in paths)
+
+
+def test_busy_rejection_bounds_uploads_and_releases_the_slot(client, monkeypatch):
+    transport, _, _ = client
+    entered, release = Event(), Event()
+    decode = server.decode_audio
+
+    def blocking_decode(*args):
+        entered.set()
+        assert release.wait(5)
+        return decode(*args)
+
+    monkeypatch.setattr(server, "decode_audio", blocking_decode)
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        first = executor.submit(post, transport)
+        try:
+            assert entered.wait(5)
+            response = post(transport)
+            assert response.status_code == 503
+            assert response.headers["Retry-After"] == "5"
+        finally:
+            release.set()
+        assert first.result().status_code == 200
+    assert post(transport).status_code == 200
+
+
+@pytest.mark.parametrize("payload", [{"text": "without timestamps"},
+    {"text": "caption", "segments": []}, {"segments": [{"start": True, "end": 1, "text": "bad"}]},
+    {"segments": [{"start": 2, "end": 1, "text": "bad"}]}])
+def test_invalid_upstream_response_is_rejected_and_temp_audio_is_removed(client, payload):
+    transport, _, paths = client
+    original = server.app.state.upstream
+    with httpx.Client(base_url=server.UPSTREAM, transport=httpx.MockTransport(
+        lambda _: httpx.Response(200, json=payload))) as engine:
+        server.app.state.upstream = engine
+        try:
+            response = post(transport)
+        finally:
+            server.app.state.upstream = original
+    assert response.status_code == 422
+    assert all(not path.exists() for path in paths)
+    assert post(transport).status_code == 200
+
+
+def test_readiness_tracks_the_engine_but_liveness_does_not(client):
+    transport, _, _ = client
+    original = server.app.state.upstream
+    assert transport.get("/health").status_code == 200
+    with httpx.Client(base_url=server.UPSTREAM, transport=httpx.MockTransport(lambda _: httpx.Response(503))) as engine:
+        server.app.state.upstream = engine
+        try:
+            assert transport.get("/health").status_code == 503
+            assert transport.get("/live").status_code == 200
+        finally:
+            server.app.state.upstream = original
+
+
+def test_long_pauses_are_not_packed_into_the_same_decoder_input():
+    rate = server.RATE
+    regions = [{"start": 0, "end": rate}, {"start": 3 * rate, "end": 4 * rate},
+               {"start": 4 * rate, "end": 5 * rate}]
+    assert server.merge_speech_spans(regions) == [(0, rate), (3 * rate, 5 * rate)]
