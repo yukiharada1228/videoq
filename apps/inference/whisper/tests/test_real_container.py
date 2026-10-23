@@ -36,8 +36,8 @@ def test_cpu_image_transcribes_public_speech_and_silence_offline(record_property
     spec.loader.exec_module(metrics)
     with tempfile.TemporaryDirectory(prefix="videoq-whisper-weights-") as directory:
         # Linux enforces the host UID, unlike Docker Desktop file sharing.
-        # The fixture/cache contain only public data; the serving UID needs read access.
-        os.chmod(directory, 0o755)
+        # Grant only the host cache group to the serving UID, without world access.
+        os.chmod(directory, 0o750)
         mount = f"type=bind,src={directory},dst=/models"
         try:
             # Provision first; no model downloads are permitted in the serving network.
@@ -49,6 +49,7 @@ def test_cpu_image_transcribes_public_speech_and_silence_offline(record_property
             network_created = True
             (Path(directory) / "speech.mp3").write_bytes(audio)
             docker("run", "--detach", "--name", name, "--network", name, "--cpus", "2", "--memory", "4g",
+                   "--group-add", str(os.getgid()),
                    "--mount", mount + ",readonly", IMAGE)
             started = True
             engine_args = ["whisper-server", "--model", f"/models/{REVISION}/{MODEL}",
