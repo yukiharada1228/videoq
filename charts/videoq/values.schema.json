@@ -1,0 +1,148 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": [
+    "publicUrl",
+    "existingSecret",
+    "storage",
+    "queue"
+  ],
+  "properties": {
+    "requireImageDigests": {
+      "type": "boolean"
+    },
+    "publicUrl": {
+      "type": "string",
+      "pattern": "^https?://[^/@?#]+/?$"
+    },
+    "existingSecret": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+    },
+    "storage": {
+      "type": "object",
+      "required": [
+        "endpoint",
+        "bucket",
+        "region"
+      ],
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "pattern": "^https?://"
+        },
+        "internalEndpoint": {
+          "type": "string",
+          "pattern": "^(https?://.+)?$"
+        },
+        "bucket": {
+          "type": "string",
+          "minLength": 1
+        },
+        "region": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "queue": {
+      "type": "object",
+      "required": [
+        "url",
+        "region"
+      ],
+      "properties": {
+        "url": {
+          "type": "string",
+          "pattern": "^https?://"
+        },
+        "region": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "ai": {
+      "type": "object",
+      "properties": {
+        "embeddingProvider": {
+          "enum": [
+            "openai",
+            "ollama"
+          ]
+        },
+        "whisperBackend": {
+          "enum": [
+            "openai",
+            "local",
+            "whisper.cpp",
+            "modal"
+          ]
+        }
+      }
+    },
+    "api": {
+      "type": "object",
+      "properties": {
+        "image": { "$ref": "#/definitions/image" },
+        "replicas": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "databasePoolMax": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 100
+        },
+        "rateLimitPoolMax": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "trustedProxyHops": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        }
+      }
+    },
+    "web": {
+      "type": "object",
+      "properties": {
+        "image": { "$ref": "#/definitions/image" },
+        "replicas": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "worker": {
+      "type": "object",
+      "properties": {
+        "image": { "$ref": "#/definitions/image" },
+        "replicas": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "terminationGracePeriodSeconds": {
+          "type": "integer",
+          "minimum": 900
+        }
+      }
+    }
+  },
+  "definitions": {
+    "image": {
+      "type": "object",
+      "required": ["repository", "pullPolicy"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string" },
+        "digest": { "type": "string", "pattern": "^(sha256:[a-f0-9]{64})?$" },
+        "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] }
+      }
+    }
+  }
+}

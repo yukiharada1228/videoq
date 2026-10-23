@@ -46,6 +46,7 @@ test('GitHub Actions updates must only change the pinned SHA of the same action'
 
 test('Docker, Compose, Python and Terraform files stay scoped to their verified ecosystem', () => {
   for (const [ecosystem, filename] of [
+    ['docker', 'apps/api/Dockerfile'], ['docker', 'apps/worker/Dockerfile.onprem'],
     ['docker', 'apps/worker/Dockerfile'], ['docker', 'apps/worker/Dockerfile.local'],
     ['docker', 'apps/web/Dockerfile'], ['docker', 'apps/web/Dockerfile.dev'],
     ['docker', 'apps/api/Dockerfile.local'], ['docker_compose', 'docker-compose.yml'],

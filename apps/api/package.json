@@ -35,13 +35,17 @@
     "rate-limit:reset": "sh scripts/reset-rate-limit.sh",
     "embeddings:check": "tsx scripts/check-embeddings.ts",
     "demo:prepare": "tsx scripts/prepare-landing-demo.ts",
-    "demo:students": "tsx scripts/prepare-student-demo.ts"
+    "demo:students": "tsx scripts/prepare-student-demo.ts",
+    "build:node": "node scripts/build-node.mjs",
+    "start:node": "node dist/node.mjs",
+    "dev:node": "tsx src/runtime/node.ts"
   },
   "dependencies": {
     "@better-auth/api-key": "^1.7.11",
     "@better-auth/drizzle-adapter": "^1.7.7",
     "@better-auth/oauth-provider": "^1.7.11",
     "@hono/mcp": "^0.3.2",
+    "@hono/node-server": "^2.1.5",
     "@hono/trpc-server": "^0.4.2",
     "@langchain/core": "^1.2.17",
     "@langchain/openai": "^1.6.2",
@@ -64,15 +68,18 @@
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.4.3",
     "@cloudflare/workers-types": "^5.20261015.1",
+    "@types/node": "^25.9.9",
     "@types/pg": "^8.23.1",
     "dotenv": "^18.0.8",
     "drizzle-kit": "^0.31.11",
+    "esbuild": "^0.28.2",
     "playwright": "^1.64.1",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
     "vitest": "^5.0.5",
-    "wrangler": "^4.151.0"
+    "wrangler": "^4.151.0",
+    "yaml": "^2.9.1"
   },
   "optionalDependencies": {
     "@typescript/typescript-linux-arm64": "7.0.2",

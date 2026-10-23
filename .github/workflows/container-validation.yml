@@ -58,10 +58,12 @@ jobs:
       - name: Check Dockerfile instructions and base images
         run: |
           docker build --check -f apps/api/Dockerfile.local .
+          docker build --check -f apps/api/Dockerfile .
           docker build --check -f apps/web/Dockerfile .
           docker build --check -f apps/web/Dockerfile.dev .
           docker build --check --platform linux/arm64 -f apps/worker/Dockerfile apps/worker
           docker build --check -f apps/worker/Dockerfile.local apps/worker
+          docker build --check -f apps/worker/Dockerfile.onprem apps/worker
           docker build --check -f apps/worker/Dockerfile.modal apps/worker
 
   node-runtime:

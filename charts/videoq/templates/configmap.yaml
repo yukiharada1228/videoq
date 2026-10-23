@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "videoq.fullname" . }}-config
+  labels:
+    {{- include "videoq.labels" . | nindent 4 }}
+data:
+  ENVIRONMENT: production
+  NODE_ENV: production
+  PORT: "8787"
+  BETTER_AUTH_URL: {{ required "publicUrl is required" .Values.publicUrl | quote }}
+  FRONTEND_URL: {{ .Values.publicUrl | quote }}
+  CORS_ALLOW_ORIGIN: {{ .Values.publicUrl | quote }}
+  OAUTH_ISSUER_URL: {{ .Values.publicUrl | quote }}
+  DATABASE_POOL_MAX: {{ .Values.api.databasePoolMax | quote }}
+  RATE_LIMIT_POOL_MAX: {{ .Values.api.rateLimitPoolMax | quote }}
+  TRUST_PROXY_HOPS: {{ .Values.api.trustedProxyHops | quote }}
+  USE_S3_STORAGE: "true"
+  R2_BUCKET_NAME: {{ .Values.storage.bucket | quote }}
+  R2_S3_ENDPOINT: {{ required "storage.endpoint is required" .Values.storage.endpoint | quote }}
+  R2_S3_INTERNAL_ENDPOINT: {{ .Values.storage.internalEndpoint | quote }}
+  R2_S3_REGION: {{ .Values.storage.region | quote }}
+  SQS_QUEUE_URL: {{ required "queue.url is required" .Values.queue.url | quote }}
+  AWS_REGION: {{ .Values.queue.region | quote }}
+  SQS_VISIBILITY_TIMEOUT: "900"
+  SQS_MAX_MESSAGES: "1"
+  ENABLE_HEAVY_PIPELINE: "1"
+  OPENAI_BASE_URL: {{ .Values.ai.openaiBaseUrl | quote }}
+  LLM_MODEL: {{ .Values.ai.llmModel | quote }}
+  EMBEDDING_PROVIDER: {{ .Values.ai.embeddingProvider | quote }}
+  EMBEDDING_MODEL: {{ .Values.ai.embeddingModel | quote }}
+  OLLAMA_BASE_URL: {{ .Values.ai.ollamaBaseUrl | quote }}
+  WHISPER_BACKEND: {{ .Values.ai.whisperBackend | quote }}
+  WHISPER_LOCAL_URL: {{ .Values.ai.whisperLocalUrl | quote }}
+  MAX_VIDEO_UPLOAD_SIZE_MB: {{ .Values.config.maxVideoUploadSizeMb | quote }}
+  VIDEO_VISUAL_ENABLED: {{ .Values.config.videoVisualEnabled | quote }}
+  DEFAULT_FROM_EMAIL: {{ .Values.config.defaultFromEmail | quote }}

@@ -18,6 +18,15 @@ export function isS3Storage(env: Bindings): boolean {
   return (env.USE_S3_STORAGE ?? "").toLowerCase() === "true";
 }
 
+function useBucketBinding(env: Bindings): boolean {
+  return (env.RUNTIME !== "node" && env.ENVIRONMENT === "production") || !isS3Storage(env);
+}
+
+function videoBucket(env: Bindings): R2Bucket {
+  if (!env.VIDEO_BUCKET) throw new Error("Video bucket binding is not configured");
+  return env.VIDEO_BUCKET;
+}
+
 // RFC3986: encodeURIComponent が残す ! ' ( ) * も % エンコードする。
 function encodeRfc3986Segment(value: string): string {
   return encodeURIComponent(value).replace(
@@ -176,7 +185,7 @@ export async function presignR2UploadPart(
   return signed.url;
 }
 
-// Only used for local S3/Garage. Production control operations use the R2 binding.
+// S3/Garage in local and on-prem deployments. Workers production uses its R2 binding.
 async function multipartS3Request(
   env: Bindings, fileKey: string, query: Record<string, string>,
   init: RequestInit,
@@ -219,8 +228,8 @@ async function multipartXml(response: Response): Promise<string> {
 export async function createR2MultipartUpload(
   env: Bindings, fileKey: string, contentType: string,
 ): Promise<string> {
-  if (env.ENVIRONMENT === "production" || !isS3Storage(env)) {
-    const upload = await env.VIDEO_BUCKET.createMultipartUpload(r2ObjectKey(fileKey), {
+  if (useBucketBinding(env)) {
+    const upload = await videoBucket(env).createMultipartUpload(r2ObjectKey(fileKey), {
       httpMetadata: { contentType },
     });
     return upload.uploadId;
@@ -239,8 +248,8 @@ export async function createR2MultipartUpload(
 export async function completeR2MultipartUpload(
   env: Bindings, fileKey: string, uploadId: string, parts: { partNumber: number; etag: string }[],
 ): Promise<void> {
-  if (env.ENVIRONMENT === "production" || !isS3Storage(env)) {
-    await env.VIDEO_BUCKET.resumeMultipartUpload(r2ObjectKey(fileKey), uploadId).complete(parts);
+  if (useBucketBinding(env)) {
+    await videoBucket(env).resumeMultipartUpload(r2ObjectKey(fileKey), uploadId).complete(parts);
     return;
   }
   // ETags are validated as hexadecimal before reaching this integration.
@@ -256,9 +265,9 @@ export async function completeR2MultipartUpload(
 }
 
 export async function abortR2MultipartUpload(env: Bindings, fileKey: string, uploadId: string): Promise<void> {
-  if (env.ENVIRONMENT === "production" || !isS3Storage(env)) {
+  if (useBucketBinding(env)) {
     // R2 abort is idempotent, including after completion or a prior abort.
-    await env.VIDEO_BUCKET.resumeMultipartUpload(r2ObjectKey(fileKey), uploadId).abort();
+    await videoBucket(env).resumeMultipartUpload(r2ObjectKey(fileKey), uploadId).abort();
     return;
   }
   const response = await multipartS3Request(env, fileKey, { uploadId }, { method: "DELETE" });
@@ -273,10 +282,10 @@ export async function getR2ObjectSize(
   fileKey: string,
 ): Promise<number | null> {
   // Production Workers can reach R2 directly through the binding. Keep the
-  // signed HTTP path only for local Garage, where the binding is not the source
+  // signed HTTP path for local/on-prem storage, where a binding is not the source
   // of truth used by presigned browser uploads.
-  if (env.ENVIRONMENT === "production") {
-    const obj = await env.VIDEO_BUCKET.head(r2ObjectKey(fileKey));
+  if (useBucketBinding(env)) {
+    const obj = await videoBucket(env).head(r2ObjectKey(fileKey));
     return obj ? obj.size : null;
   }
   if (isS3Storage(env)) {
@@ -293,14 +302,14 @@ export async function getR2ObjectSize(
     const len = res.headers.get("content-length");
     return len != null ? Number(len) : null;
   }
-  const obj = await env.VIDEO_BUCKET.head(r2ObjectKey(fileKey));
+  const obj = await videoBucket(env).head(r2ObjectKey(fileKey));
   return obj ? obj.size : null;
 }
 
 /** オブジェクト削除。USE_S3 時は S3 DeleteObject。 */
 export async function deleteR2Object(env: Bindings, fileKey: string): Promise<void> {
-  if (env.ENVIRONMENT === "production") {
-    await env.VIDEO_BUCKET.delete(r2ObjectKey(fileKey));
+  if (useBucketBinding(env)) {
+    await videoBucket(env).delete(r2ObjectKey(fileKey));
     return;
   }
   if (isS3Storage(env)) {
@@ -315,7 +324,7 @@ export async function deleteR2Object(env: Bindings, fileKey: string): Promise<vo
     }
     return;
   }
-  await env.VIDEO_BUCKET.delete(r2ObjectKey(fileKey));
+  await videoBucket(env).delete(r2ObjectKey(fileKey));
 }
 
 /** Server-only bounded reads. Never forward object URLs/credentials to a model. */
@@ -323,11 +332,11 @@ export async function deleteVisualChunks(env: Bindings, fileKey: string): Promis
   const prefix = r2ObjectKey(`${fileKey}.visual-v2/`);
   // Delete from the beginning each time: partial failures remain retryable and
   // no cursor can skip objects when the preceding page has just been removed.
-  if (env.ENVIRONMENT === "production" || !isS3Storage(env)) {
+  if (useBucketBinding(env)) {
     for (;;) {
-      const page = await env.VIDEO_BUCKET.list({ prefix, limit: 100 });
+      const page = await videoBucket(env).list({ prefix, limit: 100 });
       if (!page.objects.length) return;
-      await env.VIDEO_BUCKET.delete(page.objects.map(object => object.key));
+      await videoBucket(env).delete(page.objects.map(object => object.key));
     }
   }
   const { aws, endpoint, bucket } = s3Client(env, { public: false });
@@ -357,8 +366,8 @@ export async function readMediaBytes(
   signal?.throwIfAborted();
   let body: ReadableStream<Uint8Array>;
   let size: number;
-  if (env.ENVIRONMENT === "production" || !isS3Storage(env)) {
-    const object = await env.VIDEO_BUCKET.get(r2ObjectKey(fileKey));
+  if (useBucketBinding(env)) {
+    const object = await videoBucket(env).get(r2ObjectKey(fileKey));
     if (!object) return null;
     body = object.body;
     size = object.size;
@@ -396,9 +405,9 @@ export async function readMediaRange(
   let size: number;
   let currentEtag: string;
   let validRange: boolean;
-  if (env.ENVIRONMENT === "production" || !isS3Storage(env)) {
+  if (useBucketBinding(env)) {
     const onlyIf = new Headers(etag ? { "if-match": etag } : {});
-    const object = await env.VIDEO_BUCKET.get(r2ObjectKey(fileKey), { range: { offset, length }, onlyIf });
+    const object = await videoBucket(env).get(r2ObjectKey(fileKey), { range: { offset, length }, onlyIf });
     if (!object || !("body" in object)) return null;
     body = object.body;
     size = object.size;
@@ -465,7 +474,7 @@ export async function putMediaObject(
   body: ReadableStream | ArrayBuffer | ArrayBufferView | string | Blob | null,
   contentType: string,
 ): Promise<void> {
-  await env.VIDEO_BUCKET.put(r2ObjectKey(fileKey), body, {
+  await videoBucket(env).put(r2ObjectKey(fileKey), body, {
     httpMetadata: { contentType },
   });
 }

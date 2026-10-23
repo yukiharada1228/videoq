@@ -1,0 +1,29 @@
+[
+  {
+    "component": "api",
+    "image_id": "sha256:5829baf415ad5e6c6bc83d8aa36c1cad81ad1f11defb4d6a101ae0f378a023a9",
+    "high_critical_findings": 57,
+    "unique_ids": 12,
+    "with_fixes": 0,
+    "scan_exit_code": 1,
+    "sbom_components": 359
+  },
+  {
+    "component": "worker",
+    "image_id": "sha256:f6de9a7b09a23faf63f1c6e48909954c23396483d49d2ae80df3979257334bfc",
+    "high_critical_findings": 275,
+    "unique_ids": 74,
+    "with_fixes": 0,
+    "scan_exit_code": 1,
+    "sbom_components": 324
+  },
+  {
+    "component": "web",
+    "image_id": "sha256:bf1ba3c9343a18c34032dca3c13a76d17d46ad97ff1772d11b4dbd8a06ecf393",
+    "high_critical_findings": 0,
+    "unique_ids": 0,
+    "with_fixes": 0,
+    "scan_exit_code": 0,
+    "sbom_components": 73
+  }
+]

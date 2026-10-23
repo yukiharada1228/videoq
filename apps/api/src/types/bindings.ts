@@ -1,8 +1,11 @@
 /**
  * Worker のバインディングと Hono の Variables（リクエストスコープの値）。
  * Cloudflare リソースと wrangler vars は `npm run cf-typegen` の生成型を使う。
- * ここには wrangler 設定から生成できない任意 secret だけを追加する。
+ * オンプレでは文字列設定を読み替え、Cloudflare リソースを Node 用の接続先で置き換える。
  */
+import type pg from "pg";
+import type { RateLimitBackend } from "../lib/rate-limit";
+
 type SecretBindings = {
   BETTER_AUTH_SECRET?: string;
   AUTH_JWT_SECRET?: string;
@@ -19,8 +22,22 @@ type SecretBindings = {
   STRIPE_WEBHOOK_SECRET?: string;
 };
 
-export type Bindings = Omit<CloudflareBindings, keyof SecretBindings> &
+// Keep generated binding names/types, while allowing deployment-specific string
+// values and runtimes without Cloudflare resources.
+type RuntimeStrings = {
+  [K in keyof CloudflareBindings as NonNullable<CloudflareBindings[K]> extends string ? K : never]: string;
+};
+type PlatformResources = {
+  [K in keyof CloudflareBindings as NonNullable<CloudflareBindings[K]> extends string ? never : K]?: CloudflareBindings[K];
+};
+
+export type Bindings = Omit<RuntimeStrings, keyof SecretBindings> & PlatformResources &
   SecretBindings & {
+    RUNTIME?: "node";
+    DATABASE_URL?: string;
+    /** Only the long-lived Node runtime supplies a shared pool. */
+    DATABASE_POOL?: pg.Pool;
+    RATE_LIMIT_BACKEND?: RateLimitBackend;
     // 互換用の任意設定。
     OPENAI_BASE_URL?: string;
     AWS_SESSION_TOKEN?: string;

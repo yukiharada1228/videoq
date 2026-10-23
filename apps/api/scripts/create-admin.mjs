@@ -45,7 +45,9 @@ if (!ident || args.length !== (byId ? 2 : 1) || (!byId && ident.startsWith("-"))
 
 let databaseUrl = loadDatabaseUrl();
 // Host-side runs cannot resolve the Compose service hostname `postgres`.
-if (/@postgres(?::|\/)/.test(databaseUrl)) {
+// An explicit URL may intentionally refer to an in-cluster Service named
+// postgres. Only rewrite the Compose hostname loaded from a local env file.
+if (!process.env.DATABASE_URL && /@postgres(?::|\/)/.test(databaseUrl)) {
   databaseUrl = databaseUrl.replace(/@postgres(?::\d+)?/, "@127.0.0.1:55432");
 }
 

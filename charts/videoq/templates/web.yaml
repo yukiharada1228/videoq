@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "videoq.fullname" . }}-web
+  labels:
+    {{- include "videoq.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.web.replicas }}
+  selector:
+    matchLabels:
+      {{- include "videoq.selector" . | nindent 6 }}
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        {{- include "videoq.selector" . | nindent 8 }}
+        app.kubernetes.io/component: web
+    spec:
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: web
+          image: {{ include "videoq.image" (dict "root" . "image" .Values.web.image "component" "web") | quote }}
+          imagePullPolicy: {{ .Values.web.image.pullPolicy }}
+          ports:
+            - { name: http, containerPort: 80 }
+          readinessProbe:
+            httpGet: { path: /, port: http }
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet: { path: /, port: http }
+            timeoutSeconds: 5
+          resources: {{ toYaml .Values.web.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "videoq.fullname" . }}-web
+  labels:
+    {{- include "videoq.labels" . | nindent 4 }}
+spec:
+  ports:
+    - { name: http, port: 80, targetPort: http }
+  selector:
+    {{- include "videoq.selector" . | nindent 4 }}
+    app.kubernetes.io/component: web

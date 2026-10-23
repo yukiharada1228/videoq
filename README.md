@@ -48,6 +48,11 @@ For the research behind the AI pipeline, see [AI methods and references](docs/re
 
 Locally, `docker compose` runs Postgres, Garage, ElasticMQ, the Hono API (`wrangler dev`), the Python worker, a static frontend build, and a Caddy gateway on port 80.
 
+For on-prem Kubernetes, the [Helm chart](charts/videoq/README.md) deploys a production
+Node.js API, static web and Python workers against operator-provided PostgreSQL,
+S3 storage, a persistent SQS-compatible queue and configured inference endpoints.
+See the [on-prem guide](docs/guides/on-premises.md) for the runtime differences.
+
 ```text
 Browser → Caddy → React (nginx)
                → Hono API → PostgreSQL / ElasticMQ (SQS)

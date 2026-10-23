@@ -1,0 +1,36 @@
+# Replace these endpoints and repositories with your site's services and registry.
+publicUrl: https://videoq.example.edu
+existingSecret: videoq-runtime
+# Replace every zero digest with the digest recorded when pushing your build.
+requireImageDigests: true
+api:
+  image:
+    repository: registry.example.edu/videoq/api
+    tag: "0.1.0"
+    digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+  # Enable only behind the configured ingress, with sanitized forwarding headers.
+  trustedProxyHops: 1
+web:
+  image:
+    repository: registry.example.edu/videoq/web
+    tag: "0.1.0"
+    digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+worker:
+  image:
+    repository: registry.example.edu/videoq/worker
+    tag: "0.1.0"
+    digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+storage:
+  endpoint: https://s3.example.edu
+  internalEndpoint: http://garage.storage.svc.cluster.local:3900
+  bucket: videoq-media
+  region: garage
+queue:
+  url: http://queue.messaging.svc.cluster.local:9324/000000000000/videoq-jobs
+  region: us-east-1
+ingress:
+  enabled: true
+  className: traefik
+  tls:
+    - hosts: [videoq.example.edu]
+      secretName: videoq-tls

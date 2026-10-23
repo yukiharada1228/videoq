@@ -4,6 +4,12 @@ import type { Bindings } from "../types/bindings";
 
 export type Db = NodePgDatabase;
 
+export function databaseConnectionString(env: Bindings): string {
+  const connectionString = env.HYPERDRIVE?.connectionString ?? env.DATABASE_URL;
+  if (!connectionString) throw new Error("Database connection is not configured");
+  return connectionString;
+}
+
 /**
  * Neon への接続（Hyperdrive 経由）。
  *
@@ -15,8 +21,22 @@ export async function withClient<T>(
   env: Bindings,
   fn: (client: pg.Client) => Promise<T>,
 ): Promise<T> {
+  if (env.DATABASE_POOL) {
+    const client = await env.DATABASE_POOL.connect();
+    let failed = false;
+    try {
+      return await fn(client);
+    } catch (error) {
+      failed = true;
+      throw error;
+    } finally {
+      // A failed callback may have an aborted/open transaction. Never hand it
+      // to another request; a fresh connection preserves the Workers behavior.
+      client.release(failed);
+    }
+  }
   const client = new pg.Client({
-    connectionString: env.HYPERDRIVE.connectionString,
+    connectionString: databaseConnectionString(env),
   });
   try {
     await client.connect();

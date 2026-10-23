@@ -56,7 +56,7 @@ mediaRoutes.get("/*", async (c) => {
   }
   if ("notFound" in authz) return c.body(null, 404);
 
-  try {
+  if (c.env.VIDEO_BUCKET) try {
     const res = await mediaService.buildR2MediaResponse(
       c.env.VIDEO_BUCKET,
       authz.objectKey,

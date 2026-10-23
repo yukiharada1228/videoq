@@ -19,8 +19,8 @@ const ecosystemFiles = {
   pip: ['apps/worker/pyproject.toml', 'apps/worker/uv.lock'],
   uv: ['apps/worker/pyproject.toml', 'apps/worker/uv.lock'],
   docker: [
-    'apps/api/Dockerfile.local', 'apps/web/Dockerfile', 'apps/web/Dockerfile.dev',
-    'apps/worker/Dockerfile', 'apps/worker/Dockerfile.local',
+    'apps/api/Dockerfile', 'apps/api/Dockerfile.local', 'apps/web/Dockerfile', 'apps/web/Dockerfile.dev',
+    'apps/worker/Dockerfile', 'apps/worker/Dockerfile.local', 'apps/worker/Dockerfile.onprem',
   ],
   docker_compose: ['docker-compose.yml'],
   'docker-compose': ['docker-compose.yml'],

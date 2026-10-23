@@ -49,6 +49,7 @@ VideoQ は、**動画の内容に質問し、根拠となる場面へすぐに�
 | 文字起こし・索引を変える | [動画の非同期処理を変更する](guides/worker.md) |
 | 変更が正しいか確かめる | [テストと確認コマンド](guides/testing.md) |
 | 起動や動画処理で困っている | [困ったとき](guides/troubleshooting.md) |
+| オンプレの Kubernetes に導入する | [オンプレで動かす](guides/on-premises.md) |
 
 ## 詳しく調べる
 
