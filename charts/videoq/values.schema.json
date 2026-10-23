@@ -94,7 +94,6 @@
           "enum": [
             "openai",
             "local",
-            "whisper.cpp",
             "modal"
           ]
         },

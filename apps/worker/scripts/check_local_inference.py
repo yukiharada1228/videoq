@@ -22,8 +22,8 @@ def main():
     args = parser.parse_args()
     if not args.video.is_file() or not 1 <= args.seconds <= 300:
         parser.error("Provide a local video and --seconds between 1 and 300")
-    if os.environ.get("WHISPER_BACKEND") not in {"local", "whisper.cpp"}:
-        parser.error("WHISPER_BACKEND must be local or whisper.cpp")
+    if os.environ.get("WHISPER_BACKEND") != "local":
+        parser.error("WHISPER_BACKEND must be local")
     for key in ("WHISPER_LOCAL_URL", "EMBEDDING_BASE_URL", "EMBEDDING_MODEL"):
         if not os.environ.get(key):
             parser.error(f"{key} is required; implicit provider defaults are not used")

@@ -268,7 +268,7 @@ bash ./models/download-ggml-model.sh large-v3-turbo
 In another terminal at the VideoQ root, edit `.env`:
 
 ```bash
-WHISPER_BACKEND=whisper.cpp
+WHISPER_BACKEND=local
 WHISPER_LOCAL_URL=http://host.docker.internal:8080
 ```
 

@@ -21,6 +21,9 @@ variable keys. llama.cpp remains the inference-chart default; vLLM and the
 optional Whisper CUDA overlay remain available. Model revisions/digests,
 read-only offline serving and private network policy remain enforced.
 
+Whisper uses the current `openai`, `modal` or `local` backend names. The local
+API has one configuration name rather than a second engine-named alias.
+
 Current installation instructions focus on initializing a new deployment. The
 Kubernetes lab creates its administrator through the provisioning command and
 does not run a second promotion command. No migration bridge or retired-provider

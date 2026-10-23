@@ -194,7 +194,7 @@ def _whisper_client():
             timeout=360.0, max_retries=0,
         )
         model = "large-v3"
-    elif backend in {"whisper.cpp", "local"}:
+    elif backend == "local":
         client = OpenAI(
             api_key=env_str("OPENAI_API_KEY") or "dummy-key-for-local",
             base_url=env_str("WHISPER_LOCAL_URL", "http://127.0.0.1:8080"),
@@ -208,7 +208,7 @@ def _whisper_client():
         client = OpenAI(api_key=api_key, timeout=120.0, max_retries=2)
         model = "whisper-1"
     else:
-        raise RuntimeError("Unsupported WHISPER_BACKEND; configure openai, modal, local or whisper.cpp")
+        raise RuntimeError("Unsupported WHISPER_BACKEND; configure openai, modal or local")
     return client, model
 
 
