@@ -22,7 +22,11 @@ optional Whisper CUDA overlay remain available. Model revisions/digests,
 read-only offline serving and private network policy remain enforced.
 
 Whisper uses the current `openai`, `modal` or `local` backend names. The local
-API has one configuration name rather than a second engine-named alias.
+API has one configuration name rather than a second engine-named alias. Mac
+development runs native whisper.cpp with Metal; the shared Kubernetes service
+uses faster-whisper on CPU or NVIDIA GPU. Both use `local` and the same worker.
+The documented whisper.cpp command enables MP3 conversion and preserves segment
+timestamps. Its base URL omits `/v1`; the faster-whisper base includes `/v1`.
 
 Current installation instructions focus on initializing a new deployment. The
 Kubernetes lab creates its administrator through the provisioning command and
@@ -37,11 +41,28 @@ not establish a shared vector space.
 
 ## Verification
 
+- Mac speech acceptance: native whisper.cpp 1.9.5 with Apple M4 Metal and a local
+  `large-v3-turbo` GGML model passed the opt-in production-worker test (3.54 s).
+  The model SHA256 was
+  `1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69`.
+  The same test passed against the private faster-whisper CPU/int8 container
+  using the cached base model (2.87 s). Both checks used a nonsensitive 17.3-second
+  English video, extracted a 12-second MP3 interval at offset 2 seconds, inspected
+  real HTTP segment timestamps and verified source-relative SRT output. A
+  text-only fallback cannot satisfy the test. These are compatibility checks,
+  not a throughput comparison or Japanese recognition-quality acceptance.
+- The Docker worker also called the loopback-bound Mac server through
+  `host.docker.internal`, yielding five segments within source seconds 2–14.
+  The worker suite passed with 458 tests and 106 independently gated skips,
+  including the new explicitly enabled real-speech test. English/Japanese docs
+  production builds and content/link checks passed. Mac-specific logs are in
+  `/tmp/videoq-whisper-mac-validation`; the temporary speech services were stopped
+  after validation.
 - API with PostgreSQL, cross-language checks and Helm: 1679 passed, 38 independently
   gated tests skipped. API typecheck, Node production bundle and generated Worker
   binding checks passed. Native Workers: 32 passed.
-- Worker: 458 passed, 105 independently gated tests skipped. Workflow policy:
-  168 passed; on-prem release/registry policy: 10 passed; Terraform format passed.
+- Workflow policy: 168 passed; on-prem release/registry policy: 10 passed;
+  Terraform format passed.
 - Current CPU, vLLM and Whisper CUDA settings render successfully and reject
   unknown configuration fields. English/Japanese documentation production builds
   and public-content checks passed.

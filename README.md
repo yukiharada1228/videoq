@@ -240,9 +240,12 @@ Frontend `VITE_*` values are build-time settings; changes require rebuilding `we
 Transcription, chat, and embeddings can use local services. Configure each component together with the API and worker that consume it.
 
 <details>
-<summary><strong>Local transcription with whisper.cpp</strong></summary>
+<summary><strong>Mac transcription with whisper.cpp</strong></summary>
 
-Build the bundled submodule with CMake and a C++ toolchain. Performance depends on the model and available hardware.
+Run whisper.cpp natively on macOS to use Apple Silicon's Metal backend.
+The on-prem Kubernetes recipes use faster-whisper as the shared server instead.
+Both connect through `WHISPER_BACKEND=local`. Build the pinned submodule with
+CMake and a C++ toolchain; install FFmpeg on the Mac for MP3 conversion.
 
 **Quick setup:**
 
@@ -252,7 +255,7 @@ git submodule update --init --recursive
 cd whisper.cpp
 
 # 2. Build
-cmake -B build
+cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j --config Release
 
 # 3. Download a model
@@ -260,8 +263,13 @@ bash ./models/download-ggml-model.sh large-v3-turbo
 
 # 4. Start the server
 ./build/bin/whisper-server -m models/ggml-large-v3-turbo.bin \
-  --host 0.0.0.0 --port 8080 --inference-path /audio/transcriptions -l ja
+  --host 127.0.0.1 --port 8080 --inference-path /audio/transcriptions \
+  --convert -l auto
 ```
+
+`--convert` is required for the worker's MP3 uploads. Keep timestamps enabled.
+Use `-l ja` instead of `-l auto` to fix recognition to Japanese. The server loads
+the selected local model at startup; it does not download a model per request.
 
 **Configure VideoQ:**
 
@@ -277,6 +285,12 @@ Recreate the worker to load the changed environment:
 ```bash
 docker compose up -d --force-recreate worker
 ```
+
+For a worker running directly on the Mac, use `http://127.0.0.1:8080` instead.
+The base URL has no `/v1` suffix for this whisper.cpp command. Keep this
+unauthenticated development server bound to loopback. See the
+[local inference guide](docs/guides/local-inference.md#mac-development-with-whispercpp)
+for endpoint differences and the real-audio acceptance check.
 
 </details>
 

@@ -7,6 +7,10 @@ model caches, GPU scheduling and application upgrades have separate lifecycles.
 The application chart's default still uses hosted OpenAI; explicitly apply its
 `examples/local-ai-llamacpp.yaml` or `examples/local-ai-vllm.yaml` overlay to select these services.
 
+Mac development runs whisper.cpp natively with Metal, outside this Linux
+Kubernetes chart. Both speech engines use the application's `local` backend;
+see the [Mac setup and common API contract](../../docs/guides/local-inference.md#mac-development-with-whispercpp).
+
 ## Placement and capabilities
 
 ```mermaid

@@ -73,7 +73,7 @@ Apply `0011_job_delivery_guards.sql` before updating the worker.
 Uploaded-video processing also requires `0031_resumable_transcription.sql` and
 `0037_resumable_transcription_fallback.sql`.
 The parent reserves processing quota once and creates a persisted plan with
-1,800-second intervals for Modal or 300-second intervals for OpenAI. Existing
+1,800-second intervals for Modal or 300-second intervals for OpenAI and local Whisper. Existing
 plans keep their recorded interval size when resumed, even after a backend change.
 Four SQS lanes process the intervals; each saved checkpoint
 enqueues the next interval in its lane. Results and follow-up IDs survive retries,
@@ -90,6 +90,7 @@ results. Checkpoints are deleted by foreign-key cascade when the video is delete
 | `SQS_QUEUE_URL` | Amazon SQS / ElasticMQ |
 | `OPENAI_API_KEY` | Whisper and embeddings |
 | `WHISPER_BACKEND` | `openai` (default), `modal`, or `local` |
+| `WHISPER_LOCAL_URL` | Private API base for `local`: native Mac whisper.cpp has no `/v1` suffix with the documented launch command; the shared faster-whisper server includes `/v1` |
 | `WHISPER_MODAL_URL` / `WHISPER_MODAL_TOKEN` | Protected Modal API root URL and combined proxy token (`wk-….ws-…`); required when `WHISPER_BACKEND=modal` |
 | `EMBEDDING_MODEL` | Defaults to `text-embedding-3-small`; set the actual served alias for a private model |
 | `USE_S3_STORAGE` | Enable S3-compatible object storage |
@@ -102,6 +103,14 @@ results. Checkpoints are deleted by foreign-key cascade when the video is delete
 | `MEDIA_PROCESS_CPU_TIME_LIMIT_SECONDS` | CPU time limit for media subprocesses (default: 300 seconds) |
 | `MEDIA_PROCESS_MEMORY_LIMIT_MB` | Address space limit for media subprocesses on Linux (default: 2,048 MiB) |
 | `MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB` | File size limit for files written by media subprocesses (default: 1,024 MiB) |
+
+Mac development uses native whisper.cpp with Metal; on-prem Kubernetes uses the
+shared faster-whisper service on CPU or NVIDIA GPU. Both use the same `local`
+client and `whisper-local` request model. The server selects the actual weights.
+The worker sends MP3 and requests `verbose_json` with segment timestamps;
+whisper.cpp must start with `--convert` and `/audio/transcriptions` as its
+inference path. See the [local inference guide](../../docs/guides/local-inference.md#mac-development-with-whispercpp)
+for startup and real-audio acceptance commands.
 
 Modal's proxy checks the token before starting the GPU container. The
 proxy-authenticated `WhisperService.api` checks the model, response format, and
