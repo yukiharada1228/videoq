@@ -131,6 +131,7 @@ jobs:
           exit-code: '1'
           timeout: 10m
       - name: Resolve the pinned llama.cpp image
+        if: ${{ !cancelled() && steps.images.outcome == 'success' }}
         run: |
           node --input-type=module <<'JS'
           import { readFileSync, appendFileSync } from 'node:fs';
