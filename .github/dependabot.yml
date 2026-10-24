@@ -30,9 +30,9 @@ updates:
       - dependency-name: typescript
         update-types: [version-update:semver-major]
       # Docusaurus 3.10.2 resolves ELK through an optional ^0.1.9 peer.
-      # Installing 1.x nests the package and silently disables ELK layouts.
+      # Installing 0.2+ nests the package and silently disables ELK layouts.
       - dependency-name: "@mermaid-js/layout-elk"
-        versions: [">=1.0.0"]
+        versions: [">=0.2.0"]
       - dependency-name: vitest
         versions: [">=5.0.0 <6.0.0"]
       - dependency-name: "@vitest/*"
