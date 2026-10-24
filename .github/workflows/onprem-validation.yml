@@ -1,7 +1,15 @@
 name: On-prem Validation
 on:
   workflow_call:
+    inputs:
+      validate_whisper_gpu:
+        type: boolean
+        default: false
   workflow_dispatch:
+    inputs:
+      validate_whisper_gpu:
+        type: boolean
+        default: true
   schedule:
     - cron: '43 1 * * *'
 permissions:
@@ -42,8 +50,25 @@ jobs:
           npm run typecheck --workspace @videoq/api
           npm run build:node --workspace @videoq/api
           npm run db:migrate --workspace @videoq/api
-          HELM_BIN="$RUNNER_TEMP/helm/helm" npm run test:unit --workspace @videoq/api -- test/node-runtime.test.ts test/node-runtime.integration.test.ts test/node-storage.test.ts test/helm-chart.test.ts
+          HELM_BIN="$RUNNER_TEMP/helm/helm" npm run test:unit --workspace @videoq/api -- test/node-runtime.test.ts test/node-runtime.integration.test.ts test/onprem-edition.integration.test.ts test/node-storage.test.ts test/helm-chart.test.ts test/inference-chart.test.ts test/local-chat-model.test.ts
           "$RUNNER_TEMP/helm/helm" lint charts/videoq --strict -f charts/videoq/examples/site.yaml
+          "$RUNNER_TEMP/helm/helm" lint charts/videoq-inference --strict
+          "$RUNNER_TEMP/helm/helm" lint charts/videoq-inference --strict -f charts/videoq-inference/examples/whisper-nvidia.yaml
+          "$RUNNER_TEMP/helm/helm" lint charts/videoq-inference --strict -f charts/videoq-inference/examples/llamacpp-cpu.yaml
+          "$RUNNER_TEMP/helm/helm" lint charts/videoq-inference --strict -f charts/videoq-inference/examples/vllm-nvidia.yaml
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version-file: apps/inference/whisper/.python-version
+      - name: Install checksum-pinned uv
+        run: bash .github/scripts/install-uv.sh
+      - name: Validate the private Whisper API with locked dependencies
+        working-directory: apps/inference/whisper
+        run: |
+          uv sync --locked
+          uv run --locked pytest -q
+          docker build -t videoq-local-whisper:onprem-ci .
+          docker run --rm --entrypoint python videoq-local-whisper:onprem-ci -c 'import server; import provision; import silero_vad; import torch; assert server.MODEL_ALIAS == "whisper-local"'
+          LOCAL_WHISPER_CONTAINER_IMAGE=videoq-local-whisper:onprem-ci uv run --locked pytest -q tests/test_real_container.py
       - name: Build production on-prem images
         id: images
         run: |
@@ -56,7 +81,7 @@ jobs:
       - name: Exercise migration command and worker imports in production images
         run: |
           docker run --rm --network host --env DATABASE_URL videoq-api:onprem-ci sh scripts/db-migrate.sh
-          docker run --rm --entrypoint python videoq-worker:onprem-ci -c 'import worker_python.lambda_handler; import runpy; runpy.run_path("scripts/run_worker.py", run_name="import_check")'
+          docker run --rm --entrypoint python videoq-worker:onprem-ci -c 'import os; assert os.environ["DEPLOYMENT_EDITION"] == "onprem"; import worker_python.lambda_handler; import runpy; runpy.run_path("scripts/run_worker.py", run_name="import_check")'
       - name: Scan the API image including unfixed vulnerabilities
         if: ${{ !cancelled() && steps.images.outcome == 'success' }}
         uses: aquasecurity/trivy-action@8f28faec26515256b6d22074d1d2a8986f4cbd87 # v0.35.0
@@ -93,13 +118,49 @@ jobs:
           ignore-unfixed: 'false'
           exit-code: '1'
           timeout: 10m
+      - name: Scan the local Whisper image including unfixed vulnerabilities
+        if: ${{ !cancelled() && steps.images.outcome == 'success' }}
+        uses: aquasecurity/trivy-action@8f28faec26515256b6d22074d1d2a8986f4cbd87 # v0.35.0
+        with:
+          version: v0.76.1
+          scan-type: image
+          image-ref: videoq-local-whisper:onprem-ci
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: 'false'
+          exit-code: '1'
+          timeout: 10m
+      - name: Resolve the pinned llama.cpp image
+        if: ${{ !cancelled() && steps.images.outcome == 'success' }}
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          import { parse } from 'yaml';
+          const image = parse(readFileSync('charts/videoq-inference/values.yaml', 'utf8')).llamacpp.image;
+          const reference = `${image.repository}@${image.digest}`;
+          if (!/^[a-z0-9./_-]+@sha256:[a-f0-9]{64}$/.test(reference)) throw new Error('An exact llama.cpp image digest is required');
+          appendFileSync(process.env.GITHUB_ENV, `LLAMACPP_IMAGE=${reference}\n`);
+          JS
+      - name: Scan the llama.cpp CPU image including unfixed vulnerabilities
+        if: ${{ !cancelled() && steps.images.outcome == 'success' }}
+        uses: aquasecurity/trivy-action@8f28faec26515256b6d22074d1d2a8986f4cbd87 # v0.35.0
+        with:
+          version: v0.76.1
+          scan-type: image
+          image-ref: ${{ env.LLAMACPP_IMAGE }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: 'false'
+          exit-code: '1'
+          timeout: 10m
       - name: Record package inventories for incident response
         if: ${{ !cancelled() && steps.images.outcome == 'success' }}
         run: |
           mkdir -p sbom
-          for component in api worker web; do
+          for component in api worker web local-whisper; do
             trivy image --image-src docker --format cyclonedx --output "sbom/${component}.cdx.json" "videoq-${component}:onprem-ci"
           done
+          trivy image --format cyclonedx --output sbom/llamacpp.cdx.json "$LLAMACPP_IMAGE"
       - name: Retain the image inventories
         if: ${{ !cancelled() && steps.images.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -131,3 +192,45 @@ jobs:
           if [ -x "$RUNNER_TEMP/kind" ]; then
             "$RUNNER_TEMP/kind" delete cluster --name videoq-onprem-lab --kubeconfig "$RUNNER_TEMP/lab-kubeconfig"
           fi
+
+  whisper-nvidia-image:
+    name: NVIDIA Whisper image
+    if: inputs.validate_whisper_gpu || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Reserve disk for the CUDA image on the disposable runner
+        run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+      - name: Build the pinned audio-capable vLLM engine without credentials
+        id: gpu_image
+        run: docker build -f apps/inference/whisper/Dockerfile.vllm -t videoq-whisper-vllm:onprem-ci apps/inference/whisper
+      - name: Verify audio extras without a GPU
+        run: docker run --rm --entrypoint python3 videoq-whisper-vllm:onprem-ci -c 'import av, soxr, soundfile; import importlib.metadata as m; assert m.version("vllm") == "0.32.0"'
+      - name: Scan NVIDIA Whisper including unfixed vulnerabilities
+        if: ${{ !cancelled() && steps.gpu_image.outcome == 'success' }}
+        uses: aquasecurity/trivy-action@8f28faec26515256b6d22074d1d2a8986f4cbd87 # v0.35.0
+        with:
+          version: v0.76.1
+          scan-type: image
+          image-ref: videoq-whisper-vllm:onprem-ci
+          trivy-config: apps/inference/whisper/security/trivy.yaml
+          format: json
+          output: whisper-vllm-security.json
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: 'false'
+          exit-code: '1'
+          timeout: 15m
+      - name: Retain NVIDIA scan findings and the scoped header assessment
+        if: ${{ !cancelled() && steps.gpu_image.outcome == 'success' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.1
+        with:
+          name: whisper-vllm-security
+          path: |
+            whisper-vllm-security.json
+            apps/inference/whisper/security/
+          retention-days: 14
+          if-no-files-found: error

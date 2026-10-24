@@ -7,6 +7,7 @@ const manifests = new Set([
   'apps/api/package.json', 'apps/web/package.json', 'apps/docs/package.json',
   'apps/demo-video/package.json', 'packages/trpc/package.json',
   'apps/worker/pyproject.toml', 'apps/worker/uv.lock',
+  'apps/inference/whisper/pyproject.toml', 'apps/inference/whisper/uv.lock',
 ]);
 
 // Scope each verified ecosystem to its own dependency files.
@@ -17,10 +18,12 @@ const ecosystemFiles = {
     'apps/demo-video/package.json', 'packages/trpc/package.json',
   ],
   pip: ['apps/worker/pyproject.toml', 'apps/worker/uv.lock'],
-  uv: ['apps/worker/pyproject.toml', 'apps/worker/uv.lock'],
+  uv: ['apps/worker/pyproject.toml', 'apps/worker/uv.lock',
+    'apps/inference/whisper/pyproject.toml', 'apps/inference/whisper/uv.lock'],
   docker: [
     'apps/api/Dockerfile', 'apps/api/Dockerfile.local', 'apps/web/Dockerfile', 'apps/web/Dockerfile.dev',
     'apps/worker/Dockerfile', 'apps/worker/Dockerfile.local', 'apps/worker/Dockerfile.onprem',
+    'apps/inference/whisper/Dockerfile',
   ],
   docker_compose: ['docker-compose.yml'],
   'docker-compose': ['docker-compose.yml'],

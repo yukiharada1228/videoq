@@ -7,6 +7,12 @@ issuer, or cluster. Use an existing Kubernetes cluster, or a single-node K3s
 installation for an initial deployment. This chart targets Kubernetes 1.29+.
 Helm 4.3.1 is used by CI.
 
+To keep chat, embeddings and uploaded-audio transcription on the site too, use
+the optional [local inference chart](../videoq-inference/README.md) and this
+chart's `examples/local-ai-llamacpp.yaml` or `examples/local-ai-vllm.yaml` overlay. It includes CPU and NVIDIA GPU
+provisioning instructions, model caches, acceptance checks and egress controls.
+The default application values continue to select hosted OpenAI inference.
+
 The default Cloudflare Workers/Lambda deployment remains available. The on-prem
 API uses Hono directly on Node, PostgreSQL row locks for shared rate limits,
 and scheduled DB outbox sweeps in place of Durable Object alarms. Chat executes
@@ -36,9 +42,9 @@ through the same authentication, permissions, quota and streaming routes.
   and `/ready` to API port 8787, and the remaining paths to web port 80. The
   optional Ingress does this routing, preserving paths without rewriting.
 - OpenAI access or separately deployed compatible inference services. For a
-  closed network, configure all three: chat, embeddings and Whisper. Email,
-  Google sign-in, YouTube import and billing have their own optional external
-  dependencies. Chat models must support the existing tool/JSON contract and,
+  closed network, configure all three: chat, embeddings and Whisper.
+  The on-prem edition disables Google sign-in, YouTube/SearchAPI, Mailgun and
+  Stripe. Chat models must support the existing tool/JSON contract and,
   when visual Q&A is enabled, image input. Validate these before rollout.
 
 Set the ingress response timeout to at least the application's answer budget
@@ -104,7 +110,7 @@ keys include `MAILGUN_API_KEY`, `MAILGUN_SENDER_DOMAIN`, `GOOGLE_CLIENT_ID`,
 
 Chat requires a nonempty `OPENAI_API_KEY` even for an OpenAI-compatible local
 server without authentication; use a local placeholder such as `local-inference`
-in that case. Ollama embeddings do not require this key.
+in that case. Embeddings reuse it unless `EMBEDDING_API_KEY` is set.
 
 ```sh
 kubectl create namespace videoq
@@ -138,10 +144,11 @@ With the example release/name defaults, resource names start with `videoq-videoq
 Inspect `kubectl -n videoq logs deployment/videoq-videoq-api` and
 `kubectl -n videoq logs deployment/videoq-videoq-worker`. The migration must
 succeed before Helm creates/updates application workloads. After installation,
-sign up on the site and promote the account with the production API image:
+create the first administrator with the production API image (public signup is disabled):
 
 ```sh
-kubectl -n videoq exec deployment/videoq-videoq-api -- node scripts/create-admin.mjs you@example.edu
+kubectl -n videoq exec deployment/videoq-videoq-api -- node dist/provision-user.mjs \
+  --admin --username site_admin --email you@example.edu
 ```
 
 Upload a short video, wait for transcription/indexing, ask a question and verify
@@ -151,7 +158,7 @@ your configured inference services and may incur costs.
 
 ## Local inference and scaling
 
-Layer `examples/local-ai.yaml` over your site file after replacing the model and
+Layer `examples/local-ai-llamacpp.yaml` (CPU) or `examples/local-ai-vllm.yaml` (GPU) over your site file after replacing the model and
 endpoints. Both runtimes receive the same embedding provider/model. Dimensions
 remain fixed at 1536; changing models for existing data requires a planned full
 reindex, even if dimensions match. See [embedding guidance](../../docs/guides/embeddings.md).
@@ -250,3 +257,57 @@ The existing daily container monitor covers production Lambda, not site clusters
 The initial Debian on-prem images have outstanding scanner findings; a passing
 functional test is not a clean vulnerability report. See the
 [security review](../../docs/verification/onprem-security-automation-2026-10-23.md).
+
+The local inference chart also provides llama.cpp CPU and vLLM NVIDIA recipes.
+Use the matching `examples/local-ai-llamacpp.yaml` or `examples/local-ai-vllm.yaml`.
+`ai.embeddingBaseUrl` maps to `EMBEDDING_BASE_URL` independently of the chat
+endpoint. These services use the OpenAI-compatible protocol. Optional
+`EMBEDDING_API_KEY` belongs in the runtime Secret;
+when absent it reuses `OPENAI_API_KEY`. Keep the API and worker embedding settings
+identical and reindex scenes when changing the embedding model or processing.
+
+## On-prem application edition
+
+The web Docker build defaults to `VITE_DEPLOYMENT_EDITION=onprem`; the Node API
+and application Helm ConfigMap select `DEPLOYMENT_EDITION=onprem`. The two must
+match. Cloud web builds keep the default cloud edition and existing behavior.
+The edition is operator configuration, not a browser preference.
+
+On-prem builds exclude the LP, pricing, SaaS legal/refund pages, public signup,
+email-verification/forgot-password pages, demo media, sitemap and remote Google
+Fonts. `/` leads signed-out users to login and signed-in users to their dashboard.
+Billing and upgrade controls, Google sign-in, YouTube import/player/thumbnail
+requests and SearchAPI settings are removed. The API rejects their operations
+with `FEATURE_DISABLED`, even if old provider credentials remain in the Secret.
+Do not add Stripe, Google, SearchAPI or Mailgun credentials to the on-prem Secret.
+Mail-dependent self-service email changes and public password recovery are disabled.
+
+The bootstrap command prints an account setup URL. Send it privately to the
+administrator; it expires after 15 minutes and is single-use. It uses the native
+Better Auth password reset flow and sends no email. The admin page can add users
+and issue password recovery links. New UI-created users always start with the
+ordinary user role. To recover access as a local operator:
+
+```sh
+kubectl -n videoq exec deployment/videoq-videoq-api -- \
+  node dist/provision-user.mjs --reset USER_ID
+```
+
+Course owners can issue/reissue course invitation links and share them privately.
+Recipients first need an account issued by the administrator. Course invitations
+keep the existing seven-day validity and email-identity check; reissuing revokes
+the previous link. Neither invitation hashes nor user setup tokens are emailed
+or sent to third-party services.
+
+New on-prem accounts have no SaaS free-tier storage, monthly upload, processing
+or AI-answer caps. Administrators can set operational limits in the admin page,
+or set `DEFAULT_STORAGE_LIMIT_GB`, `DEFAULT_MONTHLY_UPLOAD_LIMIT_GB`,
+`DEFAULT_PROCESSING_LIMIT_MINUTES` and `DEFAULT_AI_ANSWERS_LIMIT` for future users.
+`unlimited` means no cap. Per-file transport limits and rate limits still apply.
+Existing user limits are preserved; review migrated users in the admin page.
+
+Core video/course management, uploaded-media transcription, search, cited chat,
+usage reporting, local API keys/MCP and intranet sharing remain available.
+AI endpoints are configured separately: apply the chosen local-inference overlay
+for fully on-site processing. The application edition does not change a
+site-selected inference endpoint or migrate existing embeddings.

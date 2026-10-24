@@ -103,7 +103,7 @@ OPENAI_API_KEY=sk-proj-...
 OPENAI_BASE_URL=https://api.openai.com/v1
 LLM_MODEL=gpt-6-luna
 WHISPER_BACKEND=openai
-EMBEDDING_PROVIDER=openai
+
 EMBEDDING_MODEL=text-embedding-3-small
 
 # Docker API startup currently forwards AUTH_JWT_SECRET as the auth fallback.
@@ -240,9 +240,13 @@ Frontend `VITE_*` values are build-time settings; changes require rebuilding `we
 Transcription, chat, and embeddings can use local services. Configure each component together with the API and worker that consume it.
 
 <details>
-<summary><strong>Local transcription with whisper.cpp</strong></summary>
+<summary><strong>Mac transcription with whisper.cpp</strong></summary>
 
-Build the bundled submodule with CMake and a C++ toolchain. Performance depends on the model and available hardware.
+Run whisper.cpp natively on macOS to use Apple Silicon's Metal backend.
+The on-prem Kubernetes recipes use whisper.cpp on CPU or vLLM on NVIDIA GPUs,
+behind a private transcription gateway.
+Both connect through `WHISPER_BACKEND=local`. Build the pinned submodule with
+CMake and a C++ toolchain; install FFmpeg on the Mac for MP3 conversion.
 
 **Quick setup:**
 
@@ -252,7 +256,7 @@ git submodule update --init --recursive
 cd whisper.cpp
 
 # 2. Build
-cmake -B build
+cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j --config Release
 
 # 3. Download a model
@@ -260,8 +264,13 @@ bash ./models/download-ggml-model.sh large-v3-turbo
 
 # 4. Start the server
 ./build/bin/whisper-server -m models/ggml-large-v3-turbo.bin \
-  --host 0.0.0.0 --port 8080 --inference-path /audio/transcriptions -l ja
+  --host 127.0.0.1 --port 8080 --inference-path /audio/transcriptions \
+  --convert -l auto
 ```
+
+`--convert` is required for the worker's MP3 uploads. Keep timestamps enabled.
+Use `-l ja` instead of `-l auto` to fix recognition to Japanese. The server loads
+the selected local model at startup; it does not download a model per request.
 
 **Configure VideoQ:**
 
@@ -278,65 +287,32 @@ Recreate the worker to load the changed environment:
 docker compose up -d --force-recreate worker
 ```
 
-</details>
-
-<details>
-<summary><strong>Local chat with Ollama</strong></summary>
-
-**Install Ollama:**
-
-1. Download it from [ollama.com](https://ollama.com)
-2. Install and run it
-
-**Pull a model:**
-
-```bash
-ollama pull qwen3-vl:8b-instruct
-```
-
-**Configure VideoQ:**
-
-Edit `.env`:
-
-```bash
-OPENAI_API_KEY=ollama
-OPENAI_BASE_URL=http://host.docker.internal:11434/v1
-LLM_MODEL=qwen3-vl:8b-instruct
-```
-
-Chat uses Ollama's [OpenAI-compatible API](https://docs.ollama.com/api/openai-compatibility)
-through ChatOpenAI. Course QA requires a model with tool calling support.
-`OPENAI_API_KEY=ollama` is a placeholder for local Ollama and cannot authenticate to OpenAI. `OPENAI_BASE_URL` is also used by OpenAI-provider embeddings and the Python OpenAI client, so changing it in the shared `.env` affects more than chat. A shared local configuration also needs local Whisper and compatible embeddings. For a mixed setup, configure the API and worker environments separately.
-
-For `npm run dev:api` outside Docker, put these values in `apps/api/.dev.vars`
-and use `OPENAI_BASE_URL=http://127.0.0.1:11434/v1`.
-
-Recreate the affected containers after updating the shared `.env`:
-
-```bash
-docker compose up -d --force-recreate api worker
-```
+For a worker running directly on the Mac, use `http://127.0.0.1:8080` instead.
+The base URL has no `/v1` suffix for this whisper.cpp command. Keep this
+unauthenticated development server bound to loopback. See the
+[local inference guide](docs/guides/local-inference.md#mac-development-with-whispercpp)
+for endpoint differences and the real-audio acceptance check.
 
 </details>
 
 <details>
-<summary><strong>Local embeddings with Ollama</strong></summary>
+<summary><strong>Local chat, embeddings and Whisper</strong></summary>
 
-For a new disposable development DB, run `ollama pull qwen3-embedding:4b`, then set `EMBEDDING_PROVIDER=ollama` and `EMBEDDING_MODEL=qwen3-embedding:4b`. For Docker, use `OLLAMA_BASE_URL=http://host.docker.internal:11434` and `WORKER_OLLAMA_BASE_URL=http://host.docker.internal:11434`.
+Use llama.cpp for the default CPU recipe or vLLM for NVIDIA GPU inference.
+Chat and embeddings use separate private OpenAI-compatible APIs; transcription
+uses the private whisper.cpp/vLLM gateway. See the [local inference guide](docs/guides/local-inference.md)
+and the [inference chart](charts/videoq-inference/README.md) for matching
+application overlays, model provisioning and acceptance commands.
 
-The adapters use `/api/embed` with `dimensions: 1536` and validate every output against the fixed `vector(1536)` contract. The 1024-dimensional `qwen3-embedding:0.6b` is incompatible. Equal dimensions do not make models interchangeable: existing scene vectors need regeneration, and this change does not provide a model migration tool. See [diagnostics and migration constraints](docs/guides/embeddings.md).
+Set `EMBEDDING_BASE_URL` and the matching served model alias in both API and worker.
+`OPENAI_BASE_URL` selects chat independently. Private servers without
+API authentication use `local-inference` as a placeholder key. Text-only models
+require `VIDEO_VISUAL_ENABLED=false`; hosted credentials are unnecessary when
+chat, embeddings and Whisper all use validated private services.
 
-For `npm run dev:api` outside Docker, set the embedding values in
-`apps/api/.dev.vars` and use `OLLAMA_BASE_URL=http://127.0.0.1:11434`.
-The API and indexing worker must use the same embedding model and dimensions.
-
-Recreate the API and worker containers to load the updated `.env`:
-
-```bash
-docker compose up -d --force-recreate api worker
-```
-
-After switching models or providers, reindex existing videos from Admin. A dimension change also needs a database migration; reindexing alone does not change the column type.
+Changing embedding models requires maintenance, backups and complete vector
+regeneration before resuming search, even when dimensions remain 1536.
+See [diagnostics and migration constraints](docs/guides/embeddings.md).
 
 </details>
 
@@ -402,7 +378,7 @@ BETTER_AUTH_URL=http://localhost:3000
 FRONTEND_URL=http://localhost:3000
 OAUTH_ISSUER_URL=http://localhost:3000
 OPENAI_BASE_URL=https://api.openai.com/v1
-EMBEDDING_PROVIDER=openai
+
 EMBEDDING_MODEL=text-embedding-3-small
 ```
 

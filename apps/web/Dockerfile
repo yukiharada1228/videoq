@@ -15,6 +15,9 @@ RUN node --input-type=module -e 'import {createHash} from "node:crypto"; import 
 
 WORKDIR /workspace
 
+ARG VITE_DEPLOYMENT_EDITION=onprem
+ENV VITE_DEPLOYMENT_EDITION=${VITE_DEPLOYMENT_EDITION}
+
 ARG VITE_API_URL=/api
 ENV VITE_API_URL=${VITE_API_URL}
 ARG VITE_USE_S3_STORAGE=true
@@ -43,9 +46,13 @@ COPY apps/web apps/web
 COPY apps/api apps/api
 COPY packages/trpc packages/trpc
 RUN npm run build --workspace @videoq/web
+RUN if [ "$VITE_DEPLOYMENT_EDITION" = onprem ]; then node apps/web/scripts/check-onprem-build.mjs apps/web/dist; fi
 
 
 FROM nginx:alpine@sha256:a3554c0d0b48177b1413c26e01f695334428020d9df01243fbae3e11cfd17417 AS runtime
+
+# The pinned base predates the CVE-2026-111497 decoder fix.
+RUN apk add --no-cache --upgrade 'brotli-libs>=1.2.1-r0'
 
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 

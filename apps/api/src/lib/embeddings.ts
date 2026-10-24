@@ -10,22 +10,21 @@ import type { AnswerCostLedger } from "./answer-cost-ledger";
 
 /**
  * 検索クエリの埋め込みベクトルを生成する。
- * OpenAI / Ollama both use the fixed 1536-dimensional storage contract.
+ * Hosted and private OpenAI-compatible APIs use the same 1536-dimensional contract.
  */
 
-const DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434";
 const EMBEDDING_TIMEOUT_MS = 30_000;
 
 export type EmbeddingEnv = {
-  EMBEDDING_PROVIDER?: string;
   EMBEDDING_MODEL?: string;
   OPENAI_API_KEY?: string;
   OPENAI_BASE_URL?: string;
-  OLLAMA_BASE_URL?: string;
+  EMBEDDING_BASE_URL?: string;
+  EMBEDDING_API_KEY?: string;
 };
 
 async function embedWithOpenAi(env: EmbeddingEnv, text: string, config: EmbeddingConfig, signal?: AbortSignal, costLedger?: AnswerCostLedger): Promise<number[]> {
-  const apiKey = resolveOpenAiKey(env, "OpenAI embeddings");
+  const apiKey = resolveOpenAiKey({ OPENAI_API_KEY: env.EMBEDDING_API_KEY || env.OPENAI_API_KEY }, "OpenAI-compatible embeddings");
   const call = costLedger?.begin("query_embedding", config.model);
   try {
     const body: Record<string, unknown> = {
@@ -37,7 +36,7 @@ async function embedWithOpenAi(env: EmbeddingEnv, text: string, config: Embeddin
 
     let res: Response;
     try {
-      res = await fetch(`${openAiBaseUrl(env)}/embeddings`, {
+      res = await fetch(`${openAiBaseUrl({ OPENAI_BASE_URL: env.EMBEDDING_BASE_URL || env.OPENAI_BASE_URL })}/embeddings`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -70,37 +69,10 @@ async function embedWithOpenAi(env: EmbeddingEnv, text: string, config: Embeddin
   }
 }
 
-async function embedWithOllama(env: EmbeddingEnv, text: string, config: EmbeddingConfig, signal?: AbortSignal): Promise<number[]> {
-  const base = (env.OLLAMA_BASE_URL || DEFAULT_OLLAMA_BASE_URL).replace(/\/$/, "");
-  let res: Response;
-  try {
-    res = await fetch(`${base}/api/embed`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ model: config.model, input: text, dimensions: EMBEDDING_DIMENSIONS }),
-      signal: deadlineSignal(EMBEDDING_TIMEOUT_MS, signal),
-    });
-  } catch {
-    signal?.throwIfAborted();
-    throw new LlmProviderError("Ollama embeddings request failed. Check the server connection.");
-  }
-  if (!res.ok) {
-    await res.body?.cancel();
-    throw new LlmProviderError(`Ollama embeddings failed (HTTP ${res.status}).`);
-  }
-  const json: unknown = await embeddingJson(res, config, signal);
-  if (!isRecord(json) || !Array.isArray(json.embeddings) || json.embeddings.length !== 1) {
-    throw new EmbeddingValidationError("EMBEDDING_OUTPUT_INVALID", config);
-  }
-  return validateEmbedding(json.embeddings[0], "EMBEDDING_OUTPUT_INVALID", config);
-}
-
 export async function embedQuery(env: EmbeddingEnv, text: string, signal?: AbortSignal, costLedger?: AnswerCostLedger): Promise<number[]> {
   signal?.throwIfAborted();
   const config = resolveEmbeddingConfig(env);
-  const result = await (config.provider === "ollama"
-    ? embedWithOllama(env, text, config, signal)
-    : embedWithOpenAi(env, text, config, signal, costLedger));
+  const result = await embedWithOpenAi(env, text, config, signal, costLedger);
   signal?.throwIfAborted();
   return result;
 }

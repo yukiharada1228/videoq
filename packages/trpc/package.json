@@ -35,6 +35,10 @@
     "./course-invitations": {
       "types": "./src/course-invitations.ts",
       "default": "./src/course-invitations.ts"
+    },
+    "./deployment": {
+      "types": "./src/deployment.ts",
+      "default": "./src/deployment.ts"
     }
   },
   "scripts": {

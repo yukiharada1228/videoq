@@ -149,6 +149,7 @@ export const courseInviteRecipientResultSchema = z.object({
   email: z.string(),
   status: z.enum(["queued", "already_member", "already_invited", "invalid", "duplicate"]),
   invitation_id: z.number().optional(),
+  invitation_url: z.url().optional(),
 });
 
 export const courseInvitationListItemSchema = z.object({

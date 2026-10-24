@@ -230,7 +230,7 @@ function stubOpenAi(opts: {
   answer?: ModelAnswer;
   failAfterFirstChunk?: boolean;
   failureGate?: Promise<void>;
-  failOllamaEmbedding?: boolean;
+  failPrivateEmbedding?: boolean;
   preamble?: string;
   toolCall?: typeof SEARCH_TOOL_CALL;
 }) {
@@ -252,11 +252,8 @@ function stubOpenAi(opts: {
     if (url.includes("sqs")) {
       return new Response("<MessageId>m-1</MessageId>", { status: 200 });
     }
-    if (url.endsWith("/embeddings") || url.endsWith("/api/embed")) {
-      if (url.endsWith("/api/embed")) {
-        if (opts.failOllamaEmbedding) throw new TypeError("Ollama connection refused");
-        return jsonBody({ embeddings: [testEmbedding(0.1, 0.2)] });
-      }
+    if (url.endsWith("/embeddings")) {
+      if (opts.failPrivateEmbedding) throw new TypeError("Private embedding service connection refused");
       return jsonBody({ data: [{ index: 0, embedding: testEmbedding(0.1, 0.2) }] });
     }
 
@@ -802,7 +799,7 @@ describe.each([false, true])("ReAct 障害の利用枠返却（stream=%s）", (s
   });
 
   it("エラーを返し、通常回答の保存・完了通知を行わず利用枠を返す", async () => {
-    const requests = stubOpenAi({ failOllamaEmbedding: true, preamble: "調べますね。" });
+    const requests = stubOpenAi({ failPrivateEmbedding: true, preamble: "調べますね。" });
     const res = await post(
       stream ? "/messages/stream" : "/messages",
       { messages: [{ role: "user", content: "scene" }], course_id: 3 },
@@ -810,9 +807,8 @@ describe.each([false, true])("ReAct 障害の利用枠返却（stream=%s）", (s
         userId: TEST_USER_ID,
         env: {
           ...OPENAI_ENV,
-          EMBEDDING_PROVIDER: "ollama",
-          EMBEDDING_MODEL: "qwen3-embedding:4b",
-          OLLAMA_BASE_URL: "http://127.0.0.1:11434",
+          EMBEDDING_MODEL: "gte-qwen2-1.5b-q4km-124fbdad",
+          EMBEDDING_BASE_URL: "http://embedding.test:8000/v1",
         },
       },
     );
@@ -833,7 +829,7 @@ describe.each([false, true])("ReAct 障害の利用枠返却（stream=%s）", (s
         message: "An internal server error occurred.",
       });
     }
-    expect(requests.some((request) => request.url.endsWith("/api/embed"))).toBe(true);
+    expect(requests.some((request) => request.url === "http://embedding.test:8000/v1/embeddings")).toBe(true);
     expect(calls.filter((call) => call.sql.includes("GREATEST")).map((call) => call.args))
       .toEqual([["00000000-0000-4000-8000-000000000005", QUOTA_PERIOD_START]]);
     expect(calls.some((call) => call.sql.includes("chat_logs") && call.sql.includes("returning")))

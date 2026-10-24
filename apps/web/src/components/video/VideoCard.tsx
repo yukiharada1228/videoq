@@ -1,3 +1,4 @@
+import { features } from "@/lib/deployment";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { VideoInCourse, VideoList as VideoListType } from '@/lib/api';
@@ -111,7 +112,7 @@ function VideoThumbnail({
   const { ref: thumbRef, isInView } = useInView('200px');
 
   const youtubeThumb =
-    video.source_type === 'youtube' ? getYoutubeThumbnailUrl(video.youtube_video_id) : null;
+    features.youtube && video.source_type === 'youtube' ? getYoutubeThumbnailUrl(video.youtube_video_id) : null;
 
   return (
     <div ref={thumbRef} className="relative h-full w-full overflow-hidden bg-solid-gray-100">

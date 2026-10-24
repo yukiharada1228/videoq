@@ -3,6 +3,10 @@ import { adminInputSchemas } from "../inputs/admin";
 import { outputSchemas } from "../outputs";
 
 export const adminRouter = t.router({
+  createUser: adminProcedure.input(adminInputSchemas["admin.createUser"]).output(outputSchemas["admin.createUser"])
+    .mutation(({ ctx, input }) => ctx.call("admin.createUser", input)),
+  resetAccess: adminProcedure.input(adminInputSchemas["admin.resetAccess"]).output(outputSchemas["admin.resetAccess"])
+    .mutation(({ ctx, input }) => ctx.call("admin.resetAccess", input)),
   listUsers: adminProcedure
     .input(adminInputSchemas["admin.listUsers"])
     .output(outputSchemas["admin.listUsers"])

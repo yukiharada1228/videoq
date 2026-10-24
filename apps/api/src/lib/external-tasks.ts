@@ -1,3 +1,4 @@
+import { features } from "./deployment";
 import { abortR2MultipartUpload, deleteR2Object, deleteVisualChunks } from "../integrations/media";
 import { frameCacheKey, focusCacheKey } from "./video-evidence";
 import {
@@ -81,6 +82,7 @@ async function runTask(env: Bindings, task: ClaimedExternalTask): Promise<void> 
   }
 
   if (task.kind === "invitation_email") {
+    if (!features(env).emailDelivery) { await completeExternalTask(env, task); return; }
     const invitationId = task.payload.invitation_id;
     if (typeof invitationId !== "number" || !Number.isSafeInteger(invitationId)) {
       throw new Error("Invitation email invitation_id is invalid.");

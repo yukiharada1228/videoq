@@ -1,3 +1,4 @@
+import { features } from "@/lib/deployment";
 import { useTranslation } from 'react-i18next';
 import { Link } from '@/lib/i18n';
 import { APP_CONTAINER_CLASS } from '@/components/layout/layoutTokens';
@@ -21,6 +22,7 @@ export function AppFooter() {
           <UtilityLink asChild>
             <Link href="/">{t('navigation.home')}</Link>
           </UtilityLink>
+          {features.marketing && <>
           <UtilityLink asChild>
             <Link href="/pricing">{t('navigation.pricing')}</Link>
           </UtilityLink>
@@ -36,12 +38,13 @@ export function AppFooter() {
           <UtilityLink asChild>
             <Link href="/legal">{t('legal.scta.shortTitle')}</Link>
           </UtilityLink>
+          </>}
           <UtilityLink asChild>
             <Link href="/login">{t('auth.login.submit')}</Link>
           </UtilityLink>
-          <UtilityLink asChild>
+          {features.publicSignup && <UtilityLink asChild>
             <Link href="/signup">{t('auth.signup.submit')}</Link>
-          </UtilityLink>
+          </UtilityLink>}
         </nav>
         <p className="text-oln-14N-100 text-solid-gray-600">
           © {new Date().getFullYear()} VideoQ

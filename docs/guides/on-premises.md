@@ -38,6 +38,10 @@ Configure their addresses instead of installing duplicate infrastructure in the
 application release. A GPU inference server can run in the same cluster or on a
 separate machine; API and video workers call its endpoint.
 
+For a concrete CPU or NVIDIA GPU deployment of local chat, embeddings and
+Whisper, see [local inference](local-inference.md). The default application
+values use external OpenAI APIs; the local overlay is an explicit opt-in.
+
 ## How it differs from Cloudflare
 
 | Function | Cloud deployment | On-prem deployment |
@@ -69,18 +73,17 @@ HTTP smoke test.
    example values, and run Helm lint/template before installation.
 5. Install the chart. Its pre-install migration Job must complete before the
    application workloads are created.
-6. Confirm `/ready`, sign up, promote an admin account using the documented
-   command, then upload a short video and test Q&A and timestamp playback.
+6. Confirm `/ready`, create the first administrator with `node dist/provision-user.mjs --admin --username site_admin --email admin@example.com` inside the API Pod, and privately open the returned single-use setup link. Then upload a short video and test Q&A and timestamp playback.
 
 The repository does not publish images at the `registry.example.edu` addresses;
 these are placeholders for site-built images. For a disconnected network,
 transfer all images and the packaged chart ahead of time. Point chat, embeddings
-and transcription at validated local services and account for optional email,
-YouTube, OAuth and billing connections separately.
+and transcription at validated local services. The on-prem edition disables Stripe,
+Google sign-in, YouTube/SearchAPI and Mailgun.
 
 The chat adapter requires a nonempty `OPENAI_API_KEY` for local OpenAI-compatible
 servers too. Use a placeholder such as `local-inference` if that server has no
-authentication. Ollama embeddings do not require this key.
+authentication. Embeddings reuse it unless `EMBEDDING_API_KEY` is set.
 
 For internet-connected sites, see [signed releases and updates](on-premises-releases.md)
 for artifact verification, automatic staging rehearsals and promotion.
@@ -106,3 +109,15 @@ application manifests; SQL migration rollback and data restoration need their
 own tested procedure. Pre-upgrade migrations must remain compatible with the
 old application while its Pods are still running. See the chart README for
 breaking migrations, Secret rotation and recovery details.
+
+## Application pages and account provisioning
+
+The on-prem web image and Node API use the on-prem edition by default. It omits
+SaaS billing, the LP/pricing/commercial legal pages and public registration.
+Signed-out users enter at login. Administrators add users and issue short-lived,
+single-use setup/recovery links; no external mail service is needed. Course
+invitation links can also be shared privately with existing local accounts.
+New users have administrator-managed operational quotas instead of SaaS free
+plan caps. Existing user quotas are preserved until an administrator changes them.
+See the [edition and bootstrap instructions](https://github.com/yukiharada1228/videoq/blob/main/charts/videoq/README.md#on-prem-application-edition).
+Core video/course/search/chat, API keys/MCP and intranet sharing remain available.

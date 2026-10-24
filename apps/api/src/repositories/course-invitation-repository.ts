@@ -1,3 +1,4 @@
+import { features } from "../lib/deployment";
 import { normalizeInvitationEmail } from "@videoq/trpc/course-invitations";
 import { and, desc, eq, inArray, lt, lte, sql } from "drizzle-orm";
 import { type Db, withDb } from "../db/pool";
@@ -165,7 +166,7 @@ export async function createPendingCourseInvitations(
 
       // 招待行と配送タスクを同じtransactionでコミットする（outbox）。
       // 招待だけ残ってメールが永久に送られない状態を作らない。
-      await insertInvitationEmailTasks(
+      if (features(env).emailDelivery) await insertInvitationEmailTasks(
         tx,
         inserted.map((row) => Number(row.id)),
         issuedAt,
@@ -659,7 +660,7 @@ export async function rotatePendingCourseInvitation(
           updatedAt: now.toISOString(),
         })
         .where(eq(videoCourseInvitations.id, invitationId));
-      await insertInvitationEmailTasks(tx, [invitationId], now);
+      if (features(env).emailDelivery) await insertInvitationEmailTasks(tx, [invitationId], now);
       return { ok: true } as const;
     }),
   );

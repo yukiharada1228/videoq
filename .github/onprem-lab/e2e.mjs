@@ -29,8 +29,19 @@ async function answer(courseId) {
   assert(!events.some(e=>e.type==='error'),JSON.stringify(events));
 }
 const mode=process.argv[2]; const statePath=process.argv[3];
-await auth(mode==='register'?'sign-up':'sign-in');
-if (mode === 'register') process.exit(0);
+if (mode === 'register') {
+  const denied = await fetch(origin + '/api/auth/sign-up/email', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: origin }, body: JSON.stringify({ email: 'blocked@example.invalid', password, name: 'Blocked' }) });
+  assert.equal(denied.status, 404);
+  const activation = JSON.parse(readFileSync(statePath, 'utf8')).activation_url;
+  const target = new URL(activation); target.protocol = 'http:'; target.host = '127.0.0.1:18787';
+  const response = await fetch(target, { redirect: 'manual' });
+  const token = new URL(response.headers.get('location')).searchParams.get('token');
+  assert(token, 'account setup must produce a reset token');
+  const reset = await fetch(origin + '/api/auth/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: origin }, body: JSON.stringify({ token, newPassword: password }) });
+  assert.equal(reset.status, 200);
+  process.exit(0);
+}
+await auth('sign-in');
 if(mode==='upload') {
   const bytes=fixtureVideo(readFileSync(process.argv[4]));
   const created=await rpc('videos.requestUpload',{filename:'lab.mp4',contentType:'video/mp4',fileSize:bytes.length,title:'Onprem Lab'});

@@ -21,7 +21,7 @@ withHelm("on-prem Helm distribution", () => {
       "ConfigMap", "CronJob", "CronJob", "Deployment", "Deployment", "Deployment", "Job", "Pod", "Service", "Service",
     ].sort());
     const config = resources.find(resource => resource.kind === "ConfigMap");
-    expect(config.data).toMatchObject({ USE_S3_STORAGE: "true", BETTER_AUTH_URL: "https://videoq.example.edu" });
+    expect(config.data).toMatchObject({ DEPLOYMENT_EDITION: "onprem", USE_S3_STORAGE: "true", BETTER_AUTH_URL: "https://videoq.example.edu" });
     expect(Object.values(config.data).every(value => typeof value === "string")).toBe(true);
     expect(config.data.DATABASE_URL).toBeUndefined();
     const api = resources.find(resource => resource.kind === "Deployment" && resource.metadata.name.endsWith("-api"));
@@ -35,8 +35,8 @@ withHelm("on-prem Helm distribution", () => {
   it("keeps discovery and streaming routes on the API and applies site-specific settings", () => {
     const resources = render("--set", "ingress.enabled=true", "--set", "api.replicas=3", "--set", "worker.replicas=4",
       "--set", "existingSecret=customer-secret", "--set", "imagePullSecrets[0].name=registry-secret",
-      "--set", "ai.embeddingProvider=ollama", "--set", "ai.embeddingModel=qwen3-embedding:4b",
-      "--set", "ai.ollamaBaseUrl=http://ollama:11434", "--set", "migration.enabled=false");
+      "--set", "ai.embeddingModel=gte-qwen2-1.5b-q4km-124fbdad",
+      "--set", "ai.embeddingBaseUrl=http://embedding:8000/v1", "--set", "migration.enabled=false");
     expect(resources.some(resource => resource.kind === "Job")).toBe(false);
     const ingress = resources.find(resource => resource.kind === "Ingress");
     expect(ingress.spec.rules[0].host).toBe("videoq.example.edu");
@@ -56,9 +56,29 @@ withHelm("on-prem Helm distribution", () => {
   it("rejects incomplete configuration and invalid proxy/pool settings", () => {
     const missing = spawnSync(helm!, ["template", "test", chart], { encoding: "utf8" });
     expect(missing.status).not.toBe(0);
-    for (const setting of ["api.trustedProxyHops=-1", "api.databasePoolMax=1", "existingSecret=", "publicUrl=https://example.edu/prefix"]) {
+    for (const setting of ["ai.unknownSetting=true", "api.trustedProxyHops=-1", "api.databasePoolMax=1", "existingSecret=", "publicUrl=https://example.edu/prefix"]) {
       expect(spawnSync(helm!, ["template", "test", chart, ...settings, "--set", setting], { encoding: "utf8" }).status).not.toBe(0);
     }
+  });
+  it("routes local AI inside the site and restricts application egress", () => {
+    const resources = render("-f", `${chart}/examples/local-ai-llamacpp.yaml`);
+    const config = resources.find(resource => resource.kind === "ConfigMap").data;
+    expect(config.WHISPER_BACKEND).toBe("local");
+    expect(config.OPENAI_BASE_URL).toContain(".svc.cluster.local");
+    expect(config.LLM_REASONING_EFFORT).toBe("none");
+    expect(config.VIDEO_VISUAL_ENABLED).toBe("false");
+    const policy = resources.find(resource => resource.kind === "NetworkPolicy");
+    expect(policy.spec.policyTypes).toEqual(["Egress"]);
+    expect(policy.spec.egress[0].to).toEqual([{ namespaceSelector: { matchLabels: { "kubernetes.io/metadata.name": "default" } } }]);
+    expect(policy.spec.egress[1].ports.every((port: { port: number }) => port.port === 53)).toBe(true);
+  });
+  it("routes compatible chat and embedding services independently", () => {
+    const resources = render("-f", `${chart}/examples/local-ai-llamacpp.yaml`);
+    const config = resources.find(resource => resource.kind === "ConfigMap").data;
+    expect(config.OPENAI_BASE_URL).toBe("http://videoq-inference-chat.videoq.svc.cluster.local:8000/v1");
+    expect(config.EMBEDDING_BASE_URL).toBe("http://videoq-inference-embedding.videoq.svc.cluster.local:8000/v1");
+    expect(config.LLM_SEPARATE_TOOL_SCHEMA).toBe("true");
+    expect(config.WHISPER_BACKEND).toBe("local");
   });
   it("pins every workload and hook to the reviewed image digests", () => {
     const digest = "sha256:" + "a".repeat(64);

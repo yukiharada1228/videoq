@@ -25,6 +25,14 @@ updates:
     # Cloudflare's Vitest plugin currently requires Vitest 4.
     # Revisit this exception when @cloudflare/vitest-plugin supports Vitest 5.
     ignore:
+      # Compiler-API consumers (ESLint, tests, docs) do not support native TS 7.
+      # API-only native compiler patch/minor updates remain eligible.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      # Docusaurus 3.10.2 resolves ELK through an optional ^0.1.9 peer.
+      # Installing 1.x nests the package and silently disables ELK layouts.
+      - dependency-name: "@mermaid-js/layout-elk"
+        versions: [">=1.0.0"]
       - dependency-name: vitest
         versions: [">=5.0.0 <6.0.0"]
       - dependency-name: "@vitest/*"
@@ -60,7 +68,9 @@ updates:
   - package-ecosystem: uv
     cooldown:
       default-days: 7
-    directory: /apps/worker
+    directories:
+      - /apps/worker
+      - /apps/inference/whisper
     schedule:
       interval: weekly
       day: monday
@@ -100,6 +110,23 @@ updates:
       docker-minor-patch:
         patterns: ["*"]
         update-types: [minor, patch]
+
+  # This service deliberately keeps Python 3.12 for the native inference wheels;
+  # it is independent of the app runtime's coordinated interpreter upgrades.
+  - package-ecosystem: docker
+    directory: /apps/inference/whisper
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    ignore:
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+    groups:
+      inference-runtime-patch:
+        patterns: ["*"]
+        update-types: [patch]
 
   - package-ecosystem: docker-compose
     directory: /

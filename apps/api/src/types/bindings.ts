@@ -34,12 +34,20 @@ type PlatformResources = {
 export type Bindings = Omit<RuntimeStrings, keyof SecretBindings> & PlatformResources &
   SecretBindings & {
     RUNTIME?: "node";
+    DEFAULT_MONTHLY_UPLOAD_LIMIT_GB?: string;
+    DEPLOYMENT_EDITION?: "cloud" | "onprem";
     DATABASE_URL?: string;
     /** Only the long-lived Node runtime supplies a shared pool. */
     DATABASE_POOL?: pg.Pool;
     RATE_LIMIT_BACKEND?: RateLimitBackend;
     // 互換用の任意設定。
     OPENAI_BASE_URL?: string;
+    EMBEDDING_BASE_URL?: string;
+    EMBEDDING_API_KEY?: string;
+    LLM_REASONING_EFFORT?: "none" | "minimal" | "low" | "medium" | "high";
+    LLM_SEPARATE_TOOL_SCHEMA?: string;
+    LLM_REQUEST_TIMEOUT_MS?: string;
+    LLM_STREAM_TIMEOUT_MS?: string;
     AWS_SESSION_TOKEN?: string;
     R2_S3_INTERNAL_ENDPOINT?: string;
 

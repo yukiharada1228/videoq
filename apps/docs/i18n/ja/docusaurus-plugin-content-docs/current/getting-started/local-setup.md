@@ -40,13 +40,13 @@ OPENAI_API_KEY=ここに開発用キーを入力
 OPENAI_BASE_URL=https://api.openai.com/v1
 LLM_MODEL=gpt-6-luna
 WHISPER_BACKEND=openai
-EMBEDDING_PROVIDER=openai
+
 EMBEDDING_MODEL=text-embedding-3-small
 ```
 
 回答生成と画像確認は共通の `LLM_MODEL` を使い、既定値はGPT-6 Luna（`gpt-6-luna`）です。映像確認を有効にする場合は、画像入力・ツール呼び出し・厳密なJSON出力に対応したモデルを指定してください。[モデル設定](../architecture/prompt-engineering.md#モデル設定と処理の上限)も参照してください。
 
-設定テンプレートも上記の埋め込み設定を使用します。次元は1536固定で、次元数の環境変数は不要です。API・workerのproviderとmodelを揃えてください。Ollamaの設定と診断コマンドは[埋め込みの設定と検証](../guides/embeddings.md)を参照してください。
+設定テンプレートも上記の埋め込み設定を使用します。次元は1536固定で、次元数の環境変数は不要です。API・workerのproviderとmodelを揃えてください。社内の llama.cpp／vLLM の接続設定と診断コマンドは[埋め込みの設定と検証](../guides/embeddings.md)を参照してください。
 
 次のコマンドで2つの開発用秘密鍵を生成します。
 

@@ -97,8 +97,10 @@ def main():
         def e2e(mode):
             print(run(["node",".github/onprem-lab/e2e.mjs",mode,str(state_path),str(video_path)]),flush=True)
         if not args.resume:
+            account = json.loads(k("exec","deployment/videoq-api","--","node","dist/provision-user.mjs","--admin","--username","onprem_lab","--email","onprem-lab@example.com"))
+            state_path.write_text(json.dumps(account))
+            state_path.chmod(0o600)
             e2e("register")
-        k("exec","deployment/videoq-api","--","node","scripts/create-admin.mjs","onprem-lab@example.com")
         e2e("upload")
         # Test object backup, deletion and restoration through the real S3 API.
         storage_test = '''import hashlib

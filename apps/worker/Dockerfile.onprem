@@ -31,5 +31,6 @@ WORKDIR /app
 COPY worker_python ./worker_python
 COPY scripts/run_worker.py ./scripts/run_worker.py
 USER worker
+ENV DEPLOYMENT_EDITION=onprem
 ENV PATH="/opt/venv/bin:$PATH" PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 CMD ["python", "scripts/run_worker.py"]

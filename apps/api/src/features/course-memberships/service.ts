@@ -1,3 +1,5 @@
+import { features } from "../../lib/deployment";
+import { authBaseURL } from "../../lib/auth";
 import {
   acceptCourseInvitation,
   createPendingCourseInvitations,
@@ -34,16 +36,8 @@ export type InviteRecipientResult = {
   email: string;
   status: InviteResultStatus;
   invitation_id?: number;
+  invitation_url?: string;
 };
-
-/**
- * 誰も保持していないダミーの token hash。招待行の NOT NULL / UNIQUE を満たしつつ、
- * 実際に配るトークンは配送タスクが送信直前に発行する。
- * これにより平文トークンがDBにもキューにも一切残らない。
- */
-function placeholderTokenHash(): Promise<string> {
-  return hashInvitationToken(createInvitationToken());
-}
 
 export async function inviteCourseMembers(
   env: Bindings,
@@ -61,13 +55,13 @@ export async function inviteCourseMembers(
   const ready = plan.filter(({ status }) => status === "ready");
   if (ready.length > limit) return { tooMany: true, limit };
   const expiresAt = invitationExpiresAt(issuedAt);
+  const manualTokens = new Map<string, string>();
   const prepared = await Promise.all(
-    ready.map(async ({ email }) => ({
-      email,
-      tokenHash: await placeholderTokenHash(),
-      expiresAt,
-      createdAt: issuedAt,
-    })),
+    ready.map(async ({ email }) => {
+      const token = createInvitationToken();
+      if (!features(env).emailDelivery) manualTokens.set(email, token);
+      return { email, tokenHash: await hashInvitationToken(token), expiresAt, createdAt: issuedAt };
+    }),
   );
 
   // 招待行と配送タスクを同じtransactionで作る。メール送信はここでは行わない。
@@ -92,6 +86,7 @@ export async function inviteCourseMembers(
     resultByEmail.set(invitation.email, {
       status: "queued",
       invitation_id: invitation.id,
+      ...(!features(env).emailDelivery ? { invitation_url: `${authBaseURL(env)}/course-invitations/${manualTokens.get(invitation.email)!}` } : {}),
     });
   }
 
@@ -150,17 +145,20 @@ export async function resendInvitation(
   ownerUserId: string,
   now = new Date(),
 ) {
+  const token = createInvitationToken();
   const rotated = await rotatePendingCourseInvitation(
     env,
     courseId,
     invitationId,
     ownerUserId,
-    await placeholderTokenHash(),
+    await hashInvitationToken(token),
     invitationExpiresAt(now),
     now,
   );
   if ("notFound" in rotated || "invalidState" in rotated) return rotated;
-  return { ok: true as const, delivery_status: "queued" as const };
+  return { ok: true as const, delivery_status: "queued" as const,
+    ...(!features(env).emailDelivery ? { invitation_url: `${authBaseURL(env)}/course-invitations/${token}` } : {}),
+  };
 }
 
 export function revokeInvitation(

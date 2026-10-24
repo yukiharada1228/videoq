@@ -17,18 +17,15 @@ const enabled = process.env.EMBEDDING_LIVE === "1";
 const varsPath = new URL("../.dev.vars", import.meta.url);
 const configured = enabled && existsSync(varsPath) ? parse(readFileSync(varsPath)) : {};
 const settings = Object.fromEntries(
-  ["OPENAI_API_KEY", "OPENAI_BASE_URL", "LLM_MODEL"].map((key) =>
+  ["OPENAI_API_KEY", "OPENAI_BASE_URL", "LLM_MODEL", "EMBEDDING_BASE_URL", "EMBEDDING_API_KEY", "EMBEDDING_MODEL"].map((key) =>
     [key, process.env[key] ?? configured[key]]),
 );
-settings.OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
 const exec = promisify(execFile);
 const workerPath = fileURLToPath(new URL("../../worker", import.meta.url));
 
 describe.skipIf(!enabled)("real embedding providers", () => {
-  it.each([
-    { provider: "openai", model: "text-embedding-3-small" },
-    { provider: "ollama", model: "qwen3-embedding:4b" },
-  ])("$provider: indexes a short transcript and answers Q&A", async ({ provider, model }) => {
+  it("indexes a short transcript and answers Q&A", async () => {
+    const model = settings.EMBEDDING_MODEL || "text-embedding-3-small";
     const databaseUrl = process.env.EMBEDDING_TEST_DATABASE_URL;
     if (!databaseUrl || !settings.OPENAI_API_KEY) throw new Error("Live tests require EMBEDDING_TEST_DATABASE_URL and OPENAI_API_KEY.");
     const name = `videoq_live_${crypto.randomUUID().replaceAll("-", "")}`;
@@ -37,7 +34,7 @@ describe.skipIf(!enabled)("real embedding providers", () => {
     const url = new URL(databaseUrl);
     url.pathname = `/${name}`;
     let pool: Pool | undefined;
-    const providerSettings = { ...settings, EMBEDDING_PROVIDER: provider, EMBEDDING_MODEL: model };
+    const providerSettings = { ...settings, EMBEDDING_MODEL: model };
     try {
       await admin.query(`CREATE DATABASE "${name}"`);
       pool = new Pool({ connectionString: url.toString(), max: 1 });

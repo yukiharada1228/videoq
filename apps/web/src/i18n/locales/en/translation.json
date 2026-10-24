@@ -1211,5 +1211,25 @@
       "success": "Reindex job queued ({{jobId}}).",
       "error": "Failed to enqueue reindex job."
     }
+  },
+  "onprem": {
+    "loginHelp": "Contact your administrator to create an account or recover access.",
+    "addUser": "Add user",
+    "createLink": "Create account setup link",
+    "activationHelp": "Share this private link directly with the user. It expires in 15 minutes and can be used once. No email is sent.",
+    "activationLink": "Account setup link",
+    "copyLink": "Copy link",
+    "copied": "Copied",
+    "resetAccess": "Issue password reset link",
+    "resetUserAccess": "Issue a password reset link for {{username}}",
+    "courseLinkReady": "Invitation link ready",
+    "courseInvitationLink": "Course invitation link",
+    "reissueCourseLink": "Reissue invitation link",
+    "issueCourseLinks": "Issue invitation links",
+    "invitePreview": "Review invitations",
+    "invitePreviewSummary": "Issue invitation links for {{count}} of {{total}} recipients.",
+    "invitationAuthRequired": "Sign in with the invited account. Contact your administrator if you need an account.",
+    "settingsSubtitle": "Manage your account and connections from internal systems.",
+    "localIntegrations": "System integrations"
   }
 }

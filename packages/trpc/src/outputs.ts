@@ -25,6 +25,8 @@ export const outputSchemas = {
   "account.saveSearchApiKey": successSchema,
   "account.deleteSearchApiKey": successSchema,
 
+  "admin.createUser": z.object({ id: z.string(), username: z.string(), email: z.email(), activation_url: z.url() }),
+  "admin.resetAccess": z.object({ activation_url: z.url() }),
   "admin.listUsers": models.pageSchema(models.adminUserSchema),
   "admin.getUser": models.adminUserSchema,
   "admin.patchQuota": models.adminUserSchema,
@@ -70,7 +72,7 @@ export const outputSchemas = {
   "courseMemberships.preview": models.courseInvitationPreviewSchema,
   "courseMemberships.accept": z.object({ course_id: z.number(), status: z.literal("accepted") }),
   "courseMemberships.decline": z.object({ status: z.literal("declined") }),
-  "courseMemberships.resend": z.object({ delivery_status: models.courseInvitationDeliveryStatusSchema }),
+  "courseMemberships.resend": z.object({ delivery_status: models.courseInvitationDeliveryStatusSchema, invitation_url: z.url().optional() }),
   "courseMemberships.revoke": successSchema,
   "courseMemberships.removeMember": successSchema,
   "courseMemberships.leave": successSchema,

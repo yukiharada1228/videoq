@@ -1,0 +1,31 @@
+[project]
+name = "videoq-local-whisper"
+version = "0.2.0"
+description = "Private offline subtitle gateway for whisper.cpp CPU and vLLM NVIDIA"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "silero-vad==6.2.3",
+    "torch==2.14.1",
+    "onnxruntime==1.31.0",
+    "numpy>=2,<3",
+    "huggingface-hub>=2.2,<3",
+    "fastapi==0.146.0",
+    "starlette>=1.3.1",
+    "python-multipart==0.0.32",
+    "uvicorn>=0.38,<1",
+    "httpx>=0.27,<1",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "openai>=1.40"]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

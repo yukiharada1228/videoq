@@ -50,6 +50,7 @@ For documentation-only changes, start with [Update the documentation](guides/doc
 | Verify a change | [Tests and verification commands](guides/testing.md) |
 | Troubleshoot startup or video processing | [Troubleshooting](guides/troubleshooting.md) |
 | Deploy to on-prem Kubernetes | [On-prem installation](guides/on-premises.md) |
+| Keep LLM, embeddings and Whisper on site | [Local AI inference](guides/local-inference.md) |
 
 ## Explore the details
 

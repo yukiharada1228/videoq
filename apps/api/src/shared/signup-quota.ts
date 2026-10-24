@@ -1,3 +1,5 @@
+import { features } from "../lib/deployment";
+import type { Bindings } from "../types/bindings";
 import { PLAN_CATALOG } from "../features/billing/catalog";
 
 /**
@@ -41,16 +43,20 @@ export function parseNullableLimit(
   return n;
 }
 
-export function resolveSignupQuotaDefaults(env: {
+export function resolveSignupQuotaDefaults(env: Pick<Bindings, "RUNTIME" | "DEPLOYMENT_EDITION"> & {
+  DEFAULT_MONTHLY_UPLOAD_LIMIT_GB?: string;
   MAX_VIDEO_UPLOAD_SIZE_MB?: string;
   DEFAULT_STORAGE_LIMIT_GB?: string;
   DEFAULT_PROCESSING_LIMIT_MINUTES?: string;
   DEFAULT_AI_ANSWERS_LIMIT?: string;
 }): SignupQuotaDefaults {
-  const defaults = PLAN_CATALOG.free.entitlements;
+  const defaults = features(env).billing ? PLAN_CATALOG.free.entitlements : {
+    ...PLAN_CATALOG.free.entitlements, storageLimitGb: null, monthlyUploadLimitGb: null,
+    processingLimitMinutes: null, aiAnswersLimit: null,
+  };
   return {
     maxVideoUploadSizeMb: defaults.maxVideoUploadSizeMb,
-    monthlyUploadLimitGb: defaults.monthlyUploadLimitGb,
+    monthlyUploadLimitGb: parseNullableLimit(env.DEFAULT_MONTHLY_UPLOAD_LIMIT_GB, defaults.monthlyUploadLimitGb),
     storageLimitGb: parseNullableLimit(
       env.DEFAULT_STORAGE_LIMIT_GB,
       defaults.storageLimitGb,

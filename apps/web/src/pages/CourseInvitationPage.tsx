@@ -1,3 +1,4 @@
+import { features } from "@/lib/deployment";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRef } from 'react';
 import { useParams } from 'react-router-dom';
@@ -138,14 +139,14 @@ export default function CourseInvitationPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              <MessageAlert type="warning" message={t('courseInvitation.authRequired')} />
+              <MessageAlert type="warning" message={t(features.publicSignup ? 'courseInvitation.authRequired' : 'onprem.invitationAuthRequired')} />
               <div className="flex flex-wrap gap-4">
                 <Button asChild variant="solid" size="lg">
                   <Link href={`/login?next=${nextParam}`}>{t('courseInvitation.login')}</Link>
                 </Button>
-                <UtilityLink asChild>
+                {features.publicSignup && <UtilityLink asChild>
                   <Link href={`/signup?next=${nextParam}`}>{t('courseInvitation.signup')}</Link>
-                </UtilityLink>
+                </UtilityLink>}
               </div>
             </div>
           )}

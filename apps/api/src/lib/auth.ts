@@ -1,3 +1,4 @@
+import { features } from "./deployment";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { apiKey } from "@better-auth/api-key";
@@ -174,12 +175,12 @@ export function durableRateLimitStorage(env: Bindings): AuthRateLimitStorage {
  * The browser profile serves only session reads and native Google sign-in;
  * MCP/OAuth/API-key callers must use the default full profile.
  */
-export function createAuth(env: Bindings, db: Db, profile: "full" | "browser" = "full") {
+export function createAuth(env: Bindings, db: Db, profile: "full" | "browser" = "full", delivery?: { passwordReset: (link: { url: string; token: string }) => Promise<void> }) {
   const quota = resolveSignupQuotaDefaults(env);
   const baseURL = authBaseURL(env);
   const googleClientId = env.GOOGLE_CLIENT_ID?.trim();
   const googleClientSecret = env.GOOGLE_CLIENT_SECRET?.trim();
-  const googleEnabled = Boolean(googleClientId && googleClientSecret);
+  const googleEnabled = features(env).googleLogin && Boolean(googleClientId && googleClientSecret);
   const oauthConfig = oauthProviderConfig(env);
   const security = videoqAuthSecurity(oauthConfig);
 
@@ -229,13 +230,15 @@ export function createAuth(env: Bindings, db: Db, profile: "full" | "browser" = 
     },
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: true,
+      disableSignUp: !features(env).publicSignup,
+      requireEmailVerification: features(env).publicSignup,
       minPasswordLength: 12,
       maxPasswordLength: 128,
       revokeSessionsOnPasswordReset: true,
       // 案内メールの文面と同じ値を明示しておき、既定値の変更で乖離させない。
       resetPasswordTokenExpiresIn: PASSWORD_RESET_TOKEN_TTL_SEC,
-      sendResetPassword: async ({ user, url }) => {
+      sendResetPassword: async ({ user, url, token }) => {
+        if (delivery) return delivery.passwordReset({ url, token });
         await sendMail(env, user.email, "[VideoQ] パスワード再設定のご案内", [
           "VideoQ のパスワード再設定リクエストを受け付けました。",
           `${PASSWORD_RESET_TOKEN_TTL_SEC / 60}分以内に、以下のURLから新しいパスワードを設定してください。`,
@@ -247,7 +250,7 @@ export function createAuth(env: Bindings, db: Db, profile: "full" | "browser" = 
       },
     },
     emailVerification: {
-      sendOnSignUp: true,
+      sendOnSignUp: features(env).publicSignup,
       autoSignInAfterVerification: true,
       sendVerificationEmail: async ({ user, url }) => {
         await sendMail(env, user.email, "[VideoQ] メールアドレスの確認", [
@@ -300,6 +303,7 @@ export function createAuth(env: Bindings, db: Db, profile: "full" | "browser" = 
     },
     user: {
       additionalFields: {
+        quotaSource: { type: "string", required: false, defaultValue: features(env).billing ? "plan" : "admin", input: false },
         maxVideoUploadSizeMb: {
           type: "number",
           required: true,

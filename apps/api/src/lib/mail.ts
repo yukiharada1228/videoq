@@ -1,3 +1,4 @@
+import { requireFeature } from "./deployment";
 import type { Bindings } from "../types/bindings";
 import { deadlineSignal } from "./request-timeout";
 
@@ -10,6 +11,7 @@ export async function sendMail(
   subject: string,
   lines: string[],
 ): Promise<void> {
+  requireFeature(env, "emailDelivery");
   const apiKey = env.MAILGUN_API_KEY?.trim();
   if (!apiKey) {
     throw new Error(

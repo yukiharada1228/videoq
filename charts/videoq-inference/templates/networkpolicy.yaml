@@ -1,0 +1,35 @@
+{{- if and .Values.networkPolicy.denyEgress .Values.downloadModels }}
+{{- fail "networkPolicy.denyEgress requires downloadModels=false and pre-provisioned models" }}
+{{- end }}
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "inference.fullname" . }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: videoq-inference
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes:
+    - Ingress
+    {{- if .Values.networkPolicy.denyEgress }}
+    - Egress
+    {{- end }}
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ .Values.networkPolicy.clientNamespace | quote }} }
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: videoq
+              app.kubernetes.io/instance: {{ .Values.networkPolicy.clientRelease | quote }}
+            matchExpressions:
+              - { key: app.kubernetes.io/component, operator: In, values: [api, worker] }
+      ports:
+        - { protocol: TCP, port: 8000 }
+        - { protocol: TCP, port: 8080 }
+  {{- if .Values.networkPolicy.denyEgress }}
+  egress: []
+  {{- end }}
+{{- end }}

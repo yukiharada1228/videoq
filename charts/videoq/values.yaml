@@ -55,11 +55,25 @@ queue:
 ai:
   openaiBaseUrl: https://api.openai.com/v1
   llmModel: gpt-6-luna
-  embeddingProvider: openai
+  reasoningEffort: ""
+  separateToolSchema: false
+  requestTimeoutMs: 120000
+  streamTimeoutMs: 300000
+  # OpenAI-compatible embedding service; empty reuses openaiBaseUrl.
+  embeddingBaseUrl: ""
   embeddingModel: text-embedding-3-small
-  ollamaBaseUrl: ""
   whisperBackend: openai
+  # CPU overlay reduces this to 30; hosted/NVIDIA profiles use 300.
+  whisperChunkSeconds: 300
   whisperLocalUrl: ""
+
+# Enable with local AI. The site's CNI must enforce Kubernetes NetworkPolicy.
+networkPolicy:
+  localEgressOnly: false
+  # The release's own namespace is always allowed. Add infrastructure namespaces
+  # or intranet CIDRs for DB, S3, queue, SMTP and inference outside it.
+  allowedNamespaces: []
+  allowedCIDRs: []
 
 config:
   maxVideoUploadSizeMb: 200

@@ -22,15 +22,9 @@ describe.each([undefined, "production"])("Wrangler embedding settings (%s)", (en
         join(directory, "wrangler.jsonc"), undefined, config.vars, environment, true,
       );
       const settings = {
-        EMBEDDING_PROVIDER: String(bindings.EMBEDDING_PROVIDER?.value ?? ""),
         EMBEDDING_MODEL: String(bindings.EMBEDDING_MODEL?.value ?? ""),
       };
-      if (testCase.error) {
-        expect(() => resolveEmbeddingConfig(settings))
-          .toThrowError(expect.objectContaining({ reason: testCase.error }));
-      } else {
-        expect(resolveEmbeddingConfig(settings)).toEqual(testCase.expected);
-      }
+      expect(resolveEmbeddingConfig(settings)).toEqual(testCase.expected);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

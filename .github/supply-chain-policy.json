@@ -13,6 +13,7 @@
     "workerd"
   ],
   "uv_lockfiles": [
-    "apps/worker/uv.lock"
+    "apps/worker/uv.lock",
+    "apps/inference/whisper/uv.lock"
   ]
 }

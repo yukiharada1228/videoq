@@ -1,0 +1,25 @@
+{{- range $name := (list "whisper" "chat" "embedding") }}
+{{- $component := index $.Values $name }}
+{{- if has $name (list "chat" "embedding") }}
+{{- $component = index $.Values.servers $name }}
+{{- end }}
+{{- if not $component.persistence.existingClaim }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "inference.fullname" $ }}-{{ $name }}
+  labels:
+    {{- include "inference.labels" $ | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with $component.persistence.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $component.persistence.size }}
+{{- end }}
+{{- end }}

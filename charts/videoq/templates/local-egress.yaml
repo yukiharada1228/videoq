@@ -1,0 +1,28 @@
+{{- if .Values.networkPolicy.localEgressOnly }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "videoq.fullname" . }}-local-egress
+  labels:
+    {{- include "videoq.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "videoq.selector" . | nindent 6 }}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        {{- range $namespace := append .Values.networkPolicy.allowedNamespaces .Release.Namespace | uniq }}
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ $namespace | quote }} }
+        {{- end }}
+        {{- range .Values.networkPolicy.allowedCIDRs }}
+        - ipBlock: { cidr: {{ . | quote }} }
+        {{- end }}
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+{{- end }}

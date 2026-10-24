@@ -73,9 +73,8 @@ Apply `0011_job_delivery_guards.sql` before updating the worker.
 Uploaded-video processing also requires `0031_resumable_transcription.sql` and
 `0037_resumable_transcription_fallback.sql`.
 The parent reserves processing quota once and creates a persisted plan with
-300-second intervals for both cloud OpenAI and on-premises inference.
-Before upgrading, finish any incomplete plans with a different interval size;
-the retired provider and its fallback path are not supported.
+configured intervals for cloud OpenAI and local inference.
+Finish incomplete plans of any other interval size before upgrading.
 Four SQS lanes process the intervals; each saved checkpoint
 enqueues the next interval in its lane. Results and follow-up IDs survive retries,
 so delivery failures after saving do not call Whisper again for that interval.
@@ -91,8 +90,8 @@ results. Checkpoints are deleted by foreign-key cascade when the video is delete
 | `SQS_QUEUE_URL` | Amazon SQS / ElasticMQ |
 | `OPENAI_API_KEY` | Whisper and embeddings |
 | `WHISPER_BACKEND` | `openai` (cloud default) or `local` (on-premises) |
-| `EMBEDDING_PROVIDER` | `openai` (default) or `ollama` |
-| `EMBEDDING_MODEL` | Defaults to `text-embedding-3-small` for OpenAI. Required explicitly for Ollama (validated configuration: `qwen3-embedding:4b`) |
+| `WHISPER_LOCAL_URL` | Private API base for `local`: native Mac whisper.cpp has no `/v1` suffix with the documented launch command; the Kubernetes gateway includes `/v1` |
+| `EMBEDDING_MODEL` | Defaults to `text-embedding-3-small`; set the actual served alias for a private model |
 | `USE_S3_STORAGE` | Enable S3-compatible object storage |
 | `R2_BUCKET_NAME` / `R2_S3_ENDPOINT` / `R2_S3_REGION` | R2 bucket / endpoint / region |
 | `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | R2 S3 API token (use these names in Lambda's `APP_PARAM_NAME` JSON; `AWS_ACCESS_KEY_ID` is reserved for the execution role) |
@@ -104,9 +103,21 @@ results. Checkpoints are deleted by foreign-key cascade when the video is delete
 | `MEDIA_PROCESS_MEMORY_LIMIT_MB` | Address space limit for media subprocesses on Linux (default: 2,048 MiB) |
 | `MEDIA_PROCESS_OUTPUT_FILE_SIZE_LIMIT_MB` | File size limit for files written by media subprocesses (default: 1,024 MiB) |
 
-Cloud audio is sent to the OpenAI transcription API using `whisper-1`.
-The complete video, account email and chat history are not sent for this call.
-See [the switch runbook](../../docs/operations/openai-transcription.md).
+On-premises Kubernetes uses whisper.cpp on CPU and vLLM on NVIDIA, behind a
+private VAD/normalization gateway. Mac development can use native whisper.cpp
+with Metal. All use `WHISPER_BACKEND=local` and real segment timestamps; the
+operator selects weights before serving. Kubernetes gateway URLs include `/v1`.
+The native Mac launch command exposes `/audio/transcriptions` without `/v1`.
+See [local inference](../../docs/guides/local-inference.md).
+
+`WHISPER_CHUNK_SECONDS` controls durable worker intervals (30–300 seconds,
+default 300). The CPU profile uses 30 seconds. GPU dynamic batching is separate:
+the gateway forwards speech spans concurrently to vLLM, without waiting for a
+batch of uploaded videos. The dated comparison report records the experiments
+before adoption; its retired Modal-only commands are historical.
+
+Cloud transcription uses the OpenAI API's `whisper-1` model. See
+[the switch runbook](../../docs/operations/openai-transcription.md).
 
 Dedicated storage credentials are selected from `R2_ACCESS_KEY_ID` /
 `R2_SECRET_ACCESS_KEY` first, then `AWS_S3_ACCESS_KEY_ID` / `AWS_S3_SECRET_ACCESS_KEY`.
@@ -196,9 +207,8 @@ does not require the emulator. Do not deploy the local target to production.
 
 ## Embedding diagnostics
 
-Dimensions are fixed by the constant `EMBEDDING_DIMENSIONS = 1536`, and both providers
-are asked for 1536 dimensions. Ollama uses `/api/embed`. `EMBEDDING_VECTOR_SIZE` has
-been removed and is ignored if still set.
+Dimensions are fixed by `EMBEDDING_DIMENSIONS = 1536`. Hosted/private servers
+receive `dimensions: 1536` through `/v1/embeddings`.
 
 Run `python -m worker_python.check_embeddings` in a Python environment configured
 with the worker's environment variables to validate settings and the database's
@@ -217,3 +227,8 @@ this. The API's `focus_clip` reads dense images only for the requested interval.
 Prepare existing videos with `python scripts/prepare_visual_frames.py --video-id 42`.
 See the [visual evidence guide](../../docs/guides/visual-evidence.md) for settings,
 storage usage, deletion, and accuracy comparisons.
+
+OpenAI-compatible embeddings can use `EMBEDDING_BASE_URL` and a separate
+`EMBEDDING_API_KEY`. Unset values retain the shared OpenAI base URL/key. Use the
+same model and embedding endpoint in the API and worker. Local llama.cpp/vLLM
+recipes and their common acceptance commands are in `charts/videoq-inference/README.md`.

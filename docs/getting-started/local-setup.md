@@ -40,13 +40,13 @@ OPENAI_API_KEY=your-development-key
 OPENAI_BASE_URL=https://api.openai.com/v1
 LLM_MODEL=gpt-6-luna
 WHISPER_BACKEND=openai
-EMBEDDING_PROVIDER=openai
+
 EMBEDDING_MODEL=text-embedding-3-small
 ```
 
 Answer generation and image inspection share `LLM_MODEL`, which defaults to GPT-6 Luna (`gpt-6-luna`). With visual Q&A enabled, choose a model that supports image input, tool calling, and strict JSON output. See [model settings](../architecture/prompt-engineering.md#model-settings-and-limits).
 
-The templates already use these embedding defaults. Dimensions are fixed at 1536; no dimension environment variable is needed. The API and worker must use the same provider and model. For Ollama and diagnostic commands, see [embedding configuration](../guides/embeddings.md).
+The templates already use these embedding defaults. Dimensions are fixed at 1536; no dimension environment variable is needed. The API and worker must use the same provider and model. For private llama.cpp/vLLM endpoints and diagnostic commands, see [embedding configuration](../guides/embeddings.md).
 
 Generate two development secrets:
 

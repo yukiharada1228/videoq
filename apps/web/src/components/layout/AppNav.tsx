@@ -1,3 +1,4 @@
+import { features } from "@/lib/deployment";
 import { useEffect, useId, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -201,6 +202,7 @@ export function AppNav({ activePage }: AppNavProps) {
 
   const isAdmin = !!authQuery.data?.is_admin;
   const navLinks = allNavLinks.filter((link) => {
+    if (link.key === 'pricing' && !features.billing) return false;
     if (link.authRequired && !isAuthenticated) return false;
     if (link.adminRequired && !isAdmin) return false;
     return true;
@@ -307,7 +309,7 @@ export function AppNav({ activePage }: AppNavProps) {
               </Button>
             )}
 
-            {!isAuthenticated && activePage === 'home' && (
+            {features.publicSignup && !isAuthenticated && activePage === 'home' && (
               <Button variant="solid" size="sm" className="hidden sm:inline-flex" asChild>
                 <Link href="/signup" onClick={() => trackLandingEvent('signup_click', 'header')}>{t('landing.start')}</Link>
               </Button>

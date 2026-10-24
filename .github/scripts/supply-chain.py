@@ -66,17 +66,23 @@ def python_packages(lock):
         source = package.get("source", {})
         if source in ({"editable": "."}, {"virtual": "."}):
             continue
-        if source != {"registry": "https://pypi.org/simple"}:
+        cpu_torch = package["name"] == "torch" and source == {"registry": "https://download.pytorch.org/whl/cpu"}
+        if not cpu_torch and source != {"registry": "https://pypi.org/simple"}:
             raise ValueError(f"Unapproved Python source: {package['name']}")
         artifacts = package.get("wheels", []) + ([package["sdist"]] if "sdist" in package else [])
         if not artifacts or not package.get("wheels"):
             raise ValueError(f"Registry wheels required: {package['name']}")
         for artifact in artifacts:
-            if (not registry_url(artifact.get("url", ""), "files.pythonhosted.org") or
+            host = urllib.parse.urlsplit(artifact.get("url", "")).netloc if cpu_torch else "files.pythonhosted.org"
+            if ((cpu_torch and host not in {"download.pytorch.org", "download-r2.pytorch.org"}) or
+                    not registry_url(artifact.get("url", ""), host) or
+                    (cpu_torch and not urllib.parse.urlsplit(artifact["url"]).path.startswith("/whl/cpu/torch-")) or
                     not re.fullmatch(r"sha256:[a-f0-9]{64}", artifact.get("hash", ""))):
                 raise ValueError(f"Unverified Python artifact: {package['name']}")
-        key = ("PyPI", package["name"], package["version"])
-        result[key] = {artifact["url"]: artifact["hash"] for artifact in artifacts}
+        # CPU wheel local tags identify builds of the same public Torch release.
+        public_version = package["version"].split("+", 1)[0] if cpu_torch else package["version"]
+        key = ("PyPI", package["name"], public_version)
+        result.setdefault(key, {}).update({artifact["url"]: artifact["hash"] for artifact in artifacts})
     return result
 
 

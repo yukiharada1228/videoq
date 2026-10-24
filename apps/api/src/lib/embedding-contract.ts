@@ -3,8 +3,8 @@ import { EMBEDDING_DIMENSIONS } from "./embedding-dimensions";
 
 export { EMBEDDING_DIMENSIONS };
 
-export type EmbeddingConfig = { provider: "openai" | "ollama"; model: string };
-export type EmbeddingSettings = { EMBEDDING_PROVIDER?: string; EMBEDDING_MODEL?: string };
+export type EmbeddingConfig = { provider: "openai"; model: string };
+export type EmbeddingSettings = { EMBEDDING_MODEL?: string };
 export type EmbeddingReason =
   | "EMBEDDING_CONFIG_INVALID"
   | "EMBEDDING_SCHEMA_MISMATCH"
@@ -41,15 +41,8 @@ export class EmbeddingValidationError extends LlmProviderError {
 }
 
 export function resolveEmbeddingConfig(env: EmbeddingSettings): EmbeddingConfig {
-  const provider = env.EMBEDDING_PROVIDER?.trim().toLowerCase() || "openai";
-  if (provider !== "openai" && provider !== "ollama") {
-    throw new EmbeddingConfigurationError("EMBEDDING_CONFIG_INVALID", "Unsupported embedding provider. Configure openai or ollama.");
-  }
-  const model = env.EMBEDDING_MODEL?.trim() || (provider === "openai" ? DEFAULT_EMBEDDING_MODEL : "");
-  if (!model) {
-    throw new EmbeddingConfigurationError("EMBEDDING_CONFIG_INVALID", "EMBEDDING_MODEL is required when EMBEDDING_PROVIDER=ollama.");
-  }
-  return { provider, model };
+  const model = env.EMBEDDING_MODEL?.trim() || DEFAULT_EMBEDDING_MODEL;
+  return { provider: "openai", model };
 }
 
 export function validateEmbedding(

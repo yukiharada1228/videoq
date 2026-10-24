@@ -1,3 +1,4 @@
+import { requireFeature } from "../../lib/deployment";
 import {
   listVideosPage,
   getVideoDetail,
@@ -260,6 +261,7 @@ export async function createUserYoutubeVideo(
   body: YoutubeCreateRequest,
   idempotency?: CreationIdempotency,
 ) {
+  requireFeature(env, "youtube");
   const youtubeVideoId = extractYoutubeVideoId(body.youtube_url);
   if (youtubeVideoId === null) {
     return {

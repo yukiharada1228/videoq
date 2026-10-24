@@ -112,6 +112,7 @@ jobs:
       docs: ${{ steps.filter.outputs.docs }}
       worker_matrix: ${{ steps.runtimes.outputs.matrix }}
       onprem: ${{ steps.filter.outputs.onprem }}
+      whisper_gpu: ${{ steps.filter.outputs.whisper_gpu }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -120,11 +121,15 @@ jobs:
         id: filter
         with:
           filters: |
+            whisper_gpu:
+              - 'apps/inference/whisper/Dockerfile.vllm'
+              - '.github/workflows/onprem-validation.yml'
             onprem:
               - '.dockerignore'
               - 'charts/**'
               - 'apps/api/**'
               - 'apps/worker/**'
+              - 'apps/inference/**'
               - 'apps/web/**'
               - 'packages/trpc/**'
               - 'package.json'
@@ -216,6 +221,8 @@ jobs:
     needs: changes
     if: needs.changes.outputs.onprem == 'true'
     uses: ./.github/workflows/onprem-validation.yml
+    with:
+      validate_whisper_gpu: ${{ needs.changes.outputs.whisper_gpu == 'true' }}
     permissions:
       contents: read
 

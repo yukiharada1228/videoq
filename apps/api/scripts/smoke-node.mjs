@@ -69,8 +69,9 @@ try {
     body: JSON.stringify({ name: "On-prem Smoke", email, password: "Onprem-smoke-password-2026!",
       username: `smoke_${randomBytes(6).toString("hex")}` }),
   });
-  assert.equal(signup.status, 200, `signup failed: ${await signup.text()}`);
-  assert.equal((await db.query("SELECT count(*)::int AS count FROM users WHERE email = $1", [email])).rows[0].count, 1);
+  assert.equal(signup.status, 404, "on-prem signup must be unavailable");
+  assert.equal((await fetch(`${origin}/api/billing/webhook`, { method: "POST" })).status, 404);
+  assert.equal((await db.query("SELECT count(*)::int AS count FROM users WHERE email = $1", [email])).rows[0].count, 0);
   assert((await db.query("SELECT count(*)::int AS count FROM runtime_rate_limits")).rows[0].count > 0);
   const concurrentAuth = await Promise.all(Array.from({ length: 8 }, () => fetch(`${origin}/api/auth/sign-in/email`, {
     method: "POST", headers: { "Content-Type": "application/json", Origin: origin },
@@ -88,7 +89,7 @@ try {
     const [code] = await once(job, "close");
     assert.equal(code, 0, `${command} must run without Cloudflare bindings`);
   }
-  console.log("Node HTTP smoke passed: readiness, auth, chat guards, signup and PostgreSQL rate limiting");
+  console.log("Node HTTP smoke passed: readiness, auth, chat guards, disabled signup/billing and PostgreSQL rate limiting");
 } catch (error) {
   console.error(logs);
   throw error;

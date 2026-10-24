@@ -102,13 +102,13 @@ VideoQは回答の文章区間と出典IDにstrictなJSONスキーマを指定�
 
 Yanzhao Zhang et al. **“Qwen3 Embedding: Advancing Text Embedding and Reranking Through Foundation Models.”** 2025, arXiv:2506.05176。[技術報告](https://arxiv.org/abs/2506.05176)。BibTeXキー: `zhang2025qwen3embedding`。
 
-[埋め込みガイド](../guides/embeddings.md)では、Ollama経由の `qwen3-embedding:4b` を任意の構成例として示しています。この系列を実際に使う場合に引用し、モデルのタグとダイジェストも記録します。報告はリランカーも扱いますが、VideoQは埋め込みを利用し、二段目の再ランキングモデルは使っていません。
+[ローカル AI 推論ガイド](../guides/local-inference.md)では、社内 vLLM 経由の Qwen3-Embedding-4B を構成例として示しています。この系列を実際に使う場合に引用し、モデルのタグとダイジェストも記録します。報告はリランカーも扱いますが、VideoQは埋め込みを利用し、二段目の再ランキングモデルは使っていません。
 
 ### Qwen3-VL — 任意のローカル構成 {#qwen3-vl}
 
 Shuai Bai et al. **“Qwen3-VL Technical Report.”** 2025, arXiv:2511.21631。[技術報告](https://arxiv.org/abs/2511.21631)、[著者のモデルリポジトリ](https://github.com/QwenLM/Qwen3-VL)。BibTeXキー: `bai2025qwen3vl`。
 
-[リポジトリのREADME](https://github.com/yukiharada1228/videoq#optional-reduce-costs-with-local-ai)では、ローカルチャットの例に `qwen3-vl:8b-instruct` を示しています。既定のモデルではありません。この系列を使う場合に引用し、重みと量子化の条件も記録します。VideoQ側の要件であるstrictな構造化出力とツール呼び出し、映像確認時の画像入力への対応は別途必要です。文献の引用は互換性の動作確認を意味しません。
+Qwen3-VL は、別途検証したローカル構成で選べる視覚モデルの系列です。既定のモデルではありません。この系列を使う場合に引用し、重みと量子化の条件も記録します。VideoQ側の要件であるstrictな構造化出力とツール呼び出し、映像確認時の画像入力への対応は別途必要です。文献の引用は互換性の動作確認を意味しません。
 
 ## 引用を再利用する {#reuse}
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import logging
 import math
 import tempfile
@@ -42,6 +43,8 @@ def run_transcription(
     When ENABLE_HEAVY_PIPELINE is off, returns a placeholder SRT so status
     transitions can be tested without FFmpeg/Whisper (no Otsu).
     """
+    if video.source_type == "youtube" and os.environ.get("DEPLOYMENT_EDITION") == "onprem":
+        raise RuntimeError("YouTube integration is disabled in the on-prem edition")
     if not heavy_pipeline_enabled():
         logger.info(
             "ENABLE_HEAVY_PIPELINE off; placeholder transcript for video %d", video.id

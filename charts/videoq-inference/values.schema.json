@@ -1,0 +1,500 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "downloadModels": {
+      "type": "boolean"
+    },
+    "requireImageDigests": {
+      "type": "boolean"
+    },
+    "fullnameOverride": {
+      "type": "string",
+      "pattern": "^([a-z0-9]([a-z0-9-]*[a-z0-9])?)?$",
+      "maxLength": 48
+    },
+    "whisper": {
+      "type": "object",
+      "required": [
+        "image",
+        "persistence",
+        "resources",
+        "backend",
+        "modelRepo",
+        "modelRevision",
+        "modelFile",
+        "modelSha256",
+        "maxConcurrentRequests",
+        "upstreamParallelism",
+        "gatewayResources",
+        "vllmImage",
+        "maxSequences"
+      ],
+      "properties": {
+        "image": {
+          "type": "object",
+          "required": [
+            "repository",
+            "tag",
+            "pullPolicy"
+          ],
+          "properties": {
+            "repository": {
+              "type": "string",
+              "minLength": 1
+            },
+            "tag": {
+              "type": "string",
+              "minLength": 1
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^(sha256:[a-f0-9]{64})?$"
+            },
+            "pullPolicy": {
+              "enum": [
+                "IfNotPresent",
+                "Always",
+                "Never"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "persistence": {
+          "type": "object",
+          "properties": {
+            "size": {
+              "type": "string",
+              "minLength": 1
+            },
+            "existingClaim": {
+              "type": "string"
+            },
+            "storageClass": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "modelRepo": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "modelRevision": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "cpuThreads": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        },
+        "resources": {
+          "type": "object"
+        },
+        "nodeSelector": {
+          "type": "object"
+        },
+        "tolerations": {
+          "type": "array"
+        },
+        "backend": {
+          "enum": [
+            "whispercpp",
+            "vllm"
+          ]
+        },
+        "modelFile": {
+          "type": "string",
+          "pattern": "^(ggml-[a-z0-9_.-]+\\.bin)?$"
+        },
+        "modelSha256": {
+          "type": "string",
+          "pattern": "^([a-f0-9]{64})?$"
+        },
+        "vllmImage": {
+          "type": "object",
+          "required": [
+            "repository",
+            "tag",
+            "pullPolicy"
+          ],
+          "properties": {
+            "repository": {
+              "type": "string",
+              "minLength": 1
+            },
+            "tag": {
+              "type": "string",
+              "minLength": 1
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^(sha256:[a-f0-9]{64})?$"
+            },
+            "pullPolicy": {
+              "enum": [
+                "IfNotPresent",
+                "Always",
+                "Never"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "maxConcurrentRequests": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "upstreamParallelism": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8
+        },
+        "maxSequences": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "gatewayResources": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "backend": {
+                "const": "whispercpp"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "modelFile": {
+                "minLength": 1
+              },
+              "modelSha256": {
+                "minLength": 64
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "backend": {
+                "const": "vllm"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "modelFile": {
+                "const": ""
+              },
+              "modelSha256": {
+                "const": ""
+              }
+            }
+          }
+        }
+      ]
+    },
+    "networkPolicy": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "denyEgress": {
+          "type": "boolean"
+        },
+        "clientNamespace": {
+          "type": "string",
+          "minLength": 1
+        },
+        "clientRelease": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "denyEgress": {
+                "const": true
+              }
+            },
+            "required": [
+              "denyEgress"
+            ]
+          },
+          "then": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "backend": {
+      "enum": [
+        "llamacpp",
+        "vllm"
+      ]
+    },
+    "llamacpp": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "object",
+          "required": [
+            "repository",
+            "tag",
+            "pullPolicy"
+          ],
+          "properties": {
+            "repository": {
+              "type": "string",
+              "minLength": 1
+            },
+            "tag": {
+              "type": "string",
+              "minLength": 1
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^(sha256:[a-f0-9]{64})?$"
+            },
+            "pullPolicy": {
+              "enum": [
+                "IfNotPresent",
+                "Always",
+                "Never"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "vllm": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "object",
+          "required": [
+            "repository",
+            "tag",
+            "pullPolicy"
+          ],
+          "properties": {
+            "repository": {
+              "type": "string",
+              "minLength": 1
+            },
+            "tag": {
+              "type": "string",
+              "minLength": 1
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^(sha256:[a-f0-9]{64})?$"
+            },
+            "pullPolicy": {
+              "enum": [
+                "IfNotPresent",
+                "Always",
+                "Never"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "servers": {
+      "type": "object",
+      "properties": {
+        "chat": {
+          "type": "object",
+          "required": [
+            "servedModel",
+            "modelRepo",
+            "modelRevision",
+            "contextLength",
+            "resources",
+            "persistence",
+            "cpuThreads"
+          ],
+          "properties": {
+            "servedModel": {
+              "type": "string",
+              "minLength": 1
+            },
+            "modelRepo": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+            },
+            "modelRevision": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40}$"
+            },
+            "modelFile": {
+              "type": "string",
+              "pattern": "^([A-Za-z0-9_.-]+\\.gguf)?$"
+            },
+            "modelSha256": {
+              "type": "string",
+              "pattern": "^([a-f0-9]{64})?$"
+            },
+            "contextLength": {
+              "type": "integer",
+              "minimum": 4096
+            },
+            "extraArgs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "resources": {
+              "type": "object"
+            },
+            "persistence": {
+              "type": "object",
+              "properties": {
+                "size": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "existingClaim": {
+                  "type": "string"
+                },
+                "storageClass": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "cpuThreads": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 128
+            },
+            "nodeSelector": {
+              "type": "object"
+            },
+            "tolerations": {
+              "type": "array"
+            }
+          },
+          "additionalProperties": false
+        },
+        "embedding": {
+          "type": "object",
+          "required": [
+            "servedModel",
+            "modelRepo",
+            "modelRevision",
+            "contextLength",
+            "resources",
+            "persistence",
+            "cpuThreads"
+          ],
+          "properties": {
+            "servedModel": {
+              "type": "string",
+              "minLength": 1
+            },
+            "modelRepo": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+            },
+            "modelRevision": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40}$"
+            },
+            "modelFile": {
+              "type": "string",
+              "pattern": "^([A-Za-z0-9_.-]+\\.gguf)?$"
+            },
+            "modelSha256": {
+              "type": "string",
+              "pattern": "^([a-f0-9]{64})?$"
+            },
+            "contextLength": {
+              "type": "integer",
+              "minimum": 4096
+            },
+            "extraArgs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "resources": {
+              "type": "object"
+            },
+            "persistence": {
+              "type": "object",
+              "properties": {
+                "size": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "existingClaim": {
+                  "type": "string"
+                },
+                "storageClass": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "cpuThreads": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 128
+            },
+            "nodeSelector": {
+              "type": "object"
+            },
+            "tolerations": {
+              "type": "array"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "imagePullSecrets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

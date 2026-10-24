@@ -63,6 +63,22 @@ class LockPolicyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             policy.python_packages(lock)
 
+    def test_only_cpu_torch_may_use_the_official_pytorch_wheel_index(self):
+        package = {"name": "torch", "version": "2.14.1+cpu",
+                   "source": {"registry": "https://download.pytorch.org/whl/cpu"},
+                   "wheels": [{"url": "https://download.pytorch.org/whl/cpu/torch-2.14.1.whl",
+                               "hash": "sha256:" + "a" * 64}]}
+        lock = {"version": 1, "package": [package]}
+        self.assertIn(("PyPI", "torch", "2.14.1"), policy.python_packages(lock))
+        for name, url in [("other", package["wheels"][0]["url"]),
+                          ("torch", "https://download.pytorch.org/whl/unreviewed.whl"),
+                          ("torch", "https://evil.test/whl/cpu/torch-2.14.1.whl")]:
+            altered = copy.deepcopy(lock)
+            altered["package"][0]["name"] = name
+            altered["package"][0]["wheels"][0]["url"] = url
+            with self.assertRaises(ValueError):
+                policy.python_packages(altered)
+
     def test_known_vulnerabilities_and_incomplete_results_block(self):
         for data in [{"results": [{"vulns": [{"id": "MAL-2026-test"}]}]}, {"results": []},
                      {"results": [{"next_page_token": "more"}]}]:

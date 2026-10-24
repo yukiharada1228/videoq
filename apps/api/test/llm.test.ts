@@ -1,6 +1,6 @@
 import { embedding as testEmbedding } from "./helpers/embedding";
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { generateReply, streamReply, LLM_STREAM_TIMEOUT_MS } from "../src/lib/llm";
+import { generateReply, streamReply, LLM_STREAM_TIMEOUT_MS, llmTimeoutMs } from "../src/lib/llm";
 import { stalledChatResponse } from "./helpers/stalled-chat-response";
 import { embedQuery } from "../src/lib/embeddings";
 import { LlmConfigurationError, LlmProviderError } from "../src/lib/openai";
@@ -42,6 +42,24 @@ const frame = (content: string, finish_reason: string | null = null) => `data: $
 const frames = () => [frame(JSON.stringify(modelAnswer)), frame("", "stop"), "data: [DONE]\n\n"];
 
 describe("native structured LLM output", () => {
+  it("accepts bounded CPU inference deadlines and preserves hosted defaults", () => {
+    expect(llmTimeoutMs(ENV)).toBe(120_000);
+    expect(llmTimeoutMs(ENV, true)).toBe(300_000);
+    const local = { ...ENV, LLM_REQUEST_TIMEOUT_MS: "600000", LLM_STREAM_TIMEOUT_MS: "600000" };
+    expect(llmTimeoutMs(local)).toBe(600_000);
+    expect(llmTimeoutMs(local, true)).toBe(600_000);
+    for (const value of ["0", "900001", "NaN", "1.5"]) {
+      expect(() => llmTimeoutMs({ ...ENV, LLM_REQUEST_TIMEOUT_MS: value })).toThrow(LlmConfigurationError);
+    }
+  });
+  it("can disable reasoning on a local thinking model without changing the response schema", async () => {
+    vi.stubGlobal("fetch", async (_url: string, init: RequestInit) => {
+      expect(JSON.parse(String(init.body))).toMatchObject({ model: "qwen3:4b", reasoning_effort: "none",
+        response_format: { type: "json_schema", json_schema: { strict: true } } });
+      return jsonResponse(completion());
+    });
+    expect(await generateReply({ ...ENV, LLM_MODEL: "qwen3:4b", LLM_REASONING_EFFORT: "none" }, "SYS", "Q")).toEqual(modelAnswer);
+  });
   it.each(["local-codex-model", "gpt-5.4-pro", "gpt-4o-mini", "gpt-6-luna"])("%s uses strict json_schema with no conversion call", async (model) => {
     const calls: Record<string, unknown>[] = [];
     vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
@@ -146,24 +164,18 @@ describe("native structured LLM output", () => {
 });
 
 describe("埋め込み生成", () => {
-  it("Ollama は専用エンドポイントとモデルを使い、OpenAI キーを必要としない", async () => {
+  it("プライベート埋め込み API は専用エンドポイント・モデル・認証を使う", async () => {
     vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
-      expect(url).toBe("http://127.0.0.1:11434/api/embed");
+      expect(url).toBe("http://embedding.test:8000/v1/embeddings");
       expect(JSON.parse(String(init.body))).toEqual({
-        model: "qwen3-embedding:4b",
-        input: "hello",
-        dimensions: 1536,
+        model: "gte-qwen2-1.5b-q4km-124fbdad", input: "hello", dimensions: 1536, encoding_format: "float",
       });
-      expect(new Headers(init.headers).has("authorization")).toBe(false);
-      return jsonResponse({ embeddings: [testEmbedding(0.5, -0.25, 0)] });
+      expect(new Headers(init.headers).get("authorization")).toBe("Bearer local-inference");
+      return jsonResponse({ data: [{ index: 0, embedding: testEmbedding(0.5, -0.25, 0) }] });
     });
-
     await expect(embedQuery({
-      ...ENV,
-      OPENAI_API_KEY: "",
-      EMBEDDING_PROVIDER: "ollama",
-      EMBEDDING_MODEL: "qwen3-embedding:4b",
-      OLLAMA_BASE_URL: "http://127.0.0.1:11434/",
+      ...ENV, EMBEDDING_MODEL: "gte-qwen2-1.5b-q4km-124fbdad",
+      EMBEDDING_BASE_URL: "http://embedding.test:8000/v1/", EMBEDDING_API_KEY: "local-inference",
     }, "hello")).resolves.toEqual(testEmbedding(0.5, -0.25, 0));
   });
 

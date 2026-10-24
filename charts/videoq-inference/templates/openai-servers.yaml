@@ -1,0 +1,158 @@
+{{- $root := . }}
+{{- $image := (index .Values .Values.backend).image }}
+{{- range $name := list "chat" "embedding" }}
+{{- $server := index $root.Values.servers $name }}
+{{- if and (eq $root.Values.backend "llamacpp") (or (empty $server.modelFile) (empty $server.modelSha256)) }}
+{{- fail "llamacpp servers require modelFile and modelSha256" }}
+{{- end }}
+{{- if and (eq $root.Values.backend "vllm") (not (empty $server.modelFile)) }}
+{{- fail "vllm profile requires safetensors snapshots (modelFile must be empty)" }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "inference.fullname" $root }}-{{ $name }}
+  labels:
+    {{- include "inference.labels" $root | nindent 4 }}
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app.kubernetes.io/instance: {{ $root.Release.Name }}, app.kubernetes.io/component: {{ $name }} }
+  template:
+    metadata:
+      annotations:
+        videoq.io/model-revision: {{ $server.modelRevision | quote }}
+      labels:
+        {{- include "inference.labels" $root | nindent 8 }}
+        app.kubernetes.io/component: {{ $name }}
+    spec:
+      automountServiceAccountToken: false
+      {{- with $root.Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, fsGroup: 10001, seccompProfile: { type: RuntimeDefault } }
+      {{- with $server.nodeSelector }}
+      nodeSelector: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $server.tolerations }}
+      tolerations: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if $root.Values.downloadModels }}
+      initContainers:
+        - name: provision-model
+          image: {{ include "inference.image" (dict "root" $root "image" $root.Values.whisper.image "component" "whisper") | quote }}
+          imagePullPolicy: {{ $root.Values.whisper.image.pullPolicy }}
+          command: [python, provision.py]
+          env:
+            - { name: MODEL_REPO, value: {{ $server.modelRepo | quote }} }
+            - { name: MODEL_REVISION, value: {{ $server.modelRevision | quote }} }
+            - { name: MODEL_FILE, value: {{ $server.modelFile | quote }} }
+            - { name: MODEL_SHA256, value: {{ $server.modelSha256 | quote }} }
+            - { name: HF_HUB_OFFLINE, value: "0" }
+          securityContext: {{ include "inference.security" $root | nindent 12 }}
+          resources: { requests: { cpu: 100m, memory: 128Mi }, limits: { memory: 1Gi } }
+          volumeMounts: [{ name: models, mountPath: /models }]
+      {{- end }}
+      containers:
+        - name: {{ $name }}
+          image: {{ include "inference.image" (dict "root" $root "image" $image "component" $root.Values.backend) | quote }}
+          imagePullPolicy: {{ $image.pullPolicy }}
+          {{- if eq $root.Values.backend "llamacpp" }}
+          # Official server image entrypoint. All weights are local files.
+          args:
+            - --model
+            - /models/{{ $server.modelRevision }}/{{ $server.modelFile }}
+            - --alias
+            - {{ $server.servedModel | quote }}
+            - --host
+            - "0.0.0.0"
+            - --port
+            - "8000"
+            - --ctx-size
+            - {{ $server.contextLength | quote }}
+            - --threads
+            - {{ $server.cpuThreads | quote }}
+            - --parallel
+            - "1"
+            - --gpu-layers
+            - "0"
+            - --offline
+            {{- if eq $name "chat" }}
+            - --jinja
+            - --reasoning
+            - "off"
+            {{- else }}
+            - --embedding
+            - --pooling
+            - last
+            {{- end }}
+          {{- else }}
+          command: [vllm, serve]
+          args:
+            - /models/{{ $server.modelRevision }}
+            - --served-model-name
+            - {{ $server.servedModel | quote }}
+            - --host
+            - "0.0.0.0"
+            - --port
+            - "8000"
+            - --max-model-len
+            - {{ $server.contextLength | quote }}
+            - --generation-config
+            - vllm
+            {{- if eq $name "chat" }}
+            - --enable-auto-tool-choice
+            - --tool-call-parser
+            - hermes
+            - --default-chat-template-kwargs
+            - '{"enable_thinking":false}'
+            {{- else }}
+            - --runner
+            - pooling
+            {{- end }}
+          {{- end }}
+            {{- with $server.extraArgs }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports: [{ name: http, containerPort: 8000 }]
+          env:
+            - { name: HF_HUB_OFFLINE, value: "1" }
+            - { name: TRANSFORMERS_OFFLINE, value: "1" }
+            - { name: HF_HUB_DISABLE_TELEMETRY, value: "1" }
+            - { name: VLLM_NO_USAGE_STATS, value: "1" }
+            - { name: DO_NOT_TRACK, value: "1" }
+            - { name: HOME, value: /tmp }
+            - { name: VLLM_CONFIG_ROOT, value: /tmp/vllm }
+            - { name: VLLM_CACHE_ROOT, value: /tmp/vllm-cache }
+          startupProbe: { httpGet: { path: /health, port: http }, periodSeconds: 10, failureThreshold: 180 }
+          readinessProbe: { httpGet: { path: /health, port: http }, periodSeconds: 10 }
+          livenessProbe: { httpGet: { path: /health, port: http }, periodSeconds: 30, timeoutSeconds: 5 }
+          securityContext: {{ include "inference.security" $root | nindent 12 }}
+          resources: {{ toYaml $server.resources | nindent 12 }}
+          volumeMounts:
+            - { name: models, mountPath: /models, readOnly: true }
+            {{- if eq $root.Values.backend "vllm" }}
+            - { name: shm, mountPath: /dev/shm }
+            {{- end }}
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: {{ default (printf "%s-%s" (include "inference.fullname" $root) $name) $server.persistence.existingClaim }}
+        {{- if eq $root.Values.backend "vllm" }}
+        - name: shm
+          emptyDir: { medium: Memory, sizeLimit: 2Gi }
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "inference.fullname" $root }}-{{ $name }}
+  labels:
+    {{- include "inference.labels" $root | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/instance: {{ $root.Release.Name }}, app.kubernetes.io/component: {{ $name }} }
+  ports: [{ name: http, port: 8000, targetPort: http }]
+{{- end }}

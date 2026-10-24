@@ -1,3 +1,4 @@
+import { requireFeature } from "../../lib/deployment";
 import Stripe from "stripe";
 import type { Bindings } from "../../types/bindings";
 import { apiServiceUnavailable } from "../../shared/errors";
@@ -19,6 +20,7 @@ function createStripeClient(apiKey: string): Stripe {
 }
 
 export function requireStripeClient(env: Bindings): Stripe {
+  requireFeature(env, "billing");
   const key = stripeSecretKey(env);
   if (!key) {
     throw apiServiceUnavailable("Stripe is not configured.", "STRIPE_NOT_CONFIGURED");

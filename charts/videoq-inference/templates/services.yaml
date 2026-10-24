@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "inference.fullname" . }}-whisper
+  labels:
+    {{- include "inference.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: whisper }
+  ports: [{ name: http, port: 8080, targetPort: http }]

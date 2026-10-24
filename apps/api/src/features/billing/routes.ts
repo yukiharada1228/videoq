@@ -1,3 +1,4 @@
+import { requireFeature } from "../../lib/deployment";
 import { Hono } from "hono";
 import { apiBadRequest, apiServiceUnavailable } from "../../shared/errors";
 import type { AppEnv } from "../../types/bindings";
@@ -10,6 +11,7 @@ export const billingRoutes = new Hono<AppEnv>();
 billingRoutes.onError(onError);
 
 billingRoutes.post("/webhook", async (c) => {
+  requireFeature(c.env, "billing");
   const secret = c.env.STRIPE_WEBHOOK_SECRET?.trim();
   if (!secret) {
     throw apiServiceUnavailable("Webhook secret is not configured.", "STRIPE_WEBHOOK_UNSET");

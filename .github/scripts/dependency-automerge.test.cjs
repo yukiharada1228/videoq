@@ -10,6 +10,12 @@ const pinPatch = (action = 'actions/checkout') =>
   '-      - uses: ' + action + '@' + 'a'.repeat(40) + ' # v7.0.0\n' +
   '+      - uses: ' + action + '@' + 'b'.repeat(40) + ' # v7.0.1';
 
+test('local inference dependency updates use their own supported manifest and image paths', () => {
+  assert.equal(policy.autoMergeMetadata(metadata('uv'), [file('apps/inference/whisper/pyproject.toml'), file('apps/inference/whisper/uv.lock')]), true);
+  assert.equal(policy.autoMergeMetadata(metadata('docker'), [file('apps/inference/whisper/Dockerfile')]), true);
+  assert.equal(policy.autoMergeMetadata(metadata('uv'), [file('apps/inference/whisper/server.py')]), false);
+});
+
 test('verified minor and patch updates qualify; major and missing metadata do not', () => {
   const files = [file('package.json'), file('package-lock.json')];
   for (const type of ['version-update:semver-minor', 'version-update:semver-patch']) {

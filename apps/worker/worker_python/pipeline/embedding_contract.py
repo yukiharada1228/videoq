@@ -38,15 +38,8 @@ class EmbeddingContractError(RuntimeError):
 
 def resolve_embedding_config(environ: Mapping[str, str] | None = None) -> EmbeddingConfig:
     env = os.environ if environ is None else environ
-    provider = env.get("EMBEDDING_PROVIDER", "").strip().lower() or "openai"
-    if provider not in {"openai", "ollama"}:
-        raise EmbeddingContractError("EMBEDDING_CONFIG_INVALID", "Unsupported embedding provider. Configure openai or ollama.")
-    model = env.get("EMBEDDING_MODEL", "").strip() or (
-        "text-embedding-3-small" if provider == "openai" else ""
-    )
-    if not model:
-        raise EmbeddingContractError("EMBEDDING_CONFIG_INVALID", "EMBEDDING_MODEL is required when EMBEDDING_PROVIDER=ollama.")
-    return EmbeddingConfig(provider, model)
+    model = env.get("EMBEDDING_MODEL", "").strip() or "text-embedding-3-small"
+    return EmbeddingConfig("openai", model)
 
 
 def invalid_output(config: EmbeddingConfig) -> EmbeddingContractError:

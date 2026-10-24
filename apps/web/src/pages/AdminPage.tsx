@@ -1,3 +1,5 @@
+import { isOnprem } from "@/lib/deployment";
+import { OnpremUserProvisioning, ResetUserAccessButton } from "@/components/auth/OnpremUserProvisioning";
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
@@ -363,6 +365,7 @@ export default function AdminPage() {
         </Heading>
         <SupportText className="mb-4">{t('admin.users.description')}</SupportText>
 
+        {isOnprem && <OnpremUserProvisioning />}
         <form
           className="mb-6 max-w-2xl"
           onSubmit={(event) => {
@@ -494,6 +497,7 @@ export default function AdminPage() {
                               {t('admin.users.delete')}
                             </Button>
                           </div>
+                        {isOnprem && <ResetUserAccessButton id={String(row.id)} username={row.username} />}
                         </TableCell>
                       </TableRow>
                     );

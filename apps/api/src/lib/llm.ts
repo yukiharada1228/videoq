@@ -5,6 +5,7 @@ import type { ModelAnswer } from "@videoq/trpc/chat";
 import { deadlineSignal } from "./request-timeout";
 import type { Bindings } from "../types/bindings";
 import type { AnswerCostLedger } from "./answer-cost-ledger";
+import { LlmConfigurationError } from "./openai";
 
 /**
  * QA RAG の LLM 呼び出し。temperature=0.0、max_tokens=1024 を使う。
@@ -14,6 +15,16 @@ import type { AnswerCostLedger } from "./answer-cost-ledger";
 export const MAX_TOKENS = 1024;
 export const LLM_REQUEST_TIMEOUT_MS = 2 * 60_000;
 export const LLM_STREAM_TIMEOUT_MS = 5 * 60_000;
+
+export function llmTimeoutMs(env: Bindings, streaming = false): number {
+  const key = streaming ? "LLM_STREAM_TIMEOUT_MS" : "LLM_REQUEST_TIMEOUT_MS";
+  if (!env[key]) return streaming ? LLM_STREAM_TIMEOUT_MS : LLM_REQUEST_TIMEOUT_MS;
+  const value = Number(env[key]);
+  if (!Number.isSafeInteger(value) || value < 1000 || value > 900_000) {
+    throw new LlmConfigurationError(`${key} must be an integer between 1000 and 900000`);
+  }
+  return value;
+}
 
 const promptMessages = (systemPrompt: string, queryText: string) => [
   new SystemMessage(systemPrompt),
@@ -29,7 +40,7 @@ export async function generateReply(
 ): Promise<ModelAnswer> {
   const model = createChatModel(env, {
     maxTokens: MAX_TOKENS,
-    timeoutMs: LLM_REQUEST_TIMEOUT_MS,
+    timeoutMs: llmTimeoutMs(env),
     costLedger,
   });
   try {
@@ -56,13 +67,13 @@ export async function* streamReply(
 ): AsyncGenerator<{ segmentIndex: number; text: string } | { answer: ModelAnswer }> {
   const model = createChatModel(env, {
     maxTokens: MAX_TOKENS,
-    timeoutMs: LLM_STREAM_TIMEOUT_MS,
+    timeoutMs: llmTimeoutMs(env, true),
     costLedger,
   });
   // SDK の timeout は SSE 本文の受信を保護しないため、受信完了まで期限を保つ。
   const lifecycle = new AbortController();
   const requestSignal = AbortSignal.any([
-    deadlineSignal(LLM_STREAM_TIMEOUT_MS, signal),
+    deadlineSignal(llmTimeoutMs(env, true), signal),
     lifecycle.signal,
   ]);
   let iterator: AsyncIterator<AIMessageChunk> | undefined;

@@ -68,12 +68,13 @@ function normalizeError(error: unknown): never {
   throw error;
 }
 
-export function createRpcCaller(handlers: ProcedureHandlers): RpcCaller {
+export function createRpcCaller(handlers: ProcedureHandlers, beforeCall?: (name: ProcedureName) => void): RpcCaller {
   return async <Name extends ProcedureName>(
     name: Name,
     input: RpcInputMap[Name],
   ): Promise<RpcOutputMap[Name]> => {
     try {
+      beforeCall?.(name);
       return await handlers[name](input);
     } catch (error) {
       return normalizeError(error);
