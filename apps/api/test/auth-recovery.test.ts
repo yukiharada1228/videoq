@@ -268,13 +268,9 @@ describe("standard password recovery", () => {
     expect((await login(auth)).status).toBe(200);
   });
 
-  it("allows only one concurrent use of the same reset link", async () => {
-    const auth = makeAuth();
-    const issued = await requestReset(auth);
-    const responses = await Promise.all([reset(auth, issued.token), reset(auth, issued.token)]);
-    expect(responses.map((response) => response.status).sort()).toEqual([200, 400]);
-    expect((await login(auth, NEW_PASSWORD)).status).toBe(200);
-  });
+  // Concurrent reset consumption is covered with the real PostgreSQL adapter
+  // in onprem-edition.integration.test.ts. The memory adapter's transaction
+  // snapshots do not provide production write-conflict isolation.
 
   it("can set a password for a verified Google account while retaining its linked identity", async () => {
     const google = {
