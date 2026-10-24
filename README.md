@@ -243,7 +243,8 @@ Transcription, chat, and embeddings can use local services. Configure each compo
 <summary><strong>Mac transcription with whisper.cpp</strong></summary>
 
 Run whisper.cpp natively on macOS to use Apple Silicon's Metal backend.
-The on-prem Kubernetes recipes use faster-whisper as the shared server instead.
+The on-prem Kubernetes recipes use whisper.cpp on CPU or vLLM on NVIDIA GPUs,
+behind a private transcription gateway.
 Both connect through `WHISPER_BACKEND=local`. Build the pinned submodule with
 CMake and a C++ toolchain; install FFmpeg on the Mac for MP3 conversion.
 
@@ -299,7 +300,7 @@ for endpoint differences and the real-audio acceptance check.
 
 Use llama.cpp for the default CPU recipe or vLLM for NVIDIA GPU inference.
 Chat and embeddings use separate private OpenAI-compatible APIs; transcription
-uses the local faster-whisper service. See the [local inference guide](docs/guides/local-inference.md)
+uses the private whisper.cpp/vLLM gateway. See the [local inference guide](docs/guides/local-inference.md)
 and the [inference chart](charts/videoq-inference/README.md) for matching
 application overlays, model provisioning and acceptance commands.
 
