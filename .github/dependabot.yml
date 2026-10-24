@@ -25,6 +25,14 @@ updates:
     # Cloudflare's Vitest plugin currently requires Vitest 4.
     # Revisit this exception when @cloudflare/vitest-plugin supports Vitest 5.
     ignore:
+      # Compiler-API consumers (ESLint, tests, docs) do not support native TS 7.
+      # API-only native compiler patch/minor updates remain eligible.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      # Docusaurus 3.10.2 resolves ELK through an optional ^0.1.9 peer.
+      # Installing 1.x nests the package and silently disables ELK layouts.
+      - dependency-name: "@mermaid-js/layout-elk"
+        versions: [">=1.0.0"]
       - dependency-name: vitest
         versions: [">=5.0.0 <6.0.0"]
       - dependency-name: "@vitest/*"
