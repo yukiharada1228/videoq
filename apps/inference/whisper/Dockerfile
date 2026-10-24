@@ -56,7 +56,7 @@ for pattern in ('readline*.so', '_uuid*.so', '_tkinter*.so'):
     for module in pathlib.Path('/usr/local/lib/python3.12/lib-dynload').glob(pattern): module.unlink()
 PY
 
-FROM gcr.io/distroless/cc-debian13:nonroot@sha256:83b9b50586253821cf63ffcec87d3d94265a093ad30da232039af962dd8f4edf
+FROM gcr.io/distroless/cc-debian13:nonroot@sha256:3ee00291cf386ec52a552e6a858d555debd74776eb4bfa53fa3df2cd6677515e
 COPY --from=dependencies /usr/local /usr/local
 COPY --from=dependencies /extra/lib/ /usr/local/lib/
 COPY --from=dependencies /extra/status.d/ /var/lib/dpkg/status.d/
