@@ -11,21 +11,21 @@ arm64, a chart archive, and `release.json`. It runs only for the current source
 repository main commit after successful push CI. It can also be dispatched for
 that commit, for example to rebuild after distribution package fixes.
 
-This workflow becomes available after it is merged into main. A workflow file or
-local unit test is not evidence that an image has been published or signed.
-Until the first successful release run exists, build and review your own images
-using the chart README. Distribution uses the dedicated private packages
+Distribution uses the public packages
 `ghcr.io/yukiharada1228/videoq-onprem-api`, `videoq-onprem-worker` and
-`videoq-onprem-web`. Provision these private packages before the first release,
-then grant `yukiharada1228/videoq` the **Write** role under **Package settings →
-Manage Actions access**. Confirm that anonymous pulls are denied. The release
-workflow does not create packages: a missing package stops publication before
-any application bytes are uploaded. Publication checks visibility before and
-after every push, and before assembling indexes; staging also requires private
-packages. An existing public package stops the release. GHCR cannot make a public package
-private again, so changing an existing package to public requires a new private
-package name and a reviewed verifier update to resume private distribution.
-Operators need registry access and `imagePullSecrets`.
+`videoq-onprem-web`. Docker and Kubernetes can pull them without a GHCR login
+or `imagePullSecrets`. Site-owned private registries can still use
+`imagePullSecrets` when required. The images include the repository's existing
+LICENSE; making distribution public does not change those terms.
+
+Package administrators initially set these packages to **Public** and grant
+`yukiharada1228/videoq` the **Write** role under **Package settings → Manage
+Actions access**. The workflow checks public visibility before and after every
+push and before assembling indexes. Missing, private or internal packages stop
+publication. Staging verifies the signed release and pulls each reviewed digest
+with an empty Docker credential configuration, proving anonymous image access.
+Publishing still requires repository-scoped write credentials. GitHub does not
+allow a public package to become private again.
 
 ## What the release verifies
 
@@ -77,8 +77,9 @@ python3 .github/scripts/onprem-release.py verify "$SOURCE_SHA" \
   /secure/videoq-release/release.json /secure/videoq-release/verified-images.json
 ```
 
-Authenticate to GHCR first using an operator credential with `read:packages`.
-The verifier checks GitHub's signature and artifact
+Image pulls do not require GHCR authentication or a `read:packages` credential.
+The authenticated GitHub CLI above is used for workflow artifacts and attestation
+verification. The verifier checks GitHub's signature and artifact
 subject, the exact repository and release workflow, `refs/heads/main`, the source
 commit and hosted-runner identity. It verifies the manifest, chart checksum and
 signature, and all image index signatures before atomically writing any values.

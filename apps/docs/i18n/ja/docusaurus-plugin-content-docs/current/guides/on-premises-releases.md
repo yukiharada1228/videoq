@@ -7,7 +7,9 @@ description: 署名とダイジェストを検証し、Kubernetes で更新と�
 
 インターネットに接続できる導入先では、外部レジストリとイメージのダイジェストを使って配布します。`On-prem Release` は最新 main の push CI 成功を確認し、Linux amd64・arm64 の API、Web、ワーカー、Helm Chart、`release.json` を作成します。同じ main コミットで手動実行すると、OS パッケージ修正後の再ビルドにも使えます。
 
-このワークフローは main にマージした後で利用できます。ファイルの追加やローカルのテスト成功だけでは、署名付きイメージを公開できたことにはなりません。最初の配布実行が成功するまでは、Chart README に従って自分でビルドしたイメージを確認して使います。GHCR パッケージが非公開の場合は、レジストリ認証と Kubernetes の `imagePullSecrets` を用意してください。
+配布用の `ghcr.io/yukiharada1228/videoq-onprem-api`・`videoq-onprem-worker`・`videoq-onprem-web` は Public とします。Docker や Kubernetes からは GHCR のログインや `imagePullSecrets` なしで取得できます。導入先独自の非公開レジストリを使う場合は、引き続き `imagePullSecrets` を設定できます。各イメージにはリポジトリの現行 LICENSE を同梱し、公開範囲の変更でライセンス条件は変更しません。
+
+パッケージ管理者が初期設定で Public にし、**Package settings → Manage Actions access** で `yukiharada1228/videoq` に **Write** を付与します。CI は push の前後とインデックス作成前に公開状態を確認し、非公開・internal・未作成の場合は配布を止めます。署名を検証した配布物は、空の Docker 認証設定で取得して匿名アクセスを確認します。公開済みパッケージを Private に戻すことは GitHub の仕様上できません。push 用の書き込み認証は引き続き必要です。
 
 ## 配布時に確認すること
 
@@ -32,7 +34,7 @@ python3 .github/scripts/onprem-release.py verify "$SOURCE_SHA" \
   /secure/videoq-release/release.json /secure/videoq-release/verified-images.json
 ```
 
-非公開 GHCR には運用担当者の読み取り用資格情報でログインします。検証スクリプトは署名、対象ファイル、リポジトリ、配布ワークフロー、`refs/heads/main`、ソースコミット、GitHub ホストのランナーであることを確認します。manifest、Chart のチェックサムと署名、3 イメージの署名がすべて正しい場合だけ、Helm 用の値を置き換えます。失敗時は既存の値を保持します。
+イメージの取得に GHCR のログインや `read:packages` 資格情報は不要です。上記の GitHub CLI の認証は、ワークフロー成果物のダウンロードと署名検証に使います。検証スクリプトは署名、対象ファイル、リポジトリ、配布ワークフロー、`refs/heads/main`、ソースコミット、GitHub ホストのランナーであることを確認します。manifest、Chart のチェックサムと署名、3 イメージの署名がすべて正しい場合だけ、Helm 用の値を置き換えます。失敗時は既存の値を保持します。
 
 アーキテクチャ別 SBOM は、`gh attestation verify` の predicate に `https://cyclonedx.org/bom` を指定して確認できます。Chart、manifest、確認済みの値、SBOM、署名バンドルを保管してください。ワークフローの成果物は 90 日で期限切れになります。採用したイメージのダイジェストと署名をレジストリの削除ポリシーから保護します。
 
