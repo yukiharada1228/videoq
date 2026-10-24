@@ -49,7 +49,9 @@ test('staging verifies signed artifacts before loading or exercising them',()=>{
   const exercise=staging.indexOf('onprem-lab.py');
   assert(verify>=0 && pull>verify && exercise>pull);
   assert.match(staging,/--chart "release\/videoq-0.1.0-sha\.\$GITHUB_SHA\.tgz"/);
-  assert.match(staging,/docker logout ghcr.io/);
+  assert.doesNotMatch(staging,/docker login|packages: read/);
+  assert.match(staging,/registry-anonymous/);
+  assert.match(staging,/auths/);
   assert.match(staging,/rm -rf "\$DOCKER_CONFIG"/);
 });
 
@@ -61,7 +63,7 @@ test('release retries cannot mix artifacts from different attempts',()=>{
   assert.doesNotMatch(workflow,/overwrite: true/);
 });
 
-test('private distribution checks visibility around publication and before staging',()=>{
+test('public distribution checks visibility around publication and before staging',()=>{
   const publish=job('publish');
   const before=publish.indexOf('onprem_registry.py "$COMPONENT"');
   const push=publish.indexOf('docker push "$tag"');

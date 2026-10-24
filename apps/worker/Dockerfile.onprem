@@ -30,6 +30,7 @@ COPY --from=dependencies /opt/venv /opt/venv
 WORKDIR /app
 COPY worker_python ./worker_python
 COPY scripts/run_worker.py ./scripts/run_worker.py
+COPY LICENSE /usr/share/licenses/videoq/LICENSE
 USER worker
 ENV DEPLOYMENT_EDITION=onprem
 ENV PATH="/opt/venv/bin:$PATH" PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1

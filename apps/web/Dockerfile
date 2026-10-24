@@ -57,5 +57,6 @@ RUN apk add --no-cache --upgrade 'brotli-libs>=1.2.1-r0'
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 
 COPY --from=build /workspace/apps/web/dist /usr/share/nginx/html
+COPY LICENSE /usr/share/licenses/videoq/LICENSE
 
 EXPOSE 80

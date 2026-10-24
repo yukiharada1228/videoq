@@ -64,7 +64,9 @@ jobs:
           ARCH: ${{ matrix.arch }}
           DOCKERFILE: ${{ matrix.dockerfile }}
           BUILD_CONTEXT: ${{ matrix.context }}
-        run: docker build --platform "linux/$ARCH" --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" --label "org.opencontainers.image.revision=$GITHUB_SHA" -t "videoq-$COMPONENT:release" -f "$DOCKERFILE" "$BUILD_CONTEXT"
+        run: |
+          docker build --platform "linux/$ARCH" --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" --label "org.opencontainers.image.revision=$GITHUB_SHA" -t "videoq-$COMPONENT:release" -f "$DOCKERFILE" "$BUILD_CONTEXT"
+          docker run --rm --entrypoint cat "videoq-$COMPONENT:release" /usr/share/licenses/videoq/LICENSE | cmp LICENSE -
       - name: Block vulnerable images, including unfixed HIGH and CRITICAL findings
         uses: aquasecurity/trivy-action@8f28faec26515256b6d22074d1d2a8986f4cbd87 # v0.35.0
         with:
@@ -267,7 +269,6 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
-      packages: read
       attestations: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -284,15 +285,21 @@ jobs:
       - name: Verify provenance before loading release images
         env:
           GH_TOKEN: ${{ github.token }}
-          DOCKER_CONFIG: ${{ runner.temp }}/registry-read
+          # Empty registry credentials prove that image pulls are anonymous.
+          DOCKER_CONFIG: ${{ runner.temp }}/registry-anonymous
         run: |
-          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          mkdir -m 700 "$DOCKER_CONFIG"
+          printf '{"auths":{}}\n' > "$DOCKER_CONFIG/config.json"
           for component in api worker web; do
             python3 .github/scripts/onprem_registry.py "$component"
           done
           python3 .github/scripts/onprem-release.py verify "$GITHUB_SHA" release/release.json release/verified-images.json
           python3 - <<'PY'
-          import json, subprocess
+          import json, os, subprocess
+          from pathlib import Path
+          config = Path(os.environ['DOCKER_CONFIG']) / 'config.json'
+          if json.loads(config.read_text()) != {'auths': {}}:
+              raise RuntimeError('Release rehearsal must pull without registry credentials')
           images = json.load(open('release/verified-images.json'))
           for component in ['api', 'worker', 'web']:
               image = images[component]['image']
@@ -300,7 +307,6 @@ jobs:
               subprocess.run(['docker', 'pull', reference], check=True)
               subprocess.run(['docker', 'tag', reference, 'videoq-' + component + ':onprem-ci'], check=True)
           PY
-          docker logout ghcr.io
           rm -rf "$DOCKER_CONFIG"
       - name: Install pinned rehearsal tools
         run: |
@@ -322,10 +328,10 @@ jobs:
             ${{ runner.temp }}/lab-result/result.json
           if-no-files-found: error
           retention-days: 90
-      - name: Remove registry credentials and disposable cluster
+      - name: Remove temporary registry configuration and disposable cluster
         if: always()
         run: |
-          rm -rf "$RUNNER_TEMP/registry-read"
+          rm -rf "$RUNNER_TEMP/registry-anonymous"
           if [ -x "$RUNNER_TEMP/kind" ]; then
             "$RUNNER_TEMP/kind" delete cluster --name videoq-onprem-lab --kubeconfig "$RUNNER_TEMP/lab-kubeconfig"
           fi

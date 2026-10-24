@@ -1,10 +1,10 @@
-"""Fail closed unless the canonical on-prem package already exists and is private."""
+"""Fail closed unless the canonical on-prem package already exists and is public."""
 import argparse
 import json
 import subprocess
 
 
-def check_private(component):
+def check_public(component):
     if component not in ("api", "worker", "web"):
         raise ValueError("Unknown on-prem component")
     endpoint = "users/yukiharada1228/packages/container/videoq-onprem-" + component
@@ -17,12 +17,12 @@ def check_private(component):
         raise RuntimeError("Unexpected package visibility response")
     if result.returncode:
         raise RuntimeError("Package visibility request failed")
-    if package.get("visibility") != "private":
-        raise RuntimeError("On-prem package must be private: " + component)
+    if package.get("visibility") != "public":
+        raise RuntimeError("On-prem package must be public: " + component)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("component", choices=("api", "worker", "web"))
     args = parser.parse_args()
-    check_private(args.component)
+    check_public(args.component)

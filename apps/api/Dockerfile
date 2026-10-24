@@ -46,6 +46,7 @@ COPY --from=build /workspace/apps/api/dist apps/api/dist
 COPY --from=build /workspace/apps/api/drizzle apps/api/drizzle
 COPY --from=build /workspace/apps/api/scripts apps/api/scripts
 WORKDIR /workspace/apps/api
+COPY LICENSE /usr/share/licenses/videoq/LICENSE
 USER node
 EXPOSE 8787
 CMD ["node", "dist/node.mjs"]
