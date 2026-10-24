@@ -5,7 +5,7 @@
   "scripts": {
     "predev": "npm run check:content",
     "dev": "docusaurus start --host 127.0.0.1 --port 3001 --no-open",
-    "prebuild": "npm run test:content && npm run check:content",
+    "prebuild": "npm run test:content && npm run check:content && npm run check:mermaid",
     "build": "docusaurus build",
     "postbuild": "npm run check:build",
     "predeploy": "npm run check:build",
@@ -13,6 +13,7 @@
     "serve": "docusaurus serve --host 127.0.0.1 --port 3001 --no-open",
     "typecheck": "tsc --noEmit",
     "check:content": "node scripts/check-public-content.mjs source",
+    "check:mermaid": "node --experimental-import-meta-resolve scripts/check-mermaid-peer.mjs",
     "check:build": "node scripts/check-public-content.mjs build",
     "test:content": "node --test scripts/*.test.mjs"
   },

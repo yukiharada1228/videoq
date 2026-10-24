@@ -81,10 +81,17 @@ withPostgres("on-prem account lifecycle without SaaS services", () => {
     expect((await pool.query("SELECT role, quota_source, ai_answers_limit, processing_limit_minutes, storage_limit_gb, monthly_upload_limit_gb FROM users WHERE id=$1", [user.id])).rows[0]).toEqual({
       role: "user", quota_source: "admin", ai_answers_limit: null, processing_limit_minutes: null, storage_limit_gb: null, monthly_upload_limit_gb: null,
     });
-    expect((await post("/api/auth/reset-password", { token: token(user.activation_url), newPassword: password })).status).toBe(200);
-    const userLogin = await post("/api/auth/sign-in/username", { username: createInput.username, password });
+    // Each HTTP request creates its own auth instance and PostgreSQL client.
+    // Only one of two competing passwords may consume this activation token.
+    const passwords = [password, "Competing-onprem-password-2026!"];
+    const activations = await Promise.all(passwords.map(newPassword =>
+      post("/api/auth/reset-password", { token: token(user.activation_url), newPassword })));
+    expect(activations.map(response => response.status).sort()).toEqual([200, 400]);
+    const winner = activations.findIndex(response => response.status === 200);
+    const userLogin = await post("/api/auth/sign-in/username", { username: createInput.username, password: passwords[winner] });
     expect(userLogin.status).toBe(200);
     const userCookie = cookieOf(userLogin);
+    expect((await post("/api/auth/sign-in/username", { username: createInput.username, password: passwords[1 - winner] })).status).toBe(401);
     expect((await post("/api/trpc/admin.resetAccess", { id: bootstrap.id }, userCookie)).status).toBe(403);
     const courseResponse = await post("/api/trpc/courses.create", { name: `On-prem ${suffix}` }, adminCookie);
     expect(courseResponse.status).toBe(200);
