@@ -52,6 +52,8 @@ jobs:
         with:
           manager: npm
       - run: npm ci --ignore-scripts --workspace @videoq/api
+      - name: Validate the lab HTTP transport and cancellation
+        run: node --test .github/onprem-lab/http.test.cjs
       - name: Install pinned Helm
         run: HELM_INSTALL_DIR="$RUNNER_TEMP/helm" bash .github/scripts/install-helm.sh
       - name: Validate runtime, shared state and chart variants

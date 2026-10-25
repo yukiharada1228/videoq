@@ -146,6 +146,7 @@ Build the three application images as `videoq-api:onprem-ci`,
 kubectl, Helm, Node and Python available:
 
 ```sh
+npm ci --ignore-scripts --workspaces=false
 kind create cluster --name videoq-onprem-lab --kubeconfig /tmp/videoq-lab-kubeconfig
 HELM_BIN=helm python3 .github/scripts/onprem-lab.py \
   /tmp/videoq-lab-kubeconfig /tmp/videoq-lab-results
@@ -207,6 +208,8 @@ The node firewall does not test the site's CNI enforcement. With a reviewed
 checkout, the tools listed in the script, and Chromium installed, reproduce it:
 
 ```sh
+npm ci --ignore-scripts --workspace @videoq/api --workspace @videoq/web
+node node_modules/playwright/cli.js install --with-deps chromium
 HELM_BIN=helm python3 .github/scripts/onprem-cpu-acceptance.py \
   "$SOURCE_SHA" /secure/videoq-release /tmp/videoq-real-cpu-results
 ```

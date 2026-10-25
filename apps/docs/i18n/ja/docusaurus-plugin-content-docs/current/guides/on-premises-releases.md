@@ -65,6 +65,7 @@ GitOps を使う場合は、署名確認後の `verified-images.json` をレビ�
 API、ワーカー、Web をそれぞれ `videoq-api:onprem-ci`、`videoq-worker:onprem-ci`、`videoq-web:onprem-ci` としてビルドし、Docker・kind・kubectl・Helm・Node・Python のある環境で実行します。
 
 ```sh
+npm ci --ignore-scripts --workspaces=false
 kind create cluster --name videoq-onprem-lab --kubeconfig /tmp/videoq-lab-kubeconfig
 HELM_BIN=helm python3 .github/scripts/onprem-lab.py \
   /tmp/videoq-lab-kubeconfig /tmp/videoq-lab-results
@@ -88,6 +89,8 @@ kind delete cluster --name videoq-onprem-lab --kubeconfig /tmp/videoq-lab-kubeco
 containerd を使う Docker では、実行 CPU 向けだけを書き出して取り込みます（Docker API 1.48 以上）。従来形式のイメージ保存領域では、実行 CPU と一致することを確認します。通信を遮断する前に各別名がノードの CRI キャッシュで解決できることを確認し、取り込んだプラットフォームと CRI イメージ ID を記録します。
 
 ```sh
+npm ci --ignore-scripts --workspace @videoq/api --workspace @videoq/web
+node node_modules/playwright/cli.js install --with-deps chromium
 HELM_BIN=helm python3 .github/scripts/onprem-cpu-acceptance.py \
   "$SOURCE_SHA" /secure/videoq-release /tmp/videoq-real-cpu-results
 ```

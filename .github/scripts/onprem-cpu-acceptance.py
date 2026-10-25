@@ -3,7 +3,7 @@
 Runs only in a new dedicated kind-videoq-onprem-lab cluster. Public model/image
 downloads finish before installing the node's public-egress firewall. No site resources
 or existing Docker networks are modified. Requires Helm, kind, kubectl, Node
-with the repository's yaml/playwright packages, Chromium and authenticated gh.
+with the repository's yaml/playwright/undici packages, Chromium and authenticated gh.
 """
 import argparse
 import hashlib

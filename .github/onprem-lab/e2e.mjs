@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { resourceId, stateIds, uploadUrl, fixtureVideo } from './constraints.mjs';
+import {labFetch as fetch, closeLabHttp} from './http.mjs';
 const origin = 'http://127.0.0.1:18787';
 const password = 'Local-validation-only-2026!';
 let cookie;
@@ -54,6 +55,7 @@ if (mode === 'register') {
   assert(token, 'account setup must produce a reset token');
   const reset = await fetch(origin + '/api/auth/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: origin }, body: JSON.stringify({ token, newPassword: password }) });
   assert.equal(reset.status, 200);
+  await closeLabHttp();
   process.exit(0);
 }
 await auth('sign-in');
@@ -90,3 +92,4 @@ if(mode==='upload') {
   await answer(state.courseId);
   console.log('Persisted user, video, vector search and cited Q&A passed after '+mode);
 }
+await closeLabHttp();
