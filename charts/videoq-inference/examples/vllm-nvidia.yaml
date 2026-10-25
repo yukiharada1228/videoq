@@ -37,6 +37,7 @@ whisper:
   modelSha256: ""
   maxConcurrentRequests: 2
   upstreamParallelism: 4
+  requestTimeoutSeconds: 110
   maxSequences: 8
   persistence: { size: 10Gi }
   resources:

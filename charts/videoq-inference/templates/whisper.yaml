@@ -62,6 +62,7 @@ spec:
           env:
             - { name: WHISPER_MAX_CONCURRENT_REQUESTS, value: {{ $whisper.maxConcurrentRequests | quote }} }
             - { name: WHISPER_UPSTREAM_PARALLELISM, value: {{ $whisper.upstreamParallelism | quote }} }
+            - { name: WHISPER_REQUEST_TIMEOUT_SECONDS, value: {{ $whisper.requestTimeoutSeconds | quote }} }
             - { name: HF_HUB_OFFLINE, value: "1" }
             - { name: HF_HUB_DISABLE_TELEMETRY, value: "1" }
           startupProbe: { httpGet: { path: /health, port: http }, periodSeconds: 5, failureThreshold: 120 }

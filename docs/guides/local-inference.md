@@ -24,9 +24,15 @@ whisper.cpp natively with Metal. The app uses `WHISPER_BACKEND=local` and
 
 The NVIDIA recipe dynamically batches speech spans: the gateway submits up to
 four concurrently per audio request, accepts two audio requests, and vLLM allows
-eight active sequences. CPU defaults to one request and uses 30-second worker
+eight active sequences. CPU speech uses multilingual large-v3-turbo Q5_0 weights,
+defaults to one request and uses 30-second worker
 checkpoints; NVIDIA uses 300-second checkpoints. These are deployment settings,
 not guarantees of recognition accuracy or real-time performance.
+
+The CPU engine reserves two cores. One gateway request shares a 600-second budget
+across its speech spans; the local worker waits up to 660 seconds. NVIDIA overlays
+use a 110-second gateway budget. `whisper.requestTimeoutSeconds` accepts 1–600
+seconds; the budget is not restarted for each span.
 
 The application uses the OpenAI-compatible protocol with private endpoints;
 `EMBEDDING_BASE_URL` separates query/indexing embeddings from `OPENAI_BASE_URL`

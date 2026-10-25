@@ -30,7 +30,7 @@ flowchart LR
 
 CPU defaults use Qwen3-4B Q4_K_M chat, gte-Qwen2-1.5B Q4_K_M embeddings
 (native 1536 dimensions) and
-whisper.cpp with multilingual quantized `ggml-small-q5_1.bin`. These are starting points for a small acceptance
+whisper.cpp with multilingual quantized `ggml-large-v3-turbo-q5_0.bin`. These are starting points for a small acceptance
 test. Measure production model quality, throughput, RAM and GPU VRAM with the
 site's Japanese videos. The CPU overlay disables visual inspection because its
 chat model accepts text only. Transcription, subtitle search, cited Q&A and

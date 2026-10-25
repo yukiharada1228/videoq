@@ -121,6 +121,16 @@ def test_cloud_uses_hosted_whisper_1_by_default(monkeypatch):
         assert client.max_retries == 2
 
 
+def test_local_gateway_has_time_for_multiple_cpu_speech_spans(monkeypatch):
+    monkeypatch.setenv("WHISPER_BACKEND", "local")
+    monkeypatch.setenv("WHISPER_LOCAL_URL", "http://private-whisper.invalid:8080/v1")
+    client, model = transcription._whisper_client()
+    with client:
+        assert model == "whisper-local"
+        assert str(client.base_url) == "http://private-whisper.invalid:8080/v1/"
+        assert client.timeout == 660
+
+
 @pytest.mark.parametrize("backend", ["modal", "whisper.cpp", "typo"])
 def test_retired_or_unknown_backend_is_rejected(monkeypatch, backend):
     monkeypatch.setenv("WHISPER_BACKEND", backend)

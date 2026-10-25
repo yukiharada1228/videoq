@@ -167,7 +167,7 @@ def main():
             target = inference_values["whisper"] if component == "whisper" else inference_values["servers"].setdefault(component,{})
             target["persistence"] = {"existingClaim":name}
             target["resources"] = {"requests":{"cpu":"100m","memory":"512Mi"},
-                                   "limits":{"cpu":"4" if component == "chat" else "2","memory":"8Gi" if component == "chat" else "4Gi"}}
+                                   "limits":{"cpu":"4" if component == "chat" else "2","memory":{"chat":"8Gi","embedding":"4Gi","whisper":"2Gi"}[component]}}
         k("apply","-f","-",data=json.dumps({"apiVersion":"v1","kind":"List","items":resources}))
         inference_path = output / "inference-values.json"
         inference_path.write_text(json.dumps(inference_values))

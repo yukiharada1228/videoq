@@ -187,7 +187,9 @@ def _whisper_client():
         client = OpenAI(
             api_key=env_str("OPENAI_API_KEY") or "dummy-key-for-local",
             base_url=env_str("WHISPER_LOCAL_URL", "http://127.0.0.1:8080"),
-            timeout=120.0, max_retries=2,
+            # Local CPU requests may contain several sequential VAD spans.
+            # Leave transport margin around the gateway's bounded 600s budget.
+            timeout=660.0, max_retries=2,
         )
         model = "whisper-local"
     elif backend == "openai":

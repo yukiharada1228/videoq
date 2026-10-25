@@ -72,9 +72,12 @@ if(mode==='upload') {
     await new Promise(resolve=>setTimeout(resolve,1000));
   }
   assert.equal(video.status,'completed',JSON.stringify(video));
-  if (real) assert.match(video.transcript,/インターネット|検索/);
-  else assert(video.transcript.includes('VideoQ runs on Kubernetes.'));
   const processingSeconds=(performance.now()-started)/1000;
+  if (real) writeFileSync(join(dirname(statePath),'real-ai-result.json'),JSON.stringify({transcript:video.transcript,processingSeconds},null,2));
+  if (real) {
+    assert.match(video.transcript,/インターネット|検索/);
+    assert.match(video.transcript,/住所/);
+  } else assert(video.transcript.includes('VideoQ runs on Kubernetes.'));
   const course=await rpc('courses.create',{name:'Onprem Lab'});
   await rpc('memberships.addVideo',{courseId:resourceId(course.id),videoId:id});
   writeFileSync(statePath,JSON.stringify(stateIds({videoId:id,courseId:course.id})));

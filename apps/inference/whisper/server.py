@@ -90,6 +90,7 @@ def load_vad():
 @asynccontextmanager
 async def lifespan(app):
     app.state.parallelism = setting("WHISPER_UPSTREAM_PARALLELISM", 1, 8)
+    app.state.request_timeout = setting("WHISPER_REQUEST_TIMEOUT_SECONDS", 600, 600)
     app.state.vad = load_vad()
     with httpx.Client(base_url=UPSTREAM, timeout=5, trust_env=False,
                       limits=httpx.Limits(max_connections=32, max_keepalive_connections=16)) as client:
@@ -198,7 +199,7 @@ def recognize(audio, span, language, deadline):
     # Fixed loopback endpoint; never use HTTP proxy settings or provider fallback.
     with app.state.upstream.stream(
         "POST", "/v1/audio/transcriptions", data=data, files={"file": ("speech.wav", output.getvalue(), "audio/wav")},
-        timeout=httpx.Timeout(min(90, remaining), connect=min(5, remaining)),
+        timeout=httpx.Timeout(remaining, connect=min(5, remaining)),
     ) as response:
         response.raise_for_status()
         body = bytearray()
@@ -218,7 +219,7 @@ def transcribe(
     timestamp_granularities: Annotated[list[str], Form(alias="timestamp_granularities[]")] = ["segment"],
     language: Annotated[str | None, Form()] = None,
 ):
-    deadline = time.monotonic() + 110
+    deadline = time.monotonic() + app.state.request_timeout
     try:
         if model != MODEL_ALIAS or response_format != "verbose_json" or timestamp_granularities != ["segment"]:
             raise HTTPException(400, "Use whisper-local, verbose_json and segment timestamps")
@@ -240,6 +241,8 @@ def transcribe(
             spans = speech_spans(audio)
             with ThreadPoolExecutor(max_workers=app.state.parallelism) as pool:
                 parts = list(pool.map(lambda span: recognize(audio, span, language, deadline), spans))
+            if time.monotonic() > deadline:
+                raise TimeoutError("Transcription deadline exceeded")
             segments = restore_segments(parts, duration)
             detected = next((part[2].get("language") for part in parts if isinstance(part[2].get("language"), str)), "unknown")
             return {"task": "transcribe", "language": language or detected, "duration": duration,
