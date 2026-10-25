@@ -56,8 +56,8 @@ def load_native_images(images, env, output, cluster=CLUSTER):
     Containerd-backed Docker stores retain multiarch indexes even when only one
     platform's layers were pulled. Classic stores already hold native images.
     """
-    def read(command):
-        return subprocess.check_output(command,env=env,text=True).strip()
+    def read(command, **kwargs):
+        return subprocess.check_output(command,env=env,text=True,**kwargs).strip()
     info = json.loads(read(["docker","info","--format",'{{json .}}']))
     architecture = {"x86_64":"amd64","aarch64":"arm64","amd64":"amd64","arm64":"arm64"}.get(info["Architecture"])
     if info["OSType"] != "linux" or not architecture:
@@ -76,8 +76,19 @@ def load_native_images(images, env, output, cluster=CLUSTER):
             command = ["docker","image","save"] + (["--platform",platform] if containerd else [])
             subprocess.run([*command,"--output",str(archive),image],env=env,check=True)
             subprocess.run(["kind","load","image-archive","--name",cluster,str(archive)],env=env,check=True)
-            status = json.loads(read(["docker","exec",cluster+"-control-plane","crictl","--runtime-endpoint","unix:///run/containerd/containerd.sock","inspecti",image]))["status"]
-            imports.append({"alias":image,"platform":platform,"criImageId":status["id"]})
+            # ctr import can finish before CRI's asynchronous image cache sees
+            # the image event. Require the alias to become usable, with a bound.
+            inspect = ["docker","exec",cluster+"-control-plane","crictl","--runtime-endpoint","unix:///run/containerd/containerd.sock","inspecti",image]
+            for attempt in range(30):
+                try:
+                    status = json.loads(read(inspect,stderr=subprocess.PIPE))["status"]
+                    break
+                except subprocess.CalledProcessError:
+                    if attempt == 29:
+                        subprocess.run(["docker","exec",cluster+"-control-plane","ctr","--namespace=k8s.io","images","list"],env=env,check=False)
+                        raise
+                    time.sleep(1)
+            imports.append({"alias":image,"platform":platform,"criImageId":status["id"],"criCacheAttempts":attempt+1})
             archive.unlink()
     return imports
 

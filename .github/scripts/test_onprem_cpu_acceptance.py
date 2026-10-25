@@ -136,9 +136,19 @@ class AcceptanceSafetyTests(unittest.TestCase):
         info={'OSType':'linux','Architecture':'x86_64','DriverStatus':[]}
         def save(command,**kwargs):
             if command[:3]==['docker','image','save']:Path(command[command.index('--output')+1]).write_bytes(b'native image fixture')
-        with patch.object(cpu.lab.subprocess,'check_output',side_effect=[json.dumps(info),'linux/amd64',cpu.subprocess.CalledProcessError(1,'crictl')]),patch.object(cpu.lab.subprocess,'run',side_effect=save):
+        with patch.object(cpu.lab.subprocess,'check_output',side_effect=[json.dumps(info),'linux/amd64']+[cpu.subprocess.CalledProcessError(1,'crictl')]*30),patch.object(cpu.lab.subprocess,'run',side_effect=save),patch.object(cpu.lab.time,'sleep'):
             with self.assertRaises(cpu.subprocess.CalledProcessError):cpu.lab.load_native_images(['videoq-api:test'],{},self.root)
         self.assertEqual(list(self.root.glob('native-images-*')),[])
+
+    def test_native_import_waits_for_the_cri_cache_without_skipping_verification(self):
+        info={'OSType':'linux','Architecture':'x86_64','DriverStatus':[]}
+        responses=[json.dumps(info),'linux/amd64',cpu.subprocess.CalledProcessError(1,'crictl'),json.dumps({'status':{'id':'sha256:'+'b'*64}})]
+        def save(command,**kwargs):
+            if command[:3]==['docker','image','save']:Path(command[command.index('--output')+1]).write_bytes(b'native image fixture')
+        with patch.object(cpu.lab.subprocess,'check_output',side_effect=responses),patch.object(cpu.lab.subprocess,'run',side_effect=save),patch.object(cpu.lab.time,'sleep') as sleep:
+            result=cpu.lab.load_native_images(['videoq-api:test'],{},self.root)
+        self.assertEqual(result[0]['criImageId'],'sha256:'+'b'*64)
+        sleep.assert_called_once_with(1)
 
 
 if __name__ == '__main__':
