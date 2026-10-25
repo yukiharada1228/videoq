@@ -38,7 +38,8 @@ class AcceptanceSafetyTests(unittest.TestCase):
 
     def test_existing_cluster_is_never_replaced_or_deleted(self):
         metadata = {'charts': {'application': {'name': 'app.tgz'}, 'inference': {'name': 'inference.tgz'}}}
-        with patch.object(cpu.release, 'verify', return_value=({}, {})), patch.object(cpu.release, 'validate', return_value=metadata), patch.object(cpu.subprocess, 'check_output', return_value='videoq-onprem-lab\n') as read, patch.object(cpu.subprocess, 'run') as mutate:
+        inference = {'whisper': {'image': {'repository':'ghcr.io/test/whisper','digest':'sha256:'+'b'*64}}}
+        with patch.object(cpu.release, 'verify', return_value=({}, inference)), patch.object(cpu.release, 'validate', return_value=metadata), patch.object(cpu.subprocess, 'check_output', return_value='videoq-onprem-lab\n') as read, patch.object(cpu.subprocess, 'run') as mutate:
             with self.assertRaisesRegex(RuntimeError, 'already exists'): cpu.main()
         self.assertEqual(read.call_args.args[0], ['kind', 'get', 'clusters'])
         mutate.assert_not_called()

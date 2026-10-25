@@ -45,28 +45,36 @@ def main():
     parser.add_argument("release", type=Path)
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
-    output = args.output.resolve()
-    output.mkdir(parents=True, exist_ok=True)
-    helm = os.environ.get("HELM_BIN", "helm")
-    def run(command, **kwargs):
-        return subprocess.check_output(command, cwd=ROOT, text=True, **kwargs).strip()
     source = release.sha(args.source)
     manifest = args.release.resolve() / "release.json"
     application, inference = release.verify(manifest, source)
     metadata = release.validate(json.loads(manifest.read_text()), source)
     app_chart = manifest.parent / metadata["charts"]["application"]["name"]
     inference_chart = manifest.parent / metadata["charts"]["inference"]["name"]
+    references = {c: v["image"]["repository"]+"@"+v["image"]["digest"] for c,v in application.items() if c != "requireImageDigests"}
+    references["whisper"] = inference["whisper"]["image"]["repository"]+"@"+inference["whisper"]["image"]["digest"]
+    result = rehearse(source, app_chart, inference_chart, args.output, references)
+    result["verification"] = "Signed release manifest, both charts and all five image indexes verified before rehearsal"
+    release.write_atomic(args.output / "result.json", result)
+
+
+def rehearse(source, app_chart, inference_chart, output, references, *, local_builds=False):
+    """Shared test runner. PR CI uses local builds; only main() verifies releases."""
+    output = output.resolve()
+    output.mkdir(parents=True, exist_ok=True)
+    helm = os.environ.get("HELM_BIN", "helm")
+    def run(command, **kwargs):
+        return subprocess.check_output(command, cwd=ROOT, text=True, **kwargs).strip()
     if CLUSTER in run(["kind", "get", "clusters"]).splitlines():
         raise RuntimeError("The disposable acceptance cluster already exists; refusing to replace it")
-    # Read model identities from the verified chart, not duplicated defaults.
+    # Read model identities from the supplied chart, not duplicated defaults.
     values = json.loads(run(["node", "--input-type=module", "-e",
                              "import {parse} from 'yaml'; import {readFileSync} from 'node:fs'; console.log(JSON.stringify(parse(readFileSync(0,'utf8'))))"],
                             input=run([helm,"show","values",str(inference_chart)])))
     models = output / "models"
     models.mkdir(exist_ok=True)
     models.chmod(0o777)  # Public test weights; provisioner/pods run as UID 10001.
-    references = {c: v["image"]["repository"]+"@"+v["image"]["digest"] for c,v in application.items() if c != "requireImageDigests"}
-    references["whisper"] = inference["whisper"]["image"]["repository"]+"@"+inference["whisper"]["image"]["digest"]
+    references = dict(references)
     references["llamacpp"] = values["llamacpp"]["image"]["repository"]+"@"+release.digest(values["llamacpp"]["image"]["digest"])
     # Pull anonymously even when the operator's default Docker config is logged in.
     anonymous = output / ("anonymous-"+uuid4().hex)
@@ -76,7 +84,8 @@ def main():
     try:
         image_ids = {}
         for component, reference in references.items():
-            subprocess.run(["docker","pull",reference],env=public_env,check=True)
+            if not local_builds or component == "llamacpp":
+                subprocess.run(["docker","pull",reference],env=public_env,check=True)
             run(["docker","tag",reference,"videoq-"+component+":onprem-ci"])
             image_ids[component] = run(["docker","image","inspect",reference,"--format","{{.Id}}"])
         if json.loads((anonymous/"config.json").read_text()) != {"auths":{}}:
@@ -134,13 +143,12 @@ def main():
         subprocess.run(["kind","load","docker-image","--name",CLUSTER,*dependencies,*["videoq-"+c+":onprem-ci" for c in references]],env=env,check=True)
         subprocess.run(["python3",str(ROOT/".github/scripts/onprem-lab.py"),str(kubeconfig),str(output),"--chart",str(app_chart),
                         "--real-models","--inference-chart",str(inference_chart)],env=env,check=True)
-        result_path = output / "result.json"
         result = json.loads((output / "lifecycle-result.json").read_text())
         result["transcriptionAssessment"] = assess_transcript(result["recognitionAndAnswer"]["transcript"], case)
-        result.update({"sourceSha":source,"verifiedImages":references,"nativeImageIds":image_ids,"models":identities,
+        result.update({"sourceSha":source,"imageReferences":references,"nativeImageIds":image_ids,"models":identities,
                        "elapsedSeconds":time.monotonic()-started,"fixtureSha256":case["sha256"],
                        "networkBoundary":"Docker --internal plus CoreDNS without external forwarding; not a CNI enforcement test"})
-        result_path.write_text(json.dumps(result,indent=2)+"\n")
+        return result
     finally:
         if created:
             subprocess.run(["kind","delete","cluster","--name",CLUSTER,"--kubeconfig",str(kubeconfig)],env=env,check=True)
