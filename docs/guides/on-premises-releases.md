@@ -180,6 +180,14 @@ used directly. No VideoQ processing begins until the firewall is installed.
 A serving-Pod probe must reach private inference while
 public IP connections and external DNS resolution fail.
 
+The disposable PostgreSQL, S3 and queue fixtures are pulled by their reviewed
+upstream digests, then imported into kind under explicit local aliases with
+`imagePullPolicy: Never`. This avoids re-resolving a remote multiarch index after
+public egress is blocked. Results retain their original references and native
+image IDs. These aliases are only for the disposable lab; operator installation
+still uses the verified release digests. Failure artifacts retain Pod/node
+status and warning events, excluding Pod specs and Secrets.
+
 The job uploads the checksum-pinned public Japanese FLEURS clip through the app,
 uses real whisper.cpp transcription and llama.cpp embeddings/chat, checks cited
 answers and SSE, and uses Chromium to decode and play the uploaded video at an

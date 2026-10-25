@@ -4,6 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
+from types import SimpleNamespace
 
 SPEC = importlib.util.spec_from_file_location('cpu', Path(__file__).with_name('onprem-cpu-acceptance.py'))
 cpu = importlib.util.module_from_spec(SPEC)
@@ -66,6 +67,40 @@ class AcceptanceSafetyTests(unittest.TestCase):
             with self.subTest(subnet=subnet), patch.object(cpu.subprocess,'run') as mutate:
                 with self.assertRaises(ValueError): cpu.isolate_node({'IPAM':{'Config':[{'Subnet':subnet,'Gateway':gateway}]}})
                 mutate.assert_not_called()
+
+    def test_offline_backing_services_use_importable_aliases_without_losing_original_digests(self):
+        fixture = json.loads((cpu.ROOT/'.github/onprem-lab/dependencies.json').read_text())
+        original = json.dumps(fixture,sort_keys=True)
+        offline, images = cpu.lab.prepare_fixtures(fixture,'onprem-ci')
+        self.assertEqual(set(images),{'postgres','garage','queue'})
+        self.assertEqual(json.dumps(fixture,sort_keys=True),original)
+        for item in offline['items']:
+            if item['kind'] != 'Deployment': continue
+            name = item['metadata']['name']
+            container = item['spec']['template']['spec']['containers'][0]
+            self.assertEqual(container['image'],images[name]['alias'])
+            self.assertEqual(container['imagePullPolicy'],'Never')
+            self.assertIn('@sha256:',images[name]['reference'])
+            self.assertNotIn('@',container['image'])
+        online,_ = cpu.lab.prepare_fixtures(fixture)
+        self.assertEqual(online,fixture)
+
+    def test_mutable_backing_images_and_invalid_alias_tags_are_rejected(self):
+        fixture = json.loads((cpu.ROOT/'.github/onprem-lab/dependencies.json').read_text())
+        with self.assertRaises(ValueError):cpu.lab.prepare_fixtures(fixture,'../../unexpected')
+        deployment = next(item for item in fixture['items'] if item['kind']=='Deployment')
+        deployment['spec']['template']['spec']['containers'][0]['image']='postgres:latest'
+        with self.assertRaises(ValueError):cpu.lab.prepare_fixtures(fixture,'onprem-ci')
+
+    def test_diagnostics_retain_status_without_pod_specs_or_secret_values(self):
+        item={'metadata':{'name':'test-pod'},'spec':{'env':[{'value':'must-not-retain'}]},'status':{'phase':'Pending'}}
+        success=SimpleNamespace(returncode=0,stdout=json.dumps({'items':[item]}))
+        failure=SimpleNamespace(returncode=1,stdout='')
+        with patch.object(cpu.subprocess,'run',side_effect=[success,success,success]+[failure]*4),patch('builtins.print'):
+            cpu.capture_diagnostics(self.root/'kubeconfig',self.root)
+        data=(self.root/'diagnostics.json').read_text()
+        self.assertNotIn('must-not-retain',data)
+        self.assertEqual(json.loads(data)['pods'][0],{'name':'test-pod','status':{'phase':'Pending'}})
 
 
 if __name__ == '__main__':

@@ -395,6 +395,8 @@ jobs:
       contents: read
       attestations: read
     steps:
+      - name: Reserve disk for the model cache and disposable Kubernetes node
+        run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
@@ -431,6 +433,7 @@ jobs:
             ${{ runner.temp }}/cpu-acceptance/result.json
             ${{ runner.temp }}/cpu-acceptance/real-ai-result.json
             ${{ runner.temp }}/cpu-acceptance/playback.json
+            ${{ runner.temp }}/cpu-acceptance/diagnostics.json
           if-no-files-found: error
           retention-days: 90
       - name: Remove any remaining dedicated acceptance cluster

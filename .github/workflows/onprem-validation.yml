@@ -41,6 +41,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Reserve disk for real CPU models and duplicate kind image caches
+        if: inputs.validate_real_cpu
+        run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
@@ -209,6 +212,7 @@ jobs:
           HELM_BIN: ${{ runner.temp }}/helm/helm
         run: |
           export PATH="$RUNNER_TEMP:$PATH"
+          df -h "$RUNNER_TEMP"
           python3 - <<'PY'
           import importlib.util, os
           from pathlib import Path
@@ -231,6 +235,7 @@ jobs:
             ${{ runner.temp }}/cpu-preflight/result.json
             ${{ runner.temp }}/cpu-preflight/real-ai-result.json
             ${{ runner.temp }}/cpu-preflight/playback.json
+            ${{ runner.temp }}/cpu-preflight/diagnostics.json
           if-no-files-found: error
           retention-days: 30
 

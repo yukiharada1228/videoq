@@ -28,6 +28,9 @@ SPEC.loader.exec_module(release)
 METRICS_SPEC = importlib.util.spec_from_file_location("metrics", ROOT / "apps/worker/scripts/whisper_runtime_validation.py")
 metrics = importlib.util.module_from_spec(METRICS_SPEC)
 METRICS_SPEC.loader.exec_module(metrics)
+LAB_SPEC = importlib.util.spec_from_file_location("lab", Path(__file__).with_name("onprem-lab.py"))
+lab = importlib.util.module_from_spec(LAB_SPEC)
+LAB_SPEC.loader.exec_module(lab)
 
 
 def assess_transcript(transcript, case):
@@ -77,6 +80,35 @@ def isolate_node(network_info):
             rule("-C",hook,"-j",chain)
         policy[binary] = subprocess.check_output([*prefix,"-S",chain],text=True)
     return policy
+
+
+def capture_diagnostics(kubeconfig, output):
+    """Retain status, not Pod specs, Secrets, cookies or database contents."""
+    result = {}
+    prefix = ["kubectl","--kubeconfig",str(kubeconfig),"--context","kind-"+CLUSTER,"--request-timeout=10s"]
+    for key, command in [("nodes",["get","nodes","-o","json"]),
+                         ("pods",["-n",lab.NAMESPACE,"get","pods","-o","json"]),
+                         ("events",["-n",lab.NAMESPACE,"get","events","--field-selector=type=Warning","-o","json"])]:
+        try:
+            response = subprocess.run([*prefix,*command],capture_output=True,text=True,timeout=15)
+            if response.returncode:
+                result[key] = "Status request failed"
+                continue
+            items = json.loads(response.stdout)["items"]
+            result[key] = [{"name":item["metadata"]["name"], **(
+                {"status":item["status"]} if key in ("nodes","pods") else
+                {"reason":item.get("reason"),"message":item.get("message")})} for item in items]
+        except (subprocess.TimeoutExpired, ValueError, KeyError):
+            result[key] = "Status request unavailable"
+    (output/"diagnostics.json").write_text(json.dumps(result,indent=2)+"\n")
+    print("Dedicated acceptance cluster status: "+json.dumps(result),flush=True)
+    for deployment, container in [("chat","chat"),("embedding","embedding"),("whisper","whisper"),("whisper","engine")]:
+        try:
+            logs = subprocess.run([*prefix,"-n",lab.NAMESPACE,"logs","deployment/videoq-inference-"+deployment,"-c",container,"--tail=60"],
+                                  capture_output=True,text=True,timeout=15)
+            if logs.returncode == 0 and logs.stdout:
+                print("Public-fixture model logs "+deployment+"/"+container+":\n"+logs.stdout,flush=True)
+        except subprocess.TimeoutExpired: pass
 
 
 def main():
@@ -153,9 +185,12 @@ def rehearse(source, app_chart, inference_chart, output, references, *, local_bu
     if hashlib.sha256(clip.read_bytes()).hexdigest() != case["sha256"]:
         raise ValueError("Public Japanese acceptance fixture checksum mismatch")
     fixture = json.loads((ROOT/".github/onprem-lab/dependencies.json").read_text())
-    dependencies = [c["image"] for item in fixture["items"] if item["kind"] == "Deployment" for c in item["spec"]["template"]["spec"]["containers"]]
-    for reference in [NODE,*dependencies]:
+    _, backing = lab.prepare_fixtures(fixture, "onprem-ci")
+    for reference in [NODE,*[image["reference"] for image in backing.values()]]:
         subprocess.run(["docker","pull",reference],check=True)
+    for image in backing.values():
+        run(["docker","tag",image["reference"],image["alias"]])
+        image["nativeImageId"] = run(["docker","image","inspect",image["reference"],"--format","{{.Id}}"])
     network = "videoq-cpu-acceptance-"+uuid4().hex[:12]
     kubeconfig = output / "kubeconfig"
     config = output / "kind.json"
@@ -186,10 +221,14 @@ def rehearse(source, app_chart, inference_chart, output, references, *, local_bu
         subprocess.run(["kubectl","--kubeconfig",str(kubeconfig),"--context","kind-"+CLUSTER,"apply","-f","-"],input=json.dumps(dns),text=True,check=True)
         k("-n","kube-system","rollout","restart","deployment/coredns")
         k("-n","kube-system","rollout","status","deployment/coredns","--timeout=120s")
-        subprocess.run(["kind","load","docker-image","--name",CLUSTER,*dependencies,*["videoq-"+c+":onprem-ci" for c in references]],env=env,check=True)
+        subprocess.run(["kind","load","docker-image","--name",CLUSTER,*[image["alias"] for image in backing.values()],*["videoq-"+c+":onprem-ci" for c in references]],env=env,check=True)
         firewall = isolate_node(json.loads(run(["docker","network","inspect",network]))[0])
-        subprocess.run(["python3",str(ROOT/".github/scripts/onprem-lab.py"),str(kubeconfig),str(output),"--chart",str(app_chart),
-                        "--real-models","--inference-chart",str(inference_chart)],env=env,check=True)
+        try:
+            subprocess.run(["python3",str(ROOT/".github/scripts/onprem-lab.py"),str(kubeconfig),str(output),"--chart",str(app_chart),
+                            "--real-models","--inference-chart",str(inference_chart)],env=env,check=True)
+        except subprocess.CalledProcessError:
+            capture_diagnostics(kubeconfig, output)
+            raise
         result = json.loads((output / "lifecycle-result.json").read_text())
         result["transcriptionAssessment"] = assess_transcript(result["recognitionAndAnswer"]["transcript"], case)
         node = json.loads(k("get","node",CLUSTER+"-control-plane","-o","json"))
@@ -198,7 +237,7 @@ def rehearse(source, app_chart, inference_chart, output, references, *, local_bu
                              "chatThreads":values["servers"]["chat"]["cpuThreads"],
                              "embeddingThreads":values["servers"]["embedding"]["cpuThreads"],
                              "whisperThreads":values["whisper"]["cpuThreads"]}
-        result.update({"sourceSha":source,"imageReferences":references,"nativeImageIds":image_ids,"models":identities,
+        result.update({"sourceSha":source,"imageReferences":references,"nativeImageIds":image_ids,"models":identities,"backingFixtures":backing,
                        "elapsedSeconds":time.monotonic()-started,"fixtureSha256":case["sha256"],
                        "firewall":firewall,
                        "networkBoundary":"Dedicated node OUTPUT/FORWARD IPv4/IPv6 firewall plus CoreDNS without external forwarding; not a CNI enforcement test"})

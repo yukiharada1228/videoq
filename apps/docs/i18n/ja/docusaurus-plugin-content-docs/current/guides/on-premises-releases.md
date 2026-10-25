@@ -83,6 +83,8 @@ kind delete cluster --name videoq-onprem-lab --kubeconfig /tmp/videoq-lab-kubeco
 
 字幕の時刻が元動画の範囲内にあり、参照文との正規化文字誤り率（CER）が 0.25 未満であることも確認します。
 
+検証用の PostgreSQL・S3・キューは、元のダイジェストで取得した後にローカルの別名を付けて kind に読み込み、`imagePullPolicy: Never` で起動します。通信遮断後に外部のマルチアーキテクチャ用インデックスを再取得しないための検証環境専用設定です。元の参照と実際のイメージ ID は結果に残し、導入先では引き続き署名検証済みのダイジェストを使います。失敗時は Pod・ノードの状態と警告イベントを記録し、Pod の設定全体や Secret は含めません。
+
 ```sh
 HELM_BIN=helm python3 .github/scripts/onprem-cpu-acceptance.py \
   "$SOURCE_SHA" /secure/videoq-release /tmp/videoq-real-cpu-results

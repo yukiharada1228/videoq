@@ -6,11 +6,13 @@ Caller creates and deletes the cluster. Images must already exist in Docker.
 """
 import argparse
 import base64
+import copy
 import hashlib
 import json
 import os
 from pathlib import Path
 import secrets
+import re
 import subprocess
 import time
 import urllib.request
@@ -18,6 +20,33 @@ import urllib.request
 ROOT = Path(__file__).resolve().parents[2]
 CLUSTER = "videoq-onprem-lab"
 NAMESPACE = "videoq-validation"
+
+
+def prepare_fixtures(data, image_tag=None):
+    """Keep original immutable identities while using explicit offline aliases.
+
+    Docker archive imports do not reliably preserve a remote multiarch index's
+    name/digest in containerd. Never pretend a native manifest has that digest.
+    """
+    if image_tag is not None and not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}", image_tag):
+        raise ValueError("Expected a local Docker image tag")
+    fixture, images = copy.deepcopy(data), {}
+    for item in fixture["items"]:
+        if item["kind"] != "Deployment": continue
+        name, containers = item["metadata"]["name"], item["spec"]["template"]["spec"]["containers"]
+        if name not in ("postgres", "garage", "queue") or len(containers) != 1:
+            raise ValueError("Unexpected disposable backing service")
+        container = containers[0]
+        reference = container["image"]
+        if not re.fullmatch(r"[a-z0-9./_-]+(?::[A-Za-z0-9_.-]+)?@sha256:[a-f0-9]{64}", reference):
+            raise ValueError("Backing fixture images must use reviewed digests")
+        alias = "videoq-lab-"+name+":"+image_tag if image_tag is not None else reference
+        images[name] = {"reference":reference,"alias":alias}
+        if image_tag is not None:
+            container.update({"image":alias,"imagePullPolicy":"Never"})
+    if set(images) != {"postgres", "garage", "queue"}:
+        raise ValueError("All disposable backing services are required")
+    return fixture, images
 
 
 def main():
@@ -47,6 +76,7 @@ def main():
     k("get", "nodes")
     if not args.resume:
         fixture = json.loads((ROOT / ".github/onprem-lab/dependencies.json").read_text())
+        fixture, _ = prepare_fixtures(fixture, args.image_tag if args.real_models else None)
         k("apply", "-f", "-", data=json.dumps(fixture))
         for name in ["postgres", "garage", "queue"]:
             k("rollout", "status", "deployment/" + name, "--timeout=300s")
