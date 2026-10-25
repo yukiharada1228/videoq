@@ -179,7 +179,9 @@ public IP connections and external DNS resolution fail.
 The job uploads the checksum-pinned public Japanese FLEURS clip through the app,
 uses real whisper.cpp transcription and llama.cpp embeddings/chat, checks cited
 answers and SSE, and uses Chromium to decode and play the uploaded video at an
-actual citation timestamp. It repeats Q&A after database restore, upgrade and
+actual citation timestamp. The transcript must have valid source-relative times
+and normalized character error rate below 0.25 against the public reference.
+It repeats Q&A after database restore, upgrade and
 rollback. `onprem-cpu-acceptance-*` artifacts retain the public transcript,
 answers, processing time, playback result, model checksums and image digests for
 90 days. They exclude credentials, model files and database dumps.

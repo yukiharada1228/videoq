@@ -22,6 +22,21 @@ NODE = "kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e362
 SPEC = importlib.util.spec_from_file_location("release", Path(__file__).with_name("onprem-release.py"))
 release = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(release)
+METRICS_SPEC = importlib.util.spec_from_file_location("metrics", ROOT / "apps/worker/scripts/whisper_runtime_validation.py")
+metrics = importlib.util.module_from_spec(METRICS_SPEC)
+METRICS_SPEC.loader.exec_module(metrics)
+
+
+def assess_transcript(transcript, case):
+    def seconds(value):
+        hours, minutes, rest = value.replace(",", ".").split(":")
+        return int(hours)*3600+int(minutes)*60+float(rest)
+    pattern = r"(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})\s*\n(.*?)(?=\n\s*\n|\Z)"
+    rows = [{"start":seconds(start),"end":seconds(end),"text":text.strip()} for start,end,text in re.findall(pattern,transcript,re.S)]
+    result = metrics.assess_response({"segments":rows}, case)
+    if result["errors"] or result["cer"] is None or result["cer"] >= .25:
+        raise ValueError("Public Japanese transcript failed timestamp/CER acceptance: "+json.dumps(result))
+    return result
 
 
 def main():
@@ -120,7 +135,8 @@ def main():
         subprocess.run(["python3",str(ROOT/".github/scripts/onprem-lab.py"),str(kubeconfig),str(output),"--chart",str(app_chart),
                         "--real-models","--inference-chart",str(inference_chart)],env=env,check=True)
         result_path = output / "result.json"
-        result = json.loads(result_path.read_text())
+        result = json.loads((output / "lifecycle-result.json").read_text())
+        result["transcriptionAssessment"] = assess_transcript(result["recognitionAndAnswer"]["transcript"], case)
         result.update({"sourceSha":source,"verifiedImages":references,"nativeImageIds":image_ids,"models":identities,
                        "elapsedSeconds":time.monotonic()-started,"fixtureSha256":case["sha256"],
                        "networkBoundary":"Docker --internal plus CoreDNS without external forwarding; not a CNI enforcement test"})

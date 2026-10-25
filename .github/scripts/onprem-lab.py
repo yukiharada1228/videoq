@@ -195,7 +195,7 @@ print('S3 object backup/delete/restore checksum passed')'''
                            "publicEgress":"blocked by dedicated internal Docker network; public DNS forwarding disabled; serving Pod probe passed",
                            "playback":json.loads((output/"playback.json").read_text()),
                            "recognitionAndAnswer":json.loads((output/"real-ai-result.json").read_text())})
-        (output/"result.json").write_text(json.dumps(report,indent=2)+"\n")
+        (output/("lifecycle-result.json" if args.real_models else "result.json")).write_text(json.dumps(report,indent=2)+"\n")
         print(json.dumps(report,indent=2),flush=True)
     finally:
         for process in forwards:

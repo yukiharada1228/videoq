@@ -19,7 +19,9 @@ async function rpc(name,input,query=false) {
   const body=await response.json();assert.equal(response.status,200,JSON.stringify(body));return body.result.data;
 }
 async function answer(courseId) {
+  const answerStarted=performance.now();
   const message=await rpc('chat.send',{messages:[{role:'user',content:question}],courseId});
+  const answerSeconds=(performance.now()-answerStarted)/1000;
   const text=message.answer.segments.map(s=>s.text).join('');
   if (real) {
     assert.match(text,/住所/);
@@ -27,6 +29,7 @@ async function answer(courseId) {
   } else assert.equal(text,'VideoQ runs on Kubernetes.');
   assert.equal(message.answer.sources.length,1);
   if (!real) assert.equal(message.answer.sources[0].start_time,'00:00:00,000');
+  const streamStarted=performance.now();
   const streamed=await fetch(origin+'/api/chat/messages/stream',{method:'POST',signal:AbortSignal.timeout(600000),headers:{'Content-Type':'application/json',Origin:origin,Cookie:cookie},body:JSON.stringify({messages:[{role:'user',content:question}],course_id:courseId})});
   assert.equal(streamed.status,200);
   const events=(await streamed.text()).split('\n').filter(l=>l.startsWith('data: ')).map(l=>JSON.parse(l.slice(6)));
@@ -38,7 +41,7 @@ async function answer(courseId) {
   assert(events.some(e=>e.type==='citation'&&e.sourceId===1));
   assert(events.some(e=>e.type==='done'));
   assert(!events.some(e=>e.type==='error'),JSON.stringify(events));
-  return {answer:message.answer,streamedAnswer:streamedText};
+  return {answer:message.answer,streamedAnswer:streamedText,answerSeconds,streamSeconds:(performance.now()-streamStarted)/1000};
 }
 const mode=process.argv[2]; const statePath=process.argv[3];
 if (mode === 'register') {

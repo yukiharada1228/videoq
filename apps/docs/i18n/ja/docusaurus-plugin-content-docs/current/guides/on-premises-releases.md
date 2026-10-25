@@ -81,6 +81,8 @@ kind delete cluster --name videoq-onprem-lab --kubeconfig /tmp/videoq-lab-kubeco
 
 公開の日本語 FLEURS 音声を動画にしてアップロードし、whisper.cpp による文字起こし、llama.cpp による埋め込み・引用付き回答・SSE、Chromium での引用時刻からの動画再生を確認します。DB 復元・更新・ロールバック後も回答を確認します。認識結果、回答、処理時間、再生結果、モデルのチェックサム、イメージのダイジェストを `onprem-cpu-acceptance-*` 成果物に90日間保存します。資格情報・モデル本体・DB ダンプは含めません。
 
+字幕の時刻が元動画の範囲内にあり、参照文との正規化文字誤り率（CER）が 0.25 未満であることも確認します。
+
 ```sh
 HELM_BIN=helm python3 .github/scripts/onprem-cpu-acceptance.py \
   "$SOURCE_SHA" /secure/videoq-release /tmp/videoq-real-cpu-results
