@@ -117,3 +117,65 @@ API が実際に返したセグメント時刻、元動画への時刻補正、�
 ストレージへのアップロードや DB 書き込みは行いません。Kubernetes の共通 API も `/v1` を含む
 ベース URL で同じテストを使えます。通常の CI ではスキップし、音声モデルは取得しません。
 オプションの詳細は [whisper.cpp のサーバー説明](https://github.com/ggml-org/whisper.cpp/blob/v1.9.5/examples/server/README.md)を参照してください。
+
+
+## Apple Silicon Mac でデモの性能を測る
+
+Mac 用の検証では、署名済みアプリを新しい `videoq-mac-demo-lab` kind クラスタに配置し、
+LLM・埋め込み・whisper.cpp を Mac 上の Metal で動かします。モデルは Docker VM の外に置きます。
+llama.cpp のビルド番号と、3モデルのチェックサムを署名済み推論用 Chart と照合します。
+Mac の開発・受け入れ検証用で、NVIDIA vLLM の実機検証とは別です。
+
+実 CPU 検証と同じ Node 依存関係・Chromium に加え、ネイティブの llama.cpp、固定版の
+whisper.cpp サーバー、FFmpeg、Helm、kind、kubectl を用意します。共通 API は
+`apps/inference/whisper` で `uv sync --locked` して準備します。モデルは先に取得し、
+チャット・埋め込みは `<モデルの revision>/<ファイル名>` の配置にします。
+ダウンローダーの `MODEL_ROOT` で保存先を指定できます。Python の実行ファイルには
+仮想環境のパスを指定し、シンボリックリンクをシステム Python に解決しないでください。
+
+macOS の `say` で、架空の旅費申請・領収書管理・社内処理ルールを説明する音声と動画を作ります。
+外部音声 API は使わず、生成したメディアはリポジトリに追加しません。正解文、章の時刻、質問、
+期待する事実、動画の長さとチェックサムを manifest に保存します。
+
+```sh
+python3 .github/scripts/onprem-demo.py /tmp/videoq-demo-media
+HELM_BIN=helm python3 .github/scripts/onprem-mac-acceptance.py \
+  "$SOURCE_SHA" /path/to/verified-release /tmp/videoq-demo-results \
+  --case /tmp/videoq-demo-media/case.json \
+  --models /path/to/gguf-cache \
+  --whisper-model /path/to/ggml-large-v3-turbo-q5_0.bin \
+  --whisper-server /path/to/pinned/whisper-server \
+  --whisper-python apps/inference/whisper/.venv/bin/python
+python3 .github/scripts/onprem-demo-report.py \
+  /tmp/videoq-demo-results/result.json /tmp/videoq-demo-media/case.json \
+  /tmp/videoq-demo-report.html
+```
+
+出力先は毎回新しいディレクトリにします。既存クラスタ・モデル・結果は置き換えません。
+イメージを配置する前に署名を確認し、クラスタ作成前に推論 API の起動と文字起こしのパスを検査します。
+ネイティブ API はループバックで待ち受け、プロセス単位の sandbox で外向き通信をループバックに制限します。
+専用ノードは、Docker Desktop の社内ホストアドレスにある3つの推論ポートとクラスタ内の通信だけを許可します。
+ワーカーから社内推論に接続でき、公開 IP・DNS に接続できないことを検査します。
+本番 CNI の検証や、Mac 全体のネットワーク切断は行いません。
+
+初回の処理は別に記録します。全質問をウォームアップした後、動画投入・文字起こし・索引・通常回答・SSE を
+含む処理を、同時実行1と2でそれぞれ3回測定します。ストリームを受信しながら、最初の回答文字と引用の時刻を測ります。
+件数・中央値・範囲・1分あたりの完了処理数を保存し、20件未満では p95 を推定しません。
+性能の合格基準は勝手に設定しません。合成音声の小さなデモなので、社内録画の精度や本番の処理能力の保証には使えません。
+レポートで正解と実際の回答、引用時刻からの再生を確認できます。CER、Chromium での実再生、動画・DB の復元、
+設定更新・ロールバックも検証します。
+
+終了時は専用クラスタ・ネットワークとネイティブプロセスを片付け、この実行が一時停止したワークロードを再開します。
+`--pause-hibana` は任意で、対象を一時停止する運用担当者の事前承認が必要です。
+16 GiB の開発用 Mac では、保存したスワップ使用量とバックグラウンドの稼働条件も確認してください。
+
+チャットモデルを比較する場合は `--chat-model-spec /path/to/chat.json` を指定できます。
+JSON には `modelRepo`、40桁の `modelRevision`、単一の GGUF ファイル名の
+`modelFile`、64桁の `modelSha256` を明記し、同じキャッシュ構造に重みを配置します。
+結果には署名済みチャートの既定値とは別の重みの検証として記録し、チェックサムも確認します。
+埋め込みと Whisper はチャートの固定モデルを使います。公開済みの既定構成は変更しません。
+
+既定では不正解で検証を停止します。診断時に `--observe-demo` を追加すると、
+不正解を記録しながら残りの質問とインフラ検証を完了します。
+不正解や引用不足があれば最終判定は `status: failed`、終了コードは1です。
+引用がない場合の動画再生は、固定時刻の確認として明記します。

@@ -68,6 +68,23 @@ class AcceptanceSafetyTests(unittest.TestCase):
                 with self.assertRaises(ValueError): cpu.isolate_node({'IPAM':{'Config':[{'Subnet':subnet,'Gateway':gateway}]}})
                 mutate.assert_not_called()
 
+    def test_native_mac_exception_allows_only_the_three_tcp_api_ports(self):
+        info = {'IPAM':{'Config':[{'Subnet':'172.29.0.0/16','Gateway':'172.29.0.1'}]}}
+        with patch.object(cpu.subprocess,'run') as mutate,patch.object(cpu.subprocess,'check_output',return_value='rules'):
+            policy=cpu.isolate_node(info,host_inference='192.168.65.254')
+        matching=[c.args[0] for c in mutate.call_args_list if '192.168.65.254/32' in c.args[0]]
+        self.assertEqual(len(matching),3)
+        self.assertEqual({c[c.index('--dport')+1] for c in matching},{'18000','18001','8080'})
+        self.assertTrue(all(c[c.index('-p')+1]=='tcp' and c[-1]=='RETURN' for c in matching))
+        self.assertEqual(policy['nativeInference']['address'],'192.168.65.254')
+
+    def test_public_or_loopback_native_addresses_do_not_change_any_firewall(self):
+        info = {'IPAM':{'Config':[{'Subnet':'172.29.0.0/16','Gateway':'172.29.0.1'}]}}
+        for host in ['1.1.1.1','127.0.0.1','::1','224.0.0.1']:
+            with self.subTest(host=host),patch.object(cpu.subprocess,'run') as mutate:
+                with self.assertRaises(ValueError):cpu.isolate_node(info,host_inference=host)
+                mutate.assert_not_called()
+
     def test_offline_backing_services_use_importable_aliases_without_losing_original_digests(self):
         fixture = json.loads((cpu.ROOT/'.github/onprem-lab/dependencies.json').read_text())
         original = json.dumps(fixture,sort_keys=True)

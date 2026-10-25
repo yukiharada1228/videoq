@@ -127,3 +127,79 @@ and checks subtitle generation. It does not upload to storage or write to the
 database. The same test accepts the Kubernetes gateway base URL, including `/v1`.
 Ordinary CI skips this test and does not download speech models.
 See the [upstream server options](https://github.com/ggml-org/whisper.cpp/blob/v1.9.5/examples/server/README.md).
+
+
+## Measure a fictional demo on an Apple Silicon Mac
+
+The Mac profile runs the signed application in a new `videoq-mac-demo-lab` kind
+cluster and runs chat, embeddings and whisper.cpp natively with Metal. It keeps
+weights outside the Docker VM. The native llama.cpp build must match the signed
+inference chart, and all three model checksums must match its model identities.
+This is a local development/acceptance profile, not NVIDIA vLLM acceptance.
+
+Install the repository's Node dependencies and Chromium as in the real CPU
+acceptance guide, plus native llama.cpp, the pinned whisper.cpp server, FFmpeg,
+Helm, kind and kubectl. Install the gateway with `uv sync --locked` in
+`apps/inference/whisper`. Provision the pinned model files first; the downloader
+supports `MODEL_ROOT` for a local cache. Pass chat/embedding cache directories in
+`<model revision>/<model filename>` layout.
+
+Generate local speech and video with macOS `say`; generated media is never added
+to the repository. The facts concern fictional travel requests, receipts and
+private video processing. The manifest contains the reference text, chapter
+intervals, questions, expected facts, duration and video checksum.
+
+```sh
+python3 .github/scripts/onprem-demo.py /tmp/videoq-demo-media
+HELM_BIN=helm python3 .github/scripts/onprem-mac-acceptance.py \
+  "$SOURCE_SHA" /path/to/verified-release /tmp/videoq-demo-results \
+  --case /tmp/videoq-demo-media/case.json \
+  --models /path/to/gguf-cache \
+  --whisper-model /path/to/ggml-large-v3-turbo-q5_0.bin \
+  --whisper-server /path/to/pinned/whisper-server \
+  --whisper-python apps/inference/whisper/.venv/bin/python
+python3 .github/scripts/onprem-demo-report.py \
+  /tmp/videoq-demo-results/result.json /tmp/videoq-demo-media/case.json \
+  /tmp/videoq-demo-report.html
+```
+
+To compare different chat weights without changing the signed chart, pass
+`--chat-model-spec /path/to/chat.json`. The JSON must explicitly name
+`modelRepo`, a full 40-character `modelRevision`, `modelFile` (a single GGUF
+filename) and its 64-character `modelSha256`. Place the weights in the same cache
+layout. The result labels this as a separate weight experiment, records the
+identity and verifies the checksum. Embeddings and Whisper still use the chart's
+pinned identities. Changing chat weights does not change the published default.
+
+By default an incorrect answer stops the run. For diagnosis, add
+`--observe-demo` to collect all answer checks and continue the infrastructure
+measurements. Incorrect facts or missing citations still produce `status: failed`
+and exit code 1, with a completed result and report. Playback without an answer
+citation is explicitly recorded as a fixed-timestamp check.
+
+Each output directory must be new. Existing clusters, model files and results
+are not replaced. The test verifies signatures before loading application images,
+checks native readiness and transcription routing before creating the cluster,
+and binds native APIs to loopback. Per-process sandbox policies deny native
+outbound networking except loopback. The dedicated node allows only the three
+native API ports on Docker Desktop's private host address, plus its private
+cluster traffic. Worker probes verify private inference and blocked public IP/DNS.
+This does not test a production CNI or disconnect the Mac's other applications.
+
+The first workflow is recorded separately. Every question is warmed up before
+measuring complete upload/ASR/index/non-streaming-answer/SSE workflows with
+concurrency 1 and 2 (three repetitions per level by default). First answer text
+and first citation are timed while streaming bytes arrive. Results retain sample
+count, median, range and completed workflows per minute. p95 is omitted below
+20 observations. Set acceptance thresholds for the intended deployment.
+The fixture is synthetic speech,
+so these measurements do not establish customer-video accuracy or production
+capacity. The report exposes expected/actual answers and seekable citations for
+human review, alongside CER, actual Chromium playback, object/DB restore,
+configuration upgrade and rollback results.
+
+The runner removes its cluster/network, stops its native processes and restores
+only workloads it paused. `--pause-hibana` is opt-in and requires the operator's
+prior authorization for those workloads. Other Docker services are left running.
+Review swap usage and the recorded background-workload conditions when interpreting
+latency on a 16 GiB development Mac.

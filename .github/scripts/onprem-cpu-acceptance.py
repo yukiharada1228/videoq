@@ -45,7 +45,7 @@ def assess_transcript(transcript, case):
     return result
 
 
-def isolate_node(network_info):
+def isolate_node(network_info, host_inference=None):
     """Filter the dedicated node namespace, including forwarded Pod traffic.
 
     Kind needs a default gateway during bootstrap. Once all images/weights are
@@ -61,14 +61,22 @@ def isolate_node(network_info):
         raise ValueError("Expected a gateway inside the private Docker subnet")
     if any(subnet.overlaps(ipaddress.ip_network(cidr)) for cidr in [POD_SUBNET, SERVICE_SUBNET]):
         raise ValueError("Docker and Kubernetes subnets must not overlap")
+    host = ipaddress.ip_address(host_inference) if host_inference else None
+    if host and (host.version != 4 or not host.is_private or host.is_loopback or host.is_multicast):
+        raise ValueError("Native inference requires one private, non-loopback IPv4 address")
     chain = "VIDEOQ-CPU-EGRESS"
     policy = {"dockerSubnet":str(subnet),"blockedHostGateway":str(gateway)}
+    if host:
+        policy["nativeInference"] = {"address":str(host),"ports":[18000,18001,8080]}
     for binary in ["iptables", "ip6tables"]:
         prefix = ["docker","exec",CLUSTER+"-control-plane",binary,"-w","10"]
         def rule(*parts): subprocess.run([*prefix,*parts],check=True)
         rule("-N",chain)
         if binary == "iptables":
             rule("-A",chain,"-d",str(gateway),"-m","conntrack","--ctstate","ESTABLISHED,RELATED","-j","RETURN")
+            if host:
+                for port in policy["nativeInference"]["ports"]:
+                    rule("-A",chain,"-d",str(host)+"/32","-p","tcp","--dport",str(port),"-j","RETURN")
             rule("-A",chain,"-d",str(gateway),"-j","REJECT")
             for cidr in ["127.0.0.0/8",str(subnet),POD_SUBNET,SERVICE_SUBNET]:
                 rule("-A",chain,"-d",cidr,"-j","RETURN")

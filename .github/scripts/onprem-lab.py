@@ -9,6 +9,7 @@ import base64
 import copy
 import hashlib
 import json
+import ipaddress
 import os
 from pathlib import Path
 import secrets
@@ -94,6 +95,7 @@ def load_native_images(images, env, output, cluster=CLUSTER):
 
 
 def main():
+    global CLUSTER
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("kubeconfig", type=Path)
     parser.add_argument("output", type=Path)
@@ -102,13 +104,39 @@ def main():
     parser.add_argument("--resume", action="store_true", help="Resume a failed test only in the existing disposable lab")
     parser.add_argument("--real-models", action="store_true", help="Use preloaded CPU models in the isolated acceptance cluster")
     parser.add_argument("--inference-chart", default="charts/videoq-inference")
+    parser.add_argument("--cluster", choices=[CLUSTER,"videoq-mac-demo-lab"], default=CLUSTER)
+    parser.add_argument("--host-inference-ip", help="Private Mac host address for the fixed native API ports")
+    parser.add_argument("--case", type=Path, help="Explicit local video, reference transcript and question manifest")
+    parser.add_argument("--benchmark-repeats", type=int, default=3)
+    parser.add_argument("--observe-demo", action="store_true", help="Complete demo measurements and record answer quality failures without treating them as passes")
     args = parser.parse_args()
+    CLUSTER = args.cluster
+    if args.host_inference_ip:
+        host = ipaddress.ip_address(args.host_inference_ip)
+        if not args.real_models or host.version != 4 or not host.is_private or host.is_loopback or host.is_multicast:
+            raise ValueError("Native inference requires real models and one private Mac IPv4 address")
+    if args.observe_demo and not args.case: raise ValueError("Observation mode requires --case")
+    case = None
+    if args.case:
+        case = json.loads(args.case.read_text())
+        media = args.case.resolve().parent / case["file"]
+        if not args.real_models or case.get("schemaVersion") != 1 or case.get("mediaKind") != "video":
+            raise ValueError("Expected an explicit real-model video case")
+        if not case.get("reference") or not case.get("questions") or not 2 <= args.benchmark_repeats <= 20:
+            raise ValueError("Reference, questions and two to twenty benchmark repeats are required")
+        if hashlib.sha256(media.read_bytes()).hexdigest() != case["sha256"]:
+            raise ValueError("Demo video checksum differs from its reference manifest")
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
+    output.chmod(0o700)
     helm = os.environ.get("HELM_BIN", "helm")
     env = {**os.environ, "KUBECONFIG": str(args.kubeconfig.resolve())}
     if args.real_models:
         env["ONPREM_REAL_AI"] = "1"
+    if args.case:
+        env["ONPREM_CASE_FILE"] = str(args.case.resolve())
+        env["ONPREM_BENCHMARK_REPEATS"] = str(args.benchmark_repeats)
+        if args.observe_demo: env["ONPREM_OBSERVE_DEMO"] = "1"
     def run(command, data=None, binary=False):
         return subprocess.run(command, cwd=ROOT, env=env, input=data, text=not binary, check=True, stdout=subprocess.PIPE).stdout
     def k(*command, data=None, binary=False):
@@ -152,27 +180,33 @@ def main():
                             "embeddingBaseUrl":"http://videoq-inference-embedding:8000/v1", "embeddingModel":"gte-qwen2-1.5b-q4km-124fbdad",
                             "separateToolSchema":True, "reasoningEffort":"none", "requestTimeoutMs":600000, "streamTimeoutMs":600000,
                             "whisperLocalUrl":"http://videoq-inference-whisper:8080/v1", "whisperChunkSeconds":30})
-        resources = []
-        inference_values = {"downloadModels":False, "networkPolicy":{"clientNamespace":NAMESPACE,"clientRelease":"videoq","denyEgress":True},
-                            "whisper":{"image":{"repository":"videoq-whisper","tag":args.image_tag,"digest":"","pullPolicy":"Never"}},
-                            "llamacpp":{"image":{"repository":"videoq-llamacpp","tag":args.image_tag,"digest":"","pullPolicy":"Never"}},
-                            "servers":{}}
-        for component in ["chat", "embedding", "whisper"]:
-            name = "acceptance-models-" + component
-            resources += [{"apiVersion":"v1","kind":"PersistentVolume","metadata":{"name":name},
-                           "spec":{"capacity":{"storage":"10Gi"},"accessModes":["ReadOnlyMany"],"storageClassName":"",
-                                   "hostPath":{"path":"/videoq-models","type":"Directory"},"persistentVolumeReclaimPolicy":"Retain"}},
-                          {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"name":name,"namespace":NAMESPACE},
-                           "spec":{"accessModes":["ReadOnlyMany"],"storageClassName":"","volumeName":name,"resources":{"requests":{"storage":"10Gi"}}}}]
-            target = inference_values["whisper"] if component == "whisper" else inference_values["servers"].setdefault(component,{})
-            target["persistence"] = {"existingClaim":name}
-            target["resources"] = {"requests":{"cpu":"100m","memory":"512Mi"},
-                                   "limits":{"cpu":"4" if component == "chat" else "2","memory":{"chat":"8Gi","embedding":"4Gi","whisper":"2Gi"}[component]}}
-        k("apply","-f","-",data=json.dumps({"apiVersion":"v1","kind":"List","items":resources}))
-        inference_path = output / "inference-values.json"
-        inference_path.write_text(json.dumps(inference_values))
-        run([helm,"upgrade","--install","inference",args.inference_chart,"--kube-context","kind-"+CLUSTER,"--namespace",NAMESPACE,
-             "-f",str(inference_path),"--wait","--timeout","15m"])
+        if args.host_inference_ip:
+            host = args.host_inference_ip
+            values["networkPolicy"]["allowedCIDRs"] = [host+"/32"]
+            values["ai"].update({"openaiBaseUrl":f"http://{host}:18000/v1", "embeddingBaseUrl":f"http://{host}:18001/v1",
+                                  "whisperLocalUrl":f"http://{host}:8080/v1"})
+        else:
+            resources = []
+            inference_values = {"downloadModels":False, "networkPolicy":{"clientNamespace":NAMESPACE,"clientRelease":"videoq","denyEgress":True},
+                                "whisper":{"image":{"repository":"videoq-whisper","tag":args.image_tag,"digest":"","pullPolicy":"Never"}},
+                                "llamacpp":{"image":{"repository":"videoq-llamacpp","tag":args.image_tag,"digest":"","pullPolicy":"Never"}},
+                                "servers":{}}
+            for component in ["chat", "embedding", "whisper"]:
+                name = "acceptance-models-" + component
+                resources += [{"apiVersion":"v1","kind":"PersistentVolume","metadata":{"name":name},
+                               "spec":{"capacity":{"storage":"10Gi"},"accessModes":["ReadOnlyMany"],"storageClassName":"",
+                                       "hostPath":{"path":"/videoq-models","type":"Directory"},"persistentVolumeReclaimPolicy":"Retain"}},
+                              {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"name":name,"namespace":NAMESPACE},
+                               "spec":{"accessModes":["ReadOnlyMany"],"storageClassName":"","volumeName":name,"resources":{"requests":{"storage":"10Gi"}}}}]
+                target = inference_values["whisper"] if component == "whisper" else inference_values["servers"].setdefault(component,{})
+                target["persistence"] = {"existingClaim":name}
+                target["resources"] = {"requests":{"cpu":"100m","memory":"512Mi"},
+                                       "limits":{"cpu":"4" if component == "chat" else "2","memory":{"chat":"8Gi","embedding":"4Gi","whisper":"2Gi"}[component]}}
+            k("apply","-f","-",data=json.dumps({"apiVersion":"v1","kind":"List","items":resources}))
+            inference_path = output / "inference-values.json"
+            inference_path.write_text(json.dumps(inference_values))
+            run([helm,"upgrade","--install","inference",args.inference_chart,"--kube-context","kind-"+CLUSTER,"--namespace",NAMESPACE,
+                 "-f",str(inference_path),"--wait","--timeout","15m"])
     for component in ["api", "worker", "web"]:
         values[component] = {"image":{"repository":"videoq-"+component,"tag":args.image_tag,"pullPolicy":"Never"},"resources":{"requests":{"cpu":"100m","memory":"128Mi"},"limits":{"memory":"1Gi"}}}
     values["api"].update({"databasePoolMax":2,"rateLimitPoolMax":1})
@@ -186,8 +220,8 @@ def main():
         # The dedicated node firewall blocks public IPv4/IPv6 traffic. CoreDNS
         # forwarding is disabled by the caller. Check both positive/private and
         # negative/public connectivity from the actual worker Pod.
-        probe = '''import json,socket,urllib.request
-for host,port in [('videoq-inference-chat',8000),('videoq-inference-embedding',8000),('videoq-inference-whisper',8080)]:
+        targets = [(args.host_inference_ip, port) for port in (18000,18001,8080)] if args.host_inference_ip else [("videoq-inference-chat",8000),("videoq-inference-embedding",8000),("videoq-inference-whisper",8080)]
+        probe = 'import json,socket,urllib.request\nfor host,port in '+repr(targets)+':\n'+'''
  assert urllib.request.urlopen('http://'+host+':'+str(port)+'/health',timeout=10).status==200
 try: socket.create_connection(('1.1.1.1',443),timeout=3)
 except OSError: pass
@@ -211,12 +245,16 @@ print('Private inference reachable; public IP and DNS blocked')'''
                 time.sleep(1)
             raise RuntimeError("API readiness timed out")
         ready()
-        audio = ROOT / "apps/inference/whisper/tests/fixtures/fleurs-ja-00.mp3"
-        inputs = ["--mount","type=bind,src="+str(audio)+",dst=/fixture.mp3,readonly"] if args.real_models else []
-        sound = ["-i","/fixture.mp3"] if args.real_models else ["-f","lavfi","-i","sine=frequency=440:duration=2"]
-        video = run(["docker","run","--rm",*inputs,"--entrypoint","ffmpeg",images[1],"-v","error","-f","lavfi","-i","color=c=blue:s=160x120:d="+("10.44" if args.real_models else "2"),*sound,"-shortest","-c:v","libx264","-c:a","aac","-movflags","frag_keyframe+empty_moov","-f","mp4","pipe:1"],binary=True)
-        video_path = output / "video.mp4"
-        video_path.write_bytes(video)
+        if case:
+            video_path = output / "video.mp4"
+            video_path.write_bytes(media.read_bytes())
+        else:
+            audio = ROOT / "apps/inference/whisper/tests/fixtures/fleurs-ja-00.mp3"
+            inputs = ["--mount","type=bind,src="+str(audio)+",dst=/fixture.mp3,readonly"] if args.real_models else []
+            sound = ["-i","/fixture.mp3"] if args.real_models else ["-f","lavfi","-i","sine=frequency=440:duration=2"]
+            video = run(["docker","run","--rm",*inputs,"--entrypoint","ffmpeg",images[1],"-v","error","-f","lavfi","-i","color=c=blue:s=160x120:d="+("10.44" if args.real_models else "2"),*sound,"-shortest","-c:v","libx264","-c:a","aac","-movflags","frag_keyframe+empty_moov","-f","mp4","pipe:1"],binary=True)
+            video_path = output / "video.mp4"
+            video_path.write_bytes(video)
         state_path = output / "e2e-state.json"
         def e2e(mode):
             print(run(["node",".github/onprem-lab/e2e.mjs",mode,str(state_path),str(video_path)]),flush=True)
@@ -228,6 +266,8 @@ print('Private inference reachable; public IP and DNS blocked')'''
         e2e("upload")
         if args.real_models:
             print(run(["node",".github/onprem-lab/playback.mjs",str(state_path),str(output/"playback.json")]),flush=True)
+        if case:
+            e2e("benchmark")
         # Test object backup, deletion and restoration through the real S3 API.
         storage_test = '''import hashlib
 from contextlib import closing
@@ -272,6 +312,13 @@ print('S3 object backup/delete/restore checksum passed')'''
                            "publicEgress":"blocked by dedicated node IPv4/IPv6 firewall; public DNS forwarding disabled; worker Pod probe passed",
                            "playback":json.loads((output/"playback.json").read_text()),
                            "recognitionAndAnswer":json.loads((output/"real-ai-result.json").read_text())})
+        if case:
+            report["benchmark"] = json.loads((output/"benchmark.json").read_text())
+            assessments=[json.loads(line) for line in (output/"answer-assessments.jsonl").read_text().splitlines()]
+            report["answerAssessments"]=assessments
+            report["answerQuality"]={"passed":sum(a["passed"] for a in assessments),"total":len(assessments)}
+            report["uploadTranscriptionIndexingAndQa"]="passed" if all(a["passed"] for a in assessments) else "failed answer quality; workflow and infrastructure checks completed"
+            report["inference"] = "real native Mac Metal chat/embeddings and whisper.cpp ASR; fictional Japanese demo" if args.host_inference_ip else "real local models; explicit demo case"
         (output/("lifecycle-result.json" if args.real_models else "result.json")).write_text(json.dumps(report,indent=2)+"\n")
         print(json.dumps(report,indent=2),flush=True)
     finally:
