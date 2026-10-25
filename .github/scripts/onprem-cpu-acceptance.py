@@ -190,7 +190,7 @@ def rehearse(source, app_chart, inference_chart, output, references, *, local_bu
         subprocess.run(["docker","pull",reference],check=True)
     for image in backing.values():
         run(["docker","tag",image["reference"],image["alias"]])
-        image["nativeImageId"] = run(["docker","image","inspect",image["reference"],"--format","{{.Id}}"])
+        image["dockerImageId"] = run(["docker","image","inspect",image["reference"],"--format","{{.Id}}"])
     network = "videoq-cpu-acceptance-"+uuid4().hex[:12]
     kubeconfig = output / "kubeconfig"
     config = output / "kind.json"
@@ -221,7 +221,7 @@ def rehearse(source, app_chart, inference_chart, output, references, *, local_bu
         subprocess.run(["kubectl","--kubeconfig",str(kubeconfig),"--context","kind-"+CLUSTER,"apply","-f","-"],input=json.dumps(dns),text=True,check=True)
         k("-n","kube-system","rollout","restart","deployment/coredns")
         k("-n","kube-system","rollout","status","deployment/coredns","--timeout=120s")
-        subprocess.run(["kind","load","docker-image","--name",CLUSTER,*[image["alias"] for image in backing.values()],*["videoq-"+c+":onprem-ci" for c in references]],env=env,check=True)
+        imports = lab.load_native_images([*[image["alias"] for image in backing.values()],*["videoq-"+c+":onprem-ci" for c in references]],env,output,cluster=CLUSTER)
         firewall = isolate_node(json.loads(run(["docker","network","inspect",network]))[0])
         try:
             subprocess.run(["python3",str(ROOT/".github/scripts/onprem-lab.py"),str(kubeconfig),str(output),"--chart",str(app_chart),
@@ -237,7 +237,7 @@ def rehearse(source, app_chart, inference_chart, output, references, *, local_bu
                              "chatThreads":values["servers"]["chat"]["cpuThreads"],
                              "embeddingThreads":values["servers"]["embedding"]["cpuThreads"],
                              "whisperThreads":values["whisper"]["cpuThreads"]}
-        result.update({"sourceSha":source,"imageReferences":references,"nativeImageIds":image_ids,"models":identities,"backingFixtures":backing,
+        result.update({"sourceSha":source,"imageReferences":references,"dockerImageIds":image_ids,"models":identities,"backingFixtures":backing,"kindImports":imports,
                        "elapsedSeconds":time.monotonic()-started,"fixtureSha256":case["sha256"],
                        "firewall":firewall,
                        "networkBoundary":"Dedicated node OUTPUT/FORWARD IPv4/IPv6 firewall plus CoreDNS without external forwarding; not a CNI enforcement test"})

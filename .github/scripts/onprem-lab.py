@@ -15,6 +15,7 @@ import secrets
 import re
 import subprocess
 import time
+import tempfile
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -49,6 +50,38 @@ def prepare_fixtures(data, image_tag=None):
     return fixture, images
 
 
+def load_native_images(images, env, output, cluster=CLUSTER):
+    """Import tagged native images and verify the CRI cache before going offline.
+
+    Containerd-backed Docker stores retain multiarch indexes even when only one
+    platform's layers were pulled. Classic stores already hold native images.
+    """
+    def read(command):
+        return subprocess.check_output(command,env=env,text=True).strip()
+    info = json.loads(read(["docker","info","--format",'{{json .}}']))
+    architecture = {"x86_64":"amd64","aarch64":"arm64","amd64":"amd64","arm64":"arm64"}.get(info["Architecture"])
+    if info["OSType"] != "linux" or not architecture:
+        raise ValueError("The lab requires native Linux amd64 or arm64 Docker images")
+    platform = "linux/"+architecture
+    containerd = any(k == "driver-type" and "containerd.snapshotter" in v for k,v in (info.get("DriverStatus") or []))
+    if containerd:
+        version = tuple(int(part) for part in read(["docker","version","--format",'{{.Server.APIVersion}}']).split('.'))
+        if version < (1,48): raise ValueError("Containerd image export requires Docker API 1.48 or newer")
+    imports = []
+    with tempfile.TemporaryDirectory(prefix="native-images-",dir=output) as directory:
+        archive = Path(directory)/"image.tar"
+        for image in images:
+            if not containerd and read(["docker","image","inspect",image,"--format",'{{.Os}}/{{.Architecture}}']) != platform:
+                raise ValueError("The lab must import the Docker daemon's native architecture")
+            command = ["docker","image","save"] + (["--platform",platform] if containerd else [])
+            subprocess.run([*command,"--output",str(archive),image],env=env,check=True)
+            subprocess.run(["kind","load","image-archive","--name",cluster,str(archive)],env=env,check=True)
+            status = json.loads(read(["docker","exec",cluster+"-control-plane","crictl","--runtime-endpoint","unix:///run/containerd/containerd.sock","inspecti",image]))["status"]
+            imports.append({"alias":image,"platform":platform,"criImageId":status["id"]})
+            archive.unlink()
+    return imports
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("kubeconfig", type=Path)
@@ -81,7 +114,8 @@ def main():
         for name in ["postgres", "garage", "queue"]:
             k("rollout", "status", "deployment/" + name, "--timeout=300s")
     images = ["videoq-" + c + ":" + args.image_tag for c in ["api", "worker", "web"]]
-    run(["kind", "load", "docker-image", "--name", CLUSTER, *images])
+    if not args.real_models:
+        load_native_images(images, env, output)
     if not args.resume and not args.real_models:
         k("create", "configmap", "inference-fixture", "--from-file=inference.mjs=" + str(ROOT / ".github/onprem-lab/inference.mjs"))
         service = {"apiVersion":"v1","kind":"Service","metadata":{"name":"inference"},"spec":{"selector":{"app":"inference"},"ports":[{"port":8080}]}}
@@ -128,20 +162,6 @@ def main():
         inference_path.write_text(json.dumps(inference_values))
         run([helm,"upgrade","--install","inference",args.inference_chart,"--kube-context","kind-"+CLUSTER,"--namespace",NAMESPACE,
              "-f",str(inference_path),"--wait","--timeout","15m"])
-        # The dedicated node firewall blocks public IPv4/IPv6 traffic. CoreDNS
-        # forwarding is disabled by the caller. Check both positive/private and
-        # negative/public connectivity from the actual serving Pod.
-        probe = '''import json,socket,urllib.request
-for host in ['videoq-inference-chat','videoq-inference-embedding']:
- assert urllib.request.urlopen('http://'+host+':8000/health',timeout=10).status==200
-try: socket.create_connection(('1.1.1.1',443),timeout=3)
-except OSError: pass
-else: raise RuntimeError('Public IP egress was allowed')
-try: socket.getaddrinfo('example.com',443)
-except OSError: pass
-else: raise RuntimeError('Public DNS resolution was allowed')
-print('Private inference reachable; public IP and DNS blocked')'''
-        print(k("exec","deployment/videoq-inference-whisper","-c","whisper","--","python","-c",probe),flush=True)
     for component in ["api", "worker", "web"]:
         values[component] = {"image":{"repository":"videoq-"+component,"tag":args.image_tag,"pullPolicy":"Never"},"resources":{"requests":{"cpu":"100m","memory":"128Mi"},"limits":{"memory":"1Gi"}}}
     values["api"].update({"databasePoolMax":2,"rateLimitPoolMax":1})
@@ -151,6 +171,21 @@ print('Private inference reachable; public IP and DNS blocked')'''
         return run([helm,*command,"--kube-context","kind-"+CLUSTER,"--namespace",NAMESPACE])
     if not args.resume:
         h("install","videoq",args.chart,"-f",str(values_path),"--wait","--timeout","5m")
+    if args.real_models:
+        # The dedicated node firewall blocks public IPv4/IPv6 traffic. CoreDNS
+        # forwarding is disabled by the caller. Check both positive/private and
+        # negative/public connectivity from the actual worker Pod.
+        probe = '''import json,socket,urllib.request
+for host,port in [('videoq-inference-chat',8000),('videoq-inference-embedding',8000),('videoq-inference-whisper',8080)]:
+ assert urllib.request.urlopen('http://'+host+':'+str(port)+'/health',timeout=10).status==200
+try: socket.create_connection(('1.1.1.1',443),timeout=3)
+except OSError: pass
+else: raise RuntimeError('Public IP egress was allowed')
+try: socket.getaddrinfo('example.com',443)
+except OSError: pass
+else: raise RuntimeError('Public DNS resolution was allowed')
+print('Private inference reachable; public IP and DNS blocked')'''
+        print(k("exec","deployment/videoq-worker","--","python","-c",probe),flush=True)
     forwards = []
     try:
         for service_name, ports in [("videoq-api","18787:8787"),("garage","19000:3900")]:
@@ -223,7 +258,7 @@ print('S3 object backup/delete/restore checksum passed')'''
         report = {"uploadTranscriptionIndexingAndQa":"passed", "inference":"deterministic HTTP protocol fixture; no model quality evaluation", "objectRestore":"passed; SHA256 identical", "databaseRestore":"passed; restored to a separate database and app switched", "upgrade":"passed; two API replicas and migration hook", "rollback":"passed; one API replica, restored DB and data retained", "helmTest":"passed", "retention":"passed", "images":images, "databaseBackupSha256":hashlib.sha256(backup).hexdigest()}
         if args.real_models:
             report.update({"inference":"real CPU llama.cpp chat/embeddings and whisper.cpp ASR; public Japanese FLEURS fixture",
-                           "publicEgress":"blocked by dedicated node IPv4/IPv6 firewall; public DNS forwarding disabled; serving Pod probe passed",
+                           "publicEgress":"blocked by dedicated node IPv4/IPv6 firewall; public DNS forwarding disabled; worker Pod probe passed",
                            "playback":json.loads((output/"playback.json").read_text()),
                            "recognitionAndAnswer":json.loads((output/"real-ai-result.json").read_text())})
         (output/("lifecycle-result.json" if args.real_models else "result.json")).write_text(json.dumps(report,indent=2)+"\n")

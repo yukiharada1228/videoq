@@ -102,6 +102,44 @@ class AcceptanceSafetyTests(unittest.TestCase):
         self.assertNotIn('must-not-retain',data)
         self.assertEqual(json.loads(data)['pods'][0],{'name':'test-pod','status':{'phase':'Pending'}})
 
+    def test_containerd_store_exports_only_the_native_platform_and_checks_the_cri_cache(self):
+        info={'OSType':'linux','Architecture':'aarch64','DriverStatus':[['driver-type','io.containerd.snapshotter.v1']]}
+        def save(command,**kwargs):
+            if command[:3]==['docker','image','save']:Path(command[command.index('--output')+1]).write_bytes(b'native image fixture')
+        with patch.object(cpu.lab.subprocess,'check_output',side_effect=[json.dumps(info),'1.55',json.dumps({'status':{'id':'sha256:'+'b'*64}})]) as read, patch.object(cpu.lab.subprocess,'run',side_effect=save) as mutate:
+            result=cpu.lab.load_native_images(['videoq-lab-postgres:test'],{},self.root)
+        export=mutate.call_args_list[0].args[0]
+        self.assertEqual(export[export.index('--platform')+1],'linux/arm64')
+        self.assertIn('image-archive',mutate.call_args_list[1].args[0])
+        self.assertIn('inspecti',read.call_args_list[-1].args[0])
+        self.assertEqual(result[0]['platform'],'linux/arm64')
+        self.assertEqual(list(self.root.glob('native-images-*')),[])
+
+    def test_classic_store_exports_a_checked_native_image_without_containerd_filtering(self):
+        info={'OSType':'linux','Architecture':'x86_64','DriverStatus':[]}
+        def save(command,**kwargs):
+            if command[:3]==['docker','image','save']:Path(command[command.index('--output')+1]).write_bytes(b'native image fixture')
+        with patch.object(cpu.lab.subprocess,'check_output',side_effect=[json.dumps(info),'linux/amd64',json.dumps({'status':{'id':'sha256:'+'b'*64}})]), patch.object(cpu.lab.subprocess,'run',side_effect=save) as mutate:
+            result=cpu.lab.load_native_images(['videoq-api:test'],{},self.root)
+        self.assertNotIn('--platform',mutate.call_args_list[0].args[0])
+        self.assertEqual(result[0]['platform'],'linux/amd64')
+
+    def test_foreign_classic_images_and_unsupported_export_apis_fail_before_import(self):
+        cases=[({'OSType':'linux','Architecture':'aarch64','DriverStatus':[]},'linux/amd64'),
+               ({'OSType':'linux','Architecture':'aarch64','DriverStatus':[['driver-type','io.containerd.snapshotter.v1']]},'1.47')]
+        for info,second in cases:
+            with self.subTest(info=info),patch.object(cpu.lab.subprocess,'check_output',side_effect=[json.dumps(info),second]),patch.object(cpu.lab.subprocess,'run') as mutate:
+                with self.assertRaises(ValueError):cpu.lab.load_native_images(['videoq-api:test'],{},self.root)
+                mutate.assert_not_called()
+
+    def test_a_missing_cri_cache_entry_aborts_and_cleans_the_temporary_archive(self):
+        info={'OSType':'linux','Architecture':'x86_64','DriverStatus':[]}
+        def save(command,**kwargs):
+            if command[:3]==['docker','image','save']:Path(command[command.index('--output')+1]).write_bytes(b'native image fixture')
+        with patch.object(cpu.lab.subprocess,'check_output',side_effect=[json.dumps(info),'linux/amd64',cpu.subprocess.CalledProcessError(1,'crictl')]),patch.object(cpu.lab.subprocess,'run',side_effect=save):
+            with self.assertRaises(cpu.subprocess.CalledProcessError):cpu.lab.load_native_images(['videoq-api:test'],{},self.root)
+        self.assertEqual(list(self.root.glob('native-images-*')),[])
+
 
 if __name__ == '__main__':
     unittest.main()
