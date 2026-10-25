@@ -172,8 +172,12 @@ The release's `Real CPU models with public egress blocked` job separately verifi
 the signed bundle and pulls the app, CPU gateway and pinned llama.cpp images.
 It provisions the exact chat, embedding and Whisper model revisions/checksums
 from the verified inference chart before starting a dedicated kind cluster.
-That cluster attaches only to a new Docker `--internal` network; CoreDNS public
-forwarding is removed. A serving-Pod probe must reach private inference while
+That cluster attaches only to a new dedicated Docker network. After bootstrap
+and image loading, its node's IPv4/IPv6 OUTPUT and FORWARD rules reject public
+destinations and new Docker-host connections; CoreDNS public forwarding is removed.
+Kind needs a default gateway during bootstrap, so Docker `--internal` cannot be
+used directly. No VideoQ processing begins until the firewall is installed.
+A serving-Pod probe must reach private inference while
 public IP connections and external DNS resolution fail.
 
 The job uploads the checksum-pinned public Japanese FLEURS clip through the app,
@@ -187,7 +191,7 @@ answers, processing time, playback result, model checksums and image digests for
 90 days. They exclude credentials, model files and database dumps.
 
 This is one short public fixture, not site-specific quality or capacity approval.
-The Docker boundary does not test the site's CNI enforcement. With a reviewed
+The node firewall does not test the site's CNI enforcement. With a reviewed
 checkout, the tools listed in the script, and Chromium installed, reproduce it:
 
 ```sh

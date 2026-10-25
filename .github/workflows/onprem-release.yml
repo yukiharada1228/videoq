@@ -168,6 +168,9 @@ jobs:
       attestations: write
     steps:
       # Fresh runner: never build or execute the application's code here.
+      - name: Reserve disk for the scanned CUDA archive and its loaded image
+        if: matrix.component == 'whisper-vllm'
+        run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.workflow_sha }}
@@ -317,6 +320,8 @@ jobs:
       contents: read
       attestations: read
     steps:
+      - name: Reserve disk for anonymous NVIDIA image pulls and Kubernetes rehearsal
+        run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}

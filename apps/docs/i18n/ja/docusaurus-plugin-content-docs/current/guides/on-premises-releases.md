@@ -77,7 +77,7 @@ kind delete cluster --name videoq-onprem-lab --kubeconfig /tmp/videoq-lab-kubeco
 
 ## 実際の CPU モデルで検証する
 
-配布ワークフローの `Real CPU models with public egress blocked` は、署名検証後のアプリ・Whisper と、推論用 Chart に固定した llama.cpp を使います。モデルの版とチェックサムを検証し、導入時の取得を終えてから、専用の Docker `--internal` ネットワーク上に使い捨て kind クラスタを作成します。外部への DNS 転送も止め、実際の推論 Pod から社内サービスに接続できる一方、外部 IP・DNS に接続できないことを確認します。
+配布ワークフローの `Real CPU models with public egress blocked` は、署名検証後のアプリ・Whisper と、推論用 Chart に固定した llama.cpp を使います。モデルの版とチェックサムを検証し、導入時の取得を終えてから、専用の Docker ネットワーク上に使い捨て kind クラスタを作成します。kind の起動にはデフォルトゲートウェイが必要なため、起動とイメージ配置後に専用ノードの IPv4・IPv6 の OUTPUT／FORWARD を制限し、公開 IP と Docker ホストへの新規接続を遮断します。外部への DNS 転送も止め、遮断の適用後に動画処理を開始します。実際の推論 Pod から社内サービスに接続できる一方、外部 IP・DNS に接続できないことを確認します。
 
 公開の日本語 FLEURS 音声を動画にしてアップロードし、whisper.cpp による文字起こし、llama.cpp による埋め込み・引用付き回答・SSE、Chromium での引用時刻からの動画再生を確認します。DB 復元・更新・ロールバック後も回答を確認します。認識結果、回答、処理時間、再生結果、モデルのチェックサム、イメージのダイジェストを `onprem-cpu-acceptance-*` 成果物に90日間保存します。資格情報・モデル本体・DB ダンプは含めません。
 

@@ -72,6 +72,7 @@ def main():
               "ai":{"openaiBaseUrl":"http://inference:8080/v1","llmModel":"lab-model","whisperBackend":"local","whisperLocalUrl":"http://inference:8080/v1"},
               "config":{"videoVisualEnabled":False}}
     if args.real_models:
+        values["networkPolicy"] = {"localEgressOnly":True}
         values["ai"].update({"openaiBaseUrl":"http://videoq-inference-chat:8000/v1", "llmModel":"videoq-chat",
                             "embeddingBaseUrl":"http://videoq-inference-embedding:8000/v1", "embeddingModel":"gte-qwen2-1.5b-q4km-124fbdad",
                             "separateToolSchema":True, "reasoningEffort":"none", "requestTimeoutMs":600000, "streamTimeoutMs":600000,
@@ -97,7 +98,7 @@ def main():
         inference_path.write_text(json.dumps(inference_values))
         run([helm,"upgrade","--install","inference",args.inference_chart,"--kube-context","kind-"+CLUSTER,"--namespace",NAMESPACE,
              "-f",str(inference_path),"--wait","--timeout","15m"])
-        # This lab's outer Docker network blocks all public IP traffic. CoreDNS
+        # The dedicated node firewall blocks public IPv4/IPv6 traffic. CoreDNS
         # forwarding is disabled by the caller. Check both positive/private and
         # negative/public connectivity from the actual serving Pod.
         probe = '''import json,socket,urllib.request
@@ -192,7 +193,7 @@ print('S3 object backup/delete/restore checksum passed')'''
         report = {"uploadTranscriptionIndexingAndQa":"passed", "inference":"deterministic HTTP protocol fixture; no model quality evaluation", "objectRestore":"passed; SHA256 identical", "databaseRestore":"passed; restored to a separate database and app switched", "upgrade":"passed; two API replicas and migration hook", "rollback":"passed; one API replica, restored DB and data retained", "helmTest":"passed", "retention":"passed", "images":images, "databaseBackupSha256":hashlib.sha256(backup).hexdigest()}
         if args.real_models:
             report.update({"inference":"real CPU llama.cpp chat/embeddings and whisper.cpp ASR; public Japanese FLEURS fixture",
-                           "publicEgress":"blocked by dedicated internal Docker network; public DNS forwarding disabled; serving Pod probe passed",
+                           "publicEgress":"blocked by dedicated node IPv4/IPv6 firewall; public DNS forwarding disabled; serving Pod probe passed",
                            "playback":json.loads((output/"playback.json").read_text()),
                            "recognitionAndAnswer":json.loads((output/"real-ai-result.json").read_text())})
         (output/("lifecycle-result.json" if args.real_models else "result.json")).write_text(json.dumps(report,indent=2)+"\n")

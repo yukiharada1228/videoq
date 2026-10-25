@@ -1,13 +1,14 @@
 """Rehearse a verified release with real CPU models, without public serving egress.
 
 Runs only in a new dedicated kind-videoq-onprem-lab cluster. Public model/image
-downloads finish before creating its internal Docker network. No site resources
+downloads finish before installing the node's public-egress firewall. No site resources
 or existing Docker networks are modified. Requires Helm, kind, kubectl, Node
 with the repository's yaml/playwright packages, Chromium and authenticated gh.
 """
 import argparse
 import hashlib
 import importlib.util
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -18,6 +19,8 @@ from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[2]
 CLUSTER = "videoq-onprem-lab"
+POD_SUBNET = "10.244.0.0/16"
+SERVICE_SUBNET = "10.96.0.0/12"
 NODE = "kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5"
 SPEC = importlib.util.spec_from_file_location("release", Path(__file__).with_name("onprem-release.py"))
 release = importlib.util.module_from_spec(SPEC)
@@ -37,6 +40,43 @@ def assess_transcript(transcript, case):
     if result["errors"] or result["cer"] is None or result["cer"] >= .25:
         raise ValueError("Public Japanese transcript failed timestamp/CER acceptance: "+json.dumps(result))
     return result
+
+
+def isolate_node(network_info):
+    """Filter the dedicated node namespace, including forwarded Pod traffic.
+
+    Kind needs a default gateway during bootstrap. Once all images/weights are
+    cached, block public IPv4/IPv6 and NEW connections to the Docker host (which
+    could otherwise forward DNS). Keep replies to host-initiated kubectl flows.
+    """
+    configs = [item for item in network_info["IPAM"]["Config"] if ipaddress.ip_network(item["Subnet"]).version == 4]
+    if len(configs) != 1:
+        raise ValueError("Expected one private IPv4 Docker subnet")
+    subnet = ipaddress.ip_network(configs[0]["Subnet"])
+    gateway = ipaddress.ip_address(configs[0]["Gateway"])
+    if not subnet.is_private or gateway not in subnet:
+        raise ValueError("Expected a gateway inside the private Docker subnet")
+    if any(subnet.overlaps(ipaddress.ip_network(cidr)) for cidr in [POD_SUBNET, SERVICE_SUBNET]):
+        raise ValueError("Docker and Kubernetes subnets must not overlap")
+    chain = "VIDEOQ-CPU-EGRESS"
+    policy = {"dockerSubnet":str(subnet),"blockedHostGateway":str(gateway)}
+    for binary in ["iptables", "ip6tables"]:
+        prefix = ["docker","exec",CLUSTER+"-control-plane",binary,"-w","10"]
+        def rule(*parts): subprocess.run([*prefix,*parts],check=True)
+        rule("-N",chain)
+        if binary == "iptables":
+            rule("-A",chain,"-d",str(gateway),"-m","conntrack","--ctstate","ESTABLISHED,RELATED","-j","RETURN")
+            rule("-A",chain,"-d",str(gateway),"-j","REJECT")
+            for cidr in ["127.0.0.0/8",str(subnet),POD_SUBNET,SERVICE_SUBNET]:
+                rule("-A",chain,"-d",cidr,"-j","RETURN")
+        else:
+            rule("-A",chain,"-d","::1/128","-j","RETURN")
+        rule("-A",chain,"-j","REJECT")
+        for hook in ["OUTPUT","FORWARD"]:
+            rule("-I",hook,"1","-j",chain)
+            rule("-C",hook,"-j",chain)
+        policy[binary] = subprocess.check_output([*prefix,"-S",chain],text=True)
+    return policy
 
 
 def main():
@@ -120,18 +160,24 @@ def rehearse(source, app_chart, inference_chart, output, references, *, local_bu
     kubeconfig = output / "kubeconfig"
     config = output / "kind.json"
     config.write_text(json.dumps({"kind":"Cluster","apiVersion":"kind.x-k8s.io/v1alpha4",
+                                 "networking":{"podSubnet":POD_SUBNET,"serviceSubnet":SERVICE_SUBNET},
                                  "nodes":[{"role":"control-plane","extraMounts":[{"hostPath":str(models),"containerPath":"/videoq-models","readOnly":True}]}]}))
     created = False
-    run(["docker","network","create","--internal",network])
+    run(["docker","network","create",network])
     started = time.monotonic()
     env = {**os.environ,"KIND_EXPERIMENTAL_DOCKER_NETWORK":network,"KUBECONFIG":str(kubeconfig)}
     try:
         # Kind may leave a node behind on failure; cleanup also covers that case.
         created = True
-        subprocess.run(["kind","create","cluster","--name",CLUSTER,"--config",str(config),"--image",NODE,"--kubeconfig",str(kubeconfig),"--wait","180s"],env=env,check=True)
+        try:
+            subprocess.run(["kind","create","cluster","--name",CLUSTER,"--config",str(config),"--image",NODE,"--kubeconfig",str(kubeconfig),"--wait","180s","--retain"],env=env,check=True)
+        except subprocess.CalledProcessError:
+            # Only node bootstrap logs: no application or credentials exist yet.
+            subprocess.run(["docker","logs","--tail","100",CLUSTER+"-control-plane"],check=False)
+            raise
         node_networks = json.loads(run(["docker","inspect",CLUSTER+"-control-plane"]))[0]["NetworkSettings"]["Networks"]
-        if set(node_networks) != {network} or not json.loads(run(["docker","network","inspect",network]))[0]["Internal"]:
-            raise RuntimeError("Acceptance node must attach only to its dedicated internal network")
+        if set(node_networks) != {network}:
+            raise RuntimeError("Acceptance node must attach only to its dedicated network")
         def k(*command):
             return run(["kubectl","--kubeconfig",str(kubeconfig),"--context","kind-"+CLUSTER,*command])
         dns = json.loads(k("-n","kube-system","get","configmap","coredns","-o","json"))
@@ -141,13 +187,21 @@ def rehearse(source, app_chart, inference_chart, output, references, *, local_bu
         k("-n","kube-system","rollout","restart","deployment/coredns")
         k("-n","kube-system","rollout","status","deployment/coredns","--timeout=120s")
         subprocess.run(["kind","load","docker-image","--name",CLUSTER,*dependencies,*["videoq-"+c+":onprem-ci" for c in references]],env=env,check=True)
+        firewall = isolate_node(json.loads(run(["docker","network","inspect",network]))[0])
         subprocess.run(["python3",str(ROOT/".github/scripts/onprem-lab.py"),str(kubeconfig),str(output),"--chart",str(app_chart),
                         "--real-models","--inference-chart",str(inference_chart)],env=env,check=True)
         result = json.loads((output / "lifecycle-result.json").read_text())
         result["transcriptionAssessment"] = assess_transcript(result["recognitionAndAnswer"]["transcript"], case)
+        node = json.loads(k("get","node",CLUSTER+"-control-plane","-o","json"))
+        result["runtime"] = {"architecture":node["status"]["nodeInfo"]["architecture"],
+                             "nodeCapacity":node["status"]["capacity"],
+                             "chatThreads":values["servers"]["chat"]["cpuThreads"],
+                             "embeddingThreads":values["servers"]["embedding"]["cpuThreads"],
+                             "whisperThreads":values["whisper"]["cpuThreads"]}
         result.update({"sourceSha":source,"imageReferences":references,"nativeImageIds":image_ids,"models":identities,
                        "elapsedSeconds":time.monotonic()-started,"fixtureSha256":case["sha256"],
-                       "networkBoundary":"Docker --internal plus CoreDNS without external forwarding; not a CNI enforcement test"})
+                       "firewall":firewall,
+                       "networkBoundary":"Dedicated node OUTPUT/FORWARD IPv4/IPv6 firewall plus CoreDNS without external forwarding; not a CNI enforcement test"})
         return result
     finally:
         if created:

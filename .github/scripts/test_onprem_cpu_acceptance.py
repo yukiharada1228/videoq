@@ -44,6 +44,29 @@ class AcceptanceSafetyTests(unittest.TestCase):
         self.assertEqual(read.call_args.args[0], ['kind', 'get', 'clusters'])
         mutate.assert_not_called()
 
+    def test_public_egress_firewall_covers_node_and_pod_ipv4_and_ipv6(self):
+        info = {'IPAM':{'Config':[{'Subnet':'172.29.0.0/16','Gateway':'172.29.0.1'}]}}
+        with patch.object(cpu.subprocess,'run') as mutate, patch.object(cpu.subprocess,'check_output',return_value='installed rules'):
+            policy = cpu.isolate_node(info)
+        commands = [call.args[0] for call in mutate.call_args_list]
+        for binary in ['iptables','ip6tables']:
+            rules = [c for c in commands if c[3] == binary]
+            for hook in ['OUTPUT','FORWARD']:
+                self.assertTrue(any(c[-4:] == ['-C',hook,'-j','VIDEOQ-CPU-EGRESS'] for c in rules))
+            self.assertTrue(any(c[-4:] == ['-A','VIDEOQ-CPU-EGRESS','-j','REJECT'] for c in rules))
+            for c in rules:
+                if c[-1] == 'RETURN': self.assertIn('-d',c)
+        gateway = [c for c in commands if c[3] == 'iptables' and '-d' in c and c[c.index('-d')+1] == '172.29.0.1']
+        self.assertIn('ESTABLISHED,RELATED',gateway[0])
+        self.assertEqual(gateway[1][-1],'REJECT')
+        self.assertEqual(policy['blockedHostGateway'],'172.29.0.1')
+
+    def test_unexpected_networks_fail_before_installing_firewall_rules(self):
+        for subnet, gateway in [('8.8.8.0/24','8.8.8.1'),('172.29.0.0/16','172.30.0.1'),('10.244.0.0/16','10.244.0.1')]:
+            with self.subTest(subnet=subnet), patch.object(cpu.subprocess,'run') as mutate:
+                with self.assertRaises(ValueError): cpu.isolate_node({'IPAM':{'Config':[{'Subnet':subnet,'Gateway':gateway}]}})
+                mutate.assert_not_called()
+
 
 if __name__ == '__main__':
     unittest.main()
