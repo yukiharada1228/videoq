@@ -1,0 +1,40 @@
+// Actual Chromium decoding/seeking of the uploaded public acceptance fixture.
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {dirname,join} from 'node:path';
+import {chromium} from 'playwright';
+import {stateIds} from './constraints.mjs';
+const origin='http://127.0.0.1:18787';
+const state=stateIds(JSON.parse(readFileSync(process.argv[2],'utf8')));
+const result=JSON.parse(readFileSync(join(dirname(process.argv[2]),'real-ai-result.json'),'utf8'));
+const source=result.answer.sources[0];
+assert.equal(source.video_id,state.videoId);
+const parts=/^(\d+):(\d{2}):(\d{2}),(\d{3})$/.exec(source.start_time);
+assert(parts,'Citation has a subtitle timestamp');
+const requestedTime=Number(parts[1])*3600+Number(parts[2])*60+Number(parts[3])+Number(parts[4])/1000;
+const browser=await chromium.launch({headless:true});
+try {
+  const context=await browser.newContext();
+  const login=await context.request.post(origin+'/api/auth/sign-in/email',{headers:{Origin:origin},data:{email:'onprem-lab@example.com',password:'Local-validation-only-2026!'}});
+  assert.equal(login.status(),200);
+  const response=await context.request.get(origin+'/api/trpc/videos.get',{params:{input:JSON.stringify({id:state.videoId})}});
+  assert.equal(response.status(),200);
+  const video=(await response.json()).result.data;
+  const media=new URL(video.file,origin);
+  assert(['http://127.0.0.1:18787','http://127.0.0.1:19000'].includes(media.origin));
+  const range=await context.request.get(media.href,{headers:{Range:'bytes=0-15'}});
+  assert.equal(range.status(),206);
+  assert.equal((await range.body()).length,16);
+  const page=await context.newPage();
+  await page.goto(origin+'/ready');
+  await page.evaluate(url=>{document.body.replaceChildren(Object.assign(document.createElement('video'),{src:url,controls:true,muted:true}));},media.href);
+  await page.waitForFunction(()=>document.querySelector('video').readyState>=2);
+  await page.evaluate(async seconds=>{const v=document.querySelector('video');v.currentTime=seconds;await v.play();},requestedTime);
+  await page.waitForFunction(t=>document.querySelector('video').currentTime>t+.1,requestedTime);
+  const playback=await page.locator('video').evaluate(v=>({currentTime:v.currentTime,duration:v.duration,readyState:v.readyState,error:v.error?.message??null}));
+  assert.equal(playback.error,null);
+  assert(requestedTime>=0&&requestedTime<playback.duration);
+  assert(playback.currentTime>=requestedTime);
+  writeFileSync(process.argv[3],JSON.stringify({status:'passed',requestedTime,...playback,mediaRange:'206, 16 bytes'},null,2)+'\n');
+  console.log('Chromium decoded and played uploaded video at the actual citation timestamp');
+} finally {await browser.close();}

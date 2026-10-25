@@ -9,6 +9,7 @@ RUN python3 -m pip install --no-cache-dir --upgrade 'vllm[audio]==0.32.0' \
     'certifi==2026.10.23' 'msgpack==1.2.3' 'urllib3==2.8.0' \
     && python3 -m pip uninstall -y pip uv
 COPY security /usr/share/videoq/security
+COPY LICENSE /usr/share/licenses/videoq/LICENSE
 RUN python3 /usr/share/videoq/security/verify_kernel_headers.py
 ENV HF_HUB_OFFLINE=1 HF_HUB_DISABLE_TELEMETRY=1 VLLM_NO_USAGE_STATS=1 DO_NOT_TRACK=1 HOME=/tmp
 USER 10001:10001

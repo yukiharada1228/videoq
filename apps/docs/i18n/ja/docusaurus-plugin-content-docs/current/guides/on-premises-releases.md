@@ -5,15 +5,15 @@ description: 署名とダイジェストを検証し、Kubernetes で更新と�
 
 # オンプレの署名付き配布と更新
 
-インターネットに接続できる導入先では、外部レジストリとイメージのダイジェストを使って配布します。`On-prem Release` は最新 main の push CI 成功を確認し、Linux amd64・arm64 の API、Web、ワーカー、Helm Chart、`release.json` を作成します。同じ main コミットで手動実行すると、OS パッケージ修正後の再ビルドにも使えます。
+インターネットに接続できる導入先では、外部レジストリとイメージのダイジェストを使って配布します。`On-prem Release` は最新 main の push CI 成功を確認し、Linux amd64・arm64 の API、Web、ワーカー、CPU Whisper、アプリ・推論用の両 Helm Chart、`release.json` を作成します。NVIDIA vLLM のイメージは amd64 用として同梱します。同じ main コミットで手動実行すると、OS パッケージ修正後の再ビルドにも使えます。
 
-配布用の `ghcr.io/yukiharada1228/videoq-onprem-api`・`videoq-onprem-worker`・`videoq-onprem-web` は Public とします。Docker や Kubernetes からは GHCR のログインや `imagePullSecrets` なしで取得できます。導入先独自の非公開レジストリを使う場合は、引き続き `imagePullSecrets` を設定できます。各イメージにはリポジトリの現行 LICENSE を同梱し、公開範囲の変更でライセンス条件は変更しません。
+配布用の `ghcr.io/yukiharada1228/videoq-onprem-api`・`videoq-onprem-worker`・`videoq-onprem-web`・`videoq-onprem-whisper`・`videoq-onprem-whisper-vllm` は Public とします。Docker や Kubernetes からは GHCR のログインや `imagePullSecrets` なしで取得できます。導入先独自の非公開レジストリを使う場合は、引き続き `imagePullSecrets` を設定できます。各イメージにはリポジトリの現行 LICENSE を同梱し、公開範囲の変更でライセンス条件は変更しません。
 
 パッケージ管理者が初期設定で Public にし、**Package settings → Manage Actions access** で `yukiharada1228/videoq` に **Write** を付与します。CI は push の前後とインデックス作成前に公開状態を確認し、非公開・internal・未作成の場合は配布を止めます。署名を検証した配布物は、空の Docker 認証設定で取得して匿名アクセスを確認します。公開済みパッケージを Private に戻すことは GitHub の仕様上できません。push 用の書き込み認証は引き続き必要です。
 
 ## 配布時に確認すること
 
-アプリのビルドはリポジトリの読み取り権限だけで実行します。各イメージの未修正分を含む HIGH・CRITICAL 脆弱性を検査し、イメージと CycloneDX SBOM を保存します。別の新しいランナーで、そのイメージを実行せずに配布し、GitHub OIDC による来歴とアーキテクチャ別 SBOM の署名を付けます。両アーキテクチャを束ねるイメージインデックス、Chart のバイト列、全イメージのダイジェストも署名対象です。
+アプリのビルドはリポジトリの読み取り権限だけで実行します。各イメージの未修正分を含む HIGH・CRITICAL 脆弱性を検査し、イメージと CycloneDX SBOM を保存します。別の新しいランナーで、そのイメージを実行せずに配布し、GitHub OIDC による来歴とアーキテクチャ別 SBOM の署名を付けます。両アーキテクチャを束ねるイメージインデックス、Chart のバイト列、全5イメージのダイジェストと対応アーキテクチャも署名対象です。NVIDIA 版のスキャンは既存の限定的な kernel-header 評価を維持し、評価済みを含む JSON レポートと評価ファイルを `security-*` 成果物に90日間保存します。その他の HIGH・CRITICAL は引き続き配布を止めます。
 
 API とワーカーはダイジェスト固定の Alpine イメージを使い、既存の Runtime Updates がインタープリターと npm・pip・uv の検証済み配布物を更新します。ベース変更には、Python wheel、PostgreSQL、FFmpeg、認証、Kubernetes の検証を必要とします。リリースの各実行・再試行には別のレジストリタグを使い、導入時はダイジェストを指定します。
 
@@ -31,10 +31,11 @@ mkdir -p /secure/videoq-release
 gh run download "$RUN_ID" --repo yukiharada1228/videoq \
   --name "onprem-release-$SOURCE_SHA-attempt-$RUN_ATTEMPT" --dir /secure/videoq-release
 python3 .github/scripts/onprem-release.py verify "$SOURCE_SHA" \
-  /secure/videoq-release/release.json /secure/videoq-release/verified-images.json
+  /secure/videoq-release/release.json /secure/videoq-release/verified-images.json \
+  /secure/videoq-release/verified-inference.json
 ```
 
-イメージの取得に GHCR のログインや `read:packages` 資格情報は不要です。上記の GitHub CLI の認証は、ワークフロー成果物のダウンロードと署名検証に使います。検証スクリプトは署名、対象ファイル、リポジトリ、配布ワークフロー、`refs/heads/main`、ソースコミット、GitHub ホストのランナーであることを確認します。manifest、Chart のチェックサムと署名、3 イメージの署名がすべて正しい場合だけ、Helm 用の値を置き換えます。失敗時は既存の値を保持します。
+イメージの取得に GHCR のログインや `read:packages` 資格情報は不要です。上記の GitHub CLI の認証は、ワークフロー成果物のダウンロードと署名検証に使います。検証スクリプトは署名、対象ファイル、リポジトリ、配布ワークフロー、`refs/heads/main`、ソースコミット、GitHub ホストのランナーであることを確認します。manifest、両 Chart のチェックサムと署名、全5イメージの署名がすべて正しい場合だけ、アプリ用・推論用の Helm 設定ファイルを生成します。失敗時は既存の値を保持します。
 
 アーキテクチャ別 SBOM は、`gh attestation verify` の predicate に `https://cyclonedx.org/bom` を指定して確認できます。Chart、manifest、確認済みの値、SBOM、署名バンドルを保管してください。ワークフローの成果物は 90 日で期限切れになります。採用したイメージのダイジェストと署名をレジストリの削除ポリシーから保護します。
 
@@ -48,6 +49,8 @@ helm upgrade --install videoq /secure/videoq-release/videoq-0.1.0-sha.$SOURCE_SH
   --wait --timeout 15m
 helm test videoq -n videoq --timeout 2m
 ```
+
+完全オンプレでは、[ローカル AI 推論](local-inference.md)に従い、推論用 Chart に `verified-inference.json` を最後に重ねます。NVIDIA のチャット・埋め込み・文字起こしは同じ署名付き vLLM イメージを使います。アプリ用 Chart は対応するローカル設定の後に `verified-images.json` を重ねます。標準設定は外部 OpenAI API のため、ローカル設定の適用が必要です。
 
 Chart が強制するのはダイジェスト指定です。署名確認は導入側のスクリプトで行うため、クラスタ管理者による回避も防ぐ必要があれば、同じ署名者を条件とする admission policy を導入先で設定します。
 
@@ -71,3 +74,16 @@ kind delete cluster --name videoq-onprem-lab --kubeconfig /tmp/videoq-lab-kubeco
 専用クラスタ内に検証専用の PostgreSQL/pgvector、Garage、ElasticMQ、固定応答の推論 API を作成します。アップロード、実際の FFmpeg 音声抽出、キュー配信、文字起こし保存、索引、引用付き Q&A、SSE を通し、S3 データのバックアップ・削除・復元とチェックサム一致を確認します。DB を別の DB に復元して接続先を切り替え、API を 2 Pod に更新し、Helm テストと 1 Pod へのロールバック後にもデータを利用できることを検証します。すべて成功した場合だけ `result.json` が作成されます。資格情報を含む DB ダンプはコミットしません。
 
 実モデルの認識・回答精度、GPU の性能、TLS・Ingress、ホスト障害時のストレージ・キューの永続性、バックアップの RPO/RTO は、導入先で別途検証してください。
+
+## 実際の CPU モデルで検証する
+
+配布ワークフローの `Real CPU models with public egress blocked` は、署名検証後のアプリ・Whisper と、推論用 Chart に固定した llama.cpp を使います。モデルの版とチェックサムを検証し、導入時の取得を終えてから、専用の Docker `--internal` ネットワーク上に使い捨て kind クラスタを作成します。外部への DNS 転送も止め、実際の推論 Pod から社内サービスに接続できる一方、外部 IP・DNS に接続できないことを確認します。
+
+公開の日本語 FLEURS 音声を動画にしてアップロードし、whisper.cpp による文字起こし、llama.cpp による埋め込み・引用付き回答・SSE、Chromium での引用時刻からの動画再生を確認します。DB 復元・更新・ロールバック後も回答を確認します。認識結果、回答、処理時間、再生結果、モデルのチェックサム、イメージのダイジェストを `onprem-cpu-acceptance-*` 成果物に90日間保存します。資格情報・モデル本体・DB ダンプは含めません。
+
+```sh
+HELM_BIN=helm python3 .github/scripts/onprem-cpu-acceptance.py \
+  "$SOURCE_SHA" /secure/videoq-release /tmp/videoq-real-cpu-results
+```
+
+既存の `videoq-onprem-lab` クラスタがあれば置き換えずに停止します。モデル取得時にはインターネット接続が必要です。検証用の DB 等も含め、少なくとも16 GiB の RAM を用意します。短い公開サンプル1件での確認なので、導入先の日本語録画・同時利用数による精度や性能、CNI による NetworkPolicy の適用確認は別途必要です。

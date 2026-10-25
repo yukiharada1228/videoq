@@ -27,11 +27,15 @@ def main():
     parser.add_argument("--image-tag", default="onprem-ci")
     parser.add_argument("--chart", default="charts/videoq", help="Reviewed source chart or verified chart archive")
     parser.add_argument("--resume", action="store_true", help="Resume a failed test only in the existing disposable lab")
+    parser.add_argument("--real-models", action="store_true", help="Use preloaded CPU models in the isolated acceptance cluster")
+    parser.add_argument("--inference-chart", default="charts/videoq-inference")
     args = parser.parse_args()
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     helm = os.environ.get("HELM_BIN", "helm")
     env = {**os.environ, "KUBECONFIG": str(args.kubeconfig.resolve())}
+    if args.real_models:
+        env["ONPREM_REAL_AI"] = "1"
     def run(command, data=None, binary=False):
         return subprocess.run(command, cwd=ROOT, env=env, input=data, text=not binary, check=True, stdout=subprocess.PIPE).stdout
     def k(*command, data=None, binary=False):
@@ -48,7 +52,7 @@ def main():
             k("rollout", "status", "deployment/" + name, "--timeout=300s")
     images = ["videoq-" + c + ":" + args.image_tag for c in ["api", "worker", "web"]]
     run(["kind", "load", "docker-image", "--name", CLUSTER, *images])
-    if not args.resume:
+    if not args.resume and not args.real_models:
         k("create", "configmap", "inference-fixture", "--from-file=inference.mjs=" + str(ROOT / ".github/onprem-lab/inference.mjs"))
         service = {"apiVersion":"v1","kind":"Service","metadata":{"name":"inference"},"spec":{"selector":{"app":"inference"},"ports":[{"port":8080}]}}
         deployment = {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"inference"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"inference"}},"template":{"metadata":{"labels":{"app":"inference"}},"spec":{"containers":[{"name":"inference","image":images[0],"imagePullPolicy":"Never","command":["node","/fixture/inference.mjs"],"volumeMounts":[{"name":"fixture","mountPath":"/fixture"}]}],"volumes":[{"name":"fixture","configMap":{"name":"inference-fixture"}}]}}}}
@@ -67,6 +71,46 @@ def main():
               "queue":{"url":"http://queue:9324/000000000000/videoq-jobs"},
               "ai":{"openaiBaseUrl":"http://inference:8080/v1","llmModel":"lab-model","whisperBackend":"local","whisperLocalUrl":"http://inference:8080/v1"},
               "config":{"videoVisualEnabled":False}}
+    if args.real_models:
+        values["ai"].update({"openaiBaseUrl":"http://videoq-inference-chat:8000/v1", "llmModel":"videoq-chat",
+                            "embeddingBaseUrl":"http://videoq-inference-embedding:8000/v1", "embeddingModel":"gte-qwen2-1.5b-q4km-124fbdad",
+                            "separateToolSchema":True, "reasoningEffort":"none", "requestTimeoutMs":600000, "streamTimeoutMs":600000,
+                            "whisperLocalUrl":"http://videoq-inference-whisper:8080/v1", "whisperChunkSeconds":30})
+        resources = []
+        inference_values = {"downloadModels":False, "networkPolicy":{"clientNamespace":NAMESPACE,"clientRelease":"videoq","denyEgress":True},
+                            "whisper":{"image":{"repository":"videoq-whisper","tag":args.image_tag,"digest":"","pullPolicy":"Never"}},
+                            "llamacpp":{"image":{"repository":"videoq-llamacpp","tag":args.image_tag,"digest":"","pullPolicy":"Never"}},
+                            "servers":{}}
+        for component in ["chat", "embedding", "whisper"]:
+            name = "acceptance-models-" + component
+            resources += [{"apiVersion":"v1","kind":"PersistentVolume","metadata":{"name":name},
+                           "spec":{"capacity":{"storage":"10Gi"},"accessModes":["ReadOnlyMany"],"storageClassName":"",
+                                   "hostPath":{"path":"/videoq-models","type":"Directory"},"persistentVolumeReclaimPolicy":"Retain"}},
+                          {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"name":name,"namespace":NAMESPACE},
+                           "spec":{"accessModes":["ReadOnlyMany"],"storageClassName":"","volumeName":name,"resources":{"requests":{"storage":"10Gi"}}}}]
+            target = inference_values["whisper"] if component == "whisper" else inference_values["servers"].setdefault(component,{})
+            target["persistence"] = {"existingClaim":name}
+            target["resources"] = {"requests":{"cpu":"100m","memory":"512Mi"},
+                                   "limits":{"cpu":"4" if component == "chat" else "2","memory":"8Gi" if component == "chat" else "4Gi"}}
+        k("apply","-f","-",data=json.dumps({"apiVersion":"v1","kind":"List","items":resources}))
+        inference_path = output / "inference-values.json"
+        inference_path.write_text(json.dumps(inference_values))
+        run([helm,"upgrade","--install","inference",args.inference_chart,"--kube-context","kind-"+CLUSTER,"--namespace",NAMESPACE,
+             "-f",str(inference_path),"--wait","--timeout","15m"])
+        # This lab's outer Docker network blocks all public IP traffic. CoreDNS
+        # forwarding is disabled by the caller. Check both positive/private and
+        # negative/public connectivity from the actual serving Pod.
+        probe = '''import json,socket,urllib.request
+for host in ['videoq-inference-chat','videoq-inference-embedding']:
+ assert urllib.request.urlopen('http://'+host+':8000/health',timeout=10).status==200
+try: socket.create_connection(('1.1.1.1',443),timeout=3)
+except OSError: pass
+else: raise RuntimeError('Public IP egress was allowed')
+try: socket.getaddrinfo('example.com',443)
+except OSError: pass
+else: raise RuntimeError('Public DNS resolution was allowed')
+print('Private inference reachable; public IP and DNS blocked')'''
+        print(k("exec","deployment/videoq-inference-whisper","-c","whisper","--","python","-c",probe),flush=True)
     for component in ["api", "worker", "web"]:
         values[component] = {"image":{"repository":"videoq-"+component,"tag":args.image_tag,"pullPolicy":"Never"},"resources":{"requests":{"cpu":"100m","memory":"128Mi"},"limits":{"memory":"1Gi"}}}
     values["api"].update({"databasePoolMax":2,"rateLimitPoolMax":1})
@@ -90,7 +134,10 @@ def main():
                 time.sleep(1)
             raise RuntimeError("API readiness timed out")
         ready()
-        video = run(["docker","run","--rm","--entrypoint","ffmpeg",images[1],"-v","error","-f","lavfi","-i","color=c=blue:s=160x120:d=2","-f","lavfi","-i","sine=frequency=440:duration=2","-shortest","-c:v","libx264","-c:a","aac","-movflags","frag_keyframe+empty_moov","-f","mp4","pipe:1"],binary=True)
+        audio = ROOT / "apps/inference/whisper/tests/fixtures/fleurs-ja-00.mp3"
+        inputs = ["--mount","type=bind,src="+str(audio)+",dst=/fixture.mp3,readonly"] if args.real_models else []
+        sound = ["-i","/fixture.mp3"] if args.real_models else ["-f","lavfi","-i","sine=frequency=440:duration=2"]
+        video = run(["docker","run","--rm",*inputs,"--entrypoint","ffmpeg",images[1],"-v","error","-f","lavfi","-i","color=c=blue:s=160x120:d="+("10.44" if args.real_models else "2"),*sound,"-shortest","-c:v","libx264","-c:a","aac","-movflags","frag_keyframe+empty_moov","-f","mp4","pipe:1"],binary=True)
         video_path = output / "video.mp4"
         video_path.write_bytes(video)
         state_path = output / "e2e-state.json"
@@ -102,6 +149,8 @@ def main():
             state_path.chmod(0o600)
             e2e("register")
         e2e("upload")
+        if args.real_models:
+            print(run(["node",".github/onprem-lab/playback.mjs",str(state_path),str(output/"playback.json")]),flush=True)
         # Test object backup, deletion and restoration through the real S3 API.
         storage_test = '''import hashlib
 from contextlib import closing
@@ -141,6 +190,11 @@ print('S3 object backup/delete/restore checksum passed')'''
         k("create","job","lab-retention","--from=cronjob/videoq-retention")
         k("wait","--for=condition=complete","job/lab-retention","--timeout=120s")
         report = {"uploadTranscriptionIndexingAndQa":"passed", "inference":"deterministic HTTP protocol fixture; no model quality evaluation", "objectRestore":"passed; SHA256 identical", "databaseRestore":"passed; restored to a separate database and app switched", "upgrade":"passed; two API replicas and migration hook", "rollback":"passed; one API replica, restored DB and data retained", "helmTest":"passed", "retention":"passed", "images":images, "databaseBackupSha256":hashlib.sha256(backup).hexdigest()}
+        if args.real_models:
+            report.update({"inference":"real CPU llama.cpp chat/embeddings and whisper.cpp ASR; public Japanese FLEURS fixture",
+                           "publicEgress":"blocked by dedicated internal Docker network; public DNS forwarding disabled; serving Pod probe passed",
+                           "playback":json.loads((output/"playback.json").read_text()),
+                           "recognitionAndAnswer":json.loads((output/"real-ai-result.json").read_text())})
         (output/"result.json").write_text(json.dumps(report,indent=2)+"\n")
         print(json.dumps(report,indent=2),flush=True)
     finally:

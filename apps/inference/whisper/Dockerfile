@@ -68,6 +68,7 @@ COPY --from=native /src/LICENSE /usr/share/doc/whisper.cpp/LICENSE
 COPY --from=native /ffmpeg/bin/ffmpeg /usr/local/bin/ffmpeg
 COPY --from=native /ffmpeg/doc/ /usr/share/doc/ffmpeg/
 WORKDIR /app
+COPY LICENSE /usr/share/licenses/videoq/LICENSE
 COPY server.py provision.py ./
 USER 10001:10001
 ENV PATH="/app/.venv/bin:/usr/local/bin:$PATH" PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \

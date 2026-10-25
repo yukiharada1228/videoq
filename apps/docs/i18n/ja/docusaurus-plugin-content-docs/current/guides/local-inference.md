@@ -30,7 +30,7 @@ API の形式は OpenAI 互換に統一し、`EMBEDDING_BASE_URL` で社内の�
 独立して設定します。認証も分ける場合は Secret に `EMBEDDING_API_KEY` を設定します。
 
 具体的なコマンドは、[推論用 Chart の導入手順](https://github.com/yukiharada1228/videoq/blob/main/charts/videoq-inference/README.md)
-にあります。Whisper の社内向けイメージ作成、CPU・NVIDIA GPU の設定、モデルの永続化、
+にあります。署名付きイメージと推論用 Chart の導入、CPU・NVIDIA GPU の設定、モデルの永続化、
 導入後のダウンロード停止、通信制限、実モデルの確認手順をまとめています。
 アプリ側は `charts/videoq/examples/` の対応する設定を重ね、更新時も同じ設定を維持します。
 
@@ -42,8 +42,9 @@ CPU の基本構成では、テキスト専用モデルを使うため映像の�
 `whisper-nvidia.yaml` を重ねて文字起こしだけに GPU を割り当てられます。vLLM の GPU 実行・ドライバー互換性は実機での検証が必要です。
 日本語の認識・回答品質と処理能力も導入先で確認します。
 
-ローカル Whisper のイメージは導入先でビルドします。既存の署名付き GHCR 配布の 3 イメージには
-現時点では含まれていません。外部 OpenAI の API キーは不要で、SDK 向けの仮の値として
+[署名付き Public 配布](on-premises-releases.md)に CPU 用 Whisper、amd64 用 NVIDIA vLLM、推論用 Chart を含めます。
+検証スクリプトが推論用の `verified-inference.json` とアプリ用の `verified-images.json` を生成します。
+導入先での Whisper ビルドは不要です。外部 OpenAI の API キーは不要で、SDK 向けの仮の値として
 `OPENAI_API_KEY=local-inference` を設定します。その他の Secret は
 [アプリの導入手順](on-premises.md)に従います。
 
