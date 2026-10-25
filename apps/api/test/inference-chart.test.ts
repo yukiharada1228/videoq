@@ -35,6 +35,8 @@ withHelm("private local inference deployment", () => {
     const whisper = pods.find(p => p.containers[0].name === "whisper");
     expect(whisper.containers[0].env).toContainEqual({ name: "HF_HUB_OFFLINE", value: "1" });
     expect(whisper.containers[0].env).toContainEqual({ name: "WHISPER_UPSTREAM_PARALLELISM", value: "1" });
+    expect(whisper.containers[0].env).toContainEqual({ name: "WHISPER_REQUEST_TIMEOUT_SECONDS", value: "600" });
+    expect(whisper.containers[1].resources.requests.cpu).toBe("2");
     expect(whisper.containers[0].volumeMounts[0].readOnly).toBe(true);
     const policy = resources.find(r => r.kind === "NetworkPolicy");
     expect(policy.spec.ingress[0].ports.map((port: { port: number }) => port.port).sort()).toEqual([8000, 8080]);
@@ -61,6 +63,7 @@ withHelm("private local inference deployment", () => {
       if (whisper) {
         expect(deployment.spec.template.spec.nodeSelector["kubernetes.io/arch"]).toBe("amd64");
         expect(container.env).toContainEqual({ name: "WHISPER_UPSTREAM_PARALLELISM", value: "4" });
+        expect(container.env).toContainEqual({ name: "WHISPER_REQUEST_TIMEOUT_SECONDS", value: "110" });
         const engine = deployment.spec.template.spec.containers[1];
         expect(engine.command).toEqual(["vllm", "serve"]);
         expect(engine.args).toContain("127.0.0.1");
@@ -73,7 +76,7 @@ withHelm("private local inference deployment", () => {
       .find(r => r.kind === "Deployment" && r.metadata.name.endsWith("-whisper"));
     expect(whisper.spec.template.spec.containers[0].env)
       .toContainEqual({ name: "WHISPER_UPSTREAM_PARALLELISM", value: "4" });
-    for (const setting of ["whisper.upstreamParallelism=0", "whisper.upstreamParallelism=9", "whisper.maxConcurrentRequests=5", "whisper.batchSize=8", "whisper.backend=faster-whisper"]) {
+    for (const setting of ["whisper.upstreamParallelism=0", "whisper.upstreamParallelism=9", "whisper.maxConcurrentRequests=5", "whisper.requestTimeoutSeconds=0", "whisper.requestTimeoutSeconds=601", "whisper.batchSize=8", "whisper.backend=faster-whisper"]) {
       expect(command("--set", setting).status).not.toBe(0);
     }
   });

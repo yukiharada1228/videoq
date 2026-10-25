@@ -28,7 +28,8 @@
         "upstreamParallelism",
         "gatewayResources",
         "vllmImage",
-        "maxSequences"
+        "maxSequences",
+        "requestTimeoutSeconds"
       ],
       "properties": {
         "image": {
@@ -160,6 +161,11 @@
         },
         "gatewayResources": {
           "type": "object"
+        },
+        "requestTimeoutSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600
         }
       },
       "additionalProperties": false,

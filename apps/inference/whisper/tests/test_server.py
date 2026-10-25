@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from threading import Event
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 import httpx
@@ -74,6 +75,27 @@ def test_silence_returns_empty_without_contacting_the_engine(client, monkeypatch
     assert response.json()["segments"] == []
     assert response.json()["text"] == ""
     assert calls == []
+
+
+@pytest.mark.parametrize("budget,status,count,starts", [(600, 200, 3, [0, 2, 4]), (110, 504, 2, [0, 2, 4]), (110, 504, 2, [0, 2])])
+def test_slow_cpu_spans_share_a_bounded_request_budget(client, monkeypatch, budget, status, count, starts):
+    transport, _, _ = client
+    clock, calls = [0], []
+    monkeypatch.setattr(server, "time", SimpleNamespace(monotonic=lambda: clock[0]))
+    monkeypatch.setattr(server.app.state, "request_timeout", budget)
+    monkeypatch.setattr(server, "decode_audio", lambda *_: np.zeros(6 * server.RATE, dtype=np.float32))
+    monkeypatch.setattr(server, "speech_spans", lambda _: [(i * server.RATE, (i + 1) * server.RATE) for i in starts])
+    def upstream(request):
+        calls.append(request)
+        clock[0] += 75
+        return httpx.Response(200, json={"segments": [{"start": .1, "end": 1, "text": "Caption"}]})
+    with httpx.Client(base_url=server.UPSTREAM, transport=httpx.MockTransport(upstream)) as engine:
+        monkeypatch.setattr(server.app.state, "upstream", engine)
+        response = post(transport)
+    assert response.status_code == status
+    assert len(calls) == count
+    if status == 200:
+        assert [row["start"] for row in response.json()["segments"]] == [.1, 2.1, 4.1]
 
 
 @pytest.mark.parametrize("fields", [{"model": "remote/model"}, {"response_format": "text"},

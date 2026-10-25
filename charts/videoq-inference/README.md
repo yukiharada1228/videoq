@@ -30,7 +30,7 @@ flowchart LR
 
 CPU defaults use Qwen3-4B Q4_K_M chat, gte-Qwen2-1.5B Q4_K_M embeddings
 (native 1536 dimensions) and
-whisper.cpp with multilingual quantized `ggml-small-q5_1.bin`. These are starting points for a small acceptance
+whisper.cpp with multilingual quantized `ggml-large-v3-turbo-q5_0.bin`. These are starting points for a small acceptance
 test. Measure production model quality, throughput, RAM and GPU VRAM with the
 site's Japanese videos. The CPU overlay disables visual inspection because its
 chat model accepts text only. Transcription, subtitle search, cited Q&A and
@@ -88,9 +88,12 @@ an old alias. The existing database does not automatically migrate vector spaces
 
 ## Install llama.cpp or vLLM
 
-First build the Whisper image as below, including the new `provision.py` helper,
-and record its private registry digest in `/secure/inference-site.yaml`. Chat and
-embedding init containers reuse that image's locked Hugging Face downloader.
+Download and verify a [signed public release](../../docs/guides/on-premises-releases.md)
+first. It includes both chart archives and generates `verified-images.json` for
+the app and `verified-inference.json` for inference. The CPU gateway supports
+amd64/arm64; the patched NVIDIA vLLM engine supports amd64. No site image build
+or GHCR pull authentication is required. Chat and embedding init containers
+reuse the gateway image's locked Hugging Face downloader.
 GGUF downloads use exact revisions and SHA256; safetensors snapshots use exact
 revisions and exclude pickle weights and Python code. Serving Pods mount weights
 read-only and run offline. Cached complete models skip network downloads.
@@ -98,25 +101,25 @@ read-only and run offline. Cached complete models skip network downloads.
 Choose one inference/application pair from the table, for example:
 
 ```sh
-helm upgrade --install inference charts/videoq-inference --namespace videoq --create-namespace \
+helm upgrade --install inference /secure/videoq-release/videoq-inference-0.1.0-sha.$SOURCE_SHA.tgz \
+  --namespace videoq --create-namespace \
   -f charts/videoq-inference/examples/llamacpp-cpu.yaml \
-  -f /secure/inference-site.yaml --wait --timeout 30m
-helm upgrade --install videoq charts/videoq --namespace videoq \
-  -f /secure/site.yaml -f /secure/verified-images.json \
-  -f charts/videoq/examples/local-ai-llamacpp.yaml --wait --timeout 15m
+  -f /secure/inference-site.yaml -f /secure/videoq-release/verified-inference.json \
+  --wait --timeout 30m
+helm upgrade --install videoq /secure/videoq-release/videoq-0.1.0-sha.$SOURCE_SHA.tgz \
+  --namespace videoq -f /secure/site.yaml \
+  -f charts/videoq/examples/local-ai-llamacpp.yaml \
+  -f /secure/videoq-release/verified-images.json --wait --timeout 15m
 ```
 
 For vLLM replace both profile filenames with `vllm-nvidia.yaml` and
 `local-ai-vllm.yaml`. Install the NVIDIA device plugin and review GPU VRAM first.
 The profile reserves **three allocatable GPUs** without sharing: chat, embedding and Whisper. Resource limits are starting values, not measured production sizing.
 vLLM GPU inference and driver compatibility require actual site acceptance;
-the CPU llama.cpp test does not validate them. Before deploying vLLM, scan the
-pinned image on the target architecture, including unfixed HIGH/CRITICAL findings:
-
-```sh
-trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed=false --exit-code 1 \
-  vllm/vllm-openai@sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34
-```
+the CPU llama.cpp test does not validate them. The signed NVIDIA image is used
+for chat, embeddings and speech. Review its retained scan report and scoped
+kernel-header assessment before promotion. Direct use of another upstream
+vLLM image needs a separate scan and compatibility acceptance.
 
 These profiles serve `videoq-inference-chat:8000`,
 `videoq-inference-embedding:8000` and `videoq-inference-whisper:8080`.
@@ -125,32 +128,23 @@ retaining the selected engine profile on every Helm upgrade. Changing `backend`
 replaces Deployments; it does not convert PVC contents. Back up old caches and
 adopt existing compatible claims explicitly. PVCs use a keep policy.
 
-## Build the private Whisper image
+## Site settings and optional private rebuilds
 
-The CPU image supports amd64 and arm64. Build for the Kubernetes nodes, push it
-into a private registry, then record its immutable digest. Chat and embedding
-init containers also use its locked `provision.py` downloader.
-
-```sh
-docker build --platform linux/amd64 \
-  -t registry.intranet/videoq-whisper:0.2.0-cpu apps/inference/whisper
-docker push registry.intranet/videoq-whisper:0.2.0-cpu
-docker buildx imagetools inspect registry.intranet/videoq-whisper:0.2.0-cpu
-```
-
-This image is built by the site and is not in the existing signed three-image
-GHCR release. Keep an operator-owned values file outside the repository:
+Keep an operator-owned `/secure/inference-site.yaml` outside the repository:
 
 ```yaml
-requireImageDigests: true
-whisper:
-  image:
-    repository: registry.intranet/videoq-whisper
-    digest: sha256:REPLACE_WITH_REVIEWED_DIGEST
 networkPolicy:
   clientNamespace: videoq
   clientRelease: videoq
 ```
+
+The release verifier supplies `whisper.image`, `whisper.vllmImage` and
+`vllm.image` as immutable public image references and requires image digests.
+The signed chart pins the upstream llama.cpp image. Never replace reviewed
+image values with a tag. If a site needs a private rebuild, build
+`apps/inference/whisper/Dockerfile` (amd64/arm64) or `Dockerfile.vllm` (amd64),
+retain the same license, scan/SBOM and provenance controls, and use an explicitly
+reviewed site-owned image values file instead of the public image values.
 
 Use that file with the selected inference/application pair above. The overlay
 assumes namespace `videoq`; update the service URLs if changing namespace,

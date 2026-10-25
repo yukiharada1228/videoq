@@ -3,3 +3,5 @@ __pycache__
 .venv
 tests
 *.pyc
+.env*
+.dev.vars*

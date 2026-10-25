@@ -24,13 +24,17 @@ NVIDIA の API は音声2件までを受け付け、各音声から最大4区間
 vLLM は最大8区間を動的にまとめて推論します。動画が8件たまるのを待つ方式ではありません。
 CPU は音声1件ずつ処理し、ワーカーの永続チェックポイントは30秒、NVIDIA は300秒です。
 `ai.whisperChunkSeconds` で30〜300秒に調整できます。CPU の標準モデルは多言語の
-量子化 small モデルです。速度と日本語の認識品質は、導入先の機器・録画で確認してください。
+量子化 large-v3-turbo（Q5_0）です。速度と日本語の認識品質は、導入先の機器・録画で確認してください。
+
+CPU の推論エンジンは2コアを予約します。API は音声1件の全区間を合わせて600秒、
+ワーカーは660秒まで待ちます。NVIDIA の設定では API 側を110秒にします。
+`whisper.requestTimeoutSeconds` は1〜600秒で指定でき、区間ごとに期限を延長することはありません。
 
 API の形式は OpenAI 互換に統一し、`EMBEDDING_BASE_URL` で社内の埋め込み API を指定します。LLM の `OPENAI_BASE_URL` とは
 独立して設定します。認証も分ける場合は Secret に `EMBEDDING_API_KEY` を設定します。
 
 具体的なコマンドは、[推論用 Chart の導入手順](https://github.com/yukiharada1228/videoq/blob/main/charts/videoq-inference/README.md)
-にあります。Whisper の社内向けイメージ作成、CPU・NVIDIA GPU の設定、モデルの永続化、
+にあります。署名付きイメージと推論用 Chart の導入、CPU・NVIDIA GPU の設定、モデルの永続化、
 導入後のダウンロード停止、通信制限、実モデルの確認手順をまとめています。
 アプリ側は `charts/videoq/examples/` の対応する設定を重ね、更新時も同じ設定を維持します。
 
@@ -42,8 +46,9 @@ CPU の基本構成では、テキスト専用モデルを使うため映像の�
 `whisper-nvidia.yaml` を重ねて文字起こしだけに GPU を割り当てられます。vLLM の GPU 実行・ドライバー互換性は実機での検証が必要です。
 日本語の認識・回答品質と処理能力も導入先で確認します。
 
-ローカル Whisper のイメージは導入先でビルドします。既存の署名付き GHCR 配布の 3 イメージには
-現時点では含まれていません。外部 OpenAI の API キーは不要で、SDK 向けの仮の値として
+[署名付き Public 配布](on-premises-releases.md)に CPU 用 Whisper、amd64 用 NVIDIA vLLM、推論用 Chart を含めます。
+検証スクリプトが推論用の `verified-inference.json` とアプリ用の `verified-images.json` を生成します。
+導入先での Whisper ビルドは不要です。外部 OpenAI の API キーは不要で、SDK 向けの仮の値として
 `OPENAI_API_KEY=local-inference` を設定します。その他の Secret は
 [アプリの導入手順](on-premises.md)に従います。
 

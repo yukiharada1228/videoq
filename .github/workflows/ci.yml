@@ -113,6 +113,7 @@ jobs:
       worker_matrix: ${{ steps.runtimes.outputs.matrix }}
       onprem: ${{ steps.filter.outputs.onprem }}
       whisper_gpu: ${{ steps.filter.outputs.whisper_gpu }}
+      real_cpu: ${{ steps.filter.outputs.real_cpu }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -124,6 +125,12 @@ jobs:
             whisper_gpu:
               - 'apps/inference/whisper/Dockerfile.vllm'
               - '.github/workflows/onprem-validation.yml'
+            real_cpu:
+              - '.github/workflows/onprem-validation.yml'
+              - '.github/scripts/onprem-cpu-acceptance.py'
+              - '.github/scripts/onprem-lab.py'
+              - '.github/onprem-lab/**'
+              - 'charts/videoq-inference/**'
             onprem:
               - '.dockerignore'
               - 'charts/**'
@@ -223,6 +230,7 @@ jobs:
     uses: ./.github/workflows/onprem-validation.yml
     with:
       validate_whisper_gpu: ${{ needs.changes.outputs.whisper_gpu == 'true' }}
+      validate_real_cpu: ${{ github.event_name == 'pull_request' && needs.changes.outputs.real_cpu == 'true' }}
     permissions:
       contents: read
 

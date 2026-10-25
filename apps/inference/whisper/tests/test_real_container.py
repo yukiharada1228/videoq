@@ -12,8 +12,8 @@ import pytest
 
 IMAGE = os.environ.get("LOCAL_WHISPER_CONTAINER_IMAGE")
 REVISION = "5359861c739e955e79d9a303bcbc70fb988958b1"
-MODEL = "ggml-small-q5_1.bin"
-DIGEST = "ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb"
+MODEL = "ggml-large-v3-turbo-q5_0.bin"
+DIGEST = "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2"
 
 
 @pytest.mark.skipif(not IMAGE, reason="LOCAL_WHISPER_CONTAINER_IMAGE enables the actual Docker/runtime test")
@@ -51,6 +51,13 @@ def test_cpu_image_transcribes_public_speech_and_silence_offline(record_property
                "--mount", mount + ",readonly", IMAGE)
         started = True
         docker("cp", str(fixtures / case["file"]), f"{name}:/tmp/public-speech.mp3")
+        # Match the production audio codecs: source MP3 -> video AAC -> worker
+        # MP3. The video track uses LGPL FFmpeg's native MPEG-4 encoder.
+        docker("exec", name, "ffmpeg", "-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=blue:s=160x120:d=10.44",
+               "-i", "/tmp/public-speech.mp3", "-shortest", "-c:v", "mpeg4", "-c:a", "aac", "-movflags", "frag_keyframe+empty_moov", "/tmp/public-video.mp4")
+        docker("exec", name, "ffmpeg", "-nostdin", "-xerror", "-abort_on", "empty_output", "-v", "error", "-y", "-ss", "0",
+               "-i", "/tmp/public-video.mp4", "-t", str(case["duration"]), "-map", "0:a:0", "-vn", "-af", "aresample=async=1:first_pts=0",
+               "-acodec", "mp3", "-ab", "64k", "-ar", "16000", "-ac", "1", "/tmp/public-worker.mp3")
         engine_args = ["whisper-server", "--model", f"/models/{REVISION}/{MODEL}",
                        "--host", "127.0.0.1", "--port", "8081", "--inference-path", "/v1/audio/transcriptions",
                        "--language", "auto", "--threads", "2", "--beam-size", "5", "--no-gpu"]
@@ -78,7 +85,7 @@ else: raise RuntimeError("External serving egress was allowed")
 data = {"model":"whisper-local", "response_format":"verbose_json", "timestamp_granularities[]":"segment"}
 with httpx.Client(timeout=120, trust_env=False) as client:
     started = time.monotonic()
-    with open("/tmp/public-speech.mp3", "rb") as audio:
+    with open("/tmp/public-worker.mp3", "rb") as audio:
         speech = client.post(base + "/v1/audio/transcriptions", data=data, files={"file":("speech.mp3", audio)})
     speech.raise_for_status()
     elapsed = time.monotonic() - started
@@ -95,7 +102,10 @@ print(json.dumps({"speech":speech.json(), "silence":empty.json(), "elapsed_secon
         assessment = metrics.assess_response(result, case)
         record_property("japanese_clip_cer", assessment["cer"])
         record_property("speech_elapsed_seconds", observed["elapsed_seconds"])
-        assert not assessment["errors"] and assessment["cer"] < .5
+        record_property("recognized_text", result["text"])
+        record_property("speech_model_file", MODEL)
+        assert not assessment["errors"] and assessment["cer"] < .25
+        assert "住所" in result["text"]
         assert result["segments"]
         assert all(math.isfinite(row["start"]) and 0 <= row["start"] < row["end"] <= result["duration"] for row in result["segments"])
         assert observed["silence"]["segments"] == [] and observed["silence"]["text"] == ""

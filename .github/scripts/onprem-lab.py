@@ -6,18 +6,91 @@ Caller creates and deletes the cluster. Images must already exist in Docker.
 """
 import argparse
 import base64
+import copy
 import hashlib
 import json
 import os
 from pathlib import Path
 import secrets
+import re
 import subprocess
 import time
+import tempfile
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[2]
 CLUSTER = "videoq-onprem-lab"
 NAMESPACE = "videoq-validation"
+
+
+def prepare_fixtures(data, image_tag=None):
+    """Keep original immutable identities while using explicit offline aliases.
+
+    Docker archive imports do not reliably preserve a remote multiarch index's
+    name/digest in containerd. Never pretend a native manifest has that digest.
+    """
+    if image_tag is not None and not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}", image_tag):
+        raise ValueError("Expected a local Docker image tag")
+    fixture, images = copy.deepcopy(data), {}
+    for item in fixture["items"]:
+        if item["kind"] != "Deployment": continue
+        name, containers = item["metadata"]["name"], item["spec"]["template"]["spec"]["containers"]
+        if name not in ("postgres", "garage", "queue") or len(containers) != 1:
+            raise ValueError("Unexpected disposable backing service")
+        container = containers[0]
+        reference = container["image"]
+        if not re.fullmatch(r"[a-z0-9./_-]+(?::[A-Za-z0-9_.-]+)?@sha256:[a-f0-9]{64}", reference):
+            raise ValueError("Backing fixture images must use reviewed digests")
+        alias = "videoq-lab-"+name+":"+image_tag if image_tag is not None else reference
+        images[name] = {"reference":reference,"alias":alias}
+        if image_tag is not None:
+            container.update({"image":alias,"imagePullPolicy":"Never"})
+    if set(images) != {"postgres", "garage", "queue"}:
+        raise ValueError("All disposable backing services are required")
+    return fixture, images
+
+
+def load_native_images(images, env, output, cluster=CLUSTER):
+    """Import tagged native images and verify the CRI cache before going offline.
+
+    Containerd-backed Docker stores retain multiarch indexes even when only one
+    platform's layers were pulled. Classic stores already hold native images.
+    """
+    def read(command, **kwargs):
+        return subprocess.check_output(command,env=env,text=True,**kwargs).strip()
+    info = json.loads(read(["docker","info","--format",'{{json .}}']))
+    architecture = {"x86_64":"amd64","aarch64":"arm64","amd64":"amd64","arm64":"arm64"}.get(info["Architecture"])
+    if info["OSType"] != "linux" or not architecture:
+        raise ValueError("The lab requires native Linux amd64 or arm64 Docker images")
+    platform = "linux/"+architecture
+    containerd = any(k == "driver-type" and "containerd.snapshotter" in v for k,v in (info.get("DriverStatus") or []))
+    if containerd:
+        version = tuple(int(part) for part in read(["docker","version","--format",'{{.Server.APIVersion}}']).split('.'))
+        if version < (1,48): raise ValueError("Containerd image export requires Docker API 1.48 or newer")
+    imports = []
+    with tempfile.TemporaryDirectory(prefix="native-images-",dir=output) as directory:
+        archive = Path(directory)/"image.tar"
+        for image in images:
+            if not containerd and read(["docker","image","inspect",image,"--format",'{{.Os}}/{{.Architecture}}']) != platform:
+                raise ValueError("The lab must import the Docker daemon's native architecture")
+            command = ["docker","image","save"] + (["--platform",platform] if containerd else [])
+            subprocess.run([*command,"--output",str(archive),image],env=env,check=True)
+            subprocess.run(["kind","load","image-archive","--name",cluster,str(archive)],env=env,check=True)
+            # ctr import can finish before CRI's asynchronous image cache sees
+            # the image event. Require the alias to become usable, with a bound.
+            inspect = ["docker","exec",cluster+"-control-plane","crictl","--runtime-endpoint","unix:///run/containerd/containerd.sock","inspecti",image]
+            for attempt in range(30):
+                try:
+                    status = json.loads(read(inspect,stderr=subprocess.PIPE))["status"]
+                    break
+                except subprocess.CalledProcessError:
+                    if attempt == 29:
+                        subprocess.run(["docker","exec",cluster+"-control-plane","ctr","--namespace=k8s.io","images","list"],env=env,check=False)
+                        raise
+                    time.sleep(1)
+            imports.append({"alias":image,"platform":platform,"criImageId":status["id"],"criCacheAttempts":attempt+1})
+            archive.unlink()
+    return imports
 
 
 def main():
@@ -27,11 +100,15 @@ def main():
     parser.add_argument("--image-tag", default="onprem-ci")
     parser.add_argument("--chart", default="charts/videoq", help="Reviewed source chart or verified chart archive")
     parser.add_argument("--resume", action="store_true", help="Resume a failed test only in the existing disposable lab")
+    parser.add_argument("--real-models", action="store_true", help="Use preloaded CPU models in the isolated acceptance cluster")
+    parser.add_argument("--inference-chart", default="charts/videoq-inference")
     args = parser.parse_args()
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     helm = os.environ.get("HELM_BIN", "helm")
     env = {**os.environ, "KUBECONFIG": str(args.kubeconfig.resolve())}
+    if args.real_models:
+        env["ONPREM_REAL_AI"] = "1"
     def run(command, data=None, binary=False):
         return subprocess.run(command, cwd=ROOT, env=env, input=data, text=not binary, check=True, stdout=subprocess.PIPE).stdout
     def k(*command, data=None, binary=False):
@@ -43,12 +120,14 @@ def main():
     k("get", "nodes")
     if not args.resume:
         fixture = json.loads((ROOT / ".github/onprem-lab/dependencies.json").read_text())
+        fixture, _ = prepare_fixtures(fixture, args.image_tag if args.real_models else None)
         k("apply", "-f", "-", data=json.dumps(fixture))
         for name in ["postgres", "garage", "queue"]:
             k("rollout", "status", "deployment/" + name, "--timeout=300s")
     images = ["videoq-" + c + ":" + args.image_tag for c in ["api", "worker", "web"]]
-    run(["kind", "load", "docker-image", "--name", CLUSTER, *images])
-    if not args.resume:
+    if not args.real_models:
+        load_native_images(images, env, output)
+    if not args.resume and not args.real_models:
         k("create", "configmap", "inference-fixture", "--from-file=inference.mjs=" + str(ROOT / ".github/onprem-lab/inference.mjs"))
         service = {"apiVersion":"v1","kind":"Service","metadata":{"name":"inference"},"spec":{"selector":{"app":"inference"},"ports":[{"port":8080}]}}
         deployment = {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"inference"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"inference"}},"template":{"metadata":{"labels":{"app":"inference"}},"spec":{"containers":[{"name":"inference","image":images[0],"imagePullPolicy":"Never","command":["node","/fixture/inference.mjs"],"volumeMounts":[{"name":"fixture","mountPath":"/fixture"}]}],"volumes":[{"name":"fixture","configMap":{"name":"inference-fixture"}}]}}}}
@@ -67,6 +146,33 @@ def main():
               "queue":{"url":"http://queue:9324/000000000000/videoq-jobs"},
               "ai":{"openaiBaseUrl":"http://inference:8080/v1","llmModel":"lab-model","whisperBackend":"local","whisperLocalUrl":"http://inference:8080/v1"},
               "config":{"videoVisualEnabled":False}}
+    if args.real_models:
+        values["networkPolicy"] = {"localEgressOnly":True}
+        values["ai"].update({"openaiBaseUrl":"http://videoq-inference-chat:8000/v1", "llmModel":"videoq-chat",
+                            "embeddingBaseUrl":"http://videoq-inference-embedding:8000/v1", "embeddingModel":"gte-qwen2-1.5b-q4km-124fbdad",
+                            "separateToolSchema":True, "reasoningEffort":"none", "requestTimeoutMs":600000, "streamTimeoutMs":600000,
+                            "whisperLocalUrl":"http://videoq-inference-whisper:8080/v1", "whisperChunkSeconds":30})
+        resources = []
+        inference_values = {"downloadModels":False, "networkPolicy":{"clientNamespace":NAMESPACE,"clientRelease":"videoq","denyEgress":True},
+                            "whisper":{"image":{"repository":"videoq-whisper","tag":args.image_tag,"digest":"","pullPolicy":"Never"}},
+                            "llamacpp":{"image":{"repository":"videoq-llamacpp","tag":args.image_tag,"digest":"","pullPolicy":"Never"}},
+                            "servers":{}}
+        for component in ["chat", "embedding", "whisper"]:
+            name = "acceptance-models-" + component
+            resources += [{"apiVersion":"v1","kind":"PersistentVolume","metadata":{"name":name},
+                           "spec":{"capacity":{"storage":"10Gi"},"accessModes":["ReadOnlyMany"],"storageClassName":"",
+                                   "hostPath":{"path":"/videoq-models","type":"Directory"},"persistentVolumeReclaimPolicy":"Retain"}},
+                          {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"name":name,"namespace":NAMESPACE},
+                           "spec":{"accessModes":["ReadOnlyMany"],"storageClassName":"","volumeName":name,"resources":{"requests":{"storage":"10Gi"}}}}]
+            target = inference_values["whisper"] if component == "whisper" else inference_values["servers"].setdefault(component,{})
+            target["persistence"] = {"existingClaim":name}
+            target["resources"] = {"requests":{"cpu":"100m","memory":"512Mi"},
+                                   "limits":{"cpu":"4" if component == "chat" else "2","memory":{"chat":"8Gi","embedding":"4Gi","whisper":"2Gi"}[component]}}
+        k("apply","-f","-",data=json.dumps({"apiVersion":"v1","kind":"List","items":resources}))
+        inference_path = output / "inference-values.json"
+        inference_path.write_text(json.dumps(inference_values))
+        run([helm,"upgrade","--install","inference",args.inference_chart,"--kube-context","kind-"+CLUSTER,"--namespace",NAMESPACE,
+             "-f",str(inference_path),"--wait","--timeout","15m"])
     for component in ["api", "worker", "web"]:
         values[component] = {"image":{"repository":"videoq-"+component,"tag":args.image_tag,"pullPolicy":"Never"},"resources":{"requests":{"cpu":"100m","memory":"128Mi"},"limits":{"memory":"1Gi"}}}
     values["api"].update({"databasePoolMax":2,"rateLimitPoolMax":1})
@@ -76,6 +182,21 @@ def main():
         return run([helm,*command,"--kube-context","kind-"+CLUSTER,"--namespace",NAMESPACE])
     if not args.resume:
         h("install","videoq",args.chart,"-f",str(values_path),"--wait","--timeout","5m")
+    if args.real_models:
+        # The dedicated node firewall blocks public IPv4/IPv6 traffic. CoreDNS
+        # forwarding is disabled by the caller. Check both positive/private and
+        # negative/public connectivity from the actual worker Pod.
+        probe = '''import json,socket,urllib.request
+for host,port in [('videoq-inference-chat',8000),('videoq-inference-embedding',8000),('videoq-inference-whisper',8080)]:
+ assert urllib.request.urlopen('http://'+host+':'+str(port)+'/health',timeout=10).status==200
+try: socket.create_connection(('1.1.1.1',443),timeout=3)
+except OSError: pass
+else: raise RuntimeError('Public IP egress was allowed')
+try: socket.getaddrinfo('example.com',443)
+except OSError: pass
+else: raise RuntimeError('Public DNS resolution was allowed')
+print('Private inference reachable; public IP and DNS blocked')'''
+        print(k("exec","deployment/videoq-worker","--","python","-c",probe),flush=True)
     forwards = []
     try:
         for service_name, ports in [("videoq-api","18787:8787"),("garage","19000:3900")]:
@@ -90,7 +211,10 @@ def main():
                 time.sleep(1)
             raise RuntimeError("API readiness timed out")
         ready()
-        video = run(["docker","run","--rm","--entrypoint","ffmpeg",images[1],"-v","error","-f","lavfi","-i","color=c=blue:s=160x120:d=2","-f","lavfi","-i","sine=frequency=440:duration=2","-shortest","-c:v","libx264","-c:a","aac","-movflags","frag_keyframe+empty_moov","-f","mp4","pipe:1"],binary=True)
+        audio = ROOT / "apps/inference/whisper/tests/fixtures/fleurs-ja-00.mp3"
+        inputs = ["--mount","type=bind,src="+str(audio)+",dst=/fixture.mp3,readonly"] if args.real_models else []
+        sound = ["-i","/fixture.mp3"] if args.real_models else ["-f","lavfi","-i","sine=frequency=440:duration=2"]
+        video = run(["docker","run","--rm",*inputs,"--entrypoint","ffmpeg",images[1],"-v","error","-f","lavfi","-i","color=c=blue:s=160x120:d="+("10.44" if args.real_models else "2"),*sound,"-shortest","-c:v","libx264","-c:a","aac","-movflags","frag_keyframe+empty_moov","-f","mp4","pipe:1"],binary=True)
         video_path = output / "video.mp4"
         video_path.write_bytes(video)
         state_path = output / "e2e-state.json"
@@ -102,6 +226,8 @@ def main():
             state_path.chmod(0o600)
             e2e("register")
         e2e("upload")
+        if args.real_models:
+            print(run(["node",".github/onprem-lab/playback.mjs",str(state_path),str(output/"playback.json")]),flush=True)
         # Test object backup, deletion and restoration through the real S3 API.
         storage_test = '''import hashlib
 from contextlib import closing
@@ -141,7 +267,12 @@ print('S3 object backup/delete/restore checksum passed')'''
         k("create","job","lab-retention","--from=cronjob/videoq-retention")
         k("wait","--for=condition=complete","job/lab-retention","--timeout=120s")
         report = {"uploadTranscriptionIndexingAndQa":"passed", "inference":"deterministic HTTP protocol fixture; no model quality evaluation", "objectRestore":"passed; SHA256 identical", "databaseRestore":"passed; restored to a separate database and app switched", "upgrade":"passed; two API replicas and migration hook", "rollback":"passed; one API replica, restored DB and data retained", "helmTest":"passed", "retention":"passed", "images":images, "databaseBackupSha256":hashlib.sha256(backup).hexdigest()}
-        (output/"result.json").write_text(json.dumps(report,indent=2)+"\n")
+        if args.real_models:
+            report.update({"inference":"real CPU llama.cpp chat/embeddings and whisper.cpp ASR; public Japanese FLEURS fixture",
+                           "publicEgress":"blocked by dedicated node IPv4/IPv6 firewall; public DNS forwarding disabled; worker Pod probe passed",
+                           "playback":json.loads((output/"playback.json").read_text()),
+                           "recognitionAndAnswer":json.loads((output/"real-ai-result.json").read_text())})
+        (output/("lifecycle-result.json" if args.real_models else "result.json")).write_text(json.dumps(report,indent=2)+"\n")
         print(json.dumps(report,indent=2),flush=True)
     finally:
         for process in forwards:

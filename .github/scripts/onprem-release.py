@@ -14,7 +14,10 @@ import tempfile
 
 REPOSITORY = "yukiharada1228/videoq"
 WORKFLOW = REPOSITORY + "/.github/workflows/onprem-release.yml"
-COMPONENTS = ("api", "worker", "web")
+APP_COMPONENTS = ("api", "worker", "web")
+COMPONENTS = (*APP_COMPONENTS, "whisper", "whisper-vllm")
+PLATFORMS = {c: (["linux/amd64"] if c == "whisper-vllm" else ["linux/amd64", "linux/arm64"]) for c in COMPONENTS}
+CHARTS = {"application": "videoq", "inference": "videoq-inference"}
 PREFIX = "ghcr.io/" + REPOSITORY + "-onprem-"
 
 
@@ -34,19 +37,24 @@ def digest(value):
 
 def validate(data, expected_sha):
     sha(expected_sha)
-    if data.get("schemaVersion") != 1 or data.get("repository") != REPOSITORY or data.get("sourceSha") != expected_sha:
+    if data.get("schemaVersion") != 2 or data.get("repository") != REPOSITORY or data.get("sourceSha") != expected_sha:
         raise ValueError("Release repository or source commit does not match the reviewed source")
-    if data.get("platforms") != ["linux/amd64", "linux/arm64"] or set(data.get("images", {})) != set(COMPONENTS):
-        raise ValueError("Release must include all components and both supported architectures")
+    if set(data.get("images", {})) != set(COMPONENTS):
+        raise ValueError("Release must include all application and inference components")
     for component in COMPONENTS:
         image = data["images"][component]
         if image.get("repository") != PREFIX + component:
             raise ValueError("Unexpected image repository")
+        if image.get("platforms") != PLATFORMS[component]:
+            raise ValueError("Unexpected image architectures")
         digest(image.get("digest"))
-    chart = data.get("chart", {})
-    if chart.get("name") != "videoq-0.1.0-sha." + expected_sha + ".tgz":
-        raise ValueError("Unexpected chart filename")
-    digest(chart.get("digest"))
+    if set(data.get("charts", {})) != set(CHARTS):
+        raise ValueError("Release must include both application and inference charts")
+    for key, name in CHARTS.items():
+        chart = data["charts"][key]
+        if chart.get("name") != name + "-0.1.0-sha." + expected_sha + ".tgz":
+            raise ValueError("Unexpected chart filename")
+        digest(chart.get("digest"))
     return data
 
 
@@ -64,16 +72,23 @@ def attest(target, source, predicate=None):
 def verify(manifest, source):
     attest(manifest, source)
     data = validate(json.loads(manifest.read_text()), source)
-    chart = manifest.parent / data["chart"]["name"]
-    if "sha256:" + hashlib.sha256(chart.read_bytes()).hexdigest() != data["chart"]["digest"]:
-        raise ValueError("Chart bytes do not match the signed release")
-    attest(chart, source)
+    for entry in data["charts"].values():
+        chart = manifest.parent / entry["name"]
+        if "sha256:" + hashlib.sha256(chart.read_bytes()).hexdigest() != entry["digest"]:
+            raise ValueError("Chart bytes do not match the signed release")
+        attest(chart, source)
     for component in COMPONENTS:
         image = data["images"][component]
         attest("oci://" + image["repository"] + "@" + image["digest"], source)
-    return {"requireImageDigests": True, **{
-        c: {"image": {**data["images"][c], "tag": "", "pullPolicy": "IfNotPresent"}}
-        for c in COMPONENTS}}
+    def image(component):
+        return {k: data["images"][component][k] for k in ("repository", "digest")}
+    application = {"requireImageDigests": True, **{
+        c: {"image": {**image(c), "tag": "", "pullPolicy": "IfNotPresent"}}
+        for c in APP_COMPONENTS}}
+    inference = {"requireImageDigests": True,
+                 "whisper": {"image": image("whisper"), "vllmImage": image("whisper-vllm")},
+                 "vllm": {"image": image("whisper-vllm")}}
+    return application, inference
 
 
 def write_atomic(path, data):
@@ -99,20 +114,24 @@ def main():
     check.add_argument("source")
     check.add_argument("manifest", type=Path)
     check.add_argument("output", type=Path)
+    check.add_argument("inference_output", type=Path)
     args = parser.parse_args()
     sha(args.source)
     if args.command == "verify":
-        if args.output.resolve() == args.manifest.resolve():
-            raise ValueError("Output must not overwrite the signed manifest")
-        write_atomic(args.output, verify(args.manifest, args.source))
-        print("Verified release; Helm image values written to " + str(args.output))
+        outputs = [args.output.resolve(), args.inference_output.resolve()]
+        if len(set(outputs)) != 2 or any(p == args.manifest.resolve() or p.suffix == ".tgz" for p in outputs):
+            raise ValueError("Outputs must be distinct and must not overwrite signed artifacts")
+        application, inference = verify(args.manifest, args.source)
+        write_atomic(args.output, application)
+        write_atomic(args.inference_output, inference)
+        print("Verified release; application and inference Helm image values written")
         return
-    chart = args.directory / ("videoq-0.1.0-sha." + args.source + ".tgz")
-    data = {"schemaVersion": 1, "repository": REPOSITORY, "sourceSha": args.source,
-            "platforms": ["linux/amd64", "linux/arm64"],
+    charts = {key: args.directory / (name + "-0.1.0-sha." + args.source + ".tgz") for key, name in CHARTS.items()}
+    data = {"schemaVersion": 2, "repository": REPOSITORY, "sourceSha": args.source,
             "images": {c: {"repository": PREFIX + c,
+                           "platforms": PLATFORMS[c],
                            "digest": (args.directory / (c + ".digest")).read_text().strip()} for c in COMPONENTS},
-            "chart": {"name": chart.name, "digest": "sha256:" + hashlib.sha256(chart.read_bytes()).hexdigest()}}
+            "charts": {key: {"name": chart.name, "digest": "sha256:" + hashlib.sha256(chart.read_bytes()).hexdigest()} for key, chart in charts.items()}}
     write_atomic(args.directory / "release.json", validate(data, args.source))
 
 

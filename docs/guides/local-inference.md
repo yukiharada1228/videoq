@@ -24,16 +24,22 @@ whisper.cpp natively with Metal. The app uses `WHISPER_BACKEND=local` and
 
 The NVIDIA recipe dynamically batches speech spans: the gateway submits up to
 four concurrently per audio request, accepts two audio requests, and vLLM allows
-eight active sequences. CPU defaults to one request and uses 30-second worker
+eight active sequences. CPU speech uses multilingual large-v3-turbo Q5_0 weights,
+defaults to one request and uses 30-second worker
 checkpoints; NVIDIA uses 300-second checkpoints. These are deployment settings,
 not guarantees of recognition accuracy or real-time performance.
+
+The CPU engine reserves two cores. One gateway request shares a 600-second budget
+across its speech spans; the local worker waits up to 660 seconds. NVIDIA overlays
+use a 110-second gateway budget. `whisper.requestTimeoutSeconds` accepts 1–600
+seconds; the budget is not restarted for each span.
 
 The application uses the OpenAI-compatible protocol with private endpoints;
 `EMBEDDING_BASE_URL` separates query/indexing embeddings from `OPENAI_BASE_URL`
 for chat. Optional `EMBEDDING_API_KEY` selects a separate credential.
 
 Use the [inference chart's installation guide](https://github.com/yukiharada1228/videoq/blob/main/charts/videoq-inference/README.md).
-It covers building the private Whisper image, CPU/GPU Helm settings, persistent
+It covers installing the signed Whisper image and inference chart, CPU/GPU Helm settings, persistent
 weights, disabling runtime downloads, egress restrictions and real-model checks.
 Select the matching overlay from `charts/videoq/examples/`; retain it on upgrades.
 
@@ -45,8 +51,10 @@ chat/embedding deployment.
 vLLM GPU execution remains subject to actual hardware acceptance. Hardware sizing and Japanese
 recognition/answer quality require acceptance on the actual site.
 
-The local Whisper image is site-built and is not currently included in the
-existing signed three-image GHCR release. No hosted OpenAI key is needed:
+The [signed public release](on-premises-releases.md) includes the CPU Whisper
+image, amd64 NVIDIA vLLM image and inference chart. The verifier produces
+`verified-inference.json` for the inference chart and `verified-images.json` for
+the application. No hosted OpenAI key is needed:
 `OPENAI_API_KEY=local-inference` is an SDK placeholder. Retain the other runtime
 Secret values from the [application installation](on-premises.md).
 
