@@ -784,10 +784,6 @@
     }
   },
   "legal": {
-    "notice": {
-      "title": "Notice — October 23, 2026",
-      "body": "Transcription now uses the OpenAI API (whisper-1). Monthly transcription allowances return to 45 minutes for Free, 200 for Basic and 1,000 for Pro. The Terms and Privacy Policy reflect the processing provider and data handling. Existing content and recorded usage are preserved."
-    },
     "terms": {
       "title": "Terms of Service",
       "updated": "Last updated: October 23, 2026",

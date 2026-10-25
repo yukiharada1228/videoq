@@ -95,50 +95,6 @@ it('switches from English to Japanese and keeps the Japanese preference', async 
   expect(localStorage.getItem('videoq.locale')).toBe('ja');
 });
 
-it('keeps the legal notice closed after navigating to another page', async () => {
-  const noticeKey = 'videoq.legal-notice.2026-10-23.dismissed';
-  const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 9, 17));
-  localStorage.removeItem(noticeKey);
-  try {
-    const firstPage = renderApp('/privacy');
-    await screen.findByRole('heading', { name: 'プライバシーポリシー', level: 1 });
-    const notice = screen.getByRole('complementary', { name: '2026年10月23日のお知らせ' });
-    expect(within(notice).getByRole('link', { name: '利用規約' })).toHaveAttribute('href', '/terms');
-    expect(within(notice).getByRole('link', { name: 'プライバシーポリシー' })).toHaveAttribute('href', '/privacy');
-
-    fireEvent.click(within(notice).getByRole('button', { name: '閉じる' }));
-    expect(screen.queryByRole('complementary', { name: '2026年10月23日のお知らせ' })).not.toBeInTheDocument();
-    expect(localStorage.getItem(noticeKey)).toBe('1');
-
-    firstPage.unmount();
-    renderApp('/terms');
-    await screen.findByRole('heading', { name: '利用規約', level: 1 });
-    expect(screen.queryByRole('complementary', { name: '2026年10月23日のお知らせ' })).not.toBeInTheDocument();
-  } finally {
-    clock.mockRestore();
-    localStorage.removeItem(noticeKey);
-  }
-});
-
-it('closes the legal notice when browser storage is unavailable', async () => {
-  const originalStorage = Object.getOwnPropertyDescriptor(window, 'localStorage')!;
-  const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 9, 17));
-  Object.defineProperty(window, 'localStorage', {
-    configurable: true,
-    get() { throw new Error('Storage unavailable'); },
-  });
-  try {
-    renderApp('/privacy');
-    await screen.findByRole('heading', { name: 'プライバシーポリシー', level: 1 });
-    const notice = screen.getByRole('complementary', { name: '2026年10月23日のお知らせ' });
-    fireEvent.click(within(notice).getByRole('button', { name: '閉じる' }));
-    expect(screen.queryByRole('complementary', { name: '2026年10月23日のお知らせ' })).not.toBeInTheDocument();
-  } finally {
-    Object.defineProperty(window, 'localStorage', originalStorage);
-    clock.mockRestore();
-  }
-});
-
 it.each(['/', '/en/'])('renders the landing page immediately while the session is pending at %s', (path) => {
   globalThis.__setMockAuthSession(null, true);
   const view = renderApp(path);
