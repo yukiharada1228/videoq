@@ -18,6 +18,7 @@ import type { Bindings } from "../types/bindings";
  * ストリーミング中の切断はどのみち復旧できない。
  */
 const MAX_RETRIES = 0;
+const LOCAL_TOOL_DECISION_SCHEMA = "videoq_tool_decision";
 
 export type LocalToolPolicy = {
   systemPrompt: string;
@@ -113,6 +114,21 @@ class AnswerChatModel extends ChatOpenAICompletions {
     options?: OpenAI.RequestOptions,
   ): Promise<OpenAI.Chat.Completions.ChatCompletion | AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>> {
     if (this.separateToolSchema && request.response_format?.type === "json_schema") {
+      // The agent removes tools after exhausting its round budget. Apply the
+      // same grounding policy to that terminal call, without intercepting the
+      // recursive JSON tool-planning request.
+      const terminal = !request.tools?.length && request.response_format.json_schema.name !== LOCAL_TOOL_DECISION_SCHEMA;
+      const policy = terminal ? this.localToolPolicy?.() : undefined;
+      if (policy?.requireTool) throw new LlmProviderError("Local grounding requires a tool before answering.");
+      if (policy?.emptyEvidenceAnswer !== undefined)
+        return fixedLocalAnswer(policy.emptyEvidenceAnswer, request.model, Boolean(request.stream));
+      if (policy?.finalInstructions) {
+        request = { ...request, messages: request.messages.map((message) =>
+          message.role === "system" && typeof message.content === "string"
+            ? { ...message, content: message.content + "\n\n" + policy.finalInstructions }
+            : message,
+        ) };
+      }
       request = { ...request, messages: localJsonHistory(request.messages) };
     }
     if (this.separateToolSchema && request.tools?.length && request.response_format?.type === "json_schema") {
@@ -209,7 +225,7 @@ class AnswerChatModel extends ChatOpenAICompletions {
           stream_options: undefined,
           response_format: {
             type: "json_schema",
-            json_schema: { name: "videoq_tool_decision", strict: true, schema: { anyOf: choices } },
+            json_schema: { name: LOCAL_TOOL_DECISION_SCHEMA, strict: true, schema: { anyOf: choices } },
           },
         },
         options,
@@ -292,17 +308,9 @@ class AnswerChatModel extends ChatOpenAICompletions {
       if (policy?.emptyEvidenceAnswer !== undefined) {
         return fixedLocalAnswer(policy.emptyEvidenceAnswer, request.model, Boolean(request.stream), completed);
       }
-      const finalMessages = policy?.finalInstructions
-        ? request.messages.map((message) =>
-            message.role === "system" && typeof message.content === "string"
-              ? { ...message, content: message.content + "\n\n" + policy.finalInstructions }
-              : message,
-          )
-        : request.messages;
       return this.completionWithRetry(
         {
           ...request,
-          messages: finalMessages,
           tools: undefined,
           tool_choice: undefined,
           parallel_tool_calls: undefined,
