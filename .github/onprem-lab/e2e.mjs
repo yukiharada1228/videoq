@@ -9,7 +9,8 @@ const password = 'Local-validation-only-2026!';
 let cookie;
 const real = process.env.ONPREM_REAL_AI === '1';
 const selectedCase = process.env.ONPREM_CASE_FILE ? JSON.parse(readFileSync(process.env.ONPREM_CASE_FILE,'utf8')) : null;
-const language=selectedCase?.locale??(real?'ja':'en');
+// Preserve the public baseline's default locale; only demos select a locale.
+const localeHeaders=selectedCase?{'Accept-Language':selectedCase.locale}:{};
 const observe=process.env.ONPREM_OBSERVE_DEMO==='1';
 assert(!observe||selectedCase,'Observation mode requires an explicit demo case');
 const question = real ? '動画では、インターネットで「敵対的環境コース」を検索すると何の住所が出てくると述べていますか？' : 'Where does VideoQ run?';
@@ -51,7 +52,7 @@ async function auth(route) {
   assert(cookie);
 }
 async function rpc(name,input,query=false) {
-  const response=await fetch(origin+'/api/trpc/'+name+(query?'?input='+encodeURIComponent(JSON.stringify(input)):''), {method:query?'GET':'POST',signal:AbortSignal.timeout(600000),headers:{'Content-Type':'application/json','Accept-Language':language,Origin:origin,Cookie:cookie},...(!query?{body:JSON.stringify(input)}:{})});
+  const response=await fetch(origin+'/api/trpc/'+name+(query?'?input='+encodeURIComponent(JSON.stringify(input)):''), {method:query?'GET':'POST',signal:AbortSignal.timeout(600000),headers:{'Content-Type':'application/json',...localeHeaders,Origin:origin,Cookie:cookie},...(!query?{body:JSON.stringify(input)}:{})});
   const body=await response.json();assert.equal(response.status,200,JSON.stringify(body));return body.result.data;
 }
 async function answer(courseId,testQuestion=selectedCase?.questions[0],videoId) {
@@ -62,7 +63,7 @@ async function answer(courseId,testQuestion=selectedCase?.questions[0],videoId) 
   if(selectedCase)appendFileSync(join(dirname(process.argv[3]),'answer-observations.jsonl'),JSON.stringify({mode:process.argv[2],kind:'non-streaming',question:testQuestion,answer:message.answer,answerSeconds})+'\n');
   const normalAssessment=recordAssessment(message.answer,testQuestion,videoId,'non-streaming');
   const streamStarted=performance.now();
-  const streamed=await fetch(origin+'/api/chat/messages/stream',{method:'POST',signal:AbortSignal.timeout(600000),headers:{'Content-Type':'application/json','Accept-Language':language,Origin:origin,Cookie:cookie},body:JSON.stringify({messages:[{role:'user',content}],course_id:courseId})});
+  const streamed=await fetch(origin+'/api/chat/messages/stream',{method:'POST',signal:AbortSignal.timeout(600000),headers:{'Content-Type':'application/json',...localeHeaders,Origin:origin,Cookie:cookie},body:JSON.stringify({messages:[{role:'user',content}],course_id:courseId})});
   const stream=await readAnswerStream(streamed,streamStarted,undefined,{requireCitations:!observe});
   if(selectedCase)appendFileSync(join(dirname(process.argv[3]),'answer-observations.jsonl'),JSON.stringify({mode:process.argv[2],kind:'streaming',question:testQuestion,...stream})+'\n');
   const streamAssessment=recordAssessment({segments:[{text:stream.streamedAnswer,sourceIds:stream.citations.map(c=>c.sourceId)}],sources:stream.sources},testQuestion,videoId,'streaming');
