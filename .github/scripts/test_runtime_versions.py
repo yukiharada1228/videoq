@@ -1,9 +1,12 @@
 import copy
+import hashlib
 import importlib.util
+import io
 import json
 from pathlib import Path
 import tempfile
 import unittest
+import urllib.error
 from unittest.mock import patch
 
 SPEC = importlib.util.spec_from_file_location("runtime_versions", Path(__file__).with_name("runtime-versions.py"))
@@ -27,6 +30,98 @@ class RuntimeTests(unittest.TestCase):
                     for v, pre in [("3.14.9", False), ("3.15.1", False), ("3.16.0a1", True)]]
         self.assertEqual(runtime.latest("3.14.8", "python", False, releases), "3.14.9")
         self.assertEqual(runtime.latest("3.14.8", "python", True, releases), "3.15.1")
+
+    def python_releases(self, *versions):
+        return [{"name": "Python " + v, "is_published": True, "pre_release": False} for v in versions]
+
+    def pinned_image(self, repo, tag):
+        return repo + ":" + tag + "@sha256:" + "1" * 64
+
+    def test_python_selects_latest_complete_image_set_not_latest_interpreter(self):
+        previous = copy.deepcopy(self.data)
+        def digest(repo, tag):
+            if tag == "3.14.11-alpine":
+                raise runtime.MissingImage("Not yet published")
+            return self.pinned_image(repo, tag)
+        with patch.object(runtime, "request", return_value=self.python_releases("3.14.11", "3.14.10")), patch.object(runtime, "image_digest", side_effect=digest):
+            result = runtime.discover(runtime.ROOT, self.data, "python", False)
+        self.assertEqual(result["python"], "3.14.10")
+        self.assertIn("3.14.10-alpine@sha256:", result["images"]["python_onprem"])
+        self.assertEqual(self.data, previous)
+
+    def test_python_pending_current_patch_still_refreshes_current_digests(self):
+        def digest(repo, tag):
+            if tag.startswith("3.14.10-"):
+                raise runtime.MissingImage("Not yet published")
+            return self.pinned_image(repo, tag)
+        with patch.object(runtime, "request", return_value=self.python_releases("3.14.10")), patch.object(runtime, "image_digest", side_effect=digest):
+            result = runtime.discover(runtime.ROOT, self.data, "python", False)
+        self.assertEqual(result["python"], self.data["python"])
+        self.assertNotEqual(result["images"]["python_local"], self.data["images"]["python_local"])
+
+    def test_python_next_requires_lambda_support_and_never_partially_changes_pins(self):
+        def digest(repo, tag):
+            if repo == "public.ecr.aws/lambda/python":
+                raise runtime.MissingImage("Lambda series not yet published")
+            return self.pinned_image(repo, tag)
+        with patch.object(runtime, "request", return_value=self.python_releases("3.15.2", "3.15.1")), patch.object(runtime, "image_digest", side_effect=digest):
+            self.assertEqual(runtime.discover(runtime.ROOT, self.data, "python", True), self.data)
+
+    def test_python_next_can_select_a_complete_supported_release(self):
+        with patch.object(runtime, "request", return_value=self.python_releases("3.15.1")), patch.object(runtime, "image_digest", side_effect=self.pinned_image):
+            result = runtime.discover(runtime.ROOT, self.data, "python", True)
+        self.assertEqual(result["python"], "3.15.1")
+        self.assertIn(":3.15@sha256:", result["images"]["python_lambda"])
+
+    def test_no_next_python_release_does_not_refresh_current_images(self):
+        with patch.object(runtime, "request", return_value=self.python_releases("3.14.10")), patch.object(runtime, "image_digest") as digest:
+            self.assertEqual(runtime.discover(runtime.ROOT, self.data, "python", True), self.data)
+            digest.assert_not_called()
+
+    def test_missing_pinned_image_and_invalid_architectures_remain_failures(self):
+        for releases, error in [([], runtime.MissingImage("Pinned image gone")),
+                                (self.python_releases("3.15.1"), ValueError("Missing arm64"))]:
+            with self.subTest(error=error), patch.object(runtime, "request", return_value=releases), patch.object(runtime, "image_digest", side_effect=error):
+                with self.assertRaises(type(error)):
+                    runtime.discover(runtime.ROOT, self.data, "python", bool(releases))
+
+    def test_only_registry_manifest_unknown_is_a_legitimate_missing_image(self):
+        url = "https://registry-1.docker.io/v2/library/python/manifests/3.14.10-slim-bookworm"
+        for status, body, expected in [
+            (404, b'{"errors":[{"code":"MANIFEST_UNKNOWN"}]}', runtime.MissingImage),
+            (404, b'{"errors":[{"code":"NAME_UNKNOWN"}]}', urllib.error.HTTPError),
+            (404, b'not JSON', urllib.error.HTTPError),
+            (404, b'{"errors":[null]}', urllib.error.HTTPError),
+            (401, b'{"errors":[{"code":"UNAUTHORIZED"}]}', urllib.error.HTTPError),
+            (429, b'{}', urllib.error.HTTPError), (500, b'{}', urllib.error.HTTPError),
+        ]:
+            with self.subTest(status=status, body=body):
+                error = urllib.error.HTTPError(url, status, "registry failure", {}, io.BytesIO(body))
+                with patch.object(runtime, "request", side_effect=[{"token": "test"}, error]):
+                    with self.assertRaises(expected):
+                        runtime.image_digest("python", "3.14.10-slim-bookworm")
+                error.close()
+
+    def test_registry_authentication_404_is_not_publication_lag(self):
+        error = urllib.error.HTTPError("https://auth.docker.io/token", 404, "missing", {}, io.BytesIO(b'{"errors":[{"code":"MANIFEST_UNKNOWN"}]}'))
+        with patch.object(runtime, "request", side_effect=error), self.assertRaises(urllib.error.HTTPError):
+            runtime.image_digest("python", "3.14.10-slim-bookworm")
+        error.close()
+
+    def test_available_multiarch_image_is_pinned_to_exact_manifest_bytes(self):
+        body = b'{"manifests":[{"platform":{"architecture":"amd64"}},{"platform":{"architecture":"arm64"}}]}'
+        with patch.object(runtime, "request", side_effect=[{"token": "test"}, body]):
+            self.assertEqual(runtime.image_digest("python", "3.14.10-alpine"),
+                             "python:3.14.10-alpine@sha256:" + hashlib.sha256(body).hexdigest())
+
+    def test_discovery_does_not_hide_network_or_registry_failures(self):
+        for error in [urllib.error.HTTPError("https://registry.invalid", 429, "limit", {}, None),
+                      urllib.error.URLError("offline")]:
+            with self.subTest(error=error), patch.object(runtime, "request", return_value=self.python_releases("3.15.1")), patch.object(runtime, "image_digest", side_effect=error):
+                with self.assertRaises(type(error)):
+                    runtime.discover(runtime.ROOT, self.data, "python", True)
+            if isinstance(error, urllib.error.HTTPError):
+                error.close()
 
     def test_unknown_next_line_does_not_duplicate_current_line_digest_updates(self):
         with patch.object(runtime, "request", return_value=[{"version": "v26.12.1", "lts": False}]) as request:

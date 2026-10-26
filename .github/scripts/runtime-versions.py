@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import re
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -46,6 +47,10 @@ def request(url, headers=None, raw=False):
     return body if raw else json.loads(body)
 
 
+class MissingImage(ValueError):
+    """The registry confirms that an otherwise valid image tag is not published."""
+
+
 def image_digest(name, tag):
     # Fixed registry/repository pairs prevent URL substrings from selecting a host.
     locations = {
@@ -64,17 +69,28 @@ def image_digest(name, tag):
     else:
         token_url = "https://auth.docker.io/token?service=registry.docker.io&scope=repository:" + repository + ":pull"
     token = request(token_url)["token"]
-    body = request(f"https://{registry}/v2/{repository}/manifests/{tag}", {
-        "Authorization": "Bearer " + token,
-        "Accept": "application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json",
-    }, raw=True)
+    url = f"https://{registry}/v2/{repository}/manifests/{tag}"
+    try:
+        body = request(url, {
+            "Authorization": "Bearer " + token,
+            "Accept": "application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json",
+        }, raw=True)
+    except urllib.error.HTTPError as error:
+        if error.code == 404:
+            try:
+                errors = json.loads(error.read()).get("errors", [])
+            except (ValueError, AttributeError):
+                errors = []
+            if isinstance(errors, list) and errors and all(isinstance(item, dict) and item.get("code") == "MANIFEST_UNKNOWN" for item in errors):
+                raise MissingImage(f"Not yet published: {url}") from error
+        raise
     platforms = {m.get("platform", {}).get("architecture") for m in json.loads(body).get("manifests", [])}
     if not {"amd64", "arm64"}.issubset(platforms):
         raise ValueError(f"{name}:{tag} must publish both amd64 and arm64 images")
     return f"{name}:{tag}@sha256:{hashlib.sha256(body).hexdigest()}"
 
 
-def latest(current, runtime, upgrade, releases):
+def candidates(current, runtime, upgrade, releases):
     current_version = version(current)
     candidates = []
     for release in releases:
@@ -97,7 +113,42 @@ def latest(current, runtime, upgrade, releases):
                 continue
         if parsed > current_version:
             candidates.append(parsed)
-    return ".".join(map(str, max(candidates))) if candidates else current
+    return [".".join(map(str, parsed)) for parsed in sorted(set(candidates), reverse=True)]
+
+
+def latest(current, runtime, upgrade, releases):
+    return next(iter(candidates(current, runtime, upgrade, releases)), current)
+
+
+def python_images(python):
+    return {
+        "python_local": image_digest("python", python + "-slim-bookworm"),
+        "python_onprem": image_digest("python", python + "-alpine"),
+        "python_lambda": image_digest("public.ecr.aws/lambda/python", ".".join(python.split(".")[:2])),
+    }
+
+
+def discover_python(root, data, upgrade):
+    previous = data["python"]
+    releases = candidates(previous, "python", upgrade, request(PYTHON_INDEX))
+    needs_images = bool(data.get("images")) or (root / "apps/web/Dockerfile").exists()
+    for candidate in releases:
+        try:
+            images = python_images(candidate) if needs_images else {}
+        except MissingImage as error:
+            print(f"Deferring Python {candidate}: {error}", file=sys.stderr)
+            continue
+        data["python"] = candidate
+        if needs_images:
+            data.setdefault("images", {}).update(images)
+        validate(data)
+        return data
+    # Current-channel runs still refresh digests. A missing already-pinned image
+    # is a real failure, not publication lag for a proposed interpreter release.
+    if not upgrade and needs_images:
+        data.setdefault("images", {}).update(python_images(previous))
+    validate(data)
+    return data
 
 
 def validate(data):
@@ -165,6 +216,8 @@ def rendered(root, data):
 
 def discover(root, data, runtime, upgrade):
     data = copy.deepcopy(data)
+    if runtime == "python":
+        return discover_python(root, data, upgrade)
     previous = data[runtime]
     if runtime in {"npm", "pip", "uv"}:
         data = managers.discover(data, runtime, upgrade, request)
@@ -178,10 +231,6 @@ def discover(root, data, runtime, upgrade):
             images["node_bookworm"] = image_digest("node", data["node"] + "-bookworm-slim")
             images["node_alpine"] = image_digest("node", data["node"] + "-alpine")
             images["node_onprem"] = image_digest("node", data["node"] + "-alpine")
-        elif runtime == "python":
-            images["python_local"] = image_digest("python", data["python"] + "-slim-bookworm")
-            images["python_onprem"] = image_digest("python", data["python"] + "-alpine")
-            images["python_lambda"] = image_digest("public.ecr.aws/lambda/python", ".".join(data["python"].split(".")[:2]))
         elif runtime == "uv":
             images["uv"] = image_digest("ghcr.io/astral-sh/uv", data["uv"])
     validate(data)
