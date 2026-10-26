@@ -1,11 +1,15 @@
 import { serve } from "@hono/node-server";
 import pg from "pg";
+import { setGlobalDispatcher } from "undici";
+import { nodeHttpAgent } from "./node-http";
 import { nodeBindings, integerSetting } from "./node-config";
 import { createNodeApp } from "./node-app";
 import { postgresRateLimitBackend } from "./postgres-rate-limit";
 import { RETENTION_CRON, runMaintenanceSweep, runScheduledMaintenance } from "../lib/scheduled-maintenance";
 
 const env = nodeBindings(process.env);
+const httpAgent = nodeHttpAgent(Number(env.LLM_REQUEST_TIMEOUT_MS), Number(env.LLM_STREAM_TIMEOUT_MS));
+setGlobalDispatcher(httpAgent);
 const pool = new pg.Pool({
   connectionString: env.DATABASE_URL,
   max: integerSetting(process.env, "DATABASE_POOL_MAX", 10, 2, 100),
@@ -22,7 +26,7 @@ pool.on("error", error => console.error(JSON.stringify({ event: "database_pool_e
 ratePool.on("error", error => console.error(JSON.stringify({ event: "rate_limit_pool_error", error: error.message })));
 env.DATABASE_POOL = pool;
 env.RATE_LIMIT_BACKEND = postgresRateLimitBackend(ratePool);
-const closePools = () => Promise.all([pool.end(), ratePool.end()]);
+const closePools = () => Promise.all([pool.end(), ratePool.end(), httpAgent.close()]);
 
 const command = process.argv[2] || "serve";
 if (command === "maintenance" || command === "retention") {

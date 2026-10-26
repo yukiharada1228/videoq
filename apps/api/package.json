@@ -63,6 +63,7 @@
     "openai": "^7.36.0",
     "pg": "^8.23.1",
     "stripe": "^23.0.0",
+    "undici": "^8.12.3",
     "zod": "^4.6.5"
   },
   "devDependencies": {
