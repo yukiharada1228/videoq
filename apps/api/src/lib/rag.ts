@@ -22,6 +22,7 @@ import { buildAgentSystemPrompt, buildNoCourseSystemPrompt } from "./prompts";
 import { openSceneSearch, type SceneHit, type SceneSearch } from "../repositories/vector-repository";
 import type { Bindings } from "../types/bindings";
 import type { AnswerCostLedger } from "./answer-cost-ledger";
+import { localQuestionIntent, localVideoReferences, localVideoSelection, type LocalVideoCandidate, type LocalVideoReference } from "./local-rag-policy";
 
 /**
  * QA モードの RAG 本体（ReAct）。
@@ -123,6 +124,7 @@ function sceneSearchTool(
   search: SceneSearch,
   collector: SceneCollector,
   videoIds: readonly number[],
+  onSearch?: () => void,
 ) {
   let used = 0;
   const allowedVideoIds = new Set(videoIds);
@@ -139,6 +141,7 @@ function sceneSearchTool(
       // custom stream は検索の完了や次のモデルの応答を待たずに UI へ届く。
       runtime.writer?.({ searching: query, searchId } satisfies RagSearchProgress);
       const hits = await search.search(query, video_ids ?? undefined);
+      onSearch?.();
       runtime.writer?.({
         searchCompleted: { id: searchId, query, count: hits.length },
       } satisfies RagSearchProgress);
@@ -181,6 +184,7 @@ function prepareAgent(
     timeoutMs: number;
     scope: RagParams;
     signal: AbortSignal;
+    localIntent?: {intent:"metadata"|"content";scope:"course"|"specific_videos"};
   },
 ) {
   const collector = new SceneCollector();
@@ -191,17 +195,109 @@ function prepareAgent(
   );
   let modelCalls = 0;
   let toolCalls = 0;
+  let evidenceLookup = false;
+  let metadataAttempted = false;
+  let metadataPageComplete = false;
+  const metadataPositions = new Set<number>();
+  const metadataVideos = new Map<number, LocalVideoCandidate>();
+  let metadataCalls = 0;
+  let metadataVersion = 0;
+  let selectionVersion = -1;
+  let resolvedSelection: { videoIds: number[]; complete: boolean } | undefined;
+  let requestedReferences: Promise<LocalVideoReference[]> | undefined;
+  const specificRequest = params.localIntent?.intent === "content" && params.localIntent.scope === "specific_videos";
+  const localToolPolicy = params.localIntent
+    ? () => {
+        const content = params.localIntent?.intent === "content";
+        const specific = content && params.localIntent?.scope === "specific_videos";
+        const selectionSettled =
+          specific &&
+          (resolvedSelection?.complete ||
+            metadataPageComplete ||
+            metadataCalls >= MAX_COURSE_INFO_CALLS ||
+            (metadataAttempted && !collector.courseContexts.size));
+        const needsMetadata = specific && !selectionSettled;
+        const selection = specific && selectionSettled ? (resolvedSelection?.videoIds ?? []) : undefined;
+        const selectionUnavailable = Boolean(specific && selectionSettled && !selection?.length);
+        const hasEvidence = content ? collector.hits.length > 0 : collector.courseContexts.size > 0;
+        const attempted = content ? evidenceLookup : metadataAttempted;
+        const noEvidence = !hasEvidence && (attempted || selectionUnavailable);
+        const instruction = content
+          ? "This is a CURRENT COURSE CONTENT question. Obtain subtitle or visual evidence, even for familiar policies. Course metadata alone cannot answer it. Use search_scenes directly for course-wide spoken content; keep specific video selections scoped."
+          : "This asks for REGISTERED METADATA. Read get_course_info. Do not open subtitle search merely to answer registered fields.";
+        const selectionInstruction = specific
+          ? " This question specifies particular videos. Identify matching registered titles/positions with get_course_info before content lookup. Keep EVERY subtitle search and viewing call restricted to the requested videos. Never silently search the whole course. If all metadata pages have no matching video, select finish and report that it could not be verified."
+          : "";
+        return {
+          systemPrompt:
+            buildAgentSystemPrompt(params.scope.locale, MAX_SCENE_SEARCHES, MAX_COURSE_INFO_CALLS, false) +
+            "\n\n" +
+            instruction +
+            selectionInstruction +
+            `\nRetrieval status: evidence available=${hasEvidence}; relevant lookup completed=${attempted}. ` +
+            (hasEvidence
+              ? 'Use the retrieved results to answer now if they cover the question: select {"tool":"finish","arguments":{}}. Call another tool only for a specific missing fact. Never repeat a completed query.'
+              : attempted
+                ? 'A relevant lookup completed without usable evidence. You may search differently, or select {"tool":"finish","arguments":{}} to state that the information could not be verified.'
+                : "You must acquire the relevant evidence before answering."),
+          requireTool: !hasEvidence && !attempted && !selectionUnavailable,
+          ...(selection?.length
+            ? {
+                videoIds: selection,
+                finalInstructions:
+                  "Requested videos have been resolved to IDs " +
+                  JSON.stringify(selection) +
+                  ". Answer only from those videos." +
+                  (resolvedSelection?.complete
+                    ? ""
+                    : " Not all requested videos could be identified. Explicitly state this limitation and do not substitute other videos."),
+              }
+            : {}),
+          forceFinish: selectionUnavailable,
+          ...(needsMetadata
+            ? { allowedTools: ["get_course_info"] }
+            : content
+              ? metadataPageComplete || metadataCalls >= MAX_COURSE_INFO_CALLS
+                ? {
+                    allowedTools: [
+                      "search_scenes",
+                      "read_video_window",
+                      "overview_video",
+                      "skim_video",
+                      "inspect_clip",
+                      "focus_clip",
+                    ],
+                  }
+                : {}
+              : { allowedTools: ["get_course_info"] }),
+          ...(noEvidence
+            ? {
+                emptyEvidenceAnswer: JSON.stringify({
+                  segments: [
+                    {
+                      text: params.scope.locale?.startsWith("ja")
+                        ? "該当する情報を講座の資料から確認できませんでした。"
+                        : "I could not verify this information in the course materials.",
+                      sourceIds: [],
+                    },
+                  ],
+                }),
+              }
+            : {}),
+        };
+      }
+    : undefined;
   // system は createAgent の systemPrompt ではなく messages で渡す。
   // systemPrompt はコンテンツブロック配列（[{type:"text"}]）で送信されるため、
   // 素の文字列しか受け付けない OpenAI 互換ゲートウェイでも動くようにする。
   const agent = createAgent({
-    model: createChatModel(env, { maxTokens: MAX_TOKENS, timeoutMs: params.timeoutMs, costLedger: params.scope.costLedger }),
+    model: createChatModel(env, { maxTokens: MAX_TOKENS, timeoutMs: params.timeoutMs, costLedger: params.scope.costLedger, localToolPolicy }),
     responseFormat: providerStrategy(modelAnswerSchema),
     tools: [
-      sceneSearchTool(params.search, collector, params.scope.videoIds ?? []),
+      sceneSearchTool(params.search, collector, params.scope.videoIds ?? [], () => { evidenceLookup = true; }),
       ...videoEvidenceTools(env, {
         ownerUserId: params.scope.ownerUserId, videoIds: params.scope.videoIds ?? [],
-      }, hit => collector.add(hit), params.signal, params.queryText, params.scope.costLedger),
+      }, hit => collector.add(hit), params.signal, params.queryText, params.scope.costLedger, () => { evidenceLookup = true; }),
       ...(params.scope.courseId != null ? [courseInfoTool(env, {
         courseId: params.scope.courseId,
         ownerUserId: params.scope.ownerUserId,
@@ -225,6 +321,25 @@ function prepareAgent(
           emit("running");
           try {
             const result = await handler(request);
+            if (name.data === "get_course_info" && !("status" in result && result.status === "error")) {
+              metadataAttempted = true;
+              metadataCalls++;
+              if ("content" in result && typeof result.content === "string") {
+                try {
+                  const page = JSON.parse(result.content);
+                  const {offset,total} = page.videos_meta ?? {};
+                  if (Number.isSafeInteger(offset) && offset >= 0 && Number.isSafeInteger(total) && total >= 0 && Array.isArray(page.videos)) {
+                    for (let i = 0; i < page.videos.length; i++) {
+                      metadataPositions.add(offset + i);
+                      const id=page.videos[i].id;
+                      if (Number.isSafeInteger(id) && params.scope.videoIds?.includes(id)) metadataVideos.set(id,{id,title:page.videos[i].title,position:offset+i+1,order:page.videos[i].order});
+                    }
+                    metadataPageComplete = [...metadataPositions].filter(position => position < total).length === total;
+                    metadataVersion++;
+                  }
+                } catch { /* A tool limit/unavailability is not a complete page. */ }
+              }
+            }
             emit("status" in result && result.status === "error" ? "error" : "complete");
             return result;
           } catch (error) {
@@ -233,10 +348,16 @@ function prepareAgent(
           }
         },
         // 引数不備の繰り返しも含め、最終ターンはツールなしで回答させる。
-        wrapModelCall: (request, handler) => handler({
-          ...request,
-          tools: ++modelCalls > MAX_TOOL_ROUNDS ? [] : request.tools,
-        }),
+        wrapModelCall: async (request, handler) => {
+          if(specificRequest&&metadataVideos.size&&selectionVersion!==metadataVersion){
+            requestedReferences??=localVideoReferences(env,params.queryText,params.timeoutMs,params.signal,params.scope.costLedger);
+            resolvedSelection=await localVideoSelection(env,params.queryText,[...metadataVideos.values()],params.timeoutMs,params.signal,params.scope.costLedger,await requestedReferences,params.scope.videoIds?.length??0);
+            selectionVersion=metadataVersion;
+          }
+          const exhausted = ++modelCalls > MAX_TOOL_ROUNDS;
+          if (exhausted && localToolPolicy?.().requireTool) throw new LlmProviderError("Local inference exhausted its tools without acquiring evidence.");
+          return handler({ ...request, tools: exhausted ? [] : request.tools });
+        },
       }),
     ],
   });
@@ -318,6 +439,7 @@ export async function runRag(
       timeoutMs: llmTimeoutMs(env),
       scope: params,
       signal: requestSignal,
+      localIntent: env.LLM_SEPARATE_TOOL_SCHEMA === "true" ? (params.courseId == null ? {intent:"content" as const,scope:"course" as const} : await localQuestionIntent(env, queryText, llmTimeoutMs(env), requestSignal, params.costLedger)) : undefined,
     });
     const result = await prepared.agent.invoke(prepared.input, {
       recursionLimit: RECURSION_LIMIT,
@@ -382,6 +504,7 @@ export async function* streamRag(
       timeoutMs: llmTimeoutMs(env, true),
       scope: params,
       signal: requestSignal,
+      localIntent: env.LLM_SEPARATE_TOOL_SCHEMA === "true" ? (params.courseId == null ? {intent:"content" as const,scope:"course" as const} : await localQuestionIntent(env, queryText, llmTimeoutMs(env, true), requestSignal, params.costLedger)) : undefined,
     });
 
     const stream = await prepared.agent.stream(prepared.input, {

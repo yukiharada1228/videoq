@@ -70,10 +70,10 @@ vllm:
 servers:
   chat:
     servedModel: videoq-chat
-    modelRepo: Qwen/Qwen3-4B-GGUF
-    modelRevision: bc640142c66e1fdd12af0bd68f40445458f3869b
-    modelFile: Qwen3-4B-Q4_K_M.gguf
-    modelSha256: 7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5
+    modelRepo: bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF
+    modelRevision: ae44f08e1392f39c0e474af10c3ff8355c8b6688
+    modelFile: Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf
+    modelSha256: 2fde00ce69dd4899c70d020845e2638353015bba0fdf161b3eb965f2bca4464e
     contextLength: 8192
     cpuThreads: 4
     extraArgs: []

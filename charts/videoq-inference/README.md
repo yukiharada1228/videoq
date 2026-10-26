@@ -28,7 +28,7 @@ flowchart LR
     end
 ```
 
-CPU defaults use Qwen3-4B Q4_K_M chat, gte-Qwen2-1.5B Q4_K_M embeddings
+CPU defaults use Qwen3-4B-Instruct-2507 Q4_K_M chat, gte-Qwen2-1.5B Q4_K_M embeddings
 (native 1536 dimensions) and
 whisper.cpp with multilingual quantized `ggml-large-v3-turbo-q5_0.bin`. These are starting points for a small acceptance
 test. Measure production model quality, throughput, RAM and GPU VRAM with the
@@ -69,7 +69,8 @@ establish VideoQ compatibility. The tested Qwen3/llama.cpp recipe requires
 `separateToolSchema=true`. The vLLM recipe starts with
 native tools plus schema enforcement and requires GPU acceptance.
 
-The llama.cpp recipe uses pinned Qwen3-4B Q4_K_M chat weights and a pinned
+The llama.cpp recipe uses pinned Qwen3-4B-Instruct-2507 Q4_K_M chat weights
+from `bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF` and a pinned
 `second-state/gte-Qwen2-1.5B-instruct-GGUF` Q4_K_M embedding conversion. Review the
 conversion publisher and SHA256 before site acceptance. That embedding model
 natively returns 1536 dimensions. The pinned llama.cpp server does not reduce
@@ -78,6 +79,14 @@ VideoQ rejects that mismatch, without truncation or padding. vLLM uses Qwen3-4B
 and Qwen3-Embedding-4B safetensors, explicitly permitting the latter's trained
 Matryoshka output at 1536 dimensions. See [llama.cpp server](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md)
 and [vLLM embedding configuration](https://docs.vllm.ai/en/latest/models/pooling_models/embed/#matryoshka-embeddings).
+
+Local JSON planning and final answers use separate requests. Executed tool
+history is sent as text data to avoid re-entering native tool templates in
+JSON-only requests. Content questions require subtitle or viewing evidence;
+metadata questions retain lazy scene retrieval. The CPU chat checkpoint is the
+non-thinking instruction version of the same 4B model size (about 2.5 GB of
+quantized weights). The NVIDIA example retains its explicit Qwen3-4B checkpoint
+and needs separate GPU acceptance.
 
 **Rebuild all scene embeddings before searching when changing embedding weights,
 quantization, pooling or preprocessing**, even if both configurations return

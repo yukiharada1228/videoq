@@ -38,6 +38,16 @@ def checksum(path):
     return result.hexdigest()
 
 
+def api_source_identity(image_id, revision):
+    """A local source build is explicitly separate from the signed baseline."""
+    revision=cpu.release.sha(revision)
+    if not re.fullmatch(r'sha256:[a-f0-9]{64}',image_id):raise ValueError('Use an immutable local API image config ID')
+    data=json.loads(subprocess.check_output(['docker','image','inspect',image_id],text=True))[0]
+    if data['Id']!=image_id or data['Architecture']!='arm64' or (data['Config'].get('Labels') or {}).get('org.opencontainers.image.revision')!=revision:
+        raise ValueError('Local API image identity, revision label or architecture mismatch')
+    return {'imageConfigId':image_id,'sourceSha':revision,'architecture':'arm64','verification':'local source build; revision label and config ID checked; not a signed release image'}
+
+
 def chat_override(path):
     """An explicit weight experiment never inherits the signed chart's identity."""
     data=json.loads(path.read_text())
@@ -95,6 +105,8 @@ def main():
     parser.add_argument('output', type=Path)
     parser.add_argument('--case', required=True, type=Path)
     parser.add_argument('--models', required=True, type=Path)
+    parser.add_argument('--api-source-image', help='Explicit local source-build API image config ID, separate from the signed baseline')
+    parser.add_argument('--api-source-revision', help='Full source revision label required with --api-source-image')
     parser.add_argument('--chat-model-spec', type=Path, help='Explicit pinned chat-weight experiment; recorded separately from the signed chart defaults')
     parser.add_argument('--whisper-model', required=True, type=Path)
     parser.add_argument('--whisper-server', required=True, type=Path)
@@ -107,6 +119,8 @@ def main():
     if platform.system() != 'Darwin' or platform.machine() != 'arm64':
         raise ValueError('This validation profile requires an Apple Silicon Mac')
     if not 2 <= args.repeats <= 20: raise ValueError('Use two to twenty repetitions per concurrency level')
+    if bool(args.api_source_image)!=bool(args.api_source_revision):raise ValueError('Both API source image and revision are required')
+    api_override=api_source_identity(args.api_source_image,args.api_source_revision) if args.api_source_image else None
     source = cpu.release.sha(args.source)
     output = args.output.resolve()
     if output.exists() and any(output.iterdir()): raise ValueError('Use a new result directory')
@@ -146,11 +160,14 @@ def main():
     actual_duration=float(run(['ffprobe','-v','error','-show_entries','format=duration','-of','default=noprint_wrappers=1:nokey=1',str(media)]))
     if abs(actual_duration-case['duration'])>.1:raise ValueError('Demo duration differs from the reference manifest')
     refs={c:v['image']['repository']+'@'+v['image']['digest'] for c,v in app_values.items() if c!='requireImageDigests'}
-    tag='mac-demo-'+source[:8]
+    release_refs=dict(refs)
+    if api_override:refs['api']=api_override['imageConfigId']
+    tag='mac-demo-'+(api_override['sourceSha'] if api_override else source)[:8]
     anonymous=output/'registry-anonymous';anonymous.mkdir(mode=0o700);(anonymous/'config.json').write_text('{"auths":{}}\n')
     try:
         for component,ref in refs.items():
-            subprocess.run(['docker','pull',ref],env={**os.environ,'DOCKER_CONFIG':str(anonymous)},check=True)
+            if not (api_override and component=='api'):
+                subprocess.run(['docker','pull',ref],env={**os.environ,'DOCKER_CONFIG':str(anonymous)},check=True)
             run(['docker','tag',ref,'videoq-'+component+':'+tag])
     finally:
         (anonymous/'config.json').unlink();anonymous.rmdir()
@@ -237,7 +254,7 @@ def main():
             lines=[line for line in (output/(name+'.log')).read_text().splitlines() if 'metal' in line.lower() or 'MTL0' in line]
             if not lines:raise RuntimeError('Missing evidence of the Metal backend: '+name)
             native[name]={'metalEvidence':lines[-10:],'model':identities[name]}
-        result.update({'sourceSha':source,'verification':'Signed release manifest, both charts and all five indexes verified; app images executed by digest; native llama.cpp build matched the signed chart; all weights checksum-verified', 'chatModelProfile':'explicit pinned weight experiment' if override else 'signed inference chart default', 'chatModelOverride':override,'hardware':hardware,'nativeInference':native,'llamaVersion':llama_version,'llamaAvailableDevices':available_devices,'whisperBinarySha256':checksum(args.whisper_server.resolve()),'fixtureSha256':case['sha256'],'fixtureDuration':case['duration'],'fixtureKind':'fictional local macOS TTS demo','nativeSandbox':PROFILE,'firewall':firewall,'kindImports':imports,'elapsedSeconds':time.monotonic()-started,'imageReferences':refs,'scope':'Mac M4 Metal and disposable Kubernetes; not NVIDIA hardware acceptance or a customer-video quality/capacity SLA'})
+        result.update({'sourceSha':api_override['sourceSha'] if api_override else source,'baselineReleaseSource':source,'apiSourceBuild':api_override,'baselineImageReferences':release_refs,'verification':('Signed baseline manifest, both charts and all five indexes verified; worker/web executed by digest; API uses an explicitly recorded local source build' if api_override else 'Signed release manifest, both charts and all five indexes verified; app images executed by digest')+'; native llama.cpp build matched the signed chart; all weights checksum-verified', 'chatModelProfile':'explicit pinned weight experiment' if override else 'signed inference chart default', 'chatModelOverride':override,'hardware':hardware,'nativeInference':native,'llamaVersion':llama_version,'llamaAvailableDevices':available_devices,'whisperBinarySha256':checksum(args.whisper_server.resolve()),'fixtureSha256':case['sha256'],'fixtureDuration':case['duration'],'fixtureKind':'fictional local macOS TTS demo','nativeSandbox':PROFILE,'firewall':firewall,'kindImports':imports,'elapsedSeconds':time.monotonic()-started,'imageReferences':refs,'scope':'Mac M4 Metal and disposable Kubernetes; not NVIDIA hardware acceptance or a customer-video quality/capacity SLA'})
     finally:
         if cluster_created:
             rc=subprocess.run(['kind','delete','cluster','--name',CLUSTER,'--kubeconfig',str(kubeconfig)],env=env).returncode

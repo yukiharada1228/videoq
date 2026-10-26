@@ -56,4 +56,18 @@ class WorkloadRestoreTests(unittest.TestCase):
         self.assertTrue(any(call.args[0]==['docker','unpause','paused'] for call in process.call_args_list))
 
 
+class ApiSourceIdentityTests(unittest.TestCase):
+    def test_only_an_explicit_matching_arm64_source_build_is_accepted(self):
+        image='sha256:'+'a'*64;revision='b'*40
+        valid={'Id':image,'Architecture':'arm64','Config':{'Labels':{'org.opencontainers.image.revision':revision}}}
+        with patch.object(mac.subprocess,'check_output',return_value=json.dumps([valid])):
+            self.assertEqual(mac.api_source_identity(image,revision)['sourceSha'],revision)
+        for invalid in [{**valid,'Architecture':'amd64'},{**valid,'Id':'sha256:'+'c'*64},{**valid,'Config':{'Labels':None}}]:
+            with self.subTest(invalid=invalid),patch.object(mac.subprocess,'check_output',return_value=json.dumps([invalid])):
+                with self.assertRaises(ValueError):mac.api_source_identity(image,revision)
+        with patch.object(mac.subprocess,'check_output') as command:
+            with self.assertRaises(ValueError):mac.api_source_identity('mutable:tag',revision)
+            command.assert_not_called()
+
+
 if __name__=='__main__':unittest.main()

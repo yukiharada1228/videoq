@@ -22,6 +22,7 @@ export function videoEvidenceTools(
   env: Bindings, scope: EvidenceScope, addSource: (hit: SceneHit) => number, signal: AbortSignal,
   originalQuestion?: string,
   costLedger?: AnswerCostLedger,
+  onLookup?: () => void,
 ) {
   let windowReads = 0;
   let inspections = 0;
@@ -115,6 +116,7 @@ export function videoEvidenceTools(
     overviews++;
     const video = await getVideoEvidence(env, scope, video_id);
     signal.throwIfAborted();
+    onLookup?.();
     if (!video) return "This video is unavailable or not ready.";
     return respond({
       videoId: video.id, title: video.title, subtitles: timeline(video),
@@ -135,6 +137,7 @@ export function videoEvidenceTools(
     skims++;
     const video = await getVideoEvidence(env, scope, video_id);
     signal.throwIfAborted();
+    onLookup?.();
     if (!video) return "This video is unavailable or not ready.";
     return respond({
       videoId: video.id, title: video.title, start_seconds, end_seconds,
@@ -152,6 +155,7 @@ export function videoEvidenceTools(
     if (windowReads++ >= MAX_WINDOW_READS) return "Transcript window limit reached. Answer from collected evidence and state any gaps.";
     const video = await getVideoEvidence(env, scope, video_id);
     signal.throwIfAborted();
+    onLookup?.();
     if (!video) return "This video is unavailable or not ready.";
     if (video.transcriptTooLarge) return "Transcript is too large for window reading; use search_scenes.";
     const result = transcriptWindow(video, start_seconds, end_seconds, context_seconds);
@@ -175,6 +179,7 @@ export function videoEvidenceTools(
     inspections++;
     const video = await getVideoEvidence(env, scope, video_id);
     signal.throwIfAborted();
+    onLookup?.();
     if (!video) return "This video is unavailable or not ready.";
     return respond(await inspect(video, start_seconds, end_seconds, query, "inspect"));
   }, {
@@ -192,6 +197,7 @@ export function videoEvidenceTools(
     focuses++;
     const video = await getVideoEvidence(env, scope, video_id);
     signal.throwIfAborted();
+    onLookup?.();
     if (!video) return "This video is unavailable or not ready.";
     return respond(await inspect(video, start_seconds, end_seconds, query, "focus"));
   }, {

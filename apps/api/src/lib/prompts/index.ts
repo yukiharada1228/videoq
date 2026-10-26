@@ -71,6 +71,7 @@ export function buildAgentSystemPrompt(
   locale: string | null | undefined,
   maxSearches: number,
   maxCourseInfoCalls: number,
+  includeAnswerFormat = true,
 ): string {
   const config = resolveLocaleConfig(locale);
   const searchLabel = config.section_titles.search;
@@ -86,5 +87,5 @@ export function buildAgentSystemPrompt(
     ),
   );
 
-  return appendAnswerFormat(lines, config);
+  return includeAnswerFormat ? appendAnswerFormat(lines, config) : lines.join("\n");
 }

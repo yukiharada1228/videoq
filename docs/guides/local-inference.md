@@ -203,3 +203,20 @@ only workloads it paused. `--pause-hibana` is opt-in and requires the operator's
 prior authorization for those workloads. Other Docker services are left running.
 Review swap usage and the recorded background-workload conditions when interpreting
 latency on a 16 GiB development Mac.
+
+Local chat separates a schema-constrained tool plan from final-answer generation.
+For a course-content question it requires an actual subtitle or viewing lookup;
+course metadata alone cannot satisfy that requirement. Registered-field questions
+keep lazy scene retrieval. An empty lookup can produce a clear no-evidence answer.
+Plans use the existing tool schemas, selection checks and per-answer limits.
+The CPU/Mac chat default is the pinned Qwen3-4B-Instruct-2507 Q4_K_M checkpoint;
+the NVIDIA example keeps its separately configured Qwen3-4B checkpoint.
+
+To validate a code fix before publishing a release, the Mac runner also accepts
+`--api-source-image sha256:<local image config ID>` together with
+`--api-source-revision <full commit SHA>`. The local arm64 image must carry the
+matching `org.opencontainers.image.revision` label. The result records this API
+as a source build separately from the verified release baseline; the worker,
+web and default model identities continue to use the signed baseline. An explicit
+`--chat-model-spec` override is checksum-verified and recorded separately. Such a test does
+not verify a signature on the local API image.
