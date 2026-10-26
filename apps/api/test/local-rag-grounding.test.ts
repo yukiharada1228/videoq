@@ -12,7 +12,7 @@ vi.mock("../src/repositories/vector-repository", () => ({
 }));
 vi.mock("../src/repositories/course-repository", () => ({ getCourseInfo }));
 vi.mock("../src/repositories/video-evidence-repository", () => ({ getVideoEvidence }));
-const { runRag, streamRag } = await import("../src/lib/rag");
+const { runRag, streamRag, MAX_TOOL_ROUNDS } = await import("../src/lib/rag");
 const env = {
   OPENAI_API_KEY: "test",
   OPENAI_BASE_URL: "http://local.test/v1",
@@ -187,6 +187,18 @@ describe.each([false, true])("local RAG evidence policy (stream=%s)", (stream) =
     expect(chatAnswerText(result)).toBe("該当する情報を講座の資料から確認できませんでした。");
     expect(result.sources).toEqual([]);
     expect(bodies).toHaveLength(3);
+  });
+  it("does not generate unsupported prose when empty retrieval exhausts the tool budget", async () => {
+    search.mockResolvedValue([]);
+    const bodies = provider([
+      { sources: ["video_content"], scope: "course" },
+      ...Array.from({ length: MAX_TOOL_ROUNDS }, () => plan("search_scenes", { query: "電話番号", video_ids: null })),
+      { segments: [{ text: "電話番号は03-1234-5678です。", sourceIds: [] }] },
+    ]);
+    const result = await ask(stream);
+    expect(chatAnswerText(result)).toBe("該当する情報を講座の資料から確認できませんでした。");
+    expect(result.sources).toEqual([]);
+    expect(bodies).toHaveLength(MAX_TOOL_ROUNDS + 1);
   });
   it("handles an unavailable authorized video without inventing evidence or looping", async () => {
     getVideoEvidence.mockResolvedValue(null);
