@@ -29,6 +29,8 @@ const cases: [string, "metadata" | "content"][] = [
   ["旅費の申請は、出張の何日前までに、どこへ提出しますか？", "content"],
   ["領収書はどこに登録し、原本をどのくらい保管しますか？", "content"],
   ["機密情報を含む動画はどこで処理し、社外へ送信しますか？", "content"],
+  ["動画では、インターネットで「敵対的環境コース」を検索すると何の住所が出てくると述べていますか？", "content"],
+  ["「安全研修」というタイトルの動画で説明した手順は？", "content"],
 ];
 describe.skipIf(process.env.LOCAL_DEMO_LIVE !== "1")("local required-source routing", () => {
   it.each(cases)(
@@ -38,7 +40,7 @@ describe.skipIf(process.env.LOCAL_DEMO_LIVE !== "1")("local required-source rout
       console.log(JSON.stringify({ question, actual, expected }));
       expect(actual.intent).toBe(expected);
       expect(actual.scope).toBe(
-        /第2回|第99回|七回目|2本目|lesson four|この動画/.test(question) ? "specific_videos" : "course",
+        /第2回|第99回|七回目|2本目|lesson four|この動画|タイトルの動画/.test(question) ? "specific_videos" : "course",
       );
     },
     120000,

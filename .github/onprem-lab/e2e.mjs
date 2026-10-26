@@ -60,12 +60,12 @@ async function answer(courseId,testQuestion=selectedCase?.questions[0],videoId) 
   const answerStarted=performance.now();
   const message=await rpc('chat.send',{messages:[{role:'user',content}],courseId});
   const answerSeconds=(performance.now()-answerStarted)/1000;
-  if(selectedCase)appendFileSync(join(dirname(process.argv[3]),'answer-observations.jsonl'),JSON.stringify({mode:process.argv[2],kind:'non-streaming',question:testQuestion,answer:message.answer,answerSeconds})+'\n');
+  if(real)appendFileSync(join(dirname(process.argv[3]),'answer-observations.jsonl'),JSON.stringify({mode:process.argv[2],kind:'non-streaming',question:testQuestion??question,answer:message.answer,answerSeconds})+'\n');
   const normalAssessment=recordAssessment(message.answer,testQuestion,videoId,'non-streaming');
   const streamStarted=performance.now();
   const streamed=await fetch(origin+'/api/chat/messages/stream',{method:'POST',signal:AbortSignal.timeout(600000),headers:{'Content-Type':'application/json',...localeHeaders,Origin:origin,Cookie:cookie},body:JSON.stringify({messages:[{role:'user',content}],course_id:courseId})});
   const stream=await readAnswerStream(streamed,streamStarted,undefined,{requireCitations:!observe});
-  if(selectedCase)appendFileSync(join(dirname(process.argv[3]),'answer-observations.jsonl'),JSON.stringify({mode:process.argv[2],kind:'streaming',question:testQuestion,...stream})+'\n');
+  if(real)appendFileSync(join(dirname(process.argv[3]),'answer-observations.jsonl'),JSON.stringify({mode:process.argv[2],kind:'streaming',question:testQuestion??question,...stream})+'\n');
   const streamAssessment=recordAssessment({segments:[{text:stream.streamedAnswer,sourceIds:stream.citations.map(c=>c.sourceId)}],sources:stream.sources},testQuestion,videoId,'streaming');
   return {answer:message.answer,...stream,answerSeconds,assessments:[normalAssessment,streamAssessment],questionId:testQuestion?.id??'public-baseline'};
 }

@@ -28,6 +28,8 @@ export async function localQuestionIntent(
           "'Show the registered description text' -> registered_descriptions. 'How long are backups kept in lecture seven?' -> registered_video_names AND video_content. " +
           "'Explain the contents of the second lecture' -> registered_video_names AND video_content. 'How many objects are visible?' -> video_content. " +
           "Set scope=specific_videos ONLY when particular videos/lectures are explicitly requested by title, lecture number, list position, or this video. Merely mentioning videos, their processing or general policies is scope=course. Default scope=course when no particular video is identified. " +
+        "A topic, quoted expression, product name or search term discussed INSIDE a video does not identify a registered video title. " +
+        'For example, 「動画では『安全研修』を検索すると何が見つかると説明していますか」 asks about spoken content, so use scope=course; the quoted search term is not a video selection. ' +
           "Pure registered-field questions must NOT include video_content. Include it only when spoken/visible material is needed. " +
           'Examples with complete outputs: Question「各動画の文字起こしは完了していますか」 -> {"sources":["processing_status"],"scope":"course"}. ' +
           'Question「音声データをどのように処理すると説明していますか」 -> {"sources":["video_content"],"scope":"course"}. ' +

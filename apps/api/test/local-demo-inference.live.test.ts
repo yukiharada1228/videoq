@@ -70,6 +70,93 @@ const scenes: SceneHit[] = [
   ["で処理し、社外へ送信しません。", "00:00:17,550", "00:00:20,520"],
 ].map(([content, startTime, endTime]) => ({ content, startTime, endTime, videoId: 1, videoTitle: "Onprem Lab" }));
 activeScenes = scenes;
+describe.skipIf(!enabled).each([false, true])("public CPU baseline (stream=%s)", (stream) => {
+  it("answers the quoted topic from the public sample, using its subtitle evidence", async () => {
+    activeScenes = [
+      {
+        videoId: 1,
+        videoTitle: "Onprem Lab",
+        content: "インターネットで敵対的環境コースについて検索すると、おそらく現地企業の住所が出てくるでしょう。",
+        startTime: "00:00:01,552",
+        endTime: "00:00:08,232",
+      },
+    ];
+    const params = {
+      messages: [
+        {
+          role: "user",
+          content: "動画では、インターネットで「敵対的環境コース」を検索すると何の住所が出てくると述べていますか？",
+        },
+      ],
+      ownerUserId: "00000000-0000-4000-8000-000000000005",
+      courseId: 1,
+      videoIds: [1],
+      locale: "en",
+    };
+    let answer;
+    if (stream) {
+      for await (const chunk of streamRag(env, params)) if ("final" in chunk) answer = chunk.final.answer;
+    } else answer = (await runRag(env, params)).answer;
+    expect(answer).toBeDefined();
+    if (!answer) throw new Error("Missing answer");
+    console.log(JSON.stringify({ kind: "public CPU baseline", stream, answer }));
+    expect(chatAnswerText(answer)).toMatch(/住所/);
+    expect(chatAnswerText(answer)).toMatch(/企業|会社/);
+    expect(answer.segments.flatMap((segment) => segment.sourceIds).length).toBeGreaterThan(0);
+    expect(answer.sources).toHaveLength(1);
+    expect(answer.sources[0].video_id).toBe(1);
+    expect(search.mock.calls.length + getVideoEvidence.mock.calls.length).toBeGreaterThan(0);
+  }, 180000);
+  it("keeps an explicitly named video scoped while distinguishing a quoted topic", async () => {
+    activeScenes = [
+      {
+        videoId: 1,
+        videoTitle: "安全研修",
+        content: "領収書の原本は二年間保管します。",
+        startTime: "00:00:01,000",
+        endTime: "00:00:04,000",
+      },
+      {
+        videoId: 2,
+        videoTitle: "別の研修",
+        content: "領収書の原本は一年間保管します。",
+        startTime: "00:00:01,000",
+        endTime: "00:00:04,000",
+      },
+    ];
+    activeCourse = {
+      id: 1,
+      name: "Onprem Lab",
+      description: "",
+      video_count: 2,
+      videos: activeScenes.map((scene, i) => ({
+        id: scene.videoId,
+        title: scene.videoTitle,
+        description: "",
+        status: "completed",
+        order: i,
+      })),
+    };
+    const params = {
+      messages: [{ role: "user", content: "「安全研修」というタイトルの動画で、領収書の原本を何年間保管しますか？" }],
+      ownerUserId: "00000000-0000-4000-8000-000000000005",
+      courseId: 1,
+      videoIds: [1, 2],
+      locale: "ja",
+    };
+    let answer;
+    if (stream) {
+      for await (const chunk of streamRag(env, params)) if ("final" in chunk) answer = chunk.final.answer;
+    } else answer = (await runRag(env, params)).answer;
+    expect(answer).toBeDefined();
+    if (!answer) throw new Error("Missing answer");
+    expect(chatAnswerText(answer).normalize("NFKC")).toMatch(/2年|二年/);
+    for (const call of search.mock.calls) expect(call[1]).toEqual([1]);
+    for (const call of getVideoEvidence.mock.calls) expect(call[2]).toBe(1);
+    expect(answer.sources.length).toBeGreaterThan(0);
+    expect(answer.sources.every((source) => source.video_id === 1)).toBe(true);
+  }, 180000);
+});
 const cases = [
   { question: "旅費の申請は、出張の何日前までに、どこへ提出しますか？", terms: ["営業日", "総務"], value: /3|三/ },
   { question: "領収書はどこに登録し、原本をどのくらい保管しますか？", terms: ["経費管理システム"], value: /1年|一年/ },
