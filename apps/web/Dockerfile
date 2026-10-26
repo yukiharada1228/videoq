@@ -51,8 +51,8 @@ RUN if [ "$VITE_DEPLOYMENT_EDITION" = onprem ]; then node apps/web/scripts/check
 
 FROM nginx:alpine@sha256:a3554c0d0b48177b1413c26e01f695334428020d9df01243fbae3e11cfd17417 AS runtime
 
-# The pinned base predates the CVE-2026-111497 decoder fix.
-RUN apk add --no-cache --upgrade 'brotli-libs>=1.2.1-r0'
+# The pinned base predates the Brotli decoder and curl HTTP/2 upload fixes.
+RUN apk add --no-cache --upgrade 'brotli-libs>=1.2.1-r0' 'curl>=8.23.0-r0' 'libcurl>=8.23.0-r0'
 
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 
