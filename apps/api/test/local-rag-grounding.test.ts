@@ -21,7 +21,7 @@ const env = {
   VIDEO_VISUAL_ENABLED: "false",
 } as Bindings;
 const params = {
-  messages: [{ role: "user", content: "第2回の保存期間は？" }],
+  messages: [{ role: "user", content: "講座で説明された保存期間は？" }],
   ownerUserId: "test",
   courseId: 1,
   videoIds: [1, 2],
@@ -47,6 +47,16 @@ function provider(turns: unknown[]) {
   const bodies: Record<string, any>[] = [];
   vi.stubGlobal("fetch", async (_url: unknown, init: RequestInit) => {
     const body = JSON.parse(String(init.body));
+    // Route reference extraction independently of the agent's tool rounds.
+    if (body.response_format?.json_schema?.name === "videoq_video_references") {
+      const index = turns.findIndex((value) => value && typeof value === "object" && "references" in value);
+      const content = index >= 0 ? turns.splice(index, 1)[0] : { references: [] };
+      return chatCompletionResponse(
+        { choices: [{ finish_reason: "stop", message: { role: "assistant", content: JSON.stringify(content) } }] },
+        body.stream,
+        "local-references",
+      );
+    }
     bodies.push(body);
     const content = turns.shift();
     if (content === undefined) throw new Error("Unexpected extra model call");
@@ -133,9 +143,9 @@ describe.each([false, true])("local RAG evidence policy (stream=%s)", (stream) =
       { references: [{ kind: "lecture_number", quote: "第2回", number: 2 }] },
       plan("search_scenes", { query: "保存期間", video_ids: null }),
     ]);
-    await expect(ask(stream)).rejects.toThrow("broadened its video selection");
+    await expect(ask(stream, "第2回の保存期間は？")).rejects.toThrow("broadened its video selection");
     expect(options(bodies[1])).toEqual(["get_course_info"]);
-    const choice = bodies[3].response_format.json_schema.schema.anyOf.find(
+    const choice = bodies[2].response_format.json_schema.schema.anyOf.find(
       (v: any) => v.properties.tool.const === "search_scenes",
     );
     expect(choice.properties.arguments.properties.video_ids).toMatchObject({ type: "array", items: { enum: [2] } });
@@ -151,7 +161,7 @@ describe.each([false, true])("local RAG evidence policy (stream=%s)", (stream) =
     expect(chatAnswerText(await ask(stream, "第99回の保存期間は？"))).toBe(
       "該当する情報を講座の資料から確認できませんでした。",
     );
-    expect(bodies).toHaveLength(3);
+    expect(bodies).toHaveLength(2);
     expect(search).not.toHaveBeenCalled();
   });
   it("retains a known subset and explicitly reports unresolved requested videos", async () => {

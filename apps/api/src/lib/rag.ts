@@ -184,7 +184,7 @@ function prepareAgent(
     timeoutMs: number;
     scope: RagParams;
     signal: AbortSignal;
-    localIntent?: {intent:"metadata"|"content";scope:"course"|"specific_videos"};
+    localIntent?: {intent:"metadata"|"content";scope:"course"|"specific_videos";references?:readonly LocalVideoReference[]};
   },
 ) {
   const collector = new SceneCollector();
@@ -204,7 +204,8 @@ function prepareAgent(
   let metadataVersion = 0;
   let selectionVersion = -1;
   let resolvedSelection: { videoIds: number[]; complete: boolean } | undefined;
-  let requestedReferences: Promise<LocalVideoReference[]> | undefined;
+  let requestedReferences: Promise<LocalVideoReference[]> | undefined = params.localIntent?.references
+    ? Promise.resolve([...params.localIntent.references]) : undefined;
   const specificRequest = params.localIntent?.intent === "content" && params.localIntent.scope === "specific_videos";
   const localToolPolicy = params.localIntent
     ? () => {

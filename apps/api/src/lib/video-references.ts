@@ -87,7 +87,7 @@ function number(value: string): number {
   return total + current;
 }
 
-/** Parse explicit numbering only; other names and ambiguous references retain model resolution. */
+/** Parse clear video-reference syntax; ambiguous references retain model resolution. */
 export function explicitVideoReferences(query: string): LocalVideoReference[] {
   const text = query.normalize("NFKC");
   const result: LocalVideoReference[] = [];
@@ -98,13 +98,20 @@ export function explicitVideoReferences(query: string): LocalVideoReference[] {
     }
   };
   collect(new RegExp(`第(${japanese})(?:回|講|話|章)`, "g"), "lecture_number");
-  collect(new RegExp(`(${japanese})(?:本目|番目)(?:の)?(?:動画|ビデオ|講義|講座|授業)`, "g"), "position");
+  collect(new RegExp(`(${japanese})(?:本目|番目)(?:の)?(?:動画|ビデオ|講義|講座|授業|内容|要約)`, "g"), "position");
   // Do not parse a prefix of a larger number phrase such as "one hundred".
   collect(
     new RegExp(`\\b(?:lecture|lesson|session|chapter)\\s+(${english})\\b(?![ -]+(?:hundred|thousand|million))`, "gi"),
     "lecture_number",
   );
   collect(new RegExp(`\\b(${english})\\s+(?:video|entry|item)\\b`, "gi"), "position");
+  const namedTitles = [
+    /[「『]([^」』]+)[」』]\s*(?:というタイトルの|という題名の|という|の)?(?:動画|ビデオ|講義|講座|授業)/g,
+    /\b(?:video|lecture|lesson)\s+(?:called|named|titled)\s+["“]([^"”]+)["”]/gi,
+    /["“]([^"”]+)["”]\s+(?:video|lecture|lesson)\b/gi,
+  ];
+  for (const pattern of namedTitles)
+    for (const match of text.matchAll(pattern)) result.push({ kind: "title", quote: match[1], number: null });
   for (const match of text.matchAll(/この動画|本動画|\bthis video\b/gi))
     result.push({ kind: "current", quote: match[0], number: null });
   return result;
