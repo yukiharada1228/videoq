@@ -1,0 +1,166 @@
+{
+  "scope": "Downloaded GitHub hosted-runner evidence, NOT a run on this VPS; signatures not independently verified locally",
+  "runUrl": "https://github.com/yukiharada1228/videoq/actions/runs/40278458459",
+  "attempt": 1,
+  "artifact": "onprem-cpu-acceptance-6228bc8eea067d1d7730ea85c204ab30e337762f-attempt-1",
+  "chartChecksums": {
+    "application": {
+      "name": "videoq-0.1.0-sha.6228bc8eea067d1d7730ea85c204ab30e337762f.tgz",
+      "actualSha256": "f89ec5a4d94bfbd97a76cd5a933d06cb00f84197306d1048a16315a2a980300c",
+      "manifestDigest": "sha256:f89ec5a4d94bfbd97a76cd5a933d06cb00f84197306d1048a16315a2a980300c"
+    },
+    "inference": {
+      "name": "videoq-inference-0.1.0-sha.6228bc8eea067d1d7730ea85c204ab30e337762f.tgz",
+      "actualSha256": "2d070cb7bf4510d9f6c5bac38fe7b92e6c33816e9d4ce9d78ae20a4cf6f511d6",
+      "manifestDigest": "sha256:2d070cb7bf4510d9f6c5bac38fe7b92e6c33816e9d4ce9d78ae20a4cf6f511d6"
+    }
+  },
+  "manifest": {
+    "schemaVersion": 2,
+    "repository": "yukiharada1228/videoq",
+    "sourceSha": "6228bc8eea067d1d7730ea85c204ab30e337762f",
+    "images": {
+      "api": {
+        "repository": "ghcr.io/yukiharada1228/videoq-onprem-api",
+        "platforms": [
+          "linux/amd64",
+          "linux/arm64"
+        ],
+        "digest": "sha256:a020c2f03b82a5fdb4780e42adfc4e084ab05570b9750b2070de477b1fe9f07d"
+      },
+      "worker": {
+        "repository": "ghcr.io/yukiharada1228/videoq-onprem-worker",
+        "platforms": [
+          "linux/amd64",
+          "linux/arm64"
+        ],
+        "digest": "sha256:548c14acc8680ace46e45f262af9d2961c33f0b79a60ae8be3c0076505621b18"
+      },
+      "web": {
+        "repository": "ghcr.io/yukiharada1228/videoq-onprem-web",
+        "platforms": [
+          "linux/amd64",
+          "linux/arm64"
+        ],
+        "digest": "sha256:e3dbf000ba8e8a0dbe0588c958dfe5a812f04679443581db854a56be1b6d0c44"
+      },
+      "whisper": {
+        "repository": "ghcr.io/yukiharada1228/videoq-onprem-whisper",
+        "platforms": [
+          "linux/amd64",
+          "linux/arm64"
+        ],
+        "digest": "sha256:a02eb0348229f1d5e8ac74004ac78d6cdd470f38e36a7ad01309d124283c40cd"
+      },
+      "whisper-vllm": {
+        "repository": "ghcr.io/yukiharada1228/videoq-onprem-whisper-vllm",
+        "platforms": [
+          "linux/amd64"
+        ],
+        "digest": "sha256:f7105ab4bafb43cce97862e0d89dacb66421b600e4736a3648e1fbb37b15d4ac"
+      }
+    },
+    "charts": {
+      "application": {
+        "name": "videoq-0.1.0-sha.6228bc8eea067d1d7730ea85c204ab30e337762f.tgz",
+        "digest": "sha256:f89ec5a4d94bfbd97a76cd5a933d06cb00f84197306d1048a16315a2a980300c"
+      },
+      "inference": {
+        "name": "videoq-inference-0.1.0-sha.6228bc8eea067d1d7730ea85c204ab30e337762f.tgz",
+        "digest": "sha256:2d070cb7bf4510d9f6c5bac38fe7b92e6c33816e9d4ce9d78ae20a4cf6f511d6"
+      }
+    }
+  },
+  "hostedResult": {
+    "sourceSha": "6228bc8eea067d1d7730ea85c204ab30e337762f",
+    "inference": "real CPU llama.cpp chat/embeddings and whisper.cpp ASR; public Japanese FLEURS fixture",
+    "runtime": {
+      "architecture": "amd64",
+      "nodeCapacity": {
+        "cpu": "4",
+        "ephemeral-storage": "154894188544",
+        "hugepages-1Gi": "0",
+        "hugepages-2Mi": "0",
+        "memory": "16373444Ki",
+        "pods": "110"
+      },
+      "chatThreads": 4,
+      "embeddingThreads": 2,
+      "whisperThreads": 2
+    },
+    "recognitionAndAnswer": {
+      "transcript": "1\n00:00:01,552 --> 00:00:08,232\nインターネットで敵対的環境コースについて検索すると、おそらく現地企業の住所が出てくるでしょう。\n",
+      "processingSeconds": 98.42856308600001,
+      "answer": {
+        "segments": [
+          {
+            "text": "動画では、インターネットで「敵対的環境コース」を検索すると、現地企業の住所が出てくると述べています。\n\n具体的には、インターネットで敵対的環境コースについて検索すると、おそらく現地企業の住所が出てくるでしょう。",
+            "sourceIds": [
+              1
+            ]
+          }
+        ],
+        "sources": [
+          {
+            "id": 1,
+            "video_id": 1,
+            "title": "Onprem Lab",
+            "start_time": "00:00:01,552",
+            "end_time": "00:00:08,232"
+          }
+        ]
+      },
+      "streamedAnswer": "動画では、インターネットで「敵対的環境コース」を検索すると、現地企業の住所が出てくると述べています。\n\n具体的には、インターネットで敵対的環境コースについて検索すると、おそらく現地企業の住所が出てくるでしょう。",
+      "answerSeconds": 185.505254427,
+      "streamSeconds": 118.93540065800003
+    },
+    "transcriptionAssessment": {
+      "errors": [],
+      "reference_characters": 45,
+      "character_edits": 0,
+      "cer": 0.0,
+      "segment_count": 1,
+      "speech_regions": [],
+      "silence_hallucinated_characters": null
+    },
+    "playback": {
+      "status": "passed",
+      "requestedTime": 1.552,
+      "currentTime": 1.686644,
+      "duration": 10.52,
+      "readyState": 4,
+      "error": null,
+      "mediaRange": "206, 16 bytes"
+    },
+    "publicEgress": "blocked by dedicated node IPv4/IPv6 firewall; public DNS forwarding disabled; worker Pod probe passed",
+    "elapsedSeconds": 1140.7051096250002,
+    "models": {
+      "chat": {
+        "modelRepo": "Qwen/Qwen3-4B-GGUF",
+        "modelRevision": "bc640142c66e1fdd12af0bd68f40445458f3869b",
+        "modelFile": "Qwen3-4B-Q4_K_M.gguf",
+        "modelSha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5"
+      },
+      "embedding": {
+        "modelRepo": "second-state/gte-Qwen2-1.5B-instruct-GGUF",
+        "modelRevision": "124fbdad7d80e987f3a4d8cd201f721ca37fe9b8",
+        "modelFile": "gte-Qwen2-1.5B-instruct-Q4_K_M.gguf",
+        "modelSha256": "a40df5cabb8c70f2fa144bc6a8674c2c987bfe3b4571134c767832aae1d246b9"
+      },
+      "whisper": {
+        "modelRepo": "ggerganov/whisper.cpp",
+        "modelRevision": "5359861c739e955e79d9a303bcbc70fb988958b1",
+        "modelFile": "ggml-large-v3-turbo-q5_0.bin",
+        "modelSha256": "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2"
+      }
+    },
+    "imageReferences": {
+      "api": "ghcr.io/yukiharada1228/videoq-onprem-api@sha256:a020c2f03b82a5fdb4780e42adfc4e084ab05570b9750b2070de477b1fe9f07d",
+      "worker": "ghcr.io/yukiharada1228/videoq-onprem-worker@sha256:548c14acc8680ace46e45f262af9d2961c33f0b79a60ae8be3c0076505621b18",
+      "web": "ghcr.io/yukiharada1228/videoq-onprem-web@sha256:e3dbf000ba8e8a0dbe0588c958dfe5a812f04679443581db854a56be1b6d0c44",
+      "whisper": "ghcr.io/yukiharada1228/videoq-onprem-whisper@sha256:a02eb0348229f1d5e8ac74004ac78d6cdd470f38e36a7ad01309d124283c40cd",
+      "llamacpp": "ghcr.io/ggml-org/llama.cpp@sha256:8ffe0d28ff5261cc2f78ca1f67db1515bc2529b904a3c25f5b24f4cedfc3411d"
+    },
+    "fixtureSha256": "383c9ab832a5d546bebec1552a0c4e3d49bfd2155b468fa62c08d892a44553d4"
+  }
+}

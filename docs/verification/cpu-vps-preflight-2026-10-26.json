@@ -1,0 +1,226 @@
+{
+  "observedAtUtc": "2026-10-26T11:13:12.772590+00:00",
+  "status": "blocked",
+  "scope": "host preflight and real public audio decode only; no model or application acceptance",
+  "cpuAffinityCount": 4,
+  "memoryKiBBefore": {
+    "MemTotal": 4003540,
+    "MemAvailable": 2474976,
+    "SwapTotal": 2957308,
+    "SwapFree": 2618456
+  },
+  "memoryKiBAfter": {
+    "MemTotal": 4003540,
+    "MemAvailable": 2463076,
+    "SwapTotal": 2957308,
+    "SwapFree": 2618456
+  },
+  "diskBytes": {
+    "total": 630849576960,
+    "free": 589571153920
+  },
+  "cgroupRootValues": {
+    "memory.max": null,
+    "memory.current": null,
+    "memory.peak": null,
+    "memory.swap.current": null,
+    "cpu.max": null
+  },
+  "cgroupCaveat": "Null means unavailable; visible root is not proof of effective ancestor limits",
+  "tools": {
+    "docker": null,
+    "podman": null,
+    "kubectl": null,
+    "kind": null,
+    "helm": null,
+    "node": "/home/hermes/.hermes/tools/node-26.12.1-linux-x64/bin/node",
+    "npm": "/home/hermes/.hermes/tools/npm-12.0.2-linux-x64/bin/npm",
+    "python3": "/home/hermes/.hermes/installs/019d0d114d22b7e6/environments/6d70340044a24e59b90a5b981ac4b818/venv/bin/python3",
+    "ffmpeg": "/home/hermes/.hermes/tools/ffmpeg-9.0.1-linux-x64/bin/ffmpeg",
+    "cmake": null,
+    "c++": "/usr/bin/c++",
+    "gh": "/opt/hermes-ops/bin/gh"
+  },
+  "commands": [
+    {
+      "command": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exitCode": 0,
+      "stdout": "6228bc8eea067d1d7730ea85c204ab30e337762f\n",
+      "stderr": "",
+      "elapsedSeconds": 0.002028118000453105
+    },
+    {
+      "command": [
+        "uname",
+        "-sm"
+      ],
+      "exitCode": 0,
+      "stdout": "Linux x86_64\n",
+      "stderr": "",
+      "elapsedSeconds": 0.00205676699988544
+    },
+    {
+      "command": [
+        "id"
+      ],
+      "exitCode": 0,
+      "stdout": "uid=1001(hermes) gid=1001(hermes) groups=1001(hermes)\n",
+      "stderr": "",
+      "elapsedSeconds": 0.0026033079993794672
+    },
+    {
+      "command": [
+        "node",
+        "--version"
+      ],
+      "exitCode": 0,
+      "stdout": "v26.12.1\n",
+      "stderr": "",
+      "elapsedSeconds": 0.00477826099813683
+    },
+    {
+      "command": [
+        "npm",
+        "--version"
+      ],
+      "exitCode": 0,
+      "stdout": "12.0.2\n",
+      "stderr": "",
+      "elapsedSeconds": 0.1785130640018906
+    },
+    {
+      "command": [
+        "python3",
+        "--version"
+      ],
+      "exitCode": 0,
+      "stdout": "Python 3.14.9\n",
+      "stderr": "",
+      "elapsedSeconds": 0.001900433999253437
+    },
+    {
+      "command": [
+        "gh",
+        "--version"
+      ],
+      "exitCode": 0,
+      "stdout": "gh version 2.45.0 (2025-07-18 Ubuntu 2.45.0-1ubuntu0.3)\nhttps://github.com/cli/cli/releases/tag/v2.45.0\n",
+      "stderr": "",
+      "elapsedSeconds": 0.12872934400002123
+    },
+    {
+      "command": [
+        "gh",
+        "attestation",
+        "verify",
+        "--help"
+      ],
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "unknown command \"attestation\" for \"gh\"\n\nUsage:  gh <command> <subcommand> [flags]\n\nAvailable commands:\n  alias\n  api\n  auth\n  browse\n  cache\n  co\n  codespace\n  completion\n  config\n  extension\n  gist\n  gpg-key\n  issue\n  label\n  org\n  pr\n  project\n  release\n  repo\n  ruleset\n  run\n  search\n  secret\n  ssh-key\n  status\n  variable\n  workflow\n\n",
+      "elapsedSeconds": 0.16043535499920836
+    },
+    {
+      "command": [
+        "docker",
+        "version"
+      ],
+      "exitCode": null,
+      "error": "[Errno 2] No such file or directory: 'docker'",
+      "elapsedSeconds": 0.0005381109986046795
+    },
+    {
+      "command": [
+        "kubectl",
+        "version",
+        "--client"
+      ],
+      "exitCode": null,
+      "error": "[Errno 2] No such file or directory: 'kubectl'",
+      "elapsedSeconds": 0.0003290640015620738
+    },
+    {
+      "command": [
+        "kind",
+        "version"
+      ],
+      "exitCode": null,
+      "error": "[Errno 2] No such file or directory: 'kind'",
+      "elapsedSeconds": 0.00023802099894965068
+    },
+    {
+      "command": [
+        "helm",
+        "version",
+        "--short"
+      ],
+      "exitCode": null,
+      "error": "[Errno 2] No such file or directory: 'helm'",
+      "elapsedSeconds": 0.00019390200031921268
+    },
+    {
+      "command": [
+        "ffmpeg",
+        "-version"
+      ],
+      "exitCode": 0,
+      "stdout": "ffmpeg version n9.0.1-11-ge47273f4d9-20260831 Copyright (c) 2000-2026 the FFmpeg developers\nbuilt with gcc 15.2.0 (crosstool-NG 1.28.0.23_185f348)\nconfiguration: --prefix=/ffbuild/prefix --pkg-config-flags=--static --pkg-config=pkg-config --cross-prefix=x86_64-ffbuild-linux-gnu- --arch=x86_64 --target-os=linux --enable-gpl --enable-version3 --disable-debug --enable-iconv --enable-zlib --enable-libxml2 --enable-libsoxr --enable-openssl --enable-libvmaf --enable-fontconfig --enable-libharfbuzz --enable-libfreetype --enable-libfribidi --enable-vulkan --enable-libvorbis --enable-libxcb --enable-xlib --enable-libpulse --enable-gmp --enable-lzma --enable-liblcevc-dec --enable-opencl --enable-amf --enable-libaom --enable-libaribb24 --enable-avisynth --enable-chromaprint --enable-libdav1d --enable-libdavs2 --enable-libdvdread --enable-libdvdnav --disable-libfdk-aac --enable-ffnvcodec --enable-cuda-llvm --enable-frei0r --enable-libgme --enable-libkvazaar --enable-libaribcaption --enable-libass --enable-libbluray --enable-libjxl --enable-libmp3lame --enable-libopus --enable-libplacebo --enable-librist --enable-libssh --enable-libtheora --enable-libvpx --enable-libwebp --enable-libzmq --enable-lv2 --enable-libvpl --enable-openal --enable-liboapv --enable-libopencore-amrnb --enable-libopencore-amrwb --enable-libopenh264 --enable-libopenjpeg --enable-libopenmpt --enable-librav1e --enable-librubberband --disable-schannel --enable-sdl2 --enable-libsnappy --enable-libsrt --enable-libsvtav1 --enable-libtwolame --enable-libuavs3d --enable-libdrm --enable-vaapi --enable-libvidstab --enable-libvvenc --disable-whisper --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxvid --enable-libzimg --enable-libzvbi --extra-cflags=-DLIBTWOLAME_STATIC --extra-cxxflags= --extra-libs='-lgomp -ldl' --extra-ldflags=-pthread --extra-ldexeflags= --cc=x86_64-ffbuild-linux-gnu-gcc --cxx=x86_64-ffbuild-linux-gnu-g++ --ar=x86_64-ffbuild-linux-gnu-gcc-ar --ranlib=x86_64-ffbuild-linux-gnu-gcc-ranlib --nm=x86_64-ffbuild-linux-gnu-gcc-nm --extra-version=20260831\nlibavutil      61.  1.101 / 61.  1.101\nlibavcodec     63.  1.101 / 63.  1.101\nlibavformat    63.  1.101 / 63.  1.101\nlibavdevice    63.  1.101 / 63.  1.101\nlibavfilter    12.  1.101 / 12.  1.101\nlibswscale     10.  1.101 / 10.  1.101\nlibswresample   7.  1.101 /  7.  1.101\n\nExiting with exit code 0\n",
+      "stderr": "",
+      "elapsedSeconds": 0.04997734299831791
+    },
+    {
+      "command": [
+        "ffmpeg",
+        "-hide_banner",
+        "-nostdin",
+        "-threads",
+        "1",
+        "-i",
+        "/srv/hermes-ops/workspaces/videoq/task-1173-cpu/apps/inference/whisper/tests/fixtures/fleurs-ja-00.mp3",
+        "-f",
+        "null",
+        "-"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "Input #0, mp3, from '/srv/hermes-ops/workspaces/videoq/task-1173-cpu/apps/inference/whisper/tests/fixtures/fleurs-ja-00.mp3':\n  Metadata:\n    encoder         : Lavf63.1.102\n  Duration: 00:00:10.44, start: 0.069063, bitrate: 64 kb/s\n  Stream #0:0: Audio: mp3 (mp3float), 16000 Hz, mono, fltp, 64 kb/s, start 0.069062\nStream mapping:\n  Stream #0:0 -> #0:0 (mp3 (mp3float) -> pcm_s16le (native))\nOutput #0, null, to 'pipe:':\n  Metadata:\n    encoder         : Lavf63.1.101\n  Stream #0:0: Audio: pcm_s16le, 16000 Hz, mono, s16, 256 kb/s\n    Metadata:\n      encoder         : Lavc63.1.101 pcm_s16le\n[out#0/null @ 0x5985c0c2d940] video:0KiB audio:326KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: unknown\nsize=N/A time=00:00:10.44 bitrate=N/A speed=1.42e+03x elapsed=0:00:00.00    \n",
+      "elapsedSeconds": 0.041802570998697774
+    }
+  ],
+  "fixture": {
+    "file": "fleurs-ja-00.mp3",
+    "sha256": "383c9ab832a5d546bebec1552a0c4e3d49bfd2155b468fa62c08d892a44553d4",
+    "checksumMatches": true,
+    "reference": "インターネットで「敵対的環境コース」について検索すると、おそらく現地企業の住所が出てくるでしょう。",
+    "declaredDurationSeconds": 10.44
+  },
+  "childMaxRssKiB": 66544,
+  "resourceCaveat": "Child RSS covers only these probes, not VideoQ; memory snapshots are not peak usage",
+  "blockers": [
+    "Physical RAM below documented 16 GiB dedicated-lab baseline; swap is not RAM",
+    "docker missing on PATH",
+    "kubectl missing on PATH",
+    "kind missing on PATH",
+    "helm missing on PATH",
+    "PATH gh cannot verify release attestations"
+  ],
+  "releaseVerificationAttempt": {
+    "command": [
+      "python3",
+      ".github/scripts/onprem-release.py",
+      "verify",
+      "6228bc8eea067d1d7730ea85c204ab30e337762f",
+      "/home/hermes/.hermes/cache/scratch/videoq-1173-release/release.json",
+      "/home/hermes/.hermes/cache/scratch/videoq-1173-release/verified-images.json",
+      "/home/hermes/.hermes/cache/scratch/videoq-1173-release/verified-inference.json"
+    ],
+    "exitCode": 1,
+    "stdout": "",
+    "stderr": "unknown command \"attestation\" for \"gh\"\n\nUsage:  gh <command> <subcommand> [flags]\n\nAvailable commands:\n  alias\n  api\n  auth\n  browse\n  cache\n  co\n  codespace\n  completion\n  config\n  extension\n  gist\n  gpg-key\n  issue\n  label\n  org\n  pr\n  project\n  release\n  repo\n  ruleset\n  run\n  search\n  secret\n  ssh-key\n  status\n  variable\n  workflow\n\nTraceback (most recent call last):\n  File \"/srv/hermes-ops/workspaces/videoq/task-1173-cpu/.github/scripts/onprem-release.py\", line 139, in <module>\n    main()\n    ~~~~^^\n  File \"/srv/hermes-ops/workspaces/videoq/task-1173-cpu/.github/scripts/onprem-release.py\", line 124, in main\n    application, inference = verify(args.manifest, args.source)\n                             ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/srv/hermes-ops/workspaces/videoq/task-1173-cpu/.github/scripts/onprem-release.py\", line 73, in verify\n    attest(manifest, source)\n    ~~~~~~^^^^^^^^^^^^^^^^^^\n  File \"/srv/hermes-ops/workspaces/videoq/task-1173-cpu/.github/scripts/onprem-release.py\", line 69, in attest\n    subprocess.run(command, check=True)\n    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/hermes/.hermes/tools/python-3.14.9+20261021-linux-x64/lib/python3.14/subprocess.py\", line 578, in run\n    raise CalledProcessError(retcode, process.args,\n                             output=stdout, stderr=stderr)\nsubprocess.CalledProcessError: Command '['gh', 'attestation', 'verify', '/home/hermes/.hermes/cache/scratch/videoq-1173-release/release.json', '--repo', 'yukiharada1228/videoq', '--signer-workflow', 'yukiharada1228/videoq/.github/workflows/onprem-release.yml', '--source-ref', 'refs/heads/main', '--source-digest', '6228bc8eea067d1d7730ea85c204ab30e337762f', '--deny-self-hosted-runners']' returned non-zero exit status 1.\n",
+    "elapsedSeconds": 0.23976249100087443
+  }
+}
