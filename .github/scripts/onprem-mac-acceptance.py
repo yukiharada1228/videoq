@@ -41,11 +41,11 @@ def checksum(path):
 def api_source_identity(image_id, revision):
     """A local source build is explicitly separate from the signed baseline."""
     revision=cpu.release.sha(revision)
-    if not re.fullmatch(r'sha256:[a-f0-9]{64}',image_id):raise ValueError('Use an immutable local API image config ID')
+    if not re.fullmatch(r'sha256:[a-f0-9]{64}',image_id):raise ValueError('Use an immutable local API image ID')
     data=json.loads(subprocess.check_output(['docker','image','inspect',image_id],text=True))[0]
     if data['Id']!=image_id or data['Architecture']!='arm64' or (data['Config'].get('Labels') or {}).get('org.opencontainers.image.revision')!=revision:
         raise ValueError('Local API image identity, revision label or architecture mismatch')
-    return {'imageConfigId':image_id,'sourceSha':revision,'architecture':'arm64','verification':'local source build; revision label and config ID checked; not a signed release image'}
+    return {'imageId':image_id,'sourceSha':revision,'architecture':'arm64','verification':'local source build; revision label and image ID checked; not a signed release image'}
 
 
 def chat_override(path):
@@ -105,7 +105,7 @@ def main():
     parser.add_argument('output', type=Path)
     parser.add_argument('--case', required=True, type=Path)
     parser.add_argument('--models', required=True, type=Path)
-    parser.add_argument('--api-source-image', help='Explicit local source-build API image config ID, separate from the signed baseline')
+    parser.add_argument('--api-source-image', help='Explicit local source-build API image ID, separate from the signed baseline')
     parser.add_argument('--api-source-revision', help='Full source revision label required with --api-source-image')
     parser.add_argument('--chat-model-spec', type=Path, help='Explicit pinned chat-weight experiment; recorded separately from the signed chart defaults')
     parser.add_argument('--whisper-model', required=True, type=Path)
@@ -161,7 +161,7 @@ def main():
     if abs(actual_duration-case['duration'])>.1:raise ValueError('Demo duration differs from the reference manifest')
     refs={c:v['image']['repository']+'@'+v['image']['digest'] for c,v in app_values.items() if c!='requireImageDigests'}
     release_refs=dict(refs)
-    if api_override:refs['api']=api_override['imageConfigId']
+    if api_override:refs['api']=api_override['imageId']
     tag='mac-demo-'+(api_override['sourceSha'] if api_override else source)[:8]
     anonymous=output/'registry-anonymous';anonymous.mkdir(mode=0o700);(anonymous/'config.json').write_text('{"auths":{}}\n')
     try:

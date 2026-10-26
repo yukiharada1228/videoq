@@ -213,7 +213,7 @@ The CPU/Mac chat default is the pinned Qwen3-4B-Instruct-2507 Q4_K_M checkpoint;
 the NVIDIA example keeps its separately configured Qwen3-4B checkpoint.
 
 To validate a code fix before publishing a release, the Mac runner also accepts
-`--api-source-image sha256:<local image config ID>` together with
+`--api-source-image sha256:<local image ID>` together with
 `--api-source-revision <full commit SHA>`. The local arm64 image must carry the
 matching `org.opencontainers.image.revision` label. The result records this API
 as a source build separately from the verified release baseline; the worker,
