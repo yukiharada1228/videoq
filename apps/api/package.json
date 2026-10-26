@@ -60,14 +60,14 @@
     "jose": "^6.2.12",
     "langchain": "^1.5.18",
     "langsmith": "0.11.0",
-    "openai": "^7.36.0",
+    "openai": "^7.39.0",
     "pg": "^8.23.1",
     "stripe": "^23.0.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.4.4",
-    "@cloudflare/workers-types": "^5.20261016.1",
+    "@cloudflare/workers-types": "^5.20261018.1",
     "@types/node": "^26.6.5",
     "@types/pg": "^8.23.1",
     "dotenv": "^18.0.8",
