@@ -309,6 +309,11 @@ HIGH/CRITICAL including unfixed gate. AMD does not inherit NVIDIA's assessment.
 Nightly candidates are development builds; passing these checks does not establish
 GPU inference or target hardware/model acceptance.
 
+Manual runs may set `gpu_accelerator=nvidia` or `gpu_accelerator=amd` to evaluate
+only a newly published vendor candidate. The default is `both`; PR, push and
+scheduled validation always keep both vendors. This selection never changes pins
+or weakens the protocol, digest-identity or vulnerability gates.
+
 For isolated candidate evaluation, set `gpu_candidates_only=true` to skip the
 application and CPU suites without changing normal CI defaults. NVIDIA evaluation
 also accepts the vendor-maintained `nvcr.io/nvidia/vllm@sha256:<digest>` repository.

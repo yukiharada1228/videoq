@@ -188,3 +188,7 @@ GPU 推論や対象ハードウェア・モデルの受け入れ検証が済ん�
 `nvcr.io/nvidia/vllm@sha256:<digest>` も指定できます。NGC 候補には公式 vLLM イメージ向けの
 ヘッダー評価を適用せず、全件を検査します。vLLM・CUDA・ドライバー要件が異なる場合があるため、
 検査通過だけでチャートの既定値へ採用しません。AMD は公式 `vllm/vllm-openai-rocm` に限定します。
+
+手動実行では `gpu_accelerator=nvidia` または `gpu_accelerator=amd` で、新しい候補のあるベンダーだけを
+検査できます。既定は `both` で、PR・push・定期検査は必ず両方を対象にします。
+配布設定、プロトコル検証、digest の一致確認、脆弱性ゲートは変更しません。

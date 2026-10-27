@@ -22,6 +22,11 @@ on:
       gpu_candidates_only:
         type: boolean
         default: false
+      gpu_accelerator:
+        description: Accelerator to evaluate manually; PR and scheduled checks always cover both
+        type: choice
+        options: [both, nvidia, amd]
+        default: both
       nvidia_candidate:
         description: Optional official CUDA candidate as repository@sha256 digest; does not change chart pins
         type: string
@@ -267,7 +272,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        accelerator: [nvidia, amd]
+        accelerator: ${{ github.event_name == 'workflow_dispatch' && inputs.gpu_accelerator == 'nvidia' && fromJSON('["nvidia"]') || github.event_name == 'workflow_dispatch' && inputs.gpu_accelerator == 'amd' && fromJSON('["amd"]') || fromJSON('["nvidia","amd"]') }}
     if: ${{ inputs.validate_whisper_gpu || github.event_name == 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45

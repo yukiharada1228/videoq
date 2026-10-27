@@ -84,7 +84,8 @@ test('vLLM validation pulls the upstream image and checks the actual WAV input p
 
 test('upstream GPU checks cover both vendors without applying NVIDIA assessments to AMD', () => {
   const gpu = onprem.slice(onprem.indexOf('  vllm-image:'));
-  assert.match(gpu, /accelerator: \[nvidia, amd\]/);
+  // Default/CI matrix semantics are executed in vllm-candidate.test.cjs.
+  assert.match(gpu, /fromJSON\('\["nvidia","amd"\]'\)/);
   assert.match(gpu, /vllm.rocmImage : vllm.image/);
   assert.match(gpu, /trivy-config: \$\{\{ matrix.accelerator == 'nvidia'/);
   assert.match(gpu, /name: vllm-security-\$\{\{ matrix.accelerator \}\}/);

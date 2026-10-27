@@ -54,3 +54,17 @@ test('candidate-only mode skips non-GPU suites while normal CI keeps them',()=>{
   assert.match(workflow,/onprem:\n    if: \$\{\{ !inputs.gpu_candidates_only \}\}/);
   assert.match(workflow,/upstream-cpu-images:\n    if: \$\{\{ !inputs.gpu_candidates_only \}\}/);
 });
+
+
+test('only explicit manual accelerator selection narrows candidate evaluation; CI always tests both',()=>{
+  const expression=workflow.match(/^        accelerator: \$\{\{ (.+) \}\}$/m)[1];
+  function selected(event, input) {
+    return Array.from(runInNewContext(expression,{github:{event_name:event},inputs:{gpu_accelerator:input},fromJSON:JSON.parse}));
+  }
+  assert.deepEqual(selected('workflow_dispatch','nvidia'),['nvidia']);
+  assert.deepEqual(selected('workflow_dispatch','amd'),['amd']);
+  for(const event of ['pull_request','push','schedule','workflow_call']) {
+    for(const input of ['nvidia','amd','both',undefined]) assert.deepEqual(selected(event,input),['nvidia','amd']);
+  }
+  for(const input of ['both','',undefined,'nvidia,amd','untrusted']) assert.deepEqual(selected('workflow_dispatch',input),['nvidia','amd']);
+});
