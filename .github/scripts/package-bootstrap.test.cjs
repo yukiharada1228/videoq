@@ -17,3 +17,9 @@ test('namespace bootstrap is manual canonical-main code with a read-only preview
   assert.match(workflow,/ARTIFACT: \$\{\{ steps.source.outputs.artifact \}\}/);
   assert.match(workflow,/docker logout ghcr.io/);
 });
+
+test('runner paths are evaluated only inside steps, not the job environment',()=>{
+  const jobEnv=workflow.match(/^    env:\n([\s\S]*?)^    steps:/m)[1];
+  assert.doesNotMatch(jobEnv,/runner\./);
+  assert.equal((workflow.match(/DOCKER_CONFIG: \$\{\{ runner.temp \}\}\/package-bootstrap-docker/g)||[]).length,3);
+});
