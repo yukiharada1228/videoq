@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   source:
-    if: github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main'
+    if: github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main' && (github.event_name != 'workflow_run' || github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -197,6 +197,29 @@ jobs:
           path: published/*.digest
           if-no-files-found: error
           retention-days: 1
+  cleanup-build-archives:
+    name: Remove consumed image transfer archives
+    needs: [source, publish]
+    if: needs.publish.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          SOURCE_SHA: ${{ needs.source.outputs.sha }}
+        with:
+          script: |
+            const prune = require('./.github/scripts/prune-onprem-build-artifacts.cjs');
+            const result = await prune({ github, context: { repo: context.repo, ref: context.ref, eventName: context.eventName, sha: context.sha, runId: context.runId, runAttempt: process.env.GITHUB_RUN_ATTEMPT }, sourceSha: process.env.SOURCE_SHA });
+            core.info(`Removed ${result.deleted} consumed image archives (${result.bytes} bytes).`);
   indexes:
     needs: [source, publish]
     runs-on: ubuntu-latest
