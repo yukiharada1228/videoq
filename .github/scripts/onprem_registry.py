@@ -5,9 +5,9 @@ import subprocess
 
 
 def check_public(component):
-    if component not in ("api", "worker", "web", "whisper", "whisper-vllm"):
+    if component not in ("api", "worker", "web", "transcription-gateway", "vllm-engine"):
         raise ValueError("Unknown on-prem component")
-    endpoint = "users/yukiharada1228/packages/container/videoq-onprem-" + component
+    endpoint = "users/yukiharada1228/packages/container/videoq-" + component
     result = subprocess.run(["gh", "api", endpoint], capture_output=True, text=True)
     try:
         package = json.loads(result.stdout)
@@ -23,6 +23,6 @@ def check_public(component):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("component", choices=("api", "worker", "web", "whisper", "whisper-vllm"))
+    parser.add_argument("component", choices=("api", "worker", "web", "transcription-gateway", "vllm-engine"))
     args = parser.parse_args()
     check_public(args.component)

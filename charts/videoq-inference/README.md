@@ -215,16 +215,16 @@ result, push it privately and record its digest alongside the gateway digest:
 
 ```sh
 docker build --platform linux/amd64 -f apps/inference/whisper/Dockerfile.vllm \
-  -t registry.intranet/videoq-whisper-vllm:0.2.0 apps/inference/whisper
+  -t registry.intranet/videoq-vllm-engine:0.2.0 apps/inference/whisper
 trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed=false --exit-code 1 \
-  registry.intranet/videoq-whisper-vllm:0.2.0
-docker push registry.intranet/videoq-whisper-vllm:0.2.0
+  registry.intranet/videoq-vllm-engine:0.2.0
+docker push registry.intranet/videoq-vllm-engine:0.2.0
 ```
 
 ```yaml
 whisper:
   vllmImage:
-    repository: registry.intranet/videoq-whisper-vllm
+    repository: registry.intranet/videoq-vllm-engine
     digest: sha256:REPLACE_WITH_REVIEWED_DIGEST
 ```
 
