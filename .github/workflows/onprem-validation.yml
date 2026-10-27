@@ -10,6 +10,10 @@ on:
         default: false
   workflow_dispatch:
     inputs:
+      basic_only:
+        description: Run only the native basic checks
+        type: boolean
+        default: false
       validate_whisper_gpu:
         type: boolean
         default: true
@@ -31,6 +35,7 @@ jobs:
       contents: read
 
   onprem:
+    if: ${{ !inputs.basic_only }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
@@ -247,6 +252,7 @@ jobs:
           retention-days: 30
 
   upstream-cpu-images:
+    if: ${{ !inputs.basic_only }}
     name: ${{ matrix.engine }} Linux ${{ matrix.architecture }} upstream image
     strategy:
       fail-fast: false
@@ -344,7 +350,7 @@ jobs:
       fail-fast: false
       matrix:
         accelerator: [nvidia, amd]
-    if: inputs.validate_whisper_gpu || github.event_name == 'schedule'
+    if: ${{ !inputs.basic_only && (inputs.validate_whisper_gpu || github.event_name == 'schedule') }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

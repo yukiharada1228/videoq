@@ -136,6 +136,12 @@ test('basic inference verification uses standard native runners and participates
   assert.match(basic, /schedule:/);
   assert.match(onprem, /basic-platforms:\n[\s\S]*?if: github.event_name == 'workflow_dispatch'\n\s+uses: \.\/\.github\/workflows\/local-inference-basic.yml/);
   assert.match(basic, /brew install --force-bottle llama.cpp whisper.cpp ffmpeg/);
+  assert.ok(basic.indexOf('brew update') < basic.indexOf('brew install --force-bottle'));
+  assert.match(basic, /group: inference-basic-.*github.sha/);
+  assert.match(onprem, /basic_only:\n\s+description: Run only the native basic checks\n\s+type: boolean\n\s+default: false/);
+  for (const job of ['onprem', 'upstream-cpu-images']) {
+    assert.ok(onprem.includes('  ' + job + ':\n    if: ${{ !inputs.basic_only }}'));
+  }
   assert.match(basic, /uv sync --locked --extra dev/);
   assert.match(basic, /test_transcription_whisper.py tests\/test_embeddings.py tests\/test_secrets_bootstrap.py/);
   assert.match(basic, /onprem-basic-packages.py/);

@@ -405,7 +405,9 @@ for CLI execution; macOS uses Homebrew bottles and records installed versions.
 It downloads no model weights and does not establish model quality, GPU/Metal
 inference or complete application acceptance. Reports are retained for seven days
 as `local-inference-basic-<runner>` artifacts. The existing real CPU lifecycle
-workflow remains separate. No paid or self-hosted runner is selected by the basic
+workflow remains separate. Manual `On-prem Validation` runs also call these
+basic checks; set `basic_only=true` there to run only the native matrix on a
+feature branch. No paid or self-hosted runner is selected by the basic
 workflow in `.github/workflows/local-inference-basic.yml`.
 
 

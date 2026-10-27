@@ -253,6 +253,7 @@ on supported bottle platforms.
 **Quick setup:**
 
 ```bash
+brew update
 brew install whisper.cpp ffmpeg
 mkdir -p .local-models/whisper
 curl --fail --location --output .local-models/whisper/ggml-large-v3-turbo-q5_0.bin \

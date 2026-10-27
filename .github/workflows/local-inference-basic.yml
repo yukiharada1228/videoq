@@ -7,7 +7,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: inference-basic-${{ github.workflow }}-${{ github.ref }}
+  group: inference-basic-${{ github.workflow }}-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: true
 jobs:
   basic:
@@ -52,7 +52,10 @@ jobs:
           uv run --locked --extra dev pytest -q tests/test_transcription_whisper.py tests/test_embeddings.py tests/test_secrets_bootstrap.py --junitxml="$RUNNER_TEMP/basic-worker.xml"
       - name: Install upstream Homebrew bottles
         if: runner.os == 'macOS'
-        run: brew install --force-bottle llama.cpp whisper.cpp ffmpeg
+        run: |
+          # Hosted images can retain an index from before formula renames.
+          brew update
+          brew install --force-bottle llama.cpp whisper.cpp ffmpeg
       - name: Check native upstream server packages
         env:
           ARCHITECTURE: ${{ matrix.architecture }}
