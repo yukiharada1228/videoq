@@ -7,7 +7,7 @@ description: 署名とダイジェストを検証し、Kubernetes で更新と�
 
 インターネットに接続できる導入先では、外部レジストリとイメージのダイジェストを使って配布します。`On-prem Release` は最新 main の push CI 成功を確認し、Linux amd64・arm64 の API、Web、ワーカー、CPU Whisper、アプリ・推論用の両 Helm Chart、`release.json` を作成します。NVIDIA vLLM のイメージは amd64 用として同梱します。同じ main コミットで手動実行すると、OS パッケージ修正後の再ビルドにも使えます。
 
-配布用の `ghcr.io/yukiharada1228/videoq-api`・`videoq-worker`・`videoq-web`・`videoq-transcription-gateway`・`videoq-onprem-whisper-vllm` は Public とします。Docker や Kubernetes からは GHCR のログインや `imagePullSecrets` なしで取得できます。導入先独自の非公開レジストリを使う場合は、引き続き `imagePullSecrets` を設定できます。各イメージにはリポジトリの現行 LICENSE を同梱し、公開範囲の変更でライセンス条件は変更しません。
+配布用の `ghcr.io/yukiharada1228/videoq-api`・`videoq-worker`・`videoq-web`・`videoq-transcription-gateway`・`videoq-vllm` は Public とします。Docker や Kubernetes からは GHCR のログインや `imagePullSecrets` なしで取得できます。導入先独自の非公開レジストリを使う場合は、引き続き `imagePullSecrets` を設定できます。各イメージにはリポジトリの現行 LICENSE を同梱し、公開範囲の変更でライセンス条件は変更しません。
 
 パッケージ管理者が初期設定で Public にし、**Package settings → Manage Actions access** で `yukiharada1228/videoq` に **Write** を付与します。CI は push の前後とインデックス作成前に公開状態を確認し、非公開・internal・未作成の場合は配布を止めます。署名を検証した配布物は、空の Docker 認証設定で取得して匿名アクセスを確認します。公開済みパッケージを Private に戻すことは GitHub の仕様上できません。push 用の書き込み認証は引き続き必要です。
 
@@ -100,11 +100,11 @@ HELM_BIN=helm python3 .github/scripts/onprem-cpu-acceptance.py \
 
 ## パッケージ名の移行
 
-新規リリースの `release.json` は schemaVersion 3 を使います。`api`・`web`・`worker` は
+新規リリースの `release.json` は schemaVersion 4 を使います。`api`・`web`・`worker` は
 役割名を維持し、音声 API は `transcription-gateway`、既存の自前 GPU エンジンは
 `vllm-engine` というマニフェスト上の役割名になりますが、パッケージは従来の
-`videoq-onprem-whisper-vllm` を維持します。中間的な GPU パッケージは作成せず、
-上流 vLLM への切り替え時に自前の GPU 配布を終了します。
+`videoq-vllm` に変更します。LLM・埋め込み・音声認識で共用する名前です。
+上流 vLLM の直接利用への切り替えは別の変更として進めます。
 Helm の `whisper.image`・`whisper.vllmImage` などの設定キーは変更しません。
 
 旧 schemaVersion 2 のマニフェストは、元の `videoq-onprem-*` パッケージとすべての署名を
@@ -155,3 +155,21 @@ gh workflow run package-bootstrap.yml --repo yukiharada1228/videoq --ref main \
 Public** を設定し、リポジトリの Actions Write アクセスを確認します。旧公開パッケージは
 履歴・復旧用に残します。公開準備後に名称変更を取り込み、通常の署名付きリリースを生成・検証します。
 通常のリリースの Public 検査や署名検証を省略する機能ではありません。
+
+## 現行 GPU エンジンの改名
+
+自前 GPU エンジンは `videoq-vllm` として配布します。改名による実行内容・amd64 対応範囲の変更はありません。
+schemaVersion 4 は新名称を固定し、schemaVersion 3 は旧 `videoq-onprem-whisper-vllm` の署名を
+引き続き検証します。どちらも8対象すべての署名を検証し、新旧の参照先を混ぜたマニフェストは拒否します。
+
+新しい名前空間の初回作成は、成功済みの署名付き schemaVersion 3 リリースを指定し、
+**Package Namespace Bootstrap** を `vllm_only=true` で起動します。まずプレビューし、次に
+`publish=true` を指定します。検証済み GPU インデックスだけを一意の bootstrap タグへコピーし、
+ビルドや既存のリリースタグの置き換えは行いません。通常リリースの前に Public 設定と
+リポジトリの Actions Write アクセスを確認します。bootstrap タグは導入用リリースではありません。
+
+署名付き schemaVersion 4 リリースの匿名取得・動作検証が成功してから、その実行 ID で
+**Retired Package Cleanup** を起動します。既定はプレビューで、`delete=true` は
+旧 `videoq-onprem-whisper-vllm` だけを削除し、`videoq-vllm` を含む現行5パッケージを保持します。
+削除にはパッケージ Admin 権限が必要です。削除後は旧 schemaVersion 3 リリースの取得・
+完全な署名検証はできません。新しいリリースの検証成功前には削除しないでください。

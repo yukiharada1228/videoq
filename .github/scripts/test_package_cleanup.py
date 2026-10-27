@@ -23,7 +23,7 @@ class CleanupTests(unittest.TestCase):
         self.assertTrue(set(cleanup.RETIRED).isdisjoint(cleanup.ACTIVE))
 
     def test_rejects_legacy_and_changed_live_references(self):
-        for version in (2, 4):
+        for version in (2, 5):
             m = self.manifest(); m['schemaVersion'] = version
             with self.assertRaises(ValueError): cleanup.plan(m)
         m = self.manifest(); m['images']['extra'] = {'repository': 'ghcr.io/' + cleanup.OWNER + '/videoq-onprem-api'}
@@ -57,6 +57,22 @@ class CleanupTests(unittest.TestCase):
             self.assertTrue(output.exists())
             self.assertEqual(items[0]['result'], 'deleted')
             self.assertEqual(items[1]['result'], 'planned')
+
+    def test_schema_four_deletes_only_old_gpu_and_retains_all_five_new_packages(self):
+        manifest = {'schemaVersion': 4, 'images': {n: {'repository': 'ghcr.io/'+cleanup.OWNER+'/'+n} for n in cleanup.RENAMED_ACTIVE}}
+        with patch.object(cleanup, 'api', side_effect=self.metadata):
+            items = cleanup.plan(manifest)
+        self.assertEqual(items, [{'package': cleanup.GPU, 'result': 'planned'}])
+        with tempfile.TemporaryDirectory() as directory, patch.object(cleanup, 'api') as api:
+            api.side_effect = [None, None] + [self.metadata(n) for n in cleanup.RENAMED_ACTIVE]
+            cleanup.execute(items, Path(directory)/'report.json', True, retire_vllm=True)
+            api.assert_any_call(cleanup.GPU, 'DELETE', retire_vllm=True)
+            self.assertEqual(sum(c.args[1:] == ('DELETE',) for c in api.call_args_list), 1)
+        with self.assertRaises(ValueError): cleanup.api('videoq-vllm', 'DELETE', retire_vllm=True)
+        with self.assertRaises(ValueError): cleanup.api(cleanup.GPU, 'DELETE')
+        manifest['images'].pop('videoq-vllm')
+        manifest['images'][cleanup.GPU] = {'repository': 'ghcr.io/'+cleanup.OWNER+'/'+cleanup.GPU}
+        with self.assertRaises(ValueError): cleanup.plan(manifest)
 
 
 if __name__ == '__main__':

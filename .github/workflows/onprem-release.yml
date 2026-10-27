@@ -190,7 +190,7 @@ jobs:
           python3 .github/scripts/onprem_registry.py "$COMPONENT"
           repository="ghcr.io/yukiharada1228/videoq-$COMPONENT"
           if [ "$COMPONENT" = vllm-engine ]; then
-            repository="ghcr.io/yukiharada1228/videoq-onprem-whisper-vllm"
+            repository="ghcr.io/yukiharada1228/videoq-vllm"
           fi
           tag="$repository:$GITHUB_SHA-$ARCH-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
@@ -254,7 +254,7 @@ jobs:
           python3 .github/scripts/onprem_registry.py "$COMPONENT"
           repository="ghcr.io/yukiharada1228/videoq-$COMPONENT"
           if [ "$COMPONENT" = vllm-engine ]; then
-            repository="ghcr.io/yukiharada1228/videoq-onprem-whisper-vllm"
+            repository="ghcr.io/yukiharada1228/videoq-vllm"
           fi
           tag="$repository:$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin

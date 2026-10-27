@@ -1,4 +1,4 @@
-"""Remove only the four retired pre-migration container packages."""
+"""Remove packages retired by a verified naming migration."""
 import argparse
 import importlib.util
 import json
@@ -13,13 +13,16 @@ SPEC.loader.exec_module(bootstrap)
 REPO = bootstrap.REPO
 OWNER = REPO.split('/')[0]
 RETIRED = tuple('videoq-onprem-' + role for role in ('api', 'web', 'worker', 'whisper'))
-ACTIVE = tuple('videoq-' + role for role in bootstrap.ROLES) + ('videoq-onprem-whisper-vllm',)
+GPU = 'videoq-onprem-whisper-vllm'
+ACTIVE = tuple('videoq-' + role for role in bootstrap.ROLES) + (GPU,)
+RENAMED_ACTIVE = tuple('videoq-' + role for role in bootstrap.ROLES) + ('videoq-vllm',)
 
 
-def api(package, method='GET'):
-    if package not in RETIRED + ACTIVE:
+def api(package, method='GET', *, retire_vllm=False):
+    if package not in RETIRED + ACTIVE + RENAMED_ACTIVE:
         raise ValueError('Package is outside the fixed migration allowlist')
-    if method not in ('GET', 'DELETE') or (method == 'DELETE' and package not in RETIRED):
+    deletable = (GPU,) if retire_vllm else RETIRED
+    if method not in ('GET', 'DELETE') or (method == 'DELETE' and package not in deletable):
         raise ValueError('Only retired packages can be deleted')
     request = urllib.request.Request(
         f'https://api.github.com/users/{OWNER}/packages/container/{package}', method=method,
@@ -39,37 +42,47 @@ def api(package, method='GET'):
 
 
 def plan(manifest):
-    if manifest.get('schemaVersion') != 3:
-        raise ValueError('Cleanup requires the completed schema 3 naming migration')
+    schema = manifest.get('schemaVersion')
+    if type(schema) is not int or schema not in (3, 4):
+        raise ValueError('Cleanup requires a completed signed schema 3 or 4 naming migration')
+    active = RENAMED_ACTIVE if schema == 4 else ACTIVE
+    retired = (GPU,) if schema == 4 else RETIRED
     used = {image['repository'] for image in manifest['images'].values()}
-    expected = {'ghcr.io/' + OWNER + '/' + name for name in ACTIVE}
+    expected = {'ghcr.io/' + OWNER + '/' + name for name in active}
     if used != expected:
         raise ValueError('Signed release must reference exactly the five retained packages')
     # Validate every retained package and every deletion target before the first DELETE.
     metadata = {}
-    for name in ACTIVE + RETIRED:
+    for name in active + retired:
         item = api(name)
         if item is None:
-            if name in ACTIVE:
+            if name in active:
                 raise ValueError('A retained package is missing or inaccessible')
         elif (item.get('name') != name or
               (item.get('repository') or {}).get('full_name') != REPO or
               item.get('visibility') != 'public'):
             raise ValueError('Unexpected package name, repository or visibility')
         metadata[name] = item
-    return [{'package': name, 'result': 'planned' if metadata[name] else 'not-found'} for name in RETIRED]
+    return [{'package': name, 'result': 'planned' if metadata[name] else 'not-found'} for name in retired]
 
 
-def execute(items, output, delete=False):
-    report = {'mode': 'delete' if delete else 'preview', 'retained': list(ACTIVE), 'packages': items}
+def execute(items, output, delete=False, retire_vllm=False):
+    active = RENAMED_ACTIVE if retire_vllm else ACTIVE
+    retired = (GPU,) if retire_vllm else RETIRED
+    if any(item['package'] not in retired for item in items):
+        raise ValueError('Unexpected deletion target for the verified migration')
+    report = {'mode': 'delete' if delete else 'preview', 'retained': list(active), 'packages': items}
     try:
         for item in items:
             if delete and item['result'] == 'planned':
-                api(item['package'], 'DELETE')
+                if retire_vllm:
+                    api(item['package'], 'DELETE', retire_vllm=True)
+                else:
+                    api(item['package'], 'DELETE')
                 item['result'] = 'deleted'
                 if api(item['package']) is not None:
                     raise RuntimeError('Deleted package is still visible')
-        for name in ACTIVE:
+        for name in active:
             if api(name) is None:
                 raise RuntimeError('Retained package disappeared')
     finally:
@@ -88,7 +101,7 @@ def main():
         raise ValueError('Report must not overwrite the signed manifest')
     bootstrap.release.verify(args.directory / 'release.json', args.source)
     manifest = bootstrap.release.validate(json.loads((args.directory / 'release.json').read_text()), args.source)
-    execute(plan(manifest), args.output, args.delete)
+    execute(plan(manifest), args.output, args.delete, retire_vllm=manifest['schemaVersion'] == 4)
 
 
 if __name__ == '__main__':

@@ -23,3 +23,10 @@ test('runner paths are evaluated only inside steps, not the job environment',()=
   assert.doesNotMatch(jobEnv,/runner\./);
   assert.equal((workflow.match(/DOCKER_CONFIG: \$\{\{ runner.temp \}\}\/package-bootstrap-docker/g)||[]).length,3);
 });
+
+test('single GPU namespace bootstrap is opt-in and passed as a fixed CLI flag',()=>{
+  assert.match(workflow,/vllm_only:[\s\S]*?type: boolean\n        default: false/);
+  assert.match(workflow,/VLLM_ONLY: \$\{\{ inputs.vllm_only \}\}/);
+  assert.equal((workflow.match(/args\+=\(--vllm-only\)/g)||[]).length,2);
+  assert.doesNotMatch(workflow,/run:.*\$\{\{ inputs.vllm_only \}\}/);
+});

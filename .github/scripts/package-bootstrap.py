@@ -1,4 +1,4 @@
-"""Create four migration namespaces from a verified release; never build or run images."""
+"""Create migration namespaces from a verified release; never build or run images."""
 import argparse
 import importlib.util
 import json
@@ -46,13 +46,18 @@ def publish_context(env):
     return positive_id(env.get('GITHUB_RUN_ID')), positive_id(env.get('GITHUB_RUN_ATTEMPT'))
 
 
-def plan(source, application, inference, identity):
+def plan(source, application, inference, identity, vllm_only=False):
     release.sha(source)
     result = []
-    for role in ROLES:
-        image = inference['whisper']['image'] if role == 'transcription-gateway' else application[role]['image']
-        legacy = 'whisper' if role == 'transcription-gateway' else role
-        if image['repository'] not in (PREFIX + 'onprem-' + legacy, PREFIX + role):
+    for role in (('vllm',) if vllm_only else ROLES):
+        if role == 'vllm':
+            image = inference['whisper']['vllmImage']
+            allowed = (PREFIX + 'onprem-whisper-vllm', PREFIX + 'vllm')
+        else:
+            image = inference['whisper']['image'] if role == 'transcription-gateway' else application[role]['image']
+            legacy = 'whisper' if role == 'transcription-gateway' else role
+            allowed = (PREFIX + 'onprem-' + legacy, PREFIX + role)
+        if image['repository'] not in allowed:
             raise ValueError('Unexpected bootstrap source repository')
         digest = release.digest(image['digest'])
         result.append({'role': role, 'source': image['repository'] + '@' + digest,
@@ -78,7 +83,7 @@ def copy_image(item):
 
 
 def package_metadata(role):
-    if role not in ROLES:
+    if role not in (*ROLES, 'vllm'):
         raise ValueError('Unexpected package role')
     package = 'videoq-' + role
     data = json.loads(subprocess.check_output(['gh', 'api', 'users/yukiharada1228/packages/container/' + package], text=True))
@@ -87,7 +92,7 @@ def package_metadata(role):
     return {'visibility': data['visibility'], 'repository': (data.get('repository') or {}).get('full_name')}
 
 
-def bootstrap(source, directory, output, publish=False):
+def bootstrap(source, directory, output, publish=False, vllm_only=False):
     if publish or os.environ.get('GITHUB_ACTIONS') == 'true':
         run_id, attempt = publish_context(os.environ)
         identity = run_id + '-' + attempt
@@ -97,10 +102,10 @@ def bootstrap(source, directory, output, publish=False):
         raise ValueError('The report must not overwrite signed release artifacts')
     # Verify manifest, both chart archives and every original image attestation.
     application, inference = release.verify(directory / 'release.json', source)
-    items = plan(source, application, inference, identity)
+    items = plan(source, application, inference, identity, vllm_only)
     report = {'sourceSha': source, 'mode': 'publish' if publish else 'preview', 'images': items,
               'scope': 'Namespace bootstrap only; not a newly signed release. Do not deploy bootstrap tags.',
-              'nextStep': 'Set the four packages Public, confirm repository Actions Write access, then use the normal signed release workflow.'}
+              'nextStep': 'Set the target packages Public, confirm repository Actions Write access, then use the normal signed release workflow.'}
     output.parent.mkdir(parents=True, exist_ok=True)
     release.write_atomic(output, report)
     if publish:
@@ -126,12 +131,13 @@ def main():
     boot.add_argument('directory', type=Path)
     boot.add_argument('output', type=Path)
     boot.add_argument('--publish', action='store_true')
+    boot.add_argument('--vllm-only', action='store_true')
     args = parser.parse_args()
     if args.command == 'source-run':
         for key, value in source_run(args.run_id).items():
             print(key + '=' + value)
     else:
-        bootstrap(args.source, args.directory, args.output, args.publish)
+        bootstrap(args.source, args.directory, args.output, args.publish, args.vllm_only)
 
 
 if __name__ == '__main__':
