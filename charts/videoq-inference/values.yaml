@@ -27,7 +27,7 @@ whisper:
   maxSequences: 8
   vllmImage:
     # Signed amd64 NVIDIA engine, with locked audio extras and OS patches.
-    repository: ghcr.io/yukiharada1228/videoq-vllm-engine
+    repository: ghcr.io/yukiharada1228/videoq-onprem-whisper-vllm
     tag: "0.2.0"
     digest: ""
     pullPolicy: IfNotPresent

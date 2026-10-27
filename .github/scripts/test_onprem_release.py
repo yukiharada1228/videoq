@@ -21,7 +21,7 @@ class ReleaseTests(unittest.TestCase):
         self.charts = {key: self.root / (name + '-0.1.0-sha.' + SOURCE + '.tgz') for key, name in release.CHARTS.items()}
         for chart in self.charts.values(): chart.write_bytes(b'reviewed chart fixture')
         self.data = {'schemaVersion': 3, 'repository': release.REPOSITORY, 'sourceSha': SOURCE,
-                     'images': {c: {'repository': release.PREFIX + c, 'platforms': release.PLATFORMS[c], 'digest': 'sha256:' + 'b' * 64} for c in release.COMPONENTS},
+                     'images': {c: {'repository': release.repository(c), 'platforms': release.PLATFORMS[c], 'digest': 'sha256:' + 'b' * 64} for c in release.COMPONENTS},
                      'charts': {key: {'name': chart.name, 'digest': 'sha256:' + release.hashlib.sha256(chart.read_bytes()).hexdigest()} for key, chart in self.charts.items()}}
         self.manifest = self.root / 'release.json'
         self.manifest.write_text(json.dumps(self.data))
@@ -53,7 +53,7 @@ class ReleaseTests(unittest.TestCase):
         with patch.object(release.subprocess, 'run'):
             values, inference = release.verify(self.manifest, SOURCE)
         self.assertEqual(inference['whisper']['image']['repository'], release.PREFIX+'transcription-gateway')
-        self.assertEqual(inference['vllm']['image']['repository'], release.PREFIX+'vllm-engine')
+        self.assertEqual(inference['vllm']['image']['repository'], release.LEGACY_PREFIX+'whisper-vllm')
 
     def test_legacy_schema_two_still_verifies_all_original_signed_subjects(self):
         legacy = copy.deepcopy(self.data)
@@ -69,7 +69,7 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(inference['vllm']['image']['repository'], release.LEGACY_PREFIX + 'whisper-vllm')
 
     def test_layout_cannot_mix_namespaces_or_component_generations(self):
-        for mutate in [lambda d: d.update(schemaVersion=2), lambda d: d['images']['api'].update(repository=release.LEGACY_PREFIX+'api')]:
+        for mutate in [lambda d: d.update(schemaVersion=2), lambda d: d['images']['api'].update(repository=release.LEGACY_PREFIX+'api'), lambda d: d['images']['vllm-engine'].update(repository=release.PREFIX+'vllm-engine')]:
             bad = copy.deepcopy(self.data); mutate(bad)
             with self.assertRaises(ValueError): release.validate(bad, SOURCE)
         for version in [True, None, '3', 0, 4]:

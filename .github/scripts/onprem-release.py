@@ -32,6 +32,15 @@ def layout(version):
     return components, prefix, platforms
 
 
+def repository(component, version=3):
+    components, prefix, _ = layout(version)
+    if component not in components:
+        raise ValueError("Unknown release component")
+    if version == 3 and component == "vllm-engine":
+        return LEGACY_PREFIX + "whisper-vllm"
+    return prefix + component
+
+
 def sha(value):
     if not isinstance(value, str) or not re.fullmatch(r"[a-f0-9]{40}", value):
         raise ValueError("An exact reviewed source commit SHA is required")
@@ -55,7 +64,7 @@ def validate(data, expected_sha):
         raise ValueError("Release must include all application and inference components")
     for component in components:
         image = data["images"][component]
-        if image.get("repository") != prefix + component:
+        if image.get("repository") != repository(component, data["schemaVersion"]):
             raise ValueError("Unexpected image repository")
         if image.get("platforms") != platforms[component]:
             raise ValueError("Unexpected image architectures")
@@ -141,7 +150,7 @@ def main():
         return
     charts = {key: args.directory / (name + "-0.1.0-sha." + args.source + ".tgz") for key, name in CHARTS.items()}
     data = {"schemaVersion": 3, "repository": REPOSITORY, "sourceSha": args.source,
-            "images": {c: {"repository": PREFIX + c,
+            "images": {c: {"repository": repository(c),
                            "platforms": PLATFORMS[c],
                            "digest": (args.directory / (c + ".digest")).read_text().strip()} for c in COMPONENTS},
             "charts": {key: {"name": chart.name, "digest": "sha256:" + hashlib.sha256(chart.read_bytes()).hexdigest()} for key, chart in charts.items()}}

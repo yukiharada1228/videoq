@@ -189,6 +189,9 @@ jobs:
           zstd -d image.tar.zst --stdout | docker load
           python3 .github/scripts/onprem_registry.py "$COMPONENT"
           repository="ghcr.io/yukiharada1228/videoq-$COMPONENT"
+          if [ "$COMPONENT" = vllm-engine ]; then
+            repository="ghcr.io/yukiharada1228/videoq-onprem-whisper-vllm"
+          fi
           tag="$repository:$GITHUB_SHA-$ARCH-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           docker tag "videoq-$COMPONENT:release" "$tag"
@@ -250,6 +253,9 @@ jobs:
         run: |
           python3 .github/scripts/onprem_registry.py "$COMPONENT"
           repository="ghcr.io/yukiharada1228/videoq-$COMPONENT"
+          if [ "$COMPONENT" = vllm-engine ]; then
+            repository="ghcr.io/yukiharada1228/videoq-onprem-whisper-vllm"
+          fi
           tag="$repository:$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           manifests=("$repository@$(cat "$COMPONENT-amd64.digest")")

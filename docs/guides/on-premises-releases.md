@@ -14,7 +14,7 @@ that commit, for example to rebuild after distribution package fixes.
 
 Distribution uses the public packages
 `ghcr.io/yukiharada1228/videoq-api`, `videoq-worker` and
-`videoq-web`, `videoq-transcription-gateway` and `videoq-vllm-engine`.
+`videoq-web`, `videoq-transcription-gateway` and `videoq-onprem-whisper-vllm`.
 Docker and Kubernetes can pull them without a GHCR login
 or `imagePullSecrets`. Site-owned private registries can still use
 `imagePullSecrets` when required. The images include the repository's existing
@@ -223,8 +223,7 @@ test with backing services; production sizing still needs representative videos.
 
 New `release.json` manifests use schemaVersion 3. Application roles remain
 `api`, `web` and `worker`; speech becomes `transcription-gateway`, and the
-existing custom GPU engine becomes `vllm-engine`. Replacing that engine with
-upstream vLLM is a separate change. Helm keys such as `whisper.image` and
+existing custom GPU engine keeps its old package name until upstream vLLM replaces it in a separate change. Its manifest role is `vllm-engine`; no intermediate GPU package is created. Helm keys such as `whisper.image` and
 `whisper.vllmImage` remain compatible.
 
 SchemaVersion 2 manifests still verify their original `videoq-onprem-*`
@@ -232,7 +231,7 @@ repositories and every signature. Retain those public packages and immutable
 digests for historical installs and rollback. Each schema fixes its own package
 namespace; mixed generations are rejected.
 
-Before activation, a package administrator must prepare all five new public
+Before activation, a package administrator must prepare all four new public
 packages and grant the repository Actions Write access. Initial GHCR publication
 and package settings require a separate bootstrap; merging this PR does not
 complete that setup. Public-visibility checks before and after publication stay
