@@ -1,5 +1,10 @@
 {{- $whisper := .Values.whisper }}
 {{- $gpu := eq $whisper.backend "vllm" }}
+{{- $cpuArch := .Values.whispercpp.architecture }}
+{{- $cpuImage := index .Values.whispercpp.images $cpuArch }}
+{{- if and (not $gpu) (hasKey $whisper.nodeSelector "kubernetes.io/arch") (ne (index $whisper.nodeSelector "kubernetes.io/arch") $cpuArch) }}
+{{- fail "whisper.nodeSelector architecture must match whispercpp.architecture" }}
+{{- end }}
 {{- $gpuCount := int (default 0 (index $whisper.resources.limits "nvidia.com/gpu")) }}
 {{- if and $gpu (ne $gpuCount 1) }}
 {{- fail "NVIDIA Whisper requires exactly one GPU in whisper.resources.limits" }}
@@ -31,7 +36,11 @@ spec:
       imagePullSecrets: {{ toYaml . | nindent 8 }}
       {{- end }}
       securityContext: { runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, fsGroup: 10001, seccompProfile: { type: RuntimeDefault } }
-      {{- with $whisper.nodeSelector }}
+      {{- $selector := deepCopy $whisper.nodeSelector }}
+      {{- if not $gpu }}
+      {{- $_ := set $selector "kubernetes.io/arch" $cpuArch }}
+      {{- end }}
+      {{- with $selector }}
       nodeSelector: {{ toYaml . | nindent 8 }}
       {{- end }}
       {{- with $whisper.tolerations }}
@@ -91,9 +100,9 @@ spec:
             - --max-num-seqs
             - {{ $whisper.maxSequences | quote }}
           {{- else }}
-          image: {{ include "inference.image" (dict "root" . "image" $whisper.image "component" "whisper") | quote }}
-          imagePullPolicy: {{ $whisper.image.pullPolicy }}
-          command: [whisper-server]
+          image: {{ include "inference.image" (dict "root" . "image" $cpuImage "component" "whispercpp") | quote }}
+          imagePullPolicy: {{ $cpuImage.pullPolicy }}
+          command: [/app/build/bin/whisper-server]
           args:
             - --model
             - /models/{{ $whisper.modelRevision }}/{{ $whisper.modelFile }}

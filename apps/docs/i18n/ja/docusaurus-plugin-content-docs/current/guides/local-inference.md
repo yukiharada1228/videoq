@@ -131,3 +131,17 @@ Linux はチャートの digest 固定 llama.cpp と、`.github/inference-basic-
 macOS は Homebrew の索引を更新して bottle を利用し、バージョンを記録します。
 成果物は `local-inference-basic-<runner>` として7日間保存します。既存の脆弱性検査と
 リリースゲートは維持します。
+
+
+## CPU 音声エンジンの上流パッケージ
+
+CPU の whisper.cpp は、VideoQ イメージ内での再ビルドをやめ、digest 固定の上流イメージを
+別コンテナーで起動します。VideoQ の音声前処理・API は従来のゲートウェイに残し、エンジンは
+同じ Pod 内の loopback で接続します。既存の NVIDIA イメージと脆弱性検査は維持します。
+ARM64 では `charts/videoq-inference/examples/cpu-arm64.yaml` を使用します。モデルの取得後は
+オフラインで再起動できます。上流イメージの脆弱性検査は amd64・arm64 で個別に行い、
+レビュー済みのヘッダー評価を適用する前に、全ファイルの一覧・ハッシュ・パッケージを照合します。
+評価済みの指摘も検査成果物に残ります。ホストカーネルの安全性を保証するものではありません。
+
+AMD／ROCm の構成追加は別の変更で扱い、対象 GPU・OS が未定のため実機動作は未確認です。
+GPU の採用には実機検証と脆弱性評価が必要です。

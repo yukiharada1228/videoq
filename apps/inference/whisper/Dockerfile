@@ -1,22 +1,7 @@
 FROM ghcr.io/astral-sh/uv:0.13.5@sha256:32a7bb39b496babbd997b0a39a4d66c126bdaf5661b302bf6f06abda8deca6ff AS uv
 FROM python:3.12.15-slim-trixie@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704 AS native
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake curl ca-certificates xz-utils && rm -rf /var/lib/apt/lists/*
-# Portable CPU build: runtime dispatch selects a supported ISA, including FP16.
-# No CUDA/Metal, host-only CPU flags or runtime executable downloads.
-ARG WHISPER_CPP_REVISION=d1be6fde11ac6e0407606b4e42fe72d34add8037
-ARG WHISPER_CPP_SHA256=645445da884df6dbd52b30f82d7be7c01d1767c938714e477e786b88d529e9f4
-RUN curl -fsSL "https://github.com/ggml-org/whisper.cpp/archive/${WHISPER_CPP_REVISION}.tar.gz" -o /tmp/source.tar.gz \
-    && echo "$WHISPER_CPP_SHA256  /tmp/source.tar.gz" | sha256sum -c - \
-    && mkdir /src && tar -xzf /tmp/source.tar.gz --strip-components=1 -C /src \
-    && cmake -S /src -B /src/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DGGML_BACKEND_DL=ON -DGGML_CPU_ALL_VARIANTS=ON -DGGML_BACKEND_DIR=/usr/local/lib -DGGML_NATIVE=OFF -DGGML_OPENMP=OFF -DWHISPER_BUILD_TESTS=OFF \
-    && cmake --build /src/build -j2
-RUN python - <<'PY'
-from pathlib import Path
-import shutil
-Path("/native-libs").mkdir()
-for path in Path("/src/build").rglob("*.so*"):
-    if path.is_file(): shutil.copyfile(path, Path("/native-libs") / path.name)
-PY
+# Only VideoQ audio preprocessing lives here; whisper.cpp runs in its upstream image.
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates xz-utils && rm -rf /var/lib/apt/lists/*
 ARG TARGETARCH
 ARG FFMPEG_BUILD=autobuild-2026-09-30-13-08
 ARG FFMPEG_VERSION=n9.0.2-17-g2a571b6068
@@ -62,9 +47,6 @@ COPY --from=dependencies /extra/lib/ /usr/local/lib/
 COPY --from=dependencies /extra/status.d/ /var/lib/dpkg/status.d/
 COPY --from=dependencies /extra/licenses/ /usr/share/doc/videoq-native/
 COPY --from=dependencies /app/.venv /app/.venv
-COPY --from=native /src/build/bin/whisper-server /usr/local/bin/whisper-server
-COPY --from=native /native-libs/ /usr/local/lib/
-COPY --from=native /src/LICENSE /usr/share/doc/whisper.cpp/LICENSE
 COPY --from=native /ffmpeg/bin/ffmpeg /usr/local/bin/ffmpeg
 COPY --from=native /ffmpeg/doc/ /usr/share/doc/ffmpeg/
 WORKDIR /app

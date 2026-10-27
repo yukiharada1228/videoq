@@ -40,7 +40,7 @@ test('the existing required CI gate includes on-prem validation', () => {
 
 test('all on-prem images are scanned without hiding unfixed findings', () => {
   const scans = onprem.split(/(?=      - name:)/).filter(step => step.includes('uses: aquasecurity/trivy-action@'));
-  assert.equal(scans.length, 6);
+  assert.equal(scans.length, 7);
   for (const component of ['api', 'worker', 'web', 'local-whisper', 'llamacpp', 'whisper-vllm']) {
     const scan = scans.find(step => step.includes(component === 'llamacpp'
       ? 'image-ref: ${{ env.' + component.toUpperCase() + '_IMAGE }}' : `image-ref: videoq-${component}:onprem-ci`));
@@ -82,4 +82,16 @@ test('native basic checks are required when selected and use standard runners', 
   assert.match(basic, /schedule:/);
   assert.match(basic, /uv sync --locked --extra dev/);
   assert.doesNotMatch(basic, /self-hosted|secrets\.|secrets: inherit|id-token: write|packages: write|--gpus|download-ggml/);
+});
+
+
+test('upstream CPU images retain separate architecture scans and a verified assessment', () => {
+  const cpu = onprem.slice(onprem.indexOf('  upstream-cpu-images:'));
+  assert.match(cpu, /engine: \[llamacpp, whispercpp\]/);
+  assert.match(cpu, /architecture: \[amd64, arm64\]/);
+  assert.match(cpu, /steps.header_inventory.outcome == 'success'/);
+  assert.match(cpu, /apps\/inference\/whispercpp\/security\/header-image-inventory.json/);
+  assert.match(cpu, /ignore-unfixed: 'false'/);
+  assert.match(cpu, /exit-code: '1'/);
+  assert.doesNotMatch(cpu, /continue-on-error: true/);
 });

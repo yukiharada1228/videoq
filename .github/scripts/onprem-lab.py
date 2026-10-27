@@ -156,6 +156,7 @@ def main():
         inference_values = {"downloadModels":False, "networkPolicy":{"clientNamespace":NAMESPACE,"clientRelease":"videoq","denyEgress":True},
                             "whisper":{"image":{"repository":"videoq-whisper","tag":args.image_tag,"digest":"","pullPolicy":"Never"}},
                             "llamacpp":{"image":{"repository":"videoq-llamacpp","tag":args.image_tag,"digest":"","pullPolicy":"Never"}},
+                            "whispercpp":{"images":{"amd64":{"repository":"videoq-whispercpp","tag":args.image_tag,"digest":"","pullPolicy":"Never"}}},
                             "servers":{}}
         for component in ["chat", "embedding", "whisper"]:
             name = "acceptance-models-" + component
