@@ -5,15 +5,15 @@ description: 署名とダイジェストを検証し、Kubernetes で更新と�
 
 # オンプレの署名付き配布と更新
 
-インターネットに接続できる導入先では、外部レジストリとイメージのダイジェストを使って配布します。`On-prem Release` は最新 main の push CI 成功を確認し、Linux amd64・arm64 の API、Web、ワーカー、CPU Whisper、アプリ・推論用の両 Helm Chart、`release.json` を作成します。NVIDIA vLLM のイメージは amd64 用として同梱します。同じ main コミットで手動実行すると、OS パッケージ修正後の再ビルドにも使えます。
+インターネットに接続できる導入先では、外部レジストリとイメージのダイジェストを使って配布します。`On-prem Release` は最新 main の push CI 成功を確認し、Linux amd64・arm64 の API、Web、ワーカー、文字起こしゲートウェイ、アプリ・推論用の両 Helm Chart、`release.json` を作成します。推論用 Chart には上流 llama.cpp・whisper.cpp・vLLM の digest を固定し、これらのイメージは直接使用します。同じ main コミットで手動実行すると、OS パッケージ修正後の再ビルドにも使えます。
 
-配布用の `ghcr.io/yukiharada1228/videoq-api`・`videoq-worker`・`videoq-web`・`videoq-transcription-gateway`・`videoq-vllm-engine` は Public とします。Docker や Kubernetes からは GHCR のログインや `imagePullSecrets` なしで取得できます。導入先独自の非公開レジストリを使う場合は、引き続き `imagePullSecrets` を設定できます。各イメージにはリポジトリの現行 LICENSE を同梱し、公開範囲の変更でライセンス条件は変更しません。
+配布用の `ghcr.io/yukiharada1228/videoq-api`・`videoq-worker`・`videoq-web`・`videoq-transcription-gateway` は Public とします。Docker や Kubernetes からは GHCR のログインや `imagePullSecrets` なしで取得できます。導入先独自の非公開レジストリを使う場合は、引き続き `imagePullSecrets` を設定できます。各イメージにはリポジトリの現行 LICENSE を同梱し、公開範囲の変更でライセンス条件は変更しません。
 
 パッケージ管理者が初期設定で Public にし、**Package settings → Manage Actions access** で `yukiharada1228/videoq` に **Write** を付与します。CI は push の前後とインデックス作成前に公開状態を確認し、非公開・internal・未作成の場合は配布を止めます。署名を検証した配布物は、空の Docker 認証設定で取得して匿名アクセスを確認します。公開済みパッケージを Private に戻すことは GitHub の仕様上できません。push 用の書き込み認証は引き続き必要です。
 
 ## 配布時に確認すること
 
-アプリのビルドはリポジトリの読み取り権限だけで実行します。各イメージの未修正分を含む HIGH・CRITICAL 脆弱性を検査し、イメージと CycloneDX SBOM を保存します。別の新しいランナーで、そのイメージを実行せずに配布し、GitHub OIDC による来歴とアーキテクチャ別 SBOM の署名を付けます。両アーキテクチャを束ねるイメージインデックス、Chart のバイト列、全5イメージのダイジェストと対応アーキテクチャも署名対象です。NVIDIA 版のスキャンは既存の限定的な kernel-header 評価を維持し、評価済みを含む JSON レポートと評価ファイルを `security-*` 成果物に90日間保存します。その他の HIGH・CRITICAL は引き続き配布を止めます。
+アプリのビルドはリポジトリの読み取り権限だけで実行します。各イメージの未修正分を含む HIGH・CRITICAL 脆弱性を検査し、イメージと CycloneDX SBOM を保存します。別の新しいランナーで、そのイメージを実行せずに配布し、GitHub OIDC による来歴とアーキテクチャ別 SBOM の署名を付けます。両アーキテクチャを束ねるイメージインデックス、Chart のバイト列、VideoQ の全4イメージのダイジェストと対応アーキテクチャも署名対象です。NVIDIA 版のスキャンは既存の限定的な kernel-header 評価を維持し、評価済みを含む JSON レポートと評価ファイルを `vllm-security-nvidia` 成果物に14日間保存します。その他の HIGH・CRITICAL は引き続き配布を止めます。
 
 API とワーカーはダイジェスト固定の Alpine イメージを使い、既存の Runtime Updates がインタープリターと npm・pip・uv の検証済み配布物を更新します。ベース変更には、Python wheel、PostgreSQL、FFmpeg、認証、Kubernetes の検証を必要とします。リリースの各実行・再試行には別のレジストリタグを使い、導入時はダイジェストを指定します。
 
@@ -35,7 +35,7 @@ python3 .github/scripts/onprem-release.py verify "$SOURCE_SHA" \
   /secure/videoq-release/verified-inference.json
 ```
 
-イメージの取得に GHCR のログインや `read:packages` 資格情報は不要です。上記の GitHub CLI の認証は、ワークフロー成果物のダウンロードと署名検証に使います。検証スクリプトは署名、対象ファイル、リポジトリ、配布ワークフロー、`refs/heads/main`、ソースコミット、GitHub ホストのランナーであることを確認します。manifest、両 Chart のチェックサムと署名、全5イメージの署名がすべて正しい場合だけ、アプリ用・推論用の Helm 設定ファイルを生成します。失敗時は既存の値を保持します。
+イメージの取得に GHCR のログインや `read:packages` 資格情報は不要です。上記の GitHub CLI の認証は、ワークフロー成果物のダウンロードと署名検証に使います。検証スクリプトは署名、対象ファイル、リポジトリ、配布ワークフロー、`refs/heads/main`、ソースコミット、GitHub ホストのランナーであることを確認します。manifest、両 Chart のチェックサムと署名、VideoQ の全4イメージの署名がすべて正しい場合だけ、アプリ用・推論用の Helm 設定ファイルを生成します。失敗時は既存の値を保持します。
 
 アーキテクチャ別 SBOM は、`gh attestation verify` の predicate に `https://cyclonedx.org/bom` を指定して確認できます。Chart、manifest、確認済みの値、SBOM、署名バンドルを保管してください。ワークフローの成果物は 90 日で期限切れになります。採用したイメージのダイジェストと署名をレジストリの削除ポリシーから保護します。
 
@@ -97,20 +97,31 @@ HELM_BIN=helm python3 .github/scripts/onprem-cpu-acceptance.py \
 
 既存の `videoq-onprem-lab` クラスタがあれば置き換えずに停止します。モデル取得時にはインターネット接続が必要です。検証用の DB 等も含め、少なくとも16 GiB の RAM を用意します。短い公開サンプル1件での確認なので、導入先の日本語録画・同時利用数による精度や性能、CNI による NetworkPolicy の適用確認は別途必要です。
 
+## 推論イメージの方針
 
-## パッケージ名の移行
+推論エンジンは、要件を満たす上流イメージを優先します。llama.cpp と CPU の
+whisper.cpp は上流イメージを digest 固定で直接使用し、VideoQ 独自の
+`videoq-transcription-gateway` には音声前処理・VAD・字幕 API・モデル取得処理を残します。
+CPU 文字起こしを arm64 ノードで動かす場合は `whispercpp.architecture: arm64` を設定します。
 
-新規リリースの `release.json` は schemaVersion 3 を使います。`api`・`web`・`worker` は
-役割名を維持し、音声 API は `transcription-gateway`、既存の自前 GPU エンジンは
-`vllm-engine` になります。vLLM の上流イメージへの切り替えは別の変更で扱います。
-Helm の `whisper.image`・`whisper.vllmImage` などの設定キーは変更しません。
+vLLM も上流 `vllm/vllm-openai` を digest 固定で直接使用し、LLM・埋め込み・
+文字起こしで共用します。VideoQ 独自の vLLM イメージはビルド・再配布しません。
+CI では VideoQ が送信する WAV のデコードと上流イメージの脆弱性を検証します。
 
-旧 schemaVersion 2 のマニフェストは、元の `videoq-onprem-*` パッケージとすべての署名を
-引き続き検証します。旧パッケージは削除せず、履歴やロールバック用の digest を保持してください。
-schemaVersion ごとにパッケージ名を固定し、新旧の名前を混ぜたマニフェストは拒否します。
+新リリースでは従来の `videoq-onprem-*` を上記の名前へ変更します。旧リリースの
+署名済み成果物はロールバック用に保持し、新リリースの Chart と検証済みイメージ設定を
+組み合わせて更新してください。導入先の `whisper.vllmImage` 設定は `vllm.image` に移行します。
 
-切り替え前に、管理者は新しい5パッケージの公開設定と Actions の Write アクセスを準備します。
-GHCR の新規パッケージは最初の公開と設定が別途必要です。この PR のマージだけでは準備完了に
-なりません。新名称での公開前後の Public 検査は維持し、パッケージが未作成・非公開なら
-リリースを停止します。既存の公開パッケージを削除して移行する手順は使いません。
-新名称の署名済みリリースで検証用 Helm 値を再生成し、チャートを更新してください。
+
+## リリースマニフェストの移行
+
+上流エンジンを使う新規リリースは schemaVersion 4 を使用し、VideoQ が署名するパッケージは
+api・web・worker・transcription-gateway の4つになります。CUDA／ROCm の上流エンジンは
+チャート内で digest 固定し、VideoQ がビルド・署名したイメージとして扱いません。
+schemaVersion 2（旧名称）と3（名称変更後の自前 vLLM エンジン）も、全パッケージの署名を
+検証します。世代を混ぜたマニフェストは拒否し、旧公開パッケージと digest は復旧用に保持します。
+新しいパッケージの公開設定と Actions アクセスを準備する必要があり、公開状態・脆弱性・署名の
+検査は維持します。
+
+GPU 対応はまだリリースできません。上流イメージの脆弱性ゲートは未解決であり、
+GPU 実機と選択モデルによる受け入れ検証も未実施です。

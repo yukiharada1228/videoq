@@ -185,13 +185,16 @@ def _whisper_client():
     backend = env_str("WHISPER_BACKEND", "openai").lower()
     if backend == "local":
         client = OpenAI(
-            api_key=env_str("OPENAI_API_KEY") or "dummy-key-for-local",
+            api_key=env_str("WHISPER_LOCAL_API_KEY") or env_str("OPENAI_API_KEY") or "dummy-key-for-local",
             base_url=env_str("WHISPER_LOCAL_URL", "http://127.0.0.1:8080"),
             # Local CPU requests may contain several sequential VAD spans.
             # Leave transport margin around the gateway's bounded 600s budget.
             timeout=660.0, max_retries=2,
         )
-        model = "whisper-local"
+        model = env_str("WHISPER_LOCAL_MODEL", "whisper-local")
+        if not model:
+            client.close()
+            raise ValueError("WHISPER_LOCAL_MODEL must not be empty")
     elif backend == "openai":
         api_key = env_str("OPENAI_API_KEY")
         if not api_key:

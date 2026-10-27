@@ -123,7 +123,13 @@ jobs:
         with:
           filters: |
             whisper_gpu:
-              - 'apps/inference/whisper/Dockerfile.vllm'
+              - 'apps/inference/vllm/**'
+              - 'apps/inference/whisper/provision_audio.py'
+              - 'apps/inference/whisper/pyproject.toml'
+              - 'apps/inference/whisper/uv.lock'
+              - 'apps/inference/whisper/Dockerfile'
+              - 'apps/inference/whisper/.python-version'
+              - 'charts/videoq-inference/**'
               - '.github/workflows/onprem-validation.yml'
             real_cpu:
               - '.github/workflows/onprem-validation.yml'
@@ -132,6 +138,7 @@ jobs:
               - '.github/onprem-lab/**'
               - 'charts/videoq-inference/**'
             onprem:
+              - '.github/scripts/check-upstream-header-image.py'
               - '.github/inference-basic-packages.json'
               - '.dockerignore'
               - 'charts/**'

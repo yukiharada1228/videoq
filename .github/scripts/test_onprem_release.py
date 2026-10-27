@@ -20,7 +20,7 @@ class ReleaseTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.charts = {key: self.root / (name + '-0.1.0-sha.' + SOURCE + '.tgz') for key, name in release.CHARTS.items()}
         for chart in self.charts.values(): chart.write_bytes(b'reviewed chart fixture')
-        self.data = {'schemaVersion': 3, 'repository': release.REPOSITORY, 'sourceSha': SOURCE,
+        self.data = {'schemaVersion': 4, 'repository': release.REPOSITORY, 'sourceSha': SOURCE,
                      'images': {c: {'repository': release.PREFIX + c, 'platforms': release.PLATFORMS[c], 'digest': 'sha256:' + 'b' * 64} for c in release.COMPONENTS},
                      'charts': {key: {'name': chart.name, 'digest': 'sha256:' + release.hashlib.sha256(chart.read_bytes()).hexdigest()} for key, chart in self.charts.items()}}
         self.manifest = self.root / 'release.json'
@@ -32,8 +32,9 @@ class ReleaseTests(unittest.TestCase):
         self.assertTrue(values['requireImageDigests'])
         self.assertTrue(inference['requireImageDigests'])
         self.assertEqual(inference['whisper']['image']['repository'], release.PREFIX + 'transcription-gateway')
-        self.assertEqual(inference['whisper']['vllmImage'], inference['vllm']['image'])
-        self.assertEqual(run.call_count, 8)
+        self.assertNotIn('vllmImage', inference['whisper'])
+        self.assertNotIn('vllm', inference)
+        self.assertEqual(run.call_count, 7)
         for call in run.call_args_list:
             command = call.args[0]
             self.assertIn('--deny-self-hosted-runners', command)
@@ -48,12 +49,12 @@ class ReleaseTests(unittest.TestCase):
             (self.root / (c + '.digest')).write_text('sha256:' + 'b' * 64)
         with patch('sys.argv', ['script', 'assemble', SOURCE, str(self.root)]): release.main()
         data = json.loads(self.manifest.read_text())
-        self.assertEqual(data['schemaVersion'], 3)
-        self.assertEqual(set(data['images']), {'api', 'worker', 'web', 'transcription-gateway', 'vllm-engine'})
+        self.assertEqual(data['schemaVersion'], 4)
+        self.assertEqual(set(data['images']), {'api', 'worker', 'web', 'transcription-gateway'})
         with patch.object(release.subprocess, 'run'):
             values, inference = release.verify(self.manifest, SOURCE)
         self.assertEqual(inference['whisper']['image']['repository'], release.PREFIX+'transcription-gateway')
-        self.assertEqual(inference['vllm']['image']['repository'], release.PREFIX+'vllm-engine')
+        self.assertNotIn('vllm', inference)
 
     def test_legacy_schema_two_still_verifies_all_original_signed_subjects(self):
         legacy = copy.deepcopy(self.data)
@@ -68,15 +69,26 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(inference['whisper']['image']['repository'], release.LEGACY_PREFIX + 'whisper')
         self.assertEqual(inference['vllm']['image']['repository'], release.LEGACY_PREFIX + 'whisper-vllm')
 
+    def test_schema_three_retains_renamed_signed_gpu_engine(self):
+        legacy = copy.deepcopy(self.data)
+        legacy['schemaVersion'] = 3
+        components, prefix, platforms = release.layout(3)
+        legacy['images'] = {c: {'repository': prefix + c, 'platforms': platforms[c], 'digest': 'sha256:' + 'c' * 64} for c in components}
+        self.manifest.write_text(json.dumps(legacy))
+        with patch.object(release.subprocess, 'run') as run:
+            values, inference = release.verify(self.manifest, SOURCE)
+        self.assertEqual(run.call_count, 8)
+        self.assertEqual(inference['vllm']['image']['repository'], release.PREFIX+'vllm-engine')
+
     def test_layout_cannot_mix_namespaces_or_component_generations(self):
         for mutate in [lambda d: d.update(schemaVersion=2), lambda d: d['images']['api'].update(repository=release.LEGACY_PREFIX+'api')]:
             bad = copy.deepcopy(self.data); mutate(bad)
             with self.assertRaises(ValueError): release.validate(bad, SOURCE)
-        for version in [True, None, '3', 0, 4]:
+        for version in [True, None, '4', 0, 5]:
             with self.subTest(version=version), self.assertRaises(ValueError): release.layout(version)
 
     def test_missing_or_invalid_signature_aborts(self):
-        for failure in range(8):
+        for failure in range(7):
             with self.subTest(failure=failure), patch.object(release.subprocess, 'run', side_effect=[None] * failure + [subprocess.CalledProcessError(1, 'gh')]):
                 with self.assertRaises(subprocess.CalledProcessError):
                     release.verify(self.manifest, SOURCE)
@@ -95,7 +107,7 @@ class ReleaseTests(unittest.TestCase):
             bad = copy.deepcopy(self.data); bad[field] = value; candidates.append(bad)
         for field, value in [('repository', 'ghcr.io/attacker/api'), ('digest', 'latest'), ('digest', 'sha256:' + '0' * 64)]:
             bad = copy.deepcopy(self.data); bad['images']['api'][field] = value; candidates.append(bad)
-        for component in ['api', 'vllm-engine']:
+        for component in ['api', 'transcription-gateway']:
             bad = copy.deepcopy(self.data); bad['images'][component]['platforms'] = ['linux/arm64']; candidates.append(bad)
         bad = copy.deepcopy(self.data); bad['charts']['inference']['name'] = '../chart.tgz'; candidates.append(bad)
         bad = copy.deepcopy(self.data); del bad['images']['worker']; candidates.append(bad)

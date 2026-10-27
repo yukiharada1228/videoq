@@ -15,18 +15,19 @@ import tempfile
 REPOSITORY = "yukiharada1228/videoq"
 WORKFLOW = REPOSITORY + "/.github/workflows/onprem-release.yml"
 APP_COMPONENTS = ("api", "worker", "web")
-COMPONENTS = (*APP_COMPONENTS, "transcription-gateway", "vllm-engine")
+COMPONENTS = (*APP_COMPONENTS, "transcription-gateway")
+SCHEMA3_COMPONENTS = (*COMPONENTS, "vllm-engine")
 LEGACY_COMPONENTS = (*APP_COMPONENTS, "whisper", "whisper-vllm")
-PLATFORMS = {c: (["linux/amd64"] if c == "vllm-engine" else ["linux/amd64", "linux/arm64"]) for c in COMPONENTS}
+PLATFORMS = {c: ["linux/amd64", "linux/arm64"] for c in COMPONENTS}
 CHARTS = {"application": "videoq", "inference": "videoq-inference"}
 PREFIX = "ghcr.io/" + REPOSITORY + "-"
 LEGACY_PREFIX = PREFIX + "onprem-"
 
 
 def layout(version):
-    if type(version) is not int or version not in (2, 3):
+    if type(version) is not int or version not in (2, 3, 4):
         raise ValueError("Unsupported release schema version")
-    components = LEGACY_COMPONENTS if version == 2 else COMPONENTS
+    components = {2: LEGACY_COMPONENTS, 3: SCHEMA3_COMPONENTS, 4: COMPONENTS}[version]
     prefix = LEGACY_PREFIX if version == 2 else PREFIX
     platforms = {c: (["linux/amd64"] if c in ("whisper-vllm", "vllm-engine") else ["linux/amd64", "linux/arm64"]) for c in components}
     return components, prefix, platforms
@@ -97,10 +98,13 @@ def verify(manifest, source):
     application = {"requireImageDigests": True, **{
         c: {"image": {**image(c), "tag": "", "pullPolicy": "IfNotPresent"}}
         for c in APP_COMPONENTS}}
-    gateway, engine = ("whisper", "whisper-vllm") if data["schemaVersion"] == 2 else ("transcription-gateway", "vllm-engine")
-    inference = {"requireImageDigests": True,
-                 "whisper": {"image": image(gateway), "vllmImage": image(engine)},
-                 "vllm": {"image": image(engine)}}
+    inference = {"requireImageDigests": True}
+    if data["schemaVersion"] == 4:
+        inference["whisper"] = {"image": image("transcription-gateway")}
+    else:
+        gateway, engine = ("whisper", "whisper-vllm") if data["schemaVersion"] == 2 else ("transcription-gateway", "vllm-engine")
+        inference.update({"whisper": {"image": image(gateway), "vllmImage": image(engine)},
+                          "vllm": {"image": image(engine)}})
     return application, inference
 
 
@@ -140,7 +144,7 @@ def main():
         print("Verified release; application and inference Helm image values written")
         return
     charts = {key: args.directory / (name + "-0.1.0-sha." + args.source + ".tgz") for key, name in CHARTS.items()}
-    data = {"schemaVersion": 3, "repository": REPOSITORY, "sourceSha": args.source,
+    data = {"schemaVersion": 4, "repository": REPOSITORY, "sourceSha": args.source,
             "images": {c: {"repository": PREFIX + c,
                            "platforms": PLATFORMS[c],
                            "digest": (args.directory / (c + ".digest")).read_text().strip()} for c in COMPONENTS},

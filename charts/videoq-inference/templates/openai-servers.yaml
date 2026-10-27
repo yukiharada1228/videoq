@@ -1,11 +1,19 @@
 {{- $root := . }}
-{{- $image := (index .Values .Values.backend).image }}
 {{- range $name := list "chat" "embedding" }}
 {{- $server := index $root.Values.servers $name }}
-{{- if and (eq $root.Values.backend "llamacpp") (or (empty $server.modelFile) (empty $server.modelSha256)) }}
+{{- if $server.enabled }}
+{{- $backend := default $root.Values.backend $server.backend }}
+{{- $accelerator := default $root.Values.vllm.accelerator $server.accelerator }}
+{{- $image := (index $root.Values $backend).image }}
+{{- $gpu := eq $backend "vllm" }}
+{{- if and $gpu (eq $accelerator "amd") }}
+{{- $image = $root.Values.vllm.rocmImage }}
+{{- end }}
+{{- include "inference.validateGpu" (dict "root" $root "resources" $server.resources "component" $name "gpu" $gpu "exactlyOne" false "accelerator" $accelerator) }}
+{{- if and (eq $backend "llamacpp") (or (empty $server.modelFile) (empty $server.modelSha256)) }}
 {{- fail "llamacpp servers require modelFile and modelSha256" }}
 {{- end }}
-{{- if and (eq $root.Values.backend "vllm") (not (empty $server.modelFile)) }}
+{{- if and (eq $backend "vllm") (not (empty $server.modelFile)) }}
 {{- fail "vllm profile requires safetensors snapshots (modelFile must be empty)" }}
 {{- end }}
 ---
@@ -32,7 +40,15 @@ spec:
       {{- with $root.Values.imagePullSecrets }}
       imagePullSecrets: {{ toYaml . | nindent 8 }}
       {{- end }}
-      securityContext: { runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, fsGroup: 10001, seccompProfile: { type: RuntimeDefault } }
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+        {{- if and $gpu $root.Values.vllm.supplementalGroups }}
+        supplementalGroups: {{ toJson $root.Values.vllm.supplementalGroups }}
+        {{- end }}
       {{- with $server.nodeSelector }}
       nodeSelector: {{ toYaml . | nindent 8 }}
       {{- end }}
@@ -57,9 +73,9 @@ spec:
       {{- end }}
       containers:
         - name: {{ $name }}
-          image: {{ include "inference.image" (dict "root" $root "image" $image "component" $root.Values.backend) | quote }}
+          image: {{ include "inference.image" (dict "root" $root "image" $image "component" $backend) | quote }}
           imagePullPolicy: {{ $image.pullPolicy }}
-          {{- if eq $root.Values.backend "llamacpp" }}
+          {{- if eq $backend "llamacpp" }}
           # Official server image entrypoint. All weights are local files.
           args:
             - --model
@@ -133,14 +149,14 @@ spec:
           resources: {{ toYaml $server.resources | nindent 12 }}
           volumeMounts:
             - { name: models, mountPath: /models, readOnly: true }
-            {{- if eq $root.Values.backend "vllm" }}
+            {{- if eq $backend "vllm" }}
             - { name: shm, mountPath: /dev/shm }
             {{- end }}
       volumes:
         - name: models
           persistentVolumeClaim:
             claimName: {{ default (printf "%s-%s" (include "inference.fullname" $root) $name) $server.persistence.existingClaim }}
-        {{- if eq $root.Values.backend "vllm" }}
+        {{- if eq $backend "vllm" }}
         - name: shm
           emptyDir: { medium: Memory, sizeLimit: 2Gi }
         {{- end }}
@@ -155,4 +171,5 @@ spec:
   type: ClusterIP
   selector: { app.kubernetes.io/instance: {{ $root.Release.Name }}, app.kubernetes.io/component: {{ $name }} }
   ports: [{ name: http, port: 8000, targetPort: http }]
+{{- end }}
 {{- end }}

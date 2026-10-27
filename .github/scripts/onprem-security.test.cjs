@@ -27,7 +27,7 @@ test('the existing required CI gate includes on-prem validation', () => {
   assert.ok(dependencies.includes('onprem-validation'));
   assert.match(ci, /onprem-validation:\n[\s\S]*?uses: \.\/\.github\/workflows\/onprem-validation\.yml/);
   assert.match(onprem, /workflow_call:/);
-  for (const pattern of ['charts/**', 'apps/web/**', 'apps/worker/**', 'package-lock.json', '.github/runtime-versions.json']) {
+  for (const pattern of ['charts/**', 'apps/web/**', 'apps/worker/**', 'package-lock.json', '.github/runtime-versions.json', '.github/scripts/check-upstream-header-image.py']) {
     const filter = ci.match(/^            onprem:\n([\s\S]*?)(?=^            \w+:)/m)[1];
     assert.ok(filter.includes(`'${pattern}'`), pattern);
   }
@@ -41,8 +41,8 @@ test('the existing required CI gate includes on-prem validation', () => {
 test('all on-prem images are scanned without hiding unfixed findings', () => {
   const scans = onprem.split(/(?=      - name:)/).filter(step => step.includes('uses: aquasecurity/trivy-action@'));
   assert.equal(scans.length, 7);
-  for (const component of ['api', 'worker', 'web', 'local-whisper', 'llamacpp', 'whisper-vllm']) {
-    const scan = scans.find(step => step.includes(component === 'llamacpp'
+  for (const component of ['api', 'worker', 'web', 'local-whisper', 'upstream_cpu', 'vllm']) {
+    const scan = scans.find(step => step.includes(['upstream_cpu', 'vllm'].includes(component)
       ? 'image-ref: ${{ env.' + component.toUpperCase() + '_IMAGE }}' : `image-ref: videoq-${component}:onprem-ci`));
     assert.ok(scan, component);
     assert.match(scan, /severity: HIGH,CRITICAL/);
@@ -69,6 +69,61 @@ test('the web build disables dependency lifecycle scripts', () => {
   for (const install of installs) assert.match(install, /--ignore-scripts/);
 });
 
+test('vLLM validation pulls the upstream image and checks the actual WAV input path', () => {
+  const gpu = onprem.slice(onprem.indexOf('  vllm-image:'));
+  assert.match(gpu, /docker pull "\$VLLM_IMAGE"/);
+  assert.match(gpu, /--network none.*check_runtime.py/);
+  assert.doesNotMatch(gpu, /docker build|pip install/);
+  assert.match(gpu, /uv sync --locked --no-dev --no-install-package torch/);
+  assert.match(gpu, /provision_audio.py/);
+  const filter = ci.match(/^            whisper_gpu:\n([\s\S]*?)(?=^            \w+:)/m)[1];
+  for (const file of ['provision_audio.py', 'pyproject.toml', 'uv.lock', 'Dockerfile', '.python-version']) {
+    assert.ok(filter.includes(`apps/inference/whisper/${file}`));
+  }
+});
+
+test('upstream GPU checks cover both vendors without applying NVIDIA assessments to AMD', () => {
+  const gpu = onprem.slice(onprem.indexOf('  vllm-image:'));
+  assert.match(gpu, /accelerator: \[nvidia, amd\]/);
+  assert.match(gpu, /vllm.rocmImage : vllm.image/);
+  assert.match(gpu, /trivy-config: \$\{\{ matrix.accelerator == 'nvidia'/);
+  assert.match(gpu, /name: vllm-security-\$\{\{ matrix.accelerator \}\}/);
+});
+
+
+test('CPU upstream validation scans each engine and architecture independently', () => {
+  const cpu = onprem.slice(onprem.indexOf('  upstream-cpu-images:'));
+  assert.match(cpu, /engine: \[llamacpp, whispercpp\]/);
+  assert.match(cpu, /architecture: \[amd64, arm64\]/);
+  assert.match(cpu, /fail-fast: false/);
+  assert.match(cpu, /values\.whispercpp\.images\[process\.env\.ARCHITECTURE\]/);
+  assert.match(cpu, /TRIVY_PLATFORM: linux\/\$\{\{ matrix\.architecture \}\}/);
+  assert.match(cpu, /TRIVY_IMAGE_SRC: remote/);
+  assert.match(cpu, /name: upstream-cpu-security-\$\{\{ matrix\.engine \}\}-\$\{\{ matrix\.architecture \}\}/);
+  assert.doesNotMatch(cpu, /continue-on-error: true|Dockerfile/);
+  assert.match(cpu, /steps.header_inventory.outcome == 'success'/);
+  assert.match(cpu, /trivy-config: \$\{\{ matrix.engine == 'whispercpp'/);
+  assert.match(cpu, /check-upstream-header-image.py/);
+  assert.match(cpu, /--approved apps\/inference\/whispercpp\/security\/header-image-inventory.json/);
+});
+
+test('CPU scan evidence rejects another architecture or image digest', () => {
+  const step = onprem.slice(onprem.indexOf('      - name: Verify the report covers the requested platform and digest'));
+  const script = step.match(/node --input-type=module <<'JS'\n([\s\S]*?)^\s+JS$/m)[1]
+    .replace(/^\s*import .*;\n/m, '');
+  const digest = `ghcr.io/ggml-org/llama.cpp@sha256:${'a'.repeat(64)}`;
+  function validate(architecture, repoDigests) {
+    runInNewContext(script, {
+      readFileSync() { return JSON.stringify({ Metadata: { ImageConfig: { architecture }, RepoDigests: repoDigests } }); },
+      process: { env: { ARCHITECTURE: 'arm64', UPSTREAM_CPU_IMAGE: digest } },
+    }, { timeout: 100 });
+  }
+  assert.doesNotThrow(() => validate('arm64', [digest]));
+  assert.throws(() => validate('amd64', [digest]), /architecture/);
+  assert.throws(() => validate('arm64', [`${digest.slice(0, -1)}b`]), /digest/);
+  assert.throws(() => validate(undefined, undefined), /architecture/);
+});
+
 
 test('native basic checks are required when selected and use standard runners', () => {
   const basic = readFileSync(join(__dirname, '../workflows/local-inference-basic.yml'), 'utf8');
@@ -82,16 +137,4 @@ test('native basic checks are required when selected and use standard runners', 
   assert.match(basic, /schedule:/);
   assert.match(basic, /uv sync --locked --extra dev/);
   assert.doesNotMatch(basic, /self-hosted|secrets\.|secrets: inherit|id-token: write|packages: write|--gpus|download-ggml/);
-});
-
-
-test('upstream CPU images retain separate architecture scans and a verified assessment', () => {
-  const cpu = onprem.slice(onprem.indexOf('  upstream-cpu-images:'));
-  assert.match(cpu, /engine: \[llamacpp, whispercpp\]/);
-  assert.match(cpu, /architecture: \[amd64, arm64\]/);
-  assert.match(cpu, /steps.header_inventory.outcome == 'success'/);
-  assert.match(cpu, /apps\/inference\/whispercpp\/security\/header-image-inventory.json/);
-  assert.match(cpu, /ignore-unfixed: 'false'/);
-  assert.match(cpu, /exit-code: '1'/);
-  assert.doesNotMatch(cpu, /continue-on-error: true/);
 });
