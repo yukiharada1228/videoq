@@ -1,0 +1,63 @@
+name: Retired Package Cleanup
+on:
+  workflow_dispatch:
+    inputs:
+      release_run_id:
+        description: Successful signed schema 3 or 4 release run proving the migration
+        type: string
+        required: true
+      delete:
+        description: Delete packages retired by this signed release, including historical versions
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: onprem-release
+  cancel-in-progress: false
+jobs:
+  cleanup:
+    if: github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main' && github.sha == github.workflow_sha
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      attestations: read
+      packages: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BOOTSTRAP_WORKFLOW_SHA: ${{ github.workflow_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+      - name: Validate the successful release run
+        id: source
+        env:
+          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+        run: python3 .github/scripts/package-bootstrap.py source-run "$RELEASE_RUN_ID" >> "$GITHUB_OUTPUT"
+      - name: Download the exact signed release bundle
+        env:
+          SOURCE_RUN: ${{ steps.source.outputs.run_id }}
+          ARTIFACT: ${{ steps.source.outputs.artifact }}
+        run: gh run download "$SOURCE_RUN" --repo yukiharada1228/videoq --name "$ARTIFACT" --dir release
+      - name: Verify signatures and preview the fixed deletion allowlist
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
+        run: python3 .github/scripts/package-cleanup.py "$SOURCE_SHA" release cleanup-report.json
+      - name: Delete only packages retired by the verified release
+        if: inputs.delete
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
+        run: python3 .github/scripts/package-cleanup.py "$SOURCE_SHA" release cleanup-report.json --delete
+      - name: Retain cleanup results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-cleanup-${{ github.run_id }}-${{ github.run_attempt }}
+          path: cleanup-report.json
+          retention-days: 90
+          if-no-files-found: warn

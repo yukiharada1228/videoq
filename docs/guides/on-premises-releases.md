@@ -236,9 +236,67 @@ packages: api, web, worker and transcription-gateway. The chart pins upstream
 CUDA/ROCm engines by digest; they are not represented as VideoQ attestations.
 The verifier still accepts schemaVersion 2 (original names) and 3 (renamed custom
 vLLM engine), verifies their complete signed package sets, and rejects mixed layouts.
-Retain historical public packages and digests for rollback. New package visibility
+Historical installs and rollback require their original packages. The retired schema 2 packages have been explicitly removed; their manifests cannot be fully verified or installed from GHCR. New package visibility
 and repository Actions access must be prepared before publication; all existing
 visibility, vulnerability and signature gates remain mandatory.
 
 This GPU change is not ready for release: upstream image vulnerability gates
 remain unresolved and physical GPU/model acceptance has not been performed.
+
+## Bootstrap the new package namespaces
+
+`Package Namespace Bootstrap` only runs manually from canonical main. Supply a
+successful `On-prem Release` run ID. It checks repository, workflow, main branch,
+success state and attempt, then verifies the signed manifest, both charts and
+every original image attestation before preparing four copy targets. Preview
+mode does not modify the registry.
+
+```sh
+RELEASE_RUN_ID=40448706562 # Example successful release; select the reviewed run to use.
+gh workflow run package-bootstrap.yml --repo yukiharada1228/videoq --ref main \
+  -f release_run_id="$RELEASE_RUN_ID" -f publish=false
+```
+
+Review the source/destination digests in artifact
+`package-bootstrap-<run-id>-<attempt>`, then dispatch with `publish=true`. The
+workflow uses the repository GITHUB_TOKEN; no new personal token is needed.
+It copies only api, web, worker and transcription-gateway. It creates no new GPU
+package and does not build/execute images or delete old packages.
+
+```sh
+gh workflow run package-bootstrap.yml --repo yukiharada1228/videoq --ref main \
+  -f release_run_id="$RELEASE_RUN_ID" -f publish=true
+```
+
+The `bootstrap-*` tags only initialize namespaces; do not deploy them. The
+workflow checks the copied manifest digest against the verified source and
+records package visibility/repository association. Successful copies are kept
+if a later copy fails.
+
+After creation, open each package page in the report, select **Package settings
+→ Change visibility → Public**, and confirm repository Actions Write access.
+Retain old public packages for history and rollback. Once publication settings
+are ready, merge the naming change and generate/verify a normal signed release.
+This bootstrap does not bypass the normal release's public-visibility or
+attestation gates.
+
+## Retire the custom GPU package
+
+After a signed schemaVersion 4 release passes all release checks, run **Retired
+Package Cleanup** with that successful release run ID. Its schema 4 plan retains
+exactly the four current VideoQ packages and deletes only
+`videoq-onprem-whisper-vllm`. Schema 3 continues to protect that GPU package.
+Preview is the default; deletion requires `delete=true` and package Admin access
+for this repository. Historical schema 3 releases cannot be fully verified or
+installed from GHCR after their GPU package is deleted.
+
+## Evaluate upstream GPU image candidates
+
+The manual **On-prem Validation** workflow accepts `nvidia_candidate` and
+`amd_candidate` as official `repository@sha256:<digest>` references. Empty inputs
+use the reviewed chart pins. Candidate runs never change deployment pins or
+publish images. They check offline gateway WAV decoding, retain the actual vLLM
+version, bind Trivy results to the requested digest, and keep the existing
+HIGH/CRITICAL including unfixed gate. AMD does not inherit NVIDIA's assessment.
+Nightly candidates are development builds; passing these checks does not establish
+GPU inference or target hardware/model acceptance.

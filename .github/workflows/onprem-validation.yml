@@ -2,6 +2,12 @@ name: On-prem Validation
 on:
   workflow_call:
     inputs:
+      nvidia_candidate:
+        type: string
+        default: ''
+      amd_candidate:
+        type: string
+        default: ''
       validate_whisper_gpu:
         type: boolean
         default: false
@@ -10,6 +16,14 @@ on:
         default: false
   workflow_dispatch:
     inputs:
+      nvidia_candidate:
+        description: Optional official CUDA candidate as repository@sha256 digest; does not change chart pins
+        type: string
+        default: ''
+      amd_candidate:
+        description: Optional official ROCm candidate as repository@sha256 digest; does not change chart pins
+        type: string
+        default: ''
       validate_whisper_gpu:
         type: boolean
         default: true
@@ -267,14 +281,18 @@ jobs:
         id: gpu_image
         env:
           ACCELERATOR: ${{ matrix.accelerator }}
+          NVIDIA_CANDIDATE: ${{ inputs.nvidia_candidate }}
+          AMD_CANDIDATE: ${{ inputs.amd_candidate }}
         run: |
           node --input-type=module <<'JS'
           import { readFileSync, appendFileSync } from 'node:fs';
           import { parse } from 'yaml';
           const vllm = parse(readFileSync('charts/videoq-inference/values.yaml', 'utf8')).vllm;
           const image = process.env.ACCELERATOR === 'amd' ? vllm.rocmImage : vllm.image;
-          const reference = `${image.repository}@${image.digest}`;
-          if (!/^[a-z0-9./_-]+@sha256:[a-f0-9]{64}$/.test(reference)) throw new Error('An exact upstream vLLM image digest is required');
+          const repository = process.env.ACCELERATOR === 'amd' ? 'vllm/vllm-openai-rocm' : 'vllm/vllm-openai';
+          const candidate = process.env.ACCELERATOR === 'amd' ? process.env.AMD_CANDIDATE : process.env.NVIDIA_CANDIDATE;
+          const reference = candidate || `${image.repository}@${image.digest}`;
+          if (!reference.startsWith(repository + '@') || !/^[a-z0-9./_-]+@sha256:[a-f0-9]{64}$/.test(reference)) throw new Error('An exact official upstream vLLM image digest is required');
           appendFileSync(process.env.GITHUB_ENV, `VLLM_IMAGE=${reference}\n`);
           JS
       - name: Pull the upstream image without rebuilding
@@ -296,11 +314,12 @@ jobs:
         env:
           ACCELERATOR: ${{ matrix.accelerator }}
         run: |
+          set -o pipefail
           audio=()
           if [ "$ACCELERATOR" = amd ]; then
             audio=(--env PYTHONPATH=/audio-deps --volume "$RUNNER_TEMP/rocm-audio:/audio-deps:ro")
           fi
-          docker run --rm --network none --user 10001:10001 --env HOME=/tmp --env HF_HUB_OFFLINE=1 "${audio[@]}" --volume "$PWD/apps/inference/vllm:/checks:ro" --entrypoint python3 "$VLLM_IMAGE" /checks/check_runtime.py
+          docker run --rm --network none --user 10001:10001 --env HOME=/tmp --env HF_HUB_OFFLINE=1 "${audio[@]}" --volume "$PWD/apps/inference/vllm:/checks:ro" --entrypoint python3 "$VLLM_IMAGE" /checks/check_runtime.py | tee vllm-runtime.json
       - name: Verify the upstream kernel-header inventory for the NVIDIA-only assessment
         if: matrix.accelerator == 'nvidia'
         run: docker run --rm --network none --volume "$PWD/apps/inference/vllm/security:/checks:ro" --entrypoint python3 "$VLLM_IMAGE" /checks/verify_kernel_headers.py
@@ -319,6 +338,18 @@ jobs:
           ignore-unfixed: 'false'
           exit-code: '1'
           timeout: 15m
+      - name: Bind scan evidence to the exact requested image
+        if: ${{ !cancelled() && steps.gpu_image.outcome == 'success' }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          reference = os.environ['VLLM_IMAGE']
+          report = json.loads(Path('vllm-security.json').read_text())
+          if reference not in report.get('Metadata', {}).get('RepoDigests', []):
+              raise RuntimeError('The scan report does not identify the requested vLLM digest')
+          Path('vllm-image.json').write_text(json.dumps({'reference': reference, 'platform': 'linux/amd64'}) + '\n')
+          PY
       - name: Retain scan findings and the NVIDIA-only header assessment
         if: ${{ !cancelled() && steps.gpu_image.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.1
@@ -326,6 +357,8 @@ jobs:
           name: vllm-security-${{ matrix.accelerator }}
           path: |
             vllm-security.json
+            vllm-runtime.json
+            vllm-image.json
             apps/inference/vllm/security/
           retention-days: 14
           if-no-files-found: error

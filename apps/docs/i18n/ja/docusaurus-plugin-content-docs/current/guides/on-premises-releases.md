@@ -119,9 +119,58 @@ CI では VideoQ が送信する WAV のデコードと上流イメージの脆�
 api・web・worker・transcription-gateway の4つになります。CUDA／ROCm の上流エンジンは
 チャート内で digest 固定し、VideoQ がビルド・署名したイメージとして扱いません。
 schemaVersion 2（旧名称）と3（名称変更後の自前 vLLM エンジン）も、全パッケージの署名を
-検証します。世代を混ぜたマニフェストは拒否し、旧公開パッケージと digest は復旧用に保持します。
+検証します。世代を混ぜたマニフェストは拒否します。配布終了済みの schemaVersion 2 用の旧パッケージは削除済みで、GHCR からの完全な署名検証・導入・復旧はできません。
 新しいパッケージの公開設定と Actions アクセスを準備する必要があり、公開状態・脆弱性・署名の
 検査は維持します。
 
 GPU 対応はまだリリースできません。上流イメージの脆弱性ゲートは未解決であり、
 GPU 実機と選択モデルによる受け入れ検証も未実施です。
+
+## 新名称パッケージの初回作成
+
+`Package Namespace Bootstrap` は main からの手動実行に限定されます。成功済みの
+`On-prem Release` 実行 ID を指定すると、その実行のリポジトリ・ワークフロー・main・成功状態・
+試行番号を確認し、署名済みマニフェスト、両チャート、全イメージの署名を検証します。
+プレビューはレジストリを書き換えません。
+
+```sh
+RELEASE_RUN_ID=40448706562 # 成功済みリリースの例。使用する実行 ID に置き換えます。
+gh workflow run package-bootstrap.yml --repo yukiharada1228/videoq --ref main \
+  -f release_run_id="$RELEASE_RUN_ID" -f publish=false
+```
+
+成果物 `package-bootstrap-<実行ID>-<試行番号>` でコピー元・先と digest を確認してから、
+`publish=true` で実行します。リポジトリの `GITHUB_TOKEN` を使うため、新しい PAT は不要です。
+コピー対象は api・web・worker・transcription-gateway の4つだけで、GPU 用の新規パッケージは
+作りません。イメージのビルドや実行、旧パッケージの削除は行いません。
+
+```sh
+gh workflow run package-bootstrap.yml --repo yukiharada1228/videoq --ref main \
+  -f release_run_id="$RELEASE_RUN_ID" -f publish=true
+```
+
+作成される `bootstrap-*` タグは名前空間の準備専用であり、導入しないでください。
+コピー先のマニフェスト digest が元の検証済み digest と同じことを確認し、公開状態と
+リポジトリの関連付けを成果物に記録します。途中で停止した場合も、作成済みのコピーは保持します。
+
+初回作成後は、成果物にある各パッケージのページから **Package settings → Change visibility →
+Public** を設定し、リポジトリの Actions Write アクセスを確認します。旧公開パッケージは
+履歴・復旧用に残します。公開準備後に名称変更を取り込み、通常の署名付きリリースを生成・検証します。
+通常のリリースの Public 検査や署名検証を省略する機能ではありません。
+
+## 自前 GPU パッケージの配布終了
+
+署名済み schemaVersion 4 リリースの全検証が成功してから、その実行 ID で
+**Retired Package Cleanup** を起動します。schemaVersion 4 の計画は現行4パッケージを保持し、
+`videoq-onprem-whisper-vllm` だけを削除します。schemaVersion 3 では引き続き GPU パッケージを保護します。
+既定はプレビューで、削除には `delete=true` とこのリポジトリへのパッケージ Admin 権限が必要です。
+削除後は旧 schemaVersion 3 リリースの GHCR からの完全な署名検証・導入はできません。
+
+## 上流 GPU イメージ候補の検査
+
+手動 **On-prem Validation** は `nvidia_candidate`・`amd_candidate` に公式リポジトリの
+`repository@sha256:<digest>` を指定できます。空ならチャートの検証対象の固定値を使います。
+候補の検査は配布設定を変更せず、イメージも公開しません。オフラインの WAV デコード、
+vLLM バージョン、指定 digest とスキャン結果の一致、未修正を含む HIGH／CRITICAL のゲートを確認します。
+AMD に NVIDIA の評価を適用しません。nightly は開発版であり、これらの検査が通っても
+GPU 推論や対象ハードウェア・モデルの受け入れ検証が済んだことにはなりません。
