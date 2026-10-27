@@ -15775,7 +15775,31 @@
         "Run the selected models and complete application acceptance on GPU, ARM and macOS environments."
       ],
       "stableUpstreamUpdateAvailable": false,
-      "limits": "An unchanged latest digest establishes only that latest has not moved. It does not prove every variant/nightly is unsuitable; prerelease artifacts have not been promoted without compatibility and security evidence."
+      "limits": "An unchanged latest digest establishes only that latest has not moved. It does not prove every variant/nightly is unsuitable; prerelease artifacts have not been promoted without compatibility and security evidence.",
+      "externalEnvironmentCheck": {
+        "checkedAt": "2026-10-27T03:31:57.389255+00:00",
+        "localAmdDevicePresent": false,
+        "localNvidiaDevicePresent": false,
+        "repositorySelfHostedRunnerCount": 0,
+        "selfHostedRunnerEvidence": "GET /repos/yukiharada1228/videoq/actions/runners returned total_count=0",
+        "targetAmdGpuAndOs": "User has not selected a target yet",
+        "latestStableRegistryRecheck": {
+          "checkedAt": "2026-10-27T03:31:29.891629+00:00",
+          "images": [
+            {
+              "url": "https://hub.docker.com/v2/repositories/vllm/vllm-openai/tags/latest",
+              "digest": "sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34",
+              "lastUpdated": "2026-10-18T10:53:58.903665Z"
+            },
+            {
+              "url": "https://hub.docker.com/v2/repositories/vllm/vllm-openai-rocm/tags/latest",
+              "digest": "sha256:14f6a575e1fb0a580b0f633c09e06f648709d60405b85f6a7ff3f80d49f39905",
+              "lastUpdated": "2026-10-18T10:33:18.490344Z"
+            }
+          ]
+        },
+        "remainingConstraint": "Physical GPU acceptance needs a compatible target runner/environment; existing stable vLLM digests still have unresolved HIGH/CRITICAL findings. No paid resource provisioned."
+      }
     },
     "basicActions": {
       "workflow": ".github/workflows/local-inference-basic.yml",
@@ -16159,5 +16183,5 @@
       }
     }
   },
-  "lastUpdatedAt": "2026-10-27T03:30:41.753303+00:00"
+  "lastUpdatedAt": "2026-10-27T03:31:57.389456+00:00"
 }
