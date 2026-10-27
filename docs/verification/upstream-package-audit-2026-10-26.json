@@ -1621,15 +1621,15 @@
     },
     {
       "path": ".github/workflows/onprem-validation.yml",
-      "sha256": "baae2db29daf97527e9df7c010b612744dc07b0e3b761bcf99c3b25a11b465b2"
+      "sha256": "137d4ef1aa5341154e89d17c6a7a88e3913522042a25df2f29453131c6a5ef38"
     },
     {
       "path": ".github/scripts/onprem-security.test.cjs",
-      "sha256": "bb6f65da81c7dc84c7aec9d0d33c7ebef9f85097fc1b834b9df8ec6a8b3fa69c"
+      "sha256": "47379d1629b88f69de66d657ba92ee4e160273435c31d092b597291b6cd567c0"
     },
     {
       "path": "charts/videoq-inference/README.md",
-      "sha256": "b32f8a5887bad6a333866bc8006fd8c7f0b220512f3ce4d2d79fb11bfeca28da"
+      "sha256": "dad4c9746622d8a15dd3ea2b4af26c805e62b45be65cb2cf293871efb79786a1"
     },
     {
       "path": "apps/worker/README.md",
@@ -1677,7 +1677,7 @@
     },
     {
       "path": ".github/workflows/local-inference-basic.yml",
-      "sha256": "e3975b6cb8427f3fa2d6797b8eb5a87867deb3fcaab95c1636d8977e34f6a3f1"
+      "sha256": "9c93f1831ba5d4a84f87c33674b8874c0f9bc3b8f4c1436cecfc7c5b28b253d8"
     },
     {
       "path": ".github/scripts/onprem-basic-packages.py",
@@ -1693,11 +1693,11 @@
     },
     {
       "path": "docs/guides/local-inference.md",
-      "sha256": "22092a0a2b6a42a9979f7479b52ecd58f583aeee6c31b3a8869cb645584c4fd0"
+      "sha256": "8579a0cfc0dd1f290ba91e714f792c5f823807258f9c75c280dc9d4db3823bd5"
     },
     {
       "path": "apps/docs/i18n/ja/docusaurus-plugin-content-docs/current/guides/local-inference.md",
-      "sha256": "abe6204ea32ffe66e8460938063c853a0b3d70c76cfc0897c08048f0e7f69b74"
+      "sha256": "89c5da6f5cae45c8686dd837185aaa4ba2412d9b86243fbb06d300c2c3d0d1a8"
     }
   ],
   "validation": {
@@ -15763,9 +15763,11 @@
         "host": "Linux",
         "amdGpuDevicePresent": false,
         "nvidiaGpuDevicePresent": false,
-        "nativeMacExecution": false,
+        "nativeMacExecution": true,
         "armInferenceExecution": false,
-        "fullCurrentCpuRagAndKubernetesLifecycle": false
+        "fullCurrentCpuRagAndKubernetesLifecycle": false,
+        "nativeMacModelInference": false,
+        "nativeArmPackageCliExecution": true
       },
       "remainingWork": [
         "Resolve failing upstream vLLM image findings without blanket exemptions or unverified image substitutions.",
@@ -15820,8 +15822,59 @@
         "runtimeVersionConsistencyCheck": "passed",
         "helmArm64Archive": "Official Helm v4.3.1 linux-arm64 archive downloaded and SHA-256 matched before adding its installer case."
       },
-      "githubExecution": "Prepared for branch workflow_dispatch via the existing On-prem Validation entrypoint; results pending."
+      "githubExecution": {
+        "runId": 40441493651,
+        "url": "https://github.com/yukiharada1228/videoq/actions/runs/40441493651",
+        "headSha": "972d369056dd11078a77e527e2130f628d69df69",
+        "conclusion": "success",
+        "completedAt": "2026-10-27T03:03:06Z",
+        "nativePlatforms": [
+          "Linux amd64",
+          "Linux arm64",
+          "Darwin arm64"
+        ],
+        "scope": "Native CLI startup and chart/application protocol tests; no model or GPU/Metal inference.",
+        "macos": {
+          "packages": {
+            "os": "Darwin",
+            "architecture": "arm64",
+            "checks": {
+              "llama-server": {
+                "path": "/opt/homebrew/bin/llama-server",
+                "cliStartup": "passed"
+              },
+              "whisper-server": {
+                "path": "/opt/homebrew/bin/whisper-server",
+                "cliStartup": "passed"
+              },
+              "ffmpeg": {
+                "path": "/opt/homebrew/bin/ffmpeg",
+                "cliStartup": "passed"
+              }
+            },
+            "scope": "Native package CLI startup only; no model downloads, model quality, GPU or Metal inference.",
+            "homebrewVersions": "ffmpeg 9.0.2_1\nllama.cpp 0.7.0\nwhisper.cpp 1.9.5"
+          },
+          "workerSuites": [
+            {
+              "name": "pytest",
+              "errors": "0",
+              "failures": "0",
+              "skipped": "0",
+              "tests": "67",
+              "time": "38.833",
+              "timestamp": "2026-10-27T02:59:50.470543+00:00",
+              "hostname": "sjc22-be104-4563614d-d0da-445d-ba17-442c44c6022c-02ADEB59B49E.local"
+            }
+          ]
+        },
+        "macosArtifact": {
+          "id": 12706885400,
+          "sha256": "93bd8138b2702c50316195660987d3ddd3dd356e937097a93285645a5a8a9382"
+        },
+        "initialFailure": "Run 40440856356 used a stale hosted Homebrew index. Explicit brew update fixed package discovery; corrected native checks passed in this run."
+      }
     }
   },
-  "lastUpdatedAt": "2026-10-27T02:42:37.949226+00:00"
+  "lastUpdatedAt": "2026-10-27T03:12:31.384359+00:00"
 }
