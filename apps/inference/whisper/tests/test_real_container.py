@@ -25,7 +25,7 @@ def test_cpu_image_transcribes_public_speech_and_silence_offline(record_property
             raise AssertionError(f"Docker {args[0]} failed: {error.output[-6000:]}") from error
 
     name = "videoq-whisper-test-" + uuid4().hex
-    started = network_created = volume_created = False
+    started = engine_started = network_created = volume_created = False
     fixtures = Path(__file__).with_name("fixtures")
     case = json.loads((fixtures / "fleurs-ja-00.json").read_text())
     audio = (fixtures / case["file"]).read_bytes()
@@ -58,11 +58,21 @@ def test_cpu_image_transcribes_public_speech_and_silence_offline(record_property
         docker("exec", name, "ffmpeg", "-nostdin", "-xerror", "-abort_on", "empty_output", "-v", "error", "-y", "-ss", "0",
                "-i", "/tmp/public-video.mp4", "-t", str(case["duration"]), "-map", "0:a:0", "-vn", "-af", "aresample=async=1:first_pts=0",
                "-acodec", "mp3", "-ab", "64k", "-ar", "16000", "-ac", "1", "/tmp/public-worker.mp3")
-        engine_args = ["whisper-server", "--model", f"/models/{REVISION}/{MODEL}",
+        # Mirror the Kubernetes Pod: separate upstream engine, shared network namespace.
+        # Match the gateway's architecture; upstream publishes separate image tags.
+        arch = docker("image", "inspect", IMAGE, "--format", "{{.Architecture}}")
+        engines = {
+            "amd64": "ghcr.io/ggml-org/whisper.cpp@sha256:4df91b749d95628c3b40068c13c2d3fc67f745db86ea7829438ff87eb03c12c2",
+            "arm64": "ghcr.io/ggml-org/whisper.cpp@sha256:94d3695d1dd7337a92d5171b070a8e7e2d97ef51ea29ac1f355cf30a92bbb361",
+        }
+        engine_args = ["--model", f"/models/{REVISION}/{MODEL}",
                        "--host", "127.0.0.1", "--port", "8081", "--inference-path", "/v1/audio/transcriptions",
                        "--language", "auto", "--threads", "2", "--beam-size", "5", "--no-gpu"]
-        launch = "import os; f=open('/tmp/whisper-engine.log','wb'); os.dup2(f.fileno(),1); os.dup2(f.fileno(),2); os.execvp('whisper-server'," + repr(engine_args) + ")"
-        docker("exec", "--detach", name, "python", "-c", launch)
+        docker("run", "--detach", "--name", name + "-engine", "--network", "container:" + name,
+               "--user", "10001:10001", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
+               "--cpus", "2", "--memory", "2g", "--mount", mount + ",readonly",
+               "--entrypoint", "/app/build/bin/whisper-server", engines[arch], *engine_args)
+        engine_started = True
         # Client stays in the same isolated network namespace. No host ports.
         probe = r'''import httpx, io, json, os, socket, time, wave
 assert os.geteuid() == 10001
@@ -83,7 +93,9 @@ try: socket.create_connection(("1.1.1.1", 443), timeout=2)
 except OSError: pass
 else: raise RuntimeError("External serving egress was allowed")
 data = {"model":"whisper-local", "response_format":"verbose_json", "timestamp_granularities[]":"segment"}
-with httpx.Client(timeout=120, trust_env=False) as client:
+# Match the worker's 660-second client budget and the gateway's 600-second
+# CPU request budget. Generic upstream builds may run on older CPU ISAs.
+with httpx.Client(timeout=660, trust_env=False) as client:
     started = time.monotonic()
     with open("/tmp/public-worker.mp3", "rb") as audio:
         speech = client.post(base + "/v1/audio/transcriptions", data=data, files={"file":("speech.mp3", audio)})
@@ -97,7 +109,7 @@ with httpx.Client(timeout=120, trust_env=False) as client:
     empty.raise_for_status()
 print(json.dumps({"speech":speech.json(), "silence":empty.json(), "elapsed_seconds":elapsed}))
 '''
-        observed = json.loads(docker("exec", name, "python", "-c", probe, timeout=240))
+        observed = json.loads(docker("exec", name, "python", "-c", probe, timeout=780))
         result = observed["speech"]
         assessment = metrics.assess_response(result, case)
         record_property("japanese_clip_cer", assessment["cer"])
@@ -109,7 +121,19 @@ print(json.dumps({"speech":speech.json(), "silence":empty.json(), "elapsed_secon
         assert result["segments"]
         assert all(math.isfinite(row["start"]) and 0 <= row["start"] < row["end"] <= result["duration"] for row in result["segments"])
         assert observed["silence"]["segments"] == [] and observed["silence"]["text"] == ""
+    except BaseException:
+        # Public fixture only. Preserve actual upstream/gateway errors before
+        # deleting the isolated test containers, including on readiness failure.
+        for container in ([name + "-engine"] if engine_started else []) + ([name] if started else []):
+            try:
+                logs = docker("logs", "--tail", "80", container)
+                print(f"\n{container} logs:\n{logs}")
+            except AssertionError:
+                pass
+        raise
     finally:
+        if engine_started:
+            docker("rm", "--force", name + "-engine")
         if started:
             docker("rm", "--force", name)
         if network_created:

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "images": {
+    "amd64": {
+      "architecture": "amd64",
+      "files": 962,
+      "image": "ghcr.io/ggml-org/whisper.cpp@sha256:4df91b749d95628c3b40068c13c2d3fc67f745db86ea7829438ff87eb03c12c2",
+      "inventorySha256": "d5cc20747e528fce2652107fa1ff767356f701e3bcfb11b1ae94d6843fd4e66b",
+      "package": "linux-libc-dev",
+      "version": "5.15.0-198.208"
+    },
+    "arm64": {
+      "architecture": "arm64",
+      "files": 935,
+      "image": "ghcr.io/ggml-org/whisper.cpp@sha256:94d3695d1dd7337a92d5171b070a8e7e2d97ef51ea29ac1f355cf30a92bbb361",
+      "inventorySha256": "0594930b09e57748ac9df79934baa8ec1e1d7a01872e6d0545fbd41a30811ac3",
+      "package": "linux-libc-dev",
+      "version": "5.15.0-198.208"
+    }
+  }
+}

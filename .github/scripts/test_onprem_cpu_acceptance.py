@@ -45,6 +45,23 @@ class AcceptanceSafetyTests(unittest.TestCase):
         self.assertEqual(read.call_args.args[0], ['kind', 'get', 'clusters'])
         mutate.assert_not_called()
 
+    def test_insufficient_memory_aborts_before_model_download_or_cluster_creation(self):
+        with patch.object(cpu.subprocess, 'check_output', side_effect=['', str(4 * 1024**3)]) as read, patch.object(cpu.subprocess, 'run') as mutate:
+            with self.assertRaisesRegex(RuntimeError, '10 GiB'):
+                cpu.rehearse('a' * 40, Path('charts/videoq'), Path('charts/videoq-inference'), self.root / 'capacity', {}, local_builds=True)
+        self.assertEqual([call.args[0] for call in read.call_args_list],
+                         [['kind', 'get', 'clusters'], ['docker', 'info', '--format', '{{.MemTotal}}']])
+        mutate.assert_not_called()
+
+    def test_memory_floor_accepts_capable_hosts_and_rejects_unknown_capacity(self):
+        for memory in [cpu.MINIMUM_DOCKER_MEMORY, 16 * 1024**3]:
+            self.assertEqual(cpu.require_docker_memory(memory), memory)
+        for invalid in [None, True, 0, -1]:
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                cpu.require_docker_memory(invalid)
+        with self.assertRaises(RuntimeError):
+            cpu.require_docker_memory(cpu.MINIMUM_DOCKER_MEMORY - 1)
+
     def test_public_egress_firewall_covers_node_and_pod_ipv4_and_ipv6(self):
         info = {'IPAM':{'Config':[{'Subnet':'172.29.0.0/16','Gateway':'172.29.0.1'}]}}
         with patch.object(cpu.subprocess,'run') as mutate, patch.object(cpu.subprocess,'check_output',return_value='installed rules'):

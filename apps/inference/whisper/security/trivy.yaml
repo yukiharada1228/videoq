@@ -1,5 +1,5 @@
-# Only the explicitly listed kernel implementation CVEs on this UAPI header
-# package are assessed. Unknown CVEs and every other package still fail CI.
+# Only the exact reviewed whisper.cpp UAPI packages and explicit CVE IDs.
+# CI verifies each flattened image against header-image-inventory.json first.
 vulnerability:
   vex:
     - apps/inference/whisper/security/kernel-headers.openvex.json

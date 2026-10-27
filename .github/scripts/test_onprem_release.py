@@ -31,9 +31,9 @@ class ReleaseTests(unittest.TestCase):
             values, inference = release.verify(self.manifest, SOURCE)
         self.assertTrue(values['requireImageDigests'])
         self.assertTrue(inference['requireImageDigests'])
-        self.assertEqual(inference['whisper']['image']['repository'], release.PREFIX + 'whisper')
-        self.assertEqual(inference['whisper']['vllmImage'], inference['vllm']['image'])
-        self.assertEqual(run.call_count, 8)
+        self.assertEqual(inference['whisper']['image']['repository'], release.PREFIX + 'transcription-gateway')
+        self.assertNotIn('vllm', inference)  # Upstream pin belongs to the signed chart.
+        self.assertEqual(run.call_count, 7)
         for call in run.call_args_list:
             command = call.args[0]
             self.assertIn('--deny-self-hosted-runners', command)
@@ -44,7 +44,7 @@ class ReleaseTests(unittest.TestCase):
         self.assertIn('@sha256:', run.call_args_list[-1].args[0][3])
 
     def test_missing_or_invalid_signature_aborts(self):
-        for failure in range(8):
+        for failure in range(7):
             with self.subTest(failure=failure), patch.object(release.subprocess, 'run', side_effect=[None] * failure + [subprocess.CalledProcessError(1, 'gh')]):
                 with self.assertRaises(subprocess.CalledProcessError):
                     release.verify(self.manifest, SOURCE)
@@ -63,11 +63,11 @@ class ReleaseTests(unittest.TestCase):
             bad = copy.deepcopy(self.data); bad[field] = value; candidates.append(bad)
         for field, value in [('repository', 'ghcr.io/attacker/api'), ('digest', 'latest'), ('digest', 'sha256:' + '0' * 64)]:
             bad = copy.deepcopy(self.data); bad['images']['api'][field] = value; candidates.append(bad)
-        for component in ['api', 'whisper-vllm']:
+        for component in ['api', 'transcription-gateway']:
             bad = copy.deepcopy(self.data); bad['images'][component]['platforms'] = ['linux/arm64']; candidates.append(bad)
         bad = copy.deepcopy(self.data); bad['charts']['inference']['name'] = '../chart.tgz'; candidates.append(bad)
         bad = copy.deepcopy(self.data); del bad['images']['worker']; candidates.append(bad)
-        bad = copy.deepcopy(self.data); del bad['images']['whisper']; candidates.append(bad)
+        bad = copy.deepcopy(self.data); del bad['images']['transcription-gateway']; candidates.append(bad)
         bad = copy.deepcopy(self.data); del bad['charts']['inference']; candidates.append(bad)
         for bad in candidates:
             with self.subTest(data=bad), self.assertRaises(ValueError):

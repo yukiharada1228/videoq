@@ -82,7 +82,7 @@ findings plus 386 kernel implementation CVEs mapped to `linux-libc-dev`. The
 runtime updates OS packages, certifi/msgpack/urllib3 and removes pip/uv, including
 pip's vulnerable vendored copies. Triton needs the UAPI headers for JIT compilation.
 
-The [OpenVEX assessment](../../apps/inference/whisper/security/kernel-headers.openvex.json)
+The [OpenVEX assessment](../../apps/inference/vllm/security/kernel-headers.openvex.json)
 covers only the 386 explicitly listed kernel CVEs on the Ubuntu 24.04 amd64
 `linux-libc-dev` header package at version `6.8.0-147.147`. Its vulnerable kernel implementation is absent
 from this container. A build-time inventory check fails if that package gains

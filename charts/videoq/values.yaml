@@ -30,7 +30,7 @@ web:
     limits: { memory: 128Mi }
 
 worker:
-  image: { repository: videoq-worker-onprem, tag: "0.1.0", digest: "", pullPolicy: IfNotPresent }
+  image: { repository: videoq-worker, tag: "0.1.0", digest: "", pullPolicy: IfNotPresent }
   replicas: 1
   terminationGracePeriodSeconds: 960
   resources:
@@ -66,6 +66,8 @@ ai:
   # CPU overlay reduces this to 30; hosted/NVIDIA profiles use 300.
   whisperChunkSeconds: 300
   whisperLocalUrl: ""
+  # Match the served alias when using an existing compatible speech service.
+  whisperLocalModel: whisper-local
 
 # Enable with local AI. The site's CNI must enforce Kubernetes NetworkPolicy.
 networkPolicy:

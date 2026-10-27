@@ -1,9 +1,9 @@
 # Third-Party Licenses
 
-This project (`shadcn-digital-agency-jp`) is an **unofficial** shadcn/ui native
-component registry inspired by the Digital Agency Design System. It reimplements
-component specifications, appearance, accessibility behavior, and implementation
-structure in a shadcn/ui native form.
+VideoQ includes adapted, source-distributed UI components from the unofficial
+`shadcn-digital-agency-jp` component registry, inspired by the Digital Agency
+Design System. The local components implement its specifications, appearance,
+accessibility behavior, and implementation structure in a shadcn/ui native form.
 
 The following third-party projects are referenced and this project retains their
 required copyright and license notices in accordance with the MIT License.
@@ -19,9 +19,9 @@ required copyright and license notices in accordance with the MIT License.
 - **Usage in this project:** This project references the upstream component
   specifications, visual appearance, accessibility behavior, API, and
   implementation structure, and reimplements them as shadcn/ui native,
-  source-distributed components. The upstream repository itself is included only
-  as a read-only Git submodule under `upstream/` and is never imported at
-  runtime.
+  source-distributed components. VideoQ retains the adapted component source under
+  `src/components/ui/` and the required notices here; VideoQ does not include
+  the design-system repository as an `upstream/` Git submodule.
 
 ```
 MIT License

@@ -82,7 +82,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: always()
-    needs: [changes, supply-chain, workflow-security, onprem-validation, hono-test, worker-test, frontend-lint, frontend-test, frontend-coverage, frontend-build, frontend-storybook, docs-build]
+    needs: [changes, supply-chain, workflow-security, onprem-validation, local-inference-basic, hono-test, worker-test, frontend-lint, frontend-test, frontend-coverage, frontend-build, frontend-storybook, docs-build]
     steps:
       - name: Require every selected CI job to pass
         env:
@@ -92,7 +92,7 @@ jobs:
           const jobs = JSON.parse(process.env.JOB_RESULTS);
           const failed = Object.entries(jobs).filter(([name, job]) =>
             (['changes', 'supply-chain', 'workflow-security'].includes(name) ||
-              (name === 'onprem-validation' && jobs.changes.outputs.onprem === 'true'))
+              (['onprem-validation', 'local-inference-basic'].includes(name) && jobs.changes.outputs.onprem === 'true'))
               ? job.result !== 'success'
               : !['success', 'skipped'].includes(job.result)
           );
@@ -123,7 +123,13 @@ jobs:
         with:
           filters: |
             whisper_gpu:
-              - 'apps/inference/whisper/Dockerfile.vllm'
+              - 'apps/inference/vllm/**'
+              - 'apps/inference/whisper/provision_audio.py'
+              - 'apps/inference/whisper/pyproject.toml'
+              - 'apps/inference/whisper/uv.lock'
+              - 'apps/inference/whisper/Dockerfile'
+              - 'apps/inference/whisper/.python-version'
+              - 'charts/videoq-inference/**'
               - '.github/workflows/onprem-validation.yml'
             real_cpu:
               - '.github/workflows/onprem-validation.yml'
@@ -143,9 +149,11 @@ jobs:
               - 'package-lock.json'
               - '.github/workflows/ci.yml'
               - '.github/workflows/onprem-validation.yml'
+              - '.github/workflows/local-inference-basic.yml'
               - '.github/scripts/install-helm.sh'
               - '.github/scripts/install-kind.sh'
               - '.github/scripts/onprem-*'
+              - '.github/scripts/check-upstream-header-image.py'
               - '.github/onprem-lab/**'
               - '.github/workflows/onprem-release.yml'
               - '.github/runtime-versions.json'
@@ -231,6 +239,14 @@ jobs:
     with:
       validate_whisper_gpu: ${{ needs.changes.outputs.whisper_gpu == 'true' }}
       validate_real_cpu: ${{ github.event_name == 'pull_request' && needs.changes.outputs.real_cpu == 'true' }}
+    permissions:
+      contents: read
+
+  local-inference-basic:
+    name: Local Inference Basic Checks
+    needs: changes
+    if: needs.changes.outputs.onprem == 'true'
+    uses: ./.github/workflows/local-inference-basic.yml
     permissions:
       contents: read
 

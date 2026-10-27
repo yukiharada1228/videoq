@@ -6,15 +6,14 @@ description: Verify signed VideoQ images and charts, rehearse updates, and promo
 # Verified on-prem releases and updates
 
 For sites with internet access, use an external OCI registry and immutable image
-digests. The `On-prem Release` workflow prepares application and CPU Whisper GHCR
-images for Linux amd64 and arm64, an amd64 NVIDIA vLLM image, application and
-inference chart archives, and `release.json`. It runs only for the current source
+digests. The `On-prem Release` workflow prepares application and transcription-gateway GHCR
+images for Linux amd64 and arm64, application and inference chart archives, and `release.json`. It runs only for the current source
 repository main commit after successful push CI. It can also be dispatched for
 that commit, for example to rebuild after distribution package fixes.
 
 Distribution uses the public packages
-`ghcr.io/yukiharada1228/videoq-onprem-api`, `videoq-onprem-worker` and
-`videoq-onprem-web`, `videoq-onprem-whisper` and `videoq-onprem-whisper-vllm`.
+`ghcr.io/yukiharada1228/videoq-api`, `videoq-worker`,
+`videoq-web` and `videoq-transcription-gateway`.
 Docker and Kubernetes can pull them without a GHCR login
 or `imagePullSecrets`. Site-owned private registries can still use
 `imagePullSecrets` when required. The images include the repository's existing
@@ -37,16 +36,27 @@ and a CycloneDX inventory. Separate fresh runners publish the exact build
 artifacts without running application containers or installing app dependencies
 with publication credentials. GitHub OIDC signs provenance and per-architecture
 SBOM attestations. A signed multi-architecture index binds the two architectures;
-the signed schema-v2 release manifest binds all five image index digests, their
-supported architectures and both charts' bytes. The NVIDIA image is amd64-only;
-its index must not advertise arm64. The inference values use that same patched,
-audio-capable vLLM image for NVIDIA chat, embeddings and speech.
+the signed schema-v2 release manifest binds all four VideoQ image index digests, their
+supported architectures and both charts' bytes. The signed inference chart
+pins upstream llama.cpp, whisper.cpp and vLLM image digests. These upstream
+artifacts are used directly and are not rebuilt or signed as VideoQ images.
+Each GPU profile uses the same vendor-specific upstream vLLM image for chat,
+embeddings and speech: `vllm.image` for CUDA, `vllm.rocmImage` for ROCm.
+The upstream pins are carried by the signed chart, not overridden by the
+VideoQ image verifier. VideoQ's transcription gateway no longer builds or bundles whisper.cpp.
+See the [inference image policy](https://github.com/yukiharada1228/videoq/blob/main/charts/videoq-inference/README.md#upstream-image-policy-and-package-names).
+
+These package names replace `videoq-onprem-*` for new releases. Existing signed
+bundles remain unchanged for rollback. Use the chart and image values from the
+same release, and migrate site overrides from `whisper.vllmImage` to
+`vllm.image` (CUDA) or `vllm.rocmImage` (ROCm).
 
 NVIDIA scanning retains the existing narrowly scoped
-[kernel-header assessment](https://github.com/yukiharada1228/videoq/blob/main/apps/inference/whisper/security/README.md).
+[kernel-header assessment](https://github.com/yukiharada1228/videoq/blob/main/apps/inference/vllm/security/README.md).
 Only explicitly assessed header findings are suppressed; other HIGH/CRITICAL
-findings still block publication. The `security-*` workflow artifacts retain JSON
-reports, including suppressed findings and the assessment, for 90 days.
+findings still block publication. The `vllm-security-nvidia` validation artifact retains JSON reports, including
+suppressed findings and the assessment, for 14 days. AMD validation records
+`vllm-security-amd` separately without applying the NVIDIA header assessment.
 
 The production API and worker use digest-pinned Alpine images. In addition to the
 interpreter, the canonical runtime updater refreshes these pins and the verified
@@ -94,7 +104,7 @@ The authenticated GitHub CLI above is used for workflow artifacts and attestatio
 verification. The verifier checks GitHub's signature and artifact
 subject, the exact repository and release workflow, `refs/heads/main`, the source
 commit and hosted-runner identity. It verifies the manifest, both chart checksums
-and signatures, and all five image index signatures before writing either values file.
+and signatures, and all four VideoQ image index signatures before writing either values file.
 A missing signature, altered chart, different source or unexpected repository
 aborts verification and preserves existing values. Per-architecture SBOM
 attestations can also be inspected using `gh attestation verify` with predicate

@@ -4,6 +4,8 @@ Runs only in a new dedicated kind-videoq-onprem-lab cluster. Public model/image
 downloads finish before installing the node's public-egress firewall. No site resources
 or existing Docker networks are modified. Requires Helm, kind, kubectl, Node
 with the repository's yaml/playwright/undici packages, Chromium and authenticated gh.
+The complete default fixture requires at least 10 GiB of Docker memory. This is
+a test-host prerequisite, not a production sizing or throughput guarantee.
 """
 import argparse
 import hashlib
@@ -22,6 +24,9 @@ CLUSTER = "videoq-onprem-lab"
 POD_SUBNET = "10.244.0.0/16"
 SERVICE_SUBNET = "10.96.0.0/12"
 NODE = "kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5"
+# Default AI memory requests total 7.5 GiB; reserve another 2.5 GiB for the
+# control plane, backing services, application and Chromium. Swap is not RAM.
+MINIMUM_DOCKER_MEMORY = 10 * 1024**3
 SPEC = importlib.util.spec_from_file_location("release", Path(__file__).with_name("onprem-release.py"))
 release = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(release)
@@ -31,6 +36,18 @@ METRICS_SPEC.loader.exec_module(metrics)
 LAB_SPEC = importlib.util.spec_from_file_location("lab", Path(__file__).with_name("onprem-lab.py"))
 lab = importlib.util.module_from_spec(LAB_SPEC)
 LAB_SPEC.loader.exec_module(lab)
+
+
+def require_docker_memory(memory_bytes):
+    if not isinstance(memory_bytes, int) or isinstance(memory_bytes, bool) or memory_bytes <= 0:
+        raise ValueError("Docker memory capacity is unavailable")
+    if memory_bytes < MINIMUM_DOCKER_MEMORY:
+        raise RuntimeError(
+            f"Complete real CPU acceptance requires at least 10 GiB of Docker memory; "
+            f"the daemon reports {memory_bytes / 1024**3:.2f} GiB. "
+            "Run this fixture on a larger test host. No images/models or cluster have been provisioned."
+        )
+    return memory_bytes
 
 
 def assess_transcript(transcript, case):
@@ -126,7 +143,7 @@ def main():
     references = {c: v["image"]["repository"]+"@"+v["image"]["digest"] for c,v in application.items() if c != "requireImageDigests"}
     references["whisper"] = inference["whisper"]["image"]["repository"]+"@"+inference["whisper"]["image"]["digest"]
     result = rehearse(source, app_chart, inference_chart, args.output, references)
-    result["verification"] = "Signed release manifest, both charts and all five image indexes verified before rehearsal"
+    result["verification"] = "Signed release manifest, both charts and all four VideoQ image indexes verified before rehearsal"
     release.write_atomic(args.output / "result.json", result)
 
 
@@ -139,6 +156,7 @@ def rehearse(source, app_chart, inference_chart, output, references, *, local_bu
         return subprocess.check_output(command, cwd=ROOT, text=True, **kwargs).strip()
     if CLUSTER in run(["kind", "get", "clusters"]).splitlines():
         raise RuntimeError("The disposable acceptance cluster already exists; refusing to replace it")
+    docker_memory = require_docker_memory(int(run(["docker", "info", "--format", "{{.MemTotal}}"])))
     # Read model identities from the supplied chart, not duplicated defaults.
     values = json.loads(run(["node", "--input-type=module", "-e",
                              "import {parse} from 'yaml'; import {readFileSync} from 'node:fs'; console.log(JSON.stringify(parse(readFileSync(0,'utf8'))))"],
@@ -148,6 +166,9 @@ def rehearse(source, app_chart, inference_chart, output, references, *, local_bu
     models.chmod(0o777)  # Public test weights; provisioner/pods run as UID 10001.
     references = dict(references)
     references["llamacpp"] = values["llamacpp"]["image"]["repository"]+"@"+release.digest(values["llamacpp"]["image"]["digest"])
+    cpu = values["whispercpp"]
+    engine = cpu["images"][cpu["architecture"]]
+    references["whispercpp"] = engine["repository"]+"@"+release.digest(engine["digest"])
     # Pull anonymously even when the operator's default Docker config is logged in.
     anonymous = output / ("anonymous-"+uuid4().hex)
     anonymous.mkdir(mode=0o700)
@@ -156,7 +177,7 @@ def rehearse(source, app_chart, inference_chart, output, references, *, local_bu
     try:
         image_ids = {}
         for component, reference in references.items():
-            if not local_builds or component == "llamacpp":
+            if not local_builds or component in ("llamacpp", "whispercpp"):
                 subprocess.run(["docker","pull",reference],env=public_env,check=True)
             run(["docker","tag",reference,"videoq-"+component+":onprem-ci"])
             image_ids[component] = run(["docker","image","inspect",reference,"--format","{{.Id}}"])
@@ -233,6 +254,7 @@ def rehearse(source, app_chart, inference_chart, output, references, *, local_bu
         result["transcriptionAssessment"] = assess_transcript(result["recognitionAndAnswer"]["transcript"], case)
         node = json.loads(k("get","node",CLUSTER+"-control-plane","-o","json"))
         result["runtime"] = {"architecture":node["status"]["nodeInfo"]["architecture"],
+                             "dockerMemoryBytes":docker_memory,
                              "nodeCapacity":node["status"]["capacity"],
                              "chatThreads":values["servers"]["chat"]["cpuThreads"],
                              "embeddingThreads":values["servers"]["embedding"]["cpuThreads"],

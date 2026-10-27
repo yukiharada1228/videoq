@@ -15,10 +15,10 @@ import tempfile
 REPOSITORY = "yukiharada1228/videoq"
 WORKFLOW = REPOSITORY + "/.github/workflows/onprem-release.yml"
 APP_COMPONENTS = ("api", "worker", "web")
-COMPONENTS = (*APP_COMPONENTS, "whisper", "whisper-vllm")
-PLATFORMS = {c: (["linux/amd64"] if c == "whisper-vllm" else ["linux/amd64", "linux/arm64"]) for c in COMPONENTS}
+COMPONENTS = (*APP_COMPONENTS, "transcription-gateway")
+PLATFORMS = {c: ["linux/amd64", "linux/arm64"] for c in COMPONENTS}
 CHARTS = {"application": "videoq", "inference": "videoq-inference"}
-PREFIX = "ghcr.io/" + REPOSITORY + "-onprem-"
+PREFIX = "ghcr.io/" + REPOSITORY + "-"
 
 
 def sha(value):
@@ -86,8 +86,7 @@ def verify(manifest, source):
         c: {"image": {**image(c), "tag": "", "pullPolicy": "IfNotPresent"}}
         for c in APP_COMPONENTS}}
     inference = {"requireImageDigests": True,
-                 "whisper": {"image": image("whisper"), "vllmImage": image("whisper-vllm")},
-                 "vllm": {"image": image("whisper-vllm")}}
+                 "whisper": {"image": image("transcription-gateway")}}
     return application, inference
 
 

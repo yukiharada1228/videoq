@@ -24,17 +24,17 @@ test('both native architecture builds are credential-free and scan before export
   assert.match(build,/exit-code: '1'/);
   assert.match(build,/ignore-unfixed: 'false'/);
   assert.doesNotMatch(build,/secrets\.|id-token: write|packages: write|continue-on-error/);
-  assert.match(build,/component: \[api, worker, web, whisper, whisper-vllm\]/);
-  assert.match(build,/exclude:\n          - component: whisper-vllm\n            arch: arm64/);
+  assert.match(build,/component: \[api, worker, web, transcription-gateway\]/);
+  assert.doesNotMatch(build,/component: vllm|apps\/inference\/vllm\/Dockerfile/);
   assert.match(build,/docker cp "\$container:\/usr\/share\/licenses\/videoq\/LICENSE" - \| tar -xO \| cmp LICENSE -/);
 });
 
-test('the signed bundle includes the inference chart and NVIDIA assessment reports',()=>{
+test('the signed bundle includes the inference chart and build scan reports',()=>{
   assert.match(job('chart'),/helm" package charts\/videoq-inference/);
-  assert.match(job('build'),/trivy-config:.*whisper-vllm.*security\/trivy.yaml/);
+  assert.doesNotMatch(job('build'),/trivy-config:/);
   assert.match(job('build'),/artifact\/security.json/);
   assert.match(job('build'),/retention-days: 90/);
-  assert.match(job('indexes'),/if \[ "\$COMPONENT" != whisper-vllm \]/);
+  assert.doesNotMatch(job('indexes'),/!= vllm/);
   assert.match(job('staging'),/verified-inference.json/);
 });
 
@@ -82,7 +82,7 @@ test('public distribution checks visibility around publication and before stagin
   const after=publish.indexOf('onprem_registry.py "$COMPONENT"',push);
   assert(before>=0 && push>before && after>push);
   assert.doesNotMatch(workflow,/--allow-missing/);
-  assert.match(publish,/repository="ghcr.io\/yukiharada1228\/videoq-onprem-\$COMPONENT"/);
+  assert.match(publish,/repository="ghcr.io\/yukiharada1228\/videoq-\$COMPONENT"/);
   const indexes=job('indexes');
   assert(indexes.indexOf('onprem_registry.py "$COMPONENT"')<indexes.indexOf('docker buildx imagetools create'));
   const staging=job('staging');
