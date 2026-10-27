@@ -160,7 +160,8 @@ jobs:
           - component: vllm-engine
             arch: arm64
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # The scanned CUDA archive is ~8 GB; transfer, load and push can exceed 25 minutes.
+    timeout-minutes: ${{ matrix.component == 'vllm-engine' && 45 || 25 }}
     permissions:
       contents: read
       packages: write
