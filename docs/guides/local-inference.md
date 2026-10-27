@@ -127,3 +127,19 @@ and checks subtitle generation. It does not upload to storage or write to the
 database. The same test accepts the Kubernetes gateway base URL, including `/v1`.
 Ordinary CI skips this test and does not download speech models.
 See the [upstream server options](https://github.com/ggml-org/whisper.cpp/blob/v1.9.5/examples/server/README.md).
+
+
+## Basic checks on GitHub Actions
+
+`Local Inference Basic Checks` checks chart variants, application and worker API
+contracts, and upstream server CLI startup on standard Linux x64, Linux ARM64
+and macOS ARM64 runners. It runs for related CI changes, manual dispatch and
+a weekly schedule. It does not download models or certify inference quality,
+GPU/Metal execution or application lifecycle acceptance.
+
+Linux uses the chart's pinned llama.cpp image and the explicit upstream
+whisper.cpp candidates in `.github/inference-basic-packages.json`; these
+candidate checks do not change the deployed speech engine. macOS uses Homebrew
+bottles and records versions after updating the formula index. Evidence is
+retained for seven days as `local-inference-basic-<runner>` artifacts. Existing
+image vulnerability and release gates are preserved.

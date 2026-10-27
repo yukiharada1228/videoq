@@ -1,0 +1,14 @@
+{
+  "whispercpp": {
+    "images": {
+      "amd64": {
+        "repository": "ghcr.io/ggml-org/whisper.cpp",
+        "digest": "sha256:4df91b749d95628c3b40068c13c2d3fc67f745db86ea7829438ff87eb03c12c2"
+      },
+      "arm64": {
+        "repository": "ghcr.io/ggml-org/whisper.cpp",
+        "digest": "sha256:94d3695d1dd7337a92d5171b070a8e7e2d97ef51ea29ac1f355cf30a92bbb361"
+      }
+    }
+  }
+}
