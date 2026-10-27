@@ -10,7 +10,7 @@ downloadModels: true
 whisper:
   # Signed release verification supplies the immutable digest.
   image:
-    repository: ghcr.io/yukiharada1228/videoq-onprem-whisper
+    repository: ghcr.io/yukiharada1228/videoq-transcription-gateway
     tag: "0.2.0-cpu"
     digest: ""
     pullPolicy: IfNotPresent

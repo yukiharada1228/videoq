@@ -13,8 +13,8 @@ repository main commit after successful push CI. It can also be dispatched for
 that commit, for example to rebuild after distribution package fixes.
 
 Distribution uses the public packages
-`ghcr.io/yukiharada1228/videoq-onprem-api`, `videoq-onprem-worker` and
-`videoq-onprem-web`, `videoq-onprem-whisper` and `videoq-onprem-whisper-vllm`.
+`ghcr.io/yukiharada1228/videoq-api`, `videoq-worker` and
+`videoq-web`, `videoq-transcription-gateway` and `videoq-onprem-whisper-vllm`.
 Docker and Kubernetes can pull them without a GHCR login
 or `imagePullSecrets`. Site-owned private registries can still use
 `imagePullSecrets` when required. The images include the repository's existing
@@ -37,7 +37,7 @@ and a CycloneDX inventory. Separate fresh runners publish the exact build
 artifacts without running application containers or installing app dependencies
 with publication credentials. GitHub OIDC signs provenance and per-architecture
 SBOM attestations. A signed multi-architecture index binds the two architectures;
-the signed schema-v2 release manifest binds all five image index digests, their
+the signed schema-v3 release manifest binds all five image index digests, their
 supported architectures and both charts' bytes. The NVIDIA image is amd64-only;
 its index must not advertise arm64. The inference values use that same patched,
 audio-capable vLLM image for NVIDIA chat, embeddings and speech.
@@ -218,6 +218,26 @@ The script refuses to replace an existing `videoq-onprem-lab` cluster. Initial
 downloads need internet access. Allow at least 16 GiB RAM for this disposable
 test with backing services; production sizing still needs representative videos.
 
+
+## Package name migration
+
+New `release.json` manifests use schemaVersion 3. Application roles remain
+`api`, `web` and `worker`; speech becomes `transcription-gateway`, and the
+existing custom GPU engine keeps its old package name until upstream vLLM replaces it in a separate change. Its manifest role is `vllm-engine`; no intermediate GPU package is created. Helm keys such as `whisper.image` and
+`whisper.vllmImage` remain compatible.
+
+SchemaVersion 2 manifests still verify their original `videoq-onprem-*`
+repositories and every signature. Retain those public packages and immutable
+digests for historical installs and rollback. Each schema fixes its own package
+namespace; mixed generations are rejected.
+
+Before activation, a package administrator must prepare all four new public
+packages and grant the repository Actions Write access. Initial GHCR publication
+and package settings require a separate bootstrap; merging this PR does not
+complete that setup. Public-visibility checks before and after publication stay
+mandatory, so missing or private new packages stop a release. Do not delete the
+old public packages to migrate. Regenerate verified Helm values from the new
+signed release before upgrading charts.
 
 ## Bootstrap the new package namespaces
 

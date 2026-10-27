@@ -37,9 +37,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        component: [api, worker, web, whisper, whisper-vllm]
+        component: [api, worker, web, transcription-gateway, vllm-engine]
         exclude:
-          - component: whisper-vllm
+          - component: vllm-engine
             arch: arm64
         include:
           - component: api
@@ -51,10 +51,10 @@ jobs:
           - component: web
             dockerfile: apps/web/Dockerfile
             context: .
-          - component: whisper
+          - component: transcription-gateway
             dockerfile: apps/inference/whisper/Dockerfile
             context: apps/inference/whisper
-          - component: whisper-vllm
+          - component: vllm-engine
             dockerfile: apps/inference/whisper/Dockerfile.vllm
             context: apps/inference/whisper
         arch: [amd64, arm64]
@@ -68,7 +68,7 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
       - name: Reserve disk for the CUDA image on the disposable runner
-        if: matrix.component == 'whisper-vllm'
+        if: matrix.component == 'vllm-engine'
         run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
       - name: Build without publishing credentials
         env:
@@ -82,14 +82,14 @@ jobs:
           trap 'docker rm -f "$container" >/dev/null' EXIT
           docker cp "$container:/usr/share/licenses/videoq/LICENSE" - | tar -xO | cmp LICENSE -
       - name: Check the CPU gateway and NVIDIA audio extras
-        if: matrix.component == 'whisper' || matrix.component == 'whisper-vllm'
+        if: matrix.component == 'transcription-gateway' || matrix.component == 'vllm-engine'
         env:
           COMPONENT: ${{ matrix.component }}
         run: |
-          if [ "$COMPONENT" = whisper ]; then
-            docker run --rm --entrypoint python videoq-whisper:release -c 'import server, provision, silero_vad, torch'
+          if [ "$COMPONENT" = transcription-gateway ]; then
+            docker run --rm --entrypoint python videoq-transcription-gateway:release -c 'import server, provision, silero_vad, torch'
           else
-            docker run --rm --entrypoint python3 videoq-whisper-vllm:release -c 'import av, soxr, soundfile; import importlib.metadata as m; assert m.version("vllm") == "0.32.0"'
+            docker run --rm --entrypoint python3 videoq-vllm-engine:release -c 'import av, soxr, soundfile; import importlib.metadata as m; assert m.version("vllm") == "0.32.0"'
           fi
       - run: mkdir -p artifact
       - name: Block vulnerable images, including unfixed HIGH and CRITICAL findings
@@ -97,7 +97,7 @@ jobs:
         with:
           version: v0.76.1
           image-ref: videoq-${{ matrix.component }}:release
-          trivy-config: ${{ matrix.component == 'whisper-vllm' && 'apps/inference/whisper/security/trivy.yaml' || '' }}
+          trivy-config: ${{ matrix.component == 'vllm-engine' && 'apps/inference/whisper/security/trivy.yaml' || '' }}
           format: json
           output: artifact/security.json
           scanners: vuln
@@ -154,10 +154,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        component: [api, worker, web, whisper, whisper-vllm]
+        component: [api, worker, web, transcription-gateway, vllm-engine]
         arch: [amd64, arm64]
         exclude:
-          - component: whisper-vllm
+          - component: vllm-engine
             arch: arm64
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -169,7 +169,7 @@ jobs:
     steps:
       # Fresh runner: never build or execute the application's code here.
       - name: Reserve disk for the scanned CUDA archive and its loaded image
-        if: matrix.component == 'whisper-vllm'
+        if: matrix.component == 'vllm-engine'
         run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -188,7 +188,10 @@ jobs:
         run: |
           zstd -d image.tar.zst --stdout | docker load
           python3 .github/scripts/onprem_registry.py "$COMPONENT"
-          repository="ghcr.io/yukiharada1228/videoq-onprem-$COMPONENT"
+          repository="ghcr.io/yukiharada1228/videoq-$COMPONENT"
+          if [ "$COMPONENT" = vllm-engine ]; then
+            repository="ghcr.io/yukiharada1228/videoq-onprem-whisper-vllm"
+          fi
           tag="$repository:$GITHUB_SHA-$ARCH-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           docker tag "videoq-$COMPONENT:release" "$tag"
@@ -227,7 +230,7 @@ jobs:
     timeout-minutes: 10
     strategy:
       matrix:
-        component: [api, worker, web, whisper, whisper-vllm]
+        component: [api, worker, web, transcription-gateway, vllm-engine]
     permissions:
       contents: read
       packages: write
@@ -249,11 +252,14 @@ jobs:
           COMPONENT: ${{ matrix.component }}
         run: |
           python3 .github/scripts/onprem_registry.py "$COMPONENT"
-          repository="ghcr.io/yukiharada1228/videoq-onprem-$COMPONENT"
+          repository="ghcr.io/yukiharada1228/videoq-$COMPONENT"
+          if [ "$COMPONENT" = vllm-engine ]; then
+            repository="ghcr.io/yukiharada1228/videoq-onprem-whisper-vllm"
+          fi
           tag="$repository:$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           manifests=("$repository@$(cat "$COMPONENT-amd64.digest")")
-          if [ "$COMPONENT" != whisper-vllm ]; then
+          if [ "$COMPONENT" != vllm-engine ]; then
             manifests+=("$repository@$(cat "$COMPONENT-arm64.digest")")
           fi
           docker buildx imagetools create --tag "$tag" "${manifests[@]}"
@@ -346,7 +352,7 @@ jobs:
         run: |
           mkdir -m 700 "$DOCKER_CONFIG"
           printf '{"auths":{}}\n' > "$DOCKER_CONFIG/config.json"
-          for component in api worker web whisper whisper-vllm; do
+          for component in api worker web transcription-gateway vllm-engine; do
             python3 .github/scripts/onprem_registry.py "$component"
           done
           python3 .github/scripts/onprem-release.py verify "$GITHUB_SHA" release/release.json release/verified-images.json release/verified-inference.json

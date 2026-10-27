@@ -7,7 +7,7 @@ description: 署名とダイジェストを検証し、Kubernetes で更新と�
 
 インターネットに接続できる導入先では、外部レジストリとイメージのダイジェストを使って配布します。`On-prem Release` は最新 main の push CI 成功を確認し、Linux amd64・arm64 の API、Web、ワーカー、CPU Whisper、アプリ・推論用の両 Helm Chart、`release.json` を作成します。NVIDIA vLLM のイメージは amd64 用として同梱します。同じ main コミットで手動実行すると、OS パッケージ修正後の再ビルドにも使えます。
 
-配布用の `ghcr.io/yukiharada1228/videoq-onprem-api`・`videoq-onprem-worker`・`videoq-onprem-web`・`videoq-onprem-whisper`・`videoq-onprem-whisper-vllm` は Public とします。Docker や Kubernetes からは GHCR のログインや `imagePullSecrets` なしで取得できます。導入先独自の非公開レジストリを使う場合は、引き続き `imagePullSecrets` を設定できます。各イメージにはリポジトリの現行 LICENSE を同梱し、公開範囲の変更でライセンス条件は変更しません。
+配布用の `ghcr.io/yukiharada1228/videoq-api`・`videoq-worker`・`videoq-web`・`videoq-transcription-gateway`・`videoq-onprem-whisper-vllm` は Public とします。Docker や Kubernetes からは GHCR のログインや `imagePullSecrets` なしで取得できます。導入先独自の非公開レジストリを使う場合は、引き続き `imagePullSecrets` を設定できます。各イメージにはリポジトリの現行 LICENSE を同梱し、公開範囲の変更でライセンス条件は変更しません。
 
 パッケージ管理者が初期設定で Public にし、**Package settings → Manage Actions access** で `yukiharada1228/videoq` に **Write** を付与します。CI は push の前後とインデックス作成前に公開状態を確認し、非公開・internal・未作成の場合は配布を止めます。署名を検証した配布物は、空の Docker 認証設定で取得して匿名アクセスを確認します。公開済みパッケージを Private に戻すことは GitHub の仕様上できません。push 用の書き込み認証は引き続き必要です。
 
@@ -97,6 +97,25 @@ HELM_BIN=helm python3 .github/scripts/onprem-cpu-acceptance.py \
 
 既存の `videoq-onprem-lab` クラスタがあれば置き換えずに停止します。モデル取得時にはインターネット接続が必要です。検証用の DB 等も含め、少なくとも16 GiB の RAM を用意します。短い公開サンプル1件での確認なので、導入先の日本語録画・同時利用数による精度や性能、CNI による NetworkPolicy の適用確認は別途必要です。
 
+
+## パッケージ名の移行
+
+新規リリースの `release.json` は schemaVersion 3 を使います。`api`・`web`・`worker` は
+役割名を維持し、音声 API は `transcription-gateway`、既存の自前 GPU エンジンは
+`vllm-engine` というマニフェスト上の役割名になりますが、パッケージは従来の
+`videoq-onprem-whisper-vllm` を維持します。中間的な GPU パッケージは作成せず、
+上流 vLLM への切り替え時に自前の GPU 配布を終了します。
+Helm の `whisper.image`・`whisper.vllmImage` などの設定キーは変更しません。
+
+旧 schemaVersion 2 のマニフェストは、元の `videoq-onprem-*` パッケージとすべての署名を
+引き続き検証します。旧パッケージは削除せず、履歴やロールバック用の digest を保持してください。
+schemaVersion ごとにパッケージ名を固定し、新旧の名前を混ぜたマニフェストは拒否します。
+
+切り替え前に、管理者は新しい4パッケージの公開設定と Actions の Write アクセスを準備します。
+GHCR の新規パッケージは最初の公開と設定が別途必要です。この PR のマージだけでは準備完了に
+なりません。新名称での公開前後の Public 検査は維持し、パッケージが未作成・非公開なら
+リリースを停止します。既存の公開パッケージを削除して移行する手順は使いません。
+新名称の署名済みリリースで検証用 Helm 値を再生成し、チャートを更新してください。
 
 ## 新名称パッケージの初回作成
 

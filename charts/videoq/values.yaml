@@ -30,7 +30,7 @@ web:
     limits: { memory: 128Mi }
 
 worker:
-  image: { repository: videoq-worker-onprem, tag: "0.1.0", digest: "", pullPolicy: IfNotPresent }
+  image: { repository: videoq-worker, tag: "0.1.0", digest: "", pullPolicy: IfNotPresent }
   replicas: 1
   terminationGracePeriodSeconds: 960
   resources:
