@@ -5,6 +5,7 @@ on:
       - main
       - develop
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -108,8 +109,8 @@ jobs:
     outputs:
       hono: ${{ steps.filter.outputs.hono }}
       worker: ${{ steps.filter.outputs.worker }}
-      frontend: ${{ steps.filter.outputs.frontend }}
-      docs: ${{ steps.filter.outputs.docs }}
+      frontend: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.frontend == 'true' }}
+      docs: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.docs == 'true' }}
       worker_matrix: ${{ steps.runtimes.outputs.matrix }}
       onprem: ${{ steps.filter.outputs.onprem }}
       whisper_gpu: ${{ steps.filter.outputs.whisper_gpu }}
