@@ -117,3 +117,17 @@ API が実際に返したセグメント時刻、元動画への時刻補正、�
 ストレージへのアップロードや DB 書き込みは行いません。Kubernetes の共通 API も `/v1` を含む
 ベース URL で同じテストを使えます。通常の CI ではスキップし、音声モデルは取得しません。
 オプションの詳細は [whisper.cpp のサーバー説明](https://github.com/ggml-org/whisper.cpp/blob/v1.9.5/examples/server/README.md)を参照してください。
+
+
+## GitHub Actions での基本検証
+
+`Local Inference Basic Checks` は、Linux x64・Linux ARM64・macOS ARM64 の
+標準ランナーで、チャート構成、アプリと worker の API 契約、上流サーバーの CLI 起動を検証します。
+関連変更の CI、手動実行、週次実行に対応します。モデルは取得せず、推論精度、GPU／Metal の
+実行、アプリ全体の受け入れ検証は対象外です。
+
+Linux はチャートの digest 固定 llama.cpp と、`.github/onprem-lab/basic-packages.json` の
+上流 whisper.cpp 候補を確認します。候補の検証によって導入済みの音声エンジンは変わりません。
+macOS は Homebrew の索引を更新して bottle を利用し、バージョンを記録します。
+成果物は `local-inference-basic-<runner>` として7日間保存します。既存の脆弱性検査と
+リリースゲートは維持します。

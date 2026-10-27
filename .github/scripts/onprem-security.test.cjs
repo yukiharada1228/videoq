@@ -10,10 +10,11 @@ const gate = ci.match(/^  ci-success:\n([\s\S]*?)(?=^  [\w-]+:)/m)[1];
 const dependencies = gate.match(/needs: \[([^\]]+)\]/)[1].split(',').map(name => name.trim());
 const script = gate.match(/node <<'NODE'\n([\s\S]*?)^\s+NODE$/m)[1];
 
-function result(selected, result) {
+function result(selected, result, basicResult = 'success') {
   const jobs = Object.fromEntries(dependencies.map(name => [name, { result: 'success' }]));
   jobs.changes.outputs = { onprem: String(selected) };
   jobs['onprem-validation'].result = result;
+  jobs['local-inference-basic'].result = basicResult;
   let exitCode = 0;
   runInNewContext(script, {
     process: { env: { JOB_RESULTS: JSON.stringify(jobs) }, exit(code) { exitCode = code; } },
@@ -66,4 +67,19 @@ test('the web build disables dependency lifecycle scripts', () => {
   const installs = dockerfile.match(/^RUN npm ci[^\n]*/gm);
   assert.ok(installs.length);
   for (const install of installs) assert.match(install, /--ignore-scripts/);
+});
+
+
+test('native basic checks are required when selected and use standard runners', () => {
+  const basic = readFileSync(join(__dirname, '../workflows/local-inference-basic.yml'), 'utf8');
+  assert.ok(dependencies.includes('local-inference-basic'));
+  for (const status of ['failure', 'cancelled', 'skipped']) assert.equal(result(true, 'success', status), 1);
+  assert.equal(result(false, 'skipped', 'skipped'), 0);
+  for (const runner of ['ubuntu-24.04', 'ubuntu-24.04-arm', 'macos-15']) assert.ok(basic.includes(`runner: ${runner},`));
+  assert.ok(basic.indexOf('brew update') < basic.indexOf('brew install --force-bottle'));
+  assert.match(basic, /workflow_call:/);
+  assert.match(basic, /workflow_dispatch:/);
+  assert.match(basic, /schedule:/);
+  assert.match(basic, /uv sync --locked --extra dev/);
+  assert.doesNotMatch(basic, /self-hosted|secrets\.|secrets: inherit|id-token: write|packages: write|--gpus|download-ggml/);
 });
