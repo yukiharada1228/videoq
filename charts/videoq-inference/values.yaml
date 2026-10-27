@@ -61,6 +61,19 @@ llamacpp:
     tag: server-b11669
     digest: sha256:8ffe0d28ff5261cc2f78ca1f67db1515bc2529b904a3c25f5b24f4cedfc3411d
     pullPolicy: IfNotPresent
+whispercpp:
+  architecture: amd64
+  images:
+    amd64:
+      repository: ghcr.io/ggml-org/whisper.cpp
+      tag: main
+      digest: sha256:4df91b749d95628c3b40068c13c2d3fc67f745db86ea7829438ff87eb03c12c2
+      pullPolicy: IfNotPresent
+    arm64:
+      repository: ghcr.io/ggml-org/whisper.cpp
+      tag: main-arm64
+      digest: sha256:94d3695d1dd7337a92d5171b070a8e7e2d97ef51ea29ac1f355cf30a92bbb361
+      pullPolicy: IfNotPresent
 vllm:
   image:
     repository: vllm/vllm-openai

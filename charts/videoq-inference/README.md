@@ -320,3 +320,20 @@ Uninstall inference separately from the app; PVCs are retained. Adopt compatible
 claims through `persistence.existingClaim` on reinstall.
 
 The NVIDIA speech image includes a narrowly scoped kernel-header [OpenVEX assessment](../../apps/inference/whisper/security/README.md). Preserve the JSON scan report, including suppressed findings, with the reviewed image digest. Its passing assessed gate does not establish the site host kernel's patch status.
+
+
+## Upstream CPU speech engine
+
+CPU whisper.cpp now runs directly from an immutable upstream image in a separate
+container; VideoQ no longer compiles the engine into its audio gateway. The
+gateway keeps preprocessing and the public speech API, connecting to the engine
+over Pod loopback. The existing NVIDIA engine and vulnerability gates are retained.
+Use `examples/cpu-arm64.yaml` in the inference chart for ARM64. Cached weights
+support offline restarts. CI scans each upstream CPU engine on amd64 and arm64.
+The explicit whisper.cpp header-only assessment requires matching the complete
+flattened filesystem inventory first, and assessed findings remain in reports.
+It does not certify the host kernel. See `apps/inference/whispercpp/security/`.
+
+AMD/ROCm configuration is a separate follow-up; no target GPU/OS has been selected
+and hardware execution remains unverified. GPU adoption requires physical
+acceptance and vulnerability evaluation.

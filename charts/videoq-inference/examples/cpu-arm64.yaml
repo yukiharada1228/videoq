@@ -1,0 +1,10 @@
+# CPU engine packages are verified on native ARM64 runners; model acceptance is site-specific.
+whispercpp:
+  architecture: arm64
+whisper:
+  nodeSelector: { kubernetes.io/arch: arm64 }
+servers:
+  chat:
+    nodeSelector: { kubernetes.io/arch: arm64 }
+  embedding:
+    nodeSelector: { kubernetes.io/arch: arm64 }
