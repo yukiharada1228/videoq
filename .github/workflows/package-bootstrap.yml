@@ -27,7 +27,6 @@ jobs:
       packages: write
     env:
       GH_TOKEN: ${{ github.token }}
-      DOCKER_CONFIG: ${{ runner.temp }}/package-bootstrap-docker
       BOOTSTRAP_WORKFLOW_SHA: ${{ github.workflow_sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -51,10 +50,13 @@ jobs:
         run: python3 .github/scripts/package-bootstrap.py bootstrap "$SOURCE_SHA" release bootstrap-report.json
       - name: Authenticate the repository token to GHCR
         if: inputs.publish
+        env:
+          DOCKER_CONFIG: ${{ runner.temp }}/package-bootstrap-docker
         run: printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
       - name: Copy verified manifests without building or executing images
         if: inputs.publish
         env:
+          DOCKER_CONFIG: ${{ runner.temp }}/package-bootstrap-docker
           SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
         run: python3 .github/scripts/package-bootstrap.py bootstrap "$SOURCE_SHA" release bootstrap-report.json --publish
       - name: Retain source digests, copy results and package settings links
@@ -67,4 +69,6 @@ jobs:
           if-no-files-found: warn
       - name: Remove registry credentials from the disposable runner
         if: ${{ always() && inputs.publish }}
+        env:
+          DOCKER_CONFIG: ${{ runner.temp }}/package-bootstrap-docker
         run: docker logout ghcr.io
