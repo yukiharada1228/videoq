@@ -15872,7 +15872,79 @@
           "id": 12706885400,
           "sha256": "93bd8138b2702c50316195660987d3ddd3dd356e937097a93285645a5a8a9382"
         },
-        "initialFailure": "Run 40440856356 used a stale hosted Homebrew index. Explicit brew update fixed package discovery; corrected native checks passed in this run."
+        "initialFailure": "Run 40440856356 used a stale hosted Homebrew index. Explicit brew update fixed package discovery; corrected native checks passed in this run.",
+        "linuxArtifacts": [
+          {
+            "id": 12706680709,
+            "sha256": "f9e774d7bbe33023e8777183269ffc2a16c316941b55380bf3548c6e67623417",
+            "verifiedContents": {
+              "packages": {
+                "os": "Linux",
+                "architecture": "amd64",
+                "checks": {
+                  "llamacpp": {
+                    "image": "ghcr.io/ggml-org/llama.cpp@sha256:8ffe0d28ff5261cc2f78ca1f67db1515bc2529b904a3c25f5b24f4cedfc3411d",
+                    "cliStartup": "passed",
+                    "network": "none"
+                  },
+                  "whispercpp": {
+                    "image": "ghcr.io/ggml-org/whisper.cpp@sha256:4df91b749d95628c3b40068c13c2d3fc67f745db86ea7829438ff87eb03c12c2",
+                    "cliStartup": "passed",
+                    "network": "none"
+                  }
+                },
+                "scope": "Native package CLI startup only; no model downloads, model quality, GPU or Metal inference."
+              },
+              "workerSuites": [
+                {
+                  "name": "pytest",
+                  "errors": "0",
+                  "failures": "0",
+                  "skipped": "0",
+                  "tests": "67",
+                  "time": "1.421",
+                  "timestamp": "2026-10-27T02:59:04.643306+00:00",
+                  "hostname": "runnervmtai0g"
+                }
+              ]
+            }
+          },
+          {
+            "id": 12706466261,
+            "sha256": "46bc71d32581dc3328226abf5ef1496001dd56d969f214e3ec27d2ff87563af2",
+            "verifiedContents": {
+              "packages": {
+                "os": "Linux",
+                "architecture": "arm64",
+                "checks": {
+                  "llamacpp": {
+                    "image": "ghcr.io/ggml-org/llama.cpp@sha256:8ffe0d28ff5261cc2f78ca1f67db1515bc2529b904a3c25f5b24f4cedfc3411d",
+                    "cliStartup": "passed",
+                    "network": "none"
+                  },
+                  "whispercpp": {
+                    "image": "ghcr.io/ggml-org/whisper.cpp@sha256:94d3695d1dd7337a92d5171b070a8e7e2d97ef51ea29ac1f355cf30a92bbb361",
+                    "cliStartup": "passed",
+                    "network": "none"
+                  }
+                },
+                "scope": "Native package CLI startup only; no model downloads, model quality, GPU or Metal inference."
+              },
+              "workerSuites": [
+                {
+                  "name": "pytest",
+                  "errors": "0",
+                  "failures": "0",
+                  "skipped": "0",
+                  "tests": "67",
+                  "time": "1.533",
+                  "timestamp": "2026-10-27T02:59:04.988099+00:00",
+                  "hostname": "runnervm4yw5a"
+                }
+              ]
+            }
+          }
+        ]
       }
     }
   },
