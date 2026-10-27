@@ -37,7 +37,7 @@ and a CycloneDX inventory. Separate fresh runners publish the exact build
 artifacts without running application containers or installing app dependencies
 with publication credentials. GitHub OIDC signs provenance and per-architecture
 SBOM attestations. A signed multi-architecture index binds the two architectures;
-the signed schema-v2 release manifest binds all five image index digests, their
+the signed schema-v3 release manifest binds all five image index digests, their
 supported architectures and both charts' bytes. The NVIDIA image is amd64-only;
 its index must not advertise arm64. The inference values use that same patched,
 audio-capable vLLM image for NVIDIA chat, embeddings and speech.
