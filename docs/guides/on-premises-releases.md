@@ -217,3 +217,41 @@ HELM_BIN=helm python3 .github/scripts/onprem-cpu-acceptance.py \
 The script refuses to replace an existing `videoq-onprem-lab` cluster. Initial
 downloads need internet access. Allow at least 16 GiB RAM for this disposable
 test with backing services; production sizing still needs representative videos.
+
+
+## Bootstrap the new package namespaces
+
+`Package Namespace Bootstrap` only runs manually from canonical main. Supply a
+successful `On-prem Release` run ID. It checks repository, workflow, main branch,
+success state and attempt, then verifies the signed manifest, both charts and
+every original image attestation before preparing four copy targets. Preview
+mode does not modify the registry.
+
+```sh
+RELEASE_RUN_ID=40448706562 # Example successful release; select the reviewed run to use.
+gh workflow run package-bootstrap.yml --repo yukiharada1228/videoq --ref main \
+  -f release_run_id="$RELEASE_RUN_ID" -f publish=false
+```
+
+Review the source/destination digests in artifact
+`package-bootstrap-<run-id>-<attempt>`, then dispatch with `publish=true`. The
+workflow uses the repository GITHUB_TOKEN; no new personal token is needed.
+It copies only api, web, worker and transcription-gateway. It creates no new GPU
+package and does not build/execute images or delete old packages.
+
+```sh
+gh workflow run package-bootstrap.yml --repo yukiharada1228/videoq --ref main \
+  -f release_run_id="$RELEASE_RUN_ID" -f publish=true
+```
+
+The `bootstrap-*` tags only initialize namespaces; do not deploy them. The
+workflow checks the copied manifest digest against the verified source and
+records package visibility/repository association. Successful copies are kept
+if a later copy fails.
+
+After creation, open each package page in the report, select **Package settings
+→ Change visibility → Public**, and confirm repository Actions Write access.
+Retain old public packages for history and rollback. Once publication settings
+are ready, merge the naming change and generate/verify a normal signed release.
+This bootstrap does not bypass the normal release's public-visibility or
+attestation gates.
