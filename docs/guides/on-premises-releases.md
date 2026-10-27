@@ -231,6 +231,13 @@ repositories and every signature. Retain those public packages and immutable
 digests for historical installs and rollback. Each schema fixes its own package
 namespace; mixed generations are rejected.
 
+When historical releases are explicitly retired after a successful signed schema 3
+release, run **Retired Package Cleanup** with that release run ID. Preview is the
+default; setting `delete` removes only `videoq-onprem-api`, `videoq-onprem-web`,
+`videoq-onprem-worker` and `videoq-onprem-whisper`, including their versions.
+Historical releases referencing them can no longer be pulled or used for rollback.
+The current four new packages and `videoq-onprem-whisper-vllm` are retained.
+
 Before activation, a package administrator must prepare all four new public
 packages and grant the repository Actions Write access. Initial GHCR publication
 and package settings require a separate bootstrap; merging this PR does not

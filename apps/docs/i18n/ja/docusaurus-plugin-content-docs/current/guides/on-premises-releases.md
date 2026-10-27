@@ -111,6 +111,13 @@ Helm の `whisper.image`・`whisper.vllmImage` などの設定キーは変更し
 引き続き検証します。旧パッケージは削除せず、履歴やロールバック用の digest を保持してください。
 schemaVersion ごとにパッケージ名を固定し、新旧の名前を混ぜたマニフェストは拒否します。
 
+旧リリースの配布を明示的に終了する場合は、新名称の署名済み schemaVersion 3 リリースが
+成功してから **Retired Package Cleanup** をその実行 ID で起動します。既定はプレビューで、
+`delete` を有効にすると旧 `videoq-onprem-api`・`videoq-onprem-web`・
+`videoq-onprem-worker`・`videoq-onprem-whisper` の全バージョンを削除します。
+削除後は、それらを参照する過去リリースの取得やロールバックはできません。
+現行の新名4パッケージと `videoq-onprem-whisper-vllm` は保持します。
+
 切り替え前に、管理者は新しい4パッケージの公開設定と Actions の Write アクセスを準備します。
 GHCR の新規パッケージは最初の公開と設定が別途必要です。この PR のマージだけでは準備完了に
 なりません。新名称での公開前後の Public 検査は維持し、パッケージが未作成・非公開なら
