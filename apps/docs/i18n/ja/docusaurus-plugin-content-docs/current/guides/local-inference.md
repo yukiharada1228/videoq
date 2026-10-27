@@ -126,7 +126,7 @@ API が実際に返したセグメント時刻、元動画への時刻補正、�
 関連変更の CI、手動実行、週次実行に対応します。モデルは取得せず、推論精度、GPU／Metal の
 実行、アプリ全体の受け入れ検証は対象外です。
 
-Linux はチャートの digest 固定 llama.cpp と、`.github/onprem-lab/basic-packages.json` の
+Linux はチャートの digest 固定 llama.cpp と、`.github/inference-basic-packages.json` の
 上流 whisper.cpp 候補を確認します。候補の検証によって導入済みの音声エンジンは変わりません。
 macOS は Homebrew の索引を更新して bottle を利用し、バージョンを記録します。
 成果物は `local-inference-basic-<runner>` として7日間保存します。既存の脆弱性検査と

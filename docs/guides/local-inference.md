@@ -138,7 +138,7 @@ a weekly schedule. It does not download models or certify inference quality,
 GPU/Metal execution or application lifecycle acceptance.
 
 Linux uses the chart's pinned llama.cpp image and the explicit upstream
-whisper.cpp candidates in `.github/onprem-lab/basic-packages.json`; these
+whisper.cpp candidates in `.github/inference-basic-packages.json`; these
 candidate checks do not change the deployed speech engine. macOS uses Homebrew
 bottles and records versions after updating the formula index. Evidence is
 retained for seven days as `local-inference-basic-<runner>` artifacts. Existing

@@ -60,7 +60,7 @@ jobs:
         env:
           ARCHITECTURE: ${{ matrix.architecture }}
         run: |
-          node --input-type=module -e 'import fs from "node:fs"; import {parse} from "yaml"; fs.writeFileSync(process.env.RUNNER_TEMP+"/inference-values.json",JSON.stringify({...JSON.parse(fs.readFileSync(".github/onprem-lab/basic-packages.json","utf8")),...parse(fs.readFileSync("charts/videoq-inference/values.yaml","utf8"))}))'
+          node --input-type=module -e 'import fs from "node:fs"; import {parse} from "yaml"; fs.writeFileSync(process.env.RUNNER_TEMP+"/inference-values.json",JSON.stringify({...JSON.parse(fs.readFileSync(".github/inference-basic-packages.json","utf8")),...parse(fs.readFileSync("charts/videoq-inference/values.yaml","utf8"))}))'
           python3 .github/scripts/onprem-basic-packages.py "$RUNNER_TEMP/inference-values.json" "$RUNNER_TEMP/basic-packages" --architecture "$ARCHITECTURE"
       - name: Retain basic verification evidence
         if: ${{ !cancelled() }}
