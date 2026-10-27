@@ -493,6 +493,9 @@ jobs:
       - name: Verify upload-only web deployment
         run: bash .github/scripts/verify-prebuilt-deployment.sh web
       - name: Upload build artifacts
+        # CD produces its own immutable application artifact. Retain a duplicate
+        # CI build only when an operator explicitly dispatches this workflow.
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: frontend-build
@@ -529,6 +532,7 @@ jobs:
       - name: Test stories in Chromium
         run: npm run test:storybook
       - name: Upload Storybook
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: frontend-storybook
@@ -561,6 +565,7 @@ jobs:
       - name: Verify upload-only documentation deployment
         run: bash .github/scripts/verify-prebuilt-deployment.sh docs
       - name: Upload documentation
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: documentation-build
