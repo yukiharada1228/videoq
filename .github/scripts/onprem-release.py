@@ -24,7 +24,7 @@ LEGACY_PREFIX = PREFIX + "onprem-"
 
 
 def layout(version):
-    if type(version) is not int or version not in (2, 3):
+    if type(version) is not int or version not in (2, 3, 4):
         raise ValueError("Unsupported release schema version")
     components = LEGACY_COMPONENTS if version == 2 else COMPONENTS
     prefix = LEGACY_PREFIX if version == 2 else PREFIX
@@ -32,12 +32,12 @@ def layout(version):
     return components, prefix, platforms
 
 
-def repository(component, version=3):
+def repository(component, version=4):
     components, prefix, _ = layout(version)
     if component not in components:
         raise ValueError("Unknown release component")
-    if version == 3 and component == "vllm-engine":
-        return LEGACY_PREFIX + "whisper-vllm"
+    if component == "vllm-engine":
+        return LEGACY_PREFIX + "whisper-vllm" if version == 3 else PREFIX + "vllm"
     return prefix + component
 
 
@@ -149,7 +149,7 @@ def main():
         print("Verified release; application and inference Helm image values written")
         return
     charts = {key: args.directory / (name + "-0.1.0-sha." + args.source + ".tgz") for key, name in CHARTS.items()}
-    data = {"schemaVersion": 3, "repository": REPOSITORY, "sourceSha": args.source,
+    data = {"schemaVersion": 4, "repository": REPOSITORY, "sourceSha": args.source,
             "images": {c: {"repository": repository(c),
                            "platforms": PLATFORMS[c],
                            "digest": (args.directory / (c + ".digest")).read_text().strip()} for c in COMPONENTS},

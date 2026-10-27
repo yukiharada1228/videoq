@@ -2,12 +2,16 @@ name: Package Namespace Bootstrap
 on:
   workflow_dispatch:
     inputs:
+      vllm_only:
+        description: Bootstrap only videoq-vllm from the verified GPU image
+        type: boolean
+        default: false
       release_run_id:
         description: Successful On-prem Release run to verify and copy
         type: string
         required: true
       publish:
-        description: Create bootstrap tags in the four new packages
+        description: Create bootstrap tags in the selected new namespaces
         type: boolean
         default: false
 permissions:
@@ -27,6 +31,7 @@ jobs:
       packages: write
     env:
       GH_TOKEN: ${{ github.token }}
+      VLLM_ONLY: ${{ inputs.vllm_only }}
       BOOTSTRAP_WORKFLOW_SHA: ${{ github.workflow_sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -44,10 +49,13 @@ jobs:
           SOURCE_RUN: ${{ steps.source.outputs.run_id }}
           ARTIFACT: ${{ steps.source.outputs.artifact }}
         run: gh run download "$SOURCE_RUN" --repo yukiharada1228/videoq --name "$ARTIFACT" --dir release
-      - name: Verify signatures and preview all four copy targets
+      - name: Verify signatures and preview copy targets
         env:
           SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
-        run: python3 .github/scripts/package-bootstrap.py bootstrap "$SOURCE_SHA" release bootstrap-report.json
+        run: |
+          args=()
+          if [ "$VLLM_ONLY" = true ]; then args+=(--vllm-only); fi
+          python3 .github/scripts/package-bootstrap.py bootstrap "$SOURCE_SHA" release bootstrap-report.json "${args[@]}"
       - name: Authenticate the repository token to GHCR
         if: inputs.publish
         env:
@@ -58,7 +66,10 @@ jobs:
         env:
           DOCKER_CONFIG: ${{ runner.temp }}/package-bootstrap-docker
           SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
-        run: python3 .github/scripts/package-bootstrap.py bootstrap "$SOURCE_SHA" release bootstrap-report.json --publish
+        run: |
+          args=()
+          if [ "$VLLM_ONLY" = true ]; then args+=(--vllm-only); fi
+          python3 .github/scripts/package-bootstrap.py bootstrap "$SOURCE_SHA" release bootstrap-report.json "${args[@]}" --publish
       - name: Retain source digests, copy results and package settings links
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

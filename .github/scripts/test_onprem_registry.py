@@ -13,7 +13,7 @@ class PublicRegistryTests(unittest.TestCase):
         for component in ['api', 'transcription-gateway', 'vllm-engine']:
             with self.response('{"visibility":"public"}') as request:
                 check_public(component)
-            self.assertEqual(request.call_args.args[0][-1], "users/yukiharada1228/packages/container/" + ("videoq-onprem-whisper-vllm" if component == "vllm-engine" else "videoq-" + component))
+            self.assertEqual(request.call_args.args[0][-1], "users/yukiharada1228/packages/container/" + ("videoq-vllm" if component == "vllm-engine" else "videoq-" + component))
 
     def test_private_internal_and_missing_visibility_are_rejected(self):
         for body in ['{"visibility":"private"}', '{"visibility":"internal"}', '{}']:

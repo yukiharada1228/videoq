@@ -3,11 +3,11 @@ on:
   workflow_dispatch:
     inputs:
       release_run_id:
-        description: Successful signed schema 3 release run proving the migration
+        description: Successful signed schema 3 or 4 release run proving the migration
         type: string
         required: true
       delete:
-        description: Delete the four retired packages and their historical versions
+        description: Delete packages retired by the signed naming migration
         type: boolean
         default: false
 permissions:
@@ -48,7 +48,7 @@ jobs:
         env:
           SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
         run: python3 .github/scripts/package-cleanup.py "$SOURCE_SHA" release cleanup-report.json
-      - name: Delete only the four retired packages
+      - name: Delete only the retired packages
         if: inputs.delete
         env:
           SOURCE_SHA: ${{ steps.source.outputs.source_sha }}

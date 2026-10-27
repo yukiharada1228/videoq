@@ -14,7 +14,7 @@ that commit, for example to rebuild after distribution package fixes.
 
 Distribution uses the public packages
 `ghcr.io/yukiharada1228/videoq-api`, `videoq-worker` and
-`videoq-web`, `videoq-transcription-gateway` and `videoq-onprem-whisper-vllm`.
+`videoq-web`, `videoq-transcription-gateway` and `videoq-vllm`.
 Docker and Kubernetes can pull them without a GHCR login
 or `imagePullSecrets`. Site-owned private registries can still use
 `imagePullSecrets` when required. The images include the repository's existing
@@ -221,9 +221,9 @@ test with backing services; production sizing still needs representative videos.
 
 ## Package name migration
 
-New `release.json` manifests use schemaVersion 3. Application roles remain
+SchemaVersion 3 introduced the first four role-based package names. New `release.json` manifests use schemaVersion 4. Application roles remain
 `api`, `web` and `worker`; speech becomes `transcription-gateway`, and the
-existing custom GPU engine keeps its old package name until upstream vLLM replaces it in a separate change. Its manifest role is `vllm-engine`; no intermediate GPU package is created. Helm keys such as `whisper.image` and
+custom GPU engine is now published as `videoq-vllm`, a general runtime that can serve chat, embeddings or speech. Its manifest role remains `vllm-engine`. Direct upstream-image migration is a separate change. Helm keys such as `whisper.image` and
 `whisper.vllmImage` remain compatible.
 
 SchemaVersion 2 manifests still verify their original `videoq-onprem-*`
@@ -282,3 +282,25 @@ Retain old public packages for history and rollback. Once publication settings
 are ready, merge the naming change and generate/verify a normal signed release.
 This bootstrap does not bypass the normal release's public-visibility or
 attestation gates.
+
+## Rename the current GPU engine package
+
+The current custom engine is distributed as `videoq-vllm`; its runtime and amd64
+support are unchanged by the naming migration. Schema 4 fixes that repository;
+schema 3 retains `videoq-onprem-whisper-vllm` for complete historical signature
+verification while that package remains available. Both schemas verify all eight
+signed subjects; mixed repositories are rejected.
+
+To initialize the new namespace, run **Package Namespace Bootstrap** against a
+successful signed schema 3 release with `vllm_only=true`. Preview first, then set
+`publish=true`. This copies only the verified GPU index to a unique bootstrap tag,
+without rebuilding images or replacing release tags. Confirm Public visibility
+and repository Actions Write access before the normal signed release runs.
+Bootstrap tags are not deployment releases.
+
+After a successful signed schema 4 release passes anonymous pulls and rehearsal,
+run **Retired Package Cleanup** with that release run ID. Preview is the default;
+`delete=true` removes only `videoq-onprem-whisper-vllm`, retaining all five current
+packages including `videoq-vllm`. Package Admin access is required. Deleting the
+old package prevents pulls and complete signature verification of historical
+schema 3 releases. Do not delete it before the replacement release is verified.
