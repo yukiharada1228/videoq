@@ -60,7 +60,7 @@ class ReleaseTests(unittest.TestCase):
         legacy = copy.deepcopy(self.data)
         legacy['schemaVersion'] = 2
         components, prefix, platforms = release.layout(2)
-        legacy['images'] = {c: {'repository': prefix + c, 'platforms': platforms[c], 'digest': 'sha256:' + 'c' * 64} for c in components}
+        legacy['images'] = {c: {'repository': release.repository(c, legacy['schemaVersion']), 'platforms': platforms[c], 'digest': 'sha256:' + 'c' * 64} for c in components}
         self.manifest.write_text(json.dumps(legacy))
         with patch.object(release.subprocess, 'run') as run:
             values, inference = release.verify(self.manifest, SOURCE)
@@ -73,12 +73,12 @@ class ReleaseTests(unittest.TestCase):
         legacy = copy.deepcopy(self.data)
         legacy['schemaVersion'] = 3
         components, prefix, platforms = release.layout(3)
-        legacy['images'] = {c: {'repository': prefix + c, 'platforms': platforms[c], 'digest': 'sha256:' + 'c' * 64} for c in components}
+        legacy['images'] = {c: {'repository': release.repository(c, legacy['schemaVersion']), 'platforms': platforms[c], 'digest': 'sha256:' + 'c' * 64} for c in components}
         self.manifest.write_text(json.dumps(legacy))
         with patch.object(release.subprocess, 'run') as run:
             values, inference = release.verify(self.manifest, SOURCE)
         self.assertEqual(run.call_count, 8)
-        self.assertEqual(inference['vllm']['image']['repository'], release.PREFIX+'vllm-engine')
+        self.assertEqual(inference['vllm']['image']['repository'], release.LEGACY_PREFIX+'whisper-vllm')
 
     def test_layout_cannot_mix_namespaces_or_component_generations(self):
         for mutate in [lambda d: d.update(schemaVersion=2), lambda d: d['images']['api'].update(repository=release.LEGACY_PREFIX+'api')]:
