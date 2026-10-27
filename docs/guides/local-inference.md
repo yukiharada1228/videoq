@@ -252,3 +252,13 @@ by these basic checks. Model accuracy, GPU/Metal execution and the complete
 application lifecycle have separate acceptance checks. The workflow is
 `.github/workflows/local-inference-basic.yml`; evidence artifacts are named
 `local-inference-basic-<runner>` and retained for seven days.
+
+On 2026-10-27, [native basic checks passed on all three platforms](https://github.com/yukiharada1228/videoq/actions/runs/40441493651).
+A separate [CPU amd64 source-build acceptance job passed](https://github.com/yukiharada1228/videoq/actions/runs/40440856356/job/121980594329):
+upload, real Japanese ASR, indexing, cited and streamed answers, Chromium media seeking,
+object/database restore, upgrade and rollback. The 45-character Japanese fixture had
+zero character edits; this is a single sample, not a general accuracy benchmark.
+Public IP egress and external DNS were blocked during application acceptance.
+That earlier workflow is marked failed because its macOS basic job used a stale
+Homebrew index; the corrected three-platform basic run above passed. These results
+do not establish GPU/Metal or ARM model inference, or signed-release acceptance.
