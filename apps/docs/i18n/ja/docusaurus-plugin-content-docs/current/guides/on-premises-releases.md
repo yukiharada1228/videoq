@@ -116,3 +116,35 @@ GHCR の新規パッケージは最初の公開と設定が別途必要です。
 なりません。新名称での公開前後の Public 検査は維持し、パッケージが未作成・非公開なら
 リリースを停止します。既存の公開パッケージを削除して移行する手順は使いません。
 新名称の署名済みリリースで検証用 Helm 値を再生成し、チャートを更新してください。
+
+## 新名称パッケージの初回作成
+
+`Package Namespace Bootstrap` は main からの手動実行に限定されます。成功済みの
+`On-prem Release` 実行 ID を指定すると、その実行のリポジトリ・ワークフロー・main・成功状態・
+試行番号を確認し、署名済みマニフェスト、両チャート、全イメージの署名を検証します。
+プレビューはレジストリを書き換えません。
+
+```sh
+RELEASE_RUN_ID=40448706562 # 成功済みリリースの例。使用する実行 ID に置き換えます。
+gh workflow run package-bootstrap.yml --repo yukiharada1228/videoq --ref main \
+  -f release_run_id="$RELEASE_RUN_ID" -f publish=false
+```
+
+成果物 `package-bootstrap-<実行ID>-<試行番号>` でコピー元・先と digest を確認してから、
+`publish=true` で実行します。リポジトリの `GITHUB_TOKEN` を使うため、新しい PAT は不要です。
+コピー対象は api・web・worker・transcription-gateway の4つだけで、GPU 用の新規パッケージは
+作りません。イメージのビルドや実行、旧パッケージの削除は行いません。
+
+```sh
+gh workflow run package-bootstrap.yml --repo yukiharada1228/videoq --ref main \
+  -f release_run_id="$RELEASE_RUN_ID" -f publish=true
+```
+
+作成される `bootstrap-*` タグは名前空間の準備専用であり、導入しないでください。
+コピー先のマニフェスト digest が元の検証済み digest と同じことを確認し、公開状態と
+リポジトリの関連付けを成果物に記録します。途中で停止した場合も、作成済みのコピーは保持します。
+
+初回作成後は、成果物にある各パッケージのページから **Package settings → Change visibility →
+Public** を設定し、リポジトリの Actions Write アクセスを確認します。旧公開パッケージは
+履歴・復旧用に残します。公開準備後に名称変更を取り込み、通常の署名付きリリースを生成・検証します。
+通常のリリースの Public 検査や署名検証を省略する機能ではありません。
