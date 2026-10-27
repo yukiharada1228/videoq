@@ -300,3 +300,12 @@ version, bind Trivy results to the requested digest, and keep the existing
 HIGH/CRITICAL including unfixed gate. AMD does not inherit NVIDIA's assessment.
 Nightly candidates are development builds; passing these checks does not establish
 GPU inference or target hardware/model acceptance.
+
+For isolated candidate evaluation, set `gpu_candidates_only=true` to skip the
+application and CPU suites without changing normal CI defaults. NVIDIA evaluation
+also accepts the vendor-maintained `nvcr.io/nvidia/vllm@sha256:<digest>` repository.
+NGC candidates receive the full scan without VideoQ's official-image kernel-header
+assessment. This is evaluation only: NGC and official vLLM releases may have
+different vLLM, CUDA and driver requirements, so a passing scan alone does not
+permit promotion into chart defaults. AMD candidates remain restricted to the
+official `vllm/vllm-openai-rocm` repository.

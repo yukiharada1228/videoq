@@ -2,6 +2,9 @@ name: On-prem Validation
 on:
   workflow_call:
     inputs:
+      gpu_candidates_only:
+        type: boolean
+        default: false
       nvidia_candidate:
         type: string
         default: ''
@@ -16,6 +19,9 @@ on:
         default: false
   workflow_dispatch:
     inputs:
+      gpu_candidates_only:
+        type: boolean
+        default: false
       nvidia_candidate:
         description: Optional official CUDA candidate as repository@sha256 digest; does not change chart pins
         type: string
@@ -36,6 +42,7 @@ permissions:
   contents: read
 jobs:
   onprem:
+    if: ${{ !inputs.gpu_candidates_only }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
@@ -292,7 +299,9 @@ jobs:
           const repository = process.env.ACCELERATOR === 'amd' ? 'vllm/vllm-openai-rocm' : 'vllm/vllm-openai';
           const candidate = process.env.ACCELERATOR === 'amd' ? process.env.AMD_CANDIDATE : process.env.NVIDIA_CANDIDATE;
           const reference = candidate || `${image.repository}@${image.digest}`;
-          if (!reference.startsWith(repository + '@') || !/^[a-z0-9./_-]+@sha256:[a-f0-9]{64}$/.test(reference)) throw new Error('An exact official upstream vLLM image digest is required');
+          const repositories = process.env.ACCELERATOR === 'amd' ? [repository] : [repository, 'nvcr.io/nvidia/vllm'];
+          if (!repositories.some(repo => reference.startsWith(repo + '@')) || !/^[a-z0-9./_-]+@sha256:[a-f0-9]{64}$/.test(reference)) throw new Error('An exact official upstream vLLM image digest is required');
+          appendFileSync(process.env.GITHUB_ENV, `ASSESS_NVIDIA_HEADERS=${reference.startsWith('vllm/vllm-openai@')}\n`);
           appendFileSync(process.env.GITHUB_ENV, `VLLM_IMAGE=${reference}\n`);
           JS
       - name: Pull the upstream image without rebuilding
@@ -321,7 +330,7 @@ jobs:
           fi
           docker run --rm --network none --user 10001:10001 --env HOME=/tmp --env HF_HUB_OFFLINE=1 "${audio[@]}" --volume "$PWD/apps/inference/vllm:/checks:ro" --entrypoint python3 "$VLLM_IMAGE" /checks/check_runtime.py | tee vllm-runtime.json
       - name: Verify the upstream kernel-header inventory for the NVIDIA-only assessment
-        if: matrix.accelerator == 'nvidia'
+        if: matrix.accelerator == 'nvidia' && env.ASSESS_NVIDIA_HEADERS == 'true'
         run: docker run --rm --network none --volume "$PWD/apps/inference/vllm/security:/checks:ro" --entrypoint python3 "$VLLM_IMAGE" /checks/verify_kernel_headers.py
       - name: Scan upstream vLLM including unfixed vulnerabilities
         if: ${{ !cancelled() && steps.gpu_image.outcome == 'success' }}
@@ -330,7 +339,7 @@ jobs:
           version: v0.76.1
           scan-type: image
           image-ref: ${{ env.VLLM_IMAGE }}
-          trivy-config: ${{ matrix.accelerator == 'nvidia' && 'apps/inference/vllm/security/trivy.yaml' || '' }}
+          trivy-config: ${{ matrix.accelerator == 'nvidia' && env.ASSESS_NVIDIA_HEADERS == 'true' && 'apps/inference/vllm/security/trivy.yaml' || '' }}
           format: json
           output: vllm-security.json
           scanners: vuln
@@ -364,6 +373,7 @@ jobs:
           if-no-files-found: error
 
   upstream-cpu-images:
+    if: ${{ !inputs.gpu_candidates_only }}
     name: ${{ matrix.engine }} Linux ${{ matrix.architecture }} upstream image
     strategy:
       fail-fast: false

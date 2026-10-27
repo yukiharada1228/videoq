@@ -16,7 +16,7 @@ function resolve(accelerator,candidate='') {
     appendFileSync:(_path,line)=>lines.push(line),
     process:{env:{ACCELERATOR:accelerator,NVIDIA_CANDIDATE:accelerator==='nvidia'?candidate:'',AMD_CANDIDATE:accelerator==='amd'?candidate:''}}
   });
-  return lines.join('');
+  return lines.filter(line=>line.startsWith('VLLM_IMAGE=')).join('');
 }
 test('no candidate means use the reviewed chart pin',()=>{
   assert.equal(resolve('nvidia'),'VLLM_IMAGE=vllm/vllm-openai@sha256:'+'a'.repeat(64)+'\n');
@@ -39,4 +39,18 @@ test('candidate evidence retains immutable identity and full vulnerability gates
   assert.match(workflow,/reference not in report.get\('Metadata', \{\}\).get\('RepoDigests', \[\]\)/);
   assert.match(workflow,/severity: HIGH,CRITICAL\n          ignore-unfixed: 'false'\n          exit-code: '1'/);
   assert.doesNotMatch(workflow,/\$\{\{ inputs\.(?:nvidia|amd)_candidate \}\}.*docker/);
+});
+
+test('vendor evaluation is limited to NVIDIA NGC and does not reuse the upstream header assessment',()=>{
+  const ref='nvcr.io/nvidia/vllm@sha256:'+'d'.repeat(64);
+  assert.equal(resolve('nvidia',ref),'VLLM_IMAGE='+ref+'\n');
+  assert.throws(()=>resolve('amd',ref),/exact official upstream/);
+  assert.throws(()=>resolve('nvidia','nvcr.io/other/image@sha256:'+'d'.repeat(64)),/exact official upstream/);
+  assert.match(workflow,/ASSESS_NVIDIA_HEADERS=\$\{reference.startsWith\('vllm\/vllm-openai@'\)\}/);
+  assert.match(workflow,/trivy-config:.*env.ASSESS_NVIDIA_HEADERS == 'true'/);
+});
+test('candidate-only mode skips non-GPU suites while normal CI keeps them',()=>{
+  assert.equal((workflow.match(/gpu_candidates_only:\n        type: boolean\n        default: false/g)||[]).length,2);
+  assert.match(workflow,/onprem:\n    if: \$\{\{ !inputs.gpu_candidates_only \}\}/);
+  assert.match(workflow,/upstream-cpu-images:\n    if: \$\{\{ !inputs.gpu_candidates_only \}\}/);
 });

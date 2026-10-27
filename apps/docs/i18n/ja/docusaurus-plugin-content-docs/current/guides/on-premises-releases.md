@@ -174,3 +174,9 @@ Public** を設定し、リポジトリの Actions Write アクセスを確認�
 vLLM バージョン、指定 digest とスキャン結果の一致、未修正を含む HIGH／CRITICAL のゲートを確認します。
 AMD に NVIDIA の評価を適用しません。nightly は開発版であり、これらの検査が通っても
 GPU 推論や対象ハードウェア・モデルの受け入れ検証が済んだことにはなりません。
+
+候補だけを検査する場合は `gpu_candidates_only=true` を指定します。通常の CI の既定値は変えず、
+候補評価時のアプリ・CPU 検査を省きます。NVIDIA 候補にはベンダー保守の
+`nvcr.io/nvidia/vllm@sha256:<digest>` も指定できます。NGC 候補には公式 vLLM イメージ向けの
+ヘッダー評価を適用せず、全件を検査します。vLLM・CUDA・ドライバー要件が異なる場合があるため、
+検査通過だけでチャートの既定値へ採用しません。AMD は公式 `vllm/vllm-openai-rocm` に限定します。
