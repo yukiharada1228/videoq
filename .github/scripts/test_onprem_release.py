@@ -20,7 +20,7 @@ class ReleaseTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.charts = {key: self.root / (name + '-0.1.0-sha.' + SOURCE + '.tgz') for key, name in release.CHARTS.items()}
         for chart in self.charts.values(): chart.write_bytes(b'reviewed chart fixture')
-        self.data = {'schemaVersion': 4, 'repository': release.REPOSITORY, 'sourceSha': SOURCE,
+        self.data = {'schemaVersion': 5, 'repository': release.REPOSITORY, 'sourceSha': SOURCE,
                      'images': {c: {'repository': release.PREFIX + c, 'platforms': release.PLATFORMS[c], 'digest': 'sha256:' + 'b' * 64} for c in release.COMPONENTS},
                      'charts': {key: {'name': chart.name, 'digest': 'sha256:' + release.hashlib.sha256(chart.read_bytes()).hexdigest()} for key, chart in self.charts.items()}}
         self.manifest = self.root / 'release.json'
@@ -49,7 +49,7 @@ class ReleaseTests(unittest.TestCase):
             (self.root / (c + '.digest')).write_text('sha256:' + 'b' * 64)
         with patch('sys.argv', ['script', 'assemble', SOURCE, str(self.root)]): release.main()
         data = json.loads(self.manifest.read_text())
-        self.assertEqual(data['schemaVersion'], 4)
+        self.assertEqual(data['schemaVersion'], 5)
         self.assertEqual(set(data['images']), {'api', 'worker', 'web', 'transcription-gateway'})
         with patch.object(release.subprocess, 'run'):
             values, inference = release.verify(self.manifest, SOURCE)
@@ -80,11 +80,37 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(run.call_count, 8)
         self.assertEqual(inference['vllm']['image']['repository'], release.LEGACY_PREFIX+'whisper-vllm')
 
+    def test_released_schema_four_preserves_new_gpu_namespace_and_all_eight_subjects(self):
+        data = copy.deepcopy(self.data)
+        data['schemaVersion'] = 4
+        data['images']['vllm-engine'] = {'repository': release.PREFIX+'vllm', 'platforms': ['linux/amd64'], 'digest': 'sha256:'+'d'*64}
+        self.manifest.write_text(json.dumps(data))
+        with patch.object(release.subprocess, 'run') as run:
+            _, inference = release.verify(self.manifest, SOURCE)
+        self.assertEqual(run.call_count, 8)
+        self.assertEqual(inference['whisper']['vllmImage']['repository'], release.PREFIX+'vllm')
+        self.assertEqual(inference['whisper']['vllmImage'], inference['vllm']['image'])
+        for wrong in (release.LEGACY_PREFIX+'whisper-vllm', release.PREFIX+'vllm-engine'):
+            data['images']['vllm-engine']['repository'] = wrong
+            with self.assertRaises(ValueError): release.validate(data, SOURCE)
+        data['schemaVersion'] = 5
+        with self.assertRaises(ValueError): release.validate(data, SOURCE)
+
+    def test_historical_layouts_never_skip_a_signature(self):
+        for version in (2, 3, 4):
+            data = copy.deepcopy(self.data); data['schemaVersion'] = version
+            components, _, platforms = release.layout(version)
+            data['images'] = {c: {'repository': release.repository(c, version), 'platforms': platforms[c], 'digest': 'sha256:'+'d'*64} for c in components}
+            self.manifest.write_text(json.dumps(data))
+            for failure in range(8):
+                with self.subTest(version=version, failure=failure), patch.object(release.subprocess, 'run', side_effect=[None]*failure+[subprocess.CalledProcessError(1, 'gh')]):
+                    with self.assertRaises(subprocess.CalledProcessError): release.verify(self.manifest, SOURCE)
+
     def test_layout_cannot_mix_namespaces_or_component_generations(self):
-        for mutate in [lambda d: d.update(schemaVersion=2), lambda d: d['images']['api'].update(repository=release.LEGACY_PREFIX+'api')]:
+        for mutate in [lambda d: d.update(schemaVersion=2), lambda d: d.update(schemaVersion=4), lambda d: d['images']['api'].update(repository=release.LEGACY_PREFIX+'api')]:
             bad = copy.deepcopy(self.data); mutate(bad)
             with self.assertRaises(ValueError): release.validate(bad, SOURCE)
-        for version in [True, None, '4', 0, 5]:
+        for version in [True, None, '5', 0, 6]:
             with self.subTest(version=version), self.assertRaises(ValueError): release.layout(version)
 
     def test_missing_or_invalid_signature_aborts(self):

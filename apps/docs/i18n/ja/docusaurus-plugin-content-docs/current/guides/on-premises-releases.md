@@ -115,11 +115,15 @@ CI では VideoQ が送信する WAV のデコードと上流イメージの脆�
 
 ## リリースマニフェストの移行
 
-上流エンジンを使う新規リリースは schemaVersion 4 を使用し、VideoQ が署名するパッケージは
+上流エンジンを使う新規リリースは schemaVersion 5 を使用し、VideoQ が署名するパッケージは
 api・web・worker・transcription-gateway の4つになります。CUDA／ROCm の上流エンジンは
 チャート内で digest 固定し、VideoQ がビルド・署名したイメージとして扱いません。
-schemaVersion 2（旧名称）と3（名称変更後の自前 vLLM エンジン）も、全パッケージの署名を
-検証します。世代を混ぜたマニフェストは拒否します。配布終了済みの schemaVersion 2 用の旧パッケージは削除済みで、GHCR からの完全な署名検証・導入・復旧はできません。
+schemaVersion 2（旧名称）・3（旧 GPU 名前空間）・4（`videoq-vllm` を含む5パッケージ）の
+厳密な対応関係を維持し、従来の8対象すべての署名を検証します。schemaVersion 5 は7対象を検証し、
+上流エンジンの digest は署名付き推論チャートで固定します。世代を混ぜたマニフェストは拒否します。
+旧名称パッケージと `videoq-onprem-whisper-vllm` は配布終了・削除済みのため、schemaVersion 2／3 の
+GHCR からの完全な署名検証・導入・復旧はできません。schemaVersion 5 の全検証が完了するまでは、
+schemaVersion 4 の5パッケージ構成が現行です。
 新しいパッケージの公開設定と Actions アクセスを準備する必要があり、公開状態・脆弱性・署名の
 検査は維持します。
 
@@ -134,7 +138,7 @@ GPU 実機と選択モデルによる受け入れ検証も未実施です。
 プレビューはレジストリを書き換えません。
 
 ```sh
-RELEASE_RUN_ID=40448706562 # 成功済みリリースの例。使用する実行 ID に置き換えます。
+RELEASE_RUN_ID=40518402989 # schemaVersion 4 の例。参照先がすべて残っている成功済みリリースを使います。
 gh workflow run package-bootstrap.yml --repo yukiharada1228/videoq --ref main \
   -f release_run_id="$RELEASE_RUN_ID" -f publish=false
 ```
@@ -154,17 +158,21 @@ gh workflow run package-bootstrap.yml --repo yukiharada1228/videoq --ref main \
 リポジトリの関連付けを成果物に記録します。途中で停止した場合も、作成済みのコピーは保持します。
 
 初回作成後は、成果物にある各パッケージのページから **Package settings → Change visibility →
-Public** を設定し、リポジトリの Actions Write アクセスを確認します。旧公開パッケージは
-履歴・復旧用に残します。公開準備後に名称変更を取り込み、通常の署名付きリリースを生成・検証します。
+Public** を設定し、リポジトリの Actions Write アクセスを確認します。配布終了・削除済みの名前空間は再作成しません。
+参照先がすべて利用可能な成功済みリリースを選び、自前 GPU パッケージの配布終了後は schemaVersion 5 を使います。
+それ以外の旧公開パッケージは履歴・復旧用に残します。公開準備後に名称変更を取り込み、通常の署名付きリリースを生成・検証します。
 通常のリリースの Public 検査や署名検証を省略する機能ではありません。
 
 ## 自前 GPU パッケージの配布終了
 
-署名済み schemaVersion 4 リリースの全検証が成功してから、その実行 ID で
-**Retired Package Cleanup** を起動します。schemaVersion 4 の計画は現行4パッケージを保持し、
-`videoq-onprem-whisper-vllm` だけを削除します。schemaVersion 3 では引き続き GPU パッケージを保護します。
+署名済み schemaVersion 5 リリースの全検証が成功してから、その実行 ID で
+**Retired Package Cleanup** を起動します。schemaVersion 5 は現行4パッケージを保持し、
+`videoq-vllm` だけを削除します。schemaVersion 4 は5パッケージを保持し、削除対象は
+配布終了済みの `videoq-onprem-whisper-vllm` だけです。schemaVersion 3 は旧 GPU パッケージを保護します。
+各世代の削除対象を固定し、混在した計画は DELETE の前に拒否します。
 既定はプレビューで、削除には `delete=true` とこのリポジトリへのパッケージ Admin 権限が必要です。
-削除後は旧 schemaVersion 3 リリースの GHCR からの完全な署名検証・導入はできません。
+`videoq-vllm` の削除後は schemaVersion 4 リリースの完全な署名検証・導入・復旧はできません。
+匿名取得・CPU・Kubernetes 検証を含む schemaVersion 5 リリースの成功前には削除しないでください。
 
 ## 上流 GPU イメージ候補の検査
 

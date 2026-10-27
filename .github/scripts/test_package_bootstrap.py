@@ -34,6 +34,11 @@ class BootstrapTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.report = self.root/'report.json'
 
+    def test_upstream_only_release_cannot_bootstrap_a_custom_gpu_namespace(self):
+        with self.assertRaisesRegex(ValueError, 'no VideoQ-owned vLLM'):
+            bootstrap.plan(SHA, self.application, self.inference, '123-1', vllm_only=True)
+        self.assertEqual(len(bootstrap.plan(SHA, self.application, self.inference, '123-1')), 4)
+
     def test_source_run_binds_repository_workflow_main_success_and_attempt(self):
         with patch.object(bootstrap.subprocess, 'check_output', return_value=json.dumps(self.metadata)) as run:
             result = bootstrap.source_run('42')
@@ -77,6 +82,22 @@ class BootstrapTests(unittest.TestCase):
         verify.assert_called_once_with(self.root/'release.json',SHA)
         copy_image.assert_not_called()
         self.assertEqual(json.loads(self.report.read_text())['mode'],'preview')
+
+    def test_vllm_only_copies_only_the_verified_gpu_index(self):
+        inference = {'whisper': {'vllmImage': {'repository': bootstrap.PREFIX+'onprem-whisper-vllm', 'digest': DIGEST}}}
+        items = bootstrap.plan(SHA, {}, inference, '123-1', vllm_only=True)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]['source'], bootstrap.PREFIX+'onprem-whisper-vllm@'+DIGEST)
+        self.assertEqual(items[0]['destination'], bootstrap.PREFIX+'vllm:bootstrap-'+SHA+'-123-1')
+        inference['whisper']['vllmImage']['repository'] = bootstrap.PREFIX+'api'
+        with self.assertRaises(ValueError): bootstrap.plan(SHA, {}, inference, '123-1', vllm_only=True)
+
+    def test_vllm_bootstrap_preview_never_copies(self):
+        inference = {'whisper': {'vllmImage': {'repository': bootstrap.PREFIX+'onprem-whisper-vllm', 'digest': DIGEST}}}
+        with patch.object(bootstrap.release, 'verify', return_value=({}, inference)), patch.object(bootstrap, 'copy_image') as copy_image, patch('builtins.print'):
+            bootstrap.bootstrap(SHA, self.root, self.report, vllm_only=True)
+        copy_image.assert_not_called()
+        self.assertEqual([x['role'] for x in json.loads(self.report.read_text())['images']], ['vllm'])
 
     def test_signature_failure_prevents_any_copy(self):
         with patch.object(bootstrap.release,'verify',side_effect=ValueError('bad signature')),patch.object(bootstrap,'copy_image') as copy_image:

@@ -25,20 +25,20 @@ LEGACY_PREFIX = PREFIX + "onprem-"
 
 
 def layout(version):
-    if type(version) is not int or version not in (2, 3, 4):
+    if type(version) is not int or version not in (2, 3, 4, 5):
         raise ValueError("Unsupported release schema version")
-    components = {2: LEGACY_COMPONENTS, 3: SCHEMA3_COMPONENTS, 4: COMPONENTS}[version]
+    components = {2: LEGACY_COMPONENTS, 3: SCHEMA3_COMPONENTS, 4: SCHEMA3_COMPONENTS, 5: COMPONENTS}[version]
     prefix = LEGACY_PREFIX if version == 2 else PREFIX
     platforms = {c: (["linux/amd64"] if c in ("whisper-vllm", "vllm-engine") else ["linux/amd64", "linux/arm64"]) for c in components}
     return components, prefix, platforms
 
 
-def repository(component, version=4):
+def repository(component, version=5):
     components, prefix, _ = layout(version)
     if component not in components:
         raise ValueError("Unknown release component")
-    if version == 3 and component == "vllm-engine":
-        return LEGACY_PREFIX + "whisper-vllm"
+    if component == "vllm-engine":
+        return LEGACY_PREFIX + "whisper-vllm" if version == 3 else PREFIX + "vllm"
     return prefix + component
 
 
@@ -108,7 +108,7 @@ def verify(manifest, source):
         c: {"image": {**image(c), "tag": "", "pullPolicy": "IfNotPresent"}}
         for c in APP_COMPONENTS}}
     inference = {"requireImageDigests": True}
-    if data["schemaVersion"] == 4:
+    if data["schemaVersion"] == 5:
         inference["whisper"] = {"image": image("transcription-gateway")}
     else:
         gateway, engine = ("whisper", "whisper-vllm") if data["schemaVersion"] == 2 else ("transcription-gateway", "vllm-engine")
@@ -153,7 +153,7 @@ def main():
         print("Verified release; application and inference Helm image values written")
         return
     charts = {key: args.directory / (name + "-0.1.0-sha." + args.source + ".tgz") for key, name in CHARTS.items()}
-    data = {"schemaVersion": 4, "repository": REPOSITORY, "sourceSha": args.source,
+    data = {"schemaVersion": 5, "repository": REPOSITORY, "sourceSha": args.source,
             "images": {c: {"repository": repository(c),
                            "platforms": PLATFORMS[c],
                            "digest": (args.directory / (c + ".digest")).read_text().strip()} for c in COMPONENTS},

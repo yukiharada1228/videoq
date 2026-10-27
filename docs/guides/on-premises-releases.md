@@ -36,7 +36,7 @@ and a CycloneDX inventory. Separate fresh runners publish the exact build
 artifacts without running application containers or installing app dependencies
 with publication credentials. GitHub OIDC signs provenance and per-architecture
 SBOM attestations. A signed multi-architecture index binds the two architectures;
-the signed schema-v4 release manifest binds all four VideoQ image index digests, their
+the signed schema-v5 release manifest binds all four VideoQ image index digests, their
 supported architectures and both charts' bytes. The signed inference chart
 pins upstream llama.cpp, whisper.cpp and vLLM image digests. These upstream
 artifacts are used directly and are not rebuilt or signed as VideoQ images.
@@ -231,12 +231,15 @@ test with backing services; production sizing still needs representative videos.
 
 ## Release manifest migration
 
-New upstream-engine releases use schemaVersion 4 and contain four signed VideoQ
+New upstream-engine releases use schemaVersion 5 and contain four signed VideoQ
 packages: api, web, worker and transcription-gateway. The chart pins upstream
 CUDA/ROCm engines by digest; they are not represented as VideoQ attestations.
-The verifier still accepts schemaVersion 2 (original names) and 3 (renamed custom
-vLLM engine), verifies their complete signed package sets, and rejects mixed layouts.
-Historical installs and rollback require their original packages. The retired schema 2 packages have been explicitly removed; their manifests cannot be fully verified or installed from GHCR. New package visibility
+The verifier preserves the exact mappings for schemaVersion 2 (original names),
+3 (the old custom GPU namespace) and 4 (five packages including `videoq-vllm`).
+All eight historical subjects are verified; schema 5 verifies seven subjects and
+binds upstream engine digests through the signed inference chart. Mixed layouts
+are rejected.
+Historical installs and rollback require their original packages. The retired schema 2 packages and `videoq-onprem-whisper-vllm` have been explicitly removed; schema 2/3 manifests cannot be fully verified or installed from GHCR. Schema 4 remains the current five-package release until a schema 5 release passes all checks. New package visibility
 and repository Actions access must be prepared before publication; all existing
 visibility, vulnerability and signature gates remain mandatory.
 
@@ -252,7 +255,7 @@ every original image attestation before preparing four copy targets. Preview
 mode does not modify the registry.
 
 ```sh
-RELEASE_RUN_ID=40448706562 # Example successful release; select the reviewed run to use.
+RELEASE_RUN_ID=40518402989 # Example schema 4 release; all referenced packages must still exist.
 gh workflow run package-bootstrap.yml --repo yukiharada1228/videoq --ref main \
   -f release_run_id="$RELEASE_RUN_ID" -f publish=false
 ```
@@ -275,20 +278,25 @@ if a later copy fails.
 
 After creation, open each package page in the report, select **Package settings
 → Change visibility → Public**, and confirm repository Actions Write access.
-Retain old public packages for history and rollback. Once publication settings
+Already retired namespaces are not recreated. Choose a successful source whose
+referenced packages remain available (use schema 5 after custom GPU retirement).
+Retain other public packages for history and rollback. Once publication settings
 are ready, merge the naming change and generate/verify a normal signed release.
 This bootstrap does not bypass the normal release's public-visibility or
 attestation gates.
 
 ## Retire the custom GPU package
 
-After a signed schemaVersion 4 release passes all release checks, run **Retired
-Package Cleanup** with that successful release run ID. Its schema 4 plan retains
-exactly the four current VideoQ packages and deletes only
-`videoq-onprem-whisper-vllm`. Schema 3 continues to protect that GPU package.
-Preview is the default; deletion requires `delete=true` and package Admin access
-for this repository. Historical schema 3 releases cannot be fully verified or
-installed from GHCR after their GPU package is deleted.
+After a signed schemaVersion 5 release passes all release checks, run **Retired
+Package Cleanup** with that successful release run ID. Its schema 5 plan retains
+exactly the four current VideoQ packages and deletes only `videoq-vllm`.
+Schema 4 retains all five packages and may remove only the already retired
+`videoq-onprem-whisper-vllm`; schema 3 retains the old GPU namespace. Each schema
+has a separate deletion allowlist, and mixed targets are rejected before DELETE.
+Preview is the default; deletion requires `delete=true` and package Admin access.
+After `videoq-vllm` is retired, schema 4 releases can no longer be completely
+verified, installed or restored from GHCR. Never retire it before the successful
+schema 5 release, including anonymous pulls and CPU/Kubernetes acceptance.
 
 ## Evaluate upstream GPU image candidates
 

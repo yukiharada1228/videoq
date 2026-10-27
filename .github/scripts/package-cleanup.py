@@ -1,4 +1,4 @@
-"""Remove retired packages only after their signed replacement release succeeds."""
+"""Remove packages retired by a verified naming migration."""
 import argparse
 import importlib.util
 import json
@@ -15,13 +15,21 @@ OWNER = REPO.split('/')[0]
 RETIRED = tuple('videoq-onprem-' + role for role in ('api', 'web', 'worker', 'whisper'))
 GPU = 'videoq-onprem-whisper-vllm'
 CURRENT = tuple('videoq-' + role for role in bootstrap.ROLES)
+CUSTOM_GPU = 'videoq-vllm'
 ACTIVE = CURRENT + (GPU,)
+RENAMED_ACTIVE = CURRENT + (CUSTOM_GPU,)
 
 
-def api(package, method='GET', *, retire_vllm=False):
-    if package not in RETIRED + ACTIVE:
+def migration(schema):
+    if type(schema) is not int or schema not in (3, 4, 5):
+        raise ValueError('Cleanup requires a completed signed schema 3, 4 or 5 migration')
+    return {3: (ACTIVE, RETIRED), 4: (RENAMED_ACTIVE, (GPU,)), 5: (CURRENT, (CUSTOM_GPU,))}[schema]
+
+
+def api(package, method='GET', *, schema=3):
+    if package not in RETIRED + ACTIVE + RENAMED_ACTIVE:
         raise ValueError('Package is outside the fixed migration allowlist')
-    deletable = (GPU,) if retire_vllm else RETIRED
+    _, deletable = migration(schema)
     if method not in ('GET', 'DELETE') or (method == 'DELETE' and package not in deletable):
         raise ValueError('Only retired packages can be deleted')
     request = urllib.request.Request(
@@ -43,10 +51,7 @@ def api(package, method='GET', *, retire_vllm=False):
 
 def plan(manifest):
     schema = manifest.get('schemaVersion')
-    if type(schema) is not int or schema not in (3, 4):
-        raise ValueError('Cleanup requires a completed signed schema 3 or 4 migration')
-    active = CURRENT if schema == 4 else ACTIVE
-    retired = (GPU,) if schema == 4 else RETIRED
+    active, retired = migration(schema)
     used = {image['repository'] for image in manifest['images'].values()}
     expected = {'ghcr.io/' + OWNER + '/' + name for name in active}
     if used != expected:
@@ -66,19 +71,15 @@ def plan(manifest):
     return [{'package': name, 'result': 'planned' if metadata[name] else 'not-found'} for name in retired]
 
 
-def execute(items, output, delete=False, retire_vllm=False):
-    active = CURRENT if retire_vllm else ACTIVE
-    retired = (GPU,) if retire_vllm else RETIRED
+def execute(items, output, delete=False, *, schema=3):
+    active, retired = migration(schema)
     if any(item['package'] not in retired for item in items):
         raise ValueError('Unexpected deletion target for the verified migration')
     report = {'mode': 'delete' if delete else 'preview', 'retained': list(active), 'packages': items}
     try:
         for item in items:
             if delete and item['result'] == 'planned':
-                if retire_vllm:
-                    api(item['package'], 'DELETE', retire_vllm=True)
-                else:
-                    api(item['package'], 'DELETE')
+                api(item['package'], 'DELETE', schema=schema)
                 item['result'] = 'deleted'
                 if api(item['package']) is not None:
                     raise RuntimeError('Deleted package is still visible')
@@ -101,7 +102,7 @@ def main():
         raise ValueError('Report must not overwrite the signed manifest')
     bootstrap.release.verify(args.directory / 'release.json', args.source)
     manifest = bootstrap.release.validate(json.loads((args.directory / 'release.json').read_text()), args.source)
-    execute(plan(manifest), args.output, args.delete, retire_vllm=manifest['schemaVersion'] == 4)
+    execute(plan(manifest), args.output, args.delete, schema=manifest['schemaVersion'])
 
 
 if __name__ == '__main__':
