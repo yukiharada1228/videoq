@@ -32,7 +32,9 @@ async function provenance(args, depth = 0) {
   const parents = head.parents.map(parent => parent.sha);
   if (JSON.stringify(parents) !== JSON.stringify(receipt.mode === 'conflict' ? [receipt.parent, receipt.base] : [receipt.parent])) return null;
   const { data: previous } = await github.rest.repos.compareCommitsWithBasehead({
-    ...context.repo, basehead: `${receipt.originalBase}...${receipt.parent}`,
+    // The parent may have been rebased onto a newer trusted main. Comparing
+    // from its ancient origin base would incorrectly include main's commits.
+    ...context.repo, basehead: `${pr.base.sha}...${receipt.parent}`,
   });
   if (previous.total_commits !== previous.commits?.length) return null;
   const proof = await sync().provenance({ ...args, pr: { ...pr, head: { ...pr.head, sha: receipt.parent } },

@@ -93,7 +93,7 @@ async function candidate({ github, context, runId, mode = 'ci', number, baseSha 
   const commits = await github.paginate(github.rest.pulls.listCommits, { ...context.repo, pull_number: pr.number, per_page: 100 });
   if (commits.at(-1)?.sha !== pr.head.sha) return null;
   const expanded = await require('./dependency-rebase.cjs').expandHistory({ github, context, pr, files, comments, commits });
-  const resolved = await require('./dependency-resolution.cjs').provenance({ github, context, pr, files, comments, commits }, 0);
+  const resolved = await require('./dependency-rebase.cjs').provenance({ github, context, pr, files, comments, commits });
   const history = resolved ? { origin: { sha: resolved.originalHead, metadata: resolved.metadata }, repairs: [] } : chain(expanded.commits, comments, expanded.aliases);
   if (!history || !history.origin.metadata?.ecosystem) return null;
   // Verify the seed against the original dependency-only diff, even after source repairs.

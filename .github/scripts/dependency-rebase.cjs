@@ -11,7 +11,7 @@ function records(comments) {
     .flatMap(c => { try { return [JSON.parse(c.body.split('\n')[1])]; } catch { return []; } });
 }
 function canonical(files) {
-  if (!files?.length || files.length > 50) return null;
+  if (!files?.length || files.length > 82) return null;
   const result = [];
   for (const file of files) {
     if (file.status !== 'modified' || !file.patch || !Number.isInteger(file.changes)) return null;
@@ -37,7 +37,9 @@ async function snapshotMetadata(args, depth = 0) {
   const { github, context, files, comments, commits } = args;
   const normal = signedMetadata(commits, files);
   if (normal) return normal;
-  if (depth > 4) return null;
+  if (depth > 24) return null;
+  const resolved = await require('./dependency-resolution.cjs').provenance(args, depth);
+  if (resolved) return resolved.metadata;
   const repair = require('./claude-dependency-repair.cjs');
   const expanded = await expandHistory(args, depth + 1);
   const history = repair.chain(expanded.commits, comments, expanded.aliases);
@@ -74,11 +76,14 @@ async function provenance(args, depth = 0) {
     if (!metadata || !canonical(files) || commits[0]?.parents?.length !== 1) return null;
     return { metadata, originalHead: pr.head.sha, originalBase: commits[0].parents[0].sha };
   }
-  const { data: original } = await github.rest.repos.compareCommitsWithBasehead({ ...context.repo, basehead: `${receipt.originalBase}...${receipt.originalHead}` });
+  const snapshotHead = receipt.snapshotHead || receipt.originalHead;
+  const snapshotBase = receipt.snapshotBase || receipt.originalBase;
+  if (![snapshotHead, snapshotBase].every(sha)) return null;
+  const { data: original } = await github.rest.repos.compareCommitsWithBasehead({ ...context.repo, basehead: `${snapshotBase}...${snapshotHead}` });
   if (original.total_commits !== original.commits?.length || original.total_commits > 50) return null;
   const metadata = await snapshotMetadata({ ...args, commits: original.commits, files: original.files,
-    pr: { ...pr, head: { ...pr.head, sha: receipt.originalHead } } }, depth + 1);
-  if (!metadata || original.commits.at(-1)?.sha !== receipt.originalHead) return null;
+    pr: { ...pr, head: { ...pr.head, sha: snapshotHead } } }, depth + 1);
+  if (!metadata || original.commits.at(-1)?.sha !== snapshotHead) return null;
   const { data: rebased } = await github.rest.repos.compareCommitsWithBasehead({ ...context.repo, basehead: `${receipt.base}...${pr.head.sha}` });
   const before = canonical(original.files);
   if (!before || canonical(rebased.files) !== before || canonical(files) !== before) return null;
@@ -117,7 +122,8 @@ async function candidate({ github, context, number, now = new Date() }) {
   if (diff.behind_by < 1) return null;
   const attempts = records(comments).filter(r => r.kind === 'requested' && r.sha === pr.head.sha && r.base === main.commit.sha);
   if (attempts.length >= 3 || attempts.some(r => !Number.isFinite(Date.parse(r.at)) || now - Date.parse(r.at) < 30 * 60_000)) return null;
-  return { pr, files, comments, ...proof, base: main.commit.sha };
+  return { pr, files, comments, ...proof, base: main.commit.sha,
+    snapshotBase: diff.merge_base_commit?.sha || proof.originalBase };
 }
 async function record(github, context, number, data, message) {
   await github.rest.issues.createComment({ ...context.repo, issue_number: number, body: `${MARKER}\n${JSON.stringify(data)}\n\n${message}` });
@@ -136,7 +142,8 @@ async function update(args) {
   // Revalidate immediately before mutation; expectedHeadOid also rejects concurrent changes.
   const fresh = await policy.getPull({ github, context, number });
   if (fresh.pr.head.sha !== expectedSha || fresh.pr.labels.some(l => ['no-automerge', 'no-rebase'].includes(l.name))) return null;
-  await writerGithub.graphql('mutation($id:ID!,$sha:GitObjectID!){updatePullRequestBranch(input:{pullRequestId:$id,expectedHeadOid:$sha,updateMethod:REBASE}){clientMutationId}}', { id: c.pr.node_id, sha: expectedSha });
+  const method = args.nativeQueue === true ? 'MERGE' : 'REBASE';
+  await writerGithub.graphql(`mutation($id:ID!,$sha:GitObjectID!){updatePullRequestBranch(input:{pullRequestId:$id,expectedHeadOid:$sha,updateMethod:${method}}){clientMutationId}}`, { id: c.pr.node_id, sha: expectedSha });
   for (let attempt = 0; attempt < 12; attempt++) {
     await wait(5000);
     const current = await policy.getPull({ github, context, number });
@@ -147,7 +154,8 @@ async function update(args) {
     const base = diff.merge_base_commit?.sha;
     if (!sha(base)) throw new Error('Cannot verify the rebased main ancestor');
     await record(github, context, number, { kind: 'completed', sha: current.pr.head.sha, base,
-      originalHead: c.originalHead, originalBase: c.originalBase },
+      originalHead: c.originalHead, originalBase: c.originalBase,
+      snapshotHead: expectedSha, snapshotBase: c.snapshotBase },
       '最新mainへの追従が完了しました。署名済みの元更新と差分が同一であることを確認しました。必須CI成功後に自動マージします。');
     return { number, sha: current.pr.head.sha };
   }
