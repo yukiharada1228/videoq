@@ -1,6 +1,6 @@
 # SQS worker Lambda container image (linux/arm64).
 FROM ghcr.io/astral-sh/uv:0.13.6@sha256:af22a52f5eafef3d78e551599d405c02df61919d18028f0cea8eda93bc9986d0 AS uv
-FROM public.ecr.aws/lambda/python:3.14@sha256:fc4e15a5e09e2c9b6184810ea0fdc87afe1c1c734c98cbe27d739a35c3f15e7e AS lambda-local
+FROM public.ecr.aws/lambda/python:3.14@sha256:d4797f161847c6f551cbdc288a43cbeb68cdadc0af3e4e116f92fa7a57a4a840 AS lambda-local
 
 # BEGIN managed pip
 ARG PIP_VERSION=26.2.2
@@ -14,7 +14,7 @@ RUN python -c 'import hashlib,os,pathlib,sys,urllib.request; b=urllib.request.ur
 # AWS publishes the patch level of its managed runtime on its own schedule.
 # Pin the reviewed image digest and verify the supported release line; CI also
 # runs native media tests in this exact image and reports its actual patch level.
-ARG PYTHON_VERSION=3.14.9
+ARG PYTHON_VERSION=3.14.10
 RUN python -c "import sys; print('AWS Lambda Python:', sys.version); assert sys.version_info[:2] == tuple(map(int, '${PYTHON_VERSION}'.split('.')[:2]))"
 COPY --from=uv /uv /usr/local/bin/uv
 
