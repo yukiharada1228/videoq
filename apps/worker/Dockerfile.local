@@ -1,5 +1,5 @@
 # Local long-poll worker (ElasticMQ substitute for Lambda).
-FROM python:3.14.9-slim-bookworm@sha256:945c2676dc2b18e0c1f16879244122c57c0ffede60006bf3df159c507a31bcae
+FROM python:3.14.10-slim-bookworm@sha256:9974e24551f9e7ca172cf284d85b8ab3e031d22d945f7026ede7a8279118c9f1
 
 # BEGIN managed pip
 ARG PIP_VERSION=26.2.2
@@ -10,7 +10,7 @@ RUN python -c 'import hashlib,os,pathlib,sys,urllib.request; b=urllib.request.ur
     && rm "/tmp/pip-${PIP_VERSION}-py3-none-any.whl" \
     && python -c 'import os,pip,sys; sys.exit(0 if pip.__version__==os.environ["PIP_VERSION"] else 1)'
 # END managed pip
-ARG PYTHON_VERSION=3.14.9
+ARG PYTHON_VERSION=3.14.10
 RUN python -c "import sys; assert '.'.join(map(str, sys.version_info[:3])) == '${PYTHON_VERSION}'"
 
 RUN apt-get update \
