@@ -121,6 +121,11 @@ async function reconcile({ github, writerGithub, context, verify = queue.verifie
       summary.push(`#${pr.number}: automatic eligibility could not be verified`);
       continue;
     }
+    if (pr.mergeable === false) {
+      await cancel(writerGithub, context, pr);
+      summary.push(`#${pr.number}: merge conflict requires review or a Dependabot refresh`);
+      continue;
+    }
     if (records(candidate.comments || []).some(entry => entry.kind === 'stopped' && entry.sha === pr.head.sha)) {
       await cancel(writerGithub, context, pr);
       summary.push(`#${pr.number}: queue failure retry limit reached`);
