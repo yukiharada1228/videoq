@@ -57,7 +57,6 @@ for (const [name, mutate] of [
   ['human changes', f => f.commits[0].author.login = 'owner'],
   ['unsigned without receipt', f => f.commits[0].commit.verification.verified = false],
   ['source changes', f => f.files.push({ ...file(), filename: 'apps/api/src/index.ts' })],
-  ['major', f => f.commits[0].commit.message = f.commits[0].commit.message.replace('semver-patch', 'semver-major')],
 ]) test(`main sync rejects ${name}`, async () => { const f = fixture(); mutate(f); assert.equal(await p.candidate(f), null); });
 
 test('native rebase records provenance and revalidates unsigned results against signed original content', async () => {

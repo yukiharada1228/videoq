@@ -2,8 +2,8 @@
 
 mainへのマージ順と統合用CIはGitHub標準のMerge Queueで管理する。
 通常の開発PRもmainへマージする際はこのキューを使う。
-Dependency Automationが自動投入するのは、検証済みのDependabot patch/minor更新と
-管理Botの`runtime/*-current` PRだけ。major・新系列・除外PRは人が判断する。
+Dependency Automationが自動投入するのは、検証済みのDependabot major/minor/patch更新と
+管理Botの`runtime/*-current` PR。ランタイムの新系列・除外PRは人が判断する。
 自動処理の対象外でも、人がキューへ投入したPRをコントローラーが取り消すことはない。
 自動更新Bot自身が投入した予約だけを、由来の検証失敗や除外指定に応じて取り消す。
 
@@ -18,16 +18,19 @@ GitHubは最新mainと対象PRを統合したコミットを作り、`merge_grou
 設定は[.github/native-merge-queue.json](native-merge-queue.json)を参照する。
 キューの待機上限は120分で、90分上限のオンプレミス検証も待てるようにしている。
 
-## CI失敗とClaude修正
+## CI失敗・競合とClaude修正
 
 キュー上での失敗は、実際のworkflow ID、リポジトリ、現在のPR headの祖先関係、
 Botの更新由来を確認する。必要な場合だけそのPRを最新mainへ追従し、通常PR CIで再現する。
 この再現はPR全体で最大2回。合成されたキュー用コミットを直接Claudeへ渡さない。
 通常のPR CIが修正対象として検証できた場合に、既存のClaude判定へ進む。
+競合があるDependabot PRも、署名済みの元更新と現在のmainを検証してClaudeへ渡す。
+設定・生成型・テストを含めて互換性を直し、通常CIと同じキューへ戻す。
+CI修正・競合解消はそれぞれ最大5回、同じheadは最大2回。実行中は重複起動しない。
 セキュリティ検査の失敗、未検証の変更、修正上限は引き続き人による確認が必要。
 
 状態用Issue、実行枠確認ジョブ、独自の必須チェックは使用しない。
-PRイベント、main push、CIの開始・完了イベントで動き、main追従の定期確認は行わない。
+PRイベント、main push、CIとClaudeワーカーの開始・完了イベントで動き、main追従の定期確認は行わない。
 ランタイムの日次探索は、新しい公式リリースを見つけるために継続する。
 
 ## 運用

@@ -43,13 +43,14 @@ function result(rows) {
   if (rows.every(r => r.admitted && r.run?.status === 'completed' && r.run.conclusion === 'success')) return 'success';
   return 'waiting';
 }
-async function repairFailure({ github, writerGithub, context, runId }) {
+async function repairFailure({ github, writerGithub, context, runId, mode, number, baseSha }) {
   const repair = require('./claude-dependency-repair.cjs');
-  const c = await repair.scope({ github, writerGithub, context, runId });
+  const c = await repair.scope({ github, writerGithub, context, runId, mode, number, baseSha });
   if (!c) return null;
   try {
     await github.rest.actions.createWorkflowDispatch({ ...context.repo, workflow_id: 'claude-dependency-worker.yml', ref: 'main',
-      inputs: { number: String(c.number), sha: c.sha, run_id: String(runId), authorization_run: String(context.runId) } });
+      inputs: { number: String(c.number), sha: c.sha, run_id: String(runId || ''), authorization_run: String(context.runId),
+        ...(c.mode === 'conflict' ? { mode: 'conflict', base_sha: c.baseSha } : {}) } });
   } catch (error) {
     await github.rest.issues.createComment({ ...context.repo, issue_number: c.number,
       body: `Claude修正ジョブを起動できませんでした。実行ログ: https://github.com/${REPO}/actions/runs/${context.runId}` });

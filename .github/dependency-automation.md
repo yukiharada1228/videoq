@@ -38,10 +38,10 @@ Runtime Updatesの日次実行は新しいリリースを見つけるための�
 - `no-automerge` はPRの自動処理を停止する。`no-rebase` はDependabotのmain追従を停止する。
 - `no-runtime-update` はランタイムPRの再生成も停止する。
 - `no-claude` または既存の `no-codex` はClaude修正を停止する。
-- 以前の手動Codex修正依頼が残るPRは、人による確認を維持する。旧案内ワークフローは廃止済み。
+- 旧ワークフローの自動案内コメントは停止理由にしない。現在の署名・差分・除外ラベルで判断する。
 
 失敗したheadは修正待ちとして残し、他のPRを先に進める。新しいコミットが追加されると再び候補になる。
-同じheadの再試行はDependency Automationの`retry`にPR番号を指定する。
+ワーカー完了イベントで再判定する。同じheadは完了済みワーカーの後に最大2回まで試す。
 修正対象のCIはコントローラーが最新の実行から確認する。手動再試行でも修正回数の上限はリセットしない。
 
 ## Claudeの認証
@@ -54,19 +54,22 @@ Claudeの利用枠・認証エラー・ワーカーの実行失敗はPRまたは
 
 ## 検証と権限
 
-- 対象は同一リポジトリのmain向けDependabot minor/patch、または管理Botのcurrent-lineランタイムPR。
-  major・新系列・fork・人が追記した未検証コミットは自動マージしない。
+- 対象は同一リポジトリのmain向けDependabot major/minor/patch、または管理Botのcurrent-lineランタイムPR。
+  ランタイムの新系列・fork・人が追記した未検証コミットは自動マージしない。
 - 元のDependabot署名と更新種別、許可した変更ファイルをAPIで検証する。
   GitHubのrebaseで署名が引き継がれなくても、元の署名済み差分と追従記録を毎回照合する。
-  Terraformの本番自動適用でも同じ検証を使う。
+  Terraformの本番自動適用でも同じ検証を使う。ただしprovider major更新の本番適用は承認を維持する。
 - mainの必須CI、管理者への適用、標準Merge Queueを維持する。PRのCI完了後に現在のhead SHAを
   指定して投入し、GitHubが最新mainと統合したコミットで4つの必須チェックを再確認してからマージする。
-- 修正はnpm/Python更新に対してPR全体で最大2回。同じSHAを再実行しない。
+- CI修正と競合解消を同じ隔離ワーカーで扱い、それぞれPR全体で最大5回、同じheadは最大2回。
+  起動予約・実行記録から重複実行を防ぐ。旧2回制限の記録は残し、新しい対応範囲はpolicy v2として数える。
   Supply Chain SecurityとDeployment Security Testsが成功していなければClaudeを起動しない。
 - Claudeの実行ジョブは読み取り専用GitHub tokenを使う。コントローラーの秘密鍵や書き込みtokenは渡さない。
-  別runnerがパッチを新しいcheckoutへ適用し、既存ソース8ファイル以下・300変更行以下を検証する。
-  依存ファイル、テスト、設定、認証、資格情報、migration、CI、配備の変更は拒否する。
-- Workerはmain上の実際のコントローラーrun ID、対象CI、現在のhead、許可記録を再検証する。
+  別runnerが新しいcheckoutで、アプリのソース・設定・テスト・生成型を32ファイル以下・2000変更行以下で検証する。
+  通常CI修正では依存manifest/lockを維持する。競合解消では承認したmainを取り込み、manifest/lockも統合する。
+  依頼された直接依存の更新と、それ以外のmainの直接依存を維持し、元headと承認mainを親に持つcommitを作る。
+  CI、保護ルール、資格情報、インフラの変更は許可しない。
+- Workerはmain上の実際のコントローラーrun ID、対象CI（CI修正時）、現在のhead、競合解消時のmain SHA、許可記録を再検証する。
   PR targetイベントからモデルを直接起動せず、mainの実行へ引き継ぐ。同じ許可の重複使用を拒否する。
 - パッチ反映はGitHub Appで行い、通常CIへ戻す。Claude自身にはpush・マージを任せない。
   コントローラーは現在のheadを指定してキューへ投入し、最終マージはGitHubが行う。
