@@ -32,7 +32,10 @@ function fixture(pulls = [pr(1), pr(2)]) {
     },
   };
   f.github = { rest: methods, paginate: (method, args) => method(args) };
-  f.writerGithub = { graphql: async (_, data) => { f.disabled.push(data.id); } };
+  f.protection = { required_status_checks: { strict: true, checks:
+    ['CI Success', 'Supply Chain Security', 'Terraform Plan', 'Container Validation', 'Dependency Queue'].map(context => ({ context, app_id: 15368 })) } };
+  f.writerGithub = { rest: { repos: { getBranchProtection: async () => ({ data: f.protection }) } },
+    graphql: async (_, data) => { f.disabled.push(data.id); } };
   f.args = { github: f.github, writerGithub: f.writerGithub, context, issue: 5,
     verify: async ({ pr }) => ({ pr, kind: 'dependabot' }) };
   f.state = () => q.parse(f.comments).state;
@@ -154,4 +157,50 @@ test('manual bot PRs with pre-queue full CI do not rerun forever during migratio
 test('queue state ignores lookalike comments from other users', () => {
   const state = q.parse([{ user: { login: 'attacker' }, body: q.MARKER + '\n{"active":1}' }]).state;
   assert.equal(state.active, undefined);
+});
+test('the sole controller refuses to act if any required gate or trusted check source is removed', async () => {
+  for (const name of ['CI Success', 'Supply Chain Security', 'Terraform Plan', 'Container Validation', 'Dependency Queue']) {
+    const f = fixture(); f.protection.required_status_checks.checks = f.protection.required_status_checks.checks.filter(c => c.context !== name);
+    await assert.rejects(q.reconcile(f.args));
+    assert.equal(f.checks.length, 0);
+    assert.equal(f.reruns.length, 0);
+  }
+  const f = fixture(); f.protection.required_status_checks.checks.at(-1).app_id = 999;
+  await assert.rejects(q.reconcile(f.args));
+});
+test('successful actual validations complete the gate and reserve the exact head only in the controller', async () => {
+  const f = fixture([pr(1)]); f.pulls[0].auto_merge = null;
+  f.jobs[11] = admitted; f.jobs[12] = [{ ...admitted[0], name: 'Queue Admission / admission' }];
+  const merges = [];
+  await q.reconcile({ ...f.args, reserve: async args => merges.push(args) });
+  assert.equal(f.checks.at(-1).conclusion, 'success');
+  assert.deepEqual(merges, [{ number: 1, sha: SHA }]);
+});
+test('a coalesced workflow event still authorizes a current failed CI from durable queue state', async () => {
+  const f = fixture([pr(1)]); f.jobs[11] = admitted; f.conclusions['ci.yml'] = 'failure';
+  await q.reconcile(f.args); // Original failure event only released the slot.
+  const requests = [];
+  await q.reconcile({ ...f.args, repairEnabled: true, authorizeRepair: true,
+    prepareRepair: async args => requests.push(args.runId) });
+  assert.deepEqual(requests, [11]);
+  assert.equal(f.state().active, null);
+});
+test('PR target events wake the main controller rather than authorizing model execution', async () => {
+  const f = fixture([pr(1)]); f.jobs[11] = admitted; f.conclusions['ci.yml'] = 'failure';
+  let called = false;
+  await q.reconcile({ ...f.args, repairEnabled: true, authorizeRepair: false,
+    prepareRepair: async () => { called = true; } });
+  assert.equal(called, false);
+  assert.equal(f.dispatches.at(-1).workflow_id, 'dependency-queue.yml');
+});
+test('failed security checks and already attempted heads never dispatch another model job', async () => {
+  for (const receipt of [{ kind: 'attempt', sha: SHA }, { kind: 'security-stop', sha: SHA }, { kind: 'stopped' }]) {
+    const f = fixture([pr(1)]); f.jobs[11] = admitted; f.conclusions['ci.yml'] = 'failure';
+    let called = false;
+    await q.reconcile({ ...f.args, repairEnabled: true, authorizeRepair: true,
+      verify: async ({ pr }) => ({ pr, kind: 'dependabot', comments: [{ user: { login: 'github-actions[bot]' },
+        body: '<!-- videoq-claude-dependency-v1 -->\n' + JSON.stringify(receipt) }] }),
+      prepareRepair: async () => { called = true; } });
+    assert.equal(called, false);
+  }
 });

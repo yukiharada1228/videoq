@@ -70,8 +70,8 @@ async function runs({ github, context, pr }, allowLegacy = false) {
     const run = data.workflow_runs.sort((a, b) => b.id - a.id)[0];
     if (!run) return { workflow_id };
     const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, { ...context.repo, run_id: run.id, filter: 'latest', per_page: 100 });
-    const hasAdmission = jobs.some(j => j.name === 'Queue Admission');
-    const admitted = workflow_id === 'terraform-plan.yml' || jobs.some(j => j.name === 'Queue Admission' && j.steps?.some(s => s.name === 'Queue slot admitted' && s.conclusion === 'success')) ||
+    const hasAdmission = jobs.some(policy.admissionJob);
+    const admitted = workflow_id === 'terraform-plan.yml' || policy.admittedCI(jobs) ||
       (allowLegacy && !hasAdmission && jobs.length > 0);
     return { workflow_id, run, admitted };
   }));
@@ -81,9 +81,20 @@ function result(rows) {
   if (rows.every(r => r.admitted && r.run?.status === 'completed' && r.run.conclusion === 'success')) return 'success';
   return 'waiting';
 }
+function requireQueueProtection(protection) {
+  policy.requireProtection(protection);
+  const checks = protection.required_status_checks.checks;
+  if ([NAME, 'Terraform Plan', 'Container Validation'].some(name =>
+    !checks.some(check => check.context === name && check.app_id === 15368))) {
+    throw new Error('Dependency automation requires the queue and all validation checks on protected main');
+  }
+}
 async function reconcile({ github, writerGithub, context, issue, retry = 0, saveSummary = async () => {}, verify = verified,
+  repairEnabled = false, authorizeRepair = false, prepareRepair = repairFailure,
   reserve = async () => { throw new Error('Merge reservation callback required'); } }) {
   if (`${context.repo.owner}/${context.repo.repo}` !== REPO || context.ref !== 'refs/heads/main') throw new Error('Queue requires trusted main');
+  const { data: protection } = await writerGithub.rest.repos.getBranchProtection({ ...context.repo, branch: 'main' });
+  requireQueueProtection(protection);
   const loaded = await load({ github, context, issue });
   const state = loaded.state;
   if (retry) {
@@ -181,7 +192,7 @@ async function reconcile({ github, writerGithub, context, issue, retry = 0, save
           }
         }
         else {
-          const updated = await sync.update({ github, writerGithub, context, number: active.pr.number, expectedSha: active.pr.head.sha, queued: true });
+          const updated = await sync.update({ github, writerGithub, context, number: active.pr.number, expectedSha: active.pr.head.sha });
           if (!updated) throw new Error('PR changed or could not be safely synchronized');
         }
       } catch (error) {
@@ -206,8 +217,6 @@ async function reconcile({ github, writerGithub, context, issue, retry = 0, save
         const { data: currentMain } = await github.rest.repos.getBranch({ ...context.repo, branch: 'main' });
         if (current.head.sha === active.pr.head.sha && currentMain.commit.sha === base && !current.auto_merge &&
             !current.labels.some(l => ['no-automerge', 'no-runtime-update', 'no-rebase'].includes(l.name))) {
-          const { data: protection } = await writerGithub.rest.repos.getBranchProtection({ ...context.repo, branch: 'main' });
-          policy.requireProtection(protection, active.kind === 'runtime' ? 'docker' : active.metadata.ecosystem);
           await reserve({ number: current.number, sha: current.head.sha });
         }
       }
@@ -224,7 +233,23 @@ async function reconcile({ github, writerGithub, context, issue, retry = 0, save
       await github.rest.actions.reRunWorkflow({ ...context.repo, run_id: row.run.id });
     }
   }
-  if (active && outcome === 'failure') {
+  let repairWake = false;
+  if (repairEnabled) {
+    const repair = require('./claude-dependency-repair.cjs');
+    for (const c of candidates) {
+      if (c.kind !== 'dependabot' || state.failed[c.pr.number] !== c.pr.head.sha) continue;
+      const comments = c.comments || [];
+      if (repair.records(comments, 'attempt').some(r => r.sha === c.pr.head.sha) ||
+          repair.records(comments, 'security-stop').some(r => r.sha === c.pr.head.sha) ||
+          repair.records(comments, 'stopped').length) continue;
+      const rows = c === active ? activeRuns : await runs({ github, context, pr: c.pr });
+      const ci = rows.find(row => row.workflow_id === 'ci.yml');
+      if (!ci?.admitted || ci.run?.status !== 'completed' || ci.run.conclusion !== 'failure') continue;
+      if (authorizeRepair) await prepareRepair({ github, writerGithub, context, runId: ci.run.id });
+      else repairWake = true;
+    }
+  }
+  if ((active && outcome === 'failure') || repairWake) {
     // workflow_dispatch is an explicit wake-up after releasing a failed slot.
     await github.rest.actions.createWorkflowDispatch({ ...context.repo, workflow_id: 'dependency-queue.yml', ref: 'main' });
   }
@@ -234,4 +259,20 @@ async function reconcile({ github, writerGithub, context, issue, retry = 0, save
   }
   return { active: state.active, outcome };
 }
-module.exports = { managed, parse, admission, verified, checkpoint, result, reconcile, NAME, MARKER };
+// Only a main push, workflow_run or explicit main dispatch may authorize a worker.
+// The worker independently checks the real controller run, current SHA and limits.
+async function repairFailure({ github, writerGithub, context, runId }) {
+  const repair = require('./claude-dependency-repair.cjs');
+  const c = await repair.scope({ github, writerGithub, context, runId });
+  if (!c) return null;
+  try {
+    await github.rest.actions.createWorkflowDispatch({ ...context.repo, workflow_id: 'claude-dependency-worker.yml', ref: 'main',
+      inputs: { number: String(c.number), sha: c.sha, run_id: String(runId), authorization_run: String(context.runId) } });
+  } catch (error) {
+    await github.rest.issues.createComment({ ...context.repo, issue_number: c.number,
+      body: `Claude修正ジョブを起動できませんでした。実行ログ: https://github.com/${REPO}/actions/runs/${context.runId}` });
+    throw error;
+  }
+  return c;
+}
+module.exports = { managed, parse, admission, verified, checkpoint, result, requireQueueProtection, reconcile, repairFailure, NAME, MARKER };

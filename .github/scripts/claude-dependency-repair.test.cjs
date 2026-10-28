@@ -30,7 +30,7 @@ function fixture(repaired = false) {
   f.github = { paginate: (method, args) => method(args), graphql: async () => { f.mutations.push('disable'); f.pr.auto_merge = null; }, rest: {
     actions: { getWorkflowRun: async a => ({ data: String(a.run_id) === '77' ? {
       workflow_id: 43, repository: { full_name: repo }, head_repository: { full_name: repo }, head_branch: 'main', event: 'workflow_run',
-    } : f.run }), getWorkflow: async a => ({ data: { id: a.workflow_id === 'ci.yml' ? 42 : 43 } }),
+    } : f.run }), getWorkflow: async a => ({ data: { id: a.workflow_id === 'ci.yml' ? 42 : a.workflow_id === 'dependency-queue.yml' ? 43 : 44 } }),
       listWorkflowRuns: async () => ({ data: { workflow_runs: [f.latest] } }), listJobsForWorkflowRun: async () => f.jobs },
     pulls: { list: async () => ({ data: [f.pr] }), get: async () => ({ data: f.pr }), listFiles: async () => f.original,
       listCommits: async () => f.commits },
@@ -65,10 +65,7 @@ test('source scope excludes checks, dependency files, credentials, traversal and
 test('current failed originals and successful repaired heads are eligible', async () => {
   assert.ok(await p.candidate(fixture()));
   const f = fixture(true);
-  assert.deepEqual(await p.merge(f), { number: 1, sha: B });
-  f.protection.required_status_checks.strict = false;
-  await assert.rejects(p.merge(f));
-  assert.equal(await p.merge(fixture()), null);
+  assert.ok(await p.candidate(f));
 });
 for (const [name, mutate] of [
   ['fork', f => { f.pr.head.repo.full_name = 'attacker/repo'; }],
@@ -139,7 +136,7 @@ test('fresh checkout validates real patches including file modes and line limits
   assert.throws(() => p.applyPatch(cwd, patch), /Forbidden repair path or mode/);
 });
 test('workflow keeps model access read-only and publishing isolated', () => {
-  const workflow = readFileSync(join(__dirname, '../workflows/claude-dependency-repair.yml'), 'utf8');
+  const workflow = readFileSync(join(__dirname, '../workflows/dependency-queue.yml'), 'utf8');
   const worker = readFileSync(join(__dirname, '../workflows/claude-dependency-worker.yml'), 'utf8');
   const repair = worker.split('\n  repair:')[1].split('\n  publish:')[0];
   assert.doesNotMatch(repair, /PATCH_BOT_PRIVATE_KEY|contents: write|pull-requests: write/);
@@ -196,4 +193,27 @@ test('worker execution requires a real coordinator run and is claimed only once'
   const bad = fixture();
   bad.comments.push(comment({ kind: 'attempt', sha: A, runId: '99' }));
   assert.equal(await p.authorizedAttempt({ ...bad, c: await p.candidate(bad), authorizationRun: '99' }), false);
+});
+test('only main runs of the single controller can authorize a worker; retired routes and PR events are rejected', async () => {
+  for (const event of ['push', 'workflow_run', 'workflow_dispatch', 'pull_request_target']) {
+    const f = fixture(); f.comments.push(comment({ kind: 'attempt', sha: A, runId: '77' }));
+    const c = await p.candidate(f);
+    f.github.rest.actions.getWorkflowRun = async () => ({ data: { workflow_id: 43, event,
+      repository: { full_name: repo }, head_repository: { full_name: repo }, head_branch: 'main' } });
+    assert.equal(await p.authorizedAttempt({ ...f, c, authorizationRun: '77' }), event !== 'pull_request_target');
+    f.github.rest.actions.getWorkflowRun = async () => ({ data: { workflow_id: 44, event: 'workflow_run',
+      repository: { full_name: repo }, head_repository: { full_name: repo }, head_branch: 'main' } });
+    assert.equal(await p.authorizedAttempt({ ...f, c, authorizationRun: '77' }), false);
+  }
+});
+test('the controller verifies a failed head and records authorization before dispatching the isolated worker', async () => {
+  const f = fixture(); const dispatches = [];
+  f.github.rest.actions.createWorkflowDispatch = async args => {
+    assert.equal(p.records(f.comments, 'attempt')[0].sha, A);
+    dispatches.push(args);
+  };
+  await require('./dependency-queue.cjs').repairFailure(f);
+  assert.equal(dispatches.length, 1);
+  assert.equal(dispatches[0].workflow_id, 'claude-dependency-worker.yml');
+  assert.deepEqual(dispatches[0].inputs, { number: '1', sha: A, run_id: '99', authorization_run: '77' });
 });

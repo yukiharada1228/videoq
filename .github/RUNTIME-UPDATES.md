@@ -8,11 +8,11 @@ Runtime Updates は毎日09:13 JSTと手動実行で、公式のリリース情�
 
 既存系列（current）の更新と同じタグのイメージ再ビルドは、管理表・配布物のハッシュ・生成ファイルをまとめたPRを作り、通常CIとstrictなブランチ保護を満たした後に自動マージします。新系列（next）はレビュー対象です。未提供のPythonビルド、コンテナ、wheel、互換性エラーは失敗として表示し、検査を省略してマージしません。新系列の失敗は現在系列のセキュリティ修正を止めません。
 
-mainへのpush・CI完了時には、既にあるcurrent PRのうちmainに追従が必要なものだけを再生成します。既存のランタイムPRがなければ、イベントごとのリリース探索・PR作成はしません。main追従を定期実行する処理はありません。明示的な手動実行は通常のCI完了イベントにキャンセルされず、同じランタイムの同じ系列への書き込みは直列にします。
+mainへのpush・CI完了時にはDependency Automationが状態を再確認し、キューで選択したcurrent PRだけを再生成します。Runtime Updates自身はmain／CIイベントを監視せず、日次の探索とコントローラーからの明示的な実行だけを担当します。main追従の定期ポーリングはありません。同じランタイムの同じ系列への書き込みは直列にします。
 
 人が修正した更新PRや同名の管理外ブランチは上書きしません。Appの公開記録と現在のheadを照合し、手動コミットや対象外ファイルが入った場合は自動マージを解除します。mainが途中で変わった場合は次のイベントで再確認します。更新が既にmainへ反映済みの未編集current PRは終了します。
 
-停止は `RUNTIME_AUTOMERGE_ENABLED=false`（全依存更新の停止は `DEPENDENCY_AUTOMERGE_ENABLED=false`）。予約済み分は別途解除してください。PR単位では `no-automerge` で自動マージを停止でき、`no-runtime-update` は再生成も停止します。GitHubのRuntime Auto-mergeがラベル変更を確認します。
+停止は `RUNTIME_AUTOMERGE_ENABLED=false`（全依存更新の停止は `DEPENDENCY_AUTOMERGE_ENABLED=false`）。予約済み分は別途解除してください。PR単位では `no-automerge` で自動マージを停止でき、`no-runtime-update` は再生成も停止します。Dependency Automationがラベル変更を確認します。
 
 管理対象のworker用DockerイメージはDependabotから除外し、ランタイム更新処理だけで更新します。Dockerレジストリを省略したDependabotの名前（`astral-sh/uv`、`lambda/python`）も除外しています。Python 3.12を維持する独立したwhisperサービスのイメージ更新は、従来のDependabot経路を使います。
 

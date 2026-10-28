@@ -7,13 +7,13 @@ Dependabotの自動マージ可能なpatch/minor更新と、管理Botが生成�
 選択したPRだけを最新mainへ追従させ、CIとContainer Validationを実行する。
 1件のPR内では従来どおり各テストを並列実行する。待機PRは軽量なQueue Admissionだけ実行し、
 重いCI・コンテナビルドは保留する。Terraform PlanとCodeQLは従来どおり起動する。
-`Dependency Queue`必須チェックは、実際に両ワークフローが実行されて成功するまで通さない。
+`Dependency Queue`必須チェックは、CI・Container Validation・Terraform Planが実際に実行されて成功するまで通さない。
 スキップされたワークフローの成功だけではマージできない。
 
 処理はPRイベント、main push、関連ワークフローの開始・完了イベントで進む。定期ポーリングはしない。
 CI失敗・安全にmain追従できないPRは、そのhead SHAを修正待ちとしてキューから外し、次のPRを進める。
 Claude修正は従来の対象・上限のままで、実際に実行したCIの失敗だけを処理する。
-修正コミットが追加されるとキューへ戻る。手動再試行はDependency CI Queueの`retry`にPR番号を指定する。
+修正コミットが追加されるとキューへ戻る。手動再試行はDependency Automationの`retry`にPR番号を指定する。
 
 状態は`DEPENDENCY_QUEUE_ISSUE`で指定したIssue内のActions Botコメントに保存する。
 Issue本文や一般ユーザーのコメントは実行権限として使わない。
@@ -26,11 +26,12 @@ PRコードを実行するジョブに書き込みトークンやApp秘密鍵は
 2. 状態保存用Issueを作成し、番号を`DEPENDENCY_QUEUE_ISSUE`に設定する。
 3. mainの必須チェックへ`Dependency Queue`（GitHub Actions App ID 15368）を追加する。
    既存の必須チェックとstrict設定を維持する。先にチェックを必須化することで移行中もスキップCIでマージされない。
-4. `DEPENDENCY_QUEUE_ENABLED=true`にし、Dependency CI Queueを手動起動する。
+4. `DEPENDENCY_QUEUE_ENABLED=true`にし、Dependency Automationを手動起動する。
 5. Issueの実行中・待機状態、選択PRのmain追従、CI完走後のゲート成功を確認する。
 
-キュー有効時は従来のDependency Main Syncを停止し、Runtime Updatesのmainイベントによる一括追従も停止する。
-Runtime Updatesの日次リリース探索は継続する。既存PRのmain追従はキューで選択した1件だけを明示起動する。
+旧Dependency Main Sync、個別のDependabot／Runtime Auto-merge、旧Codex案内、独立したClaude判定ワークフローは廃止した。
+Runtime Updatesは日次探索と指定された再生成だけを担当する。既存PRのmain追従と最終マージは
+コントローラーで選択した1件だけを処理する。CIの実行枠確認は共通の`dependency-ci-admission.yml`へまとめている。
 
 ## 運用上の範囲
 
