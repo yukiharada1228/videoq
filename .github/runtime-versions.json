@@ -7,13 +7,13 @@
     "node_alpine": "node:26.12.1-alpine@sha256:40cd011b55415bc894e45b02fdd5a5dfde056921b7d23a64c74f80497af48797",
     "python_local": "python:3.14.9-slim-bookworm@sha256:945c2676dc2b18e0c1f16879244122c57c0ffede60006bf3df159c507a31bcae",
     "python_lambda": "public.ecr.aws/lambda/python:3.14@sha256:fc4e15a5e09e2c9b6184810ea0fdc87afe1c1c734c98cbe27d739a35c3f15e7e",
-    "uv": "ghcr.io/astral-sh/uv:0.13.5@sha256:32a7bb39b496babbd997b0a39a4d66c126bdaf5661b302bf6f06abda8deca6ff",
+    "uv": "ghcr.io/astral-sh/uv:0.13.6@sha256:af22a52f5eafef3d78e551599d405c02df61919d18028f0cea8eda93bc9986d0",
     "node_onprem": "node:26.12.1-alpine@sha256:40cd011b55415bc894e45b02fdd5a5dfde056921b7d23a64c74f80497af48797",
     "python_onprem": "python:3.14.9-alpine@sha256:dbeb11d16bb95c3a7e3c25c842cb9f20cbc8c18f8be0461a4a0dcc861ad386a0"
   },
   "npm": "12.2.1",
   "pip": "26.2.2",
-  "uv": "0.13.5",
+  "uv": "0.13.6",
   "tool_downloads": {
     "npm": {
       "url": "https://registry.npmjs.org/npm/-/npm-12.2.1.tgz",
@@ -25,20 +25,20 @@
     },
     "uv": {
       "linux-x86_64": {
-        "url": "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-x86_64-unknown-linux-gnu.tar.gz",
-        "sha256": "f68d291c75783122dad58ab77def0e13f3233f358731db5d6d7e8715603b928f"
+        "url": "https://github.com/astral-sh/uv/releases/download/0.13.6/uv-x86_64-unknown-linux-gnu.tar.gz",
+        "sha256": "f29c3e94ffabd7e6f3ba521dba169a9b7ec12100bf3257087f0f24f6123f3645"
       },
       "linux-aarch64": {
-        "url": "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-aarch64-unknown-linux-gnu.tar.gz",
-        "sha256": "4bb69cf95ed13f23713bb7bc09f241896ea0c75b7c557e615a20604b82f9c403"
+        "url": "https://github.com/astral-sh/uv/releases/download/0.13.6/uv-aarch64-unknown-linux-gnu.tar.gz",
+        "sha256": "229e194255c7958d86d56e8790d969a6f74736592133f0dfd0076f754c642c1d"
       },
       "darwin-x86_64": {
-        "url": "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-x86_64-apple-darwin.tar.gz",
-        "sha256": "b0f52b0e3945b4107d89024ea38e625683011fbfc05a0d98f9fa2d6dcee28c66"
+        "url": "https://github.com/astral-sh/uv/releases/download/0.13.6/uv-x86_64-apple-darwin.tar.gz",
+        "sha256": "63ba17fdda55ad1a230d4b37fc6017ffa10c23688c83818bd3bfdf914c652a02"
       },
       "darwin-aarch64": {
-        "url": "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-aarch64-apple-darwin.tar.gz",
-        "sha256": "743f85035a1996ecb350659e01cd9faea9709829be09b1b4b03c73eaf3c9cd73"
+        "url": "https://github.com/astral-sh/uv/releases/download/0.13.6/uv-aarch64-apple-darwin.tar.gz",
+        "sha256": "60fbd5c8a1ed681845eea28d9d622fcde03c51e91a43465b64a1e17db1ed3472"
       }
     }
   }
