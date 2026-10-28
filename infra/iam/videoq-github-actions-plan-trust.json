@@ -12,7 +12,9 @@
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
           "token.actions.githubusercontent.com:sub": [
             "repo:yukiharada1228/videoq:pull_request",
-            "repo:yukiharada1228/videoq:ref:refs/heads/main"
+            "repo:yukiharada1228/videoq:ref:refs/heads/main",
+            "repo:videoq-jp/videoq:pull_request",
+            "repo:videoq-jp/videoq:ref:refs/heads/main"
           ]
         }
       }

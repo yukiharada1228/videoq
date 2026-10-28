@@ -10,7 +10,7 @@ import subprocess
 SPEC = importlib.util.spec_from_file_location('release', Path(__file__).with_name('onprem-release.py'))
 release = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(release)
-REPO = 'yukiharada1228/videoq'
+REPO = 'videoq-jp/videoq'
 PREFIX = 'ghcr.io/' + REPO + '-'
 ROLES = ('api', 'web', 'worker', 'transcription-gateway')
 
@@ -58,11 +58,13 @@ def plan(source, application, inference, identity, vllm_only=False):
             legacy = 'whisper' if role == 'transcription-gateway' else role
             allowed = (PREFIX + 'onprem-' + legacy, PREFIX + role)
         if image['repository'] not in allowed:
-            raise ValueError('Unexpected bootstrap source repository')
+            historical = tuple(name.replace(REPO, release.HISTORICAL_REPOSITORY, 1) for name in allowed)
+            if image['repository'] not in historical:
+                raise ValueError('Unexpected bootstrap source repository')
         digest = release.digest(image['digest'])
         result.append({'role': role, 'source': image['repository'] + '@' + digest,
                        'digest': digest, 'destination': PREFIX + role + ':bootstrap-' + source + '-' + identity,
-                       'packagePage': 'https://github.com/users/yukiharada1228/packages/container/package/videoq-' + role})
+                       'packagePage': 'https://github.com/orgs/videoq-jp/packages/container/package/videoq-' + role})
     return result
 
 
@@ -86,7 +88,7 @@ def package_metadata(role):
     if role not in (*ROLES, 'vllm'):
         raise ValueError('Unexpected package role')
     package = 'videoq-' + role
-    data = json.loads(subprocess.check_output(['gh', 'api', 'users/yukiharada1228/packages/container/' + package], text=True))
+    data = json.loads(subprocess.check_output(['gh', 'api', 'orgs/videoq-jp/packages/container/' + package], text=True))
     if data.get('name') != package or data.get('visibility') not in ('private', 'public', 'internal'):
         raise ValueError('Cannot confirm copied package metadata')
     return {'visibility': data['visibility'], 'repository': (data.get('repository') or {}).get('full_name')}

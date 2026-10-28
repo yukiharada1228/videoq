@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 // every image has been published and attested. Retain signed release evidence.
 module.exports = async function pruneBuildArtifacts({ github, context, sourceSha }) {
   const { owner, repo } = context.repo;
-  assert.equal(`${owner}/${repo}`, 'yukiharada1228/videoq');
+  assert.equal(`${owner}/${repo}`, 'videoq-jp/videoq');
   assert.equal(context.ref, 'refs/heads/main');
   assert.ok(['workflow_dispatch', 'workflow_run'].includes(context.eventName));
   assert.match(sourceSha, /^[a-f0-9]{40}$/);

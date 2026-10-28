@@ -2,14 +2,14 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const p = require('./dependency-rebase.cjs');
 const A = 'a'.repeat(40), B = 'b'.repeat(40), C = 'c'.repeat(40), D = 'd'.repeat(40);
-const repo = 'yukiharada1228/videoq';
+const repo = 'videoq-jp/videoq';
 const file = () => ({ filename: 'apps/inference/whisper/Dockerfile', status: 'modified', changes: 2,
   patch: '@@ -1 +1 @@\n-FROM uv:0.13.5\n+FROM uv:0.13.6' });
 const commit = () => ({ sha: A, author: { login: 'dependabot[bot]' }, parents: [{ sha: B }], commit: { verification: { verified: true },
   message: 'update\n---\nupdated-dependencies:\n- dependency-name: uv\n  update-type: version-update:semver-patch\n...\n' } });
 const receipt = r => ({ user: { login: 'github-actions[bot]' }, body: '<!-- videoq-dependency-rebase-v1 -->\n' + JSON.stringify(r) });
 function fixture() {
-  const f = { context: { repo: { owner: 'yukiharada1228', repo: 'videoq' }, ref: 'refs/heads/main' },
+  const f = { context: { repo: { owner: 'videoq-jp', repo: 'videoq' }, ref: 'refs/heads/main' },
     number: 1191, expectedSha: A, now: new Date('2026-10-28T02:00:00Z'),
     pr: { number: 1191, node_id: 'PR_1191', state: 'open', draft: false, user: { login: 'dependabot[bot]' },
       labels: [], mergeable_state: 'behind', auto_merge: {}, head: { sha: A, ref: 'dependabot/docker/test', repo: { full_name: repo } },

@@ -1,7 +1,7 @@
 // Trusted main code only. Never check out or execute the dependency PR.
 const policy = require('./dependency-automation.cjs');
 const { verifiedUpdateTypes } = require('./terraform-dependency-apply.cjs');
-const REPO = 'yukiharada1228/videoq';
+const REPO = 'videoq-jp/videoq';
 const MARKER = '<!-- videoq-dependency-rebase-v1 -->';
 const sha = value => /^[a-f0-9]{40}$/.test(value || '');
 const ecosystems = ['npm_and_yarn', 'uv', 'pip', 'docker', 'docker_compose', 'terraform', 'github_actions'];

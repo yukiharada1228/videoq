@@ -1,5 +1,5 @@
 const REPOSITORIES = new Set([
-  'yukiharada1228/videoq',
+  'videoq-jp/videoq',
   'yukiharada1228/langchainjs-postgres',
   'yukiharada1228/shadcn-digital-agency-jp',
 ]);

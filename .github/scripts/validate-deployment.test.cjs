@@ -3,14 +3,14 @@ const assert = require('node:assert/strict');
 const validate = require('./validate-deployment.cjs');
 
 const sha = 'a'.repeat(40);
-const repository = { full_name: 'yukiharada1228/videoq' };
+const repository = { full_name: 'videoq-jp/videoq' };
 function fixture(eventName = 'workflow_run') {
   const run = {
     id: 12, workflow_id: 4, event: 'push', head_branch: 'main', head_sha: sha,
     repository, head_repository: repository, status: 'completed', conclusion: 'success', run_attempt: 1,
   };
   const context = {
-    repo: { owner: 'yukiharada1228', repo: 'videoq' }, ref: 'refs/heads/main', sha,
+    repo: { owner: 'videoq-jp', repo: 'videoq' }, ref: 'refs/heads/main', sha,
     eventName, payload: eventName === 'workflow_run' ? { workflow_run: { ...run } } : {},
   };
   const calls = [];

@@ -23,7 +23,7 @@ function fixture(date = '2026-11-17') {
     createComment: async args => { comments.push({ ...args, user: { login: BOT } }); mutations.push(['comment', args]); },
   };
   const github = { rest: { issues: api }, paginate: async (method, args) => method(args) };
-  const context = { repo: { owner: 'yukiharada1228', repo: 'videoq' }, ref: 'refs/heads/main', eventName: 'schedule' };
+  const context = { repo: { owner: 'videoq-jp', repo: 'videoq' }, ref: 'refs/heads/main', eventName: 'schedule' };
   const core = {
     warning() {}, setFailed: value => failures.push(value),
     summary: { addRaw(value) { summaries.push(value); return this; }, async write() {} },

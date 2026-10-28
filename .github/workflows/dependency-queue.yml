@@ -22,7 +22,7 @@ concurrency:
 jobs:
   reconcile:
     if: >-
-      github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main' &&
+      github.repository == 'videoq-jp/videoq' && github.ref == 'refs/heads/main' &&
       (github.event_name != 'pull_request_target' || github.event.pull_request.base.ref == 'main') &&
       vars.DEPENDENCY_QUEUE_ENABLED == 'true' && vars.DEPENDENCY_AUTOMERGE_ENABLED == 'true'
     runs-on: ubuntu-latest

@@ -1,6 +1,6 @@
 // Loaded from github.workflow_sha, never from the proposed deployment commit.
 // No production secrets or OIDC permissions are available to this job.
-const REPOSITORY = 'yukiharada1228/videoq';
+const REPOSITORY = 'videoq-jp/videoq';
 
 function checkRun(run, { sha, workflowId }) {
   if (

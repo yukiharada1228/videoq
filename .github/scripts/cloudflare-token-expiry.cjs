@@ -47,7 +47,7 @@ function details(entries) {
 }
 
 async function check({ github, context, core, config, now = new Date(), dryRun = false, previewDate = '' }) {
-  if (`${context.repo.owner}/${context.repo.repo}` !== 'yukiharada1228/videoq' ||
+  if (`${context.repo.owner}/${context.repo.repo}` !== 'videoq-jp/videoq' ||
       context.ref !== 'refs/heads/main' ||
       !['push', 'schedule', 'workflow_dispatch'].includes(context.eventName)) {
     throw new Error('Token reminders may only run on the production repository main branch');
@@ -94,7 +94,7 @@ async function check({ github, context, core, config, now = new Date(), dryRun =
         '- [ ] deploy／resource同期が成功することを確認し、旧トークンを失効\n' +
         '- [ ] `.github/cloudflare-token-expiry.json` の名前と期限を更新するPRをmainへmerge\n' +
         '- [ ] 予備のカレンダー通知を使っている場合は、その日付も更新\n\n' +
-        '手順: [トークン更新と通知](https://github.com/yukiharada1228/videoq/blob/main/infra/CLOUDFLARE_TOKEN_ROTATION.md)\n\n' +
+        '手順: [トークン更新と通知](https://github.com/videoq-jp/videoq/blob/main/infra/CLOUDFLARE_TOKEN_ROTATION.md)\n\n' +
         'トークンの値はIssue・PR・ログへ記載しないでください。' +
         '期限設定が更新されるまで、Issueを閉じても監視が再開します。';
       ({ data: issue } = await github.rest.issues.create({

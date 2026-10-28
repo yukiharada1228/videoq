@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   restore:
-    if: github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main'
+    if: github.repository == 'videoq-jp/videoq' && github.ref == 'refs/heads/main'
     environment: production-app
     runs-on: ubuntu-latest
     timeout-minutes: 40

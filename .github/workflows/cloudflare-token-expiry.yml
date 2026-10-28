@@ -30,7 +30,7 @@ concurrency:
 jobs:
   check:
     name: Check Cloudflare token expiry
-    if: github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main'
+    if: github.repository == 'videoq-jp/videoq' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

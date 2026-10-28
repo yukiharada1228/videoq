@@ -6,7 +6,7 @@ const { join } = require('node:path');
 const { execFileSync } = require('node:child_process');
 const p = require('./claude-dependency-repair.cjs');
 const A = 'a'.repeat(40), B = 'b'.repeat(40), C = 'c'.repeat(40);
-const repo = 'yukiharada1228/videoq';
+const repo = 'videoq-jp/videoq';
 const metadata = { ecosystem: 'npm_and_yarn', updateType: 'version-update:semver-minor', maintainerChanges: 'false' };
 const bot = (sha = A) => ({ sha, author: { login: 'dependabot[bot]' }, commit: { verification: { verified: true } } });
 const comment = r => ({ user: { login: 'github-actions[bot]' }, body: '<!-- videoq-claude-dependency-v1 -->\n' + JSON.stringify(r) });
@@ -15,7 +15,7 @@ const receipt = (sha = B, parent = A) => comment({ kind: 'published', sha, paren
 const source = (filename = 'apps/web/src/components/player.tsx') => ({ filename, status: 'modified', patch: '-old\n+new', changes: 2 });
 
 function fixture(repaired = false) {
-  const f = { context: { repo: { owner: 'yukiharada1228', repo: 'videoq' }, ref: 'refs/heads/main', runId: 77 }, runId: '99',
+  const f = { context: { repo: { owner: 'videoq-jp', repo: 'videoq' }, ref: 'refs/heads/main', runId: 77 }, runId: '99',
     pr: { number: 1, state: 'open', draft: false, node_id: 'PR_1', user: { login: 'dependabot[bot]' }, labels: [],
       head: { ref: 'dependabot/npm_and_yarn/update', sha: repaired ? B : A, repo: { full_name: repo } },
       base: { ref: 'main', sha: C, repo: { full_name: repo } } },

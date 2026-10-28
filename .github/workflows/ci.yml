@@ -5,6 +5,8 @@ on:
       - main
       - develop
   pull_request:
+  merge_group:
+    types: [checks_requested]
   workflow_dispatch:
 
 permissions:
@@ -59,7 +61,7 @@ jobs:
           manager: pip
       - name: Check lockfile sources, integrity and vulnerability delta
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE_SHA: ${{ github.event.merge_group.base_sha || github.event.pull_request.base.sha || github.event.before }}
         run: python .github/scripts/supply-chain.py --base "$BASE_SHA"
       # Verify registry signatures before any package code executes in this job.
       - run: npm ci --ignore-scripts
@@ -153,6 +155,7 @@ jobs:
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
+          base: ${{ github.event.merge_group.base_sha || github.event.repository.default_branch }}
           filters: |
             whisper_gpu:
               - 'apps/inference/whisper/Dockerfile.vllm'
