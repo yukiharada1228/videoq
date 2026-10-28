@@ -93,7 +93,21 @@ def attest(target, source, predicate=None, *, source_repository=REPOSITORY):
         command += ["--predicate-type", predicate]
     # Do not shell-expand release metadata. gh verifies the signature, subject,
     # GitHub OIDC identity and source revision, not just an embedded predicate.
-    subprocess.run(command, check=True)
+    if source_repository == HISTORICAL_REPOSITORY:
+        # Attestations remain under their original owner after a repository
+        # transfer. Fetch the bundle there, then apply the SAME exact repository,
+        # workflow, source-ref and commit policy locally; never trust lookup scope
+        # as a substitute for signature verification.
+        with tempfile.TemporaryDirectory(prefix="videoq-historical-attestation-") as directory:
+            artifact = str(target) if str(target).startswith("oci://") else str(Path(target).resolve())
+            subprocess.run(["gh", "attestation", "download", artifact, "--owner", "yukiharada1228"],
+                           cwd=directory, check=True)
+            bundles = list(Path(directory).glob("*.jsonl"))
+            if len(bundles) != 1:
+                raise ValueError("Expected exactly one historical attestation bundle")
+            subprocess.run(command + ["--bundle", str(bundles[0])], check=True)
+    else:
+        subprocess.run(command, check=True)
 
 
 def verify(manifest, source):

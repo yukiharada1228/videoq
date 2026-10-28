@@ -14,7 +14,7 @@ function fixture() {
     head_sha: GROUP, head_branch: 'gh-readonly-queue/main/pr-1-deadbeef', repository: { full_name: 'videoq-jp/videoq' }, head_repository: { full_name: 'videoq-jp/videoq' } };
   const methods = {
     repos: { getBranch: async () => ({ data: { commit: { sha: BASE } } }),
-      getBranchProtection: async () => ({ data: f.protection }), getRulesForBranch: async () => ({ data: f.rules }),
+      getBranchProtection: async () => ({ data: f.protection }),
       compareCommits: async ({ base }) => ({ data: base === SHA ? { merge_base_commit: { sha: f.ancestor || SHA } } : { behind_by: 1 } }) },
     pulls: { list: async () => [pr], get: async () => ({ data: pr }) },
     issues: { createComment: async ({ body }) => { f.comments.push({ user: { login: 'github-actions[bot]' }, body }); } },
@@ -22,7 +22,11 @@ function fixture() {
       getWorkflow: async () => ({ data: { id: 10 } }), listWorkflowRuns: async () => ({ data: { workflow_runs: [f.run] } }) },
   };
   f.github = { rest: methods, paginate: (method, args) => method(args) };
-  f.writerGithub = { rest: methods, graphql: async (query, values) => {
+  f.writerGithub = { rest: methods, request: async (route, values) => {
+    assert.equal(route, 'GET /repos/{owner}/{repo}/rules/branches/{branch}');
+    assert.deepEqual(values, { owner: 'videoq-jp', repo: 'videoq', branch: 'main' });
+    return { data: f.rules };
+  }, graphql: async (query, values) => {
     if (query.startsWith('mutation')) { f.disabled.push(values.id); f.mutations.push({ query, values }); return; }
     return { repository: { pullRequest: { mergeQueueEntry: f.queued ? { id: 'entry' } : null } } };
   } };

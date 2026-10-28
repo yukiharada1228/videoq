@@ -61,12 +61,19 @@ class ReleaseTests(unittest.TestCase):
         for component, image in self.data['images'].items():
             image['repository'] = release.repository(component, source_repository=historical)
         self.manifest.write_text(json.dumps(self.data))
-        with patch.object(release.subprocess, 'run') as run:
+        def download_bundle(command, **kwargs):
+            if command[2] == 'download':
+                (Path(kwargs['cwd']) / 'sha256-fixture.jsonl').write_text('{}\n')
+        with patch.object(release.subprocess, 'run', side_effect=download_bundle) as run:
             values, _ = release.verify(self.manifest, SOURCE)
-        self.assertEqual(run.call_count, 8)
+        self.assertEqual(run.call_count, 16)
         self.assertEqual(values['api']['image']['repository'], 'ghcr.io/' + historical + '-api')
         for call in run.call_args_list:
             command = call.args[0]
+            if command[2] == 'download':
+                self.assertEqual(command[-2:], ['--owner', 'yukiharada1228'])
+                continue
+            self.assertIn('--bundle', command)
             self.assertEqual(command[command.index('--repo') + 1], historical)
             self.assertEqual(command[command.index('--signer-workflow') + 1], historical + '/.github/workflows/onprem-release.yml')
         self.data['images']['api']['repository'] = release.repository('api')
@@ -78,6 +85,13 @@ class ReleaseTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 release.attest(self.manifest, SOURCE, source_repository='attacker/videoq')
         run.assert_not_called()
+
+    def test_historical_bundle_fetch_failure_cannot_bypass_verification(self):
+        with patch.object(release.subprocess, 'run', side_effect=subprocess.CalledProcessError(1, 'gh')) as run:
+            with self.assertRaises(subprocess.CalledProcessError):
+                release.attest(self.manifest, SOURCE, source_repository=release.HISTORICAL_REPOSITORY)
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(run.call_args.args[0][2], 'download')
 
     def test_legacy_schema_two_still_verifies_all_original_signed_subjects(self):
         legacy = copy.deepcopy(self.data)

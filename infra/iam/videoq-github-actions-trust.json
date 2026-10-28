@@ -13,10 +13,8 @@
         },
         "StringLike": {
           "token.actions.githubusercontent.com:sub": [
-            "repo:yukiharada1228/videoq:ref:refs/heads/main",
-            "repo:yukiharada1228/videoq:environment:production-infra",
-            "repo:videoq-jp/videoq:ref:refs/heads/main",
-            "repo:videoq-jp/videoq:environment:production-infra"
+            "repo:videoq-jp@349188820/videoq@1083911938:ref:refs/heads/main",
+            "repo:videoq-jp@349188820/videoq@1083911938:environment:production-infra"
           ]
         }
       }

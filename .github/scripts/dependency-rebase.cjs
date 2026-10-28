@@ -126,7 +126,7 @@ async function update(args) {
   if (!c || c.pr.head.sha !== expectedSha) return null;
   const { data: protection } = await writerGithub.rest.repos.getBranchProtection({ ...context.repo, branch: 'main' });
   if (args.nativeQueue === true) {
-    const { data: rules } = await writerGithub.rest.repos.getRulesForBranch({ ...context.repo, branch: 'main' });
+    const { data: rules } = await writerGithub.request('GET /repos/{owner}/{repo}/rules/branches/{branch}', { ...context.repo, branch: 'main' });
     require('./native-dependency-queue.cjs').requireProtection(protection, rules);
   } else policy.requireProtection(protection, c.metadata.ecosystem);
   await record(github, context, number, { kind: 'requested', sha: expectedSha, base: c.base, at: now.toISOString() },
