@@ -26,7 +26,8 @@ Its App ID and private key are retained; do not create a replacement bot identit
    `videoq-jp`. A private App's personal installation can be removed by this
    operation; perform it during this cutover, not during normal operation.
 4. Install the transferred App on **Only select repositories: videoq**. Confirm
-   App ID `5420589` and the existing bot login still match the workflow policy.
+   App ID `5420589` remains unchanged. Name the App `videoq-dependency-bot`;
+   controller and publisher derive its bot login from the authenticated App slug.
 5. Run CI on destination main. Verify the exact main commit passes CI and that
    the normal deployment workflows assume their AWS roles successfully. PR and
    merge-group runs must never deploy production or receive deploy credentials.

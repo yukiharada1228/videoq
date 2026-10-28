@@ -51,6 +51,7 @@ jobs:
         env:
           QUEUE_ISSUE: ${{ vars.DEPENDENCY_QUEUE_ISSUE }}
           QUEUE_MODE: ${{ vars.DEPENDENCY_QUEUE_MODE }}
+          DEPENDENCY_BOT_LOGIN: ${{ steps.app.outputs.app-slug }}[bot]
           RETRY: ${{ inputs.retry }}
           RUNTIME_AUTOMERGE_ENABLED: ${{ vars.RUNTIME_AUTOMERGE_ENABLED }}
           REPAIR_ENABLED: ${{ vars.CLAUDE_DEPENDENCY_REPAIR_ENABLED }}
