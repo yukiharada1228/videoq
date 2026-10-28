@@ -54,7 +54,7 @@ test('only a contiguous receipt-backed repair chain can inherit verified Dependa
   ]) { const bad = fixture(true); mutate(bad); assert.equal(p.chain(bad.commits, bad.comments), null); }
 });
 test('compatibility scope includes configs, tests and types but excludes automation, dependencies and credentials', () => {
-  for (const path of ['apps/web/vite.config.ts', 'apps/web/.storybook/vite.config.ts', 'apps/web/src/x.test.ts', 'apps/web/src/__tests__/x.ts', 'apps/web/src/types.d.ts', 'apps/api/src/auth/session.ts', 'apps/api/src/db/migrations/migrate.ts']) assert.equal(p.validRepairFiles([source(path)]), true, path);
+  for (const path of ['apps/web/vite.config.ts', 'apps/web/vite.config.mts', 'apps/api/wrangler.jsonc', 'apps/web/.storybook/vite.config.ts', 'apps/web/src/x.test.ts', 'apps/web/src/__tests__/x.ts', 'apps/web/src/types.d.ts', 'apps/api/src/auth/session.ts', 'apps/api/src/db/migrations/migrate.ts']) assert.equal(p.validRepairFiles([source(path)]), true, path);
   assert.equal(p.validRepairFiles([source()]), true);
   for (const filename of ['.github/workflows/ci.yml', 'package.json',
     'apps/web/src/../../config.ts', 'apps/worker/worker_python/env.py', 'apps/worker/worker_python/secrets_bootstrap.py',
