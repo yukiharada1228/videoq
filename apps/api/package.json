@@ -47,8 +47,8 @@
     "@hono/mcp": "^0.3.2",
     "@hono/node-server": "^2.1.5",
     "@hono/trpc-server": "^0.4.2",
-    "@langchain/core": "^1.2.18",
-    "@langchain/openai": "^1.6.2",
+    "@langchain/core": "^1.2.20",
+    "@langchain/openai": "^1.6.3",
     "@modelcontextprotocol/sdk": "^1.32.1",
     "@trpc/server": "^11.19.0",
     "@videoq/trpc": "0.1.0",
@@ -57,7 +57,7 @@
     "better-auth": "^1.7.7",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.13.13",
-    "jose": "^6.2.12",
+    "jose": "^6.2.13",
     "langchain": "^1.5.18",
     "langsmith": "0.11.0",
     "openai": "^7.39.0",
@@ -66,7 +66,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@cloudflare/vitest-plugin": "^1.4.4",
+    "@cloudflare/vitest-plugin": "^1.4.6",
     "@cloudflare/workers-types": "^5.20261018.1",
     "@types/node": "^26.6.5",
     "@types/pg": "^8.23.1",
