@@ -15,7 +15,7 @@ async function record(github, context, number, value, text) {
 }
 async function entry(writerGithub, context, number) {
   const data = await writerGithub.graphql(
-    'query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){mergeQueueEntry{id enqueuer{login}}}}}',
+    'query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){mergeQueueEntry{id enqueuer{__typename login}}}}}',
     { owner: context.repo.owner, name: context.repo.repo, number });
   return data.repository.pullRequest.mergeQueueEntry;
 }
@@ -23,7 +23,9 @@ async function cancel(writerGithub, context, pr) {
   const queued = await entry(writerGithub, context, pr.number);
   // Automatic eligibility must not revoke a maintainer's manual queue decision
   // for a major update or a PR intentionally handled outside automation.
-  if (queued?.enqueuer?.login === BOT) await writerGithub.graphql(
+  const enqueuer = queued?.enqueuer;
+  const automatic = enqueuer?.__typename === 'Bot' && `${enqueuer.login.replace(/\[bot\]$/, '')}[bot]` === BOT;
+  if (automatic) await writerGithub.graphql(
     'mutation($id:ID!){dequeuePullRequest(input:{id:$id}){clientMutationId}}', { id: pr.node_id });
   if (pr.auto_merge?.enabled_by?.login === BOT) await writerGithub.graphql(
     'mutation($id:ID!){disablePullRequestAutoMerge(input:{pullRequestId:$id}){clientMutationId}}', { id: pr.node_id });
