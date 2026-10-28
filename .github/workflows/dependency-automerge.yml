@@ -61,6 +61,9 @@ jobs:
             core.setOutput('sha', pr.head.sha);
       - name: Read verified Dependabot metadata
         if: steps.scope.outputs.eligible == 'true'
+        # A GitHub-native rebase may be marked as a maintainer change. Only a
+        # separately verified receipt can authorize the exact same update then.
+        continue-on-error: true
         id: metadata
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
       - name: Verify dependency policy and branch protection
@@ -82,32 +85,36 @@ jobs:
               updateType: process.env.UPDATE_TYPE, ecosystem: process.env.ECOSYSTEM,
               maintainerChanges: process.env.MAINTAINER_CHANGES,
             };
+            let verified = policy.autoMergeMetadata(metadata, files) && policy.verifiedDependencyCommits(commits, pr.head.sha)
+              ? metadata : null;
+            if (!verified) {
+              const sync = require('./.github/scripts/dependency-rebase.cjs');
+              if (sync.records(comments).some(r => r.kind === 'completed' && r.sha === pr.head.sha)) {
+                const rebase = await sync.provenance({ github, context, pr, files, comments, commits });
+                if (rebase) verified = rebase.metadata;
+              }
+            }
             const eligible = process.env.ELIGIBLE === 'true' &&
               pr.head.sha === process.env.EXPECTED_SHA &&
               policy.eligiblePull(pr, files, 'no-automerge', comments) &&
-              policy.autoMergeMetadata(metadata, files) &&
-              policy.verifiedDependencyCommits(commits, pr.head.sha);
+              verified !== null;
             if (eligible) {
               const { data } = await github.rest.repos.getBranchProtection({ ...context.repo, branch: 'main' });
-              policy.requireProtection(data, metadata.ecosystem);
+              policy.requireProtection(data, verified.ecosystem);
             }
             core.setOutput('eligible', eligible);
+            if (eligible) core.setOutput('metadata', JSON.stringify(verified));
       - name: Record verified npm or Python update for automatic repair
         if: steps.policy.outputs.eligible == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
-          ECOSYSTEM: ${{ steps.metadata.outputs.package-ecosystem }}
-          MAINTAINER_CHANGES: ${{ steps.metadata.outputs.maintainer-changes }}
+          VERIFIED_METADATA: ${{ steps.policy.outputs.metadata }}
           EXPECTED_SHA: ${{ steps.scope.outputs.sha }}
         with:
           script: |
             const { seed } = require('./.github/scripts/claude-dependency-repair.cjs');
             const { pr } = await require('./.github/scripts/dependency-automation.cjs').getPull({ github, context, number: context.issue.number });
-            if (pr.head.sha === process.env.EXPECTED_SHA) await seed({ github, context, pr, metadata: {
-              updateType: process.env.UPDATE_TYPE, ecosystem: process.env.ECOSYSTEM,
-              maintainerChanges: process.env.MAINTAINER_CHANGES,
-            } });
+            if (pr.head.sha === process.env.EXPECTED_SHA) await seed({ github, context, pr, metadata: JSON.parse(process.env.VERIFIED_METADATA) });
       - name: Recheck current PR
         id: current
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0

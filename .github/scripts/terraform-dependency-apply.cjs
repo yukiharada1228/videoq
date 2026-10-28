@@ -30,12 +30,15 @@ async function automaticTerraformApply({ github, context }) {
   });
   // A human follow-up commit, including a manual merge from main, retains approval.
   if (!commits.length || commits.at(-1).sha !== pr.head.sha) return false;
-  return commits.every(commit => {
+  const signed = commits.every(commit => {
     const types = verifiedUpdateTypes(commit);
     return types && types.every(updateType => policy.autoMergeMetadata({
       ecosystem: 'terraform', updateType, maintainerChanges: 'false',
     }, files));
   });
+  if (signed) return true;
+  const proof = await require('./dependency-rebase.cjs').provenance({ github, context, pr, files, comments, commits });
+  return proof?.metadata.ecosystem === 'terraform';
 }
 
 module.exports = { automaticTerraformApply, verifiedUpdateTypes };

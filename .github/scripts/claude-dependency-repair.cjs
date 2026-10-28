@@ -33,7 +33,7 @@ function validRepairFiles(files) {
       Number.isInteger(f.changes) && f.changes > 0) &&
     files.reduce((sum, f) => sum + f.changes, 0) <= 300;
 }
-function chain(commits, comments) {
+function chain(commits, comments, aliases = {}) {
   for (const origin of records(comments, 'seed').reverse()) {
     const index = commits.findIndex(c => c.sha === origin.sha);
     if (index < 0 || !policy.verifiedDependencyCommits(commits.slice(0, index + 1), origin.sha)) continue;
@@ -42,9 +42,9 @@ function chain(commits, comments) {
     let parent = origin.sha;
     const accepted = [];
     for (const commit of repairs) {
-      const receipt = records(comments, 'published').find(r => r.sha === commit.sha && r.parent === parent &&
+      const receipt = records(comments, 'published').find(r => r.sha === commit.sha && (aliases[r.parent] || r.parent) === parent &&
         r.origin === origin.sha && /^\d+$/.test(String(r.runId)));
-      if (!receipt || commit.parents?.length !== 1 || commit.parents[0].sha !== parent) break;
+      if (!receipt || commit.parents?.length !== 1 || (aliases[commit.parents[0].sha] || commit.parents[0].sha) !== parent) break;
       accepted.push(receipt); parent = commit.sha;
     }
     if (accepted.length === repairs.length) return { origin, repairs: accepted };
@@ -69,7 +69,8 @@ async function candidate({ github, context, runId }) {
   if (!latest || latest.id !== run.id || latest.run_attempt !== run.run_attempt) return null;
   const commits = await github.paginate(github.rest.pulls.listCommits, { ...context.repo, pull_number: pr.number, per_page: 100 });
   if (commits.at(-1)?.sha !== pr.head.sha) return null;
-  const history = chain(commits, comments);
+  const expanded = await require('./dependency-rebase.cjs').expandHistory({ github, context, pr, files, comments, commits });
+  const history = chain(expanded.commits, comments, expanded.aliases);
   if (!history || !['npm_and_yarn', 'pip', 'uv'].includes(history.origin.metadata?.ecosystem)) return null;
   // Verify the seed against the original dependency-only diff, even after source repairs.
   const { data: original } = await github.rest.repos.compareCommitsWithBasehead({ ...context.repo, basehead: `${pr.base.sha}...${history.origin.sha}` });
