@@ -28,7 +28,9 @@ function fixture(repaired = false) {
     repository: { full_name: repo }, head_repository: { full_name: repo }, head_branch: f.pr.head.ref, head_sha: f.pr.head.sha, run_attempt: 1 };
   f.latest = f.run;
   f.github = { paginate: (method, args) => method(args), graphql: async () => { f.mutations.push('disable'); f.pr.auto_merge = null; }, rest: {
-    actions: { getWorkflowRun: async () => ({ data: f.run }), getWorkflow: async () => ({ data: { id: 42 } }),
+    actions: { getWorkflowRun: async a => ({ data: String(a.run_id) === '77' ? {
+      workflow_id: 43, repository: { full_name: repo }, head_repository: { full_name: repo }, head_branch: 'main', event: 'workflow_run',
+    } : f.run }), getWorkflow: async a => ({ data: { id: a.workflow_id === 'ci.yml' ? 42 : 43 } }),
       listWorkflowRuns: async () => ({ data: { workflow_runs: [f.latest] } }), listJobsForWorkflowRun: async () => f.jobs },
     pulls: { list: async () => ({ data: [f.pr] }), get: async () => ({ data: f.pr }), listFiles: async () => f.original,
       listCommits: async () => f.commits },
@@ -125,16 +127,17 @@ test('fresh checkout validates real patches including file modes and line limits
 });
 test('workflow keeps model access read-only and publishing isolated', () => {
   const workflow = readFileSync(join(__dirname, '../workflows/claude-dependency-repair.yml'), 'utf8');
-  const repair = readFileSync(join(__dirname, '../workflows/claude-dependency-worker.yml'), 'utf8');
+  const worker = readFileSync(join(__dirname, '../workflows/claude-dependency-worker.yml'), 'utf8');
+  const repair = worker.split('\n  repair:')[1].split('\n  publish:')[0];
   assert.doesNotMatch(repair, /PATCH_BOT_PRIVATE_KEY|contents: write|pull-requests: write/);
   assert.match(repair, /persist-credentials: false/);
-  assert.match(repair, /workflow_call:/);
+  assert.match(worker, /workflow_dispatch:/);
   assert.match(repair, /Revalidate the trusted repair authorization/);
-  for (const action of (workflow + repair).matchAll(/uses: ([^\s]+)/g)) {
+  for (const action of (workflow + worker).matchAll(/uses: ([^\s]+)/g)) {
     if (!action[1].startsWith('./')) assert.match(action[1], /@[a-f0-9]{40}$/);
   }
   assert.match(workflow, /--match-head-commit/);
-  assert.match(workflow, /group: dependency-automation-\$\{\{ needs\.decide\.outputs\.number \}\}/);
+  assert.match(worker, /group: dependency-automation-\$\{\{ inputs\.number \}\}/);
 });
 
 test('publication uses a separate writer, records exact parent, and never force pushes', async t => {
@@ -150,6 +153,7 @@ test('publication uses a separate writer, records exact parent, and never force 
   git('restore', 'apps/web/src/player.ts');
   const f = fixture();
   f.comments.push(comment({ kind: 'attempt', sha: A, runId: '77' }));
+  f.comments.push(comment({ kind: 'worker-start', sha: A, runId: '77', authorizationRun: '77' }));
   const calls = [];
   f.writerGithub = { rest: {
     pulls: f.github.rest.pulls,
@@ -161,11 +165,22 @@ test('publication uses a separate writer, records exact parent, and never force 
       updateRef: async a => { assert.equal(p.records(f.comments, 'published')[0].sha, B); calls.push(['push', a]); },
     },
   } };
-  await p.publish({ ...f, cwd, patchPath, expectedSha: A });
+  await p.publish({ ...f, cwd, patchPath, expectedSha: A, authorizationRun: '77' });
   assert.deepEqual(calls.find(([name]) => name === 'commit')[1].parents, [A]);
   assert.equal(calls.find(([name]) => name === 'push')[1].force, false);
   assert.equal(calls.find(([name]) => name === 'tree')[1].tree[0].path, 'apps/web/src/player.ts');
   assert.match(Buffer.from(calls[0][1].content, 'base64').toString(), /player = 2/);
   const stale = fixture();
   await assert.rejects(p.publish({ ...stale, cwd, patchPath, expectedSha: B }), /Stale or unapproved/);
+});
+
+test('worker execution requires a real coordinator run and is claimed only once', async () => {
+  const f = fixture();
+  f.comments.push(comment({ kind: 'attempt', sha: A, runId: '77' }));
+  const args = { ...f, expectedSha: A, authorizationRun: '77', number: 1 };
+  await p.claimWorker(args);
+  await assert.rejects(p.claimWorker(args), /already claimed/);
+  const bad = fixture();
+  bad.comments.push(comment({ kind: 'attempt', sha: A, runId: '99' }));
+  assert.equal(await p.authorizedAttempt({ ...bad, c: await p.candidate(bad), authorizationRun: '99' }), false);
 });

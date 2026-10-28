@@ -1,7 +1,7 @@
-# Read-only execution boundary. No write credentials or production secrets.
+# The model job has read-only access; authorization and publishing use separate runners.
 name: Claude Dependency Repair Worker
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       number:
         required: true
@@ -12,15 +12,47 @@ on:
       run_id:
         required: true
         type: string
-    secrets:
-      CLAUDE_CODE_OAUTH_TOKEN:
+      authorization_run:
         required: true
+        type: string
 permissions:
   contents: read
   actions: read
   pull-requests: read
+concurrency:
+  group: claude-dependency-worker-${{ inputs.number }}
+  cancel-in-progress: false
 jobs:
+  authorize:
+    if: >-
+      github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main' &&
+      vars.CLAUDE_DEPENDENCY_REPAIR_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          EXPECTED_SHA: ${{ inputs.sha }}
+          AUTHORIZATION_RUN: ${{ inputs.authorization_run }}
+          CI_RUN_ID: ${{ inputs.run_id }}
+          PR_NUMBER: ${{ inputs.number }}
+        with:
+          script: |
+            await require('./.github/scripts/claude-dependency-repair.cjs').claimWorker({
+              github, context, runId: process.env.CI_RUN_ID, expectedSha: process.env.EXPECTED_SHA,
+              authorizationRun: process.env.AUTHORIZATION_RUN, number: process.env.PR_NUMBER,
+            });
   repair:
+    needs: authorize
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -33,6 +65,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           EXPECTED_SHA: ${{ inputs.sha }}
+          AUTHORIZATION_RUN: ${{ inputs.authorization_run }}
           CI_RUN_ID: ${{ inputs.run_id }}
           PR_NUMBER: ${{ inputs.number }}
         with:
@@ -40,8 +73,7 @@ jobs:
             const policy = require('./.github/scripts/claude-dependency-repair.cjs');
             const c = await policy.candidate({ github, context, runId: process.env.CI_RUN_ID });
             if (!c || c.run.conclusion !== 'failure' || c.pr.head.sha !== process.env.EXPECTED_SHA ||
-              String(c.pr.number) !== process.env.PR_NUMBER || !policy.records(c.comments, 'attempt')
-                .some(r => r.sha === c.pr.head.sha && r.runId === String(context.runId))) {
+              String(c.pr.number) !== process.env.PR_NUMBER || !await policy.authorizedAttempt({ github, context, c, authorizationRun: process.env.AUTHORIZATION_RUN })) {
               throw new Error('No current trusted repair authorization');
             }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -91,3 +123,65 @@ jobs:
           path: ${{ runner.temp }}/repair.patch
           retention-days: 7
           if-no-files-found: error
+  publish:
+    needs: repair
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: dependency-automation-${{ inputs.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.sha }}
+          path: source
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: claude-repair
+          path: ${{ runner.temp }}/claude-patch
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: app
+        with:
+          app-id: ${{ vars.PATCH_BOT_APP_ID }}
+          private-key: ${{ secrets.PATCH_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Validate patch and publish with a separate GitHub App
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          CI_RUN_ID: ${{ inputs.run_id }}
+          EXPECTED_SHA: ${{ inputs.sha }}
+          AUTHORIZATION_RUN: ${{ inputs.authorization_run }}
+          APP_TOKEN: ${{ steps.app.outputs.token }}
+        with:
+          script: |
+            await require('./trusted/.github/scripts/claude-dependency-repair.cjs').publish({
+              github, writerGithub: new github.constructor({ auth: process.env.APP_TOKEN }), context,
+              runId: process.env.CI_RUN_ID, authorizationRun: process.env.AUTHORIZATION_RUN, expectedSha: process.env.EXPECTED_SHA,
+              cwd: `${process.env.GITHUB_WORKSPACE}/source`, patchPath: `${process.env.RUNNER_TEMP}/claude-patch/repair.patch`,
+            });
+  notify:
+    needs: [authorize, repair, publish]
+    if: always() && needs.authorize.result == 'success' && (needs.repair.result == 'failure' || needs.publish.result == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PR_NUMBER: ${{ inputs.number }}
+        with:
+          script: |
+            await github.rest.issues.createComment({ ...context.repo, issue_number: Number(process.env.PR_NUMBER),
+              body: `Claude自動修正を完了できませんでした。人による確認が必要です。実行ログ: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}` });

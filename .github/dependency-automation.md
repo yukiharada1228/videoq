@@ -39,7 +39,8 @@ Dependabot → CI成功 → 既存の自動マージ
 - Claudeには読み取り専用のGitHub tokenだけを渡す。別runnerの信頼済みジョブがパッチを
   新しいcheckoutへ適用し、既存のソースファイルのみ・8ファイル以下・300変更行以下を検証する。
   npm／Pythonの依存ファイル、テスト、設定、認証、資格情報、migration、CI、配備の変更は拒否する。
-  実行部分は `claude-dependency-worker.yml` に分離し、入力されたSHA・CI・PRと実行許可を再検証する。
+  実行部分は独立した `claude-dependency-worker.yml` へdispatchし、入力されたSHA・CI・PRと
+  main上の実際の判定runを再検証する。実行許可の使用を記録し、同じ許可による重複起動を拒否する。
 - パッチ反映にはGitHub Appを使い、通常のPR CIを再実行する。Claude自身にはpush・マージを任せない。
   最終マージは最新SHAとstrictなブランチ保護を確認して予約し、GitHubの必須検査をすべて待つ。
 - Supply Chain Security／Deployment Security Testsが成功していない場合はClaudeを起動せず通知する。

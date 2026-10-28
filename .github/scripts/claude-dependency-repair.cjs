@@ -104,6 +104,22 @@ async function scope(args) {
   return { number: c.pr.number, sha: c.pr.head.sha, branch: c.pr.head.ref, origin: c.origin.sha };
 }
 function git(cwd, ...args) { return execFileSync('git', ['--no-pager', '-c', 'core.hooksPath=/dev/null', ...args], { cwd, encoding: 'utf8', maxBuffer: 2 * 1024 * 1024 }); }
+async function authorizedAttempt({ github, context, c, authorizationRun }) {
+  if (!/^\d+$/.test(String(authorizationRun)) || !records(c.comments, 'attempt')
+    .some(r => r.sha === c.pr.head.sha && r.runId === String(authorizationRun))) return false;
+  const { data: run } = await github.rest.actions.getWorkflowRun({ ...context.repo, run_id: authorizationRun });
+  const { data: workflow } = await github.rest.actions.getWorkflow({ ...context.repo, workflow_id: 'claude-dependency-repair.yml' });
+  return run.workflow_id === workflow.id && run.repository?.full_name === REPO && run.head_repository?.full_name === REPO &&
+    run.head_branch === 'main' && ['workflow_run', 'workflow_dispatch'].includes(run.event);
+}
+async function claimWorker(args) {
+  const c = await candidate(args);
+  if (!c || c.run.conclusion !== 'failure' || c.pr.head.sha !== args.expectedSha ||
+    String(c.pr.number) !== String(args.number) || !await authorizedAttempt({ ...args, c }) ||
+    records(c.comments, 'worker-start').some(r => r.authorizationRun === String(args.authorizationRun))) throw new Error('Repair already claimed or unauthorized');
+  await record(args.github, args.context, c.pr.number, { kind: 'worker-start', sha: c.pr.head.sha,
+    authorizationRun: String(args.authorizationRun), runId: String(args.context.runId) }, '読み取り専用のClaude修正ジョブを開始します。');
+}
 function applyPatch(cwd, patchPath) {
   if (lstatSync(patchPath).size > 200000) throw new Error('Patch too large');
   git(cwd, 'apply', '--check', '--', patchPath);
@@ -125,7 +141,8 @@ async function publish(args) {
   const { writerGithub: github, context, expectedSha, cwd, patchPath } = args;
   const c = await candidate(args);
   if (!c || c.run.conclusion !== 'failure' || c.pr.head.sha !== expectedSha ||
-    !records(c.comments, 'attempt').some(r => r.sha === expectedSha && r.runId === String(context.runId))) throw new Error('Stale or unapproved repair');
+    !await authorizedAttempt({ ...args, c }) || !records(c.comments, 'worker-start').some(r =>
+      r.sha === expectedSha && r.authorizationRun === String(args.authorizationRun) && r.runId === String(context.runId))) throw new Error('Stale or unapproved repair');
   const files = applyPatch(cwd, patchPath);
   const tree = [];
   for (const path of files) {
@@ -149,4 +166,4 @@ async function merge(args) {
   policy.requireProtection(protection, c.origin.metadata.ecosystem);
   return { number: c.pr.number, sha: c.pr.head.sha };
 }
-module.exports = { records, seed, sourceFile, validRepairFiles, chain, candidate, scope, applyPatch, publish, merge };
+module.exports = { records, seed, sourceFile, validRepairFiles, chain, candidate, scope, authorizedAttempt, claimWorker, applyPatch, publish, merge };
