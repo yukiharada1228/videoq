@@ -59,14 +59,14 @@ test('conflict authorization is durable for the exact head/main pair and indepen
   assert.equal(repair.attempts(f.comments, 'ci').length, 0);
   f.main = C; assert.equal(await resolution.candidate(f), null);
 });
-test('in-flight workers block duplicate dispatch; completed failures may retry the same head only twice', async () => {
+test('in-flight workers block duplicate dispatch; completed failures may retry within the global per-mode budget', async () => {
   const f = fixture(); await repair.scope(f);
   f.comments.push(comment({ kind: 'worker-start', authorizationRun: '77', runId: '88', sha: A }));
   f.github.rest.actions.getWorkflowRun = async () => ({ data: { status: 'in_progress' } });
   assert.equal(await repair.mayAttempt({ ...f, comments: f.comments, head: A, mode: 'conflict', base: B }), false);
   f.github.rest.actions.getWorkflowRun = async () => ({ data: { status: 'completed' } });
   assert.equal(await repair.mayAttempt({ ...f, comments: f.comments, head: A, mode: 'conflict', base: B }), true);
-  f.comments.push(comment({ kind: 'attempt', policy: 2, mode: 'conflict', runId: '99', sha: A, base: B }));
+  for (let index = 1; index < repair.MAX_ATTEMPTS; index++) f.comments.push(comment({ kind: 'attempt', policy: 2, mode: 'conflict', runId: String(99 + index), sha: A, base: B }));
   assert.equal(await repair.mayAttempt({ ...f, comments: f.comments, head: A, mode: 'conflict', base: B }), false);
 });
 test('lockfile target extraction covers transitive npm, Python and Terraform upgrades', () => {

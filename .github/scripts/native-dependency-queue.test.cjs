@@ -103,6 +103,28 @@ test('a verified conflict authorizes only the affected PR and exact main through
   assert.equal(f.reserved.length, 0); assert.equal(f.repairs.length, 1);
   assert.equal(f.repairs[0].mode, 'conflict'); assert.equal(f.repairs[0].number, 1); assert.equal(f.repairs[0].baseSha, BASE);
 });
+test('unknown mergeability is not treated as approval to enqueue', async () => {
+  const f = fixture(); f.pr.mergeable = null;
+  await native.reconcile(f.args);
+  assert.equal(f.reserved.length, 0); assert.equal(f.repairs.length, 0);
+});
+test('a mergeability race does not stall later PRs; authentication and other errors still fail closed', async () => {
+  const f = fixture(); const later = { ...structuredClone(f.pr), number: 2, node_id: 'PR_2' };
+  f.github.rest.pulls.list = async () => [f.pr, later];
+  f.github.rest.pulls.get = async ({ pull_number }) => ({ data: pull_number === 1 ? f.pr : later });
+  const original = f.writerGithub.graphql;
+  f.writerGithub.graphql = async (query, values) => {
+    if (query.startsWith('mutation') && values.id === 'PR_1') throw { errors: [{ type: 'UNPROCESSABLE', message: 'Pull request has merge conflicts and Pull request not in mergeable state' }] };
+    return original(query, values);
+  };
+  await native.reconcile({ ...f.args, reserve: undefined, verify: async ({ pr }) => ({ pr, kind: 'dependabot' }) });
+  assert.equal(f.mutations.length, 1); assert.equal(f.mutations[0].values.id, 'PR_2');
+  f.writerGithub.graphql = async query => {
+    if (query.startsWith('mutation')) throw new Error('Unauthorized');
+    return { repository: { pullRequest: { mergeQueueEntry: null } } };
+  };
+  await assert.rejects(native.reconcile({ ...f.args, reserve: undefined }), /Unauthorized/);
+});
 test('historical duplicate notices cannot consume a remaining repair for a different head', async () => {
   const f = fixture(); f.outcome = 'failure';
   for (const data of [{ kind: 'attempt', sha: BASE }, { kind: 'stopped' }]) {
