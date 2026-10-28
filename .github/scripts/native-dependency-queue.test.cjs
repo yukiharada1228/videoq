@@ -28,7 +28,7 @@ function fixture() {
     return { data: f.rules };
   }, graphql: async (query, values) => {
     if (query.startsWith('mutation')) { f.disabled.push(values.id); f.mutations.push({ query, values }); return; }
-    return { repository: { pullRequest: { mergeQueueEntry: f.queued ? { id: 'entry' } : null } } };
+    return { repository: { pullRequest: { mergeQueueEntry: f.queued ? { id: 'entry', enqueuer: { __typename: f.enqueuerType || 'Bot', login: f.enqueuer || 'videoq-dependency-bot' } } : null } } };
   } };
   f.verify = async () => f.proofs ? { pr, kind: 'dependabot', comments: f.comments } : null;
   f.args = { github: f.github, writerGithub: f.writerGithub, context, verify: f.verify,
@@ -40,6 +40,14 @@ function fixture() {
 test('successful eligible PR queues its exact head without a main rebase or issue lease', async () => {
   const f = fixture(); await native.reconcile(f.args);
   assert.deepEqual(f.reserved, [{ number: 1, sha: SHA }]); assert.equal(f.comments.length, 0); assert.equal(f.dispatches.length, 0);
+});
+test('an existing conflict cannot block a later eligible update or trigger a routine rebase', async () => {
+  const f = fixture(); f.pr.mergeable = false;
+  const later = { ...structuredClone(f.pr), number: 2, node_id: 'PR_2', mergeable: true };
+  f.github.rest.pulls.list = async () => [f.pr, later];
+  f.github.rest.pulls.get = async ({ pull_number }) => ({ data: pull_number === 1 ? f.pr : later });
+  await native.reconcile({ ...f.args, verify: async ({ pr }) => ({ pr, kind: 'dependabot' }) });
+  assert.deepEqual(f.reserved, [{ number: 2, sha: SHA }]);
 });
 test('the real native mutation enqueues with an expected head instead of enabling unattended auto-merge', async () => {
   const f = fixture(); await native.reconcile({ ...f.args, reserve: undefined });
@@ -56,9 +64,20 @@ test('native protection fails closed for missing checks, spoofed apps, missing q
 });
 test('queued PRs are left to GitHub and an unverified bot proposal loses auto-merge', async () => {
   const f = fixture(); f.queued = true; await native.reconcile(f.args); assert.equal(f.reserved.length, 0);
-  f.proofs = false; f.pr.auto_merge = {}; await native.reconcile(f.args); assert.deepEqual(f.disabled, ['PR_1', 'PR_1']);
+  f.proofs = false; f.pr.auto_merge = { enabled_by: { login: 'videoq-dependency-bot[bot]' } }; await native.reconcile(f.args); assert.deepEqual(f.disabled, ['PR_1', 'PR_1']);
   assert.match(f.mutations[0].query, /dequeuePullRequest\(input:\{id:\$id\}/);
   assert.match(f.mutations[1].query, /disablePullRequestAutoMerge/);
+});
+test('ineligible automatic updates retain a maintainer-owned manual queue entry and auto-merge request', async () => {
+  const f = fixture(); f.proofs = false; f.queued = true; f.enqueuer = 'maintainer'; f.enqueuerType = 'User';
+  f.pr.auto_merge = { enabled_by: { login: 'maintainer' } };
+  await native.reconcile(f.args);
+  assert.equal(f.mutations.length, 0); assert.equal(f.reserved.length, 0); assert.equal(f.repairs.length, 0);
+});
+test('a human account with the App slug is never mistaken for the automatic Bot', async () => {
+  const f = fixture(); f.proofs = false; f.queued = true; f.enqueuerType = 'User';
+  await native.reconcile(f.args);
+  assert.equal(f.mutations.length, 0);
 });
 test('a normal eligible CI failure uses the existing bounded Claude authorizer', async () => {
   const f = fixture(); f.outcome = 'failure'; await native.reconcile({ ...f.args, repairEnabled: true, authorizeRepair: true });

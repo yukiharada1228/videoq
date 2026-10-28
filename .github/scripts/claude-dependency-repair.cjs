@@ -101,6 +101,11 @@ async function scope(args) {
       { kind: 'security-stop', sha: c.pr.head.sha }, 'セキュリティ検査が成功していないためClaude自動修正を停止しました。人による確認が必要です。');
     return null;
   }
+  // Upload/service failures and the aggregate result cannot be fixed by editing
+  // application source. Preserve the bounded attempts for an actual test/build
+  // failure; mixed failures can still receive a source compatibility repair.
+  const reporting = new Set(['CI Success', 'Dependency Queue', 'Frontend Coverage']);
+  if (!jobs.some(job => job.conclusion === 'failure' && !reporting.has(job.name))) return null;
   const attempts = records(c.comments, 'attempt');
   if (attempts.some(r => r.sha === c.pr.head.sha)) return null;
   if (attempts.length >= 2) {
