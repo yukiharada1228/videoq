@@ -3,7 +3,7 @@ const policy = require('./dependency-automation.cjs');
 const sync = require('./dependency-rebase.cjs');
 const runtime = require('./runtime-pull-request.cjs');
 const REPO = 'videoq-jp/videoq';
-const BOT = 'yuki-dependency-patches-20261022[bot]';
+const BOT = process.env.DEPENDENCY_BOT_LOGIN || 'videoq-dependency-bot[bot]';
 const NAME = 'Dependency Queue';
 const MARKER = '<!-- videoq-dependency-queue-v1 -->';
 const WORKFLOWS = ['ci.yml', 'container-validation.yml', 'terraform-plan.yml'];
@@ -248,4 +248,4 @@ async function repairFailure({ github, writerGithub, context, runId }) {
   }
   return c;
 }
-module.exports = { managed, parse, admission, verified, result, requireQueueProtection, reconcile, repairFailure, NAME, MARKER };
+module.exports = { managed, parse, admission, verified, runs, result, requireQueueProtection, reconcile, repairFailure, NAME, MARKER };

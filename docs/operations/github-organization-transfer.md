@@ -26,7 +26,8 @@ Its App ID and private key are retained; do not create a replacement bot identit
    `videoq-jp`. A private App's personal installation can be removed by this
    operation; perform it during this cutover, not during normal operation.
 4. Install the transferred App on **Only select repositories: videoq**. Confirm
-   App ID `5420589` and the existing bot login still match the workflow policy.
+   App ID `5420589` remains unchanged. Name the App `videoq-dependency-bot`;
+   controller and publisher derive its bot login from the authenticated App slug.
 5. Run CI on destination main. Verify the exact main commit passes CI and that
    the normal deployment workflows assume their AWS roles successfully. PR and
    merge-group runs must never deploy production or receive deploy credentials.
@@ -50,12 +51,31 @@ Their change detection uses the group's base SHA. Terraform merge groups only
 validate with backend disabled; AWS planning remains restricted to same-repository
 PRs with the existing Dependabot exclusions.
 
-Do not enable a native queue until the auto-update controller has been switched
-away from its issue lease and main-rebase loop. Replace the custom queue required
-check with a native `merge_queue` rule while retaining all four validation checks.
-Start with one concurrent build and one PR per merge group; this avoids speculative
-builds being invalidated by preceding PRs. Normal developer PRs also use GitHub's
-native queue when the rule applies to main. No polling schedule is needed.
+The controller selects native operation with repository variable
+`DEPENDENCY_QUEUE_MODE=native`. In that mode, CI admission no longer reads an issue
+lease, and the controller does not rebase branches just because main advances.
+It reserves native queue entries only after all real PR validation workflows pass
+and it independently verifies the branch's native queue protection.
+
+For cutover, briefly set `DEPENDENCY_AUTOMERGE_ENABLED=false`, merge the native
+controller change, and install `.github/native-merge-queue.json` through the
+repository ruleset API. Replace the custom queue required check with the four real
+validation checks, set strict up-to-date checking to false, retain administrator
+enforcement, set `DEPENDENCY_QUEUE_MODE=native`, then restore auto-merge and dispatch
+the controller once. Do not clear required checks during this transition. Normal
+developer PRs also use GitHub's native queue when the rule applies to main.
+
+Existing bot PRs created before the owner change need one explicit controller
+dispatch with their PR number in `retry` to incorporate the new workflow policy.
+This is a one-time cutover step, not a recurring main synchronization loop.
+
+The native configuration builds one merge group at a time, with one PR in it and
+merge commits preserving parent ancestry. This avoids speculative builds being
+invalidated by preceding PRs. A proven group failure can sync only its current PR
+to reproduce the problem in normal PR CI. Group origin, workflow identity, current
+head ancestry and bot provenance are checked before that mutation. Reproduction
+is bounded to two attempts per PR; the existing Claude security and repair limits
+remain independent. No polling schedule is needed.
 
 Completion requires an actual automatic update PR to enter the native queue,
 pass checks on its synthetic commit, and merge without manual main rebasing.

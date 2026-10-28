@@ -42,7 +42,7 @@ test('managed scope excludes development, forks, and next-line runtime PRs', () 
   assert.equal(q.managed(pr(1, 'developer')), false);
   const fork = pr(1); fork.head.repo.full_name = 'other/videoq';
   assert.equal(q.managed(fork), false);
-  const runtime = pr(1, 'yuki-dependency-patches-20261022[bot]'); runtime.head.ref = 'runtime/python-next';
+  const runtime = pr(1, 'videoq-dependency-bot[bot]'); runtime.head.ref = 'runtime/python-next';
   assert.equal(q.managed(runtime), false);
   runtime.head.ref = 'runtime/python-current';
   assert.equal(q.managed(runtime), true);
