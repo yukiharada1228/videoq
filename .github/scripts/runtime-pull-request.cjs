@@ -107,14 +107,18 @@ async function publish({ github, context, core, plan, bot, autoMergeCurrent = fa
       throw new Error('Runtime PR has human changes; preserve them for review');
     }
     const comments = await github.paginate(github.rest.issues.listComments, { ...context.repo, issue_number: managed.number, per_page: 100 });
-    if (!receipts(comments, bot).some(r => r.sha === old && r.runtime === plan.runtime && r.channel === plan.channel)) {
+    const publication = receipts(comments, bot).find(r => r.sha === old && r.runtime === plan.runtime && r.channel === plan.channel);
+    if (!publication) {
       throw new Error('Runtime head has no trusted publication receipt; preserve it for review');
     }
     if (existing?.labels?.some(l => l.name === 'no-runtime-update')) return finish(existing, old);
     if (!plan.changed) {
       // The official discovery result is already in main; retire only a managed,
       // unedited current-line proposal superseded by that canonical state.
-      if (existing && plan.channel === 'current' && autoMergeCurrent && !existing.labels?.some(l => ['no-automerge', 'no-runtime-update'].includes(l.name))) {
+      const before = String(publication.version).split('.').map(Number), after = plan.version.split('.').map(Number);
+      const superseded = /^\d+\.\d+\.\d+$/.test(publication.version || '') &&
+        (after[0] - before[0] || after[1] - before[1] || after[2] - before[2]) >= 0;
+      if (superseded && existing && plan.channel === 'current' && autoMergeCurrent && !existing.labels?.some(l => ['no-automerge', 'no-runtime-update'].includes(l.name))) {
         await github.rest.pulls.update({ ...context.repo, pull_number: existing.number, state: 'closed' });
         core.info(`Closed superseded runtime PR #${existing.number}`);
       }
