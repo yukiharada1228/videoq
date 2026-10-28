@@ -1,7 +1,7 @@
 // Trusted main code only. Never check out or execute the dependency PR.
 const policy = require('./dependency-automation.cjs');
 const { verifiedUpdateTypes } = require('./terraform-dependency-apply.cjs');
-const REPO = 'yukiharada1228/videoq';
+const REPO = 'videoq-jp/videoq';
 const MARKER = '<!-- videoq-dependency-rebase-v1 -->';
 const sha = value => /^[a-f0-9]{40}$/.test(value || '');
 const ecosystems = ['npm_and_yarn', 'uv', 'pip', 'docker', 'docker_compose', 'terraform', 'github_actions'];
@@ -25,8 +25,8 @@ function canonical(files) {
 function signedMetadata(commits, files) {
   if (!policy.verifiedDependencyCommits(commits, commits.at(-1)?.sha)) return null;
   const types = commits.flatMap(c => verifiedUpdateTypes(c) || ['invalid']);
-  if (!types.length || types.some(t => !['version-update:semver-patch', 'version-update:semver-minor'].includes(t))) return null;
-  const updateType = types.includes('version-update:semver-minor') ? 'version-update:semver-minor' : 'version-update:semver-patch';
+  if (!types.length || types.some(t => !['version-update:semver-patch', 'version-update:semver-minor', 'version-update:semver-major'].includes(t))) return null;
+  const updateType = types.includes('version-update:semver-major') ? 'version-update:semver-major' : types.includes('version-update:semver-minor') ? 'version-update:semver-minor' : 'version-update:semver-patch';
   for (const ecosystem of ecosystems) {
     const metadata = { ecosystem, updateType, maintainerChanges: 'false' };
     if (policy.autoMergeMetadata(metadata, files)) return metadata;
@@ -59,7 +59,9 @@ async function snapshotMetadata(args, depth = 0) {
 }
 async function provenance(args, depth = 0) {
   const { github, context, pr, files, comments, commits } = args;
-  if (depth > 4) return null;
+  if (depth > 24) return null;
+  const resolved = await require('./dependency-resolution.cjs').provenance(args, depth);
+  if (resolved) return resolved;
   const normal = signedMetadata(commits, files);
   if (normal) {
     if (!canonical(files) || commits[0].parents?.length !== 1) return null;
@@ -103,30 +105,19 @@ async function candidate({ github, context, number, now = new Date() }) {
   requireMain(context);
   const { pr, files, comments } = await policy.getPull({ github, context, number });
   const sourceFile = require('./claude-dependency-repair.cjs').sourceFile;
-  if (files.length > 66 || !pr.auto_merge || pr.mergeable_state !== 'behind' ||
+  if (files.length > 82 ||
     !policy.eligiblePull(pr, files.filter(f => !sourceFile(f.filename)), 'no-automerge', comments) ||
     pr.labels.some(l => l.name === 'no-rebase')) return null;
-  const { data: runs } = await github.rest.actions.listWorkflowRuns({ ...context.repo, workflow_id: 'ci.yml', head_sha: pr.head.sha, event: 'pull_request', per_page: 100 });
-  const latest = runs.workflow_runs.sort((a, b) => b.id - a.id)[0];
-  if (!latest || latest.status !== 'completed' || latest.conclusion !== 'success') return null;
   const commits = await github.paginate(github.rest.pulls.listCommits, { ...context.repo, pull_number: number, per_page: 100 });
   if (commits.at(-1)?.sha !== pr.head.sha) return null;
   const proof = await provenance({ github, context, pr, files, comments, commits });
   if (!proof) return null;
   const { data: main } = await github.rest.repos.getBranch({ ...context.repo, branch: 'main' });
+  const { data: diff } = await github.rest.repos.compareCommits({ ...context.repo, base: main.commit.sha, head: pr.head.sha });
+  if (diff.behind_by < 1) return null;
   const attempts = records(comments).filter(r => r.kind === 'requested' && r.sha === pr.head.sha && r.base === main.commit.sha);
   if (attempts.length >= 3 || attempts.some(r => !Number.isFinite(Date.parse(r.at)) || now - Date.parse(r.at) < 30 * 60_000)) return null;
   return { pr, files, comments, ...proof, base: main.commit.sha };
-}
-async function select(args) {
-  requireMain(args.context);
-  const pulls = await args.github.paginate(args.github.rest.pulls.list, { ...args.context.repo, base: 'main', state: 'open', sort: 'created', direction: 'asc', per_page: 100 });
-  for (const pr of pulls) {
-    if (pr.user?.login !== 'dependabot[bot]' || pr.draft) continue;
-    const c = await candidate({ ...args, number: pr.number });
-    if (c) return { number: pr.number, sha: c.pr.head.sha, ecosystem: c.metadata.ecosystem };
-  }
-  return null;
 }
 async function record(github, context, number, data, message) {
   await github.rest.issues.createComment({ ...context.repo, issue_number: number, body: `${MARKER}\n${JSON.stringify(data)}\n\n${message}` });
@@ -136,12 +127,15 @@ async function update(args) {
   const c = await candidate(args);
   if (!c || c.pr.head.sha !== expectedSha) return null;
   const { data: protection } = await writerGithub.rest.repos.getBranchProtection({ ...context.repo, branch: 'main' });
-  policy.requireProtection(protection, c.metadata.ecosystem);
+  if (args.nativeQueue === true) {
+    const { data: rules } = await writerGithub.request('GET /repos/{owner}/{repo}/rules/branches/{branch}', { ...context.repo, branch: 'main' });
+    require('./native-dependency-queue.cjs').requireProtection(protection, rules);
+  } else policy.requireProtection(protection, c.metadata.ecosystem);
   await record(github, context, number, { kind: 'requested', sha: expectedSha, base: c.base, at: now.toISOString() },
     '最新mainへの追従を自動実行します。依存更新の内容を維持し、追従後のCIを待ちます。');
-  // Revalidate after acquiring the shared per-PR lock and immediately before mutation.
+  // Revalidate immediately before mutation; expectedHeadOid also rejects concurrent changes.
   const fresh = await policy.getPull({ github, context, number });
-  if (fresh.pr.head.sha !== expectedSha || !fresh.pr.auto_merge || fresh.pr.labels.some(l => ['no-automerge', 'no-rebase'].includes(l.name))) return null;
+  if (fresh.pr.head.sha !== expectedSha || fresh.pr.labels.some(l => ['no-automerge', 'no-rebase'].includes(l.name))) return null;
   await writerGithub.graphql('mutation($id:ID!,$sha:GitObjectID!){updatePullRequestBranch(input:{pullRequestId:$id,expectedHeadOid:$sha,updateMethod:REBASE}){clientMutationId}}', { id: c.pr.node_id, sha: expectedSha });
   for (let attempt = 0; attempt < 12; attempt++) {
     await wait(5000);
@@ -159,4 +153,4 @@ async function update(args) {
   }
   throw new Error('GitHub branch update did not finish in time; a later run can retry');
 }
-module.exports = { canonical, records, signedMetadata, provenance, expandHistory, candidate, select, update };
+module.exports = { canonical, records, signedMetadata, provenance, expandHistory, candidate, update };

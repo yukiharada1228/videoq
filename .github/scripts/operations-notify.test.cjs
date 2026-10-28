@@ -5,7 +5,7 @@ const { inspect } = require('./dependency-stalls.cjs');
 
 function fixture() {
   const f = {
-    context: { repo: { owner: 'yukiharada1228', repo: 'videoq' }, ref: 'refs/heads/main', eventName: 'schedule', runId: 123 },
+    context: { repo: { owner: 'videoq-jp', repo: 'videoq' }, ref: 'refs/heads/main', eventName: 'schedule', runId: 123 },
     core: { summary: { addRaw() { return this; }, async write() {} } },
     kind: 'dependency-stalls', title: '依存関係更新PRの滞留',
     report: { status: 'findings', summary: '更新が滞留しています。', details: ['- #1'] },
@@ -74,7 +74,7 @@ test('staleness uses the current head and latest CI without mutating pull reques
   f.pulls = [{
     number: 1, state: 'open', draft: false, labels: [], user: { login: 'dependabot[bot]' },
     created_at: '2026-10-01T00:00:00Z',
-    head: { sha: 'a'.repeat(40), repo: { full_name: 'yukiharada1228/videoq' } },
+    head: { sha: 'a'.repeat(40), repo: { full_name: 'videoq-jp/videoq' } },
     mergeable_state: 'behind',
   }];
   f.now = new Date('2026-10-22T00:00:00Z');

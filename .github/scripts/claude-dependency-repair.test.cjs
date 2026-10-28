@@ -6,7 +6,7 @@ const { join } = require('node:path');
 const { execFileSync } = require('node:child_process');
 const p = require('./claude-dependency-repair.cjs');
 const A = 'a'.repeat(40), B = 'b'.repeat(40), C = 'c'.repeat(40);
-const repo = 'yukiharada1228/videoq';
+const repo = 'videoq-jp/videoq';
 const metadata = { ecosystem: 'npm_and_yarn', updateType: 'version-update:semver-minor', maintainerChanges: 'false' };
 const bot = (sha = A) => ({ sha, author: { login: 'dependabot[bot]' }, commit: { verification: { verified: true } } });
 const comment = r => ({ user: { login: 'github-actions[bot]' }, body: '<!-- videoq-claude-dependency-v1 -->\n' + JSON.stringify(r) });
@@ -15,12 +15,13 @@ const receipt = (sha = B, parent = A) => comment({ kind: 'published', sha, paren
 const source = (filename = 'apps/web/src/components/player.tsx') => ({ filename, status: 'modified', patch: '-old\n+new', changes: 2 });
 
 function fixture(repaired = false) {
-  const f = { context: { repo: { owner: 'yukiharada1228', repo: 'videoq' }, ref: 'refs/heads/main', runId: 77 }, runId: '99',
+  const f = { context: { repo: { owner: 'videoq-jp', repo: 'videoq' }, ref: 'refs/heads/main', runId: 77 }, runId: '99',
     pr: { number: 1, state: 'open', draft: false, node_id: 'PR_1', user: { login: 'dependabot[bot]' }, labels: [],
       head: { ref: 'dependabot/npm_and_yarn/update', sha: repaired ? B : A, repo: { full_name: repo } },
       base: { ref: 'main', sha: C, repo: { full_name: repo } } },
     comments: [seed()], commits: [bot()], original: [{ filename: 'package-lock.json', status: 'modified' }],
-    diff: [source()], mutations: [], jobs: ['Supply Chain Security', 'Deployment Security Tests'].map(name => ({ name, conclusion: 'success' })),
+    diff: [source()], mutations: [], jobs: [...['Supply Chain Security', 'Deployment Security Tests'].map(name => ({ name, conclusion: 'success' })),
+      { name: 'Hono (apps/api)', conclusion: repaired ? 'success' : 'failure' }],
     protection: { required_status_checks: { strict: true, checks: ['CI Success', 'Supply Chain Security'].map(context => ({ context, app_id: 15368 })) } },
   };
   if (repaired) { f.comments.push(receipt()); f.commits.push({ sha: B, parents: [{ sha: A }] }); }
@@ -30,7 +31,7 @@ function fixture(repaired = false) {
   f.github = { paginate: (method, args) => method(args), graphql: async () => { f.mutations.push('disable'); f.pr.auto_merge = null; }, rest: {
     actions: { getWorkflowRun: async a => ({ data: String(a.run_id) === '77' ? {
       workflow_id: 43, repository: { full_name: repo }, head_repository: { full_name: repo }, head_branch: 'main', event: 'workflow_run',
-    } : f.run }), getWorkflow: async a => ({ data: { id: a.workflow_id === 'ci.yml' ? 42 : 43 } }),
+    } : f.run }), getWorkflow: async a => ({ data: { id: a.workflow_id === 'ci.yml' ? 42 : a.workflow_id === 'dependency-queue.yml' ? 43 : 44 } }),
       listWorkflowRuns: async () => ({ data: { workflow_runs: [f.latest] } }), listJobsForWorkflowRun: async () => f.jobs },
     pulls: { list: async () => ({ data: [f.pr] }), get: async () => ({ data: f.pr }), listFiles: async () => f.original,
       listCommits: async () => f.commits },
@@ -52,27 +53,24 @@ test('only a contiguous receipt-backed repair chain can inherit verified Dependa
     f => { f.commits.push({ sha: C, parents: [{ sha: B }] }); },
   ]) { const bad = fixture(true); mutate(bad); assert.equal(p.chain(bad.commits, bad.comments), null); }
 });
-test('source scope excludes checks, dependency files, credentials, traversal and config', () => {
+test('compatibility scope includes configs, tests and types but excludes automation, dependencies and credentials', () => {
+  for (const path of ['apps/web/vite.config.ts', 'apps/web/vite.config.mts', 'apps/api/wrangler.jsonc', 'apps/web/.storybook/vite.config.ts', 'apps/web/src/x.test.ts', 'apps/web/src/__tests__/x.ts', 'apps/web/src/types.d.ts', 'apps/api/src/auth/session.ts', 'apps/api/src/db/migrations/migrate.ts']) assert.equal(p.validRepairFiles([source(path)]), true, path);
   assert.equal(p.validRepairFiles([source()]), true);
-  for (const filename of ['.github/workflows/ci.yml', 'package.json', 'apps/web/src/x.test.ts', 'apps/web/src/__tests__/x.ts',
+  for (const filename of ['.github/workflows/ci.yml', 'package.json',
     'apps/web/src/../../config.ts', 'apps/worker/worker_python/env.py', 'apps/worker/worker_python/secrets_bootstrap.py',
-    'apps/api/src/auth/session.ts', 'apps/api/src/db/migrations/migrate.ts', 'apps/web/vite.config.ts', 'apps/web/src/types.d.ts']) {
+    'infra/iam.tf', '.github/scripts/dependency-resolution.cjs']) {
     assert.equal(p.validRepairFiles([source(filename)]), false, filename);
   }
-  for (const files of [[], [source(), { ...source(), status: 'added' }], [{ ...source(), patch: undefined }],
-    [{ ...source(), changes: 301 }], Array.from({ length: 9 }, () => source())]) assert.equal(p.validRepairFiles(files), false);
+  for (const files of [[], [source(), { ...source(), status: 'removed' }], [{ ...source(), patch: undefined }],
+    [{ ...source(), changes: 2001 }], Array.from({ length: 33 }, () => source())]) assert.equal(p.validRepairFiles(files), false);
 });
 test('current failed originals and successful repaired heads are eligible', async () => {
   assert.ok(await p.candidate(fixture()));
   const f = fixture(true);
-  assert.deepEqual(await p.merge(f), { number: 1, sha: B });
-  f.protection.required_status_checks.strict = false;
-  await assert.rejects(p.merge(f));
-  assert.equal(await p.merge(fixture()), null);
+  assert.ok(await p.candidate(f));
 });
 for (const [name, mutate] of [
   ['fork', f => { f.pr.head.repo.full_name = 'attacker/repo'; }],
-  ['major', f => { f.comments[0] = comment({ kind: 'seed', sha: A, metadata: { ...metadata, updateType: 'version-update:semver-major' } }); }],
   ['unsupported ecosystem', f => { f.comments[0] = comment({ kind: 'seed', sha: A, metadata: { ...metadata, ecosystem: 'terraform' } }); }],
   ['stale head', f => { f.pr.head.sha = C; }],
   ['new CI', f => { f.latest = { ...f.run, id: 100 }; }],
@@ -81,7 +79,6 @@ for (const [name, mutate] of [
   ['human commit', f => { f.commits.push({ sha: B }); f.pr.head.sha = B; f.run.head_sha = B; }],
   ['no-claude', f => { f.pr.labels.push({ name: 'no-claude' }); }],
   ['no-automerge', f => { f.pr.labels.push({ name: 'no-automerge' }); }],
-  ['legacy manual repair', f => { f.comments.push({ user: { login: 'github-actions[bot]' }, body: '<!-- videoq-codex-repair-request -->' }); }],
   ['untrusted seed', f => { f.comments[0].user.login = 'owner'; }],
   ['original source change', f => { f.original.push(source()); }],
 ]) test(`candidate rejects ${name}`, async () => { const f = fixture(); mutate(f); assert.equal(await p.candidate(f), null); });
@@ -95,11 +92,13 @@ test('attempts are durable, deduplicated by SHA, and bounded across CI reruns', 
   assert.deepEqual(await p.scope(f), { number: 1, sha: A, branch: f.pr.head.ref, origin: A });
   assert.equal(f.mutations[0], 'disable');
   assert.equal(await p.scope(f), null);
+  assert.equal(p.records(f.comments, 'stopped').length, 0);
   f.run.run_attempt = 2;
   assert.equal(await p.scope(f), null);
   assert.equal(p.records(f.comments, 'attempt').length, 1);
   const repaired = fixture(true); repaired.run.conclusion = 'failure';
-  repaired.comments.push(comment({ kind: 'attempt', sha: A }), comment({ kind: 'attempt', sha: C }));
+  repaired.jobs.push({ name: 'Frontend Build', conclusion: 'failure' });
+  for (let index = 0; index < p.MAX_ATTEMPTS; index++) repaired.comments.push(comment({ kind: 'attempt', policy: 2, sha: index.toString().repeat(40) }));
   assert.equal(await p.scope(repaired), null);
 });
 test('security failures stop before invoking Claude', async () => {
@@ -107,6 +106,18 @@ test('security failures stop before invoking Claude', async () => {
   assert.equal(await p.scope(f), null);
   assert.equal(p.records(f.comments, 'attempt').length, 0);
   assert.equal(p.records(f.comments, 'security-stop').length, 1);
+});
+test('coverage upload failures and aggregate failures cannot consume source repair attempts', async () => {
+  const f = fixture();
+  f.jobs = f.jobs.filter(job => job.conclusion === 'success');
+  f.jobs.push({ name: 'Frontend Coverage', conclusion: 'failure' }, { name: 'CI Success', conclusion: 'failure' });
+  assert.equal(await p.scope(f), null);
+  assert.equal(p.records(f.comments, 'attempt').length, 0);
+});
+test('an actual application failure can be repaired while coverage reporting is unavailable', async () => {
+  const f = fixture(); f.jobs.push({ name: 'Frontend Coverage', conclusion: 'failure' });
+  assert.equal((await p.scope(f)).sha, A);
+  assert.equal(p.records(f.comments, 'attempt').length, 1);
 });
 test('repair preparation cancels auto-merge with the App while keeping records on the standard token', async () => {
   const f = fixture(); f.pr.auto_merge = {};
@@ -139,7 +150,7 @@ test('fresh checkout validates real patches including file modes and line limits
   assert.throws(() => p.applyPatch(cwd, patch), /Forbidden repair path or mode/);
 });
 test('workflow keeps model access read-only and publishing isolated', () => {
-  const workflow = readFileSync(join(__dirname, '../workflows/claude-dependency-repair.yml'), 'utf8');
+  const workflow = readFileSync(join(__dirname, '../workflows/dependency-queue.yml'), 'utf8');
   const worker = readFileSync(join(__dirname, '../workflows/claude-dependency-worker.yml'), 'utf8');
   const repair = worker.split('\n  repair:')[1].split('\n  publish:')[0];
   assert.doesNotMatch(repair, /PATCH_BOT_PRIVATE_KEY|contents: write|pull-requests: write/);
@@ -149,7 +160,7 @@ test('workflow keeps model access read-only and publishing isolated', () => {
   for (const action of (workflow + worker).matchAll(/uses: ([^\s]+)/g)) {
     if (!action[1].startsWith('./')) assert.match(action[1], /@[a-f0-9]{40}$/);
   }
-  assert.match(workflow, /--match-head-commit/);
+  assert.match(readFileSync(join(__dirname, 'native-dependency-queue.cjs'), 'utf8'), /expectedHeadOid:\$sha/);
   assert.match(worker, /group: dependency-automation-\$\{\{ inputs\.number \}\}/);
 });
 
@@ -196,4 +207,32 @@ test('worker execution requires a real coordinator run and is claimed only once'
   const bad = fixture();
   bad.comments.push(comment({ kind: 'attempt', sha: A, runId: '99' }));
   assert.equal(await p.authorizedAttempt({ ...bad, c: await p.candidate(bad), authorizationRun: '99' }), false);
+});
+test('only main runs of the single controller can authorize a worker; retired routes and PR events are rejected', async () => {
+  for (const event of ['push', 'workflow_run', 'workflow_dispatch', 'pull_request_target']) {
+    const f = fixture(); f.comments.push(comment({ kind: 'attempt', sha: A, runId: '77' }));
+    const c = await p.candidate(f);
+    f.github.rest.actions.getWorkflowRun = async () => ({ data: { workflow_id: 43, event,
+      repository: { full_name: repo }, head_repository: { full_name: repo }, head_branch: 'main' } });
+    assert.equal(await p.authorizedAttempt({ ...f, c, authorizationRun: '77' }), event !== 'pull_request_target');
+    f.github.rest.actions.getWorkflowRun = async () => ({ data: { workflow_id: 44, event: 'workflow_run',
+      repository: { full_name: repo }, head_repository: { full_name: repo }, head_branch: 'main' } });
+    assert.equal(await p.authorizedAttempt({ ...f, c, authorizationRun: '77' }), false);
+  }
+});
+test('the controller verifies a failed head and records authorization before dispatching the isolated worker', async () => {
+  const f = fixture(); const dispatches = [];
+  f.github.rest.actions.createWorkflowDispatch = async args => {
+    assert.equal(p.records(f.comments, 'attempt')[0].sha, A);
+    dispatches.push(args);
+  };
+  await require('./dependency-queue.cjs').repairFailure(f);
+  assert.equal(dispatches.length, 1);
+  assert.equal(dispatches[0].workflow_id, 'claude-dependency-worker.yml');
+  assert.deepEqual(dispatches[0].inputs, { number: '1', sha: A, run_id: '99', authorization_run: '77' });
+});
+
+test('major npm updates receive the same repair path as minor updates', async () => {
+  const f = fixture(); f.comments[0] = comment({ kind: 'seed', sha: A, metadata: { ...metadata, updateType: 'version-update:semver-major' } });
+  assert.ok(await p.candidate(f)); assert.ok(await p.scope(f));
 });

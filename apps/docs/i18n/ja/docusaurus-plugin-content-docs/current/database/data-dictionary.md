@@ -5,7 +5,7 @@ description: 目的からテーブルを探し、実際の列定義へ進むた�
 
 # データ辞書
 
-調べたいデータがどのテーブルにあるかを探す一覧です。列の型・既定値・制約の完全な定義は [modern.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/modern.ts) と [better-auth.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/better-auth.ts)を確認してください。
+調べたいデータがどのテーブルにあるかを探す一覧です。列の型・既定値・制約の完全な定義は [modern.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/db/schema/modern.ts) と [better-auth.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/db/schema/better-auth.ts)を確認してください。
 
 ## 利用者と認証
 

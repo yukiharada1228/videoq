@@ -2,11 +2,19 @@
 
 `.github/runtime-versions.json` を唯一の管理元にします。Node.js、Python、npm、pip、uv の版と配布物のハッシュを記録し、`.node-version`、`.nvmrc`、`.python-version`、`package.json` の `packageManager`、該当する Dockerfile を生成します。CI・ビルド・デプロイはこの指定を使います。
 
-Runtime Updates は毎日09:13 JSTと手動実行で、公式のリリース情報を確認して更新PRを作ります。既存の `PATCH_BOT_APP_ID` / `PATCH_BOT_PRIVATE_KEY` を再利用し、このリポジトリの contents / pull-requests 権限だけを要求します。App tokenを使うため通常のPR CIが実行されます。本番の資格情報は使いません。手動実行の既定値はdry runです。
+Runtime Updates は毎日09:13 JSTと手動実行で、公式のリリース情報を確認して更新PRを作ります。既存の `PATCH_BOT_APP_ID` / `PATCH_BOT_PRIVATE_KEY` を再利用し、contents / pull-requests の書き込みと、保護設定確認用の administration 読み取りを要求します。App tokenを使うため通常のPR CIが実行されます。本番の資格情報は使いません。手動実行の既定値はdry runです。runtime と channel で対象を選択できます。
 
 現在の系列の修正更新と、新しい系列への更新は別PRです。Node.jsは現在のメジャー内の最新版、および現在より新しいLTSを対象にします。Python、npm、pipは現在の系列の最新版と次の安定系列を分離します。1.0未満のuvはminorを系列として扱います。プレリリースとダウングレードは対象外です。Dockerの同じタグが再構築された場合もdigestを更新します。
 
-更新PRは自動マージしません。未提供のPythonビルド、コンテナ、wheel、互換性エラーは失敗として表示します。新系列の失敗は現在系列のセキュリティ修正を止めません。人が修正した更新PRや同名の管理外ブランチを上書きしません。mainが途中で変わった場合は次回実行で再確認します。
+既存系列（current）の更新と同じタグのイメージ再ビルドは、管理表・配布物のハッシュ・生成ファイルをまとめたPRを作り、通常CIとstrictなブランチ保護を満たした後に自動マージします。新系列（next）はレビュー対象です。未提供のPythonビルド、コンテナ、wheel、互換性エラーは失敗として表示し、検査を省略してマージしません。新系列の失敗は現在系列のセキュリティ修正を止めません。
+
+mainへのpush・CI完了時にはDependency Automationが状態を再確認し、キューで選択したcurrent PRだけを再生成します。Runtime Updates自身はmain／CIイベントを監視せず、日次の探索とコントローラーからの明示的な実行だけを担当します。main追従の定期ポーリングはありません。同じランタイムの同じ系列への書き込みは直列にします。
+
+人が修正した更新PRや同名の管理外ブランチは上書きしません。Appの公開記録と現在のheadを照合し、手動コミットや対象外ファイルが入った場合は自動マージを解除します。mainが途中で変わった場合は次のイベントで再確認します。更新が既にmainへ反映済みの未編集current PRは終了します。
+
+停止は `RUNTIME_AUTOMERGE_ENABLED=false`（全依存更新の停止は `DEPENDENCY_AUTOMERGE_ENABLED=false`）。予約済み分は別途解除してください。PR単位では `no-automerge` で自動マージを停止でき、`no-runtime-update` は再生成も停止します。Dependency Automationがラベル変更を確認します。
+
+管理対象のworker用DockerイメージはDependabotから除外し、ランタイム更新処理だけで更新します。Dockerレジストリを省略したDependabotの名前（`astral-sh/uv`、`lambda/python`）も除外しています。Python 3.12を維持する独立したwhisperサービスのイメージ更新は、従来のDependabot経路を使います。
 
 ```sh
 python3 .github/scripts/runtime-versions.py check

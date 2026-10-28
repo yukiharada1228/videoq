@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   inspect:
-    if: github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main'
+    if: github.repository == 'videoq-jp/videoq' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   cleanup:
-    if: github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main' && github.sha == github.workflow_sha
+    if: github.repository == 'videoq-jp/videoq' && github.ref == 'refs/heads/main' && github.sha == github.workflow_sha
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -43,7 +43,7 @@ jobs:
         env:
           SOURCE_RUN: ${{ steps.source.outputs.run_id }}
           ARTIFACT: ${{ steps.source.outputs.artifact }}
-        run: gh run download "$SOURCE_RUN" --repo yukiharada1228/videoq --name "$ARTIFACT" --dir release
+        run: gh run download "$SOURCE_RUN" --repo videoq-jp/videoq --name "$ARTIFACT" --dir release
       - name: Verify signatures and preview the fixed deletion allowlist
         env:
           SOURCE_SHA: ${{ steps.source.outputs.source_sha }}

@@ -25,7 +25,7 @@ def api(package, method='GET', *, retire_vllm=False):
     if method not in ('GET', 'DELETE') or (method == 'DELETE' and package not in deletable):
         raise ValueError('Only retired packages can be deleted')
     request = urllib.request.Request(
-        f'https://api.github.com/users/{OWNER}/packages/container/{package}', method=method,
+        f'https://api.github.com/orgs/{OWNER}/packages/container/{package}', method=method,
         headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
                  'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'})
     try:

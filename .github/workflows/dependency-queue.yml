@@ -1,0 +1,65 @@
+name: Dependency Automation
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, closed, ready_for_review, labeled, unlabeled, edited, converted_to_draft]
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: [CI, Container Validation, Terraform Plan, Runtime Updates, Claude Dependency Repair Worker]
+    types: [completed, requested]
+  workflow_dispatch:
+    inputs:
+      retry:
+        description: PR number to retry after investigating a failure (optional)
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: dependency-ci-queue
+  cancel-in-progress: false
+jobs:
+  reconcile:
+    if: >-
+      github.repository == 'videoq-jp/videoq' && github.ref == 'refs/heads/main' &&
+      (github.event_name != 'pull_request_target' || github.event.pull_request.base.ref == 'main') &&
+      vars.DEPENDENCY_AUTOMERGE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/heads/main
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: app
+        with:
+          app-id: ${{ vars.PATCH_BOT_APP_ID }}
+          private-key: ${{ secrets.PATCH_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-administration: read
+          permission-workflows: write
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          DEPENDENCY_BOT_LOGIN: ${{ steps.app.outputs.app-slug }}[bot]
+          RETRY: ${{ inputs.retry }}
+          RUNTIME_AUTOMERGE_ENABLED: ${{ vars.RUNTIME_AUTOMERGE_ENABLED }}
+          REPAIR_ENABLED: ${{ vars.CLAUDE_DEPENDENCY_REPAIR_ENABLED }}
+          APP_TOKEN: ${{ steps.app.outputs.token }}
+        with:
+          script: |
+            const controller = require('./.github/scripts/native-dependency-queue.cjs');
+            const args = { github, writerGithub: new github.constructor({ auth: process.env.APP_TOKEN }), context };
+            await controller.reconcile({
+              ...args,
+              retry: Number(process.env.RETRY || 0),
+              repairEnabled: process.env.REPAIR_ENABLED === 'true',
+              authorizeRepair: ['push', 'workflow_run', 'workflow_dispatch'].includes(context.eventName),
+              saveSummary: text => core.summary.addRaw(text).write(),
+            });

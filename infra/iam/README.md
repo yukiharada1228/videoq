@@ -4,7 +4,7 @@ GitHub Actions obtains temporary AWS credentials through GitHub OIDC without sto
 static access keys. Planning and deployment use separate IAM roles so pull requests
 cannot change production.
 
-- `videoq-github-actions-plan`: Can be assumed only by pull requests. Grants AWS-managed
+- `videoq-github-actions-plan`: Can be assumed by pull requests and main. Grants AWS-managed
   `ReadOnlyAccess` plus state read access and lock operations only.
 - `videoq-github-actions-deploy`: Can be assumed only from main or the `production-infra`
   environment. Used for production applies and Lambda deployments.
@@ -12,6 +12,14 @@ cannot change production.
 Permissions are split across four customer-managed policies assigned to the roles.
 Replace `<ACCOUNT_ID>` with the actual account ID before applying them; the placeholder
 keeps the real ID out of the public repository.
+
+The destination repository uses immutable GitHub OIDC subjects. Its prefix is
+`repo:videoq-jp@349188820/videoq@1083911938`; the organization and repository IDs
+are public identifiers, not AWS credentials. Confirm the current prefix with
+`gh api repos/videoq-jp/videoq/actions/oidc/customization/sub` before changing trust.
+Keep the audience restricted to `sts.amazonaws.com` and use only the exact PR,
+main and production environment subjects in the templates. Do not switch the
+repository back to name-only subjects to work around a trust mismatch.
 
 | Policy | Purpose | Workflow |
 |---|---|---|

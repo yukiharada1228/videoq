@@ -18,7 +18,7 @@ Transcription and indexing take time, so the Python worker runs them without blo
 | Duplicate execution control | `worker_python/job_execution.py` |
 | AWS Lambda entry point | `worker_python/lambda_handler.py` |
 
-All of these files are under `apps/worker/`. Also check the API's message format in [job-message.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/job-message.ts).
+All of these files are under `apps/worker/`. Also check the API's message format in [job-message.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/job-message.ts).
 
 ## Message format
 
@@ -78,6 +78,6 @@ docker compose logs -f worker
 
 Upload a short video through the UI and follow its video ID in the logs. `Ctrl+C` stops log streaming but leaves the worker running. Transcription and embeddings call the configured external APIs.
 
-See [tests and verification commands](testing.md) for the Python test environment. Connection and model settings are documented in the [worker README](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/README.md).
+See [tests and verification commands](testing.md) for the Python test environment. Connection and model settings are documented in the [worker README](https://github.com/videoq-jp/videoq/blob/main/apps/worker/README.md).
 
 **Related:** [Job delivery and recovery](../architecture/flowchart.md).

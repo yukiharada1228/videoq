@@ -1,6 +1,6 @@
 // Loaded only from the trusted main revision, without AWS credentials.
 const policy = require('./dependency-automation.cjs');
-const REPOSITORY = 'yukiharada1228/videoq';
+const REPOSITORY = 'videoq-jp/videoq';
 
 function verifiedUpdateTypes(commit) {
   if (commit.author?.login !== 'dependabot[bot]' || !commit.commit?.verification?.verified) return null;
@@ -32,13 +32,13 @@ async function automaticTerraformApply({ github, context }) {
   if (!commits.length || commits.at(-1).sha !== pr.head.sha) return false;
   const signed = commits.every(commit => {
     const types = verifiedUpdateTypes(commit);
-    return types && types.every(updateType => policy.autoMergeMetadata({
+    return types && types.every(updateType => updateType !== 'version-update:semver-major' && policy.autoMergeMetadata({
       ecosystem: 'terraform', updateType, maintainerChanges: 'false',
     }, files));
   });
   if (signed) return true;
   const proof = await require('./dependency-rebase.cjs').provenance({ github, context, pr, files, comments, commits });
-  return proof?.metadata.ecosystem === 'terraform';
+  return proof?.metadata.ecosystem === 'terraform' && proof.metadata.updateType !== 'version-update:semver-major';
 }
 
 module.exports = { automaticTerraformApply, verifiedUpdateTypes };

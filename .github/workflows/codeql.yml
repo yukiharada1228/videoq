@@ -14,7 +14,7 @@ concurrency:
 jobs:
   analyze:
     name: CodeQL (${{ matrix.language }})
-    if: github.repository == 'yukiharada1228/videoq'
+    if: github.repository == 'videoq-jp/videoq'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:

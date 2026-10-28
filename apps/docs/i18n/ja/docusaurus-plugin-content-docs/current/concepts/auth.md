@@ -61,7 +61,7 @@ React側のログイン判定は `useSession`、プロフィールの取得は `
 
 その後、サービスやDB問い合わせでも所有者・講座へのアクセス範囲を確認します。API変更時は「自分のデータでは成功し、権限のない他人のデータでは失敗する」を確認します。
 
-定義は [packages/trpc/src/init.ts](https://github.com/yukiharada1228/videoq/blob/main/packages/trpc/src/init.ts)、リクエストとの接続は [trpc/context.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/trpc/context.ts)にあります。
+定義は [packages/trpc/src/init.ts](https://github.com/videoq-jp/videoq/blob/main/packages/trpc/src/init.ts)、リクエストとの接続は [trpc/context.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/trpc/context.ts)にあります。
 
 ## 講座の共有と招待
 

@@ -34,6 +34,6 @@ This diagram shows processing states, not a user-facing button for every arrow. 
 | `completed` | Video is ready for search | Add it to a course and ask questions |
 | `error` | A stage failed | Error details and relevant logs |
 
-Also inspect individual implementations for paths such as reindexing. Normal transition definitions are in [video_status.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/video_status.py); indexing completion is handled in [tasks/indexing.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/indexing.py).
+Also inspect individual implementations for paths such as reindexing. Normal transition definitions are in [video_status.py](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/video_status.py); indexing completion is handled in [tasks/indexing.py](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/tasks/indexing.py).
 
 **Related:** [Stalled processing](../guides/troubleshooting.md).

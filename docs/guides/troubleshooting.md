@@ -43,7 +43,7 @@ unset VIDEOQ_LOCAL_PASSWORD
 
 Run these commands in Bash. The password is read without echo and is never logged. Do not apply this procedure directly to shared or production login issues.
 
-If login attempts hit the local rate limit, stop the API, reset the RateLimiter's local state, and restart the API. See [reset-rate-limit.sh](https://github.com/yukiharada1228/videoq/blob/main/apps/api/scripts/reset-rate-limit.sh) for its requirements.
+If login attempts hit the local rate limit, stop the API, reset the RateLimiter's local state, and restart the API. See [reset-rate-limit.sh](https://github.com/videoq-jp/videoq/blob/main/apps/api/scripts/reset-rate-limit.sh) for its requirements.
 
 ## Video processing is stuck
 
@@ -100,7 +100,7 @@ Changes to Compose's `.env` do not automatically reach running processes:
 docker compose up -d --force-recreate api worker
 ```
 
-The variables forwarded to the API are limited by [docker-dev.sh](https://github.com/yukiharada1228/videoq/blob/main/apps/api/scripts/docker-dev.sh). Adding an arbitrary variable to `.env` may not make it available to the API.
+The variables forwarded to the API are limited by [docker-dev.sh](https://github.com/videoq-jp/videoq/blob/main/apps/api/scripts/docker-dev.sh). Adding an arbitrary variable to `.env` may not make it available to the API.
 
 ## Ask the team for help
 

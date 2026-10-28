@@ -5,7 +5,7 @@ const { join } = require('node:path');
 const { automaticTerraformApply, verifiedUpdateTypes } = require('./terraform-dependency-apply.cjs');
 const SHA = 'a'.repeat(40);
 const HEAD = 'b'.repeat(40);
-const repository = 'yukiharada1228/videoq';
+const repository = 'videoq-jp/videoq';
 const message = '\n---\nupdated-dependencies:\n- dependency-name: hashicorp/aws\n  update-type: version-update:semver-minor\n...\n';
 
 function fixture() {
@@ -16,7 +16,7 @@ function fixture() {
     base: { ref: 'main', repo: { full_name: repository } },
   };
   const f = {
-    context: { eventName: 'push', ref: 'refs/heads/main', sha: SHA, repo: { owner: 'yukiharada1228', repo: 'videoq' } },
+    context: { eventName: 'push', ref: 'refs/heads/main', sha: SHA, repo: { owner: 'videoq-jp', repo: 'videoq' } },
     pr, associated: [pr], comments: [],
     files: [{ filename: 'infra/.terraform.lock.hcl', status: 'modified' }],
     commits: [{ sha: HEAD, author: { login: 'dependabot[bot]' }, commit: { message, verification: { verified: true } } }],

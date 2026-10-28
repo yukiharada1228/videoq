@@ -2,14 +2,14 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const p = require('./dependency-rebase.cjs');
 const A = 'a'.repeat(40), B = 'b'.repeat(40), C = 'c'.repeat(40), D = 'd'.repeat(40);
-const repo = 'yukiharada1228/videoq';
+const repo = 'videoq-jp/videoq';
 const file = () => ({ filename: 'apps/inference/whisper/Dockerfile', status: 'modified', changes: 2,
   patch: '@@ -1 +1 @@\n-FROM uv:0.13.5\n+FROM uv:0.13.6' });
 const commit = () => ({ sha: A, author: { login: 'dependabot[bot]' }, parents: [{ sha: B }], commit: { verification: { verified: true },
   message: 'update\n---\nupdated-dependencies:\n- dependency-name: uv\n  update-type: version-update:semver-patch\n...\n' } });
 const receipt = r => ({ user: { login: 'github-actions[bot]' }, body: '<!-- videoq-dependency-rebase-v1 -->\n' + JSON.stringify(r) });
 function fixture() {
-  const f = { context: { repo: { owner: 'yukiharada1228', repo: 'videoq' }, ref: 'refs/heads/main' },
+  const f = { context: { repo: { owner: 'videoq-jp', repo: 'videoq' }, ref: 'refs/heads/main' },
     number: 1191, expectedSha: A, now: new Date('2026-10-28T02:00:00Z'),
     pr: { number: 1191, node_id: 'PR_1191', state: 'open', draft: false, user: { login: 'dependabot[bot]' },
       labels: [], mergeable_state: 'behind', auto_merge: {}, head: { sha: A, ref: 'dependabot/docker/test', repo: { full_name: repo } },
@@ -20,7 +20,7 @@ function fixture() {
     pulls: { get: async () => ({ data: f.pr }), list: async () => [f.pr], listFiles: async () => f.files, listCommits: async () => f.commits },
     issues: { listComments: async () => f.comments, createComment: async a => { f.comments.push({ user: { login: 'github-actions[bot]' }, body: a.body }); f.mutations.push('comment'); } },
     actions: { listWorkflowRuns: async () => ({ data: { workflow_runs: [f.run] } }) },
-    repos: { getBranch: async () => ({ data: { commit: { sha: C } } }),
+    repos: { compareCommits: async () => ({ data: { behind_by: 1 } }), getBranch: async () => ({ data: { commit: { sha: C } } }),
       getBranchProtection: async () => ({ data: { required_status_checks: { strict: true, checks: ['CI Success', 'Supply Chain Security', 'Container Validation'].map(context => ({ context, app_id: 15368 })) } } }),
       compareCommitsWithBasehead: async a => ({ data: { total_commits: 1, commits: [commit()], files: [file()], merge_base_commit: { sha: C } } }),
     },
@@ -32,21 +32,31 @@ function fixture() {
   f.wait = async () => {};
   return f;
 }
-test('main sync chooses a signed dependency-only PR with successful latest CI and a queued merge', async () => {
-  assert.deepEqual(await p.select(fixture()), { number: 1191, sha: A, ecosystem: 'docker' });
+test('queue sync verifies ancestry and provenance before CI even while the queue gate blocks merging', async () => {
+  const f = fixture(); f.pr.auto_merge = null;
+  f.pr.mergeable_state = 'blocked'; f.run.status = 'in_progress';
+  f.github.rest.repos.compareCommits = async () => ({ data: { behind_by: 1 } });
+  assert.deepEqual(await p.update(f), { number: 1191, sha: D });
+});
+test('queue sync still rejects current branches, unsigned changes and opt-outs', async () => {
+  for (const mutate of [
+    f => f.github.rest.repos.compareCommits = async () => ({ data: { behind_by: 0 } }),
+    f => f.commits[0].commit.verification.verified = false,
+    f => f.pr.labels.push({ name: 'no-rebase' }),
+  ]) {
+    const f = fixture();
+    f.github.rest.repos.compareCommits = async () => ({ data: { behind_by: 1 } });
+    mutate(f);
+    assert.equal(await p.candidate(f), null);
+  }
 });
 for (const [name, mutate] of [
   ['opt out', f => f.pr.labels.push({ name: 'no-rebase' })],
   ['merge opt out', f => f.pr.labels.push({ name: 'no-automerge' })],
-  ['no merge reservation', f => f.pr.auto_merge = null],
-  ['CI pending', f => f.run.status = 'in_progress'],
-  ['CI failed', f => f.run.conclusion = 'failure'],
-  ['already current', f => f.pr.mergeable_state = 'clean'],
   ['fork', f => f.pr.head.repo.full_name = 'attacker/repo'],
   ['human changes', f => f.commits[0].author.login = 'owner'],
   ['unsigned without receipt', f => f.commits[0].commit.verification.verified = false],
   ['source changes', f => f.files.push({ ...file(), filename: 'apps/api/src/index.ts' })],
-  ['major', f => f.commits[0].commit.message = f.commits[0].commit.message.replace('semver-patch', 'semver-major')],
 ]) test(`main sync rejects ${name}`, async () => { const f = fixture(); mutate(f); assert.equal(await p.candidate(f), null); });
 
 test('native rebase records provenance and revalidates unsigned results against signed original content', async () => {

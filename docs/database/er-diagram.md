@@ -35,7 +35,7 @@ erDiagram
     VIDEO_COURSES ||--o{ VIDEO_COURSE_INVITATIONS : invites
 ```
 
-`VIDEO_COURSE_MEMBERSHIPS` stores people's participation. It is distinct from `VIDEO_COURSE_MEMBERS` above, which stores videos' course associations. See [better-auth.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/better-auth.ts) for the full authentication schema.
+`VIDEO_COURSE_MEMBERSHIPS` stores people's participation. It is distinct from `VIDEO_COURSE_MEMBERS` above, which stores videos' course associations. See [better-auth.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/db/schema/better-auth.ts) for the full authentication schema.
 
 ## Questions and evaluations
 
@@ -57,6 +57,6 @@ erDiagram
 
 ## Before changing the schema
 
-[modern.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/modern.ts) is the source of truth for business data. Check related-row handling when users or videos are deleted, duplicate-prevention constraints, and query indexes together.
+[modern.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/db/schema/modern.ts) is the source of truth for business data. Check related-row handling when users or videos are deleted, duplicate-prevention constraints, and query indexes together.
 
 **Related:** [Change the database](../guides/database.md), [Where data is stored](data-flow-diagram.md).

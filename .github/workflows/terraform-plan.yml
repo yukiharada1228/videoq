@@ -2,12 +2,14 @@ name: Terraform Plan
 
 on:
   pull_request:
+  merge_group:
+    types: [checks_requested]
 
 permissions:
   contents: read
 
 concurrency:
-  group: terraform-plan-${{ github.event.pull_request.number }}
+  group: terraform-plan-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -20,9 +22,13 @@ jobs:
     outputs:
       terraform: ${{ steps.filter.outputs.terraform }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
+          base: ${{ github.event.merge_group.base_sha || github.event.repository.default_branch }}
           filters: |
             terraform:
               - 'infra/**'
@@ -80,6 +86,7 @@ jobs:
     timeout-minutes: 15
     needs: terraform-validate
     if: >-
+      github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.user.login != 'dependabot[bot]' &&
       github.actor != 'dependabot[bot]'
