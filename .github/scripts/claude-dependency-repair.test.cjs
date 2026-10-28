@@ -108,6 +108,19 @@ test('security failures stop before invoking Claude', async () => {
   assert.equal(p.records(f.comments, 'attempt').length, 0);
   assert.equal(p.records(f.comments, 'security-stop').length, 1);
 });
+test('repair preparation cancels auto-merge with the App while keeping records on the standard token', async () => {
+  const f = fixture(); f.pr.auto_merge = {};
+  f.github.graphql = async () => { throw new Error('Resource not accessible by integration'); };
+  let disabled = false;
+  f.writerGithub = { graphql: async () => { disabled = true; f.pr.auto_merge = null; } };
+  assert.ok(await p.scope(f));
+  assert.equal(disabled, true);
+  assert.equal(p.records(f.comments, 'attempt').length, 1);
+  const failure = fixture(); failure.pr.auto_merge = {};
+  failure.writerGithub = { graphql: async () => { throw new Error('App unavailable'); } };
+  await assert.rejects(p.scope(failure), /App unavailable/);
+  assert.equal(p.records(failure.comments, 'attempt').length, 0);
+});
 test('fresh checkout validates real patches including file modes and line limits', t => {
   const cwd = mkdtempSync(join(tmpdir(), 'claude-repair-test-'));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
