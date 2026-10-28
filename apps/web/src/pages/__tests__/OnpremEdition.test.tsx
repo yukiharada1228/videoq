@@ -107,7 +107,10 @@ describe('on-prem user flows', () => {
     fireEvent.focus(initial);
     expect((initial as HTMLInputElement).selectionEnd).toBe('https://intranet.test/course-invitations/initial'.length);
     expect(invite).toHaveBeenCalledWith({ courseId: 3, emails: ['new@example.test'] });
-    fireEvent.click(screen.getByRole('button', { name: 'onprem.reissueCourseLink' }));
+    const reissueButton = screen.getByRole('button', { name: 'onprem.reissueCourseLink' });
+    // The issued link renders before the mutation finishes refreshing participants.
+    await waitFor(() => expect(reissueButton).toBeEnabled());
+    fireEvent.click(reissueButton);
     expect(await screen.findByLabelText('onprem.courseInvitationLink: member@example.test')).toHaveValue('https://intranet.test/course-invitations/renewed');
     expect(reissue).toHaveBeenCalledWith({ courseId: 3, invitationId: 7 });
   });
