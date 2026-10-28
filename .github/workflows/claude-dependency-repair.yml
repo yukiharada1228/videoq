@@ -21,7 +21,7 @@ concurrency:
 jobs:
   authentication-test:
     if: >-
-      github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main' &&
+      github.repository == 'yukiharada1228/videoq' &&
       github.event_name == 'workflow_dispatch' && inputs.authentication_test
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -39,6 +39,9 @@ jobs:
           # Empty --tools values are dropped by the Action's SDK argument parser.
           # Offer only Read, then deny it, so no built-in tools remain.
           claude_args: '--tools Read --disallowedTools Read --max-turns 1'
+          # This fixed prompt has no repository tools or write access. Surface
+          # provider errors here so expired tokens and usage limits are actionable.
+          show_full_output: true
           prompt: 'Authentication test only. Reply exactly: Claude subscription authentication succeeded. Do not use tools or change any files.'
   inspect:
     if: >-
