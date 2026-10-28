@@ -3,6 +3,10 @@ name: Claude Dependency Repair Worker
 on:
   workflow_dispatch:
     inputs:
+      environment_test:
+        description: Test Linux subprocess isolation without calling Claude or changing PRs
+        type: boolean
+        default: false
       authentication_test:
         description: Only test Claude subscription authentication (no PR changes)
         type: boolean
@@ -35,6 +39,18 @@ concurrency:
   group: claude-dependency-worker-${{ inputs.number || 'authentication-test' }}
   cancel-in-progress: false
 jobs:
+  environment-test:
+    if: github.repository == 'videoq-jp/videoq' && inputs.environment_test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/actions/setup-claude-sandbox
+      - uses: ./.github/actions/setup-claude-sandbox
   authentication-test:
     if: >-
       github.repository == 'videoq-jp/videoq' &&
@@ -48,21 +64,39 @@ jobs:
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
+      - uses: ./.github/actions/setup-claude-sandbox
       - uses: anthropics/claude-code-action@d70510b174a1244958df0b03166a54912811f3e6 # v1
+        id: authentication
+        env:
+          CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: '1'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
-          # Empty --tools values are dropped by the Action's SDK argument parser.
-          # Offer only Read, then deny it, so no built-in tools remain.
-          claude_args: '--tools Read --disallowedTools Read --max-turns 1'
-          # This fixed prompt has no repository tools or write access. Surface
-          # provider errors here so expired tokens and usage limits are actionable.
+          claude_args: >-
+            --tools Bash
+            --allowedTools "Bash(printf *)"
+            --disallowedTools "mcp__*"
+            --setting-sources user
+            --max-turns 3
+          # Fixed tool smoke test, no repository reads or application execution.
           show_full_output: true
-          prompt: 'Authentication test only. Reply exactly: Claude subscription authentication succeeded. Do not use tools or change any files.'
+          prompt: 'Authentication and isolation smoke test only. Use Bash once to run printf with the fixed text "Claude subprocess isolation succeeded", then report its output. Do not run other commands, inspect the repository or change files.'
+      - name: Verify the sandboxed command actually ran
+        env:
+          EXECUTION_FILE: ${{ steps.authentication.outputs.execution_file }}
+        run: |
+          python - <<'PYTHON'
+          import json, os
+          from pathlib import Path
+          messages = json.loads(Path(os.environ['EXECUTION_FILE']).read_text())
+          calls = {block['id'] for message in messages for block in message.get('message', {}).get('content', []) if isinstance(block, dict) and block.get('type') == 'tool_use' and block.get('name') == 'Bash'}
+          results = [block for message in messages for block in message.get('message', {}).get('content', []) if isinstance(block, dict) and block.get('type') == 'tool_result' and block.get('tool_use_id') in calls]
+          assert any(not block.get('is_error') and 'Claude subprocess isolation succeeded' in str(block.get('content', '')) for block in results), 'Claude did not execute the isolated command successfully'
+          PYTHON
   authorize:
     if: >-
       github.repository == 'videoq-jp/videoq' && github.ref == 'refs/heads/main' &&
-      vars.CLAUDE_DEPENDENCY_REPAIR_ENABLED == 'true' && !inputs.authentication_test
+      vars.CLAUDE_DEPENDENCY_REPAIR_ENABLED == 'true' && !inputs.authentication_test && !inputs.environment_test
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -94,16 +128,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Install subprocess isolation prerequisite
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends bubblewrap
-          bwrap --version
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
-          sparse-checkout: .github/scripts
+          sparse-checkout: |
+            .github/scripts
+            .github/actions/setup-claude-sandbox
+      - uses: ./.github/actions/setup-claude-sandbox
       - name: Revalidate the trusted repair authorization
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
