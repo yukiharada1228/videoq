@@ -43,16 +43,14 @@ jobs:
     if: github.repository == 'videoq-jp/videoq' && inputs.environment_test
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    permissions: {}
+    permissions:
+      contents: read
     steps:
-      - name: Verify Linux isolation prerequisites without credentials
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends bubblewrap socat ripgrep
-          bwrap --version
-          socat -V
-          rg --version
-          bwrap --die-with-parent --unshare-user --unshare-pid --ro-bind / / --proc /proc -- /usr/bin/true
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/actions/setup-claude-sandbox
+      - uses: ./.github/actions/setup-claude-sandbox
   authentication-test:
     if: >-
       github.repository == 'videoq-jp/videoq' &&
@@ -112,19 +110,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Install subprocess isolation prerequisite
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends bubblewrap socat ripgrep
-          bwrap --version
-          socat -V
-          rg --version
-          bwrap --die-with-parent --unshare-user --unshare-pid --ro-bind / / --proc /proc -- /usr/bin/true
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
-          sparse-checkout: .github/scripts
+          sparse-checkout: |
+            .github/scripts
+            .github/actions/setup-claude-sandbox
+      - uses: ./.github/actions/setup-claude-sandbox
       - name: Revalidate the trusted repair authorization
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
