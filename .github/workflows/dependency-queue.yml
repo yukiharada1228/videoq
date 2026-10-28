@@ -57,7 +57,7 @@ jobs:
           script: |
             // pull_request_target has a base-branch ref; force the trusted-main
             // guard and read current main independently of the event snapshot.
-            const trusted = { ...context, ref: 'refs/heads/main' };
+            const trusted = { ...context, repo: context.repo, ref: 'refs/heads/main' };
             await require('./.github/scripts/dependency-queue.cjs').reconcile({
               github, writerGithub: new github.constructor({ auth: process.env.APP_TOKEN }), context: trusted,
               issue: Number(process.env.QUEUE_ISSUE), retry: Number(process.env.RETRY || 0),
