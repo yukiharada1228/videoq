@@ -139,6 +139,18 @@ test('human PRs receive a queue exemption without altering their CI or merge res
   assert.equal(f.reruns.length, 0);
   assert.equal(f.disabled.length, 0);
 });
+test('manual bot PRs with pre-queue full CI do not rerun forever during migration', async () => {
+  const f = fixture([pr(1)]);
+  f.jobs[11] = [{ name: 'Deployment Security Tests' }];
+  f.jobs[12] = [{ name: 'Container Validation' }];
+  await q.reconcile({ ...f.args, verify: async () => null });
+  assert.equal(f.checks.at(-1).conclusion, 'success');
+  assert.equal(f.reruns.length, 0);
+  f.jobs[11] = [{ name: 'Queue Admission', steps: [{ name: 'Queue slot admitted', conclusion: 'skipped' }] }];
+  await q.reconcile({ ...f.args, verify: async () => null });
+  assert.equal(f.checks.at(-1).conclusion, null);
+  assert.deepEqual(f.reruns, [11]);
+});
 test('queue state ignores lookalike comments from other users', () => {
   const state = q.parse([{ user: { login: 'attacker' }, body: q.MARKER + '\n{"active":1}' }]).state;
   assert.equal(state.active, undefined);

@@ -61,13 +61,15 @@ async function checkpoint({ github, context, pr, status, summary, base }) {
   if (previous && previous.status !== 'completed') await github.rest.checks.update({ ...fields, check_run_id: previous.id });
   else await github.rest.checks.create({ ...fields, name: NAME, head_sha: pr.head.sha });
 }
-async function runs({ github, context, pr }) {
+async function runs({ github, context, pr }, allowLegacy = false) {
   return Promise.all(WORKFLOWS.map(async workflow_id => {
     const { data } = await github.rest.actions.listWorkflowRuns({ ...context.repo, workflow_id, head_sha: pr.head.sha, event: 'pull_request', per_page: 100 });
     const run = data.workflow_runs.sort((a, b) => b.id - a.id)[0];
     if (!run) return { workflow_id };
     const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, { ...context.repo, run_id: run.id, filter: 'latest', per_page: 100 });
-    const admitted = workflow_id === 'terraform-plan.yml' || jobs.some(j => j.name === 'Queue Admission' && j.steps?.some(s => s.name === 'Queue slot admitted' && s.conclusion === 'success'));
+    const hasAdmission = jobs.some(j => j.name === 'Queue Admission');
+    const admitted = workflow_id === 'terraform-plan.yml' || jobs.some(j => j.name === 'Queue Admission' && j.steps?.some(s => s.name === 'Queue slot admitted' && s.conclusion === 'success')) ||
+      (allowLegacy && !hasAdmission && jobs.length > 0);
     return { workflow_id, run, admitted };
   }));
 }
@@ -103,7 +105,7 @@ async function reconcile({ github, writerGithub, context, issue, retry = 0, save
     if (!c) {
       entries[pr.number] = { sha: pr.head.sha, mode: 'bypass' };
       if (pr.auto_merge) await writerGithub.graphql('mutation($id:ID!){disablePullRequestAutoMerge(input:{pullRequestId:$id}){clientMutationId}}', { id: pr.node_id });
-      const status = result(await runs({ github, context, pr }));
+      const status = result(await runs({ github, context, pr }, true));
       await checkpoint({ github, context, pr, status: status === 'waiting' ? 'queued' : status,
         summary: '自動マージ対象外です。実際の通常CI・手動レビューに回します。', base });
       continue;
@@ -208,7 +210,7 @@ async function reconcile({ github, writerGithub, context, issue, retry = 0, save
   }
   // Bypassed bot proposals may have initially deferred before classification.
   for (const pr of pulls.filter(p => entries[p.number]?.mode === 'bypass')) {
-    for (const row of await runs({ github, context, pr })) {
+    for (const row of await runs({ github, context, pr }, true)) {
       if (!row.run || row.run.status !== 'completed' || row.admitted) continue;
       const key = `${row.run.id}:${row.run.run_attempt}`;
       if (state.retries[`bypass-${row.run.id}`] === key) continue;
