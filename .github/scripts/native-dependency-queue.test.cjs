@@ -28,7 +28,7 @@ function fixture() {
     return { data: f.rules };
   }, graphql: async (query, values) => {
     if (query.startsWith('mutation')) { f.disabled.push(values.id); f.mutations.push({ query, values }); return; }
-    return { repository: { pullRequest: { mergeQueueEntry: f.queued ? { id: 'entry' } : null } } };
+    return { repository: { pullRequest: { mergeQueueEntry: f.queued ? { id: 'entry', enqueuer: { login: f.enqueuer || 'videoq-dependency-bot[bot]' } } : null } } };
   } };
   f.verify = async () => f.proofs ? { pr, kind: 'dependabot', comments: f.comments } : null;
   f.args = { github: f.github, writerGithub: f.writerGithub, context, verify: f.verify,
@@ -56,9 +56,15 @@ test('native protection fails closed for missing checks, spoofed apps, missing q
 });
 test('queued PRs are left to GitHub and an unverified bot proposal loses auto-merge', async () => {
   const f = fixture(); f.queued = true; await native.reconcile(f.args); assert.equal(f.reserved.length, 0);
-  f.proofs = false; f.pr.auto_merge = {}; await native.reconcile(f.args); assert.deepEqual(f.disabled, ['PR_1', 'PR_1']);
+  f.proofs = false; f.pr.auto_merge = { enabled_by: { login: 'videoq-dependency-bot[bot]' } }; await native.reconcile(f.args); assert.deepEqual(f.disabled, ['PR_1', 'PR_1']);
   assert.match(f.mutations[0].query, /dequeuePullRequest\(input:\{id:\$id\}/);
   assert.match(f.mutations[1].query, /disablePullRequestAutoMerge/);
+});
+test('ineligible automatic updates retain a maintainer-owned manual queue entry and auto-merge request', async () => {
+  const f = fixture(); f.proofs = false; f.queued = true; f.enqueuer = 'maintainer';
+  f.pr.auto_merge = { enabled_by: { login: 'maintainer' } };
+  await native.reconcile(f.args);
+  assert.equal(f.mutations.length, 0); assert.equal(f.reserved.length, 0); assert.equal(f.repairs.length, 0);
 });
 test('a normal eligible CI failure uses the existing bounded Claude authorizer', async () => {
   const f = fixture(); f.outcome = 'failure'; await native.reconcile({ ...f.args, repairEnabled: true, authorizeRepair: true });

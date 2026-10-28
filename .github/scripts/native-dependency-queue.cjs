@@ -2,6 +2,7 @@
 const queue = require('./dependency-queue.cjs');
 const repair = require('./claude-dependency-repair.cjs');
 const REPO = 'videoq-jp/videoq';
+const BOT = process.env.DEPENDENCY_BOT_LOGIN || 'videoq-dependency-bot[bot]';
 const REQUIRED = ['CI Success', 'Supply Chain Security', 'Terraform Plan', 'Container Validation'];
 const MARKER = '<!-- videoq-native-queue-v1 -->';
 function records(comments) {
@@ -14,14 +15,17 @@ async function record(github, context, number, value, text) {
 }
 async function entry(writerGithub, context, number) {
   const data = await writerGithub.graphql(
-    'query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){mergeQueueEntry{id}}}}',
+    'query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){mergeQueueEntry{id enqueuer{login}}}}}',
     { owner: context.repo.owner, name: context.repo.repo, number });
   return data.repository.pullRequest.mergeQueueEntry;
 }
 async function cancel(writerGithub, context, pr) {
-  if (await entry(writerGithub, context, pr.number)) await writerGithub.graphql(
+  const queued = await entry(writerGithub, context, pr.number);
+  // Automatic eligibility must not revoke a maintainer's manual queue decision
+  // for a major update or a PR intentionally handled outside automation.
+  if (queued?.enqueuer?.login === BOT) await writerGithub.graphql(
     'mutation($id:ID!){dequeuePullRequest(input:{id:$id}){clientMutationId}}', { id: pr.node_id });
-  if (pr.auto_merge) await writerGithub.graphql(
+  if (pr.auto_merge?.enabled_by?.login === BOT) await writerGithub.graphql(
     'mutation($id:ID!){disablePullRequestAutoMerge(input:{pullRequestId:$id}){clientMutationId}}', { id: pr.node_id });
 }
 

@@ -4,6 +4,8 @@ mainへのマージ順と統合用CIはGitHub標準のMerge Queueで管理する
 通常の開発PRもmainへマージする際はこのキューを使う。
 Dependency Automationが自動投入するのは、検証済みのDependabot patch/minor更新と
 管理Botの`runtime/*-current` PRだけ。major・新系列・除外PRは人が判断する。
+自動処理の対象外でも、人がキューへ投入したPRをコントローラーが取り消すことはない。
+自動更新Bot自身が投入した予約だけを、由来の検証失敗や除外指定に応じて取り消す。
 
 通常のPR CIが成功すると、コントローラーが現在のhead SHAを指定してキューへ投入する。
 GitHubは最新mainと対象PRを統合したコミットを作り、`merge_group`のCIを実行する。
