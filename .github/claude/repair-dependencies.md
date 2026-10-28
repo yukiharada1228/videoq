@@ -17,6 +17,14 @@ other current-main dependencies. Preserve functionality from both sides. Do not
 abort the merge, change branches, commit or complete the merge yourself. The
 publisher creates a verified two-parent commit after validating the result.
 
+The Bash sandbox mounts package manifests, lockfiles and the original
+node_modules read-only. This does not change the file edits authorized above:
+in conflict mode, use the native Edit/Write tools for the lockfile instead of a
+shell redirect or copy. Never remount paths or disable isolation. For installs,
+type generation and checks that need writable node_modules, copy the source to
+a disposable directory under $TMPDIR, run there, and bring back only the
+authorized edits using Edit/Write. The trusted exporter handles Git staging.
+
 Never edit .github/, infrastructure, credentials or secret/environment files.
 Never remove assertions to hide a regression, reduce test coverage, disable
 checks/typechecking, suppress security findings, swallow errors, remove features
