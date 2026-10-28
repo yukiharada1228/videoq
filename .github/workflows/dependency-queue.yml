@@ -14,9 +14,6 @@ on:
       retry:
         description: PR number to retry after investigating a failure (optional)
         type: string
-      run_id:
-        description: Failed CI run to inspect for automatic repair (optional)
-        type: string
 permissions:
   contents: read
 concurrency:
@@ -57,7 +54,6 @@ jobs:
           RETRY: ${{ inputs.retry }}
           RUNTIME_AUTOMERGE_ENABLED: ${{ vars.RUNTIME_AUTOMERGE_ENABLED }}
           REPAIR_ENABLED: ${{ vars.CLAUDE_DEPENDENCY_REPAIR_ENABLED }}
-          CI_RUN_ID: ${{ inputs.run_id }}
           APP_TOKEN: ${{ steps.app.outputs.token }}
           GH_TOKEN: ${{ steps.app.outputs.token }}
           GH_REPO: ${{ github.repository }}
@@ -73,6 +69,3 @@ jobs:
               saveSummary: text => core.summary.addRaw(text).write(),
               reserve: ({ number, sha }) => exec.exec('gh', ['pr', 'merge', String(number), '--auto', '--squash', '--match-head-commit', sha]),
             });
-            if (process.env.REPAIR_ENABLED === 'true' && process.env.CI_RUN_ID) {
-              await controller.repairFailure({ ...args, runId: process.env.CI_RUN_ID });
-            }

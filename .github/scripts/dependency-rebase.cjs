@@ -111,10 +111,8 @@ async function candidate({ github, context, number, now = new Date() }) {
   const proof = await provenance({ github, context, pr, files, comments, commits });
   if (!proof) return null;
   const { data: main } = await github.rest.repos.getBranch({ ...context.repo, branch: 'main' });
-  {
-    const { data: diff } = await github.rest.repos.compareCommits({ ...context.repo, base: main.commit.sha, head: pr.head.sha });
-    if (diff.behind_by < 1) return null;
-  }
+  const { data: diff } = await github.rest.repos.compareCommits({ ...context.repo, base: main.commit.sha, head: pr.head.sha });
+  if (diff.behind_by < 1) return null;
   const attempts = records(comments).filter(r => r.kind === 'requested' && r.sha === pr.head.sha && r.base === main.commit.sha);
   if (attempts.length >= 3 || attempts.some(r => !Number.isFinite(Date.parse(r.at)) || now - Date.parse(r.at) < 30 * 60_000)) return null;
   return { pr, files, comments, ...proof, base: main.commit.sha };

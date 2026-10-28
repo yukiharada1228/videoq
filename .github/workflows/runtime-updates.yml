@@ -30,7 +30,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      active: ${{ steps.scope.outputs.active }}
       matrix: ${{ steps.scope.outputs.matrix }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -48,12 +47,10 @@ jobs:
             const result = await require('./.github/scripts/runtime-pull-request.cjs').scope({
               github, context, runtime: process.env.RUNTIME, channel: process.env.CHANNEL,
             });
-            core.setOutput('active', result.active);
             core.setOutput('matrix', JSON.stringify(result.matrix));
-            await core.summary.addRaw(result.active ? 'Checking selected runtime proposals.' : 'No runtime proposals selected.').write();
+            await core.summary.addRaw('Checking selected runtime proposals.').write();
   propose:
     needs: scope
-    if: needs.scope.outputs.active == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:

@@ -33,12 +33,10 @@ async function scope({ context, runtime = 'all', channel = 'current' }) {
   if (context.ref !== 'refs/heads/main' || context.repo.owner !== 'yukiharada1228' || context.repo.repo !== 'videoq') throw new Error('Runtime discovery requires canonical main');
   const names = ['node', 'python', 'npm', 'pip', 'uv'];
   if (!['all', ...names].includes(runtime) || !['both', 'current', 'next'].includes(channel)) throw new Error('Invalid runtime selection');
-  let include = [];
-  if (['schedule', 'workflow_dispatch'].includes(context.eventName)) {
-    const channels = context.eventName === 'schedule' || channel === 'both' ? ['current', 'next'] : [channel];
-    include = names.filter(n => runtime === 'all' || runtime === n).flatMap(runtime => channels.map(channel => ({ runtime, channel })));
-  } else throw new Error('Unsupported runtime discovery event');
-  return { active: include.length > 0, matrix: { include: include.length ? include : [{ runtime: 'node', channel: 'current' }] } };
+  if (!['schedule', 'workflow_dispatch'].includes(context.eventName)) throw new Error('Unsupported runtime discovery event');
+  const channels = context.eventName === 'schedule' || channel === 'both' ? ['current', 'next'] : [channel];
+  const include = names.filter(n => runtime === 'all' || runtime === n).flatMap(runtime => channels.map(channel => ({ runtime, channel })));
+  return { matrix: { include } };
 }
 
 function validate(plan) {
