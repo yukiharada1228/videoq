@@ -97,7 +97,13 @@ async function publish({ github, context, core, plan, bot, autoMergeCurrent = fa
   if (old) {
     if (!managed) {
       const { data: closed } = await github.rest.pulls.list({ ...context.repo, state: 'closed', base: 'main', head: `${context.repo.owner}:${branch}` });
-      managed = closed.find(pr => pr.merged_at && pr.user.login === bot && pr.head.sha === old);
+      for (const pr of closed.filter(pr => pr.user.login === bot && pr.head.sha === old)) {
+        if (pr.merged_at) { managed = pr; break; }
+        const comments = await github.paginate(github.rest.issues.listComments, { ...context.repo, issue_number: pr.number, per_page: 100 });
+        if (receipts(comments, bot).some(r => r.kind === 'superseded' && r.sha === old && r.runtime === plan.runtime && r.channel === plan.channel)) {
+          managed = pr; break;
+        }
+      }
     }
     if (!managed || managed.user.login !== bot || managed.head.sha !== old) {
       throw new Error('Refusing to overwrite an unmanaged runtime branch');
@@ -107,7 +113,7 @@ async function publish({ github, context, core, plan, bot, autoMergeCurrent = fa
       throw new Error('Runtime PR has human changes; preserve them for review');
     }
     const comments = await github.paginate(github.rest.issues.listComments, { ...context.repo, issue_number: managed.number, per_page: 100 });
-    const publication = receipts(comments, bot).find(r => r.sha === old && r.runtime === plan.runtime && r.channel === plan.channel);
+    const publication = receipts(comments, bot).find(r => r.kind !== 'superseded' && r.sha === old && r.runtime === plan.runtime && r.channel === plan.channel);
     if (!publication) {
       throw new Error('Runtime head has no trusted publication receipt; preserve it for review');
     }
@@ -119,6 +125,10 @@ async function publish({ github, context, core, plan, bot, autoMergeCurrent = fa
       const superseded = /^\d+\.\d+\.\d+$/.test(publication.version || '') &&
         (after[0] - before[0] || after[1] - before[1] || after[2] - before[2]) >= 0;
       if (superseded && existing && plan.channel === 'current' && autoMergeCurrent && !existing.labels?.some(l => ['no-automerge', 'no-runtime-update'].includes(l.name))) {
+        const { data: current } = await github.rest.pulls.get({ ...context.repo, pull_number: existing.number });
+        if (current.head.sha !== old || current.base.ref !== 'main' || current.labels.some(l => ['no-automerge', 'no-runtime-update'].includes(l.name))) throw new Error('Runtime PR changed before superseded cleanup');
+        await github.rest.issues.createComment({ ...context.repo, issue_number: existing.number,
+          body: `${MARKER}\n${JSON.stringify({ kind: 'superseded', sha: old, runtime: plan.runtime, channel: plan.channel, base: base.object.sha })}\n\nこの更新は管理表の現在の状態に含まれているため終了します。次の更新は同じ管理ブランチから作成できます。` });
         await github.rest.pulls.update({ ...context.repo, pull_number: existing.number, state: 'closed' });
         core.info(`Closed superseded runtime PR #${existing.number}`);
       }
@@ -161,7 +171,7 @@ async function publish({ github, context, core, plan, bot, autoMergeCurrent = fa
     ? await github.rest.pulls.update({ ...context.repo, pull_number: existing.number, title, body })
     : await github.rest.pulls.create({ ...context.repo, head: branch, base: 'main', title, body });
   await github.rest.issues.createComment({ ...context.repo, issue_number: result.data.number,
-    body: `${MARKER}\n${JSON.stringify({ sha: commit.sha, base: base.object.sha, runtime: plan.runtime,
+    body: `${MARKER}\n${JSON.stringify({ kind: 'publication', sha: commit.sha, base: base.object.sha, runtime: plan.runtime,
       channel: plan.channel, version: plan.version, previous_version: plan.previous_version })}\n\n管理表と生成ファイルをまとめて更新しました。既存系列のみ、必須CI成功後の自動マージ対象です。` });
   core.info(`Prepared interpreter update PR #${result.data.number}`);
   return finish(result.data, commit.sha);

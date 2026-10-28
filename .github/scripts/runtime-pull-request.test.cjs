@@ -124,7 +124,8 @@ test('repository events refresh only existing current-line PRs behind main', asy
 test('unchanged managed proposals still reserve merges, while superseded or opted-out proposals do not', async () => {
   function managedFixture() {
     const f = publicationFixture(), old = 'c'.repeat(40), bot = 'runtime-bot[bot]';
-    f.pr = { number: 123, node_id: 'PR_123', user: { login: bot }, head: { sha: old }, labels: [], auto_merge: null };
+    f.pr = { number: 123, node_id: 'PR_123', user: { login: bot }, head: { sha: old }, base: { ref: 'main' }, labels: [], auto_merge: null };
+    f.github.rest.pulls.get = async () => ({ data: f.pr });
     f.github.rest.git.getRef = async ({ ref }) => ({ data: { object: { sha: ref === 'heads/main' ? context.sha : old } } });
     f.github.rest.pulls.list = async () => ({ data: [f.pr] });
     f.github.rest.pulls.listCommits = async () => [{ author: { login: bot } }];
@@ -143,7 +144,7 @@ test('unchanged managed proposals still reserve merges, while superseded or opte
   assert.deepEqual(same.writes, [['queue', { number: 123, sha: 'c'.repeat(40) }]]);
   const applied = managedFixture();
   await publish({ ...applied.args, plan: { ...plan(), changed: false, files: {} } });
-  assert.equal(applied.writes[0][1].state, 'closed');
+  assert.equal(applied.writes.find(([kind]) => kind === 'update')[1].state, 'closed');
   const newer = managedFixture();
   await publish({ ...newer.args, plan: { ...plan(), version: '26.12.0', previous_version: '26.12.0', changed: false, files: {} } });
   assert.deepEqual(newer.writes, []);
