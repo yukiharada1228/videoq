@@ -1,6 +1,6 @@
 // Loaded only from the trusted main revision, without AWS credentials.
 const policy = require('./dependency-automation.cjs');
-const REPOSITORY = 'yukiharada1228/videoq';
+const REPOSITORY = 'videoq-jp/videoq';
 
 function verifiedUpdateTypes(commit) {
   if (commit.author?.login !== 'dependabot[bot]' || !commit.commit?.verification?.verified) return null;

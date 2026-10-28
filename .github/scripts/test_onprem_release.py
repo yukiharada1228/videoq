@@ -55,6 +55,30 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(inference['whisper']['image']['repository'], release.PREFIX+'transcription-gateway')
         self.assertEqual(inference['vllm']['image']['repository'], release.PREFIX+'vllm')
 
+    def test_historical_owner_requires_historical_images_and_signer_for_every_subject(self):
+        historical = release.HISTORICAL_REPOSITORY
+        self.data['repository'] = historical
+        for component, image in self.data['images'].items():
+            image['repository'] = release.repository(component, source_repository=historical)
+        self.manifest.write_text(json.dumps(self.data))
+        with patch.object(release.subprocess, 'run') as run:
+            values, _ = release.verify(self.manifest, SOURCE)
+        self.assertEqual(run.call_count, 8)
+        self.assertEqual(values['api']['image']['repository'], 'ghcr.io/' + historical + '-api')
+        for call in run.call_args_list:
+            command = call.args[0]
+            self.assertEqual(command[command.index('--repo') + 1], historical)
+            self.assertEqual(command[command.index('--signer-workflow') + 1], historical + '/.github/workflows/onprem-release.yml')
+        self.data['images']['api']['repository'] = release.repository('api')
+        with self.assertRaisesRegex(ValueError, 'Unexpected image repository'):
+            release.validate(self.data, SOURCE)
+
+    def test_arbitrary_historical_signer_is_rejected_before_invoking_gh(self):
+        with patch.object(release.subprocess, 'run') as run:
+            with self.assertRaises(ValueError):
+                release.attest(self.manifest, SOURCE, source_repository='attacker/videoq')
+        run.assert_not_called()
+
     def test_legacy_schema_two_still_verifies_all_original_signed_subjects(self):
         legacy = copy.deepcopy(self.data)
         legacy['schemaVersion'] = 2

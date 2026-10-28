@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const policy = require('./dependency-automation.cjs');
 
-const REPOSITORY = 'yukiharada1228/videoq';
+const REPOSITORY = 'videoq-jp/videoq';
 const SHA = 'a'.repeat(40);
 function pull() {
   return { number: 123, state: 'open', draft: false, user: { login: 'dependabot[bot]' }, labels: [],

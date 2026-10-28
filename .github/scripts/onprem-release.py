@@ -12,7 +12,8 @@ import re
 import subprocess
 import tempfile
 
-REPOSITORY = "yukiharada1228/videoq"
+REPOSITORY = "videoq-jp/videoq"
+HISTORICAL_REPOSITORY = "yukiharada1228/videoq"
 WORKFLOW = REPOSITORY + "/.github/workflows/onprem-release.yml"
 APP_COMPONENTS = ("api", "worker", "web")
 COMPONENTS = (*APP_COMPONENTS, "transcription-gateway", "vllm-engine")
@@ -32,12 +33,15 @@ def layout(version):
     return components, prefix, platforms
 
 
-def repository(component, version=4):
+def repository(component, version=4, source_repository=REPOSITORY):
+    if source_repository not in (REPOSITORY, HISTORICAL_REPOSITORY):
+        raise ValueError("Unexpected release repository")
     components, prefix, _ = layout(version)
+    prefix = "ghcr.io/" + source_repository + ("-onprem-" if version == 2 else "-")
     if component not in components:
         raise ValueError("Unknown release component")
     if component == "vllm-engine":
-        return LEGACY_PREFIX + "whisper-vllm" if version == 3 else PREFIX + "vllm"
+        return "ghcr.io/" + source_repository + ("-onprem-whisper-vllm" if version == 3 else "-vllm")
     return prefix + component
 
 
@@ -58,13 +62,13 @@ def digest(value):
 def validate(data, expected_sha):
     sha(expected_sha)
     components, prefix, platforms = layout(data.get("schemaVersion"))
-    if data.get("repository") != REPOSITORY or data.get("sourceSha") != expected_sha:
+    if data.get("repository") not in (REPOSITORY, HISTORICAL_REPOSITORY) or data.get("sourceSha") != expected_sha:
         raise ValueError("Release repository or source commit does not match the reviewed source")
     if set(data.get("images", {})) != set(components):
         raise ValueError("Release must include all application and inference components")
     for component in components:
         image = data["images"][component]
-        if image.get("repository") != repository(component, data["schemaVersion"]):
+        if image.get("repository") != repository(component, data["schemaVersion"], data["repository"]):
             raise ValueError("Unexpected image repository")
         if image.get("platforms") != platforms[component]:
             raise ValueError("Unexpected image architectures")
@@ -79,9 +83,11 @@ def validate(data, expected_sha):
     return data
 
 
-def attest(target, source, predicate=None):
-    command = ["gh", "attestation", "verify", str(target), "--repo", REPOSITORY,
-               "--signer-workflow", WORKFLOW, "--source-ref", "refs/heads/main",
+def attest(target, source, predicate=None, *, source_repository=REPOSITORY):
+    if source_repository not in (REPOSITORY, HISTORICAL_REPOSITORY):
+        raise ValueError("Unexpected release repository")
+    command = ["gh", "attestation", "verify", str(target), "--repo", source_repository,
+               "--signer-workflow", source_repository + "/.github/workflows/onprem-release.yml", "--source-ref", "refs/heads/main",
                "--source-digest", sha(source), "--deny-self-hosted-runners"]
     if predicate:
         command += ["--predicate-type", predicate]
@@ -91,16 +97,19 @@ def attest(target, source, predicate=None):
 
 
 def verify(manifest, source):
-    attest(manifest, source)
     data = validate(json.loads(manifest.read_text()), source)
+    # Metadata selects only between two fixed identities; verify every signature
+    # against that exact identity, never an arbitrary repository from a bundle.
+    identity = data["repository"]
+    attest(manifest, source, source_repository=identity)
     for entry in data["charts"].values():
         chart = manifest.parent / entry["name"]
         if "sha256:" + hashlib.sha256(chart.read_bytes()).hexdigest() != entry["digest"]:
             raise ValueError("Chart bytes do not match the signed release")
-        attest(chart, source)
+        attest(chart, source, source_repository=identity)
     for component in data["images"]:
         image = data["images"][component]
-        attest("oci://" + image["repository"] + "@" + image["digest"], source)
+        attest("oci://" + image["repository"] + "@" + image["digest"], source, source_repository=identity)
     def image(component):
         return {k: data["images"][component][k] for k in ("repository", "digest")}
     application = {"requireImageDigests": True, **{

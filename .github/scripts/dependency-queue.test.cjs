@@ -2,10 +2,10 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const q = require('./dependency-queue.cjs');
 const SHA = 'a'.repeat(40), BASE = 'b'.repeat(40);
-const context = { repo: { owner: 'yukiharada1228', repo: 'videoq' }, ref: 'refs/heads/main', payload: {} };
+const context = { repo: { owner: 'videoq-jp', repo: 'videoq' }, ref: 'refs/heads/main', payload: {} };
 function pr(number, login = 'dependabot[bot]') {
   return { number, node_id: `PR_${number}`, user: { login }, state: 'open', base: { ref: 'main' },
-    head: { sha: SHA, ref: `dependabot/npm_and_yarn/${number}`, repo: { full_name: 'yukiharada1228/videoq' } }, labels: [], auto_merge: {} };
+    head: { sha: SHA, ref: `dependabot/npm_and_yarn/${number}`, repo: { full_name: 'videoq-jp/videoq' } }, labels: [], auto_merge: {} };
 }
 function fixture(pulls = [pr(1), pr(2)]) {
   const f = { pulls, comments: [], checks: [], reruns: [], dispatches: [], jobs: {}, conclusions: {}, disabled: [], behind: 0 };

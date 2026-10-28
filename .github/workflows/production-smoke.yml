@@ -15,7 +15,7 @@ concurrency:
 jobs:
   source:
     if: >-
-      github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main' &&
+      github.repository == 'videoq-jp/videoq' && github.ref == 'refs/heads/main' &&
       (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 5

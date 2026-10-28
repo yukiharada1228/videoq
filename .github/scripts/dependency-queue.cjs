@@ -2,7 +2,7 @@
 const policy = require('./dependency-automation.cjs');
 const sync = require('./dependency-rebase.cjs');
 const runtime = require('./runtime-pull-request.cjs');
-const REPO = 'yukiharada1228/videoq';
+const REPO = 'videoq-jp/videoq';
 const BOT = 'yuki-dependency-patches-20261022[bot]';
 const NAME = 'Dependency Queue';
 const MARKER = '<!-- videoq-dependency-queue-v1 -->';

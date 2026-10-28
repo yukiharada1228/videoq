@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   source:
-    if: github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main' && (github.event_name != 'workflow_run' || github.event.workflow_run.event == 'push')
+    if: github.repository == 'videoq-jp/videoq' && github.ref == 'refs/heads/main' && (github.event_name != 'workflow_run' || github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -189,9 +189,9 @@ jobs:
         run: |
           zstd -d image.tar.zst --stdout | docker load
           python3 .github/scripts/onprem_registry.py "$COMPONENT"
-          repository="ghcr.io/yukiharada1228/videoq-$COMPONENT"
+          repository="ghcr.io/videoq-jp/videoq-$COMPONENT"
           if [ "$COMPONENT" = vllm-engine ]; then
-            repository="ghcr.io/yukiharada1228/videoq-vllm"
+            repository="ghcr.io/videoq-jp/videoq-vllm"
           fi
           tag="$repository:$GITHUB_SHA-$ARCH-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
@@ -276,9 +276,9 @@ jobs:
           COMPONENT: ${{ matrix.component }}
         run: |
           python3 .github/scripts/onprem_registry.py "$COMPONENT"
-          repository="ghcr.io/yukiharada1228/videoq-$COMPONENT"
+          repository="ghcr.io/videoq-jp/videoq-$COMPONENT"
           if [ "$COMPONENT" = vllm-engine ]; then
-            repository="ghcr.io/yukiharada1228/videoq-vllm"
+            repository="ghcr.io/videoq-jp/videoq-vllm"
           fi
           tag="$repository:$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin

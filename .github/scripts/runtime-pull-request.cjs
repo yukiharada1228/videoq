@@ -36,7 +36,7 @@ async function ownedCommits({ github, context, commits, bot, base }) {
 }
 function eligible(pr, files, comments, bot) {
   if (pr.state !== 'open' || pr.draft || pr.user?.login !== bot || pr.base?.ref !== 'main' ||
-      pr.base.repo?.full_name !== 'yukiharada1228/videoq' || pr.head.repo?.full_name !== 'yukiharada1228/videoq' ||
+      pr.base.repo?.full_name !== 'videoq-jp/videoq' || pr.head.repo?.full_name !== 'videoq-jp/videoq' ||
       pr.labels.some(l => ['no-automerge', 'no-runtime-update'].includes(l.name)) || !sha(pr.head.sha) ||
       !files.length || files.length > FILES.size || files.some(f => f.status !== 'modified' || !FILES.has(f.filename))) return false;
   return receipts(comments, bot).some(r => r.sha === pr.head.sha && sha(r.base) &&
@@ -45,7 +45,7 @@ function eligible(pr, files, comments, bot) {
 }
 
 async function scope({ context, runtime = 'all', channel = 'current' }) {
-  if (context.ref !== 'refs/heads/main' || context.repo.owner !== 'yukiharada1228' || context.repo.repo !== 'videoq') throw new Error('Runtime discovery requires canonical main');
+  if (context.ref !== 'refs/heads/main' || context.repo.owner !== 'videoq-jp' || context.repo.repo !== 'videoq') throw new Error('Runtime discovery requires canonical main');
   const names = ['node', 'python', 'npm', 'pip', 'uv'];
   if (!['all', ...names].includes(runtime) || !['both', 'current', 'next'].includes(channel)) throw new Error('Invalid runtime selection');
   if (!['schedule', 'workflow_dispatch'].includes(context.eventName)) throw new Error('Unsupported runtime discovery event');
@@ -70,8 +70,8 @@ function validate(plan) {
 async function publish({ github, context, core, plan, bot, retireSuperseded = false }) {
   validate(plan);
   if (context.ref !== 'refs/heads/main' || !['schedule', 'workflow_dispatch'].includes(context.eventName) ||
-      !['videoq', 'shadcn-digital-agency-jp', 'langchainjs-postgres'].includes(context.repo.repo) ||
-      context.repo.owner !== 'yukiharada1228' || !/^[a-zA-Z0-9-]+\[bot\]$/.test(bot)) {
+      context.repo.repo !== 'videoq' ||
+      context.repo.owner !== 'videoq-jp' || !/^[a-zA-Z0-9-]+\[bot\]$/.test(bot)) {
     throw new Error('Interpreter updates require the trusted repository main branch and an App token');
   }
   const { data: base } = await github.rest.git.getRef({ ...context.repo, ref: 'heads/main' });

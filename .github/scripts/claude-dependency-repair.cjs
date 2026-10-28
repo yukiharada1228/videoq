@@ -4,7 +4,7 @@ const { execFileSync } = require('node:child_process');
 const { readFileSync, lstatSync } = require('node:fs');
 const { resolve } = require('node:path');
 const MARKER = '<!-- videoq-claude-dependency-v1 -->';
-const REPO = 'yukiharada1228/videoq';
+const REPO = 'videoq-jp/videoq';
 const sha = value => /^[a-f0-9]{40}$/.test(value || '');
 
 function records(comments, kind) {

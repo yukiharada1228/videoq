@@ -1,5 +1,5 @@
 // Always load this module from github.workflow_sha, never from a PR checkout.
-const REPOSITORY = 'yukiharada1228/videoq';
+const REPOSITORY = 'videoq-jp/videoq';
 const BOT = 'dependabot[bot]';
 const REQUEST_MARKER = '<!-- videoq-codex-repair-request -->';
 const manifests = new Set([

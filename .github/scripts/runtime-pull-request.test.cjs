@@ -5,7 +5,7 @@ const { join } = require('node:path');
 const { validate, publish, eligible, sameLine, scope, ownedCommits } = require('./runtime-pull-request.cjs');
 
 const plan = () => ({ changed: true, runtime: 'node', channel: 'current', previous_version: '26.12.0', version: '26.12.1', files: { '.node-version': '26.12.1\n' } });
-const context = { ref: 'refs/heads/main', sha: 'a'.repeat(40), eventName: 'schedule', repo: { owner: 'yukiharada1228', repo: 'videoq' } };
+const context = { ref: 'refs/heads/main', sha: 'a'.repeat(40), eventName: 'schedule', repo: { owner: 'videoq-jp', repo: 'videoq' } };
 test('main ancestry distinguishes inherited commits from edits on the runtime branch', async () => {
   const bot = 'runtime-bot[bot]', inherited = 'b'.repeat(40), human = 'c'.repeat(40);
   const comparisons = [];
@@ -112,8 +112,8 @@ test('automatic runtime merges exclude new series, downgrades, missing metadata 
   ]) assert.equal(sameLine({ runtime, previous_version: before, version: after }), expected);
   const bot = 'runtime-bot[bot]', A = 'a'.repeat(40), B = 'b'.repeat(40);
   const pr = { state: 'open', draft: false, user: { login: bot }, labels: [],
-    base: { ref: 'main', repo: { full_name: 'yukiharada1228/videoq' } },
-    head: { ref: 'runtime/node-current', sha: A, repo: { full_name: 'yukiharada1228/videoq' } } };
+    base: { ref: 'main', repo: { full_name: 'videoq-jp/videoq' } },
+    head: { ref: 'runtime/node-current', sha: A, repo: { full_name: 'videoq-jp/videoq' } } };
   const receipt = { user: { login: bot }, body: '<!-- videoq-runtime-update-v1 -->\n' + JSON.stringify({ ...plan(), sha: A, base: B }) };
   const files = [{ filename: '.node-version', status: 'modified' }];
   assert.equal(eligible(pr, files, [receipt], bot), true);

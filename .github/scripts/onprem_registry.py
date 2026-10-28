@@ -8,7 +8,7 @@ def check_public(component):
     if component not in ("api", "worker", "web", "transcription-gateway", "vllm-engine"):
         raise ValueError("Unknown on-prem component")
     package = "videoq-vllm" if component == "vllm-engine" else "videoq-" + component
-    endpoint = "users/yukiharada1228/packages/container/" + package
+    endpoint = "orgs/videoq-jp/packages/container/" + package
     result = subprocess.run(["gh", "api", endpoint], capture_output=True, text=True)
     try:
         package = json.loads(result.stdout)

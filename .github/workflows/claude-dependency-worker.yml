@@ -31,7 +31,7 @@ concurrency:
 jobs:
   authentication-test:
     if: >-
-      github.repository == 'yukiharada1228/videoq' &&
+      github.repository == 'videoq-jp/videoq' &&
       github.event_name == 'workflow_dispatch' && inputs.authentication_test
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -55,7 +55,7 @@ jobs:
           prompt: 'Authentication test only. Reply exactly: Claude subscription authentication succeeded. Do not use tools or change any files.'
   authorize:
     if: >-
-      github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main' &&
+      github.repository == 'videoq-jp/videoq' && github.ref == 'refs/heads/main' &&
       vars.CLAUDE_DEPENDENCY_REPAIR_ENABLED == 'true' && !inputs.authentication_test
     runs-on: ubuntu-latest
     timeout-minutes: 5

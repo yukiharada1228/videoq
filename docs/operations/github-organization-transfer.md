@@ -1,0 +1,66 @@
+# GitHub organization transfer
+
+Destination: `videoq-jp/videoq`, repository ID `1083911938`.
+The dependency GitHub App must also be owned by `videoq-jp` and remain private.
+Its App ID and private key are retained; do not create a replacement bot identity.
+
+## Preparation
+
+- Save repository settings, protection, environments, variable values and secret
+  names before transfer. Secret values cannot be read back through GitHub APIs.
+- Add the exact destination subjects in the IAM trust templates to the existing
+  plan and deploy roles. Preserve existing subjects during the transition. Never
+  use a wildcard for repository owners. No permission policy change is needed.
+- Test this change on its PR before merging. Canonical automation guards switch
+  to the destination, so merge immediately before transfer: production and bot
+  jobs on the old owner will stop deliberately until transfer is complete.
+- Preserve required checks and administrator enforcement throughout the move.
+
+## Transfer and restore
+
+1. Merge the reviewed migration PR after all required checks pass.
+2. Transfer the repository to `videoq-jp`. Confirm its repository ID is unchanged,
+   update the Git remote, and compare settings and environment protection with
+   the saved snapshot. Confirm repository secrets and variables are present.
+3. In the existing App registration's **Advanced** page, transfer ownership to
+   `videoq-jp`. A private App's personal installation can be removed by this
+   operation; perform it during this cutover, not during normal operation.
+4. Install the transferred App on **Only select repositories: videoq**. Confirm
+   App ID `5420589` and the existing bot login still match the workflow policy.
+5. Run CI on destination main. Verify the exact main commit passes CI and that
+   the normal deployment workflows assume their AWS roles successfully. PR and
+   merge-group runs must never deploy production or receive deploy credentials.
+6. Initialize the new GHCR namespaces with **Package Namespace Bootstrap**, using
+   a successful historical On-prem Release run and its exact signed artifact.
+   Bootstrap both the application images and `videoq-vllm`; the latter needs the
+   separate `vllm_only` dispatch. Confirm package visibility is public and the
+   repository has Actions write access, then run the normal signed release.
+   Bootstrap tags are migration artifacts, not signed deployable releases.
+7. Confirm the Codecov installation and its repository access on the destination.
+   Validate actual uploads; do not assume personal installations move with it.
+
+Historical release metadata remains valid only for the exact historical owner,
+image namespaces, signer workflow, source commit and signed subjects. New releases
+must use the new owner. Never globally rewrite historical release manifests.
+
+## Native merge queue cutover
+
+The required CI, container and Terraform workflows handle `merge_group` events.
+Their change detection uses the group's base SHA. Terraform merge groups only
+validate with backend disabled; AWS planning remains restricted to same-repository
+PRs with the existing Dependabot exclusions.
+
+Do not enable a native queue until the auto-update controller has been switched
+away from its issue lease and main-rebase loop. Replace the custom queue required
+check with a native `merge_queue` rule while retaining all four validation checks.
+Start with one concurrent build and one PR per merge group; this avoids speculative
+builds being invalidated by preceding PRs. Normal developer PRs also use GitHub's
+native queue when the rule applies to main. No polling schedule is needed.
+
+Completion requires an actual automatic update PR to enter the native queue,
+pass checks on its synthetic commit, and merge without manual main rebasing.
+Keep Claude's bounded, provenance-checked repair path for eligible failed updates.
+
+After destination deployment, App operations and signed releases are proven,
+remove the old-owner IAM subjects and temporary migration settings. Do not recreate
+the old personal repository, which would break GitHub's repository redirects.
