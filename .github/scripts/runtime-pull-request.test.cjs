@@ -144,6 +144,9 @@ test('unchanged managed proposals still reserve merges, while superseded or opte
   const applied = managedFixture();
   await publish({ ...applied.args, plan: { ...plan(), changed: false, files: {} } });
   assert.equal(applied.writes[0][1].state, 'closed');
+  const newer = managedFixture();
+  await publish({ ...newer.args, plan: { ...plan(), version: '26.12.0', previous_version: '26.12.0', changed: false, files: {} } });
+  assert.deepEqual(newer.writes, []);
   const opted = managedFixture(); opted.pr.labels.push({ name: 'no-runtime-update' }); opted.pr.auto_merge = {};
   await publish(opted.args);
   assert.deepEqual(opted.writes, [['disable']]);
