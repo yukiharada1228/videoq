@@ -1,8 +1,11 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type PluginOption } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import path from 'path'
 import { readFileSync, copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { deploymentEdition } from '../../packages/trpc/src/deployment'
+
+// plugin-react-swc resolves the hoisted vite copy, whose Plugin type differs from this workspace's vite.
+const reactPlugin = react() as unknown as PluginOption
 
 const onprem = deploymentEdition(process.env.VITE_DEPLOYMENT_EDITION) === 'onprem'
 
@@ -20,7 +23,7 @@ const vendorChunks: Record<string, string[]> = {
 // https://vite.dev/config/
 export default defineConfig({
   publicDir: onprem ? false : 'public',
-  plugins: [react(), ...(onprem ? [{
+  plugins: [reactPlugin, ...(onprem ? [{
     name: 'videoq-onprem-assets',
     transformIndexHtml: {
       order: 'pre' as const,
