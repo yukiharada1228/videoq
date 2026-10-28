@@ -1,5 +1,23 @@
 # 依存関係の自動更新・修正
 
+## 最新mainへの自動追従
+
+自動マージ予約済みのDependabot PRが `BEHIND` になった場合、**Dependency Main Sync** が
+GitHubのrebase APIで最新mainへ追従する。main更新時・CI成功時・15分ごとの定期実行で
+候補を再確認し、1回につき古いPRから1件を処理する。最新SHAのCIが成功したPRのみ対象。
+スケジュール実行はGitHub側の混雑で遅れる場合がある。
+
+GitHubのAPIによるrebaseは元のコミット署名を引き継がないため、信頼済みBotが追従記録を
+残し、元の署名済みDependabotコミット・更新種別・変更行が同一であることを毎回APIで再検証する。
+人が追記したコミットや、記録と対応しない変更は認めない。Claude修正がある場合も既存の反映記録と
+変更範囲を照合する。追従後のCIが失敗すれば既存のClaude修正判定へ進み、成功すればマージする。
+Terraformの本番自動適用にも同じ追従記録の検証を使う。
+
+ブランチ保護のstrict条件は維持する。CIの省略や保護のバイパスはしない。差分を取得できない場合や
+追従に失敗した場合は自動マージを止めてPRへ通知する。同じhead/mainの組への要求は30分間隔、最大3回。
+停止は `DEPENDENCY_REBASE_ENABLED=false`、PR単位では `no-rebase` または `no-automerge`。
+初期状態では、既存の `DEPENDENCY_AUTOMERGE_ENABLED=true` とApp設定があれば有効。
+
 ## Claudeによる自動修正から自動マージまで
 
 `CLAUDE_DEPENDENCY_REPAIR_ENABLED=true` の場合、npm／Pythonのminor・patch更新で
