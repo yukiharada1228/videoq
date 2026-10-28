@@ -3,9 +3,10 @@
 ## 最新mainへの自動追従
 
 自動マージ予約済みのDependabot PRが `BEHIND` になった場合、**Dependency Main Sync** が
-GitHubのrebase APIで最新mainへ追従する。main更新時・CI成功時・15分ごとの定期実行で
-候補を再確認し、1回につき古いPRから1件を処理する。最新SHAのCIが成功したPRのみ対象。
-スケジュール実行はGitHub側の混雑で遅れる場合がある。
+GitHubのrebase APIで最新mainへ追従する。mainへのpush・CI完了イベントで候補を再確認し、
+1回につき古いPRから1件を処理する。最新SHAのCIが成功したPRのみ対象。定期実行はしない。
+必要な場合はActionsの **Dependency Main Sync** をmainから手動実行できる。
+失敗したPRの完了イベントでも他の候補を進めるが、追従するのはCI成功済みのPRだけ。
 
 GitHubのAPIによるrebaseは元のコミット署名を引き継がないため、信頼済みBotが追従記録を
 残し、元の署名済みDependabotコミット・更新種別・変更行が同一であることを毎回APIで再検証する。
