@@ -92,6 +92,7 @@ test('attempts are durable, deduplicated by SHA, and bounded across CI reruns', 
   assert.deepEqual(await p.scope(f), { number: 1, sha: A, branch: f.pr.head.ref, origin: A });
   assert.equal(f.mutations[0], 'disable');
   assert.equal(await p.scope(f), null);
+  assert.equal(p.records(f.comments, 'stopped').length, 0);
   f.run.run_attempt = 2;
   assert.equal(await p.scope(f), null);
   assert.equal(p.records(f.comments, 'attempt').length, 1);

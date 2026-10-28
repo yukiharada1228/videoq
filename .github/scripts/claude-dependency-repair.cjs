@@ -102,9 +102,10 @@ async function scope(args) {
     return null;
   }
   const attempts = records(c.comments, 'attempt');
-  if (attempts.some(r => r.sha === c.pr.head.sha) || attempts.length >= 2) {
+  if (attempts.some(r => r.sha === c.pr.head.sha)) return null;
+  if (attempts.length >= 2) {
     if (!records(c.comments, 'stopped').length) await record(github, context, c.pr.number, { kind: 'stopped' },
-      'Claude自動修正の再試行上限に達したか、このコミットは実行済みです。人による確認が必要です。');
+      'Claude自動修正の再試行上限に達しました。人による確認が必要です。');
     return null;
   }
   const attempt = { kind: 'attempt', sha: c.pr.head.sha, origin: c.origin.sha, runId: String(context.runId), failedRun: c.run.id };

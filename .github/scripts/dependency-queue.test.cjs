@@ -198,9 +198,19 @@ test('failed security checks and already attempted heads never dispatch another 
     const f = fixture([pr(1)]); f.jobs[11] = admitted; f.conclusions['ci.yml'] = 'failure';
     let called = false;
     await q.reconcile({ ...f.args, repairEnabled: true, authorizeRepair: true,
-      verify: async ({ pr }) => ({ pr, kind: 'dependabot', comments: [{ user: { login: 'github-actions[bot]' },
-        body: '<!-- videoq-claude-dependency-v1 -->\n' + JSON.stringify(receipt) }] }),
+      verify: async ({ pr }) => ({ pr, kind: 'dependabot', comments: [receipt,
+        ...(receipt.kind === 'stopped' ? [{ kind: 'attempt', sha: 'old1' }, { kind: 'attempt', sha: 'old2' }] : [])]
+        .map(r => ({ user: { login: 'github-actions[bot]' }, body: '<!-- videoq-claude-dependency-v1 -->\n' + JSON.stringify(r) })) }),
       prepareRepair: async () => { called = true; } });
     assert.equal(called, false);
   }
+});
+test('a legacy duplicate-run notice does not consume the second allowed repair of a new head', async () => {
+  const f = fixture([pr(1)]); f.jobs[11] = admitted; f.conclusions['ci.yml'] = 'failure';
+  const requests = [];
+  await q.reconcile({ ...f.args, repairEnabled: true, authorizeRepair: true,
+    verify: async ({ pr }) => ({ pr, kind: 'dependabot', comments: [{ kind: 'attempt', sha: 'old' }, { kind: 'stopped' }]
+      .map(r => ({ user: { login: 'github-actions[bot]' }, body: '<!-- videoq-claude-dependency-v1 -->\n' + JSON.stringify(r) })) }),
+    prepareRepair: async args => requests.push(args.runId) });
+  assert.deepEqual(requests, [11]);
 });

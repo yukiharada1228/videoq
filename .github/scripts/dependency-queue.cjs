@@ -239,9 +239,10 @@ async function reconcile({ github, writerGithub, context, issue, retry = 0, save
     for (const c of candidates) {
       if (c.kind !== 'dependabot' || state.failed[c.pr.number] !== c.pr.head.sha) continue;
       const comments = c.comments || [];
-      if (repair.records(comments, 'attempt').some(r => r.sha === c.pr.head.sha) ||
+      const attempts = repair.records(comments, 'attempt');
+      if (attempts.some(r => r.sha === c.pr.head.sha) ||
           repair.records(comments, 'security-stop').some(r => r.sha === c.pr.head.sha) ||
-          repair.records(comments, 'stopped').length) continue;
+          (attempts.length >= 2 && repair.records(comments, 'stopped').length)) continue;
       const rows = c === active ? activeRuns : await runs({ github, context, pr: c.pr });
       const ci = rows.find(row => row.workflow_id === 'ci.yml');
       if (!ci?.admitted || ci.run?.status !== 'completed' || ci.run.conclusion !== 'failure') continue;
