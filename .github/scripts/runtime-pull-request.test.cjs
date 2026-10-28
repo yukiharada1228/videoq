@@ -149,6 +149,11 @@ test('unchanged proposals are left for the controller; superseded proposals reti
   const same = managedFixture();
   await publish(same.args);
   assert.deepEqual(same.writes, []);
+  const refreshed = managedFixture();
+  refreshed.github.rest.repos.compareCommits = async () => ({ data: { ahead_by: 1 } });
+  refreshed.github.rest.git.updateRef = async args => refreshed.writes.push(['update-ref', args]);
+  await publish(refreshed.args);
+  assert.equal(refreshed.writes.find(([kind]) => kind === 'update')[1].base, 'main');
   const applied = managedFixture();
   await publish({ ...applied.args, plan: { ...plan(), changed: false, files: {} } });
   assert.equal(applied.writes.find(([kind]) => kind === 'update')[1].state, 'closed');
