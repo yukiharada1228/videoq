@@ -160,7 +160,7 @@ async function publish({ github, context, core, plan, bot, retireSuperseded = fa
     plan.channel === 'current' ? 'Normal CI and strict branch protection must pass before automatic merging. The canonical manifest and generated pins stay together.' : 'New release lines require human review; this workflow does not enable automatic merging for them.',
   ].join('\n\n');
   const result = existing
-    ? await github.rest.pulls.update({ ...context.repo, pull_number: existing.number, title, body })
+    ? await github.rest.pulls.update({ ...context.repo, pull_number: existing.number, base: 'main', title, body })
     : await github.rest.pulls.create({ ...context.repo, head: branch, base: 'main', title, body });
   await github.rest.issues.createComment({ ...context.repo, issue_number: result.data.number,
     body: `${MARKER}\n${JSON.stringify({ kind: 'publication', sha: commit.sha, base: base.object.sha, runtime: plan.runtime,
