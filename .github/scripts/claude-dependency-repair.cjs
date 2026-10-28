@@ -38,7 +38,7 @@ async function mayAttempt({ github, context, comments, head, mode = 'ci', base }
   const history = attempts(comments, mode);
   if (history.length >= MAX_ATTEMPTS) return false;
   const prior = history.filter(r => r.sha === head && (mode !== 'conflict' || r.base === base));
-  if (prior.length >= 2) return false;
+  if (prior.length >= MAX_ATTEMPTS) return false;
   const worker = records(comments, 'worker-start').at(-1);
   if (worker) {
     const { data: run } = await github.rest.actions.getWorkflowRun({ ...context.repo, run_id: worker.runId });
