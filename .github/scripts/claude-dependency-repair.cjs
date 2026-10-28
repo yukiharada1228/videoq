@@ -87,7 +87,10 @@ async function scope(args) {
   const c = await candidate(args);
   if (!c || c.run.conclusion !== 'failure') return null;
   const { github, context } = args;
-  if (c.pr.auto_merge) await github.graphql('mutation($id: ID!) { disablePullRequestAutoMerge(input: {pullRequestId: $id}) { clientMutationId } }', { id: c.pr.node_id });
+  if (c.pr.auto_merge) {
+    if (!args.writerGithub) throw new Error('A write-capable GitHub App client is required to cancel auto-merge');
+    await args.writerGithub.graphql('mutation($id: ID!) { disablePullRequestAutoMerge(input: {pullRequestId: $id}) { clientMutationId } }', { id: c.pr.node_id });
+  }
   const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, { ...context.repo, run_id: c.run.id, filter: 'latest', per_page: 100 });
   if (['Supply Chain Security', 'Deployment Security Tests'].some(name => !jobs.some(j => j.name === name && j.conclusion === 'success'))) {
     if (!records(c.comments, 'security-stop').some(r => r.sha === c.pr.head.sha)) await record(github, context, c.pr.number,

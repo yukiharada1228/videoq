@@ -121,8 +121,17 @@ jobs:
               }
             }
             if (!process.env.CLAUDE_TOKEN) throw new Error('Register CLAUDE_CODE_OAUTH_TOKEN before enabling repair.');
-            const repair = await policy.scope(args);
+            const repair = await policy.scope({ ...args, writerGithub: app });
             if (repair) for (const key of ['number', 'sha']) core.setOutput(key, repair[key]);
+      - name: Notify if repair preparation failed
+        if: failure()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PR_NUMBER: ${{ needs.inspect.outputs.number }}
+        with:
+          script: |
+            await github.rest.issues.createComment({ ...context.repo, issue_number: Number(process.env.PR_NUMBER),
+              body: `Claude修正の準備処理でエラーが発生しました。実行ログ: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}` });
   dispatch:
     needs: decide
     if: needs.decide.outputs.sha != ''
