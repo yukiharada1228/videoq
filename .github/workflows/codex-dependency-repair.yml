@@ -23,6 +23,7 @@ jobs:
     if: >-
       github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main' &&
       vars.CODEX_REPAIR_REQUESTS_ENABLED != 'false' &&
+      vars.CLAUDE_DEPENDENCY_REPAIR_ENABLED != 'true' &&
       (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'failure')
     runs-on: ubuntu-latest
     timeout-minutes: 5
