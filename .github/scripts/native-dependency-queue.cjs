@@ -130,6 +130,10 @@ async function reconcile({ github, writerGithub, context, verify = queue.verifie
       summary.push(`#${pr.number}: automatic conflict resolution requested`);
       continue;
     }
+    if (pr.mergeable === null) {
+      summary.push(`#${pr.number}: GitHub is still computing mergeability`);
+      continue;
+    }
     if (records(candidate.comments || []).some(entry => entry.kind === 'stopped' && entry.sha === pr.head.sha)) {
       await cancel(writerGithub, context, pr);
       summary.push(`#${pr.number}: queue failure retry limit reached`);
@@ -168,11 +172,22 @@ async function reconcile({ github, writerGithub, context, verify = queue.verifie
     const { data: current } = await github.rest.pulls.get({ ...context.repo, pull_number: pr.number });
     if (current.state !== 'open' || current.draft || current.head.sha !== pr.head.sha ||
         current.labels.some(label => ['no-automerge', 'no-runtime-update', 'no-rebase'].includes(label.name))) continue;
+    if (current.mergeable === false || current.mergeable === null) continue;
     if (await entry(writerGithub, context, pr.number)) continue;
     if (reserve) await reserve({ number: current.number, sha: current.head.sha });
-    else await writerGithub.graphql(
-      'mutation($id:ID!,$sha:GitObjectID!){enqueuePullRequest(input:{pullRequestId:$id,expectedHeadOid:$sha}){clientMutationId}}',
-      { id: current.node_id, sha: current.head.sha });
+    else {
+      try {
+        await writerGithub.graphql(
+          'mutation($id:ID!,$sha:GitObjectID!){enqueuePullRequest(input:{pullRequestId:$id,expectedHeadOid:$sha}){clientMutationId}}',
+          { id: current.node_id, sha: current.head.sha });
+      } catch (error) {
+        // Main may change between REST's mergeability result and this atomic
+        // mutation. Leave that PR to the next event; do not stall later updates.
+        if (!error.errors?.length || !error.errors.every(e => e.type === 'UNPROCESSABLE' &&
+          /merge conflicts|not in mergeable state/i.test(e.message))) throw error;
+        summary.push(`#${pr.number}: mergeability changed before enqueue; awaiting the next event`);
+      }
+    }
   }
   if (wake) await github.rest.actions.createWorkflowDispatch({
     ...context.repo, workflow_id: 'dependency-queue.yml', ref: 'main',
