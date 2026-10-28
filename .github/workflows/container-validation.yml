@@ -14,16 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  queue:
-    name: Queue Admission
-    uses: ./.github/workflows/dependency-ci-admission.yml
-    permissions:
-      contents: read
-      issues: read
-
   changes:
-    needs: queue
-    if: needs.queue.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -154,9 +145,9 @@ jobs:
           timeout: 15m
 
   result:
-    name: ${{ needs.queue.outputs.run == 'true' && 'Container Validation' || 'Container Waiting' }}
-    needs: [queue, changes, validate, node-runtime, worker-image]
-    if: always() && needs.queue.outputs.run == 'true'
+    name: Container Validation
+    needs: [changes, validate, node-runtime, worker-image]
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

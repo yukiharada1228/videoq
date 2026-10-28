@@ -1,28 +1,27 @@
 # 依存更新の自動化
 
 更新自動化の入口は `dependency-queue.yml`（Dependency Automation）だけにする。
-PRの検証、実行順、main追従、修正の許可、自動マージの判断をここで行う。
+PRの検証、修正の許可、自動投入の判断をここで行う。実行順と最新mainでの統合検査・マージはGitHub Merge Queueが担当する。
 通常の開発PRのCI・デプロイ・Terraform適用はそれぞれのワークフローに残す。
 
 | ファイル | 責務 |
 | --- | --- |
 | `runtime-updates.yml` | 日次の公式リリース探索、または指定ランタイムの再生成。整合した更新PRと公開記録を作る |
-| `dependency-queue.yml` | Dependabotとcurrent-lineランタイムPRの検証、順番管理、main追従、CI結果確認、修正の許可、マージ |
+| `dependency-queue.yml` | Dependabotとcurrent-lineランタイムPRの検証、CI結果確認、修正の許可、標準キューへの投入 |
 | `claude-dependency-worker.yml` | 許可されたCI失敗の修正、別runnerでのパッチ検証・反映。手動の認証テストも担当 |
-| `dependency-ci-admission.yml` | CIとContainer Validationが共用する読み取り専用の実行枠確認 |
 
 ```mermaid
 flowchart TD
   D[Dependabot] --> P[更新PR]
   R[Runtime Updates] --> P
-  P --> C[Dependency Automation]
-  C --> S[選択した1件を最新mainへ追従]
-  S --> V[通常CI・コンテナ・Terraform検証]
-  V -->|成功| M[必須チェックを確認してマージ]
-  M --> C
-  V -->|失敗| W[修正待ちに回して次のPRを処理]
-  W --> C
-  W -->|修正可能・許可済み| A[Claude Worker]
+  P --> V[通常PR CI]
+  V -->|成功| C[Dependency Automationで由来とheadを検証]
+  C --> Q[GitHub Merge Queue]
+  Q --> G[最新mainとの統合用CI]
+  G -->|成功| M[GitHubがマージ]
+  G -->|失敗| F[対象PRだけ通常CIで再現]
+  F --> V
+  V -->|修正可能な失敗| A[許可済みClaude Worker]
   A -->|検証したパッチを反映| P
 ```
 
@@ -33,7 +32,7 @@ flowchart TD
 main追従とキューの処理はイベント起動だけで、定期ポーリングはない。
 Runtime Updatesの日次実行は新しいリリースを見つけるためのもの。
 
-- `DEPENDENCY_AUTOMERGE_ENABLED=true` と `DEPENDENCY_QUEUE_ENABLED=true` でコントローラーを有効にする。
+- `DEPENDENCY_AUTOMERGE_ENABLED=true` でコントローラーを有効にする。
 - `RUNTIME_AUTOMERGE_ENABLED=false` はランタイムPRを手動レビューへ回す。
 - `CLAUDE_DEPENDENCY_REPAIR_ENABLED=true` は対応するCI失敗の修正を許可する。
 - `no-automerge` はPRの自動処理を停止する。`no-rebase` はDependabotのmain追従を停止する。
@@ -51,7 +50,7 @@ Runtime Updatesの日次実行は新しいリリースを見つけるための�
 トークンをPR、ログ、チャットへ貼らない。認証確認はClaude Dependency Repair Workerを
 mainから`authentication_test=true`で実行する。PR番号などは指定不要で、PRは変更しない。
 Claudeの利用枠・認証エラー・ワーカーの実行失敗はPRまたはActionsログへ表示する。
-予約済みマージの解除は `gh pr merge PR番号 --disable-auto` を使う。
+投入済みPRの停止はGitHubのキュー画面から対象を除外する。
 
 ## 検証と権限
 
@@ -60,9 +59,8 @@ Claudeの利用枠・認証エラー・ワーカーの実行失敗はPRまたは
 - 元のDependabot署名と更新種別、許可した変更ファイルをAPIで検証する。
   GitHubのrebaseで署名が引き継がれなくても、元の署名済み差分と追従記録を毎回照合する。
   Terraformの本番自動適用でも同じ検証を使う。
-- mainのstrictなブランチ保護と既存の必須CIを維持する。`Dependency Queue`は実際に実行された
-  最新headのCIの成功を確認する実ジョブとする。待機中は必須チェック名を出さず、スキップ成功で上書きしない。
-  コントローラーはContainer Validation・Terraform Planの実行結果も確認してからマージする。
+- mainの必須CI、管理者への適用、標準Merge Queueを維持する。PRのCI完了後に現在のhead SHAを
+  指定して投入し、GitHubが最新mainと統合したコミットで4つの必須チェックを再確認してからマージする。
 - 修正はnpm/Python更新に対してPR全体で最大2回。同じSHAを再実行しない。
   Supply Chain SecurityとDeployment Security Testsが成功していなければClaudeを起動しない。
 - Claudeの実行ジョブは読み取り専用GitHub tokenを使う。コントローラーの秘密鍵や書き込みtokenは渡さない。
@@ -71,7 +69,7 @@ Claudeの利用枠・認証エラー・ワーカーの実行失敗はPRまたは
 - Workerはmain上の実際のコントローラーrun ID、対象CI、現在のhead、許可記録を再検証する。
   PR targetイベントからモデルを直接起動せず、mainの実行へ引き継ぐ。同じ許可の重複使用を拒否する。
 - パッチ反映はGitHub Appで行い、通常CIへ戻す。Claude自身にはpush・マージを任せない。
-  最終マージはコントローラーだけが最新head指定で行う。
+  コントローラーは現在のheadを指定してキューへ投入し、最終マージはGitHubが行う。
 
 検証コマンド:
 

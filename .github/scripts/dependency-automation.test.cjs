@@ -52,11 +52,3 @@ test('historical manual repair notices still require human review', () => {
   assert.equal(policy.eligiblePull(pull(), files(), 'no-automerge', [notice]), false);
   assert.equal(policy.eligiblePull(pull(), files(), 'no-automerge', [{ ...notice, user: { login: 'someone' } }]), true);
 });
-test('inline and reusable admission evidence is accepted; skipped or unrelated jobs are rejected', () => {
-  for (const name of ['Queue Admission', 'Queue Admission / admission']) {
-    const job = { name, steps: [{ name: 'Queue slot admitted', conclusion: 'success' }] };
-    assert.equal(policy.admittedCI([job]), true);
-    assert.equal(policy.admittedCI([{ ...job, steps: [{ name: 'Queue slot admitted', conclusion: 'skipped' }] }]), false);
-  }
-  assert.equal(policy.admittedCI([{ name: 'Other / Queue Admission', steps: [{ name: 'Queue slot admitted', conclusion: 'success' }] }]), false);
-});

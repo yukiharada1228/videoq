@@ -112,12 +112,4 @@ function requireProtection(protection, ecosystem) {
   }
 }
 
-// Accept both the original inline job and the shared workflow during rollout.
-function admissionJob(job) {
-  return job.name === 'Queue Admission' || job.name?.startsWith('Queue Admission / ');
-}
-function admittedCI(jobs) {
-  return jobs.some(job => admissionJob(job) && job.steps?.some(step =>
-    step.name === 'Queue slot admitted' && step.conclusion === 'success'));
-}
-module.exports = { verifiedDependencyCommits, eligiblePull, getPull, autoMergeMetadata, requireProtection, isRepairRequest, admissionJob, admittedCI };
+module.exports = { verifiedDependencyCommits, eligiblePull, getPull, autoMergeMetadata, requireProtection, isRepairRequest };

@@ -1,46 +1,43 @@
-# 自動更新PRのCIキュー
+# GitHub Merge Queue
 
-Dependabotの自動マージ可能なpatch/minor更新と、管理Botが生成した
-`runtime/*-current` PRを、作成順に1件ずつ処理する。
-通常の開発PR、major更新、`runtime/*-next`、明示的な除外PRは通常CIとレビューを利用する。
+mainへのマージ順と統合用CIはGitHub標準のMerge Queueで管理する。
+通常の開発PRもmainへマージする際はこのキューを使う。
+Dependency Automationが自動投入するのは、検証済みのDependabot patch/minor更新と
+管理Botの`runtime/*-current` PRだけ。major・新系列・除外PRは人が判断する。
 
-選択したPRだけを最新mainへ追従させ、CIとContainer Validationを実行する。
-1件のPR内では従来どおり各テストを並列実行する。待機PRは軽量なQueue Admissionだけ実行し、
-重いCI・コンテナビルドは保留する。Terraform PlanとCodeQLは従来どおり起動する。
-`Dependency Queue`はCIの実ジョブで、実行枠の確認とCIの成功を検証する。
-待機中は`Dependency Waiting`、`CI Waiting`、`Supply Chain Waiting`、`Container Waiting`という別名で報告し、
-必須チェックをスキップ成功で上書きしない。CI・Container Validation・Terraform Planが実際に成功してから
-コントローラーがマージする。Checks APIで独自の必須ゲートは作成しない。
+通常のPR CIが成功すると、コントローラーが現在のhead SHAを指定してキューへ投入する。
+GitHubは最新mainと対象PRを統合したコミットを作り、`merge_group`のCIを実行する。
+統合用ビルドは同時1件、マージグループは1 PRとし、先行PRのマージで後続の投機ビルドが
+無効になるのを防ぐ。通常のmain更新では待機中PRのブランチを再生成・rebaseしない。
 
-処理はPRイベント、main push、関連ワークフローの開始・完了イベントで進む。定期ポーリングはしない。
-CI失敗・安全にmain追従できないPRは、そのhead SHAを修正待ちとしてキューから外し、次のPRを進める。
-Claude修正は従来の対象・上限のままで、実際に実行したCIの失敗だけを処理する。
-修正コミットが追加されるとキューへ戻る。手動再試行はDependency Automationの`retry`にPR番号を指定する。
+必須チェックはGitHub Actionsの`CI Success`、`Supply Chain Security`、
+`Terraform Plan`、`Container Validation`。管理者にも適用する。
+「ブランチを最新に保つ」は無効にし、代わりにMerge Queueを必須にする。
+設定は[.github/native-merge-queue.json](native-merge-queue.json)を参照する。
+キューの待機上限は120分で、90分上限のオンプレミス検証も待てるようにしている。
 
-状態は`DEPENDENCY_QUEUE_ISSUE`で指定したIssue内のActions Botコメントに保存する。
-Issue本文や一般ユーザーのコメントは実行権限として使わない。
-順番の情報だけで自動マージを許可せず、毎回署名・変更ファイル・管理Botの公開記録を検証する。
-PRコードを実行するジョブに書き込みトークンやApp秘密鍵は渡さない。
+## CI失敗とClaude修正
 
-## 有効化
+キュー上での失敗は、実際のworkflow ID、リポジトリ、現在のPR headの祖先関係、
+Botの更新由来を確認する。必要な場合だけそのPRを最新mainへ追従し、通常PR CIで再現する。
+この再現はPR全体で最大2回。合成されたキュー用コミットを直接Claudeへ渡さない。
+通常のPR CIが修正対象として検証できた場合に、既存のClaude判定へ進む。
+セキュリティ検査の失敗、未検証の変更、修正上限は引き続き人による確認が必要。
 
-1. 先にワークフローをmainへマージする（フラグ未設定時は通常CI）。
-2. 状態保存用Issueを作成し、番号を`DEPENDENCY_QUEUE_ISSUE`に設定する。
-3. mainの必須チェックへ`Dependency Queue`（GitHub Actions App ID 15368）を追加する。
-   既存の必須チェックとstrict設定を維持する。先にチェックを必須化することで移行中もスキップCIでマージされない。
-4. `DEPENDENCY_QUEUE_ENABLED=true`にし、Dependency Automationを手動起動する。
-5. Issueの実行中・待機状態、選択PRのmain追従、CI完走後のゲート成功を確認する。
+状態用Issue、実行枠確認ジョブ、独自の必須チェックは使用しない。
+PRイベント、main push、CIの開始・完了イベントで動き、main追従の定期確認は行わない。
+ランタイムの日次探索は、新しい公式リリースを見つけるために継続する。
 
-旧Dependency Main Sync、個別のDependabot／Runtime Auto-merge、旧Codex案内、独立したClaude判定ワークフローは廃止した。
-Runtime Updatesは日次探索と指定された再生成だけを担当する。既存PRのmain追従と最終マージは
-コントローラーで選択した1件だけを処理する。CIの実行枠確認は共通の`dependency-ci-admission.yml`へまとめている。
+## 運用
 
-## 運用上の範囲
+- `DEPENDENCY_AUTOMERGE_ENABLED=true`で自動更新コントローラーを有効にする。
+- `RUNTIME_AUTOMERGE_ENABLED=false`はランタイムPRの自動投入を停止する。
+- `CLAUDE_DEPENDENCY_REPAIR_ENABLED=true`は、対応するCI失敗の修正を許可する。
+- `no-automerge`、`no-runtime-update`、`no-rebase`、`no-claude`などの除外は
+  [依存更新の自動化](dependency-automation.md)を参照する。
 
-手動の開発PRがmainへマージされると、実行中の自動更新PRは新しいmainで再検証する必要がある。
-このキューは自動更新PR同士の先行マージによるCIのやり直しを減らす。
-競合・未対応の生成ファイル・修正上限・外部サービス障害を無条件に解決するものではない。
-
-停止時は`DEPENDENCY_QUEUE_ENABLED=false`とし、必須の`Dependency Queue`チェックも解除する。
-待機していたPRは通常CIを再実行する。必須チェックだけを解除してキューを有効のままにしない。
-既存の自動マージ・Claude・ランタイム更新のフラグと除外ラベルは引き続き適用する。
+自動投入を止める場合は`DEPENDENCY_AUTOMERGE_ENABLED=false`にする。
+mainのMerge Queueルールと必須チェックは維持し、通常の開発PRは引き続きキューでマージする。
+既に投入されたPRはキュー画面から個別に除外する。保護設定を外して直接マージしない。
+移管前の古いBot PRを一度追従し直す場合は、Dependency Automationをmainから実行し、
+`retry`へ対象PR番号を指定する。これは明示的な復旧操作で、通常のmain更新では実行しない。

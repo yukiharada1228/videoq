@@ -147,7 +147,7 @@ test('workflow keeps model access read-only and publishing isolated', () => {
   for (const action of (workflow + worker).matchAll(/uses: ([^\s]+)/g)) {
     if (!action[1].startsWith('./')) assert.match(action[1], /@[a-f0-9]{40}$/);
   }
-  assert.match(workflow, /--match-head-commit/);
+  assert.match(readFileSync(join(__dirname, 'native-dependency-queue.cjs'), 'utf8'), /expectedHeadOid:\$sha/);
   assert.match(worker, /group: dependency-automation-\$\{\{ inputs\.number \}\}/);
 });
 
