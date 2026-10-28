@@ -11,7 +11,7 @@ LLM・埋め込み生成・Whisper も社内で動かす場合は、[ローカ�
 
 VideoQ の Web・Node.js API・Python ワーカーを、既存の Kubernetes に配置できます。
 小規模な導入では、単一ノードの K3s から始められます。配布にはリポジトリの
-[Helm Chart](https://github.com/yukiharada1228/videoq/tree/main/charts/videoq)
+[Helm Chart](https://github.com/videoq-jp/videoq/tree/main/charts/videoq)
 を使います。Chart の README に、必要な外部基盤、イメージの作成、設定例、導入・更新・切り戻しの手順をまとめています。
 
 ## 配置する構成

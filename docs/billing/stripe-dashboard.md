@@ -16,7 +16,7 @@ Use a restricted API key (`rk_`) where possible. Allow Checkout / Customer / Sub
 
 - Worker secret: `STRIPE_SECRET_KEY`
 - Worker secret: `STRIPE_WEBHOOK_SECRET`
-- Local configuration: [`apps/api/.dev.vars.example`](https://github.com/yukiharada1228/videoq/blob/main/apps/api/.dev.vars.example)
+- Local configuration: [`apps/api/.dev.vars.example`](https://github.com/videoq-jp/videoq/blob/main/apps/api/.dev.vars.example)
 
 ## 2. Products and Prices
 
@@ -140,7 +140,7 @@ Tax registration and tax-code choices cannot be determined from this system conf
 
 ### Current limits (2026-10-23)
 
-At the existing prices, transcription limits are **Free 45, Basic 200, and Pro 1,000 minutes/month**. AI answer limits remain 30/500/2,000. Storage remains 1/20/100 GiB and monthly upload allowances remain 2/200/1,000 GiB. The quotas are enforced by the existing atomic AI-answer reservation and transcription-minute reservation; the migration preserves usage already recorded in the current month. See [the current transcription runbook](https://github.com/yukiharada1228/videoq/blob/main/docs/operations/openai-transcription.md).
+At the existing prices, transcription limits are **Free 45, Basic 200, and Pro 1,000 minutes/month**. AI answer limits remain 30/500/2,000. Storage remains 1/20/100 GiB and monthly upload allowances remain 2/200/1,000 GiB. The quotas are enforced by the existing atomic AI-answer reservation and transcription-minute reservation; the migration preserves usage already recorded in the current month. See [the current transcription runbook](https://github.com/videoq-jp/videoq/blob/main/docs/operations/openai-transcription.md).
 
 For current planning, `estimate_plan_costs.py` now reserves **¥1.00 per AI answer** until production attempt-level usage can be reconciled with OpenAI billing. This is a conservative assumption, not a measured unit cost. The API records successful and failed provider calls by anonymous answer attempt after migration `0036`; compare the resulting token usage and incomplete-call count with the same period's OpenAI Costs before changing the catalog again. The administrator's `quota_source=admin` limits remain independent of this planning assumption.
 

@@ -39,7 +39,7 @@ npm run user:password:local --workspace @videoq/api -- your-username
 
 ローカル用の一時パスワードが表示されます。共有環境や本番のログイン問題にそのまま使わないでください。
 
-ローカルでログイン試行のレート制限に当たった場合は、APIを停止してからRateLimiterのローカル状態をリセットし、APIを再起動します。実行条件は [reset-rate-limit.sh](https://github.com/yukiharada1228/videoq/blob/main/apps/api/scripts/reset-rate-limit.sh)を確認してください。
+ローカルでログイン試行のレート制限に当たった場合は、APIを停止してからRateLimiterのローカル状態をリセットし、APIを再起動します。実行条件は [reset-rate-limit.sh](https://github.com/videoq-jp/videoq/blob/main/apps/api/scripts/reset-rate-limit.sh)を確認してください。
 
 ## 動画の処理が進まない
 
@@ -95,7 +95,7 @@ Composeの `.env` は起動済みプロセスに自動反映されません。
 docker compose up -d --force-recreate api worker
 ```
 
-API側に転送される変数は [docker-dev.sh](https://github.com/yukiharada1228/videoq/blob/main/apps/api/scripts/docker-dev.sh)で限定されています。任意の変数を `.env` に追記しただけではAPIから読めない場合があります。
+API側に転送される変数は [docker-dev.sh](https://github.com/videoq-jp/videoq/blob/main/apps/api/scripts/docker-dev.sh)で限定されています。任意の変数を `.env` に追記しただけではAPIから読めない場合があります。
 
 ## チームに相談するとき
 

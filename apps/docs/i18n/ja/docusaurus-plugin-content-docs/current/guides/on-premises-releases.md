@@ -7,9 +7,9 @@ description: 署名とダイジェストを検証し、Kubernetes で更新と�
 
 インターネットに接続できる導入先では、外部レジストリとイメージのダイジェストを使って配布します。`On-prem Release` は最新 main の push CI 成功を確認し、Linux amd64・arm64 の API、Web、ワーカー、CPU Whisper、アプリ・推論用の両 Helm Chart、`release.json` を作成します。NVIDIA vLLM のイメージは amd64 用として同梱します。同じ main コミットで手動実行すると、OS パッケージ修正後の再ビルドにも使えます。
 
-配布用の `ghcr.io/yukiharada1228/videoq-api`・`videoq-worker`・`videoq-web`・`videoq-transcription-gateway`・`videoq-vllm` は Public とします。Docker や Kubernetes からは GHCR のログインや `imagePullSecrets` なしで取得できます。導入先独自の非公開レジストリを使う場合は、引き続き `imagePullSecrets` を設定できます。各イメージにはリポジトリの現行 LICENSE を同梱し、公開範囲の変更でライセンス条件は変更しません。
+配布用の `ghcr.io/videoq-jp/videoq-api`・`videoq-worker`・`videoq-web`・`videoq-transcription-gateway`・`videoq-vllm` は Public とします。Docker や Kubernetes からは GHCR のログインや `imagePullSecrets` なしで取得できます。導入先独自の非公開レジストリを使う場合は、引き続き `imagePullSecrets` を設定できます。各イメージにはリポジトリの現行 LICENSE を同梱し、公開範囲の変更でライセンス条件は変更しません。
 
-パッケージ管理者が初期設定で Public にし、**Package settings → Manage Actions access** で `yukiharada1228/videoq` に **Write** を付与します。CI は push の前後とインデックス作成前に公開状態を確認し、非公開・internal・未作成の場合は配布を止めます。署名を検証した配布物は、空の Docker 認証設定で取得して匿名アクセスを確認します。公開済みパッケージを Private に戻すことは GitHub の仕様上できません。push 用の書き込み認証は引き続き必要です。
+パッケージ管理者が初期設定で Public にし、**Package settings → Manage Actions access** で `videoq-jp/videoq` に **Write** を付与します。CI は push の前後とインデックス作成前に公開状態を確認し、非公開・internal・未作成の場合は配布を止めます。署名を検証した配布物は、空の Docker 認証設定で取得して匿名アクセスを確認します。公開済みパッケージを Private に戻すことは GitHub の仕様上できません。push 用の書き込み認証は引き続き必要です。
 
 ## 配布時に確認すること
 

@@ -5,7 +5,7 @@ description: Find tables by purpose and follow links to the actual column defini
 
 # Data dictionary
 
-Use this list to find the table containing the data you need. For complete column types, defaults, and constraints, see [modern.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/modern.ts) and [better-auth.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/better-auth.ts).
+Use this list to find the table containing the data you need. For complete column types, defaults, and constraints, see [modern.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/db/schema/modern.ts) and [better-auth.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/db/schema/better-auth.ts).
 
 ## Users and authentication
 

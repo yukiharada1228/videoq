@@ -40,7 +40,7 @@ description: 講座の操作権限、AI回答枠の負担者、アクセスを�
 
 利用枠はAのアカウントに計上するリクエスト全体で共用し、受講者・講座ごとに分けた枠ではありません。AのAI回答数が上限に達すると、A自身・招待参加者・リンク利用者を含め、Aの枠を使う新しいQ&Aを受け付けなくなります。Aのアカウントが容量超過で制限されている場合も同様です。この判定自体が参加資格を取り消したり、講座の閲覧・利用可能な動画の再生を止めたりするわけではありません。
 
-APIは生成前に利用枠を予約し、回答を完了できなかった場合は予約の返却を試みます。講座や表示済みの回答を読むだけでは、新しいAI回答枠を予約しません。所有者の枠が残っていても、別のレート制限で一時的にリクエストを断る場合があります。[利用枠の実装](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/quota-repository.ts)と[チャット処理](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/features/chat/message-service.ts)を参照してください。
+APIは生成前に利用枠を予約し、回答を完了できなかった場合は予約の返却を試みます。講座や表示済みの回答を読むだけでは、新しいAI回答枠を予約しません。所有者の枠が残っていても、別のレート制限で一時的にリクエストを断る場合があります。[利用枠の実装](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/repositories/quota-repository.ts)と[チャット処理](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/features/chat/message-service.ts)を参照してください。
 
 ## アクセスの取り消しと履歴の保持 {#removing-access}
 
@@ -54,7 +54,7 @@ APIは生成前に利用枠を予約し、回答を完了できなかった場�
 
 招待の取り消しは**保留中**の招待に対する操作です。承認後は参加者を削除してください。参加者を削除しても別の共有リンクは無効にならず、リンクを無効化しても招待参加者は残ります。リンクを知っている人の両方の利用経路を止めたい場合は、その人の参加資格を削除し、必要に応じてリンクも無効化・変更します。
 
-アクセス変更は新しいリクエストで判定します。取得済みのコピー・CSV・画面の会話を回収するものではなく、すでに許可された回答処理は完了する場合があります。発行済みの動画再生URLも利用できる場合があります。S3互換ストレージの再生URLは発行から1時間有効で、外部動画URLには別のアクセス規則があります。また、スラッグの変更は旧スラッグを永久に使用禁止にするものではなく、再利用すると旧URLが再び有効になり得ます。[メディアURLの実装](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/integrations/media.ts)も参照してください。
+アクセス変更は新しいリクエストで判定します。取得済みのコピー・CSV・画面の会話を回収するものではなく、すでに許可された回答処理は完了する場合があります。発行済みの動画再生URLも利用できる場合があります。S3互換ストレージの再生URLは発行から1時間有効で、外部動画URLには別のアクセス規則があります。また、スラッグの変更は旧スラッグを永久に使用禁止にするものではなく、再利用すると旧URLが再び有効になり得ます。[メディアURLの実装](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/integrations/media.ts)も参照してください。
 
 参加者の削除やリンクの無効化では、チャット履歴を**削除しません**。保存済みの会話を消したい場合は、所有者が講座のチャット履歴削除を別途実行します。特定の参加者だけでなく講座全体の履歴を削除する操作であり、出力済みのCSVなどは消えません。
 
@@ -70,9 +70,9 @@ APIは生成前に利用枠を予約し、回答を完了できなかった場�
 
 | 担当 | ソース |
 |---|---|
-| 所有者・参加者の講座取得、公開リンク、所有者だけの編集・リンク変更 | [course-repository.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/course-repository.ts) |
-| 確認済みメールによる承認、招待の取り消し、参加者削除 | [course-invitation-repository.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/course-invitation-repository.ts) |
-| チャットの権限、利用枠の所有者、質問者、保存 | [message-service.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/features/chat/message-service.ts) |
-| 所有者だけの履歴・CSV取得、共有由来の質問者欄 | [chat-repository.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/chat-repository.ts) |
+| 所有者・参加者の講座取得、公開リンク、所有者だけの編集・リンク変更 | [course-repository.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/repositories/course-repository.ts) |
+| 確認済みメールによる承認、招待の取り消し、参加者削除 | [course-invitation-repository.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/repositories/course-invitation-repository.ts) |
+| チャットの権限、利用枠の所有者、質問者、保存 | [message-service.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/features/chat/message-service.ts) |
+| 所有者だけの履歴・CSV取得、共有由来の質問者欄 | [chat-repository.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/repositories/chat-repository.ts) |
 
 **関連:** [認証とアクセス権](auth.md)、[動画・講座・シーンの関係](domain-model.md)。

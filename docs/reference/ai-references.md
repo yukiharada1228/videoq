@@ -30,7 +30,7 @@ Patrick Lewis et al. **“Retrieval-Augmented Generation for Knowledge-Intensive
 
 VideoQ retrieves subtitle scenes and supplies them as evidence to an answer model. This follows the paper's retrieval-augmented generation idea. VideoQ uses independently configured embeddings, PGVector search, and a chat model; it does not reproduce the paper's jointly trained retriever/generator or RAG-Sequence/RAG-Token formulations.
 
-Implementation: [vector-repository.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/vector-repository.ts), [rag.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag.ts). See [transcription and scene search](../architecture/transcription-and-search.md).
+Implementation: [vector-repository.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/repositories/vector-repository.ts), [rag.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/rag.ts). See [transcription and scene search](../architecture/transcription-and-search.md).
 
 ### ReAct — tool selection and observation {#react}
 
@@ -38,7 +38,7 @@ Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak Shafran, Karthik Narasimhan, an
 
 VideoQ lets the model select a tool, read its result, and select another action or answer within enforced limits. It uses LangChain's `createAgent` and native function tools. This is a ReAct-style control loop, not a reproduction of the paper's prompts, training, or benchmarks. VideoQ does not require or display a textual chain-of-thought trace.
 
-Implementation: [rag.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag.ts), [prompts.json](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/prompts/prompts.json). See [Q&A prompts](../architecture/prompt-engineering.md) and [LangChain's agent documentation](https://docs.langchain.com/oss/javascript/langchain/agents).
+Implementation: [rag.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/rag.ts), [prompts.json](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/prompts/prompts.json). See [Q&A prompts](../architecture/prompt-engineering.md) and [LangChain's agent documentation](https://docs.langchain.com/oss/javascript/langchain/agents).
 
 ### Whisper — speech recognition {#whisper}
 
@@ -46,7 +46,7 @@ Alec Radford, Jong Wook Kim, Tao Xu, Greg Brockman, Christine McLeavey, and Ilya
 
 Uploaded audio uses `whisper-1` with `WHISPER_BACKEND=openai`. The local path calls a Whisper-compatible server; the weights are selected when starting that server. The README's `large-v3-turbo` example also has an [official model card](https://huggingface.co/openai/whisper-large-v3-turbo). Cite the Whisper paper for the model family and record the actual checkpoint for a local experiment. YouTube imports retrieve existing subtitles through SearchAPI and do not run VideoQ's Whisper path.
 
-Implementation: [transcription.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/transcription.py). The optional inference software is [whisper.cpp](https://github.com/ggml-org/whisper.cpp).
+Implementation: [transcription.py](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/pipeline/transcription.py). The optional inference software is [whisper.cpp](https://github.com/ggml-org/whisper.cpp).
 
 ### Otsu — a criterion adapted for subtitle splitting {#otsu}
 
@@ -56,7 +56,7 @@ The original method selects an image-intensity threshold using between-class var
 
 Long ranges are split repeatedly to fit a default 512-token budget. This is VideoQ's adaptation, not an Otsu paper about semantic text segmentation or visual shot detection. A single overlong cue is split by tokens with estimated timings instead.
 
-Implementation: [SceneSplitter](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/scene_otsu/splitter.py). See [scene grouping and fallback behavior](../architecture/transcription-and-search.md).
+Implementation: [SceneSplitter](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/pipeline/scene_otsu/splitter.py). See [scene grouping and fallback behavior](../architecture/transcription-and-search.md).
 
 ### VideoSeek — navigation at multiple time scales {#videoseek}
 
@@ -64,7 +64,7 @@ Jingyang Lin, Jialian Wu, Jiang Liu, Ximeng Sun, Ze Wang, Xiaodong Yu, Jiebo Luo
 
 VideoQ's `overview_video`, `skim_video`, and `focus_clip` take inspiration from VideoSeek's overview / skim / focus tools. VideoQ implements its own subtitle sampling, cached-frame reads, course permissions, budgets, and timestamp citations. The agent chooses the tools it needs; no fixed three-step sequence is required. This adaptation does not establish that VideoSeek's benchmark accuracy or frame savings transfer to VideoQ.
 
-Implementation: [rag-video-evidence.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag-video-evidence.ts), [visual-inspection.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/visual-inspection.ts). See [visual evidence and sampling limits](../guides/visual-evidence.md).
+Implementation: [rag-video-evidence.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/rag-video-evidence.ts), [visual-inspection.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/visual-inspection.ts). See [visual evidence and sampling limits](../guides/visual-evidence.md).
 
 ## Model and API references
 
@@ -74,7 +74,7 @@ OpenAI. **“New embedding models and API updates.”** January 25, 2024. [Offic
 
 The checked-in default is `text-embedding-3-small`, with 1536-dimensional outputs for both indexing and queries. Cite this model-specific official source. This entry is a product release, not a research paper. A citation to a different embedding model would not identify the model used here.
 
-Implementation: [API embeddings](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/embeddings.ts), [worker embeddings](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/embeddings.py). See [embedding configuration](../guides/embeddings.md).
+Implementation: [API embeddings](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/embeddings.ts), [worker embeddings](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/pipeline/embeddings.py). See [embedding configuration](../guides/embeddings.md).
 
 ### GPT-6 Luna — default answer and image model {#gpt-6-luna}
 
@@ -82,7 +82,7 @@ OpenAI. **“GPT-6 Luna.”** [Official model documentation](https://developers.
 
 Answer generation and image inspection share `LLM_MODEL`, which defaults to `gpt-6-luna` and is also set in the development and production Wrangler configuration. When visual Q&A is enabled, the model must support image input, tool calling, and strict JSON output. VideoQ sets `reasoning_effort=none` for GPT-6 Luna answer and image calls; the official documentation requires this setting for tool calling through Chat Completions. Record any model override or snapshot separately; the repository default does not prove which model a deployed service used.
 
-Implementation: [openai.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/openai.ts), [chat-model.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/chat-model.ts), [visual-inspection.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/visual-inspection.ts), [wrangler.jsonc](https://github.com/yukiharada1228/videoq/blob/main/apps/api/wrangler.jsonc).
+Implementation: [openai.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/openai.ts), [chat-model.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/chat-model.ts), [visual-inspection.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/visual-inspection.ts), [wrangler.jsonc](https://github.com/videoq-jp/videoq/blob/main/apps/api/wrangler.jsonc).
 
 ### GPT-4o mini — historical evaluations {#gpt-4o-mini}
 
@@ -96,7 +96,7 @@ OpenAI. **“Introducing Structured Outputs in the API.”** August 6, 2024. [Of
 
 VideoQ requests a strict JSON schema for answer segments and source IDs. The provider supplies schema-constrained generation; VideoQ supplies the source registry and validates IDs and citation placement. Schema conformance alone does not verify that a claim is supported. This is an API feature reference, not a paper establishing VideoQ's answer quality.
 
-Implementation: [structured-answer.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/structured-answer.ts). See [structured answers](../architecture/structured-answers.md).
+Implementation: [structured-answer.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/structured-answer.ts). See [structured answers](../architecture/structured-answers.md).
 
 ### Qwen3 Embedding — optional local configuration {#qwen3-embedding}
 
@@ -108,11 +108,11 @@ The [local inference guide](../guides/local-inference.md) uses Qwen3-Embedding-4
 
 Shuai Bai et al. **“Qwen3-VL Technical Report.”** 2025, arXiv:2511.21631. [Technical report](https://arxiv.org/abs/2511.21631), [authors' model repository](https://github.com/QwenLM/Qwen3-VL). BibTeX key: `bai2025qwen3vl`.
 
-The [repository README](https://github.com/yukiharada1228/videoq#optional-reduce-costs-with-local-ai) gives `qwen3-vl:8b-instruct` as a local chat example. This is not the default model. Cite the report when using that family and record the exact weights/quantization. VideoQ's endpoint requirements still apply: strict structured output and tool calling, plus image input for visual inspection. The citation is not a compatibility test.
+The [repository README](https://github.com/videoq-jp/videoq#optional-reduce-costs-with-local-ai) gives `qwen3-vl:8b-instruct` as a local chat example. This is not the default model. Cite the report when using that family and record the exact weights/quantization. VideoQ's endpoint requirements still apply: strict structured output and tool calling, plus image input for visual inspection. The citation is not a compatibility test.
 
 ## Reuse the citations {#reuse}
 
-All eleven entries above are available in [ai-references.bib](https://github.com/yukiharada1228/videoq/blob/main/docs/reference/ai-references.bib). The BibTeX file distinguishes conference/journal papers, technical-report preprints, and official web publications. Select the entries for the methods and models actually used in your experiment.
+All eleven entries above are available in [ai-references.bib](https://github.com/videoq-jp/videoq/blob/main/docs/reference/ai-references.bib). The BibTeX file distinguishes conference/journal papers, technical-report preprints, and official web publications. Select the entries for the methods and models actually used in your experiment.
 
 For a methods section using the defaults, a suitable starting point is:
 

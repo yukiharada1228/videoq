@@ -34,6 +34,6 @@ stateDiagram-v2
 | `completed` | 動画の検索準備は完了 | 講座に追加して質問できる |
 | `error` | いずれかの段階で失敗 | エラー内容と該当ログ |
 
-再索引などの経路は処理ごとの実装も確認します。通常遷移の定義は [video_status.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/video_status.py)、索引完了の扱いは [tasks/indexing.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/indexing.py)にあります。
+再索引などの経路は処理ごとの実装も確認します。通常遷移の定義は [video_status.py](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/video_status.py)、索引完了の扱いは [tasks/indexing.py](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/tasks/indexing.py)にあります。
 
 **関連:** [処理が進まないとき](../guides/troubleshooting.md)。

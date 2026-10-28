@@ -44,6 +44,17 @@ Historical release metadata remains valid only for the exact historical owner,
 image namespaces, signer workflow, source commit and signed subjects. New releases
 must use the new owner. Never globally rewrite historical release manifests.
 
+After transfer, historical attestations are retrieved from the original owner's
+attestation store. The verifier downloads each bundle there and then verifies it
+locally with the same exact repository, signer workflow, source ref, source SHA
+and hosted-runner requirements. A missing bundle or failed verification stops
+bootstrap; changing lookup scope does not relax the signature policy.
+
+The repository's OIDC API reports immutable subjects with prefix
+`repo:videoq-jp@349188820/videoq@1083911938`. Trust these exact destination subjects;
+name-only destination subjects do not authorize its current tokens. Validate main
+and PR planning plus production deployment before removing transition subjects.
+
 ## Native merge queue cutover
 
 The required CI, container and Terraform workflows handle `merge_group` events.

@@ -70,6 +70,6 @@ The API reaches the shared database through Hyperdrive; the Python worker uses a
 
 Recovery is scheduled with Durable Object alarms. The current cron schedule is daily at `17 3 * * *` (UTC), for cleanup and recovery. Do not assume a five-minute cron schedule.
 
-The implementation entry point is [app.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/app.ts), and runtime configuration is in [wrangler.jsonc](https://github.com/yukiharada1228/videoq/blob/main/apps/api/wrangler.jsonc).
+The implementation entry point is [app.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/app.ts), and runtime configuration is in [wrangler.jsonc](https://github.com/videoq-jp/videoq/blob/main/apps/api/wrangler.jsonc).
 
 **Read next:** [Find your way around the code](../getting-started/codebase.md), [Job delivery and recovery](flowchart.md).

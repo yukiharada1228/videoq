@@ -103,7 +103,7 @@ APIの編集・削除も同じ行ロックを使うため、古い生成結果�
 3. `docker compose logs --since=10m worker` で `reindex_video_transcript`・動画ID・ジョブIDを保存時刻と照合し、`Successfully reindexed transcript for video …` を確認します。運用者は同じジョブの `job_executions.status = 'completed'` も確認できます。outboxの完了は配送成功を示すだけです。
 4. 同じ講座で対象を含む新しい質問を送り、引用先の時刻・修正済み字幕を回答と照合します。以前の回答や保存済みチャット履歴は再生成されません。
 
-実装は[updateVideo](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/video-repository.ts)、[字幕の再索引](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/reindex_video_transcript.py)、[全体再索引](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/reindexing.py)を参照してください。
+実装は[updateVideo](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/repositories/video-repository.ts)、[字幕の再索引](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/tasks/reindex_video_transcript.py)、[全体再索引](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/tasks/reindexing.py)を参照してください。
 
 待機中の文字起こし・索引ジョブが動画の削除後に開始した場合は、外部サービスの呼び出しや
 後続ジョブの登録をせずに処理済みとします。索引待ちの動画が残っていて字幕が不正・未設定の場合は
@@ -123,10 +123,10 @@ APIの編集・削除も同じ行ロックを使うため、古い生成結果�
 
 | ファイル | 役割 |
 |---|---|
-| [transcription.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/transcription.py) | 音声・字幕の取得と開発用の仮データ |
-| [scene_otsu/](https://github.com/yukiharada1228/videoq/tree/main/apps/worker/worker_python/pipeline/scene_otsu) | 分割、トークン数の計算、元SRTへのフォールバック |
-| [vector_index.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/vector_index.py) | 場面の埋め込みとメタデータの保存 |
-| [vector-repository.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/vector-repository.ts) | 検索範囲と取得件数 |
-| [rag.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag.ts) | ツール実行、場面の重複除去、引用番号 |
+| [transcription.py](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/pipeline/transcription.py) | 音声・字幕の取得と開発用の仮データ |
+| [scene_otsu/](https://github.com/videoq-jp/videoq/tree/main/apps/worker/worker_python/pipeline/scene_otsu) | 分割、トークン数の計算、元SRTへのフォールバック |
+| [vector_index.py](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/pipeline/vector_index.py) | 場面の埋め込みとメタデータの保存 |
+| [vector-repository.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/repositories/vector-repository.ts) | 検索範囲と取得件数 |
+| [rag.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/rag.ts) | ツール実行、場面の重複除去、引用番号 |
 
 **次に読む:** [Q&Aのプロンプトと回答の保存](prompt-engineering.md)。

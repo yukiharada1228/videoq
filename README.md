@@ -89,7 +89,7 @@ The setup below uses OpenAI for transcription, embeddings, and chat. Optional lo
 
 ```bash
 # Clone the project and enter the directory
-git clone https://github.com/yukiharada1228/videoq.git
+git clone https://github.com/videoq-jp/videoq.git
 cd videoq
 
 # Copy the environment file

@@ -30,7 +30,7 @@ Patrick Lewis et al. **“Retrieval-Augmented Generation for Knowledge-Intensive
 
 VideoQは字幕の場面を検索し、回答モデルへ根拠として渡します。この構成は論文の検索拡張生成の考え方に対応します。実装では埋め込み、PGVector検索、チャットモデルをそれぞれ設定します。論文の検索器と生成器の共同学習や、RAG-Sequence / RAG-Tokenを再現するものではありません。
 
-対応実装: [vector-repository.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/vector-repository.ts)、[rag.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag.ts)。[文字起こしとシーン検索](../architecture/transcription-and-search.md)も参照してください。
+対応実装: [vector-repository.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/repositories/vector-repository.ts)、[rag.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/rag.ts)。[文字起こしとシーン検索](../architecture/transcription-and-search.md)も参照してください。
 
 ### ReAct — ツールの選択と結果の観察 {#react}
 
@@ -38,7 +38,7 @@ Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak Shafran, Karthik Narasimhan, an
 
 VideoQは、モデルがツールを選択し、実行結果を読み、制限の範囲で次の行動または回答を選ぶループを使います。実装はLangChainの `createAgent` とネイティブの関数ツールです。ReAct型の制御であり、論文のプロンプト・学習・ベンチマークの再現ではありません。文章化した思考過程の出力や表示も必須にしていません。
 
-対応実装: [rag.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag.ts)、[prompts.json](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/prompts/prompts.json)。[Q&Aのプロンプト](../architecture/prompt-engineering.md)、[LangChain公式のエージェント解説](https://docs.langchain.com/oss/javascript/langchain/agents)も参照してください。
+対応実装: [rag.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/rag.ts)、[prompts.json](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/prompts/prompts.json)。[Q&Aのプロンプト](../architecture/prompt-engineering.md)、[LangChain公式のエージェント解説](https://docs.langchain.com/oss/javascript/langchain/agents)も参照してください。
 
 ### Whisper — 音声認識 {#whisper}
 
@@ -46,7 +46,7 @@ Alec Radford, Jong Wook Kim, Tao Xu, Greg Brockman, Christine McLeavey, and Ilya
 
 `WHISPER_BACKEND=openai` では、アップロードした音声に `whisper-1` を使います。ローカル経路ではWhisper互換サーバーを呼び、重みはサーバー起動時に選びます。READMEの `large-v3-turbo` には[公式モデルカード](https://huggingface.co/openai/whisper-large-v3-turbo)もあります。モデル系列の出典にWhisper論文を引用し、ローカル実験では実際のチェックポイントも記録してください。YouTube登録はSearchAPIで既存字幕を取得し、VideoQのWhisper経路は使いません。
 
-対応実装: [transcription.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/transcription.py)。任意のローカル推論ソフトウェアは[whisper.cpp](https://github.com/ggml-org/whisper.cpp)です。
+対応実装: [transcription.py](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/pipeline/transcription.py)。任意のローカル推論ソフトウェアは[whisper.cpp](https://github.com/ggml-org/whisper.cpp)です。
 
 ### 大津法 — 字幕分割への基準の応用 {#otsu}
 
@@ -56,7 +56,7 @@ Nobuyuki Otsu. **“A Threshold Selection Method from Gray-Level Histograms.”*
 
 長い区間を繰り返し分け、既定で512トークン以内にします。これはVideoQによる応用であり、大津の原論文が文章の意味分割や動画のショット検出を提案したわけではありません。一つの字幕だけで上限を超える場合は、トークン単位の分割と時刻の推定を使います。
 
-対応実装: [SceneSplitter](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/scene_otsu/splitter.py)。[場面の分割と失敗時の挙動](../architecture/transcription-and-search.md)も参照してください。
+対応実装: [SceneSplitter](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/pipeline/scene_otsu/splitter.py)。[場面の分割と失敗時の挙動](../architecture/transcription-and-search.md)も参照してください。
 
 ### VideoSeek — 時間範囲を変えながら動画を探索 {#videoseek}
 
@@ -64,7 +64,7 @@ Jingyang Lin, Jialian Wu, Jiang Liu, Ximeng Sun, Ze Wang, Xiaodong Yu, Jiebo Luo
 
 VideoQの `overview_video`・`skim_video`・`focus_clip` は、VideoSeekのoverview / skim / focusツールを参考にしています。字幕の抽出、保存済み画像の読み取り、講座の権限、実行上限、時刻の引用はVideoQ独自の実装です。必要なツールをエージェントが選び、固定の3段階を必須にはしません。この応用だけで、論文の精度や処理画像数の削減効果をVideoQでも達成したとはいえません。
 
-対応実装: [rag-video-evidence.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag-video-evidence.ts)、[visual-inspection.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/visual-inspection.ts)。[映像確認とサンプリングの制限](../guides/visual-evidence.md)も参照してください。
+対応実装: [rag-video-evidence.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/rag-video-evidence.ts)、[visual-inspection.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/visual-inspection.ts)。[映像確認とサンプリングの制限](../guides/visual-evidence.md)も参照してください。
 
 ## モデルとAPIの出典
 
@@ -74,7 +74,7 @@ OpenAI. **“New embedding models and API updates.”** 2024年1月25日。[公�
 
 リポジトリの既定値は `text-embedding-3-small` で、索引作成と検索の両方に1536次元の出力を使います。このモデルを特定する公式資料を引用します。資料の種別は製品発表であり、研究論文ではありません。別の埋め込みモデルの論文では、このモデルを使ったことの出典にはなりません。
 
-対応実装: [APIの埋め込み](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/embeddings.ts)、[workerの埋め込み](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/embeddings.py)。[埋め込みの設定](../guides/embeddings.md)も参照してください。
+対応実装: [APIの埋め込み](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/embeddings.ts)、[workerの埋め込み](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/pipeline/embeddings.py)。[埋め込みの設定](../guides/embeddings.md)も参照してください。
 
 ### GPT-6 Luna — 既定の回答・画像モデル {#gpt-6-luna}
 
@@ -82,7 +82,7 @@ OpenAI. **“GPT-6 Luna.”** [公式モデル資料](https://developers.openai.
 
 回答生成と画像確認は共通の `LLM_MODEL` を使います。既定値は `gpt-6-luna` で、開発・本番向けのWrangler設定にも指定しています。映像確認を有効にする場合は、画像入力・ツール呼び出し・厳密なJSON出力に対応したモデルが必要です。VideoQはGPT-6 Lunaの回答・画像リクエストに `reasoning_effort=none` を指定します。公式資料では、Chat Completionsでツールを呼び出す際にこの設定が必要です。モデルの変更やスナップショットの指定は別途記録してください。リポジトリの既定値だけでは、本番で使ったモデルは特定できません。
 
-対応実装: [openai.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/openai.ts)、[chat-model.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/chat-model.ts)、[visual-inspection.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/visual-inspection.ts)、[wrangler.jsonc](https://github.com/yukiharada1228/videoq/blob/main/apps/api/wrangler.jsonc)。
+対応実装: [openai.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/openai.ts)、[chat-model.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/chat-model.ts)、[visual-inspection.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/visual-inspection.ts)、[wrangler.jsonc](https://github.com/videoq-jp/videoq/blob/main/apps/api/wrangler.jsonc)。
 
 ### GPT-4o mini — 過去の検証で使用したモデル {#gpt-4o-mini}
 
@@ -96,7 +96,7 @@ OpenAI. **“Introducing Structured Outputs in the API.”** 2024年8月6日。[
 
 VideoQは回答の文章区間と出典IDにstrictなJSONスキーマを指定します。スキーマに従う生成は提供元の機能で、出典の管理、ID検証、引用位置の検証はVideoQの処理です。形式が正しくても、主張を根拠が裏付けることまでは検証できません。これはAPI機能の出典であり、VideoQの回答品質を示す論文ではありません。
 
-対応実装: [structured-answer.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/structured-answer.ts)。[構造化回答](../architecture/structured-answers.md)も参照してください。
+対応実装: [structured-answer.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/structured-answer.ts)。[構造化回答](../architecture/structured-answers.md)も参照してください。
 
 ### Qwen3 Embedding — 任意のローカル構成 {#qwen3-embedding}
 
@@ -112,7 +112,7 @@ Qwen3-VL は、別途検証したローカル構成で選べる視覚モデル�
 
 ## 引用を再利用する {#reuse}
 
-上記11件を [ai-references.bib](https://github.com/yukiharada1228/videoq/blob/main/docs/reference/ai-references.bib) にまとめています。学会・学術誌の論文、技術報告のプレプリント、公式Web資料を区別して登録しています。実験で実際に使った手法・モデルの項目を選んでください。
+上記11件を [ai-references.bib](https://github.com/videoq-jp/videoq/blob/main/docs/reference/ai-references.bib) にまとめています。学会・学術誌の論文、技術報告のプレプリント、公式Web資料を区別して登録しています。実験で実際に使った手法・モデルの項目を選んでください。
 
 既定の構成を方法節で説明する場合の例です。
 

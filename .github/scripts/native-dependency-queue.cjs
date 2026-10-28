@@ -97,7 +97,7 @@ async function reconcile({ github, writerGithub, context, verify = queue.verifie
     throw new Error('Explicit retries require a main workflow dispatch.');
   }
   const { data: protection } = await writerGithub.rest.repos.getBranchProtection({ ...context.repo, branch: 'main' });
-  const { data: rules } = await writerGithub.rest.repos.getRulesForBranch({ ...context.repo, branch: 'main' });
+  const { data: rules } = await writerGithub.request('GET /repos/{owner}/{repo}/rules/branches/{branch}', { ...context.repo, branch: 'main' });
   requireProtection(protection, rules);
   const reproducing = await reproduceGroupFailure({ github, writerGithub, context, verify });
   const { data: main } = await github.rest.repos.getBranch({ ...context.repo, branch: 'main' });

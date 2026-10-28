@@ -13,7 +13,7 @@ repository main commit after successful push CI. It can also be dispatched for
 that commit, for example to rebuild after distribution package fixes.
 
 Distribution uses the public packages
-`ghcr.io/yukiharada1228/videoq-api`, `videoq-worker` and
+`ghcr.io/videoq-jp/videoq-api`, `videoq-worker` and
 `videoq-web`, `videoq-transcription-gateway` and `videoq-vllm`.
 Docker and Kubernetes can pull them without a GHCR login
 or `imagePullSecrets`. Site-owned private registries can still use
@@ -21,7 +21,7 @@ or `imagePullSecrets`. Site-owned private registries can still use
 LICENSE; making distribution public does not change those terms.
 
 Package administrators initially set these packages to **Public** and grant
-`yukiharada1228/videoq` the **Write** role under **Package settings → Manage
+`videoq-jp/videoq` the **Write** role under **Package settings → Manage
 Actions access**. The workflow checks public visibility before and after every
 push and before assembling indexes. Missing, private or internal packages stop
 publication. Staging verifies the signed release and pulls each reviewed digest
@@ -43,7 +43,7 @@ its index must not advertise arm64. The inference values use that same patched,
 audio-capable vLLM image for NVIDIA chat, embeddings and speech.
 
 NVIDIA scanning retains the existing narrowly scoped
-[kernel-header assessment](https://github.com/yukiharada1228/videoq/blob/main/apps/inference/whisper/security/README.md).
+[kernel-header assessment](https://github.com/videoq-jp/videoq/blob/main/apps/inference/whisper/security/README.md).
 Only explicitly assessed header findings are suppressed; other HIGH/CRITICAL
 findings still block publication. The `security-*` workflow artifacts retain JSON
 reports, including suppressed findings and the assessment, for 90 days.

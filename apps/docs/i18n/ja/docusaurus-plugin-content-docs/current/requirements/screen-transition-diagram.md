@@ -5,7 +5,7 @@ description: よく使うURLと、共通レイアウト・共有画面の役割�
 
 # 画面一覧と移動の流れ
 
-画面を追加・修正するときの地図です。URLの定義は [App.tsx](https://github.com/yukiharada1228/videoq/blob/main/apps/web/src/App.tsx)を基準にします。
+画面を追加・修正するときの地図です。URLの定義は [App.tsx](https://github.com/videoq-jp/videoq/blob/main/apps/web/src/App.tsx)を基準にします。
 
 ## よく使う画面
 
