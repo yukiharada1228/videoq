@@ -99,21 +99,25 @@ async function expandHistory(args, depth = 0) {
 function requireMain(context) {
   if (`${context.repo.owner}/${context.repo.repo}` !== REPO || context.ref !== 'refs/heads/main') throw new Error('Main repository workflow required');
 }
-async function candidate({ github, context, number, now = new Date() }) {
+async function candidate({ github, context, number, now = new Date(), queued = false }) {
   requireMain(context);
   const { pr, files, comments } = await policy.getPull({ github, context, number });
   const sourceFile = require('./claude-dependency-repair.cjs').sourceFile;
-  if (files.length > 66 || !pr.auto_merge || pr.mergeable_state !== 'behind' ||
+  if (files.length > 66 || (!queued && (!pr.auto_merge || pr.mergeable_state !== 'behind')) ||
     !policy.eligiblePull(pr, files.filter(f => !sourceFile(f.filename)), 'no-automerge', comments) ||
     pr.labels.some(l => l.name === 'no-rebase')) return null;
   const { data: runs } = await github.rest.actions.listWorkflowRuns({ ...context.repo, workflow_id: 'ci.yml', head_sha: pr.head.sha, event: 'pull_request', per_page: 100 });
   const latest = runs.workflow_runs.sort((a, b) => b.id - a.id)[0];
-  if (!latest || latest.status !== 'completed' || latest.conclusion !== 'success') return null;
+  if (!queued && (!latest || latest.status !== 'completed' || latest.conclusion !== 'success')) return null;
   const commits = await github.paginate(github.rest.pulls.listCommits, { ...context.repo, pull_number: number, per_page: 100 });
   if (commits.at(-1)?.sha !== pr.head.sha) return null;
   const proof = await provenance({ github, context, pr, files, comments, commits });
   if (!proof) return null;
   const { data: main } = await github.rest.repos.getBranch({ ...context.repo, branch: 'main' });
+  if (queued) {
+    const { data: diff } = await github.rest.repos.compareCommits({ ...context.repo, base: main.commit.sha, head: pr.head.sha });
+    if (diff.behind_by < 1) return null;
+  }
   const attempts = records(comments).filter(r => r.kind === 'requested' && r.sha === pr.head.sha && r.base === main.commit.sha);
   if (attempts.length >= 3 || attempts.some(r => !Number.isFinite(Date.parse(r.at)) || now - Date.parse(r.at) < 30 * 60_000)) return null;
   return { pr, files, comments, ...proof, base: main.commit.sha };
@@ -141,7 +145,7 @@ async function update(args) {
     '最新mainへの追従を自動実行します。依存更新の内容を維持し、追従後のCIを待ちます。');
   // Revalidate after acquiring the shared per-PR lock and immediately before mutation.
   const fresh = await policy.getPull({ github, context, number });
-  if (fresh.pr.head.sha !== expectedSha || !fresh.pr.auto_merge || fresh.pr.labels.some(l => ['no-automerge', 'no-rebase'].includes(l.name))) return null;
+  if (fresh.pr.head.sha !== expectedSha || (!args.queued && !fresh.pr.auto_merge) || fresh.pr.labels.some(l => ['no-automerge', 'no-rebase'].includes(l.name))) return null;
   await writerGithub.graphql('mutation($id:ID!,$sha:GitObjectID!){updatePullRequestBranch(input:{pullRequestId:$id,expectedHeadOid:$sha,updateMethod:REBASE}){clientMutationId}}', { id: c.pr.node_id, sha: expectedSha });
   for (let attempt = 0; attempt < 12; attempt++) {
     await wait(5000);

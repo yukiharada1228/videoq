@@ -1,5 +1,7 @@
 # The model job has read-only access; authorization and publishing use separate runners.
 name: Claude Dependency Repair Worker
+env:
+  DEPENDENCY_QUEUE_ENABLED: ${{ vars.DEPENDENCY_QUEUE_ENABLED }}
 on:
   workflow_dispatch:
     inputs:

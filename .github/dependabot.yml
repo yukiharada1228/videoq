@@ -106,6 +106,9 @@ updates:
       - dependency-name: python
       - dependency-name: public.ecr.aws/lambda/python
       - dependency-name: ghcr.io/astral-sh/uv
+      # Dependabot reports these registry images using normalized names.
+      - dependency-name: lambda/python
+      - dependency-name: astral-sh/uv
     groups:
       docker-minor-patch:
         patterns: ["*"]

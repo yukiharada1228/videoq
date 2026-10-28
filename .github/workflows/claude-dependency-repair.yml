@@ -1,4 +1,6 @@
 name: Claude Dependency Repair
+env:
+  DEPENDENCY_QUEUE_ENABLED: ${{ vars.DEPENDENCY_QUEUE_ENABLED }}
 on:
   workflow_run:
     workflows: [CI]

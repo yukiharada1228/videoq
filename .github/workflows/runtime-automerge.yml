@@ -1,0 +1,56 @@
+name: Runtime Auto-merge
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled, converted_to_draft]
+permissions:
+  contents: read
+  pull-requests: read
+concurrency:
+  group: runtime-automation-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: >-
+      github.repository == 'yukiharada1228/videoq' &&
+      github.event.pull_request.user.type == 'Bot' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'runtime/') &&
+      endsWith(github.event.pull_request.head.ref, '-current')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: app
+        with:
+          app-id: ${{ vars.PATCH_BOT_APP_ID }}
+          private-key: ${{ secrets.PATCH_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-administration: read
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          RUNTIME_BOT: ${{ steps.app.outputs.app-slug }}[bot]
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+          AUTO_MERGE: ${{ vars.DEPENDENCY_AUTOMERGE_ENABLED == 'true' && vars.RUNTIME_AUTOMERGE_ENABLED != 'false' }}
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const { getPull } = require('./.github/scripts/dependency-automation.cjs');
+            const before = await getPull({ github, context, number: context.issue.number });
+            if (before.pr.user.login !== process.env.RUNTIME_BOT) return;
+            if (before.pr.auto_merge) await github.graphql('mutation($id:ID!){disablePullRequestAutoMerge(input:{pullRequestId:$id}){clientMutationId}}', { id: before.pr.node_id });
+            const { pr, files, comments } = await getPull({ github, context, number: context.issue.number });
+            const policy = require('./.github/scripts/runtime-pull-request.cjs');
+            if (process.env.AUTO_MERGE !== 'true' || pr.head.sha !== process.env.EXPECTED_SHA || !policy.eligible(pr, files, comments, process.env.RUNTIME_BOT)) return;
+            const commits = await github.paginate(github.rest.pulls.listCommits, { ...context.repo, pull_number: pr.number, per_page: 100 });
+            if (!commits.length || commits.at(-1).sha !== pr.head.sha || commits.some(c => c.author?.login !== process.env.RUNTIME_BOT)) return;
+            const { data: protection } = await github.rest.repos.getBranchProtection({ ...context.repo, branch: 'main' });
+            require('./.github/scripts/dependency-automation.cjs').requireProtection(protection, 'docker');
+            await exec.exec('gh', ['pr', 'merge', String(pr.number), '--auto', '--squash', '--match-head-commit', pr.head.sha]);

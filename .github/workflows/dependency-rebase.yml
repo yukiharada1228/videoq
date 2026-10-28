@@ -17,7 +17,8 @@ jobs:
   select:
     if: >-
       github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main' &&
-      vars.DEPENDENCY_AUTOMERGE_ENABLED == 'true' && vars.DEPENDENCY_REBASE_ENABLED != 'false'
+      vars.DEPENDENCY_AUTOMERGE_ENABLED == 'true' && vars.DEPENDENCY_REBASE_ENABLED != 'false' &&
+      vars.DEPENDENCY_QUEUE_ENABLED != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:

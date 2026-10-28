@@ -35,6 +35,24 @@ function fixture() {
 test('main sync chooses a signed dependency-only PR with successful latest CI and a queued merge', async () => {
   assert.deepEqual(await p.select(fixture()), { number: 1191, sha: A, ecosystem: 'docker' });
 });
+test('queue sync verifies ancestry and provenance before CI even while the queue gate blocks merging', async () => {
+  const f = fixture(); f.queued = true; f.pr.auto_merge = null;
+  f.pr.mergeable_state = 'blocked'; f.run.status = 'in_progress';
+  f.github.rest.repos.compareCommits = async () => ({ data: { behind_by: 1 } });
+  assert.deepEqual(await p.update(f), { number: 1191, sha: D });
+});
+test('queue sync still rejects current branches, unsigned changes and opt-outs', async () => {
+  for (const mutate of [
+    f => f.github.rest.repos.compareCommits = async () => ({ data: { behind_by: 0 } }),
+    f => f.commits[0].commit.verification.verified = false,
+    f => f.pr.labels.push({ name: 'no-rebase' }),
+  ]) {
+    const f = fixture(); f.queued = true;
+    f.github.rest.repos.compareCommits = async () => ({ data: { behind_by: 1 } });
+    mutate(f);
+    assert.equal(await p.candidate(f), null);
+  }
+});
 for (const [name, mutate] of [
   ['opt out', f => f.pr.labels.push({ name: 'no-rebase' })],
   ['merge opt out', f => f.pr.labels.push({ name: 'no-automerge' })],
