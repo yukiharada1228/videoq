@@ -84,6 +84,8 @@ async function reconcile({ github, writerGithub, context, issue, retry = 0, save
   if (retry) {
     delete state.failed[retry];
     if (state.refresh) delete state.refresh[retry];
+    state.retryRequested ||= {};
+    state.retryRequested[retry] = true;
   }
   const { data: main } = await github.rest.repos.getBranch({ ...context.repo, branch: 'main' });
   const base = main.commit.sha;
@@ -122,7 +124,7 @@ async function reconcile({ github, writerGithub, context, issue, retry = 0, save
     if (!behind) {
       entries[active.pr.number].mode = 'active';
       activeRuns = await runs({ github, context, pr: active.pr });
-      if (retry === active.pr.number) {
+      if (state.retryRequested?.[active.pr.number]) {
         activeRuns = activeRuns.map(row => row.run?.status === 'completed' && row.run.conclusion !== 'success'
           ? { ...row, admitted: false } : row);
       }
@@ -218,6 +220,10 @@ async function reconcile({ github, writerGithub, context, issue, retry = 0, save
   if (active && outcome === 'failure') {
     // workflow_dispatch is an explicit wake-up after releasing a failed slot.
     await github.rest.actions.createWorkflowDispatch({ ...context.repo, workflow_id: 'dependency-queue.yml', ref: 'main' });
+  }
+  if (active && state.retryRequested?.[active.pr.number]) {
+    delete state.retryRequested[active.pr.number];
+    await save();
   }
   return { active: state.active, outcome };
 }

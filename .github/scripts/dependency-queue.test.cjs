@@ -108,6 +108,23 @@ test('all admitted workflows must finish before gate success', () => {
   assert.equal(q.result([good, good]), 'success');
   assert.equal(q.result([good, { admitted: true, run: { status: 'completed', conclusion: 'cancelled' } }]), 'failure');
 });
+test('explicit retry reruns a failed admitted workflow instead of immediately failing it again', async () => {
+  const f = fixture([pr(1)]); f.jobs[11] = admitted; f.jobs[12] = admitted;
+  f.conclusions['ci.yml'] = 'failure';
+  await q.reconcile(f.args);
+  assert.equal(f.state().active, null);
+  await q.reconcile({ ...f.args, retry: 1 });
+  assert.equal(f.state().active, 1);
+  assert.equal(f.state().failed[1], undefined);
+  assert.deepEqual(f.reruns, [11]);
+});
+test('a required Terraform failure releases the slot even if application CI passed', async () => {
+  const f = fixture([pr(1)]); f.jobs[11] = admitted; f.jobs[12] = admitted;
+  f.conclusions['terraform-plan.yml'] = 'failure';
+  await q.reconcile(f.args);
+  assert.equal(f.state().failed[1], SHA);
+  assert.equal(f.state().active, null);
+});
 test('unverified bot proposals lose auto-merge and still need actual full CI', async () => {
   const f = fixture([pr(1)]);
   await q.reconcile({ ...f.args, verify: async () => null });
