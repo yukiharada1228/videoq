@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = require('node:fs');
+const { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 const { execFileSync } = require('node:child_process');
@@ -150,4 +150,41 @@ test('conflict patches cannot publish automation, executable files, unresolved m
   writeFileSync(patch, 'diff --git a/apps/web/.storybook/vite.config.ts b/apps/web/.storybook/vite.config.ts\nold mode 100644\nnew mode 100755\n');
   assert.throws(() => resolution.applyPatch(cwd, patch, metadata), /Forbidden conflict path or mode/);
   assert.equal(resolution.allowedFiles([{ filename: '.github/workflows/ci.yml', status: 'modified', patch: '-permissions: read-all\n+permissions: write-all', changes: 2 }], metadata), false);
+});
+test('trusted export resolves the index outside the model sandbox and ignores its Git configuration', t => {
+  const { cwd, git, base } = checkout(t);
+  const path = 'apps/web/.storybook/vite.config.ts';
+  git('checkout', '--quiet', '-b', 'dependency');
+  writeFileSync(join(cwd, path), 'export const plugins = 2;\n');
+  git('add', path); git('commit', '--quiet', '-m', 'dependency');
+  const head = git('rev-parse', 'HEAD').trim();
+  git('checkout', '--quiet', '-b', 'new-main', base);
+  writeFileSync(join(cwd, path), 'export const plugins = 3;\n');
+  git('add', path); git('commit', '--quiet', '-m', 'main changed');
+  const main = git('rev-parse', 'HEAD').trim();
+  git('checkout', '--quiet', 'dependency');
+  assert.throws(() => git('merge', '--no-commit', '--no-ff', main));
+  writeFileSync(join(cwd, path), 'export const plugins = 4;\n');
+  mkdirSync(join(cwd, 'apps/web/src'), { recursive: true });
+  writeFileSync(join(cwd, 'apps/web/src/compat.ts'), 'export const compatible = true;\n');
+  mkdirSync(join(cwd, '.trusted-policy')); git('init', '--quiet', '.trusted-policy');
+  writeFileSync(join(cwd, '.trusted-policy/private-policy.txt'), 'not part of the patch\n');
+  const marker = join(cwd, 'untrusted-hook-ran');
+  git('config', 'core.fsmonitor', `touch ${marker}`);
+  const workflow = readFileSync(join(__dirname, '../workflows/claude-dependency-worker.yml'), 'utf8');
+  const block = workflow.split('\n      - name: Export tracked edits as a patch\n')[1].split('\n      - uses:')[0];
+  const script = block.split('\n        run: |\n')[1].split('\n').map(line => line.slice(10)).join('\n');
+  const temp = mkdtempSync(join(tmpdir(), 'videoq-export-'));
+  t.after(() => rmSync(temp, { recursive: true, force: true }));
+  execFileSync('bash', ['-e', '-c', script], { cwd, env: { ...process.env, GITHUB_WORKSPACE: cwd, RUNNER_TEMP: temp,
+    EXPECTED_SHA: head, BASE_SHA: main, REPAIR_MODE: 'conflict' } });
+  assert.equal(existsSync(marker), false);
+  const patch = readFileSync(join(temp, 'repair.patch'), 'utf8');
+  assert.doesNotMatch(patch, /trusted-policy/);
+  assert.match(patch, /compat\.ts/);
+  // Export must not need to change the model's protected Git index.
+  assert.notEqual(git('-c', 'core.fsmonitor=false', 'ls-files', '-u').trim(), '');
+  git('config', '--unset', 'core.fsmonitor'); git('merge', '--abort'); git('checkout', '--quiet', 'new-main');
+  rmSync(join(cwd, 'apps/web/src/compat.ts'));
+  assert.deepEqual(repair.applyPatch(cwd, join(temp, 'repair.patch')).sort(), [path, 'apps/web/src/compat.ts'].sort());
 });

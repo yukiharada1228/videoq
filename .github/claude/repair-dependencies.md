@@ -8,11 +8,10 @@ smallest complete compatibility change. Use the trusted Node/Python versions in
 
 In `ci` mode, preserve dependency manifests and lockfiles. Application code,
 configuration, tests and generated types under apps/ and packages/trpc/ may change
-or be added (at most 32 files and 2000 changed lines). Stage newly added files so
-they are included in the exported patch. Do not delete application files.
+or be added (at most 32 files and 2000 changed lines). The trusted export step stages newly added files for the patch. Do not delete application files.
 
 In `conflict` mode, the authorized main merge has already been prepared. Resolve
-all conflicts and stage the resolved files. Reconcile manifests and regenerate
+all conflicts and remove their markers. Do not stage files or write Git metadata; the trusted export step handles the index. Reconcile manifests and regenerate
 lockfiles where necessary, retaining the exact requested direct upgrades and all
 other current-main dependencies. Preserve functionality from both sides. Do not
 abort the merge, change branches, commit or complete the merge yourself. The
