@@ -71,4 +71,4 @@ Use relative `.md` links between documents and GitHub links for source code outs
 
 Write Mermaid diagrams in fenced code blocks. A successful build checks document links but does not guarantee that diagrams render correctly, so inspect them in a browser too.
 
-The build checks document links and heading anchors for both languages. See [apps/docs/README.md](https://github.com/yukiharada1228/videoq/blob/main/apps/docs/README.md) for configuration details.
+The build checks document links and heading anchors for both languages. See [apps/docs/README.md](https://github.com/videoq-jp/videoq/blob/main/apps/docs/README.md) for configuration details.

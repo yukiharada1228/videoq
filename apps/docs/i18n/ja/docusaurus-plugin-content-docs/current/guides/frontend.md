@@ -54,6 +54,6 @@ npm run lint --workspace @videoq/web
 npm run build --workspace @videoq/web
 ```
 
-表示・操作はStorybookと実画面で確認します。成功時だけでなく、読み込み中・失敗・データが空の状態も扱います。手順は [Storybookの変更・レビュー](https://github.com/yukiharada1228/videoq/blob/main/apps/web/STORYBOOK.md)を参照してください。
+表示・操作はStorybookと実画面で確認します。成功時だけでなく、読み込み中・失敗・データが空の状態も扱います。手順は [Storybookの変更・レビュー](https://github.com/videoq-jp/videoq/blob/main/apps/web/STORYBOOK.md)を参照してください。
 
 **関連:** [画面遷移](../requirements/screen-transition-diagram.md)、[テストの使い分け](testing.md)。

@@ -9,6 +9,6 @@
   },
   "link.item.label.Source code": {
     "message": "ソースコード",
-    "description": "The label of footer link with label=Source code linking to https://github.com/yukiharada1228/videoq"
+    "description": "The label of footer link with label=Source code linking to https://github.com/videoq-jp/videoq"
   }
 }

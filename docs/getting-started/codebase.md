@@ -36,20 +36,20 @@ flowchart LR
 
 | Step | File | What to look for |
 |---|---|---|
-| 1 | [useTags.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/web/src/hooks/useTags.ts) | Where the UI fetches and updates data |
-| 2 | [routers/tags.ts](https://github.com/yukiharada1228/videoq/blob/main/packages/trpc/src/routers/tags.ts) | Inputs, outputs, and login requirements for `tags.list` |
-| 3 | [media-library.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/trpc/handlers/media-library.ts) | Calling the service with the user ID |
-| 4 | [tags/service.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/features/tags/service.ts) | Coordinating tag operations |
-| 5 | [tag-repository.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/tag-repository.ts) | Reading the DB within the user's scope |
+| 1 | [useTags.ts](https://github.com/videoq-jp/videoq/blob/main/apps/web/src/hooks/useTags.ts) | Where the UI fetches and updates data |
+| 2 | [routers/tags.ts](https://github.com/videoq-jp/videoq/blob/main/packages/trpc/src/routers/tags.ts) | Inputs, outputs, and login requirements for `tags.list` |
+| 3 | [media-library.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/trpc/handlers/media-library.ts) | Calling the service with the user ID |
+| 4 | [tags/service.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/features/tags/service.ts) | Coordinating tag operations |
+| 5 | [tag-repository.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/repositories/tag-repository.ts) | Reading the DB within the user's scope |
 
 A **contract** is the input/output agreement between the caller and the API. Types flow from the shared contract, so type checking reveals which callers are affected by a change.
 
 ## Where to read next
 
-- **Frontend:** [App.tsx](https://github.com/yukiharada1228/videoq/blob/main/apps/web/src/App.tsx) → `pages/` → `hooks/`.
-- **API:** [app.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/app.ts) → `trpc/context.ts` → `trpc/handlers/`.
-- **Video processing:** [tasks/registry.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/registry.py) → `tasks/transcription.py` → `tasks/indexing.py`.
-- **Database:** [schema/index.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/index.ts) → `modern.ts` and `better-auth.ts`.
+- **Frontend:** [App.tsx](https://github.com/videoq-jp/videoq/blob/main/apps/web/src/App.tsx) → `pages/` → `hooks/`.
+- **API:** [app.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/app.ts) → `trpc/context.ts` → `trpc/handlers/`.
+- **Video processing:** [tasks/registry.py](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/tasks/registry.py) → `tasks/transcription.py` → `tasks/indexing.py`.
+- **Database:** [schema/index.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/db/schema/index.ts) → `modern.ts` and `better-auth.ts`.
 
 Cloudflare **Workers** is the API runtime. `apps/worker` is the **Python video processing service**. They are separate programs with similar names.
 

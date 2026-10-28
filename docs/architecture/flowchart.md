@@ -55,9 +55,9 @@ This mechanism does not automatically make arbitrary external API operations exe
 
 | Area | Implementation |
 |---|---|
-| API delivery intentions and dispatch | [external-tasks.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/external-tasks.ts) |
-| Scheduling recovery | [task-scheduler.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/durable-objects/task-scheduler.ts) |
-| Worker leases and duplicate protection | [job_execution.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/job_execution.py) |
-| Dispatching follow-up jobs | [sqs_enqueue.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/sqs_enqueue.py) |
+| API delivery intentions and dispatch | [external-tasks.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/external-tasks.ts) |
+| Scheduling recovery | [task-scheduler.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/durable-objects/task-scheduler.ts) |
+| Worker leases and duplicate protection | [job_execution.py](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/job_execution.py) |
+| Dispatching follow-up jobs | [sqs_enqueue.py](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/sqs_enqueue.py) |
 
 **Related:** [State transitions](../design/state-diagram.md), [Change asynchronous processing](../guides/worker.md), [Troubleshooting](../guides/troubleshooting.md).

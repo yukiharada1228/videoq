@@ -35,7 +35,7 @@ erDiagram
     VIDEO_COURSES ||--o{ VIDEO_COURSE_INVITATIONS : invites
 ```
 
-`VIDEO_COURSE_MEMBERSHIPS` は人の参加情報です。上の図の `VIDEO_COURSE_MEMBERS`（動画の所属）とは別のテーブルです。認証関連の完全な定義は [better-auth.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/better-auth.ts)で確認します。
+`VIDEO_COURSE_MEMBERSHIPS` は人の参加情報です。上の図の `VIDEO_COURSE_MEMBERS`（動画の所属）とは別のテーブルです。認証関連の完全な定義は [better-auth.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/db/schema/better-auth.ts)で確認します。
 
 ## 質問と評価
 
@@ -57,6 +57,6 @@ erDiagram
 
 ## 変更する前に
 
-業務データの定義は [modern.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/modern.ts)が基準です。利用者や動画を削除した場合の関連行の扱い、重複を防ぐ制約、検索のindexを合わせて確認します。
+業務データの定義は [modern.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/db/schema/modern.ts)が基準です。利用者や動画を削除した場合の関連行の扱い、重複を防ぐ制約、検索のindexを合わせて確認します。
 
 **関連:** [DBを変更する](../guides/database.md)、[データが保存される場所](data-flow-diagram.md)。

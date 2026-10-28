@@ -33,7 +33,7 @@ CPU の推論エンジンは2コアを予約します。API は音声1件の全�
 API の形式は OpenAI 互換に統一し、`EMBEDDING_BASE_URL` で社内の埋め込み API を指定します。LLM の `OPENAI_BASE_URL` とは
 独立して設定します。認証も分ける場合は Secret に `EMBEDDING_API_KEY` を設定します。
 
-具体的なコマンドは、[推論用 Chart の導入手順](https://github.com/yukiharada1228/videoq/blob/main/charts/videoq-inference/README.md)
+具体的なコマンドは、[推論用 Chart の導入手順](https://github.com/videoq-jp/videoq/blob/main/charts/videoq-inference/README.md)
 にあります。署名付きイメージと推論用 Chart の導入、CPU・NVIDIA GPU の設定、モデルの永続化、
 導入後のダウンロード停止、通信制限、実モデルの確認手順をまとめています。
 アプリ側は `charts/videoq/examples/` の対応する設定を重ね、更新時も同じ設定を維持します。

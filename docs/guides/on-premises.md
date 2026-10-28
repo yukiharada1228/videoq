@@ -8,7 +8,7 @@ description: Deploy the VideoQ application to an existing Kubernetes or K3s clus
 VideoQ can run its Web UI, Node.js API and Python workers on an existing
 Kubernetes cluster. For an initial small installation, a single-node K3s cluster
 is an option. The application is distributed through the repository's
-[Helm chart](https://github.com/yukiharada1228/videoq/tree/main/charts/videoq),
+[Helm chart](https://github.com/videoq-jp/videoq/tree/main/charts/videoq),
 which contains installation, upgrade and rollback instructions, example values,
 and the external infrastructure requirements.
 
@@ -119,5 +119,5 @@ single-use setup/recovery links; no external mail service is needed. Course
 invitation links can also be shared privately with existing local accounts.
 New users have administrator-managed operational quotas instead of SaaS free
 plan caps. Existing user quotas are preserved until an administrator changes them.
-See the [edition and bootstrap instructions](https://github.com/yukiharada1228/videoq/blob/main/charts/videoq/README.md#on-prem-application-edition).
+See the [edition and bootstrap instructions](https://github.com/videoq-jp/videoq/blob/main/charts/videoq/README.md#on-prem-application-edition).
 Core video/course/search/chat, API keys/MCP and intranet sharing remain available.

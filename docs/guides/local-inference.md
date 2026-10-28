@@ -38,7 +38,7 @@ The application uses the OpenAI-compatible protocol with private endpoints;
 `EMBEDDING_BASE_URL` separates query/indexing embeddings from `OPENAI_BASE_URL`
 for chat. Optional `EMBEDDING_API_KEY` selects a separate credential.
 
-Use the [inference chart's installation guide](https://github.com/yukiharada1228/videoq/blob/main/charts/videoq-inference/README.md).
+Use the [inference chart's installation guide](https://github.com/videoq-jp/videoq/blob/main/charts/videoq-inference/README.md).
 It covers installing the signed Whisper image and inference chart, CPU/GPU Helm settings, persistent
 weights, disabling runtime downloads, egress restrictions and real-model checks.
 Select the matching overlay from `charts/videoq/examples/`; retain it on upgrades.

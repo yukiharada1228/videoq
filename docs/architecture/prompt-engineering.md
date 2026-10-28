@@ -134,12 +134,12 @@ The API saves the completed question, structured answer and retrieved context be
 
 | Location | Role |
 |---|---|
-| [prompts/](https://github.com/yukiharada1228/videoq/tree/main/apps/api/src/lib/prompts) | Instructions and settings |
-| [rag.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag.ts) | Q&A tool calls and answer generation |
-| [rag-course-info.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag-course-info.ts) | Registered course and video metadata |
-| [answer-content-stream.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/answer-content-stream.ts) / [chat-citations.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/chat-citations.ts) | Incremental answer decoding and citation validation |
-| [message-service.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/features/chat/message-service.ts) | Access, quota, SSE events, and persistence |
-| [chatStreamController.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/web/src/lib/chatStreamController.ts) | Browser rendering queue and completion |
+| [prompts/](https://github.com/videoq-jp/videoq/tree/main/apps/api/src/lib/prompts) | Instructions and settings |
+| [rag.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/rag.ts) | Q&A tool calls and answer generation |
+| [rag-course-info.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/rag-course-info.ts) | Registered course and video metadata |
+| [answer-content-stream.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/answer-content-stream.ts) / [chat-citations.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/chat-citations.ts) | Incremental answer decoding and citation validation |
+| [message-service.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/features/chat/message-service.ts) | Access, quota, SSE events, and persistence |
+| [chatStreamController.ts](https://github.com/videoq-jp/videoq/blob/main/apps/web/src/lib/chatStreamController.ts) | Browser rendering queue and completion |
 
 ## What to check after a change
 

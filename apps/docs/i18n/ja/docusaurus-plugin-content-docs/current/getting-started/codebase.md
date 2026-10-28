@@ -36,20 +36,20 @@ flowchart LR
 
 | 順番 | ファイル | 見るポイント |
 |---|---|---|
-| 1 | [useTags.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/web/src/hooks/useTags.ts) | 画面がデータを取得・更新する入口 |
-| 2 | [routers/tags.ts](https://github.com/yukiharada1228/videoq/blob/main/packages/trpc/src/routers/tags.ts) | `tags.list` の入力、出力、ログイン要件 |
-| 3 | [media-library.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/trpc/handlers/media-library.ts) | 利用者IDを使ってサービスを呼ぶ部分 |
-| 4 | [tags/service.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/features/tags/service.ts) | タグの操作を組み立てる部分 |
-| 5 | [tag-repository.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/tag-repository.ts) | 利用者の範囲に絞ってDBを読む部分 |
+| 1 | [useTags.ts](https://github.com/videoq-jp/videoq/blob/main/apps/web/src/hooks/useTags.ts) | 画面がデータを取得・更新する入口 |
+| 2 | [routers/tags.ts](https://github.com/videoq-jp/videoq/blob/main/packages/trpc/src/routers/tags.ts) | `tags.list` の入力、出力、ログイン要件 |
+| 3 | [media-library.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/trpc/handlers/media-library.ts) | 利用者IDを使ってサービスを呼ぶ部分 |
+| 4 | [tags/service.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/features/tags/service.ts) | タグの操作を組み立てる部分 |
+| 5 | [tag-repository.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/repositories/tag-repository.ts) | 利用者の範囲に絞ってDBを読む部分 |
 
 ここでいう「契約」は、呼び出し側とAPIが守る入力・出力の約束です。共有契約から型が伝わるので、変更すると影響先を型チェックで確認できます。
 
 ## 次に読む入口
 
-- **画面:** [App.tsx](https://github.com/yukiharada1228/videoq/blob/main/apps/web/src/App.tsx) → `pages/` → `hooks/`。
-- **API:** [app.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/app.ts) → `trpc/context.ts` → `trpc/handlers/`。
-- **動画処理:** [tasks/registry.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/registry.py) → `tasks/transcription.py` → `tasks/indexing.py`。
-- **DB:** [schema/index.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/db/schema/index.ts) → `modern.ts` と `better-auth.ts`。
+- **画面:** [App.tsx](https://github.com/videoq-jp/videoq/blob/main/apps/web/src/App.tsx) → `pages/` → `hooks/`。
+- **API:** [app.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/app.ts) → `trpc/context.ts` → `trpc/handlers/`。
+- **動画処理:** [tasks/registry.py](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/tasks/registry.py) → `tasks/transcription.py` → `tasks/indexing.py`。
+- **DB:** [schema/index.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/db/schema/index.ts) → `modern.ts` と `better-auth.ts`。
 
 Cloudflare **Workers** はAPIの実行基盤、`apps/worker` は **Pythonの動画処理** です。名前は似ていますが、別のプログラムです。
 

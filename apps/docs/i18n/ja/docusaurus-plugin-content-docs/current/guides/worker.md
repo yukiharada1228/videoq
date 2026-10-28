@@ -18,7 +18,7 @@ description: ジョブの入口、処理本体、再試行の考え方とロー�
 | 重複実行の制御 | `worker_python/job_execution.py` |
 | AWS Lambdaの入口 | `worker_python/lambda_handler.py` |
 
-ファイルの実体はすべて `apps/worker/` 配下にあります。API側のメッセージ形式は [job-message.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/job-message.ts)も確認します。
+ファイルの実体はすべて `apps/worker/` 配下にあります。API側のメッセージ形式は [job-message.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/job-message.ts)も確認します。
 
 ## メッセージの形
 
@@ -77,6 +77,6 @@ docker compose logs -f worker
 
 画面から短い動画を登録し、対象の動画IDでログを追います。`Ctrl+C` でログ表示を止めてもworkerは動き続けます。文字起こし・埋め込みを実行すると、設定した外部APIが呼ばれます。
 
-Pythonのテスト環境とコマンドは[テストの使い分け](testing.md)を参照してください。接続先やモデル設定は [worker README](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/README.md)にあります。
+Pythonのテスト環境とコマンドは[テストの使い分け](testing.md)を参照してください。接続先やモデル設定は [worker README](https://github.com/videoq-jp/videoq/blob/main/apps/worker/README.md)にあります。
 
 **関連:** [ジョブの配送と回復](../architecture/flowchart.md)。

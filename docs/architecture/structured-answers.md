@@ -5,7 +5,7 @@ description: Canonical answer storage, one-time history conversion, deployment o
 
 # Structured answer cutover and verification
 
-Issue [#996](https://github.com/yukiharada1228/videoq/issues/996) replaces citations embedded in prose with `segments: [{text, sourceIds}]` plus server-owned `sources`. See [the answer and SSE contract](prompt-engineering.md#structured-answers-citations-and-permissions). There is no compatibility mode or dual-write period.
+Issue [#996](https://github.com/videoq-jp/videoq/issues/996) replaces citations embedded in prose with `segments: [{text, sourceIds}]` plus server-owned `sources`. See [the answer and SSE contract](prompt-engineering.md#structured-answers-citations-and-permissions). There is no compatibility mode or dual-write period.
 
 The current application already uses this contract. This page preserves the upgrade procedure for older databases and the measurements from that cutover. For current generation-time streaming, animation-frame rendering, and answer-persistence behavior, use [Q&A prompts and answer persistence](prompt-engineering.md). These historical timings do not benchmark the current UI.
 
@@ -57,7 +57,7 @@ The browser harness uses the real API client, chat hook, event queue and message
 
 These measurements describe the cutover release, before generation-time streaming was enabled for course answers and the UI typing delay was removed. They are not measurements of those later changes.
 
-Compared main commit `d07f0c94` with this implementation using `gpt-4o-mini` on the same configured endpoint. Each version completed 24 browser runs. The individual outputs, timings and provider-reported usage are in [the comparison data](https://github.com/yukiharada1228/videoq/blob/main/docs/verification/issue-996-comparison.json).
+Compared main commit `d07f0c94` with this implementation using `gpt-4o-mini` on the same configured endpoint. Each version completed 24 browser runs. The individual outputs, timings and provider-reported usage are in [the comparison data](https://github.com/videoq-jp/videoq/blob/main/docs/verification/issue-996-comparison.json).
 
 | Median per request | Course: previous → structured | No course: previous → structured |
 |---|---:|---:|

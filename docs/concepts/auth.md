@@ -93,7 +93,7 @@ Also apply `0022_standard_password_reset_identifiers.sql` before deploying nativ
 
 Services and database queries then check ownership and course access scope. For API changes, verify that operations succeed for the user's own data and fail for another user's data without permission.
 
-Definitions are in [packages/trpc/src/init.ts](https://github.com/yukiharada1228/videoq/blob/main/packages/trpc/src/init.ts); request integration is in [trpc/context.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/trpc/context.ts).
+Definitions are in [packages/trpc/src/init.ts](https://github.com/videoq-jp/videoq/blob/main/packages/trpc/src/init.ts); request integration is in [trpc/context.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/trpc/context.ts).
 
 ## Course sharing and invitations
 

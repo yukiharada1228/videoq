@@ -14,7 +14,7 @@ Restricted API key（`rk_`）を推奨する。Checkout / Customer / Subscriptio
 
 - Worker secret: `STRIPE_SECRET_KEY`
 - Worker secret: `STRIPE_WEBHOOK_SECRET`
-- ローカル: [`apps/api/.dev.vars.example`](https://github.com/yukiharada1228/videoq/blob/main/apps/api/.dev.vars.example)
+- ローカル: [`apps/api/.dev.vars.example`](https://github.com/videoq-jp/videoq/blob/main/apps/api/.dev.vars.example)
 
 ## 2. Product と Price
 
@@ -126,7 +126,7 @@ Dashboard の dynamic payment methods を使う。コードに `payment_method_t
 
 ### 現在の利用枠（2026-10-17）
 
-価格は据え置き、文字起こし枠は**Free月120分、Basic月500分、Pro月1,500分**です。AI回答枠は30/500/2,000回、保存枠は1/20/100 GiB、月間アップロード枠は2/200/1,000 GiBです。AI回答と文字起こしは既存の予約処理で上限を判定します。今月すでに記録された利用量は移行時に変更しません。[現行の利用枠と費用試算](https://github.com/yukiharada1228/videoq/blob/main/docs/verification/transcription-allowance-expansion-2026-10-17.md)を参照してください。
+価格は据え置き、文字起こし枠は**Free月120分、Basic月500分、Pro月1,500分**です。AI回答枠は30/500/2,000回、保存枠は1/20/100 GiB、月間アップロード枠は2/200/1,000 GiBです。AI回答と文字起こしは既存の予約処理で上限を判定します。今月すでに記録された利用量は移行時に変更しません。[現行の利用枠と費用試算](https://github.com/videoq-jp/videoq/blob/main/docs/verification/transcription-allowance-expansion-2026-10-17.md)を参照してください。
 
 以下の表は**2026-10-02時点の旧カタログ**の記録で、現行の利用枠や費用試算には使えません。OpenAI Whisperの料金とAI回答1回0.30円を仮定していました。現行の計画ではModalを用い、AI回答1回1.00円を引き当てています。上記の現行試算を参照してください。
 

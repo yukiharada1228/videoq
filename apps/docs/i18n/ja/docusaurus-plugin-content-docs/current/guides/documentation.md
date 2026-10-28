@@ -71,4 +71,4 @@ Honoのような「短い説明 → 小さな例 → 試す手順 → 次に読�
 
 Mermaidの図はコードブロックで書けますが、本文のリンクと違ってビルド成功だけでは描画の正しさを保証しません。ブラウザでも確認してください。
 
-ビルドでは両言語の文書間リンクと見出しへのリンクを検査します。設定の詳細は [apps/docs/README.md](https://github.com/yukiharada1228/videoq/blob/main/apps/docs/README.md)を参照してください。
+ビルドでは両言語の文書間リンクと見出しへのリンクを検査します。設定の詳細は [apps/docs/README.md](https://github.com/videoq-jp/videoq/blob/main/apps/docs/README.md)を参照してください。

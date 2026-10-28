@@ -5,7 +5,7 @@ description: Common URLs and the roles of shared layouts and shared-course scree
 
 # Screens and navigation
 
-Use this map when adding or editing screens. [App.tsx](https://github.com/yukiharada1228/videoq/blob/main/apps/web/src/App.tsx) is the source of truth for URL definitions.
+Use this map when adding or editing screens. [App.tsx](https://github.com/videoq-jp/videoq/blob/main/apps/web/src/App.tsx) is the source of truth for URL definitions.
 
 ## Common screens
 
