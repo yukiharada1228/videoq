@@ -1,6 +1,4 @@
 name: Dependency Automation
-env:
-  DEPENDENCY_QUEUE_ENABLED: ${{ vars.DEPENDENCY_QUEUE_ENABLED }}
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, closed, ready_for_review, labeled, unlabeled, edited, converted_to_draft]
@@ -24,7 +22,7 @@ jobs:
     if: >-
       github.repository == 'videoq-jp/videoq' && github.ref == 'refs/heads/main' &&
       (github.event_name != 'pull_request_target' || github.event.pull_request.base.ref == 'main') &&
-      vars.DEPENDENCY_QUEUE_ENABLED == 'true' && vars.DEPENDENCY_AUTOMERGE_ENABLED == 'true'
+      vars.DEPENDENCY_AUTOMERGE_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -49,27 +47,19 @@ jobs:
           permission-workflows: write
       - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          QUEUE_ISSUE: ${{ vars.DEPENDENCY_QUEUE_ISSUE }}
-          QUEUE_MODE: ${{ vars.DEPENDENCY_QUEUE_MODE }}
           DEPENDENCY_BOT_LOGIN: ${{ steps.app.outputs.app-slug }}[bot]
           RETRY: ${{ inputs.retry }}
           RUNTIME_AUTOMERGE_ENABLED: ${{ vars.RUNTIME_AUTOMERGE_ENABLED }}
           REPAIR_ENABLED: ${{ vars.CLAUDE_DEPENDENCY_REPAIR_ENABLED }}
           APP_TOKEN: ${{ steps.app.outputs.token }}
-          GH_TOKEN: ${{ steps.app.outputs.token }}
-          GH_REPO: ${{ github.repository }}
         with:
           script: |
-            const controller = process.env.QUEUE_MODE === 'native'
-              ? require('./.github/scripts/native-dependency-queue.cjs')
-              : require('./.github/scripts/dependency-queue.cjs');
+            const controller = require('./.github/scripts/native-dependency-queue.cjs');
             const args = { github, writerGithub: new github.constructor({ auth: process.env.APP_TOKEN }), context };
             await controller.reconcile({
               ...args,
-              issue: Number(process.env.QUEUE_ISSUE), retry: Number(process.env.RETRY || 0),
+              retry: Number(process.env.RETRY || 0),
               repairEnabled: process.env.REPAIR_ENABLED === 'true',
               authorizeRepair: ['push', 'workflow_run', 'workflow_dispatch'].includes(context.eventName),
               saveSummary: text => core.summary.addRaw(text).write(),
-              reserve: process.env.QUEUE_MODE === 'native' ? undefined
-                : ({ number, sha }) => exec.exec('gh', ['pr', 'merge', String(number), '--auto', '--squash', '--match-head-commit', sha]),
             });

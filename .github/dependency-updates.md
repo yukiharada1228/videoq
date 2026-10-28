@@ -1,6 +1,6 @@
 # Security dependency updates
 
-For patch auto-merge and Codex CI repair setup, see
+For patch/minor queueing and Claude CI repair setup, see
 [Dependency automation](dependency-automation.md).
 
 The root `package.json` contains temporary overrides for security fixes that

@@ -57,10 +57,6 @@ async function candidate({ github, context, runId }) {
   const { data: workflow } = await github.rest.actions.getWorkflow({ ...context.repo, workflow_id: 'ci.yml' });
   if (run.workflow_id !== workflow.id || run.event !== 'pull_request' || run.status !== 'completed' ||
     !['success', 'failure'].includes(run.conclusion) || run.repository?.full_name !== REPO || run.head_repository?.full_name !== REPO) return null;
-  if (process.env.DEPENDENCY_QUEUE_ENABLED === 'true') {
-    const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, { ...context.repo, run_id: run.id, filter: 'latest', per_page: 100 });
-    if (!policy.admittedCI(jobs)) return null;
-  }
   const { data: pulls } = await github.rest.pulls.list({ ...context.repo, state: 'open', head: `${context.repo.owner}:${run.head_branch}`, base: 'main' });
   if (pulls.length !== 1) return null;
   const { pr, files, comments } = await policy.getPull({ github, context, number: pulls[0].number });

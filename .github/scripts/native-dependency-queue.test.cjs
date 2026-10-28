@@ -87,6 +87,24 @@ test('PR metadata events wake trusted main rather than authorize a model', async
   const f = fixture(); f.outcome = 'failure'; await native.reconcile({ ...f.args, repairEnabled: true });
   assert.equal(f.repairs.length, 0); assert.equal(f.dispatches[0].workflow_id, 'dependency-queue.yml');
 });
+test('security stops and already attempted heads never dispatch another model job', async () => {
+  for (const receipt of [{ kind: 'attempt', sha: SHA }, { kind: 'security-stop', sha: SHA }, { kind: 'stopped' }]) {
+    const f = fixture(); f.outcome = 'failure';
+    for (const data of [receipt, ...(receipt.kind === 'stopped' ? [{ kind: 'attempt', sha: BASE }, { kind: 'attempt', sha: GROUP }] : [])]) {
+      f.comments.push({ user: { login: 'github-actions[bot]' }, body: '<!-- videoq-claude-dependency-v1 -->\n' + JSON.stringify(data) });
+    }
+    await native.reconcile({ ...f.args, repairEnabled: true, authorizeRepair: true });
+    assert.equal(f.repairs.length, 0);
+  }
+});
+test('historical duplicate notices cannot consume a remaining repair for a different head', async () => {
+  const f = fixture(); f.outcome = 'failure';
+  for (const data of [{ kind: 'attempt', sha: BASE }, { kind: 'stopped' }]) {
+    f.comments.push({ user: { login: 'github-actions[bot]' }, body: '<!-- videoq-claude-dependency-v1 -->\n' + JSON.stringify(data) });
+  }
+  await native.reconcile({ ...f.args, repairEnabled: true, authorizeRepair: true });
+  assert.equal(f.repairs.length, 1);
+});
 test('group failure needs a genuine workflow, canonical repositories and proof of the current PR head ancestry', async () => {
   for (const mutate of [f => f.run.event = 'pull_request', f => f.run.head_repository.full_name = 'fork/videoq',
     f => f.ancestor = BASE, f => f.run.head_branch = 'feature/pr-1-deadbeef']) {
