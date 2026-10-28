@@ -3,6 +3,10 @@ name: Claude Dependency Repair Worker
 on:
   workflow_dispatch:
     inputs:
+      environment_test:
+        description: Test Linux subprocess isolation without calling Claude or changing PRs
+        type: boolean
+        default: false
       authentication_test:
         description: Only test Claude subscription authentication (no PR changes)
         type: boolean
@@ -35,6 +39,20 @@ concurrency:
   group: claude-dependency-worker-${{ inputs.number || 'authentication-test' }}
   cancel-in-progress: false
 jobs:
+  environment-test:
+    if: github.repository == 'videoq-jp/videoq' && inputs.environment_test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Verify Linux isolation prerequisites without credentials
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends bubblewrap socat ripgrep
+          bwrap --version
+          socat -V
+          rg --version
+          bwrap --die-with-parent --unshare-user --unshare-pid --ro-bind / / --proc /proc -- /usr/bin/true
   authentication-test:
     if: >-
       github.repository == 'videoq-jp/videoq' &&
@@ -62,7 +80,7 @@ jobs:
   authorize:
     if: >-
       github.repository == 'videoq-jp/videoq' && github.ref == 'refs/heads/main' &&
-      vars.CLAUDE_DEPENDENCY_REPAIR_ENABLED == 'true' && !inputs.authentication_test
+      vars.CLAUDE_DEPENDENCY_REPAIR_ENABLED == 'true' && !inputs.authentication_test && !inputs.environment_test
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -97,8 +115,11 @@ jobs:
       - name: Install subprocess isolation prerequisite
         run: |
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends bubblewrap
+          sudo apt-get install --yes --no-install-recommends bubblewrap socat ripgrep
           bwrap --version
+          socat -V
+          rg --version
+          bwrap --die-with-parent --unshare-user --unshare-pid --ro-bind / / --proc /proc -- /usr/bin/true
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.workflow_sha }}
