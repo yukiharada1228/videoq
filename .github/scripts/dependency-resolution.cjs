@@ -24,7 +24,7 @@ function allowedFiles(files, metadata) {
 // A receipt alone cannot launder an arbitrary branch or a human follow-up commit.
 async function provenance(args, depth = 0) {
   const { github, context, pr, files, comments } = args;
-  if (depth > 16) return null;
+  if (depth > 24) return null;
   const receipt = repair().records(comments, 'published').find(r => r.policy === 2 && r.sha === pr.head.sha &&
     [r.parent, r.origin, r.originalBase].every(sha) && /^\d+$/.test(String(r.runId)));
   if (!receipt || !['ci', 'conflict'].includes(receipt.mode)) return null;

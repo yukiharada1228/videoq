@@ -169,6 +169,7 @@ test('trusted export resolves the index outside the model sandbox and ignores it
   writeFileSync(join(cwd, 'apps/web/src/compat.ts'), 'export const compatible = true;\n');
   mkdirSync(join(cwd, '.trusted-policy')); git('init', '--quiet', '.trusted-policy');
   writeFileSync(join(cwd, '.trusted-policy/private-policy.txt'), 'not part of the patch\n');
+  for (const placeholder of ['.npmrc', '.env.local', 'yarn.lock', 'bunfig.toml']) writeFileSync(join(cwd, placeholder), '');
   const marker = join(cwd, 'untrusted-hook-ran');
   git('config', 'core.fsmonitor', `touch ${marker}`);
   const workflow = readFileSync(join(__dirname, '../workflows/claude-dependency-worker.yml'), 'utf8');
@@ -180,7 +181,7 @@ test('trusted export resolves the index outside the model sandbox and ignores it
     EXPECTED_SHA: head, BASE_SHA: main, REPAIR_MODE: 'conflict' } });
   assert.equal(existsSync(marker), false);
   const patch = readFileSync(join(temp, 'repair.patch'), 'utf8');
-  assert.doesNotMatch(patch, /trusted-policy/);
+  assert.doesNotMatch(patch, /trusted-policy|\.npmrc|\.env\.local|yarn\.lock|bunfig\.toml/);
   assert.match(patch, /compat\.ts/);
   // Export must not need to change the model's protected Git index.
   assert.notEqual(git('-c', 'core.fsmonitor=false', 'ls-files', '-u').trim(), '');

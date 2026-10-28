@@ -25,12 +25,12 @@ async function seed({ github, context, pr, metadata }) {
 // Application compatibility includes build configuration, tests and generated types.
 // Automation, infrastructure and secret/authentication policy stay trusted-main only.
 function sourceFile(path) {
-  return /^(?:apps\/(?:api|web|docs|demo-video|worker|inference)\/|packages\/trpc\/)[a-zA-Z0-9_./-]+\.(?:ts|tsx|js|jsx|mjs|cjs|py|json|toml|ya?ml|css|mdx)$/.test(path) &&
+  return /^(?:apps\/(?:api|web|docs|demo-video|worker|inference)\/|packages\/trpc\/)[a-zA-Z0-9_./-]+\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs|py|json|jsonc|toml|ya?ml|css|mdx)$/.test(path) &&
     !/(?:^|\/)(?:\.\.?|node_modules|vendor|dist|build)(?:\/|$)|(?:^|[./_-])(?:secrets?|credentials|env)(?:[./_-]|$)/.test(path) &&
     !/(?:^|\/)(?:package(?:-lock)?\.json|pyproject\.toml|uv\.lock)$/.test(path);
 }
 const POLICY_VERSION = 2;
-const MAX_ATTEMPTS = 5;
+const MAX_ATTEMPTS = 8;
 function attempts(comments, mode = 'ci') {
   return records(comments, 'attempt').filter(r => r.policy === POLICY_VERSION && (r.mode || 'ci') === mode);
 }
@@ -46,7 +46,7 @@ async function mayAttempt({ github, context, comments, head, mode = 'ci', base }
   }
   if (!prior.length) return true;
   // The attempt receipt reserves dispatch before a worker has claimed it. A
-  // completed worker may retry once on the same head; unrelated events cannot.
+  // completed worker may retry within the existing budget; unrelated events cannot.
   return !!worker && worker.authorizationRun === prior.at(-1).runId;
 }
 function validRepairFiles(files) {
@@ -135,7 +135,7 @@ async function scope(args) {
     return null;
   }
   const attempt = { kind: 'attempt', policy: POLICY_VERSION, mode: 'ci', sha: c.pr.head.sha, origin: c.origin.sha, runId: String(context.runId), failedRun: c.run.id };
-  await record(github, context, c.pr.number, attempt, 'CI失敗を受け、Claudeによる互換性修正を開始します（互換性修正は最大5回）。');
+  await record(github, context, c.pr.number, attempt, 'CI失敗を受け、Claudeによる互換性修正を開始します（互換性修正は最大8回）。');
   return { number: c.pr.number, sha: c.pr.head.sha, branch: c.pr.head.ref, origin: c.origin.sha };
 }
 function git(cwd, ...args) { return execFileSync('git', ['--no-pager', '-c', 'core.hooksPath=/dev/null', ...args], { cwd, encoding: 'utf8', maxBuffer: 2 * 1024 * 1024 }); }
