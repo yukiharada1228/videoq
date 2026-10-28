@@ -2,10 +2,23 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
-const { validate, publish, eligible, sameLine, scope } = require('./runtime-pull-request.cjs');
+const { validate, publish, eligible, sameLine, scope, ownedCommits } = require('./runtime-pull-request.cjs');
 
 const plan = () => ({ changed: true, runtime: 'node', channel: 'current', previous_version: '26.12.0', version: '26.12.1', files: { '.node-version': '26.12.1\n' } });
 const context = { ref: 'refs/heads/main', sha: 'a'.repeat(40), eventName: 'schedule', repo: { owner: 'yukiharada1228', repo: 'videoq' } };
+test('main ancestry distinguishes inherited commits from edits on the runtime branch', async () => {
+  const bot = 'runtime-bot[bot]', inherited = 'b'.repeat(40), human = 'c'.repeat(40);
+  const comparisons = [];
+  const github = { rest: { repos: { compareCommits: async args => {
+    comparisons.push(args);
+    return { data: { merge_base_commit: { sha: args.base === inherited ? inherited : context.sha } } };
+  } } } };
+  const args = { github, context, bot, base: context.sha };
+  assert.equal(await ownedCommits({ ...args, commits: [{ author: { login: bot } }, { sha: inherited, author: { login: 'dependabot[bot]' } }] }), true);
+  assert.equal(await ownedCommits({ ...args, commits: [{ sha: human, author: { login: 'human' } }] }), false);
+  assert.equal(await ownedCommits({ ...args, commits: [] }), false);
+  assert.equal(comparisons[0].head, context.sha);
+});
 test('runtime PRs cannot write workflows, application code, credentials, or arbitrary paths', () => {
   for (const path of ['.github/workflows/cd.yml', 'apps/api/src/lib/auth.ts', '.env', '../outside', 'infra/variables.tf']) {
     const candidate = plan(); candidate.files[path] = 'untrusted';

@@ -34,12 +34,13 @@ async function admission({ github, context, issue, enabled }) {
   const { data: main } = await github.rest.repos.getBranch({ ...context.repo, branch: 'main' });
   return state.active === pr.number && row.mode === 'active' && row.base === main.commit.sha;
 }
-async function verified({ github, context, pr }) {
+async function verified({ github, context, pr, base }) {
   const pull = await policy.getPull({ github, context, number: pr.number });
   const commits = await github.paginate(github.rest.pulls.listCommits, { ...context.repo, pull_number: pr.number, per_page: 100 });
   if (!commits.length || commits.at(-1).sha !== pull.pr.head.sha) return null;
   if (pr.user.login === BOT) {
-    if (process.env.RUNTIME_AUTOMERGE_ENABLED === 'false' || !runtime.eligible(pull.pr, pull.files, pull.comments, BOT) || commits.some(c => c.author?.login !== BOT)) return null;
+    if (process.env.RUNTIME_AUTOMERGE_ENABLED === 'false' || !runtime.eligible(pull.pr, pull.files, pull.comments, BOT) ||
+        !await runtime.ownedCommits({ github, context, commits, bot: BOT, base })) return null;
     return { ...pull, kind: 'runtime', runtime: pr.head.ref.split('/')[1].replace('-current', '') };
   }
   const sourceFile = require('./claude-dependency-repair.cjs').sourceFile;
@@ -97,7 +98,7 @@ async function reconcile({ github, writerGithub, context, issue, retry = 0, save
   const entries = {};
   for (const listed of pulls) {
     if (!managed(listed)) continue;
-    const c = await verify({ github, context, pr: listed });
+    const c = await verify({ github, context, pr: listed, base });
     const pr = c?.pr || (await github.rest.pulls.get({ ...context.repo, pull_number: listed.number })).data;
     if (!c) {
       entries[pr.number] = { sha: pr.head.sha, mode: 'bypass' };

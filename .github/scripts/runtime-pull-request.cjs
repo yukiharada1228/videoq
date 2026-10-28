@@ -19,6 +19,21 @@ function receipts(comments, bot) {
   return comments.filter(c => c.user?.login === bot && c.body?.startsWith(MARKER + '\n'))
     .flatMap(c => { try { return [JSON.parse(c.body.split('\n')[1])]; } catch { return []; } });
 }
+// PR commit lists can include commits brought in by an earlier main sync.
+// Only branch-specific commits must belong to the publication App. Every other
+// commit must be a proven ancestor of the trusted main snapshot.
+async function ownedCommits({ github, context, commits, bot, base }) {
+  if (!commits.length) return false;
+  for (const commit of commits) {
+    if (commit.author?.login === bot) continue;
+    if (!sha(commit.sha)) return false;
+    if (!base) base = (await github.rest.repos.getBranch({ ...context.repo, branch: 'main' })).data.commit.sha;
+    if (!sha(base)) return false;
+    const { data } = await github.rest.repos.compareCommits({ ...context.repo, base: commit.sha, head: base });
+    if (data.merge_base_commit?.sha !== commit.sha) return false;
+  }
+  return true;
+}
 function eligible(pr, files, comments, bot) {
   if (pr.state !== 'open' || pr.draft || pr.user?.login !== bot || pr.base?.ref !== 'main' ||
       pr.base.repo?.full_name !== 'yukiharada1228/videoq' || pr.head.repo?.full_name !== 'yukiharada1228/videoq' ||
@@ -86,7 +101,7 @@ async function publish({ github, context, core, plan, bot, retireSuperseded = fa
       throw new Error('Refusing to overwrite an unmanaged runtime branch');
     }
     const commits = await github.paginate(github.rest.pulls.listCommits, { ...context.repo, pull_number: managed.number, per_page: 100 });
-    if (!commits.length || commits.some(commit => commit.author?.login !== bot)) {
+    if (!await ownedCommits({ github, context, commits, bot, base: base.object.sha })) {
       throw new Error('Runtime PR has human changes; preserve them for review');
     }
     const comments = await github.paginate(github.rest.issues.listComments, { ...context.repo, issue_number: managed.number, per_page: 100 });
@@ -154,4 +169,4 @@ async function publish({ github, context, core, plan, bot, retireSuperseded = fa
   return result.data.number;
 }
 
-module.exports = { validate, publish, FILES, sameLine, receipts, eligible, scope };
+module.exports = { validate, publish, FILES, sameLine, receipts, ownedCommits, eligible, scope };
