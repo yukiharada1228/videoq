@@ -17,6 +17,17 @@ SPEC.loader.exec_module(runtime)
 class RuntimeTests(unittest.TestCase):
     def setUp(self):
         self.data = json.loads((runtime.ROOT / runtime.MANIFEST).read_text())
+        # Release-discovery scenarios have fixed candidate versions. Keep their
+        # starting point independent of whichever runtime production now pins.
+        self.python_data = copy.deepcopy(self.data)
+        self.python_data["python"] = "3.14.9"
+        self.python_data["python_minimum"] = "3.12"
+        for key, repo, tag in [
+            ("python_local", "python", "3.14.9-slim-bookworm"),
+            ("python_onprem", "python", "3.14.9-alpine"),
+            ("python_lambda", "public.ecr.aws/lambda/python", "3.14"),
+        ]:
+            self.python_data["images"][key] = repo + ":" + tag + "@sha256:" + "0" * 64
 
     def test_node_security_patches_do_not_wait_for_a_new_lts_line(self):
         releases = [{"version": "v26.12.1", "security": True, "lts": False},
@@ -38,16 +49,16 @@ class RuntimeTests(unittest.TestCase):
         return repo + ":" + tag + "@sha256:" + "1" * 64
 
     def test_python_selects_latest_complete_image_set_not_latest_interpreter(self):
-        previous = copy.deepcopy(self.data)
+        previous = copy.deepcopy(self.python_data)
         def digest(repo, tag):
             if tag == "3.14.11-alpine":
                 raise runtime.MissingImage("Not yet published")
             return self.pinned_image(repo, tag)
         with patch.object(runtime, "request", return_value=self.python_releases("3.14.11", "3.14.10")), patch.object(runtime, "image_digest", side_effect=digest):
-            result = runtime.discover(runtime.ROOT, self.data, "python", False)
+            result = runtime.discover(runtime.ROOT, self.python_data, "python", False)
         self.assertEqual(result["python"], "3.14.10")
         self.assertIn("3.14.10-alpine@sha256:", result["images"]["python_onprem"])
-        self.assertEqual(self.data, previous)
+        self.assertEqual(self.python_data, previous)
 
     def test_python_pending_current_patch_still_refreshes_current_digests(self):
         def digest(repo, tag):
@@ -55,9 +66,9 @@ class RuntimeTests(unittest.TestCase):
                 raise runtime.MissingImage("Not yet published")
             return self.pinned_image(repo, tag)
         with patch.object(runtime, "request", return_value=self.python_releases("3.14.10")), patch.object(runtime, "image_digest", side_effect=digest):
-            result = runtime.discover(runtime.ROOT, self.data, "python", False)
-        self.assertEqual(result["python"], self.data["python"])
-        self.assertNotEqual(result["images"]["python_local"], self.data["images"]["python_local"])
+            result = runtime.discover(runtime.ROOT, self.python_data, "python", False)
+        self.assertEqual(result["python"], self.python_data["python"])
+        self.assertNotEqual(result["images"]["python_local"], self.python_data["images"]["python_local"])
 
     def test_python_next_requires_lambda_support_and_never_partially_changes_pins(self):
         def digest(repo, tag):
@@ -65,17 +76,17 @@ class RuntimeTests(unittest.TestCase):
                 raise runtime.MissingImage("Lambda series not yet published")
             return self.pinned_image(repo, tag)
         with patch.object(runtime, "request", return_value=self.python_releases("3.15.2", "3.15.1")), patch.object(runtime, "image_digest", side_effect=digest):
-            self.assertEqual(runtime.discover(runtime.ROOT, self.data, "python", True), self.data)
+            self.assertEqual(runtime.discover(runtime.ROOT, self.python_data, "python", True), self.python_data)
 
     def test_python_next_can_select_a_complete_supported_release(self):
         with patch.object(runtime, "request", return_value=self.python_releases("3.15.1")), patch.object(runtime, "image_digest", side_effect=self.pinned_image):
-            result = runtime.discover(runtime.ROOT, self.data, "python", True)
+            result = runtime.discover(runtime.ROOT, self.python_data, "python", True)
         self.assertEqual(result["python"], "3.15.1")
         self.assertIn(":3.15@sha256:", result["images"]["python_lambda"])
 
     def test_no_next_python_release_does_not_refresh_current_images(self):
         with patch.object(runtime, "request", return_value=self.python_releases("3.14.10")), patch.object(runtime, "image_digest") as digest:
-            self.assertEqual(runtime.discover(runtime.ROOT, self.data, "python", True), self.data)
+            self.assertEqual(runtime.discover(runtime.ROOT, self.python_data, "python", True), self.python_data)
             digest.assert_not_called()
 
     def test_missing_pinned_image_and_invalid_architectures_remain_failures(self):
@@ -83,7 +94,7 @@ class RuntimeTests(unittest.TestCase):
                                 (self.python_releases("3.15.1"), ValueError("Missing arm64"))]:
             with self.subTest(error=error), patch.object(runtime, "request", return_value=releases), patch.object(runtime, "image_digest", side_effect=error):
                 with self.assertRaises(type(error)):
-                    runtime.discover(runtime.ROOT, self.data, "python", bool(releases))
+                    runtime.discover(runtime.ROOT, self.python_data, "python", bool(releases))
 
     def test_only_registry_manifest_unknown_is_a_legitimate_missing_image(self):
         url = "https://registry-1.docker.io/v2/library/python/manifests/3.14.10-slim-bookworm"
@@ -119,7 +130,7 @@ class RuntimeTests(unittest.TestCase):
                       urllib.error.URLError("offline")]:
             with self.subTest(error=error), patch.object(runtime, "request", return_value=self.python_releases("3.15.1")), patch.object(runtime, "image_digest", side_effect=error):
                 with self.assertRaises(type(error)):
-                    runtime.discover(runtime.ROOT, self.data, "python", True)
+                    runtime.discover(runtime.ROOT, self.python_data, "python", True)
             if isinstance(error, urllib.error.HTTPError):
                 error.close()
 
