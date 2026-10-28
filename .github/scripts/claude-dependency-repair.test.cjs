@@ -53,15 +53,16 @@ test('only a contiguous receipt-backed repair chain can inherit verified Dependa
     f => { f.commits.push({ sha: C, parents: [{ sha: B }] }); },
   ]) { const bad = fixture(true); mutate(bad); assert.equal(p.chain(bad.commits, bad.comments), null); }
 });
-test('source scope excludes checks, dependency files, credentials, traversal and config', () => {
+test('compatibility scope includes configs, tests and types but excludes automation, dependencies and credentials', () => {
+  for (const path of ['apps/web/vite.config.ts', 'apps/web/.storybook/vite.config.ts', 'apps/web/src/x.test.ts', 'apps/web/src/__tests__/x.ts', 'apps/web/src/types.d.ts', 'apps/api/src/auth/session.ts', 'apps/api/src/db/migrations/migrate.ts']) assert.equal(p.validRepairFiles([source(path)]), true, path);
   assert.equal(p.validRepairFiles([source()]), true);
-  for (const filename of ['.github/workflows/ci.yml', 'package.json', 'apps/web/src/x.test.ts', 'apps/web/src/__tests__/x.ts',
+  for (const filename of ['.github/workflows/ci.yml', 'package.json',
     'apps/web/src/../../config.ts', 'apps/worker/worker_python/env.py', 'apps/worker/worker_python/secrets_bootstrap.py',
-    'apps/api/src/auth/session.ts', 'apps/api/src/db/migrations/migrate.ts', 'apps/web/vite.config.ts', 'apps/web/src/types.d.ts']) {
+    'infra/iam.tf', '.github/scripts/dependency-resolution.cjs']) {
     assert.equal(p.validRepairFiles([source(filename)]), false, filename);
   }
-  for (const files of [[], [source(), { ...source(), status: 'added' }], [{ ...source(), patch: undefined }],
-    [{ ...source(), changes: 301 }], Array.from({ length: 9 }, () => source())]) assert.equal(p.validRepairFiles(files), false);
+  for (const files of [[], [source(), { ...source(), status: 'removed' }], [{ ...source(), patch: undefined }],
+    [{ ...source(), changes: 2001 }], Array.from({ length: 33 }, () => source())]) assert.equal(p.validRepairFiles(files), false);
 });
 test('current failed originals and successful repaired heads are eligible', async () => {
   assert.ok(await p.candidate(fixture()));
@@ -70,7 +71,6 @@ test('current failed originals and successful repaired heads are eligible', asyn
 });
 for (const [name, mutate] of [
   ['fork', f => { f.pr.head.repo.full_name = 'attacker/repo'; }],
-  ['major', f => { f.comments[0] = comment({ kind: 'seed', sha: A, metadata: { ...metadata, updateType: 'version-update:semver-major' } }); }],
   ['unsupported ecosystem', f => { f.comments[0] = comment({ kind: 'seed', sha: A, metadata: { ...metadata, ecosystem: 'terraform' } }); }],
   ['stale head', f => { f.pr.head.sha = C; }],
   ['new CI', f => { f.latest = { ...f.run, id: 100 }; }],
@@ -79,7 +79,6 @@ for (const [name, mutate] of [
   ['human commit', f => { f.commits.push({ sha: B }); f.pr.head.sha = B; f.run.head_sha = B; }],
   ['no-claude', f => { f.pr.labels.push({ name: 'no-claude' }); }],
   ['no-automerge', f => { f.pr.labels.push({ name: 'no-automerge' }); }],
-  ['legacy manual repair', f => { f.comments.push({ user: { login: 'github-actions[bot]' }, body: '<!-- videoq-codex-repair-request -->' }); }],
   ['untrusted seed', f => { f.comments[0].user.login = 'owner'; }],
   ['original source change', f => { f.original.push(source()); }],
 ]) test(`candidate rejects ${name}`, async () => { const f = fixture(); mutate(f); assert.equal(await p.candidate(f), null); });
@@ -98,7 +97,8 @@ test('attempts are durable, deduplicated by SHA, and bounded across CI reruns', 
   assert.equal(await p.scope(f), null);
   assert.equal(p.records(f.comments, 'attempt').length, 1);
   const repaired = fixture(true); repaired.run.conclusion = 'failure';
-  repaired.comments.push(comment({ kind: 'attempt', sha: A }), comment({ kind: 'attempt', sha: C }));
+  repaired.jobs.push({ name: 'Frontend Build', conclusion: 'failure' });
+  for (let index = 0; index < p.MAX_ATTEMPTS; index++) repaired.comments.push(comment({ kind: 'attempt', policy: 2, sha: index.toString().repeat(40) }));
   assert.equal(await p.scope(repaired), null);
 });
 test('security failures stop before invoking Claude', async () => {
@@ -230,4 +230,9 @@ test('the controller verifies a failed head and records authorization before dis
   assert.equal(dispatches.length, 1);
   assert.equal(dispatches[0].workflow_id, 'claude-dependency-worker.yml');
   assert.deepEqual(dispatches[0].inputs, { number: '1', sha: A, run_id: '99', authorization_run: '77' });
+});
+
+test('major npm updates receive the same repair path as minor updates', async () => {
+  const f = fixture(); f.comments[0] = comment({ kind: 'seed', sha: A, metadata: { ...metadata, updateType: 'version-update:semver-major' } });
+  assert.ok(await p.candidate(f)); assert.ok(await p.scope(f));
 });

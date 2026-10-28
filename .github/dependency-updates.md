@@ -1,6 +1,6 @@
 # Security dependency updates
 
-For patch/minor queueing and Claude CI repair setup, see
+For major/minor/patch queueing and Claude compatibility/conflict resolution, see
 [Dependency automation](dependency-automation.md).
 
 The root `package.json` contains temporary overrides for security fixes that

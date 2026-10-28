@@ -47,8 +47,8 @@ test('auto-merge fails closed if required CI or strict protection disappears', (
   }
 });
 
-test('historical manual repair notices still require human review', () => {
+test('historical automated repair notices do not veto newly verified automatic updates', () => {
   const notice = { user: { login: 'github-actions[bot]' }, body: '<!-- videoq-codex-repair-request -->' };
-  assert.equal(policy.eligiblePull(pull(), files(), 'no-automerge', [notice]), false);
+  assert.equal(policy.eligiblePull(pull(), files(), 'no-automerge', [notice]), true);
   assert.equal(policy.eligiblePull(pull(), files(), 'no-automerge', [{ ...notice, user: { login: 'someone' } }]), true);
 });

@@ -25,8 +25,8 @@ function canonical(files) {
 function signedMetadata(commits, files) {
   if (!policy.verifiedDependencyCommits(commits, commits.at(-1)?.sha)) return null;
   const types = commits.flatMap(c => verifiedUpdateTypes(c) || ['invalid']);
-  if (!types.length || types.some(t => !['version-update:semver-patch', 'version-update:semver-minor'].includes(t))) return null;
-  const updateType = types.includes('version-update:semver-minor') ? 'version-update:semver-minor' : 'version-update:semver-patch';
+  if (!types.length || types.some(t => !['version-update:semver-patch', 'version-update:semver-minor', 'version-update:semver-major'].includes(t))) return null;
+  const updateType = types.includes('version-update:semver-major') ? 'version-update:semver-major' : types.includes('version-update:semver-minor') ? 'version-update:semver-minor' : 'version-update:semver-patch';
   for (const ecosystem of ecosystems) {
     const metadata = { ecosystem, updateType, maintainerChanges: 'false' };
     if (policy.autoMergeMetadata(metadata, files)) return metadata;
@@ -59,7 +59,9 @@ async function snapshotMetadata(args, depth = 0) {
 }
 async function provenance(args, depth = 0) {
   const { github, context, pr, files, comments, commits } = args;
-  if (depth > 4) return null;
+  if (depth > 16) return null;
+  const resolved = await require('./dependency-resolution.cjs').provenance(args, depth);
+  if (resolved) return resolved;
   const normal = signedMetadata(commits, files);
   if (normal) {
     if (!canonical(files) || commits[0].parents?.length !== 1) return null;
@@ -103,7 +105,7 @@ async function candidate({ github, context, number, now = new Date() }) {
   requireMain(context);
   const { pr, files, comments } = await policy.getPull({ github, context, number });
   const sourceFile = require('./claude-dependency-repair.cjs').sourceFile;
-  if (files.length > 66 ||
+  if (files.length > 82 ||
     !policy.eligiblePull(pr, files.filter(f => !sourceFile(f.filename)), 'no-automerge', comments) ||
     pr.labels.some(l => l.name === 'no-rebase')) return null;
   const commits = await github.paginate(github.rest.pulls.listCommits, { ...context.repo, pull_number: number, per_page: 100 });

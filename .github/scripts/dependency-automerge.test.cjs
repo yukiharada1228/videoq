@@ -16,12 +16,12 @@ test('local inference dependency updates use their own supported manifest and im
   assert.equal(policy.autoMergeMetadata(metadata('uv'), [file('apps/inference/whisper/server.py')]), false);
 });
 
-test('verified minor and patch updates qualify; major and missing metadata do not', () => {
+test('verified major, minor and patch updates qualify; missing metadata does not', () => {
   const files = [file('package.json'), file('package-lock.json')];
-  for (const type of ['version-update:semver-minor', 'version-update:semver-patch']) {
+  for (const type of ['version-update:semver-major', 'version-update:semver-minor', 'version-update:semver-patch']) {
     assert.equal(policy.autoMergeMetadata(metadata('npm_and_yarn', type), files), true);
   }
-  for (const type of ['', 'version-update:semver-major', 'semver-patch']) {
+  for (const type of ['', 'semver-patch']) {
     assert.equal(policy.autoMergeMetadata(metadata('npm_and_yarn', type), files), false);
   }
   for (const maintainerChanges of ['true', '', undefined]) {

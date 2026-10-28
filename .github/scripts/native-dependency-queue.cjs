@@ -123,7 +123,11 @@ async function reconcile({ github, writerGithub, context, verify = queue.verifie
     }
     if (pr.mergeable === false) {
       await cancel(writerGithub, context, pr);
-      summary.push(`#${pr.number}: merge conflict requires review or a Dependabot refresh`);
+      if (repairEnabled && candidate.kind === 'dependabot') {
+        if (authorizeRepair) await prepareRepair({ github, writerGithub, context, mode: 'conflict', number: pr.number, baseSha: main.commit.sha });
+        else wake = true;
+      }
+      summary.push(`#${pr.number}: automatic conflict resolution requested`);
       continue;
     }
     if (records(candidate.comments || []).some(entry => entry.kind === 'stopped' && entry.sha === pr.head.sha)) {
@@ -155,10 +159,7 @@ async function reconcile({ github, writerGithub, context, verify = queue.verifie
       const ci = rows.find(row => row.workflow_id === 'ci.yml');
       if (!repairEnabled || candidate.kind !== 'dependabot' || !ci?.admitted || ci.run?.conclusion !== 'failure') continue;
       const comments = candidate.comments || [];
-      const attempts = repair.records(comments, 'attempt');
-      if (attempts.some(attempt => attempt.sha === pr.head.sha) ||
-          repair.records(comments, 'security-stop').some(record => record.sha === pr.head.sha) ||
-          (attempts.length >= 2 && repair.records(comments, 'stopped').length)) continue;
+      if (!await repair.mayAttempt({ github, context, comments, head: pr.head.sha })) continue;
       if (authorizeRepair) await prepareRepair({ github, writerGithub, context, runId: ci.run.id });
       else wake = true;
       continue;

@@ -74,7 +74,6 @@ function eligiblePull(pr, files, optOut, comments = [], state = 'open') {
     pr.base?.repo?.full_name === REPOSITORY && pr.base.ref === 'main' &&
     pr.head.ref.startsWith('dependabot/') && /^[a-f0-9]{40}$/.test(pr.head.sha) &&
     !pr.labels.some(label => label.name === optOut) &&
-    (!merge || !comments.some(isRepairRequest)) &&
     files.length > 0 && files.length <= (merge ? 50 : 10) &&
     files.every(file => merge
       ? ['github_actions', ...Object.keys(ecosystemFiles)].some(ecosystem => dependencyFile(file, ecosystem))
@@ -82,7 +81,7 @@ function eligiblePull(pr, files, optOut, comments = [], state = 'open') {
 }
 
 function autoMergeMetadata(metadata, files) {
-  return ['version-update:semver-patch', 'version-update:semver-minor'].includes(metadata.updateType) &&
+  return ['version-update:semver-patch', 'version-update:semver-minor', 'version-update:semver-major'].includes(metadata.updateType) &&
     metadata.maintainerChanges === 'false' &&
     files.length > 0 && files.length <= 50 &&
     files.every(file => dependencyFile(file, metadata.ecosystem)) &&

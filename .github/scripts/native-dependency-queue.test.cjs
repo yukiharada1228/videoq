@@ -87,15 +87,21 @@ test('PR metadata events wake trusted main rather than authorize a model', async
   const f = fixture(); f.outcome = 'failure'; await native.reconcile({ ...f.args, repairEnabled: true });
   assert.equal(f.repairs.length, 0); assert.equal(f.dispatches[0].workflow_id, 'dependency-queue.yml');
 });
-test('security stops and already attempted heads never dispatch another model job', async () => {
-  for (const receipt of [{ kind: 'attempt', sha: SHA }, { kind: 'security-stop', sha: SHA }, { kind: 'stopped' }]) {
-    const f = fixture(); f.outcome = 'failure';
-    for (const data of [receipt, ...(receipt.kind === 'stopped' ? [{ kind: 'attempt', sha: BASE }, { kind: 'attempt', sha: GROUP }] : [])]) {
-      f.comments.push({ user: { login: 'github-actions[bot]' }, body: '<!-- videoq-claude-dependency-v1 -->\n' + JSON.stringify(data) });
-    }
-    await native.reconcile({ ...f.args, repairEnabled: true, authorizeRepair: true });
-    assert.equal(f.repairs.length, 0);
-  }
+test('only current-policy repair attempts prevent duplicate dispatch; old scope limits can recover', async () => {
+  const f = fixture(); f.outcome = 'failure';
+  f.comments.push({ user: { login: 'github-actions[bot]' }, body: '<!-- videoq-claude-dependency-v1 -->\n' + JSON.stringify({ kind: 'attempt', policy: 2, sha: SHA }) });
+  await native.reconcile({ ...f.args, repairEnabled: true, authorizeRepair: true });
+  assert.equal(f.repairs.length, 0);
+  const old = fixture(); old.outcome = 'failure';
+  old.comments.push({ user: { login: 'github-actions[bot]' }, body: '<!-- videoq-claude-dependency-v1 -->\n' + JSON.stringify({ kind: 'attempt', sha: SHA }) });
+  await native.reconcile({ ...old.args, repairEnabled: true, authorizeRepair: true });
+  assert.equal(old.repairs.length, 1);
+});
+test('a verified conflict authorizes only the affected PR and exact main through the shared worker', async () => {
+  const f = fixture(); f.pr.mergeable = false;
+  await native.reconcile({ ...f.args, repairEnabled: true, authorizeRepair: true });
+  assert.equal(f.reserved.length, 0); assert.equal(f.repairs.length, 1);
+  assert.equal(f.repairs[0].mode, 'conflict'); assert.equal(f.repairs[0].number, 1); assert.equal(f.repairs[0].baseSha, BASE);
 });
 test('historical duplicate notices cannot consume a remaining repair for a different head', async () => {
   const f = fixture(); f.outcome = 'failure';
