@@ -20,7 +20,8 @@ function fixture(repaired = false) {
       head: { ref: 'dependabot/npm_and_yarn/update', sha: repaired ? B : A, repo: { full_name: repo } },
       base: { ref: 'main', sha: C, repo: { full_name: repo } } },
     comments: [seed()], commits: [bot()], original: [{ filename: 'package-lock.json', status: 'modified' }],
-    diff: [source()], mutations: [], jobs: ['Supply Chain Security', 'Deployment Security Tests'].map(name => ({ name, conclusion: 'success' })),
+    diff: [source()], mutations: [], jobs: [...['Supply Chain Security', 'Deployment Security Tests'].map(name => ({ name, conclusion: 'success' })),
+      { name: 'Hono (apps/api)', conclusion: repaired ? 'success' : 'failure' }],
     protection: { required_status_checks: { strict: true, checks: ['CI Success', 'Supply Chain Security'].map(context => ({ context, app_id: 15368 })) } },
   };
   if (repaired) { f.comments.push(receipt()); f.commits.push({ sha: B, parents: [{ sha: A }] }); }
@@ -105,6 +106,18 @@ test('security failures stop before invoking Claude', async () => {
   assert.equal(await p.scope(f), null);
   assert.equal(p.records(f.comments, 'attempt').length, 0);
   assert.equal(p.records(f.comments, 'security-stop').length, 1);
+});
+test('coverage upload failures and aggregate failures cannot consume source repair attempts', async () => {
+  const f = fixture();
+  f.jobs = f.jobs.filter(job => job.conclusion === 'success');
+  f.jobs.push({ name: 'Frontend Coverage', conclusion: 'failure' }, { name: 'CI Success', conclusion: 'failure' });
+  assert.equal(await p.scope(f), null);
+  assert.equal(p.records(f.comments, 'attempt').length, 0);
+});
+test('an actual application failure can be repaired while coverage reporting is unavailable', async () => {
+  const f = fixture(); f.jobs.push({ name: 'Frontend Coverage', conclusion: 'failure' });
+  assert.equal((await p.scope(f)).sha, A);
+  assert.equal(p.records(f.comments, 'attempt').length, 1);
 });
 test('repair preparation cancels auto-merge with the App while keeping records on the standard token', async () => {
   const f = fixture(); f.pr.auto_merge = {};

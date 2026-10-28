@@ -41,6 +41,14 @@ test('successful eligible PR queues its exact head without a main rebase or issu
   const f = fixture(); await native.reconcile(f.args);
   assert.deepEqual(f.reserved, [{ number: 1, sha: SHA }]); assert.equal(f.comments.length, 0); assert.equal(f.dispatches.length, 0);
 });
+test('an existing conflict cannot block a later eligible update or trigger a routine rebase', async () => {
+  const f = fixture(); f.pr.mergeable = false;
+  const later = { ...structuredClone(f.pr), number: 2, node_id: 'PR_2', mergeable: true };
+  f.github.rest.pulls.list = async () => [f.pr, later];
+  f.github.rest.pulls.get = async ({ pull_number }) => ({ data: pull_number === 1 ? f.pr : later });
+  await native.reconcile({ ...f.args, verify: async ({ pr }) => ({ pr, kind: 'dependabot' }) });
+  assert.deepEqual(f.reserved, [{ number: 2, sha: SHA }]);
+});
 test('the real native mutation enqueues with an expected head instead of enabling unattended auto-merge', async () => {
   const f = fixture(); await native.reconcile({ ...f.args, reserve: undefined });
   assert.equal(f.mutations.length, 1);
