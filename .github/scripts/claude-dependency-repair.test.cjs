@@ -125,10 +125,14 @@ test('fresh checkout validates real patches including file modes and line limits
 });
 test('workflow keeps model access read-only and publishing isolated', () => {
   const workflow = readFileSync(join(__dirname, '../workflows/claude-dependency-repair.yml'), 'utf8');
-  const repair = workflow.split('\n  repair:')[1].split('\n  publish:')[0];
+  const repair = readFileSync(join(__dirname, '../workflows/claude-dependency-worker.yml'), 'utf8');
   assert.doesNotMatch(repair, /PATCH_BOT_PRIVATE_KEY|contents: write|pull-requests: write/);
   assert.match(repair, /persist-credentials: false/);
-  for (const action of workflow.matchAll(/uses: ([^\s]+)/g)) assert.match(action[1], /@[a-f0-9]{40}$/);
+  assert.match(repair, /workflow_call:/);
+  assert.match(repair, /Revalidate the trusted repair authorization/);
+  for (const action of (workflow + repair).matchAll(/uses: ([^\s]+)/g)) {
+    if (!action[1].startsWith('./')) assert.match(action[1], /@[a-f0-9]{40}$/);
+  }
   assert.match(workflow, /--match-head-commit/);
   assert.match(workflow, /group: dependency-automation-\$\{\{ needs\.decide\.outputs\.number \}\}/);
 });
