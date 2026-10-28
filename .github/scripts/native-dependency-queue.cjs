@@ -88,10 +88,13 @@ async function reproduceGroupFailure({ github, writerGithub, context, verify = q
 }
 
 async function reconcile({ github, writerGithub, context, verify = queue.verified, evidence = queue.runs,
-  reserve, repairEnabled = false, authorizeRepair = false, prepareRepair = queue.repairFailure,
+  reserve, retry = 0, repairEnabled = false, authorizeRepair = false, prepareRepair = queue.repairFailure,
   saveSummary = async () => {} }) {
   if (`${context.repo.owner}/${context.repo.repo}` !== REPO || context.ref !== 'refs/heads/main') {
     throw new Error('Native automation requires canonical main.');
+  }
+  if (retry && (!Number.isSafeInteger(retry) || retry < 1 || context.eventName !== 'workflow_dispatch')) {
+    throw new Error('Explicit retries require a main workflow dispatch.');
   }
   const { data: protection } = await writerGithub.rest.repos.getBranchProtection({ ...context.repo, branch: 'main' });
   const { data: rules } = await writerGithub.rest.repos.getRulesForBranch({ ...context.repo, branch: 'main' });
@@ -116,6 +119,20 @@ async function reconcile({ github, writerGithub, context, verify = queue.verifie
       await cancel(writerGithub, context, pr);
       summary.push(`#${pr.number}: queue failure retry limit reached`);
       continue;
+    }
+    // One-time cutover/recovery only. Ordinary main pushes never enter this path.
+    if (retry === pr.number) {
+      const { data: behind } = await github.rest.repos.compareCommits({ ...context.repo, base: main.commit.sha, head: pr.head.sha });
+      if (behind.behind_by > 0) {
+        if (candidate.kind === 'runtime') await github.rest.actions.createWorkflowDispatch({
+          ...context.repo, workflow_id: 'runtime-updates.yml', ref: 'main',
+          inputs: { dry_run: 'false', runtime: candidate.runtime, channel: 'current' },
+        });
+        else await require('./dependency-rebase.cjs').update({ github, writerGithub, context,
+          number: pr.number, expectedSha: pr.head.sha, nativeQueue: true });
+        summary.push(`#${pr.number}: explicit main synchronization requested`);
+        continue;
+      }
     }
     if (candidate.seedHead) await repair.seed({ github, context,
       pr: { ...pr, head: { ...pr.head, sha: candidate.seedHead } }, metadata: candidate.metadata });

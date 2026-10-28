@@ -64,6 +64,10 @@ enforcement, set `DEPENDENCY_QUEUE_MODE=native`, then restore auto-merge and dis
 the controller once. Do not clear required checks during this transition. Normal
 developer PRs also use GitHub's native queue when the rule applies to main.
 
+Existing bot PRs created before the owner change need one explicit controller
+dispatch with their PR number in `retry` to incorporate the new workflow policy.
+This is a one-time cutover step, not a recurring main synchronization loop.
+
 The native configuration builds one merge group at a time, with one PR in it and
 merge commits preserving parent ancestry. This avoids speculative builds being
 invalidated by preceding PRs. A proven group failure can sync only its current PR
