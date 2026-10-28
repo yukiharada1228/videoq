@@ -76,7 +76,8 @@ function result(rows) {
   if (rows.every(r => r.admitted && r.run?.status === 'completed' && r.run.conclusion === 'success')) return 'success';
   return 'waiting';
 }
-async function reconcile({ github, writerGithub, context, issue, retry = 0, saveSummary = async () => {}, verify = verified }) {
+async function reconcile({ github, writerGithub, context, issue, retry = 0, saveSummary = async () => {}, verify = verified,
+  reserve = async () => { throw new Error('Merge reservation callback required'); } }) {
   if (`${context.repo.owner}/${context.repo.repo}` !== REPO || context.ref !== 'refs/heads/main') throw new Error('Queue requires trusted main');
   const loaded = await load({ github, context, issue });
   const state = loaded.state;
@@ -145,7 +146,10 @@ async function reconcile({ github, writerGithub, context, issue, retry = 0, save
     const text = `実行中: ${state.active ? '#' + state.active : 'なし'}\n\n` + Object.entries(entries).map(([n, row]) => `- #${n}: ${state.failed[n] === row.sha ? 'failed' : row.mode}`).join('\n');
     const body = `${MARKER}\n${JSON.stringify(state)}\n\n${text}`;
     if (loaded.comment) await github.rest.issues.updateComment({ ...context.repo, comment_id: loaded.comment.id, body });
-    else await github.rest.issues.createComment({ ...context.repo, issue_number: issue, body });
+    else {
+      const { data } = await github.rest.issues.createComment({ ...context.repo, issue_number: issue, body });
+      loaded.comment = data;
+    }
     await saveSummary(text);
   }
   // Publish the lease before rerunning read-only CI. Missing leases fail closed.
@@ -195,7 +199,7 @@ async function reconcile({ github, writerGithub, context, issue, retry = 0, save
             !current.labels.some(l => ['no-automerge', 'no-runtime-update', 'no-rebase'].includes(l.name))) {
           const { data: protection } = await writerGithub.rest.repos.getBranchProtection({ ...context.repo, branch: 'main' });
           policy.requireProtection(protection, active.kind === 'runtime' ? 'docker' : active.metadata.ecosystem);
-          await writerGithub.graphql('mutation($id:ID!){enablePullRequestAutoMerge(input:{pullRequestId:$id,mergeMethod:SQUASH}){clientMutationId}}', { id: current.node_id });
+          await reserve({ number: current.number, sha: current.head.sha });
         }
       }
     }

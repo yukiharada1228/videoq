@@ -12,7 +12,7 @@ function fixture(pulls = [pr(1), pr(2)]) {
   const methods = {
     issues: {
       listComments: async () => f.comments,
-      createComment: async data => { f.comments.push({ id: 1, user: { login: 'github-actions[bot]' }, body: data.body }); },
+      createComment: async data => { const comment = { id: 1, user: { login: 'github-actions[bot]' }, body: data.body }; f.comments.push(comment); return { data: comment }; },
       updateComment: async data => { f.comments[0].body = data.body; },
     },
     repos: { getBranch: async () => ({ data: { commit: { sha: BASE } } }),

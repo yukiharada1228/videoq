@@ -51,6 +51,8 @@ jobs:
           RETRY: ${{ inputs.retry }}
           RUNTIME_AUTOMERGE_ENABLED: ${{ vars.RUNTIME_AUTOMERGE_ENABLED }}
           APP_TOKEN: ${{ steps.app.outputs.token }}
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          GH_REPO: ${{ github.repository }}
         with:
           script: |
             // pull_request_target has a base-branch ref; force the trusted-main
@@ -60,4 +62,5 @@ jobs:
               github, writerGithub: new github.constructor({ auth: process.env.APP_TOKEN }), context: trusted,
               issue: Number(process.env.QUEUE_ISSUE), retry: Number(process.env.RETRY || 0),
               saveSummary: text => core.summary.addRaw(text).write(),
+              reserve: ({ number, sha }) => exec.exec('gh', ['pr', 'merge', String(number), '--auto', '--squash', '--match-head-commit', sha]),
             });
