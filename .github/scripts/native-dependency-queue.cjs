@@ -12,6 +12,18 @@ async function record(github, context, number, value, text) {
   await github.rest.issues.createComment({ ...context.repo, issue_number: number,
     body: `${MARKER}\n${JSON.stringify(value)}\n\n${text}` });
 }
+async function entry(writerGithub, context, number) {
+  const data = await writerGithub.graphql(
+    'query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){mergeQueueEntry{id}}}}',
+    { owner: context.repo.owner, name: context.repo.repo, number });
+  return data.repository.pullRequest.mergeQueueEntry;
+}
+async function cancel(writerGithub, context, pr) {
+  if (await entry(writerGithub, context, pr.number)) await writerGithub.graphql(
+    'mutation($id:ID!){dequeuePullRequest(input:{id:$id}){clientMutationId}}', { id: pr.node_id });
+  if (pr.auto_merge) await writerGithub.graphql(
+    'mutation($id:ID!){disablePullRequestAutoMerge(input:{pullRequestId:$id}){clientMutationId}}', { id: pr.node_id });
+}
 
 function requireProtection(protection, rules) {
   const checks = protection.required_status_checks?.checks || [];
@@ -96,12 +108,12 @@ async function reconcile({ github, writerGithub, context, verify = queue.verifie
     const candidate = await verify({ github, context, pr: listed, base: main.commit.sha });
     const pr = candidate?.pr || (await github.rest.pulls.get({ ...context.repo, pull_number: listed.number })).data;
     if (!candidate) {
-      if (pr.auto_merge) await writerGithub.graphql(
-        'mutation($id:ID!){disablePullRequestAutoMerge(input:{pullRequestId:$id}){clientMutationId}}', { id: pr.node_id });
+      await cancel(writerGithub, context, pr);
       summary.push(`#${pr.number}: automatic eligibility could not be verified`);
       continue;
     }
     if (records(candidate.comments || []).some(entry => entry.kind === 'stopped' && entry.sha === pr.head.sha)) {
+      await cancel(writerGithub, context, pr);
       summary.push(`#${pr.number}: queue failure retry limit reached`);
       continue;
     }
@@ -111,6 +123,7 @@ async function reconcile({ github, writerGithub, context, verify = queue.verifie
     const outcome = queue.result(rows);
     summary.push(`#${pr.number}: ${outcome}`);
     if (outcome === 'failure') {
+      await cancel(writerGithub, context, pr);
       const ci = rows.find(row => row.workflow_id === 'ci.yml');
       if (!repairEnabled || candidate.kind !== 'dependabot' || !ci?.admitted || ci.run?.conclusion !== 'failure') continue;
       const comments = candidate.comments || [];
@@ -126,12 +139,11 @@ async function reconcile({ github, writerGithub, context, verify = queue.verifie
     const { data: current } = await github.rest.pulls.get({ ...context.repo, pull_number: pr.number });
     if (current.state !== 'open' || current.draft || current.head.sha !== pr.head.sha ||
         current.labels.some(label => ['no-automerge', 'no-runtime-update', 'no-rebase'].includes(label.name))) continue;
-    const queued = await writerGithub.graphql(
-      'query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){mergeQueueEntry{id}}}}',
-      { owner: context.repo.owner, name: context.repo.repo, number: pr.number });
-    if (queued.repository.pullRequest.mergeQueueEntry || current.auto_merge) continue;
-    if (!reserve) throw new Error('Native queue reservation callback required.');
-    await reserve({ number: current.number, sha: current.head.sha });
+    if (await entry(writerGithub, context, pr.number)) continue;
+    if (reserve) await reserve({ number: current.number, sha: current.head.sha });
+    else await writerGithub.graphql(
+      'mutation($id:ID!,$sha:GitObjectID!){enqueuePullRequest(input:{pullRequestId:$id,expectedHeadOid:$sha}){clientMutationId}}',
+      { id: current.node_id, sha: current.head.sha });
   }
   if (wake) await github.rest.actions.createWorkflowDispatch({
     ...context.repo, workflow_id: 'dependency-queue.yml', ref: 'main',

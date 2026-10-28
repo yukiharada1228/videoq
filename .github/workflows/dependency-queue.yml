@@ -69,5 +69,6 @@ jobs:
               repairEnabled: process.env.REPAIR_ENABLED === 'true',
               authorizeRepair: ['push', 'workflow_run', 'workflow_dispatch'].includes(context.eventName),
               saveSummary: text => core.summary.addRaw(text).write(),
-              reserve: ({ number, sha }) => exec.exec('gh', ['pr', 'merge', String(number), '--auto', '--squash', '--match-head-commit', sha]),
+              reserve: process.env.QUEUE_MODE === 'native' ? undefined
+                : ({ number, sha }) => exec.exec('gh', ['pr', 'merge', String(number), '--auto', '--squash', '--match-head-commit', sha]),
             });

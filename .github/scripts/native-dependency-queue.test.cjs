@@ -46,7 +46,7 @@ test('native protection fails closed for missing checks, spoofed apps, missing q
 });
 test('queued PRs are left to GitHub and an unverified bot proposal loses auto-merge', async () => {
   const f = fixture(); f.queued = true; await native.reconcile(f.args); assert.equal(f.reserved.length, 0);
-  f.proofs = false; f.pr.auto_merge = {}; await native.reconcile(f.args); assert.deepEqual(f.disabled, ['PR_1']);
+  f.proofs = false; f.pr.auto_merge = {}; await native.reconcile(f.args); assert.deepEqual(f.disabled, ['PR_1', 'PR_1']);
 });
 test('a normal eligible CI failure uses the existing bounded Claude authorizer', async () => {
   const f = fixture(); f.outcome = 'failure'; await native.reconcile({ ...f.args, repairEnabled: true, authorizeRepair: true });
