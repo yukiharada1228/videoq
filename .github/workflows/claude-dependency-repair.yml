@@ -36,7 +36,9 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
-          claude_args: '--tools "" --max-turns 1'
+          # Empty --tools values are dropped by the Action's SDK argument parser.
+          # Offer only Read, then deny it, so no built-in tools remain.
+          claude_args: '--tools Read --disallowedTools Read --max-turns 1'
           prompt: 'Authentication test only. Reply exactly: Claude subscription authentication succeeded. Do not use tools or change any files.'
   inspect:
     if: >-
