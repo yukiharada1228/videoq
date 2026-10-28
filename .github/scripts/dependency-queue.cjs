@@ -45,7 +45,10 @@ async function verified({ github, context, pr }) {
   const sourceFile = require('./claude-dependency-repair.cjs').sourceFile;
   if (pull.pr.labels.some(l => l.name === 'no-rebase') || !policy.eligiblePull(pull.pr, pull.files.filter(f => !sourceFile(f.filename)), 'no-automerge', pull.comments)) return null;
   const proof = await sync.provenance({ github, context, ...pull, commits });
-  return proof ? { ...pull, kind: 'dependabot', ...proof } : null;
+  if (!proof) return null;
+  const original = proof.originalCommits || commits;
+  const seedHead = policy.verifiedDependencyCommits(original, proof.originalHead) ? proof.originalHead : undefined;
+  return { ...pull, kind: 'dependabot', ...proof, seedHead };
 }
 async function checkpoint({ github, context, pr, status, summary, base }) {
   const checks = await github.paginate(github.rest.checks.listForRef, { ...context.repo, ref: pr.head.sha, check_name: NAME, per_page: 100 });
@@ -121,6 +124,8 @@ async function reconcile({ github, writerGithub, context, issue, retry = 0, save
   let activeRuns = [];
   let behind = false;
   if (active) {
+    if (active.seedHead) await require('./claude-dependency-repair.cjs').seed({ github, context,
+      pr: { ...active.pr, head: { ...active.pr.head, sha: active.seedHead } }, metadata: active.metadata });
     const { data: comparison } = await github.rest.repos.compareCommits({ ...context.repo, base, head: active.pr.head.sha });
     behind = comparison.behind_by > 0;
     if (!behind) {
