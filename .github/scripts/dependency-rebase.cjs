@@ -59,7 +59,7 @@ async function snapshotMetadata(args, depth = 0) {
 }
 async function provenance(args, depth = 0) {
   const { github, context, pr, files, comments, commits } = args;
-  if (depth > 8) return null;
+  if (depth > 16) return null;
   const resolved = await require('./dependency-resolution.cjs').provenance(args, depth);
   if (resolved) return resolved;
   const normal = signedMetadata(commits, files);

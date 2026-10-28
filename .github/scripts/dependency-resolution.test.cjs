@@ -71,7 +71,7 @@ test('in-flight workers block duplicate dispatch; completed failures may retry t
 });
 test('lockfile target extraction covers transitive npm, Python and Terraform upgrades', () => {
   assert.deepEqual(resolution.lockVersions('package-lock.json', JSON.stringify({ packages: { 'node_modules/example': { version: '2.0.0' } } })), { 'node_modules/example': '2.0.0' });
-  assert.deepEqual(resolution.lockVersions('apps/worker/uv.lock', 'version = 1\n[[package]]\nname = "example"\nversion = "2.0.0"\n'), { example: '2.0.0' });
+  assert.deepEqual(resolution.lockVersions('apps/worker/uv.lock', 'version = 1\n[[package]]\nname = "example"\nversion = "2.0.0"\n'), { 'example==2.0.0': '2.0.0' });
   assert.deepEqual(resolution.lockVersions('infra/.terraform.lock.hcl', 'provider "registry.terraform.io/hashicorp/aws" {\n  version = "6.0.0"\n}\n'), { 'registry.terraform.io/hashicorp/aws': '6.0.0' });
 });
 test('conflict resolution retains requested direct dependency upgrades, including major versions', async () => {
@@ -80,6 +80,15 @@ test('conflict resolution retains requested direct dependency upgrades, includin
   assert.equal(await resolution.preservedTargets({ ...f, proof, ref: D }), true);
   f.proposed = manifest('1');
   assert.equal(await resolution.preservedTargets({ ...f, proof, ref: D }), false);
+});
+test('large lockfile content is verified through the exact blob instead of omitted contents metadata', async () => {
+  const f = fixture(); const proof = (await resolution.candidate(f)).proof; const blobs = [];
+  f.github.rest.repos.getContent = async ({ ref }) => ({ data: { type: 'file', encoding: 'none', sha: ref } });
+  f.github.rest.git.getBlob = async ({ file_sha }) => {
+    blobs.push(file_sha); return { data: { encoding: 'base64', content: Buffer.from(file_sha === C ? manifest('1') : manifest('2')).toString('base64') } };
+  };
+  assert.equal(await resolution.preservedTargets({ ...f, proof, ref: D }), true);
+  assert.deepEqual(blobs, [C, A, D]);
 });
 test('a merge receipt requires exact parents, trusted main ancestry and the original upgrade', async () => {
   const f = fixture(); f.comments.push(comment({ kind: 'published', policy: 2, mode: 'conflict',
@@ -91,6 +100,21 @@ test('a merge receipt requires exact parents, trusted main ancestry and the orig
   f.proposed = manifest('2');
   f.github.rest.git.getCommit = async () => ({ data: { parents: [{ sha: A }, { sha: C }] } });
   assert.equal(await resolution.provenance({ ...f, pr: f.pr, files: f.files, comments: f.comments }), null);
+});
+test('a CI compatibility patch after a resolved merge retains verifiable original update provenance', async () => {
+  const f = fixture(); const E = 'e'.repeat(40);
+  f.comments.push(comment({ kind: 'published', policy: 2, mode: 'conflict', sha: D, parent: A, base: B, origin: A, originalBase: C, runId: '77' }),
+    comment({ kind: 'published', policy: 2, mode: 'ci', sha: E, parent: D, origin: A, originalBase: C, runId: '78' }));
+  const source = { filename: 'apps/web/.storybook/vite.config.ts', status: 'modified', patch: '-old\n+new', changes: 2 };
+  const original = f.github.rest.repos.compareCommitsWithBasehead;
+  f.github.rest.repos.compareCommitsWithBasehead = async args => {
+    if (args.basehead === `${C}...${D}`) return { data: { total_commits: 2, commits: [...f.commits, { sha: D, parents: [{ sha: A }, { sha: B }] }], files: f.files } };
+    if (args.basehead === `${D}...${E}`) return { data: { total_commits: 1, files: [source] } };
+    return original(args);
+  };
+  f.github.rest.git.getCommit = async ({ commit_sha }) => ({ data: { parents: commit_sha === E ? [{ sha: D }] : [{ sha: A }, { sha: B }] } });
+  const proof = await resolution.provenance({ ...f, pr: { ...f.pr, head: { ...f.pr.head, sha: E } }, files: [...f.files, source] });
+  assert.equal(proof.originalHead, A); assert.equal(proof.metadata.updateType, 'version-update:semver-major');
 });
 function checkout(t) {
   const cwd = mkdtempSync(join(tmpdir(), 'videoq-conflict-'));

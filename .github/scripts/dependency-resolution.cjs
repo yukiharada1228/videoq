@@ -24,7 +24,7 @@ function allowedFiles(files, metadata) {
 // A receipt alone cannot launder an arbitrary branch or a human follow-up commit.
 async function provenance(args, depth = 0) {
   const { github, context, pr, files, comments } = args;
-  if (depth > 8) return null;
+  if (depth > 16) return null;
   const receipt = repair().records(comments, 'published').find(r => r.policy === 2 && r.sha === pr.head.sha &&
     [r.parent, r.origin, r.originalBase].every(sha) && /^\d+$/.test(String(r.runId)));
   if (!receipt || !['ci', 'conflict'].includes(receipt.mode)) return null;
@@ -85,7 +85,12 @@ async function scope(args) {
 }
 
 async function content(github, context, ref, path) {
-  const { data } = await github.rest.repos.getContent({ ...context.repo, ref, path });
+  // package-lock.json is >1 MB: contents metadata omits content at that size.
+  // Fetch its exact blob rather than following an unvalidated download URL.
+  let { data } = await github.rest.repos.getContent({ ...context.repo, ref, path });
+  if (data.type === 'file' && data.encoding === 'none' && sha(data.sha)) {
+    data = { ...(await github.rest.git.getBlob({ ...context.repo, file_sha: data.sha })).data, type: 'file' };
+  }
   if (data.type !== 'file' || data.encoding !== 'base64') throw new Error('Cannot verify dependency target');
   return Buffer.from(data.content, 'base64').toString('utf8');
 }
@@ -97,7 +102,7 @@ function lockVersions(path, text) {
     .filter(([, value]) => value.version).map(([name, value]) => [name, value.version]));
   if (path.endsWith('uv.lock')) return Object.fromEntries(text.split(/^\[\[package\]\]\s*$/m).slice(1).flatMap(block => {
     const name = /^name = "([^"]+)"$/m.exec(block)?.[1], version = /^version = "([^"]+)"$/m.exec(block)?.[1];
-    return name && version ? [[name, version]] : [];
+    return name && version ? [[`${name}==${version}`, version]] : [];
   }));
   if (path.endsWith('.terraform.lock.hcl')) return Object.fromEntries([...text.matchAll(/^provider "([^"]+)" \{([\s\S]*?)^\}/gm)]
     .flatMap(([, name, block]) => { const version = /^\s*version\s*=\s*"([^"]+)"/m.exec(block)?.[1]; return version ? [[name, version]] : []; }));
