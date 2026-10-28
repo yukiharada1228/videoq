@@ -248,4 +248,4 @@ async function repairFailure({ github, writerGithub, context, runId }) {
   }
   return c;
 }
-module.exports = { managed, parse, admission, verified, result, requireQueueProtection, reconcile, repairFailure, NAME, MARKER };
+module.exports = { managed, parse, admission, verified, runs, result, requireQueueProtection, reconcile, repairFailure, NAME, MARKER };

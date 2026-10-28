@@ -30,9 +30,10 @@ jobs:
         env:
           QUEUE_ENABLED: ${{ vars.DEPENDENCY_QUEUE_ENABLED }}
           QUEUE_ISSUE: ${{ vars.DEPENDENCY_QUEUE_ISSUE }}
+          QUEUE_MODE: ${{ vars.DEPENDENCY_QUEUE_MODE }}
         with:
           script: |
-            if (process.env.QUEUE_ENABLED !== 'true') { core.setOutput('run', true); return; }
+            if (process.env.QUEUE_ENABLED !== 'true' || process.env.QUEUE_MODE === 'native') { core.setOutput('run', true); return; }
             const run = await require('./.github/scripts/dependency-queue.cjs').admission({
               github, context, issue: Number(process.env.QUEUE_ISSUE), enabled: true,
             });

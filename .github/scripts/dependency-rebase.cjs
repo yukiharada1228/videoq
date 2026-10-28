@@ -125,7 +125,10 @@ async function update(args) {
   const c = await candidate(args);
   if (!c || c.pr.head.sha !== expectedSha) return null;
   const { data: protection } = await writerGithub.rest.repos.getBranchProtection({ ...context.repo, branch: 'main' });
-  policy.requireProtection(protection, c.metadata.ecosystem);
+  if (args.nativeQueue === true) {
+    const { data: rules } = await writerGithub.rest.repos.getRulesForBranch({ ...context.repo, branch: 'main' });
+    require('./native-dependency-queue.cjs').requireProtection(protection, rules);
+  } else policy.requireProtection(protection, c.metadata.ecosystem);
   await record(github, context, number, { kind: 'requested', sha: expectedSha, base: c.base, at: now.toISOString() },
     '最新mainへの追従を自動実行します。依存更新の内容を維持し、追従後のCIを待ちます。');
   // Revalidate immediately before mutation; expectedHeadOid also rejects concurrent changes.

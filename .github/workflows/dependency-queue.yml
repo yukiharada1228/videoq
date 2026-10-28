@@ -50,6 +50,7 @@ jobs:
       - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           QUEUE_ISSUE: ${{ vars.DEPENDENCY_QUEUE_ISSUE }}
+          QUEUE_MODE: ${{ vars.DEPENDENCY_QUEUE_MODE }}
           RETRY: ${{ inputs.retry }}
           RUNTIME_AUTOMERGE_ENABLED: ${{ vars.RUNTIME_AUTOMERGE_ENABLED }}
           REPAIR_ENABLED: ${{ vars.CLAUDE_DEPENDENCY_REPAIR_ENABLED }}
@@ -58,7 +59,9 @@ jobs:
           GH_REPO: ${{ github.repository }}
         with:
           script: |
-            const controller = require('./.github/scripts/dependency-queue.cjs');
+            const controller = process.env.QUEUE_MODE === 'native'
+              ? require('./.github/scripts/native-dependency-queue.cjs')
+              : require('./.github/scripts/dependency-queue.cjs');
             const args = { github, writerGithub: new github.constructor({ auth: process.env.APP_TOKEN }), context };
             await controller.reconcile({
               ...args,
