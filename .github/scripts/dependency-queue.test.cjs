@@ -18,11 +18,6 @@ function fixture(pulls = [pr(1), pr(2)]) {
     repos: { getBranch: async () => ({ data: { commit: { sha: BASE } } }),
       compareCommits: async () => ({ data: { behind_by: f.behind } }) },
     pulls: { list: async () => f.pulls, get: async ({ pull_number }) => ({ data: f.pulls.find(p => p.number === pull_number) }) },
-    checks: {
-      listForRef: async ({ ref }) => f.checks.filter(c => c.head_sha === ref),
-      create: async data => { f.checks.push({ id: f.checks.length + 1, app: { id: 15368 }, conclusion: null, ...data }); },
-      update: async data => { Object.assign(f.checks.find(c => c.id === data.check_run_id), data); },
-    },
     actions: {
       listWorkflowRuns: async ({ workflow_id, head_sha }) => ({ data: { workflow_runs: [{ id: workflow_id === 'ci.yml' ? 11 : workflow_id === 'container-validation.yml' ? 12 : 13,
         head_sha, run_attempt: 1, status: 'completed', conclusion: f.conclusions[workflow_id] || 'success' }] } }),
@@ -77,7 +72,7 @@ test('old SHA or stale main cannot borrow an active slot', async () => {
 test('skipped CI cannot complete the required queue gate or cause endless reruns', async () => {
   const f = fixture(); await q.reconcile(f.args); await q.reconcile(f.args);
   assert.deepEqual(f.reruns, [11, 12]);
-  assert.equal(f.checks.some(c => c.conclusion === 'success'), false);
+  assert.equal(f.checks.length, 0);
   assert.equal(q.result([{ admitted: false, run: { status: 'completed', conclusion: 'success' } }]), 'waiting');
 });
 test('failed admitted CI releases the slot and advances without retrying the failed head', async () => {
@@ -133,12 +128,12 @@ test('unverified bot proposals lose auto-merge and still need actual full CI', a
   await q.reconcile({ ...f.args, verify: async () => null });
   assert.deepEqual(f.disabled, ['PR_1']);
   assert.equal(f.state().entries[1].mode, 'bypass');
-  assert.equal(f.checks.at(-1).conclusion, null);
+  assert.equal(f.checks.length, 0);
   assert.deepEqual(f.reruns, [11, 12]);
 });
 test('human PRs receive a queue exemption without altering their CI or merge reservation', async () => {
   const f = fixture([pr(1, 'developer')]); await q.reconcile(f.args);
-  assert.equal(f.checks.at(-1).conclusion, 'success');
+  assert.equal(f.checks.length, 0);
   assert.equal(f.reruns.length, 0);
   assert.equal(f.disabled.length, 0);
 });
@@ -147,11 +142,11 @@ test('manual bot PRs with pre-queue full CI do not rerun forever during migratio
   f.jobs[11] = [{ name: 'Deployment Security Tests' }];
   f.jobs[12] = [{ name: 'Container Validation' }];
   await q.reconcile({ ...f.args, verify: async () => null });
-  assert.equal(f.checks.at(-1).conclusion, 'success');
+  assert.equal(f.checks.length, 0);
   assert.equal(f.reruns.length, 0);
   f.jobs[11] = [{ name: 'Queue Admission', steps: [{ name: 'Queue slot admitted', conclusion: 'skipped' }] }];
   await q.reconcile({ ...f.args, verify: async () => null });
-  assert.equal(f.checks.at(-1).conclusion, null);
+  assert.equal(f.checks.length, 0);
   assert.deepEqual(f.reruns, [11]);
 });
 test('queue state ignores lookalike comments from other users', () => {
@@ -168,12 +163,12 @@ test('the sole controller refuses to act if any required gate or trusted check s
   const f = fixture(); f.protection.required_status_checks.checks.at(-1).app_id = 999;
   await assert.rejects(q.reconcile(f.args));
 });
-test('successful actual validations complete the gate and reserve the exact head only in the controller', async () => {
+test('successful actual validations reserve the exact head without creating synthetic CI gates', async () => {
   const f = fixture([pr(1)]); f.pulls[0].auto_merge = null;
   f.jobs[11] = admitted; f.jobs[12] = [{ ...admitted[0], name: 'Queue Admission / admission' }];
   const merges = [];
   await q.reconcile({ ...f.args, reserve: async args => merges.push(args) });
-  assert.equal(f.checks.at(-1).conclusion, 'success');
+  assert.equal(f.checks.length, 0);
   assert.deepEqual(merges, [{ number: 1, sha: SHA }]);
 });
 test('a coalesced workflow event still authorizes a current failed CI from durable queue state', async () => {

@@ -50,20 +50,6 @@ async function verified({ github, context, pr }) {
   const seedHead = policy.verifiedDependencyCommits(original, proof.originalHead) ? proof.originalHead : undefined;
   return { ...pull, kind: 'dependabot', ...proof, seedHead };
 }
-async function checkpoint({ github, context, pr, status, summary, base }) {
-  const checks = await github.paginate(github.rest.checks.listForRef, { ...context.repo, ref: pr.head.sha, check_name: NAME, per_page: 100 });
-  const previous = checks.filter(c => c.app?.id === 15368 && c.name === NAME).sort((a, b) => b.id - a.id)[0];
-  const conclusion = ['success', 'failure'].includes(status) ? status : undefined;
-  const desired = conclusion ? 'completed' : status;
-  const external_id = JSON.stringify({ number: pr.number, base });
-  if (previous?.status === desired && previous?.conclusion === (conclusion || null) && previous?.external_id === external_id && previous?.output?.summary === summary) return;
-  const fields = { ...context.repo, status: desired, ...(conclusion ? { conclusion, completed_at: new Date().toISOString() } : {}),
-    external_id, output: { title: NAME, summary } };
-  // Completed checks are immutable queue decisions; create a fresh pending gate
-  // if a previously tested head needs validation against a new main.
-  if (previous && previous.status !== 'completed') await github.rest.checks.update({ ...fields, check_run_id: previous.id });
-  else await github.rest.checks.create({ ...fields, name: NAME, head_sha: pr.head.sha });
-}
 async function runs({ github, context, pr }, allowLegacy = false) {
   return Promise.all(WORKFLOWS.map(async workflow_id => {
     const { data } = await github.rest.actions.listWorkflowRuns({ ...context.repo, workflow_id, head_sha: pr.head.sha, event: 'pull_request', per_page: 100 });
@@ -110,18 +96,12 @@ async function reconcile({ github, writerGithub, context, issue, retry = 0, save
   const candidates = [];
   const entries = {};
   for (const listed of pulls) {
-    if (!managed(listed)) {
-      await checkpoint({ github, context, pr: listed, status: 'success', summary: '通常の開発PRです。既存の必須CIとレビューが必要です。', base });
-      continue;
-    }
+    if (!managed(listed)) continue;
     const c = await verify({ github, context, pr: listed });
     const pr = c?.pr || (await github.rest.pulls.get({ ...context.repo, pull_number: listed.number })).data;
     if (!c) {
       entries[pr.number] = { sha: pr.head.sha, mode: 'bypass' };
       if (pr.auto_merge) await writerGithub.graphql('mutation($id:ID!){disablePullRequestAutoMerge(input:{pullRequestId:$id}){clientMutationId}}', { id: pr.node_id });
-      const status = result(await runs({ github, context, pr }, true));
-      await checkpoint({ github, context, pr, status: status === 'waiting' ? 'queued' : status,
-        summary: '自動マージ対象外です。実際の通常CI・手動レビューに回します。', base });
       continue;
     }
     entries[pr.number] = { sha: pr.head.sha, mode: 'waiting', base };
@@ -153,14 +133,6 @@ async function reconcile({ github, writerGithub, context, issue, retry = 0, save
         state.active = null;
       }
     }
-  }
-  for (const c of candidates) {
-    const pr = c.pr;
-    const failed = state.failed[pr.number] === pr.head.sha;
-    const isActive = state.active === pr.number;
-    const status = failed ? 'failure' : isActive ? (outcome === 'success' ? 'success' : 'in_progress') : 'queued';
-    const summary = failed ? 'CI失敗。修正コミットを待ち、次のPRを進めます。' : isActive ? `順番が来ました。main ${base} に追従し、実際に実行したCIの成功を待ちます。` : '順番待ちです。重いCIは開始しません。';
-    await checkpoint({ github, context, pr, status, summary, base });
   }
   async function save() {
     const text = `実行中: ${state.active ? '#' + state.active : 'なし'}\n\n` + Object.entries(entries).map(([n, row]) => `- #${n}: ${state.failed[n] === row.sha ? 'failed' : row.mode}`).join('\n');
@@ -199,8 +171,7 @@ async function reconcile({ github, writerGithub, context, issue, retry = 0, save
         state.failed[active.pr.number] = active.pr.head.sha;
         state.active = null;
         outcome = 'failure';
-        await checkpoint({ github, context, pr: active.pr, status: 'failure', base,
-          summary: `main追従を完了できませんでした。次のPRを進めます。${String(error.message).slice(0, 500)}` });
+        entries[active.pr.number].error = String(error.message).slice(0, 500);
         await save();
       }
     } else {
@@ -276,4 +247,4 @@ async function repairFailure({ github, writerGithub, context, runId }) {
   }
   return c;
 }
-module.exports = { managed, parse, admission, verified, checkpoint, result, requireQueueProtection, reconcile, repairFailure, NAME, MARKER };
+module.exports = { managed, parse, admission, verified, result, requireQueueProtection, reconcile, repairFailure, NAME, MARKER };

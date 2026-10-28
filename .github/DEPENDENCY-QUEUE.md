@@ -7,8 +7,10 @@ Dependabotの自動マージ可能なpatch/minor更新と、管理Botが生成�
 選択したPRだけを最新mainへ追従させ、CIとContainer Validationを実行する。
 1件のPR内では従来どおり各テストを並列実行する。待機PRは軽量なQueue Admissionだけ実行し、
 重いCI・コンテナビルドは保留する。Terraform PlanとCodeQLは従来どおり起動する。
-`Dependency Queue`必須チェックは、CI・Container Validation・Terraform Planが実際に実行されて成功するまで通さない。
-スキップされたワークフローの成功だけではマージできない。
+`Dependency Queue`はCIの実ジョブで、実行枠の確認とCIの成功を検証する。
+待機中は`Dependency Waiting`、`CI Waiting`、`Supply Chain Waiting`、`Container Waiting`という別名で報告し、
+必須チェックをスキップ成功で上書きしない。CI・Container Validation・Terraform Planが実際に成功してから
+コントローラーがマージする。Checks APIで独自の必須ゲートは作成しない。
 
 処理はPRイベント、main push、関連ワークフローの開始・完了イベントで進む。定期ポーリングはしない。
 CI失敗・安全にmain追従できないPRは、そのhead SHAを修正待ちとしてキューから外し、次のPRを進める。

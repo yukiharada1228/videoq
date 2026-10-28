@@ -26,7 +26,7 @@ jobs:
   supply-chain:
     needs: queue
     if: needs.queue.outputs.run == 'true'
-    name: Supply Chain Security
+    name: ${{ needs.queue.outputs.run == 'true' && 'Supply Chain Security' || 'Supply Chain Waiting' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -90,7 +90,7 @@ jobs:
         run: python3 .github/scripts/runtime-versions.py check
 
   ci-success:
-    name: CI Success
+    name: ${{ needs.queue.outputs.run == 'true' && 'CI Success' || 'CI Waiting' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: always() && needs.queue.outputs.run == 'true'
@@ -113,6 +113,24 @@ jobs:
             process.exit(1);
           }
           NODE
+
+  dependency-gate:
+    # Waiting runs must not publish a skipped/successful required check. GitHub
+    # keeps Dependency Queue expected until the selected PR actually passes CI.
+    name: ${{ needs.queue.outputs.run == 'true' && 'Dependency Queue' || 'Dependency Waiting' }}
+    needs: [queue, ci-success]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require the admitted CI result
+        env:
+          ADMISSION_RESULT: ${{ needs.queue.result }}
+          ADMITTED: ${{ needs.queue.outputs.run }}
+          CI_RESULT: ${{ needs.ci-success.result }}
+        run: |
+          test "$ADMISSION_RESULT" = success
+          if [ "$ADMITTED" = true ]; then test "$CI_RESULT" = success; fi
 
   changes:
     needs: queue

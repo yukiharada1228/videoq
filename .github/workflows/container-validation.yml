@@ -148,7 +148,7 @@ jobs:
           timeout: 15m
 
   result:
-    name: Container Validation
+    name: ${{ needs.queue.outputs.run == 'true' && 'Container Validation' || 'Container Waiting' }}
     needs: [queue, changes, validate, node-runtime, worker-image]
     if: always() && needs.queue.outputs.run == 'true'
     runs-on: ubuntu-latest

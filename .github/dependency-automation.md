@@ -61,7 +61,8 @@ Claudeの利用枠・認証エラー・ワーカーの実行失敗はPRまたは
   GitHubのrebaseで署名が引き継がれなくても、元の署名済み差分と追従記録を毎回照合する。
   Terraformの本番自動適用でも同じ検証を使う。
 - mainのstrictなブランチ保護と既存の必須CIを維持する。`Dependency Queue`は実際に実行された
-  最新headのCI・Container Validation・Terraform Planが成功するまでマージを許可しない。
+  最新headのCIの成功を確認する実ジョブとする。待機中は必須チェック名を出さず、スキップ成功で上書きしない。
+  コントローラーはContainer Validation・Terraform Planの実行結果も確認してからマージする。
 - 修正はnpm/Python更新に対してPR全体で最大2回。同じSHAを再実行しない。
   Supply Chain SecurityとDeployment Security Testsが成功していなければClaudeを起動しない。
 - Claudeの実行ジョブは読み取り専用GitHub tokenを使う。コントローラーの秘密鍵や書き込みtokenは渡さない。
