@@ -1,5 +1,63 @@
 # 依存関係の自動更新・修正
 
+## Claudeによる自動修正から自動マージまで
+
+`CLAUDE_DEPENDENCY_REPAIR_ENABLED=true` の場合、npm／Pythonのminor・patch更新で
+CIが失敗すると、Claude Codeがサブスク認証で互換性修正を実行する。本人のコメントや
+PCの常時起動は不要。成功した更新は従来の自動マージ経路を使う。
+
+```text
+Dependabot → CI成功 → 既存の自動マージ
+           → CI失敗 → Claudeで修正 → パッチ検証・GitHub Appで反映
+                                   → 通常CI成功 → 自動マージ
+                                   → 再失敗 → 2回目の修正／人へ通知
+```
+
+### 初回設定
+
+1. Claudeの対象サブスクで `claude setup-token` を実行し、発行された値をActions Secret
+   `CLAUDE_CODE_OAUTH_TOKEN` に保存する。値をPR、ログ、チャットへ貼らない。
+2. この変更をmainへ反映する。既存の `PATCH_BOT_APP_ID` と `PATCH_BOT_PRIVATE_KEY`、
+   `DEPENDENCY_AUTOMERGE_ENABLED=true`、strictなmain保護を利用する。
+3. **Claude Dependency Repair** をmainから `authentication_test=true` で実行し、サブスク認証を確認する。
+   この実行ではツールやPRの変更を許可しない。
+4. Actions Variable `CLAUDE_DEPENDENCY_REPAIR_ENABLED` を `true` にする。
+5. 新しいDependabot PRで動作を確認する。既存の依存ファイルのみのPRは
+   **Dependency Auto-merge** を再実行して検証済み更新情報を記録し、そのPRの最新CI run IDで
+   **Claude Dependency Repair** をmainから手動実行できる。
+
+トークンは通常のClaude利用と枠を共有する。利用上限・認証エラーで停止した場合はPRへ
+通知する。GitHub Actionsの実行時間・料金も別途発生し得る。
+
+### 判定と権限
+
+- 対象は同一リポジトリのmain向けDependabot PR。公式metadataによるminor／patch判定と、
+  元の全コミットのDependabot署名検証を既存ワークフローで行い、信頼済みBotコメントへ記録する。
+- mainの信頼済みスクリプトが、CI workflow ID、現在のhead、最新run／attempt、元の依存差分、
+  修正コミットの親子関係と反映記録をAPIで再検証する。人の追記・major・forkは対象外。
+- 修正はPR全体で最大2回。同じSHAは再実行しない。失敗・無変更も1回として数える。
+- Claudeには読み取り専用のGitHub tokenだけを渡す。別runnerの信頼済みジョブがパッチを
+  新しいcheckoutへ適用し、既存のソースファイルのみ・8ファイル以下・300変更行以下を検証する。
+  npm／Pythonの依存ファイル、テスト、設定、認証、資格情報、migration、CI、配備の変更は拒否する。
+- パッチ反映にはGitHub Appを使い、通常のPR CIを再実行する。Claude自身にはpush・マージを任せない。
+  最終マージは最新SHAとstrictなブランチ保護を確認して予約し、GitHubの必須検査をすべて待つ。
+- Supply Chain Security／Deployment Security Testsが成功していない場合はClaudeを起動せず通知する。
+  検査結果の例外追加・無効化はしない。ソース差分の内容が安全だと機械的に証明するものではない。
+- `no-claude`、`no-codex`、`no-automerge` は自動修正を止める。以前の手動Codex修正依頼が残るPRは
+  引き続き人が確認する。自動修正の有効時は旧Codex案内ワークフローを停止し、二重処理を防ぐ。
+
+停止は `CLAUDE_DEPENDENCY_REPAIR_ENABLED=false`。既に始まった実行はActionsからcancelする。
+予約済みのマージは別途 `gh pr merge PR番号 --disable-auto` で解除する。
+人による変更が必要になったPRは自動処理を止めて通常のレビューを行う。
+
+検証: `node --test .github/scripts/*.test.cjs` と
+`actionlint .github/workflows/claude-dependency-repair.yml .github/workflows/dependency-automerge.yml .github/workflows/codex-dependency-repair.yml`。
+
+参考: [Claude Code GitHub Actions](https://code.claude.com/docs/en/github-actions)、
+[公式Action設定](https://github.com/anthropics/claude-code-action/blob/main/docs/setup.md)。
+
+## 従来のCodexによる手動修正依頼（Claude自動修正が無効な場合）
+
 minor／patch更新はGitHubで自動マージし、CIが失敗した場合はGitHub連携のCodexへ修正を依頼する。
 修正にはChatGPTログインのCodex利用枠を使う。OpenAI APIキーの登録、認証ファイルの転送、
 PCの常時起動、ローカルの定期タスクは不要。
@@ -166,7 +224,7 @@ Helm は `requireImageDigests=true` で全イメージの digest 指定を必須
 経路が必要です。`On-prem Release` は CI 成功後に GHCR へ署名付きイメージを配布し、
 署名検証後に使い捨て Kubernetes で更新・復元を検証します。`On-prem Validation` は毎日も実行します。
 本番サイトへの接続先は未定のため、本番への反映は運用担当者の承認と設定を必要とします。
-Codex による CI 修正も、上記の本人による依頼方式を維持しています。
+CI 修正は上記のClaude自動修正、または無効時の本人によるCodex依頼方式を使います。
 導入時の署名確認と更新手順は [配布ガイド](../docs/guides/on-premises-releases.md)、
 実行済みの検証は [追加検証の記録](../docs/verification/onprem-hardening-2026-10-23.md)を参照してください。
 
