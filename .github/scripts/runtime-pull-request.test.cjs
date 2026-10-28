@@ -154,4 +154,19 @@ test('unchanged managed proposals still reserve merges, while superseded or opte
   const modified = managedFixture(); modified.github.rest.issues.listComments = async () => [];
   await assert.rejects(publish(modified.args), /no trusted publication receipt/);
   assert.deepEqual(modified.writes, []);
+  const recovered = managedFixture();
+  const originalComments = recovered.github.rest.issues.listComments;
+  recovered.github.rest.issues.listComments = async () => [...await originalComments(), {
+    user: { login: 'runtime-bot[bot]' }, body: '<!-- videoq-runtime-update-v1 -->\n' + JSON.stringify({ kind: 'superseded', sha: 'c'.repeat(40), runtime: 'node', channel: 'current' }),
+  }];
+  recovered.github.rest.pulls.list = async ({ state }) => ({ data: state === 'open' ? [] : [recovered.pr] });
+  recovered.github.rest.git.updateRef = async a => recovered.writes.push(['update-ref', a]);
+  recovered.github.rest.pulls.create = async a => { recovered.writes.push(['pr', a]); return { data: { number: 124 } }; };
+  await publish({ ...recovered.args, plan: { ...plan(), previous_version: '26.12.1', version: '26.12.2', files: { '.node-version': '26.12.2\n' } } });
+  assert.equal(recovered.writes.find(([kind]) => kind === 'update-ref')[1].force, false);
+  assert.equal(recovered.writes.find(([kind]) => kind === 'queue')[1].number, 124);
+  const manuallyClosed = managedFixture();
+  manuallyClosed.github.rest.pulls.list = async ({ state }) => ({ data: state === 'open' ? [] : [manuallyClosed.pr] });
+  await assert.rejects(publish(manuallyClosed.args), /unmanaged runtime branch/);
+  assert.deepEqual(manuallyClosed.writes, []);
 });
