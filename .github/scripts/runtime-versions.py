@@ -1,7 +1,7 @@
 """Coordinate interpreter versions without executing downloaded package code.
 
 The JSON manifest is authoritative. Generated pins are committed and checked in
-CI. Discovery only proposes PRs; runtime upgrades never enable auto-merge.
+CI. Current-line proposals can be merged by the trusted runtime workflow after CI.
 """
 import argparse
 import copy
@@ -253,6 +253,7 @@ def main():
     if args.command == "plan":
         if not args.runtime or not args.output:
             parser.error("plan requires --runtime and --output")
+        previous_version = data[args.runtime]
         data = discover(ROOT, data, args.runtime, args.upgrade)
     files = rendered(ROOT, data)
     files[MANIFEST] = json.dumps(data, indent=2) + "\n"
@@ -269,7 +270,7 @@ def main():
             (ROOT / path).write_text(text)
         print("Synchronized " + str(len(changed)) + " runtime files")
     else:
-        plan = {"changed": bool(changed), "runtime": args.runtime, "channel": "next" if args.upgrade else "current", "version": data[args.runtime], "files": changed}
+        plan = {"changed": bool(changed), "runtime": args.runtime, "channel": "next" if args.upgrade else "current", "version": data[args.runtime], "previous_version": previous_version, "files": changed}
         args.output.write_text(json.dumps(plan, indent=2) + "\n")
         output = os.environ.get("GITHUB_OUTPUT")
         if output:
