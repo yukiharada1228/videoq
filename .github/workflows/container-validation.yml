@@ -7,6 +7,10 @@ permissions:
   contents: read
   pull-requests: read
 
+concurrency:
+  group: container-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   queue:
     name: Queue Admission
