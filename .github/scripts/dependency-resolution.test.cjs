@@ -108,13 +108,45 @@ test('a CI compatibility patch after a resolved merge retains verifiable origina
   const source = { filename: 'apps/web/.storybook/vite.config.ts', status: 'modified', patch: '-old\n+new', changes: 2 };
   const original = f.github.rest.repos.compareCommitsWithBasehead;
   f.github.rest.repos.compareCommitsWithBasehead = async args => {
-    if (args.basehead === `${C}...${D}`) return { data: { total_commits: 2, commits: [...f.commits, { sha: D, parents: [{ sha: A }, { sha: B }] }], files: f.files } };
+    if (args.basehead === `${B}...${D}`) return { data: { total_commits: 2, commits: [...f.commits, { sha: D, parents: [{ sha: A }, { sha: B }] }], files: f.files } };
     if (args.basehead === `${D}...${E}`) return { data: { total_commits: 1, files: [source] } };
     return original(args);
   };
   f.github.rest.git.getCommit = async ({ commit_sha }) => ({ data: { parents: commit_sha === E ? [{ sha: D }] : [{ sha: A }, { sha: B }] } });
   const proof = await resolution.provenance({ ...f, pr: { ...f.pr, head: { ...f.pr.head, sha: E } }, files: [...f.files, source] });
   assert.equal(proof.originalHead, A); assert.equal(proof.metadata.updateType, 'version-update:semver-major');
+});
+test('a repaired historical rebase excludes trusted main commits from its parent snapshot', async () => {
+  const f = fixture(); const E = 'e'.repeat(40), F = 'f'.repeat(40);
+  f.main = F; f.pr.base.sha = F; f.pr.head.sha = E;
+  f.comments.push({ user: { login: 'github-actions[bot]' }, body: '<!-- videoq-dependency-rebase-v1 -->\n' + JSON.stringify({ kind: 'completed', sha: D, base: B, originalHead: A, originalBase: C }) },
+    comment({ kind: 'published', policy: 2, mode: 'conflict', sha: E, parent: D, base: F, origin: A, originalBase: C, runId: '77' }));
+  const originalCommit = f.commits[0], rebased = { sha: D, parents: [{ sha: B }], commit: { verification: { verified: false } } };
+  const polluted = { filename: 'infra/main.tf', status: 'modified', patch: '-old\n+new', changes: 2 };
+  f.github.rest.git.getCommit = async () => ({ data: { parents: [{ sha: D }, { sha: F }] } });
+  f.github.rest.repos.compareCommits = async () => ({ data: { merge_base_commit: { sha: F } } });
+  f.github.rest.repos.compareCommitsWithBasehead = async ({ basehead }) => ({ data:
+    basehead === `${C}...${A}` ? { total_commits: 1, commits: [originalCommit], files: f.original } :
+    basehead === `${C}...${D}` ? { total_commits: 2, commits: [{ sha: B }, rebased], files: [...f.original, polluted] } :
+    basehead === `${F}...${D}` || basehead === `${B}...${D}` ? { total_commits: 1, commits: [rebased], files: f.original } :
+    { total_commits: 2, commits: [rebased, { sha: E }], files: f.original } });
+  const proof = await resolution.provenance({ ...f, pr: f.pr, files: f.files });
+  assert.equal(proof.originalHead, A); assert.equal(proof.originalBase, C);
+});
+test('native main synchronization preserves a resolved merge snapshot and its signed origin', async () => {
+  const f = fixture(); const E = 'e'.repeat(40), F = 'f'.repeat(40);
+  f.main = F; f.pr.base.sha = F; f.pr.head.sha = E;
+  f.comments.push(comment({ kind: 'published', policy: 2, mode: 'conflict', sha: D, parent: A, base: B, origin: A, originalBase: C, runId: '77' }),
+    { user: { login: 'github-actions[bot]' }, body: '<!-- videoq-dependency-rebase-v1 -->\n' + JSON.stringify({ kind: 'completed', sha: E, base: F, originalHead: A, originalBase: C, snapshotHead: D, snapshotBase: B }) });
+  const originalCommit = f.commits[0], merged = { sha: D, parents: [{ sha: A }, { sha: B }] };
+  f.commits = [originalCommit, merged, { sha: E, parents: [{ sha: D }, { sha: F }] }];
+  f.github.rest.git.getCommit = async () => ({ data: { parents: [{ sha: A }, { sha: B }] } });
+  f.github.rest.repos.compareCommitsWithBasehead = async ({ basehead }) => ({ data:
+    basehead === `${C}...${A}` || basehead === `${F}...${A}` ? { total_commits: 1, commits: [originalCommit], files: f.original } :
+    basehead === `${B}...${D}` ? { total_commits: 2, commits: [originalCommit, merged], files: f.original } :
+    { total_commits: 3, commits: f.commits, files: f.original } });
+  const proof = await require('./dependency-rebase.cjs').provenance({ ...f, pr: f.pr, files: f.files, commits: f.commits });
+  assert.equal(proof.originalHead, A); assert.equal(proof.originalBase, C);
 });
 function checkout(t) {
   const cwd = mkdtempSync(join(tmpdir(), 'videoq-conflict-'));

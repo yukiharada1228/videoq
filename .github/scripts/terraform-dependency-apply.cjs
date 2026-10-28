@@ -4,7 +4,7 @@ const REPOSITORY = 'videoq-jp/videoq';
 
 function verifiedUpdateTypes(commit) {
   if (commit.author?.login !== 'dependabot[bot]' || !commit.commit?.verification?.verified) return null;
-  const block = commit.commit.message.match(/\n---\nupdated-dependencies:\n([\s\S]*?)\n\.\.\.(?:\n|$)/);
+  const block = String(commit.commit?.message || '').match(/\n---\nupdated-dependencies:\n([\s\S]*?)\n\.\.\.(?:\n|$)/);
   if (!block) return null;
   const dependencies = block[1].match(/^- dependency-name: .+$/gm) || [];
   const types = [...block[1].matchAll(/^  update-type: (.+)$/gm)].map(match => match[1]);
