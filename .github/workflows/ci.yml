@@ -18,41 +18,15 @@ concurrency:
 jobs:
   queue:
     name: Queue Admission
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    uses: ./.github/workflows/dependency-ci-admission.yml
     permissions:
       contents: read
       issues: read
-    outputs:
-      run: ${{ steps.admission.outputs.run }}
-    steps:
-      # Read trusted main policy; this job never installs or executes PR code.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: refs/heads/main
-          persist-credentials: false
-          sparse-checkout: .github/scripts
-      - id: admission
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          QUEUE_ENABLED: ${{ vars.DEPENDENCY_QUEUE_ENABLED }}
-          QUEUE_ISSUE: ${{ vars.DEPENDENCY_QUEUE_ISSUE }}
-        with:
-          script: |
-            if (process.env.QUEUE_ENABLED !== 'true') { core.setOutput('run', true); return; }
-            const run = await require('./.github/scripts/dependency-queue.cjs').admission({
-              github, context, issue: Number(process.env.QUEUE_ISSUE), enabled: true,
-            });
-            core.setOutput('run', run);
-            await core.summary.addRaw(run ? 'CI admitted.' : 'Waiting for the dependency queue. Heavy jobs are deferred.').write();
-      - name: Queue slot admitted
-        if: steps.admission.outputs.run == 'true'
-        run: echo 'Normal CI is authorized for this PR and main snapshot.'
 
   supply-chain:
     needs: queue
     if: needs.queue.outputs.run == 'true'
-    name: Supply Chain Security
+    name: ${{ needs.queue.outputs.run == 'true' && 'Supply Chain Security' || 'Supply Chain Waiting' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -116,7 +90,7 @@ jobs:
         run: python3 .github/scripts/runtime-versions.py check
 
   ci-success:
-    name: CI Success
+    name: ${{ needs.queue.outputs.run == 'true' && 'CI Success' || 'CI Waiting' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: always() && needs.queue.outputs.run == 'true'
@@ -139,6 +113,24 @@ jobs:
             process.exit(1);
           }
           NODE
+
+  dependency-gate:
+    # Waiting runs must not publish a skipped/successful required check. GitHub
+    # keeps Dependency Queue expected until the selected PR actually passes CI.
+    name: ${{ needs.queue.outputs.run == 'true' && 'Dependency Queue' || 'Dependency Waiting' }}
+    needs: [queue, ci-success]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require the admitted CI result
+        env:
+          ADMISSION_RESULT: ${{ needs.queue.result }}
+          ADMITTED: ${{ needs.queue.outputs.run }}
+          CI_RESULT: ${{ needs.ci-success.result }}
+        run: |
+          test "$ADMISSION_RESULT" = success
+          if [ "$ADMITTED" = true ]; then test "$CI_RESULT" = success; fi
 
   changes:
     needs: queue

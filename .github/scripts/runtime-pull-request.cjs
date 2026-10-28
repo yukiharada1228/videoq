@@ -29,26 +29,14 @@ function eligible(pr, files, comments, bot) {
     pr.head.ref === `runtime/${r.runtime}-current` && sameLine(r));
 }
 
-async function scope({ github, context, runtime = 'all', channel = 'current' }) {
+async function scope({ context, runtime = 'all', channel = 'current' }) {
   if (context.ref !== 'refs/heads/main' || context.repo.owner !== 'yukiharada1228' || context.repo.repo !== 'videoq') throw new Error('Runtime discovery requires canonical main');
   const names = ['node', 'python', 'npm', 'pip', 'uv'];
   if (!['all', ...names].includes(runtime) || !['both', 'current', 'next'].includes(channel)) throw new Error('Invalid runtime selection');
-  let include = [];
-  if (['schedule', 'workflow_dispatch'].includes(context.eventName)) {
-    const channels = context.eventName === 'schedule' || channel === 'both' ? ['current', 'next'] : [channel];
-    include = names.filter(n => runtime === 'all' || runtime === n).flatMap(runtime => channels.map(channel => ({ runtime, channel })));
-  } else if (['push', 'workflow_run'].includes(context.eventName)) {
-    const pulls = await github.paginate(github.rest.pulls.list, { ...context.repo, base: 'main', state: 'open', per_page: 100 });
-    for (const pr of pulls) {
-      const match = pr.head?.ref?.match(/^runtime\/(node|python|npm|pip|uv)-current$/);
-      if (!match || pr.user?.type !== 'Bot' || pr.head.repo?.full_name !== 'yukiharada1228/videoq' || pr.draft ||
-        pr.labels.some(l => l.name === 'no-runtime-update')) continue;
-      const { data: diff } = await github.rest.repos.compareCommits({ ...context.repo, base: pr.head.sha, head: context.sha });
-      if (diff.ahead_by > 0) include.push({ runtime: match[1], channel: 'current' });
-    }
-    include = [...new Map(include.map(row => [row.runtime, row])).values()];
-  } else throw new Error('Unsupported runtime discovery event');
-  return { active: include.length > 0, matrix: { include: include.length ? include : [{ runtime: 'node', channel: 'current' }] } };
+  if (!['schedule', 'workflow_dispatch'].includes(context.eventName)) throw new Error('Unsupported runtime discovery event');
+  const channels = context.eventName === 'schedule' || channel === 'both' ? ['current', 'next'] : [channel];
+  const include = names.filter(n => runtime === 'all' || runtime === n).flatMap(runtime => channels.map(channel => ({ runtime, channel })));
+  return { matrix: { include } };
 }
 
 function validate(plan) {
@@ -64,9 +52,9 @@ function validate(plan) {
   }
 }
 
-async function publish({ github, context, core, plan, bot, autoMergeCurrent = false, queue }) {
+async function publish({ github, context, core, plan, bot, retireSuperseded = false }) {
   validate(plan);
-  if (context.ref !== 'refs/heads/main' || !['schedule', 'workflow_dispatch', 'push', 'workflow_run'].includes(context.eventName) ||
+  if (context.ref !== 'refs/heads/main' || !['schedule', 'workflow_dispatch'].includes(context.eventName) ||
       !['videoq', 'shadcn-digital-agency-jp', 'langchainjs-postgres'].includes(context.repo.repo) ||
       context.repo.owner !== 'yukiharada1228' || !/^[a-zA-Z0-9-]+\[bot\]$/.test(bot)) {
     throw new Error('Interpreter updates require the trusted repository main branch and an App token');
@@ -78,17 +66,6 @@ async function publish({ github, context, core, plan, bot, autoMergeCurrent = fa
   if (pulls.length > 1) throw new Error('Ambiguous interpreter update PR');
   const existing = pulls[0];
   if (!plan.changed && !existing) return;
-  async function finish(pr, head) {
-    if (plan.channel === 'current' && context.repo.repo === 'videoq') {
-      if (pr.labels?.some(l => ['no-automerge', 'no-runtime-update'].includes(l.name)) || !autoMergeCurrent) {
-        if (pr.auto_merge) await github.graphql('mutation($id:ID!){disablePullRequestAutoMerge(input:{pullRequestId:$id}){clientMutationId}}', { id: pr.node_id });
-      } else {
-        if (!sameLine(plan) || typeof queue !== 'function') throw new Error('Automatic runtime merges require a verified current-line plan');
-        await queue({ number: pr.number, sha: head });
-      }
-    }
-    return pr.number;
-  }
   let managed = existing;
   let old;
   try {
@@ -117,14 +94,14 @@ async function publish({ github, context, core, plan, bot, autoMergeCurrent = fa
     if (!publication) {
       throw new Error('Runtime head has no trusted publication receipt; preserve it for review');
     }
-    if (existing?.labels?.some(l => l.name === 'no-runtime-update')) return finish(existing, old);
+    if (existing?.labels?.some(l => l.name === 'no-runtime-update')) return existing.number;
     if (!plan.changed) {
       // The official discovery result is already in main; retire only a managed,
       // unedited current-line proposal superseded by that canonical state.
       const before = String(publication.version).split('.').map(Number), after = plan.version.split('.').map(Number);
       const superseded = /^\d+\.\d+\.\d+$/.test(publication.version || '') &&
         (after[0] - before[0] || after[1] - before[1] || after[2] - before[2]) >= 0;
-      if (superseded && existing && plan.channel === 'current' && autoMergeCurrent && !existing.labels?.some(l => ['no-automerge', 'no-runtime-update'].includes(l.name))) {
+      if (superseded && existing && plan.channel === 'current' && retireSuperseded && !existing.labels?.some(l => ['no-automerge', 'no-runtime-update'].includes(l.name))) {
         const { data: current } = await github.rest.pulls.get({ ...context.repo, pull_number: existing.number });
         if (current.head.sha !== old || current.base.ref !== 'main' || current.labels.some(l => ['no-automerge', 'no-runtime-update'].includes(l.name))) throw new Error('Runtime PR changed before superseded cleanup');
         await github.rest.issues.createComment({ ...context.repo, issue_number: existing.number,
@@ -142,7 +119,7 @@ async function publish({ github, context, core, plan, bot, autoMergeCurrent = fa
         return NodeBuffer.from(data.content, 'base64').toString('utf8') === content;
       } catch (error) { if (error.status === 404) return false; throw error; }
     }));
-    if (existing && diff.ahead_by === 0 && same.every(Boolean)) return finish(existing, old);
+    if (existing && diff.ahead_by === 0 && same.every(Boolean)) return existing.number;
   }
   const tree = [];
   for (const [path, content] of Object.entries(plan.files)) {
@@ -174,7 +151,7 @@ async function publish({ github, context, core, plan, bot, autoMergeCurrent = fa
     body: `${MARKER}\n${JSON.stringify({ kind: 'publication', sha: commit.sha, base: base.object.sha, runtime: plan.runtime,
       channel: plan.channel, version: plan.version, previous_version: plan.previous_version })}\n\n管理表と生成ファイルをまとめて更新しました。既存系列のみ、必須CI成功後の自動マージ対象です。` });
   core.info(`Prepared interpreter update PR #${result.data.number}`);
-  return finish(result.data, commit.sha);
+  return result.data.number;
 }
 
 module.exports = { validate, publish, FILES, sameLine, receipts, eligible, scope };

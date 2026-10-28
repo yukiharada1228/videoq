@@ -5,30 +5,58 @@ env:
 on:
   workflow_dispatch:
     inputs:
+      authentication_test:
+        description: Only test Claude subscription authentication (no PR changes)
+        type: boolean
+        default: false
       number:
-        required: true
+        required: false
         type: string
       sha:
-        required: true
+        required: false
         type: string
       run_id:
-        required: true
+        required: false
         type: string
       authorization_run:
-        required: true
+        required: false
         type: string
 permissions:
   contents: read
   actions: read
   pull-requests: read
 concurrency:
-  group: claude-dependency-worker-${{ inputs.number }}
+  group: claude-dependency-worker-${{ inputs.number || 'authentication-test' }}
   cancel-in-progress: false
 jobs:
+  authentication-test:
+    if: >-
+      github.repository == 'yukiharada1228/videoq' &&
+      github.event_name == 'workflow_dispatch' && inputs.authentication_test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: anthropics/claude-code-action@d70510b174a1244958df0b03166a54912811f3e6 # v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          # Empty --tools values are dropped by the Action's SDK argument parser.
+          # Offer only Read, then deny it, so no built-in tools remain.
+          claude_args: '--tools Read --disallowedTools Read --max-turns 1'
+          # This fixed prompt has no repository tools or write access. Surface
+          # provider errors here so expired tokens and usage limits are actionable.
+          show_full_output: true
+          prompt: 'Authentication test only. Reply exactly: Claude subscription authentication succeeded. Do not use tools or change any files.'
   authorize:
     if: >-
       github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main' &&
-      vars.CLAUDE_DEPENDENCY_REPAIR_ENABLED == 'true'
+      vars.CLAUDE_DEPENDENCY_REPAIR_ENABLED == 'true' && !inputs.authentication_test
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

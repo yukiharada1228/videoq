@@ -38,9 +38,9 @@ test('runtime discovery never executes PR code or receives production credential
   assert.match(workflow, /ref: \$\{\{ github\.workflow_sha \}\}/);
   assert.match(workflow, /permission-contents: write/);
   assert.doesNotMatch(workflow, /permission-workflows:/);
-  const guard = readFileSync(join(__dirname, '../workflows/runtime-automerge.yml'), 'utf8');
-  assert.match(guard, /ref: \$\{\{ github\.workflow_sha \}\}/);
-  assert.doesNotMatch(guard, /ref:.*head|npm ci|pip install|runtime-versions.py plan/);
+  const guard = readFileSync(join(__dirname, '../workflows/dependency-queue.yml'), 'utf8');
+  assert.match(guard, /ref: refs\/heads\/main/);
+  assert.doesNotMatch(guard, /ref:.*\$\{\{.*(?:head|pull_request)|npm ci|pip install|runtime-versions.py plan/);
 });
 function publicationFixture() {
   const writes = [];
@@ -73,14 +73,14 @@ test('a new runtime proposal writes an isolated branch and opens a PR without me
   assert.equal(writes.find(([kind]) => kind === 'pr')[1].head, 'runtime/node-current');
   assert.match(writes.find(([kind]) => kind === 'receipt')[1].body, /videoq-runtime-update-v1/);
 });
-test('only current-line publications reserve a merge and only after recording the exact head', async () => {
-  const current = publicationFixture();
-  await publish({ ...current, context, core: { info() {} }, plan: plan(), bot: 'runtime-bot[bot]', autoMergeCurrent: true,
-    queue: async c => { assert.ok(current.writes.some(([kind]) => kind === 'receipt')); current.writes.push(['queue', c]); } });
-  assert.deepEqual(current.writes.find(([kind]) => kind === 'queue')[1], { number: 123, sha: 'new-commit' });
-  const next = publicationFixture();
-  await publish({ ...next, context, core: { info() {} }, plan: { ...plan(), channel: 'next', version: '28.0.0' }, bot: 'runtime-bot[bot]', autoMergeCurrent: true,
-    queue: async () => { throw new Error('New release lines must not auto-merge'); } });
+test('publication records exact provenance but never makes a merge decision', async () => {
+  for (const channel of ['current', 'next']) {
+    const f = publicationFixture();
+    const proposal = { ...plan(), channel, version: channel === 'next' ? '28.0.0' : '26.12.1' };
+    await publish({ ...f, context, core: { info() {} }, plan: proposal, bot: 'runtime-bot[bot]', retireSuperseded: true });
+    assert.ok(f.writes.some(([kind]) => kind === 'receipt'));
+    assert.equal(f.writes.some(([kind]) => kind === 'queue' || kind === 'disable'), false);
+  }
   assert.throws(() => validate({ ...plan(), version: '28.0.0' }), /Invalid/);
 });
 
@@ -110,18 +110,13 @@ test('automatic runtime merges exclude new series, downgrades, missing metadata 
   assert.equal(eligible(pr, [...files, { filename: '.github/workflows/cd.yml', status: 'modified' }], [receipt], bot), false);
   assert.equal(eligible({ ...pr, head: { ...pr.head, ref: 'runtime/node-next' } }, files, [receipt], bot), false);
 });
-test('repository events refresh only existing current-line PRs behind main', async () => {
-  const pr = { user: { type: 'Bot' }, draft: false, labels: [], head: { ref: 'runtime/uv-current', sha: 'c'.repeat(40), repo: { full_name: 'yukiharada1228/videoq' } } };
-  const github = { paginate: async () => [pr, { ...pr, head: { ...pr.head, ref: 'runtime/python-next' } }],
-    rest: { pulls: { list() {} }, repos: { compareCommits: async () => ({ data: { ahead_by: 1 } }) } } };
-  assert.deepEqual((await scope({ github, context: { ...context, eventName: 'push' } })).matrix.include, [{ runtime: 'uv', channel: 'current' }]);
-  github.rest.repos.compareCommits = async () => ({ data: { ahead_by: 0 } });
-  assert.equal((await scope({ github, context: { ...context, eventName: 'workflow_run' } })).active, false);
-  assert.equal((await scope({ github: {}, context })).matrix.include.length, 10);
-  assert.deepEqual((await scope({ github: {}, context: { ...context, eventName: 'workflow_dispatch' }, runtime: 'uv' })).matrix.include, [{ runtime: 'uv', channel: 'current' }]);
+test('discovery supports schedule and explicit selection; main refresh belongs to the controller', async () => {
+  assert.equal((await scope({ context })).matrix.include.length, 10);
+  assert.deepEqual((await scope({ context: { ...context, eventName: 'workflow_dispatch' }, runtime: 'uv' })).matrix.include, [{ runtime: 'uv', channel: 'current' }]);
+  for (const eventName of ['push', 'workflow_run']) await assert.rejects(scope({ context: { ...context, eventName } }), /Unsupported/);
 });
 
-test('unchanged managed proposals still reserve merges, while superseded or opted-out proposals do not', async () => {
+test('unchanged proposals are left for the controller; superseded proposals retire and opt-outs are preserved', async () => {
   function managedFixture() {
     const f = publicationFixture(), old = 'c'.repeat(40), bot = 'runtime-bot[bot]';
     f.pr = { number: 123, node_id: 'PR_123', user: { login: bot }, head: { sha: old }, base: { ref: 'main' }, labels: [], auto_merge: null };
@@ -135,13 +130,12 @@ test('unchanged managed proposals still reserve merges, while superseded or opte
       getContent: async () => ({ data: { content: Buffer.from('26.12.1\n').toString('base64') } }) };
     f.github.rest.pulls.update = async a => { f.writes.push(['update', a]); return { data: f.pr }; };
     f.github.graphql = async () => f.writes.push(['disable']);
-    f.args = { github: f.github, context, core: { info() {} }, plan: plan(), bot, autoMergeCurrent: true,
-      queue: async a => f.writes.push(['queue', a]) };
+    f.args = { github: f.github, context, core: { info() {} }, plan: plan(), bot, retireSuperseded: true };
     return f;
   }
   const same = managedFixture();
   await publish(same.args);
-  assert.deepEqual(same.writes, [['queue', { number: 123, sha: 'c'.repeat(40) }]]);
+  assert.deepEqual(same.writes, []);
   const applied = managedFixture();
   await publish({ ...applied.args, plan: { ...plan(), changed: false, files: {} } });
   assert.equal(applied.writes.find(([kind]) => kind === 'update')[1].state, 'closed');
@@ -150,7 +144,7 @@ test('unchanged managed proposals still reserve merges, while superseded or opte
   assert.deepEqual(newer.writes, []);
   const opted = managedFixture(); opted.pr.labels.push({ name: 'no-runtime-update' }); opted.pr.auto_merge = {};
   await publish(opted.args);
-  assert.deepEqual(opted.writes, [['disable']]);
+  assert.deepEqual(opted.writes, []);
   const modified = managedFixture(); modified.github.rest.issues.listComments = async () => [];
   await assert.rejects(publish(modified.args), /no trusted publication receipt/);
   assert.deepEqual(modified.writes, []);
@@ -164,7 +158,7 @@ test('unchanged managed proposals still reserve merges, while superseded or opte
   recovered.github.rest.pulls.create = async a => { recovered.writes.push(['pr', a]); return { data: { number: 124 } }; };
   await publish({ ...recovered.args, plan: { ...plan(), previous_version: '26.12.1', version: '26.12.2', files: { '.node-version': '26.12.2\n' } } });
   assert.equal(recovered.writes.find(([kind]) => kind === 'update-ref')[1].force, false);
-  assert.equal(recovered.writes.find(([kind]) => kind === 'queue')[1].number, 124);
+  assert.ok(recovered.writes.some(([kind]) => kind === 'receipt'));
   const manuallyClosed = managedFixture();
   manuallyClosed.github.rest.pulls.list = async ({ state }) => ({ data: state === 'open' ? [] : [manuallyClosed.pr] });
   await assert.rejects(publish(manuallyClosed.args), /unmanaged runtime branch/);

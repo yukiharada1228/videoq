@@ -59,7 +59,7 @@ async function candidate({ github, context, runId }) {
     !['success', 'failure'].includes(run.conclusion) || run.repository?.full_name !== REPO || run.head_repository?.full_name !== REPO) return null;
   if (process.env.DEPENDENCY_QUEUE_ENABLED === 'true') {
     const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, { ...context.repo, run_id: run.id, filter: 'latest', per_page: 100 });
-    if (!jobs.some(j => j.name === 'Queue Admission' && j.steps?.some(s => s.name === 'Queue slot admitted' && s.conclusion === 'success'))) return null;
+    if (!policy.admittedCI(jobs)) return null;
   }
   const { data: pulls } = await github.rest.pulls.list({ ...context.repo, state: 'open', head: `${context.repo.owner}:${run.head_branch}`, base: 'main' });
   if (pulls.length !== 1) return null;
@@ -102,9 +102,10 @@ async function scope(args) {
     return null;
   }
   const attempts = records(c.comments, 'attempt');
-  if (attempts.some(r => r.sha === c.pr.head.sha) || attempts.length >= 2) {
+  if (attempts.some(r => r.sha === c.pr.head.sha)) return null;
+  if (attempts.length >= 2) {
     if (!records(c.comments, 'stopped').length) await record(github, context, c.pr.number, { kind: 'stopped' },
-      'Claude自動修正の再試行上限に達したか、このコミットは実行済みです。人による確認が必要です。');
+      'Claude自動修正の再試行上限に達しました。人による確認が必要です。');
     return null;
   }
   const attempt = { kind: 'attempt', sha: c.pr.head.sha, origin: c.origin.sha, runId: String(context.runId), failedRun: c.run.id };
@@ -116,9 +117,9 @@ async function authorizedAttempt({ github, context, c, authorizationRun }) {
   if (!/^\d+$/.test(String(authorizationRun)) || !records(c.comments, 'attempt')
     .some(r => r.sha === c.pr.head.sha && r.runId === String(authorizationRun))) return false;
   const { data: run } = await github.rest.actions.getWorkflowRun({ ...context.repo, run_id: authorizationRun });
-  const { data: workflow } = await github.rest.actions.getWorkflow({ ...context.repo, workflow_id: 'claude-dependency-repair.yml' });
+  const { data: workflow } = await github.rest.actions.getWorkflow({ ...context.repo, workflow_id: 'dependency-queue.yml' });
   return run.workflow_id === workflow.id && run.repository?.full_name === REPO && run.head_repository?.full_name === REPO &&
-    run.head_branch === 'main' && ['workflow_run', 'workflow_dispatch'].includes(run.event);
+    run.head_branch === 'main' && ['push', 'workflow_run', 'workflow_dispatch'].includes(run.event);
 }
 async function claimWorker(args) {
   const c = await candidate(args);
@@ -167,11 +168,4 @@ async function publish(args) {
   if (current.head.sha !== expectedSha || current.labels.some(l => ['no-automerge', 'no-claude', 'no-codex'].includes(l.name))) throw new Error('PR changed during repair');
   await github.rest.git.updateRef({ ...context.repo, ref: `heads/${c.pr.head.ref}`, sha: commit.sha, force: false });
 }
-async function merge(args) {
-  const c = await candidate(args);
-  if (!c || c.run.conclusion !== 'success' || !c.repairs.length) return null;
-  const { data: protection } = await args.writerGithub.rest.repos.getBranchProtection({ ...args.context.repo, branch: 'main' });
-  policy.requireProtection(protection, c.origin.metadata.ecosystem);
-  return { number: c.pr.number, sha: c.pr.head.sha };
-}
-module.exports = { records, seed, sourceFile, validRepairFiles, chain, candidate, scope, authorizedAttempt, claimWorker, applyPatch, publish, merge };
+module.exports = { records, seed, sourceFile, validRepairFiles, chain, candidate, scope, authorizedAttempt, claimWorker, applyPatch, publish };

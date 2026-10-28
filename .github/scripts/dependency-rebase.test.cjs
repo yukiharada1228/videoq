@@ -20,7 +20,7 @@ function fixture() {
     pulls: { get: async () => ({ data: f.pr }), list: async () => [f.pr], listFiles: async () => f.files, listCommits: async () => f.commits },
     issues: { listComments: async () => f.comments, createComment: async a => { f.comments.push({ user: { login: 'github-actions[bot]' }, body: a.body }); f.mutations.push('comment'); } },
     actions: { listWorkflowRuns: async () => ({ data: { workflow_runs: [f.run] } }) },
-    repos: { getBranch: async () => ({ data: { commit: { sha: C } } }),
+    repos: { compareCommits: async () => ({ data: { behind_by: 1 } }), getBranch: async () => ({ data: { commit: { sha: C } } }),
       getBranchProtection: async () => ({ data: { required_status_checks: { strict: true, checks: ['CI Success', 'Supply Chain Security', 'Container Validation'].map(context => ({ context, app_id: 15368 })) } } }),
       compareCommitsWithBasehead: async a => ({ data: { total_commits: 1, commits: [commit()], files: [file()], merge_base_commit: { sha: C } } }),
     },
@@ -32,11 +32,8 @@ function fixture() {
   f.wait = async () => {};
   return f;
 }
-test('main sync chooses a signed dependency-only PR with successful latest CI and a queued merge', async () => {
-  assert.deepEqual(await p.select(fixture()), { number: 1191, sha: A, ecosystem: 'docker' });
-});
 test('queue sync verifies ancestry and provenance before CI even while the queue gate blocks merging', async () => {
-  const f = fixture(); f.queued = true; f.pr.auto_merge = null;
+  const f = fixture(); f.pr.auto_merge = null;
   f.pr.mergeable_state = 'blocked'; f.run.status = 'in_progress';
   f.github.rest.repos.compareCommits = async () => ({ data: { behind_by: 1 } });
   assert.deepEqual(await p.update(f), { number: 1191, sha: D });
@@ -47,7 +44,7 @@ test('queue sync still rejects current branches, unsigned changes and opt-outs',
     f => f.commits[0].commit.verification.verified = false,
     f => f.pr.labels.push({ name: 'no-rebase' }),
   ]) {
-    const f = fixture(); f.queued = true;
+    const f = fixture();
     f.github.rest.repos.compareCommits = async () => ({ data: { behind_by: 1 } });
     mutate(f);
     assert.equal(await p.candidate(f), null);
@@ -56,10 +53,6 @@ test('queue sync still rejects current branches, unsigned changes and opt-outs',
 for (const [name, mutate] of [
   ['opt out', f => f.pr.labels.push({ name: 'no-rebase' })],
   ['merge opt out', f => f.pr.labels.push({ name: 'no-automerge' })],
-  ['no merge reservation', f => f.pr.auto_merge = null],
-  ['CI pending', f => f.run.status = 'in_progress'],
-  ['CI failed', f => f.run.conclusion = 'failure'],
-  ['already current', f => f.pr.mergeable_state = 'clean'],
   ['fork', f => f.pr.head.repo.full_name = 'attacker/repo'],
   ['human changes', f => f.commits[0].author.login = 'owner'],
   ['unsigned without receipt', f => f.commits[0].commit.verification.verified = false],

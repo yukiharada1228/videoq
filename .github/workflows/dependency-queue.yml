@@ -1,11 +1,13 @@
-name: Dependency CI Queue
+name: Dependency Automation
+env:
+  DEPENDENCY_QUEUE_ENABLED: ${{ vars.DEPENDENCY_QUEUE_ENABLED }}
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, closed, ready_for_review, labeled, unlabeled, edited, converted_to_draft]
   push:
     branches: [main]
   workflow_run:
-    workflows: [CI, Container Validation, Terraform Plan, Dependency Auto-merge, Runtime Auto-merge, Runtime Updates]
+    workflows: [CI, Container Validation, Terraform Plan, Runtime Updates]
     types: [completed, requested]
   workflow_dispatch:
     inputs:
@@ -20,14 +22,14 @@ concurrency:
 jobs:
   reconcile:
     if: >-
-      github.repository == 'yukiharada1228/videoq' &&
+      github.repository == 'yukiharada1228/videoq' && github.ref == 'refs/heads/main' &&
+      (github.event_name != 'pull_request_target' || github.event.pull_request.base.ref == 'main') &&
       vars.DEPENDENCY_QUEUE_ENABLED == 'true' && vars.DEPENDENCY_AUTOMERGE_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
       actions: write
-      checks: write
       issues: write
       pull-requests: write
     steps:
@@ -50,17 +52,19 @@ jobs:
           QUEUE_ISSUE: ${{ vars.DEPENDENCY_QUEUE_ISSUE }}
           RETRY: ${{ inputs.retry }}
           RUNTIME_AUTOMERGE_ENABLED: ${{ vars.RUNTIME_AUTOMERGE_ENABLED }}
+          REPAIR_ENABLED: ${{ vars.CLAUDE_DEPENDENCY_REPAIR_ENABLED }}
           APP_TOKEN: ${{ steps.app.outputs.token }}
           GH_TOKEN: ${{ steps.app.outputs.token }}
           GH_REPO: ${{ github.repository }}
         with:
           script: |
-            // pull_request_target has a base-branch ref; force the trusted-main
-            // guard and read current main independently of the event snapshot.
-            const trusted = { ...context, repo: context.repo, ref: 'refs/heads/main' };
-            await require('./.github/scripts/dependency-queue.cjs').reconcile({
-              github, writerGithub: new github.constructor({ auth: process.env.APP_TOKEN }), context: trusted,
+            const controller = require('./.github/scripts/dependency-queue.cjs');
+            const args = { github, writerGithub: new github.constructor({ auth: process.env.APP_TOKEN }), context };
+            await controller.reconcile({
+              ...args,
               issue: Number(process.env.QUEUE_ISSUE), retry: Number(process.env.RETRY || 0),
+              repairEnabled: process.env.REPAIR_ENABLED === 'true',
+              authorizeRepair: ['push', 'workflow_run', 'workflow_dispatch'].includes(context.eventName),
               saveSummary: text => core.summary.addRaw(text).write(),
               reserve: ({ number, sha }) => exec.exec('gh', ['pr', 'merge', String(number), '--auto', '--squash', '--match-head-commit', sha]),
             });

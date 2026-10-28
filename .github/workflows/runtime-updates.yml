@@ -2,11 +2,6 @@ name: Runtime Updates
 on:
   schedule:
     - cron: '13 0 * * *'
-  push:
-    branches: [main]
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
   workflow_dispatch:
     inputs:
       dry_run:
@@ -27,7 +22,7 @@ permissions:
   contents: read
   pull-requests: read
 concurrency:
-  group: runtime-updates-${{ github.event_name == 'workflow_dispatch' && github.run_id || (github.event_name == 'schedule' && 'discovery' || 'refresh') }}
+  group: runtime-updates-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'discovery' }}
   cancel-in-progress: false
 jobs:
   scope:
@@ -35,7 +30,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      active: ${{ steps.scope.outputs.active }}
       matrix: ${{ steps.scope.outputs.matrix }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -48,20 +42,15 @@ jobs:
         env:
           RUNTIME: ${{ inputs.runtime || 'all' }}
           CHANNEL: ${{ inputs.channel || 'current' }}
-          QUEUE_ENABLED: ${{ vars.DEPENDENCY_QUEUE_ENABLED }}
         with:
           script: |
-            const result = process.env.QUEUE_ENABLED === 'true' && ['push', 'workflow_run'].includes(context.eventName)
-              ? { active: false, matrix: { include: [{ runtime: 'node', channel: 'current' }] } }
-              : await require('./.github/scripts/runtime-pull-request.cjs').scope({
+            const result = await require('./.github/scripts/runtime-pull-request.cjs').scope({
               github, context, runtime: process.env.RUNTIME, channel: process.env.CHANNEL,
             });
-            core.setOutput('active', result.active);
             core.setOutput('matrix', JSON.stringify(result.matrix));
-            await core.summary.addRaw(result.active ? 'Checking selected runtime proposals.' : 'No existing current-line runtime PR needs main sync.').write();
+            await core.summary.addRaw('Checking selected runtime proposals.').write();
   propose:
     needs: scope
-    if: needs.scope.outputs.active == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
@@ -109,15 +98,12 @@ jobs:
           repositories: ${{ github.event.repository.name }}
           permission-contents: write
           permission-pull-requests: write
-          permission-administration: read
-      - name: Publish coordinated pins and queue current-line updates after CI
+      - name: Publish coordinated runtime update proposals
         if: github.event_name != 'workflow_dispatch' || !inputs.dry_run
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           RUNTIME_BOT: ${{ steps.app.outputs.app-slug }}[bot]
-          GH_TOKEN: ${{ steps.app.outputs.token }}
-          GH_REPO: ${{ github.repository }}
-          AUTO_MERGE: ${{ vars.DEPENDENCY_AUTOMERGE_ENABLED == 'true' && vars.RUNTIME_AUTOMERGE_ENABLED != 'false' }}
+          RETIRE_SUPERSEDED: ${{ vars.DEPENDENCY_AUTOMERGE_ENABLED == 'true' && vars.RUNTIME_AUTOMERGE_ENABLED != 'false' }}
         with:
           github-token: ${{ steps.app.outputs.token }}
           script: |
@@ -125,13 +111,5 @@ jobs:
             const { publish } = require('./.github/scripts/runtime-pull-request.cjs');
             await publish({ github, context, core, bot: process.env.RUNTIME_BOT,
               plan: JSON.parse(fs.readFileSync('runtime-plan.json', 'utf8')),
-              autoMergeCurrent: process.env.AUTO_MERGE === 'true',
-              queue: async ({ number, sha }) => {
-                const { data: current } = await github.rest.pulls.get({ ...context.repo, pull_number: number });
-                if (current.head.sha !== sha || current.labels.some(l => ['no-automerge', 'no-runtime-update'].includes(l.name))) throw new Error('Runtime PR changed before merge reservation');
-                if (current.auto_merge) return;
-                const { data: protection } = await github.rest.repos.getBranchProtection({ ...context.repo, branch: 'main' });
-                require('./.github/scripts/dependency-automation.cjs').requireProtection(protection, 'docker');
-                await exec.exec('gh', ['pr', 'merge', String(number), '--auto', '--squash', '--match-head-commit', sha]);
-              },
+              retireSuperseded: process.env.RETIRE_SUPERSEDED === 'true',
             });
