@@ -6,7 +6,7 @@ const context = { repo: { owner: 'videoq-jp', repo: 'videoq' }, ref: 'refs/heads
 function fixture() {
   const pr = { number: 1, node_id: 'PR_1', state: 'open', draft: false, user: { login: 'dependabot[bot]' },
     base: { ref: 'main' }, head: { sha: SHA, ref: 'dependabot/npm_and_yarn/test', repo: { full_name: 'videoq-jp/videoq' } }, labels: [] };
-  const f = { pr, comments: [], reserved: [], repairs: [], dispatches: [], disabled: [], queued: false, outcome: 'success', proofs: true };
+  const f = { pr, comments: [], reserved: [], repairs: [], dispatches: [], disabled: [], mutations: [], queued: false, outcome: 'success', proofs: true };
   f.protection = { enforce_admins: { enabled: true }, required_status_checks: { strict: false,
     checks: ['CI Success', 'Supply Chain Security', 'Terraform Plan', 'Container Validation'].map(context => ({ context, app_id: 15368 })) } };
   f.rules = [{ type: 'merge_queue', parameters: { max_entries_to_build: 1, max_entries_to_merge: 1, merge_method: 'MERGE' } }];
@@ -23,7 +23,7 @@ function fixture() {
   };
   f.github = { rest: methods, paginate: (method, args) => method(args) };
   f.writerGithub = { rest: methods, graphql: async (query, values) => {
-    if (query.startsWith('mutation')) { f.disabled.push(values.id); return; }
+    if (query.startsWith('mutation')) { f.disabled.push(values.id); f.mutations.push({ query, values }); return; }
     return { repository: { pullRequest: { mergeQueueEntry: f.queued ? { id: 'entry' } : null } } };
   } };
   f.verify = async () => f.proofs ? { pr, kind: 'dependabot', comments: f.comments } : null;
@@ -37,6 +37,12 @@ test('successful eligible PR queues its exact head without a main rebase or issu
   const f = fixture(); await native.reconcile(f.args);
   assert.deepEqual(f.reserved, [{ number: 1, sha: SHA }]); assert.equal(f.comments.length, 0); assert.equal(f.dispatches.length, 0);
 });
+test('the real native mutation enqueues with an expected head instead of enabling unattended auto-merge', async () => {
+  const f = fixture(); await native.reconcile({ ...f.args, reserve: undefined });
+  assert.equal(f.mutations.length, 1);
+  assert.match(f.mutations[0].query, /enqueuePullRequest\(input:\{pullRequestId:\$id,expectedHeadOid:\$sha\}/);
+  assert.deepEqual(f.mutations[0].values, { id: 'PR_1', sha: SHA });
+});
 test('native protection fails closed for missing checks, spoofed apps, missing queue, admin bypass and speculative builds', async () => {
   for (const mutate of [f => f.protection.required_status_checks.checks.pop(), f => f.protection.required_status_checks.checks[0].app_id = 1,
     f => f.rules = [], f => f.protection.enforce_admins.enabled = false, f => f.rules[0].parameters.max_entries_to_build = 2,
@@ -47,6 +53,8 @@ test('native protection fails closed for missing checks, spoofed apps, missing q
 test('queued PRs are left to GitHub and an unverified bot proposal loses auto-merge', async () => {
   const f = fixture(); f.queued = true; await native.reconcile(f.args); assert.equal(f.reserved.length, 0);
   f.proofs = false; f.pr.auto_merge = {}; await native.reconcile(f.args); assert.deepEqual(f.disabled, ['PR_1', 'PR_1']);
+  assert.match(f.mutations[0].query, /dequeuePullRequest\(input:\{id:\$id\}/);
+  assert.match(f.mutations[1].query, /disablePullRequestAutoMerge/);
 });
 test('a normal eligible CI failure uses the existing bounded Claude authorizer', async () => {
   const f = fixture(); f.outcome = 'failure'; await native.reconcile({ ...f.args, repairEnabled: true, authorizeRepair: true });
@@ -69,4 +77,13 @@ test('a proven group failure syncs only that PR once, then normal PR CI owns rep
   assert.equal(await native.reproduceGroupFailure(args), 1);
   assert.equal(calls.length, 1); assert.equal(calls[0].nativeQueue, true); assert.equal(calls[0].expectedSha, SHA);
   assert.equal(await native.reproduceGroupFailure(args), null); assert.equal(calls.length, 1);
+});
+test('group reproduction is bounded across head changes and a stop blocks automatic queue re-entry', async () => {
+  const f = fixture();
+  for (const group of ['d'.repeat(40), 'e'.repeat(40)]) f.comments.push({ user: { login: 'github-actions[bot]' },
+    body: native.MARKER + '\n' + JSON.stringify({ kind: 'reproduce', sha: BASE, group }) });
+  const ctx = { ...context, eventName: 'workflow_run', payload: { workflow_run: f.run } };
+  assert.equal(await native.reproduceGroupFailure({ ...f.args, context: ctx, sync: async () => { throw Error('retry limit ignored'); } }), 1);
+  assert.equal(native.records(f.comments).at(-1).kind, 'stopped');
+  await native.reconcile(f.args); assert.equal(f.reserved.length, 0);
 });
