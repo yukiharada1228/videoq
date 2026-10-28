@@ -28,7 +28,7 @@ function fixture() {
     return { data: f.rules };
   }, graphql: async (query, values) => {
     if (query.startsWith('mutation')) { f.disabled.push(values.id); f.mutations.push({ query, values }); return; }
-    return { repository: { pullRequest: { mergeQueueEntry: f.queued ? { id: 'entry', enqueuer: { login: f.enqueuer || 'videoq-dependency-bot[bot]' } } : null } } };
+    return { repository: { pullRequest: { mergeQueueEntry: f.queued ? { id: 'entry', enqueuer: { __typename: f.enqueuerType || 'Bot', login: f.enqueuer || 'videoq-dependency-bot' } } : null } } };
   } };
   f.verify = async () => f.proofs ? { pr, kind: 'dependabot', comments: f.comments } : null;
   f.args = { github: f.github, writerGithub: f.writerGithub, context, verify: f.verify,
@@ -61,10 +61,15 @@ test('queued PRs are left to GitHub and an unverified bot proposal loses auto-me
   assert.match(f.mutations[1].query, /disablePullRequestAutoMerge/);
 });
 test('ineligible automatic updates retain a maintainer-owned manual queue entry and auto-merge request', async () => {
-  const f = fixture(); f.proofs = false; f.queued = true; f.enqueuer = 'maintainer';
+  const f = fixture(); f.proofs = false; f.queued = true; f.enqueuer = 'maintainer'; f.enqueuerType = 'User';
   f.pr.auto_merge = { enabled_by: { login: 'maintainer' } };
   await native.reconcile(f.args);
   assert.equal(f.mutations.length, 0); assert.equal(f.reserved.length, 0); assert.equal(f.repairs.length, 0);
+});
+test('a human account with the App slug is never mistaken for the automatic Bot', async () => {
+  const f = fixture(); f.proofs = false; f.queued = true; f.enqueuerType = 'User';
+  await native.reconcile(f.args);
+  assert.equal(f.mutations.length, 0);
 });
 test('a normal eligible CI failure uses the existing bounded Claude authorizer', async () => {
   const f = fixture(); f.outcome = 'failure'; await native.reconcile({ ...f.args, repairEnabled: true, authorizeRepair: true });
