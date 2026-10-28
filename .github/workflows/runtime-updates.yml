@@ -48,9 +48,12 @@ jobs:
         env:
           RUNTIME: ${{ inputs.runtime || 'all' }}
           CHANNEL: ${{ inputs.channel || 'current' }}
+          QUEUE_ENABLED: ${{ vars.DEPENDENCY_QUEUE_ENABLED }}
         with:
           script: |
-            const result = await require('./.github/scripts/runtime-pull-request.cjs').scope({
+            const result = process.env.QUEUE_ENABLED === 'true' && ['push', 'workflow_run'].includes(context.eventName)
+              ? { active: false, matrix: { include: [{ runtime: 'node', channel: 'current' }] } }
+              : await require('./.github/scripts/runtime-pull-request.cjs').scope({
               github, context, runtime: process.env.RUNTIME, channel: process.env.CHANNEL,
             });
             core.setOutput('active', result.active);
