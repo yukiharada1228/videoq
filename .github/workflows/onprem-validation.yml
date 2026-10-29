@@ -8,16 +8,6 @@ on:
       validate_real_cpu:
         type: boolean
         default: false
-  workflow_dispatch:
-    inputs:
-      validate_whisper_gpu:
-        type: boolean
-        default: true
-      validate_real_cpu:
-        type: boolean
-        default: true
-  schedule:
-    - cron: '43 1 * * *'
 permissions:
   contents: read
 jobs:
@@ -243,7 +233,7 @@ jobs:
 
   whisper-nvidia-image:
     name: NVIDIA Whisper image
-    if: inputs.validate_whisper_gpu || github.event_name == 'schedule'
+    if: inputs.validate_whisper_gpu
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

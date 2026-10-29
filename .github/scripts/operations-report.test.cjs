@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { notify } = require('./operations-notify.cjs');
+const { summarize } = require('./operations-report.cjs');
 const { inspect } = require('./dependency-stalls.cjs');
 
 function fixture() {
@@ -38,7 +38,7 @@ test('findings, errors and recovery write summaries without accessing Issues', a
   f.github = new Proxy({}, { get() { throw new Error('GitHub API must not be used'); } });
   for (const status of ['findings', 'error', 'ok']) {
     f.report.status = status;
-    assert.deepEqual(await notify(f), { healthy: status === 'ok' });
+    assert.deepEqual(await summarize(f), { healthy: status === 'ok' });
   }
   assert.equal(summaries.length, 3);
   assert.match(summaries[0], /更新が滞留/);
@@ -54,7 +54,7 @@ test('PR refs, forks, unknown reports and malformed reports cannot create notifi
     f => { f.report = { status: 'ok' }; },
   ]) {
     const f = fixture(); change(f);
-    await assert.rejects(notify(f));
+    await assert.rejects(summarize(f));
     assert.equal(f.mutations.length, 0);
   }
 });

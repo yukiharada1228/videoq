@@ -1,44 +1,12 @@
-name: Terraform Plan
-
+# Internal CI component; PR checks and credentials stay under the CI caller.
+name: Terraform Checks
 on:
-  pull_request:
-  merge_group:
-    types: [checks_requested]
-
+  workflow_call:
 permissions:
   contents: read
-
-concurrency:
-  group: terraform-plan-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      pull-requests: read
-    outputs:
-      terraform: ${{ steps.filter.outputs.terraform }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-        id: filter
-        with:
-          base: ${{ github.event.merge_group.base_sha || github.event.repository.default_branch }}
-          filters: |
-            terraform:
-              - 'infra/**'
-              - '.github/workflows/terraform-plan.yml'
-              - '.github/workflows/terraform-apply.yml'
-
   terraform-validate:
     name: Terraform Validate
-    needs: changes
-    if: needs.changes.outputs.terraform == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -79,6 +47,8 @@ jobs:
         run: |
           terraform init -backend=false -input=false
           terraform validate -no-color
+
+
 
   terraform-plan:
     name: Terraform Plan (AWS)
@@ -172,31 +142,3 @@ jobs:
         run: |
           echo "Terraform plan failed (exit ${{ steps.plan.outputs.exit_code }}). Review the comment above."
           exit 1
-
-  terraform-result:
-    # Preserve the existing check name and fail it when validation fails,
-    # even when the AWS job is skipped for a Dependabot or fork PR.
-    name: Terraform Plan
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    if: always()
-    needs: [changes, terraform-validate, terraform-plan]
-    steps:
-      - name: Require Terraform checks to pass
-        env:
-          CHANGES_RESULT: ${{ needs.changes.result }}
-          TERRAFORM_CHANGED: ${{ needs.changes.outputs.terraform }}
-          VALIDATE_RESULT: ${{ needs.terraform-validate.result }}
-          PLAN_RESULT: ${{ needs.terraform-plan.result }}
-        run: |
-          test "$CHANGES_RESULT" = success
-          if [ "$TERRAFORM_CHANGED" != true ]; then
-            echo 'No Terraform changes.' >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          test "$VALIDATE_RESULT" = success
-          case "$PLAN_RESULT" in
-            success) echo 'Terraform validation and AWS plan passed.' >> "$GITHUB_STEP_SUMMARY" ;;
-            skipped) echo 'Terraform validation and mock tests passed. AWS plan is skipped for Dependabot and fork PRs because production secrets are unavailable.' >> "$GITHUB_STEP_SUMMARY" ;;
-            *) echo "::error::Terraform plan did not pass ($PLAN_RESULT)"; exit 1 ;;
-          esac

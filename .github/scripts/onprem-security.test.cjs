@@ -78,8 +78,11 @@ test('native basic checks are required when selected and use standard runners', 
   for (const runner of ['ubuntu-24.04', 'ubuntu-24.04-arm', 'macos-15']) assert.ok(basic.includes(`runner: ${runner},`));
   assert.ok(basic.indexOf('brew update') < basic.indexOf('brew install --force-bottle'));
   assert.match(basic, /workflow_call:/);
-  assert.match(basic, /workflow_dispatch:/);
-  assert.match(basic, /schedule:/);
+  assert.doesNotMatch(basic, /workflow_dispatch:|schedule:/);
+  const operations = readFileSync(join(__dirname, '../workflows/operations.yml'), 'utf8');
+  assert.match(operations, /workflow_dispatch:/);
+  assert.match(operations, /17 2 \* \* 1/);
+  assert.match(operations, /uses: \.\/\.github\/workflows\/local-inference-basic.yml/);
   assert.match(basic, /uv sync --locked --extra dev/);
   assert.doesNotMatch(basic, /self-hosted|secrets\.|secrets: inherit|id-token: write|packages: write|--gpus|download-ggml/);
 });
@@ -94,4 +97,11 @@ test('upstream CPU images retain separate architecture scans and a verified asse
   assert.match(cpu, /ignore-unfixed: 'false'/);
   assert.match(cpu, /exit-code: '1'/);
   assert.doesNotMatch(cpu, /continue-on-error: true/);
+});
+
+test('the on-prem component honors explicit GPU input while Operations preserves daily GPU checks', () => {
+  assert.match(onprem, /if: inputs\.validate_whisper_gpu\n/);
+  assert.doesNotMatch(onprem, /github\.event_name == 'schedule'/);
+  const operations = readFileSync(join(__dirname, '../workflows/operations.yml'), 'utf8');
+  assert.match(operations, /validate_whisper_gpu: \$\{\{ github\.event_name == 'schedule' \|\| inputs\.validate_whisper_gpu == true \}\}/);
 });

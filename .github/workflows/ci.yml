@@ -85,7 +85,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: always()
-    needs: [changes, supply-chain, workflow-security, onprem-validation, local-inference-basic, hono-test, worker-test, frontend-lint, frontend-test, frontend-coverage, frontend-build, frontend-storybook, docs-build]
+    needs: [changes, supply-chain, workflow-security, container-result, terraform-result, operations-fixture, onprem-validation, local-inference-basic, hono-test, worker-test, frontend-lint, frontend-test, frontend-coverage, frontend-build, frontend-storybook, docs-build]
     steps:
       - name: Require every selected CI job to pass
         env:
@@ -94,7 +94,8 @@ jobs:
           node <<'NODE'
           const jobs = JSON.parse(process.env.JOB_RESULTS);
           const failed = Object.entries(jobs).filter(([name, job]) =>
-            (['changes', 'supply-chain', 'workflow-security'].includes(name) ||
+            (['changes', 'supply-chain', 'workflow-security', 'container-result', 'terraform-result'].includes(name) ||
+              (name === 'operations-fixture' && jobs.changes.outputs.operations === 'true') ||
               (['onprem-validation', 'local-inference-basic'].includes(name) && jobs.changes.outputs.onprem === 'true'))
               ? job.result !== 'success'
               : !['success', 'skipped'].includes(job.result)
@@ -109,6 +110,10 @@ jobs:
     name: Detect Changes
     runs-on: ubuntu-latest
     outputs:
+      containers: ${{ steps.filter.outputs.containers }}
+      container_worker: ${{ steps.filter.outputs.container_worker }}
+      terraform: ${{ steps.filter.outputs.terraform }}
+      operations: ${{ steps.filter.outputs.operations }}
       hono: ${{ steps.filter.outputs.hono }}
       worker: ${{ steps.filter.outputs.worker }}
       frontend: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.frontend == 'true' }}
@@ -126,6 +131,39 @@ jobs:
         with:
           base: ${{ github.event.merge_group.base_sha || github.event.repository.default_branch }}
           filters: |
+            containers:
+              - '.github/workflows/container-validation.yml'
+              - 'apps/api/Dockerfile*'
+              - 'apps/web/Dockerfile*'
+              - 'apps/worker/Dockerfile*'
+              - 'docker-compose.yml'
+              - '.github/workflows/ci.yml'
+              - '.github/runtime-versions.json'
+              - '.node-version'
+              - '.python-version'
+              - '.github/actions/**'
+              - '.github/scripts/runtime-*'
+              - '.github/scripts/package-managers.py'
+            container_worker:
+              - '.github/workflows/container-validation.yml'
+              - 'apps/worker/**'
+              - '.github/runtime-versions.json'
+              - '.python-version'
+              - '.github/scripts/runtime-*'
+              - '.github/scripts/package-managers.py'
+              - '.github/workflows/ci.yml'
+            terraform:
+              - '.github/workflows/terraform-plan.yml'
+              - 'infra/**'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/terraform-apply.yml'
+            operations:
+              - '.github/workflows/ci.yml'
+              - '.github/actions/setup-package-manager/**'
+              - '.github/operations-tools/**'
+              - '.github/scripts/backup-restore*'
+              - '.github/actions/setup-operations-tools/**'
+              - '.github/workflows/operations.yml'
             whisper_gpu:
               - 'apps/inference/whisper/Dockerfile.vllm'
               - '.github/workflows/onprem-validation.yml'
@@ -575,3 +613,73 @@ jobs:
           name: documentation-build
           path: apps/docs/build
           retention-days: 7
+
+  container-checks:
+    needs: changes
+    if: needs.changes.outputs.containers == 'true' || needs.changes.outputs.container_worker == 'true'
+    uses: ./.github/workflows/container-validation.yml
+    with:
+      containers: ${{ needs.changes.outputs.containers == 'true' }}
+      worker: ${{ needs.changes.outputs.container_worker == 'true' }}
+    permissions:
+      contents: read
+
+  container-result:
+    name: Container Validation
+    needs: [changes, container-checks]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          SELECTED: ${{ needs.changes.outputs.containers == 'true' || needs.changes.outputs.container_worker == 'true' }}
+          RESULT: ${{ needs.container-checks.result }}
+        run: |
+          test "$CHANGES_RESULT" = success
+          if [ "$SELECTED" = true ]; then test "$RESULT" = success; fi
+  terraform-checks:
+    needs: changes
+    if: needs.changes.outputs.terraform == 'true'
+    uses: ./.github/workflows/terraform-plan.yml
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    secrets: inherit
+
+  terraform-result:
+    name: Terraform Plan
+    needs: [changes, terraform-checks]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          SELECTED: ${{ needs.changes.outputs.terraform }}
+          RESULT: ${{ needs.terraform-checks.result }}
+        run: |
+          test "$CHANGES_RESULT" = success
+          if [ "$SELECTED" = true ]; then test "$RESULT" = success; fi
+  operations-fixture:
+    needs: changes
+    if: needs.changes.outputs.operations == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-operations-tools
+      - name: Verify the hosted Chrome channel without production access
+        run: |
+          node --input-type=module <<'JS'
+          import { createRequire } from 'node:module';
+          const require = createRequire(process.cwd() + '/.github/operations-tools/package.json');
+          const { chromium } = require('playwright');
+          const browser = await chromium.launch({ channel: 'chrome' });
+          await browser.close();
+          JS
+      - name: Restore synthetic vector data and foreign keys without production access
+        run: node .github/scripts/backup-restore-fixture.mjs

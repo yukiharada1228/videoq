@@ -4,7 +4,7 @@ const sync = require('./dependency-rebase.cjs');
 const runtime = require('./runtime-pull-request.cjs');
 const REPO = 'videoq-jp/videoq';
 const BOT = process.env.DEPENDENCY_BOT_LOGIN || 'videoq-dependency-bot[bot]';
-const WORKFLOWS = ['ci.yml', 'container-validation.yml', 'terraform-plan.yml'];
+const REQUIRED = ['CI Success', 'Supply Chain Security', 'Container Validation', 'Terraform Plan'];
 const sha = s => /^[a-f0-9]{40}$/.test(s || '');
 function managed(pr) {
   return pr.base?.ref === 'main' && pr.head?.repo?.full_name === REPO &&
@@ -28,17 +28,16 @@ async function verified({ github, context, pr, base }) {
   return { ...pull, kind: 'dependabot', ...proof, seedHead };
 }
 async function runs({ github, context, pr }) {
-  return Promise.all(WORKFLOWS.map(async workflow_id => {
-    const { data } = await github.rest.actions.listWorkflowRuns({ ...context.repo, workflow_id, head_sha: pr.head.sha, event: 'pull_request', per_page: 100 });
-    const run = data.workflow_runs.sort((a, b) => b.id - a.id)[0];
-    if (!run) return { workflow_id };
-    const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, { ...context.repo, run_id: run.id, filter: 'latest', per_page: 100 });
-    const required = workflow_id === 'ci.yml' ? 'CI Success' : workflow_id === 'container-validation.yml' ? 'Container Validation' : 'Terraform Plan';
-    const admitted = jobs.some(job => job.name === required && job.conclusion !== 'skipped');
-    return { workflow_id, run, admitted };
-  }));
+  const workflow_id = 'ci.yml';
+  const { data } = await github.rest.actions.listWorkflowRuns({ ...context.repo, workflow_id, head_sha: pr.head.sha, event: 'pull_request', per_page: 100 });
+  const run = data.workflow_runs.sort((a, b) => b.id - a.id)[0];
+  if (!run) return [{ workflow_id }];
+  const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, { ...context.repo, run_id: run.id, filter: 'latest', per_page: 100 });
+  const admitted = REQUIRED.every(name => jobs.some(job => job.name === name && job.conclusion !== 'skipped'));
+  return [{ workflow_id, run, admitted }];
 }
 function result(rows) {
+  if (!rows.length) return 'waiting';
   if (rows.some(r => r.admitted && r.run?.status === 'completed' && ['failure', 'cancelled', 'timed_out', 'action_required'].includes(r.run.conclusion))) return 'failure';
   if (rows.every(r => r.admitted && r.run?.status === 'completed' && r.run.conclusion === 'success')) return 'success';
   return 'waiting';

@@ -236,3 +236,14 @@ test('major npm updates receive the same repair path as minor updates', async ()
   const f = fixture(); f.comments[0] = comment({ kind: 'seed', sha: A, metadata: { ...metadata, updateType: 'version-update:semver-major' } });
   assert.ok(await p.candidate(f)); assert.ok(await p.scope(f));
 });
+
+test('unified infrastructure checks and aggregate wrappers do not spend Claude application-repair attempts', async () => {
+  for (const name of ['Container Validation', 'Terraform Plan', 'container-checks / Worker image security (ARM64)', 'terraform-checks / Terraform Plan (AWS)', 'operations-fixture']) {
+    const f = fixture(); f.jobs = f.jobs.filter(job => job.conclusion === 'success');
+    f.jobs.push({ name, conclusion: 'failure' }, { name: 'CI Success', conclusion: 'failure' });
+    assert.equal(await p.scope(f), null, name);
+    assert.equal(p.attempts(f.comments).length, 0);
+  }
+  const mixed = fixture(); mixed.jobs.push({ name: 'Terraform Plan', conclusion: 'failure' });
+  assert.equal((await p.scope(mixed)).sha, A);
+});

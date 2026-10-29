@@ -1,0 +1,337 @@
+name: Operations
+on:
+  schedule:
+    - cron: '17 0 * * *' # Daily checks, 09:17 JST.
+    - cron: '17 2 * * 1' # Weekly inference compatibility, Monday 11:17 JST.
+    - cron: '41 4 1 * *' # Monthly backup rehearsal, 13:41 JST.
+  workflow_run:
+    workflows: [CD]
+    types: [completed]
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - '.github/cloudflare-token-expiry.json'
+      - '.github/scripts/cloudflare-token-expiry*'
+      - '.github/workflows/operations.yml'
+  workflow_dispatch:
+    inputs:
+      check:
+        description: Check to run (all includes the backup rehearsal)
+        type: choice
+        default: all
+        options: [all, dependencies, stalls, containers, terraform, tokens, smoke, backup, onprem, inference]
+      validate_whisper_gpu:
+        description: Include GPU Whisper image validation for onprem
+        type: boolean
+        default: false
+      validate_real_cpu:
+        description: Include real CPU-model acceptance for onprem
+        type: boolean
+        default: false
+      dry_run:
+        description: Preview token dates without failing on an urgent date
+        type: boolean
+        default: false
+      preview_date:
+        description: Optional UTC date for token dry-run only (YYYY-MM-DD)
+        type: string
+permissions:
+  contents: read
+jobs:
+  source:
+    if: >-
+      github.repository == 'videoq-jp/videoq' && github.ref == 'refs/heads/main' &&
+      (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      dependencies: ${{ steps.plan.outputs.dependencies }}
+      stalls: ${{ steps.plan.outputs.stalls }}
+      containers: ${{ steps.plan.outputs.containers }}
+      terraform: ${{ steps.plan.outputs.terraform }}
+      tokens: ${{ steps.plan.outputs.tokens }}
+      smoke: ${{ steps.plan.outputs.smoke }}
+      backup: ${{ steps.plan.outputs.backup }}
+      onprem: ${{ steps.plan.outputs.onprem }}
+      inference: ${{ steps.plan.outputs.inference }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        id: plan
+        env:
+          CHECK: ${{ inputs.check }}
+        with:
+          script: |
+            const { plan } = require('./.github/scripts/operations-plan.cjs');
+            const selected = await plan({ github, context, check: process.env.CHECK || 'all' });
+            for (const [name, enabled] of Object.entries(selected)) core.setOutput(name, enabled);
+
+  dependencies:
+    name: dependency-security
+    needs: source
+    if: needs.source.outputs.dependencies == 'true'
+    concurrency:
+      group: dependency-security
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version-file: .python-version
+      - uses: ./.github/actions/setup-package-manager
+        with:
+          manager: pip
+      - name: Audit the complete locked dependency graph
+        run: python .github/scripts/dependency-security.py
+      - uses: ./.github/actions/report-operations
+        if: always()
+        with:
+          kind: dependency-security
+          title: 依存関係の脆弱性
+
+  stalls:
+    name: dependency-stalls
+    needs: source
+    if: needs.source.outputs.stalls == 'true'
+    concurrency:
+      group: dependency-stalls
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { inspect } = require('./.github/scripts/dependency-stalls.cjs');
+            const { summarize } = require('./.github/scripts/operations-report.cjs');
+            let report;
+            try { report = await inspect({ github, context }); }
+            catch { report = { status: 'error', summary: '依存関係PRの滞留検査を完了できませんでした。', details: [] }; }
+            await summarize({ context, core, kind: 'dependency-stalls', title: '依存関係PRの滞留', report });
+            if (report.status === 'error') core.setFailed(report.summary);
+
+  containers:
+    name: container-security
+    needs: source
+    if: needs.source.outputs.containers == 'true'
+    concurrency:
+      group: container-security
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_PLAN_ROLE_ARN }}
+          role-session-name: videoq-container-readonly
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Resolve the immutable image actually running in production
+        id: image
+        env:
+          FUNCTION_NAME: ${{ secrets.LAMBDA_WORKER_FUNCTION_NAME }}
+          EXPECTED_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+          EXPECTED_REPOSITORY: ${{ secrets.ECR_REPOSITORY_WORKER }}
+        run: |
+          image=$(aws lambda get-function --function-name "$FUNCTION_NAME" --query Code.ResolvedImageUri --output text)
+          prefix="$EXPECTED_REGISTRY/$EXPECTED_REPOSITORY@sha256:"
+          test "${image#"$prefix"}" != "$image"
+          digest="${image#"$prefix"}"
+          [[ "$digest" =~ ^[a-f0-9]{64}$ ]]
+          echo "ref=$image" >> "$GITHUB_OUTPUT"
+      - name: Scan OS and application packages including unfixed vulnerabilities
+        id: scan
+        uses: aquasecurity/trivy-action@8f28faec26515256b6d22074d1d2a8986f4cbd87 # v0.35.0
+        with:
+          version: v0.76.1
+          scan-type: image
+          image-ref: ${{ steps.image.outputs.ref }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: 'false'
+          format: json
+          output: trivy.json
+          exit-code: '0'
+          timeout: 15m
+      - name: Summarize vulnerability identifiers only
+        run: python .github/scripts/container-security.py
+      - uses: ./.github/actions/report-operations
+        if: always()
+        with:
+          kind: container-security
+          title: 本番コンテナの脆弱性
+
+  terraform:
+    name: terraform-drift
+    needs: source
+    if: needs.source.outputs.terraform == 'true'
+    concurrency:
+      group: terraform-drift
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_PLAN_ROLE_ARN }}
+          role-session-name: videoq-drift-readonly
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Initialize with the reviewed lockfile
+        working-directory: infra
+        env:
+          TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+        run: terraform init -lockfile=readonly -input=false -backend-config="bucket=$TF_STATE_BUCKET" > /dev/null 2>&1
+      - name: Read-only plan with the backend mutex and no attribute output
+        working-directory: infra
+        env:
+          OPENAI_ADMIN_KEY: ${{ secrets.OPENAI_ADMIN_KEY }}
+          TF_VAR_openai_spend_alert_email: ${{ secrets.OPENAI_SPEND_ALERT_EMAIL }}
+          TF_VAR_operations_alert_email: ${{ secrets.OPERATIONS_ALERT_EMAIL }}
+        run: python ../.github/scripts/terraform-drift.py
+      - uses: ./.github/actions/report-operations
+        if: always()
+        with:
+          kind: terraform-drift
+          title: Terraformの差分
+
+  tokens:
+    name: cloudflare-token-expiry
+    needs: source
+    if: needs.source.outputs.tokens == 'true'
+    concurrency:
+      group: cloudflare-token-expiry
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github
+      - name: Check dates and write the expiry summary
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          DRY_RUN: ${{ inputs.dry_run == true && 'true' || 'false' }}
+          PREVIEW_DATE: ${{ inputs.preview_date }}
+        with:
+          script: |
+            const check = require('./.github/scripts/cloudflare-token-expiry.cjs');
+            const config = require('./.github/cloudflare-token-expiry.json');
+            await check({ github, context, core, config,
+              dryRun: process.env.DRY_RUN === 'true',
+              previewDate: process.env.PREVIEW_DATE,
+            });
+
+  smoke:
+    name: production-smoke
+    needs: source
+    if: needs.source.outputs.smoke == 'true'
+    concurrency:
+      group: production-smoke
+      cancel-in-progress: false
+    environment: production-app
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-operations-tools
+      - name: Verify the hosted runner browser
+        run: google-chrome --version
+      - name: Check production with a temporary low-quota user
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node .github/scripts/production-smoke.mjs
+      - uses: ./.github/actions/report-operations
+        if: always()
+        with:
+          kind: production-smoke
+          title: 本番の動作確認
+
+  backup:
+    name: backup-restore
+    needs: source
+    if: needs.source.outputs.backup == 'true'
+    concurrency:
+      group: backup-restore
+      cancel-in-progress: false
+    environment: production-app
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-operations-tools
+      - name: Back up a read-only snapshot and restore into an ephemeral database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node .github/scripts/backup-restore.mjs
+      - uses: ./.github/actions/report-operations
+        if: always()
+        with:
+          kind: backup-restore
+          title: バックアップの復元テスト
+
+  onprem:
+    name: On-prem lifecycle rehearsal
+    needs: source
+    if: needs.source.outputs.onprem == 'true'
+    uses: ./.github/workflows/onprem-validation.yml
+    with:
+      validate_whisper_gpu: ${{ github.event_name == 'schedule' || inputs.validate_whisper_gpu == true }}
+      validate_real_cpu: ${{ inputs.validate_real_cpu == true }}
+    permissions:
+      contents: read
+
+  inference:
+    name: Inference compatibility
+    needs: source
+    if: needs.source.outputs.inference == 'true'
+    uses: ./.github/workflows/local-inference-basic.yml
+    permissions:
+      contents: read

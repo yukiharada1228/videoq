@@ -125,8 +125,11 @@ async function scope(args) {
   // Upload/service failures and the aggregate result cannot be fixed by editing
   // application source. Preserve the bounded attempts for an actual test/build
   // failure; mixed failures can still receive a source compatibility repair.
-  const reporting = new Set(['CI Success', 'Dependency Queue', 'Frontend Coverage']);
-  if (!jobs.some(job => job.conclusion === 'failure' && !reporting.has(job.name))) return null;
+  const reporting = new Set(['CI Success', 'Container Validation', 'Terraform Plan', 'Frontend Coverage']);
+  // Consolidating CI must not turn infrastructure checks or their aggregate
+  // failures into application-repair attempts. Mixed application failures remain eligible.
+  const infrastructure = name => name === 'operations-fixture' || /^(container-checks|terraform-checks) \/ /.test(name);
+  if (!jobs.some(job => job.conclusion === 'failure' && !reporting.has(job.name) && !infrastructure(job.name))) return null;
   const history = attempts(c.comments);
   if (!await mayAttempt({ github, context, comments: c.comments, head: c.pr.head.sha })) return null;
   if (history.length >= MAX_ATTEMPTS) {

@@ -54,9 +54,8 @@ async function reproduceGroupFailure({ github, writerGithub, context, verify = q
       !/^[a-f0-9]{40}$/.test(run.head_sha)) return null;
   const match = /^gh-readonly-queue\/main\/pr-([1-9][0-9]*)-[a-f0-9]+$/.exec(run.head_branch || '');
   if (!match) return null;
-  const workflowIds = await Promise.all(['ci.yml', 'container-validation.yml', 'terraform-plan.yml'].map(async workflow_id =>
-    (await github.rest.actions.getWorkflow({ ...context.repo, workflow_id })).data.id));
-  if (!workflowIds.includes(run.workflow_id)) return null;
+  const { data: workflow } = await github.rest.actions.getWorkflow({ ...context.repo, workflow_id: 'ci.yml' });
+  if (run.workflow_id !== workflow.id) return null;
   const { data: latest } = await github.rest.actions.listWorkflowRuns({
     ...context.repo, workflow_id: run.workflow_id, head_sha: run.head_sha, event: 'merge_group', per_page: 100,
   });

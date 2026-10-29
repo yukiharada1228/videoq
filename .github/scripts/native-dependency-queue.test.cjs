@@ -32,7 +32,7 @@ function fixture() {
   } };
   f.verify = async () => f.proofs ? { pr, kind: 'dependabot', comments: f.comments } : null;
   f.args = { github: f.github, writerGithub: f.writerGithub, context, verify: f.verify,
-    evidence: async () => ['ci.yml', 'container-validation.yml', 'terraform-plan.yml'].map((workflow_id, i) => ({
+    evidence: async () => ['ci.yml'].map((workflow_id, i) => ({
       workflow_id, admitted: true, run: { id: i + 1, status: 'completed', conclusion: f.outcome },
     })), reserve: async data => f.reserved.push(data), prepareRepair: async data => f.repairs.push(data) };
   return f;

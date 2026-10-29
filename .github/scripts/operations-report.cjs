@@ -1,8 +1,4 @@
-const REPOSITORIES = new Set([
-  'videoq-jp/videoq',
-  'yukiharada1228/langchainjs-postgres',
-  'yukiharada1228/shadcn-digital-agency-jp',
-]);
+const REPOSITORY = 'videoq-jp/videoq';
 const KINDS = new Set([
   'dependency-stalls', 'dependency-security', 'container-security',
   'production-smoke', 'backup-restore', 'terraform-drift',
@@ -10,9 +6,9 @@ const KINDS = new Set([
 
 function requireMain(context) {
   const repository = context.repo.owner + '/' + context.repo.repo;
-  if (!REPOSITORIES.has(repository) || context.ref !== 'refs/heads/main' ||
+  if (repository !== REPOSITORY || context.ref !== 'refs/heads/main' ||
       !['schedule', 'workflow_dispatch', 'workflow_run'].includes(context.eventName)) {
-    throw new Error('Operations notifications require an authorized repository main branch.');
+    throw new Error('Operations reports require canonical main.');
   }
   return repository;
 }
@@ -25,8 +21,8 @@ function validateReport(report) {
   }
 }
 
-async function notify({ github, context, core, kind, title, report }) {
-  const repository = requireMain(context);
+async function summarize({ context, core, kind, title, report }) {
+  requireMain(context);
   if (!KINDS.has(kind) || typeof title !== 'string' || !title.trim()) throw new Error('Unknown operations report.');
   validateReport(report);
   if (!/^\d+$/.test(String(context.runId))) throw new Error('A workflow run ID is required.');
@@ -34,4 +30,4 @@ async function notify({ github, context, core, kind, title, report }) {
   return { healthy: report.status === 'ok' };
 }
 
-module.exports = { notify, requireMain, validateReport };
+module.exports = { summarize, requireMain, validateReport };
