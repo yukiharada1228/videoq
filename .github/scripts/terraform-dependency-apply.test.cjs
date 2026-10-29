@@ -90,3 +90,16 @@ test('manual and automatic jobs keep mutually exclusive approval paths', () => {
   assert.doesNotMatch(scope, /id-token: write|AWS_GITHUB_ACTIONS_DEPLOY_ROLE_ARN/);
   assert.match(scope, /TERRAFORM_DEPENDENCY_AUTOAPPLY_ENABLED/);
 });
+
+test('unclassified signed security updates never grant unattended Terraform production apply', async () => {
+  const f = fixture();
+  f.commits[0].commit.message = message.replace('  update-type: version-update:semver-minor', '  dependency-version: 6.1.2');
+  assert.equal(verifiedUpdateTypes(f.commits[0]), null);
+  assert.deepEqual(verifiedUpdateTypes(f.commits[0], { allowMissingTypes: true }), ['version-update:semver-major']);
+  assert.equal(await automaticTerraformApply(f), false);
+});
+test('a duplicate type cannot conceal another dependency missing its type', () => {
+  const c = { author: { login: 'dependabot[bot]' }, commit: { verification: { verified: true },
+    message: message.replace('\n...', '\n  update-type: version-update:semver-patch\n- dependency-name: another/provider\n...') } };
+  assert.equal(verifiedUpdateTypes(c), null);
+});
