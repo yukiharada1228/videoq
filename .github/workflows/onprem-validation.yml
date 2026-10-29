@@ -8,16 +8,6 @@ on:
       validate_real_cpu:
         type: boolean
         default: false
-  workflow_dispatch:
-    inputs:
-      validate_whisper_gpu:
-        type: boolean
-        default: true
-      validate_real_cpu:
-        type: boolean
-        default: true
-  schedule:
-    - cron: '43 1 * * *'
 permissions:
   contents: read
 jobs:

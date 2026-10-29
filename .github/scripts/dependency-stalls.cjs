@@ -1,4 +1,4 @@
-const { requireMain } = require('./operations-notify.cjs');
+const { requireMain } = require('./operations-report.cjs');
 const HOUR = 3_600_000;
 
 async function inspect({ github, context, now = new Date(), minimumHours = 48 }) {
@@ -11,8 +11,7 @@ async function inspect({ github, context, now = new Date(), minimumHours = 48 })
   const details = [];
   for (const item of pulls) {
     if (item.user?.login !== 'dependabot[bot]' || item.draft ||
-        item.head?.repo?.full_name !== repository ||
-        item.labels.some(label => label.name === 'operations-muted')) continue;
+        item.head?.repo?.full_name !== repository) continue;
     const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: item.number });
     if (pr.state !== 'open' || pr.draft || pr.head.sha !== item.head.sha) continue;
     const { data: commit } = await github.rest.repos.getCommit({ ...context.repo, ref: pr.head.sha });

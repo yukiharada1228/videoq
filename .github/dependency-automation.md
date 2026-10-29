@@ -2,7 +2,9 @@
 
 更新自動化の入口は `dependency-queue.yml`（Dependency Automation）だけにする。
 PRの検証、修正の許可、自動投入の判断をここで行う。実行順と最新mainでの統合検査・マージはGitHub Merge Queueが担当する。
-通常の開発PRのCI・デプロイ・Terraform適用はそれぞれのワークフローに残す。
+アプリ・コンテナ・TerraformのPR検証は `ci.yml` の1実行にまとめる。
+デプロイとTerraform本番適用は、それぞれの権限・承認を持つワークフローに残す。
+構成全体は [WORKFLOWS.md](WORKFLOWS.md) を参照する。
 
 | ファイル | 責務 |
 | --- | --- |

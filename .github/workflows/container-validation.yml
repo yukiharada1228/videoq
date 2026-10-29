@@ -1,57 +1,19 @@
-name: Container Validation
-
+# Internal CI component; never starts a separate PR workflow.
+name: Container Checks
 on:
-  pull_request:
-  merge_group:
-    types: [checks_requested]
-
+  workflow_call:
+    inputs:
+      containers:
+        type: boolean
+        required: true
+      worker:
+        type: boolean
+        required: true
 permissions:
   contents: read
-  pull-requests: read
-
-concurrency:
-  group: container-validation-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      containers: ${{ steps.filter.outputs.containers }}
-      worker: ${{ steps.filter.outputs.worker }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-        id: filter
-        with:
-          base: ${{ github.event.merge_group.base_sha || github.event.repository.default_branch }}
-          filters: |
-            containers:
-              - 'apps/api/Dockerfile*'
-              - 'apps/web/Dockerfile*'
-              - 'apps/worker/Dockerfile*'
-              - 'docker-compose.yml'
-              - '.github/workflows/container-validation.yml'
-              - '.github/runtime-versions.json'
-              - '.node-version'
-              - '.python-version'
-              - '.github/actions/**'
-              - '.github/scripts/runtime-*'
-              - '.github/scripts/package-managers.py'
-            worker:
-              - 'apps/worker/**'
-              - '.github/runtime-versions.json'
-              - '.python-version'
-              - '.github/scripts/runtime-*'
-              - '.github/scripts/package-managers.py'
-              - '.github/workflows/container-validation.yml'
-
-  validate:
-    needs: changes
-    if: needs.changes.outputs.containers == 'true'
+  container-validate:
+    if: inputs.containers
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -74,10 +36,11 @@ jobs:
           docker build --check -f apps/worker/Dockerfile.local apps/worker
           docker build --check -f apps/worker/Dockerfile.onprem apps/worker
 
-  node-runtime:
+
+
+  container-node-runtime:
     name: Node container (${{ matrix.name }})
-    needs: changes
-    if: needs.changes.outputs.containers == 'true'
+    if: inputs.containers
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -116,10 +79,11 @@ jobs:
           docker run --rm --entrypoint npm videoq-node-runtime run typecheck
           docker run --rm --entrypoint npm videoq-node-runtime run test:workers
 
-  worker-image:
+
+
+  container-worker-image:
     name: Worker image security (ARM64)
-    needs: changes
-    if: needs.changes.outputs.worker == 'true'
+    if: inputs.worker
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     permissions:
@@ -143,27 +107,3 @@ jobs:
           ignore-unfixed: 'false'
           exit-code: '1'
           timeout: 15m
-
-  result:
-    name: Container Validation
-    needs: [changes, validate, node-runtime, worker-image]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - env:
-          CHANGES_RESULT: ${{ needs.changes.result }}
-          CONTAINERS_CHANGED: ${{ needs.changes.outputs.containers }}
-          VALIDATE_RESULT: ${{ needs.validate.result }}
-          NODE_RESULT: ${{ needs.node-runtime.result }}
-          WORKER_CHANGED: ${{ needs.changes.outputs.worker }}
-          WORKER_RESULT: ${{ needs.worker-image.result }}
-        run: |
-          test "$CHANGES_RESULT" = success
-          if [ "$CONTAINERS_CHANGED" = true ]; then
-            test "$VALIDATE_RESULT" = success
-            test "$NODE_RESULT" = success
-          fi
-          if [ "$WORKER_CHANGED" = true ]; then
-            test "$WORKER_RESULT" = success
-          fi

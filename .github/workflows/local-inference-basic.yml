@@ -1,9 +1,6 @@
 name: Local Inference Basic Checks
 on:
   workflow_call:
-  workflow_dispatch:
-  schedule:
-    - cron: '17 2 * * 1'
 permissions:
   contents: read
 concurrency:

@@ -98,78 +98,16 @@ HELM_BIN=helm python3 .github/scripts/onprem-cpu-acceptance.py \
 既存の `videoq-onprem-lab` クラスタがあれば置き換えずに停止します。モデル取得時にはインターネット接続が必要です。検証用の DB 等も含め、少なくとも16 GiB の RAM を用意します。短い公開サンプル1件での確認なので、導入先の日本語録画・同時利用数による精度や性能、CNI による NetworkPolicy の適用確認は別途必要です。
 
 
-## パッケージ名の移行
+## パッケージ名と過去のリリース
 
-新規リリースの `release.json` は schemaVersion 4 を使います。`api`・`web`・`worker` は
-役割名を維持し、音声 API は `transcription-gateway`、既存の自前 GPU エンジンは
-`vllm-engine` というマニフェスト上の役割名になりますが、パッケージは従来の
-`videoq-vllm` に変更します。LLM・埋め込み・音声認識で共用する名前です。
-上流 vLLM の直接利用への切り替えは別の変更として進めます。
-Helm の `whisper.image`・`whisper.vllmImage` などの設定キーは変更しません。
+名前空間の移行は完了しています。通常の **On-prem Release** が
+`videoq-jp/videoq-api`・`videoq-worker`・`videoq-web`・
+`videoq-transcription-gateway`・`videoq-vllm` の公開5パッケージを配布します。
+Public設定と、このリポジトリに対するActions Write権限を維持してください。
+bootstrapタグは導入用のリリースではありません。
 
-旧 schemaVersion 2 のマニフェストは、元の `videoq-onprem-*` パッケージとすべての署名を
-引き続き検証します。旧パッケージは削除せず、履歴やロールバック用の digest を保持してください。
-schemaVersion ごとにパッケージ名を固定し、新旧の名前を混ぜたマニフェストは拒否します。
-
-旧リリースの配布を明示的に終了する場合は、新名称の署名済み schemaVersion 3 リリースが
-成功してから **Retired Package Cleanup** をその実行 ID で起動します。既定はプレビューで、
-`delete` を有効にすると旧 `videoq-onprem-api`・`videoq-onprem-web`・
-`videoq-onprem-worker`・`videoq-onprem-whisper` の全バージョンを削除します。
-削除後は、それらを参照する過去リリースの取得やロールバックはできません。
-現行の新名4パッケージと `videoq-onprem-whisper-vllm` は保持します。
-
-切り替え前に、管理者は新しい4パッケージの公開設定と Actions の Write アクセスを準備します。
-GHCR の新規パッケージは最初の公開と設定が別途必要です。この PR のマージだけでは準備完了に
-なりません。新名称での公開前後の Public 検査は維持し、パッケージが未作成・非公開なら
-リリースを停止します。既存の公開パッケージを削除して移行する手順は使いません。
-新名称の署名済みリリースで検証用 Helm 値を再生成し、チャートを更新してください。
-
-## 新名称パッケージの初回作成
-
-`Package Namespace Bootstrap` は main からの手動実行に限定されます。成功済みの
-`On-prem Release` 実行 ID を指定すると、その実行のリポジトリ・ワークフロー・main・成功状態・
-試行番号を確認し、署名済みマニフェスト、両チャート、全イメージの署名を検証します。
-プレビューはレジストリを書き換えません。
-
-```sh
-RELEASE_RUN_ID=40448706562 # 成功済みリリースの例。使用する実行 ID に置き換えます。
-gh workflow run package-bootstrap.yml --repo yukiharada1228/videoq --ref main \
-  -f release_run_id="$RELEASE_RUN_ID" -f publish=false
-```
-
-成果物 `package-bootstrap-<実行ID>-<試行番号>` でコピー元・先と digest を確認してから、
-`publish=true` で実行します。リポジトリの `GITHUB_TOKEN` を使うため、新しい PAT は不要です。
-コピー対象は api・web・worker・transcription-gateway の4つだけで、GPU 用の新規パッケージは
-作りません。イメージのビルドや実行、旧パッケージの削除は行いません。
-
-```sh
-gh workflow run package-bootstrap.yml --repo yukiharada1228/videoq --ref main \
-  -f release_run_id="$RELEASE_RUN_ID" -f publish=true
-```
-
-作成される `bootstrap-*` タグは名前空間の準備専用であり、導入しないでください。
-コピー先のマニフェスト digest が元の検証済み digest と同じことを確認し、公開状態と
-リポジトリの関連付けを成果物に記録します。途中で停止した場合も、作成済みのコピーは保持します。
-
-初回作成後は、成果物にある各パッケージのページから **Package settings → Change visibility →
-Public** を設定し、リポジトリの Actions Write アクセスを確認します。旧公開パッケージは
-履歴・復旧用に残します。公開準備後に名称変更を取り込み、通常の署名付きリリースを生成・検証します。
-通常のリリースの Public 検査や署名検証を省略する機能ではありません。
-
-## 現行 GPU エンジンの改名
-
-自前 GPU エンジンは `videoq-vllm` として配布します。改名による実行内容・amd64 対応範囲の変更はありません。
-schemaVersion 4 は新名称を固定し、schemaVersion 3 は旧 `videoq-onprem-whisper-vllm` の署名を
-引き続き検証します。どちらも8対象すべての署名を検証し、新旧の参照先を混ぜたマニフェストは拒否します。
-
-新しい名前空間の初回作成は、成功済みの署名付き schemaVersion 3 リリースを指定し、
-**Package Namespace Bootstrap** を `vllm_only=true` で起動します。まずプレビューし、次に
-`publish=true` を指定します。検証済み GPU インデックスだけを一意の bootstrap タグへコピーし、
-ビルドや既存のリリースタグの置き換えは行いません。通常リリースの前に Public 設定と
-リポジトリの Actions Write アクセスを確認します。bootstrap タグは導入用リリースではありません。
-
-署名付き schemaVersion 4 リリースの匿名取得・動作検証が成功してから、その実行 ID で
-**Retired Package Cleanup** を起動します。既定はプレビューで、`delete=true` は
-旧 `videoq-onprem-whisper-vllm` だけを削除し、`videoq-vllm` を含む現行5パッケージを保持します。
-削除にはパッケージ Admin 権限が必要です。削除後は旧 schemaVersion 3 リリースの取得・
-完全な署名検証はできません。新しいリリースの検証成功前には削除しないでください。
+移管時だけ使ったPackage Namespace BootstrapとRetired Package Cleanupの
+ワークフローは廃止しました。過去のパッケージ・リリース・署名は削除せず、
+ロールバックと検証のために保持します。過去のスキーマでも元のリポジトリ・
+ワークフロー・コミットを固定し、8件の署名を検証します。
+名前空間を混在させた配布物は拒否します。新しい配布には通常の署名付きリリースを使ってください。

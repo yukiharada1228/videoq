@@ -219,88 +219,16 @@ downloads need internet access. Allow at least 16 GiB RAM for this disposable
 test with backing services; production sizing still needs representative videos.
 
 
-## Package name migration
+## Package names and historical releases
 
-SchemaVersion 3 introduced the first four role-based package names. New `release.json` manifests use schemaVersion 4. Application roles remain
-`api`, `web` and `worker`; speech becomes `transcription-gateway`, and the
-custom GPU engine is now published as `videoq-vllm`, a general runtime that can serve chat, embeddings or speech. Its manifest role remains `vllm-engine`. Direct upstream-image migration is a separate change. Helm keys such as `whisper.image` and
-`whisper.vllmImage` remain compatible.
+The namespace migration is complete. Current releases publish the five public
+`videoq-jp/videoq-{api,web,worker,transcription-gateway,vllm}` packages through
+**On-prem Release**. Their package settings must retain repository Actions Write
+access and public visibility. Bootstrap tags are not deployment releases.
 
-SchemaVersion 2 manifests still verify their original `videoq-onprem-*`
-repositories and every signature. Retain those public packages and immutable
-digests for historical installs and rollback. Each schema fixes its own package
-namespace; mixed generations are rejected.
-
-When historical releases are explicitly retired after a successful signed schema 3
-release, run **Retired Package Cleanup** with that release run ID. Preview is the
-default; setting `delete` removes only `videoq-onprem-api`, `videoq-onprem-web`,
-`videoq-onprem-worker` and `videoq-onprem-whisper`, including their versions.
-Historical releases referencing them can no longer be pulled or used for rollback.
-The current four new packages and `videoq-onprem-whisper-vllm` are retained.
-
-Before activation, a package administrator must prepare all four new public
-packages and grant the repository Actions Write access. Initial GHCR publication
-and package settings require a separate bootstrap; merging this PR does not
-complete that setup. Public-visibility checks before and after publication stay
-mandatory, so missing or private new packages stop a release. Do not delete the
-old public packages to migrate. Regenerate verified Helm values from the new
-signed release before upgrading charts.
-
-## Bootstrap the new package namespaces
-
-`Package Namespace Bootstrap` only runs manually from canonical main. Supply a
-successful `On-prem Release` run ID. It checks repository, workflow, main branch,
-success state and attempt, then verifies the signed manifest, both charts and
-every original image attestation before preparing four copy targets. Preview
-mode does not modify the registry.
-
-```sh
-RELEASE_RUN_ID=40448706562 # Example successful release; select the reviewed run to use.
-gh workflow run package-bootstrap.yml --repo yukiharada1228/videoq --ref main \
-  -f release_run_id="$RELEASE_RUN_ID" -f publish=false
-```
-
-Review the source/destination digests in artifact
-`package-bootstrap-<run-id>-<attempt>`, then dispatch with `publish=true`. The
-workflow uses the repository GITHUB_TOKEN; no new personal token is needed.
-It copies only api, web, worker and transcription-gateway. It creates no new GPU
-package and does not build/execute images or delete old packages.
-
-```sh
-gh workflow run package-bootstrap.yml --repo yukiharada1228/videoq --ref main \
-  -f release_run_id="$RELEASE_RUN_ID" -f publish=true
-```
-
-The `bootstrap-*` tags only initialize namespaces; do not deploy them. The
-workflow checks the copied manifest digest against the verified source and
-records package visibility/repository association. Successful copies are kept
-if a later copy fails.
-
-After creation, open each package page in the report, select **Package settings
-→ Change visibility → Public**, and confirm repository Actions Write access.
-Retain old public packages for history and rollback. Once publication settings
-are ready, merge the naming change and generate/verify a normal signed release.
-This bootstrap does not bypass the normal release's public-visibility or
-attestation gates.
-
-## Rename the current GPU engine package
-
-The current custom engine is distributed as `videoq-vllm`; its runtime and amd64
-support are unchanged by the naming migration. Schema 4 fixes that repository;
-schema 3 retains `videoq-onprem-whisper-vllm` for complete historical signature
-verification while that package remains available. Both schemas verify all eight
-signed subjects; mixed repositories are rejected.
-
-To initialize the new namespace, run **Package Namespace Bootstrap** against a
-successful signed schema 3 release with `vllm_only=true`. Preview first, then set
-`publish=true`. This copies only the verified GPU index to a unique bootstrap tag,
-without rebuilding images or replacing release tags. Confirm Public visibility
-and repository Actions Write access before the normal signed release runs.
-Bootstrap tags are not deployment releases.
-
-After a successful signed schema 4 release passes anonymous pulls and rehearsal,
-run **Retired Package Cleanup** with that release run ID. Preview is the default;
-`delete=true` removes only `videoq-onprem-whisper-vllm`, retaining all five current
-packages including `videoq-vllm`. Package Admin access is required. Deleting the
-old package prevents pulls and complete signature verification of historical
-schema 3 releases. Do not delete it before the replacement release is verified.
+The migration-only Package Namespace Bootstrap and Retired Package Cleanup
+workflows have been retired. Keep historical packages available for rollback and
+verification; removing a workflow does not delete images, releases or attestations.
+The verifier still validates historical schemas against their original repository,
+workflow and exact source SHA, including all eight signed subjects. Mixed image
+namespaces remain invalid. Use the normal signed release workflow for new builds.

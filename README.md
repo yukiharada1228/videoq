@@ -320,6 +320,8 @@ See [diagnostics and migration constraints](docs/guides/embeddings.md).
 
 ## Development
 
+See [the workflow map](.github/WORKFLOWS.md) for CI, deployment, automatic dependency updates, and operations checks.
+
 Run npm commands from the repository root. Dependencies for `apps/api`, `apps/docs`, `apps/web`, and `packages/trpc` share the root lockfile.
 
 ```bash

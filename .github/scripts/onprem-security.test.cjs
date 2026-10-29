@@ -78,8 +78,11 @@ test('native basic checks are required when selected and use standard runners', 
   for (const runner of ['ubuntu-24.04', 'ubuntu-24.04-arm', 'macos-15']) assert.ok(basic.includes(`runner: ${runner},`));
   assert.ok(basic.indexOf('brew update') < basic.indexOf('brew install --force-bottle'));
   assert.match(basic, /workflow_call:/);
-  assert.match(basic, /workflow_dispatch:/);
-  assert.match(basic, /schedule:/);
+  assert.doesNotMatch(basic, /workflow_dispatch:|schedule:/);
+  const operations = readFileSync(join(__dirname, '../workflows/operations.yml'), 'utf8');
+  assert.match(operations, /workflow_dispatch:/);
+  assert.match(operations, /17 2 \* \* 1/);
+  assert.match(operations, /uses: \.\/\.github\/workflows\/local-inference-basic.yml/);
   assert.match(basic, /uv sync --locked --extra dev/);
   assert.doesNotMatch(basic, /self-hosted|secrets\.|secrets: inherit|id-token: write|packages: write|--gpus|download-ggml/);
 });

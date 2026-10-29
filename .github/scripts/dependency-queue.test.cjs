@@ -12,6 +12,7 @@ test('managed scope excludes development, forks and next-line runtime updates', 
   assert.equal(q.managed(pull('videoq-dependency-bot[bot]', 'runtime/python-current')), true);
 });
 test('all real validation workflows must complete; skipped or missing evidence cannot authorize a queue entry', () => {
+  assert.equal(q.result([]), 'waiting');
   const success = { admitted: true, run: { status: 'completed', conclusion: 'success' } };
   assert.equal(q.result([success, success, success]), 'success');
   for (const row of [{}, { ...success, admitted: false }, { admitted: true, run: { status: 'in_progress' } }]) {
@@ -21,17 +22,22 @@ test('all real validation workflows must complete; skipped or missing evidence c
     assert.equal(q.result([success, { admitted: true, run: { status: 'completed', conclusion } }, success]), 'failure');
   }
 });
-test('actual required job names authorize normal PR CI without an issue lease or admission job', async () => {
-  const names = { 'ci.yml': 'CI Success', 'container-validation.yml': 'Container Validation', 'terraform-plan.yml': 'Terraform Plan' };
-  const jobs = Object.fromEntries(Object.values(names).map(name => [name, [{ name, conclusion: 'success' }]]));
+test('one CI run must contain every real required check before queue admission', async () => {
+  let jobs = ['CI Success', 'Supply Chain Security', 'Container Validation', 'Terraform Plan'].map(name => ({ name, conclusion: 'success' }));
+  const calls = [];
   const github = { rest: { actions: {
-    listWorkflowRuns: async ({ workflow_id }) => ({ data: { workflow_runs: [{ id: names[workflow_id], status: 'completed', conclusion: 'success' }] } }),
-    listJobsForWorkflowRun: async ({ run_id }) => jobs[run_id],
+    listWorkflowRuns: async ({ workflow_id }) => { calls.push(workflow_id); return { data: { workflow_runs: [{ id: 1, status: 'completed', conclusion: 'success' }] } }; },
+    listJobsForWorkflowRun: async () => jobs,
   } }, paginate: (method, args) => method(args) };
   const args = { github, context: { repo: { owner: 'videoq-jp', repo: 'videoq' } }, pr: pull() };
   assert.equal(q.result(await q.runs(args)), 'success');
-  jobs['CI Success'] = [{ name: 'CI Waiting', conclusion: 'success' }];
-  assert.equal(q.result(await q.runs(args)), 'waiting');
-  jobs['CI Success'] = [{ name: 'CI Success', conclusion: 'skipped' }];
-  assert.equal(q.result(await q.runs(args)), 'waiting');
+  assert.deepEqual(calls, ['ci.yml']);
+  for (const required of [...jobs]) {
+    const original = jobs;
+    jobs = original.filter(job => job.name !== required.name);
+    assert.equal(q.result(await q.runs(args)), 'waiting');
+    jobs = original.map(job => job.name === required.name ? { ...job, conclusion: 'skipped' } : job);
+    assert.equal(q.result(await q.runs(args)), 'waiting');
+    jobs = original;
+  }
 });

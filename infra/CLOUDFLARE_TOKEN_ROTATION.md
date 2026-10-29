@@ -8,13 +8,15 @@ The deployment and resource-sync tokens issued on 2026-09-18 both expire on
 
 ## Automated notifications
 
-The [`Cloudflare Token Expiry`](../.github/workflows/cloudflare-token-expiry.yml)
+The [`Operations`](../.github/workflows/operations.yml)
 workflow checks expiry dates daily at 09:17 JST. It also runs when monitoring
 configuration changes on main and can be run manually.
 
 - From 30 days before expiry: Record token names, secret destinations, remaining days, and the applicable expiry stage in the Actions job summary.
 - From 7 days before expiry until rotation: Fail the monitoring workflow so it appears in Actions failure notifications.
 - The monitor does not create, update, reopen, or comment on Issues.
+
+Use `check=tokens` to run only this monitor; `dry_run` and `preview_date` are available on Operations.
 
 The monitoring job has only `contents: read` permission. It does not use Cloudflare,
 AWS, or database secrets, production environments, or external email-service keys.
@@ -49,11 +51,11 @@ the calendar automatically.
    to match the actual new tokens, and merge the change into main through a PR.
    Do not merely postpone the recorded expiry date.
 6. Update the backup calendar reminders to the new expiry dates.
-7. Confirm that `Cloudflare Token Expiry` passes and the summary shows the updated dates.
+7. Confirm that `Operations / tokens` passes and the summary shows the updated dates.
 
 ## Test without sending notifications
 
-Under Actions → Cloudflare Token Expiry → Run workflow, enable `dry_run` and set
+Under Actions → Operations → Run workflow, select `check=tokens`, enable `dry_run` and set
 `preview_date` to `2026-11-17` (30 days before expiry) or `2026-12-10` (7 days before
 expiry). A custom date is allowed only in dry-run mode. The workflow writes the
 result to the job summary without creating issues or comments. Normal monitoring
