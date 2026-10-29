@@ -233,7 +233,7 @@ jobs:
 
   whisper-nvidia-image:
     name: NVIDIA Whisper image
-    if: inputs.validate_whisper_gpu || github.event_name == 'schedule'
+    if: inputs.validate_whisper_gpu
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

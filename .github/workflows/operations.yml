@@ -323,7 +323,7 @@ jobs:
     if: needs.source.outputs.onprem == 'true'
     uses: ./.github/workflows/onprem-validation.yml
     with:
-      validate_whisper_gpu: ${{ inputs.validate_whisper_gpu == true }}
+      validate_whisper_gpu: ${{ github.event_name == 'schedule' || inputs.validate_whisper_gpu == true }}
       validate_real_cpu: ${{ inputs.validate_real_cpu == true }}
     permissions:
       contents: read

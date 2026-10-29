@@ -98,3 +98,10 @@ test('upstream CPU images retain separate architecture scans and a verified asse
   assert.match(cpu, /exit-code: '1'/);
   assert.doesNotMatch(cpu, /continue-on-error: true/);
 });
+
+test('the on-prem component honors explicit GPU input while Operations preserves daily GPU checks', () => {
+  assert.match(onprem, /if: inputs\.validate_whisper_gpu\n/);
+  assert.doesNotMatch(onprem, /github\.event_name == 'schedule'/);
+  const operations = readFileSync(join(__dirname, '../workflows/operations.yml'), 'utf8');
+  assert.match(operations, /validate_whisper_gpu: \$\{\{ github\.event_name == 'schedule' \|\| inputs\.validate_whisper_gpu == true \}\}/);
+});
