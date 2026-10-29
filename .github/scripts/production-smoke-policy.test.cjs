@@ -37,3 +37,22 @@ test('only the reviewed synthetic fixture may be uploaded', () => {
   assert.equal(fixtureValid(changed), false);
   assert.equal(fixtureValid(Buffer.from('another local file')), false);
 });
+
+test('asynchronous cleanup waits for the same safe predicate to become ready', async () => {
+  const { waitForCleanup } = require('./production-smoke-policy.cjs');
+  let calls = 0; const waits = [];
+  assert.equal(await waitForCleanup(async () => ++calls === 3, async ms => waits.push(ms)), true);
+  assert.equal(calls, 3); assert.deepEqual(waits, [2000, 2000]);
+});
+test('active or unfinished cleanup remains a failure after a bounded wait', async () => {
+  const { waitForCleanup } = require('./production-smoke-policy.cjs');
+  let calls = 0; const waits = [];
+  assert.equal(await waitForCleanup(async () => { calls++; return false; }, async ms => waits.push(ms)), false);
+  assert.equal(calls, 31); assert.equal(waits.length, 30);
+});
+test('cleanup errors are not swallowed or retried', async () => {
+  const { waitForCleanup } = require('./production-smoke-policy.cjs');
+  let calls = 0;
+  await assert.rejects(waitForCleanup(async () => { calls++; throw new Error('unavailable'); }, async () => assert.fail('must not wait')), /unavailable/);
+  assert.equal(calls, 1);
+});

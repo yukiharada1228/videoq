@@ -23,4 +23,13 @@ function completed(video) {
 function deletable(status) {
   return ['completed', 'error', 'uploading'].includes(status);
 }
-module.exports = { ORIGIN, synthetic, uploadAllowed, completed, deletable, fixtureValid };
+// Re-check the same safe cleanup predicate while background storage tasks settle.
+// Never force deletion, retry exceptions, or create another upload while waiting.
+async function waitForCleanup(cleanup, wait) {
+  for (let attempt = 0; attempt < 31; attempt++) {
+    if (await cleanup()) return true;
+    if (attempt < 30) await wait(2000);
+  }
+  return false;
+}
+module.exports = { waitForCleanup, ORIGIN, synthetic, uploadAllowed, completed, deletable, fixtureValid };
