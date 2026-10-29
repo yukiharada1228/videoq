@@ -1,3 +1,4 @@
+import { BrandLogo } from '@/components/layout/BrandLogo';
 import { features } from "@/lib/deployment";
 import { useEffect, useId, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -221,7 +222,7 @@ export function AppNav({ activePage }: AppNavProps) {
             href="/"
             className="shrink-0 text-std-20B-150 text-solid-gray-800 no-underline"
           >
-            VideoQ
+            <BrandLogo />
           </Link>
 
           <div className="flex shrink-0 items-center justify-end gap-4">
