@@ -26,7 +26,7 @@ flowchart LR
 | `ci.yml` | PR・Merge Queue・mainの検証。変更検出は1回。4つの必須チェックをここに集約 |
 | `cd.yml` | 検証済みmainをビルドし、書き込み権限を分離して本番へデプロイ |
 | `dependency-queue.yml` | 更新PRの由来を確認し、CI成功なら標準キューへ、修正が必要ならClaudeへ |
-| `operations.yml` | 定期監視7種類とオンプレミス・推論検証、CD成功後のスモーク、手動の項目選択 |
+| `operations.yml` | 定期監視6種類とオンプレミス・推論検証、CD成功後のスモーク、手動の項目選択 |
 | `runtime-updates.yml` | 日次のランタイム更新PR作成 |
 | `claude-dependency-worker.yml` | 許可された修正の実行。別runnerで検証・反映 |
 | `codeql.yml` | GitHubのコード解析 |
@@ -39,14 +39,23 @@ flowchart LR
 権限の違う処理を一つのrunnerに混ぜず、ジョブごとの権限・環境・承認を維持する。
 
 移管時だけ必要だったPackage Namespace BootstrapとRetired Package Cleanupの
-ワークフローは削除した。必要ならGit履歴と検証用CLIを参照する。
+ワークフロー・CLI・専用テストは削除した。必要ならGit履歴を参照する。
 公開パッケージ・過去の署名・リリースは削除しない。
+
+旧Djangoからの一度限りのETL・切り替え・テーブル削除ツールとnpmの入口、
+適用済みSQLの生成専用ツール、旧LP動画ジェネレーター、未使用のWhisper API PoCも削除した。
+適用済みSQLと配信中の動画は維持する。現行のDB更新は `apps/api/scripts/db-migrate.sh`、
+動画生成は `apps/demo-video` を使う。過去のSQL内にある生成コマンドは当時の記録として残す。
+
+依存更新の順番管理はGitHub Merge Queueに統一した。旧キュー用のREBASE分岐と
+移管時の手動追従入力、日次のPR滞留レポートは廃止した。
+実際の統合CI失敗時の自動追従とClaude修正はイベントで起動する。
 
 ## 手動で確認する
 
 ```sh
 # 一つの監視だけを実行する
- gh workflow run operations.yml -f check=stalls
+ gh workflow run operations.yml -f check=tokens
 # トークン期限をシミュレーションする（本物の通知失敗にはしない）
  gh workflow run operations.yml -f check=tokens -f dry_run=true -f preview_date=2026-12-10
 # 全監視（本番スモークとDB復元テストも含む）

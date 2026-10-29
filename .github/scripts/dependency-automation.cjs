@@ -101,14 +101,5 @@ async function getPull({ github, context, number }) {
   const comments = await github.paginate(github.rest.issues.listComments, { ...context.repo, issue_number: number, per_page: 100 });
   return { pr, files, comments };
 }
-function requireProtection(protection, ecosystem) {
-  const checks = protection.required_status_checks;
-  const required = ['CI Success', 'Supply Chain Security'];
-  if (ecosystem === 'terraform') required.push('Terraform Plan');
-  if (['docker', 'docker_compose', 'docker-compose'].includes(ecosystem)) required.push('Container Validation');
-  if (!checks?.strict || required.some(name => !checks.checks?.some(check => check.context === name && check.app_id === 15368))) {
-    throw new Error('Auto-merge requires strict branch protection with GitHub Actions CI Success and Supply Chain Security.');
-  }
-}
 
-module.exports = { verifiedDependencyCommits, eligiblePull, getPull, autoMergeMetadata, requireProtection, isRepairRequest };
+module.exports = { verifiedDependencyCommits, eligiblePull, getPull, autoMergeMetadata, isRepairRequest };

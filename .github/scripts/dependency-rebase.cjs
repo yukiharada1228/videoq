@@ -133,17 +133,14 @@ async function update(args) {
   const c = await candidate(args);
   if (!c || c.pr.head.sha !== expectedSha) return null;
   const { data: protection } = await writerGithub.rest.repos.getBranchProtection({ ...context.repo, branch: 'main' });
-  if (args.nativeQueue === true) {
-    const { data: rules } = await writerGithub.request('GET /repos/{owner}/{repo}/rules/branches/{branch}', { ...context.repo, branch: 'main' });
-    require('./native-dependency-queue.cjs').requireProtection(protection, rules);
-  } else policy.requireProtection(protection, c.metadata.ecosystem);
+  const { data: rules } = await writerGithub.request('GET /repos/{owner}/{repo}/rules/branches/{branch}', { ...context.repo, branch: 'main' });
+  require('./native-dependency-queue.cjs').requireProtection(protection, rules);
   await record(github, context, number, { kind: 'requested', sha: expectedSha, base: c.base, at: now.toISOString() },
     '最新mainへの追従を自動実行します。依存更新の内容を維持し、追従後のCIを待ちます。');
   // Revalidate immediately before mutation; expectedHeadOid also rejects concurrent changes.
   const fresh = await policy.getPull({ github, context, number });
   if (fresh.pr.head.sha !== expectedSha || fresh.pr.labels.some(l => ['no-automerge', 'no-rebase'].includes(l.name))) return null;
-  const method = args.nativeQueue === true ? 'MERGE' : 'REBASE';
-  await writerGithub.graphql(`mutation($id:ID!,$sha:GitObjectID!){updatePullRequestBranch(input:{pullRequestId:$id,expectedHeadOid:$sha,updateMethod:${method}}){clientMutationId}}`, { id: c.pr.node_id, sha: expectedSha });
+  await writerGithub.graphql(`mutation($id:ID!,$sha:GitObjectID!){updatePullRequestBranch(input:{pullRequestId:$id,expectedHeadOid:$sha,updateMethod:MERGE}){clientMutationId}}`, { id: c.pr.node_id, sha: expectedSha });
   for (let attempt = 0; attempt < 12; attempt++) {
     await wait(5000);
     const current = await policy.getPull({ github, context, number });

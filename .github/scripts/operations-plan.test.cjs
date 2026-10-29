@@ -4,7 +4,7 @@ const { plan } = require('./operations-plan.cjs');
 const context = { repo: { owner: 'videoq-jp', repo: 'videoq' }, ref: 'refs/heads/main', eventName: 'schedule', payload: { schedule: '17 0 * * *' } };
 const selected = result => Object.keys(result).filter(key => result[key]);
 test('daily monitoring excludes the monthly database restore', async () => {
-  assert.deepEqual(selected(await plan({ context })), ['dependencies', 'stalls', 'containers', 'terraform', 'tokens', 'smoke', 'onprem']);
+  assert.deepEqual(selected(await plan({ context })), ['dependencies', 'containers', 'terraform', 'tokens', 'smoke', 'onprem']);
   assert.deepEqual(selected(await plan({ context: { ...context, payload: { schedule: '41 4 1 * *' } } })), ['backup']);
 });
 test('configuration pushes run only the credential-free token monitor', async () => {
@@ -12,8 +12,8 @@ test('configuration pushes run only the credential-free token monitor', async ()
 });
 test('manual selection runs one check or all checks including backup', async () => {
   const manual = { ...context, eventName: 'workflow_dispatch' };
-  assert.deepEqual(selected(await plan({ context: manual, check: 'stalls' })), ['stalls']);
-  assert.equal(selected(await plan({ context: manual })).length, 9);
+  assert.deepEqual(selected(await plan({ context: manual, check: 'tokens' })), ['tokens']);
+  assert.equal(selected(await plan({ context: manual })).length, 8);
   await assert.rejects(plan({ context: manual, check: 'arbitrary' }));
 });
 function cd() {

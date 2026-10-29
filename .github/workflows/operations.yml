@@ -20,7 +20,7 @@ on:
         description: Check to run (all includes the backup rehearsal)
         type: choice
         default: all
-        options: [all, dependencies, stalls, containers, terraform, tokens, smoke, backup, onprem, inference]
+        options: [all, dependencies, containers, terraform, tokens, smoke, backup, onprem, inference]
       validate_whisper_gpu:
         description: Include GPU Whisper image validation for onprem
         type: boolean
@@ -50,7 +50,6 @@ jobs:
       actions: read
     outputs:
       dependencies: ${{ steps.plan.outputs.dependencies }}
-      stalls: ${{ steps.plan.outputs.stalls }}
       containers: ${{ steps.plan.outputs.containers }}
       terraform: ${{ steps.plan.outputs.terraform }}
       tokens: ${{ steps.plan.outputs.tokens }}
@@ -102,34 +101,6 @@ jobs:
         with:
           kind: dependency-security
           title: 依存関係の脆弱性
-
-  stalls:
-    name: dependency-stalls
-    needs: source
-    if: needs.source.outputs.stalls == 'true'
-    concurrency:
-      group: dependency-stalls
-      cancel-in-progress: false
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      pull-requests: read
-      actions: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          script: |
-            const { inspect } = require('./.github/scripts/dependency-stalls.cjs');
-            const { summarize } = require('./.github/scripts/operations-report.cjs');
-            let report;
-            try { report = await inspect({ github, context }); }
-            catch { report = { status: 'error', summary: '依存関係PRの滞留検査を完了できませんでした。', details: [] }; }
-            await summarize({ context, core, kind: 'dependency-stalls', title: '依存関係PRの滞留', report });
-            if (report.status === 'error') core.setFailed(report.summary);
 
   containers:
     name: container-security

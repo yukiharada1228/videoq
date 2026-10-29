@@ -74,25 +74,6 @@ test('Docker, Compose, Python and Terraform files stay scoped to their verified 
   assert.equal(policy.autoMergeMetadata(metadata('docker'), [file('apps/worker/Dockerfile'), file('package.json')]), false);
 });
 
-test('Terraform auto-merge additionally requires its validation check', () => {
-  const protection = { required_status_checks: { strict: true, checks: [
-    { context: 'CI Success', app_id: 15368 }, { context: 'Supply Chain Security', app_id: 15368 },
-  ] } };
-  assert.throws(() => policy.requireProtection(protection, 'terraform'));
-  protection.required_status_checks.checks.push({ context: 'Terraform Plan', app_id: 15368 });
-  policy.requireProtection(protection, 'terraform');
-});
-
-test('container auto-merge additionally requires container validation', () => {
-  const protection = { required_status_checks: { strict: true, checks: [
-    { context: 'CI Success', app_id: 15368 }, { context: 'Supply Chain Security', app_id: 15368 },
-  ] } };
-  assert.throws(() => policy.requireProtection(protection, 'docker'));
-  protection.required_status_checks.checks.push({ context: 'Container Validation', app_id: 15368 });
-  for (const ecosystem of ['docker', 'docker_compose', 'docker-compose']) {
-    policy.requireProtection(protection, ecosystem);
-  }
-});
 
 
 test('human follow-ups and unsigned commits cannot inherit the original bot approval', () => {

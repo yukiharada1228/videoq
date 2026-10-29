@@ -460,41 +460,12 @@ are preserved; missing paths return the Docusaurus 404 page.
 
 See [apps/docs/README.md](../apps/docs/README.md) for details.
 
-## 6. Destructive cutover for existing environments
+## 6. Historical cutovers
 
-This procedure copies domain data to new tables and intentionally invalidates
-existing passwords, browser sessions, OAuth clients/grants/tokens, delivered email
-links, and stored SearchAPI keys. Before running it, back up the database and tell
-users that they will need to reset passwords and register credentials again.
-
-```bash
-cd apps/api
-export DATABASE_URL="<Neon direct connection URL>"
-
-# Check counts before the maintenance window
-npm run db:maintain -- dry-run
-
-# Run after stopping API writes, draining SQS, and backing up the database
-npm run db:maintain -- prepare
-npm run db:maintain -- cutover
-npm run db:maintain -- verify
-```
-
-`cutover` recopies domain tables while preserving IDs, invalidates credentials, and
-checks for orphans and count mismatches in the same operation. After success,
-deploy the API, frontend, and worker together and resume traffic. On failure, keep
-writes stopped and restore the backup. Do not delete the old tables immediately.
-
-After a 7–14 day observation period:
-
-```bash
-npm run db:maintain -- rename --dry-run
-npm run db:maintain -- rename --confirm
-
-# Only after the backup retention period has ended
-npm run db:maintain -- drop --dry-run
-npm run db:maintain -- drop --confirm
-```
+The one-time Django table-copy and cleanup tools have been retired. For an existing
+VideoQ installation, use `npm run db:migrate` through the normal deployment path.
+Historical cutover procedures and tools remain available in Git history; do not
+repeat them on an existing Better Auth deployment.
 
 ## 7. Initial Better Auth cutover (destructive, legacy 0005)
 
