@@ -24,7 +24,7 @@ function canonical(files) {
 }
 function signedMetadata(commits, files) {
   if (!policy.verifiedDependencyCommits(commits, commits.at(-1)?.sha)) return null;
-  const types = commits.flatMap(c => verifiedUpdateTypes(c) || ['invalid']);
+  const types = commits.flatMap(c => verifiedUpdateTypes(c, { allowMissingTypes: true }) || ['invalid']);
   if (!types.length || types.some(t => !['version-update:semver-patch', 'version-update:semver-minor', 'version-update:semver-major'].includes(t))) return null;
   const updateType = types.includes('version-update:semver-major') ? 'version-update:semver-major' : types.includes('version-update:semver-minor') ? 'version-update:semver-minor' : 'version-update:semver-patch';
   for (const ecosystem of ecosystems) {

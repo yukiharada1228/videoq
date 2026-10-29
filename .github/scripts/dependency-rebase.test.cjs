@@ -130,3 +130,28 @@ test('Claude repairs survive native rebases and retain their bounded verified hi
   const history = require('./claude-dependency-repair.cjs').chain(expanded.commits, f.comments, expanded.aliases);
   assert.equal(history.repairs.length, 2);
 });
+
+const securityMessage = 'security update\n---\nupdated-dependencies:\n- dependency-name: qs\n  dependency-version: 6.16.2\n  dependency-type: indirect\n  dependency-group: npm-security\n- dependency-name: seroval\n  dependency-version: 1.6.12\n  dependency-type: indirect\n  dependency-group: npm-security\n...\n';
+test('signed grouped security metadata without update-type retains conservative major classification', async () => {
+  const f = fixture();
+  f.files = [{ ...file(), filename: 'package-lock.json' }];
+  f.commits[0].commit.message = securityMessage;
+  const proof = await p.provenance(f);
+  assert.equal(proof.originalHead, A);
+  assert.equal(proof.metadata.ecosystem, 'npm_and_yarn');
+  assert.equal(proof.metadata.updateType, 'version-update:semver-major');
+});
+test('security metadata cannot authorize unsigned, human, incomplete or source changes', () => {
+  for (const change of [
+    (c, files) => { c.commit.verification.verified = false; },
+    (c, files) => { c.author.login = 'owner'; },
+    (c, files) => { c.commit.message = securityMessage.replace('  dependency-version: 6.16.2\n', ''); },
+    (c, files) => { c.commit.message = securityMessage.replace('  dependency-version: 6.16.2', '  update-type: arbitrary'); },
+    (c, files) => { files.push({ ...file(), filename: 'apps/web/src/App.tsx' }); },
+  ]) {
+    const c = commit(); c.commit.message = securityMessage;
+    const files = [{ ...file(), filename: 'package-lock.json' }];
+    change(c, files);
+    assert.equal(p.signedMetadata([c], files), null);
+  }
+});
