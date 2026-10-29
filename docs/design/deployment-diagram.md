@@ -58,8 +58,8 @@ can cause failures against the old database.
 
 When API, frontend, and Python worker changes ship together, CD deploys them in that order after any database migration. The worker waits for all selected API/frontend deployments to succeed before it can produce a new shared data format. A failed or cancelled selected deployment blocks the worker. Worker-only changes still deploy when API/frontend jobs are skipped because they have no changes.
 
-See [`infra/DEPLOY.md`](https://github.com/yukiharada1228/videoq/blob/main/infra/DEPLOY.md) for details.
-The documentation site uses a dedicated Worker at [docs.videoq.jp](https://docs.videoq.jp/), with Japanese at [/ja/](https://docs.videoq.jp/ja/). Changes to the documentation, translations, or site configuration are published automatically after CI succeeds on `main`. You can also publish the current working tree manually with `npm run deploy:docs`. See the [docs deployment instructions](https://github.com/yukiharada1228/videoq/blob/main/apps/docs/README.md).
+See [`infra/DEPLOY.md`](https://github.com/videoq-jp/videoq/blob/main/infra/DEPLOY.md) for details.
+The documentation site uses a dedicated Worker at [docs.videoq.jp](https://docs.videoq.jp/), with Japanese at [/ja/](https://docs.videoq.jp/ja/). Changes to the documentation, translations, or site configuration are published automatically after CI succeeds on `main`. You can also publish the current working tree manually with `npm run deploy:docs`. See the [docs deployment instructions](https://github.com/videoq-jp/videoq/blob/main/apps/docs/README.md).
 
 ## Deploying the learning feature removal
 

@@ -40,7 +40,7 @@ Teacher A owns a course. Learner B accepts an invitation and asks from the signe
 
 The allowance is shared across requests charged to A's account, not allocated separately per learner or course. At A's AI answer limit, new Q&A requests charged to A are refused, including requests from A, invited participants, and link users. If A's account is blocked for excess storage, these chat requests are also refused. These checks do not themselves revoke membership or prevent opening the course and playing available videos.
 
-The API reserves usage before generation and attempts to return the reservation when it cannot complete the answer. Reading a course or an existing answer does not reserve another AI answer. Separate rate limits can temporarily reject requests even when the owner still has allowance. See [the quota repository](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/quota-repository.ts) and [chat request handling](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/features/chat/message-service.ts).
+The API reserves usage before generation and attempts to return the reservation when it cannot complete the answer. Reading a course or an existing answer does not reserve another AI answer. Separate rate limits can temporarily reject requests even when the owner still has allowance. See [the quota repository](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/repositories/quota-repository.ts) and [chat request handling](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/features/chat/message-service.ts).
 
 ## Removing access and keeping history {#removing-access}
 
@@ -54,7 +54,7 @@ The API reserves usage before generation and attempts to return the reservation 
 
 Revoking an invitation applies to a **pending** invitation. After acceptance, remove the participant instead. Removing membership does not revoke a separate share link, and disabling a link does not remove participants. To stop both routes for someone who knows the link, remove their membership and disable or change the link as appropriate.
 
-Access changes are checked on new requests. They do not recall copies, exported CSVs, or messages already displayed, and an already-authorized response may finish. Issued video playback URLs may remain usable: S3-compatible playback URLs are signed for one hour from issuance, and external video URLs have their own access rules. Changing the share slug does not permanently reserve the old slug; reusing it can make that URL work again. See [media URL handling](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/integrations/media.ts).
+Access changes are checked on new requests. They do not recall copies, exported CSVs, or messages already displayed, and an already-authorized response may finish. Issued video playback URLs may remain usable: S3-compatible playback URLs are signed for one hour from issuance, and external video URLs have their own access rules. Changing the share slug does not permanently reserve the old slug; reusing it can make that URL work again. See [media URL handling](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/integrations/media.ts).
 
 Removing a participant or disabling a link does **not** delete chat logs. To remove saved conversations, the owner uses the separate course chat-history deletion action. This removes the whole course history, not just one participant's questions, and does not erase exported copies.
 
@@ -70,9 +70,9 @@ Removing a participant or disabling a link does **not** delete chat logs. To rem
 
 | Responsibility | Source |
 |---|---|
-| Owner/member course reads, public link reads, owner-only edits and link changes | [course-repository.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/course-repository.ts) |
-| Verified-email acceptance, invitation revocation, member removal | [course-invitation-repository.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/course-invitation-repository.ts) |
-| Chat access, allowance owner, actor, and persistence | [message-service.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/features/chat/message-service.ts) |
-| Owner-only history/CSV and shared-origin questioner fields | [chat-repository.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/chat-repository.ts) |
+| Owner/member course reads, public link reads, owner-only edits and link changes | [course-repository.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/repositories/course-repository.ts) |
+| Verified-email acceptance, invitation revocation, member removal | [course-invitation-repository.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/repositories/course-invitation-repository.ts) |
+| Chat access, allowance owner, actor, and persistence | [message-service.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/features/chat/message-service.ts) |
+| Owner-only history/CSV and shared-origin questioner fields | [chat-repository.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/repositories/chat-repository.ts) |
 
 **Related:** [Authentication and access control](auth.md), [Videos, courses, and scenes](domain-model.md).

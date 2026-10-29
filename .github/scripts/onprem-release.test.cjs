@@ -82,7 +82,7 @@ test('public distribution checks visibility around publication and before stagin
   const after=publish.indexOf('onprem_registry.py "$COMPONENT"',push);
   assert(before>=0 && push>before && after>push);
   assert.doesNotMatch(workflow,/--allow-missing/);
-  assert.match(publish,/repository="ghcr.io\/yukiharada1228\/videoq-\$COMPONENT"/);
+  assert.match(publish,/repository="ghcr.io\/videoq-jp\/videoq-\$COMPONENT"/);
   const indexes=job('indexes');
   assert(indexes.indexOf('onprem_registry.py "$COMPONENT"')<indexes.indexOf('docker buildx imagetools create'));
   const staging=job('staging');

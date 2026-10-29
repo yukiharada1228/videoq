@@ -5,7 +5,7 @@ const { join } = require('node:path');
 const { automaticTerraformApply, verifiedUpdateTypes } = require('./terraform-dependency-apply.cjs');
 const SHA = 'a'.repeat(40);
 const HEAD = 'b'.repeat(40);
-const repository = 'yukiharada1228/videoq';
+const repository = 'videoq-jp/videoq';
 const message = '\n---\nupdated-dependencies:\n- dependency-name: hashicorp/aws\n  update-type: version-update:semver-minor\n...\n';
 
 function fixture() {
@@ -16,7 +16,7 @@ function fixture() {
     base: { ref: 'main', repo: { full_name: repository } },
   };
   const f = {
-    context: { eventName: 'push', ref: 'refs/heads/main', sha: SHA, repo: { owner: 'yukiharada1228', repo: 'videoq' } },
+    context: { eventName: 'push', ref: 'refs/heads/main', sha: SHA, repo: { owner: 'videoq-jp', repo: 'videoq' } },
     pr, associated: [pr], comments: [],
     files: [{ filename: 'infra/.terraform.lock.hcl', status: 'modified' }],
     commits: [{ sha: HEAD, author: { login: 'dependabot[bot]' }, commit: { message, verification: { verified: true } } }],
@@ -89,4 +89,17 @@ test('manual and automatic jobs keep mutually exclusive approval paths', () => {
   const scope = workflow.split('\n  terraform-apply:\n')[0];
   assert.doesNotMatch(scope, /id-token: write|AWS_GITHUB_ACTIONS_DEPLOY_ROLE_ARN/);
   assert.match(scope, /TERRAFORM_DEPENDENCY_AUTOAPPLY_ENABLED/);
+});
+
+test('unclassified signed security updates never grant unattended Terraform production apply', async () => {
+  const f = fixture();
+  f.commits[0].commit.message = message.replace('  update-type: version-update:semver-minor', '  dependency-version: 6.1.2');
+  assert.equal(verifiedUpdateTypes(f.commits[0]), null);
+  assert.deepEqual(verifiedUpdateTypes(f.commits[0], { allowMissingTypes: true }), ['version-update:semver-major']);
+  assert.equal(await automaticTerraformApply(f), false);
+});
+test('a duplicate type cannot conceal another dependency missing its type', () => {
+  const c = { author: { login: 'dependabot[bot]' }, commit: { verification: { verified: true },
+    message: message.replace('\n...', '\n  update-type: version-update:semver-patch\n- dependency-name: another/provider\n...') } };
+  assert.equal(verifiedUpdateTypes(c), null);
 });

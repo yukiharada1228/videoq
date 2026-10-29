@@ -55,9 +55,9 @@ SQSは同じ仕事を再配送することがあります。workerは `job_execu
 
 | 見たいこと | 実装 |
 |---|---|
-| APIの配送予定と送信 | [external-tasks.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/external-tasks.ts) |
-| 回復の予約 | [task-scheduler.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/durable-objects/task-scheduler.ts) |
-| workerの実行権・重複対策 | [job_execution.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/job_execution.py) |
-| 後続ジョブの送信 | [sqs_enqueue.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/sqs_enqueue.py) |
+| APIの配送予定と送信 | [external-tasks.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/external-tasks.ts) |
+| 回復の予約 | [task-scheduler.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/durable-objects/task-scheduler.ts) |
+| workerの実行権・重複対策 | [job_execution.py](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/job_execution.py) |
+| 後続ジョブの送信 | [sqs_enqueue.py](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/sqs_enqueue.py) |
 
 **関連:** [状態遷移](../design/state-diagram.md)、[非同期処理の変更](../guides/worker.md)、[困ったとき](../guides/troubleshooting.md)。

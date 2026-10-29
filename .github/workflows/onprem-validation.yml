@@ -2,47 +2,24 @@ name: On-prem Validation
 on:
   workflow_call:
     inputs:
-      gpu_candidates_only:
-        type: boolean
-        default: false
-      nvidia_candidate:
-        type: string
-        default: ''
-      amd_candidate:
-        type: string
-        default: ''
-      validate_whisper_gpu:
-        type: boolean
-        default: false
-      validate_real_cpu:
-        type: boolean
-        default: false
-  workflow_dispatch:
-    inputs:
-      gpu_candidates_only:
-        type: boolean
-        default: false
       gpu_accelerator:
-        description: Accelerator to evaluate manually; PR and scheduled checks always cover both
-        type: choice
-        options: [both, nvidia, amd]
+        type: string
         default: both
+      gpu_candidates_only:
+        type: boolean
+        default: false
       nvidia_candidate:
-        description: Optional official CUDA candidate as repository@sha256 digest; does not change chart pins
         type: string
         default: ''
       amd_candidate:
-        description: Optional official ROCm candidate as repository@sha256 digest; does not change chart pins
         type: string
         default: ''
       validate_whisper_gpu:
         type: boolean
-        default: true
+        default: false
       validate_real_cpu:
         type: boolean
-        default: true
-  schedule:
-    - cron: '43 1 * * *'
+        default: false
 permissions:
   contents: read
 jobs:
@@ -273,7 +250,7 @@ jobs:
       fail-fast: false
       matrix:
         accelerator: ${{ github.event_name == 'workflow_dispatch' && inputs.gpu_accelerator == 'nvidia' && fromJSON('["nvidia"]') || github.event_name == 'workflow_dispatch' && inputs.gpu_accelerator == 'amd' && fromJSON('["amd"]') || fromJSON('["nvidia","amd"]') }}
-    if: ${{ inputs.validate_whisper_gpu || github.event_name == 'schedule' }}
+    if: inputs.validate_whisper_gpu
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

@@ -17,8 +17,8 @@ whisper:
   extraArgs: []
   # Signed release verification supplies the immutable digest.
   image:
-    repository: ghcr.io/yukiharada1228/videoq-transcription-gateway
-    tag: "0.2.0"
+    repository: ghcr.io/videoq-jp/videoq-transcription-gateway
+    tag: "0.2.0-cpu"
     digest: ""
     pullPolicy: IfNotPresent
   # CPU transcription engine. GPU overlays select vllm, without aliases.

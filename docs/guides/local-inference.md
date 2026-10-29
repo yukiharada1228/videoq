@@ -39,7 +39,7 @@ The application uses the OpenAI-compatible protocol with private endpoints;
 `EMBEDDING_BASE_URL` separates query/indexing embeddings from `OPENAI_BASE_URL`
 for chat. Optional `EMBEDDING_API_KEY` selects a separate credential.
 
-Use the [inference chart's installation guide](https://github.com/yukiharada1228/videoq/blob/main/charts/videoq-inference/README.md).
+Use the [inference chart's installation guide](https://github.com/videoq-jp/videoq/blob/main/charts/videoq-inference/README.md).
 It covers installing the signed Whisper image and inference chart, CPU/GPU Helm settings, persistent
 weights, disabling runtime downloads, egress restrictions and real-model checks.
 Select the matching overlay from `charts/videoq/examples/`; retain it on upgrades.
@@ -53,7 +53,7 @@ The AMD inference overlay is `charts/videoq-inference/examples/vllm-amd.yaml`;
 `whisper-amd.yaml` can add only an AMD speech GPU to a CPU chat/embedding deployment.
 Both use the official upstream ROCm image and `amd.com/gpu`. The site supplies
 compatible Linux AMD drivers and the AMD device plugin. See the
-[AMD deployment and acceptance steps](https://github.com/yukiharada1228/videoq/blob/main/charts/videoq-inference/README.md#amd-rocm-deployment).
+[AMD deployment and acceptance steps](https://github.com/videoq-jp/videoq/blob/main/charts/videoq-inference/README.md#amd-rocm-deployment).
 vLLM GPU execution remains subject to actual hardware acceptance. Hardware sizing and Japanese
 recognition/answer quality require acceptance on the actual site.
 
@@ -82,7 +82,7 @@ remaining roles can use existing private services or hosted APIs. Each enabled
 chat/embedding role can override `backend` (`llamacpp`/`vllm`) and `accelerator`
 (`nvidia`/`amd`); Whisper has its own backend/accelerator settings. The defaults
 continue to install all three roles. See the
-[environment/role matrix](https://github.com/yukiharada1228/videoq/blob/main/charts/videoq-inference/README.md#select-roles-and-environments).
+[environment/role matrix](https://github.com/videoq-jp/videoq/blob/main/charts/videoq-inference/README.md#select-roles-and-environments).
 
 Configure the API and worker consistently. Chat and embeddings use their own
 URLs and model aliases. For an existing speech API, use `WHISPER_BACKEND=local`

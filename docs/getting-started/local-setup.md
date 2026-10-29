@@ -23,7 +23,7 @@ The video processing and AI answers in this guide incur external API usage charg
 ## 1. Get the code and configuration
 
 ```bash
-git clone https://github.com/yukiharada1228/videoq.git
+git clone https://github.com/videoq-jp/videoq.git
 cd videoq
 cp -n .env.example .env
 npm ci

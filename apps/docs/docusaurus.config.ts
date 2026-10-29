@@ -10,7 +10,7 @@ const config: Config = {
   baseUrl: process.env.DOCS_BASE_URL ?? '/',
   trailingSlash: true,
   favicon: 'img/favicon.ico',
-  organizationName: 'yukiharada1228',
+  organizationName: 'videoq-jp',
   projectName: 'videoq',
   onBrokenLinks: 'throw',
   onBrokenAnchors: 'throw',
@@ -47,7 +47,7 @@ const config: Config = {
             const docsPath = locale === 'ja'
               ? 'apps/docs/i18n/ja/docusaurus-plugin-content-docs/current'
               : 'docs';
-            return `https://github.com/yukiharada1228/videoq/edit/main/${docsPath}/${docPath}`;
+            return `https://github.com/videoq-jp/videoq/edit/main/${docsPath}/${docPath}`;
           },
         },
         blog: false,
@@ -74,6 +74,7 @@ const config: Config = {
     colorMode: {respectPrefersColorScheme: true},
     navbar: {
       title: 'VideoQ Docs',
+      logo: {alt: '', src: 'img/videoq-icon.png', width: 32, height: 32},
       items: [
         {type: 'doc', docId: 'getting-started/local-setup', label: 'Get started', position: 'left'},
         {type: 'doc', docId: 'concepts/how-ai-works', label: 'AI behavior', position: 'left'},
@@ -81,7 +82,7 @@ const config: Config = {
         {type: 'doc', docId: 'reference/glossary', label: 'Glossary', position: 'left'},
         {type: 'localeDropdown', position: 'right'},
         {href: 'https://videoq.jp', label: 'VideoQ', position: 'right'},
-        {href: 'https://github.com/yukiharada1228/videoq', label: 'GitHub', position: 'right'},
+        {href: 'https://github.com/videoq-jp/videoq', label: 'GitHub', position: 'right'},
       ],
     },
     footer: {
@@ -91,7 +92,7 @@ const config: Config = {
           title: 'VideoQ',
           items: [
             {label: 'Open the app', href: 'https://videoq.jp'},
-            {label: 'Source code', href: 'https://github.com/yukiharada1228/videoq'},
+            {label: 'Source code', href: 'https://github.com/videoq-jp/videoq'},
           ],
         },
       ],

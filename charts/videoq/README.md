@@ -254,9 +254,9 @@ SBOM inventories support investigation; signed image publication, admission-time
 signature verification, running Kubernetes image rescans, host/Kubernetes
 patching and site backup recovery need their own operational configuration.
 The existing daily container monitor covers production Lambda, not site clusters.
-The initial Debian on-prem images have outstanding scanner findings; a passing
-functional test is not a clean vulnerability report. See the
-[security review](../../docs/verification/onprem-security-automation-2026-10-23.md).
+Image scan results are specific to each build. Inspect the current CI and signed
+release evidence described in the [release guide](../../docs/guides/on-premises-releases.md).
+A passing functional test does not replace vulnerability or signature verification.
 
 The local inference chart provides Linux amd64/arm64 llama.cpp CPU and
 vLLM NVIDIA CUDA/AMD ROCm recipes, with independent role selection.

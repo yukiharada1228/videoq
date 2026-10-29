@@ -1,14 +1,24 @@
 // Loaded only from the trusted main revision, without AWS credentials.
 const policy = require('./dependency-automation.cjs');
-const REPOSITORY = 'yukiharada1228/videoq';
+const REPOSITORY = 'videoq-jp/videoq';
 
-function verifiedUpdateTypes(commit) {
+function verifiedUpdateTypes(commit, { allowMissingTypes = false } = {}) {
   if (commit.author?.login !== 'dependabot[bot]' || !commit.commit?.verification?.verified) return null;
-  const block = commit.commit.message.match(/\n---\nupdated-dependencies:\n([\s\S]*?)\n\.\.\.(?:\n|$)/);
+  const block = String(commit.commit?.message || '').match(/\n---\nupdated-dependencies:\n([\s\S]*?)\n\.\.\.(?:\n|$)/);
   if (!block) return null;
-  const dependencies = block[1].match(/^- dependency-name: .+$/gm) || [];
-  const types = [...block[1].matchAll(/^  update-type: (.+)$/gm)].map(match => match[1]);
-  if (!dependencies.length || dependencies.length !== types.length) return null;
+  const dependencies = block[1].split(/^- dependency-name: /m).slice(1);
+  if (!dependencies.length) return null;
+  const types = [];
+  for (const dependency of dependencies) {
+    if (!dependency.split('\n')[0].trim()) return null;
+    const declared = [...dependency.matchAll(/^  update-type:(.*)$/gm)].map(match => match[1].trim());
+    if (declared.length === 1) types.push(declared[0]);
+    else if (!declared.length && allowMissingTypes && /^  dependency-version: \S[^\r\n]*$/m.test(dependency)) {
+      // Security updates can omit update-type. Never infer patch/minor: treat
+      // unknown breadth as major, retaining Terraform production approval.
+      types.push('version-update:semver-major');
+    } else return null;
+  }
   return types;
 }
 
@@ -30,12 +40,15 @@ async function automaticTerraformApply({ github, context }) {
   });
   // A human follow-up commit, including a manual merge from main, retains approval.
   if (!commits.length || commits.at(-1).sha !== pr.head.sha) return false;
-  return commits.every(commit => {
+  const signed = commits.every(commit => {
     const types = verifiedUpdateTypes(commit);
-    return types && types.every(updateType => policy.autoMergeMetadata({
+    return types && types.every(updateType => updateType !== 'version-update:semver-major' && policy.autoMergeMetadata({
       ecosystem: 'terraform', updateType, maintainerChanges: 'false',
     }, files));
   });
+  if (signed) return true;
+  const proof = await require('./dependency-rebase.cjs').provenance({ github, context, pr, files, comments, commits });
+  return proof?.metadata.ecosystem === 'terraform' && proof.metadata.updateType !== 'version-update:semver-major';
 }
 
 module.exports = { automaticTerraformApply, verifiedUpdateTypes };

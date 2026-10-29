@@ -4,8 +4,8 @@ const prune = require('./prune-onprem-build-artifacts.cjs');
 const sha = 'a'.repeat(40);
 function fixture() {
   const deleted = [];
-  const context = { repo: { owner: 'yukiharada1228', repo: 'videoq' }, ref: 'refs/heads/main', eventName: 'workflow_dispatch', sha, runId: 123, runAttempt: 2 };
-  const run = { id: 123, path: '.github/workflows/onprem-release.yml', head_sha: sha, head_branch: 'main', head_repository: { full_name: 'yukiharada1228/videoq' }, run_attempt: 2 };
+  const context = { repo: { owner: 'videoq-jp', repo: 'videoq' }, ref: 'refs/heads/main', eventName: 'workflow_dispatch', sha, runId: 123, runAttempt: 2 };
+  const run = { id: 123, path: '.github/workflows/onprem-release.yml', head_sha: sha, head_branch: 'main', head_repository: { full_name: 'videoq-jp/videoq' }, run_attempt: 2 };
   const artifact = (id, name) => ({ id, name, size_in_bytes: 100, expired: false, workflow_run: { id: 123, head_sha: sha } });
   const artifacts = [artifact(1, `build-web-amd64-${sha}-attempt-2`), artifact(2, `build-api-arm64-${sha}-attempt-2`),
     artifact(3, `security-api-amd64-${sha}-attempt-2`), artifact(4, `onprem-release-${sha}-attempt-2`),
@@ -43,7 +43,7 @@ test('the real workflow waits for publication and passes GitHub Context prototyp
   const script = job.match(/          script: \|\n([\s\S]*)/)[1].split('\n').map(line => line.replace(/^ {12}/, '')).join('\n');
   const f = fixture();
   const { repo: _repo, ...properties } = f.context;
-  const context = Object.assign(Object.create({ get repo() { return { owner: 'yukiharada1228', repo: 'videoq' }; } }), properties);
+  const context = Object.assign(Object.create({ get repo() { return { owner: 'videoq-jp', repo: 'videoq' }; } }), properties);
   const AsyncFunction = Object.getPrototypeOf(async function() {}).constructor;
   await new AsyncFunction('require', 'github', 'context', 'core', 'process', script)(
     () => prune, f.github, context, { info() {} }, { env: { SOURCE_SHA: sha, GITHUB_RUN_ATTEMPT: '2' } },

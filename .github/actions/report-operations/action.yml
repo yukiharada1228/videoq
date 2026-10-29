@@ -1,0 +1,24 @@
+name: Summarize an operations check
+description: Keep monitoring results in Actions without creating Issues.
+inputs:
+  kind:
+    required: true
+    description: Trusted monitoring kind
+  title:
+    required: true
+    description: Human-readable monitoring name
+runs:
+  using: composite
+  steps:
+    - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        REPORT_KIND: ${{ inputs.kind }}
+        REPORT_TITLE: ${{ inputs.title }}
+      with:
+        script: |
+          const fs = require('node:fs');
+          const { summarize } = require('./.github/scripts/operations-report.cjs');
+          let report = { status: 'error', summary: process.env.REPORT_TITLE + 'の検査を完了できませんでした。', details: [] };
+          if (fs.existsSync('operations-report.json')) report = JSON.parse(fs.readFileSync('operations-report.json', 'utf8'));
+          await summarize({ context, core, kind: process.env.REPORT_KIND, title: process.env.REPORT_TITLE, report });
+          if (report.status !== 'ok') core.setFailed(report.summary);

@@ -1,0 +1,28 @@
+name: Set up Claude Linux subprocess isolation
+description: Install and verify namespace isolation before a model receives credentials
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+        sudo apt-get update
+        sudo apt-get install --yes --no-install-recommends bubblewrap socat ripgrep
+        # Ubuntu's default user-namespace restriction blocks the stock binary.
+        # Give only this private copy a userns profile; keep host policy enabled.
+        sudo install -m 0755 /usr/bin/bwrap /usr/local/bin/videoq-bwrap
+        cmp /usr/bin/bwrap /usr/local/bin/videoq-bwrap
+        sudo tee /etc/apparmor.d/videoq-claude-bwrap >/dev/null <<'PROFILE'
+        abi <abi/4.0>,
+        include <tunables/global>
+        profile videoq-claude-bwrap /usr/local/bin/videoq-bwrap flags=(unconfined) {
+          userns,
+        }
+        PROFILE
+        sudo apparmor_parser -r /etc/apparmor.d/videoq-claude-bwrap
+        sudo mkdir -p /etc/claude-code
+        printf '%s\n' '{"sandbox":{"bwrapPath":"/usr/local/bin/videoq-bwrap"}}' | sudo tee /etc/claude-code/managed-settings.json >/dev/null
+        /usr/local/bin/videoq-bwrap --version
+        socat -V
+        rg --version
+        /usr/local/bin/videoq-bwrap --die-with-parent --unshare-user --unshare-pid --unshare-net --ro-bind / / --proc /proc -- /usr/bin/true

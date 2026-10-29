@@ -70,6 +70,6 @@ APIはHyperdrive経由、Python workerはPostgreSQL接続で同じDBを利用し
 
 回復処理はDOのアラームで予定されます。現在の定期実行は日次の `17 3 * * *`（UTC）で、古い記録の整理と回復を行います。5分ごとのcronを前提に運用しないでください。
 
-実装の入口は [app.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/app.ts)、実行設定は [wrangler.jsonc](https://github.com/yukiharada1228/videoq/blob/main/apps/api/wrangler.jsonc)です。
+実装の入口は [app.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/app.ts)、実行設定は [wrangler.jsonc](https://github.com/videoq-jp/videoq/blob/main/apps/api/wrangler.jsonc)です。
 
 **次に読む:** [コードの場所](../getting-started/codebase.md)、[ジョブの配送と回復](flowchart.md)。

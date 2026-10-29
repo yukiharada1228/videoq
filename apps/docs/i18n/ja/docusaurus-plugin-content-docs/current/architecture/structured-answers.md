@@ -5,7 +5,7 @@ description: 回答の保存形式、既存履歴の一度きりの移行、一�
 
 # 構造化回答への切り替えと検証
 
-[#996](https://github.com/yukiharada1228/videoq/issues/996)では、本文に埋め込んだ引用を `segments: [{text, sourceIds}]` とサーバー由来の `sources` に置き換えます。[回答とSSEの契約](prompt-engineering.md#構造化回答引用と権限)を参照してください。互換モードや二重書き込み期間はありません。
+[#996](https://github.com/videoq-jp/videoq/issues/996)では、本文に埋め込んだ引用を `segments: [{text, sourceIds}]` とサーバー由来の `sources` に置き換えます。[回答とSSEの契約](prompt-engineering.md#構造化回答引用と権限)を参照してください。互換モードや二重書き込み期間はありません。
 
 現在のアプリは、すでにこの契約を使用しています。このページは旧DBからの更新手順と、切り替え時の測定結果を残したものです。現在の生成中ストリーミング・描画フレーム単位の表示・評価処理は[Q&Aのプロンプトと回答の保存](prompt-engineering.md)を参照してください。ここに掲載する過去の時間測定は、現在の画面の性能測定ではありません。
 
@@ -54,7 +54,7 @@ STRUCTURED_ANSWER_LIVE=1 STRUCTURED_ANSWER_BROWSER=1 STRUCTURED_ANSWER_REPORT=/t
 
 以下は構造化回答への切り替え時点の測定値です。講座回答の生成中ストリーミングと画面の文字送り待ち時間を取り除いた後の性能を示すものではありません。
 
-旧版 `d07f0c94` と今回の実装を、同じエンドポイントの `gpt-4o-mini` で各24回ブラウザー測定しました。[個別の回答・計測値・プロバイダー報告の使用量](https://github.com/yukiharada1228/videoq/blob/main/docs/verification/issue-996-comparison.json)を保存しています。
+旧版 `d07f0c94` と今回の実装を、同じエンドポイントの `gpt-4o-mini` で各24回ブラウザー測定しました。[個別の回答・計測値・プロバイダー報告の使用量](https://github.com/videoq-jp/videoq/blob/main/docs/verification/issue-996-comparison.json)を保存しています。
 
 | 1リクエストの中央値 | 講座あり：旧版 → 新版 | 講座なし：旧版 → 新版 |
 |---|---:|---:|

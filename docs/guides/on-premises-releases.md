@@ -12,7 +12,7 @@ repository main commit after successful push CI. It can also be dispatched for
 that commit, for example to rebuild after distribution package fixes.
 
 Distribution uses the public packages
-`ghcr.io/yukiharada1228/videoq-api`, `videoq-worker`,
+`ghcr.io/videoq-jp/videoq-api`, `videoq-worker`,
 `videoq-web` and `videoq-transcription-gateway`.
 Docker and Kubernetes can pull them without a GHCR login
 or `imagePullSecrets`. Site-owned private registries can still use
@@ -20,7 +20,7 @@ or `imagePullSecrets`. Site-owned private registries can still use
 LICENSE; making distribution public does not change those terms.
 
 Package administrators initially set these packages to **Public** and grant
-`yukiharada1228/videoq` the **Write** role under **Package settings → Manage
+`videoq-jp/videoq` the **Write** role under **Package settings → Manage
 Actions access**. The workflow checks public visibility before and after every
 push and before assembling indexes. Missing, private or internal packages stop
 publication. Staging verifies the signed release and pulls each reviewed digest
@@ -44,7 +44,7 @@ Each GPU profile uses the same vendor-specific upstream vLLM image for chat,
 embeddings and speech: `vllm.image` for CUDA, `vllm.rocmImage` for ROCm.
 The upstream pins are carried by the signed chart, not overridden by the
 VideoQ image verifier. VideoQ's transcription gateway no longer builds or bundles whisper.cpp.
-See the [inference image policy](https://github.com/yukiharada1228/videoq/blob/main/charts/videoq-inference/README.md#upstream-image-policy-and-package-names).
+See the [inference image policy](https://github.com/videoq-jp/videoq/blob/main/charts/videoq-inference/README.md#upstream-image-policy-and-package-names).
 
 These package names replace `videoq-onprem-*` for new releases. Existing signed
 bundles remain unchanged for rollback. Use the chart and image values from the
@@ -52,7 +52,7 @@ same release, and migrate site overrides from `whisper.vllmImage` to
 `vllm.image` (CUDA) or `vllm.rocmImage` (ROCm).
 
 NVIDIA scanning retains the existing narrowly scoped
-[kernel-header assessment](https://github.com/yukiharada1228/videoq/blob/main/apps/inference/vllm/security/README.md).
+[kernel-header assessment](https://github.com/videoq-jp/videoq/blob/main/apps/inference/vllm/security/README.md).
 Only explicitly assessed header findings are suppressed; other HIGH/CRITICAL
 findings still block publication. The `vllm-security-nvidia` validation artifact retains JSON reports, including
 suppressed findings and the assessment, for 14 days. AMD validation records
@@ -90,9 +90,9 @@ manifest being checked.
 ```sh
 SOURCE_SHA=REPLACE_WITH_REVIEWED_40_CHARACTER_COMMIT
 RUN_ID=REPLACE_WITH_SUCCESSFUL_RELEASE_RUN
-RUN_ATTEMPT=$(gh run view "$RUN_ID" --repo yukiharada1228/videoq --json attempt --jq .attempt)
+RUN_ATTEMPT=$(gh run view "$RUN_ID" --repo videoq-jp/videoq --json attempt --jq .attempt)
 mkdir -p /secure/videoq-release
-gh run download "$RUN_ID" --repo yukiharada1228/videoq \
+gh run download "$RUN_ID" --repo videoq-jp/videoq \
   --name "onprem-release-$SOURCE_SHA-attempt-$RUN_ATTEMPT" --dir /secure/videoq-release
 python3 .github/scripts/onprem-release.py verify "$SOURCE_SHA" \
   /secure/videoq-release/release.json /secure/videoq-release/verified-images.json \
@@ -246,61 +246,17 @@ visibility, vulnerability and signature gates remain mandatory.
 This GPU change is not ready for release: upstream image vulnerability gates
 remain unresolved and physical GPU/model acceptance has not been performed.
 
-## Bootstrap the new package namespaces
+## Package names and historical releases
 
-`Package Namespace Bootstrap` only runs manually from canonical main. Supply a
-successful `On-prem Release` run ID. It checks repository, workflow, main branch,
-success state and attempt, then verifies the signed manifest, both charts and
-every original image attestation before preparing four copy targets. Preview
-mode does not modify the registry.
-
-```sh
-RELEASE_RUN_ID=40518402989 # Example schema 4 release; all referenced packages must still exist.
-gh workflow run package-bootstrap.yml --repo yukiharada1228/videoq --ref main \
-  -f release_run_id="$RELEASE_RUN_ID" -f publish=false
-```
-
-Review the source/destination digests in artifact
-`package-bootstrap-<run-id>-<attempt>`, then dispatch with `publish=true`. The
-workflow uses the repository GITHUB_TOKEN; no new personal token is needed.
-It copies only api, web, worker and transcription-gateway. It creates no new GPU
-package and does not build/execute images or delete old packages.
-
-```sh
-gh workflow run package-bootstrap.yml --repo yukiharada1228/videoq --ref main \
-  -f release_run_id="$RELEASE_RUN_ID" -f publish=true
-```
-
-The `bootstrap-*` tags only initialize namespaces; do not deploy them. The
-workflow checks the copied manifest digest against the verified source and
-records package visibility/repository association. Successful copies are kept
-if a later copy fails.
-
-After creation, open each package page in the report, select **Package settings
-→ Change visibility → Public**, and confirm repository Actions Write access.
-Already retired namespaces are not recreated. Choose a successful source whose
-referenced packages remain available (use schema 5 after custom GPU retirement).
-Retain other public packages for history and rollback. Once publication settings
-are ready, merge the naming change and generate/verify a normal signed release.
-This bootstrap does not bypass the normal release's public-visibility or
-attestation gates.
-
-## Retire the custom GPU package
-
-After a signed schemaVersion 5 release passes all release checks, run **Retired
-Package Cleanup** with that successful release run ID. Its schema 5 plan retains
-exactly the four current VideoQ packages and deletes only `videoq-vllm`.
-Schema 4 retains all five packages and may remove only the already retired
-`videoq-onprem-whisper-vllm`; schema 3 retains the old GPU namespace. Each schema
-has a separate deletion allowlist, and mixed targets are rejected before DELETE.
-Preview is the default; deletion requires `delete=true` and package Admin access.
-After `videoq-vllm` is retired, schema 4 releases can no longer be completely
-verified, installed or restored from GHCR. Never retire it before the successful
-schema 5 release, including anonymous pulls and CPU/Kubernetes acceptance.
+The namespace migration to `videoq-jp` is complete. The migration-only Package
+Namespace Bootstrap and Retired Package Cleanup workflows have been retired.
+Keep `videoq-vllm` and historical signed packages available for verification and
+rollback. New builds use the normal signed release workflow; upstream adoption
+still requires all security, anonymous-pull and CPU/Kubernetes acceptance gates.
 
 ## Evaluate upstream GPU image candidates
 
-The manual **On-prem Validation** workflow accepts `nvidia_candidate` and
+The manual **Operations** workflow (`check=onprem`, `validate_whisper_gpu=true`) accepts `nvidia_candidate` and
 `amd_candidate` as official `repository@sha256:<digest>` references. Empty inputs
 use the reviewed chart pins. Candidate runs never change deployment pins or
 publish images. They check offline gateway WAV decoding, retain the actual vLLM

@@ -106,7 +106,7 @@ generation results cannot restore deleted scenes or overwrite newer metadata.
 3. Run `docker compose logs --since=10m worker` and match `reindex_video_transcript`, the video ID, and the job ID to the save time. Check for `Successfully reindexed transcript for video …`. An operator can also verify that job's `job_executions.status = 'completed'`. Outbox completion only confirms delivery.
 4. Send a new question naming the subject in the same course. Compare its citations and timestamps with the corrected transcript. Previously displayed or saved answers are not regenerated.
 
-See [updateVideo](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/video-repository.ts), [transcript reindexing](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/reindex_video_transcript.py), and [full reindexing](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/tasks/reindexing.py).
+See [updateVideo](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/repositories/video-repository.ts), [transcript reindexing](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/tasks/reindex_video_transcript.py), and [full reindexing](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/tasks/reindexing.py).
 
 If a queued transcription or indexing job starts after its video has been deleted,
 the worker acknowledges it without calling a provider or scheduling more work.
@@ -127,10 +127,10 @@ database and provider failures remain retryable.
 
 | File | Responsibility |
 |---|---|
-| [transcription.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/transcription.py) | Audio/subtitle acquisition and the development placeholder |
-| [scene_otsu/](https://github.com/yukiharada1228/videoq/tree/main/apps/worker/worker_python/pipeline/scene_otsu) | Segmentation, token counting, and fallback to the original SRT |
-| [vector_index.py](https://github.com/yukiharada1228/videoq/blob/main/apps/worker/worker_python/pipeline/vector_index.py) | Scene embeddings and metadata storage |
-| [vector-repository.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/repositories/vector-repository.ts) | Search scope and result count |
-| [rag.ts](https://github.com/yukiharada1228/videoq/blob/main/apps/api/src/lib/rag.ts) | Tool loop, scene deduplication, and citation numbering |
+| [transcription.py](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/pipeline/transcription.py) | Audio/subtitle acquisition and the development placeholder |
+| [scene_otsu/](https://github.com/videoq-jp/videoq/tree/main/apps/worker/worker_python/pipeline/scene_otsu) | Segmentation, token counting, and fallback to the original SRT |
+| [vector_index.py](https://github.com/videoq-jp/videoq/blob/main/apps/worker/worker_python/pipeline/vector_index.py) | Scene embeddings and metadata storage |
+| [vector-repository.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/repositories/vector-repository.ts) | Search scope and result count |
+| [rag.ts](https://github.com/videoq-jp/videoq/blob/main/apps/api/src/lib/rag.ts) | Tool loop, scene deduplication, and citation numbering |
 
 **Read next:** [Q&A prompts and answer persistence](prompt-engineering.md).

@@ -34,7 +34,7 @@ CPU の推論エンジンは2コアを予約します。API は音声1件の全�
 API の形式は OpenAI 互換に統一し、`EMBEDDING_BASE_URL` で社内の埋め込み API を指定します。LLM の `OPENAI_BASE_URL` とは
 独立して設定します。認証も分ける場合は Secret に `EMBEDDING_API_KEY` を設定します。
 
-具体的なコマンドは、[推論用 Chart の導入手順](https://github.com/yukiharada1228/videoq/blob/main/charts/videoq-inference/README.md)
+具体的なコマンドは、[推論用 Chart の導入手順](https://github.com/videoq-jp/videoq/blob/main/charts/videoq-inference/README.md)
 にあります。署名付きイメージと推論用 Chart の導入、CPU・NVIDIA／AMD GPU の設定、モデルの永続化、
 導入後のダウンロード停止、通信制限、実モデルの確認手順をまとめています。
 アプリ側は `charts/videoq/examples/` の対応する設定を重ね、更新時も同じ設定を維持します。
@@ -74,7 +74,7 @@ vLLM は Qwen3-Embedding-4B の Matryoshka 出力を 1536 次元に指定しま�
 Linux arm64 CPU 用は `cpu-arm64.yaml`、文字起こしだけの配置は `speech-only-cpu.yaml`、
 異なる実行エンジン・GPU の混在例は `mixed-engines.yaml` です。
 モデル形式と GPU リソース指定も各役割に合わせ、複数の全 GPU プロファイルは重ねないでください。
-[環境・役割の対応表](https://github.com/yukiharada1228/videoq/blob/main/charts/videoq-inference/README.md#select-roles-and-environments)を参照してください。
+[環境・役割の対応表](https://github.com/videoq-jp/videoq/blob/main/charts/videoq-inference/README.md#select-roles-and-environments)を参照してください。
 
 既存の OpenAI 互換文字起こし API には `WHISPER_BACKEND=local` と
 `WHISPER_LOCAL_URL`・`WHISPER_LOCAL_MODEL`、必要に応じて `WHISPER_LOCAL_API_KEY` を設定します。
@@ -109,7 +109,7 @@ NVIDIA と AMD のプロファイルは重ねず、必要な方を選んでく�
 非 root の GPU アクセスに必要な場合は `vllm.supplementalGroups` に各ノードの実際の
 render／video グループ ID を設定します。GPU 型番は未定で、AMD 実機での検証は未実施です。
 
-[導入・実機検証手順](https://github.com/yukiharada1228/videoq/blob/main/charts/videoq-inference/README.md#amd-rocm-deployment)に沿って、
+[導入・実機検証手順](https://github.com/videoq-jp/videoq/blob/main/charts/videoq-inference/README.md#amd-rocm-deployment)に沿って、
 `apps/inference/vllm/check_gpu_runtime.py` で ROCm・GPU 割り当て・FP16 演算を確認し、
 ツール呼び出し・JSON Schema・1536 次元の埋め込み・日本語文字起こしと字幕時刻・
 動画アップロードから引用付き回答までを対象の機種で検証してください。

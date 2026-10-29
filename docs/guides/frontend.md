@@ -54,6 +54,6 @@ npm run lint --workspace @videoq/web
 npm run build --workspace @videoq/web
 ```
 
-Check appearance and interactions in Storybook and the app. Cover loading, failure, and empty states as well as success. See [changing and reviewing Storybook](https://github.com/yukiharada1228/videoq/blob/main/apps/web/STORYBOOK.md).
+Check appearance and interactions in Storybook and the app. Cover loading, failure, and empty states as well as success. See [changing and reviewing Storybook](https://github.com/videoq-jp/videoq/blob/main/apps/web/STORYBOOK.md).
 
 **Related:** [Screen transitions](../requirements/screen-transition-diagram.md), [Tests and verification commands](testing.md).

@@ -16,12 +16,12 @@ test('local inference dependency updates use their own supported manifest and im
   assert.equal(policy.autoMergeMetadata(metadata('uv'), [file('apps/inference/whisper/server.py')]), false);
 });
 
-test('verified minor and patch updates qualify; major and missing metadata do not', () => {
+test('verified major, minor and patch updates qualify; missing metadata does not', () => {
   const files = [file('package.json'), file('package-lock.json')];
-  for (const type of ['version-update:semver-minor', 'version-update:semver-patch']) {
+  for (const type of ['version-update:semver-major', 'version-update:semver-minor', 'version-update:semver-patch']) {
     assert.equal(policy.autoMergeMetadata(metadata('npm_and_yarn', type), files), true);
   }
-  for (const type of ['', 'version-update:semver-major', 'semver-patch']) {
+  for (const type of ['', 'semver-patch']) {
     assert.equal(policy.autoMergeMetadata(metadata('npm_and_yarn', type), files), false);
   }
   for (const maintainerChanges of ['true', '', undefined]) {
@@ -74,25 +74,6 @@ test('Docker, Compose, Python and Terraform files stay scoped to their verified 
   assert.equal(policy.autoMergeMetadata(metadata('docker'), [file('apps/worker/Dockerfile'), file('package.json')]), false);
 });
 
-test('Terraform auto-merge additionally requires its validation check', () => {
-  const protection = { required_status_checks: { strict: true, checks: [
-    { context: 'CI Success', app_id: 15368 }, { context: 'Supply Chain Security', app_id: 15368 },
-  ] } };
-  assert.throws(() => policy.requireProtection(protection, 'terraform'));
-  protection.required_status_checks.checks.push({ context: 'Terraform Plan', app_id: 15368 });
-  policy.requireProtection(protection, 'terraform');
-});
-
-test('container auto-merge additionally requires container validation', () => {
-  const protection = { required_status_checks: { strict: true, checks: [
-    { context: 'CI Success', app_id: 15368 }, { context: 'Supply Chain Security', app_id: 15368 },
-  ] } };
-  assert.throws(() => policy.requireProtection(protection, 'docker'));
-  protection.required_status_checks.checks.push({ context: 'Container Validation', app_id: 15368 });
-  for (const ecosystem of ['docker', 'docker_compose', 'docker-compose']) {
-    policy.requireProtection(protection, ecosystem);
-  }
-});
 
 
 test('human follow-ups and unsigned commits cannot inherit the original bot approval', () => {

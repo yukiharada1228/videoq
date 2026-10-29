@@ -6,7 +6,7 @@ const require = createRequire(new URL('../operations-tools/package.json', import
 const { Client } = require('pg');
 const { chromium } = require('playwright');
 const { hashPassword } = await import(require.resolve('better-auth/crypto'));
-const { ORIGIN, synthetic, uploadAllowed, completed, deletable, fixtureValid } = createRequire(import.meta.url)('./production-smoke-policy.cjs');
+const { ORIGIN, synthetic, uploadAllowed, completed, deletable, fixtureValid, waitForCleanup } = createRequire(import.meta.url)('./production-smoke-policy.cjs');
 const db = new Client({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 15_000,
   statement_timeout: 30_000, application_name: 'videoq-operations-smoke' });
 let browser, currentUser, cookie = '', stage = 'public-health';
@@ -69,7 +69,7 @@ try {
     const hash = await hashPassword(password);
     await db.query("UPDATE account SET password = $1 WHERE user_id = $2 AND provider_id = 'credential'", [hash, user.id]);
     await login(user, password);
-    if (!await cleanup(user)) throw new Error('Earlier smoke video still processing; no additional upload');
+    if (!await waitForCleanup(() => cleanup(user), delay)) throw new Error('Earlier smoke video still processing; no additional upload');
   }
   const id = randomUUID();
   const password = randomBytes(32).toString('base64url');
@@ -131,11 +131,14 @@ try {
   try { await db.query('ROLLBACK'); } catch { /* connection may be unavailable */ }
   report.details = ['- 失敗した段階: `' + stage + '`。認証情報や利用者のデータはログに出力していません。'];
 } finally {
+  console.log('Production smoke checks: ' + report.status);
   if (browser) await browser.close().catch(() => {});
   if (currentUser) {
     try {
-      if (!await cleanup(currentUser)) throw new Error('Cleanup pending');
+      if (!await waitForCleanup(() => cleanup(currentUser), delay)) throw new Error('Cleanup pending');
+      console.log('Production smoke cleanup: complete');
     } catch {
+      console.log('Production smoke cleanup: incomplete');
       report.status = 'error';
       report.summary = '本番の動作確認またはテストデータの削除を完了できませんでした。';
       report.details.push('- テストデータが残っています。次回の実行で再確認し、処理中の動画は削除しません。');

@@ -20,7 +20,6 @@ export type VideoSourceType = z.output<typeof shared.videoSourceTypeSchema>;
 export type VideoListItem = z.output<typeof shared.videoListItemSchema>;
 export type Video = z.output<typeof shared.videoSchema>;
 export type VideoStatusCounts = z.output<typeof models.videoStatusCountsSchema>;
-export type UploadRequestResponse = z.output<typeof models.uploadRequestResponseSchema>;
 export type VideoInCourse = z.output<typeof models.videoInCourseSchema>;
 export type CourseListItem = z.output<typeof models.courseListItemSchema>;
 export type Course = z.output<typeof models.courseSchema>;

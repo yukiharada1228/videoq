@@ -50,7 +50,7 @@ test('vendor evaluation is limited to NVIDIA NGC and does not reuse the upstream
   assert.match(workflow,/trivy-config:.*env.ASSESS_NVIDIA_HEADERS == 'true'/);
 });
 test('candidate-only mode skips non-GPU suites while normal CI keeps them',()=>{
-  assert.equal((workflow.match(/gpu_candidates_only:\n        type: boolean\n        default: false/g)||[]).length,2);
+  assert.equal((workflow.match(/gpu_candidates_only:\n        type: boolean\n        default: false/g)||[]).length,1);
   assert.match(workflow,/onprem:\n    if: \$\{\{ !inputs.gpu_candidates_only \}\}/);
   assert.match(workflow,/upstream-cpu-images:\n    if: \$\{\{ !inputs.gpu_candidates_only \}\}/);
 });
@@ -67,4 +67,18 @@ test('only explicit manual accelerator selection narrows candidate evaluation; C
     for(const input of ['nvidia','amd','both',undefined]) assert.deepEqual(selected(event,input),['nvidia','amd']);
   }
   for(const input of ['both','',undefined,'nvidia,amd','untrusted']) assert.deepEqual(selected('workflow_dispatch',input),['nvidia','amd']);
+});
+
+
+test('Operations forwards manual candidates while keeping scheduled evaluation at both chart pins',()=>{
+  const operations=readFileSync(join(__dirname,'../workflows/operations.yml'),'utf8');
+  // Locate the job, not the source job output with the same name.
+  const job=operations.slice(operations.indexOf('  onprem:\n    name:'));
+  for(const input of ['gpu_accelerator','nvidia_candidate','amd_candidate','gpu_candidates_only']) {
+    assert.ok(job.includes(`inputs.${input}`));
+  }
+  assert.doesNotMatch(workflow,/^  (workflow_dispatch|schedule):/m);
+  assert.match(job,/gpu_accelerator:.*github.event_name == 'workflow_dispatch'.*'both'/);
+  assert.match(job,/nvidia_candidate:.*github.event_name == 'workflow_dispatch'.*''/);
+  assert.match(job,/amd_candidate:.*github.event_name == 'workflow_dispatch'.*''/);
 });
