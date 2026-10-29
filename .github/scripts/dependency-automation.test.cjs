@@ -38,15 +38,6 @@ test('opt-out labels independently control repair and merge', () => {
 });
 
 
-test('auto-merge fails closed if required CI or strict protection disappears', () => {
-  const protection = { required_status_checks: { strict: true, checks: [{ context: 'CI Success', app_id: 15368 }, { context: 'Supply Chain Security', app_id: 15368 }] } };
-  policy.requireProtection(protection);
-  for (const value of [{}, { required_status_checks: { strict: false, checks: protection.required_status_checks.checks } },
-    { required_status_checks: { strict: true, checks: [{ context: 'CI Success', app_id: 999 }] } }]) {
-    assert.throws(() => policy.requireProtection(value));
-  }
-});
-
 test('historical automated repair notices do not veto newly verified automatic updates', () => {
   const notice = { user: { login: 'github-actions[bot]' }, body: '<!-- videoq-codex-repair-request -->' };
   assert.equal(policy.eligiblePull(pull(), files(), 'no-automerge', [notice]), true);

@@ -44,5 +44,3 @@ PRイベント、main push、CIとClaudeワーカーの完了イベントで動�
 自動投入を止める場合は`DEPENDENCY_AUTOMERGE_ENABLED=false`にする。
 mainのMerge Queueルールと必須チェックは維持し、通常の開発PRは引き続きキューでマージする。
 既に投入されたPRはキュー画面から個別に除外する。保護設定を外して直接マージしない。
-移管前の古いBot PRを一度追従し直す場合は、Dependency Automationをmainから実行し、
-`retry`へ対象PR番号を指定する。これは明示的な復旧操作で、通常のmain更新では実行しない。

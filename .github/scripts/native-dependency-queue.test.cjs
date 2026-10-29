@@ -27,14 +27,19 @@ function fixture() {
     assert.deepEqual(values, { owner: 'videoq-jp', repo: 'videoq', branch: 'main' });
     return { data: f.rules };
   }, graphql: async (query, values) => {
-    if (query.startsWith('mutation')) { f.disabled.push(values.id); f.mutations.push({ query, values }); return; }
+    if (query.startsWith('mutation')) {
+      f.mutations.push({ query, values });
+      if (query.includes('enqueuePullRequest')) f.reserved.push({ number: Number(values.id.replace('PR_', '')), sha: values.sha });
+      else f.disabled.push(values.id);
+      return;
+    }
     return { repository: { pullRequest: { mergeQueueEntry: f.queued ? { id: 'entry', enqueuer: { __typename: f.enqueuerType || 'Bot', login: f.enqueuer || 'videoq-dependency-bot' } } : null } } };
   } };
   f.verify = async () => f.proofs ? { pr, kind: 'dependabot', comments: f.comments } : null;
   f.args = { github: f.github, writerGithub: f.writerGithub, context, verify: f.verify,
     evidence: async () => ['ci.yml'].map((workflow_id, i) => ({
       workflow_id, admitted: true, run: { id: i + 1, status: 'completed', conclusion: f.outcome },
-    })), reserve: async data => f.reserved.push(data), prepareRepair: async data => f.repairs.push(data) };
+    })), prepareRepair: async data => f.repairs.push(data) };
   return f;
 }
 test('successful eligible PR queues its exact head without a main rebase or issue lease', async () => {
@@ -50,7 +55,7 @@ test('an existing conflict cannot block a later eligible update or trigger a rou
   assert.deepEqual(f.reserved, [{ number: 2, sha: SHA }]);
 });
 test('the real native mutation enqueues with an expected head instead of enabling unattended auto-merge', async () => {
-  const f = fixture(); await native.reconcile({ ...f.args, reserve: undefined });
+  const f = fixture(); await native.reconcile({ ...f.args });
   assert.equal(f.mutations.length, 1);
   assert.match(f.mutations[0].query, /enqueuePullRequest\(input:\{pullRequestId:\$id,expectedHeadOid:\$sha\}/);
   assert.deepEqual(f.mutations[0].values, { id: 'PR_1', sha: SHA });
@@ -117,13 +122,13 @@ test('a mergeability race does not stall later PRs; authentication and other err
     if (query.startsWith('mutation') && values.id === 'PR_1') throw { errors: [{ type: 'UNPROCESSABLE', message: 'Pull request has merge conflicts and Pull request not in mergeable state' }] };
     return original(query, values);
   };
-  await native.reconcile({ ...f.args, reserve: undefined, verify: async ({ pr }) => ({ pr, kind: 'dependabot' }) });
+  await native.reconcile({ ...f.args, verify: async ({ pr }) => ({ pr, kind: 'dependabot' }) });
   assert.equal(f.mutations.length, 1); assert.equal(f.mutations[0].values.id, 'PR_2');
   f.writerGithub.graphql = async query => {
     if (query.startsWith('mutation')) throw new Error('Unauthorized');
     return { repository: { pullRequest: { mergeQueueEntry: null } } };
   };
-  await assert.rejects(native.reconcile({ ...f.args, reserve: undefined }), /Unauthorized/);
+  await assert.rejects(native.reconcile({ ...f.args }), /Unauthorized/);
 });
 test('historical duplicate notices cannot consume a remaining repair for a different head', async () => {
   const f = fixture(); f.outcome = 'failure';
@@ -144,7 +149,7 @@ test('group failure needs a genuine workflow, canonical repositories and proof o
 test('a proven group failure syncs only that PR once, then normal PR CI owns repair', async () => {
   const f = fixture(); const calls = []; const args = { ...f.args, context: { ...context, eventName: 'workflow_run', payload: { workflow_run: f.run } }, sync: async data => calls.push(data) };
   assert.equal(await native.reproduceGroupFailure(args), 1);
-  assert.equal(calls.length, 1); assert.equal(calls[0].nativeQueue, true); assert.equal(calls[0].expectedSha, SHA);
+  assert.equal(calls.length, 1); assert.equal(calls[0].expectedSha, SHA);
   assert.equal(await native.reproduceGroupFailure(args), null); assert.equal(calls.length, 1);
 });
 test('group reproduction is bounded across head changes and a stop blocks automatic queue re-entry', async () => {

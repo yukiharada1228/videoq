@@ -1,5 +1,5 @@
 // Trusted main decides which monitors may access production credentials.
-const CHECKS = ['dependencies', 'stalls', 'containers', 'terraform', 'tokens', 'smoke', 'backup', 'onprem', 'inference'];
+const CHECKS = ['dependencies', 'containers', 'terraform', 'tokens', 'smoke', 'backup', 'onprem', 'inference'];
 async function plan({ github, context, check = 'all' }) {
   if (`${context.repo.owner}/${context.repo.repo}` !== 'videoq-jp/videoq' || context.ref !== 'refs/heads/main') {
     throw new Error('Operations require canonical main.');

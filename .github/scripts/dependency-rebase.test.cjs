@@ -21,12 +21,12 @@ function fixture() {
     issues: { listComments: async () => f.comments, createComment: async a => { f.comments.push({ user: { login: 'github-actions[bot]' }, body: a.body }); f.mutations.push('comment'); } },
     actions: { listWorkflowRuns: async () => ({ data: { workflow_runs: [f.run] } }) },
     repos: { compareCommits: async () => ({ data: { behind_by: 1 } }), getBranch: async () => ({ data: { commit: { sha: C } } }),
-      getBranchProtection: async () => ({ data: { required_status_checks: { strict: true, checks: ['CI Success', 'Supply Chain Security', 'Container Validation'].map(context => ({ context, app_id: 15368 })) } } }),
+      getBranchProtection: async () => ({ data: { enforce_admins: { enabled: true }, required_status_checks: { strict: false, checks: ['CI Success', 'Supply Chain Security', 'Container Validation', 'Terraform Plan'].map(context => ({ context, app_id: 15368 })) } } }),
       compareCommitsWithBasehead: async a => ({ data: { total_commits: 1, commits: [commit()], files: [file()], merge_base_commit: { sha: C } } }),
     },
   } };
-  f.writerGithub = { rest: f.github.rest, graphql: async (query, vars) => {
-    assert.match(query, /updateMethod:REBASE/); assert.equal(vars.sha, A); f.pr.head.sha = D;
+  f.writerGithub = { rest: f.github.rest, request: async () => ({ data: [{ type: 'merge_queue', parameters: { max_entries_to_build: 1, max_entries_to_merge: 1, merge_method: 'MERGE' } }] }), graphql: async (query, vars) => {
+    assert.match(query, /updateMethod:MERGE/); assert.equal(vars.sha, A); f.pr.head.sha = D;
     f.commits = [{ ...commit(), sha: D, commit: { verification: { verified: false } } }]; f.mutations.push('rebase');
   } };
   f.wait = async () => {};
@@ -37,6 +37,19 @@ test('queue sync verifies ancestry and provenance before CI even while the queue
   f.pr.mergeable_state = 'blocked'; f.run.status = 'in_progress';
   f.github.rest.repos.compareCommits = async () => ({ data: { behind_by: 1 } });
   assert.deepEqual(await p.update(f), { number: 1191, sha: D });
+});
+test('main sync requires every native queue check before recording or mutating', async () => {
+  for (const missing of ['CI Success', 'Supply Chain Security', 'Container Validation', 'Terraform Plan']) {
+    const f = fixture();
+    const getProtection = f.github.rest.repos.getBranchProtection;
+    f.github.rest.repos.getBranchProtection = async () => {
+      const result = await getProtection();
+      result.data.required_status_checks.checks = result.data.required_status_checks.checks.filter(check => check.context !== missing);
+      return result;
+    };
+    await assert.rejects(p.update(f), /requires protected main/);
+    assert.deepEqual(f.mutations, []);
+  }
 });
 test('queue sync still rejects current branches, unsigned changes and opt-outs', async () => {
   for (const mutate of [
@@ -76,7 +89,7 @@ test('native queue failure recovery merges main instead of flattening model merg
     checks: ['CI Success', 'Supply Chain Security', 'Container Validation', 'Terraform Plan'].map(context => ({ context, app_id: 15368 })) } } });
   f.writerGithub.request = async () => ({ data: [{ type: 'merge_queue', parameters: { max_entries_to_build: 1, max_entries_to_merge: 1, merge_method: 'MERGE' } }] });
   f.writerGithub.graphql = async (query, values) => { assert.match(query, /updateMethod:MERGE/); assert.equal(values.sha, A); f.pr.head.sha = D; };
-  assert.equal((await p.update({ ...f, nativeQueue: true })).sha, D);
+  assert.equal((await p.update({ ...f })).sha, D);
   const completed = p.records(f.comments).find(r => r.kind === 'completed');
   assert.equal(completed.snapshotHead, A); assert.equal(completed.snapshotBase, B);
 });

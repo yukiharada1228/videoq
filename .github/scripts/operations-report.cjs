@@ -1,6 +1,6 @@
 const REPOSITORY = 'videoq-jp/videoq';
 const KINDS = new Set([
-  'dependency-stalls', 'dependency-security', 'container-security',
+  'dependency-security', 'container-security',
   'production-smoke', 'backup-restore', 'terraform-drift',
 ]);
 
