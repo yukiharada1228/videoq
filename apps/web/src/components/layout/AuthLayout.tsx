@@ -1,3 +1,4 @@
+import { BrandLogo } from '@/components/layout/BrandLogo';
 import type { ReactNode } from 'react';
 import { Link } from '@/lib/i18n';
 import { AuthPageFooter } from '@/components/layout/AuthPageFooter';
@@ -16,7 +17,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
             href="/"
             className="text-std-20B-150 text-solid-gray-800"
           >
-            VideoQ
+            <BrandLogo />
           </Link>
         </div>
       </header>

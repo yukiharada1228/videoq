@@ -74,6 +74,7 @@ const config: Config = {
     colorMode: {respectPrefersColorScheme: true},
     navbar: {
       title: 'VideoQ Docs',
+      logo: {alt: '', src: 'img/videoq-icon.png', width: 32, height: 32},
       items: [
         {type: 'doc', docId: 'getting-started/local-setup', label: 'Get started', position: 'left'},
         {type: 'doc', docId: 'concepts/how-ai-works', label: 'AI behavior', position: 'left'},
