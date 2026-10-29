@@ -256,7 +256,9 @@ still requires all security, anonymous-pull and CPU/Kubernetes acceptance gates.
 
 ## Evaluate upstream GPU image candidates
 
-The manual **Operations** workflow (`check=onprem`, `validate_whisper_gpu=true`) accepts `nvidia_candidate` and
+Before merge, manual **CI** on the PR branch supports the same candidate inputs with
+`gpu_candidates_only=true`; its other selected CI suites still run. The main-only
+manual **Operations** workflow (`check=onprem`, `validate_whisper_gpu=true`) accepts `nvidia_candidate` and
 `amd_candidate` as official `repository@sha256:<digest>` references. Empty inputs
 use the reviewed chart pins. Candidate runs never change deployment pins or
 publish images. They check offline gateway WAV decoding, retain the actual vLLM

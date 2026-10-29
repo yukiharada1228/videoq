@@ -8,6 +8,23 @@ on:
   merge_group:
     types: [checks_requested]
   workflow_dispatch:
+    inputs:
+      gpu_candidates_only:
+        description: Evaluate GPU candidates instead of the onprem application/CPU rehearsal
+        type: boolean
+        default: false
+      gpu_accelerator:
+        type: choice
+        options: [both, nvidia, amd]
+        default: both
+      nvidia_candidate:
+        description: Optional official or NVIDIA vendor image at an exact digest
+        type: string
+        default: ''
+      amd_candidate:
+        description: Optional official ROCm image at an exact digest
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -119,7 +136,7 @@ jobs:
       frontend: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.frontend == 'true' }}
       docs: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.docs == 'true' }}
       worker_matrix: ${{ steps.runtimes.outputs.matrix }}
-      onprem: ${{ steps.filter.outputs.onprem }}
+      onprem: ${{ (github.event_name == 'workflow_dispatch' && inputs.gpu_candidates_only == true) || steps.filter.outputs.onprem == 'true' }}
       whisper_gpu: ${{ steps.filter.outputs.whisper_gpu }}
       real_cpu: ${{ steps.filter.outputs.real_cpu }}
     steps:
@@ -280,7 +297,11 @@ jobs:
     if: needs.changes.outputs.onprem == 'true'
     uses: ./.github/workflows/onprem-validation.yml
     with:
-      validate_whisper_gpu: ${{ needs.changes.outputs.whisper_gpu == 'true' }}
+      gpu_candidates_only: ${{ github.event_name == 'workflow_dispatch' && inputs.gpu_candidates_only == true }}
+      gpu_accelerator: ${{ github.event_name == 'workflow_dispatch' && inputs.gpu_accelerator || 'both' }}
+      nvidia_candidate: ${{ github.event_name == 'workflow_dispatch' && inputs.nvidia_candidate || '' }}
+      amd_candidate: ${{ github.event_name == 'workflow_dispatch' && inputs.amd_candidate || '' }}
+      validate_whisper_gpu: ${{ needs.changes.outputs.whisper_gpu == 'true' || (github.event_name == 'workflow_dispatch' && inputs.gpu_candidates_only == true) }}
       validate_real_cpu: ${{ github.event_name == 'pull_request' && needs.changes.outputs.real_cpu == 'true' }}
     permissions:
       contents: read

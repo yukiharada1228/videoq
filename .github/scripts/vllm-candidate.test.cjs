@@ -82,3 +82,14 @@ test('Operations forwards manual candidates while keeping scheduled evaluation a
   assert.match(job,/nvidia_candidate:.*github.event_name == 'workflow_dispatch'.*''/);
   assert.match(job,/amd_candidate:.*github.event_name == 'workflow_dispatch'.*''/);
 });
+
+
+test('manual CI evaluates PR candidates before the main-only Operations entrypoint is available',()=>{
+  const ci=readFileSync(join(__dirname,'../workflows/ci.yml'),'utf8');
+  assert.match(ci,/onprem:.*github.event_name == 'workflow_dispatch' && inputs.gpu_candidates_only == true/);
+  const job=ci.slice(ci.indexOf('  onprem-validation:'),ci.indexOf('  local-inference-basic:'));
+  for(const input of ['gpu_accelerator','nvidia_candidate','amd_candidate','gpu_candidates_only']) {
+    assert.ok(job.includes(`github.event_name == 'workflow_dispatch' && inputs.${input}`));
+  }
+  assert.match(job,/validate_whisper_gpu:.*needs.changes.outputs.whisper_gpu == 'true' \|\|/);
+});

@@ -139,7 +139,8 @@ Retired Package Cleanup ワークフローは廃止済みです。署名検証�
 
 ## 上流 GPU イメージ候補の検査
 
-手動 **Operations**（`check=onprem`・`validate_whisper_gpu=true`）は `nvidia_candidate`・`amd_candidate` に公式リポジトリの
+マージ前は PR ブランチの手動 **CI** で同じ候補と `gpu_candidates_only=true` を指定できます。
+それ以外の選択済み CI 検査は継続します。main 限定の手動 **Operations**（`check=onprem`・`validate_whisper_gpu=true`）は `nvidia_candidate`・`amd_candidate` に公式リポジトリの
 `repository@sha256:<digest>` を指定できます。空ならチャートの検証対象の固定値を使います。
 候補の検査は配布設定を変更せず、イメージも公開しません。オフラインの WAV デコード、
 vLLM バージョン、指定 digest とスキャン結果の一致、未修正を含む HIGH／CRITICAL のゲートを確認します。
