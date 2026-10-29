@@ -34,6 +34,26 @@ const MAX_ATTEMPTS = 8;
 function attempts(comments, mode = 'ci') {
   return records(comments, 'attempt').filter(r => r.policy === POLICY_VERSION && (r.mode || 'ci') === mode);
 }
+// A completed final attempt must produce one actionable stop notice, even when
+// the controller rejects another dispatch before scope() is called.
+async function stopIfExhausted({ github, context, pr, comments, mode = 'ci' }) {
+  if (`${context.repo.owner}/${context.repo.repo}` !== REPO || context.ref !== 'refs/heads/main' ||
+      !['ci', 'conflict'].includes(mode)) throw new Error('Stop notices require canonical main and a repair mode.');
+  if (attempts(comments, mode).length < MAX_ATTEMPTS) return false;
+  const worker = records(comments, 'worker-start').at(-1);
+  if (worker) {
+    const { data: run } = await github.rest.actions.getWorkflowRun({ ...context.repo, run_id: worker.runId });
+    if (run.status !== 'completed') return false;
+  }
+  if (!records(comments, 'stopped').some(r => r.policy === POLICY_VERSION && r.mode === mode)) {
+    const checks = `https://github.com/${REPO}/pull/${pr.number}/checks`;
+    const log = /^\d+$/.test(String(worker?.runId)) ? `https://github.com/${REPO}/actions/runs/${worker.runId}` : checks;
+    await record(github, context, pr.number,
+      { kind: 'stopped', policy: POLICY_VERSION, mode, sha: pr.head.sha },
+      `Claudeの${mode === 'ci' ? 'CI修正' : '競合解消'}が最大${MAX_ATTEMPTS}回に達したため、自動再試行を停止しました。人による確認が必要です。実行ログ: ${log}\nCI結果: ${checks}`);
+  }
+  return true;
+}
 async function mayAttempt({ github, context, comments, head, mode = 'ci', base }) {
   const history = attempts(comments, mode);
   if (history.length >= MAX_ATTEMPTS) return false;
@@ -119,7 +139,7 @@ async function scope(args) {
   const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, { ...context.repo, run_id: c.run.id, filter: 'latest', per_page: 100 });
   if (['Supply Chain Security', 'Deployment Security Tests'].some(name => !jobs.some(j => j.name === name && j.conclusion === 'success'))) {
     if (!records(c.comments, 'security-stop').some(r => r.sha === c.pr.head.sha)) await record(github, context, c.pr.number,
-      { kind: 'security-stop', sha: c.pr.head.sha }, 'セキュリティ検査が成功していないためClaude自動修正を停止しました。人による確認が必要です。');
+      { kind: 'security-stop', sha: c.pr.head.sha }, `セキュリティ検査が成功していないためClaude自動修正を停止しました。人による確認が必要です。CI結果: https://github.com/${REPO}/actions/runs/${c.run.id}`);
     return null;
   }
   // Upload/service failures and the aggregate result cannot be fixed by editing
@@ -129,14 +149,14 @@ async function scope(args) {
   // Consolidating CI must not turn infrastructure checks or their aggregate
   // failures into application-repair attempts. Mixed application failures remain eligible.
   const infrastructure = name => name === 'operations-fixture' || /^(container-checks|terraform-checks) \/ /.test(name);
-  if (!jobs.some(job => job.conclusion === 'failure' && !reporting.has(job.name) && !infrastructure(job.name))) return null;
-  const history = attempts(c.comments);
-  if (!await mayAttempt({ github, context, comments: c.comments, head: c.pr.head.sha })) return null;
-  if (history.length >= MAX_ATTEMPTS) {
-    if (!records(c.comments, 'stopped').length) await record(github, context, c.pr.number, { kind: 'stopped' },
-      'Claude自動修正の再試行上限に達しました。人による確認が必要です。');
+  if (!jobs.some(job => job.conclusion === 'failure' && !reporting.has(job.name) && !infrastructure(job.name))) {
+    if (!records(c.comments, 'unsupported-stop').some(r => r.sha === c.pr.head.sha)) await record(github, context, c.pr.number,
+      { kind: 'unsupported-stop', sha: c.pr.head.sha },
+      `CIの失敗がアプリ修正の対象外（インフラ検証・成果物処理など）のためClaudeを起動していません。人による確認が必要です。CI結果: https://github.com/${REPO}/actions/runs/${c.run.id}`);
     return null;
   }
+  if (await stopIfExhausted({ github, context, pr: c.pr, comments: c.comments })) return null;
+  if (!await mayAttempt({ github, context, comments: c.comments, head: c.pr.head.sha })) return null;
   const attempt = { kind: 'attempt', policy: POLICY_VERSION, mode: 'ci', sha: c.pr.head.sha, origin: c.origin.sha, runId: String(context.runId), failedRun: c.run.id };
   await record(github, context, c.pr.number, attempt, 'CI失敗を受け、Claudeによる互換性修正を開始します（互換性修正は最大8回）。');
   return { number: c.pr.number, sha: c.pr.head.sha, branch: c.pr.head.ref, origin: c.origin.sha };
@@ -199,4 +219,4 @@ async function publish(args) {
   if (current.head.sha !== expectedSha || current.labels.some(l => ['no-automerge', 'no-claude', 'no-codex'].includes(l.name))) throw new Error('PR changed during repair');
   await github.rest.git.updateRef({ ...context.repo, ref: `heads/${c.pr.head.ref}`, sha: commit.sha, force: false });
 }
-module.exports = { POLICY_VERSION, MAX_ATTEMPTS, attempts, mayAttempt, record, records, seed, sourceFile, validRepairFiles, chain, candidate, scope, authorizedAttempt, claimWorker, applyPatch, publish };
+module.exports = { POLICY_VERSION, MAX_ATTEMPTS, attempts, stopIfExhausted, mayAttempt, record, records, seed, sourceFile, validRepairFiles, chain, candidate, scope, authorizedAttempt, claimWorker, applyPatch, publish };
