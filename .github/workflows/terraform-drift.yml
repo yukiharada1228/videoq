@@ -16,7 +16,6 @@ jobs:
     permissions:
       contents: read
       id-token: write
-      issues: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -41,7 +40,7 @@ jobs:
           TF_VAR_openai_spend_alert_email: ${{ secrets.OPENAI_SPEND_ALERT_EMAIL }}
           TF_VAR_operations_alert_email: ${{ secrets.OPERATIONS_ALERT_EMAIL }}
         run: python ../.github/scripts/terraform-drift.py
-      - name: Publish or resolve the managed issue
+      - name: Write the operations summary
         if: always()
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:

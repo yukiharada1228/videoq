@@ -1,6 +1,4 @@
 const DAY = 86_400_000;
-const PREFIX = '<!-- videoq-token-expiry:';
-const BOT = 'github-actions[bot]';
 
 function dateMillis(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error('Expected a YYYY-MM-DD date');
@@ -63,76 +61,22 @@ async function check({ github, context, core, config, now = new Date(), dryRun =
     groups.set(entry.expiresOn, group);
   }
 
-  const repo = context.repo;
-  const issues = await github.paginate(github.rest.issues.listForRepo, {
-    ...repo, state: 'all', creator: BOT, per_page: 100,
-  });
-  const managed = issues.filter(issue => !issue.pull_request && issue.user?.login === BOT &&
-    new RegExp(`^${PREFIX}(\\d{4}-\\d{2}-\\d{2}) -->`).test(issue.body ?? ''));
   const report = [`## Cloudflare token expiry${dryRun ? ' (dry run)' : ''}`, '', `UTC date: ${today}`, ''];
   let urgent = false;
 
   for (const [expiresOn, entries] of groups) {
     const days = (dateMillis(expiresOn) - current) / DAY;
     const stage = stageFor(days);
-    const marker = `${PREFIX}${expiresOn} -->`;
-    const noticeMarker = `<!-- notified:${stage} -->`;
     report.push(`- ${expiresOn}: ${days} days remaining; ${entries.map(e => e.id).join(', ')}; ${stage ?? 'healthy'}`);
     if (!stage) continue;
     if (days <= 7) urgent = true;
     core.warning(`Cloudflare tokens expire on ${expiresOn} (${days} days remaining)`);
-    if (dryRun) continue;
-
-    let issue = managed.find(item => item.body.startsWith(marker));
-    const status = days <= 0 ? '有効期限当日または期限切れです' : `有効期限まであと${days}日です`;
-    const notice = `@${config.assignee} Cloudflareトークンの${status}。期限: **${expiresOn}**。\n\n${details(entries)}`;
-    if (!issue) {
-      const body = `${marker}\n${noticeMarker}\n${notice}\n\n` +
-        '期限当日に失効時刻を迎える前に、前日までの更新を推奨します。\n\n' +
-        '- [ ] 同じ必要最小限の権限で新しいトークンを発行\n' +
-        '- [ ] 上記のGitHub Environment secretsをすべて更新\n' +
-        '- [ ] deploy／resource同期が成功することを確認し、旧トークンを失効\n' +
-        '- [ ] `.github/cloudflare-token-expiry.json` の名前と期限を更新するPRをmainへmerge\n' +
-        '- [ ] 予備のカレンダー通知を使っている場合は、その日付も更新\n\n' +
-        '手順: [トークン更新と通知](https://github.com/videoq-jp/videoq/blob/main/infra/CLOUDFLARE_TOKEN_ROTATION.md)\n\n' +
-        'トークンの値はIssue・PR・ログへ記載しないでください。' +
-        '期限設定が更新されるまで、Issueを閉じても監視が再開します。';
-      ({ data: issue } = await github.rest.issues.create({
-        ...repo, title: `[要更新] Cloudflareトークンの有効期限 ${expiresOn}`,
-        body, assignees: [config.assignee],
-      }));
-    } else {
-      if (issue.state === 'closed') {
-        await github.rest.issues.update({ ...repo, issue_number: issue.number, state: 'open' });
-      }
-      const comments = await github.paginate(github.rest.issues.listComments, {
-        ...repo, issue_number: issue.number, per_page: 100,
-      });
-      const notified = issue.body.includes(noticeMarker) || comments.some(comment =>
-        comment.user?.login === BOT && (comment.body ?? '').includes(noticeMarker));
-      if (!notified) {
-        await github.rest.issues.createComment({
-          ...repo, issue_number: issue.number, body: `${noticeMarker}\n${notice}`,
-        });
-      }
-    }
-    report.push(`  - ${issue.html_url}`);
+    report.push(details(entries));
   }
 
-  // A verified rotation updates the tracked expiry via a reviewed PR. Closing
-  // an issue alone must never silence an outstanding expiry alert.
-  for (const issue of managed) {
-    const expiresOn = issue.body.slice(PREFIX.length, PREFIX.length + 10);
-    if (issue.state === 'open' && !groups.has(expiresOn)) {
-      report.push(`- Close superseded reminder #${issue.number} (${expiresOn})`);
-      if (!dryRun) {
-        await github.rest.issues.update({ ...repo, issue_number: issue.number, state: 'closed', state_reason: 'completed' });
-      }
-    }
-  }
   await core.summary.addRaw(`${report.join('\n')}\n`).write();
   if (urgent && !dryRun) {
-    core.setFailed('Cloudflare token renewal is due within 7 days or overdue. See the assigned issue.');
+    core.setFailed('Cloudflare token renewal is due within 7 days or overdue. See the workflow summary.');
   }
   return { today, urgent, dryRun };
 }
