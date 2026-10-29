@@ -28,7 +28,6 @@
     "user:admin": "node scripts/create-admin.mjs",
     "rate-limit:reset": "sh scripts/reset-rate-limit.sh",
     "embeddings:check": "tsx scripts/check-embeddings.ts",
-    "demo:prepare": "tsx scripts/prepare-landing-demo.ts",
     "demo:students": "tsx scripts/prepare-student-demo.ts",
     "build:node": "node scripts/build-node.mjs",
     "start:node": "node dist/node.mjs",
