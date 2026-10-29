@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: Preview notifications without creating or changing issues
+        description: Preview expiry checks without failing on an urgent date
         type: boolean
         default: false
       preview_date:
@@ -35,13 +35,12 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read
-      issues: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           sparse-checkout: .github
-      - name: Check dates and notify the maintainer
+      - name: Check dates and write the expiry summary
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           DRY_RUN: ${{ inputs.dry_run == true && 'true' || 'false' }}

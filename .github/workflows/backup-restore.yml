@@ -16,7 +16,6 @@ jobs:
     timeout-minutes: 40
     permissions:
       contents: read
-      issues: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -37,7 +36,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: node .github/scripts/backup-restore.mjs
-      - name: Publish or resolve the managed issue
+      - name: Write the operations summary
         if: always()
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:

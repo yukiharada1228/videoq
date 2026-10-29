@@ -31,28 +31,18 @@ function fixture() {
   return f;
 }
 
-test('one bot-owned issue tracks a finding, deduplicates reruns, and closes after recovery', async () => {
+test('findings, errors and recovery write summaries without accessing Issues', async () => {
   const f = fixture();
-  await notify(f); await notify(f);
-  assert.equal(f.issues.length, 1);
-  assert.equal(f.mutations.length, 1);
-  f.report = { status: 'ok', summary: '正常です。', details: [] };
-  await notify(f);
-  assert.equal(f.issues[0].state, 'closed');
-  f.report.status = 'error';
-  await notify(f);
-  assert.equal(f.issues[0].state, 'open');
-});
-
-test('human lookalikes are not modified and explicit mute is respected', async () => {
-  const f = fixture();
-  f.issues.push({ number: 10, body: '<!-- operations:dependency-stalls -->', user: { login: 'owner' } });
-  await notify(f);
-  assert.equal(f.mutations[0][0], 'create');
-  f.issues[1].labels = [{ name: 'operations-muted' }];
-  const count = f.mutations.length;
-  await notify(f);
-  assert.equal(f.mutations.length, count);
+  const summaries = [];
+  f.core.summary.addRaw = function (value) { summaries.push(value); return this; };
+  f.github = new Proxy({}, { get() { throw new Error('GitHub API must not be used'); } });
+  for (const status of ['findings', 'error', 'ok']) {
+    f.report.status = status;
+    assert.deepEqual(await notify(f), { healthy: status === 'ok' });
+  }
+  assert.equal(summaries.length, 3);
+  assert.match(summaries[0], /更新が滞留/);
+  assert.match(summaries[0], /#1/);
 });
 
 test('PR refs, forks, unknown reports and malformed reports cannot create notifications', async () => {
