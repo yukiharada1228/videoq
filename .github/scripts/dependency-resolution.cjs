@@ -79,6 +79,7 @@ async function candidate({ github, context, number, baseSha }) {
 async function scope(args) {
   const c = await candidate(args);
   if (!c) return null;
+  if (await repair().stopIfExhausted({ ...args, pr: c.pr, comments: c.comments, mode: 'conflict' })) return null;
   if (!await repair().mayAttempt({ ...args, comments: c.comments, head: c.pr.head.sha, mode: 'conflict', base: c.baseSha })) return null;
   await repair().record(args.github, args.context, c.pr.number, { kind: 'attempt', policy: 2, mode: 'conflict',
     sha: c.pr.head.sha, base: c.baseSha, origin: c.origin.sha, runId: String(args.context.runId) },

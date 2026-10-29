@@ -221,3 +221,13 @@ test('trusted export resolves the index outside the model sandbox and ignores it
   rmSync(join(cwd, 'apps/web/src/compat.ts'));
   assert.deepEqual(repair.applyPatch(cwd, join(temp, 'repair.patch')).sort(), [path, 'apps/web/src/compat.ts'].sort());
 });
+
+test('exhausted conflict attempts stop once without reserving another repair', async () => {
+  const f = fixture();
+  for (let i = 0; i < 8; i++) f.comments.push({ user: { login: 'github-actions[bot]' },
+    body: '<!-- videoq-claude-dependency-v1 -->\n' + JSON.stringify({ kind: 'attempt', policy: 2, mode: 'conflict', sha: A }) });
+  assert.equal(await resolution.scope(f), null);
+  assert.equal(await resolution.scope(f), null);
+  assert.equal(repair.records(f.comments, 'stopped').length, 1);
+  assert.equal(repair.records(f.comments, 'attempt').length, 8);
+});

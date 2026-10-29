@@ -120,6 +120,7 @@ async function reconcile({ github, writerGithub, context, verify = queue.verifie
     if (pr.mergeable === false) {
       await cancel(writerGithub, context, pr);
       if (repairEnabled && candidate.kind === 'dependabot') {
+        if (await repair.stopIfExhausted({ github, context, pr, comments: candidate.comments || [], mode: 'conflict' })) continue;
         if (authorizeRepair) await prepareRepair({ github, writerGithub, context, mode: 'conflict', number: pr.number, baseSha: main.commit.sha });
         else wake = true;
       }
@@ -145,6 +146,7 @@ async function reconcile({ github, writerGithub, context, verify = queue.verifie
       const ci = rows.find(row => row.workflow_id === 'ci.yml');
       if (!repairEnabled || candidate.kind !== 'dependabot' || !ci?.admitted || ci.run?.conclusion !== 'failure') continue;
       const comments = candidate.comments || [];
+      if (await repair.stopIfExhausted({ github, context, pr, comments })) continue;
       if (!await repair.mayAttempt({ github, context, comments, head: pr.head.sha })) continue;
       if (authorizeRepair) await prepareRepair({ github, writerGithub, context, runId: ci.run.id });
       else wake = true;

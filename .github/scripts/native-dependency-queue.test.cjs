@@ -161,3 +161,13 @@ test('group reproduction is bounded across head changes and a stop blocks automa
   assert.equal(native.records(f.comments).at(-1).kind, 'stopped');
   await native.reconcile(f.args); assert.equal(f.reserved.length, 0);
 });
+
+test('the controller announces an exhausted CI budget once without waking or dispatching another worker', async () => {
+  const f = fixture(); f.outcome = 'failure';
+  for (let i = 0; i < 8; i++) f.comments.push({ user: { login: 'github-actions[bot]' },
+    body: '<!-- videoq-claude-dependency-v1 -->\n' + JSON.stringify({ kind: 'attempt', policy: 2, mode: 'ci', sha: BASE }) });
+  const args = { ...f.args, repairEnabled: true, authorizeRepair: false };
+  await native.reconcile(args); await native.reconcile(args);
+  assert.equal(f.repairs.length, 0); assert.equal(f.dispatches.length, 0);
+  assert.equal(f.comments.filter(c => c.body.includes('"kind":"stopped"')).length, 1);
+});
