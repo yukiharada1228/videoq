@@ -24,7 +24,7 @@ const meta = {
     await expect(canvasElement.scrollWidth).toBeLessThanOrEqual(canvasElement.clientWidth);
     await expect(await canvas.findByText(i18n.t('landing.free.minutes', { minutes: 45 }))).toBeVisible();
     await expect(canvas.queryByRole('textbox')).not.toBeInTheDocument();
-    await expect(canvas.getByRole('list', { name: i18n.t('landing.film.subjectsLabel') }).children).toHaveLength(5);
+    await expect(canvas.getByRole('list', { name: i18n.t('landing.film.stepsLabel') }).children).toHaveLength(4);
     await expect(canvasElement.querySelector('video')).toHaveAttribute('preload', 'none');
   },
 } satisfies Meta<typeof LandingPage>;
@@ -34,7 +34,7 @@ export const Japanese: Story = {};
 export const Mobile: Story = { globals: { viewport: { value: 'mobile', isRotated: false } } };
 export const English: Story = { globals: { locale: 'en' } };
 export const EnglishMobile: Story = { globals: { locale: 'en', viewport: { value: 'mobile', isRotated: false } } };
-export const LegacyAdShowsStudentCopy: Story = {
+export const LegacyAdShowsDefaultUseCase: Story = {
   parameters: { pathname: '/?audience=training' },
   async play({ canvas }) {
     await expect(canvas.getByRole('button', { name: i18n.t('landing.uses.courses.label') })).toHaveAttribute('aria-pressed', 'true');
@@ -61,12 +61,12 @@ export const WatchDemo: Story = {
 export const WatchDemoMobile: Story = { ...WatchDemo, globals:{viewport:{value:'mobile',isRotated:false}} };
 export const WatchDemoEnglish: Story = { ...WatchDemo, globals:{locale:'en'} };
 export const VideoUnavailable: Story = {
-  parameters:{api:{rest:[http.get('/demo/student-demo-ja.mp4',()=>new HttpResponse(null,{status:503}))]}},
+  parameters:{api:{rest:[http.get('/demo/provider-demo-ja.mp4',()=>new HttpResponse(null,{status:503}))]}},
   async play({canvas,canvasElement,userEvent}) {
     const video=canvasElement.querySelector('video')!;
     video.muted = true;
     // Isolate this request from the browser's media cache populated by playback stories.
-    video.src='/demo/student-demo-ja.mp4?scenario=unavailable';
+    video.src='/demo/provider-demo-ja.mp4?scenario=unavailable';
     await userEvent.click(canvas.getByRole('button',{name:i18n.t('landing.film.play')}));
     await expect(await canvas.findByText(i18n.t('landing.film.error'), {}, {timeout:5000})).toBeVisible();
     await expect(canvas.getByRole('button',{name:i18n.t('landing.film.retry')})).toBeEnabled();

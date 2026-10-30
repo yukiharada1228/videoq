@@ -50,6 +50,7 @@
 .lp-subject-prepare { background: #d9e7df; }
 .lp-subject-share { background: #dfe7ff; }
 .lp-subject-answer { background: #d8eee7; }
+.lp-subject-review { background: #efe8d8; }
 .lp-film-note { margin-top: 10px; color: var(--lp-muted); font-size: 11px; line-height: 1.7; }
 .lp-film-error { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 12px; font-size: 13px; }
 .lp-film-error button { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--lp-blue); text-decoration: underline; }

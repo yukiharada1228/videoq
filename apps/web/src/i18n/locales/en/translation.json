@@ -299,19 +299,18 @@
       "monthlyUpload": "Monthly uploads"
     },
     "film": {
-      "title": "Ask a question. Find the explanation.",
+      "title": "From publishing a course to student questions, in 30 seconds.",
       "duration": "30 sec / Product demo",
       "play": "Play the demo",
-      "course": "Demo course: Five subjects for university study",
-      "subjectsLabel": "Five subjects in the demo",
-      "subjects": {
-        "japanese": "Writing",
-        "math": "Math",
-        "science": "Science",
-        "social": "Economics",
-        "english": "English"
+      "course": "Demo course: Five subjects for university study (math lesson)",
+      "stepsLabel": "Demo steps",
+      "steps": {
+        "prepare": "Prepare a course",
+        "share": "Share the link",
+        "answer": "Students ask",
+        "review": "Review history"
       },
-      "note": "An English translation of a walkthrough using real course data and an AI answer. Waiting times have been shortened.",
+      "note": "A walkthrough recreated from real course data and an AI answer; the English edit uses a translated answer. Waiting times have been shortened. The opening messages are an illustration.",
       "error": "The video could not load.",
       "blocked": "Use the video’s play button to start.",
       "retry": "Reload video"
