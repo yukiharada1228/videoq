@@ -37,8 +37,8 @@ export const EnglishMobile: Story = { globals: { locale: 'en', viewport: { value
 export const LegacyAdShowsStudentCopy: Story = {
   parameters: { pathname: '/?audience=training' },
   async play({ canvas }) {
-    await expect(canvas.getByRole('button', { name: i18n.t('landing.uses.lectures.label') })).toHaveAttribute('aria-pressed', 'true');
-    await expect(canvas.getByRole('heading', { name: i18n.t('landing.uses.lectures.title') })).toBeVisible();
+    await expect(canvas.getByRole('button', { name: i18n.t('landing.uses.courses.label') })).toHaveAttribute('aria-pressed', 'true');
+    await expect(canvas.getByRole('heading', { name: i18n.t('landing.uses.courses.title') })).toBeVisible();
   },
 };
 export const WatchDemo: Story = {
@@ -80,13 +80,13 @@ export const CatalogUnavailable: Story = {
     await expect(canvas.getByRole('button',{name:i18n.t('landing.film.play')})).toBeEnabled();
   },
 };
-export const StudyAndFaq: Story = {
+export const UseCasesAndFaq: Story = {
   async play({canvas,userEvent}) {
-    const exams=canvas.getByRole('button',{name:i18n.t('landing.uses.exams.label')});
-    exams.focus();await userEvent.keyboard(' ');
-    await expect(exams).toHaveAttribute('aria-pressed','true');
-    await expect(canvas.getByRole('heading',{name:i18n.t('landing.uses.exams.title')})).toBeVisible();
-    await userEvent.click(canvas.getByText(i18n.t('landing.faq.sharing.question')));
-    await expect(canvas.getByText(i18n.t('landing.faq.sharing.answer'))).toBeVisible();
+    const training=canvas.getByRole('button',{name:i18n.t('landing.uses.training.label')});
+    training.focus();await userEvent.keyboard(' ');
+    await expect(training).toHaveAttribute('aria-pressed','true');
+    await expect(canvas.getByRole('heading',{name:i18n.t('landing.uses.training.title')})).toBeVisible();
+    await userEvent.click(canvas.getByText(i18n.t('landing.faq.accounts.question')));
+    await expect(canvas.getByText(i18n.t('landing.faq.accounts.answer'))).toBeVisible();
   },
 };
