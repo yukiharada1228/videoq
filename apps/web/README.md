@@ -295,35 +295,39 @@ Keep `digital-agency.css` and `digital-agency.tokens.json` as upstream data.
 Use the `Design system/VideoQ theme` story to review buttons, forms, and selected states together.
 After synchronizing upstream files, verify that `index.css` still loads `videoq-theme.css` last.
 
-## Student landing page
+## Instructor landing page
 
-`/` and `/en` are landing pages for university students reviewing lectures and preparing for exams.
-Visitors can switch between lecture review and exam preparation examples. Legacy `audience=school` / `training` URLs also show the student landing page, preserving only their historical acquisition classification.
+`/` and `/en` are landing pages for course creators, instructors and training owners: an AI help desk that answers student questions from their lecture videos (see PR #1249, 2026-10-30).
+Visitors can switch between online course, school and internal training examples. The page only claims features that exist today: course share links without login, member invitations, AI answers billed to the course owner, the course dashboard and question history export.
 Free-tier information comes from the same `billing.plans` source as the pricing page; if it cannot be loaded, visitors are directed to the pricing page.
 
-The Japanese and English landing pages use matching 30-second, 1920×1080, 16:9, 60 fps Remotion demo videos.
-Composition, layout, zoom, cursor, music, and scene transitions are shared; the English version translates only the text and course material.
-`LandingDemoVideo` uses `public/demo/student-demo-{ja,en}.mp4`, WebP posters, and VTT captions.
+The Japanese and English landing pages use matching 30-second, 1920×1080, 16:9, 60 fps Remotion films (`ProviderDemo`).
+`LandingDemoVideo` uses `public/demo/provider-demo-{ja,en}.mp4`, WebP posters, and VTT captions.
 It uses `preload="none"`, does not autoplay, and displays standard video controls after explicit playback.
 If playback fails, it prompts the visitor to reload; the sign-up path remains available.
 Viewing the landing page or playing the video does not call course APIs or AI services.
 
-The video is a **recreated walkthrough using real data**, not a screen recording.
-An original five-subject course was uploaded through the regular VideoQ flow, then processed with transcription, scene segmentation,
-embeddings, and RAG. The resulting answer and citations are saved in `apps/demo-video/content/answer.json`.
-The walkthrough shows a learner asking a question about a lecture and playing the scene that supports the answer.
-The Japanese answer text and citation timestamps are unchanged; cursor movement, zoom, and waiting times are edited.
-The English version translates the guidance, course UI, material, question, and captured AI answer while preserving the original citation range.
-Both the video and landing page disclose that this is a translation of real data, rather than a newly generated answer from the English API.
+The film is a **recreated walkthrough using real data**, not a screen recording. After an opening labelled as an illustration,
+it shows the instructor uploading a lecture and sharing the course, a student asking a question and playing the cited scene,
+and the instructor finding that question in the conversation history. The answer, citation and capture time come from
+`apps/demo-video/content/answer.json`, which was produced by the regular upload, transcription, indexing and RAG flow.
+The English edit translates the UI, question and captured answer while preserving the citation range, and the page discloses this.
 
 See [demo-video/README.md](../demo-video/README.md) for production steps and course registration.
 The demo can be served entirely as static files. Registering the course in the public environment is not required to publish the landing page.
 `worker/landing-media.ts` handles MP4 Range requests and limits reads to 16 MiB per video.
-Legacy `explain-{ja,en}.mp4` / `provider-demo-{ja,en}.mp4` URLs remain for compatibility.
+Legacy `explain-{ja,en}.mp4` / `student-demo-{ja,en}.mp4` URLs remain for compatibility.
 
-### Student ad retest
+### Instructor ads
 
-The October 6, 2026 retest directs Japanese and English ads to the student landing page.
+Instructor ads use the fixed cohort below and are counted under audience `creator`.
+The Japanese URL is `https://videoq.jp/?utm_source=x&utm_medium=paid_social&utm_campaign=instructor_202611&utm_content=demo30_ja`.
+The English URL is `https://videoq.jp/en/?utm_source=x&utm_medium=paid_social&utm_campaign=instructor_202611&utm_content=demo30_en`.
+Add `audience=school` or `audience=training` to a URL to count a school- or training-targeted ad under that audience instead.
+
+### Student ad retest (historical)
+
+The October 6, 2026 retest directed Japanese and English ads to the student landing page.
 Ads share a 15-second square format; landing page videos share a 30-second landscape format.
 Previous student ads, this retest, and teacher ads are tracked as separate acquisition sources.
 Checks cover sign-up, video registration acceptance, and the first answer in addition to clicks.
@@ -359,13 +363,14 @@ Seeking to the end can also trigger `demo_complete`, so it does not guarantee a 
 Legacy `demo_question` / `demo_source` / `sample_download` events are accepted only for compatibility.
 Each stage is recorded once per tab, and attribution ends 30 minutes after the last recorded event.
 Names, emails, question text, video IDs, user IDs, session IDs, and UTM strings are not sent.
-Events include language, audience (normally `general`; `school` / `training` follow acquisition parameters; student ads use `student`), sign-up button location,
+Events include language, audience (normally `general`; `creator` for instructor ads; `school` / `training` follow the `audience` parameter or the teacher cohort; historic student ads use `student`), sign-up button location,
 and one of the fixed `acquisition` values below. Raw UTM values, URLs, and click IDs are neither stored nor sent.
 
 | `acquisition` | Conditions on the initial landing page visit |
 | --- | --- |
 | `x_paid_demo15_search` | All of `utm_source=x`, `utm_medium=paid_social`, `utm_campaign=student_demo_test`, and `utm_content=demo15_search` match |
 | `x_paid_student_ja` / `x_paid_student_en` | `utm_source=x`, `utm_medium=paid_social`, `utm_campaign=student_return_202610`, and `utm_content=demo15_search_ja` / `demo15_search_en` |
+| `x_paid_instructor_ja` / `x_paid_instructor_en` | `utm_source=x`, `utm_medium=paid_social`, `utm_campaign=instructor_202611`, and `utm_content=demo30_ja` / `demo30_en` |
 | `x_paid_teacher_qa` | All of `utm_source=x`, `utm_medium=paid_social`, `utm_campaign=teacher_qa_test`, and `utm_content=lecture_qa` match |
 | `x_organic_launch` | `utm_source=x`, `utm_medium=organic_social`, `utm_campaign=launch`, and `utm_content` is `intro` / `howto` / `usecase` |
 | `internal_test` | A verification visit with `measurement=test` in the landing page URL; exclude from ad results |
