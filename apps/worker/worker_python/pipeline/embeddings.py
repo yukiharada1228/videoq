@@ -7,6 +7,7 @@ import urllib.error
 import urllib.request
 
 from worker_python.env import env_str
+from .ai_connection import shared_api_key, shared_base_url, is_openrouter
 from .embedding_contract import (
     EMBEDDING_DIMENSIONS,
     EmbeddingConfig,
@@ -25,10 +26,11 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
 
 
 def _embed_openai_batch(texts: list[str], config: EmbeddingConfig) -> list[list[float]]:
-    api_key = env_str("EMBEDDING_API_KEY") or env_str("OPENAI_API_KEY")
+    base = (env_str("EMBEDDING_BASE_URL") or shared_base_url()).rstrip("/")
+    api_key = (shared_api_key(base) if is_openrouter(base) and env_str("OPENROUTER_FEDERATION_POLICY_ID")
+               else env_str("EMBEDDING_API_KEY") or shared_api_key(base))
     if not api_key:
-        raise RuntimeError("OPENAI_API_KEY is required for OpenAI embeddings")
-    base = (env_str("EMBEDDING_BASE_URL") or env_str("OPENAI_BASE_URL", "https://api.openai.com/v1")).rstrip("/")
+        raise RuntimeError("OPENROUTER_API_KEY, OPENAI_API_KEY or EMBEDDING_API_KEY is required for embeddings")
     body: dict = {"model": config.model, "input": texts, "encoding_format": "float", "dimensions": EMBEDDING_DIMENSIONS}
 
     req = urllib.request.Request(

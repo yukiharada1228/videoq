@@ -33,12 +33,12 @@ Run subsequent commands from the repository root, `videoq/`, unless stated other
 
 ## 2. Configure AI services for development
 
-Edit the matching entries in `.env` to use these values. Set `OPENAI_API_KEY` to your own development key.
+Edit the matching entries in `.env` to use these values. Set `OPENROUTER_API_KEY` to your own development key.
 
 ```dotenv
-OPENAI_API_KEY=your-development-key
-OPENAI_BASE_URL=https://api.openai.com/v1
-LLM_MODEL=gpt-6-luna
+OPENROUTER_API_KEY=your-development-key
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+LLM_MODEL=openai/gpt-6-luna
 WHISPER_BACKEND=openai
 
 EMBEDDING_MODEL=text-embedding-3-small

@@ -88,8 +88,11 @@ results. Checkpoints are deleted by foreign-key cascade when the video is delete
 |---|---|
 | `DATABASE_URL` | PostgreSQL |
 | `SQS_QUEUE_URL` | Amazon SQS / ElasticMQ |
-| `OPENAI_API_KEY` | Whisper and embeddings |
-| `WHISPER_BACKEND` | `openai` (cloud default) or `local` (on-premises) |
+| `OPENROUTER_FEDERATION_POLICY_ID` | Preferred: OpenRouter policy for AWS STS workload identity |
+| `OPENROUTER_FEDERATION_AUDIENCE` | Defaults to `https://openrouter.ai` |
+| `OPENROUTER_API_KEY` | Optional fixed-key development fallback when no policy is set |
+| `OPENAI_API_KEY` | Legacy direct OpenAI / local SDK placeholder |
+| `WHISPER_BACKEND` | `openrouter` (hosted profile), `openai` (legacy direct) or `local` (on-premises) |
 | `WHISPER_LOCAL_URL` | Private API base for `local`: native Mac whisper.cpp has no `/v1` suffix with the documented launch command; the Kubernetes gateway includes `/v1` |
 | `EMBEDDING_MODEL` | Defaults to `text-embedding-3-small`; set the actual served alias for a private model |
 | `USE_S3_STORAGE` | Enable S3-compatible object storage |
@@ -116,7 +119,7 @@ the gateway forwards speech spans concurrently to vLLM, without waiting for a
 batch of uploaded videos. The dated comparison report records the experiments
 before adoption; its retired Modal-only commands are historical.
 
-Cloud transcription uses the OpenAI API's `whisper-1` model. See
+Cloud transcription uses OpenRouter's `openai/whisper-large-v3-turbo` model with real segment timestamps. See
 [the switch runbook](../../docs/operations/openai-transcription.md).
 
 Dedicated storage credentials are selected from `R2_ACCESS_KEY_ID` /
@@ -229,6 +232,6 @@ See the [visual evidence guide](../../docs/guides/visual-evidence.md) for settin
 storage usage, deletion, and accuracy comparisons.
 
 OpenAI-compatible embeddings can use `EMBEDDING_BASE_URL` and a separate
-`EMBEDDING_API_KEY`. Unset values retain the shared OpenAI base URL/key. Use the
+`EMBEDDING_API_KEY`. Unset values retain the shared provider base URL/key; `OPENROUTER_API_KEY` selects OpenRouter when no base URL is specified. Use the
 same model and embedding endpoint in the API and worker. Local llama.cpp/vLLM
 recipes and their common acceptance commands are in `charts/videoq-inference/README.md`.

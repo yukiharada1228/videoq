@@ -6,15 +6,16 @@ const require = createRequire(new URL('../operations-tools/package.json', import
 const { Client } = require('pg');
 const { chromium } = require('playwright');
 const { hashPassword } = await import(require.resolve('better-auth/crypto'));
-const { ORIGIN, synthetic, uploadAllowed, completed, deletable, fixtureValid, waitForCleanup } = createRequire(import.meta.url)('./production-smoke-policy.cjs');
+const { ORIGIN, synthetic, uploadAllowed, completed, deletable, fixtureValid, waitForCleanup, citedAnswerValid } = createRequire(import.meta.url)('./production-smoke-policy.cjs');
 const db = new Client({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 15_000,
   statement_timeout: 30_000, application_name: 'videoq-operations-smoke' });
+const verifyAi = process.env.VERIFY_AI_ANSWERS === 'true';
 let browser, currentUser, cookie = '', stage = 'public-health';
 function progress(value) { stage = value; console.log('Production smoke stage: ' + value); }
-const request = (path, options = {}) => fetch(ORIGIN + path, { ...options, redirect: 'error', signal: AbortSignal.timeout(30_000) });
-async function rpc(procedure, input, mutation = false) {
+const request = (path, options = {}) => fetch(ORIGIN + path, { ...options, redirect: 'error', signal: options.signal ?? AbortSignal.timeout(30_000) });
+async function rpc(procedure, input, mutation = false, timeoutMs = 30_000) {
   const response = await request('/api/trpc/' + procedure + (mutation ? '' : '?input=' + encodeURIComponent(JSON.stringify(input))), {
-    method: mutation ? 'POST' : 'GET', headers: { cookie, Origin: ORIGIN, 'Content-Type': 'application/json' },
+    signal: AbortSignal.timeout(timeoutMs), method: mutation ? 'POST' : 'GET', headers: { cookie, Origin: ORIGIN, 'Content-Type': 'application/json' },
     ...(mutation ? { body: JSON.stringify(input) } : {}),
   });
   const value = await response.json();
@@ -44,6 +45,8 @@ async function cleanup(user) {
   const pending = await db.query(`SELECT count(*) FROM external_tasks WHERE kind = 'storage_cleanup'
     AND payload->>'user_id' = $1 AND completed_at IS NULL`, [user.id]);
   if (Number(pending.rows[0].count)) return false;
+  const courses = await db.query('SELECT id FROM video_courses WHERE user_id = $1', [user.id]);
+  for (const course of courses.rows) await rpc('courses.delete', { id: Number(course.id) }, true);
   const removed = await db.query(`DELETE FROM users WHERE id = $1 AND username = $2 AND email = $3
     AND name = $4 AND role = 'user' AND quota_source = 'admin'
     AND NOT EXISTS (SELECT 1 FROM videos WHERE user_id = $1) RETURNING id`,
@@ -80,8 +83,8 @@ try {
   await db.query(`INSERT INTO users (id, username, email, name, role, email_verified, password_reset_required,
     is_over_quota, used_ai_answers, used_processing_seconds, used_storage_bytes, quota_source,
     processing_limit_minutes, ai_answers_limit, storage_limit_gb, monthly_upload_limit_gb)
-    VALUES ($1,$2,$3,$4,'user',true,false,false,0,0,0,'admin',1,0,0.01,0.01)`,
-  [id, currentUser.username, currentUser.email, currentUser.name]);
+    VALUES ($1,$2,$3,$4,'user',true,false,false,0,0,0,'admin',1,$5,0.01,0.01)`,
+  [id, currentUser.username, currentUser.email, currentUser.name, verifyAi ? 1 : 0]);
   await db.query("INSERT INTO account (id, account_id, provider_id, user_id, password) VALUES ($1,$2,'credential',$2,$3)", [randomUUID(), id, hash]);
   await db.query('COMMIT');
   progress('synthetic-sign-in');
@@ -110,6 +113,14 @@ try {
   if (!video || !completed(video) || !video.transcript?.trim()) throw new Error('Video processing did not finish');
   const embedded = await db.query('SELECT count(*) FROM scene_embeddings WHERE user_id = $1 AND video_id = $2', [id, video.id]);
   if (Number(embedded.rows[0].count) < 1) throw new Error('No scene embeddings');
+  if (verifyAi) {
+    progress('cited-question-answer');
+    const course = await rpc('courses.create', { name: title, description: 'Temporary migration verification' }, true);
+    await rpc('memberships.addVideo', { courseId: course.id, videoId: video.id }, true);
+    const answer = await rpc('chat.send', { courseId: course.id,
+      messages: [{ role: 'user', content: 'What is said in this video? Summarize it and cite the transcript evidence.' }] }, true, 180_000);
+    if (!citedAnswerValid(answer, Number(video.id))) throw new Error('No cited answer from the uploaded video');
+  }
   progress('browser');
   browser = await chromium.launch({ channel: 'chrome' });
   const context = await browser.newContext();
@@ -126,7 +137,7 @@ try {
   await page.goto(ORIGIN + '/videos', { waitUntil: 'networkidle', timeout: 60_000 });
   await page.getByText(title, { exact: true }).first().waitFor({ timeout: 30_000 });
   if (errors.length) throw new Error('Browser JavaScript error');
-  report = { status: 'ok', summary: '本番の画面・API・DB・短い動画の処理・文字起こし・埋め込みを確認しました。', details: [] };
+  report = { status: 'ok', summary: '本番の画面・API・DB・短い動画の処理・文字起こし・埋め込みを確認しました。' + (verifyAi ? ' 検索と引用付き Q&A も確認しました。' : ''), details: [] };
 } catch {
   try { await db.query('ROLLBACK'); } catch { /* connection may be unavailable */ }
   report.details = ['- 失敗した段階: `' + stage + '`。認証情報や利用者のデータはログに出力していません。'];
