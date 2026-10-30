@@ -12,6 +12,13 @@ class DiagnosticsTests(unittest.TestCase):
         self.assertEqual(result["exceptionTypes"], {"RuntimeError": 1})
         self.assertNotIn("PRIVATE", json.dumps(result))
 
+    def test_lambda_prefix_and_qualified_exception_are_recognized_without_body(self):
+        result = summarize_logs([{"message": '[ERROR] openai.BadRequestError: Error code: 400 PRIVATE_PROVIDER_BODY verbose_json'}])
+        self.assertEqual(result["exceptionTypes"], {"openai.BadRequestError": 1})
+        self.assertEqual(result["httpStatuses"], {"400": 1})
+        self.assertEqual(result["markers"]["verbose_json"], 1)
+        self.assertNotIn("PRIVATE", json.dumps(result))
+
     def test_config_and_sdk_errors_are_redacted(self):
         session, client = MagicMock(), MagicMock()
         session.client.return_value = client

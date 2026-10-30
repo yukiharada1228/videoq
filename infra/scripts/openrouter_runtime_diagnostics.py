@@ -12,6 +12,11 @@ MARKERS = (
     "AccessDenied", "InvalidIdentityToken", "InvalidClientTokenId",
     "SignatureDoesNotMatch", "ExpiredToken", "Task timed out",
     "timestamp", "transcription", "embedding", "Traceback",
+    "Whisper must return real segment timestamps", "verbose_json",
+    "insufficient credits", "Insufficient credits", "not supported",
+    "No endpoints found", "Invalid API key", "Invalid authentication",
+    "Unauthorized", "Too Many Requests", "timed out",
+
 )
 SAFE_CONFIG = (
     "OPENAI_BASE_URL", "EMBEDDING_MODEL", "WHISPER_BACKEND",
@@ -21,15 +26,17 @@ SAFE_CONFIG = (
 
 
 def summarize_logs(events):
-    markers, exceptions = Counter(), Counter()
+    markers, exceptions, statuses = Counter(), Counter(), Counter()
     for event in events:
         message = event.get("message", "")
         for marker in MARKERS:
             if marker in message:
                 markers[marker] += 1
-        for name in re.findall(r"(?:^|\n)([A-Za-z_][A-Za-z0-9_]*(?:Error|Exception)):", message):
+        for name in re.findall(r"\b((?:[A-Za-z_][A-Za-z0-9_]*\.)*[A-Z][A-Za-z0-9_]*(?:Error|Exception)):", message):
             exceptions[name] += 1
-    return {"eventsExamined": len(events), "markers": dict(markers), "exceptionTypes": dict(exceptions)}
+        for code in re.findall(r"(?:Error code: |HTTP/[12](?:\.\d)?[ \"]+)([1-5][0-9]{2})\b", message):
+            statuses[code] += 1
+    return {"eventsExamined": len(events), "markers": dict(markers), "exceptionTypes": dict(exceptions), "httpStatuses": dict(statuses)}
 
 
 def diagnose(session, region):
