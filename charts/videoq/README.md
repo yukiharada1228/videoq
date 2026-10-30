@@ -97,7 +97,7 @@ R2_ACCESS_KEY_ID=REPLACE
 R2_SECRET_ACCESS_KEY=REPLACE
 AWS_ACCESS_KEY_ID=REPLACE_WITH_QUEUE_KEY
 AWS_SECRET_ACCESS_KEY=REPLACE_WITH_QUEUE_SECRET
-OPENAI_API_KEY=REPLACE_WITH_PROVIDER_KEY_OR_LOCAL_DUMMY_VALUE
+OPENROUTER_API_KEY=REPLACE_WITH_OPENROUTER_KEY
 ```
 
 Generate independent secrets with `openssl rand -base64 48` and
@@ -108,7 +108,7 @@ keys include `MAILGUN_API_KEY`, `MAILGUN_SENDER_DOMAIN`, `GOOGLE_CLIENT_ID`,
 `GOOGLE_CLIENT_SECRET`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
 `AWS_SESSION_TOKEN`, and Modal configuration when that backend is chosen.
 
-Chat requires a nonempty `OPENAI_API_KEY` even for an OpenAI-compatible local
+Hosted chat prefers `ai.federationPolicyId` with an AWS identity; `OPENROUTER_API_KEY` is an explicit development fallback. Local chat requires a nonempty `LLM_API_KEY` or `OPENAI_API_KEY` even for an OpenAI-compatible local
 server without authentication; use a local placeholder such as `local-inference`
 in that case. Embeddings reuse it unless `EMBEDDING_API_KEY` is set.
 
@@ -311,3 +311,9 @@ usage reporting, local API keys/MCP and intranet sharing remain available.
 AI endpoints are configured separately: apply the chosen local-inference overlay
 for fully on-site processing. The application edition does not change a
 site-selected inference endpoint or migrate existing embeddings.
+
+The hosted defaults route answers/images, embeddings, and transcription through
+OpenRouter. Prefer `ai.federationPolicyId` with `ai.federationAudience` and AWS workload credentials. An explicit development alternative is `OPENROUTER_API_KEY` in the existing runtime Secret. The models
+are `openai/gpt-6-luna`, `openai/text-embedding-3-small` (1536 dimensions), and
+`openai/whisper-large-v3-turbo`. Remove stale `LLM_*` / `EMBEDDING_*` endpoint/key
+overrides to share the provider. Local overlays continue to use private inference.

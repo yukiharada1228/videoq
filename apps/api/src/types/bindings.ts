@@ -13,6 +13,7 @@ type SecretBindings = {
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   OPENAI_API_KEY?: string;
+  OPENROUTER_API_KEY?: string;
   MAILGUN_API_KEY?: string;
   R2_ACCESS_KEY_ID?: string;
   R2_SECRET_ACCESS_KEY?: string;
@@ -31,7 +32,7 @@ type PlatformResources = {
   [K in keyof CloudflareBindings as NonNullable<CloudflareBindings[K]> extends string ? never : K]?: CloudflareBindings[K];
 };
 
-export type Bindings = Omit<RuntimeStrings, keyof SecretBindings> & PlatformResources &
+export type Bindings = Omit<RuntimeStrings, keyof SecretBindings | "OPENAI_BASE_URL"> & PlatformResources &
   SecretBindings & {
     RUNTIME?: "node";
     DEFAULT_MONTHLY_UPLOAD_LIMIT_GB?: string;
@@ -42,6 +43,10 @@ export type Bindings = Omit<RuntimeStrings, keyof SecretBindings> & PlatformReso
     RATE_LIMIT_BACKEND?: RateLimitBackend;
     // 互換用の任意設定。
     OPENAI_BASE_URL?: string;
+    OPENROUTER_FEDERATION_POLICY_ID?: string;
+    OPENROUTER_FEDERATION_AUDIENCE?: string;
+    LLM_BASE_URL?: string;
+    LLM_API_KEY?: string;
     EMBEDDING_BASE_URL?: string;
     EMBEDDING_API_KEY?: string;
     LLM_REASONING_EFFORT?: "none" | "minimal" | "low" | "medium" | "high";

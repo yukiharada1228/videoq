@@ -1,3 +1,4 @@
+import { federatedOpenRouterToken, type FederationSettings } from "./openrouter-federation";
 import type { Bindings } from "../types/bindings";
 
 /**
@@ -20,17 +21,43 @@ export const DEFAULT_LLM_MODEL = "gpt-6-luna";
 
 const DEFAULT_BASE_URL = "https://api.openai.com/v1";
 
-/** 用途別の OpenAI API キーを解決する。purpose はエラーメッセージにそのまま入る。 */
-export function resolveOpenAiKey(env: Pick<Bindings, "OPENAI_API_KEY">, purpose: string): string {
-  const key = env.OPENAI_API_KEY;
+export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+type ConnectionSettings = Pick<Bindings, "OPENAI_API_KEY" | "OPENAI_BASE_URL" | "OPENROUTER_API_KEY"> & FederationSettings;
+export type ProviderCredential = string | (() => Promise<string>);
+
+export function isOpenRouter(baseURL: string): boolean {
+  try { return new URL(baseURL).hostname === "openrouter.ai"; }
+  catch { return false; }
+}
+
+/** Preserve custom/local model aliases; only qualify the existing hosted models. */
+export function providerModel(model: string, baseURL: string): string {
+  return isOpenRouter(baseURL) && [DEFAULT_LLM_MODEL, DEFAULT_EMBEDDING_MODEL].includes(model)
+    ? `openai/${model}` : model;
+}
+
+export const openAiBaseUrl = (env: Pick<Bindings, "OPENAI_BASE_URL" | "OPENROUTER_API_KEY" | "OPENROUTER_FEDERATION_POLICY_ID">): string =>
+  (env.OPENAI_BASE_URL || ((env.OPENROUTER_API_KEY || env.OPENROUTER_FEDERATION_POLICY_ID) ? OPENROUTER_BASE_URL : DEFAULT_BASE_URL)).replace(/\/+$/, "");
+
+/** Shared credentials follow the selected endpoint; explicit purpose keys take precedence. */
+export function resolveOpenAiKey(env: ConnectionSettings, purpose: string, baseURL = openAiBaseUrl(env)): ProviderCredential {
+  if (isOpenRouter(baseURL) && env.OPENROUTER_FEDERATION_POLICY_ID) return () => federatedOpenRouterToken(env);
+  const key = (isOpenRouter(baseURL) ? env.OPENROUTER_API_KEY : undefined) || env.OPENAI_API_KEY;
   if (!key) {
     throw new LlmConfigurationError(
-      `OpenAI API key is required when using ${purpose}. ` +
-        "Please set OPENAI_API_KEY in the server environment.",
+      `API key is required when using ${purpose}. Set OPENROUTER_API_KEY for OpenRouter or OPENAI_API_KEY for OpenAI.`,
     );
   }
   return key;
 }
 
-export const openAiBaseUrl = (env: Pick<Bindings, "OPENAI_BASE_URL">): string =>
-  (env.OPENAI_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, "");
+/** Answer generation and image inspection share a connection, with optional overrides. */
+export function resolveLlmConnection(
+  env: ConnectionSettings & Pick<Bindings, "LLM_API_KEY" | "LLM_BASE_URL">,
+): { apiKey: ProviderCredential; baseURL: string } {
+  const baseURL = (env.LLM_BASE_URL || openAiBaseUrl(env)).replace(/\/+$/, "");
+  const apiKey = isOpenRouter(baseURL) && env.OPENROUTER_FEDERATION_POLICY_ID
+    ? resolveOpenAiKey(env, "LLM", baseURL)
+    : env.LLM_API_KEY || resolveOpenAiKey(env, "LLM", baseURL);
+  return { apiKey, baseURL };
+}

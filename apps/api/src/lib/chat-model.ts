@@ -5,8 +5,8 @@ import {
   DEFAULT_LLM_MODEL,
   LlmConfigurationError,
   LlmProviderError,
-  openAiBaseUrl,
-  resolveOpenAiKey,
+  resolveLlmConnection,
+  providerModel,
 } from "./openai";
 import type { Bindings } from "../types/bindings";
 
@@ -14,7 +14,7 @@ import type { Bindings } from "../types/bindings";
  * LLM 呼び出しの土台（ChatOpenAI）。
  * strict json_schema と tool calling に対応する Chat Completions が必要:
  *   - temperature=0 / model は LLM_MODEL（既定 gpt-6-luna）
- *   - OPENAI_BASE_URL で OpenAI 互換エンドポイントへ差し替え可能
+ *   - LLM_BASE_URL（未設定なら OPENAI_BASE_URL）で OpenAI 互換エンドポイントへ差し替え可能
  *   - 失敗は LlmConfigurationError / LlmProviderError のどちらかに正規化する
  */
 
@@ -119,20 +119,19 @@ export function createChatModel(
   env: Bindings,
   opts: { maxTokens: number; timeoutMs: number; costLedger?: AnswerCostLedger },
 ): ChatOpenAICompletions {
-  const apiKey = resolveOpenAiKey(env, "OpenAI LLM");
-  const model = env.LLM_MODEL || DEFAULT_LLM_MODEL;
+  const { apiKey, baseURL } = resolveLlmConnection(env);
+  const model = providerModel(env.LLM_MODEL || DEFAULT_LLM_MODEL, baseURL);
   // useResponsesApi: false でも ChatOpenAI はモデル名で /responses を選ぶ。
   // 互換サーバーでも /chat/completions を使うため、専用クラスで固定する。
+  const reasoningEffort = env.LLM_REASONING_EFFORT || (["gpt-6-luna", "openai/gpt-6-luna"].includes(model) ? "none" : undefined);
   const chatModel = new AnswerChatModel({
     model,
     apiKey,
-    configuration: { baseURL: openAiBaseUrl(env) },
+    configuration: { baseURL },
     temperature: 0,
-    reasoning: env.LLM_REASONING_EFFORT ? { effort: env.LLM_REASONING_EFFORT }
-      : model === "gpt-6-luna" ? { effort: "none" } : undefined,
-    // LangChain filters its reasoning option by known OpenAI model names.
-    // Compatible local models need the wire field even with a custom name.
-    modelKwargs: env.LLM_REASONING_EFFORT ? { reasoning_effort: env.LLM_REASONING_EFFORT } : undefined,
+    reasoning: reasoningEffort ? { effort: reasoningEffort } : undefined,
+    // Send the field explicitly for OpenRouter slugs and custom compatible aliases.
+    modelKwargs: reasoningEffort ? { reasoning_effort: reasoningEffort } : undefined,
     maxTokens: opts.maxTokens,
     timeout: opts.timeoutMs,
     maxRetries: MAX_RETRIES,
@@ -166,7 +165,7 @@ export function toLlmError(error: unknown): unknown {
   const status = statusOf(error);
   if (status === 401) {
     return new LlmConfigurationError(
-      "Invalid OpenAI API key. Please check your API key in Settings.",
+      "Invalid LLM API key. Please check LLM_API_KEY, OPENROUTER_API_KEY or OPENAI_API_KEY in the server environment.",
     );
   }
   const message = error instanceof Error ? error.message : String(error);
@@ -175,7 +174,7 @@ export function toLlmError(error: unknown): unknown {
   }
   return new LlmProviderError(
     status === null
-      ? `OpenAI request failed: ${message.slice(0, 500)}`
-      : `OpenAI request failed (${status}): ${message.slice(0, 500)}`,
+      ? `LLM request failed: ${message.slice(0, 500)}`
+      : `LLM request failed (${status}): ${message.slice(0, 500)}`,
   );
 }
