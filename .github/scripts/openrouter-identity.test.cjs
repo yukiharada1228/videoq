@@ -20,3 +20,14 @@ test('dependencies install before credentials and setup does not export credenti
   assert.doesNotMatch(workflow, /upload-artifact|OPENROUTER_MANAGEMENT_KEY|aws-access-key-id:|aws-secret-access-key:/);
   assert.match(workflow, /persist-credentials: false/);
 });
+
+test('read-only issuer inspection uses the plan role; writes retain the production gate', () => {
+  const inspect = workflow.slice(workflow.indexOf('  inspect:'), workflow.indexOf('  prepare:'));
+  const prepare = workflow.slice(workflow.indexOf('  prepare:'));
+  assert.match(inspect, /AWS_GITHUB_ACTIONS_PLAN_ROLE_ARN/);
+  assert.match(inspect, /inputs.operation == 'inspect'/);
+  assert.doesNotMatch(inspect, /environment:|DEPLOY_ROLE_ARN/);
+  assert.match(prepare, /inputs.operation != 'inspect'/);
+  assert.match(prepare, /environment: production-infra/);
+  assert.match(prepare, /AWS_GITHUB_ACTIONS_DEPLOY_ROLE_ARN/);
+});
