@@ -333,18 +333,3 @@ jobs:
               runId: process.env.CI_RUN_ID, number: process.env.PR_NUMBER, mode: process.env.REPAIR_MODE, baseSha: process.env.BASE_SHA, authorizationRun: process.env.AUTHORIZATION_RUN, expectedSha: process.env.EXPECTED_SHA,
               cwd: `${process.env.GITHUB_WORKSPACE}/source`, patchPath: `${process.env.RUNNER_TEMP}/claude-patch/repair.patch`,
             });
-  notify:
-    needs: [authorize, repair, publish]
-    if: always() && needs.authorize.result == 'success' && (needs.repair.result == 'failure' || needs.publish.result == 'failure')
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      pull-requests: write
-    steps:
-      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          PR_NUMBER: ${{ inputs.number }}
-        with:
-          script: |
-            await github.rest.issues.createComment({ ...context.repo, issue_number: Number(process.env.PR_NUMBER),
-              body: `Claude自動修正を完了できませんでした。上限内なら自動で再試行します。実行ログ: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}` });

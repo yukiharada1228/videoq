@@ -4,18 +4,18 @@
     "amd64": {
       "architecture": "amd64",
       "files": 962,
-      "image": "ghcr.io/ggml-org/whisper.cpp@sha256:4df91b749d95628c3b40068c13c2d3fc67f745db86ea7829438ff87eb03c12c2",
-      "inventorySha256": "d5cc20747e528fce2652107fa1ff767356f701e3bcfb11b1ae94d6843fd4e66b",
+      "image": "ghcr.io/ggml-org/whisper.cpp@sha256:0b39b82d8febd2708a5abd2e3d8d373620604d558922f2cf921b7f4c365e6c73",
+      "inventorySha256": "acdc0d49ebd9d753db7d08714306e751fa575e5413dfa91eb1cd5ece47d79dd0",
       "package": "linux-libc-dev",
-      "version": "5.15.0-198.208"
+      "version": "5.15.0-202.212"
     },
     "arm64": {
       "architecture": "arm64",
       "files": 935,
-      "image": "ghcr.io/ggml-org/whisper.cpp@sha256:94d3695d1dd7337a92d5171b070a8e7e2d97ef51ea29ac1f355cf30a92bbb361",
-      "inventorySha256": "0594930b09e57748ac9df79934baa8ec1e1d7a01872e6d0545fbd41a30811ac3",
+      "image": "ghcr.io/ggml-org/whisper.cpp@sha256:f0fed3d3d54565cb37d2995fcaa28ca09a5c9f3ffb7fada2d790099af2bfeee0",
+      "inventorySha256": "defa7b75354b913c5544bf3f313a3d95208c5e1bb20679d07a4146d8344fe67e",
       "package": "linux-libc-dev",
-      "version": "5.15.0-198.208"
+      "version": "5.15.0-202.212"
     }
   }
 }

@@ -247,3 +247,43 @@ test('unified infrastructure checks and aggregate wrappers do not spend Claude a
   const mixed = fixture(); mixed.jobs.push({ name: 'Terraform Plan', conclusion: 'failure' });
   assert.equal((await p.scope(mixed)).sha, A);
 });
+
+test('exhausted CI attempts report once before the dispatch gate and link the completed worker', async () => {
+  const f = fixture();
+  for (let i = 0; i < p.MAX_ATTEMPTS; i++) f.comments.push(comment({ kind: 'attempt', policy: 2, mode: 'ci', sha: A }));
+  f.comments.push(comment({ kind: 'worker-start', runId: '99' }));
+  const create = f.github.rest.issues.createComment; const messages = [];
+  f.github.rest.issues.createComment = async args => { messages.push(args.body); return create(args); };
+  assert.equal(await p.scope(f), null);
+  assert.equal(await p.scope(f), null);
+  assert.equal(p.records(f.comments, 'stopped').length, 1);
+  assert.equal(p.records(f.comments, 'attempt').length, 8);
+  assert.match(messages[0], /actions\/runs\/99/);
+  assert.match(messages[0], /pull\/1\/checks/);
+});
+
+test('final attempt still running is not announced as stopped; modes and untrusted receipts are independent', async () => {
+  const f = fixture();
+  const args = { ...f, comments: f.comments };
+  for (let i = 0; i < p.MAX_ATTEMPTS; i++) f.comments.push(comment({ kind: 'attempt', policy: 2, mode: 'conflict', sha: A }));
+  assert.equal(await p.stopIfExhausted(args), false);
+  f.comments.push(comment({ kind: 'worker-start', runId: '99' }));
+  f.run.status = 'in_progress';
+  assert.equal(await p.stopIfExhausted({ ...args, mode: 'conflict' }), false);
+  assert.equal(p.records(f.comments, 'stopped').length, 0);
+  f.run.status = 'completed';
+  assert.equal(await p.stopIfExhausted({ ...args, mode: 'conflict' }), true);
+  assert.equal(p.records(f.comments, 'stopped')[0].mode, 'conflict');
+  const fake = f.comments.map(c => ({ ...c, user: { login: 'maintainer' } }));
+  assert.equal(await p.stopIfExhausted({ ...args, comments: fake, mode: 'conflict' }), false);
+});
+
+test('unsupported infrastructure failures report once without spending Claude attempts', async () => {
+  const f = fixture();
+  f.jobs = [ { name: 'Supply Chain Security', conclusion: 'success' },
+    { name: 'Deployment Security Tests', conclusion: 'success' },
+    { name: 'terraform-checks / Terraform Plan (AWS)', conclusion: 'failure' } ];
+  assert.equal(await p.scope(f), null); assert.equal(await p.scope(f), null);
+  assert.equal(p.records(f.comments, 'unsupported-stop').length, 1);
+  assert.equal(p.records(f.comments, 'attempt').length, 0);
+});
