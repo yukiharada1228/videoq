@@ -6,7 +6,7 @@ on:
       operation:
         description: Inspect account issuer, enable outbound federation, or probe the CI identity
         type: choice
-        options: [inspect, enable, probe]
+        options: [inspect, diagnose, enable, probe]
         default: inspect
 
 permissions:
@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   inspect:
-    if: github.repository == 'videoq-jp/videoq' && github.ref == 'refs/heads/main' && inputs.operation == 'inspect'
+    if: github.repository == 'videoq-jp/videoq' && github.ref == 'refs/heads/main' && (inputs.operation == 'inspect' || inputs.operation == 'diagnose')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -45,6 +45,10 @@ jobs:
           OPERATION: ${{ inputs.operation }}
           FEDERATION_AUDIENCE: ${{ vars.OPENROUTER_FEDERATION_AUDIENCE || 'https://openrouter.ai' }}
         run: |
+          if [ "$OPERATION" = diagnose ]; then
+            python infra/scripts/openrouter_runtime_diagnostics.py
+            exit 0
+          fi
           args=()
           case "$OPERATION" in
             inspect) args+=(--workloads) ;;
@@ -55,7 +59,7 @@ jobs:
           python infra/scripts/openrouter_identity.py --audience "$FEDERATION_AUDIENCE" "${args[@]}"
 
   prepare:
-    if: github.repository == 'videoq-jp/videoq' && github.ref == 'refs/heads/main' && inputs.operation != 'inspect'
+    if: github.repository == 'videoq-jp/videoq' && github.ref == 'refs/heads/main' && inputs.operation != 'inspect' && inputs.operation != 'diagnose'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: production-infra
