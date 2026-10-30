@@ -27,6 +27,7 @@ import { ChipLabel } from '@/components/ui/chip-label';
 import { resolveTagChipColor } from '@/lib/tagColors';
 import { cn } from '@/lib/digital-agency/cn';
 import { Plus, Search, Tag } from 'lucide-react';
+import { Heading, HeadingTitle } from '@/components/ui/heading';
 
 const STATUS_FILTERS = ['all', 'completed', 'processing', 'error'] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
@@ -123,6 +124,11 @@ export default function VideoLibraryPage() {
   };
 
   const isUploadDisabled = !user || userLoading;
+  const hasFilters = searchQuery !== '' || statusFilter !== 'all' || selectedTagIds.length > 0;
+  // Nothing to search, sort, or count yet: lead with the one useful action.
+  const isLibraryEmpty = !isLoading && !error && videos.length === 0 && !hasFilters;
+  // Leftover tags still need their management entry point in the toolbar.
+  const showToolbar = !isLibraryEmpty || tags.length > 0;
 
   const statsItems = [
     { label: t('videos.list.statsRow.all'), value: stats.total },
@@ -151,125 +157,129 @@ export default function VideoLibraryPage() {
         )}
       />
 
-      <dl className="mb-10 grid grid-cols-1 border-t border-solid-gray-420 sm:grid-cols-2 lg:grid-cols-5">
-        {statsItems.map(({ label, value }) => (
-          <div
-            key={label}
-            className="flex items-baseline justify-between gap-4 border-b border-solid-gray-200 py-4 sm:pr-6"
-          >
-            <dt className="text-std-16N-170 text-solid-gray-700">{label}</dt>
-            <dd className="text-std-20B-150 text-solid-gray-800">{value}</dd>
-          </div>
-        ))}
-      </dl>
-
-      <section className="mb-10 border-t border-solid-gray-420 pt-6">
-        <div className="flex flex-col lg:flex-row gap-6">
-          <div className="relative flex-grow">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-solid-gray-600 w-4 h-4 z-10" />
-            <Input
-              className="pl-12"
-              blockSize="md"
-              aria-label={t('videos.list.searchPlaceholder')}
-              type="search"
-              value={searchQuery}
-              onChange={(e) => updateSearchParams({ q: e.target.value })}
-            />
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Label htmlFor="videos-sort" size="sm" className="whitespace-nowrap">
-              {t('videos.list.sortLabel')}
-            </Label>
-            <Select
-              value={sortOrder}
-              onValueChange={(value) => {
-                const nextOrdering = value as SortOrder;
-                updateSearchParams({
-                  ordering: nextOrdering === 'uploaded_at_desc' ? null : nextOrdering,
-                });
-              }}
-            >
-              <SelectTrigger id="videos-sort" blockSize="md" className="min-w-[12rem]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="uploaded_at_desc">{t('videos.list.sort.uploadedDesc')}</SelectItem>
-                <SelectItem value="uploaded_at_asc">{t('videos.list.sort.uploadedAsc')}</SelectItem>
-                <SelectItem value="title_asc">{t('videos.list.sort.titleAsc')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <Divider className="my-6" />
-
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            {(
-              [
-                { key: 'all', label: t('videos.list.filter.all') },
-                { key: 'completed', label: t('videos.list.filter.completed') },
-                { key: 'processing', label: t('videos.list.filter.processing') },
-                { key: 'error', label: t('videos.list.filter.error') },
-              ] as { key: StatusFilter; label: string }[]
-            ).map(({ key, label }) => (
-              <Button
-                key={key}
-                type="button"
-                size="sm"
-                variant={statusFilter === key ? 'solid' : 'outline'}
-                onClick={() => updateSearchParams({ status: key === 'all' ? null : key })}
+      {showToolbar && (
+        <>
+          <dl className="mb-10 grid grid-cols-1 border-t border-solid-gray-420 sm:grid-cols-2 lg:grid-cols-5">
+            {statsItems.map(({ label, value }) => (
+              <div
+                key={label}
+                className="flex items-baseline justify-between gap-4 border-b border-solid-gray-200 py-4 sm:pr-6"
               >
-                {label}
-              </Button>
-            ))}
-          </div>
-
-          {tags.length > 0 && (
-            <>
-              <div className="w-px h-6 bg-solid-gray-300 mx-2" />
-              <div className="flex flex-wrap items-center gap-2">
-                {tags.map((tag) => {
-                  const isSelected = selectedTagIds.includes(tag.id);
-                  return (
-                    <button
-                      key={tag.id}
-                      type="button"
-                      onClick={() => handleTagToggle(tag.id)}
-                      className={cn(
-                        'rounded-8 transition-opacity focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-black focus-visible:ring-2 focus-visible:ring-yellow-300',
-                        isSelected ? 'opacity-100' : 'opacity-60 hover:opacity-100',
-                      )}
-                      aria-pressed={isSelected}
-                    >
-                      <ChipLabel
-                        variant={isSelected ? 'filled-1' : 'outlined'}
-                        color={resolveTagChipColor(tag.color)}
-                        className="min-h-0 text-oln-14N-100"
-                      >
-                        {tag.name}
-                        {tag.video_count !== undefined && (
-                          <span className="ml-1 opacity-70">({tag.video_count})</span>
-                        )}
-                      </ChipLabel>
-                    </button>
-                  );
-                })}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="text"
-                  onClick={() => setIsTagManagementOpen(true)}
-                  className="ml-2"
-                >
-                  <Tag className="w-3.5 h-3.5 mr-1" />
-                  {t('videos.list.manageTags')}
-                </Button>
+                <dt className="text-std-16N-170 text-solid-gray-700">{label}</dt>
+                <dd className="text-std-20B-150 text-solid-gray-800">{value}</dd>
               </div>
-            </>
-          )}
-        </div>
-      </section>
+            ))}
+          </dl>
+
+          <section className="mb-10 border-t border-solid-gray-420 pt-6">
+            <div className="flex flex-col lg:flex-row gap-6">
+              <div className="relative flex-grow">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-solid-gray-600 w-4 h-4 z-10" />
+                <Input
+                  className="pl-12"
+                  blockSize="md"
+                  aria-label={t('videos.list.searchPlaceholder')}
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => updateSearchParams({ q: e.target.value })}
+                />
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Label htmlFor="videos-sort" size="sm" className="whitespace-nowrap">
+                  {t('videos.list.sortLabel')}
+                </Label>
+                <Select
+                  value={sortOrder}
+                  onValueChange={(value) => {
+                    const nextOrdering = value as SortOrder;
+                    updateSearchParams({
+                      ordering: nextOrdering === 'uploaded_at_desc' ? null : nextOrdering,
+                    });
+                  }}
+                >
+                  <SelectTrigger id="videos-sort" blockSize="md" className="min-w-[12rem]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="uploaded_at_desc">{t('videos.list.sort.uploadedDesc')}</SelectItem>
+                    <SelectItem value="uploaded_at_asc">{t('videos.list.sort.uploadedAsc')}</SelectItem>
+                    <SelectItem value="title_asc">{t('videos.list.sort.titleAsc')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <Divider className="my-6" />
+
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex flex-wrap items-center gap-2">
+                {(
+                  [
+                    { key: 'all', label: t('videos.list.filter.all') },
+                    { key: 'completed', label: t('videos.list.filter.completed') },
+                    { key: 'processing', label: t('videos.list.filter.processing') },
+                    { key: 'error', label: t('videos.list.filter.error') },
+                  ] as { key: StatusFilter; label: string }[]
+                ).map(({ key, label }) => (
+                  <Button
+                    key={key}
+                    type="button"
+                    size="sm"
+                    variant={statusFilter === key ? 'solid' : 'outline'}
+                    onClick={() => updateSearchParams({ status: key === 'all' ? null : key })}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+
+              {tags.length > 0 && (
+                <>
+                  <div className="w-px h-6 bg-solid-gray-300 mx-2" />
+                  <div className="flex flex-wrap items-center gap-2">
+                    {tags.map((tag) => {
+                      const isSelected = selectedTagIds.includes(tag.id);
+                      return (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          onClick={() => handleTagToggle(tag.id)}
+                          className={cn(
+                            'rounded-8 transition-opacity focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-black focus-visible:ring-2 focus-visible:ring-yellow-300',
+                            isSelected ? 'opacity-100' : 'opacity-60 hover:opacity-100',
+                          )}
+                          aria-pressed={isSelected}
+                        >
+                          <ChipLabel
+                            variant={isSelected ? 'filled-1' : 'outlined'}
+                            color={resolveTagChipColor(tag.color)}
+                            className="min-h-0 text-oln-14N-100"
+                          >
+                            {tag.name}
+                            {tag.video_count !== undefined && (
+                              <span className="ml-1 opacity-70">({tag.video_count})</span>
+                            )}
+                          </ChipLabel>
+                        </button>
+                      );
+                    })}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="text"
+                      onClick={() => setIsTagManagementOpen(true)}
+                      className="ml-2"
+                    >
+                      <Tag className="w-3.5 h-3.5 mr-1" />
+                      {t('videos.list.manageTags')}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          </section>
+        </>
+      )}
 
       {isLoading ? (
         <div className="flex justify-center py-24">
@@ -277,6 +287,41 @@ export default function VideoLibraryPage() {
         </div>
       ) : error ? (
         <ErrorMessage message={error} />
+      ) : isLibraryEmpty ? (
+        <section className="border-t border-solid-gray-420 py-10">
+          <Heading size="20" hasChip className="mb-3">
+            <HeadingTitle level="h2">{t('videos.list.emptyTitle')}</HeadingTitle>
+          </Heading>
+          <p className="max-w-2xl text-std-16N-170 text-solid-gray-700">{t('videos.list.emptyDescription')}</p>
+          <p className="mt-1 text-std-16N-170 text-solid-gray-700">{t('videos.list.emptyFormats')}</p>
+          <Button
+            type="button"
+            variant="solid"
+            size="md"
+            onClick={() => setIsUploadModalOpen(true)}
+            disabled={isUploadDisabled}
+            className="mt-6"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            {t('videos.list.uploadButton')}
+          </Button>
+        </section>
+      ) : videos.length === 0 && hasFilters ? (
+        <section className="border-t border-solid-gray-420 py-10">
+          <Heading size="20" hasChip className="mb-3">
+            <HeadingTitle level="h2">{t('videos.list.noMatch')}</HeadingTitle>
+          </Heading>
+          <p className="text-std-16N-170 text-solid-gray-700">{t('videos.list.noMatchHint')}</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="md"
+            className="mt-6"
+            onClick={() => updateSearchParams({ q: null, status: null, tags: null })}
+          >
+            {t('videos.list.clearFilters')}
+          </Button>
+        </section>
       ) : (
         <>
           <VideoList videos={videos} />

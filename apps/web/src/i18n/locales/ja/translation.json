@@ -96,7 +96,37 @@
     "welcome": {
       "badge": "ホーム",
       "greeting": "{{username}}さん",
-      "dailyMotivation": "動画はライブラリに登録し、講座ではその中から選んでまとめます。"
+      "dailyMotivation": "動画を登録すると自動で文字起こしされます。講座にまとめると、その内容について質問できます。"
+    },
+    "gettingStarted": {
+      "title": "はじめかた",
+      "dismiss": "ガイドを閉じる",
+      "stepLabel": "ステップ",
+      "completed": "完了",
+      "processing": "文字起こしの処理中です。完了するとこの画面で次のステップに進めます。",
+      "steps": {
+        "upload": {
+          "title": "動画を登録する",
+          "description": "授業や研修の動画ファイルを登録します。",
+          "action": "動画を登録"
+        },
+        "transcribe": {
+          "title": "文字起こしの完了を待つ",
+          "description": "登録後、自動で文字起こしが始まります。かかる時間は動画の長さによって変わります。",
+          "action": "ライブラリで確認"
+        },
+        "course": {
+          "title": "講座を作成する",
+          "description": "講座を作成し、ライブラリから動画を追加します。質問は講座ごとに行います。",
+          "action": "講座を作成",
+          "addVideosAction": "講座に動画を追加"
+        },
+        "ask": {
+          "title": "講座で質問する",
+          "description": "講座を開き、チャット欄に質問を入力します。回答に表示される時刻を選ぶと、その位置から再生します。",
+          "action": "講座を開く"
+        }
+      }
     },
     "actions": {
       "sectionTitle": "利用メニュー",
@@ -302,7 +332,13 @@
       "managingCount": "{{count}}本の動画を管理中",
       "noVideos": "動画がありません",
       "noVideosHint": "「動画をアップロード」からライブラリに追加できます。講座に入れるときは、講座画面でライブラリから選びます。",
-      "loadingMore": "読み込み中..."
+      "loadingMore": "読み込み中...",
+      "emptyTitle": "動画がまだありません",
+      "emptyDescription": "動画を登録すると自動で文字起こしされます。講座にまとめると、その内容について質問できます。",
+      "emptyFormats": "対応形式：MP4、MOV、WebM など",
+      "noMatch": "条件に一致する動画はありません",
+      "noMatchHint": "検索語や絞り込み条件を変更してください。",
+      "clearFilters": "条件をクリア"
     },
     "upload": {
       "title": "動画をアップロード",
@@ -387,7 +423,7 @@
     "courses": {
       "title": "講座",
       "subtitle": "ライブラリの動画を講座にまとめて、管理・共有できます",
-      "emptyDescription": "講座はライブラリにある動画を選んで作ります。先にライブラリへ動画を登録してください。",
+      "emptyDescription": "講座は、ライブラリの動画を選んでまとめたものです。講座を作成すると、次のことができます。",
       "optional": "（任意）",
       "create": "新しい講座を作成",
       "createTitle": "新しい講座を作成",
@@ -406,7 +442,15 @@
       "retryLoad": "講座を再読み込み",
       "loadingMore": "読み込み中...",
       "videoCount_one": "{{count}}個の動画",
-      "videoCount_other": "{{count}}個の動画"
+      "videoCount_other": "{{count}}個の動画",
+      "emptyBenefits": {
+        "bullets": [
+          "複数の動画にまたがって質問できる",
+          "共有リンクや招待で受講者に共有できる",
+          "受講者の質問とフィードバックを確認できる"
+        ]
+      },
+      "emptyNeedsVideos": "講座に入れる動画は、ライブラリに登録したものから選びます。"
     },
     "courseDetail": {
       "pickFromLibrary": "ライブラリから選ぶ",
