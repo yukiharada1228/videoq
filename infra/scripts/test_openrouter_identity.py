@@ -69,6 +69,24 @@ class IdentityTests(unittest.TestCase):
         self.assertEqual(session.client.call_args.kwargs["endpoint_url"], "https://sts.ap-northeast-1.amazonaws.com")
         sts.close.assert_called_once()
 
+    def test_inventory_excludes_unrelated_principals_and_never_prints_key_ids(self):
+        session, iam, sts = self.session()
+        iam.get_role.return_value = {"Role": {"Arn": "arn:aws:iam::123456789012:role/videoq-worker-prod"}}
+        iam.get_paginator.return_value.paginate.return_value = [{"Users": [
+            {"UserName": "cloudflare", "Arn": "arn:aws:iam::123456789012:user/cloudflare"},
+            {"UserName": "other", "Arn": "arn:aws:iam::123456789012:user/other"},
+        ]}]
+        iam.list_user_policies.return_value = {"PolicyNames": []}
+        iam.list_attached_user_policies.return_value = {"AttachedPolicies": []}
+        iam.list_access_keys.return_value = {"AccessKeyMetadata": [{"AccessKeyId": "PRIVATE_KEY_ID", "Status": "Active"}]}
+        iam.get_access_key_last_used.return_value = {"AccessKeyLastUsed": {"ServiceName": "sqs"}}
+        result = self.inspect(session, workloads=True)["workloads"]
+        self.assertEqual(len(result["apiCandidates"]), 1)
+        self.assertEqual(result["apiCandidates"][0]["lastUsedServices"], ["sqs"])
+        self.assertNotIn("PRIVATE", json.dumps(result))
+        self.assertNotIn("user/other", json.dumps(result))
+        sts.get_web_identity_token.assert_not_called()
+
     def test_main_redacts_sdk_error_details(self):
         session = MagicMock()
         session.get_credentials.side_effect = RuntimeError("PRIVATE_CREDENTIALS")

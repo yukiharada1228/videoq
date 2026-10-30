@@ -47,7 +47,7 @@ jobs:
         run: |
           args=()
           case "$OPERATION" in
-            inspect) ;;
+            inspect) args+=(--workloads) ;;
             enable) args+=(--enable) ;;
             probe) args+=(--probe) ;;
             *) echo 'Unknown operation'; exit 1 ;;
@@ -85,7 +85,7 @@ jobs:
         run: |
           args=()
           case "$OPERATION" in
-            inspect) ;;
+            inspect) args+=(--workloads) ;;
             enable) args+=(--enable) ;;
             probe) args+=(--probe) ;;
             *) echo 'Unknown operation'; exit 1 ;;
