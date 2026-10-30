@@ -105,3 +105,22 @@ test('the on-prem component honors explicit GPU input while Operations preserves
   const operations = readFileSync(join(__dirname, '../workflows/operations.yml'), 'utf8');
   assert.match(operations, /validate_whisper_gpu: \$\{\{ github\.event_name == 'schedule' \|\| inputs\.validate_whisper_gpu == true \}\}/);
 });
+
+test('CI scans pinned upstream images only when their pins change, while Operations always does', () => {
+  assert.match(onprem, /scan_upstream_images:\n\s+type: boolean\n\s+default: true/);
+  const cpu = onprem.slice(onprem.indexOf('  upstream-cpu-images:'));
+  assert.match(cpu, /^    if: inputs\.scan_upstream_images$/m);
+  const llamacpp = onprem.split(/(?=      - name:)/).find(step => step.includes('image-ref: ${{ env.LLAMACPP_IMAGE }}'));
+  assert.match(llamacpp, /&& inputs\.scan_upstream_images \}\}/);
+  // The inventory still records the pinned image, so it keeps resolving it.
+  assert.doesNotMatch(onprem.split(/(?=      - name:)/).find(step => step.includes('Resolve the pinned llama.cpp image')), /scan_upstream_images/);
+
+  const filter = ci.match(/^            upstream_images:\n([\s\S]*?)(?=^            \w+:)/m)[1];
+  for (const pattern of ['charts/videoq-inference/values.yaml', 'apps/inference/whispercpp/security/**',
+    '.github/scripts/check-upstream-header-image.py', '.github/workflows/onprem-validation.yml']) {
+    assert.ok(filter.includes(`'${pattern}'`), pattern);
+  }
+  assert.match(ci, /scan_upstream_images: \$\{\{ needs\.changes\.outputs\.upstream_images == 'true' \}\}/);
+  const operations = readFileSync(join(__dirname, '../workflows/operations.yml'), 'utf8');
+  assert.doesNotMatch(operations, /scan_upstream_images/);
+});

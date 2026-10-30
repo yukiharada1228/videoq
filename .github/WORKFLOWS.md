@@ -64,6 +64,8 @@ flowchart LR
 
 Operationsの日次実行は09:17 JST、推論互換性は毎週月曜11:17 JST、DB復元は毎月1日13:41 JST。
 `check=onprem` では `validate_real_cpu`・`validate_whisper_gpu` を明示して追加検証できる。
+CIのオンプレミス検証では、固定した上流イメージ（llama.cpp・whisper.cpp）の脆弱性検査を、
+その固定値や検査設定を変えたPRと手動CIに限る。日次のOperationsでは常に検査する。
 監視はIssueを起票せず、結果をジョブのサマリーへ記録する。
 更新処理の詳細は [dependency-automation.md](dependency-automation.md)、
 監視の内容は [OPERATIONS.md](OPERATIONS.md) を参照。
