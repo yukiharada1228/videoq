@@ -266,4 +266,49 @@ describe('VideoLibraryPage - Upload Limit', () => {
     const uploadButton = screen.getByText('videos.list.uploadButton')
     expect(uploadButton).toBeInTheDocument()
   })
+
+  describe('empty states', () => {
+    const emptyVideos = () => mockUseVideos.mockImplementation(() => ({
+      videos: [],
+      isLoading: false,
+      error: null,
+      isFetchingNextPage: false,
+      totalCount: 0,
+      sentinelRef: vi.fn(),
+    }))
+
+    it('leads a new user to the first upload instead of empty stats and filters', () => {
+      emptyVideos()
+      render(<VideoLibraryPage />)
+
+      expect(screen.getByRole('heading', { name: 'videos.list.emptyTitle' })).toBeInTheDocument()
+      expect(screen.queryByText('videos.list.statsRow.all')).not.toBeInTheDocument()
+      expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+
+      const [, emptyStateUpload] = screen.getAllByRole('button', { name: 'videos.list.uploadButton' })
+      fireEvent.click(emptyStateUpload)
+      expect(screen.getByTestId('upload-modal')).toBeInTheDocument()
+    })
+
+    it('keeps tag management reachable when tags remain without videos', () => {
+      emptyVideos()
+      mockTags.value = [{ id: 1, name: 'Tag 1', color: 'red', video_count: 0 }]
+      render(<VideoLibraryPage />)
+
+      expect(screen.getByRole('heading', { name: 'videos.list.emptyTitle' })).toBeInTheDocument()
+      expect(screen.getByText('videos.list.manageTags')).toBeInTheDocument()
+    })
+
+    it('offers to clear filters when nothing matches', () => {
+      emptyVideos()
+      globalThis.__setMockSearchParams('q=python&status=completed')
+      render(<VideoLibraryPage />)
+
+      expect(screen.getByRole('heading', { name: 'videos.list.noMatch' })).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'videos.list.clearFilters' }))
+
+      const [next] = globalThis.__getMockSetSearchParams().mock.lastCall!
+      expect(next.toString()).toBe('')
+    })
+  })
 })

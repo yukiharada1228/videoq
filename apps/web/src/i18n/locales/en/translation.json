@@ -96,7 +96,37 @@
     "welcome": {
       "badge": "Home",
       "greeting": "{{username}}",
-      "dailyMotivation": "Register videos in the library, then pick them into a course."
+      "dailyMotivation": "Registered videos are transcribed automatically. Group them into a course to ask questions about their content."
+    },
+    "gettingStarted": {
+      "title": "Getting started",
+      "dismiss": "Hide guide",
+      "stepLabel": "Step",
+      "completed": "Completed",
+      "processing": "Transcription is in progress. You can continue to the next step here once it finishes.",
+      "steps": {
+        "upload": {
+          "title": "Register a video",
+          "description": "Register a lecture or training video file.",
+          "action": "Register a video"
+        },
+        "transcribe": {
+          "title": "Wait for transcription",
+          "description": "Transcription starts automatically after registration. How long it takes depends on the video length.",
+          "action": "Check the library"
+        },
+        "course": {
+          "title": "Create a course",
+          "description": "Create a course and add videos from your library. Questions are asked within a course.",
+          "action": "Create a course",
+          "addVideosAction": "Add videos to the course"
+        },
+        "ask": {
+          "title": "Ask in the course",
+          "description": "Open the course and type your question in the chat. Select a timestamp in the answer to play from that point.",
+          "action": "Open the course"
+        }
+      }
     },
     "actions": {
       "sectionTitle": "Menus",
@@ -304,7 +334,13 @@
       "managingCount": "Managing {{count}} videos",
       "noVideos": "No videos yet",
       "noVideosHint": "Use \"Upload video\" to add videos to the library. To put them in a course, choose them from the library on the course page.",
-      "loadingMore": "Loading..."
+      "loadingMore": "Loading...",
+      "emptyTitle": "No videos yet",
+      "emptyDescription": "Registered videos are transcribed automatically. Group them into a course to ask questions about their content.",
+      "emptyFormats": "Supported formats: MP4, MOV, WebM, and others",
+      "noMatch": "No videos match these conditions",
+      "noMatchHint": "Change the search term or filters.",
+      "clearFilters": "Clear conditions"
     },
     "upload": {
       "title": "Upload video",
@@ -389,7 +425,7 @@
     "courses": {
       "title": "Chat courses",
       "subtitle": "Group library videos into a course to manage and share them",
-      "emptyDescription": "A course is a selection from your library. Register videos in the library first.",
+      "emptyDescription": "A course is a set of videos selected from your library. With a course, you can:",
       "optional": "(optional)",
       "create": "Create chat course",
       "createTitle": "Create chat course",
@@ -408,7 +444,15 @@
       "retryLoad": "Retry loading courses",
       "loadingMore": "Loading...",
       "videoCount_one": "{{count}} video",
-      "videoCount_other": "{{count}} videos"
+      "videoCount_other": "{{count}} videos",
+      "emptyBenefits": {
+        "bullets": [
+          "Ask questions across several videos",
+          "Share it with learners by link or invitation",
+          "Review learners’ questions and feedback"
+        ]
+      },
+      "emptyNeedsVideos": "Videos for a course are selected from those registered in your library."
     },
     "courseDetail": {
       "pickFromLibrary": "Choose from library",

@@ -4,7 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/digital-agency/cn"
 
 const requirementBadgeVariants = cva(
-  "ml-2 inline-block text-oln-16N-100 text-red-800 data-[is-optional]:text-solid-gray-800"
+  "ml-1 text-std-16N-170 text-error-1 before:content-['_'] data-[is-optional]:text-solid-gray-800"
 )
 
 interface RequirementBadgeProps
