@@ -110,6 +110,20 @@ Sources: [OpenRouter WIF](https://openrouter.ai/docs/guides/overview/auth/worklo
    actual provider/model usage in OpenRouter. No production switch is proven
    merely by changing repository configuration.
 
+After the Lambda environment activation has completed, run the production smoke
+with one temporary AI answer allowed:
+
+```sh
+gh workflow run operations.yml --ref main -f check=smoke -f verify_ai_answers=true
+```
+
+This uploads the reviewed synthetic fixture under a temporary low-quota user,
+checks processing and indexing, asks one question scoped to its temporary course,
+and requires a transcript citation to the uploaded video. Cleanup removes the
+synthetic video and course before deleting the user. The flag defaults to false
+for routine checks. Never overlap this migration check with the initial
+Terraform activation or count a health-only check as inference verification.
+
 ## Run the model preflight
 
 Put `OPENROUTER_FEDERATION_POLICY_ID`, `AWS_REGION` and the local AWS workload

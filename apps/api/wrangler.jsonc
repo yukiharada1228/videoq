@@ -118,6 +118,9 @@
         "STRIPE_AUTOMATIC_TAX": "false",
         // Match the hosted worker model and shared OpenRouter endpoint.
         "OPENAI_BASE_URL": "https://openrouter.ai/api/v1",
+        "OPENROUTER_FEDERATION_POLICY_ID": "c333bd7c-880a-437c-9fc9-e5825716325e",
+        "OPENROUTER_FEDERATION_AUDIENCE": "https://openrouter.ai",
+        "AWS_REGION": "ap-northeast-1",
         "EMBEDDING_MODEL": "openai/text-embedding-3-small",
         "LLM_MODEL": "openai/gpt-6-luna",
         "VIDEO_VISUAL_ENABLED": "true",
