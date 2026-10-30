@@ -6,6 +6,7 @@ import { addLocalePrefix } from '@/lib/i18n';
 import { type Locale } from '@/i18n/config';
 import { handleAsyncError } from '@/lib/utils/errorHandling';
 import { appTrpcClient, trpc } from '@/lib/trpc';
+import { trackLandingEvent } from '@/lib/landingAnalytics';
 import { useConfirm, useToast } from '@/components/common/feedback';
 
 interface UseShareLinkReturn {
@@ -60,6 +61,7 @@ export function useShareLink(course: VideoCourse | null): UseShareLinkReturn {
     updating.current = true;
     try {
       await shareMutation.mutateAsync({ id: course.id, shareSlug });
+      trackLandingEvent('course_share_created');
     } catch (err) {
       handleAsyncError(err, t('videos.courseDetail.generateShareError'), (message) => toast({ message, variant: 'error' }));
     } finally {

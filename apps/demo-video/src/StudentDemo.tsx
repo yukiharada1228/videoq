@@ -2,13 +2,12 @@ import { AbsoluteFill, Audio, Img, OffthreadVideo, Sequence, interpolate, static
 import course from '../content/course.json';
 import recording from '../content/answer.json';
 import timeline from '../content/timeline.json';
-import providerCopy from '../content/provider-copy.json';
 import englishAd from '../content/x-ad-en.json';
 import './style.css';
 
 // These are the actual course and unedited answer/citation produced by VideoQ.
 // Only the UI interaction and camera timing are reconstructed for the film.
-const answer = recording.events.filter(event => event.type === 'text_delta').map(event => event.text ?? '').join('');
+export const answer = recording.events.filter(event => event.type === 'text_delta').map(event => event.text ?? '').join('');
 const citedId = recording.events.find(event => event.type === 'citation')?.sourceId;
 const source = recording.events.find(event => event.type === 'source' && event.source?.id === citedId)?.source;
 if (!source) throw new Error('A real citation is required to render the demo.');
@@ -17,13 +16,13 @@ if (source.video_id !== mathVideo?.id) throw new Error('The cited video must mat
 const seconds = (value: string) => value.replace(',', '.').split(':').reduce((total, part) => total * 60 + Number(part), 0);
 const sourceStart = seconds(source.start_time);
 const clock = (value:number) => `${Math.floor(value/60)}:${Math.floor(value%60).toString().padStart(2,'0')}`;
-const citation = `(${clock(sourceStart)}–${clock(seconds(source.end_time))})`;
-const ease = (n:number) => n*n*n*(n*(n*6-15)+10);
-function ramp(f:number, start:number, end:number, from=0, to=1) {
+export const citation = `(${clock(sourceStart)}–${clock(seconds(source.end_time))})`;
+export const ease = (n:number) => n*n*n*(n*(n*6-15)+10);
+export function ramp(f:number, start:number, end:number, from=0, to=1) {
   return from+(to-from)*ease(Math.min(1,Math.max(0,(f-start)/(end-start))));
 }
-type Point = {f:number; x:number; y:number; z?:number};
-function path(frame:number, points:Point[]) {
+export type Point = {f:number; x:number; y:number; z?:number};
+export function path(frame:number, points:Point[]) {
   const b = points.findIndex(p=>p.f>frame);
   if (b<0) return {...points.at(-1)!, z:points.at(-1)!.z??1};
   if (b===0) return {...points[0],z:points[0].z??1};
@@ -114,7 +113,7 @@ export function ProductScreen({frame, timing=timeline, locale='ja'}:{frame:numbe
   </div>;
 }
 
-export function StudentDemo({locale='ja', provider=false}:{locale?:'ja'|'en'; provider?:boolean}) {
+export function StudentDemo({locale='ja'}:{locale?:'ja'|'en'}) {
   const f=useCurrentFrame()/timeline.fps;
   const c=path(f,camera), p=path(f,cursor);
   const fit=1680/1440;
@@ -126,7 +125,7 @@ export function StudentDemo({locale='ja', provider=false}:{locale?:'ja'|'en'; pr
   const click=[timeline.select,timeline.focus,timeline.send,timeline.sourceClick].map(at=>({age:f-at})).find(v=>v.age>=0&&v.age<.28);
   return <AbsoluteFill className="film">
     <Audio src={staticFile('audio/ambient.mp3')} volume={frame=>.30*interpolate(frame/timeline.fps,[0,.4,28.5,30],[0,1,1,0],{extrapolateLeft:'clamp',extrapolateRight:'clamp'})}/>
-    {provider ? <ProviderHeader locale={locale}/> : <div className="film-top"><span className="wordmark">VideoQ<span> / STUDY WITH YOUR VIDEOS</span></span><span className="film-tag">{locale==='ja'?'大学生のための、動画の復習。':'Your lectures. Your study partner.'}</span></div>}
+    <div className="film-top"><span className="wordmark">VideoQ<span> / STUDY WITH YOUR VIDEOS</span></span><span className="film-tag">{locale==='ja'?'大学生のための、動画の復習。':'Your lectures. Your study partner.'}</span></div>
     <div className="screen-window" style={{opacity:stage,transform:`translateY(${ramp(f,0,.3,10,0)}px)`}}>
       <div className="screen-camera" style={{transform:`translate(${tx}px,${ty}px) scale(${c.z*fit})`}}><ProductScreen frame={f} locale={locale}/></div>
       {f<timeline.outro&&<div className="cursor" style={{left:p.x*fit*c.z+tx,top:p.y*fit*c.z+ty,opacity:f>timeline.typingStart&&f<timeline.typingEnd?.15:1}}>
@@ -134,15 +133,12 @@ export function StudentDemo({locale='ja', provider=false}:{locale?:'ja'|'en'; pr
         <svg width="36" height="44" viewBox="0 0 30 40"><path d="M3 2v29l7-8 7 15 6-3-7-14h11z" fill="#172f3c" stroke="white" strokeWidth="2.4" strokeLinejoin="round"/></svg>
       </div>}
     </div>
-    <div className="film-caption" style={{opacity:stage}}><span>{String(Math.min(step+1,7)+(provider?2:0)).padStart(2,'0')}</span>{provider ? providerCopy[locale].captions[Math.min(step,6)+2] : captions[locale][Math.min(step,6)]}</div>
+    <div className="film-caption" style={{opacity:stage}}><span>{String(Math.min(step+1,7)).padStart(2,'0')}</span>{captions[locale][Math.min(step,6)]}</div>
     {f>=timeline.outro&&<AbsoluteFill className="outro" style={{opacity:outro,pointerEvents:'none'}}>
-      <div className="outro-mark">Q</div><p>{provider ? (locale==='ja'?'いつもの教材に、質問できる場所を。':'Give your materials a place for questions.') : (locale==='ja'?'「わからない」を、置いていかない。':'Don’t leave that question behind.')}</p>
-      <h1>{provider ? (locale==='ja'?<>講義・研修動画を、<br/>質問に答える窓口へ。</>:<>Your teaching videos.<br/>A place for answers.</>) : (locale==='ja'?<>講義動画が、<br/>あなたの復習パートナーに。</>:<>Your lecture.<br/>Your study partner.</>)}</h1>
-      <div className="outro-cta">{provider ? (locale==='ja'?'動画1本で無料で試す':'Try one video for free') : (locale==='ja'?'無料で使ってみる':'Get started for free')} <span>→</span></div><small>{locale==='en'?'videoq.jp/en':'videoq.jp'}</small>
+      <div className="outro-mark">Q</div><p>{locale==='ja'?'「わからない」を、置いていかない。':'Don’t leave that question behind.'}</p>
+      <h1>{locale==='ja'?<>講義動画が、<br/>あなたの復習パートナーに。</>:<>Your lecture.<br/>Your study partner.</>}</h1>
+      <div className="outro-cta">{locale==='ja'?'無料で使ってみる':'Get started for free'} <span>→</span></div><small>{locale==='en'?'videoq.jp/en':'videoq.jp'}</small>
     </AbsoluteFill>}
   </AbsoluteFill>;
 }
 
-export function ProviderHeader({locale}:{locale:'ja'|'en'}) {
-  return <div className="film-top"><span className="wordmark">VideoQ<span> / TEACHING & TRAINING</span></span><span className="film-tag">{providerCopy[locale].tag}</span></div>;
-}

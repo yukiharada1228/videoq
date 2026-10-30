@@ -30,6 +30,29 @@ rate, resolution, fast start, and file size. Only videos that pass are exported.
 X ads use the 15-second square version. Landing pages use the 30-second landscape
 version described below.
 
+## Instructor demo for Japanese and English landing pages (2026-10-30)
+
+The landing pages serve `ProviderDemo`, a 30-second, 1920×1080, 60 fps film for
+course creators and instructors. It runs: an illustrative hook (incoming student
+questions, labelled as an illustration), the instructor uploading a lecture and
+sharing the course link, the student asking a question and jumping to the cited
+moment, the instructor finding that same question in the conversation history,
+and an end card. The student segment reuses `ProductScreen` with the compressed
+`content/provider-student-timeline.json`; the history entry shows the same real
+question, answer, citation and capture time from `content/answer.json`. No
+dashboard figures are shown because the demo course holds only that one real
+question. Scene timing lives in `content/provider-timeline.json` and all visible
+copy and captions in `content/provider-copy.json`.
+
+```bash
+npm run render --workspace @videoq/demo-video -- --film provider
+npm run render --workspace @videoq/demo-video -- --film provider --locale en --stills
+```
+
+Output goes to `apps/web/public/demo/provider-demo-{ja,en}.mp4` with matching
+WebP posters and VTT captions. Rendering needs `ffmpeg`/`ffprobe` on `PATH` (the
+binaries bundled in `@remotion/compositor-*` work) and Python with Pillow.
+
 ## Student demo for Japanese and English landing pages
 
 A 30-second, 1920×1080, 60 fps walkthrough built with Remotion. It smoothly zooms to
