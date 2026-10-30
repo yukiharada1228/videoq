@@ -19,5 +19,5 @@ def shared_base_url() -> str:
 def shared_api_key(base_url: str) -> str:
     if is_openrouter(base_url) and env_str("OPENROUTER_FEDERATION_POLICY_ID"):
         return openrouter_token()
-    return (env_str("OPENROUTER_API_KEY") if is_openrouter(base_url) else "") or env_str("OPENAI_API_KEY")
+    return env_str("OPENROUTER_API_KEY") if is_openrouter(base_url) else env_str("OPENAI_API_KEY")
 

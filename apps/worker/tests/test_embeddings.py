@@ -203,3 +203,15 @@ def test_explicit_embedding_endpoint_does_not_receive_router_key(monkeypatch):
 
     monkeypatch.setattr(embeddings.urllib.request, "urlopen", request)
     assert embeddings.embed_texts(["input"]) == [VECTOR]
+
+
+def test_router_endpoint_never_receives_a_legacy_direct_key(monkeypatch):
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1")
+    monkeypatch.setenv("OPENAI_API_KEY", "direct-only-key")
+    for name in ("OPENROUTER_API_KEY", "OPENROUTER_FEDERATION_POLICY_ID", "EMBEDDING_API_KEY", "EMBEDDING_BASE_URL"):
+        monkeypatch.delenv(name, raising=False)
+    request = MagicMock()
+    monkeypatch.setattr(embeddings.urllib.request, "urlopen", request)
+    with pytest.raises(RuntimeError, match="OPENROUTER_API_KEY"):
+        embeddings.embed_texts(["fixture"])
+    request.assert_not_called()

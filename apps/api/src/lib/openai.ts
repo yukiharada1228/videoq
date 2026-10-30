@@ -42,7 +42,8 @@ export const openAiBaseUrl = (env: Pick<Bindings, "OPENAI_BASE_URL" | "OPENROUTE
 /** Shared credentials follow the selected endpoint; explicit purpose keys take precedence. */
 export function resolveOpenAiKey(env: ConnectionSettings, purpose: string, baseURL = openAiBaseUrl(env)): ProviderCredential {
   if (isOpenRouter(baseURL) && env.OPENROUTER_FEDERATION_POLICY_ID) return () => federatedOpenRouterToken(env);
-  const key = (isOpenRouter(baseURL) ? env.OPENROUTER_API_KEY : undefined) || env.OPENAI_API_KEY;
+  // A stale direct OpenAI key must never be forwarded to OpenRouter during rollout.
+  const key = isOpenRouter(baseURL) ? env.OPENROUTER_API_KEY : env.OPENAI_API_KEY;
   if (!key) {
     throw new LlmConfigurationError(
       `API key is required when using ${purpose}. Set OPENROUTER_API_KEY for OpenRouter or OPENAI_API_KEY for OpenAI.`,

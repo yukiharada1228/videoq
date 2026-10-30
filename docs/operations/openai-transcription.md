@@ -100,8 +100,12 @@ Sources: [OpenRouter WIF](https://openrouter.ai/docs/guides/overview/auth/worklo
 4. Check in-flight transcription runs and queued/active jobs before switching
    worker versions. Existing transcripts, usage reservations and saved chunks
    must be retained. Chunk intervals remain 300 seconds for the hosted profile.
-5. Deploy the matching API and Lambda release. SSM values are cached per warm
-   container, so a new worker version/configuration is required to load the key.
+5. Deploy the matching API and Lambda code through CD before approving the
+   initial Terraform activation. The current worker must understand the
+   `openrouter` backend before Terraform changes its environment. For this
+   migration, wait until CD has updated the Lambda image, then approve the
+   pending production-infra apply. SSM values are cached per warm container;
+   a new worker version/configuration is required to load changed settings.
 6. Verify a complete new upload, transcription offsets, indexing and Q&A. Check
    actual provider/model usage in OpenRouter. No production switch is proven
    merely by changing repository configuration.

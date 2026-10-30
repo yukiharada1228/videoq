@@ -73,6 +73,14 @@ describe("native structured LLM output", () => {
     await embedQuery(env, "Q");
     expect(seen).toEqual(["https://openrouter.ai/api/v1/chat/completions", "https://openrouter.ai/api/v1/chat/completions", "https://openrouter.ai/api/v1/embeddings"]);
   });
+  it("does not forward a legacy direct OpenAI key to the OpenRouter endpoint", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const env = { ...ENV, OPENAI_BASE_URL: "https://openrouter.ai/api/v1" };
+    await expect(generateReply(env, "S", "Q")).rejects.toThrow(LlmConfigurationError);
+    await expect(embedQuery(env, "Q")).rejects.toThrow(LlmConfigurationError);
+    expect(fetch).not.toHaveBeenCalled();
+  });
   it("routes answer and stream to the dedicated endpoint while keeping embeddings on OpenAI", async () => {
     const env = { ...ENV, LLM_BASE_URL: "https://openrouter.ai/api/v1/", LLM_API_KEY: "router-key", LLM_MODEL: "vendor/model" };
     const seen: string[] = [];
