@@ -62,8 +62,8 @@ def test_cpu_image_transcribes_public_speech_and_silence_offline(record_property
         # Match the gateway's architecture; upstream publishes separate image tags.
         arch = docker("image", "inspect", IMAGE, "--format", "{{.Architecture}}")
         engines = {
-            "amd64": "ghcr.io/ggml-org/whisper.cpp@sha256:4df91b749d95628c3b40068c13c2d3fc67f745db86ea7829438ff87eb03c12c2",
-            "arm64": "ghcr.io/ggml-org/whisper.cpp@sha256:94d3695d1dd7337a92d5171b070a8e7e2d97ef51ea29ac1f355cf30a92bbb361",
+            "amd64": "ghcr.io/ggml-org/whisper.cpp@sha256:0b39b82d8febd2708a5abd2e3d8d373620604d558922f2cf921b7f4c365e6c73",
+            "arm64": "ghcr.io/ggml-org/whisper.cpp@sha256:f0fed3d3d54565cb37d2995fcaa28ca09a5c9f3ffb7fada2d790099af2bfeee0",
         }
         engine_args = ["--model", f"/models/{REVISION}/{MODEL}",
                        "--host", "127.0.0.1", "--port", "8081", "--inference-path", "/v1/audio/transcriptions",
