@@ -356,9 +356,13 @@ No new external analytics service or database is required.
 | `video_upload_accepted` | Video registration was accepted; transcription and indexing have not necessarily finished |
 | `video_upload_failed` | Video registration request failed; error text and video information are not sent |
 | `first_answer` | An answer completed successfully in the service (excluding public shared pages) |
+| `course_share_created` | The owner created a course share link |
+| `course_invite_queued` | The owner sent a member invitation that queued at least one recipient |
 
 Use `demo_engaged / landing_view`, `demo_complete / demo_engaged`,
 `email_signup_created / signup_view`, and `first_answer / landing_view` as indicators.
+For the instructor page, `(course_share_created + course_invite_queued) / video_upload_accepted` shows whether owners go on to hand a course to students.
+These stages are only attributed when they happen within the same tab visit. Count sharing that happens on a later day from the database, not from these logs.
 Seeking to the end can also trigger `demo_complete`, so it does not guarantee a full viewing.
 Legacy `demo_question` / `demo_source` / `sample_download` events are accepted only for compatibility.
 Each stage is recorded once per tab, and attribution ends 30 minutes after the last recorded event.

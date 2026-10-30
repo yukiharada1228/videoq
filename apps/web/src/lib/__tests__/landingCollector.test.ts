@@ -28,7 +28,7 @@ describe('landing collector', () => {
     expect(console.log).toHaveBeenCalledWith({ kind: 'landing_funnel', version: 'student-v1', ...body });
   });
 
-  it.each(['google_auth_started', 'google_signup_created', 'video_upload_started', 'video_upload_accepted', 'video_upload_failed'])(
+  it.each(['google_auth_started', 'google_signup_created', 'video_upload_started', 'video_upload_accepted', 'video_upload_failed', 'course_share_created', 'course_invite_queued'])(
     'accepts the funnel stage %s', async event => {
       const body = { ...payload, event };
       expect((await collectLandingEvent(request(JSON.stringify(body)), 'production')).status).toBe(204);
