@@ -403,6 +403,23 @@
             },
             "tolerations": {
               "type": "array"
+            },
+            "engine": {
+              "enum": [
+                "llamacpp",
+                "vllm"
+              ]
+            },
+            "toolCallParser": {
+              "enum": [
+                "hermes",
+                "openai"
+              ]
+            },
+            "reasoningParser": {
+              "enum": [
+                "openai_gptoss"
+              ]
             }
           },
           "additionalProperties": false
@@ -478,6 +495,13 @@
             },
             "tolerations": {
               "type": "array"
+            },
+            "engine": {
+              "enum": [
+                "llamacpp",
+                "vllm",
+                "embeddinggemma2"
+              ]
             }
           },
           "additionalProperties": false

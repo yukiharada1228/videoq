@@ -13,8 +13,52 @@ the local overlay explicitly switches all three AI functions.
 
 | Recipe | LLM / embedding runtime | Application overlay |
 |---|---|---|
+| Recommended, NVIDIA + CPU | gpt-oss-20b on vLLM; EmbeddingGemma 2 text encoder on CPU | `local-ai-gpt-oss.yaml` |
 | CPU | llama.cpp, separate chat / embedding APIs | `local-ai-llamacpp.yaml` |
 | NVIDIA GPU | vLLM, separate chat / embedding APIs | `local-ai-vllm.yaml` |
+
+The recommended model combination is **gpt-oss-20b + EmbeddingGemma 2 + Whisper
+large-v3-turbo**. Pair `charts/videoq-inference/examples/gpt-oss-embeddinggemma.yaml`
+with `charts/videoq/examples/local-ai-gpt-oss.yaml`. This selects one NVIDIA GPU
+for chat and CPU services for embeddings and whisper.cpp transcription. The older
+Qwen recipes remain explicit compatibility profiles. A small CPU-only VPS cannot
+host the recommended chat service; point it at a separate private GPU server.
+
+EmbeddingGemma 2 loads only its 270M text encoder. Queries use the model's
+`SearchQuery` prompt and indexed subtitle scenes use `Document`; both return
+normalized 768-dimensional vectors. `ai.embeddingProfile: embeddinggemma2`
+selects this contract in **both API and worker**. Its private API accepts
+`input_type: query|document` in addition to the usual OpenAI embedding fields.
+The server rejects other dimensions, unknown aliases and overlong texts.
+
+Apply database migrations before starting the new app. The additive migration
+creates `scene_embeddings_768`, leaving the existing 1536-dimensional
+`scene_embeddings` table intact. With uploads and transcript edits paused,
+rebuild completed videos using the new worker configuration:
+
+```sh
+kubectl -n videoq exec deployment/videoq-worker -- python -c \
+  'from worker_python.tasks.reindexing import reindex_all_videos_embeddings; reindex_all_videos_embeddings()'
+```
+
+Keep search unavailable until the rebuild completes. Do not set the old
+`PGVECTOR_COLLECTION_NAME=scene_embeddings` with the new profile. Switching back
+selects the old table, but any videos uploaded or edited since cutover must be
+reindexed there too. Vector spaces are never mixed, truncated or padded.
+
+gpt-oss uses `reasoningEffort: low` and the OpenAI tool/reasoning parsers.
+`preserveToolReasoning: true` retains provider reasoning internally between tool
+calls; reasoning is not added to the user-visible answer text.
+`separateToolSchema: true` separates tool decisions from final JSON grammar
+enforcement so retrieval is not suppressed by the schema constraint.
+It is text-only,
+so visual inspection stays disabled. EmbeddingGemma's image/audio encoders are
+also disabled; multimodal indexing requires separate application work.
+
+Build the CPU inference image from a source/release containing
+`embedding_server.py` and its locked sentence-transformers dependencies. Older
+Whisper-only images cannot serve this embedding profile. See the
+[recommended profile installation](https://github.com/videoq-jp/videoq/blob/main/charts/videoq-inference/README.md#recommended-gpt-oss--embeddinggemma-2--whisper-profile).
 
 Whisper uses **whisper.cpp on CPU** and **vLLM on NVIDIA GPUs**. Both are
 accessed through a private gateway that performs VAD and audio normalization,
@@ -22,7 +66,7 @@ then restores source-relative segment timestamps. Mac development can also run
 whisper.cpp natively with Metal. The app uses `WHISPER_BACKEND=local` and
 `WHISPER_LOCAL_URL`, without engine-specific backend aliases.
 
-The NVIDIA recipe dynamically batches speech spans: the gateway submits up to
+The older `vllm-nvidia.yaml` recipe dynamically batches speech spans: the gateway submits up to
 four concurrently per audio request, accepts two audio requests, and vLLM allows
 eight active sequences. CPU speech uses multilingual large-v3-turbo Q5_0 weights,
 defaults to one request and uses 30-second worker

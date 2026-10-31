@@ -1,12 +1,16 @@
 {{- $root := . }}
-{{- $image := (index .Values .Values.backend).image }}
 {{- range $name := list "chat" "embedding" }}
 {{- $server := index $root.Values.servers $name }}
-{{- if and (eq $root.Values.backend "llamacpp") (or (empty $server.modelFile) (empty $server.modelSha256)) }}
+{{- $engine := default $root.Values.backend $server.engine }}
+{{- $image := $root.Values.whisper.image }}
+{{- if ne $engine "embeddinggemma2" }}
+{{- $image = (index $root.Values $engine).image }}
+{{- end }}
+{{- if and (eq $engine "llamacpp") (or (empty $server.modelFile) (empty $server.modelSha256)) }}
 {{- fail "llamacpp servers require modelFile and modelSha256" }}
 {{- end }}
-{{- if and (eq $root.Values.backend "vllm") (not (empty $server.modelFile)) }}
-{{- fail "vllm profile requires safetensors snapshots (modelFile must be empty)" }}
+{{- if and (ne $engine "llamacpp") (not (empty $server.modelFile)) }}
+{{- fail "non-llamacpp servers require safetensors snapshots (modelFile must be empty)" }}
 {{- end }}
 ---
 apiVersion: apps/v1
@@ -57,9 +61,12 @@ spec:
       {{- end }}
       containers:
         - name: {{ $name }}
-          image: {{ include "inference.image" (dict "root" $root "image" $image "component" $root.Values.backend) | quote }}
+          image: {{ include "inference.image" (dict "root" $root "image" $image "component" $engine) | quote }}
           imagePullPolicy: {{ $image.pullPolicy }}
-          {{- if eq $root.Values.backend "llamacpp" }}
+          {{- if eq $engine "embeddinggemma2" }}
+          command: [python, -m, uvicorn, "embedding_server:app"]
+          args: [--host, "0.0.0.0", --port, "8000", --workers, "1", --limit-concurrency, "8", --no-access-log]
+          {{- else if eq $engine "llamacpp" }}
           # Official server image entrypoint. All weights are local files.
           args:
             - --model
@@ -105,9 +112,14 @@ spec:
             {{- if eq $name "chat" }}
             - --enable-auto-tool-choice
             - --tool-call-parser
-            - hermes
+            - {{ default "hermes" $server.toolCallParser | quote }}
+            {{- if $server.reasoningParser }}
+            - --reasoning-parser
+            - {{ $server.reasoningParser | quote }}
+            {{- else }}
             - --default-chat-template-kwargs
             - '{"enable_thinking":false}'
+            {{- end }}
             {{- else }}
             - --runner
             - pooling
@@ -118,6 +130,11 @@ spec:
             {{- end }}
           ports: [{ name: http, containerPort: 8000 }]
           env:
+            {{- if eq $engine "embeddinggemma2" }}
+            - { name: EMBEDDING_MODEL_PATH, value: {{ printf "/models/%s" $server.modelRevision | quote }} }
+            - { name: EMBEDDING_MODEL_ALIAS, value: {{ $server.servedModel | quote }} }
+            - { name: EMBEDDING_CPU_THREADS, value: {{ $server.cpuThreads | quote }} }
+            {{- end }}
             - { name: HF_HUB_OFFLINE, value: "1" }
             - { name: TRANSFORMERS_OFFLINE, value: "1" }
             - { name: HF_HUB_DISABLE_TELEMETRY, value: "1" }
@@ -133,14 +150,14 @@ spec:
           resources: {{ toYaml $server.resources | nindent 12 }}
           volumeMounts:
             - { name: models, mountPath: /models, readOnly: true }
-            {{- if eq $root.Values.backend "vllm" }}
+            {{- if eq $engine "vllm" }}
             - { name: shm, mountPath: /dev/shm }
             {{- end }}
       volumes:
         - name: models
           persistentVolumeClaim:
             claimName: {{ default (printf "%s-%s" (include "inference.fullname" $root) $name) $server.persistence.existingClaim }}
-        {{- if eq $root.Values.backend "vllm" }}
+        {{- if eq $engine "vllm" }}
         - name: shm
           emptyDir: { medium: Memory, sizeLimit: 2Gi }
         {{- end }}
