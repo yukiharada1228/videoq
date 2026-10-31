@@ -1,0 +1,78 @@
+name: Rotate Production API AWS Key
+on:
+  schedule:
+    - cron: '23 2 * * 1'
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Read age, install a replacement, disable the old key, or finalize after a second smoke
+        type: choice
+        options: [audit, install, disable-old, finalize]
+        default: audit
+      verification_run_id:
+        description: Successful cited-Q&A operations run after the preceding rotation stage
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: production-api-aws-key-maintenance
+  cancel-in-progress: false
+jobs:
+  audit:
+    if: github.repository == 'videoq-jp/videoq' && github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || inputs.operation == 'audit')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: infra/scripts
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version-file: .python-version
+      - name: Install AWS SDK before credentials
+        run: python -m pip install --disable-pip-version-check 'boto3==1.43.122'
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_PLAN_ROLE_ARN }}
+          role-session-name: videoq-api-key-age-audit
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Report key ages and fail when rotation is due
+        run: python infra/scripts/audit_api_key_age.py
+  rotate:
+    if: github.repository == 'videoq-jp/videoq' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.operation != 'audit'
+    environment: production-infra
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: infra/scripts
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version-file: .python-version
+      - name: Install AWS SDK before credentials
+        run: python -m pip install --disable-pip-version-check 'boto3==1.43.122'
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_DEPLOY_ROLE_ARN }}
+          role-session-name: videoq-api-key-rotation
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Execute the reviewed rotation stage
+        env:
+          OPERATION: ${{ inputs.operation }}
+          VERIFICATION_RUN_ID: ${{ inputs.verification_run_id }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: python infra/scripts/rotate_api_aws_key.py

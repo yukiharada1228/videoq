@@ -1,0 +1,13 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Sid": "ManageOnlyVideoqApiUserKeysAndInspectItsPolicies",
+    "Effect": "Allow",
+    "Action": [
+      "iam:GetUser", "iam:ListGroupsForUser", "iam:ListAttachedUserPolicies",
+      "iam:ListUserPolicies", "iam:GetUserPolicy", "iam:ListAccessKeys",
+      "iam:CreateAccessKey", "iam:UpdateAccessKey", "iam:DeleteAccessKey"
+    ],
+    "Resource": "arn:aws:iam::257240362763:user/videoq-workers-api"
+  }]
+}
