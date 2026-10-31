@@ -11,7 +11,7 @@ This project uses **tRPC**, separately from the `hc` RPC client described in Hon
 
 ## Looking for the former video REST API reference?
 
-The former `/docs/videos` reference described the REST API before the tRPC migration. Ordinary video operations now use procedures such as `videos.list` and `videos.get` at `/api/trpc`. Their current inputs live in [`packages/trpc/src/inputs/videos.ts`](https://github.com/videoq-jp/videoq/blob/main/packages/trpc/src/inputs/videos.ts), and the [tRPC API design](../architecture/trpc-api.md) explains the shared contracts and client. Media downloads and multipart uploads still use dedicated routes; do not assume the old REST examples remain compatible. The upload flow is described below.
+The former `/docs/videos` reference described the REST API before the tRPC migration. Ordinary video operations now use procedures such as `videos.list` and `videos.get` at `/api/trpc`. Their current inputs live in [`packages/trpc/src/inputs/videos.ts`](https://github.com/videoq-jp/videoq/blob/main/packages/trpc/src/inputs/videos.ts), and the [tRPC API design](../architecture/trpc-api.md) explains the shared contracts and client. Follow the current upload flow described below; do not assume the old REST examples remain compatible.
 
 ## Run the API while editing
 

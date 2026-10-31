@@ -11,7 +11,7 @@ Honoのドキュメントにある `hc` を使ったRPCとは別に、このプ�
 
 ## 旧動画REST APIリファレンスをお探しの方へ
 
-以前の `/docs/videos` は、tRPC移行前のREST APIを説明するページでした。通常の動画操作は、現在 `/api/trpc` の `videos.list` や `videos.get` などのprocedureを使います。現在の入力は [`packages/trpc/src/inputs/videos.ts`](https://github.com/videoq-jp/videoq/blob/main/packages/trpc/src/inputs/videos.ts)、共有契約とクライアントの構成は [tRPC API設計](../architecture/trpc-api.md)を参照してください。動画本体の取得やマルチパートアップロードには専用のルートもあるため、古いREST APIの例がそのまま動くとは限りません。アップロードの流れは、このページの後半で説明しています。
+以前の `/docs/videos` は、tRPC移行前のREST APIを説明するページでした。通常の動画操作は、現在 `/api/trpc` の `videos.list` や `videos.get` などのprocedureを使います。現在の入力は [`packages/trpc/src/inputs/videos.ts`](https://github.com/videoq-jp/videoq/blob/main/packages/trpc/src/inputs/videos.ts)、共有契約とクライアントの構成は [tRPC API設計](../architecture/trpc-api.md)を参照してください。アップロードは、このページの後半にある現在の手順に従ってください。古いREST APIの例がそのまま動くとは限りません。
 
 ## 編集しながら動作を見る
 
