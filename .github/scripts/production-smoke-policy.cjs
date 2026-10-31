@@ -33,3 +33,13 @@ async function waitForCleanup(cleanup, wait) {
   return false;
 }
 module.exports = { waitForCleanup, ORIGIN, synthetic, uploadAllowed, completed, deletable, fixtureValid };
+
+// Reject fallback prose and unrelated citations as evidence of inference readiness.
+function citedAnswerValid(message, videoId) {
+  const answer = message?.answer;
+  if (message?.role !== 'assistant' || !Array.isArray(answer?.segments) || !Array.isArray(answer?.sources)) return false;
+  const ids = new Set(answer.sources.filter(source => source.video_id === videoId && source.evidence_type !== 'visual').map(source => source.id));
+  return answer.segments.some(segment => typeof segment.text === 'string' && segment.text.trim() &&
+    Array.isArray(segment.sourceIds) && segment.sourceIds.some(id => ids.has(id)));
+}
+module.exports.citedAnswerValid = citedAnswerValid;

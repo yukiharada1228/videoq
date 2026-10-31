@@ -53,16 +53,22 @@ queue:
   region: us-east-1
 
 ai:
-  openaiBaseUrl: https://api.openai.com/v1
-  llmModel: gpt-6-luna
+  # Non-secret policy ID enables AWS workload identity; runtime needs an AWS identity.
+  federationPolicyId: ""
+  federationAudience: https://openrouter.ai
+  openaiBaseUrl: https://openrouter.ai/api/v1
+  # Answer generation and image inspection only; empty retains openaiBaseUrl.
+  llmBaseUrl: ""
+  # Supply LLM_API_KEY through the existing Secret.
+  llmModel: openai/gpt-6-luna
   reasoningEffort: ""
   separateToolSchema: false
   requestTimeoutMs: 120000
   streamTimeoutMs: 300000
   # OpenAI-compatible embedding service; empty reuses openaiBaseUrl.
   embeddingBaseUrl: ""
-  embeddingModel: text-embedding-3-small
-  whisperBackend: openai
+  embeddingModel: openai/text-embedding-3-small
+  whisperBackend: openrouter
   # CPU overlay reduces this to 30; hosted/NVIDIA profiles use 300.
   whisperChunkSeconds: 300
   whisperLocalUrl: ""

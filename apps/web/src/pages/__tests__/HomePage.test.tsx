@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import HomePage from '../HomePage'
 import { useI18nNavigate } from '@/lib/i18n'
 
@@ -6,11 +6,14 @@ const mockUseVideoStatusCounts = vi.hoisted(() => vi.fn())
 const getAccount = vi.fn()
 const listVideos = vi.fn()
 const listCourses = vi.fn()
+const chatHistory = vi.fn()
 
 beforeEach(() => {
   globalThis.__setTrpcHandler('account.me', getAccount)
   globalThis.__setTrpcHandler('videos.list', listVideos)
   globalThis.__setTrpcHandler('courses.list', listCourses)
+  globalThis.__setTrpcHandler('chat.history', chatHistory)
+  chatHistory.mockResolvedValue({ data: [{ id: 1 }], meta: { total: 1, limit: 1, offset: 0 } })
 })
 
 vi.mock('@/hooks/useVideoStats', () => ({
@@ -28,8 +31,8 @@ const mockVideos = [
 ]
 
 const mockCourses = [
-  { id: 1, name: 'Course 1', video_count: 2 },
-  { id: 2, name: 'Course 2', video_count: 3 },
+  { id: 1, name: 'Course 1', video_count: 2, access_role: 'owner' },
+  { id: 2, name: 'Course 2', video_count: 3, access_role: 'owner' },
 ]
 
 describe('HomePage - authenticated', () => {
@@ -120,6 +123,13 @@ describe('HomePage - authenticated', () => {
 
     expect(screen.queryByText('home.tips.hint')).not.toBeInTheDocument()
     expect(screen.queryByText('home.tips.message')).not.toBeInTheDocument()
+  })
+
+  it('should not show the getting started guide once every step is done', async () => {
+    render(<HomePage />)
+
+    await screen.findByText('home.stats.summaryTitle')
+    expect(screen.queryByText('home.gettingStarted.title')).not.toBeInTheDocument()
   })
 
   it('should render stats cards', async () => {
@@ -215,6 +225,98 @@ describe('HomePage - authenticated', () => {
     })
   })
 
+})
+
+describe('HomePage - getting started guide', () => {
+  const emptyStats = { total: 0, completed: 0, pending: 0, processing: 0, indexing: 0, error: 0, uploading: 0 }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    window.localStorage.clear()
+    mockNavigate = useI18nNavigate() as ReturnType<typeof vi.fn>
+    getAccount.mockResolvedValue({ id: 'u1', username: 'newcomer', used_ai_answers: 0 })
+    listVideos.mockResolvedValue({ data: [], meta: { total: 0, limit: 5, offset: 0 } })
+    listCourses.mockResolvedValue({ data: [], meta: { total: 0, limit: 1, offset: 0 } })
+    mockUseVideoStatusCounts.mockReturnValue({ stats: emptyStats, isLoading: false, error: null })
+  })
+
+  it('points a new user at registering a video and hides the empty overview', async () => {
+    render(<HomePage />)
+
+    const guide = await screen.findByRole('region', { name: 'home.gettingStarted.title' })
+    const current = within(guide).getAllByRole('listitem').find((item) => item.getAttribute('aria-current') === 'step')
+    expect(current).toHaveTextContent('home.gettingStarted.steps.upload.title')
+    expect(screen.queryByText('home.stats.summaryTitle')).not.toBeInTheDocument()
+
+    fireEvent.click(within(guide).getByRole('button', { name: 'home.gettingStarted.steps.upload.action' }))
+    expect(mockNavigate).toHaveBeenCalledWith('/videos?upload=true')
+  })
+
+  it('shows transcription as in progress while the first video is processing', async () => {
+    listVideos.mockResolvedValue({ data: [mockVideos[2]], meta: { total: 1, limit: 5, offset: 0 } })
+    mockUseVideoStatusCounts.mockReturnValue({ stats: { ...emptyStats, total: 1, processing: 1 }, isLoading: false, error: null })
+    render(<HomePage />)
+
+    const guide = await screen.findByRole('region', { name: 'home.gettingStarted.title' })
+    expect(within(guide).getByRole('status')).toHaveTextContent('home.gettingStarted.processing')
+    expect(within(guide).queryByRole('button', { name: 'home.gettingStarted.steps.upload.action' })).not.toBeInTheDocument()
+  })
+
+  it('asks for a course once a video is ready, because questions are asked in a course', async () => {
+    listVideos.mockResolvedValue({ data: [mockVideos[0]], meta: { total: 1, limit: 5, offset: 0 } })
+    mockUseVideoStatusCounts.mockReturnValue({ stats: { ...emptyStats, total: 1, completed: 1 }, isLoading: false, error: null })
+    render(<HomePage />)
+
+    const guide = await screen.findByRole('region', { name: 'home.gettingStarted.title' })
+    expect(within(guide).getByRole('link', { name: 'home.gettingStarted.steps.course.action' })).toHaveAttribute('href', '/videos/courses')
+    expect(within(guide).queryByRole('link', { name: 'home.gettingStarted.steps.ask.action' })).not.toBeInTheDocument()
+  })
+
+  it('does not count a course the user only joined', async () => {
+    listVideos.mockResolvedValue({ data: [mockVideos[0]], meta: { total: 1, limit: 5, offset: 0 } })
+    listCourses.mockResolvedValue({ data: [{ ...mockCourses[0], access_role: 'member' }], meta: { total: 1, limit: 1, offset: 0 } })
+    mockUseVideoStatusCounts.mockReturnValue({ stats: { ...emptyStats, total: 1, completed: 1 }, isLoading: false, error: null })
+    render(<HomePage />)
+
+    const guide = await screen.findByRole('region', { name: 'home.gettingStarted.title' })
+    expect(within(guide).getByRole('link', { name: 'home.gettingStarted.steps.course.action' })).toHaveAttribute('href', '/videos/courses')
+    expect(chatHistory).not.toHaveBeenCalled()
+  })
+
+  it('sends the user to an empty course to add videos', async () => {
+    listVideos.mockResolvedValue({ data: [mockVideos[0]], meta: { total: 1, limit: 5, offset: 0 } })
+    listCourses.mockResolvedValue({ data: [{ ...mockCourses[1], video_count: 0 }], meta: { total: 1, limit: 1, offset: 0 } })
+    mockUseVideoStatusCounts.mockReturnValue({ stats: { ...emptyStats, total: 1, completed: 1 }, isLoading: false, error: null })
+    render(<HomePage />)
+
+    const guide = await screen.findByRole('region', { name: 'home.gettingStarted.title' })
+    expect(within(guide).getByRole('link', { name: 'home.gettingStarted.steps.course.addVideosAction' })).toHaveAttribute('href', '/videos/courses/2')
+  })
+
+  it('links the ask step to the user\'s course until a question is asked there', async () => {
+    listVideos.mockResolvedValue({ data: [mockVideos[0]], meta: { total: 1, limit: 5, offset: 0 } })
+    listCourses.mockResolvedValue({ data: [mockCourses[1]], meta: { total: 1, limit: 1, offset: 0 } })
+    chatHistory.mockResolvedValue({ data: [], meta: { total: 0, limit: 1, offset: 0 } })
+    mockUseVideoStatusCounts.mockReturnValue({ stats: { ...emptyStats, total: 1, completed: 1 }, isLoading: false, error: null })
+    render(<HomePage />)
+
+    const guide = await screen.findByRole('region', { name: 'home.gettingStarted.title' })
+    expect(within(guide).getByRole('link', { name: 'home.gettingStarted.steps.ask.action' })).toHaveAttribute('href', '/videos/courses/2')
+    expect(chatHistory).toHaveBeenCalledWith(expect.objectContaining({ courseId: 2, limit: 1 }))
+  })
+
+  it('stays hidden after the user dismisses it', async () => {
+    const view = render(<HomePage />)
+
+    const guide = await screen.findByRole('region', { name: 'home.gettingStarted.title' })
+    fireEvent.click(within(guide).getByRole('button', { name: 'home.gettingStarted.dismiss' }))
+    expect(screen.queryByRole('region', { name: 'home.gettingStarted.title' })).not.toBeInTheDocument()
+
+    view.unmount()
+    render(<HomePage />)
+    await screen.findByText('home.welcome.greeting {"username":"newcomer"}')
+    expect(screen.queryByRole('region', { name: 'home.gettingStarted.title' })).not.toBeInTheDocument()
+  })
 })
 
 describe('HomePage - Data Loading', () => {

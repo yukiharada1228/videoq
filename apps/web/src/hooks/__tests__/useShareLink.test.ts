@@ -3,6 +3,9 @@ import type { VideoCourse } from '@/lib/api'
 import { useShareLink } from '../useShareLink'
 import { QueryObserver, useQuery, useQueryClient } from '@tanstack/react-query'
 import { trpc } from '@/lib/trpc'
+import { trackLandingEvent } from '@/lib/landingAnalytics'
+
+vi.mock('@/lib/landingAnalytics', () => ({ trackLandingEvent: vi.fn() }))
 
 const deleteShare = vi.fn()
 
@@ -68,6 +71,14 @@ describe('useShareLink', () => {
     const { result } = renderHook(useCachedShareLink)
     await act(() => result.current.generateShareLink('new-link'))
     await waitFor(() => expect(result.current.shareLink).toContain('/share/new-link'))
+    expect(trackLandingEvent).toHaveBeenCalledWith('course_share_created')
+  })
+
+  it('does not count a failed share link creation', async () => {
+    globalThis.__setTrpcHandler('courses.createShare', () => { throw new Error('boom') })
+    const { result } = renderHook(useCachedShareLink)
+    await act(() => result.current.generateShareLink('new-link'))
+    expect(trackLandingEvent).not.toHaveBeenCalled()
   })
 
   it('deduplicates creation and blocks disabling until the cache update finishes', async () => {

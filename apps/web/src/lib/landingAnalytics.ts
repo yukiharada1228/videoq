@@ -1,5 +1,5 @@
 import { features } from "./deployment";
-import { LANDING_ACQUISITIONS, LANDING_EVENTS, type LandingAcquisition, type LandingAudience, type LandingEvent, type LandingEventPayload, type LandingPlacement } from './landingEvents';
+import { LANDING_ACQUISITIONS, LANDING_AUDIENCES, LANDING_EVENTS, type LandingAcquisition, type LandingAudience, type LandingEvent, type LandingEventPayload, type LandingPlacement } from './landingEvents';
 
 const STORAGE_KEY = 'videoq.landing.student-v1';
 const VISIT_TTL = 30 * 60_000;
@@ -7,10 +7,12 @@ type Visit = { audience: LandingAudience; acquisition: LandingAcquisition; seen:
 
 export function getLandingAudience(search = window.location.search): LandingAudience {
   const params = new URLSearchParams(search);
-  const value = params.get('audience');
-  if (value === 'school' || value === 'training' || value === 'student') return value;
-  // Preserve the historic paid cohort while new untagged visits are general.
+  const value = LANDING_AUDIENCES.find(audience => audience === params.get('audience'));
+  if (value) return value;
+  // Instructor ads default to the online-course audience; historic student and
+  // teacher cohorts keep their classification. Untagged visits are general.
   const acquisition = getLandingAcquisition(search);
+  if (acquisition === 'x_paid_instructor_ja' || acquisition === 'x_paid_instructor_en') return 'creator';
   if (['x_paid_demo15_search', 'x_paid_student_ja', 'x_paid_student_en'].includes(acquisition)) return 'student';
   return acquisition === 'x_paid_teacher_qa' ? 'school' : 'general';
 }
@@ -29,6 +31,11 @@ export function getLandingAcquisition(search = window.location.search): LandingA
     && params.get('utm_campaign') === 'student_return_202610') {
     if (params.get('utm_content') === 'demo15_search_ja') return 'x_paid_student_ja';
     if (params.get('utm_content') === 'demo15_search_en') return 'x_paid_student_en';
+  }
+  if (params.get('utm_medium') === 'paid_social'
+    && params.get('utm_campaign') === 'instructor_202611') {
+    if (params.get('utm_content') === 'demo30_ja') return 'x_paid_instructor_ja';
+    if (params.get('utm_content') === 'demo30_en') return 'x_paid_instructor_en';
   }
   if (params.get('utm_medium') === 'organic_social'
     && params.get('utm_campaign') === 'launch'
@@ -49,7 +56,7 @@ function readVisit(): Visit | null {
   const data = JSON.parse(raw) as Partial<Visit>;
   if (!data || !Array.isArray(data.seen) || !data.seen.every(item => LANDING_EVENTS.includes(item))
     || typeof data.updated !== 'number' || Date.now() - data.updated > VISIT_TTL
-    || !['general', 'school', 'training', 'student'].includes(data.audience ?? '')) return null;
+    || !LANDING_AUDIENCES.some(audience => audience === data.audience)) return null;
   const acquisition = LANDING_ACQUISITIONS.find(source => source === data.acquisition) ?? 'unattributed';
   return { audience: data.audience!, acquisition, seen: data.seen, updated: data.updated };
 }

@@ -3,6 +3,7 @@ import {
   LlmProviderError,
   openAiBaseUrl,
   resolveOpenAiKey,
+  isOpenRouter,
 } from "./openai";
 import { deadlineSignal } from "./request-timeout";
 import { EMBEDDING_DIMENSIONS, EmbeddingValidationError, resolveEmbeddingConfig, validateEmbedding, type EmbeddingConfig } from "./embedding-contract";
@@ -18,13 +19,24 @@ const EMBEDDING_TIMEOUT_MS = 30_000;
 export type EmbeddingEnv = {
   EMBEDDING_MODEL?: string;
   OPENAI_API_KEY?: string;
+  OPENROUTER_API_KEY?: string;
+  OPENROUTER_FEDERATION_POLICY_ID?: string;
+  OPENROUTER_FEDERATION_AUDIENCE?: string;
+  AWS_REGION?: string;
+  AWS_ACCESS_KEY_ID?: string;
+  AWS_SECRET_ACCESS_KEY?: string;
+  AWS_SESSION_TOKEN?: string;
   OPENAI_BASE_URL?: string;
   EMBEDDING_BASE_URL?: string;
   EMBEDDING_API_KEY?: string;
 };
 
 async function embedWithOpenAi(env: EmbeddingEnv, text: string, config: EmbeddingConfig, signal?: AbortSignal, costLedger?: AnswerCostLedger): Promise<number[]> {
-  const apiKey = resolveOpenAiKey({ OPENAI_API_KEY: env.EMBEDDING_API_KEY || env.OPENAI_API_KEY }, "OpenAI-compatible embeddings");
+  const baseURL = openAiBaseUrl({ ...env, OPENAI_BASE_URL: env.EMBEDDING_BASE_URL || env.OPENAI_BASE_URL });
+  const credential = isOpenRouter(baseURL) && env.OPENROUTER_FEDERATION_POLICY_ID
+    ? resolveOpenAiKey(env, "OpenAI-compatible embeddings", baseURL)
+    : env.EMBEDDING_API_KEY || resolveOpenAiKey(env, "OpenAI-compatible embeddings", baseURL);
+  const apiKey = typeof credential === "function" ? await credential() : credential;
   const call = costLedger?.begin("query_embedding", config.model);
   try {
     const body: Record<string, unknown> = {
@@ -36,7 +48,7 @@ async function embedWithOpenAi(env: EmbeddingEnv, text: string, config: Embeddin
 
     let res: Response;
     try {
-      res = await fetch(`${openAiBaseUrl({ OPENAI_BASE_URL: env.EMBEDDING_BASE_URL || env.OPENAI_BASE_URL })}/embeddings`, {
+      res = await fetch(`${baseURL}/embeddings`, {
         method: "POST",
         headers: {
           "content-type": "application/json",

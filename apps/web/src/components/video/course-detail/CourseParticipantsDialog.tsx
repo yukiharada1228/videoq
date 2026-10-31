@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import type { CourseInviteRecipientResult } from '@videoq/trpc';
 import { normalizeInvitationEmail } from '@videoq/trpc/course-invitations';
 import { appTrpcClient, trpc } from '@/lib/trpc';
+import { trackLandingEvent } from '@/lib/landingAnalytics';
 import { refreshQuery } from '@/lib/cacheInvalidation';
 import { ErrorMessage } from '@/components/auth/ErrorMessage';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -132,6 +133,7 @@ export function CourseParticipantsDialog({
           setInviteResults([{ email, status: 'queued', invitation_url: result.invitation_url }]);
         }
         if (result.kind === 'invite') {
+          if (result.results.some(recipient => recipient.status === 'queued')) trackLandingEvent('course_invite_queued');
           setInviteResults(result.results);
           setEmailInput('');
         }

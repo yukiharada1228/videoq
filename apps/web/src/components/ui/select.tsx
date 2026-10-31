@@ -11,7 +11,7 @@ const Select = SelectPrimitive.Root
 const SelectValue = SelectPrimitive.Value
 
 const selectTriggerVariants = cva(
-  "relative flex w-full appearance-none items-center justify-between gap-2 rounded-8 border border-solid-gray-600 bg-white pl-4 pr-4 py-[calc(11/16*1rem)] text-oln-16N-100 text-solid-gray-800 hover:border-black data-[size=sm]:h-10 data-[size=md]:h-12 data-[size=lg]:h-14 aria-[invalid=true]:border-error-1 aria-[invalid=true]:hover:border-red-1000 focus:outline focus:outline-4 focus:outline-black focus:outline-offset-[calc(2/16*1rem)] focus:ring-[calc(2/16*1rem)] focus:ring-yellow-300 aria-disabled:border-solid-gray-300 aria-disabled:bg-solid-gray-50 aria-disabled:text-solid-gray-420 aria-disabled:pointer-events-none aria-disabled:forced-colors:text-[GrayText] aria-disabled:forced-colors:border-[GrayText] [&>span]:line-clamp-1 [&[data-disabled]]:border-solid-gray-300 [&[data-disabled]]:bg-solid-gray-50 [&[data-disabled]]:text-solid-gray-420 [&[data-disabled]]:pointer-events-none",
+  "group/select relative inline-flex w-fit max-w-full align-baseline appearance-none items-center justify-between gap-2 rounded-8 border border-solid-gray-600 bg-white pl-4 pr-4 py-[calc(11/16*1rem)] text-oln-16N-100 text-solid-gray-800 hover:border-black data-[size=sm]:h-10 data-[size=md]:h-12 data-[size=lg]:h-14 aria-[invalid=true]:border-error-1 aria-[invalid=true]:hover:border-red-1000 focus:outline focus:outline-4 focus:outline-black focus:outline-offset-[calc(2/16*1rem)] focus:ring-[calc(2/16*1rem)] focus:ring-yellow-300 aria-disabled:border-solid-gray-300 aria-disabled:bg-solid-gray-50 aria-disabled:text-solid-gray-420 aria-disabled:pointer-events-none aria-disabled:forced-colors:text-[GrayText] aria-disabled:forced-colors:border-[GrayText] [&>span]:line-clamp-1 [&[data-disabled]]:border-solid-gray-300 [&[data-disabled]]:bg-solid-gray-50 [&[data-disabled]]:text-solid-gray-420 [&[data-disabled]]:pointer-events-none",
   {
     variants: {
       blockSize: {
@@ -47,10 +47,13 @@ const SelectTrigger = React.forwardRef<
   >
     {children}
     <SelectPrimitive.Icon asChild>
-      <ChevronDown
+      <svg
         aria-hidden={true}
-        className="pointer-events-none size-4 text-solid-gray-900 forced-colors:text-[CanvasText]"
-      />
+        viewBox="0 0 24 24"
+        className="pointer-events-none size-4 shrink-0 fill-current text-solid-gray-900 group-aria-disabled/select:text-solid-gray-420 group-data-[disabled]/select:text-solid-gray-420 forced-colors:text-[CanvasText] group-aria-disabled/select:forced-colors:text-[GrayText] group-data-[disabled]/select:forced-colors:text-[GrayText]"
+      >
+        <path d="M12 17.1 3 8l1-1 8 8 8-8 1 1z" />
+      </svg>
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ))

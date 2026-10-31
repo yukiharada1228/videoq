@@ -24,6 +24,7 @@ import { useTranslation } from 'react-i18next';
 import LandingPage from '@/pages/LandingPage';
 import { cn } from '@/lib/digital-agency/cn';
 import { Upload } from 'lucide-react';
+import { GettingStartedGuide } from '@/components/home/GettingStartedGuide';
 
 export default function HomeDashboard() {
   const navigate = useI18nNavigate();
@@ -41,8 +42,15 @@ export default function HomeDashboard() {
   const currentUser = hasSession ? user ?? null : null;
   const usageSource: Partial<User> = currentUser ?? {};
 
-  const { videos, courseCount, isLoading: isLoadingData } = useHomePageData({ userId: currentUser?.id });
-  const { stats: videoStats } = useVideoStatusCounts(!!currentUser?.id);
+  const {
+    videos,
+    courseCount,
+    ownedCourse,
+    hasCourseQuestions,
+    isCourseQuestionsLoading,
+    isLoading: isLoadingData,
+  } = useHomePageData({ userId: currentUser?.id });
+  const { stats: videoStats, isLoading: isVideoStatsLoading } = useVideoStatusCounts(!!currentUser?.id);
 
   const recentVideos = videos;
 
@@ -110,10 +118,12 @@ export default function HomeDashboard() {
     return <LandingPage />;
   }
 
+  const inProgressCount = videoStats.processing + videoStats.pending + videoStats.indexing + videoStats.uploading;
+
   const statsItems = [
     { label: t('home.stats.totalVideos'), value: videoStats.total },
     { label: t('home.stats.analysisCompleted'), value: videoStats.completed },
-    { label: t('home.stats.processing'), value: videoStats.processing + videoStats.pending + videoStats.indexing + videoStats.uploading },
+    { label: t('home.stats.processing'), value: inProgressCount },
     { label: t('home.stats.courses'), value: courseCount },
   ];
 
@@ -154,22 +164,42 @@ export default function HomeDashboard() {
         )}
       />
 
-      <section className="mb-12">
-        <Heading size="18" hasChip className="mb-4">
-          <HeadingTitle level="h2">{t('home.stats.summaryTitle')}</HeadingTitle>
-        </Heading>
-        <dl className="grid grid-cols-1 border-t border-solid-gray-420 sm:grid-cols-2 lg:grid-cols-4">
-          {statsItems.map(({ label, value }) => (
-            <div
-              key={label}
-              className="flex items-baseline justify-between gap-4 border-b border-solid-gray-200 py-4 sm:pr-6"
-            >
-              <dt className="text-std-16N-170 text-solid-gray-700">{label}</dt>
-              <dd className="text-std-20B-150 text-solid-gray-800">{value}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
+      {/* Wait for the counts and question history so the wrong step does not flash. */}
+      {!isVideoStatsLoading && !isCourseQuestionsLoading && (
+        <GettingStartedGuide
+          userId={currentUser.id}
+          progress={{
+            hasVideos: videoStats.total > 0,
+            hasProcessingVideos: inProgressCount > 0,
+            hasCompletedVideos: videoStats.completed > 0,
+            hasCourse: ownedCourse !== null,
+            hasCourseVideos: (ownedCourse?.video_count ?? 0) > 0,
+            hasAskedQuestion: hasCourseQuestions,
+          }}
+          courseHref={ownedCourse ? `/videos/courses/${ownedCourse.id}` : null}
+          onUpload={() => navigate('/videos?upload=true')}
+        />
+      )}
+
+      {/* All zeros tell a new user nothing; the guide above covers that case. */}
+      {videoStats.total > 0 && (
+        <section className="mb-12">
+          <Heading size="18" hasChip className="mb-4">
+            <HeadingTitle level="h2">{t('home.stats.summaryTitle')}</HeadingTitle>
+          </Heading>
+          <dl className="grid grid-cols-1 border-t border-solid-gray-420 sm:grid-cols-2 lg:grid-cols-4">
+            {statsItems.map(({ label, value }) => (
+              <div
+                key={label}
+                className="flex items-baseline justify-between gap-4 border-b border-solid-gray-200 py-4 sm:pr-6"
+              >
+                <dt className="text-std-16N-170 text-solid-gray-700">{label}</dt>
+                <dd className="text-std-20B-150 text-solid-gray-800">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
 
       <section className="mb-12">
         <Heading size="18" hasChip className="mb-4">
