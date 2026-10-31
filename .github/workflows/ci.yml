@@ -163,6 +163,7 @@ jobs:
               - '.github/actions/setup-package-manager/**'
               - '.github/operations-tools/**'
               - '.github/scripts/backup-restore*'
+              - '.github/scripts/production-*'
               - '.github/actions/setup-operations-tools/**'
               - '.github/workflows/operations.yml'
             whisper_gpu:
