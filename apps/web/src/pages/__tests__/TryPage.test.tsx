@@ -32,6 +32,16 @@ describe('TryPage', () => {
     })
   })
 
+  it('keeps the explanation and sample questions visible while the course loads', () => {
+    getSharedCourse.mockImplementation(() => new Promise(() => {}))
+    render(<TryPage />)
+    expect(screen.getByRole('heading', { level: 1, name: 'tryDemo.title' })).toBeInTheDocument()
+    expect(screen.getByText('tryDemo.intro')).toBeInTheDocument()
+    expect(screen.getByText('tryDemo.questions.derivative')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'tryDemo.signup' })).toHaveAttribute('href', '/signup')
+    expect(screen.queryByTestId('chat-panel')).not.toBeInTheDocument()
+  })
+
   it('opens the sample course without an account and offers signup', async () => {
     render(<TryPage />)
 

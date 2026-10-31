@@ -61,9 +61,10 @@ interface SharedCourseViewProps {
   intro?: ReactNode;
   suggestedQuestions?: string[];
   onCitationPlay?: () => void;
+  loadingContent?: ReactNode;
 }
 
-export function SharedCourseView({ shareToken, headerAction, intro, suggestedQuestions, onCitationPlay }: SharedCourseViewProps) {
+export function SharedCourseView({ shareToken, headerAction, intro, suggestedQuestions, onCitationPlay, loadingContent }: SharedCourseViewProps) {
   const { t } = useTranslation();
   const navigate = useI18nNavigate();
 
@@ -99,7 +100,7 @@ export function SharedCourseView({ shareToken, headerAction, intro, suggestedQue
   // ── Loading ────────────────────────────────────────────────────────────────
 
   if (isLoading) {
-    return (
+    return loadingContent ?? (
       <div className="min-h-dvh bg-solid-gray-50">
         <LoadingSpinner fullScreen />
       </div>
