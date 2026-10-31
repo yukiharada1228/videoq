@@ -9,14 +9,14 @@ was the project's only branch.
 | Purpose | PostgreSQL role | Storage location |
 |---|---|---|
 | Workers API / Lambda | `videoq_app_20260918` | Hyperdrive `videoq-neon-prod` / SSM `/videoq/prod/db` |
-| DB migration | `videoq_migrate_20260918` | GitHub `production-app.DATABASE_URL` / recovery SSM `/videoq/security/prod/db-migration` |
+| DB migration | `videoq_migrate_20260918` | SSM `/videoq/security/prod/db-migration` (GitHub Actions via dedicated OIDC role) |
 | Administration and disaster recovery | `neondb_owner` | SSM `/videoq/security/prod/db-admin` |
 
 Each SSM value is a JSON `SecureString` with a `DATABASE_URL` key. Migration and
 administration use Neon's direct endpoint; the application uses the existing
 pooler endpoint. TLS is required. Keep administration and migration parameters
 separate from the normal `/videoq/prod/*` parameters and inaccessible to the app.
-These recovery parameters are managed manually. Before bringing them under
+The migration and administration parameters are managed manually. Before bringing them under
 Terraform, import them and configure `ignore_changes` for their values and
 deletion protection.
 
@@ -60,8 +60,7 @@ controls.
 3. Transfer ownership of application objects to the new migration role and set
    its default privileges. Within a transaction, verify that application DML
    succeeds, DDL is denied, and new tables receive the automatic grants.
-4. Update the migration recovery parameter in SSM and the GitHub Environment
-   secret. Confirm that `npm run db:migrate --workspace @videoq/api` succeeds on
+4. Update the migration parameter in SSM. Confirm that `npm run db:migrate --workspace @videoq/api` succeeds on
    the current main branch.
 5. Update the Hyperdrive origin username/password and the application's SSM
    parameter. Keep Hyperdrive query caching disabled. Existing connection pools

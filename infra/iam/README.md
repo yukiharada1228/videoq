@@ -95,3 +95,44 @@ aws iam create-policy-version \
 
 > The region is hardcoded as `ap-northeast-1`. To use another region, update the
 > ARNs in each JSON file.
+
+## Neon database access
+
+All production database jobs (migrations, smoke tests, backup/restore, public demo)
+assume `videoq-github-actions-neon` using OIDC in `production-app`. This role can
+read only `/videoq/security/prod/db-migration`, a JSON SecureString containing
+`DATABASE_URL`. It cannot read the administrator parameter or change infrastructure.
+The existing deployment role is not used for database access.
+
+Apply the dedicated trust and inline permissions once, using an authenticated AWS
+administrator session (the existing migration parameter must already exist):
+
+```bash
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+sed "s/<ACCOUNT_ID>/${ACCOUNT_ID}/g" infra/iam/videoq-github-actions-neon-trust.json > /tmp/videoq-neon-trust.json
+sed "s/<ACCOUNT_ID>/${ACCOUNT_ID}/g" infra/iam/videoq-neon-parameter-read.json > /tmp/videoq-neon-read.json
+aws iam create-role --role-name videoq-github-actions-neon --assume-role-policy-document file:///tmp/videoq-neon-trust.json
+aws iam put-role-policy --role-name videoq-github-actions-neon --policy-name videoq-neon-parameter-read --policy-document file:///tmp/videoq-neon-read.json
+gh secret set AWS_GITHUB_ACTIONS_NEON_ROLE_ARN --repo videoq-jp/videoq --env production-app --body "arn:aws:iam::${ACCOUNT_ID}:role/videoq-github-actions-neon"
+```
+
+For an existing role use `aws iam update-assume-role-policy` instead of create-role.
+The policy assumes the parameter uses the default AWS-managed `aws/ssm` key.
+If it uses a customer-managed KMS key, also grant `kms:Decrypt` on that exact key,
+restricted by `kms:ViaService` to `ssm.ap-northeast-1.amazonaws.com` and the
+`kms:EncryptionContext:PARAMETER_ARN` to this exact parameter ARN; its key policy
+must also permit the role.
+
+Merge the workflow changes only after provisioning the role and Environment secret.
+Run CD and the production operations workflows and verify successful OIDC role
+assumption, SSM retrieval and database access before deleting the old secret:
+
+```bash
+gh secret delete DATABASE_URL --repo videoq-jp/videoq --env production-app
+```
+
+No database credential is stored in GitHub after this removal. The runner masks the
+URL and password, passes `DATABASE_URL` only to the database command, and removes
+AWS credentials and GitHub OIDC endpoint variables from that child process.
+Neon still uses PostgreSQL password authentication; this change centralizes the
+password in SSM rather than making the Neon connection passwordless.

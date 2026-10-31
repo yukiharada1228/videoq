@@ -35,7 +35,9 @@ test('only reviewed main can execute the gated operator after installing isolate
  assert.match(workflow,/default: audit/);
  assert.match(workflow,/github.ref == 'refs\/heads\/main'/);
  assert.match(workflow,/environment: production-app/);
- assert.ok(workflow.indexOf('setup-operations-tools')<workflow.indexOf('DATABASE_URL'));
+ assert.ok(workflow.indexOf('setup-operations-tools')<workflow.indexOf('uses: ./.github/actions/neon-credentials'));
+ assert.ok(workflow.indexOf('uses: ./.github/actions/neon-credentials')<workflow.indexOf('with-neon-credentials.py'));
+ assert.doesNotMatch(workflow,/secrets\.DATABASE_URL/);
  assert.doesNotMatch(workflow,/upload-artifact|schedule:|pull_request_target/);
  assert.match(source,/Usage counters are deliberately preserved/);
  assert.doesNotMatch(source,/UPDATE users SET used_ai_answers|INSERT INTO (scene_embeddings|scenes)/);
