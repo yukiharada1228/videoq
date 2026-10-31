@@ -2,7 +2,7 @@ import copy
 import json
 import unittest
 from unittest.mock import MagicMock, patch
-from retire_ai_credentials import maintain, key_ids, masked_match, PROJECT_ID, WORKER_POLICY, API_POLICY
+from retire_ai_credentials import maintain, key_ids, masked_match, PROJECT_ID, WORKER_POLICY, API_POLICY, redaction_shape, credential_kind
 
 
 class RetirementTests(unittest.TestCase):
@@ -93,8 +93,25 @@ class RetirementTests(unittest.TestCase):
         self.assertIn('KEY_IDS: ${{ inputs.key_ids }}', source)
         self.assertNotIn('upload-artifact', source)
         self.assertNotIn('pull_request_target', source)
-        run = source.split('        run: |')[-1]
-        self.assertNotIn('${{', run)
+        import re
+        for command in re.findall(r'^\s+run: (.+)$', source, re.MULTILINE):
+            self.assertNotIn('${{', command)
+
+    def test_diagnostic_shape_does_not_expose_fragments_or_weaken_matching(self):
+        shape = redaction_shape('sk-PRIVATE...TAIL')
+        self.assertEqual(shape, {'present': True, 'maskCount': 1, 'prefixLength': 10, 'suffixLength': 4})
+        self.assertNotIn('PRIVATE', json.dumps(shape))
+        self.assertEqual(credential_kind(' sk-proj-PRIVATE '), 'openai_project')
+        self.assertFalse(masked_match('sk-...ab', 'sk-PRIVATEab'))
+
+    def test_iam_audit_uses_the_existing_read_only_role_without_secrets(self):
+        from pathlib import Path
+        source = (Path(__file__).resolve().parents[2] / '.github/workflows/retire-ai-credentials.yml').read_text().split('  iam-audit:')[1]
+        self.assertIn('AWS_GITHUB_ACTIONS_PLAN_ROLE_ARN', source)
+        self.assertNotIn('DEPLOY_ROLE_ARN', source)
+        self.assertNotIn('environment:', source)
+        self.assertNotIn('OPENAI_ADMIN_KEY', source)
+        self.assertIn("inputs.operation == 'plan'", source)
 
     def test_inputs_cannot_escape_the_exact_project_endpoint(self):
         for raw in ('[]', '["../other"]', '["key_a", "key_a"]', '"key_a"'):

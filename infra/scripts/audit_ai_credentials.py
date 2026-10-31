@@ -25,6 +25,9 @@ def api_json(url, token):
 
 def error_summary(error):
     result = {"errorType": type(error).__name__}
+    code = getattr(error, "response", {}).get("Error", {}).get("Code")
+    if code in {"AccessDenied", "AccessDeniedException", "UnauthorizedOperation", "NoSuchEntity", "ParameterNotFound"}:
+        result["awsErrorCode"] = code
     if isinstance(error, HTTPError):
         result["httpStatus"] = error.code
         error.close()
