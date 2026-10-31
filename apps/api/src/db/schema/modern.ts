@@ -285,6 +285,7 @@ export const videos = pgTable(
 			maxValue: 9223372036854775807,
 			cache: 1,
 		}),
+		transcriptionLanguage: varchar("transcription_language", { length: 3 }),
 		file: varchar({ length: 100 }).notNull(),
 		multipartUpload: jsonb("multipart_upload").$type<{
 			uploadId: string;

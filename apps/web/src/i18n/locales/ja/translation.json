@@ -395,6 +395,9 @@
       "clearFilters": "条件をクリア"
     },
     "upload": {
+      "languageLabel": "音声の言語",
+      "languageAuto": "自動判定",
+      "languageHelp": "動画で話されている言語を選んでください。初期値には画面の表示言語を使用します。",
       "title": "動画をアップロード",
       "description": "動画ファイルをアップロードして管理できます。",
       "fileLabel": "ファイル",
