@@ -52,7 +52,7 @@ def credential_kind(value):
 def masked_match(masked, value):
     if not isinstance(masked, str) or not isinstance(value, str):
         return False
-    parts = re.split(r"\.{3,}|…+", masked)
+    parts = re.split(r"\.{3,}|…+|\*+", masked)
     if len(parts) != 2 or len(parts[0])+len(parts[1]) < 7 or len(parts[1]) < 4:
         return False
     return value.startswith(parts[0]) and value.endswith(parts[1])
