@@ -65,6 +65,4 @@ For each comparison:
 
 Confirm key URLs with URL Inspection, including Google's chosen canonical and latest crawl. Register `videoq.jp/sitemap.xml` and both docs locale sitemaps, `docs.videoq.jp/sitemap.xml` and `docs.videoq.jp/ja/sitemap.xml`, under the domain property. A submitted sitemap does not mean a page is indexed. The docs site advertises both locale sitemaps in its own `robots.txt` and publishes only the approved content manifest.
 
-The old `/docs/videos` video REST API reference now redirects permanently to the current API guide on `docs.videoq.jp`, preserving Japanese or English and the query string. Unknown references and removed features continue to answer 404; never redirect every missing document to the homepage.
-
 Daily automated content changes are not configured. Prefer an evidence-based update to an existing useful page over creating pages for slight keyword variations.

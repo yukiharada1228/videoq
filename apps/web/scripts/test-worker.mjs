@@ -118,23 +118,15 @@ test('generated sitemap lists only pages that answer 200', async () => {
   for (const path of urls) assert.equal((await worker.fetch(path)).status, 200, path);
 });
 
-test('old video API documentation redirects to its localized successor', async () => {
-  for (const [path, expected] of [
-    ['/docs/videos?source=search', 'https://docs.videoq.jp/ja/guides/api/?source=search'],
-    ['/docs/videos/', 'https://docs.videoq.jp/ja/guides/api/'],
-    ['/en/docs/videos/', 'https://docs.videoq.jp/guides/api/'],
-    ['/en/docs/videos?next=https://example.com', 'https://docs.videoq.jp/guides/api/?next=https://example.com'],
-  ]) {
+test('retired API documentation answers 404 instead of redirecting', async () => {
+  for (const path of ['/docs/videos', '/en/docs/videos', '/docs/videos?source=search', '/en/docs/videos?next=https://example.com', '/docs/plog', '/en/docs/plog', '/docs/unknown', '/docs/videos/123']) {
     for (const method of ['GET', 'HEAD']) {
       const response = await worker.fetch(path, { method, redirect: 'manual' });
-      assert.equal(response.status, 301);
+      assert.equal(response.status, 404, path);
+      assert.equal(response.headers.get('location'), null, path);
       securityHeaders(response);
-      assert.equal(response.headers.get('location'), expected);
+      if (method === 'GET') assert.match(await response.text(), /name="robots" content="noindex, nofollow"/, path);
     }
-  }
-  // Removed features and unknown API references must keep real 404 responses.
-  for (const path of ['/docs/plog', '/en/docs/plog', '/docs/unknown', '/docs/videos/123']) {
-    assert.equal((await worker.fetch(path, { redirect: 'manual' })).status, 404, path);
   }
 });
 
