@@ -1,5 +1,5 @@
 import { isOnprem } from "@/lib/deployment";
-import { lazy, useEffect, useState } from 'react';
+import { lazy, useSyncExternalStore } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { addLocalePrefix, getSavedLocale, useLocaleSync } from '@/lib/i18n';
 import { defaultLocale, locales, type Locale } from '@/i18n/config';
@@ -31,13 +31,16 @@ const AdminPage = lazy(() => import('@/pages/AdminPage'));
 const GuideIndexPage = isOnprem ? null : lazy(() => import('@/pages/GuideIndexPage'));
 const GuidePage = isOnprem ? null : lazy(() => import('@/pages/GuidePage'));
 
+const hydrationSubscription = () => () => undefined;
+const clientReady = () => true;
+const serverReady = () => false;
+
 function LocaleGate() {
   const params = useParams<{ locale?: string }>();
   const location = useLocation();
   const locale = params.locale;
   // The first browser render must match prerendered HTML before preference redirects.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const mounted = useSyncExternalStore(hydrationSubscription, clientReady, serverReady);
 
   // Must be called unconditionally (rules-of-hooks)
   useLocaleSync();
