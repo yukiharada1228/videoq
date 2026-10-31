@@ -30,6 +30,25 @@ def verify_router(values, policy):
         raise ValueError("Expected the verified production federation configuration")
 
 
+def redaction_shape(masked):
+    if not isinstance(masked, str):
+        return {"present": False}
+    parts = re.split(r"\.{3,}|…+|\*+", masked)
+    return {"present": True, "maskCount": len(parts)-1,
+            "prefixLength": len(parts[0]), "suffixLength": len(parts[-1])}
+
+
+def credential_kind(value):
+    if not isinstance(value, str) or not value.strip():
+        return "empty"
+    value = value.strip()
+    if value.startswith("sk-or-"):
+        return "openrouter"
+    if value.startswith("sk-proj-"):
+        return "openai_project"
+    return "openai_legacy" if value.startswith("sk-") else "other"
+
+
 def masked_match(masked, value):
     if not isinstance(masked, str) or not isinstance(value, str):
         return False
@@ -87,7 +106,9 @@ def maintain(session, environ, operation="plan", selected=(), expected_version=N
         result = {"status": "ai_credential_retirement", "operation": operation, "projectId": PROJECT_ID,
                   "ssmVersion": parameter["Version"], "workerCopyPresent": bool(payload.get("OPENAI_API_KEY")), "apiCopyPresent": cf_copy,
                   "workerMatchingKeyIds": matches,
-                  "projectKeys": [{"id": k["id"], "name": k.get("name", ""), "createdAt": k.get("created_at"), "lastUsedAt": k.get("last_used_at")} for k in keys]}
+                  "workerCredentialKind": credential_kind(payload.get("OPENAI_API_KEY")),
+                  "workerWhitespacePresent": isinstance(payload.get("OPENAI_API_KEY"), str) and payload["OPENAI_API_KEY"] != payload["OPENAI_API_KEY"].strip(),
+                  "projectKeys": [{"id": k["id"], "name": k.get("name", ""), "createdAt": k.get("created_at"), "lastUsedAt": k.get("last_used_at"), "redactionShape": redaction_shape(k.get("redacted_value"))} for k in keys]}
         if operation == "plan":
             return result
         key_ids(json.dumps(list(selected)))
