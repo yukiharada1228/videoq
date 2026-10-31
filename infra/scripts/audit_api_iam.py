@@ -31,7 +31,9 @@ def audit_api_iam(session):
                 keys.append({"status": key["Status"], "ageDays": (now-key["CreateDate"]).days,
                              "lastUsedService": usage.get("ServiceName"), "lastUsedAt": str(usage.get("LastUsedDate", ""))})
         return {"status": "api_iam_audit", "readOnly": True, "principal": ARN,
-                "permissionsBoundaryPresent": "PermissionsBoundary" in user, "policies": policies, "keys": keys}
+                "permissionsBoundaryPresent": "PermissionsBoundary" in user,
+                "groups": [group["GroupName"] for page in iam.get_paginator("list_groups_for_user").paginate(UserName=USER) for group in page.get("Groups", [])],
+                "policies": policies, "keys": keys}
 
 
 if __name__ == "__main__":
