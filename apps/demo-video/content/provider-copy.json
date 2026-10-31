@@ -26,17 +26,6 @@
         "接線の傾きと微分の関係がよくわかりません。"
       ]
     },
-    "history": {
-      "step": "03 / REVIEW",
-      "title": [
-        "質問は、",
-        "履歴で確認。"
-      ],
-      "body": "質問と回答を一覧で確認し、CSVで出力できます。",
-      "card": "会話履歴",
-      "visitor": "共有リンク利用者",
-      "teacher": "AI 教師"
-    },
     "outro": {
       "sub": "AI回答は講座の所有者の利用枠から。受講生は無料。",
       "title": [
@@ -73,17 +62,6 @@
         "What does a derivative actually represent?",
         "I don’t get how slope relates to the derivative."
       ]
-    },
-    "history": {
-      "step": "03 / REVIEW",
-      "title": [
-        "Every question,",
-        "in one history."
-      ],
-      "body": "See every question and answer, and export them as CSV.",
-      "card": "Conversation history",
-      "visitor": "Shared-link visitor",
-      "teacher": "AI Teacher"
     },
     "outro": {
       "sub": "AI usage is on the course owner. Free for students.",

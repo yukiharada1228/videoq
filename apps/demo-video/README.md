@@ -37,12 +37,28 @@ course creators and instructors. It runs: an illustrative hook (incoming student
 questions, labelled as an illustration), the instructor uploading a lecture and
 sharing the course link, the student asking a question and jumping to the cited
 moment, the instructor finding that same question in the conversation history,
-and an end card. The student segment reuses `ProductScreen` with the compressed
-`content/provider-student-timeline.json`; the history entry shows the same real
-question, answer, citation and capture time from `content/answer.json`. No
-dashboard figures are shown because the demo course holds only that one real
-question. Scene timing lives in `content/provider-timeline.json` and all visible
-copy and captions in `content/provider-copy.json`.
+and an end card.
+
+Every product screen is the web app's real code: `VideoLibraryPage`,
+`VideoUploadModal`, `VideoCourseDetailView`, `ShareLinkDialog`, `SharePage`,
+`ChatPanel` and `ChatHistoryView`, imported from `apps/web/src` and styled with
+its compiled stylesheet, so a UI change appears here on the next render. They do
+not call an API: `webpack-override.mjs` swaps only the data hooks for those in
+`src/real/hooks/`, which return state derived from the current frame.
+`src/real/data.ts` replays the recording in `content/answer.json` through the
+app's own reducers. `ProductViewport` hosts the screens in a 1600×802 iframe so
+that breakpoints, `dvh` and native modal dialogs behave as in a browser window.
+The film adds only the camera, pointer, captions and header around them.
+Pointer targets in `src/real/camera.ts` are measured from the rendered screens:
+re-check them if a layout changes. No dashboard figures are shown because the
+demo course holds only that one real question. Scene timing lives in
+`content/provider-timeline.json` and film copy in `content/provider-copy.json`.
+
+`scripts/prepare-product.mjs` runs before rendering. It writes the compiled
+stylesheet, the logo and WebM copies of the lessons to `public/generated/`, which
+is not committed. Chrome Headless Shell has no H.264 decoder, and the WebM files
+stay under 2 MiB because Chrome preloads those fully, which keeps the native
+scrubber identical on every frame.
 
 ```bash
 npm run render --workspace @videoq/demo-video -- --film provider
@@ -50,8 +66,8 @@ npm run render --workspace @videoq/demo-video -- --film provider --locale en --s
 ```
 
 Output goes to `apps/web/public/demo/provider-demo-{ja,en}.mp4` with matching
-WebP posters and VTT captions. Rendering needs `ffmpeg`/`ffprobe` on `PATH` (the
-binaries bundled in `@remotion/compositor-*` work) and Python with Pillow.
+WebP posters and VTT captions. Rendering needs a full `ffmpeg` with VP9 and
+`ffprobe` on `PATH`, Python with Pillow, and network access for Noto Sans JP.
 
 ## Student demo for Japanese and English landing pages
 

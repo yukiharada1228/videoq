@@ -6,7 +6,37 @@
   "history": 23,
   "outro": 27,
   "outroEnd": 27.4,
-  "captions": [0, 3, 7, 10, 11.5, 15, 19, 23, 27, 30],
-  "reviewSeconds": [1.8, 5, 8.5, 10.8, 13, 17, 21, 25, 28.5],
-  "poster": 17
+  "captions": [
+    0,
+    3,
+    7,
+    10,
+    11.5,
+    15,
+    19,
+    23,
+    27,
+    30
+  ],
+  "reviewSeconds": [
+    1.8,
+    4.5,
+    8.2,
+    9.2,
+    10.8,
+    13,
+    17,
+    21,
+    25.5,
+    28.5
+  ],
+  "poster": 17,
+  "owner": {
+    "uploadClick": 0.5,
+    "uploadDone": 2.7,
+    "courseCut": 3.3,
+    "shareClick": 4.2,
+    "copyClick": 5.6,
+    "historyClick": 1.0
+  }
 }
