@@ -172,3 +172,33 @@ Sources (checked 2026-10-30):
 [Whisper model and providers](https://openrouter.ai/openai/whisper-large-v3-turbo),
 [transcription API](https://openrouter.ai/docs/guides/overview/multimodal/stt),
 [embeddings API](https://openrouter.ai/docs/api_reference/embeddings).
+
+## Retiring the previous direct credentials
+
+Keep the organization workspace key targeted by each OpenRouter federation policy.
+Revoking that key would invalidate the federation path. The old direct OpenAI
+project keys are separate from those workspace keys and from the OpenAI admin
+key still used by Terraform project governance.
+
+After a successful production smoke with `verify_ai_answers=true`, dispatch
+`ai-credential-audit.yml` to inventory the remaining runtime copies without
+printing their values. The guarded `retire-ai-credentials.yml` defaults to `plan`;
+it also audits the API IAM user's policies and key ages using read-only calls.
+Review the project identity, key names/IDs, the worker key's unique match to a
+provider-redacted key, the SSM version, and both runtimes' federation configuration.
+
+For `operation=retire`, supply only the reviewed key IDs as a JSON array and
+`expected_ssm_version` from that plan. The script removes `OPENAI_API_KEY` from
+the worker app parameter and the production API, verifies both removals, revokes
+only the selected keys in the dedicated `videoq-prod` OpenAI project, and verifies
+the result. It preserves other SSM fields and the current encryption key, refuses
+concurrent parameter changes detected before writes, and never calls OpenRouter's
+management API. SSM's retained old parameter versions can contain the old key;
+provider-side revocation makes those copies unusable. If a step is interrupted,
+run `plan` again and review the new SSM version before retrying the same IDs;
+already absent project keys can be reverified safely.
+
+Use the normal production-infra gate and rerun the production smoke after
+retirement. Removing copies alone does not prove provider-side revocation.
+AWS IAM key rotation is a separate change: keep the previous key active until
+the replacement has passed the full upload/index/Q&A check.
