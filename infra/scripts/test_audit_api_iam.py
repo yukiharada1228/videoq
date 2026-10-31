@@ -11,6 +11,7 @@ class IamAuditTests(unittest.TestCase):
         session.client.return_value = iam
         iam.get_user.return_value = {"User": {"Arn": ARN}}
         pages = {
+            "list_groups_for_user": [{"Groups": []}],
             "list_user_policies": [{"PolicyNames": ["sqs"]}],
             "list_attached_user_policies": [{"AttachedPolicies": [{"PolicyArn": "arn:policy/read"}]}],
             "list_access_keys": [{"AccessKeyMetadata": [{"AccessKeyId": "PRIVATE_KEY_ID", "Status": "Active", "CreateDate": datetime.datetime.now(datetime.timezone.utc)-datetime.timedelta(days=40)}]}],
