@@ -28,6 +28,7 @@ describe('isNoindexPath', () => {
 
   it('keeps public marketing and legal pages indexable', () => {
     expect(isNoindexPath('/pricing')).toBe(false)
+    expect(isNoindexPath('/try')).toBe(false)
     expect(isNoindexPath('/terms')).toBe(false)
   })
 })

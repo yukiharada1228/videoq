@@ -17,6 +17,7 @@ const PUBLIC_AUTH_PATHS = [
   '/consent',
   '/share',
   '/course-invitations',
+  '/try',
   '/pricing',
   '/terms',
   '/privacy',

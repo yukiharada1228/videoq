@@ -136,6 +136,9 @@ function resolvePageCopy(
   if (key === 'pricing') {
     return { title: `${t('pricing.title')} | VideoQ`, description: t('pricing.subtitle') };
   }
+  if (key === 'tryDemo') {
+    return { title: t('tryDemo.title'), description: t('tryDemo.description') };
+  }
   if (key === 'legal.terms') {
     return { title: `${t('legal.terms.title')} | VideoQ`, description: t('legal.terms.title') };
   }

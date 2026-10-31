@@ -2,7 +2,7 @@ import { GUIDE_CATALOG, guidePath } from './guideCatalog';
 
 export const SITE_ORIGIN = 'https://videoq.jp';
 
-const STATIC_PUBLIC_PATHS = ['/', '/pricing', '/terms', '/privacy', '/refund', '/legal', '/guides'] as const;
+const STATIC_PUBLIC_PATHS = ['/', '/pricing', '/terms', '/privacy', '/refund', '/legal', '/guides', '/try'] as const;
 
 const NOINDEX_PREFIXES = [
   '/login',
@@ -106,6 +106,7 @@ export function pageMetaKey(pathname: string): string {
   pathname = normalizePathname(pathname);
   if (pathname === '/') return 'site';
   if (pathname === '/pricing') return 'pricing';
+  if (pathname === '/try') return 'tryDemo';
   if (pathname === '/terms') return 'legal.terms';
   if (pathname === '/privacy') return 'legal.privacy';
   if (pathname === '/refund') return 'legal.refund';

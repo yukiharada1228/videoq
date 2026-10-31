@@ -139,6 +139,17 @@ HTTPS `--origin` and `VIDEOQ_DEMO_COOKIE_FILE`. Store the cookie in a file with 
 different material or share slugs are not overwritten. When changing course
 material, switch to a new slug and register again.
 
+The no-signup demo at `/try` serves this course from production, so register it there
+before deploying the page. Use a dedicated owner and raise its AI answer limit in the
+admin screen: every visitor question uses that owner's quota, and the limit caps the
+monthly spend. Each IP may ask 10 questions per hour (`chat_public_demo_ip`). The slug is
+also `PUBLIC_DEMO_SHARE_SLUG` in `packages/trpc/src/public-demo.ts`; keep them equal.
+
+```bash
+VIDEOQ_DEMO_COOKIE_FILE=<cookie-file> npm run demo:students --workspace @videoq/api -- --origin https://videoq.jp
+npm run demo:students --workspace @videoq/api -- --origin https://videoq.jp --check
+```
+
 Use `VIDEOQ_DEMO_ORIGIN` to change the origin used to retrieve answers. After updating
 an answer or its references, verify that the subject selected in the video matches
 the cited material.

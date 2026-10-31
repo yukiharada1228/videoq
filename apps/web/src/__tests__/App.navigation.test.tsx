@@ -318,6 +318,15 @@ it('keeps one authentication layout across login and signup', async () => {
   expect(screen.queryByRole('navigation', { name: i18n.t('navigation.menu') })).not.toBeInTheDocument();
 });
 
+it('opens the no-signup demo for signed-out visitors with its own page title', async () => {
+  globalThis.__setMockAuthSession(null);
+  globalThis.__setTrpcHandler('courses.shared', () => ({ id: 1, name: 'Sample course', description: '', videos: [] }));
+  renderApp('/try');
+  await screen.findByText(i18n.t('tryDemo.intro'));
+  expect(window.location.pathname).toBe('/try');
+  expect(document.title).toBe(i18n.t('tryDemo.title'));
+});
+
 it('contains a page render error inside the layout and recovers on navigation', async () => {
   const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
   try {

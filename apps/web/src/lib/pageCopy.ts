@@ -14,6 +14,7 @@ export const DEFAULT_COPY: Record<SiteLocale, { title: string; description: stri
 
 const PAGE_COPY: Record<SiteLocale, Record<string, { title: string; description: string }>> = {
   ja: {
+    '/try': { title: '登録なしで試す | VideoQ', description: 'サンプル講座に、受講生の立場で質問できます。回答には講義の該当場面が付きます。登録は不要です。' },
     '/pricing': {
       title: '料金プラン | VideoQ',
       description: '講義1本で試せる Free から、講座を運営する Basic、複数の講座や研修をまとめて扱う Pro まで。年払いは 2 ヶ月分お得です。',
@@ -30,6 +31,7 @@ const PAGE_COPY: Record<SiteLocale, Record<string, { title: string; description:
     '/signup': { title: '新規登録 | VideoQ', description: DEFAULT_COPY.ja.description },
   },
   en: {
+    '/try': { title: 'Try it without signing up | VideoQ', description: 'Ask a sample course a question as a student would. Every answer links to the source moment. No signup needed.' },
     '/pricing': {
       title: 'Pricing | VideoQ',
       description:
