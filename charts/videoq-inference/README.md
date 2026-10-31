@@ -4,7 +4,7 @@ This optional chart installs selectable private LLM / embedding servers and
 whisper.cpp (CPU) / vLLM (NVIDIA) speech services. llama.cpp is the CPU default; vLLM is the NVIDIA GPU
 option. Install it separately from the application chart so
 model caches, GPU scheduling and application upgrades have separate lifecycles.
-The application chart's default still uses hosted OpenAI; explicitly apply its
+The application chart's default still uses hosted OpenRouter; explicitly apply its
 `examples/local-ai-llamacpp.yaml` or `examples/local-ai-vllm.yaml` overlay to select these services.
 
 Mac development runs whisper.cpp natively with Metal, outside this Linux
@@ -39,7 +39,7 @@ local vision model supporting images, tool calls and strict JSON Schema,
 validate it, and change both charts' chat model plus `config.videoVisualEnabled`.
 
 The site provides PostgreSQL/pgvector, S3 and a persistent SQS-compatible queue
-as described in the application chart. No Cloudflare, Modal or OpenAI account
+as described in the application chart. No Cloudflare, OpenRouter or OpenAI account
 is required for this local configuration. Initial image/model downloads use the
 internet. During processing, video, audio, prompts and embeddings stay on the
 configured site services.
@@ -254,8 +254,8 @@ batch-size/device/compute-type fields are removed and rejected by the schema.
 
 The CPU application profile uses 30-second durable checkpoints; NVIDIA and cloud
 use 300 seconds. `ai.whisperChunkSeconds` / `WHISPER_CHUNK_SECONDS` accepts 30–300
-seconds. Short CPU checkpoints keep individual calls within the worker's
-120-second inference deadline without extending queue leases. Completed results
+seconds. Short CPU checkpoints keep individual calls within the gateway's 600-second
+budget and the worker's 660-second deadline without extending queue leases. Completed results
 are reused after retries and their offsets remain relative to the source video.
 Existing plans keep their recorded interval size. Drain incomplete plans on
 the previous release before changing runtimes or CPU/GPU profiles; a retry
@@ -263,7 +263,7 @@ does not resize an existing plan. No retired-provider fallback is retained.
 The serial on-prem poller defaults to one message at a time. Measure service
 capacity before increasing worker replicas or admission limits.
 
-CPU's quantized multilingual small model is a small acceptance baseline, not a promise of
+CPU's quantized multilingual large-v3-turbo model is a small acceptance baseline, not a promise of
 Japanese recognition accuracy. Larger checkpoints need more CPU/RAM and may need
 shorter worker intervals. Review weights, checksums, source coverage, silence,
 Japanese accuracy and throughput with representative site recordings.

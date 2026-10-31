@@ -26,9 +26,9 @@ API とワーカーはダイジェスト固定の Alpine イメージを使い�
 ```sh
 SOURCE_SHA=REPLACE_WITH_REVIEWED_40_CHARACTER_COMMIT
 RUN_ID=REPLACE_WITH_SUCCESSFUL_RELEASE_RUN
-RUN_ATTEMPT=$(gh run view "$RUN_ID" --repo yukiharada1228/videoq --json attempt --jq .attempt)
+RUN_ATTEMPT=$(gh run view "$RUN_ID" --repo videoq-jp/videoq --json attempt --jq .attempt)
 mkdir -p /secure/videoq-release
-gh run download "$RUN_ID" --repo yukiharada1228/videoq \
+gh run download "$RUN_ID" --repo videoq-jp/videoq \
   --name "onprem-release-$SOURCE_SHA-attempt-$RUN_ATTEMPT" --dir /secure/videoq-release
 python3 .github/scripts/onprem-release.py verify "$SOURCE_SHA" \
   /secure/videoq-release/release.json /secure/videoq-release/verified-images.json \
@@ -50,9 +50,11 @@ helm upgrade --install videoq /secure/videoq-release/videoq-0.1.0-sha.$SOURCE_SH
 helm test videoq -n videoq --timeout 2m
 ```
 
-完全オンプレでは、[ローカル AI 推論](local-inference.md)に従い、推論用 Chart に `verified-inference.json` を最後に重ねます。NVIDIA のチャット・埋め込み・文字起こしは同じ署名付き vLLM イメージを使います。アプリ用 Chart は対応するローカル設定の後に `verified-images.json` を重ねます。標準設定は外部 OpenAI API のため、ローカル設定の適用が必要です。
+完全オンプレでは、[ローカル AI 推論](local-inference.md)に従い、推論用 Chart に `verified-inference.json` を最後に重ねます。NVIDIA のチャット・埋め込み・文字起こしは同じ署名付き vLLM イメージを使います。アプリ用 Chart は対応するローカル設定の後に `verified-images.json` を重ねます。標準設定はホスト型の OpenRouter のため、ローカル設定の適用が必要です。
 
 Chart が強制するのはダイジェスト指定です。署名確認は導入側のスクリプトで行うため、クラスタ管理者による回避も防ぐ必要があれば、同じ署名者を条件とする admission policy を導入先で設定します。
+
+NVIDIA の検査では、範囲を限定した既存の[カーネルヘッダー評価](https://github.com/videoq-jp/videoq/blob/main/apps/inference/whisper/security/README.md)を維持します。明示的に評価したヘッダーの検出だけを除外し、それ以外の HIGH・CRITICAL はリリースを止めます。`security-*` の artifact は、除外した検出と評価を含む JSON レポートを90日間保持します。
 
 ## 検証環境から本番へ進める
 

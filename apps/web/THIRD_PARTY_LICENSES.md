@@ -1,12 +1,12 @@
 # Third-Party Licenses
 
-This project (`shadcn-digital-agency-jp`) is an **unofficial** shadcn/ui native
-component registry inspired by the Digital Agency Design System. It reimplements
-component specifications, appearance, accessibility behavior, and implementation
-structure in a shadcn/ui native form.
+`apps/web` syncs selected components from `shadcn-digital-agency-jp`, an
+**unofficial** shadcn/ui native component registry inspired by the Digital Agency
+Design System. That registry reimplements component specifications, appearance,
+accessibility behavior, and implementation structure in a shadcn/ui native form.
 
-The following third-party projects are referenced and this project retains their
-required copyright and license notices in accordance with the MIT License.
+The following third-party projects are referenced by that registry, and their
+required copyright and license notices are retained in accordance with the MIT License.
 
 ---
 
@@ -16,12 +16,10 @@ required copyright and license notices in accordance with the MIT License.
 - **Repository:** https://github.com/digital-go-jp/design-system-example-components-react
 - **License:** MIT License
 - **Copyright:** Copyright (c) 2025 デジタル庁
-- **Usage in this project:** This project references the upstream component
-  specifications, visual appearance, accessibility behavior, API, and
-  implementation structure, and reimplements them as shadcn/ui native,
-  source-distributed components. The upstream repository itself is included only
-  as a read-only Git submodule under `upstream/` and is never imported at
-  runtime.
+- **Usage:** The registry references the upstream component specifications,
+  visual appearance, accessibility behavior, API, and implementation structure,
+  and reimplements them as shadcn/ui native, source-distributed components. This
+  repository does not include the upstream repository or import it at runtime.
 
 ```
 MIT License

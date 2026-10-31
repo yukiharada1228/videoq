@@ -80,9 +80,9 @@ manifest being checked.
 ```sh
 SOURCE_SHA=REPLACE_WITH_REVIEWED_40_CHARACTER_COMMIT
 RUN_ID=REPLACE_WITH_SUCCESSFUL_RELEASE_RUN
-RUN_ATTEMPT=$(gh run view "$RUN_ID" --repo yukiharada1228/videoq --json attempt --jq .attempt)
+RUN_ATTEMPT=$(gh run view "$RUN_ID" --repo videoq-jp/videoq --json attempt --jq .attempt)
 mkdir -p /secure/videoq-release
-gh run download "$RUN_ID" --repo yukiharada1228/videoq \
+gh run download "$RUN_ID" --repo videoq-jp/videoq \
   --name "onprem-release-$SOURCE_SHA-attempt-$RUN_ATTEMPT" --dir /secure/videoq-release
 python3 .github/scripts/onprem-release.py verify "$SOURCE_SHA" \
   /secure/videoq-release/release.json /secure/videoq-release/verified-images.json \
@@ -117,7 +117,7 @@ helm test videoq -n videoq --timeout 2m
 For fully local AI, install the verified inference archive with
 `verified-inference.json` last, and the application with the matching local AI
 overlay before `verified-images.json`. See the
-[local inference guide](local-inference.md). Hosted OpenAI remains the application
+[local inference guide](local-inference.md). Hosted OpenRouter remains the application
 default; downloading the inference chart alone does not switch AI endpoints.
 
 The chart enforces digests but does not itself enforce signatures. The verifier

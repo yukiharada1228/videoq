@@ -11,7 +11,7 @@ VideoQ serves real page content in the first HTML, with one page per search inte
 
 | Path type | Examples | Response |
 |---|---|---|
-| Public | `/`, `/pricing`, legal pages, `/guides`, `/guides/:slug`, and each under `/en` | Prerendered body, indexable, in the sitemap |
+| Public | `/`, `/pricing`, `/try`, legal pages, `/guides`, `/guides/:slug`, and each under `/en` | Prerendered body, indexable, in the sitemap |
 | Application | `/videos`, `/login`, `/share/:token` | 200 with the empty shell and `noindex` |
 | Unknown | Anything else | 404 with the empty shell and `noindex` |
 
