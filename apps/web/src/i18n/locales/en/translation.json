@@ -397,6 +397,9 @@
       "clearFilters": "Clear conditions"
     },
     "upload": {
+      "languageLabel": "Audio language",
+      "languageAuto": "Detect automatically",
+      "languageHelp": "Select the language spoken in the video. Defaults to your display language.",
       "title": "Upload video",
       "description": "Upload and manage your video files.",
       "fileLabel": "File",
