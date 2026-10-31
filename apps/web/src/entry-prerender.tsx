@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { Readable } from 'node:stream';
 import { text } from 'node:stream/consumers';
 import type { ReactNode } from 'react';

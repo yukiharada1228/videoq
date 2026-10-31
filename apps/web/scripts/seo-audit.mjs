@@ -2,6 +2,7 @@
 // Worker with --base-url. It cannot measure Google indexing, rankings or field
 // Core Web Vitals, and it never changes production content.
 import { writeFile } from 'node:fs/promises';
+import { rootText } from './html-text.mjs';
 
 const args = process.argv.slice(2);
 const option = (name, fallback) => args.includes(name) ? args[args.indexOf(name) + 1] : fallback;
@@ -45,7 +46,6 @@ for (const url of urls) {
     const robots = `${meta.find(tag => tag.name === 'robots')?.content ?? ''} ${response.headers.get('x-robots-tag') ?? ''}`;
     const jsonld = [...html.matchAll(/<script\b[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi)];
     const anchors = tags(html, 'a').filter(tag => tag.href && !tag.href.startsWith('#')).map(tag => new URL(tag.href, url));
-    const root = html.slice(html.indexOf('<div id="root">'));
     const data = {
       url,
       status: response.status,
@@ -53,7 +53,7 @@ for (const url of urls) {
       description: descriptions[0]?.content,
       canonical: canonical[0]?.href,
       h1Count: h1s.length,
-      bodyTextLength: root.replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, '').replace(/<[^>]+>/g, '').trim().length,
+      bodyTextLength: rootText(html).trim().length,
       structuredData: jsonld.length,
       links: anchors.filter(link => link.origin === canonicalOrigin).map(link => link.pathname),
     };

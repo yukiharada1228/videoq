@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { readFile, stat } from 'node:fs/promises';
 import { unstable_dev } from 'wrangler';
+import { htmlText } from './html-text.mjs';
 
 let worker;
 before(async () => {
@@ -63,7 +64,7 @@ test('public pages carry their body and metadata in the first HTML', async () =>
     assert.match(html, new RegExp(`<html[^>]+lang="${lang}"`), path);
     assert.equal(html.match(/<title>(.*?)<\/title>/)[1].match(title) !== null, true, path);
     const [h1] = html.match(/<h1[\s\S]*?<\/h1>/) ?? [''];
-    assert.ok(h1.replace(/<[^>]+>/g, '').includes(heading), `${path}: ${h1}`);
+    assert.ok(htmlText(h1).includes(heading), `${path}: ${h1}`);
     assert.equal(html.match(/<h1[\s>]/g).length, 1, path);
     assert.doesNotMatch(html, /<noscript>/);
     assert.doesNotMatch(html, /<script(?![^>]*(type="application\/ld\+json"|type="module"[^>]*src=))/, path);
