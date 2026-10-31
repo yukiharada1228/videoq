@@ -5,7 +5,7 @@ description: How public pages reach crawlers, which search intents they serve, a
 
 # Search engine visibility
 
-VideoQ follows the same approach as Nuriee: real page content in the first HTML, one page per search intent, correct status codes, and a read-only daily check. Outcomes are measured by signups from search, not by rank alone.
+VideoQ serves real page content in the first HTML, with one page per search intent, correct status codes, and a read-only daily check. Measure Google organic acquisition with Search Console clicks and impressions. Signups are a separate product outcome; technical checks and rankings alone do not prove that search traffic increased.
 
 ## How public pages are served
 
@@ -21,7 +21,7 @@ The plan cards on `/pricing` and the Free plan limits on the landing page still 
 
 ## Search intents and pages
 
-Search volumes and current rankings have not been measured. This table is a hypothesis to test against Search Console, not a demand ranking.
+Search Console supplies observed queries and positions, but not the search volume for candidate queries with no impressions. This table is a hypothesis to test, not a demand ranking.
 
 | Candidate queries | Page | What the reader gets |
 |---|---|---|
@@ -29,7 +29,7 @@ Search volumes and current rankings have not been measured. This table is a hypo
 | 授業 録画 復習, 塾 授業動画 質問 | `/guides/class-recordings-for-review` | Dividing courses, sharing, using history |
 | 研修動画 質問, 社内研修 動画 AI 検索 | `/guides/training-video-questions` | Invitations, attribution, rollout decisions |
 | VideoQ 仕組み, 動画 AI 回答 引用 | `/guides/how-ai-answers-work` | Answer flow, limits, who reads questions |
-| VideoQ, 講義動画 AI 質問窓口 | `/` | Product overview and demo |
+| VideoQ, 動画講座 質問対応 自動化 | `/` | Product overview and demo |
 | VideoQ 料金 | `/pricing` | Plans and limits |
 
 ## Adding or editing a guide
@@ -53,6 +53,18 @@ The `Daily public SEO checks` workflow runs the audit against production and kee
 
 ## Measuring results
 
-Measure in Search Console for the `videoq.jp` domain property. After release, save the last 28 days of clicks, impressions, CTR and average position by query and page, then compare every four weeks. Confirm that key URLs are indexed with the expected canonical. A submitted sitemap does not mean a page is indexed.
+Measure in Search Console for the `sc-domain:videoq.jp` domain property. A private baseline for October 1–28, 2026 was captured before these changes. Keep raw exports outside the public repository: queries and page reports can contain information that is unsuitable for publication.
 
-Set numeric traffic targets only after that baseline exists. Daily automated content changes, as Nuriee uses them, are not set up here. They need Search Console credentials and a baseline to judge changes against.
+For each comparison:
+
+1. Record the deployed revision and publication date. Use `type=web` and finalized data, and record the reporting time zone (Search Console dates use Pacific Time).
+2. Compare complete, equal 28-day windows. The first post-release window starts on the first full Pacific calendar day after deployment. Wait for all days to become available before making a traffic claim; do not compare a partial current window with a complete baseline.
+3. Request property totals without dimensions (`dimensions: []`). Export daily, query, and page views separately. Query rows omit some anonymized queries; summing them is not the property total. Page aggregations also differ from property aggregations.
+4. Report Google clicks, impressions, CTR and position together, with the small sample size when relevant. Separate the product host from developer documentation, and classify visible queries as brand or non-brand without treating the unreported queries as zero.
+5. Attribute an increase cautiously: seasonality, brand searches and other releases can change traffic. Internal clicks from documentation to the product and demo completions are useful journey measures, but are not additional Google search clicks.
+
+Confirm key URLs with URL Inspection, including Google's chosen canonical and latest crawl. Register `videoq.jp/sitemap.xml` and both docs locale sitemaps, `docs.videoq.jp/sitemap.xml` and `docs.videoq.jp/ja/sitemap.xml`, under the domain property. A submitted sitemap does not mean a page is indexed. The docs site advertises both locale sitemaps in its own `robots.txt` and publishes only the approved content manifest.
+
+The old `/docs/videos` video REST API reference now redirects permanently to the current API guide on `docs.videoq.jp`, preserving Japanese or English and the query string. Unknown references and removed features continue to answer 404; never redirect every missing document to the homepage.
+
+Daily automated content changes are not configured. Prefer an evidence-based update to an existing useful page over creating pages for slight keyword variations.

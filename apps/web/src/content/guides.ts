@@ -33,6 +33,18 @@ export const GUIDE_BODIES: Record<string, Record<SiteLocale, GuideBody>> = {
           ],
         },
         {
+          heading: 'サンプル講座で、質問から復習までを確かめる',
+          paragraphs: [
+            '登録なしで試せるサンプル講座には、微分などを扱う短い講義が入っています。たとえば「x²を微分するとどうなりますか？」と質問すると、講義で説明している「2x」という答えと、その説明に使った動画の場面を確認できます。これはサンプルの内容に基づく例で、回答の文章や引用される範囲は質問ごとに変わります。',
+            '答えだけを読むのではなく、引用を開いて講義を再生し、質問への説明が実際に含まれているかを確認してください。この流れを先に体験すると、自分の講座でもどんな質問を試すべきか判断しやすくなります。ページ下部の「登録なしで質問してみる」から開けます。サンプルにも利用上限があります。',
+          ],
+          steps: [
+            '講義内で説明している内容を質問し、回答と引用先の説明が一致するかを確認します。',
+            '回答の根拠となった場面を再生し、受講生が続きの説明を見直せるかを確かめます。',
+            '自分の講座では、講義で扱っていない質問も試し、根拠が不十分な回答を受講生に案内してしまわないかを確認します。',
+          ],
+        },
+        {
           heading: '公開までの手順',
           paragraphs: ['まずは1本の講義で動作を確かめてから、残りの動画を追加すると判断しやすくなります。'],
           steps: [
@@ -78,6 +90,18 @@ export const GUIDE_BODIES: Record<string, Record<SiteLocale, GuideBody>> = {
           paragraphs: [
             'A general AI chat does not assume what you taught. A student using one may get terminology or an order of explanation that differs from your course.',
             'VideoQ looks through the transcripts of the videos in your course for scenes related to the question, then answers from them. Students get an answer that follows your explanation, along with the cited moment they can use to check it.',
+          ],
+        },
+        {
+          heading: 'Try the path from a question back to a lecture',
+          paragraphs: [
+            'The sample course, available without signing up, includes short lectures on topics such as differentiation. For example, ask “What is the derivative of x²?” and check the lecture’s explanation that the answer is 2x, together with the cited video moment. This example comes from the sample material; the wording and cited range can vary between questions.',
+            'Open the citation and play the lecture to check that it supports the answer. Trying this first helps you choose questions to test with your own course. Use “Ask without signing up” below to open the sample. Usage limits apply to the sample too.',
+          ],
+          steps: [
+            'Ask something the lecture explains, then compare the answer with the cited explanation.',
+            'Play the source moment and check that a student can continue watching the explanation.',
+            'In your own course, also test questions the lectures do not cover, and check whether an answer lacks enough evidence before sharing it with students.',
           ],
         },
         {
