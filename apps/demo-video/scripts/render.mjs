@@ -4,6 +4,7 @@ import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
+import { webpackOverride } from '../webpack-override.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const output=fileURLToPath(new URL('../../web/public/demo/',import.meta.url));
 const review=fileURLToPath(new URL('../review/',import.meta.url));
@@ -14,11 +15,12 @@ const film=values.film??'student';
 if(!['student','provider'].includes(film)) throw new Error('Film must be student or provider.');
 if(film==='student'&&locales.includes('en')) execFileSync('python3',[root+'scripts/build-x-ad-english-slide.py'],{stdio:'inherit'});
 await mkdir(output,{recursive:true}); await mkdir(review,{recursive:true});
-const serveUrl=await bundle({entryPoint:root+'src/index.tsx',publicDir:root+'public'});
+if(film==='provider') execFileSync('node',[root+'scripts/prepare-product.mjs'],{stdio:'inherit'});
+const serveUrl=await bundle({entryPoint:root+'src/index.tsx',publicDir:root+'public',webpackOverride});
 const timeline=JSON.parse(await readFile(root+`content/${film==='provider'?'provider-timeline':'timeline'}.json`,'utf8'));
 // Use Remotion's pinned Headless Shell and lossless frames. The installed desktop
 // Chrome produced intermittent tiled screenshots even on otherwise static frames.
-const browserOptions={chromeMode:'headless-shell',browserExecutable:process.env.REMOTION_BROWSER_EXECUTABLE,chromiumOptions:{gl:'angle'}};
+const browserOptions={chromeMode:'headless-shell',browserExecutable:process.env.REMOTION_BROWSER_EXECUTABLE,chromiumOptions:{gl:'angle'},timeoutInMilliseconds:120000};
 const studentCaptions={
  ja:['5教科を、ひとつの講座に。','今日わからなかった授業を、開く。','疑問は、自分の言葉のままで。','講義をもとに、AIが回答。','答えのそばに、根拠の時間。','クリックして、元の説明へ。','見て、聞いて、確かめる。自分のペースで。','講義動画が、あなたの復習パートナーに。無料で使ってみる。'],
  en:['Five subjects. One course.','Open the lecture you want to revisit.','Ask your question in your own words.','An answer grounded in your lecture.','A source timestamp beside the answer.','Click to revisit the explanation.','Read. Rewatch. Understand at your own pace.','Your lecture. Your study partner. Get started for free.'],
