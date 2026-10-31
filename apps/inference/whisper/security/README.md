@@ -14,7 +14,7 @@ other packages, unknown CVEs, or another distribution/architecture. A new packag
 review. A changed package inventory also fails the image build instead of
 silently accepting executable code under the assessment.
 
-The image separately updates its Ubuntu packages, certifi, msgpack and urllib3,
+The image separately updates its Ubuntu packages, certifi, msgpack, pyasn1 and urllib3,
 and removes pip/uv after installing audio support. Removing pip also removes
 its vulnerable vendored copies; changing only the top-level dependencies would
 leave those copies in the image. Runtime package records are preserved.
