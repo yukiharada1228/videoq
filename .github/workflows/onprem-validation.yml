@@ -361,9 +361,8 @@ jobs:
           if-no-files-found: error
 
   upstream-cpu-images:
-    if: ${{ !inputs.gpu_candidates_only }}
     name: ${{ matrix.engine }} Linux ${{ matrix.architecture }} upstream image
-    if: inputs.scan_upstream_images
+    if: ${{ !inputs.gpu_candidates_only && inputs.scan_upstream_images }}
     strategy:
       fail-fast: false
       matrix:
