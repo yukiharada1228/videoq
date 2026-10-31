@@ -64,7 +64,8 @@ export default function GuidePage() {
         <Heading size="20" className="mb-2"><HeadingTitle level="h2">{t('guides.ctaTitle')}</HeadingTitle></Heading>
         <p className="mb-4 text-std-16N-170 text-solid-gray-700">{t('guides.ctaBody')}</p>
         <div className="flex flex-wrap items-center gap-4">
-          <Button asChild><Link href="/signup">{t('guides.cta')}</Link></Button>
+          <Button asChild><Link href="/try">{t('guides.tryDemo')}</Link></Button>
+          <Button variant="outline" asChild><Link href="/signup">{t('guides.cta')}</Link></Button>
           <UtilityLink asChild><Link href="/pricing">{t('guides.pricing')}</Link></UtilityLink>
         </div>
       </aside>

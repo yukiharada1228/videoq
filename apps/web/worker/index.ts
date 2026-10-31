@@ -59,13 +59,20 @@ async function serve(request: Request, env: WebEnv): Promise<Response> {
     return new Response('Not Found', { status: 404 });
   }
 
+  const { locale, path } = splitLocale(pathname);
+  // This was the public video REST API reference before the tRPC migration.
+  // Its successor is developer documentation, not the marketing homepage.
+  if (path.replace(/\/+$/, '') === '/docs/videos' && (request.method === 'GET' || request.method === 'HEAD')) {
+    const target = new URL(locale === 'ja' ? '/ja/guides/api/' : '/guides/api/', 'https://docs.videoq.jp');
+    target.search = url.search;
+    return Response.redirect(target.href, 301);
+  }
+
   // One URL per page, so crawlers never split signals across slash variants.
   if (pathname === '/en' || (pathname.length > 1 && pathname !== '/en/' && pathname.endsWith('/'))) {
     url.pathname = pathname === '/en' ? '/en/' : `/${pathname.replace(/^\/+|\/+$/g, '')}`;
     return Response.redirect(url.href, 301);
   }
-
-  const { locale, path } = splitLocale(pathname);
   const shell = () => env.ASSETS.fetch(new URL('/app-shell', url));
   // HTMLRewriter cannot transform the bodyless response to HEAD. Render as GET;
   // the response wrapper below drops the body again.

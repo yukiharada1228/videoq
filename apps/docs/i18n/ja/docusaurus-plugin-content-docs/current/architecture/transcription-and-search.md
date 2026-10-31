@@ -7,6 +7,8 @@ description: 音声・字幕から時刻付きの場面と埋め込みを作り�
 
 質問の前に用意するデータと、質問後に実行する検索を順番に追います。具体的な質問の例から知りたい場合は、[AIが回答を作るまで](../concepts/how-ai-works.md)から読んでください。
 
+受講生にどう見えるかは、[サンプル講座への質問](https://videoq.jp/try)で確かめられます。[AI回答の仕組みと確認方法](https://videoq.jp/guides/how-ai-answers-work)では、実装の詳細を使わずに、回答と引用先を確認する流れを説明しています。
+
 ## 1. 時刻付きの文章を取得する
 
 Whisperのモデル系列の出典は [Radford et al.（ICML 2023）](../reference/ai-references.md#whisper)です。実験の説明では、選択したAPIモデルまたはローカルのチェックポイントも記録します。

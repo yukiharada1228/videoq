@@ -1,6 +1,6 @@
 {
   "site": {
-    "title": "Let your lectures answer student questions | VideoQ",
+    "title": "Answer online course questions from your lecture videos | VideoQ",
     "description": "For course creators and instructors. Upload your lecture videos and student questions get answered automatically, right from your lectures. Every answer links to the source moment, and students just open a link to ask. Try it free with one lecture."
   },
   "common": {
@@ -1346,8 +1346,9 @@
     "toc": "On this page",
     "related": "Related guides",
     "readMore": "Read more",
-    "ctaTitle": "Try it with your own lecture",
-    "ctaBody": "Try transcription and AI questions within the Free plan's limits. No credit card is required.",
+    "ctaTitle": "Check an answer and its source moment",
+    "ctaBody": "Start with the sample course without signing up. For your own lectures, try transcription and AI questions within the Free plan's limits. No credit card is required.",
+    "tryDemo": "Ask without signing up",
     "cta": "Create a course for free",
     "pricing": "Check pricing and limits",
     "author": "VideoQ team"

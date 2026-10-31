@@ -51,8 +51,8 @@ test('rewrites Japanese and English deep links before the SPA starts', async () 
 
 test('public pages carry their body and metadata in the first HTML', async () => {
   for (const [path, lang, heading, title] of [
-    ['/', 'ja', '受講生の質問に', /受講生の質問に/],
-    ['/en/', 'en', 'Student questions', /Let your lectures/],
+    ['/', 'ja', '受講生の質問に', /動画講座の質問対応/],
+    ['/en/', 'en', 'Student questions', /Answer online course questions/],
     ['/pricing', 'ja', '料金', /料金プラン/],
     ['/guides', 'ja', '動画講座の質問対応ガイド', /動画講座の質問対応ガイド/],
     ['/guides/online-course-questions', 'ja', '動画講座の質問対応をAIで軽くする方法', /動画講座の質問対応をAIで軽くする方法/],
@@ -116,6 +116,26 @@ test('generated sitemap lists only pages that answer 200', async () => {
   const urls = [...(await response.text()).matchAll(/<loc>(.*?)<\/loc>/g)].map(match => new URL(match[1]).pathname);
   assert.ok(urls.includes('/guides/online-course-questions'));
   for (const path of urls) assert.equal((await worker.fetch(path)).status, 200, path);
+});
+
+test('old video API documentation redirects to its localized successor', async () => {
+  for (const [path, expected] of [
+    ['/docs/videos?source=search', 'https://docs.videoq.jp/ja/guides/api/?source=search'],
+    ['/docs/videos/', 'https://docs.videoq.jp/ja/guides/api/'],
+    ['/en/docs/videos/', 'https://docs.videoq.jp/guides/api/'],
+    ['/en/docs/videos?next=https://example.com', 'https://docs.videoq.jp/guides/api/?next=https://example.com'],
+  ]) {
+    for (const method of ['GET', 'HEAD']) {
+      const response = await worker.fetch(path, { method, redirect: 'manual' });
+      assert.equal(response.status, 301);
+      securityHeaders(response);
+      assert.equal(response.headers.get('location'), expected);
+    }
+  }
+  // Removed features and unknown API references must keep real 404 responses.
+  for (const path of ['/docs/plog', '/en/docs/plog', '/docs/unknown', '/docs/videos/123']) {
+    assert.equal((await worker.fetch(path, { redirect: 'manual' })).status, 404, path);
+  }
 });
 
 test('private SPA routes keep noindex metadata', async () => {

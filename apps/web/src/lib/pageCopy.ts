@@ -3,11 +3,11 @@ import { normalizePathname, type SiteLocale } from './seo';
 
 export const DEFAULT_COPY: Record<SiteLocale, { title: string; description: string }> = {
   "ja": {
-    "title": "受講生の質問に、あなたの講義が答える | VideoQ",
+    "title": "動画講座の質問対応を自動化 | VideoQ",
     "description": "動画講座の運営者・講師の方へ。講義動画をアップするだけで、受講生の質問に動画の内容から自動で回答します。回答には講義の該当場面が付き、受講生はリンクを開くだけで質問できます。講義1本から無料で試せます。"
   },
   "en": {
-    "title": "Let your lectures answer student questions | VideoQ",
+    "title": "Answer online course questions from your lecture videos | VideoQ",
     "description": "For course creators and instructors. Upload your lecture videos and student questions get answered automatically, right from your lectures. Every answer links to the source moment, and students just open a link to ask. Try it free with one lecture."
   }
 };

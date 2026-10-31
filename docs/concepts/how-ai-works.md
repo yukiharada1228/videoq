@@ -7,6 +7,8 @@ description: Follow a question from video preparation through scene search, an A
 
 VideoQ prepares text from videos, retrieves material relevant to a question, and asks a language model to write an answer using that material. This is **RAG** (retrieval-augmented generation; [Lewis et al., 2020](../reference/ai-references.md#rag)). The steps below describe the current implementation; they are not a claim that every answer is correct. [AI methods and references](../reference/ai-references.md) connects each method to its original paper or official model documentation and explains VideoQ's adaptations.
 
+To see answers and citations in the student interface, [try the sample course without signing up](https://videoq.jp/en/try). For the instructor workflow, see [how to answer online course questions from your lectures](https://videoq.jp/en/guides/online-course-questions).
+
 ## Current behavior at a glance
 
 Checked against the implementation on **2026-10-01**.

@@ -7,6 +7,8 @@ description: How audio or subtitles become timestamped scenes, embeddings, and e
 
 This page follows the data prepared before Q&A and the search performed after a question arrives. Start with [How AI builds an answer](../concepts/how-ai-works.md) for a worked example.
 
+For a walkthrough of the result students see, [try a question in the sample course](https://videoq.jp/en/try). The [AI answers guide](https://videoq.jp/en/guides/how-ai-answers-work) explains how to check an answer against its source moment without the implementation details below.
+
 ## 1. Obtain timestamped text
 
 Whisper's model-family reference is [Radford et al. (ICML 2023)](../reference/ai-references.md#whisper). Record the selected API model or local checkpoint when describing an experiment.
