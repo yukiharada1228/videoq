@@ -539,6 +539,8 @@ jobs:
           npm run cf-typegen --workspace @videoq/web
           git diff --exit-code -- apps/web/worker/env.d.ts
       - name: Test frontend Worker and static assets
+        env:
+          VERIFY_PRERENDER_HYDRATION: "true"
         run: npm run test:worker --workspace @videoq/web
       - name: Verify upload-only web deployment
         run: bash .github/scripts/verify-prebuilt-deployment.sh web

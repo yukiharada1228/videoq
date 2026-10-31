@@ -4,9 +4,11 @@ import { useNavigate, useLocation, useParams, Link as RouterLink, type LinkProps
 import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect } from 'react';
 import { locales, defaultLocale, type Locale } from '@/i18n/config';
+import { NOT_FOUND_COPY, resolveFirstByteCopy } from '@/lib/pageCopy';
 import {
   absoluteUrl,
   hreflangEntries,
+  isKnownPath,
   isNoindexPath,
   pageMetaKey,
   type SiteLocale,
@@ -169,10 +171,13 @@ function applyDocumentMeta(
   }
   document.documentElement.lang = locale;
   const t = i18n.getFixedT(locale);
-  const { title, description } = resolvePageCopy(pathname, t);
+  const known = isKnownPath(pathname);
+  const { title, description } = !known ? NOT_FOUND_COPY[locale]
+    : pathname === '/guides' || pathname.startsWith('/guides/') ? resolveFirstByteCopy(locale, pathname)
+      : resolvePageCopy(pathname, t);
   const ogLocale = OG_LOCALE_MAP[locale];
   const canonical = absoluteUrl(pathname, locale as SiteLocale);
-  const robots = isNoindexPath(pathname) ? 'noindex, nofollow' : 'index, follow';
+  const robots = !known || isNoindexPath(pathname) ? 'noindex, nofollow' : 'index, follow';
 
   document.title = title;
   setMeta('meta[name="description"]', 'content', description);
