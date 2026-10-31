@@ -1,4 +1,4 @@
-// Only a complete persisted stream is proof of production streaming readiness.
+// Require complete streams; course answers must also confirm persistence.
 // Callers supply the reviewed SSE parser; provider content is never logged.
 async function verifyStream(response, createParser, videoId) {
   if (!response.ok || !response.headers.get('content-type')?.startsWith('text/event-stream') || !response.body) {
@@ -16,7 +16,9 @@ async function verifyStream(response, createParser, videoId) {
     }
     if (event.type === 'citation' && texts.get(event.segmentIndex)?.trim() && sources.has(event.sourceId)) cited = true;
     if (event.type === 'done') {
-      if (!Number.isSafeInteger(event.chat_log_id) || event.chat_log_id <= 0) throw new Error('Streaming answer was not persisted');
+      if (videoId === undefined ? event.chat_log_id !== null : !Number.isSafeInteger(event.chat_log_id) || event.chat_log_id <= 0) {
+        throw new Error('Unexpected streaming answer persistence');
+      }
       done = true; chatLogId = event.chat_log_id;
     }
   }});

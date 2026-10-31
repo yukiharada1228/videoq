@@ -17,7 +17,7 @@ function response(events) {
 }
 test('stream proof requires text, own-video transcript citations and persisted completion', async () => {
   assert.equal(await verifyStream(response([source, text, citation, done]), createParser, 42), 9);
-  assert.equal(await verifyStream(response([text, done]), createParser), 9);
+  assert.equal(await verifyStream(response([text, {...done,chat_log_id:null}]), createParser), null);
 });
 test('partial, failed, unpersisted or unrelated answers cannot pass', async () => {
   for (const events of [[source,text,citation], [done], [text,{type:'error',message:'PRIVATE'}],

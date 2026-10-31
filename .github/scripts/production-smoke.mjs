@@ -132,8 +132,10 @@ try {
         signal: AbortSignal.timeout(180_000),
       });
       const chatLogId = await verifyStream(response, createParser, scoped ? Number(video.id) : undefined);
-      const stored = await db.query('SELECT id FROM chat_logs WHERE id = $1 AND user_id = $2', [chatLogId, id]);
-      if (stored.rows.length !== 1) throw new Error('Streamed answer persistence not confirmed');
+      if (scoped) {
+        const stored = await db.query('SELECT id FROM chat_logs WHERE id = $1 AND user_id = $2', [chatLogId, id]);
+        if (stored.rows.length !== 1) throw new Error('Streamed answer persistence not confirmed');
+      }
     }
   }
   progress('browser');
