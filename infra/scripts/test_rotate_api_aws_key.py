@@ -2,10 +2,10 @@ import contextlib
 import io
 import json
 from pathlib import Path
-from types import SimpleNamespace
+from urllib.error import HTTPError
 import unittest
 from unittest.mock import MagicMock, patch
-from rotate_api_aws_key import rotate, verify_smoke, require_permissions, patch_worker, USER_ARN, API_POLICY, JOURNAL, RotationGuardError
+from rotate_api_aws_key import rotate, verify_smoke, require_permissions, patch_worker, smoke_log, USER_ARN, API_POLICY, JOURNAL, RotationGuardError
 
 ROOT = Path(__file__).resolve().parents[2]
 OLD = 'AKIA'+'O'*16
@@ -139,13 +139,32 @@ class RotationTests(unittest.TestCase):
         run = {'path': '.github/workflows/operations.yml', 'event': 'workflow_dispatch', 'status': 'completed', 'conclusion': 'success', 'created_at': '2026-10-31T04:00:00Z'}
         jobs = {'jobs': [{'id': 999, 'name': 'production-smoke', 'conclusion': 'success'}]}
         logs = b'PRIVATE_LOG VERIFY_AI_ANSWERS: true Production smoke stage: cited-question-answer Production smoke checks: ok Production smoke cleanup: complete'
-        with patch('rotate_api_aws_key.api_json', side_effect=[run, jobs]), patch('rotate_api_aws_key.subprocess.run', return_value=SimpleNamespace(returncode=0, stdout=logs)), contextlib.redirect_stdout(io.StringIO()) as output:
+        with patch('rotate_api_aws_key.api_json', side_effect=[run, jobs]), patch('rotate_api_aws_key.smoke_log', return_value=logs.decode()), contextlib.redirect_stdout(io.StringIO()) as output:
             verify_smoke('123', '2026-10-31T03:00:00Z', 'PRIVATE_TOKEN')
         self.assertEqual(output.getvalue(), '')
         with patch('rotate_api_aws_key.api_json', return_value=run), self.assertRaises(RotationGuardError):
             verify_smoke('123', '2026-10-31T05:00:00Z', 'PRIVATE_TOKEN')
-        with patch('rotate_api_aws_key.api_json', side_effect=[run, jobs]), patch('rotate_api_aws_key.subprocess.run', return_value=SimpleNamespace(returncode=0, stdout=b'Production smoke checks: ok')), self.assertRaises(RotationGuardError):
+        with patch('rotate_api_aws_key.api_json', side_effect=[run, jobs]), patch('rotate_api_aws_key.smoke_log', return_value='Production smoke checks: ok'), self.assertRaises(RotationGuardError):
             verify_smoke('123', '2026-10-31T03:00:00Z', 'PRIVATE_TOKEN')
+
+    def test_log_download_does_not_forward_token_or_follow_further_redirects(self):
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = b'proof'
+        opener = MagicMock()
+        opener.open.side_effect = [HTTPError('https://api.github.com/logs', 302, '',
+            {'Location': 'https://storage.example/log?signature=PRIVATE'}, None), response]
+        with patch('rotate_api_aws_key.build_opener', return_value=opener):
+            self.assertEqual(smoke_log(999, 'PRIVATE_TOKEN'), 'proof')
+        first, second = [call.args[0] for call in opener.open.call_args_list]
+        self.assertEqual(first.get_header('Authorization'), 'Bearer PRIVATE_TOKEN')
+        self.assertFalse(second.has_header('Authorization'))
+        for status in (403, 404):
+            opener.open.side_effect = HTTPError('https://api.github.com/logs', status, 'PRIVATE_BODY', {}, None)
+            with patch('rotate_api_aws_key.build_opener', return_value=opener), self.assertRaisesRegex(RotationGuardError, 'SMOKE_LOG_API_HTTP_'+str(status)):
+                smoke_log(999, 'PRIVATE_TOKEN')
+        opener.open.side_effect = HTTPError('https://api.github.com/logs', 302, '', {'Location': 'http://storage.example/log'}, None)
+        with patch('rotate_api_aws_key.build_opener', return_value=opener), self.assertRaisesRegex(RotationGuardError, 'UNSAFE_SMOKE_LOG_DOWNLOAD_URL'):
+            smoke_log(999, 'PRIVATE_TOKEN')
 
     def test_worker_keys_are_patched_in_one_request_without_touching_other_secrets(self):
         response = MagicMock()

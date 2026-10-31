@@ -3,10 +3,11 @@ import datetime
 import json
 import os
 import re
-import subprocess
 import sys
 import time
 from contextlib import closing
+from urllib.error import HTTPError
+from urllib.parse import urlsplit
 from urllib.request import Request, build_opener
 from audit_ai_credentials import NoRedirect, api_json, error_summary
 from retire_ai_credentials import API_POLICY, verify_router
@@ -123,6 +124,28 @@ def patch_worker(url, token, data):
         raise RotationGuardError('WORKER_SECRET_UPDATE_NOT_CONFIRMED')
 
 
+def smoke_log(job_id, token):
+    # Obtain GitHub's signed download URL without forwarding the token to storage.
+    request = Request('https://api.github.com/repos/'+REPO+'/actions/jobs/'+str(job_id)+'/logs',
+                      headers={'Authorization': 'Bearer '+token, 'Accept': 'application/vnd.github+json'})
+    opener = build_opener(NoRedirect)
+    try:
+        with opener.open(request, timeout=30) as response:
+            return response.read().decode('utf-8', errors='replace')
+    except HTTPError as error:
+        if error.code != 302:
+            raise RotationGuardError('SMOKE_LOG_API_HTTP_'+str(error.code)) from None
+        location = error.headers.get('Location', '')
+    target = urlsplit(location)
+    if target.scheme != 'https' or not target.hostname or target.username or target.password:
+        raise RotationGuardError('UNSAFE_SMOKE_LOG_DOWNLOAD_URL')
+    try:
+        with opener.open(Request(location), timeout=30) as response:
+            return response.read().decode('utf-8', errors='replace')
+    except HTTPError as error:
+        raise RotationGuardError('SMOKE_LOG_DOWNLOAD_HTTP_'+str(error.code)) from None
+
+
 def verify_smoke(run_id, since, token):
     if not re.fullmatch(r'[0-9]{1,20}', run_id or ''):
         raise RotationGuardError('EXPLICIT_SMOKE_RUN_REQUIRED')
@@ -134,10 +157,7 @@ def verify_smoke(run_id, since, token):
     matches = [job for job in jobs if job['name'] == 'production-smoke' and job['conclusion'] == 'success']
     if len(matches) != 1:
         raise RotationGuardError('SUCCESSFUL_PRODUCTION_SMOKE_JOB_REQUIRED')
-    process = subprocess.run(['gh', 'api', 'repos/'+REPO+'/actions/jobs/'+str(matches[0]['id'])+'/logs'], capture_output=True, env={**os.environ, 'GH_TOKEN': token})
-    if process.returncode:
-        raise RotationGuardError('SMOKE_LOG_VERIFICATION_UNAVAILABLE')
-    output = process.stdout.decode('utf-8', errors='replace')
+    output = smoke_log(matches[0]['id'], token)
     required = ('VERIFY_AI_ANSWERS: true', 'Production smoke stage: cited-question-answer', 'Production smoke checks: ok', 'Production smoke cleanup: complete')
     if not all(marker in output for marker in required):
         raise RotationGuardError('CITED_QA_AND_COMPLETE_CLEANUP_MUST_BE_VERIFIED')
