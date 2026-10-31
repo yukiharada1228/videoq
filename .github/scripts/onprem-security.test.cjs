@@ -165,7 +165,7 @@ test('the on-prem component honors explicit GPU input while Operations preserves
 test('CI scans pinned upstream images only when their pins change, while Operations always does', () => {
   assert.match(onprem, /scan_upstream_images:\n\s+type: boolean\n\s+default: true/);
   const cpu = onprem.slice(onprem.indexOf('  upstream-cpu-images:'));
-  assert.match(cpu, /^    if: inputs\.scan_upstream_images$/m);
+  assert.match(cpu, /^    if: \$\{\{ !inputs\.gpu_candidates_only && inputs\.scan_upstream_images \}\}$/m);
   const llamacpp = onprem.split(/(?=      - name:)/).find(step => step.includes('image-ref: ${{ env.LLAMACPP_IMAGE }}'));
   assert.match(llamacpp, /&& inputs\.scan_upstream_images \}\}/);
   // The inventory still records the pinned image, so it keeps resolving it.
