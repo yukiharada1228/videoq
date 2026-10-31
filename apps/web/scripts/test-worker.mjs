@@ -252,3 +252,34 @@ test('local development is marked noindex and has no production API access', asy
     await preview.stop();
   }
 });
+
+// Requires a browser only when explicitly enabled by the frontend build job.
+// Exercise the emitted assets: DOM-only unit tests cannot catch orphaned SSR nodes.
+test('saved language redirects hydrate one complete pricing page', {
+  skip: process.env.VERIFY_PRERENDER_HYDRATION !== 'true',
+}, async () => {
+  const { chromium } = await import('playwright');
+  const browser = await chromium.launch({ channel: process.env.CI ? 'chrome' : undefined });
+  try {
+    const page = await browser.newPage();
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.name));
+    page.on('console', message => {
+      if (message.type() === 'error' && /hydration|Minified React error/i.test(message.text())) errors.push('hydration');
+    });
+    await page.route('**/api/**', route => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (request.method() !== 'GET') return route.fulfill({ status: 204 });
+      const body = url.pathname.includes('/auth/') ? 'null'
+        : JSON.stringify(url.pathname.split('/trpc/').at(-1).split(',').map(() => ({ result: { data: [] } })));
+      return route.fulfill({ status: 200, contentType: 'application/json', body });
+    });
+    await page.addInitScript(() => localStorage.setItem('videoq.locale', 'en'));
+    await page.goto(`http://${worker.address}:${worker.port}/pricing`, { waitUntil: 'networkidle' });
+    await page.waitForURL('**/en/pricing');
+    await page.waitForFunction(() => document.querySelectorAll('h1').length === 1 && document.querySelector('h1').textContent === 'Pricing');
+    assert.equal(await page.locator('h1').count(), 1);
+    assert.deepEqual(errors, []);
+  } finally { await browser.close(); }
+});

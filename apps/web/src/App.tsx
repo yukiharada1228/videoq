@@ -1,5 +1,5 @@
 import { isOnprem } from "@/lib/deployment";
-import { lazy } from 'react';
+import { lazy, useEffect, useState } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { addLocalePrefix, getSavedLocale, useLocaleSync } from '@/lib/i18n';
 import { defaultLocale, locales, type Locale } from '@/i18n/config';
@@ -35,6 +35,9 @@ function LocaleGate() {
   const params = useParams<{ locale?: string }>();
   const location = useLocation();
   const locale = params.locale;
+  // The first browser render must match prerendered HTML before preference redirects.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   // Must be called unconditionally (rules-of-hooks)
   useLocaleSync();
@@ -56,7 +59,7 @@ function LocaleGate() {
 
   // Returning visitors who explicitly chose English. Never use Accept-Language
   // here — Googlebot would be sent to /en/ and index English as the homepage.
-  if (!locale) {
+  if (!locale && mounted) {
     const saved = getSavedLocale();
     if (saved && saved !== defaultLocale) {
       const nextPath = withQueryAndHash(
