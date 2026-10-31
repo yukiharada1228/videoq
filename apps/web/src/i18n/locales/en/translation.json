@@ -613,7 +613,7 @@
   "courseSharing": {
     "link": "Anyone with the link can view and chat without signing in.",
     "invitation": "Invited members can view and chat, but cannot edit. The owner can see each questioner’s username and email.",
-    "quotaAndHistory": "AI answers use the owner’s allowance. The owner can read and export questions and answers."
+    "quotaAndHistory": "Answers use the owner’s allowance. The owner can read and export questions and answers."
   },
   "courseInvitation": {
     "badge": "Course invitation",
@@ -804,7 +804,7 @@
       }
     },
     "title": "Chat",
-    "teacher": "Teacher",
+    "answerLabel": "Automatic answer",
     "newConsultation": "New chat",
     "history": "Conversation history",
     "historyEmpty": "No history available",
