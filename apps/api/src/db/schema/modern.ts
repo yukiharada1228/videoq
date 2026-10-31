@@ -780,6 +780,24 @@ export const sceneEmbeddings = pgTable(
 	],
 );
 
+// Keep the hosted index intact during the explicit local-model cutover.
+// Different model spaces are never searched together, even for the same video.
+export const sceneEmbeddings768 = pgTable(
+	"scene_embeddings_768",
+	{
+		langchainId: uuid("langchain_id").primaryKey().notNull(),
+		content: text().notNull(),
+		embedding: vector({ dimensions: 768 }).notNull(),
+		userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+		videoId: bigint("video_id", { mode: "number" }).notNull().references(() => videos.id, { onDelete: "cascade" }),
+		langchainMetadata: json("langchain_metadata"),
+	},
+	(table) => [
+		index("scene_embeddings_768_user_id_idx").on(table.userId),
+		index("scene_embeddings_768_video_id_idx").on(table.videoId),
+	],
+);
+
 export const stripeEvents = pgTable("stripe_events", {
 	id: text("id").primaryKey(),
 	type: text("type").notNull(),

@@ -109,6 +109,23 @@ withHelm("private local inference deployment", () => {
       expect(command("--set", setting).status).not.toBe(0);
     }
   });
+  it("serves gpt-oss on one GPU and text-only EmbeddingGemma 2 on CPU with independent caches", () => {
+    const resources = render("-f", `${chart}/examples/gpt-oss-embeddinggemma.yaml`);
+    const chat = resources.find(r => r.kind === "Deployment" && r.metadata.name.endsWith("-chat"));
+    const embedding = resources.find(r => r.kind === "Deployment" && r.metadata.name.endsWith("-embedding"));
+    const server = chat.spec.template.spec.containers[0];
+    expect(server.args).toContain("openai");
+    expect(server.args).toContain("--reasoning-parser");
+    expect(server.args[server.args.indexOf("--reasoning-parser") + 1]).toBe("openai_gptoss");
+    expect(server.args).not.toContain("--default-chat-template-kwargs");
+    expect(server.resources.limits["nvidia.com/gpu"]).toBe(1);
+    const embed = embedding.spec.template.spec.containers[0];
+    expect(embed.command).toEqual(["python", "-m", "uvicorn", "embedding_server:app"]);
+    expect(embed.env).toContainEqual({ name: "EMBEDDING_MODEL_ALIAS", value: "embeddinggemma-2-f9972ac" });
+    expect(embed.env).toContainEqual({ name: "EMBEDDING_MODEL_PATH", value: "/models/f9972ac22e696a105c482202646979e33e4b5a1e" });
+    expect(embed.resources.limits["nvidia.com/gpu"]).toBeUndefined();
+    expect(embed.volumeMounts[0].readOnly).toBe(true);
+  });
   it("keeps the inference engine on loopback and requires a GPU for the NVIDIA profile", () => {
     const whisper = render().find(r => r.kind === "Deployment" && r.metadata.name.endsWith("-whisper"));
     const engine = whisper.spec.template.spec.containers[1];

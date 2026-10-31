@@ -31,10 +31,21 @@ const MAX_RETRIES = 0;
 class AnswerChatModel extends ChatOpenAICompletions {
   costLedger?: AnswerCostLedger;
   separateToolSchema = false;
+  preserveToolReasoning = false;
+  // Scoped to this answer's model instance. LangChain's Chat Completions
+  // converter drops provider reasoning fields when replaying tool messages.
+  private readonly toolReasoning = new Map<string, Record<string, string>>();
   override completionWithRetry(request: OpenAI.Chat.ChatCompletionCreateParamsStreaming, options?: OpenAI.RequestOptions): Promise<AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>>;
   override completionWithRetry(request: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming, options?: OpenAI.RequestOptions): Promise<OpenAI.Chat.Completions.ChatCompletion>;
   override completionWithRetry(request: OpenAI.Chat.ChatCompletionCreateParams, options?: OpenAI.RequestOptions): Promise<OpenAI.Chat.Completions.ChatCompletion | AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>>;
   override async completionWithRetry(request: OpenAI.Chat.ChatCompletionCreateParams, options?: OpenAI.RequestOptions): Promise<OpenAI.Chat.Completions.ChatCompletion | AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>> {
+    if (this.preserveToolReasoning) {
+      request = { ...request, messages: request.messages.map(message => {
+        if (message.role !== "assistant" || !message.tool_calls?.length) return message;
+        const id = message.tool_calls[0].id;
+        return { ...message, ...this.toolReasoning.get(id) };
+      }) };
+    }
     if (this.separateToolSchema && request.tools?.length && request.response_format?.type === "json_schema") {
       // Some compatible servers apply the final-answer grammar to tool calls
       // too, preventing retrieval. Decide tools without that grammar, then
@@ -77,8 +88,13 @@ class AnswerChatModel extends ChatOpenAICompletions {
         this.client.chat.completions.create(trackedRequest, { ...clientOptions, maxRetries: MAX_RETRIES }));
       if (request.stream) {
         const chunks = response as AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>;
+        const remember = (ids: string[], reasoning: Record<string, string>) => {
+          if (this.preserveToolReasoning) for (const id of ids) this.toolReasoning.set(id, { ...reasoning });
+        };
         return (async function* () {
           let usage: unknown;
+          const ids: string[] = [];
+          const reasoning: Record<string, string> = {};
           try {
             for await (const chunk of chunks) {
               // Core's native completions events currently omit refusal deltas.
@@ -87,8 +103,17 @@ class AnswerChatModel extends ChatOpenAICompletions {
                 throw new LlmProviderError("Structured answer refused or incomplete.");
               }
               if (chunk.usage) usage = chunk.usage;
+              for (const choice of chunk.choices) {
+                if (choice.index !== 0) continue;
+                const delta = choice.delta as typeof choice.delta & { reasoning?: string; reasoning_content?: string };
+                for (const key of ["reasoning", "reasoning_content"] as const) {
+                  if (typeof delta[key] === "string") reasoning[key] = (reasoning[key] || "") + delta[key];
+                }
+                for (const tool of delta.tool_calls ?? []) if (tool.id) ids.push(tool.id);
+              }
               yield chunk;
             }
+            remember(ids, reasoning);
             call?.complete(usage);
           } catch (error) {
             if (error instanceof Error && error.name === "AbortError") call?.interrupt(usage);
@@ -98,6 +123,14 @@ class AnswerChatModel extends ChatOpenAICompletions {
         })();
       }
       const completion = response as OpenAI.Chat.Completions.ChatCompletion;
+      if (this.preserveToolReasoning) for (const choice of completion.choices) {
+        const message = choice.message as typeof choice.message & { reasoning?: string; reasoning_content?: string };
+        const reasoning: Record<string, string> = {};
+        for (const key of ["reasoning", "reasoning_content"] as const) {
+          if (typeof message[key] === "string") reasoning[key] = message[key];
+        }
+        for (const tool of message.tool_calls ?? []) this.toolReasoning.set(tool.id, reasoning);
+      }
       call?.complete(completion.usage);
       if (completion.choices.some(choice => choice.message.refusal)) {
         throw new LlmProviderError("Structured answer refused or incomplete.");
@@ -134,6 +167,7 @@ export function createChatModel(
   });
   chatModel.costLedger = opts.costLedger;
   chatModel.separateToolSchema = env.LLM_SEPARATE_TOOL_SCHEMA === "true";
+  chatModel.preserveToolReasoning = env.LLM_PRESERVE_TOOL_REASONING === "true";
   return chatModel;
 }
 
