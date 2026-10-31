@@ -152,7 +152,7 @@ function ChatPanelSession({
                   variant="outline"
                   size="sm"
                   disabled={isLoading}
-                  className="h-auto whitespace-normal text-left"
+                  className="h-auto whitespace-normal py-1.5 text-left leading-snug text-balance [word-break:auto-phrase]"
                   onClick={() => {
                     if (sendSuggestedQuestions) void handleSend(question);
                     else setInput(question);
