@@ -5,6 +5,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 const require = createRequire(new URL('../operations-tools/package.json', import.meta.url));
 const { Client } = require('pg');
 const { chromium } = require('playwright');
+const { createParser } = require('eventsource-parser');
+const { verifyStream } = createRequire(import.meta.url)('./production-stream-proof.cjs');
 const { hashPassword } = await import(require.resolve('better-auth/crypto'));
 const { ORIGIN, synthetic, uploadAllowed, completed, deletable, fixtureValid, waitForCleanup, citedAnswerValid } = createRequire(import.meta.url)('./production-smoke-policy.cjs');
 const db = new Client({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 15_000,
@@ -84,7 +86,7 @@ try {
     is_over_quota, used_ai_answers, used_processing_seconds, used_storage_bytes, quota_source,
     processing_limit_minutes, ai_answers_limit, storage_limit_gb, monthly_upload_limit_gb)
     VALUES ($1,$2,$3,$4,'user',true,false,false,0,0,0,'admin',1,$5,0.01,0.01)`,
-  [id, currentUser.username, currentUser.email, currentUser.name, verifyAi ? 1 : 0]);
+  [id, currentUser.username, currentUser.email, currentUser.name, verifyAi ? 3 : 0]);
   await db.query("INSERT INTO account (id, account_id, provider_id, user_id, password) VALUES ($1,$2,'credential',$2,$3)", [randomUUID(), id, hash]);
   await db.query('COMMIT');
   progress('synthetic-sign-in');
@@ -120,6 +122,19 @@ try {
     const answer = await rpc('chat.send', { courseId: course.id,
       messages: [{ role: 'user', content: 'What is said in this video? Summarize it and cite the transcript evidence.' }] }, true, 180_000);
     if (!citedAnswerValid(answer, Number(video.id))) throw new Error('No cited answer from the uploaded video');
+    for (const scoped of [true, false]) {
+      progress(scoped ? 'cited-streaming-answer' : 'unscoped-streaming-answer');
+      const response = await request('/api/chat/messages/stream', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: cookie, Origin: ORIGIN },
+        body: JSON.stringify({ messages: [{ role: 'user', content: scoped
+          ? 'Summarize what is said in this video and cite its transcript evidence.'
+          : 'Briefly explain what a video transcript is.' }], ...(scoped ? { course_id: course.id } : {}) }),
+        signal: AbortSignal.timeout(180_000),
+      });
+      const chatLogId = await verifyStream(response, createParser, scoped ? Number(video.id) : undefined);
+      const stored = await db.query('SELECT id FROM chat_logs WHERE id = $1 AND user_id = $2', [chatLogId, id]);
+      if (stored.rows.length !== 1) throw new Error('Streamed answer persistence not confirmed');
+    }
   }
   progress('browser');
   browser = await chromium.launch({ channel: 'chrome' });
@@ -137,7 +152,7 @@ try {
   await page.goto(ORIGIN + '/videos', { waitUntil: 'networkidle', timeout: 60_000 });
   await page.getByText(title, { exact: true }).first().waitFor({ timeout: 30_000 });
   if (errors.length) throw new Error('Browser JavaScript error');
-  report = { status: 'ok', summary: '本番の画面・API・DB・短い動画の処理・文字起こし・埋め込みを確認しました。' + (verifyAi ? ' 検索と引用付き Q&A も確認しました。' : ''), details: [] };
+  report = { status: 'ok', summary: '本番の画面・API・DB・短い動画の処理・文字起こし・埋め込みを確認しました。' + (verifyAi ? ' 検索・引用付き Q&A・講座あり／なしのストリーミングも確認しました。' : ''), details: [] };
 } catch {
   try { await db.query('ROLLBACK'); } catch { /* connection may be unavailable */ }
   report.details = ['- 失敗した段階: `' + stage + '`。認証情報や利用者のデータはログに出力していません。'];
