@@ -46,7 +46,6 @@ jobs:
           for secret_name in \
             BETTER_AUTH_SECRET \
             USER_SECRET_ENCRYPTION_KEY \
-            OPENAI_API_KEY \
             MAILGUN_API_KEY \
             R2_ACCESS_KEY_ID \
             R2_SECRET_ACCESS_KEY \
@@ -61,6 +60,11 @@ jobs:
               exit 1
             fi
           done
+          federation_policy_id="$(node -e 'const {createRequire}=require("node:module"); const deploymentRequire=createRequire(process.env.GITHUB_WORKSPACE+"/.github/deploy-tools/package.json"); const {unstable_readConfig}=deploymentRequire("wrangler"); process.stdout.write(unstable_readConfig({config:"wrangler.jsonc",env:"production"}).vars?.OPENROUTER_FEDERATION_POLICY_ID||"");')"
+          if [ -z "$federation_policy_id" ] && ! jq -e 'any(.[]; .name == "OPENROUTER_API_KEY")' <<<"$secret_json" >/dev/null; then
+            echo "::error::Configure an OpenRouter federation policy in production vars or supply OPENROUTER_API_KEY"
+            exit 1
+          fi
       - name: Apply and verify production resource settings
         working-directory: apps/api
         env:

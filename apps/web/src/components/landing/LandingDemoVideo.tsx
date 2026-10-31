@@ -1,16 +1,16 @@
 import { useRef, useState } from 'react';
 import { Play, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { STUDENT_DEMO_SUBJECTS, studentDemoMedia } from '@/lib/studentDemo';
+import { PROVIDER_DEMO_STEPS, providerDemoMedia } from '@/lib/providerDemo';
 import { trackLandingEvent } from '@/lib/landingAnalytics';
 
 export function LandingDemoVideo() {
   const { t, i18n } = useTranslation();
-  const media = studentDemoMedia(i18n.resolvedLanguage ?? i18n.language);
+  const media = providerDemoMedia(i18n.resolvedLanguage ?? i18n.language);
   return <DemoPlayer key={media.video} media={media} t={t} />;
 }
 
-function DemoPlayer({ media, t }: { media: ReturnType<typeof studentDemoMedia>; t: ReturnType<typeof useTranslation>['t'] }) {
+function DemoPlayer({ media, t }: { media: ReturnType<typeof providerDemoMedia>; t: ReturnType<typeof useTranslation>['t'] }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [started, setStarted] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -43,8 +43,8 @@ function DemoPlayer({ media, t }: { media: ReturnType<typeof studentDemoMedia>; 
       </p>}
       <div className="lp-film-caption">
         <p>{t('landing.film.course')}</p>
-        <ul aria-label={t('landing.film.subjectsLabel')}>
-          {STUDENT_DEMO_SUBJECTS.map(subject => <li key={subject} className={`lp-subject-${subject}`}>{t(`landing.film.subjects.${subject}`)}</li>)}
+        <ul aria-label={t('landing.film.stepsLabel')}>
+          {PROVIDER_DEMO_STEPS.map(step => <li key={step} className={`lp-subject-${step}`}>{t(`landing.film.steps.${step}`)}</li>)}
         </ul>
       </div>
       <p className="lp-film-note">{t('landing.film.note')}</p>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowDown, ArrowRight, BookOpen, Check, ChevronDown, FileText, GraduationCap, MessageCircle, Play, Search, Sparkles, Upload, NotebookPen } from 'lucide-react';
+import { ArrowDown, ArrowRight, BarChart3, BookOpen, Briefcase, Check, ChevronDown, FileText, GraduationCap, Link2, MessageCircle, MonitorPlay, Play, School, Search, Sparkles, Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from '@/lib/i18n';
 import { LandingDemoVideo } from '@/components/landing/LandingDemoVideo';
@@ -7,25 +7,35 @@ import { LandingFreePlan } from '@/components/landing/LandingFreePlan';
 import { startLandingVisit, trackLandingEvent } from '@/lib/landingAnalytics';
 import '@/styles/landing.css';
 
-const BENEFITS = [
-  { key: 'ask', icon: MessageCircle },
+const CAPABILITIES = [
+  { key: 'create', icon: FileText },
   { key: 'source', icon: Play },
-  { key: 'share', icon: BookOpen },
+  { key: 'share', icon: Link2 },
+  { key: 'insights', icon: BarChart3 },
 ] as const;
+const BENEFITS = [
+  { key: 'answer', icon: MessageCircle },
+  { key: 'source', icon: Play },
+  { key: 'share', icon: Link2 },
+  { key: 'insights', icon: BarChart3 },
+] as const;
+const COMPARE_ROWS = ['basis', 'source', 'teacher'] as const;
 const USES = [
-  { key: 'lectures', icon: GraduationCap },
-  { key: 'exams', icon: NotebookPen },
+  { key: 'courses', icon: MonitorPlay },
+  { key: 'schools', icon: School },
+  { key: 'training', icon: Briefcase },
 ] as const;
 const STEPS = [
   { key: 'upload', icon: Upload },
-  { key: 'index', icon: FileText },
-  { key: 'ask', icon: MessageCircle },
+  { key: 'course', icon: BookOpen },
+  { key: 'share', icon: Link2 },
 ] as const;
-const FAQ_KEYS = ['free', 'sharing', 'videos', 'answers'] as const;
+const FAQ_KEYS = ['free', 'accounts', 'cost', 'accuracy', 'history'] as const;
+const INSIGHT_BARS = [38, 62, 45, 80, 56] as const;
 
 export default function LandingPage() {
   const { t } = useTranslation();
-  const [activeUse, setActiveUse] = useState<(typeof USES)[number]['key']>('lectures');
+  const [activeUse, setActiveUse] = useState<(typeof USES)[number]['key']>('courses');
   useEffect(() => { startLandingVisit(); }, []);
 
   return (
@@ -54,10 +64,9 @@ export default function LandingPage() {
       </section>
 
       <div className="lp-capabilities" aria-label={t('landing.capabilities.title')}>
-        <span><FileText size={18} aria-hidden="true" />{t('landing.capabilities.transcribe')}</span>
-        <span><MessageCircle size={18} aria-hidden="true" />{t('landing.capabilities.ask')}</span>
-        <span><Play size={18} aria-hidden="true" />{t('landing.capabilities.jump')}</span>
-        <span><BookOpen size={18} aria-hidden="true" />{t('landing.capabilities.share')}</span>
+        {CAPABILITIES.map(({ key, icon: Icon }) => (
+          <span key={key}><Icon size={18} aria-hidden="true" />{t(`landing.capabilities.${key}`)}</span>
+        ))}
       </div>
 
       <section className="lp-section lp-benefits" aria-labelledby="landing-benefits-title">
@@ -71,15 +80,42 @@ export default function LandingPage() {
             <article className={`lp-benefit lp-benefit-${key}`} key={key}>
               <div className="lp-benefit-top"><Icon size={23} aria-hidden="true" /><span>0{index + 1}</span></div>
               <div className="lp-benefit-visual" aria-hidden="true">
-                {key === 'ask' && <><span className="lp-mini-question"><Search size={15} />{t('landing.features.ask.example')}</span><span className="lp-mini-answer"><Sparkles size={15} />{t('landing.features.ask.result')}</span></>}
+                {key === 'answer' && <><span className="lp-mini-question"><Search size={15} />{t('landing.features.answer.example')}</span><span className="lp-mini-answer"><Sparkles size={15} />{t('landing.features.answer.result')}</span></>}
                 {key === 'source' && <><span className="lp-mini-timestamp"><Play size={14} fill="currentColor" />12:48</span><div className="lp-mini-timeline"><span /></div></>}
-                {key === 'share' && <><div className="lp-mini-course"><BookOpen size={20} /><span>{t('landing.features.share.example')}</span></div><div className="lp-mini-course"><FileText size={20} /><span>{t('landing.features.share.exampleDetail')}</span></div></>}
+                {key === 'share' && <><div className="lp-mini-course"><Link2 size={20} /><span>{t('landing.features.share.example')}</span></div><div className="lp-mini-course"><GraduationCap size={20} /><span>{t('landing.features.share.exampleDetail')}</span></div></>}
+                {key === 'insights' && <><span className="lp-mini-insight-label">{t('landing.features.insights.example')}</span><div className="lp-mini-bars">{INSIGHT_BARS.map((height, bar) => <span key={bar} style={{ height: `${height}%` }} />)}</div></>}
               </div>
               <h3>{t(`landing.features.${key}.title`)}</h3>
               <p>{t(`landing.features.${key}.body`)}</p>
             </article>
           ))}
         </div>
+      </section>
+
+      <section className="lp-section lp-compare" aria-labelledby="landing-compare-title">
+        <div className="lp-section-heading">
+          <p className="lp-eyebrow">{t('landing.compare.eyebrow')}</p>
+          <h2 id="landing-compare-title">{t('landing.compare.title')}</h2>
+        </div>
+        <table className="lp-compare-table">
+          <caption className="sr-only">{t('landing.compare.caption')}</caption>
+          <thead>
+            <tr>
+              <th scope="col"><span className="sr-only">{t('landing.compare.rowLabel')}</span></th>
+              <th scope="col">{t('landing.compare.generic')}</th>
+              <th scope="col" className="lp-compare-videoq">{t('landing.compare.videoq')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {COMPARE_ROWS.map(row => (
+              <tr key={row}>
+                <th scope="row">{t(`landing.compare.rows.${row}.label`)}</th>
+                <td>{t(`landing.compare.rows.${row}.generic`)}</td>
+                <td className="lp-compare-videoq"><Check size={16} aria-hidden="true" />{t(`landing.compare.rows.${row}.videoq`)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </section>
 
       <section className="lp-section lp-uses" aria-labelledby="landing-uses-title">

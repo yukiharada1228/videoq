@@ -1090,8 +1090,7 @@ describe("POST /messages/stream（SSE）", () => {
         type: "error",
         code: "LLM_CONFIGURATION_ERROR",
         message:
-          "OpenAI API key is required when using OpenAI LLM. " +
-          "Please set OPENAI_API_KEY in the server environment.",
+          "API key is required when using LLM. Set OPENROUTER_API_KEY for OpenRouter or OPENAI_API_KEY for OpenAI.",
       },
     ]);
   });

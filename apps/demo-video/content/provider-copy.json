@@ -1,10 +1,76 @@
 {
   "ja": {
-    "tag": "先生・研修担当者から、受講者へ。",
-    "captions": ["担当者が動画を登録し、講座にまとめる。", "講座の共有リンクを、受講者に届ける。", "ここからは、受講者の画面。", "受講者が、確認したい動画を開く。", "疑問を、自分の言葉で質問。", "登録した動画をもとに、AIが回答。", "答えのそばに、根拠の時間。", "クリックして、元の説明へ。", "担当者は、寄せられた質問を履歴で確認できます。", "講義・研修動画を、質問に答える窓口へ。動画1本で無料で試す。"]
+    "tag": "動画講座の運営者・講師の方へ",
+    "captions": [
+      "受講生から届く、同じような質問。",
+      "講義動画をアップして、講座にまとめる。",
+      "リンクを送るだけ。受講生の登録はいりません。",
+      "ここからは、受講生の画面。",
+      "わからないところを、そのまま質問。",
+      "答えるのは、あなたの講義。",
+      "根拠の場面へ。あなたの説明で確かめる。",
+      "寄せられた質問は、履歴で確認できます。",
+      "受講生の質問に、あなたの講義が答える。無料で講座をつくる。"
+    ],
+    "hook": {
+      "title": [
+        "同じ質問に、",
+        "何度も答えて",
+        "いませんか？"
+      ],
+      "inbox": "受講生からの質問",
+      "illustration": "イメージ",
+      "messages": [
+        "第3回の微分のところ、もう一度説明してもらえますか？",
+        "微分って、結局何を表しているんですか？",
+        "接線の傾きと微分の関係がよくわかりません。"
+      ]
+    },
+    "outro": {
+      "sub": "AI回答は講座の所有者の利用枠から。受講生は無料。",
+      "title": [
+        "受講生の質問に、",
+        "あなたの講義が答える。"
+      ],
+      "cta": "無料で講座をつくる",
+      "disclosure": "実データに基づく操作再現・待ち時間を短縮"
+    }
   },
   "en": {
-    "tag": "From your materials to their questions.",
-    "captions": ["Add your videos and organize them into a course.", "Give learners a link to the course.", "Now, see the learner’s view.", "The learner opens a video to revisit.", "They ask a question in their own words.", "AI answers using the course videos.", "A source timestamp beside the answer.", "Click to revisit the explanation.", "As the owner, you can review their question history.", "Your teaching videos. A place for answers. Try one video for free."]
+    "tag": "For course creators and instructors",
+    "captions": [
+      "The same questions keep coming in.",
+      "Upload your lectures. Group them into a course.",
+      "Just send the link. No sign-up for students.",
+      "Now, the student’s view.",
+      "Students ask in their own words.",
+      "Answered from your lectures.",
+      "Jump to the moment you explained it.",
+      "Review every question in the history.",
+      "Student questions? Let your lectures answer. Create a course for free."
+    ],
+    "hook": {
+      "title": [
+        "Answering the",
+        "same questions",
+        "again and again?"
+      ],
+      "inbox": "Questions from students",
+      "illustration": "Illustration",
+      "messages": [
+        "Could you explain the derivative part of Lecture 3 again?",
+        "What does a derivative actually represent?",
+        "I don’t get how slope relates to the derivative."
+      ]
+    },
+    "outro": {
+      "sub": "AI usage is on the course owner. Free for students.",
+      "title": [
+        "Student questions?",
+        "Let your lectures answer."
+      ],
+      "cta": "Create a course for free",
+      "disclosure": "Recreated from real data · Waiting times shortened"
+    }
   }
 }

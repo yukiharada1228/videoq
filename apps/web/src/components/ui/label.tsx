@@ -4,7 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/digital-agency/cn"
 
 const labelVariants = cva(
-  "text-solid-gray-800 data-[size=sm]:text-std-16B-170 data-[size=md]:text-std-17B-170 data-[size=lg]:text-std-18B-160"
+  "self-start text-solid-gray-800 data-[size=sm]:text-std-16B-170 data-[size=md]:text-std-17B-170 data-[size=lg]:text-std-18B-160"
 )
 
 type LabelSize = "lg" | "md" | "sm"

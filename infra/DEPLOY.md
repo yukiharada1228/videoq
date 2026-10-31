@@ -63,7 +63,8 @@ Set sensitive values with `wrangler secret put`.
 cd apps/api
 npx wrangler secret put BETTER_AUTH_SECRET --env production
 npx wrangler secret put USER_SECRET_ENCRYPTION_KEY --env production
-npx wrangler secret put OPENAI_API_KEY --env production
+# Preferred: set OPENROUTER_FEDERATION_POLICY_ID and AWS_REGION in production vars.
+# Fixed-key development fallback only: wrangler secret put OPENROUTER_API_KEY
 npx wrangler secret put MAILGUN_API_KEY --env production
 npx wrangler secret put R2_ACCESS_KEY_ID --env production
 npx wrangler secret put R2_SECRET_ACCESS_KEY --env production
@@ -366,10 +367,12 @@ aws lambda update-function-code \
   --region "$REGION"
 ```
 
-### Cloud transcription (OpenAI)
+### Cloud transcription (OpenRouter)
 
-The cloud worker uses `WHISPER_BACKEND=openai` and `OPENAI_API_KEY` in the
-`/videoq/prod/app` SecureString parameter. Modal is retired; no Modal CLI or
+The cloud worker uses `WHISPER_BACKEND=openrouter`. Set Terraform
+`openrouter_federation_policy_id` after configuring AWS outbound federation and
+OpenRouter trust; the Lambda execution role supplies its identity. No OpenRouter
+fixed key is required in the SSM parameter for WIF. Modal is retired; no Modal CLI or
 GitHub credentials are required. See
 [the switch runbook](../docs/operations/openai-transcription.md) for the
 in-flight job check, config refresh and retirement order.

@@ -99,9 +99,11 @@ cp .env.example .env
 Open `.env` and set at least:
 
 ```bash
-OPENAI_API_KEY=sk-proj-...
-OPENAI_BASE_URL=https://api.openai.com/v1
-LLM_MODEL=gpt-6-luna
+OPENROUTER_API_KEY=your-openrouter-api-key
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+LLM_MODEL=openai/gpt-6-luna
+EMBEDDING_MODEL=openai/text-embedding-3-small
+WHISPER_BACKEND=openrouter
 WHISPER_BACKEND=openai
 
 EMBEDDING_MODEL=text-embedding-3-small
@@ -112,6 +114,34 @@ EMBEDDING_MODEL=text-embedding-3-small
 AUTH_JWT_SECRET=
 USER_SECRET_ENCRYPTION_KEY=
 ```
+
+The hosted configuration uses OpenRouter for answers, image inspection, embeddings,
+and transcription. Prefer workload identity federation: configure separate
+`OPENROUTER_FEDERATION_POLICY_ID` values for the API and worker, using AWS STS
+identities and OpenRouter Business/Enterprise policies. A fixed
+`OPENROUTER_API_KEY` is retained for explicit development compatibility.
+The existing GPT-6 Luna and 1536-dimensional `text-embedding-3-small` models are
+preserved; only transcription changes to `openai/whisper-large-v3-turbo`.
+OpenRouter uses qualified `openai/...` model IDs. The adapters also qualify the
+existing unprefixed default model names when the selected endpoint is OpenRouter.
+This alias change alone does not require rebuilding existing embedding vectors.
+
+For Cloudflare, configure the API policy ID and `AWS_REGION` in production
+Wrangler vars and grant STS token permission to its existing AWS principal. For
+Lambda, set Terraform `openrouter_federation_policy_id`; it uses its execution
+role. See the [WIF setup and release runbook](docs/operations/openai-transcription.md).
+For Helm, configure `ai.federationPolicyId` / `ai.federationAudience` and supply
+an AWS identity to the runtime. Local inference remains available through the
+local overlays. Without a policy, `OPENROUTER_API_KEY` remains a development
+option. Remove stale endpoint overrides when selecting the shared provider.
+A configured federation policy takes precedence over fixed keys on OpenRouter
+and never falls back to them after an exchange failure.
+
+Before production use, verify Whisper returns real segment timestamps using
+`verbose_json`, and run the opt-in structured-answer live test. No fabricated
+subtitle timing is accepted. See the [release runbook](docs/operations/openai-transcription.md),
+[OpenRouter transcription](https://openrouter.ai/docs/guides/overview/multimodal/stt),
+and [embeddings](https://openrouter.ai/docs/api_reference/embeddings).
 
 Answer generation and image inspection share `LLM_MODEL`, which defaults to GPT-6 Luna (`gpt-6-luna`). With visual Q&A enabled, the model must support image input as well as tool calling and strict JSON output. See [model settings](docs/architecture/prompt-engineering.md#model-settings-and-limits) and [model references](docs/reference/ai-references.md#gpt-6-luna).
 
@@ -373,7 +403,7 @@ docker compose stop api
 cp apps/api/.dev.vars.example apps/api/.dev.vars
 ```
 
-Set `BETTER_AUTH_SECRET`, `USER_SECRET_ENCRYPTION_KEY`, and `OPENAI_API_KEY` in `apps/api/.dev.vars`. For the OpenAI setup above, also set:
+Set `BETTER_AUTH_SECRET`, `USER_SECRET_ENCRYPTION_KEY`, and `OPENROUTER_API_KEY` in `apps/api/.dev.vars`. For the hosted setup above, also set:
 
 ```dotenv
 BETTER_AUTH_URL=http://localhost:3000

@@ -4,11 +4,13 @@ export const LANDING_EVENTS = [
   'signup_click', 'signup_view', 'email_signup_created', 'email_verified', 'first_answer',
   'google_auth_started', 'google_signup_created',
   'video_upload_started', 'video_upload_accepted', 'video_upload_failed',
+  'course_share_created', 'course_invite_queued',
 ] as const;
-export const LANDING_AUDIENCES = ['general', 'school', 'training', 'student'] as const;
+// `creator` is the instructor landing page's online-course audience; `student` is kept for historic cohorts.
+export const LANDING_AUDIENCES = ['general', 'creator', 'school', 'training', 'student'] as const;
 export const LANDING_PLACEMENTS = ['none', 'hero', 'free', 'footer', 'mobile', 'header'] as const;
 // Fixed cohorts only; never accept or log arbitrary UTM values.
-export const LANDING_ACQUISITIONS = ['unattributed', 'x_paid_demo15_search', 'x_paid_teacher_qa', 'x_paid_student_ja', 'x_paid_student_en', 'x_organic_launch', 'internal_test'] as const;
+export const LANDING_ACQUISITIONS = ['unattributed', 'x_paid_demo15_search', 'x_paid_teacher_qa', 'x_paid_student_ja', 'x_paid_student_en', 'x_paid_instructor_ja', 'x_paid_instructor_en', 'x_organic_launch', 'internal_test'] as const;
 export type LandingEvent = (typeof LANDING_EVENTS)[number];
 export type LandingAudience = (typeof LANDING_AUDIENCES)[number];
 export type LandingPlacement = (typeof LANDING_PLACEMENTS)[number];

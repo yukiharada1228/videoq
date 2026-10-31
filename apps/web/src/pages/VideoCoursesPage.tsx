@@ -32,6 +32,7 @@ import { Button } from '@/components/ui/button';
 import { UtilityLink } from '@/components/ui/utility-link';
 import { ChipLabel } from '@/components/ui/chip-label';
 import { Heading, HeadingTitle } from '@/components/ui/heading';
+import { List } from '@/components/ui/list';
 import { MenuList, MenuListItem } from '@/components/ui/menu-list';
 import {
   ArrowDown,
@@ -286,8 +287,16 @@ export default function VideoCoursesPage() {
             <Heading size="20" hasChip className="mb-2">
               <HeadingTitle level="h2">{t('videos.courses.empty')}</HeadingTitle>
             </Heading>
-            <p className="mb-8 max-w-lg text-std-16N-170 text-solid-gray-600">
+            <p className="max-w-2xl text-std-16N-170 text-solid-gray-700">
               {t('videos.courses.emptyDescription')}
+            </p>
+            <List spacing="4" className="mt-3 text-std-16N-170 text-solid-gray-800">
+              {(t('videos.courses.emptyBenefits.bullets', { returnObjects: true }) as string[]).map((benefit) => (
+                <li key={benefit}>{benefit}</li>
+              ))}
+            </List>
+            <p className="mt-6 mb-4 text-std-16N-170 text-solid-gray-700">
+              {t('videos.courses.emptyNeedsVideos')}
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <Button

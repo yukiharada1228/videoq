@@ -22,8 +22,8 @@ resource "aws_ssm_parameter" "db" {
 #
 # Expected JSON keys (set via CLI / Console — not Terraform-managed values):
 #
-#   OPENAI_API_KEY
-#   WHISPER_BACKEND           # "openai" for the cloud service
+#   OPENROUTER_API_KEY        # optional fixed-key development; WIF uses a non-secret policy ID
+#   WHISPER_BACKEND           # "openrouter" for the cloud service
 #   USER_SECRET_ENCRYPTION_KEY
 #   R2_ACCESS_KEY_ID          # Cloudflare R2 S3 API token (NOT Lambda role keys)
 #   R2_SECRET_ACCESS_KEY
@@ -39,7 +39,6 @@ resource "aws_ssm_parameter" "app" {
   description = "App secrets + R2 credentials (use R2_* key names, never AWS_ACCESS_KEY_ID)"
   type        = "SecureString"
   value = jsonencode({
-    OPENAI_API_KEY             = "REPLACE_ME"
     USER_SECRET_ENCRYPTION_KEY = "REPLACE_ME"
     R2_ACCESS_KEY_ID           = "REPLACE_ME"
     R2_SECRET_ACCESS_KEY       = "REPLACE_ME"
