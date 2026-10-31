@@ -22,7 +22,7 @@ on:
         default: all
         options: [all, dependencies, containers, terraform, tokens, smoke, backup, onprem, inference]
       verify_ai_answers:
-        description: Include one paid cited Q&A in the production smoke check
+        description: Include paid cited Q&A and course/unscoped streaming in the production smoke check
         type: boolean
         default: false
       validate_whisper_gpu:
