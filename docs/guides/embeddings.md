@@ -13,10 +13,11 @@ VideoQ uses the OpenAI-compatible embeddings protocol. Templates, Compose and
 Wrangler default to:
 
 ```dotenv
-EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+EMBEDDING_MODEL=openai/text-embedding-3-small
 ```
 
-Set `OPENAI_API_KEY` in the environment. A private llama.cpp or vLLM service uses
+Set `OPENROUTER_API_KEY` in both API and worker environments. The model remains OpenAI text-embedding-3-small with 1536 dimensions; the OpenRouter namespace alone does not require reindexing. A private llama.cpp or vLLM service uses
 the same protocol, its own model alias and an explicit endpoint, for example:
 
 ```dotenv
@@ -25,7 +26,7 @@ EMBEDDING_API_KEY=local-inference
 EMBEDDING_MODEL=gte-qwen2-1.5b-q4km-124fbdad
 ```
 
-`EMBEDDING_API_KEY` falls back to `OPENAI_API_KEY`; use a placeholder only when
+`EMBEDDING_API_KEY` falls back to the key for the selected endpoint (`OPENROUTER_API_KEY` on OpenRouter, otherwise `OPENAI_API_KEY`); use a placeholder only when
 the private server has no authentication. `EMBEDDING_BASE_URL` falls back to
 `OPENAI_BASE_URL` when empty, so set it explicitly for a separate embedding
 service. The API and worker must use the same model/endpoint. With Compose and a
@@ -39,7 +40,7 @@ application rejects incompatible output without truncating, padding, retrying
 without dimensions or choosing a hosted fallback.
 
 The protocol is fixed. Model names are trimmed but retain their case; an empty
-model uses `text-embedding-3-small`. Private installations set their actual served
+model uses `text-embedding-3-small` (qualified as `openai/text-embedding-3-small` on OpenRouter). Private installations set their actual served
 alias and endpoint in both API and worker.
 
 For attribution, see [OpenAI embeddings](../reference/ai-references.md#openai-embeddings)

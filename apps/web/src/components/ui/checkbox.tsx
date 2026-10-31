@@ -6,8 +6,9 @@ import { cn } from "@/lib/digital-agency/cn"
 
 // Outer hit area (matches upstream's wrapping <span>): sized size-6/8/11, with the
 // subtle gray hover backdrop. The visible box is the inner element at 75%.
+// Ignore Radix's hidden form input when deciding whether a label sibling exists.
 const checkboxVariants = cva(
-  "group/checkbox inline-flex shrink-0 items-center justify-center appearance-none rounded-[calc(1/8*100%)] bg-transparent outline-none hover:bg-solid-gray-420 focus-visible:bg-transparent disabled:pointer-events-none disabled:hover:bg-transparent aria-disabled:pointer-events-none aria-disabled:hover:bg-transparent data-[size=sm]:size-6 data-[size=md]:size-8 data-[size=lg]:size-11",
+  "group/checkbox inline-flex shrink-0 items-center justify-center appearance-none rounded-[calc(1/8*100%)] bg-transparent outline-none hover:bg-solid-gray-420 focus-visible:bg-transparent disabled:pointer-events-none disabled:hover:bg-transparent aria-disabled:pointer-events-none aria-disabled:hover:bg-transparent [&:not(:only-child):not(:first-child:has(+input[aria-hidden=true]:last-child))]:relative [&:not(:only-child):not(:first-child:has(+input[aria-hidden=true]:last-child))]:top-(--baseline-offset) [&:not(:only-child):not(:first-child:has(+input[aria-hidden=true]:last-child))]:-mt-(--baseline-offset) [&:not(:only-child):not(:first-child:has(+input[aria-hidden=true]:last-child))]:mb-(--baseline-offset) data-[size=sm]:[--baseline-offset:calc(3/16*1rem)] data-[size=md]:[--baseline-offset:calc(6/16*1rem)] data-[size=lg]:[--baseline-offset:calc(10/16*1rem)] data-[size=sm]:size-6 data-[size=md]:size-8 data-[size=lg]:size-11",
   {
     variants: {
       size: {
@@ -27,7 +28,7 @@ const checkboxVariants = cva(
 const checkboxBoxClass = cn(
   // upstream anchors the check mark top-left (origin-top-left scale for md/lg),
   // so the inner box is not flex-centered.
-  "flex size-3/4 rounded-[calc(2/18*100%)] border border-solid-gray-600 bg-white bg-clip-padding",
+  "relative flex size-3/4 rounded-[calc(2/18*100%)] border border-solid-gray-600 bg-white bg-clip-padding",
   "group-data-[size=sm]/checkbox:border-[calc(2/16*1rem)]",
   "group-data-[size=md]/checkbox:border-[calc(2/16*1rem)]",
   "group-data-[size=lg]/checkbox:border-[calc(3/16*1rem)]",
@@ -80,7 +81,7 @@ const Checkbox = React.forwardRef<
         data-slot="checkbox-indicator"
         data-size={size}
         className={cn(
-          "block size-3.5 bg-white",
+          "absolute block size-3.5 bg-white",
           "data-[state=checked]:[clip-path:path('M5.6,11.2L12.65,4.15L11.25,2.75L5.6,8.4L2.75,5.55L1.35,6.95L5.6,11.2Z')]",
           "data-[state=indeterminate]:[clip-path:path('M3.25,7.75H10.75V6.25H3.25V7.75Z')]",
           "data-[size=md]:origin-top-left data-[size=md]:scale-[calc(20/14)]",

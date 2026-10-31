@@ -17,3 +17,8 @@ output "operations_alert_topic_arn" {
   description = "Lambda/SQS operational alarm notification topic"
   value       = aws_sns_topic.operations.arn
 }
+
+output "worker_identity_role_arn" {
+  description = "Exact AWS workload subject to register in the OpenRouter federation policy"
+  value       = aws_iam_role.worker.arn
+}

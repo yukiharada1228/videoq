@@ -67,6 +67,8 @@
     "ai": {
       "type": "object",
       "properties": {
+        "federationPolicyId": { "type": "string" },
+        "federationAudience": { "type": "string" },
         "separateToolSchema": {
           "type": "boolean"
         },
@@ -93,10 +95,14 @@
         "whisperBackend": {
           "enum": [
             "openai",
+            "openrouter",
             "local"
           ]
         },
         "openaiBaseUrl": {
+          "type": "string"
+        },
+        "llmBaseUrl": {
           "type": "string"
         },
         "llmModel": {

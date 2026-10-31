@@ -1,7 +1,10 @@
 import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { trpc } from '@/lib/trpc';
+import { trackLandingEvent } from '@/lib/landingAnalytics';
 import { CourseParticipantsDialog } from '../CourseParticipantsDialog';
+
+vi.mock('@/lib/landingAnalytics', () => ({ trackLandingEvent: vi.fn() }));
 
 const getParticipants = vi.fn();
 const inviteMembers = vi.fn();
@@ -85,6 +88,20 @@ describe('CourseParticipantsDialog', () => {
     expect(screen.getByText('videos.courseMembers.result.queued')).toBeInTheDocument();
     expect(screen.getByText('videos.courseMembers.result.invalid')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('videos.courseMembers.result.queued').closest('ul')).toHaveFocus());
+    expect(trackLandingEvent).toHaveBeenCalledWith('course_invite_queued');
+  });
+
+  it('does not count an invitation that queued no recipient as sharing', async () => {
+    vi.mocked(trackLandingEvent).mockClear();
+    inviteMembers.mockResolvedValue({ results: [{ email: 'bad', status: 'invalid' }] });
+
+    render(<CourseParticipantsDialog courseId={3} isOpen onOpenChange={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText('videos.courseMembers.emailLabel'), { target: { value: 'bad' } });
+    fireEvent.click(screen.getByRole('button', { name: 'videos.courseMembers.invite' }));
+
+    expect(await screen.findByText('videos.courseMembers.result.invalid', { selector: 'ul *' })).toBeInTheDocument();
+    expect(trackLandingEvent).not.toHaveBeenCalled();
   });
 
   it('previews normalized, invalid, duplicate, member, and pending recipients before sending', async () => {

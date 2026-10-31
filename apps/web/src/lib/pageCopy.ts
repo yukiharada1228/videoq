@@ -2,12 +2,12 @@ import { normalizePathname, type SiteLocale } from './seo';
 
 export const DEFAULT_COPY: Record<SiteLocale, { title: string; description: string }> = {
   "ja": {
-    "title": "大学の講義動画を、あなたの復習パートナーに | VideoQ",
-    "description": "大学生の講義の復習・試験勉強に。講義動画に自分の言葉で質問して、答えと根拠の場面を確認。30秒の操作デモを公開。動画1本から無料で試せます。"
+    "title": "受講生の質問に、あなたの講義が答える | VideoQ",
+    "description": "動画講座の運営者・講師の方へ。講義動画をアップするだけで、受講生専用のAI質問窓口に。回答には講義の該当場面が付き、受講生はリンクを開くだけで質問できます。講義1本から無料で試せます。"
   },
   "en": {
-    "title": "Turn lecture videos into your study partner | VideoQ",
-    "description": "Review lectures and prepare for exams. Ask your lecture videos a question, read the answer and jump to the source explanation. Watch the 30-second demo and try your first video free."
+    "title": "Let your lectures answer student questions | VideoQ",
+    "description": "For course creators and instructors. Upload your lecture videos and get an AI help desk for your students. Every answer links to the source moment, and students just open a link to ask. Try it free with one lecture."
   }
 };
 
@@ -15,7 +15,7 @@ const PAGE_COPY: Record<SiteLocale, Record<string, { title: string; description:
   ja: {
     '/pricing': {
       title: '料金プラン | VideoQ',
-      description: 'お試しの Free から、個人向け Basic、ヘビー利用の Pro まで。年払いは 2 ヶ月分お得です。',
+      description: '講義1本で試せる Free から、講座を運営する Basic、複数の講座や研修をまとめて扱う Pro まで。年払いは 2 ヶ月分お得です。',
     },
     '/terms': { title: '利用規約 | VideoQ', description: 'VideoQ の利用規約です。' },
     '/privacy': { title: 'プライバシーポリシー | VideoQ', description: 'VideoQ のプライバシーポリシーです。' },
@@ -28,7 +28,7 @@ const PAGE_COPY: Record<SiteLocale, Record<string, { title: string; description:
     '/pricing': {
       title: 'Pricing | VideoQ',
       description:
-        'Start with a small Free trial, then Basic for everyday use or Pro for heavier workloads. Annual billing saves two months.',
+        'Try Free with one lecture, run a course with Basic, or manage multiple courses and training programs with Pro. Annual billing saves two months.',
     },
     '/terms': { title: 'Terms of Service | VideoQ', description: 'VideoQ terms of service.' },
     '/privacy': { title: 'Privacy Policy | VideoQ', description: 'VideoQ privacy policy.' },

@@ -56,3 +56,14 @@ test('cleanup errors are not swallowed or retried', async () => {
   await assert.rejects(waitForCleanup(async () => { calls++; throw new Error('unavailable'); }, async () => assert.fail('must not wait')), /unavailable/);
   assert.equal(calls, 1);
 });
+
+test('AI smoke requires cited transcript evidence from its own uploaded video', () => {
+  const { citedAnswerValid } = require('./production-smoke-policy.cjs');
+  const valid = { role: 'assistant', answer: { segments: [{ text: 'The clip explains the fixture.', sourceIds: [1] }], sources: [{ id: 1, video_id: 42, evidence_type: 'transcript' }] } };
+  assert.equal(citedAnswerValid(valid, 42), true);
+  assert.equal(citedAnswerValid(valid, 43), false);
+  assert.equal(citedAnswerValid({ ...valid, answer: { ...valid.answer, sources: [] } }, 42), false);
+  assert.equal(citedAnswerValid({ ...valid, answer: { ...valid.answer, segments: [{ text: '', sourceIds: [1] }] } }, 42), false);
+  assert.equal(citedAnswerValid({ ...valid, answer: { ...valid.answer, sources: [{ id: 1, video_id: 42, evidence_type: 'visual' }] } }, 42), false);
+  assert.equal(citedAnswerValid(null, 42), false);
+});

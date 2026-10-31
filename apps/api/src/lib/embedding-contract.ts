@@ -1,10 +1,10 @@
-import { DEFAULT_EMBEDDING_MODEL, LlmConfigurationError, LlmProviderError } from "./openai";
+import { DEFAULT_EMBEDDING_MODEL, LlmConfigurationError, LlmProviderError, openAiBaseUrl, providerModel } from "./openai";
 import { EMBEDDING_DIMENSIONS } from "./embedding-dimensions";
 
 export { EMBEDDING_DIMENSIONS };
 
 export type EmbeddingConfig = { provider: "openai"; model: string };
-export type EmbeddingSettings = { EMBEDDING_MODEL?: string };
+export type EmbeddingSettings = { EMBEDDING_MODEL?: string; EMBEDDING_BASE_URL?: string; OPENAI_BASE_URL?: string; OPENROUTER_API_KEY?: string; OPENROUTER_FEDERATION_POLICY_ID?: string };
 export type EmbeddingReason =
   | "EMBEDDING_CONFIG_INVALID"
   | "EMBEDDING_SCHEMA_MISMATCH"
@@ -42,7 +42,8 @@ export class EmbeddingValidationError extends LlmProviderError {
 
 export function resolveEmbeddingConfig(env: EmbeddingSettings): EmbeddingConfig {
   const model = env.EMBEDDING_MODEL?.trim() || DEFAULT_EMBEDDING_MODEL;
-  return { provider: "openai", model };
+  const baseURL = openAiBaseUrl({ ...env, OPENAI_BASE_URL: env.EMBEDDING_BASE_URL || env.OPENAI_BASE_URL });
+  return { provider: "openai", model: providerModel(model, baseURL) };
 }
 
 export function validateEmbedding(

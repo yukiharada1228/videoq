@@ -189,6 +189,7 @@ export default function PricingPage() {
           })}
         </div>
       )}
+      <p className="mt-6 text-std-16N-170 text-solid-gray-600">{t('pricing.ownerNote')}</p>
     </>
   );
 }

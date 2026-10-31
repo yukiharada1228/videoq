@@ -129,7 +129,7 @@ withHelm("private local inference deployment", () => {
     const resources = render("--set", "whispercpp.architecture=arm64");
     const pod = resources.find(r => r.kind === "Deployment" && r.metadata.name.endsWith("-whisper")).spec.template.spec;
     expect(pod.nodeSelector["kubernetes.io/arch"]).toBe("arm64");
-    expect(pod.containers[1].image).toBe("ghcr.io/ggml-org/whisper.cpp@sha256:94d3695d1dd7337a92d5171b070a8e7e2d97ef51ea29ac1f355cf30a92bbb361");
+    expect(pod.containers[1].image).toBe("ghcr.io/ggml-org/whisper.cpp@sha256:f0fed3d3d54565cb37d2995fcaa28ca09a5c9f3ffb7fada2d790099af2bfeee0");
     expect(command("--set", "whispercpp.architecture=arm64", "--set", "whisper.nodeSelector.kubernetes\\.io/arch=amd64").status).not.toBe(0);
   });
   it("uses the same pinned upstream vLLM image for chat, embeddings and speech", () => {
@@ -286,6 +286,6 @@ withHelm("private local inference deployment", () => {
       expect(deployment.spec.template.spec.nodeSelector).toEqual({ "kubernetes.io/arch": "arm64", "kubernetes.io/os": "linux" });
     }
     expect(resources.find(r => r.kind === "Deployment" && r.metadata.name.endsWith("-whisper"))
-      .spec.template.spec.containers.at(-1).image).toBe("ghcr.io/ggml-org/whisper.cpp@sha256:94d3695d1dd7337a92d5171b070a8e7e2d97ef51ea29ac1f355cf30a92bbb361");
+      .spec.template.spec.containers.at(-1).image).toBe("ghcr.io/ggml-org/whisper.cpp@sha256:f0fed3d3d54565cb37d2995fcaa28ca09a5c9f3ffb7fada2d790099af2bfeee0");
   });
 });

@@ -209,10 +209,35 @@ describe('landing funnel measurement', () => {
     ['?audience=school', 'school'],
     ['?audience=training', 'training'],
     ['?audience=student', 'student'],
+    ['?audience=creator', 'creator'],
+    ['?utm_source=x&utm_medium=paid_social&utm_campaign=instructor_202611&utm_content=demo30_ja', 'creator'],
+    ['?audience=school&utm_source=x&utm_medium=paid_social&utm_campaign=instructor_202611&utm_content=demo30_ja', 'school'],
     ['?utm_source=x&utm_medium=paid_social&utm_campaign=teacher_qa_test&utm_content=lecture_qa', 'school'],
     ['?utm_source=x&utm_medium=paid_social&utm_campaign=student_demo_test&utm_content=demo15_search', 'student'],
   ])('classifies provider and historic visits: %s', (search, expected) => {
     expect(getLandingAudience(search)).toBe(expected);
+  });
+
+  it.each([
+    ['?utm_source=x&utm_medium=paid_social&utm_campaign=instructor_202611&utm_content=demo30_ja', 'x_paid_instructor_ja'],
+    ['?utm_source=x&utm_medium=paid_social&utm_campaign=instructor_202611&utm_content=demo30_en', 'x_paid_instructor_en'],
+    ['?utm_source=x&utm_medium=paid_social&utm_campaign=instructor_202611&utm_content=other', 'unattributed'],
+    ['?utm_source=x&utm_medium=organic_social&utm_campaign=instructor_202611&utm_content=demo30_ja', 'unattributed'],
+  ])('classifies instructor ad cohorts only from the fixed parameters: %s', (search, expected) => {
+    expect(getLandingAcquisition(search)).toBe(expected);
+  });
+
+  it('keeps an instructor ad visit in the creator audience through same-tab signup', () => {
+    Object.defineProperty(window, 'location', { configurable: true, value: new URL(
+      'https://videoq.jp/?utm_source=x&utm_medium=paid_social&utm_campaign=instructor_202611&utm_content=demo30_ja&twclid=private-click-id',
+    ) });
+    startLandingVisit();
+    Object.defineProperty(window, 'location', { configurable: true, value: new URL('https://videoq.jp/signup') });
+    trackLandingEvent('email_signup_created');
+    const events = send.mock.calls.map(([, init]) => JSON.parse(init.body));
+    expect(events.map(event => event.event)).toEqual(['landing_view', 'email_signup_created']);
+    expect(events.every(event => event.audience === 'creator' && event.acquisition === 'x_paid_instructor_ja')).toBe(true);
+    expect(JSON.stringify(send.mock.calls)).not.toContain('private-click-id');
   });
 
   it('ignores unknown audience parameters', () => {

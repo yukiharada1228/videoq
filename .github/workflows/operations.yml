@@ -38,6 +38,11 @@ on:
         description: Optional official ROCm image at an exact digest
         type: string
         default: ''
+
+      verify_ai_answers:
+        description: Include one paid cited Q&A in the production smoke check
+        type: boolean
+        default: false
       validate_whisper_gpu:
         description: Include GPU Whisper image validation for onprem
         type: boolean
@@ -270,6 +275,7 @@ jobs:
       - name: Check production with a temporary low-quota user
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          VERIFY_AI_ANSWERS: ${{ inputs.verify_ai_answers && 'true' || 'false' }}
         run: node .github/scripts/production-smoke.mjs
       - uses: ./.github/actions/report-operations
         if: always()

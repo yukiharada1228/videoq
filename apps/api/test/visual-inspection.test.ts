@@ -37,6 +37,25 @@ it("sends only selected images, resolves citations by server frame index, and re
   expect(requests[0].model).toBe(env.LLM_MODEL);
   expect(requests[0].stream).toBeUndefined();
 });
+it("uses the dedicated LLM credentials and endpoint for image inspection", async () => {
+  vi.stubGlobal("fetch", async (url: unknown, init: RequestInit) => {
+    expect(String(url)).toBe("https://openrouter.ai/api/v1/chat/completions");
+    expect(new Headers(init.headers).get("authorization")).toBe("Bearer router-key");
+    return Response.json({ choices: [{ finish_reason: "stop", message: { content: '{"observations":[]}' } }] });
+  });
+  await inspectVideoClip({ ...env, LLM_BASE_URL: "https://openrouter.ai/api/v1", LLM_API_KEY: "router-key" },
+    { id: 42, fileKey: "private/video.mp4" }, 10, 70, "Read", new AbortController().signal);
+});
+it("uses the shared OpenRouter key and Luna model for images", async () => {
+  vi.stubGlobal("fetch", async (url: unknown, init: RequestInit) => {
+    expect(String(url)).toBe("https://openrouter.ai/api/v1/chat/completions");
+    expect(new Headers(init.headers).get("authorization")).toBe("Bearer shared-router-key");
+    expect(JSON.parse(String(init.body))).toMatchObject({ model: "openai/gpt-6-luna", reasoning_effort: "none", max_tokens: 2048 });
+    return Response.json({ choices: [{ finish_reason: "stop", message: { content: '{"observations":[]}' } }] });
+  });
+  await inspectVideoClip({ OPENROUTER_API_KEY: "shared-router-key" } as Bindings,
+    { id: 42, fileKey: "private/video.mp4" }, 10, 70, "Read", new AbortController().signal);
+});
 it.each([{}, { LLM_MODEL: "" }, { LLM_MODEL: "gpt-6-luna" }])("uses Luna without reasoning and keeps images in one request: %j", async models => {
   const fetch = vi.fn(async (_url: unknown, init: RequestInit) => {
     const body = JSON.parse(String(init.body));

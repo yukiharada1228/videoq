@@ -145,6 +145,7 @@ jobs:
       worker_matrix: ${{ steps.runtimes.outputs.matrix }}
       onprem: ${{ (github.event_name == 'workflow_dispatch' && inputs.gpu_candidates_only == true) || steps.filter.outputs.onprem == 'true' }}
       whisper_gpu: ${{ steps.filter.outputs.whisper_gpu }}
+      upstream_images: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.upstream_images == 'true' }}
       real_cpu: ${{ steps.filter.outputs.real_cpu }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -196,6 +197,11 @@ jobs:
               - 'apps/inference/whisper/Dockerfile'
               - 'apps/inference/whisper/.python-version'
               - 'charts/videoq-inference/**'
+              - '.github/workflows/onprem-validation.yml'
+            upstream_images:
+              - 'charts/videoq-inference/values.yaml'
+              - 'apps/inference/whispercpp/security/**'
+              - '.github/scripts/check-upstream-header-image.py'
               - '.github/workflows/onprem-validation.yml'
             real_cpu:
               - '.github/workflows/onprem-validation.yml'
@@ -310,6 +316,7 @@ jobs:
       amd_candidate: ${{ github.event_name == 'workflow_dispatch' && inputs.amd_candidate || '' }}
       validate_whisper_gpu: ${{ needs.changes.outputs.whisper_gpu == 'true' || (github.event_name == 'workflow_dispatch' && inputs.gpu_candidates_only == true) }}
       validate_real_cpu: ${{ github.event_name == 'pull_request' && needs.changes.outputs.real_cpu == 'true' }}
+      scan_upstream_images: ${{ needs.changes.outputs.upstream_images == 'true' }}
     permissions:
       contents: read
 

@@ -20,6 +20,12 @@ on:
       validate_real_cpu:
         type: boolean
         default: false
+      # Pinned third-party images change only when their digests do, but new
+      # advisories can fail them at any time. CI scans them when the pins
+      # change; the daily Operations run always does.
+      scan_upstream_images:
+        type: boolean
+        default: true
 permissions:
   contents: read
 jobs:
@@ -156,7 +162,7 @@ jobs:
           appendFileSync(process.env.GITHUB_ENV, `LLAMACPP_IMAGE=${reference}\n`);
           JS
       - name: Scan the llama.cpp CPU image including unfixed vulnerabilities
-        if: ${{ !cancelled() && steps.images.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.images.outcome == 'success' && inputs.scan_upstream_images }}
         uses: aquasecurity/trivy-action@8f28faec26515256b6d22074d1d2a8986f4cbd87 # v0.35.0
         with:
           version: v0.76.1
@@ -357,6 +363,7 @@ jobs:
   upstream-cpu-images:
     if: ${{ !inputs.gpu_candidates_only }}
     name: ${{ matrix.engine }} Linux ${{ matrix.architecture }} upstream image
+    if: inputs.scan_upstream_images
     strategy:
       fail-fast: false
       matrix:

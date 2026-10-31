@@ -59,8 +59,8 @@ networkPolicy:
 llamacpp:
   image:
     repository: ghcr.io/ggml-org/llama.cpp
-    tag: server-b11669
-    digest: sha256:8ffe0d28ff5261cc2f78ca1f67db1515bc2529b904a3c25f5b24f4cedfc3411d
+    tag: server-b11977
+    digest: sha256:01c2bc28d51291536df2ccebe5c6af1cdec9ea9b2bd98ac59556408caf96d3f8
     pullPolicy: IfNotPresent
 # Upstream CPU images are published separately for each architecture.
 whispercpp:
@@ -69,12 +69,12 @@ whispercpp:
     amd64:
       repository: ghcr.io/ggml-org/whisper.cpp
       tag: main
-      digest: sha256:4df91b749d95628c3b40068c13c2d3fc67f745db86ea7829438ff87eb03c12c2
+      digest: sha256:0b39b82d8febd2708a5abd2e3d8d373620604d558922f2cf921b7f4c365e6c73
       pullPolicy: IfNotPresent
     arm64:
       repository: ghcr.io/ggml-org/whisper.cpp
       tag: main-arm64
-      digest: sha256:94d3695d1dd7337a92d5171b070a8e7e2d97ef51ea29ac1f355cf30a92bbb361
+      digest: sha256:f0fed3d3d54565cb37d2995fcaa28ca09a5c9f3ffb7fada2d790099af2bfeee0
       pullPolicy: IfNotPresent
 vllm:
   # Default nvidia (CUDA) or amd (ROCm); each vLLM role may override it.

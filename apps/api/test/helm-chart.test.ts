@@ -59,7 +59,18 @@ withHelm("on-prem Helm distribution", () => {
     expect(config.WHISPER_LOCAL_URL).toBe("https://speech.example.invalid/v1");
     expect(config.WHISPER_LOCAL_MODEL).toBe("custom/speech-model");
     expect(config.WHISPER_LOCAL_API_KEY).toBeUndefined();
-    expect(config.OPENAI_BASE_URL).toBe("https://api.openai.com/v1");
+    expect(config.OPENAI_BASE_URL).toBe("https://openrouter.ai/api/v1");
+  });
+  it("routes LLM overrides independently of shared OpenRouter services", () => {
+    const resources = render("--set", "ai.llmBaseUrl=https://openrouter.ai/api/v1", "--set", "ai.llmModel=vendor/model");
+    const config = resources.find(resource => resource.kind === "ConfigMap").data;
+    expect(config.LLM_BASE_URL).toBe("https://openrouter.ai/api/v1");
+    expect(config.LLM_MODEL).toBe("vendor/model");
+    expect(config.OPENAI_BASE_URL).toBe("https://openrouter.ai/api/v1");
+    expect(config.LLM_API_KEY).toBeUndefined();
+    expect(config.OPENROUTER_API_KEY).toBeUndefined();
+    expect(config.WHISPER_BACKEND).toBe("openrouter");
+    expect(config.EMBEDDING_MODEL).toBe("openai/text-embedding-3-small");
   });
   it("rejects incomplete configuration and invalid proxy/pool settings", () => {
     const missing = spawnSync(helm!, ["template", "test", chart], { encoding: "utf8" });
