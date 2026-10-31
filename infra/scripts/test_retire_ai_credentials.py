@@ -113,6 +113,15 @@ class RetirementTests(unittest.TestCase):
         self.assertNotIn('OPENAI_ADMIN_KEY', source)
         self.assertIn("inputs.operation == 'plan'", source)
 
+    def test_star_masks_match_without_weakening_prefix_or_suffix_guards(self):
+        self.assertTrue(masked_match('sk-proj-****1234', 'sk-proj-PRIVATE1234'))
+        self.assertTrue(masked_match('sk-proj-…1234', 'sk-proj-PRIVATE1234'))
+        self.assertFalse(masked_match('sk-proj-****1234', 'sk-proj-PRIVATE5555'))
+        self.assertFalse(masked_match('other-****1234', 'sk-proj-PRIVATE1234'))
+        self.assertFalse(masked_match('****1234', 'PRIVATE1234'))
+        self.assertFalse(masked_match('sk-proj-****12', 'sk-proj-PRIVATE12'))
+        self.assertFalse(masked_match('sk-proj-**middle**1234', 'sk-proj-PRIVATE1234'))
+
     def test_inputs_cannot_escape_the_exact_project_endpoint(self):
         for raw in ('[]', '["../other"]', '["key_a", "key_a"]', '"key_a"'):
             with self.assertRaises(ValueError):
