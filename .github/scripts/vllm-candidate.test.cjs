@@ -52,7 +52,14 @@ test('vendor evaluation is limited to NVIDIA NGC and does not reuse the upstream
 test('candidate-only mode skips non-GPU suites while normal CI keeps them',()=>{
   assert.equal((workflow.match(/gpu_candidates_only:\n        type: boolean\n        default: false/g)||[]).length,1);
   assert.match(workflow,/onprem:\n    if: \$\{\{ !inputs.gpu_candidates_only \}\}/);
-  assert.match(workflow,/upstream-cpu-images:\n    if: \$\{\{ !inputs.gpu_candidates_only \}\}/);
+  const cpu=workflow.split('  upstream-cpu-images:')[1].split('\n  whisper-gpu:')[0];
+  assert.equal((cpu.match(/^    if:/gm)||[]).length,1);
+  const guard=cpu.match(/^    if: \$\{\{ (.+) \}\}$/m)[1];
+  for(const candidates of [false,true]) {
+    for(const scan of [false,true]) {
+      assert.equal(runInNewContext(guard,{inputs:{gpu_candidates_only:candidates,scan_upstream_images:scan}}),!candidates&&scan);
+    }
+  }
 });
 
 
