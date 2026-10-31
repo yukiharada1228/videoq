@@ -7,6 +7,7 @@ import { withQueryAndHash } from '@/lib/seo';
 import { AppRouteLayout, AuthRouteLayout, type AppPageRoute } from '@/components/layout/AppRouteLayout';
 import { RouteContent } from '@/components/layout/RouteContent';
 import HomePage from '@/pages/HomePage';
+import NotFoundPage from '@/pages/NotFoundPage';
 
 const LoginPage = lazy(() => import('@/pages/LoginPage'));
 const SignupPage = isOnprem ? null : lazy(() => import('@/pages/SignupPage'));
@@ -27,6 +28,8 @@ const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
 const PricingPage = isOnprem ? null : lazy(() => import('@/pages/PricingPage'));
 const LegalPage = isOnprem ? null : lazy(() => import('@/pages/LegalPage'));
 const AdminPage = lazy(() => import('@/pages/AdminPage'));
+const GuideIndexPage = isOnprem ? null : lazy(() => import('@/pages/GuideIndexPage'));
+const GuidePage = isOnprem ? null : lazy(() => import('@/pages/GuidePage'));
 
 function LocaleGate() {
   const params = useParams<{ locale?: string }>();
@@ -37,7 +40,7 @@ function LocaleGate() {
   useLocaleSync();
 
   if (locale && !locales.includes(locale as Locale)) {
-    return <Navigate to="/" replace />;
+    return <NotFoundPage />;
   }
 
   // Use the router-decoded locale to normalize only the matched prefix:
@@ -75,7 +78,9 @@ const appPageRoutes: AppPageRoute[] = [
   { path: 'videos/courses', element: <VideoCoursesPage />, handle: { activePage: 'courses' } },
   { path: 'videos/courses/:id', element: <VideoCourseDetailPage />, handle: { activePage: 'courses', variant: 'workspace' } },
   { path: 'settings', element: <SettingsPage />, handle: { activePage: 'settings' } },
-  ...(!isOnprem && PricingPage && LegalPage ? [
+  ...(!isOnprem && PricingPage && LegalPage && GuideIndexPage && GuidePage ? [
+  { path: 'guides', element: <GuideIndexPage />, handle: {} },
+  { path: 'guides/:slug', element: <GuidePage />, handle: {} },
   { path: 'pricing', element: <PricingPage />, handle: { activePage: 'pricing' } },
   { path: 'terms', element: <LegalPage page="terms" />, handle: {} },
   { path: 'privacy', element: <LegalPage page="privacy" />, handle: {} },
@@ -124,7 +129,7 @@ export default function App() {
       <Route path=":locale" element={<LocaleGate />}>
         {routeChildren}
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }

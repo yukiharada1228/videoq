@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { ArrowDown, ArrowRight, BarChart3, BookOpen, Briefcase, Check, ChevronDown, FileText, GraduationCap, Link2, MessageCircle, MonitorPlay, Play, School, Search, Sparkles, Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Link } from '@/lib/i18n';
+import { Link, useLocale } from '@/lib/i18n';
+import { StructuredData } from '@/components/seo/StructuredData';
+import { homeStructuredData } from '@/lib/structuredData';
 import { LandingDemoVideo } from '@/components/landing/LandingDemoVideo';
 import { LandingFreePlan } from '@/components/landing/LandingFreePlan';
 import { startLandingVisit, trackLandingEvent } from '@/lib/landingAnalytics';
@@ -35,11 +37,13 @@ const INSIGHT_BARS = [38, 62, 45, 80, 56] as const;
 
 export default function LandingPage() {
   const { t } = useTranslation();
+  const locale = useLocale();
   const [activeUse, setActiveUse] = useState<(typeof USES)[number]['key']>('courses');
   useEffect(() => { startLandingVisit(); }, []);
 
   return (
     <div className="landing">
+      <StructuredData data={homeStructuredData(locale, t('site.description'), t('landing.film.title'))} />
       <section className="lp-hero" aria-labelledby="landing-title">
         <div className="lp-hero-copy">
           <p className="lp-eyebrow"><span className="lp-status-dot" />{t('landing.badge')}</p>
@@ -169,6 +173,7 @@ export default function LandingPage() {
           <p className="lp-eyebrow">{t('landing.faq.eyebrow')}</p>
           <h2 id="landing-faq-title">{t('landing.faq.title')}</h2>
           <Link href="/pricing" className="lp-text-link">{t('landing.faq.pricing')}<ArrowRight size={16} aria-hidden="true" /></Link>
+          <Link href="/guides" className="lp-text-link">{t('landing.faq.guides')}<ArrowRight size={16} aria-hidden="true" /></Link>
         </div>
         <div className="lp-faq-items">
           {FAQ_KEYS.map(key => (

@@ -84,11 +84,12 @@
     "logoutFailed": "Could not log out. You may still be signed in. Please try again.",
     "menu": "All menus",
     "closeMenu": "Close menu",
-    "admin": "Admin"
+    "admin": "Admin",
+    "guides": "Guides"
   },
   "layout": {
     "authBranding": {
-      "tagline": "Search and transcribe lecture videos"
+      "tagline": "An AI help desk for your video courses"
     },
     "authFooter": "© {{year}} VideoQ"
   },
@@ -300,7 +301,8 @@
         "question": "Can I see what students asked?",
         "answer": "Yes. You can review and export the course’s question and answer history. For invited members, usernames and email addresses are also shown."
       },
-      "pricing": "Check plans and limits"
+      "pricing": "Check plans and limits",
+      "guides": "Read the guides to course questions"
     },
     "next": {
       "eyebrow": "Start free",
@@ -1313,5 +1315,25 @@
     "invitationAuthRequired": "Sign in with the invited account. Contact your administrator if you need an account.",
     "settingsSubtitle": "Manage your account and connections from internal systems.",
     "localIntegrations": "System integrations"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "The URL may be wrong, or the page may have moved or been removed.",
+    "home": "Back to the home page"
+  },
+  "guides": {
+    "title": "Guides to answering course questions",
+    "intro": "How to answer student questions from your lecture videos, by use case. These guides explain what VideoQ does and what to check before you start.",
+    "eyebrow": "Guides",
+    "updated": "Updated",
+    "home": "Home",
+    "toc": "On this page",
+    "related": "Related guides",
+    "readMore": "Read more",
+    "ctaTitle": "Try it with your own lecture",
+    "ctaBody": "Try transcription and AI questions within the Free plan's limits. No credit card is required.",
+    "cta": "Create a course for free",
+    "pricing": "Check pricing and limits",
+    "author": "VideoQ team"
   }
 }

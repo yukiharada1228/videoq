@@ -48,6 +48,75 @@ test('rewrites Japanese and English deep links before the SPA starts', async () 
   }
 });
 
+test('public pages carry their body and metadata in the first HTML', async () => {
+  for (const [path, lang, heading, title] of [
+    ['/', 'ja', '受講生の質問に', /受講生の質問に/],
+    ['/en/', 'en', 'Student questions', /Let your lectures/],
+    ['/pricing', 'ja', '料金', /料金プラン/],
+    ['/guides', 'ja', '動画講座の質問対応ガイド', /動画講座の質問対応ガイド/],
+    ['/guides/online-course-questions', 'ja', '動画講座の質問対応をAIで軽くする方法', /動画講座の質問対応をAIで軽くする方法/],
+    ['/en/guides/how-ai-answers-work', 'en', 'How VideoQ AI answers work', /How VideoQ AI answers work/],
+  ]) {
+    const response = await worker.fetch(path);
+    assert.equal(response.status, 200, path);
+    const html = await response.text();
+    assert.match(html, new RegExp(`<html[^>]+lang="${lang}"`), path);
+    assert.equal(html.match(/<title>(.*?)<\/title>/)[1].match(title) !== null, true, path);
+    const [h1] = html.match(/<h1[\s\S]*?<\/h1>/) ?? [''];
+    assert.ok(h1.replace(/<[^>]+>/g, '').includes(heading), `${path}: ${h1}`);
+    assert.equal(html.match(/<h1[\s>]/g).length, 1, path);
+    assert.doesNotMatch(html, /<noscript>/);
+    assert.doesNotMatch(html, /<script(?![^>]*(type="application\/ld\+json"|type="module"[^>]*src=))/, path);
+  }
+  const guide = await (await worker.fetch('/guides/online-course-questions')).text();
+  assert.match(guide, /"@type":"Article"/);
+  assert.match(guide, /"@type":"BreadcrumbList"/);
+  assert.match(await (await worker.fetch('/')).text(), /"@type":"VideoObject"/);
+});
+
+test('application routes start from the empty shell', async () => {
+  for (const path of ['/videos', '/en/settings', '/share/token']) {
+    const html = await (await worker.fetch(path)).text();
+    assert.match(html, /<div id="root"><\/div>/, path);
+  }
+});
+
+test('unknown paths answer 404 with noindex, and the shell has no URL of its own', async () => {
+  for (const path of ['/no-such-page', '/en/no-such-page', '/guides/unknown', '/en/guides/unknown', '/a/b/c', '/app-shell']) {
+    const response = await worker.fetch(path);
+    assert.equal(response.status, 404, path);
+    securityHeaders(response);
+    const html = await response.text();
+    assert.match(html, /name="robots" content="noindex, nofollow"/, path);
+    assert.match(html, /<title>(ページが見つかりません|Page not found)/, path);
+  }
+});
+
+test('HEAD matches GET on rewritten HTML', async () => {
+  for (const [path, status] of [['/', 200], ['/en/pricing', 200], ['/videos', 200], ['/no-such-page', 404]]) {
+    const response = await worker.fetch(path, { method: 'HEAD' });
+    assert.equal(response.status, status, path);
+    assert.match(response.headers.get('content-type'), /text\/html/);
+    assert.equal(await response.text(), '');
+  }
+});
+
+test('each page has one URL', async () => {
+  for (const [path, expected] of [['/en', '/en/'], ['/pricing/', '/pricing'], ['/en/guides/', '/en/guides'], ['/guides//', '/guides']]) {
+    const response = await worker.fetch(path, { redirect: 'manual' });
+    assert.equal(response.status, 301, path);
+    assert.equal(new URL(response.headers.get('location')).pathname, expected);
+  }
+});
+
+test('generated sitemap lists only pages that answer 200', async () => {
+  const response = await worker.fetch('/sitemap.xml');
+  assert.equal(response.status, 200);
+  const urls = [...(await response.text()).matchAll(/<loc>(.*?)<\/loc>/g)].map(match => new URL(match[1]).pathname);
+  assert.ok(urls.includes('/guides/online-course-questions'));
+  for (const path of urls) assert.equal((await worker.fetch(path)).status, 200, path);
+});
+
 test('private SPA routes keep noindex metadata', async () => {
   for (const path of ['/login', '/en/login', '/videos/123', '/en/settings']) {
     const response = await worker.fetch(path);
