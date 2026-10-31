@@ -16,7 +16,7 @@ export interface GuideBody {
 export const GUIDE_BODIES: Record<string, Record<SiteLocale, GuideBody>> = {
   'online-course-questions': {
     ja: {
-      intro: '動画講座を販売・運営していると、受講生から同じような質問が繰り返し届きます。このガイドでは、VideoQで講義動画をAIの質問窓口にして、受講生が自分で答えにたどり着ける状態をつくる手順と、始める前に確認したい点を説明します。',
+      intro: '動画講座を販売・運営していると、受講生から同じような質問が繰り返し届きます。このガイドでは、VideoQで受講生の質問に講義動画から自動で回答できるようにして、受講生が自分で答えにたどり着ける状態をつくる手順と、始める前に確認したい点を説明します。',
       sections: [
         {
           heading: '質問対応の負担はどこで生まれるか',
@@ -64,7 +64,7 @@ export const GUIDE_BODIES: Record<string, Record<SiteLocale, GuideBody>> = {
       ],
     },
     en: {
-      intro: 'If you sell or run a video course, students keep sending similar questions. This guide explains how to turn your lectures into an AI help desk with VideoQ so students can reach answers themselves, and what to confirm before you start.',
+      intro: 'If you sell or run a video course, students keep sending similar questions. This guide explains how to answer questions automatically from your lectures with VideoQ so students can reach answers themselves, and what to confirm before you start.',
       sections: [
         {
           heading: 'Where the support workload comes from',

@@ -89,7 +89,7 @@
   },
   "layout": {
     "authBranding": {
-      "tagline": "動画講座のためのAI質問窓口"
+      "tagline": "動画講座の質問に、講義動画から自動で回答"
     },
     "authFooter": "© {{year}} VideoQ"
   },

@@ -297,7 +297,7 @@ After synchronizing upstream files, verify that `index.css` still loads `videoq-
 
 ## Instructor landing page
 
-`/` and `/en` are landing pages for course creators, instructors and training owners: an AI help desk that answers student questions from their lecture videos (see PR #1249, 2026-10-30).
+`/` and `/en` are landing pages for course creators, instructors and training owners: automatic answers to student questions from their lecture videos (see PR #1249, 2026-10-30).
 Visitors can switch between online course, school and internal training examples. The page only claims features that exist today: course share links without login, member invitations, AI answers billed to the course owner, the course dashboard and question history export.
 Free-tier information comes from the same `billing.plans` source as the pricing page; if it cannot be loaded, visitors are directed to the pricing page.
 
