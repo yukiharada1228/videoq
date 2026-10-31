@@ -14,6 +14,7 @@ const { ORIGIN, SLUG, OWNER, ANSWERS, verifyOwner, verifyCourse } = createRequir
 const operation = process.env.OPERATION || 'audit';
 if (!['audit','provision'].includes(operation) || process.env.GITHUB_REF !== 'refs/heads/main' || process.env.GITHUB_REPOSITORY !== 'videoq-jp/videoq') throw new Error('MAIN_ONLY_DEMO_OPERATION');
 const db = new Client({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 15_000, statement_timeout: 30_000, application_name: 'videoq-public-demo-setup' });
+let connected = false;
 let stage = 'fixture-check', cookie = '', directory, report, owner;
 const request = (path, options = {}) => fetch(ORIGIN+path, { ...options, redirect: 'error', signal: AbortSignal.timeout(30_000) });
 try {
@@ -28,7 +29,7 @@ try {
     descriptions.push(`${marker} ${lesson.key} sha256:${createHash('sha256').update(bytes).digest('hex')}`);
   }
   stage = 'inspect-dedicated-owner';
-  await db.connect();
+  await db.connect(); connected = true;
   // Locks only this operator, including retries; a transaction protects identity checks.
   await db.query('BEGIN');
   await db.query("SELECT pg_advisory_xact_lock(hashtext('videoq-public-demo-v1'))");
@@ -82,7 +83,7 @@ try {
     report = {status:'public_demo_ready',courseId:course.id,videos:5,indexedVideos:5,monthlyAnswerLimit:ANSWERS,sharePath:'/share/'+SLUG};
   }
 } catch (error) {
-  try { await db.query('ROLLBACK'); } catch {}
+  if (connected) { try { await db.query('ROLLBACK'); } catch {} }
   report = {status:'public_demo_setup_failed',stage,errorType:error.name,...(/^[A-Z0-9_]+$/.test(error.message) ? {reason:error.message} : {})}; process.exitCode=1;
 } finally {
   if (cookie) {
