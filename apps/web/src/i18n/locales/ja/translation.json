@@ -609,7 +609,7 @@
   "courseSharing": {
     "link": "リンクを知っている人は、ログインなしで閲覧・チャットできます。",
     "invitation": "招待された人は閲覧・チャットができます（編集不可）。質問者のユーザー名・メールアドレスは所有者に表示されます。",
-    "quotaAndHistory": "AI回答は所有者の利用枠を使い、質問と回答は所有者が閲覧・出力できます。"
+    "quotaAndHistory": "自動回答は所有者の利用枠を使い、質問と回答は所有者が閲覧・出力できます。"
   },
   "courseInvitation": {
     "badge": "講座への招待",
@@ -800,7 +800,7 @@
       }
     },
     "title": "チャット",
-    "teacher": "教師",
+    "answerLabel": "自動回答",
     "newConsultation": "新規相談",
     "history": "会話履歴",
     "historyEmpty": "履歴はありません",
