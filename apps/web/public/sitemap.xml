@@ -13,6 +13,18 @@
     <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/" />
   </url>
   <url>
+    <loc>https://videoq.jp/try</loc>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/try" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/en/try" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/try" />
+  </url>
+  <url>
+    <loc>https://videoq.jp/en/try</loc>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/try" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/en/try" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://videoq.jp/try" />
+  </url>
+  <url>
     <loc>https://videoq.jp/pricing</loc>
     <xhtml:link rel="alternate" hreflang="ja" href="https://videoq.jp/pricing" />
     <xhtml:link rel="alternate" hreflang="en" href="https://videoq.jp/en/pricing" />

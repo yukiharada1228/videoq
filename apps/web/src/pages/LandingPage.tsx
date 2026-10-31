@@ -52,9 +52,9 @@ export default function LandingPage() {
             <Link href="/signup" className="lp-button lp-button-primary" onClick={() => trackLandingEvent('signup_click', 'hero')}>
               {t('landing.start')}<ArrowRight size={18} aria-hidden="true" />
             </Link>
-            <a href="#landing-demo" className="lp-button lp-button-secondary" onClick={() => trackLandingEvent('demo_open')}>
-              <Play size={16} aria-hidden="true" />{t('landing.watchDemo')}
-            </a>
+            <Link href="/try" className="lp-button lp-button-secondary" onClick={() => trackLandingEvent('demo_open', 'hero')}>
+              <MessageCircle size={16} aria-hidden="true" />{t('landing.tryDemo')}
+            </Link>
           </div>
           <p className="lp-reassurance"><Check size={15} aria-hidden="true" />{t('landing.startNote')}</p>
         </div>
@@ -193,7 +193,7 @@ export default function LandingPage() {
       </section>
 
       <div className="lp-mobile-cta">
-        <a href="#landing-demo" onClick={() => trackLandingEvent('demo_open')}>{t('landing.watchDemo')}<ArrowRight size={16} aria-hidden="true" /></a>
+        <Link href="/try" onClick={() => trackLandingEvent('demo_open', 'mobile')}>{t('landing.tryDemo')}<ArrowRight size={16} aria-hidden="true" /></Link>
         <Link href="/signup" className="lp-button lp-button-primary" onClick={() => trackLandingEvent('signup_click', 'mobile')}>{t('landing.start')}<ArrowRight size={17} aria-hidden="true" /></Link>
       </div>
     </div>

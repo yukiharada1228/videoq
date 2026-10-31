@@ -24,6 +24,7 @@ const VideoCourseDetailPage = lazy(() => import('@/pages/VideoCourseDetailPage')
 const SharePage = lazy(() => import('@/pages/SharePage'));
 const CourseInvitationPage = lazy(() => import('@/pages/CourseInvitationPage'));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
+const TryPage = isOnprem ? null : lazy(() => import('@/pages/TryPage'));
 const PricingPage = isOnprem ? null : lazy(() => import('@/pages/PricingPage'));
 const LegalPage = isOnprem ? null : lazy(() => import('@/pages/LegalPage'));
 const AdminPage = lazy(() => import('@/pages/AdminPage'));
@@ -108,6 +109,7 @@ const routeChildren = (
     {/* Public shared courses have their own header and full-screen UI. */}
     <Route element={<RouteContent />}>
       <Route path="share/:token" element={<SharePage />} />
+      {TryPage && <Route path="try" element={<TryPage />} />}
     </Route>
   </>
 );

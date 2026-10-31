@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { List, Play } from 'lucide-react';
@@ -55,9 +55,15 @@ function VideoItem({ video, isSelected, onSelect }: VideoItemProps) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export default function SharePage() {
-  const params = useParams<{ token: string }>();
-  const shareToken = params?.token ?? '';
+interface SharedCourseViewProps {
+  shareToken: string;
+  headerAction?: ReactNode;
+  intro?: ReactNode;
+  suggestedQuestions?: string[];
+  onCitationPlay?: () => void;
+}
+
+export function SharedCourseView({ shareToken, headerAction, intro, suggestedQuestions, onCitationPlay }: SharedCourseViewProps) {
   const { t } = useTranslation();
   const navigate = useI18nNavigate();
 
@@ -126,9 +132,11 @@ export default function SharePage() {
           </Link>
 
           <div className="flex shrink-0 items-center gap-2">
-            <ChipLabel variant="filled-1" color="blue" className="min-h-0 text-oln-14N-100">
-              {t('videos.shared.publicBadge')}
-            </ChipLabel>
+            {headerAction ?? (
+              <ChipLabel variant="filled-1" color="blue" className="min-h-0 text-oln-14N-100">
+                {t('videos.shared.publicBadge')}
+              </ChipLabel>
+            )}
           </div>
         </div>
       </header>
@@ -152,6 +160,8 @@ export default function SharePage() {
 
         {/* 見出しは非表示にしたが、ページの h1 として構造には残す。 */}
         <h1 className="sr-only">{course.name}</h1>
+
+        {intro}
 
         <CourseSharingNotice method="link" />
 
@@ -233,8 +243,13 @@ export default function SharePage() {
           <aside className={`min-h-0 shrink-0 flex-col lg:col-span-1 ${mobileTab === 'player' ? 'flex' : 'hidden lg:flex'}`}>
             <ChatPanel
               courseId={course.id}
-              onVideoPlay={handleVideoPlayFromTime}
+              onVideoPlay={(videoId, startTime) => {
+                onCitationPlay?.();
+                handleVideoPlayFromTime(videoId, startTime);
+              }}
               shareToken={shareToken}
+              suggestedQuestions={suggestedQuestions}
+              sendSuggestedQuestions={!!suggestedQuestions}
               className="h-[480px] lg:h-full lg:min-h-0 lg:flex-1"
             />
           </aside>
@@ -264,4 +279,9 @@ export default function SharePage() {
       </div>
     </>
   );
+}
+
+export default function SharePage() {
+  const params = useParams<{ token: string }>();
+  return <SharedCourseView shareToken={params?.token ?? ''} />;
 }

@@ -160,6 +160,17 @@
       "upgrade": "Upgrade your plan"
     }
   },
+  "tryDemo": {
+    "title": "Try it without signing up | VideoQ",
+    "description": "Ask a sample course a question as a student would. Every answer links to the source moment. No signup needed.",
+    "intro": "A sample course with lessons in Japanese. Ask as a student would, then jump to the moment behind the answer. Please don't enter personal information.",
+    "signup": "Create a course for free",
+    "questions": {
+      "derivative": "What does a derivative actually mean?",
+      "dna": "How does DNA lead to proteins?",
+      "price": "How do supply and demand set prices?"
+    }
+  },
   "landing": {
     "badge": "For course creators and instructors",
     "title": "Student questions?",
@@ -168,7 +179,7 @@
     "start": "Create a course for free",
     "tryOwn": "Try it with one lecture",
     "login": "Already have an account? Log in",
-    "watchDemo": "Watch the 30-second demo",
+    "tryDemo": "Ask a question without signing up",
     "startNote": "Start free with a single lecture video",
     "capabilities": {
       "title": "What you can do with VideoQ",
@@ -815,6 +826,8 @@
     "assistantGreeting": "Hello! Ask me anything about your videos.",
     "error": "An error occurred in the chat.",
     "errorOverQuota": "AI chat is unavailable because your storage is over the configured limit. Please delete videos to free up space.",
+    "errorAnswersLimit": "This course has reached its answer limit for this month, so it can't reply right now.",
+    "errorRateLimited": "Too many questions in a short time. Please try again a little later.",
     "citationGroup": "Sources ({{count}})"
   },
   "validation": {

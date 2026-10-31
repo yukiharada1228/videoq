@@ -1,0 +1,33 @@
+import { useEffect } from 'react';
+import { ArrowRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { PUBLIC_DEMO_SHARE_SLUG } from '@videoq/trpc/public-demo';
+import { Button } from '@/components/ui/button';
+import { Link } from '@/lib/i18n';
+import { startLandingVisit, trackLandingEvent } from '@/lib/landingAnalytics';
+import { SharedCourseView } from '@/pages/SharePage';
+
+const QUESTION_KEYS = ['derivative', 'dna', 'price'] as const;
+
+/** No-signup demo: visitors ask the sample course as if they were a student. */
+export default function TryPage() {
+  const { t } = useTranslation();
+  // Visitors may arrive here directly, so a visit must exist for the demo events.
+  useEffect(() => { startLandingVisit(); }, []);
+
+  return (
+    <SharedCourseView
+      shareToken={PUBLIC_DEMO_SHARE_SLUG}
+      headerAction={(
+        <Button asChild variant="solid" size="sm">
+          <Link href="/signup" onClick={() => trackLandingEvent('signup_click', 'header')}>
+            {t('tryDemo.signup')}<ArrowRight size={16} aria-hidden="true" />
+          </Link>
+        </Button>
+      )}
+      intro={<p className="shrink-0 text-std-16N-170 text-solid-gray-800">{t('tryDemo.intro')}</p>}
+      suggestedQuestions={QUESTION_KEYS.map(key => t(`tryDemo.questions.${key}`))}
+      onCitationPlay={() => trackLandingEvent('demo_source')}
+    />
+  );
+}

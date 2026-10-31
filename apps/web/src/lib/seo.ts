@@ -61,6 +61,7 @@ export function pageMetaKey(pathname: string): string {
   pathname = normalizePathname(pathname);
   if (pathname === '/') return 'site';
   if (pathname === '/pricing') return 'pricing';
+  if (pathname === '/try') return 'tryDemo';
   if (pathname === '/terms') return 'legal.terms';
   if (pathname === '/privacy') return 'legal.privacy';
   if (pathname === '/refund') return 'legal.refund';
