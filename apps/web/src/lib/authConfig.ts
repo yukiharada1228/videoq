@@ -23,6 +23,7 @@ const PUBLIC_AUTH_PATHS = [
   '/privacy',
   '/refund',
   '/legal',
+  '/guides',
 ] as const;
 
 export function isPublicAuthPath(pathname: string): boolean {

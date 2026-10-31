@@ -285,6 +285,13 @@ it.each([
   expect(screen.getByRole('contentinfo')).toBeInTheDocument();
 });
 
+it.each(['/no-such-page', '/en/no/such/page'])('shows the 404 page at %s without redirecting', async (path) => {
+  renderApp(path);
+  expect(await screen.findByRole('heading', { level: 1, name: i18n.t('notFound.title') })).toBeInTheDocument();
+  expect(window.location.pathname).toBe(path);
+  expect(document.querySelector('meta[name="robots"]')?.getAttribute('content') ?? 'noindex, nofollow').toContain('noindex');
+});
+
 it('keeps the admin layout visible during the authentication check', async () => {
   getAccount.mockReturnValue(new Promise(() => {}));
   renderApp('/admin');
